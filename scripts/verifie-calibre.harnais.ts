@@ -12,7 +12,7 @@ import {
   partMensuelleDeLaFormule, prixVenduXof, ecartDuPrixConvenu,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
-import { modelBandsStore } from '../src/shared/pricing';
+import { modelBandsStore, bandSetsStore, bandsAbonnements, SCOPE_ABONNEMENTS } from '../src/shared/pricing';
 import type { ModelBand } from '../src/shared/pricing';
 
 let ko = 0;
@@ -168,6 +168,45 @@ dit('l’écart se mesure contre le tarif de SON calibre', -6_000,
   ecartDuPrixConvenu(abo({ calibreVendu: 'cal-micro', prixConvenuXof: 75_000 }), suit, 'mensuel')?.ecartXof);
 dit('… et vaut zéro quand on lui vend son tarif', 0,
   ecartDuPrixConvenu(abo({ calibreVendu: 'cal-micro', prixConvenuXof: 81_000 }), suit, 'mensuel')?.ecartXof);
+
+/* ── ⑨ DEUX BARÈMES, ET ILS NE SE CONFONDENT PAS ────────────────────
+   « Je dois avoir un juste prix pour les services, un pour les abonnements »
+   (Yéman, 1er septembre 2026).
+
+   UN ABONNEMENT EMPRUNTAIT LE COEFFICIENT DU FAUTEUIL, EN SILENCE. Or les deux
+   ne se majorent pas pareil : au fauteuil une tête Pico prend deux fois et
+   demie le temps d'une Medium, et le coefficient le dit ; sur un engagement de
+   dix mois, le même ×2,5 ferait fuir, personne ne signe. */
+dit('sans barème propre, celui de la Maison', [0.8, 1, 1.4, 1.8, 2.5],
+  bandsAbonnements({}, BANDS).map((b) => b.coef));
+
+const DOUX: ModelBand[] = BANDS.map((b) => ({
+  ...b, coef: b.id === 'cal-micro' ? 1.2 : b.id === 'cal-pico' ? 1.45 : b.coef,
+}));
+dit('un barème propre passe devant', 1.2,
+  bandsAbonnements({ [SCOPE_ABONNEMENTS]: DOUX }, BANDS).find((b) => b.id === 'cal-micro')?.coef);
+/* UN BARÈME VIDE N'EN EST PAS UN : effacer ses lignes ne doit pas rendre les
+   abonnements gratuits, on retombe sur la Maison. */
+dit('un barème vide retombe sur la Maison', 1.8,
+  bandsAbonnements({ [SCOPE_ABONNEMENTS]: [] }, BANDS).find((b) => b.id === 'cal-micro')?.coef);
+
+/* IL NAÎT IDENTIQUE, ET C'EST LA GARDE : tant que la Maison n'a touché aucun
+   coefficient, le prix d'un abonnement est exactement celui d'hier. */
+bandSetsStore.set({});
+dit('avant tout écart, le prix ne bouge pas', 81_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro' }), suit, 'mensuel'));
+
+/* UNE FOIS ÉCARTÉ, LE FAUTEUIL NE COMMANDE PLUS L'ABONNEMENT. La même tête
+   Micro paie 1,8 au fauteuil et 1,2 sur son engagement. */
+bandSetsStore.set({ [SCOPE_ABONNEMENTS]: DOUX });
+dit('l’abonnement suit SON barème', 54_000,
+  prixVenduXof(abo({ calibreVendu: 'cal-micro' }), suit, 'mensuel'));
+dit('… et le fauteuil garde le sien', 1.8,
+  BANDS.find((b) => b.id === 'cal-micro')?.coef);
+/* La fourchette de la vitrine suit le barème doux, elle aussi. */
+dit('la fourchette lit le barème des abonnements', { bas: 36_000, haut: 65_500 },
+  etendueDeLaFormule(suit, 'mensuel', bandsAbonnements({ [SCOPE_ABONNEMENTS]: DOUX }, BANDS)));
+bandSetsStore.set({});
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

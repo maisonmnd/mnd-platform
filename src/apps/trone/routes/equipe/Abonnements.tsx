@@ -18,7 +18,10 @@ import {
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
 import { useServices, LONGUEURS } from '../../../../shared/catalog';
-import { useModelBands, sortedBands, bandLabel, roundPrice, calibreDeLaTete } from '../../../../shared/pricing';
+import {
+  useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
+  calibreDeLaTete,
+} from '../../../../shared/pricing';
 import { useAppointments } from '../../../../shared/agenda';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe } from '../../../../shared/echeancier';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
@@ -77,8 +80,17 @@ export default function Abonnements() {
   const [planModal, setPlanModal] = useState(false);
   const [planEditId, setPlanEditId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState<PlanForm>({ name: '', tag: '', price: '', line: '', perks: '', included: [], popular: false, famille: '', mode: 'cycle', moisValidite: '12', suitLeCalibre: false, parCalibre: {}, suppLongueur: {} });
+  /* ── DEUX BARÈMES, ET ILS NE SE CONFONDENT PAS — 1er sept. 2026 ───
+     `bands` dit dans QUELLE tranche tombe une tête : les bornes de locks sont
+     communes à toute la Maison, un seul langage de taille.
+     `calibresAbo` dit ce que cette tranche COÛTE en abonnement : c'est le
+     second cadran, celui qu'on ne majore pas comme une séance. */
   const [bands] = useModelBands();
-  const calibres = useMemo(() => sortedBands(bands), [bands]);
+  const [jeuxDeCalibres] = useBandSets();
+  const calibresAbo = useMemo(
+    () => bandsAbonnements(jeuxDeCalibres, bands), [jeuxDeCalibres, bands],
+  );
+  const calibres = useMemo(() => sortedBands(calibresAbo), [calibresAbo]);
   const [services] = useServices();
   const [allAppts] = useAppointments();
   const [suiviFor, setSuiviFor] = useState<Subscriber | null>(null);
@@ -469,7 +481,7 @@ export default function Abonnements() {
   /** Le prix RÉELLEMENT demandé pour cette vente, option couleur exclue. */
   const prixDeLaVente = (): number => {
     const plan = planOf(subForm.planId);
-    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).montantXof : 0);
+    return prixConvenuSaisi() ?? (plan ? prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof : 0);
   };
   /** Les mois que couvre cette vente — la durée convenue fait foi sur un pack. */
   const moisDeLaVente = (): number => {
@@ -478,7 +490,7 @@ export default function Abonnements() {
     if (plan.mode === 'pack') {
       return Math.max(1, Math.round((validiteConvenue() ?? plan.validityDays ?? 365) / 30));
     }
-    return prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).moisCouverts;
+    return prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).moisCouverts;
   };
 
   /* Toucher une quantité FIGE la liste sur cette vente : elle cesse de suivre
@@ -1722,7 +1734,7 @@ export default function Abonnements() {
                 const pl = planOf(subForm.planId);
                 if (!pl) return null;
                 const tete = teteDeLaVente();
-                const a = prixDeLaFormule(pl, subForm.cycle, tete, bands);
+                const a = prixDeLaFormule(pl, subForm.cycle, tete, calibresAbo);
                 const calibre = tete.bandId ? calibres.find((b) => b.id === tete.bandId) : undefined;
                 return (
                   <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>
@@ -1730,7 +1742,7 @@ export default function Abonnements() {
                     {/* ON DIT D'OÙ VIENT LE PRIX. Sans ce mot, deux ventes de la
                         même formule à deux montants différents ressemblent à une
                         erreur de saisie. */}
-                    {calibre?.name && a.montantXof !== prixDeLaFormule(pl, subForm.cycle, undefined, bands).montantXof
+                    {calibre?.name && a.montantXof !== prixDeLaFormule(pl, subForm.cycle, undefined, calibresAbo).montantXof
                       ? ` · calibre ${calibre.name}` : ''}
                     {a.moisCouverts > 1 ? `, soit ${fmtMoney(partMensuelleDeLaFormule(pl, subForm.cycle), currency)} / mois` : ''}
                     {a.offert ? ` · ${a.offert}` : ''}
@@ -1752,7 +1764,7 @@ export default function Abonnements() {
             {(() => {
               const plan = planOf(subForm.planId);
               if (!plan) return null;
-              const catalogue = prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), bands).montantXof;
+              const catalogue = prixDeLaFormule(plan, subForm.cycle, teteDeLaVente(), calibresAbo).montantXof;
               const convenu = prixConvenuSaisi();
               const ecart = convenu === null ? 0 : convenu - catalogue;
               const pct = catalogue > 0 ? Math.round((ecart / catalogue) * 1000) / 10 : 0;

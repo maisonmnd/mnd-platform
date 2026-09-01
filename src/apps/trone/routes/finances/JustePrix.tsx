@@ -11,8 +11,10 @@ import { suitLeModeleRegle, tarifModeOf,
   useModelBands, modelBandsStore, sortedBands, bandLabel, roundPrice, bandOf, scalesWithModel,
   pricingOf, personalPriceXof, isFixedPrice, servesBand, bandForService, MODEL_BANDS_SEED, VEKPE_BANDS_SEED,
   bandSetsStore, useBandSets, regimeTarifaire, ecrisCalibresPartout, type ModelBand,
+  bandsAbonnements, SCOPE_ABONNEMENTS,
 } from '../../../../shared/pricing';
 import { uid } from '../../../../shared/store';
+import { usePlans } from '../../../../shared/abonnements';
 import './finances.css';
 
 /* Le Juste Prix — pilotage des prix par le BARÈME DES MODÈLES (tranches de locks).
@@ -78,6 +80,256 @@ function NumCell({
 /* ===== Barème des modèles — tranches de locks → coef de prix, coef de durée, et
    MONTANT témoin. On édite indifféremment le coefficient OU le montant : saisir un
    montant recalcule le coefficient (montant ÷ prix de la prestation témoin). ===== */
+/* ══ LE BARÈME DES ABONNEMENTS — 1er septembre 2026 ═════════════════════
+   « Je dois avoir un juste prix pour les services, un pour les abonnements.
+   Tous modifiables » (Yéman).
+
+   PAS D'ONGLETS, ET LA MAISON A DÉJÀ TRANCHÉ CETTE QUESTION une fois, pour la
+   même raison : basculer entre deux onglets empêche de comparer, et c'est en
+   comparant qu'on voit si un abonnement est trop généreux pour les grosses
+   têtes. Les deux barèmes se lisent l'un sous l'autre.
+
+   PAS DE COEFFICIENT DE DURÉE ICI : un abonnement ne bloque pas un fauteuil,
+   il promet des séances. C'est la prestation qu'il contient qui prend du
+   temps, et elle a déjà le sien au-dessus. Une colonne qui n'agit sur rien
+   serait une case à remplir pour rien. */
+function BaremeAbonnements({ currency }: { currency: string }) {
+  const [maison] = useModelBands();
+  const [sets] = useBandSets();
+  const [plans] = usePlans();
+  const bandes = useMemo(() => sortedBands(bandsAbonnements(sets, maison)), [sets, maison]);
+  const ecarte = (sets[SCOPE_ABONNEMENTS]?.length ?? 0) > 0;
+
+  /* Le prix de référence lu sur une VRAIE formule : un exemple abstrait ne dit
+     rien, celui de La Juste Cadence parle tout de suite. */
+  const ref = plans.find((pl) => pl.suitLeCalibre) ?? plans[0];
+  const refPrix = ref?.priceXof ?? 0;
+
+  const ecris = (fn: (prev: ModelBand[]) => ModelBand[]) =>
+    bandSetsStore.set((prev) => ({
+      ...prev,
+      [SCOPE_ABONNEMENTS]: fn(prev[SCOPE_ABONNEMENTS]?.length ? prev[SCOPE_ABONNEMENTS] : maison),
+    }));
+  const poseCoef = (id: string, v: number) =>
+    ecris((prev) => (prev.some((b) => b.id === id)
+      ? prev.map((b) => (b.id === id ? { ...b, coef: v } : b))
+      : [...prev, { ...(maison.find((b) => b.id === id) ?? { id, maxLocks: null, coef: 1, durCoef: 1 }), coef: v }]));
+  const poseMontant = (id: string, montant: number) => {
+    if (refPrix <= 0) return;
+    poseCoef(id, Math.max(0.01, Math.round((montant / refPrix) * 100) / 100));
+  };
+
+  return (
+    <div className="trf-panel" style={{ margin: '0 0 22px', padding: '22px 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
+        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Le barème des abonnements · ce qui s’engage sur des mois</div>
+        {ecarte && (
+          <button
+            onClick={() => bandSetsStore.set((prev) => {
+              const n = { ...prev }; delete n[SCOPE_ABONNEMENTS]; return n;
+            })}
+            style={{ cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--copper-600)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            revenir au barème des prestations
+          </button>
+        )}
+      </div>
+
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', margin: '8px 0 14px', maxWidth: 780 }}>
+        {ecarte
+          ? <>Ce barème est <b>écarté</b> de celui des prestations. Au fauteuil, une tête Pico prend deux fois et demie le temps d’une Medium ; sur un engagement de dix mois, le même coefficient ferait fuir.</>
+          : <>Il est pour l’instant <b>identique</b> à celui des prestations : rien n’a bougé. Touchez un coefficient et il devient le sien.</>}
+        {' '}Les <b>tranches</b> restent communes à toute la Maison, elles se règlent au-dessus.
+      </div>
+
+      {ref ? (
+        <div className="mnd-scroll-x">
+          <table className="tre-table" style={{ minWidth: 480 }}>
+            <thead>
+              <tr>
+                <th>Calibre</th>
+                <th style={{ textAlign: 'right' }}>Coefficient</th>
+                <th style={{ textAlign: 'right' }}>{ref.name} · {fmtMoney(refPrix, currency)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bandes.map((b) => (
+                <tr key={b.id}>
+                  <td>{bandLabel(b, bandes)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <input
+                      className="mnd-input"
+                      style={{ maxWidth: 88, textAlign: 'right' }}
+                      inputMode="decimal"
+                      value={b.coef}
+                      onChange={(e) => poseCoef(b.id, Math.max(0.01, parseFloat(e.target.value.replace(',', '.')) || 0.01))}
+                    />
+                  </td>
+                  {/* LE MONTANT RECALCULE LE COEFFICIENT : on pense en francs,
+                      pas en multiplicateurs. Même geste qu'au barème du dessus. */}
+                  <td style={{ textAlign: 'right' }}>
+                    <input
+                      className="mnd-input"
+                      style={{ maxWidth: 120, textAlign: 'right' }}
+                      inputMode="numeric"
+                      value={roundPrice(refPrix * b.coef)}
+                      onChange={(e) => poseMontant(b.id, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="trf-empty">Aucune formule encore écrite. Le barème des abonnements attend qu’il y en ait une.</div>
+      )}
+    </div>
+  );
+}
+
+/* ══ QUI SUIT LE BARÈME — LA TÉLÉCOMMANDE ═══════════════════════════════
+   « J'aimerais sélectionner facilement les services ou les abonnements qui en
+   dépendent et les télécommander directement depuis la page » (Yéman).
+
+   LA PAGE MONTRAIT DES COMPTES, PAS DES COMMANDES. « Barème du modèle · 14 »
+   suivi d'un bouton qui EXPULSE vers le Catalogue : on venait régler un prix,
+   on repartait faire autre chose ailleurs. Et le chiffre 14 ne disait pas
+   LESQUELLES.
+
+   ON NE MET PAS D'INTERRUPTEUR MENTEUR : une prestation qui se paie au lock ne
+   suivra jamais le barème, et basculer un bouton ne ferait rien. La ligne le
+   dit, et renvoie changer de système plutôt que de mentir. */
+function QuiSuitLeBareme({ currency }: { currency: string }) {
+  const navigate = useNavigate();
+  const [services, setServices] = useServices();
+  const [cats] = useCategories();
+  const [plans, setPlans] = usePlans();
+  const [maison] = useModelBands();
+  const [sets] = useBandSets();
+  const [filtre, setFiltre] = useState<'tous' | 'suit' | 'non'>('tous');
+  const [apercu, setApercu] = useState<string>('');
+
+  const calibresAbo = useMemo(() => sortedBands(bandsAbonnements(sets, maison)), [sets, maison]);
+  const calibresMaison = useMemo(() => sortedBands(maison), [maison]);
+  /* Le calibre d'aperçu : celui qu'on veut voir en face de chaque prix. Par
+     défaut le plus haut, c'est là que l'écart se voit le mieux. */
+  const calibreVu = apercu || calibresMaison[calibresMaison.length - 1]?.id || '';
+
+  /* Le catalogue est celui de la Maison, pas d'une branche : une prestation
+     ne se range pas par succursale. */
+  const duBranche = services;
+  const listeServices = useMemo(() => duBranche
+    .map((sv) => ({ sv, regime: regimeTarifaire(sv, cats) }))
+    .filter(({ regime }) => (filtre === 'tous' ? true : filtre === 'suit' ? regime.k === 'modele' : regime.k !== 'modele'))
+    .slice(0, 60), [duBranche, cats, filtre]);
+
+  const basculeService = (sv: Service) =>
+    setServices((prev) => prev.map((x) => (x.id === sv.id
+      ? { ...x, scalesWithModel: scalesWithModel(x) ? undefined : true } : x)));
+  const posePrixService = (sv: Service, v: number) =>
+    setServices((prev) => prev.map((x) => (x.id === sv.id ? { ...x, priceXof: v } : x)));
+
+  const bascluePlan = (id: string) =>
+    setPlans((prev) => prev.map((pl) => (pl.id === id
+      ? { ...pl, suitLeCalibre: pl.suitLeCalibre ? undefined : true } : pl)));
+  const posePrixPlan = (id: string, v: number) =>
+    setPlans((prev) => prev.map((pl) => (pl.id === id ? { ...pl, priceXof: v } : pl)));
+
+  const nSuit = duBranche.filter((sv) => regimeTarifaire(sv, cats).k === 'modele').length;
+  const nPlans = plans.filter((pl) => pl.suitLeCalibre).length;
+
+  return (
+    <>
+      <div className="trf-panel" style={{ padding: '18px 22px', marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
+          <div className="trf-panel__title" style={{ marginBottom: 0 }}>Ce qui suit le barème des prestations</div>
+          <span className="mnd-muted" style={{ fontSize: 12 }}>{nSuit} sur {duBranche.length}</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', margin: '12px 0' }}>
+          {([['tous', 'Toutes'], ['suit', `Qui suit · ${nSuit}`], ['non', `Qui ne suit pas · ${duBranche.length - nSuit}`]] as const).map(([k, l]) => (
+            <button key={k} className={`tre-chip ${filtre === k ? 'is-on' : ''}`} onClick={() => setFiltre(k)}>{l}</button>
+          ))}
+          <span style={{ flex: 1 }} />
+          <span className="mnd-muted" style={{ fontSize: 11 }}>Aperçu pour</span>
+          <select className="mnd-select" style={{ maxWidth: 190, fontSize: 12 }} value={calibreVu} onChange={(e) => setApercu(e.target.value)}>
+            {calibresMaison.map((b) => <option key={b.id} value={b.id}>{b.name ?? bandLabel(b, calibresMaison)}</option>)}
+          </select>
+        </div>
+
+        {listeServices.map(({ sv, regime }) => {
+          const coef = calibresMaison.find((b) => b.id === calibreVu)?.coef ?? 1;
+          const suit = regime.k === 'modele';
+          return (
+            <div key={sv.id} className="trf-jp-ligne">
+              {/* L'INTERRUPTEUR N'EXISTE QUE LÀ OÙ IL AGIT. */}
+              {/* L'INTERRUPTEUR N'EXISTE QUE LÀ OÙ IL AGIT : une prestation
+                  au lock, par calibre ou par longueur obéit à un AUTRE système,
+                  et basculer « suit le barème » ne changerait rien. Un bouton
+                  mort se reclique, et l'on croit à une panne. */}
+              {regime.justePrix && (regime.k === 'modele' || regime.k === 'fixe' || regime.k === 'variable') ? (
+                <button className={`tre-chip ${suit ? 'is-on' : ''}`} style={{ flex: 'none' }} onClick={() => basculeService(sv)}>
+                  {suit ? 'Suit' : 'Ne suit pas'}
+                </button>
+              ) : (
+                <button className="trf-act trf-act--ghost" style={{ flex: 'none' }} onClick={() => navigate(`/catalogue?regime=${regime.k}`)}>
+                  {regime.k === 'lock' ? 'Au lock' : regime.k === 'calibre' ? 'Par calibre'
+                    : regime.k === 'longueur' ? 'Par longueur' : regime.k === 'forfait' ? 'Par composition'
+                      : regime.k === 'devis' ? 'Sur devis' : 'Hors barème'} →
+                </button>
+              )}
+              <span className="trf-jp-ligne__nom">{sv.name}</span>
+              <input
+                className="mnd-input"
+                style={{ maxWidth: 108, textAlign: 'right' }}
+                inputMode="numeric"
+                value={sv.priceXof}
+                onChange={(e) => posePrixService(sv, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)}
+              />
+              <span className="trf-jp-ligne__vu">
+                {suit ? `→ ${fmtMoney(roundPrice(sv.priceXof * coef), currency)}` : '→ inchangé'}
+              </span>
+            </div>
+          );
+        })}
+        {listeServices.length === 0 && <div className="trf-empty">Aucune prestation dans ce filtre.</div>}
+      </div>
+
+      <div className="trf-panel" style={{ padding: '18px 22px', marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
+          <div className="trf-panel__title" style={{ marginBottom: 0 }}>Ce qui suit le barème des abonnements</div>
+          <span className="mnd-muted" style={{ fontSize: 12 }}>{nPlans} sur {plans.length}</span>
+        </div>
+        <div style={{ margin: '10px 0 0' }}>
+          {plans.map((pl) => {
+            const coef = calibresAbo.find((b) => b.id === calibreVu)?.coef ?? 1;
+            return (
+              <div key={pl.id} className="trf-jp-ligne">
+                <button className={`tre-chip ${pl.suitLeCalibre ? 'is-on' : ''}`} style={{ flex: 'none' }} onClick={() => bascluePlan(pl.id)}>
+                  {pl.suitLeCalibre ? 'Suit' : 'Ne suit pas'}
+                </button>
+                <span className="trf-jp-ligne__nom">{pl.name}</span>
+                <input
+                  className="mnd-input"
+                  style={{ maxWidth: 118, textAlign: 'right' }}
+                  inputMode="numeric"
+                  value={pl.priceXof}
+                  onChange={(e) => posePrixPlan(pl.id, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)}
+                />
+                <span className="trf-jp-ligne__vu">
+                  {pl.suitLeCalibre ? `→ ${fmtMoney(roundPrice(pl.priceXof * coef), currency)}` : '→ inchangé'}
+                </span>
+              </div>
+            );
+          })}
+          {plans.length === 0 && <div className="trf-empty">Aucune formule écrite pour l’instant.</div>}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function BaremeModeles({ currency }: { currency: string }) {
   const [maison] = useModelBands();
   const [sets] = useBandSets();
@@ -198,7 +450,12 @@ function BaremeModeles({ currency }: { currency: string }) {
   return (
     <div className="trf-panel" style={{ margin: '0 0 22px', padding: '22px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 }}>
-        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Barème des modèles · tranches de locks</div>
+        {/* LE TITRE DIT DE QUOI C'EST LE BARÈME — 1er septembre 2026. « Le
+            Juste Prix est construit de façon confuse » (Yéman). Il s'appelait
+            « Barème des modèles », sans dire ce qu'il tarifait : depuis qu'un
+            second barème existe pour les abonnements, le silence devient une
+            ambiguïté. */}
+        <div className="trf-panel__title" style={{ marginBottom: 0 }}>Le barème des prestations · ce qui se paie au fauteuil</div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
           <button className="trf-act" onClick={addBand}>+ Tranche</button>
           <button
@@ -552,6 +809,9 @@ export default function JustePrix() {
       )}
 
       <BaremeModeles currency={currency} />
+
+      <BaremeAbonnements currency={currency} />
+      <QuiSuitLeBareme currency={currency} />
 
       {/* LES SYSTÈMES DE PRIX — L'ENDROIT UNIQUE (13 août, demande de Yéman :
           « un endroit dans mon ERP où je gère chaque système de prix »).

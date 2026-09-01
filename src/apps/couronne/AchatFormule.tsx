@@ -8,7 +8,9 @@ import { deuxFoisPossible } from '../../shared/echeancier';
 import {
   moisDuPack, prixDeLaFormule, etendueDeLaFormule, type Plan, type TeteConnue,
 } from '../../shared/abonnements';
-import { useModelBands, sortedBands, bandLabel, calibreDeLaTete } from '../../shared/pricing';
+import {
+  useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, calibreDeLaTete,
+} from '../../shared/pricing';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useClient } from './lib';
 import './couronne.css';
@@ -80,8 +82,17 @@ export default function AchatFormule({
      CE QUE CET ÉCRAN AFFICHE N'ENGAGE RIEN : le serveur relit la grille et
      recalcule (migration 0081). En cas d'écart, c'est le sien qui s'inscrit,
      comme pour tout prix depuis la 0077. */
+  /* ── DEUX BARÈMES, ET ILS NE SE CONFONDENT PAS — 1er sept. 2026 ───
+     `bands` dit dans QUELLE tranche tombe une tête : les bornes de locks sont
+     communes à toute la Maison, un seul langage de taille.
+     `calibresAbo` dit ce que cette tranche COÛTE en abonnement : c'est le
+     second cadran, celui qu'on ne majore pas comme une séance. */
   const [bands] = useModelBands();
-  const calibres = useMemo(() => sortedBands(bands), [bands]);
+  const [jeuxDeCalibres] = useBandSets();
+  const calibresAbo = useMemo(
+    () => bandsAbonnements(jeuxDeCalibres, bands), [jeuxDeCalibres, bands],
+  );
+  const calibres = useMemo(() => sortedBands(calibresAbo), [calibresAbo]);
   /* LA MARGE SUIT LA FORMULE AUSSI : la faveur posée sur sa fiche vaudrait
      sur ses rituels et pas sur son abonnement, ce qui ne s'expliquerait pas. */
   const calibreSu = calibreDeLaTete(client?.lockCount ?? client?.lockCountDeclare, bands, client?.margeCalibre)?.id;
@@ -91,10 +102,10 @@ export default function AchatFormule({
 
   /* La question ne se pose que si la formule VARIE et que la tête est
      inconnue. Une formule à prix unique n'en parle jamais. */
-  const varie = etendueDeLaFormule(plan, 'mensuel', bands) !== null;
+  const varie = etendueDeLaFormule(plan, 'mensuel', calibresAbo) !== null;
   const doitDemander = varie && !calibreSu;
 
-  const total = prixDeLaFormule(plan, 'mensuel', maTete, bands).montantXof;
+  const total = prixDeLaFormule(plan, 'mensuel', maTete, calibresAbo).montantXof;
   const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
   /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
      d'écart, c'est le sien qui s'inscrit. */
@@ -259,7 +270,7 @@ export default function AchatFormule({
                     onClick={() => setCalibreDit(b.id)}
                   >
                     <span>{bandLabel(b, calibres)}</span>
-                    <b>{fmtMoney(prixDeLaFormule(plan, 'mensuel', { bandId: b.id, longueur: client?.longueur }, bands).montantXof, currency)}</b>
+                    <b>{fmtMoney(prixDeLaFormule(plan, 'mensuel', { bandId: b.id, longueur: client?.longueur }, calibresAbo).montantXof, currency)}</b>
                   </button>
                 ))}
                 <button

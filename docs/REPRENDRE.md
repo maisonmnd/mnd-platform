@@ -42,6 +42,51 @@ encore ce qu'on venait de cacher :
 - **L'onglet Budgets** dit ce que la Maison s'autorise par poste, donc son train
   de vie. Retiré de la barre.
 
+## LE JUSTE PRIX, CLAIR · 1er septembre 2026
+
+Maquette validée : `public/maquette-le-juste-prix-clair.html`.
+
+« Le Juste Prix est construit de façon confuse. Je dois avoir un juste prix
+pour les services, un pour les abonnements. Tous modifiables. J aimerais
+sélectionner facilement les services ou les abonnements qui en dépendent et les
+télécommander directement depuis la page. »
+
+**Quatre causes distinctes**, dont une de mon fait : depuis la veille, un
+abonnement qui suit le calibre empruntait le coefficient écrit pour le
+fauteuil, en silence. Les trois autres : la page affichait des COMPTES au lieu
+de commandes, avec un bouton qui expulse vers le Catalogue ; elle ne disait
+jamais LESQUELLES obéissent ; et trois choses portaient le nom « Juste Prix ».
+
+### Deux barèmes
+
+`SCOPE_ABONNEMENTS = 'abonnements'`, une clé réservée dans `bandSetsStore` (qui
+indexe par identifiant de catégorie ; aucune ne porte ce nom). Les TRANCHES
+restent communes, `ecrisCalibresPartout` les tient synchronisées, seuls les
+coefficients divergent. **Il naît identique** : tant que la clé n existe pas,
+`bandsAbonnements` retombe sur la Maison et aucun prix ne bouge.
+
+Pas d onglets : la Maison avait déjà tranché cette question pour le barème des
+ateliers, et pour la même raison. C est en COMPARANT qu on voit si un
+abonnement est trop généreux pour les grosses têtes.
+
+Pas de coefficient de durée côté abonnement : un abonnement ne bloque pas un
+fauteuil, il promet des séances, et la prestation qu il contient a déjà le sien.
+
+### La télécommande
+
+`QuiSuitLeBareme` : deux listes, l interrupteur, le prix de base éditable dans
+la ligne, et à droite ce que ça donne pour un calibre choisi. **Pas
+d interrupteur menteur** : une prestation au lock, par calibre ou par longueur
+obéit à un autre système ; la ligne le dit et renvoie changer de système
+plutôt que d offrir un bouton qui ne fait rien.
+
+### Migration 0082
+
+`souscrire_a_une_formule` lit le coefficient dans `mnd_model_band_sets →
+abonnements`, et retombe sur `mnd_model_bands` tant que la clé n existe pas.
+
+8 assertions de plus sur `verifie-calibre`.
+
 ## LA GRILLE ÉTAIT POSÉE, PERSONNE NE L INTERROGEAIT · 1er septembre 2026
 
 « L abonnement pour une cliente qui a 350 locks ne passe toujours pas au prix

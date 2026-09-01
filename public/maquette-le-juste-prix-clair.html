@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Juste Prix, clair &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1180px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .mal { border:1px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:16px 18px; margin-bottom:20px; }
+  .mal h3 { color:var(--brique); margin-top:0; }
+  .mal ul { margin:0; padding-left:18px; }
+  .mal li { margin-bottom:8px; font-size:14px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:14px 18px;
+                 display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px 22px; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:900px){ .duo { grid-template-columns:1fr; } }
+
+  .tableau { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--encre-d); padding:0 9px 9px 0; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 9px 9px 0; border-bottom:1px solid #EDE5D6; vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td b { font-weight:500; }
+  .case { display:inline-block; min-width:66px; text-align:right; border:1px solid var(--filet);
+          background:#fff; border-radius:3px; padding:5px 9px; font-variant-numeric:tabular-nums; }
+  .case--calc { background:var(--indigo-pale); border-color:#C6C9DC; color:var(--indigo); }
+
+  .bascule { display:inline-flex; align-items:center; gap:8px; }
+  .bascule__p { width:32px; height:18px; border-radius:10px; background:var(--cuivre); position:relative; flex:none; }
+  .bascule__p i { position:absolute; top:2px; left:16px; width:14px; height:14px; border-radius:50%; background:#fff; }
+  .bascule--off .bascule__p { background:var(--filet); }
+  .bascule--off .bascule__p i { left:2px; }
+
+  .chip { display:inline-block; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+          border:1px solid var(--filet); border-radius:2px; padding:4px 10px; background:#fff; margin:0 6px 6px 0; }
+  .chip.is-on { background:var(--indigo); border-color:var(--indigo); color:#fff; }
+
+  .ligne { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #EDE5D6; flex-wrap:wrap; }
+  .ligne:last-child { border-bottom:none; }
+  .ligne__nom { font-family:var(--serif); font-size:17px; color:var(--indigo); flex:1 1 190px; min-width:0; }
+  .ligne__meta { font-size:11.5px; color:var(--encre-d); }
+  .ligne__xof { font-variant-numeric:tabular-nums; white-space:nowrap; font-size:13.5px; }
+
+  .rangs { counter-reset:r; margin:0; padding:0; list-style:none; }
+  .rangs li { counter-increment:r; position:relative; padding:14px 0 14px 46px; border-top:1px solid var(--filet); }
+  .rangs li:first-child { border-top:none; }
+  .rangs li::before { content:counter(r); position:absolute; left:0; top:12px;
+    font-family:var(--serif); font-size:19px; color:var(--cuivre); width:30px; text-align:center; }
+  .rangs b { font-weight:500; }
+  .rangs span { display:block; font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+
+  .garde { border:1px solid var(--indigo); border-radius:3px; background:var(--indigo-pale); padding:18px; }
+  .garde h3 { margin-top:0; }
+  .garde ul { margin:0; padding-left:18px; }
+  .garde li { margin-bottom:9px; font-size:14px; }
+
+  .fin { margin-top:70px; border-top:1px solid var(--filet); padding-top:24px;
+         font-size:13px; color:var(--encre-d); max-width:70ch; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Le Trône &middot; Maquette à valider</p>
+  <h1>Le Juste Prix, clair</h1>
+  <p class="chapeau">
+    Un barème pour les <b>prestations</b>, un barème pour les <b>abonnements</b>, tous deux
+    modifiables. Et sous chacun, la liste de ce qui lui obéit, avec l'interrupteur à portée
+    de main : <b>on ne quitte plus la page pour brancher ou débrancher quelque chose</b>.
+  </p>
+
+  <section>
+    <p class="cite">
+      « Le Juste Prix est construit de façon confuse. Je dois avoir un juste prix pour les
+      services, un pour les abonnements. Tous modifiables. J'aimerais sélectionner facilement
+      les services ou les abonnements qui en dépendent et les télécommander directement depuis
+      la page. »
+      <span>Yéman, 1er septembre 2026</span>
+    </p>
+
+    <div class="mal">
+      <h3>Ce qui est confus aujourd'hui, nommément</h3>
+      <ul>
+        <li><b>Les abonnements empruntent le barème des prestations sans le dire.</b> Depuis
+          hier, une formule qui « suit le calibre » se multiplie par le coefficient écrit pour
+          les prestations. Personne ne l'a décidé, et rien à l'écran ne l'annonce.</li>
+        <li><b>La page montre des comptes, pas des commandes.</b> « Barème du modèle · 14 »
+          suivi d'un bouton qui vous EXPULSE vers le Catalogue. On vient régler un prix, on
+          repart faire autre chose ailleurs.</li>
+        <li><b>On ne voit jamais qui obéit.</b> Le chiffre 14 ne dit pas LESQUELLES. Pour le
+          savoir il faut ouvrir le Catalogue, filtrer, et revenir de mémoire.</li>
+        <li><b>Trois choses portent le même nom.</b> Le barème des tranches, le coefficient
+          personnel d'une cliente, et le choix de système sur chaque fiche s'appellent tous
+          « le Juste Prix » selon l'endroit où l'on se trouve.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══ ① DEUX BARÈMES ═════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;La page, en deux temps</p>
+    <h2>Deux barèmes, l'un sous l'autre</h2>
+    <p class="intro">
+      Pas d'onglets : la Maison a déjà tranché une fois là-dessus, et pour la même raison.
+      <b>Deux barèmes derrière des onglets obligent à basculer pour les comparer</b>, et c'est
+      justement en les comparant qu'on voit si un abonnement est trop généreux pour les grosses
+      têtes. Ils se lisent l'un sous l'autre, d'un seul regard.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Le barème des prestations</h4><span>ce qui se paie au fauteuil</span></div>
+      <div class="ecran__corps">
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr><th>Calibre</th><th>Jusqu'à</th><th class="n">Coef. prix</th><th class="n">Coef. durée</th><th class="n">Exemple · 45 000 F</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Jumbo</b></td><td>80 locks</td><td class="n"><span class="case">0,8</span></td><td class="n"><span class="case">0,7</span></td><td class="n"><span class="case case--calc">36 000</span></td></tr>
+              <tr><td><b>Medium</b></td><td>150 locks</td><td class="n"><span class="case">1</span></td><td class="n"><span class="case">1</span></td><td class="n"><span class="case case--calc">45 000</span></td></tr>
+              <tr><td><b>Micro</b></td><td>350 locks</td><td class="n"><span class="case">1,8</span></td><td class="n"><span class="case">1,9</span></td><td class="n"><span class="case case--calc">81 000</span></td></tr>
+              <tr><td><b>Pico</b></td><td>550 locks</td><td class="n"><span class="case">2,5</span></td><td class="n"><span class="case">2,6</span></td><td class="n"><span class="case case--calc">112 500</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="ecran" style="margin-top:20px;">
+      <div class="ecran__tete"><h4>Le barème des abonnements</h4><span>ce qui s'engage sur des mois</span></div>
+      <div class="ecran__corps">
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr><th>Calibre</th><th>Jusqu'à</th><th class="n">Coef. prix</th><th class="n">Exemple · 168 000 F</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>Jumbo</b></td><td>80 locks</td><td class="n"><span class="case">0,85</span></td><td class="n"><span class="case case--calc">142 500</span></td></tr>
+              <tr><td><b>Medium</b></td><td>150 locks</td><td class="n"><span class="case">1</span></td><td class="n"><span class="case case--calc">168 000</span></td></tr>
+              <tr><td><b>Micro</b></td><td>350 locks</td><td class="n"><span class="case">1,2</span></td><td class="n"><span class="case case--calc">201 500</span></td></tr>
+              <tr><td><b>Pico</b></td><td>550 locks</td><td class="n"><span class="case">1,45</span></td><td class="n"><span class="case case--calc">243 500</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="legende">
+          <b>Pas de coefficient de durée ici</b> : un abonnement ne bloque pas un fauteuil, il
+          promet des séances. C'est la prestation qu'il contient qui prend du temps, et elle a
+          déjà le sien au-dessus. Une colonne qui n'agit sur rien serait une case à remplir
+          pour rien.
+        </p>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Les tranches restent communes aux deux.</b> Les bornes de locks sont la colonne
+      vertébrale de la Maison, « un seul langage de taille, de la naissance à l'entretien ».
+      Seuls les coefficients divergent. Deux jeux de bornes voudraient dire qu'une même tête
+      est Micro au fauteuil et Mini à l'abonnement, et plus personne ne saurait la nommer.
+    </p>
+    <p class="legende">
+      Remarquez l'écart : <b>0,8 → 2,5 au fauteuil, 0,85 → 1,45 à l'abonnement</b>. C'est
+      exactement pourquoi il fallait deux barèmes. Un engagement de dix mois ne se majore pas
+      comme une séance : à ×2,5, une tête Pico ne signerait jamais.
+    </p>
+  </section>
+
+  <!-- ═══ ② QUI OBÉIT, ET LA TÉLÉCOMMANDE ════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;Sous chaque barème</p>
+    <h2>Qui lui obéit, et l'interrupteur à portée de main</h2>
+    <p class="intro">
+      C'est le cœur de la demande. <b>Le compte devient une liste, et la liste devient une
+      commande.</b> On coche, on décoche, on ajuste, sans jamais quitter la page.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Ce qui suit le barème des prestations</h4><span>14 sur 47</span></div>
+      <div class="ecran__corps">
+        <div style="margin-bottom:12px;">
+          <span class="chip is-on">Toutes</span>
+          <span class="chip">Qui suit · 14</span>
+          <span class="chip">Qui ne suit pas · 33</span>
+          <span class="chip">KÒKÒ™</span>
+          <span class="chip">KLƆKLƆ™</span>
+          <span class="chip">SÍNSIN™</span>
+          <span class="chip">VÈKPÈ™</span>
+        </div>
+
+        <div class="ligne">
+          <span class="bascule"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">SÍNSIN™ Resserrage racines</span>
+          <span class="ligne__meta">SÍNSIN™ &middot; barème du modèle</span>
+          <span class="ligne__xof"><span class="case">25 000</span> <span style="color:var(--encre-d)">→ 45 000 en Micro</span></span>
+        </div>
+        <div class="ligne">
+          <span class="bascule"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">KLƆKLƆ™ Le Souffle</span>
+          <span class="ligne__meta">KLƆKLƆ™ &middot; barème du modèle</span>
+          <span class="ligne__xof"><span class="case">10 000</span> <span style="color:var(--encre-d)">→ 18 000 en Micro</span></span>
+        </div>
+        <div class="ligne">
+          <span class="bascule bascule--off"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">Consultation Conseil &amp; Diagnostic</span>
+          <span class="ligne__meta">KÒKÒ™ &middot; prix ferme</span>
+          <span class="ligne__xof"><span class="case">150</span> <span style="color:var(--encre-d)">→ 150 partout</span></span>
+        </div>
+        <div class="ligne">
+          <span class="bascule bascule--off"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">VÈKPÈ™ Création</span>
+          <span class="ligne__meta">VÈKPÈ™ &middot; comptage des locks</span>
+          <span class="ligne__xof"><span style="color:var(--encre-d)">1 100 F le lock</span></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Le prix de base s'édite ici, dans la ligne.</b> C'est ce que « télécommander » veut
+      dire : régler 25 000 F au lieu d'ouvrir le Catalogue, chercher la prestation, entrer dans
+      sa fiche, changer, revenir. La colonne de droite dit <b>ce que ça donne pour un calibre
+      choisi</b>, pour qu'on voie l'effet avant de valider.
+    </p>
+    <p class="legende">
+      <b>Une prestation qui obéit à un autre système n'a pas d'interrupteur menteur.</b>
+      VÈKPÈ™ Création se paie au lock : basculer « suit le barème » ne ferait rien. La ligne
+      le dit et propose <b>de changer de système</b> plutôt qu'un bouton mort.
+    </p>
+
+    <div class="ecran" style="margin-top:22px;">
+      <div class="ecran__tete"><h4>Ce qui suit le barème des abonnements</h4><span>2 sur 6</span></div>
+      <div class="ecran__corps">
+        <div class="ligne">
+          <span class="bascule"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">La Juste Cadence</span>
+          <span class="ligne__meta">paquet &middot; 9 mois</span>
+          <span class="ligne__xof"><span class="case">168 000</span> <span style="color:var(--encre-d)">→ 201 500 en Micro</span></span>
+        </div>
+        <div class="ligne">
+          <span class="bascule"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">L'Année Fraîche &middot; Duo</span>
+          <span class="ligne__meta">paquet &middot; 12 mois</span>
+          <span class="ligne__xof"><span class="case">310 000</span> <span style="color:var(--encre-d)">→ 372 000 en Micro</span></span>
+        </div>
+        <div class="ligne">
+          <span class="bascule bascule--off"><span class="bascule__p"><i></i></span></span>
+          <span class="ligne__nom">L'Année Sereine</span>
+          <span class="ligne__meta">paquet &middot; 12 mois</span>
+          <span class="ligne__xof"><span class="case">315 000</span> <span style="color:var(--encre-d)">→ 315 000 partout</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ LA LECTURE ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;La règle</p>
+    <h2>Quel barème s'applique, et dans quel ordre</h2>
+    <ol class="rangs">
+      <li><b>Une prestation</b> lit le barème de son atelier s'il en a un, sinon celui des
+        prestations.
+        <span>C'est déjà la règle d'aujourd'hui, elle ne bouge pas.</span></li>
+      <li><b>Un abonnement</b> lit le barème des abonnements.
+        <span>Et non plus celui des prestations, emprunté en silence.</span></li>
+      <li><b>Un prix écrit à la main</b> passe devant les deux, toujours.
+        <span>La colonne « écrit à la main » de la fiche d'une formule, le prix ferme d'une
+        prestation, le prix convenu d'une abonnée.</span></li>
+    </ol>
+    <p class="legende">
+      <b>Le coefficient personnel d'une cliente reste à part</b>, et il ne s'appliquera pas aux
+      abonnements. Il a été pensé pour la couronne, séance par séance ; l'étendre à un
+      engagement de dix mois remiserait deux fois la même tête, sans que personne l'ait voulu.
+    </p>
+  </section>
+
+  <!-- ═══ ④ LES GARDES ═══════════════════════════════════════════════ -->
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Ce qui ne doit pas bouger</p>
+    <h2>Les gardes</h2>
+    <div class="garde">
+      <h3>Rien ne change de prix le jour de la mise en ligne</h3>
+      <ul>
+        <li><b>Le barème des abonnements naît en copiant celui des prestations.</b> Au premier
+          affichage, les deux sont identiques, donc aucun prix ne bouge. Vous les écartez
+          ensuite, quand vous le décidez.</li>
+        <li><b>Les abonnées en cours gardent leur prix</b>, figé sur leur fiche à la vente. Un
+          coefficient qu'on modifie ne renchérit personne au milieu de son engagement.</li>
+        <li><b>Une formule qui ne suit pas le calibre</b> ne regarde aucun des deux barèmes.</li>
+      </ul>
+      <h3 style="margin-top:20px;">Ce que la page ne fera pas</h3>
+      <ul>
+        <li><b>Elle ne supprime pas de prestation, ni de formule.</b> On y branche et débranche,
+          on y règle un prix ; ce qui détruit reste au Catalogue et aux Abonnements, où l'on
+          arrive en le sachant.</li>
+        <li><b>Elle ne touche pas aux bornes de locks depuis les listes.</b> Une borne se déplace
+          en haut, dans le barème, et vaut alors pour toute la Maison.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="fin">
+    Maquette à valider avant construction, selon la règle de la Maison. Dites-moi ce qui doit
+    changer, ou dites « construis ».
+  </p>
+
+</div>
+</body>
+</html>

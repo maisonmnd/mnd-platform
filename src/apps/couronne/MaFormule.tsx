@@ -3,7 +3,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { useAppointments } from '../../shared/agenda';
 import { useServices } from '../../shared/catalog';
-import { useModelBands, calibreDeLaTete } from '../../shared/pricing';
+import { useModelBands, useBandSets, bandsAbonnements, calibreDeLaTete } from '../../shared/pricing';
 import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
@@ -206,7 +206,16 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      passe devant la déclaration : `lockCount` est ce que la Maison a compté,
      `lockCountDeclare` ce que la cliente a dit. Sans l'un ni l'autre, aucun
      calibre, et la vitrine annonce l'étendue au lieu d'un prix. */
+  /* ── DEUX BARÈMES, ET ILS NE SE CONFONDENT PAS — 1er sept. 2026 ───
+     `bands` dit dans QUELLE tranche tombe une tête : les bornes de locks sont
+     communes à toute la Maison, un seul langage de taille.
+     `calibresAbo` dit ce que cette tranche COÛTE en abonnement : c'est le
+     second cadran, celui qu'on ne majore pas comme une séance. */
   const [bands] = useModelBands();
+  const [jeuxDeCalibres] = useBandSets();
+  const calibresAbo = useMemo(
+    () => bandsAbonnements(jeuxDeCalibres, bands), [jeuxDeCalibres, bands],
+  );
   const maTete: TeteConnue = useMemo(() => ({
     bandId: calibreDeLaTete(client?.lockCount ?? client?.lockCountDeclare, bands, client?.margeCalibre)?.id,
     longueur: client?.longueur,
@@ -371,11 +380,11 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                     que personne n'y pense. */}
                 <span className="cma-offre__prix">
                   {(() => {
-                    const etendue = maTete.bandId ? null : etendueDeLaFormule(p, 'mensuel', bands);
+                    const etendue = maTete.bandId ? null : etendueDeLaFormule(p, 'mensuel', calibresAbo);
                     if (etendue) {
                       return <>de {fmtMoney(etendue.bas, currency)} à {fmtMoney(etendue.haut, currency)}</>;
                     }
-                    return fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, bands).montantXof, currency);
+                    return fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, calibresAbo).montantXof, currency);
                   })()}
                   <span>{p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}</span>
                 </span>

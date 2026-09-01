@@ -1951,3 +1951,43 @@
   flex: none;
 }
 .trf-exprow__scelle span { display: block; font-size: 10px; margin-top: 2px; opacity: .8; }
+
+/* ═══ LA TÉLÉCOMMANDE DU JUSTE PRIX ═══════════════════════════════════════
+   « J'aimerais sélectionner facilement les services ou les abonnements qui en
+   dépendent et les télécommander directement depuis la page » (Yéman,
+   1er septembre 2026).
+
+   UNE LIGNE = UNE COMMANDE : l'interrupteur, le nom, le prix de base éditable,
+   et ce que ça donne pour le calibre choisi. Le compte devient une liste, et
+   la liste devient un geste. */
+.trf-jp-ligne {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+  flex-wrap: wrap;
+}
+.trf-jp-ligne:last-child { border-bottom: none; }
+.trf-jp-ligne__nom {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--color-indigo);
+  flex: 1 1 200px;
+  min-width: 0;
+  line-height: 1.25;
+}
+/* CE QUE ÇA DONNE, à droite du prix : on voit l'effet avant de valider. */
+.trf-jp-ligne__vu {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 118px;
+  text-align: right;
+}
+@media (max-width: 620px) {
+  .trf-jp-ligne__nom { flex: 1 1 100%; order: -1; }
+  .trf-jp-ligne__vu { min-width: 0; }
+}

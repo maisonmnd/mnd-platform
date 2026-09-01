@@ -107,6 +107,35 @@ export const bandSetsStore = createStore<Record<string, ModelBand[]>>('mnd_model
 export const useBandSets = () => useStore(bandSetsStore);
 bindDocument(bandSetsStore, 'mnd_model_band_sets');
 
+/** ── LE BARÈME DES ABONNEMENTS — 1er septembre 2026 ────────────────────
+    « Je dois avoir un juste prix pour les services, un pour les abonnements »
+    (Yéman).
+
+    UN ABONNEMENT EMPRUNTAIT LE COEFFICIENT DES PRESTATIONS, EN SILENCE. Depuis
+    la veille, une formule qui « suit le calibre » se multipliait par le
+    coefficient écrit pour le fauteuil. Personne ne l'avait décidé, et rien à
+    l'écran ne l'annonçait.
+
+    OR LES DEUX NE SE MAJORENT PAS PAREIL. Au fauteuil, une tête Pico prend
+    deux fois et demie le temps d'une Medium, et le coefficient le dit. Sur un
+    engagement de dix mois, le même ×2,5 ferait fuir : personne ne signe. La
+    Maison a besoin d'une seconde main sur ce cadran.
+
+    LA CLÉ EST RÉSERVÉE : `bandSetsStore` est indexé par identifiant de
+    catégorie, et aucune catégorie ne s'appelle ainsi. Le barème des
+    abonnements vit donc dans la même table, hérite des mêmes TRANCHES
+    (`ecrisCalibresPartout` les tient communes) et n'a que ses coefficients à
+    lui. */
+export const SCOPE_ABONNEMENTS = 'abonnements';
+
+/** Le barème des abonnements, ou celui de la Maison tant qu'il n'a pas été
+    écarté. NAÎTRE IDENTIQUE EST LA GARDE : le jour de la mise en ligne, aucun
+    prix ne bouge, et l'écart se creuse quand la Maison le décide. */
+export const bandsAbonnements = (
+  sets: Record<string, ModelBand[]>,
+  maison: ModelBand[],
+): ModelBand[] => (sets[SCOPE_ABONNEMENTS]?.length ? sets[SCOPE_ABONNEMENTS] : maison);
+
 /** Le barème qui s'applique à une catégorie : le sien s'il existe, sinon celui
     de la Maison. */
 export const bandsForCategory = (

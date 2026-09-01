@@ -18,7 +18,9 @@ import { createStore, useStore } from './store';
 import { bindCollection } from './sync';
 import type { PaymentMethod } from './finance';
 import type { Appointment } from './agenda';
-import { roundPrice, modelBandsStore, type ModelBand } from './pricing';
+import {
+  roundPrice, modelBandsStore, bandSetsStore, bandsAbonnements, type ModelBand,
+} from './pricing';
 import type { LongueurId } from './catalog';
 import type { Echeance } from './echeancier';
 import type { OptionCouleur } from './couleur';
@@ -368,7 +370,11 @@ export const subServiceUsage = (sub: Subscriber, plan: Plan | undefined, appts: 
     Lu au moment de l'appel, jamais au chargement du module : nouer les deux
     ferait dépendre l'ordre des imports. */
 const lesCalibres = (): ModelBand[] => {
-  try { return modelBandsStore.get(); } catch { return []; }
+  /* LE BARÈME DES ABONNEMENTS, pas celui du fauteuil — 1er septembre 2026.
+     Un engagement de dix mois ne se majore pas comme une séance. Tant que la
+     Maison n'a pas écarté les deux, ce barème EST celui des prestations, et
+     rien ne bouge. */
+  try { return bandsAbonnements(bandSetsStore.get(), modelBandsStore.get()); } catch { return []; }
 };
 
 /** LE PRIX RÉELLEMENT VENDU pour un cycle (ou le total d'un pack).
