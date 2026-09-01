@@ -12,7 +12,8 @@ import { Eyebrow, Modal, Button, Field, Input } from '../../../../ds/components'
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { useExpenses, expenseTotal } from '../../../../shared/finance';
+import { useExpenses, expenseTotal, type PieceJointe } from '../../../../shared/finance';
+import { adresseSignee } from '../../../../shared/fil';
 import { summaryPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
 import { downloadCsv } from './_shared';
@@ -105,6 +106,24 @@ export default function Fournisseurs() {
   const oublier = (id: string, libelle: string) =>
     fournisseursStore.set((prev) => prev.map((f) => (f.id === id
       ? { ...f, alias: (f.alias ?? []).filter((a) => a !== libelle) } : f)));
+
+  /* ══ LA FACTURE S'OUVRE D'UN CLIC — 1er septembre 2026 ════════════
+     « Rendre cliquable les factures » (Yéman).
+
+     LE RELEVÉ DISAIT « OUI » SANS RIEN DONNER À VOIR. Or c'est ici qu'on
+     vérifie une facture : on ouvre la fiche d'une maison pour discuter avec
+     elle, et il faut la pièce sous les yeux, pas le souvenir qu'elle existe.
+
+     L'ADRESSE EST SIGNÉE ET COURTE (une heure) : le compartiment n'est pas
+     public, et une pièce jointe porte un reçu, parfois un nom, parfois un
+     montant négocié. Elle se demande au moment du clic, jamais d'avance. */
+  const [souci, setSouci] = useState('');
+  const voirLaPiece = async (piece: PieceJointe) => {
+    setSouci('');
+    const url = await adresseSignee(piece.chemin);
+    if (url) window.open(url, '_blank', 'noopener');
+    else setSouci('La pièce n’a pas pu être ouverte, réessayez dans un instant.');
+  };
 
   const compteOuvert = ouvert ? comptes.find((c) => c.fournisseur.id === ouvert) : undefined;
 
@@ -288,6 +307,13 @@ export default function Fournisseurs() {
               </div>
             )}
 
+            {/* UN REFUS SE DIT. Sans ce mot, un clic sans effet passe pour un
+                écran cassé, et l'on renonce à vérifier la facture. */}
+            {souci && (
+              <div className="mnd-bande" style={{ marginBottom: 10, padding: '9px 12px', fontSize: 12.5, color: 'var(--trf-error)' }}>
+                {souci}
+              </div>
+            )}
             <div className="mnd-field__label" style={{ marginBottom: 7 }}>Les passages</div>
             <div className="mnd-scroll-x">
               <table className="tre-table" style={{ minWidth: 520 }}>
@@ -305,8 +331,23 @@ export default function Fournisseurs() {
                       <td>{e.porteur ?? '—'}</td>
                       <td>{e.cashbox || '—'}</td>
                       <td style={{ textAlign: 'right' }}>{fmtMoney(expenseTotal(e), currency)}</td>
-                      <td style={{ color: e.fichier ? 'var(--ink-soft)' : 'var(--trf-error)' }}>
-                        {e.fichier ? 'oui' : 'manquante'}
+                      {/* CE QUI EST LÀ S'OUVRE ; CE QUI MANQUE SE DIT, SANS
+                          FAIRE SEMBLANT D'ÊTRE UN LIEN. Un mot souligné qui ne
+                          mène nulle part se clique deux fois avant qu'on
+                          comprenne qu'il n'y a rien derrière. */}
+                      <td>
+                        {e.fichier ? (
+                          <button
+                            type="button"
+                            className="trf-piece__acte"
+                            title={e.fichier.nom}
+                            onClick={() => void voirLaPiece(e.fichier!)}
+                          >
+                            Voir la pièce
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--trf-error)' }}>manquante</span>
+                        )}
                       </td>
                     </tr>
                   ))}
