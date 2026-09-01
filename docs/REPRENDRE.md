@@ -200,7 +200,11 @@ d interrupteur menteur** : une prestation au lock, par calibre ou par longueur
 obéit à un autre système ; la ligne le dit et renvoie changer de système
 plutôt que d offrir un bouton qui ne fait rien.
 
-### Migration 0082
+### Migration 0082, PASSÉE le 1er septembre
+
+Contrôle rendu : `fonctions_du_nom = 1`, `bareme_abo_pose = 0` (aucun
+coefficient encore écarté, donc rien n a bougé, c est la garde qui parle),
+`formules_au_calibre = 1`.
 
 `souscrire_a_une_formule` lit le coefficient dans `mnd_model_band_sets →
 abonnements`, et retombe sur `mnd_model_bands` tant que la clé n existe pas.
