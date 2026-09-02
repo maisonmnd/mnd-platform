@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>MND Kids &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:1.2fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:920px){ .duo { grid-template-columns:1fr; } }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:19px 21px; }
+
+  .svc { display:flex; align-items:baseline; gap:12px; padding:11px 0; border-top:1px solid #EDE5D6; flex-wrap:wrap; }
+  .svc:first-of-type { border-top:none; }
+  .svc__n { flex:1 1 200px; min-width:0; font-family:var(--serif); font-size:19px; color:var(--indigo); line-height:1.2; }
+  .svc__n i { display:block; font-style:normal; font-family:var(--sans); font-size:11.5px; color:var(--encre-d); }
+  .svc__p { font-family:var(--serif); font-size:19px; color:var(--indigo); font-variant-numeric:tabular-nums; }
+  .svc__d { font-size:11px; color:var(--encre-d); flex:none; min-width:52px; text-align:right; }
+
+  .forfait { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+             background:var(--cuivre-f); padding:16px 18px; margin-top:16px; }
+  .forfait__h { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .forfait__n { font-family:var(--serif); font-size:23px; color:var(--indigo); }
+  .forfait__p { font-family:var(--serif); font-size:27px; color:var(--indigo); font-variant-numeric:tabular-nums; }
+  .forfait__l { font-size:11.5px; color:var(--cuivre); margin-top:2px; }
+  .forfait ul { list-style:none; padding:0; margin:12px 0 0; }
+  .forfait li { display:flex; justify-content:space-between; gap:10px; font-size:13px;
+                color:var(--encre-d); padding:4px 0; font-variant-numeric:tabular-nums; }
+  .forfait li b { color:var(--encre); font-weight:400; }
+  .forfait .tot { border-top:1px solid var(--cuivre-p); margin-top:7px; padding-top:8px; color:var(--encre); }
+
+  .pastille { font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; padding:3px 9px;
+              border-radius:99px; border:1px solid var(--cuivre-p); background:var(--cuivre-f);
+              color:var(--cuivre); flex:none; }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:78ch; }
+  .note + .note { margin-top:12px; }
+  .note b { font-weight:500; }
+  .note--brique { border-color:var(--brique-p); border-left-color:var(--brique); background:var(--brique-f); }
+
+  .regles { list-style:none; padding:0; margin:22px 0 0; max-width:82ch; }
+  .regles li { border-top:1px solid var(--filet); padding:14px 0 13px; display:grid;
+               grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+  .regles li:last-child { border-bottom:1px solid var(--filet); }
+  .regles i { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--cuivre); line-height:1.2; }
+  .regles b { display:block; color:var(--encre); font-weight:500; margin-bottom:2px; }
+  .regles span { color:var(--encre-d); font-size:14px; }
+
+  .aval { border-radius:4px; background:var(--indigo); color:#EFEAE0; padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin:0 0 10px; font-family:var(--serif); font-weight:400; font-size:20px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:72ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Catalogue &middot; MND Kids</p>
+  <h1>MND Kids</h1>
+  <p class="chapeau">Une section &agrave; part, <b>r&eacute;serv&eacute;e aux enfants du foyer</b>, dont
+  le rituel complet ne d&eacute;passe jamais 25 000 F. Les prix ci-dessous sont une
+  <b>proposition</b> : ils vous appartiennent, et je ne les &eacute;cris qu&rsquo;&agrave; votre mot.</p>
+
+  <section>
+    <p class="cite">Dans les foyers, j&rsquo;ai des enfants. J&rsquo;aimerais une section de service
+    shampoing retenue pour les MND Kids, o&ugrave; le total ne revient pas &agrave; plus de 25 000 avec
+    un peu de sublimation, renfort durable. Fais-moi un forfait.
+    <span>Y&eacute;man &middot; 2 septembre 2026</span></p>
+
+    <p class="eyebrow"><span class="num">I</span> &nbsp; Pourquoi une section &agrave; part</p>
+    <h2>Le tarif adulte ne peut pas tenir</h2>
+    <p class="intro">Au catalogue, le plus l&eacute;ger des lavages commence &agrave; 8 000 F et le
+    renfort &agrave; 22 000 F : <b>30 000 F avant m&ecirc;me la sublimation</b>. Remiser un rituel
+    adulte pour un enfant ferait porter la baisse &agrave; des prestations qu&rsquo;on vend plein
+    tarif le reste du temps, et la Maison ne saurait plus ce que vaut son propre catalogue.</p>
+    <p class="intro">Une t&ecirc;te d&rsquo;enfant, c&rsquo;est moins de locks, moins de mati&egrave;re
+    et moins de fauteuil. Ce sont donc des <b>prestations &agrave; elles</b>, avec leurs prix, leurs
+    dur&eacute;es, et une porte qui ne s&rsquo;ouvre que pour elles.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; La section</p>
+    <h2>Trois gestes, et le forfait qui les tient</h2>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete">
+          <h4>MND Kids</h4>
+          <span>Catalogue &middot; r&eacute;serv&eacute;e aux enfants</span>
+        </div>
+        <div class="ecran__corps">
+
+          <div class="svc">
+            <span class="svc__n">KL&#390;KL&#390;&trade; Kids &middot; Le Shampoing
+              <i>Lavage doux, d&eacute;m&ecirc;lage patient, s&eacute;chage l&eacute;ger.</i></span>
+            <span class="svc__d">30 min</span>
+            <span class="svc__p">9 000 F</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc__n">Y&Egrave;KP&Egrave;&trade; Kids &middot; Un peu de sublimation
+              <i>Brillance et parfum, sans transformation. Le geste qui fait sourire au miroir.</i></span>
+            <span class="svc__d">20 min</span>
+            <span class="svc__p">8 000 F</span>
+          </div>
+
+          <div class="svc">
+            <span class="svc__n">GB&Igrave;GB&Igrave;&trade; Kids &middot; Renfort durable
+              <i>Anti-casse, fermeture de fibre. La version enfant du reconstituant.</i></span>
+            <span class="svc__d">35 min</span>
+            <span class="svc__p">13 000 F</span>
+          </div>
+
+          <div class="forfait">
+            <div class="forfait__h">
+              <span>
+                <span class="forfait__n">MND Kids &middot; Le Rituel Complet</span>
+                <span class="forfait__l">Forfait &middot; 1 h 25 au fauteuil</span>
+              </span>
+              <span class="forfait__p">25 000 F</span>
+            </div>
+            <ul>
+              <li><b>Le Shampoing</b><span>9 000 F</span></li>
+              <li><b>Un peu de sublimation</b><span>8 000 F</span></li>
+              <li><b>Renfort durable</b><span>13 000 F</span></li>
+              <li class="tot"><b>&Agrave; la carte</b><span>30 000 F</span></li>
+              <li class="tot"><b>Le forfait</b><span>25 000 F &middot; elle gagne 5 000 F</span></li>
+            </ul>
+          </div>
+
+          <p class="legende">Le forfait se compose des trois prestations, comme tous les forfaits de
+          la Maison. Retirer la sublimation d&rsquo;un rendez-vous ne casse rien : le forfait reste
+          ce qu&rsquo;il est, et la prestation retir&eacute;e se voit.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="note">
+          <b>25 000 F est un plafond, pas un prix de circonstance.</b> Le forfait porte un prix
+          FERME, il ne suit pas le calibre. Une t&ecirc;te d&rsquo;enfant tient dans une seule
+          tranche ; y poser une grille ferait varier de 21 000 &agrave; 29 000 F un rituel que vous
+          avez d&eacute;cid&eacute; &agrave; 25 000.
+        </div>
+        <div class="note">
+          <b>La porte, c&rsquo;est l&rsquo;&acirc;ge.</b> Un nouveau r&eacute;glage sur la
+          prestation, &laquo; r&eacute;serv&eacute;e aux MND Kids &raquo;, jug&eacute; comme la
+          r&eacute;serve aux comptes famille l&rsquo;est d&eacute;j&agrave;. La section ne se propose
+          donc jamais sur la t&ecirc;te d&rsquo;une adulte, et n&rsquo;encombre pas son
+          &eacute;cran.
+        </div>
+        <div class="note note--brique">
+          <b>Et l&rsquo;anniversaire manquant ?</b> Une fiche sans date de naissance n&rsquo;est pas
+          une adulte : c&rsquo;est une inconnue. Cacher la section lui refuserait le tarif enfant
+          sans un mot. La section reste donc <b>visible et signal&eacute;e</b> : &laquo; &acirc;ge
+          non renseign&eacute;, &agrave; v&eacute;rifier &raquo;. Le silence co&ucirc;te plus cher
+          qu&rsquo;une mention.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; O&ugrave; elle appara&icirc;t</p>
+    <h2>Sur la t&ecirc;te de l&rsquo;enfant, et nulle part ailleurs</h2>
+    <ul class="regles">
+      <li><i>&#9670;</i><div><b>Au rendez-vous</b>
+        <span>La section para&icirc;t dans le choix des prestations d&egrave;s que la t&ecirc;te
+        retenue est un enfant. Sur le <b>rendez-vous du foyer</b>, chaque enfant voit sa section et
+        la m&egrave;re la sienne, dans le m&ecirc;me &eacute;cran.</span></div></li>
+      <li><i>&#9670;</i><div><b>Au catalogue</b>
+        <span>Une cat&eacute;gorie &laquo; MND Kids &raquo; comme les autres, que vous ouvrez, rangez
+        et tarifez vous-m&ecirc;me. Rien n&rsquo;y est verrouill&eacute;.</span></div></li>
+      <li><i>&#9670;</i><div><b>Sur Ma Couronne</b>
+        <span>La m&egrave;re qui r&eacute;serve pour sa fille voit la section ; sur son propre
+        rituel, elle ne la voit pas. C&rsquo;est d&eacute;j&agrave; ainsi que la vitrine retire ce
+        qui ne concerne pas la t&ecirc;te.</span></div></li>
+      <li><i>&#9670;</i><div><b>Le forfait suit les r&egrave;gles des forfaits</b>
+        <span>La remise famille ne s&rsquo;y ajoute pas &mdash; un forfait est d&eacute;j&agrave;
+        r&eacute;duit par construction, et la Maison ne remise jamais deux fois. C&rsquo;est la
+        r&egrave;gle en place, elle vaut ici aussi.</span></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Ce qu&rsquo;il me faut de vous</h3>
+      <p>Le reste est &eacute;crit. Ces quatre points sont des d&eacute;cisions de maison, et je ne
+      les prends pas &agrave; votre place.</p>
+      <ul>
+        <li><b>Les trois prix.</b> 9 000, 8 000 et 13 000 F sont une proposition qui tombe juste sur
+        25 000 F avec 5 000 F de gain annonc&eacute;. Dites les v&ocirc;tres.</li>
+        <li><b>L&rsquo;&acirc;ge.</b> Jusqu&rsquo;&agrave; quand une t&ecirc;te est-elle
+        &laquo; Kids &raquo; ? La Maison compte aujourd&rsquo;hui les mineurs &agrave; 18 ans pour la
+        remise du foyer. Pour un tarif enfant, <b>12 ou 15 ans</b> se d&eacute;fendent mieux.</li>
+        <li><b>Les trois prestations se vendent-elles seules ?</b> Ou n&rsquo;existent-elles que
+        dans le forfait ?</li>
+        <li><b>Le nom.</b> &laquo; MND Kids &middot; Le Rituel Complet &raquo;, ou un nom fon comme
+        le reste de la maison ?</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
