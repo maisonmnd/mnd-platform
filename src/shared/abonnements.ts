@@ -633,6 +633,10 @@ export type ContratDuCompte = {
   sub: Subscriber;
   plan: Plan | undefined;
   etat: EtatContrat;
+  /** Le détail par prestation, calculé UNE fois. Les écrans qui chiffrent la
+      dette de fauteuil le relisent ici plutôt que de repasser sur tous les
+      rendez-vous, et surtout plutôt que de l'approcher au prorata. */
+  lignes: IncludedUsageDetail[];
   /** Le retard se SUPERPOSE à l'état : un contrat en cours peut être en retard,
       et c'est le cas le plus urgent de tous. */
   retardXof: number;
@@ -701,7 +705,7 @@ export function comptesAbonnement(o: {
           - new Date(`${finPrec}T12:00:00`).getTime()) / 86400000)
         : null;
       return {
-        sub, plan,
+        sub, plan, lignes,
         etat: etatDuContrat(sub, plan, o.appts, o.aujourdhui),
         retardXof: retardDuContrat(sub, o.aujourdhui),
         resteXof: resteDuContrat(sub, plan, o.aujourdhui),
@@ -741,6 +745,175 @@ export const rangDuCompte = (c: CompteAbonnement): number => {
 
 export const comptesRanges = (comptes: CompteAbonnement[]): CompteAbonnement[] =>
   [...comptes].sort((a, b) => rangDuCompte(a) - rangDuCompte(b) || a.nom.localeCompare(b.nom, 'fr'));
+
+/* ══ LE MOTEUR, EN ARGENT RÉEL — 2 septembre 2026 ════════════════════
+   « Je ne comprends pas le montant récurrent de 18 817. Ça ne me renseigne pas
+   grand-chose sur les abonnements. Pouvons-nous avoir d'autres données là ? »
+   (Yéman, deux fois plutôt qu'une.)
+
+   TROIS TORTS AU MRR, ET DEUX SONT DES FAUTES :
+   ① PERSONNE N'A JAMAIS VERSÉ 18 817 F. C'est une moyenne, le prix d'un
+      abonnement divisé par ses mois. Aucun billet ne correspond, et l'écran
+      annonçait pourtant « sont déjà encaissés ce mois ».
+   ② IL NE COMPTAIT QUE DEUX ABONNÉES SUR NEUF. Le montant est figé à la vente
+      dans `mrrXof` ; les têtes inscrites avant ce champ, ou passées par Ma
+      Couronne, valent zéro et le resteront.
+   ③ LE PANNEAU DU BAS EN CACHAIT CINQ. « Actives 4 » sous une carte annonçant
+      9 abonnés : les états `exhausted` n'étaient dans aucune des trois barres.
+
+   TOUT CE QUI SUIT SE VÉRIFIE À LA CAISSE. Derrière chaque montant il y a des
+   versements datés, des échéances nommées, des séances qui existent. Aucune
+   moyenne, aucune projection. */
+
+export type EcheanceDue = {
+  sub: Subscriber;
+  nom: string;
+  formule: string;
+  numero: number;
+  total: number;
+  dueIso: string;
+  montantXof: number;
+  /** Positif = en retard de tant de jours. */
+  retardJours: number;
+};
+
+export type MoteurAbonnements = {
+  encaisseCeMoisXof: number;
+  encaisseMoisPrecedentXof: number;
+  retardXof: number;
+  retardTetes: number;
+  aEncaisserXof: number;
+  aEncaisserNb: number;
+  prochaineIso: string | null;
+  /** LE CARNET : ce que les abonnements en cours doivent encore rapporter. */
+  carnetXof: number;
+  /** La dette de fauteuil : séances promises et pas encore rendues. */
+  seancesDues: number;
+  seancesTenues: number;
+  valeurDueXof: number;
+  enCours: number;
+  epuisees: number;
+  nouvellesCeMois: number;
+  enRetardNb: number;
+  parties: number;
+  /** Combien de têtes ont repris une formule après en avoir terminé une. */
+  reprises: number;
+  finsSansReprise: number;
+  dues: EcheanceDue[];
+  parFormule: { planId: string; nom: string; tetes: number; encaisseXof: number; resteXof: number }[];
+};
+
+const finDuMois = (iso: string): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
+  const f = new Date(d.getFullYear(), d.getMonth() + 1, 0, 12);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+};
+
+const moisPrecedentDe = (iso: string): string => {
+  const [a, m] = iso.slice(0, 7).split('-').map(Number);
+  return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`;
+};
+
+const joursEntre = (a: string, b: string): number =>
+  Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86400000);
+
+export function moteurDesAbonnements(o: {
+  comptes: readonly CompteAbonnement[];
+  plans: readonly Plan[];
+  aujourdhui: string;
+  /** Le prix catalogue d'une prestation, pour chiffrer ce qui reste dû en fauteuil. */
+  prixDuService: (serviceId: string) => number | undefined;
+}): MoteurAbonnements {
+  const mois = o.aujourdhui.slice(0, 7);
+  const moisAvant = moisPrecedentDe(o.aujourdhui);
+  const fin = finDuMois(o.aujourdhui);
+  const m: MoteurAbonnements = {
+    encaisseCeMoisXof: 0, encaisseMoisPrecedentXof: 0, retardXof: 0, retardTetes: 0,
+    aEncaisserXof: 0, aEncaisserNb: 0, prochaineIso: null, carnetXof: 0,
+    seancesDues: 0, seancesTenues: 0, valeurDueXof: 0,
+    enCours: 0, epuisees: 0, nouvellesCeMois: 0, enRetardNb: 0, parties: 0,
+    reprises: 0, finsSansReprise: 0, dues: [], parFormule: [],
+  };
+  const parPlan = new Map<string, { tetes: Set<string>; encaisseXof: number; resteXof: number }>();
+
+  for (const compte of o.comptes) {
+    if (compte.retardXof > 0) m.retardTetes += 1;
+    if (!compte.vif) m.parties += 1;
+    /* UNE REPRISE : une formule terminée, et une autre ouverte après elle.
+       C'est la seule rétention qui se mesure sur ce qui s'est vraiment passé.
+       Une fin SANS reprise est un départ aussi, simplement plus poli qu'une
+       résiliation, et c'est elle que la carte « 100 % » ignorait. */
+    const finis = compte.contrats.filter((c) => c.etat === 'termine' || c.etat === 'resilie');
+    if (finis.length > 0) {
+      if (compte.vif) m.reprises += 1; else m.finsSansReprise += 1;
+    }
+
+    for (const c of compte.contrats) {
+      const cle = c.sub.planId;
+      const e = parPlan.get(cle) ?? { tetes: new Set<string>(), encaisseXof: 0, resteXof: 0 };
+      e.tetes.add(compte.clientId || compte.nom);
+      e.encaisseXof += c.verseXof;
+      if (c.etat !== 'resilie') e.resteXof += c.resteXof;
+      parPlan.set(cle, e);
+
+      /* CE QUI EST ENTRÉ EN CAISSE, versement par versement, à sa date. */
+      for (const v of c.sub.payments ?? []) {
+        if (v.date?.slice(0, 7) === mois) m.encaisseCeMoisXof += v.amountXof;
+        else if (v.date?.slice(0, 7) === moisAvant) m.encaisseMoisPrecedentXof += v.amountXof;
+      }
+
+      if (c.etat === 'resilie') continue;
+      m.carnetXof += c.resteXof;
+      if (c.etat === 'en-cours') m.enCours += 1;
+      if (c.etat === 'epuise') m.epuisees += 1;
+      if (debutDuContrat(c.sub).slice(0, 7) === mois) m.nouvellesCeMois += 1;
+      if (c.retardXof > 0) { m.retardXof += c.retardXof; m.enRetardNb += 1; }
+
+      /* LA DETTE DE FAUTEUIL : des heures déjà payées. Elle ne figurait nulle
+         part, et c'est pourtant elle qui décide si la Maison peut vendre une
+         formule de plus ce mois-ci. */
+      if (c.etat === 'en-cours' || c.etat === 'epuise') {
+        for (const u of c.lignes) {
+          if (u.qty === null) continue;
+          const reste = Math.max(0, u.qty - u.used);
+          m.seancesDues += reste;
+          const prix = o.prixDuService(u.serviceId);
+          if (prix) m.valeurDueXof += reste * prix;
+        }
+        m.seancesTenues += Math.max(0, c.utilises - c.honorees);
+      }
+
+      /* QUI PAIE, ET QUAND. Datée, nommée : c'est la seule liste qui fait
+         décrocher un téléphone. */
+      if (c.sub.echeances?.length) {
+        const etats = etatDesEcheances(c.sub.echeances, c.verseXof, o.aujourdhui);
+        for (const e2 of etats) {
+          if (e2.resteXof <= 0) continue;
+          const enRetard = e2.dueIso < o.aujourdhui;
+          if (!enRetard && e2.dueIso > fin) continue;
+          if (!enRetard) { m.aEncaisserXof += e2.resteXof; m.aEncaisserNb += 1; }
+          if (!enRetard && (m.prochaineIso === null || e2.dueIso < m.prochaineIso)) m.prochaineIso = e2.dueIso;
+          m.dues.push({
+            sub: c.sub, nom: compte.nom, formule: c.plan?.name ?? 'Formule retirée',
+            numero: e2.numero, total: c.sub.echeances.length, dueIso: e2.dueIso,
+            montantXof: e2.resteXof, retardJours: enRetard ? joursEntre(e2.dueIso, o.aujourdhui) : 0,
+          });
+        }
+      }
+    }
+  }
+
+  /* LES RETARDS EN TÊTE, PUIS LE PLUS PROCHE : l'ordre dans lequel on appelle. */
+  m.dues.sort((a, b) => (b.retardJours - a.retardJours) || a.dueIso.localeCompare(b.dueIso));
+  m.parFormule = [...parPlan.entries()]
+    .map(([planId, e]) => ({
+      planId, nom: o.plans.find((p) => p.id === planId)?.name ?? 'Formule retirée',
+      tetes: e.tetes.size, encaisseXof: e.encaisseXof, resteXof: e.resteXof,
+    }))
+    .filter((x) => x.tetes > 0)
+    .sort((a, b) => (b.encaisseXof + b.resteXof) - (a.encaisseXof + a.resteXof));
+  return m;
+}
 
 /* ── CE QUI A ÉTÉ RÉELLEMENT VENDU — 28 août 2026 ────────────────────
    Un prix négocié qui ne descendrait que dans l'écran de vente serait pire que

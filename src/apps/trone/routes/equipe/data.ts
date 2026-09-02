@@ -429,6 +429,7 @@ export {
   cycleWindow, subWindow, coversSub, subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, debutDuContrat,
   etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat, retardDuContrat, ETAT_LABEL,
+  moteurDesAbonnements, type MoteurAbonnements, type EcheanceDue,
   type EtatContrat, type CompteAbonnement, type ContratDuCompte,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
   etendueDeLaFormule, basePourLaTete, type TeteConnue,

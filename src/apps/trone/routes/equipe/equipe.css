@@ -1635,3 +1635,21 @@
   .tre-contrat__quand { text-align: left; flex: 1 1 100%; }
   .tre-contrat__act { margin-left: 0; }
 }
+
+/* ── QUI PAIE, ET QUAND — 2 septembre 2026 ─────────────────────────
+   La seule liste qui fait décrocher un téléphone : datée, nommée, et qui
+   ouvre le règlement d'un clic. */
+.tre-du {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  width: 100%; text-align: left; font: inherit; background: transparent;
+  border: 0; border-top: 1px solid var(--hairline); padding: 10px 0 9px;
+  cursor: pointer; flex-wrap: wrap;
+}
+.tre-du:first-of-type { border-top: none; }
+.tre-du:hover { background: var(--hover-veil); }
+.tre-du.is-retard { background: linear-gradient(90deg, #FBF0ED, transparent 70%); }
+.tre-du__q { flex: 1 1 150px; min-width: 0; font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.2; }
+.tre-du__q i { display: block; font-style: normal; font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
+.tre-du__v { flex: none; text-align: right; font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.tre-du__v em { display: block; font-style: normal; font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); }
+.tre-du.is-retard .tre-du__v { color: #96412E; }

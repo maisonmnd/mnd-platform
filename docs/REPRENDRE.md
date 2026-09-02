@@ -435,23 +435,51 @@ maquette encore en attente. La rétention à 100 % reste donc fausse : elle ne
 compte que les résiliations à la main et ignore les paquets arrivés au bout sans
 reprise, qui sont des départs, simplement plus polis.
 
-## MAQUETTE EN ATTENTE · LE MOTEUR, EN ARGENT RÉEL
+## LE MOTEUR, EN ARGENT RÉEL · 2 septembre 2026, CONSTRUIT
 
-« Le calcul de revenu récurrent à 18 817 ne me convient pas. C'est un chiffre qui
-ne me parle pas. »
+« Je ne comprends pas le montant récurrent de 18 817. Ça ne me renseigne pas
+grand-chose sur les abonnements. Pouvons-nous avoir d'autres données là ? »
+(demandé deux fois.)
 
-`public/maquette-le-moteur-en-argent-reel.html`, à valider. Trois torts établis
-au chiffre actuel : **personne n'a versé 18 817 F** (c'est une moyenne, et le
-bandeau dit pourtant « encaissés ») ; **il ne compte que 2 abonnées sur 9** car
-`mrrXof` est figé à la vente et vaut zéro pour toutes celles d'avant le champ ;
-**le panneau du bas en cache cinq** car les abonnements `exhausted` ne sont dans
-aucune des trois barres.
+**LE MRR EST MORT**, et il avait trois torts dont deux étaient des fautes :
 
-Proposé à la place : encaissé ce mois, en retard, à encaisser d'ici la fin du
-mois, le carnet (reste dû sur les contrats en cours), la dette de fauteuil
-(séances dues et ce qu'elles valent), qui paie quand, et l'état des neuf avec une
-somme qui fait neuf. Deux points à trancher : la carte de tête, et la dette en
-argent ou en heures de fauteuil.
+① **personne n'a jamais versé 18 817 F.** C'est une moyenne, le prix d'un
+   abonnement divisé par ses mois. Aucun billet ne correspond, et l'écran
+   annonçait pourtant « sont déjà encaissés ce mois ».
+② **il ne comptait que deux abonnées sur neuf.** Le montant est figé à la vente
+   dans BQmrrXofBQ ; les têtes inscrites avant ce champ, ou passées par Ma
+   Couronne, valent zéro et le resteraient à jamais. 18 667 + 150 = 18 817.
+③ **le panneau du bas en cachait cinq.** « Actives 4 » sous une carte annonçant
+   9 abonnés : les BQexhaustedBQ n'étaient dans aucune des trois barres.
+
+BQmoteurDesAbonnements()BQ, calculé sur les comptes et jamais sur un champ écrit
+à la vente. **Tout se vérifie à la caisse** : des versements datés, des échéances
+nommées, des séances qui existent.
+
+**QUATRE CARTES** : encaissé ce mois (avec l'écart sur le mois d'avant), en
+retard (montant, têtes, plus ancien retard), à encaisser d'ici la fin du mois,
+et **LE CARNET** qui remplace le MRR, ce que les abonnements en cours doivent
+encore rapporter.
+
+**« QUI PAIE, ET QUAND »** : la liste datée, nommée, cliquable vers le règlement.
+Retards en tête, puis le plus proche : l'ordre dans lequel on appelle.
+
+**LA DETTE DE FAUTEUIL**, qui ne figurait nulle part : les séances dues, ce
+qu'elles valent au catalogue, les formules épuisées. C'est la vraie dette d'un
+salon qui vend des abonnements, des heures déjà payées, et c'est elle qui décide
+si la Maison peut vendre une formule de plus ce mois-ci.
+
+**LA RÉTENTION DEVIENT « REPRISES ».** « 100 %, aucune résiliation » était vrai
+et sans intérêt : personne n'avait encore eu l'occasion de partir. On compte
+désormais les têtes qui ont **repris** une formule après en avoir terminé une, et
+une **fin sans reprise est un départ**, simplement plus poli qu'une résiliation.
+
+**LA VALEUR À VIE DISPARAÎT.** Elle affichait un tiret depuis le premier jour
+avec la promesse qu'elle « se calculera avec l'historique ». Une carte qui n'a
+jamais rien dit occupe un quart de l'écran.
+
+Le chiffre de tête de la page devient **« Encaissé ce mois · abonnements »**.
+BQmrrXofBQ reste écrit sur les ventes neuves, plus aucun écran ne le lit.
 
 ## MAQUETTE EN ATTENTE · LA CADENCE POSÉE
 

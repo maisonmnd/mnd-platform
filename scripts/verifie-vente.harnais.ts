@@ -17,6 +17,7 @@ import {
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule,
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, coversSub,
   etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat,
+  moteurDesAbonnements,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -524,6 +525,104 @@ const ranges = comptesRanges(comptesAbonnement({
   appts: douzeVenues.map((r) => ({ ...r, subId: 'ab-e' })), aujourdhui: JOUR }));
 dit('le retard d’abord, l’epuise ensuite', ['A. Retard', 'B. Epuisee', 'C. Tranquille'],
   ranges.map((c) => c.nom));
+
+/* -- 16. LE MOTEUR, EN ARGENT REEL ---------------------------------
+   « Je ne comprends pas le montant recurrent de 18 817. Ca ne me renseigne pas
+   grand-chose sur les abonnements. Pouvons-nous avoir d'autres donnees la ? »
+   (Yeman, 2 septembre 2026, deux fois plutot qu'une.)
+
+   TOUT CE QUI SUIT SE VERIFIE A LA CAISSE : des versements dates, des echeances
+   nommees, des seances qui existent. Aucune moyenne, aucune projection. */
+const catalogue = (id: string) => (id === 'sv-resserrage' ? 30_000 : 18_000);
+
+/* Une tete qui paie en deux fois, dont la premiere echeance est passee. */
+const enRetardM = {
+  ...abo({ id: 'ab-m1', startIso: '2026-08-01', expiresIso: '2027-08-01' }),
+  clientId: 'c-1', name: 'A. Retard',
+  echeances: [
+    { numero: 1, dueIso: '2026-08-14', amountXof: 100_000 },
+    { numero: 2, dueIso: '2026-09-20', amountXof: 115_000 },
+  ],
+  payments: [{ id: 'p1', date: '2026-08-14', amountXof: 40_000 }],
+};
+/* Une tete a jour, qui a verse ce mois-ci. */
+const aJour = {
+  ...abo({ id: 'ab-m2', startIso: '2026-09-01', expiresIso: '2027-09-01' }),
+  clientId: 'c-2', name: 'B. AJour',
+  payments: [{ id: 'p2', date: '2026-09-01', amountXof: 215_000 }],
+};
+/* Une tete partie : sa formule s'est terminee et rien n'a suivi. */
+const partie = {
+  ...abo({ id: 'ab-m3', startIso: '2025-01-01', expiresIso: '2026-01-01' }),
+  clientId: 'c-3', name: 'C. Partie',
+  payments: [{ id: 'p3', date: '2025-01-01', amountXof: 215_000 }],
+};
+
+const lesComptes = comptesAbonnement({
+  subs: [enRetardM, aJour, partie], plans: [PACK], appts: [], aujourdhui: JOUR });
+const mot = moteurDesAbonnements({
+  comptes: lesComptes, plans: [PACK], aujourdhui: JOUR, prixDuService: catalogue });
+
+/* L'ARGENT ENTRE, A SA DATE. Aucune moyenne : ce sont les versements. */
+dit('encaisse ce mois', 215_000, mot.encaisseCeMoisXof);
+dit('encaisse le mois d’avant', 40_000, mot.encaisseMoisPrecedentXof);
+
+/* EN RETARD : le montant, et combien de tetes. C'est la liste qui fait
+   decrocher un telephone. */
+dit('le retard se chiffre', 60_000, mot.retardXof);
+dit('… et se compte en tetes', 1, mot.retardTetes);
+
+/* A ENCAISSER D'ICI LA FIN DU MOIS : le 20 septembre tombe dans le mois, le
+   reste non. */
+dit('a encaisser d’ici la fin du mois', 115_000, mot.aEncaisserXof);
+dit('… la prochaine date', '2026-09-20', mot.prochaineIso);
+
+/* LE CARNET remplace le MRR : ce que les abonnements en cours doivent encore
+   rapporter, tout compris, recalcule a chaque fois. */
+dit('le carnet', 175_000, mot.carnetXof);
+
+/* LA DETTE DE FAUTEUIL : des heures deja payees, que rien ne chiffrait. */
+dit('les seances dues', 24, mot.seancesDues);
+dit('… ce qu’elles valent au catalogue', 576_000, mot.valeurDueXof);
+
+/* LES ETATS SE COMPTENT TOUS, et la somme retombe sur le nombre de contrats :
+   c'est ce que l'ancien panneau ne faisait pas, « Actives 4 » sous 9 abonnes. */
+dit('en cours', 2, mot.enCours);
+dit('parties', 1, mot.parties);
+dit('nouvelles ce mois', 1, mot.nouvellesCeMois);
+dit('en retard', 1, mot.enRetardNb);
+
+/* LA REPRISE EST LA SEULE RETENTION QUI SE MESURE. Une fin SANS reprise est un
+   depart aussi, simplement plus poli qu'une resiliation, et c'est elle que la
+   carte « 100 % » ignorait. */
+dit('une fin sans reprise est un depart', 1, mot.finsSansReprise);
+dit('… et aucune reprise ici', 0, mot.reprises);
+const avecReprise = moteurDesAbonnements({
+  comptes: comptesAbonnement({
+    subs: [partie, { ...aJour, clientId: 'c-3', name: 'C. Partie' }],
+    plans: [PACK], appts: [], aujourdhui: JOUR }),
+  plans: [PACK], aujourdhui: JOUR, prixDuService: catalogue });
+dit('une formule reprise apres une fin se compte', 1, avecReprise.reprises);
+dit('… et ne compte plus comme un depart', 0, avecReprise.finsSansReprise);
+
+/* LES RETARDS EN TETE, PUIS LE PLUS PROCHE : l'ordre dans lequel on appelle. */
+dit('les retards d’abord', ['2026-08-14', '2026-09-20'], mot.dues.map((d) => d.dueIso));
+
+/* UN RESILIE NE RECLAME PLUS RIEN : le compter ferait une creance que la Maison
+   a elle-meme annulee. */
+const avecResilie = moteurDesAbonnements({
+  comptes: comptesAbonnement({
+    subs: [{ ...enRetardM, status: 'churn' as const }], plans: [PACK], appts: [], aujourdhui: JOUR }),
+  plans: [PACK], aujourdhui: JOUR, prixDuService: catalogue });
+dit('un resilie ne pese pas sur le carnet', 0, avecResilie.carnetXof);
+dit('… ni sur le retard', 0, avecResilie.retardXof);
+/* MAIS SON ARGENT RESTE ENCAISSE : il est entre en caisse. */
+dit('… son versement reste encaisse', 40_000, avecResilie.encaisseMoisPrecedentXof);
+
+/* CE QUE CHAQUE FORMULE A RAPPORTE, la plus grosse d'abord. */
+dit('une seule formule ici', ['L’Année Sereine · Duo'], mot.parFormule.map((f) => f.nom));
+dit('… trois tetes dessus', 3, mot.parFormule[0].tetes);
+dit('… encaisse en tout', 470_000, mot.parFormule[0].encaisseXof);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

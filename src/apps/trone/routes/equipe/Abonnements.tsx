@@ -16,7 +16,7 @@ import {
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
-  comptesAbonnement, comptesRanges, ETAT_LABEL, type CompteAbonnement, type ContratDuCompte,
+  comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL,
   prochaineReferenceAbo,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
 } from './data';
@@ -274,15 +274,16 @@ export default function Abonnements() {
     setSubs((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: 'active' as const } : x)));
     toast('Abonnement repris, la tête retrouve sa formule.');
   };
-  const retention = branchSubs.length > 0 ? Math.round((members.length / branchSubs.length) * 100) : null;
-  const mrr = members.reduce((a, m) => a + m.mrrXof, 0);
+  /* ══ LE MRR EST MORT — 2 septembre 2026 ════════════════════════════
+     Il valait 18 817 F pour NEUF abonnées, dont deux seulement pesaient
+     quelque chose : le montant est figé à la vente dans `mrrXof`, et les têtes
+     inscrites avant ce champ, ou passées par Ma Couronne, valent zéro à jamais.
+     Ce qui le remplace se lit dans `moteurDesAbonnements`, et se vérifie à la
+     caisse : des versements datés, des échéances nommées, des séances qui
+     existent. Le champ `mrrXof` reste écrit sur les ventes neuves, aucun écran
+     ne le lit plus. */
   const planOf = (id: string) => plans.find((p) => p.id === id);
 
-  const split = plans.map((p) => {
-    const list = members.filter((m) => m.planId === p.id);
-    return { plan: p, count: list.length, mrr: list.reduce((a, m) => a + m.mrrXof, 0) };
-  });
-  const splitMax = Math.max(1, ...split.map((s) => s.count));
 
   /* Les formules marketing du 28 août : posées d'un geste, jamais réécrites. */
   const marketingAbsentes = formulesMarketingAbsentes(plans);
@@ -982,6 +983,12 @@ export default function Abonnements() {
     () => comptesRanges(comptesAbonnement({ subs: branchSubs, plans, appts: allAppts, aujourdhui: todayISO() })),
     [branchSubs, plans, allAppts],
   );
+  /* LE MOTEUR SE CALCULE SUR LES COMPTES, jamais sur un champ écrit à la vente :
+     c'est ce qui l'empêche de vieillir. */
+  const moteur = useMemo(() => moteurDesAbonnements({
+    comptes, plans, aujourdhui: todayISO(),
+    prixDuService: (id) => services.find((sv) => sv.id === id)?.priceXof,
+  }), [comptes, plans, services]);
   const comptesFiltres = useMemo(() => comptes.filter((c) => {
     if (filtreCompte === 'en-cours') return c.vif?.etat === 'en-cours';
     if (filtreCompte === 'a-relancer') return c.vif?.etat === 'epuise';
@@ -1016,8 +1023,11 @@ export default function Abonnements() {
         sub="Le salon classique vend une fois ; la Maison perçoit chaque lune."
         actions={
           <div className="tre-mrr-head">
-            <div className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Revenu récurrent · ce mois</div>
-            <div className="tre-mrr" style={{ marginTop: 4 }}>{fmtMoney(mrr, currency)}</div>
+            {/* LE CHIFFRE DE TÊTE DOIT ÊTRE VRAI. « Revenu récurrent » annonçait
+                une moyenne que personne n'avait versée ; celui-ci est ce qui est
+                entré en caisse ce mois, versement par versement. */}
+            <div className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Encaissé ce mois · abonnements</div>
+            <div className="tre-mrr" style={{ marginTop: 4 }}>{fmtMoney(moteur.encaisseCeMoisXof, currency)}</div>
           </div>
         }
       />
@@ -1028,104 +1038,206 @@ export default function Abonnements() {
         onChange={setTab}
       />
 
+      {/* ══ LE MOTEUR, EN ARGENT RÉEL — 2 septembre 2026 ═══════════════════
+          « Je ne comprends pas le montant récurrent de 18 817. Ça ne me
+          renseigne pas grand-chose sur les abonnements » (Yéman, deux fois).
+
+          MRR, RÉTENTION, VALEUR À VIE : trois mesures faites pour lever des
+          fonds, aucune pour ouvrir le salon lundi matin. Et le MRR était faux
+          par-dessus le marché : figé à la vente, il ne comptait que deux
+          abonnées sur neuf, et l'écran annonçait ce total comme « encaissé ».
+
+          TOUT CE QUI SUIT SE VÉRIFIE À LA CAISSE : des versements datés, des
+          échéances nommées, des séances qui existent. */}
       {tab === 'moteur' && (
         <div>
-          <DeepNote eyebrow={mrr > 0 ? 'Avant même d’ouvrir les portes' : 'Le moteur attend sa première lune'}>
-            {mrr > 0
-              ? <>{fmtMoney(mrr, currency)} sont déjà encaissés ce mois, <span className="accent">le salon classique vend une fois ; la Maison perçoit chaque lune.</span></>
+          <DeepNote eyebrow={moteur.encaisseCeMoisXof > 0 ? 'Ce que la Maison a reçu' : 'Le moteur attend sa première lune'}>
+            {moteur.encaisseCeMoisXof > 0 || moteur.carnetXof > 0
+              ? <>
+                {fmtMoney(moteur.encaisseCeMoisXof, currency)} encaissés ce mois sur les abonnements, et{' '}
+                {fmtMoney(moteur.carnetXof, currency)} déjà vendus qui restent à percevoir.{' '}
+                <span className="accent">Le salon classique vend une fois ; la Maison perçoit chaque lune.</span>
+              </>
               : <>Aucun abonnement encore, <span className="accent">le salon classique vend une fois ; la Maison percevra chaque lune.</span></>}
           </DeepNote>
 
           <div className="tr-grid tr-grid--4">
             <Card filet="copper" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">MRR · revenu récurrent</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{mrr > 0 ? fmtMoney(mrr, currency) : '—'}</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>revenu des abonnements actifs</div>
-            </Card>
-            <Card filet="indigo" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">Abonnés actifs</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{members.length}</div>
+              <div className="mnd-stat__label">Encaissé ce mois</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{fmtMoney(moteur.encaisseCeMoisXof, currency)}</div>
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
-                {members.length > 0 ? `+ ${members.filter((m) => m.status === 'new').length} ce mois` : 'la première lune reste à inscrire'}
+                {(() => {
+                  const d = moteur.encaisseCeMoisXof - moteur.encaisseMoisPrecedentXof;
+                  if (moteur.encaisseMoisPrecedentXof === 0) return 'sur les abonnements';
+                  return `${d >= 0 ? '+' : '−'} ${fmtMoney(Math.abs(d), currency)} sur le mois d’avant`;
+                })()}
+              </div>
+            </Card>
+            <Card filet={moteur.retardXof > 0 ? 'copper' : 'indigo'} style={{ padding: 18 }}>
+              <div className="mnd-stat__label">En retard</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30, color: moteur.retardXof > 0 ? '#8f3b30' : undefined }}>
+                {moteur.retardXof > 0 ? fmtMoney(moteur.retardXof, currency) : '—'}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                {moteur.retardXof > 0
+                  ? `${moteur.retardTetes} tête${moteur.retardTetes > 1 ? 's' : ''} · la plus ancienne à ${moteur.dues[0]?.retardJours ?? 0} jours`
+                  : 'personne ne doit rien en retard'}
               </div>
             </Card>
             <Card filet="indigo" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">Rétention</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{retention != null ? `${retention} %` : '—'}</div>
+              <div className="mnd-stat__label">À encaisser d’ici la fin du mois</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>
+                {moteur.aEncaisserXof > 0 ? fmtMoney(moteur.aEncaisserXof, currency) : '—'}
+              </div>
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
-                {/* Le nombre de partis ne se contente plus d'être un chiffre :
-                    il ouvre leur liste. */}
-                {retention == null ? 'se mesurera avec l’usage' : churned === 0 ? 'aucune résiliation' : (
-                  <button
-                    type="button"
-                    className="tre-link-btn"
-                    onClick={() => { setVoirPartis(true); document.getElementById('trab-partis')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
-                  >
-                    {churned} résiliation{churned > 1 ? 's' : ''} · les revoir
-                  </button>
-                )}
+                {moteur.aEncaisserNb > 0
+                  ? `${moteur.aEncaisserNb} échéance${moteur.aEncaisserNb > 1 ? 's' : ''}${moteur.prochaineIso ? ` · la prochaine le ${dateComplete(moteur.prochaineIso)}` : ''}`
+                  : 'rien ne tombe d’ici le 30'}
               </div>
             </Card>
             <Card filet="copper" style={{ padding: 18 }}>
-              <div className="mnd-stat__label">Valeur à vie · LTV</div>
-              <div className="mnd-stat__value" style={{ fontSize: 30 }}>—</div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>se calculera avec l’historique</div>
+              {/* LE CARNET REMPLACE LE MRR : ce que les abonnements en cours
+                  doivent encore rapporter, tout compris. C'est de la trésorerie
+                  déjà vendue, et il ne dépend d'aucun champ écrit à la vente. */}
+              <div className="mnd-stat__label">Le carnet</div>
+              <div className="mnd-stat__value" style={{ fontSize: 30 }}>{fmtMoney(moteur.carnetXof, currency)}</div>
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>reste dû sur les abonnements en cours</div>
             </Card>
           </div>
 
           <div className="tr-grid tr-grid--2" style={{ marginTop: 16, alignItems: 'start' }}>
             <Card style={{ padding: '20px 22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                <Eyebrow>Le moteur · ce mois</Eyebrow>
+              <Eyebrow>Qui paie, et quand</Eyebrow>
+              <div style={{ marginTop: 12 }}>
+                {moteur.dues.length === 0 && (
+                  <div className="mnd-muted" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, padding: '10px 0' }}>
+                    Aucune échéance ne réclame quoi que ce soit, ni maintenant ni d’ici la fin du mois.
+                  </div>
+                )}
+                {moteur.dues.slice(0, 6).map((d) => (
+                  <button
+                    type="button" key={`${d.sub.id}-${d.numero}`} onClick={() => openPay(d.sub)}
+                    className={`tre-du ${d.retardJours > 0 ? 'is-retard' : ''}`}
+                  >
+                    <span className="tre-du__q">
+                      {d.nom}
+                      <i>{d.formule} · échéance {d.numero} sur {d.total}</i>
+                    </span>
+                    <span className="tre-du__v">
+                      {fmtMoney(d.montantXof, currency)}
+                      <em>{d.retardJours > 0 ? `${d.retardJours} jours de retard` : `le ${dateComplete(d.dueIso)}`}</em>
+                    </span>
+                  </button>
+                ))}
+                {moteur.dues.length > 6 && (
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>
+                    et {moteur.dues.length - 6} autre{moteur.dues.length - 6 > 1 ? 's' : ''}, dans « Les comptes ».
+                  </div>
+                )}
               </div>
-              {members.length === 0 ? (
-                <div className="mnd-muted" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, lineHeight: 1.6, padding: '14px 0' }}>
-                  L’évolution du revenu récurrent se dessinera lune après lune, inscrivez la première abonnée, la courbe naîtra d’elle.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                  {([['new', 'Nouvelles ce mois'], ['active', 'Actives'], ['risk', 'À veiller']] as const).map(([st, label]) => {
-                    const n = members.filter((m) => m.status === st).length;
-                    return (
-                      <div key={st}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                          <span>{label}</span>
-                          <span className="mnd-muted">{n} abonné{n > 1 ? 's' : ''}</span>
-                        </div>
-                        <div style={{ marginTop: 5 }}>
-                          <Bar pct={(n / Math.max(1, members.length)) * 100} fill={st === 'risk' ? '#8f3b30' : st === 'new' ? 'var(--color-copper)' : 'var(--color-indigo)'} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </Card>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Card style={{ padding: '20px 22px' }}>
+                {/* LA VRAIE DETTE D'UN SALON QUI VEND DES ABONNEMENTS : des
+                    heures de fauteuil déjà payées. Elle ne figurait nulle part,
+                    et c'est elle qui décide si la Maison peut vendre une
+                    formule de plus ce mois-ci. */}
+                <Eyebrow>Ce que la Maison doit encore</Eyebrow>
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div className="tre-du" style={{ cursor: 'default' }}>
+                    <span className="tre-du__q">Séances dues<i>crédits non consommés, toutes formules</i></span>
+                    <span className="tre-du__v">{moteur.seancesDues}
+                      <em>{moteur.seancesTenues > 0 ? `dont ${moteur.seancesTenues} à l’agenda` : 'aucune posée'}</em>
+                    </span>
+                  </div>
+                  <div className="tre-du" style={{ cursor: 'default' }}>
+                    <span className="tre-du__q">Ce qu’elles valent<i>au prix du catalogue</i></span>
+                    <span className="tre-du__v">{fmtMoney(moteur.valeurDueXof, currency)}<em>de fauteuil déjà vendu</em></span>
+                  </div>
+                  <div className="tre-du" style={{ cursor: 'default' }}>
+                    <span className="tre-du__q">Formules épuisées<i>tout consommé, rien de repris</i></span>
+                    <span className="tre-du__v">{moteur.epuisees}<em>{moteur.epuisees > 0 ? 'à rappeler' : 'aucune'}</em></span>
+                  </div>
+                </div>
+              </Card>
+
               <div className="tre-inline-note" style={{ alignItems: 'flex-start' }}>
                 <span className="mark">✦</span>
                 <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.5 }}>
                   Un revenu qui revient seul vaut plus qu’un revenu qu’il faut reconquérir. Chaque abonné est une trésorerie prévisible, et un fauteuil déjà rempli.
                 </span>
               </div>
-              <Card style={{ padding: '18px 20px' }}>
-                <Eyebrow>Répartition des abonnés</Eyebrow>
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 11 }}>
-                  {split.map((s) => (
-                    <div key={s.plan.id}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span>{s.plan.name}</span>
-                        <span className="mnd-muted">{s.count} abonné{s.count > 1 ? 's' : ''} · {fmtMoney(s.mrr, currency)}</span>
-                      </div>
-                      <div style={{ marginTop: 5 }}>
-                        <Bar pct={(s.count / splitMax) * 100} fill={s.plan.popular ? 'var(--color-copper)' : 'var(--color-indigo)'} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
             </div>
+          </div>
+
+          <div className="tr-grid tr-grid--2" style={{ marginTop: 16, alignItems: 'start' }}>
+            <Card style={{ padding: '20px 22px' }}>
+              <Eyebrow>Ce que chaque formule a rapporté</Eyebrow>
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {moteur.parFormule.length === 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune formule vendue pour l’instant.</div>
+                )}
+                {moteur.parFormule.map((f) => {
+                  const total = f.encaisseXof + f.resteXof;
+                  const part = total > 0 ? Math.round((f.encaisseXof / total) * 100) : 0;
+                  return (
+                    <div key={f.planId}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, flexWrap: 'wrap' }}>
+                        <span>{f.nom} <span className="mnd-muted">· {f.tetes} tête{f.tetes > 1 ? 's' : ''}</span></span>
+                        <span className="mnd-muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {fmtMoney(f.encaisseXof, currency)}
+                          {f.resteXof > 0 ? ` · reste ${fmtMoney(f.resteXof, currency)}` : ' · soldé'}
+                        </span>
+                      </div>
+                      <span className="tre-jauge" style={{ marginTop: 6 }}>
+                        <i className="fait" style={{ width: `${part}%` }} />
+                        <i className="tenu" style={{ width: `${100 - part}%` }} />
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 11 }}>
+                Plein : encaissé. Hachuré : encore dû.
+              </div>
+            </Card>
+
+            <Card style={{ padding: '20px 22px' }}>
+              {/* LES ÉTATS SE COMPTENT TOUS, et la somme retombe sur le nombre
+                  de contrats. L'ancien panneau montrait « Actives 4 » sous une
+                  carte annonçant 9 abonnés, sans dire où étaient les cinq
+                  autres. */}
+              <Eyebrow>L’état des contrats, tous compris</Eyebrow>
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {([
+                  ['En cours, crédits disponibles', moteur.enCours, 'var(--color-indigo)'],
+                  ['Épuisées, à leur reproposer', moteur.epuisees, 'var(--color-copper)'],
+                  ['Nouvelles ce mois', moteur.nouvellesCeMois, 'var(--color-copper)'],
+                  ['En retard de paiement', moteur.enRetardNb, '#8f3b30'],
+                  ['Parties, rien qui vive', moteur.parties, '#8a8378'],
+                ] as const).map(([label, n, fill]) => (
+                  <div key={label}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span>{label}</span>
+                      <span className="mnd-muted">{n}</span>
+                    </div>
+                    <div style={{ marginTop: 5 }}>
+                      <Bar pct={(n / Math.max(1, branchSubs.length)) * 100} fill={fill} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* LA RÉTENTION DEVIENT « REPRISES ». « 100 %, aucune
+                  résiliation » était vrai et sans intérêt : personne n'avait
+                  encore eu l'occasion de partir, et les paquets arrivés au bout
+                  sans reprise ne comptaient nulle part. */}
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 14, lineHeight: 1.55, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                {moteur.reprises + moteur.finsSansReprise === 0
+                  ? 'Aucune formule n’est encore arrivée à son terme : les reprises se mesureront à partir de la première.'
+                  : <><b style={{ color: 'var(--ink)' }}>{moteur.reprises} reprise{moteur.reprises > 1 ? 's' : ''}</b> sur {moteur.reprises + moteur.finsSansReprise} formule{moteur.reprises + moteur.finsSansReprise > 1 ? 's' : ''} arrivée{moteur.reprises + moteur.finsSansReprise > 1 ? 's' : ''} à leur terme. Une fin sans reprise est un départ, simplement plus poli qu’une résiliation.</>}
+              </div>
+            </Card>
           </div>
         </div>
       )}
