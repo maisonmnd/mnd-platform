@@ -12,7 +12,7 @@
    liés par `foyerId`, exactement comme les séances d'une série. Chacun se
    déplace, s'annule et se facture seul — une fille malade ne fait pas tomber
    le rendez-vous de sa mère. */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Field, Modal, Select, toast } from '../../../../ds/components';
 import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
@@ -28,7 +28,7 @@ import {
   appointmentsStore, useAppointments, maitresLibres, placeLeFoyer, type Appointment,
 } from '../../../../shared/agenda';
 import { uid } from '../../../../shared/store';
-import { TIME_SLOTS, todayISO } from './_shared';
+import { TIME_SLOTS, todayISO, poseLHoteDuFoyer } from './_shared';
 
 /** Les têtes d'un foyer : toutes celles rattachées au compte, quel que soit
     leur âge. `tetesPortees` ne rend que les MINEURES, ce qui est juste pour Ma
@@ -315,4 +315,21 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
       </div>
     </Modal>
   );
+}
+
+/** L'HÔTE — monté UNE fois dans la coquille. Il se déclare à
+    `poseLHoteDuFoyer`, et toute modale de rendez-vous peut dès lors ouvrir le
+    foyer sans rien savoir de lui.
+
+    IL SE RETIRE EN PARTANT : un hôte démonté qui resterait déclaré ferait
+    appeler un `setState` sur un composant mort, et le lien ne s'ouvrirait plus
+    jamais. */
+export function RdvFoyerHote() {
+  const [pour, setPour] = useState<string | null>(null);
+  useEffect(() => {
+    poseLHoteDuFoyer((clientId) => setPour(clientId));
+    return () => poseLHoteDuFoyer(null);
+  }, []);
+  if (!pour) return null;
+  return <RdvFoyerModal clientId={pour} onClose={() => setPour(null)} />;
 }

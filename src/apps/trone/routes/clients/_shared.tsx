@@ -1102,17 +1102,26 @@ export type RdvInitial = Partial<Pick<Appointment, 'clientId' | 'serviceIds' | '
 
 const RDV_STATUSES: Appointment['status'][] = ['en attente', 'confirmé', 'honoré', 'annulé'];
 
+/* ══ LA PORTE DU FOYER, OUVERTE DE PARTOUT — 2 septembre 2026 ═══════
+   La modale du rendez-vous est montée à DIX endroits : la fiche, le carnet, le
+   calendrier, les appels, les consultations, la barre du haut. Passer le geste
+   en propriété obligeait à câbler chacun d'eux, et le lien ne paraissait donc
+   qu'à un seul — celui par lequel personne n'était passé.
+
+   L'HÔTE SE DÉCLARE UNE FOIS, dans la coquille, et la modale l'appelle sans
+   savoir qui il est. Le sens des dépendances reste unique : l'écran du foyer
+   connaît celui-ci, jamais l'inverse. */
+let hoteDuFoyer: ((clientId: string) => void) | null = null;
+export const poseLHoteDuFoyer = (fn: ((clientId: string) => void) | null) => { hoteDuFoyer = fn; };
+export const foyerEstServi = () => hoteDuFoyer !== null;
+export const demandeLeFoyer = (clientId: string) => hoteDuFoyer?.(clientId);
+
 export function RdvModal({
   onClose,
   initial,
   appt,
   title,
   onEncaisser,
-  /* LA PORTE DU FOYER — 2 septembre 2026. On découvre qu'il faut asseoir la
-     famille entière AU MOMENT de poser le rendez-vous d'une de ses têtes, pas
-     avant : le lien vit donc ici, et l'écran qui sait ouvrir la modale du foyer
-     le passe. Absent = la porte ne s'affiche pas, et rien ne change. */
-  onFoyer,
   sansPrix,
 }: {
   onClose: () => void;
@@ -1127,7 +1136,6 @@ export function RdvModal({
   title?: string;
   /** Encaisser depuis la modale — n'apparaît qu'en modification d'un RDV existant. */
   onEncaisser?: (a: Appointment) => void;
-  onFoyer?: (clientId: string) => void;
 }) {
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
@@ -2042,6 +2050,29 @@ export function RdvModal({
                 ★ Abonnée · {membershipPlan?.name ?? 'formule'}{membership.reference ? ` · ${membership.reference}` : ''}{membership.cycle && membership.cycle !== 'mensuel' ? ` · ${membership.cycle}` : ''}
               </div>
             )}
+            {/* ══ LA FAMILLE ENTIÈRE, D'UN GESTE — 2 septembre 2026 ═════
+                Le lien vit SOUS LE CHOIX DE LA TÊTE, parce que c'est en la
+                nommant qu'on se souvient que sa sœur vient aussi. Plus bas, au
+                milieu des prestations, il arrivait après qu'on ait commencé à
+                remplir pour une seule.
+
+                IL NE PARAÎT QUE SI LA TÊTE A UN FOYER D'AU MOINS DEUX TÊTES :
+                ailleurs il ne mènerait qu'à un refus, et un bouton qui refuse
+                est un bouton de trop. */}
+            {clientId && foyerEstServi() && (() => {
+              const cli = clients.find((c) => c.id === clientId);
+              const combien = cli?.familyId
+                ? clients.filter((c) => c.familyId === cli.familyId && !c.archived).length : 0;
+              if (combien < 2) return null;
+              return (
+                <button
+                  type="button" className="tre-link-btn" style={{ marginTop: 8, display: 'block' }}
+                  onClick={() => { demandeLeFoyer(clientId); onClose(); }}
+                >
+                  Elles viennent à {combien} · rendez-vous du foyer
+                </button>
+              );
+            })()}
           </Field>
           <LocksDeLaTete
             key={clientId}
@@ -2569,22 +2600,6 @@ export function RdvModal({
             permette de comprendre en un regard : soit on s'est trompé de
             prestation, soit celle-ci n'a jamais été incluse, et dans les deux
             cas on sait quoi faire. */}
-        {/* LA FAMILLE ENTIERE, D'UN GESTE. Le lien ne parait que si la tete a
-            un foyer d'au moins deux tetes : ailleurs il ne menerait qu'a un
-            refus, et un bouton qui refuse est un bouton de trop. */}
-        {onFoyer && clientId && (() => {
-          const cli = clients.find((c) => c.id === clientId);
-          const combien = cli?.familyId
-            ? clients.filter((c) => c.familyId === cli.familyId && !c.archived).length : 0;
-          if (combien < 2) return null;
-          return (
-            <button type="button" className="tre-link-btn" style={{ alignSelf: 'flex-start' }}
-              onClick={() => { onFoyer(clientId); onClose(); }}>
-              Elles viennent a {combien} : rendez-vous du foyer
-            </button>
-          );
-        })()}
-
         {membership && membershipPlan && coverageRows.length === 0 && chosen.length > 0 && (() => {
           const inclus = inclusVendus(membership, membershipPlan)
             .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)

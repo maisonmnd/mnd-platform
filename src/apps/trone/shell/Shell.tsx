@@ -10,6 +10,7 @@ import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
+import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
 
 /* LE MENU À DEUX ÉTAGES (chantier ③). Le QUOTIDIEN — les gestes du comptoir —
    reste toujours déplié ; le reste se replie, et s'en souvient PAR POSTE
@@ -566,6 +567,10 @@ export default function Shell() {
           onClose={() => { setAppelOpen(false); setAppelInitial(null); }}
           onPoserRdv={(clientId, appelId) => setRdvPour({ clientId, appelId, avant: appointmentsStore.get().filter((x) => x.clientId === clientId).length })}
         />
+        {/* L'HÔTE DU FOYER, monté une fois pour toute l'application : c'est lui
+            qui ouvre « Elles viennent à N » depuis n'importe quelle modale de
+            rendez-vous, sans que chacune ait à le câbler. */}
+        <RdvFoyerHote />
         {rdvNouveau && <RdvModal title="Nouveau rendez-vous" onClose={() => setRdvNouveau(false)} />}
         {rdvPour && (
           <RdvModal
