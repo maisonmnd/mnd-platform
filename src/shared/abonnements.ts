@@ -1211,6 +1211,28 @@ export function etendueDeLaFormule(
   return haut > bas ? { bas, haut } : null;
 }
 
+/** LA FOURCHETTE EN TOUTES LETTRES — 2 septembre 2026.
+
+    « Tous les abonnements qui ont une fourchette et varient doivent annoncer la
+    fourchette » (Yéman).
+
+    ÉCRITE UNE FOIS, LUE PARTOUT. Trois écrans l'annonçaient déjà de trois
+    façons : « de X à Y », « X à Y », « X – Y ». Trois formulations du même fait
+    finissent par se lire comme trois offres différentes, et le jour où l'une
+    change, les deux autres mentent. Le libellé vit ici, avec le calcul.
+
+    `fmt` est passé par l'appelant parce que la devise appartient à la branche,
+    pas au moteur. */
+export const libelleFourchette = (
+  p: Plan, cycle: SubCycle, bands: readonly ModelBand[], fmt: (x: number) => string,
+): string | null => {
+  const e = etendueDeLaFormule(p, cycle, bands);
+  return e ? `${fmt(e.bas)} à ${fmt(e.haut)}` : null;
+};
+
+/** Ce qui suit la fourchette, et qui dit POURQUOI elle en est une. */
+export const SELON_LE_CALIBRE = 'selon le calibre';
+
 export function prixDeLaFormule(
   p: Plan,
   cycle: SubCycle,

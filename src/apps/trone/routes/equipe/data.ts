@@ -432,7 +432,7 @@ export {
   moteurDesAbonnements, type MoteurAbonnements, type EcheanceDue,
   type EtatContrat, type CompteAbonnement, type ContratDuCompte,
   prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte,
-  etendueDeLaFormule, basePourLaTete, type TeteConnue,
+  etendueDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, basePourLaTete, type TeteConnue,
   abonnementsVivantsDe, gainPourElle, perkParleDeLaCarte,
   /* Ce qui se convient au comptoir, 28 août — le prix et le contenu propres
      à une tête. Voir `shared/abonnements.ts`. */

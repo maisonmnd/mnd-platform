@@ -464,6 +464,39 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LA FOURCHETTE S'ANNONCE PARTOUT · 2 septembre 2026
+
+« Tous les abonnements qui ont une fourchette et varient doivent annoncer la
+fourchette (exemple 112 000 F à 350 000 F · selon le calibre). »
+
+`libelleFourchette()` et `SELON_LE_CALIBRE` vivent avec le calcul, dans
+`abonnements.ts`. **Trois écrans l'annonçaient de trois façons** : « de X à
+Y », « X à Y », « X – Y ». Trois formulations du même fait finissent par se lire
+comme trois offres différentes, et le jour où l'une change, les deux autres
+mentent. Le format de la devise reste passé par l'appelant : elle appartient à
+la branche, pas au moteur.
+
+Posée sur **les cinq endroits où le prix d'une formule s'annonce** :
+
+- la carte des formules du Trône ;
+- **la liste déroulante de la vente** (« Nouvel abonné »), qui annonçait
+  `priceXof` brut : le maître lisait 140 000 F et le comptoir en réclamait
+  201 500 à une tête Micro ;
+- « Nos abonnements » de Ma Couronne ;
+- « Ma formule » de Ma Couronne ;
+- **les réglages de la vitrine client**, qui décident de ce que la cliente verra
+  et doivent donc dire le même prix qu'elle.
+
+**LA FOURCHETTE NE PARAÎT QUE POUR UNE TÊTE INCONNUE** côté Ma Couronne : une
+cliente dont on connaît le calibre a droit à SON prix, et lui montrer une étendue
+le lui reprendrait.
+
+**LE GAIN SUIT SA TÊTE, LUI AUSSI.** Dans « Ma formule », il se calculait sur le
+prix de RÉFÉRENCE alors que le prix affiché juste au-dessus était celui de sa
+tête : une tête Micro lisait « 252 000 F » et « vous gagnez 58 000 F », deux
+chiffres qui ne se répondent pas. `gainPourElle` chiffre les deux moitiés avec
+la même tête.
+
 ## « DE TEL MONTANT À TEL MONTANT » · 2 septembre 2026
 
 « Est-ce que le prix des abonnements peut dire entre tel montant à tel montant ?

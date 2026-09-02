@@ -8,7 +8,7 @@ import {
 } from '../../shared/bridges';
 import {
   usePlans, moisDuPack, FAMILLES_FORMULES, formulesPourElle, etendueDesRemises, type Plan,
-  gainPourElle, perkParleDeLaCarte, etendueDeLaFormule, type TeteConnue,
+  gainPourElle, perkParleDeLaCarte, libelleFourchette, SELON_LE_CALIBRE, type TeteConnue,
 } from '../../shared/abonnements';
 import { useStore } from '../../shared/store';
 import {
@@ -479,7 +479,8 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                       /* LA FOURCHETTE NE PARAÎT QUE POUR UNE TÊTE INCONNUE : une
                          cliente dont on connaît le calibre a droit à SON prix, et
                          lui montrer une étendue le lui reprendrait. */
-                      const etendue = maTete.bandId ? null : etendueDeLaFormule(pl, 'mensuel', calibresAbo);
+                      const etendue = maTete.bandId
+                        ? null : libelleFourchette(pl, 'mensuel', calibresAbo, (x) => fmtMoney(x, currency));
                       return (
                         <>
                           {(ecrits.length > 0 || g.gainXof > 0) && (
@@ -501,10 +502,11 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                                 l'écran suivant. Dès que son calibre est su, le
                                 prix devient le sien, unique. */}
                             <span className="cma-offre__prix" style={etendue ? { fontSize: '1.35rem' } : undefined}>
-                              {etendue
-                                ? `${fmtMoney(etendue.bas, currency)} à ${fmtMoney(etendue.haut, currency)}`
-                                : fmtMoney(g.prixXof, currency)}
-                              <span>{pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}</span>
+                              {etendue ?? fmtMoney(g.prixXof, currency)}
+                              <span>
+                                {pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}
+                                {etendue ? ` · ${SELON_LE_CALIBRE}` : ''}
+                              </span>
                             </span>
                             {g.gainXof > 0 && <span className="cma-offre__gain">−{g.pct} % sur la carte</span>}
                           </div>

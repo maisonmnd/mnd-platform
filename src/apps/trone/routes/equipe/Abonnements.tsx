@@ -13,7 +13,7 @@ import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
-  prixDeLaFormule, etendueDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
+  prixDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
   comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL,
@@ -1447,7 +1447,7 @@ export default function Abonnements() {
                  une Jumbo. La fourchette INTERROGE LE MOTEUR pour chaque calibre
                  du barème, plus le prix sans calibre : deux calculs du même prix
                  finiraient par diverger, et c'est la vitrine qui mentirait. */
-              const etendue = etendueDeLaFormule(p, cycle, calibresAbo);
+              const etendue = libelleFourchette(p, cycle, calibresAbo, (x) => fmtMoney(x, currency));
               return (
                 <Card key={p.id} className={`tre-plan ${p.popular ? 'tre-plan--popular' : ''}`}>
                   <div className="tre-reorder" role="group" aria-label="Réordonner la formule">
@@ -1461,9 +1461,7 @@ export default function Abonnements() {
                   <div className="tre-plan__line">{p.line}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px', flexWrap: 'wrap' }}>
                     <span className="tre-plan__price" style={etendue ? { fontSize: 25 } : undefined}>
-                      {etendue
-                        ? `${fmtMoney(etendue.bas, currency)} à ${fmtMoney(etendue.haut, currency)}`
-                        : fmtMoney(aff.montantXof, currency)}
+                      {etendue ?? fmtMoney(aff.montantXof, currency)}
                     </span>
                     <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{aff.periode}</span>
                   </div>
@@ -1472,7 +1470,7 @@ export default function Abonnements() {
                         prix de référence : c'est lui que paie une tête qu'on n'a
                         pas comptée, et il doit rester lisible quelque part. */}
                     {etendue
-                      ? `selon le calibre · référence ${fmtMoney(aff.montantXof, currency)}`
+                      ? `${SELON_LE_CALIBRE} · référence ${fmtMoney(aff.montantXof, currency)}`
                       : p.mode === 'pack'
                         ? `paquet de crédits · soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois`
                         : aff.offert ? `soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois · ${aff.offert}` : ''}
@@ -2647,12 +2645,19 @@ export default function Abonnements() {
                 value={subForm.planId}
                 onChange={(e) => setSubForm({ ...subForm, planId: e.target.value, prixConvenu: '', motif: '', inclus: null, validiteMois: '' })}
               >
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {fmtMoney(p.priceXof, currency)}
-                    {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' / mois'}
-                  </option>
-                ))}
+                {/* LA LISTE DE VENTE ANNONÇAIT `priceXof` BRUT, donc le prix de
+                    référence : le maître lisait 140 000 F et le comptoir en
+                    réclamait 201 500 à une tête Micro. Une formule qui varie dit
+                    sa fourchette jusque dans un menu déroulant. */}
+                {plans.map((p) => {
+                  const four = libelleFourchette(p, subForm.cycle, calibresAbo, (x) => fmtMoney(x, currency));
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · {four ? `${four} ${SELON_LE_CALIBRE}` : fmtMoney(p.priceXof, currency)}
+                      {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' / mois'}
+                    </option>
+                  );
+                })}
               </Select>
             </Field>
             <Field label="Cycle de facturation">

@@ -7,7 +7,7 @@ import { useModelBands, useBandSets, bandsAbonnements, calibreDeLaTete } from '.
 import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
-  etendueDeLaFormule, type TeteConnue,
+  etendueDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, gainPourElle, type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
   formulesPourElle, etendueDesRemises,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
@@ -225,11 +225,15 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
      demande un calcul debout devant un téléphone ; « vous gagnez 55 000 F »
      ne demande rien. Le pourcentage reste en repli quand la formule ne porte
      aucune prestation chiffrable — mieux vaut un chiffre vrai qu'un beau. */
+  /* ══ SON GAIN, PAS CELUI DE LA RÉFÉRENCE — 2 septembre 2026 ═══════
+     Le gain se calculait sur `p.priceXof`, le prix de référence, alors que le
+     prix affiché juste au-dessus est CELUI DE SA TÊTE. Une tête Micro lisait
+     donc « 252 000 F » et « vous gagnez 58 000 F » : deux chiffres qui ne se
+     répondent pas. `gainPourElle` chiffre les deux moitiés avec la même tête. */
   const gainDe = (p: Plan): number | null => {
-    const v = valeurALaCarte(p.included, (id) => services.find((x) => x.id === id)?.priceXof);
-    if (v.totalXof <= 0) return null;
-    const g = remiseSurLaCarte(v.totalXof, p.priceXof).gainXof;
-    return g > 0 ? g : null;
+    const g = gainPourElle(p, 'mensuel', maTete, calibresAbo,
+      (id) => services.find((x) => x.id === id)?.priceXof);
+    return g.gainXof > 0 ? g.gainXof : null;
   };
 
   /* Le héros mène à la formule qu'il nomme : sans ce geste, elle devrait la
@@ -380,13 +384,16 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                     que personne n'y pense. */}
                 <span className="cma-offre__prix">
                   {(() => {
-                    const etendue = maTete.bandId ? null : etendueDeLaFormule(p, 'mensuel', calibresAbo);
-                    if (etendue) {
-                      return <>de {fmtMoney(etendue.bas, currency)} à {fmtMoney(etendue.haut, currency)}</>;
-                    }
-                    return fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, calibresAbo).montantXof, currency);
+                    /* LE MÊME LIBELLÉ QUE PARTOUT AILLEURS : trois formulations
+                       du même fait se lisent comme trois offres différentes. */
+                    const etendue = maTete.bandId
+                      ? null : libelleFourchette(p, 'mensuel', calibresAbo, (x) => fmtMoney(x, currency));
+                    return etendue ?? fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, calibresAbo).montantXof, currency);
                   })()}
-                  <span>{p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}</span>
+                  <span>
+                    {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}
+                    {!maTete.bandId && etendueDeLaFormule(p, 'mensuel', calibresAbo) ? ` · ${SELON_LE_CALIBRE}` : ''}
+                  </span>
                 </span>
                 {(() => {
                   const g = gainDe(p);

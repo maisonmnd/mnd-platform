@@ -4,11 +4,13 @@ import { PageHead } from '../_ui';
 import { Button, Input, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
+import { libelleFourchette } from '../../../../shared/abonnements';
 import { usePersonas, clientsStore, useFamilies } from '../../../../shared/clients';
 import { ageDe, tetesPortees } from '../../../../shared/accounts';
 import { declarationsDe, nomPropose, useEnfantsDeclares } from '../../../../shared/enfants';
 import { useCategories, useProducts, useServices, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel } from '../../../../shared/catalog';
 import { useTiers } from '../../../../shared/offers';
+import { bandsAbonnements } from '../../../../shared/pricing';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, scalesWithModel, bandLabel, calibreDe } from '../../../../shared/pricing';
 import { vitrineConfigStore, catalogueVisiblePour, surMesureDe } from '../../../../shared/bridges';
 import { ENVIES, QUIZ_POOL, type EnvieKey } from '../../../../shared/quiz';
@@ -1635,6 +1637,11 @@ function ReglagesDeLaCarte() {
   const [produits] = useProducts();
   const [plans] = usePlans();
   const { currency } = useBranch();
+  /* LE BARÈME DES ABONNEMENTS, pour que cet écran annonce le même prix que la
+     vitrine qu'il règle : une formule qui varie s'y lit en fourchette. */
+  const [bandsCarte] = useModelBands();
+  const [setsCarte] = useBandSets();
+  const calibresAbo = bandsAbonnements(setsCarte, bandsCarte);
   const [ouvert, setOuvert] = useState<'services' | 'formules' | 'produits' | null>(null);
   const [auto] = useStore(autoConfigStore);
 
@@ -1661,7 +1668,7 @@ function ReglagesDeLaCarte() {
 
   const liste = (
     cle: 'servicesMasques' | 'formulesMasquees' | 'produitsMasques',
-    items: { id: string; name: string; priceXof: number }[],
+    items: { id: string; name: string; priceXof: number; etiquette?: string }[],
   ) => (
     <div style={{ marginTop: 12, border: '1px solid var(--hairline)', borderRadius: 3, maxHeight: 300, overflowY: 'auto' }}>
       {items.map((x) => {
@@ -1682,7 +1689,7 @@ function ReglagesDeLaCarte() {
               style={{ accentColor: 'var(--copper-600)' }}
             />
             <span style={{ flex: 1, minWidth: 0, textDecoration: masque ? 'line-through' : undefined }}>{x.name}</span>
-            <span className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtMoney(x.priceXof, currency)}</span>
+            <span className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{x.etiquette ?? fmtMoney(x.priceXof, currency)}</span>
           </label>
         );
       })}
@@ -1812,7 +1819,13 @@ function ReglagesDeLaCarte() {
       </div>
 
       {ouvert === 'services' && liste('servicesMasques', services)}
-      {ouvert === 'formules' && liste('formulesMasquees', plans.map((p) => ({ id: p.id, name: p.name, priceXof: p.priceXof })))}
+      {/* CE QU'ON MONTRE OU CACHE PORTE LE PRIX QUE LA CLIENTE VERRA. Une
+          formule qui varie annonce donc sa fourchette ici aussi, sinon l'écran
+          qui décide de la vitrine ne dit pas la même chose que la vitrine. */}
+      {ouvert === 'formules' && liste('formulesMasquees', plans.map((p) => ({
+        id: p.id, name: p.name, priceXof: p.priceXof,
+        etiquette: libelleFourchette(p, 'mensuel', calibresAbo, (x) => fmtMoney(x, currency)) ?? undefined,
+      })))}
       {ouvert === 'produits' && liste('produitsMasques', produits)}
 
       <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 12, lineHeight: 1.6 }}>

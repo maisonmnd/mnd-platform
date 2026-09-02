@@ -11,6 +11,7 @@ import {
   basePourLaTete, supplementDeLongueurXof, prixDeLaFormule, etendueDeLaFormule,
   partMensuelleDeLaFormule, prixVenduXof, ecartDuPrixConvenu,
   gainPourElle, perkParleDeLaCarte, abonnementsVivantsDe,
+  libelleFourchette,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import { modelBandsStore, bandSetsStore, bandsAbonnements, SCOPE_ABONNEMENTS } from '../src/shared/pricing';
@@ -314,6 +315,21 @@ dit('un prix fixe n’a pas de fourchette', null,
 /* SANS BARÈME, RIEN À ÉTENDRE. */
 dit('sans barème, aucune fourchette', null,
   etendueDeLaFormule(suitLeCalibre, 'mensuel', []));
+
+/* LE LIBELLÉ DE LA FOURCHETTE, ÉCRIT UNE FOIS ET LU PARTOUT. « Tous les
+   abonnements qui ont une fourchette et varient doivent annoncer la
+   fourchette » (Yéman, 2 septembre 2026). Trois écrans l'annonçaient de trois
+   façons ; trois formulations du même fait finissent par se lire comme trois
+   offres différentes, et le jour où l'une change, les deux autres mentent. */
+const enF = (x: number) => `${x.toLocaleString('fr-FR')} F`;
+/* On compare au format de l'appelant, pas à des espaces écrites à la main :
+   `toLocaleString` pose une fine insécable que l'œil ne distingue pas. */
+dit('la fourchette s’écrit d’une seule façon', `${enF(112_000)} à ${enF(350_000)}`,
+  libelleFourchette(suitLeCalibre, 'mensuel', BANDS, enF));
+/* UNE FORMULE À PRIX FIXE N'ANNONCE RIEN : l'écran retombe alors sur son prix,
+   et « 140 000 F à 140 000 F » ne paraît jamais. */
+dit('un prix fixe n’écrit pas de fourchette', null,
+  libelleFourchette(plan({ priceXof: 140_000 }), 'mensuel', BANDS, enF));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
