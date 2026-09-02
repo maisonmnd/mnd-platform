@@ -435,6 +435,35 @@ maquette encore en attente. La rétention à 100 % reste donc fausse : elle ne
 compte que les résiliations à la main et ignore les paquets arrivés au bout sans
 reprise, qui sont des départs, simplement plus polis.
 
+## LES DEUX FAÇONS DE RÉGLER SE DISTINGUENT · 2 septembre 2026
+
+« On ne voit pas bien la différence entre les 2 boutons régler. Il faut une nette
+différence. Améliore l'UI. »
+
+**IL N'Y AVAIT PAS DE DIFFÉRENCE À VOIR, ET C'ÉTAIT UN BUG.** Les deux cartes
+lisaient `premiere`, c'est-à-dire le montant du choix SÉLECTIONNÉ. « En une
+fois » étant coché par défaut, « En deux fois » annonçait **168 000 F
+aujourd'hui et 0 F dans trente jours** : deux cartes, un seul chiffre, et une
+proposition de paiement en deux fois qui ne proposait rien.
+
+`moitie` se calcule désormais toujours, indépendamment de ce qui est coché :
+une carte doit dire ce qu'elle vaut, qu'on l'ait choisie ou non. Le franc impair
+part sur la PREMIÈRE échéance, comme au comptoir, et le harnais tient la règle
+des deux côtés pour que l'écran et l'échéancier ne tombent jamais sur deux
+montants.
+
+**CE QUE LE MONTANT VEUT DIRE, SOUS LUI.** « 168 000 F » et « 84 000 F » ne se
+comparent que si l'on sait que le second est un premier versement : chaque carte
+porte « aujourd'hui » sous son chiffre, et le découpage affiche désormais son
+TOTAL, la seule addition que la cliente ne doit pas avoir à faire.
+
+**LE CHOIX RETENU SE VOIT DE LOIN** : filet cuivre à gauche, ombre portée, et une
+coche devant son nom. Une teinte de fond seule ne suffisait pas.
+
+**« RÉGLER » ET « JE RÉGLERAI » se lisaient comme deux fois le même geste.** Le
+second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
+formule et laisse la Maison encaisser au fauteuil.
+
 ## « DE TEL MONTANT À TEL MONTANT » · 2 septembre 2026
 
 « Est-ce que le prix des abonnements peut dire entre tel montant à tel montant ?

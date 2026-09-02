@@ -109,7 +109,21 @@ export default function AchatFormule({
   const deuxFois = deuxFoisPossible(total, cfg.seuilDeuxFoisXof);
   /* Ce que l'écran ANNONCE. Le serveur recalculera la même chose ; en cas
      d'écart, c'est le sien qui s'inscrit. */
-  const premiere = parts === 2 ? total - Math.floor(total / 2) : total;
+  /* ══ CHAQUE CARTE ANNONCE SON PROPRE MONTANT — 2 septembre 2026 ═════
+     « On ne voit pas bien la différence entre les 2 boutons régler. Il faut une
+     nette différence » (Yéman).
+
+     LES DEUX CARTES LISAIENT LE MONTANT DU CHOIX SÉLECTIONNÉ. « En une fois »
+     étant coché par défaut, « En deux fois » affichait 168 000 F aujourd'hui et
+     0 F dans trente jours : deux cartes, un seul chiffre, et une proposition de
+     paiement en deux fois qui ne proposait rien. On ne voyait pas la différence
+     parce qu'il n'y en avait pas à l'écran.
+
+     LA MOITIÉ SE CALCULE TOUJOURS, indépendamment de ce qui est coché : une
+     carte doit dire ce qu'elle vaut, qu'on l'ait choisie ou non. Le franc
+     impair part sur la PREMIÈRE échéance, comme au comptoir. */
+  const moitie = total - Math.floor(total / 2);
+  const premiere = parts === 2 ? moitie : total;
 
   /** Crée l'abonnement CÔTÉ SERVEUR. Rend `null` et parle si le serveur refuse. */
   const souscrire = async (): Promise<Souscrit | null> => {
@@ -300,7 +314,10 @@ export default function AchatFormule({
             >
               <span className="cma-choix__t">
                 <span className="cma-choix__n">En une fois</span>
-                <span className="cma-choix__m">{fmtMoney(total, currency)}</span>
+                <span className="cma-choix__m">
+                  {fmtMoney(total, currency)}
+                  <i>aujourd’hui</i>
+                </span>
               </span>
               <span className="cma-choix__d">Vous réglez tout aujourd’hui, et il n’y a plus rien à y penser.</span>
             </button>
@@ -313,12 +330,16 @@ export default function AchatFormule({
               >
                 <span className="cma-choix__t">
                   <span className="cma-choix__n">En deux fois</span>
-                  <span className="cma-choix__m">{fmtMoney(premiere, currency)}</span>
+                  <span className="cma-choix__m">
+                    {fmtMoney(moitie, currency)}
+                    <i>aujourd’hui</i>
+                  </span>
                 </span>
                 <span className="cma-choix__d">La première moitié aujourd’hui, la seconde dans trente jours.</span>
                 <span className="cma-ech2">
-                  <span><span>Aujourd’hui</span><b>{fmtMoney(premiere, currency)}</b></span>
-                  <span><span>Dans 30 jours</span><b>{fmtMoney(total - premiere, currency)}</b></span>
+                  <span><span>Aujourd’hui</span><b>{fmtMoney(moitie, currency)}</b></span>
+                  <span><span>Dans 30 jours</span><b>{fmtMoney(total - moitie, currency)}</b></span>
+                  <span className="cma-ech2__tot"><span>Au total</span><b>{fmtMoney(total, currency)}</b></span>
                 </span>
               </button>
             ) : null}
@@ -336,7 +357,10 @@ export default function AchatFormule({
               </button>
             )}
             <button type="button" className="cma-btn ghost" disabled={!!occupe} onClick={() => void auComptoir()}>
-              {occupe === 'comptoir' ? 'Un instant…' : 'Je réglerai au comptoir'}
+              {/* « RÉGLER » ET « JE RÉGLERAI » se lisaient comme deux fois le
+                  même geste. Celui-ci n'encaisse rien : il réserve la formule
+                  et laisse la Maison encaisser au fauteuil. */}
+              {occupe === 'comptoir' ? 'Un instant…' : 'Je passerai au comptoir'}
             </button>
             <button type="button" className="cma-lien" disabled={!!occupe} onClick={() => setTemps('recap')}>
               Revenir à la formule

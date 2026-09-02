@@ -243,5 +243,27 @@ dit('un numéro inconnu non plus', troisFois.map((e) => e.dueIso),
 dit('les montants restent intacts', troisFois.map((e) => e.amountXof),
   deplaceEcheance(troisFois, 2, '2026-12-01').map((e) => e.amountXof));
 
+/* ── CHAQUE CARTE ANNONCE SON PROPRE MONTANT — 2 septembre 2026 ────
+   « On ne voit pas bien la différence entre les 2 boutons régler » (Yéman).
+
+   LES DEUX CARTES DE MA COURONNE LISAIENT LE MONTANT DU CHOIX SÉLECTIONNÉ :
+   « En une fois » étant coché par défaut, « En deux fois » annonçait le total
+   aujourd'hui et zéro dans trente jours. Deux cartes, un seul chiffre, et une
+   proposition de paiement en deux fois qui ne proposait rien.
+
+   LA MOITIÉ SE CALCULE TOUJOURS, et le franc impair part sur la PREMIÈRE
+   échéance, comme au comptoir. */
+const moitieDe = (t: number) => t - Math.floor(t / 2);
+dit('un total pair se coupe en deux parts égales', [84_000, 84_000],
+  [moitieDe(168_000), 168_000 - moitieDe(168_000)]);
+dit('un total impair met le franc de plus devant', [75_001, 75_000],
+  [moitieDe(150_001), 150_001 - moitieDe(150_001)]);
+dit('les deux moitiés font toujours le total', true,
+  [1, 999, 150_000, 168_001].every((t) => moitieDe(t) + (t - moitieDe(t)) === t));
+/* ET L'ÉCHÉANCIER COUPE COMME L'ÉCRAN : deux endroits qui partagent le même
+   total ne doivent pas tomber sur deux montants. */
+dit('l’échéancier coupe comme l’écran', [84_000, 84_000],
+  construitEcheancier(168_000, 2, '2026-09-02').map((e) => e.amountXof));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
