@@ -186,6 +186,18 @@ export type Appointment = {
   /** Prestations sur lesquelles l'acompte est calculé (défaut : toutes). */
   depositServiceIds?: string[];
   /** Série multi-séances : les RDV liés partagent cet identifiant. */
+  /** LE FOYER QUI VIENT ENSEMBLE — 2 septembre 2026.
+
+      « Comment je peux prendre des RDV dans un foyer pour 2 personnes au
+      minimum ? » (Yéman). La mère et ses deux filles demandaient trois fois le
+      même formulaire, et rien ensuite ne disait que ces trois rendez-vous
+      n'en faisaient qu'un.
+
+      DEUX RENDEZ-VOUS, PAS UN À DEUX TÊTES. Le calendrier, les mains, les
+      commissions et le suivi comptent tous PAR TÊTE : un objet à deux têtes
+      casserait les quatre d'un coup. On pose donc des rendez-vous ordinaires,
+      liés par cet identifiant, exactement comme les séances d'une série. */
+  foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)
   seriesTotal?: number; // nombre total de séances de la série
@@ -230,6 +242,100 @@ export type Appointment = {
 
    La règle de valeur existait déjà (`apptTotalXof` : une séance 2+ vaut zéro,
    partout) ; ce qui manquait, c'était le geste pour la poser au comptoir. */
+
+/* ══ ASSEOIR UN FOYER — 2 septembre 2026 ═════════════════════════════
+   Deux têtes au même créneau demandent DEUX MAÎTRES. Sinon elles passent l'une
+   après l'autre, et c'est la durée de la première qui décide de l'heure de la
+   seconde.
+
+   LE CALCUL EST PUR : il ne lit ni le magasin ni l'horloge, il place. L'écran
+   lui dit qui vient, combien de temps, et quels maîtres sont libres. */
+
+const minVersHeure = (m: number): string =>
+  `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+const heureVersMin = (t: string): number => {
+  const [h, m] = t.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+/** Deux rendez-vous se chevauchent-ils ? Bornes ouvertes : finir à 14:00 et
+    commencer à 14:00 ne se chevauche pas, c'est le fauteuil qui se libère. */
+export const chevauche = (debutA: string, dureeA: number, debutB: string, dureeB: number): boolean => {
+  const a = heureVersMin(debutA);
+  const b = heureVersMin(debutB);
+  return a < b + Math.max(1, dureeB) && b < a + Math.max(1, dureeA);
+};
+
+/** LES MAÎTRES LIBRES À CETTE HEURE-LÀ, ce jour-là.
+
+    UN RENDEZ-VOUS ANNULÉ NE TIENT PLUS LE FAUTEUIL. Le compter ferait refuser
+    « ensemble » pour une place qui est libre, et la Maison proposerait deux
+    créneaux à la suite sans raison. */
+export function maitresLibres(o: {
+  appts: readonly Appointment[];
+  branchId: string;
+  dateIso: string;
+  heure: string;
+  dureeMin: number;
+  maitres: readonly string[];
+  /** Les rendez-vous qu'on est en train de poser, et qui tiennent déjà. */
+  dejaPoses?: readonly { master: string; time: string; dureeMin: number }[];
+}): string[] {
+  const duJour = o.appts.filter((a) => a.branchId === o.branchId && a.date === o.dateIso && a.status !== 'annulé');
+  return o.maitres.filter((m) => {
+    const pris = duJour.some((a) => a.master === m && chevauche(o.heure, o.dureeMin, a.time, a.dureeMin || 60));
+    if (pris) return false;
+    return !(o.dejaPoses ?? []).some((d) => d.master === m && chevauche(o.heure, o.dureeMin, d.time, d.dureeMin));
+  });
+}
+
+export type TeteAPlacer = { clientId: string; dureeMin: number };
+export type PlaceDuFoyer = { clientId: string; time: string; master: string };
+
+/** OÙ S'ASSEOIT CHAQUE TÊTE DU FOYER.
+
+    `ensemble` : chacune prend un maître libre à elle, toutes à la même heure.
+    S'il manque un maître, LES SURNUMÉRAIRES PASSENT À LA SUITE plutôt que
+    d'être refusées : une famille qui s'est déplacée ne repart pas parce que la
+    Maison n'a que deux fauteuils.
+
+    `à la suite` : toutes chez le premier maître, l'une après l'autre, chacune
+    décalée de la durée de celle d'avant.
+
+    ON NE MET JAMAIS DEUX TÊTES CHEZ LE MÊME MAÎTRE À LA MÊME HEURE. C'est la
+    seule règle qui ne se négocie pas : elle ferait promettre un fauteuil qui
+    n'existe pas, et la faute se découvre à l'arrivée, devant la famille. */
+export function placeLeFoyer(o: {
+  tetes: readonly TeteAPlacer[];
+  maitresLibres: readonly string[];
+  maitreParDefaut: string;
+  heure: string;
+  ensemble: boolean;
+}): PlaceDuFoyer[] {
+  if (o.tetes.length === 0) return [];
+  const places: PlaceDuFoyer[] = [];
+  if (o.ensemble && o.maitresLibres.length > 0) {
+    /* CHACUNE SON MAÎTRE, tant qu'il y en a. */
+    const front = o.tetes.slice(0, o.maitresLibres.length);
+    front.forEach((t, i) => places.push({ clientId: t.clientId, time: o.heure, master: o.maitresLibres[i] }));
+    /* LES SUIVANTES REPRENNENT LE PREMIER MAÎTRE, à la suite de sa tête. */
+    let curseur = heureVersMin(o.heure) + (front[0]?.dureeMin ?? 60);
+    for (const t of o.tetes.slice(o.maitresLibres.length)) {
+      places.push({ clientId: t.clientId, time: minVersHeure(curseur), master: o.maitresLibres[0] });
+      curseur += Math.max(1, t.dureeMin);
+    }
+    return places;
+  }
+  /* À LA SUITE, chez un seul maître. */
+  const maitre = o.maitresLibres[0] ?? o.maitreParDefaut;
+  let curseur = heureVersMin(o.heure);
+  for (const t of o.tetes) {
+    places.push({ clientId: t.clientId, time: minVersHeure(curseur), master: maitre });
+    curseur += Math.max(1, t.dureeMin);
+  }
+  return places;
+}
 
 /** Le rituel qui PORTE le prix d'une série — sa séance 1. */
 export const teteDeSerie = (l: readonly Appointment[], sid: string): Appointment | undefined =>

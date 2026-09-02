@@ -1108,6 +1108,11 @@ export function RdvModal({
   appt,
   title,
   onEncaisser,
+  /* LA PORTE DU FOYER — 2 septembre 2026. On découvre qu'il faut asseoir la
+     famille entière AU MOMENT de poser le rendez-vous d'une de ses têtes, pas
+     avant : le lien vit donc ici, et l'écran qui sait ouvrir la modale du foyer
+     le passe. Absent = la porte ne s'affiche pas, et rien ne change. */
+  onFoyer,
   sansPrix,
 }: {
   onClose: () => void;
@@ -1122,6 +1127,7 @@ export function RdvModal({
   title?: string;
   /** Encaisser depuis la modale — n'apparaît qu'en modification d'un RDV existant. */
   onEncaisser?: (a: Appointment) => void;
+  onFoyer?: (clientId: string) => void;
 }) {
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
@@ -2563,6 +2569,22 @@ export function RdvModal({
             permette de comprendre en un regard : soit on s'est trompé de
             prestation, soit celle-ci n'a jamais été incluse, et dans les deux
             cas on sait quoi faire. */}
+        {/* LA FAMILLE ENTIERE, D'UN GESTE. Le lien ne parait que si la tete a
+            un foyer d'au moins deux tetes : ailleurs il ne menerait qu'a un
+            refus, et un bouton qui refuse est un bouton de trop. */}
+        {onFoyer && clientId && (() => {
+          const cli = clients.find((c) => c.id === clientId);
+          const combien = cli?.familyId
+            ? clients.filter((c) => c.familyId === cli.familyId && !c.archived).length : 0;
+          if (combien < 2) return null;
+          return (
+            <button type="button" className="tre-link-btn" style={{ alignSelf: 'flex-start' }}
+              onClick={() => { onFoyer(clientId); onClose(); }}>
+              Elles viennent a {combien} : rendez-vous du foyer
+            </button>
+          );
+        })()}
+
         {membership && membershipPlan && coverageRows.length === 0 && chosen.length > 0 && (() => {
           const inclus = inclusVendus(membership, membershipPlan)
             .map((i) => services.find((sv) => sv.id === i.serviceId)?.name)

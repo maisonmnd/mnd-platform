@@ -464,6 +464,65 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LE RENDEZ-VOUS DU FOYER · 2 septembre 2026, CONSTRUIT
+
+« Comment je peux prendre des RDV dans un foyer pour 2 personnes au minimum ? »
+
+**TROIS FOIS LE MÊME FORMULAIRE.** Pour la mère et ses deux filles, il fallait
+ouvrir trois rendez-vous, retaper trois fois la date, choisir trois fois le
+maître, et rien ensuite ne disait que ces trois-là n'en faisaient qu'un.
+
+**DEUX RENDEZ-VOUS, PAS UN À DEUX TÊTES.** Le calendrier, les mains, les
+commissions et le suivi comptent tous PAR TÊTE : un objet à deux têtes casserait
+les quatre d'un coup. On pose des rendez-vous ordinaires, liés par `foyerId`,
+exactement comme les séances d'une série. Chacun se déplace, s'annule et se
+facture seul, **une fille malade ne fait pas tomber le rendez-vous de sa mère**.
+
+**LE PLACEMENT EST PUR ET HARNACHÉ** (`placeLeFoyer()`, `maitresLibres()`,
+`chevauche()` dans `agenda.ts`, quatorze contrôles) :
+
+- **ensemble** — chacune son maître libre, toutes à la même heure ;
+- **à la suite** — toutes chez un maître, et **c'est la durée de la première qui
+  décide de l'heure de la seconde**, une pose de 90 minutes ne laisse pas la
+  fille à 15:00 ;
+- **trois têtes et deux maîtres** — la troisième passe à la suite plutôt que
+  d'être refusée : une famille qui s'est déplacée ne repart pas parce que la
+  Maison n'a que deux fauteuils ;
+- **jamais deux têtes chez le même maître à la même heure** — la règle qui ne se
+  négocie pas, elle promettrait un fauteuil qui n'existe pas et la faute se
+  découvre devant la famille ;
+- les bornes sont **ouvertes** : finir à 14:00 et commencer à 14:00 ne se
+  chevauche pas, c'est le fauteuil qui se libère ;
+- un rendez-vous **annulé** ne tient plus le fauteuil, et **ce qu'on est en train
+  de poser** le tient déjà.
+
+**« ENSEMBLE » NE PARAÎT QUE SI L'AGENDA LE PERMET**, et l'écran dit pourquoi
+quand il ne le permet pas.
+
+**CHAQUE TÊTE GARDE SON PRIX** (Micro, Nano, Pico ne paient pas le même
+resserrage) et **la remise du foyer se pose une fois, sur le total** : la poser
+tête par tête la doublerait.
+
+**`tetesDuFoyer` REND TOUTES LES TÊTES DU COMPTE, quel que soit leur âge.**
+`tetesPortees` ne rend que les MINEURES, ce qui est juste pour Ma Couronne, un
+adulte ne réservant pas pour un autre adulte sans son mot, mais faux au comptoir
+où la Maison a les deux sœurs devant elle.
+
+**LA PORTE** : dans la modale d'un rendez-vous, « Elles viennent à N · rendez-vous
+du foyer », visible seulement si la tête a un foyer d'au moins deux têtes. On
+découvre qu'il faut asseoir la famille entière AU MOMENT de poser le rendez-vous
+d'une de ses têtes, pas avant.
+
+**DEUX DES TROIS POINTS DE LA MAQUETTE ONT ÉTÉ TRANCHÉS AUTREMENT** :
+
+- **la formule partagée n'est PAS faite.** Un abonnement porte toujours un
+  `clientId`, pas un foyer : « Le Foyer · Deux Têtes » reste invendable tel
+  quel. C'est le geste suivant, et il demande un champ de plus sur le contrat.
+- **Ma Couronne ne bouge pas.** Ouvrir la réservation aux têtes ADULTES d'un
+  foyer touche à ce qu'une cliente voit d'une autre ; cela se décide, cela ne se
+  glisse pas dans un lot.
+- **la facture** : une pièce par tête, au payeur du foyer, comme aujourd'hui.
+
 ## LE JOUR, LA SEMAINE, LE MOIS · 2 septembre 2026
 
 « Comment avoir l'état de la caisse du jour, de la semaine et du mois ? »

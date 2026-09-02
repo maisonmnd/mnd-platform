@@ -45,6 +45,7 @@ import {
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence,
 } from './_shared';
+import { RdvFoyerModal } from './RdvFoyer';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
@@ -581,6 +582,9 @@ export default function Customers() {
     if (pid) setSelId(pid);
   }, [params]);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
+  /* Le rendez-vous du foyer : ouvert depuis la modale d'un rendez-vous, quand
+     la tête s'avère appartenir à une maison de plusieurs. */
+  const [foyerFor, setFoyerFor] = useState<string | null>(null);
   const [intake, setIntake] = useState(false);
   /* La file des enfants declares depuis Ma Couronne, en attente de la Maison. */
   const [fileEnfants, setFileEnfants] = useState(false);
@@ -1296,8 +1300,11 @@ export default function Customers() {
           onClose={() => setRdvFor(null)}
           initial={{ clientId: rdvFor.id }}
           title={`Rendez-vous · ${rdvFor.name.split(' ')[0]}.`}
+          onFoyer={(id) => setFoyerFor(id)}
         />
       )}
+
+      {foyerFor && <RdvFoyerModal clientId={foyerFor} onClose={() => setFoyerFor(null)} />}
 
       {intake && <IntakeModal onClose={() => setIntake(false)} personas={personas} />}
     </div>

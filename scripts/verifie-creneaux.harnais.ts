@@ -10,6 +10,7 @@
    et se découvrent devant la porte. */
 import { creneauxLibres } from '../src/apps/couronne/lib';
 import { maitreParDefaut } from '../src/shared/branches';
+import { placeLeFoyer, maitresLibres, chevauche, type Appointment } from '../src/shared/agenda';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -159,6 +160,76 @@ dit('un choix vide aussi', 'Expert',
 /* UNE BRANCHE SANS AUCUN MAÎTRE NE PLANTE PAS : elle rend le vide, et la
    modale laisse choisir. */
 dit('aucun maître, aucune proposition', '', maitreParDefaut({ masters: [] }));
+
+/* ── ASSEOIR UN FOYER — 2 septembre 2026 ───────────────────────────
+   « Comment je peux prendre des RDV dans un foyer pour 2 personnes au
+   minimum ? » (Yéman). Trois fois le même formulaire, et rien ensuite ne
+   disait que ces trois rendez-vous n'en faisaient qu'un. */
+
+/* LES BORNES SONT OUVERTES : finir à 14:00 et commencer à 14:00 ne se
+   chevauche pas, c'est le fauteuil qui se libère. Fermer la borne ferait
+   refuser un créneau parfaitement valide, toute la journée. */
+dit('l’un finit quand l’autre commence : libre', false, chevauche('14:00', 60, '15:00', 60));
+dit('une demi-heure de trop et c’est pris', true, chevauche('14:00', 90, '15:00', 60));
+dit('le chevauchement se lit dans les deux sens', true, chevauche('15:00', 60, '14:00', 90));
+
+const rdvDe = (master: string, time: string, dureeMin: number, status: Appointment['status'] = 'confirmé') =>
+  ({ id: `a-${master}-${time}`, branchId: 'b1', clientId: 'c', serviceIds: [], date: '2026-09-10',
+     time, master, status, dureeMin } as unknown as Appointment);
+
+const MAITRES = ['Team', 'Expert'];
+/* UN RENDEZ-VOUS ANNULÉ NE TIENT PLUS LE FAUTEUIL : le compter ferait refuser
+   « ensemble » pour une place qui est libre. */
+dit('un rituel annulé ne tient pas le fauteuil', 2, maitresLibres({ appts: [rdvDe('Team', '14:00', 60, 'annulé')], branchId: 'b1',
+  dateIso: '2026-09-10', heure: '14:00', dureeMin: 60, maitres: MAITRES }).length);
+dit('le maître occupé sort de la liste', 'Expert', maitresLibres({ appts: [rdvDe('Team', '14:00', 60)], branchId: 'b1',
+  dateIso: '2026-09-10', heure: '14:00', dureeMin: 60, maitres: MAITRES }).join());
+/* CE QU'ON EST EN TRAIN DE POSER TIENT DÉJÀ : sans cela, les deux têtes du
+   foyer se retrouveraient chez le même maître à la même heure. */
+dit('ce qu’on vient de poser tient le fauteuil', 'Expert', maitresLibres({ appts: [], branchId: 'b1', dateIso: '2026-09-10', heure: '14:00',
+  dureeMin: 60, maitres: MAITRES,
+  dejaPoses: [{ master: 'Team', time: '14:00', dureeMin: 60 }] }).join());
+/* UN AUTRE JOUR NE COMPTE PAS. */
+dit('la veille ne prend pas le fauteuil du lendemain', 2, maitresLibres({ appts: [{ ...rdvDe('Team', '14:00', 60), date: '2026-09-11' }], branchId: 'b1',
+  dateIso: '2026-09-10', heure: '14:00', dureeMin: 60, maitres: MAITRES }).length);
+
+const mere = { clientId: 'mere', dureeMin: 90 };
+const fille = { clientId: 'fille', dureeMin: 60 };
+const cadette = { clientId: 'cadette', dureeMin: 60 };
+
+/* ENSEMBLE : chacune son maître, toutes à la même heure. */
+const ens = placeLeFoyer({ tetes: [mere, fille], maitresLibres: MAITRES,
+  maitreParDefaut: 'Team', heure: '14:00', ensemble: true });
+dit('deux têtes, deux maîtres, une seule heure', 'mere@14:00/Team fille@14:00/Expert', ens.map((p) => `${p.clientId}@${p.time}/${p.master}`).join(' '));
+
+/* À LA SUITE : la durée de la première décide de l'heure de la seconde. Une
+   pose de 90 minutes ne laisse pas la fille à 15:00. */
+const suite = placeLeFoyer({ tetes: [mere, fille], maitresLibres: ['Team'],
+  maitreParDefaut: 'Team', heure: '14:00', ensemble: false });
+dit('à la suite, la durée de la première décide de l’heure de la seconde', 'mere@14:00 fille@15:30', suite.map((p) => `${p.clientId}@${p.time}`).join(' '));
+
+/* TROIS TÊTES ET DEUX MAÎTRES : la troisième passe à la suite plutôt que
+   d'être refusée. Une famille qui s'est déplacée ne repart pas parce que la
+   Maison n'a que deux fauteuils. */
+const troisDeuxMaitres = placeLeFoyer({ tetes: [mere, fille, cadette], maitresLibres: MAITRES,
+  maitreParDefaut: 'Team', heure: '14:00', ensemble: true });
+dit('la troisième tête passe à la suite de la première', 'mere@14:00/Team fille@14:00/Expert cadette@15:30/Team', troisDeuxMaitres.map((p) => `${p.clientId}@${p.time}/${p.master}`).join(' '));
+
+/* ON NE MET JAMAIS DEUX TÊTES CHEZ LE MÊME MAÎTRE À LA MÊME HEURE. La règle
+   qui ne se négocie pas : elle promettrait un fauteuil qui n'existe pas, et la
+   faute se découvre devant la famille. */
+const paires = (l: { time: string; master: string }[]) => l.map((p) => `${p.master}@${p.time}`);
+for (const cas of [ens, suite, troisDeuxMaitres]) {
+  dit('aucune tête ne partage maître et heure', cas.length, new Set(paires(cas)).size);
+}
+
+/* « ENSEMBLE » SANS AUCUN MAÎTRE LIBRE retombe sur la suite : on ne promet pas
+   un fauteuil qui n'existe pas. */
+const sansMaitre = placeLeFoyer({ tetes: [mere, fille], maitresLibres: [],
+  maitreParDefaut: 'Team', heure: '14:00', ensemble: true });
+dit('sans maître libre, on passe à la suite', '14:00,15:30', sansMaitre.map((p) => p.time).join());
+dit('aucune tête, rien à poser', 0, placeLeFoyer({ tetes: [], maitresLibres: MAITRES, maitreParDefaut: 'Team',
+  heure: '14:00', ensemble: true }).length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
