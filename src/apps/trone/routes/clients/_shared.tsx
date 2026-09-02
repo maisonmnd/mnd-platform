@@ -1132,7 +1132,20 @@ export function RdvModal({
   const [produitsGamme] = useProducts();
   const byId = useServicesById();
 
-  const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? clients[0]?.id ?? '');
+  /* ══ LA CASE ATTEND, ELLE NE DEVINE PAS — 2 septembre 2026 ═════════
+     « Quand je veux prendre un nouveau rendez-vous, j'ai toujours un nom qui est
+     pris et rempli dans la case. J'aimerais que cette case soit vierge quand
+     c'est quelque chose de nouveau » (Yéman).
+
+     LA PREMIÈRE CLIENTE DU REGISTRE SE POSAIT TOUTE SEULE. Un nom déjà écrit
+     dans un formulaire neuf n'est pas une commodité, c'est un piège : il suffit
+     d'oublier de le changer pour poser le rendez-vous d'une autre, et l'écran
+     avait l'air rempli correctement. La Maison n'a aucune raison de croire que
+     la personne devant le comptoir est la première par ordre alphabétique.
+
+     `initial?.clientId` RESTE : quand on ouvre le rendez-vous DEPUIS une fiche,
+     la tête est connue et la poser n'est pas deviner. */
+  const [clientId, setClientId] = useState(appt?.clientId ?? initial?.clientId ?? '');
   /* La porte « Demander » du rituel — l'autre porte de la maquette du Fil. */
   const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [serviceIds, setServiceIds] = useState<string[]>(appt?.serviceIds ?? initial?.serviceIds ?? []);

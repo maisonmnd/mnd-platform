@@ -464,6 +464,31 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LA CASE ATTEND, ELLE NE DEVINE PAS · 2 septembre 2026
+
+« Quand je veux prendre un nouveau rendez-vous, ou quand je veux faire un nouveau
+devis, ou une nouvelle facture, j'ai toujours un nom qui est pris et rempli dans
+la case. J'aimerais que cette case soit vierge quand c'est quelque chose de
+nouveau, que ça attende que je mette le nom d'un nouveau client. »
+
+**LA PREMIÈRE CLIENTE DU REGISTRE SE POSAIT TOUTE SEULE**, sur le rendez-vous
+neuf (`clients[0]?.id`) comme sur le devis et la facture neufs
+(`branchClients[0]?.id`). Un nom déjà écrit dans un formulaire vierge n'est pas
+une commodité, c'est un piège : il suffit d'oublier de le changer pour poser le
+rendez-vous d'une autre ou lui facturer un rituel, et l'écran a l'air rempli
+correctement. La Maison n'a aucune raison de croire que la personne devant le
+comptoir est la première par ordre alphabétique.
+
+**`initial?.clientId` RESTE** : quand on ouvre le rendez-vous DEPUIS une fiche,
+la tête est connue, et la poser n'est pas deviner.
+
+**UN REFUS SE DIT** : une pièce neuve sans personne se refuse en nommant les deux
+issues, « Choisissez la tête couronnée, ou marquez un passage ». Une pièce sans
+personne ne se retrouve dans aucune recherche, n'entre dans aucun compte de
+cliente, et ne se réclame à personne. Le rendez-vous avait déjà son garde
+(« Choisissez une tête couronnée »), et le bandeau de la modale dit « Tête à
+choisir » tant qu'aucune n'est posée.
+
 ## LA RÉFÉRENCE N'EST QU'UNE RÉFÉRENCE · 2 septembre 2026
 
 « Sur le message de lien de paiement il ne faut pas mettre en gras la référence
