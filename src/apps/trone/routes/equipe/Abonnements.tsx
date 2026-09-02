@@ -13,7 +13,7 @@ import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
   subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
-  prixDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
+  prixDeLaFormule, etendueDeLaFormule, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
   comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL,
@@ -1436,6 +1436,18 @@ export default function Abonnements() {
               /* UN PAQUET NE SE MULTIPLIE PAS et n'a pas de cycle : le
                  sélecteur du haut ne lui fait rien. Voir `prixDeLaFormule`. */
               const aff = prixDeLaFormule(p, cycle);
+              /* ══ « DE TEL MONTANT À TEL MONTANT » — 2 septembre 2026 ═════
+                 « Est-ce que le prix des abonnements peut dire entre tel montant
+                 à tel montant ? Le calcul récupère automatiquement les prix avec
+                 les différentes tranches » (Yéman).
+
+                 UN SEUL PRIX SUR UNE FORMULE QUI SUIT LE CALIBRE EST UN PRIX
+                 FAUX POUR PRESQUE TOUT LE MONDE : la carte annonçait 140 000 F,
+                 le comptoir en réclamait 201 500 à une tête Micro et 112 000 à
+                 une Jumbo. La fourchette INTERROGE LE MOTEUR pour chaque calibre
+                 du barème, plus le prix sans calibre : deux calculs du même prix
+                 finiraient par diverger, et c'est la vitrine qui mentirait. */
+              const etendue = etendueDeLaFormule(p, cycle, calibresAbo);
               return (
                 <Card key={p.id} className={`tre-plan ${p.popular ? 'tre-plan--popular' : ''}`}>
                   <div className="tre-reorder" role="group" aria-label="Réordonner la formule">
@@ -1447,14 +1459,23 @@ export default function Abonnements() {
                     : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{p.tag}</div>}
                   <div className="tre-plan__name" style={{ marginTop: p.popular ? 6 : 8 }}>{p.name}</div>
                   <div className="tre-plan__line">{p.line}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
-                    <span className="tre-plan__price">{fmtMoney(aff.montantXof, currency)}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px', flexWrap: 'wrap' }}>
+                    <span className="tre-plan__price" style={etendue ? { fontSize: 25 } : undefined}>
+                      {etendue
+                        ? `${fmtMoney(etendue.bas, currency)} à ${fmtMoney(etendue.haut, currency)}`
+                        : fmtMoney(aff.montantXof, currency)}
+                    </span>
                     <span style={{ fontSize: 12, color: p.popular ? 'rgba(246,241,231,.7)' : 'var(--ink-soft)' }}>{aff.periode}</span>
                   </div>
                   <div style={{ fontSize: 11, minHeight: 16, color: p.popular ? 'var(--copper-300)' : 'var(--copper-700)' }}>
-                    {p.mode === 'pack'
-                      ? `paquet de crédits · soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois`
-                      : aff.offert ? `soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois · ${aff.offert}` : ''}
+                    {/* LA FOURCHETTE DIT POURQUOI ELLE EN EST UNE, et rappelle le
+                        prix de référence : c'est lui que paie une tête qu'on n'a
+                        pas comptée, et il doit rester lisible quelque part. */}
+                    {etendue
+                      ? `selon le calibre · référence ${fmtMoney(aff.montantXof, currency)}`
+                      : p.mode === 'pack'
+                        ? `paquet de crédits · soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois`
+                        : aff.offert ? `soit ${fmtMoney(partMensuelleDeLaFormule(p, cycle), currency)}/mois · ${aff.offert}` : ''}
                   </div>
                   <div className="tre-plan__divider" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>

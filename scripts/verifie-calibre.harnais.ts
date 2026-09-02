@@ -291,5 +291,29 @@ dit('un abonnement sans date de fin reste vivant', 1,
 dit('un résilié ne vit plus', 0,
   abonnementsVivantsDe([{ ...abo({ id: 'parti' }), clientId: 'c1', status: 'churn' }], 'c1').length);
 
+/* ── ⑫ « DE TEL MONTANT À TEL MONTANT » ────────────────────────────
+   « Est-ce que le prix des abonnements peut dire entre tel montant à tel
+   montant ? Le calcul récupère automatiquement les prix avec les différentes
+   tranches » (Yéman, 2 septembre 2026).
+
+   UN SEUL PRIX SUR UNE FORMULE QUI SUIT LE CALIBRE EST FAUX POUR PRESQUE TOUT
+   LE MONDE : la carte annonçait 140 000 F quand le comptoir en réclame 201 500
+   à une tête Micro. */
+const suitLeCalibre = plan({ suitLeCalibre: true, priceXof: 140_000 });
+const four = etendueDeLaFormule(suitLeCalibre, 'mensuel', BANDS)!;
+dit('la fourchette prend le plus bas et le plus haut du barème',
+  { bas: 112_000, haut: 350_000 }, { bas: four.bas, haut: four.haut });
+/* LE PRIX DE RÉFÉRENCE EN FAIT PARTIE : une tête qu'on n'a pas comptée le paie,
+   et il doit tenir dans la fourchette annoncée. */
+dit('la référence tient dans la fourchette', true,
+  four.bas <= 140_000 && 140_000 <= four.haut);
+/* UNE FORMULE À PRIX FIXE N'A PAS DE FOURCHETTE : annoncer « 140 000 à
+   140 000 » serait pire que d'annoncer un prix. */
+dit('un prix fixe n’a pas de fourchette', null,
+  etendueDeLaFormule(plan({ priceXof: 140_000 }), 'mensuel', BANDS));
+/* SANS BARÈME, RIEN À ÉTENDRE. */
+dit('sans barème, aucune fourchette', null,
+  etendueDeLaFormule(suitLeCalibre, 'mensuel', []));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

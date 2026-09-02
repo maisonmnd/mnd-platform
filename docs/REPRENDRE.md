@@ -435,6 +435,29 @@ maquette encore en attente. La rétention à 100 % reste donc fausse : elle ne
 compte que les résiliations à la main et ignore les paquets arrivés au bout sans
 reprise, qui sont des départs, simplement plus polis.
 
+## « DE TEL MONTANT À TEL MONTANT » · 2 septembre 2026
+
+« Est-ce que le prix des abonnements peut dire entre tel montant à tel montant ?
+Le calcul récupère automatiquement les prix avec les différentes tranches. »
+
+**UN SEUL PRIX SUR UNE FORMULE QUI SUIT LE CALIBRE EST FAUX POUR PRESQUE TOUT LE
+MONDE.** La carte annonçait 140 000 F quand le comptoir réclame 201 500 F à une
+tête Micro et 112 000 F à une Jumbo.
+
+`etendueDeLaFormule()` existait depuis le 1er septembre et ne servait que dans
+Ma Couronne. Elle **interroge le moteur pour chaque calibre** du barème, plus le
+prix sans calibre : deux calculs du même prix finiraient par diverger, et c'est
+la vitrine qui mentirait. Le prix de référence en fait partie, car une tête qu'on
+n'a pas comptée le paie et il doit tenir dans la fourchette annoncée.
+
+Posée sur **la carte des formules du Trône** (« 112 000 F à 350 000 F · selon le
+calibre · référence 140 000 F ») et sur **« Nos abonnements » de Ma Couronne**,
+où elle ne paraît que pour une tête inconnue : une cliente dont on connaît le
+calibre a droit à SON prix, et lui montrer une étendue le lui reprendrait.
+
+**UNE FORMULE À PRIX FIXE N'A PAS DE FOURCHETTE** : annoncer « 140 000 à
+140 000 » serait pire que d'annoncer un prix.
+
 ## LE MOTEUR, EN ARGENT RÉEL · 2 septembre 2026, CONSTRUIT
 
 « Je ne comprends pas le montant récurrent de 18 817. Ça ne me renseigne pas

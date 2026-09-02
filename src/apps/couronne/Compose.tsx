@@ -8,7 +8,7 @@ import {
 } from '../../shared/bridges';
 import {
   usePlans, moisDuPack, FAMILLES_FORMULES, formulesPourElle, etendueDesRemises, type Plan,
-  gainPourElle, perkParleDeLaCarte, type TeteConnue,
+  gainPourElle, perkParleDeLaCarte, etendueDeLaFormule, type TeteConnue,
 } from '../../shared/abonnements';
 import { useStore } from '../../shared/store';
 import {
@@ -476,6 +476,10 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                          REMPLACÉ : deux chiffres sur le même sujet, dont l'un
                          figé dans un texte, finissent par se contredire. */
                       const ecrits = pl.perks.filter((av) => !perkParleDeLaCarte(av)).slice(0, 4);
+                      /* LA FOURCHETTE NE PARAÎT QUE POUR UNE TÊTE INCONNUE : une
+                         cliente dont on connaît le calibre a droit à SON prix, et
+                         lui montrer une étendue le lui reprendrait. */
+                      const etendue = maTete.bandId ? null : etendueDeLaFormule(pl, 'mensuel', calibresAbo);
                       return (
                         <>
                           {(ecrits.length > 0 || g.gainXof > 0) && (
@@ -492,8 +496,14 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                             </ul>
                           )}
                           <div className="cma-offre__bas">
-                            <span className="cma-offre__prix">
-                              {fmtMoney(g.prixXof, currency)}
+                            {/* SA TÊTE N'EST PAS CONNUE : on annonce la FOURCHETTE
+                                plutôt qu'un prix qui changera sous ses yeux à
+                                l'écran suivant. Dès que son calibre est su, le
+                                prix devient le sien, unique. */}
+                            <span className="cma-offre__prix" style={etendue ? { fontSize: '1.35rem' } : undefined}>
+                              {etendue
+                                ? `${fmtMoney(etendue.bas, currency)} à ${fmtMoney(etendue.haut, currency)}`
+                                : fmtMoney(g.prixXof, currency)}
                               <span>{pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}</span>
                             </span>
                             {g.gainXof > 0 && <span className="cma-offre__gain">−{g.pct} % sur la carte</span>}
