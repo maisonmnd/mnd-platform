@@ -131,5 +131,28 @@ const longNom: string = capture.output();
 dit(longNom.includes('Une caisse au nom vraiment'), 'un nom long s’imprime en entier');
 dit(longNom.includes('3 mouvements'), 'son compte reste lisible à côté');
 
+/* ── LA SEMAINE COMMENCE LE LUNDI — 2 septembre 2026 ───────────────
+   « Comment avoir l'état de la caisse du jour, de la semaine et du mois ? »
+   (Yéman). La période libre existait, mais il fallait taper deux dates : deux
+   occasions de se tromper d'un jour, et un rapport faux emporté à la banque.
+
+   `getDay()` REND 0 POUR DIMANCHE. Sans le décalage, la semaine s'ouvrirait la
+   veille de sa fin chaque dimanche — l'erreur ne se verrait qu'un jour sur
+   sept, c'est-à-dire trop tard. */
+const lundiDe = (iso: string): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  const jour = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - jour);
+  return d.toISOString().slice(0, 10);
+};
+/* Le 2 septembre 2026 est un MERCREDI ; sa semaine s'ouvre le lundi 31 août. */
+dit(lundiDe('2026-09-02') === '2026-08-31', 'un mercredi remonte au lundi d’avant');
+dit(lundiDe('2026-08-31') === '2026-08-31', 'un lundi reste sur lui-même');
+/* LE DIMANCHE EST LE DERNIER JOUR DE SA SEMAINE, jamais le premier de la
+   suivante : le 6 septembre 2026 appartient encore à la semaine du 31 août. */
+dit(lundiDe('2026-09-06') === '2026-08-31', 'un dimanche ferme la semaine, il ne l’ouvre pas');
+/* ET LA BASCULE DE MOIS NE LA COUPE PAS : une semaine à cheval reste entière. */
+dit(lundiDe('2026-09-01') === '2026-08-31', 'une semaine à cheval sur deux mois reste entière');
+
 console.log(echecs === 0 ? 'Tout passe.' : `${echecs} échec(s).`);
 if (echecs > 0) process.exit(1);

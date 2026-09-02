@@ -23,6 +23,26 @@ import { cashbookPdf, type CashLedger, type CashGroup } from '../../../../shared
 import { useCaisses, soldeVisible } from './tiroirs';
 import { monthKey, monthTitle, todayISO } from './_shared';
 
+/* ══ LE JOUR, LA SEMAINE, LE MOIS — 2 septembre 2026 ════════════════
+   « Comment avoir l'état de la caisse du jour, de la semaine et du mois ? »
+   (Yéman).
+
+   LA PÉRIODE LIBRE EXISTAIT, mais il fallait taper deux dates. Or ces trois
+   fenêtres-là sont celles qu'on demande tous les jours : ce que le tiroir a fait
+   depuis ce matin, depuis lundi, depuis le 1er. Les écrire à la main, c'est
+   trois occasions de se tromper d'un jour, et un rapport faux emporté à la
+   banque.
+
+   LA SEMAINE COMMENCE LE LUNDI, comme partout dans la Maison. `getDay()` rend 0
+   pour dimanche : sans le décalage, la semaine s'ouvrirait la veille de sa fin
+   chaque dimanche. */
+const lundiDe = (iso: string): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  const jour = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - jour);
+  return d.toISOString().slice(0, 10);
+};
+
 const premierJour = (mk: string): string => `${mk}-01`;
 const dernierJour = (mk: string): string => {
   const [y, m] = mk.split('-').map(Number);
@@ -240,6 +260,28 @@ export function RapportDeCaisse({
             <div className="mnd-field__label" style={{ marginBottom: 8 }}>La période</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {boutonPeriode('mois', monthTitle(month))}
+              {/* LES DEUX FENÊTRES QU'ON DEMANDE TOUS LES JOURS. Elles posent la
+                  période au lieu de la faire taper : deux dates saisies à la
+                  main sont deux occasions de se tromper d'un jour, et un rapport
+                  faux part à la banque. */}
+              <button
+                type="button" className="trf-act"
+                onClick={() => { setDe(todayISO()); setA(todayISO()); setMode('periode'); setErreur(''); }}
+                style={mode === 'periode' && de === todayISO() && a === todayISO()
+                  ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }
+                  : undefined}
+              >
+                Aujourd’hui
+              </button>
+              <button
+                type="button" className="trf-act"
+                onClick={() => { setDe(lundiDe(todayISO())); setA(todayISO()); setMode('periode'); setErreur(''); }}
+                style={mode === 'periode' && de === lundiDe(todayISO()) && a === todayISO()
+                  ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' }
+                  : undefined}
+              >
+                Cette semaine
+              </button>
               {boutonPeriode('periode', 'Une autre période')}
             </div>
             {mode === 'periode' && (

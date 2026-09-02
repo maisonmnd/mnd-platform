@@ -464,6 +464,33 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LE JOUR, LA SEMAINE, LE MOIS · 2 septembre 2026
+
+« Comment avoir l'état de la caisse du jour, de la semaine et du mois ? »
+
+**LA RÉPONSE EXISTAIT, MAIS ELLE SE TAPAIT.** Le Rapport de caisse
+(`Finances → Les caisses → Rapport`) portait déjà « Une autre période » avec
+deux dates. Or ces trois fenêtres-là sont celles qu'on demande tous les jours :
+ce que le tiroir a fait depuis ce matin, depuis lundi, depuis le 1er. Les écrire
+à la main, c'est deux occasions de se tromper d'un jour, et **un rapport faux
+emporté à la banque**.
+
+Deux boutons de plus, **Aujourd'hui** et **Cette semaine**, à côté du mois. Ils
+posent la période au lieu de la faire saisir, et s'allument quand elle
+correspond.
+
+**LA SEMAINE COMMENCE LE LUNDI**, comme partout dans la Maison. `getDay()` rend
+0 pour dimanche : sans le décalage, la semaine s'ouvrirait la veille de sa fin
+chaque dimanche, et l'erreur ne se verrait qu'un jour sur sept, c'est-à-dire trop
+tard. Quatre contrôles dans `verifie-rapport`, dont le dimanche et la semaine à
+cheval sur deux mois.
+
+**RESTE OUVERT** : l'écran « Les caisses » lui-même ne raisonne toujours qu'au
+MOIS (`useCaisses(month)`, `boxMonthFlux`). Le solde y est bien « à ce jour »,
+mais la ligne des mouvements dit « en septembre » et rien d'autre. Lui donner le
+jour et la semaine demande de passer une fenêtre au hook plutôt qu'une clé de
+mois, ce qui touche tous ses appelants.
+
 ## LA CASE ATTEND, ELLE NE DEVINE PAS · 2 septembre 2026
 
 « Quand je veux prendre un nouveau rendez-vous, ou quand je veux faire un nouveau

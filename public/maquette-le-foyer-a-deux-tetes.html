@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le foyer, &agrave; deux t&ecirc;tes &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1140px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .murs { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
+  .mur { border:1px solid var(--filet); border-left:3px solid var(--brique); border-radius:3px;
+         background:var(--ivoire); padding:15px 18px; }
+  .mur b { display:block; font-family:var(--serif); font-size:20px; color:var(--indigo);
+           font-weight:400; margin-bottom:4px; }
+  .mur span { color:var(--encre-d); font-size:14px; }
+  .mur em { font-style:normal; color:var(--encre); font-weight:500; }
+  .mur code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+              background:var(--sable); padding:1px 5px; border-radius:2px; color:var(--encre); }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:19px 21px; }
+
+  .duo { display:grid; grid-template-columns:1.25fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:920px){ .duo { grid-template-columns:1fr; } }
+
+  .lbl { font-size:9.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--encre-d); margin-bottom:7px; }
+
+  .tete { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:12px 14px; margin-bottom:9px; }
+  .tete.is-on { border-color:var(--cuivre-p); border-left:3px solid var(--cuivre); background:var(--cuivre-f); }
+  .tete__h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .tete__c { width:20px; height:20px; border:1px solid var(--filet); border-radius:3px; background:#fff;
+             flex:none; display:grid; place-items:center; font-size:12px; color:var(--cuivre); }
+  .tete.is-on .tete__c { border-color:var(--cuivre); background:var(--cuivre-f); }
+  .tete__n { font-family:var(--serif); font-size:19px; color:var(--indigo); flex:1 1 130px; }
+  .tete__n i { display:block; font-style:normal; font-family:var(--sans); font-size:11px; color:var(--encre-d); }
+  .tete__x { font-family:var(--serif); font-size:17px; color:var(--indigo); font-variant-numeric:tabular-nums; }
+  .tete__svc { margin-top:9px; padding-top:9px; border-top:1px solid #EDE5D6; font-size:12px; color:var(--encre-d); }
+  .tete__svc em { font-style:normal; color:var(--encre); }
+  .tete__svc + .tete__svc { border-top:none; padding-top:0; margin-top:3px; }
+
+  .creneaux { display:flex; gap:9px; flex-wrap:wrap; margin-top:4px; }
+  .creneau { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:10px 14px; flex:1 1 190px; }
+  .creneau.is-on { border-color:var(--cuivre); background:var(--cuivre-f); box-shadow:inset 0 0 0 1px var(--cuivre-p); }
+  .creneau b { display:block; font-family:var(--serif); font-size:17px; color:var(--indigo); font-weight:400; }
+  .creneau span { font-size:11px; color:var(--encre-d); }
+
+  .somme { display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+           border-top:1px solid var(--filet); margin-top:14px; padding-top:12px; flex-wrap:wrap; }
+  .somme__l { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .somme__v { font-family:var(--serif); font-size:25px; color:var(--indigo); font-variant-numeric:tabular-nums; }
+  .somme__d { flex:1 1 100%; font-size:11.5px; color:var(--cuivre); }
+
+  .btn { display:inline-block; font-family:var(--sans); font-size:11px; letter-spacing:.14em;
+         text-transform:uppercase; padding:10px 16px; border-radius:2px; border:1px solid transparent; }
+  .btn--cuivre { background:var(--cuivre); color:#fff; }
+  .btn--ghost { background:transparent; color:var(--encre-d); border-color:var(--filet); }
+  .barre { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:78ch; }
+  .note + .note { margin-top:12px; }
+  .note b { font-weight:500; }
+
+  .cpt { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:13px 15px; margin-bottom:10px; }
+  .cpt__h { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .cpt__h b { font-family:var(--serif); font-weight:400; font-size:18px; color:var(--indigo); }
+  .cpt__h span { font-size:12px; color:var(--cuivre); font-variant-numeric:tabular-nums; }
+  .jauge { height:7px; border-radius:99px; background:#EFE8DA; overflow:hidden; display:flex; margin-top:9px; }
+  .jauge i { display:block; height:100%; }
+  .j-a { background:var(--cuivre); } .j-b { background:var(--indigo-2); }
+  .qui { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--encre-d); margin-top:7px; }
+  .qui i { font-style:normal; display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+
+  .regles { list-style:none; padding:0; margin:22px 0 0; max-width:82ch; }
+  .regles li { border-top:1px solid var(--filet); padding:14px 0 13px; display:grid;
+               grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+  .regles li:last-child { border-bottom:1px solid var(--filet); }
+  .regles i { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--cuivre); line-height:1.2; }
+  .regles b { display:block; color:var(--encre); font-weight:500; margin-bottom:2px; }
+  .regles span { color:var(--encre-d); font-size:14px; }
+
+  .aval { border-radius:4px; background:var(--indigo); color:#EFEAE0; padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin:0 0 10px; font-family:var(--serif); font-weight:400; font-size:20px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:72ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Ma Couronne &middot; Le foyer</p>
+  <h1>Le foyer, &agrave; deux t&ecirc;tes</h1>
+  <p class="chapeau">La Maison <b>vend</b> des formules &agrave; deux et trois t&ecirc;tes, et
+  <b>compte</b> d&eacute;j&agrave; les foyers pour la remise et le Cercle. Mais elle ne sait ni les
+  <b>asseoir ensemble</b>, ni leur faire partager une formule.</p>
+
+  <section>
+    <p class="cite">Comment je peux prendre des RDV dans un foyer pour 2 personnes au minimum ?
+    <span>Y&eacute;man &middot; 2 septembre 2026</span></p>
+
+    <p class="eyebrow"><span class="num">I</span> &nbsp; Aujourd&rsquo;hui</p>
+    <h2>Ce qui marche, et ce qui bloque</h2>
+    <p class="intro"><b>Le compte famille existe et fait bien son travail</b> : il d&eacute;signe un
+    payeur, pose la remise du foyer sur les rendez-vous de ses membres, et tient un seul compteur
+    de Cercle pour tout le monde. La facture nomme la t&ecirc;te soign&eacute;e et dit qui r&egrave;gle.
+    Trois murs restent debout.</p>
+
+    <ul class="murs">
+      <li class="mur">
+        <b>On ne prend qu&rsquo;une t&ecirc;te &agrave; la fois</b>
+        <span>La modale de rendez-vous porte UNE t&ecirc;te couronn&eacute;e. Pour la m&egrave;re et
+        ses deux filles, c&rsquo;est <em>trois fois le m&ecirc;me formulaire</em>, trois fois la date,
+        trois fois le ma&icirc;tre, et rien ensuite ne dit que ces trois rendez-vous n&rsquo;en font
+        qu&rsquo;un.</span>
+      </li>
+      <li class="mur">
+        <b>Une formule &laquo; Deux t&ecirc;tes &raquo; ne sert qu&rsquo;&agrave; une seule</b>
+        <span>Un abonnement porte un <code>clientId</code>, pas un foyer. Les cr&eacute;dits du
+        <em>Foyer &middot; Deux T&ecirc;tes</em> ne se d&eacute;comptent donc que sur la t&ecirc;te qui a
+        sign&eacute; ; le rituel de sa s&oelig;ur se facture plein. La formule est
+        <em>invendable telle quelle</em>, et c&rsquo;est sans doute pourquoi personne ne l&rsquo;a
+        prise.</span>
+      </li>
+      <li class="mur">
+        <b>Ma Couronne ne porte que les mineurs</b>
+        <span>Une cliente ne peut r&eacute;server que pour les t&ecirc;tes qu&rsquo;elle
+        &laquo; porte &raquo;, et la Maison ne consid&egrave;re comme port&eacute;e qu&rsquo;une
+        t&ecirc;te <em>mineure</em>. Deux s&oelig;urs adultes qui partagent un foyer ne se voient
+        pas l&rsquo;une l&rsquo;autre : aucune ne peut prendre le rendez-vous de
+        l&rsquo;autre.</span>
+      </li>
+    </ul>
+
+    <p class="legende" style="margin-top:18px">En attendant, la marche &agrave; suivre est
+    celle-ci : ouvrir le foyer dans <b>Comptes &amp; Avoirs</b>, y rattacher les t&ecirc;tes et
+    nommer le payeur, puis poser les rendez-vous <b>un par un</b>. La remise du foyer et le compteur
+    du Cercle, eux, suivent d&eacute;j&agrave; tout seuls.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; L&rsquo;&eacute;cran</p>
+    <h2>Un geste, plusieurs fauteuils</h2>
+    <p class="intro">On coche les t&ecirc;tes, chacune re&ccedil;oit ses prestations, et la Maison
+    propose <b>ce que l&rsquo;agenda permet</b> : ensemble si deux ma&icirc;tres sont libres, &agrave;
+    la suite sinon.</p>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete">
+          <h4>Rendez-vous du foyer</h4>
+          <span>Famille A. &middot; 3 t&ecirc;tes</span>
+        </div>
+        <div class="ecran__corps">
+
+          <div class="lbl">Qui vient</div>
+
+          <div class="tete is-on">
+            <div class="tete__h">
+              <span class="tete__c">&#10003;</span>
+              <span class="tete__n">M&eacute;rine A.<i>la m&egrave;re &middot; Micro &middot; 351 locks</i></span>
+              <span class="tete__x">45 000 F</span>
+            </div>
+            <div class="tete__svc"><em>KL&#390;KL&#390;&trade; Le Souffle</em> + <em>S&Iacute;NSIN&trade; La Reprise</em> &middot; 1 h 30</div>
+          </div>
+
+          <div class="tete is-on">
+            <div class="tete__h">
+              <span class="tete__c">&#10003;</span>
+              <span class="tete__n">Ang&egrave;le A.<i>13 ans &middot; Nano &middot; 402 locks</i></span>
+              <span class="tete__x">18 000 F</span>
+            </div>
+            <div class="tete__svc"><em>GB&Egrave;J&Iacute;&trade; resserrage</em> &middot; 1 h</div>
+          </div>
+
+          <div class="tete">
+            <div class="tete__h">
+              <span class="tete__c"></span>
+              <span class="tete__n">Prisca A.<i>9 ans &middot; Pico &middot; 168 locks</i></span>
+              <span class="tete__x">&mdash;</span>
+            </div>
+          </div>
+
+          <div class="lbl" style="margin-top:16px">Le moment</div>
+          <div class="creneaux">
+            <div class="creneau is-on">
+              <b>Ensemble &middot; 14:00</b>
+              <span>Team pour M&eacute;rine, Expert pour Ang&egrave;le</span>
+            </div>
+            <div class="creneau">
+              <b>&Agrave; la suite &middot; 14:00 puis 15:30</b>
+              <span>Team pour les deux</span>
+            </div>
+          </div>
+
+          <div class="somme">
+            <span class="somme__l">Le foyer r&egrave;gle</span>
+            <span class="somme__v">53 550 F</span>
+            <span class="somme__d">63 000 F moins la remise famille de 15 % &middot; une seule facture, au nom de M&eacute;rine</span>
+          </div>
+
+          <div class="barre">
+            <span class="btn btn--cuivre">Poser les 2 rendez-vous</span>
+            <span class="btn btn--ghost">Annuler</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="note">
+          <b>Deux rendez-vous, pas un &agrave; deux t&ecirc;tes.</b> Le calendrier, les mains, les
+          commissions et le suivi comptent tous <b>par t&ecirc;te</b> : un objet &agrave; deux
+          t&ecirc;tes casserait les quatre d&rsquo;un coup. On pose donc deux rendez-vous ordinaires,
+          li&eacute;s par un m&ecirc;me identifiant de foyer, comme les s&eacute;ances d&rsquo;une
+          s&eacute;rie le sont d&eacute;j&agrave;.
+        </div>
+        <div class="note">
+          <b>&laquo; Ensemble &raquo; n&rsquo;appara&icirc;t que si l&rsquo;agenda le permet.</b>
+          Deux t&ecirc;tes au m&ecirc;me cr&eacute;neau demandent deux ma&icirc;tres libres. Sinon la
+          Maison ne propose que la suite, et le dit : promettre deux fauteuils qui n&rsquo;existent
+          pas se paie &agrave; l&rsquo;arriv&eacute;e.
+        </div>
+        <div class="note">
+          <b>Une seule facture pour le foyer.</b> Elle porte le nom du payeur, et chaque ligne nomme
+          la t&ecirc;te servie. C&rsquo;est d&eacute;j&agrave; la r&egrave;gle de la Maison quand un
+          parent r&egrave;gle pour sa fille ; elle vaut pour trois t&ecirc;tes comme pour une.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; La formule</p>
+    <h2>Des cr&eacute;dits qui appartiennent au foyer</h2>
+    <p class="intro">L&rsquo;abonnement cesse d&rsquo;appartenir &agrave; une t&ecirc;te : il porte le
+    <b>foyer</b>, et n&rsquo;importe laquelle de ses t&ecirc;tes y puise. Le suivi dit
+    <b>qui a consomm&eacute; quoi</b>, sinon la m&egrave;re d&eacute;couvre en juin que ses six
+    resserrages sont partis chez sa fille.</p>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><h4>Suivi &middot; Famille A.</h4><span>Le Foyer &middot; Deux T&ecirc;tes</span></div>
+        <div class="ecran__corps">
+          <div class="cpt">
+            <div class="cpt__h"><b>GB&Egrave;J&Iacute;&trade; resserrage</b><span>7 / 12 utilis&eacute;es</span></div>
+            <div class="jauge"><i class="j-a" style="width:33%"></i><i class="j-b" style="width:25%"></i></div>
+            <div class="qui">
+              <span><i class="j-a" style="background:#B97A4A"></i>M&eacute;rine &middot; 4</span>
+              <span><i class="j-b" style="background:#3A3F72"></i>Ang&egrave;le &middot; 3</span>
+              <span>reste 5 au foyer</span>
+            </div>
+          </div>
+          <div class="cpt">
+            <div class="cpt__h"><b>KL&#390;KL&#390;&trade; Le Souffle</b><span>2 / 6 utilis&eacute;es</span></div>
+            <div class="jauge"><i class="j-a" style="width:33%"></i></div>
+            <div class="qui">
+              <span><i class="j-a" style="background:#B97A4A"></i>M&eacute;rine &middot; 2</span>
+              <span>reste 4 au foyer</span>
+            </div>
+          </div>
+          <p class="legende">Un seul contrat, une seule facture, un seul &eacute;ch&eacute;ancier.
+          Les cr&eacute;dits sont <b>communs</b> : c&rsquo;est ce qui fait la valeur de la formule, et
+          ce qu&rsquo;il faut pouvoir regarder de pr&egrave;s.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="note">
+          <b>Le contrat porte le foyer, pas une t&ecirc;te.</b> Un champ de plus sur
+          l&rsquo;abonnement, et le juge qui d&eacute;cide si un rituel est couvert accepte
+          <b>toute t&ecirc;te du foyer</b> au lieu d&rsquo;une seule. Les bornes pos&eacute;es hier
+          ne bougent pas : rien avant la signature, rien apr&egrave;s l&rsquo;&eacute;ch&eacute;ance.
+        </div>
+        <div class="note">
+          <b>Une t&ecirc;te qui quitte le foyer</b> ne perd pas ce qu&rsquo;elle a d&eacute;j&agrave;
+          re&ccedil;u : les s&eacute;ances rendues restent &agrave; leur date, sur ce contrat. Elle
+          cesse simplement de pouvoir y puiser.
+        </div>
+        <div class="note">
+          <b>Et Ma Couronne suit.</b> Le foyer ouvre la r&eacute;servation pour les autres t&ecirc;tes,
+          mineures ou non : la r&egrave;gle cesse d&rsquo;&ecirc;tre l&rsquo;&acirc;ge, elle devient
+          <b>le foyer</b>. Deux s&oelig;urs adultes se prennent enfin rendez-vous
+          l&rsquo;une&nbsp;l&rsquo;autre.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp; Les r&egrave;gles</p>
+    <h2>Ce que la Maison tient toute seule</h2>
+    <ul class="regles">
+      <li><i>&#9670;</i><div><b>Le foyer d&rsquo;abord, le rendez-vous ensuite</b>
+        <span>Sans compte famille, l&rsquo;&eacute;cran &agrave; plusieurs t&ecirc;tes ne
+        s&rsquo;ouvre pas : il n&rsquo;aurait personne &agrave; proposer. Le bouton dit alors
+        &laquo; ouvrir un foyer &raquo; et m&egrave;ne l&agrave; o&ugrave; il faut.</span></div></li>
+      <li><i>&#9670;</i><div><b>Chaque t&ecirc;te garde SON prix</b>
+        <span>Micro, Nano, Pico : trois t&ecirc;tes d&rsquo;un m&ecirc;me foyer ne paient pas le
+        m&ecirc;me resserrage. Le total du foyer est une somme de prix personnels, jamais un tarif
+        de groupe.</span></div></li>
+      <li><i>&#9670;</i><div><b>La remise famille se pose une fois</b>
+        <span>Elle s&rsquo;applique au total du foyer, pas t&ecirc;te par t&ecirc;te : la poser deux
+        fois la doublerait, et la Maison offrirait deux fois ce qu&rsquo;elle a promis une.</span></div></li>
+      <li><i>&#9670;</i><div><b>On ne promet pas un fauteuil qui n&rsquo;existe pas</b>
+        <span>&laquo; Ensemble &raquo; ne para&icirc;t que si deux ma&icirc;tres sont r&eacute;ellement
+        libres au m&ecirc;me cr&eacute;neau. Le calendrier r&eacute;pond avant que l&rsquo;&eacute;cran
+        ne propose.</span></div></li>
+      <li><i>&#9670;</i><div><b>D&eacute;coupler reste possible</b>
+        <span>Deux rendez-vous li&eacute;s se d&eacute;placent et s&rsquo;annulent
+        s&eacute;par&eacute;ment. Une fille malade ne fait pas tomber le rendez-vous de sa
+        m&egrave;re.</span></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Trois points &agrave; trancher</h3>
+      <p>Le reste suit de ce qui est &eacute;crit ci-dessus.</p>
+      <ul>
+        <li><b>Le p&eacute;rim&egrave;tre.</b> Le rendez-vous du foyer seul, ou aussi la formule
+        partag&eacute;e ? La formule demande un champ de plus sur le contrat et une migration ; le
+        rendez-vous ne touche que l&rsquo;&eacute;cran.</li>
+        <li><b>Ma Couronne.</b> Ouvrir la r&eacute;servation aux t&ecirc;tes ADULTES du foyer, ou la
+        garder aux mineures et laisser les s&oelig;urs passer par le comptoir ?</li>
+        <li><b>La facture.</b> Une seule pi&egrave;ce pour le foyer, ou une par t&ecirc;te avec le
+        m&ecirc;me payeur ? Une seule est plus simple &agrave; r&eacute;gler, plusieurs sont plus
+        faciles &agrave; contester ligne par ligne.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
