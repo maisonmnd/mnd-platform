@@ -464,6 +464,27 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LA RÉFÉRENCE N'EST QU'UNE RÉFÉRENCE · 2 septembre 2026
+
+« Sur le message de lien de paiement il ne faut pas mettre en gras la référence
+de facture, car ce n'est qu'une référence. »
+
+**ELLE COIFFAIT LE MESSAGE, ET WHATSAPP LA COLORAIT.** « L'atelier MND · Facture
+MND-2026-0013 » en première ligne : le numéro y prenait la place du montant, et
+WhatsApp le reconnaît en plus comme un **numéro de téléphone**, huit chiffres
+séparés d'un tiret, donc l'affiche en bleu et tapable. La cliente lisait d'abord
+une référence qu'elle ne peut ni composer ni comprendre.
+
+Le lien de paiement met désormais **le montant et le lien d'abord**, la référence
+en pied de message : elle sert à retrouver la pièce si l'on écrit à la Maison,
+jamais à décider quoi que ce soit.
+
+**LES DEUX AUTRES MESSAGES CLIENTS PORTAIENT LA MÊME FAUTE**, et en double : la
+facture et le reçu envoyés en pièce jointe nommaient leur numéro en première
+ligne ET dans le corps. La première ligne dit maintenant « L'atelier MND ·
+Facture », le corps garde « Votre facture MND-2026-0013 est en pièce jointe »,
+là où le numéro sert vraiment.
+
 ## LA FOURCHETTE S'ANNONCE PARTOUT · 2 septembre 2026
 
 « Tous les abonnements qui ont une fourchette et varient doivent annoncer la

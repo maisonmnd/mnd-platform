@@ -525,8 +525,10 @@ export default function Caisse() {
       await invoicePdf(receipt);
       /* Le reçu disait « Réglez d'un geste » — sur une somme DÉJÀ encaissée.
          La chute est tombée avec les autres ; la devise ferme seule. */
+      /* MÊME RÈGLE QUE LA FACTURE : le numéro ne coiffe plus le message, le
+         corps le dit déjà en nommant la pièce jointe. */
       const msg = signeLeMessage(
-        `${maisonNom()} · ${inv.number}\n` +
+        `${maisonNom()} · reçu\n` +
         `${client ? client.name : 'Chère tête couronnée'}, voici le règlement de votre passage : ${fmtMoney(netXof, currency)}.\n` +
         `Votre reçu ${inv.number} est en pièce jointe.`,
       );

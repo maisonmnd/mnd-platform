@@ -637,7 +637,11 @@ export default function Factures() {
       branchId: branch.id,
       serie: kind === 'devis' ? 'MND-D' : 'MND',
       status: 'brouillon',
-      clientId: branchClients[0]?.id ?? '',
+      /* AUCUNE TÊTE PAR DÉFAUT — 2 septembre 2026. La première cliente du
+         registre se posait toute seule sur chaque devis et chaque facture
+         neuve : il suffisait d'oublier de la changer pour facturer une autre,
+         et le document avait l'air rempli correctement. */
+      clientId: '',
       master: branch.masters[0],
     });
 
@@ -661,6 +665,13 @@ export default function Factures() {
   /* Enregistre : ajoute (création) ou remplace par id (modification). */
   const saveDraft = () => {
     if (!editing) return;
+    /* UN REFUS SE DIT. Une pièce sans personne ne se retrouve dans aucune
+       recherche, n'entre dans aucun compte de cliente, et ne se réclame à
+       personne. Le passage, lui, porte un nom même sans fiche. */
+    if (editing.mode === 'new' && !editing.draft.clientId && !editing.draft.clientName?.trim()) {
+      toast('Choisissez la tête couronnée, ou marquez un passage.');
+      return;
+    }
     /* LE FANTÔME NE TRAVERSE PAS. « walkin » est un marqueur d'écran, pas une
        cliente : écrit tel quel dans la pièce, `useReconcileClients` le prenait
        pour un identifiant orphelin et ouvrait UNE fiche « walkin » où toutes
@@ -777,8 +788,13 @@ export default function Factures() {
        la dernière ligne : une consigne de paiement n'est pas une formule
        d'adieu, et elle poussait la Maison hors de son propre message. Le mot
        du maître reste, lui — c'est une parole, pas une chute. */
+    /* LA RÉFÉRENCE NE COIFFE PLUS LE MESSAGE — 2 septembre 2026. Elle y
+       paraissait DEUX FOIS, dont une en première ligne où elle prend la place du
+       montant, et où WhatsApp la colore en la prenant pour un numéro de
+       téléphone. Le corps la dit déjà, à l'endroit où elle sert : le nom de la
+       pièce jointe. */
     const msg = signeLeMessage(
-      `${maisonNom()} · ${label} ${doc.number}\n` +
+      `${maisonNom()} · ${label}\n` +
       `Pour ${prenomOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
@@ -1347,9 +1363,25 @@ export default function Factures() {
                 const lien = lienPaiementMomo(invoiceResteXof(selected));
                 const tel = clientOf(selected)?.phone.replace(/\D/g, '') ?? '';
                 if (!lien || !tel) return null;
+                /* ══ LA RÉFÉRENCE N'EST QU'UNE RÉFÉRENCE — 2 septembre 2026 ══
+                   « Sur le message de lien de paiement il ne faut pas mettre en
+                   gras la référence de facture, car ce n'est qu'une référence »
+                   (Yéman).
+
+                   ELLE OUVRAIT LE MESSAGE, ET WHATSAPP LA COLORAIT. « Facture
+                   MND-2026-0013 » en première ligne : le numéro y prenait la
+                   place du montant, et WhatsApp le reconnaît en plus comme un
+                   numéro de téléphone — huit chiffres séparés d'un tiret — donc
+                   l'affiche en bleu et tapable. La cliente lisait d'abord une
+                   référence qu'elle ne peut ni composer ni comprendre.
+
+                   LE MONTANT ET LE LIEN D'ABORD, la référence en pied de
+                   message : elle sert à retrouver la pièce si l'on écrit à la
+                   Maison, jamais à décider quoi que ce soit. */
                 const msg = signeLeMessage(
-                  `${maisonNom()} · Facture ${selected.number}\n` +
-                  `Bonjour ${prenomOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
+                  `${maisonNom()}\n` +
+                  `Bonjour ${prenomOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}\n` +
+                  `Référence ${selected.number}`,
                 );
                 return (
                   <a className="trv-wa-btn" style={{ textDecoration: 'none' }} href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">
