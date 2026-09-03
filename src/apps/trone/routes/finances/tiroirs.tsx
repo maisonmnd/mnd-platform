@@ -146,6 +146,28 @@ export function useCaisses(month: string) {
   const [clientes] = useClients();
   const [familles] = useFamilies();
 
+  /* ══ LE NOM DE LA TÊTE DANS LA CAISSE — 3 septembre 2026 ═══════════
+     « Je veux voir le nom des clientes de passage dans les caisses » (Yéman).
+
+     LA LIGNE NE LISAIT QUE `clientName`, un champ DÉNORMALISÉ que seules les
+     ventes au comptoir portent. Une facture ordinaire, elle, ne porte qu'un
+     `clientId` : le champ était donc vide et TOUTES les lignes s'appelaient
+     « Cliente de passage ». Un registre de caisse où personne n'a de nom ne
+     se relit pas, et c'est précisément le document qu'on relit pour retrouver
+     un versement contesté.
+
+     LA FICHE D'ABORD, LE NOM ÉCRIT ENSUITE. La fiche est vivante : un nom
+     corrigé s'y répercute. `clientName` reste le repli des ventes sans fiche —
+     et le mot « passage » ne s'écrit plus que lorsqu'il n'y a vraiment
+     personne à nommer. */
+  const nomDeLaPiece = useMemo(() => {
+    const parId = new Map(clientes.map((c) => [c.id, c.name] as const));
+    return (i: { clientId?: string; clientName?: string }): string =>
+      (i.clientId ? parId.get(i.clientId) : undefined)
+      ?? i.clientName?.trim()
+      ?? 'Cliente de passage';
+  }, [clientes]);
+
   /* L’ORDRE VOULU S’APPLIQUE ICI, une seule fois : cartes, pastilles des
      dépenses, listes déroulantes des transferts et rapport PDF lisent tous
      `branchBoxes`. Ranger une fois range partout. */
@@ -346,7 +368,7 @@ export function useCaisses(month: string) {
       .filter((i) => boxCredit(i, name, boxCur, foreign, dansLaPeriode) > 0)
       .map((i) => ({
         date: jourDuCredit(i),
-        label: i.clientName?.trim() || 'Cliente de passage',
+        label: nomDeLaPiece(i),
         sub: [
           i.number,
           (() => {

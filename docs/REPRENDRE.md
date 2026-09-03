@@ -464,6 +464,25 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LE NOM DE LA TÊTE DANS LA CAISSE · 3 septembre 2026
+
+« Je veux voir le nom des clientes de passage dans les caisses. »
+
+**LA LIGNE NE LISAIT QUE `clientName`**, un champ dénormalisé que seules les
+ventes au comptoir portent. Une facture ordinaire ne porte qu'un `clientId` :
+le champ était donc vide, et TOUTES les lignes du registre s'appelaient
+« Cliente de passage ». Un registre de caisse où personne n'a de nom ne se relit
+pas, et c'est précisément le document qu'on relit pour retrouver un versement
+contesté.
+
+`nomDeLaPiece` dans `tiroirs.tsx` : **la fiche d'abord, le nom écrit
+ensuite**. La fiche est vivante, un nom corrigé s'y répercute ; `clientName`
+reste le repli des ventes sans fiche, et le mot « passage » ne s'écrit plus que
+lorsqu'il n'y a vraiment personne à nommer.
+
+Le rapport de caisse en PDF lit les mêmes lignes (`boxMoves`) : il prend les
+noms sans un geste de plus.
+
 ## UN VERSEMENT PARTIEL EST DE L'ARGENT REÇU · 3 septembre 2026
 
 « Sur la facture 0012 de Mylène, elle a payé 100 000 F. Je vois le montant de la
