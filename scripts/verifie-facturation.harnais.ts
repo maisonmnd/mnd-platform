@@ -342,4 +342,44 @@ const rdvSal = { ...rdvComm, id: 'aps', master: 'Sal A.' } as Appointment;
 dit('un non-commissionné ne touche rien', 0,
   commissionDetaillee(salarie, '2026-08', { ...argsC, appts: [rdvSal], team: [salarie] }).presta);
 
+/* ── UN PRIX DÉJÀ ÉMIS NE SE RETARIFE PLUS — 3 septembre 2026 ──────
+   « Quand je modifie un prix dans mon catalogue pour des raisons de tests ou de
+   nouveau prix, ne pas réajuster toutes les lignes des anciennes factures.
+   Regardez le KÒKÒ Suivi : je l'ai mis à 500 F et il a remis à jour une facture
+   du 31 juillet. Seules les factures à venir prennent ces prix » (Yéman).
+
+   `priceOf` REND LE PRIX D'AUJOURD'HUI. C'est ce qu'il faut pour émettre, et
+   exactement ce qu'il ne faut pas pour réparer : un document remis à une
+   cliente est une trace, pas une vue. */
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+invoicesStore.set((prev) => prev.map((x) => ({ ...x, status: 'envoyée' as const })));
+const avantPrix = invoiceTotal(piece());
+/* Le catalogue a baissé de moitié depuis : la pièce ne doit pas le savoir. */
+alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof / 2);
+dit('les prix de la pièce émise ne bougent pas', [10_000, 20_000],
+  piece().lines.map((l) => l.unitXof));
+dit('… ni son total', avantPrix, invoiceTotal(piece()));
+
+/* UN BROUILLON, LUI, SUIT LE CATALOGUE : il n'a été remis à personne. */
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+invoicesStore.set((prev) => prev.map((x) => ({ ...x, status: 'brouillon' as const })));
+alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof / 2);
+dit('le brouillon suit le catalogue', [5_000, 10_000], piece().lines.map((l) => l.unitXof));
+
+/* UNE PRESTATION VRAIMENT NOUVELLE n'a aucun prix d'époque : elle prend celui
+   du jour, faute de mieux, et c'est la SEULE ligne qui bouge. */
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000)]);
+invoicesStore.set((prev) => prev.map((x) => ({ ...x, status: 'envoyée' as const })));
+alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof / 2);
+dit('l’ancienne garde son prix, la neuve prend celui du jour', [10_000, 10_000],
+  piece().lines.filter((l) => l.label !== 'Ajustement · prix consenti ce jour-là').map((l) => l.unitXof));
+
+/* UNE PIÈCE PAYÉE GARDE SES PRIX AUSSI, et son total encore plus : c'est de
+   l'argent reçu. */
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+const avantPayee = invoiceTotal(piece());
+alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof * 3);
+dit('la pièce payée garde ses prix', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
+dit('… et son total', avantPayee, invoiceTotal(piece()));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

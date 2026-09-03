@@ -511,7 +511,42 @@ export function alignerFacturesDuRituel(
        payé, l'écart est une remise visible ; si elle est en dessous, une
        ligne d'ajustement le dit (patron de la reprise 0018). Le total, lui,
        ne bouge toujours pas d'un franc. */
-    const pleins = services.map((s) => Math.max(0, Math.round(priceOf(s))));
+    /* ══ UN PRIX DÉJÀ ÉMIS NE SE RETARIFE PLUS — 3 septembre 2026 ═══════
+       « Quand je modifie un prix dans mon catalogue pour des raisons de tests
+       ou de nouveau prix, ne pas réajuster toutes les lignes des anciennes
+       factures. Regardez le KÒKÒ Suivi : je l'ai mis à 500 F et il a remis à
+       jour une facture du 31 juillet. Seules les factures à venir prennent ces
+       prix » (Yéman).
+
+       `priceOf` REND LE PRIX D'AUJOURD'HUI. C'est ce qu'il faut pour émettre,
+       et exactement ce qu'il ne faut pas pour réparer : la pièce du 31 juillet
+       s'est retrouvée à réclamer un diagnostic à 500 F parce que le catalogue
+       avait changé six semaines plus tard. Un document remis à une cliente est
+       une trace, pas une vue : son montant appartient au jour de son émission.
+
+       ON GARDE LE PRIX QUI EST ÉCRIT, ligne par ligne, dès que la pièce est
+       sortie de l'état de brouillon. L'alignement continue de faire son
+       travail — suivre les prestations du rituel, corriger un libellé, ajouter
+       un geste ajouté après coup — mais il ne retouche plus un montant déjà
+       annoncé. Une prestation VRAIMENT nouvelle sur la pièce n'a, elle, aucun
+       prix d'époque : elle prend celui du jour, faute de mieux, et c'est la
+       seule ligne qui bouge.
+
+       UN BROUILLON, LUI, SUIT LE CATALOGUE : il n'a été remis à personne. */
+    const emise = inv.status !== 'brouillon';
+    const prixDEpoque = new Map<string, number>();
+    for (const l of inv.lines) {
+      if (!prixDEpoque.has(l.label)) prixDEpoque.set(l.label, l.unitXof);
+    }
+    /* UNE LIGNE À ZÉRO NE PORTE AUCUN PRIX À PROTÉGER. C'est la marque d'un
+       geste écrit avant que la Maison ne montre ses cadeaux : « shampoing
+       0 F » au lieu de « 10 000 F, remise 100 % ». La réparer ne change pas
+       d'un franc ce que la cliente a payé, et un cadeau qu'on ne voit pas
+       n'est pas reçu. Elle se reconstruit donc, comme avant. */
+    const pleins = services.map((s) => {
+      const tenu = emise ? prixDEpoque.get(s.name) : undefined;
+      return tenu !== undefined && tenu > 0 ? tenu : Math.max(0, Math.round(priceOf(s)));
+    });
     /* LA REMISE DE LA LIGNE, SUR LA LIGNE. Le geste automatique de la Maison
        (une prestation offerte par la règle du Catalogue) l'emporte quand il
        joue : on ne remise pas ce qui est déjà donné. Sinon c'est la remise

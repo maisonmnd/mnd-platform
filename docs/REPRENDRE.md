@@ -464,6 +464,41 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UN PRIX DÉJÀ ÉMIS NE SE RETARIFE PLUS · 3 septembre 2026
+
+« Quand je modifie un prix dans mon catalogue pour des raisons de tests ou de
+nouveau prix, ne pas réajuster toutes les lignes des anciennes factures. Ça me
+crée des problèmes. Regardez le KÒKÒ Suivi et diagnostic, je l'ai mis à 500 F et
+il a remis à jour une facture du 31 juillet. Seules les factures à venir prennent
+ces prix. »
+
+**`alignerFacturesDuRituel` APPELLE `priceOf`, QUI REND LE PRIX
+D'AUJOURD'HUI.** C'est ce qu'il faut pour émettre, et exactement ce qu'il ne faut
+pas pour réparer : la pièce du 31 juillet s'est retrouvée à réclamer un
+diagnostic à 500 F parce que le catalogue avait changé six semaines plus tard.
+**Un document remis à une cliente est une trace, pas une vue** : son montant
+appartient au jour de son émission.
+
+La fonction garde désormais **le prix qui est écrit, ligne par ligne**, dès que
+la pièce est sortie de l'état de brouillon. Elle continue de faire son travail —
+suivre les prestations du rituel, corriger un libellé, ajouter un geste ajouté
+après coup — mais elle ne retouche plus un montant déjà annoncé.
+
+**TROIS EXCEPTIONS, ET ELLES SE TIENNENT** :
+
+- un **brouillon** suit le catalogue : il n'a été remis à personne ;
+- une **prestation vraiment nouvelle** sur la pièce n'a aucun prix d'époque, elle
+  prend celui du jour faute de mieux, et c'est la seule ligne qui bouge ;
+- une **ligne à zéro** ne porte aucun prix à protéger. C'est la marque d'un geste
+  écrit avant que la Maison ne montre ses cadeaux, « shampoing 0 F » au lieu de
+  « 10 000 F, remise 100 % ». La réparer ne change pas d'un franc ce que la
+  cliente a payé, et un cadeau qu'on ne voit pas n'est pas reçu. (C'est le
+  harnais qui l'a rattrapée : la première version gelait aussi ces lignes-là et
+  cassait la réparation des gestes.)
+
+Six contrôles de plus dans `verifie-facturation`, dont la pièce payée dont ni
+les prix ni le total ne bougent quand le catalogue triple.
+
 ## MND KIDS · 3 septembre 2026, CONSTRUIT
 
 « Dans les foyers, j'ai des enfants. J'aimerais une section de service shampoing
