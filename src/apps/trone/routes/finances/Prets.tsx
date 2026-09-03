@@ -19,7 +19,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -186,7 +186,26 @@ export default function Prets() {
   const enregistrerPret = () => {
     const montant = montantsPret.xof;
     const nom = fPret.nom.trim();
-    if (!nom || montant <= 0 || montantsPret.saisi <= 0) return;
+    /* ══ UN REFUS SE DIT — 3 septembre 2026 ════════════════════════════
+       « Je n'arrive pas à enregistrer de nouveaux prêts » (Yéman).
+
+       LE GARDE RETOURNAIT EN SILENCE. Le bouton restait là, le clic ne faisait
+       rien, et rien ne disait ce qui manquait : le nom, le montant, ou les
+       deux. C'est la même faute que le formulaire des formules le 28 août, et
+       elle coûte le même temps — on reclique, on recommence, on croit l'écran
+       cassé.
+
+       ON NOMME CE QUI BLOQUE, et rien d'autre. */
+    if (!nom) {
+      toast(fPret.genre === 'cliente'
+        ? 'Choisissez la tête couronnée à qui la Maison prête.'
+        : 'Nommez la personne : un prêt sans nom ne se réclame à personne.');
+      return;
+    }
+    if (montantsPret.saisi <= 0 || montant <= 0) {
+      toast('Portez le montant : un prêt de zéro ne déplace aucun argent.');
+      return;
+    }
     const estPret = fPret.type === 'pret';
     const ligne: Pret = {
       id: pretEdite?.id ?? `prt-${uid()}`,
@@ -214,9 +233,18 @@ export default function Prets() {
     if (pretEdite) {
       setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? ligne : x)));
       setPretEdite(null);
+      toast('Ligne corrigée.');
     } else {
       setPrets((prev) => [...prev, ligne]);
       setPretOuvert(false);
+      /* UNE RÉUSSITE QUI NE DIT RIEN RESSEMBLE À UN ÉCHEC. La modale se fermait
+         sans un mot ; si la nouvelle ligne tombait hors du filtre en cours, on
+         ne voyait rien du tout et l'on croyait que l'enregistrement avait
+         échoué. On le dit, et ON RAMÈNE L'ÉCRAN LÀ OÙ ELLE SE VOIT. */
+      setFiltre('cours');
+      toast(estPret
+        ? `${fmtMoney(montant, currency)} prêtés à ${nom}.`
+        : `${fmtMoney(montant, currency)} rendus par ${nom}.`);
     }
     setFPret((f) => ({ ...f, nom: '', personneId: '', motif: '', montant: '', enDevise: '', retenue: '' }));
   };

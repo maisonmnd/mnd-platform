@@ -464,6 +464,27 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UN PRÊT QUI NE S'ENREGISTRE PAS · 3 septembre 2026
+
+« Je n'arrive pas à enregistrer de nouveaux prêts. »
+
+**LE GARDE RETOURNAIT EN SILENCE** :
+`if (!nom || montant <= 0 || montantsPret.saisi <= 0) return;`. Le bouton
+restait là, le clic ne faisait rien, et rien ne disait ce qui manquait — le nom,
+le montant, ou les deux. C'est **exactement la faute du formulaire des formules
+du 28 août**, et elle coûte le même temps : on reclique, on recommence, on croit
+l'écran cassé.
+
+Le refus nomme désormais ce qui bloque, et rien d'autre : « Nommez la personne,
+un prêt sans nom ne se réclame à personne », « Portez le montant, un prêt de zéro
+ne déplace aucun argent ».
+
+**UNE RÉUSSITE QUI NE DIT RIEN RESSEMBLE À UN ÉCHEC.** La modale se fermait sans
+un mot ; si la nouvelle ligne tombait hors du filtre en cours (« En retard »,
+« Soldés »…), on ne voyait **rien du tout** et l'on croyait que l'enregistrement
+avait échoué. L'écran annonce maintenant le montant et la personne, **et revient
+sur le filtre où la ligne se voit**.
+
 ## LES PRÊTS, AU CLAIR · 3 septembre 2026
 
 « Tout est mélangé. Besoin de voir une différence nette entre les remboursements
