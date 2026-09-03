@@ -22,6 +22,7 @@ import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, cats
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
+import { estKids } from '../../../../shared/accounts';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -1362,6 +1363,8 @@ export function RdvModal({
      allocation restante sur le cycle (le RDV en cours exclu de son propre décompte).
      `remaining === null` = illimité. La couverture n'est proposée que s'il reste au
      moins une allocation (ou si ce RDV était déjà couvert). */
+  /* L'ÂGE DE LA TÊTE RETENUE, pour la section MND Kids. */
+  const verdictKids = estKids(clients.find((c) => c.id === clientId), todayISO());
   const coverageRows = (membership && membershipPlan)
     ? chosen
         /* SES prestations à elle : le contenu ajusté à la vente fait foi. */
@@ -1534,7 +1537,11 @@ export function RdvModal({
      une séance s'y retrouve si la main se ravise, et rien d'autre n'entre. */
   const proposables = remaining
     .filter((sv) => !estSuite || (porteur?.a.serviceIds.includes(sv.id) && (sv.sessions ?? 1) > 1))
-    .filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte));
+    /* MND KIDS — la section ne se propose que sur une tête d'enfant. Une fiche
+       sans date de naissance passe quand même : c'est une inconnue, pas une
+       adulte, et lui refuser le tarif en silence coûterait plus cher que la
+       mention portée par l'écran. */
+    .filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte, verdictKids));
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme

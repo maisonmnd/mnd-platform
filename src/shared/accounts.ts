@@ -57,6 +57,34 @@ export function ageDe(birthday: string | undefined, aujourdhui: string): number 
 /** Est-elle mineure ? SANS DATE DE NAISSANCE, LA RÉPONSE EST NON — et c'est
     voulu : la minorité ouvre l'accès du parent à ses données, elle ne se
     présume pas. La règle échoue fermée, ce qui oblige à renseigner la date. */
+/** L'ÂGE JUSQU'AUQUEL UNE TÊTE EST « MND Kids » — 3 septembre 2026.
+
+    LA MAJORITÉ NE CONVIENT PAS ICI. La Maison compte les mineurs à 18 ans pour
+    la remise du foyer, ce qui est le bon seuil pour un compte ; mais un tarif
+    enfant à dix-sept ans ne se défend pas devant les autres clientes. Quinze
+    ans est la limite retenue : au-delà, la tête paie le catalogue.
+
+    UN SEUL NOMBRE, ICI. Le poser en dur dans les écrans obligerait à le
+    retrouver partout le jour où la Maison le change. */
+export const AGE_MND_KIDS = 15;
+
+/** CETTE TÊTE EST-ELLE UN ENFANT, AU SENS DU TARIF ?
+
+    TROIS RÉPONSES, PAS DEUX. Une fiche sans date de naissance n'est pas une
+    adulte : c'est une INCONNUE. Répondre « non » lui refuserait le tarif enfant
+    sans un mot, et la faute ne se verrait qu'à la caisse. L'écran montre alors
+    la section en la signalant — le silence coûte plus cher qu'une mention. */
+export type VerdictKids = 'oui' | 'non' | 'inconnu';
+
+export const estKids = (
+  client: Pick<Client, 'birthday'> | undefined, aujourdhui: string,
+): VerdictKids => {
+  if (!client) return 'inconnu';
+  const age = ageDe(client.birthday, aujourdhui);
+  if (age === undefined) return 'inconnu';
+  return age <= AGE_MND_KIDS ? 'oui' : 'non';
+};
+
 export const estMineur = (client: Pick<Client, 'birthday'>, aujourdhui: string): boolean => {
   const a = ageDe(client.birthday, aujourdhui);
   return a !== undefined && a < 18;

@@ -464,6 +464,76 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## MND KIDS · 3 septembre 2026, CONSTRUIT
+
+« Dans les foyers, j'ai des enfants. J'aimerais une section de service shampoing
+retenue pour les MND Kids, où le total ne revient pas à plus de 25 000 avec un
+peu de sublimation, renfort durable. Fais-moi un forfait. » Puis : « Rajoute le
+SÍNSIN Kids et le VÈKPÈ Kids, donc le Kids dans les 4 ateliers. » Maquette
+approuvée le 3 septembre.
+
+**LE TARIF ADULTE NE POUVAIT PAS TENIR.** Le plus léger des lavages commence à
+8 000 F et le renfort à 22 000 F : **30 000 F avant même la sublimation**.
+Remiser un rituel adulte ferait porter la baisse à des prestations vendues plein
+tarif le reste du temps, et la Maison ne saurait plus ce que vaut son propre
+catalogue. Une tête d'enfant, c'est moins de locks, moins de matière et moins de
+fauteuil : ce sont des prestations à elles.
+
+**CINQ GESTES, UN PAR ATELIER PLUS LE PLATEAU** (`shared/kids.ts`) :
+
+| | | |
+| --- | --- | --- |
+| Atelier I · VÈKPÈ™ | Kids · La Première Couronne | 55 000 F · 2 h 30 |
+| Atelier II · GBÈJÍ™ | SÍNSIN™ Kids · La Reprise | 15 000 F · 40 min |
+| Atelier III · YÈKPÈ™ | Kids · Un peu de sublimation | 8 000 F · 20 min |
+| Atelier IV · FÍNFÍN™ | GBÌGBÌ™ Kids · Renfort durable | 13 000 F · 35 min |
+| Le Plateau · KLƆKLƆ™ | Kids · Le Shampoing | 9 000 F · 30 min |
+
+**LE FORFAIT · 25 000 F**, composé du shampoing, de la sublimation et du renfort.
+30 000 F à la carte, elle gagne 5 000 F.
+
+**IL NE PORTE QUE L'ENTRETIEN.** La création se pose une fois, la reprise revient
+toutes les six semaines : les mettre au même paquet ferait payer d'avance ce qui
+ne se consomme pas ensemble. Elles se vendent à leur prix, dans leur Atelier.
+
+**PRIX FERME, PAS UNE REMISE EN POURCENTAGE.** `forfaitRemisePct` recalculerait
+le forfait au prix de la tête et le ferait varier ; 25 000 F est un plafond
+décidé, pas un résultat de calcul. Même raison pour les cinq gestes : chez les
+grandes la création va de 80 000 à 660 000 F et la reprise de 20 000 à 90 000 F
+selon la tranche, mais une tête d'enfant tient dans une ou deux tranches, et un
+prix ferme s'annonce au téléphone.
+
+**LA PORTE, C'EST L'ÂGE.** `Service.reserveEnfants`, jugé par `estProposable`
+comme la réserve aux comptes famille l'est déjà. `AGE_MND_KIDS = 15` : la Maison
+compte les mineurs à 18 ans pour la remise du foyer, ce qui est le bon seuil pour
+un compte, mais un tarif enfant à dix-sept ans ne se défend pas devant les autres
+clientes.
+
+**TROIS RÉPONSES, PAS DEUX** (`estKids → 'oui' | 'non' | 'inconnu'`). Une fiche
+**sans date de naissance n'est pas une adulte, c'est une inconnue**. Répondre
+« non » lui refuserait le tarif enfant sans un mot, et la faute ne se verrait
+qu'à la caisse. La section passe donc, et l'écran la signale. Par défaut
+`inconnu`, pour que les écrans sans tête (la caisse au comptoir) ne se voient
+rien retirer.
+
+**OÙ ELLE PARAÎT** : la modale du rendez-vous, le rendez-vous du foyer (chaque
+tête voit la sienne, l'enfant MND Kids et la mère non, dans le même écran), et
+Ma Couronne (la mère qui réserve pour sa fille la voit, sur son propre rituel
+non).
+
+**LA SECTION NE SE POSE QU'AU GESTE DU SOUVERAIN**, bouton « + MND Kids » au
+Catalogue, qui disparaît une fois qu'elle est là. Des prix sont une décision de
+maison, et une décision ne s'installe pas dans le dos de celui qui la prend. **On
+ne réécrit jamais ce qui existe** : une prestation renommée ou retarifée compte
+comme posée, c'est son identifiant qui fait foi.
+
+**26e HARNAIS** (`verifie-kids`, vingt-cinq contrôles), dont le plafond de
+25 000 F et le verdict d'âge inconnu.
+
+**RESTE OUVERT** : les trois prestations se vendent à l'unité comme au forfait,
+faute d'un réglage « seulement en forfait » dans le catalogue. Et le nom est
+resté français, « Le Rituel Complet », faute d'un nom fon arbitré.
+
 ## LE RENDEZ-VOUS DU FOYER · 2 septembre 2026, CONSTRUIT
 
 « Comment je peux prendre des RDV dans un foyer pour 2 personnes au minimum ? »

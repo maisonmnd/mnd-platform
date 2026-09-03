@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
+import { AGE_MND_KIDS } from '../../../../shared/accounts';
+import { poseLaSectionKids, kidsAbsents } from '../../../../shared/kids';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel,
@@ -64,6 +66,8 @@ type SvcForm = {
   bandIds: string[];
   /** Réservée aux comptes famille (14 août — le Pack Famille). */
   reserveFamilles: boolean;
+  /** Réservée aux MND Kids (3 septembre 2026). */
+  reserveEnfants: boolean;
   /** LE SEUIL DE VENUES (16 août) — « paraît dès la Nᵉ venue ». Vide = aucune
       condition. Il existait en données et commandait TOUS les écrans, sans
       jamais s'afficher ni se régler : une prestation disparue sans raison. */
@@ -96,7 +100,7 @@ type SvcForm = {
 const emptySvcForm = (categoryId: string, master: string, estForfait = false): SvcForm => ({
   id: null, categoryId, name: '', description: '', price: '', priceMode: 'fixe', palier: 'Fondation', durationMin: '60', sessions: 1, master,
   code: '', rate: '', tarifMode: '', includes: [], forfaitRemise: '', estForfait, floors: {}, durationMax: '', priceTo: '',
-  prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, desVenue: '', gestes: [], privatise: false, maxTetes: '2',
+  prixLong: {}, dureeLong: {}, tarifLong: {}, modele: 'fixe', bandIds: [], reserveFamilles: false, reserveEnfants: false, desVenue: '', gestes: [], privatise: false, maxTetes: '2',
 });
 
 /** Le modèle de prix ACTUEL d'une prestation — dérivé du même juge que les
@@ -602,6 +606,7 @@ export default function Catalogue() {
       /* L'ancien champ simple `bandId` se fond dans la liste à l'ouverture. */
       bandIds: svc.bandIds ?? (svc.bandId ? [svc.bandId] : []),
       reserveFamilles: !!svc.reserveFamilles,
+      reserveEnfants: !!svc.reserveEnfants,
       desVenue: svc.desVenue ? String(svc.desVenue) : '',
       privatise: !!svc.privatise,
       maxTetes: String(svc.privatise?.maxTetes ?? 2),
@@ -769,10 +774,23 @@ export default function Catalogue() {
         return svcForm.sessions > 1 ? `${h} · ${svcForm.sessions}×` : h;
       }
       case 'contient': return svcForm.includes.length ? String(svcForm.includes.length) : '—';
-      case 'tetes': return svcForm.reserveFamilles ? 'familles'
+      case 'tetes': return svcForm.reserveEnfants ? 'MND Kids'
+        : svcForm.reserveFamilles ? 'familles'
         : svcForm.bandIds.length ? `${svcForm.bandIds.length} calibres` : 'toutes';
       case 'gestes': return svcForm.gestes.length ? String(svcForm.gestes.length) : '—';
     }
+  };
+
+  /* ══ POSER LA SECTION MND KIDS — 3 septembre 2026 ══════════════════
+     Cinq gestes, un par Atelier plus le Plateau, et le forfait à 25 000 F. La
+     section ne se pose JAMAIS toute seule au démarrage : des prix sont une
+     décision de maison, et une décision ne s'installe pas dans le dos de celui
+     qui la prend. */
+  const poserKids = () => {
+    const n = poseLaSectionKids();
+    toast(n > 0
+      ? `MND Kids posée : ${n} prestation${n > 1 ? 's' : ''}. Les prix se retouchent ici même.`
+      : 'MND Kids est déjà là, au complet.');
   };
 
   const saveSvc = () => {
@@ -823,6 +841,7 @@ export default function Catalogue() {
          sans compte famille ne la verra ni au tunnel, ni à l'accueil, ni à la
          modale RDV. */
       reserveFamilles: svcForm.reserveFamilles || undefined,
+      reserveEnfants: svcForm.reserveEnfants || undefined,
       /* Le seuil de venues — vide ou 0 = aucune condition, et le champ
          DISPARAÎT de la fiche plutôt que d'y écrire un zéro trompeur. */
       desVenue: num(svcForm.desVenue) || undefined,
@@ -937,6 +956,12 @@ export default function Catalogue() {
                 composer. Les deux formulaires ne montrent donc pas les memes
                 champs, et le geste de creation le dit des le depart. */}
             <Button variant="ghost" onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? '', true))}>+ Forfait</Button>
+            {/* LA SECTION MND KIDS SE POSE D'UN GESTE, et le bouton disparait
+                une fois qu'elle est la : un bouton qui ne fait plus rien
+                encombre, et laisse croire qu'il reste quelque chose a faire. */}
+            {kidsAbsents(services) > 0 && (
+              <Button variant="ghost" onClick={poserKids}>+ MND Kids</Button>
+            )}
           </>
         }
       />
@@ -1322,7 +1347,7 @@ export default function Catalogue() {
                     <div className="trv-svc__garde">
                       {svc.desVenue ? `◈ Paraît dès la ${svc.desVenue}ᵉ venue, invisible avant, partout` : ''}
                       {svc.desVenue && (svc.reserveFamilles || svc.bandIds?.length) ? ' · ' : ''}
-                      {svc.reserveFamilles ? '◈ Réservée aux comptes famille' : ''}
+                      {svc.reserveEnfants ? '◈ MND Kids' : svc.reserveFamilles ? '◈ Réservée aux comptes famille' : ''}
                       {svc.reserveFamilles && svc.bandIds?.length ? ' · ' : ''}
                       {svc.bandIds?.length ? `◈ ${svc.bandIds.length} calibre${svc.bandIds.length > 1 ? 's' : ''} seulement` : ''}
                     </div>
@@ -2136,6 +2161,26 @@ export default function Catalogue() {
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
                 Réservée : seules les têtes rattachées à un compte famille la voient, tunnel de
                 Ma Couronne, accueil et modale de rendez-vous. Le Pack Famille vit ici.
+              </div>
+            </Field>
+            {/* ══ MND KIDS — 3 septembre 2026 ═══════════════════════════════
+                Le tarif adulte ne pouvait pas tenir : le plus léger des lavages
+                commence à 8 000 F et le renfort à 22 000 F. Ce sont des
+                prestations à elles, avec leur porte. */}
+            <Field label="Réservée aux MND Kids">
+              <button
+                type="button"
+                className="trv-minibtn"
+                style={svcForm.reserveEnfants ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' } : undefined}
+                onClick={() => setSvcForm({ ...svcForm, reserveEnfants: !svcForm.reserveEnfants })}
+              >
+                {svcForm.reserveEnfants ? `Oui, jusqu’à ${AGE_MND_KIDS} ans` : 'Non, ouverte à tous les âges'}
+              </button>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}>
+                Réservée : elle ne se propose que sur une tête de {AGE_MND_KIDS} ans ou moins.
+                Une fiche <b>sans date de naissance</b> la voit quand même, signalée : c’est une
+                inconnue, pas une adulte, et lui refuser le tarif en silence coûterait plus cher
+                que la mention.
               </div>
             </Field>
             {/* LES GESTES DE LA MAISON (15 août, décisions de Yéman) :

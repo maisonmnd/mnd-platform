@@ -179,6 +179,20 @@ export type Service = {
       ne se propose qu'aux têtes rattachées à un compte famille. Absent =
       ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
   reserveFamilles?: boolean;
+  /** RÉSERVÉE AUX MND KIDS — 3 septembre 2026.
+
+      « Dans les foyers, j'ai des enfants. J'aimerais une section de service
+      shampoing retenue pour les MND Kids » (Yéman).
+
+      LE TARIF ADULTE NE POUVAIT PAS TENIR. Le plus léger des lavages commence à
+      8 000 F et le renfort à 22 000 F : 30 000 F avant même la sublimation.
+      Remiser un rituel adulte pour un enfant ferait porter la baisse à des
+      prestations vendues plein tarif le reste du temps, et la Maison ne saurait
+      plus ce que vaut son propre catalogue. Ce sont donc des prestations à
+      elles, avec leur porte.
+
+      Absent = ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
+  reserveEnfants?: boolean;
   /** LES GESTES DE LA MAISON (15 août, décisions de Yéman) — cette prestation
       perd `pct` % de son prix quand l'une des `serviceIds` est au même rituel,
       pour les calibres `bandIds` (vide = tous). 100 = offerte.

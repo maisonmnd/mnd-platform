@@ -739,10 +739,19 @@ export const prixDansPanier = (
   return pct > 0 ? Math.round(plein * (1 - pct / 100)) : plein;
 };
 
-export const estProposable = (sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false): boolean =>
+export const estProposable = (
+  sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false,
+  /* MND KIDS — 3 septembre 2026. Trois réponses, pas deux : une fiche sans date
+     de naissance est une INCONNUE, pas une adulte. On la laisse passer et
+     l'écran la signale, plutôt que de lui refuser le tarif enfant en silence.
+     Par défaut « inconnu », pour que les appelants qui n'ont pas encore de tête
+     ne se voient rien retirer. */
+  kids: 'oui' | 'non' | 'inconnu' = 'inconnu',
+): boolean =>
   servesBand(sv, bandForService(sv, p))
   && ouverteDesVenue(sv, venuesAcquises)
-  && (!sv.reserveFamilles || aFamille);
+  && (!sv.reserveFamilles || aFamille)
+  && (!sv.reserveEnfants || kids !== 'non');
 
 export const personalPriceXof = (sv: Service, p: PersonalPricing, catalogue?: readonly Service[], produits?: readonly { id: string; priceXof: number }[]): number => {
   /* SON PRIX FERME PASSE AVANT TOUT — avant le forfait, le calibre, le tarif au

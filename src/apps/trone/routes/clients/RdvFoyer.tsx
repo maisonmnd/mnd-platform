@@ -18,6 +18,7 @@ import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, remiseFamillePct, type Client } from '../../../../shared/clients';
+import { estKids } from '../../../../shared/accounts';
 import { useServices, useProducts, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized,
@@ -207,7 +208,13 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
                           style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
                         >
                           <option value="" disabled>+ Ajouter une prestation…</option>
-                          <OptionsPrestations services={services} exclure={(sv) => pris[t.id].serviceIds.includes(sv.id)} />
+                          {/* CHAQUE TÊTE VOIT SA SECTION. Sur le rendez-vous du
+                              foyer, l'enfant voit MND Kids et la mère ne la voit
+                              pas, dans le même écran. */}
+                          <OptionsPrestations
+                            services={services.filter((sv) => !sv.reserveEnfants || estKids(t, todayISO()) !== 'non')}
+                            exclure={(sv) => pris[t.id].serviceIds.includes(sv.id)}
+                          />
                         </Select>
                         {pris[t.id].serviceIds.length > 0 && (
                           <div style={{ marginTop: 7, display: 'flex', gap: 6, flexWrap: 'wrap' }}>

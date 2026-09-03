@@ -61,6 +61,10 @@
   .svc__p { font-family:var(--serif); font-size:19px; color:var(--indigo); font-variant-numeric:tabular-nums; }
   .svc__d { font-size:11px; color:var(--encre-d); flex:none; min-width:52px; text-align:right; }
 
+  .atl { font-size:9.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--cuivre);
+         margin:18px 0 2px; padding-top:14px; border-top:1px solid var(--filet); }
+  .atl:first-of-type { margin-top:0; padding-top:0; border-top:none; }
+
   .forfait { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
              background:var(--cuivre-f); padding:16px 18px; margin-top:16px; }
   .forfait__h { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
@@ -106,9 +110,10 @@
 
   <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Catalogue &middot; MND Kids</p>
   <h1>MND Kids</h1>
-  <p class="chapeau">Une section &agrave; part, <b>r&eacute;serv&eacute;e aux enfants du foyer</b>, dont
-  le rituel complet ne d&eacute;passe jamais 25 000 F. Les prix ci-dessous sont une
-  <b>proposition</b> : ils vous appartiennent, et je ne les &eacute;cris qu&rsquo;&agrave; votre mot.</p>
+  <p class="chapeau">Une section &agrave; part, <b>r&eacute;serv&eacute;e aux enfants du foyer</b>,
+  pr&eacute;sente dans <b>les quatre Ateliers</b> et sur le Plateau, dont le rituel complet ne
+  d&eacute;passe jamais 25 000 F. Les prix ci-dessous sont une <b>proposition</b> : ils vous
+  appartiennent, et je ne les &eacute;cris qu&rsquo;&agrave; votre mot.</p>
 
   <section>
     <p class="cite">Dans les foyers, j&rsquo;ai des enfants. J&rsquo;aimerais une section de service
@@ -139,25 +144,47 @@
         </div>
         <div class="ecran__corps">
 
+          <div class="atl">Atelier I &middot; V&Egrave;KP&Egrave;&trade; &middot; la naissance</div>
           <div class="svc">
-            <span class="svc__n">KL&#390;KL&#390;&trade; Kids &middot; Le Shampoing
-              <i>Lavage doux, d&eacute;m&ecirc;lage patient, s&eacute;chage l&eacute;ger.</i></span>
-            <span class="svc__d">30 min</span>
-            <span class="svc__p">9 000 F</span>
+            <span class="svc__n">V&Egrave;KP&Egrave;&trade; Kids &middot; La Premi&egrave;re Couronne
+              <i>50 &agrave; 120 locks. Pose patiente, pauses pr&eacute;vues. Inclus : shampoing de
+              pr&eacute;paration et styling de sortie.</i></span>
+            <span class="svc__d">2 h 30</span>
+            <span class="svc__p">55 000 F</span>
           </div>
 
+          <div class="atl">Atelier II &middot; GB&Egrave;J&Iacute;&trade; &middot; la vie</div>
+          <div class="svc">
+            <span class="svc__n">S&Iacute;NSIN&trade; Kids &middot; La Reprise
+              <i>Resserrage lock par lock sur une petite t&ecirc;te, contr&ocirc;le
+              d&rsquo;uniformit&eacute;, styling de sortie.</i></span>
+            <span class="svc__d">40 min</span>
+            <span class="svc__p">15 000 F</span>
+          </div>
+
+          <div class="atl">Atelier III &middot; Y&Egrave;KP&Egrave;&trade; &middot; la lumi&egrave;re</div>
           <div class="svc">
             <span class="svc__n">Y&Egrave;KP&Egrave;&trade; Kids &middot; Un peu de sublimation
-              <i>Brillance et parfum, sans transformation. Le geste qui fait sourire au miroir.</i></span>
+              <i>Brillance et parfum, sans transformation ni couleur. Le geste qui fait sourire au
+              miroir.</i></span>
             <span class="svc__d">20 min</span>
             <span class="svc__p">8 000 F</span>
           </div>
 
+          <div class="atl">Atelier IV &middot; F&Iacute;NF&Iacute;N&trade; &middot; la renaissance</div>
           <div class="svc">
             <span class="svc__n">GB&Igrave;GB&Igrave;&trade; Kids &middot; Renfort durable
               <i>Anti-casse, fermeture de fibre. La version enfant du reconstituant.</i></span>
             <span class="svc__d">35 min</span>
             <span class="svc__p">13 000 F</span>
+          </div>
+
+          <div class="atl">Le Plateau &middot; KL&#390;KL&#390;&trade;</div>
+          <div class="svc">
+            <span class="svc__n">KL&#390;KL&#390;&trade; Kids &middot; Le Shampoing
+              <i>Lavage doux, d&eacute;m&ecirc;lage patient, s&eacute;chage l&eacute;ger.</i></span>
+            <span class="svc__d">30 min</span>
+            <span class="svc__p">9 000 F</span>
           </div>
 
           <div class="forfait">
@@ -177,13 +204,23 @@
             </ul>
           </div>
 
-          <p class="legende">Le forfait se compose des trois prestations, comme tous les forfaits de
-          la Maison. Retirer la sublimation d&rsquo;un rendez-vous ne casse rien : le forfait reste
-          ce qu&rsquo;il est, et la prestation retir&eacute;e se voit.</p>
+          <p class="legende">Le forfait se compose des trois prestations d&rsquo;entretien, comme
+          tous les forfaits de la Maison. <b>La cr&eacute;ation et la reprise n&rsquo;y sont pas</b> :
+          l&rsquo;une se pose une fois, l&rsquo;autre revient toutes les six semaines, et les mettre
+          au m&ecirc;me paquet ferait payer d&rsquo;avance ce qui ne se consomme pas ensemble. Elles
+          se vendent &agrave; leur prix, dans leur Atelier.</p>
         </div>
       </div>
 
       <div>
+        <div class="note">
+          <b>Chez les grandes, la cr&eacute;ation et la reprise se comptent au lock.</b> Une
+          V&Egrave;KP&Egrave;&trade; adulte va de 80 000 &agrave; 660 000 F selon le calibre, une
+          S&Iacute;NSIN&trade; de 20 000 &agrave; 90 000 F. Chez les enfants, la t&ecirc;te tient dans
+          une ou deux tranches : un <b>prix ferme</b> se lit, s&rsquo;annonce au
+          t&eacute;l&eacute;phone et ne se discute pas. C&rsquo;est le premier point &agrave;
+          trancher ci-dessous.
+        </div>
         <div class="note">
           <b>25 000 F est un plafond, pas un prix de circonstance.</b> Le forfait porte un prix
           FERME, il ne suit pas le calibre. Une t&ecirc;te d&rsquo;enfant tient dans une seule
@@ -236,8 +273,11 @@
       <p>Le reste est &eacute;crit. Ces quatre points sont des d&eacute;cisions de maison, et je ne
       les prends pas &agrave; votre place.</p>
       <ul>
-        <li><b>Les trois prix.</b> 9 000, 8 000 et 13 000 F sont une proposition qui tombe juste sur
-        25 000 F avec 5 000 F de gain annonc&eacute;. Dites les v&ocirc;tres.</li>
+        <li><b>Les cinq prix.</b> 55 000 &middot; 15 000 &middot; 8 000 &middot; 13 000 &middot;
+        9 000 F. Les trois derniers tombent juste sur 25 000 F de forfait avec 5 000 F de gain
+        annonc&eacute;. Dites les v&ocirc;tres.</li>
+        <li><b>Ferme ou au calibre ?</b> Un prix ferme pour la cr&eacute;ation et la reprise Kids,
+        ou la m&ecirc;me grille par tranche que chez les grandes, avec des planchers plus bas ?</li>
         <li><b>L&rsquo;&acirc;ge.</b> Jusqu&rsquo;&agrave; quand une t&ecirc;te est-elle
         &laquo; Kids &raquo; ? La Maison compte aujourd&rsquo;hui les mineurs &agrave; 18 ans pour la
         remise du foyer. Pour un tarif enfant, <b>12 ou 15 ans</b> se d&eacute;fendent mieux.</li>
