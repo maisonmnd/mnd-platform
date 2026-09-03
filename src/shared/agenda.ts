@@ -197,6 +197,13 @@ export type Appointment = {
       commissions et le suivi comptent tous PAR TÊTE : un objet à deux têtes
       casserait les quatre d'un coup. On pose donc des rendez-vous ordinaires,
       liés par cet identifiant, exactement comme les séances d'une série. */
+  /** LE RITUEL DONT CELUI-CI EST LA REPRISE — 3 septembre 2026.
+
+      Il sert de VERROU autant que de trace : ré-honorer un rituel déjà clos
+      est un geste courant, et sans ce lien chaque passage poserait une reprise
+      de plus. Il dit aussi, sur la fiche, d'où vient ce rendez-vous que
+      personne ne se souvient d'avoir pris. */
+  repriseDe?: string;
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)

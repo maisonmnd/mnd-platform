@@ -4,6 +4,7 @@ import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
+import { RYTHMES_ABO } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
@@ -2829,6 +2830,43 @@ function Customer360({
                     La Maison est fermée ce jour-là, la prédiction glissera au premier jour ouvert.
                   </div>
                 )}
+              </Field>
+              {/* ══ SA CADENCE, ET LA REPRISE À LA CLÔTURE — 3 sept. 2026 ═══
+                  « Lorsque je finis un RDV, est-ce que le RDV suivant selon la
+                  programmation 4, 6, 8 ou 10 semaines, une fois coché, peut
+                  automatiquement poser le RDV suivant ? » (Yéman).
+
+                  LE RYTHME SEUL NE FAIT RIEN : il informe. C'est la case qui
+                  arme le geste. Les séparer laisse noter la cadence d'une tête
+                  sans lui poser des rendez-vous dans le dos, ce qui est le cas
+                  le plus fréquent. */}
+              <Field label="Sa cadence · la reprise">
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  {RYTHMES_ABO.map((sem) => (
+                    <button
+                      key={sem} type="button"
+                      className={`tre-chip ${client.rythmeSemaines === sem ? 'is-on' : ''}`}
+                      onClick={() => patch({ rythmeSemaines: client.rythmeSemaines === sem ? undefined : sem })}
+                    >
+                      {sem} semaines
+                    </button>
+                  ))}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10, cursor: client.rythmeSemaines ? 'pointer' : 'default', opacity: client.rythmeSemaines ? 1 : 0.5 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!client.repriseAuto}
+                    disabled={!client.rythmeSemaines}
+                    onChange={(e) => patch({ repriseAuto: e.target.checked || undefined })}
+                    style={{ accentColor: 'var(--color-copper)' }}
+                  />
+                  <span style={{ fontSize: 12.5 }}>Poser la reprise dès qu’un rituel est honoré</span>
+                </label>
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+                  {client.rythmeSemaines
+                    ? <>Le prochain rendez-vous se posera <b>{client.rythmeSemaines} semaines</b> après le rituel, sur son jour et sur une porte ouverte. Rien ne se pose si elle en a déjà un à venir.</>
+                    : <>Choisissez d’abord un rythme. Sans lui, la Maison ne saurait pas quand l’attendre.</>}
+                </div>
               </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">
                 <Select value={client.recoProductId ?? ''} onChange={(e) => patch({ recoProductId: e.target.value || undefined })}>

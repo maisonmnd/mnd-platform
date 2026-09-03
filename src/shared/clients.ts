@@ -153,6 +153,21 @@ export type Client = {
       premier qui suit l'échéance. Prédire un mardi à qui ne vient que le
       samedi, c'était relancer sur une date qu'elle allait refuser. */
   jourPrefere?: number;
+  /** ══ SA CADENCE, ET LA REPRISE AUTOMATIQUE — 3 septembre 2026 ═══════
+
+      « Lorsque je finis un RDV pour une cliente, est-ce que le RDV suivant,
+      selon la programmation 4, 6, 8 ou 10 semaines, une fois coché, peut
+      automatiquement poser le RDV suivant ? » (Yéman).
+
+      LE RYTHME VIT SUR LA TÊTE, PAS SUR LE RENDEZ-VOUS. C'est une propriété
+      d'elle — sa pousse, ses habitudes, son emploi du temps — et la reposer à
+      chaque clôture reviendrait à la redemander douze fois par an.
+
+      `rythmeSemaines` seul ne fait RIEN : il informe. C'est `repriseAuto` qui
+      arme le geste. Les séparer laisse noter la cadence d'une tête sans lui
+      poser des rendez-vous dans le dos, ce qui est le cas le plus fréquent. */
+  rythmeSemaines?: number;
+  repriseAuto?: boolean;
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne

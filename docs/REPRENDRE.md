@@ -464,6 +464,51 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LA REPRISE POSÉE À LA CLÔTURE · 3 septembre 2026
+
+« Lorsque je finis un RDV pour une cliente, est-ce que le RDV suivant, selon la
+programmation 4, 6, 8 ou 10 semaines, une fois coché, peut automatiquement poser
+le RDV suivant ? »
+
+**LE RYTHME VIT SUR LA TÊTE, PAS SUR LE RENDEZ-VOUS.** C'est une propriété
+d'elle — sa pousse, ses habitudes, son emploi du temps — et la reposer à chaque
+clôture reviendrait à la redemander douze fois par an. Deux champs sur la fiche :
+`rythmeSemaines` (4, 6, 8 ou 10) et `repriseAuto`.
+
+**LES SÉPARER EST DÉLIBÉRÉ.** Le rythme seul ne fait RIEN, il informe ; c'est la
+case qui arme le geste. On peut donc noter la cadence d'une tête sans lui poser
+des rendez-vous dans le dos, et c'est le cas le plus fréquent.
+
+**QUATRE GARDES, ET CHACUN A SA RAISON** (`poseLaReprise` dans
+`clients/actions.tsx`) :
+
+- la tête doit l'avoir **demandé** et porter un rythme ;
+- elle ne doit **avoir aucun rendez-vous à venir**. Sinon marquer honoré un
+  rituel de la semaine dernière lui en poserait un second, et l'agenda compterait
+  deux fois la même tête ;
+- le rituel doit porter des prestations : on reprend ce qu'on a fait ;
+- **rien ne se pose deux fois** pour le même rituel (`repriseDe`, qui sert de
+  verrou autant que de trace). Ré-honorer un rituel déjà clos est un geste
+  courant, et il ne doit rien créer.
+
+**LA DATE SE COMPTE DEPUIS LE RITUEL, JAMAIS DEPUIS LE CLIC.** Marquer honoré
+trois jours plus tard décalerait la reprise d'autant, et la cadence dériverait
+d'un mois par an sans que personne ne comprenne pourquoi.
+`dateDeLaReprise()` pose la date sur **son jour** puis sur une **porte
+ouverte**, dans cet ordre : le salon ne s'ouvre pas parce qu'une cliente préfère
+le samedi.
+
+**LE RENDEZ-VOUS NEUF NAÎT NU** : ni encaissement, ni pièce, ni points, ni
+couverture d'abonnement, ni série, ni foyer. Recopier le rituel entier le ferait
+naître déjà payé.
+
+**ELLE SE POSE SANS BRUIT, ET L'ÉCRAN L'ANNONCE** avec sa date et son heure. Un
+rendez-vous apparu sans un mot serait pire que pas de rendez-vous du tout.
+
+`RYTHMES_ABO` passe de trois valeurs à quatre (10 semaines), ce qui ajoute
+aussi le choix dans la cadence posée d'un abonnement. Sept contrôles de plus dans
+`verifie-cadence`.
+
 ## LE NOM DE LA TÊTE DANS LA CAISSE · 3 septembre 2026
 
 « Je veux voir le nom des clientes de passage dans les caisses. »

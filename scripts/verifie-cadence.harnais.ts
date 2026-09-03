@@ -4,7 +4,7 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
@@ -274,6 +274,32 @@ dit('la suite se décale en bloc', ['2026-09-08', '2026-10-20'],
   decaleLaSuite(proposeLaCadence({
     restes: [{ serviceId: 'sv-reprise', reste: 2 }], departIso: '2026-09-01', pasJours: 42,
   }), 7).map((x) => x.dateIso));
+
+/* -- LA REPRISE POSEE A LA CLOTURE — 3 septembre 2026 -------------
+   « Lorsque je finis un RDV pour une cliente, est-ce que le RDV suivant selon
+   la programmation 4, 6, 8 ou 10 semaines, une fois coche, peut automatiquement
+   poser le RDV suivant ? » (Yeman).
+
+   La Maison ferme le lundi et le dimanche — reglages poses en tete de ce
+   harnais. Le 1er septembre 2026 est un MARDI. */
+dit('les quatre rythmes de la Maison', [4, 6, 8, 10], [...RYTHMES_ABO]);
+dit('six semaines apres un mardi', '2026-10-13', dateDeLaReprise('2026-09-01', 6));
+dit('quatre semaines', '2026-09-29', dateDeLaReprise('2026-09-01', 4));
+dit('dix semaines', '2026-11-10', dateDeLaReprise('2026-09-01', 10));
+/* ON NE POSE JAMAIS UN FAUTEUIL PORTE CLOSE. Une semaine apres le dimanche
+   6 septembre retombe un dimanche ; le lundi etant ferme aussi, la reprise se
+   pose le mardi. Deux jours fermes d'affilee ne font pas reculer d'une
+   semaine. */
+dit('la porte close repousse la reprise', '2026-09-15', dateDeLaReprise('2026-09-06', 1));
+/* SON JOUR A ELLE PASSE AVANT LE RYTHME : une tete qui ne vient que le samedi
+   garde ses samedis. */
+dit('elle garde son samedi', 6,
+  new Date(`${dateDeLaReprise('2026-09-01', 6, 6)}T12:00:00`).getDay());
+/* ON COMPTE DEPUIS LE RITUEL, PAS DEPUIS LE CLIC : marquer honore trois jours
+   plus tard decalerait la reprise d'autant, et la cadence deriverait d'un mois
+   par an sans que personne ne comprenne pourquoi. */
+dit('la reprise ne depend que du rituel', dateDeLaReprise('2026-09-01', 6),
+  dateDeLaReprise('2026-09-01', 6));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

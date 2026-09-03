@@ -4,6 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
+import { dateDeLaReprise } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
@@ -59,6 +60,62 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
     d'écrire — celle-ci comprise, puisqu'elle a lieu — et on n'attribue rien tant
     que le seuil n'est pas atteint. Les deux premières venues ne sont pas
     créditées après coup : elle entre au 3ᵉ passage, elle gagne à partir de là. */
+/** LA REPRISE POSÉE À LA CLÔTURE — 3 septembre 2026.
+
+    « Lorsque je finis un RDV pour une cliente, est-ce que le RDV suivant, selon
+    la programmation 4, 6, 8 ou 10 semaines, une fois coché, peut
+    automatiquement poser le RDV suivant ? » (Yéman).
+
+    QUATRE GARDES, ET CHACUN A SA RAISON :
+    · la tête doit l'avoir DEMANDÉ (`repriseAuto`) et porter un rythme. Poser
+      des rendez-vous dans le dos d'une cliente qui n'a rien demandé remplirait
+      l'agenda de fauteuils qu'elle ne viendra pas prendre.
+    · elle ne doit AVOIR AUCUN RENDEZ-VOUS À VENIR. Sinon marquer honoré un
+      rituel de la semaine dernière lui en poserait un second, et l'agenda
+      compterait deux fois la même tête.
+    · le rituel doit porter des prestations : on reprend ce qu'on a fait.
+    · RIEN NE SE POSE DEUX FOIS pour le même rituel (`repriseDe`), quoi qu'il
+      arrive — ré-honorer un rituel déjà clos est un geste courant, et il ne
+      doit rien créer.
+
+    LA DATE SE COMPTE DEPUIS LE RITUEL, jamais depuis le clic : marquer honoré
+    trois jours plus tard décalerait la reprise d'autant, et la cadence
+    dériverait d'un mois par an sans que personne ne comprenne pourquoi. */
+export function poseLaReprise(appt: Appointment): Appointment | null {
+  if (!appt.clientId || appt.serviceIds.length === 0) return null;
+  const cliente = clientsStore.get().find((c) => c.id === appt.clientId);
+  if (!cliente?.repriseAuto || !cliente.rythmeSemaines) return null;
+  const tous = appointmentsStore.get();
+  if (tous.some((a) => a.repriseDe === appt.id)) return null;
+  const aVenir = tous.some((a) => a.clientId === appt.clientId
+    && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
+  if (aVenir) return null;
+  const date = dateDeLaReprise(appt.date, cliente.rythmeSemaines, cliente.jourPrefere);
+  const suivant: Appointment = {
+    ...appt,
+    id: `ap-${uid()}`,
+    date,
+    status: 'confirmé',
+    repriseDe: appt.id,
+    /* CE QUI APPARTENAIT AU RITUEL D'AVANT NE SE RECOPIE PAS : son
+       encaissement, sa pièce, ses points, sa couverture d'abonnement. Un
+       rendez-vous neuf naît nu, sinon il naîtrait déjà payé. */
+    payments: undefined,
+    invoiceId: undefined,
+    pointsAwarded: undefined,
+    coveredBySub: undefined,
+    coverKind: undefined,
+    subId: undefined,
+    foyerId: undefined,
+    seriesId: undefined,
+    seriesIndex: undefined,
+    seriesTotal: undefined,
+    note: `Reprise posée à la clôture · toutes les ${cliente.rythmeSemaines} semaines`,
+  } as Appointment;
+  appointmentsStore.set((prev) => [...prev, suivant]);
+  return suivant;
+}
+
 export function honorAppointment(appt: Appointment, byId: Map<string, Service>): number {
   const total = apptNetXof(appt, byId);
   /* LES POINTS SUIVENT L'ARGENT. Un rituel offert reconnaît celle qui l'a payé,
@@ -95,6 +152,15 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
      déjà consommé ne reconsomme rien. Un service sans recette ne décrémente
      rien, sans erreur. Voir shared/stock.ts. */
   consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds: appt.serviceIds }, todayISO());
+
+  /* LA REPRISE SE POSE ICI, à la clôture et nulle part ailleurs : c'est le seul
+     moment où la Maison sait que la tête est venue, et donc quand la suivante
+     est due. Elle se pose sans bruit, et l'écran l'annonce — un rendez-vous
+     apparu sans un mot serait pire que pas de rendez-vous du tout. */
+  const reprise = poseLaReprise(appt);
+  if (reprise) {
+    toast(`Rituel honoré. Sa reprise est posée le ${frShort(reprise.date)} à ${reprise.time}.`);
+  }
 
   /* ── LA COURONNE NAÎT ICI — 19 août 2026 ─────────────────────────
      Un rituel honoré qui porte une création VÈKPÈ inscrit la date de la

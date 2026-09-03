@@ -177,7 +177,20 @@ export function tauxDeRealisation(venues: { clientId: string; date: string }[]):
 
 /** Les rythmes que la Maison propose, en semaines. Le champ libre reste ouvert
     à côté : quatre, six ou huit couvrent presque tout, jamais tout. */
-export const RYTHMES_ABO = [4, 6, 8] as const;
+export const RYTHMES_ABO = [4, 6, 8, 10] as const;
+
+/** LA DATE DE LA REPRISE — 3 septembre 2026.
+
+    Le rituel d'aujourd'hui plus son rythme, posé sur SON jour puis sur une
+    porte ouverte. Les deux règles de la Maison s'appliquent dans cet ordre : le
+    salon ne s'ouvre pas parce qu'une cliente préfère le samedi.
+
+    ON COMPTE DEPUIS LE RITUEL, PAS DEPUIS LE CLIC. Marquer honoré trois jours
+    plus tard décalerait la reprise de trois jours, et la cadence dériverait
+    d'un mois par an sans que personne ne comprenne pourquoi. */
+export const dateDeLaReprise = (
+  isoDuRituel: string, semaines: number, jourPrefere?: number,
+): string => poseLaDate(addDaysISO(isoDuRituel, Math.max(1, Math.round(semaines)) * 7), jourPrefere);
 
 export type SeanceProposee = {
   rang: number;
