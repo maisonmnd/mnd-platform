@@ -464,6 +464,34 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UN SEUL LIEN POUR TOUT LE FOYER · 3 septembre 2026
+
+« Je voudrais émettre un lien de paiement unique pour le foyer. Les RDV du 8 et
+du 9 septembre. Total 75 000 F en un lien de paiement. »
+
+**UNE MÈRE NE PAIE PAS TROIS FOIS.** Le lien se posait par PIÈCE : trois têtes
+d'un même foyer venues le même week-end faisaient trois messages, trois codes à
+composer, trois fois la même conversation. Et rien ne disait à la payeuse que les
+trois allaient ensemble.
+
+Bouton « Un seul lien pour le foyer · N pièces » sur la facture, visible
+seulement **à partir de deux pièces** : sur une seule il ne ferait que doubler
+celui du dessus. La modale liste les pièces non soldées de **toutes les têtes du
+compte**, cochées par défaut, avec leur nom, leur date et leur reste.
+
+**LE LIEN NE FAIT QU'UNE CHOSE : IL PORTE UN MONTANT.** C'est donc au message de
+dire ce que ce montant couvre, ligne par ligne, sinon la payeuse reçoit un
+chiffre rond sans savoir de quoi il répond. Les références restent en pied, comme
+partout depuis ce matin.
+
+**IL S'ADRESSE À LA PAYEUSE DU FOYER**, pas à la dernière tête servie
+(`payerClientIdOf`).
+
+**CE QUI RESTE À LA MAIN SE DIT** : le lien réclame, il n'encaisse pas. Quand
+l'argent arrive, chaque pièce se pointe à son montant — c'est ce qui garde les
+comptes de chaque tête justes, et aucun lien Mobile Money ne sait le faire à
+notre place.
+
 ## UN PRÊT QUI NE S'ENREGISTRE PAS · 3 septembre 2026
 
 « Je n'arrive pas à enregistrer de nouveaux prêts. »

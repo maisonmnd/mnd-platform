@@ -8,7 +8,8 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
 import { useServices } from '../../../../shared/catalog';
-import { useClients } from '../../../../shared/clients';
+import { useClients, useFamilies } from '../../../../shared/clients';
+import { payerClientIdOf } from '../../../../shared/accounts';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
@@ -101,6 +102,8 @@ export default function Factures() {
   const { branch, currency } = useBranch();
   const [invoices, setInvoices] = useInvoices();
   const [clients] = useClients();
+  /* LA PAYEUSE DU FOYER, pour le lien commun : c'est elle qui règle. */
+  const [families] = useFamilies();
   const [services] = useServices();
   /* ══ CE QUE PORTE UNE LIGNE D'ABONNEMENT — 1er septembre 2026 ══════
      Les pièces écrites À PARTIR D'AUJOURD'HUI portent leur contenu (`detail`).
@@ -325,7 +328,32 @@ export default function Factures() {
   const [produits] = useProducts();
   const byId = useServicesById();
   const [ecarts, setEcarts] = useState<EcartDeConformite[] | null>(null);
+  /* ══ UN SEUL LIEN POUR TOUT LE FOYER — 3 septembre 2026 ════════════
+     « Je voudrais émettre un lien de paiement unique pour le foyer. Les RDV du
+     8 et du 9 septembre. Total 75 000 F en un lien de paiement » (Yéman).
+
+     UNE MÈRE NE PAIE PAS TROIS FOIS. Le lien se posait par PIÈCE : trois têtes
+     d'un même foyer venues le même week-end faisaient trois messages, trois
+     codes à composer, trois fois la même conversation. Et rien ne disait à la
+     payeuse que les trois allaient ensemble.
+
+     LE LIEN NE FAIT QU'UNE CHOSE : il porte un montant. C'est donc à l'écran de
+     dire ce que ce montant couvre, pièce par pièce, dans le message. */
+  const [lienFoyer, setLienFoyer] = useState<{ pieces: Invoice[]; prises: string[] } | null>(null);
   const [scanEnCours, setScanEnCours] = useState(false);
+
+  /* LES PIÈCES DU FOYER QUI RÉCLAMENT ENCORE. Toutes les têtes rattachées au
+     même compte, la payeuse comprise, et seulement ce qui n'est pas soldé : on
+     ne redemande pas ce qui est déjà entré. */
+  const piecesDuFoyer = (inv: Invoice): Invoice[] => {
+    const tete = clients.find((c) => c.id === inv.clientId);
+    if (!tete?.familyId) return [];
+    const membres = new Set(clients.filter((c) => c.familyId === tete.familyId && !c.archived).map((c) => c.id));
+    return invoices
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture'
+        && !!i.clientId && membres.has(i.clientId) && invoiceResteXof(i) > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  };
 
   const parcourirLesRituels = (simuler: boolean): EcartDeConformite[] => {
     const trouves: EcartDeConformite[] = [];
@@ -1433,6 +1461,22 @@ export default function Factures() {
                   </a>
                 );
               })()}
+              {/* ══ UN SEUL LIEN POUR TOUT LE FOYER ═══════════════════════════
+                  Une mère ne paie pas trois fois. Le bouton ne paraît que si le
+                  foyer a plus d'une pièce qui réclame : sur une seule, il ne
+                  ferait que doubler celui du dessus. */}
+              {selected.kind === 'facture' && (() => {
+                const duFoyer = piecesDuFoyer(selected);
+                if (duFoyer.length < 2) return null;
+                return (
+                  <button
+                    type="button" className="trv-act"
+                    onClick={() => setLienFoyer({ pieces: duFoyer, prises: duFoyer.map((i) => i.id) })}
+                  >
+                    Un seul lien pour le foyer · {duFoyer.length} pièces
+                  </button>
+                );
+              })()}
               {geoDest && (
                 <a
                   className="trv-route-btn"
@@ -1776,6 +1820,100 @@ export default function Factures() {
           </div>
         </Modal>
       )}
+
+      {/* ══ LE LIEN DU FOYER ══════════════════════════════════════════════
+          Le lien ne fait qu'une chose : il porte un MONTANT. C'est donc au
+          message de dire ce que ce montant couvre, pièce par pièce — sans quoi
+          la payeuse reçoit un chiffre rond sans savoir de quoi il répond. */}
+      {lienFoyer && (() => {
+        const prises = lienFoyer.pieces.filter((i) => lienFoyer.prises.includes(i.id));
+        const total = prises.reduce((n, i) => n + invoiceResteXof(i), 0);
+        const lien = lienPaiementMomo(total);
+        /* LA PAYEUSE DU FOYER, PAS LA DERNIÈRE TÊTE SERVIE. C'est elle qui
+           règle, et c'est son téléphone qu'on ouvre. */
+        const premiere = clientOf(prises[0] ?? lienFoyer.pieces[0]);
+        const payeur = premiere ? clients.find((c) => c.id === payerClientIdOf(premiere, families)) ?? premiere : undefined;
+        const tel = payeur?.phone.replace(/\D/g, '') ?? '';
+        const msg = signeLeMessage(
+          `${maisonNom()}\n`
+          + `Bonjour ${(payeur?.name ?? '').split(' ')[0]}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien ?? ''}\n`
+          + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frDay(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
+          + `Références ${prises.map((i) => i.number).join(', ')}`,
+        );
+        const bascule = (id: string) => setLienFoyer((prev) => (prev ? {
+          ...prev,
+          prises: prev.prises.includes(id) ? prev.prises.filter((x) => x !== id) : [...prev.prises, id],
+        } : prev));
+        return (
+          <Modal title="Un seul lien pour le foyer" onClose={() => setLienFoyer(null)} width={520}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
+                Cochez ce que ce règlement couvre. Un seul code à composer, un seul montant, et le
+                message dit à qui appartient chaque ligne.
+              </div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3 }}>
+                {lienFoyer.pieces.map((i) => {
+                  const prise = lienFoyer.prises.includes(i.id);
+                  return (
+                    <label
+                      key={i.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 11, padding: '10px 13px',
+                        borderTop: '1px solid var(--hairline)', cursor: 'pointer', fontSize: 13,
+                        opacity: prise ? 1 : 0.55,
+                      }}
+                    >
+                      <input type="checkbox" checked={prise} onChange={() => bascule(i.id)} style={{ accentColor: 'var(--color-copper)' }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{clientNameOf(i)}</b>
+                        <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
+                          {frDay(i.date)} · {i.number}
+                        </span>
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtMoney(invoiceResteXof(i), currency)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                <span className="mnd-eyebrow" style={{ fontSize: 9.5 }}>Un seul règlement</span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--color-indigo)' }}>{fmtMoney(total, currency)}</span>
+              </div>
+              {!lien && (
+                <div className="tre-inline-note">
+                  <span className="mark">!</span>
+                  <span>Le paiement Mobile Money n’est pas réglé pour cette Maison. Paramètres → Automatisations.</span>
+                </div>
+              )}
+              {/* CE QUI RESTE À FAIRE À LA MAIN SE DIT. Le lien porte un montant,
+                  il ne solde rien : l'argent arrivé se pointe pièce par pièce. */}
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Ce lien <b>réclame</b>, il n’encaisse pas. Quand l’argent arrive, pointez chaque
+                pièce à son montant : c’est ce qui garde les comptes de chaque tête justes.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setLienFoyer(null)}>Fermer</Button>
+                {lien && tel && (
+                  <a
+                    className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
+                    target="_blank" rel="noreferrer"
+                  >
+                    Adresser à {(payeur?.name ?? '').split(' ')[0]}
+                  </a>
+                )}
+                {lien && (
+                  <Button onClick={() => { void navigator.clipboard?.writeText(lien); toast('Lien copié.'); }}>
+                    Copier le lien
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* L'APERÇU DE LA FUSION. « Reçu avant » et « reçu après » doivent être
           ÉGAUX sur chaque ligne : c'est l'argent de la cliente, il ne peut ni
