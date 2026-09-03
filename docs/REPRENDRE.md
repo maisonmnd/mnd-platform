@@ -505,9 +505,12 @@ naître déjà payé.
 **ELLE SE POSE SANS BRUIT, ET L'ÉCRAN L'ANNONCE** avec sa date et son heure. Un
 rendez-vous apparu sans un mot serait pire que pas de rendez-vous du tout.
 
-`RYTHMES_ABO` passe de trois valeurs à quatre (10 semaines), ce qui ajoute
-aussi le choix dans la cadence posée d'un abonnement. Sept contrôles de plus dans
-`verifie-cadence`.
+`RYTHMES_ABO` passe de trois valeurs à SIX : 4, 5, 6, 7, 8 et 10 semaines
+(3 septembre). Le pas d'une semaine est celui du cheveu, pas celui d'un
+calendrier rond : une tête qui revient toutes les cinq semaines et qu'on
+programme à quatre vient trop tôt douze fois par an, et à six elle vient trop
+tard autant de fois. Les six servent la reprise à la clôture ET la cadence
+posée d'un abonnement. Neuf contrôles de plus dans `verifie-cadence`.
 
 ## LE NOM DE LA TÊTE DANS LA CAISSE · 3 septembre 2026
 

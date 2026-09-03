@@ -175,9 +175,18 @@ export function tauxDeRealisation(venues: { clientId: string; date: string }[]):
    des dates que l'écran laisse corriger une à une. Poser six séances d'un geste
    sans pouvoir en bouger une seule ferait plus de dégâts que de bien. */
 
-/** Les rythmes que la Maison propose, en semaines. Le champ libre reste ouvert
-    à côté : quatre, six ou huit couvrent presque tout, jamais tout. */
-export const RYTHMES_ABO = [4, 6, 8, 10] as const;
+/** LES RYTHMES DE LA MAISON, en semaines — 3 septembre 2026.
+
+    Quatre, six et huit couvraient « presque tout » ; dix est venu avec la
+    reprise à la clôture, puis CINQ et SEPT. Ce n'est pas un détail de
+    présentation : une tête qui revient toutes les cinq semaines et qu'on
+    programme à quatre vient trop tôt douze fois par an, et à six elle vient
+    trop tard autant de fois. Le pas d'une semaine est celui du cheveu, pas
+    celui d'un calendrier rond.
+
+    Le champ libre reste ouvert à côté, pour ce qui ne tombe sur aucun de
+    ceux-là. */
+export const RYTHMES_ABO = [4, 5, 6, 7, 8, 10] as const;
 
 /** LA DATE DE LA REPRISE — 3 septembre 2026.
 
