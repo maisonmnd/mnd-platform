@@ -102,6 +102,10 @@ export function poseLaReprise(appt: Appointment): Appointment | null {
        rendez-vous neuf naît nu, sinon il naîtrait déjà payé. */
     payments: undefined,
     invoiceId: undefined,
+    /* LE PRIX NE SE RECOPIE PAS. Un rituel couvert par un abonnement vaut 0 F :
+       le recopier ferait naître la reprise gratuite. Elle se chiffre au tarif
+       du jour où on l'ouvre, et se fige quand on l'enregistre. */
+    priceXof: undefined,
     pointsAwarded: undefined,
     coveredBySub: undefined,
     coverKind: undefined,

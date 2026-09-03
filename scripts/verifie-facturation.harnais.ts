@@ -406,4 +406,27 @@ dit('une piece a moitie reglee n’est pas soldee', false, invoiceSoldee(partiel
 const soldee = { ...partielle, payments: [{ id: 'v1', date: '2026-08-28', amountXof: 168_000, method: 'Chèque' }] } as unknown as Invoice;
 dit('… et une piece entierement reglee l’est', true, invoiceSoldee(soldee));
 
+/* -- TOUT RITUEL PORTE SON PRIX — 3 septembre 2026 ----------------
+   « Le RDV d'Adjaratou du 2 septembre est de 50 000 F mais dans le carnet il
+   affiche 48 000 F. D'ou vient ce chiffre ? Corrige-moi ca une fois pour de
+   bon » (Yeman).
+
+   Le prix ne se figeait que pour une tete personnalisee ; pour toutes les
+   autres, la somme se REFAISAIT au catalogue du jour ou on regarde. Deux
+   rituels identiques de juillet et de septembre affichaient deux montants des
+   qu'un prix ou une longueur avait bouge. */
+const rituelFige = { ...appt(['a', 'b']), priceXof: 50_000 } as Appointment;
+const rituelNu = appt(['a', 'b']);
+dit('un prix fige fait foi', 50_000, apptTotalXof(rituelFige, byId));
+/* SANS PRIX FIGE, la somme se refait au catalogue — c'est exactement ce que la
+   modale ne laisse plus arriver, puisqu'elle fige a l'enregistrement. */
+dit('sans prix fige, le catalogue decide', 30_000, apptTotalXof(rituelNu, byId));
+/* LA REGLE DES SERIES RESTE AU-DESSUS : une seance 2+ ne vaut rien, prix fige
+   ou non. */
+dit('une seance 2 ne vaut rien, meme figee', 0,
+  apptTotalXof({ ...rituelFige, seriesIndex: 2 } as Appointment, byId));
+/* ET LES REMISES S'APPLIQUENT APRES le prix fige, jamais dedans. */
+dit('la remise mord sur le prix fige', 45_000,
+  apptNetXof({ ...rituelFige, discountPct: 10 } as Appointment, byId));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

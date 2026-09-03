@@ -464,6 +464,35 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## TOUT RITUEL PORTE SON PRIX · 3 septembre 2026
+
+« Le RDV d'Adjaratou du 2 septembre est de 50 000 F mais dans le carnet il
+affiche 48 000 F. D'où vient ce chiffre ? Corrige-moi ça une fois pour de bon. »
+
+**LE PRIX NE SE FIGEAIT QUE POUR UNE TÊTE PERSONNALISÉE.** Pour toutes les
+autres, `apptTotalXof` **refaisait la somme** au catalogue du jour où on
+regarde. Deux rituels identiques, l'un de juillet et l'autre de septembre,
+affichaient donc deux montants dès qu'un prix ou une **longueur** avait bougé
+entre les deux, et l'écart tombait pile sur un pas de longueur (2 000 F sur le
+Souffle). Le carnet racontait le catalogue d'aujourd'hui, pas ce qui s'était
+passé.
+
+**UN RITUEL EST UN FAIT.** Il porte donc son prix, comme une facture porte le
+sien depuis ce matin. La modale l'écrit à l'enregistrement sur les deux chemins,
+le principal et celui des séries. `keepFrozen` garde celui d'avant tant que
+rien ne change ; toucher aux prestations ou aux remises le recalcule, et c'est
+bien ce qu'on veut alors.
+
+**LA REPRISE NE RECOPIE PAS LE PRIX.** `poseLaReprise` étend le rituel d'avant :
+un rituel couvert par un abonnement vaut 0 F, et le recopier ferait naître la
+reprise gratuite. Elle se chiffre au tarif du jour où on l'ouvre, et se fige
+quand on l'enregistre.
+
+**CE QUI RESTE À FAIRE DE VOTRE CÔTÉ** : les rituels déjà passés qui n'ont pas de
+prix figé continuent de se relire au catalogue. Rouvrir un rituel et
+l'enregistrer le fige à ce qu'il vaut alors — c'est le seul geste qui répare
+l'histoire, et il demande de connaître le bon prix.
+
 ## LA REPRISE POSÉE À LA CLÔTURE · 3 septembre 2026
 
 « Lorsque je finis un RDV pour une cliente, est-ce que le RDV suivant, selon la

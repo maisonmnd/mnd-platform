@@ -1912,7 +1912,25 @@ export function RdvModal({
                 /* `effGross` — le MÊME nombre que l'aperçu de la modale : prix
                    fixes + montant convenu des prix libres. Le recalculer ici
                    ferait diverger ce qu'on lit de ce qu'on enregistre. */
-                priceXof: effCovered ? 0 : needsAmount ? effGross : keepFrozen ? frozenXof : rdvPersonalized ? grossBase : undefined,
+                /* ══ TOUT RITUEL PORTE SON PRIX — 3 septembre 2026 ═══════════
+                   « Le RDV d'Adjaratou du 2 septembre est de 50 000 F mais dans
+                   le carnet il affiche 48 000 F. D'où vient ce chiffre ?
+                   Corrige-moi ça une fois pour de bon » (Yéman).
+
+                   LE PRIX NE SE FIGEAIT QUE POUR UNE TÊTE PERSONNALISÉE. Pour
+                   toutes les autres, `apptTotalXof` REFAISAIT la somme au
+                   catalogue du jour où on regarde : deux rituels identiques de
+                   juillet et de septembre affichaient deux montants dès qu'un
+                   prix ou une longueur avait bougé entre les deux. Le carnet
+                   racontait le catalogue d'aujourd'hui, pas ce qui s'était
+                   passé.
+
+                   UN RITUEL EST UN FAIT. Il porte donc son prix, comme une
+                   facture porte le sien depuis ce matin. `keepFrozen` garde
+                   celui d'avant tant que rien ne change ; toucher aux
+                   prestations ou aux remises le recalcule, et c'est bien ce
+                   qu'on veut alors. */
+                priceXof: effCovered ? 0 : needsAmount ? effGross : keepFrozen ? frozenXof : grossBase,
                 depositServiceIds: effCovered ? [] : depositServiceIds,
                 depositXof: effCovered ? 0 : depositXof }
             : x,
@@ -1968,7 +1986,9 @@ export function RdvModal({
         remiseFamille: !effCovered && !forfaitPose && remiseEstFamille ? true : undefined,
         /* Couvert par l'abonnement → prix 0 ; variable/devis gèle le montant
            convenu ; cliente au prix personnalisé → SON prix, figé dès la prise. */
-        priceXof: effCovered ? 0 : needsAmount ? effGross : rdvPersonalized ? grossBase : undefined,
+        /* MÊME RÈGLE SUR LE CHEMIN DES SÉRIES : un rituel est un fait, il
+           porte son prix. Voir la note du chemin principal. */
+        priceXof: effCovered ? 0 : needsAmount ? effGross : grossBase,
         depositServiceIds: effCovered ? [] : depositServiceIds,
         depositXof: effCovered ? 0 : depositXof,
       };
