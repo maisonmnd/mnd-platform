@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les pr&ecirc;ts, au clair &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .griefs { list-style:none; padding:0; margin:0; display:grid; gap:13px; }
+  .grief { border:1px solid var(--filet); border-left:3px solid var(--brique); border-radius:3px;
+           background:var(--ivoire); padding:14px 17px; }
+  .grief b { display:block; font-family:var(--serif); font-size:19px; color:var(--indigo);
+             font-weight:400; margin-bottom:3px; }
+  .grief span { color:var(--encre-d); font-size:14px; }
+  .grief em { font-style:normal; color:var(--encre); font-weight:500; }
+
+  .avant { border:1px solid var(--filet); border-radius:3px; background:#F7F2E8; padding:12px 15px; margin-top:16px; }
+  .avant div { display:flex; justify-content:space-between; gap:12px; padding:5px 0;
+               font-size:13px; color:var(--encre-d); font-variant-numeric:tabular-nums; }
+  .avant b { color:var(--encre); font-weight:400; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:19px 21px; }
+
+  .cartes { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:820px){ .cartes { grid-template-columns:1fr; } }
+  .carte { border:1px solid var(--filet); border-top:2px solid var(--indigo); border-radius:3px;
+           background:#fff; padding:15px 17px; }
+  .carte--brique { border-top-color:var(--brique); }
+  .carte--vert { border-top-color:var(--vert); }
+  .carte__l { font-size:9.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--encre-d); }
+  .carte__v { font-family:var(--serif); font-size:29px; color:var(--indigo); line-height:1.1;
+              margin-top:6px; font-variant-numeric:tabular-nums; }
+  .carte--brique .carte__v { color:var(--brique); }
+  .carte--vert .carte__v { color:var(--vert); }
+  .carte__s { font-size:11.5px; color:var(--encre-d); margin-top:6px; }
+
+  /* Un emprunteur */
+  .emp { border:1px solid var(--filet); border-radius:4px; background:#fff; margin-bottom:13px; overflow:hidden; }
+  .emp__tete { display:flex; align-items:flex-start; gap:15px; padding:14px 17px; flex-wrap:wrap; }
+  .emp__qui { flex:1 1 200px; min-width:0; }
+  .emp__qui b { display:block; font-family:var(--serif); font-weight:400; font-size:23px;
+                color:var(--indigo); line-height:1.12; }
+  .emp__qui span { font-size:11px; color:var(--encre-d); }
+  .emp__du { text-align:right; }
+  .emp__du b { display:block; font-family:var(--serif); font-size:25px; color:var(--indigo);
+               font-variant-numeric:tabular-nums; line-height:1.1; }
+  .emp__du span { font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .emp.is-retard { border-left:3px solid var(--brique); }
+  .emp.is-retard .emp__du b { color:var(--brique); }
+  .emp.is-solde { opacity:.7; }
+  .emp__barre { height:5px; background:#EFE8DA; display:flex; }
+  .emp__barre i { display:block; height:100%; background:var(--vert); }
+  .emp__pied { display:flex; align-items:center; gap:12px; padding:10px 17px 13px;
+               border-top:1px solid #EFE8DA; flex-wrap:wrap; font-size:12px; color:var(--encre-d); }
+  .emp__pied .grow { flex:1 1 auto; }
+
+  .etat { font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; padding:3px 9px;
+          border-radius:99px; border:1px solid; flex:none; }
+  .etat--jour { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .etat--retard { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+  .etat--sans { color:var(--encre-d); border-color:var(--filet); background:#F2EDE3; }
+  .etat--solde { color:var(--encre-d); border-color:var(--filet); background:#F2EDE3; }
+
+  .mini { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d);
+          border:1px solid var(--filet); border-radius:2px; padding:5px 10px; background:#fff; }
+  .mini--cuivre { color:#fff; border-color:var(--cuivre); background:var(--cuivre); }
+
+  .onglets { display:flex; gap:0; border-bottom:1px solid var(--filet); margin-bottom:2px; }
+  .onglet { font-size:11px; letter-spacing:.14em; text-transform:uppercase; padding:10px 16px;
+            color:var(--encre-d); border-bottom:2px solid transparent; }
+  .onglet.is-on { color:var(--indigo); border-bottom-color:var(--cuivre); }
+
+  /* Le fil, avec son sens */
+  .mvt { display:flex; align-items:baseline; gap:13px; padding:11px 0; border-top:1px solid #EFE8DA; flex-wrap:wrap; }
+  .mvt__s { width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center;
+            font-size:13px; font-family:var(--serif); }
+  .mvt__s.sort { background:var(--brique-f); color:var(--brique); border:1px solid var(--brique-p); }
+  .mvt__s.rent { background:var(--vert-f); color:var(--vert); border:1px solid var(--vert-p); }
+  .mvt__q { flex:1 1 220px; min-width:0; }
+  .mvt__q b { font-family:var(--serif); font-size:17px; color:var(--indigo); font-weight:400; }
+  .mvt__q i { display:block; font-style:normal; font-size:11px; color:var(--encre-d); }
+  .mvt__x { font-family:var(--serif); font-size:18px; font-variant-numeric:tabular-nums; text-align:right; min-width:112px; }
+  .mvt__x.sort { color:var(--brique); }
+  .mvt__x.rent { color:var(--vert); }
+
+  .note { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:3px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; color:var(--encre); max-width:78ch; margin-top:16px; }
+  .note b { font-weight:500; }
+
+  .regles { list-style:none; padding:0; margin:22px 0 0; max-width:82ch; }
+  .regles li { border-top:1px solid var(--filet); padding:14px 0 13px; display:grid;
+               grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+  .regles li:last-child { border-bottom:1px solid var(--filet); }
+  .regles i { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--cuivre); line-height:1.2; }
+  .regles b { display:block; color:var(--encre); font-weight:500; margin-bottom:2px; }
+  .regles span { color:var(--encre-d); font-size:14px; }
+
+  .aval { border-radius:4px; background:var(--indigo); color:#EFEAE0; padding:22px 24px; margin-top:34px; }
+  .aval h3 { color:#fff; margin:0 0 10px; font-family:var(--serif); font-weight:400; font-size:20px; }
+  .aval p { color:#C9CADF; margin:0 0 14px; max-width:72ch; font-size:14.5px; }
+  .aval ul { margin:0; padding-left:18px; color:#C9CADF; font-size:14px; }
+  .aval ul b { color:#fff; font-weight:500; }
+  .aval li { margin-bottom:7px; }
+
+  footer { margin-top:70px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Finances &middot; Les pr&ecirc;ts</p>
+  <h1>Les pr&ecirc;ts, au clair</h1>
+  <p class="chapeau">Un pr&ecirc;t et un remboursement ne sont pas deux lignes du m&ecirc;me registre :
+  ce sont <b>deux sens du m&ecirc;me compte</b>. L&rsquo;&eacute;cran les met dans la m&ecirc;me
+  colonne, du m&ecirc;me c&ocirc;t&eacute;, dans la m&ecirc;me couleur.</p>
+
+  <section>
+    <p class="cite">Tout est m&eacute;lang&eacute;. Besoin de voir une diff&eacute;rence nette entre
+    les remboursements et les pr&ecirc;ts. Refaire un UI/UX facile &agrave; naviguer et super bien
+    structur&eacute;. Simple et professionnel.
+    <span>Y&eacute;man &middot; 3 septembre 2026</span></p>
+
+    <p class="eyebrow"><span class="num">I</span> &nbsp; Ce qui ne va pas</p>
+    <h2>Trois raisons, et aucune n&rsquo;est de go&ucirc;t</h2>
+
+    <ul class="griefs">
+      <li class="grief">
+        <b>L&rsquo;argent qui sort et l&rsquo;argent qui rentre se ressemblent</b>
+        <span>&laquo; Pr&ecirc;t&eacute; &raquo; et &laquo; Rembours&eacute; &raquo; ne sont
+        distingu&eacute;s que par un mot en d&eacute;but de ligne. Le montant, lui, est
+        <em>&agrave; droite, dans la m&ecirc;me couleur, sans signe</em> : l&rsquo;&oelig;il ne peut
+        pas trier, il doit lire.</span>
+      </li>
+      <li class="grief">
+        <b>Il n&rsquo;y a pas d&rsquo;unit&eacute;</b>
+        <span>Quatorze lignes se suivent sans que rien ne dise <em>combien Darcy doit
+        encore</em>. Or c&rsquo;est la seule question qu&rsquo;on se pose devant cet
+        &eacute;cran, et il faut aujourd&rsquo;hui la calculer de t&ecirc;te.</span>
+      </li>
+      <li class="grief">
+        <b>Les &eacute;ch&eacute;ances attendues se m&ecirc;lent au pass&eacute;</b>
+        <span>Trois lignes &laquo; Attendu &raquo; ouvrent la liste, puis viennent les faits.
+        L&rsquo;avenir et l&rsquo;histoire dans le m&ecirc;me fil : <em>on ne sait plus ce qui
+        s&rsquo;est pass&eacute; de ce qui va se passer</em>.</span>
+      </li>
+    </ul>
+
+    <div class="avant">
+      <div><b>Rembours&eacute; &middot; 2 sept. &middot; Remboursement (Abonnement de Myl&egrave;ne G.)</b><span>100 000 F</span></div>
+      <div><b>Pr&ecirc;t&eacute; &middot; 26 ao&ucirc;t &middot; Carreaux Jafco pour salon &middot; Caisse Bito</b><span>1 364 390 F</span></div>
+      <div><b>Rembours&eacute; &middot; 14 ao&ucirc;t &middot; Support 2 Domi pour Darcy</b><span>50 000 F</span></div>
+    </div>
+    <p class="legende">Trois lignes de l&rsquo;&eacute;cran actuel. Deux sens contraires, une seule
+    colonne, aucune couleur. <b>1 364 390 F sont sortis</b> et <b>150 000 F sont rentr&eacute;s</b>,
+    mais rien ne le montre.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp; L&rsquo;&eacute;cran</p>
+    <h2>Ce qu&rsquo;on vous doit, par qui</h2>
+    <p class="intro">Trois chiffres en t&ecirc;te, puis <b>une carte par emprunteur</b>. Le fil des
+    mouvements existe toujours, mais il descend en second : on ouvre cet &eacute;cran pour savoir
+    qui rappeler, pas pour relire l&rsquo;histoire.</p>
+
+    <div class="cartes">
+      <div class="carte carte--brique">
+        <div class="carte__l">Reste d&ucirc; &middot; en tout</div>
+        <div class="carte__v">8 272 600 F</div>
+        <div class="carte__s">sur 9 517 790 F pr&ecirc;t&eacute;s &middot; 13 % rentr&eacute;s</div>
+      </div>
+      <div class="carte carte--vert">
+        <div class="carte__l">Rentr&eacute; ce mois</div>
+        <div class="carte__v">900 190 F</div>
+        <div class="carte__s">3 remboursements &middot; le dernier le 3 septembre</div>
+      </div>
+      <div class="carte">
+        <div class="carte__l">Prochaine &eacute;ch&eacute;ance</div>
+        <div class="carte__v">114 610 F</div>
+        <div class="carte__s">Darcy &middot; le 5 d&eacute;cembre, dans 93 jours</div>
+      </div>
+    </div>
+
+    <div class="ecran" style="margin-top:20px">
+      <div class="ecran__tete">
+        <h4>Les emprunteurs</h4>
+        <span>5 &middot; dont 1 en retard</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="emp is-retard">
+          <div class="emp__tete">
+            <div class="emp__qui">
+              <b>Darcy</b>
+              <span>&Eacute;quipe &middot; 2 pr&ecirc;ts &middot; depuis le 8 ao&ucirc;t 2026</span>
+            </div>
+            <div class="emp__du">
+              <b>1 264 390 F</b>
+              <span>reste d&ucirc;</span>
+            </div>
+          </div>
+          <div class="emp__barre"><i style="width:9%"></i></div>
+          <div class="emp__pied">
+            <span class="etat etat--retard">19 jours de retard</span>
+            <span class="grow">4<sup>e</sup> versement sur 12 &middot; 114 610 F attendus le 5 d&eacute;cembre &middot; retenue de 50 000 F par bulletin</span>
+            <span class="mini mini--cuivre">Encaisser</span>
+            <span class="mini">Son fil</span>
+          </div>
+        </div>
+
+        <div class="emp">
+          <div class="emp__tete">
+            <div class="emp__qui">
+              <b>Papillon &amp; Mamillonne</b>
+              <span>Tiers &middot; 1 pr&ecirc;t &middot; travaux Suru-Lere</span>
+            </div>
+            <div class="emp__du">
+              <b>2 000 000 F</b>
+              <span>reste d&ucirc;</span>
+            </div>
+          </div>
+          <div class="emp__barre"><i style="width:0%"></i></div>
+          <div class="emp__pied">
+            <span class="etat etat--sans">Sans &eacute;ch&eacute;ance</span>
+            <span class="grow">Aucune date de retour n&rsquo;a &eacute;t&eacute; pos&eacute;e &middot; la Maison ne relance pas</span>
+            <span class="mini mini--cuivre">Encaisser</span>
+            <span class="mini">Poser une &eacute;ch&eacute;ance</span>
+          </div>
+        </div>
+
+        <div class="emp">
+          <div class="emp__tete">
+            <div class="emp__qui">
+              <b>Sarah Kpenou</b>
+              <span>Cliente &middot; 1 pr&ecirc;t &middot; depuis le 14 juillet 2026</span>
+            </div>
+            <div class="emp__du">
+              <b>360 000 F</b>
+              <span>reste d&ucirc;</span>
+            </div>
+          </div>
+          <div class="emp__barre"><i style="width:36%"></i></div>
+          <div class="emp__pied">
+            <span class="etat etat--jour">&Agrave; jour</span>
+            <span class="grow">5<sup>e</sup> versement sur 6 &middot; 110 000 F le 20 d&eacute;cembre</span>
+            <span class="mini mini--cuivre">Encaisser</span>
+            <span class="mini">Son fil</span>
+          </div>
+        </div>
+
+        <div class="emp is-solde">
+          <div class="emp__tete">
+            <div class="emp__qui">
+              <b>Sous Ahmed</b>
+              <span>Tiers &middot; 1 pr&ecirc;t &middot; sold&eacute; le 29 ao&ucirc;t 2026</span>
+            </div>
+            <div class="emp__du">
+              <b>0 F</b>
+              <span>reste d&ucirc;</span>
+            </div>
+          </div>
+          <div class="emp__barre"><i style="width:100%"></i></div>
+          <div class="emp__pied">
+            <span class="etat etat--solde">Sold&eacute;</span>
+            <span class="grow">245 000 F rendus en une fois</span>
+            <span class="mini">Son fil</span>
+          </div>
+        </div>
+
+        <p class="legende">La barre dit la part rendue. Les sold&eacute;s descendent en bas et
+        p&acirc;lissent, sans dispara&icirc;tre : <b>un pr&ecirc;t rembours&eacute; reste une preuve
+        de confiance</b>, et c&rsquo;est ce qu&rsquo;on relit avant d&rsquo;en accorder un
+        second.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp; Le fil</p>
+    <h2>Deux sens, deux couleurs, deux signes</h2>
+    <p class="intro">En dessous des emprunteurs, le registre. Trois onglets, et
+    <b>le sens se voit avant de se lire</b>.</p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Le registre</h4><span>14 mouvements</span></div>
+      <div class="ecran__corps">
+        <div class="onglets">
+          <span class="onglet is-on">Tout</span>
+          <span class="onglet">Ce qui est sorti</span>
+          <span class="onglet">Ce qui est rentr&eacute;</span>
+          <span class="onglet">Attendu</span>
+        </div>
+
+        <div class="mvt" style="border-top:none">
+          <span class="mvt__s rent">&uarr;</span>
+          <span class="mvt__q"><b>Sarah Kpenou</b><i>3 sept. &middot; remboursement du pr&ecirc;t du 14 juillet</i></span>
+          <span class="mvt__x rent">+ 200 000 F</span>
+        </div>
+        <div class="mvt">
+          <span class="mvt__s rent">&uarr;</span>
+          <span class="mvt__q"><b>Myl&egrave;ne Grimaud</b><i>2 sept. &middot; remboursement &middot; abonnement du 28 ao&ucirc;t</i></span>
+          <span class="mvt__x rent">+ 100 000 F</span>
+        </div>
+        <div class="mvt">
+          <span class="mvt__s sort">&darr;</span>
+          <span class="mvt__q"><b>Caisse Bito</b><i>26 ao&ucirc;t &middot; carreaux Jafco pour le salon de coiffure</i></span>
+          <span class="mvt__x sort">&minus; 1 364 390 F</span>
+        </div>
+        <div class="mvt">
+          <span class="mvt__s rent">&uarr;</span>
+          <span class="mvt__q"><b>Darcy</b><i>14 ao&ucirc;t &middot; support 2 Domi &middot; BIIC</i></span>
+          <span class="mvt__x rent">+ 50 000 F</span>
+        </div>
+        <div class="mvt">
+          <span class="mvt__s sort">&darr;</span>
+          <span class="mvt__q"><b>Caisse Pilia</b><i>6 juin &middot; voyage Qatar - USA, &eacute;quivalent 4 000 $</i></span>
+          <span class="mvt__x sort">&minus; 2 404 000 F</span>
+        </div>
+
+        <p class="legende">La fl&egrave;che et la couleur disent le sens, le signe le confirme.
+        Trois indices pour la m&ecirc;me chose, parce qu&rsquo;<b>une erreur de sens sur un
+        registre d&rsquo;argent ne se rattrape pas &agrave; l&rsquo;&oelig;il</b> : elle se
+        d&eacute;couvre au moment de r&eacute;clamer.</p>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>Les &eacute;ch&eacute;ances quittent le fil.</b> Elles ont leur onglet, &laquo; Attendu
+      &raquo;, et leur place dans la carte de l&rsquo;emprunteur. Une chose qui n&rsquo;est pas
+      encore arriv&eacute;e n&rsquo;a rien &agrave; faire dans un registre de ce qui s&rsquo;est
+      pass&eacute; : c&rsquo;est ainsi qu&rsquo;on finit par compter deux fois.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp; Les r&egrave;gles</p>
+    <h2>Ce que la Maison tient toute seule</h2>
+    <ul class="regles">
+      <li><i>&#9670;</i><div><b>Le retard remonte en t&ecirc;te</b>
+        <span>L&rsquo;ordre des emprunteurs n&rsquo;est pas alphab&eacute;tique : ceux qui doivent
+        et qui ont d&eacute;pass&eacute; leur date d&rsquo;abord, les sold&eacute;s en bas. Un
+        &eacute;cran d&rsquo;argent se lit le matin pour savoir qui appeler.</span></div></li>
+      <li><i>&#9670;</i><div><b>Sans &eacute;ch&eacute;ance n&rsquo;est pas en retard</b>
+        <span>Un pr&ecirc;t sans date de retour est un &eacute;tat assum&eacute;, pas un oubli. La
+        Maison le dit et ne relance pas &mdash; c&rsquo;est d&eacute;j&agrave; la r&egrave;gle du
+        moteur, l&rsquo;&eacute;cran cesse seulement de la cacher.</span></div></li>
+      <li><i>&#9670;</i><div><b>Ce qui rentre solde le plus ancien d&rsquo;abord</b>
+        <span>La r&egrave;gle du comptoir, d&eacute;j&agrave; dans le calcul : on solde ce qui
+        tra&icirc;ne avant ce qui vient. L&rsquo;imputer autrement ferait appara&icirc;tre un retard
+        l&agrave; o&ugrave; l&rsquo;emprunteur a pay&eacute;.</span></div></li>
+      <li><i>&#9670;</i><div><b>Une avance sur salaire ne touche aucune caisse</b>
+        <span>Elle se rembourse par le bulletin : l&rsquo;argent n&rsquo;est jamais sorti de la
+        Maison. La carte le dit, et annonce la retenue mensuelle
+        propos&eacute;e.</span></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="aval">
+      <h3>Deux points &agrave; trancher</h3>
+      <p>Le reste suit de ce qui est &eacute;crit ci-dessus.</p>
+      <ul>
+        <li><b>Le fil, ouvert ou repli&eacute; ?</b> Les emprunteurs suffisent au quotidien ; le
+        registre peut s&rsquo;ouvrir d&rsquo;un clic plut&ocirc;t que de tenir la moiti&eacute; de
+        l&rsquo;&eacute;cran.</li>
+        <li><b>Les sold&eacute;s.</b> Les garder en bas, p&acirc;lis, ou les ranger derri&egrave;re
+        un &laquo; voir les pr&ecirc;ts sold&eacute;s &raquo; ? Ils sont peu nombreux
+        aujourd&rsquo;hui, ils ne le resteront pas.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
