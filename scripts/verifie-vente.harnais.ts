@@ -18,6 +18,7 @@ import {
   libellesInclus, prochaineReferenceAbo, nomDuContrat, contratPourLaDate, coversSub,
   etatDuContrat, comptesAbonnement, comptesRanges, resteDuContrat,
   moteurDesAbonnements,
+  detacheLesVersementsDeLaPiece, contratDuVersement, subscribersStore,
   prixDeLaFormule, formulesPourElle, etendueDesRemises,
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
@@ -623,6 +624,43 @@ dit('… son versement reste encaisse', 40_000, avecResilie.encaisseMoisPreceden
 dit('une seule formule ici', ['L’Année Sereine · Duo'], mot.parFormule.map((f) => f.nom));
 dit('… trois tetes dessus', 3, mot.parFormule[0].tetes);
 dit('… encaisse en tout', 470_000, mot.parFormule[0].encaisseXof);
+
+/* -- 17. LE VERSEMENT D'UN ABONNEMENT VIT A DEUX ENDROITS ---------
+   « J'ai supprime le paiement de la facture de l'abonnement de Mylene du 28
+   aout, mais son paiement au niveau de l'abonnement est reste intact et le recu
+   de son encaissement n'a pas ete supprime » (Yeman, 3 septembre 2026).
+
+   Un reglement d'abonnement s'ecrit DEUX fois, et c'est voulu : dans le contrat
+   (qui fait avancer l'echeance) et sur la piece (qui fait le chiffre d'affaires
+   et la caisse). Les deux portent le MEME identifiant. Mais rien ne les
+   defaisait ensemble. */
+subscribersStore.set(() => [{
+  ...abo({ id: 'ab-lie' }), clientId: 'c-9', invoiceId: 'inv-abo',
+  payments: [
+    { id: 'pay-1', date: '2026-08-28', amountXof: 100_000, method: 'Cheque' },
+    { id: 'pay-2', date: '2026-09-15', amountXof: 68_000, method: 'Especes' },
+  ],
+} as Subscriber]);
+
+dit('le contrat porte le versement', 'ab-lie', contratDuVersement('pay-1')?.id);
+dit('un versement inconnu ne trouve aucun contrat', undefined, contratDuVersement('pay-x')?.id);
+
+dit('la piece emporte ses versements', 2,
+  detacheLesVersementsDeLaPiece('inv-abo', ['pay-1', 'pay-2']));
+dit('… et le contrat n’en garde aucun', 0, subscribersStore.get()[0].payments?.length ?? -1);
+/* LE LIEN PART AVEC LA PIECE : le garder ferait chercher indefiniment une
+   facture qui n'existe plus, et le prochain reglement s'y accrocherait. */
+dit('… et le lien vers la piece est coupe', undefined, subscribersStore.get()[0].invoiceId);
+
+/* UN CONTRAT QUI N'EST PAS CELUI DE LA PIECE NE BOUGE PAS : deux abonnees
+   peuvent avoir un versement du meme jour, et seul l'identifiant fait foi. */
+subscribersStore.set(() => [{
+  ...abo({ id: 'ab-autre' }), clientId: 'c-8', invoiceId: 'inv-autre',
+  payments: [{ id: 'pay-1', date: '2026-08-28', amountXof: 100_000, method: 'Cheque' }],
+} as Subscriber]);
+dit('une piece etrangere ne retire rien', 0,
+  detacheLesVersementsDeLaPiece('inv-abo', ['pay-1']));
+dit('… et le contrat garde son versement', 1, subscribersStore.get()[0].payments?.length ?? -1);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

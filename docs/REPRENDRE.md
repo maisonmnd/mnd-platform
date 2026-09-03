@@ -464,6 +464,40 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LE VERSEMENT D'UN ABONNEMENT VIT À DEUX ENDROITS · 3 septembre 2026
+
+« J'ai supprimé le paiement de la facture de l'abonnement de Mylène du 28 août,
+mais son paiement au niveau de l'abonnement est resté intact et le reçu de son
+encaissement n'a pas été supprimé. »
+
+**UN RÈGLEMENT D'ABONNEMENT S'ÉCRIT DEUX FOIS, ET C'EST VOULU** : dans le contrat
+(`Subscriber.payments`, qui fait avancer l'échéance et le suivi) et sur la pièce
+(`Invoice.payments`, qui fait le chiffre d'affaires et la caisse). Les deux
+portent le **même identifiant**, posé à la vente.
+
+**MAIS RIEN NE LES DÉFAISAIT ENSEMBLE.** Supprimer la pièce laissait le contrat
+payé ; supprimer le reçu laissait la pièce encaissée. Dans les deux cas l'argent
+existait encore quelque part, et les deux écrans se contredisaient sans que rien
+ne le dise.
+
+`rewindPaymentForDeletedInvoice` ne connaît que les **rituels** : une pièce
+d'abonnement n'a pas de rendez-vous, elle passait donc entre les mailles.
+`detacheLesVersementsDeLaPiece()` retire du contrat les versements qui
+appartiennent à la pièce supprimée, **et coupe le lien** — le garder ferait
+chercher indéfiniment une facture qui n'existe plus, et le prochain règlement s'y
+accrocherait.
+
+Dans l'autre sens, l'écran des Encaissements retirait le versement du contrat
+sans toucher à son miroir sur la pièce. Il retire maintenant les deux.
+
+**SEUL L'IDENTIFIANT FAIT FOI** : deux abonnées peuvent avoir un versement du
+même jour et du même montant, et une pièce étrangère ne retire rien. Sept
+contrôles dans `verifie-vente`.
+
+**RESTE OUVERT** : l'échéance (`nextIso`) et le statut avancés au moment du
+règlement ne se rembobinent pas. Défaire un versement ne fait pas reculer la
+lune ; il faudra le décider.
+
 ## TOUT RITUEL PORTE SON PRIX · 3 septembre 2026
 
 « Le RDV d'Adjaratou du 2 septembre est de 50 000 F mais dans le carnet il

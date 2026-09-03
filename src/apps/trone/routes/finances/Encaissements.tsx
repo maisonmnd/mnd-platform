@@ -196,6 +196,14 @@ export default function Encaissements() {
         subscribersStore.set((prev) => prev.map((sub) => ({
           ...sub, payments: (sub.payments ?? []).filter((x) => x.id !== cible.paymentId),
         })));
+        /* LE MIROIR DE LA PIÈCE PART AVEC LUI. Un règlement d'abonnement s'écrit
+           DEUX fois — dans le contrat et sur la facture, sous le même
+           identifiant. N'en retirer qu'un laissait la pièce encaissée d'un
+           argent que le contrat ne connaissait plus, et les deux écrans se
+           contredisaient sans que rien ne le dise. */
+        invoicesStore.set((prev) => prev.map((i) => ((i.payments ?? []).some((x) => x.id === cible.paymentId)
+          ? { ...i, payments: (i.payments ?? []).filter((x) => x.id !== cible.paymentId) }
+          : i)));
         break;
       case 'avoir':
         creditMovementsStore.set((prev) => prev.filter((m) => m.id !== cible.movementId));

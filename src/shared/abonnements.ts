@@ -1351,3 +1351,38 @@ export const remiseSurLaCarte = (carteXof: number, prixXof: number): { gainXof: 
   const gainXof = carteXof - Math.max(0, prixXof);
   return { gainXof, pct: Math.round((gainXof / carteXof) * 100) };
 };
+
+/* ══ LE VERSEMENT D'UN ABONNEMENT VIT À DEUX ENDROITS — 3 sept. 2026 ══
+   « J'ai supprimé le paiement de la facture de l'abonnement de Mylène du 28
+   août, mais son paiement au niveau de l'abonnement est resté intact et le reçu
+   de son encaissement n'a pas été supprimé » (Yéman).
+
+   UN RÈGLEMENT D'ABONNEMENT S'ÉCRIT DEUX FOIS, et c'est voulu : dans le contrat
+   (`Subscriber.payments`, qui fait avancer l'échéance et le suivi) et sur la
+   pièce (`Invoice.payments`, qui fait le chiffre d'affaires et la caisse). Les
+   deux portent le MÊME identifiant, posé à la vente.
+
+   MAIS RIEN NE LES DÉFAISAIT ENSEMBLE. Supprimer la pièce laissait le contrat
+   payé ; supprimer le reçu laissait la pièce encaissée. Dans les deux cas
+   l'argent existait encore quelque part, et les deux écrans se contredisaient
+   sans que rien ne le dise. */
+
+/** Retire d'un contrat les versements qui appartiennent à cette pièce, et
+    coupe le lien. Rend le nombre de versements retirés. */
+export function detacheLesVersementsDeLaPiece(invoiceId: string, idsDesVersements: readonly string[]): number {
+  const ids = new Set(idsDesVersements);
+  let retires = 0;
+  subscribersStore.set((prev) => prev.map((sub) => {
+    if (sub.invoiceId !== invoiceId) return sub;
+    const restants = (sub.payments ?? []).filter((p) => !ids.has(p.id));
+    retires += (sub.payments ?? []).length - restants.length;
+    /* LE LIEN PART AVEC LA PIÈCE : le garder ferait chercher indéfiniment une
+       facture qui n'existe plus, et le prochain règlement s'y accrocherait. */
+    return { ...sub, payments: restants, invoiceId: undefined };
+  }));
+  return retires;
+}
+
+/** Le contrat qui porte ce versement, s'il y en a un. */
+export const contratDuVersement = (paymentId: string): Subscriber | undefined =>
+  subscribersStore.get().find((s) => (s.payments ?? []).some((p) => p.id === paymentId));

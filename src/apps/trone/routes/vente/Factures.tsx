@@ -14,6 +14,7 @@ import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
+import { detacheLesVersementsDeLaPiece } from '../../../../shared/abonnements';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
 import { adresseDe, lienPaiementMomo, paiementMomoDeLaMaison } from '../equipe/data';
 import { filStore, nouveauMessage } from '../../../../shared/fil';
@@ -704,6 +705,16 @@ export default function Factures() {
       : '';
     if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
     if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
+    /* UNE PIÈCE D'ABONNEMENT EMPORTE SON VERSEMENT. Le rembobinage ci-dessus ne
+       connaît que les RITUELS : une pièce d'abonnement n'a pas de rendez-vous,
+       elle passait donc entre les mailles et laissait le contrat payé pour une
+       facture qui n'existait plus. */
+    if (doc) {
+      const rendus = detacheLesVersementsDeLaPiece(id, (doc.payments ?? []).map((p) => p.id));
+      if (rendus > 0) {
+        toast(`${rendus} règlement(s) retiré(s) de son abonnement avec la pièce.`);
+      }
+    }
     setInvoices((prev) => prev.filter((i) => i.id !== id));
     /* La pièce emporte ses ventes de produits (sorties référencées sur son
        numéro) et libère la préparation du Laboratoire qu'elle réglait. */
