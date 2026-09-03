@@ -23,6 +23,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { estKids } from '../../../../shared/accounts';
+import { catalogueDeLaTete } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -1570,13 +1571,26 @@ export function RdvModal({
      plusieurs séances. Le sélecteur ne propose donc que les prestations
      multi-séances DU RITUEL PARENT : retirée d'un ×, une création terminée en
      une séance s'y retrouve si la main se ravise, et rien d'autre n'entre. */
-  const proposables = remaining
+  const ouvertes = remaining
     .filter((sv) => !estSuite || (porteur?.a.serviceIds.includes(sv.id) && (sv.sessions ?? 1) > 1))
     /* MND KIDS — la section ne se propose que sur une tête d'enfant. Une fiche
        sans date de naissance passe quand même : c'est une inconnue, pas une
        adulte, et lui refuser le tarif en silence coûterait plus cher que la
        mention portée par l'écran. */
     .filter((sv) => estProposable(sv, pricing, venuesTete, !!familleDuCompte, verdictKids));
+  /* ══ UNE TÊTE D'ENFANT NE VOIT QUE MND KIDS — 3 septembre 2026 ══════
+     « Quand je veux prendre RDV pour un enfant, n'ouvrir que le catalogue MND
+     Kids dans la modale de RDV » (Yéman).
+
+     LA PORTE NE SUFFISAIT PAS. `reserveEnfants` retirait la section aux
+     adultes ; l'enfant, lui, voyait encore TOUT le catalogue, MND Kids noyé au
+     milieu de trente rituels dont aucun n'est pour lui. Le maître devait le
+     retrouver, et rien n'empêchait de poser à un enfant de neuf ans un
+     GBÌGBÌ™ Profond à 120 000 F.
+
+     La règle se lit désormais dans les deux sens : l'adulte ne voit pas les
+     Kids, l'enfant ne voit qu'eux. Un âge inconnu ne restreint rien. */
+  const proposables = catalogueDeLaTete(ouvertes, verdictKids);
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme

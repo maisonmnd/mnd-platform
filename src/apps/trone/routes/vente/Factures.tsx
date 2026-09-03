@@ -873,11 +873,26 @@ export default function Factures() {
           </span>
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
-          {d.payment ? (
-            <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{d.payment}</span>
-          ) : (
-            <span style={{ fontSize: 12, color: 'var(--ink-soft)', opacity: 0.5 }}>—</span>
-          )}
+          {/* LE MOYEN SE LIT DANS LE JOURNAL À DÉFAUT DU MIROIR. `payment` est le
+              reflet du PREMIER versement, et il n'est pas toujours posé : une
+              pièce d'abonnement naît de son règlement sans jamais l'écrire. La
+              colonne affichait alors « — » sur une facture pourtant réglée par
+              chèque. Le journal, lui, sait toujours. */}
+          {(() => {
+            const regles = invoiceReglements(d);
+            const moyen = d.payment ?? regles[0]?.method;
+            const recu = invoiceRegleXof(d);
+            const partiel = recu > 0 && recu < invoiceTotal(d);
+            if (!moyen) return <span style={{ fontSize: 12, color: 'var(--ink-soft)', opacity: 0.5 }}>—</span>;
+            return (
+              <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                {moyen}
+                {/* CE QUI EST ENTRÉ SE DIT SUR LA LIGNE. Une pièce à moitié
+                    réglée se lisait « envoyée », comme si rien n'était venu. */}
+                {partiel && <em style={{ fontStyle: 'normal', color: 'var(--copper-700)' }}> · {fmtMoney(recu, currency)} reçus</em>}
+              </span>
+            );
+          })()}
           {/* La devise reçue se lit dès la feuille : un euro encaissé ne doit pas
               se cacher derrière un montant en francs. */}
           {d.fx && (
@@ -904,8 +919,26 @@ export default function Factures() {
      qu'elle n'est pas réglée — la compter au total gonflerait le mois d'un
      argent qui n'est pas là. `depositCreditXof` est la part encaissée AVANT le
      comptoir : elle est entrée, elle compte, même si la pièce reste ouverte. */
-  const percuDe = (d: Invoice) =>
-    d.status === 'payée' ? invoiceTotal(d) : (d.depositCreditXof ?? 0);
+  /* ══ UN VERSEMENT PARTIEL EST DE L'ARGENT REÇU — 3 septembre 2026 ══
+     « Sur la facture 0012 de Mylène, elle a payé 100 000 F. Je vois le montant
+     de la facture envoyée 168 000 F, mais dans les montants reçus en septembre
+     je dois avoir la trace du montant payé de 100 000 F » (Yéman).
+
+     LE COMPTE NE CONNAISSAIT QUE DEUX ÉTATS : soldée, donc tout ; pas soldée,
+     donc rien. Une pièce à moitié réglée comptait pour ZÉRO au perçu du mois,
+     et pour son TOTAL au reste dû. Cent mille francs encaissés par chèque le
+     28 août n'apparaissaient nulle part, et le reste annonçait une dette de
+     168 000 F là où la Maison n'attend que 68 000.
+
+     LE JOURNAL DES VERSEMENTS FAIT FOI quand il existe : c'est lui qui porte
+     les dates, les moyens et les caisses. À défaut — les pièces d'avant le
+     journal, une facture marquée payée à la main — on retombe sur l'ancienne
+     lecture, pour ne rien perdre de ce qui était juste. */
+  const percuDe = (d: Invoice) => {
+    const recu = invoiceRegleXof(d);
+    if (recu > 0) return recu;
+    return d.status === 'payée' ? invoiceTotal(d) : (d.depositCreditXof ?? 0);
+  };
 
   /* Le registre rangé par mois. Les documents arrivent triés du plus récent au
      plus ancien : on ouvre un intertitre quand le mois change, et on y porte le

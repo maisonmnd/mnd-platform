@@ -137,3 +137,31 @@ export function poseLaSectionKids(): number {
   ]);
   return neufs.length;
 }
+
+/** LE CATALOGUE D'UNE TÊTE — 3 septembre 2026.
+
+    « Quand je veux prendre RDV pour un enfant, n'ouvrir que le catalogue MND
+    Kids dans la modale de RDV » (Yéman).
+
+    LA PORTE NE SUFFISAIT PAS. `reserveEnfants` retire la section aux adultes ;
+    l'enfant, lui, voyait encore TOUT le catalogue, MND Kids noyé au milieu de
+    trente rituels dont aucun n'est pour lui. Le maître devait le retrouver, et
+    rien n'empêchait de lui poser un GBÌGBÌ™ Profond à 120 000 F.
+
+    UNE TÊTE D'ENFANT NE VOIT QUE MND KIDS. C'est la règle, et elle se lit dans
+    les deux sens : l'adulte ne voit pas les Kids, l'enfant ne voit qu'eux.
+
+    DEUX GARDES, ET ILS COMPTENT AUTANT QUE LA RÈGLE :
+    · un âge INCONNU ne restreint rien. On ne sait pas, donc on ne retire rien :
+      cacher le catalogue entier à une tête dont la fiche n'a pas de date de
+      naissance serait la faute la plus coûteuse de toutes.
+    · une section PAS ENCORE POSÉE ne restreint rien non plus. Sans elle,
+      l'enfant se retrouverait devant une liste vide, et l'écran aurait l'air
+      cassé au lieu d'être seulement incomplet. */
+export const catalogueDeLaTete = <T extends { reserveEnfants?: boolean }>(
+  services: readonly T[], kids: 'oui' | 'non' | 'inconnu',
+): T[] => {
+  if (kids !== 'oui') return [...services];
+  const siens = services.filter((s) => s.reserveEnfants);
+  return siens.length > 0 ? siens : [...services];
+};

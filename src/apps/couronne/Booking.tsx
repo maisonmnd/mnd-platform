@@ -13,6 +13,7 @@ import { uid, useStore } from '../../shared/store';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct } from '../../shared/clients';
 import { estKids, tetesPortees } from '../../shared/accounts';
+import { catalogueDeLaTete } from '../../shared/kids';
 import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
@@ -328,8 +329,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const venuesTete = cible ? venuesHonorees(appts, cible.id) : 0;
   /* MND KIDS — la mère qui réserve pour sa fille voit la section ; sur son
      propre rituel, elle ne la voit pas. */
-  const offre = services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete,
-    estKids(beneficiaire ?? client ?? undefined, todayIso())));
+  /* LA TÊTE SERVIE COMMANDE LE CATALOGUE : la mère qui réserve pour sa fille
+     ne voit que MND Kids ; pour elle-même, elle ne le voit pas du tout. */
+  const verdictKids = estKids(beneficiaire ?? client ?? undefined, todayIso());
+  const offre = catalogueDeLaTete(
+    services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete, verdictKids)),
+    verdictKids,
+  );
 
   /* Catégories réservables : au moins une prestation visible. */
   /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent

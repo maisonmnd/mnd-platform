@@ -9,7 +9,7 @@
    plafond annoncé, et une section qui se refuse à un enfant dont la fiche ne
    porte pas de date de naissance. Le harnais tient les deux. */
 import { AGE_MND_KIDS, estKids } from '../src/shared/accounts';
-import { SERVICES_KIDS, FORFAIT_KIDS, kidsAbsents, CAT_KIDS } from '../src/shared/kids';
+import { SERVICES_KIDS, FORFAIT_KIDS, kidsAbsents, CAT_KIDS, catalogueDeLaTete } from '../src/shared/kids';
 import { estProposable } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
 import type { Client } from '../src/shared/clients';
@@ -96,6 +96,29 @@ dit('un seul geste posé : cinq manquent', 5, kidsAbsents([SERVICES_KIDS[0]]));
    identifiant qui fait foi, pas son nom. */
 dit('renommée, elle compte toujours comme posée', 5,
   kidsAbsents([{ ...SERVICES_KIDS[0], name: 'Le petit shampoing de la maison' }]));
+
+/* -- 6. UNE TETE D'ENFANT NE VOIT QUE MND KIDS --------------------
+   « Quand je veux prendre RDV pour un enfant, n'ouvrir que le catalogue MND
+   Kids dans la modale de RDV » (Yeman, 3 septembre 2026).
+
+   LA PORTE NE SUFFISAIT PAS : elle retirait la section aux adultes, mais
+   l'enfant voyait encore TOUT le catalogue, MND Kids noye au milieu de trente
+   rituels dont aucun n'est pour lui. Rien n'empechait de poser a un enfant de
+   neuf ans un GBIGBI Profond a 120 000 F. */
+const catalogueMele = [ordinaire, ...SERVICES_KIDS];
+dit('un enfant ne voit que MND Kids', 5, catalogueDeLaTete(catalogueMele, 'oui').length);
+dit('… et rien d’autre', true,
+  catalogueDeLaTete(catalogueMele, 'oui').every((x) => x.reserveEnfants === true));
+dit('une adulte voit le catalogue entier', 6, catalogueDeLaTete(catalogueMele, 'non').length);
+/* UN AGE INCONNU NE RESTREINT RIEN. On ne sait pas, donc on ne retire rien :
+   cacher le catalogue entier a une tete dont la fiche n'a pas de date de
+   naissance serait la faute la plus couteuse de toutes. */
+dit('un age inconnu ne restreint rien', 6, catalogueDeLaTete(catalogueMele, 'inconnu').length);
+/* UNE SECTION PAS ENCORE POSEE NE RESTREINT RIEN NON PLUS : sans elle, l'enfant
+   se retrouverait devant une liste vide, et l'ecran aurait l'air casse au lieu
+   d'etre seulement incomplet. */
+dit('sans section posee, l’enfant voit tout', 1, catalogueDeLaTete([ordinaire], 'oui').length);
+dit('un catalogue vide reste vide', 0, catalogueDeLaTete([], 'oui').length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

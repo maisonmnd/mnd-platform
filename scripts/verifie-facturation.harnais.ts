@@ -382,4 +382,28 @@ alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof * 3);
 dit('la pièce payée garde ses prix', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
 dit('… et son total', avantPayee, invoiceTotal(piece()));
 
+/* -- UN VERSEMENT PARTIEL EST DE L'ARGENT RECU — 3 septembre 2026 --
+   « Sur la facture 0012 de Mylene, elle a paye 100 000 F. Je vois le montant de
+   la facture envoyee 168 000 F, mais dans les montants recus en septembre je
+   dois avoir la trace du montant paye de 100 000 F » (Yeman).
+
+   Le compte du mois ne connaissait que deux etats : soldee, donc tout ; pas
+   soldee, donc rien. Cent mille francs encaisses par cheque n'apparaissaient
+   nulle part, et le reste annoncait 168 000 F la ou la Maison n'attend que
+   68 000. Le juge est `invoiceRegleXof`, deja en place — c'est la feuille qui
+   ne l'appelait pas. */
+const partielle = {
+  id: 'inv-p', branchId: 'br', kind: 'facture', number: 'MND-2026-0012', clientId: 'c1',
+  date: '2026-09-01', lines: [ligneFacture('La Juste Cadence', 168_000)],
+  globalDiscountPct: 0, theme: 'Aube', status: 'envoyée',
+  payments: [{ id: 'v1', date: '2026-08-28', amountXof: 100_000, method: 'Chèque' }],
+} as unknown as Invoice;
+dit('le journal dit ce qui est entre', 100_000, invoiceRegleXof(partielle));
+dit('… et ce qui reste du', 68_000, invoiceResteXof(partielle));
+/* LA PIECE N'EST PAS SOLDEE POUR AUTANT : le statut suit l'argent, il ne le
+   decide pas. */
+dit('une piece a moitie reglee n’est pas soldee', false, invoiceSoldee(partielle));
+const soldee = { ...partielle, payments: [{ id: 'v1', date: '2026-08-28', amountXof: 168_000, method: 'Chèque' }] } as unknown as Invoice;
+dit('… et une piece entierement reglee l’est', true, invoiceSoldee(soldee));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

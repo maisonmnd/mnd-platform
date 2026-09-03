@@ -802,7 +802,12 @@ export default function Abonnements() {
            l'année font deux factures que rien ne distinguait. */
         note: `Abonnement · ${nomFormule}${payFor.reference ? ` · ${payFor.reference}` : ''}${payFor.echeances?.length ? ` · réglable en ${payFor.echeances.length} fois` : ''}`,
       });
-      const avecVersement: Invoice = { ...piece, payments: [versement] };
+      /* LE MIROIR DU PREMIER VERSEMENT. `payment` est ce que lisent les écrans
+         qui ne déroulent pas le journal ; sans lui, la feuille des factures
+         affichait « — » sur une pièce pourtant réglée par chèque. */
+      const avecVersement: Invoice = {
+        ...piece, payments: [versement], payment: versement.method, ...(boite ? { cashbox: boite } : {}),
+      };
       pieceId = avecVersement.id;
       invoicesStore.set((prev) => [avecVersement, ...prev]);
     }

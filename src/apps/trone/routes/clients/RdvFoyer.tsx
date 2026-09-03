@@ -19,6 +19,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, remiseFamillePct, type Client } from '../../../../shared/clients';
 import { estKids } from '../../../../shared/accounts';
+import { catalogueDeLaTete } from '../../../../shared/kids';
 import { useServices, useProducts, type Service } from '../../../../shared/catalog';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixDeBase, isPersonalized,
@@ -211,8 +212,14 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
                           {/* CHAQUE TÊTE VOIT SA SECTION. Sur le rendez-vous du
                               foyer, l'enfant voit MND Kids et la mère ne la voit
                               pas, dans le même écran. */}
+                          {/* CHAQUE TÊTE VOIT SON CATALOGUE, et rien que le
+                              sien : l'enfant MND Kids, la mère le reste. Dans
+                              le même écran, sans que la main ait à trier. */}
                           <OptionsPrestations
-                            services={services.filter((sv) => !sv.reserveEnfants || estKids(t, todayISO()) !== 'non')}
+                            services={catalogueDeLaTete(
+                              services.filter((sv) => !sv.reserveEnfants || estKids(t, todayISO()) !== 'non'),
+                              estKids(t, todayISO()),
+                            )}
                             exclure={(sv) => pris[t.id].serviceIds.includes(sv.id)}
                           />
                         </Select>

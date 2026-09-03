@@ -464,6 +464,58 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UN VERSEMENT PARTIEL EST DE L'ARGENT REÇU · 3 septembre 2026
+
+« Sur la facture 0012 de Mylène, elle a payé 100 000 F. Je vois le montant de la
+facture envoyée 168 000 F, mais dans les montants reçus en septembre je dois
+avoir la trace du montant payé de 100 000 F. »
+
+**LE COMPTE DU MOIS NE CONNAISSAIT QUE DEUX ÉTATS** : soldée, donc tout ; pas
+soldée, donc rien. Une pièce à moitié réglée comptait pour **zéro** au perçu, et
+pour son **total** au reste dû. Cent mille francs encaissés par chèque le 28 août
+n'apparaissaient nulle part, et le reste annonçait une dette de 168 000 F là où
+la Maison n'attend que 68 000.
+
+`percuDe` lit désormais `invoiceRegleXof`, le journal des versements, qui
+existait déjà et portait les dates, les moyens et les caisses. **C'est la feuille
+qui ne l'appelait pas.** À défaut de journal — les pièces d'avant, une facture
+marquée payée à la main — on retombe sur l'ancienne lecture, pour ne rien perdre
+de ce qui était juste.
+
+**LA COLONNE RÈGLEMENT DISAIT « — » SUR UNE PIÈCE RÉGLÉE PAR CHÈQUE.**
+`inv.payment` est le miroir du PREMIER versement, et il n'était pas posé : une
+pièce d'abonnement naît de son règlement sans jamais l'écrire. La colonne lit
+maintenant le journal à défaut du miroir, et la vente d'abonnement pose le miroir
+(et la caisse) comme tous les autres encaissements.
+
+La ligne dit aussi **ce qui est entré** quand la pièce n'est pas soldée :
+« Chèque · 100 000 F reçus ». Une pièce à moitié réglée se lisait « envoyée »,
+comme si rien n'était venu.
+
+## UNE TÊTE D'ENFANT NE VOIT QUE MND KIDS · 3 septembre 2026
+
+« Quand je veux prendre RDV pour un enfant, n'ouvrir que le catalogue MND Kids
+dans la modale de RDV. »
+
+**LA PORTE NE SUFFISAIT PAS.** `reserveEnfants` retirait la section aux
+adultes ; l'enfant, lui, voyait encore TOUT le catalogue, MND Kids noyé au milieu
+de trente rituels dont aucun n'est pour lui. Le maître devait le retrouver, et
+rien n'empêchait de poser à un enfant de neuf ans un GBÌGBÌ™ Profond à 120 000 F.
+
+`catalogueDeLaTete()` : la règle se lit dans les deux sens, l'adulte ne voit pas
+les Kids, l'enfant ne voit qu'eux. Posée sur la modale du rendez-vous, le
+rendez-vous du foyer (chaque tête son catalogue, dans le même écran) et Ma
+Couronne.
+
+**DEUX GARDES, ET ILS COMPTENT AUTANT QUE LA RÈGLE** :
+
+- un **âge inconnu** ne restreint rien. On ne sait pas, donc on ne retire rien :
+  cacher le catalogue entier à une tête dont la fiche n'a pas de date de
+  naissance serait la faute la plus coûteuse de toutes ;
+- une **section pas encore posée** ne restreint rien non plus. Sans elle,
+  l'enfant se retrouverait devant une liste vide, et l'écran aurait l'air cassé
+  au lieu d'être seulement incomplet.
+
 ## UN PRIX DÉJÀ ÉMIS NE SE RETARIFE PLUS · 3 septembre 2026
 
 « Quand je modifie un prix dans mon catalogue pour des raisons de tests ou de
