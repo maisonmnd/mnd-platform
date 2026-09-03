@@ -1595,7 +1595,47 @@
 .trf-pret__m {
   font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo);
   font-variant-numeric: tabular-nums; white-space: nowrap;
+  flex: none; min-width: 116px; text-align: right;
 }
+
+/* ══ LE SENS AVANT LE MOT — 3 septembre 2026 ═══════════════════════════
+   « Tout est melange. Besoin de voir une difference nette entre les
+   remboursements et les prets » (Yeman).
+
+   TROIS INDICES POUR LA MEME CHOSE : la fleche, la couleur, le signe. Un seul
+   se rate ; trois, non. Sur un registre d'argent, une erreur de sens ne se
+   rattrape pas a l'oeil, elle se decouvre au moment de reclamer. */
+.trf-pret__quoi { flex: 1 1 auto; min-width: 0; }
+.trf-pret__quoi i { font-style: normal; color: var(--ink-soft); opacity: .8; }
+.trf-pret__sens {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid;
+  place-items: center; font-size: 12px; font-family: var(--font-serif);
+  border: 1px solid var(--hairline); color: var(--ink-soft); background: var(--surface-card);
+}
+.trf-pret__ligne.is-sorti .trf-pret__sens { color: #96412E; border-color: #E4BDB2; background: #FBF0ED; }
+.trf-pret__ligne.is-rentre .trf-pret__sens { color: #4A6B52; border-color: #CBDACE; background: #EFF3EF; }
+.trf-pret__ligne.is-sorti .trf-pret__m { color: #96412E; }
+.trf-pret__ligne.is-rentre .trf-pret__m { color: #4A6B52; }
+.trf-pret__ligne--clic:hover { background: var(--hover-veil); }
+
+/* L'AVENIR ET L'HISTOIRE NE SE SUIVENT PLUS DANS LA MEME COLONNE : chacun
+   sous son intitule. Une chose qui n'est pas arrivee n'a rien a faire dans un
+   registre de ce qui s'est passe. */
+.trf-pret__titre {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 9.5px; letter-spacing: .17em; text-transform: uppercase;
+  color: var(--ink-soft); padding: 12px 0 5px; flex-wrap: wrap;
+}
+.trf-pret__titre--fil { border-top: 1px solid var(--hairline); margin-top: 6px; }
+.trf-pret__filtres { display: flex; gap: 5px; }
+.trf-pret__filtre {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 99px;
+  border: 1px solid var(--hairline); background: var(--surface-card);
+  color: var(--ink-soft); cursor: pointer;
+}
+.trf-pret__filtre:hover { border-color: var(--copper-300); color: var(--copper-700); }
+.trf-pret__filtre.is-on { border-color: var(--color-indigo); background: var(--color-indigo); color: #fff; }
 
 /* ── LE RELEVÉ D'UNE CAISSE — 23 août 2026 ─────────────────────────
    « Je veux toujours voir tout son historique sans aller à une période

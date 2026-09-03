@@ -464,6 +464,36 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## LES PRÊTS, AU CLAIR · 3 septembre 2026
+
+« Tout est mélangé. Besoin de voir une différence nette entre les remboursements
+et les prêts. Refaire un UI/UX facile à naviguer et super bien structuré. Simple
+et professionnel. »
+
+**LA STRUCTURE PAR EMPRUNTEUR EXISTAIT DÉJÀ**, avec son reste dû, sa barre, son
+échéance et son état. C'est **à l'intérieur de la carte** que tout se mélangeait :
+les échéances attendues, les prêts et les remboursements se suivaient dans une
+seule colonne, du même côté, dans la même couleur. Le sens ne se lisait que dans
+un mot en début de ligne, et le montant restait à droite sans signe.
+
+**TROIS BLOCS, JAMAIS UN SEUL FIL** : « Attendu », puis « Ce qui s'est passé ».
+Une chose qui n'est pas encore arrivée n'a rien à faire dans un registre de ce
+qui s'est passé, c'est ainsi qu'on finit par compter deux fois.
+
+**TROIS INDICES POUR LE MÊME FAIT** : la flèche (↓ sorti, ↑ rentré), la couleur
+(brique / vert) et le signe (− / +). Un seul se rate ; trois, non. Sur un registre
+d'argent, une erreur de sens ne se rattrape pas à l'œil, elle se découvre au
+moment de réclamer.
+
+**UN FILTRE PAR EMPRUNTEUR** — Tout · Sorti · Rentré. Il vit sur la carte et non
+sur l'écran : on regarde le fil de quelqu'un, pas celui de la Maison, et un
+filtre commun se serait appliqué à des cartes qu'on n'était pas en train de lire.
+**Il ne cache jamais un total** : le reste dû et la barre restent au-dessus,
+intacts.
+
+**LE FIL RESTE OUVERT**, arbitrage de Yéman : les emprunteurs mènent, le registre
+suit sous eux, sans repli.
+
 ## LE VERSEMENT D'UN ABONNEMENT VIT À DEUX ENDROITS · 3 septembre 2026
 
 « J'ai supprimé le paiement de la facture de l'abonnement de Mylène du 28 août,

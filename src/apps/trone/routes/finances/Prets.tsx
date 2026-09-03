@@ -246,6 +246,20 @@ export default function Prets() {
      les présente en bloc pour les dater — et disparaît dès qu'il n'y a plus
      rien à dater, sans réglage ni bouton « ne plus afficher ». */
   const [rattrapageOuvert, setRattrapageOuvert] = useState(true);
+  /* ══ LE SENS AVANT LE MOT — 3 septembre 2026 ═══════════════════════
+     « Tout est mélangé. Besoin de voir une différence nette entre les
+     remboursements et les prêts » (Yéman).
+
+     LE SENS NE SE LISAIT QUE DANS UN MOT. « Prêté » et « Remboursé » ouvraient
+     la ligne, et le montant restait à droite, dans la même couleur, sans
+     signe : l'œil ne pouvait pas trier, il devait lire chaque ligne. Sur un
+     registre d'argent, une erreur de sens ne se rattrape pas à l'œil, elle se
+     découvre au moment de réclamer.
+
+     Le filtre vit PAR EMPRUNTEUR : on regarde le fil de quelqu'un, pas celui de
+     la Maison, et un filtre commun se serait appliqué à des cartes qu'on
+     n'était pas en train de lire. */
+  const [sensVu, setSensVu] = useState<Record<string, 'tout' | 'sorti' | 'rentre'>>({});
 
   const carte = (e: EtatEmprunteur) => {
     const lignes = prets
@@ -305,39 +319,83 @@ export default function Prets() {
           </div>
         )}
 
+        {/* ══ TROIS BLOCS, JAMAIS UN SEUL FIL ═══════════════════════════
+            Ce qui est ATTENDU, ce qui est SORTI, ce qui est RENTRÉ. Les trois se
+            suivaient dans une même colonne, du même côté, dans la même couleur :
+            l'avenir se mêlait à l'histoire, et les deux sens de l'argent se
+            ressemblaient. Une chose qui n'est pas encore arrivée n'a rien à
+            faire dans un registre de ce qui s'est passé — c'est ainsi qu'on
+            finit par compter deux fois. */}
         <div className="trf-pret__lignes">
-          {/* LES ATTENTES NE SONT PAS DES ÉCRITURES — en italique pâle, au-dessus
-              des vraies lignes. Rien ne bouge dans une caisse tant que l’argent
-              n’est pas revenu pour de bon. */}
+          {e.attendus.length > 0 && (
+            <div className="trf-pret__titre">Attendu</div>
+          )}
           {e.attendus.slice(0, 3).map((a) => (
             <div className="trf-pret__ligne trf-pret__ligne--attendu" key={`${a.pretId}-${a.rang}`}>
-              <span>
-                Attendu · {frJour(a.date)}
+              <span className="trf-pret__sens" aria-hidden="true">·</span>
+              <span className="trf-pret__quoi">
+                {frJour(a.date)}
                 {a.sur > 1 ? ` · ${a.rang}ᵉ versement sur ${a.sur}` : ''}
                 {a.date < aujourdhui ? ' · en souffrance' : ''}
               </span>
               <span className="trf-pret__m">{fmtMoney(a.montantXof, currency)}</span>
             </div>
           ))}
-          {lignes.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="trf-pret__ligne trf-pret__ligne--clic"
-              onClick={() => corrigerLePret(p)}
-              title="Corriger ou effacer cette ligne"
-            >
-              <span>
-                <span style={{ color: p.type === 'pret' ? 'var(--copper-700)' : 'var(--trf-success)' }}>
-                  {p.type === 'pret' ? 'Prêté' : 'Remboursé'}
-                </span>
-                {' · '}{frJour(p.date)}
-                {p.motif ? ` · ${p.motif}` : ''}
-                {p.cashbox ? <span className="mnd-muted"> · {p.cashbox}</span> : null}
-              </span>
-              <span className="trf-pret__m">{fmtMoney(p.amountXof, currency)}</span>
-            </button>
-          ))}
+
+          {lignes.length > 0 && (() => {
+            const vu = sensVu[e.nom] ?? 'tout';
+            const montrees = lignes.filter((p) => vu === 'tout'
+              || (vu === 'sorti' ? p.type === 'pret' : p.type === 'remboursement'));
+            return (
+              <>
+                <div className="trf-pret__titre trf-pret__titre--fil">
+                  <span>Ce qui s’est passé</span>
+                  {/* LE FILTRE NE CACHE JAMAIS UN TOTAL, il ne trie qu'un fil :
+                      le reste dû et la barre restent au-dessus, intacts. */}
+                  <span className="trf-pret__filtres">
+                    {([['tout', 'Tout'], ['sorti', 'Sorti'], ['rentre', 'Rentré']] as const).map(([k, mot]) => (
+                      <button
+                        key={k} type="button"
+                        className={`trf-pret__filtre ${vu === k ? 'is-on' : ''}`}
+                        onClick={() => setSensVu((prev) => ({ ...prev, [e.nom]: k }))}
+                      >{mot}</button>
+                    ))}
+                  </span>
+                </div>
+                {montrees.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`trf-pret__ligne trf-pret__ligne--clic ${p.type === 'pret' ? 'is-sorti' : 'is-rentre'}`}
+                    onClick={() => corrigerLePret(p)}
+                    title="Corriger ou effacer cette ligne"
+                  >
+                    {/* TROIS INDICES POUR LA MÊME CHOSE : la flèche, la couleur,
+                        le signe. Un seul se rate ; trois, non. */}
+                    <span className="trf-pret__sens" aria-hidden="true">{p.type === 'pret' ? '↓' : '↑'}</span>
+                    <span className="trf-pret__quoi">
+                      {p.type === 'pret' ? 'Prêté' : 'Remboursé'}
+                      {' · '}{frJour(p.date)}
+                      {p.motif ? ` · ${p.motif}` : ''}
+                      {p.cashbox ? <i> · {p.cashbox}</i> : null}
+                    </span>
+                    <span className="trf-pret__m">
+                      {p.type === 'pret' ? '−' : '+'} {fmtMoney(p.amountXof, currency)}
+                    </span>
+                  </button>
+                ))}
+                {montrees.length === 0 && (
+                  <div className="trf-pret__ligne trf-pret__ligne--attendu">
+                    <span className="trf-pret__sens" aria-hidden="true">·</span>
+                    <span className="trf-pret__quoi">
+                      {vu === 'sorti' ? 'Rien n’est sorti pour cette personne.' : 'Rien n’est encore rentré.'}
+                    </span>
+                    <span className="trf-pret__m" />
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </Card>
     );
