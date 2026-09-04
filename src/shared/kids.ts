@@ -93,7 +93,12 @@ export const SERVICES_KIDS: Service[] = [
 export const FORFAIT_KIDS: Service = {
   id: 'sv-kids-rituel',
   categoryId: CAT_KIDS,
-  name: 'MND Kids · Le Rituel Complet',
+  /* LE NOM DIT QUE C'EST UN PACK — 4 septembre 2026 : « corrige le MND
+     Kids le rituel complet en PACK MND KIDS Le rituel complet » (Yéman).
+     Le mot « pack » se lit au comptoir comme à la maison : il annonce un
+     ensemble, là où « le rituel complet » pouvait passer pour une
+     prestation de plus dans la liste. */
+  name: 'PACK MND KIDS · Le rituel complet',
   description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes.',
   priceXof: 25_000,
   durationMin: 85,
@@ -177,7 +182,7 @@ export const catalogueDeLaTete = <T extends { reserveEnfants?: boolean }>(
     nos tarifs. J'aurais voulu avoir ce qui est inclus dans le service »
     (Yéman).
 
-    UN FORFAIT NE MONTRAIT QUE SON TOTAL. « MND Kids · Le Rituel Complet ·
+    UN FORFAIT NE MONTRAIT QUE SON TOTAL. « PACK MND KIDS · Le rituel complet ·
     25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison donne : le parent
     lit un prix, pas un geste. Or c'est exactement le geste qu'il faut voir.
 

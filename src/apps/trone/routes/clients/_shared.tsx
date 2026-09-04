@@ -2450,7 +2450,7 @@ export function RdvModal({
                   inclus dans le service. Il faut traduire et sur le RDV et sur
                   la facture » (Yéman).
 
-                  UN FORFAIT NE MONTRAIT QUE SON TOTAL. « Le Rituel Complet ·
+                  UN FORFAIT NE MONTRAIT QUE SON TOTAL. « Le rituel complet ·
                   25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison
                   donne : le parent lit un prix, pas un geste, et un geste qu'on
                   ne voit pas n'est pas reçu. Le prix barré ne sert qu'à DIRE,

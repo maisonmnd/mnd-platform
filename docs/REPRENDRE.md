@@ -10,7 +10,7 @@ inclus dans le service. Shampoing Le Souffle −50 %, reprise essentielle 15 000
 sublimation renfort durable 5 000 (−10 000 F). Il faut traduire et sur le RDV et
 sur la facture. »
 
-**Un forfait ne montrait que son total.** « MND Kids · Le Rituel Complet ·
+**Un forfait ne montrait que son total.** « PACK MND KIDS · Le rituel complet ·
 25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison donne : le parent lit
 un prix, pas un geste, et un geste qu'on ne voit pas n'est pas reçu.
 
@@ -21,7 +21,7 @@ un prix, pas un geste, et un geste qu'on ne voit pas n'est pas reçu.
 | KLƆKLƆ™ Kids · Le Shampoing « Le Souffle » | 10 000 F | **5 000 F**, moitié prix |
 | SÍNSIN™ Kids · La Reprise Essentielle | — | **15 000 F** |
 | YÈKPÈ™ × GBÌGBÌ™ Kids · Sublimation & Renfort durable | 15 000 F | **5 000 F** |
-| **Le Rituel Complet** | **40 000 F** | **25 000 F**, 15 000 F offerts |
+| **PACK MND KIDS · Le rituel complet** | **40 000 F** | **25 000 F**, 15 000 F offerts |
 
 **Les trois tarifs enfants tombent pile sur le forfait** : 5 000 + 15 000 +
 5 000 = 25 000. Le geste n'est pas une remise de plus posée sur le paquet, il

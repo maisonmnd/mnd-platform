@@ -159,6 +159,15 @@ dit('… la reprise dit son prix, sans rien promettre',
 dit('… le mot de la fin dit le geste entier',
   '40000 F au tarif de la Maison, 25000 F pour les Kids, 15000 F offerts', dit3[3]);
 dit('la section des petites têtes ne dit pas « elle »', 'pour les Kids', pourQui(FORFAIT_KIDS));
+/* LE NOM DIT QUE C'EST UN PACK. « Corrige le MND Kids le rituel complet en
+   PACK MND KIDS Le rituel complet » (Yéman, 4 septembre 2026) : le mot
+   annonce un ensemble, là où « le rituel complet » pouvait passer pour une
+   prestation de plus dans la liste. */
+dit('le forfait s’annonce comme un pack', 'PACK MND KIDS · Le rituel complet', FORFAIT_KIDS.name);
+/* ET UN FORFAIT RESTÉ À L'ANCIEN NOM SE VOIT, sinon la section garderait
+   deux appellations selon l'ancienneté de la fiche. */
+dit('un forfait resté à l’ancien nom se remet au tarif', 1,
+  kidsADepasser([{ ...FORFAIT_KIDS, name: 'MND Kids · Le Rituel Complet' }]));
 dit('… et le comptoir le garde', 'pour elle', pourQui({ reserveEnfants: false }));
 /* LA MÊME FONCTION LIT UNE MAP — c'est ce que porte la modale du rituel
    (`byId`) et ce que porte l'écran des factures (un tableau). Deux chemins,
