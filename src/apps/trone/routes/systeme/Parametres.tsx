@@ -1711,7 +1711,8 @@ export default function Parametres() {
           <div>
             <div className="sys-section__title">Encaissement · modes de paiement</div>
             <div className="sys-section__cap">
-              Les moyens de règlement proposés à l’encaissement, Caisse, Factures &amp; Académie.
+              Les moyens de règlement proposés PARTOUT où l’argent se dit : encaissement,
+              Caisse, Factures, Académie, avoirs, prêts, paie du personnel et prestataires.
               Écris directement dans la ligne : chaque lettre s’enregistre ; ▲▼ règlent l’ordre
               des boutons à la Caisse. Les pièces déjà encaissées gardent leur libellé.
             </div>

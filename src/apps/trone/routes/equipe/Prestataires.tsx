@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
-import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, type Expense} from '../../../../shared/finance';
+import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir, type Expense} from '../../../../shared/finance';
 import { MontantDuTiroir, montantsDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
@@ -32,6 +32,9 @@ const MODE_LABEL: Record<ProviderMode, string> = {
 const MODES: [ProviderMode, string][] = [
   ['prestation', 'Par prestation'], ['forfait', 'Forfait'], ['pourcentage', 'Pourcentage'], ['horaire', 'À l’heure / jour'],
 ];
+/* LES MOYENS VIENNENT DES PARAMÈTRES — 5 septembre 2026. Cette liste-ci reste
+   le repli d'une maison qui n'a rien réglé, et le juge des vieilles dépenses
+   dont la caisse porte un MOYEN au lieu d'une caisse (voir plus bas). */
 const PAY_METHODS = ['Mobile Money', 'Espèces', 'Virement', 'Autre'];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const parseXof = (s: string) => Math.max(0, parseInt((s || '').replace(/[^0-9]/g, ''), 10) || 0);
@@ -58,6 +61,7 @@ export default function Prestataires() {
     { label: '', date: todayIso(), qty: '1', amount: '', note: '' },
   );
   const [payFor, setPayFor] = useState<Mission | null>(null);
+  const [moyensPose] = usePaymentMethods();
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
   const [providerFor, setProviderFor] = useState<Provider | null>(null);
   const [stmtPeriod, setStmtPeriod] = useState<'mois' | 'annee' | 'tout'>('tout');
@@ -492,7 +496,7 @@ export default function Prestataires() {
             </div>
             <Field label="Moyen de règlement">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {PAY_METHODS.map((p) => (
+                {moyensAOffrir(moyensPose, payMethod).map((p) => (
                   <button key={p} type="button" className={`tre-chip ${payMethod === p ? 'is-on' : ''}`} onClick={() => setPayMethod(p)}>{p}</button>
                 ))}
               </div>

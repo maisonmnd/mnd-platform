@@ -14,6 +14,34 @@ export const PAYMENT_METHODS_DEFAULT: string[] = [
 /** Alias rétro-compatible (liste par défaut). Préférer `usePaymentMethods()`. */
 export const PAYMENT_METHODS = PAYMENT_METHODS_DEFAULT;
 
+/** ══ LES MOYENS À OFFRIR, ICI ET PARTOUT — 5 septembre 2026 ═══════
+    « J'ai l'impression que Moyen de règlement est à plusieurs endroits. Il
+    n'affiche pas les moyens de paiement des paramètres de l'encaissement »
+    (Yéman).
+
+    QUATRE ÉCRANS PORTAIENT LEUR PROPRE LISTE : les avoirs, les prêts, la paie
+    du personnel, les prestataires. Quatre listes du même choix, et ajouter
+    « Chèque » aux Paramètres n'en changeait aucune. On ne s'en aperçoit qu'au
+    comptoir, un chèque à la main, devant un écran qui n'en connaît pas.
+
+    LE MOYEN DÉJÀ ÉCRIT RESTE OFFERT, même retiré des Paramètres. Sans lui, on
+    rouvre une avance réglée « Virement » sur une liste qui dit « Virement
+    bancaire » : aucune pastille allumée, et ré-enregistrer changerait en
+    silence par quoi l'argent est passé. Une trace ne se corrige pas en la
+    rouvrant. */
+export const moyensAOffrir = (
+  liste: readonly string[], courant?: string,
+): string[] => {
+  /* JAMAIS UN CHOIX VIDE. Une Maison qui a vidé sa liste, ou qui n'a rien
+     réglé encore, doit pouvoir encaisser : on retombe sur les moyens de
+     naissance plutôt que d'afficher une rangée sans une seule pastille. */
+  const propres = liste.filter((m) => m.trim() !== '');
+  const vus = propres.length > 0 ? propres : PAYMENT_METHODS_DEFAULT;
+  const dit = (courant ?? '').trim();
+  if (dit !== '' && !vus.some((m) => m.toLowerCase() === dit.toLowerCase())) return [...vus, dit];
+  return [...vus];
+};
+
 /** UN RÈGLEMENT PORTÉ PAR LA PIÈCE — 17 août 2026.
 
     « Hermine D. devrait avoir tous ces règlements sur une même facture avec

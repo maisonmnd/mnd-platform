@@ -11,6 +11,7 @@ import {
 } from '../../../../shared/clients';
 import {
   useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
+  usePaymentMethods, moyensAOffrir,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
@@ -913,6 +914,7 @@ function DepositModal({
      caisse (elle ENTRE) et son moyen ; le remboursement aussi (elle SORT).
      Le relevé de la caisse, dans Dépenses, les montre ligne à ligne. */
   const [cashboxes] = useCashboxes();
+  const [methodsPose] = usePaymentMethods();
   /* TOUTES LES CAISSES, DEVISES COMPRISES — 22 août 2026. Un avoir peut être
      versé en dollars ; le compte de la cliente se crédite en francs, et le
      tiroir compte ses billets. */
@@ -920,8 +922,10 @@ function DepositModal({
   const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
-  const MOYENS = ['Espèces', 'Mobile Money', 'Virement', 'Autre'];
-  const [moyen, setMoyen] = useState(edite?.method && MOYENS.includes(edite.method) ? edite.method : MOYENS[0]);
+  /* LA LISTE DES PARAMÈTRES, PAS UNE COPIE — 5 septembre 2026. Voir
+     `moyensAOffrir` : ajouter « Chèque » à l'encaissement doit se voir ici. */
+  const MOYENS = moyensAOffrir(methodsPose, edite?.method);
+  const [moyen, setMoyen] = useState(edite?.method || MOYENS[0] || '');
   const [enDevise, setEnDevise] = useState(edite?.fx ? String(edite.amountXof) : '');
   const caisseChoisie = caissesMaison.find((b) => b.name === caisseActive);
   /* LE MONTANT SE DIT DANS LA MONNAIE DU TIROIR — 23 août 2026. `amount`

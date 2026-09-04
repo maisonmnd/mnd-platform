@@ -5,7 +5,7 @@ import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../.
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
-import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency } from '../../../../shared/finance';
+import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
@@ -132,6 +132,9 @@ const RETENUE_TYPES: [RetenueType, string][] = [
 /** Jours ouvrables de référence pour le salaire journalier (retenue au prorata). */
 const JOURS_OUVRABLES = 26;
 
+/* LES MOYENS VIENNENT DES PARAMÈTRES — 5 septembre 2026. Cette liste-ci
+   servait de repli quand aucun n'est réglé : une maison neuve doit pouvoir
+   payer avant d'avoir configuré quoi que ce soit. */
 const PAY_METHODS = ['Mobile Money', 'Espèces', 'Virement', 'Autre'];
 /** Date+heure lisibles d'un ISO (« 14 juil. 2026, 18:32 »). */
 const fmtStamp = (iso: string) =>
@@ -243,6 +246,7 @@ export default function Personnel() {
   );
   const [yearFor, setYearFor] = useState<StaffMember | null>(null);
   const [confirms, setConfirms] = useConfirm();
+  const [moyensPose] = usePaymentMethods();
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
   const me = useMyStaff();
   const { session } = useAuth();
@@ -1853,7 +1857,7 @@ export default function Personnel() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span className="mnd-muted" style={{ fontSize: 11 }}>Moyen de règlement</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {PAY_METHODS.map((p) => (
+                  {moyensAOffrir(moyensPose, payMethod).map((p) => (
                     <button key={p} type="button" className={`tre-chip ${payMethod === p ? 'is-on' : ''}`} onClick={() => setPayMethod(p)}>{p}</button>
                   ))}
                 </div>

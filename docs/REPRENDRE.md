@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UNE SEULE LISTE DE MOYENS DE RÈGLEMENT — 5 septembre 2026, PUBLIÉ
+
+« J'ai l'impression que Moyen de règlement est à plusieurs endroits. Il
+n'affiche pas les moyens de paiement des paramètres de l'encaissement. »
+
+**Quatre écrans portaient leur propre liste**, recopiée en dur, toujours la même
+et toujours ailleurs : les **avoirs** (Comptes & Avoirs), les **prêts**, la
+**paie du personnel**, les **prestataires**. Ajouter « Chèque » aux Paramètres
+n'en changeait aucune. On ne s'en aperçoit qu'au comptoir, un chèque à la main,
+devant un écran qui n'en connaît pas.
+
+Les quatre lisent désormais `usePaymentMethods()`, comme le faisaient déjà
+l'encaissement, la Caisse, les Factures, l'Académie, les Abonnements et les
+Dépenses. La légende des Paramètres dit maintenant la vérité : **partout où
+l'argent se dit**.
+
+### `moyensAOffrir(liste, courant)` — les trois pièges
+
+**Le moyen déjà écrit reste offert**, même retiré des Paramètres. Sans lui, on
+rouvre une avance réglée « Virement » sur une liste qui dit « Virement
+bancaire » : aucune pastille allumée, et ré-enregistrer changerait **en
+silence** par quoi l'argent est passé. Une trace ne se corrige pas en la
+rouvrant. La comparaison ignore la casse, pour ne pas doubler la pastille.
+
+**Jamais un choix vide.** Une Maison qui a vidé sa liste, ou qui n'a rien réglé
+encore, doit pouvoir encaisser : on retombe sur `PAYMENT_METHODS_DEFAULT`.
+
+**La liste des réglages n'est jamais modifiée** : elle vient d'un magasin
+partagé, la toucher depuis un écran d'encaissement la changerait pour tous.
+
+Jugé par `verifie-vente`.
+
 ## UN LIEN POUR UN MONTANT, SANS PIÈCE DERRIÈRE — 4 septembre 2026, PUBLIÉ
 
 « Pose un endroit où taper simplement 45 000 et obtenir un lien, et l'envoi

@@ -23,7 +23,7 @@ import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { useCashboxes } from '../../../../shared/finance';
+import { useCashboxes, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
 import { useClients } from '../../../../shared/clients';
 import { signeLeMessage } from '../../../../shared/identite';
 import {
@@ -131,6 +131,7 @@ export default function Prets() {
   /* ── Poser, corriger, effacer une ligne ── */
   const [pretOuvert, setPretOuvert] = useState(false);
   const [pretEdite, setPretEdite] = useState<Pret | null>(null);
+  const [moyensPose] = usePaymentMethods();
   const [fPret, setFPret] = useState({
     type: 'pret' as 'pret' | 'remboursement',
     genre: 'equipe' as GenreEmprunteur,
@@ -736,7 +737,8 @@ export default function Prets() {
 
             <Field label="Par quel moyen">
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                {['Espèces', 'Mobile Money', 'Virement', 'Autre'].map((m) => (
+                {/* LA LISTE DES PARAMÈTRES, PAS UNE COPIE — 5 septembre 2026. */}
+                {moyensAOffrir(moyensPose, fPret.method).map((m) => (
                   <button
                     key={m}
                     type="button"

@@ -23,6 +23,7 @@ import {
   type Plan, type Subscriber,
 } from '../src/shared/abonnements';
 import { formulesVisiblesPour, formuleEnVitrine } from '../src/shared/bridges';
+import { moyensAOffrir, PAYMENT_METHODS_DEFAULT } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 
 let ko = 0;
@@ -664,3 +665,36 @@ dit('… et le contrat garde son versement', 1, subscribersStore.get()[0].paymen
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
+
+/* ══ UNE SEULE LISTE DE MOYENS DE RÈGLEMENT ════════════════════════
+   « J'ai l'impression que Moyen de règlement est à plusieurs endroits. Il
+   n'affiche pas les moyens de paiement des paramètres de l'encaissement »
+   (Yéman, 5 septembre 2026). Quatre écrans portaient leur copie ; ils lisent
+   désormais la liste des Paramètres, et ce juge tient les trois pièges. */
+const laListe = ['Espèces', 'MTN MoMo', 'Chèque'];
+
+dit('la liste des Paramètres, telle quelle', laListe, moyensAOffrir(laListe));
+dit('… « Chèque » ajouté aux réglages se voit ici', true,
+  moyensAOffrir(laListe).includes('Chèque'));
+
+/* LE MOYEN DÉJÀ ÉCRIT RESTE OFFERT. Sans lui, on rouvre une avance réglée
+   « Virement » sur une liste qui dit « Virement bancaire » : aucune pastille
+   allumée, et ré-enregistrer changerait en silence par quoi l'argent est
+   passé. Une trace ne se corrige pas en la rouvrant. */
+dit('un moyen retiré des réglages reste offert sur sa trace',
+  ['Espèces', 'MTN MoMo', 'Chèque', 'Virement'], moyensAOffrir(laListe, 'Virement'));
+dit('… mais il ne se double pas quand il y est déjà', laListe, moyensAOffrir(laListe, 'Chèque'));
+dit('… ni sur une casse différente', laListe, moyensAOffrir(laListe, 'chèque'));
+dit('… et rien à ajouter quand il n’y a rien d’écrit', laListe, moyensAOffrir(laListe, '   '));
+
+/* JAMAIS UN CHOIX VIDE : une Maison qui n'a rien réglé doit pouvoir encaisser. */
+dit('une liste vide retombe sur les moyens de naissance', PAYMENT_METHODS_DEFAULT, moyensAOffrir([]));
+dit('… les lignes blanches ne comptent pas', PAYMENT_METHODS_DEFAULT, moyensAOffrir(['', '  ']));
+dit('… et la trace reste offerte par-dessus', true,
+  moyensAOffrir([], 'Troc').includes('Troc'));
+
+/* ON NE TOUCHE PAS À LA LISTE DES RÉGLAGES : elle vient d'un magasin partagé,
+   et la modifier depuis un écran d'encaissement la changerait pour tous. */
+const original = ['Espèces', 'MTN MoMo', 'Chèque'];
+moyensAOffrir(original, 'Virement');
+dit('la liste des réglages n’est jamais modifiée', 3, original.length);
