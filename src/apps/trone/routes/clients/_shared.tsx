@@ -23,7 +23,7 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { estKids } from '../../../../shared/accounts';
-import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait } from '../../../../shared/kids';
+import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -2476,7 +2476,7 @@ export function RdvModal({
                     {g.gainXof > 0 && (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11.5, paddingTop: 3, borderTop: '1px dashed var(--hairline)' }}>
                         <span className="mnd-muted" style={{ flex: 1, minWidth: 0 }}>
-                          {argent(g.carteXof)} au tarif de la Maison, {argent(g.prixXof)} pour elle
+                          {argent(g.carteXof)} au tarif de la Maison, {argent(g.prixXof)} {pourQui(sv)}
                         </span>
                         <b style={{ color: 'var(--copper-700)' }}>{argent(g.gainXof)} offerts</b>
                       </div>

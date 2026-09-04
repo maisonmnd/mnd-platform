@@ -274,8 +274,24 @@ const listeDuCatalogue = (
   c: readonly Service[] | ReadonlyMap<string, Service>,
 ): readonly Service[] => (Array.isArray(c) ? c : [...(c as ReadonlyMap<string, Service>).values()]);
 
+/** À QUI CE FORFAIT S'ADRESSE — 4 septembre 2026.
+
+    « Ayant filles et garçons en Kids, il faut écrire 25 000 F pour les Kids »
+    (Yéman).
+
+    « POUR ELLE » EST JUSTE AU COMPTOIR, ET FAUX SUR UNE PETITE TÊTE. La Maison
+    coiffe des femmes : le mot est le bon partout ailleurs, et le remplacer
+    partout appauvrirait ce qu'on dit à une cliente. Mais MND Kids reçoit des
+    filles ET des garçons, et un papier qui parle d'« elle » à un père venu avec
+    son fils se lit comme un papier fait pour quelqu'un d'autre.
+
+    C'est la fiche qui décide, pas l'appelant : `reserveEnfants` est déjà la
+    marque de la section, celle qui n'ouvre le catalogue qu'aux petites têtes. */
+export const pourQui = (forfait: Pick<Service, 'reserveEnfants'>): string =>
+  (forfait.reserveEnfants ? 'pour les Kids' : 'pour elle');
+
 export const detailDuForfait = (
-  forfait: Pick<Service, 'includes' | 'priceXof'>,
+  forfait: Pick<Service, 'includes' | 'priceXof' | 'reserveEnfants'>,
   catalogue: readonly Service[] | ReadonlyMap<string, Service>,
   fmt: (x: number) => string,
 ): string[] => {
@@ -289,7 +305,7 @@ export const detailDuForfait = (
   /* LA DERNIÈRE LIGNE DIT LE GESTE ENTIER. Trois remises isolées se lisent
      comme trois détails ; leur somme se lit comme un accompagnement. */
   if (g.gainXof > 0) {
-    dites.push(`${fmt(g.carteXof)} au tarif de la Maison, ${fmt(g.prixXof)} pour elle, ${fmt(g.gainXof)} offerts`);
+    dites.push(`${fmt(g.carteXof)} au tarif de la Maison, ${fmt(g.prixXof)} ${pourQui(forfait)}, ${fmt(g.gainXof)} offerts`);
   }
   return dites;
 };

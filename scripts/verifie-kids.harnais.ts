@@ -11,7 +11,7 @@
 import { AGE_MND_KIDS, estKids } from '../src/shared/accounts';
 import {
   SERVICES_KIDS, FORFAIT_KIDS, kidsAbsents, CAT_KIDS, catalogueDeLaTete,
-  compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser,
+  compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser, pourQui,
 } from '../src/shared/kids';
 import { estProposable } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
@@ -153,8 +153,13 @@ dit('… le shampoing dit sa moitié',
    reprise inventerait une remise que la Maison n'a pas faite. */
 dit('… la reprise dit son prix, sans rien promettre',
   'SÍNSIN™ Kids · La Reprise Essentielle · 15000 F', dit3[1]);
+/* ON NE DIT PAS « ELLE » À UN PÈRE VENU AVEC SON FILS. « Ayant filles et
+   garçons en Kids, il faut écrire 25 000 F pour les Kids » (Yéman, 4 septembre
+   2026). Le mot reste juste au comptoir, où la Maison coiffe des femmes. */
 dit('… le mot de la fin dit le geste entier',
-  '40000 F au tarif de la Maison, 25000 F pour elle, 15000 F offerts', dit3[3]);
+  '40000 F au tarif de la Maison, 25000 F pour les Kids, 15000 F offerts', dit3[3]);
+dit('la section des petites têtes ne dit pas « elle »', 'pour les Kids', pourQui(FORFAIT_KIDS));
+dit('… et le comptoir le garde', 'pour elle', pourQui({ reserveEnfants: false }));
 /* LA MÊME FONCTION LIT UNE MAP — c'est ce que porte la modale du rituel
    (`byId`) et ce que porte l'écran des factures (un tableau). Deux chemins,
    une seule vérité. */

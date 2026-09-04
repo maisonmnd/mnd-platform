@@ -51,7 +51,13 @@ la pièce la lisent. Deux formulations du même geste finiraient par se
 contredire, et c'est devant le parent que cela se verrait.
 
 - **Sur le rituel** : sous la ligne du forfait, chaque geste avec son prix barré,
-  puis « 40 000 F au tarif de la Maison, 25 000 F pour elle, **15 000 F offerts** ».
+  puis « 40 000 F au tarif de la Maison, 25 000 F **pour les Kids**, 15 000 F offerts ».
+
+**On ne dit pas « elle » à un père venu avec son fils.** MND Kids reçoit des
+filles et des garçons ; `pourQui()` écrit « pour les Kids » dès que la fiche
+porte `reserveEnfants`. Le mot reste « pour elle » partout ailleurs, où la
+Maison coiffe des femmes : le remplacer partout appauvrirait ce qu'on dit à une
+cliente.
 - **Sur la pièce** : les mêmes lignes en `InvoiceLine.detail`, donc aussi dans
   le PDF, qui lit déjà ce champ.
 
