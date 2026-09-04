@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { dateDeLaReprise } from '../../../../shared/cadence';
+import { dateDeLaReprise, RYTHMES_ABO } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
@@ -777,6 +777,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     return d > todayISO() ? d : addDaysISO(todayISO(), 28);
   });
   const [nextTime, setNextTime] = useState(appt.time || '09:00');
+  /* LA DATE D'UN RYTHME — on compte depuis le RITUEL, pas depuis le clic :
+     encaisser trois jours plus tard ne doit pas décaler la reprise de trois
+     jours. Si elle est déjà passée, on repart d'aujourd'hui. */
+  const dateDansSemaines = (semaines: number) => {
+    const d = addDaysISO(appt.date, semaines * 7);
+    return d > todayISO() ? d : addDaysISO(todayISO(), semaines * 7);
+  };
   const setNextIn = (days: number) => {
     const d = addDaysISO(appt.date, days);
     setNextDate(d > todayISO() ? d : addDaysISO(todayISO(), days));
@@ -1839,8 +1846,26 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           {reschedule && (
             <>
               <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                {[{ l: '4 sem.', d: 28 }, { l: '6 sem.', d: 42 }, { l: '8 sem.', d: 56 }].map(({ l, d }) => (
-                  <button key={d} type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setNextIn(d)}>{l}</button>
+                {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS — 5 septembre
+                    2026 : « ajoute 5, 7 et 10 semaines » (Yéman). Ils étaient
+                    recopiés ici (4, 6, 8) et vivaient déjà dans `RYTHMES_ABO`,
+                    que La Cadence lit depuis le 3 septembre. Deux listes du
+                    même choix finissent par diverger, et c'est au comptoir
+                    qu'on s'en aperçoit : on lit la seule. */}
+                {RYTHMES_ABO.map((sem) => (
+                  <button
+                    key={sem}
+                    type="button"
+                    /* LE RYTHME CHOISI SE VOIT. Six pastilles identiques ne
+                       disent pas laquelle a été pressée, et l'on repose la
+                       date deux fois pour en être sûr. La date fait foi : la
+                       corriger à la main éteint la pastille, ce qui est juste. */
+                    className={`mnd-btn mnd-btn--sm ${nextDate === dateDansSemaines(sem) ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                    style={{ flex: 'none' }}
+                    onClick={() => setNextIn(sem * 7)}
+                  >
+                    {sem} sem.
+                  </button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
