@@ -23,12 +23,12 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { estKids } from '../../../../shared/accounts';
-import { catalogueDeLaTete } from '../../../../shared/kids';
+import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import type { CommRates } from '../equipe/payroll';
-import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
+import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 
@@ -424,8 +424,11 @@ export function alignerFacturesDuRituel(
   /** SIMULER — calculer sans rien écrire. Une réparation en masse doit pouvoir
       se MONTRER avant de s'appliquer : c'est la même mécanique qui juge et qui
       répare, donc l'aperçu ne peut pas mentir sur ce qui va se passer. */
-  options?: { simuler?: boolean },
+  /** LA DEVISE DU COMPTOIR, pour écrire le contenu d'un forfait. Absente, on
+      dit les francs de la Maison : c'est en XOF que les tarifs sont saisis. */
+  options?: { simuler?: boolean; argent?: (x: number) => string },
 ): EcartDeConformite[] {
+  const argentDit = options?.argent ?? ((x: number) => fmtMoney(x));
   /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
      depuis le RENDEZ-VOUS (`invoiceId`, `payments[].invoiceId`) ; or « Facture
      à envoyer » (`factureAEnvoyer`) pose le lien sur LA PIÈCE — `apptId` — et
@@ -568,10 +571,23 @@ export function alignerFacturesDuRituel(
        qu'on compare au total payé, sinon le geste serait compté deux fois :
        une fois sur la ligne, une fois dans la remise globale. */
     const gross = pleins.reduce((a, p, i) => a + Math.max(0, Math.round(p * (1 - gestes[i] / 100)) - francs[i]), 0);
-    const lines = services.map((s, i) => ({
-      id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
-      ...(francs[i] > 0 ? { discountXof: francs[i] } : {}),
-    }));
+    /* LE CONTENU DÉJÀ ÉCRIT L'EMPORTE, comme le prix d'époque : une pièce
+       remise à quelqu'un est une trace, pas une vue. Une ligne qui n'en porte
+       aucun, pièce d'avant ou prestation ajoutée après coup, prend celui
+       d'aujourd'hui, faute de mieux. */
+    const contenuDEpoque = new Map<string, string[]>();
+    for (const l of inv.lines) {
+      if (l.detail?.length && !contenuDEpoque.has(l.label)) contenuDEpoque.set(l.label, l.detail);
+    }
+    const lines: InvoiceLine[] = services.map((s, i) => {
+      const dedans = (emise ? contenuDEpoque.get(s.name) : undefined)
+        ?? ((s.includes?.length ?? 0) > 0 ? detailDuForfait(s, byId, argentDit) : []);
+      return {
+        id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
+        ...(francs[i] > 0 ? { discountXof: francs[i] } : {}),
+        ...(dedans.length > 0 ? { detail: dedans } : {}),
+      };
+    });
     let remiseXof: number | undefined;
     if (!payee) {
       /* RIEN N'EST ENTRÉ : la pièce vaut ce que vaut le rituel AUJOURD'HUI —
@@ -1950,7 +1966,7 @@ export function RdvModal({
          de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
          prix pleins — pas le prix catalogue nu. */
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
-      if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe);
+      if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe, { argent: (x) => fmtMoney(x, currency) });
     } else {
       const created: Appointment = {
         id: uid(),
@@ -2428,6 +2444,46 @@ export function RdvModal({
                   </button>
                 </span>
               </div>
+              {/* ══ CE QUE LE FORFAIT CONTIENT — 4 septembre 2026 ═════════
+                  « J'aurais voulu que les parents voient qu'on les accompagne
+                  vraiment avec nos tarifs. J'aurais voulu avoir ce qui est
+                  inclus dans le service. Il faut traduire et sur le RDV et sur
+                  la facture » (Yéman).
+
+                  UN FORFAIT NE MONTRAIT QUE SON TOTAL. « Le Rituel Complet ·
+                  25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison
+                  donne : le parent lit un prix, pas un geste, et un geste qu'on
+                  ne voit pas n'est pas reçu. Le prix barré ne sert qu'à DIRE,
+                  il n'entre dans aucun total. */}
+              {(sv.includes?.length ?? 0) > 0 && (() => {
+                const compo = compositionDuForfait(sv, services);
+                if (compo.length === 0) return null;
+                const g = gainDuForfait(sv, services);
+                return (
+                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+                      Ce que le rituel contient
+                    </span>
+                    {compo.map((l) => (
+                      <div key={l.serviceId} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 12 }}>
+                        <span style={{ flex: 1, minWidth: 0 }}>{l.nom}</span>
+                        {l.barreXof && (
+                          <span className="mnd-muted" style={{ fontSize: 11.5, textDecoration: 'line-through' }}>{argent(l.barreXof)}</span>
+                        )}
+                        <span style={{ fontWeight: 600, color: l.barreXof ? 'var(--copper-700)' : 'inherit' }}>{argent(l.prixXof)}</span>
+                      </div>
+                    ))}
+                    {g.gainXof > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 11.5, paddingTop: 3, borderTop: '1px dashed var(--hairline)' }}>
+                        <span className="mnd-muted" style={{ flex: 1, minWidth: 0 }}>
+                          {argent(g.carteXof)} au tarif de la Maison, {argent(g.prixXof)} pour elle
+                        </span>
+                        <b style={{ color: 'var(--copper-700)' }}>{argent(g.gainXof)} offerts</b>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* LES MAINS. Qui a reellement execute ce geste — un KLOKLO se
                   fait a deux, une reprise rarement a moins, la coiffure souvent
                   par une troisieme. Le maitre assigne repond du rendez-vous ;

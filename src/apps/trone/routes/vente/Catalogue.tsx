@@ -4,7 +4,7 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
-import { poseLaSectionKids, kidsAbsents } from '../../../../shared/kids';
+import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel,
@@ -793,6 +793,21 @@ export default function Catalogue() {
       : 'MND Kids est déjà là, au complet.');
   };
 
+  /* ══ REMETTRE MND KIDS AUX TARIFS DE LA MAISON — 4 septembre 2026 ══
+     La section a été posée le 3, ses tarifs décidés le 4 : shampoing Le Souffle
+     à moitié prix, reprise essentielle à 15 000, sublimation et renfort durable
+     donnés pour un tiers. `poseLaSectionKids` n'écrase JAMAIS ce qui existe,
+     c'est sa garantie ; il faut donc un geste séparé, et qui se voit.
+
+     IL NE TOUCHE QUE LES FICHES DE LA SECTION. Rouvrir cinq fiches à la main
+     laisserait une oubliée, et le forfait ne tomberait plus sur son total. */
+  const rafraichirKids = () => {
+    const n = metAJourLaSectionKids();
+    toast(n > 0
+      ? `MND Kids remise aux tarifs de la Maison : ${n} fiche${n > 1 ? 's' : ''} corrigée${n > 1 ? 's' : ''}.`
+      : 'MND Kids est déjà aux tarifs de la Maison.');
+  };
+
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
     const price = parseInt(svcForm.price.replace(/[^0-9]/g, ''), 10) || 0;
@@ -961,6 +976,15 @@ export default function Catalogue() {
                 encombre, et laisse croire qu'il reste quelque chose a faire. */}
             {kidsAbsents(services) > 0 && (
               <Button variant="ghost" onClick={poserKids}>+ MND Kids</Button>
+            )}
+            {/* LA SECTION EST LÀ MAIS PLUS AUX TARIFS DÉCIDÉS. Le bouton ne
+                paraît que dans ce cas précis, et dit combien de fiches ont
+                dérivé : un geste dont on ne sait pas ce qu'il va changer ne
+                se clique pas. */}
+            {kidsAbsents(services) === 0 && kidsADepasser(services) > 0 && (
+              <Button variant="ghost" onClick={rafraichirKids}>
+                MND Kids · {kidsADepasser(services)} à remettre au tarif
+              </Button>
             )}
           </>
         }

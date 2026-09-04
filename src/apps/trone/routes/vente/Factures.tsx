@@ -23,6 +23,7 @@ import { useAuth } from '../../../../shared/auth';
 import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abonnements';
 import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
+import { detailDuForfait } from '../../../../shared/kids';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
@@ -117,6 +118,11 @@ export default function Factures() {
   const nomDuService = (id: string) => services.find((sv) => sv.id === id)?.name ?? 'Prestation retirée';
   const contenuDeLaLigne = (piece: Invoice, l: InvoiceLine): string[] => {
     if (l.detail?.length) return l.detail;
+    /* UN FORFAIT ÉMIS AVANT LE 4 SEPTEMBRE NE PORTE RIEN. On retrouve son
+       contenu par la prestation qui porte le même nom, faute de mieux, et
+       jamais à la place de ce qui est écrit. */
+    const forfait = services.find((sv) => sv.name === l.label && (sv.includes?.length ?? 0) > 0);
+    if (forfait) return detailDuForfait(forfait, services, (x) => fmtMoney(x, currency));
     const abo = abonnes.find((a) => a.invoiceId === piece.id);
     if (!abo || piece.lines.length !== 1) return [];
     return libellesInclus(abo, formules.find((f) => f.id === abo.planId), nomDuService);
@@ -366,7 +372,7 @@ export default function Factures() {
         produits,
       });
       if (t.chosen.length === 0) continue;
-      trouves.push(...alignerFacturesDuRituel(a, byId, t.prixPlein, produits, t.gesteDe, { simuler }));
+      trouves.push(...alignerFacturesDuRituel(a, byId, t.prixPlein, produits, t.gesteDe, { simuler, argent: (x) => fmtMoney(x, currency) }));
     }
     return trouves;
   };

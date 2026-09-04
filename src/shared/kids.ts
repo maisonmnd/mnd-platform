@@ -40,12 +40,16 @@ const KIDS_CATEGORIE: CatalogCategory = {
     discute pas. Il se change au Catalogue comme n'importe quel autre. */
 const kid = (
   id: string, name: string, priceXof: number, durationMin: number, desc: string,
+  /* CE QUE LA PRESTATION VAUDRAIT AU TARIF DE LA MAISON. Absent = le tarif
+     enfant EST le tarif, il n'y a pas de geste à montrer. */
+  barreXof?: number,
 ): Service => ({
   id,
   categoryId: CAT_KIDS,
   name,
   description: desc,
   priceXof,
+  ...(barreXof ? { prixBarreXof: barreXof } : {}),
   durationMin,
   priceMode: 'fixe',
   reserveEnfants: true,
@@ -61,18 +65,19 @@ export const SERVICES_KIDS: Service[] = [
   /* ATELIER I — VÈKPÈ™ · la naissance */
   kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 55_000, 150,
     '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation et styling de sortie.'),
-  /* ATELIER II — GBÈJÍ™ · la vie */
-  kid('sv-kids-sinsin', 'SÍNSIN™ Kids · La Reprise', 15_000, 40,
+  /* ATELIER II — GBÈJÍ™ · la vie. Le tarif enfant EST le tarif : rien à barrer,
+     et l'annoncer réduit ferait un geste imaginaire. */
+  kid('sv-kids-sinsin', 'SÍNSIN™ Kids · La Reprise Essentielle', 15_000, 40,
     'Resserrage lock par lock sur une petite tête, contrôle d’uniformité, styling de sortie.'),
-  /* ATELIER III — YÈKPÈ™ · la lumière */
-  kid('sv-kids-yekpe', 'YÈKPÈ™ Kids · Un peu de sublimation', 8_000, 20,
-    'Brillance et parfum, sans transformation ni couleur. Le geste qui fait sourire au miroir.'),
-  /* ATELIER IV — FÍNFÍN™ · la renaissance */
-  kid('sv-kids-gbigbi', 'GBÌGBÌ™ Kids · Renfort durable', 13_000, 35,
-    'Anti-casse, fermeture de fibre. La version enfant du reconstituant.'),
-  /* LE PLATEAU — KLƆKLƆ™ */
-  kid('sv-kids-kloklo', 'KLƆKLƆ™ Kids · Le Shampoing', 9_000, 30,
-    'Lavage doux, démêlage patient, séchage léger.'),
+  /* ATELIERS III & IV — YÈKPÈ™ × GBÌGBÌ™. Les deux gestes tiennent dans la même
+     demi-heure sur une petite tête, et la Maison les donne pour un tiers de ce
+     qu'ils valent : 15 000 F rendus 5 000. */
+  kid('sv-kids-yekpe', 'YÈKPÈ™ × GBÌGBÌ™ Kids · Sublimation & Renfort durable', 5_000, 35,
+    'Brillance, parfum, anti-casse et fermeture de fibre. Les deux gestes en un, pour une petite couronne.',
+    15_000),
+  /* LE PLATEAU — KLƆKLƆ™, à moitié prix. */
+  kid('sv-kids-kloklo', 'KLƆKLƆ™ Kids · Le Shampoing « Le Souffle »', 5_000, 30,
+    'Lavage doux, démêlage patient, séchage léger.', 10_000),
 ];
 
 /** LE FORFAIT — 25 000 F, et le plafond ne bouge pas.
@@ -89,7 +94,7 @@ export const FORFAIT_KIDS: Service = {
   id: 'sv-kids-rituel',
   categoryId: CAT_KIDS,
   name: 'MND Kids · Le Rituel Complet',
-  description: 'Le shampoing, un peu de sublimation et le renfort durable, en un seul rituel. 30 000 F à la carte, 25 000 F au forfait.',
+  description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes.',
   priceXof: 25_000,
   durationMin: 85,
   priceMode: 'fixe',
@@ -104,8 +109,8 @@ export const FORFAIT_KIDS: Service = {
      jetons — c'est l'abonnement qui compte les passages. */
   includes: [
     { serviceId: 'sv-kids-kloklo' },
+    { serviceId: 'sv-kids-sinsin' },
     { serviceId: 'sv-kids-yekpe' },
-    { serviceId: 'sv-kids-gbigbi' },
   ],
 };
 
@@ -164,4 +169,127 @@ export const catalogueDeLaTete = <T extends { reserveEnfants?: boolean }>(
   if (kids !== 'oui') return [...services];
   const siens = services.filter((s) => s.reserveEnfants);
   return siens.length > 0 ? siens : [...services];
+};
+
+/** CE QUE LE FORFAIT CONTIENT, ET CE QU'IL DONNE — 4 septembre 2026.
+
+    « J'aurais voulu que les parents voient qu'on les accompagne vraiment avec
+    nos tarifs. J'aurais voulu avoir ce qui est inclus dans le service »
+    (Yéman).
+
+    UN FORFAIT NE MONTRAIT QUE SON TOTAL. « MND Kids · Le Rituel Complet ·
+    25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison donne : le parent
+    lit un prix, pas un geste. Or c'est exactement le geste qu'il faut voir.
+
+    LE PRIX BARRÉ NE SERT QU'À DIRE, jamais à compter : le total du forfait
+    reste celui du forfait, et rien ici ne touche à la caisse. */
+export type LigneDuForfait = {
+  serviceId: string;
+  nom: string;
+  prixXof: number;
+  /** Ce que la prestation vaudrait au tarif de la Maison. */
+  barreXof?: number;
+  gainXof: number;
+  pct: number;
+};
+
+export const compositionDuForfait = (
+  forfait: Pick<Service, 'includes'>, catalogue: readonly Service[],
+): LigneDuForfait[] =>
+  (forfait.includes ?? [])
+    .map((i) => catalogue.find((s) => s.id === i.serviceId))
+    .filter((s): s is Service => !!s)
+    .map((s) => {
+      const barre = s.prixBarreXof && s.prixBarreXof > s.priceXof ? s.prixBarreXof : undefined;
+      const gain = barre ? barre - s.priceXof : 0;
+      return {
+        serviceId: s.id, nom: s.name, prixXof: s.priceXof, barreXof: barre,
+        gainXof: gain, pct: barre ? Math.round((gain / barre) * 100) : 0,
+      };
+    });
+
+/** Ce que le forfait vaut au tarif de la Maison, et ce que la tête gagne. */
+export const gainDuForfait = (
+  forfait: Pick<Service, 'includes' | 'priceXof'>, catalogue: readonly Service[],
+): { carteXof: number; prixXof: number; gainXof: number; pct: number } => {
+  const lignes = compositionDuForfait(forfait, catalogue);
+  /* LE PRIX BARRÉ QUAND IL EXISTE, LE PRIX SINON : une ligne sans geste vaut
+     ce qu'elle coûte, et la compter à zéro gonflerait le gain annoncé. */
+  const carte = lignes.reduce((n, l) => n + (l.barreXof ?? l.prixXof), 0);
+  const prix = forfait.priceXof;
+  const gain = Math.max(0, carte - prix);
+  return { carteXof: carte, prixXof: prix, gainXof: gain, pct: carte > 0 ? Math.round((gain / carte) * 100) : 0 };
+};
+
+/** LA SECTION A CHANGÉ DE TARIFS — le geste qui met à jour ce qui est posé.
+
+    ON NE RÉÉCRIT JAMAIS CE QUI EXISTE, sauf quand la Maison le demande. Les
+    prix des Kids ont été décidés le 4 septembre après une première pose : sans
+    ce geste, il faudrait rouvrir six fiches à la main, et une seule oubliée
+    ferait un forfait qui ne tombe plus sur son total. Il ne touche QUE les
+    prestations de la section, jamais le reste du catalogue. */
+export function metAJourLaSectionKids(): number {
+  const voulus = new Map(TOUT_KIDS.map((s) => [s.id, s] as const));
+  let touchees = 0;
+  servicesStore.set((prev) => prev.map((s) => {
+    const v = voulus.get(s.id);
+    if (!v) return s;
+    const pareil = s.priceXof === v.priceXof
+      && (s.prixBarreXof ?? 0) === (v.prixBarreXof ?? 0)
+      && s.name === v.name
+      && JSON.stringify(s.includes ?? []) === JSON.stringify(v.includes ?? []);
+    if (pareil) return s;
+    touchees += 1;
+    return { ...s, name: v.name, priceXof: v.priceXof, description: v.description,
+      prixBarreXof: v.prixBarreXof, includes: v.includes?.map((i) => ({ ...i })) };
+  }));
+  return touchees;
+}
+
+/** Combien de prestations de la section ne sont plus aux tarifs de la Maison. */
+export const kidsADepasser = (services: readonly Service[]): number => {
+  const voulus = new Map(TOUT_KIDS.map((s) => [s.id, s] as const));
+  return services.filter((s) => {
+    const v = voulus.get(s.id);
+    if (!v) return false;
+    return s.priceXof !== v.priceXof || (s.prixBarreXof ?? 0) !== (v.prixBarreXof ?? 0)
+      || s.name !== v.name || JSON.stringify(s.includes ?? []) !== JSON.stringify(v.includes ?? []);
+  }).length;
+};
+
+/** LE CONTENU D'UN FORFAIT, ÉCRIT UNE FOIS, LU PARTOUT — 4 septembre 2026.
+
+    « Il faut traduire et sur le RDV et sur la facture » (Yéman).
+
+    LE RENDEZ-VOUS ET LA PIÈCE DOIVENT DIRE EXACTEMENT LA MÊME CHOSE. Deux
+    formulations du même geste finiraient par se contredire, et c'est devant le
+    parent que cela se verrait.
+
+    AVEC LES PRIX, CONTRAIREMENT À UN ABONNEMENT. Le détail d'un abonnement se
+    tait sur les montants parce que sa somme ne tombe pas sur son total, c'est
+    tout le principe. Un forfait, lui, tombe pile : 5 000 + 15 000 + 5 000 font
+    les 25 000 F annoncés. Le chiffrer ne contredit donc rien, et c'est là que
+    se lit ce que la Maison donne. */
+const listeDuCatalogue = (
+  c: readonly Service[] | ReadonlyMap<string, Service>,
+): readonly Service[] => (Array.isArray(c) ? c : [...(c as ReadonlyMap<string, Service>).values()]);
+
+export const detailDuForfait = (
+  forfait: Pick<Service, 'includes' | 'priceXof'>,
+  catalogue: readonly Service[] | ReadonlyMap<string, Service>,
+  fmt: (x: number) => string,
+): string[] => {
+  const cat = listeDuCatalogue(catalogue);
+  const lignes = compositionDuForfait(forfait, cat);
+  if (lignes.length === 0) return [];
+  const dites = lignes.map((l) => (l.barreXof
+    ? `${l.nom} · ${fmt(l.prixXof)} au lieu de ${fmt(l.barreXof)}, ${l.pct} % offerts`
+    : `${l.nom} · ${fmt(l.prixXof)}`));
+  const g = gainDuForfait(forfait, cat);
+  /* LA DERNIÈRE LIGNE DIT LE GESTE ENTIER. Trois remises isolées se lisent
+     comme trois détails ; leur somme se lit comme un accompagnement. */
+  if (g.gainXof > 0) {
+    dites.push(`${fmt(g.carteXof)} au tarif de la Maison, ${fmt(g.prixXof)} pour elle, ${fmt(g.gainXof)} offerts`);
+  }
+  return dites;
 };

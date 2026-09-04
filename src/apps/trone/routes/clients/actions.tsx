@@ -12,6 +12,7 @@ import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
   type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit } from '../../../../shared/finance';
+import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
@@ -860,6 +861,15 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           const r = remiseDeLigne(appt, posRituel[idx] >= 0 ? posRituel[idx] : idx);
           if (r.pct > 0) ligne.discountPct = r.pct;
           if (r.xof > 0) ligne.discountXof = r.xof;
+          /* CE QUE LE FORFAIT CONTIENT, GRAVÉ SUR LA PIÈCE — 4 septembre 2026.
+             « Il faut traduire et sur le RDV et sur la facture » (Yéman). Le
+             contenu est ÉCRIT, jamais relu au catalogue : c'est la même règle
+             que les prix d'époque. Changer le forfait dans six mois ne doit
+             pas réécrire ce qu'une cliente a acheté aujourd'hui. */
+          const dedans = (sv.includes?.length ?? 0) > 0
+            ? detailDuForfait(sv, byId, (x) => fmtMoney(x, currency))
+            : [];
+          if (dedans.length > 0) ligne.detail = dedans;
           return ligne;
         });
         /* Cas rare : le net dépasse la somme des prix pleins (montant convenu

@@ -2,6 +2,81 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE FORFAIT MND KIDS DIT CE QU'IL DONNE — 4 septembre 2026, PUBLIÉ
+
+« Pour le rituel complet pour les Kids, j'aurais voulu que les parents voient
+qu'on les accompagne vraiment avec nos tarifs. J'aurais voulu avoir ce qui est
+inclus dans le service. Shampoing Le Souffle −50 %, reprise essentielle 15 000,
+sublimation renfort durable 5 000 (−10 000 F). Il faut traduire et sur le RDV et
+sur la facture. »
+
+**Un forfait ne montrait que son total.** « MND Kids · Le Rituel Complet ·
+25 000 F » ne dit ni ce qu'on reçoit, ni ce que la Maison donne : le parent lit
+un prix, pas un geste, et un geste qu'on ne voit pas n'est pas reçu.
+
+### Les tarifs de la section, tels qu'ils ont été décidés
+
+| Geste | Tarif Maison | Tarif enfant |
+|---|---|---|
+| KLƆKLƆ™ Kids · Le Shampoing « Le Souffle » | 10 000 F | **5 000 F**, moitié prix |
+| SÍNSIN™ Kids · La Reprise Essentielle | — | **15 000 F** |
+| YÈKPÈ™ × GBÌGBÌ™ Kids · Sublimation & Renfort durable | 15 000 F | **5 000 F** |
+| **Le Rituel Complet** | **40 000 F** | **25 000 F**, 15 000 F offerts |
+
+**Les trois tarifs enfants tombent pile sur le forfait** : 5 000 + 15 000 +
+5 000 = 25 000. Le geste n'est pas une remise de plus posée sur le paquet, il
+est DANS chaque ligne, et c'est ce qui se raconte au parent.
+
+**`YÈKPÈ™ × GBÌGBÌ™ Kids` fond deux gestes en une ligne.** Les deux tiennent
+dans la même demi-heure sur une petite tête ; `sv-kids-gbigbi` n'existe plus
+comme fiche séparée. La section compte donc quatre gestes et le forfait, non
+plus cinq et le forfait.
+
+**La création reste hors du paquet.** VÈKPÈ™ Kids se pose une fois, le rituel
+d'entretien revient : les réunir ferait payer d'avance ce qui ne se consomme pas
+ensemble.
+
+### Le prix barré ne sert qu'à dire
+
+`Service.prixBarreXof` porte ce que la prestation vaudrait au tarif de la
+Maison. **Il n'entre dans aucun calcul** — ni le prix, ni le total, ni la
+commission, ni la caisse. Absent = le tarif enfant EST le tarif, et l'annoncer
+réduit ferait un geste imaginaire : c'est le cas de la reprise essentielle, qui
+dit son prix sans rien promettre.
+
+### Le même texte des deux côtés
+
+`detailDuForfait()` écrit la composition **une fois**, et le rendez-vous comme
+la pièce la lisent. Deux formulations du même geste finiraient par se
+contredire, et c'est devant le parent que cela se verrait.
+
+- **Sur le rituel** : sous la ligne du forfait, chaque geste avec son prix barré,
+  puis « 40 000 F au tarif de la Maison, 25 000 F pour elle, **15 000 F offerts** ».
+- **Sur la pièce** : les mêmes lignes en `InvoiceLine.detail`, donc aussi dans
+  le PDF, qui lit déjà ce champ.
+
+**Avec les prix, contrairement à un abonnement.** Le détail d'un abonnement se
+tait sur les montants parce que sa somme ne tombe pas sur son total, c'est tout
+le principe. Un forfait tombe pile : le chiffrer ne contredit rien.
+
+**Le contenu est gravé, jamais relu au catalogue.** Même règle que les prix
+d'époque : changer le forfait dans six mois ne doit pas réécrire ce qu'une
+cliente a acheté aujourd'hui. `alignerFacturesDuRituel` préserve le `detail`
+écrit sur une pièce émise, comme il préserve son montant. Les pièces d'avant,
+qui ne portent rien, retrouvent leur contenu par le nom de la prestation, faute
+de mieux et jamais à la place de ce qui est écrit.
+
+### Remettre la section aux tarifs décidés
+
+La section a été posée le 3 septembre, ses tarifs décidés le 4. `poseLaSectionKids`
+n'écrase JAMAIS ce qui existe, c'est sa garantie ; il faut donc un geste séparé.
+
+**Catalogue → « MND Kids · N à remettre au tarif »** appelle
+`metAJourLaSectionKids()`, qui ne touche QUE les fiches de la section. Le bouton
+ne paraît que lorsque des fiches ont dérivé, et dit combien : un geste dont on ne
+sait pas ce qu'il va changer ne se clique pas. **À faire une fois en production**,
+sans quoi le forfait ne tombe plus sur son total.
+
 ## CHACUN NE VOIT QUE SES DÉPENSES — 31 août, PUBLIÉ
 
 « L'employé Kabirou ne doit voir que ces dépenses, pas les dépenses de tous. Les

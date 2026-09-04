@@ -193,6 +193,20 @@ export type Service = {
 
       Absent = ouverte à toutes. Le juge est `estProposable` (shared/pricing). */
   reserveEnfants?: boolean;
+  /** LE PRIX QU'ON BARRE — 4 septembre 2026.
+
+      « J'aurais voulu que les parents voient qu'on les accompagne vraiment avec
+      nos tarifs » (Yéman).
+
+      CE QUE CETTE PRESTATION VAUDRAIT SANS LE GESTE DE LA MAISON. Un tarif
+      enfant à 5 000 F ne dit rien tout seul ; « 10 000 F, moitié prix » dit ce
+      que la Maison donne. Sans ce chiffre, l'accompagnement est invisible, et
+      un geste qu'on ne voit pas n'est pas reçu.
+
+      IL N'ENTRE DANS AUCUN CALCUL. Ni le prix, ni le total, ni la commission,
+      ni la caisse : il ne sert qu'à DIRE. Le confondre avec un prix ferait
+      facturer un montant que personne n'a demandé. */
+  prixBarreXof?: number;
   /** LES GESTES DE LA MAISON (15 août, décisions de Yéman) — cette prestation
       perd `pct` % de son prix quand l'une des `serviceIds` est au même rituel,
       pour les calibres `bandIds` (vide = tous). 100 = offerte.
