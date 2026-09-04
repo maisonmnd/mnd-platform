@@ -429,4 +429,22 @@ dit('une seance 2 ne vaut rien, meme figee', 0,
 dit('la remise mord sur le prix fige', 45_000,
   apptNetXof({ ...rituelFige, discountPct: 10 } as Appointment, byId));
 
+/* -- UNE PIECE A ZERO EST DEJA SOLDEE — 4 septembre 2026 ----------
+   « Comment solder une facture a 0 F ? » (Yeman). Le juge de l'argent le sait
+   deja : rien a recevoir, donc rien ne manque. C'est le STATUT qui restait
+   « envoyee », et l'ecran qui demandait un moyen de paiement pour une somme qui
+   n'existe pas. */
+const aZero = {
+  id: 'inv-0', branchId: 'br', kind: 'facture', number: 'F-0', clientId: 'c1',
+  date: '2026-09-04', lines: [ligneFacture('Rituel offert', 0)],
+  globalDiscountPct: 0, theme: 'Aube', status: 'envoyée',
+} as unknown as Invoice;
+dit('une piece a zero ne vaut rien', 0, invoiceTotal(aZero));
+dit('… elle est deja soldee', true, invoiceSoldee(aZero));
+dit('… et ne reclame rien', 0, invoiceResteXof(aZero));
+/* ET UNE PIECE COUVERTE PAR UN ABONNEMENT tombe au meme endroit : le rituel
+   vaut 0 F, la piece aussi, et aucun moyen de paiement n'a de sens. */
+dit('une piece entierement remisee aussi', true,
+  invoiceSoldee({ ...aZero, lines: [ligneFacture('Rituel', 20_000)], globalDiscountXof: 20_000 } as unknown as Invoice));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

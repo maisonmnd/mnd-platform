@@ -1501,6 +1501,24 @@ export default function Factures() {
                   Convertir en facture
                 </Button>
               ) : selected.status !== 'payée' ? (
+                /* ══ UNE PIÈCE À ZÉRO NE SE PAIE PAS, ELLE SE SOLDE — 4 sept. 2026
+                   « Comment solder une facture à 0 F ? » (Yéman).
+
+                   LE GESTE EXISTAIT, MAIS IL DEMANDAIT UN MOYEN DE PAIEMENT.
+                   « Payée · MTN MoMo » sur une pièce à zéro est un mensonge
+                   poli : aucun argent n'est passé par ce canal, et la ligne
+                   remonterait au registre d'une caisse qui n'a rien reçu. Un
+                   rituel entièrement couvert par un abonnement, ou offert, se
+                   FERME — il ne s'encaisse pas.
+
+                   Le moyen de paiement disparaît donc quand il n'y a rien à
+                   encaisser, et le bouton dit ce qu'il fait. */
+                invoiceTotal(selected) <= 0 ? (
+                  <Button variant="copper" size="sm" style={{ width: '100%' }}
+                    onClick={() => patchSelected({ status: 'payée', payment: undefined })}>
+                    Solder · rien à encaisser
+                  </Button>
+                ) : (
                 <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
                   <Select value={payChoice} onChange={(e) => setPayChoice(e.target.value as PaymentMethod)} style={{ flex: 1, fontSize: 12 }}>
                     {methods.map((p) => (
@@ -1511,9 +1529,15 @@ export default function Factures() {
                     Marquer payée
                   </Button>
                 </div>
+                )
               ) : (
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--trv-success)', textAlign: 'center' }}>
-                  Payée · {selected.payment}
+                  {/* SOLDÉE N'EST PAS PAYÉE. Sans moyen et sans montant, la pièce
+                      est close, pas encaissée — et l'écran ne prétend pas le
+                      contraire. */}
+                  {selected.payment
+                    ? <>Payée · {selected.payment}</>
+                    : invoiceTotal(selected) <= 0 ? 'Soldée · rien à encaisser' : 'Payée'}
                   {selected.fx && ` · ${selected.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${selected.fx.code}`}
                 </div>
               )}

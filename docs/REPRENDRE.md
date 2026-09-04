@@ -464,6 +464,26 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UNE PIÈCE À ZÉRO NE SE PAIE PAS, ELLE SE SOLDE · 4 septembre 2026
+
+« Comment solder une facture à 0 F ? »
+
+**LE GESTE EXISTAIT, MAIS IL DEMANDAIT UN MOYEN DE PAIEMENT.** « Payée · MTN
+MoMo » sur une pièce à zéro est un mensonge poli : aucun argent n'est passé par
+ce canal, et la ligne remonterait au registre d'une caisse qui n'a rien reçu. Un
+rituel entièrement couvert par un abonnement, ou offert, se **ferme** — il ne
+s'encaisse pas.
+
+Le sélecteur de moyen disparaît donc quand le total est nul, et le bouton dit ce
+qu'il fait : **« Solder · rien à encaisser »**. Le statut passe à `payée` sans
+`payment`, et l'écran affiche « Soldée · rien à encaisser » au lieu de
+« Payée · undefined ».
+
+**LE JUGE DE L'ARGENT LE SAVAIT DÉJÀ** : `invoiceSoldee()` rend vrai sur une
+pièce à zéro (rien à recevoir, donc rien ne manque), et `invoiceResteXof` rend
+zéro. C'était le STATUT qui restait « envoyée », et l'écran qui réclamait un
+canal pour une somme qui n'existe pas. Quatre contrôles de plus.
+
 ## UN SEUL LIEN POUR TOUT LE FOYER · 3 septembre 2026
 
 « Je voudrais émettre un lien de paiement unique pour le foyer. Les RDV du 8 et
