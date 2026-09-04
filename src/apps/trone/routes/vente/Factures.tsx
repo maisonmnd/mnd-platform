@@ -25,7 +25,7 @@ import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
-import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
+import { invoicePdf, summaryPdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
 import { retirerParReferences } from '../../../../shared/stock';
@@ -1870,6 +1870,59 @@ export default function Factures() {
           + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frDay(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
           + `Références ${prises.map((i) => i.number).join(', ')}`,
         );
+        /* ══ LE RÉCAPITULATIF DU FOYER — 4 septembre 2026 ══════════════
+           « Je veux un PDF qui résume leurs 3 RDV avant que j'envoie le lien de
+           paiement » (Yéman).
+
+           TROIS PIÈCES SÉPARÉES NE FONT PAS UNE DEMANDE. Envoyer trois PDF puis
+           un montant unique oblige la payeuse à additionner elle-même pour
+           vérifier ce qu'on lui réclame, et une mère qui additionne de tête
+           devant trois papiers finit par appeler la Maison. Le récapitulatif
+           dit d'un seul tenant : qui est venue, quel jour, ce qu'elle a reçu,
+           ce que cela vaut, et la somme au bas.
+
+           IL NE RÉCLAME RIEN DE PLUS QUE LES PIÈCES QU'IL RÉSUME. Chaque ligne
+           porte le montant ÉCRIT sur sa facture, et le total est la somme des
+           restes dus, celui-là même que le lien va porter. Deux chiffres qui ne
+           se rejoignent pas sur un même envoi se lisent comme une erreur. */
+        const recapDuFoyer = async () => {
+          if (prises.length === 0) return;
+          const foyer = payeur?.familyId
+            ? families.find((f) => f.id === payeur.familyId)
+            : undefined;
+          const sections = prises.map((i) => {
+            const regle = invoiceRegleXof(i);
+            const rows: { label: string; value?: string; strong?: boolean; sub?: boolean }[] = [];
+            for (const l of i.lines) {
+              rows.push({
+                label: l.qty > 1 ? `${l.label} ×${l.qty}` : l.label,
+                value: fmtMoney(Math.round(ligneNetXof(l)), currency),
+              });
+              /* CE QUE LE FORFAIT CONTIENT SUIT SUR LE RÉCAPITULATIF AUSSI :
+                 c'est là que la Maison montre ce qu'elle donne, et c'est ce
+                 papier-là que le parent lit avant de payer. */
+              for (const t of contenuDeLaLigne(i, l)) rows.push({ label: t, sub: true });
+            }
+            if (regle > 0) rows.push({ label: 'Déjà réglé', value: `− ${fmtMoney(regle, currency)}` });
+            rows.push({ label: 'Reste à régler', value: fmtMoney(invoiceResteXof(i), currency), strong: true });
+            return { heading: `${clientNameOf(i)} · ${frDay(jourDuPassage(i))} · ${i.number}`, rows };
+          });
+          await summaryPdf({
+            eyebrow: 'Avant règlement',
+            title: foyer?.name ?? `Le foyer de ${(payeur?.name ?? '').split(' ')[0]}`,
+            houseName: maisonNom(),
+            meta: [
+              `${prises.length} rituels · ${branch.name}`,
+              `Références ${prises.map((i) => i.number).join(', ')}`,
+            ],
+            sections,
+            total: { label: 'À régler pour le foyer', value: fmtMoney(total, currency) },
+            footer: 'Ce récapitulatif ne réclame rien de plus que les pièces qu’il résume.',
+            filename: `recapitulatif-foyer-${prises.map((i) => i.number).join('-')}.pdf`,
+          });
+          toast('Récapitulatif téléchargé.');
+        };
+
         const bascule = (id: string) => setLienFoyer((prev) => (prev ? {
           ...prev,
           prises: prev.prises.includes(id) ? prev.prises.filter((x) => x !== id) : [...prev.prises, id],
@@ -1923,6 +1976,12 @@ export default function Factures() {
                 Ce lien <b>réclame</b>, il n’encaisse pas. Quand l’argent arrive, pointez chaque
                 pièce à son montant : c’est ce qui garde les comptes de chaque tête justes.
               </div>
+              {/* LE RÉCAPITULATIF PART AVANT LE LIEN, et le bouton est donc
+                  AVANT lui : l'ordre des gestes à l'écran est l'ordre de la
+                  conversation avec la payeuse. */}
+              <Button variant="ghost" disabled={prises.length === 0} onClick={() => void recapDuFoyer()}>
+                Récapitulatif des {prises.length} rituels · PDF
+              </Button>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Button variant="ghost" style={{ flex: 1 }} onClick={() => setLienFoyer(null)}>Fermer</Button>
                 {lien && tel && (

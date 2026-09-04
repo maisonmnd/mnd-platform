@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE RÉCAPITULATIF DU FOYER, AVANT LE LIEN — 4 septembre 2026, PUBLIÉ
+
+« Je veux avoir un PDF qui résume leurs 3 RDV avant que j'envoie le lien de
+paiement. »
+
+**Trois pièces séparées ne font pas une demande.** Envoyer trois PDF puis un
+montant unique oblige la payeuse à additionner elle-même pour vérifier ce qu'on
+lui réclame, et une mère qui additionne de tête devant trois papiers finit par
+appeler la Maison. Le récapitulatif dit d'un seul tenant : qui est venue, quel
+jour, ce qu'elle a reçu, ce que cela vaut, et la somme au bas.
+
+**Il ne réclame rien de plus que les pièces qu'il résume.** Chaque ligne porte
+le montant ÉCRIT sur sa facture, et le total est la somme des restes dus,
+celui-là même que le lien va porter. Deux chiffres qui ne se rejoignent pas sur
+un même envoi se lisent comme une erreur.
+
+**Où.** Factures › une pièce du foyer › « Un seul lien pour le foyer » › le
+bouton **« Récapitulatif des N rituels · PDF »**, posé AVANT le lien : l'ordre
+des gestes à l'écran est l'ordre de la conversation avec la payeuse. Décocher
+une pièce la retire du papier comme du montant, les deux suivent la même case.
+
+**Ce qu'il faut pour qu'il paraisse** : les têtes rattachées au même compte
+famille, et une facture par rituel qui réclame encore. Sans pièce, rien à
+résumer.
+
+### Ce que `summaryPdf` a gagné
+
+- **`total`** — le montant qui conclut, sous un filet de cuivre, en serif
+  indigo, comme le total d'une facture : la cliente ne doit pas avoir à
+  apprendre deux papiers.
+- **`sub`** — une ligne en retrait, plus petite et grise : le contenu d'un
+  forfait sous son intitulé. C'est là que le geste MND Kids se lit avant le
+  paiement.
+- **La police fon est embarquée AVANT les lignes.** Le pied la chargeait en fin
+  de course : d'ici là « KLƆKLƆ™ » sortait « KLOKLO™ » sur un papier qui porte
+  le nom des gestes de la Maison. Tous les résumés en profitent, consultations
+  comprises.
+
 ## OUVRIR SON COMPTE MA COURONNE LA PREMIÈRE FOIS — 4 septembre 2026, PUBLIÉ
 
 « Les clientes reçoivent un code de connexion au lieu d'un lien. Je parle de la

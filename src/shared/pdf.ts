@@ -733,21 +733,37 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   return filename;
 }
 
-export type SummarySection = { heading: string; rows: { label: string; value?: string }[] };
+export type SummarySection = {
+  heading: string;
+  rows: { label: string; value?: string; strong?: boolean; sub?: boolean }[];
+};
 
-/** PDF générique — résumé de consultation, etc. Télécharge le fichier. */
+/** PDF générique — résumé de consultation, récapitulatif d'un foyer, etc.
+    Télécharge le fichier. */
 export async function summaryPdf(o: {
   eyebrow?: string;
   title: string;
   houseName: string;
   meta?: string[];
   sections: SummarySection[];
+  /** LE MONTANT QUI CONCLUT — 4 septembre 2026.
+
+      « Je veux un PDF qui résume leurs 3 RDV avant que j'envoie le lien de
+      paiement » (Yéman). Un papier qu'on remet à quelqu'un avant de lui
+      demander de l'argent doit dire CE QU'ON DEMANDE, une fois, en grand. La
+      somme perdue au milieu des lignes se recompte de tête, et on ne recompte
+      pas de tête devant une mère de trois filles. */
+  total?: { label: string; value: string };
   footer?: string;
   filename: string;
 }): Promise<string> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   normalizeSpaces(doc);
+  /* LA POLICE FON D'ABORD. Le pied l'embarque en fin de course : d'ici là,
+     `texteFon` retombait sur la translittération et « KLƆKLƆ™ » sortait
+     « KLOKLO™ » sur un papier qui porte le nom des gestes de la Maison. */
+  await assureFon(doc);
   const W = 210;
   const M = 18;
   let y = 20;
@@ -801,18 +817,47 @@ export async function summaryPdf(o: {
     doc.setTextColor(INK);
     for (const r of sec.rows) {
       if (y > 275) { doc.addPage(); y = 24; }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(INK);
-      const wrapped = doc.splitTextToSize(r.label, W - 2 * M - (r.value ? 50 : 0));
-      doc.text(wrapped, M, y);
+      /* `sub` : ce que contient la ligne du dessus — plus petit, en retrait et
+         en gris, comme le contenu d'un forfait sur une facture. */
+      doc.setFont('helvetica', r.strong ? 'bold' : 'normal');
+      doc.setFontSize(r.sub ? 8 : 10);
+      doc.setTextColor(r.sub ? SOFT : INK);
+      const gauche = M + (r.sub ? 6 : 0);
+      const texte = pdfSafeGardeFon(r.label);
+      const wrapped = doc.splitTextToSize(texte, W - M - gauche - (r.value ? 34 : 0)) as string[];
+      let ligne = y;
+      for (const morceau of wrapped) {
+        texteFon(doc, morceau, gauche, ligne);
+        ligne += r.sub ? 4 : 5;
+      }
       if (r.value) {
-        doc.setTextColor(SOFT);
+        doc.setTextColor(r.strong ? INK : SOFT);
         doc.text(r.value, W - M, y, { align: 'right' });
       }
-      y += wrapped.length * 5 + 2;
+      y += wrapped.length * (r.sub ? 4 : 5) + (r.sub ? 0 : 2);
     }
     y += 5;
+  }
+
+  /* LE MONTANT QUI CONCLUT — voir l'en-tête. Il se pose sous un filet de
+     cuivre, comme le total d'une facture : c'est le même geste, et la cliente
+     ne doit pas avoir à apprendre deux papiers. */
+  if (o.total) {
+    if (y > 250) { doc.addPage(); y = 24; }
+    y += 2;
+    doc.setDrawColor(COPPER);
+    doc.setLineWidth(0.6);
+    doc.line(M, y, W - M, y);
+    y += 9;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SOFT);
+    doc.text(o.total.label.toUpperCase(), M, y);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(20);
+    doc.setTextColor(INDIGO);
+    doc.text(o.total.value, W - M, y + 1.5, { align: 'right' });
+    y += 12;
   }
 
   if (o.footer) {
