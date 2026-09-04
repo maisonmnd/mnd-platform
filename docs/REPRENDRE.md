@@ -464,6 +464,35 @@ coche devant son nom. Une teinte de fond seule ne suffisait pas.
 second devient « Je passerai au comptoir » : il n'encaisse rien, il réserve la
 formule et laisse la Maison encaisser au fauteuil.
 
+## UNE PIÈCE À ZÉRO EST UNE ATTESTATION · 4 septembre 2026
+
+« Je ne vois toujours pas le bouton sur le RDV. La facture ne peut pas être
+émise. »
+
+**DEUX GARDES SE CACHAIENT L'UN DERRIÈRE L'AUTRE**, et le bouton de la veille ne
+servait à rien tant qu'aucune pièce ne pouvait naître :
+
+- au Carnet, le geste vivait sous `dueX > 0` : sur un rituel couvert par un
+  abonnement, le bouton **disparaissait entièrement** ;
+- et `factureAEnvoyer` refusait : « Ce rituel ne doit rien, il n'y a pas de
+  facture à réclamer ».
+
+**LE RAISONNEMENT ÉTAIT JUSTE POUR UNE RÉCLAMATION, mais il confondait deux
+papiers.** On ne réclame pas ce qu'on n'attend pas ; on **atteste** toujours ce
+qu'on a fait. Une cliente dont le rituel est couvert par son abonnement a droit à
+une pièce : ce qui a été fait, ce que cela vaut, et pourquoi elle ne doit rien.
+C'est le papier qu'elle garde, et il manquait à son histoire.
+
+**ELLE NAÎT SOLDÉE**, jamais « envoyée » : une pièce qui ne réclame rien ne doit
+pas aller grossir les impayés du mois. Et **elle dit pourquoi** — « couvert par
+son abonnement », « rien à régler » — parce qu'un papier à zéro sans un mot se
+lit comme une erreur de la Maison, et c'est la cliente qui appelle pour
+comprendre.
+
+Le bouton du Carnet dit désormais « Éditer la pièce · rien à régler » quand il
+n'y a rien à réclamer, et « Émettre la facture · N dû » sinon. Cinq contrôles de
+plus.
+
 ## UNE PIÈCE À ZÉRO NE SE PAIE PAS, ELLE SE SOLDE · 4 septembre 2026
 
 « Comment solder une facture à 0 F ? »

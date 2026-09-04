@@ -1,6 +1,7 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
 import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee } from '../src/apps/trone/routes/clients/_shared';
+import { factureAEnvoyer } from '../src/apps/trone/routes/clients/actions';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
 import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
 import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof } from '../src/shared/finance';
@@ -446,5 +447,32 @@ dit('… et ne reclame rien', 0, invoiceResteXof(aZero));
    vaut 0 F, la piece aussi, et aucun moyen de paiement n'a de sens. */
 dit('une piece entierement remisee aussi', true,
   invoiceSoldee({ ...aZero, lines: [ligneFacture('Rituel', 20_000)], globalDiscountXof: 20_000 } as unknown as Invoice));
+
+/* -- UNE PIECE A ZERO EST UNE ATTESTATION — 4 septembre 2026 ------
+   « Je ne vois toujours pas le bouton sur le RDV. La facture ne peut pas etre
+   emise » (Yeman).
+
+   LE GARDE REFUSAIT TOUT RITUEL QUI NE DOIT RIEN. Le raisonnement etait juste
+   pour une RECLAMATION, mais il confondait deux papiers : une cliente dont le
+   rituel est couvert par son abonnement a droit a une PIECE, qui dit ce qui a
+   ete fait, ce que cela vaut, et pourquoi elle ne doit rien. */
+invoicesStore.set(() => []);
+const rituelCouvert = {
+  ...appt(['a', 'b']), id: 'ap-couv', invoiceId: undefined,
+  coveredBySub: true, priceXof: 0,
+} as Appointment;
+const emise = factureAEnvoyer(rituelCouvert, byId, 'br');
+dit('la piece d’un rituel couvert s’emet', true, emise.ok);
+/* ELLE NAIT SOLDEE, jamais « envoyee » : une piece qui ne reclame rien ne doit
+   pas aller grossir les impayes du mois. */
+dit('… et elle nait soldee', 'payée', emise.ok ? emise.inv.status : null);
+dit('… elle ne reclame rien', 0, emise.ok ? invoiceResteXof(emise.inv) : -1);
+/* ELLE DIT POURQUOI. Un papier a zero sans un mot se lit comme une erreur de la
+   Maison, et c'est la cliente qui appelle pour comprendre. */
+dit('… et elle dit pourquoi', true,
+  emise.ok ? (emise.inv.note ?? '').includes('couvert par son abonnement') : false);
+/* ON N'EN EMET PAS DEUX : la seconde demande rend la premiere. */
+const encore = factureAEnvoyer(rituelCouvert, byId, 'br');
+dit('la seconde demande rend la premiere', true, encore.ok && encore.deja);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

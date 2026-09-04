@@ -392,9 +392,20 @@ export default function Carnet() {
                     Encaisser {dueX > 0 ? `· reste ${fmtMoney(dueX, currency)}` : '(pourboire)'}
                   </button>
                 )}
-                {canEncaisser && !sansPrix && dueX > 0 && (
+                {/* ══ UNE PIÈCE À ZÉRO EST UNE ATTESTATION — 4 septembre 2026
+                    « Je ne vois toujours pas le bouton sur le RDV. La facture ne
+                    peut pas être émise » (Yéman).
+
+                    LE GESTE SE CACHAIT SOUS `dueX > 0`. Un rituel couvert par un
+                    abonnement, ou offert, ne doit rien : le bouton disparaissait
+                    donc entièrement, et la cliente restait sans papier pour ce
+                    qu'elle avait reçu. On ne réclame pas ce qu'on n'attend pas,
+                    mais on ATTESTE toujours ce qu'on a fait. */}
+                {canEncaisser && !sansPrix && (
                   <button onClick={() => emettreFacture(a)}>
-                    Émettre la facture · {fmtMoney(dueX, currency)} dû
+                    {dueX > 0
+                      ? `Émettre la facture · ${fmtMoney(dueX, currency)} dû`
+                      : 'Éditer la pièce · rien à régler'}
                   </button>
                 )}
                 {/* POSER LA SÉANCE SUIVANTE (15 août) — « je dois choisir la

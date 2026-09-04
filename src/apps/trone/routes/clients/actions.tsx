@@ -434,8 +434,23 @@ export function factureAEnvoyer(
   branchId: string,
 ): { ok: true; inv: Invoice; deja: boolean } | { ok: false; erreur: string } {
   const du = apptDueXof(appt, byId);
-  if (du <= 0) return { ok: false, erreur: 'Ce rituel ne doit rien, il n’y a pas de facture à réclamer.' };
-  const dejaLa = invoicesStore.get().find((i) => i.apptId === appt.id && i.kind === 'facture' && i.status !== 'payée');
+  /* ══ UNE PIÈCE À ZÉRO EST UNE ATTESTATION — 4 septembre 2026 ═══════
+     « Je ne vois toujours pas le bouton sur le RDV. La facture ne peut pas être
+     émise » (Yéman).
+
+     LE GARDE REFUSAIT TOUT RITUEL QUI NE DOIT RIEN. Le raisonnement était juste
+     pour une RÉCLAMATION — on ne réclame pas ce qu'on n'attend pas — mais il
+     confondait deux papiers. Une cliente dont le rituel est couvert par son
+     abonnement, ou offert, a droit à une PIÈCE : ce qui a été fait, ce que cela
+     vaut, et pourquoi elle ne doit rien. C'est ce papier-là qu'elle garde, et
+     c'est lui qui manque à son histoire quand il n'existe pas.
+
+     ELLE NAÎT SOLDÉE, jamais « envoyée » : une pièce qui ne réclame rien ne
+     doit pas aller grossir les impayés du mois. Le sens est le même que le
+     bouton « Solder · rien à encaisser » de l'écran des factures. */
+  const soldeeDeNaissance = du <= 0;
+  const dejaLa = invoicesStore.get().find((i) => i.apptId === appt.id && i.kind === 'facture'
+    && (soldeeDeNaissance || i.status !== 'payée'));
   if (dejaLa) return { ok: true, inv: dejaLa, deja: true };
 
   const services = apptServices(appt, byId);
@@ -451,7 +466,7 @@ export function factureAEnvoyer(
   const inv = nouvelleFacture({
     branchId,
     serie: 'MND',
-    status: 'envoyée',
+    status: soldeeDeNaissance ? 'payée' : 'envoyée',
     /* LA PIÈCE PORTE LE JOUR DU RITUEL, PAS CELUI OÙ ON LA RÉCLAME.
        Sans cette ligne, `nouvelleFacture` retombait sur aujourd'hui : une
        facture éditée avec trois semaines de retard datait du jour de la
@@ -467,7 +482,12 @@ export function factureAEnvoyer(
     discountLabel: remise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
     theme: 'Aube',
     master: appt.master,
-    note: `Rituel du ${appt.date}${(appt.paidXof ?? 0) > 0 ? ` · déjà réglé ${appt.paidXof}, reste ${du}` : ''}`,
+    /* LA PIÈCE DIT POURQUOI ELLE NE RÉCLAME RIEN. Un papier à zéro sans un mot
+       se lit comme une erreur de la Maison, et c'est la cliente qui appelle
+       pour comprendre. */
+    note: soldeeDeNaissance
+      ? `Rituel du ${appt.date}${appt.coveredBySub ? ', couvert par son abonnement' : ', rien à régler'}.`
+      : `Rituel du ${appt.date}${(appt.paidXof ?? 0) > 0 ? ` · déjà réglé ${appt.paidXof}, reste ${du}` : ''}`,
   });
   const avecLien: Invoice = { ...inv, apptId: appt.id };
   invoicesStore.set((prev) => [avecLien, ...prev]);
