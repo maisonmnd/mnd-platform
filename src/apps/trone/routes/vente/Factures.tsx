@@ -13,7 +13,7 @@ import { payerClientIdOf } from '../../../../shared/accounts';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
 import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
-import { Modal, toast } from '../../../../ds/components';
+import { Modal, toast, Field, Input } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
 import { detacheLesVersementsDeLaPiece } from '../../../../shared/abonnements';
 import { retirerPourboiresDesFactures, repointerPourboires } from '../../../../shared/tips';
@@ -346,6 +346,23 @@ export default function Factures() {
      LE LIEN NE FAIT QU'UNE CHOSE : il porte un montant. C'est donc à l'écran de
      dire ce que ce montant couvre, pièce par pièce, dans le message. */
   const [lienFoyer, setLienFoyer] = useState<{ pieces: Invoice[]; prises: string[] } | null>(null);
+  /* ══ UN LIEN POUR UN MONTANT, SANS PIÈCE DERRIÈRE — 4 septembre 2026 ═
+     « Pose un endroit où taper simplement 45 000 et obtenir un lien, et
+     l'envoi WhatsApp d'un geste » (Yéman).
+
+     TOUS LES LIENS DE LA MAISON PENDAIENT À UN DOCUMENT : une facture, un
+     rituel, un foyer. C'est juste neuf fois sur dix, et infirme la dixième :
+     un acompte convenu au téléphone, un flacon qu'on met de côté, une avance
+     avant la pose. Il fallait fabriquer une pièce pour rien, ou dicter le code
+     à composer par message.
+
+     IL RÉCLAME, IL N'ENCAISSE PAS, et rien ici ne le rattache à quoi que ce
+     soit : c'est pourquoi l'écran le DIT, et rappelle que l'argent arrivé se
+     pointe à la main. Un lien qui laisserait croire à une trace serait pire
+     que pas de lien du tout. */
+  const [lienLibre, setLienLibre] = useState<
+    { montant: string; clientId: string; tel: string; motif: string } | null
+  >(null);
   const [scanEnCours, setScanEnCours] = useState(false);
 
   /* LES PIÈCES DU FOYER QUI RÉCLAMENT ENCORE. Toutes les têtes rattachées au
@@ -1070,6 +1087,12 @@ export default function Factures() {
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setFusions(chercherLesFusions())}>
           Rassembler les pièces d'un rituel
+        </Button>
+        {/* LE LIEN SANS PIÈCE. Il vit ici, avec les autres gestes d'argent, et
+            non dans un coin de réglages : on le cherche au moment où l'on
+            réclame, pas au moment où l'on configure. */}
+        <Button variant="ghost" size="sm" onClick={() => setLienLibre({ montant: '', clientId: '', tel: '', motif: '' })}>
+          Un lien de paiement
         </Button>
         <Select value={moisFilter} onChange={(e) => setMoisFilter(e.target.value)} style={{ fontSize: 12, maxWidth: 180 }}>
           <option value="tous">Tous les mois</option>
@@ -1855,6 +1878,116 @@ export default function Factures() {
           Le lien ne fait qu'une chose : il porte un MONTANT. C'est donc au
           message de dire ce que ce montant couvre, pièce par pièce — sans quoi
           la payeuse reçoit un chiffre rond sans savoir de quoi il répond. */}
+      {lienLibre && (() => {
+        const montant = Math.max(0, Math.round(parseInt(lienLibre.montant.replace(/[^0-9]/g, ''), 10) || 0));
+        const tete = clients.find((c) => c.id === lienLibre.clientId);
+        /* LE NUMÉRO DE LA FICHE, MODIFIABLE. Une cliente donne parfois celui de
+           son mari, ou paie depuis un autre téléphone : imposer la fiche
+           obligerait à la corriger pour un seul envoi. */
+        const tel = (lienLibre.tel || tete?.phone || '').replace(/\D/g, '');
+        const lien = montant > 0 ? lienPaiementMomo(montant) : null;
+        const prenom = (tete?.name ?? '').split(' ')[0];
+        const motif = lienLibre.motif.trim();
+        const msg = lien ? signeLeMessage(
+          `${maisonNom()}\n`
+          + `${prenom ? `Bonjour ${prenom}, pour` : 'Pour'} régler ${fmtMoney(montant, currency)} par Mobile Money, `
+          + `ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`
+          + (motif ? `\n${motif}` : ''),
+        ) : '';
+        return (
+          <Modal title="Un lien de paiement" onClose={() => setLienLibre(null)} width={480}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
+                Un montant, un lien, et le message part. Sans facture ni rendez-vous derrière :
+                pour un acompte convenu au téléphone, un flacon mis de côté, une avance.
+              </div>
+
+              <Field label="Le montant à réclamer">
+                <Input
+                  inputMode="numeric"
+                  autoFocus
+                  value={lienLibre.montant}
+                  onChange={(e) => setLienLibre({ ...lienLibre, montant: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="45000"
+                  style={{ textAlign: 'right', fontSize: 20, fontFamily: 'var(--font-serif)' }}
+                />
+              </Field>
+
+              {/* LA TÊTE EST FACULTATIVE : le lien vaut par son montant, pas par
+                  son destinataire. La nommer sert au message et au numéro. */}
+              <Field label="Pour qui · facultatif">
+                <ClientPicker
+                  value={lienLibre.clientId}
+                  onChange={(id) => {
+                    const c = clients.find((x) => x.id === id);
+                    setLienLibre({ ...lienLibre, clientId: id, tel: c?.phone ?? lienLibre.tel });
+                  }}
+                />
+              </Field>
+
+              <Field label="Le numéro qui reçoit">
+                <Input
+                  inputMode="tel"
+                  value={lienLibre.tel}
+                  onChange={(e) => setLienLibre({ ...lienLibre, tel: e.target.value })}
+                  placeholder="+229…"
+                />
+              </Field>
+
+              {/* CE QUE LE MONTANT PAIE, EN TROIS MOTS. Un lien nu se lit comme
+                  une réclamation sans cause, et c'est ce qui fait appeler la
+                  Maison pour comprendre. */}
+              <Field label="Ce que cela règle · facultatif">
+                <Input
+                  value={lienLibre.motif}
+                  onChange={(e) => setLienLibre({ ...lienLibre, motif: e.target.value })}
+                  placeholder="Acompte sur la pose du 12 septembre"
+                />
+              </Field>
+
+              {montant > 0 && !lien && (
+                <div className="tre-inline-note">
+                  <span className="mark">!</span>
+                  <span>Le paiement Mobile Money n’est pas réglé pour cette Maison. Paramètres → Automatisations.</span>
+                </div>
+              )}
+
+              {lien && (
+                <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '11px 13px', background: 'var(--surface-card)' }}>
+                  <div className="mnd-eyebrow" style={{ fontSize: 9.5, marginBottom: 6 }}>Ce qu’elle recevra</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--ink-soft)' }}>{msg}</div>
+                </div>
+              )}
+
+              {/* IL RÉCLAME, IL N'ENCAISSE PAS — et sans pièce derrière, rien ne
+                  suivra tout seul. On le dit ici, là où le geste se fait. */}
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Ce lien <b>réclame</b>, il n’encaisse pas, et aucune pièce ne le suit. Quand l’argent
+                arrive, écrivez-le vous-même : c’est ce qui garde la caisse juste.
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Button variant="ghost" style={{ flex: 1 }} onClick={() => setLienLibre(null)}>Fermer</Button>
+                {lien && tel && (
+                  <a
+                    className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
+                    target="_blank" rel="noreferrer"
+                  >
+                    {prenom ? `Adresser à ${prenom}` : 'Adresser par WhatsApp'}
+                  </a>
+                )}
+                {lien && (
+                  <Button onClick={() => { void navigator.clipboard?.writeText(lien); toast('Lien copié.'); }}>
+                    Copier le lien
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {lienFoyer && (() => {
         const prises = lienFoyer.pieces.filter((i) => lienFoyer.prises.includes(i.id));
         const total = prises.reduce((n, i) => n + invoiceResteXof(i), 0);

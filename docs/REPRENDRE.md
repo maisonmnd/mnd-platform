@@ -2,6 +2,37 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UN LIEN POUR UN MONTANT, SANS PIÈCE DERRIÈRE — 4 septembre 2026, PUBLIÉ
+
+« Pose un endroit où taper simplement 45 000 et obtenir un lien, et l'envoi
+WhatsApp d'un geste. »
+
+**Tous les liens de la Maison pendaient à un document** : une facture, un
+rituel, un foyer. C'est juste neuf fois sur dix, et infirme la dixième : un
+acompte convenu au téléphone, un flacon mis de côté, une avance avant la pose.
+Il fallait fabriquer une pièce pour rien, ou dicter le code à composer par
+message.
+
+**Où.** Factures & devis › **« Un lien de paiement »**, dans la barre du haut à
+côté de « Conformité au rituel ». Il vit avec les autres gestes d'argent et non
+dans un coin de réglages : on le cherche au moment où l'on réclame, pas au
+moment où l'on configure.
+
+- **Le montant** suffit. Tout le reste est facultatif.
+- **La tête** est facultative : le lien vaut par son montant, pas par son
+  destinataire. La nommer sert au message et remplit le numéro.
+- **Le numéro reste modifiable** : une cliente donne parfois celui de son mari,
+  ou paie depuis un autre téléphone ; imposer la fiche obligerait à la corriger
+  pour un seul envoi.
+- **« Ce que cela règle »** entre dans le message. Un lien nu se lit comme une
+  réclamation sans cause, et c'est ce qui fait appeler la Maison.
+- **L'aperçu montre le message** avant qu'il ne parte.
+
+**Il réclame, il n'encaisse pas, et aucune pièce ne le suit.** C'est écrit dans
+la modale, là où le geste se fait : rien ne suivra tout seul, l'argent arrivé
+s'écrit à la main. Un lien qui laisserait croire à une trace serait pire que pas
+de lien du tout.
+
 ## LA PIÈCE VAUT LE RITUEL, TOUJOURS — 4 septembre 2026, PUBLIÉ
 
 « Quand j'émets la facture du RDV de S. au lieu de 85 000 F je reçois une
