@@ -4,7 +4,7 @@ import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, reven
 import { factureAEnvoyer } from '../src/apps/trone/routes/clients/actions';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
 import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
-import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof } from '../src/shared/finance';
+import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof, ligneNetXof, lignesDuRituelPiece } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
 import { cibleDeLEncaissement } from '../src/shared/receipts';
@@ -476,3 +476,90 @@ const encore = factureAEnvoyer(rituelCouvert, byId, 'br');
 dit('la seconde demande rend la premiere', true, encore.ok && encore.deja);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+
+/* ══ LA PIÈCE VAUT LE RITUEL, TOUJOURS ═════════════════════════════
+   « Quand j'émets la facture du RDV de S. au lieu de 85 000 F je reçois une
+   facture de 70 000 F avec des montants qui ne sont pas conformes au RDV »
+   (Yéman, 4 septembre 2026).
+
+   L'INVARIANT SE JUGE ICI : somme des lignes nettes − remise globale = le net
+   du rendez-vous. Aucun franc ne s'évapore, aucun ne s'invente. */
+const netDe = (r: { lines: InvoiceLine[]; remiseGlobaleXof: number }): number =>
+  r.lines.reduce((n, l) => n + ligneNetXof(l), 0) - r.remiseGlobaleXof;
+
+/* LE CAS EXACT DU 4 SEPTEMBRE. Quatre gestes au tarif de la tête (Nano, 427
+   locks), le shampoing à moitié prix, un rituel qui vaut 85 000 F. */
+const rituelDeSeptembre = lignesDuRituelPiece({
+  gestes: [
+    { nom: 'KLƆKLƆ™ Essentiel', pleinXof: 10_000, remisePct: 50 },
+    { nom: 'DÀNDÀN™ Le Soin Ultra-Hydratant', pleinXof: 25_000 },
+    { nom: 'SÍNSIN™ Essentielle · La Reprise', pleinXof: 40_000 },
+    { nom: 'FÍNFÍN™ Légère · La Réparation Douce', pleinXof: 15_000 },
+  ],
+  netXof: 85_000,
+  libelleNu: 'Rituel',
+});
+dit('quatre gestes, quatre lignes', 4, rituelDeSeptembre.lines.length);
+dit('… le shampoing garde son prix plein', 10_000, rituelDeSeptembre.lines[0].unitXof);
+dit('… et porte sa remise, pour qu’elle se voie', 50, rituelDeSeptembre.lines[0].discountPct);
+dit('… la reprise est au tarif de la tête', 40_000, rituelDeSeptembre.lines[2].unitXof);
+dit('… aucun ajustement n’est nécessaire', 0, rituelDeSeptembre.remiseGlobaleXof);
+dit('… et la pièce vaut le rituel', 85_000, netDe(rituelDeSeptembre));
+
+/* ── LES LIGNES VALENT MOINS QUE LE RITUEL ────────────────────────
+   C'est la faute du 4 septembre : le total tombait à la somme des lignes et la
+   Maison sous-facturait de 15 000 F sans que rien ne le dise. */
+const consenti = lignesDuRituelPiece({
+  gestes: [{ nom: 'Une reprise', pleinXof: 20_000 }],
+  netXof: 35_000,
+  libelleNu: 'Rituel',
+});
+dit('un prix consenti au-dessus du barème s’écrit en clair', 2, consenti.lines.length);
+dit('… et vaut la différence', 15_000, consenti.lines[1].unitXof);
+dit('… la pièce vaut le rituel', 35_000, netDe(consenti));
+dit('… sans remise globale', 0, consenti.remiseGlobaleXof);
+
+/* ── LES LIGNES VALENT PLUS ───────────────────────────────────────
+   Forfait ponctuel, remise du rendez-vous, remise famille : l'écart se
+   RETRANCHE, et il se nomme. */
+const forfait = lignesDuRituelPiece({
+  gestes: [
+    { nom: 'Un shampoing', pleinXof: 10_000 },
+    { nom: 'Une reprise', pleinXof: 40_000 },
+  ],
+  netXof: 45_000,
+  libelleNu: 'Rituel',
+});
+dit('un forfait se dit en remise globale', 5_000, forfait.remiseGlobaleXof);
+dit('… sans toucher aux lignes', [10_000, 40_000], forfait.lines.map((l) => l.unitXof));
+dit('… et la pièce vaut le rituel', 45_000, netDe(forfait));
+
+/* ── LA REMISE EN FRANCS SUIT LE POURCENTAGE ──────────────────────
+   Le % d'abord, les F ensuite : c'est l'ordre du rendez-vous, et l'inverser
+   changerait le montant réclamé. */
+const deuxRemises = lignesDuRituelPiece({
+  gestes: [{ nom: 'Une reprise', pleinXof: 40_000, remisePct: 10, remiseXof: 6_000 }],
+  netXof: 30_000,
+  libelleNu: 'Rituel',
+});
+dit('le pourcentage puis les francs', 30_000, netDe(deuxRemises));
+dit('… la ligne garde son prix plein', 40_000, deuxRemises.lines[0].unitXof);
+
+/* ── AUCUNE PRESTATION RECONNUE ───────────────────────────────────
+   Une fiche disparue du catalogue ne doit pas faire une pièce vide : elle
+   porte le rituel entier sous son nom. */
+const nu = lignesDuRituelPiece({ gestes: [], netXof: 52_000, libelleNu: 'Rituel du 4 septembre' });
+dit('une pièce nue porte le rituel entier', 1, nu.lines.length);
+dit('… à son net', 52_000, netDe(nu));
+dit('… sous son nom', 'Rituel du 4 septembre', nu.lines[0].label);
+
+/* ── UN RITUEL COUVERT NE RÉCLAME RIEN ────────────────────────────
+   Couvert par l'abonnement, ou offert : les lignes disent ce qui a été fait,
+   la remise globale dit pourquoi il n'y a rien à payer. */
+const couvert = lignesDuRituelPiece({
+  gestes: [{ nom: 'Une reprise', pleinXof: 40_000 }],
+  netXof: 0,
+  libelleNu: 'Rituel',
+});
+dit('un rituel couvert montre quand même son geste', 40_000, couvert.lines[0].unitXof);
+dit('… et ne réclame rien', 0, netDe(couvert));

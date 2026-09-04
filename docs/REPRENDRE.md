@@ -2,6 +2,47 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PIÈCE VAUT LE RITUEL, TOUJOURS — 4 septembre 2026, PUBLIÉ
+
+« Quand j'émets la facture du RDV de S. au lieu de 85 000 F je reçois une
+facture de 70 000 F avec des montants qui ne sont pas conformes au RDV. »
+
+**Deux fautes dans `factureAEnvoyer`, et la seconde est la pire.**
+
+**① Les lignes étaient tarifées au catalogue.** Le rendez-vous, lui, compte au
+tarif de la tête : calibre, comptage des locks, Juste Prix. Une reprise à
+40 000 F pour une Nano de 427 locks s'écrivait 20 000 F. C'est la dette déjà
+payée dans `alignerFacturesDuRituel` le 12 août ; elle avait survécu ici. Le
+Carnet passe désormais son contexte tarifaire, comme le fait l'écran des
+factures.
+
+**② L'écart disparaissait en silence.** La pièce ne connaissait qu'une remise
+globale, c'est-à-dire ce qu'il faut RETRANCHER quand les lignes valent plus que
+le rituel. Quand elles valent MOINS, il n'y avait rien : le total tombait à la
+somme des lignes et **la Maison sous-facturait sans que rien ne le dise**.
+15 000 F évaporés sur une seule pièce. La remise de ligne était perdue au
+passage : le shampoing à moitié prix s'écrivait plein.
+
+### L'invariant, et où il vit
+
+**Somme des lignes nettes − remise globale = le net du rendez-vous.** Aucun
+franc ne s'évapore, aucun ne s'invente. `lignesDuRituelPiece()` (shared/finance)
+le tient, et `verifie-facturation` le juge, le cas du 4 septembre compris.
+
+Les lignes valent plus → l'écart se retranche en remise globale (forfait
+ponctuel, remise du rendez-vous, remise famille). Les lignes valent moins →
+l'écart s'écrit en clair, « Ajustement · prix consenti ce jour-là ». Chaque
+ligne porte son prix PLEIN et sa remise, jamais un prix déjà raboté : un cadeau
+qu'on ne voit pas n'est pas reçu.
+
+**Les pièces déjà émises de travers** se réparent depuis Factures › **Conformité
+au rituel**, qui montre les écarts avant de les corriger.
+
+**La voie « Encaisser » n'est pas touchée** : elle construisait déjà ses lignes
+au tarif de la tête, avec les remises et sa ligne d'ajustement. Les deux chemins
+disent enfin la même chose ; les réunir sous `lignesDuRituelPiece` reste à
+faire, et ce jour-là le juge est déjà écrit.
+
 ## LE PRIX CONVENU SE REVOIT — 4 septembre 2026, PUBLIÉ
 
 « Permets-moi de modifier le prix convenu. »

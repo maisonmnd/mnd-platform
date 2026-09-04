@@ -1744,3 +1744,71 @@ export const objectifsASurveiller = (
 export const joursEntreISO = (a: string, b: string): number =>
   Math.round((Date.parse(`${b.slice(0, 10)}T00:00:00Z`) - Date.parse(`${a.slice(0, 10)}T00:00:00Z`)) / 86400000);
 
+
+/* ══ LES LIGNES D'UNE PIÈCE DE RITUEL — 4 septembre 2026 ════════════
+   « Quand j'émets la facture du RDV de S. au lieu de 85 000 F je reçois une
+   facture de 70 000 F avec des montants qui ne sont pas conformes au RDV »
+   (Yéman).
+
+   DEUX FAUTES, ET LA SECONDE EST LA PIRE.
+
+   ① Les lignes étaient tarifées AU CATALOGUE quand le rendez-vous, lui,
+     compte au tarif de la tête : calibre, comptage des locks, Juste Prix. Une
+     reprise à 40 000 F pour une Nano de 427 locks s'écrivait 20 000 F. C'est
+     la faute déjà corrigée dans `alignerFacturesDuRituel` le 12 août ; elle
+     avait survécu ici.
+
+   ② L'ÉCART DISPARAISSAIT EN SILENCE. La pièce ne connaissait qu'une remise
+     globale — ce qu'il faut RETRANCHER quand les lignes valent plus que le
+     rituel. Quand elles valent MOINS, il n'y avait rien : le total tombait à la
+     somme des lignes et la Maison sous-facturait sans que rien ne le dise.
+     15 000 F évaporés sur une seule pièce.
+
+   LA PIÈCE VAUT LE RITUEL, TOUJOURS. C'est l'invariant, et il se juge ici :
+   somme des lignes − remise globale + ajustement = le net du rendez-vous. */
+export type GesteFacture = {
+  nom: string;
+  /** Son prix plein AU TARIF DE LA TÊTE, avant toute remise. */
+  pleinXof: number;
+  /** La remise posée sur CETTE ligne au rendez-vous : le % d'abord, les F ensuite. */
+  remisePct?: number;
+  remiseXof?: number;
+};
+
+export function lignesDuRituelPiece(o: {
+  gestes: readonly GesteFacture[];
+  /** Ce que le rendez-vous vaut réellement — prix figé et forfait compris. */
+  netXof: number;
+  /** Le libellé de la pièce quand aucune prestation n'est reconnue. */
+  libelleNu: string;
+  libelleAjustement?: string;
+}): { lines: InvoiceLine[]; remiseGlobaleXof: number } {
+  const net = Math.max(0, Math.round(o.netXof));
+  if (o.gestes.length === 0) {
+    return { lines: [ligneFacture(o.libelleNu, net)], remiseGlobaleXof: 0 };
+  }
+  /* CHAQUE LIGNE PORTE SON PRIX PLEIN ET SA REMISE, jamais un prix déjà raboté :
+     « shampoing 5 000 » cache le geste, « 10 000, remise 50 % » le montre. Un
+     cadeau qu'on ne voit pas n'est pas reçu. */
+  const lines: InvoiceLine[] = o.gestes.map((g) => {
+    const l = ligneFacture(g.nom, Math.max(0, Math.round(g.pleinXof)));
+    const pct = Math.max(0, Math.min(100, Math.round(g.remisePct ?? 0)));
+    const xof = Math.max(0, Math.round(g.remiseXof ?? 0));
+    if (pct > 0) l.discountPct = pct;
+    if (xof > 0) l.discountXof = xof;
+    return l;
+  });
+  const netDesLignes = lines.reduce((n, l) => n + ligneNetXof(l), 0);
+  /* LES LIGNES VALENT PLUS QUE LE RITUEL : l'écart est un geste global (forfait
+     ponctuel, remise du rendez-vous, remise famille). Il se NOMME. */
+  if (netDesLignes > net) {
+    return { lines, remiseGlobaleXof: Math.round(netDesLignes - net) };
+  }
+  /* LES LIGNES VALENT MOINS : un prix a été consenti AU-DESSUS du barème, ou
+     figé plus haut. On l'écrit en clair plutôt que de laisser la pièce
+     réclamer moins que le rituel — c'est de l'argent qui n'entrerait jamais. */
+  if (net > netDesLignes) {
+    lines.push(ligneFacture(o.libelleAjustement ?? 'Ajustement · prix consenti ce jour-là', Math.round(net - netDesLignes)));
+  }
+  return { lines, remiseGlobaleXof: 0 };
+}

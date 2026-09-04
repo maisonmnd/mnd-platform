@@ -11,7 +11,8 @@ import { useCategories, fondeLaCouronne, type Service, useProducts } from '../..
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
-  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit } from '../../../../shared/finance';
+  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit,
+  lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -433,6 +434,13 @@ export function factureAEnvoyer(
   appt: Appointment,
   byId: Map<string, Service>,
   branchId: string,
+  /** LE PRIX PLEIN DE CHAQUE PRESTATION, AU TARIF DE LA TÊTE — 4 septembre
+      2026. Même dette que `alignerFacturesDuRituel` le 12 août : `svcPriceForAppt`
+      ne connaît que la longueur et le catalogue, et ignore les planchers par
+      calibre, le tarif au lock et le Juste Prix. L'appelant passe SON contexte
+      tarifaire ; le repli reste l'ancien calcul pour ne rien casser d'un appel
+      nu, mais il sous-tarife toute tête qui n'est pas au barème de référence. */
+  prixPlein: (s: Service) => number = (s) => svcPriceForAppt(appt, s),
 ): { ok: true; inv: Invoice; deja: boolean } | { ok: false; erreur: string } {
   const du = apptDueXof(appt, byId);
   /* ══ UNE PIÈCE À ZÉRO EST UNE ATTESTATION — 4 septembre 2026 ═══════
@@ -455,15 +463,22 @@ export function factureAEnvoyer(
   if (dejaLa) return { ok: true, inv: dejaLa, deja: true };
 
   const services = apptServices(appt, byId);
-  const brut = services.reduce((n, sv) => n + svcPriceForAppt(appt, sv), 0);
   const net = apptNetXof(appt, byId);
-  /* UNE LIGNE PAR PRESTATION, à leur prix plein : la cliente doit reconnaître
-     son rituel dans la pièce. L'écart avec le net (remise, forfait) se dit en
-     remise globale plutôt que de se cacher dans les prix. */
-  const lignes = services.length
-    ? services.map((sv) => ligneFacture(sv.name, svcPriceForAppt(appt, sv)))
-    : [ligneFacture(apptLabel(appt, byId), net)];
-  const remise = services.length && brut > net ? brut - net : 0;
+  /* UNE LIGNE PAR PRESTATION, à son prix plein ET avec sa remise : la cliente
+     doit reconnaître son rituel dans la pièce, geste compris.
+
+     L'INDEX VIENT DE `serviceIds`, PAS DE `services` — même garde que partout
+     ailleurs : les deux divergent dès qu'une fiche a quitté le catalogue, et la
+     remise irait au geste voisin, en silence. */
+  const { lines: lignes, remiseGlobaleXof: remise } = lignesDuRituelPiece({
+    gestes: services.map((sv) => {
+      const pos = appt.serviceIds.indexOf(sv.id);
+      const r = remiseDeLigne(appt, pos >= 0 ? pos : 0);
+      return { nom: sv.name, pleinXof: prixPlein(sv), remisePct: r.pct, remiseXof: r.xof };
+    }),
+    netXof: net,
+    libelleNu: apptLabel(appt, byId),
+  });
   const inv = nouvelleFacture({
     branchId,
     serie: 'MND',

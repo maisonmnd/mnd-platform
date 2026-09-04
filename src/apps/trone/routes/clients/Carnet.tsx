@@ -8,7 +8,8 @@ import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { monthTitle } from '../finances/_shared';
 import { appointmentsStore, type Appointment } from '../../../../shared/agenda';
-import { useCategories, MAISONS, type Maison } from '../../../../shared/catalog';
+import { useCategories, useServices, useProducts, MAISONS, type Maison } from '../../../../shared/catalog';
+import { useModelBands, useBandSets } from '../../../../shared/pricing';
 import { useStaff as useMyStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
@@ -17,6 +18,7 @@ import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptNetXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  tarifsDuRituel,
 } from './_shared';
 import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 
@@ -107,6 +109,12 @@ export default function Carnet() {
   const clients = useBranchClients();
   const byId = useServicesById();
   const [categories] = useCategories();
+  /* Ce qu'il faut pour tarifer au calibre et au lock : le meme attelage que
+     l'ecran des factures. */
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const [services] = useServices();
+  const [produits] = useProducts();
   const today = todayISO();
 
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
@@ -118,7 +126,15 @@ export default function Carnet() {
      s'adresse par WhatsApp. On y va aussitôt : émettre une pièce sans la voir
      n'apprend rien à personne. */
   const emettreFacture = (a: Appointment) => {
-    const r = factureAEnvoyer(a, byId, branch.id);
+    /* LE TARIF DE LA TETE, PAS CELUI DE LA VITRINE — 4 septembre 2026. La piece
+       naissait au prix catalogue : une reprise a 40 000 F pour une Nano de 427
+       locks s'ecrivait 20 000 F, et l'ecart s'evaporait. Le Carnet passe donc
+       son contexte tarifaire, comme le fait deja l'ecran des factures. */
+    const t = tarifsDuRituel(a, {
+      client: clients.find((c) => c.id === a.clientId),
+      bands, sets, cats: categories, byId, tousServices: services, produits,
+    });
+    const r = factureAEnvoyer(a, byId, branch.id, t.prixPlein);
     setMenuFor(null);
     if (!r.ok) { window.alert(r.erreur); return; }
     navigate(`/factures?id=${r.inv.id}`);
