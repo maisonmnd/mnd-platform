@@ -11,6 +11,7 @@ import {
   resteDeLEcheancier, enRetardXof, prochaineEcheance, plusVieuxRetardJours, tropVerseXof,
   deplaceEcheance, peutReserver, JOURS_DE_GRACE,
 } from '../src/shared/echeancier';
+import { revoitLePrixConvenu, type Subscriber } from '../src/shared/abonnements';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -267,3 +268,85 @@ dit('l’échéancier coupe comme l’écran', [84_000, 84_000],
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
+
+/* ══ REVOIR LE PRIX CONVENU D'UN CONTRAT ═══════════════════════════
+   « Permets-moi de modifier le prix convenu » (Yéman, 4 septembre 2026).
+
+   Le prix était figé parce que la pièce, l'échéancier et le suivi doivent dire
+   le même chiffre. On ne le fige plus : on déplace ce qui en dépend, et c'est
+   ce déplacement qui se juge ici. */
+
+const contrat = (echeances: { numero: number; dueIso: string; amountXof: number }[],
+  verses: number[]): Subscriber => ({
+  id: 'sub-x', branchId: 'b1', clientId: 'c1', name: 'Une tête', planId: 'pl-x',
+  cycle: 'annuel', status: 'active', sinceIso: '2026-01-05', nextIso: '2027-01-05',
+  prixConvenuXof: 160_000,
+  echeances,
+  payments: verses.map((amountXof, i) => ({ id: `p${i}`, date: '2026-01-05', amountXof, method: 'Espèces' })),
+} as unknown as Subscriber);
+
+const lesTroisTranches = [
+  { numero: 1, dueIso: '2026-01-05', amountXof: 60_000 },
+  { numero: 2, dueIso: '2026-02-04', amountXof: 50_000 },
+  { numero: 3, dueIso: '2026-03-06', amountXof: 50_000 },
+];
+
+/* ── ① L'ARGENT DÉJÀ REÇU EST UN FAIT ─────────────────────────────
+   Aucun prix ne peut passer sous ce qu'elle a versé : la Maison deviendrait sa
+   débitrice, et rendre de l'argent est une décision d'avoir. */
+const trop = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000, 50_000]), undefined, 90_000);
+dit('un prix sous les versements se refuse', false, trop.ok);
+dit('… et le refus porte le montant reçu', true, (trop.refus ?? '').includes('110000'));
+dit('un contrat à zéro se refuse aussi', false,
+  revoitLePrixConvenu(contrat(lesTroisTranches, []), undefined, 0).ok);
+
+/* ── ② LES TRANCHES PAYÉES NE BOUGENT PAS ─────────────────────────
+   Une tranche entièrement réglée est une page tournée : la réécrire ferait
+   réapparaître une dette éteinte. */
+const monte = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000]), undefined, 190_000);
+dit('la hausse passe', true, monte.ok);
+dit('… la première, payée, reste à 60 000', 60_000, monte.echeances?.[0].amountXof);
+dit('… une seule tranche est gardée', 1, monte.gardees);
+dit('… le reste se répartit sur les deux autres', [65_000, 65_000],
+  (monte.echeances ?? []).slice(1).map((e) => e.amountXof));
+dit('… et la somme fait le nouveau prix', 190_000,
+  (monte.echeances ?? []).reduce((n, e) => n + e.amountXof, 0));
+
+/* LA BAISSE SUIT LA MÊME RÈGLE. 130 000 après 60 000 reçus : il reste 70 000
+   à répartir sur deux tranches. */
+const baisse = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000]), undefined, 130_000);
+dit('la baisse se répartit aussi', [60_000, 35_000, 35_000],
+  (baisse.echeances ?? []).map((e) => e.amountXof));
+
+/* LE RAB VA SUR LA DERNIÈRE : la Maison ne réclame jamais un franc de plus
+   qu'annoncé sur une tranche qu'elle vient de nommer. */
+const impair = revoitLePrixConvenu(contrat(lesTroisTranches, []), undefined, 100_001);
+dit('le rab tombe sur la dernière tranche', [33_333, 33_333, 33_335],
+  (impair.echeances ?? []).map((e) => e.amountXof));
+
+/* ── ③ JAMAIS DE TRANCHE À ZÉRO ───────────────────────────────────
+   Une tranche vide se lirait comme soldée d'avance, et la cliente croirait
+   devoir moins. On en garde moins plutôt que d'en écrire une vide. */
+const presqueSolde = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000, 50_000]), undefined, 110_002);
+dit('deux francs ne font pas deux tranches', 3, presqueSolde.echeances?.length);
+dit('… aucune tranche n’est vide', true,
+  (presqueSolde.echeances ?? []).every((e) => e.amountXof > 0));
+/* TOUT EST PAYÉ, LE PRIX TOMBE PILE : l'échéancier n'a plus de tranche à venir
+   et s'arrête sur les pages tournées. */
+const solde = revoitLePrixConvenu(contrat(lesTroisTranches, [60_000, 50_000, 50_000]), undefined, 160_000);
+dit('un contrat soldé garde ses trois tranches', [60_000, 50_000, 50_000],
+  (solde.echeances ?? []).map((e) => e.amountXof));
+
+/* ── ④ LES RANGS SE REFONT ────────────────────────────────────────
+   « La deuxième » doit rester la deuxième de la liste qu'on lui montre, sinon
+   le suivi et le rappel parlent de tranches différentes. */
+dit('les rangs se suivent', [1, 2, 3], (monte.echeances ?? []).map((e) => e.numero));
+/* LES DATES NE BOUGENT PAS : on change un montant, pas un calendrier. */
+dit('les dates ne bougent pas', ['2026-01-05', '2026-02-04', '2026-03-06'],
+  (monte.echeances ?? []).map((e) => e.dueIso));
+
+/* ── ⑤ SANS ÉCHÉANCIER, RIEN À REFAIRE ────────────────────────────
+   Un contrat réglé d'un coup n'a pas de tranches : le prix change, seul. */
+const sansTranches = revoitLePrixConvenu(contrat([], [160_000]), undefined, 190_000);
+dit('un contrat sans tranches passe', true, sansTranches.ok);
+dit('… et ne s’invente pas d’échéancier', undefined, sansTranches.echeances);

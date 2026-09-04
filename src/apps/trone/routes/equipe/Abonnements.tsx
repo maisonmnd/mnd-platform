@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   usePaymentMethods, useCashboxes, caisseParDefaut, nouvelleFacture, ligneFacture,
-  invoicesStore, type Invoice, type InvoicePayment,
+  invoicesStore, invoiceRegleXof, type Invoice, type InvoicePayment,
 } from '../../../../shared/finance';
 import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
@@ -16,6 +16,7 @@ import {
   prixDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
+  revoitLePrixConvenu,
   comptesAbonnement, comptesRanges, moteurDesAbonnements, ETAT_LABEL,
   prochaineReferenceAbo,
   type Plan, type Subscriber, type Payment, type SubCycle, type PlanIncluded, type FamilleFormule,
@@ -147,7 +148,9 @@ export default function Abonnements() {
   const [filtreCompte, setFiltreCompte] = useState<FiltreCompte>('tous');
   const [histoireOuverte, setHistoireOuverte] = useState<string[]>([]);
   const [contratEdit, setContratEdit] = useState<
-    { sub: Subscriber; planId: string; inclus: PlanIncluded[] } | null
+    /* `prix` en TEXTE, comme tous les montants qui se saisissent : un nombre
+       obligerait a choisir ce que vaut un champ vide, et 0 n'est pas vide. */
+    { sub: Subscriber; planId: string; inclus: PlanIncluded[]; prix: string } | null
   >(null);
   /* ══ LE RITUEL S'OUVRE, PAS LA FICHE — 1er septembre 2026 ═══════════
      « Quand je clique le RDV ça ouvre le profil du client. Je veux que ça
@@ -929,21 +932,64 @@ export default function Abonnements() {
      LE CONTENU DEVIENT LE SIEN (`inclusPropres`), jamais celui de la nouvelle
      formule : c'est ce contrat-là qu'on répare, pas la formule du catalogue,
      et retoucher la formule changerait le contenu de toutes les autres. */
+  /* ══ LE PRIX CONVENU SE REVOIT — 4 septembre 2026 ══════════════════
+     « Permets-moi de modifier le prix convenu » (Yéman).
+
+     IL ÉTAIT FIGÉ POUR UNE BONNE RAISON, ET LA RAISON TIENT : la pièce,
+     l'échéancier et le suivi doivent dire le même chiffre. On ne le fige donc
+     plus, on DÉPLACE tout ce qui en dépend, d'un seul geste.
+
+     LA PIÈCE NE SUIT QUE SI ELLE N'A RIEN REÇU. Un papier remis à quelqu'un est
+     une trace, pas une vue : dès qu'un franc y est entré, son montant
+     appartient au jour où il a été annoncé. On le DIT plutôt que de réécrire en
+     silence, et la correction se fait alors depuis Factures, où l'écart se
+     justifie. */
   const enregistreLeContrat = () => {
     if (!contratEdit) return;
     const { sub, planId, inclus } = contratEdit;
     if (!planId) { toast('Choisissez une formule.'); return; }
     const ancien = planOf(sub.planId);
     const prixFige = sub.prixConvenuXof ?? prixVenduXof(sub, ancien, sub.cycle ?? 'mensuel');
+    const voulu = Math.max(0, Math.round(parseInt(contratEdit.prix.replace(/[^0-9]/g, ''), 10) || 0));
+    const bouge = voulu > 0 && voulu !== prixFige;
+    const revu = bouge ? revoitLePrixConvenu(sub, ancien, voulu) : null;
+    if (revu && !revu.ok) {
+      /* LE REFUS SE DIT AVEC SON CHIFFRE. « Impossible » n'apprend rien ; le
+         montant déjà versé, si. */
+      toast(revu.refus?.replace(String(revu.verseXof), fmtMoney(revu.verseXof, currency)) ?? 'Ce prix ne peut pas être posé.');
+      return;
+    }
+    const prixTenu = bouge ? voulu : prixFige;
     const suite: Subscriber = {
       ...sub, planId,
       inclusPropres: inclus.map((i) => ({ ...i })),
-      ...(prixFige > 0 ? { prixConvenuXof: prixFige } : {}),
+      ...(prixTenu > 0 ? { prixConvenuXof: prixTenu } : {}),
+      ...(revu?.echeances ? { echeances: revu.echeances } : {}),
     };
     setSubs((prev) => prev.map((x) => (x.id === suite.id ? suite : x)));
     if (suiviFor?.id === suite.id) setSuiviFor(suite);
+
+    /* LA PIÈCE SUIT, OU DIT POURQUOI ELLE NE SUIT PAS. */
+    let motPiece = '';
+    if (bouge && sub.invoiceId) {
+      const piece = invoicesStore.get().find((i) => i.id === sub.invoiceId);
+      const totalPiece = prixTenu + (sub.couleur?.supplementXof ?? 0);
+      if (!piece) motPiece = '';
+      else if (invoiceRegleXof(piece) > 0) {
+        motPiece = ` La pièce ${piece.number} a déjà reçu de l’argent : elle garde son montant, corrigez-la depuis Factures.`;
+      } else if (piece.lines.length !== 1) {
+        motPiece = ` La pièce ${piece.number} porte plusieurs lignes : son montant se corrige depuis Factures.`;
+      } else {
+        invoicesStore.set((prev) => prev.map((i) => (i.id === piece.id
+          ? { ...i, lines: [{ ...i.lines[0], qty: 1, unitXof: totalPiece }] }
+          : i)));
+        motPiece = ` La pièce ${piece.number} suit.`;
+      }
+    }
     setContratEdit(null);
-    toast(`Contrat repris sur « ${planOf(planId)?.name ?? 'la formule'} », le prix convenu ne bouge pas.`);
+    toast(bouge
+      ? `Prix convenu : ${fmtMoney(prixTenu, currency)}.${revu?.echeances ? ` L’échéancier se refait sur ${revu.echeances.length} tranche${revu.echeances.length > 1 ? 's' : ''}.` : ''}${motPiece}`
+      : `Contrat repris sur « ${planOf(planId)?.name ?? 'la formule'} », le prix convenu ne bouge pas.`);
   };
 
   const qteContrat = (serviceId: string, qty: number | null) => {
@@ -2300,7 +2346,12 @@ export default function Abonnements() {
                   Changer les dates
                 </button>
                 {' · '}
-                <button type="button" className="tre-link-btn" onClick={() => setContratEdit({ sub: suiviFor, planId: suiviFor.planId, inclus: inclusVendus(suiviFor, plan).map((i) => ({ ...i })) })}>
+                <button type="button" className="tre-link-btn" onClick={() => setContratEdit({
+                  sub: suiviFor,
+                  planId: suiviFor.planId,
+                  inclus: inclusVendus(suiviFor, plan).map((i) => ({ ...i })),
+                  prix: String(prixVenduXof(suiviFor, plan, suiviFor.cycle ?? 'mensuel')),
+                })}>
                   Modifier le contrat
                 </button>
               </div>
@@ -2621,10 +2672,66 @@ export default function Abonnements() {
                 </div>
               )}
 
-              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
-                Le prix convenu reste figé à <b>{fmtMoney(prixFige, currency)}</b> : la pièce, l’échéancier
-                et le suivi doivent dire le même chiffre. Les dates se corrigent depuis le Suivi.
-              </div>
+              {/* ══ LE PRIX CONVENU SE REVOIT — 4 septembre 2026 ═══════════
+                  « Permets-moi de modifier le prix convenu » (Yéman).
+
+                  IL ÉTAIT FIGÉ POUR UNE BONNE RAISON, ET LA RAISON TIENT : la
+                  pièce, l'échéancier et le suivi doivent dire le même chiffre.
+                  On ne fige donc plus le prix, on ANNONCE ce qu'il déplace,
+                  avant d'enregistrer. Un champ qui change trois choses sans le
+                  dire se paie en confiance. */}
+              <Field label="Le prix convenu de ce contrat">
+                <Input
+                  inputMode="numeric"
+                  value={contratEdit.prix}
+                  onChange={(e) => setContratEdit({ ...contratEdit, prix: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder={String(prixFige)}
+                  style={{ textAlign: 'right' }}
+                />
+              </Field>
+
+              {(() => {
+                const voulu = Math.max(0, Math.round(parseInt(contratEdit.prix.replace(/[^0-9]/g, ''), 10) || 0));
+                if (voulu === 0 || voulu === prixFige) {
+                  return (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                      Le prix ne bouge pas. La pièce, l’échéancier et le suivi doivent dire le même
+                      chiffre : c’est ce champ qui les déplace tous les trois. Les dates se corrigent
+                      depuis le Suivi.
+                    </div>
+                  );
+                }
+                const revu = revoitLePrixConvenu(sub, planOf(sub.planId), voulu);
+                if (!revu.ok) {
+                  return (
+                    <div className="tre-inline-note">
+                      <span className="mark">!</span>
+                      <span>{revu.refus?.replace(String(revu.verseXof), fmtMoney(revu.verseXof, currency))}</span>
+                    </div>
+                  );
+                }
+                /* CE QUE LA PIÈCE VA FAIRE, DIT AVANT LE GESTE. Elle ne suit que
+                   si aucun franc n'y est entré : un papier qui a reçu de
+                   l'argent est une trace, pas une vue. */
+                const piece = sub.invoiceId ? invoicesStore.get().find((i) => i.id === sub.invoiceId) : undefined;
+                const pieceSuit = !!piece && invoiceRegleXof(piece) === 0 && piece.lines.length === 1;
+                return (
+                  <div className="tre-inline-note">
+                    <span className="mark">·</span>
+                    <span>
+                      <b>{fmtMoney(prixFige, currency)}</b> deviennent <b>{fmtMoney(voulu, currency)}</b>.
+                      {revu.echeances && (
+                        <> L’échéancier se refait sur <b>{revu.echeances.length} tranche{revu.echeances.length > 1 ? 's' : ''}</b>
+                          {revu.gardees > 0 && <>, dont {revu.gardees} déjà couverte{revu.gardees > 1 ? 's' : ''} par ses versements, intouchée{revu.gardees > 1 ? 's' : ''}</>}.</>
+                      )}
+                      {piece && (pieceSuit
+                        ? <> La pièce {piece.number} suit.</>
+                        : <> La pièce {piece.number} a déjà reçu de l’argent : elle garde son montant, corrigez-la depuis Factures.</>)}
+                      {!piece && <> Aucune pièce n’est encore écrite pour ce contrat.</>}
+                    </span>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: 'flex', gap: 10 }}>
                 <Button variant="ghost" style={{ flex: 1 }} onClick={() => setContratEdit(null)}>Annuler</Button>

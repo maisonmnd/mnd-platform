@@ -438,6 +438,8 @@ export {
      à une tête. Voir `shared/abonnements.ts`. */
   prixVenduXof, inclusVendus, validiteVendueJours, moisCouvertsVendus,
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
+  /* Le prix convenu se revoit, 4 septembre — et l'échéancier suit. */
+  revoitLePrixConvenu, type PrixRevu,
 } from '../../../../shared/abonnements';
 export type {
   Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage, PrixAffiche,

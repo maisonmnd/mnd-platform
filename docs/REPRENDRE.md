@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PRIX CONVENU SE REVOIT — 4 septembre 2026, PUBLIÉ
+
+« Permets-moi de modifier le prix convenu. »
+
+**Il était figé pour une bonne raison, et la raison tient** : la pièce,
+l'échéancier et le suivi doivent dire le même chiffre. Un prix qu'on change seul
+dans son coin laisse une facture qui réclame 160 000 sur un contrat qui en vaut
+190 000, et c'est la cliente qui découvre l'écart. On ne fige donc plus le prix,
+**on déplace tout ce qui en dépend, d'un seul geste**.
+
+**Où.** Abonnements › Suivi › « Modifier le contrat » › le champ **Le prix
+convenu de ce contrat**. Sous le champ, une note dit ce que le nouveau chiffre
+va déplacer AVANT d'enregistrer : un champ qui change trois choses sans le dire
+se paie en confiance.
+
+### Les trois règles, dans l'ordre
+
+**① L'argent déjà reçu est un fait.** Aucun prix ne peut passer sous ce qu'elle
+a versé : la Maison deviendrait sa débitrice, et rendre de l'argent est une
+décision d'avoir, pas une correction de tarif. Le refus porte le montant reçu,
+« impossible » n'apprend rien.
+
+**② Les tranches déjà payées ne bougent pas.** Les versements se posent dans
+l'ordre : une tranche entièrement réglée est une page tournée, la réécrire
+ferait réapparaître une dette éteinte. Le reste se répartit sur les tranches à
+venir, aux mêmes dates, le rab sur la dernière. Jamais de tranche à zéro, elle
+se lirait comme soldée d'avance.
+
+**③ La pièce ne suit que si elle n'a rien reçu.** Un papier remis à quelqu'un
+est une trace, pas une vue : dès qu'un franc y est entré, son montant appartient
+au jour où il a été annoncé. L'écran le DIT, avec le numéro de la pièce, plutôt
+que de réécrire en silence ; la correction se fait alors depuis Factures, où
+l'écart se justifie. Idem pour une pièce à plusieurs lignes.
+
+`revoitLePrixConvenu()` porte les règles ① et ②, sous `verifie-echeancier`.
+
 ## LE RÉCAPITULATIF DU FOYER, AVANT LE LIEN — 4 septembre 2026, PUBLIÉ
 
 « Je veux avoir un PDF qui résume leurs 3 RDV avant que j'envoie le lien de

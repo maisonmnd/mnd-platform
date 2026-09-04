@@ -1386,3 +1386,84 @@ export function detacheLesVersementsDeLaPiece(invoiceId: string, idsDesVersement
 /** Le contrat qui porte ce versement, s'il y en a un. */
 export const contratDuVersement = (paymentId: string): Subscriber | undefined =>
   subscribersStore.get().find((s) => (s.payments ?? []).some((p) => p.id === paymentId));
+
+/* ══ REVOIR LE PRIX CONVENU D'UN CONTRAT — 4 septembre 2026 ═════════
+   « Permets-moi de modifier le prix convenu » (Yéman).
+
+   IL ÉTAIT FIGÉ POUR UNE BONNE RAISON, ET LA RAISON TIENT TOUJOURS : la pièce,
+   l'échéancier et le suivi doivent dire le même chiffre. Un prix qu'on change
+   seul dans son coin laisse une facture qui réclame 160 000 sur un contrat qui
+   en vaut 190 000, et c'est la cliente qui découvre l'écart.
+
+   ON NE FIGE DONC PLUS LE PRIX, ON DÉPLACE TOUT CE QUI EN DÉPEND. Ce juge dit
+   ce que le nouveau prix fait à l'échéancier ; l'écran s'occupe de la pièce,
+   qu'il est seul à voir.
+
+   L'ARGENT DÉJÀ REÇU EST UN FAIT, PAS UNE PROPOSITION. Aucun nouveau prix ne
+   peut passer sous ce qu'elle a versé : la Maison deviendrait sa débitrice, et
+   rendre de l'argent est une décision d'avoir, pas une correction de tarif. */
+export type PrixRevu = {
+  ok: boolean;
+  /** Dit à voix haute pourquoi la Maison refuse. */
+  refus?: string;
+  /** Le nouvel échéancier — absent quand le contrat n'en portait pas. */
+  echeances?: Echeance[];
+  /** Combien de tranches sont déjà couvertes par l'argent reçu, donc intouchées. */
+  gardees: number;
+  verseXof: number;
+  ancienXof: number;
+  nouveauXof: number;
+};
+
+export function revoitLePrixConvenu(
+  sub: Subscriber, plan: Plan | undefined, nouveauXof: number,
+): PrixRevu {
+  const nouveau = Math.max(0, Math.round(nouveauXof));
+  const verse = subPaid(sub);
+  const ancien = prixVenduXof(sub, plan, sub.cycle ?? 'mensuel');
+  const socle = { gardees: 0, verseXof: verse, ancienXof: ancien, nouveauXof: nouveau };
+  if (nouveau <= 0) {
+    return { ...socle, ok: false, refus: 'Un contrat à 0 F ne se vend pas. Résiliez-le plutôt.' };
+  }
+  if (nouveau < verse) {
+    return {
+      ...socle, ok: false,
+      refus: `Elle a déjà versé ${verse} : un prix en dessous ferait de la Maison sa débitrice. Passez par un avoir.`,
+    };
+  }
+  const ech = sub.echeances ?? [];
+  if (ech.length === 0) return { ...socle, ok: true };
+
+  /* LES TRANCHES QUE L'ARGENT COUVRE DÉJÀ NE BOUGENT PAS. Les versements se
+     posent dans l'ordre (`etatDesEcheances`) : une tranche entièrement payée
+     est une page tournée, la réécrire ferait réapparaître une dette réglée. */
+  let couvert = 0;
+  let gardees = 0;
+  for (const e of ech) {
+    if (couvert + e.amountXof > verse) break;
+    couvert += e.amountXof;
+    gardees += 1;
+  }
+  const restant = nouveau - couvert;
+  const suite: Echeance[] = ech.slice(0, gardees).map((e) => ({ ...e }));
+  if (restant > 0) {
+    /* JAMAIS PLUS DE TRANCHES QUE DE FRANCS. Une tranche à zéro se lirait comme
+       soldée d'avance et la cliente croirait devoir moins : on en garde moins,
+       plutôt que d'en écrire une vide (même règle que `construitEcheancier`). */
+    const libres = ech.slice(gardees);
+    const places = Math.max(1, Math.min(libres.length, restant));
+    const base = Math.floor(restant / places);
+    const rab = restant - base * places;
+    for (let i = 0; i < places; i += 1) {
+      suite.push({
+        numero: suite.length + 1,
+        dueIso: libres[i]?.dueIso ?? libres[libres.length - 1].dueIso,
+        amountXof: i === places - 1 ? base + rab : base,
+      });
+    }
+  }
+  /* LES RANGS SE REFONT : « la deuxième » doit rester la deuxième de la liste
+     qu'on lui montre, sinon le suivi et le rappel parlent de tranches
+     différentes. */
+  return { ...socle, ok: true, gardees, echeances: suite.map((e, i) => ({ ...e, numero: i + 1 })) };
+}
