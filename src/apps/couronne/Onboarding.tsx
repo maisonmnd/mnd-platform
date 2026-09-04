@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   signInClient, signUpClient, startPasswordReset, verifyPasswordReset, updatePassword,
-  signInWithGoogle,
+  signInWithGoogle, verifyInscription, renvoyerLaConfirmation,
 } from '../../shared/auth';
 import { pushNotifyStaff } from '../../shared/push';
 
@@ -71,7 +71,21 @@ const errMessage = (e: unknown, fallback: string): string => {
    branchements ne valaient pas leur poids — Apple se paie à l'année, WhatsApp
    exige Twilio. UNE seule porte fédérée reste : Google, qui garantit
    l'adresse. L'e-mail + mot de passe demeure la porte de la maison. */
-type Mode = 'connexion' | 'inscription' | 'oubli' | 'oubli-code';
+/* ══ OUVRIR SON COMPTE LA PREMIÈRE FOIS — 4 septembre 2026 ═════════
+   « Les clientes reçoivent un code de connexion au lieu d'un lien. Je parle de
+   la première inscription à Ma Couronne » (Yéman).
+
+   LA PORTE RENVOYAIT VERS UNE PORTE CLOSE. L'écran disait « Compte créé,
+   confirmez votre e-mail, puis connectez-vous » et ramenait à la connexion. Or
+   le gabarit d'e-mail de la Maison a été réécrit le 31 août pour porter un CODE
+   à 6 chiffres, celui dont Le Trône avait besoin. La cliente recevait donc six
+   chiffres, et Ma Couronne n'offrait nulle part où les saisir : le compte
+   existait, le code arrivait, et elle restait dehors.
+
+   `inscription-code` est cette porte manquante. Elle attend le LIEN, qui reste
+   le chemin le plus court, et accepte le CODE quand c'est lui qui arrive. Une
+   porte qui ne s'ouvre que d'une façon se referme dès que le courrier change. */
+type Mode = 'connexion' | 'inscription' | 'oubli' | 'oubli-code' | 'inscription-code';
 
 /* LA MARQUE DE LA PORTE — dessinée en SVG local (rien ne se charge dehors),
    à la taille du texte. Une porte se reconnaît à sa marque avant son mot. */
@@ -101,6 +115,26 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  /* UN LIEN QUI A ÉCHOUÉ DOIT LE DIRE. Supabase raccompagne la cliente ici avec
+     son motif dans l'adresse (lien expiré, déjà utilisé) ; sans cette lecture,
+     elle retombe sur l'écran de connexion sans un mot et croit s'être trompée
+     de mot de passe. On efface ensuite le motif de la barre d'adresse : il n'a
+     plus rien à y faire, et un rechargement le rejouerait. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const dansLeFragment = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
+    const motif = dansLeFragment.get('error_description')
+      ?? new URLSearchParams(window.location.search).get('error_description');
+    if (!motif) return;
+    const dit = /expired|invalid/i.test(motif)
+      ? 'Ce lien de confirmation a expiré. Demandez-en un nouveau ci-dessous.'
+      : 'La confirmation n’a pas abouti. Demandez un nouveau lien ci-dessous.';
+    setStage('auth');
+    setMode('connexion');
+    setErr(dit);
+    window.history.replaceState(null, '', window.location.pathname + window.location.search.replace(/[?&]error[^&]*/g, ''));
+  }, []);
 
   /* Les slides défilent doucement tant que l'on reste sur l'accueil. */
   useEffect(() => {
@@ -165,9 +199,43 @@ export default function Onboarding() {
     }
   };
 
+  /* Le code d'inscription, là où il arrive. Le vérifier OUVRE la session : le
+     verrou d'App retire l'écran de lui-même, il n'y a rien à faire ensuite. */
+  const confirmInscription = async () => {
+    if (code.trim().length < 6) {
+      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
+      return;
+    }
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await verifyInscription(email.trim(), code.trim());
+    } catch (e) {
+      setErr(errMessage(e, 'Code invalide ou expiré, demandez-en un nouveau.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renvoyer = async () => {
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await renvoyerLaConfirmation(email.trim());
+      setNotice('C’est reparti. Regardez aussi vos indésirables.');
+    } catch (e) {
+      setErr(errMessage(e, 'Envoi impossible pour l’instant, réessayez dans un moment.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
     if (mode === 'oubli') return askReset();
     if (mode === 'oubli-code') return confirmReset();
+    if (mode === 'inscription-code') return confirmInscription();
     if (mode === 'inscription' && !prenom.trim()) {
       setErr('Indiquez votre prénom.');
       return;
@@ -195,8 +263,11 @@ export default function Onboarding() {
         /* Alerte le personnel du Trône (Web Push) d'une nouvelle inscription. */
         void pushNotifyStaff('Nouvelle inscription Ma Couronne', nomComplet, '/trone/#/customers');
         if (needsConfirmation) {
-          setNotice('Compte créé. Confirmez votre e-mail, puis connectez-vous.');
-          setMode('connexion');
+          /* ON NE LA RENVOIE PLUS VERS LA CONNEXION. Son compte existe, mais son
+             adresse n'est pas confirmée : s'y présenter ne peut que refuser. */
+          setCode('');
+          setPassword('');
+          setMode('inscription-code');
         }
         /* Sinon : la session s'ouvre et le verrou d'App montre l'app. */
       } else {
@@ -250,6 +321,7 @@ export default function Onboarding() {
       <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
       <h1 className="mc-serif-title">
         {mode === 'inscription' ? 'Créer mon compte.'
+          : mode === 'inscription-code' ? 'Ouvrez votre couronne.'
           : mode === 'oubli' ? 'Mot de passe oublié.'
           : mode === 'oubli-code' ? 'Nouveau mot de passe.'
           : 'Bon retour.'}
@@ -257,6 +329,8 @@ export default function Onboarding() {
       <p className="mc-lead">
         {mode === 'inscription'
           ? 'Votre prénom, votre nom, votre e-mail, un mot de passe, la maison vous reconnaît.'
+          : mode === 'inscription-code'
+          ? `Votre compte est créé. Un courrier vient de partir vers ${email.trim()} : ouvrez le lien qu'il contient, votre couronne s'ouvre toute seule. Si c'est un code à 6 chiffres qui vous est arrivé, saisissez-le ici.`
           : mode === 'oubli'
           ? 'Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.'
           : mode === 'oubli-code'
@@ -291,7 +365,7 @@ export default function Onboarding() {
         </>
       )}
 
-      {mode !== 'oubli-code' && (
+      {mode !== 'oubli-code' && mode !== 'inscription-code' && (
         <>
           <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
           <div className="mc-emailline">
@@ -309,7 +383,7 @@ export default function Onboarding() {
         </>
       )}
 
-      {mode === 'oubli-code' && (
+      {(mode === 'oubli-code' || mode === 'inscription-code') && (
         <>
           <label className="mc-field-label" htmlFor="mc-code">Code reçu par e-mail</label>
           <div className="mc-emailline">
@@ -328,7 +402,7 @@ export default function Onboarding() {
         </>
       )}
 
-      {mode !== 'oubli' && (
+      {mode !== 'oubli' && mode !== 'inscription-code' && (
         <>
           <label className="mc-field-label" htmlFor="mc-password">
             {mode === 'oubli-code' ? 'Nouveau mot de passe' : 'Mot de passe'}
@@ -362,6 +436,7 @@ export default function Onboarding() {
       <button className="mc-cta mc-cta--indigo" disabled={busy} onClick={() => void submit()}>
         {busy ? 'Un instant…'
           : mode === 'inscription' ? 'Créer mon compte'
+          : mode === 'inscription-code' ? 'Confirmer mon adresse'
           : mode === 'oubli' ? 'Envoyer le code'
           : mode === 'oubli-code' ? 'Définir le mot de passe'
           : 'Se connecter'}
@@ -409,6 +484,12 @@ export default function Onboarding() {
       {mode === 'oubli-code' && (
         <button type="button" className="mc-authswitch" disabled={busy} onClick={() => void askReset()}>
           Renvoyer un code
+        </button>
+      )}
+
+      {mode === 'inscription-code' && (
+        <button type="button" className="mc-authswitch" disabled={busy} onClick={() => void renvoyer()}>
+          Renvoyer le courrier
         </button>
       )}
 

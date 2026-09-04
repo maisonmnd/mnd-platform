@@ -1,0 +1,73 @@
+<!--
+  GABARIT « CONFIRM SIGNUP » — Supabase › Authentication › Emails.
+  4 septembre 2026.
+
+  POURQUOI CE FICHIER EXISTE. Le 31 août, le gabarit a été réécrit pour porter
+  {{ .Token }} : Le Trône en avait besoin, son écran d'inscription attend six
+  chiffres. Mais le même gabarit sert AUSSI les clientes de Ma Couronne, à qui
+  personne n'avait promis un code. Elles recevaient six chiffres pour une porte
+  qui attendait un lien.
+
+  IL PORTE DONC LES DEUX, ET DANS CET ORDRE. Le lien d'abord, parce qu'un clic
+  ne se recopie pas de travers ; le code dessous, pour Le Trône et pour les
+  courriers qui mangent les liens. Retirer l'un des deux referme une des deux
+  portes, et l'on ne s'en aperçoit qu'une fois la personne dehors.
+
+  À COLLER TEL QUEL dans Authentication › Emails › Confirm signup.
+  Vérifier au passage Authentication › URL Configuration › Redirect URLs :
+  l'adresse de CHAQUE app doit y figurer, sans quoi le lien raccompagne la
+  cliente sur la mauvaise maison.
+-->
+<div style="margin:0;padding:32px 16px;background:#0E1030;font-family:'Jost',Helvetica,Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#141743;border:1px solid rgba(246,241,231,.14);border-radius:18px;padding:38px 34px;">
+
+    <div style="font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#B97A4A;">
+      Maison MND
+    </div>
+
+    <h1 style="margin:14px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:300;font-size:30px;line-height:1.2;color:#F6F1E7;">
+      Ouvrez votre couronne.
+    </h1>
+
+    <p style="margin:16px 0 0;font-size:14.5px;line-height:1.75;color:rgba(246,241,231,.78);">
+      Votre compte est créé. Il ne reste qu'à confirmer cette adresse,
+      et la maison vous ouvre sa porte.
+    </p>
+
+    <a href="{{ .ConfirmationURL }}"
+       style="display:block;margin:26px 0 0;padding:15px 18px;background:#B97A4A;color:#0E1030;
+              text-decoration:none;text-align:center;border-radius:12px;
+              font-size:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;">
+      Confirmer mon adresse
+    </a>
+
+    <p style="margin:18px 0 0;font-size:12.5px;line-height:1.7;color:rgba(246,241,231,.55);">
+      Le bouton ne s'ouvre pas ? Copiez cette adresse dans votre navigateur :<br />
+      <span style="color:#B97A4A;word-break:break-all;">{{ .ConfirmationURL }}</span>
+    </p>
+
+    <div style="margin:28px 0 0;padding:20px 18px;border:1px solid rgba(246,241,231,.14);border-radius:12px;text-align:center;">
+      <div style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(246,241,231,.55);">
+        Ou saisissez ce code
+      </div>
+      <div style="margin:10px 0 0;font-size:30px;letter-spacing:.28em;color:#F6F1E7;font-weight:600;">
+        {{ .Token }}
+      </div>
+      <div style="margin:10px 0 0;font-size:12px;line-height:1.6;color:rgba(246,241,231,.55);">
+        Six chiffres, à recopier dans l'écran qui les attend.
+      </div>
+    </div>
+
+    <p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:rgba(246,241,231,.45);">
+      Ce lien et ce code expirent. Si vous n'êtes à l'origine d'aucune
+      inscription, ignorez ce courrier, rien ne sera ouvert.
+    </p>
+
+    <div style="margin:26px 0 0;padding-top:18px;border-top:1px solid rgba(246,241,231,.12);
+                font-family:Georgia,'Times New Roman',serif;font-style:italic;
+                font-size:13px;color:#B97A4A;text-align:center;">
+      mi nyɔ́ ɖɛkpɛ, la maison veille.
+    </div>
+
+  </div>
+</div>

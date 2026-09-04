@@ -242,6 +242,25 @@ export async function verifyInscription(email: string, token: string): Promise<v
   if (repli.error) throw error;
 }
 
+/** RENVOYER L'E-MAIL D'INSCRIPTION — 4 septembre 2026.
+
+    Un e-mail se perd : il tombe dans les indésirables, la cliente efface, le
+    lien expire au bout d'une journée. Sans ce geste, elle n'a plus qu'à créer
+    un second compte avec la même adresse, ce que Supabase refuse : la porte se
+    ferme pour de bon sur une simple malchance.
+
+    Le retour repart vers l'app COURANTE : renvoyer depuis Ma Couronne doit
+    ramener sur Ma Couronne, jamais sur Le Trône. */
+export async function renvoyerLaConfirmation(email: string): Promise<void> {
+  if (!supabase) throw new Error('Backend non configuré.');
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: { emailRedirectTo: appRedirect() },
+  });
+  if (error) throw error;
+}
+
 /** Vérifie le code reçu et ouvre une session de récupération. */
 export async function verifyPasswordReset(email: string, token: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');

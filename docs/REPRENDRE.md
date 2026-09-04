@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## OUVRIR SON COMPTE MA COURONNE LA PREMIÈRE FOIS — 4 septembre 2026, PUBLIÉ
+
+« Les clientes reçoivent un code de connexion au lieu d'un lien. Je parle de la
+première inscription à Ma Couronne. »
+
+**La porte renvoyait vers une porte close.** Après l'inscription, l'écran disait
+« Compte créé, confirmez votre e-mail, puis connectez-vous » et ramenait à la
+connexion. Or le gabarit d'e-mail a été réécrit le 31 août pour porter
+`{{ .Token }}`, le code à six chiffres dont Le Trône avait besoin. La cliente
+recevait donc six chiffres, Ma Couronne n'offrait nulle part où les saisir, et
+se présenter à la connexion ne pouvait que refuser : l'adresse n'était pas
+confirmée. **Le compte existait, le code arrivait, elle restait dehors.**
+
+### Deux causes, deux mains
+
+**La cause première est dans le tableau de bord**, pas dans le code : un seul
+gabarit « Confirm signup » sert LES DEUX maisons. Il porte désormais le lien ET
+le code, dans cet ordre : `docs/gabarit-confirmation-inscription.html`. Retirer
+l'un referme une des deux portes, et on ne s'en aperçoit qu'une fois la personne
+dehors. À vérifier avec lui : **URL Configuration › Redirect URLs** doit lister
+l'adresse de chaque app, sinon le lien raccompagne sur la mauvaise maison.
+
+**Le code, lui, ne doit plus dépendre du courrier.** Ma Couronne reçoit le mode
+`inscription-code`, jumeau de celui du Trône : elle annonce le lien parti, qui
+reste le chemin le plus court, et accepte le code quand c'est lui qui arrive.
+Une porte qui ne s'ouvre que d'une façon se referme dès que le courrier change.
+
+- **`renvoyerLaConfirmation()`** — un e-mail se perd, un lien expire. Sans ce
+  geste il ne restait qu'à créer un second compte avec la même adresse, ce que
+  Supabase refuse : la porte se fermait pour de bon sur une malchance.
+- **Un lien qui a échoué le dit.** Supabase raccompagne avec son motif dans
+  l'adresse ; on le lit, on l'affiche, puis on l'efface de la barre d'adresse.
+  Sans cela, elle retombait sur la connexion sans un mot et croyait s'être
+  trompée de mot de passe.
+
 ## LE FORFAIT MND KIDS DIT CE QU'IL DONNE — 4 septembre 2026, PUBLIÉ
 
 « Pour le rituel complet pour les Kids, j'aurais voulu que les parents voient
