@@ -12,7 +12,7 @@ import {
   poidsPriorite,
   estAPrendre, A_PRENDRE, enRetard, faiteRecemment, messageExpire,
   canalDM, canalNotes, CANAL_MAISON,
-  fusionnerComptages, totalDuComptage, comptageComplet,
+  fusionnerComptages, totalDuComptage, comptageComplet, serieDesComptages,
   type FilMessage,
 } from '../src/shared/fil';
 import type { Invoice } from '../src/shared/finance';
@@ -158,3 +158,51 @@ if (ko > 0) {
   process.exit(1);
 }
 console.log('\nTout passe.');
+
+/* ══ LA SÉRIE DES COMPTAGES D'UNE TÊTE ═════════════════════════════
+   « Parfois ça change. Le client double ses locks, en perd… » (Yéman,
+   5 septembre 2026).
+
+   Le comptage existait déjà dans le fil ; ce qui manquait était sa SUITE. On la
+   lit ICI plutôt que d'ouvrir un second registre sur la fiche : deux vérités
+   pour un seul chiffre finiraient par se contredire. */
+const cpt = (at: string, avG: number, avD: number, arG: number, arD: number, auteur = 'Team'): FilMessage =>
+  ({
+    id: `m-${at}`, branchId: 'b1', canal: 'maison', at,
+    auteurMail: 'x@mnd.bj', auteurNom: auteur, texte: 'Comptage',
+    piece: { kind: 'cliente', id: 'cl-1', nom: 'Une tête' },
+    comptage: { avantG: avG, avantD: avD, arriereG: arG, arriereD: arD },
+  } as unknown as FilMessage);
+
+const filDeLaTete: FilMessage[] = [
+  cpt('2025-02-19T10:00:00.000Z', 45, 45, 45, 45),
+  cpt('2025-09-08T10:00:00.000Z', 107, 107, 106, 107),
+  cpt('2026-02-19T10:00:00.000Z', 112, 111, 111, 111),
+  cpt('2026-09-04T10:00:00.000Z', 100, 99, 100, 99),
+];
+const suite = serieDesComptages(filDeLaTete, 'b1', 'cl-1');
+dit('la série se lit du plus récent au plus ancien',
+  [398, 445, 427, 180], suite.map((c) => c.locks));
+dit('… le dédoublement se voit', 247, suite[2].ecart);
+dit('… la perte aussi', -47, suite[0].ecart);
+/* LE PREMIER NE SUIT RIEN : un écart contre le néant serait une pousse
+   imaginaire de 180 locks. */
+dit('… et le premier ne suit rien', null, suite[3].ecart);
+dit('… chaque ligne dit qui a compté', 'Team', suite[0].auteurNom);
+dit('… et ses quarts', 'devant 100 · 99, derrière 100 · 99', suite[0].enClair);
+
+/* UN SEUL COMPTAGE PAR JOUR. Le fil laisse compléter un quadrant après l'autre :
+   sans ce regroupement, une tête comptée en quatre fois montrerait quatre lignes
+   dont trois incomplètes, et des écarts qui n'ont jamais eu lieu. */
+const enPlusieursFois = serieDesComptages([
+  cpt('2026-09-04T09:00:00.000Z', 100, 0, 0, 0),
+  cpt('2026-09-04T09:20:00.000Z', 100, 99, 0, 0),
+  cpt('2026-09-04T09:40:00.000Z', 100, 99, 100, 99),
+], 'b1', 'cl-1');
+dit('quatre quarts au fil de la matinée font UN comptage', 1, enPlusieursFois.length);
+dit('… celui du dernier message du jour', 398, enPlusieursFois[0].locks);
+
+/* ON NE MÊLE PAS LES TÊTES NI LES MAISONS. */
+dit('le comptage d’une autre tête reste chez elle', 0, serieDesComptages(filDeLaTete, 'b1', 'cl-2').length);
+dit('… et celui d’une autre maison aussi', 0, serieDesComptages(filDeLaTete, 'b2', 'cl-1').length);
+dit('une tête jamais comptée n’a pas de série', 0, serieDesComptages([], 'b1', 'cl-1').length);

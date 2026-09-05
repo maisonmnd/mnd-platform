@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE COMPTAGE DES LOCKS, DANS LE TEMPS — 5 septembre 2026, PUBLIÉ
+
+« Je peux avoir quelque part de formel où je peux tracker le comptage des locks,
+à part dans la note du carnet ? Parfois ça change. Le client double ses locks,
+en perd… »
+
+**LE COMPTAGE EXISTAIT DÉJÀ, et la maquette se trompait.** Elle proposait un
+nouveau champ `Client.comptages`. Or Le Fil porte les comptages depuis le
+18 août : quatre quadrants, l'auteur, le jour, et `lockCount` mis à jour à
+chaque pose. Ce qui manquait n'était pas un endroit où écrire — **c'était la
+SUITE** : la fiche n'en montrait que le dernier, dans « Son carnet », et l'on ne
+voyait ni la pousse ni la perte.
+
+Un second registre sur la fiche aurait fabriqué **deux vérités pour un seul
+chiffre**, et tout ce qui a déjà été compté serait resté dehors. On lit donc
+celui qui existe.
+
+### `serieDesComptages(fil, branche, cliente)`
+
+- **Un seul comptage par jour.** Le fil laisse compléter un quadrant après
+  l'autre (`fusionnerComptages`) : on garde le message le plus récent de chaque
+  journée. Sans cela, une tête comptée en quatre fois montrerait quatre lignes
+  dont trois incomplètes, et des écarts qui n'ont jamais eu lieu.
+- **L'écart, pas le chiffre.** « 427 » ne raconte rien ; « +247 depuis février »
+  dit un dédoublement, « −47 » dit une casse à regarder.
+- **Le calibre s'affiche sur chaque ligne** : c'est lui qui commande le tarif, et
+  le voir changer explique la facture avant qu'on ne la conteste.
+- **Un comptage partiel se dit.** Trois quarts sur quatre font un total qu'on
+  croirait complet.
+
+**Où** : la fiche › Le parcours, au-dessus de l'historique du carnet. **Le
+comptage continue de se poser dans Le Fil**, où il a toujours vécu.
+
+Jugé par `verifie-fil`.
+
 ## LES NOTES DU CARNET REMONTENT SUR LA FICHE — 5 septembre 2026, PUBLIÉ
 
 « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître

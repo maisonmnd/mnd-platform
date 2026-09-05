@@ -25,7 +25,7 @@ import {
 import { ageDe, estMineur, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
-import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
+import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair, serieDesComptages } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -3489,6 +3489,73 @@ function Customer360({
 
         {tab === 'parcours' && (
         <>
+        {/* ══ LE COMPTAGE DES LOCKS, DANS LE TEMPS ═══════════════════════
+            « Je peux avoir quelque part de formel où je peux tracker le
+            comptage des locks ? Parfois ça change. Le client double ses locks,
+            en perd… » (Yéman, 5 septembre 2026, maquette validée).
+
+            LE COMPTAGE EXISTAIT DÉJÀ, dans Le Fil, avec ses quatre quadrants,
+            son auteur et son jour. Ce qui manquait n'était pas un endroit où
+            l'écrire — c'était sa SUITE : la fiche n'en montrait que le dernier,
+            et l'on ne voyait ni la pousse ni la perte. On le lit donc là où il
+            vit ; poser un second registre ici aurait fabriqué deux vérités pour
+            un seul chiffre, et tout ce qui a déjà été compté serait resté
+            dehors.
+
+            LE NOMBRE SEUL NE RACONTE RIEN : c'est l'écart qui dit le
+            dédoublement, et le calibre qui dit que son tarif vient de changer. */}
+        {(() => {
+          const serie = serieDesComptages(tousFil, branch.id, client.id);
+          if (serie.length === 0) {
+            return (
+              <div>
+                <span className="trc-microlabel">Le comptage des locks</span>
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                  Jamais comptée. Le comptage se pose dans <b>Le Fil</b>, quadrant par quadrant, et
+                  son calibre suit.
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div>
+              <span className="trc-microlabel">Le comptage des locks · {serie.length}</span>
+              {serie.map((c) => {
+                const bande = calibreDeLaTeteAvecMarge(c.locks, bands, client.margeCalibre);
+                return (
+                  <div key={c.iso} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, color: 'var(--color-indigo)', minWidth: 72, fontVariantNumeric: 'tabular-nums' }}>
+                      {c.locks}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5 }}>
+                        {frJourAn(c.iso)}
+                        {/* L'ÉCART SE LIT, PAS SEULEMENT LE CHIFFRE. */}
+                        {c.ecart !== null && c.ecart !== 0 && (
+                          <b style={{ marginLeft: 8, color: c.ecart > 0 ? '#4A6B52' : 'var(--trv-error, #96412E)' }}>
+                            {c.ecart > 0 ? '+' : '−'}{Math.abs(c.ecart)} locks
+                          </b>
+                        )}
+                        {bande && <span className="mnd-muted" style={{ marginLeft: 8, fontSize: 11 }}>{bande.name}</span>}
+                        {/* UN COMPTAGE PARTIEL SE DIT : trois quarts sur quatre
+                            font un total qu'on croirait complet. */}
+                        {!c.complet && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--trv-error, #96412E)' }}>partiel</span>}
+                      </div>
+                      <div className="mnd-muted" style={{ fontSize: 11 }}>
+                        {c.enClair} · {c.auteurNom}
+                      </div>
+                    </span>
+                  </div>
+                );
+              })}
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>
+                Le comptage se pose dans <b>Le Fil</b>, quadrant par quadrant, et le dernier devient
+                son nombre de locks — donc son tarif. Les rendez-vous déjà posés gardent leur prix.
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Historique — chaque passage s'ouvre : le RDV dans sa modale, et s'il a
             été encaissé, sa facture d'un second geste. */}
         <div>

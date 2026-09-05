@@ -432,6 +432,69 @@ export const dernierComptage = (
       && m.piece?.kind === 'cliente' && m.piece.id === clientId)
     .sort((a, b) => b.at.localeCompare(a.at))[0];
 
+/** ══ LA SÉRIE DES COMPTAGES D'UNE TÊTE — 5 septembre 2026 ═════════
+
+    « Je peux avoir quelque part de formel où je peux tracker le comptage des
+    locks, à part dans la note du carnet ? Parfois ça change. Le client double
+    ses locks, en perd… » (Yéman).
+
+    LE COMPTAGE EXISTAIT DÉJÀ, ICI, avec ses quatre quadrants, son auteur et son
+    jour. Ce qui manquait n'était pas un endroit où l'écrire — c'était sa SUITE :
+    la fiche n'en montrait que le dernier, et l'on ne voyait ni la pousse ni la
+    perte. Poser un second registre sur la fiche aurait fabriqué deux vérités
+    pour un seul chiffre ; on lit donc celui-ci, et tout ce qui a déjà été
+    compté entre dans la série sans rien réécrire.
+
+    LE NOMBRE SEUL NE RACONTE RIEN. « 427 » ne dit rien ; « +247 depuis
+    février » dit un dédoublement, « −47 » dit une casse qu'il faut regarder.
+    C'est l'écart qu'on lit, et c'est lui qu'on ajoute ici.
+
+    UN SEUL COMPTAGE PAR JOUR : le fil laisse compléter un quadrant après
+    l'autre (`fusionnerComptages`), et l'on garde donc le message le plus RÉCENT
+    de chaque journée. Sans cela, une tête comptée en quatre fois montrerait
+    quatre lignes dont trois incomplètes, et des écarts qui n'ont jamais eu
+    lieu. */
+export type ComptageDuJour = {
+  /** Le jour du comptage (AAAA-MM-JJ), tiré de l'instant du message. */
+  iso: string;
+  locks: number;
+  /** Les quarts, tels qu'ils ont été comptés — « devant 26 · 24 ». */
+  enClair: string;
+  auteurNom: string;
+  complet: boolean;
+  /** Écart au comptage précédent — `null` sur le premier, il ne suit rien. */
+  ecart: number | null;
+};
+
+export const serieDesComptages = (
+  tous: readonly FilMessage[],
+  branchId: string,
+  clientId: string,
+): ComptageDuJour[] => {
+  const parJour = new Map<string, FilMessage>();
+  for (const m of tous) {
+    if (m.branchId !== branchId || !m.comptage) continue;
+    if (!(m.piece?.kind === 'cliente' && m.piece.id === clientId)) continue;
+    const jour = m.at.slice(0, 10);
+    const vu = parJour.get(jour);
+    if (!vu || m.at > vu.at) parJour.set(jour, m);
+  }
+  /* Du plus ANCIEN au plus récent le temps de mesurer les écarts : un écart se
+     mesure contre ce qui précède, jamais contre ce qui suit. */
+  const jours = [...parJour.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return jours
+    .map(([iso, m], i) => ({
+      iso,
+      locks: totalDuComptage(m.comptage),
+      enClair: comptageEnClair(m.comptage),
+      auteurNom: m.auteurNom,
+      complet: comptageComplet(m.comptage),
+      ecart: i === 0 ? null : totalDuComptage(m.comptage) - totalDuComptage(jours[i - 1][1].comptage),
+    }))
+    .filter((c) => c.locks > 0)
+    .reverse();
+};
+
 /** Les messages d'un fil, du plus ancien au plus récent — l'ordre de lecture. */
 export const messagesDuCanal = (
   tous: readonly FilMessage[],
