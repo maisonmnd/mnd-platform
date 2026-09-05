@@ -75,6 +75,19 @@ export const frLong = (iso: string) =>
 export const frDay = (iso: string) =>
   dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';
 
+/** « Ven. 19 févr. 2025 » — le jour de la semaine ET l'année.
+
+    « Rajoute toujours les années sur les RDV à venir qu'on puisse bien se
+    repérer dans le temps » (Yéman, 5 septembre 2026).
+
+    UNE CADENCE POSÉE COURT SUR DEUX ANS. Cinq rendez-vous d'octobre à juin :
+    sans l'année, le dernier se lit comme s'il était dans deux mois. Le jour de
+    la semaine reste — c'est par lui qu'on juge si le créneau convient. */
+export const frShortAn = (iso: string) =>
+  (dayOf(iso)
+    ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }))
+    : '—');
+
 /** « 19 févr. 2025 » — LA DATE QUI PORTE SON ANNÉE, 5 septembre 2026.
 
     « Il faut rajouter l'année sur la note du carnet. 19 févr… incomplet »

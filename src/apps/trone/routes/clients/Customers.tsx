@@ -47,7 +47,7 @@ import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  type Cadence, frJourAn } from './_shared';
+  type Cadence, frJourAn, frShortAn } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
@@ -2518,7 +2518,7 @@ function Customer360({
                 <div className="trc-upcoming">
                   {upcomingAll.map((a) => (
                     <button key={a.id} type="button" className="trc-upcoming__row" onClick={() => setEditAppt(a)} title="Modifier ce rendez-vous">
-                      <span className="trc-upcoming__date">{frShort(a.date)} · {a.time}</span>
+                      <span className="trc-upcoming__date">{frShortAn(a.date)} · {a.time}</span>
                       <span className="trc-upcoming__svc">
                         {apptLabel(a, byId)} · {a.master}
                         {a.seriesIndex && a.seriesTotal ? <span className="trc-serie-chip" style={{ marginLeft: 6 }}>{a.seriesIndex}/{a.seriesTotal}</span> : null}
@@ -2744,6 +2744,19 @@ function Customer360({
 
         {tab === 'profil' && (
         <>
+        {/* ══ LE PROFIL RANGÉ PAR INTENTION — 5 septembre 2026 ═══════════
+            « Réorganise moi cette page aussi, mise en forme UI/UX et facile à
+            naviguer » (Yéman).
+
+            IL ÉTAIT ÉCRIT EN TROIS MORCEAUX ÉPARS, séparés dans le fichier par
+            les panneaux d'autres onglets : l'identité ici, le persona trois
+            cents lignes plus bas, la fusion et le retrait encore ailleurs. Rien
+            ne les reliait, et l'ordre à l'écran était celui du hasard.
+
+            TROIS TEMPS, comme l'Aperçu : QUI ELLE EST, CE QU'ON SAIT D'ELLE,
+            puis ce qui ne se fait qu'une fois et pas deux. Le contenu n'a pas
+            changé d'un champ — il a changé de place. */}
+        <div className="trc-profil">
         {/* Identité — éditable */}
         <div>
           <span className="trc-microlabel">Identité</span>
@@ -2993,57 +3006,9 @@ function Customer360({
             </div>
           </div>
         </div>
-        </>
-        )}
-
-        {tab === 'compte' && <PanneauCompte client={client} byId={byId} onEncaisser={setPayAppt} />}
-
-        {tab === 'parcours' && (
-        <>
-        {/* Les quatre temps — où en est sa couronne dans le protocole. */}
-        <div>
-          <span className="trc-microlabel">
-            Les quatre temps · {tempsDone(myTemps)}/4
-            {nextTemps(myTemps) ? ` · en cours : ${nextTemps(myTemps)!.name}` : ' · couronne complète'}
-          </span>
-          <div className="trc-temps">
-            {QUATRE_TEMPS.map((t) => {
-              const on = !!myTemps[t.key];
-              return (
-                <div key={t.key} className={`trc-temps__step ${on ? 'is-on' : ''}`}>
-                  <button
-                    type="button"
-                    className="trc-temps__mark"
-                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
-                    aria-pressed={on}
-                    onClick={() => setTemps(client.id, t.key, on ? '' : today)}
-                  >
-                    {t.no}
-                  </button>
-                  <div className="trc-temps__body">
-                    <div className="trc-temps__name">{t.name}</div>
-                    <div className="trc-temps__essence">{t.essence}</div>
-                    {on && (
-                      <input
-                        type="date"
-                        className="trc-temps__date"
-                        value={myTemps[t.key]}
-                        max={today}
-                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
-                        aria-label={`Date du temps ${t.name}`}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
-        </>
-        )}
 
-        {tab === 'profil' && (
-        <>
+        <div className="trc-profil">
         {/* Persona & segments — deux colonnes sur le panneau élargi */}
         <div className="tr-grid tr-grid--2">
           <div>
@@ -3476,8 +3441,118 @@ function Customer360({
             </div>
           </div>
         </div>
+        </div>
+
+        {/* ── CE QUI NE SE FAIT QU'UNE FOIS ──────────────────────────
+            Fusionner deux fiches, retirer une tête de la Maison : deux gestes
+            qui ne se rattrapent pas. Ils vivaient au milieu du reste, à hauteur
+            d'un champ de ville. Ils descendent au bas de la page, derrière un
+            filet, là où l'on ne clique pas par mégarde. */}
+        <div className="trc-profil trc-profil--sensible">
+          <span className="trc-microlabel trc-profil__garde">Zone sensible · ces gestes ne se défont pas</span>
+        {/* Note de la maison — texte libre éditable */}
+        <div>
+          <span className="trc-microlabel">Note de la maison</span>
+          <textarea
+            className="trc-dossier-notes"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Une attention, une préférence, un détail du rituel…"
+            rows={3}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button variant="indigo" size="sm" disabled={!noteDirty} onClick={saveNote}>Enregistrer</Button>
+          </div>
+        </div>
+
+        {/* LA FUSION — le geste qui soude un doublon sans SQL (14 août).
+            Une cliente inscrite avant que sa fiche ne porte son adresse vit
+            en deux fiches : la vraie (l'histoire) et la neuve (le compte).
+            Ce bouton les fond en une seule — l'historique suit, la coquille
+            s'efface. */}
+        <div style={{ marginTop: 14 }}>
+          <span className="trc-microlabel">Deux fiches pour une même personne ?</span>
+          <Button variant="ghost" size="sm" onClick={() => setFusionOpen(true)}>
+            Fusionner avec une autre fiche…
+          </Button>
+        </div>
+
+        {/* Retrait de la Maison — archive (doux) ou suppression définitive */}
+        <div className="trc-danger">
+          <span className="trc-microlabel">Retirer de la Maison</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Button variant="ghost" size="sm" onClick={archiveClient}>
+              Archiver la cliente
+            </Button>
+            <button type="button" className="trc-danger__btn" onClick={deleteClient}>
+              Supprimer la cliente
+            </button>
+          </div>
+          <p className="trc-danger__note">
+            L’archivage la retire des listes sans l’effacer. La suppression est définitive.
+          </p>
+        </div>
+
+        {fusionOpen && (
+          <FusionModal
+            client={client}
+            onClose={() => setFusionOpen(false)}
+            onDone={(survivantId) => {
+              setFusionOpen(false);
+              onOpen(survivantId);
+            }}
+          />
+        )}
+        </div>
         </>
         )}
+
+        {tab === 'compte' && <PanneauCompte client={client} byId={byId} onEncaisser={setPayAppt} />}
+
+        {tab === 'parcours' && (
+        <>
+        {/* Les quatre temps — où en est sa couronne dans le protocole. */}
+        <div>
+          <span className="trc-microlabel">
+            Les quatre temps · {tempsDone(myTemps)}/4
+            {nextTemps(myTemps) ? ` · en cours : ${nextTemps(myTemps)!.name}` : ' · couronne complète'}
+          </span>
+          <div className="trc-temps">
+            {QUATRE_TEMPS.map((t) => {
+              const on = !!myTemps[t.key];
+              return (
+                <div key={t.key} className={`trc-temps__step ${on ? 'is-on' : ''}`}>
+                  <button
+                    type="button"
+                    className="trc-temps__mark"
+                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
+                    aria-pressed={on}
+                    onClick={() => setTemps(client.id, t.key, on ? '' : today)}
+                  >
+                    {t.no}
+                  </button>
+                  <div className="trc-temps__body">
+                    <div className="trc-temps__name">{t.name}</div>
+                    <div className="trc-temps__essence">{t.essence}</div>
+                    {on && (
+                      <input
+                        type="date"
+                        className="trc-temps__date"
+                        value={myTemps[t.key]}
+                        max={today}
+                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
+                        aria-label={`Date du temps ${t.name}`}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        </>
+        )}
+
 
         {tab === 'docs' && (
         <>
@@ -3884,63 +3959,6 @@ function Customer360({
         </>
         )}
 
-        {tab === 'profil' && (
-        <>
-        {/* Note de la maison — texte libre éditable */}
-        <div>
-          <span className="trc-microlabel">Note de la maison</span>
-          <textarea
-            className="trc-dossier-notes"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Une attention, une préférence, un détail du rituel…"
-            rows={3}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-            <Button variant="indigo" size="sm" disabled={!noteDirty} onClick={saveNote}>Enregistrer</Button>
-          </div>
-        </div>
-
-        {/* LA FUSION — le geste qui soude un doublon sans SQL (14 août).
-            Une cliente inscrite avant que sa fiche ne porte son adresse vit
-            en deux fiches : la vraie (l'histoire) et la neuve (le compte).
-            Ce bouton les fond en une seule — l'historique suit, la coquille
-            s'efface. */}
-        <div style={{ marginTop: 14 }}>
-          <span className="trc-microlabel">Deux fiches pour une même personne ?</span>
-          <Button variant="ghost" size="sm" onClick={() => setFusionOpen(true)}>
-            Fusionner avec une autre fiche…
-          </Button>
-        </div>
-
-        {/* Retrait de la Maison — archive (doux) ou suppression définitive */}
-        <div className="trc-danger">
-          <span className="trc-microlabel">Retirer de la Maison</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Button variant="ghost" size="sm" onClick={archiveClient}>
-              Archiver la cliente
-            </Button>
-            <button type="button" className="trc-danger__btn" onClick={deleteClient}>
-              Supprimer la cliente
-            </button>
-          </div>
-          <p className="trc-danger__note">
-            L’archivage la retire des listes sans l’effacer. La suppression est définitive.
-          </p>
-        </div>
-
-        {fusionOpen && (
-          <FusionModal
-            client={client}
-            onClose={() => setFusionOpen(false)}
-            onDone={(survivantId) => {
-              setFusionOpen(false);
-              onOpen(survivantId);
-            }}
-          />
-        )}
-        </>
-        )}
       </div>
 
       {bookOpen && <RdvModal onClose={() => setBookOpen(false)} initial={{ clientId: client.id }} title={`Rendez-vous · ${client.name.split(' ')[0]}.`} />}

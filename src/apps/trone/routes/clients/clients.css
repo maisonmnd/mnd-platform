@@ -2373,11 +2373,15 @@
   display: block; font-family: var(--font-sans); font-size: 9.5px;
   letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700);
 }
+/* TROIS LIGNES, PAS UNE PHRASE. Rendues en `span`, le montant et son
+   explication se collaient : « Vendredi 23 octobre · 16:00Tout est réglé ». */
+.trc-presse__l { display: block; }
 .trc-presse--calme .trc-presse__t { color: var(--ink-soft); }
 .trc-presse__v {
+  display: block;
   font-family: var(--font-serif); font-size: 27px; line-height: 1.1; color: var(--color-indigo);
 }
-.trc-presse__s { font-size: 11.5px; color: var(--ink-soft); }
+.trc-presse__s { display: block; font-size: 11.5px; color: var(--ink-soft); }
 .trc-presse__acts { display: inline-flex; gap: 8px; flex-wrap: wrap; flex: none; }
 
 /* ── ② Les deux colonnes ── */
@@ -2399,3 +2403,18 @@
 .trc-journal__c { min-width: 0; flex: 1 1 auto; }
 .trc-journal__x { font-size: 13px; color: var(--ink); }
 .trc-journal__d { font-size: 10.5px; color: var(--ink-soft); }
+
+/* ══ LE PROFIL RANGÉ — 5 septembre 2026 ═════════════════════════════
+   Il était écrit en trois morceaux épars, séparés dans le fichier par les
+   panneaux d'autres onglets. Réunis, ils ont besoin d'un souffle entre eux :
+   sans respiration, trois groupes collés valent une seule pile. */
+.trc-profil { display: flex; flex-direction: column; gap: 16px; }
+.trc-profil + .trc-profil {
+  margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--hairline);
+}
+
+/* CE QUI NE SE DÉFAIT PAS SE VOIT DE LOIN. Fusionner deux fiches ou retirer une
+   tête vivaient à hauteur d'un champ de ville : rien ne distinguait le geste
+   d'un jour de celui qu'on regrette. */
+.trc-profil--sensible { margin-top: 34px; padding-top: 20px; border-top: 2px solid var(--copper-300); }
+.trc-profil__garde { color: var(--trv-error, #96412E); }

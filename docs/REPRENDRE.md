@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PROFIL RANGÉ PAR INTENTION — 5 septembre 2026, PUBLIÉ
+
+« Réorganise moi cette page aussi, mise en forme UI/UX et facile à naviguer. »
+
+**Il était écrit en TROIS MORCEAUX ÉPARS**, séparés dans le fichier par les
+panneaux d'autres onglets : l'identité à la ligne 2745, le persona trois cents
+lignes plus bas, la fusion et le retrait encore ailleurs. Rien ne les reliait, et
+l'ordre à l'écran était celui du hasard.
+
+Un seul panneau désormais, trois groupes séparés par un filet : **qui elle est**,
+**ce qu'on sait d'elle**, puis **ce qui ne se fait qu'une fois**.
+
+**Le contenu n'a pas changé d'un champ — il a changé de place.** Réauthorer trois
+cents lignes de formulaire pour en changer l'ordre ferait perdre des gestes en
+chemin, et c'est précisément ce qu'on ne peut pas se permettre sur une fiche
+cliente.
+
+**Fusionner deux fiches et retirer une tête** vivaient à hauteur d'un champ de
+ville : rien ne distinguait le geste d'un jour de celui qu'on regrette. Ils
+descendent au bas de la page, derrière un filet de cuivre et un mot — « ces
+gestes ne se défont pas ».
+
+### Deux corrections du même jour
+
+- **L'année sur les rendez-vous à venir** (`frShortAn`). Une cadence posée court
+  sur deux ans : cinq rendez-vous d'octobre à juin, et sans l'année le dernier se
+  lit comme s'il était dans deux mois. Le jour de la semaine reste, c'est par lui
+  qu'on juge si le créneau convient.
+- **La bande « ce qui presse » respire.** Rendue en `span`, ses trois lignes se
+  collaient : « Vendredi 23 octobre · 16:00Tout est réglé ». Faute introduite
+  avec la bande elle-même.
+
 ## LE SUIVI DE LA COURONNE — 5 septembre 2026, PUBLIÉ
 
 « Des courbes qui peuvent servir de suivi et d'évaluation pour fidéliser les
