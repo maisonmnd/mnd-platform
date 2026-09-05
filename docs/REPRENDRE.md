@@ -2,6 +2,28 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA MAISON DÉCIDE QUAND LE PROGRAMME S'OUVRE — 5 septembre 2026, PUBLIÉ
+
+« Je dois voir le programme de pousse et modifier moi-même quand il doit
+s'ouvrir. »
+
+**Il ne se montrait que derrière un VÍVÍVÓ™ honoré.** Une tête qui commence son
+programme après une conversation, ou le jour d'une reprise, n'avait rien à quoi
+s'accrocher : le bloc restait **invisible**, donc impossible à ouvrir et encore
+moins à décaler. **Un programme qu'on ne voit pas est un programme qu'on n'ouvre
+jamais.**
+
+`Client.programmeDepuis` porte la décision, et `ouvertureDuProgramme()` la fait
+passer **avant la déduction** : la date posée l'emporte sur le dernier VÍVÍVÓ™,
+qui reste juste neuf fois sur dix. Refermer, c'est effacer la date — on retombe
+alors sur le VÍVÍVÓ™, pas sur le vide.
+
+Le bloc existe désormais **même sans déclencheur**, avec un champ de date et
+« Ouvrir son programme ». Quand il est ouvert, le titre dit d'où vient la date —
+posée à la main, ou lue sur son VÍVÍVÓ™.
+
+Jugé par `verifie-protocole`.
+
 ## UN SECOND COMPTE SUR LA MÊME ADRESSE — 5 septembre 2026, PUBLIÉ
 
 « Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis

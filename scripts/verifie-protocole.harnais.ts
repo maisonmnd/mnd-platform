@@ -6,7 +6,7 @@
    doit pas cocher les trois étapes qui le demandent. */
 import {
   PROTOCOLE_COULEUR, PROTOCOLE_POUSSE, CODES_COULEUR, CODES_POUSSE, GRACE_JOURS,
-  derniereCouleur, dernierActivateur, suivreLeProtocole, protocoleAbsent, SERVICES_PROTOCOLE,
+  derniereCouleur, dernierActivateur, ouvertureDuProgramme, suivreLeProtocole, protocoleAbsent, SERVICES_PROTOCOLE,
 } from '../src/shared/protocoles';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
@@ -168,6 +168,31 @@ dit('le programme compte trois étapes après lui', 3, PROTOCOLE_POUSSE.length);
 dit('… dues à quatre, huit et douze semaines', ['2026-06-29', '2026-07-27', '2026-08-24'],
   suivreLeProtocole({ couleur: vivivo, appts: [vivivo], byId, aujourdhui: '2026-06-02', etapes: PROTOCOLE_POUSSE })
     .map((e) => e.dueIso));
+
+/* ── ⑦ LA MAISON DÉCIDE QUAND LE PROGRAMME S'OUVRE ────────────────
+   « Je dois voir le programme de pousse et modifier moi-même quand il doit
+   s'ouvrir » (Yéman, 5 septembre 2026).
+
+   UNE DÉCISION PASSE AVANT UNE DÉDUCTION : la date posée à la main l'emporte
+   sur le dernier VÍVÍVÓ™, qui reste juste neuf fois sur dix. */
+const agendaPousse = [rdv('p1', '2026-06-01', ['s-vivivo'])];
+const lu = ouvertureDuProgramme({ appts: agendaPousse, clientId: 'cl-1', byId });
+dit('sans date posée, on lit le VÍVÍVÓ™', '2026-06-01', lu.depart?.date);
+dit('… et on le dit', false, lu.pose);
+
+const decide = ouvertureDuProgramme({ pose: '2026-07-15', appts: agendaPousse, clientId: 'cl-1', byId });
+dit('la date posée l’emporte', '2026-07-15', decide.depart?.date);
+dit('… et se dit posée', true, decide.pose);
+dit('… elle ouvre bien le cycle', ['2026-08-12', '2026-09-09', '2026-10-07'],
+  suivreLeProtocole({ couleur: decide.depart!, appts: agendaPousse, byId, aujourdhui: '2026-07-16', etapes: PROTOCOLE_POUSSE })
+    .map((e) => e.dueIso));
+
+/* RIEN DES DEUX : le programme n'est pas ouvert, et on ne l'invente pas. */
+dit('sans rien, rien n’est ouvert', undefined,
+  ouvertureDuProgramme({ appts: [], clientId: 'cl-1', byId }).depart);
+/* UNE DATE VIDE N'EST PAS UNE DÉCISION — refermer, c'est revenir au VÍVÍVÓ™. */
+dit('une date vide retombe sur le VÍVÍVÓ™', '2026-06-01',
+  ouvertureDuProgramme({ pose: '  ', appts: agendaPousse, clientId: 'cl-1', byId }).depart?.date);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

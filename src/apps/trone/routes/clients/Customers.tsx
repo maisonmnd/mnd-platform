@@ -28,7 +28,7 @@ import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from './Courbes';
-import { derniereCouleur, dernierActivateur, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
+import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -1876,6 +1876,8 @@ function Customer360({
      plus tard, un chiffre inversé : il fallait retirer la ligne et la
      reposer, ce qui perd la note qu'on venait justement corriger. */
   const [cptEdite, setCptEdite] = useState<string | null>(null);
+  /* LE JOUR D'OUVERTURE DU PROGRAMME, en cours de saisie. */
+  const [progJour, setProgJour] = useState('');
   const [editLocks, setEditLocks] = useState('');
   const [editCm, setEditCm] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -3962,14 +3964,86 @@ function Customer360({
             );
           };
           const couleur = derniereCouleur(appts, client.id, byId);
-          const activateur = dernierActivateur(appts, client.id, byId);
-          if (!couleur && !activateur) return null;
+          /* ══ LA MAISON DÉCIDE QUAND LE PROGRAMME S'OUVRE — 5 septembre ══
+             « Je dois voir le programme de pousse et modifier moi-même quand
+             il doit s'ouvrir » (Yéman).
+
+             IL NE SE MONTRAIT QUE DERRIÈRE UN VÍVÍVÓ™ HONORÉ : une tête qui
+             commence après une conversation n'avait rien à quoi s'accrocher, et
+             le bloc restait invisible — impossible de l'ouvrir, encore moins de
+             le décaler. La décision passe désormais avant la déduction. */
+          const { depart: activateur, pose } = ouvertureDuProgramme({
+            pose: client.programmeDepuis, appts, clientId: client.id, byId,
+          });
+          const poserLOuverture = (iso: string) => {
+            clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+              ? { ...c, ...(iso ? { programmeDepuis: iso } : { programmeDepuis: undefined }) }
+              : c)));
+            setProgJour('');
+            toast(iso ? `Programme de pousse ouvert au ${frJourAn(iso)}.` : 'Programme de pousse refermé.');
+          };
           return (
             <>
               {couleur && rendre('Après sa couleur', couleur,
                 suivreLeProtocole({ couleur, appts, byId, aujourdhui: today }))}
-              {activateur && rendre('Son programme de pousse, ouvert', activateur,
-                suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: PROTOCOLE_POUSSE }))}
+
+              {activateur
+                ? (
+                  <>
+                    {rendre(pose ? 'Son programme de pousse, ouvert' : 'Son programme de pousse, depuis son VÍVÍVÓ™', activateur,
+                      suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: PROTOCOLE_POUSSE }))}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <Input
+                        type="date"
+                        value={progJour || activateur.date}
+                        max={today}
+                        onChange={(e) => setProgJour(e.target.value)}
+                        aria-label="Jour d’ouverture du programme"
+                        style={{ width: 156, flex: 'none' }}
+                      />
+                      <Button variant="ghost" style={{ flex: 'none' }}
+                        onClick={() => poserLOuverture(progJour || activateur.date)}>
+                        {pose ? 'Décaler l’ouverture' : 'Fixer cette date'}
+                      </Button>
+                      {pose && (
+                        <button type="button" className="tre-link-btn" onClick={() => poserLOuverture('')}>
+                          Refermer le programme
+                        </button>
+                      )}
+                      <span className="mnd-muted" style={{ fontSize: 11 }}>
+                        {pose
+                          ? 'Date posée à la main : elle passe avant son dernier VÍVÍVÓ™.'
+                          : 'Lu sur son dernier VÍVÍVÓ™. Fixez une date pour décider vous-même.'}
+                      </span>
+                    </div>
+                  </>
+                )
+                : (
+                  /* SANS DÉCLENCHEUR, LE BLOC EXISTE QUAND MÊME. Un programme
+                     qu'on ne voit pas est un programme qu'on n'ouvre jamais. */
+                  <div style={{ marginTop: 12 }}>
+                    <span className="trc-microlabel">Son programme de pousse</span>
+                    <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                      Pas encore ouvert. Il se pose sur un VÍVÍVÓ™ honoré, ou sur le jour que vous
+                      choisissez ici, et déroule DÀNDÀN™ à quatre semaines, GBÌGBÌ™ à huit, WÈWÈ™ et
+                      la remesure à douze.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <Input
+                        type="date"
+                        value={progJour || today}
+                        max={today}
+                        onChange={(e) => setProgJour(e.target.value)}
+                        aria-label="Jour d’ouverture du programme"
+                        style={{ width: 156, flex: 'none' }}
+                      />
+                      <Button variant="copper" style={{ flex: 'none' }}
+                        onClick={() => poserLOuverture(progJour || today)}>
+                        Ouvrir son programme
+                      </Button>
+                    </div>
+                  </div>
+                )}
             </>
           );
         })()}

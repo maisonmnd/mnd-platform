@@ -296,3 +296,24 @@ export function dernierDeclencheur(
 export const dernierActivateur = (
   appts: readonly Appointment[], clientId: string, byId: Map<string, Service>,
 ): Appointment | undefined => dernierDeclencheur(appts, clientId, byId, CODES_POUSSE);
+
+/** LE JOUR OÙ LE PROGRAMME S'OUVRE — la décision de la Maison d'abord.
+
+    UNE DÉCISION PASSE AVANT UNE DÉDUCTION. `programmeDepuis` est posé à la
+    main sur la fiche ; sans lui, on retombe sur le dernier VÍVÍVÓ™ honoré, qui
+    reste juste neuf fois sur dix. Rien des deux : le programme n'est pas
+    ouvert, et on ne l'invente pas. */
+export function ouvertureDuProgramme(o: {
+  pose?: string;
+  appts: readonly Appointment[];
+  clientId: string;
+  byId: Map<string, Service>;
+}): { depart: Appointment | undefined; pose: boolean } {
+  const p = (o.pose ?? '').trim();
+  if (p) {
+    /* Un rendez-vous de façade : le moteur ne lit que `clientId` et `date`, et
+       la date posée n'appartient à aucun rituel — c'est bien le propos. */
+    return { depart: { id: 'programme-pose', clientId: o.clientId, date: p, serviceIds: [] } as unknown as Appointment, pose: true };
+  }
+  return { depart: dernierActivateur(o.appts, o.clientId, o.byId), pose: false };
+}

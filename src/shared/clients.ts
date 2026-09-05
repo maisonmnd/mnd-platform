@@ -137,6 +137,19 @@ export type Client = {
       Fil (`serieDesComptages`), jamais à côté. `lockCount` reste le chiffre
       courant que tout le tarif consulte. */
   comptages?: ComptageLocks[];
+  /** ── LE JOUR OÙ SON PROGRAMME DE POUSSE S'OUVRE — 5 septembre 2026 ─
+      « Je dois voir le programme de pousse et modifier moi-même quand il doit
+      s'ouvrir » (Yéman).
+
+      IL S'OUVRAIT SUR LE DERNIER VÍVÍVÓ™ HONORÉ, et sur lui seul. Deviner
+      juste ne suffit pas : une tête qui commence son programme après une
+      conversation, ou le jour d'une reprise, n'a rien à quoi s'accrocher — et
+      la Maison ne pouvait ni l'ouvrir ni le décaler.
+
+      POSÉ, IL FAIT LOI. C'est une décision, et une décision passe avant une
+      déduction. Absent, on retombe sur le VÍVÍVÓ™, qui reste juste neuf fois
+      sur dix. */
+  programmeDepuis?: string;
   /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
       tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.
