@@ -2249,7 +2249,7 @@ function Customer360({
     .map((a) => ({ appt: a, dit: noteDeLaMaison(a.note) }))
     .filter((n) => n.dit !== '')
     .sort((x, y) => y.appt.date.localeCompare(x.appt.date));
-  const derniereNote = notesDuCarnet[0];
+
   const upcomingAll = appts
     .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
     .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
@@ -2303,7 +2303,18 @@ function Customer360({
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 26, color: 'var(--color-ivoire)', lineHeight: 1 }}>{client.name}</div>
-            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>{personaName} · {client.city}</div>
+            {/* LE CALIBRE SOUS SON NOM — 5 septembre 2026 (maquette validée).
+                C'est ce qui commande son prix, et on le cherchait dans Profil à
+                chaque fois. Absent tant qu'on n'a pas compté : inventer un
+                calibre par défaut ferait un tarif que personne n'a décidé. */}
+            <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 6 }}>
+              {personaName} · {client.city}
+              {(() => {
+                const b = calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre);
+                if (!b || !client.lockCount) return null;
+                return <> · {b.name} · {client.lockCount} locks</>;
+              })()}
+            </div>
             {/* LA MARQUE SE VOIT AVANT TOUT LE RESTE. Une fiche qui ne compte pas
                 comme les autres doit le DIRE : sinon on cherche pendant des mois
                 pourquoi le total du CRM ne tombe pas juste. */}
@@ -2393,274 +2404,319 @@ function Customer360({
       <div className="trc-c360-panel">
         {tab === 'apercu' && (
         <>
-        {/* LA DERNIÈRE OBSERVATION, EN OUVRANT LA FICHE. C'est ce qu'on cherche
-            avant de l'asseoir : ce qu'on a vu la dernière fois. Les autres se
-            lisent d'affilée dans « Le parcours ». */}
-        {derniereNote && (
-          <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '10px 13px', marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-              <span className="trc-microlabel">La dernière note du carnet</span>
-              <button
-                type="button"
-                className="tre-link-btn"
-                style={{ flex: 'none' }}
-                onClick={() => setTab('parcours')}
-              >
-                {notesDuCarnet.length > 1 ? `Les ${notesDuCarnet.length} notes` : 'Le parcours'}
-              </button>
-            </div>
-            <div style={{ fontSize: 12.5, marginTop: 5, fontStyle: 'italic', color: 'var(--ink)' }}>
-              « {derniereNote.dit} »
-            </div>
-            <div className="mnd-muted" style={{ fontSize: 11, marginTop: 3 }}>
-              {frJourAn(derniereNote.appt.date)}{derniereNote.appt.master ? ` · ${derniereNote.appt.master}` : ''}
-            </div>
-          </div>
-        )}
-        {/* Prochain RDV — réel, ou prédit avec confirmation en un geste */}
-        <div className="trc-next">
-          <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
-          <div className="trc-next__date">
-            {upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}` : predicted.iso ? `≈ ${frLong(predicted.iso)}` : 'À reconquérir'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--indigo-100)', marginTop: 6 }}>
-            {upcoming
-              ? `${apptLabel(upcoming, byId)} · ${upcoming.master}`
-              : predicted.template
-                ? `${apptLabel(predicted.template, byId)} · ${predicted.template.master}`
-                : 'La maison anticipe sa cadence, proposez le fauteuil.'}
-          </div>
+        {/* ══ ① CE QUI PRESSE OUVRE LA PAGE — 5 septembre 2026 ═════════
+            « Page à restructurer. Tout est empilé, les informations viennent
+            dans tous les sens » (Yéman, maquette validée).
 
-          {/* Analyse de la cadence — visible seulement sur une prédiction */}
-          {!upcoming && predicted.iso && (
-            <div className="trc-next__cadence">
-              {predicted.avgDays
-                ? <>Revient {cadenceLabel(predicted.avgDays)}{predicted.sample >= 1 ? ` · d’après ${predicted.sample + 1} visites` : ''}{predicted.confidence ? ` · confiance ${predicted.confidence}` : ''}.</>
-                : 'Première cadence estimée, à confirmer.'}
-              {predicted.overdueDays > 0 && <span className="trc-next__overdue">En retard de {predicted.overdueDays} j</span>}
-            </div>
-          )}
+            LE SOLDE DÛ SE LISAIT PLUS BAS QU'UN CHAMP DE NOTE VIDE. Neuf blocs
+            à la même hauteur, dans une colonne : on ouvre une fiche pour
+            DÉCIDER, elle répondait en inventaire. Une seule bande dit
+            maintenant ce qui attend, avec le geste à côté.
 
-          <div className="trc-next__acts">
-            {!upcoming && predicted.iso && predicted.template ? (
+            ELLE RESTE QUAND IL N'Y A RIEN. Une bande qui disparaît fait sauter
+            la page d'une fiche à l'autre, et l'œil perd son point d'entrée. */}
+        <div className={`trc-presse ${due > 0 ? '' : 'trc-presse--calme'}`}>
+          <span className="trc-presse__l">
+            <span className="trc-presse__t">{due > 0 ? 'Ce qui presse' : 'Rien à recouvrer'}</span>
+            <span className="trc-presse__v">
+              {due > 0
+                ? fmtMoney(due, currency)
+                : upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}`
+                : predicted.iso ? `Elle revient vers le ${frShort(predicted.iso)}`
+                : 'À reconquérir'}
+            </span>
+            <span className="trc-presse__s">
+              {due > 0
+                ? `${owing.length} rituel${owing.length > 1 ? 's' : ''} · le plus ancien du ${frJourAn(owing[0]?.date ?? '')}`
+                : upcoming ? 'Tout est réglé, le fauteuil est posé.'
+                : 'Tout est réglé. Rien au carnet.'}
+            </span>
+          </span>
+          <span className="trc-presse__acts">
+            {due > 0 ? (
+              <>
+                {/* LE RELEVÉ DE COMPTE (15 août) — « comme ça il voit toutes les
+                    factures impayées », une pièce, un rituel par ligne. */}
+                <Button variant="ghost" size="sm" onClick={() => void releveDeCompte()}>Relevé de compte</Button>
+                <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
+              </>
+            ) : !upcoming && predicted.iso && predicted.template ? (
               <>
                 <Button variant="copper" size="sm" onClick={confirmPredicted}>Confirmer ce rendez-vous</Button>
-                <Button variant="ghost-invert" size="sm" onClick={adjustPredicted}>Ajuster la date</Button>
+                <Button variant="ghost" size="sm" onClick={adjustPredicted}>Ajuster la date</Button>
               </>
             ) : (
               <Button variant="copper" size="sm" onClick={() => setBookOpen(true)}>+ Proposer un rendez-vous</Button>
             )}
-          </div>
+          </span>
         </div>
 
-        {/* Rendez-vous à venir — la liste complète, cliquable pour modifier */}
-        {upcomingAll.length > 0 && (
+        {/* ══ ② DEUX COLONNES — CE QUI SE FAIT, CE QU'ELLE EST ═════════
+            À gauche ce qui se décide au fauteuil, à droite ce qu'elle
+            représente. Les chiffres ne commandent aucun geste : ils passent à
+            droite et laissent la colonne principale à ce qui se fait. */}
+        <div className="trc-deux">
           <div>
-            <span className="trc-microlabel">Rendez-vous à venir · {upcomingAll.length}</span>
-            <div className="trc-upcoming">
-              {upcomingAll.map((a) => (
-                <button key={a.id} type="button" className="trc-upcoming__row" onClick={() => setEditAppt(a)} title="Modifier ce rendez-vous">
-                  <span className="trc-upcoming__date">{frShort(a.date)} · {a.time}</span>
-                  <span className="trc-upcoming__svc">
-                    {apptLabel(a, byId)} · {a.master}
-                    {a.seriesIndex && a.seriesTotal ? <span className="trc-serie-chip" style={{ marginLeft: 6 }}>{a.seriesIndex}/{a.seriesTotal}</span> : null}
+
+            {/* Prochain RDV — réel, ou prédit avec confirmation en un geste */}
+            <div className="trc-next">
+              <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
+              <div className="trc-next__date">
+                {upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}` : predicted.iso ? `≈ ${frLong(predicted.iso)}` : 'À reconquérir'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--indigo-100)', marginTop: 6 }}>
+                {upcoming
+                  ? `${apptLabel(upcoming, byId)} · ${upcoming.master}`
+                  : predicted.template
+                    ? `${apptLabel(predicted.template, byId)} · ${predicted.template.master}`
+                    : 'La maison anticipe sa cadence, proposez le fauteuil.'}
+              </div>
+
+              {/* Analyse de la cadence — visible seulement sur une prédiction */}
+              {!upcoming && predicted.iso && (
+                <div className="trc-next__cadence">
+                  {predicted.avgDays
+                    ? <>Revient {cadenceLabel(predicted.avgDays)}{predicted.sample >= 1 ? ` · d’après ${predicted.sample + 1} visites` : ''}{predicted.confidence ? ` · confiance ${predicted.confidence}` : ''}.</>
+                    : 'Première cadence estimée, à confirmer.'}
+                  {predicted.overdueDays > 0 && <span className="trc-next__overdue">En retard de {predicted.overdueDays} j</span>}
+                </div>
+              )}
+
+              {/* LES GESTES DE LA BANDE NE SE RÉPÈTENT PAS ICI quand elle les
+                  porte déjà : deux boutons identiques à dix centimètres l'un de
+                  l'autre font douter d'avoir cliqué le bon. */}
+              {due > 0 && (
+                <div className="trc-next__acts">
+                  {!upcoming && predicted.iso && predicted.template ? (
+                    <>
+                      <Button variant="copper" size="sm" onClick={confirmPredicted}>Confirmer ce rendez-vous</Button>
+                      <Button variant="ghost-invert" size="sm" onClick={adjustPredicted}>Ajuster la date</Button>
+                    </>
+                  ) : (
+                    <Button variant="copper" size="sm" onClick={() => setBookOpen(true)}>+ Proposer un rendez-vous</Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Rendez-vous à venir — la liste complète, cliquable pour modifier */}
+            {upcomingAll.length > 0 && (
+              <div>
+                <span className="trc-microlabel">Rendez-vous à venir · {upcomingAll.length}</span>
+                <div className="trc-upcoming">
+                  {upcomingAll.map((a) => (
+                    <button key={a.id} type="button" className="trc-upcoming__row" onClick={() => setEditAppt(a)} title="Modifier ce rendez-vous">
+                      <span className="trc-upcoming__date">{frShort(a.date)} · {a.time}</span>
+                      <span className="trc-upcoming__svc">
+                        {apptLabel(a, byId)} · {a.master}
+                        {a.seriesIndex && a.seriesTotal ? <span className="trc-serie-chip" style={{ marginLeft: 6 }}>{a.seriesIndex}/{a.seriesTotal}</span> : null}
+                      </span>
+                      <StatusPill status={a.status} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ══ UN SEUL JOURNAL, DEUX ORIGINES ═══════════════════════
+                « Son carnet » et « la dernière note du carnet » vivaient dans
+                deux blocs qui se ressemblaient, sans qu'on sache lequel servait
+                à quoi. Les notes de la FICHE et celles du FAUTEUIL se lisent
+                désormais ensemble, dans l'ordre du temps, chacune marquée par
+                son origine. On écrit toujours au même endroit.
+
+                LES NOTES DE LA FICHE VIVENT DANS LE FIL (18 août) : un maître
+                sans droit sur le CRM peut donc écrire, et son mot paraît ici. */}
+            <div>
+              <span className="trc-microlabel">
+                Ce qu’on sait d’elle · {notesTete.length + notesDuCarnet.length}
+              </span>
+              {comptageRecent && (
+                <div className="trc-comptage">
+                  <b>{totalDuComptage(comptageRecent.comptage)} locks</b>
+                  <span>
+                    {comptageEnClair(comptageRecent.comptage)}
+                    {' — '}compté par {comptageRecent.auteurNom}, {comptageRecent.at.slice(0, 10).split('-').reverse().join('/')}
                   </span>
-                  <StatusPill status={a.status} />
-                </button>
-              ))}
+                  {totalDuComptage(comptageRecent.comptage) !== (client.lockCount ?? 0) && (
+                    <button
+                      type="button"
+                      className="trc-comptage__report"
+                      onClick={() => clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+                        ? { ...c, lockCount: totalDuComptage(comptageRecent.comptage) }
+                        : c)))}
+                    >
+                      Reporter sur la fiche · {client.lockCount ?? 0} → {totalDuComptage(comptageRecent.comptage)}
+                    </button>
+                  )}
+                </div>
+              )}
+              {notesTete.length + notesDuCarnet.length === 0 && (
+                <div className="mnd-muted" style={{ fontSize: 12.5 }}>Rien de noté. Écrivez la première ligne.</div>
+              )}
+
+              {/* LES DEUX SOURCES, RANGÉES PAR LE TEMPS. Une note du fauteuil
+                  porte le jour du rituel ; une note de fiche porte l'instant où
+                  on l'a écrite. On compare donc sur le JOUR, seul terrain
+                  commun — l'heure n'existe pas des deux côtés. */}
+              {[
+                ...notesTete.map((n) => ({ cle: `f-${n.id}`, jour: n.at.slice(0, 10), fiche: n, rdv: null as null | Appointment, dit: n.texte })),
+                ...notesDuCarnet.map((n) => ({ cle: `c-${n.appt.id}`, jour: n.appt.date, fiche: null as null | typeof notesTete[number], rdv: n.appt, dit: n.dit })),
+              ]
+                .sort((a, b) => b.jour.localeCompare(a.jour))
+                .map((e) => {
+                  const n = e.fiche;
+                  const mienne = !!n && n.auteurMail.trim().toLowerCase() === monMailFiche;
+                  const enCours = !!n && noteEditee === n.id;
+                  return (
+                    <div key={e.cle} className="trc-journal">
+                      <span className={`trc-journal__o ${e.rdv ? 'trc-journal__o--f' : ''}`}>
+                        {e.rdv ? 'Au fauteuil' : 'Sur sa fiche'}
+                      </span>
+                      <span className="trc-journal__c">
+                        {enCours && n ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <input
+                              className="mnd-input"
+                              value={noteEditTexte}
+                              onChange={(ev) => setNoteEditTexte(ev.target.value)}
+                              style={{ flex: 1, minWidth: 160, padding: '7px 10px', fontSize: 13 }}
+                              onKeyDown={(ev) => { if (ev.key === 'Enter') enregistrerLaNote(n.id); }}
+                              autoFocus
+                            />
+                            <Button variant="ghost" size="sm" disabled={!noteEditTexte.trim()} onClick={() => enregistrerLaNote(n.id)}>Enregistrer</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setNoteEditee(null)}>Annuler</Button>
+                          </div>
+                        ) : (
+                          <span className="trc-journal__x">{e.dit}</span>
+                        )}
+                        <span className="trc-journal__d">
+                          {e.rdv
+                            ? <>{frJourAn(e.rdv.date)}{e.rdv.master ? ` · ${e.rdv.master}` : ''}{' · '}
+                                <button type="button" className="trc-note__geste" onClick={() => setEditAppt(e.rdv!)}>Ouvrir le rituel</button>
+                              </>
+                            : <>{n!.auteurNom} · {frJourAn(e.jour)}
+                                {mienne && !enCours && (
+                                  <>
+                                    {' · '}
+                                    <button type="button" className="trc-note__geste" onClick={() => { setNoteEditee(n!.id); setNoteEditTexte(n!.texte); }}>Modifier</button>
+                                    {' · '}
+                                    <button type="button" className="trc-note__geste" onClick={() => effacerLaNote(n!.id)}>Effacer</button>
+                                  </>
+                                )}
+                              </>}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <input
+                  className="mnd-input"
+                  value={noteTexte}
+                  onChange={(e) => setNoteTexte(e.target.value)}
+                  placeholder="Une note sur cette tête…"
+                  style={{ flex: 1, minWidth: 160, padding: '7px 10px', fontSize: 13 }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') poserLaNote(); }}
+                />
+                <Button variant="ghost" size="sm" disabled={!noteTexte.trim()} onClick={poserLaNote}>Noter</Button>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* ── LE CARNET DE LA TÊTE — notes et comptages, 18 août 2026 ──
-            « Je voudrais avoir l'option d'attacher une note à une fiche cliente
-            aussi », puis « le comptage des locks » et « parfois c'est Gérard
-            qui compte… il n'a pas accès aux fiches, mais ils ont accès à leurs
-            fils ».
-
-            D'où la forme : les notes VIVENT DANS LE FIL et se lisent ici. Un
-            maître sans droit sur le CRM peut donc poser un comptage, et le
-            nombre paraît sur la fiche avec le nom de qui l'a compté. Sans cette
-            lecture, son comptage serait resté dans une conversation. */}
-        <div>
-          <span className="trc-microlabel">Son carnet · {notesTete.length}</span>
-          {comptageRecent && (
-            <div className="trc-comptage">
-              <b>{totalDuComptage(comptageRecent.comptage)} locks</b>
-              <span>
-                {comptageEnClair(comptageRecent.comptage)}
-                {' — '}compté par {comptageRecent.auteurNom}, {comptageRecent.at.slice(0, 10).split('-').reverse().join('/')}
-              </span>
-              {totalDuComptage(comptageRecent.comptage) !== (client.lockCount ?? 0) && (
+          {/* ── COLONNE DROITE : ce qu'elle représente, et sa porte ── */}
+          <div>
+            <div>
+              <span className="trc-microlabel">Ce qu’elle représente</span>
+              <div className="trc-finrow">
+                <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Total dépensé</span></div>
+                <div className="trc-ministat"><b>{basket > 0 ? fmtMoney(basket, currency) : '—'}</b><span>Panier moyen</span></div>
+                <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
+                {/* Les points ne paraissent que si le programme est ALLUMÉ : un zéro
+                    d'un programme éteint se lit comme une panne — l'absence est une
+                    décision, pas un oubli. */}
+                {pointsOn && <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>}
+              </div>
+              {/* LES DEUX CÔTÉS DU GESTE. Sans ces lignes, la fiche d'Ahmed montre
+                  une séance sans dépense — on la croit impayée — et celle de Rhanda
+                  une dépense sans séance — on la croit fausse. */}
+              {(offertsAElle.length > 0 || offertsParElle.length > 0) && (
+                <div className="trc-finrow" style={{ display: 'block' }}>
+                  {offertsAElle.length > 0 && (
+                    <div className="trc-sub" style={{ lineHeight: 1.55 }}>
+                      {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} —{' '}
+                      {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShort(a.date)}`).join(' · ')}.
+                      Ces montants comptent dans la dépense de qui les a réglés, pas dans la sienne.
+                    </div>
+                  )}
+                  {offertsParElle.length > 0 && (
+                    <div className="trc-sub" style={{ lineHeight: 1.55, marginTop: offertsAElle.length > 0 ? 6 : 0 }}>
+                      Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} —{' '}
+                      {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShort(a.date)}`).join(' · ')}.
+                      Compté dans sa dépense et ses points.
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* LE COMPTE S'OUVRE D'ICI. La carte annonçait un compte et un avoir
+                  sans y mener : pour verser un avoir, changer le payeur ou rattacher
+                  une tête, il fallait deviner que tout cela vit dans Finances. */}
+              {(clientFamily || avoirBal > 0) && (
                 <button
                   type="button"
-                  className="trc-comptage__report"
-                  onClick={() => clientsStore.set((prev) => prev.map((c) => (c.id === client.id
-                    ? { ...c, lockCount: totalDuComptage(comptageRecent.comptage) }
-                    : c)))}
+                  title={clientFamily ? `Ouvrir ${clientFamily.name} dans Comptes & Avoirs` : 'Ouvrir Comptes & Avoirs'}
+                  onClick={() => navigate(clientFamily ? `/comptes?famille=${clientFamily.id}` : '/comptes')}
+                  className="trc-compte-lien"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer', border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}
                 >
-                  Reporter sur la fiche · {client.lockCount ?? 0} → {totalDuComptage(comptageRecent.comptage)}
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--color-indigo)' }}>
+                      {clientFamily ? `Compte ${clientFamily.name}` : 'Avoir de la cliente'}
+                      <span aria-hidden style={{ color: 'var(--copper-700)', marginLeft: 6 }}>→</span>
+                    </span>
+                    <span className="trc-sub" style={{ fontSize: 11 }}>
+                      {clientFamily ? `Réglé par ${clientPayerName}` : 'crédit prépayé'} · avoir disponible
+                      {clientFamily && membresDuCompte.length > 0 && ` · ${membresDuCompte.length + 1} membres`}
+                    </span>
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: avoirBal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{fmtMoney(avoirBal, currency)}</span>
                 </button>
               )}
             </div>
-          )}
-          {notesTete.length === 0 && (
-            <div className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune note. Écrivez la première.</div>
-          )}
-          {/* ÉDITER ET EFFACER SA NOTE (26 août) — les notes vivent dans Le Fil,
-              où ces deux gestes existaient déjà ; ils manquaient ici, alors que
-              c'est sur la fiche qu'on les relit. Mêmes règles, pas d'exception :
-              chacun ne reprend et n'efface QUE ce qu'il a écrit. */}
-          {notesTete.map((n) => {
-            const mienne = n.auteurMail.trim().toLowerCase() === monMailFiche;
-            const enCours = noteEditee === n.id;
-            return (
-              <div key={n.id} className="trc-note">
-                {enCours ? (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <input
-                      className="mnd-input"
-                      value={noteEditTexte}
-                      onChange={(e) => setNoteEditTexte(e.target.value)}
-                      style={{ flex: 1, minWidth: 180, padding: '7px 10px', fontSize: 13 }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') enregistrerLaNote(n.id); }}
-                      autoFocus
-                    />
-                    <Button variant="ghost" size="sm" disabled={!noteEditTexte.trim()} onClick={() => enregistrerLaNote(n.id)}>Enregistrer</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setNoteEditee(null)}>Annuler</Button>
-                  </div>
-                ) : (
-                  <div>{n.texte}</div>
-                )}
-                <small>
-                  {n.auteurNom} · {n.at.slice(0, 10).split('-').reverse().join('/')} {n.at.slice(11)}
-                  {mienne && !enCours && (
-                    <>
-                      {' · '}
-                      <button type="button" className="trc-note__geste" onClick={() => { setNoteEditee(n.id); setNoteEditTexte(n.texte); }}>Modifier</button>
-                      {' · '}
-                      <button type="button" className="trc-note__geste" onClick={() => effacerLaNote(n.id)}>Effacer</button>
-                    </>
-                  )}
-                </small>
-              </div>
-            );
-          })}
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <input
-              className="mnd-input"
-              value={noteTexte}
-              onChange={(e) => setNoteTexte(e.target.value)}
-              placeholder="Une note sur cette tête…"
-              style={{ flex: 1, minWidth: 180, padding: '7px 10px', fontSize: 13 }}
-              onKeyDown={(e) => { if (e.key === 'Enter') poserLaNote(); }}
-            />
-            <Button variant="ghost" size="sm" disabled={!noteTexte.trim()} onClick={poserLaNote}>Noter</Button>
-          </div>
-        </div>
 
-        {/* Fiche financière */}
-        <div>
-          <span className="trc-microlabel">Fiche financière</span>
-          <div className="trc-finrow">
-            <div className="trc-ministat"><b>{fmtMoney(spend, currency)}</b><span>Total dépensé</span></div>
-            <div className="trc-ministat"><b>{basket > 0 ? fmtMoney(basket, currency) : '—'}</b><span>Panier moyen</span></div>
-            <div className="trc-ministat"><b>{honored.length}</b><span>Séances</span></div>
-            {/* Les points ne paraissent que si le programme est ALLUMÉ : un zéro
-                d'un programme éteint se lit comme une panne — l'absence est une
-                décision, pas un oubli. */}
-            {pointsOn && <div className="trc-ministat"><b>{client.loyaltyPoints ?? 0}</b><span>Points cercle</span></div>}
-          </div>
-          {/* LES DEUX CÔTÉS DU GESTE. Sans ces lignes, la fiche d'Ahmed montre
-              une séance sans dépense — on la croit impayée — et celle de Rhanda
-              une dépense sans séance — on la croit fausse. */}
-          <div className="trc-finrow" style={{ display: 'block' }}>
-            {offertsAElle.length > 0 && (
-              <div className="trc-sub" style={{ lineHeight: 1.55 }}>
-                {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} —{' '}
-                {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShort(a.date)}`).join(' · ')}.
-                Ces montants comptent dans la dépense de qui les a réglés, pas dans la sienne.
+            {/* ══ SA PORTE — par où la Maison la joint ═══════════════════
+                La présence Ma Couronne, le bilan et la demande étaient trois
+                blocs séparés en bas de page. Ce sont trois façons de la
+                joindre, ou de faire qu'on la joigne. */}
+            <div>
+              <span className="trc-microlabel">Sa porte</span>
+              <div className={`trc-presence ${onlineNow ? 'is-online' : ''}`}>
+                <span className="trc-presence__dot" />
+                <span>
+                  {mySessions.length === 0
+                    ? 'Jamais connectée à Ma Couronne.'
+                    : onlineNow
+                      ? `En ligne maintenant${lastScreen ? ` · ${lastScreen}` : ''}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`
+                      : `Vue ${lastSeenISO ? relDays(lastSeenISO.slice(0, 10)) : '—'}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`}
+                </span>
               </div>
-            )}
-            {offertsParElle.length > 0 && (
-              <div className="trc-sub" style={{ lineHeight: 1.55, marginTop: offertsAElle.length > 0 ? 6 : 0 }}>
-                Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} —{' '}
-                {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShort(a.date)}`).join(' · ')}.
-                Compté dans sa dépense et ses points.
+              <div className="trc-c360-actions">
+                <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
+                  {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
+                </button>
+                {/* LA TROISIÈME PORTE « DEMANDER » — 20 août, dernière pièce de la
+                    liste du Fil : la facture et le rituel l'avaient, la fiche non.
+                    La demande part avec LA CLIENTE attachée : celui qui la reçoit
+                    ouvre sa fiche d'un clic. */}
+                <button className="trc-c360-linkbtn" onClick={() => setDemanderOuvert(true)} title="La demande part dans Le Fil et sur le Tableau, la fiche attachée">
+                  Demander à quelqu’un de s’en occuper →
+                </button>
               </div>
-            )}
-          </div>
-          {due > 0 && (
-            <div className="trc-due">
-              <div>
-                <span className="trc-due__label">Solde dû · {owing.length} rituel{owing.length > 1 ? 's' : ''}</span>
-                <span className="trc-due__amount">{fmtMoney(due, currency)}</span>
-              </div>
-              <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-                {/* LE RELEVÉ DE COMPTE (15 août, demande de Yéman) — « comme ça
-                    il voit toutes les factures impayées ». Le solde dû
-                    s'affichait ici depuis toujours, mais rien ne permettait de
-                    l'ADRESSER : réclamer trois rituels voulait dire émettre
-                    trois factures, ou recopier le détail à la main. Une seule
-                    pièce, un rituel par ligne, le total en bas. */}
-                <Button variant="ghost" size="sm" onClick={() => void releveDeCompte()}>Relevé de compte</Button>
-                <Button variant="copper" size="sm" onClick={() => setPayAppt(owing[0])}>Encaisser</Button>
-              </span>
             </div>
-          )}
-          {/* LE COMPTE S'OUVRE D'ICI. La carte annonçait un compte et un avoir
-              sans y mener : pour verser un avoir, changer le payeur ou rattacher
-              une tête, il fallait deviner que tout cela vit dans Finances. */}
-          {(clientFamily || avoirBal > 0) && (
-            <button
-              type="button"
-              title={clientFamily ? `Ouvrir ${clientFamily.name} dans Comptes & Avoirs` : 'Ouvrir Comptes & Avoirs'}
-              onClick={() => navigate(clientFamily ? `/comptes?famille=${clientFamily.id}` : '/comptes')}
-              className="trc-compte-lien"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer', border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}
-            >
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--color-indigo)' }}>
-                  {clientFamily ? `Compte ${clientFamily.name}` : 'Avoir de la cliente'}
-                  <span aria-hidden style={{ color: 'var(--copper-700)', marginLeft: 6 }}>→</span>
-                </span>
-                <span className="trc-sub" style={{ fontSize: 11 }}>
-                  {clientFamily ? `Réglé par ${clientPayerName}` : 'crédit prépayé'} · avoir disponible
-                  {clientFamily && membresDuCompte.length > 0 && ` · ${membresDuCompte.length + 1} membres`}
-                </span>
-              </span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: avoirBal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{fmtMoney(avoirBal, currency)}</span>
-            </button>
-          )}
-        </div>
-
-        {/* Présence Ma Couronne — ligne discrète */}
-        <div>
-          <span className="trc-microlabel">Présence Ma Couronne</span>
-          <div className={`trc-presence ${onlineNow ? 'is-online' : ''}`}>
-            <span className="trc-presence__dot" />
-            <span>
-              {mySessions.length === 0
-                ? 'Jamais connectée à Ma Couronne.'
-                : onlineNow
-                  ? `En ligne maintenant${lastScreen ? ` · ${lastScreen}` : ''}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`
-                  : `Vue ${lastSeenISO ? relDays(lastSeenISO.slice(0, 10)) : '—'}${totalSec > 0 ? ` · ${fmtDur(totalSec)} au total` : ''}`}
-            </span>
           </div>
         </div>
 
-        <div className="trc-c360-actions">
-          <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
-            {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
-          </button>
-          {/* LA TROISIÈME PORTE « DEMANDER » — 20 août, dernière pièce de la
-              liste du Fil : la facture et le rituel l'avaient, la fiche non.
-              La demande part avec LA CLIENTE attachée : celui qui la reçoit
-              ouvre sa fiche d'un clic. */}
-          <button className="trc-c360-linkbtn" onClick={() => setDemanderOuvert(true)} title="La demande part dans Le Fil et sur le Tableau, la fiche attachée">
-            Demander à quelqu’un de s’en occuper →
-          </button>
-        </div>
         {bilanOpen && (
           <BilanModal client={client} honored={honored} byId={byId} branchId={client.branchId} onClose={() => setBilanOpen(false)} />
         )}

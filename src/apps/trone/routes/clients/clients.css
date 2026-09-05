@@ -2347,3 +2347,55 @@
   flex-wrap: wrap;
 }
 .trc-rdv-duree__main input { max-width: 78px; text-align: right; }
+
+/* ══ LA FICHE RANGÉE EN TROIS TEMPS — 5 septembre 2026 ═══════════════
+   « Page à restructurer. Tout est empilé, les informations viennent dans tous
+   les sens » (Yéman, maquette validée).
+
+   NEUF BLOCS ÉTAIENT À LA MÊME HAUTEUR : le solde dû de 40 000 F plus bas
+   qu'un champ de note vide, et deux journaux de notes qui se ressemblaient. On
+   ouvre une fiche pour DÉCIDER ; elle répondait en inventaire.
+
+   Trois temps : ce qui presse, ce qui se décide au fauteuil, ce qu'elle
+   représente. Rien n'est retiré, tout est rangé. */
+
+/* ── ① La bande de tête ── */
+.trc-presse {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  border: 1px solid var(--copper-300); background: var(--copper-50);
+  border-radius: var(--radius-md); padding: 13px 16px; margin-bottom: 14px;
+}
+/* RIEN À RECOUVRER SE DIT AUSSI, et en vert. Une bande qui disparaît fait
+   sauter la page d'une fiche à l'autre, et l'œil perd son point d'entrée. */
+.trc-presse--calme { border-color: var(--line); background: var(--surface-card); }
+.trc-presse__l { flex: 1 1 240px; min-width: 0; }
+.trc-presse__t {
+  display: block; font-family: var(--font-sans); font-size: 9.5px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700);
+}
+.trc-presse--calme .trc-presse__t { color: var(--ink-soft); }
+.trc-presse__v {
+  font-family: var(--font-serif); font-size: 27px; line-height: 1.1; color: var(--color-indigo);
+}
+.trc-presse__s { font-size: 11.5px; color: var(--ink-soft); }
+.trc-presse__acts { display: inline-flex; gap: 8px; flex-wrap: wrap; flex: none; }
+
+/* ── ② Les deux colonnes ── */
+.trc-deux {
+  display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start;
+}
+.trc-deux > div { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 900px) { .trc-deux { grid-template-columns: 1fr; } }
+
+/* ── ③ Le journal unifié ── */
+.trc-journal { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--hairline); }
+.trc-journal:first-of-type { border-top: none; }
+.trc-journal__o {
+  flex: none; font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 100px; border: 1px solid var(--line);
+  color: var(--ink-soft); background: var(--surface-card); height: fit-content; margin-top: 2px;
+}
+.trc-journal__o--f { border-color: var(--copper-300); background: var(--copper-50); color: var(--copper-700); }
+.trc-journal__c { min-width: 0; flex: 1 1 auto; }
+.trc-journal__x { font-size: 13px; color: var(--ink); }
+.trc-journal__d { font-size: 10.5px; color: var(--ink-soft); }

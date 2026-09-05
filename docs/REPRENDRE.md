@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA FICHE CLIENTE, RANGÉE EN TROIS TEMPS — 5 septembre 2026, PUBLIÉ
+
+« Page à restructurer. Tout est empilé, les informations viennent dans tous les
+sens. Revoir l'UI et l'UX de cette page. »
+
+**Neuf blocs à la même hauteur, dans une colonne.** Le solde dû de 40 000 F se
+lisait plus bas qu'un champ de note vide, et le prochain rendez-vous après une
+observation vieille d'un an. **On ouvre une fiche pour DÉCIDER ; elle répondait
+en inventaire.**
+
+### ① Ce qui presse ouvre la page
+
+Une bande, un montant, un geste. `Solde dû → Relevé de compte · Encaisser`, ou
+le rendez-vous à confirmer, ou à proposer. **Elle reste quand il n'y a rien**,
+en gris, et dit le prochain rendez-vous : une bande qui disparaît fait sauter la
+page d'une fiche à l'autre, et l'œil perd son point d'entrée.
+
+Les gestes de la bande **ne se répètent pas** dans la carte du prochain rituel :
+deux boutons identiques à dix centimètres l'un de l'autre font douter d'avoir
+cliqué le bon.
+
+### ② Deux colonnes
+
+À gauche **ce qui se décide au fauteuil** : le prochain rituel, les suivants, le
+journal. À droite **ce qu'elle représente** et **sa porte**. Les chiffres ne
+commandent aucun geste — on les consulte — ils laissent la colonne principale à
+ce qui se fait. Une seule colonne sous 900 px.
+
+### ③ Un seul journal, deux origines
+
+« Son carnet » et « la dernière note du carnet » étaient deux blocs qui se
+ressemblaient sans qu'on sache lequel servait à quoi. Les notes de la **fiche**
+et celles du **fauteuil** se lisent ensemble, dans l'ordre du temps, chacune
+marquée par sa pastille. On écrit toujours au même endroit, et une note du
+fauteuil ouvre son rituel.
+
+Elles se comparent sur le **jour**, seul terrain commun : une note de fiche
+porte l'instant où on l'a écrite, une note de rituel porte le jour du passage.
+
+**Aussi** : le calibre et le nombre de locks passent **sous son nom**, dans
+l'en-tête. C'est ce qui commande son prix, et on le cherchait dans Profil à
+chaque fois. Absent tant qu'on n'a pas compté — inventer un calibre par défaut
+ferait un tarif que personne n'a décidé.
+
 ## LE COMPTAGE DES LOCKS, DANS LE TEMPS — 5 septembre 2026, PUBLIÉ
 
 « Je peux avoir quelque part de formel où je peux tracker le comptage des locks,
