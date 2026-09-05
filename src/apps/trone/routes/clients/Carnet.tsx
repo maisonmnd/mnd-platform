@@ -17,7 +17,7 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel,
 } from './_shared';
 import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
@@ -341,6 +341,20 @@ export default function Carnet() {
         <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{apptLabel(a, byId)}</span>
           {a.serviceIds.length > 1 && <span className="trc-src trc-src--indigo">{a.serviceIds.length} services</span>}
+          {/* CE QU'ELLE EMPORTE SE VOIT AU CARNET — 5 septembre 2026. Une
+              Gamme posee a la reservation et invisible ici serait une promesse
+              qui ne tient qu'a la memoire de celle qui l'a prise. Le montant
+              est a part : un flacon n'est pas un geste, il ne paie pas de
+              mains. */}
+          {(a.gamme?.length ?? 0) > 0 && (
+            <span
+              className="trc-src"
+              style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+              title="La Gamme posee a la reservation, a regler au comptoir avec le rituel"
+            >
+              + Gamme {fmtMoney(apptGammeXof(a), currency)}
+            </span>
+          )}
           {/* LE GESTE SE VOIT AU CARNET. Un rituel offert lu sans sa mention
               donne une cliente qui semble ne jamais payer. */}
           {a.offertPar && (

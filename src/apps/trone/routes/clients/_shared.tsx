@@ -27,6 +27,7 @@ import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
+import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
@@ -199,6 +200,29 @@ export const apptNetXof = (a: Appointment, byId: Map<string, Service>) => {
   if (a.forfait) return Math.max(0, Math.round(a.forfait.totalXof));
   return Math.max(0, Math.round(apptTotalXof(a, byId) * (1 - (a.discountPct ?? 0) / 100)) - (a.discountXof ?? 0));
 };
+
+/** ══ CE QU'ELLE EMPORTE — la Gamme du rendez-vous ═════════════════════
+
+    ELLE SE LIT À PART, ET C'EST LE POINT. `apptNetXof` ne la compte pas : y
+    verser la Gamme la ferait entrer dans la production des maîtres, les primes,
+    les commissions et la ventilation par maison. Un flacon vendu ne fait pas
+    une prime de fauteuil.
+
+    LE POURCENTAGE DU RENDEZ-VOUS PORTE SUR TOUT — arbitrage du 5 septembre
+    2026 : un compte famille à −15 % est à −15 % partout, et c'est ce que la
+    Maison dit à sa cliente. LES FRANCS, NON : la remise manuelle en CFA est
+    déjà retranchée du net des gestes, la reprendre ici la donnerait deux fois.
+
+    UN FORFAIT N'ABSORBE PAS LA GAMME (même arbitrage) : le forfait éteint le
+    pourcentage, la Gamme s'ajoute alors à son net de ligne. */
+export const apptGammeXof = (a: Appointment): number =>
+  gammeNetteXof(a.gamme, a.forfait ? 0 : (a.discountPct ?? 0));
+
+/** CE QUE LA CLIENTE DOIT EN TOUT — les gestes et ce qu'elle emporte.
+    À n'employer QUE là où l'on parle à la cliente : le comptoir, la pièce, le
+    récapitulatif. Jamais dans un chiffre d'affaires de rituels. */
+export const apptDuTotalXof = (a: Appointment, byId: Map<string, Service>): number =>
+  apptNetXof(a, byId) + apptGammeXof(a);
 
 /** LA COMMISSION DÉTAILLÉE D'UN MAÎTRE POUR UN MOIS — une seule porte.
 
@@ -1274,6 +1298,11 @@ export function RdvModal({
   /* LE FORFAIT PONCTUEL — un total négocié pour l'ensemble des gestes. Il
      REMPLACE les remises tant qu'il est posé : deux mécaniques sur le même
      rituel, et plus personne ne sait ce qui a été consenti. */
+  /* ══ CE QU'ELLE EMPORTE — la Gamme du rendez-vous (5 septembre 2026) ═
+     La Gamme ne vivait qu'au comptoir : un produit promis a la reservation
+     n'existait nulle part avant que la cliente soit devant vous. */
+  const [gamme, setGamme] = useState<LigneGamme[]>(appt?.gamme ?? []);
+  const [gammeOuverte, setGammeOuverte] = useState<string[]>([]);
   const [forfaitOn, setForfaitOn] = useState(!!appt?.forfait);
   const [forfaitNom, setForfaitNom] = useState(appt?.forfait?.nom ?? '');
   const [forfaitStr, setForfaitStr] = useState(appt?.forfait ? String(appt.forfait.totalXof) : '');
@@ -1914,6 +1943,9 @@ export function RdvModal({
                 remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
                   ? serviceIds.map((_, k) => remisesL[k] ?? null)
                   : undefined,
+                /* CE QU'ELLE EMPORTE — une Gamme vide ne s'ecrit pas : un champ
+                   present et vide ferait croire a une intention posee. */
+                gamme: gamme.length > 0 ? gamme : undefined,
                 /* Rituel COUVERT par l'abonnement : rien à facturer (prix 0), ni
                    remise ni acompte, décompté du quota du cycle. */
                 coveredBySub: effCovered ? true : undefined,
@@ -2005,6 +2037,7 @@ export function RdvModal({
         remisesLignes: remisesL.some((r) => (r?.pct ?? 0) > 0 || (r?.xof ?? 0) > 0)
           ? serviceIds.map((_, k) => remisesL[k] ?? null)
           : undefined,
+        gamme: gamme.length > 0 ? gamme : undefined,
         date,
         time,
         master,
@@ -2988,6 +3021,144 @@ export function RdvModal({
               séance 2+ à zéro partout). Proposer d'y consentir une remise
               n'avait aucun sens, et le total affiché en bas invitait à croire
               qu'il restait quelque chose à encaisser. */}
+          {/* ══ CE QU'ELLE EMPORTE — la Gamme au rendez-vous ═══════════════
+              5 septembre 2026, maquette validée.
+
+              La Gamme ne vivait qu'au comptoir : un produit promis à la
+              réservation n'existait nulle part avant que la cliente soit devant
+              vous. Le stock ne savait pas qu'il était attendu, et le total
+              annoncé au téléphone n'était celui d'aucun écran.
+
+              C'EST UNE INTENTION, PAS DE L'ARGENT. Le règlement se fait
+              toujours à La Caisse, et LE STOCK NE BOUGE QU'À LA VENTE
+              (arbitrage) : un flacon retenu trois semaines pour une venue qui
+              n'aura pas lieu est un flacon invendu. L'écran ANNONCE ce qu'il
+              reste, il ne le retient pas. */}
+          {!estSuite && (
+            <Field label="La Gamme · ce qu’elle emporte">
+              {gamme.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10 }}>
+                  {gamme.map((l) => {
+                    const prod = produitsGamme.find((x) => x.id === l.id);
+                    const reste = prod?.stock ?? 0;
+                    const manque = manqueALEtagere(l, reste);
+                    const posee = (l.remise?.pct ?? 0) > 0 || (l.remise?.xof ?? 0) > 0;
+                    const ouverte = posee || gammeOuverte.includes(l.id);
+                    /* LE TARIF A-T-IL BOUGÉ DEPUIS LA PROMESSE ? Le prix figé
+                       fait foi, mais le comptoir doit pouvoir le dire, sans
+                       quoi la Maison vendrait à perte sans jamais le voir. */
+                    const bouge = prod && Math.round(prod.priceXof) !== Math.round(l.prixXof);
+                    return (
+                      <div key={l.id} className="mnd-bande" style={{ padding: '11px 13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 14, color: 'var(--color-indigo)' }}>
+                            {prod?.name ?? 'Produit retiré de la Gamme'}
+                          </span>
+                          <span
+                            className="mnd-muted"
+                            style={{ fontSize: 10.5, color: manque ? 'var(--trv-error, #96412E)' : undefined }}
+                          >
+                            {manque ? `il n’en reste que ${reste}` : `il en reste ${reste}`}
+                          </span>
+                          <span style={{ marginLeft: 'auto', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                            {argent(ligneNetteXof(l))}
+                            {ligneNetteXof(l) !== ligneBruteXof(l) && (
+                              <span className="mnd-muted" style={{ fontSize: 11.5 }}> au lieu de {argent(ligneBruteXof(l))}</span>
+                            )}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginTop: 9 }}>
+                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                            onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, -1))}>−</button>
+                          <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', minWidth: 22, textAlign: 'center' }}>{l.qty}</span>
+                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                            onClick={() => setGamme((g) => poseUnProduit(g, { id: l.id, priceXof: l.prixXof }, 1))}>+</button>
+                          <span className="mnd-muted" style={{ fontSize: 11.5 }}>× {argent(l.prixXof)}</span>
+                          <button
+                            type="button"
+                            onClick={() => setGammeOuverte((prev) => (prev.includes(l.id) ? prev.filter((x) => x !== l.id) : [...prev, l.id]))}
+                            style={{
+                              marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+                              font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
+                            }}
+                          >
+                            {ouverte ? 'Replier' : 'Remiser'}
+                          </button>
+                          <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }}
+                            onClick={() => setGamme((g) => retireUnProduit(g, l.id))}>Retirer</button>
+                        </div>
+                        {ouverte && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                            {[5, 10, 15, 20, 25, 50, 100].map((v) => (
+                              <button
+                                key={v}
+                                type="button"
+                                className={`mnd-btn mnd-btn--sm ${(l.remise?.pct ?? 0) === v ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                                style={{ flex: 'none' }}
+                                onClick={() => setGamme((g) => remiseDeLaLigne(g, l.id, { pct: (l.remise?.pct ?? 0) === v ? 0 : v }))}
+                              >
+                                −{v}%
+                              </button>
+                            ))}
+                            <input
+                              className="mnd-input"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={l.remise?.xof ? String(l.remise.xof) : ''}
+                              onChange={(e) => setGamme((g) => remiseDeLaLigne(g, l.id, { xof: Math.max(0, Math.round(Number(e.target.value.replace(/[^\d]/g, '')) || 0)) }))}
+                              style={{ width: 96, textAlign: 'right' }}
+                              aria-label="Remise en francs sur ce produit"
+                            />
+                            <span className="mnd-muted" style={{ fontSize: 11.5 }}>F · après le %</span>
+                          </div>
+                        )}
+                        {bouge && (
+                          <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55, color: 'var(--copper-700)' }}>
+                            Le tarif a bougé depuis : {argent(prod!.priceXof)} au catalogue aujourd’hui.
+                            {' '}
+                            <button
+                              type="button"
+                              onClick={() => setGamme((g) => g.map((x) => (x.id === l.id ? { ...x, prixXof: Math.round(prod!.priceXof) } : x)))}
+                              style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'underline' }}
+                            >
+                              Prendre le prix d’aujourd’hui
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <Select
+                value=""
+                onChange={(e) => {
+                  const prod = produitsGamme.find((x) => x.id === e.target.value);
+                  if (prod) setGamme((g) => poseUnProduit(g, prod, 1));
+                }}
+              >
+                <option value="">+ Ajouter de la Gamme…</option>
+                {produitsGamme
+                  .filter((prod) => !gamme.some((l) => l.id === prod.id))
+                  .map((prod) => (
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name} · {argent(prod.priceXof)} · stock {prod.stock}
+                    </option>
+                  ))}
+              </Select>
+              {gamme.length > 0 && (
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.55 }}>
+                  <b>{argent(gammeNetteXof(gamme, forfaitPose ? 0 : discountPct))}</b> de Gamme,
+                  {' '}en plus des gestes. Elle se règle au comptoir, avec le rituel : rien n’est
+                  {' '}retenu sur l’étagère avant qu’elle ne l’emporte.
+                  {forfaitPose
+                    ? ' Un forfait ne l’absorbe pas, elle s’ajoute à son prix.'
+                    : (discountPct > 0 ? ` La remise de −${discountPct} % y porte aussi.` : '')}
+                </div>
+              )}
+            </Field>
+          )}
+
           {!estSuite && (
           <Field label="Le prix">
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

@@ -2,6 +2,49 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA GAMME AU RENDEZ-VOUS — 5 septembre 2026, PUBLIÉ
+
+« Comment je gère les remises sur les RDV, les forfaits et les accessoires avant
+le paiement d'un rituel ? » (Yéman). Les remises étaient tenues, **les
+accessoires non** : la Gamme DÒDÒ ne vivait qu'au comptoir. Un produit promis à
+la réservation n'existait nulle part avant que la cliente soit devant vous.
+
+Dans la composition du rituel, une section **« La Gamme · ce qu'elle emporte »** :
+on ajoute, on ajuste la quantité, on remise, on retire. Au comptoir, choisir le
+rituel pose **les gestes ET la Gamme** au ticket, aux prix annoncés.
+
+### Les quatre arbitrages du 5 septembre
+
+- **La remise famille porte sur TOUT le rendez-vous**, Gamme comprise. Un compte
+  à −15 % est à −15 % partout, et c'est ce que la Maison dit à sa cliente.
+  Corollaire : **le pourcentage porte sur tout, les francs sur les gestes.** La
+  remise manuelle en CFA est déjà retranchée du net des gestes ; la reprendre sur
+  la Gamme la donnerait deux fois.
+- **Le stock ne se réserve pas.** Le rendez-vous ANNONCE ce qu'il reste
+  (« il en reste 6 »), il ne le retient pas. Un flacon retenu trois semaines pour
+  une venue qui n'aura pas lieu est un flacon invendu, et un stock qui compte des
+  promesses ne dit plus ce qu'il y a sur l'étagère. Le stock bouge à la vente.
+- **Un forfait n'absorbe pas la Gamme.** Sinon le produit recevrait sa part au
+  prorata comme un geste, et cette part entrerait dans la production d'un maître
+  qui n'a rien fait de ses mains.
+- **Le prix se fige à la pose**, comme celui d'un geste, la longueur et la durée.
+  Si le tarif bouge entre la promesse et la venue, l'écran le dit et propose de
+  prendre celui d'aujourd'hui, en un clic.
+
+### Ce que ça NE touche PAS
+
+`apptNetXof` **ne compte pas la Gamme**, et c'est le point. Y verser les produits
+les ferait entrer dans la production des maîtres, les primes, les commissions et
+la ventilation par maison : **un flacon vendu ne fait pas une prime de fauteuil.**
+Elle se lit à part, par `apptGammeXof` ; `apptDuTotalXof` réunit les deux, et ne
+sert QUE là où l'on parle à la cliente.
+
+Le carnet ne solde toujours que la part prestation. **Ce que le rendez-vous porte
+est une intention, pas de l'argent** : le règlement se fait à La Caisse, comme
+avant.
+
+`shared/gamme.ts`, éprouvé par `verifie-gamme` (29ᵉ harnais, 27 assertions).
+
 ## LA SAISIE EN SÉRIE — 5 septembre 2026, PUBLIÉ
 
 « Je veux saisir tous mes RDV en 2025. Un système facile pour remplir des RDV in

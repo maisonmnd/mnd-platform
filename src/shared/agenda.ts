@@ -1,5 +1,6 @@
 import { createStore, useStore } from './store';
 import type { LongueurId } from './catalog';
+import type { LigneGamme } from './gamme';
 
 /* Le Carnet — rendez-vous multi-services, 08:00–18:00.
    Les semences sont générées autour d'aujourd'hui : le carnet vit toujours. */
@@ -168,6 +169,23 @@ export type Appointment = {
     /** Jour où il a été consenti (ISO). */
     poseAt: string;
   };
+  /** CE QU'ELLE EMPORTE — la Gamme DÒDÒ posée dès la prise du rendez-vous
+      (5 septembre 2026, maquette validée).
+
+      La Gamme ne vivait qu'au comptoir : un produit promis à la réservation
+      n'existait nulle part avant que la cliente soit devant vous. Trois
+      semaines de mémoire pour un flacon.
+
+      C'EST UNE INTENTION, PAS DE L'ARGENT. Le règlement se fait toujours à La
+      Caisse, le stock ne bouge qu'à la vente, et le carnet ne solde que la part
+      prestation. `apptNetXof` NE LA COMPTE DONC PAS : y verser la Gamme la
+      ferait entrer dans la production des maîtres, les primes, les commissions
+      et la ventilation par maison — un flacon vendu ne fait pas une prime de
+      fauteuil. Elle se lit à part, par `apptGammeXof`.
+
+      Le prix unitaire y est FIGÉ à la pose, comme celui d'un geste. Voir
+      `shared/gamme.ts` pour tout le calcul. */
+  gamme?: LigneGamme[];
   discountPct?: number; // remise appliquée au RDV (0–100)
   /** Remise manuelle en CFA, retranchée APRÈS la remise en %. Geste de comptoir
       (fidélité, arrangement) que le pourcentage ne sait pas exprimer. */

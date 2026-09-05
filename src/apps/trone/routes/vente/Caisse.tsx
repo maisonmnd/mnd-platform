@@ -21,6 +21,7 @@ import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
+import { ligneNetteXof } from '../../../../shared/gamme';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 
@@ -166,6 +167,25 @@ export default function Caisse() {
         if (!dedans) poses.push(cle);
         void i;
       });
+      /* ── CE QU'ELLE EMPORTE ARRIVE AUSSI — 5 septembre 2026 ──────
+         La Gamme posee a la reservation ne servait a rien si le comptoir
+         l'ignorait : c'etait toute la raison de l'ecrire sur le rendez-vous.
+
+         LE PRIX EST CELUI QU'ON LUI A ANNONCE, fige a la pose, remise de
+         ligne comprise. Un pourcentage se transmet tel quel ; une remise en
+         francs n'a pas de case ici, on la porte alors dans le prix unitaire,
+         ou le total de la ligne reste exact au franc pres. */
+      for (const l of a.gamme ?? []) {
+        const cle = `p:${l.id}`;
+        if (!flat[cle]) continue; // produit quitte la Gamme : rien a poser
+        if (next[cle]) continue;  // deja au ticket : la main a decide avant nous
+        const francs = Math.max(0, Math.round(l.remise?.xof ?? 0));
+        const qty = Math.max(1, Math.round(l.qty || 1));
+        next[cle] = francs > 0
+          ? { qty, disc: 0, unitXof: ligneNetteXof(l) / qty }
+          : { qty, disc: Math.max(0, Math.min(100, l.remise?.pct ?? 0)), unitXof: Math.max(0, Math.round(l.prixXof)) };
+        poses.push(cle);
+      }
       return next;
     });
     posesParRituel.current = poses;
