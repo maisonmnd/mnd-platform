@@ -136,6 +136,20 @@ dit('un age inconnu ne restreint rien', 5, catalogueDeLaTete(catalogueMele, 'inc
 dit('sans section posee, l’enfant voit tout', 1, catalogueDeLaTete([ordinaire], 'oui').length);
 dit('un catalogue vide reste vide', 0, catalogueDeLaTete([], 'oui').length);
 
+/* ── UNE FICHE SUPPRIMÉE RESTE SUPPRIMÉE — 6 septembre 2026 ────────
+   « Sur le bouton MND Kids aussi. » Même faute, même remède : le compte
+   affiché ne doit pas réclamer ce que la Maison a écarté, sans quoi le bouton
+   ne s'éteint jamais et un clic ressuscite. */
+const TOUT = [...SERVICES_KIDS, FORFAIT_KIDS];
+const kidsTombe = new Set([TOUT[0].id]);
+dit('l’écartée ne manque plus', TOUT.length - 1, kidsAbsents([], kidsTombe));
+dit('… sans tombale, elle manque', TOUT.length, kidsAbsents([], new Set()));
+/* ELLE NE SE REMET PAS AU TARIF NON PLUS : la fiche n'existe plus, et la
+   compter reviendrait à promettre un geste qui ne touchera rien. */
+const kidsDevie = TOUT.map((sv) => ({ ...sv, priceXof: sv.priceXof + 1000 }));
+dit('toutes ont dérivé', TOUT.length, kidsADepasser(kidsDevie, new Set()));
+dit('… sauf l’écartée', TOUT.length - 1, kidsADepasser(kidsDevie, kidsTombe));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
 

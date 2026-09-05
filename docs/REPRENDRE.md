@@ -113,6 +113,30 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### Une fiche supprimée reste supprimée — 6 septembre 2026
+
+« Quand je supprime ou je modifie une fiche elle revient toujours », sur le
+bouton du protocole **et** sur celui de MND Kids.
+
+Les **pierres tombales** (`removedServicesStore`) existent depuis le 23 juillet,
+et leur commentaire disait déjà la règle : *tout `ensure*` qui AJOUTE des
+prestations doit ignorer ces ids*. **Ces deux poseurs-là ne les lisaient pas** :
+le bouton reparaissait sans fin pour reproposer ce que la Maison venait
+d'écarter, et un clic la ressuscitait.
+
+`protocoleAbsent`, `poseLeProtocoleAuCatalogue`, `kidsAbsents`,
+`poseLaSectionKids`, `kidsADepasser` et `metAJourLaSectionKids` lisent
+désormais les tombales. Les quatre compteurs prennent un second argument
+optionnel, pour que les harnais éprouvent la règle sans magasin.
+
+**Le geste dit ce qu'il a posé, par son nom** : un compte ne permet pas de voir
+qu'il en manque encore, et « 1 posée » ressemble trop à « 3 posées ».
+
+**Ce qui reste par dessein** : « MND Kids · N à remettre au tarif » réécrit bien
+nom, prix, prix barré et composition des fiches Kids qui ont dérivé. C'est la
+raison d'être du bouton, et il ne se clique pas par accident — mais un prix Kids
+changé à la main sera signalé tant qu'il diffère.
+
 ### Le catalogue du code n'est qu'une semence — 6 septembre 2026
 
 « YÈKPÈ Éclat ne se trouve pas là. » **`CATALOG_V6` sert à naître.** Le catalogue

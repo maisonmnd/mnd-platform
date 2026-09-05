@@ -17,7 +17,7 @@
    LES PRIX SONT CEUX DE LA MAISON, validés le 3 septembre 2026. Ils ne se
    devinent pas : la section ne se pose qu'au geste du souverain, jamais toute
    seule au démarrage. */
-import { categoriesStore, servicesStore, type CatalogCategory, type Service } from './catalog';
+import { categoriesStore, servicesStore, removedServiceIds, type CatalogCategory, type Service } from './catalog';
 
 /** La catégorie qui porte la section. Elle vit à la racine du catalogue, à
     côté des Ateliers : MND Kids TRAVERSE les quatre, elle n'est sous aucun. */
@@ -122,9 +122,15 @@ export const FORFAIT_KIDS: Service = {
 const TOUT_KIDS = [...SERVICES_KIDS, FORFAIT_KIDS];
 
 /** Combien de gestes de la section manquent encore au catalogue. */
-export const kidsAbsents = (services: readonly Service[]): number => {
+export const kidsAbsents = (
+  services: readonly Service[],
+  retires: ReadonlySet<string> = removedServiceIds(),
+): number => {
   const connus = new Set(services.map((s) => s.id));
-  return TOUT_KIDS.filter((s) => !connus.has(s.id)).length;
+  /* UNE FICHE SUPPRIMÉE NE MANQUE PAS, ELLE A ÉTÉ ÉCARTÉE — 6 septembre 2026.
+     Sans cela le bouton reparaissait sans fin pour reposer ce que la Maison
+     venait de retirer. */
+  return TOUT_KIDS.filter((s) => !retires.has(s.id) && !connus.has(s.id)).length;
 };
 
 /** POSER LA SECTION, une fois. Rend le nombre de gestes ajoutés.
@@ -139,7 +145,8 @@ export function poseLaSectionKids(): number {
     categoriesStore.set((prev) => [...prev, { ...KIDS_CATEGORIE }]);
   }
   const connus = new Set(servicesStore.get().map((s) => s.id));
-  const neufs = TOUT_KIDS.filter((s) => !connus.has(s.id));
+  const retires = removedServiceIds();
+  const neufs = TOUT_KIDS.filter((s) => !retires.has(s.id) && !connus.has(s.id));
   if (neufs.length === 0) return 0;
   servicesStore.set((prev) => [
     ...prev,
@@ -234,7 +241,11 @@ export const gainDuForfait = (
     ferait un forfait qui ne tombe plus sur son total. Il ne touche QUE les
     prestations de la section, jamais le reste du catalogue. */
 export function metAJourLaSectionKids(): number {
-  const voulus = new Map(TOUT_KIDS.map((s) => [s.id, s] as const));
+  /* CE QUI A ÉTÉ SUPPRIMÉ NE SE REMET PAS AU TARIF : la fiche n'existe plus,
+     et la ligne suivante ne la trouverait pas de toute façon. On l'écarte pour
+     que le compte affiché au bouton dise la vérité. */
+  const retires = removedServiceIds();
+  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
   let touchees = 0;
   servicesStore.set((prev) => prev.map((s) => {
     const v = voulus.get(s.id);
@@ -252,8 +263,11 @@ export function metAJourLaSectionKids(): number {
 }
 
 /** Combien de prestations de la section ne sont plus aux tarifs de la Maison. */
-export const kidsADepasser = (services: readonly Service[]): number => {
-  const voulus = new Map(TOUT_KIDS.map((s) => [s.id, s] as const));
+export const kidsADepasser = (
+  services: readonly Service[],
+  retires: ReadonlySet<string> = removedServiceIds(),
+): number => {
+  const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
   return services.filter((s) => {
     const v = voulus.get(s.id);
     if (!v) return false;

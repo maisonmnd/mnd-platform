@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
+import { servicesStore } from '../../../../shared/catalog';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel, rangMonde, type Monde,
@@ -827,10 +828,17 @@ export default function Catalogue() {
      Trois lignes du Plateau vendues d'un tenant, comme PLT·60 le fait déjà
      pour WÈWÈ™ + DÀNDÀN™. Les prix se retouchent ici même. */
   const poserLeProtocole = () => {
-    const n = poseLeProtocoleAuCatalogue();
-    toast(n > 0
-      ? `${n} fiche${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''} · le Protocole Post-Couleur et YÈKPÈ™ Éclat. Les prix se retouchent ici.`
-      : 'Le protocole est déjà au catalogue.');
+    /* CE QUI A ÉTÉ POSÉ SE DIT PAR SON NOM — 6 septembre 2026.
+       « YÈKPÈ Éclat a une seule fiche, Court. Pas de mi-long ni long. »
+       Un compte ne permet pas de savoir ce qui manque encore : nommer les
+       fiches rend le geste vérifiable d'un coup d'œil, et un second clic
+       n'ajoute que ce qui n'y est pas. */
+    const poses = poseLeProtocoleAuCatalogue();
+    const reste = protocoleAbsent(servicesStore.get());
+    if (poses.length === 0) { toast('Tout est déjà au catalogue.'); return; }
+    toast(reste > 0
+      ? `${poses.length} posée${poses.length > 1 ? 's' : ''} : ${poses.join(', ')}. Il en manque encore ${reste}, recliquez.`
+      : `${poses.length} fiches posées : ${poses.join(', ')}. Les prix se retouchent ici.`);
   };
 
   const saveSvc = () => {

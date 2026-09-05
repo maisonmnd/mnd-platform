@@ -236,5 +236,21 @@ dit('sans rien, rien n’est ouvert', undefined,
 dit('une date vide retombe sur le VÍVÍVÓ™', '2026-06-01',
   ouvertureDuProgramme({ pose: '  ', appts: agendaPousse, clientId: 'cl-1', byId }).depart?.date);
 
+/* ── UNE FICHE SUPPRIMÉE RESTE SUPPRIMÉE — 6 septembre 2026 ────────
+   « Quand je supprime ou je modifie une fiche elle revient toujours. »
+
+   Les pierres tombales existent depuis le 23 juillet : « tout ensure* qui
+   AJOUTE des prestations doit ignorer ces ids ». Ce poseur-là ne les lisait
+   pas, et le bouton reparaissait indéfiniment pour reposer ce que la Maison
+   venait d'écarter. */
+const tombe = new Set([SERVICES_RAVIVEUR[1].id, SERVICES_RAVIVEUR[2].id]);
+dit('l’écartée ne manque plus', 4, protocoleAbsent([], tombe));
+dit('… et poser le reste ne la ramène pas', false,
+  [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
+    .filter((sv) => !tombe.has(sv.id)).some((sv) => tombe.has(sv.id)));
+/* CELLE QUI EST DÉJÀ LÀ NE MANQUE PAS NON PLUS, tombale ou pas. */
+dit('le catalogue complet ne manque de rien', 0,
+  protocoleAbsent([...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR], new Set()));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

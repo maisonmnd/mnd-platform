@@ -1,6 +1,6 @@
 import type { Appointment } from './agenda';
 import type { Service, CatalogCategory } from './catalog';
-import { servicesStore, categoriesStore } from './catalog';
+import { servicesStore, categoriesStore, removedServiceIds } from './catalog';
 
 /* ══ CE QUI DOIT SUIVRE UNE COULEUR — 5 septembre 2026 ══════════════
 
@@ -211,15 +211,21 @@ export const SERVICES_RAVIVEUR: Service[] = LONGUEURS_RAVIVEUR.map((l) => ({
   order: 0,
 }));
 
-/** Combien de lignes manquent au catalogue — le forfait ET le raviveur. */
-export const protocoleAbsent = (services: readonly Service[]): number =>
-  [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
-    .filter((p) => !services.some((s) => s.id === p.id)).length;
+/** Combien de lignes manquent au catalogue — le forfait ET le raviveur.
+
+    UNE FICHE SUPPRIMÉE NE MANQUE PAS, ELLE A ÉTÉ ÉCARTÉE. Sans cette lecture
+    des pierres tombales, le bouton reparaissait indéfiniment pour proposer de
+    reposer ce que la Maison venait de retirer, et un clic la ressuscitait. */
+export const protocoleAbsent = (
+  services: readonly Service[],
+  retires: ReadonlySet<string> = removedServiceIds(),
+): number => [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
+  .filter((p) => !retires.has(p.id) && !services.some((s) => s.id === p.id)).length;
 
 /** POSER LE PROTOCOLE AU CATALOGUE. N'écrase JAMAIS ce qui existe : des prix
     sont une décision de maison, et une décision ne se réécrit pas dans le dos
     de celui qui l'a prise. */
-export function poseLeProtocoleAuCatalogue(): number {
+export function poseLeProtocoleAuCatalogue(): string[] {
   const cats = categoriesStore.get();
   if (!cats.some((c) => c.id === CAT_PROTOCOLE)) {
     const neuve: CatalogCategory = {
@@ -239,10 +245,17 @@ export function poseLeProtocoleAuCatalogue(): number {
     categoriesStore.set((prev) => [...prev, yekpe]);
   }
   const avant = servicesStore.get();
+  /* LES PIERRES TOMBALES D'ABORD : ce que la Maison a supprimé ne se repose
+     pas. « Je supprime, ça revient » est la faute qu'elles existent pour
+     empêcher, depuis le 23 juillet. */
+  const retires = removedServiceIds();
   const aPoser = [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
-    .filter((p) => !avant.some((s) => s.id === p.id));
+    .filter((p) => !retires.has(p.id) && !avant.some((s) => s.id === p.id));
   if (aPoser.length > 0) servicesStore.set((prev) => [...prev, ...aPoser.map((s) => ({ ...s }))]);
-  return aPoser.length;
+  /* ON REND LES NOMS, PAS UN COMPTE. Un chiffre ne dit pas ce qui manque
+     encore : « 1 posée » et « 3 posées » se ressemblent trop pour qu'on
+     remarque qu'il en manque deux. */
+  return aPoser.map((s) => s.name.split(' · ').pop() ?? s.name);
 }
 
 /* ══ LE SUIVI D'UNE TÊTE ════════════════════════════════════════════ */
