@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le comptage des locks &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:1.15fr 1fr; gap:22px; align-items:start; }
+  @media (max-width:920px){ .duo { grid-template-columns:1fr; } }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px;
+                 display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:19px 21px; }
+
+  .micro { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin:0 0 12px; }
+
+  /* La série des comptages */
+  .cpt { display:flex; align-items:baseline; gap:14px; padding:13px 0; border-top:1px solid #EDE5D6; }
+  .cpt:first-of-type { border-top:none; }
+  .cpt__pt { flex:none; width:9px; height:9px; border-radius:50%; background:var(--cuivre); margin-top:6px; align-self:flex-start; }
+  .cpt__pt--pale { background:var(--cuivre-p); }
+  .cpt__n { font-family:var(--serif); font-size:30px; line-height:1; color:var(--indigo); flex:none; min-width:82px;
+            font-variant-numeric:tabular-nums; }
+  .cpt__c { flex:1 1 auto; min-width:0; }
+  .cpt__d { font-size:12.5px; color:var(--encre); }
+  .cpt__s { font-size:11.5px; color:var(--encre-d); }
+  .delta { font-size:12px; font-weight:500; letter-spacing:.02em; }
+  .delta--haut { color:var(--vert); }
+  .delta--bas { color:var(--brique); }
+  .delta--egal { color:var(--encre-d); }
+  .pill { display:inline-block; font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+          border:1px solid var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre);
+          border-radius:100px; padding:2px 9px; }
+  .pill--vert { border-color:var(--vert-p); background:var(--vert-f); color:var(--vert); }
+
+  .saisie { display:flex; gap:9px; margin-top:16px; padding-top:16px; border-top:1px solid var(--filet); flex-wrap:wrap; }
+  .champ { border:1px solid var(--filet); background:#fff; border-radius:3px; padding:9px 12px; font-family:var(--sans); font-size:14px; color:var(--encre-d); }
+  .champ--n { width:110px; text-align:right; font-family:var(--serif); font-size:19px; color:var(--indigo); }
+  .champ--d { width:150px; }
+  .champ--m { flex:1 1 180px; min-width:0; }
+  .btn { border:none; border-radius:3px; background:var(--cuivre); color:#fff; font-family:var(--sans);
+         font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; padding:11px 18px; cursor:default; }
+  .btn--ghost { background:transparent; border:1px solid var(--filet); color:var(--encre-d); }
+
+  .carte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:17px 19px; }
+  .carte + .carte { margin-top:16px; }
+  .carte h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .carte p { margin:0; font-size:13.5px; color:var(--encre-d); }
+  .carte p b { color:var(--encre); font-weight:500; }
+
+  .courbe { width:100%; height:120px; display:block; margin:6px 0 2px; }
+
+  ul.arb { margin:14px 0 0; padding:0 0 0 20px; }
+  ul.arb li { margin:0 0 12px; font-size:14px; color:var(--encre-d); }
+  ul.arb li b { color:var(--encre); font-weight:500; }
+
+  footer { margin-top:80px; padding-top:22px; border-top:1px solid var(--filet);
+           font-family:var(--serif); font-style:italic; font-size:14px; color:var(--cuivre); text-align:center; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône &middot; Maquette &agrave; valider</p>
+  <h1>Le comptage des locks.</h1>
+  <p class="chapeau">
+    Un chiffre qui bouge, et qui décide du prix. Il vivait dans une note libre :
+    <b>on l&rsquo;écrivait, on ne le suivait pas</b>.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Je peux avoir quelque part de formel où je peux tracker le comptage des locks,
+    à part dans la note du carnet&nbsp;? Parfois ça change. Le client double ses locks, en perd&hellip;
+    <span>Y&eacute;man &middot; 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① CE QU'ON VOIT ═══ -->
+  <section>
+    <h2>① Sur sa fiche, dans Le parcours.</h2>
+    <p class="intro">
+      À côté des Quatre temps, avant l&rsquo;historique du carnet. C&rsquo;est le fil de sa
+      couronne&nbsp;: <b>chaque comptage porte sa date, son écart, et le calibre qu&rsquo;il commande</b>.
+    </p>
+
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete">
+          <h4>Le comptage des locks</h4>
+          <span>Shad&eacute; E. &middot; 4 comptages</span>
+        </div>
+        <div class="ecran__corps">
+
+          <svg class="courbe" viewBox="0 0 520 120" role="img" aria-label="Courbe du comptage : 180, 427, 445, 398">
+            <polyline points="30,96 190,34 350,26 490,52" fill="none" stroke="#B97A4A" stroke-width="2" />
+            <circle cx="30" cy="96" r="4" fill="#B97A4A" />
+            <circle cx="190" cy="34" r="4" fill="#B97A4A" />
+            <circle cx="350" cy="26" r="4" fill="#B97A4A" />
+            <circle cx="490" cy="52" r="5" fill="#1E2150" />
+            <text x="30" y="114" font-size="10" fill="#746F65" font-family="Jost, sans-serif" text-anchor="middle">f&eacute;vr. 25</text>
+            <text x="190" y="114" font-size="10" fill="#746F65" font-family="Jost, sans-serif" text-anchor="middle">sept. 25</text>
+            <text x="350" y="114" font-size="10" fill="#746F65" font-family="Jost, sans-serif" text-anchor="middle">f&eacute;vr. 26</text>
+            <text x="490" y="114" font-size="10" fill="#746F65" font-family="Jost, sans-serif" text-anchor="middle">sept. 26</text>
+          </svg>
+
+          <div class="cpt">
+            <span class="cpt__pt"></span>
+            <span class="cpt__n">398</span>
+            <span class="cpt__c">
+              <div class="cpt__d">
+                4 sept. 2026 &middot; <span class="delta delta--bas">&minus;47 locks</span>
+                &nbsp;<span class="pill">Nano &middot; 351&ndash;450</span>
+              </div>
+              <div class="cpt__s">Elle en a perdu sur les tempes. &middot; Team</div>
+            </span>
+          </div>
+
+          <div class="cpt">
+            <span class="cpt__pt cpt__pt--pale"></span>
+            <span class="cpt__n">445</span>
+            <span class="cpt__c">
+              <div class="cpt__d">
+                19 f&eacute;vr. 2026 &middot; <span class="delta delta--haut">+18 locks</span>
+                &nbsp;<span class="pill">Nano &middot; 351&ndash;450</span>
+              </div>
+              <div class="cpt__s">Team</div>
+            </span>
+          </div>
+
+          <div class="cpt">
+            <span class="cpt__pt cpt__pt--pale"></span>
+            <span class="cpt__n">427</span>
+            <span class="cpt__c">
+              <div class="cpt__d">
+                8 sept. 2025 &middot; <span class="delta delta--haut">+247 locks</span>
+                &nbsp;<span class="pill pill--vert">Micro &rarr; Nano</span>
+              </div>
+              <div class="cpt__s">D&eacute;doublement complet. &middot; Team</div>
+            </span>
+          </div>
+
+          <div class="cpt">
+            <span class="cpt__pt cpt__pt--pale"></span>
+            <span class="cpt__n">180</span>
+            <span class="cpt__c">
+              <div class="cpt__d">
+                19 f&eacute;vr. 2025 &middot; <span class="delta delta--egal">premier comptage</span>
+                &nbsp;<span class="pill">Micro &middot; 121&ndash;200</span>
+              </div>
+              <div class="cpt__s">&Agrave; la cr&eacute;ation. &middot; Team</div>
+            </span>
+          </div>
+
+          <div class="saisie">
+            <input class="champ champ--n" value="398" aria-label="Nombre de locks" readonly />
+            <input class="champ champ--d" value="04/09/2026" aria-label="Jour du comptage" readonly />
+            <input class="champ champ--m" value="Un mot, si besoin&hellip;" aria-label="Note du comptage" readonly />
+            <button class="btn">Compter</button>
+          </div>
+          <p class="legende" style="margin-top:10px">
+            Le jour propos&eacute; est celui du dernier rituel, pas celui du clic&nbsp;: on compte au
+            fauteuil et on saisit le soir.
+          </p>
+
+        </div>
+      </div>
+
+      <div>
+        <div class="carte">
+          <h3>L&rsquo;&eacute;cart se lit, pas seulement le chiffre</h3>
+          <p>
+            <b>+247 en un passage</b>, c&rsquo;est un d&eacute;doublement. <b>&minus;47</b>, c&rsquo;est
+            une perte qui se regarde de pr&egrave;s. Le nombre seul ne raconte rien&nbsp;; l&rsquo;&eacute;cart
+            au comptage pr&eacute;c&eacute;dent, si.
+          </p>
+        </div>
+        <div class="carte">
+          <h3>Le calibre suit, et se voit</h3>
+          <p>
+            Passer de 180 &agrave; 427 fait sortir du calibre&nbsp;: <b>Micro &rarr; Nano</b>. C&rsquo;est
+            ce qui change son prix. La pastille le dit au moment o&ugrave; le chiffre change, pas trois
+            mois plus tard devant une facture qu&rsquo;on ne comprend plus.
+          </p>
+        </div>
+        <div class="carte">
+          <h3>Le dernier comptage fait foi</h3>
+          <p>
+            C&rsquo;est lui qui devient le <b>nombre de locks de la fiche</b>, celui que le tarif lit.
+            Les rendez-vous d&eacute;j&agrave; pos&eacute;s gardent leur prix fig&eacute;&nbsp;: un comptage
+            ne retarife jamais le pass&eacute;.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ② CE QUI CHANGE AILLEURS ═══ -->
+  <section>
+    <h2>② Ce que cela change ailleurs.</h2>
+    <p class="intro">
+      Trois endroits lisent d&eacute;j&agrave; le nombre de locks. Aucun ne change de r&egrave;gle&nbsp;:
+      ils lisent simplement <b>le dernier comptage</b> au lieu d&rsquo;un chiffre pos&eacute; une fois
+      pour toutes.
+    </p>
+    <div class="duo">
+      <div class="carte">
+        <h3>La modale du rituel</h3>
+        <p>
+          Le bandeau annonce d&eacute;j&agrave; &laquo;&nbsp;Nano &middot; 351&ndash;450 locks &middot;
+          427 locks&nbsp;&raquo;. Il dira le dernier comptage, avec <b>sa date</b>&nbsp;: un chiffre
+          de l&rsquo;an dernier ne se lit pas comme celui d&rsquo;hier.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Ma Couronne</h3>
+        <p>
+          La cliente <b>d&eacute;clare</b> ses locks pour estimer son prix&nbsp;; la Maison
+          <b>compte</b>. Rien ne change&nbsp;: la d&eacute;claration reste s&eacute;par&eacute;e, et le
+          comptage la remplace d&egrave;s qu&rsquo;il existe.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ À ARBITRER ═══ -->
+  <section>
+    <h2>③ &Agrave; arbitrer avant de construire.</h2>
+    <ul class="arb">
+      <li>
+        <b>Le comptage s&rsquo;attache-t-il &agrave; un rituel&nbsp;?</b> Propos&eacute; ici&nbsp;:
+        <b>non</b>, il porte une date libre, celle du jour o&ugrave; l&rsquo;on a compt&eacute;. On compte
+        souvent au fauteuil, mais parfois &agrave; une consultation, ou &agrave; la maison.
+      </li>
+      <li>
+        <b>O&ugrave; le poser&nbsp;?</b> Propos&eacute; ici&nbsp;: <b>Le parcours</b>, au-dessus de
+        l&rsquo;historique. Il raconte la m&ecirc;me chose que les Quatre temps, en chiffres. L&rsquo;autre
+        place possible est <b>Profil</b>, &agrave; c&ocirc;t&eacute; du nombre de locks actuel.
+      </li>
+      <li>
+        <b>Le comptage change-t-il le calibre tout seul&nbsp;?</b> Propos&eacute; ici&nbsp;: <b>oui</b>,
+        le dernier fait foi et le tarif suit. Sinon il faudrait le recopier &agrave; la main dans le
+        profil, et deux chiffres finiraient par se contredire.
+      </li>
+      <li>
+        <b>Que fait-on des 427 d&eacute;j&agrave; sur les fiches&nbsp;?</b> Propos&eacute; ici&nbsp;: ils
+        deviennent le <b>premier comptage</b>, sans date connue &mdash; on &eacute;crit &laquo;&nbsp;compt&eacute;
+        avant le suivi&nbsp;&raquo; plut&ocirc;t que d&rsquo;inventer un jour.
+      </li>
+      <li>
+        <b>Faut-il la courbe&nbsp;?</b> Propos&eacute;e ici en haut du bloc. Elle ne sert que s&rsquo;il y a
+        <b>trois comptages ou plus</b>&nbsp;; en dessous, deux chiffres et une fl&egrave;che disent tout.
+      </li>
+    </ul>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
