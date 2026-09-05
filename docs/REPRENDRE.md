@@ -79,6 +79,21 @@ celui qui existe.
 **Où** : la fiche › Le parcours, au-dessus de l'historique du carnet. **Le
 comptage continue de se poser dans Le Fil**, où il a toujours vécu.
 
+### La suite, 5 septembre
+
+- **La courbe, à partir de TROIS comptages.** En dessous, deux chiffres et une
+  flèche disent tout, et un dessin à deux points se lit comme une tendance qui
+  n'existe pas. Seules les bornes sont étiquetées : cinq dates sur la largeur
+  d'une carte se chevauchent et ne se lisent plus.
+- **Le chiffre hérité compte pour un.** Une fiche peut porter un nombre de locks
+  posé à la main, bien avant ce suivi. Dire « jamais comptée » pendant que
+  l'en-tête annonce « Nano · 427 locks » serait **se contredire sur le même
+  écran**. On le montre, sans lui inventer un jour.
+- **`/fil?compter=<id>`** ouvre Le Fil sur CETTE tête, bloc de comptage déployé.
+  Sans ce passage de relais il fallait rouvrir la liste et retrouver son nom, et
+  l'on renonçait à compter pour ne pas perdre le fil de ce qu'on faisait. On y
+  mène plutôt que de refaire un second formulaire pour le même acte.
+
 Jugé par `verifie-fil`.
 
 ## LES NOTES DU CARNET REMONTENT SUR LA FICHE — 5 septembre 2026, PUBLIÉ

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -193,6 +193,18 @@ export default function Fil() {
 
   const [compteOuvert, setCompteOuvert] = useState(false);
   const [compteTete, setCompteTete] = useState('');
+  /* ══ ON ARRIVE ICI POUR COMPTER UNE TÊTE — 5 septembre 2026 ═══════
+     La fiche cliente montre la suite des comptages et renvoie ici pour en
+     poser un : `?compter=<id>` ouvre le bloc sur ELLE. Sans ce passage de
+     relais, il fallait rouvrir la liste et retrouver son nom, et l'on renonçait
+     à compter pour ne pas perdre le fil de ce qu'on faisait. */
+  const [paramsFil] = useSearchParams();
+  useEffect(() => {
+    const qui = paramsFil.get('compter');
+    if (!qui) return;
+    setCompteOuvert(true);
+    setCompteTete(qui);
+  }, [paramsFil]);
   /* QUATRE QUADRANTS — devant gauche/droite, derrière gauche/droite. C'est
      ainsi qu'une tête se compte : on recompte le quart qui cloche, pas tout. */
   const [avG, setAvG] = useState('');

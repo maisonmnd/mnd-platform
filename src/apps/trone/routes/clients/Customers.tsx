@@ -3562,20 +3562,86 @@ function Customer360({
             dédoublement, et le calibre qui dit que son tarif vient de changer. */}
         {(() => {
           const serie = serieDesComptages(tousFil, branch.id, client.id);
+          /* ALLER COMPTER, SANS PERDRE LE FIL DE CE QU'ON FAIT. Le geste vit
+             dans Le Fil — quatre quadrants, et un maître sans droit sur le CRM
+             peut le poser. On y mène en désignant la tête, plutôt que de
+             refaire ici un second formulaire pour le même acte. */
+          const allerCompter = (
+            <button type="button" className="tre-link-btn" onClick={() => navigate(`/fil?compter=${client.id}`)}>
+              Compter ses locks →
+            </button>
+          );
           if (serie.length === 0) {
             return (
               <div>
                 <span className="trc-microlabel">Le comptage des locks</span>
-                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-                  Jamais comptée. Le comptage se pose dans <b>Le Fil</b>, quadrant par quadrant, et
-                  son calibre suit.
-                </div>
+                {/* LE CHIFFRE HÉRITÉ COMPTE POUR UN — arbitrage de la maquette.
+                    Une fiche peut porter un nombre de locks posé à la main, bien
+                    avant ce suivi. Dire « jamais comptée » pendant que l'en-tête
+                    annonce « Nano · 427 locks » serait se contredire sur le même
+                    écran. On le montre, sans lui inventer un jour. */}
+                {(client.lockCount ?? 0) > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
+                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, color: 'var(--color-indigo)', minWidth: 72, fontVariantNumeric: 'tabular-nums' }}>
+                        {client.lockCount}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5 }}>
+                          Compté avant le suivi
+                          {(() => {
+                            const b = calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre);
+                            return b ? <span className="mnd-muted" style={{ marginLeft: 8, fontSize: 11 }}>{b.name}</span> : null;
+                          })()}
+                        </div>
+                        <div className="mnd-muted" style={{ fontSize: 11 }}>Jour inconnu, il n’a pas été inventé.</div>
+                      </span>
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>{allerCompter}</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                    Jamais comptée. Son calibre, donc son tarif, attend ce chiffre. {allerCompter}
+                  </div>
+                )}
               </div>
             );
           }
           return (
             <div>
               <span className="trc-microlabel">Le comptage des locks · {serie.length}</span>
+              {/* ══ LA COURBE, À PARTIR DE TROIS COMPTAGES ═══════════════
+                  En dessous, deux chiffres et une flèche disent tout, et un
+                  dessin à deux points se lit comme une tendance qui n'existe
+                  pas. À trois, la couronne commence à raconter quelque chose. */}
+              {serie.length >= 3 && (() => {
+                const pts = [...serie].reverse();
+                const hauts = pts.map((c) => c.locks);
+                const bas = Math.min(...hauts);
+                const haut = Math.max(...hauts);
+                const etendue = Math.max(1, haut - bas);
+                const L = 520;
+                const H = 96;
+                const xy = pts.map((c, i) => {
+                  const x = 14 + (i * (L - 28)) / Math.max(1, pts.length - 1);
+                  const y = 12 + (1 - (c.locks - bas) / etendue) * (H - 30);
+                  return { x, y, c };
+                });
+                return (
+                  <svg viewBox={`0 0 ${L} ${H}`} style={{ width: '100%', height: 96, display: 'block', margin: '4px 0 2px' }}
+                    role="img" aria-label={`Comptages : ${hauts.join(', ')} locks`}>
+                    <polyline points={xy.map((p2) => `${p2.x},${p2.y}`).join(' ')} fill="none" stroke="var(--color-copper)" strokeWidth="2" />
+                    {xy.map((p2, i) => (
+                      <circle key={p2.c.iso} cx={p2.x} cy={p2.y} r={i === xy.length - 1 ? 5 : 3.5}
+                        fill={i === xy.length - 1 ? 'var(--color-indigo)' : 'var(--color-copper)'} />
+                    ))}
+                    {/* LES BORNES SEULEMENT : cinq étiquettes sur une largeur de
+                        carte se chevauchent et ne se lisent plus. */}
+                    <text x={14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)" fontFamily="var(--font-sans)">{frJourAn(pts[0].iso)}</text>
+                    <text x={L - 14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)" fontFamily="var(--font-sans)" textAnchor="end">{frJourAn(pts[pts.length - 1].iso)}</text>
+                  </svg>
+                );
+              })()}
               {serie.map((c) => {
                 const bande = calibreDeLaTeteAvecMarge(c.locks, bands, client.margeCalibre);
                 return (
@@ -3605,8 +3671,8 @@ function Customer360({
                 );
               })}
               <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>
-                Le comptage se pose dans <b>Le Fil</b>, quadrant par quadrant, et le dernier devient
-                son nombre de locks — donc son tarif. Les rendez-vous déjà posés gardent leur prix.
+                {allerCompter} · quadrant par quadrant. Le dernier devient son nombre de locks, donc
+                son tarif ; les rendez-vous déjà posés gardent leur prix.
               </div>
             </div>
           );
