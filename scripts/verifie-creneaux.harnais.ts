@@ -10,7 +10,7 @@
    et se découvrent devant la porte. */
 import { creneauxLibres } from '../src/apps/couronne/lib';
 import { maitreParDefaut } from '../src/shared/branches';
-import { placeLeFoyer, maitresLibres, chevauche, estampilleLaPose, estampilleLesPoses, type Appointment } from '../src/shared/agenda';
+import { placeLeFoyer, maitresLibres, chevauche, estampilleLaPose, estampilleLesPoses, noteDeLaMaison, type Appointment } from '../src/shared/agenda';
 import { joursFermesParmi, prochainJourOuvert, settingsStore } from '../src/shared/settings';
 import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../src/shared/temps';
 
@@ -308,3 +308,31 @@ const vieux = estampilleLaPose({ id: 'a2', creeLe: '2026-01-01T08:00:00.000Z' } 
 dit('… une pose déjà datée garde la sienne', '2026-01-01T08:00:00.000Z', vieux.creeLe);
 dit('une fournée se date d’un coup', 2,
   estampilleLesPoses([{ id: 'b1' }, { id: 'b2' }] as unknown as Appointment[]).filter((x) => !!x.creeLe).length);
+
+/* ══ CE QUE LA MAISON A ÉCRIT DANS UNE NOTE ════════════════════════
+   « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
+   quelque part sur la fiche du client aussi ? » (Yéman, 5 septembre 2026).
+
+   Une note mêle deux écritures : l'observation de la Maison, qui vaut pour la
+   TÊTE, et la comptabilité des automatismes, qui dit seulement pourquoi le
+   rendez-vous existe. La fiche met en avant la première. */
+dit('une observation passe entière',
+  'Comptage de locks ce jour: 445 locks', noteDeLaMaison('Comptage de locks ce jour: 445 locks'));
+dit('une note d’automatisme ne dit rien de la tête', '', noteDeLaMaison('Cadence de l’abonnement · ABO-2026-001'));
+dit('… la reprise non plus', '', noteDeLaMaison('Reprise posée à la clôture · toutes les 8 semaines'));
+dit('… ni la reprogrammation', '', noteDeLaMaison('Reprogrammé depuis l’encaissement'));
+dit('… ni le rang d’une séance', '', noteDeLaMaison('Séance 2/3'));
+
+/* LE MÉLANGE EST LE CAS QUI COMPTE : perdre l'observation parce qu'un
+   automatisme a écrit à côté serait la pire des issues. */
+dit('l’observation survit au mélange',
+  '445 locks comptés', noteDeLaMaison('Séance 2/3 · 445 locks comptés · Cadence de l’abonnement'));
+dit('deux observations restent deux',
+  'Cuir sensible · à revoir en octobre', noteDeLaMaison('Cuir sensible · Séance 1/2 · à revoir en octobre'));
+
+/* ON ERRE DU CÔTÉ DE MONTRER : un fragment inconnu est tenu pour humain.
+   Rater une observation coûte plus cher qu'afficher une ligne de trop. */
+dit('un fragment inconnu passe', 'Elle a apporté son huile', noteDeLaMaison('Elle a apporté son huile'));
+dit('rien à dire sur une note vide', '', noteDeLaMaison(''));
+dit('… ni sur une note absente', '', noteDeLaMaison(undefined));
+dit('… ni sur des séparateurs seuls', '', noteDeLaMaison(' ·  · '));

@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES NOTES DU CARNET REMONTENT SUR LA FICHE — 5 septembre 2026, PUBLIÉ
+
+« Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
+quelque part sur la fiche du client aussi ? »
+
+**Elles dormaient dans leur rituel.** « Comptage de locks ce jour : 445 » est
+une observation clinique : elle ne vaut pas pour un rendez-vous, elle vaut pour
+une TÊTE, et sa valeur vient de la SUITE — 427 en février, 445 en mai, on voit
+la couronne pousser. Il fallait rouvrir chaque rendez-vous, un par un, pour la
+reconstituer.
+
+**Deux endroits, deux usages.**
+
+- **Aperçu** : la dernière note, avec son jour et son maître, et un lien vers le
+  parcours quand il y en a plusieurs. C'est ce qu'on cherche avant de l'asseoir :
+  ce qu'on a vu la dernière fois.
+- **Le parcours › Historique du carnet** : la note sous chaque passage, dans le
+  fil. C'est en les lisant d'affilée que la couronne se raconte.
+
+**On ne recopie rien.** La note reste écrite sur son rituel, seul endroit où
+elle se corrige ; la fiche ne fait que la lire. Une note recopiée sur deux
+documents finit par en contredire un.
+
+### `noteDeLaMaison()` — deux écritures dans un même champ
+
+Une note mêle l'observation de la Maison et la comptabilité des automatismes
+(« Cadence de l'abonnement », « Séance 2/3 », « Reprise posée à la clôture »).
+Le juge sépare les deux, fragment par fragment.
+
+- **Le fil montre la note ENTIÈRE**, technique comprise : on ne cache rien là où
+  le détail vit. Le juge ne sert qu'à choisir ce qu'on met en avant dans
+  l'aperçu.
+- **L'observation survit au mélange** : « Séance 2/3 · 445 locks comptés » garde
+  ses 445 locks. Perdre l'observation parce qu'un automatisme a écrit à côté
+  serait la pire des issues.
+- **On erre du côté de montrer** : un fragment inconnu est tenu pour humain.
+  Rater une observation coûte plus cher qu'afficher une ligne de trop.
+
+Jugé par `verifie-creneaux`.
+
 ## RÉGLER AU JOUR DU RITUEL, EN UN GESTE — 5 septembre 2026, PUBLIÉ
 
 « Ça prend trop de temps d'aller chercher la date du rituel, surtout quand cela

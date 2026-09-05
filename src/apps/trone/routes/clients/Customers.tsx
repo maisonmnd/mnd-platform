@@ -11,7 +11,7 @@ import { invoicePdf } from '../../../../shared/pdf';
 import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
-import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
+import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
 import {
@@ -2228,6 +2228,29 @@ function Customer360({
 
   /* ----- Rendez-vous ----- */
   const history = [...appts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  /* ══ LES NOTES DU CARNET REMONTENT SUR LA FICHE — 5 septembre 2026 ══
+     « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
+     quelque part sur la fiche du client aussi ? » (Yéman).
+
+     ELLES DORMAIENT DANS LEUR RITUEL. « Comptage de locks ce jour : 445 » est
+     une observation clinique : elle ne vaut pas pour un rendez-vous, elle vaut
+     pour une TÊTE, et sa valeur vient justement de la suite — 427 en février,
+     445 en mai, on voit la couronne pousser. Il fallait rouvrir chaque
+     rendez-vous, un par un, pour la reconstituer.
+
+     ON NE RECOPIE RIEN. La note reste écrite sur son rituel, seul endroit où
+     elle se corrige ; la fiche ne fait que la LIRE, avec sa date. Une note
+     recopiée sur deux documents finit par en contredire un.
+
+     LES NOTES DE LA MAISON, PAS CELLES DES MACHINES. Les rendez-vous posés par
+     la cadence ou la reprise portent une note technique (« Cadence de
+     l'abonnement », « Reprise posée à la clôture ») : elles ne disent rien de
+     la tête et encombreraient le fil. */
+  const notesDuCarnet = [...appts]
+    .map((a) => ({ appt: a, dit: noteDeLaMaison(a.note) }))
+    .filter((n) => n.dit !== '')
+    .sort((x, y) => y.appt.date.localeCompare(x.appt.date));
+  const derniereNote = notesDuCarnet[0];
   const upcomingAll = appts
     .filter((a) => a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
     .sort((a, b) => a.date.localeCompare(b.date) || timeToMin(a.time) - timeToMin(b.time));
@@ -2371,6 +2394,30 @@ function Customer360({
       <div className="trc-c360-panel">
         {tab === 'apercu' && (
         <>
+        {/* LA DERNIÈRE OBSERVATION, EN OUVRANT LA FICHE. C'est ce qu'on cherche
+            avant de l'asseoir : ce qu'on a vu la dernière fois. Les autres se
+            lisent d'affilée dans « Le parcours ». */}
+        {derniereNote && (
+          <div style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '10px 13px', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+              <span className="trc-microlabel">La dernière note du carnet</span>
+              <button
+                type="button"
+                className="tre-link-btn"
+                style={{ flex: 'none' }}
+                onClick={() => setTab('parcours')}
+              >
+                {notesDuCarnet.length > 1 ? `Les ${notesDuCarnet.length} notes` : 'Le parcours'}
+              </button>
+            </div>
+            <div style={{ fontSize: 12.5, marginTop: 5, fontStyle: 'italic', color: 'var(--ink)' }}>
+              « {derniereNote.dit} »
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 11, marginTop: 3 }}>
+              {frDay(derniereNote.appt.date)}{derniereNote.appt.master ? ` · ${derniereNote.appt.master}` : ''}
+            </div>
+          </div>
+        )}
         {/* Prochain RDV — réel, ou prédit avec confirmation en un geste */}
         <div className="trc-next">
           <div className="trc-next__eyebrow">{upcoming ? 'Prochain rendez-vous' : 'Prochain rendez-vous · prédit'}</div>
@@ -3464,6 +3511,14 @@ function Customer360({
                     {apptLabel(a, byId)} · {a.master}
                     {a.invoiceId && <span className="trc-timeline__inv"> · facture</span>}
                   </div>
+                  {/* LA NOTE SUR SA LIGNE : elle appartient à ce passage-là, et
+                      c'est en la lisant dans la suite qu'on voit la couronne
+                      pousser. */}
+                  {(a.note ?? '').trim() !== '' && (
+                    <div style={{ fontSize: 11.5, marginTop: 4, fontStyle: 'italic', color: 'var(--color-copper-700, var(--copper-700))' }}>
+                      « {a.note} »
+                    </div>
+                  )}
                 </button>
                 {a.invoiceId && (
                   <button

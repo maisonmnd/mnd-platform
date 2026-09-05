@@ -685,3 +685,37 @@ export const estampilleLaPose = <T extends Appointment>(a: T): T =>
 /** La même chose pour une fournée — une série, un foyer, une cadence. */
 export const estampilleLesPoses = <T extends Appointment>(as: readonly T[]): T[] =>
   as.map(estampilleLaPose);
+
+/* ══ CE QUE LA MAISON A ÉCRIT DANS UNE NOTE — 5 septembre 2026 ══════
+   « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
+   quelque part sur la fiche du client aussi ? » (Yéman).
+
+   UNE NOTE MÊLE DEUX ÉCRITURES. La Maison y met une observation — « comptage
+   de locks ce jour : 445 » — et les automatismes y ajoutent leur comptabilité :
+   « Cadence de l'abonnement », « Séance 2/3 », « Reprise posée à la clôture ».
+   Les premières valent pour la TÊTE et méritent la fiche ; les secondes
+   expliquent pourquoi le rendez-vous existe, et n'apprennent rien d'elle.
+
+   ON NE CACHE RIEN LÀ OÙ LE DÉTAIL VIT : le fil du parcours montre la note
+   entière, technique comprise. Ce juge sert à choisir CE QU'ON MET EN AVANT,
+   et rend une chaîne vide quand la note ne dit rien de la tête.
+
+   ERRER DU CÔTÉ DE MONTRER : un fragment inconnu est tenu pour humain. Rater
+   une observation coûte plus cher qu'afficher une ligne de trop. */
+const FRAGMENTS_DE_MACHINE: RegExp[] = [
+  /^cadence de l['’]abonnement$/i,
+  /^ABO-\d{4}-\d+$/i,
+  /^reprise posée à la clôture/i,
+  /^reprogrammé depuis l['’]encaissement$/i,
+  /^date proposée le /i,
+  /^séance \d+\s*\/\s*\d+$/i,
+  /^forfait$/i,
+  /^toutes les \d+ semaines$/i,
+];
+
+export const noteDeLaMaison = (note?: string): string =>
+  (note ?? '')
+    .split('·')
+    .map((t) => t.trim())
+    .filter((t) => t !== '' && !FRAGMENTS_DE_MACHINE.some((r) => r.test(t)))
+    .join(' · ');
