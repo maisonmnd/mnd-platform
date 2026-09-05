@@ -57,6 +57,32 @@ DÀNDÀN™, J+45 WÈWÈ™. Seuls les intervalles sont une proposition.
   92 000 F — à la carte le mi-long vaut 80 000, le geste est de 12 000. Bouton
   dans le Catalogue, prix retouchables comme n'importe quel autre.
 
+### Le rendez-vous pris, et le programme de pousse — 5 septembre
+
+« Il faut rajouter le RDV programmé, et si c'est fait ou pas, ou en retard. »
+
+**Une étape qui dit « à poser » alors que le rendez-vous est pris est une alerte
+fausse**, et deux alertes fausses suffisent à ce qu'on ne lise plus les vraies :
+le comptoir rappellerait une cliente qui a déjà sa date. L'état **`pose`** rejoint
+donc les autres, et **il l'emporte sur le calendrier** — une étape dont la date est
+passée mais qui a son rendez-vous n'est pas en retard. On ne relance pas
+quelqu'un qui a déjà dit oui.
+
+Un rituel **annulé** ne promet rien ; un rituel **passé et jamais honoré** non
+plus — celui-là est un manquement. Et un rendez-vous ne promet **qu'une** étape,
+même règle que pour les rituels rendus.
+
+**Le programme de pousse** (`PROTOCOLE_POUSSE`) suit le même moteur, ouvert par
+le dernier **VÍVÍVÓ™** honoré : DÀNDÀN™ à 4 semaines, GBÌGBÌ™ Module à 8,
+WÈWÈ™ et la remesure à 12. Il se **greffe** sur le resserrage, il ne le remplace
+pas.
+
+**Ce que la maquette dit et que le code ne promet pas** : la vitesse de pousse ne
+se change pas, un centimètre par mois chez tout le monde. Ce que la Maison
+change, c'est ce qu'on GARDE. La courbe de projection attend **les deux taux de
+casse de la Maison** — ceux de la maquette sont inventés, et tant qu'ils ne sont
+pas les siens, la courbe est une jolie promesse.
+
 Jugé par `verifie-protocole` (27ᵉ harnais).
 
 ## LA FICHE CLIENTE, RANGÉE EN TROIS TEMPS — 5 septembre 2026, PUBLIÉ

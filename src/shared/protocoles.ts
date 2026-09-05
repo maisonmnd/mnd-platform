@@ -64,6 +64,46 @@ export const PROTOCOLE_COULEUR: EtapeProtocole[] = [
   },
 ];
 
+/* ══ LE PROGRAMME DE POUSSE — 5 septembre 2026 ══════════════════════
+
+   « Les clients veulent avoir les cheveux qui poussent rapidement. Définis un
+   protocole de soins qui permette de visualiser les étapes pour obtenir les
+   résultats » (Yéman).
+
+   LA VITESSE DE POUSSE NE SE CHANGE PAS. Un cuir chevelu sain pousse d'environ
+   un centimètre par mois, chez tout le monde, et promettre le contraire se
+   retourne contre la Maison au troisième mois — quand la cliente mesure.
+
+   CE QUE LA MAISON CHANGE, C'EST CE QU'ON GARDE. La casse mange la pousse : deux
+   têtes qui ont poussé pareil n'ont pas la même longueur à l'arrivée. Le
+   programme protège les centimètres au lieu d'en promettre davantage, et c'est
+   une promesse que la mèche témoin vérifie.
+
+   UN CYCLE DE DOUZE SEMAINES, qui se répète. Il se GREFFE sur le resserrage,
+   il ne le remplace pas : SÍNSIN™ garde son rythme à elle. */
+export const CODES_POUSSE = ['PLT·30', 'PLT·30·CUR'] as const;
+
+export const PROTOCOLE_POUSSE: EtapeProtocole[] = [
+  {
+    jours: 28,
+    code: 'PLT·10',
+    nom: 'DÀNDÀN™ · Le Soin Hydratant',
+    pourquoi: 'Une fibre sèche casse, et ce qui casse ne se rattrape pas.',
+  },
+  {
+    jours: 56,
+    code: 'PLT·40',
+    nom: 'GBÌGBÌ™ Module · Soin Reconstruction',
+    pourquoi: 'On ferme ce qui s’ouvre. C’est le geste qui garde les centimètres.',
+  },
+  {
+    jours: 84,
+    code: 'PLT·20',
+    nom: 'WÈWÈ™ · La Purification, puis on remesure',
+    pourquoi: 'Le cycle se referme sur une preuve : comptage et mèche témoin.',
+  },
+];
+
 /* ── LE PROTOCOLE VENDU D'UN SEUL TENANT ────────────────────────────
    « Un protocole qu'on mettra au catalogue avec des prix associés ». Trois
    lignes du Plateau, une seule vente, comme PLT·60·WD le fait déjà pour
@@ -130,7 +170,7 @@ export function poseLeProtocoleAuCatalogue(): number {
 
 /* ══ LE SUIVI D'UNE TÊTE ════════════════════════════════════════════ */
 
-export type EtatEtape = 'fait' | 'a-poser' | 'en-retard' | 'a-venir';
+export type EtatEtape = 'fait' | 'pose' | 'a-poser' | 'en-retard' | 'a-venir';
 
 export type EtapeSuivie = EtapeProtocole & {
   /** Le jour où elle est attendue. */
@@ -138,6 +178,15 @@ export type EtapeSuivie = EtapeProtocole & {
   etat: EtatEtape;
   /** Le rituel qui l'a honorée, quand il existe. */
   faitLe?: string;
+  /** LE RENDEZ-VOUS DÉJÀ PRIS — 5 septembre 2026.
+
+      « Il faut rajouter le RDV programmé, et si c'est fait ou pas, ou en
+      retard » (Yéman).
+
+      UNE ÉTAPE QUI DIT « À POSER » ALORS QUE LE RENDEZ-VOUS EST PRIS est une
+      alerte fausse, et deux alertes fausses suffisent à ce qu'on ne lise plus
+      les vraies. Le comptoir rappellerait une cliente qui a déjà sa date. */
+  poseLe?: string;
 };
 
 /** LA MARGE DE COURTOISIE. Un soin attendu le 4 n'est pas « en retard » le 5 :
@@ -165,13 +214,7 @@ export function derniereCouleur(
   clientId: string,
   byId: Map<string, Service>,
 ): Appointment | undefined {
-  return appts
-    .filter((a) => a.clientId === clientId && a.status === 'honoré')
-    .filter((a) => a.serviceIds.some((id) => {
-      const c = codeNu(byId.get(id)?.code);
-      return (CODES_COULEUR as readonly string[]).includes(c);
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  return dernierDeclencheur(appts, clientId, byId, CODES_COULEUR);
 }
 
 /** OÙ EN EST LE PROTOCOLE d'une tête, étape par étape.
@@ -191,7 +234,15 @@ export function suivreLeProtocole(o: {
   const apres = o.appts
     .filter((a) => a.clientId === o.couleur.clientId && a.status === 'honoré' && a.date > o.couleur.date)
     .sort((a, b) => a.date.localeCompare(b.date));
+  /* LES RENDEZ-VOUS DÉJÀ PRIS, pas encore rendus. Un rituel annulé n'en est
+     pas un ; un rituel passé et jamais honoré non plus — celui-là est un
+     manquement, pas une promesse. */
+  const prevus = o.appts
+    .filter((a) => a.clientId === o.couleur.clientId && a.date >= o.aujourdhui
+      && a.status !== 'annulé' && a.status !== 'honoré')
+    .sort((a, b) => a.date.localeCompare(b.date));
   const consommes = new Set<string>();
+  const promis = new Set<string>();
   const limite = plusDeJours(o.aujourdhui, GRACE_JOURS);
   const tot = plusDeJours(o.aujourdhui, -GRACE_JOURS);
 
@@ -203,6 +254,15 @@ export function suivreLeProtocole(o: {
       consommes.add(rendu.id);
       return { ...e, dueIso, etat: 'fait' as EtatEtape, faitLe: rendu.date };
     }
+    /* LE RENDEZ-VOUS PRIS L'EMPORTE SUR LE CALENDRIER : une étape dont la date
+       est passée mais qui a son rendez-vous n'est pas « en retard », elle est
+       posée. On ne relance pas quelqu'un qui a déjà dit oui. */
+    const prevu = prevus.find((a) => !promis.has(a.id)
+      && a.serviceIds.some((id) => codeNu(o.byId.get(id)?.code) === e.code));
+    if (prevu) {
+      promis.add(prevu.id);
+      return { ...e, dueIso, etat: 'pose' as EtatEtape, poseLe: prevu.date };
+    }
     const etat: EtatEtape = dueIso < tot ? 'en-retard' : dueIso <= limite ? 'a-poser' : 'a-venir';
     return { ...e, dueIso, etat };
   });
@@ -210,7 +270,29 @@ export function suivreLeProtocole(o: {
 
 export const MOT_DE_L_ETAT: Record<EtatEtape, string> = {
   fait: 'fait',
+  pose: 'rendez-vous pris',
   'a-poser': 'à poser',
   'en-retard': 'en retard',
   'a-venir': 'à venir',
 };
+
+/** LE DÉCLENCHEUR D'UN PROTOCOLE — le rituel honoré qui l'a ouvert.
+
+    ON NE REMONTE QUE LES RITUELS HONORÉS : un acte annulé n'ouvre rien, et un
+    acte seulement prévu n'a rien commencé. */
+export function dernierDeclencheur(
+  appts: readonly Appointment[],
+  clientId: string,
+  byId: Map<string, Service>,
+  codes: readonly string[],
+): Appointment | undefined {
+  return appts
+    .filter((a) => a.clientId === clientId && a.status === 'honoré')
+    .filter((a) => a.serviceIds.some((id) => codes.includes(codeNu(byId.get(id)?.code))))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+/** Le programme de pousse d'une tête, ouvert par son dernier VÍVÍVÓ™. */
+export const dernierActivateur = (
+  appts: readonly Appointment[], clientId: string, byId: Map<string, Service>,
+): Appointment | undefined => dernierDeclencheur(appts, clientId, byId, CODES_POUSSE);

@@ -73,6 +73,12 @@
   .et__p{font-size:11px;color:var(--encre-d);margin-top:7px;padding-top:7px;border-top:1px solid #EDE5D6}
   .et--fait{border-color:var(--vert-p);background:var(--vert-f)}
   .et--fait .et__q{color:var(--vert)}
+  .etat{flex:none;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;
+        border-radius:100px;border:1px solid;display:inline-flex;align-items:center;gap:5px;align-self:flex-start}
+  .etat--fait{border-color:var(--vert-p);background:var(--vert-f);color:var(--vert)}
+  .etat--pris{border-color:var(--indigo-pale);background:var(--indigo-pale);color:var(--indigo)}
+  .etat--tard{border-color:var(--brique-p);background:var(--brique-f);color:var(--brique)}
+  .etat--venir{border-color:var(--filet);background:var(--ivoire);color:var(--encre-d)}
 
   .jalon{display:flex;gap:12px;padding:11px 0;border-top:1px solid #EDE5D6;align-items:baseline}
   .jalon:first-of-type{border-top:none}
@@ -161,31 +167,36 @@
       Bâti sur vos prestations, dans l'ordre que vos descriptions commandent. <b>Un cycle de
       douze semaines</b>, qui se répète.
     </p>
-    <div class="etapes">
-      <div class="et et--fait">
-        <div class="et__q">Semaine 0 · fait</div>
-        <div class="et__n">VÍVÍVÓ™</div>
-        <div class="et__d">L'Activateur de Pousse. Ail noir, moringa, gingembre. Massage crânien 20 min.</div>
-        <div class="et__p">On réveille le bulbe. C'est là que tout part.</div>
+    <div class="fig" style="margin-top:16px">
+      <div class="jalon">
+        <span class="jalon__q">Semaine 0</span>
+        <span class="jalon__c">VÍVÍVÓ™ · L'Activateur de Pousse
+          <i>Fait le 1<sup>er</sup> juin · Team — on réveille le bulbe, c'est là que tout part.</i></span>
+        <span class="etat etat--fait">✓ fait</span>
       </div>
-      <div class="et">
-        <div class="et__q">Semaine 4</div>
-        <div class="et__n">DÀNDÀN™</div>
-        <div class="et__d">Le Soin Hydratant. Masque aux 7 huiles.</div>
-        <div class="et__p">Une fibre sèche casse. Ce qui casse ne se rattrape pas.</div>
+      <div class="jalon">
+        <span class="jalon__q">Semaine 4</span>
+        <span class="jalon__c">DÀNDÀN™ · Le Soin Hydratant
+          <i>Fait le 30 juin · Team — une fibre sèche casse, et ce qui casse ne se rattrape pas.</i></span>
+        <span class="etat etat--fait">✓ fait</span>
       </div>
-      <div class="et">
-        <div class="et__q">Semaine 8</div>
-        <div class="et__n">GBÌGBÌ™ Module</div>
-        <div class="et__d">Soin Reconstruction. Anti-casse, fermeture de fibre.</div>
-        <div class="et__p">On ferme ce qui s'ouvre. C'est le geste qui garde les centimètres.</div>
+      <div class="jalon">
+        <span class="jalon__q">Semaine 8</span>
+        <span class="jalon__c">GBÌGBÌ™ Module · Soin Reconstruction
+          <i>Rendez-vous pris le 28 juillet — on ferme ce qui s'ouvre, c'est le geste qui garde les centimètres.</i></span>
+        <span class="etat etat--pris">● rendez-vous pris</span>
       </div>
-      <div class="et">
-        <div class="et__q">Semaine 12</div>
-        <div class="et__n">WÈWÈ™ + on remesure</div>
-        <div class="et__d">La Purification, puis comptage et mèche témoin.</div>
-        <div class="et__p">Le cycle se referme sur une preuve, pas sur une promesse.</div>
+      <div class="jalon">
+        <span class="jalon__q">Semaine 12</span>
+        <span class="jalon__c">WÈWÈ™ · La Purification, puis on remesure
+          <i>Attendu le 24 août — le cycle se referme sur une preuve, pas sur une promesse.</i></span>
+        <span class="etat etat--venir">à venir</span>
       </div>
+      <p class="legende">
+        <b>Le rendez-vous pris l'emporte sur le calendrier</b> : une étape dont la date est passée
+        mais qui a sa date n'est pas « en retard », elle est posée. On ne relance pas quelqu'un qui
+        a déjà dit oui. Chaque état porte <b>un mot autant qu'une couleur</b>.
+      </p>
     </div>
     <p class="legende">
       Le <b>SÍNSIN™</b> de resserrage continue à son rythme habituel, en parallèle : ce programme ne

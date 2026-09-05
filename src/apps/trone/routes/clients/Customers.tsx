@@ -28,7 +28,7 @@ import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from './Courbes';
-import { derniereCouleur, suivreLeProtocole, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
+import { derniereCouleur, dernierActivateur, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -3758,40 +3758,61 @@ function Customer360({
             comptoir qui pose le rendez-vous. Un agenda qui se remplit sans
             qu'on l'ait demandé fait perdre plus de temps qu'il n'en donne. */}
         {(() => {
-          const couleur = derniereCouleur(appts, client.id, byId);
-          if (!couleur) return null;
-          const etapes = suivreLeProtocole({ couleur, appts, byId, aujourdhui: today });
-          const restent = etapes.filter((e) => e.etat !== 'fait').length;
+          /* LES DEUX PROTOCOLES SE LISENT PAREIL. L'un répare ce qu'une couleur
+             a ouvert, l'autre garde les centimètres ; ce sont deux suites de
+             rendez-vous, et rien ne gagne à ce qu'elles s'affichent
+             différemment. */
           const teinte = (e: string) => (e === 'fait' ? '#4A6B52'
             : e === 'en-retard' ? 'var(--trv-error, #96412E)'
-            : e === 'a-poser' ? 'var(--copper-700)' : 'var(--ink-soft)');
+            : e === 'a-poser' ? 'var(--copper-700)'
+            : e === 'pose' ? 'var(--color-indigo)' : 'var(--ink-soft)');
+          const rendre = (titre: string, depart: Appointment, etapes: ReturnType<typeof suivreLeProtocole>) => {
+            const restent = etapes.filter((e) => e.etat !== 'fait').length;
+            return (
+              <div style={{ marginTop: 12 }}>
+                <span className="trc-microlabel">
+                  {titre} du {frJourAn(depart.date)}
+                  {restent === 0 ? ' · tenu' : ` · ${restent} à venir`}
+                </span>
+                {etapes.map((e) => (
+                  <div key={`${titre}-${e.jours}-${e.code}`} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid var(--hairline)', alignItems: 'flex-start' }}>
+                    <span style={{ flex: 'none', width: 54, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+                      J+{e.jours}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13 }}>{e.nom}</div>
+                      <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                        {/* LE RENDEZ-VOUS PRIS SE DIT AVANT TOUT LE RESTE : une
+                            étape qui réclame alors que la date est prise est une
+                            alerte fausse, et deux alertes fausses suffisent à ce
+                            qu'on ne lise plus les vraies. */}
+                        {e.etat === 'fait' ? `Fait le ${frJourAn(e.faitLe ?? '')}`
+                          : e.etat === 'pose' ? `Rendez-vous pris le ${frJourAn(e.poseLe ?? '')}`
+                          : `Attendu le ${frJourAn(e.dueIso)}`}
+                        {' · '}{e.pourquoi}
+                      </div>
+                    </span>
+                    {/* CHAQUE ÉTAT PORTE UN MOT AUTANT QU'UNE COULEUR : une
+                        pastille seule ne se lit pas pour tout le monde, et ne
+                        s'imprime pas. */}
+                    <span style={{ flex: 'none', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: teinte(e.etat) }}>
+                      {MOT_DE_L_ETAT[e.etat]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          };
+          const couleur = derniereCouleur(appts, client.id, byId);
+          const activateur = dernierActivateur(appts, client.id, byId);
+          if (!couleur && !activateur) return null;
           return (
-            <div style={{ marginTop: 12 }}>
-              <span className="trc-microlabel">
-                Après sa couleur du {frJourAn(couleur.date)}
-                {restent === 0 ? ' · protocole tenu' : ` · ${restent} à venir`}
-              </span>
-              {etapes.map((e) => (
-                <div key={e.code} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid var(--hairline)', alignItems: 'flex-start' }}>
-                  <span style={{ flex: 'none', width: 54, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
-                    J+{e.jours}
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13 }}>{e.nom}</div>
-                    <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
-                      {e.etat === 'fait' ? `Fait le ${frJourAn(e.faitLe ?? '')}` : `Attendu le ${frJourAn(e.dueIso)}`}
-                      {' · '}{e.pourquoi}
-                    </div>
-                  </span>
-                  {/* CHAQUE ÉTAT PORTE UN MOT AUTANT QU'UNE COULEUR : une
-                      pastille seule ne se lit pas pour tout le monde, et ne
-                      s'imprime pas. */}
-                  <span style={{ flex: 'none', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: teinte(e.etat) }}>
-                    {MOT_DE_L_ETAT[e.etat]}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <>
+              {couleur && rendre('Après sa couleur', couleur,
+                suivreLeProtocole({ couleur, appts, byId, aujourdhui: today }))}
+              {activateur && rendre('Son programme de pousse, ouvert', activateur,
+                suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: PROTOCOLE_POUSSE }))}
+            </>
           );
         })()}
 

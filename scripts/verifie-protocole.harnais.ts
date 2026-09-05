@@ -5,8 +5,8 @@
    que le code en a fait, et surtout le piège : un même soin rendu une fois ne
    doit pas cocher les trois étapes qui le demandent. */
 import {
-  PROTOCOLE_COULEUR, CODES_COULEUR, GRACE_JOURS,
-  derniereCouleur, suivreLeProtocole, protocoleAbsent, SERVICES_PROTOCOLE,
+  PROTOCOLE_COULEUR, PROTOCOLE_POUSSE, CODES_COULEUR, CODES_POUSSE, GRACE_JOURS,
+  derniereCouleur, dernierActivateur, suivreLeProtocole, protocoleAbsent, SERVICES_PROTOCOLE,
 } from '../src/shared/protocoles';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
@@ -106,6 +106,68 @@ dit('… et le mi-long vaut 68 000 F', 68_000,
 dit('catalogue vide : les trois manquent', 3, protocoleAbsent([]));
 dit('posé, plus rien ne manque', 0, protocoleAbsent(SERVICES_PROTOCOLE));
 dit('le protocole compte trois étapes', 3, PROTOCOLE_COULEUR.length);
+
+/* ── ⑤ LE RENDEZ-VOUS DÉJÀ PRIS ───────────────────────────────────
+   « Il faut rajouter le RDV programmé, et si c'est fait ou pas, ou en retard »
+   (Yéman, 5 septembre 2026).
+
+   UNE ÉTAPE QUI DIT « À POSER » ALORS QUE LE RENDEZ-VOUS EST PRIS est une
+   alerte fausse, et deux alertes fausses suffisent à ce qu'on ne lise plus les
+   vraies : le comptoir rappellerait une cliente qui a déjà sa date. */
+const avecRdv = suivreLeProtocole({
+  couleur,
+  appts: [couleur, rdv('c1', '2026-09-10', ['s-dandan'], 'confirmé')],
+  byId,
+  aujourdhui: '2026-09-01',
+});
+dit('un rendez-vous pris se dit', 'pose', avecRdv[1].etat);
+dit('… avec son jour', '2026-09-10', avecRdv[1].poseLe);
+/* IL L'EMPORTE SUR LE CALENDRIER : une étape dont la date est passée mais qui a
+   son rendez-vous n'est pas en retard, elle est posée. On ne relance pas
+   quelqu'un qui a déjà dit oui. */
+dit('… et il l’emporte sur le retard', 'pose', suivreLeProtocole({
+  couleur,
+  appts: [couleur, rdv('c2', '2026-09-25', ['s-gbigbi'], 'confirmé')],
+  byId,
+  aujourdhui: '2026-09-20',
+})[0].etat);
+/* UN RITUEL ANNULÉ N'EST PAS UNE PROMESSE, et un rituel passé jamais honoré
+   non plus : celui-là est un manquement. */
+dit('un rendez-vous annulé ne promet rien', 'en-retard', suivreLeProtocole({
+  couleur,
+  appts: [couleur, rdv('c3', '2026-09-25', ['s-gbigbi'], 'annulé')],
+  byId,
+  aujourdhui: '2026-09-20',
+})[0].etat);
+dit('un rendez-vous passé jamais honoré non plus', 'en-retard', suivreLeProtocole({
+  couleur,
+  appts: [couleur, rdv('c4', '2026-08-25', ['s-gbigbi'], 'confirmé')],
+  byId,
+  aujourdhui: '2026-09-20',
+})[0].etat);
+/* UN RENDEZ-VOUS, UNE ÉTAPE — même règle que pour les rituels rendus. */
+dit('un seul rendez-vous ne promet qu’une étape', ['pose', 'en-retard'], suivreLeProtocole({
+  couleur,
+  appts: [couleur, rdv('c5', '2026-09-25', ['s-dandan'], 'confirmé')],
+  byId,
+  aujourdhui: '2026-09-20',
+  etapes: [
+    { jours: 14, code: 'PLT·10', nom: 'Un', pourquoi: '' },
+    { jours: 30, code: 'PLT·10', nom: 'Deux', pourquoi: '' },
+  ],
+}).map((e) => e.etat));
+
+/* ── ⑥ LE PROGRAMME DE POUSSE ─────────────────────────────────────
+   Ouvert par VÍVÍVÓ™, il se greffe sur le resserrage sans le remplacer. */
+byId.set('s-vivivo', sv('PLT·30·M'));
+const vivivo = rdv('v1', '2026-06-01', ['s-vivivo']);
+dit('l’activateur ouvre le programme', '2026-06-01',
+  dernierActivateur([vivivo], 'cl-1', byId)?.date);
+dit('… la cure aussi', 2, CODES_POUSSE.length);
+dit('le programme compte trois étapes après lui', 3, PROTOCOLE_POUSSE.length);
+dit('… dues à quatre, huit et douze semaines', ['2026-06-29', '2026-07-27', '2026-08-24'],
+  suivreLeProtocole({ couleur: vivivo, appts: [vivivo], byId, aujourdhui: '2026-06-02', etapes: PROTOCOLE_POUSSE })
+    .map((e) => e.dueIso));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
