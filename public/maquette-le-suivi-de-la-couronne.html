@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le suivi de la couronne · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+
+    /* ── LES QUATRE TEINTES DES SÉRIES ────────────────────────────────
+       Ordre FIXE, jamais recyclé : la couleur suit la jauge, pas son rang.
+       Contrôlées par le validateur du protocole (bande de clarté, plancher de
+       chroma, séparation pour daltoniens sur TOUTES les paires, contraste sur
+       le parchemin). Les couleurs de la Maison, elles, échouaient : l'indigo
+       trop sombre, le vert et la brique indiscernables en deutéranopie. */
+    --s1: #3B4BA0;  /* Cuir chevelu */
+    --s2: #BE7526;  /* Racines */
+    --s3: #4E86D9;  /* Hydratation */
+    --s4: #008E7F;  /* Densité & tenue */
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1180px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:76ch; color:var(--encre-d); margin:0 0 24px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:12px 0 0; max-width:80ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:64ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  /* ── La carte d'un graphe ── */
+  .fig { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:18px 20px 14px; }
+  .fig + .fig { margin-top:18px; }
+  .fig__t { font-family:var(--serif); font-size:22px; color:var(--indigo); margin:0; }
+  .fig__s { font-size:12.5px; color:var(--encre-d); margin:2px 0 0; max-width:70ch; }
+  .fig__head { display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; }
+
+  /* La légende — toujours présente dès deux séries */
+  .leg { display:flex; gap:16px; flex-wrap:wrap; margin:12px 0 2px; }
+  .leg span { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--encre-d); }
+  .leg i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+
+  .plot { position:relative; }
+  .plot svg { display:block; width:100%; height:auto; }
+  .tip {
+    position:absolute; pointer-events:none; opacity:0; transition:opacity .09s;
+    background:var(--indigo); color:#F6F1E7; border-radius:3px; padding:8px 11px;
+    font-size:11.5px; line-height:1.5; white-space:nowrap; transform:translate(-50%,-118%); z-index:3;
+    box-shadow:0 6px 20px rgba(30,33,80,.22);
+  }
+  .tip b { color:#fff; font-weight:500; }
+  .tip i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+
+  /* La table de repli — l'identité n'est jamais portée par la seule couleur */
+  details { margin-top:12px; }
+  details summary { font-size:11.5px; color:var(--cuivre); cursor:pointer; letter-spacing:.04em; }
+  table { border-collapse:collapse; margin-top:10px; font-size:12.5px; width:100%; }
+  th, td { text-align:right; padding:6px 10px; border-bottom:1px solid #EDE5D6; font-variant-numeric:tabular-nums; }
+  th:first-child, td:first-child { text-align:left; }
+  th { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d); font-weight:500; }
+
+  /* ── Le protocole ── */
+  .proto { display:flex; gap:12px; padding:12px 0; border-top:1px solid #EDE5D6; align-items:flex-start; }
+  .proto:first-of-type { border-top:none; }
+  .proto__q { flex:none; width:62px; font-family:var(--serif); font-size:19px; color:var(--indigo); }
+  .proto__c { flex:1 1 auto; min-width:0; }
+  .proto__n { font-size:14px; color:var(--encre); }
+  .proto__d { font-size:11.5px; color:var(--encre-d); }
+  .etat { flex:none; font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px;
+          border-radius:100px; border:1px solid; display:inline-flex; align-items:center; gap:5px; }
+  .etat--fait { border-color:var(--vert-p); background:var(--vert-f); color:var(--vert); }
+  .etat--presse { border-color:var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre); }
+  .etat--tard { border-color:var(--brique-p); background:var(--brique-f); color:var(--brique); }
+  .etat--venir { border-color:var(--filet); background:var(--ivoire); color:var(--encre-d); }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media (max-width:900px){ .duo { grid-template-columns:1fr; } }
+
+  .carte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:17px 19px; }
+  .carte + .carte { margin-top:14px; }
+  .carte h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .carte p { margin:0; font-size:13.5px; color:var(--encre-d); }
+  .carte p b { color:var(--encre); font-weight:500; }
+
+  .manque { border-left:3px solid var(--brique); }
+  .a { border-left:3px solid var(--vert); }
+
+  ul.arb { margin:14px 0 0; padding:0 0 0 20px; }
+  ul.arb li { margin:0 0 12px; font-size:14px; color:var(--encre-d); }
+  ul.arb li b { color:var(--encre); font-weight:500; }
+
+  footer { margin-top:80px; padding-top:22px; border-top:1px solid var(--filet);
+           font-family:var(--serif); font-style:italic; font-size:14px; color:var(--cuivre); text-align:center; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône &amp; Ma Couronne · Maquette à valider</p>
+  <h1>Le suivi de la couronne.</h1>
+  <p class="chapeau">
+    La Maison note déjà, séance après séance, ce qu'elle voit d'une tête. <b>Elle ne le
+    montre nulle part.</b> Quatre jauges, un comptage, un protocole : de quoi faire un suivi
+    qui se tient, et qui se remet.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Des courbes qui peuvent servir de suivi et d'évaluation pour fidéliser les clients,
+    leur donner des informations sur la pousse de leurs locks suite à un resserrage, la suite
+    naturelle des soins pré-requis suite à une décoloration. Un suivi client irréprochable.
+    <span>Yéman · 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① CE QUI EXISTE ═══ -->
+  <section>
+    <h2>① Ce que la Maison mesure déjà, et ce qui manque.</h2>
+    <p class="intro">
+      Un graphe ne peut montrer que ce qu'on a mesuré. Avant de dessiner, l'inventaire —
+      <b>trois sources existent, une seule manque</b>, et elle manque pour la question la plus
+      précise que vous posez.
+    </p>
+    <div class="duo">
+      <div>
+        <div class="carte a">
+          <h3>Le bilan de séance · déjà là</h3>
+          <p>
+            Chaque bilan porte <b>quatre jauges notées de 1 à 5</b> — cuir chevelu, racines,
+            hydratation, densité &amp; tenue — avec sa date et son numéro. Ils sont remis à la
+            cliente depuis le début. <b>Personne ne les a jamais mis bout à bout.</b>
+          </p>
+        </div>
+        <div class="carte a">
+          <h3>Le comptage des locks · déjà là</h3>
+          <p>
+            Quatre quadrants, un auteur, un jour. Il dit la <b>densité</b> et commande le calibre,
+            donc le tarif.
+          </p>
+        </div>
+        <div class="carte a">
+          <h3>Les quatre temps · déjà là</h3>
+          <p>
+            Purifier, Nourrir, Sceller, Couronner, chacun daté. C'est le protocole
+            <b>à la maison</b>, pas celui du salon.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="carte manque">
+          <h3>La longueur, en centimètres · manque</h3>
+          <p>
+            La fiche ne connaît que <b>court · mi-long · long</b>. On ne trace pas une pousse avec
+            trois marches : entre deux resserrages, une couronne gagne deux ou trois centimètres,
+            et les trois marches ne bougent pas d'un cran en un an.
+            <b>Il faut mesurer une mèche témoin, en cm, à chaque resserrage.</b> Un chiffre, au
+            moment où l'on compte déjà.
+          </p>
+        </div>
+        <div class="carte manque">
+          <h3>Le protocole après couleur · manque</h3>
+          <p>
+            La Maison sait vendre une couleur — voie ébène ou argent, rythme léger ou régulier —
+            mais <b>rien n'écrit ce qui doit suivre</b> : quel soin, à quel intervalle, après une
+            décoloration. C'est un savoir de la Maison, pas une donnée : il faut l'écrire une
+            fois, et le Trône le posera tout seul ensuite.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LES JAUGES ═══ -->
+  <section>
+    <h2>② L'évolution des quatre jauges.</h2>
+    <p class="intro">
+      Le cœur du suivi. Quatre notes sur cinq, relevées à chaque bilan : <b>c'est la pente qui
+      parle</b>, pas la note du jour. Une cliente qui voit ses racines passer de 2 à 4 en dix-huit
+      mois comprend ce qu'elle achète.
+    </p>
+
+    <div class="fig">
+      <div class="fig__head">
+        <div>
+          <p class="fig__t">Les quatre jauges, de février 2025 à septembre 2026</p>
+          <p class="fig__s">Notées de 1 à 5 à chaque bilan de séance · Shadé E. · 4 bilans</p>
+        </div>
+      </div>
+      <div class="leg" id="legJauges"></div>
+      <div class="plot" id="plotJauges"><div class="tip" id="tipJauges"></div></div>
+      <p class="legende">
+        Les quatre séries sont <b>nommées au bout de leur ligne</b> autant que dans la légende :
+        l'identité n'est jamais portée par la seule couleur.
+      </p>
+      <details>
+        <summary>Voir les chiffres</summary>
+        <table id="tabJauges"></table>
+      </details>
+    </div>
+  </section>
+
+  <!-- ═══ ③ LE COMPTAGE ═══ -->
+  <section>
+    <h2>③ La densité, et le calibre qu'elle commande.</h2>
+    <p class="intro">
+      Une seule série : pas de légende, le titre la nomme. Les <b>bandes de calibre</b> passent
+      derrière — c'est en les traversant qu'un tarif change, et une cliente qui le voit venir ne le
+      découvre pas sur une facture.
+    </p>
+    <div class="fig">
+      <div class="fig__head">
+        <div>
+          <p class="fig__t">Le comptage des locks</p>
+          <p class="fig__s">Total des quatre quadrants, à chaque comptage · Shadé E.</p>
+        </div>
+      </div>
+      <div class="plot" id="plotLocks"><div class="tip" id="tipLocks"></div></div>
+      <p class="legende">
+        <b>+247 en septembre 2025</b> : un dédoublement, et le passage de Micro à Nano.
+        <b>−47 en septembre 2026</b> : une perte, qui se regarde de près.
+      </p>
+      <details>
+        <summary>Voir les chiffres</summary>
+        <table id="tabLocks"></table>
+      </details>
+    </div>
+  </section>
+
+  <!-- ═══ ④ LA POUSSE ═══ -->
+  <section>
+    <h2>④ La pousse, entre deux resserrages.</h2>
+    <p class="intro">
+      <b>Ce graphe n'est pas construisible aujourd'hui</b> : il attend la mesure en centimètres.
+      Le voici tel qu'il serait, pour que vous jugiez s'il vaut le geste de mesurer.
+    </p>
+    <div class="fig" style="opacity:.72; border-style:dashed">
+      <div class="fig__head">
+        <div>
+          <p class="fig__t">La pousse d'une mèche témoin</p>
+          <p class="fig__s">Longueur en cm, relevée au resserrage · <b style="color:var(--brique)">exemple, la Maison ne mesure pas encore</b></p>
+        </div>
+      </div>
+      <div class="plot" id="plotPousse"><div class="tip" id="tipPousse"></div></div>
+      <p class="legende">
+        La barre grise dit la <b>pousse moyenne d'une couronne saine</b>, un centimètre par mois.
+        Au-dessus, la Maison fait mieux que la nature ; en dessous, il y a une conversation à avoir.
+        <b>C'est ce repère qui fidélise</b>, pas la courbe seule.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ ⑤ LE PROTOCOLE ═══ -->
+  <section>
+    <h2>⑤ Ce qui doit suivre une décoloration.</h2>
+    <p class="intro">
+      Ce n'est pas un graphe, c'est une <b>suite de rendez-vous qui s'imposent</b>. La Maison écrit
+      le protocole une fois ; le Trône le pose sur la fiche dès qu'une couleur est vendue, et
+      <b>réclame ce qui traîne</b>.
+    </p>
+    <div class="fig">
+      <div class="fig__head">
+        <div>
+          <p class="fig__t">Après la décoloration du 4 septembre 2026</p>
+          <p class="fig__s">Voie argent · 4 étapes · 2 faites, 1 pressée</p>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="proto">
+          <span class="proto__q">J+3</span>
+          <span class="proto__c">
+            <div class="proto__n">Bain de protéines · reconstruction de la fibre</div>
+            <div class="proto__d">Fait le 7 septembre · Team</div>
+          </span>
+          <span class="etat etat--fait">✓ fait</span>
+        </div>
+        <div class="proto">
+          <span class="proto__q">J+14</span>
+          <span class="proto__c">
+            <div class="proto__n">Masque profond · GBÌGBÌ™ Le Reconstituant</div>
+            <div class="proto__d">Fait le 18 septembre · Team</div>
+          </span>
+          <span class="etat etat--fait">✓ fait</span>
+        </div>
+        <div class="proto">
+          <span class="proto__q">J+30</span>
+          <span class="proto__c">
+            <div class="proto__n">Contrôle d'élasticité · la fibre tient-elle ?</div>
+            <div class="proto__d">Attendu le 4 octobre · dans 4 jours</div>
+          </span>
+          <span class="etat etat--presse">● à poser</span>
+        </div>
+        <div class="proto">
+          <span class="proto__q">J+45</span>
+          <span class="proto__c">
+            <div class="proto__n">Retour au rituel courant · SÍNSIN™ + soin léger</div>
+            <div class="proto__d">Attendu le 19 octobre</div>
+          </span>
+          <span class="etat etat--venir">à venir</span>
+        </div>
+      </div>
+      <p class="legende">
+        Chaque état porte <b>un mot autant qu'une couleur</b> : « fait », « à poser », « en retard ».
+        Une pastille seule ne se lit pas pour tout le monde, et ne s'imprime pas.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ ⑥ OÙ ═══ -->
+  <section>
+    <h2>⑥ Où cela vit, et pour qui.</h2>
+    <div class="duo">
+      <div class="carte">
+        <h3>Le Trône · pour décider</h3>
+        <p>
+          Sur la fiche, onglet <b>Le parcours</b> : les trois graphes à la suite, puis le protocole.
+          Le comptage y est déjà. C'est là qu'on prépare la séance et qu'on voit ce qui traîne.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Ma Couronne · pour fidéliser</h3>
+        <p>
+          <b>C'est là que se joue votre demande.</b> La cliente voit sa propre pente, son protocole
+          et ce qui l'attend. Un suivi qu'on garde pour soi ne fidélise personne ; celui qu'on
+          remet, si. Les jauges et la pousse y vont ; <b>le comptage et le calibre restent au
+          Trône</b>, ils parlent de tarif.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ⑦ À ARBITRER ═══ -->
+  <section>
+    <h2>⑦ À arbitrer avant de construire.</h2>
+    <ul class="arb">
+      <li>
+        <b>Mesure-t-on la longueur en centimètres ?</b> Sans elle, pas de courbe de pousse — c'est
+        le seul point qui bloque. Proposé : <b>un champ de plus dans le comptage du Fil</b>, une
+        mèche témoin choisie une fois et remesurée à chaque resserrage. Sinon, on livre les points
+        ② ③ ⑤ et la pousse attend.
+      </li>
+      <li>
+        <b>Qui écrit le protocole après couleur ?</b> Il vous faut le dicter une fois : les étapes,
+        les intervalles, la prestation attendue à chacune. Proposé ici : J+3, J+14, J+30, J+45,
+        <b>à corriger par vos soins</b> — je ne connais pas votre protocole, et l'inventer serait
+        pire que de ne rien poser.
+      </li>
+      <li>
+        <b>La cliente voit-elle ses jauges ?</b> Proposé : <b>oui</b>. C'est ce qui fidélise. Le
+        risque est qu'une jauge en baisse se lise comme un reproche : elle est donc toujours
+        accompagnée du geste qui la relève.
+      </li>
+      <li>
+        <b>Le repère de pousse moyenne ?</b> Proposé : <b>1 cm par mois</b>, la moyenne admise. Il
+        transforme une courbe en évaluation. Dites-moi si la Maison retient un autre chiffre.
+      </li>
+      <li>
+        <b>Faut-il le PDF ?</b> Le bilan de séance existe déjà en papier remis. Proposé : les
+        graphes <b>y entrent</b>, en une page « sa couronne depuis le début », remise au même
+        moment.
+      </li>
+    </ul>
+  </section>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   Les graphes sont dessinés ici, pas dessinés à la main : la maquette
+   doit se comporter comme l'écran final, survol compris. Chaque graphe
+   reçoit ses points, son échelle et sa légende ; rien n'est codé en dur
+   dans le SVG.
+   ══════════════════════════════════════════════════════════════════ */
+var ENCRE_D = '#746F65', FILET = '#D9CFBC', INDIGO = '#1E2150';
+
+function el(n, a) {
+  var e = document.createElementNS('http://www.w3.org/2000/svg', n);
+  for (var k in a) e.setAttribute(k, a[k]);
+  return e;
+}
+function moisCourt(iso) {
+  var m = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  var d = iso.split('-');
+  return m[parseInt(d[1], 10) - 1] + ' ' + d[0].slice(2);
+}
+
+/* ── Le cadre commun : marges, axes discrets, grille en retrait ── */
+function cadre(hote, o) {
+  var L = 860, H = o.hauteur || 300;
+  var m = { g: 46, d: o.margeD || 74, h: 16, b: 34 };
+  var svg = el('svg', { viewBox: '0 0 ' + L + ' ' + H, role: 'img', 'aria-label': o.alt });
+  var px = function (i) { return m.g + (i * (L - m.g - m.d)) / Math.max(1, o.n - 1); };
+  var py = function (v) { return m.h + (1 - (v - o.min) / Math.max(1, o.max - o.min)) * (H - m.h - m.b); };
+
+  (o.bandes || []).forEach(function (b) {
+    var y1 = py(Math.min(b.haut, o.max)), y2 = py(Math.max(b.bas, o.min));
+    svg.appendChild(el('rect', { x: m.g, y: y1, width: L - m.g - m.d, height: Math.max(0, y2 - y1),
+      fill: b.fond, opacity: '.5' }));
+    svg.appendChild(el('text', { x: L - m.d + 6, y: (y1 + y2) / 2 + 3.5, 'font-size': '9.5',
+      fill: ENCRE_D, 'font-family': 'inherit' })).textContent = b.nom;
+  });
+
+  (o.lignesY || []).forEach(function (v) {
+    svg.appendChild(el('line', { x1: m.g, y1: py(v), x2: L - m.d, y2: py(v),
+      stroke: FILET, 'stroke-width': '1', opacity: '.75' }));
+    svg.appendChild(el('text', { x: m.g - 9, y: py(v) + 3.5, 'font-size': '10', fill: ENCRE_D,
+      'text-anchor': 'end', 'font-family': 'inherit' })).textContent = o.fmtY ? o.fmtY(v) : v;
+  });
+
+  o.x.forEach(function (iso, i) {
+    svg.appendChild(el('text', { x: px(i), y: H - 10, 'font-size': '10', fill: ENCRE_D,
+      'text-anchor': i === 0 ? 'start' : i === o.n - 1 ? 'end' : 'middle',
+      'font-family': 'inherit' })).textContent = moisCourt(iso);
+  });
+
+  hote.insertBefore(svg, hote.firstChild);
+  return { svg: svg, px: px, py: py, L: L, H: H, m: m };
+}
+
+/* ── Le survol : une croix, une bulle, des cibles plus larges que la marque ── */
+function survol(hote, tip, c, o) {
+  var actif = el('line', { x1: 0, y1: c.m.h, x2: 0, y2: c.H - c.m.b, stroke: INDIGO,
+    'stroke-width': '1', opacity: '0' });
+  c.svg.appendChild(actif);
+  for (var i = 0; i < o.n; i++) (function (i) {
+    var demi = (c.L - c.m.g - c.m.d) / Math.max(1, o.n - 1) / 2;
+    var z = el('rect', { x: c.px(i) - demi, y: c.m.h, width: demi * 2, height: c.H - c.m.h - c.m.b,
+      fill: 'transparent', style: 'cursor:crosshair' });
+    z.addEventListener('mouseenter', function () {
+      actif.setAttribute('x1', c.px(i)); actif.setAttribute('x2', c.px(i));
+      actif.setAttribute('opacity', '.28');
+      tip.innerHTML = o.bulle(i);
+      tip.style.left = (c.px(i) / c.L * 100) + '%';
+      tip.style.top = (o.hautDeLaBulle(i) / c.H * 100) + '%';
+      tip.style.opacity = '1';
+    });
+    z.addEventListener('mouseleave', function () { actif.setAttribute('opacity', '0'); tip.style.opacity = '0'; });
+    c.svg.appendChild(z);
+  })(i);
+}
+
+/* ══ ② LES QUATRE JAUGES ══ */
+(function () {
+  var jours = ['2025-02-19', '2025-05-22', '2025-07-08', '2026-09-04'];
+  var series = [
+    { nom: 'Cuir chevelu', c: '#3B4BA0', v: [3, 3, 4, 5] },
+    { nom: 'Racines', c: '#BE7526', v: [2, 3, 4, 4] },
+    { nom: 'Hydratation', c: '#4E86D9', v: [3, 3, 4, 5] },
+    { nom: 'Densité & tenue', c: '#008E7F', v: [4, 4, 4, 5] },
+  ];
+  var hote = document.getElementById('plotJauges'), tip = document.getElementById('tipJauges');
+  var c = cadre(hote, {
+    n: jours.length, x: jours, min: 1, max: 5, lignesY: [1, 2, 3, 4, 5], hauteur: 300, margeD: 148,
+    alt: 'Quatre jauges de bilan, de 1 à 5, sur quatre séances entre février 2025 et septembre 2026.',
+  });
+  series.forEach(function (s) {
+    var pts = s.v.map(function (v, i) { return c.px(i) + ',' + c.py(v); }).join(' ');
+    c.svg.appendChild(el('polyline', { points: pts, fill: 'none', stroke: s.c, 'stroke-width': '2',
+      'stroke-linejoin': 'round' }));
+    s.v.forEach(function (v, i) {
+      /* L'ANNEAU DE SURFACE : deux séries qui se croisent au même point se
+         détachent quand même. */
+      c.svg.appendChild(el('circle', { cx: c.px(i), cy: c.py(v), r: '4.5', fill: s.c,
+        stroke: '#FBF8F2', 'stroke-width': '2' }));
+    });
+    /* L'ÉTIQUETTE AU BOUT DE LA LIGNE — l'identité ne tient pas à la couleur seule. */
+    var d = s.v[s.v.length - 1];
+    var t = el('text', { x: c.L - c.m.d + 10, y: c.py(d) + 4, 'font-size': '11.5', fill: ENCRE_D,
+      'font-family': 'inherit' });
+    t.textContent = s.nom;
+    c.svg.appendChild(t);
+  });
+  /* Les étiquettes des jauges à 4 et 5 se chevauchaient au dernier point : on
+     écarte celles qui partagent une valeur, en gardant l'ordre des séries. */
+  var textes = c.svg.querySelectorAll('text');
+  var vus = {};
+  Array.prototype.forEach.call(textes, function (t) {
+    if (!/Cuir|Racines|Hydra|Densité/.test(t.textContent)) return;
+    var y = Math.round(parseFloat(t.getAttribute('y')));
+    while (vus[y]) y += 15;
+    vus[y] = 1;
+    t.setAttribute('y', y);
+  });
+
+  document.getElementById('legJauges').innerHTML = series.map(function (s) {
+    return '<span><i style="background:' + s.c + '"></i>' + s.nom + '</span>';
+  }).join('');
+
+  survol(hote, tip, c, {
+    n: jours.length,
+    hautDeLaBulle: function (i) {
+      return Math.min.apply(null, series.map(function (s) { return c.py(s.v[i]); }));
+    },
+    bulle: function (i) {
+      return '<b>' + moisCourt(jours[i]) + '</b><br>' + series.map(function (s) {
+        return '<i style="background:' + s.c + '"></i>' + s.nom + ' · <b>' + s.v[i] + '/5</b>';
+      }).join('<br>');
+    },
+  });
+
+  document.getElementById('tabJauges').innerHTML =
+    '<tr><th>Jauge</th>' + jours.map(function (j) { return '<th>' + moisCourt(j) + '</th>'; }).join('') + '</tr>'
+    + series.map(function (s) {
+      return '<tr><td>' + s.nom + '</td>' + s.v.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr>';
+    }).join('');
+})();
+
+/* ══ ③ LE COMPTAGE ══ */
+(function () {
+  var jours = ['2025-02-19', '2025-09-08', '2026-02-19', '2026-09-04'];
+  var v = [180, 427, 445, 398];
+  var hote = document.getElementById('plotLocks'), tip = document.getElementById('tipLocks');
+  var c = cadre(hote, {
+    n: jours.length, x: jours, min: 120, max: 480, lignesY: [200, 300, 400], hauteur: 250, margeD: 92,
+    bandes: [
+      { nom: 'Micro', bas: 121, haut: 200, fond: '#E8DFCE' },
+      { nom: 'Mini', bas: 201, haut: 350, fond: '#F1E9DA' },
+      { nom: 'Nano', bas: 351, haut: 450, fond: '#E8DFCE' },
+    ],
+    alt: 'Comptage des locks : 180 en février 2025, 427 en septembre 2025, 445 en février 2026, 398 en septembre 2026.',
+  });
+  c.svg.appendChild(el('polyline', {
+    points: v.map(function (x, i) { return c.px(i) + ',' + c.py(x); }).join(' '),
+    fill: 'none', stroke: '#BE7526', 'stroke-width': '2', 'stroke-linejoin': 'round',
+  }));
+  v.forEach(function (x, i) {
+    var dernier = i === v.length - 1;
+    c.svg.appendChild(el('circle', { cx: c.px(i), cy: c.py(x), r: dernier ? '5.5' : '4.5',
+      fill: dernier ? INDIGO : '#BE7526', stroke: '#FBF8F2', 'stroke-width': '2' }));
+    /* UNE ÉTIQUETTE SUR CHAQUE POINT, parce qu'ils sont quatre. Sur vingt, on
+       n'étiquetterait que les bornes et les extrêmes. */
+    var t = el('text', { x: c.px(i), y: c.py(x) - 13, 'font-size': '11.5', fill: INDIGO,
+      'text-anchor': 'middle', 'font-family': 'inherit' });
+    t.textContent = x;
+    c.svg.appendChild(t);
+  });
+  survol(hote, tip, c, {
+    n: jours.length,
+    hautDeLaBulle: function (i) { return c.py(v[i]) - 14; },
+    bulle: function (i) {
+      var d = i === 0 ? 'premier comptage' : (v[i] - v[i - 1] > 0 ? '+' : '−') + Math.abs(v[i] - v[i - 1]) + ' locks';
+      return '<b>' + v[i] + ' locks</b> · ' + moisCourt(jours[i]) + '<br>' + d;
+    },
+  });
+  document.getElementById('tabLocks').innerHTML =
+    '<tr><th>Comptage</th><th>Locks</th><th>Écart</th></tr>'
+    + jours.map(function (j, i) {
+      return '<tr><td>' + moisCourt(j) + '</td><td>' + v[i] + '</td><td>'
+        + (i === 0 ? '—' : (v[i] - v[i - 1] > 0 ? '+' : '−') + Math.abs(v[i] - v[i - 1])) + '</td></tr>';
+    }).join('');
+})();
+
+/* ══ ④ LA POUSSE — exemple, la mesure n'existe pas encore ══ */
+(function () {
+  var jours = ['2025-02-19', '2025-09-08', '2026-02-19', '2026-09-04'];
+  var v = [12, 15, 19, 21];
+  var hote = document.getElementById('plotPousse'), tip = document.getElementById('tipPousse');
+  var c = cadre(hote, {
+    n: jours.length, x: jours, min: 8, max: 26, lignesY: [10, 15, 20, 25], hauteur: 240, margeD: 92,
+    fmtY: function (x) { return x + ' cm'; },
+    alt: 'Exemple de courbe de pousse : 12, 15, 19 puis 21 centimètres.',
+  });
+  /* LE REPÈRE DE LA NATURE — un centimètre par mois depuis le premier relevé.
+     C'est lui qui transforme une courbe en évaluation. */
+  var repere = jours.map(function (j, i) {
+    var mois = (new Date(j) - new Date(jours[0])) / (1000 * 60 * 60 * 24 * 30.4);
+    return c.px(i) + ',' + c.py(v[0] + mois);
+  }).join(' ');
+  c.svg.appendChild(el('polyline', { points: repere, fill: 'none', stroke: ENCRE_D,
+    'stroke-width': '1.5', 'stroke-dasharray': '5 4', opacity: '.55' }));
+  c.svg.appendChild(el('polyline', {
+    points: v.map(function (x, i) { return c.px(i) + ',' + c.py(x); }).join(' '),
+    fill: 'none', stroke: '#008E7F', 'stroke-width': '2', 'stroke-linejoin': 'round',
+  }));
+  v.forEach(function (x, i) {
+    c.svg.appendChild(el('circle', { cx: c.px(i), cy: c.py(x), r: '4.5', fill: '#008E7F',
+      stroke: '#FBF8F2', 'stroke-width': '2' }));
+  });
+  var t = el('text', { x: c.L - c.m.d + 10, y: c.py(v[v.length - 1]) + 4, 'font-size': '11.5',
+    fill: ENCRE_D, 'font-family': 'inherit' });
+  t.textContent = 'Sa pousse';
+  c.svg.appendChild(t);
+  var t2 = el('text', { x: c.L - c.m.d + 10, y: c.py(v[0] + 18.5) + 4, 'font-size': '11.5',
+    fill: ENCRE_D, 'font-family': 'inherit' });
+  t2.textContent = 'Repère · 1 cm/mois';
+  c.svg.appendChild(t2);
+  survol(hote, tip, c, {
+    n: jours.length,
+    hautDeLaBulle: function (i) { return c.py(v[i]) - 6; },
+    bulle: function (i) {
+      return '<b>' + v[i] + ' cm</b> · ' + moisCourt(jours[i])
+        + (i === 0 ? '' : '<br>+' + (v[i] - v[i - 1]) + ' cm depuis le dernier resserrage');
+    },
+  });
+})();
+</script>
+</body>
+</html>
