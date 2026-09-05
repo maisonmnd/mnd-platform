@@ -169,9 +169,52 @@ export const SERVICES_PROTOCOLE: Service[] = LONGUEURS.map((l) => ({
     .map((e) => ({ serviceId: idDuCode(`${e.code}·${l.s}`) })),
 }));
 
-/** Combien de lignes du protocole manquent au catalogue. */
+/* ── LE RAVIVEUR, AU CATALOGUE VIVANT — 6 septembre 2026 ────────────
+   « YÈKPÈ Éclat ne se trouve pas là. »
+
+   LE CATALOGUE DU CODE N'EST QU'UNE SEMENCE. `CATALOG_V6` sert à naître ; le
+   catalogue de la Maison, lui, vit dans Supabase et porte ses propres prix,
+   ses ajouts, ses retraits. Écrire une prestation dans la semence ne la fait
+   donc apparaître nulle part chez une maison déjà née.
+
+   ET SANS LA PRESTATION, L'ÉTAPE NE VAUT RIEN : le protocole désigne le
+   raviveur par son code, et un code qui ne répond à aucune fiche ne se pose
+   pas en rendez-vous. La quatrième marche resterait un texte.
+
+   ELLE SE POSE DONC PAR LE MÊME GESTE QUE LE PROTOCOLE — c'en est une étape,
+   les séparer obligerait la Maison à deux clics pour une seule décision. */
+export const CODE_RAVIVEUR = 'ATL·III·ECL';
+export const CAT_RAVIVEUR = 'atl-iii-yekpe';
+
+const LONGUEURS_RAVIVEUR: { s: string; mot: string; prix: number; duree: number }[] = [
+  { s: 'C', mot: 'Court', prix: 20_000, duree: 75 },
+  { s: 'M', mot: 'Mi-Long', prix: 32_000, duree: 90 },
+  { s: 'L', mot: 'Long ou haute densité', prix: 45_000, duree: 120 },
+];
+
+export const SERVICES_RAVIVEUR: Service[] = LONGUEURS_RAVIVEUR.map((l) => ({
+  id: idDuCode(`${CODE_RAVIVEUR}·${l.s}`),
+  code: `${CODE_RAVIVEUR}·${l.s}`,
+  categoryId: CAT_RAVIVEUR,
+  name: `YÈKPÈ™ Éclat · Le Raviveur de Couleur · ${l.mot}`,
+  description: 'Rappel de couleur végétale entre deux colorations. Henné et plantes, sans ammoniaque, sur une couleur déjà posée. Ravive le ton et referme la cuticule. Inclus : DÀNDÀN™ post couleur et styling de sortie.',
+  priceXof: l.prix,
+  hidePrice: false,
+  priceMode: 'fixe',
+  /* MEME PALIER QUE YEKPE LUMIERE, sa soeur de tarif : Fondation, le defaut
+     du catalogue. La Couleur, elle, ouvre l'Elevation - un rappel n'est pas
+     une transformation. */
+  palier: 'Fondation',
+  sessions: 1,
+  master: '',
+  durationMin: l.duree,
+  order: 0,
+}));
+
+/** Combien de lignes manquent au catalogue — le forfait ET le raviveur. */
 export const protocoleAbsent = (services: readonly Service[]): number =>
-  SERVICES_PROTOCOLE.filter((p) => !services.some((s) => s.id === p.id)).length;
+  [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
+    .filter((p) => !services.some((s) => s.id === p.id)).length;
 
 /** POSER LE PROTOCOLE AU CATALOGUE. N'écrase JAMAIS ce qui existe : des prix
     sont une décision de maison, et une décision ne se réécrit pas dans le dos
@@ -185,8 +228,19 @@ export function poseLeProtocoleAuCatalogue(): number {
     };
     categoriesStore.set((prev) => [...prev, neuve]);
   }
+  /* L'ATELIER DE LA COULEUR, si une maison ne l'avait pas : sans lui la
+     prestation existerait mais tomberait dans « Autres prestations », loin de
+     ses sœurs, là où personne ne la cherche. */
+  if (!cats.some((c) => c.id === CAT_RAVIVEUR) && !categoriesStore.get().some((c) => c.id === CAT_RAVIVEUR)) {
+    const yekpe: CatalogCategory = {
+      id: CAT_RAVIVEUR, code: 'ATL·III', fon: 'YÈKPÈ™', label: 'La Lumière',
+      maison: 'atelier', enabled: true, order: 3,
+    };
+    categoriesStore.set((prev) => [...prev, yekpe]);
+  }
   const avant = servicesStore.get();
-  const aPoser = SERVICES_PROTOCOLE.filter((p) => !avant.some((s) => s.id === p.id));
+  const aPoser = [...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]
+    .filter((p) => !avant.some((s) => s.id === p.id));
   if (aPoser.length > 0) servicesStore.set((prev) => [...prev, ...aPoser.map((s) => ({ ...s }))]);
   return aPoser.length;
 }

@@ -113,6 +113,24 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### Le catalogue du code n'est qu'une semence — 6 septembre 2026
+
+« YÈKPÈ Éclat ne se trouve pas là. » **`CATALOG_V6` sert à naître.** Le catalogue
+de la Maison vit dans Supabase et porte ses propres prix, ses ajouts, ses
+retraits : écrire une prestation dans la semence ne la fait apparaître nulle
+part chez une maison déjà née. **À retenir pour toute prestation future.**
+
+Et sans la fiche, l'étape du protocole ne vaut rien : elle désigne le raviveur
+par son code, et un code qui ne répond à aucune fiche ne se pose pas en
+rendez-vous.
+
+Le raviveur se pose donc par **le même bouton que le protocole** (Catalogue ›
+« + Protocole Post-Couleur & YÈKPÈ™ Éclat · N fiches ») — c'en est une étape, les
+séparer aurait demandé deux clics pour une seule décision. `SERVICES_RAVIVEUR`,
+`protocoleAbsent` compte les six, et l'atelier `atl-iii-yekpe` se crée s'il
+manque : sinon la fiche tomberait dans « Autres prestations », loin de ses
+sœurs, là où personne ne la cherche.
+
 ### YÈKPÈ™ Éclat · Le Raviveur de Couleur — 5 septembre 2026
 
 « Comment j'appelle le service pour raviver la couleur d'une coloration ? »

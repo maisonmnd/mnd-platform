@@ -6,7 +6,8 @@
    doit pas cocher les trois étapes qui le demandent. */
 import {
   PROTOCOLE_COULEUR, PROTOCOLE_POUSSE, CODES_COULEUR, CODES_POUSSE, GRACE_JOURS,
-  derniereCouleur, dernierActivateur, ouvertureDuProgramme, suivreLeProtocole, protocoleAbsent, SERVICES_PROTOCOLE,
+  derniereCouleur, dernierActivateur, ouvertureDuProgramme, suivreLeProtocole, protocoleAbsent,
+  SERVICES_PROTOCOLE, SERVICES_RAVIVEUR,
 } from '../src/shared/protocoles';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
@@ -103,8 +104,27 @@ dit('… chacune porte les trois soins', [3, 3, 3],
   SERVICES_PROTOCOLE.map((s) => (s.includes ?? []).length));
 dit('… et le mi-long vaut 68 000 F', 68_000,
   SERVICES_PROTOCOLE.find((s) => s.name.includes('Mi-Long'))?.priceXof);
-dit('catalogue vide : les trois manquent', 3, protocoleAbsent([]));
-dit('posé, plus rien ne manque', 0, protocoleAbsent(SERVICES_PROTOCOLE));
+/* LE GESTE POSE SIX FICHES, PAS TROIS — 6 septembre 2026.
+   « YÈKPÈ Éclat ne se trouve pas là. » Le catalogue du code n'est qu'une
+   semence ; celui de la Maison vit dans Supabase. Et sans la prestation,
+   l'étape ne vaut rien : le protocole désigne le raviveur par son code, et un
+   code qui ne répond à aucune fiche ne se pose pas en rendez-vous. */
+dit('catalogue vide : les six manquent', 6, protocoleAbsent([]));
+dit('le forfait seul ne suffit pas', 3, protocoleAbsent(SERVICES_PROTOCOLE));
+dit('les deux ensemble, plus rien ne manque', 0,
+  protocoleAbsent([...SERVICES_PROTOCOLE, ...SERVICES_RAVIVEUR]));
+/* LE CODE DE LA FICHE EST CELUI QUE L'ÉTAPE ATTEND — c'est la seule chose qui
+   ne bouge jamais, et le seul lien entre les deux. */
+dit('les trois longueurs du raviveur', ['ATL·III·ECL·C', 'ATL·III·ECL·M', 'ATL·III·ECL·L'],
+  SERVICES_RAVIVEUR.map((sv) => sv.code));
+dit('… et l’étape appelle bien ce code', 'ATL·III·ECL',
+  SERVICES_RAVIVEUR[0].code.replace(/·[CML]$/, ''));
+dit('… le mi-long vaut 32 000 F', 32_000,
+  SERVICES_RAVIVEUR.find((sv) => sv.name.includes('Mi-Long'))?.priceXof);
+/* IL VIT DANS L'ATELIER DE LA COULEUR, pas au Plateau : c'est là que la
+   cliente le cherche. */
+dit('… dans l’atelier YÈKPÈ', ['atl-iii-yekpe', 'atl-iii-yekpe', 'atl-iii-yekpe'],
+  SERVICES_RAVIVEUR.map((sv) => sv.categoryId));
 dit('le protocole compte quatre étapes', 4, PROTOCOLE_COULEUR.length);
 
 /* ── LA QUATRIÈME MARCHE — 5 septembre 2026 ──────────────────────

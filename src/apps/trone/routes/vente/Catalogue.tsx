@@ -829,7 +829,7 @@ export default function Catalogue() {
   const poserLeProtocole = () => {
     const n = poseLeProtocoleAuCatalogue();
     toast(n > 0
-      ? `Le Protocole Post-Couleur est au catalogue · ${n} longueur${n > 1 ? 's' : ''}. Les prix se retouchent ici.`
+      ? `${n} fiche${n > 1 ? 's' : ''} posée${n > 1 ? 's' : ''} · le Protocole Post-Couleur et YÈKPÈ™ Éclat. Les prix se retouchent ici.`
       : 'Le protocole est déjà au catalogue.');
   };
 
@@ -1009,7 +1009,9 @@ export default function Catalogue() {
             {/* LA SUITE D'APRÈS COULEUR SE POSE D'UN GESTE, et le bouton
                 disparaît une fois qu'elle est là. */}
             {protocoleAbsent(services) > 0 && (
-              <Button variant="ghost" onClick={poserLeProtocole}>+ Protocole Post-Couleur</Button>
+              <Button variant="ghost" onClick={poserLeProtocole}>
+                + Protocole Post-Couleur &amp; YÈKPÈ™ Éclat · {protocoleAbsent(services)} fiches
+              </Button>
             )}
             {kidsAbsents(services) === 0 && kidsADepasser(services) > 0 && (
               <Button variant="ghost" onClick={rafraichirKids}>
