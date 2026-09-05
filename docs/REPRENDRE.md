@@ -83,6 +83,27 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### YÈKPÈ™ Éclat · Le Raviveur de Couleur — 5 septembre 2026
+
+« Comment j'appelle le service pour raviver la couleur d'une coloration ? »
+(Yéman). **Deux mots étaient pris** : « Reprise » est SÍNSIN, le resserrage,
+partout dans le carnet et sur les pièces ; « Retouches » vit au Plateau avec le
+styling, et y ranger un geste de couleur l'aurait sorti de YÈKPÈ, là où la
+cliente le cherche. Nom arrêté par la Maison, `ATL·III·ECL`, trois longueurs,
+**20 / 32 / 45 k** en 75 / 90 / 120 min — prix proposés, corrigibles au
+Catalogue.
+
+**Quatrième marche du protocole post-couleur, à J+56.** La suite s'arrêtait à
+J+45 et plus rien ne la ramenait : la couleur ternit vers la sixième semaine, et
+c'est là qu'elle regarde ailleurs.
+
+Deux refus délibérés. **Il n'entre pas dans le forfait vendu** (`horsForfait`) :
+« Le Protocole Post-Couleur » s'annonce comme *les trois soins* qui suivent une
+couleur, tous du Plateau ; y glisser un acte de couleur changerait ce que le
+produit veut dire et son prix de moitié. Et **il ne rouvre pas le cycle** : il
+n'est pas dans `CODES_COULEUR`, sans quoi chaque raviveur relancerait trois
+soins de plus.
+
 ### Le champ de date de la Maison — 5 septembre 2026
 
 « Sélectionner une date depuis le calendrier n'est pas facile. Ouverture du

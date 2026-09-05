@@ -37,6 +37,12 @@ export type EtapeProtocole = {
   code: string;
   nom: string;
   pourquoi: string;
+  /** HORS DU FORFAIT VENDU. Le Protocole Post-Couleur se vend comme « les trois
+      soins qui suivent une couleur » : ce sont des SOINS du Plateau. Le
+      raviveur, lui, est un acte de COULEUR — le glisser dans un forfait de
+      soins changerait ce que ce forfait veut dire, et son prix de moitié. Il
+      se dit dans la suite, il ne se vend pas dedans. */
+  horsForfait?: boolean;
 };
 
 /** LES ACTES QUI DÉCLENCHENT LE PROTOCOLE — toute couleur végétale, et la
@@ -61,6 +67,19 @@ export const PROTOCOLE_COULEUR: EtapeProtocole[] = [
     code: 'PLT·20',
     nom: 'WÈWÈ™ · La Purification',
     pourquoi: 'Détox avant de reprendre le cycle courant, comme avant tout soin réparateur.',
+  },
+  /* LA HUITIÈME SEMAINE — arbitrage de la Maison, 5 septembre 2026.
+
+     LA SUITE S'ARRÊTAIT À J+45, ET PLUS RIEN NE LA RAMENAIT. La couleur ternit
+     vers la sixième semaine : c'est précisément le moment où elle regarde
+     ailleurs, et où la Maison n'avait rien à lui proposer. La quatrième marche
+     referme le cycle sur la couleur, là où il avait commencé. */
+  {
+    jours: 56,
+    code: 'ATL·III·ECL',
+    nom: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur',
+    pourquoi: 'La couleur ternit vers la sixième semaine. On la rappelle avant qu’elle ne s’efface, sans reprendre une coloration entière.',
+    horsForfait: true,
   },
 ];
 
@@ -143,7 +162,11 @@ export const SERVICES_PROTOCOLE: Service[] = LONGUEURS.map((l) => ({
   order: 0,
   /* CE QU'IL CONTIENT, à la longueur correspondante : la pièce dira les trois
      soins et ce que la Maison donne. */
-  includes: PROTOCOLE_COULEUR.map((e) => ({ serviceId: idDuCode(`${e.code}·${l.s}`) })),
+  /* SEULS LES SOINS ENTRENT DANS LE FORFAIT : le raviveur est un acte de
+     couleur, et le vendre ici doublerait le prix d'un produit qui s'annonce
+     comme trois soins. */
+  includes: PROTOCOLE_COULEUR.filter((e) => !e.horsForfait)
+    .map((e) => ({ serviceId: idDuCode(`${e.code}·${l.s}`) })),
 }));
 
 /** Combien de lignes du protocole manquent au catalogue. */

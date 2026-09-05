@@ -166,6 +166,23 @@ const YEKPE: Service[] = [
   ...troisLongueurs({ code: 'ATL·III·LUM', name: 'YÈKPÈ™ Lumière · La Brillance Signature', cat: 'atl-iii-yekpe',
     desc: 'Lissage cuticule, effet miroir. Protéines de soie, finition huile Kòfí™ MND. Tenue 3 à 4 semaines. Inclus : séchage et styling personnalisé.' },
     [25000, 40000, 55000], [60, 75, 90]),
+  /* LE RAVIVEUR — 5 septembre 2026, nommé par la Maison.
+
+     « Comment j'appelle le service pour raviver la couleur d'une
+     coloration ? » La couleur ternit vers la sixième semaine, et le protocole
+     s'arrêtait à J+45 : plus rien ne la ramenait, et c'est le moment où elle
+     regarde ailleurs.
+
+     DEUX MOTS ÉTAIENT PRIS. « Reprise » est SÍNSIN, le resserrage, partout
+     dans le carnet et sur les pièces. « Retouches » vit au Plateau, avec le
+     styling — y ranger un geste de couleur le sortirait de YÈKPÈ, là où la
+     cliente le cherche.
+
+     LES PRIX SONT UNE PROPOSITION : sous la Couleur, près de la Lumière. Ils
+     se corrigent au Catalogue comme n'importe quel autre. */
+  ...troisLongueurs({ code: 'ATL·III·ECL', name: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur', cat: 'atl-iii-yekpe',
+    desc: 'Rappel de couleur végétale entre deux colorations. Henné et plantes, sans ammoniaque, sur une couleur déjà posée. Ravive le ton et referme la cuticule. Inclus : DÀNDÀN™ post couleur et styling de sortie.' },
+    [20000, 32000, 45000], [75, 90, 120]),
   ...troisLongueurs({ code: 'ATL·III·SUB', name: 'YÈKPÈ™ Sublimation · La Transformation Totale', cat: 'atl-iii-yekpe',
     desc: 'Couleur + Lumière + SÍNSIN™ le même jour. Consultation créative 30 min incluse. Inclus : coiffure signature événement avec ornement au choix, 1 Retouches Post Création à 3 semaines.',
     palier: 'Souveraineté' }, [80000, 130000, 180000], [240, 300, 360]),

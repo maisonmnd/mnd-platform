@@ -51,11 +51,11 @@ dit('trois codes ouvrent le protocole', 3, CODES_COULEUR.length);
 
 /* ── ② LES ÉTATS, AU JOUR LE JOUR ─────────────────────────────────
    Couleur le 4 août : reconstruction due le 18, hydratation le 3 septembre,
-   purification le 18 septembre. */
+   purification le 18 septembre, raviveur le 29. */
 const couleur = rdv('a2', '2026-08-04', ['s-couleur']);
 const au20 = suivreLeProtocole({ couleur, appts: agenda, byId, aujourdhui: '2026-08-20' });
-dit('les trois étapes sont dues aux bons jours',
-  ['2026-08-18', '2026-09-03', '2026-09-18'], au20.map((e) => e.dueIso));
+dit('les quatre étapes sont dues aux bons jours',
+  ['2026-08-18', '2026-09-03', '2026-09-18', '2026-09-29'], au20.map((e) => e.dueIso));
 dit('la reconstruction rendue le 20 est faite', 'fait', au20[0].etat);
 dit('… et le dit de quel jour', '2026-08-20', au20[0].faitLe);
 dit('… l’hydratation approche', 'a-venir', au20[1].etat);
@@ -105,7 +105,29 @@ dit('… et le mi-long vaut 68 000 F', 68_000,
   SERVICES_PROTOCOLE.find((s) => s.name.includes('Mi-Long'))?.priceXof);
 dit('catalogue vide : les trois manquent', 3, protocoleAbsent([]));
 dit('posé, plus rien ne manque', 0, protocoleAbsent(SERVICES_PROTOCOLE));
-dit('le protocole compte trois étapes', 3, PROTOCOLE_COULEUR.length);
+dit('le protocole compte quatre étapes', 4, PROTOCOLE_COULEUR.length);
+
+/* ── LA QUATRIÈME MARCHE — 5 septembre 2026 ──────────────────────
+   « Comment j'appelle le service pour raviver la couleur d'une coloration ? »
+   La suite s'arrêtait à J+45 et plus rien ne la ramenait ; la couleur ternit
+   vers la sixième semaine, et c'est là qu'elle regarde ailleurs. */
+const raviveur = PROTOCOLE_COULEUR[3];
+dit('le raviveur vient à huit semaines', 56, raviveur.jours);
+dit('… et porte le code de la famille couleur', 'ATL·III·ECL', raviveur.code);
+/* IL NE SE VEND PAS DANS LE FORFAIT. Le Protocole Post-Couleur s'annonce comme
+   « les trois soins qui suivent une couleur » : ce sont des soins du Plateau.
+   Y glisser un acte de COULEUR changerait ce que le produit veut dire, et son
+   prix de moitié. */
+dit('… hors du forfait vendu', true, raviveur.horsForfait);
+dit('… le forfait garde ses trois soins', [3, 3, 3],
+  SERVICES_PROTOCOLE.map((sv) => (sv.includes ?? []).length));
+dit('… et son prix mi-long ne bouge pas', 68_000,
+  SERVICES_PROTOCOLE.find((sv) => sv.name.includes('Mi-Long'))?.priceXof);
+/* IL NE REDÉCLENCHE PAS LE PROTOCOLE : un rappel de couleur n'ouvre pas la
+   cuticule comme une coloration entière, et chaque raviveur relancerait
+   sinon trois soins de plus. */
+dit('le raviveur ne rouvre pas le cycle', false,
+  (CODES_COULEUR as readonly string[]).includes('ATL·III·ECL'));
 
 /* ── ⑤ LE RENDEZ-VOUS DÉJÀ PRIS ───────────────────────────────────
    « Il faut rajouter le RDV programmé, et si c'est fait ou pas, ou en retard »
