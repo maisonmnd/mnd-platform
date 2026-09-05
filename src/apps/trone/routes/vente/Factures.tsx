@@ -24,7 +24,7 @@ import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abo
 import { useStaff } from '../equipe/data';
 import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
-import { appointmentsStore, useAppointments, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
 import { invoicePdf, summaryPdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import './vente.css';
@@ -551,7 +551,7 @@ export default function Factures() {
       note: `Devis ${devis.number} accepté, à planifier${svcIds.length === 0 ? ' (prestations à préciser)' : ''}.`,
       source: 'trone',
     };
-    appointmentsStore.set((prev) => [...prev, appt]);
+    appointmentsStore.set((prev) => [...prev, estampilleLaPose(appt)]);
     setInvoices((prev) => prev.map((i) => (i.id === devis.id ? { ...i, apptId: appt.id } : i)));
     setWaHint('Devis accepté → rendez-vous créé dans le Carnet. Planifiez le créneau, puis finalisez le paiement.');
   };

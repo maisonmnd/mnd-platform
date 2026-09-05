@@ -26,7 +26,7 @@ import {
   useModelBands, useBandSets, bandsAbonnements, sortedBands, bandLabel, roundPrice,
   calibreDeLaTete,
 } from '../../../../shared/pricing';
-import { useAppointments, appointmentsStore, type Appointment } from '../../../../shared/agenda';
+import { useAppointments, appointmentsStore, type Appointment, estampilleLesPoses } from '../../../../shared/agenda';
 import { proposeLaCadence, decaleLaSuite, RYTHMES_ABO, type SeanceProposee } from '../../../../shared/cadence';
 import { maitreParDefaut } from '../../../../shared/branches';
  import { DECOUPES, SEUIL_ECHELONNEMENT_XOF, construitEcheancier, deplaceEcheance, etatDesEcheances, enRetardXof, peutEtreEchelonne, prochaineEcheance, resteDeLEcheancier, type Decoupe, type Echeance } from '../../../../shared/echeancier';
@@ -1022,7 +1022,7 @@ export default function Abonnements() {
       depositServiceIds: [],
       depositXof: 0,
     } as Appointment));
-    appointmentsStore.set((prev) => [...prev, ...neufs]);
+    appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
     setCadenceForm(null);
     toast(`${neufs.length} rendez-vous posés, du ${dateComplete(neufs[0].date)} au ${dateComplete(neufs[neufs.length - 1].date)}.`);
   };

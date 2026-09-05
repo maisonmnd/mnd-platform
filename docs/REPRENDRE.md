@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## PAR QUELLE PORTE, ET QUAND — 5 septembre 2026, PUBLIÉ
+
+« Je ne comprends toujours pas quand est-ce que les RDV ont été pris, à quelle
+heure, sur Le Trône ou sur Ma Couronne par le client lui-même ? »
+
+**« Posée au comptoir » disait deux choses à la fois** et n'en datait aucune. La
+question est celle de la RESPONSABILITÉ : une demande que la cliente a posée
+seule s'accueille, une date que la Maison a posée elle-même s'assume.
+
+**Huit chemins posent des rendez-vous** : la modale du carnet, la fiche d'une
+cliente, le foyer, la cadence d'un abonnement, la reprise à la clôture, la
+reprogrammation à l'encaissement, la pièce d'un rituel, et Ma Couronne. **Un
+seul estampillait.** Chacun passe désormais par `estampilleLaPose` : c'est la
+seule façon qu'aucun n'oublie, et que le neuvième, écrit dans six mois,
+n'oublie pas non plus.
+
+**L'estampille ne s'écrase jamais.** Une reprogrammation modifie un rendez-vous
+existant : réécrire son heure de pose effacerait le seul témoin de sa naissance,
+et le comptoir croirait la demande toute fraîche.
+
+La carte de réception dit maintenant `porteDuRendezVous(source)` puis
+`« le 3 sept. à 09:12, il y a 2 jours »` : **l'heure exacte prouve, l'âge
+juge**, et les deux se lisent ensemble. Les rendez-vous posés AVANT ce jour
+n'ont pas d'estampille — la carte l'annonce (« heure de pose non enregistrée »)
+plutôt que d'inventer une heure.
+
+**Aussi** : 25 % rejoint les taux de remise de la modale du rituel. Le geste se
+posait à la main dans la case en francs, et une remise calculée de tête se relit
+mal sur une pièce.
+
+Jugé par `verifie-creneaux`.
+
 ## RECEVOIR UNE RÉSERVATION, ET PROPOSER UNE AUTRE DATE — 5 septembre 2026, PUBLIÉ
 
 « Quand je reçois une réservation de Ma Couronne j'ai besoin de voir plus

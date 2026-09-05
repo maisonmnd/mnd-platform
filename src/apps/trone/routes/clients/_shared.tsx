@@ -2542,7 +2542,11 @@ export function RdvModal({
                     </div>
                     {ouverte && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        {[5, 10, 15, 20, 50, 100].map((v) => (
+                        {/* 25 % rejoint les taux de la Maison — 5 septembre
+                            2026, demande de Yéman. Le geste se posait à la main
+                            dans la case en francs, et une remise calculée de
+                            tête se relit mal sur une pièce. */}
+                        {[5, 10, 15, 20, 25, 50, 100].map((v) => (
                           <button
                             key={v}
                             type="button"

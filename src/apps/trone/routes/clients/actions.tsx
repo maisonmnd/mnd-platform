@@ -6,7 +6,7 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { dateDeLaReprise, RYTHMES_ABO } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
-import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
@@ -118,7 +118,7 @@ export function poseLaReprise(appt: Appointment): Appointment | null {
     seriesTotal: undefined,
     note: `Reprise posée à la clôture · toutes les ${cliente.rythmeSemaines} semaines`,
   } as Appointment;
-  appointmentsStore.set((prev) => [...prev, suivant]);
+  appointmentsStore.set((prev) => [...prev, estampilleLaPose(suivant)]);
   return suivant;
 }
 
@@ -1189,7 +1189,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         ...(appt.discountPct != null ? { discountPct: appt.discountPct } : {}),
         note: 'Reprogrammé depuis l’encaissement',
       };
-      appointmentsStore.set((prev) => [...prev, newAppt]);
+      appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;
     }
 

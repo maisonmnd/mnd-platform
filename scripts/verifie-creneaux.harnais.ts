@@ -10,9 +10,9 @@
    et se découvrent devant la porte. */
 import { creneauxLibres } from '../src/apps/couronne/lib';
 import { maitreParDefaut } from '../src/shared/branches';
-import { placeLeFoyer, maitresLibres, chevauche, type Appointment } from '../src/shared/agenda';
+import { placeLeFoyer, maitresLibres, chevauche, estampilleLaPose, estampilleLesPoses, type Appointment } from '../src/shared/agenda';
 import { joursFermesParmi, prochainJourOuvert, settingsStore } from '../src/shared/settings';
-import { quandDemandee } from '../src/shared/temps';
+import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../src/shared/temps';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -277,3 +277,34 @@ dit('… d’il y a trois heures', 'il y a 3 h', quandDemandee('2026-09-05T09:00
 dit('… d’hier', 'hier', quandDemandee('2026-09-04T10:00:00Z', midi));
 dit('… de six jours, celle qu’on a oubliée', 'il y a 6 jours', quandDemandee('2026-08-30T10:00:00Z', midi));
 dit('une date illisible ne dit rien', '', quandDemandee('pas une date', midi));
+
+/* ══ PAR QUELLE PORTE, ET QUAND ════════════════════════════════════
+   « Je ne comprends toujours pas quand est-ce que les RDV ont été pris, à
+   quelle heure, sur Le Trône ou sur Ma Couronne par le client lui-même ? »
+   (Yéman, 5 septembre 2026).
+
+   LA QUESTION EST CELLE DE LA RESPONSABILITÉ : une demande que la cliente a
+   posée seule s'accueille, une date que la Maison a posée elle-même s'assume.
+   « Posée au comptoir » disait l'un et l'autre à la fois. */
+dit('la cliente a réservé elle-même', 'Réservée par la cliente · Ma Couronne', porteDuRendezVous('couronne'));
+dit('la Maison a posé la date', 'Posée par la Maison · Le Trône', porteDuRendezVous('trone'));
+dit('une consultation l’a fait naître', 'Née d’une consultation', porteDuRendezVous('consultation'));
+/* L'HISTORIQUE NE PORTE PAS DE SOURCE : il vient du Trône, c'est le seul
+   chemin qui existait. Le dire « inconnu » sèmerait un doute sans objet. */
+dit('sans source, c’est le Trône', 'Posée par la Maison · Le Trône', porteDuRendezVous(undefined));
+
+/* L'HEURE EXACTE PROUVE, L'ÂGE JUGE : les deux se lisent ensemble. L'entrée est
+   en heure LOCALE (sans Z) pour que le juge ne dépende pas du fuseau. */
+dit('l’instant d’une pose se lit', '3 sept. à 09:12', horodatageLisible('2026-09-03T09:12:00'));
+dit('… minuit passé se lit aussi', '3 sept. à 00:05', horodatageLisible('2026-09-03T00:05:00'));
+dit('une date illisible ne dit rien', '', horodatageLisible('pas une date'));
+
+/* L'ESTAMPILLE NE S'ÉCRASE JAMAIS. Une reprogrammation modifie un rendez-vous
+   existant : réécrire son heure de pose effacerait le seul témoin de sa
+   naissance, et le comptoir croirait la demande toute fraîche. */
+const posé = estampilleLaPose({ id: 'a1', date: '2026-10-13', time: '09:00' } as unknown as Appointment);
+dit('une pose neuve reçoit son heure', true, typeof posé.creeLe === 'string' && posé.creeLe.length > 0);
+const vieux = estampilleLaPose({ id: 'a2', creeLe: '2026-01-01T08:00:00.000Z' } as unknown as Appointment);
+dit('… une pose déjà datée garde la sienne', '2026-01-01T08:00:00.000Z', vieux.creeLe);
+dit('une fournée se date d’un coup', 2,
+  estampilleLesPoses([{ id: 'b1' }, { id: 'b2' }] as unknown as Appointment[]).filter((x) => !!x.creeLe).length);

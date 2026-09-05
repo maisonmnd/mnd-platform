@@ -11,7 +11,7 @@ import { invoicePdf } from '../../../../shared/pdf';
 import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
-import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment } from '../../../../shared/agenda';
+import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
 import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
 import {
@@ -1902,7 +1902,7 @@ function Customer360({
       status: 'confirmé',
       source: 'trone',
     };
-    appointmentsStore.set((prev) => [...prev, created]);
+    appointmentsStore.set((prev) => [...prev, estampilleLaPose(created)]);
   };
 
   /* Ajuster avant de confirmer : ouvre la modale pré-remplie du duplicata. */

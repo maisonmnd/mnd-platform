@@ -27,8 +27,7 @@ import {
 } from '../../../../shared/pricing';
 import { useCategories } from '../../../../shared/catalog';
 import {
-  appointmentsStore, useAppointments, maitresLibres, placeLeFoyer, type Appointment,
-} from '../../../../shared/agenda';
+  appointmentsStore, useAppointments, maitresLibres, placeLeFoyer, type Appointment, estampilleLesPoses } from '../../../../shared/agenda';
 import { uid } from '../../../../shared/store';
 import { TIME_SLOTS, todayISO, poseLHoteDuFoyer } from './_shared';
 
@@ -147,7 +146,7 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
         ...(famPct > 0 ? { remiseFamille: true as const, discountPct: famPct } : {}),
       } as Appointment;
     });
-    appointmentsStore.set((prev) => [...prev, ...neufs]);
+    appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
     toast(`${neufs.length} rendez-vous posés pour le foyer, le ${date}.`);
     onClose();
   };

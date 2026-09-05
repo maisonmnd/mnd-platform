@@ -83,3 +83,28 @@ export const quandDemandee = (isoOuHorodatage: string, maintenant: Date = new Da
   const mois = Math.floor(jours / 30);
   return mois === 1 ? 'il y a un mois' : `il y a ${mois} mois`;
 };
+
+/** L'INSTANT D'UNE POSE, EN TOUTES LETTRES — 5 septembre 2026.
+
+    « Je ne comprends toujours pas quand est-ce que les RDV ont été pris, à
+    quelle heure » (Yéman). « Il y a 3 h » situe, mais ne date pas : au comptoir
+    on veut aussi pouvoir dire « vous avez appelé jeudi à 9 h 12 ». Les deux se
+    lisent ensemble, l'un pour juger, l'autre pour prouver. */
+export const horodatageLisible = (isoOuHorodatage: string): string => {
+  const d = new Date(isoOuHorodatage);
+  if (!Number.isFinite(d.getTime())) return '';
+  const jour = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const heure = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${jour} à ${heure}`;
+};
+
+/** PAR QUELLE PORTE LE RENDEZ-VOUS EST ENTRÉ.
+
+    « Sur Le Trône ou sur Ma Couronne par le client lui-même ? » La question est
+    celle de la RESPONSABILITÉ : une demande que la cliente a posée seule
+    s'accueille, une date que la Maison a posée elle-même s'assume. « Posée au
+    comptoir » disait l'un et l'autre à la fois. */
+export const porteDuRendezVous = (source?: 'trone' | 'couronne' | 'consultation'): string =>
+  (source === 'couronne' ? 'Réservée par la cliente · Ma Couronne'
+    : source === 'consultation' ? 'Née d’une consultation'
+    : 'Posée par la Maison · Le Trône');

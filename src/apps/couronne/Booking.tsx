@@ -4,7 +4,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, joursFermesParmi, horairesDescendus } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
-import { appointmentsStore, useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
+import { appointmentsStore, useAppointments, venuesHonorees, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { useSubscribers, subPaid } from '../../shared/abonnements';
 import { peutReserver } from '../../shared/echeancier';
 import { askNotifyPermission, downloadIcs, notifyLocal, type IcsEvent } from '../../shared/ics';
@@ -661,7 +661,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
         };
       });
-      appointmentsStore.set((prev) => [...prev, ...newAppts]);
+      appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(newAppts)]);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
         online?.confirmed ? 'Réservation payée · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',

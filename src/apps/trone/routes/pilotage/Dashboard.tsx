@@ -5,7 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { openingForIso, joursFermesParmi, prochainJourOuvert } from '../../../../shared/settings';
-import { quandDemandee } from '../../../../shared/temps';
+import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../../../../shared/temps';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
@@ -1076,7 +1076,6 @@ export default function Dashboard() {
               const fiche = clients.find((c) => c.id === a.clientId);
               const tel = (fiche?.phone ?? '').replace(/\D/g, '');
               const ferme = openingForIso(a.date).closed;
-              const enLigne = a.source === 'couronne';
               const acompte = a.depositXof ?? 0;
               return (
               <div key={a.id} style={{ border: '1px solid var(--hairline)', borderLeft: `3px solid ${ferme ? 'var(--color-brique, #96412E)' : 'var(--color-copper)'}`, borderRadius: 4, padding: '12px 14px' }}>
@@ -1101,8 +1100,15 @@ export default function Dashboard() {
                 </div>
                 {/* D'OÙ ELLE VIENT, DEPUIS QUAND, ET CE QUI EST DÉJÀ TOMBÉ. */}
                 <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.6 }}>
-                  {enLigne ? 'Réservée en ligne · Ma Couronne' : 'Posée au comptoir'}
-                  {a.creeLe ? ` · demandée ${quandDemandee(a.creeLe)}` : ''}
+                  {/* PAR QUELLE PORTE, ET QUAND EXACTEMENT — 5 septembre 2026.
+                      « Posée au comptoir » ne disait pas si la cliente avait
+                      demandé elle-même ou si la Maison avait posé la date, et
+                      ne datait rien du tout. L'heure exacte prouve, l'âge
+                      juge : les deux se lisent ensemble. */}
+                  {porteDuRendezVous(a.source)}
+                  {a.creeLe
+                    ? ` · le ${horodatageLisible(a.creeLe)}, ${quandDemandee(a.creeLe)}`
+                    : ' · heure de pose non enregistrée'}
                   {fiche?.phone ? ` · ${fiche.phone}` : ''}
                   {acompte > 0 ? ` · acompte ${fmtMoney(acompte, currency)} ${a.depositConfirmed ? 'reçu' : 'annoncé, non reçu'}` : ''}
                   {typeof a.priceXof === 'number' ? ` · ${fmtMoney(a.priceXof, currency)}` : ''}

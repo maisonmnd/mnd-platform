@@ -4,7 +4,7 @@ import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { uid } from '../../shared/store';
 import { useAuth } from '../../shared/auth';
-import { appointmentsStore, useAppointments, type Appointment } from '../../shared/agenda';
+import { appointmentsStore, useAppointments, type Appointment, estampilleLesPoses } from '../../shared/agenda';
 import { pushNotifyStaff } from '../../shared/push';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, personalDurationMin, servesBand, bandForService } from '../../shared/pricing';
 import { useServices, useProducts, useCategories, type Service, type ServiceInclus } from '../../shared/catalog';
@@ -258,7 +258,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
         seriesTotal: seances.length,
       };
     });
-    appointmentsStore.set((prev) => [...prev, ...nouveaux]);
+    appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(nouveaux)]);
     void pushNotifyStaff(
       'Forfait réservé · Ma Couronne',
       `${clientName} · ${forfait.name} · ${seances.length} séances · ${fmtMoney(total, currency)} · 1ʳᵉ tranche ${fmtMoney(tranche1, currency)} annoncée`,

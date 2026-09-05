@@ -662,3 +662,26 @@ export const bornesDuSalon = (
     fermeture: Math.max((max ?? CLOSE_HOUR), (min ?? OPEN_HOUR) + 1),
   };
 };
+
+/** ══ QUAND CE RENDEZ-VOUS A ÉTÉ POSÉ — 5 septembre 2026 ═══════════
+
+    « Je ne comprends toujours pas quand est-ce que les RDV ont été pris, à
+    quelle heure, sur Le Trône ou sur Ma Couronne par le client lui-même ? »
+    (Yéman).
+
+    HUIT CHEMINS POSENT DES RENDEZ-VOUS : la modale du carnet, la fiche d'une
+    cliente, le foyer, la cadence d'un abonnement, la reprise à la clôture, la
+    reprogrammation à l'encaissement, la pièce d'un rituel, et Ma Couronne. Un
+    seul les estampillait. Chacun passe désormais par ici : c'est la seule façon
+    qu'aucun n'oublie, et que le neuvième, écrit dans six mois, n'oublie pas non
+    plus.
+
+    ON N'ESTAMPILLE JAMAIS DEUX FOIS. Une reprogrammation modifie un rendez-vous
+    existant : réécrire son heure de pose effacerait le seul témoin de sa
+    naissance, et le comptoir croirait la demande toute fraîche. */
+export const estampilleLaPose = <T extends Appointment>(a: T): T =>
+  (a.creeLe ? a : { ...a, creeLe: new Date().toISOString() });
+
+/** La même chose pour une fournée — une série, un foyer, une cadence. */
+export const estampilleLesPoses = <T extends Appointment>(as: readonly T[]): T[] =>
+  as.map(estampilleLaPose);
