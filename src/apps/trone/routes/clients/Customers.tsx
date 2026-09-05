@@ -1869,6 +1869,16 @@ function Customer360({
   const [cptJour, setCptJour] = useState('');
   const [cptNote, setCptNote] = useState('');
   const [cptCm, setCptCm] = useState('');
+  /* ══ REPRENDRE UN COMPTAGE — 5 septembre 2026 ═════════════════════
+     « Éditer la note de comptage de locks au besoin » (Yéman).
+
+     ON SE REPREND TOUJOURS. Un mot mal tapé, une mèche remesurée cinq minutes
+     plus tard, un chiffre inversé : il fallait retirer la ligne et la
+     reposer, ce qui perd la note qu'on venait justement corriger. */
+  const [cptEdite, setCptEdite] = useState<string | null>(null);
+  const [editLocks, setEditLocks] = useState('');
+  const [editCm, setEditCm] = useState('');
+  const [editNote, setEditNote] = useState('');
   const [fusionOpen, setFusionOpen] = useState(false);
   const [allTemps] = useClientTemps();
   const myTemps = tempsOf(allTemps, client.id);
@@ -3676,7 +3686,10 @@ function Customer360({
                   inputMode="numeric"
                   value={cptLocks}
                   onChange={(e) => setCptLocks(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="427"
+                  /* UN EXEMPLE CHIFFRÉ SE LIT COMME UNE VALEUR. « 427 » en
+                     gris dans la case donnait l'impression que la Maison avait
+                     retenu quelque chose, et l'on cherchait d'où il venait. */
+                  placeholder="locks"
                   aria-label="Nombre de locks"
                   style={{ width: 96, textAlign: 'right', flex: 'none' }}
                 />
@@ -3783,25 +3796,92 @@ function Customer360({
                             font un total qu'on croirait complet. */}
                         {!c.complet && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--trv-error, #96412E)' }}>partiel</span>}
                       </div>
-                      <div className="mnd-muted" style={{ fontSize: 11 }}>
-                        {c.origine === 'herite'
-                          ? 'Jour inconnu, il n’a pas été inventé.'
-                          : <>{c.enClair ? `${c.enClair} · ` : ''}{c.auteurNom}{c.origine === 'fil' ? ' · au fil' : ''}</>}
-                      </div>
+                      {cptEdite === c.iso ? (
+                        <div style={{ display: 'flex', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
+                          <Input
+                            inputMode="numeric"
+                            value={editLocks}
+                            onChange={(e) => setEditLocks(e.target.value.replace(/[^0-9]/g, ''))}
+                            aria-label="Nombre de locks"
+                            style={{ width: 82, textAlign: 'right', flex: 'none' }}
+                          />
+                          <Input
+                            inputMode="decimal"
+                            value={editCm}
+                            onChange={(e) => setEditCm(e.target.value.replace(/[^0-9,.]/g, ''))}
+                            placeholder="cm"
+                            aria-label="Longueur de la mèche témoin"
+                            style={{ width: 72, textAlign: 'right', flex: 'none' }}
+                          />
+                          <Input
+                            value={editNote}
+                            onChange={(e) => setEditNote(e.target.value)}
+                            placeholder="Un mot, si besoin…"
+                            aria-label="Note du comptage"
+                            style={{ flex: '1 1 140px', minWidth: 0 }}
+                          />
+                          <Button
+                            variant="copper"
+                            style={{ flex: 'none' }}
+                            onClick={() => {
+                              const n = Math.max(0, Math.round(parseInt(editLocks.replace(/[^0-9]/g, ''), 10) || 0));
+                              if (n <= 0) { toast('Combien de locks ?'); return; }
+                              const cm = Math.max(0, Math.round(parseFloat(editCm.replace(',', '.')) || 0));
+                              /* LE MÊME JOUR REMPLACE : `poseUnComptage` écrase
+                                 la ligne de cette date, c'est exactement ce
+                                 qu'une correction doit faire. La main qui
+                                 corrige devient la main qui a compté. */
+                              poseUnComptage(client.id, {
+                                iso: c.iso,
+                                locks: n,
+                                ...(cm > 0 ? { longueurCm: cm } : {}),
+                                ...(editNote.trim() ? { note: editNote.trim() } : {}),
+                                ...(monNomFiche ? { par: monNomFiche } : {}),
+                              });
+                              setCptEdite(null);
+                              toast('Comptage corrigé.');
+                            }}
+                          >
+                            Enregistrer
+                          </Button>
+                          <Button variant="ghost" style={{ flex: 'none' }} onClick={() => setCptEdite(null)}>Annuler</Button>
+                        </div>
+                      ) : (
+                        <div className="mnd-muted" style={{ fontSize: 11 }}>
+                          {c.origine === 'herite'
+                            ? 'Jour inconnu, il n’a pas été inventé.'
+                            : <>{c.enClair ? `${c.enClair} · ` : ''}{c.auteurNom}{c.origine === 'fil' ? ' · au fil' : ''}</>}
+                          {c.longueurCm ? ` · mèche témoin ${c.longueurCm} cm` : ''}
+                        </div>
+                      )}
                     </span>
-                    {/* ON NE RETIRE QUE CE QU'ON A ÉCRIT ICI. Un comptage du Fil
-                        est un message : l'effacer depuis la fiche laisserait la
-                        conversation dire le contraire de la fiche. */}
-                    {c.origine === 'fiche' && (
-                      <button
-                        type="button"
-                        className="tre-link-btn"
-                        style={{ flex: 'none' }}
-                        title="Retirer ce comptage"
-                        onClick={() => { retireUnComptage(client.id, c.iso); toast('Comptage retiré.'); }}
-                      >
-                        Retirer
-                      </button>
+                    {/* ON NE REPREND QUE CE QU'ON A ÉCRIT ICI. Un comptage du
+                        Fil est un message : le corriger ou l'effacer depuis la
+                        fiche laisserait la conversation dire le contraire. */}
+                    {c.origine === 'fiche' && cptEdite !== c.iso && (
+                      <span style={{ flex: 'none', display: 'inline-flex', gap: 10 }}>
+                        <button
+                          type="button"
+                          className="tre-link-btn"
+                          title="Corriger ce comptage"
+                          onClick={() => {
+                            setCptEdite(c.iso);
+                            setEditLocks(String(c.locks));
+                            setEditCm(c.longueurCm ? String(c.longueurCm) : '');
+                            setEditNote(c.enClair ?? '');
+                          }}
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          className="tre-link-btn"
+                          title="Retirer ce comptage"
+                          onClick={() => { retireUnComptage(client.id, c.iso); toast('Comptage retiré.'); }}
+                        >
+                          Retirer
+                        </button>
+                      </span>
                     )}
                   </div>
                 );
