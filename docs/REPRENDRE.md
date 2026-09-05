@@ -122,6 +122,57 @@ contraire de ce qu'il faut. Et **sa date d'entrée est celle de son premier
 rituel connu**, pas aujourd'hui : une tête créée en reprenant 2025 est cliente
 depuis 2025.
 
+### Rien ne se traîne d'une tête à l'autre — 5 septembre 2026
+
+« Quand je change de client je dois avoir tout qui revient vide. Do not carry
+the same values from one client to the other. Même chose quand je change de
+cadence à liste » (Yéman).
+
+**Un rituel qui survit à sa tête est un piège** : l'écran a l'air rempli
+correctement, le nom est le bon, la composition est plausible, et l'on pose
+douze rituels de la voisine sur une autre tête. Aucune alerte ne peut rattraper
+cela, parce que rien n'est faux au sens du code.
+
+Changer de tête, ou passer d'un mode à l'autre, vide la composition entière.
+**L'année et le maître restent** : ils cadrent la séance de saisie, pas une
+tête. **Relire « Les séries posées » n'efface rien** : cet onglet regarde, il ne
+compose pas — vider en le quittant ferait perdre une saisie pour un coup d'œil.
+
+### Les rythmes rares — 5 septembre 2026
+
+« Quand la personne ne vient que 2 ou 3 fois dans l'année, comment je règle sa
+cadence ? » `RYTHMES_ABO` s'arrête à dix semaines et c'est juste : ce sont les
+rythmes d'une tête SUIVIE, une formule à 26 semaines ne serait plus un
+abonnement. La reprise a donc sa propre liste, `RYTHMES_REPRISE` — **13, 17 et
+26 semaines** en plus, annotées « 4 / 3 / 2 fois l'an ». Pour deux ou trois
+dates, **La liste reste plus courte** : on les tape, sans chercher le rythme qui
+les approche.
+
+### Le rituel se choisit ligne par ligne — 5 septembre 2026
+
+« Modification ou sélection individuelle des services par ligne dans plusieurs
+têtes » (Yéman). **L'habitude est un bon défaut, pas une loi** : elle a fait une
+couleur ce jour-là, elle est venue pour un shampoing seul. Sans ce réglage il
+fallait sortir la ligne de la série et la ressaisir à la main — une exception
+par mois suffisait à rendre le mode inutilisable.
+
+« Changer », sur chaque ligne de l'aperçu, déplie **ses habitudes** (un clic
+pose la composition entière) puis la composition de CE jour, en pastilles, avec
+le catalogue dessous. Vaut dans les trois modes.
+
+**Changer le rituel efface le prix corrigé de cette ligne** : le montant tapé à
+la main valait pour l'ancienne composition, le garder ferait payer une couleur
+au tarif d'un shampoing sans que rien ne le dise.
+
+### Retirer une venue, vider la cadence — 5 septembre 2026
+
+Un ✕ au bout de chaque ligne de cadence. **Décocher ne suffisait pas** : sur une
+ligne sans prestation la case n'existe même pas, et la date restait là, rouge,
+sans moyen de s'en débarrasser. « Vider la cadence » remet les quatre champs à
+zéro. **Changer le rythme efface corrections et retraits** : ils désignaient des
+dates qui n'existent plus, et les garder ferait disparaître en silence une date
+de la nouvelle suite tombant par hasard sur une ancienne retirée.
+
 ### Les dates de la cadence se corrigent — 5 septembre 2026
 
 **Un rythme est une approximation, pas un compte rendu.** Toutes les huit

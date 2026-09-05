@@ -7,6 +7,7 @@
 import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
   habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
+  RYTHMES_REPRISE, foisDansLAnnee,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -192,6 +193,22 @@ dit('les têtes, sans doublon', ['M. A.', 'S. L.'], sA.tetes);
 dit('le rituel ordinaire reste dehors', false,
   series.some((s) => s.retirables.includes('ap-6') || s.retenus.some((r) => r.id === 'ap-6')));
 dit('aucune série, aucune ligne', 0, seriesPosees([pose[5]]).length);
+
+/* ── ⑩ LES RYTHMES RARES ───────────────────────────
+   « Quand la personne ne vient que 2 ou 3 fois dans l'année, comment je règle
+   sa cadence ? » Les rythmes d'un abonnement s'arrêtent à dix semaines, et
+   c'est juste : ce sont ceux d'une tête SUIVIE. Une reprise d'année, elle,
+   raconte ce qui a eu lieu — et beaucoup de têtes ne viennent que deux fois. */
+dit('les rythmes rares sont là', [13, 17, 26], RYTHMES_REPRISE.filter((r) => r >= 13));
+dit('deux fois l’an', 2, foisDansLAnnee(26));
+dit('trois fois l’an', 3, foisDansLAnnee(17));
+dit('quatre fois l’an', 4, foisDansLAnnee(13));
+/* UN RYTHME SERRÉ NE SE COMPTE PAS EN VENUES : personne ne dit « treize fois
+   l'an », on dit « toutes les quatre semaines ». */
+dit('un rythme serré ne s’annote pas', undefined, foisDansLAnnee(4));
+/* DEUX VENUES SE DÉROULENT VRAIMENT, sur une année complète. */
+dit('deux venues sur l’année', ['2025-01-10', '2025-07-11'],
+  datesDeLaCadence({ departIso: '2025-01-10', semaines: 26, jusquIso: '2025-12-31' }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

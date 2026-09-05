@@ -159,16 +159,20 @@ export function ChampDeDate({
     setSaisie(value ? frJourAn(value) : '');
   }, [value]);
 
-  const lu = saisie.trim() === '' ? undefined : litUneLigne(saisie, annee);
+  /* UNE DATE A MOITIE TAPEE N'EST PAS UNE FAUTE. « 14/02/ » passait en rouge
+     entre deux touches, le temps que l'annee arrive : le separateur de fin se
+     laisse tomber avant la lecture. */
+  const enClair = saisie.trim().replace(/[/\-.\s]+$/, '');
+  const lu = enClair === '' ? undefined : litUneLigne(enClair, annee);
   const iso = lu?.iso;
   /* L'ANNÉE A-T-ELLE ÉTÉ TAPÉE ? On lit la même ligne avec une année absurde :
      si le résultat la porte, c'est qu'elle venait du défaut, pas de la main. */
-  const anneeSupposee = saisie.trim() !== ''
-    && litUneLigne(saisie, 1904).iso?.slice(0, 4) === '1904';
+  const anneeSupposee = enClair !== ''
+    && litUneLigne(enClair, 1904).iso?.slice(0, 4) === '1904';
 
   const pose = (texte: string, an = annee) => {
     setSaisie(texte);
-    const nouveau = litUneLigne(texte, an).iso;
+    const nouveau = litUneLigne(texte.trim().replace(/[/\-.\s]+$/, ''), an).iso;
     if (nouveau && nouveau !== value) { emis.current = nouveau; onChange(nouveau); }
     if (texte.trim() === '' && value !== '') { emis.current = ''; onChange(''); }
   };
@@ -214,24 +218,6 @@ export function ChampDeDate({
         >
           {saisie.trim() === '' ? 'Rien de posé' : (iso ? frShortAn(iso) : 'Cette date ne se lit pas')}
         </span>
-        {/* LES ANNÉES POSSIBLES, en toutes lettres. Elles ne paraissent que
-            lorsque l'année n'a pas été tapée : offrir un choix déjà fait
-            n'aide personne. */}
-        {anneeSupposee && iso && [annee, annee - 1, annee - 2].map((a) => (
-          <button
-            key={a}
-            type="button"
-            onClick={() => { setAnnee(a); pose(saisie, a); }}
-            style={{
-              cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
-              border: `1px solid ${a === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
-              background: a === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
-              color: a === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
-            }}
-          >
-            {a}
-          </button>
-        ))}
         <button
           type="button"
           onClick={() => setCalendrier(true)}
@@ -243,6 +229,31 @@ export function ChampDeDate({
           Le calendrier
         </button>
       </div>
+      {/* LES ANNÉES POSSIBLES, sur leur propre ligne — dans une colonne étroite
+          elles se coupaient en deux, et trois chiffres nus sans un mot devant
+          ne disent pas ce qu'ils font là. Elles ne paraissent que lorsque
+          l'année n'a pas été tapée : offrir un choix déjà fait n'aide
+          personne. */}
+      {anneeSupposee && iso && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span className="mnd-muted" style={{ fontSize: 11 }}>Quelle année ?</span>
+          {[annee, annee - 1, annee - 2].map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => { setAnnee(a); pose(saisie, a); }}
+              style={{
+                cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
+                border: `1px solid ${a === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                background: a === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
+                color: a === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
+              }}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

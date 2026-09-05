@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -8,10 +8,9 @@ import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointmen
 import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
 import { useServices, type Service } from '../../../../shared/catalog';
 import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
-import { RYTHMES_ABO } from '../../../../shared/cadence';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
-  habitudesParTete, seriesPosees, type LigneLue,
+  habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee, type LigneLue,
 } from '../../../../shared/serie';
 import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
@@ -97,6 +96,98 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
      changerait a chaque frappe et la correction se perdrait sous les doigts. */
   const [datesCorrigees, setDatesCorrigees] = useState<Record<string, string>>({});
   const [heuresCorrigees, setHeuresCorrigees] = useState<Record<string, string>>({});
+  /* LES DATES QU'ON RETIRE. Un rythme est une approximation : elle a saute une
+     venue, elle etait en voyage en aout. Decocher ne suffisait pas — sur une
+     ligne sans prestation, la case n'existe meme pas, et la date restait la,
+     rouge, sans moyen de s'en debarrasser. */
+  const [datesRetirees, setDatesRetirees] = useState<string[]>([]);
+  /* ══ LE RITUEL D'UNE SEULE LIGNE — 5 septembre 2026 ════════════════
+     « Modification ou selection individuelle des services par ligne dans
+     plusieurs tetes » (Yeman).
+
+     L'HABITUDE EST UN BON DEFAUT, PAS UNE LOI. Elle a fait une couleur ce
+     jour-la, elle a ajoute un soin avant une fete, elle est venue pour un
+     shampoing seul. Sans ce reglage il fallait sortir la ligne de la serie et
+     la ressaisir a la main : une exception par mois suffisait a rendre le mode
+     inutilisable.
+
+     La cle est celle de la ligne. Retaper la ligne la change, et le choix
+     retombe sur l'habitude — c'est juste : ce n'est plus la meme venue. */
+  const [rituelParLigne, setRituelParLigne] = useState<Record<string, string[]>>({});
+  const [ligneOuverte, setLigneOuverte] = useState('');
+
+  /* CHANGER LE RITUEL D'UNE LIGNE EFFACE SON PRIX CORRIGE : le montant tape a
+     la main valait pour l'ancienne composition. Le garder ferait payer une
+     couleur au tarif d'un shampoing, sans que rien ne le dise. */
+  const poseLeRituel = (cle: string, ids: string[]) => {
+    setRituelParLigne((prev) => ({ ...prev, [cle]: ids }));
+    setPrixParLigne((prev) => {
+      if (!(cle in prev)) return prev;
+      const n = { ...prev };
+      delete n[cle];
+      return n;
+    });
+  };
+
+  /* CHANGER DE RYTHME REBAT TOUTE LA SUITE : les corrections et les retraits
+     designaient des dates qui n'existent plus. Les garder ferait disparaitre
+     en silence une date de la NOUVELLE suite qui tomberait par hasard sur une
+     ancienne retiree — un rituel manquant que personne ne verrait. */
+  useEffect(() => {
+    setDatesCorrigees({});
+    setHeuresCorrigees({});
+    setDatesRetirees([]);
+  }, [depart, semaines, jusqu]);
+
+  /* ══ RIEN NE SE TRAINE D'UNE TETE A L'AUTRE — 5 septembre 2026 ════
+     « Quand je change de client je dois avoir tout qui revient vide. Do not
+     carry the same values from one client to the other. Meme chose quand je
+     change de cadence a liste » (Yeman).
+
+     UN RITUEL QUI SURVIT A SA TETE EST UN PIEGE. L'ecran a l'air rempli
+     correctement : le nom est le bon, la composition est plausible, et l'on
+     pose douze rituels de la voisine sur une autre tete. Aucune alerte ne peut
+     rattraper cela, parce que rien n'est faux au sens du code.
+
+     L'ANNEE ET LE MAITRE RESTENT : ils cadrent la seance de saisie entiere, pas
+     une tete. Les retaper a chaque changement serait sa propre punition. */
+  const videLaComposition = () => {
+    setServiceIds([]);
+    setColle('');
+    setDepart('');
+    setJusqu('');
+    setDatesCorrigees({});
+    setHeuresCorrigees({});
+    setDatesRetirees([]);
+    setPrixParLigne({});
+    setRetire(new Set());
+    setRituelParLigne({});
+    setLigneOuverte('');
+  };
+
+  useEffect(() => { videLaComposition(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clientId]);
+
+  /* RELIRE LES SERIES POSEES N'EFFACE RIEN : cet onglet ne compose pas, il
+     regarde. Vider en le quittant ferait perdre une saisie en cours pour un
+     simple coup d'oeil. */
+  const modePrecedent = useRef<Mode>(mode);
+  useEffect(() => {
+    const avant = modePrecedent.current;
+    modePrecedent.current = mode;
+    if (avant === mode || avant === 'retrait' || mode === 'retrait') return;
+    videLaComposition();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [mode]);
+
+  const videLaCadence = () => {
+    setDepart('');
+    setJusqu('');
+    setDatesCorrigees({});
+    setHeuresCorrigees({});
+    setDatesRetirees([]);
+    setPrixParLigne({});
+    setRetire(new Set());
+  };
   /* LE RETRAIT SE CONFIRME DANS LA PAGE, en deux temps. `window.confirm` se
      tait quand le navigateur bloque les dialogues, et le bouton passait pour
      mort : c'est ce qui était arrivé à « Écarter », dans Accès & personnel. */
@@ -126,12 +217,16 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
     svs.reduce((n, s) => n + Math.max(0, Math.round(s.priceXof)), 0);
 
   const lignes: Ligne[] = useMemo(() => {
-    const fait = (l: { iso?: string; heure?: string; brut: string }, c: Client | undefined, svs: Service[]): Ligne => {
-      const cle = `${l.iso ?? l.brut}-${c?.id ?? ''}`;
+    const fait = (l: { iso?: string; heure?: string; brut: string }, c: Client | undefined, svs: Service[], cleForcee?: string): Ligne => {
+      const cle = cleForcee ?? `${l.iso ?? l.brut}-${c?.id ?? ''}`;
+      /* L'EXCEPTION DE CETTE LIGNE PASSE AVANT TOUT : avant l'habitude de la
+         tete, avant le rituel commun. C'est le geste le plus precis, il gagne. */
+      const propres = rituelParLigne[cle];
+      const retenus = propres ? prestationsDe(propres) : svs;
       return {
         cle, iso: l.iso, heure: l.heure ?? heure, brut: l.brut,
-        client: c, services: svs,
-        prixXof: prixParLigne[cle] ?? prixDe(svs),
+        client: c, services: retenus,
+        prixXof: prixParLigne[cle] ?? prixDe(retenus),
         dejaAuCarnet: false,
         cochee: !retire.has(cle),
       };
@@ -145,7 +240,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       const svs = prestationsDe(serviceIds);
       const dates = datesDeLaCadence({
         departIso: depart, semaines, jusquIso: jusqu || `${an}-12-31`,
-      });
+      }).filter((d) => !datesRetirees.includes(d));
       /* La correction de la main passe AVANT le garde du doublon : c'est la
          date corrigee qui doit etre confrontee au carnet, pas celle que le
          rythme avait proposee. */
@@ -190,10 +285,9 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       const ids = c ? (habitudes.get(c.id)?.[0]?.serviceIds ?? serviceIds) : serviceIds;
       const svs = prestationsDe(ids);
       const dejaLa = !!c && !!l.iso && appts.some((a) => a.clientId === c.id && a.date === l.iso && a.status !== 'annulé');
-      const base = fait({ iso: l.iso, heure: l.heure, brut: l.brut }, c, svs);
+      const base = fait({ iso: l.iso, heure: l.heure, brut: l.brut }, c, svs, `${l.iso ?? l.brut}-${c?.id ?? 'x'}`);
       return {
         ...base,
-        cle: `${l.iso ?? l.brut}-${c?.id ?? 'x'}`,
         dejaAuCarnet: dejaLa,
         /* Le nom TAPE, pas le nom aplati : c'est celui-la qu'on inscrira sur
            la fiche si la Maison demande de la creer. */
@@ -202,7 +296,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       };
     });
   }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire,
-    prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees]);
+    prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees, datesRetirees, rituelParLigne]);
 
   const posables = lignes.filter((l) => l.iso && l.client && l.services.length > 0 && !l.dejaAuCarnet && l.cochee);
   const total = posables.reduce((n, l) => n + l.prixXof, 0);
@@ -512,7 +606,14 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
             </Field>
             <Field label="Rythme">
               <Select value={String(semaines)} onChange={(e) => setSemaines(Number(e.target.value))}>
-                {RYTHMES_ABO.map((s) => <option key={s} value={s}>{s} semaines</option>)}
+                {RYTHMES_REPRISE.map((s) => {
+                  const fois = foisDansLAnnee(s);
+                  return (
+                    <option key={s} value={s}>
+                      {s} semaines{fois ? ` · ${fois} fois l’an` : ''}
+                    </option>
+                  );
+                })}
               </Select>
             </Field>
             <Field label="Heure">
@@ -521,6 +622,36 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
             <Field label="Jusqu’au">
               <ChampDeDate value={jusqu || `${an}-12-31`} onChange={setJusqu} anneeParDefaut={an} ariaLabel="La derniere venue" />
             </Field>
+          </div>
+        )}
+
+        {mode === 'cadence' && (depart !== '' || datesRetirees.length > 0) && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', marginTop: -6 }}>
+            <button
+              type="button"
+              onClick={videLaCadence}
+              style={{
+                cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+                fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
+              }}
+            >
+              Vider la cadence
+            </button>
+            {datesRetirees.length > 0 && (
+              <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                {datesRetirees.length} venue{datesRetirees.length > 1 ? 's' : ''} retirée{datesRetirees.length > 1 ? 's' : ''}.{' '}
+                <button
+                  type="button"
+                  onClick={() => setDatesRetirees([])}
+                  style={{
+                    cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+                    fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'underline',
+                  }}
+                >
+                  Les rendre
+                </button>
+              </span>
+            )}
           </div>
         )}
 
@@ -581,8 +712,15 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                 </tr>
                 {lignes.map((l) => {
                   const ko = !l.iso || !l.client || l.services.length === 0;
+                  const ouverte = ligneOuverte === l.cle && !!l.client;
+                  /* SES HABITUDES D'ABORD : le catalogue compte des dizaines de
+                     lignes, et ce qu'elle prend d'ordinaire tient en un clic. */
+                  const sesHabitudes = l.client ? (habitudes.get(l.client.id) ?? []) : [];
+                  const ids = l.services.map((sv) => sv.id);
+                  const cleDuRituel = [...ids].sort().join('+');
                   return (
-                    <tr key={l.cle} style={{ background: ko ? 'var(--brique-50, #FBF0ED)' : undefined, opacity: !ko && (l.dejaAuCarnet || !l.cochee) ? 0.55 : 1 }}>
+                    <Fragment key={l.cle}>
+                    <tr style={{ background: ko ? 'var(--brique-50, #FBF0ED)' : undefined, opacity: !ko && (l.dejaAuCarnet || !l.cochee) ? 0.55 : 1 }}>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)' }}>
                         {!ko && !l.dejaAuCarnet && (
                           <input type="checkbox" checked={l.cochee} onChange={() => basculer(l.cle)} style={{ accentColor: 'var(--color-copper)' }} />
@@ -650,7 +788,25 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                               </span>
                             )
                               : 'Aucune prestation'
-                        ) : <>{l.client!.name} · {l.services.map((s) => s.name).join(' + ')}</>}
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+                            <span>{l.client!.name} · {l.services.map((s) => s.name).join(' + ')}</span>
+                            {/* L'HABITUDE EST UN BON DÉFAUT, PAS UNE LOI. Elle a
+                                fait une couleur ce jour-là, elle est venue pour
+                                un shampoing seul. Sans ce réglage il fallait
+                                sortir la ligne de la série et la ressaisir. */}
+                            <button
+                              type="button"
+                              onClick={() => setLigneOuverte((v) => (v === l.cle ? '' : l.cle))}
+                              style={{
+                                cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+                                fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
+                              }}
+                            >
+                              {ligneOuverte === l.cle ? 'Replier' : 'Changer'}
+                            </button>
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
                         {!ko && (
@@ -665,8 +821,95 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
                         {l.dejaAuCarnet && <span className="mnd-muted" style={{ fontSize: 10.5 }}>déjà au carnet</span>}
+                        {/* RETIRER CETTE VENUE. Decocher ne suffit pas : sur une
+                            ligne sans prestation la case n'existe pas, et la
+                            date restait la sans moyen de s'en debarrasser.
+                            Elle revient en changeant le rythme, qui redonne la
+                            suite entiere. */}
+                        {mode === 'cadence' && l.origine && (
+                          <button
+                            type="button"
+                            title="Retirer cette venue de la cadence"
+                            aria-label={`Retirer la venue du ${l.iso ?? l.brut}`}
+                            onClick={() => setDatesRetirees((prev) => [...prev, l.origine!])}
+                            style={{
+                              marginLeft: 8, cursor: 'pointer', background: 'none', border: 'none', padding: '0 4px',
+                              font: 'inherit', fontSize: 14, lineHeight: 1, color: 'var(--ink-soft)',
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
                       </td>
                     </tr>
+                    {ouverte && (
+                      <tr>
+                        <td />
+                        <td colSpan={4} style={{ padding: '2px 10px 12px' }}>
+                          <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', background: 'var(--surface-2, #FAF8F5)' }}>
+                            {sesHabitudes.length > 0 && (
+                              <>
+                                <div style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500, marginBottom: 7 }}>
+                                  Ce qu’elle fait d’habitude
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+                                  {sesHabitudes.map((h) => {
+                                    const svs = prestationsDe(h.serviceIds);
+                                    if (svs.length === 0) return null;
+                                    const posee = h.cle === cleDuRituel;
+                                    return (
+                                      <button
+                                        key={h.cle}
+                                        type="button"
+                                        onClick={() => poseLeRituel(l.cle, h.serviceIds)}
+                                        style={{
+                                          display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', textAlign: 'left',
+                                          font: 'inherit', cursor: 'pointer', padding: '6px 9px', borderRadius: 3,
+                                          background: posee ? 'var(--copper-50, #F9EFE7)' : 'var(--surface, #FFF)',
+                                          border: `1px solid ${posee ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                                        }}
+                                      >
+                                        <span style={{ fontSize: 12, color: 'var(--ink)' }}>{svs.map((sv) => sv.name).join(' + ')}</span>
+                                        <span className="mnd-muted" style={{ fontSize: 10.5 }}>{h.fois} fois</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </>
+                            )}
+                            <div style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500, marginBottom: 7 }}>
+                              Ce jour-là
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                              {l.services.length === 0
+                                ? <span className="mnd-muted" style={{ fontSize: 11.5 }}>Aucune prestation, ce rituel ne sera pas posé.</span>
+                                : l.services.map((sv) => (
+                                  <button
+                                    key={sv.id}
+                                    type="button"
+                                    className="tre-chip is-on"
+                                    onClick={() => poseLeRituel(l.cle, ids.filter((x) => x !== sv.id))}
+                                  >
+                                    {sv.name} ✕
+                                  </button>
+                                ))}
+                            </div>
+                            <Select
+                              value=""
+                              onChange={(e) => { if (e.target.value) poseLeRituel(l.cle, [...ids, e.target.value]); }}
+                            >
+                              <option value="">+ Ajouter une prestation…</option>
+                              <OptionsPrestations services={services} exclure={(sv) => ids.includes(sv.id)} />
+                            </Select>
+                            <div className="mnd-muted" style={{ fontSize: 11, marginTop: 7, lineHeight: 1.5 }}>
+                              Ne vaut que pour cette venue. Le prix suit la composition, et se corrige
+                              ensuite dans sa case.
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

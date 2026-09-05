@@ -197,6 +197,31 @@ export const habitudesDeLaTete = (
   appts: readonly RituelLu[], clientId: string, garde = 5,
 ): Habitude[] => habitudesParTete(appts, garde).get(clientId) ?? [];
 
+/** LES RYTHMES D'UNE REPRISE D'ANNÉE — 5 septembre 2026.
+
+    « Et quand la personne ne vient que 2 ou 3 fois dans l'année, comment je
+    règle sa cadence ? » (Yéman).
+
+    `RYTHMES_ABO` s'arrête à dix semaines, et c'est juste : ce sont les rythmes
+    d'une tête SUIVIE, et une formule qui proposerait « toutes les 26 semaines »
+    ne serait plus un abonnement. Mais une reprise d'année n'a pas ce
+    scrupule — elle raconte ce qui a eu lieu, et beaucoup de têtes ne viennent
+    que deux ou trois fois.
+
+    On ajoute donc les rares, ICI SEULEMENT, pour ne pas les faire apparaître
+    dans les formules : 13 semaines font quatre venues, 17 en font trois,
+    26 en font deux.
+
+    POUR DEUX OU TROIS DATES, LA LISTE RESTE PLUS COURTE : on les tape, on n'a
+    pas à trouver le rythme qui les approche. La cadence sert quand la suite est
+    longue. */
+export const RYTHMES_REPRISE = [4, 5, 6, 7, 8, 10, 13, 17, 26] as const;
+
+/** « 2 fois l'an » — le sens d'un rythme rare, dit à côté du chiffre. Les
+    rythmes serrés n'en ont pas besoin : personne ne compte treize venues. */
+export const foisDansLAnnee = (semaines: number): number | undefined =>
+  (semaines >= 13 ? Math.round(52 / semaines) : undefined);
+
 /* ── LA CADENCE RÉTROACTIVE ─────────────────────────────────────────
    La plupart des têtes reviennent au même rythme : on décrit la cadence, le
    Trône déroule les dates. C'est le chemin le plus court pour une année. */
