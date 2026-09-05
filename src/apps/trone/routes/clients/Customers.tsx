@@ -2678,7 +2678,10 @@ function Customer360({
                 <button
                   type="button"
                   title={clientFamily ? `Ouvrir ${clientFamily.name} dans Comptes & Avoirs` : 'Ouvrir Comptes & Avoirs'}
-                  onClick={() => navigate(clientFamily ? `/comptes?famille=${clientFamily.id}` : '/comptes')}
+                  /* SON COMPTE, PAS L'ANNUAIRE. Sans foyer, le lien menait à la
+                     liste entière : « Avoir de la cliente → » annonçait un
+                     compte et ouvrait cent noms. */
+                  onClick={() => navigate(clientFamily ? `/comptes?famille=${clientFamily.id}` : `/comptes?cliente=${client.id}`)}
                   className="trc-compte-lien"
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer', border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 13px' }}
                 >

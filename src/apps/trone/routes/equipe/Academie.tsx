@@ -20,6 +20,7 @@ import { Bar, Pill, Tabs } from './ui';
 import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 import './equipe.css';
+import { frShortAn } from '../clients/_shared';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
@@ -570,7 +571,7 @@ export default function Academie() {
                 {(detail.payments ?? []).length > 0 && (
                   <div className="tre-pay-summary__list">
                     {(detail.payments ?? []).map((p) => (
-                      <div key={p.id} className="tre-pay-summary__pay"><span className="mnd-muted">{p.date}{p.method ? ` · ${p.method}` : ''}</span><span>{fmtMoney(p.amountXof, currency)}</span></div>
+                      <div key={p.id} className="tre-pay-summary__pay"><span className="mnd-muted">{frShortAn(p.date)}{p.method ? ` · ${p.method}` : ''}</span><span>{fmtMoney(p.amountXof, currency)}</span></div>
                     ))}
                   </div>
                 )}

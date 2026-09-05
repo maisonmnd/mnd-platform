@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { holderOf, holderLabel, estMineur, ageDe } from '../../../../shared/accounts';
-import { ClientPicker, apptDueXof, apptLabel, useServicesById } from '../clients/_shared';
+import { ClientPicker, apptDueXof, apptLabel, useServicesById, frShortAn } from '../clients/_shared';
 import { rituelAuCompte } from '../../../../shared/compte';
 import { PayAppointmentModal } from '../clients/actions';
 import { ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant } from './tiroirs';
@@ -30,8 +30,12 @@ import './finances.css';
    avoirs (crédit prépayé) qui vivent sur ces comptes. Un avoir se verse d'avance
    et se déduit ensuite à l'encaissement d'un rituel ou à la Caisse. */
 
-const frDay = (iso: string): string =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+/* UNE DATE SE LIT « SAM. 29 AOÛT 2026 » — 5 septembre 2026, demande de Yéman.
+
+   L'ISO BRUT NE SE LIT PAS. « 2026-08-29 » demande un effort à chaque fois, et
+   sur un écran d'impayés on lit vite : le jour de la semaine dit si c'était un
+   samedi de presse, l'année dit s'il faut s'inquiéter. */
+const frDay = (iso: string): string => frShortAn(iso);
 
 /* LA REMISE SE CHANGE SUR LA CARTE (14 août, demande de Yéman) — sans ouvrir
    le foyer. Elle s'écrit à la frappe, comme les Paramètres : rien à valider.
@@ -171,6 +175,30 @@ export default function Comptes() {
     p2.delete('avoir');
     setParams(p2, { replace: true });
   }, [params, credits, setParams]);
+
+  /* ══ ARRIVÉE SUR L'AVOIR D'UNE TÊTE — 5 septembre 2026 ════════════
+     « Quand je clique avoir, ça doit m'ouvrir directement le compte avoir de
+     M. » (Yéman).
+
+     LE LIEN MENAIT À LA PAGE, PAS AU COMPTE. Une cliente sans foyer n'a pas de
+     `famille` à passer : on atterrissait sur la liste entière, à charge de
+     retrouver son nom parmi cent. Un lien qui annonce un compte et ouvre un
+     annuaire fait perdre le geste qu'on venait faire.
+
+     `?cliente=<id>` ouvre SON registre. Le paramètre s'efface aussitôt :
+     recharger ne doit pas rouvrir une fenêtre qu'on vient de fermer. */
+  useEffect(() => {
+    const cid = params.get('cliente');
+    if (!cid) return;
+    /* Les têtes ne sont peut-être pas encore descendues : on ne touche à rien,
+       l'effet repassera. */
+    if (!branchClients.some((c) => c.id === cid)) return;
+    setLedgerHolder({ type: 'client', id: cid });
+    setRegistre('avoirs');
+    const p3 = new URLSearchParams(params);
+    p3.delete('cliente');
+    setParams(p3, { replace: true });
+  }, [params, branchClients, setParams]);
 
   useEffect(() => {
     const fid = params.get('famille');
@@ -601,7 +629,7 @@ export default function Comptes() {
                     <div key={a.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
                       <span className="trf-coffre-row__main">
                         <span className="trf-coffre-row__title">{nm(a.clientId)} · {apptLabel(a, byId)}</span>
-                        <span className="trf-coffre-row__meta">{a.date} · {a.time} · {a.master}</span>
+                        <span className="trf-coffre-row__meta">{frShortAn(a.date)} · {a.time} · {a.master}</span>
                       </span>
                       <span className="trf-coffre-row__amount trf-coffre-row__amount--virement">reste {fmtMoney(apptDueXof(a, byId), currency)}</span>
                       {/* Encaisser ouvre la modale habituelle — le champ « Régler par
@@ -622,7 +650,7 @@ export default function Comptes() {
                       <div key={inv.id} className="trf-coffre-row" style={{ paddingLeft: 0, paddingRight: 0 }}>
                         <span className="trf-coffre-row__main">
                           <span className="trf-coffre-row__title">{inv.number} · {inv.clientName ?? nm(inv.clientId)}</span>
-                          <span className="trf-coffre-row__meta">{inv.date}{linkedToAppt ? ' · liée à un rituel, encaissez le rituel ci-dessus' : ''}</span>
+                          <span className="trf-coffre-row__meta">{frShortAn(inv.date)}{linkedToAppt ? ' · liée à un rituel, encaissez le rituel ci-dessus' : ''}</span>
                         </span>
                         <span className="trf-coffre-row__amount trf-coffre-row__amount--virement">{fmtMoney(total, currency)}</span>
                         {!linkedToAppt && (

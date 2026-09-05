@@ -16,7 +16,7 @@ import {
 import { useCategories } from '../../../../shared/catalog';
 import { dernierComptage } from '../../../../shared/fil';
 import { useStaff, useAnnuaire, nomDuCompte, adresseDe } from './data';
-import { apptLabel, useServicesById, ClientPicker } from '../clients/_shared';
+import { apptLabel, useServicesById, ClientPicker, frShortAn } from '../clients/_shared';
 import './equipe.css';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -256,7 +256,7 @@ export default function Fil() {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 20)
       .map((a) => {
-        const label = `${nomDe(a.clientId)} · ${a.date} ${a.time} · ${apptLabel(a, byId)}`;
+        const label = `${nomDe(a.clientId)} · ${frShortAn(a.date)} ${a.time} · ${apptLabel(a, byId)}`;
         return { valeur: `rituel:${a.id}`, libelle: `Rituel, ${label}`, piece: { kind: 'rituel' as const, id: a.id, label } };
       });
     return [...fact, ...rdv];

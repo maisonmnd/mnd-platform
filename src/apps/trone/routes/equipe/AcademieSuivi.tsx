@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
-import { ClientPicker, useBranchClients } from '../clients/_shared';
+import { ClientPicker, useBranchClients, frShortAn } from '../clients/_shared';
 import { useFormations, type Formation, type Payment } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import {
@@ -397,7 +397,7 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {(e.payments ?? []).map((p) => (
             <div key={p.id} className="tre-pay-summary__pay" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <span className="mnd-muted" style={{ fontSize: 12 }}>{p.date}{p.method ? ` · ${p.method}` : ''}</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{frShortAn(p.date)}{p.method ? ` · ${p.method}` : ''}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span>{fmtMoney(p.amountXof, currency)}</span>
                 <button className="tre-link-btn tre-link-btn--danger" onClick={() => removePayment(p.id)}>Retirer</button>

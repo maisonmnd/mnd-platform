@@ -2,6 +2,32 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UNE DATE SE LIT « SAM. 29 AOÛT 2026 » — 5 septembre 2026, PUBLIÉ
+
+« Je veux que la date s'affiche toujours Sam. 29 août 2026. »
+
+**L'ISO brut ne se lit pas.** « 2026-08-29 » demande un effort à chaque fois, et
+sur un écran d'impayés on lit vite : le jour de la semaine dit si c'était un
+samedi de presse, l'année dit s'il faut s'inquiéter.
+
+`frShortAn` (clients/_shared) porte les quatre : jour de semaine, quantième,
+mois, année. Posé sur les six endroits qui montraient encore de l'ISO nu —
+Comptes & Avoirs (le rituel et la pièce des impayés, plus tout son `frDay`),
+Académie, Académie Suivi, Caisse POS, Le Fil.
+
+## L'AVOIR S'OUVRE SUR SA TÊTE — 5 septembre 2026, PUBLIÉ
+
+« Quand je clique avoir, ça doit m'ouvrir directement le compte avoir de M. »
+
+**Le lien menait à la page, pas au compte.** Une cliente sans foyer n'a pas de
+`famille` à passer : on atterrissait sur la liste entière, à charge de retrouver
+son nom parmi cent. **Un lien qui annonce un compte et ouvre un annuaire fait
+perdre le geste qu'on venait faire.**
+
+`/comptes?cliente=<id>` ouvre SON registre d'avoirs. Le paramètre s'efface
+aussitôt : recharger ne doit pas rouvrir une fenêtre qu'on vient de fermer. Le
+foyer, lui, garde `?famille=` — c'est un autre compte.
+
 ## LE PROFIL RANGÉ PAR INTENTION — 5 septembre 2026, PUBLIÉ
 
 « Réorganise moi cette page aussi, mise en forme UI/UX et facile à naviguer. »

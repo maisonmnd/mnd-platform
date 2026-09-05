@@ -14,7 +14,7 @@ import { useClients, useFamilies } from '../../../../shared/clients';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -750,7 +750,7 @@ export default function Caisse() {
                     >
                       <option value="">Vente libre, ne solde aucun rendez-vous</option>
                       {rituelsDuJour.map((a) => (
-                        <option key={a.id} value={a.id}>{a.date} · {apptLabel(a, svcById)}</option>
+                        <option key={a.id} value={a.id}>{frShortAn(a.date)} · {apptLabel(a, svcById)}</option>
                       ))}
                     </select>
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.5 }}>
