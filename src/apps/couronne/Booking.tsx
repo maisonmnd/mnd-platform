@@ -432,24 +432,37 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     setStep(3);
   };
 
-  /* ---- Calendrier : mois courant + DEUX suivants, disponibilité sur la durée TOTALE ----
+  /* ---- Calendrier : mois courant + TROIS suivants, disponibilité sur la durée TOTALE ----
      « Les clients de Ma Couronne n'arrivent pas à prendre RDV au-delà du
-     30 septembre. Allow 2 months ahead » (Yéman, 31 août 2026).
+     30 septembre. Allow 2 months ahead » (Yéman, 31 août 2026), puis
+     « sur Ma Couronne ouvrir le calendrier sur 4 mois pour le client »
+     (6 septembre 2026).
 
      LE 31 AOÛT, DEUX MOIS N'EN FONT QU'UN. Le calendrier ouvrait le mois
      courant et le suivant : le dernier jour d'août, cela ne laissait qu'un
      mois et un jour devant soi, et la cliente qui prépare sa reprise de
-     rentrée butait sur un mur. Trois fenêtres donnent au moins deux mois
-     pleins, quel que soit le jour où l'on regarde. */
+     rentrée butait sur un mur.
+
+     UNE FENÊTRE N'EST PAS UN MOIS PLEIN. Le mois courant ne compte que ses
+     jours restants — le 30, il ne vaut rien. Quatre fenêtres garantissent donc
+     TROIS mois pleins devant soi, quel que soit le jour où l'on regarde, et
+     quatre quand on regarde le 1er.
+
+     Rien d'autre à toucher : la fenêtre interrogée à Supabase se déduit des
+     mois affichés, et les flèches se bornent à leur nombre. */
   const months = useMemo(() => {
     const now = new Date();
-    return [0, 1, 2].map((k) => {
+    return [0, 1, 2, 3].map((k) => {
       const d = new Date(now.getFullYear(), now.getMonth() + k, 1);
       return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
     });
   }, []);
 
-  const month = months[monthIdx];
+  /* LA PAGE RETENUE PEUT DÉSIGNER UN MOIS QUI N'EXISTE PLUS — une préférence
+     gardée d'une visite précédente, ou le jour où la Maison réduira la
+     fenêtre. Sans cette borne, `month` vaut `undefined` et l'écran de
+     réservation devient blanc chez la cliente, sans un mot. */
+  const month = months[Math.min(Math.max(0, monthIdx), months.length - 1)];
 
   /* ── CE QUE LE SALON A DÉJÀ PRIS — 31 août 2026 ────────────────────
      La RLS ne laisse lire à une cliente que SES rendez-vous ; le calendrier

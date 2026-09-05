@@ -8,7 +8,7 @@ import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } 
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
-  useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel,
+  useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel, rangMonde, type Monde,
   QUATRE_TEMPS, fmtDuration, priceModeOf, PRICE_MODES,
   markServiceRemoved, MAISONS,
   type CatalogCategory, type Service, type Product, type PriceMode, type Maison,
@@ -424,14 +424,27 @@ export default function Catalogue() {
      garantit un seul titre chacun, quels que soient les rangs saisis.
 
      Une famille orpheline (atelier supprimé) remonte au rang des ateliers
-     plutôt que de disparaître. */
-  const RANG_ENSEMBLE: Record<string, number> = { atelier: 0, studio: 1, plateau: 2, academie: 3 };
+     plutôt que de disparaître.
+
+     ── LE RANG NE SE REDIT PAS ICI — 6 septembre 2026 ─────────────
+     « Changer l'ordre du studio et du plateau technique » (Yéman).
+
+     LE CATALOGUE CONTREDISAIT LA MAISON. Il portait sa propre table de rangs,
+     Atelier · Studio · plateau, quand `rangMonde` (shared/catalog) dit depuis
+     la doctrine v6 : l'Atelier ouvre, LE PLATEAU RELIE, le Studio suit,
+     l'Académie ferme. Toutes les autres listes — la modale du rendez-vous, la
+     Caisse, la Vitrine — lisaient déjà ce juge-là : seule cette page montrait
+     un autre ordre, et personne ne pouvait dire lequel était le bon.
+
+     On supprime donc la copie au lieu d'en retourner une seconde. Le jour où
+     la Maison voudra un autre ordre, il se change en un seul endroit et tous
+     les écrans suivent ensemble. */
   const cats = useMemo(() => {
     const rang = [...categories].sort((a, b) => a.order - b.order);
     const racines = rang.filter((c) => !c.parentId || !categories.some((p2) => p2.id === c.parentId));
     /* `sort` est stable : à ensemble égal, l'ordre saisi est conservé. */
     const parEnsemble = [...racines].sort(
-      (a, b) => (RANG_ENSEMBLE[groupeDe(a).k] ?? 9) - (RANG_ENSEMBLE[groupeDe(b).k] ?? 9),
+      (a, b) => rangMonde(groupeDe(a).k as Monde) - rangMonde(groupeDe(b).k as Monde),
     );
     return parEnsemble.flatMap((r) => [r, ...rang.filter((c) => c.parentId === r.id)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps

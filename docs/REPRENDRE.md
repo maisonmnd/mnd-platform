@@ -2,6 +2,36 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## MA COURONNE : QUATRE MOIS — 6 septembre 2026, PUBLIÉ
+
+« Sur Ma Couronne ouvrir le calendrier sur 4 mois pour le client. » Quatre
+fenêtres, à la **réservation** (`Booking`) **et au report** (`MesRendezVous`) :
+une cliente qui peut réserver à quatre mois mais ne peut reporter qu'à trois se
+heurte au mur sur le chemin le plus agaçant des deux.
+
+**Une fenêtre n'est pas un mois plein** : le mois courant ne compte que ses
+jours restants, et le 30 il ne vaut rien. Quatre fenêtres garantissent donc
+**trois mois pleins** devant soi, quel que soit le jour. Rien d'autre à
+toucher : la fenêtre interrogée à Supabase (`creneaux_occupes`) se déduit des
+mois affichés, et les flèches se bornent à leur nombre.
+
+`month` est désormais **borné** dans les deux écrans : un `monthIdx` hors liste
+(une préférence gardée d'une visite, ou le jour où la Maison réduira la fenêtre)
+rendait `month` indéfini et **l'écran de réservation blanc chez la cliente**,
+sans un mot.
+
+## LE CATALOGUE SUIT ENFIN LA DOCTRINE — 6 septembre 2026, PUBLIÉ
+
+« Changer l'ordre du studio et du plateau technique. » **Le Catalogue
+contredisait la Maison** : il portait sa propre table de rangs (Atelier ·
+Studio · plateau) quand `rangMonde` dit depuis la doctrine v6 — l'Atelier ouvre,
+**le plateau relie**, le Studio suit, l'Académie ferme. La modale du rendez-vous,
+la Caisse et la Vitrine lisaient déjà ce juge ; seule cette page montrait un
+autre ordre, et rien ne disait lequel était bon.
+
+La copie est supprimée, pas retournée. Un autre ordre se changera désormais en
+un seul endroit, et tous les écrans suivront ensemble.
+
 ## LA GAMME AU RENDEZ-VOUS — 5 septembre 2026, PUBLIÉ
 
 « Comment je gère les remises sur les RDV, les forfaits et les accessoires avant

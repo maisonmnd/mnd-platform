@@ -106,17 +106,22 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   const [monthIdx, setMonthIdx] = useState(0);
   const [selIso, setSelIso] = useState<string | null>(null);
 
-  /* TROIS FENÊTRES, DONC DEUX MOIS PLEINS DEVANT SOI — 31 août 2026. Le
-     dernier jour d'un mois, deux fenêtres n'en laissaient qu'une et un jour.
-     Même règle qu'à la réservation. */
+  /* QUATRE FENÊTRES, DONC TROIS MOIS PLEINS DEVANT SOI — 6 septembre 2026,
+     « ouvrir le calendrier sur 4 mois pour le client ».
+
+     MÊME RÈGLE QU'À LA RÉSERVATION, et ce n'est pas un détail de symétrie :
+     une cliente qui peut RÉSERVER à quatre mois mais ne peut REPORTER qu'à
+     trois se heurte au mur sur le chemin le plus agaçant des deux, celui où
+     elle a déjà un rendez-vous et cherche à s'arranger. */
   const months = useMemo(() => {
     const d0 = new Date();
-    return [0, 1, 2].map((k) => {
+    return [0, 1, 2, 3].map((k) => {
       const d = new Date(d0.getFullYear(), d0.getMonth() + k, 1);
       return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
     });
   }, []);
-  const month = months[monthIdx];
+  /* Borné : un index hors liste rendrait `month` indéfini, et l'écran blanc. */
+  const month = months[Math.min(Math.max(0, monthIdx), months.length - 1)];
 
   /* L'agenda sans le rendez-vous déplacé : son propre créneau redevient libre. */
   const others = useMemo(() => (editing ? appts.filter((x) => x.id !== editing.id) : appts), [appts, editing]);
