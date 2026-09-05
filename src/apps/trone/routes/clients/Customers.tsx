@@ -8,7 +8,7 @@ import { RYTHMES_ABO } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -25,7 +25,8 @@ import {
 import { ageDe, estMineur, tetesPortees } from '../../../../shared/accounts';
 import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/persona';
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
-import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair, serieDesComptages } from '../../../../shared/fil';
+import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
+import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -1860,6 +1861,11 @@ function Customer360({
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
   const [pickPersona, setPickPersona] = useState(false);
+  /* LA SAISIE D'UN COMPTAGE — le jour proposé est celui du dernier rituel, pas
+     celui du clic : on compte au fauteuil et l'on saisit parfois le soir. */
+  const [cptLocks, setCptLocks] = useState('');
+  const [cptJour, setCptJour] = useState('');
+  const [cptNote, setCptNote] = useState('');
   const [fusionOpen, setFusionOpen] = useState(false);
   const [allTemps] = useClientTemps();
   const myTemps = tempsOf(allTemps, client.id);
@@ -3547,69 +3553,84 @@ function Customer360({
         <>
         {/* ══ LE COMPTAGE DES LOCKS, DANS LE TEMPS ═══════════════════════
             « Je peux avoir quelque part de formel où je peux tracker le
-            comptage des locks ? Parfois ça change. Le client double ses locks,
-            en perd… » (Yéman, 5 septembre 2026, maquette validée).
+            comptage des locks ? Parfois ça change » puis « inclure le comptage
+            de manière indépendante au fil. Parfois je compte juste le total,
+            pas le devant gauche, droite, derrière gauche, derrière » (Yéman,
+            5 septembre 2026, maquette validée).
 
-            LE COMPTAGE EXISTAIT DÉJÀ, dans Le Fil, avec ses quatre quadrants,
-            son auteur et son jour. Ce qui manquait n'était pas un endroit où
-            l'écrire — c'était sa SUITE : la fiche n'en montrait que le dernier,
-            et l'on ne voyait ni la pousse ni la perte. On le lit donc là où il
-            vit ; poser un second registre ici aurait fabriqué deux vérités pour
-            un seul chiffre, et tout ce qui a déjà été compté serait resté
-            dehors.
+            DEUX GESTES, UNE SEULE SUITE. Le Fil compte quart par quart — c'est
+            ainsi qu'on recompte le quadrant qui cloche sans refaire la tête — et
+            la fiche prend le total, pour les jours où c'est tout ce qu'on a. Un
+            geste qui exige plus que ce qu'on sait finit par ne pas être fait, et
+            le chiffre reste dans une note.
 
             LE NOMBRE SEUL NE RACONTE RIEN : c'est l'écart qui dit le
             dédoublement, et le calibre qui dit que son tarif vient de changer. */}
         {(() => {
-          const serie = serieDesComptages(tousFil, branch.id, client.id);
-          /* ALLER COMPTER, SANS PERDRE LE FIL DE CE QU'ON FAIT. Le geste vit
-             dans Le Fil — quatre quadrants, et un maître sans droit sur le CRM
-             peut le poser. On y mène en désignant la tête, plutôt que de
-             refaire ici un second formulaire pour le même acte. */
-          const allerCompter = (
-            <button type="button" className="tre-link-btn" onClick={() => navigate(`/fil?compter=${client.id}`)}>
-              Compter ses locks →
-            </button>
-          );
-          if (serie.length === 0) {
-            return (
-              <div>
-                <span className="trc-microlabel">Le comptage des locks</span>
-                {/* LE CHIFFRE HÉRITÉ COMPTE POUR UN — arbitrage de la maquette.
-                    Une fiche peut porter un nombre de locks posé à la main, bien
-                    avant ce suivi. Dire « jamais comptée » pendant que l'en-tête
-                    annonce « Nano · 427 locks » serait se contredire sur le même
-                    écran. On le montre, sans lui inventer un jour. */}
-                {(client.lockCount ?? 0) > 0 ? (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, color: 'var(--color-indigo)', minWidth: 72, fontVariantNumeric: 'tabular-nums' }}>
-                        {client.lockCount}
-                      </span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5 }}>
-                          Compté avant le suivi
-                          {(() => {
-                            const b = calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre);
-                            return b ? <span className="mnd-muted" style={{ marginLeft: 8, fontSize: 11 }}>{b.name}</span> : null;
-                          })()}
-                        </div>
-                        <div className="mnd-muted" style={{ fontSize: 11 }}>Jour inconnu, il n’a pas été inventé.</div>
-                      </span>
-                    </div>
-                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>{allerCompter}</div>
-                  </>
-                ) : (
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-                    Jamais comptée. Son calibre, donc son tarif, attend ce chiffre. {allerCompter}
-                  </div>
-                )}
+          const serie = serieDesComptages(tousFil, branch.id, client);
+          const jourPropose = cptJour || history[0]?.date || today;
+          const poser = () => {
+            const n = Math.max(0, Math.round(parseInt(cptLocks.replace(/[^0-9]/g, ''), 10) || 0));
+            if (n <= 0) { toast('Combien de locks ?'); return; }
+            poseUnComptage(client.id, {
+              iso: jourPropose,
+              locks: n,
+              ...(cptNote.trim() ? { note: cptNote.trim() } : {}),
+              ...(monNomFiche ? { par: monNomFiche } : {}),
+            });
+            setCptLocks(''); setCptNote(''); setCptJour('');
+            toast(`${n} locks comptés le ${frJourAn(jourPropose)}.`);
+          };
+          /* LA SAISIE, ÉCRITE UNE FOIS : elle sert sous une série comme sous
+             une fiche jamais comptée. */
+          const saisie = (
+            <>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                <Input
+                  inputMode="numeric"
+                  value={cptLocks}
+                  onChange={(e) => setCptLocks(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="427"
+                  aria-label="Nombre de locks"
+                  style={{ width: 96, textAlign: 'right', flex: 'none' }}
+                />
+                <Input
+                  type="date"
+                  value={jourPropose}
+                  max={today}
+                  onChange={(e) => setCptJour(e.target.value)}
+                  aria-label="Jour du comptage"
+                  style={{ width: 156, flex: 'none' }}
+                />
+                <Input
+                  value={cptNote}
+                  onChange={(e) => setCptNote(e.target.value)}
+                  placeholder="Un mot, si besoin…"
+                  aria-label="Note du comptage"
+                  style={{ flex: '1 1 150px', minWidth: 0 }}
+                />
+                <Button variant="copper" onClick={poser} style={{ flex: 'none' }}>Compter</Button>
               </div>
-            );
-          }
+              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
+                Le jour proposé est celui de son dernier rituel. Le dernier comptage devient son
+                nombre de locks, donc son tarif ; les rendez-vous déjà posés gardent leur prix.
+                {' '}
+                <button type="button" className="tre-link-btn" onClick={() => navigate(`/fil?compter=${client.id}`)}>
+                  Compter quart par quart →
+                </button>
+              </div>
+            </>
+          );
           return (
             <div>
-              <span className="trc-microlabel">Le comptage des locks · {serie.length}</span>
+              <span className="trc-microlabel">
+                Le comptage des locks{serie.length > 0 ? ` · ${serie.length}` : ''}
+              </span>
+              {serie.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                  Jamais comptée. Son calibre, donc son tarif, attend ce chiffre.
+                </div>
+              )}
               {/* ══ LA COURBE, À PARTIR DE TROIS COMPTAGES ═══════════════
                   En dessous, deux chiffres et une flèche disent tout, et un
                   dessin à deux points se lit comme une tendance qui n'existe
@@ -3622,36 +3643,37 @@ function Customer360({
                 const etendue = Math.max(1, haut - bas);
                 const L = 520;
                 const H = 96;
-                const xy = pts.map((c, i) => {
-                  const x = 14 + (i * (L - 28)) / Math.max(1, pts.length - 1);
-                  const y = 12 + (1 - (c.locks - bas) / etendue) * (H - 30);
-                  return { x, y, c };
-                });
+                const xy = pts.map((c, i) => ({
+                  x: 14 + (i * (L - 28)) / Math.max(1, pts.length - 1),
+                  y: 12 + (1 - (c.locks - bas) / etendue) * (H - 30),
+                  c,
+                }));
                 return (
                   <svg viewBox={`0 0 ${L} ${H}`} style={{ width: '100%', height: 96, display: 'block', margin: '4px 0 2px' }}
                     role="img" aria-label={`Comptages : ${hauts.join(', ')} locks`}>
                     <polyline points={xy.map((p2) => `${p2.x},${p2.y}`).join(' ')} fill="none" stroke="var(--color-copper)" strokeWidth="2" />
                     {xy.map((p2, i) => (
-                      <circle key={p2.c.iso} cx={p2.x} cy={p2.y} r={i === xy.length - 1 ? 5 : 3.5}
-                        fill={i === xy.length - 1 ? 'var(--color-indigo)' : 'var(--color-copper)'} />
+                      <circle key={p2.c.iso || 'h'} cx={p2.x} cy={p2.y} r={i === xy.length - 1 ? 5 : 3.5}
+                        fill={i === xy.length - 1 ? 'var(--color-indigo)' : 'var(--color-copper)'}
+                        stroke="var(--surface-card, #fff)" strokeWidth="2" />
                     ))}
-                    {/* LES BORNES SEULEMENT : cinq étiquettes sur une largeur de
-                        carte se chevauchent et ne se lisent plus. */}
-                    <text x={14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)" fontFamily="var(--font-sans)">{frJourAn(pts[0].iso)}</text>
-                    <text x={L - 14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)" fontFamily="var(--font-sans)" textAnchor="end">{frJourAn(pts[pts.length - 1].iso)}</text>
+                    {/* LES BORNES SEULEMENT : cinq étiquettes sur la largeur
+                        d'une carte se chevauchent et ne se lisent plus. */}
+                    <text x={14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)">{frJourAn(pts[0].iso)}</text>
+                    <text x={L - 14} y={H - 3} fontSize="9.5" fill="var(--ink-soft)" textAnchor="end">{frJourAn(pts[pts.length - 1].iso)}</text>
                   </svg>
                 );
               })()}
               {serie.map((c) => {
                 const bande = calibreDeLaTeteAvecMarge(c.locks, bands, client.margeCalibre);
                 return (
-                  <div key={c.iso} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
+                  <div key={c.iso || 'herite'} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, color: 'var(--color-indigo)', minWidth: 72, fontVariantNumeric: 'tabular-nums' }}>
                       {c.locks}
                     </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5 }}>
-                        {frJourAn(c.iso)}
+                        {c.origine === 'herite' ? 'Compté avant le suivi' : frJourAn(c.iso)}
                         {/* L'ÉCART SE LIT, PAS SEULEMENT LE CHIFFRE. */}
                         {c.ecart !== null && c.ecart !== 0 && (
                           <b style={{ marginLeft: 8, color: c.ecart > 0 ? '#4A6B52' : 'var(--trv-error, #96412E)' }}>
@@ -3664,16 +3686,29 @@ function Customer360({
                         {!c.complet && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--trv-error, #96412E)' }}>partiel</span>}
                       </div>
                       <div className="mnd-muted" style={{ fontSize: 11 }}>
-                        {c.enClair} · {c.auteurNom}
+                        {c.origine === 'herite'
+                          ? 'Jour inconnu, il n’a pas été inventé.'
+                          : <>{c.enClair ? `${c.enClair} · ` : ''}{c.auteurNom}{c.origine === 'fil' ? ' · au fil' : ''}</>}
                       </div>
                     </span>
+                    {/* ON NE RETIRE QUE CE QU'ON A ÉCRIT ICI. Un comptage du Fil
+                        est un message : l'effacer depuis la fiche laisserait la
+                        conversation dire le contraire de la fiche. */}
+                    {c.origine === 'fiche' && (
+                      <button
+                        type="button"
+                        className="tre-link-btn"
+                        style={{ flex: 'none' }}
+                        title="Retirer ce comptage"
+                        onClick={() => { retireUnComptage(client.id, c.iso); toast('Comptage retiré.'); }}
+                      >
+                        Retirer
+                      </button>
+                    )}
                   </div>
                 );
               })}
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 8 }}>
-                {allerCompter} · quadrant par quadrant. Le dernier devient son nombre de locks, donc
-                son tarif ; les rendez-vous déjà posés gardent leur prix.
-              </div>
+              {saisie}
             </div>
           );
         })()}

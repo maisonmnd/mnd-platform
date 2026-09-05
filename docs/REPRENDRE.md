@@ -79,6 +79,30 @@ celui qui existe.
 **Où** : la fiche › Le parcours, au-dessus de l'historique du carnet. **Le
 comptage continue de se poser dans Le Fil**, où il a toujours vécu.
 
+### Le comptoir compte aussi — 5 septembre
+
+« Inclure le comptage de locks de manière indépendante au fil. Parfois je compte
+juste le total, pas le devant gauche, droite, derrière gauche, derrière. »
+
+**Le Fil exige quatre quadrants.** C'est la bonne façon de compter une tête qu'on
+recompte quart par quart, et c'est trop demander quand on a juste le total en
+main. **Un geste qui exige plus que ce qu'on sait finit par ne pas être fait**, et
+le chiffre reste dans une note.
+
+`Client.comptages` reçoit donc les totaux posés au comptoir, et
+`shared/comptages.ts` **lit les deux origines en une seule suite** — jamais deux
+listes, qui feraient deux vérités pour un seul chiffre. Chaque ligne dit d'où
+elle vient.
+
+- **Le comptoir l'emporte sur le même jour** : la fiche est l'endroit où l'on se
+  reprend, et une correction qui ne corrige rien vaut moins que rien.
+- **On ne retire que ce qu'on a écrit ici.** Un comptage du Fil est un message :
+  l'effacer depuis la fiche laisserait la conversation dire le contraire de la
+  fiche.
+- **« Partiel » veut dire qu'un quart n'a pas été posé**, pas qu'il vaut zéro : un
+  quadrant compté à zéro est un fait, pas un oubli. Un total saisi au comptoir est
+  complet par nature, il ne prétend pas être détaillé.
+
 ### La suite, 5 septembre
 
 - **La courbe, à partir de TROIS comptages.** En dessous, deux chiffres et une

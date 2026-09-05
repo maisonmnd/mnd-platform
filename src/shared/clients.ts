@@ -123,6 +123,20 @@ export type Client = {
       l'arrivée si elle a poussé. Mêmes valeurs que `LongueurId` (catalog). */
   longueur?: 'court' | 'mi-long' | 'long';
   lockCount?: number; // nombre de locks
+  /** ── LES COMPTAGES POSÉS DEPUIS LA FICHE — 5 septembre 2026 ─────
+      « Inclure le comptage de locks de manière indépendante au fil. Parfois je
+      compte juste le total, pas le devant gauche, droite, derrière gauche,
+      derrière » (Yéman).
+
+      LE FIL EXIGE QUATRE QUADRANTS. C'est la bonne façon de compter une tête
+      qu'on recompte quart par quart — et c'est trop demander quand on a juste
+      le total en main. Un geste qui exige plus que ce qu'on sait finit par ne
+      pas être fait, et le chiffre reste dans une note.
+
+      UNE SEULE SÉRIE, DEUX ORIGINES : ces comptages-ci se lisent avec ceux du
+      Fil (`serieDesComptages`), jamais à côté. `lockCount` reste le chiffre
+      courant que tout le tarif consulte. */
+  comptages?: ComptageLocks[];
   /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
       tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.
@@ -196,6 +210,16 @@ export type Client = {
 };
 
 /** Compte famille — regroupe plusieurs clientes sous un même compte payeur. */
+/** UN COMPTAGE POSÉ AU COMPTOIR : un jour, un total, et de quoi s'en souvenir. */
+export type ComptageLocks = {
+  /** Le jour où l'on a compté, pas celui de la saisie : on compte au fauteuil
+      et l'on saisit parfois le soir. */
+  iso: string;
+  locks: number;
+  note?: string;
+  par?: string;
+};
+
 export type Family = {
   id: string;
   branchId: string;
@@ -528,3 +552,43 @@ bindCollection(personasStore, 'personas');
 bindCollection(familiesStore, 'families');
 bindDocument(crownStylesStore, 'mnd_crown_styles');
 bindDocument(segmentsStore, 'mnd_segments');
+
+/* ══ POSER UN COMPTAGE DEPUIS LA FICHE — 5 septembre 2026 ═══════════
+   Voir `Client.comptages`. Le Fil garde son geste à quatre quadrants ; celui-ci
+   prend le total, pour les jours où c'est tout ce qu'on a. */
+
+/** LE DERNIER FAIT FOI, ET LE TARIF SUIT. Ne pas mettre `lockCount` à jour
+    obligerait à recopier le nombre à la main dans le profil, et deux chiffres
+    finiraient par se contredire.
+
+    C'EST LA DATE QUI DÉCIDE, JAMAIS L'ORDRE DE SAISIE : saisir après coup un
+    comptage de l'an dernier ne doit pas rajeunir la fiche de ce qu'on savait
+    déjà.
+
+    UN MÊME JOUR NE SE COMPTE QU'UNE FOIS : recompter corrige, il n'empile pas.
+    Deux lignes au même jour ne se départageraient que par leur ordre d'écriture.
+
+    LE PASSÉ NE SE RETARIFE PAS : les rendez-vous déjà posés portent leur prix
+    figé, et un comptage d'aujourd'hui ne les touche pas. */
+export function poseUnComptage(clientId: string, champs: ComptageLocks): void {
+  const locks = Math.max(0, Math.round(champs.locks));
+  if (!clientId || locks <= 0 || !champs.iso) return;
+  clientsStore.set((prev) => prev.map((c) => {
+    if (c.id !== clientId) return c;
+    const sans = (c.comptages ?? []).filter((x) => x.iso !== champs.iso);
+    const suite = [...sans, { ...champs, locks }].sort((a, b) => a.iso.localeCompare(b.iso));
+    return { ...c, comptages: suite, lockCount: suite[suite.length - 1].locks };
+  }));
+}
+
+/** RETIRER UN COMPTAGE MAL SAISI. Le chiffre courant retombe sur celui d'avant ;
+    s'il n'en reste aucun, `lockCount` est laissé tel quel — effacer une ligne
+    d'historique ne doit pas effacer ce que la Maison sait de la tête. */
+export function retireUnComptage(clientId: string, iso: string): void {
+  clientsStore.set((prev) => prev.map((c) => {
+    if (c.id !== clientId) return c;
+    const suite = (c.comptages ?? []).filter((x) => x.iso !== iso);
+    const dernier = suite[suite.length - 1];
+    return { ...c, comptages: suite, ...(dernier ? { lockCount: dernier.locks } : {}) };
+  }));
+}
