@@ -11,9 +11,9 @@ import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
 import { RYTHMES_ABO } from '../../../../shared/cadence';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
-  type LigneLue,
+  habitudesParTete, type LigneLue,
 } from '../../../../shared/serie';
-import { ClientPicker, frShortAn, useServicesById } from './_shared';
+import { ClientPicker, frJourAn, frShortAn, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
 
 /* ══ LA SAISIE EN SÉRIE — 5 septembre 2026 (maquette validée) ═══════
@@ -76,18 +76,16 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   const tete = clients.find((c) => c.id === clientId);
   const an = Math.max(2000, Math.min(2100, parseInt(annee, 10) || new Date().getFullYear()));
 
-  /* LE RITUEL HABITUEL D'UNE TÊTE — son dernier rituel honoré. C'est lui qui
-     rend le mode « le mois » utilisable : on tape un jour et un nom, le reste
-     se souvient. Sans cela il faudrait choisir la prestation ligne par ligne,
-     et l'on retomberait dans la saisie une par une. */
-  const rituelHabituel = useMemo(() => {
-    const parTete = new Map<string, string[]>();
-    for (const a of [...appts].sort((x, y) => x.date.localeCompare(y.date))) {
-      if (a.status === 'annulé' || a.serviceIds.length === 0) continue;
-      parTete.set(a.clientId, a.serviceIds);
-    }
-    return parTete;
-  }, [appts]);
+  /* CE QUE CHAQUE TÊTE FAIT D'HABITUDE — lu dans le carnet, jamais deviné.
+     Il sert deux fois : à MONTRER ses rituels avant qu'on choisisse (le
+     catalogue compte des dizaines de lignes, et la voisine de celle qu'on
+     cherche se clique vite), et à faire tenir le mode « le mois », où l'on tape
+     un jour et un nom et où le rituel suit tout seul. */
+  const habitudes = useMemo(() => habitudesParTete(appts), [appts]);
+  const siennes = tete ? (habitudes.get(tete.id) ?? []) : [];
+  /* La signature du rituel en cours, pour reconnaître celle qui est déjà
+     posée : deux prestations dans un autre ordre sont le même rituel. */
+  const cleCourante = [...serviceIds].sort().join('+');
 
   const prestationsDe = (ids: string[]): Service[] =>
     ids.map((id) => byId.get(id)).filter((s): s is Service => !!s);
@@ -148,13 +146,13 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       const candidats = nom === '' ? [] : clients.filter((c) => c.branchId === branch.id && !c.archived)
         .filter((c) => normName(c.name).includes(nom));
       const c = candidats.length === 1 ? candidats[0] : undefined;
-      const ids = c ? (rituelHabituel.get(c.id) ?? serviceIds) : serviceIds;
+      const ids = c ? (habitudes.get(c.id)?.[0]?.serviceIds ?? serviceIds) : serviceIds;
       const svs = prestationsDe(ids);
       const dejaLa = !!c && !!l.iso && appts.some((a) => a.clientId === c.id && a.date === l.iso && a.status !== 'annulé');
       const base = fait({ iso: l.iso, heure: l.heure, brut: l.brut }, c, svs);
       return { ...base, cle: `${l.iso ?? l.brut}-${c?.id ?? 'x'}`, dejaAuCarnet: dejaLa, ambigu: candidats.length > 1 } as Ligne & { ambigu?: boolean };
     });
-  }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire, prixParLigne, rituelHabituel, branch.id]);
+  }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire, prixParLigne, habitudes, branch.id]);
 
   const posables = lignes.filter((l) => l.iso && l.client && l.services.length > 0 && !l.dejaAuCarnet && l.cochee);
   const total = posables.reduce((n, l) => n + l.prixXof, 0);
@@ -258,8 +256,76 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
           </Field>
         </div>
 
+        {/* ══ CE QU'ELLE FAIT D'HABITUDE ══════════════════════════════════
+            Le carnet sait déjà : chercher dans un catalogue de dizaines de
+            lignes ce qu'elle prend chaque fois, cinquante fois de suite, c'est
+            là qu'on clique la prestation voisine. On MONTRE, la Maison
+            choisit : un rituel posé tout seul serait un rituel que personne
+            n'a regardé. */}
+        {!teteDuMois && tete && (
+          <div style={{
+            border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px',
+            background: 'var(--surface-2, #FAF8F5)', marginTop: -4,
+          }}>
+            <div style={{
+              fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', fontWeight: 500, marginBottom: 8,
+            }}>
+              Ce qu’elle fait d’habitude
+            </div>
+            {siennes.length === 0 ? (
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Aucun rituel honoré à son nom pour l’instant. Choisissez au catalogue,
+                ci-dessus.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {siennes.map((h) => {
+                  const svs = prestationsDe(h.serviceIds);
+                  if (svs.length === 0) return null;
+                  const posee = h.cle === cleCourante;
+                  return (
+                    <button
+                      key={h.cle}
+                      type="button"
+                      onClick={() => setServiceIds(h.serviceIds)}
+                      style={{
+                        display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+                        textAlign: 'left', font: 'inherit', cursor: 'pointer',
+                        padding: '7px 10px', borderRadius: 3,
+                        background: posee ? 'var(--color-copper-08, rgba(176,110,48,.09))' : 'var(--surface, #FFF)',
+                        border: `1px solid ${posee ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                      }}
+                    >
+                      <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>
+                        {svs.map((s) => s.name).join(' + ')}
+                      </span>
+                      <span className="mnd-muted" style={{ fontSize: 11 }}>
+                        {h.fois} fois · dernière le {frJourAn(h.dernierIso)}
+                        {/* CE QU'ELLE A RÉGLÉ LA DERNIÈRE FOIS : quand un tarif
+                            a bougé depuis, c'est le chiffre le plus proche de
+                            la vérité. Il ne s'applique pas tout seul — le prix
+                            reste celui du catalogue, corrigible ligne à ligne
+                            dans l'aperçu. */}
+                        {typeof h.dernierPrixXof === 'number' && h.dernierPrixXof > 0
+                          && ` · réglé ${fmtMoney(h.dernierPrixXof, currency)}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {serviceIds.length > 0 && (
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: -6 }}>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: -4 }}>
+            <span style={{
+              fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', fontWeight: 500,
+            }}>
+              {teteDuMois ? 'Par défaut' : 'Le rituel posé'}
+            </span>
             {prestationsDe(serviceIds).map((s) => (
               <button key={s.id} type="button" className="tre-chip is-on"
                 onClick={() => setServiceIds((p) => p.filter((x) => x !== s.id))}>

@@ -6,6 +6,7 @@
    d'exercice quand les chiffres ne tombent plus. */
 import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
+  habitudesDeLaTete, habitudesParTete,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -117,6 +118,40 @@ dit('l’aperçu est trié', ['2025-01-10', '2025-02-14'], apercuDeLaSerie({
 }).map((l) => l.iso));
 
 dit('la caisse de la reprise porte son année', 'Reprise 2025', caisseDeLaReprise(2025));
+
+/* ── ⑧ CE QU'ELLE FAIT D'HABITUDE ─────────────────────────────────
+   « Quand je choisis la cliente je veux voir les rituels qu'elle fait
+   habituellement avant de choisir. » Le carnet sait déjà : on le lit. */
+const carnet = [
+  { clientId: 'cl-1', serviceIds: ['sv-a', 'sv-b'], date: '2025-01-10', status: 'honoré', priceXof: 60000 },
+  { clientId: 'cl-1', serviceIds: ['sv-b', 'sv-a'], date: '2025-03-07', status: 'honoré', priceXof: 65000 },
+  { clientId: 'cl-1', serviceIds: ['sv-a'], date: '2025-05-02', status: 'honoré', priceXof: 20000 },
+  { clientId: 'cl-1', serviceIds: ['sv-c'], date: '2025-06-27', status: 'annulé', priceXof: 99000 },
+  { clientId: 'cl-1', serviceIds: [], date: '2025-07-01', status: 'honoré' },
+  { clientId: 'cl-2', serviceIds: ['sv-c'], date: '2025-02-14', status: 'honoré', priceXof: 45000 },
+];
+const h1 = habitudesDeLaTete(carnet, 'cl-1');
+dit('deux rituels distincts à son nom', 2, h1.length);
+/* DEUX RITUELS COMPOSÉS DANS UN ORDRE DIFFÉRENT SONT LE MÊME RITUEL — sinon
+   la même habitude se compterait deux fois et n'apparaîtrait jamais en tête. */
+dit('… le plus fréquent d’abord', 2, h1[0].fois);
+dit('… lu dans l’ordre de la dernière fois', ['sv-b', 'sv-a'], h1[0].serviceIds);
+dit('… avec la date de la dernière fois', '2025-03-07', h1[0].dernierIso);
+/* CE QU'ELLE A RÉGLÉ LA DERNIÈRE FOIS, pas la première : c'est le tarif le plus
+   proche de la vérité quand un prix a bougé. */
+dit('… et ce qu’elle a réglé la dernière fois', 65000, h1[0].dernierPrixXof);
+/* UN RITUEL ANNULÉ N'EST PAS UNE HABITUDE, et un rituel sans prestation non
+   plus : ni l'un ni l'autre n'a été posé sur une tête. */
+dit('l’annulé ne fait pas une habitude', false, h1.some((h) => h.cle === 'sv-c'));
+dit('le rituel sans prestation est ignoré', ['sv-a+sv-b', 'sv-a'], h1.map((h) => h.cle));
+/* CHAQUE TÊTE SES HABITUDES : celle de la voisine ne déborde pas. */
+dit('la tête voisine garde les siennes', ['sv-c'], habitudesDeLaTete(carnet, 'cl-2')[0].serviceIds);
+dit('une tête sans passé n’en invente pas', 0, habitudesDeLaTete(carnet, 'cl-9').length);
+/* LA LISTE SE COUPE : montrer douze habitudes ne serait plus un raccourci. */
+dit('la liste se coupe', 1, habitudesDeLaTete(carnet, 'cl-1', 1).length);
+/* UNE SEULE PASSE POUR TOUTES LES TÊTES — le mode « plusieurs têtes, un mois »
+   lit ce même tableau pour retrouver le rituel de chaque nom. */
+dit('toutes les têtes en une passe', 2, habitudesParTete(carnet).size);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

@@ -18,12 +18,29 @@ un cahier. Le Carnet › **« Saisir en série »**, à côté de « + RDV pass�
   l'année. Sept dates pour huit semaines.
 - **La liste** — une tête, des dates sans rythme. On les tape, il les lit.
 - **Le mois** — plusieurs têtes. On tape « 14/02 09:00 Stephanie » : **le nom sur
-  la ligne désigne la tête**, et **son rituel habituel suit** — son dernier
-  rituel honoré. Sans cela il faudrait choisir la prestation ligne par ligne, et
-  l'on retomberait dans la saisie une par une. Un nom qui désigne deux têtes n'en
+  la ligne désigne la tête**, et **son rituel habituel suit** — le plus souvent
+  honoré. Sans cela il faudrait choisir la prestation ligne par ligne, et l'on
+  retomberait dans la saisie une par une. Un nom qui désigne deux têtes n'en
   désigne aucune : on ne choisit pas à la place de la Maison.
 
-### `shared/serie.ts` — le lecteur de dates, 43 épreuves
+### Ce qu'elle fait d'habitude — 5 septembre 2026
+
+« Quand je choisis la cliente je veux voir les rituels qu'elle fait
+habituellement avant de choisir. » Sous le choix de la tête, ses rituels s'ouvrent
+tels que le carnet les a gardés : **le plus fréquent d'abord**, avec le nombre de
+fois, la date de la dernière et **ce qu'elle a réglé** cette fois-là. Un clic pose
+la composition entière.
+
+Deux prestations dans un autre ordre sont **le même rituel** — sinon la même
+habitude se compte deux fois et n'apparaît jamais en tête. **Un rituel annulé
+n'est pas une habitude** : il n'a pas eu lieu.
+
+**On montre, la Maison choisit.** Rien ne se pose tout seul : un rituel posé sans
+qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celui
+du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
+une ligne, pas pour s'appliquer à sa place.
+
+### `shared/serie.ts` — le lecteur de dates, 53 épreuves
 
 `14/02/2025` · `14-02-25` · `14.02.2025` · `14 février` · `14 févr. 2025` ·
 `14/02`, l'heure en `09:00` `9h` `9h30`. **Sans année, celle qu'on saisit.**

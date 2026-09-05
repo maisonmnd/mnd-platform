@@ -121,6 +121,82 @@ export const litLesLignes = (texte: string, anneeParDefaut: number): LigneLue[] 
   texte.split('\n').map((l) => l.trim()).filter((l) => l !== '')
     .map((l) => litUneLigne(l, anneeParDefaut));
 
+/* ── CE QU'ELLE FAIT D'HABITUDE ─────────────────────────────────────
+   « Quand je choisis la cliente je veux voir les rituels qu'elle fait
+   habituellement avant de choisir » (Yéman, 5 septembre 2026).
+
+   REPRENDRE UNE ANNÉE, C'EST SE SOUVENIR — et le catalogue compte des dizaines
+   de prestations. Chercher dans la liste ce qu'une tête prend chaque fois,
+   cinquante fois de suite, c'est là qu'on se trompe de ligne voisine.
+
+   LE CARNET SAIT DÉJÀ. Ce qu'elle a honoré, on le lit ; on ne le devine pas.
+   MAIS ON NE CHOISIT PAS À SA PLACE : on montre, la Maison clique. Un rituel
+   posé tout seul serait un rituel que personne n'a regardé. */
+
+export type Habitude = {
+  /** La signature de la combinaison : les prestations triées. Deux rituels
+      composés dans un ordre différent sont le MÊME rituel. */
+  cle: string;
+  /** Dans l'ordre de la dernière fois — un rituel se lit comme il a été posé. */
+  serviceIds: string[];
+  fois: number;
+  dernierIso: string;
+  /** Ce qu'elle a réglé la dernière fois. La Maison s'en sert pour corriger le
+      prix d'une ligne quand un tarif a bougé depuis. */
+  dernierPrixXof?: number;
+};
+
+type RituelLu = {
+  clientId: string;
+  serviceIds: readonly string[];
+  date: string;
+  status?: string;
+  priceXof?: number;
+};
+
+/** LES HABITUDES DE TOUTES LES TÊTES, en une seule passe.
+    Le plus souvent honoré d'abord ; à égalité, le plus récent — deux rituels
+    vus trois fois chacun, celui de cette année parle mieux que celui d'il y a
+    trois ans. */
+export function habitudesParTete(
+  appts: readonly RituelLu[],
+  garde = 5,
+): Map<string, Habitude[]> {
+  const parTete = new Map<string, Map<string, Habitude>>();
+  for (const a of appts) {
+    /* UN RITUEL ANNULÉ N'EST PAS UNE HABITUDE : il n'a pas eu lieu. */
+    if (a.status === 'annulé' || !a.serviceIds || a.serviceIds.length === 0) continue;
+    let vues = parTete.get(a.clientId);
+    if (!vues) { vues = new Map(); parTete.set(a.clientId, vues); }
+    const cle = [...a.serviceIds].sort().join('+');
+    const vue = vues.get(cle);
+    if (!vue) {
+      vues.set(cle, {
+        cle, serviceIds: [...a.serviceIds], fois: 1, dernierIso: a.date, dernierPrixXof: a.priceXof,
+      });
+      continue;
+    }
+    vue.fois += 1;
+    if (a.date > vue.dernierIso) {
+      vue.dernierIso = a.date;
+      vue.serviceIds = [...a.serviceIds];
+      vue.dernierPrixXof = a.priceXof;
+    }
+  }
+  const sortie = new Map<string, Habitude[]>();
+  for (const [id, vues] of parTete) {
+    sortie.set(id, [...vues.values()]
+      .sort((x, y) => y.fois - x.fois || y.dernierIso.localeCompare(x.dernierIso))
+      .slice(0, garde));
+  }
+  return sortie;
+}
+
+/** Les habitudes d'une seule tête. */
+export const habitudesDeLaTete = (
+  appts: readonly RituelLu[], clientId: string, garde = 5,
+): Habitude[] => habitudesParTete(appts, garde).get(clientId) ?? [];
+
 /* ── LA CADENCE RÉTROACTIVE ─────────────────────────────────────────
    La plupart des têtes reviennent au même rythme : on décrit la cadence, le
    Trône déroule les dates. C'est le chemin le plus court pour une année. */
