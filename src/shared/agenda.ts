@@ -711,6 +711,7 @@ const FRAGMENTS_DE_MACHINE: RegExp[] = [
   /^séance \d+\s*\/\s*\d+$/i,
   /^forfait$/i,
   /^toutes les \d+ semaines$/i,
+  /^reprise \d{4}$/i,
 ];
 
 export const noteDeLaMaison = (note?: string): string =>

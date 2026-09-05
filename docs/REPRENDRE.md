@@ -2,6 +2,61 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA SAISIE EN SÉRIE — 5 septembre 2026, PUBLIÉ
+
+« Je veux saisir tous mes RDV en 2025. Un système facile pour remplir des RDV in
+bulk, et saisir les dates facilement » puis « écrire plusieurs têtes pour un mois
+précis ».
+
+**Rentrer une année ligne à ligne ne se fait pas.** Cinquante rituels par tête,
+trois cents pour la Maison : au dixième on abandonne, et l'historique reste dans
+un cahier. Le Carnet › **« Saisir en série »**, à côté de « + RDV passé ».
+
+### Trois façons, selon ce qu'on a en main
+
+- **La cadence** — une tête régulière. On décrit son rythme, le Trône déroule
+  l'année. Sept dates pour huit semaines.
+- **La liste** — une tête, des dates sans rythme. On les tape, il les lit.
+- **Le mois** — plusieurs têtes. On tape « 14/02 09:00 Stephanie » : **le nom sur
+  la ligne désigne la tête**, et **son rituel habituel suit** — son dernier
+  rituel honoré. Sans cela il faudrait choisir la prestation ligne par ligne, et
+  l'on retomberait dans la saisie une par une. Un nom qui désigne deux têtes n'en
+  désigne aucune : on ne choisit pas à la place de la Maison.
+
+### `shared/serie.ts` — le lecteur de dates, 43 épreuves
+
+`14/02/2025` · `14-02-25` · `14.02.2025` · `14 février` · `14 févr. 2025` ·
+`14/02`, l'heure en `09:00` `9h` `9h30`. **Sans année, celle qu'on saisit.**
+
+**On ne devine jamais l'ambigu** : `03/04` reste jour/mois. Choisir à la place de
+quelqu'un décale une année entière d'un mois, et personne ne le voit avant les
+chiffres de fin d'exercice. **Le 31 février ne se lit pas** — le rendre au 28
+écrirait un rituel un jour où il n'a pas eu lieu. La ligne illisible **garde son
+texte** : la ligne rouge doit dire ce qu'on a écrit, pas un message générique.
+
+### Ce qui protège
+
+- **Le jour de la semaine relit pour vous.** Si le cahier dit samedi et l'écran
+  vendredi, l'erreur saute aux yeux avant d'être écrite.
+- **« Déjà au carnet » se décoche tout seul** : relancer une saisie par prudence
+  ne doit pas doubler une année. Un rituel **annulé** ne bloque rien, il n'a pas
+  eu lieu. Le même jour deux fois dans un collage se voit, marqué, plutôt que
+  d'être mangé en silence.
+- **Le plafond de 60** : une borne mal tapée (« 3125 ») ne fabrique pas mille
+  rituels.
+
+### Les arbitrages, tenus
+
+**Honorés et réglés** le jour même, en espèces — poser tout comme impayé
+obligerait à rouvrir cinquante rituels au lieu de trois. **Le prix du catalogue
+d'aujourd'hui**, figé, **modifiable ligne par ligne** dans l'aperçu. **Caisse
+« Reprise 2025 »**, à part : l'argent de 2025 est entré, il n'est plus dans le
+tiroir, et le verser au comptant ferait un solde qui ne correspond à aucun billet
+compté. **Aucune facture émise.** La note « Reprise 2025 » rejoint les notes de
+machine — elle n'apprend rien de la tête et n'encombre pas son journal.
+
+Jugé par `verifie-serie` (28ᵉ harnais).
+
 ## LA MAISON DÉCIDE QUAND LE PROGRAMME S'OUVRE — 5 septembre 2026, PUBLIÉ
 
 « Je dois voir le programme de pousse et modifier moi-même quand il doit

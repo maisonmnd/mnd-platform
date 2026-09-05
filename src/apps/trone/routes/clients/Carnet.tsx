@@ -21,6 +21,7 @@ import {
   tarifsDuRituel,
 } from './_shared';
 import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
+import { SerieModal } from './SerieModal';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -120,6 +121,9 @@ export default function Carnet() {
   const [modal, setModal] = useState<{ initial?: RdvInitial; title?: string; appt?: Appointment } | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null); // encaissement (partiel / total / pourboire)
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  /* LA SAISIE EN SÉRIE vit ici, à côté de « + RDV passé » — arbitrage du
+     5 septembre : c'est là qu'on va quand on pense à l'historique. */
+  const [serieOuverte, setSerieOuverte] = useState(false);
   const navigate = useNavigate();
   /* ÉMETTRE LA FACTURE D'UN RITUEL IMPAYÉ (15 août) — la pièce naît « envoyée »
      dans Factures & devis, où elle s'imprime, se télécharge en PDF et
@@ -489,6 +493,7 @@ export default function Carnet() {
             <Button variant="ghost" onClick={() => setModal({ initial: { date: addDaysISO(today, -1) }, title: 'Rendez-vous passé.' })}>
               + RDV passé
             </Button>
+            <Button variant="ghost" onClick={() => setSerieOuverte(true)}>Saisir en série</Button>
             <Button variant="copper" onClick={() => setModal({})}>+ Nouveau RDV</Button>
           </>
         }
@@ -644,6 +649,8 @@ export default function Carnet() {
           carnet. On relit le rituel dans le magasin — celui qu'on tient en
           main date de son ouverture, et le versement qu'on vient d'inscrire
           l'a déjà fait vieillir. */}
+      {serieOuverte && <SerieModal onClose={() => setSerieOuverte(false)} />}
+
       {payAppt && !sansPrix && (
         <PayAppointmentModal
           appt={payAppt}
