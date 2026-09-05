@@ -662,6 +662,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   /* Les deux dates sont JUSTES par défaut (facture = jour du rituel, paiement =
      aujourd'hui) : elles se replient en une ligne, « Modifier » les rouvre. */
   const [datesOuvertes, setDatesOuvertes] = useState(false);
+  /* LE JOUR DU RITUEL, tel qu'il est écrit dessus. C'est la seule date qu'on
+     veuille jamais rattraper, et la seule que le calendrier fasse chercher
+     loin : un impayé de février dernier est à douze mois de reculs. */
+  const jourDuRituel = appt.date || '';
   /* Avoir appliqué à ce règlement — plafonné au solde ET au reste dû. Le comptant
      ne couvre alors que ce qui reste après l'avoir. */
   const [avoirStr, setAvoirStr] = useState('0');
@@ -1742,11 +1746,33 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             que si on les change. La règle reste vraie : c'est la date du
             PAIEMENT qui range l'encaissement dans le bon mois. */}
         {!datesOuvertes ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12, flexWrap: 'wrap' }}>
             <span className="mnd-muted">
               Facture au {frShort(invDate)} (jour du rituel) · argent entré le {frShort(payDate)}
             </span>
-            <button type="button" className="tre-link-btn" onClick={() => setDatesOuvertes(true)}>Modifier</button>
+            <span style={{ display: 'flex', gap: 12, flex: 'none' }}>
+              {/* ══ RÉGLER AU JOUR DU RITUEL, EN UN GESTE — 5 septembre 2026 ═
+                  « Ça prend trop de temps d'aller chercher la date du rituel,
+                  surtout quand cela date de l'année dernière. Créer un
+                  raccourci pour effectuer le paiement à la date du rituel »
+                  (Yéman).
+
+                  RATTRAPER UN IMPAYÉ DE FÉVRIER DERNIER DEMANDAIT QUATRE
+                  GESTES : ouvrir les dates, entrer dans le calendrier,
+                  remonter douze mois, cliquer le jour. Le raccourci vit donc
+                  AVANT le détour, sur la ligne repliée : c'est là qu'on lit la
+                  date, c'est là qu'on doit pouvoir la corriger.
+
+                  IL NE PARAÎT QUE S'IL SERT. Un encaissement du jour même a
+                  déjà ses deux dates justes, et un bouton qui ne change rien
+                  laisse croire qu'il reste quelque chose à faire. */}
+              {jourDuRituel && payDate !== jourDuRituel && (
+                <button type="button" className="tre-link-btn" onClick={() => setPayDate(jourDuRituel)}>
+                  Daté du rituel
+                </button>
+              )}
+              <button type="button" className="tre-link-btn" onClick={() => setDatesOuvertes(true)}>Modifier</button>
+            </span>
           </div>
         ) : (
           <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
@@ -1755,6 +1781,30 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             </Field>
             <Field label="Paiement (l’argent entre)">
               <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+              {/* LES DEUX SEULES RÉPONSES QUI SERVENT VRAIMENT : le jour où
+                  l'argent est entré est soit celui du rituel (on rattrape), soit
+                  aujourd'hui (on encaisse au comptoir). Le calendrier reste là
+                  pour le reste, qui est rare. */}
+              <div style={{ display: 'flex', gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
+                {jourDuRituel && (
+                  <button
+                    type="button"
+                    className={`mnd-btn mnd-btn--sm ${payDate === jourDuRituel ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                    style={{ flex: 'none' }}
+                    onClick={() => setPayDate(jourDuRituel)}
+                  >
+                    Le jour du rituel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`mnd-btn mnd-btn--sm ${payDate === todayISO() ? 'mnd-btn--copper' : 'mnd-btn--ghost'}`}
+                  style={{ flex: 'none' }}
+                  onClick={() => setPayDate(todayISO())}
+                >
+                  Aujourd’hui
+                </button>
+              </div>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
                 C’est elle qui range l’encaissement dans le bon mois.
               </div>

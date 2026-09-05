@@ -2,6 +2,29 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## RÉGLER AU JOUR DU RITUEL, EN UN GESTE — 5 septembre 2026, PUBLIÉ
+
+« Ça prend trop de temps d'aller chercher la date du rituel, surtout quand cela
+date de l'année dernière. Créer un raccourci pour effectuer le paiement à la
+date du rituel. »
+
+**Rattraper un impayé de février dernier demandait quatre gestes** : ouvrir les
+dates, entrer dans le calendrier, remonter douze mois, cliquer le jour.
+
+**Le raccourci vit AVANT le détour**, sur la ligne repliée : « argent entré le
+Sam. 5 sept. · **Daté du rituel** · Modifier ». C'est là qu'on lit la date,
+c'est là qu'on doit pouvoir la corriger. Il **ne paraît que s'il sert** : un
+encaissement du jour même a déjà ses deux dates justes, et un bouton qui ne
+change rien laisse croire qu'il reste quelque chose à faire.
+
+Les dates ouvertes portent en plus deux pastilles sous le champ du paiement :
+**Le jour du rituel** et **Aujourd'hui**, celle en vigueur allumée. Ce sont les
+deux seules réponses qui servent vraiment — on rattrape, ou on encaisse au
+comptoir. Le calendrier reste là pour le reste, qui est rare.
+
+Rappel de la règle que rien ne change : **c'est la date du PAIEMENT qui range
+l'encaissement dans le bon mois**, celle de la facture reste le jour du rituel.
+
 ## LA PORTE ORPHELINE, ET LE BOUTON MUET — 5 septembre 2026, PUBLIÉ
 
 ### ① « Quand j'appuie le bouton Écarter rien ne se passe »
