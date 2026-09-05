@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PORTE ORPHELINE, ET LE BOUTON MUET — 5 septembre 2026, PUBLIÉ
+
+### ① « Quand j'appuie le bouton Écarter rien ne se passe »
+
+**`window.confirm` ne s'affiche pas toujours.** Le navigateur laisse cocher
+« empêcher cette page de créer d'autres dialogues », et dès lors la fonction
+rend `false` **sans rien montrer** : le geste est refusé au nom de
+l'utilisateur, en silence. « Autoriser », qui ne demande rien, marchait ;
+« Écarter », qui demandait, ne faisait rien. Le symptôme exact.
+
+La question se pose désormais **dans la ligne** : un premier clic la pose, un
+second confirme, et la ligne dit ce qui va se passer. Elle ne peut plus être
+supprimée par le navigateur. **« Retirer » avait le même mal**, sur le même
+écran : même remède. Plus aucun `window.confirm` dans Accès & personnel.
+
+Deux détails : une fonction absente côté Supabase se dit maintenant en clair
+(« ce geste attend sa migration 0080 ») au lieu du message brut de PostgREST, et
+la ligne écartée disparaît **tout de suite**, sans attendre le rechargement —
+c'est ce silence d'une seconde qu'on est venu corriger.
+
+### ② « J'ai supprimé le compte dans Supabase et je n'arrive toujours pas à entrer »
+
+**La fiche survit au compte, et garde son `authUserId`.** Supprimer un compte
+dans Supabase Authentication ne touche pas à `public.clients` : la fiche
+continue de porter l'identifiant d'un compte **qui n'existe plus**.
+
+`adopter_ma_fiche` lisait ce lien mort comme la preuve qu'une AUTRE personne
+tenait l'adresse. Le cas ② (« fiche sans compte, je l'adopte ») était manqué,
+`authUserId` n'étant pas vide ; le cas ③ (« au compte d'un autre ») était touché
+→ **`occupee`** → l'écran bleu. Et l'échappatoire de ③ (adresse confirmée, donc
+c'est moi) ne joue pas à la première visite : la boîte aux lettres n'a encore
+rien prouvé.
+
+**Un lien vers un compte supprimé n'est pas la porte d'un autre, c'est une porte
+qui n'existe plus.** `0083_la_porte_orpheline.sql` vérifie que le propriétaire
+existe encore dans `auth.users` avant de fermer. S'il a disparu, la fiche est
+orpheline et se rend à qui porte son adresse, comme une fiche sans compte.
+
+**Ce qui ne change pas** : un `authUserId` qui pointe vers un compte VIVANT
+tient toujours le mur — c'est le cas du 14 août, une adresse tapée à la main ne
+reprend pas la couronne d'une autre.
+
+**À coller dans Supabase.** Aucune fiche n'est corrigée par la migration :
+chacune se rendra d'elle-même à la première visite. La requête de contrôle en
+bas dit seulement combien de portes étaient closes pour rien.
+
 ## PAR QUELLE PORTE, ET QUAND — 5 septembre 2026, PUBLIÉ
 
 « Je ne comprends toujours pas quand est-ce que les RDV ont été pris, à quelle

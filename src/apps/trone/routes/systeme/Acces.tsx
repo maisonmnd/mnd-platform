@@ -98,6 +98,19 @@ export default function Acces() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  /* ══ LA CONFIRMATION SE DEMANDE DANS LA PAGE — 5 septembre 2026 ════
+     « Quand j'appuie le bouton Écarter rien ne se passe » (Yéman).
+
+     `window.confirm` NE S'AFFICHE PAS TOUJOURS. Le navigateur laisse cocher
+     « empêcher cette page de créer d'autres dialogues », et dès lors la
+     fonction rend `false` SANS RIEN MONTRER : le geste est refusé au nom de
+     l'utilisateur, en silence. « Autoriser », qui ne demande rien, marchait ;
+     « Écarter », qui demandait, ne faisait rien. Le symptôme exact.
+
+     ON NE DEMANDE PLUS RIEN AU NAVIGATEUR. La question se pose dans la ligne
+     elle-même, avec deux boutons : elle ne peut pas être supprimée, et elle
+     dit ce qui va se passer là où le geste se fait. */
+  const [aConfirmer, setAConfirmer] = useState<{ quoi: 'ecarter' | 'retirer'; id: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!supabase || !isSouverain) { setLoading(false); return; }
@@ -141,17 +154,29 @@ export default function Acces() {
      d'authentification depuis un écran de gestion est un geste qui ne se
      rattrape pas ; celui-ci se défait d'un clic sur « Autoriser ». */
   const ecarter = async (u: Pending) => {
-    if (!supabase) return;
-    if (!window.confirm(
-      `Écarter ${u.email ?? 'ce compte'} de la file ?\n\n`
-      + "Il n'apparaîtra plus comme demande d'accès au Trône. Son compte reste "
-      + 'intact et il peut continuer à ouvrir Ma Couronne.',
-    )) return;
+    if (!supabase) { setMsg({ kind: 'err', text: 'Aucun serveur : la file ne se range qu’en ligne.' }); return; }
+    setAConfirmer(null);
     setBusy(u.user_id); setMsg(null);
     const { error } = await supabase.rpc('ecarter_du_personnel', { target: u.user_id });
     setBusy(null);
-    if (error) { setMsg({ kind: 'err', text: error.message }); return; }
+    if (error) {
+      /* UNE FONCTION ABSENTE SE DIT AUTREMENT QU'UN REFUS. PostgREST répond
+         « Could not find the function » quand la migration n'a pas été collée :
+         le message brut n'apprend rien au comptoir. */
+      const brut = error.message ?? '';
+      setMsg({
+        kind: 'err',
+        text: /could not find the function|does not exist|PGRST202/i.test(brut)
+          ? 'Ce geste attend sa migration côté Supabase (0080). Collez-la, puis réessayez.'
+          : brut,
+      });
+      return;
+    }
     setMsg({ kind: 'ok', text: `${u.email ?? 'Ce compte'} a été écarté de la file.` });
+    /* ON LE RETIRE DE LA LISTE TOUT DE SUITE. `load()` le fera aussi, mais une
+       seconde plus tard : entre les deux, l'écran semblait n'avoir rien fait,
+       et c'est ce silence qu'on est venu corriger. */
+    setPending((prev) => prev.filter((x) => x.user_id !== u.user_id));
     await load();
   };
 
@@ -176,8 +201,10 @@ export default function Acces() {
   };
 
   const revoke = async (m: StaffFull) => {
-    if (!supabase) return;
-    if (!window.confirm(`Retirer l'accès de ${m.email ?? m.name ?? 'ce compte'} ? Il pourra se reconnecter mais ne verra plus la Maison.`)) return;
+    /* MÊME MAL, MÊME REMÈDE que « Écarter » : la question se pose dans la
+       ligne, jamais au navigateur. */
+    if (!supabase) { setMsg({ kind: 'err', text: 'Aucun serveur : les accès ne se règlent qu’en ligne.' }); return; }
+    setAConfirmer(null);
     setBusy(m.user_id); setMsg(null);
     const { error } = await supabase.rpc('revoke_staff', { target: m.user_id });
     setBusy(null);
@@ -245,7 +272,11 @@ export default function Acces() {
               <div className="sys-acc-row" key={u.user_id}>
                 <div className="sys-acc-row__id">
                   <div className="sys-acc-row__email">{u.email ?? '—'}</div>
-                  <div className="sys-acc-row__sub">Connecté depuis le {fmtDate(u.created_at)}</div>
+                  <div className="sys-acc-row__sub">
+                    {aConfirmer?.quoi === 'ecarter' && aConfirmer.id === u.user_id
+                      ? 'Il quittera la file. Son compte reste intact, il peut continuer à ouvrir Ma Couronne. Confirmez, ou cliquez ailleurs.'
+                      : `Connecté depuis le ${fmtDate(u.created_at)}`}
+                  </div>
                 </div>
                 <Input
                   className="sys-input sys-acc-row__name"
@@ -267,15 +298,21 @@ export default function Acces() {
                 <Button variant="copper" size="sm" disabled={busy === u.user_id} onClick={() => void authorize(u)}>
                   {busy === u.user_id ? '…' : 'Autoriser'}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy === u.user_id}
-                  title="Ce n'est pas une candidature. Le retirer de la file, sans toucher à son compte."
-                  onClick={() => void ecarter(u)}
-                >
-                  Écarter
-                </Button>
+                {aConfirmer?.quoi === 'ecarter' && aConfirmer.id === u.user_id ? (
+                  <Button variant="ghost" size="sm" disabled={busy === u.user_id} onClick={() => void ecarter(u)}>
+                    {busy === u.user_id ? '…' : 'Confirmer'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy === u.user_id}
+                    title="Ce n'est pas une candidature. Le retirer de la file, sans toucher à son compte."
+                    onClick={() => { setMsg(null); setAConfirmer({ quoi: 'ecarter', id: u.user_id }); }}
+                  >
+                    Écarter
+                  </Button>
+                )}
               </div>
             ))}
           </Card>
@@ -378,9 +415,15 @@ export default function Acces() {
                         style={{ color: 'var(--trv-error, #b0563e)' }}
                         disabled={busy === m.user_id || self || lastSouverain}
                         title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain, accès protégé.' : 'Retirer l’accès'}
-                        onClick={() => void revoke(m)}
+                        onClick={() => {
+                          if (aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id) { void revoke(m); return; }
+                          setMsg(null);
+                          setAConfirmer({ quoi: 'retirer', id: m.user_id });
+                        }}
                       >
-                        {busy === m.user_id ? '…' : 'Retirer'}
+                        {busy === m.user_id ? '…'
+                          : aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id ? 'Confirmer le retrait'
+                          : 'Retirer'}
                       </Button>
                     </>
                   )}
