@@ -216,6 +216,20 @@ export type ComptageLocks = {
       et l'on saisit parfois le soir. */
   iso: string;
   locks: number;
+  /** LA LONGUEUR D'UNE MÈCHE TÉMOIN, EN CENTIMÈTRES — 5 septembre 2026.
+
+      « Donner aux clients des informations sur la pousse de leurs locks suite à
+      un resserrage » (Yéman).
+
+      LA FICHE NE CONNAÎT QUE COURT · MI-LONG · LONG, et l'on ne trace pas une
+      pousse avec trois marches : entre deux resserrages une couronne gagne deux
+      ou trois centimètres, et les trois marches ne bougent pas d'un cran en un
+      an.
+
+      ELLE SE PREND DANS LE MÊME GESTE QUE LE COMPTAGE : demander une seconde
+      visite au fauteuil pour un seul chiffre, c'est s'assurer qu'il ne sera
+      jamais pris. Facultative — un comptage sans elle reste un comptage. */
+  longueurCm?: number;
   note?: string;
   par?: string;
 };

@@ -23,6 +23,8 @@ export type ComptageLu = {
   /** Le jour du comptage. Vide pour le chiffre hérité, qui n'en a pas. */
   iso: string;
   locks: number;
+  /** La mèche témoin, quand elle a été mesurée. C'est elle qui trace la pousse. */
+  longueurCm?: number;
   /** Écart au comptage précédent — `null` sur le premier, il ne suit rien. */
   ecart: number | null;
   /** Les quarts, quand ils ont été comptés — « devant 26 · 24 ». */
@@ -74,6 +76,7 @@ export function serieDesComptages(
     if (!c.iso || !Number.isFinite(locks) || locks <= 0) continue;
     parJour.set(c.iso, {
       iso: c.iso, locks, ecart: null,
+      ...(c.longueurCm && c.longueurCm > 0 ? { longueurCm: c.longueurCm } : {}),
       ...(c.note ? { enClair: c.note } : {}),
       auteurNom: c.par ?? 'La maison', complet: true, origine: 'fiche',
     });

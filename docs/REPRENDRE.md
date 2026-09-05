@@ -2,6 +2,63 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SUIVI DE LA COURONNE — 5 septembre 2026, PUBLIÉ
+
+« Des courbes qui peuvent servir de suivi et d'évaluation pour fidéliser les
+clients, leur donner des informations sur la pousse de leurs locks suite à un
+resserrage, la suite naturelle des soins pré-requis suite à une décoloration. »
+
+**La Maison notait déjà, et ne montrait rien.** Chaque bilan porte quatre jauges
+de 1 à 5, datées, remises à la cliente depuis le début : personne ne les avait
+mises bout à bout. **C'est la pente qui parle, pas la note du jour.**
+
+### Les courbes · `routes/clients/Courbes.tsx`
+
+- **Les teintes sont calculées, pas choisies.** Les couleurs de la Maison
+  échouent en graphe : le vert et la brique sont **indiscernables en
+  deutéranopie**, l'indigo trop sombre pour la bande de clarté. Les quatre
+  teintes ont passé le contrôle sur toutes les paires. Ordre FIXE : la couleur
+  suit la jauge, pas son rang.
+- **L'identité ne tient jamais à la seule couleur** : légende, étiquette au bout
+  de chaque ligne, et une table de repli sous chaque figure.
+- **Une seule échelle par figure**, jamais deux axes.
+- **Rien que ce qui est mesuré** : chaque figure s'abstient sous trois points —
+  deux points ne font pas une tendance.
+- Les jauges suivies sont **celles du dernier bilan** : elles sont modifiables,
+  et prendre l'union ferait paraître des séries mortes. Absentes d'un ancien
+  bilan, elles y font un trou — plus honnête qu'un zéro.
+
+### La pousse · `ComptageLocks.longueurCm`
+
+La fiche ne connaît que court · mi-long · long, et **on ne trace pas une pousse
+avec trois marches**. La mèche témoin se mesure **dans le même geste que le
+comptage** : demander une seconde visite au fauteuil pour un seul chiffre, c'est
+s'assurer qu'il ne sera jamais pris. Le repère à **1 cm/mois** transforme la
+courbe en évaluation — au-dessus, la Maison fait mieux que la nature.
+
+### Le protocole après couleur · `shared/protocoles.ts`
+
+**Le catalogue disait déjà l'ordre**, en toutes lettres : YÈKPÈ™ Couleur inclut
+« DÀNDÀN™ post couleur », WÈWÈ™ se prend « avant tout soin réparateur », GBÌGBÌ™
+vise les locks « post chimiques », et PLT·60 vend déjà des combinaisons à prix
+propre. **On n'a rien inventé, on l'a écrit** : J+14 GBÌGBÌ™ Module, J+30
+DÀNDÀN™, J+45 WÈWÈ™. Seuls les intervalles sont une proposition.
+
+- **La couleur est reconnue par son CODE**, jamais par son nom : un renommage ne
+  casse pas le protocole. Seule une couleur **honorée** l'ouvre.
+- **Un soin, une étape.** Un DÀNDÀN™ rendu une fois cocherait les trois étapes
+  qui le demandent si l'on ne consommait pas le rituel : la Maison croirait
+  avoir donné trois soins pour un.
+- **Sept jours de grâce** avant de dire « en retard ». Une alerte qui crie trop
+  tôt finit par ne plus se lire.
+- **Il ne pose rien tout seul.** Il dit ce qui est dû et quand ; le comptoir
+  pose le rendez-vous.
+- **Au catalogue** : « Le Protocole Post-Couleur », trois longueurs, 48 / 68 /
+  92 000 F — à la carte le mi-long vaut 80 000, le geste est de 12 000. Bouton
+  dans le Catalogue, prix retouchables comme n'importe quel autre.
+
+Jugé par `verifie-protocole` (27ᵉ harnais).
+
 ## LA FICHE CLIENTE, RANGÉE EN TROIS TEMPS — 5 septembre 2026, PUBLIÉ
 
 « Page à restructurer. Tout est empilé, les informations viennent dans tous les

@@ -27,6 +27,8 @@ import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
+import { CourbeDesJauges, CourbeDeLaPousse } from './Courbes';
+import { derniereCouleur, suivreLeProtocole, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -1866,6 +1868,7 @@ function Customer360({
   const [cptLocks, setCptLocks] = useState('');
   const [cptJour, setCptJour] = useState('');
   const [cptNote, setCptNote] = useState('');
+  const [cptCm, setCptCm] = useState('');
   const [fusionOpen, setFusionOpen] = useState(false);
   const [allTemps] = useClientTemps();
   const myTemps = tempsOf(allTemps, client.id);
@@ -2081,6 +2084,9 @@ function Customer360({
   const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
+  /* SES BILANS À ELLE, dans l'ordre du temps — c'est la suite qui fait la
+     courbe, pas le dernier relevé. */
+  const mesBilans = tousBilans.filter((b) => b.clientId === client.id);
   /* CE QU'ELLE A DÉPENSÉ, ET NON CE QU'ELLE A REÇU. Un rituel qu'on lui a
      offert ne compte pas dans sa dépense ; un rituel qu'elle a offert à une
      autre, si — et il ne figure pas dans `appts`, qui ne contient que ses
@@ -3572,13 +3578,15 @@ function Customer360({
           const poser = () => {
             const n = Math.max(0, Math.round(parseInt(cptLocks.replace(/[^0-9]/g, ''), 10) || 0));
             if (n <= 0) { toast('Combien de locks ?'); return; }
+            const cm = Math.max(0, Math.round(parseFloat(cptCm.replace(',', '.')) || 0));
             poseUnComptage(client.id, {
               iso: jourPropose,
               locks: n,
+              ...(cm > 0 ? { longueurCm: cm } : {}),
               ...(cptNote.trim() ? { note: cptNote.trim() } : {}),
               ...(monNomFiche ? { par: monNomFiche } : {}),
             });
-            setCptLocks(''); setCptNote(''); setCptJour('');
+            setCptLocks(''); setCptNote(''); setCptJour(''); setCptCm('');
             toast(`${n} locks comptés le ${frJourAn(jourPropose)}.`);
           };
           /* LA SAISIE, ÉCRITE UNE FOIS : elle sert sous une série comme sous
@@ -3602,12 +3610,24 @@ function Customer360({
                   aria-label="Jour du comptage"
                   style={{ width: 156, flex: 'none' }}
                 />
+                {/* LA MÈCHE TÉMOIN, DANS LE MÊME GESTE. Demander une seconde
+                    visite au fauteuil pour un seul chiffre, c'est s'assurer
+                    qu'il ne sera jamais pris. */}
+                <Input
+                  inputMode="decimal"
+                  value={cptCm}
+                  onChange={(e) => setCptCm(e.target.value.replace(/[^0-9,.]/g, ''))}
+                  placeholder="cm"
+                  aria-label="Longueur de la mèche témoin, en centimètres"
+                  title="La mèche témoin, en centimètres — facultatif, c'est elle qui trace la pousse"
+                  style={{ width: 78, textAlign: 'right', flex: 'none' }}
+                />
                 <Input
                   value={cptNote}
                   onChange={(e) => setCptNote(e.target.value)}
                   placeholder="Un mot, si besoin…"
                   aria-label="Note du comptage"
-                  style={{ flex: '1 1 150px', minWidth: 0 }}
+                  style={{ flex: '1 1 130px', minWidth: 0 }}
                 />
                 <Button variant="copper" onClick={poser} style={{ flex: 'none' }}>Compter</Button>
               </div>
@@ -3712,6 +3732,71 @@ function Customer360({
             </div>
           );
         })()}
+
+        {/* ══ LE SUIVI DE LA COURONNE, EN COURBES — 5 septembre 2026 ═════
+            (maquette validée)
+
+            « Des courbes qui peuvent servir de suivi et d'évaluation pour
+            fidéliser les clients » (Yéman).
+
+            LA MAISON NOTAIT DÉJÀ, ET NE MONTRAIT RIEN : quatre jauges par
+            bilan, remises à la cliente depuis le début, jamais mises bout à
+            bout. C'est la pente qui parle, pas la note du jour.
+
+            CHAQUE FIGURE S'ABSTIENT TANT QU'ELLE N'A RIEN À DIRE — deux points
+            ne font pas une tendance, et un dessin vide fait douter du reste. */}
+        {/* ══ CE QUI DOIT SUIVRE UNE COULEUR — 5 septembre 2026 ═════════
+            « La suite naturelle des soins pré-requis suite à une décoloration »
+            puis « se référer aux différents soins du catalogue » (Yéman).
+
+            LE CATALOGUE DISAIT DÉJÀ L'ORDRE, en toutes lettres : la Couleur
+            inclut un DÀNDÀN™, le WÈWÈ™ se prend « avant tout soin réparateur »,
+            le GBÌGBÌ™ vise les locks « post chimiques ». On n'a rien inventé,
+            on l'a écrit.
+
+            IL NE POSE RIEN TOUT SEUL. Il dit ce qui est dû et quand ; c'est le
+            comptoir qui pose le rendez-vous. Un agenda qui se remplit sans
+            qu'on l'ait demandé fait perdre plus de temps qu'il n'en donne. */}
+        {(() => {
+          const couleur = derniereCouleur(appts, client.id, byId);
+          if (!couleur) return null;
+          const etapes = suivreLeProtocole({ couleur, appts, byId, aujourdhui: today });
+          const restent = etapes.filter((e) => e.etat !== 'fait').length;
+          const teinte = (e: string) => (e === 'fait' ? '#4A6B52'
+            : e === 'en-retard' ? 'var(--trv-error, #96412E)'
+            : e === 'a-poser' ? 'var(--copper-700)' : 'var(--ink-soft)');
+          return (
+            <div style={{ marginTop: 12 }}>
+              <span className="trc-microlabel">
+                Après sa couleur du {frJourAn(couleur.date)}
+                {restent === 0 ? ' · protocole tenu' : ` · ${restent} à venir`}
+              </span>
+              {etapes.map((e) => (
+                <div key={e.code} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid var(--hairline)', alignItems: 'flex-start' }}>
+                  <span style={{ flex: 'none', width: 54, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
+                    J+{e.jours}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13 }}>{e.nom}</div>
+                    <div className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.5 }}>
+                      {e.etat === 'fait' ? `Fait le ${frJourAn(e.faitLe ?? '')}` : `Attendu le ${frJourAn(e.dueIso)}`}
+                      {' · '}{e.pourquoi}
+                    </div>
+                  </span>
+                  {/* CHAQUE ÉTAT PORTE UN MOT AUTANT QU'UNE COULEUR : une
+                      pastille seule ne se lit pas pour tout le monde, et ne
+                      s'imprime pas. */}
+                  <span style={{ flex: 'none', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: teinte(e.etat) }}>
+                    {MOT_DE_L_ETAT[e.etat]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        <CourbeDesJauges bilans={mesBilans} />
+        <CourbeDeLaPousse serie={serieDesComptages(tousFil, branch.id, client)} />
 
         {/* Historique — chaque passage s'ouvre : le RDV dans sa modale, et s'il a
             été encaissé, sa facture d'un second geste. */}

@@ -5,6 +5,7 @@ import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../.
 import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
+import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel,
@@ -808,6 +809,17 @@ export default function Catalogue() {
       : 'MND Kids est déjà aux tarifs de la Maison.');
   };
 
+  /* ══ LE PROTOCOLE POST-COULEUR AU CATALOGUE — 5 septembre 2026 ════
+     « Un protocole qu'on mettra au catalogue avec des prix associés » (Yéman).
+     Trois lignes du Plateau vendues d'un tenant, comme PLT·60 le fait déjà
+     pour WÈWÈ™ + DÀNDÀN™. Les prix se retouchent ici même. */
+  const poserLeProtocole = () => {
+    const n = poseLeProtocoleAuCatalogue();
+    toast(n > 0
+      ? `Le Protocole Post-Couleur est au catalogue · ${n} longueur${n > 1 ? 's' : ''}. Les prix se retouchent ici.`
+      : 'Le protocole est déjà au catalogue.');
+  };
+
   const saveSvc = () => {
     if (!svcForm || !svcForm.name.trim()) return;
     const price = parseInt(svcForm.price.replace(/[^0-9]/g, ''), 10) || 0;
@@ -981,6 +993,11 @@ export default function Catalogue() {
                 paraît que dans ce cas précis, et dit combien de fiches ont
                 dérivé : un geste dont on ne sait pas ce qu'il va changer ne
                 se clique pas. */}
+            {/* LA SUITE D'APRÈS COULEUR SE POSE D'UN GESTE, et le bouton
+                disparaît une fois qu'elle est là. */}
+            {protocoleAbsent(services) > 0 && (
+              <Button variant="ghost" onClick={poserLeProtocole}>+ Protocole Post-Couleur</Button>
+            )}
             {kidsAbsents(services) === 0 && kidsADepasser(services) > 0 && (
               <Button variant="ghost" onClick={rafraichirKids}>
                 MND Kids · {kidsADepasser(services)} à remettre au tarif
