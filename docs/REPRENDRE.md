@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UN SECOND COMPTE SUR LA MÊME ADRESSE — 5 septembre 2026, PUBLIÉ
+
+« Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis
+téléchargé l'application sur son téléphone. Ça lui a ouvert carrément un nouveau
+compte avec la même adresse. »
+
+**Supabase laisse passer une seconde inscription tant que la première n'est pas
+CONFIRMÉE.** Or beaucoup ne l'ont jamais été : le gabarit envoyait un code que
+Ma Couronne n'offrait nulle part où saisir — corrigé le matin même. Un second
+espace naissait donc, vide, à côté du vrai.
+
+**Sur un téléphone, le raccourci s'ouvre sur l'accueil, et « Commencer » est le
+bouton le plus gros.** Une cliente qui a déjà son espace le touche sans y penser.
+
+### S'inscrire avec une adresse connue, c'est se connecter
+
+`adresseDejaPrise()` lit **les deux signaux**, selon le réglage du projet :
+confirmations activées, Supabase rend un utilisateur **sans aucune identité**,
+sans erreur — c'est sa façon de ne rien révéler ; désactivées, il refuse avec
+« User already registered ».
+
+On ne renvoie pas la cliente vers un autre formulaire : **son mot de passe est
+déjà tapé, on essaie d'entrer avec**. Si c'est le bon, elle est chez elle sans
+rien refaire ; sinon on le lui dit, à sa place, l'adresse pré-remplie.
+
+**Le doute laisse entrer** : sans identités lisibles, on n'accuse pas. Se tromper
+dans l'autre sens serait pire — refuser d'ouvrir un espace à qui n'en a pas.
+Et rien ne sort de l'écran de celle qui vient de taper l'adresse : aucune
+énumération possible.
+
+**Pour les doublons déjà créés** : la cliente se connecte une fois sur son second
+compte ; `adopter_ma_fiche` (cas ③, adresse confirmée) lui **rend sa fiche**. La
+fiche vide restante se fusionne depuis Le Trône, Profil › « Deux fiches pour une
+même personne ? ».
+
+Jugé par `verifie-porte`.
+
 ## UNE DATE SE LIT « SAM. 29 AOÛT 2026 » — 5 septembre 2026, PUBLIÉ
 
 « Je veux que la date s'affiche toujours Sam. 29 août 2026. »

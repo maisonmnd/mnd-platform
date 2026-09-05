@@ -5,7 +5,7 @@
    « Autoriser » à portée de clic — et ce clic lui ouvrait la paie, le coffre
    et les fiches de toutes les autres. Aucun écran ne rattrape cette erreur
    après coup : elle se voit le jour où l'accès a déjà servi. */
-import { vientDeMaCouronne, origineDeLaSession, type CompteEnAttente } from '../src/shared/auth';
+import { vientDeMaCouronne, origineDeLaSession, adresseDejaPrise, type CompteEnAttente } from '../src/shared/auth';
 import { gestesRapides, peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
 
 let ko = 0;
@@ -181,6 +181,32 @@ dit('… mais la Caisse ouverte suffit à la garder', false,
    latérale, même au téléphone. */
 dit('un souverain n’a pas de barre du bas', true, gestesRapides('souverain', {}).aucun);
 dit('un compte sans rôle non plus', true, gestesRapides(undefined, {}).aucun);
+
+/* ══ UNE ADRESSE DÉJÀ PRISE NE CRÉE PAS UN SECOND ESPACE ═══════════
+   « Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis
+   téléchargé l'application sur son téléphone. Ça lui a ouvert carrément un
+   nouveau compte avec la même adresse » (Yéman, 5 septembre 2026).
+
+   Supabase laisse passer une seconde inscription tant que la première n'est pas
+   CONFIRMÉE — et beaucoup ne l'ont jamais été. Deux signaux le disent, selon le
+   réglage du projet, et l'on doit lire les deux. */
+dit('confirmations activées : un utilisateur sans identité', true,
+  adresseDejaPrise({ user: { identities: [] } }));
+dit('confirmations désactivées : le refus le dit', true,
+  adresseDejaPrise(null, 'User already registered'));
+dit('… quelle que soit la casse', true, adresseDejaPrise(null, 'user_already_exists'));
+
+/* UNE VRAIE INSCRIPTION PASSE. Se tromper dans l'autre sens serait pire : on
+   refuserait d'ouvrir un espace à qui n'en a pas. */
+dit('une inscription neuve porte son identité', false,
+  adresseDejaPrise({ user: { identities: [{ provider: 'email' }] } }));
+dit('… une erreur de mot de passe n’est pas une adresse prise', false,
+  adresseDejaPrise(null, 'Password should be at least 6 characters'));
+dit('… ni un réseau coupé', false, adresseDejaPrise(null, 'Failed to fetch'));
+/* PRUDENCE SUR CE QU'ON NE SAIT PAS LIRE : sans identités connues, on n'accuse
+   pas. Le doute doit laisser entrer, pas fermer la porte. */
+dit('sans identités, on n’accuse pas', false, adresseDejaPrise({ user: {} }));
+dit('… ni sur une réponse vide', false, adresseDejaPrise(null));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

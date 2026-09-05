@@ -173,18 +173,49 @@ export async function signInClient(email: string, password: string): Promise<voi
 /** Inscription cliente : nom + e-mail + mot de passe. Le nom est stocké dans les
     métadonnées du compte (`user_metadata.name`) et sert à nommer la fiche cliente.
     N'amorce PAS le personnel (contrairement à `signUpEmail` du Trône). */
+/* ══ UNE ADRESSE DÉJÀ PRISE SE RECONNAÎT — 5 septembre 2026 ═════════
+
+   « Elle a ouvert son compte normalement sur le lien de Ma Couronne, puis
+   téléchargé l'application sur son téléphone. Ça lui a ouvert carrément un
+   nouveau compte avec la même adresse » (Yéman).
+
+   SUPABASE LAISSE PASSER UNE SECONDE INSCRIPTION tant que la première n'est pas
+   CONFIRMÉE. Or beaucoup ne l'ont jamais été : le gabarit d'e-mail envoyait un
+   code que Ma Couronne n'offrait nulle part où saisir (corrigé ce matin). Un
+   deuxième espace naissait donc, vide, à côté du vrai.
+
+   DEUX SIGNAUX, SELON LE RÉGLAGE DU PROJET. Confirmations activées : Supabase
+   rend un utilisateur SANS AUCUNE IDENTITÉ, sans erreur — c'est sa façon de ne
+   pas révéler qui est inscrit. Confirmations désactivées : il refuse avec
+   « User already registered ». On lit les deux.
+
+   ON NE RÉVÈLE RIEN À PERSONNE : le verdict ne sort jamais de l'écran de celle
+   qui vient de taper l'adresse. */
+export const adresseDejaPrise = (
+  data: { user?: { identities?: unknown[] | null } | null } | null,
+  messageDErreur?: string,
+): boolean => {
+  if (messageDErreur && /already registered|already exists|user_already_exists/i.test(messageDErreur)) return true;
+  const ids = data?.user?.identities;
+  return Array.isArray(ids) && ids.length === 0;
+};
+
 export async function signUpClient(
   email: string,
   password: string,
   name: string,
-): Promise<{ needsConfirmation: boolean }> {
+): Promise<{ needsConfirmation: boolean; dejaInscrite?: boolean }> {
   if (!supabase) throw new Error('Backend non configuré.');
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
     options: { emailRedirectTo: appRedirect(), data: { name: name.trim(), origine: 'couronne' } },
   });
-  if (error) throw error;
+  if (error) {
+    if (adresseDejaPrise(null, error.message)) return { needsConfirmation: false, dejaInscrite: true };
+    throw error;
+  }
+  if (adresseDejaPrise(data)) return { needsConfirmation: false, dejaInscrite: true };
   return { needsConfirmation: !data.session };
 }
 

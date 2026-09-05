@@ -259,7 +259,31 @@ export default function Onboarding() {
       if (mode === 'inscription') {
         /* « Prénom Nom » — l'ordre que toute la Maison lit (firstName, fiches). */
         const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
-        const { needsConfirmation } = await signUpClient(email.trim(), password, nomComplet);
+        const { needsConfirmation, dejaInscrite } = await signUpClient(email.trim(), password, nomComplet);
+        /* ══ S'INSCRIRE AVEC UNE ADRESSE CONNUE, C'EST SE CONNECTER ══════
+           « Ça lui a ouvert carrément un nouveau compte avec la même adresse »
+           (Yéman, 5 septembre 2026).
+
+           SUR UN TÉLÉPHONE, LE RACCOURCI S'OUVRE SUR L'ACCUEIL, et « Commencer »
+           est le bouton le plus gros. Une cliente qui a déjà son espace le
+           touche sans y penser — et Supabase laisse créer un second compte tant
+           que le premier n'est pas confirmé. Elle se retrouvait devant un
+           espace vide, sa couronne à côté.
+
+           ON NE LA RENVOIE PAS À UN AUTRE FORMULAIRE : son mot de passe est
+           déjà tapé, on essaie d'entrer avec. Si c'est le bon, elle est chez
+           elle sans rien avoir à refaire ; sinon on le lui dit, à sa place. */
+        if (dejaInscrite) {
+          try {
+            await signInClient(email.trim(), password);
+          } catch {
+            setMode('connexion');
+            setPassword('');
+            setNotice('Cette adresse a déjà son espace. Entrez son mot de passe, ou demandez-en un nouveau.');
+          }
+          setBusy(false);
+          return;
+        }
         /* Alerte le personnel du Trône (Web Push) d'une nouvelle inscription. */
         void pushNotifyStaff('Nouvelle inscription Ma Couronne', nomComplet, '/trone/#/customers');
         if (needsConfirmation) {
