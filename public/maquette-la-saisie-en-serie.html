@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La saisie en série · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;--sable:#E8DFCE;
+    --indigo:#1E2150;--indigo-2:#3A3F72;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#746F65;--filet:#D9CFBC;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;
+    --vert:#4A6B52;--vert-f:#EFF3EF;--vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1120px;margin:0 auto;padding:56px 24px 110px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,60px);line-height:1.04;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(23px,3vw,32px);color:var(--indigo);
+     margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+  .chapeau{max-width:66ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:58px}
+  .intro{max-width:76ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+  .legende{font-size:12.5px;color:var(--encre-d);margin:12px 0 0;max-width:80ch}
+  .legende b{color:var(--encre);font-weight:500}
+  .cite{border-left:2px solid var(--cuivre);padding:2px 0 2px 16px;margin:0 0 30px;
+        font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--indigo);max-width:64ch}
+  .cite span{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--encre-d);margin-top:8px}
+
+  .ecran{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);overflow:hidden}
+  .ecran__tete{background:var(--indigo);color:#EFEAE0;padding:14px 20px}
+  .ecran__tete h4{font-family:var(--serif);font-weight:400;font-size:22px;color:#fff;margin:0}
+  .ecran__tete span{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-p)}
+  .ecran__corps{padding:19px 21px}
+
+  .onglets{display:flex;gap:22px;border-bottom:1px solid var(--filet);margin-bottom:18px}
+  .onglets b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);
+             border-bottom:2px solid var(--cuivre);padding-bottom:9px;font-weight:500}
+  .onglets span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding-bottom:9px}
+
+  .lab{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:5px}
+  .champ{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:9px 12px;
+         font-family:var(--sans);font-size:14px;color:var(--encre);width:100%}
+  .rang{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .rang>div{flex:1 1 180px;min-width:0}
+  textarea.champ{min-height:132px;font-family:'Jost',monospace;line-height:1.9;color:var(--indigo)}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);
+       font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;cursor:default}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #EDE5D6}
+  th{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);font-weight:500}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  tr.ko td{background:var(--brique-f);color:var(--brique)}
+  .pastille{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:100px;
+            border:1px solid var(--vert-p);background:var(--vert-f);color:var(--vert)}
+  .pastille--ko{border-color:var(--brique-p);background:var(--brique-f);color:var(--brique)}
+  .pastille--dbl{border-color:var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre)}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.duo{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .carte+.carte{margin-top:14px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+  .alerte{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;padding:16px 18px;max-width:78ch}
+  .alerte b{color:var(--brique)}
+  ul.arb{margin:14px 0 0;padding:0 0 0 20px}
+  ul.arb li{margin:0 0 12px;font-size:14px;color:var(--encre-d)}
+  ul.arb li b{color:var(--encre);font-weight:500}
+  code{font-family:'Jost',monospace;background:var(--indigo-pale);padding:1px 6px;border-radius:2px;font-size:13px}
+  footer{margin-top:78px;padding-top:22px;border-top:1px solid var(--filet);
+         font-family:var(--serif);font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · Maquette à valider</p>
+  <h1>La saisie en série.</h1>
+  <p class="chapeau">
+    Rentrer une année de rituels sans la taper une fois par ligne. <b>Deux façons, selon ce qu'on a
+    en main</b>, et une relecture avant d'écrire.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Je veux saisir tous mes RDV en 2025. Est-ce que tu peux me trouver un système facile pour
+    remplir des RDV in bulk ? Et saisir les dates facilement ?
+    <span>Yéman · 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① DEUX FAÇONS ═══ -->
+  <section>
+    <h2>① Deux façons de remplir.</h2>
+    <p class="intro">
+      La plupart de vos têtes reviennent au même rythme, avec le même rituel : <b>on décrit la
+      cadence, le Trône déroule les dates</b>. Pour tout le reste, on tape la liste.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <span>Le Carnet · saisir en série</span>
+        <h4>Une année de rituels, d'un geste</h4>
+      </div>
+      <div class="ecran__corps">
+        <div class="onglets"><b>La cadence</b><span>La liste de dates</span></div>
+
+        <div class="rang">
+          <div><span class="lab">La tête</span><input class="champ" value="Stephanie LANYAN" readonly /></div>
+          <div><span class="lab">Le rituel</span><input class="champ" value="KLƆKLƆ™ Essentiel + SÍNSIN™ Essentielle" readonly /></div>
+          <div style="flex:0 0 150px"><span class="lab">Le maître</span><input class="champ" value="Team" readonly /></div>
+        </div>
+        <div class="rang">
+          <div style="flex:0 0 160px"><span class="lab">Première venue</span><input class="champ" value="10/01/2025" readonly /></div>
+          <div style="flex:0 0 130px"><span class="lab">Rythme</span><input class="champ" value="8 semaines" readonly /></div>
+          <div style="flex:0 0 130px"><span class="lab">Heure</span><input class="champ" value="11:00" readonly /></div>
+          <div style="flex:0 0 150px"><span class="lab">Jusqu'au</span><input class="champ" value="31/12/2025" readonly /></div>
+        </div>
+
+        <p class="legende" style="margin:0 0 12px">
+          <b>Sept dates proposées.</b> Décochez celles qui n'ont pas eu lieu, corrigez celles qui ont
+          glissé d'une semaine — <b>rien n'est écrit avant que vous n'ayez vu</b>.
+        </p>
+
+        <table>
+          <tr><th style="width:34px"></th><th>Le jour</th><th>Heure</th><th>Ce qui sera posé</th><th class="n">Prix</th><th></th></tr>
+          <tr><td>☑</td><td>Ven. 10 janv. 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+          <tr><td>☑</td><td>Ven. 7 mars 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+          <tr><td>☐</td><td>Ven. 2 mai 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille--dbl pastille">déjà au carnet</span></td></tr>
+          <tr><td>☑</td><td>Ven. 27 juin 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+          <tr><td>☑</td><td>Ven. 22 août 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+          <tr><td>☑</td><td>Ven. 17 oct. 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+          <tr><td>☑</td><td>Ven. 12 déc. 2025</td><td>11:00</td><td>KLƆKLƆ™ + SÍNSIN™</td><td class="n">38 000 F</td><td><span class="pastille">à poser</span></td></tr>
+        </table>
+
+        <div style="display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap">
+          <button class="btn">Poser les 6 rituels</button>
+          <button class="btn btn--ghost">Tout décocher</button>
+          <span class="legende" style="margin:0">6 × 38 000 F · <b>228 000 F</b> entreront dans l'année 2025.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>« Déjà au carnet » se coche tout seul à l'envers.</b> Un rituel existe déjà ce jour-là pour
+      cette tête : on ne le repose pas. C'est le garde qui évite de doubler une année entière quand
+      on relance la saisie par prudence.
+    </p>
+  </section>
+
+  <!-- ═══ ② LA LISTE ═══ -->
+  <section>
+    <h2>② Quand les dates ne suivent aucun rythme.</h2>
+    <p class="intro">
+      On les tape les unes sous les autres, <b>dans le format qu'on a sous la main</b>. Le Trône lit
+      tout ce qui ressemble à une date.
+    </p>
+    <div class="duo">
+      <div class="ecran">
+        <div class="ecran__tete"><span>Le Carnet · saisir en série</span><h4>La liste de dates</h4></div>
+        <div class="ecran__corps">
+          <div class="onglets"><span>La cadence</span><b>La liste de dates</b></div>
+          <span class="lab">Une date par ligne · l'heure si vous l'avez</span>
+          <textarea class="champ" readonly>14/02/2025 09:00
+7 mars 2025
+02-04-25 14:30
+19/05
+23 juin 11h
+4 septembre 2025</textarea>
+          <p class="legende" style="margin-top:10px">
+            <b>Sans année, 2025</b> — c'est l'année qu'on saisit, et la retaper cinquante fois ne
+            l'apprendrait à personne. <b>Sans heure</b>, celle du rituel précédent.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="carte">
+          <h3>Ce qui se lit sans effort</h3>
+          <p>
+            <code>14/02/2025</code> <code>14-02-25</code> <code>14 février</code>
+            <code>14 févr. 2025</code> <code>14/02</code> · et l'heure en <code>09:00</code>,
+            <code>9h</code> ou <code>9h30</code>.
+          </p>
+        </div>
+        <div class="carte">
+          <h3>Ce qui ne se devine pas</h3>
+          <p>
+            <b>Une ligne illisible reste illisible</b> et s'affiche en rouge, avec ce qui a été tapé.
+            On ne devine pas <code>03/04</code> entre mars et avril à la place de quelqu'un : c'est
+            ainsi qu'une année entière se décale d'un mois sans qu'on le voie.
+          </p>
+        </div>
+        <div class="carte">
+          <h3>Le jour de la semaine relit pour vous</h3>
+          <p>
+            L'aperçu écrit <b>« Ven. 10 janv. 2025 »</b>. Si votre carnet dit samedi et que l'écran
+            dit vendredi, l'erreur saute aux yeux avant d'être écrite.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ CE QUI COMPTE VRAIMENT ═══ -->
+  <section>
+    <h2>③ Ce que ces rituels font à vos chiffres.</h2>
+    <div class="alerte">
+      <b>C'est la seule question qui mérite qu'on s'arrête.</b><br />
+      Poser 2025 dans le Trône, ce n'est pas remplir un carnet : c'est <b>réécrire une année de
+      chiffre d'affaires</b>. Le Bilan mensuel, Analytics, les commissions des maîtres, la fidélité
+      et les paliers de vos clientes lisent tous les rituels honorés.<br /><br />
+      Bien fait, votre 2025 devient vrai et vos comparaisons d'une année sur l'autre prennent enfin
+      un sens. Fait à moitié — des rituels sans prix, ou payés deux fois — <b>vous obtenez une année
+      qui ment, et il sera beaucoup plus dur de la corriger que de ne rien avoir saisi.</b>
+    </div>
+    <div class="duo" style="margin-top:18px">
+      <div class="carte">
+        <h3>Proposé · honorés et réglés</h3>
+        <p>
+          Chaque rituel naît <b>honoré</b>, à son prix, <b>réglé le jour même</b>, en espèces par
+          défaut. C'est ce qui s'est réellement passé, et l'année devient exacte.
+          <b>Aucune facture n'est émise</b> : personne ne réclamera un papier de 2025.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>La sortie de secours</h3>
+        <p>
+          Tout ce qu'une série pose porte <b>la même marque</b>. Un bouton « Retirer cette série »
+          défait les six d'un coup, tant qu'aucune n'a été retouchée à la main. <b>Une saisie en
+          masse sans marche arrière n'est pas un outil, c'est un pari.</b>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ④ À ARBITRER ═══ -->
+  <section>
+    <h2>④ À arbitrer avant de construire.</h2>
+    <ul class="arb">
+      <li>
+        <b>Honorés et réglés, ou honorés seulement ?</b> Proposé : <b>réglés</b>, en espèces, le jour
+        du rituel. Si une part était impayée, mieux vaut poser tout comme réglé puis rouvrir les
+        quelques exceptions, que l'inverse.
+      </li>
+      <li>
+        <b>Le prix : celui d'aujourd'hui ou celui de 2025 ?</b> Proposé : <b>le prix du catalogue
+        d'aujourd'hui</b>, figé sur chaque rituel, et modifiable ligne par ligne dans l'aperçu. Si
+        vos tarifs ont bougé depuis, dites-le-moi : on ajoutera une colonne de prix par série.
+      </li>
+      <li>
+        <b>Dans quelle caisse ?</b> Proposé : une caisse <b>« Reprise 2025 »</b>, à part. Verser une
+        année dans la Caisse Principale ferait un solde qui ne correspond à aucun billet compté.
+      </li>
+      <li>
+        <b>Où vit l'écran ?</b> Proposé : Le Carnet, à côté de « + RDV passé ». C'est là qu'on va
+        quand on pense à l'historique.
+      </li>
+      <li>
+        <b>Une tête à la fois ?</b> Proposé : <b>oui</b>. Une série = une cliente. Mélanger plusieurs
+        têtes dans un même collage rend la relecture impossible, et c'est la relecture qui protège.
+      </li>
+    </ul>
+  </section>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+</body>
+</html>
