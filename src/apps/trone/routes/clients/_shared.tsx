@@ -75,6 +75,18 @@ export const frLong = (iso: string) =>
 export const frDay = (iso: string) =>
   dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';
 
+/** « 19 févr. 2025 » — LA DATE QUI PORTE SON ANNÉE, 5 septembre 2026.
+
+    « Il faut rajouter l'année sur la note du carnet. 19 févr… incomplet »
+    (Yéman).
+
+    UNE FICHE SE LIT EN ANNÉES. Le carnet du jour peut se contenter du mois :
+    on sait quel mois on vit. Une fiche cliente, elle, montre février 2025 à
+    côté de septembre 2026, et un « 19 févr. » nu se lit comme celui de cette
+    année — l'observation vieillit d'un an et demi sans qu'on le voie. */
+export const frJourAn = (iso: string) =>
+  (dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
 export const timeToMin = (t: string) => {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + (m || 0);

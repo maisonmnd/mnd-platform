@@ -44,8 +44,7 @@ import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  type Cadence,
-} from './_shared';
+  type Cadence, frJourAn } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
@@ -2414,7 +2413,7 @@ function Customer360({
               « {derniereNote.dit} »
             </div>
             <div className="mnd-muted" style={{ fontSize: 11, marginTop: 3 }}>
-              {frDay(derniereNote.appt.date)}{derniereNote.appt.master ? ` · ${derniereNote.appt.master}` : ''}
+              {frJourAn(derniereNote.appt.date)}{derniereNote.appt.master ? ` · ${derniereNote.appt.master}` : ''}
             </div>
           </div>
         )}
@@ -3504,7 +3503,9 @@ function Customer360({
                 </div>
                 <button type="button" className="trc-timeline__open" onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frDay(a.date)} · {a.time}</span>
+                    {/* MÊME MAL, MÊME REMÈDE : le fil montre les six derniers
+                        passages, qui s'étalent souvent sur deux ou trois ans. */}
+                    <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>{frJourAn(a.date)} · {a.time}</span>
                     <StatusPill status={a.status} />
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 3 }}>
