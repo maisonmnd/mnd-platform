@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La fiche cliente &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1180px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:76ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:80ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  /* ── Avant / Après ── */
+  .comparo { display:grid; grid-template-columns:0.8fr 1.35fr; gap:24px; align-items:start; }
+  @media (max-width:980px){ .comparo { grid-template-columns:1fr; } }
+  .etiq { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; margin:0 0 10px; }
+  .etiq--avant { color:var(--brique); }
+  .etiq--apres { color:var(--vert); }
+
+  .pile { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:12px; }
+  .pile__b { border:1px dashed var(--filet); border-radius:3px; padding:9px 11px; margin-bottom:7px;
+             font-size:12px; color:var(--encre-d); background:#fff; }
+  .pile__b:last-child { margin-bottom:0; }
+  .pile__b i { font-style:normal; color:var(--cuivre); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; }
+
+  /* ── L'écran proposé ── */
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:15px 20px; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:24px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__onglets { display:flex; gap:20px; padding:11px 20px 0; border-bottom:1px solid var(--filet); background:#fff; }
+  .ecran__onglets b { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--indigo);
+                      border-bottom:2px solid var(--cuivre); padding-bottom:9px; font-weight:500; }
+  .ecran__onglets span { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding-bottom:9px; }
+  .ecran__corps { padding:20px; }
+
+  /* La bande de tête */
+  .presse { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+            border:1px solid var(--cuivre-p); background:var(--cuivre-f); border-radius:4px; padding:14px 17px; }
+  .presse__l { flex:1 1 260px; min-width:0; }
+  .presse__t { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre); }
+  .presse__v { font-family:var(--serif); font-size:31px; line-height:1.05; color:var(--indigo); }
+  .presse__s { font-size:12px; color:var(--encre-d); }
+  .presse--calme { border-color:var(--vert-p); background:var(--vert-f); }
+  .presse--calme .presse__t { color:var(--vert); }
+
+  .btn { border:none; border-radius:3px; background:var(--cuivre); color:#fff; font-family:var(--sans);
+         font-size:11px; letter-spacing:.14em; text-transform:uppercase; padding:11px 17px; cursor:default; flex:none; }
+  .btn--ghost { background:transparent; border:1px solid var(--filet); color:var(--encre-d); }
+  .btn--indigo { background:var(--indigo); }
+
+  /* Deux colonnes */
+  .deux { display:grid; grid-template-columns:1.25fr 1fr; gap:18px; margin-top:18px; align-items:start; }
+  @media (max-width:820px){ .deux { grid-template-columns:1fr; } }
+
+  .bloc { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:15px 17px; }
+  .bloc + .bloc { margin-top:14px; }
+  .bloc__t { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d);
+             display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:9px; }
+  .bloc__t a { color:var(--cuivre); text-decoration:none; font-size:11px; letter-spacing:.06em; text-transform:none; }
+
+  .rdv { border-left:2px solid var(--cuivre); padding-left:13px; }
+  .rdv__d { font-family:var(--serif); font-size:26px; line-height:1.1; color:var(--indigo); }
+  .rdv__s { font-size:12px; color:var(--encre-d); }
+  .ligne { display:flex; justify-content:space-between; gap:10px; align-items:baseline;
+           padding:8px 0; border-top:1px solid #F0E9DB; font-size:12.5px; }
+  .ligne:first-of-type { border-top:none; }
+  .ligne span:last-child { color:var(--encre-d); font-size:11.5px; flex:none; }
+
+  /* Le journal unifié */
+  .jour { display:flex; gap:11px; padding:10px 0; border-top:1px solid #F0E9DB; }
+  .jour:first-of-type { border-top:none; }
+  .jour__o { flex:none; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px;
+             border-radius:100px; border:1px solid var(--filet); color:var(--encre-d); background:var(--ivoire); height:fit-content; }
+  .jour__o--f { border-color:var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre); }
+  .jour__c { min-width:0; }
+  .jour__x { font-size:13px; color:var(--encre); font-style:italic; }
+  .jour__d { font-size:11px; color:var(--encre-d); }
+
+  .chiffres { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  @media (max-width:700px){ .chiffres { grid-template-columns:repeat(2,1fr); } }
+  .kpi { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:12px 14px; text-align:center; }
+  .kpi b { display:block; font-family:var(--serif); font-size:24px; font-weight:400; color:var(--indigo); line-height:1.1; }
+  .kpi span { font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+
+  .carte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:17px 19px; }
+  .carte + .carte { margin-top:14px; }
+  .carte h3 { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .carte p { margin:0; font-size:13.5px; color:var(--encre-d); }
+  .carte p b { color:var(--encre); font-weight:500; }
+
+  ul.arb { margin:14px 0 0; padding:0 0 0 20px; }
+  ul.arb li { margin:0 0 12px; font-size:14px; color:var(--encre-d); }
+  ul.arb li b { color:var(--encre); font-weight:500; }
+
+  footer { margin-top:80px; padding-top:22px; border-top:1px solid var(--filet);
+           font-family:var(--serif); font-style:italic; font-size:14px; color:var(--cuivre); text-align:center; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône &middot; Maquette &agrave; valider</p>
+  <h1>La fiche cliente.</h1>
+  <p class="chapeau">
+    Neuf blocs empil&eacute;s dans une colonne, sans hi&eacute;rarchie. On ouvre la fiche pour
+    <b>d&eacute;cider</b>, et elle r&eacute;pond en <b>inventaire</b>.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Page &agrave; restructurer. Tout est empil&eacute;, les informations viennent dans tous les sens.
+    Revoir l&rsquo;UI et l&rsquo;UX de cette page.
+    <span>Y&eacute;man &middot; 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① LE DIAGNOSTIC ═══ -->
+  <section>
+    <h2>① Ce qui ne va pas.</h2>
+    <p class="intro">
+      Rien n&rsquo;est faux&nbsp;: tout est <b>&agrave; la m&ecirc;me hauteur</b>. Le solde d&ucirc; de
+      40&nbsp;000&nbsp;F est plus bas qu&rsquo;un champ de note vide, et le prochain rendez-vous se lit
+      apr&egrave;s une observation vieille d&rsquo;un an. <b>Deux endroits pour les notes</b>, en plus,
+      sans qu&rsquo;on sache lequel sert &agrave; quoi.
+    </p>
+
+    <div class="comparo">
+      <div>
+        <p class="etiq etiq--avant">Aujourd&rsquo;hui &middot; une pile</p>
+        <div class="pile">
+          <div class="pile__b"><i>1</i> &middot; La derni&egrave;re note du carnet</div>
+          <div class="pile__b"><i>2</i> &middot; Prochain rendez-vous</div>
+          <div class="pile__b"><i>3</i> &middot; Rendez-vous &agrave; venir</div>
+          <div class="pile__b"><i>4</i> &middot; Son carnet <b>(autres notes)</b></div>
+          <div class="pile__b"><i>5</i> &middot; Fiche financi&egrave;re</div>
+          <div class="pile__b"><i>6</i> &middot; Solde d&ucirc; &middot; Encaisser</div>
+          <div class="pile__b"><i>7</i> &middot; Le compte &amp; l&rsquo;avoir</div>
+          <div class="pile__b"><i>8</i> &middot; Pr&eacute;sence Ma Couronne</div>
+          <div class="pile__b"><i>9</i> &middot; Demander &agrave; quelqu&rsquo;un</div>
+        </div>
+        <p class="legende">
+          Neuf blocs, une seule colonne, aucun plus fort qu&rsquo;un autre. On d&eacute;file pour
+          trouver, au lieu de voir.
+        </p>
+      </div>
+
+      <div>
+        <p class="etiq etiq--apres">Propos&eacute; &middot; trois temps</p>
+        <div class="ecran">
+          <div class="ecran__tete">
+            <span>Initi&eacute;e &middot; Suru-L&egrave;re &middot; Nano &middot; 427 locks</span>
+            <h4>Shad&eacute; Euzen</h4>
+          </div>
+          <div class="ecran__onglets">
+            <b>Aper&ccedil;u</b><span>Profil</span><span>Compte</span><span>Parcours</span><span>Documents</span>
+          </div>
+          <div class="ecran__corps">
+
+            <!-- ce qui presse -->
+            <div class="presse">
+              <span class="presse__l">
+                <span class="presse__t">Ce qui presse</span>
+                <div class="presse__v">40&nbsp;000&nbsp;F d&ucirc;s</div>
+                <div class="presse__s">1 rituel du 19 f&eacute;vr. 2025, jamais r&eacute;gl&eacute;.</div>
+              </span>
+              <button class="btn">Encaisser</button>
+              <button class="btn btn--ghost">Relev&eacute;</button>
+            </div>
+
+            <div class="deux">
+              <!-- colonne gauche : le fauteuil -->
+              <div>
+                <div class="bloc">
+                  <div class="bloc__t"><span>Le fauteuil</span><a href="#">Proposer un rendez-vous</a></div>
+                  <div class="rdv">
+                    <div class="rdv__d">Vendredi 30 octobre &middot; 08:30</div>
+                    <div class="rdv__s">KL&#390;KL&#390;&trade; Le Souffle + S&Iacute;NSIN&trade; La Reprise &middot; Team &middot; confirm&eacute;</div>
+                  </div>
+                  <div style="margin-top:12px">
+                    <div class="ligne"><span>Ven. 12 d&eacute;c. &middot; 09:00</span><span>en attente</span></div>
+                  </div>
+                </div>
+
+                <div class="bloc">
+                  <div class="bloc__t"><span>Ce qu&rsquo;on sait d&rsquo;elle &middot; 3</span><a href="#">Tout le parcours</a></div>
+                  <div class="jour">
+                    <span class="jour__o jour__o--f">Au fauteuil</span>
+                    <span class="jour__c">
+                      <span class="jour__x">&laquo;&nbsp;Comptage de locks ce jour&nbsp;: 427 locks&nbsp;&raquo;</span>
+                      <div class="jour__d">4 sept. 2026 &middot; Team</div>
+                    </span>
+                  </div>
+                  <div class="jour">
+                    <span class="jour__o">Sur sa fiche</span>
+                    <span class="jour__c">
+                      <span class="jour__x">&laquo;&nbsp;Pr&eacute;f&egrave;re le samedi matin.&nbsp;&raquo;</span>
+                      <div class="jour__d">12 ao&ucirc;t 2026 &middot; Y&eacute;man Boya</div>
+                    </span>
+                  </div>
+                  <div class="jour">
+                    <span class="jour__o jour__o--f">Au fauteuil</span>
+                    <span class="jour__c">
+                      <span class="jour__x">&laquo;&nbsp;Comptage de locks ce jour&nbsp;: 445 locks&nbsp;&raquo;</span>
+                      <div class="jour__d">19 f&eacute;vr. 2025 &middot; Team</div>
+                    </span>
+                  </div>
+                  <div style="display:flex; gap:8px; margin-top:12px">
+                    <input style="flex:1; min-width:0; border:1px solid var(--filet); border-radius:3px; padding:9px 11px; font-family:var(--sans); font-size:13px; color:var(--encre-d)" value="Une note sur cette t&ecirc;te&hellip;" readonly />
+                    <button class="btn btn--ghost">Noter</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- colonne droite : ce qu'elle vaut, ce qu'elle est -->
+              <div>
+                <div class="bloc">
+                  <div class="bloc__t"><span>Ce qu&rsquo;elle repr&eacute;sente</span><a href="#">Son compte</a></div>
+                  <div class="chiffres" style="grid-template-columns:repeat(2,1fr)">
+                    <div class="kpi"><b>196&nbsp;000&nbsp;F</b><span>Total d&eacute;pens&eacute;</span></div>
+                    <div class="kpi"><b>49&nbsp;000&nbsp;F</b><span>Panier moyen</span></div>
+                    <div class="kpi"><b>4</b><span>S&eacute;ances</span></div>
+                    <div class="kpi"><b>18 mois</b><span>Couronne depuis</span></div>
+                  </div>
+                </div>
+
+                <div class="bloc">
+                  <div class="bloc__t"><span>Sa porte</span></div>
+                  <div class="ligne"><span>Ma Couronne</span><span>jamais connect&eacute;e</span></div>
+                  <div class="ligne"><span>Cercle MND</span><span>140 points</span></div>
+                  <div class="ligne"><span>Avoir</span><span>&mdash;</span></div>
+                  <div style="display:flex; gap:8px; margin-top:11px; flex-wrap:wrap">
+                    <button class="btn btn--ghost">L&rsquo;inviter</button>
+                    <button class="btn btn--ghost">Demander &agrave; quelqu&rsquo;un</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <p class="legende">
+          <b>Trois temps</b>&nbsp;: ce qui presse, ce qui se d&eacute;cide au fauteuil, ce qu&rsquo;elle
+          repr&eacute;sente. Rien n&rsquo;est retir&eacute; &mdash; tout est rang&eacute;.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LES RÈGLES ═══ -->
+  <section>
+    <h2>② Les trois r&egrave;gles du rangement.</h2>
+    <div class="comparo" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="carte">
+        <h3>Ce qui presse ouvre la page</h3>
+        <p>
+          Une seule bande, en cuivre&nbsp;: <b>ce qu&rsquo;elle doit</b>, ou <b>le rendez-vous
+          qu&rsquo;il faut poser</b>, ou rien du tout &mdash; et la bande devient verte, &laquo;&nbsp;tout
+          est en ordre&nbsp;&raquo;. Un seul geste &agrave; c&ocirc;t&eacute;.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Un seul journal, deux origines</h3>
+        <p>
+          Les notes du carnet et les notes de la fiche <b>vivaient dans deux blocs</b>. Elles se
+          lisent ensemble, dans l&rsquo;ordre du temps, chacune marqu&eacute;e&nbsp;: <b>au fauteuil</b>
+          ou <b>sur sa fiche</b>. On &eacute;crit toujours au m&ecirc;me endroit.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Les chiffres ne d&eacute;cident rien</h3>
+        <p>
+          Total d&eacute;pens&eacute;, panier moyen, s&eacute;ances&nbsp;: on les <b>consulte</b>, on
+          n&rsquo;agit pas dessus. Ils passent &agrave; droite, en petit, et laissent la colonne
+          principale &agrave; ce qui se fait.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ À ARBITRER ═══ -->
+  <section>
+    <h2>③ &Agrave; arbitrer avant de construire.</h2>
+    <ul class="arb">
+      <li>
+        <b>Deux colonnes, ou une&nbsp;?</b> Propos&eacute; ici&nbsp;: <b>deux</b> au-del&agrave; de
+        820&nbsp;px, une seule sur t&eacute;l&eacute;phone. La fiche se lit surtout sur grand &eacute;cran,
+        au comptoir.
+      </li>
+      <li>
+        <b>Fusionner les deux journaux de notes&nbsp;?</b> Propos&eacute; ici&nbsp;: <b>oui</b>, avec
+        une pastille d&rsquo;origine. C&rsquo;est le point qui all&egrave;ge le plus la page. Le refus
+        garderait deux blocs qui se ressemblent.
+      </li>
+      <li>
+        <b>La bande &laquo;&nbsp;ce qui presse&nbsp;&raquo; quand il n&rsquo;y a rien&nbsp;?</b>
+        Propos&eacute; ici&nbsp;: elle reste, en vert, et dit &laquo;&nbsp;rien &agrave; recouvrer,
+        prochain rendez-vous le 30 octobre&nbsp;&raquo;. Une bande qui dispara&icirc;t fait sauter la
+        page d&rsquo;une fiche &agrave; l&rsquo;autre.
+      </li>
+      <li>
+        <b>Le calibre dans l&rsquo;en-t&ecirc;te&nbsp;?</b> Propos&eacute; ici&nbsp;: <b>oui</b> &mdash;
+        &laquo;&nbsp;Nano &middot; 427 locks&nbsp;&raquo; sous son nom. C&rsquo;est ce qui commande son
+        prix, on le cherche &agrave; chaque fois.
+      </li>
+      <li>
+        <b>Que devient &laquo;&nbsp;Demander &agrave; quelqu&rsquo;un&nbsp;&raquo;&nbsp;?</b>
+        Propos&eacute; ici&nbsp;: dans <b>Sa porte</b>, &agrave; c&ocirc;t&eacute; de
+        &laquo;&nbsp;L&rsquo;inviter&nbsp;&raquo;. Ce sont deux fa&ccedil;ons de la joindre.
+      </li>
+    </ul>
+  </section>
+
+  <footer>Maquette &middot; &agrave; valider avant construction &middot; mi ny&#596; &#598;ekpe</footer>
+
+</div>
+</body>
+</html>
