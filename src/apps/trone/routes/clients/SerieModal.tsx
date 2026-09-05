@@ -5,7 +5,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointment } from '../../../../shared/agenda';
-import { useClients, type Client } from '../../../../shared/clients';
+import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
 import { useServices, type Service } from '../../../../shared/catalog';
 import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
 import { RYTHMES_ABO } from '../../../../shared/cadence';
@@ -13,7 +13,7 @@ import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
   habitudesParTete, seriesPosees, type LigneLue,
 } from '../../../../shared/serie';
-import { ClientPicker, frJourAn, frShortAn, useServicesById } from './_shared';
+import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
 
 /* ══ LA SAISIE EN SÉRIE — 5 septembre 2026 (maquette validée) ═══════
@@ -47,6 +47,17 @@ type Ligne = {
   prixXof: number;
   dejaAuCarnet: boolean;
   cochee: boolean;
+  /** Le nom tape sur la ligne, quand aucune tete ne lui repond : c'est lui
+      qu'on propose de creer. */
+  nom?: string;
+  /** Deux tetes portent ce nom. On ne cree PAS une troisieme : on ne choisit
+      pas a la place de la Maison, et on ne double pas une fiche non plus. */
+  ambigu?: boolean;
+  /** LA DATE QUE LA CADENCE AVAIT PROPOSEE, avant que la main la corrige.
+      C'est elle qui sert de cle a la correction : le rythme redonne toujours
+      la meme suite, donc la meme cle, et la correction survit a un aller-retour
+      d'onglet. */
+  origine?: string;
 };
 
 export function SerieModal({ onClose }: { onClose: () => void }) {
@@ -72,6 +83,20 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   const [colle, setColle] = useState('');
   const [retire, setRetire] = useState<Set<string>>(new Set());
   const [prixParLigne, setPrixParLigne] = useState<Record<string, number>>({});
+  /* ══ LES DATES DE LA CADENCE SE CORRIGENT — 5 septembre 2026 ═══════
+     « Dans la cadence possibilite de modifier les dates predefinies » (Yeman).
+
+     UN RYTHME EST UNE APPROXIMATION, PAS UN COMPTE RENDU. Toutes les huit
+     semaines donne le bon squelette d'une annee, mais elle est venue le jeudi
+     au lieu du mercredi, elle a saute une fois, elle est revenue plus tot avant
+     une fete. Sans correction il fallait renoncer a la cadence et retaper les
+     douze dates a la main : l'outil ne servait plus a rien des la premiere
+     exception.
+
+     LA CLE EST LA DATE PROPOSEE, jamais la date corrigee : sinon la cle
+     changerait a chaque frappe et la correction se perdrait sous les doigts. */
+  const [datesCorrigees, setDatesCorrigees] = useState<Record<string, string>>({});
+  const [heuresCorrigees, setHeuresCorrigees] = useState<Record<string, string>>({});
   /* LE RETRAIT SE CONFIRME DANS LA PAGE, en deux temps. `window.confirm` se
      tait quand le navigateur bloque les dialogues, et le bouton passait pour
      mort : c'est ce qui était arrivé à « Écarter », dans Accès & personnel. */
@@ -121,10 +146,19 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       const dates = datesDeLaCadence({
         departIso: depart, semaines, jusquIso: jusqu || `${an}-12-31`,
       });
+      /* La correction de la main passe AVANT le garde du doublon : c'est la
+         date corrigee qui doit etre confrontee au carnet, pas celle que le
+         rythme avait proposee. */
+      const proposees = new Map(dates.map((d) => [datesCorrigees[d] ?? d, d] as const));
       const vus = apercuDeLaSerie({
-        dates: dates.map((d) => ({ iso: d })), clientId: tete.id, heureParDefaut: heure, dejaPoses: appts,
+        dates: dates.map((d) => ({ iso: datesCorrigees[d] ?? d, heure: heuresCorrigees[d] })),
+        clientId: tete.id, heureParDefaut: heure, dejaPoses: appts,
       });
-      return vus.map((v) => ({ ...fait({ iso: v.iso, heure: v.heure, brut: v.iso }, tete, svs), dejaAuCarnet: v.dejaAuCarnet }));
+      return vus.map((v) => ({
+        ...fait({ iso: v.iso, heure: v.heure, brut: v.iso }, tete, svs),
+        dejaAuCarnet: v.dejaAuCarnet,
+        origine: proposees.get(v.iso) ?? v.iso,
+      }));
     }
 
     if (mode === 'liste') {
@@ -157,13 +191,93 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       const svs = prestationsDe(ids);
       const dejaLa = !!c && !!l.iso && appts.some((a) => a.clientId === c.id && a.date === l.iso && a.status !== 'annulé');
       const base = fait({ iso: l.iso, heure: l.heure, brut: l.brut }, c, svs);
-      return { ...base, cle: `${l.iso ?? l.brut}-${c?.id ?? 'x'}`, dejaAuCarnet: dejaLa, ambigu: candidats.length > 1 } as Ligne & { ambigu?: boolean };
+      return {
+        ...base,
+        cle: `${l.iso ?? l.brut}-${c?.id ?? 'x'}`,
+        dejaAuCarnet: dejaLa,
+        /* Le nom TAPE, pas le nom aplati : c'est celui-la qu'on inscrira sur
+           la fiche si la Maison demande de la creer. */
+        nom: (l.reste ?? '').trim() || undefined,
+        ambigu: candidats.length > 1,
+      };
     });
-  }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire, prixParLigne, habitudes, branch.id]);
+  }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire,
+    prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees]);
 
   const posables = lignes.filter((l) => l.iso && l.client && l.services.length > 0 && !l.dejaAuCarnet && l.cochee);
   const total = posables.reduce((n, l) => n + l.prixXof, 0);
   const caisse = caisseDeLaReprise(an);
+
+  /* ══ CREER UNE TETE DEPUIS LA SAISIE — 5 septembre 2026 ═══════════
+     « Permets-moi de creer un client depuis ici » (Yeman).
+
+     REPRENDRE UNE ANNEE FAIT REMONTER DES TETES QUI NE SONT PAS AU CARNET :
+     celles qui ne sont plus venues, celles qui n'ont jamais ete inscrites.
+     Sortir de la saisie, ouvrir Clientes, creer, revenir, retrouver sa ligne —
+     trois fois de suite et l'on abandonne l'annee.
+
+     ON NE DOUBLE JAMAIS UNE FICHE. Si le nom repond deja a une tete, on rend
+     CELLE-LA plutot que d'en ouvrir une seconde : c'est la lecon de la Jade en
+     double, le 14 aout.
+
+     SA DATE D'ENTREE EST CELLE DE SON PREMIER RITUEL CONNU, pas aujourd'hui.
+     Une tete creee en reprenant 2025 est cliente depuis 2025 ; la dater
+     d'aujourd'hui ferait d'elle une nouvelle venue dans tous les comptes. */
+  const creeUneTete = (nomBrut: string, premierIso?: string): Client | null => {
+    const nom = nomBrut.trim().replace(/\s+/g, ' ');
+    if (nom === '') return null;
+    const plat = normName(nom);
+    const deja = clients.find((c) => c.branchId === branch.id && !c.archived && normName(c.name) === plat);
+    if (deja) return deja;
+    const c: Client = {
+      id: `cl-${uid()}`,
+      branchId: branch.id,
+      name: nom,
+      phone: '',
+      city: branch.city ?? '',
+      persona: ensureInitiePersona(),
+      since: premierIso ?? todayISO(),
+      segments: [],
+      priceCoef: 1,
+      loyaltyPoints: 0,
+    };
+    clientsStore.set((prev) => [...prev, c]);
+    return c;
+  };
+
+  /* LES NOMS QUI NE REPONDENT A PERSONNE, dans l'ordre du temps, avec la date
+     de leur premiere venue. Un nom ambigu n'y entre PAS : deux tetes le
+     portent deja, en creer une troisieme serait le contraire de ce qu'il
+     faut. */
+  const tetesManquantes = useMemo(() => {
+    const par = new Map<string, { nom: string; premierIso?: string }>();
+    for (const l of lignes) {
+      if (l.client || l.ambigu || !l.nom) continue;
+      const cle = normName(l.nom);
+      const vue = par.get(cle);
+      if (!vue) { par.set(cle, { nom: l.nom, premierIso: l.iso }); continue; }
+      if (l.iso && (!vue.premierIso || l.iso < vue.premierIso)) vue.premierIso = l.iso;
+    }
+    return [...par.values()];
+  }, [lignes]);
+
+  const creeLesManquantes = () => {
+    let n = 0;
+    for (const t of tetesManquantes) if (creeUneTete(t.nom, t.premierIso)) n += 1;
+    toast(n > 1 ? `${n} tetes ouvertes au carnet.` : 'La tete est ouverte au carnet.');
+  };
+
+  /* Le petit formulaire d'une tete neuve, pour les modes a une seule tete. */
+  const [nouvelleTete, setNouvelleTete] = useState('');
+  const [ouvreLaTete, setOuvreLaTete] = useState(false);
+  const poseLaNouvelleTete = () => {
+    const c = creeUneTete(nouvelleTete);
+    if (!c) return;
+    setClientId(c.id);
+    setNouvelleTete('');
+    setOuvreLaTete(false);
+    toast(`${c.name} est au carnet.`);
+  };
 
   const basculer = (cle: string) => setRetire((prev) => {
     const n = new Set(prev);
@@ -264,7 +378,36 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
           </Field>
           {!teteDuMois && (
             <Field label="La tête">
-              <ClientPicker value={clientId} onChange={setClientId} />
+              {ouvreLaTete ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Input
+                    autoFocus
+                    value={nouvelleTete}
+                    placeholder="Son nom"
+                    aria-label="Le nom de la nouvelle tête"
+                    onChange={(e) => setNouvelleTete(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); poseLaNouvelleTete(); }
+                      if (e.key === 'Escape') { setOuvreLaTete(false); setNouvelleTete(''); }
+                    }}
+                  />
+                  <Button variant="copper" style={{ flex: 'none' }} disabled={nouvelleTete.trim() === ''} onClick={poseLaNouvelleTete}>
+                    Ouvrir
+                  </Button>
+                </div>
+              ) : (
+                <ClientPicker value={clientId} onChange={setClientId} />
+              )}
+              <button
+                type="button"
+                onClick={() => { setOuvreLaTete((v) => !v); setNouvelleTete(''); }}
+                style={{
+                  marginTop: 5, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+                  fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
+                }}
+              >
+                {ouvreLaTete ? 'Chercher au carnet' : '+ Une tête qui n’y est pas'}
+              </button>
             </Field>
           )}
           <Field label="Le maître">
@@ -365,7 +508,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
         {mode === 'cadence' && (
           <div className="tr-grid tr-grid--4" style={{ gap: 10 }}>
             <Field label="Première venue">
-              <Input type="date" value={depart} onChange={(e) => setDepart(e.target.value)} />
+              <ChampDeDate value={depart} onChange={setDepart} anneeParDefaut={an} ariaLabel="Sa premiere venue" />
             </Field>
             <Field label="Rythme">
               <Select value={String(semaines)} onChange={(e) => setSemaines(Number(e.target.value))}>
@@ -376,7 +519,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
               <Input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} />
             </Field>
             <Field label="Jusqu’au">
-              <Input type="date" value={jusqu || `${an}-12-31`} onChange={(e) => setJusqu(e.target.value)} />
+              <ChampDeDate value={jusqu || `${an}-12-31`} onChange={setJusqu} anneeParDefaut={an} ariaLabel="La derniere venue" />
             </Field>
           </div>
         )}
@@ -399,6 +542,29 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
               {teteDuMois && ' Le nom peut être avant ou après la date, et son rituel habituel suit.'}
             </div>
           </Field>
+        )}
+
+        {/* LES TÊTES QUI MANQUENT S'OUVRENT ENSEMBLE — reprendre une année fait
+            remonter des têtes qui ne sont pas au carnet : celles qui ne sont
+            plus venues, celles qui n'ont jamais été inscrites. Trois noms,
+            trois allers-retours vers Clientes, et l'on renonce à l'année. */}
+        {!enRetrait && tetesManquantes.length > 0 && (
+          <div
+            style={{
+              display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+              border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)',
+              borderRadius: 3, background: 'var(--copper-50, #F9EFE7)', padding: '10px 12px',
+            }}
+          >
+            <span style={{ fontSize: 12.5, color: 'var(--color-indigo)', lineHeight: 1.5 }}>
+              {tetesManquantes.length === 1
+                ? <>« {tetesManquantes[0].nom} » n’est pas au carnet.</>
+                : <>{tetesManquantes.length} têtes ne sont pas au carnet : {tetesManquantes.map((t) => t.nom).join(' · ')}.</>}
+            </span>
+            <Button variant="ghost" style={{ flex: 'none', marginLeft: 'auto' }} onClick={creeLesManquantes}>
+              Ouvrir {tetesManquantes.length > 1 ? `les ${tetesManquantes.length} fiches` : 'sa fiche'}
+            </Button>
+          </div>
         )}
 
         {/* ══ L'APERÇU — rien ne s'écrit avant qu'on ait vu ═══════════════ */}
@@ -425,13 +591,66 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', color: ko ? 'var(--trv-error, #96412E)' : undefined }}>
                         {/* LE JOUR DE LA SEMAINE RELIT POUR VOUS : si le cahier
                             dit samedi et l'écran vendredi, l'erreur saute aux
-                            yeux avant d'être écrite. */}
-                        {l.iso ? `${frShortAn(l.iso)} · ${l.heure}` : l.brut}
+                            yeux avant d'être écrite. Il reste affiché MÊME
+                            quand la date se corrige : c'est lui la relecture,
+                            pas le champ. */}
+                        {mode === 'cadence' && l.iso && l.origine ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <span>{frShortAn(l.iso)}</span>
+                            <div style={{ display: 'flex', gap: 5 }}>
+                              <Input
+                                type="date"
+                                value={l.iso}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setDatesCorrigees((prev) => ({ ...prev, [l.origine!]: v || l.origine! }));
+                                }}
+                                aria-label="Le jour de ce rituel"
+                                style={{ padding: '3px 6px', fontSize: 11.5, width: 128 }}
+                              />
+                              <Input
+                                type="time"
+                                value={l.heure}
+                                onChange={(e) => setHeuresCorrigees((prev) => ({ ...prev, [l.origine!]: e.target.value }))}
+                                aria-label="L’heure de ce rituel"
+                                style={{ padding: '3px 6px', fontSize: 11.5, width: 92 }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          l.iso ? `${frShortAn(l.iso)} · ${l.heure}` : l.brut
+                        )}
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)' }}>
-                        {ko
-                          ? (!l.iso ? 'Date illisible' : !l.client ? 'Tête introuvable' : 'Aucune prestation')
-                          : <>{l.client!.name} · {l.services.map((s) => s.name).join(' + ')}</>}
+                        {ko ? (
+                          !l.iso ? 'Date illisible'
+                            : !l.client ? (
+                              /* UNE TÊTE INTROUVABLE S'OUVRE D'ICI — sortir de la
+                                 saisie pour créer une fiche, revenir, retrouver sa
+                                 ligne, trois fois de suite, et l'on abandonne
+                                 l'année. Un nom AMBIGU ne s'ouvre pas : deux têtes
+                                 le portent déjà, en créer une troisième serait le
+                                 contraire de ce qu'il faut. */
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+                                {l.ambigu
+                                  ? <>« {l.nom} » désigne deux têtes, précisez</>
+                                  : <>Tête introuvable{l.nom ? <> · « {l.nom} »</> : null}</>}
+                                {!l.ambigu && l.nom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { const c = creeUneTete(l.nom!, l.iso); if (c) toast(`${c.name} est au carnet.`); }}
+                                    style={{
+                                      cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+                                      fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)', textDecoration: 'underline',
+                                    }}
+                                  >
+                                    Ouvrir sa fiche
+                                  </button>
+                                )}
+                              </span>
+                            )
+                              : 'Aucune prestation'
+                        ) : <>{l.client!.name} · {l.services.map((s) => s.name).join(' + ')}</>}
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
                         {!ko && (

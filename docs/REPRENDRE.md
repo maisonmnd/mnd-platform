@@ -83,6 +83,57 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### Le champ de date de la Maison — 5 septembre 2026
+
+« Sélectionner une date depuis le calendrier n'est pas facile. Ouverture du
+calendrier et les années à choisir sont à revisiter » (Yéman).
+
+**Le calendrier du navigateur est fait pour demain, pas pour l'an dernier.** Il
+s'ouvre sur le mois courant et se remonte mois par mois : reprendre janvier 2025
+en septembre 2026, c'est vingt clics sur une flèche, une fois par rendez-vous.
+
+`ChampDeDate` (`routes/clients/_shared.tsx`) : **on tape la date**, comme on la
+lit dans un cahier, avec **le même lecteur que la saisie en série**
+(`litUneLigne`, éprouvé par `verifie-serie`) — une seule écriture à apprendre.
+Sous le champ, la date rendue **avec son jour de la semaine** : si le cahier dit
+samedi et l'écran vendredi, l'erreur saute aux yeux.
+
+**L'année ne se devine jamais.** Quand elle n'est pas tapée, les trois années
+possibles s'offrent en clair et la Maison clique. Décider à sa place décalerait
+un rituel de douze mois, et personne ne le verrait avant les chiffres de fin
+d'exercice. Le calendrier reste, replié sous « Le calendrier ».
+
+Posé sur **la date d'un rendez-vous** et sur **les deux bornes de la cadence**.
+Les 68 autres `type="date"` du Trône n'y sont pas encore passés.
+
+### Créer une tête depuis la saisie — 5 septembre 2026
+
+Reprendre une année fait remonter des têtes qui ne sont pas au carnet. Trois
+noms, trois allers-retours vers Clientes, et l'on renonce à l'année.
+
+Un bandeau nomme celles qui manquent et les ouvre **toutes ensemble** ; chaque
+ligne rouge porte aussi son « Ouvrir sa fiche ». Les modes à une seule tête ont
+« + Une tête qui n'y est pas », à côté du sélecteur.
+
+**On ne double jamais une fiche** : si le nom répond déjà à une tête, c'est
+celle-là qu'on rend (leçon de la Jade en double, 14 août). **Un nom ambigu ne
+s'ouvre pas** : deux têtes le portent, en créer une troisième serait le
+contraire de ce qu'il faut. Et **sa date d'entrée est celle de son premier
+rituel connu**, pas aujourd'hui : une tête créée en reprenant 2025 est cliente
+depuis 2025.
+
+### Les dates de la cadence se corrigent — 5 septembre 2026
+
+**Un rythme est une approximation, pas un compte rendu.** Toutes les huit
+semaines donne le bon squelette d'une année, mais elle est venue le jeudi au
+lieu du mercredi, elle a sauté une fois, elle est revenue plus tôt avant une
+fête. Sans correction il fallait renoncer à la cadence dès la première
+exception.
+
+Chaque ligne de l'aperçu porte son jour et son heure, modifiables. **La clé de
+la correction est la date PROPOSÉE**, jamais la corrigée : sinon la clé
+changerait à chaque frappe et la correction se perdrait sous les doigts.
+
 ### La marche arrière — 5 septembre 2026
 
 Quatrième onglet de la même modale : **« Les séries posées »**. Chaque série s'y

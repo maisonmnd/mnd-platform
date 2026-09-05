@@ -27,6 +27,7 @@ import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
+import { litUneLigne } from '../../../../shared/serie';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
@@ -100,6 +101,151 @@ export const frShortAn = (iso: string) =>
     année — l'observation vieillit d'un an et demi sans qu'on le voie. */
 export const frJourAn = (iso: string) =>
   (dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
+/* ══ LE CHAMP DE DATE DE LA MAISON — 5 septembre 2026 ══════════════════
+   « Sélectionner une date depuis le calendrier n'est pas facile. Ouverture du
+   calendrier et les années à choisir sont à revisiter » (Yéman).
+
+   LE CALENDRIER DU NAVIGATEUR EST FAIT POUR DEMAIN, PAS POUR L'AN DERNIER.
+   Il s'ouvre sur le mois courant et se remonte mois par mois : reprendre
+   janvier 2025 en septembre 2026, c'est vingt clics sur une flèche, une fois
+   par rendez-vous. On abandonne avant la dixième ligne.
+
+   ON TAPE LA DATE, ON NE LA CHERCHE PAS. Et on la tape comme on la lit dans un
+   cahier : « 14/02 », « 14-02-25 », « 14 février », « 14 févr. 2025 ». C'est le
+   MÊME lecteur que la saisie en série (`litUneLigne`, éprouvé par
+   `verifie-serie`) — une seule écriture à apprendre pour toute la Maison.
+
+   ET ON RELIT CE QU'ON A ÉCRIT. Sous le champ, la date rendue en toutes
+   lettres avec SON JOUR DE LA SEMAINE : si le cahier dit samedi et l'écran
+   vendredi, l'erreur saute aux yeux avant d'être écrite.
+
+   L'ANNÉE NE SE DEVINE JAMAIS. Quand elle n'est pas tapée, les années
+   possibles s'offrent en toutes lettres, et la Maison clique : décider à sa
+   place décalerait un rituel de douze mois, et personne ne le verrait avant
+   les chiffres de fin d'exercice.
+
+   LE CALENDRIER RESTE, replié. Certains gestes se font mieux à l'œil — poser
+   une reprise « le samedi d'après ». Il ne s'impose simplement plus. */
+export function ChampDeDate({
+  value,
+  onChange,
+  anneeParDefaut,
+  ariaLabel = 'La date',
+  autoFocus = false,
+}: {
+  /** La date en ISO, ou '' quand rien n'est encore posé. */
+  value: string;
+  onChange: (iso: string) => void;
+  /** L'année qu'on suppose quand elle n'est pas tapée. Défaut : cette année. */
+  anneeParDefaut?: number;
+  ariaLabel?: string;
+  autoFocus?: boolean;
+}) {
+  const anneeCourante = new Date().getFullYear();
+  const [annee, setAnnee] = useState(anneeParDefaut ?? anneeCourante);
+  /* La frappe vit à part de la valeur : une date à moitié tapée n'est pas une
+     date, et l'effacer sous les doigts pour « corriger » serait insupportable. */
+  const [saisie, setSaisie] = useState('');
+  const [calendrier, setCalendrier] = useState(false);
+  /* Ce que le champ a lui-même émis — pour reconnaître une valeur venue du
+     dehors et se resynchroniser sans écraser une frappe en cours. */
+  const emis = useRef('');
+
+  useEffect(() => { setAnnee(anneeParDefaut ?? anneeCourante); }, [anneeParDefaut, anneeCourante]);
+  useEffect(() => {
+    if (value === emis.current) return;
+    emis.current = value;
+    setSaisie(value ? frJourAn(value) : '');
+  }, [value]);
+
+  const lu = saisie.trim() === '' ? undefined : litUneLigne(saisie, annee);
+  const iso = lu?.iso;
+  /* L'ANNÉE A-T-ELLE ÉTÉ TAPÉE ? On lit la même ligne avec une année absurde :
+     si le résultat la porte, c'est qu'elle venait du défaut, pas de la main. */
+  const anneeSupposee = saisie.trim() !== ''
+    && litUneLigne(saisie, 1904).iso?.slice(0, 4) === '1904';
+
+  const pose = (texte: string, an = annee) => {
+    setSaisie(texte);
+    const nouveau = litUneLigne(texte, an).iso;
+    if (nouveau && nouveau !== value) { emis.current = nouveau; onChange(nouveau); }
+    if (texte.trim() === '' && value !== '') { emis.current = ''; onChange(''); }
+  };
+
+  if (calendrier) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Input
+          type="date"
+          value={value}
+          onChange={(e) => { emis.current = e.target.value; onChange(e.target.value); }}
+          aria-label={ariaLabel}
+        />
+        <button
+          type="button"
+          onClick={() => setCalendrier(false)}
+          style={{
+            alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+            font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
+          }}
+        >
+          Taper la date
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Input
+        value={saisie}
+        autoFocus={autoFocus}
+        placeholder="14/02/2025 · 14 février · 14-02-25"
+        aria-label={ariaLabel}
+        onChange={(e) => pose(e.target.value)}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: 11.5,
+            color: saisie.trim() === '' ? 'var(--ink-soft)' : (iso ? 'var(--ink)' : 'var(--trv-error, #96412E)'),
+          }}
+        >
+          {saisie.trim() === '' ? 'Rien de posé' : (iso ? frShortAn(iso) : 'Cette date ne se lit pas')}
+        </span>
+        {/* LES ANNÉES POSSIBLES, en toutes lettres. Elles ne paraissent que
+            lorsque l'année n'a pas été tapée : offrir un choix déjà fait
+            n'aide personne. */}
+        {anneeSupposee && iso && [annee, annee - 1, annee - 2].map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => { setAnnee(a); pose(saisie, a); }}
+            style={{
+              cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
+              border: `1px solid ${a === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
+              background: a === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
+              color: a === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
+            }}
+          >
+            {a}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCalendrier(true)}
+          style={{
+            marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
+            font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
+          }}
+        >
+          Le calendrier
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export const timeToMin = (t: string) => {
   const [h, m] = t.split(':').map(Number);
@@ -2882,7 +3028,11 @@ export function RdvModal({
         <PalierRdv n={3} titre="Le moment" />
         <div className="tr-grid tr-grid--2" style={{ marginTop: -8 }}>
           <Field label="Date">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            {/* ON TAPE LA DATE, ON NE LA CHERCHE PAS. Le calendrier du
+                navigateur s'ouvre sur le mois courant : poser un rituel de
+                janvier 2025 en septembre 2026, c'est vingt clics sur une
+                fleche. Il reste offert, replie, sous « Le calendrier ». */}
+            <ChampDeDate value={date} onChange={setDate} ariaLabel="Le jour du rituel" />
           </Field>
           <Field label="Heure">
             <Select value={time} onChange={(e) => setTime(e.target.value)}>
