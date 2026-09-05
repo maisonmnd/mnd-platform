@@ -6,7 +6,7 @@
    d'exercice quand les chiffres ne tombent plus. */
 import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
-  habitudesDeLaTete, habitudesParTete,
+  habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -152,6 +152,46 @@ dit('la liste se coupe', 1, habitudesDeLaTete(carnet, 'cl-1', 1).length);
 /* UNE SEULE PASSE POUR TOUTES LES TÊTES — le mode « plusieurs têtes, un mois »
    lit ce même tableau pour retrouver le rituel de chaque nom. */
 dit('toutes les têtes en une passe', 2, habitudesParTete(carnet).size);
+
+/* ── ⑨ LA MARCHE ARRIÈRE ──────────────────────────────────────────
+   Poser trente rituels d'un geste et devoir les retirer un par un serait pire
+   que de ne rien avoir posé. */
+const mA = marqueDeLaSerie('aaa');
+const mB = marqueDeLaSerie('bbb');
+const regle = (marque: string, xof: number) => ({ note: marque, amountXof: xof, cashbox: 'Reprise 2025' });
+const pose = [
+  { id: 'ap-1', clientName: 'S. L.', date: '2025-01-10', creeLe: '2026-09-05T10:00:00Z', payments: [regle(mA, 60000)] },
+  { id: 'ap-2', clientName: 'S. L.', date: '2025-03-07', creeLe: '2026-09-05T10:00:00Z', payments: [regle(mA, 60000)] },
+  /* FACTURÉ DEPUIS : le retirer laisserait une pièce numérotée qui ne désigne
+     plus rien. */
+  { id: 'ap-3', clientName: 'S. L.', date: '2025-05-02', creeLe: '2026-09-05T10:00:00Z', invoiceId: 'FA-1', payments: [regle(mA, 60000)] },
+  /* UN AUTRE RÈGLEMENT S'Y EST AJOUTÉ : ce n'est plus ce qu'on avait posé. */
+  { id: 'ap-4', clientName: 'M. A.', date: '2025-06-27', creeLe: '2026-09-05T10:00:00Z', payments: [regle(mA, 60000), { note: 'appoint', amountXof: 5000 }] },
+  /* UNE AUTRE SÉRIE, posée après. */
+  { id: 'ap-5', clientName: 'A. L.', date: '2025-02-14', creeLe: '2026-09-05T18:00:00Z', payments: [{ note: mB, amountXof: 45000, cashbox: 'Reprise 2025' }] },
+  /* ET UN RITUEL ORDINAIRE, qui n'appartient à aucune série. */
+  { id: 'ap-6', clientName: 'X. Y.', date: '2026-09-01', payments: [{ note: 'Espèces', amountXof: 20000 }] },
+];
+const series = seriesPosees(pose);
+dit('deux séries reconnues', 2, series.length);
+/* LA PLUS RÉCENTE D'ABORD : c'est celle qu'on vient de poser qu'on veut défaire. */
+dit('… la plus récente d’abord', mB, series[0].marque);
+const sA = series.find((s) => s.marque === mA)!;
+dit('quatre rituels dans la série', 4, sA.rituels);
+dit('… deux se retirent', ['ap-1', 'ap-2'], sA.retirables);
+dit('… deux sont retenus', 2, sA.retenus.length);
+dit('… la facture est nommée', 'une facture a été émise', sA.retenus.find((r) => r.id === 'ap-3')?.pourquoi);
+dit('… l’autre règlement aussi', 'un autre règlement s’y est ajouté', sA.retenus.find((r) => r.id === 'ap-4')?.pourquoi);
+/* LE TOTAL COMPTE CE QUE LA SÉRIE A POSÉ, pas l'appoint venu après. */
+dit('le total ne compte que ses règlements', 240000, sA.totalXof);
+dit('l’année vient de la caisse', 2025, sA.annee);
+dit('les bornes du temps', ['2025-01-10', '2025-06-27'], [sA.duIso, sA.auIso]);
+dit('les têtes, sans doublon', ['M. A.', 'S. L.'], sA.tetes);
+/* UN RITUEL ORDINAIRE N'APPARTIENT À AUCUNE SÉRIE : il ne doit jamais entrer
+   dans un retrait en masse. */
+dit('le rituel ordinaire reste dehors', false,
+  series.some((s) => s.retirables.includes('ap-6') || s.retenus.some((r) => r.id === 'ap-6')));
+dit('aucune série, aucune ligne', 0, seriesPosees([pose[5]]).length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

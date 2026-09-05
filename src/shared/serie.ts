@@ -279,3 +279,85 @@ export const caisseDeLaReprise = (annee: number): string => `Reprise ${annee}`;
 /** La marque que porte tout ce qu'une série pose — elle rend le retrait
     possible. Une saisie en masse sans marche arrière est un pari. */
 export const marqueDeLaSerie = (id: string): string => `serie:${id}`;
+
+/* ── LA MARCHE ARRIÈRE ──────────────────────────────────────────────
+   Poser trente rituels d'un geste et devoir les retirer un par un serait pire
+   que de ne rien avoir posé : on renoncerait à la reprise plutôt que de risquer
+   une erreur. La marque écrite sur chaque règlement se relit ici.
+
+   MAIS ON NE RETIRE JAMAIS CE QUI A VÉCU DEPUIS. Un rituel facturé, ou sur
+   lequel un autre règlement s'est ajouté, n'appartient plus à la série : il
+   appartient à la Maison. On le garde, et on dit pourquoi — un retrait
+   silencieux qui emporterait une facture serait un trou dans le registre que
+   personne ne verrait passer. */
+
+export type RituelDeSerie = {
+  id: string;
+  clientName?: string;
+  date: string;
+  creeLe?: string;
+  invoiceId?: string;
+  payments?: readonly { note?: string; amountXof?: number; cashbox?: string }[];
+};
+
+export type SeriePosee = {
+  marque: string;
+  caisse?: string;
+  annee: number;
+  /** Ce qui se retire d'un geste. */
+  retirables: string[];
+  /** Ce qui reste, et la raison — jamais un silence. */
+  retenus: { id: string; quoi: string; pourquoi: string }[];
+  rituels: number;
+  totalXof: number;
+  duIso: string;
+  auIso: string;
+  tetes: string[];
+  poseeLe?: string;
+};
+
+const marqueDe = (a: RituelDeSerie): string | undefined =>
+  (a.payments ?? []).map((p) => p.note).find((n): n is string => !!n && n.startsWith('serie:'));
+
+/** LES SÉRIES POSÉES, la plus récente d'abord. */
+export function seriesPosees(appts: readonly RituelDeSerie[]): SeriePosee[] {
+  const par = new Map<string, SeriePosee>();
+  for (const a of appts) {
+    const marque = marqueDe(a);
+    if (!marque) continue;
+    const siens = (a.payments ?? []).filter((p) => p.note === marque);
+    let s = par.get(marque);
+    if (!s) {
+      s = {
+        marque, caisse: siens[0]?.cashbox, annee: 0,
+        retirables: [], retenus: [], rituels: 0, totalXof: 0,
+        duIso: a.date, auIso: a.date, tetes: [], poseeLe: a.creeLe,
+      };
+      par.set(marque, s);
+    }
+    s.rituels += 1;
+    s.totalXof += siens.reduce((n, p) => n + Math.max(0, Math.round(p.amountXof ?? 0)), 0);
+    if (a.date < s.duIso) s.duIso = a.date;
+    if (a.date > s.auIso) s.auIso = a.date;
+    if (a.clientName && !s.tetes.includes(a.clientName)) s.tetes.push(a.clientName);
+    if (a.creeLe && (!s.poseeLe || a.creeLe < s.poseeLe)) s.poseeLe = a.creeLe;
+    /* UNE FACTURE ÉMISE N'EST PLUS UNE LIGNE DE SÉRIE : la retirer laisserait
+       une pièce numérotée qui ne désigne plus rien. */
+    if (a.invoiceId) {
+      s.retenus.push({ id: a.id, quoi: a.date, pourquoi: 'une facture a été émise' });
+    } else if ((a.payments ?? []).some((p) => p.note !== marque)) {
+      /* UN AUTRE RÈGLEMENT S'Y EST AJOUTÉ : quelqu'un a repris ce rituel à la
+         main depuis. Ce n'est plus ce qu'on avait posé. */
+      s.retenus.push({ id: a.id, quoi: a.date, pourquoi: 'un autre règlement s’y est ajouté' });
+    } else {
+      s.retirables.push(a.id);
+    }
+  }
+  for (const s of par.values()) {
+    const m = /(\d{4})/.exec(s.caisse ?? '');
+    s.annee = m ? Number(m[1]) : Number(s.duIso.slice(0, 4));
+    s.retirables.sort();
+    s.tetes.sort((a, b) => a.localeCompare(b, 'fr'));
+  }
+  return [...par.values()].sort((a, b) => (b.poseeLe ?? b.auIso).localeCompare(a.poseeLe ?? a.auIso));
+}

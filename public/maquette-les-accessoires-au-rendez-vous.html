@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les accessoires au rendez-vous · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;--sable:#E8DFCE;
+    --indigo:#1E2150;--indigo-2:#3A3F72;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#746F65;--filet:#D9CFBC;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;
+    --vert:#4A6B52;--vert-f:#EFF3EF;--vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1120px;margin:0 auto;padding:56px 24px 110px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,60px);line-height:1.04;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(23px,3vw,32px);color:var(--indigo);
+     margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+  .chapeau{max-width:66ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:58px}
+  .intro{max-width:76ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+  .legende{font-size:12.5px;color:var(--encre-d);margin:12px 0 0;max-width:80ch}
+  .legende b{color:var(--encre);font-weight:500}
+  .cite{border-left:2px solid var(--cuivre);padding:2px 0 2px 16px;margin:0 0 30px;
+        font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--indigo);max-width:64ch}
+  .cite span{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--encre-d);margin-top:8px}
+
+  .ecran{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);overflow:hidden}
+  .ecran__tete{background:var(--indigo);color:#EFEAE0;padding:14px 20px}
+  .ecran__tete h4{font-family:var(--serif);font-weight:400;font-size:22px;color:#fff;margin:0}
+  .ecran__tete span{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-p)}
+  .ecran__corps{padding:19px 21px}
+
+  .lab{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:5px}
+  .champ{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:9px 12px;
+         font-family:var(--sans);font-size:14px;color:var(--encre);width:100%}
+  .rang{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .rang>div{flex:1 1 180px;min-width:0}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);
+       font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;cursor:default}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+
+  /* La ligne d'une prestation ou d'un accessoire, telle qu'elle vit dans la
+     composition du rituel. */
+  .ligne{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:12px 14px}
+  .ligne+.ligne{margin-top:9px}
+  .ligne--gamme{border-color:var(--cuivre-p);background:var(--cuivre-f)}
+  .ligne__tete{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .ligne__nom{font-size:14.5px;color:var(--indigo)}
+  .ligne__prix{margin-left:auto;font-variant-numeric:tabular-nums;font-size:14px}
+  .ligne__sous{border-top:1px solid var(--filet);margin-top:9px;padding-top:9px;
+               display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12px;color:var(--encre-d)}
+  .ligne__sous b{color:var(--cuivre);font-weight:500}
+  .qte{display:inline-flex;align-items:center;border:1px solid var(--filet);border-radius:3px;background:#fff}
+  .qte i{font-style:normal;padding:3px 9px;color:var(--encre-d)}
+  .qte em{font-style:normal;padding:3px 11px;border-left:1px solid var(--filet);border-right:1px solid var(--filet);
+          font-variant-numeric:tabular-nums;color:var(--encre)}
+  .tx{border:1px solid var(--filet);border-radius:3px;background:#fff;font-size:11px;
+      padding:4px 9px;color:var(--encre-d)}
+  .tx.on{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+
+  .pastille{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:100px;
+            border:1px solid var(--vert-p);background:var(--vert-f);color:var(--vert)}
+  .pastille--ko{border-color:var(--brique-p);background:var(--brique-f);color:var(--brique)}
+  .pastille--g{border-color:var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre)}
+
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #EDE5D6}
+  th{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);font-weight:500}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  tr.tot td{border-bottom:none;font-weight:500;color:var(--indigo)}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.duo{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .carte+.carte{margin-top:14px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+  .alerte{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;padding:16px 18px;max-width:78ch}
+  .alerte b{color:var(--brique)}
+  .arb{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .arb+.arb{margin-top:14px}
+  .arb h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 8px}
+  .arb p{margin:0 0 9px;font-size:13.5px;color:var(--encre-d)}
+  .arb p b{color:var(--encre);font-weight:500}
+  .arb .prop{border-left:2px solid var(--cuivre);padding-left:13px;font-size:13.5px;color:var(--encre)}
+  .arb .prop u{text-decoration:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+               color:var(--cuivre);display:block;margin-bottom:3px}
+  code{font-family:'Jost',monospace;background:var(--indigo-pale);padding:1px 6px;border-radius:2px;font-size:13px}
+  footer{margin-top:78px;padding-top:22px;border-top:1px solid var(--filet);
+         font-family:var(--serif);font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · Maquette à valider</p>
+  <h1>Les accessoires<br>au rendez-vous.</h1>
+  <p class="chapeau">
+    La Gamme ne vit qu'au comptoir. <b>Un produit réservé avec un rituel n'existe nulle part
+    avant que la cliente soit devant vous</b>, et ce qu'elle avait demandé trois semaines plus tôt
+    ne tient que dans une mémoire.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Comment je gère les remises sur les RDV, les forfaits et les accessoires
+    avant le paiement d'un rituel ?
+    <span>Yéman · 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① CE QUI MANQUE ═══ -->
+  <section>
+    <h2>① Ce qui manque aujourd'hui.</h2>
+    <p class="intro">
+      Les remises, vous les tenez déjà : sur chaque geste, sur le rituel entier, ou par un forfait
+      négocié. <b>Les accessoires, non.</b> La Gamme DÒDÒ n'apparaît qu'à La Caisse, le jour du
+      règlement. Entre la promesse et le comptoir, rien ne la porte.
+    </p>
+    <div class="alerte">
+      <b>Ce que ça coûte.</b> Une huile promise à la réservation se perd si vous n'êtes pas là ce
+      jour-là. Le stock ne sait pas qu'elle est attendue. Et le total annoncé à la cliente au
+      téléphone n'est pas celui que le Trône affiche, donc personne ne peut le vérifier.
+    </div>
+  </section>
+
+  <!-- ═══ ② OÙ ÇA SE POSE ═══ -->
+  <section>
+    <h2>② Où ça se pose.</h2>
+    <p class="intro">
+      Dans la composition du rituel, <b>sous les gestes</b>, une section « La Gamme ». Même geste que
+      pour une prestation : on ajoute, on remise, on retire. Rien de nouveau à apprendre.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <span>Le rendez-vous · Sam. 26 septembre 2026 · 11:00</span>
+        <h4>Adjaratou Lawani</h4>
+      </div>
+      <div class="ecran__corps">
+
+        <span class="lab">Le rituel</span>
+        <div class="ligne">
+          <div class="ligne__tete">
+            <span class="ligne__nom">SÍNSIN Élaborée · La Reprise Longue Durée</span>
+            <span class="ligne__prix">45 000 F</span>
+          </div>
+          <div class="ligne__sous">Au prix annoncé <span style="margin-left:auto;color:var(--cuivre)">Remiser cette prestation</span></div>
+        </div>
+        <div class="ligne">
+          <div class="ligne__tete">
+            <span class="ligne__nom">KLƆKLƆ Signature · Le Shampoing « L'Ancrage »</span>
+            <span class="ligne__prix">15 000 F</span>
+          </div>
+          <div class="ligne__sous"><b>Offert</b> · le geste de la Maison, parce qu'une Reprise est au rituel</div>
+        </div>
+
+        <span class="lab" style="margin-top:20px">La Gamme · ce qu'elle emporte</span>
+        <div class="ligne ligne--gamme">
+          <div class="ligne__tete">
+            <span class="ligne__nom">DÒDÒ™ · Huile de racines</span>
+            <span class="pastille">il en reste 6</span>
+            <span class="ligne__prix">2 × 12 500 F</span>
+          </div>
+          <div class="ligne__sous">
+            <span class="qte"><i>−</i><em>2</em><i>+</i></span>
+            <span class="tx">−5%</span><span class="tx on">−10%</span><span class="tx">−15%</span>
+            <span style="margin-left:auto">Remise · <b>22 500 F</b> au lieu de 25 000 F</span>
+          </div>
+        </div>
+        <div class="ligne ligne--gamme">
+          <div class="ligne__tete">
+            <span class="ligne__nom">DÒDÒ™ · Bonnet de nuit satin</span>
+            <span class="pastille pastille--ko">il n'en reste qu'1</span>
+            <span class="ligne__prix">8 000 F</span>
+          </div>
+          <div class="ligne__sous">
+            <span class="qte"><i>−</i><em>1</em><i>+</i></span>
+            <span style="margin-left:auto">Au prix annoncé</span>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <span class="btn btn--ghost">+ Ajouter de la Gamme</span>
+        </div>
+
+        <table style="margin-top:22px">
+          <tr><th>Ce que le rendez-vous porte</th><th class="n">Plein</th><th class="n">Net</th></tr>
+          <tr><td>Les gestes</td><td class="n">60 000 F</td><td class="n">45 000 F</td></tr>
+          <tr><td>La Gamme</td><td class="n">33 000 F</td><td class="n">30 500 F</td></tr>
+          <tr class="tot"><td>Total du rituel</td><td class="n">93 000 F</td><td class="n">75 500 F</td></tr>
+        </table>
+        <p class="legende">
+          <b>Les deux totaux se lisent séparément.</b> Un rituel à 45 000 F et 30 500 F de Gamme
+          n'est pas un rituel à 75 500 F : le premier chiffre paie des mains, le second paie un
+          stock. Les confondre fausserait les primes et la ventilation par maison.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ CE QUE ÇA CHANGE AU COMPTOIR ═══ -->
+  <section>
+    <h2>③ Ce que ça change au comptoir.</h2>
+    <p class="intro">
+      Rien de neuf à taper. Vous ouvrez La Caisse sur ce rendez-vous, <b>le ticket est déjà écrit</b> :
+      les gestes, la Gamme, les remises consenties. Vous encaissez.
+    </p>
+    <div class="duo">
+      <div class="carte">
+        <h3>Aujourd'hui</h3>
+        <p>
+          Le ticket s'ouvre sur les seules prestations. Vous cherchez l'huile dans la Gamme, vous
+          la trouvez, vous retapez la remise <b>si vous vous en souvenez</b>. Le stock bouge à ce
+          moment-là.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Demain</h3>
+        <p>
+          Le ticket s'ouvre <b>complet</b>. Vous décochez ce qu'elle n'emporte finalement pas.
+          Le stock bouge toujours à ce moment-là, et pas avant : un flacon n'est sorti que quand
+          il sort.
+        </p>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Ce que le règlement solde ne change pas.</b> Le carnet n'enregistre que la part
+      prestation, comme aujourd'hui : les produits du même ticket ne sont pas son rituel.
+    </p>
+  </section>
+
+  <!-- ═══ ④ LES QUATRE ARBITRAGES ═══ -->
+  <section>
+    <h2>④ Quatre décisions qui vous reviennent.</h2>
+    <p class="intro">
+      Chacune se défend dans les deux sens. Je propose, vous tranchez : ce sont vos marges et votre
+      stock, pas une question technique.
+    </p>
+
+    <div class="arb">
+      <h3>La remise famille porte-t-elle sur la Gamme ?</h3>
+      <p>
+        Le compte famille récompense la fidélité <b>au fauteuil</b>. Une prestation remisée coûte
+        du temps de maître, un produit remisé coûte de la marge sèche sur une chose achetée.
+      </p>
+      <div class="prop"><u>Ma proposition</u>
+        Non. La remise famille reste aux gestes. Une remise de ligne sur un produit reste
+        possible d'un clic, quand vous décidez de la faire.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Le stock se réserve-t-il à la prise du rendez-vous ?</h3>
+      <p>
+        Réserver protège la cliente qui a demandé. Mais un flacon retenu trois semaines pour une
+        venue qui n'aura pas lieu est <b>un flacon invendu</b>, et un stock qui compte des produits
+        promis ne dit plus combien il en reste sur l'étagère.
+      </p>
+      <div class="prop"><u>Ma proposition</u>
+        Non. Le rendez-vous <b>annonce</b> le reste (« il en reste 6 »), il ne le retient pas. Le
+        stock ne bouge qu'à la vente. Vous voyez le risque, vous décidez.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Le forfait absorbe-t-il l'accessoire ?</h3>
+      <p>
+        « Les quatre gestes pour 60 000 F » : l'huile est-elle dedans ? Si oui, elle reçoit sa part
+        au prorata comme un geste, et cette part <b>entre dans la production d'un maître</b> qui n'a
+        rien fait de ses mains.
+      </p>
+      <div class="prop"><u>Ma proposition</u>
+        Non. Le forfait ne porte que sur les gestes. La Gamme s'ajoute après, à son prix. Un
+        forfait qui doit tout comprendre se pose alors en remise de ligne sur le produit.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Le prix de l'accessoire se fige-t-il à la pose ?</h3>
+      <p>
+        C'est déjà la règle du prix d'une prestation, de la longueur travaillée et de la durée :
+        <b>un rendez-vous de mars n'est pas une prévision, c'est un compte rendu</b>. Mais un
+        produit n'est pas un geste : son prix suit un coût d'achat qui bouge.
+      </p>
+      <div class="prop"><u>Ma proposition</u>
+        Oui, figé, comme tout le reste du rendez-vous. Si le tarif a bougé entre la promesse et la
+        venue, le comptoir le dit et vous corrigez en un clic.</div>
+    </div>
+  </section>
+
+  <!-- ═══ ⑤ CE QUE ÇA NE TOUCHE PAS ═══ -->
+  <section>
+    <h2>⑤ Ce que ça ne touche pas.</h2>
+    <p class="intro">
+      Le danger d'un champ nouveau sur le rendez-vous, c'est ce qu'il déplace sans qu'on le voie.
+      <b>Quatre choses restent exactement où elles sont.</b>
+    </p>
+    <div class="duo">
+      <div>
+        <div class="carte">
+          <h3>Les mains</h3>
+          <p>Un produit ne s'exécute pas. <b>Aucune main ne se désigne</b> sur une ligne de Gamme,
+            et rien n'y entre dans la production d'un maître.</p>
+        </div>
+        <div class="carte">
+          <h3>Les commissions et les primes</h3>
+          <p>Elles se calculent sur les gestes. <b>Un flacon vendu ne fait pas une prime de
+            fauteuil</b> — si vous voulez commissionner la vente, c'est une autre décision, et elle
+            se prend à part.</p>
+        </div>
+      </div>
+      <div>
+        <div class="carte">
+          <h3>La ventilation par maison</h3>
+          <p>L'Atelier et le Studio comptent des rituels. La Gamme a sa propre ligne au Bilan, elle
+            ne <b>gonfle ni l'un ni l'autre</b>.</p>
+        </div>
+        <div class="carte">
+          <h3>Le stock</h3>
+          <p>Il bouge par le journal, à la vente, comme aujourd'hui. <b>Rien n'est écrit deux
+            fois</b>, et un produit dont la Gamme n'a pas été reprise garde son compteur.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>mi nyɔ́ ɖɛkpɛ · la maison veille</footer>
+
+</div>
+</body>
+</html>

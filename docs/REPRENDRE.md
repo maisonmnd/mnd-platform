@@ -40,7 +40,24 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
-### `shared/serie.ts` — le lecteur de dates, 53 épreuves
+### La marche arrière — 5 septembre 2026
+
+Quatrième onglet de la même modale : **« Les séries posées »**. Chaque série s'y
+relit (la caisse, le nombre de rituels, le total, les bornes du temps, les têtes)
+et se retire d'un geste. La marque `serie:<id>` écrite sur chaque règlement est
+ce qui la rend reconnaissable.
+
+**On ne retire jamais ce qui a vécu depuis.** Un rituel **facturé**, ou sur lequel
+**un autre règlement s'est ajouté**, n'appartient plus à la série : il appartient
+à la Maison. Il reste au carnet, et l'écran dit lequel et pourquoi. Un retrait
+silencieux qui emporterait une facture serait un trou dans le registre que
+personne ne verrait passer.
+
+La confirmation est **en deux temps dans la page**, jamais `window.confirm` : le
+dialogue se tait quand le navigateur le bloque, et le bouton passe pour mort.
+C'est ce qui était arrivé à « Écarter », dans Accès & personnel.
+
+### `shared/serie.ts` — le lecteur de dates, 67 épreuves
 
 `14/02/2025` · `14-02-25` · `14.02.2025` · `14 février` · `14 févr. 2025` ·
 `14/02`, l'heure en `09:00` `9h` `9h30`. **Sans année, celle qu'on saisit.**
