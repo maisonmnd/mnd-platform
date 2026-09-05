@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le programme de pousse · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --vert:#4A6B52; --vert-f:#EFF3EF; --vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+    /* Teintes de série contrôlées par le validateur — voir la maquette du suivi. */
+    --s1:#3B4BA0; --s2:#BE7526; --s3:#4E86D9; --s4:#008E7F;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1120px;margin:0 auto;padding:56px 24px 110px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,60px);line-height:1.04;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(23px,3vw,32px);color:var(--indigo);
+     margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+  .chapeau{max-width:66ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:62px}
+  .intro{max-width:76ch;color:var(--encre-d);margin:0 0 24px}
+  .intro b{color:var(--encre);font-weight:500}
+  .legende{font-size:12.5px;color:var(--encre-d);margin:12px 0 0;max-width:80ch}
+  .legende b{color:var(--encre);font-weight:500}
+
+  .cite{border-left:2px solid var(--cuivre);padding:2px 0 2px 16px;margin:0 0 30px;
+        font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--indigo);max-width:64ch}
+  .cite span{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--encre-d);margin-top:8px}
+
+  .alerte{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;
+          padding:16px 18px;margin:0 0 28px;max-width:78ch}
+  .alerte b{color:var(--brique)}
+
+  .fig{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:18px 20px 14px}
+  .fig__t{font-family:var(--serif);font-size:22px;color:var(--indigo);margin:0}
+  .fig__s{font-size:12.5px;color:var(--encre-d);margin:2px 0 0;max-width:70ch}
+  .leg{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 2px}
+  .leg span{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--encre-d)}
+  .leg i{width:11px;height:11px;border-radius:2px;display:inline-block}
+  .leg i.tirets{background:repeating-linear-gradient(90deg,var(--encre-d) 0 4px,transparent 4px 7px);border-radius:0;height:2px}
+  .plot{position:relative}
+  .plot svg{display:block;width:100%;height:auto}
+  .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .09s;background:var(--indigo);
+       color:#F6F1E7;border-radius:3px;padding:8px 11px;font-size:11.5px;line-height:1.5;
+       white-space:nowrap;transform:translate(-50%,-118%);z-index:3;box-shadow:0 6px 20px rgba(30,33,80,.22)}
+  .tip b{color:#fff;font-weight:500}
+  .tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+
+  .etapes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+  @media(max-width:860px){.etapes{grid-template-columns:repeat(2,1fr)}}
+  .et{border:1px solid var(--filet);border-radius:4px;background:#fff;padding:13px 14px}
+  .et__q{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre)}
+  .et__n{font-family:var(--serif);font-size:19px;color:var(--indigo);line-height:1.2;margin-top:3px}
+  .et__d{font-size:11.5px;color:var(--encre-d);margin-top:5px}
+  .et__p{font-size:11px;color:var(--encre-d);margin-top:7px;padding-top:7px;border-top:1px solid #EDE5D6}
+  .et--fait{border-color:var(--vert-p);background:var(--vert-f)}
+  .et--fait .et__q{color:var(--vert)}
+
+  .jalon{display:flex;gap:12px;padding:11px 0;border-top:1px solid #EDE5D6;align-items:baseline}
+  .jalon:first-of-type{border-top:none}
+  .jalon__q{flex:none;width:74px;font-family:var(--serif);font-size:18px;color:var(--indigo)}
+  .jalon__c{flex:1 1 auto;min-width:0;font-size:13px}
+  .jalon__c i{display:block;font-style:normal;font-size:11.5px;color:var(--encre-d)}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.duo{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .carte+.carte{margin-top:14px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+  ul.arb{margin:14px 0 0;padding:0 0 0 20px}
+  ul.arb li{margin:0 0 12px;font-size:14px;color:var(--encre-d)}
+  ul.arb li b{color:var(--encre);font-weight:500}
+  footer{margin-top:80px;padding-top:22px;border-top:1px solid var(--filet);
+         font-family:var(--serif);font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Ma Couronne &amp; Le Trône · Maquette à valider</p>
+  <h1>Le programme de pousse.</h1>
+  <p class="chapeau">
+    Montrer à une cliente <b>ce que son assiduité lui rapporte</b>, mois après mois, et pourquoi
+    chaque rendez-vous compte. Sans lui promettre ce que personne ne peut tenir.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Définis un protocole de soins qui permette aux clients de visualiser les étapes pour obtenir
+    les résultats sur leurs cheveux. Un graphique qui aide à prendre confiance que ses cheveux vont
+    pousser rapidement en suivant les étapes et les dates de RDV qu'on leur construit.
+    <span>Yéman · 5 septembre 2026</span>
+  </p>
+
+  <!-- ═══ LA VÉRITÉ D'ABORD ═══ -->
+  <section style="margin-top:44px">
+    <div class="alerte">
+      <b>Ce que je ne peux pas dessiner, et pourquoi c'est une bonne nouvelle.</b><br />
+      Un cuir chevelu sain pousse d'environ <b>un centimètre par mois</b>, chez tout le monde. Aucun
+      soin ne rend cette vitesse plus rapide, et une courbe qui le promettrait se retournerait
+      contre la Maison au troisième mois, quand la cliente mesurera.<br /><br />
+      <b>Ce que la Maison change, c'est ce qu'on GARDE.</b> La pousse est la même ; la casse, elle,
+      varie du tout au tout. Une couronne négligée perd aux pointes et aux tempes une part de ce
+      qu'elle gagne à la racine — et à l'arrivée, deux têtes qui ont poussé pareil n'ont pas la
+      même longueur.<br /><br />
+      <b>C'est cet écart-là qui se dessine</b>, et il est plus vendeur qu'une promesse de vitesse :
+      il est vrai, il se vérifie à la mèche témoin, et il fait de l'assiduité la seule variable
+      qui dépende d'elle.
+    </div>
+  </section>
+
+  <!-- ═══ ① LE GRAPHE ═══ -->
+  <section>
+    <h2>① Ce que son assiduité lui rapporte.</h2>
+    <p class="intro">
+      Deux chemins depuis le même point de départ. <b>La même pousse pour les deux</b> — c'est la
+      nature. La différence tient à ce que la casse emporte.
+    </p>
+
+    <div class="fig">
+      <div>
+        <p class="fig__t">Sa couronne sur douze mois</p>
+        <p class="fig__s">Depuis 21 cm mesurés le 4 septembre 2026 · projection, remesurée à chaque resserrage</p>
+      </div>
+      <div class="leg">
+        <span><i style="background:var(--s4)"></i>En suivant le programme</span>
+        <span><i style="background:var(--s2)"></i>Sans soins réguliers</span>
+        <span><i class="tirets"></i>La pousse à la racine, identique pour les deux</span>
+      </div>
+      <div class="plot" id="plotPousse"><div class="tip" id="tipPousse"></div></div>
+      <p class="legende">
+        À douze mois, <b>33 cm contre 27</b> : six centimètres d'écart, qui ne viennent pas d'une
+        pousse plus rapide mais d'une casse évitée. <b>Les points sont ses rendez-vous</b> : la
+        courbe monte entre eux, et chaque rendez-vous manqué la fait pencher vers l'autre.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ ② LE PROGRAMME ═══ -->
+  <section>
+    <h2>② Les quatre gestes du programme.</h2>
+    <p class="intro">
+      Bâti sur vos prestations, dans l'ordre que vos descriptions commandent. <b>Un cycle de
+      douze semaines</b>, qui se répète.
+    </p>
+    <div class="etapes">
+      <div class="et et--fait">
+        <div class="et__q">Semaine 0 · fait</div>
+        <div class="et__n">VÍVÍVÓ™</div>
+        <div class="et__d">L'Activateur de Pousse. Ail noir, moringa, gingembre. Massage crânien 20 min.</div>
+        <div class="et__p">On réveille le bulbe. C'est là que tout part.</div>
+      </div>
+      <div class="et">
+        <div class="et__q">Semaine 4</div>
+        <div class="et__n">DÀNDÀN™</div>
+        <div class="et__d">Le Soin Hydratant. Masque aux 7 huiles.</div>
+        <div class="et__p">Une fibre sèche casse. Ce qui casse ne se rattrape pas.</div>
+      </div>
+      <div class="et">
+        <div class="et__q">Semaine 8</div>
+        <div class="et__n">GBÌGBÌ™ Module</div>
+        <div class="et__d">Soin Reconstruction. Anti-casse, fermeture de fibre.</div>
+        <div class="et__p">On ferme ce qui s'ouvre. C'est le geste qui garde les centimètres.</div>
+      </div>
+      <div class="et">
+        <div class="et__q">Semaine 12</div>
+        <div class="et__n">WÈWÈ™ + on remesure</div>
+        <div class="et__d">La Purification, puis comptage et mèche témoin.</div>
+        <div class="et__p">Le cycle se referme sur une preuve, pas sur une promesse.</div>
+      </div>
+    </div>
+    <p class="legende">
+      Le <b>SÍNSIN™</b> de resserrage continue à son rythme habituel, en parallèle : ce programme ne
+      le remplace pas, il s'y greffe. Et la <b>Cure VÍVÍVÓ™ × 3</b> existe déjà au catalogue à
+      65 000 F — le programme peut se vendre par elle.
+    </p>
+  </section>
+
+  <!-- ═══ ③ LES JALONS ═══ -->
+  <section>
+    <h2>③ Ce qu'elle voit à chaque étape.</h2>
+    <p class="intro">
+      La confiance ne vient pas du graphe, elle vient de <b>la mesure qui tombe juste</b>. Chaque
+      trimestre, la courbe se corrige sur le réel — et c'est en la voyant se confirmer qu'on y croit.
+    </p>
+    <div class="fig">
+      <div class="jalon">
+        <span class="jalon__q">3 mois</span>
+        <span class="jalon__c">Premier point de contrôle · <b>+3 cm attendus</b>
+          <i>On remesure la mèche témoin et on recompte. Si la courbe tombe juste, le reste devient crédible.</i></span>
+      </div>
+      <div class="jalon">
+        <span class="jalon__q">6 mois</span>
+        <span class="jalon__c">L'écart commence à se voir · <b>+3 cm gardés sur 6</b>
+          <i>C'est le moment où une couronne négligée aurait déjà reperdu du terrain aux pointes.</i></span>
+      </div>
+      <div class="jalon">
+        <span class="jalon__q">9 mois</span>
+        <span class="jalon__c">La densité suit · <b>le comptage se remet à monter</b>
+          <i>Les zones de faiblesse se referment. Le nombre de locks le dit avant l'œil.</i></span>
+      </div>
+      <div class="jalon">
+        <span class="jalon__q">12 mois</span>
+        <span class="jalon__c">Le bilan de l'année · <b>+12 cm poussés, +12 gardés</b>
+          <i>Un bilan écrit, remis, avec les courbes. C'est ce papier qu'elle montre autour d'elle.</i></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ④ OÙ ═══ -->
+  <section>
+    <h2>④ Où cela vit.</h2>
+    <div class="duo">
+      <div class="carte">
+        <h3>Ma Couronne · c'est là que ça se joue</h3>
+        <p>
+          Sa courbe, ses quatre gestes, <b>ses prochains rendez-vous déjà posés</b>, et le prochain
+          point de contrôle. Un programme qu'on garde pour soi ne motive personne.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Le Trône · pour tenir la barre</h3>
+        <p>
+          Qui suit, qui décroche, qui n'a pas reparu depuis deux étapes. <b>C'est la liste des
+          relances</b>, et elle se remplit toute seule.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ⑤ À ARBITRER ═══ -->
+  <section>
+    <h2>⑤ À arbitrer avant de construire.</h2>
+    <ul class="arb">
+      <li>
+        <b>La casse évitée : quel chiffre ?</b> J'ai posé <b>50 % de la pousse perdue sans soins</b>
+        contre <b>10 % avec</b> — d'où les 33 cm contre 27. Ces deux nombres décident de toute la
+        courbe et <b>je les ai inventés</b>. C'est à la Maison de dire ce qu'elle observe. Tant
+        qu'ils ne sont pas les vôtres, la courbe est une jolie promesse.
+      </li>
+      <li>
+        <b>Montre-t-on la seconde courbe ?</b> Proposé : <b>oui</b>. Sans elle, on affiche une
+        pousse que la nature donnerait de toute façon, et le programme n'a l'air de servir à rien.
+        Le risque est qu'elle se lise comme une menace ; la légende dit donc « sans soins
+        réguliers », pas « si vous ne venez pas ».
+      </li>
+      <li>
+        <b>Le cycle : douze semaines ?</b> VÍVÍVÓ™ · DÀNDÀN™ · GBÌGBÌ™ · WÈWÈ™, un geste par mois.
+        À corriger — c'est votre protocole, pas le mien.
+      </li>
+      <li>
+        <b>Se vend-il comme une cure ?</b> La <b>Cure VÍVÍVÓ™ × 3 à 65 000 F</b> existe déjà. Le
+        programme peut être cette cure augmentée des trois soins, en une ligne du Plateau, ou rester
+        gratuit et servir la fidélité seule.
+      </li>
+      <li>
+        <b>Et si elle décroche ?</b> Proposé : la courbe <b>ne la punit pas</b> — elle se recalcule
+        sur le dernier point mesuré, et le texte dit ce qui se rattrape. Une courbe qui accuse se
+        referme, et la cliente avec.
+      </li>
+    </ul>
+  </section>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+
+<script>
+var ENCRE_D='#746F65', FILET='#D9CFBC', INDIGO='#1E2150';
+function el(n,a){var e=document.createElementNS('http://www.w3.org/2000/svg',n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+
+(function(){
+  /* Douze mois depuis 21 cm. La pousse à la racine est la MÊME pour les deux —
+     1 cm/mois ; seule la part gardée change. */
+  var MOIS = ['sept.','oct.','nov.','déc.','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.'];
+  var depart = 21, garde = 0.9, perdu = 0.5;
+  var nature = [], suivi = [], sans = [];
+  for (var i = 0; i <= 12; i++) {
+    nature.push(Math.round((depart + i) * 10) / 10);
+    suivi.push(Math.round((depart + i * garde) * 10) / 10);
+    sans.push(Math.round((depart + i * perdu) * 10) / 10);
+  }
+  /* Les rendez-vous du programme : semaines 0, 4, 8, 12 puis le cycle reprend. */
+  var rdv = [0, 1, 2, 3, 6, 9, 12];
+
+  var L=860,H=300,m={g:44,d:150,h:16,b:34};
+  var min=19,max=35;
+  var px=function(i){return m.g+(i*(L-m.g-m.d))/12;};
+  var py=function(v){return m.h+(1-(v-min)/(max-min))*(H-m.h-m.b);};
+  var svg=el('svg',{viewBox:'0 0 '+L+' '+H,role:'img','aria-label':'Projection sur douze mois : 33 cm en suivant le programme, 27 cm sans soins réguliers, depuis 21 cm.'});
+
+  [20,25,30,35].forEach(function(v){
+    svg.appendChild(el('line',{x1:m.g,y1:py(v),x2:L-m.d,y2:py(v),stroke:FILET,'stroke-width':'1'}));
+    var t=el('text',{x:m.g-9,y:py(v)+3.5,'font-size':'10',fill:ENCRE_D,'text-anchor':'end','font-family':'inherit'});
+    t.textContent=v+' cm'; svg.appendChild(t);
+  });
+  MOIS.forEach(function(mo,i){
+    if (i%3!==0 && i!==12) return;
+    var t=el('text',{x:px(i),y:H-10,'font-size':'10',fill:ENCRE_D,'font-family':'inherit',
+      'text-anchor':i===0?'start':i===12?'end':'middle'});
+    t.textContent=mo; svg.appendChild(t);
+  });
+
+  /* Le repère de la nature passe DERRIÈRE, en pointillé : il n'est pas un
+     chemin qu'on choisit, il est ce que le corps fait de toute façon. */
+  svg.appendChild(el('polyline',{points:nature.map(function(v,i){return px(i)+','+py(v);}).join(' '),
+    fill:'none',stroke:ENCRE_D,'stroke-width':'1.5','stroke-dasharray':'5 4',opacity:'.5'}));
+
+  function trace(v,c){
+    svg.appendChild(el('polyline',{points:v.map(function(x,i){return px(i)+','+py(x);}).join(' '),
+      fill:'none',stroke:c,'stroke-width':'2','stroke-linejoin':'round'}));
+  }
+  trace(sans,'#BE7526');
+  trace(suivi,'#008E7F');
+
+  /* LES POINTS SONT SES RENDEZ-VOUS. C'est ce qui relie la courbe à son agenda :
+     sans eux, le dessin ne parle de rien qu'elle puisse faire. */
+  rdv.forEach(function(i){
+    svg.appendChild(el('circle',{cx:px(i),cy:py(suivi[i]),r:'5',fill:'#008E7F',stroke:'#FBF8F2','stroke-width':'2'}));
+  });
+
+  [['En suivant', suivi, '#008E7F'], ['Sans soins', sans, '#BE7526'], ['La nature', nature, ENCRE_D]].forEach(function(s){
+    var t=el('text',{x:L-m.d+10,y:py(s[1][12])+4,'font-size':'11.5',fill:ENCRE_D,'font-family':'inherit'});
+    t.textContent=s[0]+' · '+s[1][12]+' cm'; svg.appendChild(t);
+  });
+
+  var hote=document.getElementById('plotPousse'), tip=document.getElementById('tipPousse');
+  hote.insertBefore(svg,hote.firstChild);
+
+  var croix=el('line',{x1:0,y1:m.h,x2:0,y2:H-m.b,stroke:INDIGO,'stroke-width':'1',opacity:'0'});
+  svg.appendChild(croix);
+  for(var k=0;k<=12;k++)(function(i){
+    var demi=(L-m.g-m.d)/24;
+    var z=el('rect',{x:px(i)-demi,y:m.h,width:demi*2,height:H-m.h-m.b,fill:'transparent',style:'cursor:crosshair'});
+    z.addEventListener('mouseenter',function(){
+      croix.setAttribute('x1',px(i)); croix.setAttribute('x2',px(i)); croix.setAttribute('opacity','.28');
+      tip.innerHTML='<b>'+MOIS[i]+' · mois '+i+'</b><br>'
+        +'<i style="background:#008E7F"></i>En suivant · <b>'+suivi[i]+' cm</b><br>'
+        +'<i style="background:#BE7526"></i>Sans soins · <b>'+sans[i]+' cm</b>'
+        +(i>0?'<br>Écart · <b>'+Math.round((suivi[i]-sans[i])*10)/10+' cm</b>':'');
+      tip.style.left=(px(i)/L*100)+'%'; tip.style.top=(py(suivi[i])/H*100)+'%'; tip.style.opacity='1';
+    });
+    z.addEventListener('mouseleave',function(){croix.setAttribute('opacity','0');tip.style.opacity='0';});
+    svg.appendChild(z);
+  })(k);
+})();
+</script>
+</body>
+</html>
