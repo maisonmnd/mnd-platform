@@ -2,7 +2,7 @@ import { asset } from '../../shared/asset';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
-import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires } from '../../shared/settings';
+import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, joursFermesParmi, horairesDescendus } from '../../shared/settings';
 import { useBlocages } from '../../shared/blocages';
 import { appointmentsStore, useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useSubscribers, subPaid } from '../../shared/abonnements';
@@ -580,6 +580,33 @@ export default function Booking({ prefill, onClose, toast }: Props) {
          parent payeur pour ses mineurs). */
       const cibleId = beneficiaire?.id ?? clientId;
       const cibleNom = beneficiaire?.name ?? clientName;
+      /* ══ LE DERNIER MOT AVANT D'ÉCRIRE — 5 septembre 2026 ═══════════
+         « Je ne sais pas comment il a pu prendre RDV le lundi 12 octobre
+         puisque le salon est fermé » (Yéman).
+
+         LE CALENDRIER JUGEAIT, RIEN N'EMPÊCHAIT. Entre le clic et l'écriture,
+         tout peut arriver : des horaires pas encore descendus, une date
+         pré-remplie qui n'est jamais passée par le calendrier, un retour en
+         arrière du navigateur. Un écran qui propose bien et n'empêche rien
+         finit toujours par laisser passer.
+
+         LES HORAIRES D'ABORD. Sans eux, on raisonne sur ceux de naissance, où
+         le lundi est OUVERT : le garde bénirait le jour fermé en toute bonne
+         foi. Mieux vaut faire patienter cinq secondes que poser un rituel un
+         jour où personne n'ouvrira la porte. */
+      if (!horairesDescendus()) {
+        setPaying(false);
+        toast('Les horaires de la Maison se chargent, réessayez dans un instant.');
+        return;
+      }
+      const fermes = joursFermesParmi(sessionDates.map((sd) => sd.iso));
+      if (fermes.length > 0) {
+        setPaying(false);
+        toast(fermes.length > 1
+          ? 'La Maison est fermée ces jours-là, choisissez d’autres dates.'
+          : `La Maison est fermée le ${dayLabelIso(fermes[0])}, choisissez un autre jour.`);
+        return;
+      }
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
@@ -626,6 +653,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
              fauteuil constatera. */
           ...(pricing.longueur ? { longueur: pricing.longueur } : {}),
           source: 'couronne',
+          /* L'HEURE DE LA DEMANDE, pour que le comptoir sache son âge : une
+             demande de ce matin s'appelle, une demande de la semaine passée
+             jamais reçue est un manquement de la Maison. */
+          creeLe: new Date().toISOString(),
           note: notes.length ? notes.join(' · ') : undefined,
           ...(totalSessions > 1 ? { seriesId, seriesIndex: i + 1, seriesTotal: totalSessions } : {}),
         };

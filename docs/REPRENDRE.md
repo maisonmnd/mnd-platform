@@ -2,6 +2,60 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## RECEVOIR UNE RÉSERVATION, ET PROPOSER UNE AUTRE DATE — 5 septembre 2026, PUBLIÉ
+
+« Quand je reçois une réservation de Ma Couronne j'ai besoin de voir plus
+d'informations, et l'option de lui proposer une nouvelle date. Je ne sais pas
+comment il a pu prendre RDV le lundi 12 octobre puisque le salon est fermé. »
+
+### ① Le verrou qui manquait
+
+**Le calendrier de Ma Couronne jugeait déjà** (`creneauxDuJour` rend zéro
+créneau un jour fermé), **mais rien ne jugeait au moment d'écrire**. Entre les
+deux, tout peut arriver : des horaires pas encore descendus du serveur, une date
+pré-remplie qui n'est jamais passée par le calendrier, un retour en arrière du
+navigateur sur un écran vieux d'une minute. **Un écran qui propose bien et
+n'empêche rien finit toujours par laisser passer.**
+
+Deux gardes avant `appointmentsStore.set`, et le second compte plus que le
+premier :
+
+- **`joursFermesParmi`** relit l'ouverture réelle de chaque date. Dernier mot,
+  indépendant de tout état d'écran.
+- **`horairesDescendus`** dit si les horaires de LA MAISON sont arrivés, ou si
+  l'on raisonne encore sur ceux de naissance, **où le lundi est OUVERT**. Sans
+  lui le premier garde bénirait un lundi fermé en toute bonne foi. C'est
+  probablement ce qui est arrivé le 12 octobre.
+
+**Une faute trouvée par le harnais** : `prochainJourOuvert` avançait la date par
+`toISOString`, or minuit local à Cotonou (UTC+1) vaut 23 h la veille en UTC. La
+date « avancée » retombait sur celle d'hier, la boucle tournait quatorze fois
+sur le même jour fermé. Au comptoir on aurait seulement trouvé que le bouton ne
+proposait rien.
+
+### ② Ce que la demande ne disait pas
+
+Tableau de bord › « Réservations à recevoir » portait trois lignes et deux
+boutons : ni d'où venait la demande, ni depuis quand elle attendait, ni si un
+acompte était tombé, ni comment joindre la cliente. La carte dit désormais
+l'origine (Ma Couronne ou comptoir), **l'âge de la demande** (`creeLe`, stampé à
+la réservation, absent sur l'historique), le téléphone, l'acompte et son état
+(annoncé / reçu), le prix figé, la note de la cliente, et un lien WhatsApp.
+**Un jour fermé se voit en brique, avant qu'on ne confirme.**
+
+### ③ Proposer une autre date
+
+Le bouton ouvre la date suivante **déjà ouverte**, prévient si celle qu'on
+choisit est fermée elle aussi, montre le message avant qu'il parte, et laisse
+deux gestes : « Déplacer et prévenir » ou « Déplacer sans message ».
+
+**Le rendez-vous prend la date et RESTE en attente.** Le confirmer serait
+décider à la place de la cliente ; le laisser sur son jour impossible tiendrait
+un créneau que personne n'honorera. Une trace est écrite sur la note du rituel :
+dans trois jours, personne ne se souviendra pourquoi la date a bougé.
+
+Jugé par `verifie-creneaux`.
+
 ## UNE SEULE LISTE DE MOYENS DE RÈGLEMENT — 5 septembre 2026, PUBLIÉ
 
 « J'ai l'impression que Moyen de règlement est à plusieurs endroits. Il

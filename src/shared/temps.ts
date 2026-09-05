@@ -59,3 +59,27 @@ export const tempsDone = (p: TempsProgress): number =>
 /** Le temps en cours : le premier non franchi, ou null si la couronne est complète. */
 export const nextTemps = (p: TempsProgress): Temps | null =>
   QUATRE_TEMPS.find((t) => !p[t.key]) ?? null;
+
+/** DEPUIS QUAND UNE DEMANDE ATTEND — 5 septembre 2026.
+
+    L'âge décide de ce qu'on en fait : une demande posée il y a deux heures
+    s'appelle, une demande posée il y a six jours et jamais reçue est un
+    manquement de la Maison. Une horloge exacte à la minute n'apprendrait rien
+    de plus, et se lirait moins vite.
+
+    `maintenant` se passe pour que le juge soit éprouvable : sans lui, le
+    résultat dépend de l'heure à laquelle on le lit. */
+export const quandDemandee = (isoOuHorodatage: string, maintenant: Date = new Date()): string => {
+  const t = new Date(isoOuHorodatage).getTime();
+  if (!Number.isFinite(t)) return '';
+  const minutes = Math.floor((maintenant.getTime() - t) / 60000);
+  if (minutes < 0) return 'à l’instant';
+  if (minutes < 60) return minutes <= 1 ? 'à l’instant' : `il y a ${minutes} min`;
+  const heures = Math.floor(minutes / 60);
+  if (heures < 24) return `il y a ${heures} h`;
+  const jours = Math.floor(heures / 24);
+  if (jours === 1) return 'hier';
+  if (jours < 30) return `il y a ${jours} jours`;
+  const mois = Math.floor(jours / 30);
+  return mois === 1 ? 'il y a un mois' : `il y a ${mois} mois`;
+};

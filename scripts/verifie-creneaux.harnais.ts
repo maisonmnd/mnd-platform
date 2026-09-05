@@ -11,6 +11,8 @@
 import { creneauxLibres } from '../src/apps/couronne/lib';
 import { maitreParDefaut } from '../src/shared/branches';
 import { placeLeFoyer, maitresLibres, chevauche, type Appointment } from '../src/shared/agenda';
+import { joursFermesParmi, prochainJourOuvert, settingsStore } from '../src/shared/settings';
+import { quandDemandee } from '../src/shared/temps';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -233,3 +235,45 @@ dit('aucune tête, rien à poser', 0, placeLeFoyer({ tetes: [], maitresLibres: M
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
+
+/* ══ AUCUN JOUR FERMÉ NE PEUT ÊTRE SCELLÉ ══════════════════════════
+   « Je ne sais pas comment il a pu prendre RDV le lundi 12 octobre puisque le
+   salon est fermé » (Yéman, 5 septembre 2026).
+
+   Le calendrier jugeait déjà, mais rien ne jugeait au MOMENT D'ÉCRIRE : entre
+   les deux, des horaires pas encore descendus, une date pré-remplie, un retour
+   en arrière du navigateur. Un écran qui propose bien et n'empêche rien finit
+   toujours par laisser passer. */
+settingsStore.set((prev) => ({
+  ...prev,
+  hours: prev.hours.map((h) => (h.key === 'lun' ? { ...h, closed: true } : h)),
+}));
+
+/* 2026-10-12 est un lundi, 2026-10-13 un mardi. */
+dit('le lundi fermé est reconnu', ['2026-10-12'], joursFermesParmi(['2026-10-12']));
+dit('le mardi passe', [], joursFermesParmi(['2026-10-13']));
+dit('une suite de séances dit TOUS ses jours fermés',
+  ['2026-10-12', '2026-10-19'], joursFermesParmi(['2026-10-12', '2026-10-13', '2026-10-19']));
+/* Deux séances le même jour fermé ne font qu'un refus : on nomme un jour, pas
+   une occurrence, sinon le message dirait deux fois la même chose. */
+dit('… sans répéter le même jour', ['2026-10-12'], joursFermesParmi(['2026-10-12', '2026-10-12']));
+dit('rien à juger sur une liste vide', [], joursFermesParmi([]));
+
+/* LE PROCHAIN JOUR OUVERT — proposer une autre date en repartant du jour fermé
+   ferait tomber la proposition une semaine plus tard sur le même mur. */
+dit('le lundi fermé renvoie au mardi', '2026-10-13', prochainJourOuvert('2026-10-12'));
+dit('un jour déjà ouvert ne bouge pas', '2026-10-13', prochainJourOuvert('2026-10-13'));
+
+/* LA MAISON ENTIÈREMENT FERMÉE rend sa date de départ plutôt que de boucler :
+   une porte qui ne s'ouvre jamais n'est pas un problème de calendrier. */
+settingsStore.set((prev) => ({ ...prev, hours: prev.hours.map((h) => ({ ...h, closed: true })) }));
+dit('une Maison toujours fermée rend la date demandée', '2026-10-12', prochainJourOuvert('2026-10-12'));
+
+/* L'ÂGE D'UNE DEMANDE, éprouvé à horloge fixe. */
+const midi = new Date('2026-09-05T12:00:00Z');
+dit('une demande de l’instant', 'à l’instant', quandDemandee('2026-09-05T11:59:30Z', midi));
+dit('… d’il y a vingt minutes', 'il y a 20 min', quandDemandee('2026-09-05T11:40:00Z', midi));
+dit('… d’il y a trois heures', 'il y a 3 h', quandDemandee('2026-09-05T09:00:00Z', midi));
+dit('… d’hier', 'hier', quandDemandee('2026-09-04T10:00:00Z', midi));
+dit('… de six jours, celle qu’on a oubliée', 'il y a 6 jours', quandDemandee('2026-08-30T10:00:00Z', midi));
+dit('une date illisible ne dit rien', '', quandDemandee('pas une date', midi));

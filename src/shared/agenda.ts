@@ -210,6 +210,16 @@ export type Appointment = {
   seriesTotal?: number; // nombre total de séances de la série
   note?: string;
   source?: 'trone' | 'couronne' | 'consultation';
+  /** QUAND LA RÉSERVATION A ÉTÉ PRISE — 5 septembre 2026.
+
+      « J'ai besoin de voir plus d'informations quand le client a fait la
+      réservation en ligne » (Yéman).
+
+      Une réservation reçue ne disait pas son âge. Or l'âge décide : une demande
+      posée il y a deux heures s'appelle, une demande posée il y a six jours et
+      jamais reçue est un manquement de la Maison. Absent sur tout ce qui
+      précède — on ne l'invente pas, faute de le savoir. */
+  creeLe?: string;
   /** Points de fidélité déjà attribués à l'honneur du RDV (évite le double comptage). */
   pointsAwarded?: boolean;
   /** Numéro de la facture émise à l'encaissement du RDV. */

@@ -198,6 +198,59 @@ export function openingForIso(dateIso: string): { closed: boolean; openMin: numb
   };
 }
 
+/* ══ LE VERROU DU JOUR FERMÉ — 5 septembre 2026 ═════════════════════
+   « Je ne sais pas comment il a pu prendre RDV le lundi 12 octobre puisque le
+   salon est fermé » (Yéman).
+
+   LE CALENDRIER DE MA COURONNE JUGEAIT DÉJÀ (`creneauxDuJour` rend zéro
+   créneau un jour fermé), MAIS RIEN NE JUGEAIT AU MOMENT D'ÉCRIRE. Entre les
+   deux, tout peut arriver : des horaires pas encore descendus du serveur, une
+   date pré-remplie qui n'est jamais passée par le calendrier, un retour en
+   arrière du navigateur sur un écran vieux d'une minute. Un écran qui propose
+   bien et n'empêche rien finit toujours par laisser passer.
+
+   DEUX GARDES, ET LE SECOND COMPTE PLUS QUE LE PREMIER :
+
+   ① `joursFermesParmi` relit l'ouverture réelle de chaque date, juste avant
+     d'écrire. C'est le dernier mot, et il ne dépend d'aucun état d'écran.
+
+   ② `horairesDescendus` dit si les horaires de LA MAISON sont arrivés, ou si
+     l'on raisonne encore sur ceux de naissance — où le lundi est OUVERT. Sans
+     lui, le premier garde bénirait un lundi fermé en toute bonne foi. */
+export const joursFermesParmi = (isos: readonly string[]): string[] =>
+  [...new Set(isos.filter((iso) => iso && openingForIso(iso).closed))];
+
+/** Les horaires de la Maison sont-ils descendus, ou lit-on ceux de naissance ?
+    Sans backend, ils le sont d'office : il n'y a rien à attendre. */
+export const horairesDescendus = (): boolean => documentDescendu('mnd_settings');
+
+/** LE PROCHAIN JOUR OÙ LA PORTE S'OUVRE, à partir d'une date incluse.
+
+    Proposer une autre date en repartant du jour fermé lui-même ferait tomber
+    la proposition une semaine plus tard sur le même mur. Quatorze essais : deux
+    semaines fermées d'affilée n'existent pas, et si elles existaient, mieux
+    vaut rendre la date de départ que boucler sans fin. */
+export const prochainJourOuvert = (isoDepart: string): string => {
+  /* LE LENDEMAIN SE CALCULE EN HEURE LOCALE, JAMAIS PAR `toISOString`. Minuit
+     local à Cotonou (UTC+1) vaut 23 h la veille en UTC : la date « avancée »
+     retombait sur celle d'hier, la boucle tournait quatorze fois sur le même
+     jour fermé et rendait le jour de départ. Le harnais l'a vu ; au comptoir
+     on aurait seulement trouvé que le bouton ne proposait rien. */
+  const lendemain = (iso: string): string => {
+    const d = new Date(`${iso}T00:00:00`);
+    d.setDate(d.getDate() + 1);
+    const mois = String(d.getMonth() + 1).padStart(2, '0');
+    const jour = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mois}-${jour}`;
+  };
+  let iso = isoDepart;
+  for (let i = 0; i < 14; i += 1) {
+    if (!openingForIso(iso).closed) return iso;
+    iso = lendemain(iso);
+  }
+  return isoDepart;
+};
+
 /* ---------- Exceptions d'horaires — UNE date, des heures à part ----------
    Déménagées ici depuis la paie (equipe/payroll) le 12 août : le calendrier
    de réservation doit les lire aussi, et Ma Couronne ne peut pas importer un
@@ -259,7 +312,7 @@ export function useBrand() {
   return useStore(brandStore);
 }
 
-import { bindDocument } from './sync';
+import { bindDocument, documentDescendu } from './sync';
 bindDocument(settingsStore, 'mnd_settings');
 bindDocument(brandStore, 'mnd_brand');
 bindDocument(exceptionsHorairesStore, 'mnd_horaires_exceptions');

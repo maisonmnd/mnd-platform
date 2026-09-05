@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { signeLeMessage } from '../../../../shared/identite';
+import { maisonNom, signeLeMessage } from '../../../../shared/identite';
+import { openingForIso, joursFermesParmi, prochainJourOuvert } from '../../../../shared/settings';
+import { quandDemandee } from '../../../../shared/temps';
 import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
@@ -355,6 +357,16 @@ export default function Dashboard() {
      Calendrier — une réservation prise pour dans trois semaines restait
      invisible trois semaines. La file les montre tous, et chacun se confirme
      d'un geste. */
+  /* ══ PROPOSER UNE AUTRE DATE — 5 septembre 2026 ═══════════════════
+     « Besoin de lui proposer une nouvelle date » (Yéman), après qu'une
+     réservation soit tombée un lundi fermé.
+
+     LE RENDEZ-VOUS SE DÉPLACE ET RESTE EN ATTENTE. Le confirmer serait décider
+     à la place de la cliente ; le laisser sur son jour impossible serait tenir
+     un créneau que personne n'honorera. Il porte donc la date proposée, dans
+     l'état « en attente » où il était, jusqu'à ce qu'elle réponde. */
+  const [proposeFor, setProposeFor] = useState<{ appt: Appointment; date: string; time: string } | null>(null);
+
   const aRecevoir = useMemo(
     () => appts
       .filter((a) => a.status === 'en attente' && a.date >= today)
@@ -1054,8 +1066,20 @@ export default function Dashboard() {
         <Modal title="Réservations à recevoir." onClose={() => setAttenteOpen(false)} width={620}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '60vh', overflowY: 'auto' }}>
             {aRecevoir.length === 0 && <div className="trc-empty">Rien à recevoir, tout est scellé.</div>}
-            {aRecevoir.map((a) => (
-              <div key={a.id} style={{ border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '12px 14px' }}>
+            {aRecevoir.map((a) => {
+              /* CE QUE LA DEMANDE NE DISAIT PAS — 5 septembre 2026. « J'ai
+                 besoin de voir plus d'informations quand le client a fait la
+                 réservation en ligne » (Yéman). Trois lignes et deux boutons :
+                 on ne savait ni d'où elle venait, ni depuis quand elle
+                 attendait, ni si un acompte était tombé, ni comment joindre la
+                 cliente sans ouvrir sa fiche. */
+              const fiche = clients.find((c) => c.id === a.clientId);
+              const tel = (fiche?.phone ?? '').replace(/\D/g, '');
+              const ferme = openingForIso(a.date).closed;
+              const enLigne = a.source === 'couronne';
+              const acompte = a.depositXof ?? 0;
+              return (
+              <div key={a.id} style={{ border: '1px solid var(--hairline)', borderLeft: `3px solid ${ferme ? 'var(--color-brique, #96412E)' : 'var(--color-copper)'}`, borderRadius: 4, padding: '12px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
                   <b style={{ fontWeight: 'var(--weight-medium)' as never, color: 'var(--color-indigo)' }}>
                     {a.clientName || 'Une tête'}
@@ -1064,9 +1088,28 @@ export default function Dashboard() {
                     {frShort(a.date)} · {a.time}
                   </span>
                 </div>
+                {/* LE JOUR FERMÉ SE VOIT AVANT D'ÊTRE CONFIRMÉ. Une réservation
+                    posée un jour où personne n'ouvre la porte ne doit pas
+                    pouvoir se sceller sans qu'on l'ait lu. */}
+                {ferme && (
+                  <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--color-brique, #96412E)', fontWeight: 600 }}>
+                    La Maison est fermée ce jour-là.
+                  </div>
+                )}
                 <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
                   {apptLabel(a, byId)}{a.master ? ` · avec ${a.master}` : ''}
                 </div>
+                {/* D'OÙ ELLE VIENT, DEPUIS QUAND, ET CE QUI EST DÉJÀ TOMBÉ. */}
+                <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.6 }}>
+                  {enLigne ? 'Réservée en ligne · Ma Couronne' : 'Posée au comptoir'}
+                  {a.creeLe ? ` · demandée ${quandDemandee(a.creeLe)}` : ''}
+                  {fiche?.phone ? ` · ${fiche.phone}` : ''}
+                  {acompte > 0 ? ` · acompte ${fmtMoney(acompte, currency)} ${a.depositConfirmed ? 'reçu' : 'annoncé, non reçu'}` : ''}
+                  {typeof a.priceXof === 'number' ? ` · ${fmtMoney(a.priceXof, currency)}` : ''}
+                </div>
+                {a.note && (
+                  <div style={{ fontSize: 11.5, marginTop: 6, fontStyle: 'italic', color: 'var(--ink-soft)' }}>« {a.note} »</div>
+                )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
                   <button
                     className="trf-act"
@@ -1076,16 +1119,109 @@ export default function Dashboard() {
                   </button>
                   <button
                     className="trf-act trf-act--ghost"
+                    onClick={() => setProposeFor({ appt: a, date: prochainJourOuvert(a.date), time: a.time })}
+                  >
+                    Proposer une autre date
+                  </button>
+                  <button
+                    className="trf-act trf-act--ghost"
                     onClick={() => { setAttenteOpen(false); setEditAppt(a); }}
                   >
                     Ouvrir
                   </button>
+                  {tel && (
+                    <a className="trf-act trf-act--ghost" style={{ textDecoration: 'none' }}
+                      href={`https://wa.me/${tel}`} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Modal>
       )}
+
+      {/* ══ LA NOUVELLE DATE PROPOSÉE ═══════════════════════════════════
+          Elle DÉPLACE le rendez-vous et le laisse « en attente » : confirmer
+          serait décider à la place de la cliente, et le laisser sur son jour
+          impossible tiendrait un créneau que personne n'honorera. */}
+      {proposeFor && (() => {
+        const a = proposeFor.appt;
+        const fiche = clients.find((c) => c.id === a.clientId);
+        const tel = (fiche?.phone ?? '').replace(/\D/g, '');
+        const fermeAvant = openingForIso(a.date).closed;
+        const fermeApres = joursFermesParmi([proposeFor.date]).length > 0;
+        const prenom = (a.clientName || fiche?.name || '').split(' ')[0];
+        const msg = signeLeMessage(
+          `${maisonNom()}\n`
+          + `${prenom ? `Bonjour ${prenom}, ` : ''}votre demande du ${frShort(a.date)} à ${a.time} nous est bien parvenue.`
+          + `${fermeAvant ? ' La Maison est malheureusement fermée ce jour-là.' : ''}\n`
+          + `Nous vous proposons le ${frShort(proposeFor.date)} à ${proposeFor.time}. Dites-nous si cela vous convient et nous scellons votre créneau.`,
+        );
+        const poser = () => {
+          appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id
+            ? {
+              ...x, date: proposeFor.date, time: proposeFor.time, status: 'en attente',
+              /* LA TRACE DU DÉPLACEMENT sur le rituel : dans trois jours,
+                 personne ne se souviendra pourquoi la date a bougé. */
+              note: [x.note, `Date proposée le ${todayISO()}, en attente de sa réponse`].filter(Boolean).join(' · '),
+            }
+            : x)));
+          setProposeFor(null);
+        };
+        return (
+          <Modal title="Proposer une autre date." onClose={() => setProposeFor(null)} width={480}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
+                {a.clientName || 'Une tête'} demandait le <b>{frShort(a.date)} à {a.time}</b>
+                {fermeAvant ? ', un jour où la Maison est fermée.' : '.'}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="mnd-input" type="date" value={proposeFor.date} min={todayISO()}
+                  onChange={(e) => setProposeFor({ ...proposeFor, date: e.target.value })}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <input
+                  className="mnd-input" type="time" value={proposeFor.time}
+                  onChange={(e) => setProposeFor({ ...proposeFor, time: e.target.value })}
+                  style={{ width: 118, flex: 'none' }}
+                />
+              </div>
+              {fermeApres && (
+                <div className="tre-inline-note">
+                  <span className="mark">!</span>
+                  <span>La Maison est fermée ce jour-là aussi. Choisissez-en un autre, sinon la cliente reviendra devant une porte close.</span>
+                </div>
+              )}
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '11px 13px', background: 'var(--surface-card)' }}>
+                <div className="mnd-eyebrow" style={{ fontSize: 9.5, marginBottom: 6 }}>Ce qu’elle recevra</div>
+                <div style={{ fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--ink-soft)' }}>{msg}</div>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                Le rendez-vous prend la nouvelle date et <b>reste en attente</b> : c’est elle qui
+                décide, vous le confirmerez quand elle aura répondu.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="trf-act trf-act--ghost" style={{ flex: 1 }} onClick={() => setProposeFor(null)}>Annuler</button>
+                {tel && (
+                  <a
+                    className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
+                    target="_blank" rel="noreferrer"
+                    onClick={poser}
+                  >
+                    Déplacer et prévenir
+                  </a>
+                )}
+                <button className="trf-act" onClick={poser}>Déplacer sans message</button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {compoOpen && (
         <Modal title="Rituels sur-mesure reçus." onClose={() => setCompoOpen(false)} width={620}>
