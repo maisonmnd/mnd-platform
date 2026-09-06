@@ -175,24 +175,43 @@ export function useReconcileClients(): void {
       const deja = naissances.get(a.clientId);
       if (!deja || a.date < deja) naissances.set(a.clientId, a.date);
     }
-    if (naissances.size === 0) return;
-    /* ══ ELLE SE RÉALIGNE, ELLE NE SE POSE PLUS UNE FOIS — 6 septembre 2026 ══
-       « Quand la date est modifiée, la réajuster » (Yéman).
+    /* ══ LA COURONNE SUIT SON VÈKPÈ, DE BOUT EN BOUT — 6 septembre 2026 ══
+       « J'ai supprimé le RDV de VÈKPÈ du 4 sept 2025, donc ça doit annuler la
+       date de la couronne. Fix it de bout en bout » (Yéman).
 
-       LE RATTRAPAGE ÉTAIT IDEMPOTENT : il n'écrivait que sur une fiche muette.
-       Déplacer le rituel de création — corriger une année, reprendre un
-       historique — ne bougeait donc plus rien, et la couronne gardait une date
-       que plus aucun rendez-vous ne portait.
+       ELLE SE POSAIT, PUIS SE RÉALIGNAIT, MAIS NE S'EFFAÇAIT JAMAIS. Le calcul
+       ne regardait que les têtes QUI ONT un VÈKPÈ honoré : une création
+       supprimée sortait de la liste, donc plus personne ne touchait sa date, et
+       la couronne survivait au rituel qui l'avait fondée.
 
-       UNE DATE POSÉE PAR LA MAISON NE SE RÉÉCRIT JAMAIS (`crownPose`) : c'est
-       la seule chose qui arrête l'alignement, et c'est une décision. */
-    const aDater = clientsStore.get().filter((c) => !c.crownPose
-      && naissances.has(c.id) && c.crownSince !== naissances.get(c.id));
-    if (aDater.length === 0) return;
-    const aligner = new Set(aDater.map((c) => c.id));
-    clientsStore.set((prev) => prev.map((c) => (aligner.has(c.id)
-      ? { ...c, crownSince: naissances.get(c.id) }
-      : c)));
+       TROIS ÉTATS, UN SEUL JUGE : le premier VÈKPÈ honoré. S'il existe, la date
+       le suit ; s'il disparaît, elle disparaît avec lui.
+
+       DEUX CHOSES L'ARRÊTENT, ET ELLES SE VALENT :
+       ① `crownPose` — la Maison a écrit la date elle-même. Une décision ne se
+          réécrit pas, et surtout ne s'efface pas dans le dos de qui l'a prise.
+       ② UNE FICHE SANS AUCUN RENDEZ-VOUS. Elle ne peut pas avoir PERDU un
+          VÈKPÈ : sa date vient d'ailleurs — une reprise d'historique, une
+          cliente d'avant l'ERP — et l'effacer serait détruire ce qu'on n'a
+          jamais écrit. */
+    const avecRituel = new Set(appts.filter((a) => a.clientId).map((a) => a.clientId as string));
+    const aAligner = clientsStore.get().filter((c) => {
+      if (c.crownPose) return false;
+      const voulu = naissances.get(c.id);
+      if (c.crownSince === voulu) return false;
+      /* Effacer n'est permis que si l'on peut avoir perdu quelque chose. */
+      if (voulu === undefined && !avecRituel.has(c.id)) return false;
+      return true;
+    });
+    if (aAligner.length === 0) return;
+    const aligner = new Set(aAligner.map((c) => c.id));
+    clientsStore.set((prev) => prev.map((c) => {
+      if (!aligner.has(c.id)) return c;
+      const voulu = naissances.get(c.id);
+      if (voulu) return { ...c, crownSince: voulu };
+      const { crownSince: _parti, ...sansCouronne } = c;
+      return sansCouronne;
+    }));
   }, [session, appts, tousClients]);
 
   /* Prospects — chaque consultation en ligne (tunnel Ma Couronne) crée
