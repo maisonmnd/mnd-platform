@@ -22,6 +22,7 @@ import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { ligneNetteXof } from '../../../../shared/gamme';
+import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 
@@ -836,7 +837,7 @@ export default function Caisse() {
                   <div className={`trv-line__disc ${discFor === l.key ? 'is-open' : ''}`}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Remise ligne</span>
                     <span className="trv-disc-badge">{l.disc}</span>
-                    {[5, 10, 15, 20].map((pct) => (
+                    {TAUX_DE_REMISE.map((pct) => (
                       <button key={pct} className={`trv-pill ${l.disc === pct ? 'is-active is-active--copper' : ''}`} onClick={() => setLineDisc(l.key, pct)}>
                         −{pct}%
                       </button>
@@ -849,7 +850,12 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
                   Remise globale facture
                 </span>
-                {[0, 5, 10, 15].map((pct) => (
+                {/* CENT POUR CENT SUR L'ENSEMBLE REND LE TICKET GRATUIT, produits
+                    compris. C'est un vrai geste de la Maison — une visite
+                    offerte, une réparation après une erreur — et le NET À PAYER,
+                    en gros caractères sous le ticket, est ce qui le rend
+                    impossible à ne pas voir. */}
+                {[0, ...TAUX_DE_REMISE].map((pct) => (
                   <button key={pct} className={`trv-pill ${globalDisc === pct ? 'is-active' : ''}`} onClick={() => setGlobalDisc(pct)}>
                     {pct === 0 ? '0' : `−${pct}%`}
                   </button>

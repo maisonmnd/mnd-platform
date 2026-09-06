@@ -11,7 +11,7 @@ import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { payerClientIdOf } from '../../../../shared/accounts';
 import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
-import { useModelBands, useBandSets } from '../../../../shared/pricing';
+import { useModelBands, useBandSets, TAUX_DE_REMISE } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast, Field, Input } from '../../../../ds/components';
 import { rewindPaymentForDeletedInvoice } from '../clients/actions';
@@ -64,7 +64,14 @@ function Motif({ theme, size, color }: { theme: ThemeKey; size: number; color: s
   );
 }
 
-const DISC_OPTIONS = [0, 5, 10, 15, 20, 25, 30];
+/* LES TAUX DE LA MAISON, plus le 30 historique — 6 septembre 2026.
+   La piece lisait sa propre echelle, sans 50 ni 100 : le geste le plus courant,
+   offrir une prestation, n'y avait pas de case. Elle lit desormais
+   `TAUX_DE_REMISE` comme le comptoir et le rendez-vous.
+
+   LE 30 SURVIT PARCE QUE DES PIECES LE PORTENT. Le retirer laisserait leur
+   selecteur vide sans rien dire, sur des factures deja emises. */
+const DISC_OPTIONS = [0, ...TAUX_DE_REMISE, 30].sort((a, b) => a - b);
 const STATUSES: Invoice['status'][] = ['brouillon', 'envoyée', 'payée', 'acceptée'];
 
 const fmtDateFr = (iso: string) => {

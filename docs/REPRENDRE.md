@@ -113,6 +113,26 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### Les taux de remise, une seule échelle — 6 septembre 2026
+
+« Rajouter la remise de 50 % et de 100 % au comptoir POS » (Yéman).
+
+**Le comptoir n'allait que jusqu'à 20 %**, quand la modale du rendez-vous
+offrait déjà 25, 50 et 100. Le geste le plus courant de la Maison — offrir une
+prestation — se tapait donc à la main dans la case en francs, et une remise
+calculée de tête se relit mal sur une pièce.
+
+`TAUX_DE_REMISE` (`shared/pricing`) = **5 · 10 · 15 · 20 · 25 · 50 · 100**, lue
+par la Caisse (ligne et facture), la modale du rendez-vous (ligne, ensemble et
+Gamme) et Factures & devis. **Le zéro n'en fait pas partie** : ce n'est pas une
+remise, c'est son retrait ; les écrans qui l'offrent le posent devant, à part.
+
+Deux points à connaître. **−100 % sur l'ensemble rend le ticket gratuit**,
+produits compris : c'est un vrai geste, et le NET À PAYER en gros caractères est
+ce qui le rend impossible à ne pas voir. Et **le 30 survit dans Factures &
+devis** : des pièces émises le portent, le retirer laisserait leur sélecteur
+vide sans rien dire.
+
 ### Une fiche supprimée reste supprimée — 6 septembre 2026
 
 « Quand je supprime ou je modifie une fiche elle revient toujours », sur le

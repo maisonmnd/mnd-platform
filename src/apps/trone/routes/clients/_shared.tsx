@@ -25,7 +25,7 @@ import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock'
 import { estKids } from '../../../../shared/accounts';
 import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
-import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
+import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { litUneLigne } from '../../../../shared/serie';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
@@ -2761,7 +2761,7 @@ export function RdvModal({
                             2026, demande de Yéman. Le geste se posait à la main
                             dans la case en francs, et une remise calculée de
                             tête se relit mal sur une pièce. */}
-                        {[5, 10, 15, 20, 25, 50, 100].map((v) => (
+                        {TAUX_DE_REMISE.map((v) => (
                           <button
                             key={v}
                             type="button"
@@ -3250,7 +3250,7 @@ export function RdvModal({
                         </div>
                         {ouverte && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                            {[5, 10, 15, 20, 25, 50, 100].map((v) => (
+                            {TAUX_DE_REMISE.map((v) => (
                               <button
                                 key={v}
                                 type="button"
@@ -3376,7 +3376,7 @@ export function RdvModal({
                       Famille −{famPct}%
                     </button>
                   )}
-                  {[5, 10, 15, 20].map((p) => (
+                  {TAUX_DE_REMISE.map((p) => (
                     <button
                       key={p}
                       type="button"

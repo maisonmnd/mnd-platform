@@ -705,6 +705,23 @@ export const gestesDe = (sv: Service): GesteOffert[] => {
 export const unGesteDansLePanier = (panier: readonly Service[], p: PersonalPricing): boolean =>
   panier.some((sv) => remiseGestePct(sv, p, panier) > 0);
 
+/** ══ LES TAUX DE REMISE DE LA MAISON — 6 septembre 2026 ═══════════════
+
+    « Rajouter la remise de 50 % et de 100 % au comptoir POS » (Yéman).
+
+    LE COMPTOIR N'ALLAIT QUE JUSQU'À 20 %, quand la modale du rendez-vous
+    offrait déjà 25, 50 et 100. Le geste le plus courant de la Maison — offrir
+    une prestation — se tapait donc à la main dans la case en francs, et une
+    remise calculée de tête se relit mal sur une pièce.
+
+    UNE SEULE ÉCHELLE, PARTOUT : la ligne comme l'ensemble, le comptoir comme
+    le rendez-vous. Deux écrans qui offrent des taux différents obligent à
+    apprendre deux fois, et celui qui manque se tape toujours de travers.
+
+    LE ZÉRO N'EN FAIT PAS PARTIE : il n'est pas une remise, c'est son retrait.
+    Les écrans qui l'offrent le posent devant, à part. */
+export const TAUX_DE_REMISE = [5, 10, 15, 20, 25, 50, 100] as const;
+
 export const remiseGestePct = (sv: Service, p: PersonalPricing, panier: readonly Service[]): number => {
   let mieux = 0;
   for (const g of gestesDe(sv)) {
