@@ -2,6 +2,35 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PRIX DE LA REPRISE ÉTAIT CELUI DE LA VITRINE — 6 septembre 2026, PUBLIÉ
+
+« C'est quoi les prix que je vois en saisie du carnet ? Ce n'est pas juste »
+(Yéman).
+
+**La saisie en série sommait `s.priceXof`**, le prix affiché au catalogue. Aucun
+autre écran du Trône ne facture à ce prix-là : le comptoir, la modale du
+rendez-vous et la Caisse passent par `pricingOf` puis `prixDansPanier`, qui
+appliquent le prix convenu avec elle, son calibre et le barème de l'atelier, sa
+longueur travaillée, son Juste Prix, et les gestes offerts. Un prix de vitrine
+est une **fourchette** ; s'en servir pour poser cinquante rituels réglés écrit
+cinquante montants que la Maison n'a jamais encaissés, faux dans les deux sens.
+
+**Et une année passée se reprend à ce qu'elle a coûté** (arbitrage). Les tarifs
+de 2025 n'étaient pas ceux de 2026 : reprendre une année au catalogue du jour
+gonfle son chiffre et fausse la seule chose qu'une reprise sert à faire,
+comparer une année à l'autre. Trois sources, dans cet ordre (`prixDeLaReprise`,
+shared/serie) :
+
+1. **la main** — ce qui est tapé sur la ligne, même à zéro ;
+2. **son carnet** — ce qu'elle a réglé la dernière fois pour CE rituel, prix
+   plein figé d'avant remise, donc rien n'est compté deux fois ;
+3. **son prix d'aujourd'hui**, calculé pour elle.
+
+Zéro retrouvé n'est pas un prix : un rituel offert ne dit rien de ce que
+celui-ci vaut. La ligne affiche « ce qu'elle a réglé » quand le montant vient de
+son carnet — deux lignes qui ne portent pas le même prix doivent pouvoir
+s'expliquer sans qu'on ouvre une fiche.
+
 ## LA DIASPORA SORT DU FAUTEUIL — 6 septembre 2026, PUBLIÉ
 
 « Les têtes à compter, Diaspora : je n'ai pas besoin de garder des fiches et des

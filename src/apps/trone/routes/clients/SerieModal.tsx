@@ -6,15 +6,18 @@ import { normName } from '../../../../shared/text';
 import { uid } from '../../../../shared/store';
 import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
-import { useServices, type Service } from '../../../../shared/catalog';
+import { useCategories, useProducts, useServices, type Service } from '../../../../shared/catalog';
 import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
   habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee,
   remiseEstVide, remiseQuiSApplique, netApresRemise, remiseAGarderSurLaLigne,
-  type LigneLue, type Remise,
+  prixDeLaReprise, type LigneLue, type Remise,
 } from '../../../../shared/serie';
-import { TAUX_DE_REMISE } from '../../../../shared/pricing';
+import {
+  TAUX_DE_REMISE, useModelBands, useBandSets, pricingOf, prixDansPanier, prixDeBase,
+  remiseGestePct, isPersonalized,
+} from '../../../../shared/pricing';
 import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
 
@@ -46,9 +49,13 @@ type Ligne = {
   brut: string;
   client?: Client;
   services: Service[];
-  /** LE PRIX PLEIN, figé du catalogue du jour ou corrigé à la main. C'est lui
-      qui s'inscrit sur le rituel : la remise se pose à côté, jamais dedans. */
+  /** LE PRIX PLEIN : ce qu'elle a réglé la dernière fois pour ce rituel, à
+      défaut son prix d'aujourd'hui, à défaut celui tapé à la main. C'est lui
+      qui s'inscrit sur le rituel ; la remise se pose à côté, jamais dedans. */
   prixXof: number;
+  /** Il vient de son carnet, pas du catalogue. L'écran le dit : deux lignes
+      qui ne portent pas le même montant doivent pouvoir s'expliquer. */
+  duPasse?: boolean;
   /** Celle qui s'applique vraiment : la sienne si elle en porte une, celle de
       la série sinon. */
   remise: Remise;
@@ -79,6 +86,13 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   const appts = useMemo(() => tousLesRituels.filter((a) => a.branchId === branch.id), [tousLesRituels, branch.id]);
   const byId = useServicesById();
   const [caisses] = useCashboxes();
+  /* CE QU'IL FAUT POUR CONNAÎTRE LE PRIX D'UNE TÊTE : son calibre vit dans les
+     bandes, le barème de chaque atelier dans les jeux, l'héritage des familles
+     dans les catégories, et la Gamme d'un forfait dans les produits. */
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const [cats] = useCategories();
+  const [produitsGamme] = useProducts();
 
   const [mode, setMode] = useState<Mode>('cadence');
   const [annee, setAnnee] = useState(String(new Date().getFullYear() - 1));
@@ -254,11 +268,38 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   const prestationsDe = (ids: string[]): Service[] =>
     ids.map((id) => byId.get(id)).filter((s): s is Service => !!s);
 
-  /* LE PRIX DU CATALOGUE D'AUJOURD'HUI, figé sur chaque rituel — arbitrage du
-     5 septembre. Modifiable ligne par ligne dans l'aperçu : si un tarif a
-     bougé depuis, c'est là qu'on le corrige, pas dans le catalogue. */
-  const prixDe = (svs: Service[]): number =>
-    svs.reduce((n, s) => n + Math.max(0, Math.round(s.priceXof)), 0);
+  /* ══ LE PRIX DE LA TÊTE, PAS CELUI DE LA VITRINE — 6 septembre 2026 ══
+     « C'est quoi les prix que je vois en saisie du carnet ? Ce n'est pas
+     juste. Que se passe-t-il ? » (Yéman).
+
+     CETTE MODALE SOMMAIT `s.priceXof`, LE PRIX AFFICHÉ AU CATALOGUE. Or aucun
+     écran du Trône ne facture à ce prix-là : le comptoir, la modale du
+     rendez-vous et la Caisse passent tous par `pricingOf` puis
+     `prixDansPanier`, qui appliquent, dans cet ordre, le prix convenu avec
+     elle, son calibre et le barème de l'atelier, sa longueur travaillée, son
+     Juste Prix, et les gestes offerts quand deux prestations s'appellent.
+
+     Un prix de vitrine est une FOURCHETTE — « à partir de ». S'en servir pour
+     poser cinquante rituels réglés écrit cinquante montants que la Maison n'a
+     jamais encaissés, et le chiffre de l'année s'en trouve faux dans les deux
+     sens : trop haut sur les têtes à prix convenu, trop bas sur les grands
+     calibres.
+
+     LE MÊME JUGE QUE LE RENDEZ-VOUS, DONC, jusqu'à l'interrupteur : sans
+     calibre, sans coefficient et sans prix convenu, la tête n'est pas
+     personnalisée et l'on retombe sur le prix de base diminué des gestes,
+     exactement comme au fauteuil.
+
+     L'arbitrage du 5 septembre tient : c'est le prix D'AUJOURD'HUI, figé à la
+     pose, et corrigible ligne à ligne dans l'aperçu. */
+  const prixDe = (svs: Service[], tete?: Client): number => {
+    if (svs.length === 0) return 0;
+    const p = pricingOf(tete, bands, sets, cats);
+    const sienne = isPersonalized(p);
+    return svs.reduce((n, sv) => n + Math.max(0, sienne
+      ? prixDansPanier(sv, p, svs, services, produitsGamme)
+      : Math.round(prixDeBase(sv, p) * (1 - remiseGestePct(sv, p, svs) / 100))), 0);
+  };
 
   const lignes: Ligne[] = useMemo(() => {
     const fait = (l: { iso?: string; heure?: string; brut: string }, c: Client | undefined, svs: Service[], cleForcee?: string): Ligne => {
@@ -267,12 +308,36 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
          tete, avant le rituel commun. C'est le geste le plus precis, il gagne. */
       const propres = rituelParLigne[cle];
       const retenus = propres ? prestationsDe(propres) : svs;
-      const plein = prixParLigne[cle] ?? prixDe(retenus);
+      /* ══ UNE ANNÉE PASSÉE SE REPREND À CE QU'ELLE A COÛTÉ ═══════════
+         « Ce n'est pas juste » (Yéman), 6 septembre 2026, deuxième arbitrage.
+
+         LES TARIFS DE 2025 N'ÉTAIENT PAS CEUX DE 2026. Reprendre une année au
+         catalogue du jour gonfle son chiffre, et fausse la seule chose qu'une
+         reprise sert à faire : comparer une année à l'autre. Or le Trône
+         connaît déjà le montant exact — il l'affiche dans « Ce qu'elle fait
+         d'habitude ».
+
+         C'EST LE PRIX FIGÉ DU RITUEL, donc le PLEIN d'avant remise : le
+         reprendre comme plein et lui appliquer la remise de la série ne compte
+         donc rien deux fois.
+
+         À DÉFAUT SEULEMENT, SON PRIX D'AUJOURD'HUI. Un rituel jamais fait, ou
+         dont le montant n'a jamais été figé, n'a pas d'histoire à reprendre. */
+      const cleDuRituel = [...retenus.map((sv) => sv.id)].sort().join('+');
+      const habituee = c ? (habitudes.get(c.id) ?? []).find((h) => h.cle === cleDuRituel) : undefined;
+      /* ZÉRO N'EST PAS UN PRIX RETROUVÉ : un rituel offert ne dit rien de ce
+         que celui-ci vaut. */
+      const { xof: plein, duPasse } = prixDeLaReprise({
+        tape: prixParLigne[cle],
+        jadis: habituee?.dernierPrixXof,
+        aujourdhui: prixDe(retenus, c),
+      });
       const remise = remiseQuiSApplique(remiseSerie, remiseParLigne[cle]);
       return {
         cle, iso: l.iso, heure: l.heure ?? heure, brut: l.brut,
         client: c, services: retenus,
         prixXof: plein,
+        duPasse,
         remise,
         netXof: netApresRemise(plein, remise),
         dejaAuCarnet: false,
@@ -345,7 +410,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
     });
   }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire,
     prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees, datesRetirees, rituelParLigne,
-    remiseSerie, remiseParLigne]);
+    remiseSerie, remiseParLigne, services, bands, sets, cats, produitsGamme]);
 
   const posables = lignes.filter((l) => l.iso && l.client && l.services.length > 0 && !l.dejaAuCarnet && l.cochee);
   /* LE TOTAL EST LE NET : c'est lui qui entre en caisse. Le plein et ce qui a
@@ -942,6 +1007,14 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                               aria-label="Prix plein de ce rituel"
                               style={{ width: 96, textAlign: 'right', padding: '4px 8px', fontSize: 12 }}
                             />
+                            {/* D'OÙ VIENT CE MONTANT. Deux lignes qui ne
+                                portent pas le même prix doivent pouvoir
+                                s'expliquer sans qu'on ouvre une fiche. */}
+                            {l.duPasse && (
+                              <span className="mnd-muted" style={{ fontSize: 10 }}>
+                                ce qu’elle a réglé
+                              </span>
+                            )}
                             {/* LE NET SOUS LE PLEIN. Deux chiffres l'un sur
                                 l'autre se comparent d'un coup d'œil ; une
                                 phrase qui explique la remise se saute. */}
@@ -1103,9 +1176,10 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
         <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
           Chaque rituel naît <b>honoré et réglé</b> le jour même, en espèces, dans la caisse
           <b> « {caisse} »</b>, l’argent de {an} est entré, il n’est plus dans le tiroir.
-          Aucune facture n’est émise. Le prix plein reste inscrit sur le rituel et la remise
-          à côté, pour que le Bilan sache dire ce qui a été offert. Ces montants entreront
-          dans le chiffre de {an}.
+          Aucune facture n’est émise. Chaque prix est <b>ce qu’elle a réglé la dernière fois</b>
+          pour ce rituel, à défaut son prix d’aujourd’hui, calculé pour elle. Le prix plein reste
+          inscrit sur le rituel et la remise à côté, pour que le Bilan sache dire ce qui a été
+          offert. Ces montants entreront dans le chiffre de {an}.
         </div>
         </>)}
 

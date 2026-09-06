@@ -9,6 +9,7 @@ import {
   habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
   RYTHMES_REPRISE, foisDansLAnnee,
   remiseEstVide, remiseQuiSApplique, netApresRemise, remiseAGarderSurLaLigne,
+  prixDeLaReprise,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -258,6 +259,23 @@ dit('plein tarif sur une série remisée se garde', { pct: 0 },
   remiseAGarderSurLaLigne({ pct: 20 }, { pct: 0 }));
 dit('plein tarif sur une série nue ne se garde pas', undefined,
   remiseAGarderSurLaLigne({}, { pct: 0 }));
+
+/* ── ⑪ LES TROIS PRIX D'UNE REPRISE ───────────────────────────────
+   Un prix faux ici entre en caisse et dans le chiffre de l'année ; il faudra
+   le retrouver rituel par rituel. */
+dit('la main gagne toujours', { xof: 12000, duPasse: false },
+  prixDeLaReprise({ tape: 12000, jadis: 28000, aujourdhui: 32000 }));
+/* MÊME À ZÉRO : « celui-là était offert » est une décision, pas un oubli. */
+dit('la main gagne même à zéro', { xof: 0, duPasse: false },
+  prixDeLaReprise({ tape: 0, jadis: 28000, aujourdhui: 32000 }));
+dit('sinon son carnet', { xof: 28000, duPasse: true },
+  prixDeLaReprise({ jadis: 28000, aujourdhui: 32000 }));
+dit('sinon son prix d’aujourd’hui', { xof: 32000, duPasse: false },
+  prixDeLaReprise({ aujourdhui: 32000 }));
+/* ZÉRO RETROUVÉ N'EST PAS UN PRIX : un rituel offert ne dit rien de ce que
+   celui-ci vaut, et le reprendre poserait toute une année à zéro franc. */
+dit('un zéro retrouvé ne compte pas', { xof: 32000, duPasse: false },
+  prixDeLaReprise({ jadis: 0, aujourdhui: 32000 }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

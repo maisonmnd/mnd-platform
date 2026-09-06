@@ -293,6 +293,35 @@ export function apercuDeLaSerie(o: {
   return suite.sort((a, b) => a.iso.localeCompare(b.iso) || a.heure.localeCompare(b.heure));
 }
 
+/* ── LE PRIX D'UNE LIGNE DE REPRISE — 6 septembre 2026 ──────────────
+   « C'est quoi les prix que je vois en saisie du carnet ? Ce n'est pas juste »
+   (Yéman).
+
+   TROIS SOURCES, DANS CET ORDRE. La main d'abord : ce qui est tapé sur la
+   ligne est une décision, et une décision bat toute déduction. Son carnet
+   ensuite : les tarifs de 2025 n'étaient pas ceux de 2026, et reprendre une
+   année au catalogue du jour gonfle son chiffre, ce qui fausse la seule chose
+   qu'une reprise sert à faire, comparer une année à l'autre. Le prix
+   d'aujourd'hui en dernier, calculé POUR ELLE — pas le prix de vitrine.
+
+   ZÉRO N'EST PAS UN PRIX RETROUVÉ. Un rituel offert ne dit rien de ce que
+   celui-ci vaut ; le reprendre poserait toute une année à zéro franc. */
+
+export type PrixDeReprise = { xof: number; duPasse: boolean };
+
+export const prixDeLaReprise = (o: {
+  /** Ce que la main a tapé sur la ligne. */
+  tape?: number;
+  /** Ce qu'elle a réglé la dernière fois pour CE rituel, prix plein figé. */
+  jadis?: number;
+  /** Son prix d'aujourd'hui, calculé pour elle. */
+  aujourdhui: number;
+}): PrixDeReprise => {
+  if (typeof o.tape === 'number') return { xof: Math.max(0, Math.round(o.tape)), duPasse: false };
+  if (typeof o.jadis === 'number' && o.jadis > 0) return { xof: Math.round(o.jadis), duPasse: true };
+  return { xof: Math.max(0, Math.round(o.aujourdhui)), duPasse: false };
+};
+
 /* ── LA REMISE D'UNE REPRISE — 6 septembre 2026 ─────────────────────
    « Je dois gérer les remises en même temps sur la saisie en série pour que le
    montant soit correct dès ce fichier, avant de poser les RDV » (Yéman).
