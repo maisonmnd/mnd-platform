@@ -10,8 +10,10 @@ import { useServices, type Service } from '../../../../shared/catalog';
 import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
-  habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee, type LigneLue,
+  habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee,
+  remiseEstVide, remiseQuiSApplique, netApresRemise, type LigneLue, type Remise,
 } from '../../../../shared/serie';
+import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
 import { OptionsPrestations } from '../_ui';
 
@@ -43,7 +45,14 @@ type Ligne = {
   brut: string;
   client?: Client;
   services: Service[];
+  /** LE PRIX PLEIN, figé du catalogue du jour ou corrigé à la main. C'est lui
+      qui s'inscrit sur le rituel : la remise se pose à côté, jamais dedans. */
   prixXof: number;
+  /** Celle qui s'applique vraiment : la sienne si elle en porte une, celle de
+      la série sinon. */
+  remise: Remise;
+  /** Ce qui entre en caisse. */
+  netXof: number;
   dejaAuCarnet: boolean;
   cochee: boolean;
   /** Le nom tape sur la ligne, quand aucune tete ne lui repond : c'est lui
@@ -82,6 +91,26 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   const [colle, setColle] = useState('');
   const [retire, setRetire] = useState<Set<string>>(new Set());
   const [prixParLigne, setPrixParLigne] = useState<Record<string, number>>({});
+  /* ══ LA REMISE DE LA REPRISE — 6 septembre 2026 ════════════════════
+     « Je dois gérer les remises en même temps sur la saisie en série pour que
+     le montant soit correct dès ce fichier, avant de poser les RDV » (Yéman).
+
+     TAPER LE PRIX REMISÉ NE SUFFISAIT PAS. 40 000 dans la case d'un rituel qui
+     en vaut 50 000 pose le bon montant, mais l'histoire retient un rituel à
+     40 000 F : personne ne saura jamais que la Maison en a offert dix mille.
+     Sur une année reprise, c'est la générosité entière qui disparaît.
+
+     LA SÉRIE PORTE LE GESTE, LA LIGNE LE RATTRAPE. Une année se remise presque
+     toujours du même taux ; le poser douze fois serait douze occasions de se
+     tromper. La remise d'une ligne REMPLACE celle de la série — cumuler ferait
+     20 % sur 20 % sans que rien ne le dise. */
+  const [remiseSerie, setRemiseSerie] = useState<Remise>({});
+  const [remiseParLigne, setRemiseParLigne] = useState<Record<string, Remise>>({});
+  const poseLaRemise = (cle: string, r: Remise | undefined) => setRemiseParLigne((prev) => {
+    const n = { ...prev };
+    if (r === undefined) delete n[cle]; else n[cle] = r;
+    return n;
+  });
   /* ══ LES DATES DE LA CADENCE SE CORRIGENT — 5 septembre 2026 ═══════
      « Dans la cadence possibilite de modifier les dates predefinies » (Yeman).
 
@@ -223,10 +252,14 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
          tete, avant le rituel commun. C'est le geste le plus precis, il gagne. */
       const propres = rituelParLigne[cle];
       const retenus = propres ? prestationsDe(propres) : svs;
+      const plein = prixParLigne[cle] ?? prixDe(retenus);
+      const remise = remiseQuiSApplique(remiseSerie, remiseParLigne[cle]);
       return {
         cle, iso: l.iso, heure: l.heure ?? heure, brut: l.brut,
         client: c, services: retenus,
-        prixXof: prixParLigne[cle] ?? prixDe(retenus),
+        prixXof: plein,
+        remise,
+        netXof: netApresRemise(plein, remise),
         dejaAuCarnet: false,
         cochee: !retire.has(cle),
       };
@@ -296,10 +329,16 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       };
     });
   }, [mode, depart, semaines, jusqu, colle, an, heure, tete, serviceIds, appts, clients, byId, retire,
-    prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees, datesRetirees, rituelParLigne]);
+    prixParLigne, habitudes, branch.id, datesCorrigees, heuresCorrigees, datesRetirees, rituelParLigne,
+    remiseSerie, remiseParLigne]);
 
   const posables = lignes.filter((l) => l.iso && l.client && l.services.length > 0 && !l.dejaAuCarnet && l.cochee);
-  const total = posables.reduce((n, l) => n + l.prixXof, 0);
+  /* LE TOTAL EST LE NET : c'est lui qui entre en caisse. Le plein et ce qui a
+     été consenti se disent à côté — une remise qu'on ne voit pas au moment de
+     poser est une remise qu'on découvre en fin d'année. */
+  const total = posables.reduce((n, l) => n + l.netXof, 0);
+  const totalPlein = posables.reduce((n, l) => n + l.prixXof, 0);
+  const offert = Math.max(0, totalPlein - total);
   const caisse = caisseDeLaReprise(an);
 
   /* ══ CREER UNE TETE DEPUIS LA SAISIE — 5 septembre 2026 ═══════════
@@ -408,12 +447,21 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       /* HONORÉ ET RÉGLÉ LE JOUR MÊME, en espèces — arbitrage du 5 septembre.
          « Tout comme réglé puis rouvrir les quelques exceptions » : poser tout
          comme impayé obligerait à ouvrir cinquante rituels au lieu de trois. */
+      /* LE PLEIN SUR LE RITUEL, LA REMISE À CÔTÉ, LE NET EN CAISSE. Écrire le
+         net dans `priceXof` poserait le bon montant et effacerait le geste :
+         le Bilan ne saurait plus dire ce que la Maison a offert cette
+         année-là, et la moyenne par rituel s'effondrerait sans raison. */
       priceXof: l.prixXof,
-      paidXof: l.prixXof,
-      payments: [{
-        id: `pm-${uid()}`, amountXof: l.prixXof, date: l.iso!,
+      ...(l.remise.pct && l.remise.pct > 0 ? { discountPct: Math.round(l.remise.pct) } : {}),
+      ...(l.remise.xof && l.remise.xof > 0 ? { discountXof: Math.round(l.remise.xof) } : {}),
+      paidXof: l.netXof,
+      /* UN RITUEL ENTIÈREMENT OFFERT NE PORTE PAS DE RÈGLEMENT : un versement
+         de zéro franc dans la caisse est une ligne qui ne correspond à aucun
+         billet, et elle se relit comme un impayé réglé. */
+      payments: l.netXof > 0 ? [{
+        id: `pm-${uid()}`, amountXof: l.netXof, date: l.iso!,
         method: 'Espèces', cashbox: caisse, note: marqueDeLaSerie(serie),
-      }],
+      }] : [],
       note: `Reprise ${an}`,
     } as unknown as Appointment));
     appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
@@ -442,7 +490,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Saisir en série" onClose={onClose} width={860}>
+    <Modal title="Saisir en série" onClose={onClose} width={960}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', gap: 18, borderBottom: '1px solid var(--hairline)' }}>
           {([
@@ -660,7 +708,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
 
         {mode !== 'cadence' && (
           <Field label={teteDuMois
-            ? 'Une venue par ligne · le jour, puis le nom — « 14/02 09:00 Stephanie »'
+            ? 'Une venue par ligne · le jour, puis le nom · « 14/02 09:00 Stephanie »'
             : 'Une date par ligne · l’heure si vous l’avez'}>
             <textarea
               className="mnd-input"
@@ -701,6 +749,60 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
+        {/* ══ LA REMISE DE LA SÉRIE — 6 septembre 2026 ════════════════════
+            « Je dois gérer les remises en même temps sur la saisie en série
+            pour que le montant soit correct dès ce fichier » (Yéman).
+
+            UN TAUX POSÉ UNE FOIS VAUT POUR L'ANNÉE. Le reposer sur chacune des
+            douze venues serait douze occasions de se tromper, et l'écart ne se
+            verrait qu'au moment où les chiffres ne tombent plus.
+
+            CE QUI EST OFFERT S'AFFICHE ICI, en francs, avant que rien ne soit
+            écrit. Une remise qu'on ne voit pas au moment de poser est une
+            remise qu'on découvre en fin d'année. */}
+        {lignes.length > 0 && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              border: '1px solid var(--hairline)', borderRadius: 3, padding: '9px 12px',
+            }}
+          >
+            <span style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500 }}>
+              La remise de la série
+            </span>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {[0, ...TAUX_DE_REMISE].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  className={`tre-chip ${(remiseSerie.pct ?? 0) === pct ? 'is-on' : ''}`}
+                  onClick={() => setRemiseSerie((r) => ({ ...r, pct }))}
+                >
+                  {pct === 0 ? 'Aucune' : `${pct} %`}
+                </button>
+              ))}
+            </div>
+            {/* PUIS LES FRANCS. Le pourcentage d'abord, les francs ensuite,
+                comme au comptoir : une seule règle s'apprend. */}
+            <Input
+              inputMode="numeric"
+              value={remiseSerie.xof ? String(remiseSerie.xof) : ''}
+              onChange={(e) => {
+                const v = Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0);
+                setRemiseSerie((r) => ({ ...r, xof: v }));
+              }}
+              placeholder="puis − F"
+              aria-label="Remise en francs sur toute la série"
+              style={{ width: 104, textAlign: 'right', padding: '4px 8px', fontSize: 12 }}
+            />
+            {offert > 0 && (
+              <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--copper-700)' }}>
+                <b>{fmtMoney(offert, currency)}</b> offerts
+              </span>
+            )}
+          </div>
+        )}
+
         {/* ══ L'APERÇU — rien ne s'écrit avant qu'on ait vu ═══════════════ */}
         {lignes.length > 0 && (
           <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, maxHeight: '38vh', overflowY: 'auto' }}>
@@ -711,6 +813,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                   <th style={{ textAlign: 'left', padding: '7px 10px', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500 }}>Le jour</th>
                   <th style={{ textAlign: 'left', padding: '7px 10px', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500 }}>Ce qui sera posé</th>
                   <th style={{ textAlign: 'right', padding: '7px 10px', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500 }}>Prix</th>
+                  <th style={{ textAlign: 'right', padding: '7px 10px', fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 500 }}>Remise</th>
                   <th />
                 </tr>
                 {lignes.map((l) => {
@@ -721,6 +824,9 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                   const sesHabitudes = l.client ? (habitudes.get(l.client.id) ?? []) : [];
                   const ids = l.services.map((sv) => sv.id);
                   const cleDuRituel = [...ids].sort().join('+');
+                  /* SA PROPRE REMISE, si elle en porte une. Absente, la ligne
+                     suit la série — et c'est le cas courant. */
+                  const sienne: Remise | undefined = remiseParLigne[l.cle];
                   return (
                     <Fragment key={l.cle}>
                     <tr style={{ background: ko ? 'var(--brique-50, #FBF0ED)' : undefined, opacity: !ko && (l.dejaAuCarnet || !l.cochee) ? 0.55 : 1 }}>
@@ -813,13 +919,64 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
                         {!ko && (
-                          <Input
-                            inputMode="numeric"
-                            value={String(l.prixXof)}
-                            onChange={(e) => setPrixParLigne((p) => ({ ...p, [l.cle]: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0) }))}
-                            aria-label="Prix de ce rituel"
-                            style={{ width: 96, textAlign: 'right', padding: '4px 8px', fontSize: 12 }}
-                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                            <Input
+                              inputMode="numeric"
+                              value={String(l.prixXof)}
+                              onChange={(e) => setPrixParLigne((p) => ({ ...p, [l.cle]: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0) }))}
+                              aria-label="Prix plein de ce rituel"
+                              style={{ width: 96, textAlign: 'right', padding: '4px 8px', fontSize: 12 }}
+                            />
+                            {/* LE NET SOUS LE PLEIN. Deux chiffres l'un sur
+                                l'autre se comparent d'un coup d'œil ; une
+                                phrase qui explique la remise se saute. */}
+                            {!remiseEstVide(l.remise) && (
+                              <span style={{ fontSize: 12, color: 'var(--copper-700)', fontWeight: 600 }}>
+                                {fmtMoney(l.netXof, currency)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      {/* ══ LA REMISE DE CETTE VENUE ═══════════════════════
+                          Elle REMPLACE celle de la série, elle ne s'y ajoute
+                          pas : cumuler ferait 20 % sur 20 % sans que rien ne
+                          le dise. « Aucune » se dit explicitement, pour que
+                          l'exception inverse existe aussi — la série remisée,
+                          cette venue-là plein tarif. */}
+                      <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
+                        {!ko && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                            <Select
+                              value={sienne === undefined ? '' : String(sienne.pct ?? 0)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === '') poseLaRemise(l.cle, undefined);
+                                else poseLaRemise(l.cle, { ...(sienne ?? {}), pct: parseInt(v, 10) });
+                              }}
+                              aria-label="Remise de ce rituel"
+                              style={{ width: 110, padding: '3px 6px', fontSize: 11.5 }}
+                            >
+                              <option value="">Celle de la série</option>
+                              <option value="0">Aucune</option>
+                              {TAUX_DE_REMISE.map((pct) => (
+                                <option key={pct} value={String(pct)}>{pct} %</option>
+                              ))}
+                            </Select>
+                            {sienne !== undefined && (
+                              <Input
+                                inputMode="numeric"
+                                value={sienne.xof ? String(sienne.xof) : ''}
+                                onChange={(e) => poseLaRemise(l.cle, {
+                                  ...sienne,
+                                  xof: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0),
+                                })}
+                                placeholder="puis − F"
+                                aria-label="Remise en francs de ce rituel"
+                                style={{ width: 110, textAlign: 'right', padding: '3px 6px', fontSize: 11.5 }}
+                              />
+                            )}
+                          </div>
                         )}
                       </td>
                       <td style={{ padding: '6px 10px', borderTop: '1px solid var(--hairline)', textAlign: 'right' }}>
@@ -848,7 +1005,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                     {ouverte && (
                       <tr>
                         <td />
-                        <td colSpan={4} style={{ padding: '2px 10px 12px' }}>
+                        <td colSpan={5} style={{ padding: '2px 10px 12px' }}>
                           <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', background: 'var(--surface-2, #FAF8F5)' }}>
                             {sesHabitudes.length > 0 && (
                               <>
@@ -922,8 +1079,10 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
 
         <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
           Chaque rituel naît <b>honoré et réglé</b> le jour même, en espèces, dans la caisse
-          <b> « {caisse} »</b> — l’argent de {an} est entré, il n’est plus dans le tiroir.
-          Aucune facture n’est émise. Ces montants entreront dans le chiffre de {an}.
+          <b> « {caisse} »</b>, l’argent de {an} est entré, il n’est plus dans le tiroir.
+          Aucune facture n’est émise. Le prix plein reste inscrit sur le rituel et la remise
+          à côté, pour que le Bilan sache dire ce qui a été offert. Ces montants entreront
+          dans le chiffre de {an}.
         </div>
         </>)}
 
@@ -1006,7 +1165,8 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
           )}
           {!enRetrait && posables.length > 0 && (
             <span className="mnd-muted" style={{ fontSize: 12 }}>
-              {posables.length} × · <b>{fmtMoney(total, currency)}</b> dans l’année {an}.
+              {posables.length} × · <b>{fmtMoney(total, currency)}</b> dans l’année {an}
+              {offert > 0 ? <> · {fmtMoney(totalPlein, currency)} moins {fmtMoney(offert, currency)} offerts</> : null}.
             </span>
           )}
         </div>

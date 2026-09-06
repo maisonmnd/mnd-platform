@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA REMISE DANS LA SAISIE EN SÉRIE — 6 septembre 2026, PUBLIÉ
+
+« Je dois gérer les remises en même temps sur la saisie en série pour que le
+montant soit correct dès ce fichier, avant de poser les RDV » (Yéman).
+
+**Taper le prix remisé posait le bon montant et effaçait le geste.** 40 000 dans
+la case d'un rituel qui en vaut 50 000 entre juste en caisse, mais l'histoire
+retient un rituel à 40 000 F : rien ne dira jamais que la Maison en a offert dix
+mille. Sur une année entière reprise, c'est toute la générosité qui disparaît
+des comptes, et la moyenne par rituel s'effondre sans raison.
+
+**Deux chiffres plutôt qu'un.** Le prix plein reste `priceXof`, la remise se pose
+à côté (`discountPct`, `discountXof`), et c'est leur différence qui entre en
+caisse (`paidXof` et le versement). Le Bilan sait alors dire ce qui a été
+consenti.
+
+### Les trois arbitrages du 6 septembre
+
+- **La série porte le geste, la ligne le rattrape.** Un taux posé une fois vaut
+  pour l'année ; le reposer sur chacune des douze venues serait douze occasions
+  de se tromper. La remise d'une ligne **remplace** celle de la série, elle ne
+  s'y ajoute pas : cumuler ferait 20 % sur 20 % sans que rien ne le dise.
+- **Le pourcentage d'abord, les francs ensuite**, aux deux étages, comme au
+  comptoir et sur le rendez-vous. Une seule règle s'apprend ; deux écrans qui
+  comptent dans un ordre différent donnent deux totaux pour un même geste.
+- **C'est la présence qui tranche, pas le montant.** Une ligne posée à
+  « Aucune » reste à plein tarif même quand la série est remisée. Retomber sur
+  la série parce que le taux vaut zéro rendrait cette exception impossible.
+
+**Un rituel entièrement offert ne porte aucun règlement.** Un versement de zéro
+franc est une ligne qui ne correspond à aucun billet, et elle se relit comme un
+impayé réglé.
+
+Le pur est dans `shared/serie.ts` (`remiseQuiSApplique`, `netApresRemise`,
+`remiseEstVide`), éprouvé par `verifie-serie` (13 assertions de plus).
+
 ## MA COURONNE : QUATRE MOIS — 6 septembre 2026, PUBLIÉ
 
 « Sur Ma Couronne ouvrir le calendrier sur 4 mois pour le client. » Quatre

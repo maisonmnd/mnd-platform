@@ -8,6 +8,7 @@ import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
   habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
   RYTHMES_REPRISE, foisDansLAnnee,
+  remiseEstVide, remiseQuiSApplique, netApresRemise,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -209,6 +210,40 @@ dit('un rythme serré ne s’annote pas', undefined, foisDansLAnnee(4));
 /* DEUX VENUES SE DÉROULENT VRAIMENT, sur une année complète. */
 dit('deux venues sur l’année', ['2025-01-10', '2025-07-11'],
   datesDeLaCadence({ departIso: '2025-01-10', semaines: 26, jusquIso: '2025-12-31' }));
+
+/* ── ⑩ LA REMISE DE LA REPRISE — 6 septembre 2026 ─────────────────
+   « Je dois gérer les remises en même temps sur la saisie en série pour que le
+   montant soit correct dès ce fichier » (Yéman). Un net faux ici n'est pas une
+   faute d'affichage : il entre en caisse, dans le chiffre de l'année, et il
+   faudra le retrouver rituel par rituel. */
+dit('le pourcentage d’abord', 40000, netApresRemise(50000, { pct: 20 }));
+dit('les francs ensuite', 35000, netApresRemise(50000, { pct: 20, xof: 5000 }));
+/* LES FRANCS SE RETRANCHENT DU NET, PAS DU PLEIN : l'inverse donnerait
+   45 000 × 0,8 = 36 000, mille francs d'écart par venue et douze par an. */
+dit('l’ordre compte', true, netApresRemise(50000, { pct: 20, xof: 5000 })
+  !== netApresRemise(50000 - 5000, { pct: 20 }));
+dit('offerte entièrement', 0, netApresRemise(50000, { pct: 100 }));
+/* UNE REMISE PLUS GRANDE QUE LE RESTE REND LE RITUEL OFFERT, elle ne fait pas
+   rendre la monnaie — un net négatif créditerait la caisse à l'envers. */
+dit('jamais négatif', 0, netApresRemise(20000, { xof: 90000 }));
+dit('rien à remiser, rien ne bouge', 50000, netApresRemise(50000, {}));
+
+/* CE QUI NE RETIRE RIEN N'EST PAS UNE REMISE : c'est son absence, et c'est
+   à ce silence que la ligne laisse parler la série. */
+dit('vide', true, remiseEstVide(undefined));
+dit('zéro pour cent est vide', true, remiseEstVide({ pct: 0, xof: 0 }));
+dit('cinq pour cent ne l’est pas', false, remiseEstVide({ pct: 5 }));
+
+/* LA LIGNE L'EMPORTE, ELLE NE S'AJOUTE PAS. Cumuler ferait 20 % sur 20 % sans
+   que rien ne le dise — le genre d'écart qu'on ne retrouve jamais. */
+dit('la ligne l’emporte', { pct: 50 }, remiseQuiSApplique({ pct: 20 }, { pct: 50 }));
+dit('sans la sienne, celle de la série', { pct: 20 }, remiseQuiSApplique({ pct: 20 }, undefined));
+/* « CELLE-LÀ, PLEIN TARIF » DOIT POUVOIR SE DIRE quand la série est remisée :
+   c'est la présence de la remise qui tranche, jamais son montant. */
+dit('une ligne posée à aucune reste à aucune', {}, remiseQuiSApplique({ pct: 20 }, {}));
+dit('… et se règle plein tarif', 50000, netApresRemise(50000, remiseQuiSApplique({ pct: 20 }, {})));
+dit('la ligne ne se cumule pas', 25000,
+  netApresRemise(50000, remiseQuiSApplique({ pct: 20 }, { pct: 50 })));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

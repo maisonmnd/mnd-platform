@@ -293,6 +293,58 @@ export function apercuDeLaSerie(o: {
   return suite.sort((a, b) => a.iso.localeCompare(b.iso) || a.heure.localeCompare(b.heure));
 }
 
+/* ── LA REMISE D'UNE REPRISE — 6 septembre 2026 ─────────────────────
+   « Je dois gérer les remises en même temps sur la saisie en série pour que le
+   montant soit correct dès ce fichier, avant de poser les RDV » (Yéman).
+
+   LE PRIX CORRIGÉ NE DISAIT PAS LA REMISE. Taper 40 000 dans la case d'un
+   rituel qui en vaut 50 000 pose bien le bon montant, mais l'histoire retient
+   un rituel à 40 000 F : personne ne saura jamais que la Maison en a offert
+   dix mille. Sur une année reprise, c'est la générosité entière qui disparaît
+   des comptes.
+
+   D'OÙ DEUX CHIFFRES PLUTÔT QU'UN : le prix plein reste le prix plein, la
+   remise se pose à côté, et c'est leur différence qui entre en caisse. Le
+   Bilan sait alors dire ce qui a été consenti.
+
+   LA SÉRIE PORTE LA REMISE, LA LIGNE LA RATTRAPE. Une année se remise presque
+   toujours du même geste ; poser le taux douze fois serait douze occasions de
+   se tromper. Mais une venue fait exception, et la sienne L'EMPORTE au lieu de
+   s'ajouter — cumuler ferait 20 % sur 20 % sans que rien ne le dise, et c'est
+   le genre d'écart qu'on ne retrouve jamais.
+
+   LE POURCENTAGE D'ABORD, LES FRANCS ENSUITE — l'ordre du comptoir et du
+   rendez-vous. Une seule règle s'apprend ; deux écrans qui comptent dans un
+   ordre différent donnent deux totaux pour un même geste. */
+
+export type Remise = { pct?: number; xof?: number };
+
+/** Une remise qui ne retire rien n'est pas une remise : c'est son absence.
+    Il faut le dire ici pour que la ligne sache quand se taire et laisser
+    parler la série. */
+export const remiseEstVide = (r?: Remise | null): boolean =>
+  !r || ((r.pct ?? 0) <= 0 && (r.xof ?? 0) <= 0);
+
+/** Celle de la ligne l'emporte ; sinon celle de la série.
+
+    C'EST LA PRÉSENCE QUI TRANCHE, PAS LE MONTANT. Une ligne posée à zéro dit
+    « celle-là, plein tarif » — et il faut qu'elle puisse le dire, sinon
+    l'exception inverse ne s'exprime nulle part : la série remise à 20 %, cette
+    venue-là non. Retomber sur la série parce que le taux vaut zéro rendrait ce
+    geste impossible. Absente, en revanche, la ligne suit la série. */
+export const remiseQuiSApplique = (serie: Remise, propre?: Remise | null): Remise =>
+  (propre == null ? serie : propre);
+
+/** LE NET : le pourcentage d'abord, les francs ensuite, jamais négatif. Une
+    remise en francs plus grande que le reste rend le rituel offert, elle ne
+    fait pas rendre la monnaie. */
+export const netApresRemise = (brutXof: number, r: Remise): number => {
+  const brut = Math.max(0, Math.round(brutXof));
+  const pct = Math.max(0, Math.min(100, Math.round(r.pct ?? 0)));
+  const xof = Math.max(0, Math.round(r.xof ?? 0));
+  return Math.max(0, Math.round(brut * (1 - pct / 100)) - xof);
+};
+
 /** LA CAISSE D'UNE REPRISE D'ANNÉE — arbitrage du 5 septembre 2026.
 
     « Verser une année dans la Caisse Principale ferait un solde qui ne
