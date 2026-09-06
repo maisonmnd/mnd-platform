@@ -926,7 +926,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
              que les prix d'époque. Changer le forfait dans six mois ne doit
              pas réécrire ce qu'une cliente a acheté aujourd'hui. */
           const dedans = (sv.includes?.length ?? 0) > 0
-            ? detailDuForfait(sv, byId, (x) => fmtMoney(x, currency))
+            ? detailDuForfait(sv, byId, (x) => fmtMoney(x, currency), ligne.unitXof)
             : [];
           if (dedans.length > 0) ligne.detail = dedans;
           return ligne;

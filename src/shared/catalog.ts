@@ -153,6 +153,28 @@ export type Service = {
       sort au franc près : tant que ni le modèle ni le Juste Prix ne le modulent,
       il n'est pas arrondi. Absent = la prestation a un prix unique. */
   prixParLongueur?: Partial<Record<LongueurId, number>>;
+  /** ══ LE PRIX FERME QUI CHANGE UNE FOIS — 7 septembre 2026 ═══════════
+      « Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a
+      moins de 250 locks. Dans les cas où le kids a plus de locks, le rituel
+      complet passe à 30 000 F » (Yéman).
+
+      CE N'EST NI UN CALIBRE NI UN TARIF AU LOCK. Le calibre est la grille de la
+      Maison, faite pour les grandes têtes : y accrocher les Kids ferait bouger
+      leur prix chaque fois qu'on déplace une borne de la grille adulte. Le
+      tarif au lock, lui, ferait varier le prix à chaque comptage, et un forfait
+      qui ne s'annonce plus au téléphone n'est plus un forfait.
+
+      C'EST UN PRIX FERME QUI CONNAÎT UNE MARCHE. On annonce « 25 000 F, et
+      30 000 au-delà de 250 locks » : deux nombres, qui se disent.
+
+      AU-DELÀ SE COMPTE STRICTEMENT : une tête à exactement 250 locks reste au
+      prix bas. Au bord, on tranche en faveur de la cliente — c'est un choix,
+      pas un hasard d'inégalité.
+
+      SANS COMPTAGE, LE PRIX DE BASE. On ne facture pas plus cher sur une
+      supposition : une fiche sans comptage se règle au tarif annoncé, et
+      l'écran de la tête dit qu'il manque. */
+  paliersDeLocks?: { auDela: number; prixXof: number }[];
   /** DURÉE PAR LONGUEUR, en minutes. Les trois variantes qu'on remplace
       n'annonçaient pas seulement trois prix mais trois durées — 45 min, 1 h 10,
       1 h 30. Sans ce champ, réserver un soin Long aurait bloqué le fauteuil

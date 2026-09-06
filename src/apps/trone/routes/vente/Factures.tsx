@@ -129,7 +129,9 @@ export default function Factures() {
        contenu par la prestation qui porte le même nom, faute de mieux, et
        jamais à la place de ce qui est écrit. */
     const forfait = services.find((sv) => sv.name === l.label && (sv.includes?.length ?? 0) > 0);
-    if (forfait) return detailDuForfait(forfait, services, (x) => fmtMoney(x, currency));
+    /* LE PRIX DE LA LIGNE, pas celui du catalogue d'aujourd'hui : c'est déjà la
+       règle du prix d'époque, et le PACK Kids a maintenant deux prix. */
+    if (forfait) return detailDuForfait(forfait, services, (x) => fmtMoney(x, currency), l.unitXof);
     const abo = abonnes.find((a) => a.invoiceId === piece.id);
     if (!abo || piece.lines.length !== 1) return [];
     return libellesInclus(abo, formules.find((f) => f.id === abo.planId), nomDuService);

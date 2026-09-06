@@ -272,10 +272,41 @@ export type PersonalPricing = {
   longueur?: LongueurId;
 };
 
+/** LE PRIX FERME QUI CHANGE UNE FOIS, au-delà d'un compte de locks.
+
+    « Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a
+    moins de 250 locks ; au-delà il passe à 30 000 F » (Yéman, 7 septembre).
+
+    LA MARCHE LA PLUS HAUTE QUI SOIT FRANCHIE gagne, quel que soit l'ordre dans
+    lequel les paliers ont été saisis. Se fier à l'ordre du tableau ferait
+    dépendre le prix d'une tête de la façon dont quelqu'un a rempli un écran.
+
+    SANS COMPTAGE, RIEN : on ne facture pas plus cher sur une supposition. */
+export const prixSelonLesLocks = (
+  sv: Pick<Service, 'paliersDeLocks'>, lockCount: number | undefined,
+): number | undefined => {
+  if (!sv.paliersDeLocks?.length || !lockCount || lockCount <= 0) return undefined;
+  let gagnant: { auDela: number; prixXof: number } | undefined;
+  for (const pal of sv.paliersDeLocks) {
+    /* AU-DELÀ SE COMPTE STRICTEMENT : à exactement 250 locks, on reste au prix
+       bas. Au bord, on tranche en faveur de la cliente. */
+    if (lockCount > pal.auDela && (!gagnant || pal.auDela > gagnant.auDela)) gagnant = pal;
+  }
+  return gagnant?.prixXof;
+};
+
 /** Le prix de base d'une prestation POUR CETTE LONGUEUR — son prix catalogue
-    quand elle n'en a qu'un, ou quand la longueur n'est pas connue. */
-export const prixDeBase = (sv: Pick<Service, 'priceXof' | 'prixParLongueur'>, p: PersonalPricing): number =>
-  (p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined) ?? sv.priceXof;
+    quand elle n'en a qu'un, ou quand la longueur n'est pas connue.
+
+    LA LONGUEUR PASSE AVANT LA MARCHE : elle se choisit rendez-vous par
+    rendez-vous, donc elle est la plus précise des deux. Une prestation ne porte
+    de toute façon jamais les deux aujourd'hui. */
+export const prixDeBase = (
+  sv: Pick<Service, 'priceXof' | 'prixParLongueur' | 'paliersDeLocks'>, p: PersonalPricing,
+): number =>
+  (p.longueur ? sv.prixParLongueur?.[p.longueur] : undefined)
+  ?? prixSelonLesLocks(sv, p.lockCount)
+  ?? sv.priceXof;
 
 /** Le contexte tarifaire d'une cliente : sa tranche de modèle + son Juste Prix.
     `sets` est facultatif : sans lui, tout suit le barème de la Maison, comme avant. */

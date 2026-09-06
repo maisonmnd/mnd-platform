@@ -13,7 +13,9 @@ import {
   SERVICES_KIDS, FORFAIT_KIDS, kidsAbsents, CAT_KIDS, catalogueDeLaTete,
   compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser, pourQui,
 } from '../src/shared/kids';
-import { estProposable } from '../src/shared/pricing';
+import {
+  MODEL_BANDS_SEED, estProposable, personalPriceXof, prixDeBase, prixSelonLesLocks, pricingOf,
+} from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
 import type { Client } from '../src/shared/clients';
 
@@ -208,3 +210,77 @@ dit('un prix barré effacé aussi', 1,
    l'écraserait. */
 dit('le reste du catalogue ne le regarde pas', 0,
   kidsADepasser([{ ...SERVICES_KIDS[0], id: 'sv-vekpe-classique', priceXof: 1 }]));
+
+/* ══ LA MARCHE DES 250 LOCKS — 7 septembre 2026 ═══════════════════════
+   « Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a
+   moins de 250 locks. Dans les cas où le kids a plus de locks, le rituel
+   complet passe à 30 000 F » (Yéman).
+
+   CE N'EST NI UN CALIBRE NI UN TARIF AU LOCK, c'est un prix ferme qui connaît
+   une marche : deux nombres qui s'annoncent au téléphone. */
+const tete = (lockCount?: number) => ({
+  band: undefined, clientCoef: 1, lockCount,
+} as unknown as Parameters<typeof prixDeBase>[1]);
+
+dit('le pack porte sa marche', [{ auDela: 250, prixXof: 30_000 }], FORFAIT_KIDS.paliersDeLocks);
+dit('cent locks restent au tarif annoncé', 25_000, prixDeBase(FORFAIT_KIDS, tete(100)));
+/* AU-DELÀ SE COMPTE STRICTEMENT : à exactement 250, on reste au prix bas. Au
+   bord, la Maison tranche en faveur de la cliente — c'est un choix, et sans ce
+   juge il se serait inversé au premier refactor. */
+dit('deux cent quarante-neuf aussi', 25_000, prixDeBase(FORFAIT_KIDS, tete(249)));
+dit('deux cent cinquante pile aussi', 25_000, prixDeBase(FORFAIT_KIDS, tete(250)));
+dit('deux cent cinquante et un passent la marche', 30_000, prixDeBase(FORFAIT_KIDS, tete(251)));
+dit('quatre cents également', 30_000, prixDeBase(FORFAIT_KIDS, tete(400)));
+/* SANS COMPTAGE, LE PRIX ANNONCÉ. On ne facture pas plus cher sur une
+   supposition : une fiche sans comptage se règle au tarif dit, et c'est
+   l'écran de la tête qui signale ce qui manque. */
+dit('sans comptage, le tarif annoncé', 25_000, prixDeBase(FORFAIT_KIDS, tete(undefined)));
+dit('un comptage à zéro ne compte pas', 25_000, prixDeBase(FORFAIT_KIDS, tete(0)));
+
+/* LA MARCHE LA PLUS HAUTE FRANCHIE GAGNE, quel que soit l'ordre de saisie : se
+   fier à l'ordre du tableau ferait dépendre le prix d'une tête de la façon dont
+   quelqu'un a rempli un écran. */
+const deuxMarches = {
+  paliersDeLocks: [{ auDela: 400, prixXof: 35_000 }, { auDela: 250, prixXof: 30_000 }],
+};
+dit('la marche la plus haute gagne', 35_000, prixSelonLesLocks(deuxMarches, 500));
+dit('… et la première quand la seconde n’est pas franchie', 30_000,
+  prixSelonLesLocks(deuxMarches, 300));
+dit('… rien en dessous de tout', undefined, prixSelonLesLocks(deuxMarches, 100));
+/* Une prestation sans marche ne change jamais de prix : la règle des Kids ne
+   doit pas déborder sur le catalogue des grandes. */
+dit('une prestation sans marche ne bouge pas', undefined, prixSelonLesLocks({}, 900));
+dit('… et les autres gestes Kids non plus', 15_000,
+  prixDeBase(SERVICES_KIDS[1], tete(400)));
+
+/* CE QUE LA PIÈCE ANNONCE EST CE QUE LA CAISSE SONNE. Le gain se lisait sur le
+   prix de la FICHE : sous une ligne facturée 30 000, le papier aurait écrit
+   « 25 000 F pour les Kids, 15 000 F offerts » — un geste qui n'a pas été
+   fait, noir sur blanc devant le parent. */
+const g25 = gainDuForfait(FORFAIT_KIDS, SERVICES_KIDS);
+dit('au tarif bas, quinze mille offerts', [40_000, 25_000, 15_000],
+  [g25.carteXof, g25.prixXof, g25.gainXof]);
+const g30 = gainDuForfait(FORFAIT_KIDS, SERVICES_KIDS, 30_000);
+dit('au-delà de la marche, dix mille offerts', [40_000, 30_000, 10_000],
+  [g30.carteXof, g30.prixXof, g30.gainXof]);
+dit('… et la pièce l’écrit', true,
+  detailDuForfait(FORFAIT_KIDS, SERVICES_KIDS, (x) => `${x} F`, 30_000)
+    .some((l) => l.includes('30000 F pour les Kids') && l.includes('10000 F offerts')));
+
+/* UNE SECTION DÉJÀ POSÉE DOIT POUVOIR RECEVOIR LA MARCHE : sans cela, les
+   catalogues d'avant garderaient 25 000 F pour toutes les têtes, et le bouton
+   de mise à jour dirait qu'il n'y a rien à faire. */
+dit('un pack sans la marche se signale', 1,
+  kidsADepasser([{ ...FORFAIT_KIDS, paliersDeLocks: undefined }]));
+dit('… et avec elle, plus rien', 0, kidsADepasser([FORFAIT_KIDS]));
+
+/* ── DE BOUT EN BOUT, COMME LE FAIT L'ECRAN ────────────────────────
+   `prixDeBase` est l'entonnoir, mais le rendez-vous et la caisse appellent
+   `personalPriceXof` : entre les deux il y a le forfait, le calibre, le tarif
+   au lock et le Juste Prix. Verifier la marche sans les traverser laisserait
+   passer le jour ou l'un d'eux la mange. */
+const catKids = [...SERVICES_KIDS, FORFAIT_KIDS];
+const parLaTete = (locks: number) =>
+  personalPriceXof(FORFAIT_KIDS, pricingOf({ lockCount: locks }, MODEL_BANDS_SEED), catKids);
+dit('au rendez-vous, cent locks paient le tarif annonce', 25_000, parLaTete(100));
+dit('au rendez-vous, quatre cents locks paient la marche', 30_000, parLaTete(400));

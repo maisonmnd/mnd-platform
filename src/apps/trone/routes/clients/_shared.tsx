@@ -821,7 +821,7 @@ export function alignerFacturesDuRituel(
     }
     const lines: InvoiceLine[] = services.map((s, i) => {
       const dedans = (emise ? contenuDEpoque.get(s.name) : undefined)
-        ?? ((s.includes?.length ?? 0) > 0 ? detailDuForfait(s, byId, argentDit) : []);
+        ?? ((s.includes?.length ?? 0) > 0 ? detailDuForfait(s, byId, argentDit, pleins[i]) : []);
       return {
         id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
         ...(francs[i] > 0 ? { discountXof: francs[i] } : {}),
@@ -2719,7 +2719,11 @@ export function RdvModal({
               {(sv.includes?.length ?? 0) > 0 && (() => {
                 const compo = compositionDuForfait(sv, services);
                 if (compo.length === 0) return null;
-                const g = gainDuForfait(sv, services);
+                /* LE PRIX DE CETTE TÊTE, pas celui de la fiche : au-delà de
+                   250 locks le PACK Kids passe à 30 000 F, et annoncer le gain
+                   du tarif bas sous une ligne facturée plus cher écrirait un
+                   geste qui n'a pas été fait. */
+                const g = gainDuForfait(sv, services, personalPriceXof(sv, pricing, services, produitsGamme));
                 return (
                   <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>

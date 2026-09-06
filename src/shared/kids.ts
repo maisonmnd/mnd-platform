@@ -99,8 +99,22 @@ export const FORFAIT_KIDS: Service = {
      ensemble, là où « le rituel complet » pouvait passer pour une
      prestation de plus dans la liste. */
   name: 'PACK MND KIDS · Le rituel complet',
-  description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes.',
+  description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes, 30 000 F au-delà de 250 locks.',
   priceXof: 25_000,
+  /* LA MARCHE DES GRANDES PETITES TÊTES — 7 septembre 2026.
+
+     « Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a
+     moins de 250 locks. Dans les cas où le kids a plus de locks, le rituel
+     complet passe à 30 000 F » (Yéman).
+
+     C'EST LA MÊME RAISON QUI AVAIT FAIT ÉCARTER LE CALIBRE, retournée : une
+     tête d'enfant tient « dans une ou deux tranches », et voici la seconde. Le
+     forfait garde son prix qui s'annonce au téléphone ; il en annonce deux au
+     lieu d'un, pas une grille.
+
+     UNE SEULE MARCHE, PAS UNE PENTE : au-delà de 250 locks, ce n'est plus une
+     petite tête qu'on couronne en 85 minutes. */
+  paliersDeLocks: [{ auDela: 250, prixXof: 30_000 }],
   durationMin: 85,
   priceMode: 'fixe',
   reserveEnfants: true,
@@ -220,15 +234,25 @@ export const compositionDuForfait = (
       };
     });
 
-/** Ce que le forfait vaut au tarif de la Maison, et ce que la tête gagne. */
+/** Ce que le forfait vaut au tarif de la Maison, et ce que la tête gagne.
+
+    ══ LE PRIX RÉELLEMENT APPLIQUÉ — 7 septembre 2026 ══════════════════
+    Le forfait ne vaut plus un seul prix : au-delà de 250 locks, le PACK Kids
+    passe de 25 000 à 30 000 F. Lire ici `priceXof` annoncerait « 25 000 F pour
+    les Kids, 15 000 F offerts » sous une ligne facturée 30 000 — c'est-à-dire
+    un geste qui n'a pas été fait, écrit noir sur blanc devant le parent.
+
+    ABSENT, ON RETOMBE SUR LE PRIX DE LA FICHE : les appelants qui n'ont pas de
+    tête sous la main (l'aperçu du Catalogue) montrent le tarif d'annonce. */
 export const gainDuForfait = (
   forfait: Pick<Service, 'includes' | 'priceXof'>, catalogue: readonly Service[],
+  prixApplique?: number,
 ): { carteXof: number; prixXof: number; gainXof: number; pct: number } => {
   const lignes = compositionDuForfait(forfait, catalogue);
   /* LE PRIX BARRÉ QUAND IL EXISTE, LE PRIX SINON : une ligne sans geste vaut
      ce qu'elle coûte, et la compter à zéro gonflerait le gain annoncé. */
   const carte = lignes.reduce((n, l) => n + (l.barreXof ?? l.prixXof), 0);
-  const prix = forfait.priceXof;
+  const prix = prixApplique ?? forfait.priceXof;
   const gain = Math.max(0, carte - prix);
   return { carteXof: carte, prixXof: prix, gainXof: gain, pct: carte > 0 ? Math.round((gain / carte) * 100) : 0 };
 };
@@ -253,11 +277,16 @@ export function metAJourLaSectionKids(): number {
     const pareil = s.priceXof === v.priceXof
       && (s.prixBarreXof ?? 0) === (v.prixBarreXof ?? 0)
       && s.name === v.name
-      && JSON.stringify(s.includes ?? []) === JSON.stringify(v.includes ?? []);
+      && JSON.stringify(s.includes ?? []) === JSON.stringify(v.includes ?? [])
+      /* LA MARCHE COMPTE COMME UN PRIX : sans elle ici, une section déjà posée
+         garderait 25 000 F pour toutes les têtes, et le bouton dirait qu'il n'y
+         a rien à mettre à jour. */
+      && JSON.stringify(s.paliersDeLocks ?? []) === JSON.stringify(v.paliersDeLocks ?? []);
     if (pareil) return s;
     touchees += 1;
     return { ...s, name: v.name, priceXof: v.priceXof, description: v.description,
-      prixBarreXof: v.prixBarreXof, includes: v.includes?.map((i) => ({ ...i })) };
+      prixBarreXof: v.prixBarreXof, includes: v.includes?.map((i) => ({ ...i })),
+      paliersDeLocks: v.paliersDeLocks?.map((x) => ({ ...x })) };
   }));
   return touchees;
 }
@@ -272,7 +301,8 @@ export const kidsADepasser = (
     const v = voulus.get(s.id);
     if (!v) return false;
     return s.priceXof !== v.priceXof || (s.prixBarreXof ?? 0) !== (v.prixBarreXof ?? 0)
-      || s.name !== v.name || JSON.stringify(s.includes ?? []) !== JSON.stringify(v.includes ?? []);
+      || s.name !== v.name || JSON.stringify(s.includes ?? []) !== JSON.stringify(v.includes ?? [])
+      || JSON.stringify(s.paliersDeLocks ?? []) !== JSON.stringify(v.paliersDeLocks ?? []);
   }).length;
 };
 
@@ -313,6 +343,9 @@ export const detailDuForfait = (
   forfait: Pick<Service, 'includes' | 'priceXof' | 'reserveEnfants'>,
   catalogue: readonly Service[] | ReadonlyMap<string, Service>,
   fmt: (x: number) => string,
+  /* CE QUE LA LIGNE COÛTE VRAIMENT — voir `gainDuForfait`. Une pièce qui
+     annonce un geste qu'elle n'a pas fait est pire qu'une pièce muette. */
+  prixApplique?: number,
 ): string[] => {
   const cat = listeDuCatalogue(catalogue);
   const lignes = compositionDuForfait(forfait, cat);
@@ -320,7 +353,7 @@ export const detailDuForfait = (
   const dites = lignes.map((l) => (l.barreXof
     ? `${l.nom} · ${fmt(l.prixXof)} au lieu de ${fmt(l.barreXof)}, ${l.pct} % offerts`
     : `${l.nom} · ${fmt(l.prixXof)}`));
-  const g = gainDuForfait(forfait, cat);
+  const g = gainDuForfait(forfait, cat, prixApplique);
   /* LA DERNIÈRE LIGNE DIT LE GESTE ENTIER. Trois remises isolées se lisent
      comme trois détails ; leur somme se lit comme un accompagnement. */
   if (g.gainXof > 0) {

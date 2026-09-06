@@ -61,6 +61,45 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE PACK KIDS PASSE À 30 000 F AU-DELÀ DE 250 LOCKS — 7 septembre 2026, PUBLIÉ
+
+« Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a moins
+de 250 locks. Dans les cas où le kids a plus de locks, le rituel complet passe
+à 30 000 F » (Yéman).
+
+**Ni un calibre, ni un tarif au lock : un prix ferme qui connaît une marche.**
+Accrocher les Kids à la grille adulte aurait fait bouger leur prix chaque fois
+qu'on déplace une borne de cette grille. Un tarif au lock ferait varier le prix
+à chaque comptage, et un forfait qui ne s'annonce plus au téléphone n'est plus
+un forfait. Nouveau champ `Service.paliersDeLocks` : `{ auDela, prixXof }[]`.
+
+**Un seul entonnoir** : `prixDeBase()` dans `shared/pricing`, que le carnet, la
+série, la caisse et la facture traversent tous. Ordre : le prix par longueur
+(le plus précis, choisi par rendez-vous), puis la marche, puis le prix
+catalogue. La marche la plus haute franchie gagne, quel que soit l'ordre de
+saisie : se fier à l'ordre du tableau ferait dépendre le prix d'une tête de la
+façon dont quelqu'un a rempli un écran.
+
+**Au-delà se compte strictement.** À exactement 250 locks, on reste à 25 000 F.
+Au bord, la Maison tranche en faveur de la cliente, et le harnais fige ce choix
+pour qu'il ne s'inverse pas au prochain refactor.
+
+**Sans comptage, le tarif annoncé.** On ne facture pas plus cher sur une
+supposition : une fiche sans comptage se règle à 25 000 F.
+
+**Défaut évité de justesse** : `gainDuForfait` lisait `priceXof`, donc le
+rendez-vous et la facture auraient écrit « 25 000 F pour les Kids, 15 000 F
+offerts » **sous une ligne facturée 30 000** — un geste qui n'a pas été fait,
+noir sur blanc devant le parent. Les quatre appelants passent maintenant le prix
+réellement appliqué.
+
+**Ce qu'il reste à faire d'un clic** : la section déjà posée dans le catalogue
+ne porte pas la marche. Catalogue → bouton « MND Kids · 1 à remettre au tarif ».
+`kidsADepasser` compte désormais la marche, donc le bouton apparaît.
+
+**La marche vit dans le code**, pas au Catalogue : le champ existe sur toute
+prestation mais aucun écran ne l'édite encore.
+
 ## LE RAPPEL ENVOYÉ À LA CLIENTE — 7 septembre 2026, PUBLIÉ
 
 « Rajoute le jour devant la date… j'ai besoin que ce soit mieux structuré et
