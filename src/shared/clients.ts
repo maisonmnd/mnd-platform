@@ -55,6 +55,20 @@ export type Client = {
   observation?: string;
   archived?: boolean;
   diaspora?: boolean;
+  /** ELLE A DÉFAIT SES LOCKS — 6 septembre 2026, demande de Yéman.
+
+      SANS LOCKS, IL N'Y A RIEN À COMPTER. Une tête défaite restait dans
+      « têtes non comptées » pour toujours : le compte est vide et le restera,
+      et rien ne distinguait « on ne l'a pas encore comptée » de « il n'y a
+      plus rien à compter ». La liste de travail portait donc un travail
+      impossible, ce qui est la meilleure façon de faire cesser de la lire.
+
+      UN CHAMP, PAS UN SEGMENT — la leçon de la Diaspora : un segment se
+      renomme et s'efface depuis une liste, et le prédicat casse en silence.
+
+      Elle continue de venir, et son argent compte comme celui des autres :
+      seules les mesures de la couronne se taisent. */
+  locksDefaits?: boolean;
   /** LA CLIENTE DE PASSAGE — venue une fois, sans relation engagée.
 
       On ne peut pas ne pas l'enregistrer : l'argent doit être tracé et le geste
@@ -89,6 +103,18 @@ export type Client = {
       ses venues retombent sous le seuil. Posé quand la marque est levée — par
       le hook comme à la main — et jamais retiré. */
   futDePassage?: boolean;
+  /** LA MAIN A TRANCHÉ — 6 septembre 2026.
+
+      `usePassageVivant` LÈVE la marque dès la deuxième venue, et il a raison :
+      elle est revenue, c'est un fait observé. Mais la Maison veut parfois dire
+      d'une tête qu'elle ne s'entretient pas, même vue trois fois — un dépannage,
+      une accompagnante, une fiche qui n'est pas vraiment une relation. Sans ce
+      verrou, le geste se défaisait tout seul à la passe suivante, et un bouton
+      qui s'annule est pire que pas de bouton.
+
+      Même verrou que `personaFige` et `jourPose` : une décision bat une
+      déduction. Il se pose avec la marque, et se retire avec elle. */
+  passagePose?: boolean;
   /** CE QU'ELLE PEUT EMPORTER SANS PAYER (26 août) — le plafond de crédit
       accordé à CETTE tête, en XOF. Le comptoir est prévenu quand un
       encaissement le ferait dépasser.
@@ -515,7 +541,7 @@ export const aUnPrixConvenu = (c: Pick<Client, 'prixFixes'>): boolean =>
 /** Nombre de venues honorées à partir duquel une tête cesse d'être de passage. */
 export const VENUES_POUR_REVENIR = 2;
 
-export type TetePassage = Pick<Client, 'id' | 'dePassage' | 'futDePassage'>;
+export type TetePassage = Pick<Client, 'id' | 'dePassage' | 'futDePassage' | 'passagePose'>;
 
 /** CE QUE LA MARQUE « DE PASSAGE » DOIT DEVENIR (26 août) — décision PURE, pour
     qu'elle soit éprouvée par un harnais plutôt que devinée dans un effet React.
@@ -537,6 +563,11 @@ export function mouvementsDePassage(
   const rendues = new Set<string>();
   const aMemoriser = new Set<string>();
   for (const c of clients) {
+    /* CE QUE LA MAIN A POSÉ, LA MACHINE N'Y TOUCHE PAS. Sans ce verrou, une
+       tête marquée de passage à la main redevenait « de la Maison » à la passe
+       suivante dès qu'elle avait deux venues — le geste se défaisait tout
+       seul, et personne ne comprenait pourquoi. */
+    if (c.passagePose) continue;
     const venues = venuesDe(c.id);
     if (estDePassage(c)) {
       if (venues >= seuil) promues.add(c.id);
@@ -554,7 +585,10 @@ export function mouvementsDePassage(
    passe par lui ; aucun écran qui compte de l'ARGENT ou du TRAVAIL ne le
    regarde — le rituel d'une passante vaut exactement celui d'une autre. */
 
-export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassage === true;
+export const estDePassage = (c: { dePassage?: boolean }): boolean => c.dePassage === true;
+
+/** ELLE N'A PLUS DE LOCKS — rien à compter, rien à mesurer. */
+export const aDefaitSesLocks = (c: { locksDefaits?: boolean }): boolean => c.locksDefaits === true;
 
 /** LA DIASPORA — UN SEUL JUGE, ENFIN (16 août 2026).
 

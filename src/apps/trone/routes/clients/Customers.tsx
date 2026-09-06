@@ -3525,7 +3525,10 @@ function Customer360({
                 style={venues === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 /* La Maison retient qu'elle a porté la marque : si ses venues
                    retombent sous le seuil, elle la retrouvera d'elle-même. */
-                onClick={() => patch({ dePassage: undefined, futDePassage: true })}
+                /* ET LA REND À LA MACHINE : `passagePose` levé, la marque
+                   redeviendra automatique si ses venues retombent. Le garder
+                   figerait la fiche sur une décision qu'on vient de défaire. */
+                onClick={() => patch({ dePassage: undefined, futDePassage: true, passagePose: undefined })}
               >
                 Tête couronnée
               </button>
@@ -3538,22 +3541,48 @@ function Customer360({
               >
                 Visiteur
               </button>
-              {/* LA MARQUE NE TIENDRAIT PAS SUR UNE TÊTE DÉJÀ REVENUE.
-                  `usePassageVivant` la RETIRE dès deux venues honorées, et il
-                  tourne à chaque mouvement du carnet : la poser ici serait
-                  défait dans la seconde, sans un mot — le clic aurait l'air
-                  mort. On l'interdit donc, et on dit pourquoi. */}
+              {/* ELLE TIENT MAINTENANT, MÊME SUR UNE TÊTE REVENUE — 6 septembre
+                  2026. `usePassageVivant` la retirait dès deux venues honorées,
+                  et il avait raison : elle est revenue, c'est un fait observé.
+                  Le clic était donc interdit ici, et il le fallait.
+
+                  Mais la Maison veut parfois dire d'une tête qu'elle ne
+                  s'entretient pas, même vue trois fois. `passagePose` fait
+                  taire la machine sur cette fiche : une décision bat une
+                  déduction, comme pour le persona et le jour favori. Elle se
+                  rend d'un clic sur « Tête couronnée ». */}
               <button
                 type="button"
                 className={`trc-chip ${estDePassage(client) ? 'is-active' : ''}`}
-                disabled={!estDePassage(client) && venues >= 2}
-                title={!estDePassage(client) && venues >= 2
-                  ? 'Elle est revenue, la marque serait retirée aussitôt.'
+                title={venues >= 2
+                  ? 'Elle est revenue, mais la Maison tranche : la marque tiendra.'
                   : undefined}
-                style={!estDePassage(client) && venues >= 2 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-                onClick={() => patch({ dePassage: true, futDePassage: true })}
+                onClick={() => patch({ dePassage: true, futDePassage: true, passagePose: true })}
               >
                 De passage
+              </button>
+
+              {/* ══ LES DEUX AUTRES RAISONS DE SORTIR DU FAUTEUIL ══════════
+                  « À côté de "vit ailleurs" : sans locks (a défait ses locks),
+                  visiteur » (Yéman). Elles se posent depuis « À faire », là où
+                  on s'en aperçoit ; elles se RETIRENT ici. Une marque qui ne
+                  se défait nulle part est un piège. */}
+              <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--hairline)', margin: '0 2px' }} />
+              <button
+                type="button"
+                className={`trc-chip ${client.diaspora ? 'is-active' : ''}`}
+                title="Elle vit ailleurs : on ne prédit pas son retour, et on ne lui réclame ni compte ni cadence."
+                onClick={() => patch({ diaspora: client.diaspora ? undefined : true })}
+              >
+                Vit ailleurs
+              </button>
+              <button
+                type="button"
+                className={`trc-chip ${client.locksDefaits ? 'is-active' : ''}`}
+                title="Elle a défait ses locks : il n’y a plus rien à compter ni de courbe de pousse à ouvrir."
+                onClick={() => patch({ locksDefaits: client.locksDefaits ? undefined : true })}
+              >
+                Sans locks
               </button>
             </div>
             {/* UNE LIGNE, PAS UN PARAGRAPHE (retour de Yéman, 11 août — « trop

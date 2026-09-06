@@ -14,7 +14,7 @@
 
    TOUT EST PUR ICI, et jugé par `verifie-afaire`. */
 
-import { estDiaspora } from './clients';
+import { aDefaitSesLocks, estDePassage, estDiaspora } from './clients';
 
 export type TeteLue = {
   id: string;
@@ -23,6 +23,10 @@ export type TeteLue = {
   /** LA DIASPORA — les deux marquages, un seul juge (`estDiaspora`). */
   diaspora?: boolean;
   segments?: readonly string[];
+  /** Venue sans relation engagée — la marque de la Maison (`estDePassage`). */
+  dePassage?: boolean;
+  /** Elle a défait ses locks : il n'y a plus rien à compter. */
+  locksDefaits?: boolean;
   email?: string;
   photo?: string | null;
   persona?: string;
@@ -68,9 +72,10 @@ export type Jauge = { cle: CleJauge; nom: string; pct: number };
 export type LeTravail = {
   jauges: Jauge[];
   gestes: Geste[];
-  /** Combien de têtes servies vivent ailleurs — elles sortent des quatre
-      gestes qui se constatent au fauteuil (`AU_FAUTEUIL`). */
-  diaspora: number;
+  /** Combien de têtes servies sortent des quatre gestes qui se constatent au
+      fauteuil (`AU_FAUTEUIL`), et pour quelle raison. Une tête peut en porter
+      deux : `total` ne les additionne pas. */
+  horsFauteuil: { ailleurs: number; sansLocks: number; passage: number; total: number };
 };
 
 /** LES TÊTES QU'ON COMPTE — 6 septembre 2026.
@@ -148,10 +153,25 @@ export const SE_DEMANDE: Record<CleGeste, boolean> = {
     fil qui tient entre deux voyages. Les retirer couperait ce qui relie la
     diaspora à la Maison, au motif qu'elle est loin.
 
-    LA PASSANTE, ELLE, RESTE DANS TOUTES LES LISTES (arbitrage de Yéman) : la
-    Maison a une règle qui la promeut à la troisième venue, et la compter en
-    retard est peut-être ce qui déclenche le geste. */
+    TROIS RAISONS, UNE SEULE EXEMPTION (6 septembre, second arbitrage) :
+
+    · ELLE VIT AILLEURS. Sa cadence ne mesure pas un rythme, elle mesure des
+      billets d'avion.
+    · ELLE A DÉFAIT SES LOCKS. Le compte est vide et le restera ; rien ne
+      distinguait « pas encore comptée » de « plus rien à compter », et la
+      liste portait un travail impossible.
+    · ELLE EST DE PASSAGE. La Maison dit d'elle qu'elle ne s'entretient pas.
+
+    La même exemption pour les trois, parce que c'est la même cause : la tête
+    ne reviendra pas s'asseoir assez pour qu'on la mesure. Trois règles
+    différentes s'oublieraient l'une après l'autre. */
 const AU_FAUTEUIL: readonly CleGeste[] = ['meche', 'cadence', 'longueur', 'locks'];
+
+/** ELLE NE SE CONSTATE PLUS AU FAUTEUIL — un seul juge pour les trois raisons.
+    L'écran s'en sert pour proposer le marquage, le compte pour l'appliquer :
+    deux lectures différentes donneraient deux listes. */
+export const horsDuFauteuil = (c: TeteLue): boolean =>
+  estDiaspora(c) || aDefaitSesLocks(c) || estDePassage(c);
 
 export function manquesDeLaTete(o: {
   tete: TeteLue;
@@ -169,7 +189,7 @@ export function manquesDeLaTete(o: {
   if (!c.longueur) manques.push('longueur');
   if (!(c.email ?? '').trim()) manques.push('email');
   if (!c.lockCount) manques.push('locks');
-  return estDiaspora(c) ? manques.filter((k) => !AU_FAUTEUIL.includes(k)) : manques;
+  return horsDuFauteuil(c) ? manques.filter((k) => !AU_FAUTEUIL.includes(k)) : manques;
 }
 
 /** LES TÊTES QU'UN GESTE ATTEND — pour ouvrir la liste depuis la ligne.
@@ -266,10 +286,16 @@ export function leTravail(o: {
   const sansLongueur = combienDe('longueur');
   const sansEmail = combienDe('email');
   const sansLocks = combienDe('locks');
-  /* CELLES QUI VIVENT AILLEURS, pour que l'écran puisse dire pourquoi ces
-     comptes-là sont plus courts qu'hier. Un nombre qui baisse sans raison
-     visible se lit comme une perte de données. */
-  const diaspora = servies.filter((c) => estDiaspora(c)).length;
+  /* CELLES QUI SORTENT DU FAUTEUIL, PAR RAISON. Un nombre qui baisse sans
+     raison visible se lit comme une perte de données — et « 54 » tout court
+     ne dit pas si l'on a marqué juste. Une tête peut porter deux raisons :
+     chacune se compte, et le total ne les additionne pas. */
+  const horsFauteuil = {
+    ailleurs: servies.filter((c) => estDiaspora(c)).length,
+    sansLocks: servies.filter((c) => aDefaitSesLocks(c)).length,
+    passage: servies.filter((c) => estDePassage(c)).length,
+    total: servies.filter((c) => horsDuFauteuil(c)).length,
+  };
   /* UNE TÊTE SE POSITIONNE PAR CE QU'ON PEUT MONTRER ET PAR CE QU'ON SAIT
      DIRE : sa photo et son persona. L'un sans l'autre ne suffit pas. */
   const sansVitrine = servies.filter((c) => !c.photo || !c.persona).length;
@@ -304,5 +330,5 @@ export function leTravail(o: {
     { cle: 'solde', combien: impayes.length, quoi: 'rituels rendus non soldés', ouvre: 'à encaisser', verbe: 'Encaisser', xof: duTotal },
   ];
 
-  return { jauges, gestes: gestes.sort((a, b) => b.combien - a.combien), diaspora };
+  return { jauges, gestes: gestes.sort((a, b) => b.combien - a.combien), horsFauteuil };
 }

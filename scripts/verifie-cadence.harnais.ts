@@ -202,6 +202,27 @@ const bord = mouvementsDePassage(
 dit('deux venues suffisent à lever la marque', ['pile'], [...bord.promues]);
 dit('… et deux venues ne la reposent pas', 0, bord.rendues.size);
 
+/* ── LA MAIN L'EMPORTE — 6 septembre 2026 ──────────────────────────
+   « À côté de "vit ailleurs" : sans locks, visiteur » (Yéman). Le bouton
+   « De passage » d'À faire pose la marque sur une tête qui a plusieurs venues,
+   et la machine, qui a raison de la lever au retour, l'aurait défaite à la
+   passe suivante. Un bouton qui s'annule est pire que pas de bouton.
+
+   Le verrou est le même que `personaFige` et `jourPose` : une décision bat une
+   déduction, et la machine se tait sur ce que la main a tranché. */
+const pose = mouvementsDePassage(
+  [
+    tete({ id: 'posee', dePassage: true, passagePose: true }),
+    tete({ id: 'posee-sans-souvenir', dePassage: true, passagePose: true }),
+    tete({ id: 'deduite', dePassage: true }),
+  ],
+  venuesFixes({ posee: 5, 'posee-sans-souvenir': 1, deduite: 5 }),
+);
+dit('la marque posée à la main ne se lève pas', ['deduite'], [...pose.promues]);
+/* PAS MÊME UN SOUVENIR : la machine ne récrit rien du tout sur cette fiche. */
+dit('… et rien ne s’y écrit', 0, pose.aMemoriser.size);
+dit('… ni ne s’y repose', 0, pose.rendues.size);
+
 /* ── POSER LA SUITE D'UN ABONNEMENT ────────────────────────────────
    « Poser les RDV à venir de chaque abonnement vendu en respectant le rythme de
    4, 6 ou 8 semaines, et donner la liberté de modifier ses dates au besoin »

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, useClients } from '../../../../shared/clients';
+import { clientsStore, useClients, type Client } from '../../../../shared/clients';
 import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
 import { useProduitsStock } from '../../../../shared/stock';
@@ -23,6 +23,16 @@ const SE_TETE: CleGeste[] = ['meche', 'bilan', 'cadence', 'longueur', 'email', '
     fauteuil. Marquer une tête « vit ailleurs » la retire de ces quatre
     listes-là, et d'elles seulement (voir `AU_FAUTEUIL`, shared/afaire). */
 const AU_FAUTEUIL: CleGeste[] = ['meche', 'cadence', 'longueur', 'locks'];
+
+/** LES TROIS RAISONS DE SORTIR UNE TÊTE DU FAUTEUIL. Le juge qui les lit vit
+    dans `shared/afaire` (`horsDuFauteuil`) ; ici on ne fait que les poser. */
+const MARQUES: { cle: string; mot: string; dit: string; pose: Partial<Client> }[] = [
+  { cle: 'ailleurs', mot: 'Vit ailleurs', dit: 'elle vit ailleurs', pose: { diaspora: true } },
+  { cle: 'sans-locks', mot: 'Sans locks', dit: 'elle a défait ses locks', pose: { locksDefaits: true } },
+  /* LA MAIN L'EMPORTE SUR LA MACHINE DU PASSAGE — sans `passagePose`, la
+     marque se lèverait dès sa deuxième venue et le bouton s'annulerait. */
+  { cle: 'passage', mot: 'De passage', dit: 'elle est de passage', pose: { dePassage: true, passagePose: true } },
+];
 
 
 /* ══ À FAIRE — 6 septembre 2026 (maquette validée) ═══════════════════
@@ -187,27 +197,35 @@ export default function AFaire() {
                           WhatsApp
                         </a>
                       )}
-                      {/* ══ « VIT AILLEURS » SE POSE D'ICI — 6 septembre 2026 ══
-                          « Tous ceux affichés viennent de la diaspora »
-                          (Yéman). C'est en lisant CETTE liste qu'on s'en
-                          aperçoit ; devoir ouvrir la fiche, revenir, retrouver
-                          sa ligne, sept fois de suite, c'est l'abandon garanti
-                          au troisième nom. Le marquage retire aussitôt la tête
-                          des quatre listes du fauteuil, elle garde l'e-mail et
-                          le bilan. */}
-                      {AU_FAUTEUIL.includes(g.cle) && (
+                      {/* ══ LES TROIS RAISONS SE POSENT D'ICI — 6 sept. 2026 ══
+                          « Je dois avoir à côté de "vit ailleurs" : sans locks
+                          (a défait ses locks), visiteur » (Yéman).
+
+                          C'EST EN LISANT CETTE LISTE QU'ON S'EN APERÇOIT.
+                          Devoir ouvrir la fiche, revenir, retrouver sa ligne,
+                          sept fois de suite, c'est l'abandon garanti au
+                          troisième nom.
+
+                          « DE PASSAGE » PORTE AUSSI SON VERROU : la machine du
+                          passage lève la marque dès la deuxième venue, et elle
+                          a raison — elle est revenue. Mais posée à la main,
+                          c'est une décision, et une décision bat une
+                          déduction. Sans `passagePose`, le bouton se serait
+                          défait tout seul à la passe suivante. */}
+                      {AU_FAUTEUIL.includes(g.cle) && MARQUES.map((m) => (
                         <button
+                          key={m.cle}
                           type="button"
                           className="trp-tete__f"
-                          title={`${c?.name ?? 'Cette tête'} vit ailleurs : hors du compte, de la cadence, de la mèche et de la longueur`}
+                          title={`${c?.name ?? 'Cette tête'} · ${m.dit} : hors du compte, de la cadence, de la mèche et de la longueur`}
                           onClick={() => {
-                            clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, diaspora: true } : x)));
-                            toast(`${prenom || 'Elle'} vit ailleurs. Elle sort du compte et de la cadence.`);
+                            clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, ...m.pose } : x)));
+                            toast(`${prenom || 'Elle'} · ${m.dit}. Elle sort du compte et de la cadence.`);
                           }}
                         >
-                          Vit ailleurs
+                          {m.mot}
                         </button>
-                      )}
+                      ))}
                       <button
                         type="button"
                         className="trp-tete__f"
@@ -228,18 +246,20 @@ export default function AFaire() {
         })}
       </div>
 
-      {/* ══ CELLES QUI VIVENT AILLEURS — 6 septembre 2026 ═════════════════
-          « Les têtes à compter, Diaspora : je n'ai pas besoin de garder des
-          fiches et des cadences » (Yéman).
-
+      {/* ══ CELLES QUI SORTENT DU FAUTEUIL — 6 septembre 2026 ═════════════
           UN NOMBRE QUI BAISSE SANS RAISON VISIBLE SE LIT COMME UNE PERTE.
           Soixante-six comptages qui deviennent douze du jour au lendemain
-          feraient chercher le bug pendant une heure. Une ligne, un chiffre, et
-          l'on sait où sont passées les autres. */}
-      {travail.diaspora > 0 && (
+          feraient chercher le bug pendant une heure.
+
+          ET LE TOTAL SEUL NE DIT PAS SI L'ON A MARQUÉ JUSTE : trois nombres se
+          relisent, « 54 » ne se relit pas. Une tête peut porter deux raisons,
+          le total ne les additionne donc pas. */}
+      {travail.horsFauteuil.total > 0 && (
         <div className="trp-hors">
-          <b>{travail.diaspora}</b> têtes vivent ailleurs · hors du compte, de la cadence,
-          de la mèche et de la longueur. Elles gardent l’e-mail et le bilan.
+          <b>{travail.horsFauteuil.total}</b> têtes hors du compte, de la cadence, de la mèche
+          et de la longueur · {travail.horsFauteuil.ailleurs} ailleurs
+          {' · '}{travail.horsFauteuil.sansLocks} sans locks
+          {' · '}{travail.horsFauteuil.passage} de passage. Elles gardent l’e-mail et le bilan.
         </div>
       )}
     </div>

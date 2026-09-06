@@ -2,6 +2,53 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## TROIS RAISONS DE SORTIR DU FAUTEUIL — 6 septembre 2026, PUBLIÉ
+
+« Je dois avoir à côté de "vit ailleurs" : sans locks (a défait ses locks),
+visiteur » (Yéman).
+
+**La même exemption pour les trois**, parce que c'est la même cause : la tête ne
+reviendra pas s'asseoir assez pour qu'on la mesure. Elles sortent du **compte,
+de la cadence, de la mèche témoin et de la longueur** ; elles gardent
+**l'e-mail et le bilan**. Trois règles différentes s'oublieraient l'une après
+l'autre. Le juge est unique : `horsDuFauteuil` (shared/afaire).
+
+| Marque | Champ | Ce qu'elle dit |
+| --- | --- | --- |
+| Vit ailleurs | `diaspora` (ou le segment) | sa cadence mesure des billets d'avion |
+| Sans locks | `locksDefaits` *(nouveau)* | le compte est vide et le restera |
+| De passage | `dePassage` + `passagePose` *(nouveau)* | elle ne s'entretient pas |
+
+### « Visiteur » n'était pas le bon champ
+
+Dans Le Trône, **« Visiteur » désigne une fiche sans AUCUNE venue**, et c'est un
+constat du carnet, pas un réglage. Or « À faire » ne liste que des têtes ayant
+au moins un rituel honoré : un visiteur ne peut pas y figurer. La marque
+demandée est donc **« de passage »**, celle que la Maison a déjà.
+
+### `passagePose` — la main l'emporte
+
+`usePassageVivant` **lève** la marque dès la deuxième venue, et il a raison :
+elle est revenue, c'est un fait observé. Le bouton se serait donc défait tout
+seul à la passe suivante — et un bouton qui s'annule est pire que pas de bouton.
+La fiche cliente l'interdisait d'ailleurs explicitement depuis août.
+
+`passagePose` fait taire la machine sur cette fiche, comme `personaFige` et
+`jourPose` : **une décision bat une déduction**. Il se lève d'un clic sur
+« Tête couronnée », qui rend la fiche à la machine.
+
+### Poser et retirer
+
+**On pose depuis « À faire »**, là où on s'en aperçoit : ouvrir la fiche,
+revenir, retrouver sa ligne, sept fois de suite, c'est l'abandon garanti au
+troisième nom. **On retire depuis la fiche**, dans « Sa place à la Maison », qui
+porte maintenant les cinq états. Une marque qui ne se défait nulle part est un
+piège.
+
+La ligne sous les gestes dit les **trois nombres**, pas un total : « 54 » tout
+court ne dit pas si l'on a marqué juste. Une tête peut porter deux raisons, le
+total ne les additionne donc pas.
+
 ## LE PRIX DE LA REPRISE ÉTAIT CELUI DE LA VITRINE — 6 septembre 2026, PUBLIÉ
 
 « C'est quoi les prix que je vois en saisie du carnet ? Ce n'est pas juste »

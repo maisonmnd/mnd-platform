@@ -4,7 +4,7 @@
    au mauvais écran, il envoie au mauvais travail — et l'on découvre l'erreur
    après avoir passé une semaine dessus. */
 import {
-  leTravail, manquesDeLaTete, tetesDuGeste, motPourDemander, SE_DEMANDE,
+  leTravail, manquesDeLaTete, tetesDuGeste, motPourDemander, SE_DEMANDE, horsDuFauteuil,
   type TeteLue, type RituelLu,
 } from '../src/shared/afaire';
 
@@ -201,12 +201,47 @@ dit('le segment « Diaspora » vaut le champ', ['bilan', 'email'],
    deux voyages. Les retirer couperait ce qui relie la diaspora à la Maison. */
 dit('son e-mail reste dû', true, manquesDeLaTete({ tete: loin, bilans: 0 }).includes('email'));
 dit('son bilan aussi', true, manquesDeLaTete({ tete: loin, bilans: 0 }).includes('bilan'));
-/* LA PASSANTE RESTE DANS TOUTES LES LISTES (arbitrage de Yéman) : la Maison a
-   une règle qui la promeut à la troisième venue, et la compter en retard est
-   peut-être ce qui déclenche le geste. L'exemption ne lit donc QUE la
-   diaspora — `TeteLue` ne porte même pas `dePassage`, et c'est voulu. */
+/* UNE TÊTE D'ICI, SANS MARQUE, DOIT TOUJOURS TOUT. C'est le cas ordinaire, et
+   c'est lui qui doit rester intact quand les exemptions se multiplient. */
 dit('une tête d’ici doit toujours tout', ['meche', 'bilan', 'cadence', 'longueur', 'email', 'locks'],
-  manquesDeLaTete({ tete: tete('cl-pass'), bilans: 0 }));
+  manquesDeLaTete({ tete: tete('cl-ici'), bilans: 0 }));
+
+/* ── ⑪ TROIS RAISONS, UNE SEULE EXEMPTION — 6 septembre 2026 ──────
+   « Je dois avoir à côté de "vit ailleurs" : sans locks (a défait ses locks),
+   visiteur » (Yéman). La même exemption pour les trois, parce que c'est la
+   même cause : la tête ne reviendra pas s'asseoir assez pour qu'on la mesure.
+
+   LA DEUXIÈME DÉCISION SUR LA PASSANTE REMPLACE LA PREMIÈRE : elle restait
+   d'abord dans toutes les listes, elle en sort maintenant comme les autres.
+   C'est un arbitrage qui a changé, pas un juge qui s'est trompé. */
+dit('sans locks, rien à compter', ['bilan', 'email'],
+  manquesDeLaTete({ tete: tete('cl-nue', { locksDefaits: true }), bilans: 0 }));
+dit('de passage, rien à mesurer', ['bilan', 'email'],
+  manquesDeLaTete({ tete: tete('cl-pass', { dePassage: true }), bilans: 0 }));
+/* DEUX RAISONS NE FONT PAS DEUX EXEMPTIONS : c'est la même. */
+dit('deux raisons, une exemption', ['bilan', 'email'],
+  manquesDeLaTete({ tete: tete('cl-deux', { diaspora: true, locksDefaits: true }), bilans: 0 }));
+dit('le juge dit oui pour les trois', [true, true, true, false], [
+  horsDuFauteuil(tete('a', { diaspora: true })),
+  horsDuFauteuil(tete('b', { locksDefaits: true })),
+  horsDuFauteuil(tete('c', { dePassage: true })),
+  horsDuFauteuil(tete('d')),
+]);
+
+const t11 = leTravail({
+  branchId: B,
+  tetes: [
+    tete('cl-1'),
+    tete('cl-2', { diaspora: true, locksDefaits: true }),
+    tete('cl-3', { dePassage: true }),
+  ],
+  rituels: [rdv('a1', 'cl-1'), rdv('a2', 'cl-2'), rdv('a3', 'cl-3')],
+  bilans: [], stock: [], duXof: () => 0,
+});
+dit('une seule reste à compter', 1, combien(t11, 'locks'));
+/* CHAQUE RAISON SE COMPTE, ET LE TOTAL NE LES ADDITIONNE PAS : la tête qui en
+   porte deux ne doit pas être comptée deux fois. */
+dit('les raisons, une par une', { ailleurs: 1, sansLocks: 1, passage: 1, total: 2 }, t11.horsFauteuil);
 
 const t10 = leTravail({
   branchId: B,
@@ -229,7 +264,7 @@ dit('la liste dit le même nombre', 1, tetesDuGeste({
 }).length);
 /* ET L'ÉCRAN SAIT COMBIEN VIVENT AILLEURS : un nombre qui baisse sans raison
    visible se lit comme une perte de données. */
-dit('deux têtes vivent ailleurs', 2, t10.diaspora);
+dit('deux têtes vivent ailleurs', 2, t10.horsFauteuil.ailleurs);
 /* LA JAUGE SUIT : ce qu'on ne doit pas n'est pas un retard. Une seule tête sur
    trois manque à l'appel, au lieu des trois d'avant. */
 dit('la jauge ne compte plus leur retard', 67, jauge(t10, 'facturer'));
