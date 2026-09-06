@@ -21,8 +21,13 @@ morceaux, ce n'est pas un accord, c'est une note.
   deux ans à quoi elle avait dit oui.
 - **La signature se trace au doigt** à l'écran (arbitrage), et part dans un PDF
   remis à la cliente (`droitImagePdf`, shared/pdf).
-- **Terme : 24 mois.** Un consentement sans terme se retourne contre celui qui
-  s'en sert. La fiche dit « à refaire signer » passé ce délai.
+- **Terme : cinq ans** (porté de deux à cinq le jour même, demande de Yéman).
+  Un consentement sans terme se retourne contre celui qui s'en sert ; la fiche
+  dit « à refaire signer » passé ce délai. **Le terme voyage avec l'accord**
+  (`AccordImage.mois`), jamais dans une constante globale : allonger la règle de
+  la Maison aurait tenu trois ans de plus celles qui avaient signé pour deux, en
+  silence. L'article 4 rappelle qu'un terme long n'enferme personne, puisque le
+  retrait est libre.
 - **Le retrait n'efface pas le document** : savoir qu'il a existé compte autant
   que savoir qu'il ne vaut plus.
 - **Une mineure ne signe pas pour elle-même.** Le Trône connaît le foyer, propose

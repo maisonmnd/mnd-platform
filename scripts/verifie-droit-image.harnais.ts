@@ -4,7 +4,7 @@
    tribunal. Une règle fausse ici ne se voit pas à l'écran : elle se découvre le
    jour où quelqu'un conteste une photo publiée, et il est trop tard. */
 import {
-  USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, MAJORITE,
+  USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, MOIS_AVANT_LE_CHAMP, MAJORITE, dureeEnClair,
   ageAu, estMineure, pourquoiInvalide, estValide, accordePour, expireLe, estExpire,
   texteDuContrat, ditLAccord, type AccordImage,
 } from '../src/shared/droit-image';
@@ -76,12 +76,30 @@ dit('… et il n’est plus valide', false, estValide(retire));
 dit('… mais le document reste lisible', true, ditLAccord(retire, '2026-10-02').includes('reste au dossier'));
 
 /* ── ⑤ LE TERME ────────────────────────────────────────────────────
-   Un consentement sans terme se retourne contre celui qui s'en sert. */
-dit('vingt-quatre mois', 24, MOIS_DE_VALIDITE);
-dit('il expire deux ans plus tard', '2028-09-06', expireLe(bon()));
-dit('la veille, il vaut encore', false, estExpire(bon(), '2028-09-05'));
-dit('le lendemain, non', true, estExpire(bon(), '2028-09-07'));
-dit('… et la fiche le dit', true, ditLAccord(bon(), '2028-09-07').includes('À refaire signer'));
+   Un consentement sans terme se retourne contre celui qui s'en sert.
+
+   IL VOYAGE AVEC L'ACCORD, jamais dans une constante globale : la Maison est
+   passée de deux ans à cinq le 6 septembre, et celles qui avaient signé pour
+   deux ans auraient été tenues trois ans de plus sans avoir rien dit. Une
+   règle qui rallonge un consentement déjà donné est une règle qui le fabrique. */
+dit('cinq ans pour ce qui se signe aujourd’hui', 60, MOIS_DE_VALIDITE);
+dit('cinq ans, dit en clair', 'cinq ans', dureeEnClair(60));
+dit('… et le contrat ne dit pas « 60 mois »', true,
+  texteDuContrat({ maison: 'M', tete: 'T', signataire: 'T', usages: ['vitrine'], jourIso: '2026-09-06' })
+    .articles.find((x) => x.n === '4')!.lignes[0].includes('cinq ans'));
+dit('un accord signé pour cinq ans', '2031-09-06', expireLe(bon({ mois: 60 })));
+dit('la veille, il vaut encore', false, estExpire(bon({ mois: 60 }), '2031-09-05'));
+dit('le lendemain, non', true, estExpire(bon({ mois: 60 }), '2031-09-07'));
+dit('… et la fiche le dit', true, ditLAccord(bon({ mois: 60 }), '2031-09-07').includes('À refaire signer'));
+/* CELLES QUI ONT SIGNÉ POUR DEUX ANS GARDENT DEUX ANS. C'est l'assertion qui
+   compte : sans elle, allonger la durée de la Maison rallongerait en silence
+   des accords donnés sous un autre texte. */
+dit('un accord d’avant le champ garde deux ans', '2028-09-06', expireLe(bon()));
+dit('… et il expire quand il doit', true, estExpire(bon(), '2028-09-07'));
+dit('deux ans, c’est ce que disait le texte d’avant', 24, MOIS_AVANT_LE_CHAMP);
+/* LE TEXTE A CHANGÉ, DONC SA VERSION : sans ça, on ne saurait pas si elle a
+   signé pour deux ans ou pour cinq. */
+dit('la version a suivi le changement de durée', true, VERSION_DU_TEXTE.startsWith('v2'));
 
 /* ── ⑥ LE TEXTE SIGNÉ ──────────────────────────────────────────────
    Il porte SA VERSION : une formulation change avec le temps, et sans le

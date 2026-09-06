@@ -5,7 +5,7 @@ import { clientsStore, useFamilies, type Client } from '../../../../shared/clien
 import { maisonNom, maisonRaison } from '../../../../shared/identite';
 import { droitImagePdf } from '../../../../shared/pdf';
 import {
-  USAGES, VERSION_DU_TEXTE, estMineure, pourquoiInvalide, texteDuContrat,
+  USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, estMineure, pourquoiInvalide, texteDuContrat,
   type AccordImage, type CleUsage,
 } from '../../../../shared/droit-image';
 import { todayISO } from './_shared';
@@ -110,6 +110,9 @@ export function DroitImageModal({ client, onClose }: { client: Client; onClose: 
 
   const projet: Partial<AccordImage> = {
     at: jour, usages, signePar, signature: trace, version: VERSION_DU_TEXTE,
+    /* LE TERME SE GRAVE ICI, au moment de la signature : changer la regle de la
+       Maison ne doit jamais rallonger un consentement deja donne. */
+    mois: MOIS_DE_VALIDITE,
     pourEnfant: mineure ? client.name : undefined,
   };
   const manque = pourquoiInvalide(projet, { mineure });

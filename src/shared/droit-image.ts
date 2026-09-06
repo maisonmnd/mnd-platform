@@ -28,7 +28,7 @@ import { DEVISE_COMPLETE } from './identite';
 
 /** LA VERSION DU TEXTE SIGNÉ. À incrémenter dès qu'un mot du contrat change,
     jamais autrement : c'est elle qui dit à quoi elle a dit oui. */
-export const VERSION_DU_TEXTE = 'v1 · 6 septembre 2026';
+export const VERSION_DU_TEXTE = 'v2 · 6 septembre 2026';
 
 export type CleUsage = 'vitrine' | 'reseaux' | 'couronne' | 'simulation';
 
@@ -42,7 +42,20 @@ export const USAGES: { cle: CleUsage; mot: string; dit: string }[] = [
   { cle: 'simulation', mot: 'Simulation de coiffure', dit: 'servir à une simulation, ce qui suppose que la photo soit transmise à un prestataire technique hors de la Maison' },
 ];
 
-export const MOIS_DE_VALIDITE = 24;
+/** LE TERME DES ACCORDS SIGNÉS AUJOURD'HUI — cinq ans (demande de Yéman).
+
+    IL NE S'APPLIQUE PAS AUX ACCORDS DÉJÀ SIGNÉS, et c'est la seule façon
+    honnête de le changer : celles qui ont signé pour deux ans ont accepté deux
+    ans. Étendre leur terme en modifiant une constante les tiendrait trois ans
+    de plus sans qu'elles aient rien dit, et personne ne s'en apercevrait.
+
+    CHAQUE ACCORD PORTE DONC LE SIEN (`AccordImage.mois`), et `expireLe` lit
+    celui-là. La constante ne sert plus qu'à ce qui se signe maintenant. */
+export const MOIS_DE_VALIDITE = 60;
+
+/** Le terme des accords signés avant que le champ existe : ceux du texte v1
+    disaient vingt-quatre mois, et ils les gardent. */
+export const MOIS_AVANT_LE_CHAMP = 24;
 
 export type AccordImage = {
   /** Le jour de la signature (ISO). */
@@ -58,6 +71,10 @@ export type AccordImage = {
   signature: string;
   /** La version du texte qu'elle a signée. */
   version: string;
+  /** LE TERME QU'ELLE A SIGNÉ, en mois. Gardé sur l'accord et non lu dans une
+      constante : sinon changer la règle de la Maison rallongerait, en silence,
+      des consentements déjà donnés. */
+  mois?: number;
   /** Le jour où elle a retiré son accord (ISO). Le document RESTE : un accord
       retiré n'est pas un accord effacé, et savoir qu'il a existé compte autant
       que savoir qu'il ne vaut plus. */
@@ -112,7 +129,7 @@ export const accordePour = (
     celui qui s'en sert : deux ans, puis on redemande. */
 export function expireLe(a: AccordImage): string {
   const [y, m, d] = a.at.split('-').map((x) => parseInt(x, 10));
-  const t = new Date(y, (m - 1) + MOIS_DE_VALIDITE, d);
+  const t = new Date(y, (m - 1) + (a.mois ?? MOIS_AVANT_LE_CHAMP), d);
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
@@ -135,6 +152,16 @@ export const estExpire = (a: AccordImage, jourIso: string): boolean => expireLe(
    présentée à une cliente. */
 
 export type ArticleDuContrat = { n: string; titre: string; lignes: string[] };
+
+/** « CINQ ANS », PAS « 60 MOIS ». Un terme qu'on doit diviser de tête pour le
+    comprendre n'est pas un terme qu'on a compris. */
+export function dureeEnClair(mois: number): string {
+  if (mois % 12 === 0) {
+    const ans = mois / 12;
+    return ans === 1 ? 'un an' : `${['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix'][ans] ?? ans} ans`;
+  }
+  return `${mois} mois`;
+}
 
 export function texteDuContrat(o: {
   maison: string;
@@ -206,9 +233,12 @@ export function texteDuContrat(o: {
     {
       n: '4', titre: 'La durée',
       lignes: [
-        `Cette autorisation est donnée pour ${MOIS_DE_VALIDITE} mois à compter du ${jour}.`,
+        `Cette autorisation est donnée pour ${dureeEnClair(MOIS_DE_VALIDITE)} à compter du ${jour}.`,
         'Passé ce terme, elle cesse d’elle-même. La Maison devra en demander une nouvelle '
         + 'pour continuer à utiliser les images.',
+        'Ce terme est long : la personne photographiée est invitée à retenir qu’elle peut, à '
+        + 'tout moment et sans se justifier, retirer son autorisation comme il est dit à '
+        + 'l’article 5. La durée n’enferme personne.',
         'Les images déjà imprimées avant le terme peuvent rester en circulation le temps de '
         + 'leur épuisement naturel.',
       ],
