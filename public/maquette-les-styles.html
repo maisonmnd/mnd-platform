@@ -44,7 +44,19 @@
   /* ── LA GRILLE DES STYLES ── */
   .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:12px}
   .carte{background:#fff;border:1px solid var(--hairline);border-radius:4px;overflow:hidden;
-         cursor:pointer;transition:.16s;text-align:left;font:inherit;padding:0;color:inherit}
+         transition:.16s;text-align:left;display:flex;flex-direction:column}
+  .carte__ouvre{cursor:pointer;background:none;border:none;padding:0;font:inherit;color:inherit;
+                text-align:left;display:block;width:100%}
+  /* ══ CHOISIR A ET B SE FAIT AU BOUTON — 6 septembre 2026 ═══════════
+     « Le volet ne marche pas » (Yéman). Il marchait, mais il fallait Maj +
+     clic pour désigner les deux styles, et un geste caché qui ne répond pas ne
+     se distingue pas d'un geste cassé : on ne sait même pas s'il a été
+     entendu. Deux lettres sur chaque carte, et le doute disparaît. */
+  .carte__ab{display:flex;gap:4px;border-top:1px solid var(--hairline);padding:6px 8px;margin-top:auto}
+  .ab{flex:1;border:1px solid var(--hairline);background:#fff;border-radius:2px;font:inherit;
+      font-size:10px;letter-spacing:.14em;color:var(--ink-soft);padding:5px 0;cursor:pointer}
+  .ab:hover{border-color:var(--cu-300);color:var(--cu-700)}
+  .ab.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
   .carte:hover{border-color:var(--cu-300);box-shadow:0 6px 18px rgba(30,33,80,.08)}
   .carte.on{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo-50)}
   .vign{background:var(--ivoire);border-bottom:1px solid var(--hairline);display:block;
@@ -654,18 +666,24 @@ function dessine() {
   const liste = retenus();
   const avecPhoto = STYLES.filter((s) => (PHOTOS[s.n] || []).length).length;
   document.getElementById('compte').textContent =
-    `${liste.length} style${liste.length > 1 ? 's' : ''} · cliquez pour la fiche, maintenez Maj pour comparer.`
+    `${liste.length} style${liste.length > 1 ? 's' : ''} · la carte ouvre la fiche, A et B les mettent en comparaison.`
     + (avecPhoto ? ` · ${avecPhoto} photographié${avecPhoto > 1 ? 's' : ''}, ${lisible(poidsTotal())} en tout.` : '');
   document.getElementById('grille').innerHTML = liste.map((s, i) => `
-    <button class="carte ${s === choixA || s === choixB ? 'on' : ''}" data-i="${STYLES.indexOf(s)}">
-      ${couverture(s, 184)}
-      <h3>${s.n}</h3>
-      <div class="meta">
-        <span class="pal ${s.p}">${PALIERS[s.p].mot}</span>
-        <span>${s.d} min</span>
-        <span>${LONGUEURS[s.l]}</span>
+    <div class="carte ${s === choixA || s === choixB ? 'on' : ''}">
+      <button class="carte__ouvre" data-i="${STYLES.indexOf(s)}">
+        ${couverture(s, 184)}
+        <h3>${s.n}</h3>
+        <div class="meta">
+          <span class="pal ${s.p}">${PALIERS[s.p].mot}</span>
+          <span>${s.d} min</span>
+          <span>${LONGUEURS[s.l]}</span>
+        </div>
+      </button>
+      <div class="carte__ab">
+        <button class="ab ${s === choixA ? 'on' : ''}" data-ab="A" data-j="${STYLES.indexOf(s)}">A</button>
+        <button class="ab ${s === choixB ? 'on' : ''}" data-ab="B" data-j="${STYLES.indexOf(s)}">B</button>
       </div>
-    </button>`).join('');
+    </div>`).join('');
   compare();
 }
 
@@ -673,6 +691,16 @@ function cellule(el, s, cote) {
   el.innerHTML = s
     ? `${couverture(s, 150)}<h4>${s.n}</h4><p>${FAMILLES[s.f].nom} · ${PALIERS[s.p].mot} · ${s.d} min<br><b>${PALIERS[s.p].prix.toLocaleString('fr-FR')} F</b></p>`
     : `<div class="vide">Style ${cote}<br>Maj + clic sur une carte</div>`;
+}
+
+/** CE QUI MANQUE, NOMMÉ. « Il manque quelque chose » fait chercher ; « il
+    manque une photo sur Torsade Halo » fait agir. */
+function manque(sienne, vise, photoStyle) {
+  const l = [];
+  if (!sienne) l.push('Chargez <b>sa photo</b>, prise à une visite passée.');
+  if (!vise) l.push(`Choisissez un style <b>${coteVolet}</b> avec les lettres sous une carte.`);
+  else if (!photoStyle) l.push(`Chargez une photo sur <b>${vise.n}</b> : ouvrez sa fiche, puis le +.`);
+  return l.map((x) => `<span>${x}</span>`).join('');
 }
 
 function compare() {
@@ -704,12 +732,11 @@ function compare() {
        </div>
        <h4 style="margin-top:10px">Le volet</h4>
        <p>Glissez la ligne. Ce sont deux photos vraies, pas un montage.</p>`
-    : `<div class="photo" style="margin:0;aspect-ratio:1;height:auto">
-         ${!sienne ? 'Chargez sa photo, prise à une visite passée.' : ''}
-         ${!photoStyle ? `${!sienne ? '<br>' : ''}Puis une photo sur le style ${coteVolet}.` : ''}
+    : `<div class="photo" style="margin:0;aspect-ratio:1;height:auto;flex-direction:column;gap:6px">
+         ${manque(sienne, vise, photoStyle)}
        </div>
-       <h4 style="margin-top:10px">Sa tête</h4>
-       <p>Le volet a besoin des deux : sa photo, et une photo du style choisi.</p>`;
+       <h4 style="margin-top:10px">Le volet</h4>
+       <p>Il lui faut sa photo, et une photo du style visé.</p>`;
 
   tete.insertAdjacentHTML('beforeend', `
     <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px">
@@ -813,11 +840,17 @@ document.addEventListener('click', (e) => {
   if (f) { fFam = f.dataset.fam; dessine(); }
   if (p) { fPal = p.dataset.pal; dessine(); }
   if (l) { fLon = l.dataset.lon; dessine(); }
-  if (c) {
-    const s = STYLES[Number(c.dataset.i)];
-    if (e.shiftKey) { if (!choixA || (choixA && choixB)) { choixA = s; choixB = null; } else choixB = s; dessine(); }
-    else ouvrir(s);
+  const ab = e.target.closest('[data-ab]');
+  if (ab) {
+    /* UN SECOND CLIC SUR LA MÊME LETTRE LA LIBÈRE : sans ça, un style posé par
+       erreur ne se retire qu'en en posant un autre. */
+    const s = STYLES[Number(ab.dataset.j)];
+    if (ab.dataset.ab === 'A') choixA = choixA === s ? null : s;
+    else choixB = choixB === s ? null : s;
+    dessine();
+    return;
   }
+  if (c) ouvrir(STYLES[Number(c.dataset.i)]);
   if (e.target.id === 'fiche') document.getElementById('fiche').style.display = 'none';
 });
 document.getElementById('q').addEventListener('input', (e) => { q = e.target.value; dessine(); });

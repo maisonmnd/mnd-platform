@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE DROIT À L'IMAGE, SIGNÉ — 6 septembre 2026, PUBLIÉ
+
+« Quand la cliente accepte de montrer sa photo, où est le contrat du droit à
+l'image signé par la cliente ? » (Yéman). **Nulle part** — et c'était le défaut
+du matin même : la fiche portait deux dates posées PAR LA MAISON. Une case
+cochée par celui qui en profite ne vaut rien devant un litige.
+
+**Un accord est un document, pas un booléen.** Il nomme qui, quelles photos,
+pour quoi, pour combien de temps, il rappelle le droit de retrait, il porte une
+signature et une date, et **un exemplaire est remis**. Sans l'un de ces
+morceaux, ce n'est pas un accord, c'est une note.
+
+- **Le texte** (`shared/droit-image.ts`) — dix articles numérotés, en français
+  simple. Ce qui n'est pas coché est **écrit comme interdit**, pas seulement
+  omis : un silence se relit comme une permission par celui que ça arrange. Il
+  porte **sa version** (`VERSION_DU_TEXTE`) : sans elle, on ne saurait plus dans
+  deux ans à quoi elle avait dit oui.
+- **La signature se trace au doigt** à l'écran (arbitrage), et part dans un PDF
+  remis à la cliente (`droitImagePdf`, shared/pdf).
+- **Terme : 24 mois.** Un consentement sans terme se retourne contre celui qui
+  s'en sert. La fiche dit « à refaire signer » passé ce délai.
+- **Le retrait n'efface pas le document** : savoir qu'il a existé compte autant
+  que savoir qu'il ne vaut plus.
+- **Une mineure ne signe pas pour elle-même.** Le Trône connaît le foyer, propose
+  le nom du parent, et l'accord sans parent nommé est **invalide**. Le contrat
+  ajoute que la Maison renonce à photographier si l'enfant s'y oppose, quel que
+  soit l'accord du parent.
+- **Le juge est unique** : `accordePour`, relayé par `aAccorde` qui lit encore
+  les deux anciennes dates — pour ne pas redemander à qui a déjà dit oui — mais
+  ne les écrit plus jamais. La fiche dit franchement qu'un accord noté à la main
+  ne tiendrait pas devant une contestation.
+
+Éprouvé par `verifie-droit-image` (32ᵉ harnais, 43 assertions), y compris la
+numérotation continue des articles quand ceux de la simulation et de l'enfant
+paraissent ou non. **Ce n'est pas un avis juridique** : la formulation devrait
+être relue par quelqu'un qui connaît le droit béninois avant d'être présentée.
+
 ## CE QU'ELLE AUTORISE — 6 septembre 2026, PUBLIÉ
 
 Posé **avant** l'outil qui s'en servira. « Créer plus de 100 styles à facturer »

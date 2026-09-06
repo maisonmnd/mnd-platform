@@ -54,6 +54,8 @@ import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { CarteModal } from './CarteModal';
+import { DroitImageModal } from './DroitImageModal';
+import { ditLAccord, estMineure } from '../../../../shared/droit-image';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -1802,6 +1804,8 @@ function Customer360({
   /* SA CARTE — anniversaire, merci, Cercle. Elle s'ouvre depuis sa fiche :
      c'est en la lisant qu'on pense a l'envoyer. */
   const [carteOuverte, setCarteOuverte] = useState(false);
+  /* SON DROIT À L'IMAGE — un document à faire signer, pas une case. */
+  const [droitOuvert, setDroitOuvert] = useState(false);
   /* Le prix ferme en cours de correction — édité EN PLACE, comme partout :
      retirer puis reposer faisait deux gestes (et un trou entre les deux). */
   const [fixEdit, setFixEdit] = useState<null | { sid: string; montant: string }>(null);
@@ -3832,32 +3836,57 @@ function Customer360({
               pas. C'est elle, la preuve, pas la pastille allumée. */}
           <div>
             <span className="trc-microlabel">Ce qu’elle autorise</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={`trc-chip ${aAccorde(client, 'vitrine') ? 'is-active' : ''}`}
-                title="Sa photo peut être montrée : vitrine, Ma Couronne, réseaux de la Maison."
-                onClick={() => patch({ accordVitrine: aAccorde(client, 'vitrine') ? undefined : todayISO() })}
-              >
-                Montrer sa photo
-              </button>
-              <button
-                type="button"
-                className={`trc-chip ${aAccorde(client, 'simulation') ? 'is-active' : ''}`}
-                title="Sa photo peut servir à une simulation de coiffure. Elle sortirait alors de la Maison vers un service extérieur."
-                onClick={() => patch({ accordSimulation: aAccorde(client, 'simulation') ? undefined : todayISO() })}
-              >
-                Simulation de coiffure
-              </button>
-            </div>
-            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
-              {aAccorde(client, 'vitrine') || aAccorde(client, 'simulation')
-                ? [
-                  aAccorde(client, 'vitrine') ? `Montrer sa photo, accordé le ${frShort(client.accordVitrine!)}.` : '',
-                  aAccorde(client, 'simulation') ? `Simulation, accordé le ${frShort(client.accordSimulation!)}.` : '',
-                ].filter(Boolean).join(' ')
-                : 'Rien d’accordé. Sa photo ne sort pas de sa fiche.'}
-            </div>
+            {(() => {
+              /* ══ UN DOCUMENT SIGNÉ, PAS DEUX CASES — 6 septembre 2026 ══
+                 « Où est le contrat du droit à l'image signé par la
+                 cliente ? » (Yéman). Il n'existait pas : la fiche portait
+                 deux dates posées PAR LA MAISON, c'est-à-dire par celui qui
+                 en profite. Elles ne valaient rien.
+
+                 CE QUI SE LIT ICI EST L'ÉTAT DU DOCUMENT, jamais un réglage :
+                 il n'y a plus rien à cocher sur cette fiche, il y a quelqu'un
+                 à faire signer. */
+              const mineure = estMineure(client.birthday, todayISO());
+              const a = client.accordImage;
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="trc-rowact trc-rowact--rdv"
+                      onClick={() => setDroitOuvert(true)}
+                    >
+                      {a && !a.retireLe ? 'Refaire signer' : 'Faire signer le droit à l’image'}
+                    </button>
+                    {a && !a.retireLe && (
+                      <button
+                        type="button"
+                        className="trc-rowact"
+                        title="Elle retire son accord. Le document reste au dossier : savoir qu’il a existé compte autant que savoir qu’il ne vaut plus."
+                        onClick={() => patch({ accordImage: { ...a, retireLe: todayISO() } })}
+                      >
+                        Elle retire son accord
+                      </button>
+                    )}
+                  </div>
+                  <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+                    {ditLAccord(a, todayISO(), mineure)}
+                  </div>
+                  {/* CE QUE LES DEUX DATES D'AVANT VALENT ENCORE : elles sont
+                      lues, pour ne pas redemander à qui a déjà dit oui, mais
+                      la fiche dit franchement qu'elles ne sont pas signées. */}
+                  {!a && (client.accordVitrine || client.accordSimulation) && (
+                    <div className="trc-sub" style={{ marginTop: 6, lineHeight: 1.5, color: 'var(--copper-700)' }}>
+                      Un accord a été noté à la main, sans document ni signature. Il tient pour
+                      l’instant, il ne tiendrait pas devant une contestation.
+                    </div>
+                  )}
+                  {droitOuvert && (
+                    <DroitImageModal client={client} onClose={() => setDroitOuvert(false)} />
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           <div>

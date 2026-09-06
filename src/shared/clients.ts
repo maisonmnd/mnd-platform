@@ -1,4 +1,5 @@
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
+import { accordePour, type AccordImage } from './droit-image';
 import { type EnvieKey } from './quiz';
 /* Import sans cycle : accounts.ts n'importe d'ici que des TYPES (effacés à
    l'exécution) — le runtime ne boucle pas. */
@@ -65,13 +66,20 @@ export type Client = {
       ne sert QU'À ÉCRIRE : aucun compte, aucun prix, aucune statistique ne le
       regarde. */
   auMasculin?: boolean;
-  /** ELLE ACCEPTE QUE SA PHOTO SERVE À UNE SIMULATION — date ISO du jour où
-      elle l'a dit. Sa photo sortirait alors de la Maison vers un service
-      extérieur : rien ne part sans cette date. Voir `aAccorde`. */
+  /** SON AUTORISATION DE DROIT À L'IMAGE, signée — 6 septembre 2026.
+
+      « Où est le contrat signé par la cliente ? » (Yéman). Les deux dates
+      ci-dessous étaient posées PAR LA MAISON : c'est elle qui déclarait avoir
+      demandé, pas la cliente qui avait accepté. Une case cochée par celui qui
+      en profite ne vaut rien devant un litige.
+
+      Le document, ses usages, sa signature et son terme vivent désormais dans
+      `shared/droit-image`. Le juge unique est `accordePour`. */
+  accordImage?: AccordImage;
+  /** @deprecated Les deux dates d'avant la signature. Lues encore, pour ne pas
+      perdre ce qui a été coché le matin du 6 septembre ; plus jamais écrites. */
   accordSimulation?: string;
-  /** ELLE ACCEPTE QUE SA PHOTO SOIT MONTRÉE — vitrine, Ma Couronne, réseaux.
-      Distinct du précédent, et pour une raison : accepter d'être montrée au
-      salon n'est pas accepter que son visage quitte le pays. */
+  /** @deprecated Voir `accordImage`. */
   accordVitrine?: string;
   diaspora?: boolean;
   /** ELLE A DÉFAIT SES LOCKS — 6 septembre 2026, demande de Yéman.
@@ -629,6 +637,11 @@ export const aDefaitSesLocks = (c: { locksDefaits?: boolean }): boolean => c.loc
 
 export type QuoiAccorde = 'simulation' | 'vitrine';
 
+/* Le document signé vit dans son propre fichier : il porte un texte, des
+   articles et un terme, et rien de tout cela n'a sa place dans le modèle des
+   fiches. */
+
+
 export const accordDonneLe = (
   c: { accordSimulation?: string; accordVitrine?: string },
   quoi: QuoiAccorde,
@@ -637,10 +650,22 @@ export const accordDonneLe = (
   return d && d.trim() ? d : undefined;
 };
 
+/** A-T-ELLE ACCORDÉ CET USAGE ? LE JUGE UNIQUE de toute la Maison.
+
+    Il lit d'abord le document signé, et retombe sur les deux anciennes dates
+    pour les fiches cochées avant qu'il existe : perdre un accord déjà donné
+    obligerait à redemander à des clientes qui ont déjà dit oui. Rien n'écrit
+    plus ces dates-là. */
 export const aAccorde = (
-  c: { accordSimulation?: string; accordVitrine?: string },
+  c: { accordImage?: AccordImage; accordSimulation?: string; accordVitrine?: string },
   quoi: QuoiAccorde,
-): boolean => accordDonneLe(c, quoi) !== undefined;
+  o: { mineure?: boolean } = {},
+): boolean => {
+  if (c.accordImage) {
+    return accordePour(c.accordImage, quoi === 'simulation' ? 'simulation' : 'vitrine', o);
+  }
+  return accordDonneLe(c, quoi) !== undefined;
+};
 
 /** LA DIASPORA — UN SEUL JUGE, ENFIN (16 août 2026).
 

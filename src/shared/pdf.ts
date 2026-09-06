@@ -733,6 +733,118 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   return filename;
 }
 
+/* ── L'AUTORISATION DE DROIT À L'IMAGE — 6 septembre 2026 ────────────
+   « Où est le contrat signé par la cliente ? » (Yéman).
+
+   UN EXEMPLAIRE LUI EST REMIS, et c'est un morceau du consentement, pas une
+   politesse : un accord dont elle ne garde aucune trace est un accord qu'elle
+   ne peut ni relire, ni opposer, ni retirer en connaissance de cause.
+
+   LA SIGNATURE EST UNE IMAGE, posée telle qu'elle a été tracée. On ne la
+   redessine pas, on ne la lisse pas : ce qui vaut, c'est son geste. */
+export async function droitImagePdf(o: {
+  houseName: string;
+  ville?: string;
+  titre: string;
+  entete: string[];
+  articles: { n: string; titre: string; lignes: string[] }[];
+  signataire: string;
+  pourEnfant?: string;
+  jourLisible: string;
+  /** Le tracé de sa signature, en data URL PNG. */
+  signature: string;
+  pied: string;
+  filename: string;
+}): Promise<string> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210, H = 297, M = 20;
+  let y = 22;
+
+  const page = (besoin: number) => {
+    if (y + besoin < H - 24) return;
+    doc.addPage();
+    y = 22;
+  };
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text(o.houseName.toUpperCase(), M, y);
+  doc.setTextColor(COPPER);
+  doc.text('DROIT À L’IMAGE', W - M, y, { align: 'right' });
+  y += 9;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(20);
+  doc.setTextColor(INDIGO);
+  doc.text(o.titre, M, y);
+  y += 9;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(INK);
+  for (const l of o.entete) {
+    for (const ligne of doc.splitTextToSize(pdfSafe(l), W - M * 2)) {
+      page(6); doc.text(ligne, M, y); y += 5;
+    }
+  }
+  y += 4;
+
+  for (const a of o.articles) {
+    page(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(INDIGO);
+    doc.text(pdfSafe(`Article ${a.n} · ${a.titre}`), M, y);
+    y += 5.5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(INK);
+    for (const l of a.lignes) {
+      const creux = l.startsWith('·') ? 4 : 0;
+      for (const ligne of doc.splitTextToSize(pdfSafe(l), W - M * 2 - creux)) {
+        page(6); doc.text(ligne, M + creux, y); y += 4.6;
+      }
+    }
+    y += 3.5;
+  }
+
+  /* LE BLOC DE SIGNATURE NE SE COUPE JAMAIS EN DEUX : une signature seule en
+     haut d'une page se détache du texte qu'elle approuve. */
+  page(52);
+  y += 4;
+  doc.setDrawColor(220, 213, 195);
+  doc.line(M, y, W - M, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(SOFT);
+  doc.text(pdfSafe(`Fait ${o.ville ? `à ${o.ville}, ` : ''}le ${o.jourLisible}`), M, y);
+  y += 7;
+  doc.setTextColor(INK);
+  doc.text(pdfSafe(o.pourEnfant
+    ? `${o.signataire}, parent ou représentant légal de ${o.pourEnfant}`
+    : o.signataire), M, y);
+  y += 4;
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text('Lu et approuvé, signature :', M, y);
+  try { doc.addImage(o.signature, 'PNG', M, y + 2, 62, 22); } catch { /* signature illisible */ }
+  y += 30;
+
+  await pieDeLaMaison(doc, W, H - 14, { nom: o.houseName });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(SOFT);
+  doc.text(pdfSafe(o.pied), W / 2, H - 9, { align: 'center' });
+
+  doc.save(o.filename);
+  return o.filename;
+}
+
 export type SummarySection = {
   heading: string;
   rows: { label: string; value?: string; strong?: boolean; sub?: boolean }[];
