@@ -1806,6 +1806,24 @@ export default function Parametres() {
       {/* ══ L'ÉQUIPE ════════════════════════════════════════════════ */}
       <Intertitre id="fam-equipe">L’équipe</Intertitre>
 
+      {/* ══ LES TEXTES DE LA MAISON — 6 septembre 2026 ═══════════════
+          « Comment modifier la fiche de poste et le règlement intérieur ? »
+          (Yéman). Ils vivaient dans le code. Ils ont leur écran, ouvert d'ici
+          et depuis Personnel & paie : un écran qu'on ne trouve pas n'existe
+          pas, et celui-ci ne s'ouvre que trois fois par an. */}
+      <Card className="sys-section" style={{ marginTop: 18 }}>
+        <div className="sys-section__title">Les textes de la Maison</div>
+        <div className="sys-section__cap" style={{ maxWidth: 680 }}>
+          Les douze fiches de poste et le règlement intérieur. Une fiche décrit un métier et
+          n’engage personne : elle se corrige quand vous voulez. Le règlement engage et se
+          signe : chaque modification publie une version, et rappelle celles et ceux qui
+          avaient signé la précédente.
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Button variant="ghost" onClick={() => navigate('/textes')}>Ouvrir les textes</Button>
+        </div>
+      </Card>
+
       {/* ── LA PREUVE DE PRÉSENCE ───────────────────────────────────
           Sans elle, le pointage n'est qu'une déclaration : rien n'empêche de
           l'écrire depuis son lit. La position d'abord — aucun geste quotidien —

@@ -2,7 +2,7 @@ import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
   LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming, ListChecks,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, Store, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, Handshake as PoigneeDeMain, type LucideIcon,
+  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, FileSignature, Handshake as PoigneeDeMain, type LucideIcon,
 } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
@@ -112,6 +112,12 @@ export const NAV: TroneGroup[] = [
     group: 'Système',
     items: [
       { path: '/parametres', label: 'Paramètres', icon: Settings, Component: lazy(() => import('./systeme/Parametres')) },
+      /* LES TEXTES DE LA MAISON — hors menu, comme le Comptoir. On y va depuis
+         Paramètres et depuis Personnel & paie, là où l'on tient les fiches et
+         où l'on remet le règlement ; une barre de vingt-cinq entrées ne gagne
+         rien à en porter une vingt-sixième qu'on ouvre trois fois par an.
+         Le domaine reste « systeme » : le groupe le donne, rien à déclarer. */
+      { path: '/textes', label: 'Les textes de la Maison', icon: FileSignature, horsMenu: true, Component: lazy(() => import('./systeme/Textes')) },
       /* LE COMPTOIR N'EST PLUS DANS LE MENU. Un écran qu'on ouvre trois fois
          par an n'a pas sa place entre Paramètres et Accès : il encombrait une
          barre déjà longue. Il reste joignable depuis Paramètres, là où l'on

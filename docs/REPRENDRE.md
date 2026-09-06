@@ -61,6 +61,77 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES TEXTES DE LA MAISON SORTENT DU CODE — 6 septembre 2026, PUBLIÉ
+
+« Comment modifier la fiche de poste et le règlement intérieur ? » puis
+« construis » (Yéman). Maquette validée : `public/maquette-les-textes-de-la-maison.html`.
+
+**Où** : Paramètres · L'équipe → « Ouvrir les textes », et Personnel & paie →
+« Les textes de la Maison ». Route `/textes`, **hors menu** comme le Comptoir :
+un écran qu'on ouvre trois fois par an n'a pas sa place dans une barre de
+vingt-cinq entrées, mais un écran qu'on ne trouve pas n'existe pas, d'où les
+deux portes.
+
+**Deux textes, deux règles, et c'est tout le sujet.** Une fiche de poste décrit
+un métier et n'engage personne : elle se corrige quand on veut. Un règlement
+engage et se signe : il ne se corrige jamais en place, il **publie une
+version**. Les mettre sous le même bouton « Enregistrer » aurait fait modifier
+un texte signé sans que personne s'en aperçoive.
+
+**Les pouvoirs de décision**, demandés en cours de construction : `decide` (ce
+qu'elle tranche seule) et `demandeAvant` (ce qui s'approuve, **et par qui**).
+« Ce qu'elle ne fait pas » trace la frontière du MÉTIER ; celle-ci trace la
+frontière de l'AUTORITÉ, et ce n'est pas la même : un maître a le droit
+d'arrêter un rituel, pas d'accorder une remise. Le harnais vérifie qu'aucune
+fiche du fauteuil ne s'arroge l'argent, et que chacune sait à qui le demander.
+
+**Une ligne se retire, elle ne s'efface pas.** Les clés de la grille sont les
+identifiants des entretiens signés. Une ligne jamais cochée s'efface ; une ligne
+déjà cochée passe en `retiree` : elle cesse d'être proposée et reste lisible sur
+les entretiens signés. Le libellé, lui, se reformule librement — la signature
+porte la clé, pas la phrase.
+
+**Renommer une fiche la détacherait de ses personnes** : une fiche se trouve par
+le nom de la FONCTION portée sur la fiche de personnel. L'écran nomme les gens
+concernés avant, parce que la casse est silencieuse (l'entretien dirait
+seulement « aucune fiche n'existe pour ce poste »).
+
+**Le règlement : brouillon, versions, rappel.** `EtatDuReglement` garde toutes
+les versions publiées, jamais écrasées. Le brouillon ne s'applique à personne.
+Publier crée `v(n+1) · <date en toutes lettres>` et remet en « nouvelle version
+à signer » tous ceux qui n'ont pas signé celle-là. **Trois états, pas deux** :
+« jamais » (rouge), « version ancienne » (neutre), « à jour ». Confondre les
+deux premiers ferait rappeler avec la même urgence celui qui n'est tenu par rien
+et celui qui est tenu par ce qu'il a lu, et la Maison cesserait de regarder la
+couleur. Celui qui n'a pas signé la nouvelle **garde le bénéfice de l'ancienne**.
+
+**Les gardes de la Maison** : cinq phrases qui protègent quelqu'un (l'écart
+déclaré qui n'est pas une faute, la personne entendue avant toute sanction, la
+sanction non écrite qui n'existe pas, le harcèlement qui ne se règle pas à
+l'amiable, celle qui signale qui ne peut en être inquiétée). L'écran **prévient,
+il n'interdit pas** (décision) : interdire ferait du texte de la Maison un texte
+que la Maison ne peut plus corriger. `gardesPerdues` les compte avant publication
+et l'écran de confirmation les redit une dernière fois.
+
+**Deux repères, une seule vérité.** L'échelle des sanctions et la date de remise
+ne se tapent pas dans le texte : `LES_DEGRES` et `LE_JOUR` sont des repères que
+`articlesDe()` développe, et que l'éditeur affiche comme un bloc dédié. Recopiés,
+ils auraient fait deux vérités pour une notion, le défaut corrigé cinq fois cette
+semaine.
+
+**Magasins** : `mnd_fiches_postes` et `mnd_reglement`, des **documents-objets**
+(pas des collections) pour survivre à une réinitialisation totale — une Maison
+sans fiches de poste ne saurait plus évaluer personne. `ficheSaine()` répare une
+fiche enregistrée avant l'ajout d'un champ.
+
+**Aussi** : `SignatureAuDoigt` était déjà partagée ; `enLettres()` rejoint
+`enFrancais()` dans `contrats.ts` — « v2 · 12/10/2026 » ressemble à un numéro de
+série, « v2 · 12 octobre 2026 » à une décision.
+
+**Ce qui reste** : les quatre documents (droit à l'image, prestataire,
+formation, règlement) attendent toujours une relecture par un juriste béninois,
+et le Code du travail encadre l'affichage et le dépôt du règlement.
+
 ## LA GRILLE D'ENTRETIEN SUR LA FICHE DE POSTE — 6 septembre 2026, PUBLIÉ
 
 « Je voudrais des fiches de postes plus détaillées avec des cases à cocher, des

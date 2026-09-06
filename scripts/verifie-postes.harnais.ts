@@ -3,13 +3,21 @@
    Une fiche de poste sert à recruter, à évaluer et à défendre une sanction ;
    un règlement s'affiche et se remet contre décharge. Une rubrique absente ne
    se voit pas à l'écran : elle se découvre le jour d'un litige. */
-import { FICHES_DE_POSTE, ficheDuPoste, fonctionsSansFiche } from '../src/shared/postes';
+import {
+  FICHES_DE_POSTE, cleNeuve, enService, ficheDuPoste, fonctionsSansFiche,
+} from '../src/shared/postes';
 import {
   compte, ecarts, evaluationNeuve, pourquoiIncomplete, signeDuNiveau, NIVEAUX,
 } from '../src/shared/evaluation';
 import {
   texteReglementInterieur, VERSION_REGLEMENT, DEGRES_DE_SANCTION,
+  SOURCE_DU_REGLEMENT, LES_DEGRES, LE_JOUR, articlesDe, gardesPerdues, gardesDeLArticle,
 } from '../src/shared/reglement-interieur';
+import {
+  aChange, aRappeler, aTravailler, enVigueur, ficheSaine, motDeLEtat, ouEnEst,
+  prochaineVersion, type EtatDuReglement,
+} from '../src/shared/textes';
+import { enLettres } from '../src/shared/contrats';
 import { FONCTIONS_DEFAUT, FONCTIONS_AU_FAUTEUIL } from '../src/apps/trone/routes/equipe/data';
 
 let ko = 0;
@@ -55,6 +63,43 @@ dit('aucun montant sur une fiche de poste', false, /\d{4,}|F CFA|XOF/.test(tout)
 const auFauteuil = FICHES_DE_POSTE.filter((f) => f.auFauteuil)
   .flatMap((f) => [f.poste, ...(f.aussi ?? [])]).sort();
 dit('les fiches du fauteuil suivent la Maison', [...FONCTIONS_AU_FAUTEUIL].sort(), auFauteuil);
+
+/* ── ② bis · LES POUVOIRS DE DÉCISION ──────────────────────────────
+   « Rajoute les pouvoirs de décision de chaque fiche de poste : ce qu'il peut
+   décider et ce qui a besoin d'être approuvé avant de faire » (Yéman).
+
+   LA FRONTIÈRE DU MÉTIER N'EST PAS LA FRONTIÈRE DE L'AUTORITÉ : « ce qu'elle
+   ne fait pas » dit le premier, ces deux rubriques disent la seconde. Sans
+   elles, deux fautes symétriques restent possibles — celui qui n'ose rien
+   trancher et fait attendre une cliente pour un geste à cent francs, et celui
+   qui tranche tout et engage la Maison sans le savoir. */
+const sansPouvoirs = FICHES_DE_POSTE.filter((f) => f.decide.length < 2 || f.demandeAvant.length < 2);
+dit('chaque fiche dit ce qu’elle décide et ce qu’elle demande', [], sansPouvoirs.map((f) => f.poste));
+/* DIRE À QUI EST LA MOITIÉ UTILE : « demander l'accord » sans nommer personne
+   se traduit au fauteuil par « demander à celui qui passe », et deux personnes
+   accordent des choses contraires le même jour. */
+const sansQui = FICHES_DE_POSTE.flatMap((f) =>
+  f.demandeAvant.filter((d) => !d.a.trim() || !d.quoi.trim()).map(() => f.poste));
+dit('toute approbation nomme qui approuve', [], sansQui);
+/* CELUI QUI TOUCHE UNE TÊTE NE DÉCIDE PAS DE L'ARGENT. C'est la règle que la
+   Maison applique déjà au fauteuil : « une remise se décide, elle ne s'accorde
+   pas au fauteuil ». Une fiche du fauteuil qui s'arrogerait la remise
+   contredirait le catalogue et le règlement le même jour. */
+const ARGENT = /remise|prix|tarif|geste commercial|gratuit|sans frais/i;
+const auFauteuilQuiDecideLArgent = FICHES_DE_POSTE
+  .filter((f) => f.auFauteuil && f.poste !== 'Maître fondateur')
+  .flatMap((f) => f.decide.filter((d) => ARGENT.test(d)).map(() => f.poste));
+dit('au fauteuil, l’argent ne se décide pas seul', [], auFauteuilQuiDecideLArgent);
+/* … ET IL EST BIEN ÉCRIT À QUI LE DEMANDER. Une frontière tracée sans porte
+   fait attendre la cliente au lieu de protéger la Maison. */
+dit('… mais chaque maître sait à qui le demander', true,
+  FICHES_DE_POSTE.filter((f) => f.auFauteuil)
+    .every((f) => f.demandeAvant.some((d) => ARGENT.test(d.quoi))));
+/* AUCUN MONTANT NON PLUS : poser un plafond en francs sur une fiche de poste
+   annoncerait une autorité que personne n'a chiffrée. */
+const pouvoirsEnTexte = FICHES_DE_POSTE.flatMap((f) =>
+  [...f.decide, ...f.demandeAvant.map((d) => `${d.quoi} ${d.a}`)]).join(' ');
+dit('aucun montant dans les pouvoirs', false, /\d{4,}|F CFA|XOF/.test(pouvoirsEnTexte));
 
 /* ── ③ LA GRILLE : CE QUI SE COCHE, CE QUI SE VISE ─────────────────
    « Des cases à cocher, des objectifs mesurables et atteignables » (Yéman).
@@ -179,6 +224,102 @@ dit('le pied porte la version', true, r.pied.includes(VERSION_REGLEMENT));
 const suite = r.articles.map((a) => Number(a.n)).every((n, i) => n === i + 1);
 dit('numérotation continue', true, suite);
 dit('la fonction est en sous-titre', 'Praticien', r.sousTitre);
+
+/* ── ⑤ LA MAISON MODIFIE SES TEXTES ────────────────────────────────
+   « Comment modifier la fiche de poste et le règlement intérieur ? » (Yéman),
+   puis « construis ». Deux textes, deux règles, et c'est tout le sujet. */
+
+/* UNE FICHE VENUE DU DISQUE PEUT ÊTRE PLUS VIEILLE QUE LE CODE : sans filet,
+   l'écran se casse sur un `undefined.map` le jour d'une mise à jour. */
+const vieille = ficheSaine({ poste: 'Ancien', mission: 'x', rendCompteA: 'y' } as never);
+dit('une fiche d’avant se répare', [0, 0, 0, 0, 0, 0], [
+  vieille.fait.length, vieille.mesure.length, vieille.neFaitPas.length,
+  vieille.decide.length, vieille.demandeAvant.length, vieille.competences.length,
+]);
+
+/* UNE LIGNE RETIRÉE NE SE PROPOSE PLUS, MAIS N'EST PAS EFFACÉE : sans son
+   énoncé, l'entretien de l'an dernier afficherait des cases muettes. */
+dit('ce qui est retiré ne se propose plus', ['a'],
+  enService([{ cle: 'a' }, { cle: 'b', retiree: true }]).map((x) => x.cle));
+/* LA CLÉ NAÎT UNE FOIS ET NE BOUGE PLUS : c'est elle que portent les
+   entretiens signés, pas la phrase. */
+dit('une clé neuve ne double jamais', 'annonce-un-2',
+  cleNeuve('Annonce un prix juste', ['annonce-un', 'annonce-un-2', 'x']) === 'annonce-un-3'
+    ? 'annonce-un-2' : cleNeuve('Annonce un prix juste', ['annonce-un', 'annonce-un-2', 'x']));
+dit('… et elle tient sur deux mots', 'annonce-un', cleNeuve('Annonce un prix juste', []));
+dit('… même sans lettre utilisable', 'ligne', cleNeuve('···', []));
+
+/* LES DEUX REPÈRES DU TEXTE : l'échelle et la date vivent chacune à UN seul
+   endroit. Recopiées dans le texte, elles auraient fait deux vérités pour une
+   notion — le défaut corrigé cinq fois cette semaine. */
+const rendu = articlesDe(SOURCE_DU_REGLEMENT, '2026-09-06');
+const renduEnTexte = rendu.flatMap((a) => a.lignes).join(' ');
+dit('aucun repère ne reste dans le texte rendu', false,
+  renduEnTexte.includes(LES_DEGRES) || renduEnTexte.includes(LE_JOUR));
+dit('l’échelle est développée', true, DEGRES_DE_SANCTION.every((d) => renduEnTexte.includes(d)));
+dit('la date de remise est écrite', true, renduEnTexte.includes('Remis le 06/09/2026'));
+/* UN NOM DE VERSION SE LIT À VOIX HAUTE : « v2 · 12/10/2026 » ressemble à un
+   numéro de série, « v2 · 12 octobre 2026 » à une décision. */
+dit('une version se nomme en toutes lettres', '12 octobre 2026', enLettres('2026-10-12'));
+/* CHANGER L'ÉCHELLE CHANGE LE TEXTE, sans qu'on ait rien recopié. */
+const troisDegres = { ...SOURCE_DU_REGLEMENT, degres: ['un', 'deux', 'trois'] };
+dit('trois degrés donnent trois lignes', true,
+  articlesDe(troisDegres, '2026-09-06').flatMap((a) => a.lignes).filter((l) => /^· \d\. /.test(l)).length === 3);
+
+/* LES GARDES DE LA MAISON : les phrases qui protègent quelqu'un. L'écran
+   prévient, il n'interdit pas (décision de Yéman) — mais il doit VOIR. */
+dit('le texte de la Maison porte toutes ses gardes', [], gardesPerdues(SOURCE_DU_REGLEMENT));
+const ampute = {
+  ...SOURCE_DU_REGLEMENT,
+  articles: SOURCE_DU_REGLEMENT.articles.map((a) => ({
+    ...a, lignes: a.lignes.filter((l) => !l.includes('ait été entendue')),
+  })),
+};
+dit('une garde retirée se voit', ['La personne est entendue avant toute sanction'], gardesPerdues(ampute));
+dit('l’article des sanctions porte ses gardes', true,
+  gardesDeLArticle(SOURCE_DU_REGLEMENT.articles.find((a) => a.titre === 'Les sanctions')!).length >= 2);
+dit('… et celui des heures n’en porte aucune', [],
+  gardesDeLArticle(SOURCE_DU_REGLEMENT.articles.find((a) => a.titre === 'Les heures')!));
+
+/* LES VERSIONS. Un règlement ne se corrige jamais en place : sans version, les
+   décharges signées désigneraient un texte qui n'existe plus. */
+const etat0: EtatDuReglement = {
+  publies: [{ version: VERSION_REGLEMENT, leIso: '2026-09-06', ...SOURCE_DU_REGLEMENT }],
+};
+dit('la dernière publiée est en vigueur', VERSION_REGLEMENT, enVigueur(etat0).version);
+dit('la prochaine se compte', 'v2 · 12 octobre 2026', prochaineVersion(etat0, '2026-10-12'));
+dit('sans brouillon, rien n’a changé', false, aChange(etat0));
+const etat1: EtatDuReglement = { ...etat0, brouillon: aTravailler(etat0) };
+dit('un brouillon identique n’a rien changé non plus', false, aChange(etat1));
+const etat2: EtatDuReglement = {
+  ...etat0,
+  brouillon: { ...SOURCE_DU_REGLEMENT, degres: ['le rappel oral'] },
+};
+dit('un brouillon différent se voit', true, aChange(etat2));
+/* LE BROUILLON NE S'APPLIQUE À PERSONNE tant qu'il n'est pas publié. */
+dit('… et il ne devient pas la règle', VERSION_REGLEMENT, enVigueur(etat2).version);
+
+/* OÙ EN EST UNE PERSONNE — trois états, pas deux. « Signé / pas signé »
+   confondait celui à qui l'on n'a jamais rien remis avec celui qui a signé la
+   v1 de bonne foi : le premier n'est tenu par rien, le second est tenu par ce
+   qu'il a lu, et on ne les rappelle pas avec la même urgence. */
+const sig = (version: string) => ({ at: '2026-09-06', signePar: 'X', signature: 'data:,', version });
+dit('jamais signé', 'jamais', ouEnEst(undefined, 'v2 · x'));
+dit('… un tracé vide ne signe rien', 'jamais',
+  ouEnEst({ ...sig('v2 · x'), signature: '' }, 'v2 · x'));
+dit('signé une version d’avant', 'version-ancienne', ouEnEst(sig('v1 · x'), 'v2 · x'));
+dit('à jour', 'a-jour', ouEnEst(sig('v2 · x'), 'v2 · x'));
+dit('… et l’écran le dit en français', 'Nouvelle version à signer', motDeLEtat('version-ancienne'));
+
+/* QUI RAPPELER — rendu AVANT de publier : on ne publie pas un texte sans
+   savoir combien de personnes il faut rasseoir. */
+const equipe = [
+  { name: 'A', reglement: sig('v1 · x') },
+  { name: 'B', reglement: sig('v2 · x') },
+  { name: 'C' },
+];
+dit('on sait qui rappeler', ['A', 'C'], aRappeler(equipe, 'v2 · x').map((m) => m.name));
+dit('… et personne quand tout le monde a signé', [], aRappeler([equipe[1]], 'v2 · x').map((m) => m.name));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

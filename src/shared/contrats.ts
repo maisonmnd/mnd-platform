@@ -80,6 +80,21 @@ export function dureeEnClair(mois: number): string {
 
 export const enFrancais = (iso: string): string => iso.split('-').reverse().join('/');
 
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+  'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+/** LA MÊME DATE, EN TOUTES LETTRES. Les deux formats existent pour deux usages
+    qui ne se confondent pas : « Fait le 12/10/2026 » se lit d'un coup d'œil au
+    bas d'un contrat, tandis qu'un NOM de version se lit à voix haute et se
+    cite dans une conversation. « v2 · 12/10/2026 » ressemble à un numéro de
+    série ; « v2 · 12 octobre 2026 » ressemble à une décision, ce qu'elle est. */
+export const enLettres = (iso: string): string => {
+  const [a, m, j] = iso.split('-');
+  const mois = MOIS[Number(m) - 1];
+  if (!mois || !j) return enFrancais(iso);
+  return `${Number(j)} ${mois} ${a}`;
+};
+
 /** LE MONTANT ÉCRIT EN TOUTES LETTRES N'EST PAS UN LUXE sur un contrat : un
     chiffre se rature, une somme écrite se conteste. On garde les deux. */
 export const sommeLisible = (xof: number): string =>

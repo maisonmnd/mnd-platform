@@ -3,7 +3,8 @@ import { Button, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { maisonNom, maisonVille } from '../../../../shared/identite';
 import { summaryPdf, type SummarySection } from '../../../../shared/pdf';
-import { ficheDuPoste, type FicheDePoste } from '../../../../shared/postes';
+import { enService, ficheDuPoste, type FicheDePoste } from '../../../../shared/postes';
+import { useFichesDePoste } from '../../../../shared/textes';
 import {
   NIVEAUX, VERSION_EVALUATION, compte, ecarts, evaluationNeuve, motDuNiveau,
   pourquoiIncomplete, signeDuNiveau, type Evaluation, type Niveau,
@@ -56,6 +57,13 @@ export async function ficheDePostePdf(f: FicheDePoste, pourQui?: string) {
       /* LA RUBRIQUE LA PLUS UTILE : les conflits d'atelier naissent presque
          toujours d'une frontière que personne n'avait tracée. */
       lignes('Ce qu’elle ne fait pas', f.neFaitPas),
+      /* LA FRONTIÈRE DU MÉTIER N'EST PAS LA FRONTIÈRE DE L'AUTORITÉ : un
+         maître a le droit d'arrêter un rituel, pas d'accorder une remise. */
+      lignes('Ce qu’elle décide seule', f.decide),
+      {
+        heading: 'Ce qui s’approuve avant',
+        rows: f.demandeAvant.map((d) => ({ label: `· ${d.quoi}`, value: d.a })),
+      },
       {
         heading: 'Ce qui se coche à l’entretien',
         rows: f.competences.map((c) => ({ label: `· ${c.mot}`, value: '· ~ ✓' })),
@@ -101,7 +109,11 @@ export function EvaluationModal(o: {
 }) {
   const { branch } = useBranch();
   const jour = new Date().toISOString().slice(0, 10);
-  const fiche = ficheDuPoste(o.membre.role);
+  /* LES FICHES DE LA MAISON, PAS CELLES DU CODE. Elles se modifient dans
+     Paramètres · Les textes ; évaluer sur le texte d'origine ferait cocher des
+     lignes que plus personne n'a sous les yeux. */
+  const [fiches] = useFichesDePoste();
+  const fiche = ficheDuPoste(o.membre.role, fiches);
   const passees = useMemo(
     () => [...(o.membre.evaluations ?? [])].sort((a, b) => b.at.localeCompare(a.at)),
     [o.membre.evaluations],
@@ -121,7 +133,9 @@ export function EvaluationModal(o: {
     }
     const duJour = passees.find((e) => e.at === jour);
     if (duJour) return { ...duJour };
-    const neuve = evaluationNeuve(fiche, jour);
+    const neuve = evaluationNeuve(
+      { ...fiche, objectifs: enService(fiche.objectifs) } as FicheDePoste, jour,
+    );
     /* LES CIBLES DE L'AN DERNIER SUIVENT LA PERSONNE : elles ont été discutées
        une fois, les retaper chaque année les ferait dériver au hasard. */
     const derniere = passees[0];
@@ -144,7 +158,16 @@ export function EvaluationModal(o: {
     );
   }
 
-  const f = fiche;
+  /* CE QU'ON COCHE AUJOURD'HUI. Une ligne retirée de la fiche ne se propose
+     plus — mais si l'entretien ouvert porte déjà un avis dessus, elle reste
+     affichée : la faire disparaître sous les yeux de quelqu'un effacerait ce
+     qu'on venait de lui dire. */
+  const porteUnAvis = (cle: string) => !!ev.parElle[cle] || !!ev.parLaMaison[cle];
+  const f: FicheDePoste = {
+    ...fiche,
+    competences: fiche.competences.filter((c) => !c.retiree || porteUnAvis(c.cle)),
+    objectifs: enService(fiche.objectifs),
+  };
   const pose = (champ: 'parElle' | 'parLaMaison', cle: string, n: Niveau) =>
     setEv((p) => ({ ...p, [champ]: { ...p[champ], [cle]: n } }));
 
@@ -246,6 +269,19 @@ export function EvaluationModal(o: {
             <div>
               <div className="tre-ev__rub">Elle rend compte</div>
               <ul><li>{f.rendCompteA}</li></ul>
+            </div>
+            {/* LES POUVOIRS DE DÉCISION — « ce qu'il peut décider et ce qui a
+                besoin d'être approuvé avant de faire » (Yéman). C'est ce qu'on
+                relit le jour où quelqu'un a décidé trop, ou trop peu. */}
+            <div>
+              <div className="tre-ev__rub">Ce qu’elle décide seule</div>
+              <ul>{f.decide.map((t) => <li key={t}>{t}</li>)}</ul>
+            </div>
+            <div>
+              <div className="tre-ev__rub">Ce qui s’approuve avant</div>
+              <ul>{f.demandeAvant.map((d) => (
+                <li key={d.quoi}>{d.quoi} <span className="mnd-muted">· auprès de {d.a}</span></li>
+              ))}</ul>
             </div>
           </div>
           <div style={{ marginTop: 10 }}>

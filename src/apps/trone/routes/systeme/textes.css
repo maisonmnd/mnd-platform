@@ -1,0 +1,273 @@
+/* ══ LES TEXTES DE LA MAISON — 6 septembre 2026 ═══════════════════════
+   Deux textes, deux règles : la fiche se corrige, le règlement publie une
+   version. L'écran doit le faire sentir avant qu'on ait lu quoi que ce soit,
+   d'où le bandeau de version en haut du second onglet et nulle part ailleurs. */
+
+.txt-deux { display: grid; grid-template-columns: 236px 1fr; }
+@media (max-width: 900px) { .txt-deux { grid-template-columns: 1fr; } }
+
+.txt-rail {
+  border-right: 1px solid var(--hairline);
+  background: #fff;
+  padding: 8px 0;
+}
+@media (max-width: 900px) {
+  .txt-rail { border-right: none; border-bottom: 1px solid var(--hairline); }
+}
+.txt-rail u {
+  text-decoration: none;
+  display: block;
+  padding: 10px 16px 6px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.txt-rail__a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: none;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.txt-rail__a em { font-style: normal; font-size: 10px; color: var(--ink-soft); white-space: nowrap; }
+.txt-rail__a:hover { background: var(--hover-veil); }
+.txt-rail__a.is-on {
+  background: var(--indigo-50, rgba(30, 33, 80, 0.05));
+  border-left-color: var(--color-copper);
+  color: var(--color-indigo);
+}
+.txt-rail__a.is-vide em { color: var(--copper-700); }
+
+.txt-corps { padding: 0 0 12px; min-width: 0; }
+.txt-titre {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 22px 8px;
+}
+.txt-titre__nom {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  color: var(--color-indigo);
+  max-width: 300px;
+}
+.txt-titre__dr { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.txt-coche {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.txt-bloc { padding: 14px 22px 6px; }
+.txt-rub { padding: 10px 0 4px; min-width: 0; }
+.txt-rub__t {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  margin-bottom: 4px;
+}
+.txt-rub__aide {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin-bottom: 7px;
+  max-width: 640px;
+}
+.txt-quatre,
+.txt-pouvoirs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 26px;
+  padding: 4px 22px;
+}
+@media (max-width: 900px) {
+  .txt-quatre, .txt-pouvoirs { grid-template-columns: 1fr; }
+}
+/* LES POUVOIRS SE LISENT ENSEMBLE : ce qu'on décide seul n'a de sens qu'en
+   regard de ce qui s'approuve avant, et l'un sans l'autre se lit de travers. */
+.txt-pouvoirs {
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  margin-top: 12px;
+  padding-top: 12px;
+  padding-bottom: 14px;
+  background: var(--surface-veil, rgba(0, 0, 0, 0.012));
+}
+
+.txt-li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.txt-li .mnd-input { flex: 1; min-width: 0; font-size: 13px; }
+.txt-li--paire { flex-wrap: wrap; }
+.txt-li--paire .mnd-input:first-child { flex: 2 1 240px; }
+.txt-li--paire .mnd-input:last-of-type { flex: 1 1 160px; }
+.txt-li__mot { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.txt-ligne { flex: 1; min-height: 54px; font-size: 12.5px; }
+
+.txt-x {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 5px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.txt-x:hover { background: var(--hover-veil); color: var(--color-indigo); }
+.txt-plus {
+  border: 1px dashed var(--copper-300);
+  background: none;
+  color: var(--copper-700);
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  padding: 6px 11px;
+  margin: 7px 0 4px;
+  cursor: pointer;
+}
+.txt-plus:hover { border-style: solid; }
+.txt-lien {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.txt-lien:hover { color: var(--copper-700); }
+
+.txt-table { width: 100%; border-collapse: collapse; }
+.txt-table th {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+  text-align: left;
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.txt-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.txt-table tr.is-retiree td { opacity: 0.5; }
+.txt-cle { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); white-space: nowrap; }
+.txt-usage { font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.txt-usage b { font-family: var(--font-serif); font-size: 15px; font-weight: 400; color: var(--color-indigo); }
+
+.txt-garde {
+  margin: 12px 22px 6px;
+  border-left: 2px solid var(--color-copper);
+  background: var(--copper-50);
+  padding: 11px 15px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  max-width: 780px;
+}
+.txt-garde u {
+  text-decoration: none;
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  margin-bottom: 4px;
+}
+.txt-garde b { font-weight: 500; }
+.txt-garde--ko { border-left-color: #8f3b30; background: rgba(143, 59, 48, 0.06); }
+.txt-garde--ko u { color: #8f3b30; }
+
+/* ── LE RÈGLEMENT ─────────────────────────────────────────────────── */
+.txt-ver {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 10px;
+}
+.txt-ver > b { font-family: var(--font-serif); font-size: 22px; font-weight: 400; color: var(--color-indigo); }
+.txt-ver u { text-decoration: none; font-size: 11.5px; color: var(--ink-soft); }
+.txt-ver u b { font-family: var(--font-serif); font-size: 16px; font-weight: 400; color: var(--color-indigo); }
+.txt-ver__dr { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.txt-art { border-bottom: 1px solid var(--hairline); }
+.txt-art__t { display: flex; align-items: center; gap: 10px; padding: 8px 0; flex-wrap: wrap; }
+.txt-art__pli {
+  border: none; background: none; color: var(--ink-soft);
+  font-size: 13px; width: 20px; cursor: pointer; padding: 0;
+}
+.txt-art__n { font-family: var(--font-serif); font-size: 18px; color: var(--copper-700); width: 20px; }
+.txt-art__titre {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--color-indigo);
+}
+.txt-art__t em { font-style: normal; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.txt-art__dr { display: flex; gap: 2px; margin-left: auto; }
+.txt-art__c { padding: 4px 0 14px 50px; }
+@media (max-width: 700px) { .txt-art__c { padding-left: 0; } }
+
+.txt-pas {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 100px;
+  border: 1px solid var(--copper-300);
+  background: var(--copper-50);
+  color: var(--copper-700);
+  white-space: nowrap;
+}
+
+.txt-degres { border-left: 2px solid var(--copper-300); padding: 8px 0 8px 12px; margin: 6px 0; }
+.txt-deg { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+.txt-deg > span { font-family: var(--font-serif); font-size: 19px; color: var(--copper-700); width: 18px; }
+.txt-deg .mnd-input { flex: 1; min-width: 0; font-size: 12.5px; }
+.txt-repere {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-style: italic;
+  padding: 7px 0;
+  border-left: 2px solid var(--hairline);
+  padding-left: 12px;
+  margin: 4px 0;
+}
+
+.txt-qui { display: flex; flex-wrap: wrap; gap: 6px; }
+.txt-qui span {
+  font-size: 11.5px;
+  border: 1px solid var(--hairline);
+  border-radius: 100px;
+  padding: 3px 10px;
+  background: var(--color-ivoire);
+}
+.txt-vligne {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12.5px;
+}
+.txt-vligne b { font-family: var(--font-serif); font-size: 18px; font-weight: 400; color: var(--color-indigo); }

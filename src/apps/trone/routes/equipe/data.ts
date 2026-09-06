@@ -69,6 +69,7 @@ const isoInDays = (days: number) => {
 
 import { type SignatureTracee } from '../../../../shared/contrats';
 import { type Evaluation } from '../../../../shared/evaluation';
+import { fichesStore, reglementStore } from '../../../../shared/textes';
 
 export type StaffRisk = 'faible' | 'modéré' | 'élevé';
 
@@ -1182,6 +1183,12 @@ bindDocument(houseSettingsStore, 'mnd_house_settings');
 /* LES FONCTIONS SUIVENT LA MAISON, pas l’appareil : une fonction ajoutée au
    comptoir doit exister sur le téléphone de la gérante. */
 bindDocument(fonctionsStore, 'mnd_fonctions');
+/* LES TEXTES DE LA MAISON — les fiches de poste et le règlement avec ses
+   versions. Des documents-objets : après une réinitialisation totale ils
+   gardent leurs valeurs par défaut, comme les réglages, parce qu'une Maison
+   sans fiches de poste ne saurait plus évaluer personne. */
+bindDocument(fichesStore, 'mnd_fiches_postes');
+bindDocument(reglementStore, 'mnd_reglement');
 bindDocument(themeStore, 'mnd_theme');
 bindDocument(refTempsStore, 'mnd_ref_temps');
 bindDocument(refPaliersStore, 'mnd_ref_paliers');

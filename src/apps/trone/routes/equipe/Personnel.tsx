@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
@@ -12,7 +13,8 @@ import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '..
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { ContratModal } from '../_contrat';
 import { EvaluationModal } from './Evaluation';
-import { texteReglementInterieur, VERSION_REGLEMENT } from '../../../../shared/reglement-interieur';
+import { texteReglementInterieur } from '../../../../shared/reglement-interieur';
+import { enVigueur, motDeLEtat, ouEnEst, useReglement } from '../../../../shared/textes';
 import { apptNetXof, svcPriceForAppt, commissionDetaillee } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -222,7 +224,14 @@ export default function Personnel() {
   const [paieLancee, setPaieLancee] = useState(false);
   const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
   /* SON RÈGLEMENT, à remettre contre décharge. */
+  const navigate = useNavigate();
   const [reglementFor, setReglementFor] = useState<StaffMember | null>(null);
+  /* LE RÈGLEMENT QUI S'APPLIQUE AUJOURD'HUI. La Maison le modifie depuis
+     Paramètres · Les textes, et chaque modification publie une version : lire
+     ici le texte d'origine ferait signer un document qui n'est plus en
+     vigueur, et la décharge ne vaudrait rien. */
+  const [etatReglement] = useReglement();
+  const reglementDuJour = enVigueur(etatReglement);
 
   /* SON ENTRETIEN, sur sa fiche de poste. */
   const [entretienFor, setEntretienFor] = useState<StaffMember | null>(null);
@@ -837,7 +846,15 @@ export default function Personnel() {
         eyebrow="Équipe & Croissance · les Maîtres"
         title="L’équipe."
         sub={`${branch.name}, celles et ceux qui couronnent, et la maison qui veille sur eux.`}
-        actions={<Button variant="copper" onClick={openNew}>+ Ajouter un membre</Button>}
+        actions={(
+          <>
+            {/* UN ÉCRAN QU'ON NE TROUVE PAS N'EXISTE PAS. Les fiches et le
+                règlement se remettent ICI ; le bouton doit donc être ici, pas
+                seulement au fond des Paramètres. */}
+            <Button variant="ghost" onClick={() => navigate('/textes')}>Les textes de la Maison</Button>
+            <Button variant="copper" onClick={openNew}>+ Ajouter un membre</Button>
+          </>
+        )}
       />
 
       <RhDashboard />
@@ -958,15 +975,21 @@ export default function Personnel() {
                             ? <span className="mnd-muted"> · {m.evaluations.length}</span>
                             : null}
                         </button>
+                        {/* TROIS ÉTATS, PAS DEUX. « Signé / pas signé »
+                            confondait celui à qui l'on n'a jamais rien remis
+                            avec celui qui a signé la v1 de bonne foi : le
+                            premier n'est tenu par rien, le second est tenu par
+                            ce qu'il a lu. Les peindre du même rouge ferait
+                            cesser de regarder la couleur. */}
                         <button
-                          className={`tre-link-btn ${m.reglement ? '' : 'tre-link-btn--danger'}`}
+                          className={`tre-link-btn ${ouEnEst(m.reglement, reglementDuJour.version) === 'jamais' ? 'tre-link-btn--danger' : ''}`}
                           style={{ marginLeft: 12 }}
                           title={m.reglement
-                            ? `Règlement remis le ${m.reglement.at.split('-').reverse().join('/')}`
+                            ? `${m.reglement.version}, signée le ${m.reglement.at.split('-').reverse().join('/')} · en vigueur : ${reglementDuJour.version}`
                             : 'Le règlement ne lui a jamais été remis contre décharge'}
                           onClick={(e) => { e.stopPropagation(); setReglementFor(m); }}
                         >
-                          {m.reglement ? 'Règlement' : 'Règlement à remettre'}
+                          {motDeLEtat(ouEnEst(m.reglement, reglementDuJour.version))}
                         </button>
                         <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); openAvance(m); }}>Avance sur salaire</button>
                         <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); remove(m.id); }}>Retirer</button>
@@ -1685,8 +1708,10 @@ export default function Personnel() {
           rien. C'est la décharge qui fait le règlement, pas l'affichage. */}
       {reglementFor && (
         <ContratModal
-          titre={reglementFor.reglement ? 'Remettre à nouveau le règlement' : 'Règlement intérieur'}
-          version={VERSION_REGLEMENT}
+          titre={ouEnEst(reglementFor.reglement, reglementDuJour.version) === 'version-ancienne'
+            ? `Nouvelle version · ${reglementDuJour.version}`
+            : (reglementFor.reglement ? 'Remettre à nouveau le règlement' : 'Règlement intérieur')}
+          version={reglementDuJour.version}
           signeParDefaut={reglementFor.name}
           qualiteSignataire="Reçu un exemplaire, lu et approuvé :"
           fichier={`reglement-interieur-${reglementFor.name.split(' ')[0].toLowerCase()}.pdf`}
@@ -1694,6 +1719,8 @@ export default function Personnel() {
             maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
             nom: reglementFor.name, fonction: reglementFor.role,
             jourIso: new Date().toISOString().slice(0, 10),
+            version: reglementDuJour.version,
+            source: { articles: reglementDuJour.articles, degres: reglementDuJour.degres },
           })}
           onSigne={(sig) => staffStore.set((prev) => prev.map((x) => (x.id === reglementFor.id
             ? { ...x, reglement: sig } : x)))}
