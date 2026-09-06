@@ -188,6 +188,18 @@ export function dessineQrPaiement(doc: any, valeur: string, x: number, y: number
 }
 
 /** Charge le sceau MND (cuivre) en data-URL pour l'insérer dans le PDF. */
+/* ── TOUTE IMAGE S'EMBARQUE COMPRESSÉE — 6 septembre 2026 ────────────
+   Découvert en dessinant le tampon : `addImage` SANS compression rasterise le
+   PNG en pixels bruts. Le monogramme de la Maison fait 1600 px de côté, donc
+   DIX MÉGAOCTETS dans le fichier — pour une image qui s'imprime en treize
+   millimètres.
+
+   Toutes les pièces de la Maison le portaient depuis toujours : factures,
+   reçus, relevés, bulletins de paie. Une facture de dix mégaoctets ne s'envoie
+   pas par WhatsApp à Cotonou, elle échoue, et personne ne sait pourquoi.
+
+   `'FAST'` deflate le même dessin en soixante kilo-octets, sans rien changer à
+   l'écran ni au papier. C'est cent soixante fois moins. */
 async function loadSeal(): Promise<string | null> {
   try {
     const url = import.meta.env.BASE_URL.replace(/\/$/, '') + '/assets/monograms/mono-copper.png';
@@ -202,6 +214,143 @@ async function loadSeal(): Promise<string | null> {
     });
   } catch {
     return null;
+  }
+}
+
+/* ── LE TAMPON DE LA MAISON — 6 septembre 2026 ───────────────────────
+   « Crée-moi un tampon MND », puis « c'est quoi ces tracés ? Utilise mon vrai
+   logo et que tout soit centré » (Yéman).
+
+   J'AVAIS REDESSINÉ LA COURONNE À LA MAIN, en trois courbes de Bézier. Le
+   monogramme de la Maison existe, il est juste, et le refaire de mémoire ne
+   pouvait donner qu'une approximation. On pose le vrai fichier.
+
+   LE TEXTE EN ARC SE MESURE, IL NE SE DEVINE PAS. Un pas angulaire constant
+   serre les I et écarte les M ; l'espacement se calcule donc sur la largeur
+   réelle de chaque lettre, et l'ensemble se centre sur son axe — en haut sur le
+   sommet, en bas sur le bas. C'était le vrai défaut : mes arcs partaient d'un
+   angle arbitraire et ne tombaient au milieu de rien.
+
+   UNE SEULE ENCRE. L'indigo est la signature de la Maison ; le cuivre ponctue
+   ailleurs. Un tampon bicolore ne ressemble à aucun tampon.
+
+   IL N'AUTHENTIFIE RIEN À LUI SEUL. C'est une marque d'appartenance, pas une
+   preuve : ce qui vaut sur un contrat, c'est la signature de la cliente. */
+
+const MONOS: Record<string, Promise<string | null>> = {};
+function chargeMono(nom: string): Promise<string | null> {
+  if (!MONOS[nom]) {
+    MONOS[nom] = (async () => {
+      try {
+        const url = import.meta.env.BASE_URL.replace(/\/$/, '') + `/assets/monograms/${nom}.png`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return await new Promise<string | null>((ok) => {
+          const r = new FileReader();
+          r.onloadend = () => ok(typeof r.result === 'string' ? r.result : null);
+          r.onerror = () => ok(null);
+          r.readAsDataURL(blob);
+        });
+      } catch { return null; }
+    })();
+  }
+  return MONOS[nom];
+}
+
+/** UN TEXTE POSÉ SUR UN ARC, CENTRÉ SUR SON AXE.
+
+    Chaque lettre occupe l'angle que sa VRAIE largeur demande : sans cela, un
+    pas constant serre les « I » et écarte les « M », et le mot penche. La
+    somme de ces angles donne l'arc total, qu'on centre ensuite sur `axe`. */
+function texteEnArc(
+  doc: any, mots: string, cx: number, cy: number, r: number,
+  o: { axe: number; taille: number; couleur: string; ecart?: number; enBas?: boolean },
+): void {
+  const lettres = [...mots];
+  if (lettres.length === 0) return;
+  doc.setFontSize(o.taille);
+  doc.setTextColor(o.couleur);
+  const ecart = o.ecart ?? o.taille * 0.14;
+
+  /* La largeur d'une lettre, vue depuis le centre, est un angle : w / r. */
+  const angles = lettres.map((ch) => ((doc.getTextWidth(ch) + ecart) / r) * (180 / Math.PI));
+  const total = angles.reduce((a, b) => a + b, 0);
+
+  /* EN BAS, ON PARCOURT L'ARC À L'ENVERS et l'on retourne chaque glyphe :
+     sinon la moitié basse se lit la tête en bas, ce qu'aucun tampon ne fait. */
+  const sens = o.enBas ? -1 : 1;
+  let a = o.axe - (sens * total) / 2;
+  lettres.forEach((ch, i) => {
+    a += (sens * angles[i]) / 2;
+    const rad = (a * Math.PI) / 180;
+    const x = cx + Math.cos(rad) * r;
+    const y = cy + Math.sin(rad) * r;
+    doc.text(ch, x, y, { angle: o.enBas ? -(a + 90) + 180 : -(a + 90), align: 'center' });
+    a += (sens * angles[i]) / 2;
+  });
+}
+
+/** LE TAMPON, posé à `x, y` (coin haut-gauche), sur `taille` millimètres.
+    Rend `false` s'il n'a pas pu être dessiné, pour que l'appelant n'annonce pas
+    un cachet qui n'est pas là. */
+export async function tamponDeLaMaison(
+  doc: any, x: number, y: number, taille: number,
+  o: { nom?: string; ville?: string; encre?: string } = {},
+): Promise<boolean> {
+  const cuivre = (o.encre ?? INDIGO).toUpperCase() === COPPER.toUpperCase();
+  const encre = cuivre ? COPPER : INDIGO;
+  const mono = await chargeMono(cuivre ? 'mono-copper' : 'mono-indigo');
+  const cx = x + taille / 2;
+  const cy = y + taille / 2;
+  const R = taille / 2;
+
+  try {
+    doc.saveGraphicsState?.();
+    /* L'ENCRE D'UN TAMPON MARQUE LE PAPIER, elle ne le recouvre pas. */
+    const gs = doc.GState?.({ opacity: 0.84 });
+    if (gs) doc.setGState(gs);
+
+    doc.setDrawColor(encre);
+    doc.setLineWidth(taille * 0.024);
+    doc.circle(cx, cy, R * 0.98, 'S');
+    doc.setLineWidth(taille * 0.008);
+    doc.circle(cx, cy, R * 0.84, 'S');
+
+    /* LE VRAI MONOGRAMME, CENTRÉ. Le fichier porte un quart de vide sur chaque
+       bord : on le pose donc large, sinon la couronne paraît minuscule au
+       milieu d'un grand cercle. */
+    if (mono) {
+      const c = taille * 0.52;
+      try { doc.addImage(mono, 'PNG', cx - c / 2, cy - c / 2, c, c, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+
+    doc.setFont('helvetica', 'bold');
+    texteEnArc(doc, (o.nom ?? 'L’ATELIER MND').toUpperCase(), cx, cy, R * 0.70, {
+      axe: -90, taille: taille * 0.108, couleur: encre,
+    });
+    if (o.ville) {
+      doc.setFont('helvetica', 'normal');
+      texteEnArc(doc, o.ville.toUpperCase(), cx, cy, R * 0.70, {
+        axe: 90, taille: taille * 0.09, couleur: encre, enBas: true, ecart: taille * 0.03,
+      });
+    }
+
+    /* DEUX LOSANGES AUX FLANCS, là où les deux arcs se rejoignent : c'est ce
+       petit rien qui fait qu'un cercle se lit comme un tampon. */
+    doc.setFillColor(encre);
+    for (const cote of [-1, 1]) {
+      const px = cx + cote * R * 0.70;
+      const t = taille * 0.022;
+      doc.triangle(px, cy - t, px + t, cy, px, cy + t, 'F');
+      doc.triangle(px, cy - t, px - t, cy, px, cy + t, 'F');
+    }
+
+    doc.restoreGraphicsState?.();
+    return true;
+  } catch {
+    try { doc.restoreGraphicsState?.(); } catch { /* rien */ }
+    return false;
   }
 }
 
@@ -385,7 +534,7 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   // — Entête (sceau MND + nom de la Maison) —
   const seal = await loadSeal();
   if (seal) {
-    try { doc.addImage(seal, 'PNG', M, 14, 13, 13); } catch { /* image indisponible */ }
+    try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* image indisponible */ }
   }
   const nameX = seal ? M + 16 : M;
   doc.setFont('times', 'normal');
@@ -639,7 +788,7 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
 
   const seal = await loadSeal();
   if (seal) {
-    try { doc.addImage(seal, 'PNG', M, 12, 11, 11); } catch { /* image indisponible */ }
+    try { doc.addImage(seal, 'PNG', M, 12, 11, 11, undefined, 'FAST'); } catch { /* image indisponible */ }
   }
   const nameX = seal ? M + 14 : M;
   doc.setFont('times', 'normal');
@@ -769,10 +918,18 @@ export async function droitImagePdf(o: {
     y = 22;
   };
 
+  /* LE MONOGRAMME EN TÊTE, EN CUIVRE. Le cuivre ponctue, l'indigo structure :
+     la marque ouvre le papier, le tampon le ferme. */
+  const seal = await loadSeal();
+  if (seal) {
+    try { doc.addImage(seal, 'PNG', M, y - 5, 12, 12, undefined, 'FAST'); } catch { /* image indisponible */ }
+  }
+  const gauche = seal ? M + 15 : M;
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(SOFT);
-  doc.text(o.houseName.toUpperCase(), M, y);
+  doc.text(o.houseName.toUpperCase(), gauche, y);
   doc.setTextColor(COPPER);
   doc.text('DROIT À L’IMAGE', W - M, y, { align: 'right' });
   y += 9;
@@ -780,8 +937,8 @@ export async function droitImagePdf(o: {
   doc.setFont('times', 'normal');
   doc.setFontSize(20);
   doc.setTextColor(INDIGO);
-  doc.text(o.titre, M, y);
-  y += 9;
+  doc.text(o.titre, gauche, y);
+  y += 11;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -832,7 +989,22 @@ export async function droitImagePdf(o: {
   doc.setFontSize(8);
   doc.setTextColor(SOFT);
   doc.text('Lu et approuvé, signature :', M, y);
-  try { doc.addImage(o.signature, 'PNG', M, y + 2, 62, 22); } catch { /* signature illisible */ }
+  try { doc.addImage(o.signature, 'PNG', M, y + 2, 62, 22, undefined, 'FAST'); } catch { /* signature illisible */ }
+
+  /* ══ LE TAMPON DE LA MAISON, À DROITE DE LA SIENNE ═══════════════
+     Les deux marques se font face : elle signe à gauche, la Maison appose à
+     droite. Un tampon posé ailleurs sur la page ne dirait pas qu'il approuve
+     CE document-là.
+
+     IL N'AUTHENTIFIE RIEN À LUI SEUL : ce qui vaut, c'est la signature de la
+     cliente. Le tampon dit d'où vient le papier. */
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
+  await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
+    nom: o.houseName, ville: o.ville,
+  });
   y += 30;
 
   await pieDeLaMaison(doc, W, H - 14, { nom: o.houseName });
@@ -884,7 +1056,7 @@ export async function summaryPdf(o: {
   const seal = await loadSeal();
   if (seal) {
     const s = 20;
-    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s); } catch { /* image indisponible */ }
+    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s, undefined, 'FAST'); } catch { /* image indisponible */ }
     y += s + 3;
     doc.setFont('times', 'normal');
     doc.setFontSize(13);
@@ -1016,7 +1188,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
 
   // — En-tête —
   const seal = await loadSeal();
-  if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13); } catch { /* indisponible */ } }
+  if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* indisponible */ } }
   const nameX = seal ? M + 16 : M;
   doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
   doc.text(d.houseName, nameX, y);
@@ -1275,7 +1447,7 @@ export async function cashbookPdf(o: {
   const seal = await loadSeal();
   if (seal) {
     const s = 16;
-    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s); } catch { /* image indisponible */ }
+    try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s, undefined, 'FAST'); } catch { /* image indisponible */ }
     y += s + 2.5;
     doc.setFont('times', 'normal');
     doc.setFontSize(11);

@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE TAMPON DE LA MAISON — 6 septembre 2026, PUBLIÉ
+
+« Crée-moi un tampon MND que je rajoute sur le contrat » (Yéman).
+`tamponDeLaMaison` (shared/pdf) le dessine au trait, à la taille où il est
+posé : un tampon scanné se pixellise à l'impression, celui-ci reste net.
+
+Sur le contrat, il se pose à **34 mm, à droite du bloc de signature**, sous
+« Pour la Maison ». Les deux marques se font face : elle signe à gauche, la
+Maison appose à droite.
+
+**L'encre est l'indigo** (arbitrage rendu à l'assistant). Trois raisons : le
+cuivre est un accent et ne fait pas du texte courant sur fond clair, or un
+tampon de 34 mm n'est presque que de petites lettres ; l'indigo survit à une
+photocopie là où le cuivre part en gris ; et le monogramme **cuivre** ouvre
+déjà le papier en tête, donc l'indigo le ferme. Le cuivre reste disponible d'un
+argument (`encre`) pour ce qui n'est pas administratif.
+
+**Deux erreurs corrigées en chemin.** J'avais redessiné la couronne à la main
+en courbes de Bézier : on pose le VRAI monogramme. Et le texte en arc partait
+d'un angle arbitraire avec un pas constant par lettre, ce qui serre les « I »,
+écarte les « M » et ne centre rien ; l'espacement se calcule désormais sur la
+largeur réelle de chaque glyphe, et l'arc se centre sur son axe.
+
+### LA TROUVAILLE : DIX MÉGAOCTETS PAR MONOGRAMME
+
+`addImage` **sans compression rasterise le PNG en pixels bruts**. Le monogramme
+fait 1600 px de côté : **dix mégaoctets** dans le fichier, pour une image
+imprimée en treize millimètres.
+
+**Toutes les pièces de la Maison le portaient depuis toujours** — factures,
+reçus, relevés, bulletins de paie. Une facture de dix mégaoctets ne part pas
+par WhatsApp à Cotonou : elle échoue, et personne ne sait pourquoi.
+`compression: 'FAST'` rend le même dessin en **soixante kilo-octets**, sans rien
+changer à l'écran ni au papier. Posé sur les huit `addImage` du fichier, y
+compris la signature manuscrite.
+
 ## LE DROIT À L'IMAGE, SIGNÉ — 6 septembre 2026, PUBLIÉ
 
 « Quand la cliente accepte de montrer sa photo, où est le contrat du droit à
