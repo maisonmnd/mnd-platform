@@ -13,7 +13,7 @@ import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
-import { useProducts, useServices, LONGUEURS } from '../../../../shared/catalog';
+import { useProducts, useServices, LONGUEURS, type Service } from '../../../../shared/catalog';
 import {
   bandOf, bandRange, sortedBands, useModelBands,
   calibreDeLaTete as calibreDeLaTeteAvecMarge, margeAJoue, MARGE_CALIBRE_LOCKS,
@@ -3943,6 +3943,22 @@ function Customer360({
             : e === 'en-retard' ? 'var(--trv-error, #96412E)'
             : e === 'a-poser' ? 'var(--copper-700)'
             : e === 'pose' ? 'var(--color-indigo)' : 'var(--ink-soft)');
+          /* ══ DU CODE DE L'ÉTAPE À SA PRESTATION — 6 septembre 2026 ══════
+             Le protocole désigne un soin par son CODE NU (`PLT·40`), la seule
+             chose qui ne bouge jamais ; le catalogue, lui, en tient trois, une
+             par longueur (`PLT·40·C`, `·M`, `·L`).
+
+             ON POSE CELLE DE SA LONGUEUR. À défaut de longueur connue, le
+             mi-long : c'est le milieu, et le comptoir corrigera d'un clic dans
+             la modale plutôt que de tout composer. */
+          const prestationDeLEtape = (code: string): Service | undefined => {
+            const nu = (c?: string) => (c ?? '').replace(/·[CML]$/, '');
+            const candidats = tousServices.filter((sv) => nu(sv.code) === code);
+            if (candidats.length <= 1) return candidats[0];
+            const suffixe = client.longueur === 'court' ? 'C' : client.longueur === 'long' ? 'L' : 'M';
+            return candidats.find((sv) => (sv.code ?? '').endsWith(`·${suffixe}`)) ?? candidats[0];
+          };
+
           const rendre = (titre: string, depart: Appointment, etapes: ReturnType<typeof suivreLeProtocole>) => {
             const restent = etapes.filter((e) => e.etat !== 'fait').length;
             return (
@@ -3972,8 +3988,53 @@ function Customer360({
                     {/* CHAQUE ÉTAT PORTE UN MOT AUTANT QU'UNE COULEUR : une
                         pastille seule ne se lit pas pour tout le monde, et ne
                         s'imprime pas. */}
-                    <span style={{ flex: 'none', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: teinte(e.etat) }}>
-                      {MOT_DE_L_ETAT[e.etat]}
+                    {/* CHAQUE ÉTAT PORTE UN MOT, ET CE QUI RESTE À FAIRE PORTE
+                        LE GESTE. Le protocole disait ce qui est dû sans donner
+                        aucun moyen de le poser : il fallait retenir la
+                        prestation et la date, fermer la fiche, rouvrir un
+                        rendez-vous, tout retaper. Un rappel qu'on ne peut pas
+                        suivre d'un geste n'est pas un rappel, c'est un
+                        reproche.
+
+                        LA MODALE S'OUVRE DÉJÀ REMPLIE — sa tête, le soin à sa
+                        longueur, le jour attendu — et rien n'est écrit tant
+                        qu'on n'a pas confirmé : le protocole ne pose toujours
+                        rien tout seul.
+
+                        RIEN POUR « FAIT » NI « RENDEZ-VOUS PRIS » : proposer
+                        de reposer ce qui l'est déjà est la meilleure façon de
+                        créer un doublon. */}
+                    <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: teinte(e.etat) }}>
+                        {MOT_DE_L_ETAT[e.etat]}
+                      </span>
+                      {e.etat !== 'fait' && e.etat !== 'pose' && (() => {
+                        const sv = prestationDeLEtape(e.code);
+                        if (!sv) {
+                          /* LA PRESTATION MANQUE AU CATALOGUE : on le dit, plutôt
+                             qu'un bouton qui ouvrirait une modale vide. */
+                          return (
+                            <span className="mnd-muted" style={{ fontSize: 10.5 }} title={`Aucune prestation au code ${e.code}`}>
+                              absente du catalogue
+                            </span>
+                          );
+                        }
+                        return (
+                          <Button
+                            variant={e.etat === 'en-retard' ? 'copper' : 'ghost'}
+                            size="sm"
+                            style={{ flex: 'none' }}
+                            onClick={() => setAdjust({
+                              clientId: client.id,
+                              serviceIds: [sv.id],
+                              date: e.dueIso,
+                              note: `${titre} · ${e.nom}`,
+                            })}
+                          >
+                            Poser
+                          </Button>
+                        );
+                      })()}
                     </span>
                   </div>
                 ))}

@@ -767,6 +767,15 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   );
 
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
+  /* DU CODE DE L'ÉTAPE À SA PRESTATION, à sa longueur. Le protocole nomme un
+     soin par son code nu ; le catalogue en tient trois, une par longueur. */
+  const prestationDeLEtape = (code: string) => {
+    const nu = (c?: string) => (c ?? '').replace(/·[CML]$/, '');
+    const candidats = services.filter((sv) => nu(sv.code) === code);
+    if (candidats.length <= 1) return candidats[0];
+    const suffixe = client?.longueur === 'court' ? 'C' : client?.longueur === 'long' ? 'L' : 'M';
+    return candidats.find((sv) => (sv.code ?? '').endsWith(`·${suffixe}`)) ?? candidats[0];
+  };
   const maCouleur = client ? derniereCouleur(clientAppts, client.id, svcById) : undefined;
   /* LE PROGRAMME S'OUVRE OÙ LA MAISON L'A POSÉ, ou derrière le dernier VÍVÍVÓ™
      honoré. La cliente lit la même ouverture que le Trône : deux dates de
@@ -932,11 +941,18 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
                         la tête regardée, la réservation doit suivre le même
                         regard, sans quoi le geste ouvrirait le calendrier de
                         la mauvaise couronne. */}
+                    {/* LE SOIN EST DÉJÀ CHOISI QUAND ELLE ARRIVE — 6 septembre.
+                        Un bouton qui ouvre une réservation vide fait chercher
+                        dans le catalogue le soin qu'on venait de lui nommer :
+                        c'est là qu'on abandonne, ou qu'on prend le voisin. */}
                     {(e.etat === 'a-poser' || e.etat === 'en-retard') && (
                       <button
                         className="mc-cta"
                         style={{ marginTop: 8 }}
-                        onClick={() => onOpenBooking({ pourId: regard?.id })}
+                        onClick={() => onOpenBooking({
+                          ...(prestationDeLEtape(e.code) ? { serviceId: prestationDeLEtape(e.code)!.id } : {}),
+                          pourId: regard?.id,
+                        })}
                       >
                         Poser ce rendez-vous
                       </button>

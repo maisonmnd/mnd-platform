@@ -113,6 +113,29 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## POSER L'ÉTAPE, DEPUIS L'ÉTAPE — 6 septembre 2026, PUBLIÉ
+
+« C'est de la lecture simple, comment poser les RDV réellement ? » (Yéman).
+
+**Le protocole disait ce qui est dû et ne donnait aucun moyen de le poser.** Il
+fallait retenir la prestation et la date, fermer la fiche, rouvrir un
+rendez-vous, tout retaper. **Un rappel qu'on ne peut pas suivre d'un geste n'est
+pas un rappel, c'est un reproche.**
+
+Chaque étape porte désormais son bouton **Poser**, au Trône comme dans Ma
+Couronne. La modale s'ouvre déjà remplie — sa tête, le soin **à sa longueur**, le
+jour attendu, et la note qui dit de quel protocole elle vient. **Rien n'est écrit
+tant qu'on n'a pas confirmé** : le protocole ne pose toujours rien tout seul.
+
+`prestationDeLEtape` : le protocole nomme un soin par son **code nu**
+(`PLT·40`), la seule chose qui ne bouge jamais ; le catalogue en tient trois, une
+par longueur. On pose celle de SA longueur, mi-long à défaut.
+
+Deux refus. **Rien pour « fait » ni « rendez-vous pris »** : proposer de reposer
+ce qui l'est déjà est la meilleure façon de créer un doublon. Et quand la
+prestation **manque au catalogue**, la ligne le dit au lieu d'offrir un bouton
+qui ouvrirait une modale vide.
+
 ## PROFIL & PARCOURS, REFONDUS — 6 septembre 2026, PUBLIÉ
 
 Maquette `maquette-profil-et-parcours.html`, quatre arbitrages rendus.
