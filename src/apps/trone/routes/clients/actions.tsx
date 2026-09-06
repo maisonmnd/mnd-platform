@@ -16,6 +16,7 @@ import {
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
+import { ligneNetteXof } from '../../../../shared/gamme';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
@@ -615,9 +616,26 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      LE PANIER EST VIDE NEUF FOIS SUR DIX. Le bloc reste donc replié tant qu'on
      n'y touche pas : cette modale est déjà dense, et ce qu'on ouvre rarement
      ne doit pas coûter de la place à ce qu'on lit toujours. */
-  const [gammeOuverte, setGammeOuverte] = useState(false);
+  /* ── CE QU'ELLE A RÉSERVÉ ARRIVE ICI AUSSI — 6 septembre 2026 ────
+     « Possible de passer un règlement pour le rituel RDV et la Gamme dans la
+     modale RDV au lieu de passer par le POS ? » (Yéman).
+
+     LA GAMME POSÉE À LA RÉSERVATION NE REJOIGNAIT QUE LE TICKET DE LA CAISSE.
+     Régler depuis cette modale — le chemin le plus court, celui qu'on prend
+     quand la cliente est devant soi — la perdait en silence : le flacon promis
+     trois semaines plus tôt ne se facturait pas, et la réserve ne bougeait
+     pas. Une promesse qui ne survit qu'à un seul chemin n'est pas une
+     promesse.
+
+     LE PANIER S'OUVRE DONC DÉJÀ REMPLI, et le bloc avec lui : ce qu'on a
+     promis se voit, et se décoche si elle change d'avis. */
+  const gammePromise = appt.gamme ?? [];
+  const [gammeOuverte, setGammeOuverte] = useState(gammePromise.length > 0);
   const [chercheProduit, setChercheProduit] = useState('');
-  const [panier, setPanier] = useState<Record<string, number>>({});
+  const [panier, setPanier] = useState<Record<string, number>>(
+    () => Object.fromEntries(gammePromise.map((l) => [l.id, Math.max(0, Math.round(l.qty || 0))])
+      .filter(([, q]) => (q as number) > 0)),
+  );
 
   const [produitsCatalogue] = useProducts();
   const [mouvementsStock] = useMouvementsStock();
@@ -633,7 +651,21 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const fiche = fichePourGamme(id, branch.id);
     return fiche ? stockDe(fiche.id, mouvementsStock) : null;
   };
-  const prixProduit = (id: string) => produitsBranche.find((pr) => pr.id === id)?.priceXof ?? 0;
+  /* LE PRIX PROMIS FAIT FOI. Le tarif d'un produit se fige à la pose, comme
+     celui d'un geste : facturer au catalogue du jour ce qu'on a annoncé trois
+     semaines plus tôt, c'est demander à la cliente de payer une hausse qu'elle
+     n'a pas vue. La remise de ligne consentie alors est déjà dedans.
+
+     Ce qu'on ajoute ICI, en revanche, se vend au tarif d'aujourd'hui : rien
+     n'a été promis. */
+  const prixProduit = (id: string): number => {
+    const promise = gammePromise.find((l) => l.id === id);
+    if (promise) {
+      const q = Math.max(1, Math.round(promise.qty || 1));
+      return Math.round(ligneNetteXof(promise) / q);
+    }
+    return produitsBranche.find((pr) => pr.id === id)?.priceXof ?? 0;
+  };
   const nomProduit = (id: string) => produitsBranche.find((pr) => pr.id === id)?.name ?? 'Produit';
   const totalGamme = useMemo(
     () => Object.entries(panier).reduce((n, [id, q]) => n + prixProduit(id) * Math.max(0, q), 0),

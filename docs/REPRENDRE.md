@@ -113,6 +113,32 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+### Ce qu'elle a réservé arrive à l'encaissement — 6 septembre 2026
+
+« Possible de passer un règlement pour le rituel RDV et la Gamme dans la modale
+RDV au lieu de passer par le POS ? » **Oui, et depuis le 31 août** : le bouton
+**Encaisser** du rendez-vous ouvre `PayAppointmentModal`, qui porte déjà « La
+Gamme · ce qu'elle emporte ». Elle facture, sort la réserve par le journal
+(référence : le n° de la pièce, comme la Caisse) et pose **son propre
+versement** — fondue dans le comptant du rituel, elle aurait fait croire à un
+rituel surpayé.
+
+**Ce qui manquait, et qui est réparé** : la Gamme posée à la RÉSERVATION (5
+septembre) ne rejoignait que le ticket de La Caisse. Régler depuis la modale, le
+chemin le plus court, la perdait en silence — le flacon promis trois semaines
+plus tôt ne se facturait pas et la réserve ne bougeait pas. **Une promesse qui
+ne survit qu'à un seul chemin n'est pas une promesse.** Le panier s'ouvre
+désormais déjà rempli, et le bloc avec lui.
+
+**Le prix promis fait foi** sur ce qui vient du rendez-vous, remise de ligne
+comprise : facturer au catalogue du jour ce qu'on a annoncé trois semaines plus
+tôt, c'est faire payer une hausse qu'elle n'a pas vue. Ce qu'on ajoute au
+comptoir se vend au tarif d'aujourd'hui — rien n'a été promis.
+
+**Pas de double vente** : la pièce pose `invoiceId` sur le rendez-vous, qui
+quitte alors la liste des rituels à solder de La Caisse. Et `settleTotal` est
+borné par le dû du rituel, donc `paidXof` ne compte jamais la Gamme.
+
 ### Les taux de remise, une seule échelle — 6 septembre 2026
 
 « Rajouter la remise de 50 % et de 100 % au comptoir POS » (Yéman).
