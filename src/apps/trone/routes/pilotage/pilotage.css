@@ -618,3 +618,73 @@
 .trp-drill--dark:hover:not(:disabled) { background: rgba(246, 241, 231, 0.06); }
 /* Sans détail à montrer, la ligne reste une ligne — pas un bouton mort. */
 .trp-drill:disabled { cursor: default; }
+
+/* ══ À FAIRE — 6 septembre 2026 (maquette validée) ═══════════════════
+   « Moins de lecture, plus d'actions déclencheur » (Yéman). Des nombres, des
+   couleurs et des boutons : rien qui demande d'être lu pour être compris. */
+
+.trp-jauges { display: grid; grid-template-columns: repeat(6, 1fr);
+  border: 1px solid var(--hairline); border-radius: 3px; overflow: hidden;
+  background: var(--surface-card); margin-bottom: 18px; }
+.trp-jauge { padding: 13px 17px; border-left: 1px solid var(--hairline); }
+.trp-jauge:first-child { border-left: none; }
+.trp-jauge u { text-decoration: none; display: block; font-family: var(--font-sans);
+  font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft);
+  margin-bottom: 5px; }
+.trp-jauge b { font-family: var(--font-serif); font-weight: 400; font-size: 29px; line-height: 1; display: block; }
+.trp-jauge i { display: block; height: 3px; background: var(--hairline); border-radius: 2px;
+  margin-top: 7px; overflow: hidden; }
+.trp-jauge i span { display: block; height: 100%; }
+.trp-jauge.est-tenu b { color: var(--trv-success, #4A6B52); }
+.trp-jauge.est-tenu i span { background: var(--trv-success, #4A6B52); }
+.trp-jauge.est-tiede b { color: var(--copper-700); }
+.trp-jauge.est-tiede i span { background: var(--color-copper); }
+.trp-jauge.est-creux b { color: var(--trv-error, #96412E); }
+.trp-jauge.est-creux i span { background: var(--trv-error, #96412E); }
+@media (max-width: 1100px) { .trp-jauges { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 620px) { .trp-jauges { grid-template-columns: repeat(2, 1fr); } }
+
+.trp-gestes { border: 1px solid var(--hairline); border-radius: 3px; overflow: hidden; }
+.trp-geste { display: flex; align-items: center; gap: 18px; padding: 13px 20px;
+  border-top: 1px solid var(--hairline); background: var(--surface-card); }
+.trp-geste:first-child { border-top: none; }
+.trp-geste__n { flex: none; width: 74px; text-align: right; font-family: var(--font-serif);
+  font-size: 28px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.trp-geste__q { flex: 1 1 220px; min-width: 0; font-size: 14.5px; color: var(--ink); }
+.trp-geste__d { flex: 1 1 240px; min-width: 0; font-size: 12.5px; color: var(--ink-soft); }
+.trp-geste__b { flex: none; border: none; border-radius: 3px; background: var(--color-copper);
+  color: #fff; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; padding: 11px 20px; cursor: pointer; }
+.trp-geste.est-fort .trp-geste__n { color: var(--trv-error, #96412E); }
+.trp-geste.est-fort .trp-geste__b { background: var(--trv-error, #96412E); }
+.trp-geste.est-moyen .trp-geste__n { color: var(--copper-700); }
+.trp-geste.est-fait { background: var(--vert-50, #EFF3EF); }
+.trp-geste.est-fait .trp-geste__n,
+.trp-geste.est-fait .trp-geste__d { color: var(--trv-success, #4A6B52); }
+@media (max-width: 760px) {
+  .trp-geste { flex-wrap: wrap; gap: 10px; }
+  .trp-geste__n { width: auto; }
+  .trp-geste__b { width: 100%; }
+}
+
+/* La liste d'un geste, dépliée sous sa ligne. « S'il y a 38 têtes sans e-mail,
+   je veux la liste de ces têtes-là » : un nombre sans ses noms ne se travaille
+   pas — on sait qu'il y a du retard, pas par qui commencer. */
+.trp-geste__l { flex: none; background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--copper-700); }
+.trp-liste { background: var(--surface, #FBF8F2); border-top: 1px solid var(--hairline);
+  max-height: 340px; overflow-y: auto; }
+.trp-tete { display: flex; align-items: center; gap: 14px; padding: 9px 20px 9px 94px;
+  border-top: 1px solid var(--hairline); }
+.trp-tete:first-child { border-top: none; }
+.trp-tete__n { flex: 1 1 200px; min-width: 0; font-size: 13.5px; color: var(--color-indigo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trp-tete__q { flex: 1 1 160px; min-width: 0; font-size: 12px; color: var(--ink-soft); }
+.trp-tete__q.est-attendue { color: var(--copper-700); font-weight: 500; }
+.trp-tete__wa, .trp-tete__f { flex: none; border: 1px solid var(--hairline); border-radius: 3px;
+  background: none; font-family: var(--font-sans); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 7px 12px; cursor: pointer; color: var(--ink-soft);
+  text-decoration: none; }
+.trp-tete__wa { border-color: var(--copper-300); color: var(--copper-700); }
+@media (max-width: 760px) { .trp-tete { padding-left: 20px; flex-wrap: wrap; } }

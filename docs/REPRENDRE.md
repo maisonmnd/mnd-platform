@@ -113,6 +113,51 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## À FAIRE — 6 septembre 2026, PUBLIÉ
+
+« J'aimerais que les données soient liées aux finances, à la prévision, à la
+rentabilité. Que je sache ce qu'il est très important de remplir » puis
+« moins de lecture, plus d'actions déclencheur », puis « dès qu'un rendez-vous
+arrive et que cette tête est dans cette liste, il faut nous demander de remplir
+cette information » (Yéman).
+
+**Le Trône savait déjà presque tout faire ; ce qui manquait, c'est de savoir ce
+qui manque.** Un comptage absent ne se voit nulle part — il se voit au moment où
+un prix s'annonce « dès », trois semaines plus tard, devant la cliente.
+
+**Pilotage › À faire.** Six jauges (prédire · facturer · fidéliser · rentabilité
+· positionner · encaisser) et neuf gestes : un nombre, ce qu'il ouvre en trois
+mots, un bouton. Ce qui est tenu passe au vert et **perd son bouton**.
+
+Trois décisions dans le moteur, toutes éprouvées :
+
+- **On ne compte que les têtes servies** (≥ 1 rituel honoré). Une prospecte n'a
+  pas de comptage manquant ; la compter ferait paraître la Maison en retard sur
+  un travail qui n'existe pas, et un chiffre qu'on ne peut pas améliorer finit
+  par ne plus se lire.
+- **Les seuils sont ceux des courbes** : trois mèches, deux bilans. Autrement on
+  enverrait mesurer une tête qui a déjà sa courbe.
+- **Le classement est le nombre de têtes**, rien d'autre. Trier par mon avis sur
+  l'importance ferait passer mes idées pour celles de la Maison.
+
+### La liste, et l'alerte au bon moment
+
+« Voir qui » déplie les têtes d'un geste, **rangées par leur prochaine venue** :
+celle qui vient demain se traite aujourd'hui. Et le **Carnet** porte une pastille
+« N à remplir » sur chaque rendez-vous À VENIR — le seul instant où l'on peut
+constater sa longueur ou lui demander son e-mail sans la déranger un autre jour.
+Rien sur l'historique : on ne peut plus rien demander à une venue passée.
+
+**Tout ne se demande pas à la cliente** (`SE_DEMANDE`) : son e-mail (elle seule
+le connaît) et son bilan (on le lui remet) voyagent par WhatsApp. Sa longueur, sa
+mèche, son comptage et sa cadence sont des **gestes de fauteuil** — un WhatsApp
+pour demander sa longueur travaillée serait absurde.
+
+**Le message est écrit, jamais envoyé** : il ouvre WhatsApp signé, la Maison
+relit et envoie. Rien ne part sans une main.
+
+`shared/afaire.ts`, 30ᵉ harnais, 33 assertions.
+
 ## DES PROTOCOLES EN NOMBRE LIBRE — 6 septembre 2026, PUBLIÉ
 
 « Allow me to add new protocoles and attribute it to clients » (Yéman).

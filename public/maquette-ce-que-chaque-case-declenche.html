@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>À faire · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;
+    --indigo:#1E2150;--indigo-2:#2C3068;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#7A756B;--filet:#DED5C3;
+    --brique:#96412E;--brique-p:#E4BDB2;--brique-f:#FBF0ED;
+    --vert:#4A6B52;--vert-p:#CBDACE;--vert-f:#EFF3EF;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:34px 24px 80px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 24px;letter-spacing:-.015em}
+
+  .ecran{border:1px solid var(--filet);border-radius:5px;overflow:hidden;background:var(--ivoire)}
+  .tete{background:var(--indigo);color:#EFEAE0;padding:15px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tete h2{font-family:var(--serif);font-weight:400;font-size:26px;color:#fff;margin:0}
+  .tete .s{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-p)}
+
+  /* SIX JAUGES, QUE DES CHIFFRES */
+  .bande{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--filet);background:#fff}
+  @media(max-width:1100px){.bande{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:620px){.bande{grid-template-columns:repeat(2,1fr)}}
+  .b{padding:14px 18px;border-left:1px solid var(--filet)}
+  .b:first-child{border-left:none}
+  .b u{text-decoration:none;display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+       color:var(--encre-d);margin-bottom:5px}
+  .b b{font-family:var(--serif);font-weight:400;font-size:31px;line-height:1;display:block}
+  .b i{display:block;height:3px;background:#EDE6D8;border-radius:2px;margin-top:7px;overflow:hidden}
+  .b i span{display:block;height:100%}
+  .ok b{color:var(--vert)}.ok i span{background:var(--vert)}
+  .mi b{color:var(--cuivre)}.mi i span{background:var(--cuivre)}
+  .ko b{color:var(--brique)}.ko i span{background:var(--brique)}
+
+  /* LA LISTE DES GESTES */
+  .titre{padding:16px 24px 6px;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d)}
+  .g{display:flex;align-items:center;gap:18px;padding:13px 24px;border-top:1px solid #EFE8DA;background:#fff}
+  .g:hover{background:var(--cuivre-f)}
+  .g__n{flex:none;width:78px;text-align:right;font-family:var(--serif);font-size:30px;line-height:1;
+        font-variant-numeric:tabular-nums}
+  .g__q{flex:1 1 220px;min-width:0;font-size:15px;color:var(--encre)}
+  .g__d{flex:1 1 240px;min-width:0;font-size:13px;color:var(--encre-d)}
+  .g__b{flex:none;border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);
+        font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding:11px 20px;cursor:pointer}
+  .g--fort .g__n{color:var(--brique)}
+  .g--fort .g__b{background:var(--brique)}
+  .g--moyen .g__n{color:var(--cuivre)}
+  .g--faible .g__n{color:var(--encre-d)}
+  .g--faible .g__b{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+  .g--fait{background:var(--vert-f)}
+  .g--fait .g__n{color:var(--vert)}
+  .g--fait .g__b{display:none}
+  .g--fait .g__d{color:var(--vert)}
+
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--filet);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · Pilotage · maquette à valider</p>
+  <h1>À faire.</h1>
+
+  <div class="ecran">
+    <div class="tete"><h2>À faire</h2><span class="s">Ce qui manque, et ce que ça ouvre</span></div>
+
+    <div class="bande">
+      <div class="b ko"><u>Prédire</u><b>38 %</b><i><span style="width:38%"></span></i></div>
+      <div class="b mi"><u>Facturer</u><b>71 %</b><i><span style="width:71%"></span></i></div>
+      <div class="b ko"><u>Fidéliser</u><b>12 %</b><i><span style="width:12%"></span></i></div>
+      <div class="b mi"><u>Rentabilité</u><b>64 %</b><i><span style="width:64%"></span></i></div>
+      <div class="b mi"><u>Positionner</u><b>58 %</b><i><span style="width:58%"></span></i></div>
+      <div class="b ok"><u>Encaisser</u><b>96 %</b><i><span style="width:96%"></span></i></div>
+    </div>
+
+    <div class="titre">Par ce qui rapporte le plus</div>
+
+    <div class="g g--fort">
+      <span class="g__n">94</span>
+      <span class="g__q">têtes sans mèche témoin</span>
+      <span class="g__d">ouvre la courbe de pousse</span>
+      <button class="g__b">Mesurer</button>
+    </div>
+
+    <div class="g g--fort">
+      <span class="g__n">87</span>
+      <span class="g__q">têtes avec un seul bilan</span>
+      <span class="g__d">ouvre sa courbe dans Ma Couronne</span>
+      <button class="g__b">Remettre un bilan</button>
+    </div>
+
+    <div class="g g--fort">
+      <span class="g__n">61</span>
+      <span class="g__q">têtes sans cadence</span>
+      <span class="g__d">ouvre la reprise automatique</span>
+      <button class="g__b">Poser</button>
+    </div>
+
+    <div class="g g--moyen">
+      <span class="g__n">44</span>
+      <span class="g__q">têtes sans longueur</span>
+      <span class="g__d">ouvre son prix et sa durée</span>
+      <button class="g__b">Constater</button>
+    </div>
+
+    <div class="g g--moyen">
+      <span class="g__n">38</span>
+      <span class="g__q">têtes sans e-mail</span>
+      <span class="g__d">ouvre son compte Ma Couronne</span>
+      <button class="g__b">Demander</button>
+    </div>
+
+    <div class="g g--moyen">
+      <span class="g__n">31</span>
+      <span class="g__q">rituels sans mains</span>
+      <span class="g__d">ouvre la commission juste</span>
+      <button class="g__b">Désigner</button>
+    </div>
+
+    <div class="g g--moyen">
+      <span class="g__n">29</span>
+      <span class="g__q">têtes non comptées</span>
+      <span class="g__d">ouvre son calibre et son barème</span>
+      <button class="g__b">Compter</button>
+    </div>
+
+    <div class="g g--moyen">
+      <span class="g__n">18</span>
+      <span class="g__q">produits sans prix d'achat</span>
+      <span class="g__d">ouvre la marge de la Gamme</span>
+      <button class="g__b">Saisir</button>
+    </div>
+
+    <div class="g g--faible">
+      <span class="g__n">4</span>
+      <span class="g__q">rituels rendus non soldés</span>
+      <span class="g__d">707 000 F à encaisser</span>
+      <button class="g__b">Encaisser</button>
+    </div>
+
+    <div class="g g--faible">
+      <span class="g__n">3</span>
+      <span class="g__q">descriptions fausses au catalogue</span>
+      <span class="g__d">« 100 % végétale » sur une couleur qui ne l'est pas</span>
+      <button class="g__b">Corriger</button>
+    </div>
+
+    <div class="g g--fait">
+      <span class="g__n">0</span>
+      <span class="g__q">rituels sans prix figé</span>
+      <span class="g__d">tenu</span>
+      <button class="g__b">—</button>
+    </div>
+
+    <div class="g g--fait">
+      <span class="g__n">0</span>
+      <span class="g__q">versements mal datés</span>
+      <span class="g__d">tenu</span>
+      <button class="g__b">—</button>
+    </div>
+  </div>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+</body>
+</html>

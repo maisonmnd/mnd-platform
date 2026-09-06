@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useBilans } from '../../../../shared/bilans';
+import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
 import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -125,6 +127,30 @@ export default function Carnet() {
      5 septembre : c'est là qu'on va quand on pense à l'historique. */
   const [serieOuverte, setSerieOuverte] = useState(false);
   const navigate = useNavigate();
+
+  /* ══ CE QU'IL FAUT LUI DEMANDER, PAR TÊTE — 6 septembre 2026 ═══════
+     Calculé une fois pour tout le carnet : le faire par ligne relirait
+     trois cents bilans à chaque rendu, et le carnet est la page la plus
+     ouverte de la Maison.
+
+     LES MOTS SONT COURTS, ils tiennent dans une infobulle : « mèche »,
+     « son e-mail ». On ne raconte pas, on nomme. */
+  const [bilansTous] = useBilans();
+  const manquesDuJour = useMemo(() => {
+    const parTete = new Map<string, number>();
+    for (const b of bilansTous) parTete.set(b.clientId, (parTete.get(b.clientId) ?? 0) + 1);
+    const MOT: Record<string, string> = {
+      meche: 'mèche témoin', bilan: 'un bilan', cadence: 'sa cadence',
+      longueur: 'sa longueur', email: 'son e-mail', locks: 'son comptage',
+    };
+    const sortie = new Map<string, string[]>();
+    for (const c of clients) {
+      if (c.archived) continue;
+      const m = manquesDeLaTete({ tete: c, bilans: parTete.get(c.id) ?? 0 });
+      if (m.length > 0) sortie.set(c.id, m.map((k) => MOT[k] ?? k));
+    }
+    return sortie;
+  }, [clients, bilansTous]);
   /* ÉMETTRE LA FACTURE D'UN RITUEL IMPAYÉ (15 août) — la pièce naît « envoyée »
      dans Factures & devis, où elle s'imprime, se télécharge en PDF et
      s'adresse par WhatsApp. On y va aussitôt : émettre une pièce sans la voir
@@ -351,6 +377,33 @@ export default function Carnet() {
               qui ne tient qu'a la memoire de celle qui l'a prise. Le montant
               est a part : un flacon n'est pas un geste, il ne paie pas de
               mains. */}
+          {/* ══ CE QU'IL FAUT LUI DEMANDER — 6 septembre 2026 ═══════════
+              « Dès qu'un rendez-vous arrive et que cette tête est dans cette
+              liste, il faut nous demander de remplir cette information »
+              (Yéman).
+
+              LA LISTE DES MANQUES NE SE TRAVAILLE PAS DEPUIS UNE PAGE : elle
+              se travaille AU MOMENT OÙ LA TÊTE EST LÀ. C'est le seul instant
+              où l'on peut constater sa longueur, mesurer sa mèche, ou lui
+              demander son e-mail sans la déranger un autre jour.
+
+              SEULEMENT SUR CE QUI VIENT. Le retard d'une tête servie l'an
+              dernier n'a rien à faire sur une ligne d'historique : on ne peut
+              plus rien lui demander. */}
+          {manquesDuJour.get(a.clientId) && a.status !== 'annulé' && a.date >= todayISO() && (
+            <button
+              type="button"
+              className="trc-src"
+              style={{
+                background: 'var(--copper-50)', color: 'var(--copper-700)',
+                borderColor: 'var(--copper-300)', cursor: 'pointer',
+              }}
+              title={`À remplir : ${manquesDuJour.get(a.clientId)!.join(' · ')}`}
+              onClick={() => navigate('/a-faire')}
+            >
+              {manquesDuJour.get(a.clientId)!.length} à remplir
+            </button>
+          )}
           {(a.gamme?.length ?? 0) > 0 && (
             <span
               className="trc-src"

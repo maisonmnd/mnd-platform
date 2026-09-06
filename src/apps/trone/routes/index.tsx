@@ -1,6 +1,6 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import {
-  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming,
+  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming, ListChecks,
   Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, Store, UsersRound,
   Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, Handshake as PoigneeDeMain, type LucideIcon,
 } from 'lucide-react';
@@ -25,6 +25,10 @@ export const NAV: TroneGroup[] = [
     items: [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
+      /* À FAIRE (6 septembre 2026) — le Trône sait déjà presque tout faire ;
+         ce qui manque, c'est de savoir ce qui manque. La page dit où mettre
+         son temps, en nombres et en boutons, jamais en phrases. */
+      { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
       /* LA CADENCE (16 août) — la salle des prédictions. Le juge existait déjà
          (`shared/cadence.ts`) mais ne parlait qu'à l'oreille d'UNE fiche ;
