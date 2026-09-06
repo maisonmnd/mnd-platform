@@ -893,7 +893,11 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
    redessine pas, on ne la lisse pas : ce qui vaut, c'est son geste. */
 export async function droitImagePdf(o: {
   houseName: string;
+  /** Le lieu du « Fait à… » — celui où l'on signe, donc la branche. */
   ville?: string;
+  /** LA VILLE QUI SIGNE LE TAMPON — le siège, pas le fauteuil. L'atelier est à
+      Suru-Léré et la Maison signe Cotonou : un tampon porte un siège. */
+  villeDuSiege?: string;
   titre: string;
   entete: string[];
   articles: { n: string; titre: string; lignes: string[] }[];
@@ -921,10 +925,11 @@ export async function droitImagePdf(o: {
   /* LE MONOGRAMME EN TÊTE, EN CUIVRE. Le cuivre ponctue, l'indigo structure :
      la marque ouvre le papier, le tampon le ferme. */
   const seal = await loadSeal();
+  const CM = 22; // le monogramme en tête : la marque ouvre le papier, elle s'annonce
   if (seal) {
-    try { doc.addImage(seal, 'PNG', M, y - 5, 12, 12, undefined, 'FAST'); } catch { /* image indisponible */ }
+    try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
   }
-  const gauche = seal ? M + 15 : M;
+  const gauche = seal ? M + CM + 5 : M;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -1003,7 +1008,7 @@ export async function droitImagePdf(o: {
   doc.setTextColor(SOFT);
   doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
   await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
-    nom: o.houseName, ville: o.ville,
+    nom: o.houseName, ville: o.villeDuSiege ?? o.ville,
   });
   y += 30;
 

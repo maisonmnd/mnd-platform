@@ -1236,6 +1236,17 @@ export default function Parametres() {
               aria-label="Raison sociale"
             />
           </EditRow>
+          {/* LA VILLE DU SIÈGE, PAS CELLE DU FAUTEUIL. L'atelier est à Suru-Léré,
+              la Maison signe Cotonou : c'est le siège qui figure sur un tampon
+              et au bas d'un contrat. */}
+          <EditRow l="Ville du siège" sub="Celle qui signe le tampon et les documents. La branche garde la sienne.">
+            <input
+              className="sys-input"
+              value={identity.ville ?? ''}
+              onChange={(e) => setIdent('ville', e.target.value)}
+              aria-label="Ville du siège"
+            />
+          </EditRow>
           <EditRow l="Fuseau horaire" sub="L’horloge du Trône : en voyage, tu vois le jour du salon.">
             <select
               className="sys-select"

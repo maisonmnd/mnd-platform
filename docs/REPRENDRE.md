@@ -10,7 +10,13 @@ posé : un tampon scanné se pixellise à l'impression, celui-ci reste net.
 
 Sur le contrat, il se pose à **34 mm, à droite du bloc de signature**, sous
 « Pour la Maison ». Les deux marques se font face : elle signe à gauche, la
-Maison appose à droite.
+Maison appose à droite. Le **monogramme cuivre en tête** fait 22 mm.
+
+**LE TAMPON SIGNE LE SIÈGE, PAS LE FAUTEUIL.** L'atelier MND est à Suru-Léré et
+la Maison signe Cotonou : `HouseIdentity.ville` porte donc la ville du siège,
+réglable dans Système › Paramètres, et lue par `maisonVille()`. Le « Fait à… »
+garde la ville de la branche, où l'on signe vraiment. Une seconde branche
+n'aura pas son propre tampon.
 
 **L'encre est l'indigo** (arbitrage rendu à l'assistant). Trois raisons : le
 cuivre est un accent et ne fait pas du texte courant sur fond clair, or un

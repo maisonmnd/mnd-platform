@@ -6,7 +6,7 @@ import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
 import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom, maisonRaison } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
 import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
@@ -1817,7 +1817,7 @@ function Customer360({
     });
     try {
       await droitImagePdf({
-        houseName: maisonNom(), ville: branch.city,
+        houseName: maisonNom(), ville: branch.city, villeDuSiege: maisonVille(),
         titre: t.titre, entete: t.entete, articles: t.articles,
         signataire: a.signePar, pourEnfant: a.pourEnfant,
         jourLisible: a.at.split('-').reverse().join('/'),

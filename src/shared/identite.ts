@@ -22,6 +22,13 @@ import { createStore, useStore } from './store';
 export type HouseIdentity = {
   nom: string;
   raison: string;
+  /** LA VILLE DU SIÈGE — celle qui signe le tampon et les documents.
+
+      DISTINCTE DE CELLE DE LA BRANCHE, et c'est le point : L'atelier MND est à
+      Suru-Léré, mais la Maison signe Cotonou. Un tampon porte le siège, pas
+      l'adresse du fauteuil ; et la même Maison qui ouvrirait une seconde
+      branche n'aurait pas deux tampons. */
+  ville: string;
   fuseau: string;
   dureeRituel: string;
   fenetreAnnulation: string;
@@ -30,6 +37,7 @@ export type HouseIdentity = {
 export const DEFAULT_IDENTITY: HouseIdentity = {
   nom: 'Maison MND',
   raison: 'MND SARL · RCCM COT-B-2021',
+  ville: 'Cotonou',
   fuseau: 'Cotonou · GMT+1',
   dureeRituel: '2 h 30',
   fenetreAnnulation: '48 h avant',
@@ -41,6 +49,8 @@ export const useHouseIdentity = () => useStore(houseIdentityStore);
 /** Le nom, jamais vide — un réglage effacé ne doit pas signer des factures en blanc. */
 export const maisonNom = (): string => houseIdentityStore.get().nom.trim() || DEFAULT_IDENTITY.nom;
 export const maisonRaison = (): string => houseIdentityStore.get().raison.trim() || DEFAULT_IDENTITY.raison;
+/** La ville qui signe. Vide sur une fiche ancienne, d'où le repli. */
+export const maisonVille = (): string => (houseIdentityStore.get().ville ?? '').trim() || DEFAULT_IDENTITY.ville;
 
 /* ── LA DEVISE SIGNE TOUT CE QUI SORT — 22 août 2026 ───────────────
    « Quand l'IA répond aux messages, toujours avoir notre devise à la fin »

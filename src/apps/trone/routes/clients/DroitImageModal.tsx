@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { clientsStore, useFamilies, type Client } from '../../../../shared/clients';
-import { maisonNom, maisonRaison } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { droitImagePdf } from '../../../../shared/pdf';
 import {
   USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, estMineure, pourquoiInvalide, texteDuContrat,
@@ -125,7 +125,7 @@ export function DroitImageModal({ client, onClose }: { client: Client; onClose: 
       : c)));
     try {
       await droitImagePdf({
-        houseName: maisonNom(), ville: branch.city,
+        houseName: maisonNom(), ville: branch.city, villeDuSiege: maisonVille(),
         titre: contrat.titre, entete: contrat.entete, articles: contrat.articles,
         signataire: signePar, pourEnfant: mineure ? client.name : undefined,
         jourLisible: jour.split('-').reverse().join('/'),
