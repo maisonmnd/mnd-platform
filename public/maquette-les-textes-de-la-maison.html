@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les textes de la Maison · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;
+    --indigo:#1E2150;--indigo-2:#2C3068;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#7A756B;--filet:#DED5C3;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;--vert:#4A6B52;--vert-f:#EFF3EF;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:34px 24px 80px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 14px;letter-spacing:-.015em}
+  .chapo{max-width:760px;font-size:14.5px;color:var(--encre-d);margin:0 0 30px}
+  .chapo b{color:var(--encre);font-weight:400}
+
+  .ecran{border:1px solid var(--filet);border-radius:5px;overflow:hidden;background:var(--ivoire);margin-bottom:38px}
+  .tete{background:var(--indigo);color:#EFEAE0;padding:15px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tete h2{font-family:var(--serif);font-weight:400;font-size:26px;color:#fff;margin:0}
+  .tete .s{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-p)}
+  .tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid var(--filet);flex-wrap:wrap}
+  .tabs span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding:13px 0 10px}
+  .tabs b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);font-weight:500;
+          padding:13px 0 10px;border-bottom:2px solid var(--cuivre)}
+
+  .deux{display:grid;grid-template-columns:236px 1fr}
+  @media(max-width:900px){.deux{grid-template-columns:1fr}}
+  .rail{border-right:1px solid var(--filet);background:#fff;padding:8px 0}
+  @media(max-width:900px){.rail{border-right:none;border-bottom:1px solid var(--filet)}}
+  .rail u{text-decoration:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);
+          display:block;padding:10px 18px 6px}
+  .rail a{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:8px 18px;
+          text-decoration:none;color:var(--encre);font-size:13.5px;border-left:2px solid transparent}
+  .rail a em{font-style:normal;font-size:10px;color:var(--encre-d);white-space:nowrap}
+  .rail a.on{background:var(--indigo-pale);border-left-color:var(--cuivre);color:var(--indigo)}
+  .rail a.vide em{color:var(--cuivre)}
+
+  .corps{padding:0 0 8px}
+  .titre{display:flex;align-items:baseline;gap:14px;padding:18px 24px 6px;flex-wrap:wrap}
+  .titre b{font-family:var(--serif);font-weight:400;font-size:25px;color:var(--indigo)}
+  .titre u{text-decoration:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d)}
+  .titre .dr{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+
+  .oeil{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cuivre);display:block;margin-bottom:5px}
+  .bloc{padding:12px 24px 4px}
+  .txt{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:8px 10px;font-family:var(--sans);
+       font-size:13px;color:var(--encre);width:100%}
+  textarea.txt{font-size:14px;line-height:1.5;resize:vertical;min-height:52px}
+  .quatre{display:grid;grid-template-columns:1fr 1fr;gap:2px 24px;padding:8px 24px 0}
+  @media(max-width:900px){.quatre{grid-template-columns:1fr}}
+  .li{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .li .txt{flex:1}
+  .x{border:none;background:none;color:var(--encre-d);font-size:15px;cursor:pointer;padding:0 4px;line-height:1}
+  .plus{border:1px dashed var(--cuivre-p);background:none;color:var(--cuivre);border-radius:3px;
+        font-family:var(--sans);font-size:11.5px;padding:6px 11px;cursor:pointer;margin:7px 0 4px}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);font-weight:500;
+           text-align:left;padding:8px 14px;border-bottom:1px solid var(--filet);background:#fff}
+  td{padding:9px 14px;border-bottom:1px solid #EDE6D8;vertical-align:middle}
+  tr:last-child td{border-bottom:1px solid var(--filet)}
+  .cle{font-family:var(--serif);font-size:15px;color:var(--indigo);white-space:nowrap}
+  .usage{font-size:11px;color:var(--encre-d);white-space:nowrap}
+  .usage b{color:var(--indigo);font-weight:400;font-family:var(--serif);font-size:15px}
+
+  .pas{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:100px;
+       border:1px solid var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre);white-space:nowrap}
+  .pas--v{border-color:#CBDACE;background:var(--vert-f);color:var(--vert)}
+  .pas--ko{border-color:var(--brique-p);background:var(--brique-f);color:var(--brique)}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);font-size:11px;
+       letter-spacing:.14em;text-transform:uppercase;padding:10px 17px;cursor:pointer}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+  .btn--ko{background:var(--brique)}
+
+  .garde{margin:10px 24px 16px;border-left:2px solid var(--cuivre);background:var(--cuivre-f);
+         padding:11px 15px;font-size:12.5px;color:var(--encre)}
+  .garde u{text-decoration:none;display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+           color:var(--cuivre);margin-bottom:4px}
+  .garde--ko{border-left-color:var(--brique);background:var(--brique-f)}
+  .garde--ko u{color:var(--brique)}
+
+  /* le reglement */
+  .ver{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 24px;border-bottom:1px solid var(--filet);
+       background:#fff}
+  .ver b{font-family:var(--serif);font-size:22px;color:var(--indigo);font-weight:400}
+  .ver u{text-decoration:none;font-size:11px;color:var(--encre-d)}
+  .ver .dr{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+  .art{border-bottom:1px solid #EDE6D8}
+  .art__t{display:flex;align-items:center;gap:12px;padding:11px 24px;cursor:pointer}
+  .art__t i{font-style:normal;color:var(--encre-d);font-size:12px;width:16px}
+  .art__t b{font-family:var(--serif);font-size:19px;color:var(--indigo);font-weight:400;flex:1}
+  .art__t em{font-style:normal;font-size:11px;color:var(--encre-d)}
+  .art__c{padding:2px 24px 16px 62px;background:#fff;border-top:1px solid #EDE6D8}
+  .art__c .li .txt{font-size:12.5px}
+  .deg{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .deg span{font-family:var(--serif);font-size:20px;color:var(--cuivre);width:22px}
+  .poignee{color:var(--encre-d);font-size:13px;cursor:grab;letter-spacing:-1px}
+
+  /* ce qui s'affiche a l'enregistrement */
+  .conf{border:1px solid var(--indigo);border-radius:4px;background:#fff;max-width:640px;margin:18px 24px 24px;
+        box-shadow:0 8px 30px rgba(30,33,80,.09)}
+  .conf__t{background:var(--indigo);color:#fff;font-family:var(--serif);font-size:21px;padding:12px 20px}
+  .conf__b{padding:16px 20px 18px;font-size:13.5px}
+  .conf__b p{margin:0 0 10px}
+  .conf__b .qui{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+  .conf__b .qui span{font-size:11.5px;border:1px solid var(--filet);border-radius:100px;padding:3px 10px;
+                     background:var(--ivoire)}
+  .conf__b .dr{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+
+  .apres{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
+  @media(max-width:900px){.apres{grid-template-columns:1fr}}
+  .av{border:1px solid var(--filet);border-radius:4px;padding:14px 17px;background:var(--ivoire)}
+  .av u{text-decoration:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);
+        display:block;margin-bottom:6px}
+  .av b{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);display:block;line-height:1.3}
+  .av--ko{border-color:var(--brique-p);background:var(--brique-f)}
+  .av--ko b{color:var(--brique)}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--filet);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · Paramètres · maquette à valider</p>
+  <h1>Les textes de la Maison.</h1>
+  <p class="chapo">
+    Les douze fiches de poste et le règlement intérieur sortent du code et passent dans un écran.
+    Deux textes, deux règles différentes : <b>une fiche décrit un métier et n'engage personne</b>,
+    elle se corrige quand on veut ; <b>un règlement engage et se signe</b>, il ne se corrige donc
+    jamais sans créer une version et rappeler les décharges.
+  </p>
+
+  <!-- ══════════ ÉCRAN 1 · LES FICHES DE POSTE ══════════ -->
+  <div class="ecran">
+    <div class="tete"><h2>Paramètres</h2><span class="s">Les textes de la Maison</span></div>
+    <div class="tabs"><b>Fiches de poste</b><span>Règlement intérieur</span><span>Contrats</span><span>Identité</span></div>
+
+    <div class="deux">
+      <div class="rail">
+        <u>Au fauteuil</u>
+        <a href="#"><span>Maître fondateur</span><em>1 entretien</em></a>
+        <a href="#" class="on"><span>Maître</span><em>3 entretiens</em></a>
+        <a href="#"><span>Praticien</span><em>2 entretiens</em></a>
+        <a href="#"><span>Formateur</span><em>1 entretien</em></a>
+        <u>Hors fauteuil</u>
+        <a href="#"><span>Accueil</span><em>2 entretiens</em></a>
+        <a href="#"><span>Gérant·e</span><em>1 entretien</em></a>
+        <a href="#" class="vide"><span>Assistant·e</span><em>jamais évalué</em></a>
+        <a href="#" class="vide"><span>Agent d’entretien</span><em>jamais évalué</em></a>
+        <a href="#" class="vide"><span>Sécurité</span><em>jamais évalué</em></a>
+        <a href="#" class="vide"><span>Chauffeur</span><em>jamais évalué</em></a>
+        <a href="#" class="vide"><span>Coursier</span><em>jamais évalué</em></a>
+        <a href="#" class="vide"><span>Jardinier</span><em>jamais évalué</em></a>
+        <button class="plus" style="margin:10px 18px">+ Un poste</button>
+      </div>
+
+      <div class="corps">
+        <div class="titre">
+          <b>Maître</b>
+          <u>aussi : Maîtresse · au fauteuil · 3 personnes</u>
+          <span class="dr">
+            <button class="btn btn--ghost">Aperçu du PDF</button>
+            <button class="btn">Enregistrer</button>
+          </span>
+        </div>
+
+        <div class="bloc">
+          <span class="oeil">La mission · celle qu’on répète à l’embauche</span>
+          <textarea class="txt">Conduire un rituel complet de bout en bout et répondre de la tête qu’on lui confie.</textarea>
+        </div>
+
+        <div class="quatre">
+          <div>
+            <span class="oeil" style="margin-top:14px">Ce qu’elle fait</span>
+            <div class="li"><input class="txt" value="Reçoit la tête, constate son état, annonce ce qui sera fait et ce que cela coûte."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="Conduit le rituel selon les quatre temps : purifier, nourrir, sceller, couronner."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="Renseigne la fiche : longueur travaillée, comptage, mèche témoin, ce qu’il a observé."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="Remet le bilan de séance et pose la prochaine venue."><button class="x">✕</button></div>
+            <button class="plus">+ Une ligne</button>
+          </div>
+          <div>
+            <span class="oeil" style="margin-top:14px">Ce qui se mesure</span>
+            <div class="li"><input class="txt" value="Le comptage et la longueur renseignés sur les têtes qu’il a servies."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="La cadence tenue de ses têtes : reviennent-elles quand elles doivent."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="La satisfaction et les retours des clientes."><button class="x">✕</button></div>
+            <button class="plus">+ Une ligne</button>
+          </div>
+          <div>
+            <span class="oeil" style="margin-top:14px">Ce qu’elle ne fait pas</span>
+            <div class="li"><input class="txt" value="Il ne remise pas de sa propre autorité : une remise se décide."><button class="x">✕</button></div>
+            <div class="li"><input class="txt" value="Il ne modifie pas le catalogue ni les prix."><button class="x">✕</button></div>
+            <button class="plus">+ Une ligne</button>
+          </div>
+          <div>
+            <span class="oeil" style="margin-top:14px">Elle rend compte</span>
+            <div class="li"><input class="txt" value="au maître fondateur, et à la gérance pour tout ce qui touche l’argent."><button class="x">✕</button></div>
+          </div>
+        </div>
+
+        <div class="titre" style="padding-top:22px">
+          <b style="font-size:21px">Ce qui se coche à l’entretien</b>
+          <u>des gestes qu’on peut voir, jamais des qualités</u>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Le geste</th><th style="width:120px">Sa clé</th><th style="width:170px">Déjà coché</th><th style="width:40px"></th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><input class="txt" value="Conduit un rituel complet seul, du diagnostic à la coiffure"></td>
+              <td><span class="cle">rituel</span></td>
+              <td><span class="usage"><b>3</b> entretiens signés</span></td>
+              <td><button class="x" title="Retirer">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Annonce un prix et une durée justes avant de commencer"></td>
+              <td><span class="cle">prix</span></td>
+              <td><span class="usage"><b>3</b> entretiens signés</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Renseigne la fiche entièrement : longueur, comptage, mèche témoin"></td>
+              <td><span class="cle">fiche</span></td>
+              <td><span class="usage"><b>3</b> entretiens signés</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Rédige et remet un bilan de séance"></td>
+              <td><span class="cle">bilan</span></td>
+              <td><span class="usage"><b>2</b> entretiens signés</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Reconnaît une tête qu’il ne faut pas travailler ce jour-là"></td>
+              <td><span class="cle">limite</span></td>
+              <td><span class="usage">jamais cochée</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="plus" style="margin-left:24px">+ Un geste</button>
+
+        <div class="garde">
+          <u>Ce que l’écran empêche</u>
+          Le libellé se reformule quand vous voulez : un entretien signé garde la <b>clé</b>, pas la phrase.
+          Retirer une ligne déjà cochée est autre chose : elle passe en <b>« retirée »</b> et cesse d’apparaître
+          aux prochains entretiens, mais reste lisible sur ceux qui sont signés. Sans cela, l’entretien de
+          l’an dernier afficherait des cases sans énoncé.
+        </div>
+
+        <div class="titre" style="padding-top:6px">
+          <b style="font-size:21px">Ce qui se vise</b>
+          <u>le standard du poste · il s’ajuste ensuite pour chaque personne</u>
+        </div>
+        <table>
+          <thead><tr>
+            <th>L’objectif</th><th style="width:230px">La cible du poste</th><th style="width:190px">Ajustée pour</th><th style="width:40px"></th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><input class="txt" value="Fiches renseignées après ses rituels"></td>
+              <td><input class="txt" value="toutes"></td>
+              <td><span class="usage">personne</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Ses têtes qui reviennent quand elles doivent"></td>
+              <td><input class="txt" value="sept sur dix"></td>
+              <td><span class="usage"><b>1</b> personne · « cinq sur dix »</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+            <tr>
+              <td><input class="txt" value="Bilans remis"></td>
+              <td><input class="txt" value="un par tête et par trimestre"></td>
+              <td><span class="usage">personne</span></td>
+              <td><button class="x">✕</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button class="plus" style="margin-left:24px">+ Un objectif</button>
+
+        <div class="garde">
+          <u>Ce que l’écran vous dit</u>
+          Changer la cible du poste ne touche pas celles qui ont été ajustées pour quelqu’un.
+          <b>Une personne vise « cinq sur dix »</b> sur la deuxième ligne, décidé à son entretien
+          de mars. Elle garde son écart, comme une tête garde sa cadence quand la Maison change la sienne.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ ÉCRAN 2 · LE RÈGLEMENT ══════════ -->
+  <div class="ecran">
+    <div class="tete"><h2>Paramètres</h2><span class="s">Les textes de la Maison</span></div>
+    <div class="tabs"><span>Fiches de poste</span><b>Règlement intérieur</b><span>Contrats</span><span>Identité</span></div>
+
+    <div class="ver">
+      <b>v1 · 6 septembre 2026</b>
+      <u>en vigueur · <b style="font-size:17px">7</b> décharges signées · 2 personnes n’ont pas encore signé</u>
+      <span class="dr">
+        <button class="btn btn--ghost">Voir les versions</button>
+        <button class="btn btn--ghost">Aperçu du PDF</button>
+        <button class="btn">Publier la v2</button>
+      </span>
+    </div>
+
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>1 · Les heures</b><em>4 lignes</em></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>2 · L’hygiène et la sécurité</b><em>6 lignes</em></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>3 · La tenue et la tenue de soi</b><em>5 lignes</em></div>
+    </div>
+
+    <div class="art">
+      <div class="art__t"><i>⌄</i><span class="poignee">⋮⋮</span><b>4 · <input class="txt" style="width:260px;font-family:var(--sans);font-size:14px" value="Les pourboires"></b><em>4 lignes</em></div>
+      <div class="art__c">
+        <div class="li"><input class="txt" value="Les pourboires appartiennent à l’équipe et se partagent entre TOUS, y compris ceux qui n’ont pas touché la tête ce jour-là : l’accueil, l’assistance et l’entretien font partie de ce qu’une cliente a aimé."><button class="x">✕</button></div>
+        <div class="li"><input class="txt" value="Le partage se fait par parts. Une part par personne, sauf part différente décidée par la Maison et connue de tous."><button class="x">✕</button></div>
+        <div class="li"><input class="txt" value="Un pourboire ne se garde pas dans sa poche, ne se demande pas, et ne se laisse pas entendre. Une cliente qui se sent obligée ne revient pas."><button class="x">✕</button></div>
+        <div class="li"><input class="txt" value="Le pourboire remis par un moyen de paiement suit la même règle que celui remis en main propre."><button class="x">✕</button></div>
+        <button class="plus">+ Une ligne</button>
+      </div>
+    </div>
+
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>5 · La caisse et les valeurs</b><em>6 lignes</em><span class="pas">garde de la Maison</span></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>6 · La clientèle de la Maison</b><em>4 lignes</em></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>7 · Le téléphone et les réseaux</b><em>4 lignes</em></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>8 · La discrétion</b><em>3 lignes</em></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>9 · Le respect entre nous</b><em>4 lignes</em><span class="pas">garde de la Maison</span></div>
+    </div>
+
+    <div class="art">
+      <div class="art__t"><i>⌄</i><span class="poignee">⋮⋮</span><b>10 · Les sanctions</b><em>l’échelle</em><span class="pas">garde de la Maison</span></div>
+      <div class="art__c">
+        <div class="deg"><span class="poignee">⋮⋮</span><span>1</span><input class="txt" value="le rappel oral, dit en tête-à-tête et noté au dossier"></div>
+        <div class="deg"><span class="poignee">⋮⋮</span><span>2</span><input class="txt" value="l’avertissement écrit, remis en main propre contre décharge"></div>
+        <div class="deg"><span class="poignee">⋮⋮</span><span>3</span><input class="txt" value="la mise à pied disciplinaire, d’un à trois jours"></div>
+        <div class="deg"><span class="poignee">⋮⋮</span><span>4</span><input class="txt" value="le licenciement, dans les formes prévues par la loi"></div>
+        <button class="plus">+ Un degré</button>
+      </div>
+    </div>
+
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>11 · Ce que la Maison doit en retour</b><em>5 lignes</em><span class="pas">garde de la Maison</span></div>
+    </div>
+    <div class="art">
+      <div class="art__t"><i>›</i><span class="poignee">⋮⋮</span><b>12 · Entrée en vigueur</b><em>3 lignes</em></div>
+    </div>
+    <button class="plus" style="margin:14px 24px">+ Un article</button>
+
+    <div class="garde">
+      <u>Les gardes de la Maison</u>
+      Quatre articles portent des phrases qui protègent quelqu’un : <b>un écart déclaré est une erreur,
+      un écart découvert est une faute</b> ; <b>aucune sanction sans que la personne ait été entendue</b> ;
+      <b>une sanction non écrite n’existe pas</b> ; <b>le harcèlement ne se règle pas à l’amiable et celle
+      qui signale ne peut en être inquiétée</b>. Vous pouvez les réécrire, mais l’écran vous prévient avant :
+      ce sont elles qui font tenir le règlement le jour où il sert, et un règlement qui n’engage qu’un côté
+      se lit comme une liste de menaces.
+    </div>
+
+    <div class="garde garde--ko">
+      <u>Ce que l’écran refuse</u>
+      Modifier le texte <b>sans publier une version</b>. Les sept décharges déjà signées désignent la v1 :
+      si la v1 changeait sous elles, personne ne saurait plus à quoi ces sept personnes ont dit oui.
+    </div>
+
+    <div class="conf">
+      <div class="conf__t">Publier la v2 ?</div>
+      <div class="conf__b">
+        <p>Vous avez modifié <b>3 lignes</b> dans 2 articles. Enregistrer crée la version
+          <b>v2 · 12 octobre 2026</b>, qui entre en vigueur aujourd’hui.</p>
+        <p>Les 7 décharges de la v1 restent au dossier, datées et lisibles. Ces sept personnes
+          repassent en <b>« règlement à remettre »</b> et doivent signer la v2 :</p>
+        <div class="qui">
+          <span>Kossi A.</span><span>Reine H.</span><span>Sylvie D.</span><span>Éric T.</span>
+          <span>Nadia K.</span><span>Ismaël B.</span><span>Grâce O.</span>
+        </div>
+        <p style="font-size:12.5px;color:var(--encre-d)">
+          Elles gardent le bénéfice de la v1 tant qu’elles n’ont pas signé la v2 : on n’oppose pas à
+          quelqu’un une règle qu’il n’a pas encore lue.
+        </p>
+        <div class="dr">
+          <button class="btn btn--ghost">Annuler</button>
+          <button class="btn btn--ghost">Enregistrer en brouillon</button>
+          <button class="btn">Publier et rappeler les 7</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="apres">
+    <div class="av av--ko"><u>Aujourd’hui</u><b>Dans le code. Vous me dites la phrase, je la change, je publie.</b></div>
+    <div class="av"><u>Demain</u><b>Deux écrans. Les fiches se corrigent quand vous voulez, le règlement crée une version et rappelle les décharges.</b></div>
+  </div>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+</body>
+</html>
