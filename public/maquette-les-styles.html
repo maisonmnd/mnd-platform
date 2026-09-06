@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les styles de la Maison · MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --indigo:#1E2150; --indigo-500:#2C3470; --indigo-50:#EDEEF4; --indigo-200:#A7ACC9;
+    --copper:#B97A4A; --cu-50:#FAF1E9; --cu-200:#E4BE9C; --cu-300:#D6A06F; --cu-700:#7C4C2C;
+    --ivoire:#F6F1E7; --sable:#E3DACB; --argile:#CDBBA9;
+    --ink:#14141B; --ink-soft:#45454F; --hairline:#DED5C3; --parchemin:#F3EDE1;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:30px 24px 90px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cu-700);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(28px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 6px;letter-spacing:-.015em}
+  .chapo{max-width:700px;color:var(--ink-soft);font-size:13.5px;margin:0 0 20px}
+  .microlabel{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);
+              font-weight:500;margin-bottom:7px;display:block}
+
+  .barre{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;background:#FBF8F2;
+         border:1px solid var(--hairline);border-radius:4px;padding:13px 16px;margin-bottom:8px}
+  .grp div{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{border:1px solid var(--hairline);background:#fff;border-radius:3px;font-family:var(--sans);
+        font-size:11.5px;color:var(--ink-soft);padding:7px 12px;cursor:pointer;transition:.16s}
+  .chip:hover{border-color:var(--cu-300)}
+  .chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
+  .barre input{border:1px solid var(--hairline);background:#fff;border-radius:3px;
+               font-family:var(--sans);font-size:13px;padding:7px 11px;width:190px;color:var(--ink)}
+  .compte{font-size:11.5px;color:var(--ink-soft);margin:0 0 16px}
+
+  /* ── LA GRILLE DES STYLES ── */
+  .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:12px}
+  .carte{background:#fff;border:1px solid var(--hairline);border-radius:4px;overflow:hidden;
+         cursor:pointer;transition:.16s;text-align:left;font:inherit;padding:0;color:inherit}
+  .carte:hover{border-color:var(--cu-300);box-shadow:0 6px 18px rgba(30,33,80,.08)}
+  .carte.on{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo-50)}
+  .vign{background:var(--ivoire);border-bottom:1px solid var(--hairline);display:block;
+        width:100%;aspect-ratio:1;object-fit:cover}
+  .bande{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .mini{width:56px;height:56px;border-radius:3px;object-fit:cover;border:1px solid var(--hairline);
+        cursor:pointer;background:var(--ivoire)}
+  .mini.on{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo-50)}
+  .plus{width:56px;height:56px;border-radius:3px;border:1px dashed var(--argile);background:#fff;
+        cursor:pointer;font:inherit;font-size:20px;color:var(--argile);line-height:1}
+  .plus:hover{border-color:var(--copper);color:var(--copper)}
+  .retirer{background:none;border:none;font:inherit;font-size:11px;color:var(--cu-700);
+           cursor:pointer;padding:4px 0;text-decoration:underline}
+  .poids{font-size:10.5px;color:var(--ink-soft);margin-top:6px}
+  .grande{width:100%;border-radius:4px;border:1px solid var(--hairline);object-fit:cover;
+          aspect-ratio:1;background:var(--ivoire)}
+
+  /* ── LE VOLET — sa photo dessous, la coiffure dessus, une ligne entre ──
+     Il ne fabrique rien : il montre deux images vraies et laisse l'œil faire
+     le rapprochement. C'est moins qu'un rendu, et ce n'est pas un mensonge. */
+  .volet{position:relative;width:100%;aspect-ratio:1;border-radius:4px;overflow:hidden;
+         border:1px solid var(--hairline);background:var(--ivoire);
+         touch-action:none;cursor:ew-resize;user-select:none}
+  .volet img,.volet svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .volet .dessus{clip-path:inset(0 0 0 var(--x,50%))}
+  .volet .rail{position:absolute;top:0;bottom:0;left:var(--x,50%);width:2px;
+               background:var(--ivoire);box-shadow:0 0 0 1px rgba(30,33,80,.35)}
+  .volet .poignee{position:absolute;top:50%;left:var(--x,50%);transform:translate(-50%,-50%);
+                  width:34px;height:34px;border-radius:50%;background:var(--ivoire);
+                  border:1px solid var(--copper);display:flex;align-items:center;
+                  justify-content:center;font-size:13px;color:var(--cu-700);
+                  box-shadow:0 2px 8px rgba(30,33,80,.2)}
+  .volet__mots{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;
+               padding:6px 8px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+               color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--indigo);
+            margin:9px 12px 2px;line-height:1.2}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin:0 12px 10px;font-size:10.5px;color:var(--ink-soft)}
+  .pal{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;
+       padding:2px 6px;border-radius:2px}
+  .pal.simple{background:var(--indigo-50);color:var(--indigo)}
+  .pal.travaille{background:var(--cu-50);color:var(--cu-700)}
+  .pal.ceremonie{background:var(--indigo);color:#fff}
+
+  /* ── LA FICHE D'UN STYLE ── */
+  .fiche{position:fixed;inset:0;background:rgba(20,20,27,.45);display:flex;align-items:center;
+         justify-content:center;padding:24px;z-index:20}
+  .fiche__in{background:var(--ivoire);border-radius:5px;max-width:980px;width:100%;
+             max-height:88vh;overflow:auto;border:1px solid var(--hairline)}
+  .fiche__tete{background:var(--indigo);color:#fff;padding:16px 24px;display:flex;
+               align-items:baseline;gap:14px;flex-wrap:wrap;position:sticky;top:0}
+  .fiche__tete h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0;color:#fff}
+  .fiche__tete span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cu-200)}
+  .fiche__x{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.3);color:#fff;
+            border-radius:3px;font:inherit;font-size:11px;padding:6px 12px;cursor:pointer}
+  .fiche__corps{display:grid;grid-template-columns:300px 1fr;gap:24px;padding:22px 24px 26px}
+  @media(max-width:820px){.fiche__corps{grid-template-columns:1fr}}
+  .photo{border:1px dashed var(--argile);border-radius:4px;background:#fff;height:172px;
+         display:flex;align-items:center;justify-content:center;text-align:center;
+         font-size:11.5px;color:var(--ink-soft);padding:14px;margin-top:12px;line-height:1.5}
+  .bloc{margin-bottom:18px}
+  .etapes{margin:0;padding-left:0;list-style:none;counter-reset:e}
+  .etapes li{counter-increment:e;position:relative;padding-left:34px;margin-bottom:9px;
+             font-size:13px;line-height:1.6;color:var(--ink)}
+  .etapes li::before{content:counter(e);position:absolute;left:0;top:0;width:22px;height:22px;
+                     border-radius:50%;background:var(--cu-50);color:var(--cu-700);
+                     font-family:var(--serif);font-size:13px;display:flex;align-items:center;
+                     justify-content:center}
+  .dl{display:grid;grid-template-columns:104px 1fr;gap:6px 12px;font-size:13px}
+  .dl dt{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cu-700);
+         font-weight:500;padding-top:3px}
+  .dl dd{margin:0;color:var(--ink)}
+
+  /* ── LA COMPARAISON ── */
+  .compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;background:#FBF8F2;
+           border:1px solid var(--hairline);border-radius:4px;padding:18px;margin-bottom:20px}
+  @media(max-width:900px){.compare{grid-template-columns:1fr}}
+  .cell{background:#fff;border:1px solid var(--hairline);border-radius:4px;padding:12px;text-align:center}
+  .cell h4{font-family:var(--serif);font-weight:400;font-size:19px;color:var(--indigo);margin:10px 0 2px}
+  .cell p{font-size:11.5px;color:var(--ink-soft);margin:0}
+  .vide{color:var(--argile);font-size:12px;padding:44px 10px;line-height:1.6}
+
+  .note{background:#FBF8F2;border:1px solid var(--hairline);border-radius:4px;padding:15px 18px;
+        margin-bottom:14px;font-size:12.5px;color:var(--ink-soft);line-height:1.65}
+  .note b{color:var(--indigo);font-weight:500}
+  .note.alerte{border-color:var(--cu-300);background:#FDF4EC}
+  .note h2{font-family:var(--sans);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+           color:var(--ink-soft);font-weight:500;margin:0 0 8px}
+  .deux{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+  @media(max-width:900px){.deux{grid-template-columns:1fr}}
+
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--hairline);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cu-700);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Les styles de la Maison.</h1>
+  <p class="chapo">
+    Cent vingt-deux coiffures sur locks, rangées par famille. Chacune porte son tracé, sa
+    finition, ce qu'elle demande, sa durée et son palier de prix. On en ouvre deux côte à côte
+    pour laisser la cliente choisir.
+  </p>
+
+  <div class="deux">
+    <div class="note alerte">
+      <h2>Ce que je ne sais pas faire, dit avant</h2>
+      <b>Aucune photo n'est fabriquée.</b> Le schéma de chaque style est dessiné à la main :
+      vue du dessus, les séparations, le sens du mouvement. Les emplacements photo
+      <b>fonctionnent vraiment</b> dans cette maquette : ajoutez-en une, elle remplace le
+      schéma sur la carte et dans la comparaison. Elles attendent <b>vos réalisations</b>,
+      jamais celles d'un autre salon.<br><br>
+      <b>Elles sont réduites à mille pixels avant d'être gardées</b> · c'est la leçon du
+      29 août. Ici elles vivent dans le navigateur ; dans Le Trône elles iront au coffre de
+      fichiers, et la fiche ne portera qu'une adresse. Cent vingt-deux styles en base64 dans
+      les lignes referaient exactement la panne de quota qu'on a payée.<br><br>
+      <b>Aucun rendu sur son visage.</b> À la place, <b>le volet</b> : sa photo dessous, la
+      coiffure dessus, et une ligne qu'on fait glisser. L'œil rapproche les deux tout seul, et
+      la cliente sait ce qu'elle regarde. Le vrai rendu demande une IA d'image, donc que sa
+      photo sorte de la Maison : c'est une décision, pas une fonctionnalité.
+    </div>
+    <div class="note">
+      <h2>Trois paliers, un prix chacun</h2>
+      <b>Simple</b> · le geste tient en une demi-heure, il se fait à la fin d'un resserrage.<br>
+      <b>Travaillé</b> · il demande un tracé, une pose et une finition.<br>
+      <b>Cérémonie</b> · il se prépare, il se réserve, et il se paie comme tel.<br><br>
+      Les montants ci-dessous sont des <b>placeholders</b>, à poser par la Maison : le palier est
+      la décision, le prix n'est qu'un champ.
+    </div>
+  </div>
+
+  <div class="barre">
+    <div class="grp"><span class="microlabel">La famille</span><div id="fFam"></div></div>
+    <div class="grp"><span class="microlabel">Le palier</span><div id="fPal"></div></div>
+    <div class="grp"><span class="microlabel">Sa longueur</span><div id="fLon"></div></div>
+    <div class="grp"><span class="microlabel">Chercher</span><div><input id="q" placeholder="un nom, un mot…" /></div></div>
+  </div>
+  <p class="compte" id="compte"></p>
+
+  <div class="compare">
+    <div class="cell" id="cA"></div>
+    <div class="cell" id="cTete"></div>
+    <div class="cell" id="cB"></div>
+  </div>
+
+  <div class="grille" id="grille"></div>
+
+  <footer>Maquette · à valider avant construction · mi ny<span style="font-family:serif">ɔ́ ɖɛ</span>kpɛ</footer>
+</div>
+
+<div class="fiche" id="fiche" style="display:none"><div class="fiche__in" id="ficheIn"></div></div>
+
+<script>
+/* ══ LES STYLES DE LA MAISON — 6 septembre 2026 ══════════════════════
+   « Créer plus de 100 styles uniques que je peux faire et facturer à MND :
+   techniques, images, étapes, et comparer deux styles pour une cliente »
+   (Yéman).
+
+   LA TECHNIQUE VIT DANS LA FAMILLE, LE TRACÉ DANS LE STYLE. Une torsade plate
+   se fait de la même façon qu'on la pose en couronne ou en diagonale : ce qui
+   change, c'est le chemin qu'elle suit et la façon dont on l'arrête. Écrire
+   cent vingt-deux fois les mêmes quatre gestes aurait garanti que la
+   quatre-vingt-dixième soit fausse, et que personne ne s'en aperçoive. */
+
+const PALIERS = {
+  simple:    { mot: 'Simple',    prix: 5000 },
+  travaille: { mot: 'Travaillé', prix: 12000 },
+  ceremonie: { mot: 'Cérémonie', prix: 25000 },
+};
+
+const LONGUEURS = { courte: 'Courte', mi: 'Mi-long', long: 'Long' };
+
+const FAMILLES = {
+  torsades: {
+    nom: 'Les torsades',
+    technique: 'Deux mèches de locks tournées l’une sur l’autre, à plat sur le cuir chevelu ou en l’air. Le gel ne sert qu’à tenir la racine, jamais à coller la longueur.',
+    etapes: [
+      'Séparer selon le tracé, à la queue de pigeon, raie par raie.',
+      'Poser une pointe de gel à la racine seulement, et lisser le départ.',
+      'Croiser les deux mèches en gardant la même tension du début à la fin : c’est la tension régulière qui fait la torsade nette, pas la force.',
+      'Arrêter selon la finition, épingler à l’intérieur, jamais dans la lock.',
+    ],
+    schema: 'torsade',
+  },
+  tresses: {
+    nom: 'Les tresses',
+    technique: 'Trois mèches, reprises à chaque passage. Sur locks, on ne serre pas la racine : la lock ne pardonne pas la traction, et le bord se dégarnit en un an.',
+    etapes: [
+      'Tracer d’abord toutes les séparations, avant de toucher à une seule mèche.',
+      'Départ à trois mèches égales, main légère à la racine.',
+      'Reprendre une lock à chaque passage, en suivant le tracé sans le forcer.',
+      'Fermer la pointe et la loger sous la tresse voisine.',
+    ],
+    schema: 'tresse',
+  },
+  noeuds: {
+    nom: 'Les nœuds et chignons',
+    technique: 'La longueur s’enroule sur elle-même et se fixe. Tout le travail est dans la base : un chignon mal ancré tombe en deux heures, si joli soit-il.',
+    etapes: [
+      'Rassembler selon le tracé, sans peigner : on rassemble, on ne tire pas.',
+      'Enrouler dans un seul sens, en gardant la spirale serrée à la base et souple au bord.',
+      'Ancrer avec des épingles croisées, dans la base, jamais dans la lock.',
+      'Ouvrir les bords à la main pour le volume, et fixer légèrement.',
+    ],
+    schema: 'noeud',
+  },
+  boucles: {
+    nom: 'Les boucles',
+    technique: 'La lock prend la forme qu’on lui donne quand elle sèche. Tout dépend donc du séchage : une boucle posée sur une lock humide et démontée trop tôt ne tient pas la journée.',
+    etapes: [
+      'Laver et sécher jusqu’à humide, jamais trempé.',
+      'Enrouler chaque lock sur son support, de la pointe vers la racine.',
+      'Sécher entièrement, au casque ou à l’air selon le temps disponible.',
+      'Démonter froid, séparer à la main, et ne plus y toucher.',
+    ],
+    schema: 'boucle',
+  },
+  remontes: {
+    nom: 'Les remontés',
+    technique: 'La masse quitte la nuque et se tient en hauteur. La forme se construit d’abord, la fixation vient après : fixer trop tôt fige une forme qu’on n’a pas encore trouvée.',
+    etapes: [
+      'Rassembler la masse selon le tracé et la tenir d’une main.',
+      'Construire le volume en poussant vers l’avant ou vers le haut, sans épingle.',
+      'Ancrer par l’intérieur, épingle par épingle, en croisant.',
+      'Dégager les contours du visage à la fin, jamais avant.',
+    ],
+    schema: 'remonte',
+  },
+  partitions: {
+    nom: 'Les partitions',
+    technique: 'Le dessin est fait par les raies elles-mêmes. C’est le style le plus rapide et le plus exigeant : une raie tremblée se voit de loin et ne se rattrape pas.',
+    etapes: [
+      'Tracer la ligne maîtresse en premier, et s’en servir de règle pour toutes les autres.',
+      'Séparer à la queue de pigeon, d’un seul geste continu.',
+      'Poser chaque section dans son sens, sans la coiffer.',
+      'Nettoyer les raies au bout du peigne, une par une.',
+    ],
+    schema: 'partition',
+  },
+  demis: {
+    nom: 'Les demi-attachés',
+    technique: 'Le haut est travaillé, le bas reste libre. C’est la coiffure du quotidien : elle doit tenir huit heures et se défaire en trente secondes.',
+    etapes: [
+      'Séparer la couronne du reste, d’oreille à oreille.',
+      'Travailler la partie haute selon le style choisi.',
+      'Fixer par l’intérieur, sans écraser la partie libre.',
+      'Séparer et aérer la longueur laissée libre.',
+    ],
+    schema: 'demi',
+  },
+  courtes: {
+    nom: 'Les têtes courtes',
+    technique: 'Sous quinze centimètres, tout se joue à la racine et sur les contours. Il n’y a pas de longueur pour rattraper une forme : elle est juste ou elle ne l’est pas.',
+    etapes: [
+      'Nettoyer les contours avant toute chose.',
+      'Travailler racine par racine, dans le sens de la pousse.',
+      'Donner la forme à la main, en volume, jamais au peigne.',
+      'Fixer léger : une tête courte figée paraît deux fois plus courte.',
+    ],
+    schema: 'courte',
+  },
+  ceremonies: {
+    nom: 'Les cérémonies',
+    technique: 'Une architecture, pas une coiffure. Elle se prépare avec la cliente avant le jour, elle se répète, et elle doit survivre à huit heures de fête et à un gèlè.',
+    etapes: [
+      'Poser la base la veille : lavage, séchage complet, aucune humidité résiduelle.',
+      'Construire l’ossature d’abord, les détails ensuite.',
+      'Ancrer chaque masse séparément : une seule attache qui cède emporte tout.',
+      'Poser les ornements en dernier, et photographier avant qu’elle ne parte.',
+    ],
+    schema: 'ceremonie',
+  },
+  accessoires: {
+    nom: 'Les ornements',
+    technique: 'Ce qui se pose sur la lock. Rien ne doit serrer, rien ne doit rester la nuit : un anneau oublié une semaine marque la lock pour toujours.',
+    etapes: [
+      'Choisir l’emplacement avec elle, devant le miroir.',
+      'Poser sans serrer, la lock doit glisser dans l’ornement.',
+      'Répartir sans symétrie parfaite : l’ornement se remarque, l’alignement se compte.',
+      'Dire quand le retirer, et le noter sur sa fiche.',
+    ],
+    schema: 'ornement',
+  },
+};
+
+/* n=nom · f=famille · p=palier · d=durée en minutes · l=longueur minimale
+   t=le tracé, ce qui distingue ce style des autres de sa famille
+   x=la finition */
+const STYLES = [
+  // ── LES TORSADES ────────────────────────────────────────────────
+  { n:'Torsade Plate Simple', f:'torsades', p:'simple', d:30, l:'courte', t:'Raies droites de l’avant vers l’arrière, six à huit torsades.', x:'Pointes laissées libres.' },
+  { n:'Torsade Plate Couronne', f:'torsades', p:'travaille', d:55, l:'mi', t:'Une torsade continue qui fait le tour de la tête, d’une tempe à l’autre.', x:'Pointe glissée sous le départ.' },
+  { n:'Torsade Plate Latérale', f:'torsades', p:'simple', d:35, l:'mi', t:'Toutes les raies obliques vers une seule oreille.', x:'Masse ramenée sur l’épaule.' },
+  { n:'Double Torsade Plate', f:'torsades', p:'travaille', d:50, l:'mi', t:'Deux torsades épaisses, une de chaque côté d’une raie centrale.', x:'Réunies en une seule à la nuque.' },
+  { n:'Torsade Plate Arrière', f:'torsades', p:'simple', d:30, l:'courte', t:'Du front vers la nuque, raies parallèles serrées.', x:'Queue basse.' },
+  { n:'Torsade Corde', f:'torsades', p:'simple', d:25, l:'mi', t:'Deux mèches libres tournées ensemble, sans plaquer.', x:'Élastique discret à la pointe.' },
+  { n:'Torsade Corde Épaisse', f:'torsades', p:'simple', d:20, l:'long', t:'Toute la masse en deux mèches seulement.', x:'Rabattue et nouée.' },
+  { n:'Corde Haute', f:'torsades', p:'travaille', d:40, l:'long', t:'Queue haute, puis torsade en corde sur toute la longueur.', x:'Enroulée sur la base.' },
+  { n:'Torsade Barillet', f:'torsades', p:'travaille', d:60, l:'mi', t:'Torsades enroulées en tonneaux plats, épinglés à plat.', x:'Six barillets répartis.' },
+  { n:'Torsade Demi-Lune', f:'torsades', p:'travaille', d:50, l:'mi', t:'Un arc de torsades du sommet à l’oreille, l’autre moitié libre.', x:'Bord de l’arc net.' },
+  { n:'Torsade Croisée', f:'torsades', p:'travaille', d:65, l:'mi', t:'Deux séries de torsades qui se croisent en X sur l’arrière.', x:'Croisement épinglé.' },
+  { n:'Torsade en Épi', f:'torsades', p:'travaille', d:55, l:'mi', t:'Torsades en chevrons, pointes vers le centre.', x:'Centre relevé.' },
+  { n:'Torsade Enroulée', f:'torsades', p:'travaille', d:45, l:'mi', t:'Chaque torsade s’enroule sur elle-même en escargot.', x:'Escargots plaqués.' },
+  { n:'Torsade Halo', f:'torsades', p:'travaille', d:60, l:'long', t:'Une seule torsade épaisse posée en auréole autour du crâne.', x:'Fermeture invisible.' },
+  { n:'Torsade Diagonale', f:'torsades', p:'simple', d:35, l:'mi', t:'Raies en diagonale d’une tempe à la nuque opposée.', x:'Pointes libres d’un côté.' },
+  { n:'Torsade Cascade', f:'torsades', p:'travaille', d:55, l:'long', t:'Torsades qui partent du sommet et retombent sans être fixées.', x:'Longueur laissée en pluie.' },
+  { n:'Torsade Nouée', f:'torsades', p:'simple', d:30, l:'mi', t:'Deux torsades qui se nouent l’une dans l’autre à l’arrière.', x:'Nœud simple, pointes libres.' },
+  { n:'Torsade Basse Nouée', f:'torsades', p:'simple', d:25, l:'long', t:'Torsades ramenées bas et nouées à la nuque.', x:'Nœud plat, très bas.' },
+
+  // ── LES TRESSES ─────────────────────────────────────────────────
+  { n:'Épi de Blé', f:'tresses', p:'travaille', d:50, l:'long', t:'Deux mèches, reprises alternées fines, sur toute la longueur.', x:'Pointe fine, ouverte à la main.' },
+  { n:'Tresse Française', f:'tresses', p:'simple', d:35, l:'mi', t:'Reprises par-dessus, du front à la nuque.', x:'Pointe rentrée.' },
+  { n:'Tresse Hollandaise', f:'tresses', p:'travaille', d:40, l:'mi', t:'Reprises par-dessous : la tresse ressort en relief.', x:'Relief ouvert au doigt.' },
+  { n:'Tresse Couronne', f:'tresses', p:'travaille', d:70, l:'long', t:'Une tresse hollandaise qui fait le tour complet du crâne.', x:'Fin cachée sous le départ.' },
+  { n:'Tresse Laitière', f:'tresses', p:'travaille', d:60, l:'long', t:'Deux tresses latérales ramenées par-dessus la tête.', x:'Croisées au sommet.' },
+  { n:'Tresse Latérale', f:'tresses', p:'simple', d:30, l:'long', t:'Une seule tresse qui part d’une tempe et tombe sur l’épaule.', x:'Pointe libre.' },
+  { n:'Double Tresse', f:'tresses', p:'simple', d:40, l:'mi', t:'Deux tresses françaises symétriques, raie centrale nette.', x:'Deux pointes égales.' },
+  { n:'Tresse Cascade', f:'tresses', p:'travaille', d:65, l:'long', t:'Tresse qui traverse et laisse tomber une lock à chaque passage.', x:'Locks tombantes réparties.' },
+  { n:'Tresse Serpent', f:'tresses', p:'travaille', d:70, l:'mi', t:'Tresse qui serpente en S d’une oreille à l’autre, trois virages.', x:'Virages épinglés.' },
+  { n:'Tresse Basse Nouée', f:'tresses', p:'simple', d:30, l:'long', t:'Tresse unique très basse, nouée sur elle-même.', x:'Nœud à la nuque.' },
+  { n:'Tresse Diagonale', f:'tresses', p:'simple', d:35, l:'mi', t:'Une diagonale du sommet à la nuque opposée.', x:'Pointe glissée dessous.' },
+  { n:'Double Halo', f:'tresses', p:'ceremonie', d:95, l:'long', t:'Deux tresses parallèles en auréole, l’une serrée, l’autre lâche.', x:'Espace régulier entre les deux.' },
+  { n:'Tresse Torsadée', f:'tresses', p:'travaille', d:55, l:'mi', t:'Une tresse et une torsade côte à côte, répétées.', x:'Alternance visible.' },
+  { n:'Tresse en Panier', f:'tresses', p:'ceremonie', d:110, l:'long', t:'Tresses croisées en vannerie sur toute la calotte.', x:'Mailles régulières, bord net.' },
+  { n:'Queue de Sirène', f:'tresses', p:'travaille', d:60, l:'long', t:'Épi de blé lâche, ouvert au fur et à mesure.', x:'Silhouette large, pointe fine.' },
+  { n:'Tresse Nouée Haute', f:'tresses', p:'travaille', d:45, l:'long', t:'Tresse partant d’une queue haute, puis nouée en boucle.', x:'Boucle tenue par l’intérieur.' },
+
+  // ── LES NŒUDS ET CHIGNONS ───────────────────────────────────────
+  { n:'Bantu Knots', f:'noeuds', p:'travaille', d:70, l:'mi', t:'Sections carrées, chaque masse tournée puis enroulée sur sa base.', x:'Pointe rentrée sous le nœud.' },
+  { n:'Mini Bantu', f:'noeuds', p:'travaille', d:85, l:'courte', t:'Sections de deux doigts, nœuds serrés, seize à vingt-quatre.', x:'Alignement des rangées.' },
+  { n:'Bantu Demi-Tête', f:'noeuds', p:'simple', d:40, l:'mi', t:'Nœuds sur la couronne seulement, longueur libre derrière.', x:'Ligne de séparation nette.' },
+  { n:'Chignon Haut', f:'noeuds', p:'simple', d:25, l:'mi', t:'Masse rassemblée au sommet et enroulée.', x:'Base cachée par une lock.' },
+  { n:'Chignon Bas', f:'noeuds', p:'simple', d:25, l:'mi', t:'Même geste, posé à la nuque.', x:'Assis sur la nuque, pas dessous.' },
+  { n:'Chignon Tressé', f:'noeuds', p:'travaille', d:55, l:'long', t:'La masse est tressée avant d’être enroulée.', x:'Tresse visible dans la spirale.' },
+  { n:'Chignon Panier', f:'noeuds', p:'ceremonie', d:100, l:'long', t:'Plusieurs tresses enroulées en couches concentriques.', x:'Bord tressé apparent.' },
+  { n:'Chignon Enroulé', f:'noeuds', p:'travaille', d:45, l:'long', t:'Une corde enroulée en spirale plate.', x:'Spirale ouverte au centre.' },
+  { n:'Double Chignon', f:'noeuds', p:'simple', d:35, l:'mi', t:'Deux chignons symétriques, hauts.', x:'Même taille, même hauteur.' },
+  { n:'Chignon Couronne', f:'noeuds', p:'ceremonie', d:105, l:'long', t:'Un anneau de locks enroulées posé comme un diadème.', x:'Anneau régulier, creux au centre.' },
+  { n:'Chignon Bouclé', f:'noeuds', p:'travaille', d:75, l:'mi', t:'Boucles posées la veille, rassemblées sans les défaire.', x:'Volume gardé, rien de lissé.' },
+  { n:'Nœud Papillon', f:'noeuds', p:'travaille', d:60, l:'long', t:'La masse forme deux boucles et un centre.', x:'Centre serré par une lock.' },
+  { n:'Double Macaron', f:'noeuds', p:'travaille', d:50, l:'mi', t:'Deux spirales plates de part et d’autre.', x:'Plaqués, bords nets.' },
+  { n:'Chignon Bas Torsadé', f:'noeuds', p:'travaille', d:50, l:'long', t:'Torsades latérales ramenées dans un chignon bas.', x:'Torsades visibles jusqu’au chignon.' },
+  { n:'Chignon Sculpté', f:'noeuds', p:'ceremonie', d:120, l:'long', t:'Masse modelée en forme choisie, ancrée en trois points.', x:'Forme tenue sans laque lourde.' },
+  { n:'Chignon Cathédrale', f:'noeuds', p:'ceremonie', d:135, l:'long', t:'Chignon haut construit en hauteur, ossature interne.', x:'Silhouette verticale assumée.' },
+
+  // ── LES BOUCLES ─────────────────────────────────────────────────
+  { n:'Boucles au Fil Chenille', f:'boucles', p:'travaille', d:90, l:'mi', t:'Chaque lock enroulée sur un fil chenille, pointe vers racine.', x:'Boucle serrée, ressort net.' },
+  { n:'Boucles au Rouleau', f:'boucles', p:'travaille', d:80, l:'mi', t:'Rouleaux souples, une lock par rouleau.', x:'Boucle large et régulière.' },
+  { n:'Boucles Flexi', f:'boucles', p:'travaille', d:85, l:'mi', t:'Tiges souples, enroulement en spirale.', x:'Spirale longue.' },
+  { n:'Boucles à la Paille', f:'boucles', p:'travaille', d:110, l:'courte', t:'Locks fines enroulées sur pailles, tenues par une épingle.', x:'Frisure très serrée.' },
+  { n:'Boucles Barillet', f:'boucles', p:'travaille', d:70, l:'long', t:'Gros rouleaux horizontaux, six à huit.', x:'Vague ample, pas de ressort.' },
+  { n:'Boucles Serrées', f:'boucles', p:'travaille', d:95, l:'mi', t:'Petits supports sur toute la tête.', x:'Volume important au démontage.' },
+  { n:'Boucles Larges', f:'boucles', p:'travaille', d:65, l:'long', t:'Gros supports, peu nombreux.', x:'Ondulation lâche.' },
+  { n:'Ondulations', f:'boucles', p:'simple', d:45, l:'long', t:'Locks tressées humides, séchées, puis défaites.', x:'Vague plate, sans ressort.' },
+  { n:'Boucles Crochet', f:'boucles', p:'travaille', d:75, l:'mi', t:'Boucle formée au crochet, lock par lock.', x:'Boucle qui tient plusieurs jours.' },
+  { n:'Vagues au Doigt', f:'boucles', p:'travaille', d:60, l:'courte', t:'Ondulations modelées au doigt et au peigne, à plat.', x:'Vagues plaquées, brillantes.' },
+  { n:'Spirales', f:'boucles', p:'travaille', d:80, l:'long', t:'Enroulement continu sur une seule tige par section.', x:'Spirale du haut vers le bas.' },
+  { n:'Boucles Bout Seul', f:'boucles', p:'simple', d:30, l:'mi', t:'Seules les vingt derniers centimètres sont enroulés.', x:'Racine laissée droite.' },
+  { n:'Boucles Demi-Tête', f:'boucles', p:'simple', d:40, l:'mi', t:'Boucles sur la moitié haute uniquement.', x:'Contraste haut-bas.' },
+  { n:'Boucles Racines Lisses', f:'boucles', p:'travaille', d:85, l:'long', t:'Racines plaquées, boucles à partir des épaules.', x:'Rupture nette à l’épaule.' },
+  { n:'Boucles de Nuit', f:'boucles', p:'simple', d:25, l:'mi', t:'Pose le soir, séchage naturel, démontage au matin.', x:'Le geste le plus économe.' },
+  { n:'Boucles Vapeur', f:'boucles', p:'travaille', d:70, l:'mi', t:'Pose puis vapeur au casque, refroidissement complet.', x:'Tenue la plus longue.' },
+
+  // ── LES REMONTÉS ────────────────────────────────────────────────
+  { n:'Faux Hawk', f:'remontes', p:'travaille', d:60, l:'mi', t:'Les côtés plaqués, la crête relevée du front à la nuque.', x:'Crête en trois masses.' },
+  { n:'Pompadour', f:'remontes', p:'travaille', d:50, l:'mi', t:'Volume poussé vers l’avant au-dessus du front.', x:'Arrière lisse.' },
+  { n:'Rouleau Français', f:'remontes', p:'travaille', d:55, l:'long', t:'La masse roulée verticalement le long de la nuque.', x:'Couture invisible.' },
+  { n:'Rouleau Banane', f:'remontes', p:'travaille', d:50, l:'long', t:'Rouleau horizontal posé en travers de l’arrière.', x:'Deux extrémités effilées.' },
+  { n:'Cascade Haute', f:'remontes', p:'travaille', d:65, l:'long', t:'Queue très haute, longueur retombant en éventail.', x:'Base enroulée.' },
+  { n:'Remonté Sculpté', f:'remontes', p:'ceremonie', d:120, l:'long', t:'Masses modelées séparément puis assemblées.', x:'Trois volumes distincts.' },
+  { n:'Remonté Asymétrique', f:'remontes', p:'travaille', d:70, l:'mi', t:'Tout le volume déporté d’un côté.', x:'Côté opposé plaqué net.' },
+  { n:'Couronne Remontée', f:'remontes', p:'ceremonie', d:100, l:'long', t:'Masse relevée en anneau ouvert.', x:'Anneau tenu par l’intérieur.' },
+  { n:'Remonté Éventail', f:'remontes', p:'ceremonie', d:110, l:'long', t:'Locks déployées en éventail derrière la tête.', x:'Écart régulier entre les locks.' },
+  { n:'Remonté Bas', f:'remontes', p:'simple', d:35, l:'mi', t:'Volume ramassé bas, nuque dégagée.', x:'Nuque nette.' },
+  { n:'Remonté Torsadé', f:'remontes', p:'travaille', d:75, l:'long', t:'Torsades plates qui montent vers un volume unique.', x:'Départs visibles.' },
+  { n:'Remonté Tressé', f:'remontes', p:'travaille', d:80, l:'long', t:'Tresses ascendantes réunies au sommet.', x:'Point de réunion caché.' },
+  { n:'Remonté Bouclé', f:'remontes', p:'ceremonie', d:115, l:'long', t:'Boucles de la veille, remontées sans être défaites.', x:'Volume préservé.' },
+  { n:'Remonté Cérémonie', f:'remontes', p:'ceremonie', d:140, l:'long', t:'Architecture complète, ossature et détails.', x:'Tient une journée entière.' },
+
+  // ── LES PARTITIONS ──────────────────────────────────────────────
+  { n:'Raies Droites', f:'partitions', p:'simple', d:20, l:'courte', t:'Raies parallèles régulières, front vers nuque.', x:'Locks posées dans le sens.' },
+  { n:'Raies Triangles', f:'partitions', p:'travaille', d:45, l:'courte', t:'Sections triangulaires alternées.', x:'Sommets alignés.' },
+  { n:'Raies Briques', f:'partitions', p:'travaille', d:50, l:'courte', t:'Sections décalées d’une rangée à l’autre.', x:'Aucun alignement vertical.' },
+  { n:'Raies Zigzag', f:'partitions', p:'travaille', d:40, l:'courte', t:'Raies en dents de scie régulières.', x:'Angles constants.' },
+  { n:'Raies Diamant', f:'partitions', p:'travaille', d:55, l:'courte', t:'Losanges sur toute la calotte.', x:'Losanges de taille égale.' },
+  { n:'Raies Éventail', f:'partitions', p:'travaille', d:45, l:'mi', t:'Raies rayonnant d’un point unique.', x:'Point de départ net.' },
+  { n:'Raie Latérale Nette', f:'partitions', p:'simple', d:15, l:'courte', t:'Une seule raie profonde sur le côté.', x:'Volume du côté long.' },
+  { n:'Raie Halo', f:'partitions', p:'simple', d:25, l:'mi', t:'Une raie circulaire qui sépare couronne et masse.', x:'Cercle régulier.' },
+  { n:'Raies Rayons', f:'partitions', p:'travaille', d:50, l:'courte', t:'Raies convergentes vers la nuque.', x:'Convergence propre.' },
+  { n:'Raies Nid d’Abeille', f:'partitions', p:'ceremonie', d:80, l:'courte', t:'Hexagones réguliers sur toute la tête.', x:'Le dessin le plus exigeant.' },
+  { n:'Raies Croisées', f:'partitions', p:'travaille', d:55, l:'courte', t:'Deux réseaux de raies qui se croisent.', x:'Croisements réguliers.' },
+  { n:'Raies Vagues', f:'partitions', p:'travaille', d:50, l:'courte', t:'Raies courbes parallèles.', x:'Courbure constante.' },
+
+  // ── LES DEMI-ATTACHÉS ───────────────────────────────────────────
+  { n:'Demi-Haut Simple', f:'demis', p:'simple', d:15, l:'mi', t:'Couronne relevée et attachée, reste libre.', x:'Attache cachée.' },
+  { n:'Demi-Haut Torsadé', f:'demis', p:'simple', d:30, l:'mi', t:'Deux torsades latérales réunies en haut.', x:'Réunion nouée.' },
+  { n:'Demi-Haut Tressé', f:'demis', p:'travaille', d:40, l:'mi', t:'Deux tresses françaises latérales réunies.', x:'Point de réunion plat.' },
+  { n:'Demi-Haut Noué', f:'demis', p:'simple', d:20, l:'long', t:'Deux mèches nouées l’une dans l’autre.', x:'Nœud double.' },
+  { n:'Demi-Couronne', f:'demis', p:'travaille', d:45, l:'long', t:'Une tresse en arc d’une tempe à l’autre.', x:'Arc au-dessus des oreilles.' },
+  { n:'Demi-Queue Basse', f:'demis', p:'simple', d:15, l:'mi', t:'Couronne rassemblée bas, à hauteur d’oreilles.', x:'Lock enroulée sur l’élastique.' },
+  { n:'Demi-Haut Bouclé', f:'demis', p:'travaille', d:60, l:'mi', t:'Boucles au-dessus, longueur droite en dessous.', x:'Contraste de texture.' },
+  { n:'Double Demi-Haut', f:'demis', p:'simple', d:25, l:'mi', t:'Deux attaches superposées, effet d’étages.', x:'Étages réguliers.' },
+
+  // ── LES TÊTES COURTES ───────────────────────────────────────────
+  { n:'Comb Coils', f:'courtes', p:'travaille', d:75, l:'courte', t:'Chaque section enroulée au peigne fin, en spirale.', x:'Spirale nette, cuir visible.' },
+  { n:'Ondulations Courtes', f:'courtes', p:'travaille', d:55, l:'courte', t:'Vagues modelées à plat sur toute la tête.', x:'Brillance et relief.' },
+  { n:'Mini Bantu Serrés', f:'courtes', p:'travaille', d:80, l:'courte', t:'Nœuds très fins, rangées régulières.', x:'Rangées alignées.' },
+  { n:'Dégradé Sculpté', f:'courtes', p:'travaille', d:50, l:'courte', t:'Volume au sommet, contours dégagés.', x:'Ligne de contour au rasoir.' },
+  { n:'Frange Torsadée', f:'courtes', p:'simple', d:25, l:'courte', t:'Une torsade sur la ligne du front.', x:'Frange plaquée, reste libre.' },
+  { n:'Coiffé Plaqué', f:'courtes', p:'simple', d:20, l:'courte', t:'Tout ramené en arrière, à plat.', x:'Aucune raie visible.' },
+  { n:'Pointes Relevées', f:'courtes', p:'simple', d:30, l:'courte', t:'Chaque pointe travaillée vers le haut.', x:'Silhouette hérissée.' },
+  { n:'Nuque Nette', f:'courtes', p:'simple', d:20, l:'courte', t:'Contours nuque et tempes repris, sommet libre.', x:'La finition la plus demandée.' },
+
+  // ── LES CÉRÉMONIES ──────────────────────────────────────────────
+  { n:'Couronne de Mariée', f:'ceremonies', p:'ceremonie', d:150, l:'long', t:'Tresses en couronne, volume arrière, place pour le voile.', x:'Ancrage renforcé.' },
+  { n:'Chignon Fleuri', f:'ceremonies', p:'ceremonie', d:130, l:'long', t:'Chignon sculpté, fleurs posées dans les creux.', x:'Fleurs posées en dernier.' },
+  { n:'Remonté Perlé', f:'ceremonies', p:'ceremonie', d:140, l:'long', t:'Remonté sculpté, perles enfilées sur les locks du contour.', x:'Perles retirées le soir même.' },
+  { n:'Voile et Torsades', f:'ceremonies', p:'ceremonie', d:120, l:'long', t:'Torsades plates, dégagement prévu pour le peigne du voile.', x:'Point d’ancrage du voile marqué.' },
+  { n:'Chignon Bas Cérémonie', f:'ceremonies', p:'ceremonie', d:110, l:'long', t:'Chignon bas très construit, nuque dégagée.', x:'Profil soigné, vu de dos.' },
+  { n:'Couronne Dorée', f:'ceremonies', p:'ceremonie', d:145, l:'long', t:'Couronne de tresses, fil d’or enroulé sur trois locks.', x:'Or réparti, jamais symétrique.' },
+  { n:'Cascade de Mariée', f:'ceremonies', p:'ceremonie', d:135, l:'long', t:'Haut sculpté, longueur bouclée laissée libre.', x:'Boucles posées la veille.' },
+  { n:'Coiffure de Gèlè', f:'ceremonies', p:'ceremonie', d:90, l:'mi', t:'Volume ramassé bas, front dégagé pour le nouage.', x:'Rien au-dessus des oreilles.' },
+
+  // ── LES ORNEMENTS ───────────────────────────────────────────────
+  { n:'Fil d’Or', f:'accessoires', p:'simple', d:30, l:'mi', t:'Fil enroulé sur trois à cinq locks choisies.', x:'Retrait à la prochaine venue.' },
+  { n:'Perles', f:'accessoires', p:'simple', d:25, l:'mi', t:'Perles enfilées sur les pointes du contour.', x:'Jamais serrées.' },
+  { n:'Anneaux Cuivre', f:'accessoires', p:'simple', d:20, l:'mi', t:'Anneaux ouverts posés à mi-longueur.', x:'À retirer sous quinze jours.' },
+  { n:'Ruban Tissé', f:'accessoires', p:'travaille', d:45, l:'long', t:'Ruban tissé dans une tresse latérale.', x:'Tissage régulier.' },
+  { n:'Foulard Noué', f:'accessoires', p:'simple', d:15, l:'mi', t:'Foulard noué à la base d’un chignon.', x:'Nœud sur le côté.' },
+  { n:'Cauris', f:'accessoires', p:'travaille', d:40, l:'long', t:'Coquillages fixés sur les locks du contour.', x:'Répartition irrégulière voulue.' },
+];
+
+/* ── LE SCHÉMA, DESSINÉ À LA MAIN ────────────────────────────────
+   Une tête vue du dessus, ses séparations et le sens du mouvement. Ce n'est
+   pas une photo et cela ne prétend pas l'être : c'est ce qu'on montre à une
+   main qui apprend, et c'est plus lisible qu'une photo pour ça. */
+function schema(style, taille) {
+  const s = taille, k = FAMILLES[style.f].schema;
+  const cx = s / 2, cy = s / 2, rx = s * 0.31, ry = s * 0.39;
+  const or = '#B97A4A', ind = '#1E2150', pale = '#E4BE9C';
+  let d = `<svg viewBox="0 0 ${s} ${s}" class="vign" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#FBF6EC" stroke="${pale}" stroke-width="1.4"/>`;
+  const g = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 1}" stroke-linecap="round"/>`;
+  const arc = (a, b, c, dd, e, f2, col, w) => `<path d="M${a} ${b} Q ${c} ${dd} ${e} ${f2}" fill="none" stroke="${col}" stroke-width="${w || 1.6}" stroke-linecap="round"/>`;
+
+  if (k === 'torsade' || k === 'tresse') {
+    for (let i = 0; i < 7; i++) {
+      const y = cy - ry + (ry * 2 / 8) * (i + 1);
+      const w = rx * Math.sqrt(Math.max(0, 1 - ((y - cy) / ry) ** 2)) * 0.94;
+      d += arc(cx - w, y, cx + (k === 'tresse' ? 0 : w * 0.4), y - 7, cx + w, y, i % 2 ? or : ind, 1.7);
+    }
+  } else if (k === 'noeud') {
+    for (const [px, py] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.45], [0.5, 0.45], [0, 0]]) {
+      d += `<circle cx="${cx + px * rx}" cy="${cy + py * ry}" r="${s * 0.055}" fill="none" stroke="${or}" stroke-width="1.8"/>`;
+      d += `<circle cx="${cx + px * rx}" cy="${cy + py * ry}" r="${s * 0.022}" fill="${ind}"/>`;
+    }
+  } else if (k === 'boucle') {
+    for (let i = 0; i < 6; i++) {
+      const x = cx - rx * 0.72 + (rx * 1.44 / 5) * i;
+      let p = `M${x} ${cy - ry * 0.7}`;
+      for (let j = 0; j < 4; j++) p += ` q ${j % 2 ? -9 : 9} ${ry * 0.18} 0 ${ry * 0.36}`;
+      d += `<path d="${p}" fill="none" stroke="${i % 2 ? or : ind}" stroke-width="1.6" stroke-linecap="round"/>`;
+    }
+  } else if (k === 'remonte' || k === 'ceremonie') {
+    d += `<ellipse cx="${cx}" cy="${cy - ry * 0.38}" rx="${rx * 0.62}" ry="${ry * 0.3}" fill="none" stroke="${or}" stroke-width="1.9"/>`;
+    for (let i = 0; i < 5; i++) {
+      const a = -0.9 + i * 0.45;
+      d += g(cx + Math.sin(a) * rx * 0.7, cy + ry * 0.55, cx + Math.sin(a) * rx * 0.22, cy - ry * 0.2, ind, 1.5);
+    }
+    if (k === 'ceremonie') d += `<circle cx="${cx}" cy="${cy - ry * 0.66}" r="${s * 0.03}" fill="${or}"/>`;
+  } else if (k === 'partition') {
+    for (let i = 0; i < 5; i++) {
+      const x = cx - rx * 0.75 + (rx * 1.5 / 4) * i;
+      d += g(x, cy - ry * 0.8, x, cy + ry * 0.8, i % 2 ? or : ind, 1.3);
+    }
+    for (let i = 0; i < 4; i++) {
+      const y = cy - ry * 0.6 + (ry * 1.2 / 3) * i;
+      d += g(cx - rx * 0.8, y, cx + rx * 0.8, y, pale, 1);
+    }
+  } else if (k === 'demi') {
+    d += `<path d="M${cx - rx * 0.9} ${cy} Q ${cx} ${cy - ry * 0.5} ${cx + rx * 0.9} ${cy}" fill="none" stroke="${or}" stroke-width="2"/>`;
+    for (let i = 0; i < 5; i++) {
+      const x = cx - rx * 0.7 + (rx * 1.4 / 4) * i;
+      d += g(x, cy + ry * 0.08, x, cy + ry * 0.8, ind, 1.4);
+    }
+  } else if (k === 'courte') {
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      d += `<circle cx="${cx + Math.cos(a) * rx * 0.6}" cy="${cy + Math.sin(a) * ry * 0.6}" r="${s * 0.022}" fill="${i % 2 ? or : ind}"/>`;
+    }
+    d += `<circle cx="${cx}" cy="${cy}" r="${s * 0.03}" fill="${pale}"/>`;
+  } else { // ornement
+    d += arc(cx - rx * 0.8, cy - ry * 0.3, cx, cy + ry * 0.2, cx + rx * 0.8, cy - ry * 0.3, ind, 1.6);
+    for (const t of [-0.4, 0, 0.4]) d += `<circle cx="${cx + t * rx}" cy="${cy + ry * (0.05 + Math.abs(t) * 0.2)}" r="${s * 0.028}" fill="${or}"/>`;
+  }
+  return d + '</svg>';
+}
+
+/* ══ LES PHOTOS, POUR DE VRAI ════════════════════════════════════════
+   « J'aimerais ajouter une photo pour de vrai et voir comment tout se
+   comporte » (Yéman).
+
+   ELLES SONT RÉDUITES AVANT D'ÊTRE GARDÉES, et c'est la leçon du 29 août : la
+   Maison a dépassé son quota Supabase parce que les photos vivaient en base64
+   DANS les fiches, et que la synchronisation les retéléchargeait toutes à
+   chaque ouverture. Une photo de style se regarde en grand, pas dans un rond
+   de 48 px : mille pixels de côté suffisent, et pèsent dix fois moins qu'un
+   fichier d'appareil.
+
+   ICI ELLES VIVENT DANS LE NAVIGATEUR, le temps de juger la mise en page.
+   Dans le Trône, elles iront au COFFRE DE FICHIERS (2,7 Mo sur 1 Go utilisés),
+   et la fiche du style ne portera qu'une adresse. Cent vingt-deux styles à
+   trois photos en base64 dans les lignes referaient exactement la panne
+   qu'on a payée. */
+const COTE_PHOTO = 1000;
+const QUALITE_PHOTO = 0.82;
+const CLE = 'mnd_maquette_styles_photos';
+
+const litPhotos = () => { try { return JSON.parse(localStorage.getItem(CLE) || '{}'); } catch { return {}; } };
+let PHOTOS = litPhotos();
+
+function garde() {
+  try { localStorage.setItem(CLE, JSON.stringify(PHOTOS)); return true; }
+  catch { alert('Le navigateur est plein. Retirez quelques photos : ici elles vivent en local, dans Le Trône elles iront au coffre de fichiers.'); return false; }
+}
+
+/** RÉDUITE AVANT D'ÊTRE GARDÉE — jamais l'inverse. Une photo d'appareil pèse
+    quatre mégaoctets ; la même à mille pixels en pèse cent cinquante, et rien
+    ne se voit à l'écran. */
+function reduit(fichier) {
+  return new Promise((ok, ko) => {
+    const lect = new FileReader();
+    lect.onerror = () => ko(new Error('lecture'));
+    lect.onload = () => {
+      const img = new Image();
+      img.onerror = () => ko(new Error('image'));
+      img.onload = () => {
+        const f = Math.min(1, COTE_PHOTO / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * f); c.height = Math.round(img.height * f);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        ok(c.toDataURL('image/jpeg', QUALITE_PHOTO));
+      };
+      img.src = lect.result;
+    };
+    lect.readAsDataURL(fichier);
+  });
+}
+
+const poidsDe = (d) => Math.round(((d || '').length * 3) / 4);
+const lisible = (o) => (o < 1024 ? `${o} o` : o < 1048576 ? `${(o / 1024).toFixed(0)} ko` : `${(o / 1048576).toFixed(1)} Mo`);
+const poidsTotal = () => Object.values(PHOTOS).flat().reduce((n, d) => n + poidsDe(d), 0);
+
+function choisirFichier(cle, apres) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = async () => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    try {
+      const d = await reduit(f);
+      PHOTOS[cle] = [...(PHOTOS[cle] || []), d];
+      if (!garde()) PHOTOS = litPhotos();
+    } catch { alert('Cette image n’a pas pu être lue.'); }
+    apres();
+  };
+  input.click();
+}
+
+function retirePhoto(cle, i, apres) {
+  PHOTOS[cle] = (PHOTOS[cle] || []).filter((_, j) => j !== i);
+  if (!PHOTOS[cle].length) delete PHOTOS[cle];
+  garde(); apres();
+}
+
+/** LA COUVERTURE : la première photo, ou le schéma s'il n'y en a aucune. Une
+    carte qui montre un schéma dit « personne n'a encore photographié celui-là »
+    — c'est une information, pas un trou. */
+const couverture = (s, taille) => {
+  const ph = (PHOTOS[s.n] || [])[0];
+  return ph ? `<img class="vign" src="${ph}" alt="" />` : schema(s, taille);
+};
+
+/* ── LES FILTRES ET LA GRILLE ─────────────────────────────────── */
+let fFam = 'tout', fPal = 'tout', fLon = 'tout', q = '';
+let choixA = null, choixB = null, coteVolet = 'A';
+
+const chips = (el, liste, courant, attr) => {
+  el.innerHTML = liste.map(([k, m]) =>
+    `<button class="chip ${k === courant ? 'on' : ''}" data-${attr}="${k}">${m}</button>`).join('');
+};
+
+function retenus() {
+  const t = q.trim().toLowerCase();
+  return STYLES.filter((s) =>
+    (fFam === 'tout' || s.f === fFam)
+    && (fPal === 'tout' || s.p === fPal)
+    && (fLon === 'tout' || s.l === fLon)
+    && (!t || s.n.toLowerCase().includes(t) || s.t.toLowerCase().includes(t) || FAMILLES[s.f].nom.toLowerCase().includes(t)));
+}
+
+function dessine() {
+  chips(document.getElementById('fFam'), [['tout', `Toutes · ${STYLES.length}`], ...Object.entries(FAMILLES).map(([k, v]) => [k, `${v.nom.replace(/^Les /, '')} · ${STYLES.filter((s) => s.f === k).length}`])], fFam, 'fam');
+  chips(document.getElementById('fPal'), [['tout', 'Tous'], ...Object.entries(PALIERS).map(([k, v]) => [k, v.mot])], fPal, 'pal');
+  chips(document.getElementById('fLon'), [['tout', 'Toutes'], ...Object.entries(LONGUEURS)], fLon, 'lon');
+
+  const liste = retenus();
+  const avecPhoto = STYLES.filter((s) => (PHOTOS[s.n] || []).length).length;
+  document.getElementById('compte').textContent =
+    `${liste.length} style${liste.length > 1 ? 's' : ''} · cliquez pour la fiche, maintenez Maj pour comparer.`
+    + (avecPhoto ? ` · ${avecPhoto} photographié${avecPhoto > 1 ? 's' : ''}, ${lisible(poidsTotal())} en tout.` : '');
+  document.getElementById('grille').innerHTML = liste.map((s, i) => `
+    <button class="carte ${s === choixA || s === choixB ? 'on' : ''}" data-i="${STYLES.indexOf(s)}">
+      ${couverture(s, 184)}
+      <h3>${s.n}</h3>
+      <div class="meta">
+        <span class="pal ${s.p}">${PALIERS[s.p].mot}</span>
+        <span>${s.d} min</span>
+        <span>${LONGUEURS[s.l]}</span>
+      </div>
+    </button>`).join('');
+  compare();
+}
+
+function cellule(el, s, cote) {
+  el.innerHTML = s
+    ? `${couverture(s, 150)}<h4>${s.n}</h4><p>${FAMILLES[s.f].nom} · ${PALIERS[s.p].mot} · ${s.d} min<br><b>${PALIERS[s.p].prix.toLocaleString('fr-FR')} F</b></p>`
+    : `<div class="vide">Style ${cote}<br>Maj + clic sur une carte</div>`;
+}
+
+function compare() {
+  cellule(document.getElementById('cA'), choixA, 'A');
+  cellule(document.getElementById('cB'), choixB, 'B');
+  const sienne = (PHOTOS.__tete || [])[0];
+  const vise = coteVolet === 'B' ? choixB : choixA;
+  const photoStyle = vise ? (PHOTOS[vise.n] || [])[0] : null;
+  const tete = document.getElementById('cTete');
+
+  /* ══ LE VOLET — 6 septembre 2026 ═══════════════════════════════════
+     « Quand je charge une photo je ne vois pas à quoi ressemblera ma tête
+     selon le modèle choisi » (Yéman).
+
+     IL NE FABRIQUE RIEN. Sa photo dessous, la coiffure dessus, et une ligne
+     qu'on fait glisser : l'œil rapproche les deux tout seul. C'est moins qu'un
+     rendu et ce n'est pas un mensonge — la cliente sait ce qu'elle regarde.
+
+     LE VRAI RENDU DEMANDE UNE IA D'IMAGE, donc que sa photo sorte de la
+     Maison. C'est une décision, pas une fonctionnalité, et elle se prend
+     ailleurs qu'ici. */
+  tete.innerHTML = sienne && photoStyle
+    ? `<div class="volet" id="volet" style="--x:50%">
+         <img src="${sienne}" alt="" />
+         <img class="dessus" src="${photoStyle}" alt="" />
+         <div class="rail"></div>
+         <div class="poignee">↔</div>
+         <div class="volet__mots"><span>Sa tête</span><span>${vise.n}</span></div>
+       </div>
+       <h4 style="margin-top:10px">Le volet</h4>
+       <p>Glissez la ligne. Ce sont deux photos vraies, pas un montage.</p>`
+    : `<div class="photo" style="margin:0;aspect-ratio:1;height:auto">
+         ${!sienne ? 'Chargez sa photo, prise à une visite passée.' : ''}
+         ${!photoStyle ? `${!sienne ? '<br>' : ''}Puis une photo sur le style ${coteVolet}.` : ''}
+       </div>
+       <h4 style="margin-top:10px">Sa tête</h4>
+       <p>Le volet a besoin des deux : sa photo, et une photo du style choisi.</p>`;
+
+  tete.insertAdjacentHTML('beforeend', `
+    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+      <button class="chip ${coteVolet === 'A' ? 'on' : ''}" id="vA">Contre A</button>
+      <button class="chip ${coteVolet === 'B' ? 'on' : ''}" id="vB">Contre B</button>
+      <button class="chip" id="saPhoto">${sienne ? 'Changer sa photo' : 'Sa photo'}</button>
+    </div>`);
+
+  document.getElementById('vA').onclick = () => { coteVolet = 'A'; compare(); };
+  document.getElementById('vB').onclick = () => { coteVolet = 'B'; compare(); };
+  document.getElementById('saPhoto').onclick = () => { PHOTOS.__tete = []; choisirFichier('__tete', dessine); };
+
+  const v = document.getElementById('volet');
+  if (v) {
+    /* UNE SEULE POIGNÉE, AU DOIGT COMME À LA SOURIS : le comptoir travaille
+       sur téléphone, et une poignée qui ne répond qu'à la souris ne sert à
+       rien devant une cliente. */
+    const bouge = (e) => {
+      const r = v.getBoundingClientRect();
+      const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      v.style.setProperty('--x', `${x}%`);
+    };
+    v.addEventListener('pointerdown', (e) => { v.setPointerCapture(e.pointerId); bouge(e); });
+    v.addEventListener('pointermove', (e) => { if (v.hasPointerCapture(e.pointerId)) bouge(e); });
+  }
+}
+
+function ouvrir(s) {
+  const F = FAMILLES[s.f];
+  document.getElementById('ficheIn').innerHTML = `
+    <div class="fiche__tete">
+      <h2>${s.n}</h2><span>${F.nom}</span>
+      <button class="fiche__x" id="ferme">Fermer</button>
+    </div>
+    <div class="fiche__corps">
+      <div>
+        <div id="grand"></div>
+        <div class="bande" id="bande"></div>
+        <div class="poids" id="poidsPh"></div>
+      </div>
+      <div>
+        <div class="bloc">
+          <span class="microlabel">Ce qu’elle demande</span>
+          <dl class="dl">
+            <dt>Palier</dt><dd><span class="pal ${s.p}">${PALIERS[s.p].mot}</span> · ${PALIERS[s.p].prix.toLocaleString('fr-FR')} F</dd>
+            <dt>Durée</dt><dd>${s.d} minutes</dd>
+            <dt>Longueur</dt><dd>${LONGUEURS[s.l]} au minimum</dd>
+            <dt>Le tracé</dt><dd>${s.t}</dd>
+            <dt>La finition</dt><dd>${s.x}</dd>
+          </dl>
+        </div>
+        <div class="bloc">
+          <span class="microlabel">La technique · ${F.nom.toLowerCase()}</span>
+          <p style="font-size:13px;line-height:1.65;margin:0 0 12px">${F.technique}</p>
+          <ol class="etapes">${F.etapes.map((e) => `<li>${e}</li>`).join('')}</ol>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('fiche').style.display = 'flex';
+  document.getElementById('ferme').onclick = () => { document.getElementById('fiche').style.display = 'none'; };
+  galerie(s, 0);
+}
+
+/* ── LA GALERIE D'UN STYLE ─────────────────────────────────────
+   LE SCHÉMA RESTE LA PREMIÈRE VIGNETTE, toujours, même quand la Maison a
+   photographié le style dix fois : c'est lui qui dit le tracé, et une photo
+   prise de trois quarts ne le montre jamais entièrement. */
+function galerie(s, vue) {
+  const photos = PHOTOS[s.n] || [];
+  const grand = document.getElementById('grand');
+  const bande = document.getElementById('bande');
+  if (!grand) return;
+
+  grand.innerHTML = vue === 0 || !photos[vue - 1]
+    ? schema(s, 300).replace('class="vign"', 'class="grande"')
+    : `<img class="grande" src="${photos[vue - 1]}" alt="" />`;
+
+  bande.innerHTML = `
+    <button class="mini ${vue === 0 ? 'on' : ''}" data-v="0" title="Le tracé, dessiné">
+      ${schema(s, 56).replace('class="vign"', 'style="width:100%;height:100%;display:block"')}
+    </button>
+    ${photos.map((d, i) => `<img class="mini ${vue === i + 1 ? 'on' : ''}" data-v="${i + 1}" src="${d}" alt="" />`).join('')}
+    <button class="plus" id="ajout" title="Ajouter une de vos réalisations">+</button>`;
+
+  document.getElementById('poidsPh').innerHTML = photos.length
+    ? `${photos.length} photo${photos.length > 1 ? 's' : ''} · ${lisible(photos.reduce((n, d) => n + poidsDe(d), 0))}
+       ${vue > 0 ? `<br><button class="retirer" id="oter">Retirer celle-ci</button>` : ''}`
+    : 'Vos réalisations, jamais celles d’un autre salon.';
+
+  document.getElementById('ajout').onclick = () => choisirFichier(s.n, () => { galerie(s, (PHOTOS[s.n] || []).length); dessine(); });
+  const oter = document.getElementById('oter');
+  if (oter) oter.onclick = () => retirePhoto(s.n, vue - 1, () => { galerie(s, 0); dessine(); });
+  bande.querySelectorAll('[data-v]').forEach((el) => {
+    el.onclick = (ev) => { if (ev.target.closest('#ajout')) return; galerie(s, Number(el.dataset.v)); };
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('[data-fam]'); const p = e.target.closest('[data-pal]');
+  const l = e.target.closest('[data-lon]'); const c = e.target.closest('[data-i]');
+  if (f) { fFam = f.dataset.fam; dessine(); }
+  if (p) { fPal = p.dataset.pal; dessine(); }
+  if (l) { fLon = l.dataset.lon; dessine(); }
+  if (c) {
+    const s = STYLES[Number(c.dataset.i)];
+    if (e.shiftKey) { if (!choixA || (choixA && choixB)) { choixA = s; choixB = null; } else choixB = s; dessine(); }
+    else ouvrir(s);
+  }
+  if (e.target.id === 'fiche') document.getElementById('fiche').style.display = 'none';
+});
+document.getElementById('q').addEventListener('input', (e) => { q = e.target.value; dessine(); });
+
+dessine();
+</script>
+</body>
+</html>

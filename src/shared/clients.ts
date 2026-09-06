@@ -65,6 +65,14 @@ export type Client = {
       ne sert QU'À ÉCRIRE : aucun compte, aucun prix, aucune statistique ne le
       regarde. */
   auMasculin?: boolean;
+  /** ELLE ACCEPTE QUE SA PHOTO SERVE À UNE SIMULATION — date ISO du jour où
+      elle l'a dit. Sa photo sortirait alors de la Maison vers un service
+      extérieur : rien ne part sans cette date. Voir `aAccorde`. */
+  accordSimulation?: string;
+  /** ELLE ACCEPTE QUE SA PHOTO SOIT MONTRÉE — vitrine, Ma Couronne, réseaux.
+      Distinct du précédent, et pour une raison : accepter d'être montrée au
+      salon n'est pas accepter que son visage quitte le pays. */
+  accordVitrine?: string;
   diaspora?: boolean;
   /** ELLE A DÉFAIT SES LOCKS — 6 septembre 2026, demande de Yéman.
 
@@ -600,6 +608,39 @@ export const estDePassage = (c: { dePassage?: boolean }): boolean => c.dePassage
 
 /** ELLE N'A PLUS DE LOCKS — rien à compter, rien à mesurer. */
 export const aDefaitSesLocks = (c: { locksDefaits?: boolean }): boolean => c.locksDefaits === true;
+
+/* ── CE QU'ELLE AUTORISE — 6 septembre 2026 ───────────────────
+   Décidé AVANT l'outil qui s'en servira : « le consentement d'abord, l'IA plus
+   tard » (Yéman).
+
+   DEUX ACCORDS, PAS UN. Montrer sa photo dans la vitrine de la Maison et
+   l'envoyer à un service d'images à l'étranger ne se demandent pas ensemble :
+   une cliente peut très bien accepter d'être montrée au salon et refuser que son
+   visage sorte du pays. Un seul interrupteur pour les deux lui ferait dire oui
+   à ce qu'elle n'a pas lu.
+
+   ILS PORTENT LEUR DATE, pas un booléen. Un consentement sans date ne se
+   défend pas : on ne saurait ni quand il a été donné, ni sur quelle version de
+   ce qu'on lui expliquait. La date est la preuve, pas la pastille allumée.
+
+   LE JUGE EST UNIQUE, et tout ce qui publiera ou simulera devra y passer. Une
+   fonctionnalité qui interrogerait le champ directement finirait par oublier
+   l'autre. */
+
+export type QuoiAccorde = 'simulation' | 'vitrine';
+
+export const accordDonneLe = (
+  c: { accordSimulation?: string; accordVitrine?: string },
+  quoi: QuoiAccorde,
+): string | undefined => {
+  const d = quoi === 'simulation' ? c.accordSimulation : c.accordVitrine;
+  return d && d.trim() ? d : undefined;
+};
+
+export const aAccorde = (
+  c: { accordSimulation?: string; accordVitrine?: string },
+  quoi: QuoiAccorde,
+): boolean => accordDonneLe(c, quoi) !== undefined;
 
 /** LA DIASPORA — UN SEUL JUGE, ENFIN (16 août 2026).
 

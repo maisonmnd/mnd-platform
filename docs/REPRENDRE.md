@@ -2,6 +2,56 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## CE QU'ELLE AUTORISE — 6 septembre 2026, PUBLIÉ
+
+Posé **avant** l'outil qui s'en servira. « Créer plus de 100 styles à facturer »
+a mené à « je ne vois pas à quoi ressemblera ma tête selon le modèle » : le vrai
+rendu demande une IA d'image, donc que la photo de la cliente **sorte de la
+Maison**. Arbitrage de Yéman : **le consentement d'abord, l'IA plus tard.**
+
+**Deux accords, pas un** (`accordVitrine`, `accordSimulation`, shared/clients).
+Être montrée dans la vitrine du salon et voir son visage partir vers un service
+étranger ne se demandent pas ensemble : une cliente peut accepter l'un et
+refuser l'autre. Un seul interrupteur lui ferait dire oui à ce qu'elle n'a pas
+lu.
+
+**Ils portent leur date, pas un booléen.** Un consentement sans date ne se
+défend pas : on ne saurait ni quand il a été donné, ni sur quelle version de ce
+qu'on lui expliquait. La date est la preuve, pas la pastille allumée.
+
+**Un seul juge** : `aAccorde(client, 'simulation' | 'vitrine')`. Tout ce qui
+publiera ou simulera devra y passer — une fonctionnalité qui interrogerait le
+champ directement finirait par oublier l'autre.
+
+### Ce qui reste à décider pour l'IA
+
+Un compte chez un service d'images, une clé **dans un secret de fonction Edge**
+(le dépôt est public, et la clé ne doit jamais arriver à l'assistant non plus),
+un coût par image, et un filigrane « simulation » sur le rendu : il ne sera
+jamais elle exactement, et une cliente déçue aurait raison.
+
+## LES STYLES DE LA MAISON — 6 septembre 2026, MAQUETTE À VALIDER
+
+`public/maquette-les-styles.html` — **122 styles** sur locks, dix familles,
+aucun doublon. **La technique vit dans la famille, le tracé dans le style** :
+une torsade plate se fait pareil qu'on la pose en couronne ou en diagonale ;
+écrire 122 fois les mêmes quatre gestes aurait garanti que le 90ᵉ soit faux.
+
+**Trois paliers de prix** (arbitrage) : simple, travaillé, cérémonie. Les
+montants affichés sont des placeholders — le palier est la décision, le prix un
+champ. L'outil doit vivre **au Trône, sur Ma Couronne et dans la modale du
+rendez-vous** (arbitrage).
+
+**Le schéma de chaque style est dessiné à la main** (tête vue du dessus,
+séparations, sens du mouvement) : aucune photo n'est fabriquée, et les
+emplacements attendent les réalisations de la Maison, jamais celles d'un autre
+salon. **Le volet** montre sa photo sous celle du style, avec une ligne qui
+glisse : il ne fabrique rien, et la cliente sait ce qu'elle regarde.
+
+**Les photos seront réduites à 1000 px et iront au coffre de fichiers**, jamais
+en base64 dans les lignes : 122 styles à trois photos referaient exactement la
+panne de quota du 29 août (98,5 % du trafic était des photos de fiches).
+
 ## UN SEUL INTERRUPTEUR POUR LA DIASPORA — 6 septembre 2026, PUBLIÉ
 
 « Vit ailleurs et Diaspora ont la même fonctionnalité ? » (Yéman). **Oui**, et

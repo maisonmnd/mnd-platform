@@ -8,7 +8,7 @@ import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -3814,6 +3814,49 @@ function Customer360({
               >
                 Poser le prix
               </Button>
+            </div>
+          </div>
+
+          {/* ══ CE QU'ELLE AUTORISE — 6 septembre 2026 ═══════════════════
+              Posé AVANT l'outil qui s'en servira : le rendu par intelligence
+              artificielle enverrait sa photo hors de la Maison, et cette
+              décision-là se prend une fois, calmement, pas au moment où
+              quelqu'un veut essayer un bouton.
+
+              DEUX ACCORDS, PAS UN. Être montrée dans la vitrine du salon et
+              voir son visage partir vers un service étranger ne se demandent
+              pas ensemble. Un seul interrupteur lui ferait dire oui à ce
+              qu'elle n'a pas lu.
+
+              ILS PORTENT LEUR DATE : un consentement sans date ne se défend
+              pas. C'est elle, la preuve, pas la pastille allumée. */}
+          <div>
+            <span className="trc-microlabel">Ce qu’elle autorise</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`trc-chip ${aAccorde(client, 'vitrine') ? 'is-active' : ''}`}
+                title="Sa photo peut être montrée : vitrine, Ma Couronne, réseaux de la Maison."
+                onClick={() => patch({ accordVitrine: aAccorde(client, 'vitrine') ? undefined : todayISO() })}
+              >
+                Montrer sa photo
+              </button>
+              <button
+                type="button"
+                className={`trc-chip ${aAccorde(client, 'simulation') ? 'is-active' : ''}`}
+                title="Sa photo peut servir à une simulation de coiffure. Elle sortirait alors de la Maison vers un service extérieur."
+                onClick={() => patch({ accordSimulation: aAccorde(client, 'simulation') ? undefined : todayISO() })}
+              >
+                Simulation de coiffure
+              </button>
+            </div>
+            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {aAccorde(client, 'vitrine') || aAccorde(client, 'simulation')
+                ? [
+                  aAccorde(client, 'vitrine') ? `Montrer sa photo, accordé le ${frShort(client.accordVitrine!)}.` : '',
+                  aAccorde(client, 'simulation') ? `Simulation, accordé le ${frShort(client.accordSimulation!)}.` : '',
+                ].filter(Boolean).join(' ')
+                : 'Rien d’accordé. Sa photo ne sort pas de sa fiche.'}
             </div>
           </div>
 
