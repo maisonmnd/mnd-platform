@@ -694,6 +694,72 @@
   border-bottom: 1px solid var(--hairline); }
 @media (max-width: 760px) { .trp-liste__t { padding-left: 20px; } }
 
+/* ══ LA CADENCE DANS LA MAIN — 6 septembre 2026 ═══════════════════════
+
+   « Je ne vois pas bien sur la cadence version mobile » (Yéman), photo à
+   l'appui : le nom de la cliente ÉCRIT PAR-DESSUS sa cadence.
+
+   POURQUOI. « Celles qui ont glissé » est une grille `1fr auto auto`, et les
+   deux colonnes auto ne se compriment pas : « toutes les ~2 semaines ·
+   confiance faible » est en `nowrap`, il réclame 250 px à lui seul. Sur un
+   téléphone il ne restait rien pour le nom, qui débordait sur le reste.
+
+   Une largeur `auto` sur un texte long est un pari qu'on perd toujours sur le
+   plus petit écran, et c'est là que la Maison lit ses listes : le carnet se
+   consulte debout, entre deux têtes.
+
+   DEUX LIGNES PLUTÔT QU'UNE. Le nom et le retard en haut, ce sont eux qu'on
+   cherche ; la cadence dessous, elle explique. Le bouton reste à droite, sur
+   toute la hauteur : c'est le geste, il ne se cache pas. */
+@media (max-width: 760px) {
+  .trp-glisse {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    align-items: center;
+  }
+  .trp-glisse__ouvre {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'nom jours' 'cadence cadence';
+    row-gap: 2px;
+    column-gap: 10px;
+    padding: 11px 0;
+  }
+  .trp-glisse__ouvre > .trp-break__label { grid-area: nom; font-size: 14px; }
+  .trp-glisse__ouvre > .trp-break__num { grid-area: jours; justify-self: end; }
+  /* IL CESSE D'ÊTRE INSÉCABLE : c'est lui qui poussait le nom dehors. */
+  .trp-glisse__ouvre > .trp-break__count { grid-area: cadence; white-space: normal; }
+  .trp-glisse__marque { align-self: center; }
+
+  /* Les mêmes trois enfants servent ailleurs, et s'y écrasaient pareil. */
+  .trp-break__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'nom nombre' 'compte compte';
+    row-gap: 2px;
+    column-gap: 10px;
+  }
+  .trp-break__row > .trp-break__label { grid-area: nom; }
+  .trp-break__row > .trp-break__num { grid-area: nombre; justify-self: end; }
+  .trp-break__row > .trp-break__count { grid-area: compte; white-space: normal; }
+
+  /* LES BARRES : « Confiance moyenne » ne tient pas dans 96 px, il était coupé
+     net. La colonne se rétrécit, le mot passe à la ligne. */
+  .trp-bar { grid-template-columns: minmax(0, 88px) 1fr 30px; gap: 8px; }
+  .trp-bar__label { font-size: 11px; line-height: 1.35; }
+}
+
+/* LES HISTOGRAMMES NE S'ÉCRASENT PLUS : douze mois dans une paume font des
+   colonnes de vingt pixels, et les étiquettes se chevauchent. Chaque colonne
+   garde sa largeur lisible et la carte défile sous le doigt, plutôt que de
+   rendre le graphique illisible pour éviter un geste. */
+@media (max-width: 620px) {
+  .trp-hist { overflow-x: auto; overflow-y: hidden; gap: 5px; padding-bottom: 4px; }
+  .trp-hist__col { flex: 1 0 34px; }
+  .trp-card { padding: 14px 14px; }
+  .trp-hist__x { font-size: 9px; }
+  .trp-legende { gap: 10px; }
+}
+
 /* CELLES QUI VIVENT AILLEURS — une ligne, un chiffre. Un nombre qui baisse
    sans raison visible se lit comme une perte de données. */
 .trp-hors { margin-top: 14px; font-family: var(--font-sans); font-size: 12px;
