@@ -207,34 +207,69 @@ export type JourFavori = {
 
 type VenueLue = { clientId: string; date: string; status?: string };
 
-/** LE NOMBRE DE VENUES SOUS LEQUEL ON NE CONCLUT RIEN. */
-export const VENUES_POUR_UN_JOUR = 4;
+/** ══ LA RÈGLE DE LA MAISON — 6 septembre 2026 ══════════════════════
 
-/** SON JOUR, s'il se dégage. `undefined` quand rien n'est net : le silence est
-    une réponse, une supposition n'en est pas une. */
+    « Pour le jour à trancher, le Trône tranche avec une prédominance des jours
+    favoris selon les derniers mois. Il faut écrire une règle pour la Maison
+    pour toujours remplir un jour » (Yéman).
+
+    JE REFUSAIS DE TRANCHER, LA MAISON DEMANDE QU'ON TRANCHE. Mon premier
+    moteur laissait le champ vide dès qu'un doute existait : deux jours à
+    égalité, un jour trop dispersé, moins de quatre venues. Résultat, presque
+    aucune tête n'avait de jour, et la prédiction tombait n'importe où — ce qui
+    est PIRE qu'un jour imparfait.
+
+    LES VENUES RÉCENTES PÈSENT PLUS LOURD. C'est ce qui tranche les égalités
+    sans qu'on ait à inventer une seconde règle : une tête qui venait le mardi
+    l'an dernier et le jeudi depuis six mois est une tête du jeudi. Le poids
+    décroît doucement, `1 / (1 + mois)` — pas de seuil, donc pas de bascule
+    brutale d'un jour à l'autre quand une venue passe une date ronde.
+
+    TROIS VENUES HONORÉES AVANT DE CONCLURE — arbitrage de la Maison du
+    6 septembre, après un premier seuil à quatre. En dessous, le champ reste
+    vide et l'écran dit pourquoi : deux venues ne font pas une prédominance,
+    elles font une coïncidence. Au-delà, on tranche TOUJOURS. */
+export const VENUES_POUR_UN_JOUR = 3;
+
+/** Le poids d'une venue selon son âge. Aujourd'hui vaut 1, il y a un an 0,5,
+    il y a deux ans 0,33 : le passé compte, mais il ne commande plus. */
+const poidsDeLaVenue = (iso: string, aujourdhui: string): number => {
+  const j = (Date.parse(`${aujourdhui}T00:00:00`) - Date.parse(`${iso}T00:00:00`)) / 86400000;
+  const mois = Math.max(0, j) / 30.4;
+  return 1 / (1 + mois / 12);
+};
+
+/** SON JOUR. `undefined` seulement quand aucune venue n'a été honorée. */
 export function jourFavoriDe(
   venues: readonly VenueLue[],
   clientId: string,
+  aujourdhui?: string,
 ): JourFavori | undefined {
+  const jour0 = aujourdhui ?? new Date().toISOString().slice(0, 10);
   const siennes = venues.filter((a) => a.clientId === clientId && a.status === 'honoré');
   if (siennes.length < VENUES_POUR_UN_JOUR) return undefined;
   const compte = new Array(7).fill(0) as number[];
+  const poids = new Array(7).fill(0) as number[];
+  /* LE JOUR DE LA DERNIÈRE VENUE, gardé pour l'ultime départage : à poids
+     rigoureusement égal — deux venues le même jour de la semaine à des dates
+     symétriques — c'est la plus récente qui parle. */
+  let dernierJour = -1;
+  let dernierIso = '';
   for (const a of siennes) {
     const d = new Date(`${a.date}T00:00:00`);
     if (Number.isNaN(d.getTime())) continue;
     compte[d.getDay()] += 1;
+    poids[d.getDay()] += poidsDeLaVenue(a.date, jour0);
+    if (a.date > dernierIso) { dernierIso = a.date; dernierJour = d.getDay(); }
   }
   const total = compte.reduce((n, x) => n + x, 0);
-  if (total < VENUES_POUR_UN_JOUR) return undefined;
+  if (total === 0) return undefined;
   let jour = 0;
-  for (let i = 1; i < 7; i += 1) if (compte[i] > compte[jour]) jour = i;
-  const fois = compte[jour];
-  /* À ÉGALITÉ, AUCUN. Deux jours qui se valent ne désignent pas un favori, et
-     trancher reviendrait à décider pour elle. */
-  const second = compte.filter((_, i) => i !== jour).reduce((m, x) => Math.max(m, x), 0);
-  if (fois === second) return undefined;
-  if (fois * 2 < total) return undefined;
-  return { jour, fois, total };
+  for (let i = 1; i < 7; i += 1) {
+    if (poids[i] > poids[jour] + 1e-9) jour = i;
+    else if (Math.abs(poids[i] - poids[jour]) <= 1e-9 && i === dernierJour) jour = i;
+  }
+  return { jour, fois: compte[jour], total };
 }
 
 /** CE QUE LE CARNET DIT DE SES JOURS — avec la raison quand rien ne se dégage.
@@ -251,54 +286,48 @@ export type LectureDuJour = {
   rituels: number;
   /** Le jour le plus fréquent, même quand il ne suffit pas. */
   tete?: { jour: number; fois: number };
-  raison?: 'trop-peu' | 'egalite' | 'disperse';
+  /** LA SEULE ABSTENTION QUI SUBSISTE : pas encore trois venues honorées. */
+  raison?: 'trop-peu';
 };
 
 export function litSonJour(
   venues: readonly { clientId: string; date: string; status?: string }[],
   clientId: string,
+  aujourdhui?: string,
 ): LectureDuJour {
   const siens = venues.filter((a) => a.clientId === clientId);
   const honorees = siens.filter((a) => a.status === 'honoré');
-  const base = { honorees: honorees.length, rituels: siens.length };
-  const compte = new Array(7).fill(0) as number[];
-  for (const a of honorees) {
-    const d = new Date(`${a.date}T00:00:00`);
-    if (!Number.isNaN(d.getTime())) compte[d.getDay()] += 1;
-  }
-  let jour = 0;
-  for (let i = 1; i < 7; i += 1) if (compte[i] > compte[jour]) jour = i;
-  const fois = compte[jour];
-  const tete = fois > 0 ? { jour, fois } : undefined;
-
-  if (honorees.length < VENUES_POUR_UN_JOUR) return { ...base, tete, raison: 'trop-peu' };
-  const second = compte.filter((_, i) => i !== jour).reduce((m, x) => Math.max(m, x), 0);
-  if (fois === second) return { ...base, tete, raison: 'egalite' };
-  if (fois * 2 < honorees.length) return { ...base, tete, raison: 'disperse' };
-  return { ...base, tete, favori: { jour, fois, total: honorees.length } };
+  const favori = jourFavoriDe(honorees, clientId, aujourdhui);
+  return {
+    honorees: honorees.length,
+    rituels: siens.length,
+    tete: favori ? { jour: favori.jour, fois: favori.fois } : undefined,
+    favori,
+    raison: favori ? undefined : 'trop-peu',
+  };
 }
 
 /** LA RAISON, EN FRANÇAIS. `nomDuJour` sert quand un jour se détache sans
     suffire — le nommer évite de chercher lequel. */
 export const diraPourquoiPasDeJour = (l: LectureDuJour, nomDuJour?: string): string => {
-  if (l.raison === 'trop-peu') {
-    return l.rituels > l.honorees
-      ? `${l.rituels} rendez-vous, dont ${l.honorees} honoré${l.honorees > 1 ? 's' : ''}. Il en faut ${VENUES_POUR_UN_JOUR} rendus pour conclure.`
-      : `${l.honorees} venue${l.honorees > 1 ? 's' : ''} honorée${l.honorees > 1 ? 's' : ''}. Il en faut ${VENUES_POUR_UN_JOUR}.`;
+  if (l.raison !== 'trop-peu') return '';
+  void nomDuJour;
+  const manque = VENUES_POUR_UN_JOUR - l.honorees;
+  if (l.honorees === 0) {
+    return l.rituels > 0
+      ? `${l.rituels} rendez-vous, aucun encore honoré. Son jour se lira à sa ${VENUES_POUR_UN_JOUR}ᵉ venue.`
+      : `Aucune venue honorée. Son jour se lira à sa ${VENUES_POUR_UN_JOUR}ᵉ.`;
   }
-  if (l.raison === 'egalite') {
-    return 'Deux jours reviennent autant. La Maison tranche, pas le Trône.';
-  }
-  if (l.raison === 'disperse') {
-    return `${nomDuJour ?? 'Son jour le plus fréquent'} ${l.tete?.fois ?? 0} fois sur ${l.honorees} : elle vient quand elle peut.`;
-  }
-  return '';
+  return `${l.honorees} venue${l.honorees > 1 ? 's' : ''} honorée${l.honorees > 1 ? 's' : ''} sur ${VENUES_POUR_UN_JOUR}. Encore ${manque} et son jour se lira.`;
 };
 
 /** EN CLAIR, pour que la fiche dise D'OÙ vient la proposition. Une valeur posée
     sans sa raison ne se conteste pas : on la subit ou on l'efface. */
-export const diraLeJourFavori = (f: JourFavori, nomDuJour: string): string =>
-  `Elle vient le ${nomDuJour.toLowerCase()} ${f.fois} fois sur ${f.total}.`;
+export const diraLeJourFavori = (f: JourFavori, nomDuJour: string): string => {
+  const j = nomDuJour.toLowerCase();
+  if (f.fois === f.total) return `Elle vient toujours le ${j}, ${f.total} fois sur ${f.total}.`;
+  return `Elle vient le ${j} ${f.fois} fois sur ${f.total}, et le plus souvent ces derniers mois.`;
+};
 
 /** LES RYTHMES DE LA MAISON, en semaines — 3 septembre 2026.
 

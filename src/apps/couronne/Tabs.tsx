@@ -18,7 +18,7 @@ import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { serieDesComptages } from '../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from '../../ds/courbes';
-import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, etapesPourLaTete, MOT_DE_L_ETAT } from '../../shared/protocoles';
+import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, protocoleNatif, etapesPourLaTete, MOT_DE_L_ETAT } from '../../shared/protocoles';
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
@@ -770,8 +770,8 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   /* LES MEMES PROTOCOLES QU'AU TRONE, avec SON ecart : deux sources donneraient
      deux calendriers pour une seule couronne, et c'est elle qui les compare. */
   const [lesProtocoles] = useProtocoles();
-  const etapesCouleur = etapesPourLaTete(lesProtocoles.couleur, client?.ecartProtocole?.couleur);
-  const etapesPousse = etapesPourLaTete(lesProtocoles.pousse, client?.ecartProtocole?.pousse);
+  const etapesCouleur = etapesPourLaTete(protocoleNatif(lesProtocoles, 'couleur').etapes, client?.ecartProtocole?.couleur);
+  const etapesPousse = etapesPourLaTete(protocoleNatif(lesProtocoles, 'pousse').etapes, client?.ecartProtocole?.pousse);
   /* DU CODE DE L'ÉTAPE À SA PRESTATION, à sa longueur. Le protocole nomme un
      soin par son code nu ; le catalogue en tient trois, une par longueur. */
   const prestationDeLEtape = (code: string) => {

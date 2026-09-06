@@ -28,7 +28,7 @@ import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from '../../../../ds/courbes';
-import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, etapesPourLaTete, aSonEcart, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
+import { derniereCouleur, dernierDeclencheur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, protocoleNatif, protocolesDeLaTete, etapesPourLaTete, aSonEcart, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -1902,6 +1902,7 @@ function Customer360({
      on ne sait pas si le Trône n'a pas cherché ou s'il attend autre chose. */
   const lectureDuJour = useMemo(() => litSonJour(appts, client.id), [appts, client.id]);
   const jourFavori = lectureDuJour.favori;
+
   useEffect(() => {
     if (!jourFavori || client.jourPose || client.jourPrefere !== undefined) return;
     patch({ jourPrefere: jourFavori.jour });
@@ -1910,8 +1911,19 @@ function Customer360({
   /* LES PROTOCOLES DE LA MAISON, decales par SON ecart s'il existe. Une
      seule source pour le Trone et Ma Couronne. */
   const [lesProtocoles] = useProtocoles();
-  const etapesCouleur = etapesPourLaTete(lesProtocoles.couleur, client.ecartProtocole?.couleur);
-  const etapesPousse = etapesPourLaTete(lesProtocoles.pousse, client.ecartProtocole?.pousse);
+  const etapesCouleur = etapesPourLaTete(protocoleNatif(lesProtocoles, 'couleur').etapes, client.ecartProtocole?.couleur);
+  const etapesPousse = etapesPourLaTete(protocoleNatif(lesProtocoles, 'pousse').etapes, client.ecartProtocole?.pousse);
+  /* LES PROTOCOLES ÉCRITS PAR LA MAISON qui concernent cette tête, et ceux
+     qu'il reste à lui poser. Les deux natifs n'y sont pas : ils ont leur
+     propre mécanique d'ouverture, plus haut. */
+  const protosLibres = useMemo(
+    () => protocolesDeLaTete(lesProtocoles, client.protocolesPoses),
+    [lesProtocoles, client.protocolesPoses],
+  );
+  const aPoser = useMemo(
+    () => lesProtocoles.filter((x) => !x.natif && !client.protocolesPoses?.[x.id]),
+    [lesProtocoles, client.protocolesPoses],
+  );
   const [cptCm, setCptCm] = useState('');
   /* ══ REPRENDRE UN COMPTAGE — 5 septembre 2026 ═════════════════════
      « Éditer la note de comptage de locks au besoin » (Yéman).
@@ -4147,7 +4159,7 @@ function Customer360({
             const restent = etapes.filter((e) => e.etat !== 'fait').length;
             /* SA CADENCE À ELLE. Les jours de la Maison, ou les siens : on
                écrit un tableau parallèle aux étapes, jamais les soins. */
-            const maison = cle === 'pousse' ? lesProtocoles.pousse : lesProtocoles.couleur;
+            const maison = protocoleNatif(lesProtocoles, cle === 'pousse' ? 'pousse' : 'couleur').etapes;
             const sien = cle ? (client.ecartProtocole?.[cle] ?? []) : [];
             const ecarte = !!cle && aSonEcart(maison, sien);
             const poseLEcart = (i: number, j: number) => {
@@ -4368,6 +4380,76 @@ function Customer360({
                     </div>
                   </div>
                 )}
+
+              {/* ══ LES PROTOCOLES QUE LA MAISON ÉCRIT ════════════════════
+                  « Allow me to add new protocoles and attribute it to
+                  clients » (6 septembre 2026).
+
+                  UN PROTOCOLE S'OUVRE DE DEUX FAÇONS, jamais d'une troisième :
+                  la Maison l'a POSÉ sur cette tête, ou l'une de ses prestations
+                  déclenchantes a été honorée. Un protocole qui s'ouvrirait tout
+                  seul sur toutes les têtes noierait les vraies échéances sous
+                  des rappels que personne n'a demandés. */}
+              {protosLibres.map((pr) => {
+                const poseIso = client.protocolesPoses?.[pr.id];
+                const parLeSoin = pr.declencheurs.length > 0
+                  ? dernierDeclencheur(appts, client.id, byId, pr.declencheurs)
+                  : undefined;
+                /* LA DATE POSÉE PASSE AVANT LE SOIN : la Maison a décidé, et une
+                   décision bat une déduction. */
+                const depart = poseIso
+                  ? ({ ...(parLeSoin ?? couleur ?? appts[0]), date: poseIso } as Appointment)
+                  : parLeSoin;
+                if (!depart) return null;
+                return (
+                  <div key={pr.id}>
+                    {rendre(pr.nom, depart, suivreLeProtocole({
+                      couleur: depart, appts, byId, aujourdhui: today, etapes: pr.etapes,
+                    }))}
+                    {poseIso && (
+                      <button
+                        type="button"
+                        className="tre-link-btn"
+                        onClick={() => {
+                          const reste = { ...(client.protocolesPoses ?? {}) };
+                          delete reste[pr.id];
+                          patch({ protocolesPoses: Object.keys(reste).length > 0 ? reste : undefined });
+                          toast(`${pr.nom} refermé pour elle.`);
+                        }}
+                      >
+                        Refermer {pr.nom.toLowerCase()}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* POSER UN PROTOCOLE SUR ELLE. Il n'apparaît que s'il en reste
+                  un à poser : un sélecteur vide fait chercher ce qui n'existe
+                  pas. */}
+              {aPoser.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <span className="trc-microlabel">Lui poser un protocole</span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Select
+                      value=""
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        const nom = lesProtocoles.find((x) => x.id === e.target.value)?.nom ?? 'Protocole';
+                        patch({ protocolesPoses: { ...(client.protocolesPoses ?? {}), [e.target.value]: progJour || today } });
+                        toast(`${nom} ouvert pour elle au ${frJourAn(progJour || today)}.`);
+                      }}
+                      style={{ flex: '1 1 240px' }}
+                    >
+                      <option value="">— choisir un protocole —</option>
+                      {aPoser.map((pr) => <option key={pr.id} value={pr.id}>{pr.nom}</option>)}
+                    </Select>
+                    <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                      il s’ouvrira au {frJourAn(progJour || today)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </>
           );
         })()}

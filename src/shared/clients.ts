@@ -167,6 +167,16 @@ export type Client = {
       jour » le verrait se remplir à nouveau à la visite suivante, sans
       comprendre pourquoi. Vrai dès qu'une main touche le sélecteur. */
   jourPose?: boolean;
+  /** LES PROTOCOLES QUE LA MAISON LUI A POSÉS — 6 septembre 2026.
+
+      « Allow me to add new protocoles and attribute it to clients. » La
+      clé est l'identifiant du protocole, la valeur le jour où il s'ouvre
+      pour elle. Un protocole sans date posée ne la concerne pas, à moins
+      qu'une de ses prestations déclenchantes n'ait été honorée.
+
+      `programmeDepuis` reste à part : c'est l'ouverture du programme de
+      pousse, née avant cette liste, et trois écrans la lisent déjà. */
+  protocolesPoses?: Record<string, string>;
   /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
       tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.

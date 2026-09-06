@@ -113,6 +113,28 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## DES PROTOCOLES EN NOMBRE LIBRE — 6 septembre 2026, PUBLIÉ
+
+« Allow me to add new protocoles and attribute it to clients » (Yéman).
+
+`LesProtocoles` devient une **liste** de `Protocole { id, nom, declencheurs,
+etapes, natif? }`. Catalogue › Les protocoles : **« + Un protocole »**, nom,
+étapes, et les prestations qui l'ouvrent.
+
+**Un protocole neuf naît sans déclencheur** : il ne s'ouvre que sur les têtes où
+la Maison le pose. Lui en donner un d'office l'ouvrirait d'un coup sur toutes
+celles qui ont pris ce soin, y compris il y a deux ans.
+
+**L'attribution** est sur la fiche, Parcours : `Client.protocolesPoses`
+(id → jour d'ouverture). **La date posée passe avant le soin déclencheur** — une
+décision bat une déduction. Les deux natifs **ne se suppriment pas** : trop
+d'écrans s'y appuient, et une tête en cours perdrait ses échéances sans un mot.
+
+**La reprise de l'ancienne forme se fait à la LECTURE** (`litLesProtocoles`),
+jamais par une migration : une migration ne s'exécute qu'une fois, sur un poste,
+et les autres appareils liraient une forme qu'ils ne comprennent pas jusqu'à
+leur prochaine descente.
+
 ## SON JOUR, LU DE SES VENUES — 6 septembre 2026, PUBLIÉ
 
 « Préciser le jour du RDV à côté de la date, pour mesurer quel jour un client
@@ -123,11 +145,22 @@ dans sa fiche, et ajuster pour que la cadence tombe dessus » (Yéman).
 champ attendait une main, restait vide sur presque toutes les têtes, et la
 prédiction tombait n'importe quel jour — y compris ceux où elle ne vient jamais.
 
-`jourFavoriDe` (`shared/cadence`), **onze épreuves**, trois gardes : seules les
-venues **honorées** comptent (un rituel annulé dit le contraire de ce qu'elle
-aime) · **quatre venues au moins** (sur trois, deux mardis font 67 % et c'est le
-comptoir qui a proposé) · **la moitié, et devant le second** (à égalité, choisir
-serait décider à sa place).
+### La règle de la Maison — révisée le 6 septembre
+
+**Je m'abstenais, la Maison demande qu'on tranche.** Mon premier moteur laissait
+le champ vide au moindre doute — égalité, dispersion, moins de quatre venues — et
+presque aucune tête n'avait de jour : la prédiction tombait n'importe où, **ce
+qui est pire qu'un jour imparfait.**
+
+**Les venues récentes pèsent plus lourd**, `1 / (1 + mois/12)` : aujourd'hui
+vaut 1, il y a un an 0,5, il y a deux ans un tiers. Pas de seuil, donc pas de
+bascule brutale quand une venue franchit une date ronde. **C'est ce mécanisme
+unique qui tranche les égalités** — deux mardis anciens et deux jeudis récents
+font une tête du jeudi (le cas de Baké), sans qu'il faille une seconde règle.
+
+**Trois venues honorées** avant de conclure (arbitrage, après un premier seuil à
+quatre). En dessous, l'écran dit combien il en manque. Seules les venues
+**honorées** comptent : un rituel annulé dit le contraire de ce qu'elle aime.
 
 **La déduction ne revient jamais sur une décision** : elle ne se pose que sur une
 fiche muette et se tait dès qu'une main touche le sélecteur (`Client.jourPose`).

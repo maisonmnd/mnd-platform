@@ -274,15 +274,78 @@ export function poseLeProtocoleAuCatalogue(): string[] {
    Maison touche une ligne, c'est le magasin qui fait foi, ici comme dans Ma
    Couronne. Une seule source, deux applications. */
 
-export type LesProtocoles = { couleur: EtapeProtocole[]; pousse: EtapeProtocole[] };
+/** UN PROTOCOLE DE LA MAISON — 6 septembre 2026.
 
-export const protocolesStore = createStore<LesProtocoles>('mnd_protocoles', {
-  couleur: PROTOCOLE_COULEUR,
-  pousse: PROTOCOLE_POUSSE,
-});
+    « Allow me to add new protocoles and attribute it to clients » (Yéman).
+    Deux suites fixes devaient devenir une liste : la Maison en écrit d'autres,
+    et les pose sur les têtes qu'elle veut. */
+export type Protocole = {
+  id: string;
+  nom: string;
+  /** LES CODES QUI L'OUVRENT quand la prestation est honorée. Vide : il ne
+      s'ouvre que sur les têtes où la Maison le pose — c'est le cas d'un
+      programme qu'on décide, pas qu'on déclenche. */
+  declencheurs: string[];
+  etapes: EtapeProtocole[];
+  /** LES DEUX D'ORIGINE gardent leur mécanique d'ouverture : la couleur par
+      ses codes, la pousse par la date que la Maison pose ou par son VÍVÍVÓ™.
+      Elles ne se suppriment pas — trop d'écrans s'y appuient. */
+  natif?: 'couleur' | 'pousse';
+};
+
+export type LesProtocoles = Protocole[];
+
+export const PROTOCOLES_SEED: LesProtocoles = [
+  { id: 'couleur', nom: 'Après une couleur', declencheurs: [...CODES_COULEUR], etapes: PROTOCOLE_COULEUR, natif: 'couleur' },
+  { id: 'pousse', nom: 'Le programme de pousse', declencheurs: [...CODES_POUSSE], etapes: PROTOCOLE_POUSSE, natif: 'pousse' },
+];
+
+/** LA REPRISE DE L'ANCIENNE FORME, À LA LECTURE.
+
+    Le document synchronisé porte peut-être encore `{ couleur, pousse }` — la
+    forme d'hier. On la reconnaît et on la déplie ici, plutôt que de lancer une
+    migration : une migration ne s'exécute qu'une fois, sur un poste, et les
+    autres liraient une forme qu'ils ne comprennent pas jusqu'à leur prochaine
+    descente. */
+export const litLesProtocoles = (brut: unknown): LesProtocoles => {
+  if (Array.isArray(brut)) {
+    const vus = brut.filter((x): x is Protocole => !!x && typeof x === 'object' && Array.isArray((x as Protocole).etapes));
+    /* LES DEUX NATIFS NE DISPARAISSENT JAMAIS : un document ancien ou abîmé ne
+       doit pas priver la Maison de ses deux suites d'origine. */
+    for (const semence of PROTOCOLES_SEED) {
+      if (!vus.some((p2) => p2.id === semence.id)) vus.push({ ...semence });
+    }
+    return vus;
+  }
+  const o = brut as { couleur?: EtapeProtocole[]; pousse?: EtapeProtocole[] } | null;
+  return PROTOCOLES_SEED.map((semence) => ({
+    ...semence,
+    etapes: (semence.natif && o?.[semence.natif]) ? o[semence.natif]! : semence.etapes,
+  }));
+};
+
+export const protocolesStore = createStore<LesProtocoles>('mnd_protocoles', PROTOCOLES_SEED);
 bindDocument(protocolesStore, 'mnd_protocoles');
 
-export const useProtocoles = () => useStore(protocolesStore);
+export const useProtocoles = (): [LesProtocoles, (m: (p: LesProtocoles) => LesProtocoles) => void] => {
+  const [brut, set] = useStore(protocolesStore);
+  return [litLesProtocoles(brut), set];
+};
+
+/** L'UNE DES DEUX SUITES D'ORIGINE, par sa nature. */
+export const protocoleNatif = (liste: LesProtocoles, quoi: 'couleur' | 'pousse'): Protocole =>
+  liste.find((p2) => p2.natif === quoi) ?? PROTOCOLES_SEED.find((p2) => p2.natif === quoi)!;
+
+/** LES PROTOCOLES QUI CONCERNENT UNE TÊTE.
+
+    UN PROTOCOLE S'OUVRE DE DEUX FAÇONS, jamais d'une troisième : la Maison l'a
+    POSÉ sur elle, ou l'une de ses prestations déclenchantes a été HONORÉE. Un
+    protocole qui s'ouvrirait tout seul sur toutes les têtes noierait les vraies
+    échéances sous des rappels que personne n'a demandés. */
+export const protocolesDeLaTete = (
+  liste: LesProtocoles,
+  poses: Record<string, string> | undefined,
+): Protocole[] => liste.filter((p2) => !p2.natif && (!!poses?.[p2.id] || p2.declencheurs.length > 0));
 
 /** LES ÉTAPES D'UNE TÊTE — celles de la Maison, décalées si elle a son écart.
 

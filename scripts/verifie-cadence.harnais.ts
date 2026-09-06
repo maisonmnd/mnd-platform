@@ -306,62 +306,91 @@ dit('elle garde son samedi', 6,
 dit('la reprise ne depend que du rituel', dateDeLaReprise('2026-09-01', 6),
   dateDeLaReprise('2026-09-01', 6));
 
-/* ── LE JOUR QU'ELLE PRÉFÈRE — 6 septembre 2026 ───────────────────
-   Il va ÉCRIRE sur une fiche, et commander la prédiction : une coïncidence
-   prise pour une habitude poserait tous ses rendez-vous le mauvais jour. */
+/* ── LA RÈGLE DU JOUR — 6 septembre 2026 ──────────────────────────
+   « Le Trône tranche avec une prédominance des jours favoris selon les
+   derniers mois. Il faut écrire une règle pour toujours remplir un jour »
+   (Yéman).
+
+   JE M'ABSTENAIS, LA MAISON DEMANDE QU'ON TRANCHE. Le premier moteur laissait
+   le champ vide au moindre doute, et presque aucune tête n'avait de jour : la
+   prédiction tombait n'importe où, ce qui est PIRE qu'un jour imparfait.
+
+   LE JOUR EST FIXÉ dans le harnais : le poids dépend de l'âge des venues, un
+   test qui lirait l'horloge changerait de réponse avec le temps. */
+const AUJ = '2026-09-06';
 const v = (date: string, status = 'honoré', clientId = 'cl-1') => ({ clientId, date, status });
 
-/* 2026-09-08 est un MARDI. Les mardis suivants : 15, 22, 29. */
+/* 2026-09-08 est un MARDI ; 2026-09-10 un JEUDI. */
 const mardis = [v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29')];
-dit('quatre mardis font un mardi', { jour: 2, fois: 4, total: 4 }, jourFavoriDe(mardis, 'cl-1'));
+dit('quatre mardis font un mardi', { jour: 2, fois: 4, total: 4 }, jourFavoriDe(mardis, 'cl-1', AUJ));
 
-/* TROIS VENUES NE PROUVENT RIEN : deux mardis sur trois font 67 %, et c'est
-   le comptoir qui a proposé mardi, pas elle qui l'a choisi. */
-dit('trois venues ne concluent pas', undefined,
-  jourFavoriDe([v('2026-09-08'), v('2026-09-15'), v('2026-09-09')], 'cl-1'));
+/* TROIS VENUES HONORÉES AVANT DE CONCLURE — arbitrage de la Maison, après un
+   premier seuil à quatre. Deux venues ne font pas une prédominance. */
+dit('deux venues ne concluent pas', undefined,
+  jourFavoriDe([v('2026-09-08'), v('2026-09-15')], 'cl-1', AUJ));
+dit('… et l’écran dit combien il en manque',
+  '2 venues honorées sur 3. Encore 1 et son jour se lira.',
+  diraPourquoiPasDeJour(litSonJour([v('2026-09-08'), v('2026-09-15')], 'cl-1', AUJ)));
+dit('trois suffisent', { jour: 2, fois: 3, total: 3 },
+  jourFavoriDe([v('2026-09-08'), v('2026-09-15'), v('2026-09-22')], 'cl-1', AUJ));
 
-/* À ÉGALITÉ, AUCUN : deux jours qui se valent ne désignent pas un favori. */
-dit('deux jours à égalité, aucun', undefined, jourFavoriDe(
-  [v('2026-09-08'), v('2026-09-15'), v('2026-09-09'), v('2026-09-16')], 'cl-1'));
+/* L'ÉGALITÉ SE TRANCHE PAR LA RÉCENCE — le cas de Baké. Deux mardis anciens,
+   deux jeudis récents : c'est une tête du jeudi. Quatre venues, donc au-dessus
+   du seuil : la règle s'applique. */
+dit('l’égalité se tranche par les derniers mois', 4, jourFavoriDe([
+  v('2025-03-04'), v('2025-03-11'),
+  v('2026-08-06'), v('2026-08-13'),
+], 'cl-1', AUJ)?.jour);
+/* ET DANS L'AUTRE SENS, pour prouver que ce n'est pas l'ordre qui décide. */
+dit('… et dans l’autre sens aussi', 2, jourFavoriDe([
+  v('2025-03-06'), v('2025-03-13'),
+  v('2026-08-04'), v('2026-08-11'),
+], 'cl-1', AUJ)?.jour);
 
-/* LA MOITIÉ AU MOINS. Trois mardis sur huit, c'est le jour le plus fréquent
-   sans être SON jour. */
-dit('le plus fréquent ne suffit pas', undefined, jourFavoriDe([
+/* UN JOUR DISPERSÉ SE POSE QUAND MÊME : trois mardis sur huit, c'est le plus
+   fréquent, et un jour imparfait vaut mieux qu'aucun. */
+dit('le plus fréquent gagne, même dispersé', 2, jourFavoriDe([
   v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
   v('2026-09-09'), v('2026-09-16'),
-  v('2026-09-10'), v('2026-09-17'),
-  v('2026-09-11'),
-], 'cl-1'));
+  v('2026-09-10'), v('2026-09-17'), v('2026-09-11'),
+], 'cl-1', AUJ)?.jour);
 
-/* SEULES LES VENUES HONORÉES COMPTENT. Un rendez-vous annulé ne dit pas ce
-   qu'elle aime — il dit le contraire. */
-dit('l’annulé ne compte pas', undefined, jourFavoriDe([
-  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29', 'annulé'),
-], 'cl-1'));
-dit('… ni le confirmé jamais rendu', undefined, jourFavoriDe([
-  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29', 'confirmé'),
-], 'cl-1'));
-
+/* SEULES LES VENUES HONORÉES COMPTENT. Un rendez-vous annulé, ou posé et
+   jamais rendu, ne dit pas ce qu'elle aime — il dit le contraire. */
+dit('l’annulé ne compte pas', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-10', 'annulé'),
+], 'cl-1', AUJ));
+dit('… ni le confirmé jamais rendu', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-10', 'confirmé'),
+], 'cl-1', AUJ));
 /* CELLES D'UNE AUTRE TÊTE NON PLUS. */
-dit('la tête voisine ne déteint pas', undefined, jourFavoriDe([
+dit('la tête voisine ne déteint pas', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
   v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
-  v('2026-09-29', 'honoré', 'cl-2'),
-], 'cl-1'));
+  v('2026-09-10', 'honoré', 'cl-2'),
+], 'cl-1', AUJ));
 
-/* SIX MARDIS SUR HUIT : net, et il reste net avec deux écarts. */
-dit('six sur huit reste net', { jour: 2, fois: 6, total: 8 }, jourFavoriDe([
-  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29'),
-  v('2026-10-06'), v('2026-10-13'),
-  v('2026-09-09'), v('2026-09-10'),
-], 'cl-1'));
+/* SANS AUCUNE VENUE RENDUE, la phrase compte les rendez-vous pour dire que
+   l'attente n'est pas une panne. */
+dit('sans venue honorée, rien', undefined, jourFavoriDe([
+  v('2026-09-08', 'confirmé'), v('2026-09-15', 'annulé'),
+], 'cl-1', AUJ));
+dit('… et l’écran le dit', '2 rendez-vous, aucun encore honoré. Son jour se lira à sa 3ᵉ venue.',
+  diraPourquoiPasDeJour(litSonJour([
+    v('2026-09-08', 'confirmé'), v('2026-09-15', 'annulé'),
+  ], 'cl-1', AUJ)));
+dit('… et sans aucun rendez-vous', 'Aucune venue honorée. Son jour se lira à sa 3ᵉ.',
+  diraPourquoiPasDeJour(litSonJour([], 'cl-1', AUJ)));
 
-/* LA RAISON SE DIT AVEC LA VALEUR : une proposition sans son motif ne se
-   conteste pas, on la subit ou on l'efface. */
-dit('la raison se dit', 'Elle vient le mardi 6 fois sur 8.',
+/* QUAND UN JOUR SE POSE, AUCUNE RAISON — le silence dit que tout va bien. */
+dit('un jour posé n’a pas de raison', undefined, litSonJour(mardis, 'cl-1', AUJ).raison);
+dit('… et rend le favori', { jour: 2, fois: 4, total: 4 }, litSonJour(mardis, 'cl-1', AUJ).favori);
+dit('toujours le même jour se dit ainsi', 'Elle vient toujours le mardi, 4 fois sur 4.',
+  diraLeJourFavori({ jour: 2, fois: 4, total: 4 }, 'Mardi'));
+dit('un jour dominant se dit ainsi',
+  'Elle vient le mardi 6 fois sur 8, et le plus souvent ces derniers mois.',
   diraLeJourFavori({ jour: 2, fois: 6, total: 8 }, 'Mardi'));
 
-/* ET LA REPRISE TOMBE SUR SON JOUR — c'est tout l'objet. Un rituel le
-   mercredi 9 septembre, huit semaines, jour préféré mardi. */
+/* ET LA REPRISE TOMBE SUR SON JOUR — c'est tout l'objet. */
 dit('la reprise tombe sur son mardi', '2026-11-10', dateDeLaReprise('2026-09-09', 8, 2));
 
 /* ── DEPUIS QUAND ELLE EST À LA MAISON — 6 septembre 2026 ─────────
@@ -380,32 +409,6 @@ dit('sans rituel, la fiche seule', '2026-08-31', depuisQuandALaMaison(fiche, [])
 dit('la tête voisine ne compte pas', '2026-08-31',
   depuisQuandALaMaison(fiche, [{ clientId: 'cl-2', date: '2024-01-01' }]));
 dit('sans fiche ni rituel, rien', undefined, depuisQuandALaMaison({ id: 'cl-9', since: '' }, []));
-
-/* ── POURQUOI AUCUN JOUR NE SE DÉGAGE — 6 septembre 2026 ──────────
-   « Bake a 6 RDV et son jour n'a pas été déterminé, le champ est vide. » Un
-   champ vide et muet est pire qu'une valeur sans sa raison : on ne sait pas si
-   le Trône n'a pas cherché, s'il a échoué, ou s'il attend autre chose. */
-dit('six rendez-vous, deux honorés : trop peu', 'trop-peu', litSonJour([
-  v('2026-09-08'), v('2026-09-15'),
-  v('2026-09-22', 'confirmé'), v('2026-09-29', 'confirmé'),
-  v('2026-10-06', 'confirmé'), v('2026-10-13', 'annulé'),
-], 'cl-1').raison);
-dit('… et le dit en français', '6 rendez-vous, dont 2 honorés. Il en faut 4 rendus pour conclure.',
-  diraPourquoiPasDeJour(litSonJour([
-    v('2026-09-08'), v('2026-09-15'),
-    v('2026-09-22', 'confirmé'), v('2026-09-29', 'confirmé'),
-    v('2026-10-06', 'confirmé'), v('2026-10-13', 'annulé'),
-  ], 'cl-1')));
-dit('l’égalité se nomme', 'egalite', litSonJour(
-  [v('2026-09-08'), v('2026-09-15'), v('2026-09-09'), v('2026-09-16')], 'cl-1').raison);
-dit('la dispersion aussi', 'disperse', litSonJour([
-  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
-  v('2026-09-09'), v('2026-09-16'),
-  v('2026-09-10'), v('2026-09-17'), v('2026-09-11'),
-], 'cl-1').raison);
-/* QUAND UN JOUR SE DÉGAGE, AUCUNE RAISON — le silence dit que tout va bien. */
-dit('un jour net n’a pas de raison', undefined, litSonJour(mardis, 'cl-1').raison);
-dit('… et rend le favori', { jour: 2, fois: 4, total: 4 }, litSonJour(mardis, 'cl-1').favori);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
