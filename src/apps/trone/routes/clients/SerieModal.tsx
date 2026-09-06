@@ -328,7 +328,10 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       branchId: branch.id,
       name: nom,
       phone: '',
-      city: branch.city ?? '',
+      /* SA VILLE NE SE DEVINE PAS — 6 septembre 2026, comme partout ailleurs
+         désormais : une tête ouverte en reprenant une année n'habite pas plus
+         le quartier du salon qu'une autre. */
+      city: '',
       persona: ensureInitiePersona(),
       since: premierIso ?? todayISO(),
       segments: [],

@@ -8,6 +8,7 @@ import { dateDeLaReprise, RYTHMES_ABO } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
+import { joursDeLaTete } from '../../../../shared/clients';
 import {
   invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
   useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
@@ -93,7 +94,7 @@ export function poseLaReprise(appt: Appointment): Appointment | null {
   const aVenir = tous.some((a) => a.clientId === appt.clientId
     && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
   if (aVenir) return null;
-  const date = dateDeLaReprise(appt.date, cliente.rythmeSemaines, cliente.jourPrefere);
+  const date = dateDeLaReprise(appt.date, cliente.rythmeSemaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
     ...appt,
     id: `ap-${uid()}`,

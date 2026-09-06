@@ -166,6 +166,18 @@ export type Client = {
       décision : sans cette marque, une Maison qui remet « n'importe quel
       jour » le verrait se remplir à nouveau à la visite suivante, sans
       comprendre pourquoi. Vrai dès qu'une main touche le sélecteur. */
+  /** SES JOURS — 6 septembre 2026, un ou deux.
+
+      « Si elle a fait 4 fois le mardi et 4 fois le mercredi, sélectionne
+      les deux : la cadence peut proposer l'un ou l'autre » (Yéman).
+
+      DEUX AU PLUS. Trois jours ne sont plus une préférence, c'est une
+      disponibilité — et la prédiction retomberait sur n'importe quel
+      jour, ce qu'elle faisait déjà quand le champ était vide.
+
+      `jourPrefere` reste lu pour les fiches d'avant, jamais écrit :
+      `joursDeLaTete` est le seul juge. */
+  joursPreferes?: number[];
   jourPose?: boolean;
   /** LA MAISON A POSÉ SA COURONNE À LA MAIN — 6 septembre 2026.
 
@@ -299,6 +311,18 @@ export type Family = {
       Un taux posé est une remise PERSONNALISÉE et fait foi ;
       0 = ce compte n'a pas de remise. Le juge unique est `remiseFamillePct`. */
   remisePct?: number;
+};
+
+/** SES JOURS, D'OÙ QU'ILS VIENNENT — 6 septembre 2026.
+
+    Un seul juge pour la liste neuve et le champ d'hier : sans lui, deux
+    lectures d'une même préférence finiraient par diverger, et la prédiction ne
+    tomberait pas au même endroit selon l'écran. */
+export const joursDeLaTete = (
+  c: Pick<Client, 'joursPreferes' | 'jourPrefere'>,
+): number[] => {
+  if (c.joursPreferes && c.joursPreferes.length > 0) return c.joursPreferes.slice(0, 2);
+  return c.jourPrefere === undefined ? [] : [c.jourPrefere];
 };
 
 /** DEPUIS QUAND ELLE EST À LA MAISON — 6 septembre 2026.

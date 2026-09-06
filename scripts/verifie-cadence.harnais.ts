@@ -323,7 +323,7 @@ const v = (date: string, status = 'honoré', clientId = 'cl-1') => ({ clientId, 
 
 /* 2026-09-08 est un MARDI ; 2026-09-10 un JEUDI. */
 const mardis = [v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29')];
-dit('quatre mardis font un mardi', { jour: 2, fois: 4, total: 4 }, jourFavoriDe(mardis, 'cl-1', AUJ));
+dit('quatre mardis font un mardi', { jour: 2, jours: [2], fois: 4, total: 4 }, jourFavoriDe(mardis, 'cl-1', AUJ));
 
 /* TROIS VENUES HONORÉES AVANT DE CONCLURE — arbitrage de la Maison, après un
    premier seuil à quatre. Deux venues ne font pas une prédominance. */
@@ -332,7 +332,7 @@ dit('deux venues ne concluent pas', undefined,
 dit('… et l’écran dit combien il en manque',
   '2 venues honorées sur 3. Encore 1 et son jour se lira.',
   diraPourquoiPasDeJour(litSonJour([v('2026-09-08'), v('2026-09-15')], 'cl-1', AUJ)));
-dit('trois suffisent', { jour: 2, fois: 3, total: 3 },
+dit('trois suffisent', { jour: 2, jours: [2], fois: 3, total: 3 },
   jourFavoriDe([v('2026-09-08'), v('2026-09-15'), v('2026-09-22')], 'cl-1', AUJ));
 
 /* L'ÉGALITÉ SE TRANCHE PAR LA RÉCENCE — le cas de Baké. Deux mardis anciens,
@@ -358,14 +358,14 @@ dit('le plus fréquent gagne, même dispersé', 2, jourFavoriDe([
 
 /* SEULES LES VENUES HONORÉES COMPTENT. Un rendez-vous annulé, ou posé et
    jamais rendu, ne dit pas ce qu'elle aime — il dit le contraire. */
-dit('l’annulé ne compte pas', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
+dit('l’annulé ne compte pas', { jour: 2, jours: [2], fois: 3, total: 3 }, jourFavoriDe([
   v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-10', 'annulé'),
 ], 'cl-1', AUJ));
-dit('… ni le confirmé jamais rendu', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
+dit('… ni le confirmé jamais rendu', { jour: 2, jours: [2], fois: 3, total: 3 }, jourFavoriDe([
   v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-10', 'confirmé'),
 ], 'cl-1', AUJ));
 /* CELLES D'UNE AUTRE TÊTE NON PLUS. */
-dit('la tête voisine ne déteint pas', { jour: 2, fois: 3, total: 3 }, jourFavoriDe([
+dit('la tête voisine ne déteint pas', { jour: 2, jours: [2], fois: 3, total: 3 }, jourFavoriDe([
   v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
   v('2026-09-10', 'honoré', 'cl-2'),
 ], 'cl-1', AUJ));
@@ -384,12 +384,12 @@ dit('… et sans aucun rendez-vous', 'Aucune venue honorée. Son jour se lira à
 
 /* QUAND UN JOUR SE POSE, AUCUNE RAISON — le silence dit que tout va bien. */
 dit('un jour posé n’a pas de raison', undefined, litSonJour(mardis, 'cl-1', AUJ).raison);
-dit('… et rend le favori', { jour: 2, fois: 4, total: 4 }, litSonJour(mardis, 'cl-1', AUJ).favori);
+dit('… et rend le favori', { jour: 2, jours: [2], fois: 4, total: 4 }, litSonJour(mardis, 'cl-1', AUJ).favori);
 dit('toujours le même jour se dit ainsi', 'Elle vient toujours le mardi, 4 fois sur 4.',
-  diraLeJourFavori({ jour: 2, fois: 4, total: 4 }, 'Mardi'));
+  diraLeJourFavori({ jour: 2, jours: [2], fois: 4, total: 4 }, 'Mardi'));
 dit('un jour dominant se dit ainsi',
   'Elle vient le mardi 6 fois sur 8, et le plus souvent ces derniers mois.',
-  diraLeJourFavori({ jour: 2, fois: 6, total: 8 }, 'Mardi'));
+  diraLeJourFavori({ jour: 2, jours: [2], fois: 6, total: 8 }, 'Mardi'));
 
 /* ET LA REPRISE TOMBE SUR SON JOUR — c'est tout l'objet. */
 dit('la reprise tombe sur son mardi', '2026-11-10', dateDeLaReprise('2026-09-09', 8, 2));
@@ -423,6 +423,37 @@ dit('dix-huit mois restent des mois', '18 mois', dureeEnClair('2025-03-06', '202
 dit('deux ans passent aux ans', '2 ans', dureeEnClair('2024-09-06', '2026-09-06'));
 /* UNE DATE À VENIR NE SE COMPTE PAS À REBOURS. */
 dit('une date à venir se dit', 'à venir', dureeEnClair('2027-01-01', '2026-09-06'));
+
+/* ── DEUX JOURS FAVORIS — 6 septembre 2026 ────────────────────────
+   « Si une cliente a 8 rendez-vous et a fait 4 fois le mardi et 4 fois le
+   mercredi, sélectionne les deux. La cadence peut proposer l'un ou l'autre. »
+   2026-09-08 est un MARDI, 2026-09-09 un MERCREDI. */
+const quatreEtQuatre = [
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29'),
+  v('2026-09-09'), v('2026-09-16'), v('2026-09-23'), v('2026-09-30'),
+];
+dit('quatre et quatre font deux jours', [2, 3],
+  (jourFavoriDe(quatreEtQuatre, 'cl-1', AUJ)?.jours ?? []).slice().sort());
+/* SIX CONTRE DEUX N'EN FAIT QU'UN : le second doit peser les trois quarts du
+   premier, sinon c'est une exception qu'on prendrait pour une règle. */
+dit('six contre deux n’en fait qu’un', [2], jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
+  v('2026-09-29'), v('2026-10-06'), v('2026-10-13'),
+  v('2026-09-09'), v('2026-09-16'),
+], 'cl-1', AUJ)?.jours);
+dit('… et la phrase dit les deux', 'Elle vient le mardi ou le mercredi, 8 venues comptées.',
+  diraLeJourFavori({ jour: 2, jours: [2, 3], fois: 4, total: 8 }, 'Mardi', 'Mercredi'));
+
+/* ET LA REPRISE TOMBE SUR LE PLUS PROCHE DES DEUX. Un rituel le lundi
+   7 septembre, huit semaines : le 2 novembre est un lundi, le mardi 3 vient
+   avant le mercredi 4. */
+dit('la reprise prend le plus proche des deux', '2026-11-03',
+  dateDeLaReprise('2026-09-07', 8, [3, 2]));
+dit('… quel que soit l’ordre de la liste', '2026-11-03',
+  dateDeLaReprise('2026-09-07', 8, [2, 3]));
+/* UN SEUL JOUR CONTINUE DE MARCHER, en nombre comme en liste. */
+dit('un jour seul, en nombre', '2026-11-04', dateDeLaReprise('2026-09-07', 8, 3));
+dit('… ou en liste d’un', '2026-11-04', dateDeLaReprise('2026-09-07', 8, [3]));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -85,8 +85,33 @@ const prochainJourDeSemaine = (iso: string, jour: number): string => {
     ensuite. L'ordre compte : le salon ne s'ouvre pas parce qu'une cliente le
     préfère, donc un jour préféré FERMÉ glisse au premier jour ouvert. La fiche
     prévient au moment de le choisir plutôt que de mentir ici. */
-const poseLaDate = (iso: string, jourPrefere: number | undefined): string =>
-  prochainJourOuvert(jourPrefere === undefined ? iso : prochainJourDeSemaine(iso, jourPrefere));
+/** LES JOURS D'UNE TÊTE, normalisés : un nombre, une liste, ou rien. */
+const sesJours = (j: number | readonly number[] | undefined): number[] => {
+  if (j === undefined) return [];
+  const l = (typeof j === 'number' ? [j] : [...j]).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+  return [...new Set(l)].slice(0, 2);
+};
+
+/** LE PREMIER DE SES JOURS À PARTIR D'ICI — 6 septembre 2026.
+
+    « La cadence peut se permettre de proposer un rendez-vous l'un ou l'autre de
+    ces jours » (Yéman). Avec deux jours, la reprise tombe sur le PLUS PROCHE :
+    prendre toujours le premier de la liste ferait attendre jusqu'à six jours de
+    plus pour rien, et l'ordre de la liste n'a aucun sens pour la cliente. */
+const prochainJourParmi = (iso: string, jours: readonly number[]): string => {
+  if (jours.length === 0) return iso;
+  let meilleur = '';
+  for (const j of jours) {
+    const d = prochainJourDeSemaine(iso, j);
+    if (!meilleur || d < meilleur) meilleur = d;
+  }
+  return meilleur;
+};
+
+const poseLaDate = (iso: string, jourPrefere: number | readonly number[] | undefined): string => {
+  const jours = sesJours(jourPrefere);
+  return prochainJourOuvert(jours.length === 0 ? iso : prochainJourParmi(iso, jours));
+};
 
 /** Médiane entière — robuste aux visites exceptionnelles. */
 const medianInt = (xs: number[]): number => {
@@ -198,12 +223,20 @@ export function tauxDeRealisation(venues: { clientId: string; date: string }[]):
       en choisir un serait décider à sa place. */
 
 export type JourFavori = {
-  /** 0 = dimanche, comme `Date.getDay()`. */
+  /** 0 = dimanche, comme `Date.getDay()`. Le premier de ses jours. */
   jour: number;
+  /** UN OU DEUX JOURS — 6 septembre 2026. « 4 fois le mardi et 4 fois le
+      mercredi : sélectionne les deux. » Le second rejoint le premier quand il
+      pèse au moins les TROIS QUARTS de lui : en dessous, ce n'est plus une
+      seconde habitude, c'est une exception qu'on prendrait pour une règle. */
+  jours: number[];
   fois: number;
-  /** Les venues honorées comptées. */
+  /** Les venues HONORÉES, celles qui comptent. */
   total: number;
 };
+
+/** La part du premier jour qu'un second doit atteindre pour le rejoindre. */
+export const PART_DU_SECOND_JOUR = 0.75;
 
 type VenueLue = { clientId: string; date: string; status?: string };
 
@@ -269,7 +302,17 @@ export function jourFavoriDe(
     if (poids[i] > poids[jour] + 1e-9) jour = i;
     else if (Math.abs(poids[i] - poids[jour]) <= 1e-9 && i === dernierJour) jour = i;
   }
-  return { jour, fois: compte[jour], total };
+  /* LE SECOND JOUR, s'il pèse assez. On le cherche après le premier, jamais
+     avant : c'est le premier qui donne la mesure. */
+  let second = -1;
+  for (let i = 0; i < 7; i += 1) {
+    if (i === jour || compte[i] === 0) continue;
+    if (second < 0 || poids[i] > poids[second]) second = i;
+  }
+  const jours = (second >= 0 && poids[second] >= poids[jour] * PART_DU_SECOND_JOUR)
+    ? [jour, second]
+    : [jour];
+  return { jour, jours, fois: compte[jour], total };
 }
 
 /** CE QUE LE CARNET DIT DE SES JOURS — avec la raison quand rien ne se dégage.
@@ -323,8 +366,11 @@ export const diraPourquoiPasDeJour = (l: LectureDuJour, nomDuJour?: string): str
 
 /** EN CLAIR, pour que la fiche dise D'OÙ vient la proposition. Une valeur posée
     sans sa raison ne se conteste pas : on la subit ou on l'efface. */
-export const diraLeJourFavori = (f: JourFavori, nomDuJour: string): string => {
+export const diraLeJourFavori = (f: JourFavori, nomDuJour: string, nomDuSecond?: string): string => {
   const j = nomDuJour.toLowerCase();
+  if (f.jours.length > 1 && nomDuSecond) {
+    return `Elle vient le ${j} ou le ${nomDuSecond.toLowerCase()}, ${f.total} venues comptées.`;
+  }
   if (f.fois === f.total) return `Elle vient toujours le ${j}, ${f.total} fois sur ${f.total}.`;
   return `Elle vient le ${j} ${f.fois} fois sur ${f.total}, et le plus souvent ces derniers mois.`;
 };
@@ -352,7 +398,7 @@ export const RYTHMES_ABO = [4, 5, 6, 7, 8, 10] as const;
     plus tard décalerait la reprise de trois jours, et la cadence dériverait
     d'un mois par an sans que personne ne comprenne pourquoi. */
 export const dateDeLaReprise = (
-  isoDuRituel: string, semaines: number, jourPrefere?: number,
+  isoDuRituel: string, semaines: number, jourPrefere?: number | readonly number[],
 ): string => poseLaDate(addDaysISO(isoDuRituel, Math.max(1, Math.round(semaines)) * 7), jourPrefere);
 
 export type SeanceProposee = {
@@ -368,7 +414,7 @@ export function proposeLaCadence(o: {
   restes: readonly { serviceId: string; reste: number | null }[];
   departIso: string;
   pasJours: number;
-  jourPrefere?: number;
+  jourPrefere?: number | readonly number[];
   /** L'échéance du paquet : on ne pose rien au-delà. */
   finIso?: string | null;
   plafond?: number;
@@ -411,7 +457,7 @@ export function proposeLaCadence(o: {
 /** DÉCALER TOUTE LA SUITE d'un même nombre de jours, portes closes comprises.
     Une séance repoussée seule casse le rythme ; c'est le rythme qu'on déplace. */
 export const decaleLaSuite = (
-  suite: readonly SeanceProposee[], jours: number, jourPrefere?: number,
+  suite: readonly SeanceProposee[], jours: number, jourPrefere?: number | readonly number[],
 ): SeanceProposee[] =>
   suite.map((x) => {
     const brut = addDaysISO(x.dateIso, jours);

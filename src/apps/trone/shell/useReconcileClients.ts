@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useInvoices } from '../../../shared/finance';
-import { clientsStore, useClients, ensureInitiePersona, type Client } from '../../../shared/clients';
+import { clientsStore, useClients, ensureInitiePersona, joursDeLaTete, type Client } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
 import { useStore } from '../../../shared/store';
 import { consultationsQueueStore } from '../../../shared/bridges';
 import { branchesStore, currentBranchStore } from '../../../shared/branches';
 import { tablePrete } from '../../../shared/sync';
 import { servicesStore, fondeLaCouronne } from '../../../shared/catalog';
+import { jourFavoriDe } from '../../../shared/cadence';
 import { annuaireStore, nomDuCompte } from '../routes/equipe/data';
 import { supabase } from '../../../shared/supabase';
 import { poseLIdentite } from '../../../shared/journal';
@@ -211,6 +212,45 @@ export function useReconcileClients(): void {
       if (voulu) return { ...c, crownSince: voulu };
       const { crownSince: _parti, ...sansCouronne } = c;
       return sansCouronne;
+    }));
+  }, [session, appts, tousClients]);
+
+  /* ══ SES JOURS, LUS POUR TOUTES LES TÊTES — 6 septembre 2026 ═══════
+     « Remettre à jour toutes les fiches des clientes » (Yéman).
+
+     LA DÉDUCTION SE FAISAIT À L'OUVERTURE D'UNE FICHE, donc n'atteignait que
+     celles qu'on ouvrait. Changer la règle — trois venues au lieu de quatre,
+     puis deux jours au lieu d'un — laissait derrière soi trois cents fiches
+     figées sur l'ancienne. Le rattrapage les aligne toutes, d'un seul geste.
+
+     UNE MAIN QUI A TRANCHÉ NE SE REPREND PAS (`jourPose`) : c'est la seule
+     chose qui arrête l'alignement, et c'est une décision.
+
+     ON N'ÉCRIT QUE CE QUI CHANGE : sans cette comparaison, chaque descente du
+     carnet réécrirait trois cents fiches identiques, et la synchronisation
+     porterait ce bruit à tous les postes. */
+  useEffect(() => {
+    if (!session) return;
+    if (!tablePrete('clients') || !tablePrete('appointments')) return;
+    const memeSuite = (a: readonly number[], b: readonly number[]) =>
+      a.length === b.length && a.every((x, i) => x === b[i]);
+    const aAligner = clientsStore.get().filter((c) => {
+      if (c.jourPose) return false;
+      const voulu = jourFavoriDe(appts, c.id)?.jours ?? [];
+      return !memeSuite(joursDeLaTete(c), voulu);
+    });
+    if (aAligner.length === 0) return;
+    const cibles = new Set(aAligner.map((c) => c.id));
+    clientsStore.set((prev) => prev.map((c) => {
+      if (!cibles.has(c.id)) return c;
+      const voulu = jourFavoriDe(appts, c.id)?.jours ?? [];
+      return {
+        ...c,
+        joursPreferes: voulu.length > 0 ? voulu : undefined,
+        /* LE CHAMP D'HIER S'EFFACE À LA PREMIÈRE ÉCRITURE : deux sources pour
+           une même préférence finiraient par diverger. */
+        jourPrefere: undefined,
+      };
     }));
   }, [session, appts, tousClients]);
 

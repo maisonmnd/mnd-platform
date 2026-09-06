@@ -8,7 +8,7 @@ import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -1903,11 +1903,11 @@ function Customer360({
   const lectureDuJour = useMemo(() => litSonJour(appts, client.id), [appts, client.id]);
   const jourFavori = lectureDuJour.favori;
 
-  useEffect(() => {
-    if (!jourFavori || client.jourPose || client.jourPrefere !== undefined) return;
-    patch({ jourPrefere: jourFavori.jour });
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [jourFavori, client.id, client.jourPose, client.jourPrefere]);
+  /* L'ÉCRITURE NE SE FAIT PLUS ICI — 6 septembre 2026. « Remettre à jour
+     toutes les fiches des clientes » : une écriture à l'ouverture d'une fiche
+     n'atteint que celles qu'on ouvre. Le rattrapage de la coquille les aligne
+     toutes, d'un seul geste (voir `useReconcileClients`). */
+  const sesJours = joursDeLaTete(client);
   /* LES PROTOCOLES DE LA MAISON, decales par SON ecart s'il existe. Une
      seule source pour le Trone et Ma Couronne. */
   const [lesProtocoles] = useProtocoles();
@@ -3163,17 +3163,25 @@ function Customer360({
             <>
               <div className="trc-v"><u>Cadence</u><span className={`is-fort ${client.rythmeSemaines ? '' : 'is-vide'}`}>{client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : '—'}</span></div>
               <div className="trc-v"><u>Reprise</u><span className={client.repriseAuto ? '' : 'is-vide'}>{client.repriseAuto ? 'à la clôture' : 'à la main'}</span></div>
-              <div className="trc-v"><u>Son jour</u>
-                <span className={client.jourPrefere === undefined ? 'is-vide' : ''}>
-                  {client.jourPrefere === undefined ? 'tous' : (JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.label ?? 'tous')}
+              <div className="trc-v"><u>{sesJours.length > 1 ? 'Ses jours' : 'Son jour'}</u>
+                <span className={sesJours.length === 0 ? 'is-vide' : ''}>
+                  {sesJours.length === 0
+                    ? 'tous'
+                    : sesJours.map((n) => JOURS_SEMAINE.find((j) => j.n === n)?.label ?? '').filter(Boolean).join(' ou ')}
                 </span>
               </div>
               {/* D'OÙ VIENT CE JOUR. Une valeur posée sans sa raison ne se
                   conteste pas : on la subit, ou on l'efface au hasard. */}
               {!client.jourPose && (
                 <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, paddingTop: 4 }}>
-                  {jourFavori && client.jourPrefere === jourFavori.jour
-                    ? diraLeJourFavori(jourFavori, JOURS_SEMAINE.find((j) => j.n === jourFavori.jour)?.label ?? '')
+                  {jourFavori && sesJours.length > 0 && sesJours[0] === jourFavori.jour
+                    ? diraLeJourFavori(
+                      jourFavori,
+                      JOURS_SEMAINE.find((j) => j.n === jourFavori.jour)?.label ?? '',
+                      jourFavori.jours[1] !== undefined
+                        ? JOURS_SEMAINE.find((j) => j.n === jourFavori.jours[1])?.label
+                        : undefined,
+                    )
                     : diraPourquoiPasDeJour(
                       lectureDuJour,
                       lectureDuJour.tete ? JOURS_SEMAINE.find((j) => j.n === lectureDuJour.tete!.jour)?.label : undefined,
@@ -3191,23 +3199,52 @@ function Customer360({
           <span className="trc-microlabel">Ce que la Maison a décidé pour elle</span>
           <div className="trc-crown">
             <div className="trc-crown__grid">
-              <Field label="Elle ne vient que le… · commande la prédiction">
-                <Select
-                  value={client.jourPrefere === undefined ? '' : String(client.jourPrefere)}
-                  onChange={(e) => patch({
-                    jourPrefere: e.target.value === '' ? undefined : Number(e.target.value),
-                    /* LA MAIN TRANCHE, ET LA DÉDUCTION SE TAIT POUR TOUJOURS. */
-                    jourPose: true,
+              <Field label="Ses jours · commandent la prédiction">
+                {/* SEPT PASTILLES, DEUX AU PLUS — 6 septembre 2026.
+                    « Si elle a fait 4 fois le mardi et 4 fois le mercredi,
+                    sélectionne les deux : la cadence peut proposer l'un ou
+                    l'autre » (Yéman).
+
+                    UN SÉLECTEUR NE SAIT DIRE QU'UNE CHOSE. Il fallait des
+                    pastilles pour en dire deux, et elles montrent d'un coup ce
+                    qui est retenu au lieu de le cacher dans une liste fermée.
+
+                    TROIS NE SERAIENT PLUS UNE PRÉFÉRENCE, mais une
+                    disponibilité : la troisième pousse la plus ancienne
+                    dehors, plutôt que de refuser le clic sans rien dire. */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {JOURS_SEMAINE.map((j) => {
+                    const on = sesJours.includes(j.n);
+                    return (
+                      <button
+                        key={j.n}
+                        type="button"
+                        className={`tre-chip ${on ? 'is-on' : ''}`}
+                        onClick={() => {
+                          const suivants = on
+                            ? sesJours.filter((n) => n !== j.n)
+                            : [...sesJours, j.n].slice(-2);
+                          patch({
+                            joursPreferes: suivants.length > 0 ? suivants : undefined,
+                            jourPrefere: undefined,
+                            /* LA MAIN TRANCHE, ET LA DÉDUCTION SE TAIT POUR TOUJOURS. */
+                            jourPose: true,
+                          });
+                        }}
+                      >
+                        {j.label}{j.ferme ? ' · fermé' : ''}
+                      </button>
+                    );
                   })}
-                >
-                  <option value="">— n’importe quel jour —</option>
-                  {JOURS_SEMAINE.map((j) => (
-                    <option key={j.n} value={j.n}>{j.label}{j.ferme ? ' · la Maison est fermée' : ''}</option>
-                  ))}
-                </Select>
-                {client.jourPrefere !== undefined && JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.ferme && (
+                </div>
+                {sesJours.length === 0 && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                    Aucun jour retenu : la prédiction tombera n'importe quel jour ouvert.
+                  </div>
+                )}
+                {sesJours.some((n) => JOURS_SEMAINE.find((j) => j.n === n)?.ferme) && (
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, color: 'var(--copper-700)' }}>
-                    La Maison est fermée ce jour-là, la prédiction glissera au premier jour ouvert.
+                    La Maison est fermée l'un de ces jours-là, la prédiction glissera au premier jour ouvert.
                   </div>
                 )}
               </Field>
@@ -4621,7 +4658,17 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [email, setEmail] = useState('');
-  const [city, setCity] = useState(branch.city);
+  /* ══ LA VILLE ATTEND, ELLE NE DEVINE PAS — 6 septembre 2026 ═══════
+     « Pourquoi une ville de Suru-Lere est figée ? Leave it blank for all »
+     (Yéman).
+
+     C'EST LA MÊME FAUTE QUE LA CASE DU NOM PRÉ-REMPLI, corrigée le
+     2 septembre : une case remplie d'office n'est pas une commodité,
+     c'est un piège. Il suffit de ne pas la changer pour inscrire à
+     Suru-Lere une cliente de Calavi, et l'écran a l'air rempli
+     correctement. La Maison n'a aucune raison de croire que la personne
+     devant le comptoir habite son quartier. */
+  const [city, setCity] = useState('');
   /* Toute nouvelle tête couronnée entre « Initiée » — la maison la nommera
      autrement quand elle la connaîtra. Le persona d'accueil est créé au besoin
      (idempotent) : ici on est au Trône, donc côté personnel, seul habilité à
@@ -4694,7 +4741,8 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       name: nomComplet,
       phone: numeroTelReel(phone),
       email: email.trim() || undefined,
-      city: city.trim() || branch.city,
+      /* VIDE RESTE VIDE : une ville qu'on n'a pas demandée ne s'invente pas. */
+      city: city.trim(),
       persona,
       since: todayISO(),
       photo,

@@ -33,6 +33,7 @@ import { maitreParDefaut } from '../../../../shared/branches';
 import { REMISE_OPTION_PCT, RYTHMES, VOIES, libelleCouleur, partMensuelleXof, reprisesDeCouleur, supplementCouleurXof, supplementSansRemiseXof, voieDe, type RythmeCouleur, type VoieCouleur } from '../../../../shared/couleur';
 import { demandesFormuleStore, useDemandesFormule, type DemandeFormule } from '../../../../shared/bridges';
 import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
+import { joursDeLaTete } from '../../../../shared/clients';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 
@@ -896,7 +897,7 @@ export default function Abonnements() {
       suite: [] as SeanceProposee[],
     };
     form.suite = proposeLaCadence({
-      restes, departIso: depart, pasJours: pas, jourPrefere: cli?.jourPrefere,
+      restes, departIso: depart, pasJours: pas, jourPrefere: cli ? joursDeLaTete(cli) : undefined,
       finIso: plan?.mode === 'pack' ? m.expiresIso ?? null : null,
     });
     setCadenceForm(form);
@@ -912,7 +913,7 @@ export default function Abonnements() {
     setCadenceForm({
       ...cadenceForm, pas, depart,
       suite: proposeLaCadence({
-        restes, departIso: depart, pasJours: pas, jourPrefere: cli?.jourPrefere,
+        restes, departIso: depart, pasJours: pas, jourPrefere: cli ? joursDeLaTete(cli) : undefined,
         finIso: plan?.mode === 'pack' ? suiviFor.expiresIso ?? null : null,
       }),
     });
@@ -2550,7 +2551,7 @@ export default function Abonnements() {
                   <div style={{ display: 'flex', gap: 9, marginTop: 13, flexWrap: 'wrap' }}>
                     <Button variant="ghost" onClick={() => setCadenceForm(null)}>Annuler</Button>
                     {cadenceForm.suite.length > 0 && (
-                      <Button variant="ghost" onClick={() => setCadenceForm({ ...cadenceForm, suite: decaleLaSuite(cadenceForm.suite, 7, clients.find((c) => c.id === suiviFor.clientId)?.jourPrefere) })}>
+                      <Button variant="ghost" onClick={() => setCadenceForm({ ...cadenceForm, suite: decaleLaSuite(cadenceForm.suite, 7, joursDeLaTete(clients.find((c) => c.id === suiviFor.clientId) ?? {})) })}>
                         Décaler d’une semaine
                       </Button>
                     )}

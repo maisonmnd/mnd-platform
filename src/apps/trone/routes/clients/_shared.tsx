@@ -3831,7 +3831,9 @@ export function ClientPicker({
       branchId: branch.id,
       name: nom,
       phone: passage?.phone,
-      city: branch.city,
+      /* SA VILLE NE SE DEVINE PAS non plus au comptoir : la cliente de
+         passage vient d'ailleurs aussi souvent que du quartier. */
+      city: '',
       since: todayISO(),
       /* Elle entre par le seuil comme les autres — le persona dit son goût, pas
          son statut ; les deux notions ne se remplacent pas. */
