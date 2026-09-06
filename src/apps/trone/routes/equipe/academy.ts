@@ -1,4 +1,5 @@
 import { createStore, useStore, uid } from '../../../../shared/store';
+import { type SignatureTracee } from '../../../../shared/contrats';
 import { bindCollection } from '../../../../shared/sync';
 import type { Formation, Payment } from './data';
 
@@ -169,6 +170,13 @@ export type Enrollment = {
   priceXof?: number;
   remiseXof?: number;
   payments?: Payment[];
+  /** SON CONTRAT DE FORMATION, signé — 6 septembre 2026.
+
+      L'inscription engage sur la totalité du prix : cette clause-là ne vaut
+      QUE signée. Sans document, la Maison n'a réservé une place, un formateur
+      et des heures de fauteuil contre rien du tout.
+      Voir `shared/contrat-formation`. */
+  contrat?: SignatureTracee;
   sessions: SessionEntry[];       // F3
   practice: PracticeRecord[];     // F4
   evaluations: ModuleEvaluation[];// F5

@@ -3,7 +3,7 @@ import { Button, Input, Modal, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { clientsStore, useFamilies, type Client } from '../../../../shared/clients';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
-import { droitImagePdf } from '../../../../shared/pdf';
+import { contratPdf } from '../../../../shared/pdf';
 import {
   USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, estMineure, pourquoiInvalide, texteDuContrat,
   type AccordImage, type CleUsage,
@@ -124,7 +124,7 @@ export function DroitImageModal({ client, onClose }: { client: Client; onClose: 
       ? { ...c, accordImage: accord, accordVitrine: undefined, accordSimulation: undefined }
       : c)));
     try {
-      await droitImagePdf({
+      await contratPdf({
         houseName: maisonNom(), ville: branch.city, villeDuSiege: maisonVille(),
         titre: contrat.titre, entete: contrat.entete, articles: contrat.articles,
         signataire: signePar, pourEnfant: mineure ? client.name : undefined,

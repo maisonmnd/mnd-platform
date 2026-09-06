@@ -9,6 +9,9 @@ import { uid } from '../../../../shared/store';
 import { ClientPicker, useBranchClients, frShortAn } from '../clients/_shared';
 import { useFormations, type Formation, type Payment } from './data';
 import { Pill, Tabs, Toggle } from './ui';
+import { ContratModal } from '../_contrat';
+import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { texteContratFormation, VERSION_FORMATION } from '../../../../shared/contrat-formation';
 import {
   enrollmentsStore, useEnrollments, newEnrollment, setEnrollment,
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
@@ -341,6 +344,8 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
   // Montant affiché = BRUT (net convenu + remise). Enregistré en net + remise.
   const [gross, setGross] = useState(String(enrollGross(e, formation) || (formation?.priceXof ?? '')));
   const [remise, setRemise] = useState(e.remiseXof ? String(e.remiseXof) : '');
+  /* LE CONTRAT SE SIGNE ICI, à côté du prix qu'il rend exigible. */
+  const [contratOuvert, setContratOuvert] = useState(false);
 
   const saveAmount = () => {
     const g = digits(gross);
@@ -370,6 +375,49 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ══ SON CONTRAT DE FORMATION — 6 septembre 2026 ══════════════════
+          AU-DESSUS DU MONTANT, ET C'EST VOULU : c'est le contrat qui rend le
+          prix exigible. Poser un montant sans papier signé, c'est réserver une
+          place, un formateur et des heures de fauteuil contre rien du tout. */}
+      <div>
+        <div className="tre-sec-label" style={{ marginBottom: 8 }}>Le contrat</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant={e.contrat ? 'ghost' : 'copper'}
+            size="sm"
+            onClick={() => setContratOuvert(true)}
+          >
+            {e.contrat ? 'Refaire signer' : 'Faire signer le contrat'}
+          </Button>
+          <span className="mnd-muted" style={{ fontSize: 12 }}>
+            {e.contrat
+              ? `Signé par ${e.contrat.signePar} le ${e.contrat.at.split('-').reverse().join('/')}.`
+              : 'Aucun contrat signé. Le prix n’est pas exigible.'}
+          </span>
+        </div>
+      </div>
+      {contratOuvert && (
+        <ContratModal
+          titre={e.contrat ? 'Refaire signer le contrat' : 'Contrat de formation'}
+          version={VERSION_FORMATION}
+          signeParDefaut={e.learnerName}
+          qualiteSignataire="L’apprenante, lu et approuvé :"
+          fichier={`contrat-formation-${e.learnerName.split(' ')[0].toLowerCase()}.pdf`}
+          contrat={texteContratFormation({
+            maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
+            apprenante: e.learnerName,
+            formation: formation?.name ?? 'Formation de l’Académie MND',
+            prixXof: Math.max(0, parseInt(gross.replace(/[^0-9]/g, ''), 10) || 0)
+              - Math.max(0, parseInt(remise.replace(/[^0-9]/g, ''), 10) || 0),
+            echeances: 1,
+            debutIso: e.startDate,
+            jourIso: new Date().toISOString().slice(0, 10),
+          })}
+          onSigne={(sig) => setEnrollment(e.id, { contrat: sig })}
+          onClose={() => setContratOuvert(false)}
+        />
+      )}
+
       {/* Montant & remise */}
       <div>
         <div className="tre-sec-label" style={{ marginBottom: 8 }}>Montant de la formation</div>

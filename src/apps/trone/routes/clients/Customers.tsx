@@ -56,7 +56,7 @@ import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type Consul
 import { CarteModal } from './CarteModal';
 import { DroitImageModal } from './DroitImageModal';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
-import { droitImagePdf } from '../../../../shared/pdf';
+import { contratPdf } from '../../../../shared/pdf';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -1816,7 +1816,7 @@ function Customer360({
       maison: maisonNom(), raison: maisonRaison(), ville: branch.city, tete: client.name,
     });
     try {
-      await droitImagePdf({
+      await contratPdf({
         houseName: maisonNom(), ville: branch.city, villeDuSiege: maisonVille(),
         titre: t.titre, entete: t.entete, articles: t.articles,
         signataire: a.signePar, pourEnfant: a.pourEnfant,

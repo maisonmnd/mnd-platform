@@ -2,6 +2,62 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES CONTRATS PRESTATAIRE ET FORMATION — 6 septembre 2026, PUBLIÉ
+
+« Tout comme le contrat du droit à l'image, je dois construire les contrats des
+prestataires MND et les contrats de formation à l'Académie » (Yéman).
+
+**Trois contrats, une seule ossature** (`shared/contrats.ts`) : articles
+numérotés à la fin (`numerote`, pour qu'une clause conditionnelle ne fasse
+jamais sauter un numéro), un seul juge de signature (`signatureInvalide`), un
+seul fabricant de PDF (`contratPdf`, ex-`droitImagePdf` — il n'avait rien de
+propre au droit à l'image) et un seul écran (`routes/_contrat.tsx`).
+
+### Le prestataire · `shared/contrat-prestataire.ts`
+
+Se signe depuis **Équipe › Prestataires**, sur la fiche. Dix articles.
+**L'indépendance est l'article qui porte tout le reste** : sans elle la relation
+se requalifie en contrat de travail, avec cotisations et indemnités.
+
+Trois protections demandées ensemble (arbitrage) :
+
+- **la clientèle** — pas de démarchage, pendant et douze mois après. Le contrat
+  dit aussi ce qu'elle **n'interdit pas** : une clause qu'un juge trouve
+  excessive tombe en entier et ne protège plus rien ;
+- **les gestes de la Maison** — exécutés, jamais enseignés ni reproduits sous
+  ces noms ; ce qu'il savait avant lui reste acquis ;
+- **la discrétion** — sans terme.
+
+Les trois **survivent à la fin du contrat**, ce qui est écrit : une clause de
+survie oubliée les rend caduques le jour du départ, c'est-à-dire quand elles
+servent.
+
+### La formation · `shared/contrat-formation.ts`
+
+Se signe depuis **Académie › Suivi › Formation**, au-dessus du montant : c'est
+le contrat qui rend le prix exigible.
+
+**Deux arbitrages fermes de Yéman :**
+
+- **le prix est dû en entier en cas d'abandon.** Je l'ai dit et c'est écrit dans
+  le code : c'est la clause la plus difficile à défendre, elle fait porter tout
+  le risque à l'apprenante. Elle est écrite **avec sa raison** (place,
+  formateur et heures réservés) — une clause dont la raison est écrite se
+  défend, une clause nue se casse — et avec la faculté pour la Maison de
+  consentir un arrangement. Réciproquement, si la Maison interrompt, elle
+  rembourse : un contrat qui n'engage qu'un côté se fait renvoyer ;
+- **la méthode s'exerce librement et s'enseigne sous licence.** La certifiée
+  ouvre son salon et coiffe qui elle veut ; pour former à son tour elle demande
+  une licence écrite, dès douze mois après sa certification. **Le registre des
+  formatrices reste à bâtir.**
+
+Son **image** se signe à part : confondre les travaux et le visage ferait signer
+un droit à l'image là où il n'est pas.
+
+Éprouvés par `verifie-contrats` (33ᵉ harnais, 47 assertions). **Ni l'un ni
+l'autre n'est un avis juridique** : à relire par quelqu'un qui connaît le droit
+béninois avant d'être présenté.
+
 ## LE TAMPON DE LA MAISON — 6 septembre 2026, PUBLIÉ
 
 « Crée-moi un tampon MND que je rajoute sur le contrat » (Yéman).

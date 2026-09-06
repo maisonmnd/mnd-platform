@@ -10,13 +10,22 @@ import { MontantDuTiroir, montantsDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
+import { ContratModal } from '../_contrat';
+import { maisonRaison, maisonVille } from '../../../../shared/identite';
+import { texteContratPrestataire, VERSION_PRESTATAIRE, JOURS_DE_REGLEMENT } from '../../../../shared/contrat-prestataire';
+import { type SignatureTracee } from '../../../../shared/contrats';
 import './equipe.css';
 
 /* Prestataires extérieurs — répertoire + missions + paiements confirmés (reçu PDF).
    Ce sont des CHARGES (sous-traitance), distinctes de la paie du personnel. */
 
 type ProviderMode = 'prestation' | 'forfait' | 'pourcentage' | 'horaire';
-type Provider = { id: string; branchId: string; name: string; specialty?: string; phone?: string; mode: ProviderMode; rateXof?: number; note?: string; archived?: boolean };
+type Provider = { id: string; branchId: string; name: string; specialty?: string; phone?: string; mode: ProviderMode; rateXof?: number; note?: string; archived?: boolean;
+  /** SON CONTRAT DE PRESTATION, signé — 6 septembre 2026.
+      Sans lui, la Maison n'a aucun recours si un prestataire part avec ses
+      têtes ou ses protocoles : les trois protections ne vivent que dans un
+      papier signé. Voir `shared/contrat-prestataire`. */
+  contrat?: SignatureTracee };
 type Mission = { id: string; branchId: string; providerId: string; label: string; date: string; qty?: number; amountXof: number; paidAt?: string; byName?: string; method?: string; note?: string; expenseId?: string };
 
 const CHARGE_CATEGORY = 'Sous-traitance';
@@ -50,7 +59,9 @@ export default function Prestataires() {
   const [missions, setMissions] = useStore(missionsStore);
   const [filter, setFilter] = useState<'a_payer' | 'toutes' | 'payees'>('a_payer');
 
-  const [provModal, setProvModal] = useState(false);
+  const [provModal, setProvModal] = useState(false);  /* SON CONTRAT SE SIGNE ICI, la ou l'on inscrit le prestataire. */
+  const [contratFor, setContratFor] = useState<Provider | null>(null);
+
   const [provEditId, setProvEditId] = useState<string | null>(null);
   const [provForm, setProvForm] = useState<{ name: string; specialty: string; phone: string; mode: ProviderMode; rate: string; note: string }>(
     { name: '', specialty: '', phone: '', mode: 'prestation', rate: '', note: '' },
@@ -321,6 +332,13 @@ export default function Prestataires() {
                 <div className="tre-prov__actions">
                   <button type="button" className="tre-prov__btn tre-prov__btn--copper" onClick={() => openMission(p)}>+ Mission</button>
                   <button type="button" className="tre-prov__btn" onClick={() => setProviderFor(p)}>Détail ({providerTotals(p.id).count})</button>
+                  {/* ══ SON CONTRAT — 6 septembre 2026 ══════════════════
+                      Il se signe ici, là où l'on inscrit le prestataire : un
+                      contrat qu'il faut aller chercher ailleurs ne se signe
+                      jamais, et c'est le jour du départ qu'on s'en aperçoit. */}
+                  <button type="button" className="tre-prov__btn" onClick={() => setContratFor(p)}>
+                    {p.contrat ? 'Son contrat' : 'Faire signer'}
+                  </button>
                   <button type="button" className="tre-prov__btn" onClick={() => openEditProvider(p)}>Modifier</button>
                   <button type="button" className="tre-prov__btn tre-prov__btn--danger" onClick={() => archiveProvider(p)}>Archiver</button>
                 </div>
@@ -382,6 +400,29 @@ export default function Prestataires() {
       </Card>
 
       {/* Modale prestataire */}
+      {/* ══ LE CONTRAT DE PRESTATION ═══════════════════════════════════
+          Trois protections que la Maison a demandées : la clientèle ne se
+          démarche pas, les gestes lui appartiennent, et ce qu'on voit d'une
+          tête ne sort pas du salon. Elles ne valent que signées. */}
+      {contratFor && (
+        <ContratModal
+          titre={contratFor.contrat ? 'Refaire signer le contrat' : 'Contrat de prestation'}
+          version={VERSION_PRESTATAIRE}
+          signeParDefaut={contratFor.name}
+          qualiteSignataire="Le prestataire, lu et approuvé :"
+          fichier={`contrat-prestation-${contratFor.name.split(' ')[0].toLowerCase()}.pdf`}
+          contrat={texteContratPrestataire({
+            maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
+            nom: contratFor.name, specialite: contratFor.specialty,
+            mode: contratFor.mode, taux: contratFor.rateXof,
+            joursDeReglement: JOURS_DE_REGLEMENT,
+            jourIso: new Date().toISOString().slice(0, 10),
+          })}
+          onSigne={(sig) => providersStore.set((prev) => prev.map((x) => (x.id === contratFor.id ? { ...x, contrat: sig } : x)))}
+          onClose={() => setContratFor(null)}
+        />
+      )}
+
       {provModal && (
         <Modal title={provEditId ? 'Modifier le prestataire.' : 'Nouveau prestataire.'} onClose={() => setProvModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

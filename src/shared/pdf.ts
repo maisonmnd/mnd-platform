@@ -891,8 +891,17 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
 
    LA SIGNATURE EST UNE IMAGE, posée telle qu'elle a été tracée. On ne la
    redessine pas, on ne la lisse pas : ce qui vaut, c'est son geste. */
-export async function droitImagePdf(o: {
+/* UN SEUL FABRICANT DE CONTRATS — 6 septembre 2026. Il s'appelait
+   `droitImagePdf` ; les prestataires et l'Academie ont montre qu'il n'avait
+   rien de propre au droit a l'image : deux parties, des articles numerotes,
+   une signature a gauche, le tampon de la Maison a droite. Trois fabricants
+   auraient diverge des le deuxieme. */
+export async function contratPdf(o: {
   houseName: string;
+  /** La ligne sous le titre : la specialite, le nom de la formation. */
+  sousTitre?: string;
+  /** Ce qu'on ecrit au-dessus du trait de signature. */
+  qualiteSignataire?: string;
   /** Le lieu du « Fait à… » — celui où l'on signe, donc la branche. */
   ville?: string;
   /** LA VILLE QUI SIGNE LE TAMPON — le siège, pas le fauteuil. L'atelier est à
@@ -936,14 +945,22 @@ export async function droitImagePdf(o: {
   doc.setTextColor(SOFT);
   doc.text(o.houseName.toUpperCase(), gauche, y);
   doc.setTextColor(COPPER);
-  doc.text('DROIT À L’IMAGE', W - M, y, { align: 'right' });
+  doc.text(pdfSafe(o.titre.toUpperCase()), W - M, y, { align: 'right' });
   y += 9;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(20);
   doc.setTextColor(INDIGO);
-  doc.text(o.titre, gauche, y);
-  y += 11;
+  doc.text(pdfSafe(o.titre), gauche, y);
+  y += 6;
+  if (o.sousTitre?.trim()) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(COPPER);
+    doc.text(pdfSafe(o.sousTitre.trim()), gauche, y);
+    y += 6;
+  }
+  y += 5;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -993,7 +1010,7 @@ export async function droitImagePdf(o: {
   y += 4;
   doc.setFontSize(8);
   doc.setTextColor(SOFT);
-  doc.text('Lu et approuvé, signature :', M, y);
+  doc.text(pdfSafe(o.qualiteSignataire ?? 'Lu et approuvé, signature :'), M, y);
   try { doc.addImage(o.signature, 'PNG', M, y + 2, 62, 22, undefined, 'FAST'); } catch { /* signature illisible */ }
 
   /* ══ LE TAMPON DE LA MAISON, À DROITE DE LA SIENNE ═══════════════
