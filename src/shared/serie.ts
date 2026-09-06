@@ -335,6 +335,17 @@ export const remiseEstVide = (r?: Remise | null): boolean =>
 export const remiseQuiSApplique = (serie: Remise, propre?: Remise | null): Remise =>
   (propre == null ? serie : propre);
 
+/** CE QUE LA LIGNE DOIT RETENIR quand on vient de la régler : RIEN, si elle
+    redevient identique à la série.
+
+    Sans cette remise à zéro, une ligne touchée puis reremise comme les autres
+    cesserait de suivre la série à jamais : changer le taux de l'année
+    laisserait cette venue-là derrière, sans un mot, et l'écart ne se verrait
+    qu'à la lecture ligne à ligne. */
+export const remiseAGarderSurLaLigne = (serie: Remise, posee: Remise): Remise | undefined =>
+  (((posee.pct ?? 0) === (serie.pct ?? 0) && (posee.xof ?? 0) === (serie.xof ?? 0))
+    ? undefined : posee);
+
 /** LE NET : le pourcentage d'abord, les francs ensuite, jamais négatif. Une
     remise en francs plus grande que le reste rend le rituel offert, elle ne
     fait pas rendre la monnaie. */

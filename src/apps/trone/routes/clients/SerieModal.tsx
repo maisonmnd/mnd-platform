@@ -11,7 +11,8 @@ import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
   habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee,
-  remiseEstVide, remiseQuiSApplique, netApresRemise, type LigneLue, type Remise,
+  remiseEstVide, remiseQuiSApplique, netApresRemise, remiseAGarderSurLaLigne,
+  type LigneLue, type Remise,
 } from '../../../../shared/serie';
 import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import { ChampDeDate, ClientPicker, frJourAn, frShortAn, todayISO, useServicesById } from './_shared';
@@ -111,6 +112,20 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
     if (r === undefined) delete n[cle]; else n[cle] = r;
     return n;
   });
+  /* ══ LA REMISE D'UNE SEULE VENUE — 6 septembre 2026 ════════════════
+     « La remise de la cadence oui, mais aussi la remise individuelle selon le
+     RDV » (Yéman).
+
+     ELLE PART DE CELLE DE LA SÉRIE. Retrancher 5 000 F sur une venue quand
+     l'année est à 20 % ne veut pas dire « oublie les 20 % » : la ligne reprend
+     le taux de la série et ajoute son geste. Repartir de zéro ferait perdre
+     silencieusement le pourcentage sur cette venue-là.
+
+     ET ELLE Y RETOMBE quand elle redevient identique. Sans ça, une ligne
+     touchée puis remise comme les autres cesserait de suivre la série : changer
+     le taux de l'année laisserait cette venue-là derrière, sans un mot. */
+  const remiseDeLigne = (cle: string, r: Remise) =>
+    poseLaRemise(cle, remiseAGarderSurLaLigne(remiseSerie, r));
   /* ══ LES DATES DE LA CADENCE SE CORRIGENT — 5 septembre 2026 ═══════
      « Dans la cadence possibilite de modifier les dates predefinies » (Yeman).
 
@@ -952,30 +967,38 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                               onChange={(e) => {
                                 const v = e.target.value;
                                 if (v === '') poseLaRemise(l.cle, undefined);
-                                else poseLaRemise(l.cle, { ...(sienne ?? {}), pct: parseInt(v, 10) });
+                                else remiseDeLigne(l.cle, { ...(sienne ?? remiseSerie), pct: parseInt(v, 10) });
                               }}
                               aria-label="Remise de ce rituel"
-                              style={{ width: 110, padding: '3px 6px', fontSize: 11.5 }}
+                              style={{ width: 116, padding: '3px 6px', fontSize: 11.5 }}
                             >
-                              <option value="">Celle de la série</option>
-                              <option value="0">Aucune</option>
+                              {/* CE QUE PORTE LA SÉRIE SE LIT DANS L'OPTION :
+                                  « Celle de la série » tout court oblige à
+                                  remonter au bandeau pour savoir ce qu'on
+                                  garde. */}
+                              <option value="">
+                                {(remiseSerie.pct ?? 0) > 0 ? `Celle de la série · ${remiseSerie.pct} %` : 'Celle de la série'}
+                              </option>
+                              <option value="0">Plein tarif</option>
                               {TAUX_DE_REMISE.map((pct) => (
                                 <option key={pct} value={String(pct)}>{pct} %</option>
                               ))}
                             </Select>
-                            {sienne !== undefined && (
-                              <Input
-                                inputMode="numeric"
-                                value={sienne.xof ? String(sienne.xof) : ''}
-                                onChange={(e) => poseLaRemise(l.cle, {
-                                  ...sienne,
-                                  xof: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0),
-                                })}
-                                placeholder="puis − F"
-                                aria-label="Remise en francs de ce rituel"
-                                style={{ width: 110, textAlign: 'right', padding: '3px 6px', fontSize: 11.5 }}
-                              />
-                            )}
+                            {/* LES FRANCS SONT TOUJOURS LÀ. Les cacher tant que
+                                la ligne n'a pas de taux obligeait à ouvrir le
+                                menu, choisir, puis taper : trois gestes pour
+                                dire « 5 000 F de moins sur celle-là ». */}
+                            <Input
+                              inputMode="numeric"
+                              value={sienne?.xof ? String(sienne.xof) : ''}
+                              onChange={(e) => remiseDeLigne(l.cle, {
+                                ...(sienne ?? remiseSerie),
+                                xof: Math.max(0, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0),
+                              })}
+                              placeholder="puis − F"
+                              aria-label="Remise en francs de ce rituel"
+                              style={{ width: 116, textAlign: 'right', padding: '3px 6px', fontSize: 11.5 }}
+                            />
                           </div>
                         )}
                       </td>

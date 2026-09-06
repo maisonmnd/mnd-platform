@@ -8,7 +8,7 @@ import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
   habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
   RYTHMES_REPRISE, foisDansLAnnee,
-  remiseEstVide, remiseQuiSApplique, netApresRemise,
+  remiseEstVide, remiseQuiSApplique, netApresRemise, remiseAGarderSurLaLigne,
 } from '../src/shared/serie';
 
 let ko = 0;
@@ -244,6 +244,20 @@ dit('une ligne posée à aucune reste à aucune', {}, remiseQuiSApplique({ pct: 
 dit('… et se règle plein tarif', 50000, netApresRemise(50000, remiseQuiSApplique({ pct: 20 }, {})));
 dit('la ligne ne se cumule pas', 25000,
   netApresRemise(50000, remiseQuiSApplique({ pct: 20 }, { pct: 50 })));
+
+/* UNE LIGNE REREMISE COMME LES AUTRES REDEVIENT LIBRE : sans ça, changer le
+   taux de l'année laisserait cette venue-là derrière, sans un mot, et l'écart
+   ne se verrait qu'à la relecture ligne à ligne. */
+dit('identique à la série, la ligne cesse de décider', undefined,
+  remiseAGarderSurLaLigne({ pct: 20 }, { pct: 20 }));
+dit('les francs comptent aussi', { pct: 20, xof: 5000 },
+  remiseAGarderSurLaLigne({ pct: 20 }, { pct: 20, xof: 5000 }));
+/* PLEIN TARIF SUR UNE SÉRIE REMISÉE EST UNE DÉCISION, elle se garde. Sur une
+   série qui n'offre rien, c'est la même chose que suivre : rien à retenir. */
+dit('plein tarif sur une série remisée se garde', { pct: 0 },
+  remiseAGarderSurLaLigne({ pct: 20 }, { pct: 0 }));
+dit('plein tarif sur une série nue ne se garde pas', undefined,
+  remiseAGarderSurLaLigne({}, { pct: 0 }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
