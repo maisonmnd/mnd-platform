@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les protocoles · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;
+    --indigo:#1E2150;--indigo-2:#2C3068;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#7A756B;--filet:#DED5C3;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;--vert:#4A6B52;--vert-f:#EFF3EF;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:34px 24px 80px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 26px;letter-spacing:-.015em}
+
+  .ecran{border:1px solid var(--filet);border-radius:5px;overflow:hidden;background:var(--ivoire)}
+  .tete{background:var(--indigo);color:#EFEAE0;padding:15px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tete h2{font-family:var(--serif);font-weight:400;font-size:26px;color:#fff;margin:0}
+  .tete .s{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-p)}
+  .tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid var(--filet)}
+  .tabs span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding:13px 0 10px}
+  .tabs b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);font-weight:500;
+          padding:13px 0 10px;border-bottom:2px solid var(--cuivre)}
+
+  .titre{display:flex;align-items:baseline;gap:14px;padding:18px 24px 10px;flex-wrap:wrap}
+  .titre b{font-family:var(--serif);font-weight:400;font-size:23px;color:var(--indigo)}
+  .titre u{text-decoration:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d)}
+  .titre .dr{margin-left:auto;display:flex;gap:7px}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);font-weight:500;
+           text-align:left;padding:8px 14px;border-bottom:1px solid var(--filet);background:#fff}
+  td{padding:11px 14px;border-bottom:1px solid #EDE6D8;vertical-align:middle}
+  tr:last-child td{border-bottom:1px solid var(--filet)}
+  .j{font-family:var(--serif);font-size:26px;color:var(--indigo);line-height:1;white-space:nowrap}
+  .j input{font-family:var(--serif);font-size:26px;color:var(--indigo);width:58px;border:1px solid var(--filet);
+           border-radius:3px;padding:2px 6px;background:#fff;text-align:right}
+  .j em{font-style:normal;font-size:12px;color:var(--encre-d);margin-left:4px}
+  .sel{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:8px 10px;font-family:var(--sans);
+       font-size:13.5px;color:var(--encre);width:100%}
+  .txt{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:8px 10px;font-family:var(--sans);
+       font-size:13px;color:var(--encre);width:100%}
+  .oeil{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre);display:block;margin-bottom:4px}
+  .x{border:none;background:none;color:var(--encre-d);font-size:16px;cursor:pointer;padding:0 6px}
+  .ajout{border:1px dashed var(--cuivre-p);background:none;color:var(--cuivre);border-radius:3px;
+         font-family:var(--sans);font-size:12px;padding:8px 12px;cursor:pointer;margin:12px 24px 22px}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);font-size:11px;
+       letter-spacing:.14em;text-transform:uppercase;padding:10px 17px;cursor:pointer}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+  .pas{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:100px;
+       border:1px solid var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre);white-space:nowrap}
+  .pas--v{border-color:#CBDACE;background:var(--vert-f);color:var(--vert)}
+
+  /* l'ecart d'une tete */
+  .ecart{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--filet)}
+  @media(max-width:900px){.ecart{grid-template-columns:1fr}}
+  .ec{padding:16px 24px;border-left:1px solid var(--filet)}
+  .ec:first-child{border-left:none}
+  .ec u{text-decoration:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:8px}
+  .r{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:5px 0}
+  .r+.r{border-top:1px solid #EDE6D8}
+  .r u{text-decoration:none;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--encre-d);margin:0}
+  .r span{font-size:14px;color:var(--encre)}
+
+  .apres{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+  @media(max-width:900px){.apres{grid-template-columns:1fr}}
+  .av{border:1px solid var(--filet);border-radius:4px;padding:14px 17px;background:var(--ivoire)}
+  .av u{text-decoration:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:6px}
+  .av b{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);display:block;line-height:1.3}
+  .av--ko{border-color:var(--brique-p);background:var(--brique-f)}
+  .av--ko b{color:var(--brique)}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--filet);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · Catalogue · maquette à valider</p>
+  <h1>Les protocoles.</h1>
+
+  <div class="ecran">
+    <div class="tete"><h2>Catalogue</h2><span class="s">Les protocoles de la Maison</span></div>
+    <div class="tabs"><span>Prestations</span><span>La Gamme</span><b>Les protocoles</b><span>Formules</span></div>
+
+    <!-- ── PROTOCOLE 1 ── -->
+    <div class="titre">
+      <b>Après une couleur</b>
+      <u>4 étapes · s'ouvre sur YÈKPÈ Couleur, Sublimation, Couleur+Lumière</u>
+      <span class="dr"><button class="btn--ghost btn">Aperçu cliente</button><button class="btn">Enregistrer</button></span>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:120px">Quand</th><th style="width:34%">La prestation</th>
+        <th>Ce que la cliente lit</th><th style="width:110px">Vendu ?</th><th style="width:40px"></th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="j"><input value="14"><em>j</em></span></td>
+          <td><select class="sel"><option>GBÌGBÌ™ Module · Soin Reconstruction</option></select></td>
+          <td><input class="txt" value="La couleur ouvre la cuticule. On la referme avant qu'elle ne casse."></td>
+          <td><span class="pas--v pas">au forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+        <tr>
+          <td><span class="j"><input value="30"><em>j</em></span></td>
+          <td><select class="sel"><option>DÀNDÀN™ · Le Soin Hydratant</option></select></td>
+          <td><input class="txt" value="Un mois après, la fibre a soif."></td>
+          <td><span class="pas--v pas">au forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+        <tr>
+          <td><span class="j"><input value="45"><em>j</em></span></td>
+          <td><select class="sel"><option>WÈWÈ™ · La Purification</option></select></td>
+          <td><input class="txt" value="Détox avant de reprendre le cycle courant."></td>
+          <td><span class="pas--v pas">au forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+        <tr>
+          <td><span class="j"><input value="56"><em>j</em></span></td>
+          <td><select class="sel"><option>YÈKPÈ™ Éclat · Le Raviveur de Couleur</option></select></td>
+          <td><input class="txt" value="La couleur ternit vers la sixième semaine. On la rappelle avant qu'elle ne s'efface."></td>
+          <td><span class="pas">hors forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <button class="ajout">+ Une étape</button>
+
+    <!-- ── PROTOCOLE 2 ── -->
+    <div class="titre" style="border-top:1px solid var(--filet);padding-top:20px">
+      <b>Le programme de pousse</b>
+      <u>3 étapes · s'ouvre sur VÍVÍVÓ, ou sur la date que la Maison pose</u>
+      <span class="dr"><button class="btn--ghost btn">Aperçu cliente</button><button class="btn">Enregistrer</button></span>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:120px">Quand</th><th style="width:34%">La prestation</th>
+        <th>Ce que la cliente lit</th><th style="width:110px">Vendu ?</th><th style="width:40px"></th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="j"><input value="28"><em>j</em></span></td>
+          <td><select class="sel"><option>DÀNDÀN™ · Le Soin Hydratant</option></select></td>
+          <td><input class="txt" value="Une fibre sèche casse, et ce qui casse ne se rattrape pas."></td>
+          <td><span class="pas">hors forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+        <tr>
+          <td><span class="j"><input value="56"><em>j</em></span></td>
+          <td><select class="sel"><option>GBÌGBÌ™ Module · Soin Reconstruction</option></select></td>
+          <td><input class="txt" value="On ferme ce qui s'ouvre. C'est le geste qui garde les centimètres."></td>
+          <td><span class="pas">hors forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+        <tr>
+          <td><span class="j"><input value="84"><em>j</em></span></td>
+          <td><select class="sel"><option>WÈWÈ™ · La Purification, puis on remesure</option></select></td>
+          <td><input class="txt" value="Le cycle se referme sur une preuve : comptage et mèche témoin."></td>
+          <td><span class="pas">hors forfait</span></td>
+          <td><button class="x">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <button class="ajout">+ Une étape</button>
+
+    <!-- ── LES ÉCARTS ── -->
+    <div class="ecart">
+      <div class="ec">
+        <u>Têtes qui suivent leur propre cadence · 2</u>
+        <div class="r"><span>Shadé Euzen</span><u>pousse · J+21 / 42 / 63</u></div>
+        <div class="r"><span>Mylène A.</span><u>couleur · J+14 / 30 / 60 / 75</u></div>
+      </div>
+      <div class="ec">
+        <u>Où l'écart se pose</u>
+        <div class="r"><span>Sur sa fiche, onglet Parcours</span><u>Décaler pour elle</u></div>
+        <div class="r"><span>Elle garde son écart si la Maison change</span><u>règle</u></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="apres">
+    <div class="av av--ko"><u>Aujourd'hui</u><b>Dans le code. Mes intervalles, mes phrases, publiées chez vos clientes.</b></div>
+    <div class="av"><u>Demain</u><b>Deux tableaux. Les jours, les soins, les mots — les vôtres.</b></div>
+  </div>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+</body>
+</html>

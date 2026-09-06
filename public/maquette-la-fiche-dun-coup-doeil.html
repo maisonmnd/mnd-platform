@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La fiche d'un coup d'œil · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;
+    --indigo:#1E2150;--indigo-2:#2C3068;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#7A756B;--filet:#DED5C3;
+    --brique:#96412E;--brique-p:#E4BDB2;--vert:#4A6B52;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1500px;margin:0 auto;padding:34px 24px 80px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 26px;letter-spacing:-.015em}
+
+  .fiche{border:1px solid var(--filet);border-radius:5px;overflow:hidden;background:var(--ivoire)}
+  .tete{background:var(--indigo);color:#EFEAE0;padding:15px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tete h2{font-family:var(--serif);font-weight:400;font-size:26px;color:#fff;margin:0}
+  .tete .abo{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--cuivre-p);
+             border:1px solid rgba(227,201,174,.4);padding:5px 11px;border-radius:100px}
+  .tete .act{margin-left:auto;display:flex;gap:7px}
+  .tete .act span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(227,201,174,.4);
+                  color:var(--cuivre-p);padding:8px 13px;border-radius:3px;cursor:default}
+  .tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid var(--filet)}
+  .tabs span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding:13px 0 10px}
+  .tabs b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);font-weight:500;
+          padding:13px 0 10px;border-bottom:2px solid var(--cuivre)}
+
+  /* ── LA BANDE DES CHIFFRES : cinq valeurs, zéro phrase ── */
+  .bande{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--filet);background:#fff}
+  @media(max-width:1000px){.bande{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.bande{grid-template-columns:1fr}}
+  .b{padding:15px 20px;border-left:1px solid var(--filet)}
+  .b:first-child{border-left:none}
+  .b u{text-decoration:none;display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+       color:var(--encre-d);margin-bottom:4px}
+  .b b{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1;color:var(--indigo);display:block}
+  .b i{font-style:normal;font-size:11.5px;color:var(--encre-d)}
+  .b.vide b{color:#C9C0AE}
+  .b .plus{border:1px dashed var(--cuivre-p);background:none;color:var(--cuivre);border-radius:3px;
+           font-family:var(--sans);font-size:11px;padding:5px 10px;cursor:pointer;margin-top:5px}
+
+  /* ── LA GRILLE : tout visible, rien à ouvrir ── */
+  .grille{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+  @media(max-width:1240px){.grille{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:680px){.grille{grid-template-columns:1fr}}
+  .p{border-left:1px solid var(--filet);border-bottom:1px solid var(--filet);padding:16px 20px 18px}
+  .p:nth-child(4n+1){border-left:none}
+  @media(max-width:1240px){.p{border-left:none}.p:nth-child(2n){border-left:1px solid var(--filet)}}
+  .p h3{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);margin:0 0 12px;
+        display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:500}
+  .p h3 em{font-style:normal;color:var(--cuivre);font-size:10px;cursor:pointer}
+
+  .r{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:6px 0}
+  .r+.r{border-top:1px solid #EDE6D8}
+  .r u{text-decoration:none;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--encre-d);flex:none}
+  .r span{font-size:14.5px;color:var(--encre);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .r span.vide{color:#B9B0A0}
+  .r span.fort{font-family:var(--serif);font-size:19px;color:var(--indigo)}
+  .plus{border:1px dashed var(--cuivre-p);background:none;color:var(--cuivre);border-radius:3px;
+        font-family:var(--sans);font-size:11.5px;padding:6px 10px;cursor:pointer;width:100%;text-align:left;margin-top:8px}
+  .ch{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  .ch span{border:1px solid var(--filet);background:#fff;border-radius:100px;padding:4px 11px;font-size:12px;
+           color:var(--encre-d);cursor:pointer}
+  .ch span.on{border-color:var(--cuivre);background:var(--cuivre-f);color:var(--cuivre)}
+  .p--danger h3{color:var(--brique)}
+  .p--danger .ch span{border-color:var(--brique-p);color:var(--brique)}
+  .pastille{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:100px;
+            border:1px solid var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre)}
+
+  .apres{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
+  @media(max-width:900px){.apres{grid-template-columns:1fr}}
+  .av{border:1px solid var(--filet);border-radius:4px;padding:14px 17px;background:var(--ivoire)}
+  .av u{text-decoration:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:6px}
+  .av b{font-family:var(--serif);font-weight:400;font-size:21px;color:var(--indigo);display:block;line-height:1.25}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--filet);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · Profil · maquette à valider</p>
+  <h1>D'un coup d'œil.</h1>
+
+  <div class="fiche">
+    <div class="tete">
+      <h2>Komakan Ahouansou</h2>
+      <span class="abo">★ Le Lavage du Mois</span>
+      <span class="act"><span>Appeler</span><span>WhatsApp</span><span>Itinéraire</span></span>
+    </div>
+    <div class="tabs"><span>Aperçu</span><b>Profil</b><span>Compte</span><span>Parcours</span><span>Documents</span></div>
+
+    <!-- CINQ CHIFFRES -->
+    <div class="bande">
+      <div class="b"><u>Locks</u><b>285</b><i>Micro · marge 15</i></div>
+      <div class="b"><u>Cadence</u><b>8 sem.</b><i>reprise à la clôture</i></div>
+      <div class="b"><u>À la Maison</u><b>1 an</b><i>31 août 2026</i></div>
+      <div class="b vide"><u>Longueur</u><b>—</b><button class="plus">Constater</button></div>
+      <div class="b vide"><u>Couronne</u><b>—</b><button class="plus">Dater</button></div>
+    </div>
+
+    <!-- TOUT VISIBLE -->
+    <div class="grille">
+
+      <div class="p">
+        <h3><span>La joindre</span><em>Modifier</em></h3>
+        <div class="r"><u>Tél.</u><span>+229 01 61 12 44 31</span></div>
+        <div class="r"><u>E-mail</u><span>kingamok20@gmail.com</span></div>
+        <div class="r"><u>Ville</u><span class="vide">—</span></div>
+        <button class="plus">+ Second numéro</button>
+      </div>
+
+      <div class="p">
+        <h3><span>Sa tête</span><em>Modifier</em></h3>
+        <div class="r"><u>Locks</u><span class="fort">285</span></div>
+        <div class="r"><u>Calibre</u><span>Micro</span></div>
+        <div class="r"><u>Marge</u><span class="pastille">15 locks</span></div>
+        <div class="r"><u>Longueur</u><span class="vide">à constater</span></div>
+      </div>
+
+      <div class="p">
+        <h3><span>La Maison décide</span><em>Modifier</em></h3>
+        <div class="r"><u>Cadence</u><span class="fort">8 sem.</span></div>
+        <div class="r"><u>Reprise</u><span>à la clôture</span></div>
+        <div class="r"><u>Son jour</u><span class="vide">tous</span></div>
+        <div class="r"><u>Produit</u><span class="vide">aucun</span></div>
+      </div>
+
+      <div class="p">
+        <h3><span>Elle est</span><em>Modifier</em></h3>
+        <div class="r"><u>Persona</u><span>L'Initiée</span></div>
+        <div class="r"><u>Place</u><span>Couronnée</span></div>
+        <div class="r"><u>Anniv.</u><span class="vide">—</span></div>
+        <div class="ch" style="margin-top:9px"><span>Fidèle</span><span>VIP</span><span>+</span></div>
+      </div>
+
+      <div class="p" style="grid-column:span 2">
+        <h3><span>Ce qu'on sait d'elle</span><em>Écrire</em></h3>
+        <div class="r" style="padding:2px 0"><span class="vide" style="text-align:left">Rien de noté.</span></div>
+      </div>
+
+      <div class="p">
+        <h3><span>Son envie</span></h3>
+        <div class="r"><u>Dite</u><span class="vide">—</span></div>
+      </div>
+
+      <div class="p p--danger">
+        <h3><span>Zone sensible</span></h3>
+        <div class="ch"><span>Fusionner</span><span>Archiver</span><span>Supprimer</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CE QUI CHANGE, EN QUATRE MOTS CHACUN -->
+  <div class="apres">
+    <div class="av"><u>Avant</u><b>9 blocs · 20 cases · 2 écrans</b></div>
+    <div class="av"><u>Maintenant</u><b>5 chiffres · 7 panneaux · 1 écran</b></div>
+  </div>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+</div>
+</body>
+</html>

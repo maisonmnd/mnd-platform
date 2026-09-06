@@ -13,7 +13,7 @@ import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
 import { QUATRE_TEMPS, useClientTemps, tempsOf, tempsDone, nextTemps, setTemps } from '../../../../shared/temps';
-import { useProducts, useServices, LONGUEURS, type Service } from '../../../../shared/catalog';
+import { useProducts, useServices, LONGUEURS, longueurLabel, type Service } from '../../../../shared/catalog';
 import {
   bandOf, bandRange, sortedBands, useModelBands,
   calibreDeLaTete as calibreDeLaTeteAvecMarge, margeAJoue, MARGE_CALIBRE_LOCKS,
@@ -1873,6 +1873,10 @@ function Customer360({
   const [cptNoteOuverte, setCptNoteOuverte] = useState(false);
   /* Les Quatre Temps ne changent qu'au bilan : replies par defaut. */
   const [tempsOuverts, setTempsOuverts] = useState(false);
+  /* UN SEUL PANNEAU EN ÉCRITURE À LA FOIS. La fiche se lit ; on n'y écrit
+     que par exception, et deux formulaires ouverts la ramèneraient au mur
+     de cases qu'elle était. '' = tout en lecture. */
+  const [panEdite, setPanEdite] = useState('');
   const [cptCm, setCptCm] = useState('');
   /* ══ REPRENDRE UN COMPTAGE — 5 septembre 2026 ═════════════════════
      « Éditer la note de comptage de locks au besoin » (Yéman).
@@ -2776,9 +2780,91 @@ function Customer360({
             TROIS TEMPS, comme l'Aperçu : QUI ELLE EST, CE QU'ON SAIT D'ELLE,
             puis ce qui ne se fait qu'une fois et pas deux. Le contenu n'a pas
             changé d'un champ — il a changé de place. */}
-        <div className="trc-profil">
-        {/* Identité — éditable */}
-        <div>
+        {/* ══ CINQ CHIFFRES, ZÉRO PHRASE — 6 septembre 2026 ═══════════════
+            Maquette validée. « Nous ne sommes pas de grands lecteurs. »
+
+            CE QU'ON OUVRE LA FICHE POUR SAVOIR — son calibre, sa cadence, son
+            ancienneté — arrivait après six blocs de formulaire. Il ouvre
+            maintenant la page, en valeurs, chacune lisible sans lire.
+
+            LE VIDE PORTE UN GESTE, PAS UNE PHRASE : un tiret, et le bouton qui
+            le comble. Une case grise de la taille d'une case remplie ne se
+            distingue pas d'une valeur, et une fiche neuve devenait un mur. */}
+        <div className="trc-bande">
+          <div className="trc-bande__c">
+            <u>Locks</u>
+            <span className={`trc-bande__v ${client.lockCount ? '' : 'is-vide'}`}>
+              {client.lockCount ?? '—'}
+            </span>
+            <span className="trc-bande__s">
+              {(() => {
+                const b = calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre);
+                if (!client.lockCount) return 'à compter';
+                return b?.name ? `${b.name}${client.margeCalibre ? ` · marge ${MARGE_CALIBRE_LOCKS}` : ''}` : 'hors calibre';
+              })()}
+            </span>
+          </div>
+          <div className="trc-bande__c">
+            <u>Cadence</u>
+            <span className={`trc-bande__v ${client.rythmeSemaines ? '' : 'is-vide'}`}>
+              {client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : '—'}
+            </span>
+            <span className="trc-bande__s">
+              {client.rythmeSemaines
+                ? (client.repriseAuto ? 'reprise à la clôture' : 'sans reprise auto')
+                : 'non posée'}
+            </span>
+          </div>
+          <div className="trc-bande__c">
+            <u>À la Maison</u>
+            <span className={`trc-bande__v ${client.since ? '' : 'is-vide'}`}>
+              {(() => {
+                if (!client.since) return '—';
+                const j = Math.max(0, Math.round((Date.parse(`${todayISO()}T00:00:00`) - Date.parse(`${client.since}T00:00:00`)) / 86400000));
+                if (j < 31) return `${j} j`;
+                const m = Math.round(j / 30.4);
+                return m < 12 ? `${m} mois` : `${Math.floor(m / 12)} an${Math.floor(m / 12) > 1 ? 's' : ''}`;
+              })()}
+            </span>
+            <span className="trc-bande__s">{client.since ? frJourAn(client.since) : 'date inconnue'}</span>
+          </div>
+          <div className="trc-bande__c">
+            <u>Longueur</u>
+            <span className={`trc-bande__v ${client.longueur ? '' : 'is-vide'}`}>
+              {client.longueur ? longueurLabel(client.longueur).split(' ')[0] : '—'}
+            </span>
+            <span className="trc-bande__s">{client.longueur ? 'travaillée par défaut' : 'à constater'}</span>
+          </div>
+          <div className="trc-bande__c">
+            <u>Couronne</u>
+            <span className={`trc-bande__v ${client.crownSince ? '' : 'is-vide'}`}>
+              {client.crownSince ? frJourAn(client.crownSince).split(' ')[0] : '—'}
+            </span>
+            <span className="trc-bande__s">
+              {client.crownSince ? frJourAn(client.crownSince) : 'jour inconnu'}
+            </span>
+          </div>
+        </div>
+
+        <div className="trc-fiche">
+        {/* LA JOINDRE — ses coordonnées. En lecture, trois valeurs ; le
+            formulaire ne paraît que si on le demande. */}
+        <div className="trc-pan">
+          <div className="trc-pan__t">
+            <span>La joindre</span>
+            <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'joindre' ? '' : 'joindre'))}>
+              {panEdite === 'joindre' ? 'Replier' : 'Modifier'}
+            </button>
+          </div>
+          {panEdite !== 'joindre' && (
+            <>
+              <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone || '—'}</span></div>
+              <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
+              <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
+              <div className="trc-v"><u>Anniv.</u><span className={client.birthday ? '' : 'is-vide'}>{client.birthday ? frBirthday(client.birthday) : '—'}</span></div>
+            </>
+          )}
+          {panEdite === 'joindre' && (<>
           <span className="trc-microlabel">Identité</span>
           <div className="trc-crown__grid">
             <Field label="Nom complet">
@@ -2851,6 +2937,7 @@ function Customer360({
               </Button>
             </div>
           )}
+          </>)}
         </div>
 
         {/* La couronne — partagé avec Ma Couronne.
@@ -2862,14 +2949,32 @@ function Customer360({
             prenait pour un AUTRE bloc, jamais à jour du premier. La carte ne
             garde que ce que les champs ne disent pas : le calibre que le
             comptage donne, et l'envie qu'elle a déclarée. */}
-        <div>
+        <div className="trc-pan">
+          <div className="trc-pan__t">
+            <span>Sa tête</span>
+            <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'tete' ? '' : 'tete'))}>
+              {panEdite === 'tete' ? 'Replier' : 'Modifier'}
+            </button>
+          </div>
+          {panEdite !== 'tete' && (
+            <>
+              <div className="trc-v"><u>Locks</u><span className={`is-fort ${client.lockCount ? '' : 'is-vide'}`}>{client.lockCount ?? '—'}</span></div>
+              <div className="trc-v"><u>Calibre</u>
+                <span className={calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre)?.name ? '' : 'is-vide'}>
+                  {calibreDeLaTeteAvecMarge(client.lockCount, bands, client.margeCalibre)?.name ?? '—'}
+                </span>
+              </div>
+              <div className="trc-v"><u>Marge</u><span className={client.margeCalibre ? '' : 'is-vide'}>{client.margeCalibre ? `${MARGE_CALIBRE_LOCKS} locks` : 'aucune'}</span></div>
+              <div className="trc-v"><u>Longueur</u><span className={client.longueur ? '' : 'is-vide'}>{client.longueur ? longueurLabel(client.longueur) : 'à constater'}</span></div>
+            </>
+          )}
+          {panEdite === 'tete' && (<>
           {/* ══ DEUX NATURES, DEUX BLOCS — 6 septembre 2026 ═══════════════
               « La couronne · statut Ma Couronne » disait deux choses, et
               aucune ne se comprenait seule. Surtout, le bloc mêlait CE QUE SA
               TÊTE EST — des faits mesurés au fauteuil — et CE QUE LA MAISON A
               DÉCIDÉ pour elle : sa cadence, son jour, son produit. Les mêler
               faisait croire qu'on constate ce qu'en réalité on choisit. */}
-          <span className="trc-microlabel">Ce que sa tête est · mesuré au fauteuil</span>
           <div className="trc-crown">
             {/* LE CALIBRE, LU DU COMPTAGE — c'est LA réponse que la saisie des
                 locks produit : elle se dit ici, sinon remplir le champ semble
@@ -2983,11 +3088,35 @@ function Customer360({
                   alors sur son jour, au premier qui suit l'échéance. */}
             </div>
           </div>
+          </>)}
         </div>
 
         {/* CE QUE LA MAISON A DÉCIDÉ — des choix, pas des faits. Ils commandent
             la prédiction, la reprise et son Carnet de Suivi. */}
-        <div>
+        <div className="trc-pan">
+          <div className="trc-pan__t">
+            <span>La Maison décide</span>
+            <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'decide' ? '' : 'decide'))}>
+              {panEdite === 'decide' ? 'Replier' : 'Modifier'}
+            </button>
+          </div>
+          {panEdite !== 'decide' && (
+            <>
+              <div className="trc-v"><u>Cadence</u><span className={`is-fort ${client.rythmeSemaines ? '' : 'is-vide'}`}>{client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : '—'}</span></div>
+              <div className="trc-v"><u>Reprise</u><span className={client.repriseAuto ? '' : 'is-vide'}>{client.repriseAuto ? 'à la clôture' : 'à la main'}</span></div>
+              <div className="trc-v"><u>Son jour</u>
+                <span className={client.jourPrefere === undefined ? 'is-vide' : ''}>
+                  {client.jourPrefere === undefined ? 'tous' : (JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.label ?? 'tous')}
+                </span>
+              </div>
+              <div className="trc-v"><u>Produit</u>
+                <span className={client.recoProductId ? '' : 'is-vide'}>
+                  {products.find((x) => x.id === client.recoProductId)?.name ?? 'aucun'}
+                </span>
+              </div>
+            </>
+          )}
+          {panEdite === 'decide' && (<>
           <span className="trc-microlabel">Ce que la Maison a décidé pour elle</span>
           <div className="trc-crown">
             <div className="trc-crown__grid">
@@ -3054,6 +3183,7 @@ function Customer360({
               </Field>
             </div>
           </div>
+          </>)}
         </div>
         </div>
 
