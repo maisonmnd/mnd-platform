@@ -271,7 +271,12 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       <Tabs<LivretTab>
         tabs={[
           { k: 'f1', l: 'Candidature' },
-          { k: 'formation', l: 'Montant Formation' },
+          /* ══ L'ONGLET SE NOMME PAR CE QU'ON Y CHERCHE — 6 sept. 2026 ══
+             « Ou est le contrat de l'Academie ? » (Yeman), trois fois. Il etait
+             la, sous un onglet appele « Montant Formation » : personne ne
+             cherche un contrat sous le mot « montant ». Un ecran qu'on ne
+             trouve pas n'existe pas, quoi qu'il contienne. */
+          { k: 'formation', l: 'Contrat & montant' },
           { k: 'f3', l: `Séances (${e.sessions.length})` },
           { k: 'f4', l: `Pratique (${e.practice.length})` },
           { k: 'f5', l: `Modules (${e.evaluations.length})` },
