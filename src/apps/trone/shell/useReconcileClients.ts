@@ -176,9 +176,21 @@ export function useReconcileClients(): void {
       if (!deja || a.date < deja) naissances.set(a.clientId, a.date);
     }
     if (naissances.size === 0) return;
-    const aDater = clientsStore.get().filter((c) => !c.crownSince && naissances.has(c.id));
+    /* ══ ELLE SE RÉALIGNE, ELLE NE SE POSE PLUS UNE FOIS — 6 septembre 2026 ══
+       « Quand la date est modifiée, la réajuster » (Yéman).
+
+       LE RATTRAPAGE ÉTAIT IDEMPOTENT : il n'écrivait que sur une fiche muette.
+       Déplacer le rituel de création — corriger une année, reprendre un
+       historique — ne bougeait donc plus rien, et la couronne gardait une date
+       que plus aucun rendez-vous ne portait.
+
+       UNE DATE POSÉE PAR LA MAISON NE SE RÉÉCRIT JAMAIS (`crownPose`) : c'est
+       la seule chose qui arrête l'alignement, et c'est une décision. */
+    const aDater = clientsStore.get().filter((c) => !c.crownPose
+      && naissances.has(c.id) && c.crownSince !== naissances.get(c.id));
     if (aDater.length === 0) return;
-    clientsStore.set((prev) => prev.map((c) => (!c.crownSince && naissances.has(c.id)
+    const aligner = new Set(aDater.map((c) => c.id));
+    clientsStore.set((prev) => prev.map((c) => (aligner.has(c.id)
       ? { ...c, crownSince: naissances.get(c.id) }
       : c)));
   }, [session, appts, tousClients]);

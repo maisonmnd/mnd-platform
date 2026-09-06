@@ -2886,8 +2886,11 @@ function Customer360({
           </div>
           <div className="trc-bande__c">
             <u>Couronne</u>
+            {/* L'ANNÉE, PAS LE QUANTIÈME. « Couronne · 4 » ne disait rien : le
+                4 était le jour du mois, lu par accident du premier mot de la
+                date. C'est l'année qu'on cherche d'un coup d'œil. */}
             <span className={`trc-bande__v ${client.crownSince ? '' : 'is-vide'}`}>
-              {client.crownSince ? frJourAn(client.crownSince).split(' ')[0] : '—'}
+              {client.crownSince ? client.crownSince.slice(0, 4) : '—'}
             </span>
             <span className="trc-bande__s">
               {client.crownSince ? frJourAn(client.crownSince) : 'jour inconnu'}
@@ -3124,7 +3127,19 @@ function Customer360({
                 </Select>
               </Field>
               <Field label="Couronne depuis">
-                <DateEnClair value={client.crownSince} onChange={(iso) => patch({ crownSince: iso })} ariaLabel="Couronne depuis" />
+                {/* LA MAIN POSE, ET L'ALIGNEMENT S'ARRÊTE. La couronne suit son
+                    premier VÈKPÈ™ honoré et se réaligne quand il bouge ; une
+                    date écrite ici ne se réécrit plus jamais. */}
+                <DateEnClair
+                  value={client.crownSince}
+                  onChange={(iso) => patch({ crownSince: iso, crownPose: true })}
+                  ariaLabel="Couronne depuis"
+                />
+                {client.crownPose && (
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5, lineHeight: 1.5 }}>
+                    Posée à la main : elle ne suivra plus son premier VÈKPÈ™.
+                  </div>
+                )}
               </Field>
               {/* « MAÎTRE PRÉFÉRÉ(E) » RETIRÉ DU STATUT (13 août, demande de
                   Yéman) : la préférence est À ELLE — elle se dit dans le

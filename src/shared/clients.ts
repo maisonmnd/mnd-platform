@@ -167,6 +167,18 @@ export type Client = {
       jour » le verrait se remplir à nouveau à la visite suivante, sans
       comprendre pourquoi. Vrai dès qu'une main touche le sélecteur. */
   jourPose?: boolean;
+  /** LA MAISON A POSÉ SA COURONNE À LA MAIN — 6 septembre 2026.
+
+      « Quand une prestation de VÈKPÈ est choisie, remplir automatiquement
+      la date de la couronne. Quand la date est modifiée, la réajuster »
+      (Yéman). Le rattrapage du 19 août était IDEMPOTENT : il n'écrivait
+      que sur une fiche muette, donc déplacer le rituel de création ne
+      bougeait plus rien.
+
+      La couronne suit désormais son premier VÈKPÈ honoré, et se réaligne
+      quand il change. Cette marque est la seule chose qui l'arrête : une
+      date posée par la Maison ne se réécrit jamais. */
+  crownPose?: boolean;
   /** LES PROTOCOLES QUE LA MAISON LUI A POSÉS — 6 septembre 2026.
 
       « Allow me to add new protocoles and attribute it to clients. » La
