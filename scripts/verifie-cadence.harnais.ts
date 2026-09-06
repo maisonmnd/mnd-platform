@@ -4,7 +4,7 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO, jourFavoriDe, diraLeJourFavori } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO, jourFavoriDe, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
@@ -380,6 +380,32 @@ dit('sans rituel, la fiche seule', '2026-08-31', depuisQuandALaMaison(fiche, [])
 dit('la tête voisine ne compte pas', '2026-08-31',
   depuisQuandALaMaison(fiche, [{ clientId: 'cl-2', date: '2024-01-01' }]));
 dit('sans fiche ni rituel, rien', undefined, depuisQuandALaMaison({ id: 'cl-9', since: '' }, []));
+
+/* ── POURQUOI AUCUN JOUR NE SE DÉGAGE — 6 septembre 2026 ──────────
+   « Bake a 6 RDV et son jour n'a pas été déterminé, le champ est vide. » Un
+   champ vide et muet est pire qu'une valeur sans sa raison : on ne sait pas si
+   le Trône n'a pas cherché, s'il a échoué, ou s'il attend autre chose. */
+dit('six rendez-vous, deux honorés : trop peu', 'trop-peu', litSonJour([
+  v('2026-09-08'), v('2026-09-15'),
+  v('2026-09-22', 'confirmé'), v('2026-09-29', 'confirmé'),
+  v('2026-10-06', 'confirmé'), v('2026-10-13', 'annulé'),
+], 'cl-1').raison);
+dit('… et le dit en français', '6 rendez-vous, dont 2 honorés. Il en faut 4 rendus pour conclure.',
+  diraPourquoiPasDeJour(litSonJour([
+    v('2026-09-08'), v('2026-09-15'),
+    v('2026-09-22', 'confirmé'), v('2026-09-29', 'confirmé'),
+    v('2026-10-06', 'confirmé'), v('2026-10-13', 'annulé'),
+  ], 'cl-1')));
+dit('l’égalité se nomme', 'egalite', litSonJour(
+  [v('2026-09-08'), v('2026-09-15'), v('2026-09-09'), v('2026-09-16')], 'cl-1').raison);
+dit('la dispersion aussi', 'disperse', litSonJour([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
+  v('2026-09-09'), v('2026-09-16'),
+  v('2026-09-10'), v('2026-09-17'), v('2026-09-11'),
+], 'cl-1').raison);
+/* QUAND UN JOUR SE DÉGAGE, AUCUNE RAISON — le silence dit que tout va bien. */
+dit('un jour net n’a pas de raison', undefined, litSonJour(mardis, 'cl-1').raison);
+dit('… et rend le favori', { jour: 2, fois: 4, total: 4 }, litSonJour(mardis, 'cl-1').favori);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

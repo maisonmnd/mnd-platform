@@ -237,6 +237,64 @@ export function jourFavoriDe(
   return { jour, fois, total };
 }
 
+/** CE QUE LE CARNET DIT DE SES JOURS — avec la raison quand rien ne se dégage.
+
+    Trois refus possibles, et ils ne se corrigent pas de la même façon :
+    · `trop-peu` — il faut la faire revenir, rien d'autre à faire ;
+    · `egalite` — deux jours se valent, c'est à la Maison de trancher ;
+    · `disperse` — elle vient quand elle peut, et c'est une information. */
+export type LectureDuJour = {
+  favori?: JourFavori;
+  /** Ses venues HONORÉES, celles qui comptent. */
+  honorees: number;
+  /** Tous ses rendez-vous, honorés ou non — pour dire l'écart. */
+  rituels: number;
+  /** Le jour le plus fréquent, même quand il ne suffit pas. */
+  tete?: { jour: number; fois: number };
+  raison?: 'trop-peu' | 'egalite' | 'disperse';
+};
+
+export function litSonJour(
+  venues: readonly { clientId: string; date: string; status?: string }[],
+  clientId: string,
+): LectureDuJour {
+  const siens = venues.filter((a) => a.clientId === clientId);
+  const honorees = siens.filter((a) => a.status === 'honoré');
+  const base = { honorees: honorees.length, rituels: siens.length };
+  const compte = new Array(7).fill(0) as number[];
+  for (const a of honorees) {
+    const d = new Date(`${a.date}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) compte[d.getDay()] += 1;
+  }
+  let jour = 0;
+  for (let i = 1; i < 7; i += 1) if (compte[i] > compte[jour]) jour = i;
+  const fois = compte[jour];
+  const tete = fois > 0 ? { jour, fois } : undefined;
+
+  if (honorees.length < VENUES_POUR_UN_JOUR) return { ...base, tete, raison: 'trop-peu' };
+  const second = compte.filter((_, i) => i !== jour).reduce((m, x) => Math.max(m, x), 0);
+  if (fois === second) return { ...base, tete, raison: 'egalite' };
+  if (fois * 2 < honorees.length) return { ...base, tete, raison: 'disperse' };
+  return { ...base, tete, favori: { jour, fois, total: honorees.length } };
+}
+
+/** LA RAISON, EN FRANÇAIS. `nomDuJour` sert quand un jour se détache sans
+    suffire — le nommer évite de chercher lequel. */
+export const diraPourquoiPasDeJour = (l: LectureDuJour, nomDuJour?: string): string => {
+  if (l.raison === 'trop-peu') {
+    return l.rituels > l.honorees
+      ? `${l.rituels} rendez-vous, dont ${l.honorees} honoré${l.honorees > 1 ? 's' : ''}. Il en faut ${VENUES_POUR_UN_JOUR} rendus pour conclure.`
+      : `${l.honorees} venue${l.honorees > 1 ? 's' : ''} honorée${l.honorees > 1 ? 's' : ''}. Il en faut ${VENUES_POUR_UN_JOUR}.`;
+  }
+  if (l.raison === 'egalite') {
+    return 'Deux jours reviennent autant. La Maison tranche, pas le Trône.';
+  }
+  if (l.raison === 'disperse') {
+    return `${nomDuJour ?? 'Son jour le plus fréquent'} ${l.tete?.fois ?? 0} fois sur ${l.honorees} : elle vient quand elle peut.`;
+  }
+  return '';
+};
+
 /** EN CLAIR, pour que la fiche dise D'OÙ vient la proposition. Une valeur posée
     sans sa raison ne se conteste pas : on la subit ou on l'efface. */
 export const diraLeJourFavori = (f: JourFavori, nomDuJour: string): string =>

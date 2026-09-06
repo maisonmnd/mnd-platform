@@ -4,7 +4,7 @@ import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
-import { RYTHMES_ABO, jourFavoriDe, diraLeJourFavori } from '../../../../shared/cadence';
+import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
@@ -1897,7 +1897,11 @@ function Customer360({
   /* SON ANCIENNETÉ VRAIE : le carnet fait foi quand il remonte plus loin
      que la création de sa fiche. */
   const depuisLaMaison = useMemo(() => depuisQuandALaMaison(client, appts), [client, appts]);
-  const jourFavori = useMemo(() => jourFavoriDe(appts, client.id), [appts, client.id]);
+  /* CE QUE LE CARNET DIT DE SES JOURS, avec la raison quand rien ne se
+     dégage : un champ vide et muet est pire qu'une valeur sans sa raison,
+     on ne sait pas si le Trône n'a pas cherché ou s'il attend autre chose. */
+  const lectureDuJour = useMemo(() => litSonJour(appts, client.id), [appts, client.id]);
+  const jourFavori = lectureDuJour.favori;
   useEffect(() => {
     if (!jourFavori || client.jourPose || client.jourPrefere !== undefined) return;
     patch({ jourPrefere: jourFavori.jour });
@@ -3144,9 +3148,14 @@ function Customer360({
               </div>
               {/* D'OÙ VIENT CE JOUR. Une valeur posée sans sa raison ne se
                   conteste pas : on la subit, ou on l'efface au hasard. */}
-              {jourFavori && !client.jourPose && client.jourPrefere === jourFavori.jour && (
+              {!client.jourPose && (
                 <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, paddingTop: 4 }}>
-                  {diraLeJourFavori(jourFavori, JOURS_SEMAINE.find((j) => j.n === jourFavori.jour)?.label ?? '')}
+                  {jourFavori && client.jourPrefere === jourFavori.jour
+                    ? diraLeJourFavori(jourFavori, JOURS_SEMAINE.find((j) => j.n === jourFavori.jour)?.label ?? '')
+                    : diraPourquoiPasDeJour(
+                      lectureDuJour,
+                      lectureDuJour.tete ? JOURS_SEMAINE.find((j) => j.n === lectureDuJour.tete!.jour)?.label : undefined,
+                    )}
                 </div>
               )}
               <div className="trc-v"><u>Produit</u>
