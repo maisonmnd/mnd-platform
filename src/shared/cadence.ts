@@ -175,6 +175,73 @@ export function tauxDeRealisation(venues: { clientId: string; date: string }[]):
    des dates que l'écran laisse corriger une à une. Poser six séances d'un geste
    sans pouvoir en bouger une seule ferait plus de dégâts que de bien. */
 
+/* ══ LE JOUR QU'ELLE PRÉFÈRE — 6 septembre 2026 ═══════════════════════
+
+   « Le jour qui remporte le plus sous le carnet d'un client, remplir
+   automatiquement ce jour favori dans sa fiche » (Yéman).
+
+   LE CARNET SAIT DÉJÀ QUEL JOUR ELLE VIENT. Personne ne l'avait compté : le
+   champ « elle ne vient que le… » attendait qu'on le remplisse à la main, et
+   il restait vide sur presque toutes les têtes — donc la prédiction tombait
+   n'importe quel jour, y compris ceux où elle ne vient jamais.
+
+   TROIS GARDES, PARCE QU'UNE COÏNCIDENCE N'EST PAS UNE HABITUDE :
+
+   ① SEULES LES VENUES HONORÉES COMPTENT. Un rendez-vous annulé, ou posé et
+      jamais rendu, ne dit rien de ce qu'elle aime — il dit le contraire.
+
+   ② QUATRE VENUES AU MOINS. Sur trois, deux un mardi font 67 % et ne prouvent
+      rien : c'est le comptoir qui a proposé mardi, pas elle qui l'a choisi.
+
+   ③ LA MOITIÉ, ET DEVANT LA SUIVANTE. Un jour qui ne rassemble pas la moitié
+      de ses venues n'est pas SON jour ; et à égalité, deux jours se valent —
+      en choisir un serait décider à sa place. */
+
+export type JourFavori = {
+  /** 0 = dimanche, comme `Date.getDay()`. */
+  jour: number;
+  fois: number;
+  /** Les venues honorées comptées. */
+  total: number;
+};
+
+type VenueLue = { clientId: string; date: string; status?: string };
+
+/** LE NOMBRE DE VENUES SOUS LEQUEL ON NE CONCLUT RIEN. */
+export const VENUES_POUR_UN_JOUR = 4;
+
+/** SON JOUR, s'il se dégage. `undefined` quand rien n'est net : le silence est
+    une réponse, une supposition n'en est pas une. */
+export function jourFavoriDe(
+  venues: readonly VenueLue[],
+  clientId: string,
+): JourFavori | undefined {
+  const siennes = venues.filter((a) => a.clientId === clientId && a.status === 'honoré');
+  if (siennes.length < VENUES_POUR_UN_JOUR) return undefined;
+  const compte = new Array(7).fill(0) as number[];
+  for (const a of siennes) {
+    const d = new Date(`${a.date}T00:00:00`);
+    if (Number.isNaN(d.getTime())) continue;
+    compte[d.getDay()] += 1;
+  }
+  const total = compte.reduce((n, x) => n + x, 0);
+  if (total < VENUES_POUR_UN_JOUR) return undefined;
+  let jour = 0;
+  for (let i = 1; i < 7; i += 1) if (compte[i] > compte[jour]) jour = i;
+  const fois = compte[jour];
+  /* À ÉGALITÉ, AUCUN. Deux jours qui se valent ne désignent pas un favori, et
+     trancher reviendrait à décider pour elle. */
+  const second = compte.filter((_, i) => i !== jour).reduce((m, x) => Math.max(m, x), 0);
+  if (fois === second) return undefined;
+  if (fois * 2 < total) return undefined;
+  return { jour, fois, total };
+}
+
+/** EN CLAIR, pour que la fiche dise D'OÙ vient la proposition. Une valeur posée
+    sans sa raison ne se conteste pas : on la subit ou on l'efface. */
+export const diraLeJourFavori = (f: JourFavori, nomDuJour: string): string =>
+  `Elle vient le ${nomDuJour.toLowerCase()} ${f.fois} fois sur ${f.total}.`;
+
 /** LES RYTHMES DE LA MAISON, en semaines — 3 septembre 2026.
 
     Quatre, six et huit couvraient « presque tout » ; dix est venu avec la

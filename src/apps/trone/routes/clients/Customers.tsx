@@ -4,11 +4,11 @@ import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
-import { RYTHMES_ABO } from '../../../../shared/cadence';
+import { RYTHMES_ABO, jourFavoriDe, diraLeJourFavori } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -1880,6 +1880,29 @@ function Customer360({
   /* QUELLE SUITE SE DÉCALE POUR ELLE. '' = aucune ; on n'ouvre qu'une
      cadence à la fois, sinon les deux tableaux de jours se confondent. */
   const [decale, setDecale] = useState<'' | 'couleur' | 'pousse'>('');
+
+  /* ══ SON JOUR, LU DE SES VENUES — 6 septembre 2026 ═══════════════
+     « Le jour qui remporte le plus sous le carnet d'un client, remplir
+     automatiquement ce jour favori dans sa fiche » (Yéman).
+
+     LE CARNET SAVAIT DÉJÀ QUEL JOUR ELLE VIENT, et personne ne l'avait
+     compté : le champ attendait une main, restait vide sur presque toutes
+     les têtes, et la prédiction tombait donc n'importe quel jour — y
+     compris ceux où elle ne vient jamais.
+
+     ON NE REVIENT JAMAIS SUR UNE DÉCISION. La déduction ne se pose que sur
+     une fiche MUETTE, et cesse dès qu'une main a touché le sélecteur : sans
+     cela, remettre « n'importe quel jour » se verrait annulé à la visite
+     suivante, sans que personne comprenne pourquoi. */
+  /* SON ANCIENNETÉ VRAIE : le carnet fait foi quand il remonte plus loin
+     que la création de sa fiche. */
+  const depuisLaMaison = useMemo(() => depuisQuandALaMaison(client, appts), [client, appts]);
+  const jourFavori = useMemo(() => jourFavoriDe(appts, client.id), [appts, client.id]);
+  useEffect(() => {
+    if (!jourFavori || client.jourPose || client.jourPrefere !== undefined) return;
+    patch({ jourPrefere: jourFavori.jour });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [jourFavori, client.id, client.jourPose, client.jourPrefere]);
   /* LES PROTOCOLES DE LA MAISON, decales par SON ecart s'il existe. Une
      seule source pour le Trone et Ma Couronne. */
   const [lesProtocoles] = useProtocoles();
@@ -2825,16 +2848,18 @@ function Customer360({
           </div>
           <div className="trc-bande__c">
             <u>À la Maison</u>
-            <span className={`trc-bande__v ${client.since ? '' : 'is-vide'}`}>
+            {/* DEPUIS SON PREMIER RITUEL CONNU, pas depuis la création de sa
+                fiche : la reprise de 2025 a rendu l'écart criant. */}
+            <span className={`trc-bande__v ${depuisLaMaison ? '' : 'is-vide'}`}>
               {(() => {
-                if (!client.since) return '—';
-                const j = Math.max(0, Math.round((Date.parse(`${todayISO()}T00:00:00`) - Date.parse(`${client.since}T00:00:00`)) / 86400000));
+                if (!depuisLaMaison) return '—';
+                const j = Math.max(0, Math.round((Date.parse(`${todayISO()}T00:00:00`) - Date.parse(`${depuisLaMaison}T00:00:00`)) / 86400000));
                 if (j < 31) return `${j} j`;
                 const m = Math.round(j / 30.4);
                 return m < 12 ? `${m} mois` : `${Math.floor(m / 12)} an${Math.floor(m / 12) > 1 ? 's' : ''}`;
               })()}
             </span>
-            <span className="trc-bande__s">{client.since ? frJourAn(client.since) : 'date inconnue'}</span>
+            <span className="trc-bande__s">{depuisLaMaison ? frJourAn(depuisLaMaison) : 'date inconnue'}</span>
           </div>
           <div className="trc-bande__c">
             <u>Longueur</u>
@@ -2857,7 +2882,7 @@ function Customer360({
         <div className="trc-fiche">
         {/* LA JOINDRE — ses coordonnées. En lecture, trois valeurs ; le
             formulaire ne paraît que si on le demande. */}
-        <div className="trc-pan">
+        <div className={`trc-pan ${panEdite === 'joindre' ? 'trc-pan--edite' : ''}`}>
           <div className="trc-pan__t">
             <span>La joindre</span>
             <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'joindre' ? '' : 'joindre'))}>
@@ -2957,7 +2982,7 @@ function Customer360({
             prenait pour un AUTRE bloc, jamais à jour du premier. La carte ne
             garde que ce que les champs ne disent pas : le calibre que le
             comptage donne, et l'envie qu'elle a déclarée. */}
-        <div className="trc-pan">
+        <div className={`trc-pan ${panEdite === 'tete' ? 'trc-pan--edite' : ''}`}>
           <div className="trc-pan__t">
             <span>Sa tête</span>
             <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'tete' ? '' : 'tete'))}>
@@ -3101,7 +3126,7 @@ function Customer360({
 
         {/* CE QUE LA MAISON A DÉCIDÉ — des choix, pas des faits. Ils commandent
             la prédiction, la reprise et son Carnet de Suivi. */}
-        <div className="trc-pan">
+        <div className={`trc-pan ${panEdite === 'decide' ? 'trc-pan--edite' : ''}`}>
           <div className="trc-pan__t">
             <span>La Maison décide</span>
             <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'decide' ? '' : 'decide'))}>
@@ -3117,6 +3142,13 @@ function Customer360({
                   {client.jourPrefere === undefined ? 'tous' : (JOURS_SEMAINE.find((j) => j.n === client.jourPrefere)?.label ?? 'tous')}
                 </span>
               </div>
+              {/* D'OÙ VIENT CE JOUR. Une valeur posée sans sa raison ne se
+                  conteste pas : on la subit, ou on l'efface au hasard. */}
+              {jourFavori && !client.jourPose && client.jourPrefere === jourFavori.jour && (
+                <div className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, paddingTop: 4 }}>
+                  {diraLeJourFavori(jourFavori, JOURS_SEMAINE.find((j) => j.n === jourFavori.jour)?.label ?? '')}
+                </div>
+              )}
               <div className="trc-v"><u>Produit</u>
                 <span className={client.recoProductId ? '' : 'is-vide'}>
                   {products.find((x) => x.id === client.recoProductId)?.name ?? 'aucun'}
@@ -3131,7 +3163,11 @@ function Customer360({
               <Field label="Elle ne vient que le… · commande la prédiction">
                 <Select
                   value={client.jourPrefere === undefined ? '' : String(client.jourPrefere)}
-                  onChange={(e) => patch({ jourPrefere: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  onChange={(e) => patch({
+                    jourPrefere: e.target.value === '' ? undefined : Number(e.target.value),
+                    /* LA MAIN TRANCHE, ET LA DÉDUCTION SE TAIT POUR TOUJOURS. */
+                    jourPose: true,
+                  })}
                 >
                   <option value="">— n’importe quel jour —</option>
                   {JOURS_SEMAINE.map((j) => (

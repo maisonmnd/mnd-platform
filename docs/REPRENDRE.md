@@ -113,6 +113,54 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## SON JOUR, LU DE SES VENUES — 6 septembre 2026, PUBLIÉ
+
+« Préciser le jour du RDV à côté de la date, pour mesurer quel jour un client
+aime venir. Le jour qui remporte le plus, remplir automatiquement ce jour favori
+dans sa fiche, et ajuster pour que la cadence tombe dessus » (Yéman).
+
+**Le carnet savait déjà quel jour elle vient, personne ne l'avait compté.** Le
+champ attendait une main, restait vide sur presque toutes les têtes, et la
+prédiction tombait n'importe quel jour — y compris ceux où elle ne vient jamais.
+
+`jourFavoriDe` (`shared/cadence`), **onze épreuves**, trois gardes : seules les
+venues **honorées** comptent (un rituel annulé dit le contraire de ce qu'elle
+aime) · **quatre venues au moins** (sur trois, deux mardis font 67 % et c'est le
+comptoir qui a proposé) · **la moitié, et devant le second** (à égalité, choisir
+serait décider à sa place).
+
+**La déduction ne revient jamais sur une décision** : elle ne se pose que sur une
+fiche muette et se tait dès qu'une main touche le sélecteur (`Client.jourPose`).
+Sans cela, remettre « n'importe quel jour » se verrait annulé à la visite
+suivante. Et la fiche **dit d'où vient le jour** — une valeur sans sa raison se
+subit ou s'efface au hasard.
+
+Le carnet affiche `frShort` : **« Mar. 8 sept. »**. `dateDeLaReprise` honorait
+déjà `jourPrefere` depuis le 3 septembre, il n'était jamais rempli.
+
+## DEPUIS QUAND ELLE EST À LA MAISON — 6 septembre 2026, PUBLIÉ
+
+« Le nombre de jours où le client est dans la Maison dépend du RDV le plus ancien
+dans la plateforme, pas de la date d'inscription. »
+
+**`since` est la date où la FICHE a été créée**, pas celle où elle est devenue
+cliente. La reprise de 2025 l'a rendu criant : une tête venue douze fois l'an
+dernier s'affichait « à la Maison depuis 6 jours ».
+
+`depuisQuandALaMaison` (`shared/clients`) garde **la plus ancienne des deux
+traces** : le carnet fait foi quand il remonte plus loin, `since` reste quand la
+fiche est plus vieille — inscrite en janvier, venue en mars, elle est cliente
+depuis janvier. **Un rituel annulé compte** : il n'a pas eu lieu, mais il prouve
+qu'on se connaissait ce jour-là.
+
+## PANNEAU OUVERT, RANGÉE ENTIÈRE — 6 septembre 2026, PUBLIÉ
+
+« Quand je déplie les cases, tout est superposé et on ne voit pas où remplir. »
+**Un formulaire ne tient pas dans un quart de largeur** : les champs gardaient
+leur largeur minimale et débordaient par-dessus les panneaux voisins. En lecture
+un quart suffit, en écriture il faut la rangée. Et **une pastille ne se coupe pas
+en deux** : « 4 / semaines » sur deux lignes se lit comme deux réglages.
+
 ## LES PROTOCOLES QUITTENT LE CODE — 6 septembre 2026, PUBLIÉ
 
 « Où est-ce que je manage le programme de pousse et je change les prestations

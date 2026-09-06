@@ -4,11 +4,11 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO, jourFavoriDe, diraLeJourFavori } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
-import { mouvementsDePassage, type TetePassage } from '../src/shared/clients';
+import { mouvementsDePassage, depuisQuandALaMaison, type TetePassage } from '../src/shared/clients';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -305,6 +305,81 @@ dit('elle garde son samedi', 6,
    par an sans que personne ne comprenne pourquoi. */
 dit('la reprise ne depend que du rituel', dateDeLaReprise('2026-09-01', 6),
   dateDeLaReprise('2026-09-01', 6));
+
+/* ── LE JOUR QU'ELLE PRÉFÈRE — 6 septembre 2026 ───────────────────
+   Il va ÉCRIRE sur une fiche, et commander la prédiction : une coïncidence
+   prise pour une habitude poserait tous ses rendez-vous le mauvais jour. */
+const v = (date: string, status = 'honoré', clientId = 'cl-1') => ({ clientId, date, status });
+
+/* 2026-09-08 est un MARDI. Les mardis suivants : 15, 22, 29. */
+const mardis = [v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29')];
+dit('quatre mardis font un mardi', { jour: 2, fois: 4, total: 4 }, jourFavoriDe(mardis, 'cl-1'));
+
+/* TROIS VENUES NE PROUVENT RIEN : deux mardis sur trois font 67 %, et c'est
+   le comptoir qui a proposé mardi, pas elle qui l'a choisi. */
+dit('trois venues ne concluent pas', undefined,
+  jourFavoriDe([v('2026-09-08'), v('2026-09-15'), v('2026-09-09')], 'cl-1'));
+
+/* À ÉGALITÉ, AUCUN : deux jours qui se valent ne désignent pas un favori. */
+dit('deux jours à égalité, aucun', undefined, jourFavoriDe(
+  [v('2026-09-08'), v('2026-09-15'), v('2026-09-09'), v('2026-09-16')], 'cl-1'));
+
+/* LA MOITIÉ AU MOINS. Trois mardis sur huit, c'est le jour le plus fréquent
+   sans être SON jour. */
+dit('le plus fréquent ne suffit pas', undefined, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
+  v('2026-09-09'), v('2026-09-16'),
+  v('2026-09-10'), v('2026-09-17'),
+  v('2026-09-11'),
+], 'cl-1'));
+
+/* SEULES LES VENUES HONORÉES COMPTENT. Un rendez-vous annulé ne dit pas ce
+   qu'elle aime — il dit le contraire. */
+dit('l’annulé ne compte pas', undefined, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29', 'annulé'),
+], 'cl-1'));
+dit('… ni le confirmé jamais rendu', undefined, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29', 'confirmé'),
+], 'cl-1'));
+
+/* CELLES D'UNE AUTRE TÊTE NON PLUS. */
+dit('la tête voisine ne déteint pas', undefined, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'),
+  v('2026-09-29', 'honoré', 'cl-2'),
+], 'cl-1'));
+
+/* SIX MARDIS SUR HUIT : net, et il reste net avec deux écarts. */
+dit('six sur huit reste net', { jour: 2, fois: 6, total: 8 }, jourFavoriDe([
+  v('2026-09-08'), v('2026-09-15'), v('2026-09-22'), v('2026-09-29'),
+  v('2026-10-06'), v('2026-10-13'),
+  v('2026-09-09'), v('2026-09-10'),
+], 'cl-1'));
+
+/* LA RAISON SE DIT AVEC LA VALEUR : une proposition sans son motif ne se
+   conteste pas, on la subit ou on l'efface. */
+dit('la raison se dit', 'Elle vient le mardi 6 fois sur 8.',
+  diraLeJourFavori({ jour: 2, fois: 6, total: 8 }, 'Mardi'));
+
+/* ET LA REPRISE TOMBE SUR SON JOUR — c'est tout l'objet. Un rituel le
+   mercredi 9 septembre, huit semaines, jour préféré mardi. */
+dit('la reprise tombe sur son mardi', '2026-11-10', dateDeLaReprise('2026-09-09', 8, 2));
+
+/* ── DEPUIS QUAND ELLE EST À LA MAISON — 6 septembre 2026 ─────────
+   « Le nombre de jours où le client est dans la Maison dépend du RDV le plus
+   ancien dans la plateforme, pas de la date d'inscription. » `since` est la
+   date où la FICHE a été créée : la reprise de 2025 l'a rendu criant. */
+const fiche = { id: 'cl-1', since: '2026-08-31' };
+dit('le carnet fait foi quand il remonte plus loin', '2025-02-19',
+  depuisQuandALaMaison(fiche, [{ clientId: 'cl-1', date: '2025-02-19' }, { clientId: 'cl-1', date: '2026-09-04' }]));
+/* UNE FICHE PLUS VIEILLE QUE SON PREMIER RITUEL GARDE SA DATE : inscrite en
+   janvier, venue en mars, elle est cliente depuis janvier. */
+dit('la fiche plus ancienne l’emporte', '2026-08-31',
+  depuisQuandALaMaison(fiche, [{ clientId: 'cl-1', date: '2026-09-04' }]));
+dit('sans rituel, la fiche seule', '2026-08-31', depuisQuandALaMaison(fiche, []));
+/* CELUI D'UNE AUTRE TÊTE NE LA VIEILLIT PAS. */
+dit('la tête voisine ne compte pas', '2026-08-31',
+  depuisQuandALaMaison(fiche, [{ clientId: 'cl-2', date: '2024-01-01' }]));
+dit('sans fiche ni rituel, rien', undefined, depuisQuandALaMaison({ id: 'cl-9', since: '' }, []));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

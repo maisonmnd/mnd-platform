@@ -2476,3 +2476,29 @@
 .trc-plus { border: 1px dashed var(--copper-300); background: none; color: var(--copper-700);
   border-radius: 3px; font-family: var(--font-sans); font-size: 11.5px; padding: 6px 10px;
   cursor: pointer; width: 100%; text-align: left; margin-top: 8px; }
+
+/* ══ LE PANNEAU OUVERT PREND TOUTE LA RANGÉE — 6 septembre 2026 ═══════
+   « Quand je déplie les cases, tout est superposé et on ne voit pas où
+   remplir » (Yéman).
+
+   UN FORMULAIRE NE TIENT PAS DANS UN QUART DE LARGEUR. Les champs gardaient
+   leur largeur minimale et débordaient de leur cellule, par-dessus les
+   panneaux voisins : deux textes se lisaient l'un sur l'autre, et l'on ne
+   savait plus dans quelle case écrire.
+
+   EN LECTURE, UN QUART SUFFIT — quatre lignes d'étiquette et de valeur. En
+   écriture, il lui faut la rangée entière. Le panneau change donc de largeur
+   avec son mode. */
+.trc-fiche > .trc-pan { min-width: 0; overflow: hidden; }
+.trc-fiche > .trc-pan--edite { grid-column: 1 / -1; overflow: visible;
+  background: var(--copper-50, #F9EFE7); }
+
+/* UNE PASTILLE NE SE COUPE PAS EN DEUX. « 4 / semaines » sur deux lignes se
+   lit comme deux réglages ; c'est ce que faisait la cadence dans une colonne
+   étroite. Elles restent d'un seul tenant, et c'est la rangée qui s'élargit. */
+.trc-pan .tre-chip { white-space: nowrap; }
+/* Les champs d'un panneau ouvert respirent : la grille de la couronne reprend
+   ses trois colonnes dès qu'elle a la rangée entière. */
+.trc-pan--edite .trc-crown__grid,
+.trc-pan--edite .tr-grid { min-width: 0; }
+.trc-pan--edite label { white-space: normal; }

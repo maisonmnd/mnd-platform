@@ -159,6 +159,14 @@ export type Client = {
       Un tableau parallèle aux étapes. Une case vide, ou égale au jour de la
       Maison, ne fait pas un écart. */
   ecartProtocole?: { couleur?: number[]; pousse?: number[] };
+  /** LA MAISON A TRANCHÉ SON JOUR — 6 septembre 2026.
+
+      Le jour favori se déduit de ses venues et se pose tout seul quand la
+      fiche est muette. Mais une déduction ne doit JAMAIS revenir sur une
+      décision : sans cette marque, une Maison qui remet « n'importe quel
+      jour » le verrait se remplir à nouveau à la visite suivante, sans
+      comprendre pourquoi. Vrai dès qu'une main touche le sélecteur. */
+  jourPose?: boolean;
   /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
       tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.
@@ -269,6 +277,36 @@ export type Family = {
       Un taux posé est une remise PERSONNALISÉE et fait foi ;
       0 = ce compte n'a pas de remise. Le juge unique est `remiseFamillePct`. */
   remisePct?: number;
+};
+
+/** DEPUIS QUAND ELLE EST À LA MAISON — 6 septembre 2026.
+
+    « Le nombre de jours où le client est dans la Maison dépend du RDV le plus
+    ancien dans la plateforme, pas de la date d'inscription » (Yéman).
+
+    `since` EST LA DATE OÙ LA FICHE A ÉTÉ CRÉÉE, pas celle où elle est devenue
+    cliente. La reprise de 2025 l'a rendu criant : une tête venue douze fois en
+    2025 s'affichait « à la Maison depuis 6 jours », parce que sa fiche datait
+    de la semaine dernière. Une ancienneté fausse fausse tout ce qui s'y
+    appuie — la fidélité qu'on croit devoir, le ton qu'on prend au téléphone.
+
+    ON GARDE LA PLUS ANCIENNE DES DEUX. Le carnet fait foi quand il remonte plus
+    loin ; `since` reste quand aucun rituel n'a encore eu lieu, ou quand la
+    fiche est plus vieille que le premier rendez-vous — une cliente inscrite en
+    janvier et venue en mars est cliente depuis janvier.
+
+    UN RITUEL ANNULÉ COMPTE : il n'a pas eu lieu, mais il prouve qu'on se
+    connaissait ce jour-là. */
+export const depuisQuandALaMaison = (
+  client: Pick<Client, 'id' | 'since'>,
+  venues: readonly { clientId: string; date: string }[],
+): string | undefined => {
+  let plusVieux = client.since || undefined;
+  for (const a of venues) {
+    if (a.clientId !== client.id || !a.date) continue;
+    if (!plusVieux || a.date < plusVieux) plusVieux = a.date;
+  }
+  return plusVieux;
 };
 
 /** Le plafond du barème — et le taux proposé par défaut dans l'éditeur. */

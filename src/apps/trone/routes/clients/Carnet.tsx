@@ -17,7 +17,7 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel,
 } from './_shared';
 import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
@@ -310,7 +310,12 @@ export default function Carnet() {
         onClick={() => setModal({ appt: a })}
         title="Modifier ce rendez-vous"
       >
-        <span className="trc-date">{frDay(a.date)}</span>
+        {/* LE JOUR DE LA SEMAINE SE LIT AU CARNET — 6 septembre 2026.
+            « Préciser le jour du RDV à côté de la date, pour mesurer quel
+            jour un client aime venir plus souvent » (Yéman). Sans lui, une
+            habitude de mardi ne se voyait nulle part — et la fiche ne
+            pouvait pas la deviner non plus. */}
+        <span className="trc-date">{frShort(a.date)}</span>
         <span className="trc-time">{a.time}</span>
         <span className="trc-carnet__client" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           {c && <Avatar client={c} size={30} />}
