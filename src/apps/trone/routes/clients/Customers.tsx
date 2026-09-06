@@ -3512,9 +3512,31 @@ function Customer360({
               Distinct de l'archétype juste au-dessus : le persona dit son GOÛT,
               ceci dit son STATUT. Les confondre reviendrait à choisir entre
               savoir ce qu'elle aime et savoir si elle revient. */}
+          {/* ══ TROIS FAMILLES, TROIS BLOCS — 6 septembre 2026 ═══════════════
+              Le bloc mêlait ce qu'elle EST (couronnée, visiteuse, de passage),
+              ce qu'on NE LUI RÉCLAME PLUS (ailleurs, sans locks) et ce qu'on
+              PEUT FAIRE (sa carte) sur une seule ligne de pastilles. Trois
+              natures différentes qui se ressemblaient : on cliquait « Sa
+              carte » en croyant poser un état.
+
+              L'ACTION MONTE DANS LE TITRE, où l'œil cherche les gestes ; les
+              deux familles d'états se rangent dessous, chacune sous son mot.
+              Ce n'est pas décoratif : c'est ce qui dit qu'un clic à gauche
+              change ce qu'elle est, et un clic à droite ouvre une image. */}
           <div>
-            <span className="trc-microlabel">Sa place à la Maison</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <span className="trc-microlabel">Sa place à la Maison</span>
+              <button
+                type="button"
+                className="trc-rowact trc-rowact--rdv"
+                title={`Anniversaire, merci, Cercle · dessiner une carte pour ${client.name}`}
+                onClick={() => setCarteOuverte(true)}
+              >
+                Sa carte
+              </button>
+            </div>
+            {carteOuverte && <CarteModal client={client} onClose={() => setCarteOuverte(false)} />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {/* TROIS PLACES, DONT UNE QUI NE SE CHOISIT PAS.
                   « Visiteur » n'est pas un réglage : c'est ce que dit le carnet
                   quand personne ne s'est encore assis. On l'affiche pour que la
@@ -3566,41 +3588,6 @@ function Customer360({
                 De passage
               </button>
 
-              {/* ══ LES DEUX AUTRES RAISONS DE SORTIR DU FAUTEUIL ══════════
-                  « À côté de "vit ailleurs" : sans locks (a défait ses locks),
-                  visiteur » (Yéman). Elles se posent depuis « À faire », là où
-                  on s'en aperçoit ; elles se RETIRENT ici. Une marque qui ne
-                  se défait nulle part est un piège. */}
-              <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'var(--hairline)', margin: '0 2px' }} />
-              <button
-                type="button"
-                className={`trc-chip ${client.diaspora ? 'is-active' : ''}`}
-                title="Elle vit ailleurs : on ne prédit pas son retour, et on ne lui réclame ni compte ni cadence."
-                onClick={() => patch({ diaspora: client.diaspora ? undefined : true })}
-              >
-                Vit ailleurs
-              </button>
-              {/* ══ SA CARTE — 6 septembre 2026 (maquette validée) ═══════
-                  Anniversaire, merci, Cercle. Elle se dessine ici, à côté de
-                  ce qui dit sa place à la Maison : c'est en lisant sa fiche
-                  qu'on pense à l'envoyer. */}
-              <button
-                type="button"
-                className="trc-chip"
-                title={`Dessiner une carte pour ${client.name}`}
-                onClick={() => setCarteOuverte(true)}
-              >
-                Sa carte
-              </button>
-              {carteOuverte && <CarteModal client={client} onClose={() => setCarteOuverte(false)} />}
-              <button
-                type="button"
-                className={`trc-chip ${client.locksDefaits ? 'is-active' : ''}`}
-                title="Elle a défait ses locks : il n’y a plus rien à compter ni de courbe de pousse à ouvrir."
-                onClick={() => patch({ locksDefaits: client.locksDefaits ? undefined : true })}
-              >
-                Sans locks
-              </button>
             </div>
             {/* UNE LIGNE, PAS UN PARAGRAPHE (retour de Yéman, 11 août — « trop
                 de texte »). L'état se dit en une phrase ; la doctrine complète
@@ -3632,6 +3619,45 @@ function Customer360({
                     : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
               {statut.foyer && !statut.dependant && (
                 <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <> — palier « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
+              )}
+            </div>
+
+            {/* ══ CE QU'ON NE LUI RÉCLAME PLUS ═══════════════════════════════
+                « À côté de "vit ailleurs" : sans locks » (Yéman). Elles se
+                posent depuis « À faire », là où on s'en aperçoit ; elles se
+                RETIRENT ici. Une marque qui ne se défait nulle part est un
+                piège.
+
+                ELLES NE DISENT PAS SA PLACE, elles disent ce que la Maison
+                cesse de lui demander. Mêlées aux trois autres, on les prenait
+                pour un statut de plus. */}
+            <div style={{ marginTop: 16 }}>
+              <span className="trc-microlabel">Ce qu’on ne lui réclame plus</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`trc-chip ${client.diaspora ? 'is-active' : ''}`}
+                  title="Elle vit ailleurs : on ne prédit pas son retour, et on ne lui réclame ni compte ni cadence."
+                  onClick={() => patch({ diaspora: client.diaspora ? undefined : true })}
+                >
+                  Vit ailleurs
+                </button>
+                <button
+                  type="button"
+                  className={`trc-chip ${client.locksDefaits ? 'is-active' : ''}`}
+                  title="Elle a défait ses locks : il n’y a plus rien à compter ni de courbe de pousse à ouvrir."
+                  onClick={() => patch({ locksDefaits: client.locksDefaits ? undefined : true })}
+                >
+                  Sans locks
+                </button>
+              </div>
+              {/* LA PHRASE NE PARAÎT QUE SI UNE MARQUE EST POSÉE : expliquer
+                  une exemption qui n'existe pas fait lire pour rien. */}
+              {(client.diaspora || client.locksDefaits || estDePassage(client)) && (
+                <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
+                  Hors du compte, de la cadence, de la mèche et de la longueur.
+                  Elle garde l’e-mail et le bilan.
+                </div>
               )}
             </div>
           </div>
