@@ -61,6 +61,61 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES CONTRATS ET L'IDENTITÉ REJOIGNENT LES TEXTES — 7 septembre 2026, PUBLIÉ
+
+« Dans les textes de la Maison il manque les contrats et identité » (Yéman).
+La maquette montrait quatre onglets, deux avaient été construits.
+
+**Un contrat ne se rappelle pas, contrairement au règlement**, et c'est la
+seule chose que l'onglet Contrats doit faire comprendre. Un règlement est
+imposé par une seule partie : le modifier oblige à faire resigner tout le
+monde. Un contrat est signé par deux et il est exécuté : la Maison ne peut pas
+en changer les termes après coup, personne n'est à rappeler, et publier une
+version ne touche que les contrats à venir.
+
+**Le texte d'un contrat se lit, il ne s'écrit pas.** Ce qui se décide vraiment
+tient en quatre nombres : la durée du droit à l'image, le non-démarchage et le
+délai de règlement d'un prestataire, le délai avant la licence d'enseigner.
+Rendre modifiable la moindre phrase serait offrir à la Maison de casser ses
+propres protections sans qu'aucun écran ne l'en avertisse, ce que le règlement
+accepte parce qu'il est unilatéral.
+
+**Les bornes ne sont pas de la coquetterie de saisie** (`BORNES` dans
+`shared/reglages-contrats`). Un droit à l'image de quatre-vingt-dix-neuf ans ne
+vaut rien : un consentement sans terme réel n'en est pas un. Un non-démarchage
+de cinq ans empêche quelqu'un de gagner sa vie, et ce qui est excessif tombe en
+entier, donc la Maison perd la protection qu'elle croyait acheter. Un
+non-démarchage de zéro reste permis : c'est un choix.
+
+**La mécanique des versions est désormais générique** (`Versionne<T>`,
+`enVigueurDe`, `prochaineVersionDe`, `aTravaillerDe`, `aChangeDe`, `publieDe`
+dans `shared/textes`). Le règlement en est un cas ; les trois contrats en sont
+trois autres, **chacun sa version** : changer le délai d'un prestataire n'a
+aucune raison de renuméroter le droit à l'image d'une cliente.
+
+**Défaut trouvé en écrivant le harnais** : le numéro se comptait sur le nombre
+de versions gardées. Or le droit à l'image entrait dans le magasin **déjà en
+v2** (son texte avait été repris le 6 septembre). Publier aurait produit une
+SECONDE v2, et deux accords signés auraient porté le même nom sans dire la même
+chose. Le numéro se compte maintenant depuis la version EN VIGUEUR.
+
+**Les deux constantes voyagent en paramètre** (`moisNonDemarchage`,
+`moisAvantLicence`) plutôt que d'être lues au fond des builders : un contrat
+signé porte les termes de SA version, et lire le réglage du jour les changerait
+après coup, sans que personne l'ait accepté. Trois écrans lisent la version en
+vigueur : `DroitImageModal`, `Prestataires`, `AcademieSuivi`.
+
+**L'onglet Identité, c'est le même magasin qu'à Paramètres · La Maison**, pas
+une copie : deux identités pour une Maison est exactement le défaut corrigé
+cinq fois cette semaine. Ce que l'onglet ajoute : on voit **où chaque mot
+atterrit** sur le papier (en-tête, « entre les parties », le tampon, le pied).
+Un champ réglé sans savoir ce qu'il imprime se règle à l'aveugle, et l'erreur
+se découvre sur un contrat déjà signé. La devise n'y est pas modifiable : une
+seule source, `DEVISE_COMPLETE`.
+
+**Harnais** : `verifie-contrats` gagne 30 assertions (les bornes, le texte qui
+suit le réglage, toute la mécanique des versions).
+
 ## LE SOMMAIRE DES PARAMÈTRES RATTRAPE LA PAGE — 6 septembre 2026, PUBLIÉ
 
 « Il y a plus de grandes rubriques dans les Paramètres, j'ai rajouté des choses

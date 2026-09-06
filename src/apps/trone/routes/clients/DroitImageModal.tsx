@@ -5,9 +5,11 @@ import { clientsStore, useFamilies, type Client } from '../../../../shared/clien
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { contratPdf } from '../../../../shared/pdf';
 import {
-  USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, estMineure, pourquoiInvalide, texteDuContrat,
+  USAGES, estMineure, pourquoiInvalide, texteDuContrat,
   type AccordImage, type CleUsage,
 } from '../../../../shared/droit-image';
+import { enVigueurDe } from '../../../../shared/textes';
+import { IMAGE_V1, useReglagesContrats } from '../../../../shared/reglages-contrats';
 import { todayISO } from './_shared';
 
 /* ══ FAIRE SIGNER LE DROIT À L'IMAGE — 6 septembre 2026 ══════════════
@@ -101,18 +103,25 @@ export function DroitImageModal({ client, onClose }: { client: Client; onClose: 
     setTrace('');
   };
 
+  /* LE TERME EN VIGUEUR, pas celui du code. La Maison le règle dans
+     Paramètres · Les textes · Contrats, et chaque modification publie une
+     version : lire la constante ferait signer un terme que la Maison a
+     changé. */
+  const [reglages] = useReglagesContrats();
+  const duJour = enVigueurDe(reglages.image, IMAGE_V1);
+
   const contrat = useMemo(() => texteDuContrat({
     maison: maisonNom(), raison: maisonRaison(), ville: branch.city,
     tete: client.name, signataire: signePar || '…',
     pourEnfant: mineure ? client.name : undefined,
-    usages, jourIso: jour, mois: MOIS_DE_VALIDITE, version: VERSION_DU_TEXTE,
-  }), [signePar, usages, mineure, client.name, branch.city, jour]);
+    usages, jourIso: jour, mois: duJour.mois, version: duJour.version,
+  }), [signePar, usages, mineure, client.name, branch.city, jour, duJour.mois, duJour.version]);
 
   const projet: Partial<AccordImage> = {
-    at: jour, usages, signePar, signature: trace, version: VERSION_DU_TEXTE,
+    at: jour, usages, signePar, signature: trace, version: duJour.version,
     /* LE TERME SE GRAVE ICI, au moment de la signature : changer la regle de la
        Maison ne doit jamais rallonger un consentement deja donne. */
-    mois: MOIS_DE_VALIDITE,
+    mois: duJour.mois,
     pourEnfant: mineure ? client.name : undefined,
   };
   const manque = pourquoiInvalide(projet, { mineure });

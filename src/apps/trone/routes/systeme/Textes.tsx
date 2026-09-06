@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Modal, toast } from '../../../../ds/components';
 import { Tabs } from '../equipe/ui';
+import { maisonNom, maisonVille } from '../../../../shared/identite';
 import { useStaff } from '../equipe/data';
 import {
   aChange, aRappeler, aTravailler, enVigueur, motDeLEtat, ouEnEst, prochaineVersion,
@@ -11,7 +12,25 @@ import {
   LES_DEGRES, LE_JOUR, gardesDeLArticle, gardesPerdues, type SourceDuReglement,
 } from '../../../../shared/reglement-interieur';
 import { cleNeuve, type FicheDePoste } from '../../../../shared/postes';
-import type { ArticleSansNumero } from '../../../../shared/contrats';
+import type { ArticleSansNumero, Contrat } from '../../../../shared/contrats';
+import {
+  aChangeDe, aTravaillerDe, enVigueurDe, prochaineVersionDe, publieDe,
+  type Publie, type Versionne,
+} from '../../../../shared/textes';
+import {
+  CE_QUE_LA_VERSION_NE_FAIT_PAS, FORMATION_V1, IMAGE_V1, PRESTATAIRE_V1,
+  contratsStore, pourquoiFormationImpossible, pourquoiImageImpossible,
+  pourquoiPrestataireImpossible, useReglagesContrats,
+  type EtatDesContrats, type ReglageFormation, type ReglageImage, type ReglagePrestataire,
+} from '../../../../shared/reglages-contrats';
+import { texteDuContrat } from '../../../../shared/droit-image';
+import { texteContratPrestataire } from '../../../../shared/contrat-prestataire';
+import { texteContratFormation } from '../../../../shared/contrat-formation';
+import { DEVISE_COMPLETE, useHouseIdentity } from '../../../../shared/identite';
+import { useClients } from '../../../../shared/clients';
+import { useEnrollments } from '../equipe/academy';
+import { providersStore } from '../equipe/Prestataires';
+import { useStore } from '../../../../shared/store';
 import { ficheDePostePdf } from '../equipe/Evaluation';
 import './systeme.css';
 import './textes.css';
@@ -34,7 +53,7 @@ import './textes.css';
    LE JUGEMENT EST DANS `shared/textes` ET `shared/reglement-interieur`, jamais
    ici : cet écran ne fait que montrer et poser. */
 
-type Onglet = 'fiches' | 'reglement';
+type Onglet = 'fiches' | 'reglement' | 'contrats' | 'identite';
 
 const jourLisible = (iso: string) => iso.split('-').reverse().join('/');
 
@@ -758,6 +777,341 @@ function OngletReglement() {
   );
 }
 
+/* ══════════════ ③ LES CONTRATS ══════════════
+
+   « Dans les textes de la Maison il manque les contrats et identité » (Yéman).
+
+   UN CONTRAT NE SE RAPPELLE PAS, CONTRAIREMENT AU RÈGLEMENT, et c'est la seule
+   chose que cet onglet doit faire comprendre. Un règlement est imposé par une
+   seule partie : le modifier oblige à faire resigner tout le monde. Un contrat
+   est signé par deux, il est exécuté : la Maison ne peut pas en changer les
+   termes après coup, et personne n'est à rappeler. Publier une version ne
+   touche que les contrats à venir.
+
+   LE TEXTE NE S'ÉCRIT PAS ICI. Ce qui se règle vraiment tient en quatre
+   nombres ; le reste se relit à l'écran, entier, avant de faire signer. Rendre
+   modifiable la moindre phrase d'un contrat serait offrir à la Maison de casser
+   ses propres protections sans que rien ne l'en avertisse — ce que le règlement
+   accepte parce qu'il est unilatéral, et qu'un contrat n'accepte pas. */
+
+function CarteContrat<T>(o: {
+  titre: string;
+  quoi: string;
+  etat: Versionne<T>;
+  secours: Publie<T>;
+  signes: number;
+  motSigne: string;
+  champs: (v: T, pose: (t: T) => void) => ReactNode;
+  apercu: (v: T) => Contrat;
+  refus: (v: T) => string | undefined;
+  onEtat: (e: Versionne<T>) => void;
+}) {
+  const [publier, setPublier] = useState(false);
+  const [lire, setLire] = useState(false);
+  const jour = new Date().toISOString().slice(0, 10);
+  const vigueur = enVigueurDe(o.etat, o.secours);
+  const projet = aTravaillerDe(o.etat, o.secours);
+  const change = aChangeDe(o.etat, o.secours);
+  const manque = o.refus(projet);
+
+  return (
+    <div className="txt-contrat">
+      <div className="txt-contrat__t">
+        <b>{o.titre}</b>
+        <span className="txt-pas">{vigueur.version}</span>
+        <em>{o.signes} {o.motSigne}{o.signes > 1 ? 's' : ''}</em>
+      </div>
+      <div className="txt-rub__aide">{o.quoi}</div>
+
+      <div className="txt-contrat__champs">
+        {o.champs(projet, (t) => o.onEtat({ ...o.etat, brouillon: t }))}
+      </div>
+
+      {manque && (
+        <div className="txt-garde txt-garde--ko" style={{ margin: '10px 0 0' }}>
+          <u>Ce nombre ne peut pas être posé</u>
+          {manque}
+        </div>
+      )}
+
+      <div className="txt-contrat__dr">
+        <Button variant="ghost" style={{ flex: 'none' }} onClick={() => setLire(true)}>
+          Lire le texte
+        </Button>
+        {o.etat.brouillon && (
+          <Button
+            variant="ghost" style={{ flex: 'none' }}
+            onClick={() => { o.onEtat({ ...o.etat, brouillon: undefined }); toast('Brouillon abandonné.'); }}
+          >
+            Revenir à {vigueur.version}
+          </Button>
+        )}
+        <Button
+          variant="copper" style={{ flex: 'none' }} disabled={!change || !!manque}
+          onClick={() => setPublier(true)}
+        >
+          {change ? `Publier ${prochaineVersionDe(o.etat, jour, o.secours).split(' ')[0]}` : 'Rien à publier'}
+        </Button>
+      </div>
+
+      {lire && (
+        <Modal title={o.titre} onClose={() => setLire(false)} width={860}>
+          <p className="mnd-muted" style={{ marginTop: 0, fontSize: 12.5, lineHeight: 1.7 }}>
+            Le texte tel qu’il sera imprimé, avec les termes en cours. Les noms sont des exemples.
+          </p>
+          <LeTexte contrat={o.apercu(projet)} />
+        </Modal>
+      )}
+
+      {publier && (
+        <Modal title={`Publier ${prochaineVersionDe(o.etat, jour, o.secours)} ?`} onClose={() => setPublier(false)} width={620}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ margin: 0, lineHeight: 1.7 }}>
+              {o.titre} · cette version remplace <b>{vigueur.version}</b> à partir d’aujourd’hui.
+            </p>
+            {/* CE QU'UNE VERSION NE FAIT PAS — l'inverse exact du règlement, et
+                le confondre ferait soit rappeler des gens pour rien, soit croire
+                qu'un terme signé s'est allongé tout seul. */}
+            <div className="txt-garde" style={{ margin: 0 }}>
+              <u>Ce que cette version ne fait pas</u>
+              {CE_QUE_LA_VERSION_NE_FAIT_PAS}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" style={{ flex: 'none' }} onClick={() => setPublier(false)}>Annuler</Button>
+              <Button
+                variant="copper" style={{ flex: 'none' }}
+                onClick={() => {
+                  o.onEtat(publieDe(o.etat, o.secours, jour));
+                  setPublier(false);
+                  toast('Version publiée. Les contrats à venir la porteront.');
+                }}
+              >
+                Publier
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/** LE TEXTE D'UN CONTRAT, À L'ÉCRAN. Le même rendu que dans la modale de
+    signature : lire ici autre chose que ce qu'on fait signer là-bas ne servirait
+    qu'à se rassurer. */
+function LeTexte({ contrat }: { contrat: Contrat }) {
+  return (
+    <div className="txt-lecture">
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}>
+        {contrat.titre}
+      </div>
+      {contrat.sousTitre && (
+        <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginBottom: 8 }}>{contrat.sousTitre}</div>
+      )}
+      {contrat.entete.map((l) => <p key={l} style={{ margin: '0 0 6px' }}>{l}</p>)}
+      {contrat.articles.map((a) => (
+        <div key={a.n} style={{ marginTop: 10 }}>
+          <div style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>Article {a.n} · {a.titre}</div>
+          {a.lignes.map((l, i) => (
+            <p key={i} style={{ margin: '4px 0 0', paddingLeft: l.startsWith('·') ? 12 : 0 }}>{l}</p>
+          ))}
+        </div>
+      ))}
+      <div className="mnd-muted" style={{ marginTop: 12, fontSize: 11 }}>{contrat.pied}</div>
+    </div>
+  );
+}
+
+function Nombre(o: { mot: string; aide?: string; valeur: number; unite: string; onChange: (n: number) => void }) {
+  return (
+    <label className="txt-nombre">
+      <span className="txt-rub__t">{o.mot}</span>
+      <span>
+        <input
+          className="mnd-input" type="number" value={String(o.valeur)}
+          onChange={(e) => o.onChange(parseInt(e.target.value, 10))}
+        />
+        <em>{o.unite}</em>
+      </span>
+      {o.aide && <span className="txt-rub__aide">{o.aide}</span>}
+    </label>
+  );
+}
+
+function OngletContrats() {
+  const [etat, setEtat] = useReglagesContrats();
+  const [clients] = useClients();
+  const [providers] = useStore(providersStore);
+  const [inscriptions] = useEnrollments();
+  const maison = { maison: maisonNom(), ville: maisonVille() };
+  const jour = new Date().toISOString().slice(0, 10);
+  const pose = <K extends keyof EtatDesContrats>(cle: K, v: EtatDesContrats[K]) =>
+    setEtat({ ...etat, [cle]: v });
+
+  return (
+    <div>
+      <div className="txt-garde">
+        <u>Ce qui se règle ici, et ce qui ne s’y règle pas</u>
+        Les trois contrats de la Maison. <b>Leur texte se lit, il ne s’écrit pas</b> : ce qui se
+        décide vraiment tient en quatre nombres, et rendre modifiable la moindre phrase serait
+        offrir de casser ses propres protections sans qu’aucun écran n’en avertisse. Le règlement
+        intérieur, lui, s’écrit : il est imposé par une seule partie, et c’est pour cela qu’il a
+        son propre onglet.
+      </div>
+
+      <CarteContrat<ReglageImage>
+        titre="Droit à l’image"
+        quoi="Ce que la cliente accorde, pour quels usages et pour combien de temps. Signé à l’écran, au doigt, sur sa fiche."
+        etat={etat.image} secours={IMAGE_V1}
+        signes={clients.filter((c) => c.accordImage?.signature).length}
+        motSigne="accord signé"
+        refus={pourquoiImageImpossible}
+        champs={(v, set) => (
+          <Nombre
+            mot="La durée de l’autorisation" unite="mois" valeur={v.mois}
+            aide="Cinq ans (60 mois) depuis le 6 septembre. Au-delà de trois ans, le texte ajoute de lui-même une phrase qui invite la personne à retenir ce terme."
+            onChange={(mois) => set({ mois })}
+          />
+        )}
+        apercu={(v) => texteDuContrat({
+          ...maison, tete: 'Nom de la cliente', signataire: 'Nom de la cliente',
+          usages: ['vitrine', 'reseaux'], jourIso: jour, mois: v.mois,
+          version: enVigueurDe(etat.image, IMAGE_V1).version,
+        })}
+        onEtat={(e) => pose('image', e)}
+      />
+
+      <CarteContrat<ReglagePrestataire>
+        titre="Contrat de prestation"
+        quoi="Ce qui lie un maître ou une main extérieure à la Maison : la mission, le règlement, la tenue, la clientèle."
+        etat={etat.prestataire} secours={PRESTATAIRE_V1}
+        signes={providers.filter((p) => p.contrat).length}
+        motSigne="contrat signé"
+        refus={pourquoiPrestataireImpossible}
+        champs={(v, set) => (
+          <>
+            <Nombre
+              mot="Le non-démarchage après la fin" unite="mois" valeur={v.moisNonDemarchage}
+              aide="Il protège la clientèle de la Maison sans interdire d’exercer. Au-delà de deux ans, ce qui est excessif tombe en entier, et la Maison perd la protection qu’elle croyait acheter."
+              onChange={(moisNonDemarchage) => set({ ...v, moisNonDemarchage })}
+            />
+            <Nombre
+              mot="Le délai de règlement" unite="jours" valeur={v.joursDeReglement}
+              aide="À compter de la remise de la note. Au-delà de soixante jours, ce n’est plus un délai, c’est une avance de trésorerie qu’on lui demande."
+              onChange={(joursDeReglement) => set({ ...v, joursDeReglement })}
+            />
+          </>
+        )}
+        apercu={(v) => texteContratPrestataire({
+          ...maison, nom: 'Nom du prestataire', specialite: 'Maître de rituel',
+          mode: 'prestation', jourIso: jour,
+          joursDeReglement: v.joursDeReglement, moisNonDemarchage: v.moisNonDemarchage,
+          version: enVigueurDe(etat.prestataire, PRESTATAIRE_V1).version,
+        })}
+        onEtat={(e) => pose('prestataire', e)}
+      />
+
+      <CarteContrat<ReglageFormation>
+        titre="Contrat de formation"
+        quoi="Ce qui lie une apprenante à l’Académie : le parcours, le prix et ses échéances, le certificat, la licence d’enseigner."
+        etat={etat.formation} secours={FORMATION_V1}
+        signes={inscriptions.filter((e) => e.contrat).length}
+        motSigne="contrat signé"
+        refus={pourquoiFormationImpossible}
+        champs={(v, set) => (
+          <Nombre
+            mot="Avant de pouvoir demander la licence" unite="mois" valeur={v.moisAvantLicence}
+            aide="Une certifiée à jour de son règlement peut demander la licence d’enseigner sous le nom de la Maison passé ce délai."
+            onChange={(moisAvantLicence) => set({ moisAvantLicence })}
+          />
+        )}
+        apercu={(v) => texteContratFormation({
+          ...maison, apprenante: 'Nom de l’apprenante', formation: 'Parcours de l’Académie',
+          prixXof: 0, echeances: 1, jourIso: jour,
+          moisAvantLicence: v.moisAvantLicence,
+          version: enVigueurDe(etat.formation, FORMATION_V1).version,
+        })}
+        onEtat={(e) => pose('formation', e)}
+      />
+    </div>
+  );
+}
+
+/* ══════════════ ④ L'IDENTITÉ ══════════════
+
+   CE QUI SIGNE CHAQUE PAPIER. Les mêmes champs qu'à Paramètres · La Maison,
+   LE MÊME MAGASIN — une copie aurait donné deux identités à la même Maison, et
+   c'est le défaut qu'on corrige ici depuis une semaine. Ce que cet onglet
+   ajoute, et que l'autre écran n'a pas : on voit où chaque mot atterrit sur le
+   papier. Un champ qu'on règle sans savoir ce qu'il imprime se règle à
+   l'aveugle, et l'on découvre l'erreur sur un contrat déjà signé. */
+function OngletIdentite() {
+  const [id, setId] = useHouseIdentity();
+
+  return (
+    <div>
+      <div className="txt-garde">
+        <u>Le même réglage qu’à Paramètres · La Maison</u>
+        Ce ne sont pas deux identités : c’est le même champ, montré ici à l’endroit où l’on écrit
+        les textes, avec ce qu’il imprime. Le modifier ici le modifie partout, à la frappe.
+      </div>
+
+      <div className="txt-identite">
+        <label className="txt-nombre">
+          <span className="txt-rub__t">Le nom de la Maison</span>
+          <input className="mnd-input" value={id.nom} onChange={(e) => setId({ ...id, nom: e.target.value })} />
+          <span className="txt-rub__aide">
+            En tête de chaque contrat, sur les factures, les reçus, et au centre du tampon.
+          </span>
+        </label>
+        <label className="txt-nombre">
+          <span className="txt-rub__t">La raison sociale</span>
+          <input className="mnd-input" value={id.raison} onChange={(e) => setId({ ...id, raison: e.target.value })} />
+          <span className="txt-rub__aide">
+            La ligne légale, RCCM compris. Elle nomme la partie qui s’engage dans « entre les
+            parties » : sans elle, un contrat lie un nom commercial, pas une société.
+          </span>
+        </label>
+        <label className="txt-nombre">
+          <span className="txt-rub__t">La ville du siège</span>
+          <input className="mnd-input" value={id.ville} onChange={(e) => setId({ ...id, ville: e.target.value })} />
+          <span className="txt-rub__aide">
+            Celle qui signe le tampon. Distincte de la branche : l’atelier est à Suru-Léré, la
+            Maison signe Cotonou. Un tampon porte un siège, pas l’adresse du fauteuil.
+          </span>
+        </label>
+      </div>
+
+      {/* OÙ CHAQUE MOT ATTERRIT. Un aperçu, pas le PDF : il dit la place, pas
+          la police. Le montrer évite de régler à l'aveugle. */}
+      <div className="txt-rub__t" style={{ marginTop: 22 }}>Ce que porte le papier</div>
+      <div className="txt-papier">
+        <div className="txt-papier__tete">
+          <span>{(id.nom || 'Maison').toUpperCase()}</span>
+          <span>CONTRAT</span>
+        </div>
+        <div className="txt-papier__corps">
+          Entre la Maison {id.nom || '…'}
+          {id.raison ? `, ${id.raison}` : ''}, dont le siège est à {id.ville || '…'}, ci-après « la
+          Maison », et Nom de la personne, ci-après « le prestataire ».
+        </div>
+        <div className="txt-papier__bas">
+          <span>Fait à {id.ville || '…'}, le …</span>
+          <span className="txt-papier__tampon">
+            {(id.nom || 'Maison').toUpperCase()}
+            <em>{(id.ville || '…').toUpperCase()}</em>
+          </span>
+        </div>
+        <div className="txt-papier__pied">{DEVISE_COMPLETE}</div>
+      </div>
+      <div className="txt-rub__aide" style={{ marginTop: 8 }}>
+        La devise ne se règle pas : elle a une seule source, et chaque copie faite à la main
+        a fini par diverger.
+      </div>
+    </div>
+  );
+}
+
 export default function Textes() {
   const [tab, setTab] = useState<Onglet>('fiches');
   const [etat] = useReglement();
@@ -778,12 +1132,20 @@ export default function Textes() {
         }
       />
       <Tabs
-        tabs={[{ k: 'fiches' as Onglet, l: 'Fiches de poste' }, { k: 'reglement' as Onglet, l: 'Règlement intérieur' }]}
+        tabs={[
+          { k: 'fiches' as Onglet, l: 'Fiches de poste' },
+          { k: 'reglement' as Onglet, l: 'Règlement intérieur' },
+          { k: 'contrats' as Onglet, l: 'Contrats' },
+          { k: 'identite' as Onglet, l: 'Identité' },
+        ]}
         value={tab}
         onChange={setTab}
       />
-      <Card className="sys-section" style={{ marginTop: 18, padding: 0 }}>
-        {tab === 'fiches' ? <OngletFiches /> : <div style={{ padding: '18px 22px' }}><OngletReglement /></div>}
+      <Card className="sys-section" style={{ marginTop: 18, padding: tab === 'fiches' ? 0 : undefined }}>
+        {tab === 'fiches' && <OngletFiches />}
+        {tab === 'reglement' && <OngletReglement />}
+        {tab === 'contrats' && <OngletContrats />}
+        {tab === 'identite' && <OngletIdentite />}
       </Card>
     </div>
   );

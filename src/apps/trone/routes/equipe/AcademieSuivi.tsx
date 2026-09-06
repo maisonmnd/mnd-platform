@@ -12,7 +12,9 @@ import { Pill, Tabs, Toggle } from './ui';
 import { ContratModal } from '../_contrat';
 import { ChampDeDate } from '../clients/_shared';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
-import { texteContratFormation, VERSION_FORMATION } from '../../../../shared/contrat-formation';
+import { texteContratFormation } from '../../../../shared/contrat-formation';
+import { enVigueurDe } from '../../../../shared/textes';
+import { FORMATION_V1, useReglagesContrats } from '../../../../shared/reglages-contrats';
 import {
   enrollmentsStore, useEnrollments, newEnrollment, setEnrollment,
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
@@ -352,6 +354,11 @@ const digits = (s: string) => parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
 
 /* ---------- Formation · paiements de la formation (suivi manuel) ---------- */
 function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: Formation; notify: (m: string) => void }) {
+  /* LE DÉLAI EN VIGUEUR, pas celui du code : la Maison le règle dans
+     Paramètres · Les textes · Contrats. Une apprenante qui a signé garde le
+     sien, ce que sa signature prouve. */
+  const [reglagesContrats] = useReglagesContrats();
+  const contratDuJour = enVigueurDe(reglagesContrats.formation, FORMATION_V1);
   const { currency } = useBranch();
   const [methods] = usePaymentMethods();
   // Montant affiché = BRUT (net convenu + remise). Enregistré en net + remise.
@@ -427,12 +434,14 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
       {contratOuvert && (
         <ContratModal
           titre={e.contrat ? 'Refaire signer le contrat' : 'Contrat de formation'}
-          version={VERSION_FORMATION}
+          version={contratDuJour.version}
           signeParDefaut={e.learnerName}
           qualiteSignataire="L’apprenante, lu et approuvé :"
           fichier={`contrat-formation-${e.learnerName.split(' ')[0].toLowerCase()}.pdf`}
           contrat={texteContratFormation({
             maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
+            moisAvantLicence: contratDuJour.moisAvantLicence,
+            version: contratDuJour.version,
             apprenante: e.learnerName,
             formation: formation?.name ?? 'Formation de l’Académie MND',
             prixXof: Math.max(0, parseInt(gross.replace(/[^0-9]/g, ''), 10) || 0)

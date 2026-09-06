@@ -60,7 +60,14 @@ export const JOURS_DE_REGLEMENT = 7;
 
 export function texteContratPrestataire(o: ContratPrestataire & {
   maison: string; raison?: string; ville?: string; version?: string;
+  /* LA DURÉE DÉCIDÉE PAR LA MAISON (Paramètres · Les textes · Contrats). Sans
+     réglage, celle de la Maison — c'est ce que fait le harnais. Elle voyage en
+     paramètre plutôt qu'en constante lue ici : un contrat déjà signé porte la
+     durée de SA version, et lire le réglage du jour la rallongerait après
+     coup, sans que personne l'ait accepté. */
+  moisNonDemarchage?: number;
 }): Contrat {
+  const moisNonDemarchage = o.moisNonDemarchage ?? MOIS_NON_DEMARCHAGE;
   const taux = o.taux === undefined
     ? 'un montant convenu avant chaque mission'
     : (o.mode === 'pourcentage' ? `${o.taux} %` : sommeLisible(o.taux));
@@ -154,7 +161,7 @@ export function texteContratPrestataire(o: ContratPrestataire & {
         lignes: [
           'Les têtes reçues au salon sont la clientèle de la Maison. Le prestataire ne les '
           + 'démarche pas pour son compte, ni pour celui d’un tiers.',
-          `Cet engagement vaut pendant toute la durée du contrat et ${dureeEnClair(MOIS_NON_DEMARCHAGE)} après sa fin.`,
+          `Cet engagement vaut pendant toute la durée du contrat et ${dureeEnClair(moisNonDemarchage)} après sa fin.`,
           'Il ne s’agit pas d’une interdiction d’exercer : le prestataire garde sa propre '
           + 'clientèle, la développe librement, et une personne qui vient à lui d’elle-même sans '
           + 'avoir été sollicitée n’est pas concernée.',

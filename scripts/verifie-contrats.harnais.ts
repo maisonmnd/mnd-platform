@@ -12,6 +12,13 @@ import {
 import {
   texteContratFormation, VERSION_FORMATION, MOIS_AVANT_LICENCE,
 } from '../src/shared/contrat-formation';
+import {
+  aChangeDe, aTravaillerDe, enVigueurDe, prochaineVersionDe, publieDe, type Versionne,
+} from '../src/shared/textes';
+import {
+  BORNES, FORMATION_V1, IMAGE_V1, PRESTATAIRE_V1, pourquoiFormationImpossible,
+  pourquoiImageImpossible, pourquoiPrestataireImpossible, type ReglageImage,
+} from '../src/shared/reglages-contrats';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -178,6 +185,92 @@ dit('la qualité de chacun est dite', true, p.entete[1].includes('le prestataire
 dit('et le « pour qui » quand il y en a un', true,
   entreLesParties({ maison: 'M', autre: 'A', qualiteAutre: 'le signataire', pourQui: 'E' })[1]
     .includes('agissant pour E'));
+
+/* ── LES RÉGLAGES DE LA MAISON — 7 septembre 2026 ──────────────────
+   « Dans les textes de la Maison il manque les contrats » (Yéman). Quatre
+   nombres sortent du code et se règlent à l'écran. */
+
+/* CE QUE LE TEXTE DIT SUIT LE RÉGLAGE, sans qu'on ait rien recopié : la durée
+   vivait dans une constante lue au fond du fichier, et la régler à l'écran
+   n'aurait rien changé au papier. */
+const avecDuree = (mois: number) => texteContratPrestataire({
+  maison: 'M', nom: 'N', mode: 'prestation', jourIso: '2026-09-07', moisNonDemarchage: mois,
+}).articles.flatMap((a) => a.lignes).join(' ');
+dit('le non-démarchage suit le réglage', true, avecDuree(6).includes(dureeEnClair(6)));
+dit('… et sans réglage, celui de la Maison', true,
+  texteContratPrestataire({ maison: 'M', nom: 'N', mode: 'prestation', jourIso: '2026-09-07' })
+    .articles.flatMap((a) => a.lignes).join(' ').includes(dureeEnClair(MOIS_NON_DEMARCHAGE)));
+const avecLicence = (mois: number) => texteContratFormation({
+  maison: 'M', apprenante: 'A', formation: 'F', prixXof: 0, echeances: 1,
+  jourIso: '2026-09-07', moisAvantLicence: mois,
+}).articles.flatMap((a) => a.lignes).join(' ');
+dit('la licence suit le réglage', true, avecLicence(18).includes('dès 18 mois'));
+dit('… et sans réglage, celui de la Maison', true,
+  avecLicence(MOIS_AVANT_LICENCE).includes(`dès ${MOIS_AVANT_LICENCE} mois`));
+
+/* LES BORNES NE SONT PAS DE LA COQUETTERIE DE SAISIE. Un droit à l'image sans
+   terme réel n'est pas un consentement ; un non-démarchage excessif tombe en
+   entier, et la Maison perd la protection qu'elle croyait acheter. */
+dit('cinq ans d’image passent', undefined, pourquoiImageImpossible({ mois: 60 }));
+dit('… quatre-vingt-dix-neuf ans, non', true, !!pourquoiImageImpossible({ mois: 1188 }));
+dit('… et zéro non plus', true, !!pourquoiImageImpossible({ mois: 0 }));
+dit('un an de non-démarchage passe', undefined,
+  pourquoiPrestataireImpossible({ moisNonDemarchage: 12, joursDeReglement: 7 }));
+dit('… cinq ans, non', true,
+  !!pourquoiPrestataireImpossible({ moisNonDemarchage: 60, joursDeReglement: 7 }));
+/* AUCUN NON-DÉMARCHAGE EST UN CHOIX VALIDE : la Maison peut décider de ne pas
+   en poser. Le refuser ferait imposer une clause par la mécanique. */
+dit('… aucun non-démarchage est permis', undefined,
+  pourquoiPrestataireImpossible({ moisNonDemarchage: 0, joursDeReglement: 7 }));
+dit('… mais pas quatre-vingt-dix jours de règlement', true,
+  !!pourquoiPrestataireImpossible({ moisNonDemarchage: 12, joursDeReglement: 90 }));
+dit('la licence tient dans ses bornes', undefined, pourquoiFormationImpossible({ moisAvantLicence: 12 }));
+dit('… pas au-delà', true, !!pourquoiFormationImpossible({ moisAvantLicence: 999 }));
+/* UN CHAMP VIDÉ REND `NaN`, PAS ZÉRO : sans ce filet, la borne laisserait
+   passer un contrat dont le terme ne se lit pas. */
+dit('un champ vidé se refuse', true, !!pourquoiImageImpossible({ mois: Number.NaN }));
+dit('les bornes sont écrites', true, BORNES.imageMois.max === 120 && BORNES.nonDemarchageMois.max === 24);
+
+/* ── LA MÉCANIQUE DES VERSIONS, PARTAGÉE ───────────────────────────
+   La même pour le règlement et pour les trois contrats. L'écrire deux fois lui
+   aurait donné deux comportements au premier correctif. */
+const e0: Versionne<ReglageImage> = { publies: [IMAGE_V1] };
+dit('la dernière publiée est en vigueur', IMAGE_V1.version, enVigueurDe(e0, IMAGE_V1).version);
+dit('un magasin vide retombe sur la Maison', IMAGE_V1.version,
+  enVigueurDe({ publies: [] }, IMAGE_V1).version);
+/* LE NUMÉRO SE COMPTE DEPUIS CELLE EN VIGUEUR. Le droit à l'image était déjà
+   en v2 en entrant dans le magasin : compter les lignes gardées aurait produit
+   une SECONDE v2, et deux accords signés auraient porté le même nom sans dire
+   la même chose. */
+dit('la prochaine se compte depuis celle en vigueur', 'v3 · 7 septembre 2026',
+  prochaineVersionDe(e0, '2026-09-07', IMAGE_V1));
+dit('… et une v1 donne bien une v2', 'v2 · 7 septembre 2026',
+  prochaineVersionDe({ publies: [FORMATION_V1] }, '2026-09-07', FORMATION_V1));
+dit('sans brouillon, rien n’a changé', false, aChangeDe(e0, IMAGE_V1));
+/* LE BROUILLON PART DE CE QUI EST EN VIGUEUR, sans sa version : recopier le
+   numéro dans le brouillon ferait publier v1 une seconde fois. */
+dit('le brouillon part du texte en vigueur, sans son numéro',
+  { mois: IMAGE_V1.mois }, aTravaillerDe(e0, IMAGE_V1));
+const e1: Versionne<ReglageImage> = { publies: [IMAGE_V1], brouillon: { mois: 36 } };
+dit('un brouillon différent se voit', true, aChangeDe(e1, IMAGE_V1));
+dit('… et il ne s’applique à personne', IMAGE_V1.mois, enVigueurDe(e1, IMAGE_V1).mois);
+const e2 = publieDe(e1, IMAGE_V1, '2026-09-07');
+dit('publier garde l’ancienne', 2, e2.publies.length);
+dit('… la nouvelle porte le réglage', 36, enVigueurDe(e2, IMAGE_V1).mois);
+dit('… et son numéro', 'v3 · 7 septembre 2026', enVigueurDe(e2, IMAGE_V1).version);
+dit('… le brouillon s’efface', undefined, e2.brouillon);
+/* RIEN NE S'ÉCRASE JAMAIS : une signature d'hier désigne sa version, et sans
+   elle on ne saurait plus à quoi cette personne a dit oui. */
+dit('… et l’ancienne reste lisible', IMAGE_V1.mois, e2.publies[0].mois);
+
+/* CHACUN SA VERSION : changer le délai d'un prestataire n'a aucune raison de
+   renuméroter le droit à l'image d'une cliente. */
+dit('les trois partent de leur propre version',
+  [VERSION_PRESTATAIRE, VERSION_FORMATION],
+  [PRESTATAIRE_V1.version, FORMATION_V1.version]);
+dit('… et le prestataire porte ses deux nombres',
+  [MOIS_NON_DEMARCHAGE, JOURS_DE_REGLEMENT],
+  [PRESTATAIRE_V1.moisNonDemarchage, PRESTATAIRE_V1.joursDeReglement]);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

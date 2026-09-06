@@ -70,6 +70,7 @@ const isoInDays = (days: number) => {
 import { type SignatureTracee } from '../../../../shared/contrats';
 import { type Evaluation } from '../../../../shared/evaluation';
 import { fichesStore, reglementStore } from '../../../../shared/textes';
+import { contratsStore } from '../../../../shared/reglages-contrats';
 
 export type StaffRisk = 'faible' | 'modéré' | 'élevé';
 
@@ -1189,6 +1190,7 @@ bindDocument(fonctionsStore, 'mnd_fonctions');
    sans fiches de poste ne saurait plus évaluer personne. */
 bindDocument(fichesStore, 'mnd_fiches_postes');
 bindDocument(reglementStore, 'mnd_reglement');
+bindDocument(contratsStore, 'mnd_reglages_contrats');
 bindDocument(themeStore, 'mnd_theme');
 bindDocument(refTempsStore, 'mnd_ref_temps');
 bindDocument(refPaliersStore, 'mnd_ref_paliers');

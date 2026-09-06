@@ -54,7 +54,12 @@ export type ContratFormation = {
 
 export function texteContratFormation(o: ContratFormation & {
   maison: string; raison?: string; ville?: string; version?: string;
+  /* LE DÉLAI DÉCIDÉ PAR LA MAISON (Paramètres · Les textes · Contrats). En
+     paramètre, jamais lu ici : une apprenante qui a signé « douze mois »
+     garde douze mois, même si la Maison en décide dix-huit ensuite. */
+  moisAvantLicence?: number;
 }): Contrat {
+  const moisAvantLicence = o.moisAvantLicence ?? MOIS_AVANT_LICENCE;
   const parEcheance = o.echeances > 1 ? Math.ceil(o.prixXof / o.echeances) : o.prixXof;
 
   return {
@@ -159,7 +164,7 @@ export function texteContratFormation(o: ContratFormation & {
           + 'restent la propriété de la Maison.',
           'Elle peut former à son tour à la méthode MND, sous licence : elle en fait la demande '
           + 'à la Maison, qui la lui accorde par écrit et l’inscrit à son registre des '
-          + `formatrices. Une certifiée à jour de son règlement peut la demander dès ${MOIS_AVANT_LICENCE} mois `
+          + `formatrices. Une certifiée à jour de son règlement peut la demander dès ${moisAvantLicence} mois `
           + 'après sa certification.',
           'Sans cette licence, elle n’annonce ni formation, ni programme, ni certification au '
           + 'nom de la Maison, et n’en utilise ni le nom ni les marques.',

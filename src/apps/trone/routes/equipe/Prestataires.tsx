@@ -12,7 +12,9 @@ import { payslipPdf, summaryPdf, type PayslipRow, type SummarySection } from '..
 import { maisonNom } from '../../../../shared/identite';
 import { ContratModal } from '../_contrat';
 import { maisonRaison, maisonVille } from '../../../../shared/identite';
-import { texteContratPrestataire, VERSION_PRESTATAIRE, JOURS_DE_REGLEMENT } from '../../../../shared/contrat-prestataire';
+import { texteContratPrestataire } from '../../../../shared/contrat-prestataire';
+import { enVigueurDe } from '../../../../shared/textes';
+import { PRESTATAIRE_V1, useReglagesContrats } from '../../../../shared/reglages-contrats';
 import { type SignatureTracee } from '../../../../shared/contrats';
 import './equipe.css';
 
@@ -30,7 +32,9 @@ type Mission = { id: string; branchId: string; providerId: string; label: string
 
 const CHARGE_CATEGORY = 'Sous-traitance';
 
-const providersStore = createStore<Provider[]>('mnd_prestataires', []);
+/* EXPORTÉ POUR LES TEXTES DE LA MAISON : l'écran des contrats compte combien
+   de prestataires ont signé la version en vigueur. Il compte, il n'écrit pas. */
+export const providersStore = createStore<Provider[]>('mnd_prestataires', []);
 bindDocument(providersStore, 'mnd_prestataires');
 const missionsStore = createStore<Mission[]>('mnd_prestations', []);
 bindDocument(missionsStore, 'mnd_prestations');
@@ -61,6 +65,11 @@ export default function Prestataires() {
 
   const [provModal, setProvModal] = useState(false);  /* SON CONTRAT SE SIGNE ICI, la ou l'on inscrit le prestataire. */
   const [contratFor, setContratFor] = useState<Provider | null>(null);
+  /* LES TERMES EN VIGUEUR, pas ceux du code. La Maison les règle dans
+     Paramètres · Les textes · Contrats, et chaque modification publie une
+     version. Un contrat déjà signé garde la sienne : la signature le prouve. */
+  const [reglagesContrats] = useReglagesContrats();
+  const contratDuJour = enVigueurDe(reglagesContrats.prestataire, PRESTATAIRE_V1);
 
   const [provEditId, setProvEditId] = useState<string | null>(null);
   const [provForm, setProvForm] = useState<{ name: string; specialty: string; phone: string; mode: ProviderMode; rate: string; note: string }>(
@@ -407,7 +416,7 @@ export default function Prestataires() {
       {contratFor && (
         <ContratModal
           titre={contratFor.contrat ? 'Refaire signer le contrat' : 'Contrat de prestation'}
-          version={VERSION_PRESTATAIRE}
+          version={contratDuJour.version}
           signeParDefaut={contratFor.name}
           qualiteSignataire="Le prestataire, lu et approuvé :"
           fichier={`contrat-prestation-${contratFor.name.split(' ')[0].toLowerCase()}.pdf`}
@@ -415,7 +424,9 @@ export default function Prestataires() {
             maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
             nom: contratFor.name, specialite: contratFor.specialty,
             mode: contratFor.mode, taux: contratFor.rateXof,
-            joursDeReglement: JOURS_DE_REGLEMENT,
+            joursDeReglement: contratDuJour.joursDeReglement,
+            moisNonDemarchage: contratDuJour.moisNonDemarchage,
+            version: contratDuJour.version,
             jourIso: new Date().toISOString().slice(0, 10),
           })}
           onSigne={(sig) => providersStore.set((prev) => prev.map((x) => (x.id === contratFor.id ? { ...x, contrat: sig } : x)))}

@@ -52,24 +52,76 @@ export function useFichesDePoste(): [FicheDePoste[], (f: FicheDePoste[]) => void
   return [(etat.fiches ?? []).map(ficheSaine), (fiches) => setEtat({ fiches })];
 }
 
-/* ══ LE RÈGLEMENT ET SES VERSIONS ════════════════════════════════════ */
+/* ══ CE QUI SE VERSIONNE — 6 septembre 2026 ══════════════════════════
+   Le règlement d'abord, puis les contrats. TOUT TEXTE QUI SE SIGNE obéit à la
+   même règle : il ne se corrige jamais en place, il publie une version, et les
+   signatures d'avant continuent de désigner la leur. Écrire cette mécanique
+   deux fois lui aurait donné deux comportements au premier correctif, et deux
+   papiers de la Maison n'auraient pas valu la même chose. */
 
-export type ReglementPublie = SourceDuReglement & {
-  /** « v1 · 6 septembre 2026 » — ce que porte la décharge signée. */
+export type Publie<T> = T & {
+  /** « v1 · 6 septembre 2026 » — ce que porte la signature. */
   version: string;
   /** Le jour où cette version est entrée en vigueur. */
   leIso: string;
 };
 
-export type EtatDuReglement = {
+export type Versionne<T> = {
   /** Dans l'ordre, la plus ancienne d'abord. La dernière est en vigueur. */
-  publies: ReglementPublie[];
-  /** CE QU'ON ÉCRIT SANS ENCORE L'IMPOSER. Un règlement se relit à tête
-      reposée, souvent à deux : sans brouillon, la seule façon de travailler
-      dessus serait de le publier, donc de rappeler tout le monde pour une
-      phrase qu'on n'est pas sûr de garder. */
-  brouillon?: SourceDuReglement;
+  publies: Publie<T>[];
+  /** CE QU'ON ÉCRIT SANS ENCORE L'IMPOSER. Un texte se relit à tête reposée,
+      souvent à deux : sans brouillon, la seule façon de travailler dessus
+      serait de le publier, donc d'engager la Maison sur une phrase qu'on n'est
+      pas sûr de garder. */
+  brouillon?: T;
 };
+
+const sansVersion = <T>(p: Publie<T>): T => {
+  const { version, leIso, ...reste } = p;
+  void version; void leIso;
+  return reste as unknown as T;
+};
+
+export const enVigueurDe = <T>(e: Versionne<T>, secours: Publie<T>): Publie<T> =>
+  e.publies[e.publies.length - 1] ?? secours;
+
+/** LE NUMÉRO QUE PORTERA LA PROCHAINE. Il se compte, il ne se saisit pas :
+    une version tapée à la main finit par revenir en arrière.
+
+    IL SE COMPTE DEPUIS CELLE EN VIGUEUR, PAS DEPUIS LE NOMBRE DE VERSIONS
+    GARDÉES. Le droit à l'image était déjà en v2 quand il est entré dans ce
+    magasin — son texte avait été repris une fois avant que la Maison ne puisse
+    le régler. Compter les lignes du magasin aurait produit une SECONDE v2, et
+    deux accords signés auraient porté le même nom sans dire la même chose. */
+export const prochaineVersionDe = <T>(e: Versionne<T>, jourIso: string, secours?: Publie<T>): string => {
+  const actuelle = secours ? enVigueurDe(e, secours).version : e.publies[e.publies.length - 1]?.version;
+  const n = Number(/^v([0-9]+)/.exec(actuelle ?? '')?.[1]);
+  return `v${(Number.isFinite(n) ? n : e.publies.length) + 1} · ${enLettres(jourIso)}`;
+};
+
+/** LE BROUILLON EN COURS, ou une copie de ce qui est en vigueur. */
+export const aTravaillerDe = <T>(e: Versionne<T>, secours: Publie<T>): T =>
+  e.brouillon ?? sansVersion(enVigueurDe(e, secours));
+
+/** LE BROUILLON DIT-IL AUTRE CHOSE que ce qui est en vigueur ? Publier une
+    version identique ferait resigner tout le monde pour rien. */
+export const aChangeDe = <T>(e: Versionne<T>, secours: Publie<T>): boolean =>
+  JSON.stringify(sansVersion(enVigueurDe(e, secours))) !== JSON.stringify(aTravaillerDe(e, secours));
+
+/** PUBLIER : la version en cours rejoint l'histoire, le brouillon s'efface.
+    RIEN NE S'ÉCRASE JAMAIS — une signature d'hier désigne sa version, et sans
+    elle on ne saurait plus à quoi cette personne a dit oui. */
+export const publieDe = <T>(e: Versionne<T>, secours: Publie<T>, jourIso: string): Versionne<T> => ({
+  publies: [...e.publies, {
+    ...aTravaillerDe(e, secours), version: prochaineVersionDe(e, jourIso, secours), leIso: jourIso,
+  } as Publie<T>],
+  brouillon: undefined,
+});
+
+/* ══ LE RÈGLEMENT ════════════════════════════════════════════════════ */
+
+export type ReglementPublie = Publie<SourceDuReglement>;
+export type EtatDuReglement = Versionne<SourceDuReglement>;
 
 const V1: ReglementPublie = {
   version: VERSION_REGLEMENT, leIso: '2026-09-06', ...SOURCE_DU_REGLEMENT,
@@ -83,28 +135,11 @@ export const useReglement = () => useStore(reglementStore);
 
 /** CE QUI S'APPLIQUE AUJOURD'HUI. Jamais le brouillon : un texte qu'on est en
     train d'écrire ne s'oppose à personne. */
-export const enVigueur = (e: EtatDuReglement): ReglementPublie =>
-  e.publies[e.publies.length - 1] ?? V1;
-
-/** LE NUMÉRO QUE PORTERA LA PROCHAINE. Il se compte, il ne se saisit pas :
-    une version tapée à la main finit par revenir en arrière. */
+export const enVigueur = (e: EtatDuReglement): ReglementPublie => enVigueurDe(e, V1);
 export const prochaineVersion = (e: EtatDuReglement, jourIso: string): string =>
-  `v${e.publies.length + 1} · ${enLettres(jourIso)}`;
-
-/** LE BROUILLON EN COURS, ou une copie de ce qui est en vigueur. */
-export const aTravailler = (e: EtatDuReglement): SourceDuReglement => {
-  if (e.brouillon) return e.brouillon;
-  const v = enVigueur(e);
-  return { articles: v.articles, degres: v.degres };
-};
-
-/** LE BROUILLON DIT-IL AUTRE CHOSE que ce qui est en vigueur ? Publier une
-    version identique rappellerait toute l'équipe pour rien. */
-export const aChange = (e: EtatDuReglement): boolean => {
-  const v = enVigueur(e);
-  const b = aTravailler(e);
-  return JSON.stringify({ a: v.articles, d: v.degres }) !== JSON.stringify({ a: b.articles, d: b.degres });
-};
+  prochaineVersionDe(e, jourIso, V1);
+export const aTravailler = (e: EtatDuReglement): SourceDuReglement => aTravaillerDe(e, V1);
+export const aChange = (e: EtatDuReglement): boolean => aChangeDe(e, V1);
 
 /** ══ OÙ EN EST UNE PERSONNE ══════════════════════════════════════════
     Trois états, et pas deux. « Signé / pas signé » confondait celui à qui l'on
