@@ -10,6 +10,7 @@ import { ClientPicker, useBranchClients, frShortAn } from '../clients/_shared';
 import { useFormations, type Formation, type Payment } from './data';
 import { Pill, Tabs, Toggle } from './ui';
 import { ContratModal } from '../_contrat';
+import { ChampDeDate } from '../clients/_shared';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { texteContratFormation, VERSION_FORMATION } from '../../../../shared/contrat-formation';
 import {
@@ -358,6 +359,21 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
   const [remise, setRemise] = useState(e.remiseXof ? String(e.remiseXof) : '');
   /* LE CONTRAT SE SIGNE ICI, à côté du prix qu'il rend exigible. */
   const [contratOuvert, setContratOuvert] = useState(false);
+  /* ══ CE QUE LE CONTRAT DOIT DIRE, ET QU'IL INVENTAIT — 6 sept. 2026 ══
+     « Permettre de modifier la date de la formation dans le contrat » (Yéman).
+
+     La date venait du dossier, qui est souvent vide à l'inscription : le
+     contrat écrivait alors « les dates sont communiquées avant le premier
+     module », ce qui est une échappatoire, pas un engagement.
+
+     DEUX AUTRES VALEURS ÉTAIENT INVENTÉES AU MÊME ENDROIT et partaient à la
+     signature : la durée, jamais transmise, et le nombre de versements, posé à
+     UN — le contrat annonçait donc « comptant à l'inscription » à des
+     apprenantes qui paient en trois fois. Une clause fausse dans un papier
+     signé est pire qu'une clause absente. */
+  const [debut, setDebut] = useState(e.startDate ?? '');
+  const [semaines, setSemaines] = useState(String(formation?.dureeSemaines ?? ''));
+  const [echeances, setEcheances] = useState('1');
 
   const saveAmount = () => {
     const g = digits(gross);
@@ -421,11 +437,38 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
             formation: formation?.name ?? 'Formation de l’Académie MND',
             prixXof: Math.max(0, parseInt(gross.replace(/[^0-9]/g, ''), 10) || 0)
               - Math.max(0, parseInt(remise.replace(/[^0-9]/g, ''), 10) || 0),
-            echeances: 1,
-            debutIso: e.startDate,
+            echeances: Math.max(1, parseInt(echeances, 10) || 1),
+            debutIso: debut || undefined,
+            semaines: Math.max(0, parseInt(semaines, 10) || 0) || undefined,
             jourIso: new Date().toISOString().slice(0, 10),
           })}
-          onSigne={(sig) => setEnrollment(e.id, { contrat: sig })}
+          champs={(
+            <div>
+              <div className="tre-sec-label" style={{ marginBottom: 8 }}>Ce que le contrat annonce</div>
+              <div className="tr-grid tr-grid--3">
+                <Field label="Début de la formation">
+                  <ChampDeDate value={debut} onChange={setDebut} ariaLabel="Le premier jour de la formation" />
+                </Field>
+                <Field label="Durée (semaines)">
+                  <Input inputMode="numeric" value={semaines} onChange={(ev) => setSemaines(ev.target.value)} placeholder="12" />
+                </Field>
+                <Field label="Nombre de versements">
+                  <Input inputMode="numeric" value={echeances} onChange={(ev) => setEcheances(ev.target.value)} placeholder="1" />
+                </Field>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.55 }}>
+                Sans date, l’article 1 dit seulement qu’elles seront communiquées avant le premier
+                module. Le texte se réécrit à chaque frappe.
+              </div>
+            </div>
+          )}
+          onSigne={(sig) => setEnrollment(e.id, {
+            contrat: sig,
+            /* LA DATE SIGNÉE ENTRE AU DOSSIER. Sans cela le contrat annoncerait
+               un jour que le suivi ignore, et l'on aurait deux vérités pour une
+               date — celle du papier et celle de l'écran. */
+            ...(debut ? { startDate: debut } : {}),
+          })}
           onClose={() => setContratOuvert(false)}
         />
       )}

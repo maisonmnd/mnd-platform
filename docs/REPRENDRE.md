@@ -72,6 +72,23 @@ jamais sauter un numéro), un seul juge de signature (`signatureInvalide`), un
 seul fabricant de PDF (`contratPdf`, ex-`droitImagePdf` — il n'avait rien de
 propre au droit à l'image) et un seul écran (`routes/_contrat.tsx`).
 
+### Ce que le contrat de formation annonçait sans le savoir
+
+« Permettre de modifier la date de la formation dans le contrat » (Yéman).
+Trois valeurs partaient à la signature sans que personne ne les ait posées :
+
+- **la date de début** venait du dossier, souvent vide à l'inscription — le
+  contrat écrivait alors « les dates sont communiquées avant le premier
+  module », une échappatoire plutôt qu'un engagement ;
+- **la durée** n'était jamais transmise ;
+- **le nombre de versements était posé à UN**, donc le contrat annonçait
+  « comptant à l'inscription » à des apprenantes qui paient en trois fois.
+
+Les trois se saisissent désormais dans l'écran de signature (« Ce que le contrat
+annonce »), le texte se réécrivant à chaque frappe. **La date signée entre au
+dossier** à la signature : sans cela le papier annoncerait un jour que le suivi
+ignore, et l'on aurait deux vérités pour une date.
+
 ### Le prestataire · `shared/contrat-prestataire.ts`
 
 Se signe depuis **Équipe › Prestataires**, sur la fiche. Dix articles.
@@ -94,7 +111,9 @@ servent.
 ### La formation · `shared/contrat-formation.ts`
 
 Se signe depuis **Académie › Suivi & certification**, en ouvrant une apprenante,
-onglet **Formation**, au-dessus du montant : c'est le contrat qui rend le prix
+onglet **Contrat & montant** (il s'appelait « Montant Formation » : personne ne
+cherche un contrat sous le mot « montant », et un écran qu'on ne trouve pas
+n'existe pas), au-dessus du montant : c'est le contrat qui rend le prix
 exigible. **La ligne de la liste porte « Contrat à signer »** tant qu'il manque
 — il vivait au fond d'un onglet, et un contrat qu'il faut aller chercher ne se
 signe jamais. Rien n'apparaît tant qu'aucune formation ni aucune inscription
