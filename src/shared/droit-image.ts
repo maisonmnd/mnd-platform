@@ -172,7 +172,18 @@ export function texteDuContrat(o: {
   pourEnfant?: string;
   usages: CleUsage[];
   jourIso: string;
+  /** LE TERME SIGNÉ, et c'est lui qui décide du texte de l'article 4.
+
+      RÉIMPRIMER DOIT RENDRE LE TEXTE QU'ELLE A SIGNÉ, jamais celui du jour :
+      autrement l'exemplaire remis en 2029 dirait cinq ans sous une signature
+      donnée pour deux, et ce serait un faux. Le texte est donc une fonction
+      PURE de ce que l'accord porte, et n'importe quel accord passé se rejoue
+      exactement. */
+  mois?: number;
+  /** La version à inscrire au pied — celle de l'accord, pas celle du code. */
+  version?: string;
 }): { titre: string; entete: string[]; articles: ArticleDuContrat[]; pied: string } {
+  const mois = o.mois ?? MOIS_DE_VALIDITE;
   const cochés = USAGES.filter((u) => o.usages.includes(u.cle));
   const dehors = USAGES.filter((u) => !o.usages.includes(u.cle));
   const simulation = o.usages.includes('simulation');
@@ -233,12 +244,15 @@ export function texteDuContrat(o: {
     {
       n: '4', titre: 'La durée',
       lignes: [
-        `Cette autorisation est donnée pour ${dureeEnClair(MOIS_DE_VALIDITE)} à compter du ${jour}.`,
+        `Cette autorisation est donnée pour ${dureeEnClair(mois)} à compter du ${jour}.`,
         'Passé ce terme, elle cesse d’elle-même. La Maison devra en demander une nouvelle '
         + 'pour continuer à utiliser les images.',
-        'Ce terme est long : la personne photographiée est invitée à retenir qu’elle peut, à '
-        + 'tout moment et sans se justifier, retirer son autorisation comme il est dit à '
-        + 'l’article 5. La durée n’enferme personne.',
+        /* LE RAPPEL NE PARAÎT QUE SI LE TERME EST LONG. C'est aussi ce qui
+           permet à un accord de deux ans de se rejouer mot pour mot : le texte
+           ne dépend que de ce que l'accord porte. */
+        ...(mois >= 36 ? ['Ce terme est long : la personne photographiée est invitée à retenir '
+          + 'qu’elle peut, à tout moment et sans se justifier, retirer son autorisation comme '
+          + 'il est dit à l’article 5. La durée n’enferme personne.'] : []),
         'Les images déjà imprimées avant le terme peuvent rester en circulation le temps de '
         + 'leur épuisement naturel.',
       ],
@@ -329,8 +343,26 @@ export function texteDuContrat(o: {
     titre: 'Autorisation de droit à l’image',
     entete,
     articles,
-    pied: `${o.maison}${o.ville ? ` · ${o.ville}` : ''} · ${DEVISE_COMPLETE} · texte ${VERSION_DU_TEXTE}`,
+    pied: `${o.maison}${o.ville ? ` · ${o.ville}` : ''} · ${DEVISE_COMPLETE} · texte ${o.version ?? VERSION_DU_TEXTE}`,
   };
+}
+
+/** L'EXEMPLAIRE, REJOUÉ À L'IDENTIQUE. Un consentement dont la copie ne
+    s'obtient qu'à la seconde de la signature est un consentement fragile : le
+    téléchargement échoue, on n'imprime pas tout de suite, et il n'existe plus.
+
+    Il se reconstruit ENTIÈREMENT depuis l'accord gardé, sans rien inventer :
+    les usages cochés, le nom du signataire, le terme signé, la version du
+    texte. C'est ce qui garantit qu'un exemplaire réimprimé dans trois ans dit
+    exactement ce qu'elle a signé. */
+export function exemplaireDe(a: AccordImage, o: {
+  maison: string; raison?: string; ville?: string; tete: string;
+}) {
+  return texteDuContrat({
+    maison: o.maison, raison: o.raison, ville: o.ville, tete: o.tete,
+    signataire: a.signePar, pourEnfant: a.pourEnfant,
+    usages: a.usages, jourIso: a.at, mois: a.mois, version: a.version,
+  });
 }
 
 /** Ce qui se lit sur la fiche, en une ligne. */

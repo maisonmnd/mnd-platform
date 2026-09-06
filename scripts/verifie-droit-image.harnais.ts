@@ -6,7 +6,7 @@
 import {
   USAGES, VERSION_DU_TEXTE, MOIS_DE_VALIDITE, MOIS_AVANT_LE_CHAMP, MAJORITE, dureeEnClair,
   ageAu, estMineure, pourquoiInvalide, estValide, accordePour, expireLe, estExpire,
-  texteDuContrat, ditLAccord, type AccordImage,
+  texteDuContrat, exemplaireDe, ditLAccord, type AccordImage,
 } from '../src/shared/droit-image';
 
 let ko = 0;
@@ -153,6 +153,36 @@ dit('… avec les deux', true, suite(texteDuContrat({
   maison: 'M', tete: 'E', signataire: 'P', pourEnfant: 'E',
   usages: ['vitrine', 'simulation'], jourIso: '2026-09-06',
 })));
+
+/* ── ⑧ L'EXEMPLAIRE SE REJOUE À L'IDENTIQUE — 6 septembre 2026 ────
+   « Je veux aussi la version PDF à imprimer et remettre au client » (Yéman).
+   Réimprimer doit rendre LE TEXTE QU'ELLE A SIGNÉ : un exemplaire produit en
+   2029 qui dirait cinq ans sous une signature donnée pour deux serait un faux.
+
+   C'est pour ça que le texte ne dépend que de ce que l'accord porte. */
+const maison = { maison: 'L’atelier MND', ville: 'Cotonou', tete: 'Adjaratou L.' };
+const vieux = bon({ mois: 24, version: 'v1 · 6 septembre 2026', usages: ['vitrine'] });
+const neuf = bon({ mois: 60, usages: ['vitrine'] });
+
+const art4 = (x: ReturnType<typeof exemplaireDe>) => x.articles.find((a) => a.n === '4')!;
+dit('un accord de deux ans se rejoue en deux ans', true,
+  art4(exemplaireDe(vieux, maison)).lignes[0].includes('deux ans'));
+dit('un accord de cinq ans, en cinq ans', true,
+  art4(exemplaireDe(neuf, maison)).lignes[0].includes('cinq ans'));
+/* LE RAPPEL DU TERME LONG N'EXISTAIT PAS DANS LE TEXTE DE DEUX ANS : sans
+   cette condition, un accord v1 se rejouerait avec une phrase qu'il n'a jamais
+   portée, et l'exemplaire ne serait plus celui qu'elle a signé. */
+dit('le rappel du terme long n’est pas dans le texte court', 3, art4(exemplaireDe(vieux, maison)).lignes.length);
+dit('… mais il est dans le long', 4, art4(exemplaireDe(neuf, maison)).lignes.length);
+/* LE PIED PORTE LA VERSION DE L'ACCORD, pas celle du code : c'est elle qui dit
+   à quoi elle a dit oui. */
+dit('le pied garde la version signée', true, exemplaireDe(vieux, maison).pied.includes('v1'));
+dit('… et la version du jour pour le neuf', true, exemplaireDe(neuf, maison).pied.includes(VERSION_DU_TEXTE));
+/* UN ACCORD RETIRÉ SE RÉIMPRIME QUAND MÊME : c'est justement là qu'on a besoin
+   de relire ce qui avait été signé. */
+dit('un accord retiré garde son exemplaire', true,
+  exemplaireDe(bon({ retireLe: '2026-10-01' }), maison).articles.length > 0);
+dit('l’exemplaire nomme le signataire', 'Adjaratou L.', exemplaireDe(neuf, maison).entete[1].split(',')[0].replace('et ', ''));
 
 dit('quatre usages proposés', 4, USAGES.length);
 

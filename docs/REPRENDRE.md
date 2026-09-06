@@ -21,6 +21,16 @@ morceaux, ce n'est pas un accord, c'est une note.
   deux ans à quoi elle avait dit oui.
 - **La signature se trace au doigt** à l'écran (arbitrage), et part dans un PDF
   remis à la cliente (`droitImagePdf`, shared/pdf).
+- **L'exemplaire se réimprime à tout moment** depuis sa fiche (« Son
+  exemplaire »), y compris pour un accord retiré ou expiré — c'est justement là
+  qu'on a besoin de relire ce qui a été signé. Il ne se produisait qu'à la
+  seconde de la signature : un téléchargement qui échoue, une imprimante
+  éteinte, et l'exemplaire n'existait plus.
+- **Le texte est une fonction PURE de ce que l'accord porte** (usages, terme,
+  minorité, version). C'est ce qui garantit qu'un exemplaire réimprimé en 2029
+  dit exactement ce qu'elle a signé : un document qui dirait cinq ans sous une
+  signature donnée pour deux serait un faux. Le rappel « ce terme est long » ne
+  paraît donc qu'au-delà de trois ans, et un accord v1 se rejoue mot pour mot.
 - **Terme : cinq ans** (porté de deux à cinq le jour même, demande de Yéman).
   Un consentement sans terme se retourne contre celui qui s'en sert ; la fiche
   dit « à refaire signer » passé ce délai. **Le terme voyage avec l'accord**

@@ -105,7 +105,7 @@ export function DroitImageModal({ client, onClose }: { client: Client; onClose: 
     maison: maisonNom(), raison: maisonRaison(), ville: branch.city,
     tete: client.name, signataire: signePar || '…',
     pourEnfant: mineure ? client.name : undefined,
-    usages, jourIso: jour,
+    usages, jourIso: jour, mois: MOIS_DE_VALIDITE, version: VERSION_DU_TEXTE,
   }), [signePar, usages, mineure, client.name, branch.city, jour]);
 
   const projet: Partial<AccordImage> = {

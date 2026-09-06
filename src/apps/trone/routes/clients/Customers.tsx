@@ -6,7 +6,7 @@ import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
 import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonNom, maisonRaison } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
 import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
@@ -55,7 +55,8 @@ import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { CarteModal } from './CarteModal';
 import { DroitImageModal } from './DroitImageModal';
-import { ditLAccord, estMineure } from '../../../../shared/droit-image';
+import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
+import { droitImagePdf } from '../../../../shared/pdf';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -1806,6 +1807,25 @@ function Customer360({
   const [carteOuverte, setCarteOuverte] = useState(false);
   /* SON DROIT À L'IMAGE — un document à faire signer, pas une case. */
   const [droitOuvert, setDroitOuvert] = useState(false);
+  /* SON EXEMPLAIRE SE REJOUE DEPUIS L'ACCORD GARDÉ, jamais depuis le texte du
+     jour : un document réimprimé qui dirait autre chose que ce qu'elle a signé
+     serait un faux, et c'est le seul papier de la Maison qui puisse finir
+     devant un tribunal. */
+  const reimprime = async (a: NonNullable<Client['accordImage']>) => {
+    const t = exemplaireDe(a, {
+      maison: maisonNom(), raison: maisonRaison(), ville: branch.city, tete: client.name,
+    });
+    try {
+      await droitImagePdf({
+        houseName: maisonNom(), ville: branch.city,
+        titre: t.titre, entete: t.entete, articles: t.articles,
+        signataire: a.signePar, pourEnfant: a.pourEnfant,
+        jourLisible: a.at.split('-').reverse().join('/'),
+        signature: a.signature, pied: t.pied,
+        filename: `droit-image-${client.name.split(' ')[0].toLowerCase()}.pdf`,
+      });
+    } catch { toast('Le PDF n’a pas pu être produit.'); }
+  };
   /* Le prix ferme en cours de correction — édité EN PLACE, comme partout :
      retirer puis reposer faisait deux gestes (et un trou entre les deux). */
   const [fixEdit, setFixEdit] = useState<null | { sid: string; montant: string }>(null);
@@ -3858,6 +3878,28 @@ function Customer360({
                     >
                       {a && !a.retireLe ? 'Refaire signer' : 'Faire signer le droit à l’image'}
                     </button>
+                    {/* ══ SON EXEMPLAIRE, À TOUT MOMENT — 6 septembre 2026 ══
+                        « Je veux aussi la version PDF à imprimer et remettre
+                        au client » (Yéman). Il ne se produisait qu'à la
+                        seconde de la signature : un téléchargement qui échoue,
+                        une imprimante éteinte, et l'exemplaire n'existait plus.
+
+                        IL SE REJOUE À L'IDENTIQUE depuis l'accord gardé, y
+                        compris pour un accord retiré ou expiré : c'est
+                        justement là qu'on a besoin de relire ce qui a été
+                        signé. Le texte suit le TERME de l'accord, pas la règle
+                        du jour, sinon l'exemplaire dirait cinq ans sous une
+                        signature donnée pour deux. */}
+                    {a && (
+                      <button
+                        type="button"
+                        className="trc-rowact"
+                        title="Réimprimer le document tel qu’elle l’a signé, pour le lui remettre."
+                        onClick={() => void reimprime(a)}
+                      >
+                        Son exemplaire
+                      </button>
+                    )}
                     {a && !a.retireLe && (
                       <button
                         type="button"
