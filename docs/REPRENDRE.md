@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES NEUF PARCOURS RETROUVENT LE LOGICIEL — 6 septembre 2026, PUBLIÉ
+
+« Pourrions-nous retrouver toutes les formations de l'Académie ? Et les
+remettre dans le logiciel ? » (Yéman).
+
+**Elles n'étaient pas perdues, elles étaient ailleurs** : les neuf parcours
+vivaient EN DUR dans l'app `certificat`, et `FORMATIONS_SEED` de l'Académie est
+vide par doctrine (« Maison neuve, coquille vierge »). Deux vérités pour une
+notion, le défaut corrigé trois fois cette semaine : un certificat aurait nommé
+un parcours absent de l'Académie, et l'inverse.
+
+**La liste vit maintenant dans `shared/parcours.ts`**, et c'est la référence.
+Le certificat la lit ; l'Académie s'en sert pour poser ses formations.
+
+**Le geste reste à la main** — bouton « Poser les N parcours de la Maison »,
+onglet Formations. Une graine qui se remplirait toute seule poserait neuf
+formations dans une maison qui n'en veut peut-être que trois. Il ne pose **que
+ce qui manque**, la comparaison se faisant sur le nom **aplati** (sans accent ni
+apostrophe) : « L'Oeuvre » et « L'Œuvre » restent un seul parcours.
+
+**Aucun prix n'est inventé** : les montants n'ont jamais été écrits nulle part,
+et en poser un serait annoncer à une apprenante un tarif que personne n'a
+décidé. Ils se remplissent dans « Modifier ».
+
+Éprouvé par `verifie-parcours` (34ᵉ harnais, 15 assertions).
+
+### DEUX REGISTRES D'APPRENANTES — À TRANCHER
+
+En cherchant, on a trouvé pire : l'Académie porte **deux listes de personnes**.
+L'onglet **Apprenants** écrit dans `apprenantsStore` (`Apprenant`, data.ts) ;
+l'onglet **Suivi & certification** écrit dans `enrollmentsStore` (`Enrollment`,
+academy.ts), qui porte le dossier F1–F6, le jury, le certificat **et le
+contrat**. Inscrire par l'un ne crée rien dans l'autre.
+
+C'est la même maladie que la diaspora, en plus gros. **Non résolu à ce jour** :
+fusionner deux registres qui portent déjà des données est une décision, pas un
+nettoyage.
+
 ## LE SCEAU DU CERTIFICAT PREND LE TAMPON — 6 septembre 2026, PUBLIÉ
 
 « Change le tampon de l'Académie, mets celui qu'on a utilisé pour les contrats,

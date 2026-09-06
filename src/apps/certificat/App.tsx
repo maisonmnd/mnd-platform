@@ -2,6 +2,7 @@ import { asset } from '../../shared/asset';
 import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Field, Input, Select } from '../../ds/components';
+import { PARCOURS_MND } from '../../shared/parcours';
 
 /* Certificat Académie — template A4 paysage prêt à imprimer.
    Panneau de réglage à gauche (masqué à l'impression), le papier à droite.
@@ -15,73 +16,16 @@ type Formation = {
   competences: string;
 };
 
-const FORMATIONS: Formation[] = [
-  /* Les trois paliers de la Maison — alignés sur « la logique de palier » du
-     référentiel (L'Initiation · L'Affirmation · L'Œuvre). */
-  {
-    id: 'fondation',
-    titre: 'Fondation',
-    niveau: 'Palier I · L’Initiation',
-    duree: 'quatre semaines · six séances',
-    competences: 'les gestes fondateurs de la Maison — purifier, nourrir, sceller et couronner la mèche',
-  },
-  {
-    id: 'affirmation',
-    titre: 'Affirmation',
-    niveau: 'Palier II · L’Affirmation',
-    duree: 'huit semaines · dix séances',
-    competences: 'la reprise de racines, le resserrage de précision et la conduite d’un rituel de soin complet',
-  },
-  {
-    id: 'oeuvre',
-    titre: 'L’Œuvre',
-    niveau: 'Palier III · L’Œuvre',
-    duree: 'trois mois · douze séances',
-    competences: 'la maîtrise d’œuvre du soin des locks, la conduite d’atelier et la transmission de la méthode',
-  },
-  {
-    id: 'initiation',
-    titre: 'Initiation au soin des locks',
-    niveau: 'Parcours I · L’Initiation',
-    duree: 'trois jours · douze heures · quatre séances',
-    competences: 'les gestes fondateurs du soin des locks — lavage doux, hydratation et protection de la fibre',
-  },
-  {
-    id: 'praticien',
-    titre: 'Praticien MND',
-    niveau: 'Parcours II · L’Affirmation',
-    duree: 'une semaine · trente heures · cinq séances',
-    competences: 'la maîtrise du diagnostic, de la création, de la reprise de racines et du rituel de soin complet',
-  },
-  {
-    id: 'maitre',
-    titre: 'Maître MND',
-    niveau: 'Parcours III · L’Œuvre',
-    duree: 'trois mois · quatre-vingt-dix heures · douze séances',
-    competences: 'la maîtrise d’œuvre du soin des locks, la conduite d’atelier et la transmission de la méthode',
-  },
-  {
-    id: 'resserrage',
-    titre: 'Resserrage & soin des racines',
-    niveau: 'Parcours technique',
-    duree: 'deux semaines · vingt heures · six séances',
-    competences: 'le resserrage de précision, la santé du cuir chevelu et la protection de la longueur acquise',
-  },
-  {
-    id: 'laboratoire',
-    titre: 'Le Laboratoire · formulation capillaire',
-    niveau: 'Parcours spécial',
-    duree: 'une semaine · vingt-quatre heures · quatre séances',
-    competences: 'la formulation des soins de la gamme — origines des ingrédients, protocoles et substitutions',
-  },
-  {
-    id: 'referentiel',
-    titre: 'Certification Référentiel MND',
-    niveau: 'Certifiant · Pro',
-    duree: 'dix séances · sur dossier',
-    competences: 'le référentiel complet de la Maison, appliqué et démontré devant le jury de l’Académie',
-  },
-];
+/* LA LISTE VIT DANS `shared/parcours`, ET PLUS ICI — 6 septembre 2026.
+
+   « Pourrions-nous retrouver toutes les formations de l'Académie ? » (Yéman).
+   Elles n'étaient pas perdues : elles étaient EN DUR dans ce fichier, et le
+   magasin de l'Académie n'avait jamais été rempli. Deux vérités pour une
+   notion — un certificat aurait nommé un parcours absent de l'Académie, et
+   l'inverse aussi. */
+const FORMATIONS: Formation[] = PARCOURS_MND.map((p) => ({
+  id: p.id, titre: p.titre, niveau: p.niveau, duree: p.duree, competences: p.competences,
+}));
 
 const MENTIONS = ['Honorable', 'Distinction', 'Excellence'];
 

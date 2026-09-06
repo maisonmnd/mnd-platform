@@ -21,6 +21,7 @@ import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
+import { parcoursAPoser } from '../../../../shared/parcours';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
@@ -71,6 +72,30 @@ export default function Academie() {
   const defaultModules = useMemo(() => refTemps.map((t) => t.n.trim()).filter(Boolean), [refTemps]);
 
   const [foForm, setFoForm] = useState<FormationForm | null>(null);
+
+  /* CE QU'IL RESTE À POSER — le juge est pur (`parcoursAPoser`), il compare les
+     noms aplatis pour qu'« L'Oeuvre » et « L'Œuvre » restent un seul parcours. */
+  const aPoser = useMemo(() => parcoursAPoser(formations), [formations]);
+  const poseLesParcours = () => {
+    /* AUCUN PRIX N'EST INVENTÉ. Les montants n'ont jamais été écrits nulle
+       part : en poser un serait annoncer à une apprenante un tarif que
+       personne n'a décidé. Ils se remplissent dans « Modifier ». */
+    setFormations((prev) => [
+      ...prev,
+      ...aPoser.map((p) => ({
+        id: `fo-${p.id}`,
+        name: p.titre,
+        niveau: p.niveau,
+        sessions: p.seances,
+        demarrage: 'sur dossier',
+        places: 'à définir',
+        priceXof: 0,
+        dureeSemaines: p.semaines,
+        archived: false,
+        modules: [...defaultModules],
+      })),
+    ]);
+  };
   const [foEditId, setFoEditId] = useState<string | null>(null);
 
   const [apForm, setApForm] = useState<ApprenantForm | null>(null);
@@ -352,13 +377,36 @@ export default function Academie() {
               <button className={`trv-tab-seg ${!showArchived ? 'is-on' : ''}`} style={segStyle(!showArchived)} onClick={() => setShowArchived(false)}>Actives</button>
               <button className={`trv-tab-seg ${showArchived ? 'is-on' : ''}`} style={segStyle(showArchived)} onClick={() => setShowArchived(true)}>Terminées · Archives</button>
             </div>
+            {/* ══ POSER LES NEUF PARCOURS — 6 septembre 2026 ═══════════════
+                « Pourrions-nous retrouver toutes les formations de l'Académie
+                et les remettre dans le logiciel ? » (Yéman).
+
+                Elles n'étaient pas perdues : elles vivaient EN DUR dans l'app
+                du certificat, et ce magasin-ci n'a jamais été rempli — sa
+                graine est vide par doctrine, « Maison neuve, coquille vierge ».
+
+                LE GESTE EST À LA MAIN, ET IL LE RESTE. Une graine qui se
+                remplirait toute seule poserait neuf formations dans une maison
+                qui n'en veut peut-être que trois, et il faudrait les effacer
+                une par une. Il ne pose QUE ce qui manque : reposer les neuf sur
+                une Académie qui en porte trois en ferait douze. */}
+            {aPoser.length > 0 && (
+              <Button variant="ghost" onClick={poseLesParcours}>
+                Poser les {aPoser.length} parcours de la Maison
+              </Button>
+            )}
             <Button variant="copper" onClick={openFoNew}>+ Nouvelle formation</Button>
           </div>
 
           {activeFormations.length === 0 && (
             <Card className="tre-empty">
               <div className="tre-empty__title">Aucune formation ici.</div>
-              <div className="tre-empty__sub">{showArchived ? 'Les formations terminées s’archivent ici.' : 'Créez une formation pour ouvrir les inscriptions.'}</div>
+              <div className="tre-empty__sub">
+                {showArchived
+                  ? 'Les formations terminées s’archivent ici.'
+                  : 'Sans formation, on ne peut inscrire personne : le bouton du Suivi reste fermé. '
+                    + 'Posez les parcours de la Maison, ou créez la vôtre.'}
+              </div>
             </Card>
           )}
 
