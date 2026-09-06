@@ -130,23 +130,35 @@ export default function AFaire() {
                   ? `${fmtMoney(g.xof, currency)} ${g.ouvre}`
                   : g.ouvre)}
               </span>
-              {!tenu && SE_TETE.includes(g.cle) && (
+              {/* ══ LE VERBE OUVRE LA LISTE — 6 septembre 2026 ═══════════
+                  « Je veux voir exactement la liste de ces personnes, pas une
+                  liste globale » (Yéman).
+
+                  IL MENAIT AU REGISTRE ENTIER : trois cents têtes, sans dire
+                  lesquelles des soixante-six attendaient un comptage. Une liste
+                  où l'on ne peut pas distinguer ce qu'on cherche est pire que
+                  pas de liste : on la parcourt, puis on renonce.
+
+                  LES GESTES QUI NE SONT PAS DE TÊTE mènent toujours ailleurs :
+                  les mains vivent sur un rituel, le prix d'achat sur une fiche
+                  de stock. Leur liste est là-bas, et elle y est juste. */}
+              {!tenu && (
                 <button
                   type="button"
-                  className="trp-geste__l"
-                  onClick={() => setOuvert((v) => (v === g.cle ? '' : g.cle))}
+                  className="trp-geste__b"
+                  onClick={() => (SE_TETE.includes(g.cle)
+                    ? setOuvert((v) => (v === g.cle ? '' : g.cle))
+                    : navigate(OU[g.cle]))}
                 >
-                  {ouvert === g.cle ? 'Replier' : 'Voir qui'}
-                </button>
-              )}
-              {!tenu && (
-                <button type="button" className="trp-geste__b" onClick={() => navigate(OU[g.cle])}>
-                  {g.verbe}
+                  {SE_TETE.includes(g.cle) && ouvert === g.cle ? 'Replier' : g.verbe}
                 </button>
               )}
             </div>
             {ouvert === g.cle && (
               <div className="trp-liste">
+                <div className="trp-liste__t">
+                  {laListe.length} tête{laListe.length > 1 ? 's' : ''} · celles qui viennent d’abord
+                </div>
                 {laListe.map(({ tete, prochaineIso }) => {
                   const c = clients.find((x) => x.id === tete.id);
                   const prenom = (c?.name ?? '').split(' ')[0] ?? '';
@@ -172,7 +184,7 @@ export default function AFaire() {
                       <button
                         type="button"
                         className="trp-tete__f"
-                        onClick={() => navigate(`/customers?fiche=${tete.id}`)}
+                        onClick={() => navigate(`/customers?id=${tete.id}`)}
                       >
                         Sa fiche
                       </button>

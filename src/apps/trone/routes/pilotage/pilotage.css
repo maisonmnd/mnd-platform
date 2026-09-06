@@ -688,3 +688,8 @@
   text-decoration: none; }
 .trp-tete__wa { border-color: var(--copper-300); color: var(--copper-700); }
 @media (max-width: 760px) { .trp-tete { padding-left: 20px; flex-wrap: wrap; } }
+
+.trp-liste__t { padding: 9px 20px 9px 94px; font-family: var(--font-sans); font-size: 9.5px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 1px solid var(--hairline); }
+@media (max-width: 760px) { .trp-liste__t { padding-left: 20px; } }
