@@ -1,6 +1,8 @@
 import type { Appointment } from './agenda';
 import type { Service, CatalogCategory } from './catalog';
 import { servicesStore, categoriesStore, removedServiceIds } from './catalog';
+import { createStore, useStore } from './store';
+import { bindDocument } from './sync';
 
 /* ══ CE QUI DOIT SUIVRE UNE COULEUR — 5 septembre 2026 ══════════════
 
@@ -257,6 +259,55 @@ export function poseLeProtocoleAuCatalogue(): string[] {
      remarque qu'il en manque deux. */
   return aPoser.map((s) => s.name.split(' · ').pop() ?? s.name);
 }
+
+/* ══ LES PROTOCOLES DE LA MAISON, ÉCRITS PAR ELLE — 6 septembre 2026 ═
+
+   « Où est-ce que je manage le programme de pousse et je change les
+   prestations qui sont inclus ? » (Yéman).
+
+   NULLE PART, JUSQU'ICI. Les jours, les prestations et jusqu'aux phrases que
+   la cliente lit vivaient en dur dans ce fichier : c'étaient MES intervalles
+   et MES mots, proposés faute de connaître ceux de la Maison. Depuis que Ma
+   Couronne affiche le suivi, ils sont publiés chez ses clientes sous son nom.
+
+   LES CONSTANTES DEVIENNENT DES SEMENCES. Le magasin part d'elles ; dès que la
+   Maison touche une ligne, c'est le magasin qui fait foi, ici comme dans Ma
+   Couronne. Une seule source, deux applications. */
+
+export type LesProtocoles = { couleur: EtapeProtocole[]; pousse: EtapeProtocole[] };
+
+export const protocolesStore = createStore<LesProtocoles>('mnd_protocoles', {
+  couleur: PROTOCOLE_COULEUR,
+  pousse: PROTOCOLE_POUSSE,
+});
+bindDocument(protocolesStore, 'mnd_protocoles');
+
+export const useProtocoles = () => useStore(protocolesStore);
+
+/** LES ÉTAPES D'UNE TÊTE — celles de la Maison, décalées si elle a son écart.
+
+    « Un pour la Maison, ajustable par tête » (arbitrage du 6 septembre). Un
+    écart ne change QUE LES JOURS : changer aussi les soins ferait trois cents
+    protocoles que personne ne tient à jour, et deux clientes recevraient des
+    conseils contradictoires pour la même couronne.
+
+    L'ÉCART SURVIT À LA DOCTRINE. Si la Maison décale son GBÌGBÌ™ de huit à dix
+    semaines, la tête qui porte son propre rythme garde le sien — c'est le sens
+    d'un écart. La fiche doit donc le DIRE, sinon elle dérive sans que personne
+    le voie. */
+export const etapesPourLaTete = (
+  maison: readonly EtapeProtocole[],
+  ecart: readonly number[] | undefined,
+): EtapeProtocole[] => maison.map((e, i) => {
+  const j = ecart?.[i];
+  return (typeof j === 'number' && j > 0 && j !== e.jours) ? { ...e, jours: j } : e;
+});
+
+/** Cette tête suit-elle sa propre cadence ? */
+export const aSonEcart = (
+  maison: readonly EtapeProtocole[],
+  ecart: readonly number[] | undefined,
+): boolean => !!ecart && maison.some((e, i) => typeof ecart[i] === 'number' && ecart[i] > 0 && ecart[i] !== e.jours);
 
 /* ══ LE SUIVI D'UNE TÊTE ════════════════════════════════════════════ */
 

@@ -150,6 +150,15 @@ export type Client = {
       déduction. Absent, on retombe sur le VÍVÍVÓ™, qui reste juste neuf fois
       sur dix. */
   programmeDepuis?: string;
+  /** SON ÉCART AUX PROTOCOLES DE LA MAISON — 6 septembre 2026.
+
+      « Un pour la Maison, ajustable par tête » (arbitrage). Les jours, et rien
+      d'autre : les soins restent ceux de la doctrine, sinon la Maison finirait
+      avec trois cents protocoles que personne ne tient à jour.
+
+      Un tableau parallèle aux étapes. Une case vide, ou égale au jour de la
+      Maison, ne fait pas un écart. */
+  ecartProtocole?: { couleur?: number[]; pousse?: number[] };
   /** LE NOMBRE DE LOCKS QU'ELLE DÉCLARE ELLE-MÊME au tunnel de réservation,
       tant que la Maison n'a pas compté (`lockCount` vide). Il ne sert qu'à la
       DURÉE du créneau — jamais au prix : une cliente ne peut pas s'auto-tarifer.

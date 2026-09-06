@@ -113,6 +113,52 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## LES PROTOCOLES QUITTENT LE CODE — 6 septembre 2026, PUBLIÉ
+
+« Où est-ce que je manage le programme de pousse et je change les prestations
+qui sont inclus ? » (Yéman). **Nulle part, jusqu'ici.** Les jours, les
+prestations et jusqu'aux phrases que la cliente lit vivaient en dur : c'étaient
+MES intervalles et MES mots, proposés faute de connaître ceux de la Maison. Et
+depuis que Ma Couronne affiche le suivi, **ils étaient publiés chez ses clientes
+sous son nom.**
+
+`protocolesStore` (`bindDocument`) part des constantes comme d'une **semence** ;
+dès que la Maison touche une ligne, le magasin fait foi — au Trône comme dans Ma
+Couronne, **une seule source pour les deux**.
+
+**Catalogue › Les protocoles** (modale) : deux tableaux, une ligne par étape.
+Le jour · la prestation, choisie au catalogue par son **code nu** (une entrée par
+soin, pas trois par longueur) · **ce que la cliente lit** · au forfait ou hors
+forfait · ✕. Les étapes se rangent dans l'ordre du temps à l'enregistrement :
+une étape à J+14 posée après une à J+30 ferait un protocole qui remonte le temps.
+
+**Un pour la Maison, ajustable par tête** (arbitrage) : `Client.ecartProtocole`
+ne porte **que les jours**. Changer aussi les soins ferait trois cents protocoles
+que personne ne tient à jour, et deux clientes recevraient des conseils
+contradictoires. **L'écart survit à la doctrine** — la modale liste donc les
+têtes qui suivent leur propre cadence, sinon elles dérivent sans que personne le
+voie.
+
+## LA FICHE D'UN COUP D'ŒIL — 6 septembre 2026, PUBLIÉ
+
+« Nous ne sommes pas de grands lecteurs. Une fiche qui se lit autant nous fait
+perdre du temps. » **Ma première proposition transformait la fiche en récit** :
+une phrase se lit, elle ne se scanne pas, et au comptoir on cherche une valeur en
+une seconde. Deux maquettes rejetées avant celle-ci.
+
+**Cinq chiffres ouvrent la page** : locks et calibre, cadence, ancienneté,
+longueur, couronne. Ce qu'on ouvre la fiche pour savoir arrivait après six blocs
+de formulaire.
+
+**Le vide porte un geste, pas une phrase** : un tiret et le bouton qui le comble.
+Une case grise de la taille d'une case remplie ne se distingue pas d'une valeur,
+et une fiche neuve devenait un mur.
+
+**Trois panneaux à valeurs** — La joindre · Sa tête · La Maison décide — quatre
+lignes d'étiquette et de valeur chacun. « Modifier » révèle le formulaire, qui
+**n'a pas bougé d'un champ** : le réécrire aurait perdu des comportements gagnés
+depuis un mois. **Un seul panneau en écriture à la fois.**
+
 ## POSER L'ÉTAPE, DEPUIS L'ÉTAPE — 6 septembre 2026, PUBLIÉ
 
 « C'est de la lecture simple, comment poser les RDV réellement ? » (Yéman).

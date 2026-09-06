@@ -7,6 +7,7 @@ import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
 import { servicesStore } from '../../../../shared/catalog';
+import { ProtocolesModal } from './Protocoles';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
   useCategories, useServices, useProducts, catsDansLOrdre, mondeDeCat, mondeLabel, rangMonde, type Monde,
@@ -253,6 +254,7 @@ export default function Catalogue() {
      se comporte comme une recherche : catégories vides masquées, tout déplié. */
   /* `?regime=` : les Systèmes de prix (Finances › Le Juste Prix) ouvrent le
      Catalogue directement filtré sur un système. */
+  const [protosOuverts, setProtosOuverts] = useState(false);
   const [regimeFiltre, setRegimeFiltre] = useState<'tout' | 'jp' | 'modele' | 'lock' | 'calibre' | 'longueur' | 'hors'>(() => {
     const r = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('regime');
     return r === 'jp' || r === 'modele' || r === 'lock' || r === 'calibre' || r === 'longueur' || r === 'hors' ? r : 'tout';
@@ -990,12 +992,17 @@ export default function Catalogue() {
 
   return (
     <div className="mnd-rise">
+      {protosOuverts && <ProtocolesModal onClose={() => setProtosOuverts(false)} />}
       <PageHead
         eyebrow="Vente · L’offre"
         title="Le catalogue."
         sub="Segmenté par catégorie ™ et par palier d’expérience, jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
         actions={
           <>
+            {/* LES PROTOCOLES SE GÈRENT ICI — 6 septembre 2026. Un protocole
+                est une suite de PRESTATIONS : quand on change l'étape d'une
+                étape, c'est le catalogue qu'on doit avoir sous les yeux. */}
+            <Button variant="ghost" onClick={() => setProtosOuverts(true)}>Les protocoles</Button>
             <Button variant="ghost" onClick={() => setCatForm({ id: null, fon: '', label: '', enabled: true, maison: '', code: '', parentId: '' })}>+ Catégorie</Button>
             <Button variant="ghost" onClick={() => setProdForm(emptyProdForm(dodoId))}>+ Produit</Button>
             <Button onClick={() => setSvcForm(emptySvcForm(cats[0]?.id ?? 'vekpe', masters[0] ?? ''))}>+ Prestation</Button>

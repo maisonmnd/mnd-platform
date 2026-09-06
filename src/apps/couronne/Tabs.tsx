@@ -18,7 +18,7 @@ import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
 import { serieDesComptages } from '../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from '../../ds/courbes';
-import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../shared/protocoles';
+import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, etapesPourLaTete, MOT_DE_L_ETAT } from '../../shared/protocoles';
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
@@ -767,6 +767,11 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   );
 
   const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
+  /* LES MEMES PROTOCOLES QU'AU TRONE, avec SON ecart : deux sources donneraient
+     deux calendriers pour une seule couronne, et c'est elle qui les compare. */
+  const [lesProtocoles] = useProtocoles();
+  const etapesCouleur = etapesPourLaTete(lesProtocoles.couleur, client?.ecartProtocole?.couleur);
+  const etapesPousse = etapesPourLaTete(lesProtocoles.pousse, client?.ecartProtocole?.pousse);
   /* DU CODE DE L'ÉTAPE À SA PRESTATION, à sa longueur. Le protocole nomme un
      soin par son code nu ; le catalogue en tient trois, une par longueur. */
   const prestationDeLEtape = (code: string) => {
@@ -784,12 +789,12 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
     ? ouvertureDuProgramme({ pose: client.programmeDepuis, appts: clientAppts, clientId: client.id, byId: svcById })
     : { depart: undefined };
   const suiteCouleur = maCouleur
-    ? suivreLeProtocole({ couleur: maCouleur, appts: clientAppts, byId: svcById, aujourdhui: todayIso() })
+    ? suivreLeProtocole({ couleur: maCouleur, appts: clientAppts, byId: svcById, aujourdhui: todayIso(), etapes: etapesCouleur })
     : [];
   const suitePousse = activateurPousse
     ? suivreLeProtocole({
       couleur: activateurPousse, appts: clientAppts, byId: svcById,
-      aujourdhui: todayIso(), etapes: PROTOCOLE_POUSSE,
+      aujourdhui: todayIso(), etapes: etapesPousse,
     })
     : [];
 

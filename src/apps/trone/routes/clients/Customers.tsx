@@ -28,7 +28,7 @@ import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from '../../../../ds/courbes';
-import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
+import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, etapesPourLaTete, aSonEcart, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
@@ -1877,6 +1877,14 @@ function Customer360({
      que par exception, et deux formulaires ouverts la ramèneraient au mur
      de cases qu'elle était. '' = tout en lecture. */
   const [panEdite, setPanEdite] = useState('');
+  /* QUELLE SUITE SE DÉCALE POUR ELLE. '' = aucune ; on n'ouvre qu'une
+     cadence à la fois, sinon les deux tableaux de jours se confondent. */
+  const [decale, setDecale] = useState<'' | 'couleur' | 'pousse'>('');
+  /* LES PROTOCOLES DE LA MAISON, decales par SON ecart s'il existe. Une
+     seule source pour le Trone et Ma Couronne. */
+  const [lesProtocoles] = useProtocoles();
+  const etapesCouleur = etapesPourLaTete(lesProtocoles.couleur, client.ecartProtocole?.couleur);
+  const etapesPousse = etapesPourLaTete(lesProtocoles.pousse, client.ecartProtocole?.pousse);
   const [cptCm, setCptCm] = useState('');
   /* ══ REPRENDRE UN COMPTAGE — 5 septembre 2026 ═════════════════════
      « Éditer la note de comptage de locks au besoin » (Yéman).
@@ -4089,14 +4097,77 @@ function Customer360({
             return candidats.find((sv) => (sv.code ?? '').endsWith(`·${suffixe}`)) ?? candidats[0];
           };
 
-          const rendre = (titre: string, depart: Appointment, etapes: ReturnType<typeof suivreLeProtocole>) => {
+          const rendre = (titre: string, depart: Appointment, etapes: ReturnType<typeof suivreLeProtocole>,
+            cle?: 'couleur' | 'pousse') => {
             const restent = etapes.filter((e) => e.etat !== 'fait').length;
+            /* SA CADENCE À ELLE. Les jours de la Maison, ou les siens : on
+               écrit un tableau parallèle aux étapes, jamais les soins. */
+            const maison = cle === 'pousse' ? lesProtocoles.pousse : lesProtocoles.couleur;
+            const sien = cle ? (client.ecartProtocole?.[cle] ?? []) : [];
+            const ecarte = !!cle && aSonEcart(maison, sien);
+            const poseLEcart = (i: number, j: number) => {
+              if (!cle) return;
+              const suite = maison.map((e, k) => (k === i ? j : (sien[k] ?? e.jours)));
+              patch({ ecartProtocole: { ...(client.ecartProtocole ?? {}), [cle]: suite } });
+            };
+            const rendLaDoctrine = () => {
+              if (!cle) return;
+              const reste = { ...(client.ecartProtocole ?? {}) };
+              delete reste[cle];
+              patch({ ecartProtocole: Object.keys(reste).length > 0 ? reste : undefined });
+              setDecale('');
+              toast('Elle suit de nouveau la cadence de la Maison.');
+            };
             return (
               <div style={{ marginTop: 12 }}>
-                <span className="trc-microlabel">
-                  {titre} du {frJourAn(depart.date)}
-                  {restent === 0 ? ' · tenu' : ` · ${restent} à venir`}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                  <span className="trc-microlabel" style={{ marginBottom: 0 }}>
+                    {titre} du {frJourAn(depart.date)}
+                    {restent === 0 ? ' · tenu' : ` · ${restent} à venir`}
+                  </span>
+                  {/* SA PROPRE CADENCE SE DIT, TOUJOURS. Un écart survit à la
+                      doctrine : si la Maison décale une étape, cette tête garde
+                      la sienne. Muet, il la ferait dériver sans que personne le
+                      voie. */}
+                  {ecarte && (
+                    <span style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                      sa propre cadence
+                    </span>
+                  )}
+                  {cle && (
+                    <button
+                      type="button"
+                      className="tre-link-btn"
+                      style={{ marginLeft: 'auto' }}
+                      onClick={() => setDecale((v) => (v === cle ? '' : cle))}
+                    >
+                      {decale === cle ? 'Replier' : 'Décaler pour elle'}
+                    </button>
+                  )}
+                </div>
+                {cle && decale === cle && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', padding: '10px 0 2px' }}>
+                    {maison.map((e, i) => (
+                      <span key={`${cle}-dec-${i}`} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span className="mnd-muted" style={{ fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase' }}>
+                          {e.nom.split(' ·')[0]}
+                        </span>
+                        <Input
+                          inputMode="numeric"
+                          value={String(sien[i] ?? e.jours)}
+                          onChange={(ev) => poseLEcart(i, Math.max(0, parseInt(ev.target.value.replace(/[^0-9]/g, ''), 10) || 0))}
+                          aria-label={`Jours de ${e.nom} pour cette tête`}
+                          style={{ width: 62, textAlign: 'right', padding: '4px 8px' }}
+                        />
+                      </span>
+                    ))}
+                    {ecarte && (
+                      <Button variant="ghost" size="sm" style={{ flex: 'none' }} onClick={rendLaDoctrine}>
+                        Rendre la cadence de la Maison
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {etapes.map((e) => (
                   <div key={`${titre}-${e.jours}-${e.code}`} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid var(--hairline)', alignItems: 'flex-start' }}>
                     <span style={{ flex: 'none', width: 54, fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>
@@ -4193,13 +4264,13 @@ function Customer360({
           return (
             <>
               {couleur && rendre('Après sa couleur', couleur,
-                suivreLeProtocole({ couleur, appts, byId, aujourdhui: today }))}
+                suivreLeProtocole({ couleur, appts, byId, aujourdhui: today, etapes: etapesCouleur }), 'couleur')}
 
               {activateur
                 ? (
                   <>
                     {rendre(pose ? 'Son programme de pousse, ouvert' : 'Son programme de pousse, depuis son VÍVÍVÓ™', activateur,
-                      suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: PROTOCOLE_POUSSE }))}
+                      suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: etapesPousse }), 'pousse')}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <Input
                         type="date"
