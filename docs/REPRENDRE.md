@@ -24,7 +24,15 @@ apostrophe) : « L'Oeuvre » et « L'Œuvre » restent un seul parcours.
 
 **Aucun prix n'est inventé** : les montants n'ont jamais été écrits nulle part,
 et en poser un serait annoncer à une apprenante un tarif que personne n'a
-décidé. Ils se remplissent dans « Modifier ».
+décidé. La carte affiche donc **« Prix à poser » en cuivre** plutôt que « 0 F » :
+un prix à zéro n'est pas un prix, c'est un prix qui manque, et écrit « 0 F » il
+finirait par être annoncé comme une formation offerte. Il se pose dans
+« Modifier ».
+
+**La description était perdue à la pose**, et c'est moi qui l'avais laissée :
+`Formation` n'avait pas de champ pour elle. Elle en a un (`description`), les
+neuf parcours la reportent, la carte l'affiche et le formulaire la modifie. Une
+formation sans un mot sur ce qu'elle enseigne ne se choisit pas.
 
 Éprouvé par `verifie-parcours` (34ᵉ harnais, 15 assertions).
 

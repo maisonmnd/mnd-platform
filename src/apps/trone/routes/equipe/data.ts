@@ -933,6 +933,12 @@ export type Formation = {
   priceXof: number;
   dureeSemaines: number;
   archived: boolean;
+  /** CE QU'ELLE APPREND — 6 septembre 2026. « Où sont les prix et la
+      description ? » (Yéman). La description existait dans la liste des
+      parcours et je ne l'avais pas reportée en posant les neuf : une formation
+      sans un mot sur ce qu'elle enseigne ne se vend pas, et ne se choisit pas
+      non plus. */
+  description?: string;
   modules?: string[]; // les étapes du parcours — propres à chaque formation
   /** Pourcentage d'acompte à l'inscription (défaut 40 %). */
   depositPct?: number;

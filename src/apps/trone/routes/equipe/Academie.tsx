@@ -34,8 +34,8 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
 /* Parcours par défaut d'une nouvelle formation — « les quatre temps » du
    référentiel, désormais éditable : le défaut se lit donc au moment de la création
    (dans le composant), non plus à l'import de ce module. */
-type FormationForm = { name: string; niveau: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[]; featured: boolean };
-const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40', featured: false };
+type FormationForm = { name: string; niveau: string; description: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[]; featured: boolean };
+const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], description: '', sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40', featured: false };
 
 /* Inscription : identité + formation (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
@@ -92,6 +92,7 @@ export default function Academie() {
         priceXof: 0,
         dureeSemaines: p.semaines,
         archived: false,
+        description: p.competences,
         modules: [...defaultModules],
       })),
     ]);
@@ -148,7 +149,7 @@ export default function Academie() {
   const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: [...defaultModules] }); };
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules], featured: !!f.featured });
+    setFoForm({ name: f.name, niveau: f.niveau, description: f.description ?? '', sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules], featured: !!f.featured });
   };
   const saveFo = () => {
     if (!foForm || !foForm.name.trim()) return;
@@ -162,7 +163,7 @@ export default function Academie() {
       const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
       /* Une SEULE formation vedette à la fois — l'activer retire la vedette des autres. */
       setFormations((prev) => prev.map((f) => (f.id === foEditId
-        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured }
+        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured }
         : (featured ? { ...f, featured: false } : f))));
       /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
          retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
@@ -178,7 +179,7 @@ export default function Academie() {
     } else {
       setFormations((prev) => [
         ...(featured ? prev.map((f) => ({ ...f, featured: false })) : prev),
-        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured },
+        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured },
       ]);
     }
     setFoForm(null);
@@ -426,8 +427,18 @@ export default function Academie() {
                   <div className="tre-plan__line">
                     {f.sessions} séance{f.sessions > 1 ? 's' : ''} · {f.dureeSemaines} semaine{f.dureeSemaines > 1 ? 's' : ''} · {f.demarrage}
                   </div>
+                  {f.description && (
+                    <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8 }}>
+                      {f.description}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
-                    <span className="tre-plan__price">{fmtMoney(f.priceXof, currency)}</span>
+                    {/* UN PRIX À ZÉRO N'EST PAS UN PRIX, c'est un prix qui
+                        manque. L'écrire « 0 F » ferait croire à une formation
+                        offerte, et quelqu'un finirait par l'annoncer. */}
+                    {f.priceXof > 0
+                      ? <span className="tre-plan__price">{fmtMoney(f.priceXof, currency)}</span>
+                      : <span className="tre-plan__price" style={{ color: 'var(--copper-700)', fontSize: 20 }}>Prix à poser</span>}
                   </div>
                   <div style={{ minHeight: 16, marginTop: 2 }}>
                     <Pill tone={f.places === 'complet' ? 'muted' : 'copper'}>{f.places}</Pill>
@@ -676,6 +687,16 @@ export default function Academie() {
               </Field>
               <Field label="Prix (F CFA)">
                 <Input inputMode="numeric" value={foForm.price} onChange={(e) => setFoForm({ ...foForm, price: e.target.value })} placeholder="250 000" />
+              </Field>
+              {/* CE QU'ELLE APPREND, en une phrase. Elle se lit sur la carte,
+                  et c'est elle qui fait choisir un parcours plutot qu'un autre :
+                  un niveau et un prix ne disent pas ce qu'on y apprend. */}
+              <Field label="Ce qu’elle apprend">
+                <Input
+                  value={foForm.description}
+                  onChange={(e) => setFoForm({ ...foForm, description: e.target.value })}
+                  placeholder="la reprise de racines, le resserrage de precision…"
+                />
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">
