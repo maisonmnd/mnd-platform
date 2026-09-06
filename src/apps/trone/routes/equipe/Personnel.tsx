@@ -11,7 +11,7 @@ import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { ContratModal } from '../_contrat';
-import { ficheDuPoste } from '../../../../shared/postes';
+import { EvaluationModal } from './Evaluation';
 import { texteReglementInterieur, VERSION_REGLEMENT } from '../../../../shared/reglement-interieur';
 import { apptNetXof, svcPriceForAppt, commissionDetaillee } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -224,44 +224,9 @@ export default function Personnel() {
   /* SON RÈGLEMENT, à remettre contre décharge. */
   const [reglementFor, setReglementFor] = useState<StaffMember | null>(null);
 
-  /* ── SA FICHE DE POSTE, EN PAPIER ────────────────────────────────
-     Elle ne se signe pas : elle se remet et s'affiche. Un document qui décrit
-     un métier n'engage personne, il éclaire — c'est le règlement qui engage.
+  /* SON ENTRETIEN, sur sa fiche de poste. */
+  const [entretienFor, setEntretienFor] = useState<StaffMember | null>(null);
 
-     ELLE SE LIT DE `shared/postes`, jamais écrite ici : une fiche recopiée
-     dans un écran finirait par dire autre chose que celle du dossier. */
-  const ficheDePostePdf = async (m: StaffMember) => {
-    const f = ficheDuPoste(m.role);
-    if (!f) {
-      window.alert(`Aucune fiche n’existe pour le poste « ${m.role} ».\n\n`
-        + 'Un poste que personne n’a décrit se recrute à l’aveugle et s’évalue à l’humeur.');
-      return;
-    }
-    const lignes = (titre: string, items: string[]) => ({
-      heading: titre,
-      rows: items.map((t) => ({ label: `· ${t}` })),
-    });
-    await summaryPdf({
-      eyebrow: 'Fiche de poste',
-      title: f.poste,
-      houseName: maisonNom(),
-      meta: [
-        f.auFauteuil ? 'Au fauteuil · touche une tête' : 'Hors fauteuil',
-        `Rend compte ${f.rendCompteA}`,
-        `Établie pour ${m.name}`,
-      ],
-      sections: [
-        { heading: 'La mission', rows: [{ label: f.mission, strong: true }] },
-        lignes('Ce qu’elle fait', f.fait),
-        lignes('Ce qui se mesure', f.mesure),
-        /* LA RUBRIQUE LA PLUS UTILE : les conflits d'atelier naissent presque
-           toujours d'une frontière que personne n'avait tracée. */
-        lignes('Ce qu’elle ne fait pas', f.neFaitPas),
-      ],
-      footer: 'La fiche dit le métier. Le règlement intérieur dit les règles.',
-      filename: `fiche-de-poste-${f.poste.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`,
-    });
-  };
   const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '', cashbox: '' });
 
   /* Commissions & primes — taux, ajustements, primes typées, sources. */
@@ -985,10 +950,13 @@ export default function Personnel() {
                             personne, pas dans un dossier à part. */}
                         <button
                           className="tre-link-btn" style={{ marginLeft: 12 }}
-                          title={`La fiche du poste « ${m.role} », à remettre et à afficher`}
-                          onClick={(e) => { e.stopPropagation(); void ficheDePostePdf(m); }}
+                          title={`La fiche du poste « ${m.role} », et l’entretien qui s’appuie dessus`}
+                          onClick={(e) => { e.stopPropagation(); setEntretienFor(m); }}
                         >
-                          Fiche de poste
+                          Fiche & entretien
+                          {m.evaluations?.length
+                            ? <span className="mnd-muted"> · {m.evaluations.length}</span>
+                            : null}
                         </button>
                         <button
                           className={`tre-link-btn ${m.reglement ? '' : 'tre-link-btn--danger'}`}
@@ -1687,6 +1655,28 @@ export default function Personnel() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ══ LA FICHE DE POSTE ET SON ENTRETIEN ═════════════════════════
+          « Des fiches de postes plus détaillées avec des cases à cocher, des
+          objectifs mesurables et atteignables, des points forts » (Yéman).
+
+          LA FICHE ET L'ENTRETIEN NE SE SÉPARENT PAS : on n'évalue pas quelqu'un
+          sans avoir sous les yeux ce qu'on lui avait demandé. */}
+      {entretienFor && (
+        <EvaluationModal
+          membre={entretienFor}
+          onEnregistre={(ev) => setStaff((prev) => prev.map((x) => (x.id === entretienFor.id
+            ? {
+              ...x,
+              /* CELUI DU JOUR SE REMPLACE, LES AUTRES RESTENT : on corrige un
+                 entretien tant qu'on est assis avec la personne, jamais celui
+                 de l'année passée. */
+              evaluations: [...(x.evaluations ?? []).filter((e) => e.at !== ev.at), ev],
+            }
+            : x)))}
+          onClose={() => setEntretienFor(null)}
+        />
       )}
 
       {/* ══ LE RÈGLEMENT SE REMET CONTRE DÉCHARGE ══════════════════════

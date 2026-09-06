@@ -25,34 +25,23 @@ import { signatureInvalide, type Contrat, type SignatureTracee } from '../../../
 
 const COTE = { l: 640, h: 220 };
 
-export function ContratModal(o: {
-  titre: string;
-  contrat: Contrat;
-  version: string;
-  /** Le nom proposé au signataire. */
-  signeParDefaut: string;
-  /** Ce qu'on écrit au-dessus du trait de signature sur le papier. */
-  qualiteSignataire?: string;
-  /** Quand quelqu'un signe POUR une autre personne, elle est nommée ici. */
-  pourQui?: string;
-  /** Les champs propres à ce contrat, au-dessus du texte. */
-  champs?: ReactNode;
-  /** Le nom du fichier remis. */
-  fichier: string;
-  onSigne: (s: SignatureTracee) => void;
-  onClose: () => void;
+/* ══ LA SIGNATURE AU DOIGT — une seule, partagée ═════════════════════
+   Elle sert au contrat comme à l'entretien annuel. Recopiée d'un écran à
+   l'autre, elle aurait divergé au premier correctif : l'un accepterait un
+   tracé que l'autre refuse, et deux papiers de la Maison ne vaudraient pas
+   la même chose. */
+export function SignatureAuDoigt(o: {
+  trace: string;
+  onTrace: (t: string) => void;
+  /** Ce qu'on écrit au-dessus du cadre. */
+  titre?: string;
+  /** Ce qu'on dit quand rien n'est encore tracé. */
+  invite?: string;
 }) {
-  const { branch } = useBranch();
-  const jour = new Date().toISOString().slice(0, 10);
-  const [signePar, setSignePar] = useState(o.signeParDefaut);
-  const [trace, setTrace] = useState('');
   const toile = useRef<HTMLCanvasElement>(null);
   const dessine = useRef(false);
 
-  useEffect(() => { setSignePar(o.signeParDefaut); }, [o.signeParDefaut]);
-
-  /* ── LA SIGNATURE, AU DOIGT ──────────────────────────────────────
-     Un trait noir sur fond blanc. Elle finit dans un PDF et sur une fiche :
+  /* Un trait noir sur fond blanc. Il finit dans un PDF et sur une fiche :
      une signature stylisée serait un dessin, pas un engagement. */
   useEffect(() => {
     const el = toile.current;
@@ -84,15 +73,64 @@ export function ContratModal(o: {
   const haut = () => {
     if (!dessine.current) return;
     dessine.current = false;
-    setTrace(toile.current!.toDataURL('image/png'));
+    o.onTrace(toile.current!.toDataURL('image/png'));
   };
   const efface = () => {
     const el = toile.current; if (!el) return;
     const c = el.getContext('2d')!;
     c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, COTE.l, COTE.h);
     c.strokeStyle = '#14141B'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round';
-    setTrace('');
+    o.onTrace('');
   };
+
+  return (
+    <div>
+      <div className="trc-microlabel">{o.titre ?? 'Sa signature · au doigt'}</div>
+      <canvas
+        ref={toile}
+        onPointerDown={bas}
+        onPointerMove={bouge}
+        onPointerUp={haut}
+        onPointerCancel={haut}
+        style={{
+          width: '100%', maxWidth: 480, aspectRatio: `${COTE.l} / ${COTE.h}`,
+          border: '1px solid var(--hairline)', borderRadius: 3, background: '#fff',
+          touchAction: 'none', cursor: 'crosshair', display: 'block',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Button variant="ghost" style={{ flex: 'none' }} onClick={efface}>Effacer</Button>
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+          {o.trace ? 'Signée.' : (o.invite ?? 'Passez-lui l’écran.')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function ContratModal(o: {
+  titre: string;
+  contrat: Contrat;
+  version: string;
+  /** Le nom proposé au signataire. */
+  signeParDefaut: string;
+  /** Ce qu'on écrit au-dessus du trait de signature sur le papier. */
+  qualiteSignataire?: string;
+  /** Quand quelqu'un signe POUR une autre personne, elle est nommée ici. */
+  pourQui?: string;
+  /** Les champs propres à ce contrat, au-dessus du texte. */
+  champs?: ReactNode;
+  /** Le nom du fichier remis. */
+  fichier: string;
+  onSigne: (s: SignatureTracee) => void;
+  onClose: () => void;
+}) {
+  const { branch } = useBranch();
+  const jour = new Date().toISOString().slice(0, 10);
+  const [signePar, setSignePar] = useState(o.signeParDefaut);
+  const [trace, setTrace] = useState('');
+
+  useEffect(() => { setSignePar(o.signeParDefaut); }, [o.signeParDefaut]);
 
   const projet: SignatureTracee = {
     at: jour, signePar, signature: trace, version: o.version, pourQui: o.pourQui,
@@ -162,27 +200,7 @@ export function ContratModal(o: {
           />
         </div>
 
-        <div>
-          <div className="trc-microlabel">Sa signature · au doigt</div>
-          <canvas
-            ref={toile}
-            onPointerDown={bas}
-            onPointerMove={bouge}
-            onPointerUp={haut}
-            onPointerCancel={haut}
-            style={{
-              width: '100%', maxWidth: 480, aspectRatio: `${COTE.l} / ${COTE.h}`,
-              border: '1px solid var(--hairline)', borderRadius: 3, background: '#fff',
-              touchAction: 'none', cursor: 'crosshair', display: 'block',
-            }}
-          />
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button variant="ghost" style={{ flex: 'none' }} onClick={efface}>Effacer</Button>
-            <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-              {trace ? 'Signée.' : 'Passez-lui l’écran.'}
-            </span>
-          </div>
-        </div>
+        <SignatureAuDoigt trace={trace} onTrace={setTrace} />
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button variant="ghost" style={{ flex: 'none' }} onClick={o.onClose}>Annuler</Button>

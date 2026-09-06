@@ -68,6 +68,7 @@ const isoInDays = (days: number) => {
    ============================================================ */
 
 import { type SignatureTracee } from '../../../../shared/contrats';
+import { type Evaluation } from '../../../../shared/evaluation';
 
 export type StaffRisk = 'faible' | 'modéré' | 'élevé';
 
@@ -143,6 +144,17 @@ export type StaffMember = {
       avoir jamais lues, et l'échelle des sanctions ne vaut rien.
       Voir `shared/reglement-interieur`. */
   reglement?: SignatureTracee;
+  /** SES ENTRETIENS, TOUS GARDÉS — 6 septembre 2026.
+
+      « Des fiches de postes plus détaillées avec des cases à cocher, des
+      objectifs mesurables et atteignables, des points forts » (Yéman).
+
+      UNE LISTE, PAS UN CHAMP. Le seul intérêt d'une évaluation est de se
+      comparer à la précédente : écrasée chaque année, elle ne dirait jamais si
+      quelqu'un progresse, et « on en avait parlé l'an dernier » ne se prouverait
+      pas. La grille vit dans `shared/postes`, le jugement dans
+      `shared/evaluation` ; ici, seulement ce qui a été constaté. */
+  evaluations?: Evaluation[];
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */

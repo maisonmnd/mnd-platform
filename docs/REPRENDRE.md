@@ -61,6 +61,64 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA GRILLE D'ENTRETIEN SUR LA FICHE DE POSTE — 6 septembre 2026, PUBLIÉ
+
+« Je voudrais des fiches de postes plus détaillées avec des cases à cocher, des
+objectifs mesurables et atteignables, des points forts » (Yéman).
+
+**Deux arbitrages, tranchés avant la première ligne.** Les objectifs sont **un
+standard du poste, ajustable par personne** : la Maison n'invente rien à chaque
+embauche, et deux personnes d'un même poste sont jugées sur les mêmes lignes.
+Les cases se remplissent **des deux côtés** : elle se note, la gérance note
+aussi.
+
+**La fiche décrit, l'entretien constate.** La première appartient au poste et ne
+bouge pas (`shared/postes`) ; le second appartient à la personne et se refait
+chaque année (`shared/evaluation`, jugé par `verifie-postes`). Les confondre
+aurait fait une fiche de poste différente par personne, et plus rien n'aurait
+été comparable.
+
+**L'écart entre les deux regards est tout l'intérêt du document.** Une
+compétence que la Maison croit acquise et que la personne ne s'attribue pas est
+un manque de confiance ; la même dans l'autre sens est un angle mort. Une
+colonne unique n'en montrerait aucun. Les désaccords se lisent **sur la ligne**
+(filet cuivre) et **récapitulés dessous**, avec leur sens ; ils suivent sur le
+PDF, parce que c'est ce qu'on relit l'année suivante.
+
+**Trois états, pas deux.** « En cours » est le plus utile des trois : sans lui,
+tout ce qui n'est pas parfait se coche « pas encore », et personne ne signe une
+feuille qui dit qu'il ne sait rien faire. Au compte, il **vaut une demie** — rien
+découragerait ce qui progresse, un point entier effacerait la différence avec ce
+qui est tenu.
+
+**Des gestes observables, jamais des qualités.** « Ponctuel » ne se coche pas :
+ça se discute. Le harnais traque la **tournure** (« Est… », « Fait preuve de… »,
+un adjectif seul), pas le mot : « rend un praticien autonome » est un acte dont
+le résultat s'observe au fauteuil. Un juge qui se trompe de cible finit désarmé,
+parce qu'on lui retire ses mots un par un.
+
+**Une liste d'entretiens, pas un champ.** `StaffMember.evaluations` les garde
+tous : écrasé chaque année, le document ne dirait jamais si quelqu'un progresse.
+Celui **du jour** se remplace tant qu'on est assis avec la personne ; ceux des
+années passées ne se rouvrent pas. Les cibles de l'an dernier suivent la
+personne, pour ne pas dériver au hasard d'une reprise à l'autre.
+
+**Deux gardes à l'enregistrement** : toutes les compétences notées côté Maison,
+et des points forts écrits. Un entretien sans eux se lit comme un reproche.
+
+**La signature au doigt est désormais partagée** (`SignatureAuDoigt` dans
+`routes/_contrat.tsx`) et `summaryPdf` sait porter un bloc signature + tampon.
+Recopiée, la mécanique aurait divergé au premier correctif, et deux papiers de
+la Maison n'auraient pas valu la même chose.
+
+**Où c'est** : Personnel & paie, sur la ligne de la personne, bouton
+« Fiche & entretien » (suivi du nombre d'entretiens tenus). La fiche du poste
+s'imprime depuis la même modale, grille comprise.
+
+**Ce qui reste** : les grilles ont été écrites par la Maison, pas par les
+personnes qui tiennent les postes. Les faire relire par chacun avant le premier
+entretien vaut mieux que les découvrir le jour où on les coche.
+
 ## LES FICHES DE POSTE ET LE RÈGLEMENT INTÉRIEUR — 6 septembre 2026, PUBLIÉ
 
 « Crée les fiches de poste associées aux postes requis pour bien travailler à

@@ -5,6 +5,9 @@
    se voit pas à l'écran : elle se découvre le jour d'un litige. */
 import { FICHES_DE_POSTE, ficheDuPoste, fonctionsSansFiche } from '../src/shared/postes';
 import {
+  compte, ecarts, evaluationNeuve, pourquoiIncomplete, signeDuNiveau, NIVEAUX,
+} from '../src/shared/evaluation';
+import {
   texteReglementInterieur, VERSION_REGLEMENT, DEGRES_DE_SANCTION,
 } from '../src/shared/reglement-interieur';
 import { FONCTIONS_DEFAUT, FONCTIONS_AU_FAUTEUIL } from '../src/apps/trone/routes/equipe/data';
@@ -53,7 +56,89 @@ const auFauteuil = FICHES_DE_POSTE.filter((f) => f.auFauteuil)
   .flatMap((f) => [f.poste, ...(f.aussi ?? [])]).sort();
 dit('les fiches du fauteuil suivent la Maison', [...FONCTIONS_AU_FAUTEUIL].sort(), auFauteuil);
 
-/* ── ③ LE RÈGLEMENT ────────────────────────────────────────────────
+/* ── ③ LA GRILLE : CE QUI SE COCHE, CE QUI SE VISE ─────────────────
+   « Des cases à cocher, des objectifs mesurables et atteignables » (Yéman).
+   Une fiche sans grille se remet, mais ne s'évalue pas : l'entretien retombe
+   sur l'humeur, ce que les cinq rubriques existaient déjà pour empêcher. */
+const sansGrille = FICHES_DE_POSTE.filter((f) => f.competences.length < 4 || f.objectifs.length < 2);
+dit('chaque fiche porte sa grille', [], sansGrille.map((f) => f.poste));
+dit('aucun objectif sans cible', true,
+  FICHES_DE_POSTE.every((f) => f.objectifs.every((ob) => ob.cible.trim().length > 0)));
+/* LES CLÉS SONT LES IDENTIFIANTS D'UNE ÉVALUATION SIGNÉE : deux lignes de même
+   clé dans une fiche écraseraient silencieusement l'avis porté sur l'une. */
+const cléDouble = FICHES_DE_POSTE.filter((f) => {
+  const c = f.competences.map((x) => x.cle);
+  const o = f.objectifs.map((x) => x.cle);
+  return new Set(c).size !== c.length || new Set(o).size !== o.length;
+});
+dit('aucune clé en double dans une fiche', [], cléDouble.map((f) => f.poste));
+/* DES GESTES OBSERVABLES, JAMAIS DES QUALITÉS. « Ponctuel » ne se coche pas :
+   ça se discute ; « prévient d'un retard avant le jour même » se coche, et les
+   deux regards peuvent en convenir.
+
+   CE QU'ON TRAQUE EST LA TOURNURE, PAS LE MOT. « Rend un praticien autonome »
+   est un acte dont le résultat s'observe au fauteuil ; « est autonome » est un
+   jugement sur la personne. Chercher le seul mot « autonome » condamnerait le
+   premier avec le second — un juge qui se trompe de cible finit désarmé, parce
+   qu'on lui retire ses mots un par un. */
+const ETAT = /^(Est|Reste|Se montre|Fait preuve|Doit être|Sait être|A l’esprit|A le sens)\b/;
+const QUALITE_SEULE = /^(ponctuel|sérieux|motivé|dynamique|rigoureux|autonome|souriant|honnête|aimable)(le)?s?\.?$/i;
+const jugements = FICHES_DE_POSTE.flatMap((f) =>
+  f.competences.filter((c) => ETAT.test(c.mot.trim()) || QUALITE_SEULE.test(c.mot.trim())));
+dit('aucune qualité déguisée en compétence', [], jugements.map((c) => c.mot));
+/* ET CHACUNE SE LIT COMME UNE ACTION : un fragment de trois mots ne se coche
+   pas non plus, faute de dire ce qu'on aurait dû voir. */
+dit('chaque compétence décrit un geste', true,
+  FICHES_DE_POSTE.every((f) => f.competences.every((c) => c.mot.trim().split(/\s+/).length >= 4)));
+/* AUCUN MONTANT NON PLUS DANS LA GRILLE : un objectif chiffré en francs sur une
+   fiche de poste annoncerait une prime que personne n'a décidée. */
+const grilleEnTexte = FICHES_DE_POSTE.flatMap((f) =>
+  [...f.competences.map((c) => c.mot), ...f.objectifs.map((o) => `${o.mot} ${o.cible}`)]).join(' ');
+dit('aucun montant dans la grille', false, /\d{4,}|F CFA|XOF/.test(grilleEnTexte));
+
+/* ── ③ bis · LES DEUX REGARDS ──────────────────────────────────────
+   « Les deux · elle se note, la gérance note aussi » (arbitrage de Yéman).
+   L'ÉCART EST TOUT L'INTÉRÊT DU DOCUMENT : c'est là que se trouve le sujet de
+   l'entretien, et une colonne unique ne le montrerait jamais. */
+const fMaitre = ficheDuPoste('Maître')!;
+const ev = evaluationNeuve(fMaitre, '2026-09-06');
+dit('une évaluation neuve part du standard du poste',
+  fMaitre.objectifs.map((o) => o.cible), fMaitre.objectifs.map((o) => ev.cibles[o.cle]));
+dit('… et elle garde le poste tel qu’il était', 'Maître', ev.poste);
+
+const c0 = fMaitre.competences[0].cle;
+const c1 = fMaitre.competences[1].cle;
+ev.parElle[c0] = 'acquis'; ev.parLaMaison[c0] = 'acquis';       // d'accord
+ev.parElle[c1] = 'non'; ev.parLaMaison[c1] = 'acquis';          // la Maison la voit plus loin
+dit('un accord n’est pas un écart', 1, ecarts(fMaitre, ev).length);
+dit('… et le sens est dit', 'maison-plus-haut', ecarts(fMaitre, ev)[0].sens);
+ev.parElle[c1] = 'acquis'; ev.parLaMaison[c1] = 'encours';
+dit('… dans l’autre sens aussi', 'elle-plus-haut', ecarts(fMaitre, ev)[0].sens);
+/* UN AVIS MANQUANT N'EST PAS UN DÉSACCORD : ce serait chercher un conflit qui
+   n'existe pas, sur une case qu'on n'a simplement pas remplie. */
+delete ev.parElle[c1];
+dit('une case vide ne fait pas un désaccord', 0, ecarts(fMaitre, ev).length);
+
+/* « EN COURS » VAUT UNE DEMIE : rien du tout découragerait ce qui progresse,
+   un point entier effacerait la différence avec ce qui est tenu. */
+const cinq = { ...fMaitre, competences: fMaitre.competences.slice(0, 4) };
+dit('le compte pèse l’en-cours à moitié', { acquis: 2, encours: 2, total: 4, pct: 75 },
+  compte(cinq, Object.fromEntries(cinq.competences.map((c, i) =>
+    [c.cle, i < 2 ? 'acquis' : 'encours'])) as Record<string, 'acquis' | 'encours'>));
+dit('une grille vierge ne vaut rien', 0, compte(fMaitre, {}).pct);
+
+/* CE QUI MANQUE POUR QUE L'ENTRETIEN SOIT TENU : un document à moitié rempli
+   signé le jour même ne se relit pas l'année suivante. */
+dit('un entretien incomplet se refuse', true, !!pourquoiIncomplete(fMaitre, ev));
+for (const c of fMaitre.competences) ev.parLaMaison[c.cle] = 'acquis';
+dit('… même noté en entier, sans points forts', true, !!pourquoiIncomplete(fMaitre, ev));
+ev.pointsForts = 'Tient ses têtes difficiles sans jamais appeler à l’aide trop tard.';
+dit('… complet, il passe', undefined, pourquoiIncomplete(fMaitre, ev));
+
+dit('trois niveaux, pas deux', 3, NIVEAUX.length);
+dit('un niveau absent se lit quand même', '—', signeDuNiveau(undefined));
+
+/* ── ④ LE RÈGLEMENT ────────────────────────────────────────────────
    Les quatre sujets tranchés par la Maison, et l'échelle. */
 const r = texteReglementInterieur({
   maison: 'L’atelier MND', raison: 'MND SARL', ville: 'Cotonou',

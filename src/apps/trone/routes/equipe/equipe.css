@@ -1653,3 +1653,143 @@
 .tre-du__v { flex: none; text-align: right; font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
 .tre-du__v em { display: block; font-style: normal; font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); }
 .tre-du.is-retard .tre-du__v { color: #96412E; }
+
+/* ══ LA GRILLE D'ENTRETIEN — 6 septembre 2026 ═════════════════════════
+   « Des cases à cocher, des objectifs mesurables et atteignables, des points
+   forts » (Yéman).
+
+   DEUX COLONNES CÔTE À CÔTE, jamais l'une sous l'autre : c'est en les voyant
+   ensemble qu'on repère le désaccord, et le désaccord est le sujet. */
+.tre-ev__fiche {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 16px 18px;
+  background: var(--surface-veil, rgba(0, 0, 0, 0.015));
+}
+.tre-ev__quatre {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px 26px;
+}
+.tre-ev__rub {
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+  margin-bottom: 5px;
+}
+.tre-ev__quatre ul { margin: 0; padding-left: 15px; }
+.tre-ev__quatre li { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+
+.tre-ev__entete {
+  display: grid;
+  grid-template-columns: 1fr 108px 108px;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+.tre-ev__entete span:not(:first-child) {
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.tre-ev { border-top: 1px solid var(--hairline); }
+.tre-ev__ligne {
+  display: grid;
+  grid-template-columns: 1fr 108px 108px;
+  gap: 14px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+/* LE DÉSACCORD SE VOIT DEPUIS LA LIGNE : le relire en bas de page ne suffit
+   pas, on en parle au moment où on le pose. */
+.tre-ev__ligne.is-ecart { box-shadow: inset 2px 0 0 var(--color-copper); padding-left: 10px; }
+.tre-ev__geste { font-size: 13px; line-height: 1.5; color: var(--ink); }
+
+.tre-ev__seg {
+  display: inline-flex;
+  justify-self: center;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.tre-ev__seg button {
+  width: 34px;
+  height: 28px;
+  border: none;
+  border-right: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-soft), color var(--dur-base) var(--ease-soft);
+}
+.tre-ev__seg button:last-child { border-right: none; }
+.tre-ev__seg button:hover { background: var(--hover-veil); }
+.tre-ev__seg--elle button.is-on { background: var(--color-indigo); color: var(--color-ivoire); }
+.tre-ev__seg--maison button.is-on { background: var(--color-copper); color: var(--color-ivoire); }
+
+.tre-ev__compte {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.tre-ev__compte strong { font-family: var(--font-serif); font-size: 16px; font-weight: var(--weight-light); color: var(--color-indigo); }
+
+.tre-ev__ecarts {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--copper-300);
+  border-radius: 3px;
+  background: var(--copper-50);
+}
+.tre-ev__ecart {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 3px 0;
+}
+
+.tre-ev__obj {
+  display: grid;
+  grid-template-columns: 1fr 200px 92px;
+  gap: 14px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.tre-ev__obj .mnd-input { width: 100%; }
+.tre-ev__atteint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.tre-ev__standard { grid-column: 1 / -1; font-size: 11px; }
+
+.tre-ev__mots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.tre-ev__mots .mnd-textarea { width: 100%; }
+
+/* AU TÉLÉPHONE, l'entretien se tient assis à côté de la personne : les deux
+   avis restent côte à côte, c'est le libellé qui passe au-dessus. */
+@media (max-width: 760px) {
+  .tre-ev__entete { grid-template-columns: 1fr 1fr; }
+  .tre-ev__entete span:first-child { display: none; }
+  .tre-ev__ligne, .tre-ev__obj { grid-template-columns: 1fr 1fr; }
+  .tre-ev__geste { grid-column: 1 / -1; }
+  .tre-ev__obj .mnd-input { grid-column: 1 / -1; }
+}

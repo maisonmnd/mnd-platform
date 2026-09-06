@@ -39,6 +39,23 @@ export type FicheDePoste = {
   mesure: string[];
   neFaitPas: string[];
   rendCompteA: string;
+  /** ══ CE QUI SE COCHE — 6 septembre 2026 ═══════════════════════════
+      « Des fiches de poste plus détaillées avec des cases à cocher, des
+      objectifs mesurables et atteignables, des points forts » (Yéman).
+
+      DES GESTES OBSERVABLES, jamais des qualités. « Ponctuel » ne se coche
+      pas : ça se discute. « Prévient d'un retard avant le jour même » se
+      coche, et les deux regards peuvent en convenir. */
+  competences: { cle: string; mot: string }[];
+  /** ══ CE QUI SE VISE ═══════════════════════════════════════════════
+      Un standard du poste, ajustable par personne (arbitrage). La Maison
+      n'invente rien à chaque embauche, et deux personnes du même poste sont
+      jugées sur la même chose.
+
+      LA CIBLE EST UN TEXTE, pas un nombre : « 7 têtes sur 10 » et « toutes »
+      se lisent mieux qu'un pourcentage, et un objectif qu'on doit convertir de
+      tête n'est pas un objectif qu'on a compris. */
+  objectifs: { cle: string; mot: string; cible: string }[];
 };
 
 export const FICHES_DE_POSTE: FicheDePoste[] = [
@@ -60,6 +77,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'La caisse au quotidien, ni les commandes de la Gamme.',
       'Le planning des autres, qui appartient à la gérance.',
     ],
+    competences: [
+      { cle: 'difficile', mot: 'Conduit une tête en mauvais état sans l’abîmer davantage' },
+      { cle: 'refus', mot: 'Sait refuser un service, et l’expliquer à la cliente' },
+      { cle: 'autonomie', mot: 'Rend un praticien autonome, et le prouve au fauteuil' },
+      { cle: 'catalogue', mot: 'Arbitre ce qui entre au catalogue et ce qui en sort' },
+      { cle: 'referentiel', mot: 'Tient le référentiel de la Maison à jour' },
+    ],
+    objectifs: [
+      { cle: 'autonomes', mot: 'Praticiens rendus autonomes', cible: 'deux dans l’année' },
+      { cle: 'reclam', mot: 'Réclamations sur ses propres rituels', cible: 'aucune' },
+      { cle: 'cadence', mot: 'Têtes qu’il suit et qui tiennent leur cadence', cible: 'huit sur dix' },
+    ],
     rendCompteA: 'à la direction de la Maison.',
   },
   {
@@ -79,6 +108,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     neFaitPas: [
       'Il ne remise pas de sa propre autorité : une remise se décide, elle ne s’accorde pas au fauteuil.',
       'Il ne modifie pas le catalogue ni les prix.',
+    ],
+    competences: [
+      { cle: 'rituel', mot: 'Conduit un rituel complet seul, du diagnostic à la coiffure' },
+      { cle: 'prix', mot: 'Annonce un prix et une durée justes avant de commencer' },
+      { cle: 'fiche', mot: 'Renseigne la fiche entièrement : longueur, comptage, mèche témoin' },
+      { cle: 'bilan', mot: 'Rédige et remet un bilan de séance' },
+      { cle: 'limite', mot: 'Reconnaît une tête qu’il ne faut pas travailler ce jour-là' },
+    ],
+    objectifs: [
+      { cle: 'fiches', mot: 'Fiches renseignées après ses rituels', cible: 'toutes' },
+      { cle: 'cadence', mot: 'Ses têtes qui reviennent quand elles doivent', cible: 'sept sur dix' },
+      { cle: 'bilans', mot: 'Bilans remis', cible: 'un par tête et par trimestre' },
     ],
     rendCompteA: 'au maître fondateur, et à la gérance pour le planning.',
   },
@@ -100,6 +141,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'Il ne conduit pas seul un rituel qu’il n’a pas encore validé.',
       'Il n’annonce pas un prix ni une durée : cela appartient au maître ou à l’accueil.',
     ],
+    competences: [
+      { cle: 'lavage', mot: 'Lave et hydrate selon le protocole, sans l’adapter' },
+      { cle: 'resserrage', mot: 'Resserre une racine proprement, sans tirer' },
+      { cle: 'poste', mot: 'Prépare un poste complet avant l’arrivée de la tête' },
+      { cle: 'appel', mot: 'Appelle un maître au bon moment, plutôt que d’essayer' },
+      { cle: 'trace', mot: 'Renseigne ce qu’il a fait, geste par geste' },
+    ],
+    objectifs: [
+      { cle: 'etapes', mot: 'Étapes d’autonomie validées', cible: 'trois dans l’année' },
+      { cle: 'reprises', mot: 'Rituels repris derrière lui par un maître', cible: 'moins d’un sur dix' },
+      { cle: 'fiches', mot: 'Fiches renseignées après ses gestes', cible: 'toutes' },
+    ],
     rendCompteA: 'au maître qui le suit.',
   },
   {
@@ -119,6 +172,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     neFaitPas: [
       'Il ne certifie pas seul : la certification appartient au jury.',
       'Il n’encaisse pas les règlements de formation.',
+    ],
+    competences: [
+      { cle: 'seance', mot: 'Anime une séance en suivant le programme' },
+      { cle: 'correction', mot: 'Corrige un geste sans décourager' },
+      { cle: 'evaluation', mot: 'Évalue un module avec la grille, et sait le justifier' },
+      { cle: 'jury', mot: 'Prépare une apprenante au jury' },
+      { cle: 'alerte', mot: 'Alerte dès qu’une apprenante décroche' },
+    ],
+    objectifs: [
+      { cle: 'fichesSeance', mot: 'Fiches de séance validées le jour même', cible: 'toutes' },
+      { cle: 'presentees', mot: 'Apprenantes présentées au jury', cible: 'huit sur dix' },
+      { cle: 'certifiees', mot: 'Apprenantes certifiées', cible: 'sept sur dix' },
     ],
     rendCompteA: 'au maître fondateur, pour l’Académie.',
   },
@@ -140,6 +205,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'Il ne pose pas de diagnostic ni ne promet un résultat : cela appartient au fauteuil.',
       'Il n’accorde pas de remise de sa propre autorité.',
     ],
+    competences: [
+      { cle: 'recevoir', mot: 'Reçoit, installe, et prévient d’une attente avant qu’on la subisse' },
+      { cle: 'carnet', mot: 'Tient le carnet sans trou : pose, déplace, confirme' },
+      { cle: 'caisse', mot: 'Encaisse et remet le reçu, sans exception' },
+      { cle: 'rappels', mot: 'Rappelle celles qui n’ont pas confirmé' },
+      { cle: 'fiches', mot: 'Complète une fiche pendant que la tête est là' },
+    ],
+    objectifs: [
+      { cle: 'caisseJuste', mot: 'Caisse juste à la fermeture', cible: 'tous les soirs' },
+      { cle: 'absentes', mot: 'Têtes absentes sans avoir prévenu', cible: 'moins d’une sur vingt' },
+      { cle: 'completees', mot: 'Fiches complétées par semaine', cible: 'dix' },
+    ],
     rendCompteA: 'à la gérance.',
   },
   {
@@ -159,6 +236,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     neFaitPas: [
       'Elle ne tranche pas un geste technique : cela appartient au maître fondateur.',
       'Elle ne modifie pas seule les prix de la Maison.',
+    ],
+    competences: [
+      { cle: 'planning', mot: 'Tient un planning couvert, absences comprises' },
+      { cle: 'argent', mot: 'Suit la caisse, les dépenses et les créances' },
+      { cle: 'stock', mot: 'Commande à temps, sans rupture ni surstock' },
+      { cle: 'entretien', mot: 'Conduit un entretien, et l’écrit' },
+      { cle: 'reglement', mot: 'Applique le règlement, du rappel à la sanction écrite' },
+    ],
+    objectifs: [
+      { cle: 'occupation', mot: 'Occupation des fauteuils', cible: 'sept sur dix' },
+      { cle: 'ruptures', mot: 'Ruptures de stock dans le mois', cible: 'aucune' },
+      { cle: 'impayes', mot: 'Impayés au-delà de trente jours', cible: 'moins de cinq pour cent' },
     ],
     rendCompteA: 'à la direction.',
   },
@@ -180,6 +269,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'Il ne touche pas une tête sans qu’un maître le lui demande.',
       'Il n’encaisse pas.',
     ],
+    competences: [
+      { cle: 'preparation', mot: 'Prépare un poste complet sans qu’on le demande' },
+      { cle: 'desinfection', mot: 'Désinfecte entre deux têtes, sans raccourci' },
+      { cle: 'assistance', mot: 'Assiste un rituel : rinçage, sections, passage du matériel' },
+      { cle: 'reserve', mot: 'Tient la réserve rangée et lisible' },
+      { cle: 'alerte', mot: 'Signale ce qui manque avant que cela manque' },
+    ],
+    objectifs: [
+      { cle: 'postes', mot: 'Postes prêts avant l’arrivée de la tête', cible: 'tous' },
+      { cle: 'alertes', mot: 'Alertes de stock passées à temps', cible: 'toutes' },
+      { cle: 'hygiene', mot: 'Remarques d’hygiène reçues', cible: 'aucune' },
+    ],
     rendCompteA: 'au maître de service, et à la gérance.',
   },
   {
@@ -199,6 +300,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     neFaitPas: [
       'Il ne déplace ni ne jette le matériel de soin sans l’accord d’un maître.',
       'Il n’entre pas dans la réserve de la Gamme.',
+    ],
+    competences: [
+      { cle: 'tour', mot: 'Fait le tour complet de la journée' },
+      { cle: 'sanitaires', mot: 'Tient les sanitaires à toute heure' },
+      { cle: 'consommable', mot: 'Réapprovisionne avant la rupture' },
+      { cle: 'signalement', mot: 'Signale ce qui casse, fuit ou s’use, le jour même' },
+      { cle: 'produits', mot: 'Utilise et range les produits comme il faut' },
+    ],
+    objectifs: [
+      { cle: 'tours', mot: 'Tours de nettoyage faits et signés', cible: 'tous les jours' },
+      { cle: 'proprete', mot: 'Sanitaires nets à toute heure', cible: 'toujours' },
+      { cle: 'avant', mot: 'Défauts signalés avant qu’une cliente les voie', cible: 'tous' },
     ],
     rendCompteA: 'à la gérance.',
   },
@@ -220,6 +333,18 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'Il ne discute pas d’une cliente ni de ce qu’elle paie.',
       'Il ne quitte pas son poste sans passer la main.',
     ],
+    competences: [
+      { cle: 'entree', mot: 'Tient l’entrée et oriente sans brusquer' },
+      { cle: 'ouverture', mot: 'Ouvre et ferme aux heures dites' },
+      { cle: 'incident', mot: 'Gère un incident calmement et prévient aussitôt' },
+      { cle: 'cahier', mot: 'Tient le cahier des entrées et des incidents' },
+      { cle: 'fermeture', mot: 'Vérifie que tout est clos avant de partir' },
+    ],
+    objectifs: [
+      { cle: 'fermetures', mot: 'Fermetures vérifiées', cible: 'toutes' },
+      { cle: 'incidents', mot: 'Incidents consignés le jour même', cible: 'tous' },
+      { cle: 'poste', mot: 'Poste quitté sans passer la main', cible: 'jamais' },
+    ],
     rendCompteA: 'à la gérance.',
   },
   {
@@ -239,6 +364,17 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     neFaitPas: [
       'Il ne prend pas de course personnelle avec le véhicule de la Maison.',
       'Il ne transporte pas de valeurs sans consigne écrite.',
+    ],
+    competences: [
+      { cle: 'conduite', mot: 'Conduit sans risque et sans amende' },
+      { cle: 'vehicule', mot: 'Entretient le véhicule : niveaux, pneus, papiers' },
+      { cle: 'carnet', mot: 'Tient le carnet des trajets et du carburant' },
+      { cle: 'retard', mot: 'Prévient d’un retard avant qu’il n’arrive' },
+    ],
+    objectifs: [
+      { cle: 'heure', mot: 'Trajets à l’heure', cible: 'neuf sur dix' },
+      { cle: 'justificatifs', mot: 'Justificatifs de carburant rapportés', cible: 'tous' },
+      { cle: 'incidents', mot: 'Incidents de circulation', cible: 'aucun' },
     ],
     rendCompteA: 'à la gérance.',
   },
@@ -260,6 +396,17 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
       'Il n’engage pas une dépense sans accord.',
       'Il ne garde pas d’espèces d’un jour sur l’autre.',
     ],
+    competences: [
+      { cle: 'delai', mot: 'Livre et retire dans le délai annoncé' },
+      { cle: 'signature', mot: 'Fait signer ce qui doit l’être' },
+      { cle: 'justificatifs', mot: 'Rapporte tous les justificatifs' },
+      { cle: 'monnaie', mot: 'Rend la monnaie et les reçus sans délai' },
+    ],
+    objectifs: [
+      { cle: 'courses', mot: 'Courses faites dans le délai annoncé', cible: 'neuf sur dix' },
+      { cle: 'papiers', mot: 'Justificatifs rapportés le jour même', cible: 'tous' },
+      { cle: 'especes', mot: 'Écarts d’espèces', cible: 'aucun' },
+    ],
     rendCompteA: 'à la gérance.',
   },
   {
@@ -277,6 +424,16 @@ export const FICHES_DE_POSTE: FicheDePoste[] = [
     ],
     neFaitPas: [
       'Il n’entre pas dans les espaces de soin en tenue de jardin.',
+    ],
+    competences: [
+      { cle: 'plantes', mot: 'Entretient les plantes et remplace ce qui meurt' },
+      { cle: 'cour', mot: 'Tient la cour et les abords nets' },
+      { cle: 'arrosage', mot: 'Arrose et taille au bon moment' },
+      { cle: 'signalement', mot: 'Signale ce qui s’abîme dehors' },
+    ],
+    objectifs: [
+      { cle: 'abords', mot: 'Abords nets à l’ouverture', cible: 'tous les jours' },
+      { cle: 'remplacement', mot: 'Plantes mortes remplacées', cible: 'sous quinze jours' },
     ],
     rendCompteA: 'à la gérance.',
   },

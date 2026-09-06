@@ -1060,6 +1060,23 @@ export async function summaryPdf(o: {
       somme perdue au milieu des lignes se recompte de tête, et on ne recompte
       pas de tête devant une mère de trois filles. */
   total?: { label: string; value: string };
+  /** ══ CE QUI SE SIGNE — 6 septembre 2026 ═════════════════════════
+      Un résumé ne se signe pas ; un entretien, si. Une évaluation que
+      personne n'a signée ne s'oppose à rien : elle se relit l'année suivante
+      comme un avis, et la personne peut dire qu'on ne lui a jamais montré.
+
+      LE TAMPON VIENT AVEC, à droite de la sienne — les deux marques se font
+      face, comme sur un contrat. */
+  signature?: {
+    trace: string;
+    nom: string;
+    qualite?: string;
+    jourLisible: string;
+    /** Le lieu du « Fait à… ». */
+    ville?: string;
+    /** La ville du tampon : le siège, pas le fauteuil. */
+    villeDuSiege?: string;
+  };
   footer?: string;
   filename: string;
 }): Promise<string> {
@@ -1164,6 +1181,33 @@ export async function summaryPdf(o: {
     doc.setTextColor(INDIGO);
     doc.text(o.total.value, W - M, y + 1.5, { align: 'right' });
     y += 12;
+  }
+
+  /* LE BLOC DE SIGNATURE NE SE COUPE JAMAIS EN DEUX : une signature seule en
+     haut d'une page se détache de ce qu'elle approuve. */
+  if (o.signature) {
+    if (y > 218) { doc.addPage(); y = 24; }
+    y += 4;
+    doc.setDrawColor(220, 213, 195);
+    doc.setLineWidth(0.4);
+    doc.line(M, y, W - M, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(SOFT);
+    doc.text(`Fait ${o.signature.ville ? `à ${o.signature.ville}, ` : ''}le ${o.signature.jourLisible}`, M, y);
+    y += 7;
+    doc.setTextColor(INK);
+    doc.text(o.signature.nom, M, y);
+    y += 4;
+    doc.setFontSize(8);
+    doc.setTextColor(SOFT);
+    doc.text(o.signature.qualite ?? 'Lu et approuvé, signature :', M, y);
+    try { doc.addImage(o.signature.trace, 'PNG', M, y + 2, 62, 22, undefined, 'FAST'); } catch { /* signature illisible */ }
+    doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
+    await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
+      nom: o.houseName, ville: o.signature.villeDuSiege ?? o.signature.ville,
+    });
   }
 
   if (o.footer) {
