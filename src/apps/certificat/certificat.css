@@ -295,10 +295,18 @@
 .ct-sceau {
   position: absolute;
   left: 50%;
-  bottom: -6px;
+  /* IL DESCEND — 6 septembre 2026. « Baisse le tampon, que ca ne soit pas sur
+     la mention d'excellence » (Yeman). En l'agrandissant de 112 a 124 px je
+     l'avais fait mordre sur la ligne du dessus : un sceau pose sur un mot le
+     rature, et c'est la mention qui portait la valeur du certificat.
+
+     UN SCEAU DE 110 PX DANS UNE RANGEE DE SIGNATURES DE 70 DEPASSE FORCEMENT
+     DES DEUX COTES : on choisit donc par ou. Il deborde vers le bas, ou il n'y
+     a que du blanc, plutot que vers le haut ou il y a du texte. */
+  bottom: -20px;
   transform: translateX(-50%);
-  width: 124px;
-  height: 124px;
+  width: 110px;
+  height: 110px;
   /* L'ENCRE D'UN TAMPON MARQUE LE PAPIER, elle ne le recouvre pas. */
   opacity: 0.86;
 }
@@ -321,7 +329,8 @@
   font-weight: var(--weight-light);
   font-size: 15px;
   color: var(--ink-soft);
-  margin-top: 18px;
+  /* LA PLACE QUE LE SCEAU PREND EN DESCENDANT SE REND ICI. */
+  margin-top: 30px;
 }
 
 /* ---------- Impression : A4 paysage exact ---------- */
