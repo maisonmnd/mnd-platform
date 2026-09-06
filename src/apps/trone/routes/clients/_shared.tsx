@@ -6,6 +6,7 @@ import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { COTE_VIGNETTE, QUALITE_VIGNETTE } from '../../../../shared/photo';
 import { maisonNom, houseSignature } from '../../../../shared/identite';
+import { momentCourt, texteDuRappel } from '../../../../shared/rappel';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
   remiseFamillePct, type Client,
@@ -943,6 +944,13 @@ const digitsOf = (p?: string) => (p ?? '').replace(/\D/g, '');
    des clientes. Re-exportée pour les appelants d'avant. */
 export { houseSignature };
 
+/* LE TEXTE DU RAPPEL VIT DANS `shared/rappel` — 7 septembre 2026. Il s'écrivait
+   ici, dans un fichier d'écran que rien ne relit : quatre lignes collées, une
+   date abrégée et l'heure d'un horaire de train. C'est le seul texte de la
+   Maison qu'une cliente lit sur son téléphone ; il se juge désormais mot pour
+   mot dans `verifie-rappel`. */
+export { heureLisible, jourLisible } from '../../../../shared/rappel';
+
 export function apptReminder(
   a: Appointment,
   client: Client | undefined,
@@ -951,10 +959,11 @@ export function apptReminder(
 ): { href: string | null; due: 'now' | 'soon' | ''; when: string } {
   const t = todayISO();
   const tomorrow = addDaysISO(t, 1);
-  const when =
-    a.date === t ? `aujourd'hui à ${a.time}`
-    : a.date === tomorrow ? `demain à ${a.time}`
-    : `${frDay(a.date)} à ${a.time}`;
+  /* LE MOMENT SE DIT DANS `shared/rappel`, jamais ici : le texte que la
+     cliente lit sur son téléphone se juge mot pour mot dans un harnais, et un
+     fichier d'écran n'est pas un endroit où l'on relit une phrase. */
+  const moment = { jourIso: a.date, heure: a.time, aujourdhuiIso: t, demainIso: tomorrow };
+  const when = momentCourt(moment);
   let due: 'now' | 'soon' | '' = '';
   if (a.date === t) {
     const now = new Date();
@@ -966,12 +975,16 @@ export function apptReminder(
   const digits = digitsOf(client?.phone);
   if (!digits) return { href: null, due, when };
   const first = (client?.name ?? '').split(' ')[0] || 'Madame';
-  const svc = apptLabel(a, byId);
-  const msg =
-    `Bonjour ${first},\n` +
-    `Petit rappel de la Maison MND : votre rendez-vous est prévu ${when}${svc && svc !== '—' ? ` (${svc})` : ''}.\n` +
-    `Merci de nous prévenir en cas d'empêchement. À très vite.\n\n` +
-    houseSignature(picto);
+  const msg = texteDuRappel({
+    ...moment,
+    prenom: first,
+    /* UN RITUEL PAR LIGNE. Entre parenthèses au milieu de la phrase, trois
+       noms à marque déposée poussaient l'heure hors de l'écran sur un
+       téléphone : ce qui compte le plus se lisait en dernier. */
+    rituels: apptServices(a, byId).map((x) => x.name),
+    maison: maisonNom(),
+    picto,
+  });
   return { href: `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, due, when };
 }
 

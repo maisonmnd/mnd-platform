@@ -61,6 +61,47 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE RAPPEL ENVOYÉ À LA CLIENTE — 7 septembre 2026, PUBLIÉ
+
+« Rajoute le jour devant la date… j'ai besoin que ce soit mieux structuré et
+plus aéré » (Yéman).
+
+**C'est le seul texte de la Maison qu'une cliente lit sur son téléphone**, et il
+s'écrivait dans `clients/_shared.tsx`, un fichier d'écran que rien ne relisait.
+Il vit maintenant dans `shared/rappel.ts`, pur, jugé mot pour mot par le
+**37e harnais, `verifie-rappel`**, blancs compris.
+
+**Ce qui change dans le message** :
+· le jour de la semaine devant la date, « pour le vendredi 11 septembre » ;
+· l'heure telle qu'on la dit, « 8 h 30 » et non « 08:30 » ;
+· cinq blocs séparés par du blanc, dont **un rituel par ligne** au lieu d'une
+  parenthèse au milieu de la phrase.
+
+**Pourquoi les rituels sortent de la phrase** : trois noms à marque déposée
+entre parenthèses poussaient l'heure hors de l'écran d'un téléphone. Ce qui
+compte le plus se lisait en dernier. Sur WhatsApp, le blanc est la seule mise en
+forme qui survive à tous les téléphones.
+
+**La préposition appartient au moment, pas à la phrase.** « prévu pour le
+vendredi 11 septembre » se dit ; « prévu pour aujourd'hui » ne se dit pas.
+Laissée dans la phrase, elle aurait obligé à en écrire deux, qui auraient
+divergé. `momentCourt()` rend le même moment sans elle, pour les bulles de
+l'écran : deux calculs auraient fini par afficher deux heures différentes pour
+le même rendez-vous.
+
+**L'année n'apparaît que quand elle change quelque chose** : une cadence posée
+court sur deux ans, et « lundi 4 janvier » nu se lirait comme celui de cette
+année. La porter toujours alourdirait le rappel de la semaine prochaine.
+
+**Deux défauts trouvés en écrivant le harnais** :
+· le message disait **« Maison MND » en dur** alors que la Maison s'appelle
+  « L'atelier MND » et signait ainsi trois lignes plus bas : la cliente lisait
+  deux noms dans le même message. Il prend le nom des Paramètres, avec
+  `deLaMaison()` pour l'article — « de la Maison MND » mais « de L'atelier
+  MND », car « de la L'atelier MND » aurait été pire que le nom figé ;
+· `Number('')` vaut **zéro** et non NaN : un rendez-vous sans heure annonçait
+  « 0 h » à la cliente, ce qui est pire qu'un champ vide, parce qu'elle y croit.
+
 ## LES CONTRATS ET L'IDENTITÉ REJOIGNENT LES TEXTES — 7 septembre 2026, PUBLIÉ
 
 « Dans les textes de la Maison il manque les contrats et identité » (Yéman).
