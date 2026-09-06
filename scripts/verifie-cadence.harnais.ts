@@ -9,6 +9,7 @@ import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
 import { mouvementsDePassage, depuisQuandALaMaison, type TetePassage } from '../src/shared/clients';
+import { dureeEnClair } from '../src/apps/trone/routes/clients/_shared';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -409,6 +410,19 @@ dit('sans rituel, la fiche seule', '2026-08-31', depuisQuandALaMaison(fiche, [])
 dit('la tête voisine ne compte pas', '2026-08-31',
   depuisQuandALaMaison(fiche, [{ clientId: 'cl-2', date: '2024-01-01' }]));
 dit('sans fiche ni rituel, rien', undefined, depuisQuandALaMaison({ id: 'cl-9', since: '' }, []));
+
+/* ── LE TEMPS ÉCOULÉ, EN CLAIR — 6 septembre 2026 ─────────────────
+   « 21 juillet 2015 à aujourd'hui ne fait pas 21. » La case montrait le
+   QUANTIÈME du mois, lu par accident du premier mot de la date. */
+dit('onze ans se disent en ans', '11 ans', dureeEnClair('2015-07-21', '2026-09-06'));
+dit('huit mois se disent en mois', '8 mois', dureeEnClair('2026-01-17', '2026-09-06'));
+/* SOUS UN MOIS, LES JOURS : « 0 mois » ne dit rien à personne. */
+dit('six jours se disent en jours', '6 j', dureeEnClair('2026-08-31', '2026-09-06'));
+/* SOUS DEUX ANS, LES MOIS : « 1 an » pour dix-huit mois efface six mois. */
+dit('dix-huit mois restent des mois', '18 mois', dureeEnClair('2025-03-06', '2026-09-06'));
+dit('deux ans passent aux ans', '2 ans', dureeEnClair('2024-09-06', '2026-09-06'));
+/* UNE DATE À VENIR NE SE COMPTE PAS À REBOURS. */
+dit('une date à venir se dit', 'à venir', dureeEnClair('2027-01-01', '2026-09-06'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -45,7 +45,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frLongAn, frShort, frDay,
+  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence, frJourAn, frShortAn } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
@@ -2867,13 +2867,7 @@ function Customer360({
             {/* DEPUIS SON PREMIER RITUEL CONNU, pas depuis la création de sa
                 fiche : la reprise de 2025 a rendu l'écart criant. */}
             <span className={`trc-bande__v ${depuisLaMaison ? '' : 'is-vide'}`}>
-              {(() => {
-                if (!depuisLaMaison) return '—';
-                const j = Math.max(0, Math.round((Date.parse(`${todayISO()}T00:00:00`) - Date.parse(`${depuisLaMaison}T00:00:00`)) / 86400000));
-                if (j < 31) return `${j} j`;
-                const m = Math.round(j / 30.4);
-                return m < 12 ? `${m} mois` : `${Math.floor(m / 12)} an${Math.floor(m / 12) > 1 ? 's' : ''}`;
-              })()}
+              {depuisLaMaison ? dureeEnClair(depuisLaMaison, todayISO()) : '—'}
             </span>
             <span className="trc-bande__s">{depuisLaMaison ? frJourAn(depuisLaMaison) : 'date inconnue'}</span>
           </div>
@@ -2886,11 +2880,12 @@ function Customer360({
           </div>
           <div className="trc-bande__c">
             <u>Couronne</u>
-            {/* L'ANNÉE, PAS LE QUANTIÈME. « Couronne · 4 » ne disait rien : le
-                4 était le jour du mois, lu par accident du premier mot de la
-                date. C'est l'année qu'on cherche d'un coup d'œil. */}
+            {/* SON ÂGE, PAS LE QUANTIÈME. « Couronne · 21 » ne disait rien : le
+                21 était le jour du mois, lu par accident du premier mot de la
+                date. La case voisine annonce une durée, celle-ci se lit comme
+                elle : elles disent donc la même chose, de la même façon. */}
             <span className={`trc-bande__v ${client.crownSince ? '' : 'is-vide'}`}>
-              {client.crownSince ? client.crownSince.slice(0, 4) : '—'}
+              {client.crownSince ? dureeEnClair(client.crownSince, todayISO()) : '—'}
             </span>
             <span className="trc-bande__s">
               {client.crownSince ? frJourAn(client.crownSince) : 'jour inconnu'}

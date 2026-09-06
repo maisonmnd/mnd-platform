@@ -83,6 +83,29 @@ export const frLongAn = (iso: string) =>
     ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
     : '—');
 
+/** LE TEMPS ÉCOULÉ, EN CLAIR — 6 septembre 2026.
+
+    « Quand je remplis la couronne manuellement il y a un bug au niveau du
+    calcul du temps. 21 juillet 2015 à aujourd'hui ne fait pas 21 » (Yéman).
+
+    LA CASE MONTRAIT LE QUANTIÈME DU MOIS, lu par accident du premier mot de la
+    date : « 21 juil. 2020 » donnait « 21 ». Deux cases voisines annoncent une
+    durée — « à la Maison », « couronne » — et l'œil lit la seconde comme la
+    première. Elles disent donc la même chose, de la même façon.
+
+    ON ARRONDIT AU PLUS PARLANT : des jours sous un mois, des mois sous deux
+    ans, des ans au-delà. « 137 mois » ne se lit pas ; « 11 ans » se voit. */
+export const dureeEnClair = (iso: string, aujourdhui: string): string => {
+  const j = Math.round((Date.parse(`${aujourdhui}T00:00:00`) - Date.parse(`${iso}T00:00:00`)) / 86400000);
+  if (!Number.isFinite(j)) return '—';
+  if (j < 0) return 'à venir';
+  if (j < 31) return `${j} j`;
+  const mois = Math.round(j / 30.4);
+  if (mois < 24) return `${mois} mois`;
+  const ans = Math.floor(mois / 12);
+  return `${ans} an${ans > 1 ? 's' : ''}`;
+};
+
 /** « 13 juil. » */
 export const frDay = (iso: string) =>
   dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';
