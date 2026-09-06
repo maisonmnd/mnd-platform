@@ -185,5 +185,54 @@ const liste = tetesDuGeste({
 dit('celle qui a son e-mail sort', ['cl-3', 'cl-2', 'cl-1'], liste.map((x) => x.tete.id));
 dit('… et la prochaine venue suit', '2026-09-07', liste[0].prochaineIso);
 
+/* ── ⑩ LA DIASPORA SORT DU FAUTEUIL — 6 septembre 2026 ────────────
+   « Les têtes à compter, Diaspora : je n'ai pas besoin de garder des fiches et
+   des cadences » (Yéman). Compter des locks, constater une longueur, poser une
+   mèche, tenir une cadence : rien de tout cela ne se fait à distance. Les
+   réclamer d'une tête qui vit ailleurs noie celles du pays. */
+const loin = tete('cl-loin', { diaspora: true });
+dit('la diaspora ne doit ni compte ni cadence', ['bilan', 'email'],
+  manquesDeLaTete({ tete: loin, bilans: 0 }));
+/* LE SEGMENT VAUT LE CHAMP : la notion a vécu à deux endroits, et une fiche
+   marquée d'un côté est de la diaspora. */
+dit('le segment « Diaspora » vaut le champ', ['bilan', 'email'],
+  manquesDeLaTete({ tete: tete('cl-seg', { segments: ['VIP', 'diaspora'] }), bilans: 0 }));
+/* L'E-MAIL ET LE BILAN RESTENT : Ma Couronne est le seul fil qui tient entre
+   deux voyages. Les retirer couperait ce qui relie la diaspora à la Maison. */
+dit('son e-mail reste dû', true, manquesDeLaTete({ tete: loin, bilans: 0 }).includes('email'));
+dit('son bilan aussi', true, manquesDeLaTete({ tete: loin, bilans: 0 }).includes('bilan'));
+/* LA PASSANTE RESTE DANS TOUTES LES LISTES (arbitrage de Yéman) : la Maison a
+   une règle qui la promeut à la troisième venue, et la compter en retard est
+   peut-être ce qui déclenche le geste. L'exemption ne lit donc QUE la
+   diaspora — `TeteLue` ne porte même pas `dePassage`, et c'est voulu. */
+dit('une tête d’ici doit toujours tout', ['meche', 'bilan', 'cadence', 'longueur', 'email', 'locks'],
+  manquesDeLaTete({ tete: tete('cl-pass'), bilans: 0 }));
+
+const t10 = leTravail({
+  branchId: B,
+  tetes: [tete('cl-1'), loin, tete('cl-seg2', { segments: ['Diaspora'] })],
+  rituels: [rdv('a1', 'cl-1'), rdv('a2', 'cl-loin'), rdv('a3', 'cl-seg2')],
+  bilans: [], stock: [], duXof: () => 0,
+});
+dit('une seule tête à compter', 1, combien(t10, 'locks'));
+dit('une seule à cadencer', 1, combien(t10, 'cadence'));
+/* MAIS LES TROIS DOIVENT LEUR E-MAIL. */
+dit('trois e-mails à demander', 3, combien(t10, 'email'));
+/* LE COMPTE ET LA LISTE DISENT LE MÊME NOMBRE. Les prédicats vivaient à deux
+   endroits ; le jour où l'un a gagné une exception, la ligne annonçait 66 et
+   la liste en ouvrait 12, sans que rien ne dise lequel avait raison. */
+dit('la liste dit le même nombre', 1, tetesDuGeste({
+  branchId: B, cle: 'locks',
+  tetes: [tete('cl-1'), loin, tete('cl-seg2', { segments: ['Diaspora'] })],
+  rituels: [rdv('a1', 'cl-1'), rdv('a2', 'cl-loin'), rdv('a3', 'cl-seg2')],
+  bilans: [], prochaineDe: () => undefined,
+}).length);
+/* ET L'ÉCRAN SAIT COMBIEN VIVENT AILLEURS : un nombre qui baisse sans raison
+   visible se lit comme une perte de données. */
+dit('deux têtes vivent ailleurs', 2, t10.diaspora);
+/* LA JAUGE SUIT : ce qu'on ne doit pas n'est pas un retard. Une seule tête sur
+   trois manque à l'appel, au lieu des trois d'avant. */
+dit('la jauge ne compte plus leur retard', 67, jauge(t10, 'facturer'));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

@@ -14,10 +14,15 @@
 
    TOUT EST PUR ICI, et jugé par `verifie-afaire`. */
 
+import { estDiaspora } from './clients';
+
 export type TeteLue = {
   id: string;
   branchId: string;
   archived?: boolean;
+  /** LA DIASPORA — les deux marquages, un seul juge (`estDiaspora`). */
+  diaspora?: boolean;
+  segments?: readonly string[];
   email?: string;
   photo?: string | null;
   persona?: string;
@@ -60,7 +65,13 @@ export type CleJauge = 'predire' | 'facturer' | 'fideliser' | 'rentabilite' | 'p
 
 export type Jauge = { cle: CleJauge; nom: string; pct: number };
 
-export type LeTravail = { jauges: Jauge[]; gestes: Geste[] };
+export type LeTravail = {
+  jauges: Jauge[];
+  gestes: Geste[];
+  /** Combien de têtes servies vivent ailleurs — elles sortent des quatre
+      gestes qui se constatent au fauteuil (`AU_FAUTEUIL`). */
+  diaspora: number;
+};
 
 /** LES TÊTES QU'ON COMPTE — 6 septembre 2026.
 
@@ -117,6 +128,31 @@ export const SE_DEMANDE: Record<CleGeste, boolean> = {
 };
 
 /** LES GESTES QUI CONCERNENT UNE TÊTE, dans l'ordre de la liste générale. */
+/** ══ CE QUI SE CONSTATE AU FAUTEUIL — 6 septembre 2026 ═══════════════
+
+    « Les têtes à compter, Diaspora : je n'ai pas besoin de garder des fiches
+    et des cadences. Tous ceux affichés viennent de la diaspora » (Yéman).
+
+    QUATRE DE CES GESTES DEMANDENT UNE TÊTE QUI REVIENT. Compter des locks,
+    constater une longueur, poser une mèche témoin, tenir une cadence : rien de
+    tout cela ne se fait à distance. Les réclamer d'une tête qui vit ailleurs
+    remplit la liste de travail de gens qu'on ne verra pas avant un an, et
+    noie les têtes du pays qu'on aurait pu traiter cette semaine.
+
+    LE TRÔNE LE SAVAIT DÉJÀ POUR LA CADENCE : `prochaineVenue` ne prédit ni la
+    passante ni la diaspora, parce que sa cadence ne mesure pas un rythme, elle
+    mesure des billets d'avion (16 août). « À faire » l'ignorait, et réclamait
+    à ces têtes-là exactement ce que la Maison avait renoncé à leur prédire.
+
+    L'E-MAIL ET LE BILAN RESTENT, et c'est le point : Ma Couronne est le seul
+    fil qui tient entre deux voyages. Les retirer couperait ce qui relie la
+    diaspora à la Maison, au motif qu'elle est loin.
+
+    LA PASSANTE, ELLE, RESTE DANS TOUTES LES LISTES (arbitrage de Yéman) : la
+    Maison a une règle qui la promeut à la troisième venue, et la compter en
+    retard est peut-être ce qui déclenche le geste. */
+const AU_FAUTEUIL: readonly CleGeste[] = ['meche', 'cadence', 'longueur', 'locks'];
+
 export function manquesDeLaTete(o: {
   tete: TeteLue;
   bilans: number;
@@ -133,7 +169,7 @@ export function manquesDeLaTete(o: {
   if (!c.longueur) manques.push('longueur');
   if (!(c.email ?? '').trim()) manques.push('email');
   if (!c.lockCount) manques.push('locks');
-  return manques;
+  return estDiaspora(c) ? manques.filter((k) => !AU_FAUTEUIL.includes(k)) : manques;
 }
 
 /** LES TÊTES QU'UN GESTE ATTEND — pour ouvrir la liste depuis la ligne.
@@ -211,12 +247,29 @@ export function leTravail(o: {
   const parTete = new Map<string, number>();
   for (const b of o.bilans) parTete.set(b.clientId, (parTete.get(b.clientId) ?? 0) + 1);
 
-  const sansMeche = servies.filter((c) => mechesDe(c) < mechesRequises).length;
-  const sansBilan = servies.filter((c) => (parTete.get(c.id) ?? 0) < bilansRequis).length;
-  const sansCadence = servies.filter((c) => !c.rythmeSemaines).length;
-  const sansLongueur = servies.filter((c) => !c.longueur).length;
-  const sansEmail = servies.filter((c) => !(c.email ?? '').trim()).length;
-  const sansLocks = servies.filter((c) => !c.lockCount).length;
+  /* UN SEUL JUGE POUR LE COMPTE ET POUR LA LISTE. Les prédicats vivaient ici
+     une seconde fois, recopiés de `manquesDeLaTete` : le jour où l'un des deux
+     a gagné une exception, la ligne disait « 66 » et la liste en ouvrait 12,
+     sans que rien ne dise lequel avait raison. */
+  const manques = new Map<string, CleGeste[]>();
+  for (const c of servies) {
+    manques.set(c.id, manquesDeLaTete({
+      tete: c, bilans: parTete.get(c.id) ?? 0, mechesRequises, bilansRequis,
+    }));
+  }
+  const combienDe = (cle: CleGeste): number =>
+    servies.filter((c) => (manques.get(c.id) ?? []).includes(cle)).length;
+
+  const sansMeche = combienDe('meche');
+  const sansBilan = combienDe('bilan');
+  const sansCadence = combienDe('cadence');
+  const sansLongueur = combienDe('longueur');
+  const sansEmail = combienDe('email');
+  const sansLocks = combienDe('locks');
+  /* CELLES QUI VIVENT AILLEURS, pour que l'écran puisse dire pourquoi ces
+     comptes-là sont plus courts qu'hier. Un nombre qui baisse sans raison
+     visible se lit comme une perte de données. */
+  const diaspora = servies.filter((c) => estDiaspora(c)).length;
   /* UNE TÊTE SE POSITIONNE PAR CE QU'ON PEUT MONTRER ET PAR CE QU'ON SAIT
      DIRE : sa photo et son persona. L'un sans l'autre ne suffit pas. */
   const sansVitrine = servies.filter((c) => !c.photo || !c.persona).length;
@@ -251,5 +304,5 @@ export function leTravail(o: {
     { cle: 'solde', combien: impayes.length, quoi: 'rituels rendus non soldés', ouvre: 'à encaisser', verbe: 'Encaisser', xof: duTotal },
   ];
 
-  return { jauges, gestes: gestes.sort((a, b) => b.combien - a.combien) };
+  return { jauges, gestes: gestes.sort((a, b) => b.combien - a.combien), diaspora };
 }

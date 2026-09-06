@@ -693,3 +693,10 @@
   letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft);
   border-bottom: 1px solid var(--hairline); }
 @media (max-width: 760px) { .trp-liste__t { padding-left: 20px; } }
+
+/* CELLES QUI VIVENT AILLEURS — une ligne, un chiffre. Un nombre qui baisse
+   sans raison visible se lit comme une perte de données. */
+.trp-hors { margin-top: 14px; font-family: var(--font-sans); font-size: 12px;
+  line-height: 1.55; color: var(--ink-soft); }
+.trp-hors b { font-family: var(--font-serif); font-weight: 400; font-size: 16px;
+  color: var(--copper-700); }

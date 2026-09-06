@@ -573,7 +573,7 @@ export const estDePassage = (c: Pick<Client, 'dePassage'>): boolean => c.dePassa
     ailleurs. Elle vient quand elle est au pays ; sa cadence ne dit rien, et la
     relance qu'on lui envoie ne fait que noyer les vraies (demande de Yéman —
     la moitié de « celles qui ont glissé » était de la diaspora). */
-export const estDiaspora = (c: Pick<Client, 'diaspora' | 'segments'>): boolean =>
+export const estDiaspora = (c: { diaspora?: boolean; segments?: readonly string[] }): boolean =>
   c.diaspora === true || (c.segments ?? []).some((s) => s.trim().toLowerCase() === 'diaspora');
 
 /* ---------- Les VISITEURS — un compte, aucune venue ----------

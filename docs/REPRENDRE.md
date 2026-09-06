@@ -2,6 +2,32 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA DIASPORA SORT DU FAUTEUIL — 6 septembre 2026, PUBLIÉ
+
+« Les têtes à compter, Diaspora : je n'ai pas besoin de garder des fiches et des
+cadences. Tous ceux affichés viennent de la diaspora » (Yéman).
+
+**Quatre gestes demandent une tête qui revient** : compter des locks, constater
+une longueur, poser une mèche témoin, tenir une cadence. Rien de tout cela ne se
+fait à distance. « À faire » les réclamait à la diaspora, ce que Le Trône avait
+pourtant renoncé à lui prédire depuis le 16 août : sa cadence ne mesure pas un
+rythme, elle mesure des billets d'avion.
+
+**L'e-mail et le bilan restent**, et c'est le point : Ma Couronne est le seul fil
+qui tient entre deux voyages. **La passante, elle, reste dans toutes les listes**
+(arbitrage) : la Maison a une règle qui la promeut à la troisième venue.
+
+**Un seul juge, enfin.** `leTravail` recopiait les six prédicats de
+`manquesDeLaTete`. Le jour où l'un des deux gagnait une exception, la ligne
+disait « 66 » et la liste en ouvrait douze, sans que rien ne dise lequel avait
+raison. Le compte passe désormais par le même juge que la liste.
+
+**Le marquage se pose depuis la liste** (« Vit ailleurs », sur les quatre gestes
+du fauteuil) : c'est en la lisant qu'on s'en aperçoit, et ouvrir la fiche sept
+fois de suite, c'est l'abandon garanti au troisième nom. Une ligne sous les
+gestes dit combien de têtes vivent ailleurs, pour qu'un nombre qui baisse ne se
+lise pas comme une perte de données.
+
 ## LA REMISE DANS LA SAISIE EN SÉRIE — 6 septembre 2026, PUBLIÉ
 
 « Je dois gérer les remises en même temps sur la saisie en série pour que le
