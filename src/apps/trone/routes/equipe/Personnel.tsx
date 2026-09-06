@@ -9,7 +9,10 @@ import { useInvoices, invoiceTotal, expensesStore, expenseCategoriesStore, useCa
 import { useServices, useCategories, sousArbreOf } from '../../../../shared/catalog';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
 import { summaryPdf, payslipPdf, type SummarySection, type PayslipRow } from '../../../../shared/pdf';
-import { maisonNom } from '../../../../shared/identite';
+import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { ContratModal } from '../_contrat';
+import { ficheDuPoste } from '../../../../shared/postes';
+import { texteReglementInterieur, VERSION_REGLEMENT } from '../../../../shared/reglement-interieur';
 import { apptNetXof, svcPriceForAppt, commissionDetaillee } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -218,6 +221,47 @@ export default function Personnel() {
   const [form, setForm] = useState<StaffForm>(() => emptyForm(branch.id));
   const [paieLancee, setPaieLancee] = useState(false);
   const [avanceFor, setAvanceFor] = useState<StaffMember | null>(null);
+  /* SON RÈGLEMENT, à remettre contre décharge. */
+  const [reglementFor, setReglementFor] = useState<StaffMember | null>(null);
+
+  /* ── SA FICHE DE POSTE, EN PAPIER ────────────────────────────────
+     Elle ne se signe pas : elle se remet et s'affiche. Un document qui décrit
+     un métier n'engage personne, il éclaire — c'est le règlement qui engage.
+
+     ELLE SE LIT DE `shared/postes`, jamais écrite ici : une fiche recopiée
+     dans un écran finirait par dire autre chose que celle du dossier. */
+  const ficheDePostePdf = async (m: StaffMember) => {
+    const f = ficheDuPoste(m.role);
+    if (!f) {
+      window.alert(`Aucune fiche n’existe pour le poste « ${m.role} ».\n\n`
+        + 'Un poste que personne n’a décrit se recrute à l’aveugle et s’évalue à l’humeur.');
+      return;
+    }
+    const lignes = (titre: string, items: string[]) => ({
+      heading: titre,
+      rows: items.map((t) => ({ label: `· ${t}` })),
+    });
+    await summaryPdf({
+      eyebrow: 'Fiche de poste',
+      title: f.poste,
+      houseName: maisonNom(),
+      meta: [
+        f.auFauteuil ? 'Au fauteuil · touche une tête' : 'Hors fauteuil',
+        `Rend compte ${f.rendCompteA}`,
+        `Établie pour ${m.name}`,
+      ],
+      sections: [
+        { heading: 'La mission', rows: [{ label: f.mission, strong: true }] },
+        lignes('Ce qu’elle fait', f.fait),
+        lignes('Ce qui se mesure', f.mesure),
+        /* LA RUBRIQUE LA PLUS UTILE : les conflits d'atelier naissent presque
+           toujours d'une frontière que personne n'avait tracée. */
+        lignes('Ce qu’elle ne fait pas', f.neFaitPas),
+      ],
+      footer: 'La fiche dit le métier. Le règlement intérieur dit les règles.',
+      filename: `fiche-de-poste-${f.poste.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`,
+    });
+  };
   const [avanceForm, setAvanceForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), note: '', cashbox: '' });
 
   /* Commissions & primes — taux, ajustements, primes typées, sources. */
@@ -931,6 +975,31 @@ export default function Personnel() {
                         >
                           <Pencil size={13} /> Modifier
                         </button>
+                        {/* ══ SES DEUX PAPIERS — 6 septembre 2026 ═══════════
+                            « Crée les fiches de poste associées aux postes
+                            requis, et le règlement intérieur » (Yéman).
+
+                            LA FICHE DE POSTE DIT LE MÉTIER, le règlement dit
+                            les règles. Les deux se remettent à l'embauche, et
+                            c'est ici qu'on y pense — sur la ligne de la
+                            personne, pas dans un dossier à part. */}
+                        <button
+                          className="tre-link-btn" style={{ marginLeft: 12 }}
+                          title={`La fiche du poste « ${m.role} », à remettre et à afficher`}
+                          onClick={(e) => { e.stopPropagation(); void ficheDePostePdf(m); }}
+                        >
+                          Fiche de poste
+                        </button>
+                        <button
+                          className={`tre-link-btn ${m.reglement ? '' : 'tre-link-btn--danger'}`}
+                          style={{ marginLeft: 12 }}
+                          title={m.reglement
+                            ? `Règlement remis le ${m.reglement.at.split('-').reverse().join('/')}`
+                            : 'Le règlement ne lui a jamais été remis contre décharge'}
+                          onClick={(e) => { e.stopPropagation(); setReglementFor(m); }}
+                        >
+                          {m.reglement ? 'Règlement' : 'Règlement à remettre'}
+                        </button>
                         <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); openAvance(m); }}>Avance sur salaire</button>
                         <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); remove(m.id); }}>Retirer</button>
                       </td>
@@ -1618,6 +1687,28 @@ export default function Personnel() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ══ LE RÈGLEMENT SE REMET CONTRE DÉCHARGE ══════════════════════
+          Sans elle, la Maison ne peut opposer aucune de ses règles à quelqu'un
+          qui dira ne les avoir jamais lues, et l'échelle des sanctions ne vaut
+          rien. C'est la décharge qui fait le règlement, pas l'affichage. */}
+      {reglementFor && (
+        <ContratModal
+          titre={reglementFor.reglement ? 'Remettre à nouveau le règlement' : 'Règlement intérieur'}
+          version={VERSION_REGLEMENT}
+          signeParDefaut={reglementFor.name}
+          qualiteSignataire="Reçu un exemplaire, lu et approuvé :"
+          fichier={`reglement-interieur-${reglementFor.name.split(' ')[0].toLowerCase()}.pdf`}
+          contrat={texteReglementInterieur({
+            maison: maisonNom(), raison: maisonRaison(), ville: maisonVille(),
+            nom: reglementFor.name, fonction: reglementFor.role,
+            jourIso: new Date().toISOString().slice(0, 10),
+          })}
+          onSigne={(sig) => staffStore.set((prev) => prev.map((x) => (x.id === reglementFor.id
+            ? { ...x, reglement: sig } : x)))}
+          onClose={() => setReglementFor(null)}
+        />
       )}
 
       {avanceFor && (

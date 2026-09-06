@@ -61,6 +61,64 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES FICHES DE POSTE ET LE RÈGLEMENT INTÉRIEUR — 6 septembre 2026, PUBLIÉ
+
+« Crée les fiches de poste associées aux postes requis pour bien travailler à
+MND. Crée également le règlement intérieur » (Yéman).
+
+**La fiche dit le métier, le règlement dit les règles.** Les mêler ferait un
+document que personne ne lit, qui ne sert ni à recruter ni à sanctionner.
+
+### Les douze fiches · `shared/postes.ts`
+
+Une par fonction de `FONCTIONS_DEFAUT`, plus **Formateur** pour l'Académie. Un
+poste, une fiche : « Maître » et « Maîtresse » la partagent, deux fiches pour un
+métier finiraient par dire deux choses du même travail. **Le harnais vérifie
+qu'aucune fonction n'est sans fiche.**
+
+Cinq rubriques, toujours les mêmes — c'est ce qui les rend comparables : la
+mission, ce qu'elle fait, **ce qui se mesure** (un poste sans mesure ne se
+discute qu'à l'humeur, et c'est là que les injustices commencent), **ce qu'elle
+ne fait pas** (les conflits d'atelier naissent presque toujours d'une frontière
+que personne n'avait tracée), et à qui elle rend compte.
+
+**Aucun salaire** : les montants n'existent nulle part dans le logiciel, et en
+poser un serait annoncer une rémunération que personne n'a décidée. Le harnais
+le vérifie aussi. Se télécharge depuis **Personnel & paie**, sur la ligne.
+
+### Le règlement · `shared/reglement-interieur.ts`
+
+Douze articles. **Quatre sujets tranchés à la demande de la Maison**, et ce sont
+les quatre qui font les disputes d'un salon :
+
+- **les pourboires** — partagés entre TOUS, y compris ceux qui n'ont pas touché
+  la tête : c'est déjà ce que fait `repartirPourboire`, mais c'était une coutume
+  et non une règle écrite ;
+- **la clientèle personnelle** — on ne coiffe personne à son compte sur ce
+  fauteuil, même gratuitement, même un proche ;
+- **le téléphone et les réseaux** — et qu'un différend se règle à l'intérieur,
+  jamais en ligne ;
+- **la caisse** — dont la phrase qui fait tout le travail : « un écart déclaré
+  est une erreur, un écart découvert est une faute ». C'est le seul moyen
+  d'apprendre les écarts.
+
+**Une échelle de sanctions à quatre degrés** (arbitrage) : rappel oral,
+avertissement écrit, mise à pied, licenciement. Avec deux gardes sans lesquels
+elle ne protégerait que la Maison — **la personne est entendue avant**, et **une
+sanction non écrite n'existe pas**. Un degré ne se saute que sur faute grave.
+
+**Et un article sur ce que la Maison doit en retour** : un règlement qui
+n'engage qu'un côté se lit comme une liste de menaces et ne se respecte pas.
+
+**Il se remet contre décharge** (`StaffMember.reglement`), depuis Personnel &
+paie — la ligne dit « Règlement à remettre » en rouge tant qu'il manque. Sans
+décharge, la Maison ne peut opposer aucune règle à qui dira ne les avoir jamais
+lues, et l'échelle des sanctions ne vaut rien.
+
+Éprouvés par `verifie-postes` (35ᵉ harnais, 31 assertions). **Le Code du travail
+béninois encadre le règlement intérieur** — son contenu, son affichage, son
+dépôt : à relire par quelqu'un qui le connaît avant de l'afficher.
+
 ## LES CONTRATS PRESTATAIRE ET FORMATION — 6 septembre 2026, PUBLIÉ
 
 « Tout comme le contrat du droit à l'image, je dois construire les contrats des

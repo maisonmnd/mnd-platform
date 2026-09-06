@@ -67,6 +67,8 @@ const isoInDays = (days: number) => {
    1 · Personnel & paie
    ============================================================ */
 
+import { type SignatureTracee } from '../../../../shared/contrats';
+
 export type StaffRisk = 'faible' | 'modéré' | 'élevé';
 
 export type StaffMember = {
@@ -134,6 +136,13 @@ export type StaffMember = {
   atelier?: string;     // atelier d'affectation (Cotonou, Calavi…)
   commissionPct?: number; // taux de commission sur prestations encaissées
   paiement?: string;    // mode/coordonnées de règlement (Mobile Money / banque)
+  /** LE RÈGLEMENT INTÉRIEUR, REMIS ET SIGNÉ — 6 septembre 2026.
+
+      Un règlement s'affiche ET se remet contre décharge : sans la décharge, la
+      Maison ne peut opposer aucune de ses règles à quelqu'un qui dira ne les
+      avoir jamais lues, et l'échelle des sanctions ne vaut rien.
+      Voir `shared/reglement-interieur`. */
+  reglement?: SignatureTracee;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
