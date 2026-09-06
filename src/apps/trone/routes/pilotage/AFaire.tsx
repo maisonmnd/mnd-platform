@@ -27,7 +27,10 @@ const AU_FAUTEUIL: CleGeste[] = ['meche', 'cadence', 'longueur', 'locks'];
 /** LES TROIS RAISONS DE SORTIR UNE TÊTE DU FAUTEUIL. Le juge qui les lit vit
     dans `shared/afaire` (`horsDuFauteuil`) ; ici on ne fait que les poser. */
 const MARQUES: { cle: string; mot: string; dit: string; pose: Partial<Client> }[] = [
-  { cle: 'ailleurs', mot: 'Vit ailleurs', dit: 'elle vit ailleurs', pose: { diaspora: true } },
+  /* LE MOT DE LA MAISON, ET LUI SEUL — « Vit ailleurs et Diaspora ont la même
+     fonctionnalité ? » (Yéman). Oui : deux mots pour une notion finissent
+     toujours par se répondre de travers. */
+  { cle: 'ailleurs', mot: 'Diaspora', dit: 'elle vit ailleurs', pose: { diaspora: true } },
   { cle: 'sans-locks', mot: 'Sans locks', dit: 'elle a défait ses locks', pose: { locksDefaits: true } },
   /* LA MAIN L'EMPORTE SUR LA MACHINE DU PASSAGE — sans `passagePose`, la
      marque se lèverait dès sa deuxième venue et le bouton s'annulerait. */

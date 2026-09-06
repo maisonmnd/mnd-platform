@@ -600,13 +600,26 @@ export default function Customers() {
      jamais au montage, pour ne pas écraser une hydratation en cours. */
   const ensureDiasporaSegment = () =>
     segmentsStore.set((prev) => (prev.some((s) => s.trim().toLowerCase() === 'diaspora') ? prev : [...prev, DIASPORA]));
-  const openDiaspora = () => { ensureDiasporaSegment(); setView('diaspora'); };
+  /* OUVRIR LE REGISTRE NE CREE PLUS LE SEGMENT : plus personne ne l'ecrit, et
+     le faire apparaitre dans la liste des segments reoffrirait le second
+     interrupteur qu'on vient de retirer. */
+  const openDiaspora = () => setView('diaspora');
+  /* LE REGISTRE ECRIT LE CHAMP, COMME PARTOUT — 6 septembre 2026. Il posait le
+     SEGMENT, et lui seul : une tete marquee depuis sa fiche ou depuis « A
+     faire » (qui ecrivent le champ) apparaissait bien dans ce registre, mais
+     « Retirer » ne la retirait pas — il n'effacait qu'un segment qu'elle
+     n'avait jamais porte, et le clic avait l'air mort.
+
+     ON POSE DONC LE CHAMP, et l'on RETIRE LES DEUX : c'est la seule facon
+     qu'un interrupteur eteigne ce qu'un autre a allume. Le segment reste
+     accepte en lecture, pour les fiches marquees avant aujourd'hui. */
   const addToDiaspora = (c: Client) => {
-    ensureDiasporaSegment();
-    clientsStore.set((prev) => prev.map((x) => (x.id === c.id && !isDiaspora(x) ? { ...x, segments: [...x.segments, DIASPORA] } : x)));
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, diaspora: true } : x)));
   };
   const removeFromDiaspora = (c: Client) =>
-    clientsStore.set((prev) => prev.map((x) => (x.id === c.id ? { ...x, segments: x.segments.filter((s) => s.trim().toLowerCase() !== 'diaspora') } : x)));
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id
+      ? { ...x, diaspora: undefined, segments: x.segments.filter((s) => s.trim().toLowerCase() !== 'diaspora') }
+      : x)));
 
   /* LES REGISTRES SONT DISJOINTS : une cliente Diaspora quitte entièrement la
      liste de La Maison (nom compris) — elle ne vit que dans son registre. Une
@@ -3634,13 +3647,32 @@ function Customer360({
             <div style={{ marginTop: 16 }}>
               <span className="trc-microlabel">Ce qu’on ne lui réclame plus</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {/* ══ UN SEUL INTERRUPTEUR — 6 septembre 2026 ═════════════
+                    « Vit ailleurs et Diaspora ont la même fonctionnalité ? »
+                    (Yéman). Oui, et aucune des deux ne voyait ce que faisait
+                    l'autre : `estDiaspora` lit LE CHAMP ET LE SEGMENT, mais
+                    cette pastille ne lisait que le champ. Poser le segment
+                    « Diaspora » sortait donc la tête du compte et de la
+                    cadence, le témoin restant éteint — l'écart qu'on met des
+                    mois à comprendre.
+
+                    ELLE LIT MAINTENANT LE MÊME JUGE que tout le reste, et
+                    quand on l'éteint elle éteint LES DEUX SOURCES : sans cela
+                    une marque posée par le segment ne se serait pas retirée
+                    ici, et le clic aurait eu l'air mort.
+
+                    ON ÉCRIT LE CHAMP, jamais le segment (leçon du 16 août) :
+                    un segment se renomme et s'efface depuis une liste, et le
+                    prédicat casserait en silence. */}
                 <button
                   type="button"
-                  className={`trc-chip ${client.diaspora ? 'is-active' : ''}`}
+                  className={`trc-chip ${isDiaspora(client) ? 'is-active' : ''}`}
                   title="Elle vit ailleurs : on ne prédit pas son retour, et on ne lui réclame ni compte ni cadence."
-                  onClick={() => patch({ diaspora: client.diaspora ? undefined : true })}
+                  onClick={() => patch(isDiaspora(client)
+                    ? { diaspora: undefined, segments: client.segments.filter((x) => x.trim().toLowerCase() !== 'diaspora') }
+                    : { diaspora: true })}
                 >
-                  Vit ailleurs
+                  Diaspora
                 </button>
                 <button
                   type="button"
@@ -3788,7 +3820,14 @@ function Customer360({
           <div>
             <span className="trc-microlabel">Segments</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {[...new Set([...segmentList, ...client.segments])].map((s) => (
+              {/* « DIASPORA » N'EST PLUS ICI — elle a son interrupteur dans
+                  « Ce qu'on ne lui réclame plus », juste au-dessus. Deux
+                  pastilles pour un seul réglage, et l'on se demande toujours
+                  laquelle est la bonne. Le segment continue d'exister dans les
+                  données, et le registre Clientes › Diaspora avec lui. */}
+              {[...new Set([...segmentList, ...client.segments])]
+                .filter((s) => s.trim().toLowerCase() !== 'diaspora')
+                .map((s) => (
                 <button
                   key={s}
                   type="button"

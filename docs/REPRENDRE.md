@@ -2,6 +2,37 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UN SEUL INTERRUPTEUR POUR LA DIASPORA — 6 septembre 2026, PUBLIÉ
+
+« Vit ailleurs et Diaspora ont la même fonctionnalité ? » (Yéman). **Oui**, et
+aucune des deux ne voyait ce que faisait l'autre.
+
+`estDiaspora` lit **le champ ET le segment** depuis le 16 août, et c'est juste.
+Mais l'écran gardait **deux interrupteurs pour une seule lumière** : la pastille
+« Vit ailleurs » ne lisait que le champ, le segment « Diaspora » ne s'écrivait
+que dans les segments. Poser l'un laissait l'autre éteint, alors que la tête
+sortait bien du compte et de la cadence.
+
+Le registre Clientes › Diaspora avait le même défaut en miroir : il posait le
+SEGMENT, donc son bouton « Retirer » ne retirait pas une tête marquée depuis sa
+fiche ou depuis « À faire ». Le clic avait l'air mort.
+
+### Ce qui a changé
+
+- **Un seul mot, celui de la Maison** : « Diaspora », partout, y compris dans
+  « À faire ». Deux mots pour une notion finissent toujours par se répondre de
+  travers.
+- **La pastille lit le même juge que tout le reste** (`estDiaspora`), et quand
+  on l'éteint elle **éteint les deux sources**. C'est la seule façon qu'un
+  interrupteur éteigne ce qu'un autre a allumé.
+- **Tout le monde écrit le CHAMP**, jamais le segment (leçon du 16 août : un
+  segment se renomme et s'efface depuis une liste, et le prédicat casse en
+  silence). Le segment reste **accepté en lecture**, pour les fiches marquées
+  avant aujourd'hui.
+- **Le segment « Diaspora » disparaît de la fiche** (arbitrage) : il a son
+  interrupteur au-dessus. Il continue d'exister dans les données, et le registre
+  Clientes › Diaspora avec lui.
+
 ## LES CARTES DE LA MAISON — 6 septembre 2026, PUBLIÉ
 
 Trois cartes, un seul gabarit : **anniversaire**, **merci** (cinq motifs) et
