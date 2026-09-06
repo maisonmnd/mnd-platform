@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La fiche qui se lit · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;--sable:#E8DFCE;
+    --indigo:#1E2150;--indigo-2:#3A3F72;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#746F65;--filet:#D9CFBC;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;
+    --vert:#4A6B52;--vert-f:#EFF3EF;--vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1080px;margin:0 auto;padding:56px 24px 110px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,60px);line-height:1.04;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(23px,3vw,32px);color:var(--indigo);
+     margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+  .chapeau{max-width:64ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:58px}
+  .intro{max-width:74ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+  .legende{font-size:12.5px;color:var(--encre-d);margin:12px 0 0;max-width:78ch}
+  .legende b{color:var(--encre);font-weight:500}
+  .cite{border-left:2px solid var(--cuivre);padding:2px 0 2px 16px;margin:0 0 30px;
+        font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--indigo);max-width:60ch}
+  .cite span{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--encre-d);margin-top:8px}
+
+  .maux{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  @media(max-width:860px){.maux{grid-template-columns:1fr}}
+  .mal{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;padding:13px 15px}
+  .mal b{display:block;color:var(--brique);font-weight:500;font-size:13px;margin-bottom:3px}
+  .mal span{font-size:13px;color:var(--encre-d)}
+
+  .ecran{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);overflow:hidden}
+  .ecran__tete{background:var(--indigo);color:#EFEAE0;padding:15px 22px;display:flex;
+               align-items:center;gap:16px;flex-wrap:wrap}
+  .ecran__tete h4{font-family:var(--serif);font-weight:400;font-size:24px;color:#fff;margin:0}
+  .ecran__tete .sous{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-p)}
+  .ecran__corps{padding:0 22px 22px}
+  .onglets{display:flex;gap:22px;border-bottom:1px solid var(--filet);margin:0 -22px 0;padding:0 22px}
+  .onglets b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);
+             border-bottom:2px solid var(--cuivre);padding:14px 0 11px;font-weight:500}
+  .onglets span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding:14px 0 11px}
+
+  /* ── LA FICHE QUI SE LIT : des phrases, pas des cases ── */
+  .lit{max-width:62ch;margin:22px 0 4px}
+  .lit p{margin:0 0 11px;font-size:16px;line-height:1.75;color:var(--encre)}
+  .lit b{font-weight:500;color:var(--indigo)}
+  .lit .creux{color:var(--encre-d);font-style:italic}
+  .lit a{color:var(--cuivre);text-decoration:none;border-bottom:1px solid var(--cuivre-p)}
+  .lit .mod{font-size:11px;font-weight:500;color:var(--cuivre);margin-left:8px;cursor:default;
+            letter-spacing:.06em;text-transform:uppercase;border:none;background:none}
+
+  /* ── LES VOLETS ── */
+  .volet{border-top:1px solid var(--filet)}
+  .volet__t{display:flex;align-items:baseline;gap:14px;width:100%;padding:15px 0;cursor:default;
+            background:none;border:none;font:inherit;text-align:left}
+  .volet__n{font-family:var(--serif);font-size:19px;color:var(--indigo);flex:none;min-width:210px}
+  .volet__r{flex:1;min-width:0;font-size:13.5px;color:var(--encre-d);overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap}
+  .volet__c{flex:none;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--cuivre)}
+  .volet__b{padding:2px 0 22px;max-width:820px}
+  .volet--ouvert{background:linear-gradient(to bottom,var(--cuivre-f),transparent 64px);margin:0 -22px;padding:0 22px}
+
+  .lab{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:5px}
+  .champ{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:9px 12px;
+         font-family:var(--sans);font-size:14px;color:var(--encre);width:100%}
+  .champ--lu{background:var(--indigo-pale);border-style:dashed;color:var(--indigo)}
+  .rang{display:grid;gap:14px;margin-bottom:14px}
+  .r2{grid-template-columns:1fr 1fr}
+  .r3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:720px){.r2,.r3{grid-template-columns:1fr}}
+  .ajout{border:1px dashed var(--filet);background:none;border-radius:3px;padding:9px 12px;
+         font-family:var(--sans);font-size:13px;color:var(--cuivre);cursor:default;text-align:left;width:100%}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);
+       font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;cursor:default}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+  .btn--danger{background:transparent;border:1px solid var(--brique-p);color:var(--brique)}
+  .chip{border:1px solid var(--filet);background:#fff;border-radius:100px;padding:6px 13px;font-size:12.5px;color:var(--encre-d)}
+  .chip.on{border-color:var(--cuivre);background:var(--cuivre-f);color:var(--cuivre)}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.duo{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+
+  .arb{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .arb+.arb{margin-top:14px}
+  .arb h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 8px}
+  .arb p{margin:0 0 9px;font-size:13.5px;color:var(--encre-d)}
+  .arb p b{color:var(--encre);font-weight:500}
+  .arb .prop{border-left:2px solid var(--cuivre);padding-left:13px;font-size:13.5px;color:var(--encre)}
+  .arb .prop u{text-decoration:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+               color:var(--cuivre);display:block;margin-bottom:3px}
+  footer{margin-top:78px;padding-top:22px;border-top:1px solid var(--filet);
+         font-family:var(--serif);font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · Maquette à valider</p>
+  <h1>La fiche qui se lit<br>avant de s'écrire.</h1>
+  <p class="chapeau">
+    Une fiche cliente se <b>consulte</b> vingt fois pour une fois qu'on la <b>corrige</b>. Elle est
+    pourtant écrite entièrement en mode saisie : vingt cases côte à côte, toutes de même poids, et
+    l'œil n'a nulle part où se poser.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Trop d'informations dans le profil du client, qui sont pêle-mêle, difficile à lire et à s'y
+    retrouver.
+    <span>Yéman · 6 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① LE DIAGNOSTIC ═══ -->
+  <section>
+    <h2>① Pourquoi c'est illisible.</h2>
+    <p class="intro">
+      Ce n'est pas un problème de rangement — la page a déjà des blocs nommés. <b>C'est un problème
+      de mode</b> : tout y est un formulaire, y compris ce qui ne se saisit jamais.
+    </p>
+    <div class="maux">
+      <div class="mal"><b>Neuf blocs, vingt contrôles, un seul poids</b><span>Identité, sa tête, les décisions, persona, observation, sa place, segments, note, zone sensible. Tous les titres crient de la même voix.</span></div>
+      <div class="mal"><b>La page est faite de vide</b><span>« numéro », « — », « — à constater — », « — mois — » : sur cette cliente, plus de la moitié des cases sont des trous à remplir.</span></div>
+      <div class="mal"><b>Des champs larges de 500 pixels</b><span>Un prénom n'a pas besoin d'un demi-écran. La ligne s'étire, l'œil traverse le vide pour rejoindre l'étiquette suivante.</span></div>
+      <div class="mal"><b>Trois grammaires de date</b><span>L'anniversaire en trois menus, la couronne en trois menus, la cadence en pastilles. Trois façons de dire un temps sur un même écran.</span></div>
+      <div class="mal"><b>Deux textes libres qui se ressemblent</b><span>« Ce que la maison observe d'elle » et « Note de la maison ». Rien ne dit lequel sert à quoi ; on écrit dans le premier trouvé.</span></div>
+      <div class="mal"><b>Ce qu'on lit tout le temps est en bas</b><span>Son calibre, sa cadence, son ancienneté : on ouvre la fiche pour eux, ils arrivent après six blocs de formulaire.</span></div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LA FICHE SE LIT ═══ -->
+  <section>
+    <h2>② Elle se lit d'abord. En phrases.</h2>
+    <p class="intro">
+      Le haut de la fiche ne contient <b>aucune case</b>. Il dit qui elle est, en français, comme on
+      le dirait à voix haute au comptoir. Ce qui manque se voit en creux, et s'écrit d'un clic.
+      <b>Six lignes remplacent six blocs.</b>
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Komakan Ahouansou</h4>
+        <span class="sous">Initiée · Micro · 285 locks</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="onglets"><span>Aperçu</span><b>Profil</b><span>Compte</span><span>Parcours</span><span>Documents</span></div>
+
+        <div class="lit">
+          <p>
+            <b>Komakan Ahouansou</b>, initiée à la Maison depuis le <b>lundi 31 août 2026</b>.
+            <span class="creux">Son anniversaire n'est pas connu.</span>
+            <button class="mod">Corriger</button>
+          </p>
+          <p>
+            On la joint au <a href="#">+229 01 61 12 44 31</a> et à <a href="#">kingamok20@gmail.com</a>.
+            <span class="creux">Sa ville n'est pas notée.</span>
+            <button class="mod">Corriger</button>
+          </p>
+          <p>
+            Sa tête porte <b>285 locks</b>, calibre <b>Micro</b> — c'est lui qui choisit ses créations
+            et son barème. <span class="creux">Sa longueur reste à constater, et le jour de sa
+            couronne est inconnu.</span>
+            <button class="mod">Corriger</button>
+          </p>
+          <p>
+            La Maison l'attend <b>toutes les 8 semaines</b>, n'importe quel jour, et lui pose sa
+            reprise à la clôture. <span class="creux">Aucun produit ne lui est recommandé.</span>
+            <button class="mod">Corriger</button>
+          </p>
+        </div>
+
+        <p class="legende" style="margin:16px 0 26px">
+          <b>Ce qui manque se dit en italique, pas en case vide.</b> Une fiche neuve tient alors en
+          quatre lignes au lieu d'un mur de champs à moitié gris, et l'on voit d'un coup d'œil ce
+          qu'il reste à demander à la cliente.
+        </p>
+
+        <!-- ── LES VOLETS ── -->
+        <div class="volet">
+          <div class="volet__t">
+            <span class="volet__n">Ses coordonnées</span>
+            <span class="volet__r">Nom, deux numéros, e-mail, ville, anniversaire</span>
+            <span class="volet__c">Ouvrir</span>
+          </div>
+        </div>
+
+        <div class="volet volet--ouvert">
+          <div class="volet__t">
+            <span class="volet__n">Sa tête</span>
+            <span class="volet__r">285 locks · Micro · longueur à constater</span>
+            <span class="volet__c">Replier</span>
+          </div>
+          <div class="volet__b">
+            <div class="rang r3">
+              <div><span class="lab">Nombre de locks</span><div class="champ">285</div></div>
+              <div><span class="lab">Calibre</span><div class="champ champ--lu">Micro · marge de 15 locks</div></div>
+              <div><span class="lab">Longueur travaillée</span><div class="champ" style="color:var(--encre-d)">à constater</div></div>
+            </div>
+            <button class="ajout">+ Le jour de sa couronne, s'il est connu</button>
+            <p class="legende">
+              <b>Une seule grammaire de date</b> dans toute la fiche : on tape « 31 août 2026 » ou
+              « 31/08 », et l'écran relit le jour de la semaine. Les trois menus disparaissent.
+            </p>
+            <div style="margin-top:14px"><span class="btn">Enregistrer sa tête</span></div>
+          </div>
+        </div>
+
+        <div class="volet">
+          <div class="volet__t">
+            <span class="volet__n">Ce que la Maison décide</span>
+            <span class="volet__r">Toutes les 8 semaines · reprise posée à la clôture · aucun produit</span>
+            <span class="volet__c">Ouvrir</span>
+          </div>
+        </div>
+
+        <div class="volet">
+          <div class="volet__t">
+            <span class="volet__n">Comment la Maison la range</span>
+            <span class="volet__r">Persona L'Initiée · couronnée · 2 segments</span>
+            <span class="volet__c">Ouvrir</span>
+          </div>
+        </div>
+
+        <div class="volet">
+          <div class="volet__t">
+            <span class="volet__n">Ce qu'on sait d'elle</span>
+            <span class="volet__r">Rien de noté pour l'instant</span>
+            <span class="volet__c">Ouvrir</span>
+          </div>
+        </div>
+
+        <div class="volet">
+          <div class="volet__t">
+            <span class="volet__n" style="color:var(--brique)">Zone sensible</span>
+            <span class="volet__r">Fusionner deux fiches · archiver · supprimer</span>
+            <span class="volet__c" style="color:var(--brique)">Ouvrir</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Un seul volet ouvert à la fois.</b> Refermé, chacun dit en une ligne ce qu'il contient — on
+      sait donc où aller sans ouvrir. Et chaque volet garde son bouton, nommé par ce qu'il emporte.
+    </p>
+  </section>
+
+  <!-- ═══ ③ CE QUI CHANGE ═══ -->
+  <section>
+    <h2>③ Ce que cela change, concrètement.</h2>
+    <div class="duo">
+      <div class="carte">
+        <h3>Aujourd'hui</h3>
+        <p>
+          Neuf blocs dépliés, <b>vingt contrôles</b>, deux écrans de défilement. Pour lire son
+          calibre, il faut traverser l'identité et l'anniversaire. Pour corriger un numéro, on
+          cherche le bouton qui l'enregistre.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Demain</h3>
+        <p>
+          <b>Quatre phrases</b> et six lignes de volets : la fiche entière tient dans un écran. On
+          lit sans rien ouvrir. On ouvre le volet qu'on veut corriger, on l'enregistre, il se
+          referme.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ④ LES ARBITRAGES ═══ -->
+  <section>
+    <h2>④ Quatre décisions.</h2>
+
+    <div class="arb">
+      <h3>Les deux textes libres se fondent-ils en un ?</h3>
+      <p>
+        « Ce que la maison observe d'elle » et « Note de la maison » sont deux zones de texte sur la
+        même fiche, et <b>rien ne dit laquelle sert à quoi</b>. On écrit dans la première trouvée, et
+        la moitié de ce qu'on sait finit dans le mauvais champ.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Un seul, « Ce qu'on sait d'elle ». Les deux contenus se rejoignent, rien ne se perd.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Un seul volet ouvert, ou plusieurs ?</h3>
+      <p>
+        Un seul volet garde l'écran court et la fiche lisible. Plusieurs laissent comparer deux
+        réglages sans refermer, mais on retombe vite sur le mur d'aujourd'hui.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Un seul. Le résumé de chaque volet replié dit déjà ce qu'il contient, on n'a presque jamais besoin de deux.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Les champs vides disparaissent-ils ?</h3>
+      <p>
+        Un champ vide occupe autant de place qu'un champ rempli, et sur une fiche neuve ils sont la
+        majorité. Mais un champ qu'on ne voit pas est un champ qu'on oublie de remplir.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Ils disparaissent du volet, et <b>ce qui manque se dit en italique dans les phrases du haut</b> : on le voit mieux qu'avant, sans qu'il encombre.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Le haut de fiche se corrige-t-il sur place ?</h3>
+      <p>
+        « Corriger » peut ouvrir le volet correspondant, ou rendre la phrase directement modifiable.
+        La seconde est plus courte d'un geste, mais mélange à nouveau la lecture et l'écriture.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Il ouvre le volet. La séparation lecture / écriture est ce qui rend la fiche lisible ; la casser d'un endroit la casse partout.</div>
+    </div>
+  </section>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+
+</div>
+</body>
+</html>
