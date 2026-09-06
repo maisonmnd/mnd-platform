@@ -537,10 +537,11 @@ function SauvegardeCard() {
     }
   };
 
+  /* ELLE NE REND QUE SA PROPRE CARTE — 6 septembre 2026. Elle en rendait trois :
+     « Cet appareil » et « Le poids des photos » sortaient sous un nom qui ne les
+     annonçait pas, dans une famille qui ne les décrivait pas. Deux réglages
+     qu'on ne trouve qu'en défilant n'existent qu'à moitié. */
   return (
-    <>
-    <CetAppareil />
-    <LePoidsDesPhotos toast={toast} />
     <Card className="sys-section" style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4, gap: 12, flexWrap: 'wrap' }}>
         <div>
@@ -625,7 +626,6 @@ function SauvegardeCard() {
         </div>
       )}
     </Card>
-    </>
   );
 }
 
@@ -938,9 +938,27 @@ function FactoryResetCard() {
    Quatorze cartes empilées dans l'ordre où elles étaient nées : les zones
    dangereuses au milieu, le calendrier éparpillé en trois endroits, et une
    grille à deux colonnes dont l'une finissait en désert d'écrans. Désormais :
-   une seule colonne, sept familles annoncées par un intertitre cuivre, un
+   une seule colonne, des familles annoncées par un intertitre cuivre, un
    sommaire collant pour sauter à la bonne, et les zones sensibles À LA FIN —
-   là où on ne les croise pas par accident. */
+   là où on ne les croise pas par accident.
+
+   ── LE SOMMAIRE RATTRAPE LA PAGE — 6 septembre 2026 ──────────────────
+   « Il y a plus de grandes rubriques dans les Paramètres, j'ai rajouté des
+   choses au fur et à mesure » (Yéman). Sept familles avaient été taillées pour
+   quatorze cartes ; il y en a vingt, et la dernière famille en avalait six
+   sans rapport les unes avec les autres.
+
+   TROIS CORRECTIONS. « Données & zones sensibles » se coupe en trois : LES
+   DONNÉES (ce qu'on sauvegarde), CET APPAREIL (ce que ce poste peut encore
+   écrire), et LES ZONES SENSIBLES (ce qui détruit). Mélangées, on cherchait un
+   export en frôlant « réinitialiser toute la Maison », et deux réglages
+   n'apparaissaient nulle part dans le sommaire. Les CALIBRES DES MODÈLES
+   rejoignent le Catalogue : ils décrivent des tailles de couronne, pas des
+   données ; ils étaient là par accident d'écriture.
+
+   UN SOMMAIRE QUI NE DIT PAS TOUT EST PIRE QU'AUCUN : on croit avoir vu la
+   page. `verifie-sommaire` refuse désormais qu'une famille existe sans entrée,
+   ou l'inverse. */
 const FAMILLES_SOMMAIRE = [
   { id: 'fam-maison', l: 'La Maison' },
   { id: 'fam-calendrier', l: 'Le calendrier' },
@@ -948,7 +966,9 @@ const FAMILLES_SOMMAIRE = [
   { id: 'fam-encaissement', l: 'L’encaissement' },
   { id: 'fam-equipe', l: 'L’équipe' },
   { id: 'fam-notifs', l: 'Notifications & automatisations' },
-  { id: 'fam-donnees', l: 'Données & zones sensibles' },
+  { id: 'fam-donnees', l: 'Les données' },
+  { id: 'fam-appareil', l: 'Cet appareil' },
+  { id: 'fam-sensible', l: 'Zones sensibles' },
 ];
 
 /** L'intertitre d'une famille — le motif des mondes de la Caisse : un mot
@@ -1650,6 +1670,11 @@ export default function Parametres() {
       {/* ══ CATALOGUE & CLIENTÈLE ═══════════════════════════════════ */}
       <Intertitre id="fam-catalogue">Catalogue & clientèle</Intertitre>
 
+      {/* LES CALIBRES DÉCRIVENT DES TAILLES DE COURONNE, pas des données : ils
+          vivaient au fond, avec les sauvegardes et les zones sensibles, par
+          accident d'écriture. Ils se règlent en même temps que le catalogue. */}
+      <CalibresCard />
+
       {/* ---------- Catalogue · styles de couronne ---------- */}
       {/* ---------- CRM · segments de clientèle ---------- */}
       <Card className="sys-section" style={{ marginTop: 18 }}>
@@ -2076,10 +2101,11 @@ export default function Parametres() {
         </div>
       </Card>
 
-      {/* ══ DONNÉES & ZONES SENSIBLES ═══════════════════════════════
-          À LA FIN, délibérément : on ne croise pas « réinitialiser toute la
-          Maison » en cherchant un horaire. Qui vient ici vient pour ça. */}
-      <Intertitre id="fam-donnees">Données & zones sensibles</Intertitre>
+      {/* ══ LES DONNÉES ═════════════════════════════════════════════
+          Ce qu'on garde et ce qu'on emporte. Le destructif est plus bas, et
+          séparé : on ne cherche pas un export en frôlant « réinitialiser toute
+          la Maison ». */}
+      <Intertitre id="fam-donnees">Les données</Intertitre>
 
       <Card className="sys-section" style={{ marginTop: 18 }}>
         <div className="sys-section__title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -2093,11 +2119,23 @@ export default function Parametres() {
         <FieldRowView l="Hébergement des données" v="Souverain · Afrique de l’Ouest" />
       </Card>
 
-      {/* ---------- Les calibres des modèles — la base ---------- */}
-      <CalibresCard />
-
       {/* ---------- Sauvegarde de la Maison ---------- */}
       <SauvegardeCard />
+
+      {/* ══ CET APPAREIL ════════════════════════════════════════════
+          Ce que CE poste peut encore écrire, et ce qui pèse dessus. Rangés
+          sous « Sauvegarde », les deux ne s'annonçaient nulle part : on les
+          découvrait en défilant, le jour où le navigateur avait déjà refusé
+          d'écrire. */}
+      <Intertitre id="fam-appareil">Cet appareil</Intertitre>
+
+      <CetAppareil />
+      <LePoidsDesPhotos toast={toast} />
+
+      {/* ══ ZONES SENSIBLES ═════════════════════════════════════════
+          À LA FIN, délibérément : on ne croise pas « réinitialiser toute la
+          Maison » en cherchant un horaire. Qui vient ici vient pour ça. */}
+      <Intertitre id="fam-sensible">Zones sensibles</Intertitre>
 
       {/* ---------- Zone sensible — annuler les encaissements ---------- */}
       <ResetEncaissementsCard />

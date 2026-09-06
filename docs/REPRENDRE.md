@@ -61,6 +61,34 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE SOMMAIRE DES PARAMÈTRES RATTRAPE LA PAGE — 6 septembre 2026, PUBLIÉ
+
+« Il y a plus de grandes rubriques dans les Paramètres, j'ai rajouté des choses
+au fur et à mesure » (Yéman).
+
+**Sept familles taillées pour quatorze cartes, une page qui en portait vingt.**
+La dernière famille, « Données & zones sensibles », en avalait six sans rapport
+les unes avec les autres, et **deux réglages n'apparaissaient nulle part dans le
+sommaire** : « Cet appareil » et « Le poids des photos » sortaient à l'intérieur
+de `SauvegardeCard`, sous un nom qui ne les annonçait pas. On les découvrait en
+défilant, ou le jour où le navigateur avait déjà refusé d'écrire.
+
+**Neuf familles.** « Données & zones sensibles » se coupe en trois : **Les
+données** (souveraineté, sauvegarde), **Cet appareil** (magasins saturés, poids
+des photos), **Zones sensibles** (les trois gestes qui détruisent, toujours en
+dernier). Les **calibres des modèles** rejoignent Catalogue & clientèle : ils
+décrivent des tailles de couronne, pas des données ; ils étaient au fond par
+accident d'écriture.
+
+**`SauvegardeCard` ne rend plus que sa propre carte.** Elle en rendait trois.
+
+**36e harnais · `verifie-sommaire`.** Il lit le fichier tel qu'il est écrit,
+sans importer l'écran, et refuse : une famille sans entrée au sommaire, une
+entrée sans famille, un libellé qui diffère d'un côté, un ordre qui diverge, une
+famille vide, un réglage posé avant la première famille, et le destructif
+ailleurs qu'en dernier. C'est la DÉRIVE qui est corrigée, pas son résultat : le
+même écart se reformait sinon au prochain réglage ajouté.
+
 ## LES TEXTES DE LA MAISON SORTENT DU CODE — 6 septembre 2026, PUBLIÉ
 
 « Comment modifier la fiche de poste et le règlement intérieur ? » puis
