@@ -297,18 +297,22 @@
   left: 50%;
   bottom: -6px;
   transform: translateX(-50%);
-  width: 112px;
-  height: 112px;
+  width: 124px;
+  height: 124px;
+  /* L'ENCRE D'UN TAMPON MARQUE LE PAPIER, elle ne le recouvre pas. */
+  opacity: 0.86;
 }
 .ct-sceau svg { position: absolute; inset: 0; }
+/* Le monogramme au centre, en proportion du sceau : le fichier porte un quart
+   de vide sur chaque bord, donc il se pose large ou la couronne paraît
+   minuscule au milieu d'un grand cercle. */
 .ct-sceau img {
   position: absolute;
-  top: 36px;
-  left: 36px;
-  width: 40px;
-  height: 40px;
+  top: 24%;
+  left: 24%;
+  width: 52%;
+  height: 52%;
   object-fit: contain;
-  opacity: 0.9;
 }
 
 .ct-devise-culturelle {

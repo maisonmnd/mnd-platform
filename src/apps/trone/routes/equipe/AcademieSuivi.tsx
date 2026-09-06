@@ -112,6 +112,13 @@ export default function AcademieSuivi() {
                       </td>
                       <td>
                         <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {/* ══ LE CONTRAT SE VOIT DEPUIS LA LISTE — 6 sept. 2026 ══
+                              « Je ne trouve pas le bloc » (Yeman). Il vivait au
+                              fond d'un onglet, sous un prix : un contrat qu'il
+                              faut aller chercher ne se signe jamais, et c'est
+                              le jour du litige qu'on s'en apercoit. Il se dit
+                              donc ici, sur la ligne, comme l'assiduite. */}
+                          {!e.contrat && <Pill tone="error">Contrat à signer</Pill>}
                           {e.attendanceAlert && <Pill tone="warn">Assiduité</Pill>}
                           {e.status !== 'certifie' && e.depositPaid === false && <Pill tone="error">Acompte dû</Pill>}
                         </span>

@@ -2,6 +2,19 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SCEAU DU CERTIFICAT PREND LE TAMPON — 6 septembre 2026, PUBLIÉ
+
+« Change le tampon de l'Académie, mets celui qu'on a utilisé pour les contrats,
+celui en cuivre » (Yéman).
+
+L'ancien sceau avait **exactement le défaut corrigé sur le tampon** : son texte
+faisait le tour complet du cercle sur un seul chemin, donc la moitié basse se
+lisait la tête en bas. Deux arcs désormais, chacun centré sur son axe, le bas
+suivant un chemin tracé dans l'autre sens pour que ses lettres se redressent.
+Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flancs,
+le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
+les mots sont ceux de l'Académie, qui signe en son nom.
+
 ## LES CONTRATS PRESTATAIRE ET FORMATION — 6 septembre 2026, PUBLIÉ
 
 « Tout comme le contrat du droit à l'image, je dois construire les contrats des
@@ -34,8 +47,12 @@ servent.
 
 ### La formation · `shared/contrat-formation.ts`
 
-Se signe depuis **Académie › Suivi › Formation**, au-dessus du montant : c'est
-le contrat qui rend le prix exigible.
+Se signe depuis **Académie › Suivi & certification**, en ouvrant une apprenante,
+onglet **Formation**, au-dessus du montant : c'est le contrat qui rend le prix
+exigible. **La ligne de la liste porte « Contrat à signer »** tant qu'il manque
+— il vivait au fond d'un onglet, et un contrat qu'il faut aller chercher ne se
+signe jamais. Rien n'apparaît tant qu'aucune formation ni aucune inscription
+n'existe.
 
 **Deux arbitrages fermes de Yéman :**
 

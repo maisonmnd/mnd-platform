@@ -305,21 +305,53 @@ export default function App() {
                       <div className="ct-sign__role">Le Maître Loctician</div>
                     </div>
 
+                    {/* ══ LE TAMPON DE LA MAISON, EN CUIVRE — 6 septembre 2026 ══
+                        « Change le tampon de l'Académie, mets celui qu'on a
+                        utilisé pour les contrats » (Yéman).
+
+                        L'ANCIEN AVAIT LE DÉFAUT QUE LE TAMPON A CORRIGÉ : son
+                        texte faisait le tour complet du cercle sur un seul
+                        chemin, donc la moitié basse se lisait la tête en bas.
+                        Deux arcs désormais, chacun centré sur son axe — le nom
+                        sur le sommet, la ville sur le bas — et le bas suit un
+                        chemin tracé dans l'autre sens pour que ses lettres se
+                        redressent.
+
+                        MÊME GÉOMÉTRIE QUE `tamponDeLaMaison` (shared/pdf) : les
+                        deux cercles, les deux losanges aux flancs, le vrai
+                        monogramme au centre. Ce qui change ici, c'est l'encre —
+                        cuivre, comme le veut un certificat — et les mots :
+                        l'Académie signe en son nom. */}
                     <div className="ct-sceau" aria-hidden="true">
                       <svg viewBox="0 0 160 160">
                         <defs>
-                          <path
-                            id="ct-seal-circle"
-                            d="M 80,80 m -62,0 a 62,62 0 1,1 124,0 a 62,62 0 1,1 -124,0"
-                          />
+                          {/* Le haut : de gauche à droite PAR LE SOMMET, les
+                              lettres debout vers l'extérieur. */}
+                          <path id="ct-seal-haut" d="M 24,80 a 56,56 0 0,1 112,0" />
+                          {/* Le bas : de gauche à droite PAR LE BAS, les lettres
+                              debout vers le centre. Sans ce second chemin, la
+                              ville se lirait à l'envers. */}
+                          <path id="ct-seal-bas" d="M 24,80 a 56,56 0 0,0 112,0" />
                         </defs>
-                        <circle cx="80" cy="80" r="76" fill="none" stroke="var(--copper-400)" strokeWidth="2" />
-                        <circle cx="80" cy="80" r="62" fill="none" stroke="var(--copper-400)" strokeWidth="1" />
-                        <text fontFamily="var(--font-sans)" fontSize="9.5" letterSpacing="2.4" fill="var(--copper-600)">
-                          <textPath href="#ct-seal-circle" startOffset="2%">
-                            MND ACADÉMIE · COTONOU · LES QUATRE TEMPS ·
-                          </textPath>
+                        <circle cx="80" cy="80" r="78" fill="none" stroke="var(--copper-400)" strokeWidth="3.4" />
+                        <circle cx="80" cy="80" r="67" fill="none" stroke="var(--copper-400)" strokeWidth="1.2" />
+                        <text
+                          fontFamily="var(--font-sans)" fontSize="13" fontWeight="500"
+                          letterSpacing="1.6" fill="var(--copper-600)" textAnchor="middle"
+                        >
+                          <textPath href="#ct-seal-haut" startOffset="50%">MND ACADÉMIE</textPath>
                         </text>
+                        <text
+                          fontFamily="var(--font-sans)" fontSize="11"
+                          letterSpacing="1.8" fill="var(--copper-600)" textAnchor="middle"
+                        >
+                          <textPath href="#ct-seal-bas" startOffset="50%">COTONOU</textPath>
+                        </text>
+                        {/* Les deux losanges aux flancs, là où les arcs se
+                            rejoignent : c'est ce petit rien qui fait qu'un
+                            cercle se lit comme un tampon. */}
+                        <path d="M 24,76 l 4,4 -4,4 -4,-4 z" fill="var(--copper-500)" />
+                        <path d="M 136,76 l 4,4 -4,4 -4,-4 z" fill="var(--copper-500)" />
                       </svg>
                       <img src={asset("/assets/monograms/mono-copper.png")} alt="" />
                     </div>

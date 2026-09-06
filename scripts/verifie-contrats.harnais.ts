@@ -79,6 +79,24 @@ dit('… et elle n’a pas de terme', true, corps(p).includes('n’a pas de term
    servent. */
 dit('les trois survivent à la fin', true, corps(p).includes('survivent à la fin du contrat'));
 
+/* LA TENUE — 6 septembre 2026, demande de Yéman. La moitié de ces règles sont
+   des règles de SÉCURITÉ déguisées en règles d'allure : une bague accroche une
+   lock, un parfum lourd finit sur un cuir chevelu ouvert. */
+dit('la tenue a son article', true, !!art(p, 'tenue'));
+dit('… les mains, d’abord', true, corps(p).includes('ongles courts'));
+dit('… les bagues qui accrochent', true, corps(p).includes('accrochent une lock'));
+dit('… et le parfum', true, corps(p).includes('parfum lourd'));
+/* ELLE NE VAUT QUE PENDANT LA MISSION. Dicter son apparence en dehors du salon
+   serait un lien de subordination, et ferait tomber l'article d'indépendance —
+   c'est-à-dire tout le contrat. */
+dit('… mais seulement pendant la mission', true,
+  corps(p).includes('ne vaut que pendant les heures de mission'));
+dit('… et hors de là, il fait comme il veut', true, corps(p).includes('comme il l’entend'));
+/* DEUX SENS DU MOT « TENIR » À TROIS LIGNES L'UN DE L'AUTRE, et l'on ne sait
+   plus lequel on lit : l'article des engagements a été renommé. */
+dit('plus de « s’engage à tenir »', false,
+  p.articles.some((a) => a.titre.includes('s’engage à tenir')));
+
 dit('le taux se dit en pourcentage', true, corps(p).includes('40 %'));
 const pf = texteContratPrestataire({
   ...MAISON, nom: 'Kossi A.', mode: 'forfait', taux: 25000,

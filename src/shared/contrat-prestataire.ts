@@ -24,7 +24,7 @@ import {
   type Contrat,
 } from './contrats';
 
-export const VERSION_PRESTATAIRE = 'v1 · 6 septembre 2026';
+export const VERSION_PRESTATAIRE = 'v2 · 6 septembre 2026';
 
 /** Comment il est payé. Repris tel quel du répertoire des Prestataires : deux
     vocabulaires pour une même notion finiraient par se répondre de travers. */
@@ -109,15 +109,43 @@ export function texteContratPrestataire(o: ContratPrestataire & {
         ],
       },
       {
-        titre: 'Ce que le prestataire s’engage à tenir',
+        titre: 'Ce que le prestataire s’engage à faire',
         lignes: [
-          'Exécuter ses missions avec le soin, la ponctualité et la tenue que la Maison attend '
-          + 'de toute personne qui touche à une tête.',
+          'Exécuter ses missions avec le soin et la ponctualité que la Maison attend de toute '
+          + 'personne qui touche à une tête.',
           'Respecter les protocoles d’hygiène du salon : matériel désinfecté, mains propres, '
           + 'poste laissé net.',
           'Prévenir la Maison dès qu’il sait qu’il ne pourra pas honorer une mission, et non le '
           + 'jour même : une cliente déplacée pour rien ne revient pas toujours.',
           'Signaler immédiatement tout incident survenu sur une tête, même léger.',
+        ],
+      },
+      {
+        /* ══ LA TENUE — 6 septembre 2026, demande de Yéman ═══════════════
+           ELLE N'EST PAS UNE COQUETTERIE. Une cliente confie sa couronne à des
+           mains : ce qu'elle voit de ces mains, et de la personne au-dessus,
+           fait partie de ce qu'elle paie. Et la moitié de ces règles sont des
+           règles de SÉCURITÉ déguisées en règles d'allure — une bague accroche
+           une lock, un parfum lourd se retrouve sur un cuir chevelu ouvert.
+
+           ELLE NE PORTE QUE SUR LES HEURES DE MISSION. Un prestataire est
+           indépendant : lui dicter son apparence en dehors du salon serait un
+           lien de subordination, et ferait tomber l'article 2. */
+        titre: 'La tenue au salon',
+        lignes: [
+          'Pendant ses missions, le prestataire se présente en tenue propre et repassée, sobre '
+          + 'de couleur, et en chaussures fermées.',
+          'La Maison peut lui remettre une blouse ou un tablier à ses couleurs : il la porte '
+          + 'pendant la mission, l’entretient, et la restitue à la fin du contrat.',
+          'Les mains travaillent dans les cheveux : ongles courts et nets, pas de bagues ni de '
+          + 'bracelets qui accrochent une lock, pas de vernis écaillé.',
+          'Pas de parfum lourd : un cuir chevelu qui vient d’être travaillé est sensible, et une '
+          + 'cliente ne choisit pas l’odeur qu’elle emporte.',
+          'Ses propres cheveux sont soignés et attachés si besoin. C’est la première chose qu’une '
+          + 'tête regarde chez qui va la coiffer.',
+          'Le téléphone reste hors du fauteuil, sauf pour le travail de la Maison.',
+          'Cet article ne vaut que pendant les heures de mission et dans les lieux de la Maison. '
+          + 'Hors de là, le prestataire se présente comme il l’entend.',
         ],
       },
       {
