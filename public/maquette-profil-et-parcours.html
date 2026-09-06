@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Profil &amp; Parcours · Maquette · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{
+    --parchemin:#F3EDE1;--ivoire:#FBF8F2;--sable:#E8DFCE;
+    --indigo:#1E2150;--indigo-2:#3A3F72;--indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A;--cuivre-p:#E3C9AE;--cuivre-f:#FAF1E9;
+    --encre:#2A2722;--encre-d:#746F65;--filet:#D9CFBC;
+    --brique:#96412E;--brique-f:#FBF0ED;--brique-p:#E4BDB2;
+    --vert:#4A6B52;--vert-f:#EFF3EF;--vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura','Helvetica Neue',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:1140px;margin:0 auto;padding:56px 24px 110px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(38px,6vw,60px);line-height:1.04;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(23px,3vw,32px);color:var(--indigo);
+     margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+  .chapeau{max-width:66ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:58px}
+  .intro{max-width:78ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+  .legende{font-size:12.5px;color:var(--encre-d);margin:12px 0 0;max-width:82ch}
+  .legende b{color:var(--encre);font-weight:500}
+  .cite{border-left:2px solid var(--cuivre);padding:2px 0 2px 16px;margin:0 0 30px;
+        font-family:var(--serif);font-size:21px;line-height:1.45;color:var(--indigo);max-width:64ch}
+  .cite span{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--encre-d);margin-top:8px}
+
+  /* ── le défaut nommé, et sa correction ── */
+  .maux{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:880px){.maux{grid-template-columns:1fr}}
+  .mal{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;padding:13px 15px}
+  .mal b{display:block;color:var(--brique);font-weight:500;font-size:13px;margin-bottom:3px}
+  .mal span{font-size:13px;color:var(--encre-d)}
+
+  .ecran{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);overflow:hidden}
+  .ecran__tete{background:var(--indigo);color:#EFEAE0;padding:14px 20px}
+  .ecran__tete h4{font-family:var(--serif);font-weight:400;font-size:22px;color:#fff;margin:0}
+  .ecran__tete span{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-p)}
+  .ecran__corps{padding:19px 21px}
+
+  .onglets{display:flex;gap:22px;border-bottom:1px solid var(--filet);margin-bottom:20px}
+  .onglets b{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);
+             border-bottom:2px solid var(--cuivre);padding-bottom:9px;font-weight:500}
+  .onglets span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);padding-bottom:9px}
+
+  .temps{border:1px solid var(--filet);border-radius:4px;background:#fff;padding:15px 17px}
+  .temps+.temps{margin-top:14px}
+  .temps__t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .temps__n{font-family:var(--serif);font-size:20px;color:var(--indigo)}
+  .temps__s{font-size:12px;color:var(--encre-d)}
+  .temps--calme{background:var(--indigo-pale);border-color:#D5D7E4}
+
+  .lab{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d);display:block;margin-bottom:5px}
+  .champ{border:1px solid var(--filet);background:#fff;border-radius:3px;padding:9px 12px;
+         font-family:var(--sans);font-size:14px;color:var(--encre);width:100%}
+  .champ--lu{background:var(--indigo-pale);border-style:dashed;color:var(--indigo)}
+  .rang{display:grid;gap:12px;margin-bottom:14px}
+  .r2{grid-template-columns:1fr 1fr}
+  .r3{grid-template-columns:1fr 1fr 1fr}
+  .r4{grid-template-columns:1.2fr 1.6fr .8fr 1fr}
+  @media(max-width:760px){.r2,.r3,.r4{grid-template-columns:1fr}}
+  .btn{border:none;border-radius:3px;background:var(--cuivre);color:#fff;font-family:var(--sans);
+       font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;cursor:default}
+  .btn--ghost{background:transparent;border:1px solid var(--filet);color:var(--encre-d)}
+  .btn--danger{background:transparent;border:1px solid var(--brique-p);color:var(--brique)}
+  .lien{font-size:11.5px;font-weight:600;color:var(--cuivre);cursor:default}
+
+  /* ── la ligne d'un comptage, l'écart en tête ── */
+  .cpt{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid #EDE5D6}
+  .cpt__e{font-family:var(--serif);font-size:26px;line-height:1;min-width:92px}
+  .cpt__e--bas{color:var(--brique)}
+  .cpt__e--haut{color:var(--vert)}
+  .cpt__e--plat{color:var(--encre-d)}
+  .cpt__t{flex:1;min-width:180px;font-size:13.5px}
+  .cpt__t small{display:block;color:var(--encre-d);font-size:12px}
+  .cpt__n{font-variant-numeric:tabular-nums;color:var(--encre-d);font-size:13px}
+
+  .pastille{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:100px;
+            border:1px solid var(--vert-p);background:var(--vert-f);color:var(--vert)}
+  .pastille--att{border-color:var(--cuivre-p);background:var(--cuivre-f);color:var(--cuivre)}
+  .pastille--ko{border-color:var(--brique-p);background:var(--brique-f);color:var(--brique)}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:900px){.duo{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+  .sensible{border:1px solid var(--brique-p);background:var(--brique-f);border-radius:4px;padding:15px 17px;margin-top:16px}
+  .sensible b{color:var(--brique)}
+
+  .arb{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:17px 19px}
+  .arb+.arb{margin-top:14px}
+  .arb h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 8px}
+  .arb p{margin:0 0 9px;font-size:13.5px;color:var(--encre-d)}
+  .arb p b{color:var(--encre);font-weight:500}
+  .arb .prop{border-left:2px solid var(--cuivre);padding-left:13px;font-size:13.5px;color:var(--encre)}
+  .arb .prop u{text-decoration:none;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+               color:var(--cuivre);display:block;margin-bottom:3px}
+  footer{margin-top:78px;padding-top:22px;border-top:1px solid var(--filet);
+         font-family:var(--serif);font-style:italic;font-size:14px;color:var(--cuivre);text-align:center}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Trône · Maquette à valider</p>
+  <h1>Profil &amp; Parcours.</h1>
+  <p class="chapeau">
+    Deux onglets denses, deux natures différentes. <b>Le Profil est un formulaire, le Parcours est un
+    récit</b> — ils ne se rangent pas selon la même règle, et c'est pour les avoir traités pareil
+    qu'ils fatiguent.
+  </p>
+
+  <p class="cite" style="margin-top:34px">
+    Refais l'UI/UX de Profil et celui de Parcours.
+    <span>Yéman · 6 septembre 2026</span>
+  </p>
+
+  <!-- ═══ ① CE QUI CLOCHE ═══ -->
+  <section>
+    <h2>① Ce qui cloche, nommément.</h2>
+    <p class="intro">
+      Rien d'inventé : ce sont les défauts lisibles sur vos deux écrans de ce soir.
+    </p>
+
+    <div class="maux">
+      <div class="mal"><b>Profil · « Cliente depuis Lundi 31 août »</b><span>Sans l'année, alors que la Maison a demandé les années partout. Août de quelle année ?</span></div>
+      <div class="mal"><b>Profil · le bouton qui flotte</b><span>« Enregistrer l'identité » se pose au milieu du formulaire, à hauteur d'une phrase. On ne sait pas ce qu'il emporte.</span></div>
+      <div class="mal"><b>Profil · un titre qui dit deux choses</b><span>« LA COURONNE · STATUT MA COURONNE » : ni l'un ni l'autre ne se comprend seul.</span></div>
+      <div class="mal"><b>Profil · trois natures dans un bloc</b><span>Ce qu'elle EST (locks, calibre), ce que la Maison DÉCIDE (cadence, produit) et ce qui COMMANDE une prédiction, mêlés.</span></div>
+      <div class="mal"><b>Profil · les libellés plus longs que les champs</b><span>« Elle ne vient que le… · commande la prédiction » tient sur deux lignes au-dessus d'un menu.</span></div>
+      <div class="mal"><b>Profil · l'anniversaire en trois menus</b><span>Seul endroit de la Maison qui date ainsi. Le champ tapé existe depuis hier.</span></div>
+      <div class="mal"><b>Parcours · le total avant l'écart</b><span>427 en gros, l'écart en petit au milieu de la ligne. Or « 427 » ne dit rien : c'est <b>−18</b> qui parle.</span></div>
+      <div class="mal"><b>Parcours · la saisie mal pondérée</b><span>La note prend la moitié de la largeur, et le <b>cm</b> — seule mesure qui nourrit la courbe de pousse — est le champ le plus étroit.</span></div>
+      <div class="mal"><b>Parcours · un lien noyé</b><span>« Compter quart par quart → » se cache au bout d'un paragraphe de trois lignes.</span></div>
+      <div class="mal"><b>Parcours · le statique en premier</b><span>Les Quatre Temps ouvrent la page ; ils ne changent jamais. Ce qu'on vient chercher est en bas.</span></div>
+    </div>
+  </section>
+
+  <!-- ═══ ② LE PROFIL ═══ -->
+  <section>
+    <h2>② Le Profil, en trois natures.</h2>
+    <p class="intro">
+      <b>Un formulaire se range par ce que les champs SONT</b>, pas par le hasard de leur arrivée.
+      Trois blocs, trois natures : qui elle est · ce que sa tête est · ce que la Maison a décidé pour
+      elle. Un seul bouton par bloc, qui dit ce qu'il emporte.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><span>Clientes · sa fiche</span><h4>Shadé Euzen</h4></div>
+      <div class="ecran__corps">
+        <div class="onglets"><span>Aperçu</span><b>Profil</b><span>Compte</span><span>Parcours</span><span>Documents</span></div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Qui elle est</span><span class="temps__s">ce qui la joint</span></div>
+          <div class="rang r3">
+            <div><span class="lab">Nom complet</span><div class="champ">Shadé Euzen</div></div>
+            <div><span class="lab">Téléphone</span><div class="champ">+229 0161 12 44 31</div></div>
+            <div><span class="lab">Second téléphone</span><div class="champ" style="color:var(--encre-d)">facultatif</div></div>
+          </div>
+          <div class="rang r3">
+            <div><span class="lab">Adresse e-mail</span><div class="champ" style="color:var(--encre-d)">—</div></div>
+            <div><span class="lab">Ville</span><div class="champ">Suru-Lere</div></div>
+            <div><span class="lab">Anniversaire</span><div class="champ" style="color:var(--encre-d)">14 février · ou 14/02</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span class="btn">Enregistrer ces six champs</span>
+            <span style="font-size:12.5px;color:var(--encre-d)">Cliente depuis le <b style="color:var(--encre);font-weight:500">lundi 31 août 2026</b>.</span>
+          </div>
+        </div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Ce que sa tête est</span><span class="temps__s">des faits, mesurés au fauteuil</span></div>
+          <div class="rang r4">
+            <div><span class="lab">Nombre de locks</span><div class="champ">427</div></div>
+            <div><span class="lab">Calibre · lu du comptage</span><div class="champ champ--lu">Nano · marge 15 locks</div></div>
+            <div><span class="lab">Longueur</span><div class="champ" style="color:var(--encre-d)">à constater</div></div>
+            <div><span class="lab">Couronne depuis</span><div class="champ" style="color:var(--encre-d)">—</div></div>
+          </div>
+          <p class="legende" style="margin-top:2px">
+            <b>Le calibre ne se saisit pas, il se lit.</b> 427 locks tombent en plein dans Nano ; la
+            marge n'y changerait rien. Il est grisé pour qu'on cesse de chercher à le corriger.
+          </p>
+        </div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Ce que la Maison a décidé</span><span class="temps__s">des choix, pas des faits</span></div>
+          <div class="rang r3">
+            <div><span class="lab">Sa cadence</span><div class="champ">8 semaines</div></div>
+            <div><span class="lab">Elle ne vient que le…</span><div class="champ" style="color:var(--encre-d)">n'importe quel jour</div></div>
+            <div><span class="lab">Produit recommandé</span><div class="champ" style="color:var(--encre-d)">aucun</div></div>
+          </div>
+          <p class="legende" style="margin-top:2px">
+            Ces trois-là <b>commandent la prédiction et son Carnet de Suivi</b>. Les mêler aux
+            mesures faisait croire qu'on les constate ; on les choisit.
+          </p>
+        </div>
+
+        <div class="sensible">
+          <b>Zone sensible</b> · fusionner deux fiches · archiver · supprimer.
+          <span style="display:block;font-size:12.5px;color:var(--encre-d);margin-top:5px">
+            Inchangée, et toujours en dernier : ce qu'on ne fait qu'une fois ne se met pas sur le chemin.
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ③ LE PARCOURS ═══ -->
+  <section>
+    <h2>③ Le Parcours, dans l'ordre du temps.</h2>
+    <p class="intro">
+      <b>Un récit se range par ce qu'on vient y chercher</b> : où elle en est, ce qui lui est dû,
+      puis ce qui s'est passé. Le statique descend.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><span>Clientes · son parcours</span><h4>Shadé Euzen</h4></div>
+      <div class="ecran__corps">
+        <div class="onglets"><span>Aperçu</span><span>Profil</span><span>Compte</span><b>Parcours</b><span>Documents</span></div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Où en est sa couronne</span><span class="temps__s">l'écart d'abord, le total ensuite</span></div>
+          <div class="cpt">
+            <span class="cpt__e cpt__e--bas">−18</span>
+            <span class="cpt__t">Ven. 4 sept. 2026 · <b>427 locks</b><small>Yéman Boya · Nano · elle en a perdu dix-huit</small></span>
+            <span class="lien">Modifier</span>
+          </div>
+          <div class="cpt" style="border-bottom:none">
+            <span class="cpt__e cpt__e--plat">445</span>
+            <span class="cpt__t">Mer. 19 févr. 2025 · <b>premier comptage</b><small>Yéman Boya · Nano</small></span>
+            <span class="lien">Modifier</span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:flex-end">
+            <div style="flex:1 1 110px"><span class="lab">Locks</span><div class="champ" style="color:var(--encre-d)">427</div></div>
+            <div style="flex:1 1 110px"><span class="lab">Mèche témoin</span><div class="champ" style="color:var(--encre-d)">cm</div></div>
+            <div style="flex:1 1 170px"><span class="lab">Le jour</span><div class="champ">30 octobre 2026</div></div>
+            <span class="btn">Compter</span>
+            <span class="lien">+ une note</span>
+            <span class="lien">Quart par quart →</span>
+          </div>
+          <p class="legende">
+            <b>La mèche témoin remonte à côté des locks</b> : c'est la seule mesure qui nourrit la
+            courbe de pousse, et elle était le champ le plus étroit de la rangée. La note se déplie,
+            elle ne sert qu'une fois sur dix.
+          </p>
+        </div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Ce qui lui est dû</span><span class="temps__s">les deux protocoles, et leurs dates</span></div>
+          <div class="cpt">
+            <span class="cpt__e" style="font-size:19px;color:var(--cuivre)">J+14</span>
+            <span class="cpt__t">GBÌGBÌ™ Module · Soin Reconstruction<small>La couleur ouvre la cuticule. On la referme avant qu'elle ne casse.</small></span>
+            <span class="pastille pastille--att">à poser</span>
+          </div>
+          <div class="cpt" style="border-bottom:none">
+            <span class="cpt__e" style="font-size:19px;color:var(--vert)">J+30</span>
+            <span class="cpt__t">DÀNDÀN™ · Le Soin Hydratant<small>Rendez-vous pris pour le sam. 3 oct. 2026.</small></span>
+            <span class="pastille">rendez-vous pris</span>
+          </div>
+        </div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">Ses courbes</span><span class="temps__s">la pente, pas la note du jour</span></div>
+          <p class="legende" style="margin:0">
+            Les jauges du bilan et la pousse, telles qu'elles sont déjà construites. Elles montent
+            <b>au-dessus de l'historique</b> : on les regarde, on ne les feuillette pas.
+          </p>
+        </div>
+
+        <div class="temps temps--calme">
+          <div class="temps__t"><span class="temps__n">Les Quatre Temps</span><span class="temps__s">son rituel à domicile · 0/4</span></div>
+          <p class="legende" style="margin:0">
+            Replié. Ils ne changent qu'au bilan, et ouvraient la page tous les jours.
+          </p>
+        </div>
+
+        <div class="temps">
+          <div class="temps__t"><span class="temps__n">L'historique du carnet</span><span class="temps__s">ce qui s'est passé</span></div>
+          <p class="legende" style="margin:0">Inchangé.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ④ LES ARBITRAGES ═══ -->
+  <section>
+    <h2>④ Quatre décisions.</h2>
+
+    <div class="arb">
+      <h3>Le calibre se saisit-il encore ?</h3>
+      <p>
+        Il se déduit du comptage — 427 locks tombent dans Nano, et l'écran le dit déjà. Mais le champ
+        reste ouvert, comme s'il attendait autre chose. <b>Un champ modifiable qui ne doit pas
+        l'être finit toujours par être modifié.</b>
+      </p>
+      <div class="prop"><u>Ma proposition</u> Grisé, en lecture seule, avec sa marge à côté. La marge, elle, reste réglable.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Les Quatre Temps descendent-ils ?</h3>
+      <p>
+        Ils ouvrent le Parcours aujourd'hui. Ils ne changent qu'au bilan, et vous m'avez demandé un
+        jour comment ils fonctionnaient — signe qu'ils se lisent rarement.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Repliés, sous les courbes. Un clic les ouvre. Rien n'est retiré.</div>
+    </div>
+
+    <div class="arb">
+      <h3>Un bouton par bloc, ou un seul en bas ?</h3>
+      <p>
+        Aujourd'hui « Enregistrer l'identité » flotte au milieu et n'emporte que six champs ; le
+        reste s'écrit tout seul. <b>Deux comportements dans un même écran</b>, et rien ne le dit.
+      </p>
+      <div class="prop"><u>Ma proposition</u> Un bouton par bloc, nommé par ce qu'il emporte. Ce qui s'écrit tout seul le dit en clair.</div>
+    </div>
+
+    <div class="arb">
+      <h3>L'écart passe-t-il devant le total ?</h3>
+      <p>
+        « 427 » ne raconte rien. « −18 » dit une casse à regarder, « +247 » dit un dédoublement.
+        C'est déjà ce que votre code affirme en commentaire, mais l'écran montre l'inverse.
+      </p>
+      <div class="prop"><u>Ma proposition</u> L'écart en grand, coloré — brique s'il baisse, vert s'il monte — et le total dans la ligne, en gras.</div>
+    </div>
+  </section>
+
+  <footer>Maquette · à valider avant construction · mi nyɔ́ ɖɛkpɛ</footer>
+
+</div>
+</body>
+</html>

@@ -73,6 +73,16 @@ export const frShort = (iso: string) =>
 export const frLong = (iso: string) =>
   dayOf(iso) ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })) : '—';
 
+/** « Lundi 31 août 2026 » — LA DATE LONGUE QUI PORTE SON ANNÉE.
+
+    `frLong` s'en passe, et c'est juste là où on le lit : l'en-tête du jour. Sur
+    une FICHE, « cliente depuis lundi 31 août » ne dit pas de quelle année elle
+    vient — et une ancienneté sans année ne se compare à rien. */
+export const frLongAn = (iso: string) =>
+  (dayOf(iso)
+    ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
+    : '—');
+
 /** « 13 juil. » */
 export const frDay = (iso: string) =>
   dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';

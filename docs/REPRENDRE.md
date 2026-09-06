@@ -113,6 +113,51 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## PROFIL & PARCOURS, REFONDUS — 6 septembre 2026, PUBLIÉ
+
+Maquette `maquette-profil-et-parcours.html`, quatre arbitrages rendus.
+
+**Le Profil est un formulaire, le Parcours est un récit** : ils ne se rangent pas
+selon la même règle, et c'est pour les avoir traités pareil qu'ils fatiguaient.
+
+### Le Profil, rangé par nature
+
+Un formulaire se range par ce que les champs SONT. Trois blocs : **qui elle est**
+· **ce que sa tête est** (mesuré au fauteuil) · **ce que la Maison a décidé pour
+elle** (cadence, jour, produit). Les mêler faisait croire qu'on constate ce
+qu'en réalité on choisit.
+
+**Un bouton par bloc, nommé par ce qu'il emporte.** Il flottait au milieu du
+formulaire et n'emportait que cinq champs quand tout le reste s'écrit à la
+frappe : deux comportements dans un même écran, et rien ne le disait.
+
+**« Cliente depuis » porte son année** (`frLongAn`). `frLong` reste sans année là
+où c'est juste — l'en-tête du jour ; sur une fiche, une ancienneté sans année ne
+se compare à rien.
+
+**Le calibre reste saisissable** (arbitrage de la Maison, contre ma proposition) :
+elle garde la main sur les têtes qui échappent au comptage.
+
+### Le Parcours, dans l'ordre du temps
+
+**L'écart passe devant le total.** Le code l'affirmait déjà en commentaire sans
+que l'écran le montre : « 427 » ne raconte rien, « −18 » dit une casse à
+regarder. En brique s'il baisse, en vert s'il monte. **Le premier comptage garde
+son total** : il ne suit rien.
+
+**La mèche témoin remonte** à côté des locks — seule mesure qui nourrit la courbe
+de pousse, elle était le champ le plus étroit. **La note se déplie**, elle sert
+une fois sur dix. Et **« Compter quart par quart » sort du paragraphe** où il se
+cachait au bout de trois lignes : un geste qu'on ne trouve pas est un geste qui
+n'existe pas.
+
+**Les Quatre Temps descendent sous les courbes, repliés.** Ils ouvraient la page
+alors qu'ils ne changent qu'au bilan. Rien n'est retiré : le titre dit toujours
+où elle en est, un clic ouvre.
+
+Ordre final : le comptage · ce qui lui est dû · ses courbes · les Quatre Temps ·
+l'historique.
+
 ## LE SUIVI DE LA COURONNE, CÔTÉ CLIENTE — 6 septembre 2026, PUBLIÉ
 
 La maquette du 5 septembre le prévoyait, section ⑥, et **seul le côté Trône

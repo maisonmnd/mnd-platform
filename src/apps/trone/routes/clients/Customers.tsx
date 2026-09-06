@@ -45,7 +45,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frShort, frDay,
+  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, frLong, frLongAn, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence, frJourAn, frShortAn } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
@@ -1868,6 +1868,11 @@ function Customer360({
   const [cptLocks, setCptLocks] = useState('');
   const [cptJour, setCptJour] = useState('');
   const [cptNote, setCptNote] = useState('');
+  /* La note du comptage se deplie : elle sert une fois sur dix, et prenait
+     la moitie de la rangee de saisie. */
+  const [cptNoteOuverte, setCptNoteOuverte] = useState(false);
+  /* Les Quatre Temps ne changent qu'au bilan : replies par defaut. */
+  const [tempsOuverts, setTempsOuverts] = useState(false);
   const [cptCm, setCptCm] = useState('');
   /* ══ REPRENDRE UN COMPTAGE — 5 septembre 2026 ═════════════════════
      « Éditer la note de comptage de locks au besoin » (Yéman).
@@ -2792,9 +2797,20 @@ function Customer360({
               <Input id="c360-city" value={idCity} onChange={(e) => setIdCity(e.target.value)} placeholder="—" />
             </Field>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
+          {/* ══ UN BOUTON PAR BLOC, NOMMÉ PAR CE QU'IL EMPORTE ═══════════
+              6 septembre 2026, arbitrage de la Maison.
+
+              IL FLOTTAIT AU MILIEU DU FORMULAIRE, à hauteur d'une phrase
+              d'information, et n'emportait que cinq champs quand tout le reste
+              de la page s'écrit à la frappe. DEUX COMPORTEMENTS DANS UN MÊME
+              ÉCRAN, et rien ne le disait : on cliquait par prudence sur un
+              bouton qui ne concernait pas ce qu'on venait de changer.
+
+              Il descend donc à la fin de SON bloc, il nomme ce qu'il emporte,
+              et ce qui s'écrit tout seul le dit en clair. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
             <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              Cliente depuis {client.since ? frLong(client.since) : '—'}
+              Cliente depuis le {client.since ? frLongAn(client.since) : '—'}
               {client.photo && (
                 <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => patch({ photo: null })}>Retirer la photo</button>
               )}
@@ -2802,10 +2818,12 @@ function Customer360({
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               {idSaved && !idDirty && (
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--trv-success, var(--color-indigo))' }}>
-                  Identité enregistrée.
+                  Enregistré.
                 </span>
               )}
-              <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>Enregistrer l’identité</Button>
+              <Button variant="indigo" size="sm" disabled={!idDirty} onClick={saveIdentity}>
+                Enregistrer ses coordonnées
+              </Button>
             </span>
           </div>
           <div className="trc-bday">
@@ -2845,7 +2863,13 @@ function Customer360({
             garde que ce que les champs ne disent pas : le calibre que le
             comptage donne, et l'envie qu'elle a déclarée. */}
         <div>
-          <span className="trc-microlabel">La couronne · statut Ma Couronne</span>
+          {/* ══ DEUX NATURES, DEUX BLOCS — 6 septembre 2026 ═══════════════
+              « La couronne · statut Ma Couronne » disait deux choses, et
+              aucune ne se comprenait seule. Surtout, le bloc mêlait CE QUE SA
+              TÊTE EST — des faits mesurés au fauteuil — et CE QUE LA MAISON A
+              DÉCIDÉ pour elle : sa cadence, son jour, son produit. Les mêler
+              faisait croire qu'on constate ce qu'en réalité on choisit. */}
+          <span className="trc-microlabel">Ce que sa tête est · mesuré au fauteuil</span>
           <div className="trc-crown">
             {/* LE CALIBRE, LU DU COMPTAGE — c'est LA réponse que la saisie des
                 locks produit : elle se dit ici, sinon remplir le champ semble
@@ -2957,6 +2981,16 @@ function Customer360({
                   rien — le comptoir pose le rendez-vous qu'il veut — il
                   commande LA PRÉDICTION : « quand la Maison l'attend » se pose
                   alors sur son jour, au premier qui suit l'échéance. */}
+            </div>
+          </div>
+        </div>
+
+        {/* CE QUE LA MAISON A DÉCIDÉ — des choix, pas des faits. Ils commandent
+            la prédiction, la reprise et son Carnet de Suivi. */}
+        <div>
+          <span className="trc-microlabel">Ce que la Maison a décidé pour elle</span>
+          <div className="trc-crown">
+            <div className="trc-crown__grid">
               <Field label="Elle ne vient que le… · commande la prédiction">
                 <Select
                   value={client.jourPrefere === undefined ? '' : String(client.jourPrefere)}
@@ -3524,49 +3558,6 @@ function Customer360({
 
         {tab === 'compte' && <PanneauCompte client={client} byId={byId} onEncaisser={setPayAppt} />}
 
-        {tab === 'parcours' && (
-        <>
-        {/* Les quatre temps — où en est sa couronne dans le protocole. */}
-        <div>
-          <span className="trc-microlabel">
-            Les quatre temps · {tempsDone(myTemps)}/4
-            {nextTemps(myTemps) ? ` · en cours : ${nextTemps(myTemps)!.name}` : ' · couronne complète'}
-          </span>
-          <div className="trc-temps">
-            {QUATRE_TEMPS.map((t) => {
-              const on = !!myTemps[t.key];
-              return (
-                <div key={t.key} className={`trc-temps__step ${on ? 'is-on' : ''}`}>
-                  <button
-                    type="button"
-                    className="trc-temps__mark"
-                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
-                    aria-pressed={on}
-                    onClick={() => setTemps(client.id, t.key, on ? '' : today)}
-                  >
-                    {t.no}
-                  </button>
-                  <div className="trc-temps__body">
-                    <div className="trc-temps__name">{t.name}</div>
-                    <div className="trc-temps__essence">{t.essence}</div>
-                    {on && (
-                      <input
-                        type="date"
-                        className="trc-temps__date"
-                        value={myTemps[t.key]}
-                        max={today}
-                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
-                        aria-label={`Date du temps ${t.name}`}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        </>
-        )}
 
 
         {tab === 'docs' && (
@@ -3715,22 +3706,36 @@ function Customer360({
                   title="La mèche témoin, en centimètres — facultatif, c'est elle qui trace la pousse"
                   style={{ width: 78, textAlign: 'right', flex: 'none' }}
                 />
-                <Input
-                  value={cptNote}
-                  onChange={(e) => setCptNote(e.target.value)}
-                  placeholder="Un mot, si besoin…"
-                  aria-label="Note du comptage"
-                  style={{ flex: '1 1 130px', minWidth: 0 }}
-                />
+                {/* LA NOTE SE DÉPLIE — elle sert une fois sur dix et prenait la
+                    moitié de la rangée, quand la mèche témoin, seule mesure qui
+                    nourrit la courbe de pousse, était le champ le plus étroit. */}
+                {cptNoteOuverte ? (
+                  <Input
+                    autoFocus
+                    value={cptNote}
+                    onChange={(e) => setCptNote(e.target.value)}
+                    placeholder="Un mot, si besoin…"
+                    aria-label="Note du comptage"
+                    style={{ flex: '1 1 130px', minWidth: 0 }}
+                  />
+                ) : (
+                  <button type="button" className="tre-link-btn" style={{ flex: 'none' }} onClick={() => setCptNoteOuverte(true)}>
+                    + une note
+                  </button>
+                )}
                 <Button variant="copper" onClick={poser} style={{ flex: 'none' }}>Compter</Button>
               </div>
-              <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>
-                Le jour proposé est celui de son dernier rituel. Le dernier comptage devient son
-                nombre de locks, donc son tarif ; les rendez-vous déjà posés gardent leur prix.
-                {' '}
+              {/* LE LIEN SORT DU PARAGRAPHE. Il s'y cachait au bout de trois
+                  lignes : un geste qu'on ne trouve pas est un geste qui
+                  n'existe pas. */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginTop: 7 }}>
                 <button type="button" className="tre-link-btn" onClick={() => navigate(`/fil?compter=${client.id}`)}>
                   Compter quart par quart →
                 </button>
+                <span className="mnd-muted" style={{ fontSize: 11, lineHeight: 1.55, flex: '1 1 260px' }}>
+                  Le jour proposé est celui de son dernier rituel. Le dernier comptage devient son
+                  nombre de locks, donc son tarif ; les rendez-vous déjà posés gardent leur prix.
+                </span>
               </div>
             </>
           );
@@ -3781,18 +3786,30 @@ function Customer360({
                 const bande = calibreDeLaTeteAvecMarge(c.locks, bands, client.margeCalibre);
                 return (
                   <div key={c.iso || 'herite'} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderTop: '1px solid var(--hairline)' }}>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, color: 'var(--color-indigo)', minWidth: 72, fontVariantNumeric: 'tabular-nums' }}>
-                      {c.locks}
+                    {/* ══ L'ÉCART D'ABORD, LE TOTAL ENSUITE — 6 septembre 2026 ══
+                        Arbitrage de la Maison, et le code le disait déjà en
+                        commentaire sans que l'écran le montre : « 427 » ne
+                        raconte rien. « −18 » dit une casse qu'il faut regarder,
+                        « +247 » dit un dédoublement. C'est l'écart qu'on lit.
+
+                        LE PREMIER COMPTAGE N'A PAS D'ÉCART : il ne suit rien.
+                        Il garde donc son total en tête, à sa place. */}
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1, minWidth: 84,
+                        fontVariantNumeric: 'tabular-nums',
+                        color: c.ecart === null || c.ecart === 0 ? 'var(--ink-soft)'
+                          : c.ecart > 0 ? '#4A6B52' : 'var(--trv-error, #96412E)',
+                      }}
+                    >
+                      {c.ecart === null ? c.locks : c.ecart === 0 ? '=' : `${c.ecart > 0 ? '+' : '−'}${Math.abs(c.ecart)}`}
                     </span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5 }}>
                         {c.origine === 'herite' ? 'Compté avant le suivi' : frJourAn(c.iso)}
-                        {/* L'ÉCART SE LIT, PAS SEULEMENT LE CHIFFRE. */}
-                        {c.ecart !== null && c.ecart !== 0 && (
-                          <b style={{ marginLeft: 8, color: c.ecart > 0 ? '#4A6B52' : 'var(--trv-error, #96412E)' }}>
-                            {c.ecart > 0 ? '+' : '−'}{Math.abs(c.ecart)} locks
-                          </b>
-                        )}
+                        <b style={{ marginLeft: 8, fontWeight: 500, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>
+                          {c.locks} locks
+                        </b>
                         {bande && <span className="mnd-muted" style={{ marginLeft: 8, fontSize: 11 }}>{bande.name}</span>}
                         {/* UN COMPTAGE PARTIEL SE DIT : trois quarts sur quatre
                             font un total qu'on croirait complet. */}
@@ -4050,6 +4067,70 @@ function Customer360({
 
         <CourbeDesJauges bilans={mesBilans} />
         <CourbeDeLaPousse serie={serieDesComptages(tousFil, branch.id, client)} />
+        {/* ══ LES QUATRE TEMPS DESCENDENT, ET SE REPLIENT ═══════════════
+            6 septembre 2026, arbitrage de la Maison.
+
+            ILS OUVRAIENT LA PAGE alors qu'ils ne changent qu'au bilan. Ce
+            qu'on vient chercher dans un parcours — où en est sa couronne, ce
+            qui lui est dû — se trouvait dessous, et il fallait les franchir
+            chaque fois. RIEN N'EST RETIRÉ : un clic les ouvre, et le titre dit
+            toujours où elle en est, sans qu'on ait à déplier. */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setTempsOuverts((v) => !v)}
+            style={{
+              display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', width: '100%',
+              gap: 12, cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit',
+            }}
+          >
+            <span className="trc-microlabel" style={{ marginBottom: 0 }}>
+              Les quatre temps · {tempsDone(myTemps)}/4
+              {nextTemps(myTemps) ? ` · en cours : ${nextTemps(myTemps)!.name}` : ' · couronne complète'}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--copper-700)', flex: 'none' }}>
+              {tempsOuverts ? 'Replier' : 'Ouvrir'}
+            </span>
+          </button>
+          {tempsOuverts && (
+            <div style={{ marginTop: 10 }}>
+        {/* Les quatre temps — où en est sa couronne dans le protocole. */}
+          <div className="trc-temps">
+            {QUATRE_TEMPS.map((t) => {
+              const on = !!myTemps[t.key];
+              return (
+                <div key={t.key} className={`trc-temps__step ${on ? 'is-on' : ''}`}>
+                  <button
+                    type="button"
+                    className="trc-temps__mark"
+                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
+                    aria-pressed={on}
+                    onClick={() => setTemps(client.id, t.key, on ? '' : today)}
+                  >
+                    {t.no}
+                  </button>
+                  <div className="trc-temps__body">
+                    <div className="trc-temps__name">{t.name}</div>
+                    <div className="trc-temps__essence">{t.essence}</div>
+                    {on && (
+                      <input
+                        type="date"
+                        className="trc-temps__date"
+                        value={myTemps[t.key]}
+                        max={today}
+                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
+                        aria-label={`Date du temps ${t.name}`}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+            </div>
+          )}
+        </div>
+
 
         {/* Historique — chaque passage s'ouvre : le RDV dans sa modale, et s'il a
             été encaissé, sa facture d'un second geste. */}
