@@ -16,6 +16,9 @@ import { envieLabel, type EnvieKey } from '../../shared/quiz';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
+import { serieDesComptages } from '../../shared/comptages';
+import { CourbeDesJauges, CourbeDeLaPousse } from '../../ds/courbes';
+import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../shared/protocoles';
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
@@ -737,6 +740,50 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   const [bandsModeles] = useModelBands();
   const calSuivi = calibreDe(client?.lockCount, bandsModeles);
 
+  /* ══ SA PENTE, ET CE QUI L'ATTEND — 6 septembre 2026 ═══════════════
+     Maquette du 5 septembre, section ⑥ : « Ma Couronne · pour fidéliser. La
+     cliente voit sa propre pente, son protocole et ce qui l'attend. »
+
+     UN SUIVI QU'ON GARDE POUR SOI NE FIDÉLISE PERSONNE. La Maison mesurait
+     déjà — quatre jauges par bilan, une mèche témoin à chaque resserrage — et
+     tout cela restait au Trône. La cliente recevait un chiffre le jour même et
+     n'a jamais vu sa courbe.
+
+     CE QUI RESTE AU TRÔNE : le comptage de locks et le calibre. Ils commandent
+     le tarif, et un chiffre qui décide d'un prix n'a rien à faire dans une
+     application où on ne peut pas l'expliquer. */
+  const [bilansTous] = useBilans();
+  const mesBilans = useMemo(
+    () => (client ? bilansTous.filter((b) => b.clientId === client.id) : []),
+    [bilansTous, client],
+  );
+  const monDernierBilan = client ? dernierBilanDe(bilansTous, client.id) : undefined;
+  /* LA MÈCHE TÉMOIN VIT SUR LA FICHE, pas au Fil : la série se lit donc sans
+     lui, et c'est heureux — le Fil est la parole de l'atelier, il ne se remet
+     pas. */
+  const maSerie = useMemo(
+    () => (client ? serieDesComptages([], client.branchId, client) : []),
+    [client],
+  );
+
+  const svcById = useMemo(() => new Map(services.map((sv) => [sv.id, sv])), [services]);
+  const maCouleur = client ? derniereCouleur(clientAppts, client.id, svcById) : undefined;
+  /* LE PROGRAMME S'OUVRE OÙ LA MAISON L'A POSÉ, ou derrière le dernier VÍVÍVÓ™
+     honoré. La cliente lit la même ouverture que le Trône : deux dates de
+     départ donneraient deux calendriers pour un seul programme. */
+  const { depart: activateurPousse } = client
+    ? ouvertureDuProgramme({ pose: client.programmeDepuis, appts: clientAppts, clientId: client.id, byId: svcById })
+    : { depart: undefined };
+  const suiteCouleur = maCouleur
+    ? suivreLeProtocole({ couleur: maCouleur, appts: clientAppts, byId: svcById, aujourdhui: todayIso() })
+    : [];
+  const suitePousse = activateurPousse
+    ? suivreLeProtocole({
+      couleur: activateurPousse, appts: clientAppts, byId: svcById,
+      aujourdhui: todayIso(), etapes: PROTOCOLE_POUSSE,
+    })
+    : [];
+
   /* La timeline naît des vrais rendez-vous : naissance de la couronne,
      rituels honorés, puis le prochain rendez-vous en attente. */
   const timeline: { d: string; t: string; s: string; done: boolean }[] = [];
@@ -810,6 +857,95 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
             </div>
             <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
           </div>
+        </>
+      )}
+
+      {/* ══ SA PENTE ═══════════════════════════════════════════════════
+          LA MAISON MESURAIT DÉJÀ, ET NE MONTRAIT RIEN. Quatre jauges par
+          bilan, une mèche témoin à chaque resserrage, depuis le début. C'est
+          la PENTE qui parle, pas la note du jour : une jauge à 3 ne dit rien,
+          « 3 après un 2 » dit que le soin a pris.
+
+          UNE JAUGE QUI BAISSE NE DOIT JAMAIS SE LIRE COMME UN REPROCHE. Elle
+          est donc suivie de ce que la Maison a noté ce jour-là — le geste qui
+          la relève, écrit de sa main, jamais inventé ici. */}
+      {mesBilans.length >= 2 && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
+            {regard ? 'Ce que la maison observe chez elle' : 'Ce que la maison observe'}
+          </div>
+          <CourbeDesJauges bilans={mesBilans} />
+          {(monDernierBilan?.points ?? []).length > 0 && (
+            <div className="mc-recocard" style={{ display: 'block', marginTop: 12 }}>
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                Ce que la maison a noté le {dayLabelIso(monDernierBilan!.date)}
+              </div>
+              <ul style={{ margin: '8px 0 0', padding: '0 0 0 18px', lineHeight: 1.7 }}>
+                {monDernierBilan!.points.map((pt, i) => <li key={i}>{pt}</li>)}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* LA POUSSE — la mèche témoin, mesurée dans le même geste que le
+          comptage. Le repère à 1 cm par mois transforme la courbe en
+          évaluation : au-dessus, la Maison fait mieux que la nature. */}
+      {maSerie.filter((c) => (c.longueurCm ?? 0) > 0).length >= 3 && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
+            {regard ? 'Sa pousse, mèche témoin' : 'Votre pousse, mèche témoin'}
+          </div>
+          <CourbeDeLaPousse serie={maSerie} />
+        </>
+      )}
+
+      {/* ══ CE QUI L'ATTEND ════════════════════════════════════════════
+          LE PROTOCOLE NE POSE RIEN TOUT SEUL, ici pas plus qu'au Trône : il
+          DIT ce qui est dû et quand. Une étape à poser porte donc un bouton
+          qui ouvre la réservation — c'est la main de la cliente qui décide,
+          et c'est aussi ce qui fidélise : elle sait ce qui vient. */}
+      {(suiteCouleur.length > 0 || suitePousse.length > 0) && (
+        <>
+          <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
+            {regard ? 'Ce qui attend sa couronne' : 'Ce qui attend votre couronne'}
+          </div>
+          {[
+            { titre: 'Après votre couleur', suite: suiteCouleur },
+            { titre: 'Le programme de pousse', suite: suitePousse },
+          ].filter((g) => g.suite.length > 0).map((g) => (
+            <div key={g.titre} style={{ marginBottom: 14 }}>
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10, marginBottom: 8 }}>{g.titre}</div>
+              {g.suite.map((e) => (
+                <div key={`${g.titre}-${e.code}-${e.jours}`} className="mc-tl">
+                  <div className="mc-tl__rail">
+                    <span className={`mc-tl__dot ${e.etat === 'fait' ? 'is-done' : ''}`} />
+                    <span className="mc-tl__line" />
+                  </div>
+                  <div className="mc-tl__body">
+                    <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
+                      {dayLabelIso(e.dueIso)} · {MOT_DE_L_ETAT[e.etat]}
+                    </div>
+                    <div className="mc-tl__t">{e.nom}</div>
+                    <div className="mc-tl__s">{e.pourquoi}</div>
+                    {/* LA MÈRE POSE AUSSI POUR SA FILLE : le suivi se lit sur
+                        la tête regardée, la réservation doit suivre le même
+                        regard, sans quoi le geste ouvrirait le calendrier de
+                        la mauvaise couronne. */}
+                    {(e.etat === 'a-poser' || e.etat === 'en-retard') && (
+                      <button
+                        className="mc-cta"
+                        style={{ marginTop: 8 }}
+                        onClick={() => onOpenBooking({ pourId: regard?.id })}
+                      >
+                        Poser ce rendez-vous
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </>
       )}
 

@@ -113,6 +113,41 @@ qu'on l'ait regardé serait un rituel que personne n'a vu. Et le prix reste celu
 du catalogue d'aujourd'hui — le montant réglé jadis est là pour aider à corriger
 une ligne, pas pour s'appliquer à sa place.
 
+## LE SUIVI DE LA COURONNE, CÔTÉ CLIENTE — 6 septembre 2026, PUBLIÉ
+
+La maquette du 5 septembre le prévoyait, section ⑥, et **seul le côté Trône
+avait été construit**. « Un suivi qu'on garde pour soi ne fidélise personne ;
+celui qu'on remet, si. »
+
+Dans **Ma Couronne › Suivi**, sous les trois chiffres de la couronne :
+
+- **Ce que la maison observe** — la courbe des quatre jauges de ses bilans.
+  C'est la PENTE qui parle, pas la note du jour : « 3 après un 2 » dit que le
+  soin a pris. **Une jauge qui baisse ne doit jamais se lire comme un
+  reproche** : la courbe est donc suivie de ce que la Maison a noté ce jour-là,
+  les `points` du dernier bilan, écrits de sa main et jamais inventés ici.
+- **Sa pousse, mèche témoin** — la courbe en centimètres, avec le repère à
+  1 cm/mois.
+- **Ce qui attend sa couronne** — les deux protocoles, chaque étape avec sa date
+  et son état. Une étape *à poser* ou *en retard* porte un bouton qui ouvre la
+  réservation : **le protocole ne pose rien tout seul**, ici pas plus qu'au
+  Trône, et c'est justement ce qui fidélise — elle sait ce qui vient.
+
+**Ce qui reste au Trône** : le comptage de locks et le calibre. Ils commandent
+le tarif, et un chiffre qui décide d'un prix n'a rien à faire dans une
+application où personne ne peut l'expliquer.
+
+`Courbes.tsx` a quitté `routes/clients/` pour **`src/ds/courbes.tsx`** : les
+deux apps lisent la même implémentation, elle ne dépendait que du DS.
+
+**Les seuils sont ceux des courbes** : deux bilans pour les jauges, trois
+mesures en cm pour la pousse. En dessous, rien ne paraît — deux points ne font
+pas une tendance. **Peu de têtes les atteignent aujourd'hui.**
+
+RLS vérifiée : `bilans.own_sel` (`data->>'clientId' = auth.uid()`) et
+`clients.cli_sel` (`id = auth.uid()`) donnent à la cliente ses bilans et sa
+fiche, donc ses comptages.
+
 ### Ce qu'elle a réservé arrive à l'encaissement — 6 septembre 2026
 
 « Possible de passer un règlement pour le rituel RDV et la Gamme dans la modale

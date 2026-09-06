@@ -27,7 +27,7 @@ import { SIGNAL_NOMS, litObservation, type SignalCle } from '../../../../shared/
 import { aiEnabled, suggestClient } from '../../../../shared/ai';
 import { filStore, useFil, nouveauMessage, canalCliente, notesDeLaCliente, dernierComptage, totalDuComptage, comptageEnClair } from '../../../../shared/fil';
 import { serieDesComptages, type ComptageLu } from '../../../../shared/comptages';
-import { CourbeDesJauges, CourbeDeLaPousse } from './Courbes';
+import { CourbeDesJauges, CourbeDeLaPousse } from '../../../../ds/courbes';
 import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, PROTOCOLE_POUSSE, MOT_DE_L_ETAT } from '../../../../shared/protocoles';
 import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';

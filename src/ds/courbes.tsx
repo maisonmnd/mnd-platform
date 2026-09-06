@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Bilan } from '../../../../shared/bilans';
-import type { ComptageLu } from '../../../../shared/comptages';
+import type { Bilan } from '../shared/bilans';
+import type { ComptageLu } from '../shared/comptages';
 
 /* ══ LE SUIVI DE LA COURONNE, EN COURBES — 5 septembre 2026 ═════════
    (maquette `maquette-le-suivi-de-la-couronne.html`, validée)
