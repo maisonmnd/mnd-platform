@@ -53,6 +53,7 @@ import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
+import { CarteModal } from './CarteModal';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -1785,6 +1786,9 @@ function Customer360({
   const [bands] = useModelBands();
   const [fixSvc, setFixSvc] = useState('');
   const [fixMontant, setFixMontant] = useState('');
+  /* SA CARTE — anniversaire, merci, Cercle. Elle s'ouvre depuis sa fiche :
+     c'est en la lisant qu'on pense a l'envoyer. */
+  const [carteOuverte, setCarteOuverte] = useState(false);
   /* Le prix ferme en cours de correction — édité EN PLACE, comme partout :
      retirer puis reposer faisait deux gestes (et un trou entre les deux). */
   const [fixEdit, setFixEdit] = useState<null | { sid: string; montant: string }>(null);
@@ -3576,6 +3580,19 @@ function Customer360({
               >
                 Vit ailleurs
               </button>
+              {/* ══ SA CARTE — 6 septembre 2026 (maquette validée) ═══════
+                  Anniversaire, merci, Cercle. Elle se dessine ici, à côté de
+                  ce qui dit sa place à la Maison : c'est en lisant sa fiche
+                  qu'on pense à l'envoyer. */}
+              <button
+                type="button"
+                className="trc-chip"
+                title={`Dessiner une carte pour ${client.name}`}
+                onClick={() => setCarteOuverte(true)}
+              >
+                Sa carte
+              </button>
+              {carteOuverte && <CarteModal client={client} onClose={() => setCarteOuverte(false)} />}
               <button
                 type="button"
                 className={`trc-chip ${client.locksDefaits ? 'is-active' : ''}`}

@@ -54,6 +54,17 @@ export type Client = {
       corrige jamais. Distinct de `notes`, qui porte les notes de consultation. */
   observation?: string;
   archived?: boolean;
+  /** AU MASCULIN — 6 septembre 2026, pour les cartes de la Maison.
+
+      Les cartes s'adressent à quelqu'un : « Chère » ou « Cher », « entourée »
+      ou « entouré ». Le demander à chaque envoi, c'est se tromper une fois sur
+      dix, et une carte au mauvais genre ne se rattrape pas une fois envoyée.
+
+      ABSENT = FÉMININ, et c'est le bon défaut : presque toutes les têtes de la
+      Maison le sont. Un champ, pas un segment, pour la raison habituelle. Il
+      ne sert QU'À ÉCRIRE : aucun compte, aucun prix, aucune statistique ne le
+      regarde. */
+  auMasculin?: boolean;
   diaspora?: boolean;
   /** ELLE A DÉFAIT SES LOCKS — 6 septembre 2026, demande de Yéman.
 

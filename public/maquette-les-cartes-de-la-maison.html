@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les cartes de la Maison · MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  @font-face{
+    font-family:'MND Fon';
+    src:url('/assets/fonts/devise-fon.woff2') format('woff2'),
+        url('/assets/fonts/devise-fon.ttf') format('truetype');
+    font-weight:400; font-style:normal; font-display:swap;
+    unicode-range:U+0186,U+0189,U+0190,U+0254,U+025B,U+0256,U+0301;
+  }
+  :root{
+    --indigo:#1E2150; --indigo-500:#2C3470; --indigo-deep:#15173A; --indigo-200:#A7ACC9;
+    --copper:#B97A4A; --cu-100:#F1DDC9; --cu-200:#E4BE9C; --cu-300:#D6A06F;
+    --cu-400:#C98A53; --cu-600:#9E6238; --cu-700:#7C4C2C;
+    --ivoire:#F6F1E7; --sable:#E3DACB; --argile:#CDBBA9;
+    --ink:#14141B; --ink-soft:#45454F; --hairline:#DED5C3;
+    --serif:'Cormorant Garamond',Georgia,serif;
+    --sans:'Jost','Century Gothic',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#EFE9DD;color:var(--ink);font-family:var(--sans);font-size:15px;
+       line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1400px;margin:0 auto;padding:30px 24px 90px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cu-700);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(28px,4vw,44px);line-height:1.05;
+     color:var(--indigo);margin:0 0 6px;letter-spacing:-.015em}
+  .chapo{max-width:660px;color:var(--ink-soft);font-size:13.5px;margin:0 0 22px}
+
+  /* ── LA BARRE DE RÉGLAGE — c'est l'écran du Trône en petit ── */
+  .barre{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;
+         background:#FBF8F2;border:1px solid var(--hairline);border-radius:4px;
+         padding:14px 18px;margin-bottom:22px}
+  .grp u{text-decoration:none;display:block;font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+         color:var(--ink-soft);font-weight:500;margin-bottom:7px}
+  .grp div{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--hairline);background:#fff;border-radius:3px;font-family:var(--sans);
+        font-size:11.5px;color:var(--ink-soft);padding:8px 14px;cursor:pointer;transition:.18s}
+  .chip:hover{border-color:var(--cu-300)}
+  .chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
+  .grp input{border:1px solid var(--hairline);background:#fff;border-radius:3px;font-family:var(--sans);
+             font-size:13px;padding:8px 12px;width:190px;color:var(--ink)}
+  .grp.off{opacity:.32;pointer-events:none}
+
+  .duo{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  .col > .titre{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cu-700);
+                margin:0 0 9px;font-weight:500}
+
+  /* ══ LA CARTE — 1080 × 1350, dessinée en vraie taille puis réduite ══
+     Les mesures d'ici partent telles quelles dans le canvas : une maquette à
+     l'échelle donnerait des chiffres à retraduire, et c'est en traduisant
+     qu'on se trompe. */
+  .scene{width:486px;height:607.5px;overflow:hidden;border:1px solid var(--hairline);
+         box-shadow:0 18px 44px rgba(30,33,80,.14)}
+  /* UNE COLONNE, PAS DEUX BLOCS FLOTTANTS. Le pied était posé en absolu, et
+     son écart avec le texte dépendait donc de la longueur de ce texte : sur la
+     carte du Cercle il touchait « Bienvenue parmi les nôtres », sur une carte
+     plus courte il flottait seul. En flux, l'air se déclare une fois et vaut
+     pour les six variantes. */
+  .carte{width:1080px;height:1350px;transform:scale(.45);transform-origin:top left;
+         position:relative;overflow:hidden;font-family:var(--serif);
+         display:flex;flex-direction:column;text-align:center;padding-bottom:62px}
+  /* LA CARTE A UNE HAUTEUR, ET RIEN N'EN SORT. En passant le pied dans le flux
+     on a découvert ce que l'absolu cachait : le texte dépassait les 1350 px, et
+     la devise se posait sur le filet intérieur. Chaque corps a donc été ramené
+     à sa juste taille, une fois pour les six variantes, plutôt que rattrapé
+     carte par carte. */
+
+  /* Deux fonds seulement : le jour et le soir. Le Cercle est une cérémonie, il
+     lui fallait sa profondeur ; trois fonds auraient dilué la marque. */
+  .carte.clair{background:
+      radial-gradient(760px 520px at 84% 6%, rgba(214,160,111,.30) 0%, rgba(214,160,111,0) 62%),
+      radial-gradient(620px 480px at 6% 96%, rgba(30,33,80,.10) 0%, rgba(30,33,80,0) 60%),
+      linear-gradient(158deg,#FDF9F2 0%,#F6F1E7 46%,#F1E4D3 100%)}
+  .carte.profond{background:
+      radial-gradient(720px 520px at 82% 8%, rgba(214,160,111,.30) 0%, rgba(214,160,111,0) 60%),
+      radial-gradient(640px 500px at 8% 94%, rgba(185,122,74,.16) 0%, rgba(185,122,74,0) 58%),
+      linear-gradient(158deg,#2C3470 0%,#1E2150 44%,#15173A 100%)}
+
+  .cadre{position:absolute;inset:38px;border:2px solid var(--cu-300);border-radius:3px;pointer-events:none}
+  .cadre::after{content:'';position:absolute;inset:9px;border:1px solid rgba(185,122,74,.42);border-radius:2px}
+
+  /* Ballons et confettis : le mouvement vient d'eux, pas d'une animation. La
+     carte finit en image, la vie doit tenir dans un seul instant. */
+  .ballon{position:absolute}
+  .ballon i{display:block;border-radius:50% 50% 48% 48%;position:relative}
+  .ballon i::after{content:'';position:absolute;left:22%;top:16%;width:22%;height:26%;
+                   border-radius:50%;background:rgba(255,255,255,.42)}
+  .ballon b{position:absolute;left:50%;transform:translateX(-50%) rotate(45deg);
+            width:14px;height:14px;margin-top:-5px}
+  .fil{position:absolute;stroke-width:2;fill:none;opacity:.55}
+  .conf{position:absolute;border-radius:1px}
+  .pois{position:absolute;border-radius:50%}
+
+  /* LE TEXTE PASSE DEVANT LES BALLONS — 6 septembre 2026.
+     « anniversaire n'est pas lisible avec le ballon blanc » (Yeman).
+
+     CE N'ETAIT PAS UNE AFFAIRE DE PLACE, MAIS D'ORDRE DE PEINTURE. Les ballons
+     sont poses en absolu, le texte vit dans le flux : un element positionne
+     passe devant un element qui ne l'est pas, quoi qu'on ecrive apres lui dans
+     le document. Le ballon ivoire recouvrait donc le « a », et deplacer les
+     ballons n'aurait fait que deplacer le probleme sur une autre lettre.
+
+     Un cran de z-index, et la disposition demandee reste intacte au pixel
+     pres. Le titre est un degrade cuivre : sur l'ivoire du ballon comme sur
+     l'ivoire du fond, il se lit pareil ; sur l'indigo, il se lit mieux. */
+  .centre{padding:0 118px;flex:none;position:relative;z-index:2}
+
+  .sur{font-weight:300;font-size:88px;line-height:1;letter-spacing:.02em}
+  .grand{font-style:italic;font-weight:500;line-height:.98;margin-top:4px;white-space:nowrap;
+         background:linear-gradient(96deg,#C98A53 0%,#7C4C2C 26%,#E4BE9C 52%,#9E6238 78%,#D6A06F 100%);
+         -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.012em}
+  .carte.profond .grand{background:linear-gradient(96deg,#E4BE9C 0%,#D6A06F 30%,#F1DDC9 54%,#C98A53 80%,#E4BE9C 100%);
+         -webkit-background-clip:text;background-clip:text}
+
+  .flourish{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}
+  .flourish span{height:1px;width:132px;background:linear-gradient(90deg,transparent,var(--cu-300))}
+  .flourish span:last-child{background:linear-gradient(90deg,var(--cu-300),transparent)}
+  .flourish img{width:68px;height:68px;opacity:.95}
+  /* CINQ ÉTOILES SERRÉES, pas cinq objets épars : c'est une note, elle se lit
+     d'un bloc. Les filets se raccourcissent pour leur faire place. */
+  .flourish.etoiles{gap:8px}
+  .flourish.etoiles span{width:96px}
+
+  .appel{font-style:italic;font-weight:400;font-size:44px;line-height:1;color:var(--cu-700);margin-top:24px}
+  .prenom{font-style:italic;font-weight:500;font-size:114px;line-height:1;color:var(--indigo);
+          margin-top:6px;letter-spacing:-.01em}
+  .phrase{font-weight:400;font-size:46px;line-height:1.32;color:var(--ink);margin-top:26px}
+  .corps{font-family:var(--sans);font-weight:300;font-size:29px;line-height:1.72;
+         color:var(--ink-soft);margin-top:26px}
+  .corps b{font-weight:400;color:var(--indigo)}
+  .signe{font-style:italic;font-weight:400;font-size:38px;color:var(--indigo);margin-top:26px}
+
+  .carte.clair .sur{color:var(--indigo)}
+  .carte.profond .sur{color:var(--ivoire)}
+  .carte.profond .appel{color:var(--cu-200)}
+  .carte.profond .prenom{color:var(--ivoire)}
+  .carte.profond .phrase{color:var(--cu-100)}
+  .carte.profond .corps{color:var(--indigo-200)}
+  .carte.profond .corps b{color:var(--cu-200)}
+  .carte.profond .signe{color:var(--cu-200)}
+
+  /* LE PIED : le picto, la marque, la signature de la Maison.
+     Le PNG porte un quart de vide sur chaque bord, d'où sa taille et sa marge
+     négative ; et « L'ATELIER MND » traîne son interlettrage APRÈS sa dernière
+     lettre, donc le mot centré par le navigateur se posait un demi-espacement
+     trop à gauche. Le padding-left rend cette moitié. */
+  /* LE PIED RESTE DANS LE FLUX — c'est la seule chose que je garde des essais :
+     posé en absolu, son écart dépendait de la longueur du texte, et la devise
+     finissait sur le filet. En flux, l'air se déclare une fois. Ses corps sont
+     ceux d'origine, pour ne rien prendre au texte. */
+  .pied{flex:none;margin-top:auto;padding-top:16px;position:relative;z-index:2}
+  .pied img{width:92px;height:92px;display:block;margin:0 auto -16px}
+  .marque{font-family:var(--sans);font-weight:400;font-size:36px;letter-spacing:.32em;
+          padding-left:.32em;color:var(--indigo);margin-top:6px;text-transform:uppercase}
+  .filet{width:190px;height:1px;background:var(--cu-300);margin:12px auto 0}
+  .devise{font-style:italic;font-weight:400;font-size:28px;line-height:1.2;color:var(--cu-700);margin-top:10px}
+  .devise .fon{font-family:'MND Fon',var(--serif)}
+  .carte.profond .marque{color:var(--ivoire)}
+  .carte.profond .devise{color:var(--cu-200)}
+
+  /* Le sceau du Cercle — une cérémonie se scelle, elle ne se souligne pas. */
+  .sceau{width:150px;height:150px;border-radius:50%;border:2px solid var(--cu-300);
+         display:flex;align-items:center;justify-content:center;margin:10px auto 0;
+         background:rgba(185,122,74,.12)}
+  .sceau img{width:104px;height:104px}
+
+  /* ── LE PANNEAU ── */
+  .side{flex:1 1 300px;min-width:290px;max-width:400px}
+  .bloc{background:#FBF8F2;border:1px solid var(--hairline);border-radius:4px;padding:15px 18px;margin-bottom:13px}
+  .bloc h2{font-family:var(--sans);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+           color:var(--ink-soft);font-weight:500;margin:0 0 9px}
+  .ligne{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-top:1px solid #EFE8DA;font-size:13px}
+  .ligne:first-of-type{border-top:none}
+  .ligne u{text-decoration:none;flex:none;width:118px;font-size:9.5px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--cu-700);font-weight:500}
+  .ligne span{flex:1;color:var(--ink)}
+  .note{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:9px}
+  .note b{color:var(--indigo);font-weight:500}
+  .alerte{border-color:var(--cu-300);background:#FDF4EC}
+
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--hairline);font-family:var(--serif);
+         font-style:italic;font-size:14px;color:var(--cu-700);text-align:center}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Le Trône · maquette à valider</p>
+  <h1>Les cartes de la Maison.</h1>
+  <p class="chapo">
+    Trois cartes, un seul gabarit : 1080 × 1350, l’image se télécharge et s’attache
+    à un WhatsApp ou à un e-mail. Le prénom se lit de sa fiche, le genre se pose une fois.
+  </p>
+
+  <div class="barre">
+    <div class="grp">
+      <u>La carte</u>
+      <div id="grpCarte"></div>
+    </div>
+    <div class="grp" id="grpMotifWrap">
+      <u>Le motif</u>
+      <div id="grpMotif"></div>
+    </div>
+    <div class="grp">
+      <u>Le prénom</u>
+      <div><input id="prenom" value="Baké" /></div>
+    </div>
+  </div>
+
+  <div class="duo">
+    <div class="col">
+      <p class="titre">Version femme</p>
+      <div class="scene"><div class="carte" id="carteF"></div></div>
+    </div>
+    <div class="col">
+      <p class="titre">Version homme</p>
+      <div class="scene"><div class="carte" id="carteH"></div></div>
+    </div>
+
+    <div class="side">
+      <div class="bloc">
+        <h2>Ce qui change entre les deux</h2>
+        <div class="ligne"><u>L’appel</u><span><b>Chère</b> · <b>Cher</b></span></div>
+        <div class="ligne"><u>L’accord</u><span>venu<b>e</b> · venu · entour<b>ée</b> · entour<b>é</b></span></div>
+        <div class="ligne"><u>Le reste</u><span>identique, au mot près</span></div>
+        <p class="note">
+          Le genre se pose une fois sur sa fiche, puis il est retenu. Sans réponse,
+          la carte part au féminin.
+        </p>
+      </div>
+
+      <div class="bloc">
+        <h2>Quand chacune part</h2>
+        <div class="ligne"><u>Anniversaire</u><span>le jour dit, depuis sa fiche</span></div>
+        <div class="ligne"><u>Merci · venue</u><span>le soir d’un rituel honoré</span></div>
+        <div class="ligne"><u>Merci · confiance</u><span>quand la Maison veut</span></div>
+        <div class="ligne"><u>Merci · parlé</u><span>à la main, quelqu’un est venu de sa part</span></div>
+        <div class="ligne"><u>Merci · étoiles</u><span>à la main, le jour où l’avis paraît</span></div>
+        <div class="ligne"><u>Merci · l’année</u><span>en décembre, à toutes en une fois</span></div>
+        <div class="ligne"><u>Le Cercle</u><span>à sa 3ᵉ venue honorée</span></div>
+      </div>
+
+      <div class="bloc">
+        <h2>Ce qu’on peut en faire</h2>
+        <p class="note" style="margin-top:0">
+          <b>Télécharger</b> pose un PNG sur l’ordinateur, à joindre où l’on veut.
+          <b>Partager</b> n’existe que sur téléphone, et là l’image part directement
+          dans WhatsApp. <b>WhatsApp</b> et <b>E-mail</b> ouvrent le message avec le
+          mot déjà écrit : un lien ne sait pas porter une pièce jointe, l’image
+          s’attache à la main.
+        </p>
+      </div>
+
+      <div class="bloc alerte">
+        <h2>Un point à trancher</h2>
+        <p class="note" style="margin-top:0">
+          La carte du Cercle ne promet <b>ni points ni geste offert</b> : le programme
+          de points n’est pas activé dans Le Trône. Elle dit que la Maison la reconnaît
+          et que son compte Ma Couronne garde le compte. Le jour où les points s’allument,
+          la phrase pourra le dire.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <footer>Maquette · à valider avant construction · mi ny<span style="font-family:'MND Fon',serif">ɔ́ ɖɛ</span>kpɛ</footer>
+</div>
+
+<script>
+/* ══ UN SEUL GABARIT, TROIS CARTES ═══════════════════════════════════
+   Les trois se dessinent du même modèle : un seul endroit à corriger, et la
+   version homme n'est jamais une copie qui aurait oublié un accord. */
+
+const F = { appel: 'Chère', venue: 'venue', entour: 'entourée' };
+const H = { appel: 'Cher',  venue: 'venu',  entour: 'entouré'  };
+
+const CARTES = {
+  anniversaire: {
+    mot: 'Anniversaire', fond: 'clair', deco: 'ballons',
+    sur: 'Joyeux',
+    grand: () => 'anniversaire', taille: 140,
+    phrase: () => 'Que cette année te ressemble, douce et lumineuse.',
+    corps: (g) => `Toute l’équipe de <b>L’atelier MND</b> te souhaite une belle journée,
+      ${g.entour} de celles et ceux qui t’aiment. Que la santé, la joie et la lumière
+      t’accompagnent tout au long de l’année.`,
+    signe: 'Avec toute notre affection.',
+  },
+
+  merci: {
+    mot: 'Merci', fond: 'clair', deco: 'confettis',
+    motifs: {
+      venue: {
+        mot: 'D’être venue', sur: 'Merci',
+        grand: (g) => `d’être ${g.venue}`, taille: 132,
+        phrase: () => 'Ta couronne était entre nos mains aujourd’hui.',
+        corps: () => `C’est une confiance que nous ne prenons pas à la légère.
+          Prends soin d’elle jusqu’à la prochaine fois, et <b>L’atelier MND</b> s’occupe du reste.`,
+        signe: 'Avec toute notre affection.',
+      },
+      confiance: {
+        mot: 'De ta confiance', sur: 'Merci',
+        grand: () => 'de ta confiance', taille: 118,
+        phrase: () => 'Une couronne se construit à deux.',
+        corps: () => `Saison après saison, tu nous confies la tienne, et nous en sommes fiers.
+          Toute l’équipe de <b>L’atelier MND</b> te remercie.`,
+        signe: 'Avec toute notre affection.',
+      },
+      parle: {
+        mot: 'D’avoir parlé de nous', sur: 'Merci',
+        grand: () => 'd’avoir parlé de nous', taille: 88,
+        phrase: () => 'Quelqu’un est venu de ta part.',
+        corps: () => `C’est le plus beau des compliments, et nous ne l’oublions pas.
+          Toute l’équipe de <b>L’atelier MND</b> te remercie.`,
+        signe: 'Avec toute notre affection.',
+      },
+      etoiles: {
+        mot: 'Pour les cinq étoiles', sur: 'Merci',
+        grand: () => 'pour tes cinq étoiles', taille: 88,
+        /* LES ÉTOILES REMPLACENT LA COURONNE, elles ne s'ajoutent pas : deux
+           emblèmes sur une même carte, et l'œil ne sait plus lequel regarder. */
+        deco: 'etoiles',
+        phrase: () => 'Cinq étoiles, et quelques mots qui nous portent.',
+        corps: () => `Ce que tu as écrit se lit avant nous, par celles qui nous cherchent.
+          C’est ce qui fait venir la suivante, et nous ne l’oublions pas.
+          Toute l’équipe de <b>L’atelier MND</b> te remercie.`,
+        signe: 'Avec toute notre affection.',
+      },
+      annee: {
+        mot: 'Pour cette année', sur: 'Merci',
+        grand: () => 'pour cette année', taille: 116,
+        phrase: () => 'Une année de plus à veiller sur ta couronne.',
+        corps: () => `Merci de nous l’avoir confiée. Que la prochaine te soit douce,
+          et qu’elle nous retrouve à <b>L’atelier MND</b>.`,
+        signe: 'Avec toute notre affection.',
+      },
+    },
+  },
+
+  cercle: {
+    mot: 'Le Cercle', fond: 'profond', deco: 'sceau',
+    sur: 'Bienvenue dans',
+    grand: () => 'Le Cercle', taille: 156,
+    phrase: () => 'Trois venues, et la Maison te reconnaît.',
+    /* AUCUNE PROMESSE DE POINTS : le programme n'est pas activé dans Le Trône,
+       et une carte qui annonce un avantage inexistant se retourne au fauteuil. */
+    corps: () => `À partir d’aujourd’hui, la Maison compte tes venues et tes gestes.
+      Ton compte <b>Ma Couronne</b> les garde pour toi, et ce qui s’ouvre s’ouvrira de lui-même.`,
+    signe: 'Bienvenue parmi les nôtres.',
+  },
+};
+
+/* Une graine fixe plutôt que du hasard : la carte de Baké et celle de Kossi
+   doivent être exactement la même carte. */
+function alea(graine) {
+  let x = graine;
+  return () => { x = (x * 1103515245 + 12345) % 2147483648; return x / 2147483648; };
+}
+
+const CLAIRES = ['#1E2150', '#B97A4A', '#D6A06F', '#E4BE9C', '#CDBBA9', '#9E6238'];
+const SOMBRES = ['#E4BE9C', '#D6A06F', '#F1DDC9', '#C98A53', '#A7ACC9', '#B97A4A'];
+
+function confettis(fond, densite) {
+  const r = alea(7);
+  const teintes = fond === 'profond' ? SOMBRES : CLAIRES;
+  let html = '';
+  for (let i = 0; i < densite; i++) {
+    const x = r() * 1080, y = r() * 1350;
+    /* LE TEXTE RESPIRE : rien ne tombe dans la colonne centrale, sinon on lit
+       à travers des paillettes. */
+    if (x > 150 && x < 930 && y > 250 && y < 1120) continue;
+    const c = teintes[Math.floor(r() * teintes.length)];
+    const rond = r() > 0.55;
+    const t = 6 + r() * 12;
+    html += rond
+      ? `<i class="pois" style="left:${x}px;top:${y}px;width:${t * 0.7}px;height:${t * 0.7}px;background:${c};opacity:${0.35 + r() * 0.5}"></i>`
+      : `<i class="conf" style="left:${x}px;top:${y}px;width:${t}px;height:${t * 0.42}px;background:${c};opacity:${0.35 + r() * 0.5};transform:rotate(${r() * 180}deg)"></i>`;
+  }
+  return html;
+}
+
+/* ══ LES BALLONS D'ORIGINE — « je veux exactement cette disposition, pas un
+   autre style » (Yéman).
+
+   J'AI ESSAYÉ DEUX AUTRES DISPOSITIONS et les deux étaient moins bonnes : une
+   guirlande sage, puis deux couloirs latéraux qui obligeaient à resserrer le
+   texte. Celle-ci est le bouquet du coin haut-gauche, avec ses longs fils qui
+   ondulent jusqu'au bas de la carte, et un ballon seul à droite pour équilibrer.
+
+   LE « a » N'ÉTAIT PAS CACHÉ PAR LES BALLONS mais par la hauteur du titre : le
+   texte était descendu, et « anniversaire » venait glisser sous le ballon
+   ivoire. Il reprend sa place d'origine, et la lettre revient. */
+const BALLONS = [
+  { x: 148, y: 196, rx: 94, ry: 116, fond: 'linear-gradient(150deg,#2C3470,#15173A)', fil: '#1E2150' },
+  { x: 306, y: 138, rx: 78, ry: 96,  fond: 'linear-gradient(150deg,#E4BE9C,#B97A4A)', fil: '#B97A4A' },
+  { x: 236, y: 352, rx: 64, ry: 79,  fond: 'linear-gradient(150deg,#FDF9F2,#E3DACB)', fil: '#CDBBA9' },
+  { x: 934, y: 232, rx: 70, ry: 86,  fond: 'linear-gradient(150deg,#D6A06F,#9E6238)', fil: '#B97A4A' },
+];
+
+function ballons() {
+  let html = '<svg style="position:absolute;inset:0" width="1080" height="1350" aria-hidden="true">';
+  for (const b of BALLONS) {
+    const bas = b.y + b.ry + 14;
+    html += `<path class="fil" stroke="${b.fil}" d="M${b.x} ${bas} C ${b.x - 26} ${bas + 78}, ${b.x + 26} ${bas + 150}, ${b.x - 10} ${bas + 226}" />`;
+  }
+  html += '</svg>';
+  for (const b of BALLONS) {
+    html += `<span class="ballon" style="left:${b.x - b.rx}px;top:${b.y - b.ry}px">
+      <i style="width:${b.rx * 2}px;height:${b.ry * 2}px;background:${b.fond}"></i>
+      <b style="top:${b.ry * 2}px;background:${b.fil}"></b>
+    </span>`;
+  }
+  return html;
+}
+
+function rendre(el, cle, motif, genre, prenom) {
+  const base = CARTES[cle];
+  const c = base.motifs ? base.motifs[motif] : base;
+  const g = genre === 'homme' ? H : F;
+  const profond = base.fond === 'profond';
+  const mono = profond ? 'mono-ivoire' : 'mono-copper';
+
+  /* L'EMBLÈME DIT DE QUOI PARLE LA CARTE, en un coup d'œil et sans un mot :
+     la couronne d'ordinaire, un sceau pour le Cercle, cinq étoiles pour l'avis.
+     Un motif peut donc le reprendre à sa carte. */
+  const deco = c.deco ?? base.deco;
+  const etoile = (t) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="${profond ? '#E4BE9C' : '#B97A4A'}"
+      d="M12 2.2l2.85 6.35 6.9.62-5.2 4.6 1.53 6.78L12 16.9l-6.08 3.65 1.53-6.78-5.2-4.6 6.9-.62z" />
+  </svg>`;
+  const embleme = deco === 'sceau'
+    ? `<div class="sceau"><img src="/assets/monograms/${mono}.png" alt="" /></div>`
+    : deco === 'etoiles'
+      ? `<div class="flourish etoiles"><span></span>${etoile(46).repeat(5)}<span></span></div>`
+      : `<div class="flourish"><span></span><img src="/assets/monograms/${mono}.png" alt="" /><span></span></div>`;
+
+  el.className = `carte ${base.fond}`;
+  el.innerHTML = `
+    ${deco === 'ballons' ? ballons() : ''}
+    ${confettis(base.fond, deco === 'ballons' ? 54 : 40)}
+    <div class="cadre"></div>
+
+    <div class="centre" style="padding:${deco === 'sceau' ? 128 : 174}px 118px 0">
+      <div class="sur">${c.sur}</div>
+      <div class="grand" style="font-size:${c.taille}px">${c.grand(g)}</div>
+      ${embleme}
+      <div class="appel">${g.appel}</div>
+      <div class="prenom">${prenom || '…'}</div>
+      <div class="phrase">${c.phrase(g)}</div>
+      <div class="corps">${c.corps(g)}</div>
+      <div class="signe">${c.signe}</div>
+    </div>
+
+    <div class="pied">
+      <img src="/assets/monograms/${mono}.png" alt="" />
+      <div class="marque">L’atelier MND</div>
+      <div class="filet"></div>
+      <div class="devise">mi ny<span class="fon">ɔ́ ɖɛ</span>kpɛ · la maison veille</div>
+    </div>
+  `;
+}
+
+/* ── LA BARRE ─────────────────────────────────────────────────────── */
+let carteCourante = 'anniversaire';
+let motifCourant = 'venue';
+
+const grpCarte = document.getElementById('grpCarte');
+const grpMotif = document.getElementById('grpMotif');
+const grpMotifWrap = document.getElementById('grpMotifWrap');
+const champPrenom = document.getElementById('prenom');
+
+function barre() {
+  grpCarte.innerHTML = Object.entries(CARTES).map(([k, v]) =>
+    `<button class="chip ${k === carteCourante ? 'on' : ''}" data-carte="${k}">${v.mot}</button>`).join('');
+  const motifs = CARTES[carteCourante].motifs;
+  grpMotifWrap.className = motifs ? 'grp' : 'grp off';
+  grpMotif.innerHTML = motifs
+    ? Object.entries(motifs).map(([k, v]) =>
+        `<button class="chip ${k === motifCourant ? 'on' : ''}" data-motif="${k}">${v.mot}</button>`).join('')
+    : '<button class="chip">Sans motif</button>';
+}
+
+function tout() {
+  barre();
+  const p = champPrenom.value.trim();
+  rendre(document.getElementById('carteF'), carteCourante, motifCourant, 'femme', p);
+  rendre(document.getElementById('carteH'), carteCourante, motifCourant, 'homme', p);
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-carte]');
+  const m = e.target.closest('[data-motif]');
+  if (b) { carteCourante = b.dataset.carte; tout(); }
+  if (m) { motifCourant = m.dataset.motif; tout(); }
+});
+champPrenom.addEventListener('input', tout);
+
+tout();
+</script>
+</body>
+</html>

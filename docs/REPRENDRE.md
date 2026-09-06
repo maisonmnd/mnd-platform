@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES CARTES DE LA MAISON — 6 septembre 2026, PUBLIÉ
+
+Trois cartes, un seul gabarit : **anniversaire**, **merci** (cinq motifs) et
+**Le Cercle**. 1080 × 1350, l'image se télécharge et s'attache à un WhatsApp ou
+à un e-mail. Ouverte depuis la fiche cliente (« Sa carte », dans « Sa place à
+la Maison ») et depuis le rappel d'anniversaire du Tableau de bord.
+
+**Dessinée, pas photographiée.** Les librairies de capture d'écran rendent mal
+les dégradés et perdent une police une fois sur dix ; une carte fausse une fois
+sur dix est une carte qu'on n'envoie plus. Elle est tracée à la main dans un
+canvas (`ds/carte.ts`), aux mesures exactes de la maquette. Les polices sont
+chargées AVANT de peindre : un canvas ne sait pas attendre, il dessinerait en
+Times sans le dire.
+
+**Les mots vivent à part** (`shared/cartes.ts`), purs et éprouvés par
+`verifie-cartes` (31ᵉ harnais, 32 assertions). Le mot qui accompagne l'image
+n'est plus écrit dans le Tableau de bord : il vivait à deux endroits, et deux
+textes finissent toujours par diverger.
+
+### Ce que le genre change
+
+`auMasculin` sur la fiche, posé depuis l'écran de la carte et retenu. Absent =
+féminin. Il ne sert QU'À ÉCRIRE : aucun compte, aucun prix, aucune statistique
+ne le regarde. La phrase de l'anniversaire s'accorde avec l'ANNÉE et non avec la
+personne : ce qui distingue les deux versions est donc l'**appel** posé au-dessus
+du prénom, « Chère » ou « Cher ». Sans lui, la version homme ne se serait
+distinguée que par un « e » au milieu d'un paragraphe.
+
+### Deux limites, dites plutôt que cachées
+
+- **Un lien WhatsApp ne porte pas de pièce jointe.** Sur téléphone, le partage
+  natif envoie l'image directement ; sur l'ordinateur, on télécharge et on
+  glisse. Le bouton « Partager » ne s'affiche que là où il existe : un bouton qui
+  ne fait rien fait cesser de cliquer sur tous les autres.
+- **La carte du Cercle ne promet ni points ni geste offert.** Le programme de
+  points n'est pas activé (`pointsEnabledStore`), et une carte qui annoncerait un
+  avantage inexistant se retournerait au fauteuil, devant la cliente. Le jour où
+  les points s'allument, la phrase pourra le dire.
+
+**La carte des cinq étoiles ne nomme pas Google** : elle part à la cliente, pas
+à la plateforme, et elle reste juste le jour où l'avis vient d'ailleurs. Elle se
+lance à la main : Le Trône ne lit pas les avis, et une carte partie sur une
+fausse détection serait pire que pas de carte.
+
 ## TROIS RAISONS DE SORTIR DU FAUTEUIL — 6 septembre 2026, PUBLIÉ
 
 « Je dois avoir à côté de "vit ailleurs" : sans locks (a défait ses locks),

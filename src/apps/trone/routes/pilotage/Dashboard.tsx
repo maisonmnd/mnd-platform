@@ -450,20 +450,16 @@ export default function Dashboard() {
       k: `anniv-${c.id}`,
       label: `Joyeux anniversaire à ${c.name}`,
       sub: j === 0 ? 'c’est aujourd’hui' : j === 1 ? 'c’est demain' : 'dans 2 jours',
-      action: c.phone ? 'Souhaiter' : 'Sa fiche',
-      go: () => {
-        if (c.phone) {
-          /* « Toute la Maison MND » écrivait le nom EN DUR — au milieu d'une
-             phrase française, seul endroit où `maisonNom()` ne peut pas aller
-             (une enseigne qui ne commence pas par « Maison » briserait la
-             phrase). « Toute la Maison » suffit, et la devise nomme la maison
-             en signant. — 22 août 2026 */
-          const msg = signeLeMessage(`Joyeux anniversaire, ${c.name} ! Toute la Maison pense à vous et vous souhaite une année rayonnante.`);
-          window.open(`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-        } else {
-          navigate('/customers');
-        }
-      },
+      /* ══ LE JOUR J MÈNE À SA CARTE — 6 septembre 2026 ═══════════════
+         Ce rappel ouvrait un WhatsApp avec un mot, et rien d'autre. La carte
+         de la Maison se dessine sur sa fiche, et le mot y est déjà écrit : un
+         clic de plus, et ce qui part est une image qu'elle gardera.
+
+         LE MOT N'EST PLUS ÉCRIT ICI. Il vivait à deux endroits, celui-ci et
+         celui de la carte, et deux textes finissent toujours par diverger —
+         on aurait corrigé l'un en croyant les corriger tous les deux. */
+      action: 'Sa carte',
+      go: () => navigate(`/customers?id=${c.id}`),
     })),
     ...(facturesARegler.count > 0 ? [{
       k: 'factures',
