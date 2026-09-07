@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
+import { gammeTouteReglee } from '../../../../shared/gamme';
 import { Button, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -404,13 +405,21 @@ export default function Carnet() {
               {manquesDuJour.get(a.clientId)!.length} à remplir
             </button>
           )}
+          {/* LA PASTILLE DIT OÙ EN EST LA GAMME — 7 septembre 2026. Elle
+              disait « à régler » à vie, même encaissée : on courait après un
+              argent déjà entré. Réglée, elle se lit apaisée. */}
           {(a.gamme?.length ?? 0) > 0 && (
             <span
               className="trc-src"
-              style={{ background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
-              title="La Gamme posee a la reservation, a regler au comptoir avec le rituel"
+              style={gammeTouteReglee(a.gamme)
+                ? { color: 'var(--ink-soft)' }
+                : { background: 'var(--copper-50)', color: 'var(--copper-700)', borderColor: 'var(--copper-300)' }}
+              title={gammeTouteReglee(a.gamme)
+                ? 'La Gamme de ce rendez-vous est réglée, sa pièce la porte'
+                : 'La Gamme posée à la réservation, à régler au comptoir avec le rituel'}
             >
-              + Gamme {fmtMoney(apptGammeXof(a), currency)}
+              {gammeTouteReglee(a.gamme) ? 'Gamme ' : '+ Gamme '}{fmtMoney(apptGammeXof(a), currency)}
+              {gammeTouteReglee(a.gamme) ? ' · réglée' : ''}
             </span>
           )}
           {/* LE GESTE SE VOIT AU CARNET. Un rituel offert lu sans sa mention

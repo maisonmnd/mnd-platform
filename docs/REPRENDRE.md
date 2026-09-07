@@ -61,6 +61,43 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## CHAQUE PAIEMENT À SA PLACE : LE RITUEL ET LA GAMME — 7 septembre 2026, PUBLIÉ
+
+« J'aimerais encaisser les 60 000 F et les 30 000 F… je ne veux pas un montant
+global de 90 000 F, sinon ça fausse le calcul. Que chaque paiement aille à sa
+place » (Yéman, sur le rendez-vous de B. du 31 juillet).
+
+**La comptabilité séparait déjà les deux** (versement Gamme distinct, `paidXof`
+du rituel seul, stock par ligne) — mais trois trous restaient :
+
+· **Une Gamme seule ne pouvait pas s'encaisser.** Sur un rituel déjà soldé, le
+  bouton restait gris et le geste sortait sans rien dire : le flacon partait
+  sans pièce. La porte s'ouvre désormais dès que le panier porte quelque chose.
+· **Rien ne marquait une Gamme réglée.** Le rendez-vous gardait sa promesse
+  telle quelle : pastille « à régler » à vie, et rouvrir l'écran remplissait le
+  panier une seconde fois — le même flacon se serait facturé deux fois.
+  `LigneGamme.regleeAt` se grave ligne par ligne (`graveLesLignesReglees`) ;
+  une ligne gravée ne se re-propose plus, la pastille du carnet dit
+  « Gamme … · réglée ». Encaissée à moitié, la ligne reste ouverte : c'est le
+  comptoir qui a choisi d'en garder, pas la machine.
+· **Le versement de la Gamme copiait le moyen du rituel.** Rituel en MoMo,
+  flacons en espèces : tout s'écrivait MoMo, et le tiroir des espèces ne
+  tombait plus juste le soir. La Gamme a son propre moyen et sa propre caisse
+  (par défaut ceux du rituel), choisis sous sa ligne du récapitulatif.
+· **Le bouton annonçait le seul rituel** (« Encaisser 60 000 ») pendant que le
+  geste prenait aussi la Gamme. Il dit maintenant
+  « Encaisser 60 000 F + Gamme 30 000 F ».
+
+**Le 90 000 F du 31 juillet est un cas de données, pas de code** : ce
+rendez-vous vient de l'ancien ERP, dont le « prix de séance » figé (90 000)
+contenait déjà les produits ; la Gamme de 30 000 posée ensuite dans l'app les
+compte une seconde fois. SQL de réparation PRÉSENTÉ à Yéman (jamais appliqué
+par l'assistant), qui remet le rituel à 60 000. Aucun juge automatique : on ne
+peut pas déduire, fiche par fiche, si un prix figé d'importation contenait la
+Gamme.
+
+`verifie-gamme` juge la gravure (couvert/entamé, regravure impossible, absence).
+
 ## LE COMPTE PARENT VOIT LES RENDEZ-VOUS DU FOYER — 7 septembre 2026, PUBLIÉ
 
 « Je dois avoir le résumé des rendez-vous de la famille ou du foyer sur le

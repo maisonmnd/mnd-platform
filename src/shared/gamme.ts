@@ -29,6 +29,16 @@ export type LigneGamme = {
   /** La remise de CETTE ligne : le pourcentage d'abord, les francs ensuite,
       l'ordre de tout le reste de la Maison. */
   remise?: { pct?: number; xof?: number } | null;
+  /** ══ LA LIGNE RÉGLÉE SE GRAVE — 7 septembre 2026 ═════════════════
+      « Arrange-moi tout ça que chaque paiement aille à sa place » (Yéman).
+
+      RIEN NE MARQUAIT UNE GAMME DÉJÀ ENCAISSÉE. Le rendez-vous gardait sa
+      promesse telle quelle : la pastille du carnet disait encore « à régler »,
+      et rouvrir l'écran d'encaissement remplissait le panier une seconde
+      fois — le même flacon se serait facturé deux fois, au premier comptoir
+      pressé. La date du règlement se grave donc sur la ligne, et une ligne
+      gravée ne se re-propose plus. */
+  regleeAt?: string;
 };
 
 const entier = (n: number): number => Math.max(0, Math.round(Number.isFinite(n) ? n : 0));
@@ -136,3 +146,24 @@ export const ecartsDeTarif = (
     décide. */
 export const manqueALEtagere = (l: LigneGamme, stock: number): boolean =>
   Math.max(0, Math.round(l.qty || 0)) > Math.max(0, Math.round(stock));
+
+/** CE QUI RESTE À RÉGLER — les lignes que personne n'a encore encaissées. */
+export const lignesARegler = (lignes: readonly LigneGamme[] | undefined): LigneGamme[] =>
+  (lignes ?? []).filter((l) => !l.regleeAt);
+
+/** TOUT EST RÉGLÉ ? Vrai seulement s'il y a des lignes ET qu'aucune n'attend :
+    une Gamme vide n'est pas « réglée », elle est absente. */
+export const gammeTouteReglee = (lignes: readonly LigneGamme[] | undefined): boolean =>
+  (lignes?.length ?? 0) > 0 && (lignes ?? []).every((l) => !!l.regleeAt);
+
+/** LA GRAVURE. Une ligne se grave quand le panier du comptoir a couvert toute
+    sa quantité ; encaissée à moitié, elle reste ouverte — c'est le comptoir
+    qui a choisi d'en garder pour plus tard, pas la machine. */
+export const graveLesLignesReglees = (
+  lignes: readonly LigneGamme[] | undefined,
+  panier: Readonly<Record<string, number>>,
+  jourIso: string,
+): LigneGamme[] | undefined =>
+  lignes?.map((l) => (!l.regleeAt && (panier[l.id] ?? 0) >= Math.max(1, Math.round(l.qty || 1))
+    ? { ...l, regleeAt: jourIso }
+    : l));

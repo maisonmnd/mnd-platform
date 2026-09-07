@@ -6,6 +6,7 @@
 import {
   ligneBruteXof, ligneNetteXof, gammeBruteXof, gammeNetteXof, gammeEconomieXof,
   poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere,
+  graveLesLignesReglees, gammeTouteReglee, lignesARegler,
   type LigneGamme,
 } from '../src/shared/gamme';
 
@@ -85,3 +86,39 @@ dit('un rayon vide manque toujours', true, manqueALEtagere(panier[1], 0));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
+
+/* ══ LA GAMME RÉGLÉE SE GRAVE — 7 septembre 2026 ═════════════════════
+   « Arrange-moi tout ça que chaque paiement aille à sa place » (Yéman). Rien
+   ne marquait une Gamme encaissée : la pastille disait « à régler » à vie, et
+   rouvrir l'écran d'encaissement remplissait le panier une seconde fois — le
+   même flacon se serait facturé deux fois. */
+const promesse: LigneGamme[] = [
+  { id: 'p-huile', qty: 1, prixXof: 12_000 },
+  { id: 'p-baume', qty: 2, prixXof: 9_000 },
+];
+dit('rien de gravé, tout reste à régler', ['p-huile', 'p-baume'],
+  lignesARegler(promesse).map((l) => l.id));
+dit('… et rien n’est « tout réglé »', false, gammeTouteReglee(promesse));
+
+/* LE PANIER COUVRE TOUT : les deux lignes se gravent, datées. */
+const toutPris = graveLesLignesReglees(promesse, { 'p-huile': 1, 'p-baume': 2 }, '2026-09-07')!;
+dit('tout couvert, tout gravé', ['2026-09-07', '2026-09-07'], toutPris.map((l) => l.regleeAt));
+dit('… plus rien à régler', [], lignesARegler(toutPris).map((l) => l.id));
+dit('… et la Gamme se dit réglée', true, gammeTouteReglee(toutPris));
+
+/* ENCAISSÉE À MOITIÉ, LA LIGNE RESTE OUVERTE : c'est le comptoir qui a choisi
+   d'en garder pour plus tard, pas la machine. */
+const moitie = graveLesLignesReglees(promesse, { 'p-huile': 1, 'p-baume': 1 }, '2026-09-07')!;
+dit('la quantité entamée reste due', ['p-baume'], lignesARegler(moitie).map((l) => l.id));
+dit('… et l’huile est gravée', '2026-09-07', moitie[0].regleeAt);
+
+/* UNE LIGNE DÉJÀ GRAVÉE NE SE REGRAVE PAS : sa date est celle du jour où
+   l'argent est entré, pas du dernier passage à l'écran. */
+const regrave = graveLesLignesReglees(toutPris, { 'p-huile': 1 }, '2026-12-25')!;
+dit('une gravure ne se réécrit pas', '2026-09-07', regrave[0].regleeAt);
+
+/* UNE GAMME VIDE N'EST PAS « RÉGLÉE », elle est absente : la pastille ne doit
+   rien afficher, ni cuivre ni apaisé. */
+dit('une gamme vide n’est pas réglée', false, gammeTouteReglee([]));
+dit('… ni une gamme absente', false, gammeTouteReglee(undefined));
+dit('… et graver l’absence rend l’absence', undefined, graveLesLignesReglees(undefined, {}, '2026-09-07'));

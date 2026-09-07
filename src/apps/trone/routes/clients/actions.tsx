@@ -17,7 +17,7 @@ import {
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
-import { ligneNetteXof } from '../../../../shared/gamme';
+import { graveLesLignesReglees, ligneNetteXof, lignesARegler } from '../../../../shared/gamme';
 import { duDuCompte, peutPartirDevant, tetesDuCompte } from '../../../../shared/compte';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, splitByWeights } from '../../../../shared/pricing';
 import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, cercleSeuilStore } from '../../../../shared/offers';
@@ -631,10 +631,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      LE PANIER S'OUVRE DONC DÉJÀ REMPLI, et le bloc avec lui : ce qu'on a
      promis se voit, et se décoche si elle change d'avis. */
   const gammePromise = appt.gamme ?? [];
-  const [gammeOuverte, setGammeOuverte] = useState(gammePromise.length > 0);
+  /* CE QUI RESTE À RÉGLER, ET RIEN D'AUTRE. Une ligne déjà gravée remplissait
+     le panier une seconde fois à la réouverture de cet écran : le même flacon
+     se serait facturé deux fois. */
+  const gammeEncore = lignesARegler(gammePromise);
+  const [gammeOuverte, setGammeOuverte] = useState(gammeEncore.length > 0);
   const [chercheProduit, setChercheProduit] = useState('');
   const [panier, setPanier] = useState<Record<string, number>>(
-    () => Object.fromEntries(gammePromise.map((l) => [l.id, Math.max(0, Math.round(l.qty || 0))])
+    () => Object.fromEntries(gammeEncore.map((l) => [l.id, Math.max(0, Math.round(l.qty || 0))])
       .filter(([, q]) => (q as number) > 0)),
   );
 
@@ -680,6 +684,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   });
 
   const [pay, setPay] = useState<PaymentMethod>(methods[0] ?? 'Espèces');
+  /* ══ LA GAMME A SON PROPRE MOYEN — 7 septembre 2026 ═══════════════
+     « J'aimerais encaisser les 60 000 F et les 30 000 F… que chaque paiement
+     aille à sa place » (Yéman). Le versement de la Gamme copiait le moyen du
+     rituel : un rituel en MoMo et des flacons en espèces s'écrivaient tous
+     deux « MoMo », et le tiroir des espèces ne tombait plus juste le soir.
+     Vide = le même moyen que le rituel, le cas de presque tous les passages. */
+  const [payGammeChoisi, setPayGammeChoisi] = useState<'' | PaymentMethod>('');
+  const [gammeBoxChoisie, setGammeBoxChoisie] = useState('');
   /* LA MONNAIE DE LA MAISON PASSE D’ABORD — 24 août 2026. Voir
      `caisseParDefaut` : un tiroir en euros ne se propose pas pour encaisser
      des francs. */
@@ -779,6 +791,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
   const eligibleBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === payCurrency);
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
+  /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
+     de la Maison, même quand le rituel part en devise. */
+  const gammeBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === currency);
+  const payGamme: PaymentMethod = payGammeChoisi || pay;
+  const gammeBox = gammeBoxes.some((c) => c.name === gammeBoxChoisie)
+    ? gammeBoxChoisie
+    : (gammeBoxes.some((c) => c.name === activeBox) ? activeBox : gammeBoxes[0]?.name ?? '');
 
   /* ── UN BLOCAGE DOIT SE DIRE — 18 août 2026 ─────────────────────
      « Quand je veux encaisser les 100 euros la case est grisée » (Yéman).
@@ -856,11 +875,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
 
   const confirm = (garderOuvert = false) => {
     if (submitting.current) return; // évite la double-soumission (double-clic rapide)
-    if (amount <= 0 && avoirApplied <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
+    /* LA GAMME SEULE SUFFIT : sur un rituel déjà soldé, la cliente peut
+       repartir avec un flacon — c'était impossible, le geste sortait sans
+       rien dire, et le flacon partait sans pièce. */
+    if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
     submitting.current = true;
     /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
     let idPieceEncaissee: string | undefined;
-    if (settleTotal > 0) {
+    if (settleTotal > 0 || totalGamme > 0) {
       /* Facture DÉTAILLÉE : une ligne PAR prestation quand on solde tout d'un coup
          (sans acompte CRÉDITÉ ni règlement antérieur), pour que la cliente voie le
          détail. Sinon (paiement partiel / acompte), une seule ligne « Règlement ».
@@ -995,7 +1017,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       if (totalGamme > 0) {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: totalGamme,
-          method: pay, cashbox: activeBox, note: 'Gamme, produits emportés',
+          method: payGamme, cashbox: gammeBox || undefined, note: 'Gamme, produits emportés',
         });
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
@@ -1032,7 +1054,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         globalDiscountXof: detailRemise > 0 ? detailRemise : undefined,
         discountLabel: detailRemise > 0 && appt.remiseFamille ? 'Remise famille' : undefined,
         theme: 'Rose',
-        payment: amount > 0 ? pay : 'Avoir',
+        payment: amount > 0 ? pay : (avoirApplied > 0 ? 'Avoir' : payGamme),
         cashbox: activeBox,
         clientName: payerClient?.name ?? client?.name,
         forClientId: isFamilyPayer ? appt.clientId : undefined,
@@ -1162,6 +1184,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             /* La DATE de reconnaissance de l'acompte : c'est ce jour-là qu'il
                entre au registre des encaissements, pas celui du rituel. */
             ...(depositReceived ? { depositConfirmed: true, depositConfirmedAt: appt.depositConfirmedAt ?? invDate } : {}),
+            /* LA GAMME RÉGLÉE SE GRAVE, ligne par ligne : la pastille du
+               carnet cessera de dire « à régler », et rouvrir cet écran ne
+               re-proposera plus ce qui est déjà payé. */
+            ...(totalGamme > 0 && (a.gamme?.length ?? 0) > 0
+              ? { gamme: graveLesLignesReglees(a.gamme, panier, payDate) }
+              : {}),
             ...freeze,
           }
         : a)));
@@ -1673,6 +1701,24 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                     </span>
                     <b style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(totalGamme, currency)}</b>
                   </div>
+                  {/* CHAQUE PAIEMENT À SA PLACE : les flacons peuvent partir
+                      en espèces quand le rituel part en MoMo. Par défaut, le
+                      même moyen — le cas de presque tous les passages. */}
+                  <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 8 }}>
+                    <Field label="La Gamme réglée par">
+                      <Select value={payGammeChoisi} onChange={(e) => setPayGammeChoisi(e.target.value as '' | PaymentMethod)}>
+                        <option value="">Comme le rituel · {pay}</option>
+                        {methods.map((m) => <option key={m} value={m}>{m}</option>)}
+                      </Select>
+                    </Field>
+                    {payGammeChoisi !== '' && gammeBoxes.length > 0 && (
+                      <Field label="Sa caisse">
+                        <Select value={gammeBox} onChange={(e) => setGammeBoxChoisie(e.target.value)}>
+                          {gammeBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </Select>
+                      </Field>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1990,18 +2036,24 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         <Button
           variant="copper"
           onClick={() => confirm()}
-          disabled={(settleTotal <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
           style={{ marginTop: 4 }}
         >
+          {/* LE BOUTON DIT LES DEUX MONTANTS — 7 septembre 2026. Il annonçait
+              le seul rituel pendant que le geste prenait aussi la Gamme : on
+              encaissait 90 000 F sous un bouton qui disait 60 000. Un bouton
+              qui ne dit pas ce qu'il fait apprend à ne plus le lire. */}
           {fxOn && fxAmount > 0
-            ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}`
-            : settleTotal <= 0 && tip > 0
-              ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
-              : settleTotal <= 0 && depositJustConfirmed
-                ? 'Confirmer l’acompte reçu'
-                : settleTotal <= 0 && reschedule
-                  ? 'Reprogrammer le rendez-vous'
-                  : fullyPaid ? `Encaisser ${fmtMoney(settleTotal, currency)}` : `Encaisser ${fmtMoney(settleTotal, currency)} (partiel)`}
+            ? `Encaisser ${fxAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fxCode}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}`
+            : settleTotal <= 0 && totalGamme > 0
+              ? `Encaisser la Gamme · ${fmtMoney(totalGamme, currency)}`
+              : settleTotal <= 0 && tip > 0
+                ? `Enregistrer le pourboire ${fmtMoney(tip, currency)}`
+                : settleTotal <= 0 && depositJustConfirmed
+                  ? 'Confirmer l’acompte reçu'
+                  : settleTotal <= 0 && reschedule
+                    ? 'Reprogrammer le rendez-vous'
+                    : `Encaisser ${fmtMoney(settleTotal, currency)}${totalGamme > 0 ? ` + Gamme ${fmtMoney(totalGamme, currency)}` : ''}${fullyPaid ? '' : ' (partiel)'}`}
         </Button>
       </div>
     </Modal>
