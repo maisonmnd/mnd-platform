@@ -61,6 +61,42 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA PREMIÈRE COURONNE KIDS À 150 000 F, ET LE RENFORT SEUL — 7 septembre 2026, PUBLIÉ
+
+Trois décisions de Yéman, prises dans la même heure.
+
+**① La Première Couronne passe de 55 000 à 150 000 F et emporte deux retouches
+post création, aux semaines 3 et 6.** Arbitrage : « 150 000 F, tout compris ».
+**La création EST le forfait** : un second article « Première Couronne +
+retouches » aurait posé deux façons d'acheter la même chose côte à côte au
+catalogue, et le doute serait apparu au comptoir devant le parent. C'est le
+motif que la Maison emploie déjà chez les adultes (`FFT·I·01` inclut « 1
+Retouche Post Création à 3 semaines »). `sessions: 3`.
+
+**② La retouche est un geste neuf, plus léger que la reprise** (arbitrage) :
+`SÍNSIN™ Kids · La Retouche Post Création`, 10 000 F, 25 min. On ne reprend que
+ce qui a bougé depuis la pose. **Elle ne porte pas la marche des 250 locks** :
+elle ne parcourt pas toute la tête. *Le prix de 10 000 F est le mien, posé entre
+les 5 000 F des gestes courts et les 15 000 F de la reprise ; il se change au
+Catalogue.*
+
+**③ La Sublimation revient à son tarif, le Renfort seul entre au pack.**
+`YÈKPÈ™ × GBÌGBÌ™ Kids` passe à 15 000 F **sans rien de barré** : annoncer une
+remise qu'on ne fait plus serait un geste imaginaire. Nouveau `GBÌGBÌ™ Kids ·
+Le Renfort durable`, 5 000 F au lieu de 15 000, qui porte désormais le cadeau du
+pack à sa place. **Le PACK ne bouge ni de prix ni de remise** — 5 000 + 15 000 +
+5 000 font toujours 25 000, et 45 000 → 30 000 au-delà de 250 locks, 15 000 F
+offerts dans les deux cas.
+
+**Défaut de harnais corrigé au passage** : les gestes se lisaient par leur RANG
+dans le tableau (`SERVICES_KIDS[3]`). L'insertion de la Retouche en deuxième
+position a fait juger trois assertions sur la mauvaise prestation, sans qu'elles
+disent rien de faux. Elles se désignent maintenant par identifiant. Un rang
+n'est pas un nom.
+
+**À faire d'un clic** : Catalogue → « + MND Kids · 2 fiches » (retouche et
+renfort), puis « MND Kids · N à remettre au tarif ».
+
 ## LA COMPOSITION DU PACK KIDS SUIT LA TÊTE — 7 septembre 2026, PUBLIÉ
 
 « Quand ce tarif apparaît, le contenu devrait changer à SÍNSIN Kids · La Reprise

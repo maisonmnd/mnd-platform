@@ -27,6 +27,18 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
 
+/* LES GESTES SE DÉSIGNENT PAR LEUR IDENTIFIANT — 7 septembre 2026. Ils se
+   lisaient par leur rang dans le tableau : `SERVICES_KIDS[3]` était le
+   shampoing jusqu'à ce que la Retouche Post Création s'insère en deuxième
+   position, et trois assertions se sont mises à juger la mauvaise prestation
+   sans rien dire de faux. Un rang n'est pas un nom. */
+const geste = (id: string) => SERVICES_KIDS.find((x) => x.id === id)!;
+const VEKPE = geste('sv-kids-vekpe');
+const RETOUCHE = geste('sv-kids-retouche');
+const SINSIN = geste('sv-kids-sinsin');
+const GBIGBI = geste('sv-kids-gbigbi');
+const KLOKLO = geste('sv-kids-kloklo');
+
 const JOUR = '2026-09-03';
 const neeEn = (annee: number): Client => ({ birthday: `${annee}-01-01` } as Client);
 
@@ -48,7 +60,7 @@ dit('sans fiche du tout, on ne sait pas non plus', 'inconnu', estKids(undefined,
    `estProposable` refuse la section à une adulte, la donne à un enfant, et la
    laisse voir quand l'âge est inconnu — l'écran la signale alors. */
 const pricing = {} as Parameters<typeof estProposable>[1];
-const kidsSvc = SERVICES_KIDS[0];
+const kidsSvc = VEKPE;
 const ordinaire = { id: 'sv-x', categoryId: 'c', name: 'Rituel ordinaire' } as Service;
 
 dit('la section se propose à un enfant', true, estProposable(kidsSvc, pricing, 9, false, 'oui'));
@@ -65,7 +77,26 @@ dit('sans verdict, la section reste visible', true, estProposable(kidsSvc, prici
 /* ── ③ LES QUATRE ATELIERS, ET LE PLATEAU ──────────────────────────
    Cinq gestes : la création, la reprise, la sublimation, le renfort, le
    shampoing. */
-dit('quatre gestes dans la section', 4, SERVICES_KIDS.length);
+dit('six gestes dans la section', 6, SERVICES_KIDS.length);
+/* LA PREMIÈRE COURONNE EST DÉJÀ UN FORFAIT : elle emporte ses deux retouches,
+   et se vend une seule fois. Un second article aurait posé deux façons
+   d'acheter la même chose côte à côte au catalogue. */
+dit('la Première Couronne vaut cent cinquante mille', 150_000, VEKPE.priceXof);
+dit('… et comprend ses deux retouches',
+  ['sv-kids-retouche', 'sv-kids-retouche'], (VEKPE.includes ?? []).map((i) => i.serviceId));
+dit('… en trois venues', 3, VEKPE.sessions);
+dit('… posées à trois et six semaines', true,
+  VEKPE.description.includes('3 semaines') && VEKPE.description.includes('6 semaines'));
+/* LA RETOUCHE NE PORTE PAS LA MARCHE DES 250 LOCKS : elle ne parcourt pas
+   toute la tête, seulement ce qui a lâché depuis la pose. */
+dit('la retouche ne porte pas de marche', undefined, RETOUCHE.paliersDeLocks);
+
+/* LA SUBLIMATION REVIENT À SON TARIF, sans rien de barré : annoncer une remise
+   qu'on ne fait plus serait un geste imaginaire. */
+dit('les deux gestes en un valent quinze mille', 15_000, geste('sv-kids-yekpe').priceXof);
+dit('… et ne barrent plus rien', undefined, geste('sv-kids-yekpe').prixBarreXof);
+/* C'EST LE RENFORT SEUL QUI PORTE LE CADEAU DU PACK, à sa place. */
+dit('le renfort seul garde le geste', [5_000, 15_000], [GBIGBI.priceXof, GBIGBI.prixBarreXof]);
 dit('… tous réservés aux Kids', true, SERVICES_KIDS.every((s) => s.reserveEnfants === true));
 dit('… tous dans la catégorie MND Kids', true, SERVICES_KIDS.every((s) => s.categoryId === CAT_KIDS));
 dit('… et le forfait aussi', true, FORFAIT_KIDS.reserveEnfants === true && FORFAIT_KIDS.categoryId === CAT_KIDS);
@@ -80,7 +111,7 @@ dit('le forfait vaut 25 000 F', 25_000, FORFAIT_KIDS.priceXof);
    5 000. Le geste n'est pas une remise de plus sur le paquet, il est DANS
    chaque ligne — c'est ce qui se raconte au parent. */
 const compo = compositionDuForfait(FORFAIT_KIDS, SERVICES_KIDS);
-dit('les trois lignes du rituel', ['sv-kids-kloklo', 'sv-kids-sinsin', 'sv-kids-yekpe'],
+dit('les trois lignes du rituel', ['sv-kids-kloklo', 'sv-kids-sinsin', 'sv-kids-gbigbi'],
   compo.map((l) => l.serviceId));
 dit('… leurs tarifs enfants', [5_000, 15_000, 5_000], compo.map((l) => l.prixXof));
 dit('… et leur somme fait le forfait', 25_000, compo.reduce((n, l) => n + l.prixXof, 0));
@@ -106,14 +137,14 @@ dit('la création reste hors du forfait', false,
    Le souverain a pu renommer une prestation, changer son prix, la ranger
    ailleurs : repasser dessus effacerait sa décision, et c'est le genre de perte
    qu'on ne remarque qu'au moment de facturer. */
-dit('catalogue vide : les cinq manquent', 5, kidsAbsents([]));
+dit('catalogue vide : les sept manquent', 7, kidsAbsents([]));
 dit('section complète : rien ne manque', 0,
   kidsAbsents([...SERVICES_KIDS, FORFAIT_KIDS]));
-dit('un seul geste posé : quatre manquent', 4, kidsAbsents([SERVICES_KIDS[0]]));
+dit('un seul geste posé : six manquent', 6, kidsAbsents([VEKPE]));
 /* UNE PRESTATION RENOMMÉE PAR LA MAISON compte comme posée : c'est son
    identifiant qui fait foi, pas son nom. */
-dit('renommée, elle compte toujours comme posée', 4,
-  kidsAbsents([{ ...SERVICES_KIDS[0], name: 'Le petit shampoing de la maison' }]));
+dit('renommée, elle compte toujours comme posée', 6,
+  kidsAbsents([{ ...VEKPE, name: 'La première couronne, autrement dite' }]));
 
 /* -- 6. UNE TETE D'ENFANT NE VOIT QUE MND KIDS --------------------
    « Quand je veux prendre RDV pour un enfant, n'ouvrir que le catalogue MND
@@ -124,14 +155,14 @@ dit('renommée, elle compte toujours comme posée', 4,
    rituels dont aucun n'est pour lui. Rien n'empechait de poser a un enfant de
    neuf ans un GBIGBI Profond a 120 000 F. */
 const catalogueMele = [ordinaire, ...SERVICES_KIDS];
-dit('un enfant ne voit que MND Kids', 4, catalogueDeLaTete(catalogueMele, 'oui').length);
+dit('un enfant ne voit que MND Kids', 6, catalogueDeLaTete(catalogueMele, 'oui').length);
 dit('… et rien d’autre', true,
   catalogueDeLaTete(catalogueMele, 'oui').every((x) => x.reserveEnfants === true));
-dit('une adulte voit le catalogue entier', 5, catalogueDeLaTete(catalogueMele, 'non').length);
+dit('une adulte voit le catalogue entier', 7, catalogueDeLaTete(catalogueMele, 'non').length);
 /* UN AGE INCONNU NE RESTREINT RIEN. On ne sait pas, donc on ne retire rien :
    cacher le catalogue entier a une tete dont la fiche n'a pas de date de
    naissance serait la faute la plus couteuse de toutes. */
-dit('un age inconnu ne restreint rien', 5, catalogueDeLaTete(catalogueMele, 'inconnu').length);
+dit('un age inconnu ne restreint rien', 7, catalogueDeLaTete(catalogueMele, 'inconnu').length);
 /* UNE SECTION PAS ENCORE POSEE NE RESTREINT RIEN NON PLUS : sans elle, l'enfant
    se retrouverait devant une liste vide, et l'ecran aurait l'air casse au lieu
    d'etre seulement incomplet. */
@@ -191,20 +222,28 @@ dit('… et le comptoir le garde', 'pour elle', pourQui({ reserveEnfants: false 
 const parId = new Map(SERVICES_KIDS.map((x) => [x.id, x] as const));
 dit('la carte se lit en tableau comme en registre', dit3, detailDuForfait(FORFAIT_KIDS, parId, fr));
 /* UNE PRESTATION SEULE N'A RIEN À DÉTAILLER : le détail ne doit pas s'écrire
-   sur toutes les lignes du monde. */
+   sur toutes les lignes du monde. Le shampoing, pas la Première Couronne — elle
+   emporte ses retouches depuis le 7 septembre, et détaille donc quelque chose. */
 dit('une prestation simple ne détaille rien', 0,
-  detailDuForfait(SERVICES_KIDS[0], SERVICES_KIDS, fr).length);
+  detailDuForfait(KLOKLO, SERVICES_KIDS, fr).length);
+/* … MAIS LA PREMIÈRE COURONNE, SI : ce qu'elle emporte se lit au rendez-vous
+   comme sur la pièce, sinon le parent paie 150 000 F sans voir les deux venues
+   qu'il a déjà réglées. */
+dit('la Première Couronne détaille ses retouches', 2,
+  detailDuForfait(VEKPE, SERVICES_KIDS, fr).length);
 
 /* ══ LA SECTION QUI A DÉRIVÉ SE RECONNAÎT ═══════════════════════════
    La section a été posée le 3 septembre, ses tarifs décidés le 4 : sans un juge
    qui le voie, il faudrait rouvrir cinq fiches à la main. */
 dit('aux tarifs de la Maison, rien à remettre', 0, kidsADepasser(SERVICES_KIDS));
 dit('un prix qui a bougé se voit', 1,
-  kidsADepasser([{ ...SERVICES_KIDS[0], priceXof: 9_000 }, ...SERVICES_KIDS.slice(1)]));
+  kidsADepasser([{ ...VEKPE, priceXof: 9_000 }, ...SERVICES_KIDS.slice(1)]));
 /* Le shampoing porte un barré, la Première Couronne non : le juge doit voir
    disparaître CE QUI EXISTE, pas ce qui n'a jamais été là. */
+/* Le renfort et le shampoing portent un barré, la Première Couronne non : le
+   juge doit voir disparaître CE QUI EXISTE, pas ce qui n'a jamais été là. */
 dit('un prix barré effacé aussi', 1,
-  kidsADepasser([...SERVICES_KIDS.slice(0, 3), { ...SERVICES_KIDS[3], prixBarreXof: undefined }]));
+  kidsADepasser([{ ...KLOKLO, prixBarreXof: undefined }]));
 /* ET RIEN D'AUTRE QUE LA SECTION. Le juge sert à décider d'un geste qui
    RÉÉCRIT : s'il comptait une prestation d'un autre atelier, ce geste
    l'écraserait. */
@@ -250,8 +289,7 @@ dit('… rien en dessous de tout', undefined, prixSelonLesLocks(deuxMarches, 100
 /* Une prestation sans marche ne change jamais de prix : la règle des Kids ne
    doit pas déborder sur le catalogue des grandes. */
 dit('une prestation sans marche ne bouge pas', undefined, prixSelonLesLocks({}, 900));
-dit('… et les autres gestes Kids non plus', 15_000,
-  prixDeBase(SERVICES_KIDS[1], tete(400)));
+dit('… et les autres gestes Kids non plus', 5_000, prixDeBase(KLOKLO, tete(400)));
 
 /* CE QUE LA PIÈCE ANNONCE EST CE QUE LA CAISSE SONNE. Le gain se lisait sur le
    prix de la FICHE : sous une ligne facturée 30 000, le papier aurait écrit
@@ -309,7 +347,7 @@ dit('le shampoing ne bouge pas', 5_000,
 /* SANS LA MARCHE SUR LA REPRISE, LE PACK SE CONTOURNE : les trois gestes pris
    séparément feraient 25 000 F là où le pack en demande 30 000, et personne ne
    le prendrait plus jamais sur une grande petite tête. */
-const separement = (locks: number) => [SERVICES_KIDS[3], SERVICES_KIDS[1], SERVICES_KIDS[2]]
+const separement = (locks: number) => [KLOKLO, SINSIN, GBIGBI]
   .reduce((n, sv) => n + personalPriceXof(sv, pricingOf({ lockCount: locks }, MODEL_BANDS_SEED), catKids), 0);
 dit('le pack ne se contourne pas, sous la marche', [25_000, 25_000],
   [separement(100), parLaTete(100)]);

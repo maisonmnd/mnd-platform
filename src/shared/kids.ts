@@ -46,6 +46,11 @@ const kid = (
   barreXof?: number,
   /* LA MARCHE, quand le geste s'allonge au-delà d'un comptage. */
   paliers?: { auDela: number; prixXof: number }[],
+  /* CE QUE LE GESTE EMPORTE AVEC LUI — une création qui comprend ses retouches
+     est un forfait, même si elle n'en porte pas le nom. */
+  inclus?: { serviceId: string }[],
+  /* COMBIEN DE VENUES : la création et ses deux retouches en font trois. */
+  venues?: number,
 ): Service => ({
   id,
   categoryId: CAT_KIDS,
@@ -54,21 +59,49 @@ const kid = (
   priceXof,
   ...(barreXof ? { prixBarreXof: barreXof } : {}),
   ...(paliers ? { paliersDeLocks: paliers } : {}),
+  ...(inclus ? { includes: inclus } : {}),
   durationMin,
   priceMode: 'fixe',
   reserveEnfants: true,
   palier: 'Fondation',
   hidePrice: false,
-  sessions: 1,
+  sessions: venues ?? 1,
   master: '',
   order: 0,
 });
 
-/** LES CINQ GESTES DE LA SECTION, un par Atelier plus le Plateau. */
+/** LES GESTES DE LA SECTION, un par Atelier plus le Plateau. */
 export const SERVICES_KIDS: Service[] = [
-  /* ATELIER I — VÈKPÈ™ · la naissance */
-  kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 55_000, 150,
-    '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation et styling de sortie.'),
+  /* ══ ATELIER I — VÈKPÈ™ · la naissance ═══════════════════════════
+     « Mets le prix de VÈKPÈ™ Kids · La Première Couronne à 150 000 F et crée
+     un forfait avec 2 retouches post création à 3 semaines et à 6 semaines »
+     (Yéman, 7 septembre 2026), puis « 150 000 F, tout compris ».
+
+     LA CRÉATION EST DÉJÀ LE FORFAIT. Un second article « Première Couronne +
+     retouches » aurait posé deux façons d'acheter la même chose côte à côte au
+     catalogue, et le doute serait apparu au comptoir, devant le parent. La
+     couronne se vend une fois, et ce qu'elle emporte est écrit dedans.
+
+     C'EST LE MOTIF DE LA MAISON, pas une invention : le catalogue adulte vend
+     déjà « VÈKPÈ™ Initiation · La Naissance + Trousse MND™ » avec « 1 Retouche
+     Post Création à 3 semaines » comprise. Les Kids en ont deux. */
+  kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 150_000, 150,
+    '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation, '
+    + 'styling de sortie, et deux retouches post création, à 3 semaines et à 6 semaines.',
+    undefined, undefined, [
+      { serviceId: 'sv-kids-retouche' },
+      { serviceId: 'sv-kids-retouche' },
+    ], 3),
+  /* LA RETOUCHE POST CRÉATION — un geste neuf, plus léger que la reprise
+     (arbitrage de Yéman). On ne reprend que ce qui a bougé depuis la pose :
+     une couronne neuve se détend aux racines dans les premières semaines, et
+     la rattraper tôt évite de tout refaire.
+
+     ELLE NE PORTE PAS DE MARCHE À 250 LOCKS, contrairement à la reprise : elle
+     ne parcourt pas toute la tête, seulement ce qui a lâché. */
+  kid('sv-kids-retouche', 'SÍNSIN™ Kids · La Retouche Post Création', 10_000, 25,
+    'On reprend ce qui a bougé depuis la pose, racine par racine, sans refaire toute la '
+    + 'couronne. Comprise dans La Première Couronne, aux semaines 3 et 6.'),
   /* ATELIER II — GBÈJÍ™ · la vie. Le tarif enfant EST le tarif : rien à barrer,
      et l'annoncer réduit ferait un geste imaginaire. */
   /* LA MARCHE EST SUR LA REPRISE — 7 septembre 2026.
@@ -87,11 +120,22 @@ export const SERVICES_KIDS: Service[] = [
   kid('sv-kids-sinsin', 'SÍNSIN™ Kids · La Reprise Essentielle', 15_000, 40,
     'Resserrage lock par lock sur une petite tête, contrôle d’uniformité, styling de sortie. 20 000 F au-delà de 250 locks.',
     undefined, [{ auDela: 250, prixXof: 20_000 }]),
-  /* ATELIERS III & IV — YÈKPÈ™ × GBÌGBÌ™. Les deux gestes tiennent dans la même
-     demi-heure sur une petite tête, et la Maison les donne pour un tiers de ce
-     qu'ils valent : 15 000 F rendus 5 000. */
-  kid('sv-kids-yekpe', 'YÈKPÈ™ × GBÌGBÌ™ Kids · Sublimation & Renfort durable', 5_000, 35,
-    'Brillance, parfum, anti-casse et fermeture de fibre. Les deux gestes en un, pour une petite couronne.',
+  /* ══ ATELIERS III & IV — 7 septembre 2026 ════════════════════════
+     « YÈKPÈ™ × GBÌGBÌ™ Kids, mets ce tarif à 15 000 F. Le PACK MND KIDS
+     remplace YÈKPÈ × GBÌGBÌ avec GBÌGBÌ Kids. Que les prix et les remises du
+     pack complet ne bougent pas » (Yéman).
+
+     LES DEUX GESTES EN UN CESSENT D'ÊTRE LE CADEAU DU PACK. Ils se vendent à
+     leur tarif, sans rien de barré : le tarif enfant EST le tarif, et annoncer
+     une remise qu'on ne fait plus serait un geste imaginaire.
+
+     C'EST LE RENFORT SEUL QUI ENTRE AU PACK, et lui qui porte le cadeau. Le
+     pack ne bouge donc ni de prix ni de remise : 5 000 F rendus sur 15 000,
+     comme la ligne qu'il remplace. */
+  kid('sv-kids-yekpe', 'YÈKPÈ™ × GBÌGBÌ™ Kids · Sublimation & Renfort durable', 15_000, 35,
+    'Brillance, parfum, anti-casse et fermeture de fibre. Les deux gestes en un, pour une petite couronne.'),
+  kid('sv-kids-gbigbi', 'GBÌGBÌ™ Kids · Le Renfort durable', 5_000, 20,
+    'Anti-casse et fermeture de fibre, pour une petite couronne. Compris dans le PACK MND KIDS.',
     15_000),
   /* LE PLATEAU — KLƆKLƆ™, à moitié prix. */
   kid('sv-kids-kloklo', 'KLƆKLƆ™ Kids · Le Shampoing « Le Souffle »', 5_000, 30,
@@ -147,7 +191,10 @@ export const FORFAIT_KIDS: Service = {
   includes: [
     { serviceId: 'sv-kids-kloklo' },
     { serviceId: 'sv-kids-sinsin' },
-    { serviceId: 'sv-kids-yekpe' },
+    /* LE RENFORT SEUL, depuis le 7 septembre : la Sublimation est repassée à
+       son tarif et ne pouvait plus porter le cadeau du pack sans mentir. Le
+       total ne bouge pas — 5 000 + 15 000 + 5 000 font les 25 000 annoncés. */
+    { serviceId: 'sv-kids-gbigbi' },
   ],
 };
 
