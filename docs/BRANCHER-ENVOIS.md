@@ -9,6 +9,17 @@ sont posées — sans retoucher le code.
 Aucun secret dans ce dépôt (il est public). Toutes les clés vivent dans les
 « secrets » de Supabase, lus par la fonction à l'exécution.
 
+> **LA CLÉ DES CRONS, depuis la rotation d'août 2026** : le projet vit sur la
+> nouvelle famille (`sb_…`), la legacy `service_role` (eyJ…) ne prouve plus
+> rien. La MÊME clé secrète `sb_secret_…` (Settings → API keys → onglet
+> API Keys) se pose à trois endroits :
+> ① secret de fonction **`CLE_SERVICE`** (Edge Functions → Secrets — un seul
+> secret, il vaut pour toutes les fonctions) ; ② secret **`service_role_key`**
+> du Vault (c'est lui que `appelle_fonction_edge` envoie) ; ③ l'en-tête
+> `Authorization: Bearer …` des jobs créés au tableau de bord. Les gardes des
+> quatre fonctions planifiées comparent à CLE_SERVICE d'abord, à la legacy en
+> repli — sans CLE_SERVICE posée, l'ancien monde continue tel quel.
+
 ## Étape 1 — Déployer la fonction (une fois)
 
 1. Supabase → **Edge Functions** → **Deploy a new function** → nom exact :

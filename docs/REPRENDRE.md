@@ -61,6 +61,42 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE RAPPEL DU SOIR ÉTAIT MORT DEUX FOIS — 7 septembre 2026, FONCTIONS À RECOLLER
+
+En allumant le marketing, le cron `rappels-j1-soir` s'est révélé en échec
+TOUS LES SOIRS. Deux pannes empilées, chacune masquant l'autre :
+
+**① « function is not unique »** depuis fin août : le `drop` que 0069 place
+avant sa création n'avait jamais été joué au serveur (la ligne a été ajoutée
+au fichier après le passage de la migration). Les deux signatures de
+`appelle_fonction_edge` cohabitaient, tout appel à un argument était ambigu.
+Réglé d'une ligne, jouée par Yéman : `drop function if exists
+public.appelle_fonction_edge(text);`
+
+**② 401 « réservé au cron »** dessous : depuis la rotation des clés (fuite du
+2 août), le projet vit sur la famille `sb_…` — la legacy `service_role`
+(eyJ…) à laquelle les gardes comparent ne prouve plus rien. LE « SUCCEEDED »
+DU CRON NE COUVRE QUE LE SQL, pas la réponse HTTP : `sauvegarde-nuit` peut
+donc être verte au tableau et morte en vrai — vérifier Storage → sauvegardes
+à la reprise.
+
+Le correctif : les quatre fonctions planifiées (rappels-j1, confirmation-rdv,
+avis-google, sauvegarde-nuit) comparent désormais à **CLE_SERVICE** (secret de
+fonction, la clé `sb_secret_…`) et ne retombent sur la legacy qu'en repli ;
+la même valeur vit au Vault (`service_role_key`) et dans l'en-tête des jobs
+du tableau de bord. Voir l'encadré ajouté à BRANCHER-ENVOIS.md.
+
+**À la reprise : les quatre fonctions sont À RECOLLER dans Supabase**
+(fichiers entiers), CLE_SERVICE à poser, et l'essai
+`select public.rappels_j1_soir_sql();` doit répondre 200 dans
+`net._http_response`. Le job `confirmation-rdv` (`*/10 * * * *`) restait
+aussi à créer.
+
+Au passage, le même soir : Meta est en cours (vérification d'entreprise
+d'ACIA 1 « In review », restriction du WABA en revue) — le portefeuille a été
+renommé au nom légal ACIA 1, cause du refus initial. Les modèles WhatsApp
+attendent le feu vert, rien à coder.
+
 ## LA SÉRIE ÉMET SES PIÈCES, LE REÇU NE PEND PLUS, SUPPRIMER S'ÉLOIGNE — 7 septembre 2026, PUBLIÉ
 
 Trois demandes de Yéman dans la même heure, toutes au registre des encaissements.

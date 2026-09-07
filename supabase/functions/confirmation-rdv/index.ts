@@ -80,7 +80,15 @@ const jourEnClair = (iso: string): string => {
 };
 
 Deno.serve(async (req) => {
-  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  /* ══ LA CLÉ SERVICE, NOUVELLE FAMILLE — 7 septembre 2026 ═══════════
+     Depuis la rotation des clés (fuite du 2 août), le projet vit sur les
+     clés « sb_… » : la legacy service_role (eyJ…) injectée par la
+     plateforme ne prouve plus rien, et cette garde répondait 401 chaque
+     soir, en silence. La Maison pose le secret de fonction CLE_SERVICE
+     (la clé secrète sb_secret_…) ; la même valeur vit au Vault
+     (« service_role_key »), c'est elle que `appelle_fonction_edge`
+     envoie. Sans CLE_SERVICE posée, l'ancien monde continue tel quel. */
+  const service = Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
 
   /* Seul le cron (armé de la clé service) a le droit de réveiller l'envoi :
