@@ -82,11 +82,18 @@ dit('six gestes dans la section', 6, SERVICES_KIDS.length);
    et se vend une seule fois. Un second article aurait posé deux façons
    d'acheter la même chose côte à côte au catalogue. */
 dit('la Première Couronne vaut cent cinquante mille', 150_000, VEKPE.priceXof);
-dit('… et comprend ses deux retouches',
-  ['sv-kids-retouche', 'sv-kids-retouche'], (VEKPE.includes ?? []).map((i) => i.serviceId));
-dit('… en trois venues', 3, VEKPE.sessions);
-dit('… posées à trois et six semaines', true,
-  VEKPE.description.includes('3 semaines') && VEKPE.description.includes('6 semaines'));
+dit('… et comprend deux retouches puis une reprise',
+  ['sv-kids-retouche', 'sv-kids-retouche', 'sv-kids-sinsin'],
+  (VEKPE.includes ?? []).map((i) => i.serviceId));
+dit('… en quatre venues', 4, VEKPE.sessions);
+/* LES RETOUCHES SE RAPPROCHENT, LA REPRISE S'ÉLOIGNE : une couronne neuve se
+   détend là où on l'a posée, dans les premières semaines. On la rattrape tôt et
+   deux fois, puis on laisse deux mois avant la première vraie reprise. */
+dit('… posées à deux, quatre et huit semaines', true,
+  VEKPE.description.includes('2 et à 4 semaines')
+  && VEKPE.description.includes('8 semaines'));
+dit('… et la retouche dit les mêmes semaines', true,
+  RETOUCHE.description.includes('semaines 2 et 4'));
 /* LA RETOUCHE NE PORTE PAS LA MARCHE DES 250 LOCKS : elle ne parcourt pas
    toute la tête, seulement ce qui a lâché depuis la pose. */
 dit('la retouche ne porte pas de marche', undefined, RETOUCHE.paliersDeLocks);
@@ -229,8 +236,14 @@ dit('une prestation simple ne détaille rien', 0,
 /* … MAIS LA PREMIÈRE COURONNE, SI : ce qu'elle emporte se lit au rendez-vous
    comme sur la pièce, sinon le parent paie 150 000 F sans voir les deux venues
    qu'il a déjà réglées. */
-dit('la Première Couronne détaille ses retouches', 2,
+dit('la Première Couronne détaille ce qu’elle emporte', 3,
   detailDuForfait(VEKPE, SERVICES_KIDS, fr).length);
+/* LA REPRISE COMPRISE PORTE SA MARCHE : au-delà de 250 locks elle vaut 20 000,
+   et la ligne doit le dire — c'est ce que la Maison donne qui change, pas le
+   prix de la couronne. */
+dit('… et la reprise comprise suit la tête', true,
+  detailDuForfait(VEKPE, SERVICES_KIDS, fr, VEKPE.priceXof, 400)
+    .some((l) => l.includes('La Reprise Essentielle') && l.includes('20000')));
 
 /* ══ LA SECTION QUI A DÉRIVÉ SE RECONNAÎT ═══════════════════════════
    La section a été posée le 3 septembre, ses tarifs décidés le 4 : sans un juge

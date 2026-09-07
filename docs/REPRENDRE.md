@@ -73,6 +73,14 @@ catalogue, et le doute serait apparu au comptoir devant le parent. C'est le
 motif que la Maison emploie déjà chez les adultes (`FFT·I·01` inclut « 1
 Retouche Post Création à 3 semaines »). `sessions: 3`.
 
+**① bis · Le chemin des deux premiers mois** (correctif du même jour) : « Rajoute
+1 SÍNSIN Kids au pack à 8 semaines. Pour les retouches post création fais 2 et
+4 semaines ». Les retouches se rapprochent, la reprise s'éloigne, et le geste y
+gagne sa logique : une couronne neuve se détend là où on l'a posée, dans les
+premières semaines. On la rattrape tôt et deux fois plutôt que tard et une, puis
+on laisse deux mois avant la première VRAIE reprise, quand la repousse commande.
+Trois venues comprises, quatre en tout (`sessions: 4`). Le prix ne bouge pas.
+
 **② La retouche est un geste neuf, plus léger que la reprise** (arbitrage) :
 `SÍNSIN™ Kids · La Retouche Post Création`, 10 000 F, 25 min. On ne reprend que
 ce qui a bougé depuis la pose. **Elle ne porte pas la marche des 250 locks** :

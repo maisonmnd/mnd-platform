@@ -87,11 +87,25 @@ export const SERVICES_KIDS: Service[] = [
      Post Création à 3 semaines » comprise. Les Kids en ont deux. */
   kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 150_000, 150,
     '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation, '
-    + 'styling de sortie, et deux retouches post création, à 3 semaines et à 6 semaines.',
+    + 'styling de sortie, deux retouches post création à 2 et à 4 semaines, '
+    + 'et une reprise essentielle à 8 semaines.',
     undefined, undefined, [
+      /* ══ LE CHEMIN DES DEUX PREMIERS MOIS — 7 septembre 2026 ═══════
+         « Rajoute 1 SÍNSIN Kids au pack à 8 semaines. Pour les retouches post
+         création fais 2 et 4 semaines » (Yéman).
+
+         LES RETOUCHES SE RAPPROCHENT, LA REPRISE S'ÉLOIGNE, et le geste y gagne
+         sa logique : une couronne neuve se détend là où on l'a posée, dans les
+         premières semaines. On la rattrape tôt et deux fois plutôt que tard et
+         une, puis on laisse deux mois avant la première VRAIE reprise, quand la
+         repousse commande.
+
+         TROIS VENUES COMPRISES, DONC QUATRE EN TOUT. C'est ce que dit
+         `sessions`, et ce que le comptoir posera au carnet. */
       { serviceId: 'sv-kids-retouche' },
       { serviceId: 'sv-kids-retouche' },
-    ], 3),
+      { serviceId: 'sv-kids-sinsin' },
+    ], 4),
   /* LA RETOUCHE POST CRÉATION — un geste neuf, plus léger que la reprise
      (arbitrage de Yéman). On ne reprend que ce qui a bougé depuis la pose :
      une couronne neuve se détend aux racines dans les premières semaines, et
@@ -101,7 +115,7 @@ export const SERVICES_KIDS: Service[] = [
      ne parcourt pas toute la tête, seulement ce qui a lâché. */
   kid('sv-kids-retouche', 'SÍNSIN™ Kids · La Retouche Post Création', 10_000, 25,
     'On reprend ce qui a bougé depuis la pose, racine par racine, sans refaire toute la '
-    + 'couronne. Comprise dans La Première Couronne, aux semaines 3 et 6.'),
+    + 'couronne. Comprise dans La Première Couronne, aux semaines 2 et 4.'),
   /* ATELIER II — GBÈJÍ™ · la vie. Le tarif enfant EST le tarif : rien à barrer,
      et l'annoncer réduit ferait un geste imaginaire. */
   /* LA MARCHE EST SUR LA REPRISE — 7 septembre 2026.
