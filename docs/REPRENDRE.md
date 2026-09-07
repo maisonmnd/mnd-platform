@@ -61,7 +61,7 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
-## LE RAPPEL DU SOIR ÉTAIT MORT DEUX FOIS — 7 septembre 2026, FONCTIONS À RECOLLER
+## LE RAPPEL DU SOIR ÉTAIT MORT DEUX FOIS — 7 septembre 2026, RÉPARÉ ET VÉRIFIÉ
 
 En allumant le marketing, le cron `rappels-j1-soir` s'est révélé en échec
 TOUS LES SOIRS. Deux pannes empilées, chacune masquant l'autre :
@@ -86,11 +86,15 @@ fonction, la clé `sb_secret_…`) et ne retombent sur la legacy qu'en repli ;
 la même valeur vit au Vault (`service_role_key`) et dans l'en-tête des jobs
 du tableau de bord. Voir l'encadré ajouté à BRANCHER-ENVOIS.md.
 
-**À la reprise : les quatre fonctions sont À RECOLLER dans Supabase**
-(fichiers entiers), CLE_SERVICE à poser, et l'essai
-`select public.rappels_j1_soir_sql();` doit répondre 200 dans
-`net._http_response`. Le job `confirmation-rdv` (`*/10 * * * *`) restait
-aussi à créer.
+**Tout a été recollé et vérifié le soir même** : les quatre fonctions
+redéployées, CLE_SERVICE posée (Edge Functions → Secrets), le Vault remis
+d'aplomb — il portait DEUX secrets homonymes `service_role_key` (le relais en
+lisait un au hasard), puis un nom à 17 signes (une espace invisible collée au
+nom ; `length(name)` l'a confessée). L'essai a fini par répondre
+`200 {"jour":"2026-09-08","rdv":4}`, et le job `confirmation-rdv`
+(`*/10 * * * *`, en-tête sb_secret, timeout 5000 — le plafond du formulaire)
+répond `200 {"vus":…}`. Reste à l'œil : le cliché de nuit dans Storage →
+sauvegardes, et le premier vert du cron du soir au 8 septembre 18 h.
 
 Au passage, le même soir : Meta est en cours (vérification d'entreprise
 d'ACIA 1 « In review », restriction du WABA en revue) — le portefeuille a été
