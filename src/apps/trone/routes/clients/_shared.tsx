@@ -941,6 +941,35 @@ export const apptResume = (a: Appointment, byId: Map<string, Service>, max = 3) 
   return `${noms.slice(0, max - 1).join(' + ')} + ${reste} autres`;
 };
 
+/* ══ LES FACTURES QUI ATTENDENT LEUR RÈGLEMENT — 7 septembre 2026 ═══
+
+   « Les 17 factures à régler doivent mener exactement aux 17 » (Yéman).
+
+   LE JUGE VIVAIT DANS LE TABLEAU DE BORD ; la page Factures avait le sien
+   (un filtre « envoyée » qui comptait plus large). Deux juges, deux nombres,
+   et le bouton menait de l'un à l'autre. Il vit ici, à côté de `apptDueXof`
+   qu'il lit, et les deux écrans l'appellent.
+
+   ON ÔTE CELLES DÉJÀ COMPTÉES DANS LES IMPAYÉS ÉCHUS : la même somme lue
+   deux fois ferait croire à une dette double. Une pièce est « à régler » quand
+   elle est émise, non soldée, et qu'aucun rendez-vous échu ne la porte déjà. */
+export function facturesQuiAttendent(
+  invoices: readonly Invoice[],
+  appts: readonly Appointment[],
+  byId: Map<string, Service>,
+  branchId: string,
+  todayIso: string,
+): Invoice[] {
+  const portees = new Set(
+    appts
+      .filter((a) => a.status !== 'annulé' && a.date < todayIso && apptDueXof(a, byId) > 0)
+      .map((a) => a.invoiceId)
+      .filter((id): id is string => !!id),
+  );
+  return invoices.filter((i) => i.branchId === branchId && i.kind === 'facture'
+    && i.status === 'envoyée' && !portees.has(i.id));
+}
+
 /* ---------- Rappel WhatsApp (cloche sur un RDV à venir) ----------
    Un seul endroit pour le message ET la fenêtre du rappel, partagé par
    Le Carnet, le Calendrier et le Tableau de bord — le libellé reste identique

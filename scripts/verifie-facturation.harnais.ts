@@ -1,6 +1,6 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
-import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee } from '../src/apps/trone/routes/clients/_shared';
+import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee, facturesQuiAttendent } from '../src/apps/trone/routes/clients/_shared';
 import { factureAEnvoyer } from '../src/apps/trone/routes/clients/actions';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
 import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
@@ -559,6 +559,42 @@ const couvert = lignesDuRituelPiece({
 });
 dit('un rituel couvert montre quand même son geste', 40_000, couvert.lines[0].unitXof);
 dit('… et ne réclame rien', 0, netDe(couvert));
+
+/* ══ LES FACTURES QUI ATTENDENT LEUR RÈGLEMENT — 7 septembre 2026 ═══
+   « Les 17 factures à régler doivent mener exactement aux 17 » (Yéman). Le
+   Tableau de bord et la page Factures lisent le même juge ; le nombre lu sur
+   l'un est la liste ouverte sur l'autre.
+
+   ON ÔTE CELLES DÉJÀ COMPTÉES DANS LES IMPAYÉS ÉCHUS : la même somme lue deux
+   fois ferait croire à une dette double. */
+const svcAttente = new Map<string, Service>([
+  ['s1', { id: 's1', name: 'Rituel', priceXof: 10_000, durationMin: 60, categoryId: 'c', palier: 'Fondation', sessions: 1, master: '', order: 0, hidePrice: false } as Service],
+]);
+const pieceAttente = (id: string, status: Invoice['status'], kind: Invoice['kind'] = 'facture', branchId = 'br'): Invoice =>
+  ({ id, branchId, kind, status, number: id, clientId: 'c1', date: '2026-09-01', lines: [ligneFacture('Rituel', 10_000)] } as Invoice);
+const rdvEchu = { id: 'r1', branchId: 'br', clientId: 'c1', serviceIds: ['s1'], date: '2026-08-20', time: '10:00', master: 'M', status: 'honoré', invoiceId: 'inv-echue', paidXof: 0 } as Appointment;
+const rdvAVenir = { ...rdvEchu, id: 'r2', date: '2026-09-20', status: 'confirmé', invoiceId: 'inv-avenir' } as Appointment;
+const AUJ7 = '2026-09-07';
+const pieces = [
+  pieceAttente('inv-libre', 'envoyée'),         // émise, non soldée, aucun rendez-vous → à régler
+  pieceAttente('inv-echue', 'envoyée'),         // portée par un rendez-vous échu impayé → déjà dans les impayés
+  pieceAttente('inv-avenir', 'envoyée'),        // portée par un rendez-vous à venir → à régler (pas encore échue)
+  pieceAttente('inv-payee', 'payée'),           // soldée → rien à régler
+  pieceAttente('inv-brouillon', 'brouillon'),   // pas émise → rien à régler
+  pieceAttente('dev-1', 'envoyée', 'devis'),    // un devis n'est pas une créance
+  pieceAttente('inv-ailleurs', 'envoyée', 'facture', 'autre'), // une autre branche
+];
+dit('les factures qui attendent sont celles-là', ['inv-libre', 'inv-avenir'],
+  facturesQuiAttendent(pieces, [rdvEchu, rdvAVenir], svcAttente, 'br', AUJ7).map((i) => i.id));
+/* SANS RENDEZ-VOUS ÉCHU, LA PIÈCE QU'IL PORTAIT REDEVIENT À RÉGLER : c'est
+   l'exclusion qui est conditionnelle, pas la pièce. */
+dit('… et sans rendez-vous échu, l’échue revient', ['inv-libre', 'inv-echue', 'inv-avenir'],
+  facturesQuiAttendent(pieces, [rdvAVenir], svcAttente, 'br', AUJ7).map((i) => i.id));
+/* UN RENDEZ-VOUS ÉCHU MAIS SOLDÉ NE PORTE RIEN : il n'est pas dans les impayés,
+   donc sa pièce, si elle reste « envoyée », est bien à régler ici. */
+dit('… un rendez-vous échu soldé n’ôte rien', true,
+  facturesQuiAttendent(pieces, [{ ...rdvEchu, paidXof: 10_000 } as Appointment], svcAttente, 'br', AUJ7)
+    .some((i) => i.id === 'inv-echue'));
 
 /* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
    Elle avait glissé au milieu du fichier : des dizaines d'assertions

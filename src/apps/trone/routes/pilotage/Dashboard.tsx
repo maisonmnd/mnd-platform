@@ -19,10 +19,11 @@ import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../share
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
+  facturesQuiAttendent,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, revenuDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
-import { useBilans } from '../../../../shared/bilans';
+import { useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
 import { createStore, useStore } from '../../../../shared/store';
@@ -295,30 +296,23 @@ export default function Dashboard() {
   /* LES FACTURES ÉMISES QUI ATTENDENT LEUR RÈGLEMENT — les pièces, pas les
      rendez-vous. On ÔTE celles déjà comptées dans les impayés échus : la même
      somme lue deux fois ferait croire à une dette double. */
+  /* LE JUGE EST PARTAGÉ avec la page Factures (`facturesQuiAttendent`) : le
+     nombre lu ici est celui de la liste où mène le bouton, exactement. */
   const facturesARegler = useMemo(() => {
-    const dejaComptees = new Set(
-      unpaid.overdue.rows.map((r) => r.a.invoiceId).filter((id): id is string => !!id),
-    );
-    const rows = invoices.filter(
-      (i) => i.branchId === branch.id && i.kind === 'facture' && i.status === 'envoyée' && !dejaComptees.has(i.id),
-    );
+    const rows = facturesQuiAttendent(invoices, appts, byId, branch.id, today);
     /* CE QUI RESTE DÛ, pas ce que la pièce vaut : une facture à moitié réglée
        est une créance de son SOLDE. Compter son total réclamerait deux fois
        l'argent déjà reçu. */
     const total = rows.reduce((s, i) => s + invoiceResteXof(i), 0);
     return { count: rows.length, total };
-  }, [invoices, branch.id, unpaid.overdue.rows]);
+  }, [invoices, appts, byId, branch.id, today]);
 
   /* LES BILANS DUS — un rituel honoré est une séance dont la cliente attend le
      mot de la maison. On se borne aux TRENTE DERNIERS JOURS : au-delà, le
      bilan a perdu son sens, et une liste sans fin ne se traite jamais. */
-  const bilansARemettre = useMemo(() => {
-    const depuis = addDaysISO(today, -30);
-    const remis = new Set(bilans.map((b) => b.apptId).filter((id): id is string => !!id));
-    return appts.filter(
-      (a) => a.status === 'honoré' && a.date >= depuis && a.date <= today && !remis.has(a.id),
-    ).length;
-  }, [appts, bilans, today]);
+  /* LE JUGE EST PARTAGÉ avec le carnet (`seancesSansBilan`) : le bouton mène
+     aux têtes de ces séances-là, et le carnet redit le même nombre. */
+  const bilansARemettre = useMemo(() => seancesSansBilan(appts, bilans, today).length, [appts, bilans, today]);
 
   /* LES COMPOSITIONS SUR-MESURE (12 août). Le pont `mnd_couronne_compose` ne
      porte que la DERNIÈRE composition transmise — et AVANT ce jour, personne
@@ -469,13 +463,17 @@ export default function Dashboard() {
       k: 'factures',
       label: `${facturesARegler.count} facture${facturesARegler.count > 1 ? 's' : ''} à régler`,
       sub: `${fmtMoney(facturesARegler.total, currency)} en attente`,
-      action: 'Voir', go: () => navigate('/factures'),
+      /* EXACTEMENT CELLES-LÀ — « les 17 factures à régler doivent mener aux
+         17 » (Yéman). La page ouvre le même juge par `?filtre=a-regler`. */
+      action: 'Voir', go: () => navigate('/factures?filtre=a-regler'),
     }] : []),
     ...(bilansARemettre > 0 ? [{
       k: 'bilans',
       label: `${bilansARemettre} bilan${bilansARemettre > 1 ? 's' : ''} à remettre`,
       sub: bilansARemettre > 1 ? 'séances honorées des 30 derniers jours' : 'séance honorée des 30 derniers jours',
-      action: 'Voir', go: () => navigate('/customers'),
+      /* EXACTEMENT CELLES-LÀ : le carnet s'ouvre sur les têtes de ces séances,
+         par le focus « bilans », qui lit le même juge. */
+      action: 'Voir', go: () => navigate('/customers?focus=bilans'),
     }] : []),
     ...(unpaid.overdue.rows.length > 0 ? [{
       k: 'impayes',

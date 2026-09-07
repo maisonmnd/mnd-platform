@@ -7,6 +7,8 @@ import {
   leTravail, manquesDeLaTete, tetesDuGeste, motPourDemander, SE_DEMANDE, horsDuFauteuil,
   type TeteLue, type RituelLu,
 } from '../src/shared/afaire';
+import { seancesSansBilan } from '../src/shared/bilans';
+import type { Appointment } from '../src/shared/agenda';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -268,6 +270,40 @@ dit('deux têtes vivent ailleurs', 2, t10.horsFauteuil.ailleurs);
 /* LA JAUGE SUIT : ce qu'on ne doit pas n'est pas un retard. Une seule tête sur
    trois manque à l'appel, au lieu des trois d'avant. */
 dit('la jauge ne compte plus leur retard', 67, jauge(t10, 'facturer'));
+
+/* ══ LES SÉANCES QUI ATTENDENT LEUR BILAN — 7 septembre 2026 ═════════
+   « Les 38 bilans à remettre doivent mener exactement aux 38 » (Yéman). Le
+   juge vivait dans le Tableau de bord ; il vit dans `shared/bilans`, et le
+   carnet le lit pour ouvrir exactement ces têtes-là.
+
+   UNE SÉANCE, PAS UNE TÊTE : « À faire » compte les têtes qui n'ont pas deux
+   bilans ; ici on compte les rituels honorés des trente derniers jours dont
+   le bilan n'a pas été remis. Deux notions, un juge chacune. */
+const seance = (id: string, date: string, status: Appointment['status'] = 'honoré'): Appointment =>
+  ({ id, clientId: `t-${id}`, date, status, time: '10:00', serviceIds: [], branchId: 'br', master: '' } as Appointment);
+const AUJ = '2026-09-07';
+const lot = [
+  seance('a', '2026-09-01'),           // honorée, récente, sans bilan → due
+  seance('b', '2026-08-20'),           // honorée, il y a 18 jours → due
+  seance('c', '2026-07-30'),           // honorée, il y a 39 jours → trop ancienne
+  seance('d', '2026-09-03', 'confirmé'), // pas encore honorée → rien à remettre
+  seance('e', '2026-09-05'),           // honorée, bilan remis → tenue
+  seance('f', '2026-09-09'),           // dans le futur → pas encore
+];
+dit('les séances dues sont celles-là', ['a', 'b'],
+  seancesSansBilan(lot, [{ apptId: 'e' }], AUJ).map((a) => a.id));
+/* LA FENÊTRE EST DE TRENTE JOURS, BORNE COMPRISE : le trentième jour compte,
+   le trente-et-unième non. */
+dit('le trentième jour compte', ['t'],
+  seancesSansBilan([seance('t', '2026-08-08')], [], AUJ).map((a) => a.id));
+dit('… le trente-et-unième non', [],
+  seancesSansBilan([seance('t', '2026-08-07')], [], AUJ).map((a) => a.id));
+/* UN BILAN SANS RENDEZ-VOUS NE TIENT AUCUNE SÉANCE : `apptId` absent n'est
+   pas « toutes ». */
+dit('un bilan sans rendez-vous ne tient rien', ['a', 'b', 'e'],
+  seancesSansBilan(lot, [{ apptId: undefined }], AUJ).map((a) => a.id));
+dit('la fenêtre se règle', ['a', 'e'],
+  seancesSansBilan(lot, [], AUJ, 7).map((a) => a.id));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

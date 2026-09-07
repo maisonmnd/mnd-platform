@@ -33,7 +33,7 @@ import { useAuth } from '../../../../shared/auth';
 import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
-import { dernierBilanDe, useBilans } from '../../../../shared/bilans';
+import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
@@ -74,12 +74,15 @@ type SortKey = 'nom' | 'modele' | 'visite' | 'depense' | 'points' | 'anniversair
    population que la carte. C'est ce qui garantit que le chiffre annoncé et le
    nombre de lignes affichées sont le même nombre — un compteur qui ne mène pas
    exactement à ce qu'il compte fait douter des autres. */
-type Focus = 'aucun' | 'nouvelles' | 'anniversaires' | 'enligne' | 'prixconvenu';
+type Focus = 'aucun' | 'nouvelles' | 'anniversaires' | 'enligne' | 'prixconvenu' | 'bilans';
 const FOCUS_LABEL: Record<Exclude<Focus, 'aucun'>, string> = {
   nouvelles: 'Nouvelles ce mois',
   anniversaires: 'Anniversaires sous 30 j',
   enligne: 'En ligne · Ma Couronne',
   prixconvenu: 'Prix convenus',
+  /* LES TÊTES DONT UNE SÉANCE ATTEND SON BILAN — le Tableau de bord y mène
+     par `?focus=bilans`, et le nombre qu'il annonce est celui des séances. */
+  bilans: 'Bilans à remettre',
 };
 
 /* ---------- La file des enfants déclarés ----------
@@ -586,6 +589,11 @@ export default function Customers() {
   useEffect(() => {
     const pid = params.get('id');
     if (pid) setSelId(pid);
+    /* UN FOCUS DEMANDÉ PAR L'ADRESSE — « les 38 bilans à remettre doivent
+       mener exactement aux 38 » (Yéman). Le Tableau de bord ouvre le carnet
+       déjà resserré sur ces têtes-là. */
+    const f = params.get('focus');
+    if (f === 'bilans') setFocus('bilans');
   }, [params]);
   const [rdvFor, setRdvFor] = useState<Client | null>(null);
   const [intake, setIntake] = useState(false);
@@ -741,6 +749,17 @@ export default function Customers() {
     [tetes],
   );
   const tetesEnLigne = useMemo(() => clients.filter((c) => onlineIds.has(c.id)), [clients, onlineIds]);
+  /* LES SÉANCES QUI ATTENDENT LEUR BILAN, puis leurs têtes. Le juge est celui
+     du Tableau de bord (`seancesSansBilan`) : le carnet redit son nombre. */
+  const [bilansDuCarnet] = useBilans();
+  const seancesSansBilanDuJour = useMemo(
+    () => seancesSansBilan(appts, bilansDuCarnet, todayISO()),
+    [appts, bilansDuCarnet],
+  );
+  const tetesBilan = useMemo(() => {
+    const ids = new Set(seancesSansBilanDuJour.map((a) => a.clientId));
+    return clients.filter((c) => ids.has(c.id));
+  }, [clients, seancesSansBilanDuJour]);
   const newThisMonth = tetesNouvelles.length;
   const bdaySoonCount = tetesAnniversaire.length;
   const onlineCount = tetesEnLigne.length;
@@ -774,6 +793,8 @@ export default function Customers() {
           ? tetesEnLigne
           : focus === 'prixconvenu'
             ? tetesPrixConvenu
+            : focus === 'bilans'
+              ? tetesBilan
             : view === 'passage'
             ? passageClients
             : view === 'visiteur'
@@ -964,6 +985,11 @@ export default function Customers() {
           <span>
             {FOCUS_LABEL[focus]} · <b style={{ fontWeight: 600 }}>{filtered.length}</b>
             {filtered.length > 1 ? ' têtes' : ' tête'}
+            {/* LE NOMBRE DU TABLEAU DE BORD, REDIT ICI : 38 séances peuvent
+                appartenir à 31 têtes, et le lecteur doit retrouver son 38. */}
+            {focus === 'bilans' && !q
+              ? ` · ${seancesSansBilanDuJour.length} séance${seancesSansBilanDuJour.length > 1 ? 's' : ''} sans bilan`
+              : ''}
             {q ? ', recherche en cours' : ''}, registres et segments mis de côté.
           </span>
           <button type="button" className="trc-focus__x" onClick={() => setFocus('aucun')}>

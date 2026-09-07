@@ -61,6 +61,39 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES NOMBRES DU TABLEAU DE BORD MÈNENT À LEUR LISTE — 7 septembre 2026, PUBLIÉ
+
+« Les 17 factures à régler doivent mener exactement aux 17. De même pour les
+38 bilans à remettre » (Yéman).
+
+**Un nombre qui ne mène pas à sa liste est un nombre qu'on finit par ne plus
+lire.** Les deux boutons ouvraient le registre entier, et chaque page avait son
+propre juge : la page Factures filtrait sur « envoyée » (plus large, car sans
+l'exclusion des impayés échus), et le carnet ne connaissait pas la notion de
+séance sans bilan du tout.
+
+**Un seul juge par notion, lu des deux côtés.**
+· `facturesQuiAttendent()` dans `clients/_shared.tsx`, à côté de `apptDueXof`
+  qu'il lit : émise, non soldée, et qu'aucun rendez-vous échu ne porte déjà
+  (la même somme lue deux fois ferait croire à une dette double). Le Tableau de
+  bord compte avec lui ; la page Factures l'ouvre par `?filtre=a-regler` et
+  n'affiche que ces pièces-là.
+· `seancesSansBilan()` dans `shared/bilans.ts` : les rituels honorés des trente
+  derniers jours dont le bilan n'a pas été remis. **Une séance, pas une tête** :
+  « À faire » compte les têtes qui n'ont pas deux bilans, c'est une autre
+  notion, avec son propre juge. Le carnet s'ouvre par `?focus=bilans` sur les
+  têtes de ces séances, et son bandeau redit le nombre de séances : 38 séances
+  peuvent appartenir à 31 têtes, et le lecteur doit retrouver son 38.
+
+**Le mécanisme de focus du carnet** (« nouvelles », « anniversaires »…)
+existait déjà pour exactement ce besoin : reprendre la population d'une carte
+cliquée. `bilans` le rejoint, et se demande par l'adresse.
+
+Harnais : `verifie-afaire` juge les séances sans bilan (fenêtre bornée,
+bilan sans rendez-vous, fenêtre réglable) ; `verifie-facturation` juge les
+factures qui attendent (l'exclusion des impayés échus est conditionnelle, pas
+la pièce).
+
 ## « SA CARTE » OUVRE LA CARTE — 7 septembre 2026, PUBLIÉ
 
 « Quand on appuie "Sa carte", ça ouvre son aperçu ; il doit ouvrir la carte

@@ -10,7 +10,7 @@ import { maisonNom, maisonRaison, signeLeMessage, DEVISE_COMPLETE } from '../../
 import { useServices } from '../../../../shared/catalog';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { payerClientIdOf } from '../../../../shared/accounts';
-import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, frDay, tarifsDuRituel, useServicesById, type EcartDeConformite } from '../clients/_shared';
+import { Avatar, ClientPicker, RdvModal, alignerFacturesDuRituel, facturesQuiAttendent, frDay, tarifsDuRituel, todayISO, useServicesById, type EcartDeConformite } from '../clients/_shared';
 import { useModelBands, useBandSets, TAUX_DE_REMISE } from '../../../../shared/pricing';
 import { useCategories, useProducts } from '../../../../shared/catalog';
 import { Modal, toast, Field, Input } from '../../../../ds/components';
@@ -179,7 +179,25 @@ export default function Factures() {
     return vus;
   }, [branchDocs]);
 
+  /* ══ « À RÉGLER », EXACTEMENT — 7 septembre 2026 ═════════════════
+     Le Tableau de bord dit « 17 factures à régler » ; ce bouton doit ouvrir
+     ces 17-là, pas le registre. Le juge est celui du Tableau de bord
+     (`facturesQuiAttendent`), lu ici tel quel : deux filtres auraient donné
+     deux nombres. Le filtre se lève d'un clic, « Tout voir ». */
+  /* LES DEUX LECTURES REMONTENT ICI : le juge des factures à régler les lit
+     avant la liste, et un hook ne se déplace pas sous condition. */
+  const [appointments] = useAppointments();
+  const byId = useServicesById();
+  const filtre = params.get('filtre');
+  const idsARegler = useMemo(
+    () => (filtre === 'a-regler'
+      ? new Set(facturesQuiAttendent(invoices, appointments, byId, branch.id, todayISO()).map((i) => i.id))
+      : null),
+    [filtre, invoices, appointments, byId, branch.id],
+  );
+
   const filtered = branchDocs
+    .filter((d) => !idsARegler || idsARegler.has(d.id))
     .filter((d) => statusFilter === 'tous' || d.status === statusFilter)
     .filter((d) => moisFilter === 'tous' || moisCle(d.date) === moisFilter)
     .filter((d) => {
@@ -211,7 +229,6 @@ export default function Factures() {
      facture née par le second chemin — le cas courant au comptoir — n'a PAS
      d'`apptId` : ne lire que celui-là la laisserait orpheline, et c'est
      exactement le défaut qui rendait l'alignement aveugle en août. */
-  const [appointments] = useAppointments();
   const rituelDe = (d: Invoice | null | undefined): Appointment | null => {
     if (!d) return null;
     if (d.apptId) {
@@ -341,7 +358,6 @@ export default function Factures() {
   const [sets] = useBandSets();
   const [cats] = useCategories();
   const [produits] = useProducts();
-  const byId = useServicesById();
   const [ecarts, setEcarts] = useState<EcartDeConformite[] | null>(null);
   /* ══ UN SEUL LIEN POUR TOUT LE FOYER — 3 septembre 2026 ════════════
      « Je voudrais émettre un lien de paiement unique pour le foyer. Les RDV du

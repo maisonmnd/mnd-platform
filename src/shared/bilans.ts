@@ -1,4 +1,5 @@
 import { createStore, useStore, uid } from './store';
+import type { Appointment } from './agenda';
 
 /* LE REGISTRE DES BILANS DE SÉANCE — le Carnet de Suivi devient réel.
 
@@ -94,3 +95,33 @@ export function remettreBilan(champs: Omit<Bilan, 'id'>): Bilan {
 
 import { bindCollection } from './sync';
 bindCollection(bilansStore, 'bilans');
+
+/* ══ LES SÉANCES QUI ATTENDENT LEUR BILAN — 7 septembre 2026 ═════════
+
+   « Les 38 bilans à remettre doivent mener exactement aux 38 » (Yéman).
+
+   LE JUGE VIVAIT DANS LE TABLEAU DE BORD, et nulle part ailleurs : le bouton
+   menait au carnet entier, où rien ne disait lesquelles des cent têtes
+   attendaient quoi. Un nombre qui ne mène pas à sa liste est un nombre qu'on
+   finit par ne plus lire.
+
+   UNE SÉANCE, PAS UNE TÊTE. « À faire » compte les têtes qui n'ont pas encore
+   deux bilans ; ici on compte les rituels honorés des trente derniers jours
+   dont le bilan n'a pas été remis — c'est la parole due après CE rendez-vous.
+   Les deux notions coexistent, mais chacune a un seul juge. */
+const ilYA = (iso: string, jours: number): string => {
+  const [a, m, j] = iso.split('-').map(Number);
+  const d = new Date(a, m - 1, j - jours);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export function seancesSansBilan(
+  appts: readonly Appointment[],
+  bilans: readonly Pick<Bilan, 'apptId'>[],
+  todayIso: string,
+  jours = 30,
+): Appointment[] {
+  const depuis = ilYA(todayIso, jours);
+  const remis = new Set(bilans.map((b) => b.apptId).filter((id): id is string => !!id));
+  return appts.filter((a) => a.status === 'honoré' && a.date >= depuis && a.date <= todayIso && !remis.has(a.id));
+}
