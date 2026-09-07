@@ -61,6 +61,75 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA REVUE DU PACK DE NAISSANCE — 7 septembre 2026, PUBLIÉ
+
+`/code-review` lancé par Yéman sur le dernier commit : dix chercheurs, une
+trentaine de candidats, huit défauts réels corrigés. Ce qui a été appris :
+
+**Six harnais avaient leur porte de sortie AU MILIEU du fichier** (`creneaux`,
+`echeancier`, `facturation`, `fil`, `kids`, `vente`) : tout ce qui avait été
+ajouté après s'exécutait derrière « Tout passe. », et un échec s'y imprimait
+sans faire échouer la commande. Aucune assertion n'était en échec ce jour-là,
+mais la garantie était creuse. Deux gardes désormais : la porte est la dernière
+ligne, et `dit()` pose lui-même `process.exitCode = 1` — un ajout derrière la
+porte ne pourra plus passer vert. **Règle** : une porte de sortie est une
+dernière ligne, et un harnais qui grandit se relit jusqu'au bout.
+
+**Le juge et le geste de « remise au tarif » listaient chacun leurs champs**,
+et les deux listes avaient divergé : `sessions` et `description` n'étaient ni
+comparés ni recopiés. Une couronne posée la veille à 150 000 F et quatre venues
+serait passée à 120 000 F **en gardant ses quatre venues**, et le bouton aurait
+dit qu'il n'y avait plus rien à faire. Une seule liste, `CHAMPS_SUIVIS`, et
+`empreinteKids()` dont les deux dérivent. Le harnais rejoue maintenant la
+migration d'une fiche posée hier et vérifie que plus rien ne dépasse après.
+
+**`afterWeeks: 0` sur la ligne de la pose** : l'éditeur du Catalogue efface un
+zéro à l'enregistrement, donc la comparaison stricte n'aurait jamais été
+égale, le bouton « à remettre au tarif » se serait rallumé pour toujours, et un
+clic aurait écrasé les corrections de la Maison. La pose ne porte plus de
+semaine (absent = le jour même, partout), et l'empreinte ne distingue pas 0
+d'absent.
+
+**Deux mécaniques de suites sur le même rendez-vous.** Le pack portait
+`sessions: 4` ET une cadence `afterWeeks` : le comptoir posait les trois
+suites, puis proposait encore « Poser la séance suivante », qui créait une
+seconde séance du pack entier à 150 minutes et trois suites de plus — sept
+visites pour quatre. Le pack passe à `sessions: 1` : **la cadence est le
+juge**, comme Ma Couronne le dit déjà (Cycle.tsx). Garde au harnais : un forfait
+à cadence ne porte pas `sessions > 1`.
+
+**Le Composeur de Ma Couronne ne demandait pas l'âge.** L'onglet Forfaits
+appelait `estProposable` sans le verdict Kids (défaut « inconnu » = laisse
+passer). Le pack de naissance, désormais un forfait à cadence, s'y serait offert
+à une ADULTE pour sa propre tête. Il demande l'âge, comme le tunnel.
+
+**Le second bouton du Catalogue se cachait derrière le premier** : « remettre au
+tarif » attendait que « + MND Kids » ait tout posé, et entre les deux clics
+l'ancienne couronne à 150 000 F côtoyait le pack. Les deux se montrent chacun
+pour ce qu'il a à faire.
+
+**Aussi** : `kid()` perd ses deux paramètres morts (`inclus`, `venues`) — un
+geste ne peut plus devenir un forfait par accident ; `TOUT_KIDS` est exporté et
+le harnais juge LA liste (trois copies locales en différaient, dont une sans le
+pack) ; `poseLaSectionKids` copie la marche au lieu de la partager par
+référence ; le commentaire au-dessus de la couronne disait l'inverse du code ;
+un forfait ne peut plus se contenir (garde au harnais).
+
+**Ce que la revue a vu et qui reste à décider** :
+· **Ma Couronne** : avec `sessions: 1`, le tunnel de réservation ne pose que la
+  visite d'ouverture du pack ; les suites se posent au comptoir. À revoir si
+  les parents réservent ce pack en ligne. Le vrai correctif est un
+  `seancesDe(sv, services)` unique (cadence si elle existe, sinon `sessions`)
+  lu par la carte, le tunnel et le carnet — six écrans dans trois apps.
+· **Un pack réservé par le Cycle de Ma Couronne** porte les prestations
+  INCLUSES sur ses rendez-vous, jamais le pack : la pièce dirait « couronne
+  120 000 + ajustement 30 000 ». Défaut d'avant, commun aux packs adultes.
+· **Un rendez-vous posé avec la couronne à 150 000 F** entre les deux
+  publications d'hier soir garde son prix figé mais perdrait le détail de ses
+  trois venues. À vérifier au carnet si un tel rendez-vous existe.
+· Tous les gestes Kids ont `order: 0` : réordonner la section au Catalogue ne
+  fait rien. Défaut d'avant.
+
 ## LE PACK DE NAISSANCE KIDS — 7 septembre 2026, PUBLIÉ
 
 « Rajoute le VÈKPÈ Kids dans le pack. Son tarif hors forfait est à 120 000 F »

@@ -1028,7 +1028,12 @@ export default function Catalogue() {
                 + Protocole Post-Couleur &amp; YÈKPÈ™ Éclat · {protocoleAbsent(services)} fiches
               </Button>
             )}
-            {kidsAbsents(services) === 0 && kidsADepasser(services) > 0 && (
+            {/* LES DEUX BOUTONS SE MONTRENT CHACUN POUR CE QU'IL A À FAIRE —
+                revue du 7 septembre 2026. Le second attendait que le premier ait
+                tout posé : entre les deux clics, l'ancienne couronne à 150 000 F
+                côtoyait le pack de naissance, et la fenêtre pouvait durer tant
+                que personne ne voyait apparaître le second bouton. */}
+            {kidsADepasser(services) > 0 && (
               <Button variant="ghost" onClick={rafraichirKids}>
                 MND Kids · {kidsADepasser(services)} à remettre au tarif
               </Button>

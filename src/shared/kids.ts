@@ -46,11 +46,11 @@ const kid = (
   barreXof?: number,
   /* LA MARCHE, quand le geste s'allonge au-delà d'un comptage. */
   paliers?: { auDela: number; prixXof: number }[],
-  /* CE QUE LE GESTE EMPORTE AVEC LUI — une création qui comprend ses retouches
-     est un forfait, même si elle n'en porte pas le nom. */
-  inclus?: { serviceId: string }[],
-  /* COMBIEN DE VENUES : la création et ses deux retouches en font trois. */
-  venues?: number,
+  /* RIEN D'AUTRE, ET C'EST VOULU. `kid()` ne fabrique que des GESTES : une
+     venue, aucune composition. Un forfait s'écrit en toutes lettres, comme
+     `FORFAIT_KIDS` et `FORFAIT_KIDS_NAISSANCE`, parce qu'il porte des semaines
+     et une doctrine qu'un paramètre optionnel aurait laissé oublier — c'est
+     ainsi qu'une création s'est retrouvée à contenir ses propres retouches. */
 ): Service => ({
   id,
   categoryId: CAT_KIDS,
@@ -59,13 +59,12 @@ const kid = (
   priceXof,
   ...(barreXof ? { prixBarreXof: barreXof } : {}),
   ...(paliers ? { paliersDeLocks: paliers } : {}),
-  ...(inclus ? { includes: inclus } : {}),
   durationMin,
   priceMode: 'fixe',
   reserveEnfants: true,
   palier: 'Fondation',
   hidePrice: false,
-  sessions: venues ?? 1,
+  sessions: 1,
   master: '',
   order: 0,
 });
@@ -73,18 +72,11 @@ const kid = (
 /** LES GESTES DE LA SECTION, un par Atelier plus le Plateau. */
 export const SERVICES_KIDS: Service[] = [
   /* ══ ATELIER I — VÈKPÈ™ · la naissance ═══════════════════════════
-     « Mets le prix de VÈKPÈ™ Kids · La Première Couronne à 150 000 F et crée
-     un forfait avec 2 retouches post création à 3 semaines et à 6 semaines »
-     (Yéman, 7 septembre 2026), puis « 150 000 F, tout compris ».
-
-     LA CRÉATION EST DÉJÀ LE FORFAIT. Un second article « Première Couronne +
-     retouches » aurait posé deux façons d'acheter la même chose côte à côte au
-     catalogue, et le doute serait apparu au comptoir, devant le parent. La
-     couronne se vend une fois, et ce qu'elle emporte est écrit dedans.
-
-     C'EST LE MOTIF DE LA MAISON, pas une invention : le catalogue adulte vend
-     déjà « VÈKPÈ™ Initiation · La Naissance + Trousse MND™ » avec « 1 Retouche
-     Post Création à 3 semaines » comprise. Les Kids en ont deux. */
+     LA POSE SEULE, 120 000 F (« son tarif hors forfait », Yéman, 7 septembre).
+     Elle ne contient rien : ses trois suites vivent dans
+     `FORFAIT_KIDS_NAISSANCE`, qui la contient elle. Elle avait porté ses
+     retouches elle-même pendant une heure, et l'écran du forfait a montré
+     pourquoi cela ne tenait pas — voir le pack, plus bas. */
   kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 120_000, 150,
     '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation et styling de sortie.'),
   /* LA RETOUCHE POST CRÉATION — un geste neuf, plus léger que la reprise
@@ -225,8 +217,21 @@ export const FORFAIT_KIDS_NAISSANCE: Service = {
   reserveEnfants: true,
   palier: 'Fondation',
   hidePrice: false,
-  /* QUATRE VENUES : la pose et les trois qui suivent. */
-  sessions: 4,
+  /* UNE SEULE MÉCANIQUE DE SUITES — revue du 7 septembre 2026.
+
+     Les trois venues qui suivent la pose sont ÉCRITES DANS LA CADENCE
+     (`afterWeeks`), et c'est elle que le comptoir pose au carnet le jour de
+     la pose. Y ajouter `sessions: 4` faisait tourner DEUX mécaniques sur le
+     même rendez-vous : le carnet proposait encore « Poser la séance
+     suivante », qui créait une seconde séance du pack entier, à 150 minutes,
+     puis trois suites de plus depuis cette date — sept visites pour un pack
+     de quatre. Ma Couronne dit déjà que « le juge est la cadence, pas
+     sessions » (Cycle.tsx) ; le pack s'y conforme.
+
+     CE QUE CELA CHANGE POUR MA COURONNE : le tunnel de réservation ne posera
+     que la visite d'ouverture ; les suites se posent au comptoir. C'est un
+     choix à revoir si les parents réservent ce pack en ligne. */
+  sessions: 1,
   master: '',
   order: 0,
   /* ══ LES SEMAINES SONT ÉCRITES — 7 septembre 2026 ═══════════════
@@ -237,16 +242,71 @@ export const FORFAIT_KIDS_NAISSANCE: Service = {
      rendez-vous : la phrase se lit, le nombre se pose. Écrites ici, les trois
      venues sortent du carnet toutes seules le jour de la pose.
 
-     ZÉRO POUR LA POSE : elle est la visite d'ouverture, pas une suite. */
+     LA POSE NE PORTE PAS DE SEMAINE : absent vaut « le jour même » partout où
+     la Maison lit ce champ, et l'éditeur du Catalogue efface un zéro à
+     l'enregistrement. Écrire 0 ici aurait fait une fiche que l'écran ne peut
+     pas reproduire, donc un bouton « à remettre au tarif » qui ne s'éteint
+     jamais — et qui, cliqué, aurait écrasé ce que la Maison venait de
+     corriger. */
   includes: [
-    { serviceId: 'sv-kids-vekpe', afterWeeks: 0 },
+    { serviceId: 'sv-kids-vekpe' },
     { serviceId: 'sv-kids-retouche', afterWeeks: 2 },
     { serviceId: 'sv-kids-retouche', afterWeeks: 4 },
     { serviceId: 'sv-kids-sinsin', afterWeeks: 8 },
   ],
 };
 
-const TOUT_KIDS = [...SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE];
+/** TOUTE LA SECTION, dans l'ordre où elle se pose. Exportée pour que le
+    harnais juge LA liste, pas une copie qui finirait par en différer. */
+export const TOUT_KIDS = [...SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE];
+
+/** ══ CE QUE LA MAISON SUIT SUR UNE FICHE POSÉE — revue du 7 septembre ═══
+
+    Le juge (« est-elle encore au tarif ? ») et le geste (« la remettre au
+    tarif ») listaient chacun leurs champs, à la main, et les deux listes
+    avaient divergé : `sessions` et `description` n'étaient ni comparés ni
+    recopiés. Une couronne posée hier à 150 000 F et quatre venues serait
+    passée à 120 000 F en gardant ses quatre venues, et le bouton aurait dit
+    qu'il n'y avait plus rien à faire. UNE SEULE LISTE, et les deux en
+    dérivent : ils ne peuvent plus se contredire.
+
+    `includes` se compare sans ses zéros : l'éditeur du Catalogue efface un
+    `afterWeeks: 0` à l'enregistrement, et « le jour même » s'écrit aussi bien
+    par l'absence. Deux écritures, une notion. */
+const CHAMPS_SUIVIS = [
+  'name', 'priceXof', 'prixBarreXof', 'description', 'includes', 'paliersDeLocks',
+  'sessions', 'durationMin',
+] as const;
+
+const inclusNormalises = (inc: Service['includes']) =>
+  (inc ?? []).map((i) => ({
+    ...(i.serviceId ? { serviceId: i.serviceId } : {}),
+    ...(i.categoryId ? { categoryId: i.categoryId } : {}),
+    ...(i.productId ? { productId: i.productId } : {}),
+    ...(i.afterWeeks ? { afterWeeks: i.afterWeeks } : {}),
+  }));
+
+export const empreinteKids = (s: Service): string => JSON.stringify(CHAMPS_SUIVIS.map((k) => {
+  if (k === 'includes') return inclusNormalises(s.includes);
+  if (k === 'paliersDeLocks') return s.paliersDeLocks ?? [];
+  if (k === 'prixBarreXof') return s.prixBarreXof ?? 0;
+  if (k === 'sessions') return s.sessions ?? 1;
+  return s[k] ?? null;
+}));
+
+/** La fiche posée, remise aux valeurs de la Maison — ET RIEN D'AUTRE. Ce que
+    la Maison a ajouté elle-même sur la fiche (un maître, un ordre) reste. */
+const remiseAuTarif = (posee: Service, voulue: Service): Service => ({
+  ...posee,
+  name: voulue.name,
+  priceXof: voulue.priceXof,
+  prixBarreXof: voulue.prixBarreXof,
+  description: voulue.description,
+  includes: voulue.includes?.map((i) => ({ ...i })),
+  paliersDeLocks: voulue.paliersDeLocks?.map((x) => ({ ...x })),
+  sessions: voulue.sessions,
+  durationMin: voulue.durationMin,
+});
 
 /** Combien de gestes de la section manquent encore au catalogue. */
 export const kidsAbsents = (
@@ -277,7 +337,14 @@ export function poseLaSectionKids(): number {
   if (neufs.length === 0) return 0;
   servicesStore.set((prev) => [
     ...prev,
-    ...neufs.map((s) => ({ ...s, includes: s.includes?.map((i) => ({ ...i })) })),
+    ...neufs.map((s) => ({
+      ...s,
+      includes: s.includes?.map((i) => ({ ...i })),
+      /* COPIÉE, PAS PARTAGÉE : posée par référence, la marche du magasin et
+         celle de la constante auraient été le même objet, et une retouche en
+         place de l'une aurait déplacé l'autre — le juge n'aurait plus rien vu. */
+      paliersDeLocks: s.paliersDeLocks?.map((x) => ({ ...x })),
+    })),
   ]);
   return neufs.length;
 }
@@ -403,20 +470,9 @@ export function metAJourLaSectionKids(): number {
   let touchees = 0;
   servicesStore.set((prev) => prev.map((s) => {
     const v = voulus.get(s.id);
-    if (!v) return s;
-    const pareil = s.priceXof === v.priceXof
-      && (s.prixBarreXof ?? 0) === (v.prixBarreXof ?? 0)
-      && s.name === v.name
-      && JSON.stringify(s.includes ?? []) === JSON.stringify(v.includes ?? [])
-      /* LA MARCHE COMPTE COMME UN PRIX : sans elle ici, une section déjà posée
-         garderait 25 000 F pour toutes les têtes, et le bouton dirait qu'il n'y
-         a rien à mettre à jour. */
-      && JSON.stringify(s.paliersDeLocks ?? []) === JSON.stringify(v.paliersDeLocks ?? []);
-    if (pareil) return s;
+    if (!v || empreinteKids(s) === empreinteKids(v)) return s;
     touchees += 1;
-    return { ...s, name: v.name, priceXof: v.priceXof, description: v.description,
-      prixBarreXof: v.prixBarreXof, includes: v.includes?.map((i) => ({ ...i })),
-      paliersDeLocks: v.paliersDeLocks?.map((x) => ({ ...x })) };
+    return remiseAuTarif(s, v);
   }));
   return touchees;
 }
@@ -429,10 +485,7 @@ export const kidsADepasser = (
   const voulus = new Map(TOUT_KIDS.filter((s) => !retires.has(s.id)).map((s) => [s.id, s] as const));
   return services.filter((s) => {
     const v = voulus.get(s.id);
-    if (!v) return false;
-    return s.priceXof !== v.priceXof || (s.prixBarreXof ?? 0) !== (v.prixBarreXof ?? 0)
-      || s.name !== v.name || JSON.stringify(s.includes ?? []) !== JSON.stringify(v.includes ?? [])
-      || JSON.stringify(s.paliersDeLocks ?? []) !== JSON.stringify(v.paliersDeLocks ?? []);
+    return !!v && empreinteKids(s) !== empreinteKids(v);
   }).length;
 };
 

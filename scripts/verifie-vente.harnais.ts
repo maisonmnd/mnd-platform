@@ -29,7 +29,7 @@ import type { Appointment } from '../src/shared/agenda';
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   const ok = JSON.stringify(attendu) === JSON.stringify(obtenu);
-  if (!ok) ko++;
+  if (!ok) { ko++; process.exitCode = 1; }
   console.log(`${ok ? 'OK   ' : 'ÉCHEC'} ${nom} → ${JSON.stringify(obtenu)}`);
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
@@ -663,8 +663,6 @@ dit('une piece etrangere ne retire rien', 0,
   detacheLesVersementsDeLaPiece('inv-abo', ['pay-1']));
 dit('… et le contrat garde son versement', 1, subscribersStore.get()[0].payments?.length ?? -1);
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
-if (ko > 0) process.exit(1);
 
 /* ══ UNE SEULE LISTE DE MOYENS DE RÈGLEMENT ════════════════════════
    « J'ai l'impression que Moyen de règlement est à plusieurs endroits. Il
@@ -698,3 +696,12 @@ dit('… et la trace reste offerte par-dessus', true,
 const original = ['Espèces', 'MTN MoMo', 'Chèque'];
 moyensAOffrir(original, 'Virement');
 dit('la liste des réglages n’est jamais modifiée', 3, original.length);
+
+/* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
+   Elle avait glissé au milieu du fichier : des dizaines d'assertions
+   s'exécutaient APRÈS « Tout passe. », et un échec s'y imprimait sans faire
+   échouer la commande. La garantie était creuse. Deux gardes désormais : la
+   porte est en dernier, et `dit` marque lui-même le code de sortie — un
+   ajout posé derrière la porte ne pourra plus passer vert. */
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+process.exit(ko === 0 ? 0 : 1);

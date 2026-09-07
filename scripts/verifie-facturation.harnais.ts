@@ -12,7 +12,7 @@ import { cibleDeLEncaissement } from '../src/shared/receipts';
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   const ok = JSON.stringify(attendu) === JSON.stringify(obtenu);
-  if (!ok) ko++;
+  if (!ok) { ko++; process.exitCode = 1; }
   console.log(`${ok ? 'OK   ' : 'ÉCHEC'} ${nom} → ${JSON.stringify(obtenu)}`);
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
@@ -170,8 +170,6 @@ dit('la remise de ligne s’applique au produit', 8_000, totalProduitsXof(avecRe
 dit('une pièce d’avant ne porte aucun produit', 0,
   totalProduitsXof({ lines: [ligneFacture('Shampooing vendu en 2025', 6_000)] }));
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
-if (ko > 0) process.exit(1);
 
 /* ═══════════════════════════════════════════════════════════════════
    UNE PIÈCE, PLUSIEURS RÈGLEMENTS — 17 août 2026.
@@ -240,7 +238,6 @@ dit('une pièce d’avant se lit encore', 81_000, invoiceRegleXof(ancienne));
 dit('… à la date de la pièce', 81_000, invoiceRegleAu(ancienne, '2026-08'));
 dit('… et une non payée d’avant ne compte rien', 0, invoiceRegleXof(piece2(undefined, 'envoyée')));
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 
 /* ── LES REMISES DE LIGNE — % puis F, et le cumul avec la globale ── */
 const rdvRemise = {
@@ -475,7 +472,6 @@ dit('… et elle dit pourquoi', true,
 const encore = factureAEnvoyer(rituelCouvert, byId, 'br');
 dit('la seconde demande rend la premiere', true, encore.ok && encore.deja);
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 
 /* ══ LA PIÈCE VAUT LE RITUEL, TOUJOURS ═════════════════════════════
    « Quand j'émets la facture du RDV de S. au lieu de 85 000 F je reçois une
@@ -563,3 +559,12 @@ const couvert = lignesDuRituelPiece({
 });
 dit('un rituel couvert montre quand même son geste', 40_000, couvert.lines[0].unitXof);
 dit('… et ne réclame rien', 0, netDe(couvert));
+
+/* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
+   Elle avait glissé au milieu du fichier : des dizaines d'assertions
+   s'exécutaient APRÈS « Tout passe. », et un échec s'y imprimait sans faire
+   échouer la commande. La garantie était creuse. Deux gardes désormais : la
+   porte est en dernier, et `dit` marque lui-même le code de sortie — un
+   ajout posé derrière la porte ne pourra plus passer vert. */
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+process.exit(ko === 0 ? 0 : 1);

@@ -23,7 +23,7 @@ const BR = 'br';
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   const ok = JSON.stringify(attendu) === JSON.stringify(obtenu);
-  if (!ok) ko++;
+  if (!ok) { ko++; process.exitCode = 1; }
   console.log(`${ok ? 'OK   ' : 'ÉCHEC'} ${nom} → ${JSON.stringify(obtenu)}`);
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
@@ -155,11 +155,6 @@ dit('les quarts d’avant restent', 43, fusion.avantG);
 dit('93 + 20 font 113', 113, totalDuComptage(fusion));
 dit('trois quarts sur quatre : partiel', false, comptageComplet(fusion));
 
-if (ko > 0) {
-  console.log(`\n${ko} contrôle(s) en échec.`);
-  process.exit(1);
-}
-console.log('\nTout passe.');
 
 /* ══ LA SÉRIE DES COMPTAGES — DEUX GESTES, UNE SUITE ═══════════════
    « Parfois ça change. Le client double ses locks, en perd… » puis « inclure le
@@ -238,3 +233,12 @@ dit('une tête jamais comptée n’a pas de série', 0, serieDesComptages([], 'b
 dit('le comptage d’une autre maison reste chez elle', 0, serieDesComptages(filDeLaTete, 'b2', tete()).length);
 /* UN CHIFFRE ABSURDE NE FAIT PAS UN COMPTAGE : zéro lock n'est pas une tête. */
 dit('zéro lock n’entre pas dans la série', 0, serieDesComptages([], 'b1', tete([{ iso: '2026-09-04', locks: 0 }])).length);
+
+/* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
+   Elle avait glissé au milieu du fichier : des dizaines d'assertions
+   s'exécutaient APRÈS « Tout passe. », et un échec s'y imprimait sans faire
+   échouer la commande. La garantie était creuse. Deux gardes désormais : la
+   porte est en dernier, et `dit` marque lui-même le code de sortie — un
+   ajout posé derrière la porte ne pourra plus passer vert. */
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+process.exit(ko === 0 ? 0 : 1);

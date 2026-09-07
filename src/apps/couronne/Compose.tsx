@@ -17,6 +17,7 @@ import {
 } from '../../shared/pricing';
 import { pushNotifyStaff } from '../../shared/push';
 import { uid } from '../../shared/store';
+import { estKids } from '../../shared/accounts';
 import { useAppointments, venuesHonorees } from '../../shared/agenda';
 import { useFamilies } from '../../shared/clients';
 import { fmtDuration, useClient, useVisibleCatalog } from './lib';
@@ -144,9 +145,17 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
   const [familles] = useFamilies();
   const aFamille = !!(client?.familyId && familles.some((f) => f.id === client.familyId));
   const venues = client ? venuesHonorees(appts, client.id) : 0;
+  /* L'ÂGE PASSE PAR ICI AUSSI — revue du 7 septembre 2026. Le tunnel de
+     réservation demande à `estProposable` le verdict Kids ; cet onglet ne le
+     demandait pas, et le défaut (« inconnu ») laisse passer. Le pack de
+     naissance des Kids, désormais un forfait à cadence, se serait donc offert
+     à une ADULTE, pour sa propre tête, à 150 000 F. La porte des Kids ne
+     s'applique qu'à ce qui la porte, mais elle s'applique partout. */
+  const verdictKids = estKids(client ?? undefined, new Date().toISOString().slice(0, 10));
   const forfaits = useMemo(
-    () => services.filter((s) => !!s.includes?.length && !s.hidePrice && estProposable(s, pricing, venues, aFamille)),
-    [services, pricing, venues, aFamille],
+    () => services.filter((s) => !!s.includes?.length && !s.hidePrice
+      && estProposable(s, pricing, venues, aFamille, verdictKids)),
+    [services, pricing, venues, aFamille, verdictKids],
   );
   /* Ce qu'un forfait contient, en clair. Une ligne « au choix dans l'atelier »
      se nomme par l'atelier ; un produit, par la Gamme. Une prestation que la

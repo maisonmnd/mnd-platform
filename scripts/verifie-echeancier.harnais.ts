@@ -16,7 +16,7 @@ import { revoitLePrixConvenu, type Subscriber } from '../src/shared/abonnements'
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   const ok = JSON.stringify(attendu) === JSON.stringify(obtenu);
-  if (!ok) ko++;
+  if (!ok) { ko++; process.exitCode = 1; }
   console.log(`${ok ? 'OK   ' : 'ÉCHEC'} ${nom} → ${JSON.stringify(obtenu)}`);
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
@@ -266,8 +266,6 @@ dit('les deux moitiés font toujours le total', true,
 dit('l’échéancier coupe comme l’écran', [84_000, 84_000],
   construitEcheancier(168_000, 2, '2026-09-02').map((e) => e.amountXof));
 
-console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
-if (ko > 0) process.exit(1);
 
 /* ══ REVOIR LE PRIX CONVENU D'UN CONTRAT ═══════════════════════════
    « Permets-moi de modifier le prix convenu » (Yéman, 4 septembre 2026).
@@ -350,3 +348,12 @@ dit('les dates ne bougent pas', ['2026-01-05', '2026-02-04', '2026-03-06'],
 const sansTranches = revoitLePrixConvenu(contrat([], [160_000]), undefined, 190_000);
 dit('un contrat sans tranches passe', true, sansTranches.ok);
 dit('… et ne s’invente pas d’échéancier', undefined, sansTranches.echeances);
+
+/* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
+   Elle avait glissé au milieu du fichier : des dizaines d'assertions
+   s'exécutaient APRÈS « Tout passe. », et un échec s'y imprimait sans faire
+   échouer la commande. La garantie était creuse. Deux gardes désormais : la
+   porte est en dernier, et `dit` marque lui-même le code de sortie — un
+   ajout posé derrière la porte ne pourra plus passer vert. */
+console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
+process.exit(ko === 0 ? 0 : 1);
