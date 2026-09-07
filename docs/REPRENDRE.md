@@ -61,6 +61,28 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE COMPTE PARENT VOIT LES RENDEZ-VOUS DU FOYER — 7 septembre 2026, PUBLIÉ
+
+« Je dois avoir le résumé des rendez-vous de la famille ou du foyer sur le
+compte parent » (Yéman).
+
+**La payeuse ne voyait que les siens.** Sa fiche listait ses rendez-vous, et le
+compte du foyer ne disait que l'argent : pour savoir quand ses enfants
+passaient, il fallait ouvrir chaque fiche. C'est elle qui règle et qui amène ;
+c'est donc à elle qu'il faut dire quand.
+
+**Un juge pur**, `rendezVousAVenirDuFoyer()` dans `shared/compte.ts`, à côté de
+`tetesDuCompte` : les rendez-vous à venir des AUTRES membres, dans l'ordre du
+temps. Les siens sont exclus, ils sont déjà sur sa fiche juste au-dessus ; les
+redire ferait compter deux fois. Sur l'Aperçu de la payeuse : un bloc
+« Rendez-vous à venir du foyer · N », et la carte du compte porte le nombre.
+
+**Chaque ligne ouvre la fiche du membre, pas le rendez-vous** : on modifie un
+rendez-vous depuis la tête qu'il concerne, jamais depuis une autre.
+
+`verifie-compte` juge l'ordre, l'exclusion des siens, celle d'une voisine, et le
+foyer sans autre membre.
+
 ## LA SYNCHRO REPREND D'ELLE-MÊME — 7 septembre 2026, PUBLIÉ
 
 « Synchro en échec · appointments, serveur injoignable » (Yéman), alors que le

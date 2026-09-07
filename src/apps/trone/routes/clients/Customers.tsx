@@ -48,7 +48,7 @@ import {
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence, frJourAn, frShortAn } from './_shared';
-import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte } from '../../../../shared/compte';
+import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
@@ -2252,6 +2252,16 @@ function Customer360({
       });
   }, [clientFamily, tetesBranche, client.id]);
   const estLePayeur = clientFamily?.payerClientId === client.id;
+  /* LES RENDEZ-VOUS DU FOYER, sur la fiche de celle qui règle et qui amène.
+     Les siens sont déjà listés plus haut ; ici, ceux des autres membres. */
+  const tousLesRdv = useBranchAppointments();
+  const rdvDuFoyer = useMemo(
+    () => (estLePayeur
+      ? rendezVousAVenirDuFoyer(tousLesRdv, membresDuCompte.map((m) => m.id), today)
+      : []),
+    [estLePayeur, tousLesRdv, membresDuCompte, today],
+  );
+  const nomDe = (id: string) => tetesBranche.find((c) => c.id === id)?.name ?? 'Un membre';
   const avoirDuCompte = clientFamily
     ? creditBalanceOf(credits, { type: 'family', id: clientFamily.id })
     : 0;
@@ -2665,6 +2675,45 @@ function Customer360({
               </div>
             )}
 
+            {/* ══ LES RENDEZ-VOUS DU FOYER — 7 septembre 2026 ═══════════
+                « Je dois avoir le résumé des rendez-vous de la famille ou du
+                foyer sur le compte parent » (Yéman). La payeuse ne voyait que
+                les siens : pour savoir quand ses enfants passaient, il fallait
+                ouvrir chaque fiche. C'est elle qui règle et qui amène.
+
+                CHAQUE LIGNE OUVRE LA FICHE DU MEMBRE, pas le rendez-vous : on
+                modifie un rendez-vous depuis la tête qu'il concerne, jamais
+                depuis une autre. */}
+            {estLePayeur && clientFamily && (
+              <div>
+                <span className="trc-microlabel">
+                  Rendez-vous à venir du foyer · {rdvDuFoyer.length}
+                </span>
+                {rdvDuFoyer.length === 0 ? (
+                  <div className="trc-sub" style={{ fontSize: 12.5, padding: '6px 0 2px' }}>
+                    Aucun rendez-vous à venir pour les {membresDuCompte.length} autre{membresDuCompte.length > 1 ? 's' : ''} membre{membresDuCompte.length > 1 ? 's' : ''} du foyer.
+                  </div>
+                ) : (
+                  <div className="trc-upcoming">
+                    {rdvDuFoyer.map((a) => (
+                      <button
+                        key={a.id} type="button" className="trc-upcoming__row"
+                        onClick={() => onOpen(a.clientId)}
+                        title={`Ouvrir la fiche de ${nomDe(a.clientId)}`}
+                      >
+                        <span className="trc-upcoming__date">{frShortAn(a.date)} · {a.time}</span>
+                        <span className="trc-upcoming__svc">
+                          <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{nomDe(a.clientId)}</b>
+                          {' · '}{apptLabel(a, byId)}{a.master ? ` · ${a.master}` : ''}
+                        </span>
+                        <StatusPill status={a.status} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ══ UN SEUL JOURNAL, DEUX ORIGINES ═══════════════════════
                 « Son carnet » et « la dernière note du carnet » vivaient dans
                 deux blocs qui se ressemblaient, sans qu'on sache lequel servait
@@ -2828,6 +2877,7 @@ function Customer360({
                     <span className="trc-sub" style={{ fontSize: 11 }}>
                       {clientFamily ? `Réglé par ${clientPayerName}` : 'crédit prépayé'} · avoir disponible
                       {clientFamily && membresDuCompte.length > 0 && ` · ${membresDuCompte.length + 1} membres`}
+                      {estLePayeur && rdvDuFoyer.length > 0 && ` · ${rdvDuFoyer.length} rendez-vous à venir dans le foyer`}
                     </span>
                   </span>
                   <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: avoirBal > 0 ? 'var(--copper-700)' : 'var(--ink-soft)', flex: 'none' }}>{fmtMoney(avoirBal, currency)}</span>

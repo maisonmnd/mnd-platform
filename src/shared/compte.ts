@@ -74,6 +74,29 @@ export function tetesDuCompte(client: Client, clients: readonly Client[], famili
   return clients.filter((c) => c.familyId === fam.id && !c.archived).map((c) => c.id);
 }
 
+/* ══ LES RENDEZ-VOUS À VENIR DU FOYER — 7 septembre 2026 ════════════
+
+   « Je dois avoir le résumé des rendez-vous de la famille ou du foyer sur le
+   compte parent » (Yéman).
+
+   LA PAYEUSE NE VOYAIT QUE LES SIENS. Sa fiche listait ses rendez-vous, et le
+   compte du foyer ne disait que l'argent : pour savoir quand ses enfants
+   passaient, il fallait ouvrir chaque fiche. C'est elle qui règle, c'est elle
+   qui amène ; c'est donc à elle qu'il faut dire quand.
+
+   LES SIENS EXCLUS : ils sont déjà sur sa fiche, juste au-dessus. Les
+   redire ici les ferait compter deux fois, et le nombre mentirait. */
+export function rendezVousAVenirDuFoyer(
+  appts: readonly Appointment[],
+  membresIds: readonly string[],
+  todayIso: string,
+): Appointment[] {
+  const ids = new Set(membresIds);
+  return appts
+    .filter((a) => ids.has(a.clientId) && a.date >= todayIso && a.status !== 'annulé' && a.status !== 'honoré')
+    .sort((x, y) => x.date.localeCompare(y.date) || x.time.localeCompare(y.time));
+}
+
 /* ── QUAND UN RITUEL ENTRE-T-IL AU COMPTE ? — 28 août 2026 ────────────
    « Pourquoi quand je vais sur le compte de Merine ce n'est pas marqué
    qu'elle doit à la Maison ? Aligner toutes les informations » (Yéman).

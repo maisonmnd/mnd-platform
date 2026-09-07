@@ -9,6 +9,7 @@ import {
   ecrituresDuCompte, soldeDuCompte, creancesDeLaMaison, trancheDe, peutPartirDevant,
   duDeLaTete, duDuCompte, tetesDuCompte, lignesImpayees, rituelAuCompte,
   ecrituresDeLaTete, ecrituresDuFoyer,
+  rendezVousAVenirDuFoyer,
 } from '../src/shared/compte';
 import type { Appointment } from '../src/shared/agenda';
 import type { Invoice, CreditMovement } from '../src/shared/finance';
@@ -442,6 +443,31 @@ dit('lié des deux côtés, compté une fois', 60_000, ecrituresDuCompte({
   credits: [], netDuRituel: net, dûDuRituel: du, aujourdhui: AUJ,
 }).reduce((t, e) => t + e.debitXof, 0));
 
+
+/* ══ LES RENDEZ-VOUS À VENIR DU FOYER — 7 septembre 2026 ════════════
+   « Le résumé des rendez-vous de la famille sur le compte parent » (Yéman).
+   La payeuse ne voyait que les siens. Ici, ceux des autres membres, à venir,
+   dans l'ordre du temps ; les siens sont exclus, ils sont déjà sur sa fiche. */
+const fyRdv = (id: string, clientId: string, date: string, time: string, status: Appointment['status'] = 'confirmé'): Appointment =>
+  ({ id, clientId, date, time, status, serviceIds: [], branchId: 'br', master: '' } as Appointment);
+const FY_AUJ = '2026-09-07';
+const fyCarnet = [
+  fyRdv('m1', 'enfant-a', '2026-09-12', '10:00'),
+  fyRdv('m2', 'enfant-b', '2026-09-09', '15:00', 'en attente'),
+  fyRdv('m3', 'enfant-b', '2026-09-09', '09:00'),
+  fyRdv('m4', 'enfant-a', '2026-09-01', '10:00', 'honoré'),   // passé
+  fyRdv('m5', 'enfant-a', '2026-09-20', '10:00', 'annulé'),   // annulé
+  fyRdv('m6', 'payeuse', '2026-09-11', '08:30'),              // le sien, déjà sur sa fiche
+  fyRdv('m7', 'voisine', '2026-09-10', '10:00'),              // pas du foyer
+  fyRdv('m8', 'enfant-a', FY_AUJ, '17:00'),                      // aujourd'hui compte
+];
+dit('les rendez-vous du foyer, dans l’ordre du temps', ['m8', 'm3', 'm2', 'm1'],
+  rendezVousAVenirDuFoyer(fyCarnet, ['enfant-a', 'enfant-b'], FY_AUJ).map((a) => a.id));
+dit('… les siens n’y sont pas', false,
+  rendezVousAVenirDuFoyer(fyCarnet, ['enfant-a', 'enfant-b'], FY_AUJ).some((a) => a.clientId === 'payeuse'));
+dit('… ni ceux d’une voisine', false,
+  rendezVousAVenirDuFoyer(fyCarnet, ['enfant-a', 'enfant-b'], FY_AUJ).some((a) => a.clientId === 'voisine'));
+dit('un foyer sans autre membre ne voit rien', [], rendezVousAVenirDuFoyer(fyCarnet, [], FY_AUJ));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
