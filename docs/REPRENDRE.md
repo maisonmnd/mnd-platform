@@ -61,6 +61,40 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA SYNCHRO REPREND D'ELLE-MÊME — 7 septembre 2026, PUBLIÉ
+
+« Synchro en échec · appointments, serveur injoignable » (Yéman), alors que le
+serveur répondait en 0,6 s au moment où il le lisait.
+
+**Un raté réseau n'avait aucune reprise.** Après un « Failed to fetch », la
+table restait rouge et son écriture au sol jusqu'à ce que quelqu'un modifie
+autre chose ou que le navigateur repasse « en ligne » ; la pastille disait
+elle-même « refaites une modification pour relancer ». Une coupure de trois
+secondes devenait une panne jusqu'au prochain geste.
+
+**Seul ce qui est passager se retente.** `syncMark.fail()` programme une
+reprise quand la cause est « serveur injoignable » (`estPassager`), avec
+l'espacement `DELAIS_DE_REPRISE_MS` : 5 s, 15 s, 45 s, puis 2 min plafonnés.
+Une table absente, une colonne qui manque, une contrainte violée, une session
+expirée ne guériront pas en attendant : les retenter ferait clignoter la
+pastille pour rien et cacherait qu'un humain doit agir. Chaque table dit
+comment on la repousse (`syncMark.relance`) à son branchement ; la reprise
+repasse par le même chemin qu'une écriture et rien ne part deux fois.
+
+**Deux défauts trouvés en l'écrivant** :
+· le classement ne reconnaissait que « Failed to fetch » (Chrome). Safari dit
+  « Load failed », Node « fetch failed », WebKit « timed out », une passerelle
+  qui tombe répond 502/503/504 : tout cela tombait dans « refus du serveur,
+  sans message », donc jamais retenté ;
+· **le chemin des documents avançait son repère AVANT l'envoi** : après un
+  raté, la reprise aurait comparé le document au repère déjà égal, dit « rien
+  à envoyer », et l'écriture ne serait jamais partie. La même leçon avait été
+  apprise pour les collections le 10 août.
+
+La pastille dit « nouvel essai en cours » et son infobulle distingue la panne
+qui se retente du refus qui attend un humain. `SyncState.reprises` porte les
+tables concernées. **38e harnais, `verifie-synchro`**.
+
 ## LES NOMBRES DU TABLEAU DE BORD MÈNENT À LEUR LISTE — 7 septembre 2026, PUBLIÉ
 
 « Les 17 factures à régler doivent mener exactement aux 17. De même pour les

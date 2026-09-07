@@ -40,6 +40,10 @@ export type SyncState = {
       explication est pire qu'une alerte de trop. Le panneau « Cet appareil »
       les nomme. */
   ecartees: string[];
+  /** LES TABLES QUI VONT RÉESSAYER D'ELLES-MÊMES — une panne passagère, pas
+      un refus. La pastille le dit, pour qu'on n'aille pas « refaire une
+      modification » à la main. */
+  reprises: string[];
   lastOkAt: number | null;
 };
 
@@ -55,7 +59,7 @@ export type SyncState = {
    On traduit donc l'erreur du serveur en une phrase que le comptoir peut lire,
    et on garde le message brut pour qui saura le lire. `supabase/audit_synchro.sql`
    confirme en base ce que cette phrase avance. */
-function raisonLisible(msg: string | undefined): string {
+export function raisonLisible(msg: string | undefined): string {
   const m = (msg ?? '').toLowerCase();
   /* PostgREST ne trouve pas la table : la migration n'a pas été collée. */
   if (m.includes('pgrst205') || m.includes('does not exist') || m.includes('schema cache')) {
@@ -67,7 +71,14 @@ function raisonLisible(msg: string | undefined): string {
   if (m.includes('violates foreign key') || m.includes('violates check') || m.includes('duplicate key')) {
     return 'écriture refusée par une contrainte de la base';
   }
-  if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('timeout')) {
+  /* TOUS LES VISAGES D'UN RÉSEAU QUI MANQUE. Chrome dit « Failed to fetch »,
+     Safari dit « Load failed », Node dit « fetch failed », et une passerelle
+     qui tombe répond 502, 503 ou 504. Ne reconnaître que le premier envoyait
+     les autres dans « refus du serveur, sans message » — une panne passagère
+     lue comme un refus, donc jamais retentée. */
+  if (m.includes('failed to fetch') || m.includes('load failed') || m.includes('fetch failed')
+    || m.includes('networkerror') || m.includes('network request failed') || m.includes('timeout') || m.includes('timed out')
+    || m.includes('econnreset') || m.includes('gateway') || /\b50[234]\b/.test(m)) {
     return 'serveur injoignable';
   }
   if (m.includes('jwt') || m.includes('expired')) {
@@ -75,6 +86,54 @@ function raisonLisible(msg: string | undefined): string {
   }
   return msg?.trim() || 'refus du serveur, sans message';
 }
+/** ══ CE QUI SE RETENTE TOUT SEUL — 7 septembre 2026 ═══════════════
+    « Synchro en échec · appointments, serveur injoignable » (Yéman), alors que
+    le serveur répondait en 0,6 s au moment où il le lisait.
+
+    UN RATÉ RÉSEAU N'AVAIT AUCUNE REPRISE. Après un « Failed to fetch », la
+    table restait rouge et son écriture au sol jusqu'à ce que quelqu'un
+    modifie autre chose ou que le navigateur repasse « en ligne » — la
+    pastille disait même « refaites une modification pour relancer ». Une
+    coupure de trois secondes devenait une panne jusqu'au prochain geste.
+
+    SEUL CE QUI EST PASSAGER SE RETENTE. Une table absente, une colonne qui
+    manque, une contrainte violée ne guériront pas en attendant : les retenter
+    ferait clignoter la pastille pour rien et cacherait qu'un humain doit
+    agir. Le juge est le même que celui de la phrase lue au comptoir. */
+export const estPassager = (msg: string | undefined): boolean =>
+  raisonLisible(msg) === 'serveur injoignable';
+
+/** LES DÉLAIS, DU PLUS COURT AU PLAFOND. Trois secondes de coupure se
+    rattrapent au premier essai ; une panne d'une heure ne mérite pas d'être
+    martelée : on espace, et l'on ne dépasse pas deux minutes, parce qu'une
+    écriture qui attend plus longtemps mérite qu'on la voie attendre. */
+export const DELAIS_DE_REPRISE_MS = [5_000, 15_000, 45_000, 120_000] as const;
+
+export const delaiDeReprise = (essai: number): number =>
+  DELAIS_DE_REPRISE_MS[Math.min(Math.max(0, essai), DELAIS_DE_REPRISE_MS.length - 1)];
+
+/* Comment repousser chaque table, et les reprises programmées. */
+const relances = new Map<string, () => void>();
+const reprises = new Map<string, ReturnType<typeof setTimeout>>();
+const essaisDeReprise = new Map<string, number>();
+
+const annuleLaReprise = (t: string): void => {
+  const r = reprises.get(t);
+  if (r) { clearTimeout(r); reprises.delete(t); }
+};
+const programmeUneReprise = (t: string): void => {
+  if (reprises.has(t) || !relances.has(t)) return;
+  const essai = essaisDeReprise.get(t) ?? 0;
+  essaisDeReprise.set(t, essai + 1);
+  const delai = delaiDeReprise(essai);
+  console.info(`[mnd-sync] ${t} : serveur injoignable, nouvel essai dans ${Math.round(delai / 1000)} s.`);
+  reprises.set(t, setTimeout(() => {
+    reprises.delete(t);
+    bumpSync();
+    relances.get(t)?.();
+  }, delai));
+};
+
 const syncListeners = new Set<() => void>();
 const dirtyTables = new Set<string>();
 /* UN REFUS DE DROIT N'EST PAS UNE PANNE.
@@ -104,6 +163,7 @@ let syncSnapshot: SyncState = {
   failedNames: [],
   failedWhy: [],
   ecartees: [],
+  reprises: [],
   pending: 0,
   failed: 0,
   lastOkAt: null,
@@ -122,6 +182,7 @@ function bumpSync(): void {
       return { table: t, raison: raisonLisible(brut), brut };
     }),
     ecartees: [...horsPortee].sort(),
+    reprises: [...reprises.keys()].sort(),
     lastOkAt,
   };
   syncListeners.forEach((f) => f());
@@ -136,15 +197,27 @@ if (typeof window !== 'undefined') {
   window.addEventListener('offline', bumpSync);
 }
 const syncMark = {
+  /* CHAQUE TABLE DIT COMMENT ON LA REPOUSSE, une fois, à son branchement.
+     La reprise ne connaît ni les magasins ni les diffs : elle rappelle. */
+  relance(t: string, fn: () => void) { relances.set(t, fn); },
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
-  ok(t: string) { dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now(); bumpSync(); },
+  ok(t: string) {
+    dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now();
+    essaisDeReprise.delete(t); annuleLaReprise(t);
+    bumpSync();
+  },
   /* Le message du serveur voyage avec l'échec : sans lui, la pastille nomme une
      table et laisse deviner la cause — ce qui envoie ouvrir la console. */
-  fail(t: string, msg?: string) { dirtyTables.delete(t); failedTables.set(t, msg ?? ''); bumpSync(); },
+  fail(t: string, msg?: string) {
+    dirtyTables.delete(t); failedTables.set(t, msg ?? '');
+    if (estPassager(msg)) programmeUneReprise(t);
+    bumpSync();
+  },
   /* La table sort du décompte ET des tentatives : une fois pour la session. */
   horsPortee(t: string) {
     dirtyTables.delete(t);
     failedTables.delete(t);
+    annuleLaReprise(t);
     if (!horsPortee.has(t)) {
       horsPortee.add(t);
       console.info(`[mnd-sync] ${t} : hors de portée de ce compte, les droits l'y refusent, ce n'est pas une panne.`);
@@ -517,6 +590,10 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
       });
     }, PUSH_DEBOUNCE_MS);
   };
+  /* LA REPRISE REPASSE PAR LE MÊME CHEMIN QU'UNE ÉCRITURE : le diff se
+     recalcule depuis `lastPushed`, resté en arrière tant que rien n'est parti,
+     et rien n'est envoyé deux fois. */
+  syncMark.relance(table, planifiePoussee);
 
   /* LA PREMIÈRE LECTURE NE REMPLACE PLUS — ELLE REJOUE. Le serveur fait foi
      sur tout ce que ce poste n'a pas touché dans cette session ; les gestes
@@ -865,24 +942,33 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
 
   // 2. Poussée locale (coalescée).
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const envoie = async () => {
+    /* LE GARDE SE REARME. Sans cette remise a zero, `timer` reste verite a
+       vie apres la premiere ecriture, et la garde de frappe ci-dessous ne
+       laisserait plus JAMAIS passer une mise a jour distante. */
+    timer = undefined;
+    const val = store.get();
+    const j = JSON.stringify(val);
+    if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
+    const { error } = await upsert(val);
+    if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
+    if (error) { syncMark.fail(`doc:${key}`, error.message); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); return; }
+    /* LE REPÈRE N'AVANCE QU'APRÈS UN ENVOI RÉUSSI — 7 septembre 2026. Il
+       avançait AVANT : après un raté, la reprise comparait le document au
+       repère déjà égal, disait « rien à envoyer », et l'écriture ne partait
+       jamais. La même leçon avait été apprise pour les collections. */
+    lastPushed = j;
+    syncMark.ok(`doc:${key}`);
+  };
+  const planifieLEnvoi = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void envoie(), PUSH_DEBOUNCE_MS);
+  };
+  syncMark.relance(`doc:${key}`, planifieLEnvoi);
   store.subscribe(() => {
     if (applyingRemote) return;
     syncMark.dirty(`doc:${key}`);
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(async () => {
-      /* LE GARDE SE REARME. Sans cette remise a zero, `timer` reste verite a
-         vie apres la premiere ecriture, et la garde de frappe ci-dessous ne
-         laisserait plus JAMAIS passer une mise a jour distante. */
-      timer = undefined;
-      const val = store.get();
-      const j = JSON.stringify(val);
-      if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
-      lastPushed = j;
-      const { error } = await upsert(val);
-      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
-      if (error) { syncMark.fail(`doc:${key}`, error.message); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); }
-      else syncMark.ok(`doc:${key}`);
-    }, PUSH_DEBOUNCE_MS);
+    planifieLEnvoi();
   });
 
   // 3. Application distante (Realtime).

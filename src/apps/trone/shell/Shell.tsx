@@ -98,14 +98,16 @@ function SyncDot() {
   const label = mode === 'off' ? 'Hors ligne'
     : mode === 'err'
       ? (premiere
-          ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}`
+          ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
           : 'Synchro en échec')
     : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
   const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
     : mode === 'err'
-      ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne. Refaites une modification pour relancer.`
+      ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
+        ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
+        : ' Ce refus ne guérira pas en attendant : il faut agir sur la base, puis refaire une modification pour relancer.'}`
     : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
     : 'Toutes les écritures sont sur le serveur.';
   return (
