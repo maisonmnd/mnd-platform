@@ -9,11 +9,7 @@ import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } 
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { joursDeLaTete } from '../../../../shared/clients';
-import {
-  invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture,
-  useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices,
-  type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit,
-  lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -518,6 +514,55 @@ export function factureAEnvoyer(
   const avecLien: Invoice = { ...inv, apptId: appt.id };
   invoicesStore.set((prev) => [avecLien, ...prev]);
   return { ok: true, inv: avecLien, deja: false };
+}
+
+/* ══ LA PIÈCE D'UN RITUEL DÉJÀ RÉGLÉ — 7 septembre 2026 ══════════════
+
+   « J'ai toujours des rituels sans pièce en janvier, février, mars… rectifie
+   ça » (Yéman).
+
+   `factureAEnvoyer` sait déjà construire la pièce ; ce qu'il ne faisait pas,
+   c'est MONTER LES VERSEMENTS DESSUS. Or `invoiceReglements` invente un
+   versement à toute pièce « payée » sans journal — daté du jour de la pièce,
+   sans tiroir : la caisse « Reprise 2025 » aurait disparu du registre à
+   l'instant même où la pièce naissait. Les versements montent donc avec leur
+   date, leur moyen et leur caisse, et le rendez-vous garde le lien des deux
+   côtés — c'est lui qui sort la ligne du registre des « sans pièce ». */
+export function emettreLaPieceDuRituelRegle(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  branchId: string,
+): { ok: boolean; deja: boolean } {
+  const r = factureAEnvoyer(appt, byId, branchId);
+  if (!r.ok) return { ok: false, deja: false };
+  const inv = r.inv;
+  const versements: InvoicePayment[] = (appt.payments ?? [])
+    .filter((v) => (v.amountXof ?? 0) > 0)
+    .map((v) => ({
+      id: v.id, date: v.date, amountXof: v.amountXof,
+      method: (v.method ?? 'Espèces') as PaymentMethod,
+      ...(v.cashbox ? { cashbox: v.cashbox } : {}),
+      ...(v.note ? { note: v.note } : {}),
+    }));
+  if (versements.length > 0) {
+    invoicesStore.set((prev) => prev.map((i) => {
+      if (i.id !== inv.id) return i;
+      const journal = [
+        ...(i.payments ?? []),
+        ...versements.filter((v) => !(i.payments ?? []).some((x) => x.id === v.id)),
+      ];
+      const posee = { ...i, payments: journal };
+      return { ...posee, status: invoiceSoldee(posee) ? 'payée' as const : 'envoyée' as const };
+    }));
+  }
+  appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id
+    ? {
+        ...x,
+        invoiceId: inv.id,
+        payments: x.payments?.map((v) => ({ ...v, invoiceId: inv.id })),
+      }
+    : x)));
+  return { ok: true, deja: r.deja };
 }
 
 export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {

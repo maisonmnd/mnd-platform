@@ -1,7 +1,8 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
 import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee, facturesQuiAttendent } from '../src/apps/trone/routes/clients/_shared';
-import { factureAEnvoyer } from '../src/apps/trone/routes/clients/actions';
+import { factureAEnvoyer, emettreLaPieceDuRituelRegle } from '../src/apps/trone/routes/clients/actions';
+import { appointmentsStore } from '../src/shared/agenda';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
 import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
 import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof, ligneNetXof, lignesDuRituelPiece } from '../src/shared/finance';
@@ -633,6 +634,58 @@ dit('la cible d’un versement de rituel', { source: 'rituel', apptId: 'ap-serie
   cibleDeLEncaissement({ id: 'r-rdv-pm-serie', apptId: 'ap-serie' } as never));
 dit('… et sans rendez-vous, aucune cible', null,
   cibleDeLEncaissement({ id: 'r-rdv-pm-serie' } as never));
+
+/* ══ LA PIÈCE D'UN RITUEL DÉJÀ RÉGLÉ — 7 septembre 2026 ══════════════
+   « J'ai toujours des rituels sans pièce en janvier, février, mars… »
+   (Yéman). L'émission doit créer la pièce ET monter les versements dessus :
+   sans cela, `invoiceReglements` en inventait un, daté du jour de la pièce et
+   sans tiroir — la caisse Reprise 2025 disparaissait du registre au moment
+   même où le papier naissait. */
+const svcEmission = new Map<string, Service>([
+  ['s-em', { id: 's-em', name: 'SÍNSIN™ · La Reprise', priceXof: 37_000, durationMin: 60, categoryId: 'c', palier: 'Fondation', sessions: 1, master: '', order: 0, hidePrice: false } as Service],
+]);
+const rdvRegle = {
+  id: 'ap-em', branchId: 'br-em', clientId: 'c-em', clientName: 'E. A.', serviceIds: ['s-em'],
+  date: '2025-01-12', time: '11:00', master: 'M', status: 'honoré',
+  priceXof: 37_000, paidXof: 37_000,
+  payments: [{ id: 'pm-em', amountXof: 37_000, date: '2025-01-12', method: 'Espèces', cashbox: 'Reprise 2025', note: 'Reprise 2025' }],
+} as Appointment;
+appointmentsStore.set(() => [rdvRegle]);
+invoicesStore.set(() => []);
+
+const em1 = emettreLaPieceDuRituelRegle(rdvRegle, svcEmission, 'br-em');
+dit('la pièce s’émet', { ok: true, deja: false }, em1);
+const pieceEmise = invoicesStore.get()[0];
+dit('… datée du jour du rituel, soldée, liée', ['2025-01-12', 'payée', 'ap-em'],
+  [pieceEmise?.date, pieceEmise?.status, pieceEmise?.apptId]);
+/* LES VERSEMENTS MONTENT TELS QUELS : date, moyen, caisse. C'est tout le
+   point — la trace de l'argent ne se réécrit pas quand le papier arrive. */
+dit('… et son versement garde sa caisse et sa date',
+  [37_000, '2025-01-12', 'Espèces', 'Reprise 2025'],
+  [pieceEmise?.payments?.[0]?.amountXof, pieceEmise?.payments?.[0]?.date,
+   pieceEmise?.payments?.[0]?.method, pieceEmise?.payments?.[0]?.cashbox]);
+const rdvApres = appointmentsStore.get()[0];
+dit('le rendez-vous nomme sa pièce, des deux côtés', true,
+  rdvApres.invoiceId === pieceEmise?.id && rdvApres.payments?.[0]?.invoiceId === pieceEmise?.id);
+
+/* AU REGISTRE : une seule ligne, de FACTURE, dans sa caisse — et plus aucune
+   ligne « rituel sans pièce ». Compter deux fois est la faute la plus chère. */
+const registreApres = buildReceipts({
+  branchId: 'br-em', invoices: invoicesStore.get(), online: [], appointments: appointmentsStore.get(),
+  credits: [], formation: [], abonnements: [], nameOf: () => 'E. A.', apptLabel: () => 'Reprise',
+});
+dit('au registre : une ligne de facture, zéro sans pièce',
+  [1, 0],
+  [registreApres.filter((r) => r.kind === 'facture').length,
+   registreApres.filter((r) => r.kind === 'rituel').length]);
+dit('… dans la caisse Reprise 2025', 'Reprise 2025',
+  registreApres.find((r) => r.kind === 'facture')?.cashbox);
+
+/* REJOUER NE DOUBLE RIEN : la seconde émission retrouve la pièce. */
+const em2 = emettreLaPieceDuRituelRegle(appointmentsStore.get()[0], svcEmission, 'br-em');
+dit('rejouer retrouve la pièce', true, em2.ok && em2.deja);
+dit('… sans pièce jumelle ni versement doublé', [1, 1],
+  [invoicesStore.get().length, invoicesStore.get()[0]?.payments?.length ?? 0]);
 
 /* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
    Elle avait glissé au milieu du fichier : des dizaines d'assertions

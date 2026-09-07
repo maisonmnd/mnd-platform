@@ -61,6 +61,28 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## CHAQUE RITUEL RÉGLÉ REÇOIT SA PIÈCE, D'UN GESTE — 7 septembre 2026, PUBLIÉ
+
+« J'ai toujours des rituels sans pièce en janvier, février, mars… rectifie ça »
+(Yéman, après la normalisation SQL des 17 versements Reprise 2025).
+
+**Le bouton vit au registre des encaissements** : « Émettre les pièces ·
+N rituels », tous mois confondus (rectifier janvier depuis septembre ne doit
+pas demander douze passages). Confirmation avec le compte et le total, puis une
+facture par rituel : soldée de naissance, datée du jour du rituel, prestations
+au prix d'époque (`factureAEnvoyer`, réutilisé tel quel).
+
+**Le point délicat était le versement, pas la pièce.** `invoiceReglements`
+invente un versement à toute pièce « payée » sans journal — daté du jour de la
+pièce, sans tiroir : la caisse Reprise 2025 aurait disparu du registre au
+moment même où le papier naissait. `emettreLaPieceDuRituelRegle` monte donc les
+versements du rendez-vous sur la pièce TELS QUELS (date, moyen, caisse) et
+grave le lien des deux côtés (`invoiceId` sur le rendez-vous et sur chaque
+versement) — c'est ce lien qui sort la ligne du registre des « sans pièce ».
+
+Rejouable sans dégât : la seconde émission retrouve la pièce, aucun versement
+doublé. Éprouvé de bout en bout dans `verifie-facturation`, magasins compris.
+
 ## L'ANNULATION D'UN ENCAISSEMENT ROUVRE LA GAMME — 7 septembre 2026, PUBLIÉ
 
 « Il reste les 30 000 F de la Gamme, je ne vois pas comment régler ça »

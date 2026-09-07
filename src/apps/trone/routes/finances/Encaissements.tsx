@@ -6,7 +6,9 @@ import { Button, Input, Modal, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
-import { PayAppointmentModal } from '../clients/actions';
+import { PayAppointmentModal, emettreLaPieceDuRituelRegle } from '../clients/actions';
+import { apptPaidXof } from '../../../../shared/agenda';
+import { useServicesById } from '../clients/_shared';
 import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
@@ -370,6 +372,26 @@ export default function Encaissements() {
      se rature pas. */
   const [rdvAOuvrir, setRdvAOuvrir] = useState<string | null>(null);
   const [tousLesRdv] = useAppointments();
+  const servicesParId = useServicesById();
+  /* ══ LES RITUELS RÉGLÉS QUI N'ONT PAS LEUR PIÈCE — 7 septembre 2026 ══
+     « J'ai toujours des rituels sans pièce en janvier, février, mars…
+     rectifie ça » (Yéman). Tous les mois confondus, jamais le seul mois
+     affiché : rectifier janvier depuis septembre ne doit pas demander douze
+     passages. */
+  const rituelsSansPiece = useMemo(() => tousLesRdv.filter((a) =>
+    a.branchId === branch.id
+    && !a.invoiceId
+    && apptPaidXof(a) > 0
+    && !(a.payments ?? []).some((pp) => pp.invoiceId)), [tousLesRdv, branch.id]);
+  const [emissionOuverte, setEmissionOuverte] = useState(false);
+  const emettreToutes = () => {
+    let emises = 0;
+    for (const a of rituelsSansPiece) {
+      if (emettreLaPieceDuRituelRegle(a, servicesParId, branch.id).ok) emises += 1;
+    }
+    setEmissionOuverte(false);
+    toast(`${emises} pièce${emises > 1 ? 's' : ''} émise${emises > 1 ? 's' : ''}. Chacune porte le jour de son rituel et ses versements.`);
+  };
   const rdvOuvert = rdvAOuvrir ? tousLesRdv.find((a) => a.id === rdvAOuvrir) ?? null : null;
   const openSource = (r: Receipt) => {
     if (r.apptId && tousLesRdv.some((a) => a.id === r.apptId)) setRdvAOuvrir(r.apptId);
@@ -485,6 +507,11 @@ export default function Encaissements() {
         actions={
           <>
             <MonthNav month={month} onChange={setMonth} />
+            {rituelsSansPiece.length > 0 && (
+              <Button variant="ghost" onClick={() => setEmissionOuverte(true)}>
+                Émettre les pièces · {rituelsSansPiece.length} rituel{rituelsSansPiece.length > 1 ? 's' : ''}
+              </Button>
+            )}
             <Button variant="ghost" onClick={exportCsv} disabled={shown.length === 0}>Exporter</Button>
             <Button variant={releveOuvert ? 'copper' : 'ghost'} onClick={() => setReleveOuvert((o) => !o)}>
               Pointer le relevé MoMo
@@ -775,6 +802,29 @@ export default function Encaissements() {
           ))
         )}
       </div>
+
+      {emissionOuverte && (
+        <Modal title="Émettre les pièces des rituels réglés" onClose={() => setEmissionOuverte(false)} width={560}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ margin: 0, lineHeight: 1.7 }}>
+              {rituelsSansPiece.length} rituel{rituelsSansPiece.length > 1 ? 's' : ''} réglé{rituelsSansPiece.length > 1 ? 's' : ''}, tous mois confondus,
+              pour {fmtMoney(rituelsSansPiece.reduce((n, a) => n + apptPaidXof(a), 0), currency)}, n’{rituelsSansPiece.length > 1 ? 'ont' : 'a'} pas de facture.
+            </p>
+            <p className="mnd-muted" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7 }}>
+              Chaque pièce naît soldée, datée du jour de son rituel, avec ses prestations au prix
+              d’époque. Les versements déjà reçus montent dessus tels quels : leur date, leur moyen
+              et leur caisse (Reprise 2025 comprise) ne bougent pas. Rien ne change à l’argent,
+              seul le papier manquait.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button variant="ghost" style={{ flex: 'none' }} onClick={() => setEmissionOuverte(false)}>Annuler</Button>
+              <Button variant="copper" style={{ flex: 'none' }} onClick={emettreToutes}>
+                Émettre {rituelsSansPiece.length} pièce{rituelsSansPiece.length > 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {rdvOuvert && (
         <PayAppointmentModal appt={rdvOuvert} onClose={() => setRdvAOuvrir(null)} />
