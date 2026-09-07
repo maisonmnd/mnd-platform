@@ -6,6 +6,7 @@ import { Button, Input, Modal, Segs, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
+import { PayAppointmentModal } from '../clients/actions';
 import { useClients } from '../../../../shared/clients';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { autoriserLaPurge } from '../../../../shared/sync';
@@ -45,6 +46,7 @@ import './finances.css';
 const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
   { k: 'tous', l: 'Tout' },
   { k: 'facture', l: 'Factures' },
+  { k: 'rituel', l: 'Rituels sans pièce' },
   { k: 'acompte', l: 'Acomptes' },
   { k: 'formation', l: 'Formations' },
   { k: 'abonnement', l: 'Abonnements' },
@@ -205,6 +207,19 @@ export default function Encaissements() {
           ? { ...i, payments: (i.payments ?? []).filter((x) => x.id !== cible.paymentId) }
           : i)));
         break;
+      case 'rituel':
+        /* LE VERSEMENT S'EN VA, LE RITUEL RESTE — et `paidXof` le suit. Sans
+           cette baisse, retirer le dernier versement laissait `paidXof` plein :
+           le journal vide retombe dessus, et rien n'aurait changé à l'écran. */
+        appointmentsStore.set((prev) => prev.map((a) => (a.id === cible.apptId
+          ? {
+            ...a,
+            payments: (a.payments ?? []).filter((x) => x.id !== cible.paymentId),
+            paidXof: Math.max(0, (a.paidXof ?? 0)
+              - ((a.payments ?? []).find((x) => x.id === cible.paymentId)?.amountXof ?? 0)),
+          }
+          : a)));
+        break;
       case 'avoir':
         creditMovementsStore.set((prev) => prev.filter((m) => m.id !== cible.movementId));
         break;
@@ -345,10 +360,20 @@ export default function Encaissements() {
   const byBox = useMemo(() => totalBy(ofMonth, boxOf), [ofMonth]);
   const filtered = method !== null || box !== null;
 
-  /* Ouvre la pièce d'origine : la facture, ou le rituel. La traçabilité ne vaut
-     que si l'on peut remonter à la source en un clic. */
+  /* ══ LA LIGNE OUVRE L'ÉCRAN QUI SAIT LA CORRIGER — 7 septembre 2026 ═
+     « Les trouver pour pouvoir les éditer et les modifier » (Yéman). Une ligne
+     de rituel menait au carnet ENTIER : à l'autre bout, il restait à retrouver
+     le bon mois de la bonne tête. Elle ouvre maintenant l'encaissement du
+     rendez-vous, ici même — c'est là que vivent « Annuler l'encaissement »
+     puis le ré-encaissement au bon montant, à la bonne date, dans la bonne
+     caisse. On n'édite pas un versement en place : l'argent se rejoue, il ne
+     se rature pas. */
+  const [rdvAOuvrir, setRdvAOuvrir] = useState<string | null>(null);
+  const [tousLesRdv] = useAppointments();
+  const rdvOuvert = rdvAOuvrir ? tousLesRdv.find((a) => a.id === rdvAOuvrir) ?? null : null;
   const openSource = (r: Receipt) => {
-    if (r.invoiceId) navigate(`/factures?id=${r.invoiceId}`);
+    if (r.apptId && tousLesRdv.some((a) => a.id === r.apptId)) setRdvAOuvrir(r.apptId);
+    else if (r.invoiceId) navigate(`/factures?id=${r.invoiceId}`);
     else if (r.apptId) navigate('/carnet');
   };
 
@@ -750,6 +775,10 @@ export default function Encaissements() {
           ))
         )}
       </div>
+
+      {rdvOuvert && (
+        <PayAppointmentModal appt={rdvOuvert} onClose={() => setRdvAOuvrir(null)} />
+      )}
 
       {aEffacer && (
         <Modal title="Supprimer cet encaissement ?" onClose={() => setAEffacer(null)} width={440}>

@@ -61,6 +61,38 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES RÈGLEMENTS DE RITUEL SANS PIÈCE ENTRENT AU REGISTRE — 7 septembre 2026, PUBLIÉ
+
+« Où est-ce que je peux trouver les encaissements de Reprise 2025 pour pouvoir
+les éditer et les modifier ? » (Yéman).
+
+**Nulle part, et c'était le défaut.** Le registre des encaissements ne lisait
+que les factures, et la saisie en série n'en crée pas : ses versements vivent
+sur le rendez-vous (`a.payments`, caisse « Reprise 2025 »). Des dizaines
+d'encaissements réels, dans une caisse nommée, invisibles du seul écran qui
+prétend montrer TOUT ce qui entre. Les rituels repris de l'ancien ERP étaient
+dans le même angle mort.
+
+**Nouvelle source du registre** (`buildReceipts`, section ②bis) : les
+versements de rendez-vous **sans facture** (un versement lié à une pièce sort
+déjà par elle, le reprendre le compterait deux fois). Kind `rituel`, libellé
+« Rituel · sans pièce », puce de filtre « Rituels sans pièce ». On les trouve
+donc : **Finances → Encaissements → le mois → filtre caisse « Reprise 2025 »**.
+
+**On n'édite pas un versement en place : l'argent se rejoue.** Cliquer une
+ligne de rituel ouvrait le carnet ENTIER ; elle ouvre maintenant
+`PayAppointmentModal` sur place — là où vivent « Annuler l'encaissement » puis
+le ré-encaissement au bon montant, à la bonne date, dans la bonne caisse.
+
+**La suppression sait retirer un versement de rituel** (`cibleDeLEncaissement`
+source `rituel`) : le versement s'en va, `paidXof` baisse d'autant — sans cette
+baisse, retirer le dernier versement laissait le journal vide retomber sur un
+`paidXof` plein, et rien ne changeait à l'écran.
+
+À part : la carte de lien WhatsApp est en ligne et correcte (vérifiée au curl) ;
+le grand aperçu qui revient après envoi est le cache du téléphone sur l'URL
+exacte, `?v=2` le contourne.
+
 ## LA CARTE DE LIEN — 7 septembre 2026, PUBLIÉ
 
 « Quand j'envoie le lien de MND, ça doit se présenter comme celui de Claude »

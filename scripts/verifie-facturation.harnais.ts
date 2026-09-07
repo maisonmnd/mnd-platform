@@ -7,7 +7,7 @@ import type { CommRates } from '../src/apps/trone/routes/equipe/payroll';
 import { invoicesStore, invoiceTotal, ligneFacture, invoiceRegleXof, invoiceRegleAu, invoiceCaisseAu, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type InvoicePayment, type Cashbox, ligneProduit, totalProduitsXof, ligneNetXof, lignesDuRituelPiece } from '../src/shared/finance';
 import type { Appointment } from '../src/shared/agenda';
 import type { Service } from '../src/shared/catalog';
-import { cibleDeLEncaissement } from '../src/shared/receipts';
+import { buildReceipts, cibleDeLEncaissement } from '../src/shared/receipts';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -595,6 +595,44 @@ dit('… et sans rendez-vous échu, l’échue revient', ['inv-libre', 'inv-echu
 dit('… un rendez-vous échu soldé n’ôte rien', true,
   facturesQuiAttendent(pieces, [{ ...rdvEchu, paidXof: 10_000 } as Appointment], svcAttente, 'br', AUJ7)
     .some((i) => i.id === 'inv-echue'));
+
+/* ══ LES RÈGLEMENTS DE RITUEL SANS PIÈCE ENTRENT AU REGISTRE ═════════
+   « Où trouver les encaissements de Reprise 2025 pour les éditer ? » (Yéman,
+   7 septembre 2026). Nulle part : le registre ne lisait que les factures, et
+   la saisie en série n'en crée pas. Des dizaines d'encaissements réels, dans
+   une caisse nommée, invisibles du seul écran qui prétend montrer TOUT. */
+const rdvSerie = {
+  id: 'ap-serie', branchId: 'br', clientId: 'c9', serviceIds: ['s1'],
+  date: '2025-07-31', time: '11:00', master: 'M', status: 'honoré',
+  paidXof: 90_000,
+  payments: [
+    { id: 'pm-serie', amountXof: 90_000, date: '2025-07-31', method: 'Espèces', cashbox: 'Reprise 2025', note: 'Série · reprise' },
+  ],
+} as Appointment;
+const rdvFacture = {
+  ...rdvSerie, id: 'ap-piece', invoiceId: 'inv-x',
+  payments: [{ id: 'pm-piece', amountXof: 10_000, date: '2026-09-01', method: 'Espèces', invoiceId: 'inv-x' }],
+} as Appointment;
+const registre = buildReceipts({
+  branchId: 'br', invoices: [], online: [], appointments: [rdvSerie, rdvFacture],
+  credits: [], formation: [], abonnements: [],
+  nameOf: () => 'T.', apptLabel: () => 'Rituel de la série',
+});
+const ligneSerie = registre.find((r) => r.id === 'r-rdv-pm-serie');
+dit('le versement de la série entre au registre', true, !!ligneSerie);
+dit('… dans sa caisse, à sa date', ['Reprise 2025', '2025-07-31', 90_000],
+  [ligneSerie?.cashbox, ligneSerie?.date, ligneSerie?.amountXof]);
+dit('… et il dit son rendez-vous', 'ap-serie', ligneSerie?.apptId);
+/* UN VERSEMENT LIÉ À UNE PIÈCE SORT PAR ELLE : le reprendre ici le compterait
+   deux fois — la faute la plus chère d'un registre. */
+dit('un versement porté par une pièce ne double pas', false,
+  registre.some((r) => r.id === 'r-rdv-pm-piece'));
+/* ET LA LIGNE SAIT D'OÙ ELLE VIENT : c'est ce qui permet de l'effacer
+   proprement, et d'ouvrir l'écran d'encaissement du rendez-vous en un clic. */
+dit('la cible d’un versement de rituel', { source: 'rituel', apptId: 'ap-serie', paymentId: 'pm-serie' },
+  cibleDeLEncaissement({ id: 'r-rdv-pm-serie', apptId: 'ap-serie' } as never));
+dit('… et sans rendez-vous, aucune cible', null,
+  cibleDeLEncaissement({ id: 'r-rdv-pm-serie' } as never));
 
 /* ══ LA PORTE DE SORTIE EST LA DERNIÈRE LIGNE — 7 septembre 2026 ═════
    Elle avait glissé au milieu du fichier : des dizaines d'assertions

@@ -25,7 +25,7 @@ import type { Appointment, ApptPayment } from './agenda';
  * TRÉSORERIE (ce qui est ENTRÉ, pourboire compris — sur sa ligne à lui —, avoir
  * exclu). Les deux totaux diffèrent légitimement — ne jamais les faire coïncider. */
 
-export type ReceiptKind = 'facture' | 'acompte' | 'formation' | 'abonnement' | 'avoir' | 'pourboire';
+export type ReceiptKind = 'facture' | 'rituel' | 'acompte' | 'formation' | 'abonnement' | 'avoir' | 'pourboire';
 
 /** LE BOCAL DES POURBOIRES — un nom, à UN seul endroit. Ce n'est pas une
     caisse déclarée (aucun solde d'ouverture, aucun relevé) : c'est l'argent
@@ -56,6 +56,7 @@ export type Receipt = {
 
 const LABEL_KIND: Record<ReceiptKind, string> = {
   facture: 'Facture',
+  rituel: 'Rituel · sans pièce',
   acompte: 'Acompte',
   formation: 'Formation',
   abonnement: 'Abonnement',
@@ -83,6 +84,7 @@ export type CibleEncaissement =
   | { source: 'pourboire'; invoiceId: string }
   | { source: 'enligne'; paymentId: string }
   | { source: 'acompte'; apptId: string }
+  | { source: 'rituel'; apptId: string; paymentId: string }
   | { source: 'formation'; paymentId: string }
   | { source: 'abonnement'; paymentId: string }
   | { source: 'avoir'; movementId: string }
@@ -119,6 +121,13 @@ export function cibleDeLEncaissement(r: Pick<Receipt, 'id' | 'invoiceId' | 'appt
   if (id.startsWith('r-abo-')) {
     const paymentId = id.slice('r-abo-'.length);
     return paymentId ? { source: 'abonnement', paymentId } : null;
+  }
+  if (id.startsWith('r-rdv-')) {
+    /* Le versement vit sur le RENDEZ-VOUS, pas sur une pièce : c'est le cas de
+       toute la saisie en série (« Reprise 2025 ») et des rituels repris de
+       l'ancien ERP. */
+    const paymentId = id.slice('r-rdv-'.length);
+    return r.apptId && paymentId ? { source: 'rituel', apptId: r.apptId, paymentId } : null;
   }
   if (id.startsWith('r-cre-')) {
     const movementId = id.slice('r-cre-'.length);
@@ -250,6 +259,36 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       label: appt ? `Acompte · ${s.apptLabel(appt)}` : 'Acompte en ligne',
       apptId: p.partnerId,
     });
+  }
+
+  /* ②bis ── LES RÈGLEMENTS DE RITUEL SANS PIÈCE — 7 septembre 2026 ────
+     « Où est-ce que je peux trouver les encaissements de Reprise 2025 pour
+     pouvoir les éditer ? » (Yéman). NULLE PART : le registre ne lisait que les
+     factures, et la saisie en série n'en crée pas — ses versements vivent sur
+     le rendez-vous. Des dizaines d'encaissements réels, dans une caisse
+     nommée, invisibles du seul écran qui prétend montrer TOUT ce qui entre.
+
+     ON NE PREND QUE CE QU'AUCUNE PIÈCE NE PORTE : un versement lié à une
+     facture sort déjà en ① par elle — le reprendre ici le compterait deux
+     fois. */
+  for (const a of s.appointments) {
+    if (a.branchId !== s.branchId) continue;
+    for (const p of a.payments ?? []) {
+      if (p.invoiceId || !(p.amountXof > 0)) continue;
+      out.push({
+        id: `r-rdv-${p.id}`,
+        kind: 'rituel',
+        date: p.date || a.date,
+        clientId: a.clientId,
+        clientName: a.clientName ?? s.nameOf(a.clientId),
+        amountXof: p.amountXof,
+        method: p.method ?? 'Espèces',
+        cashbox: p.cashbox,
+        ref: p.note,
+        label: s.apptLabel(a) || 'Rituel',
+        apptId: a.id,
+      });
+    }
   }
 
   /* ③ Acomptes remis à la Maison puis RECONNUS reçus au comptoir. On saute ceux
