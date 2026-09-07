@@ -18,6 +18,7 @@
    devinent pas : la section ne se pose qu'au geste du souverain, jamais toute
    seule au démarrage. */
 import { categoriesStore, servicesStore, removedServiceIds, type CatalogCategory, type Service } from './catalog';
+import { prixSelonLesLocks } from './pricing';
 
 /** La catégorie qui porte la section. Elle vit à la racine du catalogue, à
     côté des Ateliers : MND Kids TRAVERSE les quatre, elle n'est sous aucun. */
@@ -43,6 +44,8 @@ const kid = (
   /* CE QUE LA PRESTATION VAUDRAIT AU TARIF DE LA MAISON. Absent = le tarif
      enfant EST le tarif, il n'y a pas de geste à montrer. */
   barreXof?: number,
+  /* LA MARCHE, quand le geste s'allonge au-delà d'un comptage. */
+  paliers?: { auDela: number; prixXof: number }[],
 ): Service => ({
   id,
   categoryId: CAT_KIDS,
@@ -50,6 +53,7 @@ const kid = (
   description: desc,
   priceXof,
   ...(barreXof ? { prixBarreXof: barreXof } : {}),
+  ...(paliers ? { paliersDeLocks: paliers } : {}),
   durationMin,
   priceMode: 'fixe',
   reserveEnfants: true,
@@ -67,8 +71,22 @@ export const SERVICES_KIDS: Service[] = [
     '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation et styling de sortie.'),
   /* ATELIER II — GBÈJÍ™ · la vie. Le tarif enfant EST le tarif : rien à barrer,
      et l'annoncer réduit ferait un geste imaginaire. */
+  /* LA MARCHE EST SUR LA REPRISE — 7 septembre 2026.
+
+     « Quand ce tarif apparaît, le contenu devrait changer à SÍNSIN Kids · La
+     Reprise Essentielle 20 000 F pour que le calcul soit juste » (Yéman).
+
+     C'EST ELLE QUI COÛTE LE TEMPS. Le shampoing et la sublimation se font en
+     une demi-heure sur n'importe quelle petite tête ; c'est le resserrage lock
+     par lock qui s'allonge quand la couronne en compte trois cents. La marche
+     appartient donc à ce geste-là, et le forfait ne fait que la suivre.
+
+     SANS ELLE, LE PACK SE CONTOURNE : les trois gestes pris séparément
+     feraient 25 000 F là où le pack en demande 30 000, et personne ne
+     prendrait plus jamais le pack sur une grande petite tête. */
   kid('sv-kids-sinsin', 'SÍNSIN™ Kids · La Reprise Essentielle', 15_000, 40,
-    'Resserrage lock par lock sur une petite tête, contrôle d’uniformité, styling de sortie.'),
+    'Resserrage lock par lock sur une petite tête, contrôle d’uniformité, styling de sortie. 20 000 F au-delà de 250 locks.',
+    undefined, [{ auDela: 250, prixXof: 20_000 }]),
   /* ATELIERS III & IV — YÈKPÈ™ × GBÌGBÌ™. Les deux gestes tiennent dans la même
      demi-heure sur une petite tête, et la Maison les donne pour un tiers de ce
      qu'ils valent : 15 000 F rendus 5 000. */
@@ -99,7 +117,7 @@ export const FORFAIT_KIDS: Service = {
      ensemble, là où « le rituel complet » pouvait passer pour une
      prestation de plus dans la liste. */
   name: 'PACK MND KIDS · Le rituel complet',
-  description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes, 30 000 F au-delà de 250 locks.',
+  description: 'Le shampoing à moitié prix, la reprise essentielle, la sublimation et le renfort durable donnés pour un tiers. 40 000 F au tarif de la Maison, 25 000 F pour les petites têtes. Au-delà de 250 locks, la reprise demande plus de temps : 45 000 F au tarif, 30 000 F pour elles.',
   priceXof: 25_000,
   /* LA MARCHE DES GRANDES PETITES TÊTES — 7 septembre 2026.
 
@@ -219,17 +237,31 @@ export type LigneDuForfait = {
   pct: number;
 };
 
+/** CE QUE LE FORFAIT CONTIENT, AU PRIX DE CETTE TÊTE-LÀ — 7 septembre 2026.
+
+    « Quand ce tarif apparaît, le contenu devrait changer à SÍNSIN Kids 20 000 F
+    pour que le calcul soit juste » (Yéman).
+
+    UN FORFAIT TOMBE PILE, c'est tout son principe : 5 000 + 15 000 + 5 000 font
+    les 25 000 F annoncés. Au-delà de 250 locks le pack passe à 30 000 F, et une
+    composition lue au tarif de base affichait toujours 25 000 sous un total de
+    30 000. Le parent fait l'addition — elle est écrite juste devant lui.
+
+    SANS COMPTAGE, LES PRIX D'ANNONCE : l'aperçu du Catalogue n'a pas de tête
+    sous la main, et montre ce qu'on dit au téléphone. */
 export const compositionDuForfait = (
   forfait: Pick<Service, 'includes'>, catalogue: readonly Service[],
+  lockCount?: number,
 ): LigneDuForfait[] =>
   (forfait.includes ?? [])
     .map((i) => catalogue.find((s) => s.id === i.serviceId))
     .filter((s): s is Service => !!s)
     .map((s) => {
-      const barre = s.prixBarreXof && s.prixBarreXof > s.priceXof ? s.prixBarreXof : undefined;
-      const gain = barre ? barre - s.priceXof : 0;
+      const prix = prixSelonLesLocks(s, lockCount) ?? s.priceXof;
+      const barre = s.prixBarreXof && s.prixBarreXof > prix ? s.prixBarreXof : undefined;
+      const gain = barre ? barre - prix : 0;
       return {
-        serviceId: s.id, nom: s.name, prixXof: s.priceXof, barreXof: barre,
+        serviceId: s.id, nom: s.name, prixXof: prix, barreXof: barre,
         gainXof: gain, pct: barre ? Math.round((gain / barre) * 100) : 0,
       };
     });
@@ -247,8 +279,11 @@ export const compositionDuForfait = (
 export const gainDuForfait = (
   forfait: Pick<Service, 'includes' | 'priceXof'>, catalogue: readonly Service[],
   prixApplique?: number,
+  /* LE COMPTAGE DE LA TÊTE : il décide du prix de chaque ligne, donc de ce que
+     la Maison donne. Absent, les prix d'annonce. */
+  lockCount?: number,
 ): { carteXof: number; prixXof: number; gainXof: number; pct: number } => {
-  const lignes = compositionDuForfait(forfait, catalogue);
+  const lignes = compositionDuForfait(forfait, catalogue, lockCount);
   /* LE PRIX BARRÉ QUAND IL EXISTE, LE PRIX SINON : une ligne sans geste vaut
      ce qu'elle coûte, et la compter à zéro gonflerait le gain annoncé. */
   const carte = lignes.reduce((n, l) => n + (l.barreXof ?? l.prixXof), 0);
@@ -346,14 +381,15 @@ export const detailDuForfait = (
   /* CE QUE LA LIGNE COÛTE VRAIMENT — voir `gainDuForfait`. Une pièce qui
      annonce un geste qu'elle n'a pas fait est pire qu'une pièce muette. */
   prixApplique?: number,
+  lockCount?: number,
 ): string[] => {
   const cat = listeDuCatalogue(catalogue);
-  const lignes = compositionDuForfait(forfait, cat);
+  const lignes = compositionDuForfait(forfait, cat, lockCount);
   if (lignes.length === 0) return [];
   const dites = lignes.map((l) => (l.barreXof
     ? `${l.nom} · ${fmt(l.prixXof)} au lieu de ${fmt(l.barreXof)}, ${l.pct} % offerts`
     : `${l.nom} · ${fmt(l.prixXof)}`));
-  const g = gainDuForfait(forfait, cat, prixApplique);
+  const g = gainDuForfait(forfait, cat, prixApplique, lockCount);
   /* LA DERNIÈRE LIGNE DIT LE GESTE ENTIER. Trois remises isolées se lisent
      comme trois détails ; leur somme se lit comme un accompagnement. */
   if (g.gainXof > 0) {

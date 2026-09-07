@@ -666,7 +666,15 @@ export function alignerFacturesDuRituel(
       répare, donc l'aperçu ne peut pas mentir sur ce qui va se passer. */
   /** LA DEVISE DU COMPTOIR, pour écrire le contenu d'un forfait. Absente, on
       dit les francs de la Maison : c'est en XOF que les tarifs sont saisis. */
-  options?: { simuler?: boolean; argent?: (x: number) => string },
+  options?: {
+    simuler?: boolean; argent?: (x: number) => string;
+    /* LE COMPTAGE DE LA TÊTE — 7 septembre 2026. La composition d'un forfait se
+       lit AU PRIX DE CETTE TÊTE : au-delà de 250 locks, la reprise Kids passe
+       de 15 000 à 20 000 F, et sans lui la pièce afficherait trois lignes qui
+       ne font pas son total. Le parent fait l'addition, elle est écrite devant
+       lui. Absent, les prix d'annonce. */
+    lockCount?: number;
+  },
 ): EcartDeConformite[] {
   const argentDit = options?.argent ?? ((x: number) => fmtMoney(x));
   /* LE LIEN SE LIT DANS LES DEUX SENS — 16 août 2026. On ne le cherchait que
@@ -821,7 +829,9 @@ export function alignerFacturesDuRituel(
     }
     const lines: InvoiceLine[] = services.map((s, i) => {
       const dedans = (emise ? contenuDEpoque.get(s.name) : undefined)
-        ?? ((s.includes?.length ?? 0) > 0 ? detailDuForfait(s, byId, argentDit, pleins[i]) : []);
+        ?? ((s.includes?.length ?? 0) > 0
+          ? detailDuForfait(s, byId, argentDit, pleins[i], options?.lockCount)
+          : []);
       return {
         id: `il-${inv.id}-${i}`, label: s.name, qty: 1, unitXof: pleins[i], discountPct: gestes[i],
         ...(francs[i] > 0 ? { discountXof: francs[i] } : {}),
@@ -2226,7 +2236,7 @@ export function RdvModal({
          de la modale (calibre, Juste Prix, longueur figée) donne les VRAIS
          prix pleins — pas le prix catalogue nu. */
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
-      if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe, { argent: (x) => fmtMoney(x, currency) });
+      if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe, { argent: (x) => fmtMoney(x, currency), lockCount: pricing.lockCount });
     } else {
       const created: Appointment = {
         id: uid(),
@@ -2717,13 +2727,17 @@ export function RdvModal({
                   ne voit pas n'est pas reçu. Le prix barré ne sert qu'à DIRE,
                   il n'entre dans aucun total. */}
               {(sv.includes?.length ?? 0) > 0 && (() => {
-                const compo = compositionDuForfait(sv, services);
+                const compo = compositionDuForfait(sv, services, pricing.lockCount);
                 if (compo.length === 0) return null;
                 /* LE PRIX DE CETTE TÊTE, pas celui de la fiche : au-delà de
                    250 locks le PACK Kids passe à 30 000 F, et annoncer le gain
                    du tarif bas sous une ligne facturée plus cher écrirait un
                    geste qui n'a pas été fait. */
-                const g = gainDuForfait(sv, services, personalPriceXof(sv, pricing, services, produitsGamme));
+                const g = gainDuForfait(
+                  sv, services,
+                  personalPriceXof(sv, pricing, services, produitsGamme),
+                  pricing.lockCount,
+                );
                 return (
                   <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>

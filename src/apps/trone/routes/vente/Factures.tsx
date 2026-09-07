@@ -398,7 +398,7 @@ export default function Factures() {
         produits,
       });
       if (t.chosen.length === 0) continue;
-      trouves.push(...alignerFacturesDuRituel(a, byId, t.prixPlein, produits, t.gesteDe, { simuler, argent: (x) => fmtMoney(x, currency) }));
+      trouves.push(...alignerFacturesDuRituel(a, byId, t.prixPlein, produits, t.gesteDe, { simuler, argent: (x) => fmtMoney(x, currency), lockCount: t.pricing.lockCount }));
     }
     return trouves;
   };

@@ -284,3 +284,43 @@ const parLaTete = (locks: number) =>
   personalPriceXof(FORFAIT_KIDS, pricingOf({ lockCount: locks }, MODEL_BANDS_SEED), catKids);
 dit('au rendez-vous, cent locks paient le tarif annonce', 25_000, parLaTete(100));
 dit('au rendez-vous, quatre cents locks paient la marche', 30_000, parLaTete(400));
+
+/* ══ LE FORFAIT TOMBE PILE, AUX DEUX PALIERS — 7 septembre 2026 ═══════
+   « Quand ce tarif apparaît, le contenu devrait changer à SÍNSIN Kids · La
+   Reprise Essentielle 20 000 F pour que le calcul soit juste » (Yéman).
+
+   C'EST TOUT LE PRINCIPE D'UN FORFAIT : sa composition fait son total, et le
+   parent la lit ligne à ligne juste devant lui. Une composition lue au tarif
+   de base affichait 5 000 + 15 000 + 5 000 sous un total de 30 000 F. */
+const sommeDe = (locks?: number) =>
+  compositionDuForfait(FORFAIT_KIDS, SERVICES_KIDS, locks).reduce((n, l) => n + l.prixXof, 0);
+dit('sous la marche, la composition fait le prix', 25_000, sommeDe(100));
+dit('au-delà, elle fait le nouveau prix', 30_000, sommeDe(400));
+dit('sans comptage, les prix d’annonce', 25_000, sommeDe(undefined));
+/* LA MARCHE EST SUR LA REPRISE, pas sur le shampoing : c'est le resserrage
+   lock par lock qui s'allonge quand la couronne en compte trois cents. */
+dit('la reprise porte la marche', 20_000,
+  compositionDuForfait(FORFAIT_KIDS, SERVICES_KIDS, 400)
+    .find((l) => l.serviceId === 'sv-kids-sinsin')?.prixXof);
+dit('le shampoing ne bouge pas', 5_000,
+  compositionDuForfait(FORFAIT_KIDS, SERVICES_KIDS, 400)
+    .find((l) => l.serviceId === 'sv-kids-kloklo')?.prixXof);
+
+/* SANS LA MARCHE SUR LA REPRISE, LE PACK SE CONTOURNE : les trois gestes pris
+   séparément feraient 25 000 F là où le pack en demande 30 000, et personne ne
+   le prendrait plus jamais sur une grande petite tête. */
+const separement = (locks: number) => [SERVICES_KIDS[3], SERVICES_KIDS[1], SERVICES_KIDS[2]]
+  .reduce((n, sv) => n + personalPriceXof(sv, pricingOf({ lockCount: locks }, MODEL_BANDS_SEED), catKids), 0);
+dit('le pack ne se contourne pas, sous la marche', [25_000, 25_000],
+  [separement(100), parLaTete(100)]);
+dit('… ni au-delà', [30_000, 30_000], [separement(400), parLaTete(400)]);
+
+/* CE QUE LA MAISON DONNE SUIT AUSSI : la reprise vaut 20 000 au tarif, donc la
+   carte monte à 45 000 et le geste reste de 15 000. */
+const g400 = gainDuForfait(FORFAIT_KIDS, SERVICES_KIDS, 30_000, 400);
+dit('au-delà, la carte monte et le geste tient', [45_000, 30_000, 15_000],
+  [g400.carteXof, g400.prixXof, g400.gainXof]);
+dit('… et la pièce l’écrit ainsi', true,
+  detailDuForfait(FORFAIT_KIDS, SERVICES_KIDS, (x) => `${x} F`, 30_000, 400)
+    .some((l) => l.includes('45000 F au tarif de la Maison')
+      && l.includes('30000 F pour les Kids') && l.includes('15000 F offerts')));

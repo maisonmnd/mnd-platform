@@ -61,6 +61,34 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA COMPOSITION DU PACK KIDS SUIT LA TÊTE — 7 septembre 2026, PUBLIÉ
+
+« Quand ce tarif apparaît, le contenu devrait changer à SÍNSIN Kids · La Reprise
+Essentielle 20 000 F pour que le calcul soit juste » (Yéman).
+
+**Un forfait tombe pile, c'est tout son principe.** La composition affichait
+5 000 + 15 000 + 5 000 sous un total de 30 000 F : le parent fait l'addition,
+elle est écrite ligne à ligne juste devant lui.
+
+**La marche appartient à la REPRISE, pas au forfait seul.** Le shampoing et la
+sublimation se font en une demi-heure sur n'importe quelle petite tête ; c'est
+le resserrage lock par lock qui s'allonge quand la couronne en compte trois
+cents. `SÍNSIN™ Kids` porte donc `paliersDeLocks: [{ auDela: 250, prixXof:
+20_000 }]`, et le pack ne fait que la suivre : 5 000 + 20 000 + 5 000 = 30 000.
+
+**Sans cela, le pack se contournait** : les trois gestes pris séparément
+faisaient 25 000 F là où le pack en demande 30 000, et personne ne l'aurait
+plus jamais pris sur une grande petite tête. Le harnais compare désormais les
+deux chemins aux deux paliers.
+
+**Ce que la Maison donne suit aussi** : la reprise vaut 20 000 F au tarif, donc
+la carte monte à 45 000 et le geste reste de 15 000 F offerts.
+
+`compositionDuForfait`, `gainDuForfait` et `detailDuForfait` prennent le
+comptage de la tête ; il voyage jusqu'à la pièce par les options de
+`alignerFacturesDuRituel`. Absent, les prix d'annonce — l'aperçu du Catalogue
+n'a pas de tête sous la main.
+
 ## LE PACK KIDS PASSE À 30 000 F AU-DELÀ DE 250 LOCKS — 7 septembre 2026, PUBLIÉ
 
 « Le rituel complet pour les Kids de 25 000 F fonctionne quand le kids a moins
