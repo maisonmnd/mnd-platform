@@ -7,7 +7,8 @@ import { uid } from '../../../../shared/store';
 import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
 import { useCategories, useProducts, useServices, type Service } from '../../../../shared/catalog';
-import { cashboxesStore, useCashboxes } from '../../../../shared/finance';
+import { cashboxesStore, invoicesStore, useCashboxes, useInvoices } from '../../../../shared/finance';
+import { emettreLaPieceDuRituelRegle } from './actions';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
   habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee,
@@ -545,7 +546,22 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
       note: `Reprise ${an}`,
     } as unknown as Appointment));
     appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(neufs)]);
-    toast(`${neufs.length} rituels posés · ${fmtMoney(total, currency)} dans « ${caisse} ».`);
+    /* ══ LA PIÈCE NAÎT AVEC LE RITUEL — 7 septembre 2026 ═════════════
+       « La saisie en série doit créer des versements qui vivent en
+       encaissement réel, pas seulement sur le rendez-vous » (Yéman). Un
+       versement sans pièce était invisible du registre jusqu'à hier, et il a
+       fallu deux SQL et un bouton de rattrapage pour réparer 2025. Le même
+       chemin que partout (`emettreLaPieceDuRituelRegle`) : la facture naît
+       soldée, datée du jour du rituel, et le versement monte dessus avec sa
+       caisse. UN RITUEL OFFERT N'ÉMET RIEN : sans versement, il n'y a pas
+       d'encaissement à attester, et cinquante pièces à zéro seraient du bruit. */
+    let pieces = 0;
+    for (const a of appointmentsStore.get()) {
+      if (!neufs.some((n) => n.id === a.id)) continue;
+      if (!(a.payments ?? []).some((v) => v.amountXof > 0)) continue;
+      if (emettreLaPieceDuRituelRegle(a, byId, branch.id).ok) pieces += 1;
+    }
+    toast(`${neufs.length} rituels posés · ${pieces} pièce${pieces > 1 ? 's' : ''} émise${pieces > 1 ? 's' : ''} · ${fmtMoney(total, currency)} dans « ${caisse} ».`);
     onClose();
   };
 
@@ -556,13 +572,23 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
      Poser trente rituels d'un geste et devoir les retirer un par un serait pire
      que de ne rien avoir posé : on renoncerait à la reprise plutôt que de
      risquer une erreur. */
-  const series = useMemo(() => seriesPosees(appts), [appts]);
+  const [piecesDuRegistre] = useInvoices();
+  const series = useMemo(() => seriesPosees(appts, piecesDuRegistre), [appts, piecesDuRegistre]);
 
   const retirerLaSerie = (marque: string) => {
     const s = series.find((x) => x.marque === marque);
     if (!s || s.retirables.length === 0) { setARetirer(''); return; }
     const partent = new Set(s.retirables);
     appointmentsStore.set((prev) => prev.filter((a) => !partent.has(a.id)));
+    /* LES PIÈCES DE LA SÉRIE PARTENT AVEC ELLE : les laisser ferait des
+       factures numérotées qui ne désignent plus rien — exactement ce que la
+       règle « facture émise = retenue » voulait empêcher. Ne partent que
+       celles dont TOUS les versements portent la marque, jugé dans
+       `seriesPosees`, jamais ici. */
+    if (s.piecesRetirables.length > 0) {
+      const piecesQuiPartent = new Set(s.piecesRetirables);
+      invoicesStore.set((prev) => prev.filter((i) => !piecesQuiPartent.has(i.id)));
+    }
     setARetirer('');
     toast(s.retenus.length > 0
       ? `${partent.size} rituels retirés · ${s.retenus.length} gardés.`

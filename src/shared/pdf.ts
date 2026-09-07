@@ -200,10 +200,19 @@ export function dessineQrPaiement(doc: any, valeur: string, x: number, y: number
 
    `'FAST'` deflate le même dessin en soixante kilo-octets, sans rien changer à
    l'écran ni au papier. C'est cent soixante fois moins. */
+/* ══ UN FETCH SANS DÉLAI PEUT PENDRE POUR TOUJOURS — 7 septembre 2026 ═
+   « Quand je clique Reçu, Reçu disparaît et des points de suspension
+   apparaissent » (Yéman). Le bouton attendait un `fetch` sans limite : sur une
+   connexion qui se fige — le réseau de ce matin même — la promesse ne se
+   règle jamais, et le « … » reste à vie. Huit secondes suffisent à une image
+   de soixante kilo-octets ; au-delà, le PDF sort SANS le monogramme plutôt
+   que de ne jamais sortir. */
+const HUIT_SECONDES = 8_000;
+
 async function loadSeal(): Promise<string | null> {
   try {
     const url = import.meta.env.BASE_URL.replace(/\/$/, '') + '/assets/monograms/mono-copper.png';
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(HUIT_SECONDES) });
     if (!res.ok) return null;
     const blob = await res.blob();
     return await new Promise((resolve) => {
@@ -240,10 +249,13 @@ async function loadSeal(): Promise<string | null> {
 const MONOS: Record<string, Promise<string | null>> = {};
 function chargeMono(nom: string): Promise<string | null> {
   if (!MONOS[nom]) {
+    /* UN RATÉ NE SE GRAVE PAS : la promesse en cache qui rend `null` (réseau
+       figé, délai passé) s'efface, pour que le prochain papier retente sa
+       chance au lieu de sortir sans tampon jusqu'au rechargement. */
     MONOS[nom] = (async () => {
       try {
         const url = import.meta.env.BASE_URL.replace(/\/$/, '') + `/assets/monograms/${nom}.png`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: AbortSignal.timeout(HUIT_SECONDES) });
         if (!res.ok) return null;
         const blob = await res.blob();
         return await new Promise<string | null>((ok) => {
@@ -253,7 +265,10 @@ function chargeMono(nom: string): Promise<string | null> {
           r.readAsDataURL(blob);
         });
       } catch { return null; }
-    })();
+    })().then((r) => {
+      if (r === null) delete MONOS[nom];
+      return r;
+    });
   }
   return MONOS[nom];
 }

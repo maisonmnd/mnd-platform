@@ -61,6 +61,40 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA SÉRIE ÉMET SES PIÈCES, LE REÇU NE PEND PLUS, SUPPRIMER S'ÉLOIGNE — 7 septembre 2026, PUBLIÉ
+
+Trois demandes de Yéman dans la même heure, toutes au registre des encaissements.
+
+**① La saisie en série émet sa facture à la pose** (« les versements doivent
+vivre en encaissement réel »). Même chemin que partout :
+`emettreLaPieceDuRituelRegle` — pièce soldée de naissance, datée du jour du
+rituel, versement monté dessus avec sa caisse. **Un rituel offert n'émet
+rien** : sans versement, pas d'encaissement à attester, et cinquante pièces à
+zéro seraient du bruit.
+
+**La marche arrière a dû apprendre à reconnaître SES pièces** : la règle
+« facture émise = retenue » aurait fait mourir le retrait le jour même de sa
+naissance. Une pièce est à la série quand TOUS ses versements portent la
+marque (`seriesPosees(appts, pieces)`) ; elle part alors AVEC les rituels au
+retrait — une pièce numérotée qui ne désigne plus rien est exactement ce que
+la règle d'avant voulait empêcher. Une pièce illisible, muette, ou où un autre
+a encaissé : retenue, prudence d'avant.
+
+**② Le bouton « Reçu » restait bloqué sur « … »** (Yéman, sur B. et d'autres).
+Un `fetch` sans limite peut pendre pour toujours sur un réseau figé — celui de
+ce matin même. Trois gardes : les fetch d'images des PDF expirent à 8 s (le
+papier sort SANS monogramme plutôt que de ne jamais sortir), un raté ne se met
+plus en cache pour toujours (`chargeMono` efface sa promesse nulle), et le
+bouton porte une montre de 15 s qui rend la main en DISANT ce qui s'est passé.
+Le garde des chunks périmés (`preload-guard`) couvrait déjà le cas « mise à
+jour publiée depuis l'ouverture de l'onglet ».
+
+**③ « Supprimer » s'éloigne de « Reçu »** (« trop proche, cliquable par
+inadvertance »). Douze pixels séparaient le geste quotidien du destructif.
+Marge de 28 px, gris muet au repos, brique au survol seulement — un bouton
+rouge en permanence apprend à ignorer le rouge. Même grammaire que les zones
+sensibles des Paramètres : à la fin, jamais sur le chemin.
+
 ## CHAQUE RITUEL RÉGLÉ REÇOIT SA PIÈCE, D'UN GESTE — 7 septembre 2026, PUBLIÉ
 
 « J'ai toujours des rituels sans pièce en janvier, février, mars… rectifie ça »

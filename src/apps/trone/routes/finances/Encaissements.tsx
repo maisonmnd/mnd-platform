@@ -402,10 +402,21 @@ export default function Encaissements() {
   /* Le reçu — la preuve papier que la Maison a reçu cette somme. Son numéro est
      DÉRIVÉ de l'encaissement : réémettre le même reçu redonne le même numéro. */
   const [busy, setBusy] = useState<string | null>(null);
+  /* ══ UN « … » NE DURE JAMAIS — 7 septembre 2026 ══════════════════
+     « Quand je clique Reçu, Reçu disparaît et des points de suspension
+     apparaissent » (Yéman). Deux causes possibles, deux réponses : un module
+     à recharger après une mise à jour publiée depuis l'ouverture de l'onglet
+     (le garde recharge la page tout seul), ou un réseau figé (les fetch des
+     PDF expirent désormais). Dans tous les cas, au bout de quinze secondes le
+     bouton revient et DIT ce qui s'est passé — un échec muet ressemble à une
+     panne de l'écran, et on clique encore. */
   const printReceipt = async (r: Receipt) => {
     setBusy(r.id);
+    const montre = new Promise<never>((_, refuse) => {
+      setTimeout(() => refuse(new Error('délai dépassé')), 15_000);
+    });
     try {
-      await receiptPdf({
+      await Promise.race([montre, receiptPdf({
         /* La ligne pourboire d'une facture partage ses 6 derniers caractères
            avec la ligne de la facture (même pièce d'origine) : sans le préfixe
            « RP », les deux reçus porteraient le MÊME numéro. */
@@ -420,7 +431,12 @@ export default function Encaissements() {
         method: r.method,
         cashbox: r.cashbox,
         ref: r.ref,
-      });
+      })]);
+    } catch (err) {
+      const mot = err instanceof Error ? err.message : '';
+      toast(/délai dépassé/.test(mot)
+        ? 'Le reçu tarde trop, le réseau semble figé. Réessayez, ou rechargez la page.'
+        : 'Le reçu n’a pas pu être produit. Rechargez la page, une mise à jour a pu être publiée depuis son ouverture.');
     } finally {
       setBusy(null);
     }
@@ -786,10 +802,19 @@ export default function Encaissements() {
                 </button>
                 {/* SUPPRIMER. Ce registre ne se corrigeait que par la « zone
                     sensible » des Paramètres, qui annule TOUT : un essai y
-                    emportait les vrais encaissements avec lui. */}
+                    emportait les vrais encaissements avec lui.
+
+                    ══ LOIN DE « REÇU » — 7 septembre 2026. « Le bouton
+                    Supprimer est trop proche et peut être cliqué par
+                    inadvertance » (Yéman). Éditer un reçu est un geste de tous
+                    les jours ; supprimer un encaissement en est le contraire
+                    exact, et douze pixels les séparaient. Le destructif part au
+                    bout de la ligne, muet et gris, et ne prend sa couleur de
+                    brique qu'au survol — la même grammaire que les zones
+                    sensibles des Paramètres : à la fin, jamais sur le chemin. */}
                 <button
                   type="button"
-                  className="trf-rowbtn"
+                  className="trf-rowbtn trf-rowbtn--efface"
                   onClick={(e) => { e.stopPropagation(); setAEffacer(r); }}
                   title="Supprimer cet encaissement"
                 >

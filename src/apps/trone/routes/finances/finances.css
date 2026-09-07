@@ -2102,3 +2102,20 @@
   margin: 0 6px 6px 0;
 }
 .trf-four__prop:hover { border-style: solid; }
+
+/* ══ LE DESTRUCTIF S'ÉLOIGNE DE L'ORDINAIRE — 7 septembre 2026 ════════
+   « Supprimer est trop proche de Reçu et peut être cliqué par inadvertance »
+   (Yéman). L'espace est la première protection : une marge que le pouce doit
+   traverser exprès. La couleur est la seconde : gris muet au repos, brique au
+   survol seulement — un bouton rouge en permanence apprend à ignorer le rouge. */
+.trf-rowbtn--efface {
+  margin-left: 28px;
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+.trf-rowbtn--efface:hover {
+  color: #8f3b30;
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

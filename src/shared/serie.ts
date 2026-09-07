@@ -417,6 +417,13 @@ export type RituelDeSerie = {
   payments?: readonly { note?: string; amountXof?: number; cashbox?: string }[];
 };
 
+/** Ce que la marche arrière doit savoir d'une pièce : ses versements, et leur
+    marque. Rien d'autre — juger la pièce entière serait juger l'argent. */
+export type PieceDeSerie = {
+  id: string;
+  payments?: readonly { note?: string }[];
+};
+
 export type SeriePosee = {
   marque: string;
   caisse?: string;
@@ -425,6 +432,11 @@ export type SeriePosee = {
   retirables: string[];
   /** Ce qui reste, et la raison — jamais un silence. */
   retenus: { id: string; quoi: string; pourquoi: string }[];
+  /** ══ LES PIÈCES DE LA SÉRIE — 7 septembre 2026 ═══════════════════
+      La série émet désormais sa facture à la pose. Retirer la série doit les
+      reprendre AVEC les rituels : une pièce numérotée qui ne désigne plus rien
+      est exactement ce que la règle d'avant voulait empêcher. */
+  piecesRetirables: string[];
   rituels: number;
   totalXof: number;
   duIso: string;
@@ -437,7 +449,12 @@ const marqueDe = (a: RituelDeSerie): string | undefined =>
   (a.payments ?? []).map((p) => p.note).find((n): n is string => !!n && n.startsWith('serie:'));
 
 /** LES SÉRIES POSÉES, la plus récente d'abord. */
-export function seriesPosees(appts: readonly RituelDeSerie[]): SeriePosee[] {
+export function seriesPosees(
+  appts: readonly RituelDeSerie[],
+  /* Sans les pièces, l'ancienne prudence s'applique : facture = retenu. Les
+     appelants d'avant ne cassent pas, ils restent seulement plus stricts. */
+  pieces: readonly PieceDeSerie[] = [],
+): SeriePosee[] {
   const par = new Map<string, SeriePosee>();
   for (const a of appts) {
     const marque = marqueDe(a);
@@ -447,7 +464,7 @@ export function seriesPosees(appts: readonly RituelDeSerie[]): SeriePosee[] {
     if (!s) {
       s = {
         marque, caisse: siens[0]?.cashbox, annee: 0,
-        retirables: [], retenus: [], rituels: 0, totalXof: 0,
+        retirables: [], retenus: [], piecesRetirables: [], rituels: 0, totalXof: 0,
         duIso: a.date, auIso: a.date, tetes: [], poseeLe: a.creeLe,
       };
       par.set(marque, s);
@@ -458,10 +475,22 @@ export function seriesPosees(appts: readonly RituelDeSerie[]): SeriePosee[] {
     if (a.date > s.auIso) s.auIso = a.date;
     if (a.clientName && !s.tetes.includes(a.clientName)) s.tetes.push(a.clientName);
     if (a.creeLe && (!s.poseeLe || a.creeLe < s.poseeLe)) s.poseeLe = a.creeLe;
-    /* UNE FACTURE ÉMISE N'EST PLUS UNE LIGNE DE SÉRIE : la retirer laisserait
-       une pièce numérotée qui ne désigne plus rien. */
+    /* ══ UNE FACTURE N'EST RETENUE QUE SI ELLE N'EST PAS À LA SÉRIE ═══
+       La série émet désormais sa pièce à la pose : la retenir ferait mourir la
+       marche arrière le jour même de sa naissance. LA PIÈCE EST À LA SÉRIE
+       quand tous ses versements portent la marque — le même juge que pour le
+       rituel. Une pièce qu'on ne peut pas lire (non passée) retombe sur la
+       prudence d'avant : facture = retenu. */
     if (a.invoiceId) {
-      s.retenus.push({ id: a.id, quoi: a.date, pourquoi: 'une facture a été émise' });
+      const piece = pieces.find((i) => i.id === a.invoiceId);
+      const aLaSerie = !!piece && (piece.payments ?? []).length > 0
+        && (piece.payments ?? []).every((v) => v.note === marque);
+      if (aLaSerie) {
+        s.retirables.push(a.id);
+        if (!s.piecesRetirables.includes(a.invoiceId)) s.piecesRetirables.push(a.invoiceId);
+      } else {
+        s.retenus.push({ id: a.id, quoi: a.date, pourquoi: 'une facture a été émise' });
+      }
     } else if ((a.payments ?? []).some((p) => p.note !== marque)) {
       /* UN AUTRE RÈGLEMENT S'Y EST AJOUTÉ : quelqu'un a repris ce rituel à la
          main depuis. Ce n'est plus ce qu'on avait posé. */

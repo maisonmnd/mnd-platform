@@ -6,7 +6,7 @@
    d'exercice quand les chiffres ne tombent plus. */
 import {
   litUneLigne, litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise,
-  habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees,
+  habitudesDeLaTete, habitudesParTete, marqueDeLaSerie, seriesPosees, type PieceDeSerie,
   RYTHMES_REPRISE, foisDansLAnnee,
   remiseEstVide, remiseQuiSApplique, netApresRemise, remiseAGarderSurLaLigne,
   prixDeLaReprise,
@@ -276,6 +276,36 @@ dit('sinon son prix d’aujourd’hui', { xof: 32000, duPasse: false },
    celui-ci vaut, et le reprendre poserait toute une année à zéro franc. */
 dit('un zéro retrouvé ne compte pas', { xof: 32000, duPasse: false },
   prixDeLaReprise({ jadis: 0, aujourdhui: 32000 }));
+
+/* ══ LES PIÈCES DE LA SÉRIE, ET LA MARCHE ARRIÈRE — 7 septembre 2026 ═
+   « La saisie en série doit créer des versements qui vivent en encaissement
+   réel » (Yéman) : la pose émet désormais sa facture. La marche arrière doit
+   reprendre CES pièces-là, et seulement elles — retenir toute facture aurait
+   fait mourir le retrait le jour même de sa naissance. */
+const M = marqueDeLaSerie('s-piece');
+const rdvDeSerie = (id: string, invoiceId?: string) => ({
+  id, clientName: 'T.', date: '2025-03-10', invoiceId,
+  payments: [{ note: M, amountXof: 20_000, cashbox: 'Reprise 2025' }],
+});
+const pieceALaSerie: PieceDeSerie = { id: 'inv-serie', payments: [{ note: M }] };
+const pieceDUnAutre: PieceDeSerie = { id: 'inv-main', payments: [{ note: M }, { note: undefined }] };
+const pieceMuette: PieceDeSerie = { id: 'inv-vide', payments: [] };
+
+const sp = (pieces: PieceDeSerie[], invId?: string) =>
+  seriesPosees([rdvDeSerie('r1', invId)], pieces)[0];
+
+dit('sans facture, retirable comme avant', ['r1'], sp([], undefined).retirables);
+dit('la pièce de la série part avec elle', [['r1'], ['inv-serie']],
+  [sp([pieceALaSerie], 'inv-serie').retirables, sp([pieceALaSerie], 'inv-serie').piecesRetirables]);
+/* UN VERSEMENT ÉTRANGER SUR LA PIÈCE = quelqu'un a encaissé autre chose
+   dessus depuis : elle n'est plus à la série, on ne la reprend pas. */
+dit('une pièce où un autre a encaissé est retenue', 'une facture a été émise',
+  sp([pieceDUnAutre], 'inv-main').retenus[0]?.pourquoi);
+/* UNE PIÈCE SANS VERSEMENT NE PROUVE RIEN : prudence, retenue. */
+dit('une pièce muette est retenue', 1, sp([pieceMuette], 'inv-vide').retenus.length);
+/* UNE PIÈCE QU'ON NE PEUT PAS LIRE non plus : les appelants d'avant, qui ne
+   passent pas les factures, restent stricts — jamais plus permissifs. */
+dit('une pièce illisible est retenue', 1, sp([], 'inv-perdu').retenus.length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
