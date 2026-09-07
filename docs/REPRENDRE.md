@@ -61,6 +61,32 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA CARTE DE LIEN — 7 septembre 2026, PUBLIÉ
+
+« Quand j'envoie le lien de MND, ça doit se présenter comme celui de Claude »
+(Yéman) : la carte compacte de WhatsApp, vignette à gauche, titre et phrase,
+pas la grande affiche blanche.
+
+**La taille de la vignette EST le mécanisme** : WhatsApp ne fait la carte
+compacte que si l'image est petite (sous ~300 px). `assets/og/carte-lien.png`
+fait 240 px, monogramme cuivre sur ivoire, et le 39e harnais
+(`verifie-carte-lien`) refuse qu'elle regrossisse — une vignette regénérée
+trop grande ramènerait l'affiche blanche sans qu'aucun écran ne le dise.
+
+**Les neuf entrées portent leurs balises** (og:title, og:description, og:url,
+og:image, twitter:card summary), chacune avec son titre et sa phrase en
+français.
+
+**Aucun domaine en dur, et og:image en exige un** : les entrées portent les
+repères `__LIEN_DU_SITE__` / `__LIEN_DE_LA_PAGE__`, et `build-sites.mjs` les
+remplace à la composition en lisant le compte GitHub depuis l'origine du dépôt,
+comme `publie.mjs` le fait déjà. Changer de compte ne casse rien. Sans remote,
+les repères restent et la carte se dégrade, le site marche.
+
+**À savoir** : WhatsApp met les aperçus en cache. Un lien déjà partagé peut
+garder l'ancienne affiche quelques jours ; pour voir la carte tout de suite,
+ajouter `?v=2` au lien.
+
 ## CHAQUE PAIEMENT À SA PLACE : LE RITUEL ET LA GAMME — 7 septembre 2026, PUBLIÉ
 
 « J'aimerais encaisser les 60 000 F et les 30 000 F… je ne veux pas un montant

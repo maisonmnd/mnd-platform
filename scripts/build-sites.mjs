@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { renameSync, writeFileSync, rmSync, cpSync, existsSync, readdirSync } from 'node:fs';
+import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
@@ -25,6 +25,23 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const HOST = ''; // chemins relatifs à l'origine — indépendants du nom de domaine
+
+/* ══ LA CARTE DE LIEN A BESOIN D'UNE ADRESSE ABSOLUE — 7 septembre 2026 ═
+   og:image et og:url ne tolèrent pas un chemin relatif : WhatsApp les lit
+   depuis SES serveurs, sans savoir d'où vient la page. Le domaine se LIT
+   depuis l'origine du dépôt, comme le fait déjà `publie.mjs` — jamais écrit
+   en dur, changer de compte GitHub ne casse rien. Sans remote (archive,
+   poste neuf), les repères restent : la carte se dégrade, le site marche. */
+function origineDesPages() {
+  try {
+    const url = execSync('git remote get-url origin', { cwd: root, encoding: 'utf8' }).trim();
+    const m = url.match(/[/:]([^/:]+)\/[^/]+?(?:\.git)?$/);
+    return m ? `https://${m[1]}.github.io` : '';
+  } catch {
+    return '';
+  }
+}
+const ORIGINE_PAGES = origineDesPages();
 
 const SITES = [
   {
@@ -98,5 +115,22 @@ for (const site of SITES) {
   if (restees.length) console.log(`  maquettes retirées du site : ${restees.join(', ')}`);
   cpSync(dist, path.join(out, site.name), { recursive: true });
   rmSync(dist, { recursive: true, force: true });
+
+  /* Les repères de la carte de lien deviennent les adresses réelles du site.
+     Chaque page porte la sienne ; l'image, elle, vit à la racine du site. */
+  if (ORIGINE_PAGES) {
+    const dossierSite = path.join(out, site.name);
+    for (const f of readdirSync(dossierSite)) {
+      if (!f.endsWith('.html')) continue;
+      const chemin = path.join(dossierSite, f);
+      const avant = readFileSync(chemin, 'utf8');
+      if (!avant.includes('__LIEN_DU_SITE__')) continue;
+      const lienSite = `${ORIGINE_PAGES}${site.base}`;
+      const lienPage = f === 'index.html' ? lienSite : `${lienSite}${f}`;
+      writeFileSync(chemin, avant
+        .replaceAll('__LIEN_DE_LA_PAGE__', lienPage)
+        .replaceAll('__LIEN_DU_SITE__', lienSite));
+    }
+  }
 }
 console.log('\nSites construits dans dist-sites/.');
