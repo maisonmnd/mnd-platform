@@ -61,6 +61,33 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE PACK DE NAISSANCE KIDS — 7 septembre 2026, PUBLIÉ
+
+« Rajoute le VÈKPÈ Kids dans le pack. Son tarif hors forfait est à 120 000 F »
+puis « remplir aussi les semaines » (Yéman).
+
+**L'écran du forfait a montré ce que la structure d'avant ne pouvait pas
+tenir.** La couronne portait ses propres retouches (« 150 000 F, tout
+compris ») ; or une prestation ne peut pas figurer dans sa propre composition,
+et le Catalogue lisait donc **35 000 F de contenu sous un prix de 150 000 —
+« Majoration · −329 % »**. Un forfait dont la valeur affichée est trois fois
+inférieure à son prix ne se montre à personne.
+
+**Deux articles, chacun son usage** : `VÈKPÈ™ Kids · La Première Couronne` à
+**120 000 F** pour qui ne veut que la pose, et `PACK MND KIDS · La Première
+Couronne + Les 3 Premières Venues` à **150 000 F** pour qui prend la suite avec.
+C'est le motif du catalogue adulte (`FFT·I·02 · La Naissance + Les 3 Premiers
+Entretiens`).
+
+**Le pack tombe pile** : 120 000 + 10 000 + 10 000 + 15 000 = 155 000 F de
+gestes pour 150 000 demandés, 5 000 F offerts. Au-delà de 250 locks la reprise
+comprise vaut 20 000, donc 160 000 → 150 000, 10 000 F offerts.
+
+**Les semaines sont écrites, pas seulement dites** : `afterWeeks` à 0, 2, 4 et
+8. La description dit « à 2 et à 4 semaines », mais c'est le nombre que le
+comptoir lit pour poser les rendez-vous. La phrase se lit, le nombre se pose ; un
+chemin écrit en toutes lettres seulement ne sortirait jamais du carnet.
+
 ## LA PREMIÈRE COURONNE KIDS À 150 000 F, ET LE RENFORT SEUL — 7 septembre 2026, PUBLIÉ
 
 Trois décisions de Yéman, prises dans la même heure.

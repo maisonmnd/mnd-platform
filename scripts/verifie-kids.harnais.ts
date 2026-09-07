@@ -10,7 +10,7 @@
    porte pas de date de naissance. Le harnais tient les deux. */
 import { AGE_MND_KIDS, estKids } from '../src/shared/accounts';
 import {
-  SERVICES_KIDS, FORFAIT_KIDS, kidsAbsents, CAT_KIDS, catalogueDeLaTete,
+  SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE, kidsAbsents, CAT_KIDS, catalogueDeLaTete,
   compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser, pourQui,
 } from '../src/shared/kids';
 import {
@@ -78,22 +78,43 @@ dit('sans verdict, la section reste visible', true, estProposable(kidsSvc, prici
    Cinq gestes : la création, la reprise, la sublimation, le renfort, le
    shampoing. */
 dit('six gestes dans la section', 6, SERVICES_KIDS.length);
-/* LA PREMIÈRE COURONNE EST DÉJÀ UN FORFAIT : elle emporte ses deux retouches,
-   et se vend une seule fois. Un second article aurait posé deux façons
-   d'acheter la même chose côte à côte au catalogue. */
-dit('la Première Couronne vaut cent cinquante mille', 150_000, VEKPE.priceXof);
-dit('… et comprend deux retouches puis une reprise',
-  ['sv-kids-retouche', 'sv-kids-retouche', 'sv-kids-sinsin'],
-  (VEKPE.includes ?? []).map((i) => i.serviceId));
-dit('… en quatre venues', 4, VEKPE.sessions);
+/* ══ LA CRÉATION SEULE, ET LE PACK QUI LA CONTIENT ═════════════════
+   La couronne avait d'abord porté ses retouches elle-même ; l'écran du forfait
+   a montré pourquoi cela ne tenait pas : une prestation ne peut pas figurer
+   dans sa propre composition, et le Catalogue lisait 35 000 F de contenu sous
+   un prix de 150 000 — « Majoration · −329 % ». */
+dit('la couronne seule vaut cent vingt mille', 120_000, VEKPE.priceXof);
+dit('… et ne contient plus rien', undefined, VEKPE.includes);
+dit('… en une venue', 1, VEKPE.sessions);
+
+const NAISSANCE = FORFAIT_KIDS_NAISSANCE;
+dit('le pack de naissance vaut cent cinquante mille', 150_000, NAISSANCE.priceXof);
+dit('… et contient la pose puis ses trois suites',
+  ['sv-kids-vekpe', 'sv-kids-retouche', 'sv-kids-retouche', 'sv-kids-sinsin'],
+  (NAISSANCE.includes ?? []).map((i) => i.serviceId));
+dit('… en quatre venues', 4, NAISSANCE.sessions);
+/* LES SEMAINES SE POSENT, ELLES NE SE LISENT PAS. La description dit « à 2 et à
+   4 semaines », mais c'est `afterWeeks` que le comptoir lit pour poser les
+   rendez-vous : la phrase se lit, le nombre se pose. Sans lui, un chemin écrit
+   en toutes lettres ne sortirait jamais du carnet. */
+dit('… aux semaines 0, 2, 4 et 8', [0, 2, 4, 8],
+  (NAISSANCE.includes ?? []).map((i) => i.afterWeeks));
 /* LES RETOUCHES SE RAPPROCHENT, LA REPRISE S'ÉLOIGNE : une couronne neuve se
    détend là où on l'a posée, dans les premières semaines. On la rattrape tôt et
    deux fois, puis on laisse deux mois avant la première vraie reprise. */
-dit('… posées à deux, quatre et huit semaines', true,
-  VEKPE.description.includes('2 et à 4 semaines')
-  && VEKPE.description.includes('8 semaines'));
-dit('… et la retouche dit les mêmes semaines', true,
-  RETOUCHE.description.includes('semaines 2 et 4'));
+dit('… et la phrase dit la même chose que les nombres', true,
+  NAISSANCE.description.includes('2 et à 4 semaines')
+  && NAISSANCE.description.includes('8 semaines'));
+dit('… la retouche aussi', true, RETOUCHE.description.includes('semaines 2 et 4'));
+/* LE PACK TOMBE PILE, comme tous les forfaits de la Maison : 120 + 10 + 10 + 15
+   font 155 000 F de gestes pour 150 000 demandés. */
+const gNaissance = gainDuForfait(NAISSANCE, SERVICES_KIDS, NAISSANCE.priceXof);
+dit('le pack de naissance tombe juste', [155_000, 150_000, 5_000],
+  [gNaissance.carteXof, gNaissance.prixXof, gNaissance.gainXof]);
+/* ET IL SUIT LA TÊTE : au-delà de 250 locks, la reprise comprise vaut 20 000. */
+const gNaissance400 = gainDuForfait(NAISSANCE, SERVICES_KIDS, NAISSANCE.priceXof, 400);
+dit('… et suit la tête', [160_000, 150_000, 10_000],
+  [gNaissance400.carteXof, gNaissance400.prixXof, gNaissance400.gainXof]);
 /* LA RETOUCHE NE PORTE PAS LA MARCHE DES 250 LOCKS : elle ne parcourt pas
    toute la tête, seulement ce qui a lâché depuis la pose. */
 dit('la retouche ne porte pas de marche', undefined, RETOUCHE.paliersDeLocks);
@@ -144,13 +165,13 @@ dit('la création reste hors du forfait', false,
    Le souverain a pu renommer une prestation, changer son prix, la ranger
    ailleurs : repasser dessus effacerait sa décision, et c'est le genre de perte
    qu'on ne remarque qu'au moment de facturer. */
-dit('catalogue vide : les sept manquent', 7, kidsAbsents([]));
+dit('catalogue vide : les huit manquent', 8, kidsAbsents([]));
 dit('section complète : rien ne manque', 0,
-  kidsAbsents([...SERVICES_KIDS, FORFAIT_KIDS]));
-dit('un seul geste posé : six manquent', 6, kidsAbsents([VEKPE]));
+  kidsAbsents([...SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE]));
+dit('un seul geste posé : sept manquent', 7, kidsAbsents([VEKPE]));
 /* UNE PRESTATION RENOMMÉE PAR LA MAISON compte comme posée : c'est son
    identifiant qui fait foi, pas son nom. */
-dit('renommée, elle compte toujours comme posée', 6,
+dit('renommée, elle compte toujours comme posée', 7,
   kidsAbsents([{ ...VEKPE, name: 'La première couronne, autrement dite' }]));
 
 /* -- 6. UNE TETE D'ENFANT NE VOIT QUE MND KIDS --------------------
@@ -180,7 +201,7 @@ dit('un catalogue vide reste vide', 0, catalogueDeLaTete([], 'oui').length);
    « Sur le bouton MND Kids aussi. » Même faute, même remède : le compte
    affiché ne doit pas réclamer ce que la Maison a écarté, sans quoi le bouton
    ne s'éteint jamais et un clic ressuscite. */
-const TOUT = [...SERVICES_KIDS, FORFAIT_KIDS];
+const TOUT = [...SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE];
 const kidsTombe = new Set([TOUT[0].id]);
 dit('l’écartée ne manque plus', TOUT.length - 1, kidsAbsents([], kidsTombe));
 dit('… sans tombale, elle manque', TOUT.length, kidsAbsents([], new Set()));
@@ -236,13 +257,14 @@ dit('une prestation simple ne détaille rien', 0,
 /* … MAIS LA PREMIÈRE COURONNE, SI : ce qu'elle emporte se lit au rendez-vous
    comme sur la pièce, sinon le parent paie 150 000 F sans voir les deux venues
    qu'il a déjà réglées. */
-dit('la Première Couronne détaille ce qu’elle emporte', 3,
-  detailDuForfait(VEKPE, SERVICES_KIDS, fr).length);
+/* LE PACK DE NAISSANCE, LUI, DÉTAILLE SES QUATRE LIGNES plus le geste. */
+dit('le pack de naissance détaille ce qu’il emporte', 5,
+  detailDuForfait(FORFAIT_KIDS_NAISSANCE, SERVICES_KIDS, fr, 150_000).length);
 /* LA REPRISE COMPRISE PORTE SA MARCHE : au-delà de 250 locks elle vaut 20 000,
    et la ligne doit le dire — c'est ce que la Maison donne qui change, pas le
-   prix de la couronne. */
+   prix du pack. */
 dit('… et la reprise comprise suit la tête', true,
-  detailDuForfait(VEKPE, SERVICES_KIDS, fr, VEKPE.priceXof, 400)
+  detailDuForfait(FORFAIT_KIDS_NAISSANCE, SERVICES_KIDS, fr, 150_000, 400)
     .some((l) => l.includes('La Reprise Essentielle') && l.includes('20000')));
 
 /* ══ LA SECTION QUI A DÉRIVÉ SE RECONNAÎT ═══════════════════════════

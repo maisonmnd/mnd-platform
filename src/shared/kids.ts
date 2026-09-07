@@ -85,27 +85,8 @@ export const SERVICES_KIDS: Service[] = [
      C'EST LE MOTIF DE LA MAISON, pas une invention : le catalogue adulte vend
      déjà « VÈKPÈ™ Initiation · La Naissance + Trousse MND™ » avec « 1 Retouche
      Post Création à 3 semaines » comprise. Les Kids en ont deux. */
-  kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 150_000, 150,
-    '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation, '
-    + 'styling de sortie, deux retouches post création à 2 et à 4 semaines, '
-    + 'et une reprise essentielle à 8 semaines.',
-    undefined, undefined, [
-      /* ══ LE CHEMIN DES DEUX PREMIERS MOIS — 7 septembre 2026 ═══════
-         « Rajoute 1 SÍNSIN Kids au pack à 8 semaines. Pour les retouches post
-         création fais 2 et 4 semaines » (Yéman).
-
-         LES RETOUCHES SE RAPPROCHENT, LA REPRISE S'ÉLOIGNE, et le geste y gagne
-         sa logique : une couronne neuve se détend là où on l'a posée, dans les
-         premières semaines. On la rattrape tôt et deux fois plutôt que tard et
-         une, puis on laisse deux mois avant la première VRAIE reprise, quand la
-         repousse commande.
-
-         TROIS VENUES COMPRISES, DONC QUATRE EN TOUT. C'est ce que dit
-         `sessions`, et ce que le comptoir posera au carnet. */
-      { serviceId: 'sv-kids-retouche' },
-      { serviceId: 'sv-kids-retouche' },
-      { serviceId: 'sv-kids-sinsin' },
-    ], 4),
+  kid('sv-kids-vekpe', 'VÈKPÈ™ Kids · La Première Couronne', 120_000, 150,
+    '50 à 120 locks. Pose patiente, pauses prévues. Inclus : shampoing de préparation et styling de sortie.'),
   /* LA RETOUCHE POST CRÉATION — un geste neuf, plus léger que la reprise
      (arbitrage de Yéman). On ne reprend que ce qui a bougé depuis la pose :
      une couronne neuve se détend aux racines dans les premières semaines, et
@@ -115,7 +96,7 @@ export const SERVICES_KIDS: Service[] = [
      ne parcourt pas toute la tête, seulement ce qui a lâché. */
   kid('sv-kids-retouche', 'SÍNSIN™ Kids · La Retouche Post Création', 10_000, 25,
     'On reprend ce qui a bougé depuis la pose, racine par racine, sans refaire toute la '
-    + 'couronne. Comprise dans La Première Couronne, aux semaines 2 et 4.'),
+    + 'couronne. Comprise dans le PACK de naissance, aux semaines 2 et 4.'),
   /* ATELIER II — GBÈJÍ™ · la vie. Le tarif enfant EST le tarif : rien à barrer,
      et l'annoncer réduit ferait un geste imaginaire. */
   /* LA MARCHE EST SUR LA REPRISE — 7 septembre 2026.
@@ -212,7 +193,60 @@ export const FORFAIT_KIDS: Service = {
   ],
 };
 
-const TOUT_KIDS = [...SERVICES_KIDS, FORFAIT_KIDS];
+/** ══ LE PACK DE NAISSANCE — 7 septembre 2026 ═════════════════════════
+
+    « Rajoute le VÈKPÈ Kids dans le pack. Son tarif hors forfait est à
+    120 000 F » (Yéman).
+
+    LA CRÉATION EST REDEVENUE UN GESTE, ET LE PACK LA CONTIENT. Elle avait
+    d'abord porté ses retouches elle-même (« 150 000 F, tout compris ») ; l'écran
+    du forfait a montré pourquoi cela ne tenait pas : une prestation ne peut pas
+    figurer dans sa propre composition, et le Catalogue lisait donc 35 000 F de
+    contenu sous un prix de 150 000 — « Majoration · −329 % ». Un forfait dont la
+    valeur affichée est trois fois inférieure à son prix ne se montre à personne.
+
+    DEUX ARTICLES, ET CHACUN SON USAGE : la couronne seule pour qui ne veut que
+    la pose, le pack pour qui prend la suite avec. C'est exactement ce que fait
+    le catalogue adulte avec « VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers
+    Entretiens ».
+
+    LE PRIX NE BOUGE PAS : 150 000 F pour 155 000 F de gestes. Le geste de la
+    Maison est modeste ici, et c'est un choix de Yéman — ce n'est pas une remise
+    qu'on vend, c'est un chemin qu'on tient. */
+export const FORFAIT_KIDS_NAISSANCE: Service = {
+  id: 'sv-kids-naissance',
+  categoryId: CAT_KIDS,
+  name: 'PACK MND KIDS · La Première Couronne + Les 3 Premières Venues',
+  description: 'La pose, puis les trois venues qui la tiennent : deux retouches post création '
+    + 'à 2 et à 4 semaines, et une reprise essentielle à 8 semaines.',
+  priceXof: 150_000,
+  durationMin: 150,
+  priceMode: 'fixe',
+  reserveEnfants: true,
+  palier: 'Fondation',
+  hidePrice: false,
+  /* QUATRE VENUES : la pose et les trois qui suivent. */
+  sessions: 4,
+  master: '',
+  order: 0,
+  /* ══ LES SEMAINES SONT ÉCRITES — 7 septembre 2026 ═══════════════
+     « Remplir aussi les semaines » (Yéman).
+
+     UN CHEMIN SANS DATES N'EST PAS UN CHEMIN. La description dit « à 2 et à
+     4 semaines », mais c'est `afterWeeks` que le comptoir lit pour poser les
+     rendez-vous : la phrase se lit, le nombre se pose. Écrites ici, les trois
+     venues sortent du carnet toutes seules le jour de la pose.
+
+     ZÉRO POUR LA POSE : elle est la visite d'ouverture, pas une suite. */
+  includes: [
+    { serviceId: 'sv-kids-vekpe', afterWeeks: 0 },
+    { serviceId: 'sv-kids-retouche', afterWeeks: 2 },
+    { serviceId: 'sv-kids-retouche', afterWeeks: 4 },
+    { serviceId: 'sv-kids-sinsin', afterWeeks: 8 },
+  ],
+};
+
+const TOUT_KIDS = [...SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE];
 
 /** Combien de gestes de la section manquent encore au catalogue. */
 export const kidsAbsents = (
