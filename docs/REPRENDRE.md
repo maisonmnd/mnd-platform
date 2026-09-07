@@ -61,6 +61,15 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## « SA CARTE » OUVRE LA CARTE — 7 septembre 2026, PUBLIÉ
+
+« Quand on appuie "Sa carte", ça ouvre son aperçu ; il doit ouvrir la carte
+directement » (Yéman). Le bouton du Tableau de bord menait à la fiche de la
+cliente, où la carte attendait un second clic. Il ouvre maintenant `CarteModal`
+sur place — **la même modale que sur sa fiche, jamais une seconde** : une carte
+dessinée à deux endroits finirait par avoir deux visages. Le mot de la carte ne
+vit toujours qu'à un seul endroit.
+
 ## LA REVUE DU PACK DE NAISSANCE — 7 septembre 2026, PUBLIÉ
 
 `/code-review` lancé par Yéman sur le dernier commit : dix chercheurs, une

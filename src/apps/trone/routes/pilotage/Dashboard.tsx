@@ -6,7 +6,8 @@ import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { openingForIso, joursFermesParmi, prochainJourOuvert } from '../../../../shared/settings';
 import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../../../../shared/temps';
-import { estCouronnee, joursAvantAnniversaire, useClients } from '../../../../shared/clients';
+import { estCouronnee, joursAvantAnniversaire, useClients, type Client } from '../../../../shared/clients';
+import { CarteModal } from '../clients/CarteModal';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
 import { useCategories } from '../../../../shared/catalog';
@@ -335,6 +336,8 @@ export default function Dashboard() {
   }, [compoDoc]);
   const compoNouvelles = compositions.filter((r) => !r.traiteLe);
   const [compoOpen, setCompoOpen] = useState(false);
+  /* LA CARTE S'OUVRE ICI, sur la tête dont c'est l'anniversaire. */
+  const [carteFor, setCarteFor] = useState<Client | null>(null);
 
   /* JOYEUX ANNIVERSAIRE — dès J−2 (demande de Yéman, 12 août). Une ligne par
      tête dont l'anniversaire tombe sous deux jours, pour préparer le vœu et
@@ -450,16 +453,17 @@ export default function Dashboard() {
       k: `anniv-${c.id}`,
       label: `Joyeux anniversaire à ${c.name}`,
       sub: j === 0 ? 'c’est aujourd’hui' : j === 1 ? 'c’est demain' : 'dans 2 jours',
-      /* ══ LE JOUR J MÈNE À SA CARTE — 6 septembre 2026 ═══════════════
-         Ce rappel ouvrait un WhatsApp avec un mot, et rien d'autre. La carte
-         de la Maison se dessine sur sa fiche, et le mot y est déjà écrit : un
-         clic de plus, et ce qui part est une image qu'elle gardera.
+      /* ══ LE JOUR J OUVRE SA CARTE — 7 septembre 2026 ══════════════════
+         « Quand on appuie "Sa carte", ça ouvre son aperçu ; il doit ouvrir la
+         carte directement » (Yéman). Le bouton menait à sa fiche, où la carte
+         attendait un second clic : un bouton qui dit « Sa carte » et montre
+         autre chose est un bouton qui ment, et l'on cesse d'y croire.
 
-         LE MOT N'EST PLUS ÉCRIT ICI. Il vivait à deux endroits, celui-ci et
-         celui de la carte, et deux textes finissent toujours par diverger —
-         on aurait corrigé l'un en croyant les corriger tous les deux. */
+         LE MOT N'EST PAS ÉCRIT ICI. Il vit dans la carte, et nulle part
+         ailleurs : deux textes finissent toujours par diverger, on aurait
+         corrigé l'un en croyant les corriger tous les deux. */
       action: 'Sa carte',
-      go: () => navigate(`/customers?id=${c.id}`),
+      go: () => setCarteFor(c),
     })),
     ...(facturesARegler.count > 0 ? [{
       k: 'factures',
@@ -1224,6 +1228,11 @@ export default function Dashboard() {
           </Modal>
         );
       })()}
+
+      {/* SA CARTE, DEPUIS LE TABLEAU DE BORD — la même modale que sur sa fiche,
+          jamais une seconde : une carte dessinée à deux endroits finirait par
+          avoir deux visages. */}
+      {carteFor && <CarteModal client={carteFor} onClose={() => setCarteFor(null)} />}
 
       {compoOpen && (
         <Modal title="Rituels sur-mesure reçus." onClose={() => setCompoOpen(false)} width={620}>
