@@ -88,13 +88,20 @@ Deno.serve(async (req) => {
      (la clé secrète sb_secret_…) ; la même valeur vit au Vault
      (« service_role_key »), c'est elle que `appelle_fonction_edge`
      envoie. Sans CLE_SERVICE posée, l'ancien monde continue tel quel. */
-  const service = Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
 
   /* Seul le cron (armé de la clé service) a le droit de réveiller l'envoi :
      cette fonction lit des téléphones et écrit au journal. */
-  if (!service || (req.headers.get('authorization') ?? '') !== `Bearer ${service}`) {
-    return new Response(JSON.stringify({ erreur: 'réservé au cron' }), { status: 401 });
+  const cleRecue = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!service || cleRecue !== service) {
+    /* LES LONGUEURS SEULES, JAMAIS LES VALEURS : elles suffisent à situer la
+       panne (sb_secret ≈ 40-50 signes · legacy eyJ… ≈ 200 et plus · 0 = rien
+       de posé de ce côté-là). */
+    return new Response(
+      JSON.stringify({ erreur: 'réservé au cron', attendueLg: service.length, recueLg: cleRecue.length }),
+      { status: 401 },
+    );
   }
 
   const sb = createClient(urlBase, service);
