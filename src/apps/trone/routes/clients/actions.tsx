@@ -290,6 +290,14 @@ export function cancelAppointmentPayment(appt: Appointment): { invoicesRemoved: 
            affichee — un argent rendu qui continuait de figurer comme recu. */
         payments: undefined,
         invoiceId: undefined,
+        /* ══ LA GAMME ROUVRE AVEC L'ANNULATION — 7 septembre 2026 ═══════
+           « Il reste les 30 000 F de la Gamme, je ne vois pas comment régler
+           ça » (Yéman). L'annulation rendait TOUT l'argent, mais les lignes de
+           Gamme restaient gravées « réglées » : l'écran d'encaissement ne les
+           proposait plus jamais, et les flacons devenaient introuvables à
+           facturer. L'argent rendu rouvre la promesse — c'est le même geste
+           que `paidXof` qui repart à zéro. */
+        gamme: a.gamme?.map(({ regleeAt, ...l }) => { void regleeAt; return l; }),
       }
     : a)));
   return { invoicesRemoved };

@@ -61,6 +61,24 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## L'ANNULATION D'UN ENCAISSEMENT ROUVRE LA GAMME — 7 septembre 2026, PUBLIÉ
+
+« Il reste les 30 000 F de la Gamme, je ne vois pas comment régler ça »
+(Yéman, sur le rendez-vous de B. après annulation puis ré-encaissement du
+rituel seul).
+
+**L'annulation rendait tout l'argent mais laissait la Gamme gravée
+« réglée »** : l'écran d'encaissement ne proposait plus jamais ces lignes, et
+les flacons devenaient introuvables à facturer. L'argent rendu rouvre la
+promesse, comme `paidXof` repart à zéro : `cancelAppointmentPayment` retire
+`regleeAt` de chaque ligne.
+
+Pour le rendez-vous de B. dont la gravure venait du SQL de réparation (avant ce
+correctif), un SQL de dégravure a été PRÉSENTÉ à Yéman. Le chemin dans l'app :
+la ligne au registre des encaissements → l'écran d'encaissement s'ouvre → la
+Gamme se propose → « Encaisser la Gamme · 30 000 F », dates au 31 juillet,
+caisse Reprise 2025.
+
 ## LES RÈGLEMENTS DE RITUEL SANS PIÈCE ENTRENT AU REGISTRE — 7 septembre 2026, PUBLIÉ
 
 « Où est-ce que je peux trouver les encaissements de Reprise 2025 pour pouvoir

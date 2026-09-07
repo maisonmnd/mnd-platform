@@ -122,3 +122,11 @@ dit('une gravure ne se réécrit pas', '2026-09-07', regrave[0].regleeAt);
 dit('une gamme vide n’est pas réglée', false, gammeTouteReglee([]));
 dit('… ni une gamme absente', false, gammeTouteReglee(undefined));
 dit('… et graver l’absence rend l’absence', undefined, graveLesLignesReglees(undefined, {}, '2026-09-07'));
+
+/* L'ANNULATION ROUVRE LA GAMME — le même mouvement, côté pur : dégraver, c'est
+   retirer la marque, jamais poser une marque vide. */
+const rouvertes = toutPris.map(({ regleeAt, ...l }) => { void regleeAt; return l; });
+dit('dégravées, elles redeviennent dues', ['p-huile', 'p-baume'],
+  lignesARegler(rouvertes).map((l) => l.id));
+dit('… et aucune ne porte de marque vide', false,
+  rouvertes.some((l) => 'regleeAt' in l));
