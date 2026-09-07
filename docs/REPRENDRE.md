@@ -93,7 +93,10 @@ lisait un au hasard), puis un nom à 17 signes (une espace invisible collée au
 nom ; `length(name)` l'a confessée). L'essai a fini par répondre
 `200 {"jour":"2026-09-08","rdv":4}`, et le job `confirmation-rdv`
 (`*/10 * * * *`, en-tête sb_secret, timeout 5000 — le plafond du formulaire)
-répond `200 {"vus":…}`. Reste à l'œil : le cliché de nuit dans Storage →
+répond `200 {"vus":…}`. La clé `sb_secret` entrevue sur une
+capture d'écran pendant le chantier a été TOURNÉE le soir même (nouvelle clé
+`crons2` posée aux trois endroits, l'ancienne révoquée, contre-épreuve en
+200 après révocation). Reste à l'œil : le cliché de nuit dans Storage →
 sauvegardes, et le premier vert du cron du soir au 8 septembre 18 h.
 
 Au passage, le même soir : Meta est en cours (vérification d'entreprise
