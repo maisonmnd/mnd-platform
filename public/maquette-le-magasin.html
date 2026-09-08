@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Magasin &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --ambre: #9A6B1F; --ambre-f: #FCF5E6; --ambre-p: #E2CDA1;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1120px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:68ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire);
+           overflow:hidden; box-shadow:0 1px 0 rgba(42,39,34,.04); }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:14px 18px;
+                 display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:22px; }
+  @media (max-width:640px){ .ecran__corps { padding:14px; } }
+
+  /* ── Les briques communes des écrans ─────────────────────────── */
+  .kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:20px; }
+  @media (max-width:900px){ .kpis { grid-template-columns:repeat(2,1fr); } }
+  .kpi { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:12px 14px; }
+  .kpi small { display:block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+  .kpi b { display:block; font-family:var(--serif); font-weight:400; font-size:24px; color:var(--indigo);
+           font-variant-numeric:tabular-nums; margin-top:2px; }
+  .kpi i { font-style:normal; font-size:11.5px; color:var(--encre-d); }
+  .kpi--alerte { border-color:var(--brique-p); background:var(--brique-f); }
+  .kpi--alerte b { color:var(--brique); }
+
+  .filtres { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .chip { border:1px solid var(--filet); border-radius:99px; background:#fff; padding:5px 13px;
+          font-size:12px; color:var(--encre-d); }
+  .chip--on { border-color:var(--indigo); background:var(--indigo); color:#EFEAE0; }
+  .chip--n { font-variant-numeric:tabular-nums; }
+  .cherche { flex:1; min-width:180px; border:1px dashed var(--cuivre-p); border-radius:4px;
+             background:#fff; padding:7px 12px; font-size:13px; color:var(--encre-d); }
+
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:760px; font-size:13px; }
+  th { text-align:left; font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--encre-d);
+       font-weight:500; padding:8px 10px; border-bottom:2px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid var(--sable); vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .code { font-size:11px; letter-spacing:.06em; color:var(--encre-d); white-space:nowrap; }
+  .prod { font-family:var(--serif); font-size:15.5px; color:var(--indigo); }
+  .fam { font-size:11px; color:var(--encre-d); }
+  tr.ligne:hover td { background:var(--cuivre-f); cursor:pointer; }
+
+  .etat { display:inline-block; border-radius:3px; padding:2px 8px; font-size:10.5px; letter-spacing:.08em;
+          text-transform:uppercase; white-space:nowrap; }
+  .etat--ok { background:var(--vert-f); color:var(--vert); border:1px solid var(--vert-p); }
+  .etat--bas { background:var(--ambre-f); color:var(--ambre); border:1px solid var(--ambre-p); }
+  .etat--rupture { background:var(--brique-f); color:var(--brique); border:1px solid var(--brique-p); }
+  .etat--indigo { background:var(--indigo-pale); color:var(--indigo); border:1px solid #C9CCE0; }
+
+  .jauge { width:110px; height:6px; border-radius:3px; background:var(--sable); position:relative; overflow:hidden; }
+  .jauge i { position:absolute; inset:0 auto 0 0; border-radius:3px; }
+  .jauge--ok i { background:var(--vert); }
+  .jauge--bas i { background:var(--ambre); }
+  .jauge--rupture i { background:var(--brique); }
+  .jauge + small { display:block; font-size:10.5px; color:var(--encre-d); margin-top:3px; font-variant-numeric:tabular-nums; }
+
+  .btn { display:inline-block; border-radius:4px; padding:8px 16px; font-size:11px; letter-spacing:.14em;
+         text-transform:uppercase; border:1px solid var(--filet); background:#fff; color:var(--encre); }
+  .btn--copper { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .btn--indigo { background:var(--indigo); border-color:var(--indigo); color:#EFEAE0; }
+
+  /* ── La fiche produit ────────────────────────────────────────── */
+  .fiche-tete { display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:flex-start;
+                border-bottom:1px solid var(--filet); padding-bottom:16px; margin-bottom:18px; }
+  .fiche-tete h5 { font-family:var(--serif); font-weight:400; font-size:26px; color:var(--indigo); margin:2px 0 4px; }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; }
+  .hero-stock { text-align:right; }
+  .hero-stock b { font-family:var(--serif); font-weight:400; font-size:34px; color:var(--indigo);
+                  font-variant-numeric:tabular-nums; display:block; line-height:1; }
+  .hero-stock small { font-size:11px; color:var(--encre-d); }
+
+  .blocs { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:820px){ .blocs { grid-template-columns:1fr; } }
+  .bloc { border:1px solid var(--filet); border-radius:4px; background:#fff; }
+  .bloc__t { padding:10px 14px 8px; border-bottom:1px solid var(--sable); font-size:10.5px;
+             letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre); }
+  .bloc__c { padding:6px 14px 12px; }
+  .champ { display:grid; grid-template-columns:150px 1fr; gap:10px; align-items:baseline;
+           padding:7px 0; border-bottom:1px dashed var(--sable); }
+  .champ:last-child { border-bottom:none; }
+  .champ small { font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--encre-d); }
+  .champ .val { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire);
+                padding:5px 10px; font-size:13.5px; color:var(--encre); }
+  .champ .val--select::after { content:' ▾'; color:var(--encre-d); font-size:11px; }
+  .champ .val--muet { border-style:dashed; color:var(--encre-d); }
+  .marge-barre { height:8px; border-radius:4px; background:var(--sable); overflow:hidden; margin-top:6px; }
+  .marge-barre i { display:block; height:100%; width:64%; background:linear-gradient(90deg, var(--cuivre), var(--vert)); }
+
+  .kardex td { font-size:12.5px; padding:7px 10px; }
+  .mvt { display:inline-block; border-radius:3px; padding:1px 7px; font-size:10px; letter-spacing:.06em;
+         text-transform:uppercase; }
+  .mvt--in { background:var(--vert-f); color:var(--vert); }
+  .mvt--out { background:var(--indigo-pale); color:var(--indigo-2); }
+  .mvt--adj { background:var(--ambre-f); color:var(--ambre); }
+  .mvt--perte { background:var(--brique-f); color:var(--brique); }
+  .qte-pos { color:var(--vert); font-variant-numeric:tabular-nums; }
+  .qte-neg { color:var(--indigo-2); font-variant-numeric:tabular-nums; }
+
+  /* ── Le bon de commande ──────────────────────────────────────── */
+  .doc-tete { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+  .doc-num { font-family:var(--serif); font-size:27px; color:var(--indigo); }
+  .doc-num small { display:block; font-family:var(--sans); font-size:10.5px; letter-spacing:.14em;
+                   text-transform:uppercase; color:var(--encre-d); }
+  .frn { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:10px 14px; min-width:230px; }
+  .frn b { font-family:var(--serif); font-weight:400; font-size:17px; color:var(--indigo); display:block; }
+  .frn small { font-size:12px; color:var(--encre-d); display:block; }
+  .etapes { display:flex; gap:0; flex-wrap:wrap; margin:6px 0 16px; }
+  .etape { font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; padding:5px 14px;
+           border:1px solid var(--filet); background:#fff; color:var(--encre-d); }
+  .etape + .etape { border-left:none; }
+  .etape--fait { background:var(--vert-f); color:var(--vert); border-color:var(--vert-p); }
+  .etape--la { background:var(--indigo); color:#EFEAE0; border-color:var(--indigo); }
+  .doc-pied { display:flex; justify-content:flex-end; gap:26px; padding:12px 10px 2px;
+              font-variant-numeric:tabular-nums; }
+  .doc-pied b { font-family:var(--serif); font-weight:400; font-size:20px; color:var(--indigo); }
+  .recu-champ { display:inline-block; width:58px; border:1px solid var(--cuivre-p); border-radius:3px;
+                background:var(--cuivre-f); padding:3px 8px; text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* ── L'inventaire ────────────────────────────────────────────── */
+  .ecart-pos { color:var(--vert); } .ecart-neg { color:var(--brique); } .ecart-zero { color:var(--encre-d); }
+
+  .doctrine { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px;
+              background:var(--ivoire); padding:16px 20px; max-width:78ch; }
+  .doctrine p { margin:6px 0; font-size:13.5px; color:var(--encre-d); }
+  .doctrine b { color:var(--encre); font-weight:500; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Stock &amp; Achats</p>
+  <h1>Le Magasin</h1>
+  <p class="chapeau">La r&eacute;serve tenue comme un registre : <b>des fiches qu'on remplit</b>,
+     des documents qui ont un num&eacute;ro et un statut, un journal qui explique chaque
+     mouvement. Le moteur existe d&eacute;j&agrave; dans le Tr&ocirc;ne, cette maquette refait
+     l'habillage &agrave; la hauteur de Sage et Zoho, dans la charte MND.</p>
+
+  <section>
+    <p class="cite">C'est comme si c'&eacute;tait juste une feuille blanche o&ugrave; on rentre un nom de
+      produit et puis on fait des + et des &minus;. J'ai besoin que ce soit structur&eacute;, avec des cases
+      qu'on remplit, qu'on ait l'impression d'&ecirc;tre r&eacute;ellement dans une fiche.
+      <span>Y&eacute;man &middot; 8 septembre 2026</span></p>
+    <p class="intro">Cinq &eacute;crans, un par geste : <b>la vue d'ensemble</b> pour juger la r&eacute;serve
+      d'un regard, <b>la fiche produit</b> pour tout savoir d'une r&eacute;f&eacute;rence, <b>le bon de
+      commande</b> pour acheter proprement, <b>le journal</b> pour tracer, <b>l'inventaire</b> pour
+      compter. Chaque case dessin&eacute;e ici correspond &agrave; un champ qui existe d&eacute;j&agrave; dans le
+      moteur : rien n'est d&eacute;coratif.</p>
+  </section>
+
+  <!-- ═══════════════ ① LA VUE D'ENSEMBLE ═══════════════ -->
+  <section>
+    <h2><span class="num">&#9312;</span> La vue d'ensemble</h2>
+    <p class="intro">Le tableau remplace la liste plate : chaque r&eacute;f&eacute;rence porte son code, sa
+      famille, sa jauge de r&eacute;serve contre sa cible, ses deux prix et sa marge. Les chiffres du
+      haut r&eacute;pondent aux quatre questions du magasin avant qu'on les pose.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Stock &amp; Achats</h4><span>Le Magasin &middot; L'atelier MND</span></div>
+      <div class="ecran__corps">
+        <div class="kpis">
+          <div class="kpi"><small>Valeur au co&ucirc;t</small><b>612&nbsp;400&nbsp;F</b><i>prix d'achat</i></div>
+          <div class="kpi"><small>Valeur &agrave; la vente</small><b>1&nbsp;022&nbsp;000&nbsp;F</b><i>revente seule</i></div>
+          <div class="kpi"><small>Marge potentielle</small><b>409&nbsp;600&nbsp;F</b><i>40&nbsp;% du rayon</i></div>
+          <div class="kpi"><small>R&eacute;f&eacute;rences actives</small><b>18</b><i>4 familles</i></div>
+          <div class="kpi kpi--alerte"><small>&Agrave; commander</small><b>5</b><i>4 ruptures &middot; 1 sous seuil</i></div>
+        </div>
+        <div class="filtres">
+          <span class="chip chip--on">Toutes &middot; 18</span>
+          <span class="chip chip--n">Revente &middot; 9</span>
+          <span class="chip chip--n">Consommable &middot; 5</span>
+          <span class="chip chip--n">M&egrave;ches &middot; 2</span>
+          <span class="chip chip--n">Jetable &middot; 2</span>
+          <span class="chip">Fournisseur ▾</span>
+          <span class="chip">&Agrave; commander seulement</span>
+          <span class="cherche">Rechercher un produit&hellip; (vapo, karit&eacute;, gants)</span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead><tr>
+              <th>Code</th><th>Produit</th><th>R&eacute;serve</th>
+              <th class="n">Achat</th><th class="n">Vente</th><th class="n">Marge</th><th>&Eacute;tat</th>
+            </tr></thead>
+            <tbody>
+              <tr class="ligne">
+                <td class="code">PRD&#8209;REV&#8209;03</td>
+                <td><span class="prod">Vapo Hydra Mist 350&nbsp;ml</span><br><span class="fam">Revente &middot; HOME RITUALS&trade; &middot; FRN&#8209;01</span></td>
+                <td><span class="jauge jauge--rupture"><i style="width:0%"></i></span><small>0 / cible 12 &middot; seuil 4</small></td>
+                <td class="n">5&nbsp;800&nbsp;F</td><td class="n">10&nbsp;000&nbsp;F</td><td class="n">42&nbsp;%</td>
+                <td><span class="etat etat--rupture">Rupture</span></td>
+              </tr>
+              <tr class="ligne">
+                <td class="code">PRD&#8209;REV&#8209;07</td>
+                <td><span class="prod">Beurre Karit&eacute; Scellant 250&nbsp;g</span><br><span class="fam">Revente &middot; HOME RITUALS&trade; &middot; FRN&#8209;01</span></td>
+                <td><span class="jauge jauge--bas"><i style="width:22%"></i></span><small>2 / cible 10 &middot; seuil 3</small></td>
+                <td class="n">4&nbsp;200&nbsp;F</td><td class="n">8&nbsp;500&nbsp;F</td><td class="n">51&nbsp;%</td>
+                <td><span class="etat etat--bas">Sous seuil</span></td>
+              </tr>
+              <tr class="ligne">
+                <td class="code">PRD&#8209;CON&#8209;02</td>
+                <td><span class="prod">Shampoing &laquo;&nbsp;Le Souffle&nbsp;&raquo; cabine 1&nbsp;L</span><br><span class="fam">Consommable &middot; cabine &middot; FRN&#8209;02</span></td>
+                <td><span class="jauge jauge--ok"><i style="width:70%"></i></span><small>7 / cible 10 &middot; seuil 3</small></td>
+                <td class="n">6&nbsp;500&nbsp;F</td><td class="n">&mdash;&hairsp;co&ucirc;t</td><td class="n">&nbsp;</td>
+                <td><span class="etat etat--ok">En r&eacute;serve</span></td>
+              </tr>
+              <tr class="ligne">
+                <td class="code">PRD&#8209;MEC&#8209;01</td>
+                <td><span class="prod">M&egrave;ches Studio 1B &middot; paquet</span><br><span class="fam">M&egrave;ches &middot; Studio &middot; FRN&#8209;03</span></td>
+                <td><span class="jauge jauge--ok"><i style="width:85%"></i></span><small>17 / cible 20 &middot; seuil 6</small></td>
+                <td class="n">3&nbsp;000&nbsp;F</td><td class="n">7&nbsp;000&nbsp;F</td><td class="n">57&nbsp;%</td>
+                <td><span class="etat etat--ok">En r&eacute;serve</span></td>
+              </tr>
+              <tr class="ligne">
+                <td class="code">PRD&#8209;JET&#8209;01</td>
+                <td><span class="prod">Gants nitrile L &middot; bo&icirc;te de 100</span><br><span class="fam">Jetable &middot; FRN&#8209;02</span></td>
+                <td><span class="jauge jauge--rupture"><i style="width:8%"></i></span><small>1 / cible 6 &middot; seuil 2</small></td>
+                <td class="n">4&nbsp;000&nbsp;F</td><td class="n">&mdash;&hairsp;co&ucirc;t</td><td class="n">&nbsp;</td>
+                <td><span class="etat etat--bas">Sous seuil</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <span class="btn btn--copper">+ Nouvelle fiche produit</span>
+          <span class="btn btn--indigo">Bon de commande &middot; 5 &agrave; racheter</span>
+          <span class="btn">Inventaire compt&eacute;</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Ce que chaque case d&eacute;clenche</b> &middot; une ligne ouvre sa fiche produit (&#9313;) &middot;
+      le chiffre &laquo;&nbsp;&Agrave; commander&nbsp;&raquo; et le bouton indigo ouvrent le bon pr&eacute;-rempli (&#9314;) &middot;
+      les pastilles de famille filtrent le tableau &middot; la barre de recherche est celle du jour, accents libres.
+      Le prix d'achat et la marge ne sortent jamais de cet &eacute;cran r&eacute;serv&eacute; au personnel.</p>
+  </section>
+
+  <!-- ═══════════════ ② LA FICHE PRODUIT ═══════════════ -->
+  <section>
+    <h2><span class="num">&#9313;</span> La fiche produit</h2>
+    <p class="intro">La vraie fiche demand&eacute;e : <b>des cases nomm&eacute;es, group&eacute;es par blocs</b>,
+      et le pass&eacute; du produit au bas de sa propre page. Plus un &laquo;&nbsp;+&nbsp;&raquo; ou un
+      &laquo;&nbsp;&minus;&nbsp;&raquo; nu : chaque nombre a un motif.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Fiche produit</h4><span>PRD&#8209;REV&#8209;07</span></div>
+      <div class="ecran__corps">
+        <div class="fiche-tete">
+          <div>
+            <span class="code">PRD&#8209;REV&#8209;07 &middot; cr&eacute;&eacute;e le 12 mai 2026</span>
+            <h5>Beurre Karit&eacute; Scellant 250&nbsp;g</h5>
+            <div class="badges">
+              <span class="etat etat--indigo">Revente</span>
+              <span class="etat etat--ok">Active</span>
+              <span class="etat etat--bas">Sous seuil</span>
+            </div>
+          </div>
+          <div class="hero-stock">
+            <b>2 <span style="font-size:16px; color:var(--encre-d)">/ 10</span></b>
+            <small>en r&eacute;serve / cible &middot; seuil d'alerte 3</small>
+            <div class="jauge jauge--bas" style="margin-left:auto; margin-top:6px;"><i style="width:22%"></i></div>
+          </div>
+        </div>
+        <div class="blocs">
+          <div class="bloc">
+            <div class="bloc__t">Identit&eacute;</div>
+            <div class="bloc__c">
+              <div class="champ"><small>Nom</small><span class="val">Beurre Karit&eacute; Scellant 250&nbsp;g</span></div>
+              <div class="champ"><small>Famille</small><span class="val val--select">Revente</span></div>
+              <div class="champ"><small>Sous-famille</small><span class="val">HOME RITUALS&trade;</span></div>
+              <div class="champ"><small>Unit&eacute;</small><span class="val val--select">pi&egrave;ce</span></div>
+              <div class="champ"><small>Conditionnement</small><span class="val">pot de 250&nbsp;g</span></div>
+              <div class="champ"><small>Emplacement</small><span class="val">&Eacute;tag&egrave;re vitrine &middot; B2</span></div>
+            </div>
+          </div>
+          <div class="bloc">
+            <div class="bloc__t">R&eacute;assort &amp; fournisseur</div>
+            <div class="bloc__c">
+              <div class="champ"><small>Fournisseur</small><span class="val val--select">FRN&#8209;01 &middot; Cosmetal B&eacute;nin</span></div>
+              <div class="champ"><small>D&eacute;lai habituel</small><span class="val">3 jours</span></div>
+              <div class="champ"><small>Seuil d'alerte</small><span class="val">3</span></div>
+              <div class="champ"><small>Stock cible</small><span class="val">10</span></div>
+              <div class="champ"><small>&Agrave; commander</small><span class="val val--muet">8 &middot; propos&eacute; au prochain bon</span></div>
+            </div>
+          </div>
+          <div class="bloc">
+            <div class="bloc__t">Co&ucirc;ts &amp; marge &middot; personnel seulement</div>
+            <div class="bloc__c">
+              <div class="champ"><small>Prix d'achat</small><span class="val">4&nbsp;200&nbsp;F &middot; derni&egrave;re entr&eacute;e 4&nbsp;000&nbsp;F</span></div>
+              <div class="champ"><small>Fiche Gamme li&eacute;e</small><span class="val val--select">Beurre Karit&eacute; Scellant &middot; vitrine</span></div>
+              <div class="champ"><small>Prix de vente</small><span class="val val--muet">8&nbsp;500&nbsp;F &middot; lu sur la fiche Gamme</span></div>
+              <div class="champ"><small>Marge</small><span>51&nbsp;% <span class="marge-barre"><i></i></span></span></div>
+            </div>
+          </div>
+          <div class="bloc">
+            <div class="bloc__t">Kardex &middot; les 30 derniers jours</div>
+            <div class="bloc__c scroll">
+              <table class="kardex" style="min-width:430px">
+                <thead><tr><th>Date</th><th>Mouvement</th><th class="n">Qt&eacute;</th><th>R&eacute;f&eacute;rence</th><th class="n">Solde</th></tr></thead>
+                <tbody>
+                  <tr><td>06 sept.</td><td><span class="mvt mvt--out">Sortie &middot; vente</span></td><td class="n qte-neg">&minus;1</td><td class="code">Caisse &middot; F&#8209;2026&#8209;208</td><td class="n">2</td></tr>
+                  <tr><td>02 sept.</td><td><span class="mvt mvt--out">Sortie &middot; vente</span></td><td class="n qte-neg">&minus;2</td><td class="code">Caisse &middot; F&#8209;2026&#8209;196</td><td class="n">3</td></tr>
+                  <tr><td>28 ao&ucirc;t</td><td><span class="mvt mvt--adj">Ajustement</span></td><td class="n qte-neg">&minus;1</td><td class="code">Inventaire du 28/08</td><td class="n">5</td></tr>
+                  <tr><td>21 ao&ucirc;t</td><td><span class="mvt mvt--in">Entr&eacute;e &middot; achat</span></td><td class="n qte-pos">+6</td><td class="code">BC&#8209;2026&#8209;011 &middot; FRN&#8209;01</td><td class="n">6</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <span class="btn btn--copper">Enregistrer la fiche</span>
+          <span class="btn">Entr&eacute;e / sortie manuelle&hellip;</span>
+          <span class="btn" style="color:var(--brique)">D&eacute;sactiver</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Ce que chaque case d&eacute;clenche</b> &middot; la famille d&eacute;cide des cases visibles
+      (un consommable n'a ni fiche Gamme ni marge) &middot; &laquo;&nbsp;&Agrave; commander&nbsp;&raquo; se calcule seul
+      (cible &minus; r&eacute;serve) &middot; le prix de vente n'est jamais saisi ici, il se LIT sur la fiche Gamme
+      li&eacute;e, comme aujourd'hui &middot; &laquo;&nbsp;Entr&eacute;e / sortie manuelle&nbsp;&raquo; ouvre une petite modale
+      qui exige un motif, et &eacute;crit au journal &middot; le kardex montre le solde APR&Egrave;S chaque ligne.</p>
+  </section>
+
+  <!-- ═══════════════ ③ LE BON DE COMMANDE ═══════════════ -->
+  <section>
+    <h2><span class="num">&#9314;</span> Le bon de commande</h2>
+    <p class="intro">Un achat est un <b>document</b> : un num&eacute;ro, un fournisseur, un statut qui avance,
+      des lignes au prix fig&eacute; du jour, une r&eacute;ception qui peut &ecirc;tre partielle. La r&eacute;ception
+      &eacute;crit elle-m&ecirc;me les entr&eacute;es au journal, personne ne fait de &laquo;&nbsp;+&nbsp;&raquo;.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Bon de commande</h4><span>Achats</span></div>
+      <div class="ecran__corps">
+        <div class="doc-tete">
+          <div class="doc-num"><small>Num&eacute;ro</small>BC&#8209;2026&#8209;014</div>
+          <div class="frn">
+            <b>FRN&#8209;01 &middot; Cosmetal B&eacute;nin</b>
+            <small>+229 01 XX XX XX XX &middot; d&eacute;lai 3 jours</small>
+            <small>Paiement &agrave; la livraison</small>
+          </div>
+          <div class="frn">
+            <b style="font-size:15px">Dates</b>
+            <small>Command&eacute; le 08 sept. 2026</small>
+            <small>R&eacute;ception pr&eacute;vue le 11 sept. 2026</small>
+          </div>
+        </div>
+        <div class="etapes">
+          <span class="etape etape--fait">Brouillon</span>
+          <span class="etape etape--fait">Envoy&eacute;e</span>
+          <span class="etape etape--la">Partielle</span>
+          <span class="etape">Re&ccedil;ue</span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead><tr>
+              <th>Produit</th><th class="n">Command&eacute;</th><th class="n">PU fig&eacute;</th>
+              <th class="n">Montant</th><th class="n">Re&ccedil;u</th><th class="n">Reste</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="prod">Vapo Hydra Mist 350&nbsp;ml</span><br><span class="code">PRD&#8209;REV&#8209;03</span></td>
+                <td class="n">12</td><td class="n">5&nbsp;800&nbsp;F</td><td class="n">69&nbsp;600&nbsp;F</td>
+                <td class="n"><span class="recu-champ">12</span></td><td class="n qte-pos">0</td>
+              </tr>
+              <tr>
+                <td><span class="prod">Beurre Karit&eacute; Scellant 250&nbsp;g</span><br><span class="code">PRD&#8209;REV&#8209;07</span></td>
+                <td class="n">8</td><td class="n">4&nbsp;200&nbsp;F</td><td class="n">33&nbsp;600&nbsp;F</td>
+                <td class="n"><span class="recu-champ">5</span></td><td class="n" style="color:var(--ambre)">3</td>
+              </tr>
+              <tr>
+                <td><span class="prod">Gants nitrile L &middot; bo&icirc;te de 100</span><br><span class="code">PRD&#8209;JET&#8209;01</span></td>
+                <td class="n">5</td><td class="n">4&nbsp;000&nbsp;F</td><td class="n">20&nbsp;000&nbsp;F</td>
+                <td class="n"><span class="recu-champ">0</span></td><td class="n" style="color:var(--brique)">5</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="doc-pied"><span>Total command&eacute;</span><b>123&nbsp;200&nbsp;F</b></div>
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+          <span class="btn btn--copper">R&eacute;ceptionner ce qui est arriv&eacute;</span>
+          <span class="btn">Envoyer au fournisseur &middot; WhatsApp</span>
+          <span class="btn" style="color:var(--brique)">Annuler le bon</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Ce que chaque case d&eacute;clenche</b> &middot; le bon na&icirc;t pr&eacute;-rempli depuis les
+      alertes (&#9312;), fournisseur par fournisseur &middot; le PU est FIG&Eacute; &agrave; la commande, le prix du
+      catalogue peut bouger ensuite &middot; &laquo;&nbsp;R&eacute;ceptionner&nbsp;&raquo; &eacute;crit une entr&eacute;e au journal
+      par ligne re&ccedil;ue et fait avancer le statut tout seul (partielle tant qu'il reste, re&ccedil;ue
+      quand tout est l&agrave;) &middot; le WhatsApp part au num&eacute;ro du fournisseur avec les lignes du bon.</p>
+  </section>
+
+  <!-- ═══════════════ ④ LE JOURNAL ═══════════════ -->
+  <section>
+    <h2><span class="num">&#9315;</span> Le journal des mouvements</h2>
+    <p class="intro">D&eacute;j&agrave; la source de v&eacute;rit&eacute; du moteur, il devient lisible : chaque ligne
+      est <b>typ&eacute;e, r&eacute;f&eacute;renc&eacute;e, sold&eacute;e</b>. On r&eacute;pond &agrave; &laquo;&nbsp;o&ugrave; sont
+      pass&eacute;s les vapos&nbsp;?&nbsp;&raquo; en dix secondes.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Journal</h4><span>Mouvements de r&eacute;serve</span></div>
+      <div class="ecran__corps">
+        <div class="filtres">
+          <span class="chip chip--on">Tous types</span>
+          <span class="chip">Entr&eacute;es</span><span class="chip">Sorties</span>
+          <span class="chip">Ajustements</span><span class="chip">Pertes</span>
+          <span class="chip">Produit ▾</span><span class="chip">Septembre ▾</span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Date</th><th>Produit</th><th>Mouvement</th><th class="n">Qt&eacute;</th><th>R&eacute;f&eacute;rence &middot; motif</th><th class="n">Solde</th></tr></thead>
+            <tbody>
+              <tr><td>08 sept.</td><td class="prod">Vapo Hydra Mist 350&nbsp;ml</td><td><span class="mvt mvt--in">Entr&eacute;e &middot; achat</span></td><td class="n qte-pos">+12</td><td class="code">BC&#8209;2026&#8209;014 &middot; FRN&#8209;01</td><td class="n">12</td></tr>
+              <tr><td>06 sept.</td><td class="prod">Shampoing cabine 1&nbsp;L</td><td><span class="mvt mvt--out">Sortie &middot; service</span></td><td class="n qte-neg">&minus;0,2</td><td class="code">rdv &middot; K&Ograve;K&Ograve;&trade; Suivi</td><td class="n">7</td></tr>
+              <tr><td>05 sept.</td><td class="prod">M&egrave;ches Studio 1B</td><td><span class="mvt mvt--out">Sortie &middot; vente</span></td><td class="n qte-neg">&minus;3</td><td class="code">F&#8209;2026&#8209;204</td><td class="n">17</td></tr>
+              <tr><td>03 sept.</td><td class="prod">Vapo Hydra Mist 350&nbsp;ml</td><td><span class="mvt mvt--perte">Perte</span></td><td class="n qte-neg">&minus;1</td><td class="code">flacon cass&eacute; en cabine &middot; not&eacute; par A.</td><td class="n">0</td></tr>
+              <tr><td>28 ao&ucirc;t</td><td class="prod">Beurre Karit&eacute; Scellant</td><td><span class="mvt mvt--adj">Ajustement</span></td><td class="n qte-neg">&minus;1</td><td class="code">Inventaire du 28/08 &middot; &eacute;cart compt&eacute;</td><td class="n">5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Ce que chaque case d&eacute;clenche</b> &middot; la r&eacute;f&eacute;rence est cliquable et m&egrave;ne
+      &agrave; sa pi&egrave;ce (bon, facture, rendez-vous, inventaire) &middot; une perte exige toujours un motif en
+      toutes lettres &middot; le solde est recalcul&eacute; du journal, jamais stock&eacute; &agrave; c&ocirc;t&eacute;,
+      c'est la r&egrave;gle d'or du moteur qui ne change pas.</p>
+  </section>
+
+  <!-- ═══════════════ ⑤ L'INVENTAIRE ═══════════════ -->
+  <section>
+    <h2><span class="num">&#9316;</span> L'inventaire compt&eacute;</h2>
+    <p class="intro">Une fois par mois, on compte. La feuille montre le th&eacute;orique, on saisit le
+      compt&eacute;, l'&eacute;cart se juge seul, et la validation &eacute;crit les ajustements au journal,
+      dat&eacute;s et sign&eacute;s.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Inventaire</h4><span>Comptage du 08 sept. 2026 &middot; par Y.</span></div>
+      <div class="ecran__corps">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Produit</th><th class="n">Th&eacute;orique</th><th class="n">Compt&eacute;</th><th class="n">&Eacute;cart</th><th>Motif si &eacute;cart</th></tr></thead>
+            <tbody>
+              <tr><td><span class="prod">Beurre Karit&eacute; Scellant 250&nbsp;g</span></td><td class="n">2</td><td class="n"><span class="recu-champ">2</span></td><td class="n ecart-zero">0</td><td class="code">&nbsp;</td></tr>
+              <tr><td><span class="prod">M&egrave;ches Studio 1B &middot; paquet</span></td><td class="n">17</td><td class="n"><span class="recu-champ">16</span></td><td class="n ecart-neg">&minus;1</td><td class="code">paquet entam&eacute; non not&eacute;</td></tr>
+              <tr><td><span class="prod">Gants nitrile L &middot; bo&icirc;te</span></td><td class="n">1</td><td class="n"><span class="recu-champ">2</span></td><td class="n ecart-pos">+1</td><td class="code">bo&icirc;te retrouv&eacute;e en cabine 2</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center;">
+          <span class="btn btn--copper">Valider l'inventaire &middot; 2 ajustements</span>
+          <span class="legende" style="margin:0">La validation &eacute;crit chaque &eacute;cart au journal et fige la photo du jour.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ DOCTRINE ═══════════════ -->
+  <section>
+    <h2>Ce que la refonte ne change pas</h2>
+    <div class="doctrine">
+      <p><b>Le journal reste le juge.</b> Aucun &eacute;cran ne stocke un total : la r&eacute;serve est la somme
+         des mouvements, l'inventaire lui-m&ecirc;me n'est qu'une s&eacute;rie d'ajustements dat&eacute;s.</p>
+      <p><b>Le prix d'achat ne sort jamais du personnel.</b> Ma Couronne et la vitrine ne lisent que la fiche
+         Gamme ; co&ucirc;ts et marges vivent dans les tables r&eacute;serv&eacute;es, comme aujourd'hui.</p>
+      <p><b>Les onglets Recettes et la Gamme restent.</b> Les recettes (ce qu'une prestation consomme)
+         gardent leur &eacute;cran ; la Gamme reste la vitrine des prix de vente. Le Magasin les relie
+         au lieu de les remplacer.</p>
+      <p><b>Ordre des onglets propos&eacute;</b> : Vue d'ensemble &middot; Fiches &middot; Achats &middot;
+         Journal &middot; Inventaire &middot; Recettes &middot; Gamme.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
