@@ -61,6 +61,52 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LE MAGASIN — la refonte Stock & Achats — 8 septembre 2026, PUBLIÉ
+
+« C'est comme une feuille blanche où on fait des + et des −, refais-moi
+quelque chose de professionnel, comme Sage ou Zoho » (Yéman). Maquette
+`public/maquette-le-magasin.html` validée (« Construis »), puis bâtie le
+jour même. LE MOTEUR N'A PAS BOUGÉ : tout existait dans shared/stock.ts
+(codes PRD, familles, fournisseurs, BC, journal souverain) — c'est
+l'habillage qui faisait feuille blanche.
+
+Les onglets deviennent : **Vue d'ensemble · Achats · Journal · Inventaire ·
+Recettes · La Gamme** (la Vue remplace l'ancien onglet « Inventaire » qui
+listait les fiches ; « Inventaire » désigne désormais le comptage).
+
+**① Vue d'ensemble** : cinq chiffres de tête (valeur au coût, à la vente,
+marge potentielle, références actives, à commander) + UN tableau : code,
+produit, jauge de réserve contre la cible, deux prix, marge, pastille d'état.
+Filtres par famille + « à commander seulement » + la recherche au même juge
+que les prestations (`prestationRepond`). Une ligne ouvre sa fiche.
+
+**② La fiche produit en blocs** (modale 760) : Identité / Réassort &
+fournisseur (avec « à commander : cible − réserve ») / Coûts & marge (prix
+de vente LU sur la fiche Gamme liée, jamais saisi ; barre de marge) / Kardex
+des 8 derniers mouvements avec le SOLDE APRÈS chaque ligne. Entrée-sortie
+manuelle, perte et désactivation vivent dans la fiche.
+
+**③ Le bon de commande en document** : numéro en lettres de tête, carte
+fournisseur (tél, délai, conditions), carte dates (réception prévue déduite
+du délai, affichage seulement), ÉTAPES qui avancent (Brouillon · Envoyée ·
+Partielle · Reçue), table des lignes au PU figé avec Reçu/Reste, total,
+envoi WhatsApp au fournisseur (lignes du bon), réception par ligne qui écrit
+les entrées au journal comme avant.
+
+**④ Le journal habillé** : mouvements typés en pastilles colorées, filtres
+type/produit/texte, colonne « Solde » calculée sur le journal ENTIER avant
+filtre (filtrer d'abord fausserait chaque solde).
+
+**⑤ L'inventaire compté** (neuf) : théorique / compté / écart / motif
+obligatoire par écart. UNE LIGNE NON COMPTÉE N'ÉCRIT RIEN — le silence n'est
+pas un zéro. La validation passe par `ajusterStock` ligne par ligne (la
+porte sûre, poste froid compris), note « Inventaire du <jour> · <motif> ».
+
+Deux juges purs ajoutés à stock.ts, sous harnais (verifie-magasin, le 41e) :
+`etatReserve` (rupture prime sur seuil ; seuil 0 + fond de pot = en réserve)
+et `soldesApres` (par produit, dans l'ordre d'écriture, même arrondi que le
+stock dérivé — pas de poussière flottante au kardex).
+
 ## LA BARRE DE RECHERCHE DES PRESTATIONS — 8 septembre 2026, PUBLIÉ
 
 « J'ai trop de prestations, ajoute-moi une barre de recherche pour ne pas

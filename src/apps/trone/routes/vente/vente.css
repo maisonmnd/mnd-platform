@@ -1215,3 +1215,63 @@
   color: var(--copper-700);
   margin-top: 6px;
 }
+
+
+/* ══ LE MAGASIN — l'habit de la maquette du 8 septembre 2026 ═════════
+   KPI de tête, jauges de réserve, pastilles d'état, blocs de fiche,
+   kardex, étapes du bon. Les mots viennent du moteur (etatReserve,
+   MOUVEMENT_NOMS) ; ici, seulement leurs encres. */
+.trv-mag-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 16px; }
+@media (max-width: 900px) { .trv-mag-kpis { grid-template-columns: repeat(2, 1fr); } }
+.trv-mag-kpi { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 12px 14px; }
+.trv-mag-kpi small { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trv-mag-kpi b { display: block; font-family: var(--font-serif); font-weight: var(--weight-light, 300); font-size: 22px; color: var(--color-indigo); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.trv-mag-kpi i { font-style: normal; font-size: 11px; color: var(--ink-soft); }
+.trv-mag-kpi--alerte { border-color: #E4BDB2; background: #FBF0ED; }
+.trv-mag-kpi--alerte b { color: #96412E; }
+
+.trv-mag-jauge { display: inline-block; width: 110px; height: 6px; border-radius: 3px; background: var(--hairline); position: relative; overflow: hidden; vertical-align: middle; }
+.trv-mag-jauge i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; display: block; }
+.trv-mag-jauge--ok i { background: #4c7a4c; }
+.trv-mag-jauge--sous_seuil i { background: #9A6B1F; }
+.trv-mag-jauge--rupture i { background: #96412E; }
+
+.trv-mag-etat { display: inline-block; border-radius: 3px; padding: 2px 8px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.trv-mag-etat--ok { background: #EFF3EF; color: #4A6B52; border: 1px solid #CBDACE; }
+.trv-mag-etat--sous_seuil { background: #FCF5E6; color: #9A6B1F; border: 1px solid #E2CDA1; }
+.trv-mag-etat--rupture { background: #FBF0ED; color: #96412E; border: 1px solid #E4BDB2; }
+.trv-mag-etat--famille { background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); border: 1px solid var(--hairline); }
+
+.trv-mag-ligne { cursor: pointer; }
+.trv-mag-ligne:hover td { background: var(--hover-veil); }
+
+.trv-mag-fichetete { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: flex-start; border-bottom: 1px solid var(--hairline); padding-bottom: 14px; }
+.trv-mag-blocs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 700px) { .trv-mag-blocs { grid-template-columns: 1fr; } }
+.trv-mag-bloc { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); }
+.trv-mag-bloc__t { padding: 9px 14px 7px; border-bottom: 1px solid var(--hairline); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-600); }
+.trv-mag-bloc__c { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.trv-mag-marge { display: block; height: 7px; border-radius: 4px; background: var(--hairline); overflow: hidden; margin-top: 5px; max-width: 240px; }
+.trv-mag-marge i { display: block; height: 100%; background: linear-gradient(90deg, var(--color-copper), #4c7a4c); }
+
+.trv-mag-kardex { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.trv-mag-kardex th { text-align: left; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; padding: 6px 8px; border-bottom: 2px solid var(--hairline); white-space: nowrap; }
+.trv-mag-kardex td { padding: 7px 8px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+
+.trv-mag-mvt { display: inline-block; border-radius: 3px; padding: 1px 7px; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.trv-mag-mvt--in { background: #EFF3EF; color: #4A6B52; }
+.trv-mag-mvt--out { background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); }
+.trv-mag-mvt--adj { background: #FCF5E6; color: #9A6B1F; }
+.trv-mag-mvt--perte { background: #FBF0ED; color: #96412E; }
+
+.trv-mag-doctete { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+.trv-mag-carte { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 9px 13px; min-width: 210px; }
+.trv-mag-carte b { font-family: var(--font-serif); font-weight: var(--weight-light, 300); font-size: 16px; color: var(--color-indigo); display: block; }
+.trv-mag-carte small { font-size: 11.5px; color: var(--ink-soft); display: block; }
+
+.trv-mag-etapes { display: flex; flex-wrap: wrap; }
+.trv-mag-etape { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 5px 14px; border: 1px solid var(--hairline); background: var(--surface-card); color: var(--ink-soft); }
+.trv-mag-etape + .trv-mag-etape { border-left: none; }
+.trv-mag-etape--fait { background: #EFF3EF; color: #4A6B52; border-color: #CBDACE; }
+.trv-mag-etape--la { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }

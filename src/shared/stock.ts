@@ -204,6 +204,28 @@ export const margePct = (p: ProduitStock, gamme: Product[]): number | undefined 
 
 export const aCommander = (p: ProduitStock, stock: number): boolean => stock <= p.seuilAlerte;
 
+/* ── L'ÉTAT D'UNE RÉSERVE — le mot que porte la pastille ─────────────
+   Trois mots, pas quatre : « rupture » quand il n'y a plus rien, « sous
+   seuil » quand on peut encore servir mais qu'il faut commander, « ok »
+   sinon. Le Magasin les colore, il ne les décide pas. */
+export type EtatReserve = 'rupture' | 'sous_seuil' | 'ok';
+export const etatReserve = (p: Pick<ProduitStock, 'seuilAlerte'>, stock: number): EtatReserve =>
+  stock <= 0 ? 'rupture' : stock <= p.seuilAlerte ? 'sous_seuil' : 'ok';
+
+/** LE SOLDE APRÈS CHAQUE MOUVEMENT, dans l'ordre d'écriture du journal —
+    c'est la colonne qui rend un kardex lisible. Même arrondi que le stock
+    dérivé : 0,3 − 3 × 0,1 doit rendre 0, pas 5,5e-17. */
+export function soldesApres(mouvements: MouvementStock[]): Map<string, number> {
+  const par = new Map<string, number>();
+  const solde = new Map<string, number>();
+  for (const m of mouvements) {
+    const s = arrondiStock((par.get(m.produitId) ?? 0) + m.quantite);
+    par.set(m.produitId, s);
+    solde.set(m.id, s);
+  }
+  return solde;
+}
+
 /* ---------- Lignes de commande — tout se calcule ---------- */
 
 export const coutLigne = (l: LigneCommande): number => l.quantiteCommandee * l.prixAchatUnitaireXof;
