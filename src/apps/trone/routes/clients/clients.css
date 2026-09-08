@@ -1275,6 +1275,15 @@
 .trc-clientpick__opt:hover, .trc-clientpick__opt:focus-visible { background: var(--hover-veil); }
 .trc-clientpick__n { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
 .trc-clientpick__m { font-size: 11.5px; color: var(--ink-soft); }
+
+/* Le menu des prestations reprend l'habit du choix de cliente ; il n'ajoute
+   que ses têtes de groupe (les ateliers) et son état vide. */
+.trc-svpick__grp {
+  padding: 9px 10px 3px; font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--copper-600);
+}
+.trc-svpick__grp:not(:first-child) { border-top: 1px solid var(--hairline); margin-top: 5px; }
+.trc-svpick__vide { padding: 10px 12px; font-size: 12.5px; color: var(--ink-soft); }
 .trc-clientpick__empty { padding: 12px 10px; font-size: 12.5px; color: var(--ink-soft); }
 
 /* Cliente de passage — deux champs, saisis sans quitter l'écran du comptoir. */

@@ -73,12 +73,15 @@ accents, Ɔ→o et Ɛ→e, ™ et ponctuation soufflés, chaque mot tapé doit
 répondre mais l'ordre est libre (« reprise sinsin » trouve). Une saisie vide
 répond vrai : ne rien chercher, c'est tout voir.
 
-Dans la modale (`_shared.tsx`) : une barre au-dessus du sélecteur, qui filtre
-les groupes d'ateliers ; « À la une » s'efface pendant la recherche (la
-flânerie n'est pas la recherche) ; ENTRÉE POSE LA PRESTATION quand une seule
-répond, et la barre se vide à chaque pose. Quand rien ne répond, la modale le
-DIT au lieu d'un menu muet. Les listes d'origine ne bougent pas : vider la
-barre rend tout.
+Dans la modale (`_shared.tsx`), DEUXIÈME ITÉRATION le jour même (« écrire les
+premières lettres et avoir la liste qui se déroule immédiatement en bas ; le
+bouton peut vivre dans prestation ») : UN SEUL CHAMP, même motif que la
+recherche d'une cliente plus haut. La liste filtrée se déroule sous la frappe,
+un clic pose la prestation ; champ vide, le menu montre tout (À la une en
+tête, puis les ateliers dans leur ordre) ; Entrée pose la PREMIÈRE réponse ;
+le menu reste ouvert après la pose, on enchaîne souvent plusieurs
+prestations, un clic dehors ou Échap referme. Quand rien ne répond, le menu
+le DIT. L'ancien sélecteur natif a disparu de cette modale.
 
 Les autres longues listes (SerieModal, RdvFoyer, Factures, Abonnements)
 peuvent recevoir la même barre sur demande — le juge est déjà partagé.

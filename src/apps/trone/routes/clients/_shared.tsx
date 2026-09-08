@@ -1696,6 +1696,15 @@ export function RdvModal({
      juge (accents, ™, KLƆKLƆ tapé kloklo) vit dans shared/recherche.ts,
      sous harnais — pas ici. */
   const [chercheSv, setChercheSv] = useState('');
+  const [svOuvert, setSvOuvert] = useState(false);
+  const svWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (svWrapRef.current && !svWrapRef.current.contains(e.target as Node)) setSvOuvert(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
 
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
@@ -1940,13 +1949,16 @@ export function RdvModal({
   const horsAtelierVus = chercheActive
     ? horsAtelier.filter((sv) => prestationRepond(sv.name, chercheSv))
     : horsAtelier;
-  /* UNE SEULE RÉPONSE : Entrée la pose sans lâcher le clavier. */
-  const seuleReponse = chercheActive
-    ? (() => {
-      const toutes = [...parAtelierVus.flatMap((g) => g.list), ...horsAtelierVus];
-      return toutes.length === 1 ? toutes[0] : null;
-    })()
+  /* ENTRÉE POSE LA PREMIÈRE RÉPONSE : la main ne lâche pas le clavier. */
+  const premiereReponse = chercheActive
+    ? (parAtelierVus.flatMap((g) => g.list)[0] ?? horsAtelierVus[0] ?? null)
     : null;
+  const poserSv = (id: string) => {
+    setServiceIds((ids) => [...ids, id]);
+    /* La barre se vide mais le menu RESTE ouvert : on enchaîne souvent
+       plusieurs prestations. Un clic dehors ou Échap referme. */
+    setChercheSv('');
+  };
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   /* LE GESTE OFFERT entre dans le total (15 août) : une prestation offerte
@@ -2955,94 +2967,75 @@ export function RdvModal({
               })()}
               </div>
             ))}
-            {/* Taper « sinsin » vaut mieux que dérouler cent lignes : la
-                barre filtre le sélecteur en dessous, Entrée pose la
-                prestation quand une seule répond. */}
-            <Input
-              value={chercheSv}
-              onChange={(e) => setChercheSv(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (seuleReponse) {
-                    setServiceIds((ids) => [...ids, seuleReponse.id]);
-                    setChercheSv('');
+            {/* ══ LE CHOIX D'UNE PRESTATION, EN UN SEUL CHAMP — 8 sept. 2026
+                « Écrire les premières lettres et avoir la liste qui se déroule
+                immédiatement en bas » (Yéman). Même motif que la recherche
+                d'une cliente plus haut : un champ, un menu qui suit la frappe,
+                un clic qui pose. Champ vide, le menu montre tout — À la une en
+                tête, puis les ateliers dans leur ordre. */}
+            <div className="trc-clientpick" ref={svWrapRef}>
+              <input
+                className="mnd-input"
+                style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
+                value={chercheSv}
+                placeholder="+ Ajouter une prestation… (tapez : sinsin, kloklo, styling)"
+                onFocus={() => setSvOuvert(true)}
+                onChange={(e) => { setChercheSv(e.target.value); setSvOuvert(true); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSvOuvert(false);
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (premiereReponse) poserSv(premiereReponse.id);
                   }
-                }
-              }}
-              placeholder="Rechercher une prestation… (sinsin, kloklo, styling)"
-            />
-            <Select
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  setServiceIds((ids) => [...ids, e.target.value]);
-                  /* La prestation posée, la barre se vide : le prochain
-                     geste repart du catalogue entier. */
-                  setChercheSv('');
-                }
-              }}
-              style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
-            >
-              <option value="" disabled>
-                + Ajouter une prestation…
-              </option>
-              {/* À LA UNE, EN TÊTE — ce que la Maison pose le plus souvent.
-                  Elles restent aussi à leur atelier : c'est un raccourci, pas
-                  un déménagement, et l'on doit pouvoir les retrouver là où on
-                  a l'habitude de les chercher. Filtrées par `proposables`,
-                  comme le reste : une prestation hors calibre ou déjà choisie
-                  n'y paraît pas davantage qu'ailleurs. */}
-              {(() => {
-                /* La flânerie n'est pas la recherche : quand on tape,
-                   seuls les résultats parlent. */
-                if (chercheActive) return null;
-                const une = alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
-                if (une.length === 0) return null;
-                return (
-                  <optgroup label="★ À la une · les plus posées">
-                    {une.map(({ sv, n }) => (
-                      <option key={`une-${sv.id}`} value={sv.id}>
-                        {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))} · {n}×
-                      </option>
-                    ))}
-                  </optgroup>
-                );
-              })()}
-              {/* LES MONDES SE DISENT (12 août) : un séparateur quand on passe
-                  de l'Atelier au plateau, au Studio — « où s'arrête
-                  l'Atelier ? » se lit dans la liste même. */}
-              {parAtelierVus.map((g, gi) => {
-                const monde = mondeDeCat(g.cat, cats);
-                const prec = gi > 0 ? mondeDeCat(parAtelierVus[gi - 1].cat, cats) : null;
-                return (
-                  <Fragment key={g.cat.id}>
-                    {(gi === 0 || monde !== prec) && <optgroup label={`━━ ${mondeLabel(monde)} ━━`} />}
-                    <optgroup label={`${g.cat.fon} · ${g.cat.label}`}>
+                }}
+              />
+              {svOuvert && (
+                <div className="trc-clientpick__menu" role="listbox">
+                  {!chercheActive && (() => {
+                    const une = alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
+                    if (une.length === 0) return null;
+                    return (
+                      <>
+                        <div className="trc-svpick__grp">★ À la une · les plus posées</div>
+                        {une.map(({ sv, n }) => (
+                          <button type="button" className="trc-clientpick__opt" key={`une-${sv.id}`} onClick={() => poserSv(sv.id)}>
+                            <span className="trc-clientpick__n">{sv.name}</span>
+                            <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))} · {n}×</span>
+                          </button>
+                        ))}
+                      </>
+                    );
+                  })()}
+                  {parAtelierVus.map((g) => (
+                    <Fragment key={g.cat.id}>
+                      <div className="trc-svpick__grp">{g.cat.fon} · {g.cat.label}</div>
                       {g.list.map((sv) => (
-                        <option key={sv.id} value={sv.id}>
-                          {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
-                        </option>
+                        <button type="button" className="trc-clientpick__opt" key={sv.id} onClick={() => poserSv(sv.id)}>
+                          <span className="trc-clientpick__n">{sv.name}</span>
+                          <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
+                        </button>
                       ))}
-                    </optgroup>
-                  </Fragment>
-                );
-              })}
-              {horsAtelierVus.length > 0 && (
-                <optgroup label="Autres">
-                  {horsAtelierVus.map((sv) => (
-                    <option key={sv.id} value={sv.id}>
-                      {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
-                    </option>
+                    </Fragment>
                   ))}
-                </optgroup>
+                  {horsAtelierVus.length > 0 && (
+                    <>
+                      <div className="trc-svpick__grp">Autres</div>
+                      {horsAtelierVus.map((sv) => (
+                        <button type="button" className="trc-clientpick__opt" key={sv.id} onClick={() => poserSv(sv.id)}>
+                          <span className="trc-clientpick__n">{sv.name}</span>
+                          <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {chercheActive && parAtelierVus.length === 0 && horsAtelierVus.length === 0 && (
+                    <div className="trc-svpick__vide">
+                      Aucune prestation ne répond à « {chercheSv.trim()} ».
+                    </div>
+                  )}
+                </div>
               )}
-            </Select>
-            {chercheActive && parAtelierVus.length === 0 && horsAtelierVus.length === 0 && (
-              <div className="mnd-muted" style={{ fontSize: 12.5 }}>
-                Aucune prestation ne répond à « {chercheSv.trim()} ». Videz la barre pour revoir tout le catalogue.
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
