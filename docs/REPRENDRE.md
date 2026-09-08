@@ -83,8 +83,28 @@ le menu reste ouvert après la pose, on enchaîne souvent plusieurs
 prestations, un clic dehors ou Échap referme. Quand rien ne répond, le menu
 le DIT. L'ancien sélecteur natif a disparu de cette modale.
 
-Les autres longues listes (SerieModal, RdvFoyer, Factures, Abonnements)
-peuvent recevoir la même barre sur demande — le juge est déjà partagé.
+**Relu au code-review du jour (10 éclaireurs), sept lièvres corrigés :**
+① Échap fermait TOUTE la modale (la fenêtre du Modal écoute la même touche) —
+la touche est prise sur le conteneur du menu, stopPropagation, et ne referme
+que lui ; ② le double-clic pouvait poser DEUX lignes (les remises et les
+mains s'adressent par indexOf, un doublon les faussait) — garde d'unicité +
+souffle de 350 ms, et le focus revient au champ après la pose ; ③ « + » ou
+« … » armaient Entrée sur une prestation arbitraire — « actif » se juge par
+`clefDeRecherche`, plus par trim() ; ④ Entrée menu fermé posait une ligne
+invisible — elle rouvre le menu ; la cible d'Entrée est SURLIGNÉE ; ⑤ le
+menu pouvait s'ouvrir sous le pli de la modale — scrollIntoView à
+l'ouverture, et clic sur le champ déjà focalisé rouvre ; ⑥ les séparateurs
+de mondes (12 août) avaient disparu — revenus, et l'état vide dit pourquoi
+(recherche sans réponse OU catalogue tout posé) ; ⑦ fermer par clic dehors
+vide la barre, l'écouteur ne vit que menu ouvert, l'état vide reprend
+`trc-clientpick__empty`, la ligne du menu ne s'écrit qu'une fois.
+
+RESTE À DESSEIN (noté, pas fait) : extraire le sélecteur en composant à état
+local comme ClientPicker (chaque frappe re-rend la modale entière — ~150
+prestations, acceptable mais perfectible), la navigation aux flèches + ARIA
+combobox complet, un hook partagé « clic dehors » (trois copies dans le
+dépôt), et la même barre pour SerieModal, RdvFoyer, Factures, Abonnements —
+le juge est déjà partagé.
 
 ## LE RAPPEL DU SOIR ÉTAIT MORT DEUX FOIS — 7 septembre 2026, RÉPARÉ ET VÉRIFIÉ
 

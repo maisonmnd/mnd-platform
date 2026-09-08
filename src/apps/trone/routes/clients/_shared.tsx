@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
-import { prestationRepond } from '../../../../shared/recherche';
+import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { COTE_VIGNETTE, QUALITE_VIGNETTE } from '../../../../shared/photo';
@@ -1698,13 +1698,27 @@ export function RdvModal({
   const [chercheSv, setChercheSv] = useState('');
   const [svOuvert, setSvOuvert] = useState(false);
   const svWrapRef = useRef<HTMLDivElement>(null);
+  const svInputRef = useRef<HTMLInputElement>(null);
+  const svMenuRef = useRef<HTMLDivElement>(null);
+  /* Un clic hors du champ referme ET VIDE la barre : rouvrir doit toujours
+     montrer le catalogue entier, jamais un vieux filtre oublié. L'écouteur
+     ne vit que menu ouvert — fermé, il ne coûte rien. */
   useEffect(() => {
+    if (!svOuvert) return;
     const onDoc = (e: MouseEvent) => {
-      if (svWrapRef.current && !svWrapRef.current.contains(e.target as Node)) setSvOuvert(false);
+      if (svWrapRef.current && !svWrapRef.current.contains(e.target as Node)) {
+        setSvOuvert(false);
+        setChercheSv('');
+      }
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, []);
+  }, [svOuvert]);
+  /* La modale défile : ouvert sous le pli, le menu serait invisible et le
+     champ paraîtrait mort. On l'amène en vue. */
+  useEffect(() => {
+    if (svOuvert) svMenuRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [svOuvert]);
 
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
@@ -1939,8 +1953,11 @@ export function RdvModal({
     .filter((sv) => !cats.some((c) => c.id === sv.categoryId))
     .sort((a, b) => a.order - b.order);
   /* CE QUE LA RECHERCHE LAISSE VOIR. Les listes d'origine ne bougent pas :
-     vider la barre rend tout, à l'identique. */
-  const chercheActive = chercheSv.trim() !== '';
+     vider la barre rend tout, à l'identique. LA SAISIE EST « ACTIVE » AUX
+     YEUX DU JUGE, pas de trim() : « + » ou « … » se réduisent à vide chez
+     lui, et un filtre qui laisse tout passer ne doit pas armer Entrée sur
+     une prestation arbitraire (code-review du 8 septembre). */
+  const chercheActive = clefDeRecherche(chercheSv) !== '';
   const parAtelierVus = chercheActive
     ? parAtelier
       .map((g) => ({ ...g, list: g.list.filter((sv) => prestationRepond(sv.name, chercheSv)) }))
@@ -1949,15 +1966,35 @@ export function RdvModal({
   const horsAtelierVus = chercheActive
     ? horsAtelier.filter((sv) => prestationRepond(sv.name, chercheSv))
     : horsAtelier;
-  /* ENTRÉE POSE LA PREMIÈRE RÉPONSE : la main ne lâche pas le clavier. */
+  /* ENTRÉE POSE LA PREMIÈRE RÉPONSE, et le menu la SURLIGNE : la main sait
+     ce que la touche va poser. Les groupes vides sont déjà tombés — le
+     premier de la première liste EST le premier visible. */
   const premiereReponse = chercheActive
-    ? (parAtelierVus.flatMap((g) => g.list)[0] ?? horsAtelierVus[0] ?? null)
+    ? (parAtelierVus[0]?.list[0] ?? horsAtelierVus[0] ?? null)
     : null;
+  /* À la une ne vit qu'en flânerie — hissée ICI pour que le JSX ne cache
+     aucun calcul et que « menu vide » se juge d'un regard. */
+  const uneVisibles = chercheActive
+    ? []
+    : alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
+  const menuVide = uneVisibles.length === 0 && parAtelierVus.length === 0 && horsAtelierVus.length === 0;
+  const dernierePoseA = useRef(0);
   const poserSv = (id: string) => {
-    setServiceIds((ids) => [...ids, id]);
+    /* DEUX GARDES CONTRE LE DOUBLE-CLIC (code-review du 8 septembre) :
+       jamais deux fois le même id — remises de ligne et mains s'adressent
+       par indexOf, un doublon les fausserait — et un souffle de 350 ms :
+       après une pose la liste remonte sous le curseur, le second clic d'un
+       double-clic poserait la voisine. */
+    const la = Date.now();
+    if (la - dernierePoseA.current < 350) return;
+    dernierePoseA.current = la;
+    setServiceIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     /* La barre se vide mais le menu RESTE ouvert : on enchaîne souvent
-       plusieurs prestations. Un clic dehors ou Échap referme. */
+       plusieurs prestations. Et le focus REVIENT au champ — le bouton
+       cliqué disparaît avec sa prestation, la frappe suivante part sans
+       re-clic. */
     setChercheSv('');
+    svInputRef.current?.focus();
   };
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
@@ -2972,67 +3009,101 @@ export function RdvModal({
                 immédiatement en bas » (Yéman). Même motif que la recherche
                 d'une cliente plus haut : un champ, un menu qui suit la frappe,
                 un clic qui pose. Champ vide, le menu montre tout — À la une en
-                tête, puis les ateliers dans leur ordre. */}
-            <div className="trc-clientpick" ref={svWrapRef}>
+                tête, puis les ateliers dans leur ordre, mondes séparés.
+                Relu au code-review du jour : Échap ne referme QUE le menu (la
+                modale écoute la même touche à la fenêtre), Entrée ne pose que
+                le visible et surligné, le double-clic ne pose jamais deux
+                lignes. */}
+            <div
+              className="trc-clientpick"
+              ref={svWrapRef}
+              onKeyDown={(e) => {
+                /* Sur le CONTENEUR : la touche vaut aussi depuis un bouton du
+                   menu, et stopPropagation retient la fenêtre — sans lui,
+                   Échap fermait TOUTE la modale et sa saisie avec. */
+                if (e.key === 'Escape' && svOuvert) {
+                  e.stopPropagation();
+                  setSvOuvert(false);
+                  setChercheSv('');
+                }
+              }}
+            >
               <input
+                ref={svInputRef}
                 className="mnd-input"
                 style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
                 value={chercheSv}
+                aria-expanded={svOuvert}
                 placeholder="+ Ajouter une prestation… (tapez : sinsin, kloklo, styling)"
                 onFocus={() => setSvOuvert(true)}
+                onClick={() => setSvOuvert(true)}
                 onChange={(e) => { setChercheSv(e.target.value); setSvOuvert(true); }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') setSvOuvert(false);
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (premiereReponse) poserSv(premiereReponse.id);
+                    /* Menu fermé, Entrée ROUVRE au lieu de poser une ligne
+                       que personne ne voit. */
+                    if (!svOuvert) setSvOuvert(true);
+                    else if (premiereReponse) poserSv(premiereReponse.id);
                   }
                 }}
               />
               {svOuvert && (
-                <div className="trc-clientpick__menu" role="listbox">
-                  {!chercheActive && (() => {
-                    const une = alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
-                    if (une.length === 0) return null;
+                <div className="trc-clientpick__menu" ref={svMenuRef}>
+                  {(() => {
+                    /* UNE SEULE ÉCRITURE DE LA LIGNE — trois sections la
+                       partagent, et la cible d'Entrée se surligne ici même. */
+                    const ligneSv = (sv: Service, suffixe = '', cle = sv.id) => (
+                      <button
+                        type="button"
+                        key={cle}
+                        className={`trc-clientpick__opt${chercheActive && premiereReponse?.id === sv.id ? ' trc-clientpick__opt--vise' : ''}`}
+                        onClick={() => poserSv(sv.id)}
+                      >
+                        <span className="trc-clientpick__n">{sv.name}</span>
+                        <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}{suffixe}</span>
+                      </button>
+                    );
                     return (
                       <>
-                        <div className="trc-svpick__grp">★ À la une · les plus posées</div>
-                        {une.map(({ sv, n }) => (
-                          <button type="button" className="trc-clientpick__opt" key={`une-${sv.id}`} onClick={() => poserSv(sv.id)}>
-                            <span className="trc-clientpick__n">{sv.name}</span>
-                            <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))} · {n}×</span>
-                          </button>
-                        ))}
+                        {uneVisibles.length > 0 && (
+                          <>
+                            <div className="trc-svpick__grp">★ À la une · les plus posées</div>
+                            {uneVisibles.map(({ sv, n }) => ligneSv(sv, ` · ${n}×`, `une-${sv.id}`))}
+                          </>
+                        )}
+                        {parAtelierVus.map((g, gi) => {
+                          /* LES MONDES SE DISENT (12 août), comme dans
+                             l'ancien sélecteur : « où s'arrête l'Atelier ? »
+                             se lit dans la liste même. */
+                          const monde = mondeDeCat(g.cat, cats);
+                          const prec = gi > 0 ? mondeDeCat(parAtelierVus[gi - 1].cat, cats) : null;
+                          return (
+                            <Fragment key={g.cat.id}>
+                              {(gi === 0 || monde !== prec) && (
+                                <div className="trc-svpick__monde">━━ {mondeLabel(monde)} ━━</div>
+                              )}
+                              <div className="trc-svpick__grp">{g.cat.fon} · {g.cat.label}</div>
+                              {g.list.map((sv) => ligneSv(sv))}
+                            </Fragment>
+                          );
+                        })}
+                        {horsAtelierVus.length > 0 && (
+                          <>
+                            <div className="trc-svpick__grp">Autres</div>
+                            {horsAtelierVus.map((sv) => ligneSv(sv))}
+                          </>
+                        )}
+                        {menuVide && (
+                          <div className="trc-clientpick__empty">
+                            {chercheActive
+                              ? `Aucune prestation ne répond à « ${chercheSv.trim()} ». Videz la barre pour revoir tout le catalogue.`
+                              : 'Rien à proposer ici : tout le catalogue proposable est déjà posé sur ce rituel.'}
+                          </div>
+                        )}
                       </>
                     );
                   })()}
-                  {parAtelierVus.map((g) => (
-                    <Fragment key={g.cat.id}>
-                      <div className="trc-svpick__grp">{g.cat.fon} · {g.cat.label}</div>
-                      {g.list.map((sv) => (
-                        <button type="button" className="trc-clientpick__opt" key={sv.id} onClick={() => poserSv(sv.id)}>
-                          <span className="trc-clientpick__n">{sv.name}</span>
-                          <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
-                        </button>
-                      ))}
-                    </Fragment>
-                  ))}
-                  {horsAtelierVus.length > 0 && (
-                    <>
-                      <div className="trc-svpick__grp">Autres</div>
-                      {horsAtelierVus.map((sv) => (
-                        <button type="button" className="trc-clientpick__opt" key={sv.id} onClick={() => poserSv(sv.id)}>
-                          <span className="trc-clientpick__n">{sv.name}</span>
-                          <span className="trc-clientpick__m">{priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                  {chercheActive && parAtelierVus.length === 0 && horsAtelierVus.length === 0 && (
-                    <div className="trc-svpick__vide">
-                      Aucune prestation ne répond à « {chercheSv.trim()} ».
-                    </div>
-                  )}
                 </div>
               )}
             </div>
