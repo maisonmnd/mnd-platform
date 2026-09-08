@@ -61,6 +61,28 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA BARRE DE RECHERCHE DES PRESTATIONS — 8 septembre 2026, PUBLIÉ
+
+« J'ai trop de prestations, ajoute-moi une barre de recherche pour ne pas
+scroller longtemps » (Yéman, sur la modale du RDV).
+
+Le juge vit dans `shared/recherche.ts`, pur et sous harnais
+(verifie-recherche, le 40e) : la frappe RÉELLE ne ressemble pas au catalogue.
+On tape « sinsin » pour SÍNSIN™, « kloklo » pour KLƆKLƆ™ — minuscules, sans
+accents, Ɔ→o et Ɛ→e, ™ et ponctuation soufflés, chaque mot tapé doit
+répondre mais l'ordre est libre (« reprise sinsin » trouve). Une saisie vide
+répond vrai : ne rien chercher, c'est tout voir.
+
+Dans la modale (`_shared.tsx`) : une barre au-dessus du sélecteur, qui filtre
+les groupes d'ateliers ; « À la une » s'efface pendant la recherche (la
+flânerie n'est pas la recherche) ; ENTRÉE POSE LA PRESTATION quand une seule
+répond, et la barre se vide à chaque pose. Quand rien ne répond, la modale le
+DIT au lieu d'un menu muet. Les listes d'origine ne bougent pas : vider la
+barre rend tout.
+
+Les autres longues listes (SerieModal, RdvFoyer, Factures, Abonnements)
+peuvent recevoir la même barre sur demande — le juge est déjà partagé.
+
 ## LE RAPPEL DU SOIR ÉTAIT MORT DEUX FOIS — 7 septembre 2026, RÉPARÉ ET VÉRIFIÉ
 
 En allumant le marketing, le cron `rappels-j1-soir` s'est révélé en échec

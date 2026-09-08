@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { prestationRepond } from '../../../../shared/recherche';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { COTE_VIGNETTE, QUALITE_VIGNETTE } from '../../../../shared/photo';
@@ -1688,6 +1689,14 @@ export function RdvModal({
   /* Le modèle dont on attend le « Remplacer » — un seul à la fois. */
   const [modeleAConfirmer, setModeleAConfirmer] = useState<string | null>(null);
 
+  /* ══ LA BARRE DE RECHERCHE DES PRESTATIONS — 8 septembre 2026 ═══════
+     « J'ai trop de prestations, ajoute-moi une barre de recherche pour ne
+     pas scroller longtemps » (Yéman). La saisie filtre les groupes du
+     sélecteur ; Entrée pose la prestation quand il n'en reste qu'une. Le
+     juge (accents, ™, KLƆKLƆ tapé kloklo) vit dans shared/recherche.ts,
+     sous harnais — pas ici. */
+  const [chercheSv, setChercheSv] = useState('');
+
   const [cats] = useCategories();
   const remaining = services.filter((s) => !serviceIds.includes(s.id)).sort((a, b) => a.categoryId.localeCompare(b.categoryId) || a.order - b.order);
 
@@ -1920,6 +1929,24 @@ export function RdvModal({
   const horsAtelier = proposables
     .filter((sv) => !cats.some((c) => c.id === sv.categoryId))
     .sort((a, b) => a.order - b.order);
+  /* CE QUE LA RECHERCHE LAISSE VOIR. Les listes d'origine ne bougent pas :
+     vider la barre rend tout, à l'identique. */
+  const chercheActive = chercheSv.trim() !== '';
+  const parAtelierVus = chercheActive
+    ? parAtelier
+      .map((g) => ({ ...g, list: g.list.filter((sv) => prestationRepond(sv.name, chercheSv)) }))
+      .filter((g) => g.list.length)
+    : parAtelier;
+  const horsAtelierVus = chercheActive
+    ? horsAtelier.filter((sv) => prestationRepond(sv.name, chercheSv))
+    : horsAtelier;
+  /* UNE SEULE RÉPONSE : Entrée la pose sans lâcher le clavier. */
+  const seuleReponse = chercheActive
+    ? (() => {
+      const toutes = [...parAtelierVus.flatMap((g) => g.list), ...horsAtelierVus];
+      return toutes.length === 1 ? toutes[0] : null;
+    })()
+    : null;
 
   const rdvPersonalized = isPersonalized(pricing) && chosen.length > 0;
   /* LE GESTE OFFERT entre dans le total (15 août) : une prestation offerte
@@ -2928,11 +2955,31 @@ export function RdvModal({
               })()}
               </div>
             ))}
+            {/* Taper « sinsin » vaut mieux que dérouler cent lignes : la
+                barre filtre le sélecteur en dessous, Entrée pose la
+                prestation quand une seule répond. */}
+            <Input
+              value={chercheSv}
+              onChange={(e) => setChercheSv(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (seuleReponse) {
+                    setServiceIds((ids) => [...ids, seuleReponse.id]);
+                    setChercheSv('');
+                  }
+                }
+              }}
+              placeholder="Rechercher une prestation… (sinsin, kloklo, styling)"
+            />
             <Select
               value=""
               onChange={(e) => {
                 if (e.target.value) {
                   setServiceIds((ids) => [...ids, e.target.value]);
+                  /* La prestation posée, la barre se vide : le prochain
+                     geste repart du catalogue entier. */
+                  setChercheSv('');
                 }
               }}
               style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
@@ -2947,6 +2994,9 @@ export function RdvModal({
                   comme le reste : une prestation hors calibre ou déjà choisie
                   n'y paraît pas davantage qu'ailleurs. */}
               {(() => {
+                /* La flânerie n'est pas la recherche : quand on tape,
+                   seuls les résultats parlent. */
+                if (chercheActive) return null;
                 const une = alaUne.filter(({ sv }) => proposables.some((p) => p.id === sv.id));
                 if (une.length === 0) return null;
                 return (
@@ -2962,9 +3012,9 @@ export function RdvModal({
               {/* LES MONDES SE DISENT (12 août) : un séparateur quand on passe
                   de l'Atelier au plateau, au Studio — « où s'arrête
                   l'Atelier ? » se lit dans la liste même. */}
-              {parAtelier.map((g, gi) => {
+              {parAtelierVus.map((g, gi) => {
                 const monde = mondeDeCat(g.cat, cats);
-                const prec = gi > 0 ? mondeDeCat(parAtelier[gi - 1].cat, cats) : null;
+                const prec = gi > 0 ? mondeDeCat(parAtelierVus[gi - 1].cat, cats) : null;
                 return (
                   <Fragment key={g.cat.id}>
                     {(gi === 0 || monde !== prec) && <optgroup label={`━━ ${mondeLabel(monde)} ━━`} />}
@@ -2978,9 +3028,9 @@ export function RdvModal({
                   </Fragment>
                 );
               })}
-              {horsAtelier.length > 0 && (
+              {horsAtelierVus.length > 0 && (
                 <optgroup label="Autres">
-                  {horsAtelier.map((sv) => (
+                  {horsAtelierVus.map((sv) => (
                     <option key={sv.id} value={sv.id}>
                       {sv.name} · {priceModeOf(sv) === 'devis' ? 'sur devis' : argent(personalPriceXof(sv, pricing, services, produitsGamme))}
                     </option>
@@ -2988,6 +3038,11 @@ export function RdvModal({
                 </optgroup>
               )}
             </Select>
+            {chercheActive && parAtelierVus.length === 0 && horsAtelierVus.length === 0 && (
+              <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+                Aucune prestation ne répond à « {chercheSv.trim()} ». Videz la barre pour revoir tout le catalogue.
+              </div>
+            )}
           </div>
         </div>
 
