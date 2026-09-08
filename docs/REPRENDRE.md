@@ -104,6 +104,14 @@ d'ACIA 1 « In review », restriction du WABA en revue) — le portefeuille a é
 renommé au nom légal ACIA 1, cause du refus initial. Les modèles WhatsApp
 attendent le feu vert, rien à coder.
 
+Le lendemain matin (8 septembre) : **`avis-google` déployée et son cron posé**
+(`avis-google-heures` · `30 8-20 * * *` · en-tête crons2 · timeout 5000).
+Elle répond `{"actif":false}` et ne fera rien tant que l'interrupteur « Avis
+Google sans main » du Trône est éteint et que les clés Meta manquent
+(WA_TOKEN, WA_PHONE_ID, WA_TEMPLATE_AVIS + modèle `avis_google` approuvé,
+catégorie Marketing). Toute la chaîne d'envoi est donc posée côté maison ;
+il ne manque que les verdicts Meta.
+
 ## LA SÉRIE ÉMET SES PIÈCES, LE REÇU NE PEND PLUS, SUPPRIMER S'ÉLOIGNE — 7 septembre 2026, PUBLIÉ
 
 Trois demandes de Yéman dans la même heure, toutes au registre des encaissements.
