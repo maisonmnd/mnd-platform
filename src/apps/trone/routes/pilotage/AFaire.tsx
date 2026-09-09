@@ -8,7 +8,7 @@ import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
 import { useProduitsStock } from '../../../../shared/stock';
 import {
-  leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, SE_DEMANDE, type CleGeste,
+  leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, reprisesPosees, SE_DEMANDE, type CleGeste,
 } from '../../../../shared/afaire';
 import { signeLeMessage, maisonNom } from '../../../../shared/identite';
 import { texteDeLaRelance } from '../../../../shared/rappel';
@@ -116,11 +116,10 @@ export default function AFaire() {
     branchId: branch.id, cle: ouvert, tetes: clients, rituels: appts, bilans, prochaineDe,
   })), [ouvert, branch.id, clients, appts, bilans, prochaineDe]);
 
-  /* Les reprises des trois prochains jours, du juge partagé. */
-  const aRelancer = useMemo(() => {
-    const auj = todayISO();
-    return relancesAReprendre(appts, auj, addDaysISO(auj, 3));
-  }, [appts]);
+  /* TOUTES les reprises posées, et la fenêtre J-3 qui s'allume dedans. */
+  const horizonJ3 = addDaysISO(todayISO(), 3);
+  const reprisesAVenir = useMemo(() => reprisesPosees(appts, todayISO()), [appts]);
+  const aRelancer = useMemo(() => relancesAReprendre(appts, todayISO(), horizonJ3), [appts, horizonJ3]);
   const clientDe = (id: string) => clients.find((c) => c.id === id);
 
   return (
@@ -133,55 +132,75 @@ export default function AFaire() {
           : 'Ce qui manque, et ce que ça ouvre. Rangé par ce qui touche le plus de têtes.'}
       />
 
-      {/* ══ LES RELANCES DE REPRISE, J-3 — 9 septembre 2026 ═══════════
+      {/* ══ LES RELANCES DE REPRISE — 9 septembre 2026, relu le soir ══
           « Une alerte qui me rappelle que je dois relancer quelqu'un, 72 h
-          avant — je ne peux pas regarder le nom de chacun tous les jours »
-          (Yéman). Les rendez-vous POSÉS PAR LA CADENCE des trois prochains
-          jours, chacun avec son WhatsApp prêt ; « Relancée » sort la ligne,
-          et une liste vide ne montre rien. */}
-      {aRelancer.length > 0 && (
-        <section id="relances" className="trp-relances">
-          <div className="trp-relances__t">
-            Reprises à relancer · {aRelancer.length}
-            <span>posées par la cadence, dans les 3 jours · un mot avant que la date ne la surprenne</span>
-          </div>
-          {aRelancer.map((a) => {
-            const c = clientDe(a.clientId);
-            const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
-            return (
-              <div key={a.id} className="trp-relance">
-                <span className="trp-relance__qui">
-                  <b>{c?.name ?? 'Fiche retirée'}</b>
-                  <small>
-                    {frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''}
-                    {a.note ? ` · ${a.note.replace('Reprise posée à la clôture · ', '')}` : ''}
-                  </small>
-                </span>
-                <span className="trp-relance__gestes">
-                  <WaLien
-                    phone={c?.phone}
-                    message={texteDeLaRelance({
-                      prenom, jourIso: a.date, heure: a.time ?? '',
-                      aujourdhuiIso: todayISO(), maison: maisonNom(),
-                    })}
-                  >
-                    <span className="trp-btn trp-btn--copper">WhatsApp</span>
-                  </WaLien>
-                  <button
-                    type="button" className="trp-btn"
-                    onClick={() => {
-                      appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, relanceFaite: true } : x)));
-                      toast('Relance notée, la ligne sort de la liste.');
-                    }}
-                  >
-                    Relancée
-                  </button>
-                </span>
-              </div>
-            );
-          })}
-        </section>
-      )}
+          avant » (Yéman) — puis, une heure après la mise en ligne : « on
+          dirait que ce n'est pas venu ». La liste ne montrait QUE la fenêtre
+          J-3, or une reprise naît des semaines avant d'y entrer : l'écran
+          muet ressemblait à une panne. Désormais TOUTES les reprises posées
+          s'affichent avec leur date de relance ; celles de la fenêtre
+          s'allument avec leur WhatsApp prêt, et un cadre vide DIT d'où
+          naîtront les prochaines. */}
+      <section id="relances" className={`trp-relances${aRelancer.length === 0 ? ' trp-relances--calme' : ''}`}>
+        <div className="trp-relances__t">
+          {aRelancer.length > 0
+            ? <>Reprises à relancer · {aRelancer.length}</>
+            : <>Reprises posées par la cadence{reprisesAVenir.length ? ` · ${reprisesAVenir.length} à venir` : ''}</>}
+          <span>
+            {aRelancer.length > 0
+              ? 'dans les 3 jours · un mot avant que la date ne la surprenne'
+              : reprisesAVenir.length
+                ? 'aucune dans la fenêtre des 3 jours · chacune s’allumera ici à J-3'
+                : 'elles naissent à la clôture d’un rituel, dès qu’une cadence se lit · la première s’affichera ici'}
+          </span>
+        </div>
+        {reprisesAVenir.map((a) => {
+          const c = clientDe(a.clientId);
+          const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
+          const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
+          return (
+            <div key={a.id} className={`trp-relance${dansFenetre ? '' : ' trp-relance--loin'}`}>
+              <span className="trp-relance__qui">
+                <b>{c?.name ?? 'Fiche retirée'}</b>
+                <small>
+                  {frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''}
+                  {a.note ? ` · ${a.note.replace('Reprise posée à la clôture · ', '')}` : ''}
+                </small>
+              </span>
+              <span className="trp-relance__gestes">
+                {a.relanceFaite ? (
+                  <span className="trp-relance__fait">Relancée</span>
+                ) : (
+                  <>
+                    <WaLien
+                      phone={c?.phone}
+                      message={texteDeLaRelance({
+                        prenom, jourIso: a.date, heure: a.time ?? '',
+                        aujourdhuiIso: todayISO(), maison: maisonNom(),
+                      })}
+                    >
+                      <span className={`trp-btn${dansFenetre ? ' trp-btn--copper' : ''}`}>WhatsApp</span>
+                    </WaLien>
+                    {dansFenetre ? (
+                      <button
+                        type="button" className="trp-btn"
+                        onClick={() => {
+                          appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, relanceFaite: true } : x)));
+                          toast('Relance notée, la ligne s’éteint.');
+                        }}
+                      >
+                        Relancée
+                      </button>
+                    ) : (
+                      <span className="trp-relance__des">relance dès le {frJourAn(addDaysISO(a.date, -3))}</span>
+                    )}
+                  </>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </section>
 
       {/* SIX JAUGES, QUE DES CHIFFRES. Elles ne se lisent pas, elles se
           regardent : c'est la couleur qui dit où est la tension. */}

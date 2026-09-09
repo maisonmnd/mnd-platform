@@ -6,6 +6,7 @@
 import {
   leTravail, manquesDeLaTete, tetesDuGeste, motPourDemander, SE_DEMANDE, horsDuFauteuil,
   type TeteLue, type RituelLu,
+  relancesAReprendre, reprisesPosees,
 } from '../src/shared/afaire';
 import { seancesSansBilan } from '../src/shared/bilans';
 import type { Appointment } from '../src/shared/agenda';
@@ -304,6 +305,36 @@ dit('un bilan sans rendez-vous ne tient rien', ['a', 'b', 'e'],
   seancesSansBilan(lot, [{ apptId: undefined }], AUJ).map((a) => a.id));
 dit('la fenêtre se règle', ['a', 'e'],
   seancesSansBilan(lot, [], AUJ, 7).map((a) => a.id));
+
+/* ── LES RELANCES DE REPRISE, J-3 (9 septembre) ────────────────────
+   Seuls les rendez-vous POSÉS PAR LA CADENCE, à venir dans la fenêtre, non
+   relancés — triés par date puis heure. `reprisesPosees` garde TOUT ce qui
+   vient (relancées comprises) : c'est la preuve que le système est armé. */
+const rlv = (id: string, date: string, extra: Record<string, unknown> = {}) =>
+  ({ id, clientId: 'c1', date, repriseDe: 'r0', ...extra });
+dit('la fenêtre garde, la date trie, l’heure départage', ['a', 'b', 'x'],
+  relancesAReprendre([
+    rlv('x', '2026-09-12'),
+    rlv('b', '2026-09-10', { time: '10:00' }),
+    rlv('a', '2026-09-10', { time: '09:00' }),
+  ], '2026-09-09', '2026-09-12').map((r) => r.id));
+dit('sans repriseDe : jamais dans la relance', [],
+  relancesAReprendre([{ id: 'm', clientId: 'c1', date: '2026-09-10' }], '2026-09-09', '2026-09-12').map((r) => r.id));
+dit('annulé, honoré, relancé : sortis de la fenêtre', [],
+  relancesAReprendre([
+    rlv('k1', '2026-09-10', { status: 'annulé' }),
+    rlv('k2', '2026-09-10', { status: 'honoré' }),
+    rlv('k3', '2026-09-10', { relanceFaite: true }),
+  ], '2026-09-09', '2026-09-12').map((r) => r.id));
+dit('hier et après l’horizon : dehors', [],
+  relancesAReprendre([rlv('h', '2026-09-08'), rlv('l', '2026-09-13')], '2026-09-09', '2026-09-12').map((r) => r.id));
+dit('les posées montrent TOUT ce qui vient, relancées comprises', ['p1', 'p2'],
+  reprisesPosees([
+    rlv('p2', '2026-10-20', { relanceFaite: true }),
+    rlv('p1', '2026-09-10'),
+    rlv('vieux', '2026-09-01'),
+    rlv('mort', '2026-10-01', { status: 'annulé' }),
+  ], '2026-09-09').map((r) => r.id));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

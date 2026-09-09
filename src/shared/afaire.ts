@@ -354,15 +354,26 @@ export type RdvARelancer = {
 
 export const HORIZON_RELANCE_JOURS = 3;
 
+const parDateHeure = <T extends RdvARelancer>(a: T, b: T): number =>
+  a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? '');
+
+/** TOUTES les reprises posées par la cadence, encore à venir — relancées
+    comprises : c'est la liste qui prouve que le système est armé. Une liste
+    qui se tait quand la fenêtre est vide a déjà fait croire à une panne
+    (9 septembre, une heure après la mise en ligne). */
+export function reprisesPosees<T extends RdvARelancer>(
+  appts: readonly T[],
+  aujourdhuiIso: string,
+): T[] {
+  return appts
+    .filter((a) => !!a.repriseDe && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhuiIso)
+    .sort(parDateHeure);
+}
+
 export function relancesAReprendre<T extends RdvARelancer>(
   appts: readonly T[],
   aujourdhuiIso: string,
   horizonIso: string,
 ): T[] {
-  return appts
-    .filter((a) => !!a.repriseDe
-      && a.status !== 'annulé' && a.status !== 'honoré'
-      && !a.relanceFaite
-      && a.date >= aujourdhuiIso && a.date <= horizonIso)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''));
+  return reprisesPosees(appts, aujourdhuiIso).filter((a) => !a.relanceFaite && a.date <= horizonIso);
 }

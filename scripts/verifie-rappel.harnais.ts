@@ -6,7 +6,7 @@
    blancs compris — sur WhatsApp, le blanc est la seule mise en forme qui
    survive à tous les téléphones. */
 import {
-  deLaMaison, heureLisible, jourLisible, momentCourt, quandDuRappel, texteDuRappel,
+  deLaMaison, heureLisible, jourLisible, momentCourt, quandDuRappel, texteDuRappel, texteDeLaRelance,
 } from '../src/shared/rappel';
 
 let ko = 0;
@@ -118,6 +118,21 @@ const chezElle = texteDuRappel({
 });
 dit('le message porte le nom des Paramètres', true,
   chezElle.includes('Petit rappel de L’atelier MND :'));
+
+/* ── LA RELANCE D'UNE REPRISE, J-3 (9 septembre) ───────────────────
+   Le rendez-vous a été posé par la cadence, pas choisi de vive voix : on
+   VÉRIFIE que le créneau tient, on ne « rappelle » pas — et l'on propose de
+   déplacer plutôt que de faire subir. */
+const relance = texteDeLaRelance({
+  prenom: 'Ruth', jourIso: '2026-09-12', heure: '09:00',
+  aujourdhuiIso: '2026-09-09', maison: 'L’atelier MND',
+});
+dit('la relance demande, elle n’impose pas', true,
+  relance.includes('Dites-nous si le créneau vous convient toujours'));
+dit('… dit le rythme habituel et le moment en clair', true,
+  relance.includes('selon votre rythme habituel') && relance.includes('samedi 12 septembre à 9 h'));
+dit('… et parle du bon nom, sans double article', true,
+  relance.includes('Petit mot de L’atelier MND'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

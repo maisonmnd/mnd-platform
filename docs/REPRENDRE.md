@@ -73,6 +73,17 @@ CADENCE (`repriseDe`), à venir dans la fenêtre de 3 jours, ni annulés ni
 honorés ni déjà relancés, triés date puis heure. L'horizon se passe en date :
 le juge reste sans horloge.
 
+RELU LE SOIR MÊME (« on dirait que ce n'est pas venu ») : la liste ne
+montrait QUE la fenêtre J-3, or une reprise naît des semaines avant d'y
+entrer — l'écran muet ressemblait à une panne. `reprisesPosees` (le second
+juge, même famille) garde TOUTES les reprises à venir, relancées comprises :
+la section s'affiche TOUJOURS, chaque ligne lointaine porte sa date
+(« relance dès le X »), la fenêtre s'allume en cuivre, une relancée se dit,
+et un cadre vide explique d'où naîtront les prochaines. LEÇON DE MÉTHODE au
+passage : les épreuves du harnais annoncées le matin n'avaient JAMAIS été
+écrites (un enchaînement de commandes rompu, lu comme un succès) — elles y
+sont désormais, neuf épreuves, vérifiées ligne à ligne.
+
 LA LISTE vit EN TÊTE D'« À FAIRE » : une ligne par tête (nom, jour, heure,
 la cadence qui l'a posée), un bouton WhatsApp pré-écrit
 (`texteDeLaRelance` dans shared/rappel, sous harnais : on VÉRIFIE que le

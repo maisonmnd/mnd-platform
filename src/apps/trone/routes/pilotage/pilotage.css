@@ -780,3 +780,7 @@
 .trp-btn { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 6px 13px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; color: var(--ink); }
 .trp-btn:hover { background: var(--hover-veil); }
 .trp-btn--copper { background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire); display: inline-block; }
+.trp-relances--calme { background: var(--surface-card); border-color: var(--hairline); border-left-color: var(--hairline); }
+.trp-relance--loin { opacity: .72; }
+.trp-relance__des { font-size: 10.5px; color: var(--ink-soft); letter-spacing: .04em; white-space: nowrap; }
+.trp-relance__fait { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #4c7a4c; }
