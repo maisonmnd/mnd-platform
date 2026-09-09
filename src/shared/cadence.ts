@@ -386,7 +386,10 @@ export const diraLeJourFavori = (f: JourFavori, nomDuJour: string, nomDuSecond?:
 
     Le champ libre reste ouvert à côté, pour ce qui ne tombe sur aucun de
     ceux-là. */
-export const RYTHMES_ABO = [4, 5, 6, 7, 8, 10] as const;
+/* 9, 11 et 12 rejoignent la gamme le 9 septembre (« rajoute 9, 11 et 12
+   semaines », Yéman) — la cadence observée tombe souvent entre les anciens
+   barreaux, et une pastille qui n'existe pas ne peut pas s'allumer. */
+export const RYTHMES_ABO = [4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
 /** LA DATE DE LA REPRISE — 3 septembre 2026.
 

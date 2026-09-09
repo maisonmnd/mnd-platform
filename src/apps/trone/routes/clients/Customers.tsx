@@ -1974,6 +1974,10 @@ function Customer360({
      dernier mot. */
   const cadenceObs = useMemo(() => cadenceObservee(appts, client.id), [appts, client.id]);
   const repriseActive = !client.sansRepriseAuto && (!!client.rythmeSemaines || !!cadenceObs);
+  /* LA PASTILLE DE SA SEMAINE S'ALLUME, observée comprise : « mets en
+     indigo, en évidence, les semaines de chacun » (Yéman). La main allumée
+     reste la main ; cliquer la pastille observée la fige en rythme posé. */
+  const semEnEvidence = client.rythmeSemaines ?? cadenceObs?.semaines;
   const jourFavori = lectureDuJour.favori;
 
   /* L'ÉCRITURE NE SE FAIT PLUS ICI — 6 septembre 2026. « Remettre à jour
@@ -3391,7 +3395,7 @@ function Customer360({
                   {RYTHMES_ABO.map((sem) => (
                     <button
                       key={sem} type="button"
-                      className={`tre-chip ${client.rythmeSemaines === sem ? 'is-on' : ''}`}
+                      className={`tre-chip ${semEnEvidence === sem ? 'is-on' : ''}`}
                       onClick={() => patch({ rythmeSemaines: client.rythmeSemaines === sem ? undefined : sem })}
                     >
                       {sem} semaines

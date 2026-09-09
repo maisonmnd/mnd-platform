@@ -202,7 +202,7 @@ export const habitudesDeLaTete = (
     « Et quand la personne ne vient que 2 ou 3 fois dans l'année, comment je
     règle sa cadence ? » (Yéman).
 
-    `RYTHMES_ABO` s'arrête à dix semaines, et c'est juste : ce sont les rythmes
+    `RYTHMES_ABO` s'arrête à douze semaines, et c'est juste : ce sont les rythmes
     d'une tête SUIVIE, et une formule qui proposerait « toutes les 26 semaines »
     ne serait plus un abonnement. Mais une reprise d'année n'a pas ce
     scrupule — elle raconte ce qui a eu lieu, et beaucoup de têtes ne viennent

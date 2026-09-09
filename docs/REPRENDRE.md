@@ -92,6 +92,12 @@ désormais un RDV — et confirmation-rdv le confirmera à la cliente en push
 Harnais verifie-cadence : +11 épreuves (médiane, arrondi, plancher, série,
 main d'abord, passage jamais sans rythme).
 
+Dans la foulée : **9, 11 et 12 semaines rejoignent RYTHMES_ABO** (l'observée
+tombait entre les barreaux), et **la pastille de SA semaine s'allume en
+indigo**, observée comprise — cliquer la pastille observée la fige en rythme
+posé. Le commentaire de serie.ts qui citait la borne suit (douze), le harnais
+aussi (les neuf rythmes).
+
 ## LE MAGASIN — la refonte Stock & Achats — 8 septembre 2026, PUBLIÉ
 
 « C'est comme une feuille blanche où on fait des + et des −, refais-moi

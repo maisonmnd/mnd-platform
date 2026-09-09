@@ -304,7 +304,7 @@ dit('la suite se décale en bloc', ['2026-09-08', '2026-10-20'],
 
    La Maison ferme le lundi et le dimanche — reglages poses en tete de ce
    harnais. Le 1er septembre 2026 est un MARDI. */
-dit('les six rythmes de la Maison', [4, 5, 6, 7, 8, 10], [...RYTHMES_ABO]);
+dit('les neuf rythmes de la Maison', [4, 5, 6, 7, 8, 9, 10, 11, 12], [...RYTHMES_ABO]);
 /* LE PAS D'UNE SEMAINE EST CELUI DU CHEVEU. Une tete qui revient toutes les
    cinq semaines et qu'on programme a quatre vient trop tot douze fois par an ;
    a six, elle vient trop tard autant de fois. */
