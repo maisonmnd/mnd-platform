@@ -6,7 +6,7 @@
 import {
   leTravail, manquesDeLaTete, tetesDuGeste, motPourDemander, SE_DEMANDE, horsDuFauteuil,
   type TeteLue, type RituelLu,
-  relancesAReprendre, reprisesPosees,
+  relancesAReprendre, retenuesAVenir,
 } from '../src/shared/afaire';
 import { seancesSansBilan } from '../src/shared/bilans';
 import type { Appointment } from '../src/shared/agenda';
@@ -306,10 +306,9 @@ dit('un bilan sans rendez-vous ne tient rien', ['a', 'b', 'e'],
 dit('la fenêtre se règle', ['a', 'e'],
   seancesSansBilan(lot, [], AUJ, 7).map((a) => a.id));
 
-/* ── LES RELANCES DE REPRISE, J-3 (9 septembre) ────────────────────
-   Seuls les rendez-vous POSÉS PAR LA CADENCE, à venir dans la fenêtre, non
-   relancés — triés par date puis heure. `reprisesPosees` garde TOUT ce qui
-   vient (relancées comprises) : c'est la preuve que le système est armé. */
+/* ── LES RETENUES ET LA FENÊTRE J-3 (9 septembre, troisième passe) ──
+   TOUTE retenue à venir compte — cadence ou main — triée date puis heure ;
+   la fenêtre garde les non-relancées à trois jours ou moins. */
 const rlv = (id: string, date: string, extra: Record<string, unknown> = {}) =>
   ({ id, clientId: 'c1', date, repriseDe: 'r0', ...extra });
 dit('la fenêtre garde, la date trie, l’heure départage', ['a', 'b', 'x'],
@@ -318,7 +317,7 @@ dit('la fenêtre garde, la date trie, l’heure départage', ['a', 'b', 'x'],
     rlv('b', '2026-09-10', { time: '10:00' }),
     rlv('a', '2026-09-10', { time: '09:00' }),
   ], '2026-09-09', '2026-09-12').map((r) => r.id));
-dit('sans repriseDe : jamais dans la relance', [],
+dit('une retenue prise à la main entre aussi en fenêtre', ['m'],
   relancesAReprendre([{ id: 'm', clientId: 'c1', date: '2026-09-10' }], '2026-09-09', '2026-09-12').map((r) => r.id));
 dit('annulé, honoré, relancé : sortis de la fenêtre', [],
   relancesAReprendre([
@@ -328,8 +327,8 @@ dit('annulé, honoré, relancé : sortis de la fenêtre', [],
   ], '2026-09-09', '2026-09-12').map((r) => r.id));
 dit('hier et après l’horizon : dehors', [],
   relancesAReprendre([rlv('h', '2026-09-08'), rlv('l', '2026-09-13')], '2026-09-09', '2026-09-12').map((r) => r.id));
-dit('les posées montrent TOUT ce qui vient, relancées comprises', ['p1', 'p2'],
-  reprisesPosees([
+dit('les retenues montrent TOUT ce qui vient, relancées comprises', ['p1', 'p2'],
+  retenuesAVenir([
     rlv('p2', '2026-10-20', { relanceFaite: true }),
     rlv('p1', '2026-09-10'),
     rlv('vieux', '2026-09-01'),

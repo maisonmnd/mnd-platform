@@ -484,8 +484,8 @@ export default function Dashboard() {
     }] : []),
     ...(reprisesARelancer > 0 ? [{
       k: 'relances-j3',
-      label: `${reprisesARelancer} reprise${reprisesARelancer > 1 ? 's' : ''} à relancer`,
-      sub: 'posées par la cadence, dans les 3 jours',
+      label: `${reprisesARelancer} retenue${reprisesARelancer > 1 ? 's' : ''} à relancer`,
+      sub: 'à 3 jours ou moins · la liste du mois vit sur À faire',
       /* EXACTEMENT CELLES-LÀ : À faire ouvre la même liste, du même juge,
          en tête de page, avec le WhatsApp prêt. */
       action: 'Voir', go: () => navigate('/a-faire'),

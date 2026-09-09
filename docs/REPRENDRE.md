@@ -61,6 +61,25 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES RETENUES DU MOIS — 9 septembre 2026, troisième passe, PUBLIÉ
+
+« Je préfère voir la liste de toutes les retenues du mois en cours, et au
+fur et à mesure qu'une date s'approche dans les 3 jours, que ça monte. Je ne
+veux pas que ça se taise. Pour savoir quel travail il me reste à faire pour
+l'acquisition » (Yéman). La section d'À faire devient LE CARNET DES RETENUES
+DU MOIS : TOUTE retenue à venir (cadence, main, Ma Couronne — le juge
+`retenuesAVenir` ne filtre plus sur repriseDe), chronologique, la plus
+proche en tête — donc les J-3 MONTENT d'elles-mêmes, allumées en cuivre.
+Chaque ligne dit son origine (« cadence · ≈ N semaines » / « prise à la
+main » / « prise sur Ma Couronne ») ; le WhatsApp est `texteDeLaRelance`
+pour une reprise (on vérifie que le créneau tient) et `texteDuRappel` pour
+un rendez-vous choisi. Un mois vide le DIT : « le mois est à conquérir » —
+c'est le chiffre de l'acquisition, pas un silence. En pied : « au-delà du
+mois : N retenues déjà posées, la plus proche le X ». La tuile du tableau
+de bord dit désormais « N retenues à relancer » (même fenêtre J-3, toute
+retenue). `reprisesPosees` a vécu une heure — remplacée par
+`retenuesAVenir`, harnais ajusté (une retenue à la main entre en fenêtre).
+
 ## LES RELANCES DE REPRISE, À J-3 — 9 septembre 2026, PUBLIÉ
 
 « Une alerte qui me rappelle que je dois relancer quelqu'un, 72 heures avant

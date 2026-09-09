@@ -357,23 +357,27 @@ export const HORIZON_RELANCE_JOURS = 3;
 const parDateHeure = <T extends RdvARelancer>(a: T, b: T): number =>
   a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? '');
 
-/** TOUTES les reprises posées par la cadence, encore à venir — relancées
-    comprises : c'est la liste qui prouve que le système est armé. Une liste
-    qui se tait quand la fenêtre est vide a déjà fait croire à une panne
-    (9 septembre, une heure après la mise en ligne). */
-export function reprisesPosees<T extends RdvARelancer>(
+/** TOUTES LES RETENUES À VENIR — « je veux voir la liste de tous les
+    rendez-vous retenus, pour savoir quel travail il me reste à faire pour
+    l'acquisition » (Yéman, 9 septembre, deuxième passe). Posées par la
+    cadence OU prises à la main : un fauteuil retenu est un fauteuil retenu,
+    et la liste qui se taisait a déjà fait croire à une panne. Relancées
+    comprises — elles se disent, elles ne disparaissent pas. */
+export function retenuesAVenir<T extends RdvARelancer>(
   appts: readonly T[],
   aujourdhuiIso: string,
 ): T[] {
   return appts
-    .filter((a) => !!a.repriseDe && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhuiIso)
+    .filter((a) => a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhuiIso)
     .sort(parDateHeure);
 }
 
+/** LA FENÊTRE J-3 — celles qui montent allumées : toute retenue à trois
+    jours ou moins, pas encore relancée. */
 export function relancesAReprendre<T extends RdvARelancer>(
   appts: readonly T[],
   aujourdhuiIso: string,
   horizonIso: string,
 ): T[] {
-  return reprisesPosees(appts, aujourdhuiIso).filter((a) => !a.relanceFaite && a.date <= horizonIso);
+  return retenuesAVenir(appts, aujourdhuiIso).filter((a) => !a.relanceFaite && a.date <= horizonIso);
 }

@@ -8,10 +8,10 @@ import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
 import { useProduitsStock } from '../../../../shared/stock';
 import {
-  leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, reprisesPosees, SE_DEMANDE, type CleGeste,
+  leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, retenuesAVenir, SE_DEMANDE, type CleGeste,
 } from '../../../../shared/afaire';
 import { signeLeMessage, maisonNom } from '../../../../shared/identite';
-import { texteDeLaRelance } from '../../../../shared/rappel';
+import { texteDeLaRelance, texteDuRappel } from '../../../../shared/rappel';
 import { appointmentsStore } from '../../../../shared/agenda';
 
 import { addDaysISO, apptDueXof, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
@@ -116,10 +116,15 @@ export default function AFaire() {
     branchId: branch.id, cle: ouvert, tetes: clients, rituels: appts, bilans, prochaineDe,
   })), [ouvert, branch.id, clients, appts, bilans, prochaineDe]);
 
-  /* TOUTES les reprises posées, et la fenêtre J-3 qui s'allume dedans. */
-  const horizonJ3 = addDaysISO(todayISO(), 3);
-  const reprisesAVenir = useMemo(() => reprisesPosees(appts, todayISO()), [appts]);
-  const aRelancer = useMemo(() => relancesAReprendre(appts, todayISO(), horizonJ3), [appts, horizonJ3]);
+  /* LE CARNET DES RETENUES DU MOIS, et la fenêtre J-3 qui s'allume dedans. */
+  const auj = todayISO();
+  const horizonJ3 = addDaysISO(auj, 3);
+  const retenues = useMemo(() => retenuesAVenir(appts, auj), [appts, auj]);
+  const duMois = useMemo(() => retenues.filter((a) => a.date.slice(0, 7) === auj.slice(0, 7)), [retenues, auj]);
+  const aRelancer = useMemo(() => relancesAReprendre(appts, auj, horizonJ3), [appts, auj, horizonJ3]);
+  const auDela = retenues.length - duMois.length;
+  const prochaineAuDela = retenues.find((a) => a.date.slice(0, 7) !== auj.slice(0, 7));
+  const nCadence = duMois.filter((a) => a.repriseDe).length;
   const clientDe = (id: string) => clients.find((c) => c.id === id);
 
   return (
@@ -132,53 +137,49 @@ export default function AFaire() {
           : 'Ce qui manque, et ce que ça ouvre. Rangé par ce qui touche le plus de têtes.'}
       />
 
-      {/* ══ LES RELANCES DE REPRISE — 9 septembre 2026, relu le soir ══
-          « Une alerte qui me rappelle que je dois relancer quelqu'un, 72 h
-          avant » (Yéman) — puis, une heure après la mise en ligne : « on
-          dirait que ce n'est pas venu ». La liste ne montrait QUE la fenêtre
-          J-3, or une reprise naît des semaines avant d'y entrer : l'écran
-          muet ressemblait à une panne. Désormais TOUTES les reprises posées
-          s'affichent avec leur date de relance ; celles de la fenêtre
-          s'allument avec leur WhatsApp prêt, et un cadre vide DIT d'où
-          naîtront les prochaines. */}
+      {/* ══ LES RETENUES DU MOIS — 9 septembre 2026, troisième passe ══
+          « Je préfère voir la liste de toutes les retenues du mois en cours,
+          et au fur et à mesure qu'une date s'approche dans les 3 jours, que
+          ça monte. Je ne veux pas que ça se taise » (Yéman). La liste
+          ENTIÈRE du mois, chronologique — la plus proche en tête, donc les
+          J-3 MONTENT d'elles-mêmes, allumées en cuivre avec leur WhatsApp
+          prêt. Toute retenue compte : posée par la cadence, prise à la main,
+          venue de Ma Couronne. Un mois vide le DIT — c'est le chiffre de
+          l'acquisition, pas un silence. */}
       <section id="relances" className={`trp-relances${aRelancer.length === 0 ? ' trp-relances--calme' : ''}`}>
         <div className="trp-relances__t">
-          {aRelancer.length > 0
-            ? <>Reprises à relancer · {aRelancer.length}</>
-            : <>Reprises posées par la cadence{reprisesAVenir.length ? ` · ${reprisesAVenir.length} à venir` : ''}</>}
+          Les retenues du mois · {duMois.length}
           <span>
-            {aRelancer.length > 0
-              ? 'dans les 3 jours · un mot avant que la date ne la surprenne'
-              : reprisesAVenir.length
-                ? 'aucune dans la fenêtre des 3 jours · chacune s’allumera ici à J-3'
-                : 'elles naissent à la clôture d’un rituel, dès qu’une cadence se lit · la première s’affichera ici'}
+            {duMois.length === 0
+              ? 'aucun fauteuil retenu ce mois-ci · le mois est à conquérir'
+              : `${nCadence ? `${nCadence} posée${nCadence > 1 ? 's' : ''} par la cadence · ` : ''}à J-3 la ligne s'allume pour la relance`}
           </span>
         </div>
-        {reprisesAVenir.map((a) => {
+        {duMois.map((a) => {
           const c = clientDe(a.clientId);
           const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
           const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
+          const origine = a.repriseDe
+            ? (a.note ? a.note.replace('Reprise posée à la clôture · ', 'cadence · ') : 'posée par la cadence')
+            : a.source === 'couronne' ? 'prise sur Ma Couronne' : 'prise à la main';
+          const message = a.repriseDe
+            ? texteDeLaRelance({ prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj, maison: maisonNom() })
+            : texteDuRappel({
+              prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj,
+              demainIso: addDaysISO(auj, 1), rituels: [], maison: maisonNom(),
+            });
           return (
             <div key={a.id} className={`trp-relance${dansFenetre ? '' : ' trp-relance--loin'}`}>
               <span className="trp-relance__qui">
-                <b>{c?.name ?? 'Fiche retirée'}</b>
-                <small>
-                  {frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''}
-                  {a.note ? ` · ${a.note.replace('Reprise posée à la clôture · ', '')}` : ''}
-                </small>
+                <b>{c?.name ?? a.clientName ?? 'Fiche retirée'}</b>
+                <small>{frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''} · {origine}</small>
               </span>
               <span className="trp-relance__gestes">
                 {a.relanceFaite ? (
                   <span className="trp-relance__fait">Relancée</span>
                 ) : (
                   <>
-                    <WaLien
-                      phone={c?.phone}
-                      message={texteDeLaRelance({
-                        prenom, jourIso: a.date, heure: a.time ?? '',
-                        aujourdhuiIso: todayISO(), maison: maisonNom(),
-                      })}
-                    >
+                    <WaLien phone={c?.phone} message={message}>
                       <span className={`trp-btn${dansFenetre ? ' trp-btn--copper' : ''}`}>WhatsApp</span>
                     </WaLien>
                     {dansFenetre ? (
@@ -200,6 +201,12 @@ export default function AFaire() {
             </div>
           );
         })}
+        {auDela > 0 && prochaineAuDela && (
+          <div className="trp-relance__audela">
+            Au-delà du mois : {auDela} retenue{auDela > 1 ? 's' : ''} déjà posée{auDela > 1 ? 's' : ''},
+            la plus proche le {frJourAn(prochaineAuDela.date)}.
+          </div>
+        )}
       </section>
 
       {/* SIX JAUGES, QUE DES CHIFFRES. Elles ne se lisent pas, elles se
