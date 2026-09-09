@@ -97,7 +97,7 @@ export default function Personas() {
       <PageHead
         eyebrow="CRM · Intelligence des profils"
         title="Les personas."
-        sub="La maison attribue un archétype à chaque cliente d’après ses signaux. Ici vous façonnez chaque persona, son nom, son essence, et vous gérez qui le porte."
+        sub="Un archétype par tête, façonné ici."
         actions={tab === 'archetypes' ? <Button variant="copper" onClick={addPersona}>+ Nouveau persona</Button> : undefined}
       />
 

@@ -106,7 +106,7 @@ export default function HomeRituals() {
       <PageHead
         eyebrow="Vente · stock &amp; achats"
         title="Stock &amp; Achats."
-        sub="Qu’ai-je en stock, que dois-je racheter, combien me coûte chaque prestation, et combien je gagne sur ce que je revends."
+        sub="Stock · achats · coûts · marges."
       />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16, marginBottom: 4 }}>
@@ -1281,9 +1281,7 @@ function OngletRecettes() {
   return (
     <>
       <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 14, lineHeight: 1.6, maxWidth: 640 }}>
-        La recette dit ce qu’une prestation consomme, en quantités connues. Deux bénéfices : le stock
-        se décrémente seul à l’encaissement, et le coût matière de chaque service se connaît,
-        ce qui reste vraiment dans la caisse.
+        Ce qu’une prestation consomme : le stock se décrémente seul, le coût matière se connaît.
       </div>
 
       <div style={{ marginTop: 14, maxWidth: 460 }}>
@@ -1523,8 +1521,7 @@ function OngletComptage() {
   return (
     <>
       <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: 14, lineHeight: 1.6, maxWidth: 640 }}>
-        Comptez ce que vous voyez, la feuille juge l’écart. Une ligne non comptée n’écrit rien :
-        le silence n’est pas un zéro. La validation écrit chaque écart au journal, avec son motif.
+        Comptez, la feuille juge l’écart. Une ligne non comptée n’écrit rien.
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
         <button type="button" className={`trv-pill${famF === 'toutes' ? ' is-active' : ''}`} onClick={() => setFamF('toutes')}>Toutes</button>

@@ -1225,7 +1225,7 @@ export default function Parametres() {
       <PageHead
         eyebrow="Système · La Maison"
         title="Paramètres."
-        sub={`${branch.name}, les règles qui cadrent chaque rendez-vous. Chaque réglage s'enregistre à la frappe, rien à valider.`}
+        sub={`${branch.name} · tout s'enregistre à la frappe.`}
       />
 
       <SommaireParametres />

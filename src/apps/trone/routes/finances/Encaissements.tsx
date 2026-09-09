@@ -519,7 +519,7 @@ export default function Encaissements() {
       <PageHead
         eyebrow="Finances · trésorerie"
         title="Encaissements."
-        sub="Tout ce que la Maison reçoit, d’où que ça vienne, et la preuve de chaque entrée. Registre de trésorerie : il compte l’argent entré, quand la Synthèse compte ce qui est gagné."
+        sub="Tout ce qui entre, avec sa preuve."
         actions={
           <>
             <MonthNav month={month} onChange={setMonth} />

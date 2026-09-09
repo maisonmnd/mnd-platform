@@ -439,7 +439,7 @@ export default function Prets() {
       <PageHead
         eyebrow="Finances"
         title="Les prêts."
-        sub="Ce que la Maison a prêté et ce qu’on lui doit encore. Un prêt sort d’une caisse, un remboursement y rentre, l’argent se déplace, il ne se duplique pas."
+        sub="Prêté, remboursé, jamais dupliqué."
         actions={(
           <>
             <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>

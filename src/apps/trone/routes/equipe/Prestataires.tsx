@@ -304,7 +304,7 @@ export default function Prestataires() {
       <PageHead
         eyebrow="Équipe · Sous-traitance"
         title="Prestataires extérieurs."
-        sub="Vos intervenants ponctuels, payés à la prestation ou au forfait. Chaque paiement confirmé s'inscrit en charge « Sous-traitance » dans les Dépenses et la Synthèse (résultat)."
+        sub="Payés à la prestation, comptés en Sous-traitance."
         actions={<Button variant="copper" onClick={openNewProvider}>+ Prestataire</Button>}
       />
 

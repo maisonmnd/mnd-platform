@@ -230,7 +230,7 @@ export default function Marketing() {
       <PageHead
         eyebrow="Intelligence · Marketing & IA"
         title="L’intelligence."
-        sub="Campagnes mesurées, offres instantanées poussées dans Ma Couronne, automatisations qui parlent d’une seule voix."
+        sub="Campagnes · offres · automatisations."
         actions={
           tab === 'offres' ? <Button variant="copper" onClick={openNewOffer}>+ Offre instantanée</Button>
           : tab === 'auto' ? <Button variant="copper" onClick={() => setAutoModal('new')}>+ Automatisation</Button>

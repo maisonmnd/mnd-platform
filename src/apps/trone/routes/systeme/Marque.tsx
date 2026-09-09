@@ -62,7 +62,7 @@ export default function Marque() {
       <PageHead
         eyebrow="Système · L’âme visible"
         title="Marque & thème."
-        sub="L’accent de prestige, le monogramme et le verbe de la Maison, le reste, MND le garde souverain."
+        sub="Monogramme, accent, verbe."
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <Button variant="ghost" onClick={reset}>Réinitialiser</Button>

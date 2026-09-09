@@ -186,7 +186,7 @@ export default function Branches() {
       <PageHead
         eyebrow="Système · Le territoire"
         title="Branches."
-        sub="Chaque branche reste souveraine de son carnet et de sa caisse, le Trône consolide, il ne dilue jamais."
+        sub="Chaque branche souveraine, le Trône consolide."
         actions={<Button variant="copper" onClick={openNew}>+ Ajouter une branche</Button>}
       />
 

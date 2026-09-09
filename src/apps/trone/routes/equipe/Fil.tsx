@@ -386,7 +386,7 @@ export default function Fil() {
       <PageHead
         eyebrow="La Maison · le registre interne"
         title="Le Fil."
-        sub="Se parler, et demander qu'une chose soit faite, une demande qui porte une facture s'éteint quand la facture est réglée."
+        sub="Se parler, demander, suivre."
       />
 
       <div className="trf-fil">

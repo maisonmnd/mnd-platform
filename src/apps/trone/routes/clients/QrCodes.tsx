@@ -441,7 +441,7 @@ export default function QrCodes() {
       <PageHead
         eyebrow="Clients & Agenda · Les portes"
         title="Les codes de la Maison."
-        sub="Rangés par moment de la visite, chacun avec son signe. À montrer au comptoir, imprimer, afficher au miroir."
+        sub="À montrer, imprimer, afficher."
       />
 
       <div className="trq-etat">

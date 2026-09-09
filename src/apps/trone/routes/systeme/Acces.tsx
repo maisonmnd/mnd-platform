@@ -218,7 +218,7 @@ export default function Acces() {
       <PageHead
         eyebrow="Système · Accès"
         title="Accès & personnel."
-        sub="Autorisez les comptes à entrer dans Le Trône et définissez leur rôle. Réservé au souverain."
+        sub="Comptes et rôles. Réservé au souverain."
       />
 
       {/* Dire VRAI sur la portée : les rôles/rubriques guident l'interface, ils ne

@@ -61,6 +61,26 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## MOINS DE TEXTE, PLUS DE BOUTONS — 9 septembre 2026, PUBLIÉ
+
+« Réduis le texte dans toutes les pages du Trône. Je veux des boutons qui
+appellent une action » (Yéman). Première passe, LA PLUS LARGE : les
+sous-titres de page (PageHead sub) raccourcis sur 24 écrans — une phrase
+d'action de quelques mots au lieu d'un paragraphe (« Stock · achats · coûts
+· marges. » au lieu de quatre questions), plus deux intros bavardes du
+Magasin. AUCUN texte porteur de règle n'a été coupé (les EditRow des
+Paramètres qui expliquent un champ restent).
+
+LES PONTS DEMANDÉS : le Tableau de bord porte trois boutons sous le bonjour
+(+ Le calendrier · À faire · La Cadence) ; À faire porte La Cadence et Le
+calendrier en actions d'en-tête ; La Cadence porte À faire à côté de
+l'export. Style commun `trp-af-pill`.
+
+RESTE À FAIRE de cette veine, écran par écran sur demande : les paragraphes
+d'introduction internes des grands écrans (Synthèse, Marketing, Textes…)
+peuvent encore fondre — mais beaucoup furent demandés par Yéman lui-même :
+les couper se décide devant chaque écran, pas en balayage aveugle.
+
 ## LES « EN ATTENTE » ONT LEUR GROUPE — 9 septembre 2026, PUBLIÉ
 
 « Qu'est-ce que tu fais des rendez-vous proposés ? On doit confirmer

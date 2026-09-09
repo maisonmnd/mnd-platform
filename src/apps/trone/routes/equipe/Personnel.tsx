@@ -845,7 +845,7 @@ export default function Personnel() {
       <PageHead
         eyebrow="Équipe & Croissance · les Maîtres"
         title="L’équipe."
-        sub={`${branch.name}, celles et ceux qui couronnent, et la maison qui veille sur eux.`}
+        sub={`${branch.name} · celles et ceux qui couronnent.`}
         actions={(
           <>
             {/* UN ÉCRAN QU'ON NE TROUVE PAS N'EXISTE PAS. Les fiches et le

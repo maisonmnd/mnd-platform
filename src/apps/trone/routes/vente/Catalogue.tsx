@@ -996,7 +996,7 @@ export default function Catalogue() {
       <PageHead
         eyebrow="Vente · L’offre"
         title="Le catalogue."
-        sub="Segmenté par catégorie ™ et par palier d’expérience, jamais par remise. Chaque prestation couvre les quatre temps : Purifier · Nourrir · Sceller · Couronner."
+        sub="Par catégorie ™ et palier, jamais par remise."
         actions={
           <>
             {/* LES PROTOCOLES SE GÈRENT ICI — 6 septembre 2026. Un protocole

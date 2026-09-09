@@ -353,7 +353,7 @@ export default function MonMois() {
       <PageHead
         eyebrow="Équipe & Croissance"
         title="Mon mois."
-        sub="Ce que j’ai tenu, mon pointage, mes points, ma prime."
+        sub="Pointage · points · prime."
       />
 
       {!moi && (

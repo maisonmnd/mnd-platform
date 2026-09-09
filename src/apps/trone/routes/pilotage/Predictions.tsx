@@ -243,6 +243,9 @@ export default function Predictions() {
               value={horizonChoisi}
               onChange={setHorizonChoisi}
             />
+            <Button variant="ghost" size="sm" onClick={() => navigate('/a-faire')}>
+              À faire
+            </Button>
             <Button variant="ghost" size="sm" onClick={exporter} disabled={lignes.length === 0}>
               Exporter la file (CSV)
             </Button>

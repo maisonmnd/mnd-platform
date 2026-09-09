@@ -461,7 +461,7 @@ export default function Tableau() {
       <PageHead
         eyebrow="La Maison · les demandes vues d'en haut"
         title="Le Tableau."
-        sub={`${ouvertes.length} demande${ouvertes.length > 1 ? 's' : ''} ouverte${ouvertes.length > 1 ? 's' : ''}${retardsTotal > 0 ? ` · ${retardsTotal} en retard` : ''}, glissez une carte d'un nom à l'autre, ou touchez la carte puis la colonne.`}
+        sub={`${ouvertes.length} demande${ouvertes.length > 1 ? 's' : ''} ouverte${ouvertes.length > 1 ? 's' : ''}${retardsTotal > 0 ? ` · ${retardsTotal} en retard` : ''}`}
       />
 
       <div className="trt">

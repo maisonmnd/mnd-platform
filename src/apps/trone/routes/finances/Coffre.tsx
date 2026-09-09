@@ -255,7 +255,7 @@ export default function Coffre() {
       <PageHead
         eyebrow="Finances · épargne souveraine"
         title="Le Coffre-fort."
-        sub="Mettez de côté une part du chiffre déjà gagné. Le coffre est verrouillé : aucune dépense possible, la seule sortie est un virement vers la banque."
+        sub="Mise de côté verrouillée, sortie banque seulement."
         actions={
           <>
             <Button variant="ghost" onClick={() => setVerrouOuvert(true)}>

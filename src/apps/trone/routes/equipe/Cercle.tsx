@@ -192,7 +192,7 @@ export default function Cercle() {
       <PageHead
         eyebrow="Le Cercle MND · transmission & lignée"
         title="Le Cercle."
-        sub={`${branch.name}, les points témoignent d’une fidélité ; la maison les rend en offrant ce qu’elle sait faire de mieux : un soin.`}
+        sub={`${branch.name} · les points se rendent en soins.`}
         actions={<Button variant="copper" onClick={() => openTierNew('cercle')}>+ Nouveau palier</Button>}
       />
 

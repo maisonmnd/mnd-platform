@@ -32,7 +32,7 @@ export default function Recommandations() {
       <PageHead
         eyebrow="Équipe & Croissance · l’intelligence"
         title="Recommandations IA."
-        sub="Des signaux lus dans vos données, traduits en gestes possibles. Propositions sobres, jamais d’injonction, l’humain décide."
+        sub="Des signaux, des gestes. L’humain décide."
         actions={treated.length > 0 ? <Button variant="ghost" onClick={reset}>Rouvrir les traitées</Button> : undefined}
       />
 

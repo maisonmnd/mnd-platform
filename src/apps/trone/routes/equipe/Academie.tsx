@@ -328,7 +328,7 @@ export default function Academie() {
       <PageHead
         eyebrow="Académie · Transmission"
         title="L’Académie."
-        sub="Former, suivre, sceller. La méthode « les quatre temps » se transmet, chaque parcours achevé devient un certificat scellé MND."
+        sub="Former, suivre, sceller."
         actions={
           <a
             href={asset('/certificat.html')}

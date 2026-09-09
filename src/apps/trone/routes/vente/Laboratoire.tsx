@@ -139,7 +139,7 @@ export default function Laboratoire() {
       <PageHead
         eyebrow="Vente · l’atelier des formules"
         title="Le Laboratoire."
-        sub="Une cliente, un besoin, une formule, composée depuis la réserve réelle, fabriquée en consommant le stock, remise ou facturée à son nom."
+        sub="Une cliente, une formule, la réserve réelle."
       />
 
       <div className="trv-tabs">

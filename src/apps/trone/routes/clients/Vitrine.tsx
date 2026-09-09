@@ -730,7 +730,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             <>
               <SwitchRow
                 label="Son histoire tranche"
-                sub="Parmi les prestations désignées, celle que ses rendez-vous rendent la plus juste."
+                sub="La plus juste selon ses rendez-vous."
                 on={!!cfg.recoAuto}
                 onToggle={(v) => setFlag('recoAuto', v)}
               />

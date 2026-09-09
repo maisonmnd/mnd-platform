@@ -1072,7 +1072,7 @@ export default function Abonnements() {
       <PageHead
         eyebrow="Croissance · le cœur du cash"
         title="Abonnements."
-        sub="Le salon classique vend une fois ; la Maison perçoit chaque lune."
+        sub="La Maison perçoit chaque lune."
         actions={
           <div className="tre-mrr-head">
             {/* LE CHIFFRE DE TÊTE DOIT ÊTRE VRAI. « Revenu récurrent » annonçait

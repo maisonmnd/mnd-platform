@@ -219,9 +219,13 @@ export default function AFaire() {
       <PageHead
         eyebrow="Pilotage · le travail"
         title="À faire."
-        sub={reste === 0
-          ? 'Tout est tenu. Chaque case qui ouvre quelque chose est remplie.'
-          : 'Ce qui presse, ce qui manque, ce qui est tenu — dans cet ordre.'}
+        sub={reste === 0 ? 'Tout est tenu.' : 'Ce qui presse, ce qui manque, ce qui est tenu.'}
+        actions={
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="trp-af-pill" onClick={() => navigate('/cadence')}>La Cadence</button>
+            <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>Le calendrier</button>
+          </div>
+        }
       />
 
       {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}

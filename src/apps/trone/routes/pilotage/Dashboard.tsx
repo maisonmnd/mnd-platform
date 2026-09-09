@@ -698,6 +698,14 @@ export default function Dashboard() {
         {greeting}{who ? `, ${who}` : ''}.
       </h2>
 
+      {/* LES PONTS DU MATIN — des boutons, pas des phrases (9 septembre) :
+          « je veux des boutons qui appellent une action » (Yéman). */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+        <button type="button" className="trp-af-pill" onClick={() => navigate('/calendrier')}>+ Le calendrier</button>
+        <button type="button" className="trp-af-pill" onClick={() => navigate('/a-faire')}>À faire</button>
+        <button type="button" className="trp-af-pill" onClick={() => navigate('/cadence')}>La Cadence</button>
+      </div>
+
       {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
           soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
       {appelsAFaire.length > 0 && (

@@ -681,7 +681,7 @@ export default function SalonFoyer() {
       <PageHead
         eyebrow="Finances · entreprise & foyer"
         title="Salon & Foyer."
-        sub="Chaque franc encaissé se partage en quatre enveloppes ; le foyer vit sur la sienne. Le prélèvement n'est pas une charge, c'est une distribution du bénéfice."
+        sub="Quatre enveloppes, le foyer vit sur la sienne."
       />
 
       <div className="trf-tabs">
