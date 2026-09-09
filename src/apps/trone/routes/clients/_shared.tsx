@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -2342,6 +2342,20 @@ export function RdvModal({
          prix pleins — pas le prix catalogue nu. */
       const maj = appointmentsStore.get().find((x) => x.id === appt.id);
       if (maj) alignerFacturesDuRituel(maj, byId, prixPlein, produitsGamme, gesteDe, { argent: (x) => fmtMoney(x, currency), lockCount: pricing.lockCount });
+      /* ══ LA REPRISE SUIT LE STATUT, QUEL QUE SOIT LE CHEMIN — 9 sept. ══
+         Befoune honorée par CE sélecteur : le bouton du Carnet posait la
+         reprise, ce chemin l'oubliait EN SILENCE — le même oubli que le
+         stock avait connu ici. Idempotente (repriseDe), elle se tente à
+         chaque sauvegarde « honoré » : re-sauver ne double rien, et un
+         refus TOASTE sa raison. Import dynamique : actions importe déjà ce
+         fichier, on ne crée pas de cycle à l'amorçage. */
+      if (chosenStatus === 'honoré') {
+        void import('./actions').then(({ poseLaReprise }) => {
+          const r = poseLaReprise(maj ?? appt);
+          if (r.pose) toast(`Sa reprise est posée le ${frShort(r.pose.date)} à ${r.pose.time}.`);
+          else if (r.raison) toast(`Pas de reprise : ${r.raison}.`);
+        });
+      }
     } else {
       const created: Appointment = {
         id: uid(),
