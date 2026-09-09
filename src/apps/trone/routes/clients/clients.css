@@ -1291,6 +1291,15 @@
 }
 .trc-svpick__monde + .trc-svpick__grp { border-top: none; margin-top: 0; }
 .trc-clientpick__opt--vise { background: var(--hover-veil); }
+
+/* LA LISIBILITÉ DU MENU DES PRESTATIONS — 9 septembre 2026. « Les
+   prestations en gras, les titres et les sous-titres aussi » (Yéman).
+   Scopé au menu des prestations (.trc-svmenu) : le choix d'une cliente
+   garde sa voix légère. */
+.trc-svmenu .trc-clientpick__n { font-weight: 600; font-size: 15.5px; }
+.trc-svmenu .trc-clientpick__m { font-weight: 500; font-size: 12px; color: var(--ink); }
+.trc-svmenu .trc-svpick__grp { font-weight: 600; font-size: 11px; color: var(--copper-700); }
+.trc-svmenu .trc-svpick__monde { font-weight: 600; }
 .trc-clientpick__empty { padding: 12px 10px; font-size: 12.5px; color: var(--ink-soft); }
 
 /* Cliente de passage — deux champs, saisis sans quitter l'écran du comptoir. */

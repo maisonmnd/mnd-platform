@@ -2467,7 +2467,7 @@ export function RdvModal({
   };
 
   return (
-    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={520}>
+    <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={640}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
             Onze champs à la file, et le total tout en bas : on faisait défiler
@@ -3015,7 +3015,7 @@ export function RdvModal({
                 le visible et surligné, le double-clic ne pose jamais deux
                 lignes. */}
             <div
-              className="trc-clientpick"
+              className="trc-clientpick trc-svmenu"
               ref={svWrapRef}
               onKeyDown={(e) => {
                 /* Sur le CONTENEUR : la touche vaut aussi depuis un bouton du

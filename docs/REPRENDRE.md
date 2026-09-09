@@ -98,6 +98,10 @@ indigo**, observée comprise — cliquer la pastille observée la fige en rythme
 posé. Le commentaire de serie.ts qui citait la borne suit (douze), le harnais
 aussi (les neuf rythmes).
 
+Et sur la modale du RDV : **les prestations du menu passent en gras** (noms
+600, prix 500 à l'encre pleine, têtes de groupe affirmées — scopé .trc-svmenu,
+le choix d'une cliente garde sa voix), et **la modale s'élargit** (520 → 640).
+
 ## LE MAGASIN — la refonte Stock & Achats — 8 septembre 2026, PUBLIÉ
 
 « C'est comme une feuille blanche où on fait des + et des −, refais-moi
