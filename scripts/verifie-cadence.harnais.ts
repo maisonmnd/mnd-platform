@@ -506,6 +506,8 @@ dit('la main commande quand elle a posé un rythme', { semaines: 6, observe: fal
 dit('sans rythme posé, l’observée prend le relais', { semaines: 5, observe: true },
   rythmeDeReprise(teteLibre, troisVenues));
 dit('une tête de passage sans rythme : jamais', null, rythmeDeReprise(tetePassage, troisVenues));
+dit('une tête sans locks non plus — le rituel n’a plus d’objet', null,
+  rythmeDeReprise({ id: 'obs1', locksDefaits: true } as unknown as Client, troisVenues));
 dit('… mais un rythme posé à la main commande, même pour elle',
   { semaines: 6, observe: false },
   rythmeDeReprise({ id: 'obs1', dePassage: true, rythmeSemaines: 6 } as unknown as Client, troisVenues));

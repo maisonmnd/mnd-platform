@@ -209,9 +209,19 @@ export default function Predictions() {
      depuis une liste, et le prédicat casserait en silence (doctrine posée sur
      `dePassage`). Le juge partagé `estDiaspora` lit les deux, donc le registre
      des Clientes la voit aussitôt. */
-  const marquerDiaspora = (clientId: string, nom: string) => {
-    if (!window.confirm(`${nom} vit à l’étranger ?\n\nElle sortira des prédictions et des relances, et entrera au registre Diaspora. Ses rendez-vous déjà pris continuent de s’afficher normalement.`)) return;
-    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, diaspora: true } : c)));
+  /* « Toutes ces personnes ne sont pas diaspora — donne-moi les autres
+     choix » (Yéman, 9 septembre). Les TROIS raisons de la maison, comme sur
+     À faire : chacune sort la tête des prédictions et des relances. */
+  const MARQUES_GLISSE = [
+    { mot: 'Diaspora', question: 'vit à l’étranger ?', pose: { diaspora: true } },
+    { mot: 'Sans locks', question: 'a défait ses locks ?', pose: { locksDefaits: true } },
+    /* Posée à la main, la marque tient même après une nouvelle venue
+       (`passagePose`) — une décision bat une déduction. */
+    { mot: 'De passage', question: 'est de passage ?', pose: { dePassage: true, passagePose: true } },
+  ] as const;
+  const marquer = (clientId: string, nom: string, m: (typeof MARQUES_GLISSE)[number]) => {
+    if (!window.confirm(`${nom} ${m.question}\n\nElle sortira des prédictions et des relances. Ses rendez-vous déjà pris continuent de s’afficher normalement.`)) return;
+    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, ...m.pose } : c)));
   };
 
   /* ---- LA FILE, POUR UNE CAMPAGNE DE RELANCE ---- */
@@ -336,18 +346,21 @@ export default function Predictions() {
                   {l.cadence.overdueDays} j
                 </span>
               </button>
-              {/* ON MARQUE LÀ OÙ ON RECONNAÎT (16 août) — la moitié de cette
-                  liste était de la diaspora, et il fallait ouvrir chaque fiche
-                  pour le dire. Un geste, ici : elle sort des prédictions et
-                  entre au registre Diaspora. */}
-              <button
-                type="button"
-                className="trv-minibtn trp-glisse__marque"
-                title={`${l.nom} vit à l’étranger, ne plus prédire son retour`}
-                onClick={() => marquerDiaspora(l.clientId, l.nom)}
-              >
-                Diaspora
-              </button>
+              {/* ON MARQUE LÀ OÙ ON RECONNAÎT (16 août, élargi le 9 sept.) :
+                  les trois raisons d'un geste, sans ouvrir la fiche. */}
+              <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {MARQUES_GLISSE.map((m) => (
+                  <button
+                    key={m.mot}
+                    type="button"
+                    className="trv-minibtn trp-glisse__marque"
+                    title={`${l.nom} ${m.question.replace(' ?', '')} — ne plus prédire son retour`}
+                    onClick={() => marquer(l.clientId, l.nom, m)}
+                  >
+                    {m.mot}
+                  </button>
+                ))}
+              </span>
             </div>
           ))}
           {enRetard.length === 0 && (

@@ -1,5 +1,5 @@
 import type { Appointment } from './agenda';
-import { estDePassage, estDiaspora, type Client } from './clients';
+import { aDefaitSesLocks, estDePassage, estDiaspora, type Client } from './clients';
 import { openingForIso } from './settings';
 
 /* LA CADENCE D'UNE TÊTE — UN SEUL JUGE, POUR LES DEUX SŒURS.
@@ -514,7 +514,7 @@ export function rythmeDeReprise(
   appts: readonly Appointment[],
 ): { semaines: number; observe: boolean } | null {
   if (cliente.rythmeSemaines) return { semaines: cliente.rythmeSemaines, observe: false };
-  if (estDePassage(cliente) || estDiaspora(cliente)) return null;
+  if (estDePassage(cliente) || estDiaspora(cliente) || aDefaitSesLocks(cliente)) return null;
   const obs = cadenceObservee(appts, cliente.id);
   return obs ? { semaines: obs.semaines, observe: true } : null;
 }
@@ -540,7 +540,9 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
      (16 août). Un rendez-vous DÉJÀ PRIS s'affiche toujours : il est traité
      plus haut, avant ce garde. */
   const cliente = clients.find((c) => c.id === clientId);
-  if (cliente && (estDePassage(cliente) || estDiaspora(cliente))) return none;
+  /* NI CELLE QUI A DÉFAIT SES LOCKS (9 septembre) : prédire le retour d'une
+     tête sans locks, c'est relancer pour un rituel qui n'a plus d'objet. */
+  if (cliente && (estDePassage(cliente) || estDiaspora(cliente) || aDefaitSesLocks(cliente))) return none;
 
   const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
   if (honored.length === 0) return none;

@@ -61,6 +61,16 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES TROIS MARQUES SUR « CELLES QUI ONT GLISSÉ » — 9 septembre 2026, PUBLIÉ
+
+« Toutes ces personnes ne sont pas diaspora — donne-moi les autres choix »
+(Yéman, sur La Cadence). Chaque ligne de la liste porte désormais les TROIS
+raisons de la maison (Diaspora · Sans locks · De passage, celle-ci avec
+`passagePose` : une décision bat une déduction), au lieu du seul Diaspora.
+ET LE JUGE A SUIVI : `predictNextVisit` comme `rythmeDeReprise` ignorent
+désormais aussi une tête SANS LOCKS — prédire son retour, c'est relancer
+pour un rituel qui n'a plus d'objet (épreuve au harnais).
+
 ## MOINS DE TEXTE, PLUS DE BOUTONS — 9 septembre 2026, PUBLIÉ
 
 « Réduis le texte dans toutes les pages du Trône. Je veux des boutons qui
