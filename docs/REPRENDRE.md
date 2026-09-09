@@ -391,6 +391,45 @@ les informations de la fiche du compte WhatsApp, à compléter dans WhatsApp
 Manager (nom légal ACIA 1 à la graphie du RCCM, adresse, e-mail, site,
 catégorie, et le nom d'affichage du numéro).
 
+**BLOQUÉ LE 9 SEPTEMBRE AU SOIR, ET LA CAUSE EST TROUVÉE.** Le portefeuille
+ACIA 1 est **restreint depuis le 25 août** (Business Support Home :
+« We restricted your business », motif automatique « created or used with an
+automation », restriction PUBLICITAIRE). Vérifié et restreint sont deux
+choses distinctes : ACIA 1 est bien vérifié, et bridé par ailleurs.
+
+CETTE RESTRICTION EXPLIQUE TOUTE LA SEMAINE : le « wabaID null » du premier
+jour, le « not authorized to create an app », la restriction du WABA. Et
+elle bloque aujourd'hui la seule manœuvre qui restait.
+
+LE NŒUD STRUCTUREL : l'app **MND messaging** (ID 747248238414719) appartient
+au portefeuille **MND** (2031981230728230, NON vérifié), pas à **ACIA 1**
+(1041916588728074, vérifié). La page Publish exige la vérification du
+portefeuille DE L'APP, d'où son refus. Or la page Applications d'ACIA 1 est
+verrouillée par la restriction : impossible d'y revendiquer l'app.
+
+**L'UNIQUE ACTION QUI DÉBLOQUE** : téléverser la pièce d'identité du gérant
+depuis Business Support Home (bouton « Upload ID », demandé par Meta le
+9 septembre). Puis attendre 2 à 10 jours ouvrés. NE PLUS RIEN DÉPLACER
+entre-temps : les manipulations répétées nourrissent le soupçon
+d'automatisation qui a causé la restriction.
+
+État figé de la configuration Meta, à retrouver tel quel :
+· App MND messaging · ID 747248238414719 · les 4 champs remplis (icône
+  1024 `public/assets/og/icone-app-meta.png`, confidentialité et suppression
+  des données → `couronne/confidentialite.html`, CGU → `couronne/apropos.html`,
+  catégorie Business and pages) · mode Développement, non publiée.
+· WABA ACIA1 (2147641315966005) sous ACIA 1 · numéro +229 51 99 77 99
+  enregistré, nom d'affichage « L'Atelier MND » en revue · palier 250.
+· Restent après déblocage : rattacher l'app à ACIA 1, publier en Live,
+  jeton système, 3 modèles, 5 secrets Supabase, interrupteur avis.
+
+SI META REFUSE APRÈS L'IDENTITÉ : porte de sortie, faire vérifier le
+portefeuille MND (sain, non restreint) avec les mêmes documents ACIA 1 —
+l'app y est déjà. À n'ouvrir qu'après leur réponse.
+
+**Le guide pas-à-pas pour Yéman existe en artefact** (« Brancher WhatsApp »,
+neuf étapes, textes des modèles et secrets) — le relire avant de reprendre.
+
 ## LA SÉRIE ÉMET SES PIÈCES, LE REÇU NE PEND PLUS, SUPPRIMER S'ÉLOIGNE — 7 septembre 2026, PUBLIÉ
 
 Trois demandes de Yéman dans la même heure, toutes au registre des encaissements.
