@@ -171,7 +171,7 @@ si l'étape 3 est faite, il ne reste que quatre gestes.
 
    > Merci pour votre passage à la maison, {{1}}. Si l'expérience vous a plu,
    > un avis nous aiderait beaucoup : {{2}}
-   > À très vite — votre couronne nous tient à cœur.
+   > À très vite, votre couronne nous tient à cœur.
 
    ({{1}} = prénom, {{2}} = le lien d'avis — c'est exactement ce que la
    fonction envoie.) Si Meta refuse un lien en variable de corps, refaire le
