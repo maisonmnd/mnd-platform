@@ -8,7 +8,7 @@ import { dateDeLaReprise, RYTHMES_ABO, rythmeDeReprise } from '../../../../share
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
-import { joursDeLaTete } from '../../../../shared/clients';
+import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
@@ -84,17 +84,31 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
     LA DATE SE COMPTE DEPUIS LE RITUEL, jamais depuis le clic : marquer honoré
     trois jours plus tard décalerait la reprise d'autant, et la cadence
     dériverait d'un mois par an sans que personne ne comprenne pourquoi. */
-export function poseLaReprise(appt: Appointment): Appointment | null {
-  if (!appt.clientId || appt.serviceIds.length === 0) return null;
+export type ReprisePosee = { pose?: Appointment; raison?: string };
+
+export function poseLaReprise(appt: Appointment): ReprisePosee {
+  /* CHAQUE REFUS SE DIT (9 septembre — « je n'ai pas eu son prochain RDV
+     automatique », Befoune, et personne ne pouvait dire quel garde avait
+     parlé). Un silence ressemble à une panne ; une raison s'arbitre. */
+  if (!appt.clientId) return { raison: 'rituel sans fiche cliente' };
+  if (appt.serviceIds.length === 0) return { raison: 'rituel sans prestations' };
   const cliente = clientsStore.get().find((c) => c.id === appt.clientId);
-  if (!cliente || cliente.sansRepriseAuto) return null;
+  if (!cliente) return { raison: 'fiche cliente introuvable' };
+  if (cliente.sansRepriseAuto) return { raison: 'la reprise est coupée sur sa fiche' };
   const tous = appointmentsStore.get();
   const rythme = rythmeDeReprise(cliente, tous);
-  if (!rythme) return null;
-  if (tous.some((a) => a.repriseDe === appt.id)) return null;
-  const aVenir = tous.some((a) => a.clientId === appt.clientId
+  if (!rythme) {
+    return {
+      raison: estDePassageCli(cliente) ? 'tête de passage — pas de reprise sans rythme posé'
+        : estDiaspora(cliente) ? 'diaspora — pas de reprise sans rythme posé'
+          : aDefaitSesLocks(cliente) ? 'elle a défait ses locks'
+            : 'cadence pas encore lisible (moins de deux venues honorées)',
+    };
+  }
+  if (tous.some((a) => a.repriseDe === appt.id)) return { raison: 'sa reprise est déjà posée' };
+  const aVenir = tous.find((a) => a.clientId === appt.clientId
     && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
-  if (aVenir) return null;
+  if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };
   const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
     ...appt,
@@ -124,7 +138,7 @@ export function poseLaReprise(appt: Appointment): Appointment | null {
       : `Reprise posée à la clôture · toutes les ${rythme.semaines} semaines`,
   } as Appointment;
   appointmentsStore.set((prev) => [...prev, estampilleLaPose(suivant)]);
-  return suivant;
+  return { pose: suivant };
 }
 
 export function honorAppointment(appt: Appointment, byId: Map<string, Service>): number {
@@ -169,8 +183,12 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
      est due. Elle se pose sans bruit, et l'écran l'annonce — un rendez-vous
      apparu sans un mot serait pire que pas de rendez-vous du tout. */
   const reprise = poseLaReprise(appt);
-  if (reprise) {
-    toast(`Rituel honoré. Sa reprise est posée le ${frShort(reprise.date)} à ${reprise.time}.`);
+  if (reprise.pose) {
+    toast(`Rituel honoré. Sa reprise est posée le ${frShort(reprise.pose.date)} à ${reprise.pose.time}.`);
+  } else if (reprise.raison && appt.clientId && appt.serviceIds.length > 0) {
+    /* LE POURQUOI S'AFFICHE — sauf pour les cas sans objet (vente au
+       comptoir sans fiche, rituel vide), où il n'y a rien à expliquer. */
+    toast(`Rituel honoré. Pas de reprise : ${reprise.raison}.`);
   }
 
   /* ── LA COURONNE NAÎT ICI — 19 août 2026 ─────────────────────────

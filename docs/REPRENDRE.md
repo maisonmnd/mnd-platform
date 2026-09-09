@@ -61,6 +61,21 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA REPRISE QUI NE SE POSE PAS DIT POURQUOI — 9 septembre 2026, PUBLIÉ
+
+« Quand j'ai honoré le RDV d'aujourd'hui de Befoune, je n'ai pas eu son
+prochain RDV automatique » (Yéman) — et PERSONNE ne pouvait dire quel garde
+avait parlé : la pose refusait en silence. `poseLaReprise` rend désormais
+`{ pose?, raison? }` et la clôture TOASTE la raison : reprise coupée sur la
+fiche · tête de passage / diaspora / sans locks (sans rythme posé) · cadence
+pas encore lisible (moins de deux venues honorées) · déjà posée · « elle a
+déjà un rendez-vous à venir (date) ». Les cas sans objet (vente sans fiche,
+rituel vide) restent muets. POUR BEFOUNE : recharger le Trône puis re-marquer
+honoré le rituel du jour — le geste est sans danger (points, stock et pièce
+sont gardés) ; la reprise se posera, ou le toast nommera le blocage (l'autre
+suspect : l'onglet ouvert AVANT la mise en ligne du matin faisait tourner
+l'ancienne règle repriseAuto+rythme).
+
 ## LES TROIS MARQUES SUR « CELLES QUI ONT GLISSÉ » — 9 septembre 2026, PUBLIÉ
 
 « Toutes ces personnes ne sont pas diaspora — donne-moi les autres choix »
