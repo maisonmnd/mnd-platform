@@ -133,8 +133,11 @@ export default function AFaire() {
     b: parseInt(iso.slice(8, 10), 10),
   });
   const versAncre = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const enFenetre = duMois.filter((a) => a.date <= horizonJ3 && !a.relanceFaite);
-  const plusLoin = duMois.filter((a) => !(a.date <= horizonJ3 && !a.relanceFaite));
+  /* LES « EN ATTENTE » D'ABORD — une cliente attend le oui de la Maison,
+     quel que soit le mois de son créneau. */
+  const aConfirmer = retenues.filter((a) => a.status === 'en attente');
+  const enFenetre = duMois.filter((a) => a.status !== 'en attente' && a.date <= horizonJ3 && !a.relanceFaite);
+  const plusLoin = duMois.filter((a) => a.status !== 'en attente' && !(a.date <= horizonJ3 && !a.relanceFaite));
   const gestesOuverts = travail.gestes.filter((g) => g.combien > 0);
   const gestesTenus = travail.gestes.filter((g) => g.combien === 0);
   const jourDuTitre = (() => {
@@ -161,16 +164,30 @@ export default function AFaire() {
         prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj,
         demainIso: addDaysISO(auj, 1), rituels: [], maison: maisonNom(),
       });
+    const attente = a.status === 'en attente';
     return (
-      <div key={a.id} className={`trp-af-rdv${dansFenetre ? ' trp-af-rdv--feu' : ' trp-af-rdv--loin'}`}>
+      <div key={a.id} className={`trp-af-rdv${attente ? ' trp-af-rdv--attente' : dansFenetre ? ' trp-af-rdv--feu' : ' trp-af-rdv--loin'}`}>
         <span className="trp-af-jourde"><u>{de.u}</u><b>{de.b}</b></span>
         <span className="trp-af-qui">
           <b>{c?.name ?? a.clientName ?? 'Fiche retirée'}</b>
-          <span className={`trp-af-tag${a.repriseDe ? ' trp-af-tag--cad' : ''}`}>{origine}</span>
+          <span className={`trp-af-tag${attente ? ' trp-af-tag--attente' : a.repriseDe ? ' trp-af-tag--cad' : ''}`}>
+            {attente ? `en attente${a.source === 'couronne' ? ' · Ma Couronne' : ''}` : origine}
+          </span>
           <small>{a.time ?? ''}{rituel ? `${a.time ? ' · ' : ''}${rituel}` : ''}</small>
         </span>
         <span className="trp-af-actes">
-          {a.relanceFaite ? (
+          {attente && (
+            <button
+              type="button" className="trp-btn trp-btn--copper"
+              onClick={() => {
+                appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'confirmé' } : x)));
+                toast('Confirmé. La confirmation partira toute seule à la cliente.');
+              }}
+            >
+              Confirmer
+            </button>
+          )}
+          {attente ? null : a.relanceFaite ? (
             <span className="trp-relance__fait">Relancée</span>
           ) : (
             <>
@@ -213,6 +230,11 @@ export default function AFaire() {
           <div className="trp-af-jourtitre">{jourDuTitre}.</div>
         </div>
         <div className="trp-af-score">
+          {aConfirmer.length > 0 && (
+            <button type="button" className="trp-af-pill trp-af-pill--attente" onClick={() => versAncre('relances')}>
+              <b>{aConfirmer.length}</b> à confirmer
+            </button>
+          )}
           {aRelancer.length > 0 && (
             <button type="button" className="trp-af-pill trp-af-pill--feu" onClick={() => versAncre('relances')}>
               <b>{aRelancer.length}</b> à relancer · 3 jours
@@ -237,6 +259,10 @@ export default function AFaire() {
               : `${duMois.length} fauteuil${duMois.length > 1 ? 's' : ''}${nCadence ? ` · ${nCadence} posé${nCadence > 1 ? 's' : ''} par la cadence` : ''} · à J-3 la ligne s'allume`}
           </span>
         </div>
+        {aConfirmer.length > 0 && (
+          <div className="trp-af-groupe trp-af-groupe--attente">À confirmer · elles attendent votre oui</div>
+        )}
+        {aConfirmer.map(ligneRetenue)}
         {enFenetre.length > 0 && <div className="trp-af-groupe">À relancer · dans les 3 jours</div>}
         {enFenetre.map(ligneRetenue)}
         {plusLoin.length > 0 && <div className="trp-af-groupe trp-af-groupe--calme">Plus loin dans le mois</div>}

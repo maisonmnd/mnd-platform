@@ -798,6 +798,8 @@
 .trp-af-pill b { font-family: var(--font-serif); font-weight: 500; font-size: 16px; color: var(--color-indigo); margin-right: 4px; }
 .trp-af-pill--feu { border-color: var(--copper-300); background: var(--copper-50); color: var(--copper-700); }
 .trp-af-pill--feu b { color: var(--copper-700); }
+.trp-af-pill--attente { border-color: #E2CDA1; background: #FCF5E6; color: #9A6B1F; }
+.trp-af-pill--attente b { color: #9A6B1F; }
 .trp-af-pill:hover { background: var(--hover-veil); }
 
 .trp-af-bloc { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); margin-top: 14px; overflow: hidden; }
@@ -806,6 +808,9 @@
 .trp-af-bloc__t span { font-size: 11px; color: var(--ink-soft); }
 .trp-af-groupe { padding: 10px 16px 4px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); font-weight: 600; }
 .trp-af-groupe--calme { color: var(--ink-soft); font-weight: 500; }
+.trp-af-groupe--attente { color: #9A6B1F; }
+.trp-af-rdv--attente { background: #FCF5E6; border-left: 3px solid #E2CDA1; padding-left: 13px; }
+.trp-af-tag--attente { background: #FCF5E6; color: #9A6B1F; border: 1px solid #E2CDA1; }
 .trp-af-rdv { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--hairline); }
 .trp-af-rdv--feu { background: var(--copper-50); border-left: 3px solid var(--color-copper); padding-left: 13px; }
 .trp-af-rdv--loin { opacity: .8; }

@@ -61,6 +61,19 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES « EN ATTENTE » ONT LEUR GROUPE — 9 septembre 2026, PUBLIÉ
+
+« Qu'est-ce que tu fais des rendez-vous proposés ? On doit confirmer
+manuellement — est-ce que ça vient dans la liste ? » (Yéman). Ils y étaient,
+FONDUS parmi les confirmés : faux à deux titres (rien ne disait qu'ils
+attendaient le oui, et à J-3 la relance aurait menti « votre rendez-vous est
+prévu » sur un créneau non confirmé). Correction : groupe « À CONFIRMER ·
+elles attendent votre oui » EN TÊTE du mois retenu (ambre, tous mois
+confondus), bouton Confirmer d'un tap (la confirmation automatique part
+ensuite toute seule — confirmation-rdv), pastille « N à confirmer » dans
+l'en-tête, et la fenêtre de relance EXCLUT les « en attente » (garde au
+juge + épreuve au harnais).
+
 ## À FAIRE, REFONDU — 9 septembre 2026, maquette validée puis bâti, PUBLIÉ
 
 « Reconstruis la page À faire avec l'UI et l'UX de meilleure qualité »

@@ -319,6 +319,8 @@ dit('la fenêtre garde, la date trie, l’heure départage', ['a', 'b', 'x'],
   ], '2026-09-09', '2026-09-12').map((r) => r.id));
 dit('une retenue prise à la main entre aussi en fenêtre', ['m'],
   relancesAReprendre([{ id: 'm', clientId: 'c1', date: '2026-09-10' }], '2026-09-09', '2026-09-12').map((r) => r.id));
+dit('un « en attente » ne se relance pas — il attend le oui', [],
+  relancesAReprendre([rlv('w', '2026-09-10', { status: 'en attente' })], '2026-09-09', '2026-09-12').map((r) => r.id));
 dit('annulé, honoré, relancé : sortis de la fenêtre', [],
   relancesAReprendre([
     rlv('k1', '2026-09-10', { status: 'annulé' }),

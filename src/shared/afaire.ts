@@ -379,5 +379,9 @@ export function relancesAReprendre<T extends RdvARelancer>(
   aujourdhuiIso: string,
   horizonIso: string,
 ): T[] {
-  return retenuesAVenir(appts, aujourdhuiIso).filter((a) => !a.relanceFaite && a.date <= horizonIso);
+  /* UN « EN ATTENTE » NE SE RELANCE PAS : il attend le OUI de la Maison,
+     pas un rappel — « votre rendez-vous est prévu » sur un créneau non
+     confirmé serait un mensonge (9 septembre, quatrième passe). */
+  return retenuesAVenir(appts, aujourdhuiIso)
+    .filter((a) => a.status !== 'en attente' && !a.relanceFaite && a.date <= horizonIso);
 }
