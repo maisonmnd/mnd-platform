@@ -299,6 +299,12 @@ export type Client = {
       poser des rendez-vous dans le dos, ce qui est le cas le plus fréquent. */
   rythmeSemaines?: number;
   repriseAuto?: boolean;
+  /* LA REPRISE EST DEVENUE LE DÉFAUT — 9 septembre 2026. Dès qu'une cadence
+     se lit (posée à la main, ou observée sur ses venues), la clôture pose le
+     rendez-vous suivant. Ce champ est l'interrupteur INVERSE : il coupe la
+     reprise pour cette tête. `repriseAuto` n'est plus lu nulle part — gardé
+     pour les fiches qui le portent, jamais réécrit. */
+  sansRepriseAuto?: boolean;
   preferredMaster?: string;
   recoProductId?: string; // produit de la Gamme recommandé par la maison — affiché au Carnet de Suivi
   /** CE QU'ELLE EST VENUE CHERCHER, dit par elle au quiz de Ma Couronne

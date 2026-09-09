@@ -465,6 +465,57 @@ export const decaleLaSuite = (
     return { ...x, dateIso: iso, glissee: iso !== brut };
   });
 
+/* ══ LA CADENCE OBSERVÉE — 9 septembre 2026 ══════════════════════════
+   « Que la cadence ne se remplisse plus à la main, mais automatiquement
+   selon le calcul des derniers rendez-vous, sur chaque fiche — tout comme
+   les jours favoris » (Yéman). LE JUGE EST ICI, UNIQUE : la fiche l'affiche,
+   la reprise s'en sert, predictNextVisit lit le même intervalle — trois
+   écrans, zéro divergence. Une série multi-séances compte pour UNE visite,
+   la médiane résiste aux venues exceptionnelles, jamais moins de 14 jours. */
+export type CadenceObservee = {
+  jours: number;
+  /** L'arrondi dont parle la Maison — jamais moins de 2 semaines. */
+  semaines: number;
+  sample: number;
+  confidence: 'haute' | 'moyenne' | 'faible';
+};
+
+export function cadenceObservee(appts: readonly Appointment[], clientId: string): CadenceObservee | null {
+  const joursEntre = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
+  const honorees = appts
+    .filter((a) => a.clientId === clientId && a.status === 'honoré')
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const visites = honorees.filter((a) => !(a.seriesIndex && a.seriesIndex > 1));
+  if (visites.length < 2) return null;
+  const gaps: number[] = [];
+  for (let i = 1; i < visites.length; i++) gaps.push(joursEntre(visites[i - 1].date, visites[i].date));
+  const use = gaps.filter((g) => g > 0);
+  const sample = use.length || gaps.length;
+  const base = use.length ? use : gaps;
+  const jours = Math.max(14, medianInt(base));
+  const mean = base.reduce((acc, g) => acc + g, 0) / base.length;
+  const variance = base.reduce((acc, g) => acc + (g - mean) ** 2, 0) / base.length;
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+  const confidence: CadenceObservee['confidence'] =
+    sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
+  return { jours, semaines: Math.max(2, Math.round(jours / 7)), sample, confidence };
+}
+
+/* ══ LE RYTHME DE LA REPRISE — la main d'abord, l'observée sinon ═════
+   La reprise à la clôture n'exige plus un rythme saisi : posé à la main il
+   COMMANDE ; absent, la cadence observée prend le relais — jamais pour une
+   tête de passage ni une diaspora sans rythme posé, leur intervalle mesure
+   des billets d'avion, pas un rythme. */
+export function rythmeDeReprise(
+  cliente: Client,
+  appts: readonly Appointment[],
+): { semaines: number; observe: boolean } | null {
+  if (cliente.rythmeSemaines) return { semaines: cliente.rythmeSemaines, observe: false };
+  if (estDePassage(cliente) || estDiaspora(cliente)) return null;
+  const obs = cadenceObservee(appts, cliente.id);
+  return obs ? { semaines: obs.semaines, observe: true } : null;
+}
+
 export function predictNextVisit(appts: Appointment[], clients: Client[], clientId: string, today: string): Cadence {
   const none: Cadence = { iso: null, predicted: false, avgDays: null, confidence: null, overdueDays: 0, sample: 0, template: null };
   const mine = appts.filter((a) => a.clientId === clientId);
@@ -496,19 +547,10 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
   // Cadence de revisite : une série multi-séances compte pour une seule visite.
   const visits = honored.filter((a) => !(a.seriesIndex && a.seriesIndex > 1));
 
-  if (visits.length >= 2) {
-    const gaps: number[] = [];
-    for (let i = 1; i < visits.length; i++) gaps.push(daysBetween(visits[i - 1].date, visits[i].date));
-    const use = gaps.filter((g) => g > 0);
-    const sample = use.length || gaps.length;
-    const med = Math.max(14, medianInt(use.length ? use : gaps));
-    // Confiance : régularité (écart-type / moyenne) pondérée par le nombre d'intervalles.
-    const base = use.length ? use : gaps;
-    const mean = base.reduce((s, g) => s + g, 0) / base.length;
-    const variance = base.reduce((s, g) => s + (g - mean) ** 2, 0) / base.length;
-    const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
-    const confidence: Cadence['confidence'] =
-      sample >= 3 && cv < 0.35 ? 'haute' : sample >= 2 && cv < 0.6 ? 'moyenne' : 'faible';
+  const obs = cadenceObservee(mine, clientId);
+  if (visits.length >= 2 && obs) {
+    /* LE MÊME JUGE QUE LA FICHE ET LA REPRISE — voir cadenceObservee. */
+    const { jours: med, sample, confidence } = obs;
     /* L'échéance MANQUÉE reste la mesure du retard ; la date proposée, elle,
        rejoue le cycle, se pose sur SON jour, puis sur un jour ouvert. */
     const echeance = addDaysISO(visits[visits.length - 1].date, med);

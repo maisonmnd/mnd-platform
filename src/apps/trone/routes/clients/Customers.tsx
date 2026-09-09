@@ -4,7 +4,7 @@ import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { useBranch } from '../../../../shared/branches';
-import { RYTHMES_ABO, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
+import { RYTHMES_ABO, cadenceObservee, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
@@ -1968,6 +1968,12 @@ function Customer360({
      dégage : un champ vide et muet est pire qu'une valeur sans sa raison,
      on ne sait pas si le Trône n'a pas cherché ou s'il attend autre chose. */
   const lectureDuJour = useMemo(() => litSonJour(appts, client.id), [appts, client.id]);
+  /* ══ SA CADENCE SE LIT TOUTE SEULE — 9 septembre 2026 ══════════════
+     « Tout comme les jours favoris » (Yéman) : l'observée vient du même juge
+     que la reprise et la prédiction ; un rythme posé à la main garde le
+     dernier mot. */
+  const cadenceObs = useMemo(() => cadenceObservee(appts, client.id), [appts, client.id]);
+  const repriseActive = !client.sansRepriseAuto && (!!client.rythmeSemaines || !!cadenceObs);
   const jourFavori = lectureDuJour.favori;
 
   /* L'ÉCRITURE NE SE FAIT PLUS ICI — 6 septembre 2026. « Remettre à jour
@@ -2970,13 +2976,15 @@ function Customer360({
           </div>
           <div className="trc-bande__c">
             <u>Cadence</u>
-            <span className={`trc-bande__v ${client.rythmeSemaines ? '' : 'is-vide'}`}>
-              {client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : '—'}
+            <span className={`trc-bande__v ${client.rythmeSemaines || cadenceObs ? '' : 'is-vide'}`}>
+              {client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : cadenceObs ? `≈ ${cadenceObs.semaines} sem.` : '—'}
             </span>
             <span className="trc-bande__s">
-              {client.rythmeSemaines
-                ? (client.repriseAuto ? 'reprise à la clôture' : 'sans reprise auto')
-                : 'non posée'}
+              {repriseActive
+                ? (client.rythmeSemaines ? 'reprise à la clôture' : 'observée · reprise à la clôture')
+                : client.sansRepriseAuto
+                  ? 'reprise coupée'
+                  : 'en observation'}
             </span>
           </div>
           <div className="trc-bande__c">
@@ -3278,9 +3286,9 @@ function Customer360({
           </div>
           {panEdite !== 'decide' && (
             <>
-              <div className="trc-v"><u>Cadence</u><span className={`is-fort ${client.rythmeSemaines ? '' : 'is-vide'}`}>{client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : '—'}</span></div>
-              <div className="trc-v"><u>Reprise</u><span className={client.repriseAuto ? '' : 'is-vide'}>{client.repriseAuto ? 'à la clôture' : 'à la main'}</span></div>
-              <div className="trc-v"><u>{sesJours.length > 1 ? 'Ses jours' : 'Son jour'}</u>
+              <div className="trc-v"><u>Cadence</u><span className={`is-fort ${client.rythmeSemaines || cadenceObs ? '' : 'is-vide'}`}>{client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : cadenceObs ? `≈ ${cadenceObs.semaines} sem. · observée` : 'en observation'}</span></div>
+              <div className="trc-v"><u>Reprise</u><span className={repriseActive ? '' : 'is-vide'}>{repriseActive ? 'à la clôture' : client.sansRepriseAuto ? 'coupée à la main' : 'dès que la cadence se lira'}</span></div>
+              <div className="trc-v"><u>{sesJours.length > 1 ? 'Ses jours favoris' : 'Son jour favori'}</u>
                 <span className={sesJours.length === 0 ? 'is-vide' : ''}>
                   {sesJours.length === 0
                     ? 'tous'
@@ -3316,7 +3324,7 @@ function Customer360({
           <span className="trc-microlabel">Ce que la Maison a décidé pour elle</span>
           <div className="trc-crown">
             <div className="trc-crown__grid">
-              <Field label="Ses jours · commandent la prédiction">
+              <Field label="Ses jours favoris · commandent la prédiction">
                 {/* SEPT PASTILLES, DEUX AU PLUS — 6 septembre 2026.
                     « Si elle a fait 4 fois le mardi et 4 fois le mercredi,
                     sélectionne les deux : la cadence peut proposer l'un ou
@@ -3365,16 +3373,20 @@ function Customer360({
                   </div>
                 )}
               </Field>
-              {/* ══ SA CADENCE, ET LA REPRISE À LA CLÔTURE — 3 sept. 2026 ═══
-                  « Lorsque je finis un RDV, est-ce que le RDV suivant selon la
-                  programmation 4, 6, 8 ou 10 semaines, une fois coché, peut
-                  automatiquement poser le RDV suivant ? » (Yéman).
-
-                  LE RYTHME SEUL NE FAIT RIEN : il informe. C'est la case qui
-                  arme le geste. Les séparer laisse noter la cadence d'une tête
-                  sans lui poser des rendez-vous dans le dos, ce qui est le cas
-                  le plus fréquent. */}
+              {/* ══ SA CADENCE SE LIT, LA REPRISE EST LE DÉFAUT — 9 sept. ═══
+                  « Que la cadence ne se remplisse plus à la main, mais
+                  automatiquement selon le calcul des derniers rendez-vous ;
+                  et que ça reprogramme automatiquement le prochain
+                  rendez-vous » (Yéman). L'observée vient du juge
+                  cadenceObservee — celui de la prédiction et de la reprise.
+                  Poser un rythme à la main reste possible et GARDE LE DERNIER
+                  MOT ; la case ci-dessous COUPE la reprise, tête par tête. */}
               <Field label="Sa cadence · la reprise">
+                <div className="mnd-muted" style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.55 }}>
+                  {cadenceObs
+                    ? <>Observée sur ses venues : <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>≈ {cadenceObs.semaines} semaines</b> ({cadenceLabel(cadenceObs.jours)}, {cadenceObs.sample} intervalle{cadenceObs.sample > 1 ? 's' : ''}, confiance {cadenceObs.confidence}).</>
+                    : <>Pas encore de cadence observée : il faut au moins deux venues honorées.</>}
+                </div>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                   {RYTHMES_ABO.map((sem) => (
                     <button
@@ -3386,20 +3398,24 @@ function Customer360({
                     </button>
                   ))}
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10, cursor: client.rythmeSemaines ? 'pointer' : 'default', opacity: client.rythmeSemaines ? 1 : 0.5 }}>
+                <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5 }}>
+                  Un rythme posé à la main remplace l’observée ; le décocher la laisse reprendre la main.
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={!!client.repriseAuto}
-                    disabled={!client.rythmeSemaines}
-                    onChange={(e) => patch({ repriseAuto: e.target.checked || undefined })}
+                    checked={!client.sansRepriseAuto}
+                    onChange={(e) => patch({ sansRepriseAuto: e.target.checked ? undefined : true })}
                     style={{ accentColor: 'var(--color-copper)' }}
                   />
                   <span style={{ fontSize: 12.5 }}>Poser la reprise dès qu’un rituel est honoré</span>
                 </label>
                 <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
-                  {client.rythmeSemaines
-                    ? <>Le prochain rendez-vous se posera <b>{client.rythmeSemaines} semaines</b> après le rituel, sur son jour et sur une porte ouverte. Rien ne se pose si elle en a déjà un à venir.</>
-                    : <>Choisissez d’abord un rythme. Sans lui, la Maison ne saurait pas quand l’attendre.</>}
+                  {client.sansRepriseAuto
+                    ? <>Coupée pour elle : la Maison n’écrira aucun rendez-vous à sa place.</>
+                    : (client.rythmeSemaines || cadenceObs)
+                      ? <>Le prochain rendez-vous se posera <b>{client.rythmeSemaines ?? cadenceObs!.semaines} semaines</b> après le rituel honoré, sur son jour favori et une porte ouverte. Rien ne se pose si elle en a déjà un à venir.</>
+                      : <>Elle s’armera toute seule dès que deux venues honorées donneront une cadence. Jamais pour une tête de passage ni une diaspora sans rythme posé.</>}
                 </div>
               </Field>
               <Field label="Produit recommandé · son Carnet de Suivi">

@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
-import { dateDeLaReprise, RYTHMES_ABO } from '../../../../shared/cadence';
+import { dateDeLaReprise, RYTHMES_ABO, rythmeDeReprise } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
 import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
@@ -67,9 +67,12 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
     automatiquement poser le RDV suivant ? » (Yéman).
 
     QUATRE GARDES, ET CHACUN A SA RAISON :
-    · la tête doit l'avoir DEMANDÉ (`repriseAuto`) et porter un rythme. Poser
-      des rendez-vous dans le dos d'une cliente qui n'a rien demandé remplirait
-      l'agenda de fauteuils qu'elle ne viendra pas prendre.
+    · une cadence doit SE LIRE — posée à la main, ou OBSERVÉE sur au moins
+      deux venues (jamais passage ni diaspora sans rythme posé) — et la fiche
+      ne doit pas avoir COUPÉ la reprise (`sansRepriseAuto`). Depuis le
+      9 septembre, le oui est le défaut : « que ça reprogramme
+      automatiquement le prochain rendez-vous » (Yéman) — c'est le refus qui
+      se coche, tête par tête.
     · elle ne doit AVOIR AUCUN RENDEZ-VOUS À VENIR. Sinon marquer honoré un
       rituel de la semaine dernière lui en poserait un second, et l'agenda
       compterait deux fois la même tête.
@@ -84,13 +87,15 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
 export function poseLaReprise(appt: Appointment): Appointment | null {
   if (!appt.clientId || appt.serviceIds.length === 0) return null;
   const cliente = clientsStore.get().find((c) => c.id === appt.clientId);
-  if (!cliente?.repriseAuto || !cliente.rythmeSemaines) return null;
+  if (!cliente || cliente.sansRepriseAuto) return null;
   const tous = appointmentsStore.get();
+  const rythme = rythmeDeReprise(cliente, tous);
+  if (!rythme) return null;
   if (tous.some((a) => a.repriseDe === appt.id)) return null;
   const aVenir = tous.some((a) => a.clientId === appt.clientId
     && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
   if (aVenir) return null;
-  const date = dateDeLaReprise(appt.date, cliente.rythmeSemaines, joursDeLaTete(cliente));
+  const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
     ...appt,
     id: `ap-${uid()}`,
@@ -114,7 +119,9 @@ export function poseLaReprise(appt: Appointment): Appointment | null {
     seriesId: undefined,
     seriesIndex: undefined,
     seriesTotal: undefined,
-    note: `Reprise posée à la clôture · toutes les ${cliente.rythmeSemaines} semaines`,
+    note: rythme.observe
+      ? `Reprise posée à la clôture · cadence observée ≈ ${rythme.semaines} semaines`
+      : `Reprise posée à la clôture · toutes les ${rythme.semaines} semaines`,
   } as Appointment;
   appointmentsStore.set((prev) => [...prev, estampilleLaPose(suivant)]);
   return suivant;

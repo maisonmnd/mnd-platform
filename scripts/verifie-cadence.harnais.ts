@@ -4,7 +4,7 @@
    Deux règles posées le 16 août, sur deux anomalies vues par Yéman :
      ① une estimation ne reste jamais dans le passé — le cycle se rejoue ;
      ② aucune estimation un lundi ni un dimanche — la Maison est fermée. */
-import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO, jourFavoriDe, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../src/shared/cadence';
+import { predictNextVisit, tauxDeRealisation, proposeLaCadence, decaleLaSuite, dateDeLaReprise, RYTHMES_ABO, jourFavoriDe, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour, cadenceObservee, rythmeDeReprise } from '../src/shared/cadence';
 import { settingsStore } from '../src/shared/settings';
 import type { Appointment } from '../src/shared/agenda';
 import type { Client } from '../src/shared/clients';
@@ -475,6 +475,41 @@ dit('… quel que soit l’ordre de la liste', '2026-11-03',
 /* UN SEUL JOUR CONTINUE DE MARCHER, en nombre comme en liste. */
 dit('un jour seul, en nombre', '2026-11-04', dateDeLaReprise('2026-09-07', 8, 3));
 dit('… ou en liste d’un', '2026-11-04', dateDeLaReprise('2026-09-07', 8, [3]));
+
+/* ── LA CADENCE OBSERVÉE ET LE RYTHME DE LA REPRISE (9 septembre) ──
+   « Que la cadence ne se remplisse plus à la main » : le juge qui la lit,
+   et celui qui décide du rythme de la reprise — la main d'abord, l'observée
+   sinon, jamais pour une tête de passage sans rythme posé. */
+const venue = (date: string, seriesIndex?: number) =>
+  ({ clientId: 'obs1', status: 'honoré', date, seriesIndex } as unknown as Appointment);
+
+dit('une seule venue : rien à observer', null, cadenceObservee([venue('2026-06-01')], 'obs1'));
+const troisVenues = [venue('2026-06-01'), venue('2026-07-06'), venue('2026-08-08')]; // 35 j puis 33 j
+const obsTrois = cadenceObservee(troisVenues, 'obs1');
+dit('deux intervalles réguliers : la médiane en jours', 34, obsTrois?.jours);
+dit('… dite en semaines, arrondie', 5, obsTrois?.semaines);
+dit('… confiance moyenne à deux intervalles', 'moyenne', obsTrois?.confidence);
+/* Une série multi-séances compte pour UNE visite : la 2e séance ne crée pas
+   un faux intervalle d'une semaine. */
+const avecSerie = [venue('2026-06-01'), venue('2026-06-08', 2), venue('2026-07-06')];
+dit('la 2e séance d’une série ne compte pas', 35, cadenceObservee(avecSerie, 'obs1')?.jours);
+/* Le plancher : venir chaque semaine ne fait pas une cadence de 7 jours. */
+const serrees = [venue('2026-06-01'), venue('2026-06-08'), venue('2026-06-15')];
+dit('jamais moins de 14 jours', 14, cadenceObservee(serrees, 'obs1')?.jours);
+dit('… soit 2 semaines au moins', 2, cadenceObservee(serrees, 'obs1')?.semaines);
+
+const teteLibre = { id: 'obs1' } as unknown as Client;
+const teteManuel = { id: 'obs1', rythmeSemaines: 6 } as unknown as Client;
+const tetePassage = { id: 'obs1', dePassage: true } as unknown as Client;
+dit('la main commande quand elle a posé un rythme', { semaines: 6, observe: false },
+  rythmeDeReprise(teteManuel, troisVenues));
+dit('sans rythme posé, l’observée prend le relais', { semaines: 5, observe: true },
+  rythmeDeReprise(teteLibre, troisVenues));
+dit('une tête de passage sans rythme : jamais', null, rythmeDeReprise(tetePassage, troisVenues));
+dit('… mais un rythme posé à la main commande, même pour elle',
+  { semaines: 6, observe: false },
+  rythmeDeReprise({ id: 'obs1', dePassage: true, rythmeSemaines: 6 } as unknown as Client, troisVenues));
+dit('sans historique ni rythme : rien à reprendre', null, rythmeDeReprise(teteLibre, [venue('2026-06-01')]));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

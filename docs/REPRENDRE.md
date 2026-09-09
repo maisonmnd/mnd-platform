@@ -61,6 +61,37 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA CADENCE SE LIT TOUTE SEULE, LA REPRISE EST LE DÉFAUT — 9 septembre 2026, PUBLIÉ
+
+Trois demandes de Yéman sur la fiche cliente : « Ses jours » devient « Ses
+jours favoris » ; la cadence « ne se remplit plus à la main mais
+automatiquement selon le calcul des derniers rendez-vous, sur chaque fiche,
+tout comme les jours favoris » ; et « que ça reprogramme automatiquement le
+prochain rendez-vous » à la clôture.
+
+**UN SEUL JUGE** : `cadenceObservee(appts, clientId)` extrait de
+predictNextVisit (qui le relit désormais — zéro divergence possible) :
+visites honorées, séries multi-séances = UNE visite, médiane des intervalles,
+plancher 14 jours, `semaines` arrondies (≥ 2), confiance. La fiche l'affiche
+(« ≈ 5 sem. · observée ») dans la bande ET le panneau « La Maison décide » ;
+un rythme posé à la main GARDE LE DERNIER MOT (les pastilles 4-10 semaines
+restent).
+
+**LA REPRISE À LA CLÔTURE S'EST INVERSÉE** : elle n'exige plus ni
+`repriseAuto` ni rythme saisi. `rythmeDeReprise(cliente, appts)` : la main
+d'abord, l'observée sinon — jamais passage/diaspora sans rythme posé (leur
+intervalle mesure des billets d'avion). Nouveau champ `sansRepriseAuto`
+(interrupteur INVERSE, coché = coupée) ; `repriseAuto` n'est plus lu nulle
+part. Les gardes de poseLaReprise tiennent : aucun RDV à venir, jamais deux
+fois (repriseDe), date comptée depuis le rituel, jour favori + porte ouverte.
+La note dit sa source : « cadence observée ≈ N semaines » vs « toutes les N
+semaines ». À SAVOIR : chaque clôture d'une tête à cadence lisible pose
+désormais un RDV — et confirmation-rdv le confirmera à la cliente en push
+(WhatsApp quand Meta ouvrira). C'est le comportement demandé.
+
+Harnais verifie-cadence : +11 épreuves (médiane, arrondi, plancher, série,
+main d'abord, passage jamais sans rythme).
+
 ## LE MAGASIN — la refonte Stock & Achats — 8 septembre 2026, PUBLIÉ
 
 « C'est comme une feuille blanche où on fait des + et des −, refais-moi
