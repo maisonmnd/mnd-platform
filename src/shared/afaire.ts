@@ -332,3 +332,37 @@ export function leTravail(o: {
 
   return { jauges, gestes: gestes.sort((a, b) => b.combien - a.combien), horsFauteuil };
 }
+
+
+/* ══ LES RELANCES DE REPRISE, À J-3 — 9 septembre 2026 ═══════════════
+   « Une alerte qui me rappelle que je dois relancer quelqu'un, 72 heures
+   avant ce rendez-vous — je ne peux pas aller regarder le nom de chacun
+   tous les jours » (Yéman). Un rendez-vous POSÉ PAR LA CADENCE (repriseDe)
+   n'a jamais été choisi de vive voix : trois jours avant, la Maison écrit
+   pour vérifier que le créneau tient. Une relance faite sort de la liste ;
+   un rendez-vous passé, annulé ou honoré aussi. L'horizon se passe en date,
+   pas en durée : le juge reste sans horloge, et le harnais le tient. */
+export type RdvARelancer = {
+  id: string;
+  clientId: string;
+  date: string;
+  time?: string;
+  status?: string;
+  repriseDe?: string;
+  relanceFaite?: boolean;
+};
+
+export const HORIZON_RELANCE_JOURS = 3;
+
+export function relancesAReprendre<T extends RdvARelancer>(
+  appts: readonly T[],
+  aujourdhuiIso: string,
+  horizonIso: string,
+): T[] {
+  return appts
+    .filter((a) => !!a.repriseDe
+      && a.status !== 'annulé' && a.status !== 'honoré'
+      && !a.relanceFaite
+      && a.date >= aujourdhuiIso && a.date <= horizonIso)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''));
+}

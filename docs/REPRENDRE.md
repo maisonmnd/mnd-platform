@@ -61,6 +61,26 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES RELANCES DE REPRISE, À J-3 — 9 septembre 2026, PUBLIÉ
+
+« Une alerte qui me rappelle que je dois relancer quelqu'un, 72 heures avant
+ce rendez-vous — je ne peux pas aller regarder le nom de chacun tous les
+jours. Un bilan, un résumé, des choses à faire » (Yéman).
+
+LE JUGE : `relancesAReprendre(appts, aujourdhui, horizon)` dans
+shared/afaire (sous verifie-afaire) — seuls les rendez-vous POSÉS PAR LA
+CADENCE (`repriseDe`), à venir dans la fenêtre de 3 jours, ni annulés ni
+honorés ni déjà relancés, triés date puis heure. L'horizon se passe en date :
+le juge reste sans horloge.
+
+LA LISTE vit EN TÊTE D'« À FAIRE » : une ligne par tête (nom, jour, heure,
+la cadence qui l'a posée), un bouton WhatsApp pré-écrit
+(`texteDeLaRelance` dans shared/rappel, sous harnais : on VÉRIFIE que le
+créneau tient, on propose de déplacer — jamais « petit rappel » pour une date
+qu'elle n'a pas choisie), et « Relancée » qui marque `relanceFaite` sur le
+rendez-vous et sort la ligne. LA TUILE du tableau de bord (« N reprises à
+relancer ») mène à cette liste, du même juge — la règle des tuiles exactes.
+
 ## LA CADENCE SE LIT TOUTE SEULE, LA REPRISE EST LE DÉFAUT — 9 septembre 2026, PUBLIÉ
 
 Trois demandes de Yéman sur la fiche cliente : « Ses jours » devient « Ses

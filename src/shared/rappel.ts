@@ -121,3 +121,27 @@ export function texteDuRappel(o: {
   ].filter(Boolean);
   return `${blocs.join('\n\n')}\n\n${houseSignature(o.picto)}`;
 }
+
+
+/* ══ LA RELANCE D'UNE REPRISE, À J-3 — 9 septembre 2026 ══════════════
+   Le rendez-vous a été posé par la cadence, pas choisi de vive voix : on ne
+   rappelle pas, on VÉRIFIE que le créneau tient, et l'on propose de le
+   déplacer plutôt que de le faire subir. */
+export function texteDeLaRelance(o: {
+  prenom: string;
+  jourIso: string;
+  heure: string;
+  aujourdhuiIso: string;
+  maison: string;
+  picto?: string;
+}): string {
+  const h = heureLisible(o.heure);
+  const blocs = [
+    `Bonjour ${o.prenom},`,
+    `Petit mot de ${deLaMaison(o.maison)} : selon votre rythme habituel, votre `
+    + `prochain rendez-vous est prévu le ${jourLisible(o.jourIso, o.aujourdhuiIso)}`
+    + `${h ? ` à ${h}` : ''}.`,
+    'Dites-nous si le créneau vous convient toujours, sinon nous le déplacerons avec vous.',
+  ];
+  return `${blocs.join('\n\n')}\n\n${houseSignature(o.picto)}`;
+}

@@ -24,6 +24,7 @@ import {
   DrillModal, revenuDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { useBilans, seancesSansBilan } from '../../../../shared/bilans';
+import { relancesAReprendre } from '../../../../shared/afaire';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
 import { createStore, useStore } from '../../../../shared/store';
@@ -313,6 +314,12 @@ export default function Dashboard() {
   /* LE JUGE EST PARTAGÉ avec le carnet (`seancesSansBilan`) : le bouton mène
      aux têtes de ces séances-là, et le carnet redit le même nombre. */
   const bilansARemettre = useMemo(() => seancesSansBilan(appts, bilans, today).length, [appts, bilans, today]);
+  /* LE MÊME JUGE QU'À FAIRE (`relancesAReprendre`) : la tuile mène à la même
+     liste, en tête de page. */
+  const reprisesARelancer = useMemo(
+    () => relancesAReprendre(appts, today, addDaysISO(today, 3)).length,
+    [appts, today],
+  );
 
   /* LES COMPOSITIONS SUR-MESURE (12 août). Le pont `mnd_couronne_compose` ne
      porte que la DERNIÈRE composition transmise — et AVANT ce jour, personne
@@ -474,6 +481,14 @@ export default function Dashboard() {
       /* EXACTEMENT CELLES-LÀ : le carnet s'ouvre sur les têtes de ces séances,
          par le focus « bilans », qui lit le même juge. */
       action: 'Voir', go: () => navigate('/customers?focus=bilans'),
+    }] : []),
+    ...(reprisesARelancer > 0 ? [{
+      k: 'relances-j3',
+      label: `${reprisesARelancer} reprise${reprisesARelancer > 1 ? 's' : ''} à relancer`,
+      sub: 'posées par la cadence, dans les 3 jours',
+      /* EXACTEMENT CELLES-LÀ : À faire ouvre la même liste, du même juge,
+         en tête de page, avec le WhatsApp prêt. */
+      action: 'Voir', go: () => navigate('/a-faire'),
     }] : []),
     ...(unpaid.overdue.rows.length > 0 ? [{
       k: 'impayes',

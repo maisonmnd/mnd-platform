@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageHead } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { clientsStore, useClients, type Client } from '../../../../shared/clients';
@@ -8,11 +8,13 @@ import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
 import { useProduitsStock } from '../../../../shared/stock';
 import {
-  leTravail, tetesDuGeste, motPourDemander, SE_DEMANDE, type CleGeste,
+  leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, SE_DEMANDE, type CleGeste,
 } from '../../../../shared/afaire';
-import { signeLeMessage } from '../../../../shared/identite';
+import { signeLeMessage, maisonNom } from '../../../../shared/identite';
+import { texteDeLaRelance } from '../../../../shared/rappel';
+import { appointmentsStore } from '../../../../shared/agenda';
 
-import { apptDueXof, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
+import { addDaysISO, apptDueXof, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
@@ -114,6 +116,13 @@ export default function AFaire() {
     branchId: branch.id, cle: ouvert, tetes: clients, rituels: appts, bilans, prochaineDe,
   })), [ouvert, branch.id, clients, appts, bilans, prochaineDe]);
 
+  /* Les reprises des trois prochains jours, du juge partagé. */
+  const aRelancer = useMemo(() => {
+    const auj = todayISO();
+    return relancesAReprendre(appts, auj, addDaysISO(auj, 3));
+  }, [appts]);
+  const clientDe = (id: string) => clients.find((c) => c.id === id);
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -123,6 +132,56 @@ export default function AFaire() {
           ? 'Tout est tenu. Chaque case qui ouvre quelque chose est remplie.'
           : 'Ce qui manque, et ce que ça ouvre. Rangé par ce qui touche le plus de têtes.'}
       />
+
+      {/* ══ LES RELANCES DE REPRISE, J-3 — 9 septembre 2026 ═══════════
+          « Une alerte qui me rappelle que je dois relancer quelqu'un, 72 h
+          avant — je ne peux pas regarder le nom de chacun tous les jours »
+          (Yéman). Les rendez-vous POSÉS PAR LA CADENCE des trois prochains
+          jours, chacun avec son WhatsApp prêt ; « Relancée » sort la ligne,
+          et une liste vide ne montre rien. */}
+      {aRelancer.length > 0 && (
+        <section id="relances" className="trp-relances">
+          <div className="trp-relances__t">
+            Reprises à relancer · {aRelancer.length}
+            <span>posées par la cadence, dans les 3 jours · un mot avant que la date ne la surprenne</span>
+          </div>
+          {aRelancer.map((a) => {
+            const c = clientDe(a.clientId);
+            const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
+            return (
+              <div key={a.id} className="trp-relance">
+                <span className="trp-relance__qui">
+                  <b>{c?.name ?? 'Fiche retirée'}</b>
+                  <small>
+                    {frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''}
+                    {a.note ? ` · ${a.note.replace('Reprise posée à la clôture · ', '')}` : ''}
+                  </small>
+                </span>
+                <span className="trp-relance__gestes">
+                  <WaLien
+                    phone={c?.phone}
+                    message={texteDeLaRelance({
+                      prenom, jourIso: a.date, heure: a.time ?? '',
+                      aujourdhuiIso: todayISO(), maison: maisonNom(),
+                    })}
+                  >
+                    <span className="trp-btn trp-btn--copper">WhatsApp</span>
+                  </WaLien>
+                  <button
+                    type="button" className="trp-btn"
+                    onClick={() => {
+                      appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, relanceFaite: true } : x)));
+                      toast('Relance notée, la ligne sort de la liste.');
+                    }}
+                  >
+                    Relancée
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       {/* SIX JAUGES, QUE DES CHIFFRES. Elles ne se lisent pas, elles se
           regardent : c'est la couleur qui dit où est la tension. */}

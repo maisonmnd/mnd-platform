@@ -222,6 +222,9 @@ export type Appointment = {
       de plus. Il dit aussi, sur la fiche, d'où vient ce rendez-vous que
       personne ne se souvient d'avoir pris. */
   repriseDe?: string;
+  /** LA RELANCE J-3 EST FAITE — posée d'un geste depuis À faire, elle sort
+      la ligne de la liste des reprises à relancer. */
+  relanceFaite?: boolean;
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)
