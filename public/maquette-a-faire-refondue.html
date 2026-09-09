@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>&Agrave; faire, refondu &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --ambre: #9A6B1F; --ambre-f: #FCF5E6;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1080px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,58px); line-height:1.04; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,30px); color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 30px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:640px){ .ecran__corps { padding:13px; } }
+
+  /* ── ① L'en-tête de la page refondue ─────────────────────────── */
+  .af-head { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px; }
+  .af-head h5 { font-family:var(--serif); font-weight:300; font-size:34px; color:var(--indigo); margin:0; line-height:1; }
+  .af-head p { margin:4px 0 0; font-size:12.5px; color:var(--encre-d); }
+  .af-score { display:flex; gap:10px; flex-wrap:wrap; }
+  .af-pill { border:1px solid var(--filet); border-radius:99px; background:#fff; padding:7px 16px; font-size:12px; color:var(--encre-d); }
+  .af-pill b { font-family:var(--serif); font-size:17px; color:var(--indigo); font-weight:500; margin-right:4px; }
+  .af-pill--feu { border-color:var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre); }
+  .af-pill--feu b { color:var(--cuivre); }
+
+  /* ── ② Le mois retenu — l'agenda du travail ───────────────────── */
+  .af-bloc { border:1px solid var(--filet); border-radius:4px; background:#fff; margin-top:14px; overflow:hidden; }
+  .af-bloc__t { display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap;
+                padding:12px 16px; border-bottom:1px solid var(--sable); }
+  .af-bloc__t b { font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); }
+  .af-bloc__t span { font-size:11px; color:var(--encre-d); }
+  .af-groupe { padding:10px 16px 4px; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre); font-weight:600; }
+  .af-groupe--calme { color:var(--encre-d); font-weight:500; }
+  .af-rdv { display:grid; grid-template-columns:56px 1fr auto; gap:12px; align-items:center;
+            padding:10px 16px; border-top:1px solid var(--sable); }
+  .af-rdv--feu { background:var(--cuivre-f); border-left:3px solid var(--cuivre); padding-left:13px; }
+  .af-rdv--loin { opacity:.78; }
+  .af-jour { text-align:center; border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:4px 2px; line-height:1.15; }
+  .af-rdv--feu .af-jour { border-color:var(--cuivre-p); background:#fff; }
+  .af-jour u { display:block; text-decoration:none; font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+  .af-jour b { font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); }
+  .af-qui b { display:block; font-family:var(--serif); font-weight:600; font-size:16.5px; color:var(--indigo); }
+  .af-qui small { font-size:11px; color:var(--encre-d); }
+  .af-tag { display:inline-block; border-radius:3px; padding:1px 7px; font-size:9.5px; letter-spacing:.07em;
+            text-transform:uppercase; background:var(--indigo-pale); color:var(--indigo-2); margin-left:6px; vertical-align:1px; }
+  .af-tag--cad { background:var(--cuivre-f); color:var(--cuivre); border:1px solid var(--cuivre-p); }
+  .af-actes { display:inline-flex; gap:8px; align-items:center; }
+  .af-btn { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:7px 14px;
+            font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre); }
+  .af-btn--copper { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .af-des { font-size:10.5px; color:var(--encre-d); white-space:nowrap; }
+  .af-fait { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--vert); }
+  .af-pied { padding:10px 16px; border-top:1px solid var(--sable); font-size:11.5px; color:var(--encre-d); background:var(--ivoire); }
+
+  /* ── ③ Le travail, en cartes ──────────────────────────────────── */
+  .af-gestes { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+  @media (max-width:760px){ .af-gestes { grid-template-columns:1fr; } }
+  .af-geste { border:1px solid var(--filet); border-left:3px solid var(--brique-p); border-radius:4px;
+              background:#fff; padding:14px 16px; display:grid; grid-template-columns:auto 1fr auto; gap:4px 14px; align-items:center; }
+  .af-geste--moyen { border-left-color:var(--cuivre-p); }
+  .af-geste__n { grid-row:span 2; font-family:var(--serif); font-weight:400; font-size:40px; line-height:1; color:var(--brique); min-width:56px; }
+  .af-geste--moyen .af-geste__n { color:var(--cuivre); }
+  .af-geste__q { font-size:13.5px; color:var(--encre); font-weight:500; align-self:end; }
+  .af-geste__d { grid-column:2; font-size:11.5px; color:var(--encre-d); align-self:start; }
+  .af-geste__b { grid-row:span 2; }
+  .af-tenus { margin-top:12px; border:1px dashed var(--vert-p); border-radius:4px; background:var(--vert-f);
+              padding:9px 14px; font-size:12px; color:var(--vert); }
+
+  /* ── ④ La liste ouverte, rangée en colonnes ───────────────────── */
+  .af-liste { border:1px solid var(--filet); border-radius:4px; background:#fff; margin-top:10px; overflow:hidden; }
+  .af-liste__t { padding:10px 14px; border-bottom:1px solid var(--sable); font-size:11px; color:var(--encre-d); }
+  .af-tete { display:grid; grid-template-columns:34px 1fr auto auto; gap:12px; align-items:center; padding:9px 14px; border-top:1px solid var(--sable); }
+  .af-tete:first-of-type { border-top:none; }
+  .af-av { width:34px; height:34px; border-radius:50%; background:var(--indigo-pale); color:var(--indigo);
+           display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-size:14px; font-weight:500; }
+  .af-tete__n b { display:block; font-size:13.5px; color:var(--encre); font-weight:500; }
+  .af-tete__n small { font-size:10.5px; color:var(--encre-d); }
+  .af-tete__vient { font-size:11px; color:var(--cuivre); white-space:nowrap; }
+  .af-tete__vient.est-libre { color:var(--encre-d); }
+  .af-micro { display:inline-flex; gap:6px; }
+  .af-mbtn { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:4px 9px; font-size:9.5px;
+             letter-spacing:.08em; text-transform:uppercase; color:var(--encre-d); }
+  .af-mbtn--wa { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+
+  /* ── ⑤ La tenue, en pied ──────────────────────────────────────── */
+  .af-jauges { display:grid; grid-template-columns:repeat(6,1fr); border:1px solid var(--filet);
+               border-radius:4px; background:#fff; margin-top:14px; overflow:hidden; }
+  @media (max-width:760px){ .af-jauges { grid-template-columns:repeat(3,1fr); } }
+  .af-jauge { padding:11px 14px; border-left:1px solid var(--sable); }
+  .af-jauge:first-child { border-left:none; }
+  .af-jauge u { text-decoration:none; display:block; font-size:9px; letter-spacing:.13em; text-transform:uppercase; color:var(--encre-d); }
+  .af-jauge b { font-family:var(--serif); font-weight:500; font-size:22px; }
+  .af-jauge i { display:block; height:3px; border-radius:2px; background:var(--sable); margin-top:5px; }
+  .af-jauge i span { display:block; height:100%; border-radius:2px; }
+  .est-tenu b { color:var(--vert); } .est-tenu i span { background:var(--vert); }
+  .est-tiede b { color:var(--cuivre); } .est-tiede i span { background:var(--cuivre); }
+  .est-creux b { color:var(--brique); } .est-creux i span { background:var(--brique); }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Pilotage</p>
+  <h1>&Agrave; faire, refondu</h1>
+  <p class="chapeau">La page se lit de haut en bas comme une journ&eacute;e : <b>le mois retenu</b> d'abord
+     (l'agenda du travail, jamais muet), <b>les gestes</b> ensuite (ce qui manque, en cartes),
+     <b>la tenue des fiches</b> en pied. M&ecirc;mes juges, m&ecirc;mes donn&eacute;es &mdash; seulement mieux
+     rang&eacute;s, mieux hi&eacute;rarchis&eacute;s, plus vite lus.</p>
+
+  <section>
+    <p class="cite">Reconstruis la page &Agrave; faire avec l'UI et l'UX de meilleure qualit&eacute;.
+      <span>Y&eacute;man &middot; 9 septembre 2026</span></p>
+  </section>
+
+  <!-- ═══════════ L'ÉCRAN ENTIER ═══════════ -->
+  <section>
+    <h2><span class="num">&#9312;</span> La page enti&egrave;re</h2>
+    <p class="intro">Un en-t&ecirc;te qui donne les trois chiffres du jour, puis les trois strates.
+      Les nombres en pastilles sont cliquables et m&egrave;nent &agrave; leur strate.</p>
+
+    <div class="ecran">
+      <div class="ecran__tete"><h4>&Agrave; faire</h4><span>Pilotage &middot; le travail</span></div>
+      <div class="ecran__corps">
+
+        <div class="af-head">
+          <div>
+            <h5>Mardi 9 septembre.</h5>
+            <p>Ce qui presse, ce qui manque, ce qui est tenu &mdash; dans cet ordre.</p>
+          </div>
+          <div class="af-score">
+            <span class="af-pill af-pill--feu"><b>2</b> &agrave; relancer &middot; 3 jours</span>
+            <span class="af-pill"><b>7</b> retenues ce mois</span>
+            <span class="af-pill"><b>127</b> gestes restants</span>
+          </div>
+        </div>
+
+        <!-- ── Strate 1 · le mois retenu ── -->
+        <div class="af-bloc">
+          <div class="af-bloc__t">
+            <b>Le mois retenu</b>
+            <span>7 fauteuils &middot; 3 pos&eacute;s par la cadence &middot; &agrave; J-3 la ligne s'allume</span>
+          </div>
+
+          <div class="af-groupe">&Agrave; relancer &middot; dans les 3 jours</div>
+          <div class="af-rdv af-rdv--feu">
+            <span class="af-jour"><u>ven</u><b>11</b></span>
+            <span class="af-qui"><b>Ruth A.</b><span class="af-tag af-tag--cad">cadence &middot; &asymp; 9 sem</span><br>
+              <small>09:00 &middot; SÍNSIN&trade; &Eacute;labor&eacute;e</small></span>
+            <span class="af-actes"><span class="af-btn af-btn--copper">WhatsApp</span><span class="af-btn">Relanc&eacute;e</span></span>
+          </div>
+          <div class="af-rdv af-rdv--feu">
+            <span class="af-jour"><u>sam</u><b>12</b></span>
+            <span class="af-qui"><b>Christelle Z.</b><span class="af-tag">&agrave; la main</span><br>
+              <small>15:00 &middot; KL&#390;KL&#390;&trade; Essentiel</small></span>
+            <span class="af-actes"><span class="af-btn af-btn--copper">WhatsApp</span><span class="af-btn">Relanc&eacute;e</span></span>
+          </div>
+
+          <div class="af-groupe af-groupe--calme">Plus loin dans le mois</div>
+          <div class="af-rdv af-rdv--loin">
+            <span class="af-jour"><u>mar</u><b>15</b></span>
+            <span class="af-qui"><b>Suzanne D.</b><span class="af-tag">Ma Couronne</span><br><small>10:30</small></span>
+            <span class="af-actes"><span class="af-fait">Relanc&eacute;e</span></span>
+          </div>
+          <div class="af-rdv af-rdv--loin">
+            <span class="af-jour"><u>mer</u><b>24</b></span>
+            <span class="af-qui"><b>B. K.</b><span class="af-tag af-tag--cad">cadence &middot; &asymp; 5 sem</span><br><small>09:00</small></span>
+            <span class="af-actes"><span class="af-btn">WhatsApp</span><span class="af-des">relance d&egrave;s le 21 sept.</span></span>
+          </div>
+
+          <div class="af-pied">Au-del&agrave; du mois : 4 retenues d&eacute;j&agrave; pos&eacute;es, la plus proche le 3 octobre.
+            Un mois vide dirait &laquo;&nbsp;aucun fauteuil retenu &middot; le mois est &agrave; conqu&eacute;rir&nbsp;&raquo;.</div>
+        </div>
+
+        <!-- ── Strate 2 · les gestes ── -->
+        <div class="af-gestes">
+          <div class="af-geste">
+            <span class="af-geste__n">66</span>
+            <span class="af-geste__q">t&ecirc;tes sans comptage de locks</span>
+            <span class="af-btn af-geste__b">Voir la liste</span>
+            <span class="af-geste__d">le comptage ouvre le calibre et le juste prix</span>
+          </div>
+          <div class="af-geste af-geste--moyen">
+            <span class="af-geste__n">38</span>
+            <span class="af-geste__q">t&ecirc;tes sans e-mail</span>
+            <span class="af-btn af-geste__b">Voir la liste</span>
+            <span class="af-geste__d">l'e-mail ouvre les re&ccedil;us et le Carnet de Suivi</span>
+          </div>
+          <div class="af-geste af-geste--moyen">
+            <span class="af-geste__n">12</span>
+            <span class="af-geste__q">rituels sans mains d&eacute;sign&eacute;es</span>
+            <span class="af-btn af-geste__b">Le carnet</span>
+            <span class="af-geste__d">les mains ouvrent la production et la paie</span>
+          </div>
+          <div class="af-geste af-geste--moyen">
+            <span class="af-geste__n">5</span>
+            <span class="af-geste__q">fiches de stock sans prix d'achat</span>
+            <span class="af-btn af-geste__b">Le Magasin</span>
+            <span class="af-geste__d">le prix d'achat ouvre marge et co&ucirc;t mati&egrave;re</span>
+          </div>
+        </div>
+        <div class="af-tenus">Tenu : bilans remis &middot; longueurs mesur&eacute;es &middot; cadences lues &middot; soldes &agrave; jour.</div>
+
+        <!-- ── Strate 3 · la tenue ── -->
+        <div class="af-jauges">
+          <div class="af-jauge est-creux"><u>Locks</u><b>34 %</b><i><span style="width:34%"></span></i></div>
+          <div class="af-jauge est-tiede"><u>E-mails</u><b>61 %</b><i><span style="width:61%"></span></i></div>
+          <div class="af-jauge est-tiede"><u>M&egrave;ches</u><b>72 %</b><i><span style="width:72%"></span></i></div>
+          <div class="af-jauge est-tenu"><u>Bilans</u><b>93 %</b><i><span style="width:93%"></span></i></div>
+          <div class="af-jauge est-tenu"><u>Cadences</u><b>96 %</b><i><span style="width:96%"></span></i></div>
+          <div class="af-jauge est-tenu"><u>Longueurs</u><b>100 %</b><i><span style="width:100%"></span></i></div>
+        </div>
+
+      </div>
+    </div>
+    <p class="legende"><b>Ce qui change</b> &middot; l'en-t&ecirc;te date la page et donne trois pastilles-chiffres
+      cliquables &middot; les retenues sont group&eacute;es (&laquo;&nbsp;&agrave; relancer&nbsp;&raquo; puis
+      &laquo;&nbsp;plus loin&nbsp;&raquo;) avec un d&eacute; de jour lisible de loin &middot; les gestes deviennent des
+      CARTES deux colonnes, chiffre serif en majest&eacute;, ce que le geste OUVRE en sous-titre, et les gestes
+      tenus se replient en une ligne verte au lieu d'encombrer &middot; les jauges descendent en pied, plus
+      fines &mdash; c'est un pouls, pas un tableau.</p>
+  </section>
+
+  <!-- ═══════════ LA LISTE OUVERTE ═══════════ -->
+  <section>
+    <h2><span class="num">&#9313;</span> La liste ouverte d'un geste</h2>
+    <p class="intro">&laquo;&nbsp;Voir la liste&nbsp;&raquo; d&eacute;plie les t&ecirc;tes SOUS la carte, rang&eacute;es en
+      vraies colonnes : initiales, nom, sa prochaine venue (l'alerte), et les gestes &agrave; droite.
+      Les marques (Diaspora, Sans locks, De passage) restent l&agrave;, en boutons discrets.</p>
+    <div class="ecran"><div class="ecran__corps" style="padding:14px">
+      <div class="af-liste" style="margin-top:0">
+        <div class="af-liste__t">66 t&ecirc;tes &middot; celles qui viennent d'abord</div>
+        <div class="af-tete">
+          <span class="af-av">RA</span>
+          <span class="af-tete__n"><b>Ruth A.</b><small>La Souveraine</small></span>
+          <span class="af-tete__vient">vient le ven. 11 sept.</span>
+          <span class="af-micro"><span class="af-mbtn af-mbtn--wa">WhatsApp</span><span class="af-mbtn">Sa fiche</span></span>
+        </div>
+        <div class="af-tete">
+          <span class="af-av">JK</span>
+          <span class="af-tete__n"><b>Jocelyne K.</b><small>La Constante</small></span>
+          <span class="af-tete__vient est-libre">aucune venue pr&eacute;vue</span>
+          <span class="af-micro"><span class="af-mbtn af-mbtn--wa">WhatsApp</span><span class="af-mbtn">Diaspora</span><span class="af-mbtn">Sans locks</span><span class="af-mbtn">Sa fiche</span></span>
+        </div>
+        <div class="af-tete">
+          <span class="af-av">MT</span>
+          <span class="af-tete__n"><b>Marguerite T.</b><small>L'Initi&eacute;e</small></span>
+          <span class="af-tete__vient">vient le mar. 15 sept.</span>
+          <span class="af-micro"><span class="af-mbtn af-mbtn--wa">WhatsApp</span><span class="af-mbtn">Sa fiche</span></span>
+        </div>
+      </div>
+    </div></div>
+    <p class="legende"><b>Ce que chaque case d&eacute;clenche</b> &middot; WhatsApp part avec le mot du geste
+      (&laquo;&nbsp;peux-tu me donner ton e-mail&hellip;&nbsp;&raquo;), inchang&eacute; &middot; les marques posent
+      Diaspora / Sans locks / De passage d'un tap, comme aujourd'hui &middot; l'avatar aux initiales aide
+      l'&oelig;il &agrave; suivre les lignes &middot; le persona en sous-titre situe la t&ecirc;te sans ouvrir sa fiche.</p>
+  </section>
+
+  <section>
+    <h2>Ce que la refonte ne change pas</h2>
+    <div class="legende" style="margin-top:0">
+      Les juges (retenues, fen&ecirc;tre J-3, gestes, jauges) sont ceux d'aujourd'hui, sous harnais &mdash;
+      aucun chiffre ne bouge. Les textes WhatsApp sont ceux d&eacute;j&agrave; &eacute;prouv&eacute;s.
+      La tuile du tableau de bord continue de mener ici. Tout reste en fran&ccedil;ais de la maison,
+      sans emoji, Cormorant &amp; Jost.
+    </div>
+  </section>
+</div>
+</body>
+</html>
