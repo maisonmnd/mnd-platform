@@ -61,6 +61,28 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## À FAIRE, REFONDU — 9 septembre 2026, maquette validée puis bâti, PUBLIÉ
+
+« Reconstruis la page À faire avec l'UI et l'UX de meilleure qualité »
+(Yéman). Maquette `public/maquette-a-faire-refondue.html`, validée
+(« Construis »), bâtie dans l'heure. LES JUGES N'ONT PAS BOUGÉ — seulement
+la mise en scène :
+
+· EN-TÊTE DATÉ (« Mardi 9 septembre. ») avec trois pastilles-chiffres
+  cliquables (à relancer · retenues du mois · gestes restants) qui font
+  défiler vers leur strate.
+· LE MOIS RETENU en bloc groupé : « À relancer · dans les 3 jours »
+  (lignes de feu, liseré cuivre) puis « Plus loin dans le mois » ; chaque
+  ligne porte un DÉ DE JOUR (ven/11) lisible de loin, le nom serif gras,
+  l'étiquette d'origine (cadence ≈ N sem / à la main / Ma Couronne), le
+  rituel, et ses gestes à droite.
+· LES GESTES EN CARTES deux colonnes : chiffre serif en majesté (brique
+  ≥ 40, cuivre sinon), le quoi, ce que le geste OUVRE en sous-titre, un
+  seul bouton ; les gestes TENUS se replient en une ligne verte.
+· LA LISTE OUVERTE en vraies colonnes : pastille d'initiales, nom,
+  « vient le… » en cuivre (l'alerte), WhatsApp + marques + Sa fiche.
+· LES JAUGES descendent en pied, amincies — un pouls, pas un tableau.
+
 ## LES RETENUES DU MOIS — 9 septembre 2026, troisième passe, PUBLIÉ
 
 « Je préfère voir la liste de toutes les retenues du mois en cours, et au

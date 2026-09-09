@@ -785,3 +785,68 @@
 .trp-relance__des { font-size: 10.5px; color: var(--ink-soft); letter-spacing: .04em; white-space: nowrap; }
 .trp-relance__fait { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #4c7a4c; }
 .trp-relance__audela { padding-top: 9px; font-size: 11px; color: var(--ink-soft); }
+
+
+/* ══ À FAIRE, REFONDU — maquette du 9 septembre 2026, validée ════════
+   L'en-tête daté et ses pastilles, le mois retenu groupé (dés de jour,
+   lignes de feu), les gestes en cartes, la liste en colonnes, les jauges
+   amincies en pied. */
+.trp-af-head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.trp-af-jourtitre { font-family: var(--font-serif); font-weight: var(--weight-light, 300); font-size: 27px; color: var(--color-indigo); line-height: 1.1; }
+.trp-af-score { display: flex; gap: 8px; flex-wrap: wrap; }
+.trp-af-pill { border: 1px solid var(--hairline); border-radius: 99px; background: var(--surface-card); padding: 7px 15px; font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+.trp-af-pill b { font-family: var(--font-serif); font-weight: 500; font-size: 16px; color: var(--color-indigo); margin-right: 4px; }
+.trp-af-pill--feu { border-color: var(--copper-300); background: var(--copper-50); color: var(--copper-700); }
+.trp-af-pill--feu b { color: var(--copper-700); }
+.trp-af-pill:hover { background: var(--hover-veil); }
+
+.trp-af-bloc { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); margin-top: 14px; overflow: hidden; }
+.trp-af-bloc__t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--hairline); }
+.trp-af-bloc__t b { font-family: var(--font-serif); font-weight: 500; font-size: 19px; color: var(--color-indigo); }
+.trp-af-bloc__t span { font-size: 11px; color: var(--ink-soft); }
+.trp-af-groupe { padding: 10px 16px 4px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); font-weight: 600; }
+.trp-af-groupe--calme { color: var(--ink-soft); font-weight: 500; }
+.trp-af-rdv { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--hairline); }
+.trp-af-rdv--feu { background: var(--copper-50); border-left: 3px solid var(--color-copper); padding-left: 13px; }
+.trp-af-rdv--loin { opacity: .8; }
+.trp-af-jourde { text-align: center; border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-raised, #fff); padding: 4px 2px; line-height: 1.12; }
+.trp-af-rdv--feu .trp-af-jourde { border-color: var(--copper-300); }
+.trp-af-jourde u { display: block; text-decoration: none; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trp-af-jourde b { font-family: var(--font-serif); font-weight: 500; font-size: 19px; color: var(--color-indigo); }
+.trp-af-qui { min-width: 0; }
+.trp-af-qui b { font-family: var(--font-serif); font-weight: 600; font-size: 16px; color: var(--color-indigo); }
+.trp-af-qui small { display: block; font-size: 11px; color: var(--ink-soft); }
+.trp-af-tag { display: inline-block; border-radius: 3px; padding: 1px 7px; font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); margin-left: 7px; vertical-align: 2px; }
+.trp-af-tag--cad { background: var(--copper-50); color: var(--copper-700); border: 1px solid var(--copper-300); }
+.trp-af-actes { display: inline-flex; gap: 8px; align-items: center; flex: none; }
+.trp-af-pied { padding: 10px 16px; border-top: 1px solid var(--hairline); font-size: 11.5px; color: var(--ink-soft); }
+@media (max-width: 560px) { .trp-af-rdv { grid-template-columns: 46px 1fr; } .trp-af-actes { grid-column: 2; justify-content: flex-end; } }
+
+.trp-af-gestes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+@media (max-width: 760px) { .trp-af-gestes { grid-template-columns: 1fr; } }
+.trp-af-geste { border: 1px solid var(--hairline); border-left: 3px solid #E4BDB2; border-radius: 4px; background: var(--surface-card); padding: 13px 15px; display: grid; grid-template-columns: auto 1fr auto; gap: 3px 14px; align-items: center; }
+.trp-af-geste--moyen { border-left-color: var(--copper-300); }
+.trp-af-geste__n { grid-row: span 2; font-family: var(--font-serif); font-weight: 400; font-size: 38px; line-height: 1; color: #96412E; min-width: 52px; }
+.trp-af-geste--moyen .trp-af-geste__n { color: var(--copper-700); }
+.trp-af-geste__q { font-size: 13.5px; font-weight: 500; color: var(--ink); align-self: end; }
+.trp-af-geste__d { grid-column: 2; font-size: 11.5px; color: var(--ink-soft); align-self: start; }
+.trp-af-geste__b { grid-row: span 2; }
+.trp-af-tenus { margin-top: 12px; border: 1px dashed #CBDACE; border-radius: 4px; background: #EFF3EF; padding: 9px 14px; font-size: 12px; color: #4A6B52; }
+
+.trp-af-liste { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); margin-top: 10px; overflow: hidden; }
+.trp-af-liste__t { padding: 10px 14px; border-bottom: 1px solid var(--hairline); font-size: 11px; color: var(--ink-soft); }
+.trp-af-tete { display: grid; grid-template-columns: 34px 1fr auto auto; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--hairline); }
+.trp-af-tete:first-of-type { border-top: none; }
+.trp-af-av { width: 34px; height: 34px; border-radius: 50%; background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 13.5px; font-weight: 500; }
+.trp-af-tete__n b { font-size: 13.5px; font-weight: 500; color: var(--ink); }
+.trp-af-tete__vient { font-size: 11px; color: var(--copper-700); white-space: nowrap; }
+.trp-af-tete__vient.est-libre { color: var(--ink-soft); }
+.trp-af-micro { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.trp-af-mbtn { border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-raised, #fff); padding: 4px 9px; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; text-decoration: none; }
+.trp-af-mbtn:hover { background: var(--hover-veil); }
+.trp-af-mbtn--wa { background: var(--color-copper); border-color: var(--color-copper); color: var(--color-ivoire); }
+@media (max-width: 620px) { .trp-af-tete { grid-template-columns: 34px 1fr; } .trp-af-tete__vient, .trp-af-micro { grid-column: 2; justify-content: flex-start; } }
+
+.trp-jauges--pied { margin-top: 16px; }
+.trp-jauges--pied .trp-jauge { padding: 10px 14px; }
+.trp-jauges--pied .trp-jauge b { font-size: 21px; }

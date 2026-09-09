@@ -11,10 +11,10 @@ import {
   leTravail, tetesDuGeste, motPourDemander, relancesAReprendre, retenuesAVenir, SE_DEMANDE, type CleGeste,
 } from '../../../../shared/afaire';
 import { signeLeMessage, maisonNom } from '../../../../shared/identite';
-import { texteDeLaRelance, texteDuRappel } from '../../../../shared/rappel';
+import { jourLisible, texteDeLaRelance, texteDuRappel } from '../../../../shared/rappel';
 import { appointmentsStore } from '../../../../shared/agenda';
 
-import { addDaysISO, apptDueXof, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
+import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
@@ -127,6 +127,76 @@ export default function AFaire() {
   const nCadence = duMois.filter((a) => a.repriseDe).length;
   const clientDe = (id: string) => clients.find((c) => c.id === id);
 
+  /* Le dé de jour — lisible de loin, comme sur la maquette. */
+  const deDuJour = (iso: string) => ({
+    u: ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'][new Date(`${iso}T12:00:00`).getDay()],
+    b: parseInt(iso.slice(8, 10), 10),
+  });
+  const versAncre = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const enFenetre = duMois.filter((a) => a.date <= horizonJ3 && !a.relanceFaite);
+  const plusLoin = duMois.filter((a) => !(a.date <= horizonJ3 && !a.relanceFaite));
+  const gestesOuverts = travail.gestes.filter((g) => g.combien > 0);
+  const gestesTenus = travail.gestes.filter((g) => g.combien === 0);
+  const jourDuTitre = (() => {
+    const j = jourLisible(auj, addDaysISO(auj, -1));
+    return j.charAt(0).toUpperCase() + j.slice(1);
+  })();
+
+  /* ══ LA PAGE REFONDUE — maquette du 9 septembre, validée ═══════════
+     Elle se lit de haut en bas comme une journée : le mois retenu d'abord
+     (jamais muet), les gestes en cartes ensuite, la tenue des fiches en
+     pied. MÊMES JUGES, MÊMES GESTES — seulement mieux rangés. */
+  const ligneRetenue = (a: (typeof duMois)[number]) => {
+    const c = clientDe(a.clientId);
+    const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
+    const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
+    const de = deDuJour(a.date);
+    const origine = a.repriseDe
+      ? (a.note ? a.note.replace('Reprise posée à la clôture · ', 'cadence · ').replace('toutes les ', '≈ ').replace('cadence observée ', '') : 'cadence')
+      : a.source === 'couronne' ? 'Ma Couronne' : 'à la main';
+    const rituel = apptLabel(a as never, byId);
+    const message = a.repriseDe
+      ? texteDeLaRelance({ prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj, maison: maisonNom() })
+      : texteDuRappel({
+        prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj,
+        demainIso: addDaysISO(auj, 1), rituels: [], maison: maisonNom(),
+      });
+    return (
+      <div key={a.id} className={`trp-af-rdv${dansFenetre ? ' trp-af-rdv--feu' : ' trp-af-rdv--loin'}`}>
+        <span className="trp-af-jourde"><u>{de.u}</u><b>{de.b}</b></span>
+        <span className="trp-af-qui">
+          <b>{c?.name ?? a.clientName ?? 'Fiche retirée'}</b>
+          <span className={`trp-af-tag${a.repriseDe ? ' trp-af-tag--cad' : ''}`}>{origine}</span>
+          <small>{a.time ?? ''}{rituel ? `${a.time ? ' · ' : ''}${rituel}` : ''}</small>
+        </span>
+        <span className="trp-af-actes">
+          {a.relanceFaite ? (
+            <span className="trp-relance__fait">Relancée</span>
+          ) : (
+            <>
+              <WaLien phone={c?.phone} message={message}>
+                <span className={`trp-btn${dansFenetre ? ' trp-btn--copper' : ''}`}>WhatsApp</span>
+              </WaLien>
+              {dansFenetre ? (
+                <button
+                  type="button" className="trp-btn"
+                  onClick={() => {
+                    appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, relanceFaite: true } : x)));
+                    toast('Relance notée, la ligne s’éteint.');
+                  }}
+                >
+                  Relancée
+                </button>
+              ) : (
+                <span className="trp-relance__des">relance dès le {frJourAn(addDaysISO(a.date, -3))}</span>
+              )}
+            </>
+          )}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="mnd-rise">
       <PageHead
@@ -134,84 +204,136 @@ export default function AFaire() {
         title="À faire."
         sub={reste === 0
           ? 'Tout est tenu. Chaque case qui ouvre quelque chose est remplie.'
-          : 'Ce qui manque, et ce que ça ouvre. Rangé par ce qui touche le plus de têtes.'}
+          : 'Ce qui presse, ce qui manque, ce qui est tenu — dans cet ordre.'}
       />
 
-      {/* ══ LES RETENUES DU MOIS — 9 septembre 2026, troisième passe ══
-          « Je préfère voir la liste de toutes les retenues du mois en cours,
-          et au fur et à mesure qu'une date s'approche dans les 3 jours, que
-          ça monte. Je ne veux pas que ça se taise » (Yéman). La liste
-          ENTIÈRE du mois, chronologique — la plus proche en tête, donc les
-          J-3 MONTENT d'elles-mêmes, allumées en cuivre avec leur WhatsApp
-          prêt. Toute retenue compte : posée par la cadence, prise à la main,
-          venue de Ma Couronne. Un mois vide le DIT — c'est le chiffre de
-          l'acquisition, pas un silence. */}
-      <section id="relances" className={`trp-relances${aRelancer.length === 0 ? ' trp-relances--calme' : ''}`}>
-        <div className="trp-relances__t">
-          Les retenues du mois · {duMois.length}
+      {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}
+      <div className="trp-af-head">
+        <div>
+          <div className="trp-af-jourtitre">{jourDuTitre}.</div>
+        </div>
+        <div className="trp-af-score">
+          {aRelancer.length > 0 && (
+            <button type="button" className="trp-af-pill trp-af-pill--feu" onClick={() => versAncre('relances')}>
+              <b>{aRelancer.length}</b> à relancer · 3 jours
+            </button>
+          )}
+          <button type="button" className="trp-af-pill" onClick={() => versAncre('relances')}>
+            <b>{duMois.length}</b> retenue{duMois.length > 1 ? 's' : ''} ce mois
+          </button>
+          <button type="button" className="trp-af-pill" onClick={() => versAncre('gestes')}>
+            <b>{reste}</b> geste{reste > 1 ? 's' : ''} restant{reste > 1 ? 's' : ''}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Strate 1 · le mois retenu ── */}
+      <section id="relances" className="trp-af-bloc">
+        <div className="trp-af-bloc__t">
+          <b>Le mois retenu</b>
           <span>
             {duMois.length === 0
               ? 'aucun fauteuil retenu ce mois-ci · le mois est à conquérir'
-              : `${nCadence ? `${nCadence} posée${nCadence > 1 ? 's' : ''} par la cadence · ` : ''}à J-3 la ligne s'allume pour la relance`}
+              : `${duMois.length} fauteuil${duMois.length > 1 ? 's' : ''}${nCadence ? ` · ${nCadence} posé${nCadence > 1 ? 's' : ''} par la cadence` : ''} · à J-3 la ligne s'allume`}
           </span>
         </div>
-        {duMois.map((a) => {
-          const c = clientDe(a.clientId);
-          const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
-          const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
-          const origine = a.repriseDe
-            ? (a.note ? a.note.replace('Reprise posée à la clôture · ', 'cadence · ') : 'posée par la cadence')
-            : a.source === 'couronne' ? 'prise sur Ma Couronne' : 'prise à la main';
-          const message = a.repriseDe
-            ? texteDeLaRelance({ prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj, maison: maisonNom() })
-            : texteDuRappel({
-              prenom, jourIso: a.date, heure: a.time ?? '', aujourdhuiIso: auj,
-              demainIso: addDaysISO(auj, 1), rituels: [], maison: maisonNom(),
-            });
-          return (
-            <div key={a.id} className={`trp-relance${dansFenetre ? '' : ' trp-relance--loin'}`}>
-              <span className="trp-relance__qui">
-                <b>{c?.name ?? a.clientName ?? 'Fiche retirée'}</b>
-                <small>{frJourAn(a.date)}{a.time ? ` · ${a.time}` : ''} · {origine}</small>
-              </span>
-              <span className="trp-relance__gestes">
-                {a.relanceFaite ? (
-                  <span className="trp-relance__fait">Relancée</span>
-                ) : (
-                  <>
-                    <WaLien phone={c?.phone} message={message}>
-                      <span className={`trp-btn${dansFenetre ? ' trp-btn--copper' : ''}`}>WhatsApp</span>
-                    </WaLien>
-                    {dansFenetre ? (
-                      <button
-                        type="button" className="trp-btn"
-                        onClick={() => {
-                          appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, relanceFaite: true } : x)));
-                          toast('Relance notée, la ligne s’éteint.');
-                        }}
-                      >
-                        Relancée
-                      </button>
-                    ) : (
-                      <span className="trp-relance__des">relance dès le {frJourAn(addDaysISO(a.date, -3))}</span>
-                    )}
-                  </>
-                )}
-              </span>
-            </div>
-          );
-        })}
-        {auDela > 0 && prochaineAuDela && (
-          <div className="trp-relance__audela">
+        {enFenetre.length > 0 && <div className="trp-af-groupe">À relancer · dans les 3 jours</div>}
+        {enFenetre.map(ligneRetenue)}
+        {plusLoin.length > 0 && <div className="trp-af-groupe trp-af-groupe--calme">Plus loin dans le mois</div>}
+        {plusLoin.map(ligneRetenue)}
+        {(auDela > 0 && prochaineAuDela) && (
+          <div className="trp-af-pied">
             Au-delà du mois : {auDela} retenue{auDela > 1 ? 's' : ''} déjà posée{auDela > 1 ? 's' : ''},
             la plus proche le {frJourAn(prochaineAuDela.date)}.
           </div>
         )}
       </section>
 
-      {/* SIX JAUGES, QUE DES CHIFFRES. Elles ne se lisent pas, elles se
-          regardent : c'est la couleur qui dit où est la tension. */}
-      <div className="trp-jauges">
+      {/* ── Strate 2 · les gestes, en cartes ── */}
+      <div id="gestes" className="trp-af-gestes">
+        {gestesOuverts.map((g) => (
+          <div key={g.cle} className={`trp-af-geste${g.combien >= 40 ? '' : ' trp-af-geste--moyen'}`}>
+            <span className="trp-af-geste__n">{g.combien}</span>
+            <span className="trp-af-geste__q">{g.quoi}</span>
+            <button
+              type="button"
+              className="trp-btn trp-af-geste__b"
+              onClick={() => (SE_TETE.includes(g.cle)
+                ? setOuvert((v) => (v === g.cle ? '' : g.cle))
+                : navigate(OU[g.cle]))}
+            >
+              {SE_TETE.includes(g.cle) && ouvert === g.cle ? 'Replier' : g.verbe}
+            </button>
+            <span className="trp-af-geste__d">
+              {g.xof !== undefined && g.xof > 0 ? `${fmtMoney(g.xof, currency)} ${g.ouvre}` : g.ouvre}
+            </span>
+          </div>
+        ))}
+      </div>
+      {gestesTenus.length > 0 && (
+        <div className="trp-af-tenus">
+          Tenu : {gestesTenus.map((g) => g.quoi).join(' · ')}.
+        </div>
+      )}
+
+      {/* ── La liste ouverte d'un geste, en vraies colonnes ── */}
+      {ouvert !== '' && (
+        <div className="trp-af-liste">
+          <div className="trp-af-liste__t">
+            {laListe.length} tête{laListe.length > 1 ? 's' : ''} · celles qui viennent d’abord
+          </div>
+          {laListe.map(({ tete, prochaineIso }) => {
+            const c = clients.find((x) => x.id === tete.id);
+            const prenom = (c?.name ?? '').split(' ')[0] ?? '';
+            const tel = chiffresDe(c?.phone ?? '');
+            const initiales = (c?.name ?? '—').split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase();
+            return (
+              <div key={tete.id} className="trp-af-tete">
+                <span className="trp-af-av">{initiales || '·'}</span>
+                <span className="trp-af-tete__n"><b>{c?.name ?? '—'}</b></span>
+                <span className={`trp-af-tete__vient${prochaineIso ? '' : ' est-libre'}`}>
+                  {prochaineIso ? `vient le ${frJourAn(prochaineIso)}` : 'aucune venue prévue'}
+                </span>
+                <span className="trp-af-micro">
+                  {SE_DEMANDE[ouvert] && tel && (
+                    <a
+                      className="trp-af-mbtn trp-af-mbtn--wa"
+                      href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(motPourDemander(ouvert, prenom)))}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                  {AU_FAUTEUIL.includes(ouvert) && MARQUES.map((m) => (
+                    <button
+                      key={m.cle}
+                      type="button"
+                      className="trp-af-mbtn"
+                      title={`${c?.name ?? 'Cette tête'} · ${m.dit} : hors du compte, de la cadence, de la mèche et de la longueur`}
+                      onClick={() => {
+                        clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, ...m.pose } : x)));
+                        toast(`${prenom || 'Elle'} · ${m.dit}. Elle sort du compte et de la cadence.`);
+                      }}
+                    >
+                      {m.mot}
+                    </button>
+                  ))}
+                  <button type="button" className="trp-af-mbtn" onClick={() => navigate(`/customers?id=${tete.id}`)}>
+                    Sa fiche
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+          {laListe.length === 0 && (
+            <div className="trp-af-tete"><span className="trp-af-av">·</span><span className="trp-af-tete__n"><b>Personne.</b></span></div>
+          )}
+        </div>
+      )}
+
+      {/* ── Strate 3 · la tenue des fiches, en pied — un pouls ── */}
+      <div className="trp-jauges trp-jauges--pied">
         {travail.jauges.map((j) => (
           <div key={j.cle} className={`trp-jauge ${teinte(j.pct)}`}>
             <u>{j.nom}</u>
@@ -220,136 +342,6 @@ export default function AFaire() {
           </div>
         ))}
       </div>
-
-      <div className="trp-gestes">
-        {travail.gestes.map((g) => {
-          const tenu = g.combien === 0;
-          return (
-            <div key={g.cle}>
-            <div className={`trp-geste ${tenu ? 'est-fait' : g.combien >= 40 ? 'est-fort' : 'est-moyen'}`}>
-              <span className="trp-geste__n">{g.combien}</span>
-              <span className="trp-geste__q">{g.quoi}</span>
-              <span className="trp-geste__d">
-                {tenu ? 'tenu' : (g.xof !== undefined && g.xof > 0
-                  ? `${fmtMoney(g.xof, currency)} ${g.ouvre}`
-                  : g.ouvre)}
-              </span>
-              {/* ══ LE VERBE OUVRE LA LISTE — 6 septembre 2026 ═══════════
-                  « Je veux voir exactement la liste de ces personnes, pas une
-                  liste globale » (Yéman).
-
-                  IL MENAIT AU REGISTRE ENTIER : trois cents têtes, sans dire
-                  lesquelles des soixante-six attendaient un comptage. Une liste
-                  où l'on ne peut pas distinguer ce qu'on cherche est pire que
-                  pas de liste : on la parcourt, puis on renonce.
-
-                  LES GESTES QUI NE SONT PAS DE TÊTE mènent toujours ailleurs :
-                  les mains vivent sur un rituel, le prix d'achat sur une fiche
-                  de stock. Leur liste est là-bas, et elle y est juste. */}
-              {!tenu && (
-                <button
-                  type="button"
-                  className="trp-geste__b"
-                  onClick={() => (SE_TETE.includes(g.cle)
-                    ? setOuvert((v) => (v === g.cle ? '' : g.cle))
-                    : navigate(OU[g.cle]))}
-                >
-                  {SE_TETE.includes(g.cle) && ouvert === g.cle ? 'Replier' : g.verbe}
-                </button>
-              )}
-            </div>
-            {ouvert === g.cle && (
-              <div className="trp-liste">
-                <div className="trp-liste__t">
-                  {laListe.length} tête{laListe.length > 1 ? 's' : ''} · celles qui viennent d’abord
-                </div>
-                {laListe.map(({ tete, prochaineIso }) => {
-                  const c = clients.find((x) => x.id === tete.id);
-                  const prenom = (c?.name ?? '').split(' ')[0] ?? '';
-                  const tel = chiffresDe(c?.phone ?? '');
-                  return (
-                    <div key={tete.id} className="trp-tete">
-                      <span className="trp-tete__n">{c?.name ?? '—'}</span>
-                      {/* SA PROCHAINE VENUE EST L'ALERTE : c'est le jour où
-                          l'on pourra demander sans la déranger un autre jour. */}
-                      <span className={`trp-tete__q ${prochaineIso ? 'est-attendue' : ''}`}>
-                        {prochaineIso ? `vient le ${frJourAn(prochaineIso)}` : 'aucune venue prévue'}
-                      </span>
-                      {SE_DEMANDE[g.cle] && tel && (
-                        <a
-                          className="trp-tete__wa"
-                          href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(motPourDemander(g.cle, prenom)))}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          WhatsApp
-                        </a>
-                      )}
-                      {/* ══ LES TROIS RAISONS SE POSENT D'ICI — 6 sept. 2026 ══
-                          « Je dois avoir à côté de "vit ailleurs" : sans locks
-                          (a défait ses locks), visiteur » (Yéman).
-
-                          C'EST EN LISANT CETTE LISTE QU'ON S'EN APERÇOIT.
-                          Devoir ouvrir la fiche, revenir, retrouver sa ligne,
-                          sept fois de suite, c'est l'abandon garanti au
-                          troisième nom.
-
-                          « DE PASSAGE » PORTE AUSSI SON VERROU : la machine du
-                          passage lève la marque dès la deuxième venue, et elle
-                          a raison — elle est revenue. Mais posée à la main,
-                          c'est une décision, et une décision bat une
-                          déduction. Sans `passagePose`, le bouton se serait
-                          défait tout seul à la passe suivante. */}
-                      {AU_FAUTEUIL.includes(g.cle) && MARQUES.map((m) => (
-                        <button
-                          key={m.cle}
-                          type="button"
-                          className="trp-tete__f"
-                          title={`${c?.name ?? 'Cette tête'} · ${m.dit} : hors du compte, de la cadence, de la mèche et de la longueur`}
-                          onClick={() => {
-                            clientsStore.set((prev) => prev.map((x) => (x.id === tete.id ? { ...x, ...m.pose } : x)));
-                            toast(`${prenom || 'Elle'} · ${m.dit}. Elle sort du compte et de la cadence.`);
-                          }}
-                        >
-                          {m.mot}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="trp-tete__f"
-                        onClick={() => navigate(`/customers?id=${tete.id}`)}
-                      >
-                        Sa fiche
-                      </button>
-                    </div>
-                  );
-                })}
-                {laListe.length === 0 && (
-                  <div className="trp-tete"><span className="trp-tete__n">Personne.</span></div>
-                )}
-              </div>
-            )}
-          </div>
-          );
-        })}
-      </div>
-
-      {/* ══ CELLES QUI SORTENT DU FAUTEUIL — 6 septembre 2026 ═════════════
-          UN NOMBRE QUI BAISSE SANS RAISON VISIBLE SE LIT COMME UNE PERTE.
-          Soixante-six comptages qui deviennent douze du jour au lendemain
-          feraient chercher le bug pendant une heure.
-
-          ET LE TOTAL SEUL NE DIT PAS SI L'ON A MARQUÉ JUSTE : trois nombres se
-          relisent, « 54 » ne se relit pas. Une tête peut porter deux raisons,
-          le total ne les additionne donc pas. */}
-      {travail.horsFauteuil.total > 0 && (
-        <div className="trp-hors">
-          <b>{travail.horsFauteuil.total}</b> têtes hors du compte, de la cadence, de la mèche
-          et de la longueur · {travail.horsFauteuil.ailleurs} ailleurs
-          {' · '}{travail.horsFauteuil.sansLocks} sans locks
-          {' · '}{travail.horsFauteuil.passage} de passage. Elles gardent l’e-mail et le bilan.
-        </div>
-      )}
     </div>
   );
 }
