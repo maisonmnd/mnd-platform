@@ -378,6 +378,19 @@ Google sans main » du Trône est éteint et que les clés Meta manquent
 catégorie Marketing). Toute la chaîne d'envoi est donc posée côté maison ;
 il ne manque que les verdicts Meta.
 
+**MIS À JOUR LE 9 SEPTEMBRE, SOIR : les deux verdicts sont tombés au vert.**
+ACIA 1 est VÉRIFIÉE (Centre de sécurité : « Votre entreprise est vérifiée »)
+et la restriction du compte WhatsApp est levée (WhatsApp Manager s'ouvre,
+palier d'envoi 250 conversations par 24 h, largement au-dessus des besoins
+de la maison). Reste, dans l'ordre : le numéro enregistré (relever son
+Phone number ID), le moyen de paiement, l'app en mode Live, le jeton
+permanent de l'utilisateur système, les trois modèles approuvés, puis les
+cinq secrets dans Supabase. Le Centre de sécurité affiche encore « Il faut
+plus d'informations » sur la carte Plateforme WhatsApp Business : ce sont
+les informations de la fiche du compte WhatsApp, à compléter dans WhatsApp
+Manager (nom légal ACIA 1 à la graphie du RCCM, adresse, e-mail, site,
+catégorie, et le nom d'affichage du numéro).
+
 ## LA SÉRIE ÉMET SES PIÈCES, LE REÇU NE PEND PLUS, SUPPRIMER S'ÉLOIGNE — 7 septembre 2026, PUBLIÉ
 
 Trois demandes de Yéman dans la même heure, toutes au registre des encaissements.
