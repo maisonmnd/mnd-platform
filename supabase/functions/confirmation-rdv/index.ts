@@ -166,8 +166,25 @@ Deno.serve(async (req) => {
      On demande les identifiants exacts qu'on s'apprête à écrire : le cron
      peut se réveiller cent fois, une cliente ne reçoit qu'une confirmation. */
   const attendus = rdvs.flatMap((a) => [`conf-${a.id}-push`, `conf-${a.id}-whatsapp`]);
-  const { data: dejaRows } = await sb.from('envois').select('id').in('id', attendus);
-  const deja = new Set((dejaRows ?? []).map((r) => r.id as string));
+  /* ══ UN RATÉ SE RETENTE, UN ENVOI RÉUSSI JAMAIS — 11 septembre 2026 ══
+     Le journal servait de verrou SANS REGARDER LE VERDICT : une tentative
+     échouée bloquait le rappel pour toujours, exactement comme un envoi
+     réussi. Vu le soir où les modèles étaient encore en revue — les trois
+     clientes du lendemain seraient restées sans WhatsApp alors que
+     l'approbation allait tomber dans la nuit. Une coupure réseau d'un soir
+     aurait fait le même dégât, en silence.
+
+     Seuls les verdicts DÉFINITIFS verrouillent : « envoyé » (c'est parti,
+     le refaire écrirait deux fois à la même tête) et « sans-abonnement »
+     (elle n'a pas l'appli, réessayer chaque heure ne la lui installera
+     pas). Un « échec » laisse la porte ouverte : la confirmation ne vise qu'une
+     fenêtre de deux heures, le rattrapage s'y éteint de lui-même. */
+  const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', attendus);
+  const deja = new Set(
+    (dejaRows ?? [])
+      .filter((r) => ((r.data as { statut?: string } | null)?.statut ?? '') !== 'échec')
+      .map((r) => r.id as string),
+  );
 
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');

@@ -126,8 +126,25 @@ Deno.serve(async (req) => {
   );
 
   /* ── Le journal du jour — l'idempotence ─────────────────────────── */
-  const { data: dejaRows } = await sb.from('envois').select('id').eq('data->>dateRdv', demain);
-  const deja = new Set((dejaRows ?? []).map((r) => r.id as string));
+  /* ══ UN RATÉ SE RETENTE, UN ENVOI RÉUSSI JAMAIS — 11 septembre 2026 ══
+     Le journal servait de verrou SANS REGARDER LE VERDICT : une tentative
+     échouée bloquait le rappel pour toujours, exactement comme un envoi
+     réussi. Vu le soir où les modèles étaient encore en revue — les trois
+     clientes du lendemain seraient restées sans WhatsApp alors que
+     l'approbation allait tomber dans la nuit. Une coupure réseau d'un soir
+     aurait fait le même dégât, en silence.
+
+     Seuls les verdicts DÉFINITIFS verrouillent : « envoyé » (c'est parti,
+     le refaire écrirait deux fois à la même tête) et « sans-abonnement »
+     (elle n'a pas l'appli, réessayer chaque heure ne la lui installera
+     pas). Un « échec » laisse la porte ouverte : le cron ne passe qu'une
+     fois par jour pour le rappel, il n'y a donc aucun risque de rafale. */
+  const { data: dejaRows } = await sb.from('envois').select('id, data').eq('data->>dateRdv', demain);
+  const deja = new Set(
+    (dejaRows ?? [])
+      .filter((r) => ((r.data as { statut?: string } | null)?.statut ?? '') !== 'échec')
+      .map((r) => r.id as string),
+  );
 
   /* ── Les canaux configurés ──────────────────────────────────────── */
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
