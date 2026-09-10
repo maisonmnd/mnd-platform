@@ -70,6 +70,23 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
+/** « 8 h 30 », « 14 h » — l'heure telle qu'on la DIT, pas telle qu'on la tape.
+    « 09:00 » est un horaire de train : on l'écrit pour une machine. La cliente
+    lit « neuf heures » de toute façon, autant l'écrire ainsi — et c'est déjà
+    la règle des rappels du Trône (`heureLisible`, shared/rappel.ts). Recopiée
+    ici parce qu'une fonction Edge ne peut rien importer du dépôt.
+
+    UNE HEURE ABSENTE N'EST PAS MINUIT : `Number('')` vaut zéro, et « 0 h »
+    annoncé à une cliente est pire qu'un blanc, elle y croit. */
+const heureLisible = (hhmm: string | undefined): string => {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+};
+
 /** « vendredi 28 août » — la date telle qu'on la dit, pas telle qu'on la code. */
 const jourEnClair = (iso: string): string => {
   try {
@@ -177,7 +194,7 @@ Deno.serve(async (req) => {
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
     const prenom = (a.clientName ?? fiche?.name ?? '').split(' ')[0] || 'Madame';
-    const quand = `${jourEnClair(a.date)} à ${a.time}`;
+    const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
 
     /* ① PUSH — gratuit, et il part DÈS AUJOURD'HUI, sans aucune clé Meta. */
     if (!deja.has(`conf-${a.id}-push`)) {

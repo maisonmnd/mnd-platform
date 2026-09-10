@@ -61,6 +61,35 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## META EST BRANCHÉ, L'HEURE SE DIT — 11 septembre 2026
+
+Chaîne Meta franchie : entreprise vérifiée, restriction levée, numéro
+**+229 51 99 77 99 enregistré** (`WA_PHONE_ID = 1362914700237565`) sur le
+WABA **1891057041532944**, moyen de paiement posé sur CE compte, jeton
+permanent généré et rangé dans Supabase. Les **trois modèles sont EN REVUE**
+(rappel_rdv et confirmation_rdv en Utility, avis_google en Marketing, tous
+en français).
+
+ATTENTION AU JUMEAU : deux WABA s'appellent « Atelier MND ». Le bon est
+**…532944** (numéro + paiement + modèles) ; **…293208** est un fantôme des
+tentatives du 9 septembre, à supprimer quand tout enverra. Idem côté
+portefeuilles : ACIA1 (1041916588728074), MND (2031981230728230) et une
+coquille « SLA » née d'une création d'app. Ménage à faire à la fin.
+
+**L'HEURE SE DIT COMME ON LA DIT** : les deux fonctions planifiées envoyaient
+`a.time` brut, donc « à 09:00 » sur le téléphone de la cliente, quand toute
+la Maison écrit « 9 h » depuis la refonte du rappel (7 septembre).
+`heureLisible` est recopiée dans `rappels-j1` et `confirmation-rdv` (une
+fonction Edge n'importe rien du dépôt) et sert le push, le WhatsApp et le
+SMS. Au passage, le SMS portait un tiret cadratin dans un texte lu par une
+cliente : remplacé par une virgule.
+
+**À RECOLLER dans Supabase** (fichiers ENTIERS) : `rappels-j1/index.ts` et
+`confirmation-rdv/index.ts`. Puis l'essai
+`select public.rappels_j1_soir_sql();` — tant que les modèles sont en revue,
+`whatsapp: 0` et un échec « template » au journal `envois` sont NORMAUX et
+prouvent que jeton et numéro sont justes.
+
 ## UNE INSCRITE NE VOYAIT QUE LES KIDS — 10 septembre 2026, PUBLIÉ
 
 « À chaque fois qu'un nouveau client s'inscrit sur Ma Couronne, il ne voit
