@@ -463,9 +463,12 @@ export {
   partMensuelleVendueXof, prixEstConvenu, ecartDuPrixConvenu,
   /* Le prix convenu se revoit, 4 septembre — et l'échéancier suit. */
   revoitLePrixConvenu, type PrixRevu,
+  /* Ce que « prochaine échéance » veut dire, 10 septembre : échéance,
+     fin de paquet, ou date de cycle. */
+  quandEstDue,
 } from '../../../../shared/abonnements';
 export type {
-  Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage, PrixAffiche,
+  Payment, PlanIncluded, PlanMode, FamilleFormule, Plan, Subscriber, SubCycle, IncludedUsage, PrixAffiche, QuandDue,
 } from '../../../../shared/abonnements';
 /* Les seuls usages INTERNES à ce fichier : les semences et le marketing en
    ont besoin comme valeurs, pas seulement comme types. */

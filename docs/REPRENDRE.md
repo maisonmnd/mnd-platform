@@ -61,6 +61,33 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## UN PAQUET N'A PAS DE CYCLE — 10 septembre 2026, PUBLIÉ
+
+« Le cycle de facturation n'est pas branché et ne marche pas » (Yéman, sur la
+modale Nouvel abonné, formule L'Année Sereine). Il ÉTAIT branché : les
+pastilles écrivaient bien `subForm.cycle`. Mais `prixDeLaFormule` ignore le
+cycle pour un plan en mode **pack** — et c'est juste, un paquet se paie une
+fois pour sa durée. Trois pastilles cliquables qui ne changent rien sont un
+mensonge d'écran : on clique, on doute, on croit l'écran cassé.
+
+**LE VRAI DÉFAUT ÉTAIT PLUS BAS** : la vente écrivait quand même
+`nextIso = aujourd'hui + cycleDays(cycle)`. Un paquet de dix mois recevait
+donc une échéance à trente jours, et la colonne « Prochaine échéance » du
+tableau l'affichait telle quelle. La carte de contrat, elle, disait déjà juste
+(elle branche sur `expiresIso`) — deux écrans, deux vérités.
+
+Trois gestes : ① les pastilles disparaissent sur un paquet, remplacées par une
+ligne qui dit pourquoi ; ② la vente pose la FIN du paquet comme `nextIso`, plus
+une date de cycle inventée ; ③ un juge unique **`quandEstDue(sub, jour)`**
+(shared/abonnements, sous verifie-echeancier) répond dans l'ordre : la première
+échéance NON SOLDÉE, sinon la fin du paquet, sinon la date de cycle — et rend
+AUSSI le mot (`échéance` · `fin du paquet` · `cycle`), que la colonne affiche
+sous la date. Nommé `quandEstDue` et non `prochaineEcheance` : ce nom-là
+existe déjà dans `echeancier.ts` avec un autre sens.
+
+Le harnais a fait son office en attrapant une fixture fautive de ma main
+(`montantXof` au lieu de `amountXof` sur une échéance).
+
 ## LA REPRISE QUI NE SE POSE PAS DIT POURQUOI — 9 septembre 2026, PUBLIÉ
 
 « Quand j'ai honoré le RDV d'aujourd'hui de Befoune, je n'ai pas eu son

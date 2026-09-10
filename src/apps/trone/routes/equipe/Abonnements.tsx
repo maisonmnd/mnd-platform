@@ -12,7 +12,7 @@ import {
 import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
   subCycleAmountXof, subMonthlyXof, subPaid, cycleDays, cycleLabel,
-  subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES,
+  subServiceUsage, usageDetaille, rdvCouvertsDe, rdvCouvertsHorsFormule, cycleWindow, subWindow, poseLesFormulesMarketing, formulesMarketingAbsentes, FAMILLES_FORMULES, quandEstDue,
   prixDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, partMensuelleDeLaFormule, moisDuPack, valeurALaCarte, remiseSurLaCarte, type PlanMode,
   type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, inclusVendus, libellesInclus, abonnementsVivantsDe,
@@ -665,7 +665,13 @@ export default function Abonnements() {
       reference: prochaineReferenceAbo(subs),
       cycle,
       slot: subForm.slot.trim() || 'Créneau à réserver',
-      nextIso: addDaysISO(cycleDays(cycle)),
+      /* UN PAQUET NE PREND PAS D'ÉCHÉANCE DE CYCLE (10 septembre) : il
+         courait jusqu'à sa fin, et le tableau annonçait pourtant une date à
+         trente jours. Sa fin fait foi ; le cycle ne parle que pour les
+         abonnements à cycle. */
+      nextIso: plan.mode === 'pack'
+        ? (jours === null ? addDaysISO(cycleDays(cycle)) : addDaysISO(jours))
+        : addDaysISO(cycleDays(cycle)),
       sinceIso: todayISO(), since: 'ce mois', status: 'new', payments: [],
       /* Le MRR porte l'option, ramenée au mois : un supplément annuel non
          normalisé gonflerait le revenu récurrent du mois de la signature,
@@ -1735,7 +1741,22 @@ export default function Abonnements() {
                       </td>
                       <td data-label="Son créneau" style={{ fontSize: 12.5 }}>{m.slot}</td>
                       <td data-label="Prochaine échéance">
-                        <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>{dateComplete(m.nextIso)}</span>
+                        {/* LE MÊME JUGE QUE PARTOUT (`quandEstDue`) : la
+                            première échéance non soldée, la fin d'un paquet, ou
+                            la date de cycle — et la colonne DIT laquelle. */}
+                        {(() => {
+                          const q = quandEstDue(m, todayISO());
+                          return (
+                            <>
+                              <span style={{ fontSize: 12.5, color: m.status === 'risk' ? '#8f3b30' : undefined }}>
+                                {q.iso ? dateComplete(q.iso) : '—'}
+                              </span>
+                              {q.quoi !== 'cycle' && (
+                                <div className="mnd-muted" style={{ fontSize: 10 }}>{q.quoi}</div>
+                              )}
+                            </>
+                          );
+                        })()}
                         <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 2 }}>réglé {fmtMoney(paid, currency)}</div>
                         {/* L'ÉTAT DE L'ÉCHÉANCIER SE LIT DANS LE TABLEAU, pas
                             seulement dans la modale : un retard qu'il faut
@@ -2774,18 +2795,33 @@ export default function Abonnements() {
               </Select>
             </Field>
             <Field label="Cycle de facturation">
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {CYCLES.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`tre-chip ${subForm.cycle === c ? 'is-on' : ''}`}
-                    onClick={() => setSubForm({ ...subForm, cycle: c })}
-                  >
-                    {cycleLabel(c)}
-                  </button>
-                ))}
-              </div>
+              {/* ══ UN PAQUET N'A PAS DE CYCLE — 10 septembre 2026 ═══════
+                  « Le cycle de facturation n'est pas branché et ne marche
+                  pas » (Yéman). Il était branché ; il n'avait simplement rien
+                  à dire : `prixDeLaFormule` ignore le cycle sur un paquet, et
+                  c'est juste — un paquet se paie une fois, pour sa durée.
+                  MAIS TROIS PASTILLES CLIQUABLES QUI NE CHANGENT RIEN sont un
+                  mensonge d'écran : on clique, on doute, on croit l'écran
+                  cassé. Elles disparaissent, et la ligne dit pourquoi. */}
+              {planOf(subForm.planId)?.mode === 'pack' ? (
+                <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+                  Cette formule est un paquet : un prix, une durée, réglé en une fois
+                  ou en échéances. Il n’y a pas de cycle à choisir.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {CYCLES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`tre-chip ${subForm.cycle === c ? 'is-on' : ''}`}
+                      onClick={() => setSubForm({ ...subForm, cycle: c })}
+                    >
+                      {cycleLabel(c)}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* LE MÊME JUGE QUE LA CARTE : un paquet dit son prix entier et
                   sa durée, jamais un « par mois » qui n'existe pas. */}
               {(() => {

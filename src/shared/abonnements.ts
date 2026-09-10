@@ -1264,6 +1264,35 @@ export function prixDeLaFormule(
   };
 }
 
+/* ══ CE QUE « PROCHAINE ÉCHÉANCE » VEUT DIRE — 10 septembre 2026 ═════
+   « Le cycle de facturation n'est pas branché et ne marche pas » (Yéman).
+   Il l'était, mais il ne pouvait rien dire : L'Année Sereine est un PAQUET,
+   et `prixDeLaFormule` ignore le cycle pour un paquet — à raison, un paquet
+   se paie une fois pour sa durée. Le vrai défaut était ailleurs : la vente
+   écrivait quand même `nextIso = aujourd'hui + 30 jours`, et le tableau
+   annonçait une échéance mensuelle sur un paquet de dix mois.
+
+   TROIS SOURCES, DANS CET ORDRE, et chacune dit son nom :
+   ① un échéancier posé → la PREMIÈRE échéance non soldée, c'est ce qu'on
+      réclame vraiment ;
+   ② un paquet → sa FIN, la date jusqu'à laquelle il court ;
+   ③ un cycle → la prochaine date de cycle, le sens d'origine. */
+export type QuandDue = { iso: string | null; quoi: 'échéance' | 'fin du paquet' | 'cycle' };
+
+export function quandEstDue(
+  sub: Pick<Subscriber, 'echeances' | 'expiresIso' | 'nextIso' | 'payments'>,
+  aujourdhui: string,
+): QuandDue {
+  if (sub.echeances?.length) {
+    const etats = etatDesEcheances(sub.echeances, subPaid(sub as Subscriber), aujourdhui);
+    const due = etats.find((e) => e.resteXof > 0);
+    if (due) return { iso: due.dueIso, quoi: 'échéance' };
+  }
+  if (sub.expiresIso) return { iso: sub.expiresIso, quoi: 'fin du paquet' };
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(sub.nextIso ?? '') ? sub.nextIso : null;
+  return { iso, quoi: 'cycle' };
+}
+
 /** La part MENSUELLE d'une formule, paquet compris — ce qui nourrit le MRR.
     Un paquet de 225 000 F sur douze mois pèse 18 750 F par mois, pas 225 000 :
     le compter entier gonflerait le revenu récurrent du mois de la signature,

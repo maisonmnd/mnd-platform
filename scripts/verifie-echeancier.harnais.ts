@@ -11,7 +11,7 @@ import {
   resteDeLEcheancier, enRetardXof, prochaineEcheance, plusVieuxRetardJours, tropVerseXof,
   deplaceEcheance, peutReserver, JOURS_DE_GRACE,
 } from '../src/shared/echeancier';
-import { revoitLePrixConvenu, type Subscriber } from '../src/shared/abonnements';
+import { revoitLePrixConvenu, quandEstDue, type Subscriber } from '../src/shared/abonnements';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -355,5 +355,50 @@ dit('… et ne s’invente pas d’échéancier', undefined, sansTranches.echean
    échouer la commande. La garantie était creuse. Deux gardes désormais : la
    porte est en dernier, et `dit` marque lui-même le code de sortie — un
    ajout posé derrière la porte ne pourra plus passer vert. */
+/* ── CE QUE « PROCHAINE ÉCHÉANCE » VEUT DIRE (10 septembre) ────────
+   « Le cycle de facturation n'est pas branché » (Yéman) : un PAQUET annonçait
+   une échéance de cycle à trente jours alors qu'il court dix mois. Trois
+   sources, dans l'ordre, et chacune dit son nom. */
+const abo = (o: Record<string, unknown>) => o as unknown as Subscriber;
+
+dit('un échéancier : la première part non soldée',
+  { iso: '2026-11-30', quoi: 'échéance' },
+  quandEstDue(abo({
+    nextIso: '2026-10-05',
+    expiresIso: '2027-07-01',
+    payments: [{ id: 'v1', date: '2026-09-01', amountXof: 100000 }],
+    echeances: [
+      { numero: 1, dueIso: '2026-09-01', amountXof: 100000 },
+      { numero: 2, dueIso: '2026-11-30', amountXof: 92000 },
+    ],
+  }), '2026-09-10'));
+
+dit('un paquet sans échéancier : sa fin',
+  { iso: '2027-07-01', quoi: 'fin du paquet' },
+  quandEstDue(abo({ nextIso: '2026-10-05', expiresIso: '2027-07-01', payments: [] }), '2026-09-10'));
+
+dit('un abonnement à cycle : sa date de cycle',
+  { iso: '2026-10-05', quoi: 'cycle' },
+  quandEstDue(abo({ nextIso: '2026-10-05', payments: [] }), '2026-09-10'));
+
+/* Un échéancier entièrement soldé ne réclame plus rien : on retombe sur la
+   fin du paquet, pas sur une échéance déjà payée. */
+dit('un échéancier soldé rend la main au paquet',
+  { iso: '2027-07-01', quoi: 'fin du paquet' },
+  quandEstDue(abo({
+    nextIso: '2026-10-05',
+    expiresIso: '2027-07-01',
+    payments: [{ id: 'v1', date: '2026-09-01', amountXof: 192000 }],
+    echeances: [
+      { numero: 1, dueIso: '2026-09-01', amountXof: 100000 },
+      { numero: 2, dueIso: '2026-11-30', amountXof: 92000 },
+    ],
+  }), '2026-09-10'));
+
+/* Une date absente ou mal formée ne devient pas une fausse échéance. */
+dit('sans date lisible, on ne promet rien',
+  { iso: null, quoi: 'cycle' },
+  quandEstDue(abo({ nextIso: '', payments: [] }), '2026-09-10'));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
