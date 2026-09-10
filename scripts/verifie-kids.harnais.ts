@@ -15,7 +15,7 @@ import {
   compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser, pourQui,
 } from '../src/shared/kids';
 import {
-  MODEL_BANDS_SEED, estProposable, personalPriceXof, prixDeBase, prixSelonLesLocks, pricingOf,
+  MODEL_BANDS_SEED, calibreConnu, estProposable, personalPriceXof, prixDeBase, prixSelonLesLocks, pricingOf,
 } from '../src/shared/pricing';
 import { servicesStore, type Service } from '../src/shared/catalog';
 import type { Client } from '../src/shared/clients';
@@ -463,5 +463,30 @@ dit('… sans toucher à ce que la Maison avait posé', 'Gérard', servicesStore
    échouer la commande. La garantie était creuse. Deux gardes désormais : la
    porte est en dernier, et `dit` marque lui-même le code de sortie — un
    ajout posé derrière la porte ne pourra plus passer vert. */
+/* ── UN CALIBRE INCONNU NE VIDE PAS LA MAISON (10 septembre) ───────
+   « Un nouveau client sur Ma Couronne ne voit que les services MND Kids »
+   (Yéman). Une inscrite n'a pas de comptage : le sien se fait au fauteuil.
+   Toutes les prestations bornées à des calibres disparaissaient, il ne
+   restait que celles qui n'en portent pas — les Kids. */
+const bandes = MODEL_BANDS_SEED;
+const micro = bandes[0];
+const auCalibre = { id: 'sv-micro', categoryId: 'vekpe', bandIds: [micro.id] } as unknown as Service;
+const sansCalibre = { id: 'sv-libre', categoryId: 'vekpe' } as unknown as Service;
+
+dit('une tête sans comptage n’est pas mesurée', false, calibreConnu({}));
+dit('… un comptage la mesure', true, calibreConnu({ lockCount: 180 }));
+dit('… une tranche posée aussi', true, calibreConnu({ band: micro }));
+dit('un comptage à zéro ne mesure rien', false, calibreConnu({ lockCount: 0 }));
+
+dit('LE DÉFAUT : une prestation à calibres se propose à une tête non mesurée',
+  true, estProposable(auCalibre, {} as Parameters<typeof estProposable>[1], 9, false, 'inconnu'));
+dit('… et une prestation sans calibre aussi, comme avant',
+  true, estProposable(sansCalibre, {} as Parameters<typeof estProposable>[1], 9, false, 'inconnu'));
+/* MESURÉE, la règle d'avant tient : hors de ses calibres, on ne propose pas. */
+dit('mesurée et dans son calibre : proposée',
+  true, estProposable(auCalibre, { lockCount: 1, band: micro } as Parameters<typeof estProposable>[1], 9, false, 'inconnu'));
+dit('mesurée et HORS de ses calibres : refusée, on sait',
+  false, estProposable(auCalibre, { lockCount: 1, band: bandes[bandes.length - 1] } as Parameters<typeof estProposable>[1], 9, false, 'inconnu'));
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

@@ -787,6 +787,14 @@ export const prixDansPanier = (
   return pct > 0 ? Math.round(plein * (1 - pct / 100)) : plein;
 };
 
+/** LA TÊTE A-T-ELLE UN CALIBRE ? — 10 septembre 2026.
+
+    Sans comptage de locks ni tranche posée, la Maison ne l'a pas encore
+    mesurée. Ce n'est pas « hors calibre », c'est « inconnu », et les deux ne
+    se traitent pas pareil. */
+export const calibreConnu = (p: Pick<PersonalPricing, 'lockCount' | 'band'>): boolean =>
+  (p.lockCount ?? 0) > 0 || !!p.band;
+
 export const estProposable = (
   sv: Service, p: PersonalPricing, venuesAcquises: number, aFamille = false,
   /* MND KIDS — 3 septembre 2026. Trois réponses, pas deux : une fiche sans date
@@ -796,7 +804,26 @@ export const estProposable = (
      ne se voient rien retirer. */
   kids: 'oui' | 'non' | 'inconnu' = 'inconnu',
 ): boolean =>
-  servesBand(sv, bandForService(sv, p))
+  /* ══ UN CALIBRE INCONNU NE VIDE PAS LA MAISON — 10 septembre 2026 ══
+     « À chaque fois qu'un nouveau client s'inscrit sur Ma Couronne, il ne
+     voit que les services MND Kids » (Yéman).
+
+     `servesBand` refuse une prestation bornée à des calibres quand la tête
+     n'a pas de tranche — et au COMPTOIR c'est juste : on ne cote pas un
+     Micro sur une tête qu'on n'a pas comptée. Mais une inscrite de Ma
+     Couronne n'a JAMAIS de comptage : le sien se fait au fauteuil, à sa
+     première venue. Toutes les prestations à calibres disparaissaient donc,
+     et il ne restait que celles qui n'en portent pas — les MND Kids, qui se
+     tarifent aux paliers de locks. Une maison entière réduite à sa section
+     enfants, sur l'écran de la personne qu'on veut accueillir.
+
+     LA MAISON A DÉJÀ ÉCRIT CETTE RÈGLE POUR L'ÂGE : « un âge INCONNU ne
+     restreint rien » (`catalogueDeLaTete`, 3 septembre). Elle vaut mot pour
+     mot ici. Le calibre inconnu INFORME le prix — la prestation s'affiche au
+     tarif du catalogue, « dès X F » — il ne retire rien de la carte.
+     Mesurée et HORS de ses calibres, en revanche, elle disparaît toujours :
+     là on sait, et proposer serait mentir. */
+  (servesBand(sv, bandForService(sv, p)) || !calibreConnu(p))
   && ouverteDesVenue(sv, venuesAcquises)
   && (!sv.reserveFamilles || aFamille)
   && (!sv.reserveEnfants || kids !== 'non');

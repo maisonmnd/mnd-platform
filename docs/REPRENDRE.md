@@ -61,6 +61,31 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## UNE INSCRITE NE VOYAIT QUE LES KIDS — 10 septembre 2026, PUBLIÉ
+
+« À chaque fois qu'un nouveau client s'inscrit sur Ma Couronne, il ne voit
+que les services MND Kids. Il faut que j'aille dans la vitrine rafraîchir »
+(Yéman).
+
+LA CAUSE, LUE DANS LE CODE, PAS DEVINÉE : `estProposable` passe par
+`servesBand`, qui refuse une prestation bornée à des calibres (`bandIds`)
+quand la tête n'a PAS de tranche — « un modèle inconnu ne passe pas », règle
+écrite le 1er septembre, et juste AU COMPTOIR : on ne cote pas un Micro sur
+une tête non comptée. Mais une inscrite de Ma Couronne n'a JAMAIS de
+comptage, le sien se fait au fauteuil à sa première venue. Toutes les
+prestations à calibres disparaissaient donc de son écran, et il ne restait
+que celles qui n'en portent pas : les MND Kids, qui se tarifent aux
+`paliersDeLocks`. Une maison entière réduite à sa section enfants, sur
+l'écran de la personne qu'on veut accueillir.
+
+LA RÈGLE EXISTAIT DÉJÀ, POUR L'ÂGE : « un âge INCONNU ne restreint rien »
+(`catalogueDeLaTete`, 3 septembre). Elle est étendue au calibre, mot pour
+mot. Nouveau juge pur `calibreConnu(p)` (comptage > 0 ou tranche posée) ;
+`estProposable` ne cache plus une prestation à calibres à une tête NON
+MESURÉE — le prix s'affiche au catalogue, « dès X F ». Mesurée et HORS de
+ses calibres, elle disparaît toujours : là on sait, et proposer serait
+mentir. Huit épreuves au harnais verifie-kids.
+
 ## UN PAQUET N'A PAS DE CYCLE — 10 septembre 2026, PUBLIÉ
 
 « Le cycle de facturation n'est pas branché et ne marche pas » (Yéman, sur la
