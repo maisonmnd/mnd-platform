@@ -61,6 +61,33 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA MAISON ÉCRIT SEULE — 11 septembre 2026, WHATSAPP EN SERVICE
+
+`{"jour":"2026-09-12","rdv":3,"push":0,"whatsapp":3,"sms":0}`
+
+Trois rappels partis d'eux-mêmes, depuis le +229 51 99 77 99, sous le nom
+« L'Atelier MND ». La chaîne entière est vérifiée de bout en bout : jeton,
+Phone number ID, moyen de paiement, modèles approuvés, fonction planifiée.
+Cinq jours de dossiers Meta pour ce chiffre-là.
+
+**LE CORRECTIF DU JOUR A SERVI DANS L'HEURE.** Ces trois têtes avaient
+ÉCHOUÉ une heure plus tôt (modèles encore en revue, erreur #132001). Avec
+l'ancien verrou — qui bloquait sur toute ligne du journal, échec compris —
+elles seraient restées sans WhatsApp pour toujours, l'approbation arrivée
+trop tard. C'est le passage « un raté se retente, un envoi réussi jamais »
+qui les a rattrapées au premier essai suivant. Le défaut a vécu une heure.
+
+À PARTIR DE MAINTENANT, sans aucun geste : rappel de la veille chaque soir
+à 18 h, confirmation dans les dix minutes suivant toute prise de rendez-vous
+(d'où qu'elle vienne), et l'avis Google dans l'heure suivant une première
+venue soldée — CE DERNIER dès que l'interrupteur « Avis Google sans main »
+sera allumé dans Le Trône, Marketing → Automatisations.
+
+RESTE À FAIRE, sans urgence : supprimer le WABA fantôme **…293208** (le bon
+est **1891057041532944**), et faire le ménage des portefeuilles — ACIA1
+(1041916588728074) est le seul à garder, MND (2031981230728230) et la
+coquille « SLA » peuvent partir une fois l'app rattachée à ACIA1.
+
 ## META EST BRANCHÉ, L'HEURE SE DIT — 11 septembre 2026
 
 Chaîne Meta franchie : entreprise vérifiée, restriction levée, numéro
