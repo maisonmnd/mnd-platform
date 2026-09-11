@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les conversations &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9; --cuivre-s:#8A5326;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.88em;
+         background:var(--indigo-pale); padding:1px 5px; border-radius:2px; color:var(--indigo-2); }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex;
+                 align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  .miroir { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+  @media (max-width:680px){ .miroir { grid-template-columns:1fr; } }
+  .face { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:15px 17px; }
+  .face u { text-decoration:none; display:block; font-size:10px; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--cuivre); margin-bottom:7px; }
+  .face b { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); display:block; }
+  .face small { display:block; font-size:12.5px; color:var(--encre-d); margin-top:5px; line-height:1.55; }
+  .face--fait { border-left:3px solid var(--vert); }
+  .face--manque { border-left:3px solid var(--brique); }
+
+  /* ── La boîte : la liste des fils ── */
+  .fils { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .fil { display:flex; gap:13px; align-items:flex-start; padding:13px 15px; border-top:1px solid var(--sable); }
+  .fil:first-child { border-top:none; }
+  .fil--vif { background:var(--cuivre-f); }
+  .fil__rond { width:34px; height:34px; border-radius:50%; background:var(--indigo); color:#EFEAE0;
+               display:flex; align-items:center; justify-content:center; flex:none;
+               font-family:var(--serif); font-size:14px; }
+  .fil__rond--inc { background:var(--sable); color:var(--encre-d); }
+  .fil__c { min-width:0; flex:1; }
+  .fil__n { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .fil__d { font-size:13px; color:var(--encre-d); margin-top:1px;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fil__r { text-align:right; flex:none; font-size:11px; color:var(--encre-d); }
+  .fil__r b { display:block; font-weight:500; }
+
+  /* ── Le fil d'une tête ── */
+  .bulles { padding:16px; background:var(--ivoire); border:1px solid var(--filet);
+            border-radius:4px; display:flex; flex-direction:column; gap:9px; }
+  .b { max-width:76%; padding:9px 13px; border-radius:4px; font-size:13.5px; line-height:1.55; }
+  .b__h { display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--encre-d); margin-top:5px; }
+  .b--elle { align-self:flex-start; background:var(--blanc); border:1px solid var(--filet); }
+  .b--nous { align-self:flex-end; background:var(--indigo); color:#EFEAE0; }
+  .b--nous .b__h { color:var(--cuivre-p); }
+  .b--modele { align-self:flex-end; background:var(--indigo-2); color:#EFEAE0;
+               border-left:3px solid var(--cuivre); }
+  .b--modele .b__h { color:var(--cuivre-p); }
+  .jour { align-self:center; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+          color:var(--encre-d); margin:6px 0; }
+
+  .saisie { margin-top:12px; border:1px solid var(--filet); border-radius:4px;
+            background:var(--blanc); padding:12px 14px; }
+  .saisie__q { display:flex; align-items:center; justify-content:space-between; gap:12px;
+               flex-wrap:wrap; margin-bottom:9px; }
+  .saisie__champ { border:1px dashed var(--cuivre-p); border-radius:3px; padding:10px 12px;
+                   color:var(--encre-d); font-size:13.5px; background:var(--cuivre-f); }
+  .saisie--close { background:var(--indigo-pale); }
+  .saisie--close .saisie__champ { border-style:solid; border-color:var(--filet);
+                                  background:var(--sable); color:var(--encre-d); }
+
+  .horloge { display:inline-flex; align-items:baseline; gap:7px; font-size:11px;
+             letter-spacing:.12em; text-transform:uppercase; border-radius:2px;
+             padding:4px 10px; border:1px solid; }
+  .horloge--ouverte { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .horloge--bientot { color:var(--ambre); border-color:var(--ambre-p); background:var(--ambre-f); }
+  .horloge--close { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+
+  .btn { border:1px solid var(--filet); border-radius:3px; background:var(--blanc); color:var(--encre-d);
+         padding:6px 13px; font-size:12.5px; font-family:var(--sans); }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+
+  .pas { display:inline-block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+         border-radius:2px; padding:3px 9px; border:1px solid; }
+  .pas--ok { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .pas--att { color:var(--encre-d); border-color:var(--filet); background:var(--blanc); }
+  .pas--ko { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+  .pas--cu { color:var(--cuivre-s); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .etapes { display:grid; gap:12px; margin-top:18px; }
+  .etape { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px;
+           background:var(--blanc); padding:14px 17px; display:flex; gap:15px; align-items:flex-start; }
+  .etape__n { font-family:var(--serif); font-size:27px; color:var(--cuivre-p); line-height:1; flex:none; }
+  .etape b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .etape small { display:block; font-size:13px; color:var(--encre-d); margin-top:4px; line-height:1.55; }
+  .etape--gris { border-left-color:var(--filet); }
+
+  .quest { border:1px solid var(--ambre-p); border-left:3px solid var(--ambre); border-radius:4px;
+           background:var(--ambre-f); padding:15px 18px; margin-top:16px; }
+  .quest b { color:var(--ambre); font-weight:600; }
+  .quest p { margin:7px 0 0; font-size:13.5px; line-height:1.6; }
+
+  .fin { margin-top:64px; padding-top:26px; border-top:1px solid var(--filet);
+         font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Clients &amp; agenda &middot; le chantier WhatsApp</p>
+  <h1>Les conversations.</h1>
+  <p class="chapeau">
+    Le Tr&ocirc;ne parle sans entendre. Trois mod&egrave;les partent seuls, la cloche ouvre des
+    brouillons, et <b>rien ne revient jamais</b>. Ce qu&rsquo;une cliente r&eacute;pond vit dans
+    ton t&eacute;l&eacute;phone, pas dans la Maison : personne d&rsquo;autre ne le voit, rien ne
+    s&rsquo;en souvient, et le jour o&ugrave; tu cherches ce qu&rsquo;elle avait demand&eacute;,
+    il faut faire d&eacute;filer six mois de fil.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; Comment je r&eacute;ussis &agrave; construire les conversations WhatsApp
+      dans le tr&ocirc;ne ? &raquo;
+      <span>Y&eacute;man &middot; 11 septembre 2026</span>
+    </p>
+
+    <div class="alerte">
+      <b>Il manque une seule chose : l&rsquo;oreille.</b>
+      <p>
+        Un <b>webhook</b>, une adresse que Meta appelle chez toi &agrave; chaque message
+        re&ccedil;u. Tout le reste de cette maquette en d&eacute;coule. Sans lui, aucun
+        &eacute;cran de conversation n&rsquo;est possible ; avec lui, tout l&rsquo;est, y compris
+        des choses qu&rsquo;on ne cherchait pas.
+      </p>
+      <p>
+        &laquo; Le Fil &raquo; ne sert &agrave; rien ici : c&rsquo;est la messagerie
+        <b>interne</b> de la Maison, entre toi et l&rsquo;&eacute;quipe. Les clientes n&rsquo;y
+        entrent pas, et elles ne doivent pas y entrer.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;La r&egrave;gle qui commande tout le reste</p>
+    <h2>La fen&ecirc;tre de vingt-quatre heures.</h2>
+    <p class="intro">
+      Ce n&rsquo;est pas un d&eacute;tail technique, c&rsquo;est <b>la loi de WhatsApp</b>, et
+      c&rsquo;est elle qui dessine l&rsquo;&eacute;cran. Tu peux &eacute;crire librement
+      &agrave; quelqu&rsquo;un pendant les 24 heures qui suivent <b>son</b> dernier message.
+      Pass&eacute; ce d&eacute;lai, Meta n&rsquo;accepte plus qu&rsquo;un mod&egrave;le
+      approuv&eacute;.
+    </p>
+
+    <div class="miroir">
+      <div class="face face--fait">
+        <u>Fen&ecirc;tre ouverte</u>
+        <b>Tu &eacute;cris ce que tu veux</b>
+        <small>
+          Elle a &eacute;crit il y a moins de 24 h. Texte libre, autant de messages que tu
+          veux, la conversation est d&eacute;j&agrave; pay&eacute;e. C&rsquo;est le seul moment
+          o&ugrave; la Maison parle normalement.
+        </small>
+      </div>
+      <div class="face face--manque">
+        <u>Fen&ecirc;tre ferm&eacute;e</u>
+        <b>Un mod&egrave;le, ou rien</b>
+        <small>
+          Meta refuse le texte libre. Tes trois mod&egrave;les approuv&eacute;s sont les seules
+          phrases qui passent, et chacun rouvre une conversation factur&eacute;e.
+        </small>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>C&rsquo;est ce qui fait rater la plupart des bo&icirc;tes WhatsApp.</b> On tape un texte,
+      on appuie, et &ccedil;a &eacute;choue avec une erreur illisible. L&rsquo;&eacute;cran doit
+      donc porter la r&egrave;gle LUI-M&Ecirc;ME, visiblement, plut&ocirc;t que de te la faire
+      d&eacute;couvrir un message sur deux.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;L&rsquo;&eacute;cran &middot; la bo&icirc;te</p>
+    <h2>Un fil par t&ecirc;te.</h2>
+    <p class="intro">
+      Une entr&eacute;e neuve dans <b>Clients &amp; agenda</b>, &agrave; c&ocirc;t&eacute; des
+      Appels. Les fils qui attendent une r&eacute;ponse remontent ; le reste suit par date.
+      L&rsquo;horloge de chaque fil se voit d&egrave;s la liste : c&rsquo;est ce qui dit si tu
+      peux encore r&eacute;pondre normalement.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Les conversations</h4>
+        <span>Clients &amp; agenda</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="fils">
+
+          <div class="fil fil--vif">
+            <span class="fil__rond">RA</span>
+            <span class="fil__c">
+              <span class="fil__n">R. A.</span>
+              <span class="fil__d">Bonsoir, est-ce que je peux d&eacute;caler &agrave; samedi&nbsp;?</span>
+            </span>
+            <span class="fil__r">
+              <b>9 h 04</b>
+              <span class="horloge horloge--ouverte" style="margin-top:5px">22 h 56 restantes</span>
+            </span>
+          </div>
+
+          <div class="fil">
+            <span class="fil__rond">JS</span>
+            <span class="fil__c">
+              <span class="fil__n">J. S.</span>
+              <span class="fil__d">Vous : Parfait, je vous garde le cr&eacute;neau de 14 h.</span>
+            </span>
+            <span class="fil__r">
+              <b>hier</b>
+              <span class="horloge horloge--bientot" style="margin-top:5px">1 h 20 restante</span>
+            </span>
+          </div>
+
+          <div class="fil">
+            <span class="fil__rond fil__rond--inc">?</span>
+            <span class="fil__c">
+              <span class="fil__n">+229 97 &middot;&middot; &middot;&middot; &middot;&middot;</span>
+              <span class="fil__d">Bonjour, vous faites les locks pour homme&nbsp;?</span>
+            </span>
+            <span class="fil__r">
+              <b>hier</b>
+              <span class="pas pas--cu" style="margin-top:5px">Sans fiche</span>
+            </span>
+          </div>
+
+          <div class="fil">
+            <span class="fil__rond">KA</span>
+            <span class="fil__c">
+              <span class="fil__n">K. A.</span>
+              <span class="fil__d">Vous : L&rsquo;Atelier MND, rappel : votre rendez-vous est demain&hellip;</span>
+            </span>
+            <span class="fil__r">
+              <b>2 sept.</b>
+              <span class="horloge horloge--close" style="margin-top:5px">Ferm&eacute;e</span>
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Le num&eacute;ro inconnu ne cr&eacute;e jamais de fiche tout seul.</b> Il s&rsquo;affiche
+      tel quel, avec un geste pour l&rsquo;attacher &agrave; une t&ecirc;te existante ou en ouvrir
+      une. Une base qui se remplit d&rsquo;elle-m&ecirc;me &agrave; chaque d&eacute;marcheur se
+      salit en un mois, et personne ne sait plus qui est cliente.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;L&rsquo;&eacute;cran &middot; le fil</p>
+    <h2>Fen&ecirc;tre ouverte.</h2>
+    <p class="intro">
+      Ce qu&rsquo;elle &eacute;crit, ce que la Maison r&eacute;pond, et ce qui est parti tout seul,
+      <b>dans le m&ecirc;me fil</b>. Les rappels automatiques y figurent : sans eux on r&eacute;pond
+      &agrave; c&ocirc;t&eacute;, sans savoir qu&rsquo;un message est d&eacute;j&agrave; parti
+      il y a une heure.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>R. A.</h4>
+        <span>Nano &middot; 358 locks &middot; RDV demain 9 h</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="bulles">
+          <span class="jour">Hier</span>
+          <div class="b b--modele">
+            L&rsquo;Atelier MND, rappel : votre rendez-vous est demain &agrave; 9 h.
+            <span class="b__h">Mod&egrave;le rappel_rdv &middot; 18 h 00 &middot; remis &middot; lu</span>
+          </div>
+          <span class="jour">Aujourd&rsquo;hui</span>
+          <div class="b b--elle">
+            Bonsoir, est-ce que je peux d&eacute;caler &agrave; samedi&nbsp;?
+            <span class="b__h">9 h 04</span>
+          </div>
+          <div class="b b--nous">
+            Bonjour R., bien s&ucirc;r. Samedi 9 h vous irait&nbsp;?
+            <span class="b__h">9 h 11 &middot; remis</span>
+          </div>
+        </div>
+
+        <div class="saisie">
+          <div class="saisie__q">
+            <span class="horloge horloge--ouverte">Fen&ecirc;tre ouverte &middot; 22 h 56</span>
+            <span style="font-size:12px;color:var(--encre-d)">
+              Elle a &eacute;crit &agrave; 9 h 04. Vous pouvez r&eacute;pondre librement jusqu&rsquo;&agrave; demain 9 h 04.
+            </span>
+          </div>
+          <div class="saisie__champ">&Eacute;crivez &agrave; R.&hellip;</div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn">Ins&eacute;rer un mod&egrave;le</button>
+            <button class="btn btn--cuivre">Envoyer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>La devise ne se pose pas ici.</b> Elle signe ce que la Maison &eacute;crit
+      automatiquement, pas ce qu&rsquo;une main tape dans une conversation vivante : la coller
+      sous &laquo; Samedi 9 h vous irait ? &raquo; sonnerait faux. Les mod&egrave;les, eux, la
+      portent d&eacute;j&agrave; dans leur pied.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;L&rsquo;&eacute;cran &middot; le fil, ferm&eacute;</p>
+    <h2>Fen&ecirc;tre ferm&eacute;e.</h2>
+    <p class="intro">
+      Le m&ecirc;me &eacute;cran, neuf jours plus tard. <b>La zone de saisie ne ment pas :</b>
+      elle se ferme et laisse la place aux seules phrases que Meta accepte encore. Tu ne
+      d&eacute;couvres pas la r&egrave;gle en voyant un message &eacute;chouer.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>K. A.</h4>
+        <span>Derni&egrave;re venue le 2 septembre</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="saisie saisie--close">
+          <div class="saisie__q">
+            <span class="horloge horloge--close">Ferm&eacute;e depuis 8 jours</span>
+            <span style="font-size:12px;color:var(--encre-d)">
+              K. n&rsquo;a pas &eacute;crit depuis le 2 septembre. WhatsApp n&rsquo;accepte plus que vos mod&egrave;les.
+            </span>
+          </div>
+          <div class="saisie__champ">Le texte libre est refus&eacute; par WhatsApp hors fen&ecirc;tre.</div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn--cuivre">rappel_rdv</button>
+            <button class="btn btn--cuivre">confirmation_rdv</button>
+            <button class="btn btn--cuivre">avis_google</button>
+          </div>
+          <p style="font-size:12px;color:var(--encre-d);margin:11px 0 0">
+            Un mod&egrave;le rouvre une conversation de 24 h, <b>et Meta la facture</b>.
+            D&egrave;s qu&rsquo;elle r&eacute;pond, la saisie libre revient d&rsquo;elle-m&ecirc;me.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce que le webhook r&eacute;pare sans qu&rsquo;on le demande</p>
+    <h2>Le journal cesse de mentir.</h2>
+    <p class="intro">
+      Les accus&eacute;s de Meta passent par la m&ecirc;me adresse que les messages.
+      <b>Aujourd&rsquo;hui le journal &eacute;crit &laquo; envoy&eacute; &raquo; d&egrave;s que Meta
+      accepte la requ&ecirc;te</b> : un message jamais remis se lit comme parti. C&rsquo;est
+      exactement l&rsquo;angle mort qu&rsquo;on a habill&eacute; d&rsquo;une pastille hier soir.
+    </p>
+
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr><th>La tourn&eacute;e du matin dit</th><th>Aujourd&rsquo;hui</th><th>Avec le webhook</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>WhatsApp auto</b></td>
+            <td>Meta a accept&eacute; la requ&ecirc;te. On ne sait rien de plus.</td>
+            <td><span class="pas pas--ok">Remis</span> <span class="pas pas--ok">Lu</span> <span class="pas pas--att">En route</span> ou <span class="pas pas--ko">Non remis</span>, avec la raison.</td>
+          </tr>
+          <tr>
+            <td><b>&Eacute;chec &middot; &agrave; la main</b></td>
+            <td>Seulement si l&rsquo;appel lui-m&ecirc;me a cass&eacute; chez nous.</td>
+            <td>Aussi quand Meta refuse plus tard : num&eacute;ro invalide, bloqu&eacute;e, mod&egrave;le suspendu.</td>
+          </tr>
+          <tr>
+            <td><b>Rien n&rsquo;est parti</b></td>
+            <td>Juste.</td>
+            <td>Juste, et le fil montre pourquoi.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="legende">
+      <b>C&rsquo;est l&rsquo;argument le plus fort de tout ce chantier</b>, et il ne demande aucun
+      &eacute;cran : &eacute;tape 1 ci-dessous, le webhook seul, et la Maison sait enfin ce qui
+      arrive vraiment &agrave; ses messages.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VI</span> &nbsp;Ce qui garde la porte</p>
+    <h2>Une adresse publique se verrouille.</h2>
+    <p class="intro">
+      Le webhook est une adresse <b>ouverte sur l&rsquo;internet</b>, sans mot de passe : c&rsquo;est
+      la seule fa&ccedil;on pour Meta de nous appeler. Elle doit donc prouver que l&rsquo;appel
+      vient bien de Meta, &agrave; chaque fois.
+    </p>
+    <ul class="liste">
+      <li><b>La signature, sur le corps brut.</b> Meta signe chaque appel avec le secret de l&rsquo;application. Sans cette v&eacute;rification, n&rsquo;importe qui conna&icirc;t l&rsquo;adresse peut poster de faux messages dans la bo&icirc;te de tes clientes. KkiaPay porte d&eacute;j&agrave; ce verrou dans la Maison, on suit le m&ecirc;me motif.</li>
+      <li><b>Un refus r&eacute;pond quand m&ecirc;me &laquo; ok &raquo;.</b> Une erreur ferait retenter Meta cinq fois et renseignerait un attaquant sur sa cible.</li>
+      <li><b>Deux secrets, jamais dans le d&eacute;p&ocirc;t</b>, jamais dans un message : le jeton de v&eacute;rification que tu inventes, et le secret de l&rsquo;application Meta. Le d&eacute;p&ocirc;t est public, et une fuite a d&eacute;j&agrave; eu lieu.</li>
+      <li><b>La table est ferm&eacute;e au personnel.</b> Une conversation de cliente ne regarde ni la cl&eacute; publique, ni Ma Couronne, ni personne d&rsquo;autre que la Maison.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VII</span> &nbsp;L&rsquo;ordre</p>
+    <h2>Quatre &eacute;tapes, chacune utile seule.</h2>
+    <p class="intro">
+      Rien ici n&rsquo;oblige &agrave; tout construire d&rsquo;un coup, et <b>la premi&egrave;re
+      &eacute;tape n&rsquo;a m&ecirc;me pas d&rsquo;&eacute;cran</b> : elle ne peut donc rien
+      casser de ce que tu regardes tous les jours.
+    </p>
+
+    <div class="etapes">
+      <div class="etape">
+        <span class="etape__n">1</span>
+        <span>
+          <b>L&rsquo;oreille et les accus&eacute;s</b>
+          <small>
+            Le webhook, les deux secrets, la table, la signature. Aucun &eacute;cran. Le journal
+            de la tourn&eacute;e dit enfin &laquo; remis &raquo;, &laquo; lu &raquo;,
+            &laquo; non remis &raquo;. Risque nul, gain imm&eacute;diat.
+          </small>
+        </span>
+      </div>
+      <div class="etape">
+        <span class="etape__n">2</span>
+        <span>
+          <b>Entendre</b>
+          <small>
+            Les messages re&ccedil;us se rangent. La bo&icirc;te et le fil, <b>en lecture seule</b>,
+            plus un fil sur la fiche de chaque t&ecirc;te. La Maison se souvient enfin de ce
+            qu&rsquo;on lui a &eacute;crit.
+          </small>
+        </span>
+      </div>
+      <div class="etape">
+        <span class="etape__n">3</span>
+        <span>
+          <b>R&eacute;pondre</b>
+          <small>
+            La saisie, et la fen&ecirc;tre de 24 h tenue par l&rsquo;&eacute;cran. C&rsquo;est
+            l&rsquo;&eacute;tape qui remplace vraiment ton t&eacute;l&eacute;phone.
+          </small>
+        </span>
+      </div>
+      <div class="etape etape--gris">
+        <span class="etape__n">4</span>
+        <span>
+          <b>Les photos</b>
+          <small>
+            Une image n&rsquo;arrive pas comme un fichier mais comme un identifiant qu&rsquo;il
+            faut aller chercher, puis stocker. Travail et co&ucirc;t r&eacute;els, &agrave; part.
+            <b>Hors de cette maquette</b> : on la dessinera quand les trois premi&egrave;res
+            tourneront.
+          </small>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VIII</span> &nbsp;Ce que je ne d&eacute;cide pas seul</p>
+    <h2>Trois questions pour toi.</h2>
+
+    <div class="quest">
+      <b>Qui lit les conversations&nbsp;?</b>
+      <p>
+        Tout le personnel, comme le reste du Tr&ocirc;ne&nbsp;? Ou toi seule, comme les
+        t&ecirc;te-&agrave;-t&ecirc;te du Fil&nbsp;? Une cliente qui &eacute;crit &agrave; la
+        Maison ne sait pas combien de personnes la lisent, et c&rsquo;est &agrave; toi de le
+        d&eacute;cider, pas &agrave; moi.
+      </p>
+    </div>
+
+    <div class="quest">
+      <b>Le num&eacute;ro de la Maison est-il celui que tu utilises d&eacute;j&agrave;&nbsp;?</b>
+      <p>
+        Le num&eacute;ro branch&eacute; sur l&rsquo;API ne peut plus &ecirc;tre utilis&eacute;
+        dans l&rsquo;application WhatsApp ordinaire de ton t&eacute;l&eacute;phone. Si tes
+        clientes t&rsquo;&eacute;crivent aujourd&rsquo;hui sur un autre num&eacute;ro, les
+        conversations du Tr&ocirc;ne seront vides tant qu&rsquo;elles n&rsquo;auront pas
+        chang&eacute; d&rsquo;adresse.
+      </p>
+    </div>
+
+    <div class="quest">
+      <b>Jusqu&rsquo;o&ugrave; remonte-t-on&nbsp;?</b>
+      <p>
+        Meta ne livre <b>rien du pass&eacute;</b> : le fil commence le jour o&ugrave; le webhook
+        est pos&eacute;. Aucune conversation ant&eacute;rieure ne peut &ecirc;tre
+        r&eacute;cup&eacute;r&eacute;e, et il vaut mieux le savoir maintenant que le
+        d&eacute;couvrir apr&egrave;s.
+      </p>
+    </div>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Rien n&rsquo;est &eacute;crit dans le
+    Tr&ocirc;ne tant que tu n&rsquo;as pas dit &laquo; construis &raquo;. L&rsquo;&eacute;tape 1
+    n&rsquo;ayant pas d&rsquo;&eacute;cran, elle peut partir d&egrave;s maintenant ; les
+    &eacute;tapes 2 et 3 attendent tes r&eacute;ponses aux trois questions ci-dessus. Une
+    migration sera n&eacute;cessaire pour la table des messages, pr&eacute;sent&eacute;e et
+    jamais appliqu&eacute;e par moi.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>
