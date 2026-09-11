@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les inactives &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex;
+                 align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  .miroir { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+  @media (max-width:680px){ .miroir { grid-template-columns:1fr; } }
+  .face { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:15px 17px; }
+  .face u { text-decoration:none; display:block; font-size:10px; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--cuivre); margin-bottom:7px; }
+  .face b { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); display:block; }
+  .face small { display:block; font-size:12.5px; color:var(--encre-d); margin-top:5px; line-height:1.55; }
+  .face--fait { border-left:3px solid var(--vert); }
+  .face--manque { border-left:3px solid var(--brique); }
+  .face--sans { border-left:3px solid var(--cuivre); }
+  .face--dort { border-left:3px solid var(--indigo-2); }
+
+  .onglets { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:18px; }
+  .ong { border:1px solid var(--filet); border-radius:99px; background:var(--blanc);
+         padding:7px 15px; font-size:12.5px; color:var(--encre-d); }
+  .ong.on { background:var(--indigo); border-color:var(--indigo); color:#EFEAE0; }
+  .ong i { font-style:normal; color:var(--cuivre); margin-left:5px; }
+  .ong.on i { color:var(--cuivre-p); }
+
+  .fiche { border:1px solid var(--filet); border-radius:4px; background:var(--blanc);
+           padding:14px 16px; margin-bottom:10px; }
+  .fiche__t { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .fiche__t b { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); }
+  .fiche__m { font-size:12.5px; color:var(--encre-d); margin-top:3px; }
+  .fiche__g { display:flex; gap:7px; flex-wrap:wrap; margin-top:11px; }
+
+  .pas { display:inline-block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+         border-radius:2px; padding:3px 9px; border:1px solid; }
+  .pas--sans { color:var(--cuivre); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .pas--dort { color:var(--indigo-2); border-color:#C9CCE0; background:var(--indigo-pale); }
+  .pas--main { color:var(--ambre); border-color:var(--ambre-p); background:var(--ambre-f); }
+
+  .btn { border:1px solid var(--filet); border-radius:3px; background:var(--blanc); color:var(--encre-d);
+         padding:6px 13px; font-size:12.5px; font-family:var(--sans); }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .btn--fant { background:transparent; }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .msg { border:1px solid var(--filet); border-radius:4px; background:var(--vert-f);
+         border-left:3px solid var(--vert); padding:14px 17px; font-size:13.5px;
+         line-height:1.7; color:var(--encre); white-space:pre-line; }
+  .msg em { font-style:normal; color:var(--encre-d); }
+
+  .fin { margin-top:64px; padding-top:26px; border-top:1px solid var(--filet);
+         font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Clientes &middot; la cinqui&egrave;me rubrique</p>
+  <h1>Les inactives.</h1>
+  <p class="chapeau">
+    Une t&ecirc;te qui a d&eacute;fait ses locks et n&rsquo;a rien repris n&rsquo;est plus une cliente de
+    l&rsquo;atelier. Elle n&rsquo;est pas perdue pour autant : <b>elle sort de la base des t&ecirc;tes
+    actives, elle ne sort de rien d&rsquo;autre.</b> Son argent reste compt&eacute;, son histoire reste
+    lisible, et le Studio peut encore lui parler.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; Quand une cliente a fait le Gbata, le d&eacute;faisage, elles n&rsquo;ont plus de locks
+      donc ce ne sont plus des clientes de l&rsquo;atelier MND. Il faut les sortir et leur cr&eacute;er
+      une rubrique. M&ecirc;me chose pour les clients qui ont d&eacute;j&agrave; fait plus de 5 mois
+      sans venir au salon et qui ne sont pas de la diaspora. &raquo;
+      <span>Y&eacute;man &middot; 11 septembre 2026</span>
+    </p>
+
+    <div class="alerte">
+      <b>Ce qui se passe aujourd&rsquo;hui.</b>
+      <p>
+        M. D. et E. H. ont fait leur Gbata. Elles n&rsquo;ont plus un seul lock sur la t&ecirc;te, et
+        elles sont toujours dans &laquo; La Maison &raquo;, compt&eacute;es parmi les t&ecirc;tes
+        couronn&eacute;es, attendues par la cadence, propos&eacute;es &agrave; la relance.
+      </p>
+      <p>
+        Trois choses mentent en m&ecirc;me temps : <b>le nombre de t&ecirc;tes</b> gonfle d&rsquo;une
+        relation qui n&rsquo;existe plus, <b>la r&eacute;tention</b> s&rsquo;effondre sans qu&rsquo;il
+        se soit rien pass&eacute; dans la Maison, et <b>la relance</b> part vers quelqu&rsquo;un &agrave;
+        qui l&rsquo;atelier n&rsquo;a plus rien &agrave; vendre. C&rsquo;est la maladie de la Diaspora,
+        une seconde fois.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Deux raisons, jamais confondues</p>
+    <h2>Sortie n&rsquo;est pas endormie.</h2>
+    <p class="intro">
+      La rubrique est une, les raisons sont deux, et chaque fiche dit la sienne. Les m&eacute;langer
+      ferait perdre la seule chose qui compte : <b>ce qu&rsquo;on peut encore lui proposer.</b>
+      L&rsquo;une n&rsquo;a plus de locks, l&rsquo;autre en a toujours et ne vient plus.
+    </p>
+
+    <div class="miroir">
+      <div class="face face--sans">
+        <u>Raison 1</u>
+        <b>Sans locks</b>
+        <small>
+          Son dernier GB&Agrave;T&Agrave;&trade; est honor&eacute;, et aucun V&Egrave;KP&Egrave;&trade;
+          n&rsquo;est venu apr&egrave;s. Il n&rsquo;y a plus rien &agrave; entretenir, plus rien &agrave;
+          compter, plus une mesure &agrave; prendre. L&rsquo;atelier n&rsquo;a plus de prise sur elle.
+          <b>Le Studio, si.</b>
+        </small>
+      </div>
+      <div class="face face--dort">
+        <u>Raison 2</u>
+        <b>Cinq mois sans venir</b>
+        <small>
+          Sa derni&egrave;re venue honor&eacute;e a plus de cinq mois, et elle n&rsquo;est pas de la
+          diaspora. Elle porte peut-&ecirc;tre encore ses locks, mais ce n&rsquo;est plus la Maison qui
+          les tient. On cesse de l&rsquo;attendre. <b>On ne l&rsquo;efface pas.</b>
+        </small>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>La diaspora est &eacute;pargn&eacute;e par la seconde, pas par la premi&egrave;re.</b> On ne
+      compte pas les mois de quelqu&rsquo;un qui vit ailleurs, elle vient quand elle est au pays.
+      Mais un Gb&agrave;t&agrave; est un Gb&agrave;t&agrave; : sans locks, c&rsquo;est sans locks,
+      o&ugrave; qu&rsquo;elle habite.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;L&rsquo;&eacute;cran</p>
+    <h2>La cinqui&egrave;me rubrique.</h2>
+    <p class="intro">
+      Rien de neuf &agrave; apprendre : les registres des Clientes sont d&eacute;j&agrave; disjoints, une
+      t&ecirc;te ne vit que dans un seul. Il en na&icirc;t un cinqui&egrave;me, au bout de la ligne.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Les t&ecirc;tes couronn&eacute;es</h4>
+        <span>Clientes</span>
+      </div>
+      <div class="ecran__corps">
+
+        <div class="onglets">
+          <span class="ong">La Maison <i>164</i></span>
+          <span class="ong">Diaspora <i>38</i></span>
+          <span class="ong">De passage <i>52</i></span>
+          <span class="ong">Visiteurs <i>21</i></span>
+          <span class="ong on">Inactives <i>14</i></span>
+        </div>
+
+        <div class="fiche">
+          <div class="fiche__t">
+            <div>
+              <b>M. D.</b>
+              <div class="fiche__m">Cotonou &middot; derni&egrave;re venue le 2 ao&ucirc;t 2026 &middot; 11 venues</div>
+            </div>
+            <span class="pas pas--sans">Sans locks</span>
+          </div>
+          <div class="fiche__m" style="margin-top:8px">
+            GB&Agrave;T&Agrave;&trade; Le D&eacute;faisage honor&eacute; le 2 ao&ucirc;t, aucune cr&eacute;ation depuis, rien au carnet.
+          </div>
+          <div class="fiche__g">
+            <button class="btn btn--cuivre">Proposer le Studio</button>
+            <button class="btn">Ouvrir la fiche</button>
+            <button class="btn btn--fant">La ramener dans la Maison</button>
+          </div>
+        </div>
+
+        <div class="fiche">
+          <div class="fiche__t">
+            <div>
+              <b>E. H.</b>
+              <div class="fiche__m">Cotonou &middot; derni&egrave;re venue le 19 juillet 2026 &middot; 6 venues</div>
+            </div>
+            <span class="pas pas--sans">Sans locks</span>
+          </div>
+          <div class="fiche__m" style="margin-top:8px">
+            GB&Agrave;T&Agrave;&trade; Le D&eacute;faisage honor&eacute; le 19 juillet, aucune cr&eacute;ation depuis, rien au carnet.
+          </div>
+          <div class="fiche__g">
+            <button class="btn btn--cuivre">Proposer le Studio</button>
+            <button class="btn">Ouvrir la fiche</button>
+            <button class="btn btn--fant">La ramener dans la Maison</button>
+          </div>
+        </div>
+
+        <div class="fiche">
+          <div class="fiche__t">
+            <div>
+              <b>A. K.</b>
+              <div class="fiche__m">Abomey-Calavi &middot; derni&egrave;re venue le 28 mars 2026 &middot; 9 venues</div>
+            </div>
+            <span class="pas pas--dort">5 mois et 14 jours</span>
+          </div>
+          <div class="fiche__m" style="margin-top:8px">
+            Elle porte encore ses locks. Rien au carnet, aucune relance depuis juin.
+          </div>
+          <div class="fiche__g">
+            <button class="btn">Ouvrir la fiche</button>
+            <button class="btn">&Eacute;crire sur WhatsApp</button>
+            <button class="btn btn--fant">La ramener dans la Maison</button>
+          </div>
+        </div>
+
+        <div class="fiche">
+          <div class="fiche__t">
+            <div>
+              <b>S. T.</b>
+              <div class="fiche__m">Cotonou &middot; derni&egrave;re venue le 11 f&eacute;vrier 2026 &middot; 4 venues</div>
+            </div>
+            <span class="pas pas--main">Sortie &agrave; la main</span>
+          </div>
+          <div class="fiche__m" style="margin-top:8px">
+            Marqu&eacute;e &laquo; Sans locks &raquo; depuis &laquo; Celles qui ont gliss&eacute; &raquo;, le 9 septembre.
+          </div>
+          <div class="fiche__g">
+            <button class="btn btn--cuivre">Proposer le Studio</button>
+            <button class="btn">Ouvrir la fiche</button>
+            <button class="btn btn--fant">La ramener dans la Maison</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>&laquo; Proposer le Studio &raquo; ne s&rsquo;affiche que pour celles qui n&rsquo;ont plus de
+      locks.</b> Celle qui dort en porte encore : lui proposer des tresses serait lui dire qu&rsquo;on
+      a renonc&eacute; &agrave; sa couronne. Elle, on lui &eacute;crit normalement.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Le message</p>
+    <h2>Ce que le bouton &eacute;crit.</h2>
+    <p class="intro">
+      Un seul texte, ouvert dans WhatsApp sur son num&eacute;ro, <b>modifiable avant envoi</b> :
+      rien ne part sans que tu l&rsquo;aies lu. Il ne dit jamais &laquo; vous nous manquez &raquo;
+      ni ne redemande des locks, ce serait lui reprocher son choix.
+    </p>
+
+    <div class="msg">Bonjour M.,
+
+Vous avez retir&eacute; vos locks, et c&rsquo;&eacute;tait votre choix, nous le respectons.
+
+Sachez seulement que la Maison a un second atelier, le STUDIO MND &middot; AC&Ccedil;&#390;&trade; : les couronnes tress&eacute;es, le cheveu naturel libre, et les coiffures des grands jours. Rien de tout cela ne demande des locks.
+
+Si l&rsquo;envie vous vient, la porte est ouverte.
+
+<em>mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</em></div>
+
+    <p class="legende">
+      La devise est pos&eacute;e <b>par le code</b>, jamais retap&eacute;e, jamais demand&eacute;e
+      &agrave; un mod&egrave;le : <code>signeLeMessage()</code>, la m&ecirc;me porte que tous les
+      messages de la Maison.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Ce qui se tait, ce qui continue</p>
+    <h2>Sortir n&rsquo;est pas effacer.</h2>
+    <p class="intro">
+      La coupure est exactement celle de la cliente de passage, et pour la m&ecirc;me raison :
+      <b>le tort n&rsquo;est pas de les garder, c&rsquo;est de les compter.</b>
+    </p>
+
+    <div class="miroir">
+      <div class="face face--manque">
+        <u>Elle sort de</u>
+        <b>Tout ce qui se compte par t&ecirc;te</b>
+        <small>
+          Les t&ecirc;tes couronn&eacute;es. La r&eacute;tention. Les pr&eacute;dictions et
+          &laquo; celles qui ont gliss&eacute; &raquo;. Les retenues du mois. &Agrave; faire. Les
+          audiences de relance et les rappels automatiques. Le registre &laquo; La Maison &raquo;,
+          o&ugrave; son nom ne para&icirc;t plus.
+        </small>
+      </div>
+      <div class="face face--fait">
+        <u>Elle reste dans</u>
+        <b>Tout ce qui s&rsquo;est r&eacute;ellement pass&eacute;</b>
+        <small>
+          Le chiffre d&rsquo;affaires de chaque mois qu&rsquo;elle a pay&eacute;. La production de la
+          ma&icirc;tresse qui l&rsquo;a re&ccedil;ue. Son carnet, ses factures, ses photos, ses bilans.
+          La recherche, qui la trouve par son nom depuis n&rsquo;importe quel registre. Ses
+          rendez-vous d&eacute;j&agrave; pris, s&rsquo;il en reste.
+        </small>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Aucune fiche n&rsquo;est supprim&eacute;e, aucune ligne d&rsquo;argent n&rsquo;est
+      touch&eacute;e.</b> R&eacute;&eacute;crire le pass&eacute; parce que la relation s&rsquo;est
+      arr&ecirc;t&eacute;e ferait mentir tous les mois d&eacute;j&agrave; clos.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Le retour</p>
+    <h2>Elle revient toute seule.</h2>
+    <p class="intro">
+      C&rsquo;est la garantie qui rend le basculement automatique acceptable. <b>Une t&ecirc;te
+      sortie n&rsquo;est jamais enterr&eacute;e :</b> le jour o&ugrave; elle se rassied, elle
+      remonte dans &laquo; La Maison &raquo; sans que personne y pense.
+    </p>
+
+    <ul class="liste">
+      <li><b>Un V&Egrave;KP&Egrave;&trade; honor&eacute; la ram&egrave;ne.</b> La cr&eacute;ation lui rend ses locks, et la marque &laquo; sans locks &raquo; se l&egrave;ve au moment o&ugrave; le rituel est honor&eacute;, pas plus tard.</li>
+      <li><b>Un V&Egrave;KP&Egrave;&trade; au carnet la retient.</b> Celle qui d&eacute;fait mardi pour refaire le mois prochain ne bouge jamais : le rendez-vous &agrave; venir suffit, elle n&rsquo;est sortie ni une heure.</li>
+      <li><b>Une venue honor&eacute;e r&eacute;veille celle qui dormait.</b> Les cinq mois repartent de sa derni&egrave;re venue r&eacute;elle, il n&rsquo;y a rien &agrave; remettre &agrave; z&eacute;ro.</li>
+      <li><b>Un rendez-vous pris la r&eacute;veille aussi.</b> D&egrave;s qu&rsquo;une date est inscrite, la Maison l&rsquo;attend de nouveau, et cesse de la dire sortie.</li>
+      <li><b>&laquo; La ramener dans la Maison &raquo; bat tout le reste.</b> Ce bouton pose un verrou : la fiche ne ressortira plus toute seule, m&ecirc;me si les faits le disent. Une d&eacute;cision bat une d&eacute;duction, comme pour le persona et la cliente de passage.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VI</span> &nbsp;Le juge</p>
+    <h2>Un seul endroit d&eacute;cide.</h2>
+    <p class="intro">
+      Comme <code>estDiaspora</code>, comme <code>estDePassage</code> : une seule fonction, lue par
+      tous les &eacute;crans. Deux v&eacute;rit&eacute;s pour une notion, c&rsquo;est un compteur qui
+      annonce 1 quand la Maison en reconna&icirc;t cinquante.
+    </p>
+
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr><th>Ce qu&rsquo;on lit</th><th>O&ugrave;</th><th>Ce que &ccedil;a d&eacute;cide</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Le Gb&agrave;t&agrave;</b></td>
+            <td>Cat&eacute;gorie <code>plt-45</code>, jamais le nom</td>
+            <td>Dernier d&eacute;faisage honor&eacute;. Une r&egrave;gle qui reconna&icirc;t par le nom casse en silence le jour d&rsquo;un renommage.</td>
+          </tr>
+          <tr>
+            <td><b>Le V&egrave;kp&egrave;</b></td>
+            <td><code>fondeLaCouronne</code>, d&eacute;j&agrave; en place</td>
+            <td>Toute cr&eacute;ation de l&rsquo;atelier de la Naissance, y compris celles que la Maison ajoutera demain.</td>
+          </tr>
+          <tr>
+            <td><b>La derni&egrave;re venue</b></td>
+            <td>Rendez-vous honor&eacute;s</td>
+            <td>Cinq mois pleins, compt&eacute;s en mois de calendrier, pas en 150 jours.</td>
+          </tr>
+          <tr>
+            <td><b>La diaspora</b></td>
+            <td><code>estDiaspora</code></td>
+            <td>Exempte de la r&egrave;gle des cinq mois. Jamais de celle du Gb&agrave;t&agrave;.</td>
+          </tr>
+          <tr>
+            <td><b>La main</b></td>
+            <td><code>locksDefaits</code>, d&eacute;j&agrave; en place</td>
+            <td>La marque &laquo; Sans locks &raquo; pos&eacute;e depuis &laquo; celles qui ont gliss&eacute; &raquo; ou &Agrave; faire sort la fiche imm&eacute;diatement.</td>
+          </tr>
+          <tr>
+            <td><b>Le verrou</b></td>
+            <td><code>resteDeLaMaison</code>, nouveau</td>
+            <td>&laquo; La ramener &raquo; : la fiche ne sortira plus seule. Se rel&acirc;che d&rsquo;un clic.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="legende">
+      <b>Un champ, pas un segment.</b> Un segment se renomme et s&rsquo;efface depuis une liste, et le
+      pr&eacute;dicat casse sans un mot. La Diaspora l&rsquo;a appris &agrave; la Maison au mois
+      d&rsquo;ao&ucirc;t ; on ne le r&eacute;apprend pas.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VII</span> &nbsp;L&rsquo;ordre</p>
+    <h2>Qui prime sur qui.</h2>
+    <p class="intro">
+      Les registres sont disjoints : une t&ecirc;te n&rsquo;appara&icirc;t que dans un seul. Quand
+      deux marques sont vraies &agrave; la fois, l&rsquo;ordre tranche, et il ne change jamais.
+    </p>
+
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr><th>Rang</th><th>Registre</th><th>Pourquoi l&agrave;</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>1</b></td><td><b>De passage</b></td><td>Elle n&rsquo;a jamais &eacute;t&eacute; une relation. Rien ne peut la rendre inactive, elle ne l&rsquo;a jamais &eacute;t&eacute; activement.</td></tr>
+          <tr><td><b>2</b></td><td><b>Inactives</b></td><td>Sans locks, c&rsquo;est sans locks. Une t&ecirc;te de la diaspora qui a fait son Gb&agrave;t&agrave; est d&rsquo;abord sortie.</td></tr>
+          <tr><td><b>3</b></td><td><b>Diaspora</b></td><td>Elle vit ailleurs, sa cadence ne dit rien, mais elle porte toujours sa couronne.</td></tr>
+          <tr><td><b>4</b></td><td><b>Visiteurs</b></td><td>Un compte ouvert, aucune venue. Jamais inactive non plus : il n&rsquo;y a rien &agrave; quitter.</td></tr>
+          <tr><td><b>5</b></td><td><b>La Maison</b></td><td>Tout le reste.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VIII</span> &nbsp;Le premier jour</p>
+    <h2>Ce que tu verras en ouvrant.</h2>
+    <p class="intro">
+      La r&egrave;gle se lit sur l&rsquo;histoire d&eacute;j&agrave; &eacute;crite. <b>Rien &agrave;
+      migrer, rien &agrave; ressaisir</b> : la rubrique se remplit toute seule &agrave; la premi&egrave;re
+      ouverture, avec des t&ecirc;tes que tu reconna&icirc;tras.
+    </p>
+    <ul class="liste">
+      <li>Le compteur de &laquo; La Maison &raquo; va <b>baisser</b>, et c&rsquo;est le but : il &eacute;tait faux.</li>
+      <li>La r&eacute;tention va <b>remonter</b> le jour o&ugrave; elle cesse de diviser par des t&ecirc;tes parties.</li>
+      <li>&laquo; Celles qui ont gliss&eacute; &raquo; va <b>raccourcir</b> : les plus vieux retards n&rsquo;&eacute;taient pas des retards, c&rsquo;&eacute;taient des d&eacute;parts.</li>
+      <li>Aucun rendez-vous, aucune facture, aucun franc ne bouge.</li>
+      <li>Si une seule fiche te para&icirc;t &agrave; tort dehors, un clic la ram&egrave;ne et elle n&rsquo;en ressortira plus.</li>
+    </ul>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Rien n&rsquo;est &eacute;crit dans le Tr&ocirc;ne
+    tant que tu n&rsquo;as pas dit &laquo; construis &raquo;. Aucune migration n&rsquo;est
+    n&eacute;cessaire : la rubrique ne stocke rien, elle lit l&rsquo;histoire. Seul le verrou
+    &laquo; La ramener &raquo; ajoute un champ &agrave; la fiche, et un champ absent vaut
+    &laquo; non pos&eacute; &raquo;.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>
