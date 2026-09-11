@@ -882,6 +882,14 @@ export default function Dashboard() {
               >
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', minWidth: 46 }}>{a.time}</span>
                 <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
+                {/* L'ACCUSÉ DE META PASSE DEVANT — 11 septembre 2026.
+                    « Remis » et « lu » sont des faits rapportés par le
+                    téléphone de la cliente ; « WhatsApp auto » ne disait que
+                    « Meta a accepté notre requête ». Quand l'accusé existe,
+                    c'est lui qu'il faut lire, et le canal devient un détail. */}
+                {etat.accuse === 'lu' && tag('Lu')}
+                {etat.accuse === 'remis' && tag('Remis')}
+                {etat.accuse === 'en-route' && tag('En route')}
                 {etat.partis.includes('push') && tag('Push parti seul')}
                 {etat.sansAppli && tag('Sans l’appli')}
                 {etat.partis.includes('whatsapp') && tag('WhatsApp auto')}

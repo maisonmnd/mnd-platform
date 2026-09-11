@@ -408,6 +408,15 @@ export type Envoi = {
   dateRdv: string;
   heure?: string;
   statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main';
+  /** L'IDENTIFIANT META DU MESSAGE — le fil qui relie l'envoi à son accusé.
+      Sans lui, l'accusé que Meta rapporte minutes plus tard ne se rapproche
+      de rien, et « envoyé » reste le dernier mot pour toujours. */
+  waMessageId?: string;
+  /** CE QUE LE MESSAGE EST DEVENU, rapporté par Meta au webhook.
+      « envoyé » ne disait que « Meta a accepté la requête » : un message
+      jamais remis se lisait comme parti. */
+  etat?: 'en-route' | 'remis' | 'lu' | 'non-remis';
+  accuseLe?: string;
   detail?: string;
   quand: string; // ISO — l'instant de la tentative
 };

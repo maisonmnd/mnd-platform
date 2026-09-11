@@ -141,6 +141,59 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LES CONVERSATIONS — 11 septembre 2026, CONSTRUIT · NON PUBLIÉ
+
+« Comment je réussis à construire les conversations WhatsApp dans le trône ? »
+puis « construis » (Yéman). Maquette `maquette-les-conversations.html`, validée.
+
+**LE TRÔNE PARLAIT SANS ENTENDRE.** Il manquait une seule chose, l'oreille :
+un webhook que Meta appelle à chaque message.
+
+**Deux réponses de la Maison commandent le dessin :** le numéro branché sur
+l'API est bien celui où les clientes écrivent ; et les conversations sont
+ouvertes à tout le personnel, **sauf ce que Yéman marque privé**.
+
+**Ce qui est construit :**
+· `supabase/functions/whatsapp-webhook` — NEUVE. Poignée de main (hub.challenge),
+  signature `X-Hub-Signature-256` vérifiée sur le corps BRUT et à temps
+  constant, messages rangés, accusés reportés. `Verify JWT` À DÉCOCHER.
+· `supabase/functions/whatsapp-envoi` — NEUVE. Le jeton Meta ne quitte jamais
+  le serveur. `is_staff` vérifié côté base, et la fenêtre de 24 h retranchée
+  ici AUSSI : l'écran RENSEIGNE, le serveur EMPÊCHE.
+· `supabase/functions/rappels-j1` — MODIFIÉE, à recoller. Elle garde enfin
+  `waMessageId` (sans lui aucun accusé ne se rapproche de rien) et écrit le
+  rappel AU FIL, sinon on répondrait à côté.
+· `src/shared/conversations.ts` — la fenêtre, le rapprochement par numéro, les
+  fils. 46ᵉ harnais, 27 épreuves.
+· `src/shared/tournee.ts` — lit les accusés ; « envoyé » n'a jamais voulu dire
+  « arrivé », et un « non-remis » devient un échec.
+· `src/apps/trone/routes/clients/Conversations.tsx` + la route.
+
+**LA FENÊTRE DE 24 HEURES DESSINE L'ÉCRAN.** La saisie se ferme AVANT qu'on
+tape, et laisse la place aux trois modèles. C'est ce qui fait rater la plupart
+des boîtes WhatsApp : on tape, ça échoue, en langue étrangère et sans remède.
+
+**Un numéro inconnu ne crée JAMAIS de fiche** : on le rattache à une tête
+existante, et le premier numéro ne s'écrase pas.
+
+**`numeroMaison` est posé AVANT le second numéro** (question de Yéman le même
+soir) : Meta le donne à chaque message, il ne coûte rien, et il ne se
+retrouverait jamais après coup.
+
+### CE QU'IL RESTE À FAIRE, DANS L'ORDRE
+
+1. **Migration 0086** (`messages_wa`) à passer.
+2. Déployer `whatsapp-webhook`, **décocher Verify JWT**.
+3. Poser `WA_VERIFY_TOKEN` (inventé) et `WA_APP_SECRET` (App Secret Meta).
+4. Chez Meta : WhatsApp Manager → Configuration → Webhooks → l'URL et le
+   jeton, puis s'abonner au champ `messages`.
+5. Déployer `whatsapp-envoi` (Verify JWT COCHÉ).
+6. Recoller `rappels-j1` EN ENTIER.
+7. Publier.
+
+Meta ne livre **rien du passé** : le fil commence au premier message reçu.
+Les photos sont hors chantier, comme la maquette l'annonce.
+
 ## LES INACTIVES, LA CINQUIÈME RUBRIQUE — 11 septembre 2026, PUBLIÉ
 
 « Quand une cliente a fait le Gbata, le défaisage, elle n'a plus de locks donc

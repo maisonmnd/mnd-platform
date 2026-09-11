@@ -2584,3 +2584,116 @@
   outline: 2px solid var(--color-copper);
   outline-offset: -2px;
 }
+
+/* ══ LES CONVERSATIONS — 11 septembre 2026 ═════════════════════════
+   Maquette validée. Deux colonnes : la boîte, puis le fil. Sous 900 px
+   elles s'empilent — au salon on lit sur une tablette tenue debout. */
+.trc-convs {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 14px;
+  align-items: start;
+  min-height: 520px;
+}
+@media (max-width: 900px) { .trc-convs { grid-template-columns: 1fr; } }
+
+.trc-convs__boite {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--surface-card);
+  overflow: hidden;
+  max-height: 68vh;
+  overflow-y: auto;
+}
+.trc-conv {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 13px;
+  border: none;
+  border-top: 1px solid var(--hairline);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.trc-conv:first-child { border-top: none; }
+.trc-conv:hover { background: var(--paper-2); }
+.trc-conv.is-ouvert { background: var(--copper-50); }
+/* LE FIL QUI ATTEND UNE RÉPONSE SE VOIT AVANT D'ÊTRE LU : un filet cuivre
+   à gauche, pas une couleur de fond — le fond dit « ouvert », pas « urgent ». */
+.trc-conv.est-vif { box-shadow: inset 3px 0 0 var(--color-copper); }
+.trc-conv__rond {
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-indigo); color: var(--color-ivoire);
+  font-family: var(--font-serif); font-size: 13px;
+}
+.trc-conv__rond.est-inconnu { background: var(--color-sable); color: var(--ink-soft); }
+.trc-conv__c { min-width: 0; flex: 1; }
+.trc-conv__n { display: block; font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+.trc-conv__d {
+  display: block; font-size: 12.5px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.trc-conv__r { flex: none; text-align: right; font-size: 10.5px; color: var(--ink-soft); }
+.trc-conv__r b { display: block; font-weight: 500; margin-bottom: 4px; }
+
+.trc-horloge {
+  display: inline-block; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  border-radius: 2px; padding: 2px 7px; border: 1px solid var(--hairline); margin-top: 3px;
+}
+.trc-horloge--ouverte { color: #41604A; border-color: #C4D5C8; background: #EDF2EE; }
+.trc-horloge--close { color: var(--color-brique, #96412E); border-color: #E0B3A9; background: #F7E4E0; }
+.trc-horloge--inc { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+
+.trc-convs__fil {
+  border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card);
+  display: flex; flex-direction: column; min-height: 520px;
+}
+.trc-fil__tete {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  flex-wrap: wrap; padding: 12px 15px; border-bottom: 1px solid var(--hairline);
+}
+.trc-fil__tete b { font-family: var(--font-serif); font-weight: 500; font-size: 19px; color: var(--color-indigo); }
+
+.trc-bulles {
+  flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; max-height: 48vh; background: var(--paper-2);
+}
+.trc-jour {
+  align-self: center; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 6px 0;
+}
+.trc-b { max-width: 76%; padding: 8px 12px; border-radius: 4px; font-size: 13.5px; line-height: 1.5; }
+.trc-b__h { display: block; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; }
+.trc-b--elle { align-self: flex-start; background: #fff; border: 1px solid var(--hairline); color: var(--ink); }
+.trc-b--elle .trc-b__h { color: var(--ink-soft); }
+.trc-b--nous { align-self: flex-end; background: var(--color-indigo); color: var(--color-ivoire); }
+.trc-b--nous .trc-b__h { color: var(--copper-200); }
+/* UN MODÈLE SE DISTINGUE D'UN MOT ÉCRIT À LA MAIN : il a été payé, et il ne
+   dit pas la même chose de la Maison. Filet cuivre à gauche. */
+.trc-b--modele {
+  align-self: flex-end; background: var(--indigo-400, #3A3F72); color: var(--color-ivoire);
+  border-left: 3px solid var(--color-copper);
+}
+.trc-b--modele .trc-b__h { color: var(--copper-200); }
+
+.trc-saisie { padding: 13px 15px; border-top: 1px solid var(--hairline); }
+.trc-saisie.est-close { background: var(--paper-2); }
+.trc-saisie__q {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 9px;
+}
+.trc-saisie textarea { width: 100%; resize: vertical; }
+
+.trc-modal-fond {
+  position: fixed; inset: 0; z-index: 60; background: rgb(20 20 27 / 45%);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.trc-modal {
+  width: min(460px, 100%); background: var(--color-ivoire);
+  border: 1px solid var(--hairline); border-radius: 4px; padding: 20px;
+}
+.trc-modal__t { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); margin-bottom: 8px; }

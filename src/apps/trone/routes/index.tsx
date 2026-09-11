@@ -1,9 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import {
-  LayoutDashboard, LineChart, BarChart3, NotebookPen, ClipboardList, CalendarDays, Users, MonitorPlay, PhoneIncoming, ListChecks,
-  Drama, BookOpen, Wallet, FileText, FlaskConical, PieChart, Scale, ReceiptText, Store, UsersRound,
-  Megaphone, Crown, Repeat, ShoppingBag, Lightbulb, GraduationCap, Settings, MapPin, Palette, ShieldCheck, Handshake, Landmark, HandCoins, BadgeCheck, KeyRound, PiggyBank, QrCode, Activity, MessageSquare, SquareKanban, ScrollText, FileSignature, Handshake as PoigneeDeMain, type LucideIcon,
-} from 'lucide-react';
+import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, GraduationCap, HandCoins, Handshake, Handshake as PoigneeDeMain, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
    Chaque domaine appartient à un module sous routes/<domaine>/. */
@@ -42,6 +38,10 @@ export const NAV: TroneGroup[] = [
       /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
       { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
       { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
+      /* LES CONVERSATIONS — 11 septembre 2026. À côté des Appels, parce que
+         c'est la même chose : ce qui arrive du dehors et qui appelle une
+         réponse. Le Fil, lui, reste interne. */
+      { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
       { path: '/consultations', label: 'Consultations', icon: ClipboardList, Component: lazy(() => import('./clients/Consultations')) },

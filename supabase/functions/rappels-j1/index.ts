@@ -161,7 +161,14 @@ Deno.serve(async (req) => {
   const SMS_FROM = Deno.env.get('SMS_FROM');
 
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
-  const consigne = (canal: string, a: Rdv, statut: string, detail?: string) => {
+  /* ══ L'IDENTIFIANT META SE GARDE — 11 septembre 2026 ═══════════════
+     Le journal écrivait « envoyé » dès que Meta ACCEPTAIT la requête, et
+     s'arrêtait là : un message jamais remis se lisait comme parti. Meta
+     rappelle pourtant, minutes plus tard, ce qu'il est devenu — mais son
+     accusé ne porte que l'identifiant DU MESSAGE, et nous ne le gardions
+     nulle part. Impossible de rapprocher, donc impossible de savoir.
+     `waMessageId` est le fil qui relie l'envoi à son accusé. */
+  const consigne = (canal: string, a: Rdv, statut: string, detail?: string, waMessageId?: string) => {
     aInserer.push({
       id: `env-${a.id}-${canal}`,
       branch_id: a.branchId ?? null,
@@ -169,7 +176,28 @@ Deno.serve(async (req) => {
         id: `env-${a.id}-${canal}`, branchId: a.branchId, type: 'rappel-j1', canal,
         apptId: a.id, clientId: a.clientId, dateRdv: a.date, heure: a.time,
         statut, ...(detail ? { detail: detail.slice(0, 300) } : {}),
+        ...(waMessageId ? { waMessageId } : {}),
         quand: new Date().toISOString(),
+      },
+    });
+  };
+
+  /* ══ LE RAPPEL PARAÎT DANS LE FIL — 11 septembre 2026 ══════════════
+     Sans cela, on répondrait à côté : une cliente écrit « je peux décaler ? »
+     et le maître ne voit pas qu'un rappel est parti vers elle une heure plus
+     tôt. Le fil doit porter TOUT ce qui s'est dit, y compris ce que la Maison
+     a écrit toute seule. Identifiant déduit de celui de Meta, pour que
+     l'accusé du webhook retrouve sa ligne. */
+  const auFil: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
+  const consigneAuFil = (a: Rdv, numero: string, waId: string, texte: string, modele: string) => {
+    const id = `wa-${waId}`;
+    auFil.push({
+      id,
+      branch_id: a.branchId ?? null,
+      data: {
+        id, waId, branchId: a.branchId, sens: 'sortant', numero, clientId: a.clientId,
+        texte, type: 'text', quand: new Date().toISOString(), etat: 'en-route',
+        modele, parQui: 'la Maison, automatiquement',
       },
     });
   };
@@ -225,8 +253,25 @@ Deno.serve(async (req) => {
             },
           }),
         });
-        if (r.ok) { consigne('whatsapp', a, 'envoyé'); nWa++; }
-        else consigne('whatsapp', a, 'échec', await r.text());
+        const rep = await r.json().catch(() => ({}));
+        const waId = String(rep?.messages?.[0]?.id ?? '');
+        if (r.ok && waId) {
+          consigne('whatsapp', a, 'envoyé', undefined, waId);
+          consigneAuFil(
+            a, tel, waId,
+            `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}.`,
+            WA_TEMPLATE,
+          );
+          nWa++;
+        } else if (r.ok) {
+          /* ACCEPTÉ SANS IDENTIFIANT : Meta a dit oui mais ne nomme pas le
+             message. On ne saura jamais ce qu'il devient — mieux vaut le dire
+             au journal que de laisser croire à un suivi qu'on n'a pas. */
+          consigne('whatsapp', a, 'envoyé', 'accepté sans identifiant Meta');
+          nWa++;
+        } else {
+          consigne('whatsapp', a, 'échec', String(rep?.error?.message ?? `HTTP ${r.status}`));
+        }
       } catch (e) {
         consigne('whatsapp', a, 'échec', String(e));
       }
@@ -261,6 +306,14 @@ Deno.serve(async (req) => {
   if (aInserer.length > 0) {
     const { error: errE } = await sb.from('envois').upsert(aInserer, { onConflict: 'id' });
     if (errE) return new Response(JSON.stringify({ erreur: errE.message }), { status: 500 });
+  }
+
+  /* LE FIL, S'IL Y A QUELQUE CHOSE À Y METTRE. Une table absente ne doit pas
+     faire tomber la tournée : le rappel est parti, c'est l'essentiel, et une
+     erreur d'écriture au fil se lit au journal des fonctions. */
+  if (auFil.length > 0) {
+    const { error } = await sb.from('messages_wa').upsert(auFil, { onConflict: 'id' });
+    if (error) console.error('rappels-j1: fil', error.message);
   }
 
   return new Response(
