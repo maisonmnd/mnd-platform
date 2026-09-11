@@ -61,6 +61,22 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## ON CHERCHE UN REVENU, ON NE DÉROULE PLUS LA CAISSE — 11 septembre 2026, PUBLIÉ
+
+« Je ne veux plus avoir la liste de tous les revenus devant moi, juste
+sélectionner celui que je veux, en écrivant son nom » (Yéman, champ « Payée
+par quel revenu » des Dépenses). Une caisse d'un mois chargé porte cent
+entrées : les dérouler toutes pour en désigner une était un mur, et le mur
+cachait le compte « désigné / reste à désigner » qui, lui, doit se lire.
+
+DEUX LISTES, UNE SEULE VISIBLE AU REPOS : les revenus DÉSIGNÉS restent à
+l'écran avec leur part modifiable (c'est le travail en cours, il ne se cache
+pas) ; les CANDIDATS ne paraissent que sous la frappe, dans un menu qui suit
+la grammaire des autres barres de la Maison (juge `prestationRepond`, accents
+libres, ordre des mots libre, le montant cherche aussi). Entrée désigne la
+première réponse, Échap referme sans fermer la modale. `basculeRevenu` et sa
+cascade ne bougent pas : c'est la même mécanique, mieux présentée.
+
 ## LA MAISON ÉCRIT SEULE — 11 septembre 2026, WHATSAPP EN SERVICE
 
 `{"jour":"2026-09-12","rdv":3,"push":0,"whatsapp":3,"sms":0}`

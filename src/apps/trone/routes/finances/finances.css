@@ -2119,3 +2119,26 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+
+/* ══ CHERCHER UN REVENU PLUTÔT QUE DÉROULER LA CAISSE — 11 sept. 2026 ═
+   Même grammaire que les autres barres de la Maison : un champ, un menu qui
+   suit la frappe, un clic qui désigne. Les revenus RETENUS restent au-dessus,
+   hors du menu : c'est le travail en cours. */
+.trf-revpick { position: relative; margin-top: 8px; }
+.trf-revpick__menu {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px;
+  box-shadow: var(--shadow-lg); max-height: 240px; overflow-y: auto; padding: 4px;
+}
+.trf-revpick__opt {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+  padding: 8px 10px; border-radius: 3px;
+}
+.trf-revpick__opt:hover, .trf-revpick__opt:focus-visible { background: var(--hover-veil); }
+.trf-revpick__nom { min-width: 0; font-size: 13px; color: var(--ink); }
+.trf-revpick__nom b { font-weight: 500; }
+.trf-revpick__nom small { display: block; font-size: 11px; color: var(--ink-soft); }
+.trf-revpick__reste { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.trf-revpick__vide { padding: 10px 12px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }

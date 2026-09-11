@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { prestationRepond } from '../../../../shared/recherche';
 import { Eyebrow, Modal, Button, Field, Input, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
@@ -703,6 +704,44 @@ export default function Depenses() {
       .filter(({ r, reste }) => reste > 0 || form.sources.some((s) => s.ref === r.id))
       .sort((a, b) => (a.r.date < b.r.date ? -1 : a.r.date > b.r.date ? 1 : 0));
   }, [registre, dejaPris, form.cashbox, form.sources]);
+
+  /* ══ ON CHERCHE UN REVENU, ON NE DÉROULE PLUS LA CAISSE — 11 sept. 2026
+     « Je ne veux plus avoir la liste de tous les revenus devant moi, juste
+     sélectionner celui que je veux, en écrivant son nom » (Yéman). Une caisse
+     d'un mois chargé porte cent entrées : les afficher toutes pour en désigner
+     une était un mur, et le mur cachait le compte qui, lui, doit se lire.
+
+     DEUX LISTES, ET UNE SEULE VISIBLE AU REPOS : les revenus DÉSIGNÉS restent
+     à l'écran, avec leur part modifiable — c'est le travail en cours, il ne se
+     cache pas. Les CANDIDATS ne paraissent que sous la frappe. */
+  const [chercheRev, setChercheRev] = useState('');
+  const [revOuvert, setRevOuvert] = useState(false);
+  const revWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!revOuvert) return;
+    const onDoc = (e: MouseEvent) => {
+      if (revWrapRef.current && !revWrapRef.current.contains(e.target as Node)) {
+        setRevOuvert(false);
+        setChercheRev('');
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [revOuvert]);
+
+  /* Ce qui est retenu, et ce qui reste à proposer. Le juge de recherche est
+     celui du reste de la Maison : accents libres, mots dans n'importe quel
+     ordre. Un montant tapé cherche aussi dans le montant. */
+  const revenusDesignes = useMemo(
+    () => revenusDeLaCaisse.filter(({ r }) => form.sources.some((x) => x.ref === r.id)),
+    [revenusDeLaCaisse, form.sources],
+  );
+  const revenusCandidats = useMemo(
+    () => revenusDeLaCaisse
+      .filter(({ r }) => !form.sources.some((x) => x.ref === r.id))
+      .filter(({ r }) => prestationRepond(`${r.clientName} ${r.method} ${r.kind} ${r.amountXof}`, chercheRev)),
+    [revenusDeLaCaisse, form.sources, chercheRev],
+  );
 
   /* CHANGER DE CAISSE VIDE LES DÉSIGNATIONS : les revenus d'un tiroir ne
      paient pas les sorties d'un autre, et garder des liens devenus étrangers
@@ -2438,39 +2477,88 @@ export default function Depenses() {
                   </div>
                 ) : (
                   <>
-                    <div className="trf-revenus">
-                      {revenusDeLaCaisse.map(({ r, reste }) => {
-                        const prise = form.sources.find((s) => s.ref === r.id);
-                        return (
-                          <div key={r.id} className={`trf-revenu ${prise ? 'is-on' : ''}`}>
-                            <button
-                              className="trf-revenu__coche"
-                              role="checkbox"
-                              aria-checked={!!prise}
-                              aria-label={`Désigner le revenu de ${r.clientName}`}
-                              onClick={() => basculeRevenu(r.id)}
-                            >
-                              {prise ? '✓' : ''}
-                            </button>
-                            <span className="trf-revenu__nom">
-                              <b>{r.clientName}</b>
-                              <span className="trf-revenu__quand">
-                                {fmtDay(r.date)} · {r.method}{r.kind !== 'facture' ? ` · ${r.kind}` : ''}
+                    {/* CE QUI EST DÉJÀ NOMMÉ, toujours sous les yeux. */}
+                    {revenusDesignes.length > 0 && (
+                      <div className="trf-revenus">
+                        {revenusDesignes.map(({ r, reste }) => {
+                          const prise = form.sources.find((x) => x.ref === r.id);
+                          return (
+                            <div key={r.id} className="trf-revenu is-on">
+                              <button
+                                className="trf-revenu__coche"
+                                role="checkbox"
+                                aria-checked
+                                aria-label={`Retirer le revenu de ${r.clientName}`}
+                                onClick={() => basculeRevenu(r.id)}
+                              >
+                                ✓
+                              </button>
+                              <span className="trf-revenu__nom">
+                                <b>{r.clientName}</b>
+                                <span className="trf-revenu__quand">
+                                  {fmtDay(r.date)} · {r.method}{r.kind !== 'facture' ? ` · ${r.kind}` : ''}
+                                </span>
                               </span>
-                            </span>
-                            <span className="trf-revenu__reste">reste {fmtMoney(reste, currency)}</span>
-                            {prise && (
+                              <span className="trf-revenu__reste">reste {fmtMoney(reste, currency)}</span>
                               <input
                                 className="mnd-input trf-revenu__part"
                                 inputMode="numeric"
-                                value={prise.xof ? String(prise.xof) : ''}
+                                value={prise?.xof ? String(prise.xof) : ''}
                                 aria-label={`Part prise sur le revenu de ${r.clientName}`}
                                 onChange={(ev) => changeLaPart(r.id, parseInt(ev.target.value.replace(/[^0-9]/g, '') || '0', 10))}
                               />
-                            )}
-                          </div>
-                        );
-                      })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* LA BARRE : on écrit le nom, la liste se déroule dessous. */}
+                    <div className="trf-revpick" ref={revWrapRef}>
+                      <Input
+                        value={chercheRev}
+                        placeholder={`Chercher un revenu dans « ${form.cashbox} »…`}
+                        onFocus={() => setRevOuvert(true)}
+                        onClick={() => setRevOuvert(true)}
+                        onChange={(e) => { setChercheRev(e.target.value); setRevOuvert(true); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape' && revOuvert) {
+                            e.stopPropagation();
+                            setRevOuvert(false);
+                            setChercheRev('');
+                          }
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const premier = revenusCandidats[0];
+                            if (premier) { basculeRevenu(premier.r.id); setChercheRev(''); }
+                          }
+                        }}
+                      />
+                      {revOuvert && (
+                        <div className="trf-revpick__menu">
+                          {revenusCandidats.map(({ r, reste }) => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              className="trf-revpick__opt"
+                              onClick={() => { basculeRevenu(r.id); setChercheRev(''); }}
+                            >
+                              <span className="trf-revpick__nom">
+                                <b>{r.clientName}</b>
+                                <small>{fmtDay(r.date)} · {r.method}{r.kind !== 'facture' ? ` · ${r.kind}` : ''}</small>
+                              </span>
+                              <span className="trf-revpick__reste">reste {fmtMoney(reste, currency)}</span>
+                            </button>
+                          ))}
+                          {revenusCandidats.length === 0 && (
+                            <div className="trf-revpick__vide">
+                              {chercheRev.trim()
+                                ? `Aucun revenu ne répond à « ${chercheRev.trim()} » dans cette caisse.`
+                                : 'Tous les revenus de cette caisse sont déjà désignés.'}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="trf-revenus__compte">
                       <span>Désigné · <b>{fmtMoney(designeXof, currency)}</b></span>
