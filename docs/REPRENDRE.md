@@ -61,7 +61,7 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
-## LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026, BÂTI · MIGRATION 0084 À PASSER
+## LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026, PUBLIÉ · MIGRATION 0084 PASSÉE
 
 « Comment gérer les revenus hors activité, les entrées de fonds hors
 activité ? » (Yéman). Maquette `public/maquette-entrees-hors-activite.html`,
@@ -93,9 +93,8 @@ le tiroir sans pouvoir en sortir.
   questions : la maison a-t-elle gagné sa vie, et de combien je dispose.
 · Harnais `verifie-hors-activite` (42e) : 27 épreuves.
 
-**RESTE À FAIRE : passer la migration 0084** (`entrees_hors_activite`, RLS
-personnel seulement) — Le Trône s'y lie, sans elle la pastille de synchro vire
-au rouge. Non couvert à dessein : le suivi d'un emprunt reçu (échéances, reste
+Migration 0084 (`entrees_hors_activite`, RLS personnel seulement) PASSÉE par
+Yéman le 11 septembre, publication faite dans la foulée. Non couvert à dessein : le suivi d'un emprunt reçu (échéances, reste
 dû), à demander s'il devient utile ; son remboursement se saisit comme une
 dépense ordinaire.
 
