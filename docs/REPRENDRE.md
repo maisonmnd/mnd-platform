@@ -61,7 +61,7 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
-## CE QUE LA MAISON DOIT — 11 septembre 2026, MIGRATION 0085 À PASSER
+## CE QUE LA MAISON DOIT — 11 septembre 2026, PUBLIÉ · MIGRATION 0085 PASSÉE
 
 « On peut faire ces chantiers » (Yéman), après le miroir posé le matin.
 
@@ -100,8 +100,8 @@ encore**.
 période, groupement par sens, exactitude de l'échéancier, absorption de
 l'arrondi, fin de mois, dette, et chaque refus par son message.
 
-⚠ **Migration 0085 (`emprunts`) À PASSER avant la prochaine publication.** Le
-Trône se lie à cette table ; sans elle la pastille de synchro vire au rouge.
+Migration 0085 (`emprunts`, RLS personnel seulement) PASSÉE par Yéman le
+11 septembre 2026 — **ne pas la relancer**.
 
 ## LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026, PUBLIÉ · MIGRATION 0084 PASSÉE
 
