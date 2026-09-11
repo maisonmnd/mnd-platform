@@ -8,7 +8,9 @@
    devant un comptable. */
 import {
   MOTIFS_HORS_ACTIVITE, horsActiviteXof, horsActiviteParMotif,
-  pourquoiEntreeImpossible, type EntreeHorsActivite,
+  pourquoiEntreeImpossible, sensDe, echeancesDeLEmprunt, resteDuDeLEmprunt,
+  empruntSolde, prochaineEcheanceDeLEmprunt, detteDeLaMaison,
+  pourquoiEmpruntImpossible, type EntreeHorsActivite, type Emprunt,
 } from '../src/shared/finance';
 import { EST_ACTIVITE, buildReceipts, type ReceiptKind } from '../src/shared/receipts';
 
@@ -102,6 +104,89 @@ dit('sans entrées, le registre ne change pas', 0, buildReceipts({ ...vide }).le
    « Apport », « mon argent », trois lignes pour une seule réalité. */
 dit('six motifs, Autre en dernier', 6, MOTIFS_HORS_ACTIVITE.length);
 dit('… et le dernier est bien Autre', 'Autre', MOTIFS_HORS_ACTIVITE[MOTIFS_HORS_ACTIVITE.length - 1]);
+
+/* ══ RENDRE N'EST PAS DÉPENSER — l'emprunt reçu, second passage ═════
+   Ce qui se joue ici est le miroir exact de la faute évitée le matin :
+   compter un remboursement en charge écraserait le résultat des mois
+   suivants d'un argent qui n'a jamais été une dépense. */
+
+/* ── LE SENS, absent compris ─────────────────────────────────────── */
+dit('un mouvement sans sens est une entrée', 'entree', sensDe({}));
+dit('… et le sens écrit fait foi', 'sortie', sensDe({ sens: 'sortie' }));
+
+const mvts = [
+  e({ id: 'a', date: '2026-09-11', amountXof: 500000 }),
+  e({ id: 'b', date: '2026-09-20', amountXof: 159091, sens: 'sortie', motif: 'Remboursement d’emprunt' }),
+];
+dit('les entrées se comptent seules', 500000, horsActiviteXof(mvts, 'b1', '2026-09'));
+dit('… et les sorties aussi', 159091, horsActiviteXof(mvts, 'b1', '2026-09', 'sortie'));
+dit('le regroupement suit le sens',
+  [{ motif: 'Remboursement d’emprunt', xof: 159091, n: 1 }],
+  horsActiviteParMotif(mvts, 'b1', '2026-09', 'sortie'));
+
+/* ── L'ÉCHÉANCIER : rien ne se perd à l'arrondi ──────────────────── */
+const emp: Emprunt = {
+  id: 'e1', branchId: 'b1', preteur: 'M. A.', motif: 'Avance du loyer',
+  date: '2026-09-11', recuXof: 500000, aRendreXof: 550000,
+  cashbox: 'Caisse principale', nombre: 3, premier: '2026-09-30',
+};
+const ech = echeancesDeLEmprunt(emp);
+dit('trois échéances', 3, ech.length);
+dit('elles tombent de mois en mois', ['2026-09-30', '2026-10-30', '2026-11-30'], ech.map((x) => x.dueIso));
+/* LA SOMME EST EXACTE, c'est tout l'enjeu : trois fois 166 666 rendraient
+   499 998 et la dette ne se solderait jamais tout à fait. */
+dit('les principaux rendent EXACTEMENT le reçu', 500000, ech.reduce((s2, x) => s2 + x.principalXof, 0));
+dit('les intérêts font EXACTEMENT le prix de l’argent', 50000, ech.reduce((s2, x) => s2 + x.interetXof, 0));
+dit('et le total rendu est celui promis', 550000, ech.reduce((s2, x) => s2 + x.totalXof, 0));
+dit('le dernier versement absorbe les arrondis', 166668, ech[2].principalXof);
+
+/* Sans intérêt, aucune charge ne doit naître. */
+const sansInteret = echeancesDeLEmprunt({ ...emp, aRendreXof: 500000 });
+dit('un emprunt sans prix n’a aucun intérêt', 0, sansInteret.reduce((s2, x) => s2 + x.interetXof, 0));
+
+/* Un seul versement : tout au premier jour, sans arrondi perdu. */
+const enUneFois = echeancesDeLEmprunt({ ...emp, nombre: 1 });
+dit('en une fois, tout tombe d’un coup', [550000], enUneFois.map((x) => x.totalXof));
+
+/* Le 31 n'existe pas partout : l'échéance ne saute pas au mois suivant. */
+const finDeMois = echeancesDeLEmprunt({ ...emp, premier: '2026-01-31', nombre: 3 });
+dit('le 31 janvier ne devient pas le 3 mars',
+  ['2026-01-31', '2026-02-28', '2026-03-31'], finDeMois.map((x) => x.dueIso));
+
+/* ── LE RESTE DÛ, et la dette de la Maison ───────────────────────── */
+dit('rien rendu, tout est dû', 550000, resteDuDeLEmprunt(emp));
+const entame = { ...emp, reglees: [{ rang: 1, date: '2026-09-30' }] };
+/* 550 000 moins la première échéance (166 666 + 16 666) : la dette restante
+   se lit sur les DEUX échéances qui restent, arrondi du dernier compris. */
+dit('une échéance rendue baisse la dette', 366668, resteDuDeLEmprunt(entame));
+dit('… et elle n’est plus la prochaine', 2, prochaineEcheanceDeLEmprunt(entame)?.rang);
+dit('un emprunt entamé n’est pas soldé', false, empruntSolde(entame));
+const soldeTout = { ...emp, reglees: [{ rang: 1, date: 'x' }, { rang: 2, date: 'y' }, { rang: 3, date: 'z' }] };
+dit('tout rendu, il est soldé', true, empruntSolde(soldeTout));
+dit('… et il ne reste plus d’échéance à venir', undefined, prochaineEcheanceDeLEmprunt(soldeTout));
+dit('la dette de la Maison somme les emprunts vivants', 550000, detteDeLaMaison([emp, soldeTout], 'b1'));
+dit('… et ignore les autres branches', 0, detteDeLaMaison([emp], 'b9'));
+
+/* ── CE QUI EMPÊCHE DE POSER, dit plutôt que tu ─────────────────── */
+const bon = {
+  preteur: 'M. A.', recuXof: 500000, aRendreXof: 550000,
+  cashbox: 'Caisse principale', nombre: 3, premier: '2026-09-30',
+};
+dit('un emprunt complet passe', null, pourquoiEmpruntImpossible(bon));
+dit('sans prêteur, on refuse', 'Il manque le nom de qui prête.',
+  pourquoiEmpruntImpossible({ ...bon, preteur: ' ' }));
+dit('sans montant non plus', 'Un emprunt sans montant n’apporte rien.',
+  pourquoiEmpruntImpossible({ ...bon, recuXof: 0 }));
+/* LA GARDE QUI COMPTE : rendre moins qu'on a reçu ferait un intérêt négatif,
+   donc un « gain » sorti de nulle part au fil des échéances. */
+dit('on ne rend jamais moins qu’on n’a reçu', 'On ne rend jamais moins qu’on n’a reçu.',
+  pourquoiEmpruntImpossible({ ...bon, aRendreXof: 400000 }));
+dit('rendre exactement le reçu est permis', null,
+  pourquoiEmpruntImpossible({ ...bon, aRendreXof: 500000 }));
+dit('sans caisse, l’argent n’aurait pas de tiroir', 'Choisissez la caisse qui reçoit cet argent.',
+  pourquoiEmpruntImpossible({ ...bon, cashbox: '' }));
+dit('zéro versement n’est pas un échéancier', 'Il faut au moins un versement.',
+  pourquoiEmpruntImpossible({ ...bon, nombre: 0 }));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

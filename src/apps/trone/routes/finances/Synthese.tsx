@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes, useEntreesHorsActivite, horsActiviteXof, horsActiviteParMotif } from '../../../../shared/finance';
+import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes, useEntreesHorsActivite, horsActiviteXof, horsActiviteParMotif, useEmprunts, detteDeLaMaison } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -364,6 +364,7 @@ export default function Synthese() {
   ];
 
   const [entreesHors] = useEntreesHorsActivite();
+  const [emprunts] = useEmprunts();
   /* ══ CE QUI EST ENTRÉ SANS ÊTRE UN GAIN — 11 septembre 2026 ════════
      Maquette validée. Le compte de résultat NE BOUGE PAS : `revenuDuMois`
      ne lit ni apport, ni prêt reçu, ni vente de matériel, et c'est exactement
@@ -377,6 +378,12 @@ export default function Synthese() {
      qu'on a emprunté. */
   const horsMois = horsActiviteXof(entreesHors, branch.id, month);
   const horsDetail = horsActiviteParMotif(entreesHors, branch.id, month);
+  /* LE MIROIR, 11 septembre au soir : rendre n'est pas dépenser. Le principal
+     d'un remboursement sort du tiroir sans toucher au résultat — seul le prix
+     de l'argent est une charge, et il est DÉJÀ compté dans les dépenses. */
+  const sortiesMois = horsActiviteXof(entreesHors, branch.id, month, 'sortie');
+  const sortiesDetail = horsActiviteParMotif(entreesHors, branch.id, month, 'sortie');
+  const notreDette = detteDeLaMaison(emprunts, branch.id);
 
   // Compte de résultat
   const pnl = [
@@ -545,9 +552,10 @@ export default function Synthese() {
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: p.strong ? 22 : 17, color: p.col, fontVariantNumeric: 'tabular-nums' }}>{p.value}</span>
             </div>
           ))}
-          {horsMois > 0 && (
+          {(horsMois > 0 || sortiesMois > 0 || notreDette > 0) && (
             <>
               <div style={{ height: 1, background: 'var(--line)', margin: '10px -10px 2px' }} />
+              {horsMois > 0 && (
               <div
                 title={horsDetail.map((d) => `${d.motif} · ${fmtMoney(d.xof, currency)}`).join(' · ')}
                 style={{
@@ -566,20 +574,62 @@ export default function Synthese() {
                   {fmtMoney(horsMois, currency)}
                 </span>
               </div>
-              <div
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  padding: '11px 10px', margin: '0 -10px',
-                }}
-              >
-                <span style={{ fontSize: 13, color: 'var(--ink)' }}>
-                  Réellement entré en caisse
-                  <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>activité + hors activité</span>
-                </span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(revenue + horsMois, currency)}
-                </span>
-              </div>
+              )}
+              {sortiesMois > 0 && (
+                <div
+                  title={sortiesDetail.map((d) => `${d.motif} · ${fmtMoney(d.xof, currency)}`).join(' · ')}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    padding: '11px 10px', margin: '0 -10px', background: 'var(--surface-sunken, var(--indigo-50))',
+                    borderRadius: 4,
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                    Sorties hors activité
+                    <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
+                      {sortiesDetail.map((d) => `${d.motif.toLowerCase()} · ${d.n}`).join(' · ')}
+                    </span>
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--indigo-500, var(--color-indigo))', fontVariantNumeric: 'tabular-nums' }}>
+                    − {fmtMoney(sortiesMois, currency)}
+                  </span>
+                </div>
+              )}
+              {(horsMois > 0 || sortiesMois > 0) && (
+                <div
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    padding: '11px 10px', margin: '0 -10px',
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                    Mouvement réel de la caisse
+                    <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>activité + hors activité</span>
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtMoney(revenue - spent + horsMois - sortiesMois, currency)}
+                  </span>
+                </div>
+              )}
+              {notreDette > 0 && (
+                <>
+                  <div style={{ height: 1, background: 'var(--line)', margin: '2px -10px 2px' }} />
+                  <div
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                      padding: '11px 10px', margin: '0 -10px',
+                    }}
+                  >
+                    <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                      Ce que la Maison doit encore
+                      <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>emprunts non soldés, toutes échéances à venir</span>
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: '#8f3b30', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtMoney(notreDette, currency)}
+                    </span>
+                  </div>
+                </>
+              )}
             </>
           )}
 

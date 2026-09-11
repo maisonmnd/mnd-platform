@@ -61,6 +61,48 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## CE QUE LA MAISON DOIT — 11 septembre 2026, MIGRATION 0085 À PASSER
+
+« On peut faire ces chantiers » (Yéman), après le miroir posé le matin.
+
+**RENDRE N'EST PAS DÉPENSER.** J'avais dit le matin qu'un remboursement
+d'emprunt serait « une dépense ordinaire ». C'était faux, et exactement
+l'erreur symétrique de celle qu'on venait de corriger : compter le prêt reçu
+comme un revenu gonfle le chiffre d'affaires, compter son remboursement comme
+une charge creuse le résultat. Ni l'un ni l'autre n'est vrai. L'argent rendu
+n'était pas à la Maison.
+
+**Deux écritures, une seule main.** « Rembourser » pose la sortie hors activité
+pour le PRINCIPAL et une dépense pour le seul INTÉRÊT, sous « Frais bancaires ·
+Intérêts d'emprunt ». La caisse perd le total, le résultat ne perd que le prix
+de l'argent. Demander deux saisies aurait garanti qu'une manque un jour, la
+leçon du stock et des points réapprise plutôt que revécue.
+
+**Un seul magasin, deux sens.** Pas de seconde table : `MouvementHorsActivite`
+porte un `sens`, et un `sens` ABSENT vaut « entrée » — toutes les lignes posées
+ce matin restent justes sans être touchées. La clé `mnd_entrees_hors_activite`
+et la table `entrees_hors_activite` gardent leur nom d'origine, comme
+`openingXof` : renommer une clé qui porte déjà des données, c'est les perdre.
+
+**L'échéancier ne se stocke pas**, il se recalcule depuis cinq nombres
+(`echeancesDeLEmprunt`). La dernière échéance absorbe l'arrondi : la somme des
+principaux fait EXACTEMENT le montant reçu, jamais 3 F de plus. Et `moisPlus`
+plafonne au dernier jour du mois — un emprunt du 31 janvier échoit le 28
+février, pas le 3 mars.
+
+**Troisième onglet des Prêts** : « Ce qu'on nous doit » / « Ce que la Maison
+doit » / « Les objectifs ». Chaque emprunt porte ses échéances datées, et le
+bouton dit « Rembourser », « En retard · rendre » ou « Rendue ». La Synthèse
+gagne ses deux lignes miroir plus une dernière : **ce que la Maison doit
+encore**.
+
+Éprouvé par `verifie-hors-activite` (42ᵉ harnais, ~50 épreuves) : bornes de
+période, groupement par sens, exactitude de l'échéancier, absorption de
+l'arrondi, fin de mois, dette, et chaque refus par son message.
+
+⚠ **Migration 0085 (`emprunts`) À PASSER avant la prochaine publication.** Le
+Trône se lie à cette table ; sans elle la pastille de synchro vire au rouge.
+
 ## LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026, PUBLIÉ · MIGRATION 0084 PASSÉE
 
 « Comment gérer les revenus hors activité, les entrées de fonds hors

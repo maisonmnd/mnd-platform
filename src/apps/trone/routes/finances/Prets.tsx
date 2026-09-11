@@ -23,7 +23,12 @@ import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
-import { useCashboxes, usePaymentMethods, moyensAOffrir } from '../../../../shared/finance';
+import {
+  useCashboxes, usePaymentMethods, moyensAOffrir,
+  /* Ce que la Maison doit — 11 septembre 2026. */
+  useEmprunts, detteDeLaMaison, empruntSolde, echeancesDeLEmprunt, resteDuDeLEmprunt,
+  poseUnEmprunt, rendUneEcheance, defaitUneEcheance, type Emprunt,
+} from '../../../../shared/finance';
 import { useClients } from '../../../../shared/clients';
 import { signeLeMessage } from '../../../../shared/identite';
 import {
@@ -38,6 +43,7 @@ import {
 } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import { todayISO } from './_shared';
+import { addDaysISO, frJourAn } from '../clients/_shared';
 import { LesObjectifs } from './objectifs';
 import './finances.css';
 
@@ -88,10 +94,10 @@ export default function Prets() {
      LE COFFRE Y RENVOIE par `?onglet=objectifs` : arriver sur le bon onglet
      vaut mieux qu’arriver à côté et devoir chercher. */
   const [params, setParams] = useSearchParams();
-  const [registre, setRegistre] = useState<'prets' | 'objectifs'>(
+  const [registre, setRegistre] = useState<'prets' | 'doit' | 'objectifs'>(
     params.get('onglet') === 'objectifs' ? 'objectifs' : 'prets',
   );
-  const choisirLeRegistre = (k: 'prets' | 'objectifs') => {
+  const choisirLeRegistre = (k: 'prets' | 'doit' | 'objectifs') => {
     setRegistre(k);
     /* Le paramètre s’efface : recharger ne doit pas ramener un onglet qu’on
        vient de quitter. */
@@ -104,6 +110,8 @@ export default function Prets() {
     [prets, branch.id, aujourdhui],
   );
   const dette = detteEnCours(prets, branch.id);
+  const [emprunts] = useEmprunts();
+  const notreDette = detteDeLaMaison(emprunts, branch.id);
 
   /* LES QUATRE CHIFFRES. Trois informent, un seul alarme — celui du retard.
      Les mettre au même niveau, c'est n'en signaler aucun. */
@@ -454,9 +462,14 @@ export default function Prets() {
           de l’autre. Deux figures proches, jamais additionnées. */}
       <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid var(--hairline)', margin: '0 0 18px' }}>
         {([
-          ['prets' as const, 'Les prêts', fmtMoney(dette, currency)],
+          ['prets' as const, 'Ce qu’on nous doit', fmtMoney(dette, currency)],
+          /* CE QUE LA MAISON DOIT — 11 septembre 2026. Le miroir du premier
+             onglet, sur le même écran : deux sens d'une seule notion, la
+             dette. Les séparer aurait fait chercher à deux endroits ce qui se
+             pense d'un seul tenant. */
+          ['doit' as const, 'Ce que la Maison doit', notreDette > 0 ? fmtMoney(notreDette, currency) : ''],
           ['objectifs' as const, 'Les objectifs', ''],
-        ] as ['prets' | 'objectifs', string, string][]).map(([k, mot, n]) => (
+        ] as ['prets' | 'doit' | 'objectifs', string, string][]).map(([k, mot, n]) => (
           <button
             key={k}
             type="button"
@@ -477,7 +490,7 @@ export default function Prets() {
         ))}
       </div>
 
-      {registre === 'objectifs' ? <LesObjectifs /> : (
+      {registre === 'doit' ? <CeQueLaMaisonDoit /> : registre === 'objectifs' ? <LesObjectifs /> : (
       <>
       {etats.length === 0 ? (
         <Card style={{ padding: 22 }}>
@@ -782,5 +795,252 @@ export default function Prets() {
         </Modal>
       )}
     </div>
+  );
+}
+
+
+/* ══ CE QUE LA MAISON DOIT — 11 septembre 2026 ═══════════════════════
+   Maquette `public/maquette-ce-que-la-maison-doit.html`, validée.
+
+   RENDRE N'EST PAS DÉPENSER. La caisse perd le total d'une échéance — c'est
+   l'argent réel, et rien ne le masque — mais seul le PRIX DE L'ARGENT touche
+   le résultat : le principal rend ce qui n'était pas à nous. Les deux
+   écritures se font d'un seul geste (`rendUneEcheance`), parce que demander
+   deux saisies garantit qu'une manquera un jour. */
+function CeQueLaMaisonDoit() {
+  const { branch, currency } = useBranch();
+  const [emprunts] = useEmprunts();
+  const [cashboxes] = useCashboxes();
+  const aujourdhui = todayISO();
+  const caisses = cashboxes.filter((c) => c.branchId === branch.id);
+  const miens = emprunts
+    .filter((e) => e.branchId === branch.id)
+    .slice()
+    .sort((a, b) => Number(empruntSolde(a)) - Number(empruntSolde(b)) || b.date.localeCompare(a.date));
+
+  type FormEmp = {
+    preteur: string; motif: string; recu: string; aRendre: string;
+    cashbox: string; nombre: string; premier: string; date: string;
+  };
+  const [form, setForm] = useState<FormEmp | null>(null);
+  const [rendre, setRendre] = useState<{ emprunt: Emprunt; rang: number; cashbox: string; jour: string } | null>(null);
+
+  const ouvre = () => setForm({
+    preteur: '', motif: '', recu: '', aRendre: '',
+    cashbox: caisses[0]?.name ?? '', nombre: '3',
+    premier: addDaysISO(aujourdhui, 30), date: aujourdhui,
+  });
+
+  const enregistre = () => {
+    if (!form) return;
+    const n = (x: string) => parseInt(x.replace(/[^0-9]/g, '') || '0', 10);
+    const recu = n(form.recu);
+    const r = poseUnEmprunt({
+      branchId: branch.id,
+      preteur: form.preteur,
+      motif: form.motif,
+      date: form.date,
+      recuXof: recu,
+      /* À RENDRE VIDE = on rend ce qu'on a reçu. Un emprunt sans prix est le
+         cas le plus fréquent entre proches : ne pas l'obliger à se répéter. */
+      aRendreXof: form.aRendre.trim() ? n(form.aRendre) : recu,
+      cashbox: form.cashbox,
+      nombre: n(form.nombre),
+      premier: form.premier,
+    });
+    if (!r.ok) { toast(r.erreur ?? 'Impossible.'); return; }
+    setForm(null);
+    toast(`Emprunt posé. ${fmtMoney(recu, currency)} sont entrés dans « ${form.cashbox} ».`);
+  };
+
+  const confirmeLeRemboursement = () => {
+    if (!rendre) return;
+    const r = rendUneEcheance(rendre.emprunt, rendre.rang, rendre.cashbox, rendre.jour);
+    if (!r.ok) { toast(r.erreur ?? 'Impossible.'); return; }
+    setRendre(null);
+    toast('Échéance rendue. Seul le prix de l’argent entre au résultat.');
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <span className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 560 }}>
+          Les emprunts reçus et leurs échéances. Recevoir n’est pas gagner, rendre n’est pas
+          dépenser : seul le prix de l’argent touche le résultat.
+        </span>
+        <Button variant="copper" onClick={ouvre} disabled={caisses.length === 0}>+ Nouvel emprunt</Button>
+      </div>
+
+      {miens.length === 0 && (
+        <Card style={{ padding: 22 }}>
+          <div className="mnd-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+            <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>La Maison ne doit rien.</b><br />
+            Un emprunt posé ici fait deux choses d’un geste : l’argent entre dans la caisse choisie,
+            et son échéancier s’écrit. Le remboursement, ensuite, se fait échéance par échéance.
+          </div>
+        </Card>
+      )}
+
+      {miens.map((e) => {
+        const ech = echeancesDeLEmprunt(e);
+        const reste = resteDuDeLEmprunt(e);
+        const solde = reste <= 0;
+        return (
+          <Card key={e.id} style={{ padding: 0, marginBottom: 14, opacity: solde ? 0.72 : 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', padding: '14px 17px', borderBottom: '1px solid var(--hairline)' }}>
+              <span>
+                <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 19, color: 'var(--color-indigo)' }}>{e.preteur}</b>
+                <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5 }}>
+                  {e.motif ? `${e.motif} · ` : ''}reçu le {frJourAn(e.date)} · {e.cashbox}
+                  {e.aRendreXof > e.recuXof
+                    ? ` · ${fmtMoney(e.recuXof, currency)} reçus, ${fmtMoney(e.aRendreXof, currency)} à rendre`
+                    : ''}
+                </span>
+              </span>
+              <span style={{ textAlign: 'right' }}>
+                <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 24, color: solde ? '#4A6B52' : '#96412E' }}>
+                  {solde ? 'Soldé' : fmtMoney(reste, currency)}
+                </b>
+                {!solde && <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5 }}>reste dû</span>}
+              </span>
+            </div>
+            {ech.map((x) => {
+              const enRetard = !x.regleeLe && x.dueIso < aujourdhui;
+              return (
+                <div
+                  key={x.rang}
+                  style={{
+                    display: 'grid', gridTemplateColumns: '62px 1fr auto auto', gap: 12,
+                    alignItems: 'center', padding: '9px 17px', borderTop: '1px solid var(--hairline)',
+                  }}
+                >
+                  <span style={{ textAlign: 'center', border: '1px solid var(--hairline)', borderRadius: 4, background: 'var(--surface-card)', padding: '3px 2px', lineHeight: 1.15 }}>
+                    <span className="mnd-muted" style={{ display: 'block', fontSize: 9, letterSpacing: '.13em', textTransform: 'uppercase' }}>
+                      {frJourAn(x.dueIso).split(' ')[1]?.slice(0, 4) ?? ''}
+                    </span>
+                    <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 16, color: 'var(--color-indigo)' }}>
+                      {parseInt(x.dueIso.slice(8, 10), 10)}
+                    </b>
+                  </span>
+                  <span style={{ fontSize: 13 }}>
+                    Échéance {x.rang} sur {ech.length}
+                    {x.interetXof > 0 && (
+                      <span className="mnd-muted" style={{ display: 'block', fontSize: 10.5 }}>
+                        {fmtMoney(x.principalXof, currency)} de dette · {fmtMoney(x.interetXof, currency)} de prix
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmtMoney(x.totalXof, currency)}</span>
+                  <span style={{ whiteSpace: 'nowrap' }}>
+                    {x.regleeLe ? (
+                      <button className="trv-minibtn" onClick={() => defaitUneEcheance(e, x.rang)} title="Défaire ce remboursement">
+                        Rendue
+                      </button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant={enRetard ? 'copper' : 'ghost'}
+                        onClick={() => setRendre({ emprunt: e, rang: x.rang, cashbox: e.cashbox, jour: aujourdhui })}
+                      >
+                        {enRetard ? 'En retard · rendre' : 'Rembourser'}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </Card>
+        );
+      })}
+
+      {form && (
+        <Modal title="Nouvel emprunt." onClose={() => setForm(null)} width={560}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Qui prête">
+                <Input value={form.preteur} autoFocus onChange={(ev) => setForm({ ...form, preteur: ev.target.value })} />
+              </Field>
+              <Field label="Pourquoi">
+                <Input value={form.motif} placeholder="Avance du loyer" onChange={(ev) => setForm({ ...form, motif: ev.target.value })} />
+              </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Montant reçu">
+                <Input inputMode="numeric" value={form.recu} onChange={(ev) => setForm({ ...form, recu: ev.target.value })} />
+              </Field>
+              <Field label="Dans quelle caisse">
+                <Select value={form.cashbox} onChange={(ev) => setForm({ ...form, cashbox: ev.target.value })}>
+                  {caisses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </Select>
+              </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Total à rendre · vide = ce qui a été reçu">
+                <Input inputMode="numeric" value={form.aRendre} placeholder={form.recu || '—'} onChange={(ev) => setForm({ ...form, aRendre: ev.target.value })} />
+              </Field>
+              <Field label="En combien de fois">
+                <Input inputMode="numeric" value={form.nombre} onChange={(ev) => setForm({ ...form, nombre: ev.target.value })} />
+              </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Reçu le">
+                <Input type="date" value={form.date} onChange={(ev) => setForm({ ...form, date: ev.target.value })} />
+              </Field>
+              <Field label="Première échéance">
+                <Input type="date" value={form.premier} onChange={(ev) => setForm({ ...form, premier: ev.target.value })} />
+              </Field>
+            </div>
+            <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, background: 'var(--copper-50)', padding: '11px 14px', fontSize: 12.5, lineHeight: 1.6 }}>
+              <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>Le Trône écrira deux choses.</b>
+              {' '}Une entrée hors activité dans la caisse choisie, qui pourra payer des dépenses dès
+              aujourd’hui. Et l’échéancier. Rien à ressaisir ailleurs.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="ghost" onClick={() => setForm(null)}>Annuler</Button>
+              <Button variant="copper" onClick={enregistre}>Poser l’emprunt</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {rendre && (() => {
+        const x = echeancesDeLEmprunt(rendre.emprunt).find((y) => y.rang === rendre.rang);
+        if (!x) return null;
+        return (
+          <Modal title={`Rembourser l’échéance ${rendre.rang}.`} onClose={() => setRendre(null)} width={520}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+              <div className="tr-grid tr-grid--2">
+                <Field label="D’où sort l’argent">
+                  <Select value={rendre.cashbox} onChange={(ev) => setRendre({ ...rendre, cashbox: ev.target.value })}>
+                    {caisses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Le jour">
+                  <Input type="date" value={rendre.jour} onChange={(ev) => setRendre({ ...rendre, jour: ev.target.value })} />
+                </Field>
+              </div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', fontSize: 13 }}>
+                  <span>Part de la dette rendue<span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>sortie hors activité, n’entame pas le résultat</span></span>
+                  <b style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(x.principalXof, currency)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', fontSize: 13, borderTop: '1px solid var(--hairline)' }}>
+                  <span>Prix de l’argent<span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>dépense · frais financiers</span></span>
+                  <b style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(x.interetXof, currency)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 14px', fontSize: 13.5, borderTop: '1px solid var(--hairline)', background: 'var(--indigo-50, #EDEEF4)' }}>
+                  <span>Sorti de la caisse</span>
+                  <b style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(x.totalXof, currency)}</b>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <Button variant="ghost" onClick={() => setRendre(null)}>Annuler</Button>
+                <Button variant="copper" onClick={confirmeLeRemboursement}>Rembourser</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+    </>
   );
 }

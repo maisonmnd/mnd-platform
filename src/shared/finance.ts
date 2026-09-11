@@ -1061,7 +1061,7 @@ export const EXPENSE_CATEGORIES_SEED: ExpenseCategory[] = [
   { id: 'ec-marketing', name: 'Marketing', subs: ['Publicité réseaux', 'Shooting & contenu', 'Influence & RP', 'Le Couronnement'] },
   { id: 'ec-logistique', name: 'Logistique', subs: ['Livraisons', 'Transport équipe', 'Coursiers', 'Stockage'] },
   { id: 'ec-equipement', name: 'Équipement', subs: ['Fauteuils & miroirs', 'Outils & ciseaux', 'Informatique', 'Mobilier'] },
-  { id: 'ec-frais', name: 'Frais bancaires', subs: ['Commissions Mobile Money', 'Frais de compte', 'Agios'] },
+  { id: 'ec-frais', name: 'Frais bancaires', subs: ['Commissions Mobile Money', 'Frais de compte', 'Agios', 'Intérêts d’emprunt'] },
   { id: 'ec-divers', name: 'Divers', subs: ['Imprévu', 'Cadeaux clientes', 'Formation externe', 'Autre'] },
 ];
 
@@ -1097,12 +1097,36 @@ export const MOTIFS_HORS_ACTIVITE = [
 ] as const;
 export type MotifHorsActivite = (typeof MOTIFS_HORS_ACTIVITE)[number];
 
-export type EntreeHorsActivite = {
+/* ══ RENDRE N'EST PAS DÉPENSER — 11 septembre 2026, second passage ═══
+   La porte d'entrée seule laissait la symétrie bancale. Rembourser
+   500 000 F d'emprunt n'appauvrit pas la Maison de 500 000 F : cet argent
+   n'était pas à elle, le rendre solde une dette. Le compter en charge
+   écraserait le résultat d'un demi-million qui n'a jamais été une dépense —
+   le MIROIR exact de l'erreur évitée le matin même.
+
+   UN SEUL MAGASIN, DEUX SENS. La clé `mnd_entrees_hors_activite` et la table
+   `entrees_hors_activite` gardent leur nom d'origine : le renommer casserait
+   les lignes déjà écrites, comme `openingXof` des caisses. Le `sens` ABSENT
+   vaut « entrée » — toutes les lignes du premier jour restent justes. */
+export type SensHorsActivite = 'entree' | 'sortie';
+
+/** Les motifs d'une SORTIE. Fermés comme ceux de l'entrée, et pour la même
+    raison. « Remboursement d'emprunt » se pose tout seul depuis la fiche de
+    l'emprunt : on ne le saisit jamais à la main. */
+export const MOTIFS_SORTIE_HORS_ACTIVITE = [
+  'Remboursement d’emprunt',
+  'Autre',
+] as const;
+export type MotifSortieHorsActivite = (typeof MOTIFS_SORTIE_HORS_ACTIVITE)[number];
+
+export type MouvementHorsActivite = {
   id: string;
   branchId: string;
-  /** Le jour où l'argent est entré. */
+  /** Le jour où l'argent a bougé. */
   date: string;
-  motif: MotifHorsActivite;
+  /** ABSENT = entrée, pour que les lignes d'avant restent vraies. */
+  sens?: SensHorsActivite;
+  motif: MotifHorsActivite | MotifSortieHorsActivite;
   /** De qui, et pourquoi — obligatoire, c'est la mémoire de l'entrée. */
   label: string;
   /** Toujours positif : une entrée n'a pas de sens négatif. */
@@ -1111,37 +1135,273 @@ export type EntreeHorsActivite = {
   cashbox: string;
   note?: string;
   fichier?: PieceJointe;
+  /** L'emprunt qui a produit ce mouvement — sa naissance ou l'une de ses
+      échéances. Le lien empêche de compter l'argent deux fois et permet de
+      remonter à la dette depuis le registre. */
+  empruntId?: string;
 };
 
-export const entreesHorsActiviteStore = createStore<EntreeHorsActivite[]>('mnd_entrees_hors_activite', []);
+/** Nom conservé pour les appelants d'avant le second passage. */
+export type EntreeHorsActivite = MouvementHorsActivite;
+
+export const entreesHorsActiviteStore = createStore<MouvementHorsActivite[]>('mnd_entrees_hors_activite', []);
 export const useEntreesHorsActivite = () => useStore(entreesHorsActiviteStore);
+
+/** LE SENS D'UN MOUVEMENT, absent compris. Un seul endroit le décide. */
+export const sensDe = (m: Pick<MouvementHorsActivite, 'sens'>): SensHorsActivite => m.sens ?? 'entree';
 
 /** Celles d'une branche, du plus récent au plus ancien — l'ordre du registre. */
 export const entreesDeLaBranche = (
-  l: readonly EntreeHorsActivite[], branchId: string,
-): EntreeHorsActivite[] =>
+  l: readonly MouvementHorsActivite[], branchId: string,
+): MouvementHorsActivite[] =>
   l.filter((e) => e.branchId === branchId).slice().sort((a, b) => b.date.localeCompare(a.date));
 
 /** Ce qui est entré hors activité sur une période — le préfixe ISO fait la
     borne : « 2026-09 » pour un mois, « 2026 » pour une année, '' pour tout. */
 export const horsActiviteXof = (
-  l: readonly EntreeHorsActivite[], branchId: string, prefixeIso = '',
+  l: readonly MouvementHorsActivite[], branchId: string, prefixeIso = '',
+  /* Par défaut les ENTRÉES : c'est ce que les appelants du premier jour
+     demandaient, et leur chiffre ne doit pas changer sous eux. */
+  sens: SensHorsActivite = 'entree',
 ): number =>
-  l.reduce((s, e) => (e.branchId === branchId && e.date.startsWith(prefixeIso) ? s + e.amountXof : s), 0);
+  l.reduce((s, e) => (e.branchId === branchId && e.date.startsWith(prefixeIso) && sensDe(e) === sens
+    ? s + e.amountXof : s), 0);
 
 /** Le même total, réparti par motif — ce que la Synthèse déplie. */
 export function horsActiviteParMotif(
-  l: readonly EntreeHorsActivite[], branchId: string, prefixeIso = '',
-): { motif: MotifHorsActivite; xof: number; n: number }[] {
-  const par = new Map<MotifHorsActivite, { xof: number; n: number }>();
+  l: readonly MouvementHorsActivite[], branchId: string, prefixeIso = '',
+  sens: SensHorsActivite = 'entree',
+): { motif: string; xof: number; n: number }[] {
+  const par = new Map<string, { xof: number; n: number }>();
   for (const e of l) {
-    if (e.branchId !== branchId || !e.date.startsWith(prefixeIso)) continue;
+    if (e.branchId !== branchId || !e.date.startsWith(prefixeIso) || sensDe(e) !== sens) continue;
     const v = par.get(e.motif) ?? { xof: 0, n: 0 };
     par.set(e.motif, { xof: v.xof + e.amountXof, n: v.n + 1 });
   }
   return [...par.entries()]
     .map(([motif, v]) => ({ motif, ...v }))
     .sort((a, b) => b.xof - a.xof);
+}
+
+/* ══ CE QUE LA MAISON DOIT — l'emprunt reçu, 11 septembre 2026 ═══════
+   Maquette `public/maquette-ce-que-la-maison-doit.html`, validée.
+
+   `Pret` (shared/foyer) tient ce que la Maison PRÊTE ; voici son miroir.
+   Deux montants, et tout découle d'eux : ce qui est ENTRÉ en caisse, et ce
+   qu'il faut RENDRE en tout. La différence est LE PRIX DE L'ARGENT — la
+   seule part qui soit une vraie charge, et elle se paie échéance par
+   échéance, jamais d'un coup.
+
+   CE QU'ON NE CONSTRUIT PAS, à dessein : intérêts composés, échéanciers
+   irréguliers, pénalités de retard. Un total à rendre et N versements égaux
+   couvrent ce qu'un salon rencontre ; au-delà c'est un tableur de banque. */
+export type EcheanceEmprunt = {
+  /** Rang, à partir de 1 — c'est ainsi qu'on en parle. */
+  rang: number;
+  dueIso: string;
+  /** Ce qui sort de la caisse ce jour-là. */
+  totalXof: number;
+  /** La part qui rend la dette — SORTIE hors activité, hors résultat. */
+  principalXof: number;
+  /** Le prix de l'argent — charge, frais financiers. */
+  interetXof: number;
+  regleeLe?: string;
+};
+
+export type Emprunt = {
+  id: string;
+  branchId: string;
+  preteur: string;
+  motif: string;
+  /** Le jour où l'argent est arrivé. */
+  date: string;
+  /** Ce qui est entré en caisse. */
+  recuXof: number;
+  /** Ce qu'il faut rendre en tout — jamais moins que le reçu. */
+  aRendreXof: number;
+  /** La caisse qui a reçu l'argent. */
+  cashbox: string;
+  /** N versements égaux, mensuels, à partir de `premier`. */
+  nombre: number;
+  premier: string;
+  /** Les échéances déjà rendues, par rang. */
+  reglees?: { rang: number; date: string }[];
+  /** Le mouvement hors activité né avec l'emprunt — l'argent ne se compte
+      qu'une fois, et l'on peut remonter de l'un à l'autre. */
+  mouvementId?: string;
+};
+
+export const empruntsStore = createStore<Emprunt[]>('mnd_emprunts', []);
+export const useEmprunts = () => useStore(empruntsStore);
+
+const moisPlus = (iso: string, n: number): string => {
+  const [a, m, j] = iso.split('-').map(Number);
+  const d = new Date(a, (m - 1) + n, 1);
+  /* Le dernier jour du mois d'arrivée quand le jour n'existe pas (31 → 30) :
+     une échéance du 31 janvier ne se paie pas le 3 mars. */
+  const dernier = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const jour = Math.min(j, dernier);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+};
+
+/** L'ÉCHÉANCIER, calculé, jamais stocké — comme les parts d'un abonnement.
+    LE DERNIER VERSEMENT ABSORBE LES ARRONDIS : sans cela, trois fois
+    166 666 rendent 499 998 et la dette ne se solde jamais tout à fait. */
+export function echeancesDeLEmprunt(e: Emprunt): EcheanceEmprunt[] {
+  const n = Math.max(1, Math.floor(e.nombre));
+  const interetTotal = Math.max(0, e.aRendreXof - e.recuXof);
+  const parPrincipal = Math.floor(e.recuXof / n);
+  const parInteret = Math.floor(interetTotal / n);
+  const out: EcheanceEmprunt[] = [];
+  for (let i = 1; i <= n; i += 1) {
+    const dernier = i === n;
+    const principalXof = dernier ? e.recuXof - parPrincipal * (n - 1) : parPrincipal;
+    const interetXof = dernier ? interetTotal - parInteret * (n - 1) : parInteret;
+    const reglee = (e.reglees ?? []).find((r) => r.rang === i);
+    out.push({
+      rang: i,
+      dueIso: moisPlus(e.premier, i - 1),
+      totalXof: principalXof + interetXof,
+      principalXof,
+      interetXof,
+      ...(reglee ? { regleeLe: reglee.date } : {}),
+    });
+  }
+  return out;
+}
+
+/** Ce qu'il reste à rendre — les échéances non réglées, en tout. */
+export const resteDuDeLEmprunt = (e: Emprunt): number =>
+  echeancesDeLEmprunt(e).reduce((s, x) => (x.regleeLe ? s : s + x.totalXof), 0);
+
+/** Un emprunt est SOLDÉ quand plus rien n'est dû. */
+export const empruntSolde = (e: Emprunt): boolean => resteDuDeLEmprunt(e) <= 0;
+
+/** La prochaine échéance à rendre, s'il en reste une. */
+export const prochaineEcheanceDeLEmprunt = (e: Emprunt): EcheanceEmprunt | undefined =>
+  echeancesDeLEmprunt(e).find((x) => !x.regleeLe);
+
+/** CE QUE LA MAISON DOIT ENCORE, tous emprunts vivants confondus. */
+export const detteDeLaMaison = (l: readonly Emprunt[], branchId: string): number =>
+  l.reduce((s, e) => (e.branchId === branchId ? s + resteDuDeLEmprunt(e) : s), 0);
+
+/** CE QUI EMPÊCHE DE POSER UN EMPRUNT, dit plutôt que refusé en silence. */
+export function pourquoiEmpruntImpossible(o: {
+  preteur: string; recuXof: number; aRendreXof: number; cashbox: string;
+  nombre: number; premier: string;
+}): string | null {
+  if (!o.preteur.trim()) return 'Il manque le nom de qui prête.';
+  if (!(o.recuXof > 0)) return 'Un emprunt sans montant n’apporte rien.';
+  if (o.aRendreXof < o.recuXof) return 'On ne rend jamais moins qu’on n’a reçu.';
+  if (!o.cashbox.trim()) return 'Choisissez la caisse qui reçoit cet argent.';
+  if (!(o.nombre >= 1)) return 'Il faut au moins un versement.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.premier)) return 'La date de la première échéance n’est pas lisible.';
+  return null;
+}
+
+/** LA CATÉGORIE DU PRIX DE L'ARGENT — un seul endroit la nomme. */
+export const CATEGORIE_INTERETS = 'Frais bancaires';
+export const SOUS_CATEGORIE_INTERETS = 'Intérêts d’emprunt';
+
+/* ══ UN SEUL GESTE, DEUX ÉCRITURES — 11 septembre 2026 ═══════════════
+   Poser l'emprunt écrit AUSSI l'entrée hors activité : l'argent n'est
+   compté qu'une fois, et personne n'a à penser à la seconde écriture.
+   Demander deux saisies, c'est garantir qu'une des deux manquera un jour —
+   la leçon du stock et des points, réapprise ici plutôt que revécue. */
+export function poseUnEmprunt(o: {
+  branchId: string; preteur: string; motif: string; date: string;
+  recuXof: number; aRendreXof: number; cashbox: string; nombre: number; premier: string;
+}): { ok: boolean; erreur?: string; id?: string } {
+  const quoi = pourquoiEmpruntImpossible(o);
+  if (quoi) return { ok: false, erreur: quoi };
+  const id = `emp-${uid()}`;
+  const mouvementId = `hors-${uid()}`;
+  empruntsStore.set((prev) => [...prev, {
+    id,
+    branchId: o.branchId,
+    preteur: o.preteur.trim(),
+    motif: o.motif.trim(),
+    date: o.date,
+    recuXof: o.recuXof,
+    aRendreXof: o.aRendreXof,
+    cashbox: o.cashbox,
+    nombre: Math.max(1, Math.floor(o.nombre)),
+    premier: o.premier,
+    mouvementId,
+  }]);
+  entreesHorsActiviteStore.set((prev) => [...prev, {
+    id: mouvementId,
+    branchId: o.branchId,
+    date: o.date,
+    sens: 'entree',
+    motif: 'Prêt reçu',
+    label: `${o.preteur.trim()}${o.motif.trim() ? ` · ${o.motif.trim()}` : ''}`,
+    amountXof: o.recuXof,
+    cashbox: o.cashbox,
+    empruntId: id,
+  }]);
+  return { ok: true, id };
+}
+
+/* RENDRE UNE ÉCHÉANCE, ET SÉPARER CE QUI EST UNE CHARGE DE CE QUI N'EN EST
+   PAS. La caisse perd le total — c'est l'argent réel, et rien ne doit le
+   masquer. Mais seul le PRIX DE L'ARGENT touche le résultat : le principal
+   rend ce qui n'était pas à nous. Deux écritures, donc, et une seule main. */
+export function rendUneEcheance(
+  emprunt: Emprunt, rang: number, cashbox: string, jour: string,
+): { ok: boolean; erreur?: string } {
+  if (!cashbox.trim()) return { ok: false, erreur: 'Choisissez la caisse d’où sort l’argent.' };
+  const ech = echeancesDeLEmprunt(emprunt).find((x) => x.rang === rang);
+  if (!ech) return { ok: false, erreur: 'Cette échéance n’existe pas.' };
+  if (ech.regleeLe) return { ok: false, erreur: 'Cette échéance est déjà rendue.' };
+
+  empruntsStore.set((prev) => prev.map((e) => (e.id === emprunt.id
+    ? { ...e, reglees: [...(e.reglees ?? []), { rang, date: jour }] }
+    : e)));
+
+  if (ech.principalXof > 0) {
+    entreesHorsActiviteStore.set((prev) => [...prev, {
+      id: `hors-${uid()}`,
+      branchId: emprunt.branchId,
+      date: jour,
+      sens: 'sortie',
+      motif: 'Remboursement d’emprunt',
+      label: `${emprunt.preteur} · échéance ${rang} sur ${emprunt.nombre}`,
+      amountXof: ech.principalXof,
+      cashbox,
+      empruntId: emprunt.id,
+    }]);
+  }
+  if (ech.interetXof > 0) {
+    expensesStore.set((prev) => [...prev, {
+      id: `dep-${uid()}`,
+      branchId: emprunt.branchId,
+      label: `Intérêts · ${emprunt.preteur} · échéance ${rang} sur ${emprunt.nombre}`,
+      amountXof: ech.interetXof,
+      date: jour,
+      cashbox,
+      category: CATEGORIE_INTERETS,
+      subcategory: SOUS_CATEGORIE_INTERETS,
+    } as Expense]);
+  }
+  return { ok: true };
+}
+
+/** DÉFAIRE UN REMBOURSEMENT — la main se trompe de ligne, et le registre ne
+    doit pas garder une dette éteinte par erreur. Les deux écritures partent
+    avec, sinon la caisse mentirait dans l'autre sens. */
+export function defaitUneEcheance(emprunt: Emprunt, rang: number): void {
+  empruntsStore.set((prev) => prev.map((e) => (e.id === emprunt.id
+    ? { ...e, reglees: (e.reglees ?? []).filter((r) => r.rang !== rang) }
+    : e)));
+  const marque = `échéance ${rang} sur ${emprunt.nombre}`;
+  entreesHorsActiviteStore.set((prev) => prev.filter(
+    (m) => !(m.empruntId === emprunt.id && sensDe(m) === 'sortie' && m.label.includes(marque)),
+  ));
+  expensesStore.set((prev) => prev.filter(
+    (d) => !(d.branchId === emprunt.branchId && d.category === CATEGORIE_INTERETS
+      && d.label.includes(emprunt.preteur) && d.label.includes(marque)),
+  ));
 }
 
 /** CE QUI EMPÊCHE D'ENREGISTRER, dit plutôt que refusé en silence. */
@@ -1535,6 +1795,7 @@ bindCollection(objectifsStore, 'objectifs_coffre');
 bindCollection(transfertsStore, 'transferts_caisse');
 bindCollection(creditMovementsStore, 'credit_movements');
 bindCollection(entreesHorsActiviteStore, 'entrees_hors_activite');
+bindCollection(empruntsStore, 'emprunts');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
 /* Les porteurs suivent la Maison : nommer Sandrine au comptoir doit la
    nommer sur le téléphone de la gérante. */
