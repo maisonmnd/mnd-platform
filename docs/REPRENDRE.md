@@ -61,6 +61,47 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## MND KIDS N'EST PLUS UNE PRISON — 11 septembre 2026, PUBLIÉ
+
+« Le problème de MND Kids n'est toujours pas résolu. J'ai beaucoup de clientes
+comme R. À chaque fois que je veux passer un rendez-vous sur leur compte, c'est
+bloqué sur MND Kids » (Yéman).
+
+**DEUX CHEMINS MENAIENT AU MÊME SYMPTÔME**, et c'est pour cela qu'il revenait.
+Le 10 septembre on a réparé le CALIBRE inconnu (`calibreConnu`) : réel, corrigé,
+et ce n'était pas la cause de R. Elle porte 358 locks, calibre Nano, une tête
+parfaitement mesurée. Sa fiche portait une **date de naissance fausse**, et
+`catalogueDeLaTete` en tirait un mur. Une correction qui explique un symptôme
+n'en épuise pas les causes.
+
+**LA FAUTE DE FOND N'ÉTAIT PAS LA RÈGLE, C'ÉTAIT SON SILENCE.** Le catalogue
+rétrécissait sans un mot : impossible de deviner qu'une date de naissance en
+était la cause, et chaque diagnostic devenait un pari.
+
+**Une priorité, plus une prison.** `catalogueDeLaTete(services, kids, tout)` —
+le troisième argument absent, rien ne change pour les appelants d'hier. Les
+trois écrans qui enfermaient l'ouvrent : la modale de RDV, le rendez-vous du
+foyer (tête par tête, pour que l'enfant garde sa section pendant que la mère
+mal datée retrouve la sienne) et Ma Couronne, **où personne n'était là pour
+délivrer** puisqu'il n'y a pas de maître au comptoir.
+
+**L'écran DIT l'âge qui déclenche la règle**, et `masqueesParLAge` compte ce
+qu'elle écarte : « lue 11 ans, née le 4 mars 2015, 34 autres prestations de
+côté ». Une date fausse se voit désormais au lieu d'amputer en silence.
+
+L'inquiétude d'origine est intacte (« rien n'empêchait de poser à un enfant de
+neuf ans un GBÌGBÌ™ Profond à 120 000 F ») : l'écran ouvre toujours sur MND
+Kids, et il faut un geste délibéré pour voir le reste. La garde n'est jamais
+retenue d'un rendez-vous à l'autre.
+
+Éprouvé par `verifie-kids` (9 épreuves neuves).
+
+### CE QUI RESTE
+
+Les dates de naissance fausses sont toujours dans la base. La modale les
+nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
+À construire si la correction au fil de l'eau ne suffit pas.
+
 ## LES INACTIVES, LA CINQUIÈME RUBRIQUE — 11 septembre 2026, PUBLIÉ
 
 « Quand une cliente a fait le Gbata, le défaisage, elle n'a plus de locks donc

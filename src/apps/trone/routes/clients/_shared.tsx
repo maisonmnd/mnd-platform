@@ -24,8 +24,8 @@ import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, cats
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
-import { estKids } from '../../../../shared/accounts';
-import { catalogueDeLaTete, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
+import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
+import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
@@ -1744,7 +1744,16 @@ export function RdvModal({
      `remaining === null` = illimité. La couverture n'est proposée que s'il reste au
      moins une allocation (ou si ce RDV était déjà couvert). */
   /* L'ÂGE DE LA TÊTE RETENUE, pour la section MND Kids. */
-  const verdictKids = estKids(clients.find((c) => c.id === clientId), todayISO());
+  const teteDuRdv = clients.find((c) => c.id === clientId);
+  const verdictKids = estKids(teteDuRdv, todayISO());
+  const ageDuRdv = ageDe(teteDuRdv?.birthday, todayISO());
+  /* LA PORTE DE LA SECTION ENFANTS — par rendez-vous, jamais retenue.
+     Retenir le choix ferait qu'un jour on poserait un rituel d'adulte à un
+     enfant sans même savoir que la garde avait été levée la semaine passée. */
+  const [toutLeCatalogue, setToutLeCatalogue] = useState(false);
+  /* LA TÊTE CHANGE, LA PORTE SE REFERME. Sans cela, ouvrir pour l'une
+     laisserait ouvert pour la suivante, et la garde ne vaudrait plus rien. */
+  useEffect(() => { setToutLeCatalogue(false); }, [clientId]);
   const coverageRows = (membership && membershipPlan)
     ? chosen
         /* SES prestations à elle : le contenu ajusté à la vente fait foi. */
@@ -1934,7 +1943,9 @@ export function RdvModal({
 
      La règle se lit désormais dans les deux sens : l'adulte ne voit pas les
      Kids, l'enfant ne voit qu'eux. Un âge inconnu ne restreint rien. */
-  const proposables = catalogueDeLaTete(ouvertes, verdictKids);
+  const proposables = catalogueDeLaTete(ouvertes, verdictKids, toutLeCatalogue);
+  /* CE QUE LA RÈGLE MET DE CÔTÉ — pour que l'écran le dise en clair. */
+  const misesDeCote = masqueesParLAge(ouvertes, verdictKids);
   /* GROUPÉES PAR ATELIER. 148 prestations à la file, on ne retrouve rien : il
      faut lire toute la liste pour choisir un resserrage. Les regrouper sous le
      nom de leur atelier rend la recherche visuelle immédiate — c'est déjà comme
@@ -3028,6 +3039,43 @@ export function RdvModal({
                 modale écoute la même touche à la fenêtre), Entrée ne pose que
                 le visible et surligné, le double-clic ne pose jamais deux
                 lignes. */}
+            {/* ══ LA RÈGLE SE NOMME — 11 septembre 2026 ══════════════════
+                Le catalogue rétrécissait SANS UN MOT, et c'était la vraie
+                faute : on ne pouvait pas deviner qu'une date de naissance en
+                était la cause. R. porte 358 locks, calibre Nano, et ne voyait
+                que la section enfants parce que sa fiche la disait née en
+                2015. Ici l'âge s'écrit, donc l'erreur se voit, et la garde se
+                lève d'un clic. */}
+            {verdictKids === 'oui' && misesDeCote > 0 && (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+                  padding: '10px 12px', marginBottom: 8, borderRadius: 3,
+                  border: '1px solid var(--copper-300)', background: 'var(--copper-50)',
+                }}
+              >
+                <span style={{ fontSize: 12.5, color: 'var(--ink)', flex: 1, minWidth: 200 }}>
+                  {toutLeCatalogue ? (
+                    <>Toute la Maison est ouverte. {teteDuRdv?.name.split(' ')[0]} est lue MND Kids
+                      {ageDuRdv !== undefined ? `, ${ageDuRdv} an${ageDuRdv > 1 ? 's' : ''}` : ''} :
+                      vérifiez que le rituel choisi lui convient.</>
+                  ) : (
+                    <>Menu réduit à MND Kids : {teteDuRdv?.name.split(' ')[0]} est lue
+                      {ageDuRdv !== undefined ? ` ${ageDuRdv} an${ageDuRdv > 1 ? 's' : ''}` : ' mineure'}
+                      {teteDuRdv?.birthday ? `, née le ${frJourAn(teteDuRdv.birthday)}` : ''}.
+                      {' '}{misesDeCote} autre{misesDeCote > 1 ? 's' : ''} prestation{misesDeCote > 1 ? 's' : ''} de côté.
+                      {' '}Si la date est fausse, corrigez-la sur sa fiche : le tarif enfant s’arrête à {AGE_MND_KIDS} ans.</>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="trv-minibtn"
+                  onClick={() => setToutLeCatalogue((v) => !v)}
+                >
+                  {toutLeCatalogue ? 'Revenir à MND Kids' : 'Voir tout le catalogue'}
+                </button>
+              </div>
+            )}
             <div
               className="trc-clientpick trc-svmenu"
               ref={svWrapRef}

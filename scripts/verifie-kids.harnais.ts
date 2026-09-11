@@ -11,6 +11,7 @@
 import { AGE_MND_KIDS, estKids } from '../src/shared/accounts';
 import {
   SERVICES_KIDS, FORFAIT_KIDS, FORFAIT_KIDS_NAISSANCE, TOUT_KIDS, kidsAbsents, CAT_KIDS, catalogueDeLaTete,
+  masqueesParLAge,
   metAJourLaSectionKids, empreinteKids,
   compositionDuForfait, gainDuForfait, detailDuForfait, kidsADepasser, pourQui,
 } from '../src/shared/kids';
@@ -207,6 +208,36 @@ dit('un age inconnu ne restreint rien', 7, catalogueDeLaTete(catalogueMele, 'inc
    d'etre seulement incomplet. */
 dit('sans section posee, l’enfant voit tout', 1, catalogueDeLaTete([ordinaire], 'oui').length);
 dit('un catalogue vide reste vide', 0, catalogueDeLaTete([], 'oui').length);
+
+/* ── LA PORTE — 11 septembre 2026 ─────────────────────────────────
+   « J'ai beaucoup de clientes comme R. À chaque fois que je veux passer un
+   rendez-vous sur leur compte, c'est bloque sur MND Kids » (Yeman).
+
+   R. porte 358 locks, calibre Nano : une tete d'adulte, mesuree, et le menu
+   ne lui offrait que la section enfants. Sa fiche portait une date de
+   naissance fausse, et cette regle en tirait un MUR.
+
+   DEUX CHEMINS MENAIENT AU MEME SYMPTOME, et c'est pour cela qu'il revenait :
+   le 10 septembre on a repare le CALIBRE inconnu ; l'AGE, lui, etait intact.
+
+   La regle propose desormais, elle n'enferme plus — et l'ecran DIT l'age qui
+   la declenche, pour qu'une date fausse se voie au lieu d'amputer en silence. */
+dit('la porte ouverte rend tout le catalogue', 7, catalogueDeLaTete(catalogueMele, 'oui', true).length);
+dit('… et la refermer rend la section', 6, catalogueDeLaTete(catalogueMele, 'oui', false).length);
+/* LA PORTE NE CHANGE RIEN POUR LES AUTRES : ouvrir chez une adulte ou chez une
+   inconnue ne doit rien ajouter, sinon la garde des Kids fuirait par l'autre
+   bout et une adulte se verrait proposer un tarif enfant. */
+dit('chez une adulte, la porte ne change rien', 7, catalogueDeLaTete(catalogueMele, 'non', true).length);
+dit('chez une inconnue non plus', 7, catalogueDeLaTete(catalogueMele, 'inconnu', true).length);
+
+/* CE QUE LA REGLE MET DE COTE SE COMPTE, pour que l'ecran puisse le DIRE.
+   « 1 autre prestation de cote » se lit ; un catalogue qui retrecit tout
+   seul, non — c'etait la vraie faute, et elle rendait chaque diagnostic
+   impossible. */
+dit('on sait combien la regle ecarte', 1, masqueesParLAge(catalogueMele, 'oui'));
+dit('chez une adulte, elle n’ecarte rien', 0, masqueesParLAge(catalogueMele, 'non'));
+dit('chez une inconnue non plus', 0, masqueesParLAge(catalogueMele, 'inconnu'));
+dit('un catalogue sans section n’ecarte rien d’utile', 1, masqueesParLAge([ordinaire], 'oui'));
 
 /* ── UNE FICHE SUPPRIMÉE RESTE SUPPRIMÉE — 6 septembre 2026 ────────
    « Sur le bouton MND Kids aussi. » Même faute, même remède : le compte

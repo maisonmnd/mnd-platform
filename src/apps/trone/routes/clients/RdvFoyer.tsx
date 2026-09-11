@@ -18,7 +18,7 @@ import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, remiseFamillePct, type Client } from '../../../../shared/clients';
-import { estKids } from '../../../../shared/accounts';
+import { ageDe, estKids } from '../../../../shared/accounts';
 import { catalogueDeLaTete } from '../../../../shared/kids';
 import { useServices, useProducts, type Service } from '../../../../shared/catalog';
 import {
@@ -66,6 +66,12 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
   /* LA TÊTE PAR LAQUELLE ON EST ARRIVÉ EST COCHÉE : c'est elle qu'on servait
      quand l'idée du foyer est venue. */
   const [pris, setPris] = useState<Record<string, Choix>>(() => ({ [clientId]: { serviceIds: [] } }));
+  /* LES TÊTES POUR QUI LA GARDE MND KIDS EST LEVÉE, sur CE rendez-vous.
+     Tête par tête : dans un foyer, l'enfant garde sa section pendant que la
+     mère mal datée retrouve la sienne. Rien n'est retenu d'une fois sur
+     l'autre — une garde levée la semaine passée ne doit pas se rouvrir dans
+     le dos de personne. */
+  const [toutPour, setToutPour] = useState<Set<string>>(() => new Set());
   const [date, setDate] = useState(todayISO());
   const [heure, setHeure] = useState('10:00');
   const [ensemble, setEnsemble] = useState(true);
@@ -218,10 +224,33 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
                             services={catalogueDeLaTete(
                               services.filter((sv) => !sv.reserveEnfants || estKids(t, todayISO()) !== 'non'),
                               estKids(t, todayISO()),
+                              toutPour.has(t.id),
                             )}
                             exclure={(sv) => pris[t.id].serviceIds.includes(sv.id)}
                           />
                         </Select>
+                        {/* LA MÊME PORTE QUE LA MODALE DE RDV — 11 sept. 2026.
+                            Une date de naissance fausse enfermait une mère dans
+                            la section enfants, sur l'écran même où elle réserve
+                            pour toute sa famille. L'âge s'écrit, donc l'erreur
+                            se voit ; la garde se lève tête par tête. */}
+                        {estKids(t, todayISO()) === 'oui' && (
+                          <button
+                            type="button"
+                            className="trv-minibtn"
+                            style={{ marginTop: 6 }}
+                            title={t.birthday ? `Née le ${t.birthday}` : undefined}
+                            onClick={() => setToutPour((prev) => {
+                              const n = new Set(prev);
+                              if (n.has(t.id)) n.delete(t.id); else n.add(t.id);
+                              return n;
+                            })}
+                          >
+                            {toutPour.has(t.id)
+                              ? 'Revenir à MND Kids'
+                              : `Lue ${ageDe(t.birthday, todayISO()) ?? '?'} ans · voir tout le catalogue`}
+                          </button>
+                        )}
                         {pris[t.id].serviceIds.length > 0 && (
                           <div style={{ marginTop: 7, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             {pris[t.id].serviceIds.map((id, i) => (

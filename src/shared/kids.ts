@@ -369,13 +369,46 @@ export function poseLaSectionKids(): number {
     · une section PAS ENCORE POSÉE ne restreint rien non plus. Sans elle,
       l'enfant se retrouverait devant une liste vide, et l'écran aurait l'air
       cassé au lieu d'être seulement incomplet. */
+/* ══ UNE PRIORITÉ, PLUS UNE PRISON — 11 septembre 2026 ══════════════
+   « Le problème de MND Kids n'est toujours pas résolu. J'ai beaucoup de
+   clientes comme R. À chaque fois que je veux passer un rendez-vous sur leur
+   compte, c'est bloqué sur MND Kids » (Yéman).
+
+   R. porte 358 locks et son calibre est Nano : une tête d'adulte, mesurée,
+   et le menu ne lui offrait que la section enfants. Sa fiche portait une date
+   de naissance fausse, et cette règle en tirait un mur.
+
+   DEUX CHEMINS MENAIENT AU MÊME SYMPTÔME, et c'est pour cela qu'il revenait :
+   le 10 septembre on a réparé le CALIBRE inconnu (`calibreConnu`), qui faisait
+   disparaître toutes les prestations à tranches ; l'ÂGE, lui, était intact.
+   Une correction qui explique un symptôme n'en épuise pas les causes.
+
+   LA FAUTE DE FOND N'ÉTAIT PAS LA RÈGLE, C'ÉTAIT SON SILENCE. Le catalogue
+   rétrécissait sans un mot : impossible de deviner qu'une date de naissance en
+   était la cause, et chaque diagnostic devenait un pari. Une déduction tirée
+   d'une donnée ne doit jamais être un mur — elle propose, elle se nomme, et
+   elle se lève d'un clic.
+
+   L'INQUIÉTUDE D'ORIGINE EST INTACTE : « rien n'empêchait de poser à un enfant
+   de neuf ans un GBÌGBÌ™ Profond à 120 000 F ». Elle l'est toujours : l'écran
+   ouvre sur MND Kids, et il faut un geste délibéré pour voir le reste. C'est
+   exactement le frottement qu'il faut, ni plus ni moins. */
 export const catalogueDeLaTete = <T extends { reserveEnfants?: boolean }>(
   services: readonly T[], kids: 'oui' | 'non' | 'inconnu',
+  /* LA PORTE. Absente, rien ne change pour les appelants d'hier : l'écran doit
+     l'ouvrir sciemment, et dire à côté ce qu'il ouvre. */
+  tout = false,
 ): T[] => {
-  if (kids !== 'oui') return [...services];
+  if (kids !== 'oui' || tout) return [...services];
   const siens = services.filter((s) => s.reserveEnfants);
   return siens.length > 0 ? siens : [...services];
 };
+
+/** COMBIEN LA RÈGLE MET DE CÔTÉ — pour que l'écran puisse le DIRE.
+    « 34 autres prestations » se lit ; un catalogue qui rétrécit tout seul, non. */
+export const masqueesParLAge = <T extends { reserveEnfants?: boolean }>(
+  services: readonly T[], kids: 'oui' | 'non' | 'inconnu',
+): number => (kids === 'oui' ? services.filter((s) => !s.reserveEnfants).length : 0);
 
 /** CE QUE LE FORFAIT CONTIENT, ET CE QU'IL DONNE — 4 septembre 2026.
 

@@ -12,8 +12,8 @@ import { enablePush, pushNotify, pushNotifyStaff } from '../../shared/push';
 import { uid, useStore } from '../../shared/store';
 import { vitrineConfigStore } from '../../shared/bridges';
 import { clientsStore, useClients, useFamilies, usePersonas, remiseFamillePct } from '../../shared/clients';
-import { estKids, tetesPortees } from '../../shared/accounts';
-import { catalogueDeLaTete } from '../../shared/kids';
+import { ageDe, estKids, tetesPortees } from '../../shared/accounts';
+import { catalogueDeLaTete, masqueesParLAge } from '../../shared/kids';
 import { ENVIES, QUIZ_POOL, envieLabel, type ElanKey, type EnvieKey } from '../../shared/quiz';
 import { recoPourEnvie, type RecoContexte } from '../../shared/reco';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
@@ -332,10 +332,18 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* LA TÊTE SERVIE COMMANDE LE CATALOGUE : la mère qui réserve pour sa fille
      ne voit que MND Kids ; pour elle-même, elle ne le voit pas du tout. */
   const verdictKids = estKids(beneficiaire ?? client ?? undefined, todayIso());
-  const offre = catalogueDeLaTete(
-    services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete, verdictKids)),
-    verdictKids,
-  );
+  /* ══ UNE PRIORITÉ, PLUS UNE PRISON — 11 septembre 2026 ═══════════
+     Une date de naissance fausse enfermait une adulte dans la section
+     enfants, et ici PERSONNE N'EST LÀ POUR LA DÉLIVRER : sur Ma Couronne il
+     n'y a pas de maître au comptoir pour lever la garde. C'était donc un
+     cul-de-sac complet, et la cliente n'avait aucun moyen de comprendre.
+     La porte s'ouvre d'un mot, et le geste reste délibéré : une mère qui
+     réserve pour sa fille ne la pousse pas par mégarde. */
+  const [toutLeCatalogue, setToutLeCatalogue] = useState(false);
+  const offrables = services.filter((s) => estProposable(s, pricing, venuesTete, !!familleDeLaTete, verdictKids));
+  const offre = catalogueDeLaTete(offrables, verdictKids, toutLeCatalogue);
+  const misesDeCote = masqueesParLAge(offrables, verdictKids);
+  const ageServie = ageDe((beneficiaire ?? client ?? undefined)?.birthday, todayIso());
 
   /* Catégories réservables : au moins une prestation visible. */
   /* DANS L'ORDRE DU CATALOGUE (12 août) : objectifs et prestations suivent
@@ -966,6 +974,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === 0 && (
           bookableCats.length > 0 ? (
             <div className="mc-fade">
+              {/* LA RÈGLE SE NOMME, ICI AUSSI. Un catalogue qui rétrécit sans
+                  un mot ne se comprend pas, et ne se corrige jamais. */}
+              {verdictKids === 'oui' && misesDeCote > 0 && (
+                <div className="mc-kidsporte">
+                  <span>
+                    {toutLeCatalogue
+                      ? 'Toute la carte de la Maison est ouverte.'
+                      : `Vous voyez la carte MND Kids${ageServie !== undefined ? `, pour les têtes de ${ageServie} ans` : ''}.`}
+                  </span>
+                  <button type="button" onClick={() => setToutLeCatalogue((v) => !v)}>
+                    {toutLeCatalogue ? 'Revenir à MND Kids' : 'Voir toute la carte'}
+                  </button>
+                </div>
+              )}
               <div className="mc-acclist">
                 {/* LES MONDES SE DISENT (12 août) : un intertitre quand on passe
                     de l'Atelier au plateau, puis au Studio. */}

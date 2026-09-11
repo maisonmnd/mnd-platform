@@ -2891,3 +2891,34 @@
 /* « Je ne sais pas » ne porte pas de chiffre : ce serait un prix qu'on
    inventerait, alors qu'on dit précisément qu'on ne sait pas encore. */
 .cma-calibre__flou { font-weight: 400; color: var(--ink-soft, #746F65); font-size: 12px; }
+
+/* ── LA PORTE DE MND KIDS — 11 septembre 2026 ──────────────────────
+   Une date de naissance fausse enfermait une adulte dans la section enfants,
+   et ici personne n'est là pour la délivrer : sur Ma Couronne il n'y a pas de
+   maître au comptoir. La règle se nomme donc, et s'ouvre d'un mot. */
+.mc-kidsporte {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--copper-300, #E3C9AE);
+  border-radius: 3px;
+  background: var(--copper-50, #FAF1E9);
+  font-size: 12.5px;
+  color: var(--ink, #2A2722);
+}
+.mc-kidsporte button {
+  border: 1px solid var(--copper-300, #E3C9AE);
+  border-radius: 3px;
+  background: none;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--copper-700, #8A5326);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mc-kidsporte button:hover { background: #fff; }
