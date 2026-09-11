@@ -2378,6 +2378,25 @@ function Customer360({
       : null;
 
   /* Amène un champ d'identité à l'œil et le met en saisie (Appeler/Itinéraire sans info). */
+  /* ══ LES CINQ CASES SONT DEVENUES DES PORTES — 11 septembre 2026 ══
+     « Rendre cliquable : locks, à la maison, cadence, longueur, couronne »
+     (Yéman). Elles ANNONÇAIENT sans rien ouvrir : lire « Longueur · à
+     constater » et devoir ensuite chercher dans quel panneau elle se saisit,
+     c'est exactement le geste que la bande devait épargner.
+
+     CHACUNE MÈNE À CE QUI LA CORRIGE, et la même précision qu'ailleurs : on
+     n'ouvre pas « la fiche », on ouvre LE panneau, déplié, sous les yeux.
+     « À la Maison » ne se corrige pas, elle se raconte : elle mène au
+     Parcours, où se lit l'histoire qu'elle résume. */
+  const ouvrePanneau = (nom: string) => {
+    setPanEdite(nom);
+    /* Après le rendu, sinon on chercherait un panneau que React n'a pas
+       encore déplié — et la page ne bougerait pas d'un pixel. */
+    window.setTimeout(() => {
+      document.getElementById(`c360-pan-${nom}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+  };
+
   const focusField = (id: string) => {
     const el = document.getElementById(id) as HTMLInputElement | null;
     if (!el) return;
@@ -3177,7 +3196,12 @@ function Customer360({
             le comble. Une case grise de la taille d'une case remplie ne se
             distingue pas d'une valeur, et une fiche neuve devenait un mur. */}
         <div className="trc-bande">
-          <div className="trc-bande__c">
+          <button
+            type="button"
+            className="trc-bande__c trc-bande__c--porte"
+            onClick={() => ouvrePanneau('tete')}
+            title={client.lockCount ? 'Revoir son comptage et son calibre' : 'Compter sa tête'}
+          >
             <u>Locks</u>
             <span className={`trc-bande__v ${client.lockCount ? '' : 'is-vide'}`}>
               {client.lockCount ?? '—'}
@@ -3189,8 +3213,13 @@ function Customer360({
                 return b?.name ? `${b.name}${client.margeCalibre ? ` · marge ${MARGE_CALIBRE_LOCKS}` : ''}` : 'hors calibre';
               })()}
             </span>
-          </div>
-          <div className="trc-bande__c">
+          </button>
+          <button
+            type="button"
+            className="trc-bande__c trc-bande__c--porte"
+            onClick={() => ouvrePanneau('decide')}
+            title="Son rythme, sa reprise à la clôture et ses jours favoris"
+          >
             <u>Cadence</u>
             <span className={`trc-bande__v ${client.rythmeSemaines || cadenceObs ? '' : 'is-vide'}`}>
               {client.rythmeSemaines ? `${client.rythmeSemaines} sem.` : cadenceObs ? `≈ ${cadenceObs.semaines} sem.` : '—'}
@@ -3202,8 +3231,13 @@ function Customer360({
                   ? 'reprise coupée'
                   : 'en observation'}
             </span>
-          </div>
-          <div className="trc-bande__c">
+          </button>
+          <button
+            type="button"
+            className="trc-bande__c trc-bande__c--porte"
+            onClick={() => setTab('parcours')}
+            title="Ouvrir son parcours, l’histoire que cette durée résume"
+          >
             <u>À la Maison</u>
             {/* DEPUIS SON PREMIER RITUEL CONNU, pas depuis la création de sa
                 fiche : la reprise de 2025 a rendu l'écart criant. */}
@@ -3211,15 +3245,25 @@ function Customer360({
               {depuisLaMaison ? dureeEnClair(depuisLaMaison, todayISO()) : '—'}
             </span>
             <span className="trc-bande__s">{depuisLaMaison ? frJourAn(depuisLaMaison) : 'date inconnue'}</span>
-          </div>
-          <div className="trc-bande__c">
+          </button>
+          <button
+            type="button"
+            className="trc-bande__c trc-bande__c--porte"
+            onClick={() => ouvrePanneau('tete')}
+            title={client.longueur ? 'Changer la longueur travaillée par défaut' : 'Constater sa longueur'}
+          >
             <u>Longueur</u>
             <span className={`trc-bande__v ${client.longueur ? '' : 'is-vide'}`}>
               {client.longueur ? longueurLabel(client.longueur).split(' ')[0] : '—'}
             </span>
             <span className="trc-bande__s">{client.longueur ? 'travaillée par défaut' : 'à constater'}</span>
-          </div>
-          <div className="trc-bande__c">
+          </button>
+          <button
+            type="button"
+            className="trc-bande__c trc-bande__c--porte"
+            onClick={() => ouvrePanneau('tete')}
+            title={client.crownSince ? 'Revoir le jour de sa couronne' : 'Poser le jour de sa couronne'}
+          >
             <u>Couronne</u>
             {/* SON ÂGE, PAS LE QUANTIÈME. « Couronne · 21 » ne disait rien : le
                 21 était le jour du mois, lu par accident du premier mot de la
@@ -3231,7 +3275,7 @@ function Customer360({
             <span className="trc-bande__s">
               {client.crownSince ? frJourAn(client.crownSince) : 'jour inconnu'}
             </span>
-          </div>
+          </button>
         </div>
 
         <div className="trc-fiche">
@@ -3338,7 +3382,7 @@ function Customer360({
             prenait pour un AUTRE bloc, jamais à jour du premier. La carte ne
             garde que ce que les champs ne disent pas : le calibre que le
             comptage donne, et l'envie qu'elle a déclarée. */}
-        <div className={`trc-pan ${panEdite === 'tete' ? 'trc-pan--edite' : ''}`}>
+        <div id="c360-pan-tete" className={`trc-pan ${panEdite === 'tete' ? 'trc-pan--edite' : ''}`}>
           <div className="trc-pan__t">
             <span>Sa tête</span>
             <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'tete' ? '' : 'tete'))}>
@@ -3494,7 +3538,7 @@ function Customer360({
 
         {/* CE QUE LA MAISON A DÉCIDÉ — des choix, pas des faits. Ils commandent
             la prédiction, la reprise et son Carnet de Suivi. */}
-        <div className={`trc-pan ${panEdite === 'decide' ? 'trc-pan--edite' : ''}`}>
+        <div id="c360-pan-decide" className={`trc-pan ${panEdite === 'decide' ? 'trc-pan--edite' : ''}`}>
           <div className="trc-pan__t">
             <span>La Maison décide</span>
             <button type="button" className="trc-pan__mod" onClick={() => setPanEdite((v) => (v === 'decide' ? '' : 'decide'))}>

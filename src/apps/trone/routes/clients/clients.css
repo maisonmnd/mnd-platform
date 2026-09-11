@@ -2559,3 +2559,28 @@
 }
 .trc-photomenu button:hover { background: var(--color-sable); }
 .trc-photomenu__ote { color: var(--copper-700); }
+
+/* ── LES CINQ CASES SONT DES PORTES — 11 septembre 2026 ────────────
+   Elles annonçaient sans rien ouvrir. Sélecteur à DEUX classes, comme les
+   indicateurs du registre : `.trc-bande__c` est déclaré plus haut et
+   écraserait sinon le fond ou le rayon qu'on ajouterait ici un jour. La
+   règle ne dépend plus de l'ordre du fichier. */
+.trc-bande__c.trc-bande__c--porte {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+  background: none;
+  transition: background var(--dur-fast, 0.12s) var(--ease-soft);
+}
+.trc-bande__c.trc-bande__c--porte:hover { background: var(--paper-2, #F7F3EA); }
+.trc-bande__c.trc-bande__c--porte:hover .trc-bande__v { color: var(--copper-700, #8A5326); }
+.trc-bande__c.trc-bande__c--porte:focus-visible {
+  outline: 2px solid var(--color-copper);
+  outline-offset: -2px;
+}
