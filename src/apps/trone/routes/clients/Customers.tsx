@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
@@ -2068,6 +2068,31 @@ function Customer360({
   const [tab, setTab] = useState<C360Tab>('apercu');
   const [bookOpen, setBookOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  /* ══ LA PHOTO SE CHANGE ET SE RETIRE AU MÊME ENDROIT — 11 sept. 2026 ══
+     « Avoir la possibilité de supprimer les photos sur le profil des clients
+     ou de remplacer la photo » (Yéman). Les deux gestes EXISTAIENT, et c'est
+     bien le problème : changer se faisait d'un clic sur le portrait, retirer
+     était un lien gris au bas de l'onglet Profil, posé à côté de la date
+     d'ancienneté. Personne ne va chercher une photo près d'une date.
+
+     Une action qu'on ne trouve pas n'existe pas : elle se redemande, et l'on
+     finit par croire qu'elle n'a jamais été faite. Les deux vivent donc sur le
+     portrait, là où l'on regarde quand on pense à la photo.
+
+     LE MENU NE PARAÎT QUE S'IL Y A UN CHOIX À FAIRE. Sans photo, le clic
+     ouvre directement le sélecteur : imposer un menu d'un seul item pour
+     ajouter un portrait ajouterait un geste à celui qu'on fait le plus. */
+  const [menuPhoto, setMenuPhoto] = useState(false);
+  const fichierPhoto = useRef<HTMLInputElement>(null);
+  const coinPhoto = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!menuPhoto) return;
+    const dehors = (e: MouseEvent) => {
+      if (!coinPhoto.current?.contains(e.target as Node)) setMenuPhoto(false);
+    };
+    document.addEventListener('mousedown', dehors);
+    return () => document.removeEventListener('mousedown', dehors);
+  }, [menuPhoto]);
   const [adjust, setAdjust] = useState<RdvInitial | null>(null);
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
@@ -2242,6 +2267,24 @@ function Customer360({
     } finally {
       setPhotoBusy(false);
     }
+  };
+
+  /* ON DEMANDE AVANT DE RETIRER. Le portrait suit la cliente partout (listes,
+     carnet, factures, Ma Couronne) et il ne se récupère pas : le fichier
+     d'origine est sur un téléphone, pas dans le Trône. */
+  const retirerLaPhoto = () => {
+    setMenuPhoto(false);
+    if (!window.confirm(
+      `Retirer la photo de ${client.name} ?\n\n`
+      + 'Elle disparaîtra des listes, du carnet et de Ma Couronne. La fiche et son '
+      + 'histoire ne bougent pas. Il faudra la reprendre pour en remettre une.',
+    )) return;
+    patch({ photo: null });
+  };
+
+  const choisirUnFichier = () => {
+    setMenuPhoto(false);
+    fichierPhoto.current?.click();
   };
 
   /* Enregistrement de l'identité — le nom ne peut pas être vidé ; le segment
@@ -2600,14 +2643,41 @@ function Customer360({
       <div className="trc-drawer__cover">
         <button className="trc-drawer__close" onClick={onClose} aria-label="Fermer">✕</button>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, width: '100%', minWidth: 0 }}>
-          <span className="trc-avatarwrap">
-            {/* La photo s'ajoute et se change ici même : un clic sur le portrait
-                ouvre le sélecteur de fichier. Le badge appareil le signale. */}
-            <label className="trc-avatar-edit" title={photoBusy ? 'Traitement…' : client.photo ? 'Changer la photo' : 'Ajouter une photo'}>
-              <Avatar client={client} size={64} ouvrable />
+          <span className="trc-avatarwrap" ref={coinPhoto}>
+            {/* TOUT SE FAIT SUR LE PORTRAIT. Sans photo, le clic ouvre le
+                sélecteur ; avec une photo, il ouvre les deux choix. Le badge
+                appareil dit qu'il y a quelque chose à faire ici. */}
+            <button
+              type="button"
+              className="trc-avatar-edit"
+              style={{ border: 'none', padding: 0, background: 'none' }}
+              disabled={photoBusy}
+              title={photoBusy ? 'Traitement…' : client.photo ? 'Changer ou retirer la photo' : 'Ajouter une photo'}
+              aria-haspopup={client.photo ? 'menu' : undefined}
+              aria-expanded={client.photo ? menuPhoto : undefined}
+              onClick={() => (client.photo ? setMenuPhoto((v) => !v) : choisirUnFichier())}
+            >
+              <Avatar client={client} size={64} />
               <span className="trc-avatar-edit__badge" aria-hidden>{photoBusy ? '…' : <Camera size={12} strokeWidth={1.6} aria-hidden />}</span>
-              <input type="file" accept="image/*" style={{ display: 'none' }} disabled={photoBusy} onChange={(e) => void onPhoto(e.target.files?.[0])} />
-            </label>
+            </button>
+            <input
+              ref={fichierPhoto}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              disabled={photoBusy}
+              onChange={(e) => { void onPhoto(e.target.files?.[0]); e.target.value = ''; }}
+            />
+            {menuPhoto && client.photo && (
+              <span className="trc-photomenu" role="menu">
+                <button type="button" role="menuitem" onClick={choisirUnFichier}>
+                  Changer la photo
+                </button>
+                <button type="button" role="menuitem" className="trc-photomenu__ote" onClick={retirerLaPhoto}>
+                  Retirer la photo
+                </button>
+              </span>
+            )}
             {onlineNow && <span className="trc-dot-online" title="En ligne sur Ma Couronne" />}
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -3214,10 +3284,11 @@ function Customer360({
               et ce qui s'écrit tout seul le dit en clair. */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)' }}>
             <span className="trc-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {/* « Retirer la photo » VIVAIT ICI, à côté d'une date d'ancienneté,
+                  et n'y était trouvé par personne. Il est remonté sur le
+                  portrait, avec « Changer la photo » : deux gestes sur la même
+                  chose se cherchent au même endroit. */}
               Cliente depuis le {client.since ? frLongAn(client.since) : '—'}
-              {client.photo && (
-                <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => patch({ photo: null })}>Retirer la photo</button>
-              )}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               {idSaved && !idDirty && (

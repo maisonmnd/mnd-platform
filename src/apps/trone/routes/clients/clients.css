@@ -2527,3 +2527,35 @@
 .trc-pan--edite .trc-crown__grid,
 .trc-pan--edite .tr-grid { min-width: 0; }
 .trc-pan--edite label { white-space: normal; }
+
+/* ── LE MENU DE LA PHOTO — 11 septembre 2026 ───────────────────────
+   Il s'ouvre sur la bannière indigo de la fiche, donc il se pose en clair :
+   un menu sombre sur fond sombre se lit mal, et ce menu porte un geste qui
+   ne se rattrape pas. Il ne paraît que s'il y a une photo, donc un choix. */
+.trc-photomenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 172px;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--color-ivoire);
+  box-shadow: 0 8px 24px rgb(30 33 80 / 22%);
+}
+.trc-photomenu button {
+  padding: 9px 12px;
+  border: none;
+  border-radius: 2px;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.trc-photomenu button:hover { background: var(--color-sable); }
+.trc-photomenu__ote { color: var(--copper-700); }
