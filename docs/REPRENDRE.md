@@ -141,6 +141,28 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LE FIL NE S'ANNONÇAIT PAS — 11 septembre 2026 au soir, MIGRATION 0087
+
+« Rien n'est venu. L'écran est toujours vide » (Yéman).
+
+**MA FAUTE, ET ELLE EST NETTE.** Toutes les tables de la Maison s'ajoutent à la
+publication `supabase_realtime` dans la migration qui les crée : 0004 le fait
+en boucle, 0005 pour `client_sessions`, 0008 pour `tips`. **La 0086 ne l'a pas
+fait.** La table existait, les politiques étaient justes, et le Trône écoutait
+un canal qui ne diffusait rien pour elle.
+
+Rien n'est perdu : les lignes écrites par le webhook attendaient dans la table,
+et un rechargement de page les aurait montrées (`refetch` au focus). C'est le
+pire genre de panne, elle ressemble à « rien n'est arrivé » alors qu'elle veut
+dire « rien ne s'annonce ».
+
+**0087 répare aussi 0084 et 0085** (`entrees_hors_activite`, `emprunts`), qui
+portaient le même oubli. Deux postes ouverts sur Les Prêts voyaient des soldes
+différents jusqu'au rafraîchissement.
+
+À RETENIR POUR TOUTE TABLE NEUVE : `create table` + RLS + **publication temps
+réel**. Les trois, ou l'écran ment.
+
 ## LES CONVERSATIONS — 11 septembre 2026, PUBLIÉ
 
 « Comment je réussis à construire les conversations WhatsApp dans le trône ? »
