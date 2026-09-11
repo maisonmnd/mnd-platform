@@ -137,8 +137,14 @@ Deno.serve(async (req) => {
      Seuls les verdicts DÉFINITIFS verrouillent : « envoyé » (c'est parti,
      le refaire écrirait deux fois à la même tête) et « sans-abonnement »
      (elle n'a pas l'appli, réessayer chaque heure ne la lui installera
-     pas). Un « échec » laisse la porte ouverte : le cron ne passe qu'une
-     fois par jour pour le rappel, il n'y a donc aucun risque de rafale. */
+     pas). Un « échec » laisse la porte ouverte, et c'est tout le sens du
+     SECOND PASSAGE DU SOIR ajouté le 11 septembre : le premier tourne en
+     fin d'après-midi, le second en fin de soirée, et il rattrape à la fois
+     les rendez-vous posés dans l'intervalle et les envois qui ont cassé.
+     DEUX PASSAGES NE FONT PAS UNE RAFALE : un envoi réussi et un
+     « sans-abonnement » verrouillent définitivement, donc personne ne
+     reçoit deux fois le même message, et un canal en panne est retenté
+     deux fois par jour, pas davantage. */
   const { data: dejaRows } = await sb.from('envois').select('id, data').eq('data->>dateRdv', demain);
   const deja = new Set(
     (dejaRows ?? [])

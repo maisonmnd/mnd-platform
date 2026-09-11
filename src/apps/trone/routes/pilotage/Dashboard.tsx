@@ -13,6 +13,7 @@ import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel 
 import { useCategories } from '../../../../shared/catalog';
 import { useInvoices, useDepensesComptees, invoiceTotal, invoiceRegleAu, invoiceReglements, invoiceResteXof, depensesDuMois, type Invoice } from '../../../../shared/finance';
 import { useApprenants, useEnvois, useSubscribers } from '../equipe/data';
+import { etatDeLaTournee } from '../../../../shared/tournee';
 import { splitByWeights } from '../../../../shared/pricing';
 import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer';
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
@@ -853,11 +854,24 @@ export default function Dashboard() {
           : demainRows.map((a, i) => {
             const c = clientOf(a.clientId);
             const nom = a.clientName ?? c?.name ?? 'Cliente';
-            const push = envois.find((e) => e.id === `env-${a.id}-push`);
-            const waAuto = envois.find((e) => e.id === `env-${a.id}-whatsapp`);
-            const smsAuto = envois.find((e) => e.id === `env-${a.id}-sms`);
-            const tag = (texte: string) => (
-              <span className="mnd-muted" style={{ fontSize: 11, border: '1px solid var(--hairline)', borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+            /* ══ UNE LIGNE NUE VOULAIT DIRE TROIS CHOSES — 11 sept. 2026 ══
+               L'écran n'affichait une pastille que par SUCCÈS : « pas encore
+               passé », « a échoué » et « personne à joindre » se ressemblaient
+               tous les trois, et se ressemblaient à « tout va bien ». Le juge
+               est pur (`shared/tournee.ts`), éprouvé, et l'écran ne fait que
+               le lire. */
+            const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1');
+            const etat = etatDeLaTournee(lignes);
+            const tag = (texte: string, ton?: 'alerte' | 'cuivre') => (
+              <span
+                className={ton ? undefined : 'mnd-muted'}
+                style={{
+                  fontSize: 11, borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
+                  border: `1px solid ${ton === 'alerte' ? '#E0B3A9' : ton === 'cuivre' ? 'var(--copper-300)' : 'var(--hairline)'}`,
+                  background: ton === 'alerte' ? '#F7E4E0' : ton === 'cuivre' ? 'var(--copper-50)' : undefined,
+                  color: ton === 'alerte' ? 'var(--color-brique, #96412E)' : ton === 'cuivre' ? 'var(--copper-700)' : undefined,
+                }}
+              >
                 {texte}
               </span>
             );
@@ -868,19 +882,27 @@ export default function Dashboard() {
               >
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--color-indigo)', minWidth: 46 }}>{a.time}</span>
                 <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
-                {push?.statut === 'envoyé' && tag('Push parti seul')}
-                {push?.statut === 'sans-abonnement' && tag('Sans l’appli')}
-                {waAuto?.statut === 'envoyé' && tag('WhatsApp auto')}
-                {smsAuto?.statut === 'envoyé' && tag('SMS auto')}
+                {etat.partis.includes('push') && tag('Push parti seul')}
+                {etat.sansAppli && tag('Sans l’appli')}
+                {etat.partis.includes('whatsapp') && tag('WhatsApp auto')}
+                {etat.partis.includes('sms') && tag('SMS auto')}
+                {/* LES TROIS SILENCES, ENFIN ÉCRITS. Chacun appelle un geste
+                    différent : attendre, taper la cloche, ou poser un numéro. */}
+                {etat.rate && tag('Échec · à la main', 'alerte')}
+                {etat.muet && tag('Rien n’est parti', 'cuivre')}
+                {etat.jamaisPasse && tag('Pas encore passé')}
                 <ReminderBell appt={a} client={c} byId={byId} />
               </div>
             );
           })}
         {demainRows.length > 0 && (
           <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
-            Le rappel push part tout seul en fin de journée vers les clientes qui ont installé
-            Ma Couronne. La cloche ouvre WhatsApp pré-rempli pour les autres, un tap, Envoyer,
-            et elle se souvient de ton geste.
+            Le passage automatique ne voit que les rendez-vous posés avant son heure.
+            <b>Pas encore passé</b> dit qu’il ne l’a pas encore vu ; si plus aucun passage
+            n’est prévu aujourd’hui, ce rappel ne partira pas tout seul.
+            {' '}<b>Échec</b> et <b>Rien n’est parti</b> appellent ta main tout de suite :
+            la cloche ouvre WhatsApp pré-rempli, un tap, Envoyer, et elle se souvient
+            de ton geste.
           </div>
         )}
       </div>

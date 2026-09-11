@@ -61,6 +61,45 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LA TOURNÉE DU MATIN AVOUE SES SILENCES — 11 septembre 2026, PUBLIÉ
+
+« Pourquoi les nouveaux RDV n'ont pas les tags Sans l'appli ou WhatsApp
+auto ? » (Yéman).
+
+**UNE LIGNE NUE VOULAIT DIRE TROIS CHOSES**, et l'écran n'en écrivait aucune,
+parce qu'il n'affichait une pastille que par SUCCÈS :
+
+· le passage n'est pas venu (rendez-vous posé après son heure) ;
+· le passage est venu et A ÉCHOUÉ (réseau, jeton, modèle en revue) ;
+· le passage est venu et n'avait personne à joindre (ni appli, ni numéro).
+
+Les trois se ressemblaient, et se ressemblaient à « tout va bien ». C'est
+exactement le silence qui a coûté deux semaines sur le cron du soir : il
+était mort tous les soirs et l'écran avait l'air normal.
+
+**Le juge est pur** (`shared/tournee.ts`, `etatDeLaTournee`) et l'écran ne
+fait que le lire. Trois pastilles neuves : « Échec · à la main » en brique,
+« Rien n'est parti » en cuivre, « Pas encore passé » en gris.
+
+**« SANS L'APPLI » TOUT SEUL EST UN SILENCE, PAS UN ENVOI** — c'est la
+découverte du jour. Le push n'a réveillé personne et le WhatsApp n'a même pas
+été tenté, faute de numéro utilisable. Trois lignes disaient cela ce matin-là
+et l'on pouvait croire le travail fait.
+
+Éprouvé par `verifie-tournee` (44ᵉ harnais, 11 épreuves), dont l'exclusivité
+deux à deux des états : deux pastilles qui se contredisent ne doivent jamais
+pouvoir paraître ensemble. Un verdict INCONNU compte comme un silence, jamais
+comme un envoi : c'est la bonne erreur à faire.
+
+### LE SECOND PASSAGE DU SOIR — SQL À POSER (pas encore fait)
+
+Un rendez-vous posé APRÈS le passage de 17 h, pour le lendemain, ne reçoit
+aujourd'hui aucun rappel automatique. Le SQL du second job est présenté à
+Yéman ; le commentaire d'idempotence de `rappels-j1/index.ts` a déjà été
+remis d'aplomb (il promettait « un seul passage par jour »). Deux passages ne
+font pas une rafale : « envoyé » et « sans-abonnement » verrouillent
+définitivement, seul un « échec » se retente.
+
 ## MND KIDS N'EST PLUS UNE PRISON — 11 septembre 2026, PUBLIÉ
 
 « Le problème de MND Kids n'est toujours pas résolu. J'ai beaucoup de clientes
