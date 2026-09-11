@@ -679,7 +679,14 @@ export default function Customers() {
       `Bonjour ${prenom},\n\n`
       + 'Vos cheveux sont libres, et c’est une belle saison qui commence. Profitez-en pleinement.\n\n'
       + 'La Maison reste à vos côtés pour eux : les soins du cheveu afro, les twists, '
-      + 'les extensions et les coiffures des grands jours. Rien de tout cela ne demande des locks.\n\n'
+      + 'les extensions et les coiffures des grands jours.\n\n'
+      /* L'ACCROCHE — une remise de 20 % sur la prochaine prestation.
+         ELLE EST ANNONCÉE ICI, ELLE N'EST POSÉE NULLE PART : aucun
+         coefficient ne se règle tout seul depuis un brouillon, et une
+         remise qu'un message accorde sans que la fiche le sache serait
+         découverte au comptoir, devant la cliente. Si elle revient, la
+         Maison l'applique à la main (Juste Prix, ou un prix ferme). */
+      + 'Pour marquer ce nouveau départ, la Maison vous offre 20 % sur votre prochaine prestation.\n\n'
       + 'Nous restons à votre disposition.',
     );
     window.open(`https://wa.me/${digitsOf(c.phone)}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
