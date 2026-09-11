@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les entr&eacute;es hors activit&eacute; &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex;
+                 align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  /* champs */
+  .champ { margin-bottom:14px; }
+  .champ > small { display:block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+                   color:var(--encre-d); margin-bottom:5px; }
+  .val { border:1px solid var(--filet); border-radius:4px; background:var(--blanc);
+         padding:9px 12px; font-size:14px; color:var(--encre); }
+  .val--select::after { content:' ▾'; color:var(--encre-d); float:right; }
+  .val--gris { color:var(--encre-d); }
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:620px){ .duo { grid-template-columns:1fr; } }
+
+  .motifs { display:flex; gap:7px; flex-wrap:wrap; }
+  .motif { border:1px solid var(--filet); border-radius:99px; background:var(--blanc);
+           padding:6px 14px; font-size:12.5px; color:var(--encre-d); }
+  .motif.on { background:var(--indigo); border-color:var(--indigo); color:#EFEAE0; }
+
+  .avis { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:4px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; line-height:1.6; margin-top:16px; }
+  .avis b { color:var(--indigo); font-weight:600; }
+
+  /* registre */
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:560px; font-size:13px; }
+  th { text-align:left; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--encre-d);
+       font-weight:600; padding:8px 10px; border-bottom:2px solid var(--filet); white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid var(--sable); vertical-align:middle; }
+  td.n, th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .qui { font-family:var(--serif); font-size:15px; color:var(--indigo); }
+  .chip { display:inline-block; border-radius:3px; padding:2px 8px; font-size:9.5px;
+          letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+  .chip--act { background:var(--cuivre-f); color:var(--cuivre); border:1px solid var(--cuivre-p); }
+  .chip--hors { background:var(--indigo-pale); color:var(--indigo-2); border:1px solid #C9CCE0; }
+
+  /* synthèse */
+  .synth { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .sl { display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+        padding:11px 16px; border-top:1px solid var(--sable); font-size:14px; }
+  .sl:first-child { border-top:none; }
+  .sl b { font-variant-numeric:tabular-nums; }
+  .sl--fort { background:var(--indigo-pale); }
+  .sl--fort b { font-family:var(--serif); font-size:19px; color:var(--indigo); font-weight:500; }
+  .sl--hors { background:var(--ivoire); }
+  .sl small { display:block; font-size:11px; color:var(--encre-d); }
+  .trait { height:1px; background:var(--filet); margin:0 16px; }
+
+  .doctrine { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px;
+              background:var(--ivoire); padding:16px 20px; max-width:78ch; }
+  .doctrine p { margin:8px 0; font-size:13.5px; color:var(--encre-d); }
+  .doctrine p:first-child { margin-top:0; }
+  .doctrine p:last-child { margin-bottom:0; }
+  .doctrine b { color:var(--encre); font-weight:500; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Finances</p>
+  <h1>Les entr&eacute;es hors activit&eacute;</h1>
+  <p class="chapeau">L'argent qui entre sans venir d'un rituel : un apport du souverain, un pr&ecirc;t
+     re&ccedil;u, un remboursement, la vente d'un vieux mat&eacute;riel. <b>Il est vraiment dans le tiroir
+     et peut payer une d&eacute;pense, mais il n'est pas un gain</b> et ne doit jamais gonfler le chiffre
+     d'affaires.</p>
+
+  <section>
+    <p class="cite">Comment g&eacute;rer les revenus qui sont hors activit&eacute;, les entr&eacute;es de
+      fonds hors activit&eacute; ?<span>Y&eacute;man &middot; 11 septembre 2026</span></p>
+    <p class="intro">Aujourd'hui, la Maison ne sait pas les recevoir. Les prêts couvrent ce qu'elle
+      <b>pr&ecirc;te</b>, jamais ce qu'elle re&ccedil;oit ; le registre des encaissements ne lit que
+      des rituels, des factures, des formations et des abonnements. Un apport de 500&nbsp;000&nbsp;F
+      n'a donc que deux issues, et les deux sont fausses : <b>se d&eacute;guiser en vente</b>, et la
+      Synth&egrave;se annonce un mois record qui n'a pas eu lieu ; ou <b>rester dehors</b>, et le
+      tiroir compte des billets que le Tr&ocirc;ne ne conna&icirc;t pas.</p>
+  </section>
+
+  <!-- ① LA SAISIE -->
+  <section>
+    <h2><span class="num">&#9312;</span> La saisie</h2>
+    <p class="intro">Un bouton <b>&laquo;&nbsp;+ Entr&eacute;e hors activit&eacute;&nbsp;&raquo;</b> sur
+      l'&eacute;cran Encaissements, qui est d&eacute;j&agrave; le registre de tout ce qui entre.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Entr&eacute;e hors activit&eacute;</h4><span>Encaissements</span></div>
+      <div class="ecran__corps">
+        <div class="champ">
+          <small>Motif &middot; la liste est ferm&eacute;e</small>
+          <div class="motifs">
+            <span class="motif">Apport du souverain</span>
+            <span class="motif on">Pr&ecirc;t re&ccedil;u</span>
+            <span class="motif">Remboursement re&ccedil;u</span>
+            <span class="motif">Vente de mat&eacute;riel</span>
+            <span class="motif">Don ou subvention</span>
+            <span class="motif">Autre</span>
+          </div>
+        </div>
+        <div class="champ">
+          <small>De qui, et pourquoi</small>
+          <div class="val">Pr&ecirc;t de M. A. pour l'avance du loyer, remboursable en 3 fois</div>
+        </div>
+        <div class="duo">
+          <div class="champ"><small>Montant</small><div class="val">500 000 F</div></div>
+          <div class="champ"><small>Dans quelle caisse</small><div class="val val--select">Caisse principale</div></div>
+        </div>
+        <div class="duo">
+          <div class="champ"><small>Date</small><div class="val">11 septembre 2026</div></div>
+          <div class="champ"><small>Pi&egrave;ce jointe &middot; facultatif</small><div class="val val--gris">re&ccedil;u, capture du virement&hellip;</div></div>
+        </div>
+        <div class="avis">
+          <b>Cette entr&eacute;e ne compte pas au chiffre d'affaires.</b> Elle garnit la caisse choisie
+          et pourra payer une d&eacute;pense, mais elle n'entre ni dans les revenus du mois, ni dans le
+          r&eacute;sultat. La Synth&egrave;se la montre &agrave; part.
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Pourquoi une liste ferm&eacute;e de motifs</b> &middot; parce que la Synth&egrave;se
+      doit pouvoir les regrouper. Un champ libre donnerait &laquo;&nbsp;apport&nbsp;&raquo;,
+      &laquo;&nbsp;Apport&nbsp;&raquo;, &laquo;&nbsp;mon argent&nbsp;&raquo; et trois lignes pour une
+      seule r&eacute;alit&eacute;. &laquo;&nbsp;Autre&nbsp;&raquo; reste possible, mais exige un mot
+      dans le champ du dessous.</p>
+  </section>
+
+  <!-- ② LE REGISTRE -->
+  <section>
+    <h2><span class="num">&#9313;</span> Au registre, elle se distingue</h2>
+    <p class="intro">Elle rejoint la liste des encaissements, avec sa propre pastille. Un filtre
+      <b>&laquo;&nbsp;Hors activit&eacute;&nbsp;&raquo;</b> s'ajoute &agrave; c&ocirc;t&eacute; des autres.</p>
+    <div class="ecran"><div class="ecran__corps">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Qui / quoi</th><th>Nature</th><th>Caisse</th><th class="n">Montant</th></tr></thead>
+          <tbody>
+            <tr><td>11 sept.</td><td class="qui">Pr&ecirc;t de M. A.<br><small style="color:var(--encre-d);font-size:11px">avance du loyer, remboursable en 3 fois</small></td>
+                <td><span class="chip chip--hors">Hors activit&eacute;</span></td><td>Caisse principale</td><td class="n">500 000 F</td></tr>
+            <tr><td>11 sept.</td><td class="qui">Ruth A.</td><td><span class="chip chip--act">Facture</span></td><td>Caisse principale</td><td class="n">25 000 F</td></tr>
+            <tr><td>10 sept.</td><td class="qui">Vente ancien casque</td><td><span class="chip chip--hors">Hors activit&eacute;</span></td><td>Caisse principale</td><td class="n">15 000 F</td></tr>
+            <tr><td>10 sept.</td><td class="qui">Christelle Z.</td><td><span class="chip chip--act">Rituel</span></td><td>MoMo</td><td class="n">20 000 F</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+    <p class="legende"><b>Et elle peut payer.</b> Dans les D&eacute;penses, au champ
+      &laquo;&nbsp;Pay&eacute;e par quel revenu&nbsp;&raquo;, elle appara&icirc;t comme les autres :
+      on tape &laquo;&nbsp;pr&ecirc;t&nbsp;&raquo;, on la d&eacute;signe, on prend la part qu'il faut.
+      C'est bien l&agrave; tout l'int&eacute;r&ecirc;t : <b>cet argent existe et sert</b>.</p>
+  </section>
+
+  <!-- ③ LA SYNTHÈSE -->
+  <section>
+    <h2><span class="num">&#9314;</span> &Agrave; la Synth&egrave;se, elle reste dehors</h2>
+    <p class="intro">C'est le point qui compte le plus. Le r&eacute;sultat du mois ne bouge pas d'un franc ;
+      les entr&eacute;es hors activit&eacute; se lisent <b>en dessous du trait</b>.</p>
+    <div class="ecran"><div class="ecran__corps">
+      <div class="synth">
+        <div class="sl"><span>Revenus d'activit&eacute;<small>rituels, produits, formations, abonnements</small></span><b>1 240 000 F</b></div>
+        <div class="sl"><span>D&eacute;penses</span><b>&minus; 860 000 F</b></div>
+        <div class="sl sl--fort"><span>R&eacute;sultat du mois</span><b>380 000 F</b></div>
+        <div class="trait"></div>
+        <div class="sl sl--hors"><span>Entr&eacute;es hors activit&eacute;<small>2 entr&eacute;es &middot; pr&ecirc;t re&ccedil;u, vente de mat&eacute;riel</small></span><b>515 000 F</b></div>
+        <div class="sl sl--hors"><span>Ce qui est r&eacute;ellement entr&eacute; en caisse<small>activit&eacute; + hors activit&eacute;</small></span><b>1 755 000 F</b></div>
+      </div>
+    </div></div>
+    <p class="legende"><b>Deux chiffres, deux questions.</b> Le r&eacute;sultat r&eacute;pond
+      &laquo;&nbsp;la maison a-t-elle gagn&eacute; sa vie ce mois-ci&nbsp;?&nbsp;&raquo;. Ce qui est
+      entr&eacute; en caisse r&eacute;pond &laquo;&nbsp;de combien je dispose&nbsp;?&nbsp;&raquo;. Les
+      confondre, c'est croire un mois brillant parce qu'on a emprunt&eacute;, ou se croire pauvre parce
+      qu'on a rembours&eacute;.</p>
+  </section>
+
+  <!-- DOCTRINE -->
+  <section>
+    <h2>Les r&egrave;gles qu'on se donne</h2>
+    <div class="doctrine">
+      <p><b>Un apport n'est pas un gain.</b> Rien de ce qui entre ici ne touche au r&eacute;sultat,
+        ni aux revenus du mois, ni aux comparaisons d'un mois &agrave; l'autre. C'est la r&egrave;gle
+        qui justifie tout le reste.</p>
+      <p><b>Mais l'argent est bien l&agrave;.</b> La caisse choisie le compte, et une d&eacute;pense
+        peut le d&eacute;signer comme source. Le tiroir du Tr&ocirc;ne et le tiroir du salon disent
+        enfin la m&ecirc;me chose.</p>
+      <p><b>Le motif est ferm&eacute;, le mot est libre.</b> Six motifs pour que la Synth&egrave;se
+        regroupe, une phrase obligatoire pour que dans six mois on sache de qui venait cet argent.</p>
+      <p><b>Ce qui n'est PAS couvert ici, et reste o&ugrave; il est</b> : ce que la maison pr&ecirc;te
+        (&laquo;&nbsp;Les pr&ecirc;ts&nbsp;&raquo;), ce qu'elle met de c&ocirc;t&eacute;
+        (&laquo;&nbsp;Coffre-fort&nbsp;&raquo;), ce qu'elle verse au foyer
+        (&laquo;&nbsp;Salon &amp; Foyer&nbsp;&raquo;). Cette maquette n'ouvre qu'une porte : celle des
+        entr&eacute;es.</p>
+      <p><b>Le remboursement d'un pr&ecirc;t re&ccedil;u</b> se saisira comme une d&eacute;pense
+        ordinaire, avec son motif. Un suivi complet de l'emprunt (&eacute;ch&eacute;ances, reste d&ucirc;)
+        serait un second chantier, &agrave; demander s'il devient utile.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
