@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
-import { clientsStore, useClients, type Client } from '../../../../shared/clients';
+import { clientsStore, useClients, useFamilies, type Client } from '../../../../shared/clients';
+import { contradictionsDeLAge, DIT, AGE_MINIMAL_AU_FAUTEUIL, LOCKS_AU_DELA_DUN_ENFANT } from '../../../../shared/ages';
 import { toast } from '../../../../ds/components';
 import { useBilans } from '../../../../shared/bilans';
 import { useProduitsStock } from '../../../../shared/stock';
@@ -77,7 +78,16 @@ const chiffresDe = (t: string): string => (t ?? '').replace(/\D/g, '');
 export default function AFaire() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
+  const [familles] = useFamilies();
+
   const appts = useBranchAppointments();
+  /* LE RELEVÉ DES DATES QUI SE CONTREDISENT. Le juge est pur et éprouvé
+     (`shared/ages.ts`, `verifie-ages`) : l'écran lit, il ne décide pas. */
+  const contredites = useMemo(
+    () => contradictionsDeLAge(clients, appts, familles, todayISO(), branch.id),
+    [clients, appts, familles, branch.id],
+  );
+  const nBloquees = contredites.filter((x) => x.bloqueLeCatalogue).length;
   const [bilans] = useBilans();
   const [stock] = useProduitsStock();
   const byId = useServicesById();
@@ -300,6 +310,84 @@ export default function AFaire() {
           </div>
         ))}
       </div>
+      {/* ══ LES DATES QUI SE CONTREDISENT — 11 septembre 2026 ═══════
+          « Construire un relevé des fiches dont l'âge lu contredit leur
+          histoire » (Yéman), après la nuit passée à chercher pourquoi une
+          tête de 358 locks ne voyait que la section enfants.
+
+          UNE DATE FAUSSE NE FAIT PAS DE BRUIT. Elle ne casse rien à l'écran :
+          elle change le catalogue proposé, le tarif annoncé, la remise du
+          foyer, et l'on cherche la panne ailleurs pendant des semaines.
+
+          LE RELEVÉ NE PARAÎT QUE S'IL A QUELQUE CHOSE À DIRE : une Maison dont
+          toutes les dates sont justes n'a pas à lire un bloc vide. */}
+      {contredites.length > 0 && (
+        <section id="dates" className="trp-af-bloc">
+          <div className="trp-af-bloc__t">
+            <b>Les dates qui se contredisent</b>
+            <span>
+              {contredites.length} fiche{contredites.length > 1 ? 's' : ''}
+              {nBloquees > 0 && ` · ${nBloquees} dont le catalogue est réduit aujourd’hui`}
+            </span>
+          </div>
+          {nBloquees > 0 && (
+            <div className="trp-af-groupe">Elles ne voient que MND Kids · à corriger d’abord</div>
+          )}
+          {contredites.map((x, i) => {
+            /* LE PREMIER INTERTITRE DU GROUPE TRANQUILLE — la liste est déjà
+               triée, il suffit de nommer la bascule. */
+            const bascule = i > 0 && contredites[i - 1].bloqueLeCatalogue && !x.bloqueLeCatalogue;
+            return (
+              <Fragment key={x.clientId}>
+                {bascule && (
+                  <div className="trp-af-groupe trp-af-groupe--calme">
+                    Date fausse, sans conséquence visible aujourd’hui
+                  </div>
+                )}
+                <div className="trp-af-tete">
+                  <span className="trp-af-av">
+                    {x.nom.split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase() || '·'}
+                  </span>
+                  <span className="trp-af-tete__n"><b>{x.nom}</b></span>
+                  <span className="trp-af-tete__vient">
+                    {/* CE QU'ON LIT SUR SA FICHE, ET CE QUI LE CONTREDIT. Un
+                        relevé qui dirait « anomalie » se referme ; celui qui
+                        nomme sa raison se corrige. */}
+                    lue {x.age} an{Math.abs(x.age) > 1 ? 's' : ''} · {x.raisons.map((r2) => DIT[r2]).join(' · ')}
+                  </span>
+                  <span className="trp-af-micro">
+                    <span
+                      className="trp-af-mbtn"
+                      style={x.certain
+                        ? { color: 'var(--color-brique, #96412E)', borderColor: '#E0B3A9', background: '#F7E4E0' }
+                        : undefined}
+                      title={x.certain
+                        ? 'Un fait impossible : la date est fausse, sans discussion.'
+                        : 'Une invraisemblance : à vous de trancher, la Maison ne peut pas le savoir.'}
+                    >
+                      {x.certain ? 'Certain' : 'À vérifier'}
+                    </span>
+                    <button
+                      type="button"
+                      className="trp-af-mbtn"
+                      onClick={() => navigate(`/customers?id=${x.clientId}`)}
+                    >
+                      Ouvrir sa fiche
+                    </button>
+                  </span>
+                </div>
+              </Fragment>
+            );
+          })}
+          <div className="trp-af-pied">
+            Une fiche <b>sans</b> date de naissance ne paraît jamais ici : elle est muette, pas
+            fausse. Les seuils des lignes « à vérifier » sont des repères posés par le logiciel,
+            pas des décisions de la Maison : moins de {AGE_MINIMAL_AU_FAUTEUIL} ans à la première
+            venue, plus de {LOCKS_AU_DELA_DUN_ENFANT} locks sur une tête lue enfant.
+          </div>
+        </section>
+      )}
+
       {gestesTenus.length > 0 && (
         <div className="trp-af-tenus">
           Tenu : {gestesTenus.map((g) => g.quoi).join(' · ')}.
