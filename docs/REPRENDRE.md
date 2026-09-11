@@ -182,7 +182,7 @@ retrouverait jamais après coup.
 
 ### CE QU'IL RESTE À FAIRE, DANS L'ORDRE
 
-1. **Migration 0086** (`messages_wa`) à passer.
+1. ~~Migration 0086 (`messages_wa`)~~ **PASSÉE** par Yéman le 11 septembre 2026, contrôle `pg_policies` vert (`staff_all` sur `ALL`). **Ne pas la relancer.**
 2. Déployer `whatsapp-webhook`, **décocher Verify JWT**.
 3. Poser `WA_VERIFY_TOKEN` (inventé) et `WA_APP_SECRET` (App Secret Meta).
 4. Chez Meta : WhatsApp Manager → Configuration → Webhooks → l'URL et le
