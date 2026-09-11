@@ -61,6 +61,44 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026, BÂTI · MIGRATION 0084 À PASSER
+
+« Comment gérer les revenus hors activité, les entrées de fonds hors
+activité ? » (Yéman). Maquette `public/maquette-entrees-hors-activite.html`,
+validée (« construis »), bâtie dans la foulée.
+
+LE MANQUE ÉTAIT RÉEL : « Les prêts » ne couvre que ce que la Maison PRÊTE, et
+`buildReceipts` ne lisait que rituels, factures, formations, abonnements. Un
+apport n'avait que deux issues, fausses toutes les deux : se déguiser en vente
+(mois record qui n'a pas eu lieu), ou rester dehors (le tiroir compte des
+billets que le Trône ignore).
+
+**LA RÈGLE** : un apport n'est pas un gain. `revenuDuMois` n'est PAS touché —
+le résultat ne bouge pas d'un franc, et c'est voulu. Mais l'argent est là : il
+entre au registre (genre `hors-activite`), garnit sa caisse, et **une dépense
+peut le désigner comme source** — sans cette ligne au registre, il serait dans
+le tiroir sans pouvoir en sortir.
+
+· `shared/finance.ts` : `EntreeHorsActivite`, `MOTIFS_HORS_ACTIVITE` (six,
+  fermés, « Autre » en dernier), `horsActiviteXof`, `horsActiviteParMotif`,
+  `pourquoiEntreeImpossible`. Store `mnd_entrees_hors_activite`.
+· `shared/receipts.ts` : genre `hors-activite`, section ③bis, et **`EST_ACTIVITE`**,
+  le tableau qui dit lequel des genres est du chiffre d'affaires (pourboire et
+  hors-activité : non). Le harnais vérifie qu'AUCUN genre n'est laissé sans
+  verdict — un genre neuf sans entrée passerait pour du CA en silence.
+· Encaissements : bouton « + Entrée hors activité », modale (motif, phrase
+  obligatoire, montant, caisse, date), pastille de filtre.
+· Synthèse : deux lignes SOUS le trait, « Entrées hors activité » (dépliée par
+  motif au survol) et « Réellement entré en caisse ». Deux chiffres, deux
+  questions : la maison a-t-elle gagné sa vie, et de combien je dispose.
+· Harnais `verifie-hors-activite` (42e) : 27 épreuves.
+
+**RESTE À FAIRE : passer la migration 0084** (`entrees_hors_activite`, RLS
+personnel seulement) — Le Trône s'y lie, sans elle la pastille de synchro vire
+au rouge. Non couvert à dessein : le suivi d'un emprunt reçu (échéances, reste
+dû), à demander s'il devient utile ; son remboursement se saisit comme une
+dépense ordinaire.
+
 ## ON CHERCHE UN REVENU, ON NE DÉROULE PLUS LA CAISSE — 11 septembre 2026, PUBLIÉ
 
 « Je ne veux plus avoir la liste de tous les revenus devant moi, juste

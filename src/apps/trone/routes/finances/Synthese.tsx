@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, Modal } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, convertFromXof } from '../../../../shared/currency';
-import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes } from '../../../../shared/finance';
+import { depensesDuMois, useInvoices, useDepensesComptees, invoiceRegleAu, invoiceReglements, expenseTotal, cashboxLabel, invoiceRegleAuSauf, caissesHorsBilan, useCashboxes, useEntreesHorsActivite, horsActiviteXof, horsActiviteParMotif } from '../../../../shared/finance';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
@@ -363,6 +363,21 @@ export default function Synthese() {
     },
   ];
 
+  const [entreesHors] = useEntreesHorsActivite();
+  /* ══ CE QUI EST ENTRÉ SANS ÊTRE UN GAIN — 11 septembre 2026 ════════
+     Maquette validée. Le compte de résultat NE BOUGE PAS : `revenuDuMois`
+     ne lit ni apport, ni prêt reçu, ni vente de matériel, et c'est exactement
+     ce qu'il faut — un emprunt n'a jamais fait un bon mois. Mais l'argent est
+     dans le tiroir, et le taire serait mentir d'une autre façon : il se lit
+     SOUS le trait, avec sa propre question.
+
+     DEUX CHIFFRES, DEUX QUESTIONS. Le résultat répond « la maison a-t-elle
+     gagné sa vie ce mois-ci ? ». Ce qui est entré en caisse répond « de
+     combien je dispose ? ». Les confondre, c'est se croire brillant parce
+     qu'on a emprunté. */
+  const horsMois = horsActiviteXof(entreesHors, branch.id, month);
+  const horsDetail = horsActiviteParMotif(entreesHors, branch.id, month);
+
   // Compte de résultat
   const pnl = [
     { label: 'Chiffre d’affaires encaissé', value: fmtMoney(revenue, currency), strong: true, col: 'var(--color-indigo)', on: openRevenue },
@@ -530,6 +545,44 @@ export default function Synthese() {
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: p.strong ? 22 : 17, color: p.col, fontVariantNumeric: 'tabular-nums' }}>{p.value}</span>
             </div>
           ))}
+          {horsMois > 0 && (
+            <>
+              <div style={{ height: 1, background: 'var(--line)', margin: '10px -10px 2px' }} />
+              <div
+                title={horsDetail.map((d) => `${d.motif} · ${fmtMoney(d.xof, currency)}`).join(' · ')}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  padding: '11px 10px', margin: '0 -10px', background: 'var(--surface-sunken, var(--indigo-50))',
+                  borderRadius: 4,
+                }}
+              >
+                <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                  Entrées hors activité
+                  <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
+                    {horsDetail.map((d) => `${d.motif.toLowerCase()} · ${d.n}`).join(' · ')}
+                  </span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--indigo-500, var(--color-indigo))', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(horsMois, currency)}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  padding: '11px 10px', margin: '0 -10px',
+                }}
+              >
+                <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+                  Réellement entré en caisse
+                  <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>activité + hors activité</span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(revenue + horsMois, currency)}
+                </span>
+              </div>
+            </>
+          )}
+
           <div style={{ marginTop: 14, background: 'var(--color-sable)', borderRadius: 4, padding: '13px 15px', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>
             {net >= 0
               ? <>La maison dégage <strong style={{ fontWeight: 500, color: 'var(--trf-success)' }}>{fmtMoney(net, currency)}</strong> de résultat en {monthName}. La discipline paie.</>

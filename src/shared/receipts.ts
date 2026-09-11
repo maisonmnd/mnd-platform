@@ -25,7 +25,19 @@ import type { Appointment, ApptPayment } from './agenda';
  * TRÉSORERIE (ce qui est ENTRÉ, pourboire compris — sur sa ligne à lui —, avoir
  * exclu). Les deux totaux diffèrent légitimement — ne jamais les faire coïncider. */
 
-export type ReceiptKind = 'facture' | 'rituel' | 'acompte' | 'formation' | 'abonnement' | 'avoir' | 'pourboire';
+export type ReceiptKind = 'facture' | 'rituel' | 'acompte' | 'formation' | 'abonnement' | 'avoir' | 'pourboire' | 'hors-activite';
+
+/* ══ LES GENRES QUI SONT DU CHIFFRE D'AFFAIRES — 11 septembre 2026 ═══
+   Le registre mesure la TRÉSORERIE : tout ce qui entre, y compris ce qui
+   n'est pas gagné. La Synthèse, elle, mesure ce que la Maison a GAGNÉ. Le
+   juge qui les sépare vit ici, à côté des genres, pour qu'aucun écran n'ait
+   à se souvenir de la liste. Un apport et un pourboire entrent en caisse
+   sans être un gain de la Maison : l'un est de l'argent prêté ou versé par
+   le souverain, l'autre appartient aux mains. */
+export const EST_ACTIVITE: Record<ReceiptKind, boolean> = {
+  facture: true, rituel: true, acompte: true, formation: true, abonnement: true,
+  avoir: true, pourboire: false, 'hors-activite': false,
+};
 
 /** LE BOCAL DES POURBOIRES — un nom, à UN seul endroit. Ce n'est pas une
     caisse déclarée (aucun solde d'ouverture, aucun relevé) : c'est l'argent
@@ -57,6 +69,7 @@ export type Receipt = {
 const LABEL_KIND: Record<ReceiptKind, string> = {
   facture: 'Facture',
   rituel: 'Rituel · sans pièce',
+  'hors-activite': 'Hors activité',
   acompte: 'Acompte',
   formation: 'Formation',
   abonnement: 'Abonnement',
@@ -156,6 +169,14 @@ export type ReceiptSources = {
   nameOf: (clientId?: string) => string;
   /** Libellé des prestations d'un rituel. */
   apptLabel: (a: Appointment) => string;
+  /** L'argent entré SANS venir d'un rituel — apport, prêt reçu, remboursement,
+      vente de matériel. Il se voit au registre et peut payer une dépense, mais
+      il ne compte jamais au chiffre d'affaires. Facultatif : les appelants qui
+      ne le passent pas ne voient simplement rien changer. */
+  horsActivite?: {
+    id: string; branchId: string; date: string; motif: string;
+    label: string; amountXof: number; cashbox: string;
+  }[];
 };
 
 export function buildReceipts(s: ReceiptSources): Receipt[] {
@@ -309,6 +330,25 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       ref: undefined,
       label: `Acompte · ${s.apptLabel(a)}`,
       apptId: a.id,
+    });
+  }
+
+  /* ③bis LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026. Elles n'ont ni
+     cliente ni pièce : c'est leur motif qui les nomme. Elles entrent ici
+     parce que le registre mesure la TRÉSORERIE — et parce qu'une dépense
+     doit pouvoir les désigner comme source, sinon cet argent serait dans le
+     tiroir sans pouvoir en sortir. */
+  for (const e of s.horsActivite ?? []) {
+    if (e.branchId !== s.branchId || !(e.amountXof > 0)) continue;
+    out.push({
+      id: `r-hors-${e.id}`,
+      kind: 'hors-activite',
+      date: e.date,
+      clientName: e.label,
+      amountXof: e.amountXof,
+      method: e.motif,
+      cashbox: e.cashbox,
+      label: `${e.motif} · ${e.label}`,
     });
   }
 

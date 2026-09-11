@@ -1066,6 +1066,95 @@ export const EXPENSE_CATEGORIES_SEED: ExpenseCategory[] = [
 ];
 
 export const invoicesStore = createStore<Invoice[]>('mnd_invoices', INVOICES_SEED);
+/* ══ LES ENTRÉES HORS ACTIVITÉ — 11 septembre 2026 ═══════════════════
+   « Comment gérer les revenus qui sont hors activité, les entrées de fonds
+   hors activité ? » (Yéman). Elle ne savait pas les recevoir : « Les prêts »
+   ne couvre que ce que la Maison PRÊTE, et le registre des encaissements ne
+   lit que des rituels, des factures, des formations et des abonnements.
+
+   UN APPORT N'EST PAS UN GAIN. C'est la règle qui commande tout le reste :
+   rien de ce qui entre ici ne touche au chiffre d'affaires, au résultat, ni
+   aux comparaisons d'un mois à l'autre. Sans cette séparation, un prêt de
+   500 000 F ferait un mois record qui n'a pas eu lieu, et le mois suivant
+   s'effondrerait sans raison.
+
+   MAIS L'ARGENT EST BIEN LÀ. Il garnit une caisse nommée, il se voit au
+   registre, et une dépense peut le désigner comme source — c'est tout
+   l'intérêt : le tiroir du Trône et le tiroir du salon disent enfin la même
+   chose.
+
+   LE MOTIF EST FERMÉ, LE MOT EST LIBRE. Six motifs pour que la Synthèse
+   regroupe ; un champ libre donnerait « apport », « Apport », « mon argent »,
+   trois lignes pour une seule réalité. La phrase, elle, est obligatoire : dans
+   six mois, il faudra savoir de qui venait cet argent. */
+export const MOTIFS_HORS_ACTIVITE = [
+  'Apport du souverain',
+  'Prêt reçu',
+  'Remboursement reçu',
+  'Vente de matériel',
+  'Don ou subvention',
+  'Autre',
+] as const;
+export type MotifHorsActivite = (typeof MOTIFS_HORS_ACTIVITE)[number];
+
+export type EntreeHorsActivite = {
+  id: string;
+  branchId: string;
+  /** Le jour où l'argent est entré. */
+  date: string;
+  motif: MotifHorsActivite;
+  /** De qui, et pourquoi — obligatoire, c'est la mémoire de l'entrée. */
+  label: string;
+  /** Toujours positif : une entrée n'a pas de sens négatif. */
+  amountXof: number;
+  /** Le tiroir qui la reçoit — c'est lui qui la rend dépensable. */
+  cashbox: string;
+  note?: string;
+  fichier?: PieceJointe;
+};
+
+export const entreesHorsActiviteStore = createStore<EntreeHorsActivite[]>('mnd_entrees_hors_activite', []);
+export const useEntreesHorsActivite = () => useStore(entreesHorsActiviteStore);
+
+/** Celles d'une branche, du plus récent au plus ancien — l'ordre du registre. */
+export const entreesDeLaBranche = (
+  l: readonly EntreeHorsActivite[], branchId: string,
+): EntreeHorsActivite[] =>
+  l.filter((e) => e.branchId === branchId).slice().sort((a, b) => b.date.localeCompare(a.date));
+
+/** Ce qui est entré hors activité sur une période — le préfixe ISO fait la
+    borne : « 2026-09 » pour un mois, « 2026 » pour une année, '' pour tout. */
+export const horsActiviteXof = (
+  l: readonly EntreeHorsActivite[], branchId: string, prefixeIso = '',
+): number =>
+  l.reduce((s, e) => (e.branchId === branchId && e.date.startsWith(prefixeIso) ? s + e.amountXof : s), 0);
+
+/** Le même total, réparti par motif — ce que la Synthèse déplie. */
+export function horsActiviteParMotif(
+  l: readonly EntreeHorsActivite[], branchId: string, prefixeIso = '',
+): { motif: MotifHorsActivite; xof: number; n: number }[] {
+  const par = new Map<MotifHorsActivite, { xof: number; n: number }>();
+  for (const e of l) {
+    if (e.branchId !== branchId || !e.date.startsWith(prefixeIso)) continue;
+    const v = par.get(e.motif) ?? { xof: 0, n: 0 };
+    par.set(e.motif, { xof: v.xof + e.amountXof, n: v.n + 1 });
+  }
+  return [...par.entries()]
+    .map(([motif, v]) => ({ motif, ...v }))
+    .sort((a, b) => b.xof - a.xof);
+}
+
+/** CE QUI EMPÊCHE D'ENREGISTRER, dit plutôt que refusé en silence. */
+export function pourquoiEntreeImpossible(o: {
+  label: string; amountXof: number; cashbox: string; date: string;
+}): string | null {
+  if (!o.label.trim()) return 'Il manque de qui vient cet argent, et pourquoi.';
+  if (!(o.amountXof > 0)) return 'Une entrée sans montant n’entre rien.';
+  if (!o.cashbox.trim()) return 'Choisissez la caisse qui reçoit cet argent.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) return 'La date n’est pas lisible.';
+  return null;
+}
+
 export const expensesStore = createStore<Expense[]>('mnd_expenses', EXPENSES_SEED);
 export const budgetsStore = createStore<Budget[]>('mnd_budgets', BUDGETS_SEED);
 export const cashboxesStore = createStore<Cashbox[]>('mnd_cashboxes', CASHBOXES_SEED);
@@ -1445,6 +1534,7 @@ bindCollection(coffreStore, 'coffre_movements');
 bindCollection(objectifsStore, 'objectifs_coffre');
 bindCollection(transfertsStore, 'transferts_caisse');
 bindCollection(creditMovementsStore, 'credit_movements');
+bindCollection(entreesHorsActiviteStore, 'entrees_hors_activite');
 bindDocument(paymentMethodsStore, 'mnd_payment_methods');
 /* Les porteurs suivent la Maison : nommer Sandrine au comptoir doit la
    nommer sur le téléphone de la gérante. */

@@ -2,7 +2,8 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Input, Modal, Segs, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Segs, Select, toast } from '../../../../ds/components';
+import { uid } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
@@ -16,6 +17,8 @@ import { tipsStore, addTipPartage, PART_POURBOIRE_DEFAUT } from '../../../../sha
 import {
   useInvoices, useDepensesComptees, invoiceReglements, sourcesDe,
   partsPrisesParRevenu, etatDuRevenu, LIBELLE_ETAT, type EtatRevenu,
+  useCashboxes, entreesHorsActiviteStore, pourquoiEntreeImpossible,
+  MOTIFS_HORS_ACTIVITE, type MotifHorsActivite, type EntreeHorsActivite,
 } from '../../../../shared/finance';
 import { staffStore } from '../equipe/data';
 import {
@@ -54,6 +57,7 @@ const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
   { k: 'abonnement', l: 'Abonnements' },
   { k: 'avoir', l: 'Avoirs' },
   { k: 'pourboire', l: 'Pourboires' },
+  { k: 'hors-activite', l: 'Hors activité' },
 ];
 
 const frDay = (iso: string): string =>
@@ -243,6 +247,44 @@ export default function Encaissements() {
   const expenses = useDepensesComptees();
 
   const [month, setMonth] = useState(monthKey(todayISO()));
+  /* ══ RECEVOIR DE L'ARGENT QUI N'EST PAS UN GAIN — 11 septembre 2026 ══
+     Maquette `public/maquette-entrees-hors-activite.html`, validée. La
+     saisie vit ICI parce qu'Encaissements est déjà le registre de tout ce
+     qui entre : la poser ailleurs aurait fait deux portes pour une notion. */
+  const [cashboxes] = useCashboxes();
+  const caissesDeLaBranche = useMemo(
+    () => cashboxes.filter((c) => c.branchId === branch.id),
+    [cashboxes, branch.id],
+  );
+  type FormHors = { motif: MotifHorsActivite; label: string; montant: string; cashbox: string; date: string };
+  const [horsForm, setHorsForm] = useState<FormHors | null>(null);
+  const ouvreEntree = () => setHorsForm({
+    motif: MOTIFS_HORS_ACTIVITE[0],
+    label: '',
+    montant: '',
+    cashbox: caissesDeLaBranche[0]?.name ?? '',
+    date: todayISO(),
+  });
+  const enregistreEntree = () => {
+    if (!horsForm) return;
+    const montant = parseInt(horsForm.montant.replace(/[^0-9]/g, '') || '0', 10);
+    const quoi = pourquoiEntreeImpossible({
+      label: horsForm.label, amountXof: montant, cashbox: horsForm.cashbox, date: horsForm.date,
+    });
+    if (quoi) { toast(quoi); return; }
+    const neuve: EntreeHorsActivite = {
+      id: `hors-${uid()}`,
+      branchId: branch.id,
+      date: horsForm.date,
+      motif: horsForm.motif,
+      label: horsForm.label.trim(),
+      amountXof: montant,
+      cashbox: horsForm.cashbox,
+    };
+    entreesHorsActiviteStore.set((prev) => [...prev, neuve]);
+    setHorsForm(null);
+    toast(`Entrée notée dans « ${neuve.cashbox} ». Elle ne compte pas au chiffre d’affaires.`);
+  };
   const [kind, setKind] = useState<ReceiptKind | 'tous'>('tous');
 
   /* ── RECONSTRUIRE LES PARTS DEPUIS CETTE LISTE — 19 août 2026 ─────
@@ -528,6 +570,7 @@ export default function Encaissements() {
                 Émettre les pièces · {rituelsSansPiece.length} rituel{rituelsSansPiece.length > 1 ? 's' : ''}
               </Button>
             )}
+            <Button variant="ghost" onClick={ouvreEntree}>+ Entrée hors activité</Button>
             <Button variant="ghost" onClick={exportCsv} disabled={shown.length === 0}>Exporter</Button>
             <Button variant={releveOuvert ? 'copper' : 'ghost'} onClick={() => setReleveOuvert((o) => !o)}>
               Pointer le relevé MoMo
@@ -827,6 +870,64 @@ export default function Encaissements() {
           ))
         )}
       </div>
+
+      {horsForm && (
+        <Modal title="Entrée hors activité." onClose={() => setHorsForm(null)} width={560}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="Motif · la liste est fermée">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {MOTIFS_HORS_ACTIVITE.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`tre-chip ${horsForm.motif === m ? 'is-on' : ''}`}
+                    onClick={() => setHorsForm({ ...horsForm, motif: m })}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="De qui vient cet argent, et pourquoi">
+              <Input
+                value={horsForm.label}
+                autoFocus
+                placeholder="Prêt de M. A. pour l’avance du loyer, remboursable en 3 fois"
+                onChange={(e) => setHorsForm({ ...horsForm, label: e.target.value })}
+              />
+            </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Montant">
+                <Input
+                  inputMode="numeric"
+                  value={horsForm.montant}
+                  onChange={(e) => setHorsForm({ ...horsForm, montant: e.target.value })}
+                />
+              </Field>
+              <Field label="Dans quelle caisse">
+                <Select value={horsForm.cashbox} onChange={(e) => setHorsForm({ ...horsForm, cashbox: e.target.value })}>
+                  {caissesDeLaBranche.length === 0 && <option value="">Aucune caisse ouverte</option>}
+                  {caissesDeLaBranche.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <Field label="Date">
+              <Input type="date" value={horsForm.date} onChange={(e) => setHorsForm({ ...horsForm, date: e.target.value })} />
+            </Field>
+            <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, background: 'var(--copper-50)', padding: '11px 14px', fontSize: 12.5, lineHeight: 1.6 }}>
+              <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>Cette entrée ne compte pas au chiffre d’affaires.</b>
+              {' '}Elle garnit la caisse choisie et pourra payer une dépense, mais elle n’entre ni dans
+              les revenus du mois, ni dans le résultat. La Synthèse la montre à part.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="ghost" onClick={() => setHorsForm(null)}>Annuler</Button>
+              <Button variant="copper" onClick={enregistreEntree}>Enregistrer l’entrée</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {emissionOuverte && (
         <Modal title="Émettre les pièces des rituels réglés" onClose={() => setEmissionOuverte(false)} width={560}>

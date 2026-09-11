@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../../../shared/branches';
-import { useInvoices, usePayments, useCredits, type PieceJointe } from '../../../../shared/finance';
+import { useInvoices, usePayments, useCredits, type PieceJointe, useEntreesHorsActivite } from '../../../../shared/finance';
 import { deposerFichier, adresseSignee, poidsEnClair } from '../../../../shared/fil';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
@@ -126,6 +126,7 @@ export function useRegistreEncaissements(): Receipt[] {
   const [apprenants] = useApprenants();
   const [subscribers] = useSubscribers();
   const [clients] = useClients();
+  const [horsActivite] = useEntreesHorsActivite();
   const byId = useServicesById();
   return useMemo(
     () => buildReceipts({
@@ -138,8 +139,9 @@ export function useRegistreEncaissements(): Receipt[] {
       abonnements: subscribers.map((s) => ({ id: s.id, clientId: s.clientId, name: s.name, payments: s.payments })),
       nameOf: (id) => clients.find((c) => c.id === id)?.name ?? 'Cliente de passage',
       apptLabel: (a) => apptLabel(a, byId),
+      horsActivite,
     }),
-    [branch.id, invoices, online, appointments, credits, apprenants, subscribers, clients, byId],
+    [branch.id, invoices, online, appointments, credits, apprenants, subscribers, clients, byId, horsActivite],
   );
 }
 
