@@ -141,7 +141,7 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
-## LES CONVERSATIONS — 11 septembre 2026, CONSTRUIT · NON PUBLIÉ
+## LES CONVERSATIONS — 11 septembre 2026, PUBLIÉ
 
 « Comment je réussis à construire les conversations WhatsApp dans le trône ? »
 puis « construis » (Yéman). Maquette `maquette-les-conversations.html`, validée.
@@ -189,7 +189,7 @@ retrouverait jamais après coup.
    jeton, puis s'abonner au champ `messages`.
 5. Déployer `whatsapp-envoi` (Verify JWT COCHÉ).
 6. Recoller `rappels-j1` EN ENTIER.
-7. Publier.
+7. ~~Publier~~ **FAIT** le 11 septembre au soir, build 20260911230845.
 
 Meta ne livre **rien du passé** : le fil commence au premier message reçu.
 Les photos sont hors chantier, comme la maquette l'annonce.
