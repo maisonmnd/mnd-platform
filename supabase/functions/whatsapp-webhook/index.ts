@@ -99,7 +99,56 @@ const texteDuMessage = (m: Record<string, any>): string => {
   return NOMS[t ?? ''] ?? 'un message que le Trône ne sait pas encore afficher';
 };
 
+/* ══ ELLE PARLE MAINTENANT — 12 septembre 2026 ══════════════════════
+   « Mon message n'atteint toujours pas le serveur. Résous le problème par
+   toi-même » (Yéman), après une heure de contrôles tous verts.
+
+   MA FAUTE : cette fonction ne disait RIEN quand tout allait bien. Le journal
+   ne portait que « booted » et « shutdown », et l'on ne pouvait pas
+   distinguer « rien n'est arrivé » de « quelque chose est arrivé et je l'ai
+   jeté ». Toute la chaîne Meta était prouvée verte, et l'on tournait en rond
+   faute d'un seul mot de ce côté-ci.
+
+   UN JOURNAL QUI NE PARLE QU'EN CAS D'ERREUR NE SERT À RIEN quand la panne
+   est un SILENCE. Elle dit donc désormais ce qu'elle reçoit à chaque appel,
+   et ce qu'elle en fait.
+
+   RIEN DE PERSONNEL N'Y PASSE : la méthode, des longueurs, des comptes, et
+   le genre des événements. Jamais un texte, jamais un numéro, jamais un
+   jeton. Un journal qui recopierait le message d'une cliente serait une
+   fuite de plus, dans un projet qui en a déjà connu une. */
+const dis = (quoi: string, o: Record<string, unknown> = {}) =>
+  console.log(`whatsapp-webhook · ${quoi} · ${JSON.stringify(o)}`);
+
 Deno.serve(async (req) => {
+  /* LE PREMIER MOT, AVANT TOUTE GARDE : si cette ligne ne paraît pas au
+     journal, c'est que Meta n'a jamais atteint la fonction, et le reste du
+     diagnostic est inutile. C'est précisément ce qu'on ne savait pas. */
+  dis('appel', {
+    methode: req.method,
+    signature: req.headers.get('x-hub-signature-256') ? 'présente' : 'ABSENTE',
+  });
+
+  /* ── ⓪ LE CONTRÔLE DE SANTÉ — ouvre l'adresse dans un navigateur.
+     Meta appelle toujours avec `hub.mode` ; un GET sans lui vient donc d'un
+     humain qui cherche à comprendre. On lui dit ce qui est posé et ce qui
+     manque, EN LONGUEURS SEULES : assez pour trancher, rien à voler. */
+  if (req.method === 'GET' && !new URL(req.url).searchParams.get('hub.mode')) {
+    const lg = (n: string) => (Deno.env.get(n) ?? '').trim().length;
+    return new Response(JSON.stringify({
+      fonction: 'whatsapp-webhook',
+      secrets: {
+        WA_VERIFY_TOKEN: lg('WA_VERIFY_TOKEN') || 'ABSENT',
+        WA_APP_SECRET: lg('WA_APP_SECRET') || 'ABSENT',
+        CLE_SERVICE: lg('CLE_SERVICE') || 'ABSENT',
+        SUPABASE_URL: lg('SUPABASE_URL') || 'ABSENT',
+      },
+      /* Si vous lisez ceci dans un navigateur SANS être connecté, c'est que
+         « Verify JWT » est bien décoché. C'est la preuve qu'on cherchait. */
+      jwt: 'décoché, sinon vous ne liriez pas ceci',
+    }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+
   /* ── ① LA POIGNÉE DE MAIN — Meta vérifie que l'adresse nous appartient.
      Elle n'arrive qu'une fois, au branchement, mais sans elle rien ne se
      configure et l'on cherche pendant une heure. */
@@ -127,10 +176,18 @@ Deno.serve(async (req) => {
   const brut = await req.text();
   const secret = (Deno.env.get('WA_APP_SECRET') ?? '').trim();
   const entete = req.headers.get('x-hub-signature-256') ?? '';
-  if (!secret || !(await signatureJuste(brut, secret, entete))) {
-    console.error('whatsapp-webhook: signature refusée');
+  if (!secret) {
+    /* DEUX REFUS QUI SE RESSEMBLAIENT. « Signature refusée » ne disait pas
+       si le secret manquait ou si l'empreinte était fausse : deux causes,
+       deux remèdes, et un seul message pour les deux. */
+    console.error('whatsapp-webhook · REFUS · WA_APP_SECRET n’est pas posé');
     return new Response('ok', { status: 200 });
   }
+  if (!(await signatureJuste(brut, secret, entete))) {
+    console.error(`whatsapp-webhook · REFUS · signature invalide · corpsLg=${brut.length} · enteteLg=${entete.length}`);
+    return new Response('ok', { status: 200 });
+  }
+  dis('signature acceptée', { corpsLg: brut.length });
 
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
@@ -192,6 +249,17 @@ Deno.serve(async (req) => {
     }
   }
 
+  /* CE QUE L'APPEL PORTAIT VRAIMENT. C'est LA ligne qui manquait : un appel
+     à zéro message et zéro accusé veut dire que Meta nous parle d'autre
+     chose, et ce n'est pas du tout la même panne qu'un appel jamais venu. */
+  dis('charge lue', {
+    entrees: (charge.entry ?? []).length,
+    champs: (charge.entry ?? []).flatMap((e: Record<string, any>) => e.changes ?? [])
+      .map((c: Record<string, any>) => c.field ?? '?'),
+    messages: entrants.length,
+    accuses: accuses.length,
+  });
+
   /* ── ④ LES FICHES, POUR RATTACHER — une seule lecture.
      La Maison compte quelques centaines de têtes : on les lit toutes et l'on
      rapproche en mémoire. Le jour où elles seront dix mille, il faudra un
@@ -225,7 +293,8 @@ Deno.serve(async (req) => {
       };
     });
     const { error } = await sb.from('messages_wa').upsert(lignes, { onConflict: 'id' });
-    if (error) console.error('whatsapp-webhook: messages', error.message);
+    if (error) console.error(`whatsapp-webhook · ÉCHEC ÉCRITURE · ${error.message}`);
+    else dis('messages rangés', { combien: lignes.length, rattaches: lignes.filter((l) => l.data.clientId).length });
   }
 
   /* ── ⑥ LES ACCUSÉS. Ils corrigent DEUX journaux, et c'est voulu : les
