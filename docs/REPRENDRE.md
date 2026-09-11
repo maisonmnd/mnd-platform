@@ -61,6 +61,68 @@ Même géométrie que `tamponDeLaMaison` : deux cercles, deux losanges aux flanc
 le vrai monogramme large au centre, l'encre à 86 %. L'encre est **cuivre** et
 les mots sont ceux de l'Académie, qui signe en son nom.
 
+## LES INACTIVES, LA CINQUIÈME RUBRIQUE — 11 septembre 2026, PUBLIÉ
+
+« Quand une cliente a fait le Gbata, le défaisage, elle n'a plus de locks donc
+ce n'est plus une cliente de l'atelier MND. Il faut les sortir et leur créer une
+rubrique. Même chose pour les clients qui ont fait plus de 5 mois sans venir au
+salon et qui ne sont pas de la diaspora » (Yéman).
+
+**Une rubrique, deux raisons, jamais confondues**, parce qu'elles ne commandent
+pas le même geste : celle qui n'a plus de locks peut aller au STUDIO (les
+tresses, le cheveu libre, les grands jours n'en demandent pas), celle qui dort
+en porte encore, et lui proposer des tresses serait lui dire qu'on a renoncé à
+sa couronne. Chaque fiche dit donc la sienne.
+
+**La diaspora est épargnée par la règle des cinq mois, jamais par celle du
+Gbàtà.** On ne compte pas les mois de quelqu'un qui vit ailleurs ; mais sans
+locks, c'est sans locks, où qu'elle habite.
+
+**AUCUN SECOND JUGE POUR LES LOCKS.** `useSansLocksVivant` (shell, jumeau de
+`usePassageVivant`) tient le champ `locksDefaits` à jour depuis le carnet, dans
+les DEUX sens. Le champ existait déjà et cinq portes le lisaient : prédictions,
+rythme de reprise, reprise à la clôture, constats au fauteuil, registre. Toutes
+héritent de la règle du Gbàtà sans qu'on y touche. Écrire un prédicat à côté
+aurait donné deux vérités pour une notion, la maladie d'août.
+
+**Les rituels se reconnaissent par la CATÉGORIE** : `CATEGORIE_GBATA`
+(`plt-45`) et `fondeLaCouronne` (`atl-i-vekpe`), jamais par le nom.
+
+**Elle revient toute seule**, et c'est ce qui rend le basculement automatique
+acceptable. Un VÈKPÈ honoré lui rend ses locks le jour du geste ; un VÈKPÈ déjà
+au carnet la retient AVANT qu'elle sorte, donc celle qui défait mardi pour
+refaire le mois prochain ne bouge pas d'une heure ; une venue ou un rendez-vous
+réveille celle qui dormait. `resteDeLaMaison` (« La ramener dans la Maison »)
+pose le verrou qui bat les faits, comme `personaFige` et `passagePose` ; il se
+relâche depuis la fiche, pastille « Gardée dans la Maison ».
+
+**Une seule carte pour trois écrans** — `sortiesDeLaMaison` : le registre des
+Clientes liste, le Tableau de bord et l'Analytique cessent de compter. Trois
+calculs auraient donné trois chiffres pour une seule Maison.
+
+**Le bouton « Studio »** ouvre un brouillon WhatsApp, il n'envoie rien : il
+félicite, informe des soins du cheveu afro, des twists et des extensions, et
+reste à disposition. Devise posée par `signeLeMessage`.
+
+**Les prédictions se taisent aussi** passé cinq mois (`predictNextVisit`) : ce
+n'est plus un retard, c'est un départ, et « celles qui ont glissé » se
+remplissait de gens partis depuis l'hiver qui noyaient les trois à rappeler.
+
+Éprouvé par `verifie-sortie` (43ᵉ harnais, 44 épreuves). Le harnais de la
+cadence a attrapé la collision : sa tête « ordinaire » n'avait pas mis les
+pieds à la Maison depuis cinq mois et treize jours. Sa fenêtre a reculé au
+16 mai, et deux épreuves neuves gardent les deux règles côte à côte.
+
+**Aucune migration** : la rubrique ne stocke rien, elle lit l'histoire. Seul
+`resteDeLaMaison` ajoute un champ, et un champ absent vaut « non posé ».
+
+### CE QUI RESTE
+
+Les constats au fauteuil (À faire) héritent du Gbàtà par `locksDefaits`, mais
+PAS des cinq mois : `TeteLue` est une forme pure sans dernière venue, et lui en
+donner une demandait de la remonter depuis chaque appelant. À trancher si la
+liste se met à traîner des têtes parties.
+
 ## CE QUE LA MAISON DOIT — 11 septembre 2026, PUBLIÉ · MIGRATION 0085 PASSÉE
 
 « On peut faire ces chantiers » (Yéman), après le miroir posé le matin.

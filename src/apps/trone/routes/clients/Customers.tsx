@@ -3,12 +3,13 @@ import { asset } from '../../../../shared/asset';
 import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
+import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
 import { RYTHMES_ABO, cadenceObservee, diraLeJourFavori, litSonJour, diraPourquoiPasDeJour } from '../../../../shared/cadence';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
 import { invoicePdf } from '../../../../shared/pdf';
-import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
+import { aAccorde, clientsStore, segmentsStore, useSegments, usePersonas, useFamilies, ensureInitiePersona, estDePassage, estDiaspora, estCouronnee, estVisiteur, estDeLaMaison, sortiesDeLaMaison, MOIS_AVANT_SORTIE, joursAvantAnniversaire, remiseFamillePct, aUnPrixConvenu, depuisQuandALaMaison, joursDeLaTete, type Client, type Family, poseUnComptage, retireUnComptage } from '../../../../shared/clients';
 import { useCredits, creditBalanceOf } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf, statutFidelite } from '../../../../shared/accounts';
 import { appointmentsStore, apptPayeurId, venuesHonorees, tetesVenues, type Appointment, estampilleLaPose, noteDeLaMaison } from '../../../../shared/agenda';
@@ -603,7 +604,7 @@ export default function Customers() {
   const aValider = enAttente(declarations, branch.id);
 
   /* ----- Registres — La Maison, la Diaspora, les clientes de passage ----- */
-  const [view, setView] = useState<'maison' | 'diaspora' | 'passage' | 'visiteur'>('maison');
+  const [view, setView] = useState<'maison' | 'diaspora' | 'passage' | 'visiteur' | 'sortie'>('maison');
   const [diaQ, setDiaQ] = useState('');
 
   /* Le segment « Diaspora » doit exister dans la liste proposée aux fiches et à la
@@ -650,18 +651,41 @@ export default function Customers() {
   /* LA MAISON = les couronnées ET les membres de famille pas encore assis
      (les enfants déclarés — Ezra, Togni, Tobi… — disparaissaient chez les
      Visiteurs, 12 août). Le compteur des têtes couronnées, lui, ne bouge pas. */
-  const maisonClients = useMemo(
-    () => clients.filter((c) => estDeLaMaison(c, venues) && !isDiaspora(c)),
-    [clients, venues],
-  );
   const passageCount = passageClients.length;
   const visiteurCount = visiteurClients.length;
+
+  /* ── LES DEUX GESTES DE LA RUBRIQUE ────────────────────────────────
+     « La ramener » POSE UN VERROU, il ne se contente pas d'effacer la marque :
+     sans lui, la fiche ressortirait à la passe suivante puisque le carnet dit
+     toujours la même chose, et un bouton qui s'annule tout seul est pire que
+     pas de bouton. Il relâche aussi `locksDefaits`, sinon cinq portes
+     continueraient de la taire pendant que le registre la montre. */
+  const ramenerDansLaMaison = (c: Client) => {
+    clientsStore.set((prev) => prev.map((x) => (x.id === c.id
+      ? { ...x, resteDeLaMaison: true, locksDefaits: undefined }
+      : x)));
+  };
+
+  /* LE STUDIO, POUR CELLES QUI N'ONT PLUS DE LOCKS — et pour elles seulement.
+     Celle qui dort en porte encore : lui proposer des tresses reviendrait à
+     lui dire qu'on a renoncé à sa couronne.
+
+     LE MESSAGE S'OUVRE DANS WHATSAPP, IL NE PART PAS. Rien ne quitte la Maison
+     sans qu'une main l'ait relu : c'est un brouillon, pas un envoi. La devise
+     est posée PAR LE CODE (`signeLeMessage`), jamais retapée. */
+  const proposerLeStudio = (c: Client) => {
+    const prenom = c.name.trim().split(/\s+/)[0] || '';
+    const texte = signeLeMessage(
+      `Bonjour ${prenom},\n\n`
+      + 'Vos cheveux sont libres, et c’est une belle saison qui commence. Profitez-en pleinement.\n\n'
+      + 'La Maison reste à vos côtés pour eux : les soins du cheveu afro, les twists, '
+      + 'les extensions et les coiffures des grands jours. Rien de tout cela ne demande des locks.\n\n'
+      + 'Nous restons à votre disposition.',
+    );
+    window.open(`https://wa.me/${digitsOf(c.phone)}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+  };
   /* Mémoïsés — deux filtres de plus sur toute la base à chaque frappe de la
      recherche ne payaient que deux compteurs. */
-  const { tetesCount, diasporaCount } = useMemo(() => ({
-    tetesCount: clients.filter((c) => estCouronnee(c, venues)).length,
-    diasporaCount: clients.filter((c) => isDiaspora(c) && estCouronnee(c, venues)).length,
-  }), [clients, venues]);
 
   /* Candidates à l'ajout : clientes de la maison PAS encore dans la liste. */
   const diaCandidates = useMemo(() => {
@@ -721,6 +745,49 @@ export default function Customers() {
     }
     return m;
   }, [clients, appts, invoices, byId]);
+
+  /* ══ LES INACTIVES — LA CINQUIÈME RUBRIQUE · 11 septembre 2026 ═══
+     « Elles n'ont plus de locks, donc ce ne sont plus des clientes de
+     l'atelier MND. Il faut les sortir et leur créer une rubrique » (Yéman).
+
+     LE JUGE EST `raisonDeLaSortie` (shared/clients.ts), et il est seul : le
+     registre liste, les compteurs cessent de compter, les relances se taisent.
+     Trois lectures donneraient trois vérités, et un compteur qui annonce 1
+     quand la Maison en reconnaît cinquante — c'est exactement ce qu'avait fait
+     la Diaspora au mois d'août.
+
+     LE REGISTRE NE PREND QUE DES TÊTES DE LA MAISON. Une passante n'a jamais
+     été une relation, une visiteuse ne s'est jamais assise : sortir de la
+     Maison suppose d'y être entrée, et leurs registres les tiennent déjà. */
+  const sortiesParTete = useMemo(
+    () => sortiesDeLaMaison(clients, appts, todayISO()),
+    [clients, appts],
+  );
+
+  const sortieClients = useMemo(
+    () => clients.filter((c) => sortiesParTete.has(c.id)),
+    [clients, sortiesParTete],
+  );
+  const sortieCount = sortieClients.length;
+  const sansLocksCount = useMemo(
+    () => [...sortiesParTete.values()].filter((r) => r === 'sans-locks').length,
+    [sortiesParTete],
+  );
+
+  /* LES REGISTRES RESTENT DISJOINTS — une sortie quitte « La Maison », nom
+     compris, sinon elle s'afficherait deux fois et le compteur mentirait une
+     troisième. */
+  const maisonClients = useMemo(
+    () => clients.filter((c) => estDeLaMaison(c, venues) && !isDiaspora(c) && !sortiesParTete.has(c.id)),
+    [clients, venues, sortiesParTete],
+  );
+  /* LES SORTIES NE COMPTENT PLUS. C'était le but de toute l'affaire : une
+     tête partie gonflait les têtes couronnées et écrasait la rétention sans
+     qu'il se soit rien passé dans la Maison. */
+  const { tetesCount, diasporaCount } = useMemo(() => ({
+    tetesCount: clients.filter((c) => estCouronnee(c, venues) && !sortiesParTete.has(c.id)).length,
+    diasporaCount: clients.filter((c) => isDiaspora(c) && estCouronnee(c, venues) && !sortiesParTete.has(c.id)).length,
+  }), [clients, venues, sortiesParTete]);
 
   /* Qui est sur Ma Couronne en ce moment. */
   const onlineIds = useMemo(() => {
@@ -797,10 +864,12 @@ export default function Customers() {
               ? tetesBilan
             : view === 'passage'
             ? passageClients
+            : view === 'sortie'
+            ? sortieClients
             : view === 'visiteur'
               ? visiteurClients
               : view === 'diaspora'
-                ? clients.filter((c) => isDiaspora(c) && estCouronnee(c, venues))
+                ? clients.filter((c) => isDiaspora(c) && estCouronnee(c, venues) && !sortiesParTete.has(c.id))
                 : maisonClients;
     let list = focus === 'aucun' && view === 'maison' && seg !== 'Tous'
       ? base.filter((c) => c.segments.includes(seg))
@@ -1021,6 +1090,18 @@ export default function Customers() {
         >
           De passage <span className="count">{passageCount}</span>
         </button>
+        {/* LES INACTIVES — même règle que les Visiteurs : une Maison dont
+            personne n'est parti n'a pas à lire un compteur à zéro. */}
+        {sortieCount > 0 && (
+          <button
+            className={`trc-chip ${view === 'sortie' ? 'is-active' : ''}`}
+            onClick={() => setView('sortie')}
+            style={{ fontSize: 12, padding: '9px 18px' }}
+            title="Celles qui n’ont plus de locks, et celles qui ne viennent plus depuis plus de cinq mois"
+          >
+            Inactives <span className="count">{sortieCount}</span>
+          </button>
+        )}
         {/* LE REGISTRE DES VISITEURS ne paraît que s'il y en a : une Maison
             sans inscription en ligne n'a pas à lire un compteur à zéro. */}
         {visiteurCount > 0 && (
@@ -1041,6 +1122,19 @@ export default function Customers() {
           couronnées, ni dans la rétention, la Maison ne les a pas encore couronnés. Rien à faire :
           le jour où l’un d’eux s’assied, il rejoint La Maison de lui-même. Les fiches créées au comptoir,
           elles, naissent « de passage » et vivent dans leur registre.
+        </div>
+      )}
+
+      {view === 'sortie' && (
+        <div className="trc-passage-banner">
+          Deux raisons, jamais confondues. <b>Sans locks</b> : son défaisage est honoré et aucune
+          création n’est venue après, l’atelier n’a plus de prise sur elle, le Studio en a une.
+          {' '}<b>Sans venir</b> : plus de {MOIS_AVANT_SORTIE} mois sans s’asseoir, hors diaspora,
+          elle porte peut-être encore ses locks mais la Maison cesse de l’attendre.
+          {' '}Elles restent au chiffre d’affaires, dans leur carnet et dans la recherche ; elles
+          sortent des têtes couronnées, de la rétention et des relances. Aucune fiche n’est effacée,
+          et le jour où l’une se rassied, elle revient d’elle-même.
+          {sansLocksCount > 0 && ` ${sansLocksCount} sans locks sur ${sortieCount}.`}
         </div>
       )}
 
@@ -1181,6 +1275,10 @@ export default function Customers() {
               ? q
                 ? `Aucune cliente de passage ne répond à « ${query.trim()} ».`
                 : 'Aucune cliente de passage, elles s’enregistrent au fauteuil ou à la caisse, en deux champs.'
+              : view === 'sortie'
+              ? q
+                ? `Aucune inactive ne répond à « ${query.trim()} ».`
+                : 'Personne n’est sorti de la Maison, toutes les têtes portent leurs locks et reviennent.'
               : view === 'diaspora'
               ? q
                 ? `Aucune cliente Diaspora ne répond à « ${query.trim()} ».`
@@ -1247,6 +1345,23 @@ export default function Customers() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                     <span className="trc-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
                     {estDePassage(c) && <span className="trc-passage-tag">De passage</span>}
+                    {/* CHAQUE FICHE DIT SA RAISON — les mélanger ferait perdre
+                        la seule chose utile : ce qu'on peut encore lui proposer. */}
+                    {sortiesParTete.get(c.id) === 'sans-locks' && (
+                      <span className="trc-passage-tag" style={{ color: 'var(--copper-700)', borderColor: 'var(--copper-300)', background: 'var(--copper-50)' }}>
+                        Sans locks
+                      </span>
+                    )}
+                    {sortiesParTete.get(c.id) === 'dort' && (
+                      <span className="trc-passage-tag" title={`Plus de ${MOIS_AVANT_SORTIE} mois sans venir`}>
+                        Ne vient plus
+                      </span>
+                    )}
+                    {c.resteDeLaMaison && (
+                      <span className="trc-passage-tag" title="Ramenée à la main : elle ne sortira plus toute seule">
+                        Gardée
+                      </span>
+                    )}
                     {/* UN PRIX CONVENU SE VOIT DE LOIN. Il commande de l'argent
                         à chaque venue ; l'apprendre en ouvrant le Profil, c'est
                         l'apprendre après avoir annoncé le mauvais prix. */}
@@ -1299,7 +1414,7 @@ export default function Customers() {
               <span style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
                 <LocksCell client={c} />
               </span>
-              <span className="trc-rowacts" style={view === 'diaspora' ? { flexDirection: 'column', alignItems: 'flex-end', gap: 4 } : undefined}>
+              <span className="trc-rowacts" style={view === 'diaspora' || view === 'sortie' ? { flexDirection: 'column', alignItems: 'flex-end', gap: 4 } : undefined}>
                 <button
                   type="button"
                   className="trc-rowact trc-rowact--rdv"
@@ -1316,6 +1431,26 @@ export default function Customers() {
                     title={`Retirer ${c.name} de la liste Diaspora (la fiche est conservée)`}
                   >
                     Retirer
+                  </button>
+                )}
+                {view === 'sortie' && sortiesParTete.get(c.id) === 'sans-locks' && (
+                  <button
+                    type="button"
+                    className="trc-rowact"
+                    onClick={(e) => { e.stopPropagation(); proposerLeStudio(c); }}
+                    title={`Ouvrir un message pour proposer le Studio à ${c.name.split(' ')[0]} (rien ne part sans vous)`}
+                  >
+                    Studio
+                  </button>
+                )}
+                {view === 'sortie' && (
+                  <button
+                    type="button"
+                    className="trc-rowact"
+                    onClick={(e) => { e.stopPropagation(); ramenerDansLaMaison(c); }}
+                    title={`Ramener ${c.name.split(' ')[0]} dans La Maison : elle ne ressortira plus toute seule`}
+                  >
+                    La ramener
                   </button>
                 )}
               </span>
@@ -3802,6 +3937,21 @@ function Customer360({
                 >
                   Sans locks
                 </button>
+                {/* LE VERROU DE LA CINQUIÈME RUBRIQUE — 11 septembre 2026.
+                    Il ne se POSE pas ici : on le pose là où on la voit sortie,
+                    d'un bouton « La ramener » dans le registre des Inactives.
+                    Il se RELÂCHE ici, et c'est la règle de toute la Maison :
+                    une marque qui ne se défait nulle part est un piège. */}
+                {client.resteDeLaMaison && (
+                  <button
+                    type="button"
+                    className="trc-chip is-active"
+                    title="Ramenée à la main : elle ne sortira plus toute seule, quoi que dise le carnet. Cliquez pour relâcher."
+                    onClick={() => patch({ resteDeLaMaison: undefined })}
+                  >
+                    Gardée dans la Maison
+                  </button>
+                )}
               </div>
               {/* LA PHRASE NE PARAÎT QUE SI UNE MARQUE EST POSÉE : expliquer
                   une exemption qui n'existe pas fait lire pour rien. */}

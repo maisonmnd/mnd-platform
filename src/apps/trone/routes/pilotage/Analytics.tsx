@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, tetesVenues } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { useApprenants, useSubscribers } from '../equipe/data';
-import { estCouronnee, estDePassage, useClients } from '../../../../shared/clients';
+import { estCouronnee, estDePassage, sortiesDeLaMaison, useClients } from '../../../../shared/clients';
 import { useInvoices, invoiceRegleAu, invoiceReglements, type Invoice } from '../../../../shared/finance';
 import { consultationsQueueStore } from '../../../../shared/bridges';
 import { useStore } from '../../../../shared/store';
@@ -94,9 +94,17 @@ export default function Analytics() {
      le compter au dénominateur faisait chuter la rétention à chaque
      inscription. */
   const venues = useMemo(() => tetesVenues(appointments), [appointments]);
+  const sorties = useMemo(
+    () => sortiesDeLaMaison(clients, appointments, todayISO()),
+    [clients, appointments],
+  );
   const scopedClients = useMemo(
-    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope) && estCouronnee(c, venues)),
-    [clients, scope, venues],
+    /* SANS LES SORTIES — le même juge que le registre et le tableau de bord.
+       La rétention se divisait par des têtes parties : elle s'effondrait sans
+       qu'il se soit rien passé dans la Maison. */
+    () => clients.filter((c) => (scope === 'toutes' ? true : c.branchId === scope)
+      && estCouronnee(c, venues) && !sorties.has(c.id)),
+    [clients, scope, venues, sorties],
   );
   /* Qui ne compte pas comme tête — pour retirer ses venues de « Têtes actives »
      sans jamais toucher au revenu qu'elle a laissé. */

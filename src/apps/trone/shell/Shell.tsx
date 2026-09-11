@@ -61,6 +61,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
+import { useSansLocksVivant } from './useSansLocksVivant';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, toast } from '../../../ds/components';
@@ -269,6 +270,9 @@ export default function Shell() {
   /* Une cliente de passage cesse de l'être dès sa 2ᵉ venue — le seul geste de ce
      hook est de RETIRER la marque, jamais d'en poser une. */
   usePassageVivant();
+  /* LE CARNET DIT SI ELLE PORTE ENCORE SES LOCKS — 11 septembre 2026.
+     Même place et même contrat que le passage : une lecture, un champ. */
+  useSansLocksVivant();
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const [appelOpen, setAppelOpen] = useState(false);

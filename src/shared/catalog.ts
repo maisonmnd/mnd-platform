@@ -424,6 +424,22 @@ export const CATEGORIE_VEKPE = 'atl-i-vekpe';
 export const fondeLaCouronne = (s: Pick<Service, 'categoryId'>): boolean =>
   s.categoryId === CATEGORIE_VEKPE;
 
+/* ══ L'ACTE INVERSE — GBÀTÀ™, Le Défaisage · 11 septembre 2026 ═══════
+   « Quand une cliente a fait le Gbata, elle n'a plus de locks, donc ce n'est
+   plus une cliente de l'atelier MND » (Yéman).
+
+   PLT·45 défait ce que VÈKPÈ™ a posé, et le catalogue le range déjà à part :
+   le mettre sous « La Naissance » était un contresens, corrigé au printemps.
+   Ici on ne fait que le NOMMER, pour que la sortie d'une tête se lise sur un
+   fait du carnet plutôt que sur une impression.
+
+   PAR LA CATÉGORIE, JAMAIS PAR LE NOM — la leçon du 18 août : une règle qui
+   reconnaît « Le Défaisage » casse en silence le jour où quelqu'un le renomme,
+   et personne ne voit qu'elle s'est tue. */
+export const CATEGORIE_GBATA = 'plt-45';
+export const defaitLaCouronne = (s: Pick<Service, 'categoryId'>): boolean =>
+  s.categoryId === CATEGORIE_GBATA;
+
 export const CATEGORIES_SEED: CatalogCategory[] = [
   /* ─── Maison 1 · ATELIER MND™ — les locks exclusivement ─── */
   { id: 'koko', code: 'KOKO', fon: 'KÒKÒ™', label: 'Le Diagnostic', maison: 'atelier', enabled: true, order: 0 },

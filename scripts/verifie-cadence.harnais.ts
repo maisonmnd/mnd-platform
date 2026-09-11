@@ -154,7 +154,26 @@ dit('trois venues : une seule estimation éprouvée', 1,
    « Sur cette liste beaucoup de personnes de la diaspora — comment on fait
    pour qu'ils n'aient plus de prédictions ? » (Yéman, 16 août). */
 const histoire = [rdv('2026-01-06'), rdv('2026-02-03', 1), rdv('2026-03-03', 2)];
-dit('une tête ordinaire est bien prédite', true, !!predictNextVisit(histoire, [cliente], 'c1', '2026-08-16').iso);
+/* LE JOUR DE LECTURE A RECULÉ AU 16 MAI — 11 septembre 2026, et ce n'est pas
+   un ajustement de confort. Au 16 août, cette tête n'avait pas mis les pieds
+   à la Maison depuis cinq mois et treize jours : depuis la règle des sorties,
+   elle n'est plus une tête « ordinaire », c'est une tête partie, et la Maison
+   a raison de ne plus prédire son retour.
+
+   L'épreuve de ce bloc porte sur LA DIASPORA, pas sur les cinq mois : on la
+   remet donc dans sa fenêtre pour qu'elle éprouve ce pour quoi elle a été
+   écrite. Les deux gardes se vérifient l'un à côté de l'autre, juste en
+   dessous, pour que personne ne « répare » un jour ce qui n'est pas cassé. */
+dit('une tête ordinaire est bien prédite', true, !!predictNextVisit(histoire, [cliente], 'c1', '2026-05-16').iso);
+/* LES CINQ MOIS SE TAISENT AUSSI (11 septembre) — passé ce terme ce n'est
+   plus un retard, c'est un départ, et « celles qui ont glissé » se remplissait
+   de gens partis depuis l'hiver qui noyaient les trois à rappeler. */
+dit('… mais plus après cinq mois sans venir', null,
+  predictNextVisit(histoire, [cliente], 'c1', '2026-08-16').iso);
+/* ET LE RENDEZ-VOUS DÉJÀ PRIS RESTE UN FAIT, ici aussi : il est traité avant
+   tous les gardes, parce qu'il ne se prédit pas, il s'observe. */
+dit('… sauf si un rendez-vous est déjà pris', '2026-09-05',
+  predictNextVisit([...histoire, { ...rdv('2026-09-05'), status: 'confirmé' } as Appointment], [cliente], 'c1', '2026-08-16').iso);
 
 const parLeChamp: Client = { ...cliente, diaspora: true } as Client;
 dit('la diaspora par le CHAMP ne se prédit plus', null,

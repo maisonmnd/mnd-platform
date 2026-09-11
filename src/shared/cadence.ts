@@ -1,5 +1,5 @@
 import type { Appointment } from './agenda';
-import { aDefaitSesLocks, estDePassage, estDiaspora, type Client } from './clients';
+import { aDefaitSesLocks, dortDepuisLongtemps, estDePassage, estDiaspora, MOIS_AVANT_SORTIE, type Client } from './clients';
 import { openingForIso } from './settings';
 
 /* LA CADENCE D'UNE TÊTE — UN SEUL JUGE, POUR LES DEUX SŒURS.
@@ -547,6 +547,15 @@ export function predictNextVisit(appts: Appointment[], clients: Client[], client
   const honored = mine.filter((a) => a.status === 'honoré').sort((a, b) => a.date.localeCompare(b.date));
   if (honored.length === 0) return none;
   const template = honored[honored.length - 1]; // le dernier rituel — à dupliquer
+
+  /* NI CELLE QUI NE VIENT PLUS — 11 septembre 2026, demande de Yéman.
+     Passé cinq mois sans s'asseoir, ce n'est plus un retard, c'est un départ :
+     « celles qui ont glissé » se remplissait de gens partis depuis l'hiver, et
+     ils noyaient les trois qu'un message aurait ramenées. La diaspora est
+     épargnée, sa cadence mesure des billets d'avion.
+     UN RENDEZ-VOUS DÉJÀ PRIS passe avant ce garde : il est traité tout en
+     haut, et c'est un fait, pas une prédiction. */
+  if (cliente && dortDepuisLongtemps(cliente, template.date, today, MOIS_AVANT_SORTIE)) return none;
 
   const daysBetween = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
   // Cadence de revisite : une série multi-séances compte pour une seule visite.

@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { openingForIso, joursFermesParmi, prochainJourOuvert } from '../../../../shared/settings';
 import { quandDemandee, horodatageLisible, porteDuRendezVous } from '../../../../shared/temps';
-import { estCouronnee, joursAvantAnniversaire, useClients, type Client } from '../../../../shared/clients';
+import { estCouronnee, joursAvantAnniversaire, sortiesDeLaMaison, useClients, type Client } from '../../../../shared/clients';
 import { CarteModal } from '../clients/CarteModal';
 import { appointmentsStore, tetesVenues, type Appointment } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, messageAppel } from '../../../../shared/appels';
@@ -291,7 +291,14 @@ export default function Dashboard() {
      quand la Maison l'a réellement couronnée (11 août). */
   const tetesCouronnees = useMemo(() => {
     const venues = tetesVenues(appts);
-    return clients.filter((c) => estCouronnee(c, venues)).length;
+    /* SANS LES SORTIES — 11 septembre 2026. Une tête qui a défait ses locks,
+       ou qui n'est pas venue depuis plus de cinq mois, gonflait ce nombre
+       d'une relation qui n'existe plus. Le juge est partagé
+       (`sortiesDeLaMaison`) : le registre des Clientes et l'Analytique
+       comptent sur la même carte, sinon trois écrans annonceraient trois
+       chiffres pour une seule Maison. */
+    const sorties = sortiesDeLaMaison(clients, appts, todayISO());
+    return clients.filter((c) => estCouronnee(c, venues) && !sorties.has(c.id)).length;
   }, [clients, appts]);
 
   /* LES FACTURES ÉMISES QUI ATTENDENT LEUR RÈGLEMENT — les pièces, pas les

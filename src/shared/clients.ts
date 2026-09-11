@@ -82,6 +82,19 @@ export type Client = {
   /** @deprecated Voir `accordImage`. */
   accordVitrine?: string;
   diaspora?: boolean;
+  /** ELLE RESTE DE LA MAISON, QUOI QUE DISE LE CARNET — 11 septembre 2026.
+
+      Le verrou de la cinquième rubrique. « Les inactives » se remplit toute
+      seule en lisant l'histoire ; ce champ est le seul moyen de dire non.
+
+      Même verrou que `personaFige` et `passagePose`, pour la même raison :
+      UNE DÉCISION BAT UNE DÉDUCTION. Sans lui, la fiche ramenée à la main
+      ressortirait à la passe suivante, et un bouton qui s'annule tout seul est
+      pire que pas de bouton du tout.
+
+      ABSENT = PAS DE VERROU, et c'est le bon défaut : on ne verrouille que ce
+      qu'on a regardé. Se relâche d'un clic. */
+  resteDeLaMaison?: boolean;
   /** ELLE A DÉFAIT SES LOCKS — 6 septembre 2026, demande de Yéman.
 
       SANS LOCKS, IL N'Y A RIEN À COMPTER. Une tête défaite restait dans
@@ -692,6 +705,211 @@ export const aAccorde = (
     la moitié de « celles qui ont glissé » était de la diaspora). */
 export const estDiaspora = (c: { diaspora?: boolean; segments?: readonly string[] }): boolean =>
   c.diaspora === true || (c.segments ?? []).some((s) => s.trim().toLowerCase() === 'diaspora');
+
+/* ══ LES INACTIVES — LA CINQUIÈME RUBRIQUE · 11 septembre 2026 ═══════
+   « Quand une cliente a fait le Gbata, le défaisage, elle n'a plus de locks
+   donc ce n'est plus une cliente de l'atelier MND. Il faut les sortir et leur
+   créer une rubrique. Même chose pour les clients qui ont déjà fait plus de
+   5 mois sans venir au salon et qui ne sont pas de la diaspora. » (Yéman).
+
+   SORTIR N'EST PAS EFFACER. C'est la coupure de la cliente de passage, mot
+   pour mot : le tort n'est pas de les garder, c'est de les COMPTER. Elle sort
+   des têtes couronnées, de la rétention, des prédictions et des relances ;
+   elle reste dans le chiffre d'affaires, dans la production de la maîtresse
+   qui l'a reçue, dans son carnet et dans la recherche. Réécrire le passé
+   parce que la relation s'est arrêtée ferait mentir tous les mois clos.
+
+   DEUX RAISONS, JAMAIS CONFONDUES, parce qu'elles ne commandent pas le même
+   geste : celle qui n'a plus de locks peut aller au STUDIO (les tresses, le
+   cheveu libre, les grands jours n'en demandent pas) ; celle qui dort en
+   porte encore, et lui proposer des tresses serait lui dire qu'on a renoncé
+   à sa couronne.
+
+   LA DIASPORA EST ÉPARGNÉE PAR LA SECONDE, PAS PAR LA PREMIÈRE. On ne compte
+   pas les mois de quelqu'un qui vit ailleurs, elle vient quand elle est au
+   pays. Mais un Gbàtà est un Gbàtà : sans locks, c'est sans locks, où qu'elle
+   habite. */
+
+/** Le nombre de mois sans venir au-delà duquel la Maison cesse d'attendre.
+    Un seul endroit le porte : cinq écrans qui écriraient « 5 » chacun de leur
+    côté finiraient par en porter trois différents. */
+export const MOIS_AVANT_SORTIE = 5;
+
+/** LA DATE D'IL Y A N MOIS, EN MOIS DE CALENDRIER — jamais en 150 jours.
+
+    Le 31 mars moins un mois donne le 28 février, jamais le 3 mars : sans ce
+    plafond, JavaScript déborde sur le mois suivant et la règle se déclenche
+    trois jours trop tôt une fois sur douze. Dates LOCALES, comme partout dans
+    la Maison — à Cotonou la nuit comptable ne se coupe pas en deux. */
+export const moisAvant = (iso: string, n: number): string => {
+  const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10));
+  const cible = new Date(y, (m - 1) - n, 1);
+  const dernierJour = new Date(cible.getFullYear(), cible.getMonth() + 1, 0).getDate();
+  const jour = Math.min(d, dernierJour);
+  const mm = String(cible.getMonth() + 1).padStart(2, '0');
+  return `${cible.getFullYear()}-${mm}-${String(jour).padStart(2, '0')}`;
+};
+
+/** ELLE DORT — plus de cinq mois sans s'asseoir, et elle n'est pas d'ailleurs.
+
+    STRICTEMENT PLUS : à cinq mois pile, elle n'est pas encore sortie. « Plus
+    de 5 mois » se lit comme la Maison le dit, et une règle qui sortirait une
+    tête le jour anniversaire de sa dernière venue surprendrait.
+
+    SANS DERNIÈRE VENUE, RIEN NE DORT : une fiche qui ne s'est jamais assise
+    est une VISITEUSE, elle a son propre registre. Lui appliquer les cinq mois
+    la ferait sortir d'une maison où elle n'est jamais entrée. */
+export const dortDepuisLongtemps = (
+  c: { diaspora?: boolean; segments?: readonly string[] },
+  derniereVenue: string | undefined,
+  aujourdhui: string,
+  mois: number = MOIS_AVANT_SORTIE,
+): boolean => {
+  if (!derniereVenue) return false;
+  if (estDiaspora(c)) return false;
+  return derniereVenue < moisAvant(aujourdhui, mois);
+};
+
+/** POURQUOI CETTE TÊTE EST SORTIE — ou `null` si elle est bien de la Maison.
+
+    UN SEUL JUGE, comme `estDiaspora` et `estDePassage`. Le registre s'en sert
+    pour lister, les compteurs pour ne plus compter, les relances pour se
+    taire : trois lectures différentes donneraient trois vérités, et un
+    compteur qui annonce 1 quand la Maison en reconnaît cinquante.
+
+    L'ORDRE DES RAISONS N'EST PAS INDIFFÉRENT : une tête peut porter les deux,
+    et c'est « sans locks » qu'il faut montrer, parce que c'est la seule qui
+    ouvre une porte — celle du Studio. */
+export type RaisonSortie = 'sans-locks' | 'dort';
+
+export const raisonDeLaSortie = (
+  c: Pick<Client, 'diaspora' | 'segments' | 'locksDefaits' | 'resteDeLaMaison' | 'dePassage'>,
+  o: { derniereVenue?: string; aujourdhui: string; rdvAVenir?: boolean },
+): RaisonSortie | null => {
+  /* ① LA MAIN D'ABORD. « La ramener dans la Maison » bat tous les faits ;
+     sans ce verrou le geste se déferait à la passe suivante. */
+  if (c.resteDeLaMaison) return null;
+  /* ② LA PASSANTE N'EST PAS UNE SORTIE. Elle n'a jamais été une relation :
+     rien ne peut la rendre inactive, elle ne l'a jamais été activement. Son
+     registre la tient déjà, et deux registres pour une tête, c'est un nom qui
+     s'affiche deux fois. */
+  if (estDePassage(c)) return null;
+  /* ③ SANS LOCKS — le champ porte la vérité, écrit par la main depuis
+     « celles qui ont glissé » OU par la lecture du carnet
+     (`mouvementsSansLocks`). Un seul champ, donc une seule vérité. */
+  if (aDefaitSesLocks(c)) return 'sans-locks';
+  /* ④ UN RENDEZ-VOUS À VENIR RÉVEILLE. Dès qu'une date est inscrite, la
+     Maison l'attend de nouveau — la dire sortie pendant qu'on la garde au
+     carnet serait se contredire à une page d'intervalle. */
+  if (o.rdvAVenir) return null;
+  if (dortDepuisLongtemps(c, o.derniereVenue, o.aujourdhui)) return 'dort';
+  return null;
+};
+
+/** LE CARNET RÉDUIT À CE QU'IL FAUT POUR JUGER — on ne noue pas les couches
+    pour trois champs : n'importe quel rendez-vous satisfait cette forme, et
+    `clients.ts` continue d'ignorer l'agenda. */
+export type RituelPourSortie = { clientId: string; date: string; status: string };
+
+/** LA CARTE DES SORTIES — la porte unique, celle que lisent le registre des
+    Clientes, le Tableau de bord et l'Analytique.
+
+    Chacun la calculait pour soi, il y a une heure encore, et c'est exactement
+    ainsi que naissent deux vérités pour une notion : le registre en montrait
+    quatorze, le tableau de bord en comptait douze, et personne n'aurait su
+    lequel avait raison. Un seul calcul, donc, et trois lecteurs.
+
+    ELLE NE PREND QUE DES TÊTES DE LA MAISON. Sortir suppose d'être entrée :
+    une passante n'a jamais été une relation, une visiteuse ne s'est jamais
+    assise, et leurs registres les tiennent déjà. */
+export function sortiesDeLaMaison(
+  clients: readonly Client[],
+  rituels: readonly RituelPourSortie[],
+  aujourdhui: string,
+): Map<string, RaisonSortie> {
+  const derniere = new Map<string, string>();
+  const aVenir = new Set<string>();
+  for (const a of rituels) {
+    if (!a.clientId) continue;
+    if (a.status === 'honoré') {
+      const d = derniere.get(a.clientId);
+      if (!d || a.date > d) derniere.set(a.clientId, a.date);
+    } else if (a.status !== 'annulé' && a.date >= aujourdhui) {
+      aVenir.add(a.clientId);
+    }
+  }
+  /* LES VENUES SONT CELLES DU CARNET — la même définition que `tetesVenues`
+     (shared/agenda.ts) : un rituel honoré, et rien d'autre. */
+  const venues = new Set(derniere.keys());
+  const m = new Map<string, RaisonSortie>();
+  for (const c of clients) {
+    if (!estDeLaMaison(c, venues)) continue;
+    const r = raisonDeLaSortie(c, {
+      derniereVenue: derniere.get(c.id),
+      aujourdhui,
+      rdvAVenir: aVenir.has(c.id),
+    });
+    if (r) m.set(c.id, r);
+  }
+  return m;
+}
+
+/** Elle est sortie de la base des têtes actives. */
+export const estSortie = (
+  c: Pick<Client, 'diaspora' | 'segments' | 'locksDefaits' | 'resteDeLaMaison' | 'dePassage'>,
+  o: { derniereVenue?: string; aujourdhui: string; rdvAVenir?: boolean },
+): boolean => raisonDeLaSortie(c, o) !== null;
+
+/* ── CE QUE LE CARNET DIT DES LOCKS ───────────────────────────────────
+   La règle est PURE ici, et éprouvée par `verifie-sortie`, plutôt que devinée
+   dans un effet React. Même découpe que `mouvementsDePassage` : la décision
+   d'un côté, l'écriture de l'autre.
+
+   ELLE REVIENT TOUTE SEULE — c'est ce qui rend le basculement automatique
+   acceptable. Une tête sortie n'est jamais enterrée : un VÈKPÈ™ honoré lui
+   rend ses locks au moment du geste, et un VÈKPÈ™ DÉJÀ AU CARNET la retient
+   avant même qu'elle sorte. Celle qui défait mardi pour refaire le mois
+   prochain ne bouge donc pas d'une heure. */
+
+export type TeteLocks = Pick<Client, 'id' | 'locksDefaits' | 'resteDeLaMaison'>;
+
+/** Ce que le carnet sait des locks d'une tête. Les dates sont ISO. */
+export type LectureDesLocks = {
+  /** Dernier GBÀTÀ™ honoré. */
+  gbata?: string;
+  /** Dernier VÈKPÈ™ honoré. */
+  vekpe?: string;
+  /** Une création inscrite au carnet, pas encore honorée ni annulée. */
+  vekpeAVenir?: boolean;
+};
+
+export function mouvementsSansLocks(
+  clients: readonly TeteLocks[],
+  lire: (id: string) => LectureDesLocks,
+): { sorties: Set<string>; rendues: Set<string> } {
+  const sorties = new Set<string>();
+  const rendues = new Set<string>();
+  for (const c of clients) {
+    /* CE QUE LA MAIN A POSÉ, LA MACHINE N'Y TOUCHE PAS — ni pour sortir une
+       tête ramenée, ni pour ramener une tête que la Maison a sortie. */
+    if (c.resteDeLaMaison) continue;
+    const l = lire(c.id);
+    /* LE CARNET DIT SANS LOCKS : un défaisage honoré, aucune création après,
+       et rien de prévu. Les trois conditions comptent — il en manque une et
+       la règle sort une tête qui revient dans quinze jours. */
+    const carnetDitSansLocks = !!l.gbata
+      && (!l.vekpe || l.vekpe < l.gbata)
+      && !l.vekpeAVenir;
+    /* LE CARNET LA CONTREDIT : une création honorée après le dernier défaisage,
+       ou une création au carnet. Elle a ses locks, la marque tombe — y compris
+       celle qu'une main avait posée, car le fauteuil a parlé depuis. */
+    const carnetRendLesLocks = (!!l.vekpe && (!l.gbata || l.vekpe > l.gbata)) || !!l.vekpeAVenir;
+
+    if (carnetDitSansLocks && !c.locksDefaits) sorties.add(c.id);
+    else if (carnetRendLesLocks && c.locksDefaits) rendues.add(c.id);
+  }
+  return { sorties, rendues };
+}
 
 /* ---------- Les VISITEURS — un compte, aucune venue ----------
 
