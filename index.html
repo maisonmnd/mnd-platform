@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1E2150" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Maison MND" />
+    <link rel="apple-touch-icon" href="/mnd-platform/assets/icons/portal-192.png" />
+    <link rel="manifest" href="/mnd-platform/manifest.portal.webmanifest" />
+    <link rel="icon" type="image/png" href="/mnd-platform/assets/monograms/mono-indigo.png" />
+    <title>Maison MND — Portail</title>
+    <!-- ══ LA CARTE DE LIEN — 7 septembre 2026 ═════════════════════════
+         « Quand j'envoie le lien de MND, ça doit se présenter comme celui de
+         Claude » (Yéman) : la carte compacte, vignette à gauche, titre et
+         phrase, pas la grande affiche blanche. WhatsApp ne fait la compacte
+         que si l'image est PETITE (sous ~300 px) — la vignette fait 240 px,
+         et c'est un choix, pas une économie.
+
+         AUCUN DOMAINE EN DUR : og:image et og:url exigent une adresse
+         absolue, et la règle de la Maison interdit d'en écrire une. Les
+         repères https://maisonmnd.github.io/mnd-platform/ / https://maisonmnd.github.io/mnd-platform/ sont remplacés par
+         build-sites.mjs, qui lit le compte GitHub depuis l'origine du dépôt,
+         comme le fait déjà la publication. En développement ils restent tels
+         quels : personne ne partage localhost. -->
+    <meta name="description" content="Le soin des locks à Cotonou. Le Trône, Ma Couronne et LOKAA, les maisons sœurs de MND." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Maison MND" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="Maison MND" />
+    <meta property="og:description" content="Le soin des locks à Cotonou. Le Trône, Ma Couronne et LOKAA, les maisons sœurs de MND." />
+    <meta property="og:url" content="https://maisonmnd.github.io/mnd-platform/" />
+    <meta property="og:image" content="https://maisonmnd.github.io/mnd-platform/assets/og/carte-lien.png" />
+    <meta property="og:image:width" content="240" />
+    <meta property="og:image:height" content="240" />
+    <meta name="twitter:card" content="summary" />
+
+    <script type="module" crossorigin src="/mnd-platform/assets/portail-B8nLkm4o.js"></script>
+    <link rel="stylesheet" crossorigin href="/mnd-platform/assets/portail-Bl0n0NH9.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
