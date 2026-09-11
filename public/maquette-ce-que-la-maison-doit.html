@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Ce que la Maison doit &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex;
+                 align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  .miroir { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+  @media (max-width:680px){ .miroir { grid-template-columns:1fr; } }
+  .face { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:15px 17px; }
+  .face u { text-decoration:none; display:block; font-size:10px; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--cuivre); margin-bottom:7px; }
+  .face b { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); display:block; }
+  .face small { display:block; font-size:12.5px; color:var(--encre-d); margin-top:5px; line-height:1.55; }
+  .face--fait { border-left:3px solid var(--vert); }
+  .face--manque { border-left:3px solid var(--brique); }
+
+  .onglets { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .ong { border:1px solid var(--filet); border-radius:99px; background:var(--blanc);
+         padding:7px 16px; font-size:12.5px; color:var(--encre-d); }
+  .ong.on { background:var(--indigo); border-color:var(--indigo); color:#EFEAE0; }
+
+  .fiche { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .fiche__t { display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+              flex-wrap:wrap; padding:14px 17px; border-bottom:1px solid var(--sable); }
+  .fiche__t b { font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); }
+  .fiche__t small { display:block; font-size:11.5px; color:var(--encre-d); }
+  .fiche__reste { text-align:right; }
+  .fiche__reste b { font-family:var(--serif); font-size:24px; color:var(--brique); }
+  .fiche__reste small { font-size:10.5px; color:var(--encre-d); }
+  .ech { display:grid; grid-template-columns:70px 1fr auto auto; gap:12px; align-items:center;
+         padding:9px 17px; border-top:1px solid var(--sable); font-size:13px; }
+  .ech__d { text-align:center; border:1px solid var(--filet); border-radius:4px; background:var(--ivoire);
+            padding:3px 2px; line-height:1.15; }
+  .ech__d u { display:block; text-decoration:none; font-size:9px; letter-spacing:.13em;
+              text-transform:uppercase; color:var(--encre-d); }
+  .ech__d b { font-family:var(--serif); font-weight:500; font-size:16px; color:var(--indigo); }
+  .etat { display:inline-block; border-radius:3px; padding:2px 8px; font-size:9.5px;
+          letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+  .etat--ok { background:var(--vert-f); color:var(--vert); border:1px solid var(--vert-p); }
+  .etat--du { background:var(--ambre-f); color:var(--ambre); border:1px solid var(--ambre-p); }
+  .etat--tard { background:var(--brique-f); color:var(--brique); border:1px solid var(--brique-p); }
+  .btn { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:6px 13px;
+         font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre); }
+  .btn--c { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .n { font-variant-numeric:tabular-nums; }
+
+  .champ { margin-bottom:13px; }
+  .champ > small { display:block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+                   color:var(--encre-d); margin-bottom:5px; }
+  .val { border:1px solid var(--filet); border-radius:4px; background:var(--blanc);
+         padding:9px 12px; font-size:14px; color:var(--encre); }
+  .val--select::after { content:' ▾'; color:var(--encre-d); float:right; }
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+  @media (max-width:620px){ .duo { grid-template-columns:1fr; } }
+  .avis { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); border-radius:4px;
+          background:var(--cuivre-f); padding:12px 15px; font-size:13px; line-height:1.6; margin-top:14px; }
+  .avis b { color:var(--indigo); font-weight:600; }
+
+  .synth { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .sl { display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+        padding:11px 16px; border-top:1px solid var(--sable); font-size:14px; }
+  .sl:first-child { border-top:none; }
+  .sl b { font-variant-numeric:tabular-nums; }
+  .sl--fort { background:var(--indigo-pale); }
+  .sl--fort b { font-family:var(--serif); font-size:19px; color:var(--indigo); font-weight:500; }
+  .sl--hors { background:var(--ivoire); }
+  .sl small { display:block; font-size:11px; color:var(--encre-d); }
+  .trait { height:1px; background:var(--filet); margin:0 16px; }
+
+  .doctrine { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px;
+              background:var(--ivoire); padding:16px 20px; max-width:78ch; }
+  .doctrine p { margin:8px 0; font-size:13.5px; color:var(--encre-d); }
+  .doctrine p:first-child { margin-top:0; }
+  .doctrine p:last-child { margin-bottom:0; }
+  .doctrine b { color:var(--encre); font-weight:500; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Le Tr&ocirc;ne &middot; Finances</p>
+  <h1>Ce que la Maison doit</h1>
+  <p class="chapeau">Les emprunts re&ccedil;us, leurs &eacute;ch&eacute;ances, leur reste d&ucirc;. Et avec eux,
+     <b>le d&eacute;faut sym&eacute;trique</b> que ce chantier oblige &agrave; r&eacute;parer : rembourser un
+     emprunt n'est pas une charge, pas plus que le recevoir n'&eacute;tait un revenu.</p>
+
+  <section>
+    <p class="cite">On peut faire ces chantiers.<span>Y&eacute;man &middot; 11 septembre 2026</span></p>
+  </section>
+
+  <!-- ① LE DÉFAUT -->
+  <section>
+    <h2><span class="num">&#9312;</span> Le d&eacute;faut qu'on n'avait pas vu</h2>
+    <p class="intro">Ce matin, nous avons pos&eacute; une r&egrave;gle : <b>un apport n'est pas un
+      gain</b>, donc un pr&ecirc;t re&ccedil;u n'entre pas au chiffre d'affaires. Nous avons b&acirc;ti
+      la porte d'entr&eacute;e. <b>Nous n'avons pas b&acirc;ti la sortie</b>, et j'ai dit &agrave; ce
+      moment-l&agrave; que le remboursement se saisirait &laquo;&nbsp;comme une d&eacute;pense
+      ordinaire&nbsp;&raquo;. C'&eacute;tait faux, et voici pourquoi.</p>
+
+    <div class="alerte">
+      <b>Rembourser 500&nbsp;000&nbsp;F d'emprunt n'appauvrit pas la Maison de 500&nbsp;000&nbsp;F.</b>
+      <p>Cet argent n'&eacute;tait pas &agrave; elle ; le rendre ne lui co&ucirc;te rien, il solde une
+        dette. Le compter en charge &eacute;craserait le r&eacute;sultat du mois d'un demi-million qui
+        n'a jamais &eacute;t&eacute; une d&eacute;pense.</p>
+      <p>C'est <b>exactement le miroir</b> de l'erreur qu'on a &eacute;vit&eacute;e ce matin. Compter
+        l'emprunt en revenu gonflait le mois o&ugrave; il arrive ; compter le remboursement en charge
+        l'&eacute;crase les mois suivants. Deux mensonges, m&ecirc;me famille.</p>
+    </div>
+
+    <div class="miroir">
+      <div class="face face--fait">
+        <u>Ce qui existe depuis ce matin</u>
+        <b>Entr&eacute;es hors activit&eacute;</b>
+        <small>L'argent entre en caisse, se voit au registre, peut payer une d&eacute;pense, et ne
+          touche ni au chiffre d'affaires ni au r&eacute;sultat.</small>
+      </div>
+      <div class="face face--manque">
+        <u>Ce qui manque, et que ce chantier ajoute</u>
+        <b>Sorties hors activit&eacute;</b>
+        <small>L'argent sort de la caisse, se voit au registre, et ne touche pas au r&eacute;sultat non
+          plus. Sans elle, la sym&eacute;trie est bancale et le r&eacute;sultat ment d'un c&ocirc;t&eacute;.</small>
+      </div>
+    </div>
+    <p class="legende"><b>La seule exception, et elle compte</b> &middot; si l'emprunt co&ucirc;te plus
+      qu'il n'a rapport&eacute; (500&nbsp;000 re&ccedil;us, 550&nbsp;000 &agrave; rendre), les
+      50&nbsp;000&nbsp;F de diff&eacute;rence sont <b>le prix de l'argent</b>, et &ccedil;a, c'est une
+      vraie charge. Elle part en d&eacute;pense, cat&eacute;gorie &laquo;&nbsp;Frais
+      financiers&nbsp;&raquo;, r&eacute;partie sur les &eacute;ch&eacute;ances.</p>
+  </section>
+
+  <!-- ② LA FICHE -->
+  <section>
+    <h2><span class="num">&#9313;</span> L'emprunt, sa fiche et son &eacute;ch&eacute;ancier</h2>
+    <p class="intro">Un troisi&egrave;me onglet dans <b>Les pr&ecirc;ts</b>, qui tient d&eacute;j&agrave;
+      ce que la Maison pr&ecirc;te et ses objectifs. Le m&ecirc;me &eacute;cran pour les deux sens de la
+      dette : ce qu'on nous doit, ce que nous devons.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Les pr&ecirc;ts</h4><span>Finances</span></div>
+      <div class="ecran__corps">
+        <div class="onglets">
+          <span class="ong">Ce que la Maison a pr&ecirc;t&eacute;</span>
+          <span class="ong on">Ce que la Maison doit &middot; 1</span>
+          <span class="ong">Objectifs</span>
+        </div>
+        <div class="fiche">
+          <div class="fiche__t">
+            <span>
+              <b>M. A.</b>
+              <small>Avance du loyer &middot; re&ccedil;u le 11 sept. 2026 &middot; Caisse principale</small>
+            </span>
+            <span class="fiche__reste">
+              <b>350 000 F</b>
+              <small>reste d&ucirc; sur 500 000 F</small>
+            </span>
+          </div>
+          <div class="ech">
+            <span class="ech__d"><u>sept</u><b>30</b></span>
+            <span>1<sup>re</sup> &eacute;ch&eacute;ance</span>
+            <span class="n">150 000 F</span>
+            <span class="etat etat--ok">R&eacute;gl&eacute;e</span>
+          </div>
+          <div class="ech">
+            <span class="ech__d"><u>oct</u><b>31</b></span>
+            <span>2<sup>e</sup> &eacute;ch&eacute;ance</span>
+            <span class="n">175 000 F</span>
+            <span class="btn btn--c">Rembourser</span>
+          </div>
+          <div class="ech">
+            <span class="ech__d"><u>nov</u><b>30</b></span>
+            <span>3<sup>e</sup> &eacute;ch&eacute;ance</span>
+            <span class="n">175 000 F</span>
+            <span class="etat etat--du">&Agrave; venir</span>
+          </div>
+        </div>
+        <p class="legende" style="margin-top:16px"><b>500 000 re&ccedil;us, 550 000 &agrave; rendre</b> :
+          les 50 000 F de diff&eacute;rence sont le prix de cet argent. Chaque &eacute;ch&eacute;ance en
+          porte sa part, et cette part-l&agrave; seule devient une charge.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ LA SAISIE -->
+  <section>
+    <h2><span class="num">&#9314;</span> Le poser, sans double saisie</h2>
+    <p class="intro">Cr&eacute;er l'emprunt <b>cr&eacute;e aussi l'entr&eacute;e hors
+      activit&eacute;</b> : l'argent n'est compt&eacute; qu'une fois, et personne n'a &agrave; penser
+      &agrave; la seconde &eacute;criture.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Nouvel emprunt</h4><span>Ce que la Maison doit</span></div>
+      <div class="ecran__corps">
+        <div class="duo">
+          <div class="champ"><small>Qui pr&ecirc;te</small><div class="val">M. A.</div></div>
+          <div class="champ"><small>Pourquoi</small><div class="val">Avance du loyer</div></div>
+        </div>
+        <div class="duo">
+          <div class="champ"><small>Montant re&ccedil;u</small><div class="val">500 000 F</div></div>
+          <div class="champ"><small>Dans quelle caisse</small><div class="val val--select">Caisse principale</div></div>
+        </div>
+        <div class="duo">
+          <div class="champ"><small>Montant total &agrave; rendre</small><div class="val">550 000 F</div></div>
+          <div class="champ"><small>En combien de fois</small><div class="val val--select">3 versements mensuels</div></div>
+        </div>
+        <div class="champ"><small>Premi&egrave;re &eacute;ch&eacute;ance</small><div class="val">30 septembre 2026</div></div>
+        <div class="avis">
+          <b>Le Tr&ocirc;ne &eacute;crira deux choses.</b> Une <b>entr&eacute;e hors activit&eacute;</b>
+          de 500&nbsp;000&nbsp;F dans la caisse principale, qui pourra payer des d&eacute;penses d&egrave;s
+          aujourd'hui. Et un <b>&eacute;ch&eacute;ancier</b> de trois versements, dont le premier au
+          30&nbsp;septembre. Rien &agrave; ressaisir ailleurs.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ LE REMBOURSEMENT -->
+  <section>
+    <h2><span class="num">&#9315;</span> Rembourser, en un geste juste</h2>
+    <p class="intro">Le bouton <b>Rembourser</b> d'une &eacute;ch&eacute;ance demande une seule chose,
+      la caisse d'o&ugrave; sort l'argent. Le reste, il le sait.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Rembourser la 2<sup>e</sup> &eacute;ch&eacute;ance</h4><span>M. A. &middot; 175 000 F</span></div>
+      <div class="ecran__corps">
+        <div class="duo">
+          <div class="champ"><small>D'o&ugrave; sort l'argent</small><div class="val val--select">Caisse principale</div></div>
+          <div class="champ"><small>Le jour</small><div class="val">31 octobre 2026</div></div>
+        </div>
+        <div class="synth" style="margin-top:6px">
+          <div class="sl"><span>Part de la dette rendue<small>sortie hors activit&eacute;, n'entame pas le r&eacute;sultat</small></span><b>159 091 F</b></div>
+          <div class="sl"><span>Prix de l'argent<small>d&eacute;pense &middot; frais financiers</small></span><b>15 909 F</b></div>
+          <div class="sl sl--fort"><span>Sorti de la caisse</span><b>175 000 F</b></div>
+        </div>
+        <p class="legende"><b>Deux &eacute;critures, un seul geste.</b> La caisse baisse de
+          175&nbsp;000&nbsp;F, c'est l'argent r&eacute;el. Mais seuls 15&nbsp;909&nbsp;F touchent le
+          r&eacute;sultat du mois : le reste rendait ce qui n'&eacute;tait pas &agrave; nous. Le reste
+          d&ucirc; de l'emprunt passe de 350&nbsp;000 &agrave; 175&nbsp;000&nbsp;F.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑤ LA SYNTHÈSE -->
+  <section>
+    <h2><span class="num">&#9316;</span> &Agrave; la Synth&egrave;se, la sym&eacute;trie</h2>
+    <p class="intro">Les lignes pos&eacute;es ce matin gagnent leur miroir, et une derni&egrave;re dit ce
+      que la Maison doit encore.</p>
+    <div class="ecran"><div class="ecran__corps">
+      <div class="synth">
+        <div class="sl"><span>Revenus d'activit&eacute;</span><b>1 240 000 F</b></div>
+        <div class="sl"><span>Charges &amp; d&eacute;penses<small>frais financiers compris</small></span><b>&minus; 875 909 F</b></div>
+        <div class="sl sl--fort"><span>R&eacute;sultat du mois</span><b>364 091 F</b></div>
+        <div class="trait"></div>
+        <div class="sl sl--hors"><span>Entr&eacute;es hors activit&eacute;<small>pr&ecirc;t re&ccedil;u &middot; vente de mat&eacute;riel</small></span><b>515 000 F</b></div>
+        <div class="sl sl--hors"><span>Sorties hors activit&eacute;<small>remboursement d'emprunt</small></span><b>&minus; 159 091 F</b></div>
+        <div class="sl sl--hors"><span>Mouvement r&eacute;el de la caisse<small>activit&eacute; + hors activit&eacute;</small></span><b>719 909 F</b></div>
+        <div class="trait"></div>
+        <div class="sl"><span>Ce que la Maison doit encore<small>1 emprunt &middot; prochaine &eacute;ch&eacute;ance le 30 nov.</small></span><b>175 000 F</b></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- DOCTRINE -->
+  <section>
+    <h2>Les r&egrave;gles qu'on se donne</h2>
+    <div class="doctrine">
+      <p><b>Rendre n'est pas d&eacute;penser, recevoir n'est pas gagner.</b> La dette entre et sort
+        hors du r&eacute;sultat, dans les deux sens. Seul le <b>prix de l'argent</b> est une charge, et
+        il l'est &agrave; chaque &eacute;ch&eacute;ance, pas d'un coup.</p>
+      <p><b>Un seul geste, deux &eacute;critures.</b> Cr&eacute;er l'emprunt cr&eacute;e l'entr&eacute;e ;
+        rembourser une &eacute;ch&eacute;ance &eacute;crit la sortie et, s'il y a lieu, la charge.
+        Demander deux saisies, c'est garantir qu'une des deux manquera un jour.</p>
+      <p><b>La caisse dit toujours la v&eacute;rit&eacute;.</b> Quoi qu'il arrive au r&eacute;sultat, ce
+        qui sort du tiroir en sort pour de bon : 175&nbsp;000&nbsp;F, pas 15&nbsp;909.</p>
+      <p><b>Ce qui ne bouge pas</b> : &laquo;&nbsp;Ce que la Maison a pr&ecirc;t&eacute;&nbsp;&raquo;
+        garde son onglet et sa m&eacute;canique ; le Coffre et Salon &amp; Foyer gardent les leurs.
+        Ce chantier n'ouvre qu'un sens de plus, celui de la dette re&ccedil;ue.</p>
+      <p><b>Ce que je ne construis pas</b>, sauf demande : les int&eacute;r&ecirc;ts compos&eacute;s, les
+        &eacute;ch&eacute;anciers irr&eacute;guliers, les p&eacute;nalit&eacute;s de retard. Un montant
+        total &agrave; rendre et N versements &eacute;gaux couvrent ce qu'un salon rencontre ;
+        au-del&agrave;, c'est un tableur de banque, pas un ERP de maison.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
