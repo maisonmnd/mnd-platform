@@ -173,6 +173,55 @@ Deno.serve(async (req) => {
 
        `WA_PHONE_ID` sait qui il est ; il suffit de le lui demander. Une
        requête, et l'on saura si l'on teste la bonne ligne. */
+    /* ══ L'ÉTAT COMPLET DU COMPTE — 12 septembre 2026 ═══════════════
+       Le faux message de Meta traverse toute la chaîne ; les vrais ne
+       provoquent AUCUN appel. Ma fonction écrit son premier mot avant toute
+       garde : si cette ligne manque, Meta ne nous a pas appelés. Le défaut
+       n'est donc pas dans le Trône, et trois hypothèses successives se sont
+       révélées fausses.
+
+       ON CESSE DE DEVINER. Meta sait dans quel état est ce compte et ses
+       numéros : le statut de connexion, la vérification du code, le débit
+       autorisé, la qualité. Aucun de ces champs n'apparaît dans les écrans
+       du tableau de bord, et l'un d'eux dira pourquoi l'entrée est muette.
+
+       `?numeros=<identifiant du compte WhatsApp>`. */
+    const leCompte = new URL(req.url).searchParams.get('numeros');
+    if (leCompte) {
+      const jeton = (Deno.env.get('WA_TOKEN') ?? '').trim();
+      if (!jeton) {
+        return new Response(JSON.stringify({ verdict: 'WA_TOKEN manque' }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      try {
+        const champs = 'id,display_phone_number,verified_name,status,code_verification_status,'
+          + 'quality_rating,platform_type,throughput,name_status,messaging_limit_tier';
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${encodeURIComponent(leCompte)}/phone_numbers?fields=${champs}`,
+          { headers: { authorization: `Bearer ${jeton}` } },
+        );
+        const rep = await r.json().catch(() => ({}));
+        const branche = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
+        return new Response(JSON.stringify(
+          r.ok
+            ? {
+              compte: leCompte,
+              numeroBrancheSurLeTrone: branche,
+              numeros: (rep.data ?? []).map((n: Record<string, unknown>) => ({
+                ...n,
+                estCeluiDuTrone: String(n.id) === branche,
+              })),
+              aLire: 'status doit valoir CONNECTED et code_verification_status VERIFIED. '
+                + 'Tout autre valeur explique une entrée muette.',
+            }
+            : { verdict: 'Meta refuse', refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`) },
+          null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ verdict: 'Meta injoignable', detail: String(e) }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+    }
+
     if (new URL(req.url).searchParams.get('numero')) {
       const jeton = (Deno.env.get('WA_TOKEN') ?? '').trim();
       const phoneId = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
@@ -252,6 +301,7 @@ Deno.serve(async (req) => {
       jwt: 'décoché, sinon vous ne liriez pas ceci',
       pourVerifierLeSecret: 'ajoutez ?verifie=<identifiant de votre app Meta> à cette adresse',
       pourSavoirQuelNumero: 'ajoutez ?numero=1 à cette adresse',
+      pourVoirTousLesNumeros: 'ajoutez ?numeros=<identifiant du compte WhatsApp> à cette adresse',
     }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
   }
 
