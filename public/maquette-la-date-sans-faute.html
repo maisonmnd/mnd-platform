@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La date sans faute &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9; --cuivre-s:#8A5326;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:940px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,54px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,30px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:54px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 20px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 26px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.88em;
+         background:var(--indigo-pale); padding:1px 5px; border-radius:2px; color:var(--indigo-2); }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:7px 0 0; font-size:13.5px; line-height:1.6; }
+
+  .duo { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px; align-items:start; }
+  @media (max-width:760px){ .duo { grid-template-columns:1fr; } }
+
+  .champ { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:16px 17px; }
+  .champ u { text-decoration:none; display:block; font-size:10px; letter-spacing:.14em;
+             text-transform:uppercase; color:var(--cuivre); margin-bottom:9px; }
+  .saisie { border:1px solid var(--filet); border-radius:3px; padding:9px 12px; font-size:15px;
+            color:var(--encre); background:var(--ivoire); }
+  .saisie--vide { color:var(--encre-d); }
+  .saisie--focus { border-color:var(--cuivre); background:#fff; }
+  .relit { font-family:var(--serif); font-size:25px; line-height:1.15; color:var(--indigo); margin-top:11px; }
+  .relit small { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.14em;
+                 text-transform:uppercase; color:var(--encre-d); margin-bottom:3px; }
+  .relit--rouge { color:var(--brique); }
+  .relit--gris { color:var(--filet); }
+  .avert { margin-top:9px; font-size:12.5px; color:var(--brique); border-left:2px solid var(--brique);
+           padding-left:10px; }
+  .aide { margin-top:9px; font-size:11.5px; color:var(--encre-d); }
+
+  .puces { display:flex; gap:6px; flex-wrap:wrap; margin-top:11px; align-items:center; }
+  .puces span.q { font-size:11px; color:var(--encre-d); margin-right:2px; }
+  .puce { border:1px solid var(--filet); border-radius:3px; background:transparent;
+          padding:3px 10px; font-size:11.5px; color:var(--encre-d); font-family:var(--sans); }
+  .puce.on { border-color:var(--cuivre); background:var(--cuivre-f); color:var(--cuivre-s); }
+
+  /* Le calendrier de la Maison */
+  .cal { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:13px; margin-top:12px; }
+  .cal__t { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cal__t b { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .cal__fl { border:1px solid var(--filet); border-radius:3px; background:none; width:26px; height:26px;
+             color:var(--encre-d); font-family:var(--sans); font-size:13px; line-height:1; }
+  .cal__g { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cal__j { text-align:center; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+            color:var(--encre-d); padding:3px 0 5px; }
+  .cal__c { text-align:center; padding:6px 0; border-radius:3px; font-size:13px; color:var(--encre);
+            border:1px solid transparent; }
+  .cal__c.hors { color:var(--filet); }
+  .cal__c.auj { border-color:var(--cuivre-p); }
+  .cal__c.pris { background:var(--indigo); color:#EFEAE0; }
+  .cal__c.ferme { color:var(--filet); text-decoration:line-through; }
+  .cal__pied { margin-top:9px; font-size:11px; color:var(--encre-d); display:flex; gap:12px; flex-wrap:wrap; }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .fin { margin-top:60px; padding-top:26px; border-top:1px solid var(--filet);
+         font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le carnet &middot; la saisie d&rsquo;un rendez-vous</p>
+  <h1>La date sans faute.</h1>
+  <p class="chapeau">
+    Ce n&rsquo;est pas une distraction de la secr&eacute;taire. Le calendrier qu&rsquo;on lui donne
+    <b>n&rsquo;est pas celui de la Maison</b> : il vient du navigateur, il parle anglais, et il
+    attend le mois avant le jour. Elle tape le 3 septembre, il enregistre le 9 mars, et il a
+    raison selon ses propres r&egrave;gles.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; Lors des saisies de RDV la secr&eacute;taire se trompe toujours sur la saisie des
+      dates. Comment rendre le processus facile et lisible&nbsp;? &raquo;
+      <span>Y&eacute;man &middot; 12 septembre 2026</span>
+    </p>
+
+    <div class="alerte">
+      <b>Trois d&eacute;fauts, trouv&eacute;s dans le code.</b>
+      <p>
+        <b>Le calendrier natif inverse jour et mois.</b> Sous un navigateur en anglais,
+        <code>type="date"</code> affiche <code>mm/jj/aaaa</code>. Le champ n&rsquo;a jamais
+        &eacute;t&eacute; fautif : il obtient ce qu&rsquo;on lui donne.
+      </p>
+      <p>
+        <b>Les ann&eacute;es propos&eacute;es ne regardent que le pass&eacute;.</b> Quand
+        l&rsquo;ann&eacute;e n&rsquo;est pas tap&eacute;e, la Maison offre l&rsquo;ann&eacute;e en
+        cours, la pr&eacute;c&eacute;dente et celle d&rsquo;avant. En d&eacute;cembre, poser un
+        rituel de janvier n&rsquo;a donc <b>aucune</b> bonne r&eacute;ponse dans la liste.
+      </p>
+      <p>
+        <b>Rien ne pr&eacute;vient quand la date tombe derri&egrave;re nous.</b> Le rendez-vous se
+        cr&eacute;e, dispara&icirc;t du carnet du jour, et personne ne le voit avant que la
+        cliente se pr&eacute;sente.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Ce qu&rsquo;on relit</p>
+    <h2>La date &eacute;crite en toutes lettres.</h2>
+    <p class="intro">
+      La s&eacute;curit&eacute; de tout ce champ tient &agrave; une seule ligne : <b>celle qui
+      redit ce qu&rsquo;on vient de taper.</b> Elle existe d&eacute;j&agrave;, en gris, en onze
+      pixels et demi, sous un champ, au milieu d&rsquo;une modale charg&eacute;e. Personne ne la
+      lit. Elle passe en gros, dans la serif de la Maison, avec <b>son jour de semaine</b>.
+    </p>
+
+    <div class="duo">
+      <div class="champ">
+        <u>Ce qu&rsquo;elle tape</u>
+        <div class="saisie saisie--focus">3/9</div>
+        <div class="relit">
+          <small>La Maison lit</small>
+          Mercredi 3 septembre 2026
+        </div>
+        <div class="puces">
+          <span class="q">Quelle ann&eacute;e&nbsp;?</span>
+          <span class="puce on">2026</span>
+          <span class="puce">2027</span>
+          <span class="puce">2025</span>
+        </div>
+        <p class="aide">3/9 &middot; 3 sept &middot; 3 septembre &middot; 03-09-26 &middot; tout se lit.</p>
+      </div>
+
+      <div class="champ">
+        <u>Quand la date est derri&egrave;re nous</u>
+        <div class="saisie saisie--focus">3/8</div>
+        <div class="relit relit--rouge">
+          <small>La Maison lit</small>
+          Lundi 3 ao&ucirc;t 2026
+        </div>
+        <div class="avert">
+          Ce jour est <b>pass&eacute; depuis 40 jours</b>. Un rendez-vous pos&eacute; l&agrave;
+          ne para&icirc;tra dans aucun carnet.
+        </div>
+        <div class="puces">
+          <span class="q">Vouliez-vous dire&nbsp;?</span>
+          <span class="puce">Lun. 3 ao&ucirc;t 2027</span>
+          <span class="puce">Lun. 8 mars 2027</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Le jour de la semaine est la meilleure alarme qui soit.</b> Une cliente dit
+      &laquo; samedi &raquo;, l&rsquo;&eacute;cran dit &laquo; mercredi &raquo; : la faute saute
+      aux yeux avant d&rsquo;&ecirc;tre &eacute;crite, sans qu&rsquo;on ait rien &agrave;
+      v&eacute;rifier.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;Le calendrier</p>
+    <h2>Celui de la Maison, en fran&ccedil;ais.</h2>
+    <p class="intro">
+      Le calendrier reste, parce qu&rsquo;on en a besoin pour dire &laquo; le samedi
+      d&rsquo;apr&egrave;s &raquo;. Mais ce n&rsquo;est plus celui du navigateur.
+      <b>La semaine commence le lundi</b>, les jours ferm&eacute;s de la Maison sont barr&eacute;s,
+      et il s&rsquo;ouvre sur le mois de la date en cours, jamais sur aujourd&rsquo;hui.
+    </p>
+
+    <div style="max-width:330px">
+      <div class="cal">
+        <div class="cal__t">
+          <span class="cal__fl">&lsaquo;</span>
+          <b>Septembre 2026</b>
+          <span class="cal__fl">&rsaquo;</span>
+        </div>
+        <div class="cal__g">
+          <span class="cal__j">L</span><span class="cal__j">M</span><span class="cal__j">M</span>
+          <span class="cal__j">J</span><span class="cal__j">V</span><span class="cal__j">S</span>
+          <span class="cal__j">D</span>
+          <span class="cal__c hors">31</span><span class="cal__c">1</span><span class="cal__c">2</span>
+          <span class="cal__c">3</span><span class="cal__c">4</span><span class="cal__c">5</span>
+          <span class="cal__c ferme">6</span>
+          <span class="cal__c ferme">7</span><span class="cal__c">8</span><span class="cal__c">9</span>
+          <span class="cal__c">10</span><span class="cal__c">11</span><span class="cal__c auj">12</span>
+          <span class="cal__c ferme">13</span>
+          <span class="cal__c ferme">14</span><span class="cal__c">15</span><span class="cal__c">16</span>
+          <span class="cal__c">17</span><span class="cal__c">18</span><span class="cal__c pris">19</span>
+          <span class="cal__c ferme">20</span>
+          <span class="cal__c ferme">21</span><span class="cal__c">22</span><span class="cal__c">23</span>
+          <span class="cal__c">24</span><span class="cal__c">25</span><span class="cal__c">26</span>
+          <span class="cal__c ferme">27</span>
+          <span class="cal__c ferme">28</span><span class="cal__c">29</span><span class="cal__c">30</span>
+          <span class="cal__c hors">1</span><span class="cal__c hors">2</span><span class="cal__c hors">3</span>
+          <span class="cal__c hors">4</span>
+        </div>
+        <div class="cal__pied">
+          <span>Cercle cuivre &middot; aujourd&rsquo;hui</span>
+          <span>Barr&eacute; &middot; la Maison est ferm&eacute;e</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Les jours ferm&eacute;s viennent des horaires du salon</b>, ceux qui sont d&eacute;j&agrave;
+      pos&eacute;s aux Param&egrave;tres. Poser un rituel un jour de fermeture reste possible, il
+      arrive qu&rsquo;on ouvre exprès, mais l&rsquo;&oelig;il sait ce qu&rsquo;il fait.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Les d&eacute;tails qui font la diff&eacute;rence</p>
+    <h2>Six petites choses.</h2>
+
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr><th>Aujourd&rsquo;hui</th><th>Demain</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Le champ garde le texte mis en forme</b><br>&laquo; 12 sept. 2026 &raquo; qu&rsquo;il faut &eacute;diter &agrave; la main.</td>
+            <td>Au clic, <b>tout se s&eacute;lectionne</b>. On retape, on n&rsquo;efface pas.</td>
+          </tr>
+          <tr>
+            <td><b>Les ann&eacute;es offertes regardent en arri&egrave;re</b><br>2026, 2025, 2024.</td>
+            <td>Pour un rendez-vous, <b>elles regardent en avant</b> : 2026, 2027. Pour un anniversaire, en arri&egrave;re. Le champ sait ce qu&rsquo;il sert.</td>
+          </tr>
+          <tr>
+            <td><b>Aucune alerte sur une date pass&eacute;e</b></td>
+            <td>Une ligne brique, et la date corrig&eacute;e propos&eacute;e &agrave; c&ocirc;t&eacute;.</td>
+          </tr>
+          <tr>
+            <td><b>La relecture en 11,5 px gris</b></td>
+            <td>En serif, en 25 px, avec le jour de la semaine.</td>
+          </tr>
+          <tr>
+            <td><b>Le calendrier du navigateur</b><br>anglais, mois avant jour, ouvre sur le mois courant.</td>
+            <td><b>Celui de la Maison</b> : lundi d&rsquo;abord, jours ferm&eacute;s barr&eacute;s, ouvre sur la date en cours.</td>
+          </tr>
+          <tr>
+            <td><b>Rien ne dit ce qu&rsquo;on peut taper</b></td>
+            <td>Sous le champ, en petit : <code>3/9 &middot; 3 sept &middot; 3 septembre &middot; 03-09-26</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;O&ugrave; &ccedil;a s&rsquo;applique</p>
+    <h2>Un champ, toute la Maison.</h2>
+    <p class="intro">
+      Le Tr&ocirc;ne porte <b>soixante-dix-sept</b> champs de date natifs. Je ne les remplace pas
+      tous d&rsquo;un coup : on commence par ceux o&ugrave; une faute co&ucirc;te cher.
+    </p>
+    <ul class="liste">
+      <li><b>La modale de rendez-vous</b>, celle o&ugrave; la secr&eacute;taire se trompe. Elle utilise d&eacute;j&agrave; le bon champ, mais son calendrier repli&eacute; est encore celui du navigateur.</li>
+      <li><b>La saisie en s&eacute;rie</b> et <b>le rendez-vous du foyer</b>, m&ecirc;me geste, m&ecirc;me risque.</li>
+      <li><b>Les anniversaires</b>, avec les ann&eacute;es qui regardent en arri&egrave;re cette fois.</li>
+      <li>Le reste suivra, &agrave; mesure. Un champ de date dans un &eacute;cran de r&eacute;glages qu&rsquo;on ouvre deux fois l&rsquo;an ne presse pas.</li>
+    </ul>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Rien n&rsquo;est &eacute;crit dans le
+    Tr&ocirc;ne tant que tu n&rsquo;as pas dit &laquo; construis &raquo;. Aucune migration :
+    ce chantier ne touche qu&rsquo;&agrave; la fa&ccedil;on de saisir, jamais &agrave; ce qui est
+    enregistr&eacute;. Les dates d&eacute;j&agrave; pos&eacute;es ne bougent pas d&rsquo;un jour.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -167,6 +167,16 @@ export type ReceiptSources = {
   abonnements: { id: string; clientId?: string; name?: string; payments?: { id: string; amountXof: number; date: string; method?: string }[] }[];
   /** Nom d'une cliente à partir de son identifiant. */
   nameOf: (clientId?: string) => string;
+  /** LE NOM DU FOYER QUI A DÉPOSÉ — 12 septembre 2026.
+
+      « Là où il y a compte famille, écrire le nom de la famille qui a fait le
+      dépôt » (Yéman). Le registre affichait « Compte famille » pour TOUS les
+      foyers : cent quarante-cinq mille francs déposés, et aucun moyen de
+      savoir par qui sans ouvrir Comptes & Avoirs.
+
+      Absente, on retombe sur « Compte famille » — un écran qui n'a pas les
+      foyers sous la main ne doit pas cesser d'afficher ses encaissements. */
+  familleNommee?: (familyId: string) => string | undefined;
   /** Libellé des prestations d'un rituel. */
   apptLabel: (a: Appointment) => string;
   /** L'argent entré SANS venir d'un rituel — apport, prêt reçu, remboursement,
@@ -394,7 +404,9 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       kind: 'avoir',
       date: m.date.slice(0, 10),
       clientId: m.holderType === 'client' ? m.holderId : undefined,
-      clientName: m.holderType === 'client' ? s.nameOf(m.holderId) : 'Compte famille',
+      clientName: m.holderType === 'client'
+        ? s.nameOf(m.holderId)
+        : (s.familleNommee?.(m.holderId) ?? 'Compte famille'),
       amountXof: m.amountXof,
       /* LA CAISSE ET LE MOYEN VIENNENT DU MOUVEMENT — 21 août 2026. Ils étaient
          jetés ici : « Espèces », sans caisse, codés en dur. Dépenses créditait
