@@ -148,6 +148,54 @@ Deno.serve(async (req) => {
      manque, EN LONGUEURS SEULES : assez pour trancher, rien à voler. */
   if (req.method === 'GET' && !new URL(req.url).searchParams.get('hub.mode')) {
     const lg = (n: string) => (Deno.env.get(n) ?? '').trim().length;
+
+    /* ══ META TRANCHE LUI-MÊME — 12 septembre 2026 ═══════════════════
+       « SIGNATURE INVALIDE PAR LES DEUX CALCULS », trois fois de suite, et
+       aucun moyen de savoir si le secret posé avait changé ni s'il valait
+       mieux que le précédent. On tournait en rond à comparer des empreintes
+       sans jamais pouvoir dire à qui le secret appartenait.
+
+       LA RÉPONSE EST CHEZ META, ET ELLE EST GRATUITE. Un jeton
+       d'application se fabrique en collant `identifiant|secret` : si le
+       couple est juste, Graph répond le nom de l'app ; s'il est faux, il
+       refuse. Une requête, une certitude, et plus une seule supposition.
+
+       `?verifie=<identifiant de l'app>` — l'identifiant n'est pas un secret,
+       il s'affiche dans l'URL du tableau de bord Meta. Le SECRET, lui, ne
+       sort jamais d'ici : on n'en rend que le verdict et le nom de l'app. */
+    const aVerifier = new URL(req.url).searchParams.get('verifie');
+    if (aVerifier) {
+      const secret = (Deno.env.get('WA_APP_SECRET') ?? '').trim();
+      if (!secret) {
+        return new Response(JSON.stringify({ verdict: 'WA_APP_SECRET n’est pas posé' }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${encodeURIComponent(aVerifier)}`
+          + `?fields=name,id&access_token=${encodeURIComponent(`${aVerifier}|${secret}`)}`,
+        );
+        const rep = await r.json().catch(() => ({}));
+        return new Response(JSON.stringify(
+          r.ok && rep?.id
+            ? {
+              verdict: 'LE SECRET EST BIEN CELUI DE CETTE APPLICATION',
+              application: rep.name,
+              identifiant: rep.id,
+              suite: 'Si les signatures échouent malgré cela, la cause est ailleurs : dites-le-moi.',
+            }
+            : {
+              verdict: 'LE SECRET N’APPARTIENT PAS À CETTE APPLICATION',
+              refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`),
+              suite: 'Reprenez l’App Secret dans App settings > Basic de CETTE app-là.',
+            },
+          null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ verdict: 'Meta injoignable', detail: String(e) }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+    }
+
     return new Response(JSON.stringify({
       fonction: 'whatsapp-webhook',
       secrets: {
@@ -159,6 +207,7 @@ Deno.serve(async (req) => {
       /* Si vous lisez ceci dans un navigateur SANS être connecté, c'est que
          « Verify JWT » est bien décoché. C'est la preuve qu'on cherchait. */
       jwt: 'décoché, sinon vous ne liriez pas ceci',
+      pourVerifierLeSecret: 'ajoutez ?verifie=<identifiant de votre app Meta> à cette adresse',
     }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
   }
 
