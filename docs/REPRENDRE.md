@@ -141,6 +141,57 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## L'OREILLE ATTEND META — 12 septembre 2026, EN REVUE
+
+Une nuit entière de diagnostic, **cinq causes empilées**, chacune masquant la
+suivante. On les note toutes, parce que la même panne se reconstruira un jour.
+
+**① Ma migration 0086 n'inscrivait pas la table au temps réel.** Réparée par
+0087, qui répare aussi 0084 et 0085. À RETENIR : `create table` + RLS +
+**publication temps réel**, les trois ou l'écran ment.
+
+**② Ma serrure lisait le corps en texte puis le RÉ-ENCODAIT** pour calculer
+l'empreinte. Juste en ASCII pur, faux dès qu'un accent passe. On signe les
+octets reçus, tels quels.
+
+**③ Le secret posé était celui de Threads**, pris sur la même page d'App
+settings, cinq cents pixels plus bas. Deux champs presque homonymes.
+
+**④ Le webhook vivait sur la mauvaise application.** *MND messaging* est en
+développement, *Maison MND* est en Live. Trouvé par Yéman, pas par moi.
+
+**⑤ Et surtout : nous avons passé la nuit à abonner le COMPTE D'ESSAI.** La
+page API Setup annonçait `1719550029471347` parce que son sélecteur « From »
+était resté sur le numéro d'essai américain. Le vrai numéro vit dans
+`1891057041532944`, possédé par le portefeuille MND.
+
+**LA CAUSE FINALE N'ÉTAIT VISIBLE QUE DE META** : `whatsapp_business_messaging`
+est en accès STANDARD sur *Maison MND*. Le standard suffit aux messages de
+test, l'**accès avancé** est exigé pour recevoir les webhooks des vrais
+messages. Demande soumise le 12 septembre, revue sous vingt jours.
+
+### CE QUI A SAUVÉ LE DIAGNOSTIC
+
+La fonction ne disait RIEN quand tout allait bien : le journal ne portait que
+« booted » et « shutdown », et l'on ne pouvait pas distinguer « rien n'est
+arrivé » de « quelque chose est arrivé et je l'ai jeté ». **Un journal qui ne
+parle qu'en cas d'erreur ne sert à rien quand la panne est un silence.**
+
+Elle porte désormais un mot à chaque appel AVANT toute garde, et trois sondes
+au navigateur, en longueurs et verdicts seulement, jamais de valeurs :
+· `?verifie=<app id>` — Meta dit si le secret appartient à cette application ;
+· `?numero=1` — quel numéro `WA_PHONE_ID` sert vraiment ;
+· `?numeros=<waba>` — tous les numéros d'un compte, avec leur statut.
+
+Ce sont ces trois sondes qui ont fini par nommer le compte d'essai.
+
+### À L'APPROBATION
+
+Rien à faire côté Trône : tout est en place et vérifié. Il restera seulement
+à déployer `whatsapp-envoi` (Verify JWT COCHÉ) pour répondre, et à remplacer
+`WA_TOKEN` par un jeton permanent de *Maison MND*, l'actuel appartenant à
+l'application en développement.
+
 ## LE FIL NE S'ANNONÇAIT PAS — 11 septembre 2026 au soir, MIGRATION 0087
 
 « Rien n'est venu. L'écran est toujours vide » (Yéman).
