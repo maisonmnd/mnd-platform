@@ -163,6 +163,49 @@ Deno.serve(async (req) => {
        `?verifie=<identifiant de l'app>` — l'identifiant n'est pas un secret,
        il s'affiche dans l'URL du tableau de bord Meta. Le SECRET, lui, ne
        sort jamais d'ici : on n'en rend que le verdict et le nom de l'app. */
+    /* ══ QUEL NUMÉRO LE TRÔNE SERT-IL VRAIMENT ? — 12 septembre 2026 ══
+       Le faux message de Meta arrive, les vrais non. Toute la chaîne est donc
+       prouvée, et il ne reste qu'une hypothèse : le numéro branché sur l'API
+       n'est pas celui qu'on teste. C'est le piège classique du Cloud API —
+       Meta prête un numéro d'essai au début, il envoie très bien vers cinq
+       destinataires autorisés, et il ne reçoit jamais rien pour le vrai
+       numéro de la Maison.
+
+       `WA_PHONE_ID` sait qui il est ; il suffit de le lui demander. Une
+       requête, et l'on saura si l'on teste la bonne ligne. */
+    if (new URL(req.url).searchParams.get('numero')) {
+      const jeton = (Deno.env.get('WA_TOKEN') ?? '').trim();
+      const phoneId = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
+      if (!jeton || !phoneId) {
+        return new Response(JSON.stringify({ verdict: 'WA_TOKEN ou WA_PHONE_ID manque' }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${encodeURIComponent(phoneId)}`
+          + '?fields=display_phone_number,verified_name,quality_rating,platform_type,code_verification_status',
+          { headers: { authorization: `Bearer ${jeton}` } },
+        );
+        const rep = await r.json().catch(() => ({}));
+        return new Response(JSON.stringify(
+          r.ok && rep?.display_phone_number
+            ? {
+              verdict: 'LE TRÔNE EST BRANCHÉ SUR CE NUMÉRO',
+              numero: rep.display_phone_number,
+              nomAffiche: rep.verified_name,
+              qualite: rep.quality_rating,
+              plateforme: rep.platform_type,
+              suite: 'Si ce n’est pas le numéro que vous testez, c’est toute l’explication : '
+                + 'écrivez à CELUI-CI, ou rebranchez WA_PHONE_ID sur le bon.',
+            }
+            : { verdict: 'Meta refuse de nommer ce numéro', refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`) },
+          null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ verdict: 'Meta injoignable', detail: String(e) }, null, 2),
+          { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+    }
+
     const aVerifier = new URL(req.url).searchParams.get('verifie');
     if (aVerifier) {
       const secret = (Deno.env.get('WA_APP_SECRET') ?? '').trim();
@@ -208,6 +251,7 @@ Deno.serve(async (req) => {
          « Verify JWT » est bien décoché. C'est la preuve qu'on cherchait. */
       jwt: 'décoché, sinon vous ne liriez pas ceci',
       pourVerifierLeSecret: 'ajoutez ?verifie=<identifiant de votre app Meta> à cette adresse',
+      pourSavoirQuelNumero: 'ajoutez ?numero=1 à cette adresse',
     }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
   }
 
