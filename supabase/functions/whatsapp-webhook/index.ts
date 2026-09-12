@@ -57,17 +57,30 @@ const numeroWa = (brut: string | undefined): string => {
     un objet réécrit ne rend pas les mêmes octets, et la signature tomberait
     toujours fausse. Comparaison à temps constant : comparer deux empreintes
     avec `===` laisse fuir, caractère par caractère, où l'on s'est arrêté. */
-const signatureJuste = async (corps: string, secret: string, entete: string): Promise<boolean> => {
-  const attendue = entete.replace(/^sha256=/i, '').trim().toLowerCase();
-  if (attendue.length !== 64) return false;
+/* ══ SUR LES OCTETS, JAMAIS SUR LE TEXTE — 12 septembre 2026 ═══════
+   La première version lisait le corps avec `req.text()`, puis le RÉ-ENCODAIT
+   pour calculer l'empreinte. Ce détour est juste tant que la charge est de
+   l'ASCII pur, et faux dès qu'elle porte un accent, une apostrophe courbe ou
+   un émoji : le décodage-réencodage ne rend pas toujours les mêmes octets, et
+   Meta, lui, signe ce qu'il a VRAIMENT envoyé.
+
+   On signe donc les octets reçus, tels quels. C'est la seule façon de comparer
+   deux empreintes de la même chose. */
+const empreinte = async (octets: Uint8Array, secret: string): Promise<string> => {
   const cle = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   );
-  const sig = await crypto.subtle.sign('HMAC', cle, new TextEncoder().encode(corps));
-  const calculee = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const sig = await crypto.subtle.sign('HMAC', cle, octets as unknown as ArrayBuffer);
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+/** Comparaison à temps constant — comparer deux empreintes avec `===` laisse
+    fuir, caractère par caractère, où l'on s'est arrêté. */
+const memeEmpreinte = (a: string, b: string): boolean => {
+  if (a.length !== 64 || b.length !== 64) return false;
   let diff = 0;
-  for (let i = 0; i < 64; i++) diff |= calculee.charCodeAt(i) ^ attendue.charCodeAt(i);
+  for (let i = 0; i < 64; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 };
 
@@ -173,7 +186,10 @@ Deno.serve(async (req) => {
   /* ── ② LA SERRURE. Un refus répond « ok » quand même : une erreur ferait
      retenter Meta pendant des heures et renseignerait un attaquant sur sa
      cible. Même règle que `kkiapay-webhook`. */
-  const brut = await req.text();
+  /* LES OCTETS D'ABORD, le texte ensuite : l'empreinte se calcule sur ce qui
+     est arrivé, pas sur ce qu'on en a compris. */
+  const octets = new Uint8Array(await req.arrayBuffer());
+  const brut = new TextDecoder().decode(octets);
   const secret = (Deno.env.get('WA_APP_SECRET') ?? '').trim();
   const entete = req.headers.get('x-hub-signature-256') ?? '';
   if (!secret) {
@@ -183,11 +199,26 @@ Deno.serve(async (req) => {
     console.error('whatsapp-webhook · REFUS · WA_APP_SECRET n’est pas posé');
     return new Response('ok', { status: 200 });
   }
-  if (!(await signatureJuste(brut, secret, entete))) {
-    console.error(`whatsapp-webhook · REFUS · signature invalide · corpsLg=${brut.length} · enteteLg=${entete.length}`);
+  const recue = entete.replace(/^sha256=/i, '').trim().toLowerCase();
+  /* DEUX CALCULS POUR SÉPARER DEUX CAUSES. Si l'empreinte des OCTETS tombe
+     juste et pas celle du TEXTE, c'était l'encodage — le défaut d'hier soir.
+     Si aucune des deux ne tombe, le secret n'est pas le bon, et aucun code
+     ne réparera cela : il faut le reprendre chez Meta. Sans cette distinction
+     on chercherait des jours dans le mauvais endroit. */
+  const parOctets = await empreinte(octets, secret);
+  const parTexte = await empreinte(new TextEncoder().encode(brut), secret);
+  const okOctets = memeEmpreinte(parOctets, recue);
+  const okTexte = memeEmpreinte(parTexte, recue);
+  if (!okOctets && !okTexte) {
+    console.error(
+      'whatsapp-webhook · REFUS · SIGNATURE INVALIDE PAR LES DEUX CALCULS. '
+      + 'Ce n’est donc pas un problème d’encodage : le WA_APP_SECRET posé ne '
+      + 'correspond pas à l’application qui envoie. Reprenez-le dans Meta, '
+      + `App settings > Basic > App Secret, de l’app qui porte le webhook. secretLg=${secret.length} corpsLg=${octets.length}`,
+    );
     return new Response('ok', { status: 200 });
   }
-  dis('signature acceptée', { corpsLg: brut.length });
+  dis('signature acceptée', { par: okOctets ? 'octets' : 'texte', corpsLg: octets.length });
 
   const service = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
