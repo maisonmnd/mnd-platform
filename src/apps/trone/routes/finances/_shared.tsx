@@ -30,26 +30,26 @@ export const todayISO = (): string => {
 
    `T00:00:00` force une lecture LOCALE : sans lui, « 2026-08-22 » se lit à
    minuit UTC et retombe la veille dans tout fuseau négatif. */
-/* ══ L'ANNÉE PARAÎT QUAND ELLE INFORME — 12 septembre 2026 ══════════
-   « Écrire l'année pour se retrouver facilement » (Yéman), devant le tiroir
-   d'une caisse ouvert sur TOUT l'historique : « 11 sept. » et « 11 sept. »
-   pouvaient être à deux ans d'écart, et rien ne les distinguait.
+/* ══ L'ANNÉE, TOUJOURS — 12 septembre 2026 ═════════════════════════
+   « Écrire l'année pour se retrouver facilement », puis « I need the entire
+   date with year » (Yéman).
 
-   MAIS UNE ANNÉE QUI NE VARIE PAS N'INFORME PERSONNE. Écrire « 2026 » sur
-   les trente lignes d'un relevé de septembre alourdit sans rien apprendre,
-   et ce qui alourdit finit par ne plus se lire.
+   J'avais d'abord fait plus malin que demandé : l'année ne paraissait que
+   hors de l'année en cours, au motif qu'une année qui ne varie pas n'informe
+   personne. C'est vrai dans l'abstrait, et faux au comptoir. Ces lignes sont
+   des ÉCRITURES D'ARGENT : on les relit un an plus tard, on les compare, on
+   les recopie sur un relevé. Une date incomplète oblige alors à se demander
+   de quelle année elle relève, et ce doute coûte plus cher que trois
+   caractères.
 
-   Elle ne paraît donc que lorsqu'elle DIT quelque chose : quand la ligne ne
-   relève pas de l'année en cours. Dans un tiroir ouvert sur tout l'historique,
-   les lignes anciennes se signalent d'elles-mêmes. */
-export const fmtDay = (iso: string): string => {
-  if (!iso) return '';
-  const d = new Date(`${iso}T00:00:00`);
-  const memeAnnee = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString('fr-FR', memeAnnee
-    ? { day: 'numeric', month: 'short' }
-    : { day: 'numeric', month: 'short', year: 'numeric' });
-};
+   La règle est donc simple, et une règle simple se relit : la date porte son
+   année, toujours, partout où l'argent passe. */
+export const fmtDay = (iso: string): string =>
+  (iso
+    ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    })
+    : '');
 
 /** Clé mois `AAAA-MM` d'une date ISO. */
 export const monthKey = (iso: string): string => iso.slice(0, 7);
