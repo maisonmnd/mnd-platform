@@ -2697,3 +2697,46 @@
   border: 1px solid var(--hairline); border-radius: 4px; padding: 20px;
 }
 .trc-modal__t { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); margin-bottom: 8px; }
+
+/* ══ LE CALENDRIER DE LA MAISON — 12 septembre 2026 ════════════════
+   Il remplace celui du navigateur, qui parlait anglais et attendait le mois
+   avant le jour. Semaine commençant le LUNDI, comme partout au Bénin. */
+.trc-cal {
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--surface-card);
+  padding: 11px;
+  margin-top: 6px;
+}
+.trc-cal__t {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px;
+}
+.trc-cal__t b {
+  font-family: var(--font-serif); font-weight: 500; font-size: 17px; color: var(--color-indigo);
+}
+.trc-cal__fl {
+  border: 1px solid var(--hairline); border-radius: 3px; background: none;
+  width: 26px; height: 26px; color: var(--ink-soft); font: inherit; font-size: 14px;
+  line-height: 1; cursor: pointer;
+}
+.trc-cal__fl:hover { background: var(--paper-2); }
+.trc-cal__g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.trc-cal__j {
+  text-align: center; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-soft); padding: 2px 0 5px;
+}
+.trc-cal__c {
+  text-align: center; padding: 6px 0; border-radius: 3px; font: inherit; font-size: 13px;
+  color: var(--ink); border: 1px solid transparent; background: none; cursor: pointer;
+}
+.trc-cal__c:hover { background: var(--paper-2); }
+.trc-cal__c.hors { color: var(--hairline); }
+/* AUJOURD'HUI SE CERCLE, il ne se remplit pas : le remplissage dit « choisi »,
+   et l'on croirait avoir posé la date alors qu'on ne l'a pas touchée. */
+.trc-cal__c.auj { border-color: var(--copper-300, #E3C9AE); }
+.trc-cal__c.pris { background: var(--color-indigo); color: var(--color-ivoire); }
+.trc-cal__c.ferme { color: var(--hairline); text-decoration: line-through; }
+.trc-cal__pied {
+  margin-top: 8px; font-size: 10.5px; color: var(--ink-soft);
+  display: flex; gap: 12px; flex-wrap: wrap;
+}

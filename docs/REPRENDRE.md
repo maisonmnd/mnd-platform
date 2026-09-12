@@ -141,6 +141,53 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LA DATE SANS FAUTE — 12 septembre 2026, PUBLIÉ
+
+« Lors des saisies de RDV la secrétaire se trompe toujours sur la saisie des
+dates » (Yéman). Maquette `maquette-la-date-sans-faute.html`, validée.
+
+**CE N'ÉTAIT PAS UNE DISTRACTION.** Le calendrier qu'on lui donnait n'était pas
+celui de la Maison : `<input type="date">` est rendu par le NAVIGATEUR, dans SA
+langue. Sous un Edge en anglais il affiche `mm/jj/aaaa`. Elle tapait le
+3 septembre, il enregistrait le 9 mars, et il avait raison selon ses règles.
+**Aucune relecture ne pouvait la sauver, puisque la faute naissait avant le
+champ.**
+
+**Trois défauts trouvés en lisant le code :**
+· les années offertes ne regardaient QUE le passé (année, −1, −2), donc poser
+  un rituel de janvier en décembre n'avait aucune bonne réponse ;
+· rien ne prévenait d'une date tombée derrière nous ;
+· le champ gardait la date mise en forme, à éditer à la main.
+
+**Ce qui remplace :** le calendrier de la Maison (`shared/calendrier.ts`),
+semaine au LUNDI, six semaines toujours — une grille dont la hauteur change
+fait sauter les boutons sous le doigt —, jours de fermeture barrés depuis les
+horaires du salon, et ouverture sur le mois de la date en cours, jamais sur
+aujourd'hui.
+
+**La relecture passe en 22 px, en serif, avec le jour de la semaine.** Elle
+existait en gris, en 11,5 px, au milieu d'une modale chargée : personne ne la
+lisait. Toute la sécurité du champ tient pourtant à cette ligne.
+
+**`anneesPossibles(jourMois, aujourdhui, sens)`** — un rendez-vous regarde
+DEVANT, un anniversaire DERRIÈRE, et le champ ne peut pas le deviner.
+
+**`correctionsPossibles`** propose la même date l'an prochain ET le jour et le
+mois ÉCHANGÉS : cette seconde correction referme le piège du calendrier anglais
+devant celle qui vient d'y tomber. Jamais une date impossible (le 31 avril),
+jamais une correction qui laisse la date dans le passé.
+
+Éprouvé par `verifie-calendrier` (47ᵉ harnais, 26 épreuves), dont les six
+semaines, février bissextile, et un mois qui commence un lundi. Le harnais a
+attrapé une épreuve fausse de ma main, pas un défaut du code.
+
+### CE QUI RESTE
+
+La modale de RDV est faite. **Il reste 76 champs `type="date"`** ailleurs dans
+le Trône. On les reprendra où une faute coûte cher : saisie en série,
+rendez-vous du foyer, anniversaires (avec `sens="arriere"`). Un champ de date
+dans un écran ouvert deux fois l'an ne presse pas.
+
 ## L'OREILLE ATTEND META — 12 septembre 2026, EN REVUE
 
 Une nuit entière de diagnostic, **cinq causes empilées**, chacune masquant la

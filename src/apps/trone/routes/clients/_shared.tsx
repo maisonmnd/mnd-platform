@@ -25,6 +25,10 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
+import {
+  grilleDuMois, moisVoisin, anneesPossibles, retardEnJours, correctionsPossibles,
+  type SensDeLaDate,
+} from '../../../../shared/calendrier';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
@@ -79,7 +83,12 @@ export const frLong = (iso: string) =>
 
     `frLong` s'en passe, et c'est juste là où on le lit : l'en-tête du jour. Sur
     une FICHE, « cliente depuis lundi 31 août » ne dit pas de quelle année elle
-    vient — et une ancienneté sans année ne se compare à rien. */
+    vient — et une ancienneté sans année ne se compare à rien.
+
+    ELLE SERT AUSSI DE RELECTURE AU CHAMP DE DATE (12 septembre 2026), et c'est
+    là qu'elle compte le plus : une cliente dit samedi, l'écran dit mercredi,
+    et la faute saute aux yeux avant d'être écrite. Le jour de la semaine est
+    la meilleure alarme qui soit, parce qu'on le connaît sans le calculer. */
 export const frLongAn = (iso: string) =>
   (dayOf(iso)
     ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
@@ -162,12 +171,29 @@ export const frJourAn = (iso: string) =>
 
    LE CALENDRIER RESTE, replié. Certains gestes se font mieux à l'œil — poser
    une reprise « le samedi d'après ». Il ne s'impose simplement plus. */
+/** LES JOURS OÙ LA MAISON EST FERMÉE, lundi = 0 — lus des horaires du salon.
+
+    Les clés des réglages sont dans l'ordre français (lundi d'abord), qui est
+    justement celui du calendrier : aucune conversion, donc aucune occasion de
+    se tromper d'un jour. */
+export function useJoursFermes(): number[] {
+  const [reglages] = useSettings();
+  return useMemo(() => {
+    const cles = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
+    return cles
+      .map((k, i) => (reglages.hours.find((h) => h.key === k)?.closed ? i : -1))
+      .filter((i) => i >= 0);
+  }, [reglages]);
+}
+
 export function ChampDeDate({
   value,
   onChange,
   anneeParDefaut,
   ariaLabel = 'La date',
   autoFocus = false,
+  sens = 'avant',
+  joursFermes,
 }: {
   /** La date en ISO, ou '' quand rien n'est encore posé. */
   value: string;
@@ -176,8 +202,17 @@ export function ChampDeDate({
   anneeParDefaut?: number;
   ariaLabel?: string;
   autoFocus?: boolean;
+  /** UN RENDEZ-VOUS REGARDE DEVANT, UN ANNIVERSAIRE DERRIÈRE (12 septembre
+      2026). Le champ ne peut pas le deviner, et la liste d'années qu'il offre
+      n'a de sens que dans un sens. */
+  sens?: SensDeLaDate;
+  /** Les jours où la Maison est fermée, lundi = 0. Barrés au calendrier :
+      on peut toujours y poser un rituel, il arrive qu'on ouvre exprès, mais
+      l'œil sait ce qu'il fait. */
+  joursFermes?: readonly number[];
 }) {
-  const anneeCourante = new Date().getFullYear();
+  const auj = todayISO();
+  const anneeCourante = Number(auj.slice(0, 4));
   const [annee, setAnnee] = useState(anneeParDefaut ?? anneeCourante);
   /* La frappe vit à part de la valeur : une date à moitié tapée n'est pas une
      date, et l'effacer sous les doigts pour « corriger » serait insupportable. */
@@ -212,81 +247,167 @@ export function ChampDeDate({
     if (texte.trim() === '' && value !== '') { emis.current = ''; onChange(''); }
   };
 
-  if (calendrier) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <Input
-          type="date"
-          value={value}
-          onChange={(e) => { emis.current = e.target.value; onChange(e.target.value); }}
-          aria-label={ariaLabel}
-        />
-        <button
-          type="button"
-          onClick={() => setCalendrier(false)}
-          style={{
-            alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
-            font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
-          }}
-        >
-          Taper la date
-        </button>
-      </div>
-    );
-  }
+  const poseISO = (nouveau: string) => {
+    emis.current = nouveau;
+    setSaisie(frJourAn(nouveau));
+    onChange(nouveau);
+  };
+
+  /* ── CE QUI EST DERRIÈRE NOUS — 12 septembre 2026 ────────────────
+     Rien ne prévenait : le rendez-vous se créait, disparaissait du carnet du
+     jour, et personne ne le voyait avant que la cliente se présente. */
+  const retard = iso && sens === 'avant' ? retardEnJours(iso, auj) : 0;
+  const corrections = retard > 0 ? correctionsPossibles(iso as string, auj) : [];
+
+  /* LES ANNÉES POSSIBLES REGARDENT DANS LE BON SENS. Elles ne regardaient que
+     le passé : en décembre, poser un rituel de janvier n'avait AUCUNE bonne
+     réponse dans la liste. */
+  const candidates = iso ? anneesPossibles(iso.slice(5), auj, sens) : [];
+
+  /* ── LE CALENDRIER DE LA MAISON ──────────────────────────────────
+     Il s'ouvre sur le mois de la date en cours, jamais sur aujourd'hui :
+     poser un rituel de janvier depuis septembre coûtait vingt clics. */
+  const ancre = iso || value || auj;
+  const [moisVu, setMoisVu] = useState(() => ({
+    annee: Number(ancre.slice(0, 4)), mois: Number(ancre.slice(5, 7)),
+  }));
+  useEffect(() => {
+    if (!calendrier) return;
+    const a2 = iso || value || auj;
+    setMoisVu({ annee: Number(a2.slice(0, 4)), mois: Number(a2.slice(5, 7)) });
+  }, [calendrier]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Input
         value={saisie}
         autoFocus={autoFocus}
-        placeholder="14/02/2025 · 14 février · 14-02-25"
+        placeholder="3/9 · 3 sept · 3 septembre · 03-09-26"
         aria-label={ariaLabel}
+        /* AU CLIC, TOUT SE SÉLECTIONNE. Le champ garde la date mise en forme,
+           « 12 sept. 2026 », qu'il fallait éditer à la main : sans
+           sélectionner d'abord, on obtenait « 12 sept. 202613 ». On retape,
+           on n'efface pas. */
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => pose(e.target.value)}
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span
-          style={{
-            fontSize: 11.5,
-            color: saisie.trim() === '' ? 'var(--ink-soft)' : (iso ? 'var(--ink)' : 'var(--trv-error, #96412E)'),
-          }}
-        >
-          {saisie.trim() === '' ? 'Rien de posé' : (iso ? frShortAn(iso) : 'Cette date ne se lit pas')}
-        </span>
-        <button
-          type="button"
-          onClick={() => setCalendrier(true)}
-          style={{
-            marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0,
-            font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)',
-          }}
-        >
-          Le calendrier
-        </button>
+
+      {/* ══ LA RELECTURE, EN TOUTES LETTRES — 12 septembre 2026 ═══════
+          Toute la sécurité de ce champ tient à cette ligne. Elle existait en
+          gris, en onze pixels et demi, sous un champ, au milieu d'une modale
+          chargée : personne ne la lisait. */}
+      <div
+        style={{
+          fontFamily: 'var(--font-serif)', fontSize: 22, lineHeight: 1.15, marginTop: 5,
+          color: saisie.trim() === ''
+            ? 'var(--hairline)'
+            : !iso
+              ? 'var(--trv-error, #96412E)'
+              : retard > 0 ? 'var(--color-brique, #96412E)' : 'var(--color-indigo)',
+        }}
+      >
+        {saisie.trim() === ''
+          ? 'Aucune date'
+          : iso ? frLongAn(iso) : 'Cette date ne se lit pas'}
       </div>
-      {/* LES ANNÉES POSSIBLES, sur leur propre ligne — dans une colonne étroite
-          elles se coupaient en deux, et trois chiffres nus sans un mot devant
-          ne disent pas ce qu'ils font là. Elles ne paraissent que lorsque
-          l'année n'a pas été tapée : offrir un choix déjà fait n'aide
-          personne. */}
-      {anneeSupposee && iso && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span className="mnd-muted" style={{ fontSize: 11 }}>Quelle année ?</span>
-          {[annee, annee - 1, annee - 2].map((a) => (
+
+      {retard > 0 && (
+        <div style={{ fontSize: 12.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10, marginTop: 5 }}>
+          Ce jour est passé depuis {retard} jour{retard > 1 ? 's' : ''}.
+          Un rendez-vous posé là ne paraîtra dans aucun carnet.
+        </div>
+      )}
+
+      {corrections.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
+          <span className="mnd-muted" style={{ fontSize: 11 }}>Vouliez-vous dire</span>
+          {corrections.map((c) => (
             <button
-              key={a}
+              key={c}
               type="button"
-              onClick={() => { setAnnee(a); pose(saisie, a); }}
+              onClick={() => poseISO(c)}
               style={{
                 cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
-                border: `1px solid ${a === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
-                background: a === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
-                color: a === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
+                border: '1px solid var(--copper-300, #E3C9AE)', background: 'var(--copper-50, #F9EFE7)',
+                color: 'var(--copper-700)',
               }}
             >
-              {a}
+              {frShortAn(c)}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* LES ANNÉES POSSIBLES ne paraissent que lorsque l'année n'a pas été
+          tapée : offrir un choix déjà fait n'aide personne. */}
+      {anneeSupposee && iso && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
+          <span className="mnd-muted" style={{ fontSize: 11 }}>Quelle année ?</span>
+          {candidates.map((a2) => (
+            <button
+              key={a2}
+              type="button"
+              onClick={() => { setAnnee(a2); pose(saisie, a2); }}
+              style={{
+                cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
+                border: `1px solid ${a2 === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
+                background: a2 === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
+                color: a2 === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
+              }}
+            >
+              {a2}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setCalendrier((v) => !v)}
+        style={{
+          alignSelf: 'flex-start', marginTop: 4, cursor: 'pointer', background: 'none',
+          border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600,
+          color: 'var(--copper-700)',
+        }}
+      >
+        {calendrier ? 'Replier le calendrier' : 'Le calendrier'}
+      </button>
+
+      {calendrier && (
+        <div className="trc-cal">
+          <div className="trc-cal__t">
+            <button type="button" className="trc-cal__fl" onClick={() => setMoisVu((m) => moisVoisin(m.annee, m.mois, -1))} aria-label="Mois précédent">‹</button>
+            <b>{cap(new Date(moisVu.annee, moisVu.mois - 1, 15).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }))}</b>
+            <button type="button" className="trc-cal__fl" onClick={() => setMoisVu((m) => moisVoisin(m.annee, m.mois, 1))} aria-label="Mois suivant">›</button>
+          </div>
+          <div className="trc-cal__g">
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((j, i) => (
+              <span key={i} className="trc-cal__j">{j}</span>
+            ))}
+            {grilleDuMois(moisVu.annee, moisVu.mois).map((c, i) => {
+              const ferme = (joursFermes ?? []).includes(i % 7);
+              const classes = ['trc-cal__c'];
+              if (c.horsMois) classes.push('hors');
+              if (c.iso === auj) classes.push('auj');
+              if (c.iso === iso) classes.push('pris');
+              if (ferme) classes.push('ferme');
+              return (
+                <button
+                  key={c.iso}
+                  type="button"
+                  className={classes.join(' ')}
+                  onClick={() => { poseISO(c.iso); setCalendrier(false); }}
+                  aria-label={frLongAn(c.iso)}
+                >
+                  {c.jour}
+                </button>
+              );
+            })}
+          </div>
+          <div className="trc-cal__pied">
+            <span>Cercle cuivre · aujourd’hui</span>
+            {(joursFermes ?? []).length > 0 && <span>Barré · la Maison est fermée</span>}
+          </div>
         </div>
       )}
     </div>
@@ -1529,6 +1650,9 @@ export function RdvModal({
     return n;
   });
   const [date, setDate] = useState(appt?.date ?? initial?.date ?? todayISO());
+  /* Les jours de fermeture, barrés au calendrier. On peut toujours y poser un
+     rituel, il arrive qu'on ouvre exprès, mais l'œil sait ce qu'il fait. */
+  const joursFermes = useJoursFermes();
   const [time, setTime] = useState(appt?.time ?? initial?.time ?? '09:00');
   /* LE MAÎTRE QUE LA MAISON A DÉSIGNÉ — 1er septembre 2026. Le premier de la
      liste n'était qu'un accident de saisie ; voir `maitreParDefaut`. Un
@@ -3317,7 +3441,13 @@ export function RdvModal({
                 navigateur s'ouvre sur le mois courant : poser un rituel de
                 janvier 2025 en septembre 2026, c'est vingt clics sur une
                 fleche. Il reste offert, replie, sous « Le calendrier ». */}
-            <ChampDeDate value={date} onChange={setDate} ariaLabel="Le jour du rituel" />
+            <ChampDeDate
+              value={date}
+              onChange={setDate}
+              ariaLabel="Le jour du rituel"
+              sens="avant"
+              joursFermes={joursFermes}
+            />
           </Field>
           <Field label="Heure">
             <Select value={time} onChange={(e) => setTime(e.target.value)}>
