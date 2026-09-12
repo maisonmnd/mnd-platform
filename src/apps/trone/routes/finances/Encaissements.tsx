@@ -28,7 +28,7 @@ import {
 import { invoicesStore, creditMovementsStore, paymentsStore } from '../../../../shared/finance';
 import { subscribersStore } from '../../../../shared/abonnements';
 import { apprenantsStore } from '../equipe/data';
-import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, useRegistreEncaissements } from './_shared';
+import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv, fmtDay, useRegistreEncaissements } from './_shared';
 import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
@@ -60,8 +60,15 @@ const KINDS: { k: ReceiptKind | 'tous'; l: string }[] = [
   { k: 'hors-activite', l: 'Hors activité' },
 ];
 
-const frDay = (iso: string): string =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—';
+/* LE JOUR D'UN ENCAISSEMENT PASSE PAR LA PORTE DE LA MAISON — 12 septembre
+   2026. Ce fichier portait sa PROPRE mise en forme, identique à `fmtDay` à
+   l'année près : quand on a ajouté l'année aux Finances, cette liste-ci ne
+   l'a pas vue, parce qu'elle ne lisait pas la même fonction.
+
+   Deux écritures pour une notion, la maladie habituelle. Il n'en reste
+   qu'une, et « 12 sept. 2026 » s'affiche ici comme partout où l'argent
+   passe. */
+const frDay = (iso: string): string => (iso ? fmtDay(iso) : '—');
 
 /* ═══ LE POINTAGE DU RELEVÉ MoMo (13 août) ═══════════════════════════
    Le compte marchand MoMoPay reçoit des paiements que Le Trône ne voit

@@ -42,7 +42,7 @@ import {
   useCaissesOuvertes, EcranVerrouille, ReglerLeVerrou, CLE_PRETS,
 } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
-import { todayISO } from './_shared';
+import { todayISO, fmtDay } from './_shared';
 import { addDaysISO, frJourAn } from '../clients/_shared';
 import { LesObjectifs } from './objectifs';
 import './finances.css';
@@ -52,8 +52,12 @@ const LIBELLE_GENRE: Record<GenreEmprunteur, string> = {
   foyer: 'foyer', associe: 'associé', equipe: 'équipe', cliente: 'cliente', tiers: 'tiers',
 };
 
-const frJour = (iso: string): string =>
-  (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—');
+/* UNE SEULE PORTE POUR LE JOUR — 12 septembre 2026. Chaque écran des Finances
+   portait sa propre mise en forme, identique à `fmtDay` à l'année près :
+   quand l'année y a été ajoutée, ces copies ne l'ont pas vue, parce qu'elles
+   ne lisaient pas la même fonction. Deux écritures pour une notion, la
+   maladie habituelle. */
+const frJour = (iso: string): string => (iso ? fmtDay(iso) : '—');
 
 const frLong = (iso: string): string =>
   (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');

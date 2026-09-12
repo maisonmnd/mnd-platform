@@ -37,7 +37,7 @@ import {
   flecherVersObjectif, flechableVers, rythmeDuPlan,
   type EtatObjectif, type CoffreMovement, type Cashbox, caisseParDefaut } from '../../../../shared/finance';
 import { ClientPicker } from '../clients/_shared';
-import { todayISO, monthKey, monthTitle } from './_shared';
+import { todayISO, monthKey, monthTitle, fmtDay } from './_shared';
 import { useSettings } from '../../../../shared/settings';
 import { useCaissesOuvertes, coffreOuvert } from './tiroirs';
 import './finances.css';
@@ -45,8 +45,12 @@ import './finances.css';
 /** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
 const monthLabelLong = (mk: string): string => (mk ? monthTitle(mk) : '');
 
-const frJourCourt = (iso: string): string =>
-  (iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—');
+/* UNE SEULE PORTE POUR LE JOUR — 12 septembre 2026. Chaque écran des Finances
+   portait sa propre mise en forme, identique à `fmtDay` à l'année près :
+   quand l'année y a été ajoutée, ces copies ne l'ont pas vue, parce qu'elles
+   ne lisaient pas la même fonction. Deux écritures pour une notion, la
+   maladie habituelle. */
+const frJourCourt = (iso: string): string => (iso ? fmtDay(iso.slice(0, 10)) : '—');
 
 const frJourLong = (iso: string): string =>
   (iso ? new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');

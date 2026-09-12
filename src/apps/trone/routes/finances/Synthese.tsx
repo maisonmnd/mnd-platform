@@ -10,7 +10,7 @@ import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, 
 import { useClients } from '../../../../shared/clients';
 import { useSubscribers, useApprenants, useFormations } from '../equipe/data';
 import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById, revenuDuMois } from '../clients/_shared';
-import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv } from './_shared';
+import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv, fmtDay as jourDesFinances } from './_shared';
 import './finances.css';
 
 /* Synthèse & résultat — le compte de résultat de la branche, mois par mois.
@@ -18,9 +18,13 @@ import './finances.css';
    non suspendues, filtré par la branche courante et exprimé dans sa devise.
    Le mois affiché se navigue ‹ mois › — chaque chiffre suit le mois choisi. */
 
-/** Date ISO → « 12 juil. » pour les pastilles de journal. */
-const fmtDay = (iso: string): string =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+/* UNE SEULE PORTE POUR LE JOUR — 12 septembre 2026. Chaque écran des Finances
+   portait sa propre mise en forme, identique à `fmtDay` à l'année près :
+   quand l'année y a été ajoutée, ces copies ne l'ont pas vue, parce qu'elles
+   ne lisaient pas la même fonction. Deux écritures pour une notion, la
+   maladie habituelle. */
+/** Date ISO → « 12 juil. 2026 » pour les pastilles de journal. */
+const fmtDay = (iso: string): string => jourDesFinances(iso);
 
 /* Date d'un règlement de formation (jj/mm/aaaa, ou ISO) → clé de mois « aaaa-mm ». */
 const payMonthKey = (d: string): string => {
