@@ -1,0 +1,396 @@
+<title>La vie d'un rendez-vous</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=EB+Garamond&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  /* UN SEUL MONDE, CELUI DE LA MAISON : parchemin, indigo, cuivre. La maquette
+     peint son propre fond et ne suit pas le thème du lecteur. */
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond','EB Garamond',Georgia,serif;
+    --sans:'Jost','EB Garamond','Century Gothic',system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1040px; margin:0 auto; padding-block:52px 110px; padding-inline:22px; }
+  @media (max-width:600px){ .page { padding-block:30px 80px; padding-inline:16px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 12px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,7vw,58px); line-height:1.03; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.6vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 8px; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 24px; font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:64ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .chapeau { max-width:70ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b { color:var(--encre); font-weight:500; }
+  section { margin-top:60px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 20px; }
+  .exemple { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+
+  .decide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .decide { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:520px){ .decide { grid-template-columns:1fr; } }
+  .decide div { background:var(--vert-f); border:1px solid var(--vert-p); border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .decide b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); margin-bottom:4px; }
+
+  .defile { overflow-x:auto; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); }
+  .defile table { min-width:640px; }
+  .tableau { width:100%; border-collapse:collapse; font-size:13px; }
+  .tableau th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  .tableau td { padding:9px 10px; border-top:1px solid var(--filet); vertical-align:top; }
+  .tableau tbody tr:first-child td { border-top:0; }
+  .tableau .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tableau .non { color:var(--brique); }
+  .tableau .oui { color:var(--vert); }
+  .tableau .sous { display:block; font-size:11px; color:var(--encre-d); }
+
+  .ecran { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  .ecran__tete b { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:18px 20px 20px; display:flex; flex-direction:column; gap:16px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  /* Le tampon de naissance : la première chose qu'on lit en ouvrant la fiche. */
+  .naissance { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; justify-content:space-between; border:1px solid var(--cuivre-p); background:var(--cuivre-f); border-radius:3px; padding:12px 14px; }
+  .naissance__dit { font-size:13.5px; line-height:1.55; max-width:62ch; }
+  .naissance__dit b { font-weight:600; color:var(--indigo); }
+  .naissance__lab { display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); margin-bottom:2px; }
+  .onglets { display:flex; gap:18px; border-bottom:1px solid var(--filet); }
+  .onglet { font-size:12px; letter-spacing:.12em; text-transform:uppercase; padding:8px 0; color:var(--encre-d); border-bottom:2px solid transparent; }
+  .onglet.actif { color:var(--indigo); border-color:var(--cuivre); font-weight:600; }
+  .bouton { display:inline-block; font-size:11px; letter-spacing:.16em; text-transform:uppercase; border-radius:3px; padding:9px 14px; border:1px solid var(--indigo); color:var(--indigo); background:transparent; white-space:nowrap; }
+  .lien { color:var(--cuivre-fonce); font-size:12px; font-weight:600; }
+
+  /* ── La vie : une ligne par geste, l'heure de la base à gauche ── */
+  .vie { list-style:none; margin:0; padding:0; }
+  .geste { display:grid; grid-template-columns:78px 34px minmax(0,1fr); gap:0 12px; padding:12px 0; border-top:1px solid var(--filet); position:relative; }
+  .geste:first-child { border-top:0; }
+  .geste__h { font-size:12px; color:var(--encre-d); font-variant-numeric:tabular-nums; line-height:1.35; padding-top:2px; }
+  .geste__h b { display:block; color:var(--encre); font-weight:500; font-size:13px; }
+  .qui { width:30px; height:30px; border-radius:50%; background:var(--indigo); color:#fff; font-size:11px; font-weight:600; letter-spacing:.04em; display:flex; align-items:center; justify-content:center; }
+  .qui.dehors { background:var(--cuivre); }
+  .geste__dit { font-size:13.5px; line-height:1.5; min-width:0; }
+  .geste__dit b { font-weight:600; color:var(--indigo); }
+  .verbe { display:inline-block; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; border-radius:3px; padding:2px 7px; margin-right:6px; vertical-align:1px; font-weight:600; }
+  .verbe.pose { color:var(--vert); background:var(--vert-f); border:1px solid var(--vert-p); }
+  .verbe.modifie { color:var(--indigo-2); background:var(--indigo-pale); border:1px solid #CFD2E3; }
+  .verbe.argent { color:var(--cuivre-fonce); background:var(--cuivre-f); border:1px solid var(--cuivre-p); }
+  .verbe.sensible { color:var(--brique); background:var(--brique-f); border:1px solid var(--brique-p); }
+  .geste.est-sensible::before { content:''; position:absolute; left:-12px; top:12px; bottom:12px; width:2px; background:var(--brique); }
+  @media (max-width:600px){ .geste.est-sensible::before { left:-6px; } }
+  .geste__ou { display:block; font-size:11.5px; color:var(--encre-d); margin-top:2px; }
+  .diff { margin-top:6px; display:grid; grid-template-columns:auto auto minmax(0,1fr); gap:2px 10px; font-size:12.5px; }
+  .diff span:nth-child(3n+1) { color:var(--encre-d); }
+  .diff .avant { text-decoration:line-through; text-decoration-color:rgba(150,65,46,.5); color:var(--encre-d); }
+  .diff .apres { color:var(--encre); }
+  details.brut { margin-top:6px; }
+  details.brut summary { cursor:pointer; font-size:11.5px; color:var(--cuivre-fonce); font-weight:600; }
+  details.brut summary:focus-visible { outline:2px solid var(--cuivre); outline-offset:2px; }
+  details.brut pre { margin:6px 0 0; background:var(--blanc); border:1px solid var(--filet); border-radius:3px; padding:10px; font-size:11.5px; line-height:1.5; overflow-x:auto; white-space:pre; }
+  @media (max-width:560px){ .geste { grid-template-columns:62px 30px minmax(0,1fr); gap:0 8px; } .qui { width:26px; height:26px; font-size:10px; } }
+  .sceau { display:inline-block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--vert); border:1px solid var(--vert-p); border-radius:3px; padding:1px 6px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
+
+  .avant-trace { border:1px dashed var(--filet); border-radius:3px; padding:10px 12px; font-size:12.5px; color:var(--encre-d); background:var(--blanc); }
+
+  /* ── Le résumé du jour ── */
+  .filtres { display:flex; gap:8px; flex-wrap:wrap; }
+  .puce { font-size:12px; border:1px solid var(--filet); border-radius:3px; padding:5px 10px; background:var(--blanc); color:var(--encre); }
+  .puce.actif { background:var(--indigo); border-color:var(--indigo); color:#fff; }
+  .puce.alerte { border-color:var(--brique-p); color:var(--brique); background:var(--brique-f); }
+  .personne { display:flex; gap:10px; align-items:center; white-space:nowrap; }
+  .chiffre-sensible { color:var(--brique); font-weight:600; }
+
+  .retient { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:820px){ .retient { grid-template-columns:1fr; } }
+  .retient div { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .retient b { display:block; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); margin-bottom:4px; font-weight:500; }
+  .retient em { font-style:normal; color:var(--indigo); font-family:var(--serif); font-size:17px; }
+
+  .preuve { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  @media (max-width:720px){ .preuve { grid-template-columns:1fr; } }
+  .preuve div { border-radius:4px; padding:15px 17px; font-size:13.5px; line-height:1.6; }
+  .preuve .prouve { background:var(--vert-f); border:1px solid var(--vert-p); }
+  .preuve .prouve-pas { background:var(--brique-f); border:1px solid var(--brique-p); }
+  .preuve ul { margin:6px 0 0; padding-left:18px; }
+
+  .atrancher { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .atrancher { grid-template-columns:1fr; } }
+  .atrancher div { background:var(--ambre-f); border:1px solid var(--ambre-p); border-radius:4px; padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .atrancher b.propose { display:block; color:var(--ambre); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin-top:8px; }
+  .construit { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; max-width:78ch; }
+  .construit li { position:relative; padding-left:20px; }
+  .construit li::before { content:''; position:absolute; left:0; top:.72em; width:9px; height:1px; background:var(--cuivre); }
+  .construit b { font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:10px 2px 0; max-width:80ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .pied { margin-top:66px; padding-top:16px; border-top:1px solid var(--filet); font-family:var(--serif); font-style:italic; color:var(--encre-d); }
+</style>
+
+<main class="page">
+  <p class="eyebrow">Système · Traçabilité · maquette à valider</p>
+  <h1>La vie d’un rendez-vous</h1>
+  <blockquote class="cite">Quand je clique un rendez-vous, je dois retrouver quand il a été créé, par qui, comment il a été tamponné, tout. Sinon j’aurai toujours des problèmes.<span>Yéman · 13 septembre 2026</span></blockquote>
+  <p class="chapeau">Aujourd’hui, le Journal des gestes est écrit <b>par l’application</b> : une ligne peut manquer, se fondre avec la suivante, ou être déposée sous un autre nom. Ce n’est pas une preuve. Désormais, <b>c’est la base elle-même qui signe chaque geste</b> : le compte connecté, l’heure du serveur, l’appareil, et l’état exact avant et après. Personne ne peut l’écrire à la main, ni la retoucher, souverain compris. Et un clic sur un rendez-vous ouvre <b>toute sa vie</b>, de sa création à son encaissement. Rien n’est construit.</p>
+
+  <section>
+    <p class="eyebrow">Tranché le 13 septembre</p>
+    <h2>Ce qui est décidé</h2>
+    <div class="decide">
+      <div><b>Chacun son compte</b>La trace nomme le compte qui a agi. Pas de poste partagé, donc pas de code à chaque geste.</div>
+      <div><b>La direction lit</b>Le souverain et le gérant lisent toute la vie des pièces et le résumé « qui fait quoi ». Les employés, non.</div>
+      <div><b>Quatre familles tracées</b>Les rendez-vous, les factures et leurs encaissements, les fiches clientes, les dépenses et les caisses.</div>
+      <div><b>L’appareil, sans adresse</b>« Téléphone Android, Chrome » ou « Ordinateur Windows ». Aucune adresse réseau n’est gardée.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Pourquoi le Journal ne suffit pas</p>
+    <h2>Écrit par l’application, ou signé par la base</h2>
+    <p class="intro">Le Journal actuel reste lisible pour les mois passés. Mais face à « ce n’est pas moi », seule une trace que <b>personne ne peut fabriquer</b> tranche.</p>
+    <div class="defile">
+      <table class="tableau">
+        <thead><tr><th>La question</th><th>Le Journal d’aujourd’hui</th><th>La trace de la base</th></tr></thead>
+        <tbody>
+          <tr><td>Qui a agi ?</td><td class="non">Le nom que l’application annonce<span class="sous">n’importe quel compte peut déposer une ligne</span></td><td class="oui">Le compte réellement connecté<span class="sous">lu par la base, impossible à changer depuis l’écran</span></td></tr>
+          <tr><td>Quand ?</td><td class="non">L’horloge de l’appareil<span class="sous">un téléphone mal réglé ment</span></td><td class="oui">L’heure du serveur</td></tr>
+          <tr><td>Tout est-il noté ?</td><td class="non">Non<span class="sous">hors ligne ou en échec, la ligne se perd sans bruit ; trois corrections rapprochées n’en font qu’une</span></td><td class="oui">Oui<span class="sous">la trace s’écrit dans la même opération que la pièce : pas de pièce sans trace</span></td></tr>
+          <tr><td>Peut-on la retoucher ?</td><td>Non</td><td class="oui">Non, et personne ne peut en déposer une fausse</td></tr>
+          <tr><td>Depuis le rendez-vous ?</td><td class="non">Non, il faut chercher dans le mois</td><td class="oui">Oui, un clic dans le Carnet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Le Carnet · un clic sur le rendez-vous</p>
+    <h2>Sa naissance en tête, toute sa vie à côté</h2>
+    <p class="intro">La fiche du rendez-vous garde ses quatre paliers. Au-dessus, le <b>tampon de naissance</b> ; à côté, l’onglet <b>« Sa vie »</b>, un geste par ligne, du plus ancien au plus récent. Les gestes qui touchent l’argent sont en cuivre, les gestes sensibles en brique, marqués d’un filet. <span class="exemple">Données d’exemple.</span></p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>Modifier le rendez-vous.</b><span>Cliente A. K. · samedi 13 septembre 2026</span></div>
+      <div class="ecran__corps">
+        <div class="naissance">
+          <div class="naissance__dit">
+            <span class="naissance__lab">Né le vendredi 12 septembre 2026 à 10 h 42</span>
+            Créé par <b>Rita G.</b> (compte rita.g@exemple.bj), depuis <b>Le Trône</b>, sur un <b>téléphone Android, Chrome</b>.
+            <span class="sceau">signé par la base</span>
+          </div>
+          <span class="bouton">Voir sa vie · 9 gestes</span>
+        </div>
+
+        <div class="onglets"><span class="onglet">Le rendez-vous</span><span class="onglet actif">Sa vie · 9</span></div>
+
+        <div class="filtres">
+          <span class="puce actif">Tout</span><span class="puce">Rendez-vous</span><span class="puce">Argent</span><span class="puce alerte">Sensibles · 2</span>
+        </div>
+
+        <ol class="vie">
+          <li class="geste">
+            <span class="geste__h"><b>10:42</b>ven. 12 sept.</span>
+            <span class="qui">RG</span>
+            <span class="geste__dit"><span class="verbe pose">Créé</span><b>Rita G.</b> a posé le rendez-vous
+              <span class="geste__ou">Le Trône · téléphone Android, Chrome · compte rita.g@exemple.bj</span>
+              <span class="diff">
+                <span>Date</span><span></span><span class="apres">samedi 13 septembre, 09:00</span>
+                <span>Prestations</span><span></span><span class="apres">SÍNSIN™ Essentielle · DÀNDÀN™</span>
+                <span>Maître</span><span></span><span class="apres">Awa D.</span>
+                <span>Prix</span><span></span><span class="apres">17 000 F</span>
+              </span>
+              <details class="brut"><summary>Voir la pièce exacte, telle que la base l’a reçue</summary><pre>{ "date": "2026-09-13", "time": "09:00", "status": "confirmé",
+  "serviceIds": ["sinsin-essentielle", "dandan"], "master": "Awa D.",
+  "source": "trone" }</pre></details>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>10:44</b>ven. 12 sept.</span>
+            <span class="qui">RG</span>
+            <span class="geste__dit"><span class="verbe modifie">Modifié</span><b>Rita G.</b> a déplacé l’heure
+              <span class="geste__ou">Le Trône · téléphone Android, Chrome</span>
+              <span class="diff"><span>Heure</span><span class="avant">09:00</span><span class="apres">10:30</span></span>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>19:10</b>ven. 12 sept.</span>
+            <span class="qui dehors">·</span>
+            <span class="geste__dit"><span class="verbe modifie">Modifié</span><b>La cliente</b> a confirmé depuis Ma Couronne
+              <span class="geste__ou">Ma Couronne · iPhone, Safari</span>
+              <span class="diff"><span>Statut</span><span class="avant">en attente</span><span class="apres">confirmé</span></span>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>09:05</b>sam. 13 sept.</span>
+            <span class="qui">KA</span>
+            <span class="geste__dit"><span class="verbe argent">Acompte</span><b>Koffi A.</b> a confirmé l’acompte reçu
+              <span class="geste__ou">Le Trône · ordinateur Windows, Edge</span>
+              <span class="diff"><span>Acompte</span><span class="avant">5 000 F demandé</span><span class="apres">5 000 F reçu, Mobile Money</span></span>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>12:18</b>sam. 13 sept.</span>
+            <span class="qui">AD</span>
+            <span class="geste__dit"><span class="verbe modifie">Mains</span><b>Awa D.</b> a désigné les mains
+              <span class="geste__ou">Le Trône · téléphone Android, Chrome</span>
+              <span class="diff"><span>SÍNSIN™ Essentielle</span><span class="avant">personne</span><span class="apres">Awa D. et Sènan H.</span></span>
+            </span>
+          </li>
+          <li class="geste est-sensible">
+            <span class="geste__h"><b>12:26</b>sam. 13 sept.</span>
+            <span class="qui">KA</span>
+            <span class="geste__dit"><span class="verbe sensible">Remise</span><b>Koffi A.</b> a posé une remise
+              <span class="geste__ou">Le Trône · ordinateur Windows, Edge</span>
+              <span class="diff"><span>Remise</span><span class="avant">aucune</span><span class="apres">2 000 F</span><span>Total</span><span class="avant">17 000 F</span><span class="apres">15 000 F</span></span>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>12:31</b>sam. 13 sept.</span>
+            <span class="qui">RG</span>
+            <span class="geste__dit"><span class="verbe modifie">Honoré</span><b>Rita G.</b> a honoré le rituel
+              <span class="geste__ou">Le Trône · ordinateur Windows, Edge</span>
+              <span class="diff"><span>Statut</span><span class="avant">confirmé</span><span class="apres">honoré</span></span>
+            </span>
+          </li>
+          <li class="geste">
+            <span class="geste__h"><b>12:33</b>sam. 13 sept.</span>
+            <span class="qui">RG</span>
+            <span class="geste__dit"><span class="verbe argent">Encaissé</span><b>Rita G.</b> a créé la facture <b>FA-2026-0412</b> et encaissé
+              <span class="geste__ou">Le Trône · ordinateur Windows, Edge · <span class="lien">ouvrir la vie de la facture</span></span>
+              <span class="diff"><span>Versement</span><span></span><span class="apres">10 000 F · espèces · Caisse du salon</span></span>
+            </span>
+          </li>
+          <li class="geste est-sensible">
+            <span class="geste__h"><b>18:02</b>sam. 13 sept.</span>
+            <span class="qui">KA</span>
+            <span class="geste__dit"><span class="verbe sensible">Payée, modifiée</span><b>Koffi A.</b> a changé le moyen d’une facture déjà payée
+              <span class="geste__ou">Le Trône · ordinateur Windows, Edge · facture FA-2026-0412</span>
+              <span class="diff"><span>Moyen</span><span class="avant">espèces</span><span class="apres">Mobile Money</span><span>Caisse</span><span class="avant">Caisse du salon</span><span class="apres">KkiaPay</span></span>
+            </span>
+          </li>
+        </ol>
+
+        <div class="avant-trace">Un rendez-vous posé avant la mise en service n’a que sa date de pose : ce qui n’a jamais été écrit ne se reconstitue pas, et la fiche le dit au lieu de laisser une vie vide passer pour une vie sans geste.</div>
+      </div>
+    </div>
+    <p class="legende"><b>Les gestes de la facture liée</b> paraissent dans la vie du rendez-vous, et inversement : un encaissement ne se lit jamais séparé du rituel qui l’a fait naître. <b>Un geste de la base elle-même</b> (une réparation passée à la main dans l’éditeur SQL) s’inscrit sous « la base », jamais sous le nom d’un employé.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Factures & encaissements · la même vie</p>
+    <h2>Une facture raconte aussi sa naissance</h2>
+    <p class="intro">Même tampon en tête de la facture, même onglet. Chaque versement dit <b>qui l’a encaissé, dans quelle caisse, avec quel moyen</b>, et toute retouche d’une facture payée ressort en brique.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>FA-2026-0412</b><span>Payée · 15 000 F</span></div>
+      <div class="ecran__corps">
+        <div class="naissance">
+          <div class="naissance__dit"><span class="naissance__lab">Née le samedi 13 septembre 2026 à 12 h 33</span>Créée par <b>Rita G.</b> depuis l’encaissement du rendez-vous du 13 septembre, sur un <b>ordinateur Windows, Edge</b>.<span class="sceau">signé par la base</span></div>
+        </div>
+        <div class="defile">
+          <table class="tableau">
+            <thead><tr><th>Quand</th><th>Qui</th><th>Geste</th><th class="num">Montant</th><th>Caisse · moyen</th></tr></thead>
+            <tbody>
+              <tr><td>13 sept. · 12:33</td><td>Rita G.</td><td>Créée, premier versement</td><td class="num">10 000 F</td><td>Caisse du salon · espèces</td></tr>
+              <tr><td>13 sept. · 16:48</td><td>Rita G.</td><td>Deuxième versement, soldée</td><td class="num">5 000 F</td><td>KkiaPay · Mobile Money</td></tr>
+              <tr><td class="non">13 sept. · 18:02</td><td class="non">Koffi A.</td><td class="non">Payée, modifiée : premier versement passé en Mobile Money</td><td class="num non">10 000 F</td><td class="non">Caisse du salon → KkiaPay</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Journal des gestes · qui fait quoi</p>
+    <h2>Le résumé du jour, personne par personne</h2>
+    <p class="intro">En tête du Journal, un tableau par jour : <b>chaque personne, ce qu’elle a créé, modifié, encaissé, remisé, supprimé</b>. Un chiffre se clique et ouvre la liste de ces gestes ; chaque geste ouvre la vie de sa pièce. Le filtre <b>« Sensibles »</b> ne garde que ce qui mérite un regard.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>Samedi 13 septembre 2026</b><span>Lu par la direction</span></div>
+      <div class="ecran__corps">
+        <div class="filtres"><span class="puce">‹ vendredi</span><span class="puce actif">Le jour</span><span class="puce">La semaine</span><span class="puce">Le mois</span><span class="puce alerte">Sensibles · 3</span></div>
+        <div class="defile">
+          <table class="tableau">
+            <thead><tr><th>Personne</th><th class="num">RDV créés</th><th class="num">RDV modifiés</th><th class="num">Honorés</th><th class="num">Factures</th><th class="num">Encaissé</th><th class="num">Remises</th><th class="num">Suppressions</th><th>Appareils</th></tr></thead>
+            <tbody>
+              <tr><td><span class="personne"><span class="qui">RG</span>Rita G.</span></td><td class="num">6</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">82 000 F</td><td class="num">0</td><td class="num">0</td><td>Android · Windows</td></tr>
+              <tr><td><span class="personne"><span class="qui">KA</span>Koffi A.</span></td><td class="num">2</td><td class="num">3</td><td class="num">1</td><td class="num">1</td><td class="num">12 000 F</td><td class="num chiffre-sensible">1 · 2 000 F</td><td class="num chiffre-sensible">1</td><td>Windows</td></tr>
+              <tr><td><span class="personne"><span class="qui">AD</span>Awa D.</span></td><td class="num">0</td><td class="num">7</td><td class="num">0</td><td class="num">0</td><td class="num">0 F</td><td class="num">0</td><td class="num">0</td><td>Android</td></tr>
+              <tr><td><span class="personne"><span class="qui dehors">·</span>Clientes · Ma Couronne</span></td><td class="num">3</td><td class="num">2</td><td class="num">·</td><td class="num">·</td><td class="num">·</td><td class="num">·</td><td class="num">1</td><td>iPhone · Android</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p class="eyebrow" style="margin-bottom:6px">Les gestes sensibles du jour</p>
+          <ol class="vie">
+            <li class="geste est-sensible"><span class="geste__h"><b>11:07</b>sam. 13</span><span class="qui">KA</span><span class="geste__dit"><span class="verbe sensible">Supprimé</span><b>Koffi A.</b> a supprimé le rendez-vous de la cliente M. S. du 20 septembre<span class="geste__ou">Le Trône · ordinateur Windows, Edge · <span class="lien">voir la pièce telle qu’elle était</span></span></span></li>
+            <li class="geste est-sensible"><span class="geste__h"><b>12:26</b>sam. 13</span><span class="qui">KA</span><span class="geste__dit"><span class="verbe sensible">Remise</span><b>Koffi A.</b> a remisé de 2 000 F le rituel de la cliente A. K.<span class="geste__ou">Le Trône · ordinateur Windows, Edge · <span class="lien">ouvrir sa vie</span></span></span></li>
+            <li class="geste est-sensible"><span class="geste__h"><b>18:02</b>sam. 13</span><span class="qui">KA</span><span class="geste__dit"><span class="verbe sensible">Payée, modifiée</span><b>Koffi A.</b> a changé la caisse d’une facture payée, FA-2026-0412<span class="geste__ou">Le Trône · ordinateur Windows, Edge · <span class="lien">ouvrir sa vie</span></span></span></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Sont sensibles</b> : une suppression, une remise posée ou relevée, un prix changé, un statut qui recule (honoré redevenu confirmé), une facture payée modifiée, un versement déplacé d’une caisse à une autre, un téléphone de fiche cliente changé. <b>Une pièce supprimée</b> reste lisible telle qu’elle était, depuis sa trace.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Ce que la base retient</p>
+    <h2>Chaque geste, six choses</h2>
+    <div class="retient">
+      <div><b>Qui</b><em>le compte connecté</em><br>Son e-mail, et le nom de sa fiche au moment du geste : un renommage demain ne réécrit pas hier.</div>
+      <div><b>Quand</b><em>l’heure du serveur</em><br>Jamais l’horloge de l’appareil, qui peut être fausse ou réglée à la main.</div>
+      <div><b>Par où</b><em>Le Trône, Ma Couronne, la base</em><br>Une cliente qui réserve ou annule depuis son application est nommée comme telle.</div>
+      <div><b>Sur quoi</b><em>l’appareil</em><br>Type, système et navigateur, lus par la base à la réception. Aucune adresse réseau.</div>
+      <div><b>Quelle pièce</b><em>rendez-vous, facture, fiche, dépense</em><br>Et le geste : création, modification, suppression.</div>
+      <div><b>Quoi exactement</b><em>l’avant et l’après</em><br>La pièce entière, avant et après, pour relire ce qui a changé, même un détail qu’aucun écran ne montre.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Pour trancher un « ce n’est pas moi »</p>
+    <h2>Ce que la trace prouve, et ce qu’elle ne prouve pas</h2>
+    <div class="preuve">
+      <div class="prouve"><h3>Elle prouve</h3>
+        <ul>
+          <li>quel <b>compte</b> a créé, modifié, encaissé ou supprimé ;</li>
+          <li>à quelle <b>heure</b>, selon le serveur ;</li>
+          <li>depuis quel <b>type d’appareil</b> ;</li>
+          <li>ce qui a <b>changé</b>, au franc près.</li>
+        </ul>
+      </div>
+      <div class="prouve-pas"><h3>Elle ne prouve pas</h3>
+        <ul>
+          <li><b>la main</b> qui tenait l’appareil : un compte laissé ouvert sur l’ordinateur du comptoir signe au nom de son titulaire ;</li>
+          <li>ce qui s’est passé <b>avant sa mise en service</b> : rien n’a été écrit, rien ne se reconstitue.</li>
+        </ul>
+        La règle à dire à l’équipe : <b>un compte ne se prête pas, et chacun se déconnecte du poste commun</b>.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Avant de construire</p>
+    <h2>Trois points à trancher</h2>
+    <div class="atrancher">
+      <div><h3>Combien de temps garder la trace</h3>Le Journal actuel efface au-delà de douze mois. Une facture, elle, se garde pour la comptabilité.<b class="propose">Proposé · trois ans pour tout</b></div>
+      <div><h3>Le poste commun se verrouille</h3>Sur l’ordinateur du comptoir, un compte inactif reste ouvert et signe pour son titulaire.<b class="propose">Proposé · déconnexion après 15 minutes sans geste, sur ce poste</b></div>
+      <div><h3>Prévenir l’équipe</h3>Une trace dont personne n’a été prévenu se conteste, et elle change le climat.<b class="propose">Proposé · un article au règlement intérieur, signé par chacun</b></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Une fois validé</p>
+    <h2>Ce que le Trône fera</h2>
+    <ul class="construit">
+      <li><b>Une migration</b> : une table de traces en ajout seul, remplie par un déclencheur sur les rendez-vous, les factures, les fiches clientes, les dépenses et les mouvements de caisse. Personne ne peut y écrire, ni retoucher, ni effacer ; seuls le souverain et le gérant la lisent.</li>
+      <li><b>Dans le Carnet</b>, et partout où la fiche d’un rendez-vous s’ouvre : le tampon de naissance et l’onglet « Sa vie », avec les gestes de sa facture.</li>
+      <li><b>Sur chaque facture</b> : le même tampon, la même vie, les versements avec leur caisse et leur main.</li>
+      <li><b>Dans le Journal des gestes</b> : le résumé du jour, de la semaine ou du mois par personne, le filtre des gestes sensibles, et la vie de chaque pièce à un clic, y compris une pièce supprimée.</li>
+      <li><b>Le Journal d’aujourd’hui</b> reste lisible pour les mois déjà écrits ; la trace de la base prend le relais le jour de la mise en service.</li>
+    </ul>
+  </section>
+
+  <p class="pied">Maquette à valider. Les noms, comptes, montants et heures sont des exemples.</p>
+</main>

@@ -109,8 +109,10 @@ dit('… et s’ouvrent à la case', true, peutVoir('maitre', '/depenses', { '/d
 dit('… ou par leur domaine', true, peutVoir('maitre', '/depenses', { finances: true }));
 
 /* CE QUI EST RÉSERVÉ AU SOUVERAIN LE RESTE, quoi qu'on coche. */
-dit('le Journal reste au souverain', false, peutVoir('maitre', '/journal', { '/journal': true, systeme: true }));
-dit('… et s’ouvre pour lui', true, peutVoir('souverain', '/journal', {}));
+dit('le Journal reste fermé à un maître, quoi qu’on coche', false, peutVoir('maitre', '/journal', { '/journal': true, systeme: true }));
+dit('… et s’ouvre au souverain', true, peutVoir('souverain', '/journal', {}));
+dit('… et au gérant : la direction lit la trace de la base (0092)', true, peutVoir('gerant', '/journal', {}));
+dit('Salon & Foyer reste au souverain seul', false, peutVoir('gerant', '/salon-foyer', {}));
 dit('un gérant voit tout le reste', true, peutVoir('gerant', '/depenses', {}));
 
 /* ── ⑦ ON NE RENVOIE QUE VERS UNE PORTE OUVERTE ────────────────────

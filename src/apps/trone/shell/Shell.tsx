@@ -62,6 +62,7 @@ import { useReconcileClients } from './useReconcileClients';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
 import { useSansLocksVivant } from './useSansLocksVivant';
+import { useVerrouDuPoste, postePartageStore } from './useVerrouDuPoste';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
 import { Seal, Button, toast } from '../../../ds/components';
@@ -273,6 +274,10 @@ export default function Shell() {
   /* LE CARNET DIT SI ELLE PORTE ENCORE SES LOCKS — 11 septembre 2026.
      Même place et même contrat que le passage : une lecture, un champ. */
   useSansLocksVivant();
+  /* LE POSTE COMMUN SE FERME APRÈS QUINZE MINUTES SANS GESTE — réglé poste
+     par poste, depuis le Journal des gestes (voir useVerrouDuPoste). */
+  const [postePartage] = useStore(postePartageStore);
+  useVerrouDuPoste(postePartage && !!session);
   const today = new Date();
   const [sideOpen, setSideOpen] = useState(false);
   const [appelOpen, setAppelOpen] = useState(false);

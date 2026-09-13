@@ -207,6 +207,24 @@ export const SOURCE_DU_REGLEMENT: SourceDuReglement = {
 };
 
 /** LES ARTICLES PRÊTS À LIRE : les repères remplacés par ce qu'ils désignent. */
+/* ══ LES COMPTES ET LA TRACE DES GESTES — 13 septembre 2026 ═══════════
+   « Faut-il prévenir l'équipe que chaque geste est signé par la base ? » —
+   « Article au règlement intérieur » (Yéman).
+
+   PROPOSÉ, JAMAIS IMPOSÉ PAR LE CODE. La v1 est celle que chacun a signée :
+   la réécrire ici changerait après coup ce à quoi ces personnes ont dit oui.
+   L'article s'ajoute au BROUILLON depuis Les textes de la Maison, se relit,
+   puis se publie en nouvelle version, que chacun signe à nouveau. */
+export const ARTICLE_TRACE_DES_GESTES: ArticleSansNumero = {
+  titre: 'Les comptes et la trace des gestes',
+  lignes: [
+    'Chaque membre de la Maison travaille dans Le Trône sous son propre compte. Un compte ne se prête pas, et son mot de passe ne se confie à personne.',
+    'Chaque geste fait dans Le Trône sur un rendez-vous, une facture, un encaissement, une fiche cliente, une dépense ou une caisse, qu’il s’agisse de la créer, de la modifier ou de la supprimer, est enregistré par la base elle-même : le compte qui l’a fait, l’heure du serveur, le type d’appareil utilisé et ce qui a changé. Personne ne peut modifier ni effacer cette trace. Elle est conservée douze mois.',
+    'Un geste fait sous un compte est réputé fait par son titulaire. Celui qui quitte un poste commun se déconnecte ; un poste déclaré commun se déconnecte seul après quinze minutes sans activité.',
+    'Seule la direction lit ces traces. Elles servent à établir les faits en cas de désaccord, et la personne concernée est entendue avant toute suite.',
+  ],
+};
+
 export const articlesDe = (source: SourceDuReglement, jourIso: string): ArticleSansNumero[] =>
   source.articles.map((a) => ({
     titre: a.titre,

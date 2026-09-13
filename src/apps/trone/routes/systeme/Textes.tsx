@@ -9,7 +9,7 @@ import {
   useFichesDePoste, useReglement,
 } from '../../../../shared/textes';
 import {
-  LES_DEGRES, LE_JOUR, gardesDeLArticle, gardesPerdues, type SourceDuReglement,
+  ARTICLE_TRACE_DES_GESTES, LES_DEGRES, LE_JOUR, gardesDeLArticle, gardesPerdues, type SourceDuReglement,
 } from '../../../../shared/reglement-interieur';
 import { cleNeuve, type FicheDePoste } from '../../../../shared/postes';
 import type { ArticleSansNumero, Contrat } from '../../../../shared/contrats';
@@ -559,6 +559,29 @@ function OngletReglement() {
           </Button>
         </span>
       </div>
+
+      {/* L'ARTICLE PROPOSÉ — 13 septembre 2026. « Prévenir l'équipe que chaque
+          geste est signé par la base : article au règlement intérieur » (Yéman).
+          Le code ne publie rien : il propose, la Maison relit et publie. */}
+      {!source.articles.some((a) => a.titre === ARTICLE_TRACE_DES_GESTES.titre) && (
+        <div className="txt-garde">
+          <u>Un article proposé</u>
+          « {ARTICLE_TRACE_DES_GESTES.titre} » : chacun son compte, chaque geste signé par la base et gardé douze mois,
+          lu par la direction seule, et le poste commun qui se ferme après quinze minutes sans geste. Il entre dans le
+          brouillon, se relit, puis se publie en nouvelle version que chacun signe.
+          <div style={{ marginTop: 8 }}>
+            <Button
+              variant="ghost" style={{ flex: 'none' }}
+              onClick={() => {
+                poseSource({ ...source, articles: [...source.articles, ARTICLE_TRACE_DES_GESTES] });
+                toast('Article ajouté au brouillon. Relisez-le, puis publiez la nouvelle version.');
+              }}
+            >
+              Ajouter au brouillon
+            </Button>
+          </div>
+        </div>
+      )}
 
       {etat.brouillon && (
         <div className="txt-garde">

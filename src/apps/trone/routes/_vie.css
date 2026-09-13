@@ -1,0 +1,121 @@
+/* ══ LA VIE D'UNE PIÈCE — 13 septembre 2026 ══════════════════════════════
+   Le tampon de naissance, l'onglet « Sa vie », un geste par ligne, et le
+   résumé « qui fait quoi » du Journal. Feuille autonome : la fiche du
+   rendez-vous s'ouvre depuis dix écrans, elle ne peut dépendre d'aucun. */
+
+.tvie-entete { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+
+.tvie-tampon {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;
+  border: 1px solid var(--copper-300); background: var(--copper-50);
+  border-radius: var(--radius-sm, 3px); padding: 10px 12px;
+}
+.tvie-tampon.est-muet { border-style: dashed; border-color: var(--hairline); background: var(--surface-card); }
+.tvie-tampon__dit { font-family: var(--font-sans); font-size: 13px; line-height: 1.55; color: var(--ink); min-width: 0; flex: 1 1 280px; }
+.tvie-tampon__dit b { font-weight: 600; color: var(--color-indigo); }
+.tvie-tampon__lab { display: block; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); margin-bottom: 2px; }
+.tvie-sceau {
+  display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: #41604A; border: 1px solid #C4D5C8; border-radius: 3px; padding: 1px 6px;
+  margin-left: 6px; vertical-align: 1px; white-space: nowrap;
+}
+.tvie-voir {
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+  border: 1px solid var(--color-indigo); color: var(--color-indigo); background: transparent;
+  border-radius: 3px; padding: 7px 11px; cursor: pointer; white-space: nowrap;
+}
+.tvie-voir:hover { background: var(--hover-veil, rgba(30, 33, 80, .06)); }
+.tvie-voir:focus-visible, .tvie-onglet:focus-visible, .tvie-puce:focus-visible, .tvie-table tr:focus-visible, .tvie-geste.est-cliquable:focus-visible {
+  outline: 2px solid var(--color-copper); outline-offset: 2px;
+}
+
+.tvie-onglets { display: flex; gap: 18px; border-bottom: 1px solid var(--hairline); }
+.tvie-onglet {
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 7px 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.tvie-onglet.actif { color: var(--color-indigo); border-bottom-color: var(--color-copper); font-weight: 600; }
+
+.tvie-corps { display: flex; flex-direction: column; gap: 12px; }
+.tvie-filtres { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.tvie-puce {
+  font-family: var(--font-sans); font-size: 12px; border: 1px solid var(--hairline); border-radius: 3px;
+  padding: 4px 10px; background: var(--surface-card); color: var(--ink); cursor: pointer;
+}
+.tvie-puce.actif { background: var(--color-indigo); border-color: var(--color-indigo); color: #fff; }
+.tvie-puce.alerte { border-color: #E4BDB2; color: #96412E; background: #FBF0ED; }
+.tvie-puce.alerte.actif { background: #96412E; border-color: #96412E; color: #fff; }
+
+.tvie-liste { list-style: none; margin: 0; padding: 0 0 0 10px; }
+.tvie-geste {
+  display: grid; grid-template-columns: 70px 30px minmax(0, 1fr); gap: 0 11px;
+  padding: 11px 0; border-top: 1px solid var(--hairline); position: relative;
+}
+.tvie-geste:first-child { border-top: 0; }
+.tvie-geste.est-sensible::before { content: ''; position: absolute; left: -10px; top: 11px; bottom: 11px; width: 2px; background: #96412E; }
+.tvie-geste.est-cliquable { cursor: pointer; }
+.tvie-geste.est-cliquable:hover { background: var(--hover-veil, rgba(30, 33, 80, .04)); }
+.tvie-h { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); line-height: 1.35; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.tvie-h b { display: block; color: var(--ink); font-weight: 500; font-size: 13px; }
+.tvie-qui {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--color-indigo); color: #fff;
+  font-family: var(--font-sans); font-size: 10.5px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.tvie-qui.dehors { background: var(--color-copper); }
+.tvie-dit { font-family: var(--font-sans); font-size: 13.5px; line-height: 1.5; color: var(--ink); min-width: 0; }
+.tvie-dit b { font-weight: 600; color: var(--color-indigo); }
+.tvie-verbe {
+  display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  border-radius: 3px; padding: 1px 7px; margin-right: 6px; vertical-align: 1px; font-weight: 600; border: 1px solid;
+}
+.tvie-verbe.pose { color: #41604A; background: #EDF2EE; border-color: #C4D5C8; }
+.tvie-verbe.modifie { color: var(--color-indigo); background: rgba(30, 33, 80, .06); border-color: rgba(30, 33, 80, .18); }
+.tvie-verbe.argent { color: var(--copper-700); background: var(--copper-50); border-color: var(--copper-300); }
+.tvie-verbe.sensible { color: #96412E; background: #FBF0ED; border-color: #E4BDB2; }
+.tvie-verbe.automatique { color: var(--ink-soft); background: transparent; border-color: var(--hairline); }
+.tvie-ou { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; overflow-wrap: anywhere; }
+.tvie-diff { margin-top: 6px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 2px 10px; font-size: 12.5px; }
+.tvie-diff__champ { color: var(--ink-soft); }
+.tvie-diff__avant { color: var(--ink-soft); text-decoration: line-through; text-decoration-color: rgba(150, 65, 46, .5); overflow-wrap: anywhere; }
+.tvie-diff__apres { color: var(--ink); overflow-wrap: anywhere; }
+.tvie-brut { margin-top: 6px; }
+.tvie-brut summary { cursor: pointer; font-size: 11.5px; color: var(--copper-700); font-weight: 600; }
+.tvie-brut pre {
+  margin: 6px 0 0; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px;
+  padding: 10px; font-size: 11px; line-height: 1.5; overflow: auto; max-height: 260px;
+}
+
+.tvie-note {
+  font-family: var(--font-sans); font-size: 12px; color: var(--ink-soft); line-height: 1.55;
+  border: 1px dashed var(--hairline); border-radius: 3px; padding: 9px 11px;
+}
+.tvie-lien { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--copper-700); }
+
+/* ── Le résumé du Journal ── */
+.tvie-periode { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.tvie-periode__titre { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); text-transform: capitalize; }
+.tvie-nav { background: none; border: 1px solid var(--hairline); border-radius: 3px; width: 30px; height: 30px; cursor: pointer; color: var(--color-indigo); font-size: 15px; }
+.tvie-table-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); }
+.tvie-table { width: 100%; min-width: 820px; border-collapse: collapse; font-family: var(--font-sans); font-size: 13px; }
+.tvie-table th {
+  text-align: left; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700);
+  font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--hairline); white-space: nowrap;
+}
+.tvie-table td { padding: 8px 10px; border-top: 1px solid var(--hairline); }
+.tvie-table tbody tr { cursor: pointer; }
+.tvie-table tbody tr:first-child td { border-top: 0; }
+.tvie-table tbody tr:hover td { background: var(--hover-veil, rgba(30, 33, 80, .04)); }
+.tvie-table tr.est-choisie td { background: var(--copper-50); }
+.tvie-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tvie-rouge { color: #96412E; font-weight: 600; }
+.tvie-personne { display: flex; gap: 9px; align-items: center; white-space: nowrap; }
+.tvie-poste {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  border-top: 1px solid var(--hairline); padding-top: 12px; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .tvie-geste { grid-template-columns: 56px 26px minmax(0, 1fr); gap: 0 8px; }
+  .tvie-qui { width: 24px; height: 24px; font-size: 9.5px; }
+}

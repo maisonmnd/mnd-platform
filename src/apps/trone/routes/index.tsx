@@ -220,11 +220,16 @@ export const domaineDe = (path: string): string | undefined =>
    au SOUVERAIN, comme la paie — un gérant qui tient le comptoir n'a pas à
    lire le budget maison de Brice et Yéman. Ceci n'est qu'une garde d'écran ;
    la vraie barrière est la RLS (`is_souverain()`, migration 0038). */
+export const ROUTES_SOUVERAIN = ['/salon-foyer'];
+
 /* Le journal dit qui fait quoi : le rendre lisible de tous changerait le
    climat de la Maison — on ne travaille pas pareil quand chaque geste est
-   public. Le personnel sait qu'il existe ; les souverains le consultent.
-   La vraie barrière reste la RLS (migration 0070), celle-ci n'est que le menu. */
-export const ROUTES_SOUVERAIN = ['/salon-foyer', '/journal'];
+   public. Le personnel sait qu'il existe ; la DIRECTION le consulte.
+   S'OUVRE AU GÉRANT le 13 septembre 2026 (« souverain et gérant »), avec la
+   trace signée par la base : sa vraie barrière est la RLS de 0092
+   (`est_direction()`). L'ancien journal écrit par l'application, lui, reste
+   lisible du souverain seul (0070). */
+export const ROUTES_DIRECTION = ['/journal'];
 
 export const peutVoir = (
   role: string | undefined,
@@ -232,6 +237,7 @@ export const peutVoir = (
   acces: Record<string, boolean> = {},
 ): boolean => {
   if (ROUTES_SOUVERAIN.includes(path)) return role === 'souverain';
+  if (ROUTES_DIRECTION.includes(path)) return role === 'souverain' || role === 'gerant';
   if (role !== 'maitre') return true;
   if (ROUTES_MAITRE.includes(path)) return true;
   /* OUVERT SAUF REFUS EXPLICITE. `undefined` vaut oui — sans quoi tous les

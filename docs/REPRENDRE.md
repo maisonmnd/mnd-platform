@@ -141,6 +141,73 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LA VIE D'UN RENDEZ-VOUS · LA TRACE DE LA BASE — 13 septembre 2026, PUBLIÉ · MIGRATION 0092 À PASSER
+
+« J'ai des employés qui font des rendez-vous et des factures, et à la fin de la
+journée ils disent que ce n'est pas eux. Quand je clique un rendez-vous, je dois
+retrouver quand il a été créé, par qui, comment il a été tamponné, tout »
+(Yéman). Maquette `public/maquette-la-vie-d-un-rendez-vous.html` validée.
+
+**Pourquoi le Journal des gestes (0070) ne suffisait pas** : il est écrit PAR
+L'APPLICATION (`pushDiff`, sync.ts). Le nom vient de l'écran, la politique
+d'insertion accepte n'importe quelle ligne d'un compte connecté, une ligne se
+perd en silence hors ligne, et plusieurs corrections rapprochées n'en font
+qu'une. Face à « ce n'est pas moi », ce n'est pas une preuve.
+
+**Tranché** : chacun son propre compte (pas de code par geste) · lecture par
+le souverain ET le gérant · rendez-vous, factures et encaissements, fiches
+clientes, dépenses et caisses · l'appareil seulement, sans adresse réseau ·
+douze mois de garde · verrou de 15 minutes sur le poste commun · un article au
+règlement intérieur.
+
+**Où ça vit**
+- **0092** : table `traces` (en ajout seul : aucune politique d'écriture,
+  droits retirés ; lecture `est_direction()`), déclencheur
+  `trace_le_geste()` AFTER INSERT/UPDATE/DELETE, SECURITY DEFINER, sur
+  appointments, invoices, payments, credit_movements, clients, expenses,
+  cashboxes, transferts_caisse, coffre_movements, entrees_hors_activite. Il
+  lit `auth.uid()`, l'e-mail du JWT, le nom de la fiche `team` (sinon
+  `staff.name`), la porte (trone / couronne / visiteur / serveur / base),
+  l'en-tête `user-agent`, et garde la pièce entière à la pose et à
+  l'effacement, les champs changés plus un contexte de lecture (statut, date,
+  numéro, nom, serviceIds…) à la modification. Valeurs de plus de 20 000
+  caractères allégées. `_photographie_maison` exclut `traces` ;
+  `sauvegarde_nuit_sql` la purge au-delà de douze mois (les deux reprises de
+  0070 à l'identique).
+- `shared/traces.ts`, le seul lecteur : `appareilDit`, `litLeGeste` (le verbe,
+  la phrase, le diff en français, sensible ou non), `estAutomatique`,
+  `resumeParPersonne`, `piecesDuRendezVous` / `piecesDeLaFacture`.
+- `routes/_vie.tsx` (+ `_vie.css`) : `TamponDeNaissance`, `SaVie`,
+  `GesteDeLaVie`, `ModaleDeLaVie`, `VieDeLaFacture`. Branchés dans la
+  `RdvModal` (tampon + onglets « Le rendez-vous / Sa vie », donc partout où la
+  fiche s'ouvre, Carnet compris) et dans le panneau d'une facture.
+- `systeme/QuiFaitQuoi.tsx` en tête du Journal : jour / semaine (du mardi) /
+  mois, résumé par personne, gestes sensibles, chaque geste ouvre la vie de sa
+  pièce, même supprimée. L'ancien journal reste dessous, au souverain seul.
+  `/journal` passe de `ROUTES_SOUVERAIN` à `ROUTES_DIRECTION`.
+- `shell/useVerrouDuPoste.ts` : déconnexion après 15 minutes sans geste,
+  seulement sur un poste déclaré commun (case locale `mnd_poste_partage`,
+  réglée depuis le Journal, qui survit à la déconnexion).
+- `ARTICLE_TRACE_DES_GESTES` (reglement-interieur.ts) : proposé dans Les
+  textes › Règlement (« Ajouter au brouillon »), jamais publié par le code.
+- `verifie-traces` (50ᵉ harnais, 38 assertions) ; `verifie-porte` porte le
+  gérant sur `/journal`.
+
+**À savoir**
+- **Rien d'avant 0092 ne se reconstitue** : la fiche le dit (« né avant la
+  trace de la base ») au lieu d'afficher une vie vide.
+- **La trace prouve le compte, pas la main** : un compte laissé ouvert signe
+  pour son titulaire. D'où le verrou et l'article.
+- **L'automatique** : la coquille réécrit seule des fiches (persona, passage,
+  sans locks) sous le compte connecté. `CHAMPS_QUI_COMPTENT` sépare le fond de
+  la mécanique ; une réécriture automatique se lit dans la vie (lien « Montrer
+  les mises à jour automatiques ») mais ne compte jamais dans le résumé.
+- **Une réparation SQL** passée à la main s'inscrit sous « La base ».
+- L'ancien journal écrit par l'application continue de s'écrire ; on pourra le
+  couper une fois la trace éprouvée.
+- Si la trace ne répond pas (migration non passée, compte hors direction),
+  chaque écran le dit en toutes lettres.
+
 ## LE FORFAIT DU PRESTATAIRE EN QUATRE SEMAINES — 13 septembre 2026, PUBLIÉ
 
 « Les employés ont par exemple 80 000 pour la prestation du mois. Il faut

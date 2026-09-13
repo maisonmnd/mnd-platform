@@ -4,6 +4,8 @@ import { Input, Segs } from '../../../../ds/components';
 import { normName } from '../../../../shared/text';
 import { litLeJournal, type Geste, type GesteVerbe } from '../../../../shared/journal';
 import { todayISO, monthKey, monthTitle, MonthNav, downloadCsv } from '../finances/_shared';
+import { useStaff as useMaTete } from '../../../../shared/auth';
+import QuiFaitQuoi from './QuiFaitQuoi';
 import '../finances/finances.css';
 import './systeme.css';
 
@@ -52,6 +54,9 @@ const initiales = (nom: string): string => {
 };
 
 export default function Journal() {
+  /* L'ANCIEN JOURNAL RESTE AU SOUVERAIN (RLS 0070) ; la trace de la base,
+     au-dessus, s'ouvre à la direction (0092). */
+  const souverain = useMaTete()?.role === 'souverain';
   const [month, setMonth] = useState(monthKey(todayISO()));
   const [gestes, setGestes] = useState<Geste[]>([]);
   const [charge, setCharge] = useState(true);
@@ -125,8 +130,23 @@ export default function Journal() {
       <PageHead
         eyebrow="Système · Traçabilité"
         title="Le Journal des gestes."
-        actions={<button className="mnd-btn mnd-btn--ghost" onClick={exportCsv}>Exporter le mois</button>}
+        sub="Qui fait quoi, signé par la base."
       />
+
+      <QuiFaitQuoi />
+
+      {souverain && (
+      <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginTop: 34, marginBottom: 10 }}>
+        <div>
+          <div className="trf-panel__title" style={{ marginBottom: 2 }}>L’ancien journal, écrit par l’application</div>
+          <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5, maxWidth: '72ch' }}>
+            Tenu depuis le 21 août 2026. Le nom y est posé par l’écran : il se relit, il ne prouve pas. La trace ci-dessus,
+            signée par la base, fait foi.
+          </div>
+        </div>
+        <button className="mnd-btn mnd-btn--ghost" onClick={exportCsv}>Exporter le mois</button>
+      </div>
 
       <div className="trf-toolbar">
         <MonthNav month={month} onChange={setMonth} />
@@ -243,6 +263,8 @@ export default function Journal() {
         Les gestes de plus de douze mois sont effacés avec le cliché de nuit. Une écriture faite
         en plusieurs corrections rapprochées ne fait qu’une ligne, l’état d’avant, l’état d’après.
       </p>
+      </>
+      )}
     </div>
   );
 }

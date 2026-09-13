@@ -29,6 +29,7 @@ import { jourAn, jourCourtAn, jourEnLettres } from '../../../../shared/calendrie
 import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
+import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
@@ -1358,6 +1359,15 @@ export function RdvModal({
   const [produitsGamme] = useProducts();
   const byId = useServicesById();
 
+  /* ══ LA VIE DU RENDEZ-VOUS — 13 septembre 2026 ═══════════════════════
+     « Quand je clique un rendez-vous, je dois retrouver quand il a été créé,
+     par qui, comment il a été tamponné, tout » (Yéman). Le tampon de
+     naissance en tête, l'onglet « Sa vie » à côté, lus dans la trace signée
+     par la base (0092). La direction seule : la base refuse les autres. */
+  const estDirection = useEstDirection();
+  const [vueDeLaFiche, setVueDeLaFiche] = useState<'rdv' | 'vie'>('rdv');
+  const vie = useVieDuRendezVous(appt, estDirection);
+
   /* ══ LA CASE ATTEND, ELLE NE DEVINE PAS — 2 septembre 2026 ═════════
      « Quand je veux prendre un nouveau rendez-vous, j'ai toujours un nom qui est
      pris et rempli dans la case. J'aimerais que cette case soit vierge quand
@@ -2408,6 +2418,35 @@ export function RdvModal({
 
   return (
     <Modal title={title ?? (appt ? 'Modifier le rendez-vous.' : 'Nouveau rendez-vous.')} onClose={onClose} width={640}>
+      {appt && estDirection && (
+        <div className="tvie-entete">
+          <TamponDeNaissance
+            vie={vie}
+            principal={{ table: 'appointments', id: appt.id }}
+            creeLe={appt.creeLe}
+            onVoir={vueDeLaFiche === 'vie' ? undefined : () => setVueDeLaFiche('vie')}
+          />
+          <div className="tvie-onglets" role="tablist">
+            <button
+              type="button" role="tab" aria-selected={vueDeLaFiche === 'rdv'}
+              className={`tvie-onglet ${vueDeLaFiche === 'rdv' ? 'actif' : ''}`}
+              onClick={() => setVueDeLaFiche('rdv')}
+            >
+              Le rendez-vous
+            </button>
+            <button
+              type="button" role="tab" aria-selected={vueDeLaFiche === 'vie'}
+              className={`tvie-onglet ${vueDeLaFiche === 'vie' ? 'actif' : ''}`}
+              onClick={() => setVueDeLaFiche('vie')}
+            >
+              Sa vie{vie.etat === 'pret' ? ` · ${nombreDeGestes(vie)}` : ''}
+            </button>
+          </div>
+        </div>
+      )}
+      {appt && estDirection && vueDeLaFiche === 'vie' ? (
+        <SaVie vie={vie} principal={{ table: 'appointments', id: appt.id }} />
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* ═══ LE BANDEAU VIVANT (14 août) — il ne bouge jamais.
             Onze champs à la file, et le total tout en bas : on faisait défiler
@@ -3888,6 +3927,7 @@ export function RdvModal({
           </div>
         )}
       </div>
+      )}
       {demanderOuvert && appt && (
         <DemanderModal
           piece={{

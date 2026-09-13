@@ -31,6 +31,7 @@ import './vente.css';
 import { retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
+import { VieDeLaFacture } from '../_vie';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -1452,6 +1453,9 @@ export default function Factures() {
                   Supprimer
                 </Button>
               </div>
+              {/* SA NAISSANCE ET SA VIE — 13 septembre 2026, signées par la base
+                  (0092). La direction seule : le composant ne rend rien aux autres. */}
+              <VieDeLaFacture invoice={selected} />
               {/* LE RITUEL S'OUVRE ICI, PAS DANS UN AUTRE ÉCRAN. Corriger une
                   prestation obligeait à quitter la pièce pour le Carnet, à y
                   retrouver la cliente, puis à revenir vérifier ce que la facture
