@@ -141,7 +141,7 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
-## LA VIE D'UN RENDEZ-VOUS · LA TRACE DE LA BASE — 13 septembre 2026, PUBLIÉ · MIGRATION 0092 À PASSER
+## LA VIE D'UN RENDEZ-VOUS · LA TRACE DE LA BASE — 13 septembre 2026, PUBLIÉ · MIGRATION 0092 PASSÉE (10 tables tracées)
 
 « J'ai des employés qui font des rendez-vous et des factures, et à la fin de la
 journée ils disent que ce n'est pas eux. Quand je clique un rendez-vous, je dois
