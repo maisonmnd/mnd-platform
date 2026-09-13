@@ -141,7 +141,7 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
-## LE MANUEL SE CORRIGE DANS LE TRÔNE — 13 septembre 2026, PUBLIÉ · MIGRATION 0089 À PASSER
+## LE MANUEL SE CORRIGE DANS LE TRÔNE — 13 septembre 2026, PUBLIÉ · MIGRATION 0089 PASSÉE
 
 « Donne-moi la possibilité d'éditer le manuel dans le Trône. Je ne veux pas
 corriger le fichier puis le réimporter. C'est un document privé : l'éditer
