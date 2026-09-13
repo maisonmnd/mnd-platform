@@ -141,6 +141,22 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## HONORER DEPUIS L'ENCAISSEMENT, ET LES ANNÉES DANS L'ORDRE — 13 septembre 2026, PUBLIÉ
+
+« Est-ce possible d'avoir le bouton honorer sur la page d'encaissement aussi ? »
+puis « Range les années en ordre : 2025-2026-2027 » (Yéman).
+
+**Honorer le rituel**, dans `PayAppointmentModal`, appelle `honorAppointment` :
+le MÊME geste que le Carnet (statut, points du Cercle, stock, reprise,
+couronne), jamais une écriture du seul statut, qui rouvrirait la faute du
+11 septembre (la reprise de Befoune jamais posée). Il disparaît dès que le
+rituel est honoré ou annulé, et la ligne dit « Rituel honoré » à sa place.
+
+**Les années du champ de date s'affichent en ordre croissant.** Elles
+sortaient par probabilité (2026, 2027, 2025) ; l'œil lit une frise. La plus
+probable reste signalée par sa couleur, pas par sa place. `anneesPossibles`
+garde son ordre de probabilité et son harnais : seul l'affichage trie.
+
 ## ENREGISTRER ET ENCAISSER, EN UN GESTE — 13 septembre 2026, PUBLIÉ
 
 « Je ne veux pas retourner en arrière sur le RDV pour enregistrer les

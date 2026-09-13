@@ -343,7 +343,13 @@ export function ChampDeDate({
       {anneeSupposee && iso && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
           <span className="mnd-muted" style={{ fontSize: 11 }}>Quelle année ?</span>
-          {candidates.map((a2) => (
+          {/* DANS L'ORDRE DU CALENDRIER — 13 septembre 2026, « Range les années
+              en ordre : 2025-2026-2027 » (Yéman). Elles s'affichaient par
+              probabilité (2026, 2027, 2025) : l'œil cherche une année comme
+              sur une frise, de gauche à droite, et un ordre qui saute oblige
+              à relire les trois. La plus probable reste signalée par sa
+              couleur, pas par sa place. */}
+          {[...candidates].sort((x, y) => x - y).map((a2) => (
             <button
               key={a2}
               type="button"

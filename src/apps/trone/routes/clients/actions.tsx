@@ -2125,6 +2125,30 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             Enregistrer ce règlement et en ajouter un autre
           </Button>
         )}
+        {/* ══ HONORER, SANS QUITTER L'ENCAISSEMENT — 13 septembre 2026 ═════
+            « Est-ce possible d'avoir le bouton honorer sur la page
+            d'encaissement aussi ? » (Yéman). On règle, puis on devait fermer,
+            retrouver la ligne au carnet et ouvrir son menu pour clôturer : deux
+            écrans pour un seul rituel terminé, au comptoir, devant la cliente.
+
+            LE MÊME GESTE QUE LE CARNET, pas une copie : `honorAppointment` pose
+            le statut, les points du Cercle, la consommation du stock, la reprise
+            et la couronne. Un bouton qui n'écrirait que le statut rouvrirait la
+            faute du 11 septembre (la reprise de Befoune jamais posée).
+
+            Il ne paraît que tant que le rituel n'est ni honoré ni annulé ; une
+            fois clôturé, la ligne le dit à sa place. `appt` est relu dans le
+            magasin à chaque rendu, donc l'écran change dès le clic. */}
+        {appt.status !== 'honoré' && appt.status !== 'annulé' && (
+          <Button variant="ghost" onClick={() => honorAppointment(appt, byId)} style={{ marginTop: 4 }}>
+            Honorer le rituel
+          </Button>
+        )}
+        {appt.status === 'honoré' && (
+          <div style={{ alignSelf: 'center', marginTop: 4, fontSize: 12, color: 'var(--trv-success, #41604A)' }}>
+            Rituel honoré
+          </div>
+        )}
         <Button
           variant="copper"
           onClick={() => confirm()}
