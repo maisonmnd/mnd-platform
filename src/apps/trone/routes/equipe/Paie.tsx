@@ -11,7 +11,9 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { expensesStore, expenseCategoriesStore, useDepensesComptees, useInvoices } from '../../../../shared/finance';
-import { useStaff } from './data';
+import { useStaff, type StaffMember } from './data';
+import { FacturesDuRun, FactureDeLaDirection } from './FacturePrestataire';
+import { useFacturesPrestataires, prestatairesSansFactureAcceptee, factureDe, totalAccepte, estPrestataire } from './facture';
 import { usePrets, etatsDesEmprunteurs, type Pret } from '../../../../shared/foyer';
 import { useBranchAppointments, useServicesById, apptNetXof, commissionDetaillee } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
@@ -19,7 +21,7 @@ import {
   payrollRunsStore, payrollParametersStore, usePayrollRuns, useAdvances, usePayrollParameters, useAttendance, useCommRates,
   parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
-  RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
+  RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED, ligneDePrestataire, parametresDeLaLigne,
   ligneEstPayee, resteAVerserXof, dejaVerseXof, avancementDuRun, runEntierementVerse,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
@@ -82,6 +84,7 @@ export function PaieRuns() {
   const byId = useServicesById();
   const [invoices] = useInvoices();
   const [rates] = useCommRates();
+  const [factures] = useFacturesPrestataires();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -168,11 +171,19 @@ export function PaieRuns() {
          défaire le prêt. Elle ne s’inscrit pour de bon qu’au règlement. */
       const retenuePret = retenuesDuMois.get(s.id) ?? 0;
       const deductions: PayDeductions = { avance, autresRetenues: retenuePret };
-      return {
+      const ligne: PayrollLine = {
         employeeId: s.id, name: s.name, poste: s.role, matricule: s.matricule,
         cnssNum: s.cnssNum, paiement: s.paiement,
         gains, deductions, result: computePay(gains, deductions, p),
       };
+      /* UNE PRESTATAIRE EST PAYÉE SUR SA FACTURE — 13 septembre 2026. Sa
+         ligne porte le total accepté (zéro tant qu'il n'y en a pas), sans
+         CNSS ni ITS ; la validation du run l'attend. */
+      if (estPrestataire(s)) {
+        const f = factureDe(factures, s.id, period);
+        return ligneDePrestataire(ligne, totalAccepte(f) ?? 0, f?.id, p);
+      }
+      return ligne;
     });
     const run: PayrollRun = {
       id: `run-${uid()}`, period, atelier: atelier || undefined, status: 'brouillon',
@@ -265,6 +276,10 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   /* Le répertoire du personnel : c'est lui qui porte le NUMÉRO. La ligne de
      paie, elle, ne garde que le mode (Mobile Money, banque). */
   const [lePersonnel] = useStaff();
+  /* LES FACTURES DES PRESTATAIRES — la validation les attend. */
+  const [factures] = useFacturesPrestataires();
+  const [factureOuverte, setFactureOuverte] = useState<StaffMember | null>(null);
+  const bloquantes = prestatairesSansFactureAcceptee(asArray<PayrollLine>(run.lines), run.period, lePersonnel, factures);
   const editable = run.status === 'brouillon';
   const lines = asArray<PayrollLine>(run.lines);
   const t = runTotals(run);
@@ -434,6 +449,13 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
 
   /* Cycle de vie — un run clôturé est immuable (les chiffres sont figés). */
   const advance = (next: RunStatus) => {
+    /* ══ LA PAIE ATTEND LES FACTURES — 13 septembre 2026 ═══════════════
+       « Bloquée » (Yéman) : une prestataire sans facture acceptée arrête la
+       validation, et le refus dit qui manque. */
+    if (next === 'valide' && bloquantes.length > 0) {
+      toast(`La paie ne se valide pas encore : ${bloquantes.map((l) => l.name).join(', ')}, sans facture acceptée.`);
+      return;
+    }
     /* ══ « PAYÉ » DEVIENT UN CONSTAT — 1er septembre 2026 ═════════════
        « Comment je gère les paiements de masse » (Yéman). C'était un clic qui
        AFFIRMAIT sans vérifier : le run entier basculait d'un geste, et rien ne
@@ -454,7 +476,17 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     )) return;
     if (next === 'cloture' && !window.confirm('Clôturer ce run ? Il deviendra immuable, toute correction passera par un run de régularisation le mois suivant.')) return;
     const stamp = next === 'valide' ? { validatedAt: nowStamp() } : next === 'paye' ? { paidAt: nowStamp() } : next === 'cloture' ? { closedAt: nowStamp() } : {};
-    setRun({ status: next, ...stamp });
+    /* À la validation, chaque ligne de prestataire reprend le total de sa
+       facture acceptée : acceptée après la création du run, il n'y serait pas. */
+    const lignesAJour = next === 'valide'
+      ? lines.map((l) => {
+        if (!(l.prestataire || estPrestataire(lePersonnel.find((m) => m.id === l.employeeId)))) return l;
+        const f = factureDe(factures, l.employeeId, run.period);
+        const total = totalAccepte(f);
+        return total === undefined ? l : ligneDePrestataire(l, total, f?.id, p);
+      })
+      : undefined;
+    setRun({ status: next, ...stamp, ...(lignesAJour ? { lines: lignesAJour } : {}) });
     if (next === 'paye') inscrireCharges();
     /* LA NOTIFICATION PART À LA VALIDATION, pas au paiement : c'est le seul
        moment où une décision est attendue. Elle ne va qu'au personnel, jamais
@@ -462,7 +494,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     if (next === 'valide') {
       void pushNotifyStaff(
         `La paie de ${frPeriod(run.period)} attend votre oui`,
-        `${lines.length} salaire${lines.length > 1 ? 's' : ''} · ${fmtMoney(t.net, currency)} net à verser.`,
+        `${lines.length} salaire${lines.length > 1 ? 's' : ''} · ${fmtMoney(lignesAJour ? runTotals({ ...run, lines: lignesAJour }).net : t.net, currency)} net à verser.`,
         '/personnel',
       );
     }
@@ -505,7 +537,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Pill tone={runTone(run.status)}>{RUN_STATUS_LABEL[run.status]}</Pill>
           <span className="mnd-muted" style={{ fontSize: 12 }}>{run.atelier ?? branch.city} · {lines.length} employé{lines.length > 1 ? 's' : ''}</span>
-          {next && <Button size="sm" variant={next === 'cloture' ? 'ghost' : 'copper'} onClick={() => advance(next)}>{next === 'valide' ? 'Valider' : next === 'paye' ? 'Marquer payé' : 'Clôturer'}</Button>}
+          {next && <Button size="sm" variant={next === 'cloture' ? 'ghost' : 'copper'} style={next === 'valide' && bloquantes.length > 0 ? { opacity: 0.5 } : undefined} onClick={() => advance(next)}>{next === 'valide' ? 'Valider' : next === 'paye' ? 'Marquer payé' : 'Clôturer'}</Button>}
           {/* LE BORDEREAU S'OUVRE DÈS QUE LE RUN EST VALIDÉ : c'est à partir de
               là qu'on verse. Sur un brouillon, il n'y a rien à payer. */}
           {run.status !== 'brouillon' && (
@@ -688,6 +720,9 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         </div>
       )}
 
+      {/* LES FACTURES DES PRESTATAIRES — leur état, et le geste qui tranche. */}
+      <FacturesDuRun run={run} onOuvre={setFactureOuverte} />
+
       {/* Lignes */}
       <div className="mnd-scroll-x" style={{ marginTop: 14 }}>
         <table className="tre-table">
@@ -703,7 +738,22 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                 <td style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-copper)' }}>{fmtMoney(l.result.net, currency)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   {editable && <button className="tre-link-btn" onClick={() => setEditLine(i)}>Modifier</button>}
-                  <a className="tre-link-btn" style={{ marginLeft: 12 }} href={bulletinFor(l)} target="_blank" rel="noreferrer" title={`Bulletin ${bulletinNumber(run.period, l.matricule ?? '')}`}>Bulletin</a>
+                  {/* UNE PRESTATAIRE N'A PAS DE BULLETIN : elle a sa facture. */}
+                  {l.prestataire ? (
+                    <button
+                      type="button"
+                      className="tre-link-btn"
+                      style={{ marginLeft: 12 }}
+                      onClick={() => {
+                        const m = lePersonnel.find((x) => x.id === l.employeeId);
+                        if (m) setFactureOuverte(m);
+                      }}
+                    >
+                      Facture
+                    </button>
+                  ) : (
+                    <a className="tre-link-btn" style={{ marginLeft: 12 }} href={bulletinFor(l)} target="_blank" rel="noreferrer" title={`Bulletin ${bulletinNumber(run.period, l.matricule ?? '')}`}>Bulletin</a>
+                  )}
                 </td>
               </tr>
             ))}
@@ -718,7 +768,8 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         </span>
       </div>
 
-      {editLine != null && <LineEditor line={lines[editLine]} bareme={p} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
+      {editLine != null && <LineEditor line={lines[editLine]} bareme={parametresDeLaLigne(lines[editLine], p)} onClose={() => setEditLine(null)} onSave={(g, d) => saveLine(editLine, g, d)} />}
+      {factureOuverte && <FactureDeLaDirection membre={factureOuverte} mois={run.period} onClose={() => setFactureOuverte(null)} />}
     </Modal>
   );
 }

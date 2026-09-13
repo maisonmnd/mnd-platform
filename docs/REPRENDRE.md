@@ -141,6 +141,71 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LA FACTURE DU PRESTATAIRE — 13 septembre 2026, PUBLIÉ · MIGRATION 0090 PASSÉE
+
+« J'aimerais que les employés du salon me remplissent une facture en tant que
+prestataire tous les mois. Ce document doit porter leurs noms, prénoms, tel,
+mail et IFU et les lignes de prestation avec un montant total et leur
+signature. À soumettre tous les mois avant leur paie » (Yéman).
+
+Maquette `public/maquette-la-facture-du-prestataire.html`, **validée en v3**
+après deux corrections (« c'est moi qui écris le prix », puis « un résumé de
+ligne de montant pour chaque semaine du mois du mardi au samedi »).
+
+**Tranché** : selon la personne (fiche « prestataire ») · lignes pré-remplies
+depuis le Carnet · **une grille de prix par personne**, écrite par la direction
+sur la fiche · **une ligne par semaine, du mardi au samedi**, coupée par le
+mois · un dimanche ou un lundi travaillé compte dans la **semaine d'avant** ·
+un montant mensuel sur la fiche (`salaireXof`) entre en ligne **« forfait du
+mois »** · **pas les produits** de la Gamme · soumise **avant le 5** · la paie
+**ne se valide pas** sans facture acceptée · la paie verse **le montant
+facturé, sans CNSS ni ITS**.
+
+**Où ça vit**
+- `equipe/facture.ts`, le seul juge : semaines (`semainesDuMois`, `mardiDe`),
+  prestations (`sesPrestations`, mêmes mains que la commission, un geste de
+  série compté UNE fois par personne à sa première séance), compte
+  (`compteDuMois`), identité et numéro proposés (`AD-2026-09`), IFU à 13
+  chiffres, montant en lettres, `prestatairesSansFactureAcceptee`,
+  `reporteLaFactureDansLaPaie`. Magasin `mnd_factures_prestataires` →
+  table `factures_prestataires`.
+- `equipe/FacturePrestataire.tsx` : `MaFacture` (« Mon mois »), 
+  `FactureDeLaDirection` (écrire un prix manquant, qui entre dans la grille ;
+  accepter ; refuser avec un mot ; rouvrir tant que la paie n'est pas
+  validée), `FacturesDuRun` (la carte dans le détail d'un run), `GrilleDePrix`
+  (fiche du personnel, section visible pour une prestataire).
+- `StaffMember.grille` ; `PayrollLine.prestataire` / `factureId` ;
+  `ligneDePrestataire`, `sansChargesSociales`, `parametresDeLaLigne`
+  (`recomputeLine` les suit).
+- Paie : la ligne d'une prestataire naît du total accepté ; « Valider » refuse
+  en nommant qui manque ; à la validation les lignes reprennent le total ;
+  l'acceptation le reporte dans les runs encore en brouillon du mois.
+- Personnel : `paieDuMois` d'une prestataire = facture acceptée + pourboires −
+  avances − retenues, sans charges ; « Confirmer le règlement » attend la
+  facture ; le PDF devient « Règlement de facture ».
+- `facturePrestatairePdf` (pdf.ts) : semaines, forfait, total en chiffres et
+  en lettres, signature, tampon « acceptée », annexe jour par jour.
+- **0090** : `est_ma_fiche()` (l'e-mail du compte = `compteMail`, sinon
+  `email`, de la fiche `team`) ; lire = direction ou l'autrice ; écrire =
+  direction, ou l'autrice sur sa fiche, identifiant imposé `fp-<mois>-<fiche>`,
+  état brouillon ou soumise seulement ; effacer = direction.
+- `verifie-facture-prestataire` (49ᵉ harnais, 64 assertions).
+
+**À savoir**
+- **Sans l'adresse du compte sur la fiche**, la base refuse la facture ; « Mon
+  mois » l'annonce à la prestataire.
+- **Le compte accepté est recalculé sur le poste de la direction** depuis le
+  Carnet et la grille : on ne paie pas le chiffre écrit par un autre poste.
+- **LA GRILLE N'EST GARDÉE QUE PAR L'ÉCRAN.** La table `team` s'écrit par tout
+  le personnel (0006) : une prestataire qui passerait par l'API pourrait
+  changer ses prix avant l'acceptation. Fermer ce trou demande une garde sur
+  `team` (migration à décider, non faite).
+- Une séance 2 d'une série ne se refacture pas (règle de la commission). À
+  confirmer si la Maison veut payer chaque séance.
+- « Lui rappeler » (maquette) n'est pas construit : `pushNotifyStaff` écrit à
+  tout le personnel, et une relance nominative ne doit pas s'afficher chez les
+  autres.
+
 ## AJOUTER DES SÉANCES AU BESOIN — 13 septembre 2026, PUBLIÉ
 
 « Donne-moi la possibilité de rajouter des séances au besoin » (Yéman).

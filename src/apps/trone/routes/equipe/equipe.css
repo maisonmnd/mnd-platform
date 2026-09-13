@@ -1793,3 +1793,63 @@
   .tre-ev__geste { grid-column: 1 / -1; }
   .tre-ev__obj .mnd-input { grid-column: 1 / -1; }
 }
+
+/* ══ LA FACTURE DU PRESTATAIRE — 13 septembre 2026 ═══════════════════
+   Une ligne par semaine, du mardi au samedi, qui se déplie sur ses
+   prestations. Le montant provisoire se lit en cuivre : il attend un prix. */
+.tre-fp-semaines { border: 1px solid var(--hairline); border-radius: var(--radius-sm, 3px); background: var(--surface-card, #fff); }
+.tre-fp-semaine { border-top: 1px solid var(--hairline); }
+.tre-fp-semaine:first-child { border-top: 0; }
+.tre-fp-semaine > summary {
+  list-style: none; cursor: pointer; display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: baseline; padding: 10px 14px;
+}
+.tre-fp-semaine > summary::-webkit-details-marker { display: none; }
+.tre-fp-semaine > summary:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+.tre-fp-jours { font-size: 13.5px; color: var(--ink); }
+.tre-fp-jours::before {
+  content: '›'; display: inline-block; width: 14px; color: var(--color-copper);
+  transition: transform var(--dur-fast, .15s) var(--ease-soft, ease);
+}
+.tre-fp-semaine[open] .tre-fp-jours::before { transform: rotate(90deg); }
+.tre-fp-nb { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.tre-fp-montant {
+  font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo);
+  font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 92px; text-align: right;
+}
+.tre-fp-montant.is-provisoire, .tre-fp-aprix { color: var(--copper-700); }
+.tre-fp-detail { padding: 0 14px 12px 28px; }
+.tre-fp-detail table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tre-fp-detail td { padding: 5px 6px; border-top: 1px solid var(--hairline); vertical-align: middle; }
+.tre-fp-detail tr:first-child td { border-top: 0; }
+.tre-fp-detail .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tre-fp-jour { color: var(--ink-soft); white-space: nowrap; width: 64px; }
+.tre-fp-prix { display: inline-flex; gap: 8px; align-items: center; justify-content: flex-end; }
+.tre-fp-ligne, .tre-fp-total {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: baseline;
+  padding: 10px 14px; border-top: 1px solid var(--hairline);
+}
+.tre-fp-ligne span { font-size: 13.5px; }
+.tre-fp-ligne b { font-family: var(--font-serif); font-weight: var(--weight-regular, 400); font-size: 18px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.tre-fp-total { border-top: 1px solid var(--color-indigo); background: var(--color-ivoire); }
+.tre-fp-total span { font-size: 12px; color: var(--color-indigo); font-weight: var(--weight-medium, 500); letter-spacing: .06em; }
+.tre-fp-ligne small, .tre-fp-total small { display: block; font-size: 11px; font-weight: 400; letter-spacing: 0; color: var(--ink-soft); }
+.tre-fp-total small { color: var(--copper-700); }
+.tre-fp-total b { font-family: var(--font-serif); font-weight: var(--weight-regular, 400); font-size: 26px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.tre-fp-signal {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; align-items: end;
+  border: 1px dashed var(--copper-300); border-radius: var(--radius-sm, 3px); padding: 12px 14px;
+}
+.tre-fp-etat {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline;
+  font-size: 12.5px; line-height: 1.55; padding: 10px 14px; border-radius: var(--radius-sm, 3px);
+  border: 1px solid var(--copper-300); background: var(--copper-50);
+}
+.tre-fp-etat.is-acceptee { border-color: #C4D5C8; background: #EDF2EE; color: #41604A; }
+.tre-fp-parties { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; font-size: 13px; line-height: 1.6; }
+.tre-fp-signature { display: block; max-width: 180px; width: 100%; height: auto; margin-top: 6px; border: 1px solid var(--hairline); border-radius: 2px; background: #fff; }
+@media (max-width: 560px) {
+  .tre-fp-semaine > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .tre-fp-nb { grid-column: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .tre-fp-jours::before { transition: none; } }

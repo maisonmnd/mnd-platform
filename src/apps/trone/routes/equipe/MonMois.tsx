@@ -19,6 +19,8 @@ import { uid } from '../../../../shared/store';
 import { useTips } from '../../../../shared/tips';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
 import { useServices } from '../../../../shared/catalog';
+import { MaFacture } from './FacturePrestataire';
+import { estPrestataire } from './facture';
 import './equipe.css';
 
 /* MON MOIS — l'écran que chacun ouvre pour soi.
@@ -457,6 +459,17 @@ export default function MonMois() {
             })()}
           </Card>
           </div>
+
+          {/* ── MA FACTURE ── pour une fiche « prestataire » seulement : elle
+              facture son mois avant le 5, et sa paie l'attend. */}
+          {estPrestataire(moi) && (
+            <MaFacture
+              moi={moi}
+              auteurId={session?.user?.id}
+              rattacheeParAdresse={!!monMail && adresseDe(moi) === monMail}
+              estDirection={gerant}
+            />
+          )}
 
           {/* ── MON COMPTE DU MOIS ──────────────────────────────────── */}
           <div className="tr-grid tr-grid--4" style={{ marginTop: 14 }}>

@@ -574,6 +574,13 @@ export type PayrollLine = {
   /** Ce qui a échoué se décoche AVEC un mot : un virement refusé qui
       disparaîtrait dans un total ferait un total qui a l'air juste. */
   payeNote?: string;
+
+  /** UNE PRESTATAIRE N'A PAS DE BULLETIN, ELLE A UNE FACTURE — 13 septembre
+      2026. « La paie verse le montant facturé » (Yéman) : sa ligne porte le
+      total de sa facture acceptée, sans CNSS ni ITS retenus. Voir
+      `ligneDePrestataire` et `equipe/facture.ts`. */
+  prestataire?: boolean;
+  factureId?: string;
 };
 export type PayrollRun = {
   id: string;
@@ -609,7 +616,30 @@ export function healPayrollStores(): void {
 
 /** Recalcule une ligne (brouillon uniquement) : rejoue computePay sur ses entrées. */
 export const recomputeLine = (line: PayrollLine, p: PayrollParameters): PayrollLine =>
-  ({ ...line, result: computePay(line.gains, line.deductions, p) });
+  ({ ...line, result: computePay(line.gains, line.deductions, parametresDeLaLigne(line, p)) });
+
+/* ══ LA LIGNE D'UNE PRESTATAIRE — 13 septembre 2026 ═══════════════════
+   Une prestataire facture : ce qu'elle reçoit est le total de sa facture,
+   et la Maison ne retient ni CNSS ni ITS sur une facture. Le barème du mois
+   reste celui de tout le monde ; on éteint seulement, POUR ELLE, les deux
+   interrupteurs. Les avances et les retenues, elles, restent déduites :
+   l'argent déjà remis ne se paie pas deux fois. */
+export const sansChargesSociales = (p: PayrollParameters): PayrollParameters =>
+  ({ ...p, cnssActive: false, itsActive: false });
+
+export const parametresDeLaLigne = (l: Pick<PayrollLine, 'prestataire'>, p: PayrollParameters): PayrollParameters =>
+  (l.prestataire ? sansChargesSociales(p) : p);
+
+/** Pose le total d'une facture acceptée sur la ligne : il en devient le seul
+    gain, et le net se recalcule sans charges sociales. */
+export const ligneDePrestataire = (
+  l: PayrollLine, totalXof: number, factureId?: string, p: PayrollParameters = PAYROLL_PARAMETERS_SEED,
+): PayrollLine => {
+  const gains: PayGains = {
+    base: Math.max(0, Math.round(totalXof)), heuresSup: 0, prime: 0, pourboires: 0, commission: 0, indemnites: 0,
+  };
+  return { ...l, prestataire: true, factureId, gains, result: computePay(gains, l.deductions, sansChargesSociales(p)) };
+};
 
 /* ══ LE BORDEREAU — CE QUI RESTE À VERSER ═══════════════════════════════
    Ces fonctions sont le SEUL juge de ce qui est payé : l'écran, la

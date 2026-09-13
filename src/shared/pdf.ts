@@ -1054,6 +1054,238 @@ export async function contratPdf(o: {
   return o.filename;
 }
 
+/* ══ LA FACTURE DU PRESTATAIRE — 13 septembre 2026 ═══════════════════
+   « Ce document doit porter leurs noms, prénoms, tel, mail et IFU, les lignes
+   de prestation avec un montant total et leur signature » (Yéman).
+
+   ELLE EST ÉMISE PAR LA PRESTATAIRE, à l'attention de la Maison : son nom
+   ouvre le papier, sa signature le ferme. Le tampon de la Maison, à droite,
+   ne dit qu'une chose : acceptée. Une ligne par semaine du mardi au samedi,
+   le total en chiffres et en lettres, le détail des prestations en annexe. */
+export async function facturePrestatairePdf(o: {
+  houseName: string;
+  /** Le lieu du « Fait à… ». */
+  ville?: string;
+  /** La ville du tampon : le siège. */
+  villeDuSiege?: string;
+  numero: string;
+  emiseLe: string;
+  periode: string;
+  sousTitre: string;
+  prestataire: { nom: string; ifu: string; telephone: string; email: string };
+  destinataire: string[];
+  semaines: { libelle: string; nombre: number; montant: string }[];
+  forfait?: { libelle: string; montant: string };
+  total: string;
+  totalEnLettres?: string;
+  signature: { trace: string; jourLisible: string };
+  /** « Acceptée par la direction le… » ; absent, le tampon ne se pose pas. */
+  acceptee?: string;
+  annexe: { titre: string; lignes: { jour: string; libelle: string; montant: string; aEcrire?: boolean }[] }[];
+  filename: string;
+}): Promise<string> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210, H = 297, M = 20;
+  let y = 24;
+  const page = (besoin: number) => {
+    if (y + besoin < H - 24) return;
+    doc.addPage();
+    y = 24;
+  };
+  const filet = () => { doc.setDrawColor(220, 213, 195); doc.setLineWidth(0.3); };
+
+  const seal = await loadSeal();
+  const CM = 16;
+  if (seal) {
+    try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
+  }
+  const gauche = seal ? M + CM + 5 : M;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(26);
+  doc.setTextColor(INDIGO);
+  doc.text('FACTURE', gauche, y + 1);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(COPPER);
+  doc.text(pdfSafe(o.sousTitre), gauche, y + 7);
+
+  doc.setTextColor(INK);
+  doc.text(pdfSafe(`N° ${o.numero}`), W - M, y - 4, { align: 'right' });
+  doc.setTextColor(SOFT);
+  doc.text(pdfSafe(`Émise le ${o.emiseLe}`), W - M, y + 1, { align: 'right' });
+  doc.text(pdfSafe(`Période ${o.periode}`), W - M, y + 6, { align: 'right' });
+  y += 13;
+  doc.setDrawColor(COPPER);
+  doc.setLineWidth(0.6);
+  doc.line(M, y, W - M, y);
+  y += 9;
+
+  /* LES DEUX PARTIES, CÔTE À CÔTE. */
+  const col2 = W / 2 + 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(COPPER);
+  doc.text('LA PRESTATAIRE', M, y);
+  doc.text('À L’ATTENTION DE', col2, y);
+  y += 5.5;
+  let yg = y;
+  doc.setFontSize(10.5);
+  doc.setTextColor(INK);
+  doc.text(pdfSafe(o.prestataire.nom), M, yg);
+  yg += 5.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  for (const l of [`IFU ${o.prestataire.ifu}`, o.prestataire.telephone, o.prestataire.email].filter((x) => x.trim())) {
+    doc.text(pdfSafe(l), M, yg);
+    yg += 5;
+  }
+  let yd = y;
+  o.destinataire.forEach((l, i) => {
+    doc.setFont('helvetica', i === 0 ? 'bold' : 'normal');
+    doc.setFontSize(i === 0 ? 10.5 : 9.5);
+    doc.text(pdfSafe(l), col2, yd);
+    yd += i === 0 ? 5.5 : 5;
+  });
+  y = Math.max(yg, yd) + 6;
+
+  /* UNE LIGNE PAR SEMAINE. */
+  const colNb = W - M - 44;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(COPPER);
+  doc.text('SEMAINE', M, y);
+  doc.text('PRESTATIONS', colNb, y, { align: 'right' });
+  doc.text('MONTANT', W - M, y, { align: 'right' });
+  y += 2.5;
+  filet();
+  doc.line(M, y, W - M, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  const ligne = (libelle: string, nombre: string, montant: string) => {
+    page(9);
+    doc.setTextColor(INK);
+    doc.text(pdfSafe(libelle), M, y);
+    if (nombre) doc.text(nombre, colNb, y, { align: 'right' });
+    doc.text(pdfSafe(montant), W - M, y, { align: 'right' });
+    y += 3;
+    filet();
+    doc.line(M, y, W - M, y);
+    y += 6;
+  };
+  for (const s of o.semaines) ligne(s.libelle, String(s.nombre), s.montant);
+  if (o.forfait) ligne(o.forfait.libelle, '', o.forfait.montant);
+
+  page(26);
+  y += 2;
+  doc.setDrawColor(INDIGO);
+  doc.setLineWidth(0.5);
+  doc.line(W / 2, y - 4, W - M, y - 4);
+  y += 3;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text('TOTAL', W / 2, y);
+  doc.setFont('times', 'normal');
+  doc.setFontSize(20);
+  doc.setTextColor(INDIGO);
+  doc.text(pdfSafe(o.total), W - M, y + 1.5, { align: 'right' });
+  y += 8;
+  if (o.totalEnLettres) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(SOFT);
+    for (const l of doc.splitTextToSize(pdfSafe(o.totalEnLettres), W - M * 2) as string[]) {
+      doc.text(l, W - M, y, { align: 'right' });
+      y += 4.6;
+    }
+  }
+
+  /* LE BLOC DE SIGNATURE NE SE COUPE JAMAIS EN DEUX. */
+  page(58);
+  y += 6;
+  filet();
+  doc.line(M, y, W - M, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(SOFT);
+  doc.text(pdfSafe(`Fait ${o.ville ? `à ${o.ville}, ` : ''}le ${o.signature.jourLisible}`), M, y);
+  y += 7;
+  doc.setTextColor(INK);
+  doc.text(pdfSafe(o.prestataire.nom), M, y);
+  y += 4;
+  doc.setFontSize(8);
+  doc.setTextColor(SOFT);
+  doc.text('Signature de la prestataire :', M, y);
+  if (o.signature.trace) {
+    try { doc.addImage(o.signature.trace, 'PNG', M, y + 2, 62, 22, undefined, 'FAST'); } catch { /* signature illisible */ }
+  }
+  if (o.acceptee) {
+    doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
+    await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, { nom: o.houseName, ville: o.villeDuSiege ?? o.ville });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(VERT);
+    doc.text(pdfSafe(o.acceptee), W - M - 40, y + 41, { align: 'center' });
+  } else {
+    doc.text('En attente de l’acceptation de la Maison.', W - M - 40, y, { align: 'center' });
+  }
+  y += 48;
+
+  /* L'ANNEXE : ce que chaque semaine contient, jour par jour. */
+  if (o.annexe.length) {
+    page(22);
+    filet();
+    doc.line(M, y, W - M, y);
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(COPPER);
+    doc.text('ANNEXE · LE DÉTAIL DES PRESTATIONS', M, y);
+    y += 6;
+    for (const sem of o.annexe) {
+      page(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(INDIGO);
+      doc.text(pdfSafe(sem.titre), M, y);
+      y += 4.8;
+      for (const l of sem.lignes) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        const morceaux = doc.splitTextToSize(pdfSafeGardeFon(l.libelle), W - M * 2 - 16 - 32) as string[];
+        page(morceaux.length * 4.2 + 1);
+        doc.setTextColor(SOFT);
+        doc.text(pdfSafe(l.jour), M, y);
+        doc.setTextColor(INK);
+        let yl = y;
+        for (const mo of morceaux) {
+          texteFon(doc, mo, M + 16, yl);
+          yl += 4.2;
+        }
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(l.aEcrire ? COPPER : INK);
+        doc.text(pdfSafe(l.montant), W - M, y, { align: 'right' });
+        y = yl + 0.6;
+      }
+      y += 3;
+    }
+  }
+
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    await pieDeLaMaison(doc, W, H - 12, { nom: o.houseName });
+  }
+  doc.save(o.filename);
+  return o.filename;
+}
+
 export type SummarySection = {
   heading: string;
   rows: { label: string; value?: string; strong?: boolean; sub?: boolean }[];

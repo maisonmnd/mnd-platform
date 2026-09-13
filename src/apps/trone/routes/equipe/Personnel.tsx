@@ -24,11 +24,13 @@ import {
   useFonctions, ajouteUneFonction, FONCTIONS_AU_FAUTEUIL } from './data';
 import {
   useBaremePoints, chargeSalaire, chargeAvance, chargeAvanceId, useAdvances,
-  computePay, parametersFor, usePayrollParameters, useCommRates,
+  computePay, parametersFor, usePayrollParameters, useCommRates, sansChargesSociales,
   type BaremePoints, type SalaryAdvance, type PayGains, type PayDeductions, type PayResult, type CommRates,
 } from './payroll';
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
+import { GrilleDePrix } from './FacturePrestataire';
+import { useFacturesPrestataires, estPrestataire, factureDe, totalAccepte } from './facture';
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
@@ -188,14 +190,24 @@ type StaffForm = {
   atelier: string;
   commissionPct: string;
   paiement: string;
+  /** Sa grille de prestataire, prestation → prix tel que saisi. */
+  grille: Record<string, string>;
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
   name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', compteMail: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
+  grille: {},
 });
 
 const CONTRACT_TYPES = ['CDI', 'CDD', 'apprentissage', 'prestataire'] as const;
+
+/** La grille saisie devient des francs ; une case vide n'est pas un prix. */
+const grilleDuFormulaire = (g: Record<string, string>): Record<string, number> | undefined => {
+  const out: Record<string, number> = {};
+  for (const [id, v] of Object.entries(g)) if (v.trim() !== '') out[id] = Math.max(0, parseInt(v, 10) || 0);
+  return Object.keys(out).length ? out : undefined;
+};
 
 /** Prochain matricule MND-EMP-NNN (max existant + 1, sur 3 chiffres). */
 const nextMatricule = (staff: StaffMember[]): string => {
@@ -274,6 +286,7 @@ export default function Personnel() {
   const [categories] = useCategories();
   const [seuils, setSeuils] = useSeuils();
   const [bareme, setBareme] = useBaremePoints();
+  const [factures] = useFacturesPrestataires();
 
   const team = useMemo(() => ordonneEquipe(staff.filter((m) => m.branchId === branch.id)), [staff, branch.id]);
 
@@ -459,6 +472,18 @@ export default function Personnel() {
      commission autrement (`commissionPct` forfaitaire) ; l'égalité Personnel =
      run par la commission reste une décision de politique de paie à trancher. */
   const paieDuMois = (m: StaffMember, month: string): PayResult => {
+    /* UNE PRESTATAIRE EST PAYÉE SUR SA FACTURE ACCEPTÉE — 13 septembre 2026.
+       Ni salaire de base, ni commission, ni prime : le total facturé, sans
+       CNSS ni ITS. Ses pourboires restent les siens, ses avances et retenues
+       se déduisent. Zéro tant que la facture n'est pas acceptée. */
+    if (estPrestataire(m)) {
+      const gains: PayGains = {
+        base: totalAccepte(factureDe(factures, m.id, month)) ?? 0, heuresSup: 0, prime: 0,
+        pourboires: tipTotalMonth(m.id, month), commission: 0, indemnites: 0,
+      };
+      const ded: PayDeductions = { avance: advancesTotalMonth(m.id, month), autresRetenues: retenueTotalMonth(m.id, month) };
+      return computePay(gains, ded, sansChargesSociales(parametersFor(month, payrollParams)));
+    }
     const c = computeComm(m, month);
     const ov = month === M ? ovOf(m.id) : {};
     const gains: PayGains = {
@@ -592,6 +617,12 @@ export default function Personnel() {
   const confirmOf = (month: string, staffId: string): PayConfirm | undefined => confirms[confKey(month, staffId)];
   const months12Paid = (staffId: string, year: number) => yearMonths(year).filter((mk) => confirmOf(mk, staffId)).length;
   const confirmPay = (m: StaffMember, month: string, amountXof: number) => {
+    /* LE RÈGLEMENT D'UNE PRESTATAIRE ATTEND SA FACTURE, comme le run : deux
+       chemins de paie, une seule serrure. */
+    if (estPrestataire(m) && totalAccepte(factureDe(factures, m.id, month)) === undefined) {
+      toast(`La facture de ${m.name} pour ${monthTitle(month)} n’est pas acceptée : son règlement attend.`);
+      return;
+    }
     const method = payMethod;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
     if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve, et la charge s'inscrira dans les Dépenses.`)) return;
@@ -655,7 +686,7 @@ export default function Personnel() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirms, team, appts, invoices, services, rates, primes, tips, advances, retenues]);
+  }, [confirms, team, appts, invoices, services, rates, primes, tips, advances, retenues, factures]);
 
   /* Montant en ASCII pur pour le PDF (jsPDF n'affiche pas les espaces fins Unicode). */
   const pdfMoney = (n: number) => {
@@ -666,6 +697,37 @@ export default function Personnel() {
 
   /* Bulletin de paie mensuel (PDF) — mise en page soignée, signature & tampon. */
   const downloadMonthlyPayslip = async (m: StaffMember, month: string) => {
+    /* UNE PRESTATAIRE N'A PAS DE BULLETIN : un relevé du règlement de sa
+       facture, sans salaire ni cotisation. */
+    if (estPrestataire(m)) {
+      const f = factureDe(factures, m.id, month);
+      const facturee = totalAccepte(f);
+      const pr = paieDuMois(m, month);
+      const conf = confirmOf(month, m.id);
+      const av = advancesTotalMonth(m.id, month);
+      const ret = retenueTotalMonth(m.id, month);
+      const tip = tipTotalMonth(m.id, month);
+      await payslipPdf({
+        houseName: maisonNom(),
+        houseSub: [branch.name, branch.city].filter(Boolean).join(' · '),
+        employeeName: m.name,
+        role: 'Prestataire',
+        period: cap(monthTitle(month)),
+        rows: [
+          { label: facturee !== undefined ? `Facture ${f?.numero ?? ''} acceptée` : 'Facture non acceptée', value: pdfMoney(facturee ?? 0) },
+          { label: 'Pourboires', value: pdfMoney(tip) },
+          { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
+          { label: 'Retenues', value: ret > 0 ? `- ${pdfMoney(ret)}` : pdfMoney(0) },
+        ],
+        net: pdfMoney(pr.net),
+        paid: conf ? { line: `Réglé le ${fmtStamp(conf.paidAt)}${conf.method ? ` · ${conf.method}` : ''}`, by: `Confirmé par ${conf.byName} · signature électronique enregistrée par Le Trône` } : undefined,
+        gerantName: me?.name ?? undefined,
+        docLabel: 'RÈGLEMENT DE FACTURE',
+        partyLabel: 'PRESTATAIRE',
+        filename: `reglement-${m.name.replace(/\s+/g, '-')}-${month}.pdf`,
+      });
+      return;
+    }
     const c = computeComm(m, month);
     /* La commission du bulletin suit CELLE DU NET (overrides du mois courant). */
     const ov = month === M ? ovOf(m.id) : {};
@@ -801,6 +863,7 @@ export default function Personnel() {
       commissionTaux: m.commissionTauxPct !== undefined ? String(m.commissionTauxPct) : '',
       matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
       contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
+      grille: Object.fromEntries(Object.entries(m.grille ?? {}).map(([k, v]) => [k, String(v)])),
     });
     setModalOpen(true);
   };
@@ -817,6 +880,7 @@ export default function Personnel() {
       atelier: form.atelier.trim() || undefined,
       commissionPct: form.commissionPct.trim() === '' ? undefined : Math.max(0, Math.min(100, parseFloat(form.commissionPct) || 0)),
       paiement: form.paiement.trim() || undefined,
+      grille: grilleDuFormulaire(form.grille),
     };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
@@ -1670,6 +1734,15 @@ export default function Personnel() {
             <Field label="Coordonnées de paiement (Mobile Money / banque)">
               <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} placeholder="MTN MoMo · +229 …" />
             </Field>
+
+            {/* SA GRILLE DE PRIX — pour une prestataire seulement : elle
+                facture son mois à ces prix-là (voir equipe/facture.ts). */}
+            {form.contractType === 'prestataire' && (
+              <>
+                <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Sa grille de prix</div>
+                <GrilleDePrix staffId={editId} valeur={form.grille} onChange={(g) => setForm({ ...form, grille: g })} />
+              </>
+            )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setModalOpen(false)}>Annuler</Button>

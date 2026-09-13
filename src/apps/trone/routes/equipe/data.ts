@@ -157,6 +157,17 @@ export type StaffMember = {
       pas. La grille vit dans `shared/postes`, le jugement dans
       `shared/evaluation` ; ici, seulement ce qui a été constaté. */
   evaluations?: Evaluation[];
+  /** SA GRILLE DE PRESTATAIRE — 13 septembre 2026.
+
+      « C'est moi qui écris le prix » (Yéman). Une prestataire facture chaque
+      mois ses prestations, et chacune au prix que la direction a écrit ICI,
+      prestation par prestation (identifiant du catalogue → francs). Ni la
+      commission ni le prix payé par la cliente : un prix convenu avec elle.
+
+      Une prestation absente de la grille part SANS prix, et la facture ne
+      s'accepte pas tant qu'il n'est pas écrit. Zéro est un prix écrit.
+      Voir `equipe/facture.ts`. */
+  grille?: Record<string, number>;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */

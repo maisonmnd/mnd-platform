@@ -140,6 +140,8 @@ const SENSITIVE_KEYS = [
   'mnd_staff', 'mnd_tips_v2', 'mnd_tips',
   'mnd_primes', 'mnd_retenues', 'mnd_commission_rates', 'mnd_paie_overrides', 'mnd_paie_confirm',
   'mnd_access_codes',
+  /* Les factures des prestataires : IFU, téléphone, ce qu'on gagne. */
+  'mnd_factures_prestataires',
   /* LES FICHES CLIENTES AUSSI. Elles restaient en clair dans le navigateur
      apres la deconnexion — nom, telephone, e-mail, anniversaire, et les notes
      de consultation sur le cuir chevelu, serialisees dans `client.notes`.
