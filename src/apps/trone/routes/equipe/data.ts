@@ -979,6 +979,23 @@ export type Formation = {
   depositPct?: number;
   /** Formation VEDETTE : carte indigo mise en avant (comme la formule vedette). */
   featured?: boolean;
+  /* ══ LE CONTENU DE LA FORMATION — 13 septembre 2026 ══════════════════
+     « Bien remplir le contenu des formations », « je veux une distinction
+     entre les professionnels et les débutants » (Yéman). Voir
+     `shared/parcours`, où vivent le contenu validé et le juge qui le pose. */
+  /** Débutante (entre dans le métier) ou professionnelle (déjà en activité). */
+  public?: import('../../../../shared/parcours').PublicDeFormation;
+  /** Une phrase, pour la carte. */
+  accroche?: string;
+  pourQui?: string;
+  pourEntrer?: string;
+  /** Ce que l'apprenante sait à la sortie, un savoir par ligne. */
+  sait?: string[];
+  /** Aligné sur `modules`, index pour index : les séances et le contenu de
+      chaque module. Les noms restent dans `modules`, que le Suivi évalue. */
+  programme?: { seances?: number; contenu?: string }[];
+  /** La pratique sur têtes réelles attendue. */
+  tetesReelles?: string;
 };
 
 /* Maison neuve — coquille vierge ; tout naît de l’usage. */

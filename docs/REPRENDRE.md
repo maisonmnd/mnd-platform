@@ -141,6 +141,47 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LES NEUF PARCOURS REMPLIS · DÉBUTANTES ET PROFESSIONNELLES · PRIX — 13 septembre 2026, PUBLIÉ
+
+« Bien remplir le contenu des formations de l'Académie », puis « je veux une
+distinction entre les professionnels et les débutants. Ajoute des prix à toutes
+les formations » (Yéman). Maquette `public/maquette-les-neuf-parcours.html`
+(v2), validée.
+
+**`shared/parcours.ts` porte le contenu validé** : public, accroche, pour qui,
+pour entrer, ce qu'elle sait, programme en **quatre modules** (nom, séances,
+contenu), têtes réelles, prix. Quatre modules, pas une liste de séances : les
+modules sont les unités du Suivi, chacun se valide à 70 avant le jury.
+
+**Deux publics** : débutantes = Fondation, Affirmation, L'Œuvre (une séance par
+semaine). Professionnelles = Initiation au soin des locks, Praticien MND, Maître
+MND, Resserrage, Laboratoire, Référentiel (jours consécutifs). Initiation est
+passée chez les professionnelles ; Affirmation et L'Œuvre ne s'ouvrent plus qu'au
+palier d'avant. Maître MND est le point où les deux chemins se rejoignent.
+
+**Prix proposés, validés avec la maquette** (calés sur le salon : Fondation =
+une création VÈKPÈ™ Medium) : Fondation 150 000, Affirmation 250 000, L'Œuvre
+450 000, Initiation 90 000, Praticien 350 000, Maître 850 000, Resserrage
+180 000, Laboratoire 200 000, Référentiel 400 000 F. Acompte 40 %.
+
+**Certificat** : L'Œuvre et Maître MND ne disent plus la même phrase (technique
+contre transmission). Les trois phrases à tiret cadratin sont réécrites.
+
+**Académie** : filtre Toutes / Débutantes / Professionnelles, pastille de
+public sur la carte, accroche, prix et acompte, séances par module, bouton
+« Voir le programme » (fiche en lecture), formulaire avec toutes les rubriques
+(public obligatoire, jamais présélectionné). **« Compléter les fiches de la
+Maison »** apporte le contenu aux neuf déjà posées via `completeLaFiche` : ne
+remplit que le vide, ne pose un prix que s'il est à zéro, ne remplace les
+modules que s'ils sont encore les quatre temps ET sans inscrite.
+
+**Bogue trouvé** : `aPlat` n'aplatissait pas la ligature Œ, « L'Oeuvre » restait
+un autre parcours. Corrigé. `verifie-parcours` : 29 assertions de plus.
+
+**Stockage** : `formations` est en `data jsonb`, aucune migration.
+
+**À FAIRE** : le manuel du formateur, séance par séance (demandé le même jour).
+
 ## JOUR · MOIS · ANNÉE, PARTOUT — 13 septembre 2026, PUBLIÉ
 
 « Sur la page de RDV et d'encaissement que les dates soient toujours réglées sur

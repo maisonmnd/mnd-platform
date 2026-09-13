@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { useBranch } from '../../../../shared/branches';
@@ -21,7 +21,8 @@ import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
-import { parcoursAPoser } from '../../../../shared/parcours';
+import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, type PublicDeFormation } from '../../../../shared/parcours';
+import { useEnrollments } from './academy';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
@@ -35,8 +36,24 @@ const payTone = (p: Apprenant['pay']): 'ok' | 'warn' | 'error' => (p === 'À jou
 /* Parcours par défaut d'une nouvelle formation — « les quatre temps » du
    référentiel, désormais éditable : le défaut se lit donc au moment de la création
    (dans le composant), non plus à l'import de ce module. */
-type FormationForm = { name: string; niveau: string; description: string; sessions: string; demarrage: string; places: string; price: string; duree: string; deposit: string; modules: string[]; featured: boolean };
-const BASE_FORMATION: Omit<FormationForm, 'modules'> = { name: '', niveau: FORMATION_NIVEAUX[0], description: '', sessions: '6', demarrage: 'sur dossier', places: '4 places', price: '', duree: '6', deposit: '40', featured: false };
+/* UN MODULE, TEL QU'ON LE SAISIT (13 septembre 2026) : son nom, que le Suivi
+   évalue, ses séances et ce qu'on y apprend. */
+type ModuleForm = { nom: string; seances: string; contenu: string };
+type FormationForm = {
+  name: string; niveau: string; description: string; sessions: string; demarrage: string; places: string;
+  price: string; duree: string; deposit: string; modules: ModuleForm[]; featured: boolean;
+  /* Le public ne se présélectionne pas : il se choisit. */
+  public: '' | PublicDeFormation; accroche: string; pourQui: string; pourEntrer: string;
+  /** Un savoir par ligne. */
+  sait: string; tetesReelles: string;
+};
+const BASE_FORMATION: Omit<FormationForm, 'modules'> = {
+  name: '', niveau: FORMATION_NIVEAUX[0], description: '', sessions: '6', demarrage: 'sur dossier', places: '4 places',
+  price: '', duree: '6', deposit: '40', featured: false,
+  public: '', accroche: '', pourQui: '', pourEntrer: '', sait: '', tetesReelles: '',
+};
+const moduleVide = (nom = ''): ModuleForm => ({ nom, seances: '', contenu: '' });
+const ROMAINS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 /* Inscription : identité + formation (montant convenu) + un règlement à saisir
    — intégral (tout, à une date) ou partiel (un acompte). `payments` porte les
@@ -60,6 +77,9 @@ export default function Academie() {
   const [payMethods] = usePaymentMethods();
   const [tab, setTab] = useState<Tab>('formations');
   const [showArchived, setShowArchived] = useState(false);
+  /* DÉBUTANTES OU PROFESSIONNELLES — 13 septembre 2026. « Je veux une
+     distinction entre les professionnels et les débutants » (Yéman). */
+  const [filtrePublic, setFiltrePublic] = useState<'toutes' | PublicDeFormation>('toutes');
 
   const [formations, setFormations] = useFormations();
   const [apprenants, setApprenants] = useApprenants();
@@ -73,14 +93,16 @@ export default function Academie() {
   const defaultModules = useMemo(() => refTemps.map((t) => t.n.trim()).filter(Boolean), [refTemps]);
 
   const [foForm, setFoForm] = useState<FormationForm | null>(null);
+  /* La fiche entière d'une formation, en lecture. */
+  const [ficheId, setFicheId] = useState<string | null>(null);
 
   /* CE QU'IL RESTE À POSER — le juge est pur (`parcoursAPoser`), il compare les
      noms aplatis pour qu'« L'Oeuvre » et « L'Œuvre » restent un seul parcours. */
   const aPoser = useMemo(() => parcoursAPoser(formations), [formations]);
   const poseLesParcours = () => {
-    /* AUCUN PRIX N'EST INVENTÉ. Les montants n'ont jamais été écrits nulle
-       part : en poser un serait annoncer à une apprenante un tarif que
-       personne n'a décidé. Ils se remplissent dans « Modifier ». */
+    /* LES PRIX ET LE CONTENU SE POSENT AVEC LA FORMATION depuis le
+       13 septembre 2026 : la Maison les a demandés et validés (voir
+       `shared/parcours`). Ils se corrigent dans « Modifier ». */
     setFormations((prev) => [
       ...prev,
       ...aPoser.map((p) => ({
@@ -90,13 +112,55 @@ export default function Academie() {
         sessions: p.seances,
         demarrage: 'sur dossier',
         places: 'à définir',
-        priceXof: 0,
+        priceXof: p.prixXof,
         dureeSemaines: p.semaines,
         archived: false,
         description: p.competences,
-        modules: [...defaultModules],
+        public: p.public,
+        accroche: p.accroche,
+        pourQui: p.pourQui,
+        pourEntrer: p.pourEntrer,
+        sait: [...p.sait],
+        tetesReelles: p.tetesReelles,
+        modules: p.programme.map((m) => m.nom),
+        programme: p.programme.map(({ seances, contenu }) => ({ seances, contenu })),
       })),
     ]);
+  };
+  /* ══ COMPLÉTER LES FICHES DE LA MAISON — 13 septembre 2026 ═══════════
+     Les neuf formations sont déjà posées, avec une ligne de description et les
+     quatre temps pour programme. Ce geste leur apporte le contenu validé SANS
+     RIEN ÉCRASER : le juge est pur (`completeLaFiche`) et éprouvé
+     (`verifie-parcours`). Une rubrique ne se remplit que vide, un prix que s'il
+     est à zéro, et le programme d'une formation qui a des inscrites ne change
+     pas : leurs modules validés se retrouvent par leur nom.
+
+     À LA MAIN, COMME « POSER LES PARCOURS » : un contenu qui arriverait tout
+     seul sur une formation que la Maison a peut-être réécrite serait une
+     surprise, et la confirmation dit ce qui va bouger. */
+  const [enrollments] = useEnrollments();
+  const aCompleter = useMemo(() => formations
+    .map((f) => ({
+      f,
+      c: completeLaFiche(f, {
+        modulesParDefaut: defaultModules,
+        inscrites: apprenants.filter((a) => a.formationId === f.id).length
+          + enrollments.filter((e) => e.formationId === f.id).length,
+      }),
+    }))
+    .filter((x) => x.c.rubriques.length > 0), [formations, apprenants, enrollments, defaultModules]);
+  const completeLesFiches = () => {
+    const n = aCompleter.length;
+    const prix = aCompleter.filter((x) => x.c.rubriques.includes('prix')).length;
+    if (!window.confirm(
+      `Compléter ${n} formation${n > 1 ? 's' : ''} avec le contenu validé de l’Académie ?\n\n`
+      + 'Seules les rubriques vides se remplissent : rien de ce qui a été écrit à la main n’est repris.'
+      + (prix > 0 ? `\nLe prix proposé se pose sur ${prix} formation${prix > 1 ? 's' : ''} encore sans prix ; un prix déjà écrit reste.` : '')
+      + '\nLe programme d’une formation qui a déjà des inscrites ne change pas.',
+    )) return;
+    const parId = new Map(aCompleter.map((x) => [x.f.id, x.c.fiche]));
+    setFormations((prev) => prev.map((f) => parId.get(f.id) ?? f));
+    toast(`${n} fiche${n > 1 ? 's' : ''} complétée${n > 1 ? 's' : ''}.`);
   };
   const [foEditId, setFoEditId] = useState<string | null>(null);
 
@@ -109,7 +173,10 @@ export default function Academie() {
 
   const [note, setNote] = useState<string | null>(null);
 
-  const activeFormations = formations.filter((f) => f.archived === showArchived);
+  const activeFormations = formations.filter((f) => f.archived === showArchived
+    && (filtrePublic === 'toutes' || f.public === filtrePublic));
+  const comptePublic = (k: 'toutes' | PublicDeFormation) =>
+    formations.filter((f) => f.archived === showArchived && (k === 'toutes' || f.public === k)).length;
   const formationName = (id: string) => formations.find((f) => f.id === id)?.name ?? '—';
   const formationPrice = (id: string) => formations.find((f) => f.id === id)?.priceXof ?? 0;
   /* Les modules du parcours de la formation. `undefined` = fiche héritée d'avant la
@@ -147,24 +214,51 @@ export default function Academie() {
   }), [formations, apprenants, certifs]);
 
   /* — formations — */
-  const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: [...defaultModules] }); };
+  const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: defaultModules.map((m) => moduleVide(m)) }); };
+  const majModule = (i: number, patch: Partial<ModuleForm>) =>
+    setFoForm((prev) => (prev ? { ...prev, modules: prev.modules.map((x, j) => (j === i ? { ...x, ...patch } : x)) } : prev));
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
-    setFoForm({ name: f.name, niveau: f.niveau, description: f.description ?? '', sessions: String(f.sessions), demarrage: f.demarrage, places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40), modules: f.modules && f.modules.length ? [...f.modules] : [...defaultModules], featured: !!f.featured });
+    const noms = f.modules && f.modules.length ? f.modules : defaultModules;
+    setFoForm({
+      name: f.name, niveau: f.niveau, description: f.description ?? '', sessions: String(f.sessions), demarrage: f.demarrage,
+      places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40),
+      modules: noms.map((nom, i) => {
+        const ligne = f.modules && f.modules.length ? f.programme?.[i] : undefined;
+        return { nom, seances: ligne?.seances ? String(ligne.seances) : '', contenu: ligne?.contenu ?? '' };
+      }),
+      featured: !!f.featured,
+      public: f.public ?? '', accroche: f.accroche ?? '', pourQui: f.pourQui ?? '', pourEntrer: f.pourEntrer ?? '',
+      sait: (f.sait ?? []).join('\n'), tetesReelles: f.tetesReelles ?? '',
+    });
   };
   const saveFo = () => {
-    if (!foForm || !foForm.name.trim()) return;
+    if (!foForm || !foForm.name.trim() || !foForm.public) return;
     const sessions = parseInt(foForm.sessions, 10) || 1;
     const priceXof = parseInt(foForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const dureeSemaines = parseInt(foForm.duree, 10) || 1;
     const depositPct = Math.max(0, Math.min(100, parseInt(foForm.deposit.replace(/[^0-9]/g, ''), 10) || 0));
-    const modules = foForm.modules.map((m) => m.trim()).filter(Boolean);
+    /* Une ligne sans nom tombe, et sa séance et son contenu avec elle : le
+       programme reste aligné sur les modules, index pour index. */
+    const lignes = foForm.modules
+      .map((m) => ({ nom: m.nom.trim(), seances: parseInt(m.seances.replace(/[^0-9]/g, ''), 10) || 0, contenu: m.contenu.trim() }))
+      .filter((m) => m.nom);
+    const modules = lignes.map((m) => m.nom);
+    const contenu = {
+      public: foForm.public || undefined,
+      accroche: foForm.accroche.trim() || undefined,
+      pourQui: foForm.pourQui.trim() || undefined,
+      pourEntrer: foForm.pourEntrer.trim() || undefined,
+      sait: foForm.sait.split('\n').map((l) => l.trim().replace(/\s*[;.]$/, '')).filter(Boolean),
+      tetesReelles: foForm.tetesReelles.trim() || undefined,
+      programme: lignes.map((m) => ({ seances: m.seances || undefined, contenu: m.contenu || undefined })),
+    };
     const featured = foForm.featured;
     if (foEditId) {
       const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
       /* Une SEULE formation vedette à la fois — l'activer retire la vedette des autres. */
       setFormations((prev) => prev.map((f) => (f.id === foEditId
-        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured }
+        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured, ...contenu }
         : (featured ? { ...f, featured: false } : f))));
       /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
          retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
@@ -180,7 +274,7 @@ export default function Academie() {
     } else {
       setFormations((prev) => [
         ...(featured ? prev.map((f) => ({ ...f, featured: false })) : prev),
-        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured },
+        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured, ...contenu },
       ]);
     }
     setFoForm(null);
@@ -379,6 +473,15 @@ export default function Academie() {
               <button className={`trv-tab-seg ${!showArchived ? 'is-on' : ''}`} style={segStyle(!showArchived)} onClick={() => setShowArchived(false)}>Actives</button>
               <button className={`trv-tab-seg ${showArchived ? 'is-on' : ''}`} style={segStyle(showArchived)} onClick={() => setShowArchived(true)}>Terminées · Archives</button>
             </div>
+            {/* DÉBUTANTES OU PROFESSIONNELLES — une candidate se range au premier
+                coup d'œil, avant même le prix. */}
+            <div style={{ display: 'flex', gap: 0, border: '1px solid var(--hairline)', borderRadius: 2, overflow: 'hidden' }}>
+              {(['toutes', 'debutante', 'professionnelle'] as const).map((k) => (
+                <button key={k} className={`trv-tab-seg ${filtrePublic === k ? 'is-on' : ''}`} style={segStyle(filtrePublic === k)} onClick={() => setFiltrePublic(k)}>
+                  {k === 'toutes' ? 'Toutes' : k === 'debutante' ? 'Débutantes' : 'Professionnelles'} · {comptePublic(k)}
+                </button>
+              ))}
+            </div>
             {/* ══ POSER LES NEUF PARCOURS — 6 septembre 2026 ═══════════════
                 « Pourrions-nous retrouver toutes les formations de l'Académie
                 et les remettre dans le logiciel ? » (Yéman).
@@ -395,6 +498,11 @@ export default function Academie() {
             {aPoser.length > 0 && (
               <Button variant="ghost" onClick={poseLesParcours}>
                 Poser les {aPoser.length} parcours de la Maison
+              </Button>
+            )}
+            {aCompleter.length > 0 && (
+              <Button variant="ghost" onClick={completeLesFiches}>
+                Compléter les fiches de la Maison ({aCompleter.length})
               </Button>
             )}
             <Button variant="copper" onClick={openFoNew}>+ Nouvelle formation</Button>
@@ -421,6 +529,7 @@ export default function Academie() {
                     <button type="button" className="tre-reorder__btn" disabled={idx === 0} onClick={() => moveFo(f.id, -1)} title="Remonter" aria-label="Remonter la formation">▲</button>
                     <button type="button" className="tre-reorder__btn" disabled={idx === activeFormations.length - 1} onClick={() => moveFo(f.id, 1)} title="Descendre" aria-label="Descendre la formation">▼</button>
                   </div>
+                  {f.public && <PastillePublic pub={f.public} surIndigo={!!f.featured} />}
                   {f.featured
                     ? <span className="tre-plan__tagpop">{f.niveau}</span>
                     : <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>{f.niveau}</div>}
@@ -428,9 +537,11 @@ export default function Academie() {
                   <div className="tre-plan__line">
                     {f.sessions} séance{f.sessions > 1 ? 's' : ''} · {f.dureeSemaines} semaine{f.dureeSemaines > 1 ? 's' : ''} · {f.demarrage}
                   </div>
-                  {f.description && (
+                  {/* L'ACCROCHE PASSE DEVANT : elle donne envie, la description dit
+                      ce qu'elle apprend, et la fiche dit tout. */}
+                  {(f.accroche || f.description) && (
                     <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8 }}>
-                      {f.description}
+                      {f.accroche || f.description}
                     </div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 4px' }}>
@@ -441,18 +552,35 @@ export default function Academie() {
                       ? <span className="tre-plan__price">{fmtMoney(f.priceXof, currency)}</span>
                       : <span className="tre-plan__price" style={{ color: 'var(--copper-700)', fontSize: 20 }}>Prix à poser</span>}
                   </div>
+                  {f.priceXof > 0 && (
+                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: -2 }}>
+                      acompte à l’inscription {fmtMoney(Math.round((f.priceXof * (f.depositPct ?? 40)) / 100), currency)}
+                    </div>
+                  )}
                   <div style={{ minHeight: 16, marginTop: 2 }}>
                     <Pill tone={f.places === 'complet' ? 'muted' : 'copper'}>{f.places}</Pill>
                   </div>
                   <div className="tre-plan__divider" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                     {mods.length > 0
-                      ? mods.map((m) => (
-                          <div key={m} className="tre-plan__perk"><span className="mark">✦</span><span>{m}</span></div>
-                        ))
+                      ? mods.map((m, i) => {
+                          const seances = f.programme?.[i]?.seances;
+                          return (
+                            <div key={m} className="tre-plan__perk">
+                              <span className="mark">✦</span>
+                              <span style={{ flex: 1, minWidth: 0 }}>{m}</span>
+                              {seances ? (
+                                <span style={{ fontSize: 11, opacity: 0.72, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                  {seances} séance{seances > 1 ? 's' : ''}
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })
                       : <div className="mnd-muted" style={{ fontSize: 12.5, fontStyle: 'italic' }}>Parcours à détailler dans « Modifier ».</div>}
                   </div>
                   <div style={{ marginTop: 'auto', paddingTop: 20 }}>
+                    <Button size="sm" variant="ghost" style={{ width: '100%', marginBottom: 8 }} onClick={() => setFicheId(f.id)}>Voir le programme</Button>
                     <Button size="sm" variant={f.featured ? 'copper' : 'ghost'} style={{ width: '100%' }} onClick={() => openFoEdit(f)}>Modifier</Button>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10 }}>
                       <button className="tre-link-btn" style={{ color: f.featured ? 'var(--copper-300)' : 'var(--copper-700)' }} onClick={() => toggleArchive(f)}>{f.archived ? 'Réactiver' : 'Archiver'}</button>
@@ -674,11 +802,112 @@ export default function Academie() {
       )}
 
       {/* ===== MODALES CRUD ===== */}
+      {/* ══ LA FICHE DE LA FORMATION — 13 septembre 2026 ═══════════════════
+          C'est elle qu'on lit à une candidate au téléphone : pour qui, pour
+          entrer, ce qu'elle saura, le programme, la pratique et le prix. Une
+          rubrique vide le dit, au lieu de laisser un blanc qu'on prendrait
+          pour « rien ». */}
+      {ficheId && (() => {
+        const f = formations.find((x) => x.id === ficheId);
+        if (!f) return null;
+        const mods = f.modules ?? [];
+        const total = (f.programme ?? []).reduce((n, m) => n + (m.seances ?? 0), 0);
+        const manque = <span className="mnd-muted" style={{ fontStyle: 'italic' }}>À écrire dans « Modifier ».</span>;
+        const titre = (t: string) => (
+          <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', marginBottom: 6 }}>{t}</div>
+        );
+        return (
+          <Modal title={`${f.name}.`} onClose={() => setFicheId(null)} width={640}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                {f.public && <PastillePublic pub={f.public} />}
+                <span className="mnd-muted" style={{ fontSize: 12 }}>
+                  {f.niveau} · {f.sessions} séance{f.sessions > 1 ? 's' : ''} · {f.dureeSemaines} semaine{f.dureeSemaines > 1 ? 's' : ''} · {f.demarrage}
+                </span>
+              </div>
+              {f.accroche && (
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, lineHeight: 1.35, color: 'var(--color-indigo)' }}>{f.accroche}</div>
+              )}
+              <div className="tr-grid tr-grid--2" style={{ gap: 16 }}>
+                <div>{titre('Pour qui')}<div style={{ fontSize: 13, lineHeight: 1.55 }}>{f.pourQui || manque}</div></div>
+                <div>{titre('Pour entrer')}<div style={{ fontSize: 13, lineHeight: 1.55 }}>{f.pourEntrer || manque}</div></div>
+              </div>
+              <div>
+                {titre('À la sortie, elle sait')}
+                {f.sait && f.sait.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, fontSize: 13, lineHeight: 1.55 }}>
+                    {f.sait.map((x) => <li key={x}>{x}</li>)}
+                  </ul>
+                ) : <div style={{ fontSize: 13 }}>{manque}</div>}
+              </div>
+              <div>
+                {titre('Le programme')}
+                {mods.length === 0 ? <div style={{ fontSize: 13 }}>{manque}</div> : (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {mods.map((m, i) => {
+                      const ligne = f.programme?.[i];
+                      return (
+                        <div key={m} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr) auto', gap: '3px 10px', padding: '10px 0', borderTop: i ? '1px solid var(--hairline)' : 'none' }}>
+                          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-copper)' }}>{ROMAINS[i] ?? i + 1}</span>
+                          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)', lineHeight: 1.3 }}>{m}</span>
+                          <span className="mnd-muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                            {ligne?.seances ? `${ligne.seances} séance${ligne.seances > 1 ? 's' : ''}` : ''}
+                          </span>
+                          {ligne?.contenu && <div style={{ gridColumn: '2 / 4', fontSize: 12.5, lineHeight: 1.55 }}>{ligne.contenu}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {total > 0 && total !== f.sessions && (
+                  <div style={{ fontSize: 11.5, color: 'var(--copper-700)', marginTop: 6 }}>
+                    Les modules comptent {total} séance{total > 1 ? 's' : ''}, la formation en annonce {f.sessions}.
+                  </div>
+                )}
+              </div>
+              <div className="tr-grid tr-grid--2" style={{ gap: 16 }}>
+                <div>{titre('Sur têtes réelles')}<div style={{ fontSize: 13, lineHeight: 1.55 }}>{f.tetesReelles || manque}</div></div>
+                <div>
+                  {titre('Le prix')}
+                  <div style={{ fontSize: 13, lineHeight: 1.55 }}>
+                    {f.priceXof > 0
+                      ? `${fmtMoney(f.priceXof, currency)}, dont ${fmtMoney(Math.round((f.priceXof * (f.depositPct ?? 40)) / 100), currency)} d’acompte à l’inscription`
+                      : manque}
+                  </div>
+                </div>
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                Chaque module se valide à 70 sur 100, avec un rattrapage. Jury : pratique sur tête 40, oral 30, dossier 30.
+                Certifiée à 70, mention Excellence à 85.
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" onClick={() => setFicheId(null)}>Fermer</Button>
+                <Button variant="copper" style={{ flex: 1 }} onClick={() => { setFicheId(null); openFoEdit(f); }}>Modifier</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {foForm && (
         <Modal title={foEditId ? 'La formation.' : 'Nouvelle formation.'} onClose={() => setFoForm(null)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Intitulé de la formation">
               <Input value={foForm.name} onChange={(e) => setFoForm({ ...foForm, name: e.target.value })} placeholder="Ex. Fondations du Lock" />
+            </Field>
+            <Field label="Pour quel public">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {(['debutante', 'professionnelle'] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`tre-chip ${foForm.public === k ? 'is-on' : ''}`}
+                    onClick={() => setFoForm((prev) => (prev ? { ...prev, public: k } : prev))}
+                  >
+                    {k === 'debutante' ? 'Débutante · aucune expérience du métier' : 'Professionnelle · déjà en activité'}
+                  </button>
+                ))}
+              </div>
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Niveau">
@@ -722,15 +951,37 @@ export default function Academie() {
                 <Input value={foForm.places} onChange={(e) => setFoForm({ ...foForm, places: e.target.value })} placeholder="4 places / complet" />
               </Field>
             </div>
+            <Field label="L’accroche · une phrase pour la carte">
+              <Input value={foForm.accroche} onChange={(e) => setFoForm({ ...foForm, accroche: e.target.value })} placeholder="Poser les gestes justes avant d’aller vite…" />
+            </Field>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Pour qui">
+                <Textarea value={foForm.pourQui} onChange={(e) => setFoForm({ ...foForm, pourQui: e.target.value })} rows={3} />
+              </Field>
+              <Field label="Pour entrer">
+                <Textarea value={foForm.pourEntrer} onChange={(e) => setFoForm({ ...foForm, pourEntrer: e.target.value })} rows={3} />
+              </Field>
+            </div>
+            <Field label="À la sortie, elle sait · un savoir par ligne">
+              <Textarea value={foForm.sait} onChange={(e) => setFoForm({ ...foForm, sait: e.target.value })} rows={4} />
+            </Field>
             <Field label="Modules du parcours">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {foForm.modules.map((m, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span className="mnd-muted" style={{ fontSize: 12, width: 18, flex: 'none', textAlign: 'right' }}>{i + 1}</span>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 78px auto', gap: 8, alignItems: 'center' }}>
+                    <span className="mnd-muted" style={{ fontSize: 12, textAlign: 'right' }}>{i + 1}</span>
                     <Input
-                      value={m}
-                      onChange={(e) => setFoForm((prev) => (prev ? { ...prev, modules: prev.modules.map((x, j) => (j === i ? e.target.value : x)) } : prev))}
+                      value={m.nom}
+                      onChange={(e) => majModule(i, { nom: e.target.value })}
                       placeholder="Nom du module (ex. Purifier)"
+                    />
+                    <Input
+                      inputMode="numeric"
+                      value={m.seances}
+                      onChange={(e) => majModule(i, { seances: e.target.value.replace(/[^0-9]/g, '') })}
+                      placeholder="séances"
+                      aria-label={`Séances du module ${i + 1}`}
+                      style={{ textAlign: 'right' }}
                     />
                     <button
                       type="button"
@@ -741,20 +992,39 @@ export default function Academie() {
                     >
                       ✕
                     </button>
+                    <Textarea
+                      value={m.contenu}
+                      onChange={(e) => majModule(i, { contenu: e.target.value })}
+                      placeholder="Ce qu’on y apprend, ce qu’on y pratique"
+                      rows={2}
+                      style={{ gridColumn: '2 / 5', minHeight: 56 }}
+                    />
                   </div>
                 ))}
                 <button
                   type="button"
                   className="tre-chip"
                   style={{ alignSelf: 'flex-start' }}
-                  onClick={() => setFoForm((prev) => (prev ? { ...prev, modules: [...prev.modules, ''] } : prev))}
+                  onClick={() => setFoForm((prev) => (prev ? { ...prev, modules: [...prev.modules, moduleVide()] } : prev))}
                 >
                   + Ajouter un module
                 </button>
                 <span className="mnd-muted" style={{ fontSize: 11, fontStyle: 'italic' }}>
                   Chaque formation a ses propres étapes, l'avancement des apprenant·e·s s'y aligne.
                 </span>
+                {(() => {
+                  const somme = foForm.modules.reduce((n, x) => n + (parseInt(x.seances, 10) || 0), 0);
+                  const annonce = parseInt(foForm.sessions, 10) || 0;
+                  return somme > 0 ? (
+                    <span style={{ fontSize: 11, color: somme === annonce ? 'var(--ink-soft)' : 'var(--copper-700)' }}>
+                      Les modules comptent {somme} séance{somme > 1 ? 's' : ''} sur {annonce} annoncée{annonce > 1 ? 's' : ''}.
+                    </span>
+                  ) : null;
+                })()}
               </div>
+            </Field>
+            <Field label="Sur têtes réelles">
+              <Input value={foForm.tetesReelles} onChange={(e) => setFoForm({ ...foForm, tetesReelles: e.target.value })} placeholder="trois rituels d’entretien au salon, en observation puis assistée" />
             </Field>
             <Field label="Mise en avant">
               <button
@@ -770,7 +1040,7 @@ export default function Academie() {
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setFoForm(null)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveFo} disabled={!foForm.name.trim()}>{foEditId ? 'Enregistrer' : 'Créer la formation'}</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveFo} disabled={!foForm.name.trim() || !foForm.public}>{foEditId ? 'Enregistrer' : 'Créer la formation'}</Button>
             </div>
           </div>
         </Modal>
@@ -974,6 +1244,21 @@ function RefEditor({
       <button className="tre-chip" style={{ marginTop: 12 }} onClick={add}>{addLabel}</button>
     </Card>
   );
+}
+
+/* LA PASTILLE DU PUBLIC — 13 septembre 2026. Le cuivre pour la débutante, qui
+   entre dans le métier ; l'indigo pour la professionnelle, déjà en place. Sur la
+   carte vedette, déjà indigo, elle passe au trait cuivre pour rester lisible. */
+function PastillePublic({ pub, surIndigo = false }: { pub: PublicDeFormation; surIndigo?: boolean }) {
+  const pro = pub === 'professionnelle';
+  const style: React.CSSProperties = {
+    display: 'inline-block', alignSelf: 'flex-start', fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase',
+    fontWeight: 500, borderRadius: 3, padding: '3px 8px', lineHeight: 1.4, marginBottom: 6,
+    border: `1px solid ${pro && !surIndigo ? 'var(--color-indigo)' : 'var(--copper-300)'}`,
+    background: pro && !surIndigo ? 'var(--color-indigo)' : 'transparent',
+    color: pro && !surIndigo ? 'var(--color-ivoire)' : surIndigo ? 'var(--copper-300)' : 'var(--copper-700)',
+  };
+  return <span style={style}>{PUBLIC_LABEL[pub]}</span>;
 }
 
 function segStyle(on: boolean): React.CSSProperties {
