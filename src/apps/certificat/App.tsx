@@ -90,7 +90,13 @@ function initFromUrl() {
     apprenant: params.get('apprenant')?.trim() || '',
     formationId: match?.id ?? custom?.id ?? FORMATIONS[1].id,
     dateIso: validDate || new Date().toISOString().slice(0, 10),
-    certNo: numero || `MND-AC-${annee}-0042`,
+    /* AUCUN NUMÉRO EN DUR — 13 septembre 2026, « le numéro de certificat écrit
+       en dur, corrige » (Yéman). « MND-AC-2026-0042 » s'imprimait sur tout
+       certificat ouvert sans lien : deux apprenantes pouvaient porter le même
+       numéro, et un numéro sert justement à distinguer et à vérifier. Le vrai
+       numéro s'attribue à la délivrance, dans le Suivi de l'Académie
+       (`nextCertNumber`, séquentiel par année), qui l'envoie par le lien. */
+    certNo: numero || '',
     mention,
     custom,
   };
@@ -158,7 +164,7 @@ export default function App() {
   const mailSubject = 'Votre certificat Maison MND';
   const mailBody =
     `Chère ${nom},\n\n` +
-    `Votre certificat « ${formation.titre} » (n° ${certNo}) est délivré par la Maison MND, ` +
+    `Votre certificat « ${formation.titre} »${certNo.trim() ? ` (n° ${certNo.trim()})` : ''} est délivré par la Maison MND, ` +
     `fait à Cotonou le ${dateAffichee}.\n\n` +
     `Avec fierté,\nMaison MND · Académie du Lock`;
   const mailHref = `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
@@ -172,7 +178,21 @@ export default function App() {
             <div className="ct-toolbar__title">Prêt à imprimer, envoyer, sceller.</div>
           </div>
           <div className="ct-actions">
-            <Button onClick={() => window.print()}>Imprimer / PDF</Button>
+            {/* CE QUI MANQUE SE DIT AVANT L'IMPRESSION : un papier sans numéro
+                n'est pas vérifiable, un papier sans nom n'est à personne. On peut
+                imprimer quand même (un modèle, une épreuve), mais en le sachant. */}
+            <Button
+              onClick={() => {
+                const manques = [
+                  !apprenant.trim() ? 'le nom de l’apprenant' : '',
+                  !certNo.trim() ? 'le numéro de certificat, sans lequel il ne se vérifie pas' : '',
+                ].filter(Boolean);
+                if (manques.length && !window.confirm(`Il manque ${manques.join(' et ')}.\n\nImprimer quand même ?`)) return;
+                window.print();
+              }}
+            >
+              Imprimer / PDF
+            </Button>
             <a className="ct-action ct-action--wa" href={waHref} target="_blank" rel="noopener noreferrer">
               WhatsApp
             </a>
@@ -262,8 +282,13 @@ export default function App() {
             </Field>
 
             <Field label="Numéro de certificat">
-              <Input value={certNo} onChange={(e) => setCertNo(e.target.value)} />
+              <Input value={certNo} onChange={(e) => setCertNo(e.target.value)} placeholder={`MND-AC-${new Date().getFullYear()}-0001`} />
             </Field>
+            {!certNo.trim() && (
+              <div className="ct-controls__meta" style={{ marginTop: -8 }}>
+                Le numéro s’attribue à la délivrance, dans le Suivi de l’Académie : c’est lui qui rend ce certificat vérifiable.
+              </div>
+            )}
 
             <Field label="Mention">
               <Select value={mention} onChange={(e) => setMention(e.target.value)}>
@@ -328,7 +353,11 @@ export default function App() {
                   </p>
 
                   <div className="ct-meta">
-                    <span>Certificat n° {certNo}</span>
+                    {/* Sans numéro, une ligne à remplir plutôt qu'un numéro inventé. */}
+                    <span>
+                      Certificat n°{' '}
+                      {certNo.trim() || <span style={{ display: 'inline-block', width: 120, borderBottom: '1px solid var(--hairline)', verticalAlign: 'baseline' }} aria-label="numéro à attribuer" />}
+                    </span>
                     <span>Mention {mention}</span>
                     <span>Fait à Cotonou, le {dateAffichee}</span>
                   </div>

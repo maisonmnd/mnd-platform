@@ -141,6 +141,16 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LE CERTIFICAT N'INVENTE PLUS DE NUMÉRO — 13 septembre 2026, PUBLIÉ
+
+« Le numéro de certificat écrit en dur, corrige » (Yéman). Le certificat ouvert
+sans lien (bouton « Ouvrir le certificat » de l'Académie) portait
+`MND-AC-<année>-0042` : le même numéro pour toutes. La case part vide, avec un
+exemple en gris ; le papier montre une ligne à remplir ; l'e-mail ne cite pas de
+numéro absent ; « Imprimer » prévient s'il manque le nom ou le numéro, et laisse
+imprimer quand même. Le vrai numéro reste celui du Suivi (`nextCertNumber`),
+transmis par `?numero=` à la délivrance.
+
 ## LE MANUEL SE CORRIGE DANS LE TRÔNE — 13 septembre 2026, PUBLIÉ · MIGRATION 0089 PASSÉE
 
 « Donne-moi la possibilité d'éditer le manuel dans le Trône. Je ne veux pas
