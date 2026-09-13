@@ -210,7 +210,7 @@ honneur rétroactif automatique, qui poserait des reprises en masse.
 ## LE CERTIFICAT : PHOTO D'IDENTITÉ, PLUS DE NOM EN DUR — 13 septembre 2026, PUBLIÉ
 
 Photo choisie ou glissée dans le panneau, réduite à 720 px (`enVignette`), posée
-en haut à droite de la feuille dans le double filet cuivre et indigo du cadre.
+en haut à gauche de la feuille (d'abord posée à droite, déplacée le jour même) dans le double filet cuivre et indigo du cadre.
 **Elle ne quitte pas le poste** : ni dans le lien, ni dans la base. « Rachelle A. »
 retiré, la case part vide.
 

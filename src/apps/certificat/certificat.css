@@ -383,7 +383,10 @@
 .ct-portrait {
   position: absolute;
   top: 54px;
-  right: 68px;
+  /* À GAUCHE — « Mettre la photo du certificat à gauche » (Yéman,
+     13 septembre 2026). Elle ouvre la lecture de la feuille : l'œil part du
+     visage, puis rejoint le monogramme au centre. */
+  left: 68px;
   z-index: 1;
   width: 120px;
   height: 154px;

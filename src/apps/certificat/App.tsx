@@ -296,7 +296,7 @@ export default function App() {
                 <div className="ct-frame ct-frame--copper" aria-hidden="true" />
                 <div className="ct-frame ct-frame--indigo" aria-hidden="true" />
                 <div className="ct-watermark" aria-hidden="true" />
-                {/* LE PORTRAIT, EN HAUT À DROITE, DANS LE DOUBLE FILET DU CADRE :
+                {/* LE PORTRAIT, EN HAUT À GAUCHE, DANS LE DOUBLE FILET DU CADRE :
                     cuivre dehors, indigo dedans, comme la feuille elle-même.
                     C'est le coin vide de la page : le monogramme tient le
                     centre, et le texte ne monte pas si haut sur les flancs.
