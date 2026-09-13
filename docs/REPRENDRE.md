@@ -141,6 +141,20 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## AJOUTER DES SÉANCES AU BESOIN — 13 septembre 2026, PUBLIÉ
+
+« Donne-moi la possibilité de rajouter des séances au besoin » (Yéman).
+
+Dans la pose des dates (inscription et onglet Séances), chaque module a son
+groupe, même vide, et un lien « + Ajouter une séance au module … » ; une séance
+ajoutée porte « ajoutée » et un bouton « Retirer ». Juge pur `lignesDuPlan`
+(academy.ts) : un dossier SANS séance se renumérote dans l'ordre des modules ; un
+dossier qui PORTE déjà des séances garde ses numéros, et les ajouts prennent les
+suivants (une fiche « séance 3 » ne devient pas « séance 4 » dans son dos). Les
+dates corrigées sont indexées par clé de ligne, elles suivent leur séance. Dans
+l'onglet Séances, le lien reste offert quand tout le programme est posé
+(« Poser des séances supplémentaires »). `verifie-parcours` : 5 assertions de plus.
+
 ## LES DATES DES SÉANCES SE POSENT À L'INSCRIPTION — 13 septembre 2026, PUBLIÉ
 
 « Quand la formation est achetée, qu'on puisse poser les dates des séances en

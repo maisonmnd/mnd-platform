@@ -391,3 +391,40 @@ export function datesDesSeances(
   }
   return dates;
 }
+
+/* ══ AJOUTER DES SÉANCES AU BESOIN — 13 septembre 2026 ═════════════════
+   « Donne-moi la possibilité de rajouter des séances au besoin » (Yéman).
+
+   LE PROGRAMME EST UN POINT DE DÉPART, PAS UN PLAFOND. Une apprenante lente sur
+   un geste, un module qui demande une séance de plus : on l'ajoute là où il
+   manque, sous son module.
+
+   DEUX FAÇONS DE NUMÉROTER, et le choix n'est pas esthétique :
+   · un dossier SANS AUCUNE SÉANCE se renumérote dans l'ordre des modules : la
+     séance ajoutée au module I devient la séance 2, et les suivantes glissent ;
+   · un dossier qui PORTE DÉJÀ DES SÉANCES ne renumérote jamais ce qui existe :
+     une fiche remplie « séance 3 » ne peut pas devenir « séance 4 » dans son
+     dos. Les ajouts prennent les numéros suivants.
+   Chaque ligne garde une CLÉ stable : une date corrigée à la main suit sa
+   séance quand les numéros bougent. */
+export type AjoutDeSeance = { cle: string; moduleIndex?: number };
+export type LigneDuPlan = SeanceAPlanifier & { cle: string; ajoutee: boolean };
+
+export function lignesDuPlan(
+  base: readonly SeanceAPlanifier[],
+  ajouts: readonly AjoutDeSeance[],
+  renumeroter: boolean,
+  apresLeNumero = 0,
+): LigneDuPlan[] {
+  const programme: LigneDuPlan[] = base.map((l) => ({ ...l, cle: `p${l.sessionNumber}`, ajoutee: false }));
+  const extra: LigneDuPlan[] = ajouts.map((a) => ({ sessionNumber: 0, moduleIndex: a.moduleIndex, cle: a.cle, ajoutee: true }));
+  if (renumeroter) {
+    const rang = (m?: number) => (m == null ? Number.MAX_SAFE_INTEGER : m);
+    return [...programme, ...extra]
+      .map((x, i) => ({ x, i }))
+      .sort((a, b) => rang(a.x.moduleIndex) - rang(b.x.moduleIndex) || a.i - b.i)
+      .map(({ x }, i) => ({ ...x, sessionNumber: i + 1 }));
+  }
+  let suivant = Math.max(apresLeNumero, 0, ...programme.map((l) => l.sessionNumber)) + 1;
+  return [...programme, ...extra.map((x) => ({ ...x, sessionNumber: suivant++ }))];
+}

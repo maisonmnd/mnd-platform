@@ -22,7 +22,7 @@ import {
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
   canPlanJury, canCertify, nextCertNumber,
   enrollNet, enrollGross, enrollPaid, enrollDue, depositLabelOf, depositAmount, depositMet,
-  seancesDuProgramme, datesDesSeances, type SeanceAPlanifier, type RythmeDesSeances,
+  seancesDuProgramme, datesDesSeances, lignesDuPlan, type SeanceAPlanifier, type RythmeDesSeances, type AjoutDeSeance,
   STATUS_LABEL, STATUS_NEXT,
   type Enrollment, type EnrollmentStatus, type Attendance, type SessionEntry,
   type ModuleEvaluation, type PracticeRecord, type JuryReview, type JuryRole,
@@ -163,24 +163,47 @@ export default function AcademieSuivi() {
    UNE SÉANCE POSÉE EST PRÉVUE, PAS FAITE. Elle ne porte ni présence, ni note,
    ni signature : elle se remplit le jour venu, avec son plan du manuel, et ne
    compte dans aucune note tant que la fiche n'est pas signée. */
-function usePlanDesSeances(formation: Formation | undefined, lignes: SeanceAPlanifier[], debut: string) {
+let compteurAjouts = 0;
+
+function usePlanDesSeances(
+  formation: Formation | undefined,
+  lignes: SeanceAPlanifier[],
+  debut: string,
+  options: { renumeroter: boolean; apresLeNumero?: number },
+) {
   const joursFermes = useJoursFermes();
   const rythmeParDefaut: RythmeDesSeances = formation?.public === 'professionnelle' ? 'quotidien' : 'hebdo';
   const [rythme, setRythme] = useState<RythmeDesSeances>(rythmeParDefaut);
-  const [manuelles, setManuelles] = useState<Record<number, string>>({});
+  /* Les dates corrigées à la main, par CLÉ de ligne : elles suivent leur séance
+     quand un ajout décale les numéros. */
+  const [manuelles, setManuelles] = useState<Record<string, string>>({});
+  const [ajouts, setAjouts] = useState<AjoutDeSeance[]>([]);
   const [trainer, setTrainer] = useState('');
-  /* Une autre formation, un autre programme : le rythme repart de son public. */
-  useEffect(() => { setRythme(rythmeParDefaut); setManuelles({}); }, [formation?.id]);
-  const calculees = useMemo(
-    () => datesDesSeances(lignes.length, debut, rythme, joursFermes),
-    [lignes.length, debut, rythme, joursFermes],
+  /* Une autre formation, un autre programme : tout repart de son public. */
+  useEffect(() => { setRythme(rythmeParDefaut); setManuelles({}); setAjouts([]); }, [formation?.id]);
+  const toutes = useMemo(
+    () => lignesDuPlan(lignes, ajouts, options.renumeroter, options.apresLeNumero ?? 0),
+    [lignes, ajouts, options.renumeroter, options.apresLeNumero],
   );
-  const prevues = lignes.map((l, i) => ({ ...l, date: manuelles[l.sessionNumber] ?? calculees[i] ?? '' }));
+  const calculees = useMemo(
+    () => datesDesSeances(toutes.length, debut, rythme, joursFermes),
+    [toutes.length, debut, rythme, joursFermes],
+  );
+  const prevues = toutes.map((l, k) => ({ ...l, date: manuelles[l.cle] ?? calculees[k] ?? '' }));
   return {
     rythme, setRythme, trainer, setTrainer, prevues, joursFermes,
-    poseDate: (numero: number, iso: string) => setManuelles((m) => ({ ...m, [numero]: iso })),
+    poseDate: (cle: string, iso: string) => setManuelles((m) => ({ ...m, [cle]: iso })),
     recalcule: () => setManuelles({}),
     retouchees: Object.keys(manuelles).length,
+    ajoute: (moduleIndex?: number) => setAjouts((a) => [...a, { cle: `a${(compteurAjouts++).toString(36)}`, moduleIndex }]),
+    retire: (cle: string) => {
+      setAjouts((a) => a.filter((x) => x.cle !== cle));
+      setManuelles((m) => {
+        const suite = { ...m };
+        delete suite[cle];
+        return suite;
+      });
+    },
   };
 }
 type PlanDesSeances = ReturnType<typeof usePlanDesSeances>;
@@ -198,13 +221,13 @@ const seancesPrevues = (plan: PlanDesSeances): SessionEntry[] =>
 const ROMAINS_MODULES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 function DatesDesSeances({ plan, modules, masters }: { plan: PlanDesSeances; modules: string[]; masters: string[] }) {
-  const groupes: { moduleIndex?: number; seances: PlanDesSeances['prevues'] }[] = [];
-  for (const p of plan.prevues) {
-    const dernier = groupes[groupes.length - 1];
-    if (dernier && dernier.moduleIndex === p.moduleIndex) dernier.seances.push(p);
-    else groupes.push({ moduleIndex: p.moduleIndex, seances: [p] });
-  }
   const fermes = new Set(plan.joursFermes);
+  /* UN GROUPE PAR MODULE, MÊME VIDE : c'est là qu'on ajoute la séance qui manque.
+     Les séances sans module (formation sans modules, ou module disparu) ont le
+     leur, en fin de liste. */
+  const horsModule = (m?: number) => m == null || m >= modules.length;
+  const groupes: (number | undefined)[] = modules.map((_, k) => k);
+  if (modules.length === 0 || plan.prevues.some((x) => horsModule(x.moduleIndex))) groupes.push(undefined);
   const segment = (on: boolean): React.CSSProperties => ({
     cursor: 'pointer', background: on ? 'var(--color-indigo)' : 'none', color: on ? 'var(--color-ivoire)' : 'var(--ink-soft)',
     border: 'none', padding: '7px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5,
@@ -230,34 +253,51 @@ function DatesDesSeances({ plan, modules, masters }: { plan: PlanDesSeances; mod
         )}
       </div>
       <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-        Les dates partent du premier jour{fermes.size > 0 ? ' et sautent les jours où la Maison est fermée' : ''}. Chaque date se corrige à la main.
+        Les dates partent du premier jour{fermes.size > 0 ? ' et sautent les jours où la Maison est fermée' : ''}. Chaque date se corrige à la main,
+        et un module qui demande plus de temps reçoit une séance de plus.
       </div>
-      {groupes.map((g, gi) => (
-        <div key={gi}>
-          <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', marginBottom: 6 }}>
-            {g.moduleIndex != null ? `Module ${ROMAINS_MODULES[g.moduleIndex] ?? g.moduleIndex + 1} · ${modules[g.moduleIndex] ?? ''}` : 'Les séances'}
+      {groupes.map((g) => {
+        const rangees = plan.prevues
+          .filter((x) => (g == null ? horsModule(x.moduleIndex) : x.moduleIndex === g))
+          .sort((a, b) => a.sessionNumber - b.sessionNumber);
+        const numeroModule = g != null ? ROMAINS_MODULES[g] ?? String(g + 1) : '';
+        return (
+          <div key={g ?? 'sans-module'}>
+            <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', marginBottom: 6 }}>
+              {g != null ? `Module ${numeroModule} · ${modules[g] ?? ''}` : 'Séances sans module'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {rangees.length === 0 && (
+                <span className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Aucune séance posée pour ce module.</span>
+              )}
+              {rangees.map((x) => (
+                <div key={x.cle} style={{ display: 'grid', gridTemplateColumns: '80px 170px minmax(0,1fr) auto', gap: 10, alignItems: 'center', fontSize: 13 }}>
+                  <span>Séance {x.sessionNumber}</span>
+                  <ChampDeDate
+                    compact
+                    sens="avant"
+                    value={x.date}
+                    onChange={(iso) => plan.poseDate(x.cle, iso)}
+                    ariaLabel={`Date de la séance ${x.sessionNumber}`}
+                    joursFermes={plan.joursFermes}
+                  />
+                  <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                    {x.date ? jourCourtAn(x.date) : 'sans date'}
+                    {x.date && fermes.has(jourDeSemaineLundi(x.date)) ? ' · la Maison est fermée ce jour-là' : ''}
+                    {x.ajoutee ? ' · ajoutée' : ''}
+                  </span>
+                  {x.ajoutee
+                    ? <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => plan.retire(x.cle)} aria-label={`Retirer la séance ${x.sessionNumber}`}>Retirer</button>
+                    : <span />}
+                </div>
+              ))}
+              <button type="button" className="tre-link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => plan.ajoute(g)}>
+                + Ajouter une séance{g != null ? ` au module ${numeroModule}` : ''}
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {g.seances.map((p) => (
-              <div key={p.sessionNumber} style={{ display: 'grid', gridTemplateColumns: '80px 170px minmax(0,1fr)', gap: 10, alignItems: 'center', fontSize: 13 }}>
-                <span>Séance {p.sessionNumber}</span>
-                <ChampDeDate
-                  compact
-                  sens="avant"
-                  value={p.date}
-                  onChange={(iso) => plan.poseDate(p.sessionNumber, iso)}
-                  ariaLabel={`Date de la séance ${p.sessionNumber}`}
-                  joursFermes={plan.joursFermes}
-                />
-                <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                  {p.date ? jourCourtAn(p.date) : 'sans date'}
-                  {p.date && fermes.has(jourDeSemaineLundi(p.date)) ? ' · la Maison est fermée ce jour-là' : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -274,7 +314,7 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
   const formation = formations.find((f) => f.id === formationId);
   const lignes = useMemo(() => seancesDuProgramme(formation), [formation]);
   const [poserLesDates, setPoserLesDates] = useState(true);
-  const plan = usePlanDesSeances(formation, lignes, startDate);
+  const plan = usePlanDesSeances(formation, lignes, startDate, { renumeroter: true });
 
   const save = () => {
     if (!name.trim() || !formationId) return;
@@ -320,12 +360,12 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
         <Field label="Rattacher une fiche cliente (CRM), optionnel">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente…" />
         </Field>
-        {lignes.length > 0 && (
+        {formation && (
           <div>
             <Toggle
               on={poserLesDates}
               onToggle={() => setPoserLesDates((v) => !v)}
-              label={`Poser les dates des ${lignes.length} séance${lignes.length > 1 ? 's' : ''} maintenant`}
+              label={`Poser les dates des ${plan.prevues.length} séance${plan.prevues.length > 1 ? 's' : ''} maintenant`}
             />
             {poserLesDates && <DatesDesSeances plan={plan} modules={formation?.modules ?? []} masters={branch.masters} />}
           </div>
@@ -699,7 +739,10 @@ function TabSeances({ e, formation, modules, masters, frozen }: { e: Enrollment;
   );
   const [poser, setPoser] = useState(false);
   const [debut, setDebut] = useState(e.startDate ?? todayISO());
-  const plan = usePlanDesSeances(formation, aPoser, debut);
+  const plan = usePlanDesSeances(formation, aPoser, debut, {
+    renumeroter: e.sessions.length === 0,
+    apresLeNumero: e.sessions.reduce((m, x) => Math.max(m, x.sessionNumber), 0),
+  });
   const enregistreLesDates = () => {
     const nouvelles = seancesPrevues(plan);
     if (nouvelles.length === 0) return;
@@ -748,10 +791,10 @@ function TabSeances({ e, formation, modules, masters, frozen }: { e: Enrollment;
           </div>
         )
       ))}
-      {!frozen && aPoser.length > 0 && (poser ? (
+      {!frozen && (poser ? (
         <div className="tre-fiche tre-fiche--form">
           <div className="tre-sec-label" style={{ marginBottom: 10 }}>
-            Poser les dates des {aPoser.length} séance{aPoser.length > 1 ? 's' : ''} du programme
+            Poser les dates de {plan.prevues.length} séance{plan.prevues.length > 1 ? 's' : ''}
           </div>
           <Field label="Premier jour">
             <ChampDeDate compact sens="avant" value={debut} onChange={setDebut} />
@@ -759,12 +802,14 @@ function TabSeances({ e, formation, modules, masters, frozen }: { e: Enrollment;
           <DatesDesSeances plan={plan} modules={modules} masters={masters} />
           <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
             <Button variant="ghost" size="sm" onClick={() => setPoser(false)}>Annuler</Button>
-            <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={enregistreLesDates}>Poser les dates</Button>
+            <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={enregistreLesDates} disabled={!plan.prevues.some((x) => x.date)}>Poser les dates</Button>
           </div>
         </div>
       ) : (
         <button className="tre-addline" onClick={() => { setAdding(false); setPoser(true); }}>
-          Poser les dates des {aPoser.length} séance{aPoser.length > 1 ? 's' : ''} du programme
+          {aPoser.length > 0
+            ? `Poser les dates des ${aPoser.length} séance${aPoser.length > 1 ? 's' : ''} du programme`
+            : 'Poser des séances supplémentaires'}
         </button>
       ))}
       {!frozen && (adding ? (

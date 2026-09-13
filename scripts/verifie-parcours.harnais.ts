@@ -6,7 +6,7 @@
 import {
   PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche,
 } from '../src/shared/parcours';
-import { depositAmountFor, depositLabelOf, seancesDuProgramme, datesDesSeances } from '../src/apps/trone/routes/equipe/academy';
+import { depositAmountFor, depositLabelOf, seancesDuProgramme, datesDesSeances, lignesDuPlan } from '../src/apps/trone/routes/equipe/academy';
 import type { Formation } from '../src/apps/trone/routes/equipe/data';
 
 let ko = 0;
@@ -169,6 +169,19 @@ dit('une semaine toute fermée ne bloque rien', ['2026-09-14', '2026-09-15'],
 dit('l’année se franchit sans y penser', ['2026-12-28', '2027-01-04'], datesDesSeances(2, '2026-12-28', 'hebdo'));
 dit('sans premier jour, des dates vides', ['', ''], datesDesSeances(2, '', 'hebdo'));
 dit('aucune séance, aucune date', [], datesDesSeances(0, '2026-09-14', 'hebdo'));
+
+/* ── ⑦ AJOUTER DES SÉANCES AU BESOIN — 13 septembre 2026 ────────────── */
+const basePlan = [{ sessionNumber: 1, moduleIndex: 0 }, { sessionNumber: 2, moduleIndex: 1 }];
+const avecAjout = lignesDuPlan(basePlan, [{ cle: 'x', moduleIndex: 0 }], true);
+dit('une séance ajoutée se range dans son module, et tout se renumérote',
+  [[1, 0, false], [2, 0, true], [3, 1, false]], avecAjout.map((l) => [l.sessionNumber, l.moduleIndex, l.ajoutee]));
+dit('chaque ligne garde sa clé quand les numéros bougent', ['p1', 'x', 'p2'], avecAjout.map((l) => l.cle));
+dit('une séance sans module va en fin de liste', [3],
+  lignesDuPlan(basePlan, [{ cle: 'y' }], true).filter((l) => l.ajoutee).map((l) => l.sessionNumber));
+dit('un dossier qui a déjà des séances ne renumérote rien', [[5, 1, false], [6, 0, true]],
+  lignesDuPlan([{ sessionNumber: 5, moduleIndex: 1 }], [{ cle: 'z', moduleIndex: 0 }], false, 4).map((l) => [l.sessionNumber, l.moduleIndex, l.ajoutee]));
+dit('sans séance du programme, les ajouts suivent la dernière faite', [7, 8],
+  lignesDuPlan([], [{ cle: 'a' }, { cle: 'b' }], false, 6).map((l) => l.sessionNumber));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
