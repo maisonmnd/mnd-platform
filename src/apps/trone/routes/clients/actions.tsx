@@ -29,6 +29,7 @@ import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
+  ChampDeDate,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -1932,12 +1933,25 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             </span>
           </div>
         ) : (
-          <div className="tr-grid tr-grid--2" style={{ gap: 10 }}>
+          /* ══ LE CALENDRIER DU NAVIGATEUR QUITTE L'ENCAISSEMENT — 13 sept. 2026
+             Ces deux champs affichaient « 09/17/2026 » : le calendrier du
+             navigateur, en anglais, mois avant jour. C'est le piège réparé la
+             veille dans la fiche du rendez-vous, resté ici en pleine vue, dans
+             la fenêtre même où la secrétaire règle. La date d'un paiement
+             range l'argent dans son mois : une inversion jour/mois l'envoie
+             dans le mauvais, sans un mot.
+
+             LES DEUX REGARDENT DERRIÈRE. Un encaissement se rattrape souvent
+             (le rituel est passé, l'argent entre après) : une date passée y
+             est normale, et l'alerte des rendez-vous n'aurait rien à dire.
+             Un champ par ligne : la relecture en toutes lettres ne tient pas
+             dans une demi-colonne. */
+          <div className="tr-grid" style={{ gap: 14 }}>
             <Field label="Facture (jour du rituel)">
-              <Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} />
+              <ChampDeDate value={invDate} onChange={setInvDate} ariaLabel="Le jour de la facture" sens="arriere" />
             </Field>
             <Field label="Paiement (l’argent entre)">
-              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+              <ChampDeDate value={payDate} onChange={setPayDate} ariaLabel="Le jour du paiement" sens="arriere" />
               {/* LES DEUX SEULES RÉPONSES QUI SERVENT VRAIMENT : le jour où
                   l'argent est entré est soit celui du rituel (on rattrape), soit
                   aujourd'hui (on encaisse au comptoir). Le calendrier reste là

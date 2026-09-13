@@ -141,6 +141,33 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## ENREGISTRER ET ENCAISSER, EN UN GESTE — 13 septembre 2026, PUBLIÉ
+
+« Je ne veux pas retourner en arrière sur le RDV pour enregistrer les
+modifications. Je veux pouvoir encaisser et enregistrer » (Yéman).
+
+**LE BOUTON TRANSMETTAIT LE RENDEZ-VOUS TEL QU'IL ÉTAIT ENREGISTRÉ**, pas tel
+qu'on venait de le modifier. On changeait une prestation, on cliquait
+« Encaisser », et l'encaissement se calculait sur l'ancienne ; la modification
+restait dans une fiche fermée derrière, perdue sans retour sur « Enregistrer ».
+
+`save()` rend désormais `true`/`false` (il ne rendait rien), et
+`enregistreEtEncaisse` écrit d'abord, n'ouvre l'encaissement que si l'écriture
+a réussi. `PayAppointmentModal` relit déjà le rituel dans le magasin par son
+identifiant : il voit la version qu'on vient de poser. Le bouton s'appelle
+« Enregistrer et encaisser » ; la voie « Réglé, voir et corriger » enregistre
+aussi avant d'ouvrir.
+
+**Le calendrier du navigateur a quitté l'encaissement.** Les deux champs y
+affichaient « 09/17/2026 », mois avant jour : le piège réparé la veille dans la
+fiche, resté en pleine vue dans la fenêtre même où l'on règle. Ils passent sur
+`ChampDeDate`, `sens="arriere"` (un encaissement se rattrape, une date passée y
+est normale), un par ligne.
+
+**Aucun défaut par défaut n'a bougé** : le paiement reste daté d'aujourd'hui,
+« Le jour du rituel » le rattrape d'un clic. Dater par défaut au rituel
+rangerait l'argent du comptoir dans un autre mois.
+
 ## LA DATE SANS FAUTE — 12 septembre 2026, PUBLIÉ
 
 « Lors des saisies de RDV la secrétaire se trompe toujours sur la saisie des

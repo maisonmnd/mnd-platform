@@ -2337,14 +2337,18 @@ export function RdvModal({
      ferait compter la dépense deux fois au même compte. */
   const offertRetenu = offertPar && offertPar !== clientId ? offertPar : undefined;
 
-  const save = (chosenStatus: Appointment['status']) => {
+  /* L'ENREGISTREMENT DIT S'IL A ÉCRIT — 13 septembre 2026. Il rendait rien :
+     « Enregistrer et encaisser » ne pouvait donc pas savoir qu'une tête ou une
+     prestation manquait, et aurait ouvert l'encaissement d'une fiche jamais
+     écrite. `true` = écrit, `false` = refusé, avec son message à l'écran. */
+  const save = (chosenStatus: Appointment['status']): boolean => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
-      return;
+      return false;
     }
     if (serviceIds.length === 0) {
       setError('Ajoutez au moins une prestation.');
-      return;
+      return false;
     }
     /* LE SALON SOUVERAIN FERME LA MAISON (15 août) — « quand quelqu'un
        réserve, le salon est bloqué pour ce temps ». La plage se pose au NOM du
@@ -2587,6 +2591,27 @@ export function RdvModal({
       reglerLeSalon(created.id, chosenStatus);
     }
     onClose();
+    return true;
+  };
+
+  /* ══ ENREGISTRER ET ENCAISSER, EN UN GESTE — 13 septembre 2026 ═══════
+     « Je ne veux pas retourner en arrière sur le RDV pour enregistrer les
+     modifications. Je veux pouvoir encaisser et enregistrer » (Yéman).
+
+     LE BOUTON TRANSMETTAIT LE RENDEZ-VOUS TEL QU'IL ÉTAIT ENREGISTRÉ, pas tel
+     qu'on venait de le modifier. On changeait une prestation, on cliquait
+     « Encaisser », et l'encaissement se calculait sur l'ancienne : la
+     modification restait dans une fiche fermée derrière, perdue si l'on ne
+     revenait pas cliquer « Enregistrer ».
+
+     On écrit donc d'abord, et l'on n'encaisse que si l'écriture a réussi.
+     L'écran d'encaissement relit le rituel dans le magasin par son
+     identifiant : il voit la version qu'on vient de poser, pas une copie
+     d'avant. */
+  const enregistreEtEncaisse = () => {
+    if (!appt || !onEncaisser) return;
+    if (!save(status)) return;
+    onEncaisser(appt);
   };
 
   const remove = () => {
@@ -4042,7 +4067,7 @@ export function RdvModal({
             {onEncaisser && (apptPayState(appt, byId) === 'payé' ? (
               <button
                 type="button"
-                onClick={() => onEncaisser(appt)}
+                onClick={enregistreEtEncaisse}
                 style={{
                   alignSelf: 'center', cursor: 'pointer', background: 'none', border: 'none',
                   padding: 4, font: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)',
@@ -4051,8 +4076,8 @@ export function RdvModal({
                 Réglé, voir et corriger les règlements
               </button>
             ) : (
-              <Button variant="ghost" onClick={() => onEncaisser(appt)}>
-                Encaisser ou poser un acompte
+              <Button variant="ghost" onClick={enregistreEtEncaisse}>
+                Enregistrer et encaisser
               </Button>
             ))}
             {/* L'AUTRE PORTE DE LA MAQUETTE DU FIL — 20 août : « Demander »
