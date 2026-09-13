@@ -293,9 +293,24 @@ export const enrollPaid = (e: Enrollment): number =>
   (e.payments ?? []).reduce((s, p) => s + p.amountXof, 0);
 export const enrollDue = (e: Enrollment, formation?: Formation): number =>
   Math.max(0, enrollNet(e, formation) - enrollPaid(e));
-/** Montant d'acompte attendu = net × pourcentage de la formation. */
+/** L'ACOMPTE D'UN PRIX NET, selon la formation — 13 septembre 2026.
+
+    La Maison le fixe EN FRANCS ou EN POURCENTAGE. Le montant en francs
+    l'emporte quand il est posé, mais ne dépasse jamais le net : une apprenante
+    à qui l'on a consenti une remise ne doit pas un acompte plus grand que ce
+    qu'elle paie en tout. Un seul juge pour la carte, la fiche et le Suivi. */
+export const depositAmountFor = (net: number, formation?: Formation): number => {
+  if (net <= 0) return 0;
+  const fixe = formation?.depositXof ?? 0;
+  if (fixe > 0) return Math.min(net, Math.round(fixe));
+  return Math.round(net * depositPctOf(formation) / 100);
+};
+/** Ce que dit l'écran à côté du montant : « 40 % » ou « montant fixe ». */
+export const depositLabelOf = (formation?: Formation): string =>
+  ((formation?.depositXof ?? 0) > 0 ? 'montant fixe' : `${depositPctOf(formation)} %`);
+/** Montant d'acompte attendu d'une inscription. */
 export const depositAmount = (e: Enrollment, formation?: Formation): number =>
-  Math.round(enrollNet(e, formation) * depositPctOf(formation) / 100);
+  depositAmountFor(enrollNet(e, formation), formation);
 /** L'acompte est-il couvert par les règlements enregistrés ? */
 export const depositMet = (e: Enrollment, formation?: Formation): boolean => {
   const net = enrollNet(e, formation);

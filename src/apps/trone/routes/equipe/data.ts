@@ -977,6 +977,10 @@ export type Formation = {
   modules?: string[]; // les étapes du parcours — propres à chaque formation
   /** Pourcentage d'acompte à l'inscription (défaut 40 %). */
   depositPct?: number;
+  /** L'ACOMPTE EN FRANCS — 13 septembre 2026, « j'aimerais avoir la main pour
+      corriger l'acompte des formations » (Yéman). Posé, il l'emporte sur le
+      pourcentage ; il ne dépasse jamais le prix convenu de l'apprenante. */
+  depositXof?: number;
   /** Formation VEDETTE : carte indigo mise en avant (comme la formule vedette). */
   featured?: boolean;
   /* ══ LE CONTENU DE LA FORMATION — 13 septembre 2026 ══════════════════

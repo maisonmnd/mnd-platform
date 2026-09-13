@@ -25,7 +25,7 @@ import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, type Publi
 import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../../../shared/manuel';
 import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
-import { useEnrollments } from './academy';
+import { useEnrollments, depositAmountFor } from './academy';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
@@ -45,6 +45,8 @@ type ModuleForm = { nom: string; seances: string; contenu: string };
 type FormationForm = {
   name: string; niveau: string; description: string; sessions: string; demarrage: string; places: string;
   price: string; duree: string; deposit: string; modules: ModuleForm[]; featured: boolean;
+  /* L'acompte se fixe en pourcentage (`deposit`) ou en francs (`depositXof`). */
+  depositMode: 'pct' | 'xof'; depositXof: string;
   /* Le public ne se présélectionne pas : il se choisit. */
   public: '' | PublicDeFormation; accroche: string; pourQui: string; pourEntrer: string;
   /** Un savoir par ligne. */
@@ -52,7 +54,7 @@ type FormationForm = {
 };
 const BASE_FORMATION: Omit<FormationForm, 'modules'> = {
   name: '', niveau: FORMATION_NIVEAUX[0], description: '', sessions: '6', demarrage: 'sur dossier', places: '4 places',
-  price: '', duree: '6', deposit: '40', featured: false,
+  price: '', duree: '6', deposit: '40', featured: false, depositMode: 'pct', depositXof: '',
   public: '', accroche: '', pourQui: '', pourEntrer: '', sait: '', tetesReelles: '',
 };
 const moduleVide = (nom = ''): ModuleForm => ({ nom, seances: '', contenu: '' });
@@ -226,6 +228,7 @@ export default function Academie() {
     setFoForm({
       name: f.name, niveau: f.niveau, description: f.description ?? '', sessions: String(f.sessions), demarrage: f.demarrage,
       places: f.places, price: String(f.priceXof), duree: String(f.dureeSemaines), deposit: String(f.depositPct ?? 40),
+      depositMode: (f.depositXof ?? 0) > 0 ? 'xof' : 'pct', depositXof: (f.depositXof ?? 0) > 0 ? String(f.depositXof) : '',
       modules: noms.map((nom, i) => {
         const ligne = f.modules && f.modules.length ? f.programme?.[i] : undefined;
         return { nom, seances: ligne?.seances ? String(ligne.seances) : '', contenu: ligne?.contenu ?? '' };
@@ -241,6 +244,10 @@ export default function Academie() {
     const priceXof = parseInt(foForm.price.replace(/[^0-9]/g, ''), 10) || 0;
     const dureeSemaines = parseInt(foForm.duree, 10) || 1;
     const depositPct = Math.max(0, Math.min(100, parseInt(foForm.deposit.replace(/[^0-9]/g, ''), 10) || 0));
+    /* En francs, l'acompte l'emporte ; vide ou à zéro, on retombe sur le pourcentage. */
+    const acompteFixe = foForm.depositMode === 'xof'
+      ? (parseInt(foForm.depositXof.replace(/[^0-9]/g, ''), 10) || 0) || undefined
+      : undefined;
     /* Une ligne sans nom tombe, et sa séance et son contenu avec elle : le
        programme reste aligné sur les modules, index pour index. */
     const lignes = foForm.modules
@@ -261,7 +268,7 @@ export default function Academie() {
       const oldNames = formationModules(foEditId); // parcours AVANT modification (état courant)
       /* Une SEULE formation vedette à la fois — l'activer retire la vedette des autres. */
       setFormations((prev) => prev.map((f) => (f.id === foEditId
-        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, modules, featured, ...contenu }
+        ? { ...f, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, depositXof: acompteFixe, modules, featured, ...contenu }
         : (featured ? { ...f, featured: false } : f))));
       /* Réaligne la progression des apprenant·e·s inscrit·e·s par NOM de module : ajout,
          retrait ou réordonnancement ne décalent plus les cases cochées (un renommage
@@ -277,7 +284,7 @@ export default function Academie() {
     } else {
       setFormations((prev) => [
         ...(featured ? prev.map((f) => ({ ...f, featured: false })) : prev),
-        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, archived: false, modules, featured, ...contenu },
+        { id: `fo-${uid()}`, name: foForm.name.trim(), niveau: foForm.niveau, description: foForm.description.trim() || undefined, sessions, demarrage: foForm.demarrage.trim(), places: foForm.places.trim(), priceXof, dureeSemaines, depositPct, depositXof: acompteFixe, archived: false, modules, featured, ...contenu },
       ]);
     }
     setFoForm(null);
@@ -557,7 +564,7 @@ export default function Academie() {
                   </div>
                   {f.priceXof > 0 && (
                     <div className="mnd-muted" style={{ fontSize: 11, marginTop: -2 }}>
-                      acompte à l’inscription {fmtMoney(Math.round((f.priceXof * (f.depositPct ?? 40)) / 100), currency)}
+                      acompte à l’inscription {fmtMoney(depositAmountFor(f.priceXof, f), currency)}
                     </div>
                   )}
                   <div style={{ minHeight: 16, marginTop: 2 }}>
@@ -875,7 +882,7 @@ export default function Academie() {
                   {titre('Le prix')}
                   <div style={{ fontSize: 13, lineHeight: 1.55 }}>
                     {f.priceXof > 0
-                      ? `${fmtMoney(f.priceXof, currency)}, dont ${fmtMoney(Math.round((f.priceXof * (f.depositPct ?? 40)) / 100), currency)} d’acompte à l’inscription`
+                      ? `${fmtMoney(f.priceXof, currency)}, dont ${fmtMoney(depositAmountFor(f.priceXof, f), currency)} d’acompte à l’inscription`
                       : manque}
                   </div>
                 </div>
@@ -933,12 +940,48 @@ export default function Academie() {
                 />
               </Field>
             </div>
-            <div className="tr-grid tr-grid--2">
-              <Field label="Acompte à l’inscription (%)">
-                <Input inputMode="numeric" value={foForm.deposit} onChange={(e) => setFoForm({ ...foForm, deposit: e.target.value })} placeholder="40" />
-              </Field>
-              <div />
-            </div>
+            {/* ══ L'ACOMPTE, EN FRANCS OU EN POURCENTAGE — 13 septembre 2026 ═══
+                « J'aimerais avoir la main pour corriger l'acompte des
+                formations » (Yéman). Le pourcentage seul obligeait à calculer
+                pour tomber sur un montant rond : 40 % de 450 000 font 180 000,
+                mais 50 000 F d'acompte n'avaient pas de pourcentage juste. Le
+                montant se relit sous le champ, contre le prix. */}
+            <Field label="Acompte à l’inscription">
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', border: '1px solid var(--hairline)', borderRadius: 2, overflow: 'hidden' }}>
+                  {(['pct', 'xof'] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`trv-tab-seg ${foForm.depositMode === k ? 'is-on' : ''}`}
+                      style={segStyle(foForm.depositMode === k)}
+                      onClick={() => setFoForm((prev) => (prev ? { ...prev, depositMode: k } : prev))}
+                    >
+                      {k === 'pct' ? 'En pourcentage' : 'En francs'}
+                    </button>
+                  ))}
+                </div>
+                {foForm.depositMode === 'pct' ? (
+                  <Input inputMode="numeric" value={foForm.deposit} onChange={(e) => setFoForm({ ...foForm, deposit: e.target.value })} placeholder="40" style={{ width: 90 }} aria-label="Acompte en pourcentage" />
+                ) : (
+                  <Input inputMode="numeric" value={foForm.depositXof} onChange={(e) => setFoForm({ ...foForm, depositXof: e.target.value })} placeholder="60 000" style={{ width: 140 }} aria-label="Acompte en francs" />
+                )}
+              </div>
+              {(() => {
+                const prix = parseInt(foForm.price.replace(/[^0-9]/g, ''), 10) || 0;
+                const fixe = parseInt(foForm.depositXof.replace(/[^0-9]/g, ''), 10) || 0;
+                const pct = Math.max(0, Math.min(100, parseInt(foForm.deposit.replace(/[^0-9]/g, ''), 10) || 0));
+                const enFrancs = foForm.depositMode === 'xof' && fixe > 0;
+                const montant = depositAmountFor(prix, { depositPct: pct, depositXof: enFrancs ? fixe : undefined } as Formation);
+                return (
+                  <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5 }}>
+                    {prix <= 0
+                      ? (enFrancs ? `Acompte de ${fmtMoney(fixe, currency)}, dès que le prix sera posé.` : 'Le montant se calculera quand le prix sera posé.')
+                      : `Soit ${fmtMoney(montant, currency)} sur ${fmtMoney(prix, currency)}${enFrancs && fixe > prix ? ', plafonné au prix' : ''}${foForm.depositMode === 'xof' && !enFrancs ? ' (sans montant, le pourcentage s’applique)' : ''}.`}
+                  </div>
+                );
+              })()}
+            </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Nombre de séances">
                 <Input inputMode="numeric" value={foForm.sessions} onChange={(e) => setFoForm({ ...foForm, sessions: e.target.value })} />

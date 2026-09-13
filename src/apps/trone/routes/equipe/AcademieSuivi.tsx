@@ -20,7 +20,7 @@ import {
   enrollmentsStore, useEnrollments, newEnrollment, setEnrollment,
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
   canPlanJury, canCertify, nextCertNumber,
-  enrollNet, enrollGross, enrollPaid, enrollDue, depositPctOf, depositAmount, depositMet,
+  enrollNet, enrollGross, enrollPaid, enrollDue, depositLabelOf, depositAmount, depositMet,
   STATUS_LABEL, STATUS_NEXT,
   type Enrollment, type EnrollmentStatus, type Attendance, type SessionEntry,
   type ModuleEvaluation, type PracticeRecord, type JuryReview, type JuryRole,
@@ -189,7 +189,8 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
           <Field label="Début de formation">
             <ChampDeDate compact sens="avant" value={startDate} onChange={setStartDate} />
           </Field>
-          <Field label="Acompte 40 % réglé ?">
+          {/* Le taux n'est plus écrit en dur : il suit la formation (13 septembre 2026). */}
+          <Field label="Acompte réglé ?">
             <div style={{ paddingTop: 6 }}><Toggle on={depositPaid} onToggle={() => setDeposit((v) => !v)} label={depositPaid ? 'Oui' : 'Pas encore'} /></div>
           </Field>
         </div>
@@ -393,7 +394,6 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
   const net = enrollNet(e, formation);
   const paid = enrollPaid(e);
   const due = enrollDue(e, formation);
-  const pct = depositPctOf(formation);
   const dep = depositAmount(e, formation);
   const depOk = depositMet(e, formation);
 
@@ -498,7 +498,7 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
       {/* Récapitulatif */}
       <div className="tre-pay-recap">
         <div className="tre-pay-recap__line"><span className="mnd-muted">Net convenu</span><span>{fmtMoney(net, currency)}</span></div>
-        <div className="tre-pay-recap__line"><span className="mnd-muted">Acompte attendu · {pct} %</span><span>{fmtMoney(dep, currency)} {depOk ? '· couvert ✓' : ''}</span></div>
+        <div className="tre-pay-recap__line"><span className="mnd-muted">Acompte attendu · {depositLabelOf(formation)}</span><span>{fmtMoney(dep, currency)} {depOk ? '· couvert ✓' : ''}</span></div>
         <div className="tre-pay-recap__line"><span className="mnd-muted">Réglé</span><span>{fmtMoney(paid, currency)}</span></div>
         <div className="tre-pay-recap__line tre-pay-recap__reste"><span>Reste à payer</span><span>{fmtMoney(due, currency)}</span></div>
       </div>

@@ -6,6 +6,8 @@
 import {
   PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche,
 } from '../src/shared/parcours';
+import { depositAmountFor, depositLabelOf } from '../src/apps/trone/routes/equipe/academy';
+import type { Formation } from '../src/apps/trone/routes/equipe/data';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -133,6 +135,18 @@ dit('une description écrite à la main reste', 'Notre phrase.',
   completeLaFiche({ ...posee, description: 'Notre phrase.' }, O).fiche.description);
 dit('une formation de la Maison seule ne bouge pas', [],
   completeLaFiche({ name: 'Atelier du samedi', priceXof: 0 }, O).rubriques);
+
+/* ── ⑤ L'ACOMPTE, EN FRANCS OU EN POURCENTAGE — 13 septembre 2026 ──────
+   « J'aimerais avoir la main pour corriger l'acompte des formations » (Yéman). */
+const fo = (x: Partial<Formation>) => x as Formation;
+dit('sans réglage, quarante pour cent', 60000, depositAmountFor(150000, fo({})));
+dit('un pourcentage posé s’applique', 75000, depositAmountFor(150000, fo({ depositPct: 50 })));
+dit('un montant en francs l’emporte sur le pourcentage', 50000, depositAmountFor(150000, fo({ depositPct: 40, depositXof: 50000 })));
+dit('il ne dépasse jamais le prix convenu', 120000, depositAmountFor(120000, fo({ depositXof: 180000 })));
+dit('un montant à zéro rend la main au pourcentage', 60000, depositAmountFor(150000, fo({ depositXof: 0 })));
+dit('un prix nul ne doit rien', 0, depositAmountFor(0, fo({ depositXof: 50000 })));
+dit('l’écran dit le pourcentage', '40 %', depositLabelOf(fo({})));
+dit('ou le montant fixe', 'montant fixe', depositLabelOf(fo({ depositXof: 50000 })));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

@@ -141,6 +141,24 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## L'ACOMPTE DES FORMATIONS, EN FRANCS OU EN POURCENTAGE — 13 septembre 2026, PUBLIÉ
+
+« J'aimerais avoir la main pour corriger l'acompte des formations » (Yéman).
+
+**Avant** : un pourcentage seul (`depositPct`, 40 % par défaut) dans « Modifier »,
+et le formulaire d'inscription du Suivi affichait « Acompte 40 % réglé ? » en
+dur, même quand le taux changeait.
+
+**Maintenant** : `Formation.depositXof` (montant en francs) s'ajoute au
+pourcentage. Dans « Modifier », deux boutons, « En pourcentage » ou « En francs »,
+et la relecture « Soit 60 000 F sur 150 000 F ». Un seul juge,
+`depositAmountFor(net, formation)` (academy.ts) : le montant en francs l'emporte
+quand il est posé, ne dépasse jamais le net de l'apprenante, et rend la main au
+pourcentage s'il est vide. La carte, la fiche en lecture et le Suivi (« Acompte
+attendu · 40 % » ou « · montant fixe », via `depositLabelOf`) le lisent tous.
+Le libellé d'inscription devient « Acompte réglé ? ». Éprouvé dans
+`verifie-parcours` (8 assertions de plus).
+
 ## LE CERTIFICAT N'INVENTE PLUS DE NUMÉRO — 13 septembre 2026, PUBLIÉ
 
 « Le numéro de certificat écrit en dur, corrige » (Yéman). Le certificat ouvert
