@@ -34,6 +34,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
 import { useTips, importLegacyTips, type Tip } from '../../../../shared/tips';
 import './equipe.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 type Tab = 'equipe' | 'production' | 'temps' | 'paie' | 'parametres' | 'retention';
 
@@ -1592,7 +1593,7 @@ export default function Personnel() {
                 </Select>
               </Field>
               <Field label="Date d’entrée">
-                <Input type="date" value={form.since} onChange={(e) => setForm({ ...form, since: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={form.since} onChange={(iso) => setForm({ ...form, since: iso })} />
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">
@@ -1739,7 +1740,7 @@ export default function Personnel() {
                 <Input value={avanceForm.amount} onChange={(e) => setAvanceForm({ ...avanceForm, amount: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="50000" />
               </Field>
               <Field label="Date de l’avance">
-                <Input type="date" value={avanceForm.date} onChange={(e) => setAvanceForm({ ...avanceForm, date: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={avanceForm.date} onChange={(iso) => setAvanceForm({ ...avanceForm, date: iso })} />
               </Field>
             </div>
             {/* LA CONTREPARTIE — 23 août 2026. « Comment régulariser les
@@ -1839,7 +1840,7 @@ export default function Personnel() {
                 <Input value={primeForm.amount} inputMode="numeric" placeholder="25000" onChange={(e) => setPrimeForm({ ...primeForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
               <Field label="Date">
-                <Input type="date" value={primeForm.date} onChange={(e) => setPrimeForm({ ...primeForm, date: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={primeForm.date} onChange={(iso) => setPrimeForm({ ...primeForm, date: iso })} />
               </Field>
             </div>
             <Field label="Note (facultatif)">
@@ -1866,7 +1867,7 @@ export default function Personnel() {
                 <Input value={tipForm.amount} inputMode="numeric" placeholder="5000" onChange={(e) => setTipForm({ ...tipForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
               <Field label="Date">
-                <Input type="date" value={tipForm.date} onChange={(e) => setTipForm({ ...tipForm, date: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={tipForm.date} onChange={(iso) => setTipForm({ ...tipForm, date: iso })} />
               </Field>
             </div>
             <Field label="Note (facultatif)">
@@ -1913,7 +1914,7 @@ export default function Personnel() {
                 <Input value={retenueForm.amount} inputMode="numeric" placeholder="0" onChange={(e) => setRetenueForm({ ...retenueForm, amount: e.target.value.replace(/[^0-9]/g, ''), days: '' })} />
               </Field>
               <Field label="Date">
-                <Input type="date" value={retenueForm.date} onChange={(e) => setRetenueForm({ ...retenueForm, date: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={retenueForm.date} onChange={(iso) => setRetenueForm({ ...retenueForm, date: iso })} />
               </Field>
             </div>
             <Field label="Note (facultatif)">

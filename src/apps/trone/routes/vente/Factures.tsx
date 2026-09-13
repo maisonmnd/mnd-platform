@@ -30,6 +30,7 @@ import { uid } from '../../../../shared/store';
 import './vente.css';
 import { retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -1377,13 +1378,7 @@ export default function Factures() {
                 <div className="tr-grid tr-grid--2" style={{ gap: 8, marginBottom: 8 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Date de la pièce</span>
-                    <input
-                      className="mnd-input"
-                      type="date"
-                      style={{ padding: '7px 10px', fontSize: 12 }}
-                      value={draft.date}
-                      onChange={(e) => patchDraft({ date: e.target.value || draft.date })}
-                    />
+                    <ChampDeDate compact sens="arriere" value={draft.date} onChange={(iso) => patchDraft({ date: iso || draft.date })} style={{ padding: '7px 10px', fontSize: 12 }} />
                   </label>
                   {(() => {
                     const r = rituelDe(draft);

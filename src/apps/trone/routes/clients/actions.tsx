@@ -6,10 +6,10 @@ import { CURRENCIES } from '../../../../shared/geo';
 import { useSettings } from '../../../../shared/settings';
 import { dateDeLaReprise, RYTHMES_ABO, rythmeDeReprise } from '../../../../shared/cadence';
 import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } from '../../../../shared/clients';
-import { appointmentsStore, useAppointments, apptPayeurId, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
+import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
-import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -29,7 +29,7 @@ import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
-  ChampDeDate,
+  ChampDeDate, frShortAn,
 } from './_shared';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
@@ -142,7 +142,14 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
   return { pose: suivant };
 }
 
-export function honorAppointment(appt: Appointment, byId: Map<string, Service>): number {
+export function honorAppointment(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  /* MUET quand un autre écran annonce le geste : l'encaissement dit « réglé,
+     rituel honoré, reprise posée » en une seule ligne, plutôt que deux
+     bandeaux qui se chevauchent. */
+  opts: { muet?: boolean } = {},
+): { points: number; reprise: ReprisePosee } {
   const total = apptNetXof(appt, byId);
   /* LES POINTS SUIVENT L'ARGENT. Un rituel offert reconnaît celle qui l'a payé,
      pas celle qui s'est assise : c'est elle qui a sorti les 110 000 F. Le rituel
@@ -184,9 +191,9 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
      est due. Elle se pose sans bruit, et l'écran l'annonce — un rendez-vous
      apparu sans un mot serait pire que pas de rendez-vous du tout. */
   const reprise = poseLaReprise(appt);
-  if (reprise.pose) {
-    toast(`Rituel honoré. Sa reprise est posée le ${frShort(reprise.pose.date)} à ${reprise.pose.time}.`);
-  } else if (reprise.raison && appt.clientId && appt.serviceIds.length > 0) {
+  if (!opts.muet && reprise.pose) {
+    toast(`Rituel honoré. Sa reprise est posée le ${frShortAn(reprise.pose.date)} à ${reprise.pose.time}.`);
+  } else if (!opts.muet && reprise.raison && appt.clientId && appt.serviceIds.length > 0) {
     /* LE POURQUOI S'AFFICHE — sauf pour les cas sans objet (vente au
        comptoir sans fiche, rituel vide), où il n'y a rien à expliquer. */
     toast(`Rituel honoré. Pas de reprise : ${reprise.raison}.`);
@@ -209,7 +216,145 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
       ? { ...c, crownSince: appt.date }
       : c)));
   }
-  return awarded;
+  return { points: awarded, reprise };
+}
+
+/* ══ ENCAISSER, C'EST HONORER — 13 septembre 2026 ═══════════════════════
+   « Deux règles : encaisser va forcément avec honoré. Mais on peut honorer
+   sans encaisser » (Yéman).
+
+   LA MAISON DISAIT LE CONTRAIRE DEPUIS AOÛT : « encaisser ≠ honorer, on peut
+   encaisser d'avance un rituel qui n'a pas encore eu lieu ». Au comptoir, cela
+   faisait deux gestes pour une cliente qui paie en quittant le fauteuil, et le
+   second s'oubliait : des rituels réglés restaient « confirmés », hors des
+   venues, hors du Cercle, sans reprise posée.
+
+   UN RITUEL DATÉ DE DEMAIN NE S'HONORE PAS pour autant. Honorer ce qui n'a pas
+   eu lieu poserait sa reprise, consommerait sa recette et compterait une venue
+   fantôme. L'écran le dit, et l'honneur attend le jour. L'ACOMPTE, lui, ne
+   passe pas par ici : il se prend avant le rituel, par son propre chemin. */
+export type HonneurDeLEncaissement = {
+  etat: 'honore' | 'deja' | 'a-venir' | 'annule' | 'absent';
+  reprise?: ReprisePosee;
+};
+
+export function honoreALEncaissement(
+  apptId: string,
+  byId: Map<string, Service>,
+  opts: { muet?: boolean } = {},
+): HonneurDeLEncaissement {
+  const a = appointmentsStore.get().find((x) => x.id === apptId);
+  if (!a) return { etat: 'absent' };
+  if (a.status === 'honoré') return { etat: 'deja' };
+  if (a.status === 'annulé') return { etat: 'annule' };
+  if (a.date > todayISO()) {
+    if (!opts.muet) toast(`Le rituel du ${frShortAn(a.date)} n’a pas encore eu lieu : honorez-le le jour venu.`);
+    return { etat: 'a-venir' };
+  }
+  return { etat: 'honore', reprise: honorAppointment(a, byId, opts).reprise };
+}
+
+/* ══ DÉ-HONORER — 13 septembre 2026 ══════════════════════════════════════
+   « Je veux pouvoir déshonorer un RDV » (Yéman).
+
+   LE GESTE MANQUAIT, ET L'ÉCRAN Y RENVOYAIT : « s'il n'a pas eu lieu,
+   dés-honorez-le au Carnet », disait l'annulation d'encaissement, alors que le
+   Carnet n'offrait que « Marquer honoré ». Seul le sélecteur de statut de la
+   fiche savait revenir en arrière, et il ne défaisait que le stock : les points
+   du Cercle restaient acquis, la reprise posée à la clôture restait à l'agenda,
+   la couronne née ce jour-là restait sur la fiche.
+
+   DÉFAIRE CE QUE L'HONNEUR A FAIT, ET RIEN D'AUTRE. `honorAppointment` pose
+   cinq choses : le statut, les points, la recette, la reprise, la couronne.
+   On les reprend une à une, chacune avec sa garde :
+   · les points, là où ils ont été donnés (`reverseHonorPoints`) ;
+   · la recette revient au stock (`rembobinerRituel`, sans effet s'il n'y a rien) ;
+   · LA REPRISE N'EST RETIRÉE QUE SI ELLE EST RESTÉE NUE : honorée, réglée ou
+     portant un acompte, elle a sa propre vie, et l'effacer mentirait ;
+   · la couronne ne s'efface que si elle porte LA DATE DE CE RITUEL, et
+     qu'aucun autre rituel honoré du même jour ne la fonde.
+
+   L'ARGENT NE SE TOUCHE PAS ICI. Un rituel encaissé reste honoré (règle
+   ci-dessus) : on annule d'abord l'encaissement, puis on dés-honore. */
+export type HonneurRetire = {
+  points: number;
+  repriseRetiree?: Appointment;
+  repriseGardee?: Appointment;
+  couronneEffacee: boolean;
+};
+
+/** Défait tout ce que l'honneur a posé, SAUF le statut : le sélecteur de la
+    fiche l'écrit lui-même, le bouton « Dés-honorer » l'écrit après. */
+export function retireLHonneur(appt: Appointment, byId: Map<string, Service>): HonneurRetire {
+  const points = reverseHonorPoints(appt, 'Rituel dés-honoré');
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id ? { ...a, pointsAwarded: false } : a)));
+  rembobinerRituel(appt.id);
+
+  const tous = appointmentsStore.get();
+  const reprise = tous.find((a) => a.repriseDe === appt.id && a.status !== 'annulé');
+  let repriseRetiree: Appointment | undefined;
+  let repriseGardee: Appointment | undefined;
+  if (reprise) {
+    const aSaVie = reprise.status === 'honoré' || apptPaidXof(reprise) > 0
+      || !!reprise.invoiceId || !!reprise.depositConfirmed;
+    if (aSaVie) {
+      repriseGardee = reprise;
+    } else {
+      appointmentsStore.set((prev) => prev.filter((a) => a.id !== reprise.id));
+      repriseRetiree = reprise;
+    }
+  }
+
+  const fonde = (a: Appointment) => a.serviceIds.some((id) => {
+    const sv = byId.get(id);
+    return !!sv && fondeLaCouronne(sv);
+  });
+  let couronneEffacee = false;
+  const cliente = appt.clientId ? clientsStore.get().find((c) => c.id === appt.clientId) : undefined;
+  if (cliente && cliente.crownSince === appt.date && fonde(appt)
+    && !tous.some((a) => a.id !== appt.id && a.clientId === appt.clientId
+      && a.status === 'honoré' && a.date === appt.date && fonde(a))) {
+    clientsStore.set((prev) => prev.map((c) => (c.id === cliente.id ? { ...c, crownSince: undefined } : c)));
+    couronneEffacee = true;
+  }
+  return { points, repriseRetiree, repriseGardee, couronneEffacee };
+}
+
+/** Ce que le retrait a fait, en une ligne pour l'écran. */
+export const ditLeRetrait = (r: HonneurRetire): string => `${[
+  'Rituel dés-honoré',
+  r.points > 0 ? `${r.points} point${r.points > 1 ? 's' : ''} du Cercle repris` : '',
+  r.repriseRetiree ? `sa reprise du ${frShortAn(r.repriseRetiree.date)} est retirée` : '',
+  r.repriseGardee ? `sa reprise du ${frShortAn(r.repriseGardee.date)} reste, elle a déjà été honorée ou réglée` : '',
+  r.couronneEffacee ? '« Couronne depuis » effacée de sa fiche' : '',
+].filter(Boolean).join(' · ')}.`;
+
+/** Le bouton « Dés-honorer » : refus si le rituel est encaissé, confirmation,
+    puis le retrait complet. Rend `true` quand le rituel a été dés-honoré. */
+export function deshonoreLeRituel(appt: Appointment, byId: Map<string, Service>): boolean {
+  const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
+  if (frais.status !== 'honoré') return false;
+  if (apptPaidXof(frais) > 0) {
+    window.alert(
+      'Ce rituel est encaissé : un rituel encaissé reste honoré.\n\n'
+      + 'Annulez d’abord l’encaissement (écran « Encaisser », « Annuler l’encaissement »), '
+      + 'puis dés-honorez-le.',
+    );
+    return false;
+  }
+  const reprise = appointmentsStore.get().find((a) => a.repriseDe === frais.id && a.status !== 'annulé');
+  const lignes = [
+    `Dés-honorer le rituel du ${frShortAn(frais.date)} ?`,
+    '',
+    'Il redevient « confirmé » : il sort des venues de la tête et des chiffres du jour.',
+    'Les points du Cercle gagnés à sa clôture sont repris, et sa recette revient au stock.',
+  ];
+  if (reprise) lignes.push(`Sa reprise du ${frShortAn(reprise.date)}, posée à sa clôture, est retirée si rien n’y a été réglé.`);
+  if (!window.confirm(lignes.join('\n'))) return false;
+  const r = retireLHonneur(frais, byId);
+  appointmentsStore.set((prev) => prev.map((a) => (a.id === frais.id ? { ...a, status: 'confirmé' } : a)));
+  toast(ditLeRetrait(r));
+  return true;
 }
 
 /* ---------- Annulation d'encaissement ----------
@@ -219,7 +364,7 @@ export function honorAppointment(appt: Appointment, byId: Map<string, Service>):
 
 /** Reprend les points Cercle attribués à l'honneur du RDV, si on retrouve
     l'attribution exacte dans l'historique. Renvoie les points repris (0 sinon). */
-function reverseHonorPoints(appt: Appointment): number {
+function reverseHonorPoints(appt: Appointment, motif = 'Encaissement annulé'): number {
   /* On reprend LÀ OÙ ON A DONNÉ — chez la payeuse quand le rituel était offert.
      Viser la soignée retirerait des points à quelqu'un qui n'en a jamais reçu. */
   const beneficiaire = apptPayeurId(appt);
@@ -231,7 +376,7 @@ function reverseHonorPoints(appt: Appointment): number {
     prev.map((c) => (c.id === beneficiaire ? { ...c, loyaltyPoints: Math.max(0, (c.loyaltyPoints ?? 0) - entry.pts) } : c)),
   );
   pointsHistoryStore.set((prev) => [
-    { id: `pt-${uid()}`, clientId: beneficiaire, clientName: entry.clientName, label: `Encaissement annulé · ${frShort(appt.date)}`, pts: -entry.pts, at: new Date().toISOString() },
+    { id: `pt-${uid()}`, clientId: beneficiaire, clientName: entry.clientName, label: `${motif} · ${frShort(appt.date)}`, pts: -entry.pts, at: new Date().toISOString() },
     ...prev,
   ]);
   return entry.pts;
@@ -771,10 +916,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      Vide = le même moyen que le rituel, le cas de presque tous les passages. */
   const [payGammeChoisi, setPayGammeChoisi] = useState<'' | PaymentMethod>('');
   const [gammeBoxChoisie, setGammeBoxChoisie] = useState('');
-  /* LA MONNAIE DE LA MAISON PASSE D’ABORD — 24 août 2026. Voir
-     `caisseParDefaut` : un tiroir en euros ne se propose pas pour encaisser
-     des francs. */
-  const [cashbox, setCashbox] = useState(caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '');
+  /* ══ LA CAISSE SE CHOISIT, ELLE NE SE DEVINE PAS — 13 septembre 2026 ══
+     « Je ne veux pas que la caisse KkiaPay soit présélectionnée : je dois
+     choisir une caisse avant validation » (Yéman).
+
+     LA CAISSE PROPOSÉE D'OFFICE ÉTAIT LA PREMIÈRE DE LA MONNAIE DE LA MAISON,
+     et c'était KkiaPay. Des espèces posées au comptoir partaient donc dans le
+     tiroir du paiement en ligne dès qu'on oubliait de toucher la liste : le
+     soir, le tiroir des espèces ne tombait plus juste, et KkiaPay annonçait un
+     argent qu'il n'avait jamais reçu. La liste part vide, et le bouton attend. */
+  const [cashbox, setCashbox] = useState('');
   /* La facture garde la date du RITUEL (le jour de la prestation), pas celle du
      jour où l'on encaisse — modifiable au besoin. */
   const [invDate, setInvDate] = useState(appt.date || todayISO());
@@ -868,15 +1019,23 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      de fausser deux soldes d'un coup. */
   const payCurrency = fxOn ? fxCode : currency;
   const eligibleBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === payCurrency);
-  const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : eligibleBoxes[0]?.name ?? '';
+  const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
   /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
      de la Maison, même quand le rituel part en devise. */
   const gammeBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === currency);
   const payGamme: PaymentMethod = payGammeChoisi || pay;
+  /* La Gamme suit la caisse du rituel quand elle suit son moyen ; sinon elle
+     se choisit à son tour. Jamais la première de la liste. */
   const gammeBox = gammeBoxes.some((c) => c.name === gammeBoxChoisie)
     ? gammeBoxChoisie
-    : (gammeBoxes.some((c) => c.name === activeBox) ? activeBox : gammeBoxes[0]?.name ?? '');
+    : (payGammeChoisi === '' && gammeBoxes.some((c) => c.name === activeBox) ? activeBox : '');
+  /* Le pourboire entre aussi dans le tiroir : il réclame la caisse comme le
+     règlement. Sans aucune caisse dans la devise, rien ne se réclame (le
+     blocage de devise parle déjà). */
+  const caisseManquante = (amount > 0 || tip > 0) && eligibleBoxes.length > 0 && !activeBox;
+  const caisseGammeManquante = totalGamme > 0 && gammeBoxes.length > 0 && !gammeBox;
+  const ditLaCaisse = caisseManquante || caisseGammeManquante;
 
   /* ── UN BLOCAGE DOIT SE DIRE — 18 août 2026 ─────────────────────
      « Quand je veux encaisser les 100 euros la case est grisée » (Yéman).
@@ -958,6 +1117,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        repartir avec un flacon — c'était impossible, le geste sortait sans
        rien dire, et le flacon partait sans pièce. */
     if (amount <= 0 && avoirApplied <= 0 && totalGamme <= 0 && tip <= 0 && !depositJustConfirmed && !reschedule) return;
+    /* La ceinture du bouton grisé : aucun chemin n'écrit un argent sans tiroir. */
+    if (ditLaCaisse) return;
     submitting.current = true;
     /* La pièce que CE geste écrit — le pourboire s'y attache (19 août). */
     let idPieceEncaissee: string | undefined;
@@ -1213,9 +1374,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           kind: 'usage', amountXof: avoirApplied, date: invDate, forClientId: appt.clientId, invoiceId: inv.id,
         }]);
       }
-      /* ENCAISSER ≠ HONORER : l'argent entre ici, mais le rituel n'est « honoré »
-         que par le geste dédié (Carnet / Tableau de bord → Marquer honoré) — on
-         peut encaisser d'avance un rituel qui n'a pas encore eu lieu.
+      /* ENCAISSER, C'EST HONORER depuis le 13 septembre 2026 : l'honneur se pose
+         plus bas, une fois la pièce écrite (`honoreALEncaissement`).
          Un rituel SOLDÉ fige son prix (priceXof) au tarif du jour de la vente :
          le catalogue bougera, l'histoire non. */
       const freeze = fullyPaid && appt.priceXof == null ? { priceXof: apptTotalXof(appt, byId) } : {};
@@ -1304,7 +1464,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const tipRecorded = tip > 0 && partsEcrites.length > 0;
 
     /* Confirmation d'acompte SANS encaissement : on la persiste quand même.
-       (L'honneur du rituel reste un geste séparé — Marquer honoré.) */
+       (Un acompte n'honore pas : il se prend avant le rituel.) */
     if (depositJustConfirmed && settleTotal <= 0) {
       appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id
         ? { ...x, depositConfirmed: true, depositConfirmedAt: x.depositConfirmedAt ?? todayISO() }
@@ -1336,6 +1496,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;
     }
+
+    /* ══ ENCAISSER, C'EST HONORER — 13 septembre 2026 ══════════════════
+       Après la reprogrammation, jamais avant : si l'encaissement vient de
+       poser le prochain rendez-vous, la reprise de la clôture le voit et ne
+       s'en pose pas un second. L'annonce se fait dans la ligne du règlement. */
+    const honneur = settleTotal > 0 ? honoreALEncaissement(appt.id, byId, { muet: true }) : undefined;
 
     /* ── L'AVIS GOOGLE DE LA PREMIÈRE VENUE — 18 août 2026 ─────────────
        « Je veux que mes nouvelles clientes de passage laissent un avis
@@ -1390,7 +1556,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const avoirMsg = avoirApplied > 0 ? ` (dont ${fmtMoney(avoirApplied, currency)} par avoir)` : '';
     const payMsg = settleTotal > 0
       ? (fullyPaid
-          ? `Réglé en totalité · ${fmtMoney(settleTotal, currency)}${avoirMsg}. Marquez le rituel « honoré » quand il a eu lieu.`
+          ? `Réglé en totalité · ${fmtMoney(settleTotal, currency)}${avoirMsg}.`
           : `Paiement partiel enregistré · ${fmtMoney(settleTotal, currency)}${avoirMsg} · reste ${fmtMoney(remainingAfter, currency)}.`)
       : '';
     const tipMsg = tip <= 0 ? ''
@@ -1398,9 +1564,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
       : ` · pourboire ${fmtMoney(tip, currency)} NON attribué (aucun membre du personnel dans cette branche)`;
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
     const reschedMsg = rescheduled
-      ? `Prochain RDV reprogrammé le ${new Date(`${nextDate}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${nextTime}.`
+      ? `Prochain RDV reprogrammé le ${frShortAn(nextDate)} à ${nextTime}.`
       : '';
-    const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), reschedMsg].filter(Boolean).join(' · ') || 'Enregistré.';
+    const honneurMsg = honneur?.etat === 'honore'
+      ? `Rituel honoré.${honneur.reprise?.pose ? ` Sa reprise est posée le ${frShortAn(honneur.reprise.pose.date)} à ${honneur.reprise.pose.time}.` : ''}`
+      : honneur?.etat === 'a-venir'
+        ? `Le rituel du ${frShortAn(appt.date)} n’a pas encore eu lieu : honorez-le le jour venu.`
+        : '';
+    const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), reschedMsg, honneurMsg].filter(Boolean).join(' · ') || 'Enregistré.';
     /* Succès → toast (zéro clic, la caissière enchaîne). Un pourboire NON
        attribuable, lui, doit être VU : il reste en alerte bloquante. */
     if (tip > 0 && !tipRecorded) window.setTimeout(() => window.alert(msg), 30);
@@ -1435,7 +1606,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             Encaisser · {client?.name ?? 'Cliente'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--ink-invert-soft, #C9C3DB)', marginTop: 4 }}>
-            {apptLabel(appt, byId)} · {frShort(appt.date)}{appt.master ? ` · avec ${appt.master}` : ''}
+            {apptLabel(appt, byId)} · {frShortAn(appt.date)}{appt.master ? ` · avec ${appt.master}` : ''}
           </div>
           <div style={{
             display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14,
@@ -1562,7 +1733,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 `sont SUPPRIMÉES : une pièce atteste un paiement, le paiement annulé elle ` +
                 `n'a plus d'objet. L'avoir consommé est rendu au compte.\n\n` +
                 `Le rituel reste HONORÉ et garde ses points : ce geste n'efface que de ` +
-                `l'argent. S'il n'a pas eu lieu, dés-honorez-le au Carnet.\n\n` +
+                `l'argent. S'il n'a pas eu lieu, dés-honorez-le ensuite, ici même ou au Carnet.\n\n` +
                 `La suppression des pièces est irréversible.`,
               )) return;
               const r = cancelAppointmentPayment(appt);
@@ -1595,13 +1766,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 chiffre d'affaires sans trace. */}
             {pieceDuRituelOuverte && invoiceReglements(pieceDuRituelOuverte).map((v) => (
               <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                <Input
-                  type="date"
-                  value={v.date}
-                  onChange={(e) => corrigerVersement(v.id, { date: e.target.value || v.date })}
-                  style={{ width: 138, flex: 'none', fontSize: 12 }}
-                  aria-label="Jour où cet argent est entré"
-                />
+                <ChampDeDate compact sens="arriere" value={v.date} onChange={(iso) => corrigerVersement(v.id, { date: iso || v.date })} style={{ width: 138, flex: 'none', fontSize: 12 }} ariaLabel="Jour où cet argent est entré" />
                 <Select
                   value={v.method}
                   onChange={(e) => corrigerVersement(v.id, { method: e.target.value })}
@@ -1790,9 +1955,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                         {methods.map((m) => <option key={m} value={m}>{m}</option>)}
                       </Select>
                     </Field>
-                    {payGammeChoisi !== '' && gammeBoxes.length > 0 && (
+                    {(payGammeChoisi !== '' || amount <= 0) && gammeBoxes.length > 0 && (
                       <Field label="Sa caisse">
                         <Select value={gammeBox} onChange={(e) => setGammeBoxChoisie(e.target.value)}>
+                          <option value="" disabled>Choisir la caisse</option>
                           {gammeBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </Select>
                       </Field>
@@ -1831,7 +1997,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <Input type="number" min={0} max={cashMax} value={amountStr} onChange={(e) => setAmountStr(e.target.value)} style={{ textAlign: 'right', flex: 1, minWidth: 0 }} aria-label="Montant encaissé comptant" />
             <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ flex: 'none' }} onClick={() => setAmountStr(String(cashMax))}>Le reste</button>
           </div>
-          {amount > 0 && (
+          {(amount > 0 || tip > 0) && (
             <div className="tr-grid tr-grid--2" style={{ gap: 10, marginTop: 10 }}>
               <Field label="Moyen de paiement">
                 <Select value={pay} onChange={(e) => setPay(e.target.value as PaymentMethod)}>
@@ -1841,6 +2007,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               {eligibleBoxes.length > 0 && (
                 <Field label="Caisse">
                   <Select value={activeBox} onChange={(e) => setCashbox(e.target.value)}>
+                    <option value="" disabled>Choisir la caisse</option>
                     {eligibleBoxes.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </Select>
                 </Field>
@@ -1906,7 +2073,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         {!datesOuvertes ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12, flexWrap: 'wrap' }}>
             <span className="mnd-muted">
-              Facture au {frShort(invDate)} (jour du rituel) · argent entré le {frShort(payDate)}
+              Facture au {frShortAn(invDate)} (jour du rituel) · argent entré le {frShortAn(payDate)}
             </span>
             <span style={{ display: 'flex', gap: 12, flex: 'none' }}>
               {/* ══ RÉGLER AU JOUR DU RITUEL, EN UN GESTE — 5 septembre 2026 ═
@@ -2090,7 +2257,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <Input type="date" value={nextDate} min={todayISO()} onChange={(e) => setNextDate(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <ChampDeDate compact sens="avant" value={nextDate} onChange={setNextDate} min={todayISO()} style={{ flex: 1, minWidth: 0 }} />
                 <Input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} style={{ width: 108, flex: 'none' }} />
               </div>
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
@@ -2119,7 +2286,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           <Button
             variant="ghost"
             onClick={() => confirm(true)}
-            disabled={(fxOn && fxAmount <= 0) || fxBlocked}
+            disabled={(fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse}
             style={{ marginTop: 4 }}
           >
             Enregistrer ce règlement et en ajouter un autre
@@ -2145,14 +2312,31 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           </Button>
         )}
         {appt.status === 'honoré' && (
-          <div style={{ alignSelf: 'center', marginTop: 4, fontSize: 12, color: 'var(--trv-success, #41604A)' }}>
-            Rituel honoré
+          <div style={{ alignSelf: 'center', marginTop: 4, fontSize: 12, color: 'var(--trv-success, #41604A)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span>Rituel honoré</span>
+            {/* DÉ-HONORER, ICI AUSSI — 13 septembre 2026. Un rituel encaissé
+                reste honoré : tant qu'il porte un règlement, la ligne le dit au
+                lieu d'offrir un geste qui serait refusé. */}
+            {apptPaidXof(appt) > 0 ? (
+              <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>· encaissé, il le reste</span>
+            ) : (
+              <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => deshonoreLeRituel(appt, byId)}>
+                Dés-honorer
+              </button>
+            )}
+          </div>
+        )}
+        {/* UN BLOCAGE DOIT SE DIRE (18 août) : le bouton grisé sans un mot
+            ressemblait à une panne. */}
+        {ditLaCaisse && (
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10, marginTop: 4 }}>
+            {caisseManquante ? 'Choisissez la caisse où entre cet argent.' : 'Choisissez la caisse où entre le règlement de la Gamme.'}
           </div>
         )}
         <Button
           variant="copper"
           onClick={() => confirm()}
-          disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked}
+          disabled={(settleTotal <= 0 && totalGamme <= 0 && (tip <= 0 || partage.length === 0) && !depositJustConfirmed && !reschedule) || (fxOn && fxAmount <= 0) || fxBlocked || ditLaCaisse}
           style={{ marginTop: 4 }}
         >
           {/* LE BOUTON DIT LES DEUX MONTANTS — 7 septembre 2026. Il annonçait

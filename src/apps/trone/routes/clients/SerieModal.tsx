@@ -951,16 +951,10 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <span>{frShortAn(l.iso)}</span>
                             <div style={{ display: 'flex', gap: 5 }}>
-                              <Input
-                                type="date"
-                                value={l.iso}
-                                onChange={(e) => {
-                                  const v = e.target.value;
+                              <ChampDeDate compact sens="avant" value={l.iso} onChange={(iso) => {
+                                  const v = iso;
                                   setDatesCorrigees((prev) => ({ ...prev, [l.origine!]: v || l.origine! }));
-                                }}
-                                aria-label="Le jour de ce rituel"
-                                style={{ padding: '3px 6px', fontSize: 11.5, width: 128 }}
-                              />
+                                }} style={{ padding: '3px 6px', fontSize: 11.5, width: 128 }} ariaLabel="Le jour de ce rituel" />
                               <Input
                                 type="time"
                                 value={l.heure}

@@ -4,6 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useAuth } from '../../../../shared/auth';
 import { filStore, nouveauMessage, CANAL_MAISON, A_PRENDRE, PRIORITES, type FilMessage, type FilPiece } from '../../../../shared/fil';
 import { useStaff, useAnnuaire, nomDuCompte, adresseDe } from './data';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* ═══════════════════════════════════════════════════════════════════
    DEMANDER — la porte unique, posée sur la pièce (19-20 août 2026).
@@ -95,7 +96,7 @@ export function DemanderModal({ piece, sousTitre, onClose }: {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Échéance · facultatif</span>
-            <input className="mnd-input" type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} style={{ padding: '7px 10px', fontSize: 12.5 }} />
+            <ChampDeDate compact sens="avant" value={echeance} onChange={setEcheance} style={{ padding: '7px 10px', fontSize: 12.5 }} ariaLabel="Échéance" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Priorité · facultatif</span>

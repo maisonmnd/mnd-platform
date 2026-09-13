@@ -44,6 +44,7 @@ import { RapportDeCaisse } from './Rapport';
 import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
 /* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
@@ -60,7 +61,7 @@ const FLOW_FILLS = [
   'var(--indigo-300)', 'var(--copper-200)', 'var(--indigo-600)', 'var(--color-argile)',
 ];
 
-type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean };
+type Form = { label: string; amount: string; category: string; subcategory: string; cashbox: string; enDevise: string; recurring: '' | 'mensuel' | 'hebdomadaire'; date: string; flagged: boolean; items: ExpenseItem[]; sources: DepenseSource[]; fichier?: PieceJointe; porteur: string; avancee: boolean; porteurChoisi: boolean; caisseChoisie: boolean };
 /** `currency` vide = la caisse tient la devise de la maison. */
 type BoxForm = { name: string; sub: string; glyph: string; opening: string; currency: string; equipe: boolean };
 
@@ -214,7 +215,7 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false });
+  const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false, porteurChoisi: !voitToutesLesDepenses, caisseChoisie: false });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [catOpen, setCatOpen] = useState(false);
@@ -641,7 +642,24 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
-    setForm({ label: '', amount: '', category: catNames[0] ?? '', subcategory: '', cashbox: cashbox ?? caisseParDefaut(branchBoxes, branch.id, currency)?.name ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false });
+    /* ══ RIEN N'EST CHOISI D'OFFICE — 13 septembre 2026 ══════════════════
+       « Dans dépenses je ne veux rien de présélectionné : les équipements,
+       qui fait l'achat, ni payer depuis la caisse. Rien de dur, sinon après
+       un oubli tout est mal rangé » (Yéman).
+
+       UN DÉFAUT EST UNE RÉPONSE QUE PERSONNE N'A DONNÉE. La fenêtre s'ouvrait
+       sur « Équipement », « La Maison elle-même » et la première caisse : une
+       dépense saisie vite partait avec les trois, et le mois se lisait faux
+       (des salaires rangés en équipement, sortis de KkiaPay). Les trois cases
+       partent vides, et l'enregistrement les réclame.
+
+       « LA MAISON ELLE-MÊME » ET « SANS CAISSE » RESTENT DES RÉPONSES, mais des
+       réponses qu'on donne : elles valaient une chaîne vide, qui ne distingue
+       pas « la Maison » de « personne n'a répondu ». D'où les deux drapeaux.
+       Une caisse passée à l'ouverture (on ajoute depuis la carte d'une caisse)
+       est un clic de la main, donc un choix. Un compte restreint signe de son
+       nom : son porteur est posé, il ne se choisit pas. */
+    setForm({ label: '', amount: '', category: '', subcategory: '', cashbox: cashbox ?? '', enDevise: '', recurring: '', date: todayISO(), flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false, porteurChoisi: !voitToutesLesDepenses, caisseChoisie: cashbox !== undefined });
     setOpen(true);
   };
   /* ══ ON ARRIVE ICI POUR UNE ÉCRITURE PRÉCISE — 1er septembre 2026 ══
@@ -673,6 +691,9 @@ export default function Depenses() {
       fichier: e.fichier,
       porteur: e.porteur ?? '',
       avancee: !!e.avancee,
+      /* Une dépense écrite a déjà reçu ses réponses. */
+      porteurChoisi: true,
+      caisseChoisie: true,
       items: e.items ? e.items.map((it) => ({ ...it })) : [],
       sources: e.sources ? e.sources.map((s) => ({ ...s })) : [],
     });
@@ -752,9 +773,15 @@ export default function Depenses() {
      Maison ». Le porteur suit donc la caisse — et reste modifiable. */
   const changeLaCaisse = (nom: string) =>
     setForm((f) => {
-      if (f.cashbox === nom) return f;
+      if (f.cashbox === nom && f.caisseChoisie) return f;
       const tenue = branchBoxes.find((c) => c.name === nom)?.porteur;
-      return { ...f, cashbox: nom, sources: [], porteur: tenue ?? (f.porteur && !branchBoxes.some((c) => c.porteur === f.porteur) ? f.porteur : '') };
+      const porteur = tenue ?? (f.porteur && !branchBoxes.some((c) => c.porteur === f.porteur) ? f.porteur : '');
+      /* LE PORTEUR NE DEVIENT PAS « LA MAISON » EN SILENCE (13 septembre 2026).
+         Quitter la caisse de Sandrine remettait le porteur à vide, qui valait
+         « la Maison elle-même » : une réponse que personne n'avait donnée. Il
+         redevient donc à choisir, sauf si la nouvelle caisse le désigne. */
+      const porteurChoisi = !voitToutesLesDepenses || (tenue ? true : porteur === f.porteur ? f.porteurChoisi : false);
+      return { ...f, cashbox: nom, caisseChoisie: true, sources: f.cashbox === nom ? f.sources : [], porteur, porteurChoisi };
     });
   const changeLaPart = (ref: string, xof: number) =>
     setForm((f) => ({ ...f, sources: f.sources.map((s) => (s.ref === ref ? { ...s, xof: Math.max(0, xof) } : s)) }));
@@ -836,6 +863,12 @@ export default function Depenses() {
     const hasItems = items.length > 0;
     const amountXof = hasItems ? items.reduce((s, it) => s + it.amountXof, 0) : montantsDep.xof;
     if (!form.label.trim()) { setSaveErr('Il manque le bénéficiaire, qui a reçu cet argent ?'); return; }
+    /* LES TROIS RÉPONSES QUI NE SE DEVINENT PAS (13 septembre 2026, voir
+       l'ouverture). Une dépense avancée de sa poche ne sort d'aucun tiroir :
+       sa caisse ne se réclame pas. */
+    if (!form.category) { setSaveErr('Choisissez à quoi va cet argent.'); return; }
+    if (voitToutesLesDepenses && !form.porteurChoisi) { setSaveErr('Dites qui a fait cet achat : la Maison elle-même, ou quelqu’un.'); return; }
+    if (!form.avancee && !form.caisseChoisie) { setSaveErr('Choisissez la caisse d’où sort cet argent, ou « Sans caisse ».'); return; }
     if (!amountXof) {
       setSaveErr(hasItems
         ? 'Les articles saisis totalisent zéro, donnez un libellé et un montant à chacun.'
@@ -2252,8 +2285,8 @@ export default function Depenses() {
               ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 <button
-                  className={`trf-chip ${!form.porteur ? 'is-active' : ''}`}
-                  onClick={() => setForm((f) => ({ ...f, porteur: '' }))}
+                  className={`trf-chip ${form.porteurChoisi && !form.porteur ? 'is-active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, porteur: '', porteurChoisi: true }))}
                 >
                   La Maison elle-même
                 </button>
@@ -2261,7 +2294,7 @@ export default function Depenses() {
                   <button
                     key={nom}
                     className={`trf-chip ${form.porteur === nom ? 'is-active' : ''}`}
-                    onClick={() => setForm((f) => ({ ...f, porteur: nom }))}
+                    onClick={() => setForm((f) => ({ ...f, porteur: nom, porteurChoisi: true }))}
                   >
                     {nom}
                   </button>
@@ -2273,7 +2306,7 @@ export default function Depenses() {
                     const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
                     if (!nom?.trim()) return;
                     ajouteUnPorteur(nom);
-                    setForm((f) => ({ ...f, porteur: nom.trim() }));
+                    setForm((f) => ({ ...f, porteur: nom.trim(), porteurChoisi: true }));
                   }}
                 >
                   + Quelqu’un
@@ -2414,14 +2447,15 @@ export default function Depenses() {
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payer depuis quelle caisse</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {branchBoxes.map((c) => (
-                  <button key={c.id} className={`trf-chip ${form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
+                  <button key={c.id} className={`trf-chip ${form.caisseChoisie && form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
                     {libelleDeLaCaisse(c)}
                   </button>
                 ))}
-                {/* La caisse est FACULTATIVE : sans elle, la dépense se range
+                {/* La caisse reste FACULTATIVE : sans elle, la dépense se range
                     sous « Autres ». L'exiger rendait la saisie impossible tant
-                    qu'aucune caisse n'était déclarée. */}
-                <button className={`trf-chip ${!form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>
+                    qu'aucune caisse n'était déclarée. Mais « Sans caisse » se
+                    choisit, comme les autres (13 septembre 2026). */}
+                <button className={`trf-chip ${form.caisseChoisie && !form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>
                   Sans caisse · Autres
                 </button>
               </div>
@@ -2604,7 +2638,7 @@ export default function Depenses() {
                 dernier réglage, pas une question posée avant le montant. */}
             <label className="mnd-field">
               <span className="mnd-field__label">Date</span>
-              <input className="mnd-input" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+              <ChampDeDate compact sens="arriere" value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
             </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
               {saveErr && (
@@ -2927,7 +2961,7 @@ export default function Depenses() {
 
             <label className="mnd-field">
               <span className="mnd-field__label">Date</span>
-              <input className="mnd-input" type="date" value={fTr.date} onChange={(e) => setFTr((f) => ({ ...f, date: e.target.value }))} />
+              <ChampDeDate compact sens="arriere" value={fTr.date} onChange={(iso) => setFTr((f) => ({ ...f, date: iso }))} />
             </label>
             <label className="mnd-field">
               <span className="mnd-field__label">Motif · facultatif</span>
@@ -2981,7 +3015,7 @@ export default function Depenses() {
                   />
                 </Field>
                 <Field label="Date">
-                  <Input type="date" value={rbDate} onChange={(e) => setRbDate(e.target.value)} />
+                  <ChampDeDate compact sens="arriere" value={rbDate} onChange={setRbDate} />
                 </Field>
               </div>
 

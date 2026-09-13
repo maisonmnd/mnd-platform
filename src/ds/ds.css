@@ -292,3 +292,91 @@
   border: 1px solid var(--hairline);
   border-radius: 3px;
 }
+
+/* ══ LES CHAMPS DE DATE DE LA MAISON — jour · mois · année ══════════════
+   13 septembre 2026. Voir `ds/dates.tsx`. Ils servent toutes les sœurs :
+   le Trône, le Certificat, Ma Couronne. */
+.mnd-date { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mnd-date__champ { width: 100%; box-sizing: border-box; }
+.mnd-date--compact { position: relative; display: block; }
+.mnd-date--compact .mnd-date__champ { padding-right: 30px; }
+.mnd-date__champ[aria-invalid="true"] { border-color: var(--color-brique, #96412E); }
+.mnd-date__icone {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: 2px;
+  display: grid; place-items: center; background: none; cursor: pointer;
+  color: var(--ink-soft);
+}
+.mnd-date__icone:hover { color: var(--copper-700); }
+.mnd-date__lu {
+  font-family: var(--font-serif); font-size: 22px; line-height: 1.15; margin-top: 5px;
+  color: var(--color-indigo);
+}
+.mnd-date__lu.is-petit { font-size: 17px; margin-top: 0; }
+.mnd-date__lu.is-vide { color: var(--hairline); }
+.mnd-date__lu.is-petit.is-vide { color: var(--ink-soft); }
+.mnd-date__lu.is-faux, .mnd-date__lu.is-retard { color: var(--color-brique, #96412E); }
+.mnd-date__alerte {
+  font-size: 12.5px; line-height: 1.45; margin-top: 5px; padding-left: 10px;
+  color: var(--color-brique, #96412E); border-left: 2px solid var(--color-brique, #96412E);
+}
+.mnd-date__puces { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+.mnd-date__puces > span { font-size: 11px; color: var(--ink-soft); }
+.mnd-date__puce {
+  cursor: pointer; border-radius: 3px; padding: 2px 9px; font: inherit; font-size: 11px;
+  border: 1px solid var(--hairline); background: transparent; color: var(--ink-soft);
+}
+.mnd-date__puce.is-pris { border-color: var(--color-copper); background: var(--copper-50, #F9EFE7); color: var(--copper-700); }
+.mnd-date__puce.is-cuivre { border-color: var(--copper-300, #E3C9AE); background: var(--copper-50, #F9EFE7); color: var(--copper-700); }
+.mnd-date__ouvre {
+  align-self: flex-start; margin-top: 4px; padding: 0; border: none; background: none;
+  cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; color: var(--copper-700);
+}
+/* LE VOLET DU CHAMP COMPACT vit hors de la modale (portail) : il se pose donc
+   au-dessus de tout, voile de modale et tiroir compris. */
+.mnd-date__pop {
+  position: fixed; z-index: 1000; width: 288px; max-width: calc(100vw - 16px); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 4px; padding: 11px 12px;
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px;
+  box-shadow: 0 12px 30px rgba(27, 31, 58, 0.16);
+  font-family: var(--font-sans); font-size: 13px; color: var(--ink); text-align: left;
+  text-transform: none; letter-spacing: normal;
+  animation: mnd-fade var(--dur-fast) var(--ease-soft);
+}
+
+/* LE PETIT CALENDRIER — semaine commençant le LUNDI, comme partout au Bénin.
+   Il portait la classe `.trc-cal`, qui est AUSSI celle du carnet du jour : ses
+   bordures et son rembourrage débordaient sur la grille des maîtres. */
+.mnd-cal {
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card);
+  padding: 11px; margin-top: 6px;
+}
+.mnd-date__pop .mnd-cal { border: 0; padding: 4px 0 0; margin-top: 2px; }
+.mnd-cal__t { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.mnd-cal__t b { font-family: var(--font-serif); font-weight: 500; font-size: 17px; color: var(--color-indigo); }
+.mnd-cal__fl {
+  border: 1px solid var(--hairline); border-radius: 3px; background: none;
+  width: 26px; height: 26px; color: var(--ink-soft); font: inherit; font-size: 14px;
+  line-height: 1; cursor: pointer;
+}
+.mnd-cal__fl:hover { background: var(--paper-2); }
+.mnd-cal__g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.mnd-cal__j {
+  text-align: center; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-soft); padding: 2px 0 5px;
+}
+.mnd-cal__c {
+  text-align: center; padding: 6px 0; border-radius: 3px; font: inherit; font-size: 13px;
+  color: var(--ink); border: 1px solid transparent; background: none; cursor: pointer;
+}
+.mnd-cal__c:hover { background: var(--paper-2); }
+.mnd-cal__c.hors { color: var(--hairline); }
+/* AUJOURD'HUI SE CERCLE, il ne se remplit pas : le remplissage dit « choisi ». */
+.mnd-cal__c.auj { border-color: var(--copper-300, #E3C9AE); }
+.mnd-cal__c.pris { background: var(--color-indigo); color: var(--color-ivoire); }
+.mnd-cal__c.ferme { color: var(--hairline); text-decoration: line-through; }
+.mnd-cal__c.interdit, .mnd-cal__c.interdit:hover { color: var(--hairline); background: none; cursor: not-allowed; }
+.mnd-cal__pied {
+  margin-top: 8px; font-size: 10.5px; color: var(--ink-soft);
+  display: flex; gap: 12px; flex-wrap: wrap;
+}

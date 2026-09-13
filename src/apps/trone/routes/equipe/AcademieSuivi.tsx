@@ -186,7 +186,7 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
             <Input value={cohortLabel} onChange={(e) => setCohort(e.target.value)} placeholder="Fondation · Sept 2026" />
           </Field>
           <Field label="Début de formation">
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <ChampDeDate compact sens="avant" value={startDate} onChange={setStartDate} />
           </Field>
           <Field label="Acompte 40 % réglé ?">
             <div style={{ paddingTop: 6 }}><Toggle on={depositPaid} onToggle={() => setDeposit((v) => !v)} label={depositPaid ? 'Oui' : 'Pas encore'} /></div>
@@ -538,7 +538,7 @@ function PaymentForm({ methods, due, onAdd }: { methods: PaymentMethod[]; due: n
     <div className="tre-fiche tre-fiche--form" style={{ marginTop: 10 }}>
       <div className="tr-grid tr-grid--3">
         <Field label="Montant (F CFA)"><Input inputMode="numeric" value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="Ex. 100 000" /></Field>
-        <Field label="Date"><Input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} /></Field>
+        <Field label="Date"><ChampDeDate compact sens="avant" value={date} onChange={setDate} /></Field>
         <Field label="Moyen"><Select value={method} onChange={(ev) => setMethod(ev.target.value as PaymentMethod)}>{methods.map((m) => <option key={m} value={m}>{m}</option>)}</Select></Field>
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -641,7 +641,7 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
     <div className="tre-fiche tre-fiche--form">
       <div className="tre-sec-label" style={{ marginBottom: 10 }}>{edit ? `Modifier la séance ${edit.sessionNumber} · F3` : 'Nouvelle séance · F3'}</div>
       <div className="tr-grid tr-grid--2">
-        <Field label="Date"><Input type="date" value={scheduledAt} onChange={(ev) => setDate(ev.target.value)} /></Field>
+        <Field label="Date"><ChampDeDate compact sens="avant" value={scheduledAt} onChange={setDate} /></Field>
         <Field label="Module">
           <Select value={moduleIndex} onChange={(ev) => setModule(ev.target.value)}>
             <option value="">, (hors module)</option>
@@ -705,14 +705,7 @@ function TabPratique({ e, masters, frozen }: { e: Enrollment; masters: string[];
               {frozen ? (
                 <span className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(p.practicedAt)}</span>
               ) : (
-                <input
-                  type="date"
-                  className="mnd-input tre-date-inline"
-                  value={p.practicedAt.slice(0, 10)}
-                  max={todayISO()}
-                  onChange={(ev) => ev.target.value && editDate(p.id, ev.target.value)}
-                  title="Modifier la date de la pratique"
-                />
+                <ChampDeDate compact sens="arriere" value={p.practicedAt.slice(0, 10)} onChange={(iso) => iso && editDate(p.id, iso)} max={todayISO()} className="tre-date-inline" title="Modifier la date de la pratique" />
               )}
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
@@ -783,7 +776,7 @@ function PracticeForm({ e, masters, edit, onDone }: { e: Enrollment; masters: st
       </Field>
       <div className="tr-grid tr-grid--2">
         <Field label="Date de la pratique">
-          <Input type="date" value={practicedAt} max={todayISO()} onChange={(ev) => setPracticedAt(ev.target.value)} />
+          <ChampDeDate compact sens="arriere" value={practicedAt} onChange={setPracticedAt} max={todayISO()} />
         </Field>
         <Field label="Prestation">
           <Select value={serviceCode} onChange={(ev) => setService(ev.target.value)}>
@@ -953,7 +946,7 @@ function TabJury({ e, modules, frozen }: { e: Enrollment; modules: string[]; fro
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div className="tr-grid tr-grid--2">
-        <Field label="Date du jury"><Input type="date" value={j.scheduledAt.slice(0, 10)} onChange={(ev) => patchJury({ scheduledAt: ev.target.value })} /></Field>
+        <Field label="Date du jury"><ChampDeDate compact sens="avant" value={j.scheduledAt.slice(0, 10)} onChange={(iso) => patchJury({ scheduledAt: iso })} /></Field>
       </div>
       <div>
         <div className="tre-sec-label" style={{ marginBottom: 8 }}>Membres du jury</div>

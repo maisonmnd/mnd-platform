@@ -25,6 +25,7 @@ import { todayISO } from './_shared';
 /* Le genre des emprunteurs et le format des jours sont partis avec les prêts,
    dans leur propre écran — 23 août 2026. */
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Comptes & Avoirs — les comptes familles (regroupement + parent payeur) et les
    avoirs (crédit prépayé) qui vivent sur ces comptes. Un avoir se verse d'avance
@@ -1055,7 +1056,7 @@ function DepositModal({
           sortant={kind === 'remboursement'}
         />
         <Field label="Date">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Note · facultatif">
           <Textarea rows={2} value={note} placeholder={kind === 'depot' ? 'Ex. acompte de la famille pour le mois…' : 'Ex. solde rendu en espèces…'} onChange={(e) => setNote(e.target.value)} />

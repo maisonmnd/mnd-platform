@@ -333,6 +333,74 @@
   margin-top: 30px;
 }
 
+/* ---------- La photo d'identité (13 septembre 2026) ---------- */
+.ct-photo { display: flex; gap: 14px; align-items: center; }
+.ct-photo__vue {
+  width: 60px;
+  height: 77px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--copper-300);
+  border-radius: var(--radius-sm);
+}
+.ct-photo__gestes { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ct-photo__lien {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--copper-700);
+}
+.ct-photo__lien.is-retrait { color: var(--ink-soft); }
+.ct-photo__lien:hover { color: var(--color-indigo); }
+.ct-photo__vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 18px 12px;
+  cursor: pointer;
+  font: inherit;
+  border: 1px dashed var(--copper-300);
+  border-radius: var(--radius-sm);
+  background: var(--copper-50);
+  color: var(--color-indigo);
+  transition: var(--transition-base);
+}
+.ct-photo__vide span { font-size: 13px; font-weight: var(--weight-medium); }
+.ct-photo__vide small { font-size: 11px; color: var(--ink-soft); }
+.ct-photo__vide:hover, .ct-photo__vide:focus-visible { border-color: var(--color-copper); outline: none; }
+.ct-photo__erreur { font-size: 11.5px; line-height: 1.5; color: var(--color-brique, #96412E); }
+
+/* LE PORTRAIT SUR LE PAPIER — double filet, cuivre dehors, indigo dedans, le
+   même que la feuille. Environ trois centimètres sur quatre à l'impression. */
+.ct-portrait {
+  position: absolute;
+  top: 54px;
+  right: 68px;
+  z-index: 1;
+  width: 120px;
+  height: 154px;
+  padding: 5px;
+  box-sizing: border-box;
+  background: var(--color-ivoire);
+  border: 1px solid var(--color-copper);
+}
+.ct-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  box-sizing: border-box;
+  border: 1px solid var(--color-indigo);
+}
+
 /* ---------- Impression : A4 paysage exact ---------- */
 @media print {
   @page { size: A4 landscape; margin: 0; }

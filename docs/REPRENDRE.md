@@ -141,6 +141,100 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## JOUR · MOIS · ANNÉE, PARTOUT — 13 septembre 2026, PUBLIÉ
+
+« Sur la page de RDV et d'encaissement que les dates soient toujours réglées sur
+la date des francophones : jour, mois, année. Même chose pour les dates
+d'anniversaire sur le profil des clients. Quel que soit le service » (Yéman).
+
+**Plus aucun `<input type="date">` ni `type="month"` dans le code** (les deux
+mentions restantes sont des commentaires de `ds/dates.tsx`). Le champ natif
+s'écrit dans la langue du navigateur : « 09/13/2026 » sous un Edge anglais,
+jusque sur le certificat.
+
+**`src/ds/dates.tsx`**, pour toutes les sœurs :
+- `ChampDeDate` quitte `clients/_shared` (qui le réexporte). Deux formes :
+  pleine (relecture 22 px, RDV, encaissement, RdvFoyer, certificat) et
+  `compact` (une ligne, le volet de relecture, d'années et de calendrier
+  s'ouvre en **portail** sous le champ tant qu'il a la main). 73 champs migrés
+  par script, chacun avec son sens (`avant` échéances et reprogrammations,
+  `arriere` paiements, dépenses, séances).
+- `min` / `max` tenus comme le natif les tenait : hors bornes, la date se relit
+  en rouge, ne s'écrit pas, les cases du calendrier sont grisées.
+- `alertePasse` est désormais **opt-in** (fiche RDV, RdvFoyer). Liée au sens
+  `avant`, l'alerte parlait aussi dans la saisie en série d'une année passée.
+- `DateEnClair` (anniversaire, couronne depuis, naissance) passe de
+  mois · jour · année (13 août) à **jour · mois · année**, avec `max` : fiche
+  cliente du Trône, trois naissances de Ma Couronne, Bilan.
+- `ChampDeMois` : Paie, échéances du coffre et des objectifs.
+
+**`shared/calendrier`** porte les écritures (`jourAn`, `jourCourtAn`,
+`jourEnLettres`, que `frJourAn`/`frShortAn`/`frLongAn` lisent), `horsBornes` et
+`litLaDate`. `verifie-calendrier` : 20 assertions de plus.
+
+**Les années** paraissent sur le bandeau de la fiche RDV et les lignes de
+l'encaissement.
+
+**Bogue trouvé en passant** : le petit calendrier portait la classe `.trc-cal`,
+celle du carnet du jour. Sa bordure, son rembourrage de 11 px et sa marge
+écrasaient la grille des maîtres. Il s'appelle `.mnd-cal`, dans ds.css.
+
+**Reste natif** : `type="time"`, qui s'affiche en 12 h AM/PM sous un navigateur
+anglais. Même piège, pas encore signalé par la Maison.
+
+## ENCAISSER, C'EST HONORER · DÉ-HONORER — 13 septembre 2026, PUBLIÉ
+
+« Deux règles : encaisser va forcément avec honoré. Mais on peut honorer sans
+encaisser » et « je veux pouvoir déshonorer un RDV » (Yéman).
+
+**La doctrine d'août est renversée** (« encaisser ≠ honorer »).
+`honoreALEncaissement` (actions.tsx) honore le rituel dès qu'un règlement entre :
+écran d'encaissement (après la reprogrammation, pour que la reprise voie le
+rendez-vous posé) et ticket de la Caisse POS. **Un rituel daté de demain ne
+s'honore pas** : l'écran dit « honorez-le le jour venu ». L'acompte ne passe pas
+par là. `honorAppointment` prend `{ muet }` et rend `{ points, reprise }`.
+
+**Dé-honorer** : menu du Carnet, ligne « Rituel honoré » de l'encaissement, et
+le sélecteur de statut de la fiche, qui ne défaisait que le stock.
+`retireLHonneur` reprend les points (motif « Rituel dés-honoré »), rembobine la
+recette, **retire la reprise seulement si elle est restée nue** (ni honorée, ni
+réglée, ni acompte), efface « Couronne depuis » seulement si elle porte la date
+de ce rituel.
+
+**Un rituel encaissé ne se dés-honore pas** : bouton refusé avec explication,
+sélecteur bloqué (« annulez d'abord l'encaissement »).
+
+**Non rattrapé** : les rituels réglés AVANT ce jour et restés « confirmés ». Aucun
+honneur rétroactif automatique, qui poserait des reprises en masse.
+
+## LE CERTIFICAT : PHOTO D'IDENTITÉ, PLUS DE NOM EN DUR — 13 septembre 2026, PUBLIÉ
+
+Photo choisie ou glissée dans le panneau, réduite à 720 px (`enVignette`), posée
+en haut à droite de la feuille dans le double filet cuivre et indigo du cadre.
+**Elle ne quitte pas le poste** : ni dans le lien, ni dans la base. « Rachelle A. »
+retiré, la case part vide.
+
+**À trancher** : le numéro par défaut `MND-AC-<année>-0042` est encore écrit en
+dur quand le lien n'en porte pas.
+
+## RIEN D'OFFICE : LA CAISSE DE L'ENCAISSEMENT, LA DÉPENSE — 13 septembre 2026, PUBLIÉ
+
+« Je ne veux pas que la caisse KkiaPay soit présélectionnée » ; « dans dépenses
+je ne veux rien de présélectionné. Rien de dur, sinon après un oubli tout est mal
+rangé » (Yéman).
+
+**Encaissement** : la caisse part vide, le bouton reste grisé et le dit (le
+pourboire et la Gamme la réclament aussi). **Dépense** : catégorie, porteur et
+caisse partent vides et l'enregistrement les réclame. « La Maison elle-même » et
+« Sans caisse » valaient une chaîne vide, indiscernable d'une absence de
+réponse : drapeaux `porteurChoisi` / `caisseChoisie`. Exemptés : la caisse d'une
+dépense avancée de sa poche, le porteur d'un compte restreint, la caisse passée
+à l'ouverture depuis une carte de caisse.
+
+**Encore présélectionné ailleurs**, à aligner si la Maison le veut : Caisse POS,
+Abonnements, versement au coffre des objectifs, remboursement de dépense,
+Prestataires, Comptes & Avoirs.
+
 ## HONORER DEPUIS L'ENCAISSEMENT, ET LES ANNÉES DANS L'ORDRE — 13 septembre 2026, PUBLIÉ
 
 « Est-ce possible d'avoir le bouton honorer sur la page d'encaissement aussi ? »

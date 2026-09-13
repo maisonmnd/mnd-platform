@@ -16,6 +16,7 @@ import {
 import { useStaff, staffAccessStore, useAnnuaire, nomDuCompte, adresseDe } from './data';
 import { voitLesPrix } from '../index';
 import './equipe.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* ═══════════════════════════════════════════════════════════════════
    LE TABLEAU — maquette `public/maquette-le-tableau.html`, validée le
@@ -365,11 +366,7 @@ export default function Tableau() {
             <span style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
               <label className="trt__echeance">
                 Échéance
-                <input
-                  type="date"
-                  value={m.echeance ?? ''}
-                  onChange={(e) => changerEcheance(m, e.target.value)}
-                />
+                <ChampDeDate compact sens="avant" value={m.echeance ?? ''} onChange={(iso) => changerEcheance(m, iso)} ariaLabel="Échéance" />
               </label>
               <select
                 className="trt__prio-select"
@@ -485,7 +482,7 @@ export default function Tableau() {
           </Select>
           <label className="trt__echeance" style={{ marginTop: 0 }}>
             Échéance
-            <input type="date" value={brouillonEcheance} onChange={(e) => setBrouillonEcheance(e.target.value)} />
+            <ChampDeDate compact sens="avant" value={brouillonEcheance} onChange={setBrouillonEcheance} ariaLabel="Échéance" />
           </label>
           <Button variant="copper" size="sm" disabled={!brouillon.trim()} onClick={poserUneCarte}>
             Poser la carte

@@ -33,6 +33,7 @@ import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
    factures réglées au comptoir, acomptes (en ligne ou remis à la Maison),
@@ -921,7 +922,7 @@ export default function Encaissements() {
               </Field>
             </div>
             <Field label="Date">
-              <Input type="date" value={horsForm.date} onChange={(e) => setHorsForm({ ...horsForm, date: e.target.value })} />
+              <ChampDeDate compact sens="arriere" value={horsForm.date} onChange={(iso) => setHorsForm({ ...horsForm, date: iso })} />
             </Field>
             <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, background: 'var(--copper-50)', padding: '11px 14px', fontSize: 12.5, lineHeight: 1.6 }}>
               <b style={{ fontWeight: 600, color: 'var(--color-indigo)' }}>Cette entrée ne compte pas au chiffre d’affaires.</b>

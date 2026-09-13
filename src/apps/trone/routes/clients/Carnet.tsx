@@ -23,7 +23,7 @@ import {
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel,
 } from './_shared';
-import { factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
+import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
@@ -544,6 +544,13 @@ export default function Carnet() {
                 )}
                 {canHonor && (
                   <button onClick={() => { honorAppointment(a, byId); setMenuFor(null); }}>Marquer honoré</button>
+                )}
+                {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
+                    d'encaissement y renvoyait depuis août, et il n'existait pas. */}
+                {a.status === 'honoré' && (
+                  <button className="is-danger" onClick={() => { deshonoreLeRituel(a, byId); setMenuFor(null); }}>
+                    Dés-honorer le rituel
+                  </button>
                 )}
                 <button onClick={() => { duplicateLast(a.clientId); setMenuFor(null); }}>
                   ⟳ Dupliquer le dernier RDV {c ? `de ${c.name.split(' ')[0]}` : ''}

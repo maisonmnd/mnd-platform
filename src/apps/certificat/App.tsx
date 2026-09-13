@@ -3,6 +3,8 @@ import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Field, Input, Select } from '../../ds/components';
 import { PARCOURS_MND } from '../../shared/parcours';
+import { enVignette } from '../../shared/photo';
+import { ChampDeDate } from '../../ds/dates';
 
 /* Certificat Académie — template A4 paysage prêt à imprimer.
    Panneau de réglage à gauche (masqué à l'impression), le papier à droite.
@@ -81,7 +83,11 @@ function initFromUrl() {
   const mentionParam = params.get('mention')?.trim();
   const mention = mentionParam && MENTIONS.includes(mentionParam) ? mentionParam : 'Excellence';
   return {
-    apprenant: params.get('apprenant')?.trim() || 'Rachelle A.',
+    /* AUCUN NOM EN DUR — 13 septembre 2026, « enlever Rachelle A. qui est
+       écrit en dur, laisser la case vide » (Yéman). Un exemple pré-rempli
+       finit un jour imprimé au nom d'une autre. Sans lien, la case est vide
+       et le papier dit « Nom de l'apprenant » tant qu'elle n'est pas remplie. */
+    apprenant: params.get('apprenant')?.trim() || '',
     formationId: match?.id ?? custom?.id ?? FORMATIONS[1].id,
     dateIso: validDate || new Date().toISOString().slice(0, 10),
     certNo: numero || `MND-AC-${annee}-0042`,
@@ -99,6 +105,34 @@ export default function App() {
   const [dateIso, setDateIso] = useState(init.dateIso);
   const [certNo, setCertNo] = useState(init.certNo);
   const [mention, setMention] = useState(init.mention);
+
+  /* ══ LA PHOTO D'IDENTITÉ — 13 septembre 2026 ══════════════════════════
+     « Créer un espace pour télécharger la photo d'identité de l'apprenant sur
+     le certificat » (Yéman).
+
+     ELLE NE QUITTE PAS CE POSTE. Le certificat se prépare par un lien
+     (?apprenant=…) : une photo ne tient pas dans un lien, et la déposer dans
+     la base pour une impression serait garder le visage d'une apprenante sans
+     raison. Elle vit le temps de la page, s'imprime, et s'en va.
+
+     ELLE EST RÉDUITE AVANT D'ÊTRE POSÉE (720 px de grand côté, `enVignette`) :
+     une photo de téléphone de huit mégapixels alourdirait l'aperçu pour un
+     cadre de trois centimètres, où 720 px restent nets à l'impression. */
+  const [photo, setPhoto] = useState('');
+  const [erreurPhoto, setErreurPhoto] = useState('');
+  const fichierPhoto = useRef<HTMLInputElement>(null);
+  const choisirPhoto = async (f: File) => {
+    if (!f.type.startsWith('image/')) {
+      setErreurPhoto('Ce fichier n’est pas une image. Choisissez une photo JPEG ou PNG.');
+      return;
+    }
+    setErreurPhoto('');
+    try {
+      setPhoto(await enVignette(f, 720, 0.88));
+    } catch {
+      setErreurPhoto('Cette image ne se lit pas. Choisissez une photo JPEG ou PNG.');
+    }
+  };
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -176,8 +210,55 @@ export default function App() {
               />
             </Field>
 
+            <div className="mnd-field">
+              <span className="mnd-field__label">Photo d’identité</span>
+              <input
+                ref={fichierPhoto}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void choisirPhoto(f);
+                }}
+              />
+              {photo ? (
+                <div className="ct-photo">
+                  <img className="ct-photo__vue" src={photo} alt={`Photo d’identité de ${nom}`} />
+                  <div className="ct-photo__gestes">
+                    <button type="button" className="ct-photo__lien" onClick={() => fichierPhoto.current?.click()}>
+                      Remplacer
+                    </button>
+                    <button type="button" className="ct-photo__lien is-retrait" onClick={() => setPhoto('')}>
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="ct-photo__vide"
+                  onClick={() => fichierPhoto.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) void choisirPhoto(f);
+                  }}
+                >
+                  <span>Choisir une photo</span>
+                  <small>ou la glisser ici · de face, sur fond clair</small>
+                </button>
+              )}
+              {erreurPhoto && <div className="ct-photo__erreur">{erreurPhoto}</div>}
+              <div className="ct-controls__meta">
+                Elle reste sur ce poste : elle ne voyage ni dans le lien, ni dans la base.
+              </div>
+            </div>
+
             <Field label="Date de délivrance">
-              <Input type="date" value={dateIso} onChange={(e) => setDateIso(e.target.value)} />
+              <ChampDeDate sens="arriere" value={dateIso} onChange={setDateIso} ariaLabel="Date de délivrance" />
             </Field>
 
             <Field label="Numéro de certificat">
@@ -215,6 +296,16 @@ export default function App() {
                 <div className="ct-frame ct-frame--copper" aria-hidden="true" />
                 <div className="ct-frame ct-frame--indigo" aria-hidden="true" />
                 <div className="ct-watermark" aria-hidden="true" />
+                {/* LE PORTRAIT, EN HAUT À DROITE, DANS LE DOUBLE FILET DU CADRE :
+                    cuivre dehors, indigo dedans, comme la feuille elle-même.
+                    C'est le coin vide de la page : le monogramme tient le
+                    centre, et le texte ne monte pas si haut sur les flancs.
+                    Sans photo, rien ne se dessine, pas même un cadre vide. */}
+                {photo && (
+                  <div className="ct-portrait">
+                    <img src={photo} alt={`Photo d’identité de ${nom}`} />
+                  </div>
+                )}
 
                 <div className="ct-body">
                   <img className="ct-mono" src={asset("/assets/monograms/mono-indigo.png")} alt="" />

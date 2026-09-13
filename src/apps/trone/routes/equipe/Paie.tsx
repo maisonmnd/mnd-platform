@@ -24,6 +24,7 @@ import {
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
 } from './payroll';
+import { ChampDeMois } from '../../../../ds/dates';
 
 /* Paie — runs mensuels. Le calcul vient du moteur vérifié (payroll.ts) ; ici on
    assemble les lignes depuis les dossiers + avances, on gère le cycle de vie, et
@@ -236,7 +237,7 @@ function NewRunModal({ onClose, onCreate, defaultAtelier }: { onClose: () => voi
     <Modal title="Nouveau run de paie." onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="tr-grid tr-grid--2">
-          <Field label="Période"><Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></Field>
+          <Field label="Période"><ChampDeMois value={period} onChange={setPeriod} ariaLabel="Période" /></Field>
           <Field label="Atelier"><Input value={atelier} onChange={(e) => setAtelier(e.target.value)} /></Field>
         </div>
         <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Le run part des dossiers de l’équipe (salaire, prime, commission) et déduit les avances du mois. Tout reste éditable en brouillon.</div>

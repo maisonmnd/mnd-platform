@@ -18,6 +18,7 @@
 
    TOUT EST PUR ICI, et éprouvé par `verifie-calendrier`. Une grille de mois
    fausse d'un jour décale silencieusement tout un carnet. */
+import { litUneLigne } from './serie';
 
 /** Le jour de la semaine, LUNDI = 0 — jamais l'index de JavaScript, où la
     semaine commence le dimanche. Cette conversion est la source d'erreur
@@ -135,4 +136,94 @@ export function correctionsPossibles(iso: string, aujourdhui: string): string[] 
     }
   }
   return sortie;
+}
+
+/* ══ JOUR · MOIS · ANNÉE, PARTOUT — 13 septembre 2026 ═════════════════
+   « Sur la page de RDV et d'encaissement que les dates soient toujours
+   réglées sur la date des francophones : jour, mois, année. Même chose pour
+   les dates d'anniversaire sur le profil des clients. Quel que soit le
+   service, respecter le même format » (Yéman).
+
+   UNE SEULE ÉCRITURE DU JOUR, pour toutes les sœurs. Le mois s'écrit en
+   lettres : « 3 sept. 2026 » ne se lit que d'une façon, là où « 03/09/2026 »
+   se lit 9 mars sous un navigateur anglais. Ces trois formes servaient déjà
+   au Carnet (`frJourAn`, `frShortAn`, `frLongAn`) ; elles vivent désormais ici
+   pour que Ma Couronne, le Certificat et le Bilan écrivent la même chose. */
+
+const ISO_DU_JOUR = /^\d{4}-\d{2}-\d{2}$/;
+const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Une date illisible s'écrit « — », jamais « Invalid Date » : au comptoir, un
+    tiret se comprend, un message d'erreur anglais inquiète la cliente. */
+const ecritLeJour = (iso: string | null | undefined, forme: Intl.DateTimeFormatOptions): string => {
+  const jour = String(iso ?? '').slice(0, 10);
+  if (!ISO_DU_JOUR.test(jour)) return '—';
+  const d = new Date(`${jour}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR', forme);
+};
+
+/** « 12 sept. 2026 » */
+export const jourAn = (iso?: string | null): string =>
+  ecritLeJour(iso, { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** « Sam. 12 sept. 2026 » */
+export const jourCourtAn = (iso?: string | null): string =>
+  majuscule(ecritLeJour(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }));
+
+/** « Samedi 12 septembre 2026 » : la relecture du champ, où le jour de la
+    semaine sert d'alarme (la cliente dit samedi, l'écran dit mercredi). */
+export const jourEnLettres = (iso?: string | null): string =>
+  majuscule(ecritLeJour(iso, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+
+/* ── LES BORNES ──────────────────────────────────────────────────────
+   Le calendrier du navigateur respectait `min` et `max` : une naissance ne
+   pouvait pas tomber demain, une reprogrammation pas hier. Le champ de la
+   Maison doit tenir la même promesse, sinon le remplacer aurait ôté une
+   garde en ajoutant une lisibilité. */
+export type HorsBornes = 'trop-tot' | 'trop-tard';
+
+export const horsBornes = (iso: string, min?: string, max?: string): HorsBornes | undefined => {
+  if (min && iso < min) return 'trop-tot';
+  if (max && iso > max) return 'trop-tard';
+  return undefined;
+};
+
+export type DateLue = {
+  /** Le jour lu, même hors bornes : on le relit à l'écran pour dire pourquoi
+      il est refusé. */
+  iso?: string;
+  /** L'année n'a pas été tapée : elle vient du défaut, et les années
+      possibles s'offrent. */
+  anneeSupposee: boolean;
+  /** Les années à proposer, déjà filtrées par les bornes. */
+  candidats: number[];
+  horsBornes?: HorsBornes;
+};
+
+/** CE QUE LA MAIN A TAPÉ, LU UNE FOIS POUR TOUTES.
+
+    Le lecteur est celui de la saisie en série (`litUneLigne`) : « 3/9 »,
+    « 3-9-26 », « 3 sept », « 3 septembre 2026 », et la date déjà mise en forme
+    que le champ affiche lui-même (« 12 sept. 2026 ») — sans quoi rouvrir un
+    champ rempli le ferait passer en rouge. Le JOUR VIENT TOUJOURS EN PREMIER. */
+export function litLaDate(
+  texte: string,
+  o: { annee: number; aujourdhui: string; sens: SensDeLaDate; min?: string; max?: string },
+): DateLue {
+  /* Une date à moitié tapée n'est pas une faute : « 14/02/ » perd son
+     séparateur de fin avant la lecture. */
+  const enClair = texte.trim().replace(/[/\-.\s]+$/, '');
+  if (enClair === '') return { anneeSupposee: false, candidats: [] };
+  const iso = litUneLigne(enClair, o.annee).iso;
+  if (!iso) return { anneeSupposee: false, candidats: [] };
+  /* L'ANNÉE A-T-ELLE ÉTÉ TAPÉE ? On relit la ligne avec une année absurde :
+     si le résultat la porte, c'est qu'elle venait du défaut, pas de la main. */
+  const anneeSupposee = litUneLigne(enClair, 1904).iso?.slice(0, 4) === '1904';
+  const candidats = anneeSupposee
+    ? anneesPossibles(iso.slice(5), o.aujourdhui, o.sens).filter((an) => {
+        const autre = litUneLigne(enClair, an).iso;
+        return !!autre && !horsBornes(autre, o.min, o.max);
+      })
+    : [];
+  return { iso, anneeSupposee, candidats, horsBornes: horsBornes(iso, o.min, o.max) };
 }

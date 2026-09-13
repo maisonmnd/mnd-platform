@@ -9,6 +9,7 @@ import {
   type JaugeBilan, type TempsRituel,
 } from '../../../../shared/bilans';
 import { apptLabel, frShort, todayISO } from './_shared';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* LA REMISE D'UN BILAN — le Carnet de Suivi s'écrit ICI, puis s'imprime.
 
@@ -106,7 +107,7 @@ export function BilanModal({ client, honored, byId, branchId, onClose }: {
         </div>
 
         <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
-          <Field label="Séance du"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Séance du"><ChampDeDate compact sens="arriere" value={date} onChange={setDate} ariaLabel="Le jour de la séance" /></Field>
           <Field label="Durée"><Input value={duree} onChange={(e) => setDuree(e.target.value)} placeholder="2 h 30" /></Field>
         </div>
         <Field label="Prestation"><Input value={prestation} onChange={(e) => setPrestation(e.target.value)} /></Field>

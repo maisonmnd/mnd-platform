@@ -32,6 +32,7 @@ import { createStore, useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
    filtré par la branche, exprimé dans sa devise. */
@@ -1243,11 +1244,7 @@ export default function Dashboard() {
                 {fermeAvant ? ', un jour où la Maison est fermée.' : '.'}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="mnd-input" type="date" value={proposeFor.date} min={todayISO()}
-                  onChange={(e) => setProposeFor({ ...proposeFor, date: e.target.value })}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
+                <ChampDeDate compact sens="avant" value={proposeFor.date} onChange={(iso) => setProposeFor({ ...proposeFor, date: iso })} min={todayISO()} style={{ flex: 1, minWidth: 0 }} />
                 <input
                   className="mnd-input" type="time" value={proposeFor.time}
                   onChange={(e) => setProposeFor({ ...proposeFor, time: e.target.value })}

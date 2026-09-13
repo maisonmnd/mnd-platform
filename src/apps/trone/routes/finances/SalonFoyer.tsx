@@ -31,6 +31,7 @@ import { todayISO, monthKey, monthTitle, MonthNav } from './_shared';
 import { useSettings } from '../../../../shared/settings';
 import { useCaissesOuvertes, coffreOuvert } from './tiroirs';
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Salon & Foyer — la séparation entreprise / foyer (voir shared/foyer.ts).
 
@@ -967,7 +968,7 @@ export default function SalonFoyer() {
                   </Field>
 
                   <Field label="Date">
-                    <Input type="date" value={fMvtUni.date} onChange={(e) => setFMvtUni({ ...fMvtUni, date: e.target.value })} />
+                    <ChampDeDate compact sens="arriere" value={fMvtUni.date} onChange={(iso) => setFMvtUni({ ...fMvtUni, date: iso })} />
                   </Field>
 
                   {/* LA CONSÉQUENCE S'ANNONCE AVANT LE GESTE — et un dépassement
@@ -1290,7 +1291,7 @@ export default function SalonFoyer() {
               editPrel?.id === p.id ? (
                 <div key={p.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                    <Field label="Date"><Input type="date" value={editPrel.date} onChange={(e) => setEditPrel({ ...editPrel, date: e.target.value })} /></Field>
+                    <Field label="Date"><ChampDeDate compact sens="arriere" value={editPrel.date} onChange={(iso) => setEditPrel({ ...editPrel, date: iso })} /></Field>
                     <Field label="Bénéficiaire">
                       <Select value={editPrel.beneficiaire} onChange={(e) => setEditPrel({ ...editPrel, beneficiaire: e.target.value })}>
                         {avecCourant(BENEFICIAIRES, editPrel.beneficiaire).map((b) => <option key={b} value={b}>{b}</option>)}
@@ -1407,7 +1408,7 @@ export default function SalonFoyer() {
                     return (
                       <div key={p.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                          <Field label="Date"><Input type="date" value={editPret.date} onChange={(e) => setEditPret({ ...editPret, date: e.target.value })} /></Field>
+                          <Field label="Date"><ChampDeDate compact sens="arriere" value={editPret.date} onChange={(iso) => setEditPret({ ...editPret, date: iso })} /></Field>
                           <Field label="Type">
                             <Select value={editPret.type} onChange={(e) => setEditPret({ ...editPret, type: e.target.value as 'pret' | 'remboursement' })}>
                               <option value="pret">Prêt, le foyer a pris au-delà du budget</option>
@@ -1521,7 +1522,7 @@ export default function SalonFoyer() {
               escient, et cela se pèse). */}
           <Panel title="Retirer d’une réserve, ou corriger à la main">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <Field label="Date"><Input type="date" value={fRes.date} onChange={(e) => setFRes({ ...fRes, date: e.target.value })} /></Field>
+              <Field label="Date"><ChampDeDate compact sens="arriere" value={fRes.date} onChange={(iso) => setFRes({ ...fRes, date: iso })} /></Field>
               <Field label="Enveloppe">
                 <Select value={fRes.enveloppe} onChange={(e) => setFRes({ ...fRes, enveloppe: e.target.value as EnveloppeReserve })}>
                   <option value="reinvestissement">Réinvestissement</option>
@@ -1551,7 +1552,7 @@ export default function SalonFoyer() {
               editEpa?.id === m.id ? (
                 <div key={m.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                    <Field label="Date"><Input type="date" value={editEpa.date} onChange={(e) => setEditEpa({ ...editEpa, date: e.target.value })} /></Field>
+                    <Field label="Date"><ChampDeDate compact sens="arriere" value={editEpa.date} onChange={(iso) => setEditEpa({ ...editEpa, date: iso })} /></Field>
                     <Field label="Enveloppe">
                       <Select value={editEpa.enveloppe} onChange={(e) => setEditEpa({ ...editEpa, enveloppe: e.target.value as EnveloppeReserve })}>
                         <option value="reinvestissement">Réinvestissement</option>
@@ -1835,7 +1836,7 @@ export default function SalonFoyer() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: enDevise ? '1fr 1fr' : '1fr', gap: 12 }}>
-              <Field label="Date"><Input type="date" value={fMvt.date} onChange={(e) => setFMvt({ ...fMvt, date: e.target.value })} /></Field>
+              <Field label="Date"><ChampDeDate compact sens="arriere" value={fMvt.date} onChange={(iso) => setFMvt({ ...fMvt, date: iso })} /></Field>
               {enDevise && (
                 <Field label={'Taux (1 ' + deviseActive + ' en ' + currency + ')'}>
                   <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} placeholder="655" />
@@ -1988,7 +1989,7 @@ export default function SalonFoyer() {
                   editMvt?.id === m.id ? (
                     <div key={m.id} style={{ padding: '12px 0', borderTop: '1px solid var(--hairline)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                        <Field label="Date"><Input type="date" value={editMvt.date} onChange={(e) => setEditMvt({ ...editMvt, date: e.target.value })} /></Field>
+                        <Field label="Date"><ChampDeDate compact sens="arriere" value={editMvt.date} onChange={(iso) => setEditMvt({ ...editMvt, date: iso })} /></Field>
                         <Field label="Sens">
                           <Select value={editMvt.sens} onChange={(e) => setEditMvt({ ...editMvt, sens: e.target.value as 'entree' | 'sortie' })}>
                             <option value="entree">Entrée</option>

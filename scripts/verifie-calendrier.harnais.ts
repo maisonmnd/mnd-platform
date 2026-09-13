@@ -8,6 +8,7 @@
 import {
   jourDeSemaineLundi, grilleDuMois, moisVoisin,
   anneesPossibles, retardEnJours, correctionsPossibles,
+  jourAn, jourCourtAn, jourEnLettres, horsBornes, litLaDate,
 } from '../src/shared/calendrier';
 
 let ko = 0;
@@ -104,5 +105,43 @@ dit('le 27 mars n’a pas d’échange', ['2027-03-27'], correctionsPossibles('2
 dit('un échange impossible ne s’offre pas', ['2027-01-31'], correctionsPossibles('2026-01-31', AUJ));
 dit('une date à venir n’a rien à corriger', [], correctionsPossibles('2026-12-25', AUJ));
 dit('une date vide non plus', [], correctionsPossibles('', AUJ));
+
+/* ── ⑦ JOUR · MOIS · ANNÉE — 13 septembre 2026 ──────────────────────
+   « Quel que soit le service, respecter le même format : jour, mois, année »
+   (Yéman). Le mois en lettres : « 3 sept. 2026 » ne se lit que d'une façon. */
+const net = (t: string) => t.replace(/\s/g, ' ');
+dit('le jour, le mois en lettres, l’année', '12 sept. 2026', net(jourAn('2026-09-12')));
+dit('la forme courte porte le jour de la semaine', 'Sam. 12 sept. 2026', net(jourCourtAn('2026-09-12')));
+dit('la relecture s’écrit en toutes lettres', 'Samedi 12 septembre 2026', net(jourEnLettres('2026-09-12')));
+dit('une date illisible s’écrit d’un tiret', '—', jourAn('12/09/2026'));
+dit('une date vide aussi', '—', jourAn(''));
+
+/* ── ⑧ LES BORNES QUE LE CHAMP NATIF TENAIT ─────────────────────────
+   Le remplacer ne doit pas ôter une garde : une naissance ne tombe pas
+   demain, une reprogrammation pas hier. */
+dit('une naissance ne tombe pas demain', 'trop-tard', horsBornes('2026-09-13', undefined, AUJ));
+dit('une reprogrammation ne tombe pas hier', 'trop-tot', horsBornes('2026-09-11', AUJ));
+dit('aujourd’hui reste permis des deux côtés', undefined, horsBornes(AUJ, AUJ, AUJ));
+dit('sans borne, tout passe', undefined, horsBornes('1990-01-01'));
+
+/* ── ⑨ CE QUE LA MAIN A TAPÉ ────────────────────────────────────────
+   LE JOUR VIENT TOUJOURS EN PREMIER : c'est tout l'objet de ce champ. */
+const lis = (t: string, o: Partial<Parameters<typeof litLaDate>[1]> = {}) =>
+  litLaDate(t, { annee: 2026, aujourdhui: AUJ, sens: 'avant', ...o });
+dit('« 3/9 » est le 3 septembre, jamais le 9 mars', '2026-09-03', lis('3/9').iso);
+dit('sans année tapée, elle se dit supposée', true, lis('3/9').anneeSupposee);
+dit('avec l’année, rien à supposer', { iso: '2025-09-03', anneeSupposee: false, candidats: [] }, lis('3/9/2025'));
+/* LE CHAMP RELIT SA PROPRE MISE EN FORME : sans cela, rouvrir un champ déjà
+   rempli le ferait passer en rouge. */
+dit('le champ relit « 12 sept. 2026 »', '2026-09-12', lis('12 sept. 2026').iso);
+dit('un séparateur de fin n’est pas une faute', '2026-02-14', lis('14/02/').iso);
+dit('le 31 avril ne se lit pas', undefined, lis('31/04').iso);
+dit('une saisie vide ne se lit pas', { anneeSupposee: false, candidats: [] }, lis('   '));
+/* UNE NAISSANCE TAPÉE SANS ANNÉE, en septembre : le 20 décembre de cette
+   année n'est pas encore arrivé. La lecture le refuse, et n'offre que les
+   années où il a déjà eu lieu. */
+const decembre = lis('20/12', { sens: 'arriere', max: AUJ });
+dit('un jour à venir est refusé à une naissance', 'trop-tard', decembre.horsBornes);
+dit('et seules les années passées s’offrent', [2025, 2024], decembre.candidats);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

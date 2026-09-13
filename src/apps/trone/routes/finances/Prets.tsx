@@ -46,6 +46,7 @@ import { todayISO, fmtDay } from './_shared';
 import { addDaysISO, frJourAn } from '../clients/_shared';
 import { LesObjectifs } from './objectifs';
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
 const LIBELLE_GENRE: Record<GenreEmprunteur, string> = {
@@ -705,7 +706,7 @@ export default function Prets() {
                   ))}
                 </div>
                 {fPret.retour === 'une' && (
-                  <Input type="date" value={fPret.echeance} onChange={(e) => setFPret((f) => ({ ...f, echeance: e.target.value }))} />
+                  <ChampDeDate compact sens="avant" value={fPret.echeance} onChange={(iso) => setFPret((f) => ({ ...f, echeance: iso }))} />
                 )}
                 {fPret.retour === 'plusieurs' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 10 }}>
@@ -718,10 +719,7 @@ export default function Prets() {
                     </label>
                     <label className="mnd-field">
                       <span className="mnd-field__label">À partir du</span>
-                      <input
-                        className="mnd-input" type="date" value={fPret.premier}
-                        onChange={(e) => setFPret((f) => ({ ...f, premier: e.target.value }))}
-                      />
+                      <ChampDeDate compact sens="avant" value={fPret.premier} onChange={(iso) => setFPret((f) => ({ ...f, premier: iso }))} />
                     </label>
                   </div>
                 )}
@@ -777,7 +775,7 @@ export default function Prets() {
             </Field>
 
             <Field label="Date">
-              <Input type="date" value={fPret.date} onChange={(e) => setFPret((f) => ({ ...f, date: e.target.value }))} />
+              <ChampDeDate compact sens="arriere" value={fPret.date} onChange={(iso) => setFPret((f) => ({ ...f, date: iso }))} />
             </Field>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
@@ -988,10 +986,10 @@ function CeQueLaMaisonDoit() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Reçu le">
-                <Input type="date" value={form.date} onChange={(ev) => setForm({ ...form, date: ev.target.value })} />
+                <ChampDeDate compact sens="arriere" value={form.date} onChange={(iso) => setForm({ ...form, date: iso })} />
               </Field>
               <Field label="Première échéance">
-                <Input type="date" value={form.premier} onChange={(ev) => setForm({ ...form, premier: ev.target.value })} />
+                <ChampDeDate compact sens="avant" value={form.premier} onChange={(iso) => setForm({ ...form, premier: iso })} />
               </Field>
             </div>
             <div style={{ border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 3, background: 'var(--copper-50)', padding: '11px 14px', fontSize: 12.5, lineHeight: 1.6 }}>
@@ -1020,7 +1018,7 @@ function CeQueLaMaisonDoit() {
                   </Select>
                 </Field>
                 <Field label="Le jour">
-                  <Input type="date" value={rendre.jour} onChange={(ev) => setRendre({ ...rendre, jour: ev.target.value })} />
+                  <ChampDeDate compact sens="arriere" value={rendre.jour} onChange={(iso) => setRendre({ ...rendre, jour: iso })} />
                 </Field>
               </div>
               <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, overflow: 'hidden' }}>

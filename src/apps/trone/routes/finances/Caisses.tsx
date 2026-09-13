@@ -16,6 +16,7 @@ import { usePorteurs, ajouteUnPorteur } from '../../../../shared/finance';
 import { useCaisses, ReleveCaisse, soldeVisible, ouvreLaCaisse, refermeLaCaisse, leCodeOuvre, useCaissesOuvertes, CLE_ECRAN, EcranVerrouille, ReglerLeVerrou, LeTrousseau, nomEtSolde, useOrdreCaisses } from './tiroirs';
 import { useSettings, settingsStore } from '../../../../shared/settings';
 import './finances.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* ── LES CAISSES · L'ÉCRAN — 22 août 2026 ───────────────────────────
    « Est-ce que je ne devrais pas avoir un bouton revenu tout comme j'ai un
@@ -907,7 +908,7 @@ export default function Caisses() {
             )}
             <label className="mnd-field">
               <span className="mnd-field__label">Date</span>
-              <input className="mnd-input" type="date" value={fTr.date} onChange={(e) => setFTr((f) => ({ ...f, date: e.target.value }))} />
+              <ChampDeDate compact sens="arriere" value={fTr.date} onChange={(iso) => setFTr((f) => ({ ...f, date: iso }))} />
               {/* LA DATE DU MOUVEMENT RÉEL, PAS CELLE DE LA SAISIE — 23 août
                   2026. Elle propose aujourd’hui, ce qui est juste au comptoir
                   et faux quand on rattrape un mois de retard : quatre apports

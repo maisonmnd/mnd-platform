@@ -30,6 +30,7 @@ import {
   appointmentsStore, useAppointments, maitresLibres, placeLeFoyer, type Appointment, estampilleLesPoses } from '../../../../shared/agenda';
 import { uid } from '../../../../shared/store';
 import { TIME_SLOTS, todayISO, poseLHoteDuFoyer } from './_shared';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /** Les têtes d'un foyer : toutes celles rattachées au compte, quel que soit
     leur âge. `tetesPortees` ne rend que les MINEURES, ce qui est juste pour Ma
@@ -282,7 +283,7 @@ export function RdvFoyerModal({ clientId, onClose }: { clientId: string; onClose
 
             <div className="tr-grid tr-grid--2">
               <Field label="Date">
-                <input className="mnd-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <ChampDeDate sens="avant" alertePasse value={date} onChange={setDate} ariaLabel="Le jour du rituel" />
               </Field>
               <Field label="Heure">
                 <Select value={heure} onChange={(e) => setHeure(e.target.value)}>

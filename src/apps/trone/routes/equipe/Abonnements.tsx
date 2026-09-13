@@ -36,6 +36,7 @@ import { ClientPicker, RdvModal, useBranchClients } from '../clients/_shared';
 import { joursDeLaTete } from '../../../../shared/clients';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 type Tab = 'moteur' | 'formules' | 'membres' | 'comptes';
 type FiltreCompte = 'tous' | 'en-cours' | 'a-relancer' | 'retard' | 'parties';
@@ -2388,11 +2389,11 @@ export default function Abonnements() {
                   <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
                     {paquet && (
                       <Field label="Début des crédits">
-                        <Input type="date" value={datesEdit.debut} onChange={(e) => setDatesEdit({ ...datesEdit, debut: e.target.value })} />
+                        <ChampDeDate compact sens="avant" value={datesEdit.debut} onChange={(iso) => setDatesEdit({ ...datesEdit, debut: iso })} />
                       </Field>
                     )}
                     <Field label={paquet ? 'Fin des crédits' : 'Prochaine échéance'}>
-                      <Input type="date" value={datesEdit.fin} onChange={(e) => setDatesEdit({ ...datesEdit, fin: e.target.value })} />
+                      <ChampDeDate compact sens="avant" value={datesEdit.fin} onChange={(iso) => setDatesEdit({ ...datesEdit, fin: iso })} />
                     </Field>
                   </div>
                   {paquet && (
@@ -2516,7 +2517,7 @@ export default function Abonnements() {
 
                   <div className="tr-grid tr-grid--3" style={{ gap: 11, marginTop: 13 }}>
                     <Field label="Première séance">
-                      <Input type="date" value={cadenceForm.depart} onChange={(e) => recalculeLaCadence({ depart: e.target.value })} />
+                      <ChampDeDate compact sens="avant" value={cadenceForm.depart} onChange={(iso) => recalculeLaCadence({ depart: iso })} />
                     </Field>
                     <Field label="Heure">
                       <Input type="time" value={cadenceForm.heure} onChange={(e) => setCadenceForm({ ...cadenceForm, heure: e.target.value })} />
@@ -2540,13 +2541,10 @@ export default function Abonnements() {
                           width: 22, height: 22, borderRadius: '50%', flex: 'none', display: 'grid', placeItems: 'center',
                           border: '1px solid var(--copper-300)', background: 'var(--surface-card)', fontSize: 11, color: 'var(--copper-700)',
                         }}>{x.rang}</span>
-                        <Input
-                          type="date" value={x.dateIso} style={{ width: 156, flex: 'none' }}
-                          onChange={(e) => setCadenceForm({
+                        <ChampDeDate compact sens="avant" value={x.dateIso} onChange={(iso) => setCadenceForm({
                             ...cadenceForm,
-                            suite: cadenceForm.suite.map((y, k) => (k === i ? { ...y, dateIso: e.target.value, glissee: false } : y)),
-                          })}
-                        />
+                            suite: cadenceForm.suite.map((y, k) => (k === i ? { ...y, dateIso: iso, glissee: false } : y)),
+                          })} style={{ width: 156, flex: 'none' }} />
                         <span style={{ flex: '1 1 160px', minWidth: 0, fontSize: 11.5, color: 'var(--ink-soft)' }}>
                           {x.serviceIds.map((id) => serviceName(id)).join(' + ')}
                           {x.glissee && (
@@ -3248,15 +3246,10 @@ export default function Abonnements() {
                                 5 ne peut pas honorer une échéance au 1er, et
                                 l'imposer fabrique un retard qu'on lui
                                 reprochera. */}
-                            <Input
-                              type="date"
-                              style={{ maxWidth: 150, fontSize: 12 }}
-                              value={e.dueIso}
-                              onChange={(ev) => setSubForm({
+                            <ChampDeDate compact sens="avant" value={e.dueIso} onChange={(iso) => setSubForm({
                                 ...subForm,
-                                dates: { ...subForm.dates, [String(e.numero)]: ev.target.value },
-                              })}
-                            />
+                                dates: { ...subForm.dates, [String(e.numero)]: iso },
+                              })} style={{ maxWidth: 150, fontSize: 12 }} />
                           </span>
                           <b style={{ fontWeight: 500 }}>{fmtMoney(e.amountXof, currency)}</b>
                         </div>
@@ -3349,14 +3342,7 @@ export default function Abonnements() {
                               contourne en ne payant pas, et c'est la Maison qui
                               perd la trace. Déplacer POUSSE les suivantes :
                               l'imputation se fait dans l'ordre, l'ordre tient. */}
-                          <input
-                            type="date"
-                            className="mnd-input"
-                            value={e.dueIso}
-                            onChange={(ev) => reposerLaDate(payFor, e.numero, ev.target.value)}
-                            aria-label={`Date de la ${e.numero}ᵉ échéance`}
-                            style={{ padding: '3px 6px', fontSize: 11.5, width: 132 }}
-                          />
+                          <ChampDeDate compact sens="avant" value={e.dueIso} onChange={(iso) => reposerLaDate(payFor, e.numero, iso)} style={{ padding: '3px 6px', fontSize: 11.5, width: 132 }} ariaLabel={`Date de la ${e.numero}ᵉ échéance`} />
                           {e.soldee ? 'soldée'
                             : e.enRetard ? `en retard de ${e.retardJours} jour${e.retardJours > 1 ? 's' : ''}`
                               : e.regleXof > 0 ? `${fmtMoney(e.regleXof, currency)} versés` : 'à venir'}
@@ -3394,7 +3380,7 @@ export default function Abonnements() {
                 <Input inputMode="numeric" value={payForm.amount} onChange={(e) => setPayForm({ ...payForm, amount: e.target.value.replace(/[^0-9]/g, '') })} placeholder="0" />
               </Field>
               <Field label="Date du règlement">
-                <Input type="date" value={payForm.date} onChange={(e) => setPayForm({ ...payForm, date: e.target.value })} />
+                <ChampDeDate compact sens="arriere" value={payForm.date} onChange={(iso) => setPayForm({ ...payForm, date: iso })} />
               </Field>
             </div>
             {/* LA CAISSE CRÉDITÉE — 29 août 2026. Sans elle, l'argent n'entre

@@ -22,6 +22,7 @@ import { identiteCourante } from '../../../../shared/journal';
 import { cashbookPdf, type CashLedger, type CashGroup } from '../../../../shared/pdf';
 import { useCaisses, soldeVisible } from './tiroirs';
 import { monthKey, monthTitle, todayISO } from './_shared';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* ══ LE JOUR, LA SEMAINE, LE MOIS — 2 septembre 2026 ════════════════
    « Comment avoir l'état de la caisse du jour, de la semaine et du mois ? »
@@ -288,11 +289,11 @@ export function RapportDeCaisse({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
                 <label className="mnd-field">
                   <span className="mnd-field__label">Du</span>
-                  <input className="mnd-input" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+                  <ChampDeDate compact sens="arriere" value={de} onChange={setDe} ariaLabel="Du" />
                 </label>
                 <label className="mnd-field">
                   <span className="mnd-field__label">Au</span>
-                  <input className="mnd-input" type="date" value={a} onChange={(e) => setA(e.target.value)} />
+                  <ChampDeDate compact sens="arriere" value={a} onChange={setA} ariaLabel="Au" />
                 </label>
               </div>
             )}

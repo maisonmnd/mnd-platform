@@ -1043,6 +1043,21 @@
 }
 .mc-profield input:focus { border-bottom-color: var(--accent); }
 .mc-profield input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 13px; color: var(--ink-soft); }
+/* LA NAISSANCE EN TROIS CASES (13 septembre 2026) : la liste du mois porte le
+   même trait que les cases du jour et de l'année, sinon elle seule serait
+   encadrée au milieu d'une ligne soulignée. */
+.mc-profield select {
+  border: none;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  padding: 7px 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--color-indigo);
+}
+.mc-profield select:focus { border-bottom-color: var(--accent); }
 /* Relecture (âge calculé sous la date de naissance) */
 .mc-profield__read {
   display: block;

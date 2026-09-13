@@ -10,6 +10,7 @@ import {
   congeBalance, daysInclusive, ATTENDANCE_LABEL, LEAVE_STATUS_LABEL, PAYROLL_PARAMETERS_SEED,
   type AttendanceStatus, type LeaveType, type LeaveRequest,
 } from './payroll';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Temps & absences — pointage journalier + congés/maladie avec validation direction.
    Le planning des praticiens reste au slot engine ; ici, présence et absences. */
@@ -67,7 +68,7 @@ function Pointage() {
   return (
     <div>
       <div className="tre-actions-row">
-        <Field label="Jour"><Input type="date" value={day} max={todayISO()} onChange={(e) => setDay(e.target.value)} style={{ maxWidth: 200 }} /></Field>
+        <Field label="Jour"><ChampDeDate compact sens="arriere" value={day} onChange={setDay} max={todayISO()} style={{ maxWidth: 200 }} /></Field>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {STATUSES.map((s) => <Pill key={s} tone={statusTone(s)}>{ATTENDANCE_LABEL[s]} · {tally[s] ?? 0}</Pill>)}
         </span>
@@ -215,8 +216,8 @@ function LeaveForm({ team, onClose }: { team: ReturnType<typeof useStaff>[0]; on
           </div>
         </Field>
         <div className="tr-grid tr-grid--2">
-          <Field label="Du"><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
-          <Field label="Au"><Input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></Field>
+          <Field label="Du"><ChampDeDate compact sens="avant" value={start} onChange={setStart} /></Field>
+          <Field label="Au"><ChampDeDate compact sens="avant" value={end} onChange={setEnd} min={start} /></Field>
         </div>
         <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: -6 }}>{days > 0 ? `${days} jour${days > 1 ? 's' : ''}` : 'Dates invalides.'}</div>
         <Field label="Motif"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="—" /></Field>

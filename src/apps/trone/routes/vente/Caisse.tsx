@@ -15,6 +15,7 @@ import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
 import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
+import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
@@ -482,6 +483,9 @@ export default function Caisse() {
           } : {}),
         }
         : a)));
+      /* ENCAISSER, C'EST HONORER — 13 septembre 2026. Le ticket solde le
+         rituel ; il le clôture du même geste (voir `honoreALEncaissement`). */
+      if (partNette > 0) honoreALEncaissement(apptToSettle, svcById);
     }
 
     /* LE STOCK SUIT LA VENTE — par le JOURNAL. La vente écrit un mouvement de

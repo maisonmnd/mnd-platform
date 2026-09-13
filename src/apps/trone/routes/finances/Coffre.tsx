@@ -24,6 +24,7 @@ import { useSettings, settingsStore } from '../../../../shared/settings';
 /** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
 const monthLabelLong = (mk: string): string => (mk ? monthTitle(mk) : '');
 import './finances.css';
+import { ChampDeDate, ChampDeMois } from '../../../../ds/dates';
 
 /* Coffre-fort — l'épargne souveraine de la maison. On y met de côté une part du
    chiffre DÉJÀ gagné (dépôts, souvent adossés à une cliente). C'est un registre
@@ -397,11 +398,7 @@ export default function Coffre() {
                 />
               </Field>
               <Field label="Date">
-                <Input
-                  type="date"
-                  value={mvtOuvert.date}
-                  onChange={(e) => setMvtOuvert((f) => (f ? { ...f, date: e.target.value } : f))}
-                />
+                <ChampDeDate compact sens="arriere" value={mvtOuvert.date} onChange={(iso) => setMvtOuvert((f) => (f ? { ...f, date: iso } : f))} />
               </Field>
               {objectifsVivants.length > 0 && (
                 <Field label="Pour quel objectif · facultatif">
@@ -486,7 +483,7 @@ export default function Coffre() {
               </Field>
             )}
             <Field label="Date">
-              <Input type="date" value={fRetrait.date} onChange={(e) => setFRetrait((f) => ({ ...f, date: e.target.value }))} />
+              <ChampDeDate compact sens="arriere" value={fRetrait.date} onChange={(iso) => setFRetrait((f) => ({ ...f, date: iso }))} />
             </Field>
             <Field label="Pourquoi · facultatif">
               <Input
@@ -544,11 +541,7 @@ export default function Coffre() {
               </div>
             </Field>
             <Field label="Pour quand · facultatif">
-              <Input
-                type="month"
-                value={objOuvert.echeance}
-                onChange={(e) => setObjOuvert((o) => (o ? { ...o, echeance: e.target.value } : o))}
-              />
+              <ChampDeMois vide value={objOuvert.echeance} onChange={(mois) => setObjOuvert((o) => (o ? { ...o, echeance: mois } : o))} ariaLabel="Pour quand" />
               {/* L'ABSENCE DE DATE A UN SENS, et il faut le dire : sans elle,
                   l'objectif ne sera JAMAIS annoncé en retard. */}
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.55 }}>

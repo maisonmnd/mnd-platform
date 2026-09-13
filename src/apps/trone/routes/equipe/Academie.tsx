@@ -22,6 +22,7 @@ import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
 import { parcoursAPoser } from '../../../../shared/parcours';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
    Inscription d'apprenants, suivi d'avancement, certificats scellés MND (le rendu du
@@ -829,7 +830,7 @@ export default function Academie() {
                   <Input inputMode="numeric" value={f.amountInput} onChange={(e) => setApForm({ ...f, amountInput: e.target.value })} placeholder="Ex. 100 000" />
                 </Field>
                 <Field label="Date du règlement">
-                  <Input type="date" value={f.payDate} onChange={(e) => setApForm({ ...f, payDate: e.target.value })} />
+                  <ChampDeDate compact sens="arriere" value={f.payDate} onChange={(iso) => setApForm({ ...f, payDate: iso })} />
                 </Field>
                 <Field label="Mode de paiement">
                   <Select value={f.payMethod} onChange={(e) => setApForm({ ...f, payMethod: e.target.value as PaymentMethod })}>
@@ -844,7 +845,7 @@ export default function Academie() {
                   <Input value={fmtMoney(apThis, currency)} readOnly disabled />
                 </Field>
                 <Field label="Date du règlement">
-                  <Input type="date" value={f.payDate} onChange={(e) => setApForm({ ...f, payDate: e.target.value })} />
+                  <ChampDeDate compact sens="arriere" value={f.payDate} onChange={(iso) => setApForm({ ...f, payDate: iso })} />
                 </Field>
                 <Field label="Mode de paiement">
                   <Select value={f.payMethod} onChange={(e) => setApForm({ ...f, payMethod: e.target.value as PaymentMethod })}>

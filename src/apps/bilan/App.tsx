@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { DEVISE_COMPLETE } from '../../shared/identite';
 import { asset } from '../../shared/asset';
+import { DateEnClair } from '../../ds/dates';
 
 /* Bilan de Séance — Le Carnet de Suivi. Panneau de réglage (masqué à l'impression)
    + le papier A4. L'ERP pré-remplit par l'URL :
@@ -133,7 +134,7 @@ export default function App() {
           </div>
           <div className="field">
             <label htmlFor="f-date">Date de la séance</label>
-            <input id="f-date" type="date" value={dateIso} onChange={(e) => setDateIso(e.target.value)} />
+            <DateEnClair id="f-date" value={dateIso} onChange={(iso) => setDateIso(iso ?? '')} ariaLabel="Date de la séance" />
           </div>
           <div className="field">
             <label htmlFor="f-praticien">Praticien</label>

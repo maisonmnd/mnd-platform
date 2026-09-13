@@ -41,6 +41,7 @@ import { todayISO, monthKey, monthTitle, fmtDay } from './_shared';
 import { useSettings } from '../../../../shared/settings';
 import { useCaissesOuvertes, coffreOuvert } from './tiroirs';
 import './finances.css';
+import { ChampDeDate, ChampDeMois } from '../../../../ds/dates';
 
 /** « septembre 2027 » — l'échéance d'un objectif se dit en toutes lettres. */
 const monthLabelLong = (mk: string): string => (mk ? monthTitle(mk) : '');
@@ -563,11 +564,7 @@ export function LesObjectifs() {
                   </div>
                 </Field>
                 <Field label="Pour quand · facultatif">
-                  <Input
-                    type="month"
-                    value={objOuvert.echeance}
-                    onChange={(e) => setObjOuvert((f) => (f ? { ...f, echeance: e.target.value } : f))}
-                  />
+                  <ChampDeMois vide value={objOuvert.echeance} onChange={(mois) => setObjOuvert((f) => (f ? { ...f, echeance: mois } : f))} ariaLabel="Pour quand" />
                 </Field>
               </div>
 
@@ -622,11 +619,7 @@ export function LesObjectifs() {
                         </label>
                         <label className="mnd-field">
                           <span className="mnd-field__label">Premier jalon</span>
-                          <input
-                            className="mnd-input" type="date"
-                            value={objOuvert.premier || auto.premier}
-                            onChange={(e) => setObjOuvert((f) => (f ? { ...f, premier: e.target.value } : f))}
-                          />
+                          <ChampDeDate compact sens="avant" value={objOuvert.premier || auto.premier} onChange={(iso) => setObjOuvert((f) => (f ? { ...f, premier: iso } : f))} />
                         </label>
                       </div>
                     </>
@@ -881,7 +874,7 @@ export function DepositModal({
           </Field>
         )}
         <Field label="Date du versement">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Note · facultatif">
           <Textarea rows={2} value={note} placeholder="Ex. épargne du mois, mise de côté prudente…" onChange={(e) => setNote(e.target.value)} />
@@ -945,7 +938,7 @@ export function TransferModal({
           {tooMuch && <div style={{ fontSize: 11.5, color: '#8f3b30', marginTop: 6 }}>Le virement dépasse le solde du coffre.</div>}
         </Field>
         <Field label="Date du virement">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Référence · facultatif">
           <Textarea rows={2} value={note} placeholder="Ex. n° de bordereau, motif…" onChange={(e) => setNote(e.target.value)} />

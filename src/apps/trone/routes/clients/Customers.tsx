@@ -58,6 +58,7 @@ import { CarteModal } from './CarteModal';
 import { DroitImageModal } from './DroitImageModal';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
 import { contratPdf } from '../../../../shared/pdf';
+import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -306,69 +307,13 @@ function LocksCell({ client }: { client: Client }) {
   );
 }
 
-/* LA DATE EN CLAIR — MOIS · JOUR · ANNÉE (13 août, demande de Yéman). Le champ
-   natif s'affiche dans l'ordre de la LANGUE DU NAVIGATEUR : sur un poste en
-   anglais, « 05/07/1990 » se lisait 7 mai quand la main croyait écrire un
-   5 juillet — et rien ne disait quel nombre était le mois. Ici le mois
-   s'écrit EN TOUTES LETTRES, l'ordre est celui que la Maison a demandé, et
-   l'ISO ne s'écrit que quand la date est complète et réelle. */
+/* LA DATE EN CLAIR vit dans `ds/dates` depuis le 13 septembre 2026, et s'écrit
+   désormais jour · mois · année (elle était mois · jour · année depuis le
+   13 août) : « quel que soit le service, respecter le même format » (Yéman).
+   Les mois restent ici pour la naissance écrite en clair sur une ligne de
+   membre. */
 const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-function DateEnClair({ value, onChange, ariaLabel }: {
-  value?: string;
-  onChange: (iso: string | undefined) => void;
-  ariaLabel?: string;
-}) {
-  const decompose = (iso?: string) => {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
-    return m ? { mois: m[2], jour: String(Number(m[3])), annee: m[1] } : { mois: '', jour: '', annee: '' };
-  };
-  const [p, setP] = useState(() => decompose(value));
-  useEffect(() => { setP(decompose(value)); }, [value]);
-  const maj = (patch: Partial<typeof p>) => {
-    const n = { ...p, ...patch };
-    setP(n);
-    if (!n.mois && !n.jour.trim() && !n.annee.trim()) { onChange(undefined); return; }
-    const a = parseInt(n.annee, 10);
-    const j = parseInt(n.jour, 10);
-    if (!n.mois || !Number.isFinite(a) || n.annee.trim().length !== 4 || a < 1900 || a > 2100 || !Number.isFinite(j) || j < 1) return;
-    /* Le jour se borne au mois réel — un 31 février devient le 28/29. */
-    const jMax = new Date(a, Number(n.mois), 0).getDate();
-    const jOk = Math.min(j, jMax);
-    onChange(`${a}-${n.mois}-${String(jOk).padStart(2, '0')}`);
-  };
-  return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <Select
-        value={p.mois}
-        onChange={(e) => maj({ mois: e.target.value })}
-        style={{ flex: '1 1 120px', minWidth: 0 }}
-        aria-label={ariaLabel ? `${ariaLabel}, mois` : 'Mois'}
-      >
-        <option value="">— mois —</option>
-        {MOIS_FR.map((nom, i) => (
-          <option key={nom} value={String(i + 1).padStart(2, '0')}>{nom}</option>
-        ))}
-      </Select>
-      <Input
-        inputMode="numeric"
-        value={p.jour}
-        onChange={(e) => maj({ jour: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) })}
-        placeholder="jour"
-        style={{ width: 58, textAlign: 'right', flex: 'none' }}
-        aria-label={ariaLabel ? `${ariaLabel}, jour` : 'Jour'}
-      />
-      <Input
-        inputMode="numeric"
-        value={p.annee}
-        onChange={(e) => maj({ annee: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
-        placeholder="année"
-        style={{ width: 74, textAlign: 'right', flex: 'none' }}
-        aria-label={ariaLabel ? `${ariaLabel}, année` : 'Année'}
-      />
-    </div>
-  );
-}
 
 /* LE CHAMP « STYLE DE COURONNE » EST RETIRÉ (13 août, décision de Yéman) :
    le calibre se COMPTE — il se déduit du nombre de locks par le barème
@@ -456,7 +401,7 @@ function AjoutEnfantAuCompte({ famille, parent, tetes }: { famille: Family; pare
         </Field>
       </div>
       <Field label="Sa date de naissance">
-        <DateEnClair value={naissance} onChange={setNaissance} ariaLabel="Naissance de l’enfant" />
+        <DateEnClair value={naissance} onChange={setNaissance} ariaLabel="Naissance de l’enfant" max={todayISO()} />
       </Field>
       {erreur && <div className="trc-sub" style={{ color: 'var(--copper-700)' }}>{erreur}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -3348,7 +3293,7 @@ function Customer360({
           <div className="trc-bday">
             <div className="trc-bday__field">
               <Field label="Anniversaire">
-                <DateEnClair value={client.birthday} onChange={(iso) => patch({ birthday: iso })} ariaLabel="Anniversaire" />
+                <DateEnClair value={client.birthday} onChange={(iso) => patch({ birthday: iso })} ariaLabel="Anniversaire" max={todayISO()} />
               </Field>
             </div>
             {client.birthday && bday && (
@@ -3515,6 +3460,7 @@ function Customer360({
                   value={client.crownSince}
                   onChange={(iso) => patch({ crownSince: iso, crownPose: true })}
                   ariaLabel="Couronne depuis"
+                  max={todayISO()}
                 />
                 {client.crownPose && (
                   <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5, lineHeight: 1.5 }}>
@@ -4521,14 +4467,7 @@ function Customer360({
                   aria-label="Nombre de locks"
                   style={{ width: 96, textAlign: 'right', flex: 'none' }}
                 />
-                <Input
-                  type="date"
-                  value={jourPropose}
-                  max={today}
-                  onChange={(e) => setCptJour(e.target.value)}
-                  aria-label="Jour du comptage"
-                  style={{ width: 156, flex: 'none' }}
-                />
+                <ChampDeDate compact sens="arriere" value={jourPropose} onChange={setCptJour} max={today} style={{ width: 156, flex: 'none' }} ariaLabel="Jour du comptage" />
                 {/* LA MÈCHE TÉMOIN, DANS LE MÊME GESTE. Demander une seconde
                     visite au fauteuil pour un seul chiffre, c'est s'assurer
                     qu'il ne sera jamais pris. */}
@@ -4969,14 +4908,7 @@ function Customer360({
                     {rendre(pose ? 'Son programme de pousse, ouvert' : 'Son programme de pousse, depuis son VÍVÍVÓ™', activateur,
                       suivreLeProtocole({ couleur: activateur, appts, byId, aujourdhui: today, etapes: etapesPousse }), 'pousse')}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Input
-                        type="date"
-                        value={progJour || activateur.date}
-                        max={today}
-                        onChange={(e) => setProgJour(e.target.value)}
-                        aria-label="Jour d’ouverture du programme"
-                        style={{ width: 156, flex: 'none' }}
-                      />
+                      <ChampDeDate compact sens="arriere" value={progJour || activateur.date} onChange={setProgJour} max={today} style={{ width: 156, flex: 'none' }} ariaLabel="Jour d’ouverture du programme" />
                       <Button variant="ghost" style={{ flex: 'none' }}
                         onClick={() => poserLOuverture(progJour || activateur.date)}>
                         {pose ? 'Décaler l’ouverture' : 'Fixer cette date'}
@@ -5005,14 +4937,7 @@ function Customer360({
                       la remesure à douze.
                     </div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Input
-                        type="date"
-                        value={progJour || today}
-                        max={today}
-                        onChange={(e) => setProgJour(e.target.value)}
-                        aria-label="Jour d’ouverture du programme"
-                        style={{ width: 156, flex: 'none' }}
-                      />
+                      <ChampDeDate compact sens="arriere" value={progJour || today} onChange={setProgJour} max={today} style={{ width: 156, flex: 'none' }} ariaLabel="Jour d’ouverture du programme" />
                       <Button variant="copper" style={{ flex: 'none' }}
                         onClick={() => poserLOuverture(progJour || today)}>
                         Ouvrir son programme
@@ -5142,14 +5067,7 @@ function Customer360({
                     <div className="trc-temps__name">{t.name}</div>
                     <div className="trc-temps__essence">{t.essence}</div>
                     {on && (
-                      <input
-                        type="date"
-                        className="trc-temps__date"
-                        value={myTemps[t.key]}
-                        max={today}
-                        onChange={(e) => setTemps(client.id, t.key, e.target.value)}
-                        aria-label={`Date du temps ${t.name}`}
-                      />
+                      <ChampDeDate compact sens="arriere" value={myTemps[t.key] ?? ''} onChange={(iso) => setTemps(client.id, t.key, iso)} max={today} className="trc-temps__date" ariaLabel={`Date du temps ${t.name}`} />
                     )}
                   </div>
                 </div>
@@ -5401,7 +5319,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             </Select>
           </Field>
           <Field label="Anniversaire">
-            <DateEnClair value={birthday || undefined} onChange={(iso) => setBirthday(iso ?? '')} ariaLabel="Anniversaire" />
+            <DateEnClair value={birthday || undefined} onChange={(iso) => setBirthday(iso ?? '')} ariaLabel="Anniversaire" max={todayISO()} />
           </Field>
         </div>
 
@@ -5433,7 +5351,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
               <Input type="number" min={0} value={lockCount} onChange={(e) => setLockCount(e.target.value)} placeholder="—" />
             </Field>
             <Field label="Couronne depuis">
-              <DateEnClair value={crownSince || undefined} onChange={(iso) => setCrownSince(iso ?? '')} ariaLabel="Couronne depuis" />
+              <DateEnClair value={crownSince || undefined} onChange={(iso) => setCrownSince(iso ?? '')} ariaLabel="Couronne depuis" max={todayISO()} />
             </Field>
           </div>
         </div>

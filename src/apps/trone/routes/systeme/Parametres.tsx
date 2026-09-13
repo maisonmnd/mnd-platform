@@ -44,6 +44,7 @@ type ToggleRow = { k: string; l: string; sub: string };
    lisait — ses lecteurs sont partout, il vit désormais dans la couche
    partagée. Même clé (`mnd_house_identity`) : rien à migrer. */
 import { useHouseIdentity, type HouseIdentity } from '../../../../shared/identite';
+import { ChampDeDate } from '../../../../ds/dates';
 
 const FUSEAU_OPTIONS = [
   'Cotonou · GMT+1', 'Abidjan · GMT', 'Lomé · GMT', 'Dakar · GMT',
@@ -1494,7 +1495,7 @@ export default function Parametres() {
               setExceptions(exceptions.map((x) => (x.id === ex.id ? { ...x, ...patch } : x)));
             return (
               <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
-                <Input type="date" value={ex.date} onChange={(e) => maj({ date: e.target.value })} style={{ width: 150 }} />
+                <ChampDeDate compact sens="avant" value={ex.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
                 <Select
                   value={ex.staffId ?? ''}
                   onChange={(e) => maj({ staffId: e.target.value || undefined })}
@@ -1606,7 +1607,7 @@ export default function Parametres() {
               const journee = !bl.debut && !bl.fin;
               return (
                 <div key={bl.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', border: '1px solid var(--hairline)', borderRadius: 4, padding: '10px 12px' }}>
-                  <Input type="date" value={bl.date} onChange={(e) => maj({ date: e.target.value })} style={{ width: 150 }} />
+                  <ChampDeDate compact sens="avant" value={bl.date} onChange={(iso) => maj({ date: iso })} style={{ width: 150 }} />
                   <Select
                     value={bl.master ?? ''}
                     onChange={(e) => maj({ master: e.target.value || undefined })}

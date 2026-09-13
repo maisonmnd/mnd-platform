@@ -5,6 +5,7 @@ import { useClients, clientsStore, clienteDePassage, ensureInitiePersona } from 
 import { poserAppel } from '../../../shared/appels';
 import { numeroTelReel } from '../../../shared/geo';
 import { ClientPicker, todayISO, addDaysISO } from '../routes/clients/_shared';
+import { ChampDeDate } from '../../../ds/dates';
 
 /* LE MODALE « APPEL REÇU » — poser l'appel en trois secondes. On choisit à chaque
    fois : un simple rappel (avec sa date), ou un rendez-vous à caler. */
@@ -115,7 +116,7 @@ export function AppelRecuModal({ open, onClose, initial, onPoserRdv }: {
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <button type="button" style={pillStyle(quand === jj)} onClick={() => setQuand(jj)}>Aujourd'hui</button>
                   <button type="button" style={pillStyle(quand === demain)} onClick={() => setQuand(demain)}>Demain</button>
-                  <Input type="date" value={quand} onChange={(e) => setQuand(e.target.value)} style={{ padding: '4px 8px', fontSize: 12.5, width: 150 }} />
+                  <ChampDeDate compact sens="avant" value={quand} onChange={setQuand} style={{ padding: '4px 8px', fontSize: 12.5, width: 150 }} />
                 </div>
               )}
             </button>

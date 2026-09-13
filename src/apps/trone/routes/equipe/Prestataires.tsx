@@ -17,6 +17,7 @@ import { enVigueurDe } from '../../../../shared/textes';
 import { PRESTATAIRE_V1, useReglagesContrats } from '../../../../shared/reglages-contrats';
 import { type SignatureTracee } from '../../../../shared/contrats';
 import './equipe.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Prestataires extérieurs — répertoire + missions + paiements confirmés (reçu PDF).
    Ce sont des CHARGES (sous-traitance), distinctes de la paie du personnel. */
@@ -474,7 +475,7 @@ export default function Prestataires() {
                 <Field label="Quantité"><Input value={missionForm.qty} inputMode="decimal" onChange={(e) => setMissionQty(missionFor, e.target.value)} /></Field>
               )}
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}><Input value={missionForm.amount} inputMode="numeric" placeholder="0" onChange={(e) => setMissionForm({ ...missionForm, amount: e.target.value.replace(/[^0-9]/g, '') })} /></Field>
-              <Field label="Date"><Input type="date" value={missionForm.date} onChange={(e) => setMissionForm({ ...missionForm, date: e.target.value })} /></Field>
+              <Field label="Date"><ChampDeDate compact sens="arriere" value={missionForm.date} onChange={(iso) => setMissionForm({ ...missionForm, date: iso })} /></Field>
             </div>
             <Field label="Note (facultatif)"><Input value={missionForm.note} onChange={(e) => setMissionForm({ ...missionForm, note: e.target.value })} placeholder="Précision…" /></Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

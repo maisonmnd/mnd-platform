@@ -20,6 +20,7 @@ import {
 } from './_shared';
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
    formulaires personnalisables (gestionnaire de questions) et les consultations
@@ -945,7 +946,7 @@ function EditOnlineModal({
               <option value="salon">Salon</option>
               <option value="visio">Visio</option>
             </Select>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <ChampDeDate compact sens="arriere" value={date} onChange={setDate} ariaLabel="Le jour de la consultation" />
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
         </div>

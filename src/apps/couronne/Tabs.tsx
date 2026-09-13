@@ -42,6 +42,7 @@ import {
   type BookingPrefill,
   type Offer,
 } from './lib';
+import { DateEnClair } from '../../ds/dates';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -1706,13 +1707,11 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             {ouverte && (
               <div style={{ marginTop: 10 }}>
                 <div className="mc-field-label">Changer sa date de naissance</div>
-                <input
-                  className="mnd-input"
-                  type="date"
+                <DateEnClair
                   value={dateCorrigee}
                   max={aujourdhui}
-                  onChange={(ev) => { setDateCorrigee(ev.target.value); setErrCorrige(''); }}
-                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  onChange={(iso) => { setDateCorrigee(iso ?? ''); setErrCorrige(''); }}
+                  ariaLabel="Sa date de naissance"
                 />
                 {errCorrige && <div className="mc-form-err">{errCorrige}</div>}
                 <div style={{ display: 'flex', gap: 10, marginTop: 10, alignItems: 'center' }}>
@@ -1770,13 +1769,11 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             Le sien, tel qu’il est écrit à l’état civil, il peut être différent du vôtre.
           </div>
           <div className="mc-field-label" style={{ marginTop: 12 }}>Sa date de naissance</div>
-          <input
-            className="mnd-input"
-            type="date"
+          <DateEnClair
             value={naissance}
             max={aujourdhui}
-            onChange={(e) => setNaissance(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box' }}
+            onChange={(iso) => setNaissance(iso ?? '')}
+            ariaLabel="Sa date de naissance"
           />
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
             Elle nous sert à tenir son suivi, et c’est elle qui vous donne accès à son espace
@@ -1963,12 +1960,15 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         </label>
         <label className="mc-profield">
           <span>Date de naissance</span>
-          <input
-            type="date"
+          {/* JOUR · MOIS · ANNÉE — 13 septembre 2026. Le champ natif s'écrivait
+              dans la langue du téléphone : « 09/13/1990 » sous un téléphone
+              réglé en anglais, et la cliente ne savait plus quel nombre était
+              le mois. */}
+          <DateEnClair
             value={birthday}
             max={todayIso()}
-            autoComplete="bday"
-            onChange={(e) => setBirthday(e.target.value)}
+            onChange={(iso) => setBirthday(iso ?? '')}
+            ariaLabel="Date de naissance"
           />
           {birthday && <span className="mc-profield__read">{birthdayLabel(birthday)}</span>}
         </label>

@@ -25,20 +25,19 @@ import { depositForServices, depositPctFor, useSettings } from '../../../../shar
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
-import {
-  grilleDuMois, moisVoisin, anneesPossibles, retardEnJours, correctionsPossibles,
-  type SensDeLaDate,
-} from '../../../../shared/calendrier';
+import { jourAn, jourCourtAn, jourEnLettres } from '../../../../shared/calendrier';
+import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
-import { litUneLigne } from '../../../../shared/serie';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
 import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
+
+export { ChampDeDate };
 
 /* Outils communs du domaine Clients & Agenda — dates, pastilles, tiroir, modale RDV. */
 
@@ -89,10 +88,7 @@ export const frLong = (iso: string) =>
     là qu'elle compte le plus : une cliente dit samedi, l'écran dit mercredi,
     et la faute saute aux yeux avant d'être écrite. Le jour de la semaine est
     la meilleure alarme qui soit, parce qu'on le connaît sans le calculer. */
-export const frLongAn = (iso: string) =>
-  (dayOf(iso)
-    ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
-    : '—');
+export const frLongAn = (iso: string) => jourEnLettres(iso);
 
 /** LE TEMPS ÉCOULÉ, EN CLAIR — 6 septembre 2026.
 
@@ -129,10 +125,7 @@ export const frDay = (iso: string) =>
     UNE CADENCE POSÉE COURT SUR DEUX ANS. Cinq rendez-vous d'octobre à juin :
     sans l'année, le dernier se lit comme s'il était dans deux mois. Le jour de
     la semaine reste — c'est par lui qu'on juge si le créneau convient. */
-export const frShortAn = (iso: string) =>
-  (dayOf(iso)
-    ? cap(fromISO(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }))
-    : '—');
+export const frShortAn = (iso: string) => jourCourtAn(iso);
 
 /** « 19 févr. 2025 » — LA DATE QUI PORTE SON ANNÉE, 5 septembre 2026.
 
@@ -143,34 +136,10 @@ export const frShortAn = (iso: string) =>
     on sait quel mois on vit. Une fiche cliente, elle, montre février 2025 à
     côté de septembre 2026, et un « 19 févr. » nu se lit comme celui de cette
     année — l'observation vieillit d'un an et demi sans qu'on le voie. */
-export const frJourAn = (iso: string) =>
-  (dayOf(iso) ? fromISO(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+/* Ces trois écritures lisent `shared/calendrier` depuis le 13 septembre 2026 :
+   le Certificat et Ma Couronne écrivent désormais le jour de la même façon. */
+export const frJourAn = (iso: string) => jourAn(iso);
 
-/* ══ LE CHAMP DE DATE DE LA MAISON — 5 septembre 2026 ══════════════════
-   « Sélectionner une date depuis le calendrier n'est pas facile. Ouverture du
-   calendrier et les années à choisir sont à revisiter » (Yéman).
-
-   LE CALENDRIER DU NAVIGATEUR EST FAIT POUR DEMAIN, PAS POUR L'AN DERNIER.
-   Il s'ouvre sur le mois courant et se remonte mois par mois : reprendre
-   janvier 2025 en septembre 2026, c'est vingt clics sur une flèche, une fois
-   par rendez-vous. On abandonne avant la dixième ligne.
-
-   ON TAPE LA DATE, ON NE LA CHERCHE PAS. Et on la tape comme on la lit dans un
-   cahier : « 14/02 », « 14-02-25 », « 14 février », « 14 févr. 2025 ». C'est le
-   MÊME lecteur que la saisie en série (`litUneLigne`, éprouvé par
-   `verifie-serie`) — une seule écriture à apprendre pour toute la Maison.
-
-   ET ON RELIT CE QU'ON A ÉCRIT. Sous le champ, la date rendue en toutes
-   lettres avec SON JOUR DE LA SEMAINE : si le cahier dit samedi et l'écran
-   vendredi, l'erreur saute aux yeux avant d'être écrite.
-
-   L'ANNÉE NE SE DEVINE JAMAIS. Quand elle n'est pas tapée, les années
-   possibles s'offrent en toutes lettres, et la Maison clique : décider à sa
-   place décalerait un rituel de douze mois, et personne ne le verrait avant
-   les chiffres de fin d'exercice.
-
-   LE CALENDRIER RESTE, replié. Certains gestes se font mieux à l'œil — poser
-   une reprise « le samedi d'après ». Il ne s'impose simplement plus. */
 /** LES JOURS OÙ LA MAISON EST FERMÉE, lundi = 0 — lus des horaires du salon.
 
     Les clés des réglages sont dans l'ordre français (lundi d'abord), qui est
@@ -186,239 +155,10 @@ export function useJoursFermes(): number[] {
   }, [reglages]);
 }
 
-export function ChampDeDate({
-  value,
-  onChange,
-  anneeParDefaut,
-  ariaLabel = 'La date',
-  autoFocus = false,
-  sens = 'avant',
-  joursFermes,
-}: {
-  /** La date en ISO, ou '' quand rien n'est encore posé. */
-  value: string;
-  onChange: (iso: string) => void;
-  /** L'année qu'on suppose quand elle n'est pas tapée. Défaut : cette année. */
-  anneeParDefaut?: number;
-  ariaLabel?: string;
-  autoFocus?: boolean;
-  /** UN RENDEZ-VOUS REGARDE DEVANT, UN ANNIVERSAIRE DERRIÈRE (12 septembre
-      2026). Le champ ne peut pas le deviner, et la liste d'années qu'il offre
-      n'a de sens que dans un sens. */
-  sens?: SensDeLaDate;
-  /** Les jours où la Maison est fermée, lundi = 0. Barrés au calendrier :
-      on peut toujours y poser un rituel, il arrive qu'on ouvre exprès, mais
-      l'œil sait ce qu'il fait. */
-  joursFermes?: readonly number[];
-}) {
-  const auj = todayISO();
-  const anneeCourante = Number(auj.slice(0, 4));
-  const [annee, setAnnee] = useState(anneeParDefaut ?? anneeCourante);
-  /* La frappe vit à part de la valeur : une date à moitié tapée n'est pas une
-     date, et l'effacer sous les doigts pour « corriger » serait insupportable. */
-  const [saisie, setSaisie] = useState('');
-  const [calendrier, setCalendrier] = useState(false);
-  /* Ce que le champ a lui-même émis — pour reconnaître une valeur venue du
-     dehors et se resynchroniser sans écraser une frappe en cours. */
-  const emis = useRef('');
-
-  useEffect(() => { setAnnee(anneeParDefaut ?? anneeCourante); }, [anneeParDefaut, anneeCourante]);
-  useEffect(() => {
-    if (value === emis.current) return;
-    emis.current = value;
-    setSaisie(value ? frJourAn(value) : '');
-  }, [value]);
-
-  /* UNE DATE A MOITIE TAPEE N'EST PAS UNE FAUTE. « 14/02/ » passait en rouge
-     entre deux touches, le temps que l'annee arrive : le separateur de fin se
-     laisse tomber avant la lecture. */
-  const enClair = saisie.trim().replace(/[/\-.\s]+$/, '');
-  const lu = enClair === '' ? undefined : litUneLigne(enClair, annee);
-  const iso = lu?.iso;
-  /* L'ANNÉE A-T-ELLE ÉTÉ TAPÉE ? On lit la même ligne avec une année absurde :
-     si le résultat la porte, c'est qu'elle venait du défaut, pas de la main. */
-  const anneeSupposee = enClair !== ''
-    && litUneLigne(enClair, 1904).iso?.slice(0, 4) === '1904';
-
-  const pose = (texte: string, an = annee) => {
-    setSaisie(texte);
-    const nouveau = litUneLigne(texte.trim().replace(/[/\-.\s]+$/, ''), an).iso;
-    if (nouveau && nouveau !== value) { emis.current = nouveau; onChange(nouveau); }
-    if (texte.trim() === '' && value !== '') { emis.current = ''; onChange(''); }
-  };
-
-  const poseISO = (nouveau: string) => {
-    emis.current = nouveau;
-    setSaisie(frJourAn(nouveau));
-    onChange(nouveau);
-  };
-
-  /* ── CE QUI EST DERRIÈRE NOUS — 12 septembre 2026 ────────────────
-     Rien ne prévenait : le rendez-vous se créait, disparaissait du carnet du
-     jour, et personne ne le voyait avant que la cliente se présente. */
-  const retard = iso && sens === 'avant' ? retardEnJours(iso, auj) : 0;
-  const corrections = retard > 0 ? correctionsPossibles(iso as string, auj) : [];
-
-  /* LES ANNÉES POSSIBLES REGARDENT DANS LE BON SENS. Elles ne regardaient que
-     le passé : en décembre, poser un rituel de janvier n'avait AUCUNE bonne
-     réponse dans la liste. */
-  const candidates = iso ? anneesPossibles(iso.slice(5), auj, sens) : [];
-
-  /* ── LE CALENDRIER DE LA MAISON ──────────────────────────────────
-     Il s'ouvre sur le mois de la date en cours, jamais sur aujourd'hui :
-     poser un rituel de janvier depuis septembre coûtait vingt clics. */
-  const ancre = iso || value || auj;
-  const [moisVu, setMoisVu] = useState(() => ({
-    annee: Number(ancre.slice(0, 4)), mois: Number(ancre.slice(5, 7)),
-  }));
-  useEffect(() => {
-    if (!calendrier) return;
-    const a2 = iso || value || auj;
-    setMoisVu({ annee: Number(a2.slice(0, 4)), mois: Number(a2.slice(5, 7)) });
-  }, [calendrier]);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <Input
-        value={saisie}
-        autoFocus={autoFocus}
-        placeholder="3/9 · 3 sept · 3 septembre · 03-09-26"
-        aria-label={ariaLabel}
-        /* AU CLIC, TOUT SE SÉLECTIONNE. Le champ garde la date mise en forme,
-           « 12 sept. 2026 », qu'il fallait éditer à la main : sans
-           sélectionner d'abord, on obtenait « 12 sept. 202613 ». On retape,
-           on n'efface pas. */
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => pose(e.target.value)}
-      />
-
-      {/* ══ LA RELECTURE, EN TOUTES LETTRES — 12 septembre 2026 ═══════
-          Toute la sécurité de ce champ tient à cette ligne. Elle existait en
-          gris, en onze pixels et demi, sous un champ, au milieu d'une modale
-          chargée : personne ne la lisait. */}
-      <div
-        style={{
-          fontFamily: 'var(--font-serif)', fontSize: 22, lineHeight: 1.15, marginTop: 5,
-          color: saisie.trim() === ''
-            ? 'var(--hairline)'
-            : !iso
-              ? 'var(--trv-error, #96412E)'
-              : retard > 0 ? 'var(--color-brique, #96412E)' : 'var(--color-indigo)',
-        }}
-      >
-        {saisie.trim() === ''
-          ? 'Aucune date'
-          : iso ? frLongAn(iso) : 'Cette date ne se lit pas'}
-      </div>
-
-      {retard > 0 && (
-        <div style={{ fontSize: 12.5, color: 'var(--color-brique, #96412E)', borderLeft: '2px solid var(--color-brique, #96412E)', paddingLeft: 10, marginTop: 5 }}>
-          Ce jour est passé depuis {retard} jour{retard > 1 ? 's' : ''}.
-          Un rendez-vous posé là ne paraîtra dans aucun carnet.
-        </div>
-      )}
-
-      {corrections.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
-          <span className="mnd-muted" style={{ fontSize: 11 }}>Vouliez-vous dire</span>
-          {corrections.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => poseISO(c)}
-              style={{
-                cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
-                border: '1px solid var(--copper-300, #E3C9AE)', background: 'var(--copper-50, #F9EFE7)',
-                color: 'var(--copper-700)',
-              }}
-            >
-              {frShortAn(c)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* LES ANNÉES POSSIBLES ne paraissent que lorsque l'année n'a pas été
-          tapée : offrir un choix déjà fait n'aide personne. */}
-      {anneeSupposee && iso && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
-          <span className="mnd-muted" style={{ fontSize: 11 }}>Quelle année ?</span>
-          {/* DANS L'ORDRE DU CALENDRIER — 13 septembre 2026, « Range les années
-              en ordre : 2025-2026-2027 » (Yéman). Elles s'affichaient par
-              probabilité (2026, 2027, 2025) : l'œil cherche une année comme
-              sur une frise, de gauche à droite, et un ordre qui saute oblige
-              à relire les trois. La plus probable reste signalée par sa
-              couleur, pas par sa place. */}
-          {[...candidates].sort((x, y) => x - y).map((a2) => (
-            <button
-              key={a2}
-              type="button"
-              onClick={() => { setAnnee(a2); pose(saisie, a2); }}
-              style={{
-                cursor: 'pointer', borderRadius: 3, padding: '2px 9px', font: 'inherit', fontSize: 11,
-                border: `1px solid ${a2 === annee ? 'var(--color-copper)' : 'var(--hairline)'}`,
-                background: a2 === annee ? 'var(--copper-50, #F9EFE7)' : 'transparent',
-                color: a2 === annee ? 'var(--copper-700)' : 'var(--ink-soft)',
-              }}
-            >
-              {a2}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setCalendrier((v) => !v)}
-        style={{
-          alignSelf: 'flex-start', marginTop: 4, cursor: 'pointer', background: 'none',
-          border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600,
-          color: 'var(--copper-700)',
-        }}
-      >
-        {calendrier ? 'Replier le calendrier' : 'Le calendrier'}
-      </button>
-
-      {calendrier && (
-        <div className="trc-cal">
-          <div className="trc-cal__t">
-            <button type="button" className="trc-cal__fl" onClick={() => setMoisVu((m) => moisVoisin(m.annee, m.mois, -1))} aria-label="Mois précédent">‹</button>
-            <b>{cap(new Date(moisVu.annee, moisVu.mois - 1, 15).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }))}</b>
-            <button type="button" className="trc-cal__fl" onClick={() => setMoisVu((m) => moisVoisin(m.annee, m.mois, 1))} aria-label="Mois suivant">›</button>
-          </div>
-          <div className="trc-cal__g">
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((j, i) => (
-              <span key={i} className="trc-cal__j">{j}</span>
-            ))}
-            {grilleDuMois(moisVu.annee, moisVu.mois).map((c, i) => {
-              const ferme = (joursFermes ?? []).includes(i % 7);
-              const classes = ['trc-cal__c'];
-              if (c.horsMois) classes.push('hors');
-              if (c.iso === auj) classes.push('auj');
-              if (c.iso === iso) classes.push('pris');
-              if (ferme) classes.push('ferme');
-              return (
-                <button
-                  key={c.iso}
-                  type="button"
-                  className={classes.join(' ')}
-                  onClick={() => { poseISO(c.iso); setCalendrier(false); }}
-                  aria-label={frLongAn(c.iso)}
-                >
-                  {c.jour}
-                </button>
-              );
-            })}
-          </div>
-          <div className="trc-cal__pied">
-            <span>Cercle cuivre · aujourd’hui</span>
-            {(joursFermes ?? []).length > 0 && <span>Barré · la Maison est fermée</span>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+/* LE CHAMP DE DATE vit dans `ds/dates` depuis le 13 septembre 2026 : les
+   Finances, l'Équipe, le Certificat et Ma Couronne en avaient besoin, et ce
+   fichier n'est atteignable que du domaine Clients. Il reste exporté d'ici pour
+   les écrans qui le lisaient déjà. */
 
 export const timeToMin = (t: string) => {
   const [h, m] = t.split(':').map(Number);
@@ -2356,6 +2096,19 @@ export function RdvModal({
       setError('Ajoutez au moins une prestation.');
       return false;
     }
+    /* ══ UN RITUEL ENCAISSÉ RESTE HONORÉ — 13 septembre 2026 ═════════════
+       « Deux règles : encaisser va forcément avec honoré. Mais on peut
+       honorer sans encaisser » (Yéman). Ce sélecteur était la seule porte par
+       laquelle un rituel payé redevenait « confirmé » : l'argent restait au
+       registre pour un rituel qui, selon le carnet, n'avait pas eu lieu. On
+       rend d'abord l'argent, puis on change le statut. */
+    if (appt && chosenStatus !== 'honoré') {
+      const frais = appointmentsStore.get().find((x) => x.id === appt.id) ?? appt;
+      if (frais.status === 'honoré' && apptPaidXof(frais) > 0) {
+        setError('Ce rituel est encaissé, il reste donc honoré. Annulez d’abord l’encaissement, puis changez son statut.');
+        return false;
+      }
+    }
     /* LE SALON SOUVERAIN FERME LA MAISON (15 août) — « quand quelqu'un
        réserve, le salon est bloqué pour ce temps ». La plage se pose au NOM du
        rendez-vous : elle se repose sans se dédoubler quand l'heure change, et
@@ -2480,6 +2233,13 @@ export function RdvModal({
         consommerPourRituel({ id: appt.id, branchId: appt.branchId, serviceIds }, todayISO());
       } else if (chosenStatus !== 'honoré' && appt.status === 'honoré') {
         rembobinerRituel(appt.id);
+        /* LE RESTE DE L'HONNEUR SUIT (13 septembre 2026), par le même juge que
+           le bouton « Dés-honorer » : les points du Cercle repris, la reprise
+           posée à la clôture retirée, la couronne née ce jour-là effacée. Ce
+           sélecteur ne défaisait que le stock. */
+        void import('./actions').then(({ retireLHonneur, ditLeRetrait }) => {
+          toast(ditLeRetrait(retireLHonneur(appt, byId)));
+        });
       }
       /* LES FACTURES LIÉES SUIVENT LA NOUVELLE COMPOSITION — total intact,
          lignes conformes (voir alignerFacturesDuRituel). Le contexte tarifaire
@@ -2497,7 +2257,7 @@ export function RdvModal({
       if (chosenStatus === 'honoré') {
         void import('./actions').then(({ poseLaReprise }) => {
           const r = poseLaReprise(maj ?? appt);
-          if (r.pose) toast(`Sa reprise est posée le ${frShort(r.pose.date)} à ${r.pose.time}.`);
+          if (r.pose) toast(`Sa reprise est posée le ${frShortAn(r.pose.date)} à ${r.pose.time}.`);
           else if (r.raison) toast(`Pas de reprise : ${r.raison}.`);
         });
       }
@@ -2676,7 +2436,7 @@ export function RdvModal({
               </span>
             ) : null}
             <span>
-              {frShort(date)} · <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{time}</b>
+              {frShortAn(date)} · <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{time}</b>
               {master ? <> · avec <b style={{ color: 'var(--color-ivoire)', fontWeight: 600 }}>{master}</b></> : ''}
             </span>
             <span style={{ border: '1px solid var(--hairline-invert)', borderRadius: 999, padding: '1px 9px' }}>{status}</span>
@@ -2835,7 +2595,7 @@ export function RdvModal({
                       >
                         <span className="trc-modele__gestes">{noms.join(' + ')}</span>
                         <span className="trc-modele__meta">
-                          {m.n} fois · dernier le {frDay(m.dernier)}
+                          {m.n} fois · dernier le {frJourAn(m.dernier)}
                           {duree > 0 ? ` · ${fmtDureeCourte(duree)}` : ''}
                           {pose ? ' · c’est le rituel en cours' : ''}
                         </span>
@@ -3477,6 +3237,7 @@ export function RdvModal({
               onChange={setDate}
               ariaLabel="Le jour du rituel"
               sens="avant"
+              alertePasse
               joursFermes={joursFermes}
             />
           </Field>
@@ -3595,7 +3356,7 @@ export function RdvModal({
                 Séance {(appt?.seriesIndex ?? 2)} de « {porteur.dit} »
               </div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginTop: 5, lineHeight: 1.6 }}>
-                Le rituel du {frShort(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''}, rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
+                Le rituel du {frShortAn(porteur.a.date)} porte le prix{porteur.seances > 0 ? ` des ${porteur.seances} séances` : ''}, rien à encaisser ici. Il ne reste qu'à choisir <b>la date</b>, au palier ③.
                 Seuls les soins à plusieurs séances sont repris : une création
                 déjà terminée en une seule séance se retire d'un ✕, au palier ②.
               </div>

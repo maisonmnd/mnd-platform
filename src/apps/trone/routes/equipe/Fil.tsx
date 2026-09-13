@@ -18,6 +18,7 @@ import { dernierComptage } from '../../../../shared/fil';
 import { useStaff, useAnnuaire, nomDuCompte, adresseDe } from './data';
 import { apptLabel, useServicesById, ClientPicker, frShortAn } from '../clients/_shared';
 import './equipe.css';
+import { ChampDeDate } from '../../../../ds/dates';
 
 /* ═══════════════════════════════════════════════════════════════════
    LE FIL — maquette `public/maquette-le-fil.html`, validée le 18 août 2026.
@@ -717,13 +718,7 @@ export default function Fil() {
                 <>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
                     Échéance
-                    <input
-                      className="mnd-input"
-                      type="date"
-                      value={echeance}
-                      onChange={(e) => setEcheance(e.target.value)}
-                      style={{ padding: '4px 7px', fontSize: 12 }}
-                    />
+                    <ChampDeDate compact sens="avant" value={echeance} onChange={setEcheance} style={{ padding: '4px 7px', fontSize: 12 }} ariaLabel="Échéance" />
                   </label>
                   <Select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={{ fontSize: 12, maxWidth: 150 }}>
                     <option value="">Sans priorité</option>
