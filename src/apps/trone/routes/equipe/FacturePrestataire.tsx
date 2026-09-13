@@ -742,10 +742,13 @@ export function FacturesDuRun({ run, onOuvre }: { run: PayrollRun; onOuvre: (m: 
 /* ══ SA GRILLE DE PRIX — sur la fiche du personnel ═════════════════════
    « C'est moi qui écris le prix. » En tête, ce qu'elle a réellement fait ces
    trois derniers mois ; le reste s'ajoute depuis le catalogue. */
-export function GrilleDePrix({ staffId, valeur, onChange }: {
+export function GrilleDePrix({ staffId, valeur, onChange, lectureSeule = false }: {
   staffId: string | null;
   valeur: Record<string, string>;
   onChange: (v: Record<string, string>) => void;
+  /** Hors direction, la grille se lit : la base ne garde que ce que la
+      direction écrit (migration 0091). */
+  lectureSeule?: boolean;
 }) {
   const [services] = useServices();
   const ctx = useContexteDesPrestations();
@@ -776,6 +779,7 @@ export function GrilleDePrix({ staffId, valeur, onChange }: {
       <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
         Le prix de chaque prestation sur sa facture du mois. Elle le lit sur sa facture, seule la direction
         l’écrit ici. Une prestation sans prix attend, et sa facture ne s’accepte pas tant qu’il manque.
+        {lectureSeule && ' Vous la lisez sans pouvoir la modifier.'}
       </div>
       {ids.length === 0 ? (
         <div className="mnd-muted" style={{ fontSize: 12 }}>
@@ -795,6 +799,7 @@ export function GrilleDePrix({ staffId, valeur, onChange }: {
                       inputMode="numeric"
                       value={valeur[id] ?? ''}
                       placeholder="à écrire"
+                      disabled={lectureSeule}
                       onChange={(e) => onChange({ ...valeur, [id]: e.target.value.replace(/[^0-9]/g, '') })}
                       aria-label={`Son prix pour ${parId.get(id)?.name ?? 'cette prestation'}`}
                       style={{ width: 110, textAlign: 'right', marginLeft: 'auto' }}
@@ -806,14 +811,16 @@ export function GrilleDePrix({ staffId, valeur, onChange }: {
           </table>
         </div>
       )}
-      <Select
-        value=""
-        onChange={(e) => { if (e.target.value) onChange({ ...valeur, [e.target.value]: '' }); }}
-        aria-label="Ajouter une prestation du catalogue"
-      >
-        <option value="">+ Ajouter une prestation du catalogue</option>
-        {restants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-      </Select>
+      {!lectureSeule && (
+        <Select
+          value=""
+          onChange={(e) => { if (e.target.value) onChange({ ...valeur, [e.target.value]: '' }); }}
+          aria-label="Ajouter une prestation du catalogue"
+        >
+          <option value="">+ Ajouter une prestation du catalogue</option>
+          {restants.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Select>
+      )}
     </div>
   );
 }

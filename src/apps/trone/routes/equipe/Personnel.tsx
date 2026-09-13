@@ -282,6 +282,10 @@ export default function Personnel() {
   const me = useMyStaff();
   const { session } = useAuth();
   const isSouverain = me?.role === 'souverain';
+  /* LA PAIE ET LE RATTACHEMENT S'ÉCRIVENT PAR LA DIRECTION (0091) : la base
+     remet ces champs quand l'écriture vient d'ailleurs. L'écran les grise
+     plutôt que de laisser croire qu'ils s'enregistrent. */
+  const estDirection = me?.role === 'souverain' || me?.role === 'gerant';
   const M = payMonth();
   const [categories] = useCategories();
   const [seuils, setSeuils] = useSeuils();
@@ -1604,7 +1608,7 @@ export default function Personnel() {
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" placeholder="+229 01 00 00 00 00" />
               </Field>
               <Field label="Email">
-                <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} inputMode="email" placeholder="prenom@mnd.bj" />
+                <Input value={form.email} disabled={!estDirection} onChange={(e) => setForm({ ...form, email: e.target.value })} inputMode="email" placeholder="prenom@mnd.bj" />
               </Field>
               {/* LE LIEN FICHE ↔ COMPTE — 20 août. L'adresse avec laquelle la
                   personne SE CONNECTE au Trône, quand elle diffère du contact
@@ -1612,7 +1616,7 @@ export default function Personnel() {
                   foi pour le Fil, le Tableau et « Mon mois ». Vide = l'Email
                   ci-dessus sert aux deux. */}
               <Field label="E-mail de connexion · si différent">
-                <Input value={form.compteMail} onChange={(e) => setForm({ ...form, compteMail: e.target.value })} inputMode="email" placeholder="le compte avec lequel il/elle se connecte" />
+                <Input value={form.compteMail} disabled={!estDirection} onChange={(e) => setForm({ ...form, compteMail: e.target.value })} inputMode="email" placeholder="le compte avec lequel il/elle se connecte" />
               </Field>
             </div>
             <Field label="Fonction dans la Maison">
@@ -1662,7 +1666,7 @@ export default function Personnel() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`Salaire de base · ${currency === 'XOF' ? 'F / mois' : 'XOF / mois'}`}>
-                <Input value={form.salaire} onChange={(e) => setForm({ ...form, salaire: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="180000" />
+                <Input value={form.salaire} disabled={!estDirection} onChange={(e) => setForm({ ...form, salaire: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="180000" />
               </Field>
               <Field label="Au fauteuil">
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -1719,10 +1723,15 @@ export default function Personnel() {
 
             {/* Dossier paie — alimente les runs et le bulletin */}
             <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Dossier paie</div>
+            {!estDirection && (
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginTop: -6 }}>
+                Le type de contrat, le salaire, la grille de prix et les adresses ne s’écrivent que par la direction.
+              </div>
+            )}
             <div className="tr-grid tr-grid--2">
               <Field label="Matricule"><Input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} placeholder="MND-EMP-001" /></Field>
               <Field label="Type de contrat">
-                <Select value={form.contractType} onChange={(e) => setForm({ ...form, contractType: e.target.value })}>
+                <Select value={form.contractType} disabled={!estDirection} onChange={(e) => setForm({ ...form, contractType: e.target.value })}>
                   {CONTRACT_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </Select>
               </Field>
@@ -1740,7 +1749,7 @@ export default function Personnel() {
             {form.contractType === 'prestataire' && (
               <>
                 <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Sa grille de prix</div>
-                <GrilleDePrix staffId={editId} valeur={form.grille} onChange={(g) => setForm({ ...form, grille: g })} />
+                <GrilleDePrix staffId={editId} valeur={form.grille} onChange={(g) => setForm({ ...form, grille: g })} lectureSeule={!estDirection} />
               </>
             )}
 
