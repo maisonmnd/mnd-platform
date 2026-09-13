@@ -12,8 +12,9 @@ import { PARCOURS_MND, parcoursDuNom } from './parcours';
    Le dépôt est public, le site aussi : ce qui s'écrit ici se lit par
    n'importe qui. Il ne porte que la FORME d'un manuel, le juge qui valide un
    fichier importé, et la façon de retrouver le plan d'une séance. Le contenu
-   vit dans la table `manuel_formatrices` (migration 0088), personnel
-   seulement, et n'y entre que par l'import que la Maison fait elle-même.
+   vit dans la table `manuel_formatrices` (migrations 0088 et 0089) : le
+   personnel le lit, la direction l'écrit, par l'import d'un fichier ou en le
+   corrigeant dans le Trône (`ManuelEditeur`).
 
    UNE LIGNE PAR FORMATION, identifiée par son parcours (`shared/parcours`).
    Une formation du Trône retrouve son manuel PAR SON NOM, graphie près :
@@ -49,6 +50,9 @@ export type ManuelDeFormation = {
   materiel: string[];
   seances: SeanceDuManuel[];
   importeLe?: string;
+  /** La dernière correction faite dans le Trône, et par qui. */
+  modifieLe?: string;
+  modifiePar?: string;
 };
 
 export const manuelStore = createStore<ManuelDeFormation[]>('mnd_manuel_formatrices', []);
@@ -99,8 +103,20 @@ export function lisLeManuel(brut: unknown, importeLe: string): LectureDuManuel {
       const s = objet(brute) ?? {};
       const n = Number(s.n);
       const module = Number(s.module);
-      if (!Number.isInteger(n) || n < 1 || !Number.isInteger(module) || module < 1 || !texte(s.titre) || !texte(s.objectif)) {
-        erreurs.push(`${p.titre} : une séance est illisible (numéro, module, titre ou objectif manquant).`);
+      /* L'ERREUR DIT LA SÉANCE ET CE QUI MANQUE : corrigée dans le Trône, une
+         séance se retrouve par son numéro, pas en relisant les soixante-neuf. */
+      const manques = [
+        !Number.isInteger(n) || n < 1 ? 'le numéro' : '',
+        !Number.isInteger(module) || module < 1 ? 'le module' : '',
+        !texte(s.titre) ? 'le titre' : '',
+        !texte(s.objectif) ? 'l’objectif' : '',
+      ].filter(Boolean);
+      if (manques.length) {
+        const laquelle = Number.isInteger(n) && n >= 1 ? `séance ${n}` : 'une séance';
+        const dit = manques.length > 1
+          ? `${manques.slice(0, -1).join(', ')} et ${manques[manques.length - 1]}`
+          : manques[0];
+        erreurs.push(`${p.titre}, ${laquelle} : il manque ${dit}.`);
         continue;
       }
       seances.push({
@@ -124,7 +140,12 @@ export function lisLeManuel(brut: unknown, importeLe: string): LectureDuManuel {
     if (seances.some((s) => s.nomModule !== '' && noms[s.module - 1] !== s.nomModule)) {
       alertes.push(`${p.titre} : un module du manuel ne porte pas le nom du programme.`);
     }
-    manuels.push({ id, meta: texte(f.meta), intro: texte(f.intro), materiel: textes(f.materiel), seances, importeLe });
+    manuels.push({
+      id, meta: texte(f.meta), intro: texte(f.intro), materiel: textes(f.materiel), seances,
+      importeLe: importeLe || texte(f.importeLe) || undefined,
+      modifieLe: texte(f.modifieLe) || undefined,
+      modifiePar: texte(f.modifiePar) || undefined,
+    });
   }
   if (manuels.length === 0 && erreurs.length === 0) erreurs.push('Ce fichier ne contient aucune formation.');
   return { manuels, erreurs, alertes };
@@ -163,4 +184,31 @@ export function noteDesCriteres(
   if (pris.some((c) => c == null || !Number.isFinite(c))) return undefined;
   const somme = pris.reduce<number>((n, c) => n + Math.max(0, Math.min(5, c as number)), 0);
   return Math.round(Math.min(20, (somme * 20) / (attendus * 5)) * 10) / 10;
+}
+
+/* ── ÉCRIRE LE MANUEL DANS LE TRÔNE — 13 septembre 2026 ─────────────
+   « Permets-moi de corriger le manuel directement depuis le Trône » (Yéman).
+   L'écran se garde (`peutEcrireLeManuel`), et la base aussi : la migration
+   0089 n'accepte l'écriture que de la direction. Une règle tenue par le seul
+   écran se contournerait par la base. */
+
+/** Le souverain et le gérant écrivent le manuel ; le personnel le lit. */
+export const peutEcrireLeManuel = (role?: string | null): boolean => role === 'souverain' || role === 'gerant';
+
+/** UN MANUEL À ÉCRIRE, pour une formation qui n'en a pas : ses séances
+    numérotées et rangées dans ses modules, comme au programme. Il ne
+    s'enregistre qu'une fois chaque séance titrée et dotée d'un objectif. */
+export function squeletteDuManuel(id: string): ManuelDeFormation | undefined {
+  const p = PARCOURS_MND.find((x) => x.id === id);
+  if (!p) return undefined;
+  const seances: SeanceDuManuel[] = [];
+  p.programme.forEach((m, i) => {
+    for (let k = 0; k < m.seances; k++) {
+      seances.push({
+        n: seances.length + 1, module: i + 1, nomModule: m.nom, titre: '', duree: '', objectif: '',
+        preparer: [], deroule: [], vu: [], pratique: [], mesure: [], erreurs: [], ensuite: '',
+      });
+    }
+  });
+  return { id, meta: `${p.niveau} · ${p.duree}`, intro: '', materiel: [], seances };
 }

@@ -141,7 +141,38 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
-## LE MANUEL DES FORMATRICES, DANS LA BASE PRIVÉE — 13 septembre 2026, PUBLIÉ · MIGRATION 0088 À PASSER
+## LE MANUEL SE CORRIGE DANS LE TRÔNE — 13 septembre 2026, PUBLIÉ · MIGRATION 0089 À PASSER
+
+« Donne-moi la possibilité d'éditer le manuel dans le Trône. Je ne veux pas
+corriger le fichier puis le réimporter. C'est un document privé : l'éditer
+dans le Trône ne le rend-il pas public ? » (Yéman).
+
+**Non.** Le code est public mais ne porte que le formulaire, vide. Le texte ne
+vit que dans `manuel_formatrices`, que la clé publique ne lit pas.
+
+**Le défaut fermé (0089)** : 0088 posait `staff_all`, tout le personnel pouvait
+ÉCRIRE ; seul l'écran restreignait l'import. 0089 ajoute `est_direction()`
+(souverain ou gérant, SECURITY DEFINER) et remplace la politique : `staff_lit`
+en lecture pour le personnel, `direction_cree` / `direction_modifie` /
+`direction_efface` pour la direction. 0088 est passée (confirmée), on ne la
+rejoue pas.
+
+**`ManuelEditeur.tsx`** (Académie › Référentiel méthode › Le manuel des
+formatrices › Corriger / Écrire / Lire) : ligne de présentation, introduction,
+matériel, et chaque séance dépliable (titre, module, durée, objectif, listes une
+ligne par élément, déroulé et mesure en lignes, évaluation, tête réelle, entre
+deux séances), monter, descendre, retirer, ajouter. On corrige un BROUILLON :
+rien ne part avant « Enregistrer », qui relit tout par `lisLeManuel` et dit la
+séance et ce qui manque. Si le manuel a changé sur un autre poste pendant la
+correction, il le dit avant d'écrire par-dessus. `modifieLe` / `modifiePar`
+gardent la dernière correction. Le personnel ouvre le manuel en lecture seule.
+Une formation sans manuel s'écrit depuis `squeletteDuManuel` (séances et modules
+du programme).
+
+**« Exporter une copie »** télécharge le manuel de la base en JSON, réimportable,
+pour la sauvegarde de la Maison.
+
+## LE MANUEL DES FORMATRICES, DANS LA BASE PRIVÉE — 13 septembre 2026, PUBLIÉ · MIGRATION 0088 PASSÉE
 
 « Je veux bien que la formatrice voie le plan de sa séance en remplissant sa
 fiche. Je veux également ranger ce contenu dans la base privée de Supabase, pas

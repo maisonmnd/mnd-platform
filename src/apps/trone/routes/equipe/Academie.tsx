@@ -22,7 +22,8 @@ import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
 import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, type PublicDeFormation } from '../../../../shared/parcours';
-import { useManuel, manuelStore, lisLeManuel } from '../../../../shared/manuel';
+import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../../../shared/manuel';
+import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { useEnrollments } from './academy';
 import { ChampDeDate } from '../../../../ds/dates';
@@ -1262,8 +1263,32 @@ function RefEditor({
 function ManuelDesFormatrices() {
   const [manuels] = useManuel();
   const moi = useMonProfil();
-  const peutImporter = moi?.role === 'souverain' || moi?.role === 'gerant';
+  const peutImporter = peutEcrireLeManuel(moi?.role);
+  const peutEcrire = peutImporter;
   const fichier = useRef<HTMLInputElement>(null);
+  /* La formation dont le manuel est ouvert, en correction ou en lecture. */
+  const [ouvert, setOuvert] = useState<string | null>(null);
+
+  /* UNE COPIE DE SAUVEGARDE, À LA DEMANDE. Le manuel vit dans la base ; cette
+     copie est pour la Maison, qui la garde où elle veut. Elle se réimporte
+     telle quelle. */
+  const exporte = () => {
+    const d = new Date();
+    const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const formations: Record<string, Omit<typeof manuels[number], 'id'>> = {};
+    for (const { id, ...reste } of manuels) formations[id] = reste;
+    const blob = new Blob([JSON.stringify({
+      version: 1, exporteLe: jour,
+      avertissement: 'Confidentiel · manuel des formatrices de l’Académie MND. Ne pas diffuser.',
+      formations,
+    }, null, 1)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `manuel-formatrices-mnd-${jour}.json`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const importe = async (f: File) => {
     let brut: unknown;
@@ -1300,8 +1325,8 @@ function ManuelDesFormatrices() {
           <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>Confidentiel · personnel seulement</div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)', marginTop: 4 }}>Le manuel des formatrices</div>
           <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55, marginTop: 6, maxWidth: '64ch' }}>
-            Le plan de chaque séance, affiché dans la fiche de séance du Suivi. Il vit dans la base privée de la Maison, jamais dans le code du Trône,
-            et n’y entre que par l’import du fichier que la Maison garde.
+            Le plan de chaque séance, affiché dans la fiche de séance du Suivi. Il vit dans la base privée de la Maison, jamais dans le code du Trône.
+            La direction le corrige ici, séance par séance ; le personnel le lit. Un fichier s’importe, ou s’exporte pour la sauvegarde.
           </div>
         </div>
         {peutImporter && (
@@ -1317,7 +1342,10 @@ function ManuelDesFormatrices() {
                 if (f) void importe(f);
               }}
             />
-            <Button variant="ghost" onClick={() => fichier.current?.click()}>Importer le manuel</Button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button variant="ghost" onClick={() => fichier.current?.click()}>Importer un fichier</Button>
+              {manuels.length > 0 && <Button variant="ghost" onClick={exporte}>Exporter une copie</Button>}
+            </div>
           </>
         )}
       </div>
@@ -1328,13 +1356,23 @@ function ManuelDesFormatrices() {
           return (
             <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, padding: '7px 0', borderTop: i ? '1px solid var(--hairline)' : 'none', fontSize: 13 }}>
               <span>{p.titre} <span className="mnd-muted" style={{ fontSize: 11.5 }}>· {PUBLIC_LABEL[p.public]}</span></span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: !m ? 'var(--copper-700)' : n === p.seances ? 'var(--ink-soft)' : 'var(--copper-700)' }}>
-                {m ? `${n} / ${p.seances} séances${m.importeLe ? ` · importé le ${frShortAn(m.importeLe)}` : ''}` : 'pas importé'}
+              <span style={{ display: 'flex', gap: 14, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: !m ? 'var(--copper-700)' : n === p.seances ? 'var(--ink-soft)' : 'var(--copper-700)' }}>
+                  {m
+                    ? `${n} / ${p.seances} séances${m.modifieLe ? ` · corrigé le ${frShortAn(m.modifieLe)}` : m.importeLe ? ` · importé le ${frShortAn(m.importeLe)}` : ''}`
+                    : 'pas encore écrit'}
+                </span>
+                {(peutEcrire || m) && (
+                  <button type="button" className="tre-link-btn" onClick={() => setOuvert(p.id)}>
+                    {peutEcrire ? (m ? 'Corriger' : 'Écrire') : 'Lire'}
+                  </button>
+                )}
               </span>
             </div>
           );
         })}
       </div>
+      {ouvert && <ManuelEditeur key={ouvert} id={ouvert} lectureSeule={!peutEcrire} onClose={() => setOuvert(null)} />}
     </Card>
   );
 }

@@ -2,7 +2,9 @@
 
    AUCUNE LIGNE DU VRAI MANUEL ICI : le dépôt est public. Les séances de ce
    harnais sont fabriquées pour l'épreuve, et ne disent rien de la méthode. */
-import { lisLeManuel, planDeLaSeance, manuelDeLaFormation, noteDesCriteres } from '../src/shared/manuel';
+import {
+  lisLeManuel, planDeLaSeance, manuelDeLaFormation, noteDesCriteres, squeletteDuManuel, peutEcrireLeManuel,
+} from '../src/shared/manuel';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -69,5 +71,20 @@ dit('un critère au-delà de 5 se borne', 20, noteDesCriteres([7, 5, 5, 5], 4));
 dit('un critère négatif se borne à zéro', 15, noteDesCriteres([-2, 5, 5, 5], 4));
 dit('cinq critères se ramènent sur 20', 16, noteDesCriteres([4, 4, 4, 4, 4], 5));
 dit('aucun critère attendu, pas de note', undefined, noteDesCriteres([], 0));
+
+/* ── ④ CORRIGER DANS LE TRÔNE ────────────────────────────────────── */
+const squelette = squeletteDuManuel('affirmation');
+dit('le squelette suit le programme', 10, squelette?.seances.length);
+dit('ses séances sont numérotées', [1, 2, 3], squelette?.seances.slice(0, 3).map((s) => s.n));
+dit('ses modules portent les noms du programme', ['Le diagnostic KÒKÒ™', 'Le diagnostic KÒKÒ™', 'SÍNSIN™, le resserrage'],
+  squelette?.seances.slice(0, 3).map((s) => s.nomModule));
+const squeletteLu = lisLeManuel({ formations: { affirmation: squelette } }, JOUR);
+dit('un squelette vide ne s’enregistre pas', 10, squeletteLu.erreurs.length);
+dit('l’erreur dit la séance et ce qui manque', 'Affirmation, séance 1 : il manque le titre et l’objectif.', squeletteLu.erreurs[0]);
+dit('une formation inconnue n’a pas de squelette', undefined, squeletteDuManuel('atelier'));
+dit('la direction écrit, le personnel lit', [true, true, false, false],
+  ['souverain', 'gerant', 'maitre', undefined].map((r) => peutEcrireLeManuel(r)));
+dit('la date de correction se garde', '2026-09-14',
+  lisLeManuel({ formations: { fondation: { seances: [seance(1, 1, '')], modifieLe: '2026-09-14' } } }, JOUR).manuels[0].modifieLe);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);
