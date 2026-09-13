@@ -316,3 +316,78 @@ export const depositMet = (e: Enrollment, formation?: Formation): boolean => {
   const net = enrollNet(e, formation);
   return net > 0 && enrollPaid(e) >= depositAmount(e, formation);
 };
+
+/* ══ POSER LES DATES DES SÉANCES — 13 septembre 2026 ═══════════════════
+   « Quand la formation est achetée, qu'on puisse poser les dates des séances
+   en même temps pour chaque module » (Yéman).
+
+   LES SÉANCES VIENNENT DU PROGRAMME, JAMAIS D'UN COMPTE À PART : chaque module
+   porte ses séances (`Formation.programme`), dans l'ordre. Une formation sans
+   programme chiffré retombe sur une séance par module, puis sur son nombre de
+   séances sans module. */
+export type SeanceAPlanifier = { sessionNumber: number; moduleIndex?: number };
+
+export function seancesDuProgramme(
+  formation?: Pick<Formation, 'modules' | 'programme' | 'sessions'>,
+): SeanceAPlanifier[] {
+  if (!formation) return [];
+  const modules = formation.modules ?? [];
+  const comptes = modules.map((_, i) => Math.max(0, Math.round(formation.programme?.[i]?.seances ?? 0)));
+  const sortie: SeanceAPlanifier[] = [];
+  if (comptes.some((c) => c > 0)) {
+    comptes.forEach((c, i) => {
+      for (let k = 0; k < c; k++) sortie.push({ sessionNumber: sortie.length + 1, moduleIndex: i });
+    });
+    return sortie;
+  }
+  if (modules.length > 0) return modules.map((_, i) => ({ sessionNumber: i + 1, moduleIndex: i }));
+  return Array.from({ length: Math.max(0, formation.sessions ?? 0) }, (_, i) => ({ sessionNumber: i + 1 }));
+}
+
+/** UNE PAR SEMAINE, OU DES JOURS QUI SE SUIVENT. Les débutantes viennent une
+    fois par semaine ; les professionnelles, en jours consécutifs. */
+export type RythmeDesSeances = 'hebdo' | 'quotidien';
+
+const deuxChiffres = (n: number) => String(n).padStart(2, '0');
+const decale = (iso: string, jours: number): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + jours);
+  return `${d.getFullYear()}-${deuxChiffres(d.getMonth() + 1)}-${deuxChiffres(d.getDate())}`;
+};
+const lundiZero = (iso: string) => (new Date(`${iso}T12:00:00`).getDay() + 6) % 7;
+
+/** LES DATES DE N SÉANCES à partir d'un premier jour.
+
+    LA MAISON FERMÉE NE REÇOIT PAS DE SÉANCE : un jour fermé (lundi = 0) glisse
+    au jour ouvert suivant. Une semaine entièrement fermée ne bloque rien, on
+    ignore alors les fermetures plutôt que de ne rien poser.
+    Midi, jamais minuit : un changement d'heure ne décale pas un jour. */
+export function datesDesSeances(
+  n: number,
+  debut: string,
+  rythme: RythmeDesSeances,
+  joursFermes: readonly number[] = [],
+): string[] {
+  if (n <= 0) return [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(debut) || Number.isNaN(new Date(`${debut}T12:00:00`).getTime())) {
+    return Array.from({ length: n }, () => '');
+  }
+  const fermes = new Set(joursFermes.filter((j) => j >= 0 && j <= 6));
+  const ouvert = (iso: string) => fermes.size >= 7 || !fermes.has(lundiZero(iso));
+  const prochainOuvert = (iso: string) => {
+    let d = iso;
+    for (let k = 0; k < 7 && !ouvert(d); k++) d = decale(d, 1);
+    return d;
+  };
+  const dates: string[] = [];
+  if (rythme === 'hebdo') {
+    for (let i = 0; i < n; i++) dates.push(prochainOuvert(decale(debut, 7 * i)));
+  } else {
+    let d = prochainOuvert(debut);
+    for (let i = 0; i < n; i++) {
+      dates.push(d);
+      d = prochainOuvert(decale(d, 1));
+    }
+  }
+  return dates;
+}

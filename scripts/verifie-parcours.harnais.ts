@@ -6,7 +6,7 @@
 import {
   PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche,
 } from '../src/shared/parcours';
-import { depositAmountFor, depositLabelOf } from '../src/apps/trone/routes/equipe/academy';
+import { depositAmountFor, depositLabelOf, seancesDuProgramme, datesDesSeances } from '../src/apps/trone/routes/equipe/academy';
 import type { Formation } from '../src/apps/trone/routes/equipe/data';
 
 let ko = 0;
@@ -147,6 +147,28 @@ dit('un montant à zéro rend la main au pourcentage', 60000, depositAmountFor(1
 dit('un prix nul ne doit rien', 0, depositAmountFor(0, fo({ depositXof: 50000 })));
 dit('l’écran dit le pourcentage', '40 %', depositLabelOf(fo({})));
 dit('ou le montant fixe', 'montant fixe', depositLabelOf(fo({ depositXof: 50000 })));
+
+/* ── ⑥ LES DATES DES SÉANCES — 13 septembre 2026 ───────────────────────
+   « Poser les dates des séances en même temps pour chaque module » (Yéman). */
+dit('les séances suivent le programme, module par module',
+  [{ sessionNumber: 1, moduleIndex: 0 }, { sessionNumber: 2, moduleIndex: 1 }, { sessionNumber: 3, moduleIndex: 1 }],
+  seancesDuProgramme(fo({ modules: ['A', 'B'], programme: [{ seances: 1 }, { seances: 2 }], sessions: 3 })));
+dit('sans séances au programme, une par module', [0, 1, 2],
+  seancesDuProgramme(fo({ modules: ['A', 'B', 'C'], sessions: 6 })).map((x) => x.moduleIndex));
+dit('sans module, le nombre de séances', 4, seancesDuProgramme(fo({ modules: [], sessions: 4 })).length);
+dit('sans formation, rien', [], seancesDuProgramme(undefined));
+/* Le 14 septembre 2026 est un lundi, le 12 un samedi. Lundi = 0, dimanche = 6. */
+dit('une par semaine, le même jour', ['2026-09-14', '2026-09-21', '2026-09-28'],
+  datesDesSeances(3, '2026-09-14', 'hebdo'));
+dit('un jour fermé glisse au lendemain ouvert', ['2026-09-15', '2026-09-22'],
+  datesDesSeances(2, '2026-09-14', 'hebdo', [0]));
+dit('les jours qui se suivent sautent la fermeture', ['2026-09-12', '2026-09-15', '2026-09-16'],
+  datesDesSeances(3, '2026-09-12', 'quotidien', [6, 0]));
+dit('une semaine toute fermée ne bloque rien', ['2026-09-14', '2026-09-15'],
+  datesDesSeances(2, '2026-09-14', 'quotidien', [0, 1, 2, 3, 4, 5, 6]));
+dit('l’année se franchit sans y penser', ['2026-12-28', '2027-01-04'], datesDesSeances(2, '2026-12-28', 'hebdo'));
+dit('sans premier jour, des dates vides', ['', ''], datesDesSeances(2, '', 'hebdo'));
+dit('aucune séance, aucune date', [], datesDesSeances(0, '2026-09-14', 'hebdo'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

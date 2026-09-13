@@ -141,6 +141,33 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LES DATES DES SÉANCES SE POSENT À L'INSCRIPTION — 13 septembre 2026, PUBLIÉ
+
+« Quand la formation est achetée, qu'on puisse poser les dates des séances en
+même temps pour chaque module » (Yéman).
+
+**À l'inscription (Suivi › Inscrire)** : « Poser les dates des N séances
+maintenant » (activé par défaut). Les séances viennent du programme de la
+formation, rangées par module (`seancesDuProgramme`). Rythme « Une par semaine »
+(défaut des débutantes) ou « Jours qui se suivent » (défaut des
+professionnelles) ; les dates partent du début de formation et sautent les jours
+de fermeture du salon (`datesDesSeances`, midi local). Chaque date se corrige ; une
+date corrigée ne bouge plus quand le rythme change ; « Recalculer toutes les
+dates » rend la main au calcul. Formatrice de toutes les séances en option.
+`endDate` prend la dernière date.
+
+**Une inscription déjà faite** : onglet Séances › « Poser les dates des N séances
+du programme », pour les seules séances que le dossier ne porte pas encore.
+
+**Une séance posée est PRÉVUE** : ni présence, ni note, ni signature. La liste dit
+« Prévue · la fiche se remplit le jour venu », le bouton devient « Remplir la
+fiche » (plan du manuel compris), « Signer » n'apparaît qu'une fois la présence
+posée. Remplir une séance prévue fait passer l'inscription en formation. Les dates
+de la liste s'écrivent jour · mois · année en lettres. Éprouvé dans
+`verifie-parcours` (11 assertions de plus).
+
+**Non fait** : les séances ne paraissent pas au Calendrier du salon.
+
 ## L'ACOMPTE DES FORMATIONS, EN FRANCS OU EN POURCENTAGE — 13 septembre 2026, PUBLIÉ
 
 « J'aimerais avoir la main pour corriger l'acompte des formations » (Yéman).

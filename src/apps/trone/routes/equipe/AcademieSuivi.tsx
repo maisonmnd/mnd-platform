@@ -1,12 +1,13 @@
 import { asset } from '../../../../shared/asset';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
-import { ClientPicker, useBranchClients, frShortAn } from '../clients/_shared';
+import { ClientPicker, useBranchClients, frShortAn, useJoursFermes } from '../clients/_shared';
+import { jourCourtAn, jourDeSemaineLundi } from '../../../../shared/calendrier';
 import { useFormations, type Formation, type Payment } from './data';
 import { useManuel, planDeLaSeance, noteDesCriteres, type SeanceDuManuel } from '../../../../shared/manuel';
 import { Pill, Tabs, Toggle } from './ui';
@@ -21,6 +22,7 @@ import {
   scoreEnrollment, mentionFor, MENTION_LABEL, sessionValidated, evalPassed, juryTotal,
   canPlanJury, canCertify, nextCertNumber,
   enrollNet, enrollGross, enrollPaid, enrollDue, depositLabelOf, depositAmount, depositMet,
+  seancesDuProgramme, datesDesSeances, type SeanceAPlanifier, type RythmeDesSeances,
   STATUS_LABEL, STATUS_NEXT,
   type Enrollment, type EnrollmentStatus, type Attendance, type SessionEntry,
   type ModuleEvaluation, type PracticeRecord, type JuryReview, type JuryRole,
@@ -149,30 +151,151 @@ export default function AcademieSuivi() {
 }
 
 /* ---------- F2 · Inscription ---------- */
+/* ══ POSER LES DATES DES SÉANCES — 13 septembre 2026 ═══════════════════
+   « Quand la formation est achetée, qu'on puisse poser les dates des séances
+   en même temps pour chaque module » (Yéman).
+
+   UN CALCUL, PUIS LA MAIN. Les dates se calculent depuis le premier jour et le
+   rythme (`datesDesSeances`), en sautant les jours où la Maison est fermée ;
+   chaque date se corrige ensuite, et une date corrigée ne bouge plus quand on
+   change le rythme ou le premier jour. « Recalculer » rend tout au calcul.
+
+   UNE SÉANCE POSÉE EST PRÉVUE, PAS FAITE. Elle ne porte ni présence, ni note,
+   ni signature : elle se remplit le jour venu, avec son plan du manuel, et ne
+   compte dans aucune note tant que la fiche n'est pas signée. */
+function usePlanDesSeances(formation: Formation | undefined, lignes: SeanceAPlanifier[], debut: string) {
+  const joursFermes = useJoursFermes();
+  const rythmeParDefaut: RythmeDesSeances = formation?.public === 'professionnelle' ? 'quotidien' : 'hebdo';
+  const [rythme, setRythme] = useState<RythmeDesSeances>(rythmeParDefaut);
+  const [manuelles, setManuelles] = useState<Record<number, string>>({});
+  const [trainer, setTrainer] = useState('');
+  /* Une autre formation, un autre programme : le rythme repart de son public. */
+  useEffect(() => { setRythme(rythmeParDefaut); setManuelles({}); }, [formation?.id]);
+  const calculees = useMemo(
+    () => datesDesSeances(lignes.length, debut, rythme, joursFermes),
+    [lignes.length, debut, rythme, joursFermes],
+  );
+  const prevues = lignes.map((l, i) => ({ ...l, date: manuelles[l.sessionNumber] ?? calculees[i] ?? '' }));
+  return {
+    rythme, setRythme, trainer, setTrainer, prevues, joursFermes,
+    poseDate: (numero: number, iso: string) => setManuelles((m) => ({ ...m, [numero]: iso })),
+    recalcule: () => setManuelles({}),
+    retouchees: Object.keys(manuelles).length,
+  };
+}
+type PlanDesSeances = ReturnType<typeof usePlanDesSeances>;
+
+/** Les séances prévues, en fiches de séance vides : une date, un module, une formatrice. */
+const seancesPrevues = (plan: PlanDesSeances): SessionEntry[] =>
+  plan.prevues.filter((p) => p.date).map((p) => ({
+    id: `ses-${uid()}`,
+    sessionNumber: p.sessionNumber,
+    moduleIndex: p.moduleIndex,
+    scheduledAt: p.date,
+    trainer: plan.trainer || undefined,
+  }));
+
+const ROMAINS_MODULES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+function DatesDesSeances({ plan, modules, masters }: { plan: PlanDesSeances; modules: string[]; masters: string[] }) {
+  const groupes: { moduleIndex?: number; seances: PlanDesSeances['prevues'] }[] = [];
+  for (const p of plan.prevues) {
+    const dernier = groupes[groupes.length - 1];
+    if (dernier && dernier.moduleIndex === p.moduleIndex) dernier.seances.push(p);
+    else groupes.push({ moduleIndex: p.moduleIndex, seances: [p] });
+  }
+  const fermes = new Set(plan.joursFermes);
+  const segment = (on: boolean): React.CSSProperties => ({
+    cursor: 'pointer', background: on ? 'var(--color-indigo)' : 'none', color: on ? 'var(--color-ivoire)' : 'var(--ink-soft)',
+    border: 'none', padding: '7px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5,
+  });
+  return (
+    <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--hairline)', borderRadius: 2, overflow: 'hidden' }}>
+          {(['hebdo', 'quotidien'] as const).map((k) => (
+            <button key={k} type="button" onClick={() => plan.setRythme(k)} style={segment(plan.rythme === k)} aria-pressed={plan.rythme === k}>
+              {k === 'hebdo' ? 'Une par semaine' : 'Jours qui se suivent'}
+            </button>
+          ))}
+        </div>
+        {masters.length > 0 && (
+          <Select value={plan.trainer} onChange={(ev) => plan.setTrainer(ev.target.value)} style={{ maxWidth: 260 }} aria-label="Formatrice des séances">
+            <option value="">Formatrice : à choisir séance par séance</option>
+            {masters.map((m) => <option key={m} value={m}>{m}</option>)}
+          </Select>
+        )}
+        {plan.retouchees > 0 && (
+          <button type="button" className="tre-link-btn" onClick={plan.recalcule}>Recalculer toutes les dates</button>
+        )}
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+        Les dates partent du premier jour{fermes.size > 0 ? ' et sautent les jours où la Maison est fermée' : ''}. Chaque date se corrige à la main.
+      </div>
+      {groupes.map((g, gi) => (
+        <div key={gi}>
+          <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', marginBottom: 6 }}>
+            {g.moduleIndex != null ? `Module ${ROMAINS_MODULES[g.moduleIndex] ?? g.moduleIndex + 1} · ${modules[g.moduleIndex] ?? ''}` : 'Les séances'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {g.seances.map((p) => (
+              <div key={p.sessionNumber} style={{ display: 'grid', gridTemplateColumns: '80px 170px minmax(0,1fr)', gap: 10, alignItems: 'center', fontSize: 13 }}>
+                <span>Séance {p.sessionNumber}</span>
+                <ChampDeDate
+                  compact
+                  sens="avant"
+                  value={p.date}
+                  onChange={(iso) => plan.poseDate(p.sessionNumber, iso)}
+                  ariaLabel={`Date de la séance ${p.sessionNumber}`}
+                  joursFermes={plan.joursFermes}
+                />
+                <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+                  {p.date ? jourCourtAn(p.date) : 'sans date'}
+                  {p.date && fermes.has(jourDeSemaineLundi(p.date)) ? ' · la Maison est fermée ce jour-là' : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- F2 · Inscription ---------- */
 function IntakeModal({ formations, onClose, onCreated }: { formations: Formation[]; onClose: () => void; onCreated: (id: string) => void }) {
+  const { branch } = useBranch();
   const [name, setName] = useState('');
   const [formationId, setFormationId] = useState(formations[0]?.id ?? '');
   const [cohortLabel, setCohort] = useState('');
   const [startDate, setStartDate] = useState(todayISO());
   const [clientId, setClientId] = useState('');
   const [depositPaid, setDeposit] = useState(false);
+  const formation = formations.find((f) => f.id === formationId);
+  const lignes = useMemo(() => seancesDuProgramme(formation), [formation]);
+  const [poserLesDates, setPoserLesDates] = useState(true);
+  const plan = usePlanDesSeances(formation, lignes, startDate);
 
   const save = () => {
     if (!name.trim() || !formationId) return;
+    const sessions = poserLesDates ? seancesPrevues(plan) : [];
+    const fin = sessions.map((x) => x.scheduledAt).sort().pop();
     const e = newEnrollment({
       learnerName: name.trim(), formationId,
       cohortLabel: cohortLabel.trim() || undefined,
       startDate: startDate || undefined,
+      endDate: fin,
       clientId: clientId || undefined,
       depositPaid,
       status: 'inscrit',
+      sessions,
     });
     enrollmentsStore.set((prev) => [e, ...prev]);
     onCreated(e.id);
   };
 
   return (
-    <Modal title="Inscrire un apprenant." onClose={onClose} width={520}>
+    <Modal title="Inscrire un apprenant." onClose={onClose} width={640}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Nom de l’apprenant·e">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Prénom Nom" />
@@ -197,6 +320,16 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
         <Field label="Rattacher une fiche cliente (CRM), optionnel">
           <ClientPicker value={clientId} onChange={setClientId} placeholder="Rechercher une cliente…" />
         </Field>
+        {lignes.length > 0 && (
+          <div>
+            <Toggle
+              on={poserLesDates}
+              onToggle={() => setPoserLesDates((v) => !v)}
+              label={`Poser les dates des ${lignes.length} séance${lignes.length > 1 ? 's' : ''} maintenant`}
+            />
+            {poserLesDates && <DatesDesSeances plan={plan} modules={formation?.modules ?? []} masters={branch.masters} />}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
           <Button variant="copper" style={{ flex: 1 }} onClick={save} disabled={!name.trim() || !formationId}>Inscrire</Button>
@@ -304,7 +437,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
       <div style={{ marginTop: 16 }}>
         {tab === 'f1' && <TabCandidature e={e} notify={notify} />}
         {tab === 'formation' && <TabFormation e={e} formation={formation} notify={notify} />}
-        {tab === 'f3' && <TabSeances e={e} modules={modules} masters={masters} frozen={frozen} />}
+        {tab === 'f3' && <TabSeances e={e} formation={formation} modules={modules} masters={masters} frozen={frozen} />}
         {tab === 'f4' && <TabPratique e={e} masters={masters} frozen={frozen} />}
         {tab === 'f5' && <TabModules e={e} modules={modules} masters={masters} frozen={frozen} />}
         {tab === 'f6' && <TabJury e={e} modules={modules} frozen={frozen} />}
@@ -555,9 +688,29 @@ const ATTENDANCE: { k: Attendance; l: string }[] = [
   { k: 'present', l: 'Présent' }, { k: 'retard', l: 'Retard' }, { k: 'absent_justifie', l: 'Absent justifié' }, { k: 'absent', l: 'Absent' },
 ];
 
-function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: string[]; masters: string[]; frozen: boolean }) {
+function TabSeances({ e, formation, modules, masters, frozen }: { e: Enrollment; formation?: Formation; modules: string[]; masters: string[]; frozen: boolean }) {
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  /* LES DATES DU PROGRAMME, POUR UNE INSCRIPTION DÉJÀ FAITE : seules les séances
+     que le dossier ne porte pas encore se posent, rien ne se double. */
+  const aPoser = useMemo(
+    () => seancesDuProgramme(formation).filter((l) => !e.sessions.some((x) => x.sessionNumber === l.sessionNumber)),
+    [formation, e.sessions],
+  );
+  const [poser, setPoser] = useState(false);
+  const [debut, setDebut] = useState(e.startDate ?? todayISO());
+  const plan = usePlanDesSeances(formation, aPoser, debut);
+  const enregistreLesDates = () => {
+    const nouvelles = seancesPrevues(plan);
+    if (nouvelles.length === 0) return;
+    const toutes = [...e.sessions, ...nouvelles];
+    setEnrollment(e.id, {
+      sessions: toutes,
+      startDate: e.startDate ?? debut,
+      endDate: toutes.map((x) => x.scheduledAt.slice(0, 10)).sort().pop(),
+    });
+    setPoser(false);
+  };
   const sign = (id: string, field: 'trainerSignedAt' | 'learnerAckAt') =>
     setEnrollment(e.id, { sessions: e.sessions.map((s) => (s.id === id ? { ...s, [field]: nowStamp() } : s)) });
   const remove = (id: string) =>
@@ -575,23 +728,44 @@ function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: s
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
                 Séance {s.sessionNumber}{s.moduleIndex != null && modules[s.moduleIndex] ? ` · ${modules[s.moduleIndex]}` : ''}
               </div>
-              <div className="mnd-muted" style={{ fontSize: 11.5 }}>{frDate(s.scheduledAt)}</div>
+              <div className="mnd-muted" style={{ fontSize: 11.5 }}>{frShortAn(s.scheduledAt.slice(0, 10))}</div>
             </div>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
               {s.attendance && <span>Présence : <b>{ATTENDANCE.find((a) => a.k === s.attendance)?.l}</b></span>}
               {typeof s.technicalScore === 'number' && <span>Note : <b>{s.technicalScore}/20</b></span>}
-              <span className={sessionValidated(s) ? 'tre-ok' : 'mnd-muted'}>{sessionValidated(s) ? 'Fiche signée (formateur)' : 'Non signée'}</span>
+              {!s.attendance && !sessionValidated(s)
+                ? <span className="mnd-muted">Prévue{s.trainer ? ` avec ${s.trainer}` : ''} · la fiche se remplit le jour venu</span>
+                : <span className={sessionValidated(s) ? 'tre-ok' : 'mnd-muted'}>{sessionValidated(s) ? 'Fiche signée (formateur)' : 'Non signée'}</span>}
               {s.learnerAckAt && <span className="tre-ok">Visa apprenant</span>}
             </div>
             {s.trainerNotes && <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>{s.trainerNotes}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              {!sessionValidated(s) && !frozen && <button className="tre-link-btn" onClick={() => sign(s.id, 'trainerSignedAt')}>Signer (formateur)</button>}
+              {!sessionValidated(s) && !!s.attendance && !frozen && <button className="tre-link-btn" onClick={() => sign(s.id, 'trainerSignedAt')}>Signer (formateur)</button>}
               {sessionValidated(s) && !s.learnerAckAt && !frozen && <button className="tre-link-btn" onClick={() => sign(s.id, 'learnerAckAt')}>Viser (apprenant)</button>}
-              {!frozen && <button className="tre-link-btn" onClick={() => { setAdding(false); setEditId(s.id); }}>Modifier</button>}
+              {!frozen && <button className="tre-link-btn" onClick={() => { setAdding(false); setEditId(s.id); }}>{s.attendance || sessionValidated(s) ? 'Modifier' : 'Remplir la fiche'}</button>}
               {!frozen && <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(s.id)}>Retirer</button>}
             </div>
           </div>
         )
+      ))}
+      {!frozen && aPoser.length > 0 && (poser ? (
+        <div className="tre-fiche tre-fiche--form">
+          <div className="tre-sec-label" style={{ marginBottom: 10 }}>
+            Poser les dates des {aPoser.length} séance{aPoser.length > 1 ? 's' : ''} du programme
+          </div>
+          <Field label="Premier jour">
+            <ChampDeDate compact sens="avant" value={debut} onChange={setDebut} />
+          </Field>
+          <DatesDesSeances plan={plan} modules={modules} masters={masters} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <Button variant="ghost" size="sm" onClick={() => setPoser(false)}>Annuler</Button>
+            <Button variant="copper" size="sm" style={{ marginLeft: 'auto' }} onClick={enregistreLesDates}>Poser les dates</Button>
+          </div>
+        </div>
+      ) : (
+        <button className="tre-addline" onClick={() => { setAdding(false); setPoser(true); }}>
+          Poser les dates des {aPoser.length} séance{aPoser.length > 1 ? 's' : ''} du programme
+        </button>
       ))}
       {!frozen && (adding ? (
         <SessionForm e={e} modules={modules} masters={masters} onDone={() => setAdding(false)} />
@@ -725,7 +899,8 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
     setEnrollment(e.id, {
       sessions,
       attendanceAlert: unjustified >= 3,
-      status: !edit && e.status === 'inscrit' ? 'en_formation' : e.status,
+      /* Remplir une séance prévue, c'est aussi commencer la formation. */
+      status: (!edit || !edit.attendance) && e.status === 'inscrit' ? 'en_formation' : e.status,
     });
     onDone();
   };
