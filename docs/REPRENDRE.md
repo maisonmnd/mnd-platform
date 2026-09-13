@@ -141,7 +141,7 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
-## LA FACTURE DU PRESTATAIRE — 13 septembre 2026, PUBLIÉ · MIGRATION 0090 PASSÉE · 0091 À PASSER
+## LA FACTURE DU PRESTATAIRE — 13 septembre 2026, PUBLIÉ · MIGRATIONS 0090 ET 0091 PASSÉES
 
 « J'aimerais que les employés du salon me remplissent une facture en tant que
 prestataire tous les mois. Ce document doit porter leurs noms, prénoms, tel,
@@ -196,7 +196,7 @@ facturé, sans CNSS ni ITS**.
   mois » l'annonce à la prestataire.
 - **Le compte accepté est recalculé sur le poste de la direction** depuis le
   Carnet et la grille : on ne paie pas le chiffre écrit par un autre poste.
-- **LA GRILLE SE GARDE DANS LA BASE : 0091, À PASSER.** La table `team`
+- **LA GRILLE SE GARDE DANS LA BASE : 0091 PASSÉE.** La table `team`
   s'écrit par tout le personnel (0006). Le déclencheur `team_garde_la_paie`
   remet `grille`, `contractType`, `salaireXof`, `email` et `compteMail` à leur
   valeur en base quand l'écriture ne vient pas de la direction. Il remet, il
