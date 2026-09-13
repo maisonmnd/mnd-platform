@@ -36,9 +36,50 @@ const REVIEW_LINK_DEFAUT = 'https://g.page/r/CYEt1s4BqvZDEBE/review';
 
 type Ligne = { qty: number; unitXof: number; discountPct?: number; discountXof?: number };
 type Versement = { date?: string; amountXof: number };
+/* ══ UNE VENUE SAISIE APRÈS COUP NE REÇOIT RIEN — 13 septembre 2026 ══════
+   « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun
+   WhatsApp, aucun rappel, rien à la cliente par l'API » (Yéman).
+
+   La facture d'un rituel posé APRÈS son heure (un carnet rattrapé, une venue
+   notée le soir) ne déclenche pas la demande d'avis. Le juge est le même que
+   dans confirmation-rdv et `shared/agenda.ts` : l'instant du rendez-vous,
+   comparé à l'instant de sa pose, signé par la base (0092) sinon `creeLe`. */
+const momentDuRdv = (a: { date: string; time?: string }): number => {
+  const h = /^\d{1,2}:\d{2}$/.test(a.time ?? '') ? (a.time as string).padStart(5, '0') : '23:59';
+  return new Date(`${a.date}T${h}:00+01:00`).getTime();
+};
+
+const poseApresSonHeure = (a: { date: string; time?: string; creeLe?: string }, poseLe?: string): boolean => {
+  const quand = Date.parse(poseLe ?? a.creeLe ?? '');
+  return Number.isFinite(quand) && momentDuRdv(a) <= quand;
+};
+
+// deno-lint-ignore no-explicit-any
+const posesSignees = async (sb: any, ids: string[]): Promise<Map<string, string>> => {
+  const m = new Map<string, string>();
+  if (ids.length === 0) return m;
+  const { data, error } = await sb.from('traces').select('piece_id, fait_le')
+    .eq('table_name', 'appointments').eq('operation', 'pose').in('piece_id', ids);
+  if (error) return m;
+  for (const r of (data ?? []) as { piece_id: string; fait_le: string }[]) {
+    if (!m.has(r.piece_id)) m.set(r.piece_id, r.fait_le);
+  }
+  return m;
+};
+
+type RdvLie = {
+  id: string;
+  date: string;
+  time?: string;
+  creeLe?: string;
+  invoiceId?: string;
+  payments?: { invoiceId?: string }[];
+};
+
 type Piece = {
   id: string;
   branchId?: string;
+  apptId?: string;
   kind: string;
   clientId?: string;
   clientName?: string;
@@ -189,8 +230,25 @@ Deno.serve(async (req) => {
     });
   };
 
+  /* ── Les venues saisies après coup : consignées, jamais écrites ────
+     Le verdict « sans-envoi » verrouille : une venue passée ne redevient
+     jamais une première venue à fêter. */
+  const tetes = [...new Set(aFaire.map((p) => p.clientId!).filter(Boolean))];
+  const { data: rdvRows } = await sb.from('appointments').select('id, data').in('data->>clientId', tetes);
+  const rdvsLies: RdvLie[] = (rdvRows ?? []).map((r) => ({ ...(r.data as RdvLie), id: r.id as string }));
+  const poses = await posesSignees(sb, rdvsLies.map((a) => a.id));
+  const apresCoup = (p: Piece): boolean => rdvsLies.some((a) =>
+    (a.id === p.apptId || a.invoiceId === p.id || (a.payments ?? []).some((v) => v.invoiceId === p.id))
+    && poseApresSonHeure(a, poses.get(a.id)));
+
   let nWa = 0;
+  let nEcartes = 0;
   for (const p of aFaire) {
+    if (apresCoup(p)) {
+      consigne(p, 'sans-envoi', 'rendez-vous posé après son heure');
+      nEcartes++;
+      continue;
+    }
     const fiche = fiches.get(p.clientId!);
     const tel = numeroIntl(fiche?.phone);
     if (!tel) { consigne(p, 'sans-abonnement', 'fiche sans téléphone'); continue; }
@@ -227,7 +285,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ actif: true, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, envoyes: nWa }),
+    JSON.stringify({ actif: true, maison: nomMaison, jour: aujourdhui, premieres: aFaire.length, ecartes: nEcartes, envoyes: nWa }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

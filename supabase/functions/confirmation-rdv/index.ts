@@ -52,6 +52,46 @@ type Rdv = {
   date: string;
   time: string;
   status: string;
+  creeLe?: string;
+};
+
+/* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
+   « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun
+   WhatsApp, aucun rappel, rien à la cliente par l'API » (Yéman).
+
+   Un rituel saisi après coup (une venue sans rendez-vous, un carnet mis à
+   jour le soir) n'est pas une réservation : le confirmer écrirait à une
+   cliente déjà repartie. LE JUGE : l'instant du rendez-vous, à l'heure du
+   salon, comparé à l'instant où il a été POSÉ. Cet instant vient d'abord de
+   la trace signée par la base (0092, heure du serveur), à défaut de
+   `creeLe` (horloge de l'appareil). Un rendez-vous déplacé ensuite vers
+   l'avenir redevient une vraie réservation, et reçoit ses messages.
+
+   Recopié à l'identique dans avis-google et dans `shared/agenda.ts` (une
+   fonction Edge n'importe rien du dépôt) ; éprouvé par `verifie-envois`. */
+const momentDuRdv = (a: { date: string; time?: string }): number => {
+  const h = /^\d{1,2}:\d{2}$/.test(a.time ?? '') ? (a.time as string).padStart(5, '0') : '23:59';
+  return new Date(`${a.date}T${h}:00+01:00`).getTime();
+};
+
+const poseApresSonHeure = (a: { date: string; time?: string; creeLe?: string }, poseLe?: string): boolean => {
+  const quand = Date.parse(poseLe ?? a.creeLe ?? '');
+  return Number.isFinite(quand) && momentDuRdv(a) <= quand;
+};
+
+/** L'heure de pose signée par la base, rendez-vous par rendez-vous. Une trace
+    absente (rendez-vous d'avant 0092) laisse la place à `creeLe`. */
+// deno-lint-ignore no-explicit-any
+const posesSignees = async (sb: any, ids: string[]): Promise<Map<string, string>> => {
+  const m = new Map<string, string>();
+  if (ids.length === 0) return m;
+  const { data, error } = await sb.from('traces').select('piece_id, fait_le')
+    .eq('table_name', 'appointments').eq('operation', 'pose').in('piece_id', ids);
+  if (error) return m;
+  for (const r of (data ?? []) as { piece_id: string; fait_le: string }[]) {
+    if (!m.has(r.piece_id)) m.set(r.piece_id, r.fait_le);
+  }
+  return m;
 };
 
 type Fiche = { id: string; name?: string; phone?: string };
@@ -142,14 +182,22 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ erreur: errA.message }), { status: 500 });
   }
 
-  const rdvs: Rdv[] = (apptRows ?? [])
+  const maintenant = Date.now();
+  const candidats: Rdv[] = (apptRows ?? [])
     .map((r) => ({ ...(r.data as Rdv), id: r.id as string, branchId: (r.branch_id as string) ?? undefined }))
-    /* NI LE PASSÉ NI L'ANNULÉ : « votre rendez-vous est confirmé » sur un
-       rituel d'hier ferait douter de tout le reste. */
-    .filter((a) => a.status !== 'annulé' && a.date >= aujourdhui && a.clientId);
+    /* NI LE PASSÉ NI L'ANNULÉ NI L'HONORÉ : « votre rendez-vous est confirmé »
+       sur un rituel d'hier, ou déjà tenu, ferait douter de tout le reste. Le
+       passé se juge À L'HEURE, pas au jour : un rendez-vous de 10 h confirmé
+       à 16 h est un rendez-vous d'hier. */
+    .filter((a) => a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhui && a.clientId
+      && momentDuRdv(a) > maintenant);
+
+  /* POSÉ APRÈS SON HEURE : aucun message, jamais (voir `poseApresSonHeure`). */
+  const poses = await posesSignees(sb, candidats.map((a) => a.id));
+  const rdvs = candidats.filter((a) => !poseApresSonHeure(a, poses.get(a.id)));
 
   if (rdvs.length === 0) {
-    return new Response(JSON.stringify({ vus: 0, push: 0, whatsapp: 0 }), {
+    return new Response(JSON.stringify({ vus: 0, ecartes: candidats.length, push: 0, whatsapp: 0 }), {
       headers: { 'content-type': 'application/json' },
     });
   }
@@ -274,7 +322,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ vus: rdvs.length, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
+    JSON.stringify({ vus: rdvs.length, ecartes: candidats.length - rdvs.length, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

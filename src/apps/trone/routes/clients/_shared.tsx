@@ -30,6 +30,7 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { catalogueDeLaTete, masqueesParLAge, compositionDuForfait, gainDuForfait, detailDuForfait, pourQui } from '../../../../shared/kids';
 import { useSubscribers, usePlans, activeSubscriberOf, contratPourLaDate, coveredRemaining, inclusVendus, useStaff, ordonneEquipe, type StaffMember } from '../equipe/data';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
+import { estampilleLaPose, estampilleLesPoses, momentDuRdv } from '../../../../shared/agenda';
 import { prixFerme, prixFixeDe, useModelBands, useBandSets, pricingOf, personalPriceXof, prixDansPanier, remiseGestePct, TAUX_DE_REMISE, unGesteDansLePanier, prixDeBase, isPersonalized, bandLabel, personalDurationMin, servesBand, bandForService, estProposable, regimeTarifaire, splitByWeights, type ModelBand } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
 import { gammeNetteXof, gammeBruteXof, ligneNetteXof, ligneBruteXof, poseUnProduit, retireUnProduit, remiseDeLaLigne, ecartsDeTarif, manqueALEtagere, type LigneGamme } from '../../../../shared/gamme';
@@ -2361,7 +2362,11 @@ export function RdvModal({
          fois qu'elle EXISTE — renuméroter la série suppose de la voir dans la
          liste. */
       appointmentsStore.set((prev) => {
-        const avec = [...prev, created, ...suites];
+        /* LA DATE DE POSE S'ÉCRIT ICI AUSSI — 13 septembre 2026. La fiche du
+           rendez-vous, le chemin le plus fréquenté, était le seul à ne pas
+           estampiller : les fonctions d'envoi ne pouvaient donc pas savoir
+           qu'un rituel avait été posé après son heure. */
+        const avec = [...prev, estampilleLaPose(created), ...estampilleLesPoses(suites)];
         return estSuite ? attacheSeance(avec, created.id, suiteDe) : avec;
       });
       reglerLeSalon(created.id, chosenStatus);
@@ -3918,6 +3923,14 @@ export function RdvModal({
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* POSÉ APRÈS SON HEURE — 13 septembre 2026 : on le dit avant
+                d'enregistrer, pour que le silence de la Maison soit voulu. */}
+            {momentDuRdv({ date, time }) <= Date.now() && (
+              <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5, textAlign: 'center' }}>
+                Ce rendez-vous est posé après son heure : ni confirmation, ni rappel, ni demande d’avis ne
+                partiront vers la cliente.
+              </div>
+            )}
             <Button variant="copper" onClick={() => save('confirmé')}>
               {hasDeposit ? 'Confirmer & demander l’acompte' : 'Confirmer le rendez-vous'}
             </Button>

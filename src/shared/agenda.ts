@@ -707,6 +707,36 @@ export const estampilleLaPose = <T extends Appointment>(a: T): T =>
 export const estampilleLesPoses = <T extends Appointment>(as: readonly T[]): T[] =>
   as.map(estampilleLaPose);
 
+/* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
+   « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun
+   WhatsApp, aucun rappel, rien à la cliente par l'API » (Yéman).
+
+   Un rituel saisi après coup (une venue sans rendez-vous, un carnet rattrapé
+   le soir) n'est pas une réservation : ni confirmation, ni rappel, ni demande
+   d'avis. LE JUGE : l'instant du rendez-vous, à l'heure du salon, comparé à
+   l'instant où il a été POSÉ, signé par la base (0092) sinon `creeLe`. Un
+   rendez-vous déplacé ensuite vers l'avenir redevient une réservation, et
+   retrouve ses messages.
+
+   RECOPIÉ À L'IDENTIQUE dans les fonctions confirmation-rdv et avis-google
+   (une fonction Edge n'importe rien du dépôt) ; éprouvé par `verifie-envois`. */
+
+/** L'instant du rendez-vous, à l'heure du salon (UTC+1, sans heure d'été).
+    Sans heure lisible, la fin du jour : un rendez-vous du jour sans heure
+    n'est pas encore passé. */
+export const momentDuRdv = (a: { date: string; time?: string }): number => {
+  const h = /^\d{1,2}:\d{2}$/.test(a.time ?? '') ? (a.time as string).padStart(5, '0') : '23:59';
+  return new Date(`${a.date}T${h}:00+01:00`).getTime();
+};
+
+/** Posé à son heure ou après ? `poseLe` = l'heure signée par la base, qui
+    l'emporte sur l'horloge de l'appareil. Sans aucune date de pose, on ne
+    présume rien. */
+export const poseApresSonHeure = (a: { date: string; time?: string; creeLe?: string }, poseLe?: string): boolean => {
+  const quand = Date.parse(poseLe ?? a.creeLe ?? '');
+  return Number.isFinite(quand) && momentDuRdv(a) <= quand;
+};
+
 /* ══ CE QUE LA MAISON A ÉCRIT DANS UNE NOTE — 5 septembre 2026 ══════
    « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
    quelque part sur la fiche du client aussi ? » (Yéman).

@@ -141,6 +141,46 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 septembre 2026, PUBLIÉ · 2 FONCTIONS À RECOLLER
+
+« Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun WhatsApp,
+aucun rappel, rien à la cliente par l'API » (Yéman).
+
+**Le tour des envois automatiques vers une cliente** :
+- `rappels-j1` (WhatsApp, SMS, push de la veille) ne lit que les rendez-vous de
+  DEMAIN : jamais un rendez-vous passé. Inchangée.
+- `push-notify`, mode `reminders` : fenêtres 22-24 h et 0,4-2 h AVANT l'heure,
+  honoré exclu : jamais un rendez-vous passé. Inchangée.
+- **`confirmation-rdv` FAUTAIT** : elle confirmait tout rendez-vous du jour non
+  annulé touché dans les deux heures, même à 16 h pour 10 h, même honoré.
+- **`avis-google` FAUTAIT** : première facture soldée d'une tête, même pour une
+  venue saisie après coup.
+- `whatsapp-envoi` (réponse à la main depuis Conversations) et le cadeau
+  d'anniversaire (`pushToClient`) sont des gestes, pas des automatismes.
+
+**Le juge** : `poseApresSonHeure(rdv, poseLe)` (`shared/agenda.ts`) — l'instant
+du rendez-vous à l'heure du salon (`momentDuRdv`, UTC+1, sans heure = fin du
+jour) comparé à l'instant de pose, pris dans la trace signée par la base (0092,
+`traces` pose) sinon `creeLe`. Recopié à l'identique dans les deux fonctions.
+Un rendez-vous déplacé ensuite vers l'avenir redevient une réservation.
+
+**Changé** :
+- `confirmation-rdv` : écarte l'annulé, l'HONORÉ, l'heure déjà passée, et le
+  posé après son heure (`ecartes` dans la réponse).
+- `avis-google` : la facture d'un rituel posé après son heure est consignée
+  `sans-envoi` (verrou définitif), jamais écrite (`ecartes`).
+- **La RdvModal n'estampillait pas `creeLe`** à la création — le chemin le plus
+  fréquenté, oublié par l'estampille du 5 septembre. Corrigé (rendez-vous et
+  séances incluses).
+- La RdvModal dit, avant d'enregistrer un rendez-vous passé : « ni confirmation,
+  ni rappel, ni demande d'avis ne partiront vers la cliente ».
+- `verifie-envois` (51ᵉ harnais, 12 assertions).
+
+**À RECOLLER dans Supabase** (fichiers ENTIERS, Edge Functions) :
+`confirmation-rdv/index.ts` et `avis-google/index.ts`. Tant qu'elles ne sont
+pas recollées, l'ancienne `confirmation-rdv` peut encore confirmer un rendez-vous
+du jour posé après son heure.
+
 ## LA VIE D'UN RENDEZ-VOUS · LA TRACE DE LA BASE — 13 septembre 2026, PUBLIÉ · MIGRATION 0092 PASSÉE (10 tables tracées)
 
 « J'ai des employés qui font des rendez-vous et des factures, et à la fin de la
