@@ -141,6 +141,44 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LE MANUEL DES FORMATRICES, DANS LA BASE PRIVÉE — 13 septembre 2026, PUBLIÉ · MIGRATION 0088 À PASSER
+
+« Je veux bien que la formatrice voie le plan de sa séance en remplissant sa
+fiche. Je veux également ranger ce contenu dans la base privée de Supabase, pas
+dans le code » (Yéman).
+
+**Le manuel** (69 séances, neuf formations : préparer, déroulé minuté, vu,
+pratiqué, mesuré, erreurs, entre deux séances) a été rédigé le même jour et
+publié en page privée. **Aucune ligne de son contenu n'est dans le dépôt**, qui
+est public : ni dans `src`, ni dans `scripts`, ni dans `public`. Le fichier
+d'import est `manuel-formatrices-mnd.json`, déposé dans les Téléchargements de
+Yéman, hors du dépôt. Les sources de rédaction sont dans le bloc-notes de la
+session (`scratchpad/manuel/*.js`).
+
+**La table** `manuel_formatrices` (migration 0088) : une ligne par formation
+(`id` = identifiant du parcours), `data jsonb`, RLS `staff_all` via
+`is_staff()`, trigger `updated_at`, publication Realtime. Personnel seulement.
+
+**`shared/manuel.ts`** : la forme du manuel, le store lié à la table,
+`lisLeManuel` (valide un fichier : formation inconnue, séance sans numéro ou sans
+objectif, numéros doublés = erreurs bloquantes ; écart de nombre de séances ou de
+nom de module = alertes), `planDeLaSeance` (par le NOM de la formation, graphie
+près, et le numéro), `noteDesCriteres` (tous les critères posés, sinon pas de
+note). `verifie-manuel` : 48ᵉ harnais, fixtures fabriquées, aucun vrai contenu.
+
+**Académie › Référentiel méthode** : carte « Le manuel des formatrices », état par
+formation, bouton « Importer le manuel » réservé au souverain et au gérant.
+
+**Suivi › fiche de séance** : le plan de la séance s'affiche déplié en tête ; il
+pré-remplit le module et les objectifs d'une fiche neuve ; les critères du plan
+se notent sur 5 et font la note /20 (`SessionEntry.criteres`). Sans manuel pour
+la formation, une ligne le dit et la fiche reste utilisable.
+
+**À faire par la Maison** : passer 0088, puis importer le fichier.
+
+**Le cache** : comme toute collection, le manuel est gardé dans le navigateur des
+postes du personnel connectés.
+
 ## LES NEUF PARCOURS REMPLIS · DÉBUTANTES ET PROFESSIONNELLES · PRIX — 13 septembre 2026, PUBLIÉ
 
 « Bien remplir le contenu des formations de l'Académie », puis « je veux une

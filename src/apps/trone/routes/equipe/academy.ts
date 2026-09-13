@@ -87,6 +87,9 @@ export type SessionEntry = {
   attendance?: Attendance;
   objectives?: string;
   technicalScore?: number; // /20
+  /** Les critères de la séance notés sur 5, dans l'ordre du plan du manuel
+      des formatrices (13 septembre 2026). Tous posés, ils font la note /20. */
+  criteres?: (number | null)[];
   trainerNotes?: string;
   reworkItems?: string[];
   trainerSignedAt?: string; // signature formateur → fiche validée

@@ -1,5 +1,5 @@
 import { asset } from '../../../../shared/asset';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -8,6 +8,7 @@ import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import { ClientPicker, useBranchClients, frShortAn } from '../clients/_shared';
 import { useFormations, type Formation, type Payment } from './data';
+import { useManuel, planDeLaSeance, noteDesCriteres, type SeanceDuManuel } from '../../../../shared/manuel';
 import { Pill, Tabs, Toggle } from './ui';
 import { ContratModal } from '../_contrat';
 import { ChampDeDate } from '../clients/_shared';
@@ -601,15 +602,104 @@ function TabSeances({ e, modules, masters, frozen }: { e: Enrollment; modules: s
   );
 }
 
+/* ══ LE PLAN DE LA SÉANCE, SOUS LES YEUX DE LA FORMATRICE — 13 septembre 2026 ══
+   « Je veux bien que la formatrice voie le plan de sa séance en remplissant
+   sa fiche » (Yéman).
+
+   LE PLAN VIENT DE LA BASE, JAMAIS DU CODE : le manuel est la méthode de la
+   Maison, et le dépôt est public (voir `shared/manuel`). Sans manuel importé
+   pour cette formation, la fiche le dit en une ligne et reste utilisable.
+
+   Il s'ouvre déplié : c'est pendant la séance qu'on le lit, pas après. */
+function PlanDeLaSeance({ plan, numero, formation }: { plan?: SeanceDuManuel; numero: number; formation: string }) {
+  const [ouvert, setOuvert] = useState(true);
+  if (!plan) {
+    return (
+      <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic', marginBottom: 10 }}>
+        Aucun plan pour la séance {numero}{formation ? ` de ${formation}` : ''} : le manuel des formatrices n’est pas importé pour cette formation (Académie, Référentiel méthode).
+      </div>
+    );
+  }
+  const liste = (xs: string[]) => (
+    <ul style={{ margin: 0, paddingLeft: 17, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {xs.map((x, i) => <li key={i}>{x}</li>)}
+    </ul>
+  );
+  const bloc = (titre: string, contenu: ReactNode) => (
+    <div>
+      <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', marginBottom: 4 }}>{titre}</div>
+      {contenu}
+    </div>
+  );
+  return (
+    <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', marginBottom: 12 }}>
+      <button
+        type="button"
+        onClick={() => setOuvert((v) => !v)}
+        aria-expanded={ouvert}
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', background: 'none', border: 0, padding: '10px 12px', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
+      >
+        <span>
+          <span className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)', display: 'block' }}>
+            Le plan de la séance · module {plan.module}{plan.nomModule ? ` · ${plan.nomModule}` : ''}
+          </span>
+          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>Séance {plan.n} · {plan.titre}</span>
+        </span>
+        <span className="mnd-muted" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{plan.duree}{plan.duree ? ' · ' : ''}{ouvert ? 'replier' : 'déplier'}</span>
+      </button>
+      {ouvert && (
+        <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>{plan.objectif}</div>
+          <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+            {bloc('Préparer', liste(plan.preparer))}
+            {bloc('Ce qui est vu', liste(plan.vu))}
+          </div>
+          {bloc('Le déroulé', (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {plan.deroule.map(([duree, etape], i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '54px minmax(0,1fr)', gap: 8, padding: '3px 0', borderTop: i ? '1px solid var(--hairline)' : 'none' }}>
+                  <span style={{ color: 'var(--copper-700)', fontVariantNumeric: 'tabular-nums' }}>{duree}</span>
+                  <span>{etape}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+            {bloc('Ce qui est pratiqué', liste(plan.pratique))}
+            {bloc('Les erreurs à corriger', liste(plan.erreurs))}
+          </div>
+          {plan.teteReelle && bloc('Tête réelle', <div>{plan.teteReelle}</div>)}
+          {plan.evaluation && bloc('En fin de séance · évaluation du module, sur 100', <div>{plan.evaluation}</div>)}
+          {plan.ensuite && bloc('Entre deux séances', <div>{plan.ensuite}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; modules: string[]; masters: string[]; edit?: SessionEntry; onDone: () => void }) {
   const nextNo = (e.sessions.reduce((m, s) => Math.max(m, s.sessionNumber), 0)) + 1;
+  /* Le plan se retrouve par le NOM de la formation et le numéro de la séance ;
+     il pré-remplit le module et les objectifs d'une fiche neuve, sans jamais
+     réécrire ce qu'une fiche déjà enregistrée porte. */
+  const [formations] = useFormations();
+  const [manuels] = useManuel();
+  const numero = edit?.sessionNumber ?? nextNo;
+  const nomFormation = formations.find((f) => f.id === e.formationId)?.name ?? '';
+  const plan = planDeLaSeance(manuels, nomFormation, numero);
+  const moduleDuPlan = plan ? modules.findIndex((m) => m === plan.nomModule) : -1;
   const [scheduledAt, setDate] = useState(edit?.scheduledAt.slice(0, 10) ?? todayISO());
-  const [moduleIndex, setModule] = useState<string>(edit?.moduleIndex != null ? String(edit.moduleIndex) : '');
+  const [moduleIndex, setModule] = useState<string>(edit?.moduleIndex != null ? String(edit.moduleIndex) : moduleDuPlan >= 0 ? String(moduleDuPlan) : '');
   const [trainer, setTrainer] = useState(edit?.trainer ?? masters[0] ?? '');
   const [attendance, setAtt] = useState<Attendance>(edit?.attendance ?? 'present');
   const [score, setScore] = useState(edit?.technicalScore != null ? String(edit.technicalScore) : '');
-  const [objectives, setObj] = useState(edit?.objectives ?? '');
+  const [objectives, setObj] = useState(edit?.objectives ?? plan?.objectif ?? '');
   const [notes, setNotes] = useState(edit?.trainerNotes ?? '');
+  /* CE QUI EST MESURÉ : les critères du plan, chacun sur 5. Tous posés, ils font
+     la note /20 ; la formatrice ne recalcule rien de tête. */
+  const [criteres, setCriteres] = useState<string[]>(() => (edit?.criteres ?? []).map((c) => (c == null ? '' : String(c))));
+  const nbCriteres = plan?.mesure.length ?? 0;
+  const noteCriteres = noteDesCriteres(criteres.map((c) => (c.trim() === '' ? null : Number(c))), nbCriteres);
 
   const save = (sign: boolean) => {
     const base: SessionEntry = {
@@ -618,7 +708,10 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
       scheduledAt,
       moduleIndex: moduleIndex === '' ? undefined : Number(moduleIndex),
       trainer: trainer || undefined, attendance,
-      technicalScore: score === '' ? undefined : Math.max(0, Math.min(20, num(score))),
+      technicalScore: noteCriteres ?? (score === '' ? undefined : Math.max(0, Math.min(20, num(score)))),
+      criteres: criteres.some((c) => c.trim() !== '')
+        ? criteres.map((c) => (c.trim() === '' ? null : Math.max(0, Math.min(5, num(c)))))
+        : edit?.criteres,
       objectives: objectives.trim() || undefined, trainerNotes: notes.trim() || undefined,
       // À l'édition on garde signatures/visa ; on ne resigne que si demandé.
       trainerSignedAt: sign ? nowStamp() : edit?.trainerSignedAt,
@@ -640,6 +733,7 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
   return (
     <div className="tre-fiche tre-fiche--form">
       <div className="tre-sec-label" style={{ marginBottom: 10 }}>{edit ? `Modifier la séance ${edit.sessionNumber} · F3` : 'Nouvelle séance · F3'}</div>
+      <PlanDeLaSeance plan={plan} numero={numero} formation={nomFormation} />
       <div className="tr-grid tr-grid--2">
         <Field label="Date"><ChampDeDate compact sens="avant" value={scheduledAt} onChange={setDate} /></Field>
         <Field label="Module">
@@ -659,9 +753,47 @@ function SessionForm({ e, modules, masters, edit, onDone }: { e: Enrollment; mod
             {ATTENDANCE.map((a) => <option key={a.k} value={a.k}>{a.l}</option>)}
           </Select>
         </Field>
-        <Field label="Note technique · /20"><Input type="number" min={0} max={20} value={score} onChange={(ev) => setScore(ev.target.value)} placeholder="—" /></Field>
+        {nbCriteres > 0 ? (
+          <Field label="Note technique · /20">
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)', padding: '6px 0' }}>
+              {noteCriteres != null
+                ? `${String(noteCriteres).replace('.', ',')} / 20`
+                : <span className="mnd-muted" style={{ fontSize: 12.5, fontFamily: 'var(--font-sans)' }}>Se calcule quand les {nbCriteres} critères sont notés.</span>}
+            </div>
+          </Field>
+        ) : (
+          <Field label="Note technique · /20"><Input type="number" min={0} max={20} value={score} onChange={(ev) => setScore(ev.target.value)} placeholder="—" /></Field>
+        )}
         <Field label="Objectifs"><Input value={objectives} onChange={(ev) => setObj(ev.target.value)} placeholder="Objectifs de la séance" /></Field>
       </div>
+      {plan && nbCriteres > 0 && (
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, background: 'var(--surface-card)', padding: '10px 12px', margin: '4px 0 10px' }}>
+          <div className="tre-sec-label" style={{ marginBottom: 8 }}>Ce qui est mesuré · chaque critère sur 5</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {plan.mesure.map(([critere, bareme], i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 70px', gap: 10, alignItems: 'center', fontSize: 13 }}>
+                <span>{critere} <span className="mnd-muted">{bareme}</span></span>
+                <Input
+                  inputMode="numeric"
+                  value={criteres[i] ?? ''}
+                  placeholder="/5"
+                  aria-label={`${critere}, sur 5`}
+                  style={{ textAlign: 'right' }}
+                  onChange={(ev) => {
+                    const v = ev.target.value.replace(/[^0-9]/g, '').slice(0, 1);
+                    setCriteres((prev) => {
+                      const suite = [...prev];
+                      while (suite.length < nbCriteres) suite.push('');
+                      suite[i] = v === '' ? '' : String(Math.min(5, Number(v)));
+                      return suite;
+                    });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <Field label="Observations / gestes à retravailler">
         <Textarea value={notes} onChange={(ev) => setNotes(ev.target.value)} style={{ minHeight: 60 }} />
       </Field>

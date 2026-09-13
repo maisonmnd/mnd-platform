@@ -1,5 +1,5 @@
 import { asset } from '../../../../shared/asset';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
@@ -21,7 +21,9 @@ import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
-import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, type PublicDeFormation } from '../../../../shared/parcours';
+import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, type PublicDeFormation } from '../../../../shared/parcours';
+import { useManuel, manuelStore, lisLeManuel } from '../../../../shared/manuel';
+import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { useEnrollments } from './academy';
 import { ChampDeDate } from '../../../../ds/dates';
 
@@ -701,6 +703,7 @@ export default function Academie() {
               <div className="tre-deep__body">Le référentiel méthode garantit le « powered by MND ».</div>
             </div>
           </div>
+          <ManuelDesFormatrices />
           <div className="tr-grid tr-grid--2" style={{ alignItems: 'start' }}>
             <RefEditor
               title="Les quatre temps"
@@ -1242,6 +1245,96 @@ function RefEditor({
         {rows.length === 0 && <div className="mnd-muted" style={{ fontSize: 12, fontStyle: 'italic' }}>Section vide, ajoutez une première entrée.</div>}
       </div>
       <button className="tre-chip" style={{ marginTop: 12 }} onClick={add}>{addLabel}</button>
+    </Card>
+  );
+}
+
+/* ══ LE MANUEL DES FORMATRICES — 13 septembre 2026 ═════════════════════
+   « Ranger ce contenu dans la base privée de Supabase, pas dans le code »
+   (Yéman). Le manuel entre ici par un FICHIER que la Maison garde, et part
+   dans la table `manuel_formatrices` (migration 0088), personnel seulement.
+   Rien de son contenu n'est écrit dans le code, qui est public.
+
+   L'IMPORT EST RÉSERVÉ À LA DIRECTION (souverain, gérant) : il remplace le
+   manuel d'une formation pour toutes les formatrices à la fois. Il se lit
+   d'abord (`lisLeManuel`) : un fichier illisible n'écrit rien, et ce qui ne
+   colle pas au programme s'annonce avant la confirmation. */
+function ManuelDesFormatrices() {
+  const [manuels] = useManuel();
+  const moi = useMonProfil();
+  const peutImporter = moi?.role === 'souverain' || moi?.role === 'gerant';
+  const fichier = useRef<HTMLInputElement>(null);
+
+  const importe = async (f: File) => {
+    let brut: unknown;
+    try {
+      brut = JSON.parse(await f.text());
+    } catch {
+      window.alert('Ce fichier ne se lit pas : ce n’est pas un manuel au format attendu (.json).');
+      return;
+    }
+    const d = new Date();
+    const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const lu = lisLeManuel(brut, jour);
+    if (lu.erreurs.length) {
+      window.alert(`Le manuel n’a pas été importé :\n\n${lu.erreurs.join('\n')}`);
+      return;
+    }
+    const seances = lu.manuels.reduce((n, m) => n + m.seances.length, 0);
+    const remplaces = lu.manuels.filter((m) => manuels.some((x) => x.id === m.id)).length;
+    const lignes = [
+      `Importer le manuel : ${lu.manuels.length} formation${lu.manuels.length > 1 ? 's' : ''}, ${seances} séances ?`,
+      remplaces > 0 ? `${remplaces} manuel${remplaces > 1 ? 's' : ''} déjà présent${remplaces > 1 ? 's' : ''} ser${remplaces > 1 ? 'ont' : 'a'} remplacé${remplaces > 1 ? 's' : ''}.` : '',
+      'Il sera rangé dans la base privée, visible du personnel seulement.',
+    ].filter(Boolean);
+    if (lu.alertes.length) lignes.push('', 'À savoir :', ...lu.alertes);
+    if (!window.confirm(lignes.join('\n'))) return;
+    manuelStore.set((prev) => [...prev.filter((x) => !lu.manuels.some((m) => m.id === x.id)), ...lu.manuels]);
+    toast(`Manuel importé : ${lu.manuels.length} formation${lu.manuels.length > 1 ? 's' : ''}, ${seances} séances.`);
+  };
+
+  return (
+    <Card style={{ marginBottom: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+          <div className="mnd-eyebrow" style={{ fontSize: 9.5, color: 'var(--copper-700)' }}>Confidentiel · personnel seulement</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)', marginTop: 4 }}>Le manuel des formatrices</div>
+          <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55, marginTop: 6, maxWidth: '64ch' }}>
+            Le plan de chaque séance, affiché dans la fiche de séance du Suivi. Il vit dans la base privée de la Maison, jamais dans le code du Trône,
+            et n’y entre que par l’import du fichier que la Maison garde.
+          </div>
+        </div>
+        {peutImporter && (
+          <>
+            <input
+              ref={fichier}
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                ev.target.value = '';
+                if (f) void importe(f);
+              }}
+            />
+            <Button variant="ghost" onClick={() => fichier.current?.click()}>Importer le manuel</Button>
+          </>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', marginTop: 12 }}>
+        {PARCOURS_MND.map((p, i) => {
+          const m = manuels.find((x) => x.id === p.id);
+          const n = m?.seances.length ?? 0;
+          return (
+            <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, padding: '7px 0', borderTop: i ? '1px solid var(--hairline)' : 'none', fontSize: 13 }}>
+              <span>{p.titre} <span className="mnd-muted" style={{ fontSize: 11.5 }}>· {PUBLIC_LABEL[p.public]}</span></span>
+              <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: !m ? 'var(--copper-700)' : n === p.seances ? 'var(--ink-soft)' : 'var(--copper-700)' }}>
+                {m ? `${n} / ${p.seances} séances${m.importeLe ? ` · importé le ${frShortAn(m.importeLe)}` : ''}` : 'pas importé'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }
