@@ -6,6 +6,7 @@
 import {
   mardiDe, semainesDuMois, libelleDeSemaine, prestationsDuMois, compteDuMois, compteDeLaFacture,
   nombreEnLettres, ifuValide, ceQuiManqueASoumettre, ceQuiManqueAAccepter, identiteProposee, numeroPropose,
+  semainesDuForfait, compteAuForfait,
   moisEcoule, enRetard, totalAccepte, prestatairesSansFactureAcceptee, reporteLaFactureDansLaPaie,
   type ContexteDesPrestations, type FacturePrestataire,
 } from '../src/apps/trone/routes/equipe/facture';
@@ -101,8 +102,33 @@ dit('le dimanche 6 rejoint la semaine du mardi 1er', 4, c.semaines[0].lignes.len
 dit('le prix manquant se compte dans sa semaine', [0, 0, 1, 0, 0], c.semaines.map((s) => s.prixManquants));
 dit('total du mois', 16000, c.totalXof);
 dit('une facture à prix manquant ne s’accepte pas', '1 prix à écrire avant d’accepter.', ceQuiManqueAAccepter(c));
-const avecForfait = compteDuMois({ ...awa, salaireXof: 10000 }, '2026-09', [], ctx);
-dit('le forfait convenu s’ajoute en ligne à part', [10000, 26000], [avecForfait.forfaitXof, avecForfait.totalXof]);
+/* ── ③ bis LE FORFAIT ÷ 4 — « sans compter le nombre de prestations » ── */
+const auForfait = compteDuMois({ ...awa, salaireXof: 80000 }, '2026-09',
+  [{ id: 'sg', date: '2026-09-19', libelle: 'x', prixXof: 5000 }], ctx);
+dit('au forfait : quatre semaines égales, ni prestation ni signalée comptée',
+  ['forfait', [20000, 20000, 20000, 20000], 80000, 0, 0],
+  [auForfait.mode, auForfait.semaines.map((s) => s.montantXof), auForfait.totalXof, auForfait.nombre, auForfait.prixManquants]);
+dit('sans montant sur la fiche, la grille reste', 'grille', c.mode);
+const libF = (mois: string) => semainesDuForfait(mois).map((s) => libelleDeSemaine(s.debut, s.fin));
+dit('septembre : la semaine du 29 rejoint celle du 22', [
+  'Du mardi 1er au samedi 5 septembre',
+  'Du mardi 8 au samedi 12 septembre',
+  'Du mardi 15 au samedi 19 septembre',
+  'Du mardi 22 au mercredi 30 septembre',
+], libF('2026-09'));
+dit('octobre : le jeudi 1er rejoint la semaine qui suit', ['Du jeudi 1er au samedi 10 octobre', 4],
+  [libF('2026-10')[0], libF('2026-10').length]);
+dit('novembre : dimanche et lundi du début ne font pas de ligne', 'Du mardi 3 au samedi 7 novembre', libF('2026-11')[0]);
+dit('juillet : deux semaines courtes, la dernière rejoint sa voisine',
+  ['Du mercredi 1er au samedi 4 juillet', 'Du mardi 21 au vendredi 31 juillet'],
+  [libF('2026-07')[0], libF('2026-07')[3]]);
+dit('toujours quatre lignes, sur trois ans', true,
+  Array.from({ length: 36 }, (_, i) => {
+    const d = new Date(2026, i, 1, 12);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }).every((m) => semainesDuForfait(m).length === 4));
+dit('un forfait qui ne se divise pas juste : le reste va à la dernière semaine',
+  [21250, 21250, 21250, 21253], compteAuForfait('2026-09', 85003).semaines.map((s) => s.montantXof));
 const signalee = compteDuMois(awa, '2026-09', [
   { id: 'sg1', date: '2026-09-19', libelle: 'Co-animation Académie', prixXof: 10000 },
   { id: 'sg2', date: '2026-09-20', serviceId: 's2', libelle: 'DÀNDÀN™' },
@@ -162,6 +188,11 @@ dit('la ligne d’une prestataire verse la facture, sans CNSS ni ITS', [87000, 0
   [lp.result.brut, lp.result.cnssSalariale, lp.result.its, lp.result.cnssPatronale, lp.result.net]);
 dit('… et le reste une fois recalculée', 0, recomputeLine(lp, PAYROLL_PARAMETERS_SEED).result.cnssSalariale);
 dit('un salarié garde sa CNSS au recalcul', 10800, recomputeLine(ligne('rita', 'Rita G.'), PAYROLL_PARAMETERS_SEED).result.cnssSalariale);
+const avecBonus = ligneDePrestataire(
+  ligne('awa', 'Awa D.', { gains: { ...zero, base: 80000, prime: 10000, commission: 4000 } }), 80000, 'fp-2026-09-awa');
+dit('le bonus se verse hors facture, la commission tombe, sans charges', [80000, 10000, 0, 90000, 0, 90000],
+  [avecBonus.gains.base, avecBonus.gains.prime, avecBonus.gains.commission, avecBonus.result.brut,
+    avecBonus.result.cnssSalariale, avecBonus.result.net]);
 
 const facture = (staffId: string, etat: FacturePrestataire['etat'], total: number): FacturePrestataire => ({
   id: `fp-2026-09-${staffId}`, branchId: 'b1', staffId, mois: '2026-09', numero: 'N', etat, signalees: [],

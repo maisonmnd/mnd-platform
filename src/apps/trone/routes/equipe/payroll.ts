@@ -630,14 +630,15 @@ export const sansChargesSociales = (p: PayrollParameters): PayrollParameters =>
 export const parametresDeLaLigne = (l: Pick<PayrollLine, 'prestataire'>, p: PayrollParameters): PayrollParameters =>
   (l.prestataire ? sansChargesSociales(p) : p);
 
-/** Pose le total d'une facture acceptée sur la ligne : il en devient le seul
-    gain, et le net se recalcule sans charges sociales. */
+/** Pose le total d'une facture acceptée sur la ligne : il en devient la
+    base, la commission tombe (la facture la remplace), et le net se recalcule
+    sans charges sociales. LE BONUS RESTE À PART, SUR LA LIGNE — « hors bonus
+    et augmentation » (Yéman, 13 septembre) : le forfait de la facture ne le
+    porte pas, la paie le verse en plus. */
 export const ligneDePrestataire = (
   l: PayrollLine, totalXof: number, factureId?: string, p: PayrollParameters = PAYROLL_PARAMETERS_SEED,
 ): PayrollLine => {
-  const gains: PayGains = {
-    base: Math.max(0, Math.round(totalXof)), heuresSup: 0, prime: 0, pourboires: 0, commission: 0, indemnites: 0,
-  };
+  const gains: PayGains = { ...l.gains, base: Math.max(0, Math.round(totalXof)), commission: 0 };
   return { ...l, prestataire: true, factureId, gains, result: computePay(gains, l.deductions, sansChargesSociales(p)) };
 };
 

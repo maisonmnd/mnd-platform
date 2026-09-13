@@ -1853,3 +1853,5 @@
   .tre-fp-nb { grid-column: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .tre-fp-jours::before { transition: none; } }
+/* Au forfait, les semaines sont des lignes simples : la première n'a pas de filet. */
+.tre-fp-semaines > .tre-fp-ligne:first-child { border-top: 0; }

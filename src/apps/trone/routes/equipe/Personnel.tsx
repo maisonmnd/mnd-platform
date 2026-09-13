@@ -477,12 +477,13 @@ export default function Personnel() {
      run par la commission reste une décision de politique de paie à trancher. */
   const paieDuMois = (m: StaffMember, month: string): PayResult => {
     /* UNE PRESTATAIRE EST PAYÉE SUR SA FACTURE ACCEPTÉE — 13 septembre 2026.
-       Ni salaire de base, ni commission, ni prime : le total facturé, sans
-       CNSS ni ITS. Ses pourboires restent les siens, ses avances et retenues
-       se déduisent. Zéro tant que la facture n'est pas acceptée. */
+       Ni salaire de base ni commission : le total facturé, sans CNSS ni ITS.
+       Ses bonus se versent en plus, hors facture (« hors bonus et
+       augmentation »), ses pourboires restent les siens, ses avances et
+       retenues se déduisent. Zéro de facture tant qu'elle n'est pas acceptée. */
     if (estPrestataire(m)) {
       const gains: PayGains = {
-        base: totalAccepte(factureDe(factures, m.id, month)) ?? 0, heuresSup: 0, prime: 0,
+        base: totalAccepte(factureDe(factures, m.id, month)) ?? 0, heuresSup: 0, prime: primeTotalMonth(m.id, month),
         pourboires: tipTotalMonth(m.id, month), commission: 0, indemnites: 0,
       };
       const ded: PayDeductions = { avance: advancesTotalMonth(m.id, month), autresRetenues: retenueTotalMonth(m.id, month) };
@@ -719,6 +720,7 @@ export default function Personnel() {
         period: cap(monthTitle(month)),
         rows: [
           { label: facturee !== undefined ? `Facture ${f?.numero ?? ''} acceptée` : 'Facture non acceptée', value: pdfMoney(facturee ?? 0) },
+          { label: 'Bonus, hors facture', value: pdfMoney(primeTotalMonth(m.id, month)) },
           { label: 'Pourboires', value: pdfMoney(tip) },
           { label: 'Avances déduites', value: av > 0 ? `- ${pdfMoney(av)}` : pdfMoney(0) },
           { label: 'Retenues', value: ret > 0 ? `- ${pdfMoney(ret)}` : pdfMoney(0) },
@@ -1665,7 +1667,7 @@ export default function Personnel() {
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">
-              <Field label={`Salaire de base · ${currency === 'XOF' ? 'F / mois' : 'XOF / mois'}`}>
+              <Field label={`${form.contractType === 'prestataire' ? 'Forfait du mois, au contrat' : 'Salaire de base'} · ${currency === 'XOF' ? 'F / mois' : 'XOF / mois'}`}>
                 <Input value={form.salaire} disabled={!estDirection} onChange={(e) => setForm({ ...form, salaire: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="180000" />
               </Field>
               <Field label="Au fauteuil">
@@ -1748,8 +1750,22 @@ export default function Personnel() {
                 facture son mois à ces prix-là (voir equipe/facture.ts). */}
             {form.contractType === 'prestataire' && (
               <>
-                <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Sa grille de prix</div>
-                <GrilleDePrix staffId={editId} valeur={form.grille} onChange={(g) => setForm({ ...form, grille: g })} lectureSeule={!estDirection} />
+                <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>
+                  {(parseInt(form.salaire, 10) || 0) > 0 ? 'Sa facture au forfait' : 'Sa grille de prix'}
+                </div>
+                {/* AU FORFAIT, LA GRILLE NE SERT PAS : la facture porte le
+                    montant du contrat en quatre semaines, sans compter les
+                    prestations. Elle reste gardée pour le jour où l'on vide
+                    le forfait. */}
+                {(parseInt(form.salaire, 10) || 0) > 0 ? (
+                  <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
+                    Forfait de {fmtMoney(parseInt(form.salaire, 10) || 0, currency)} : sa facture du mois porte quatre
+                    semaines de {fmtMoney(Math.floor((parseInt(form.salaire, 10) || 0) / 4), currency)}, sans compter
+                    les prestations. Les bonus se versent à part, dans la paie. Videz le forfait pour facturer à la grille.
+                  </div>
+                ) : (
+                  <GrilleDePrix staffId={editId} valeur={form.grille} onChange={(g) => setForm({ ...form, grille: g })} lectureSeule={!estDirection} />
+                )}
               </>
             )}
 

@@ -141,6 +141,33 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LE FORFAIT DU PRESTATAIRE EN QUATRE SEMAINES — 13 septembre 2026, PUBLIÉ
+
+« Les employés ont par exemple 80 000 pour la prestation du mois. Il faut
+prendre la base de son salaire, diviser par 4 semaines. Mais il ne faut pas
+compter le nombre de prestations effectuées. Le forfait est négocié en avance,
+à la signature du contrat. Hors bonus et augmentation » (Yéman).
+
+**Tranché au sélecteur** :
+- **selon la fiche** : un montant dans « Salaire de base » (libellé « Forfait
+  du mois, au contrat » sur une fiche prestataire) met la facture **au
+  forfait** ; sans montant, la **grille** par prestation reste ;
+- **quatre lignes, toujours** : quand le mois porte cinq semaines du mardi au
+  samedi, la plus courte rejoint sa voisine (septembre 2026 : « du mardi 22 au
+  mercredi 30 »), à égalité la dernière ; le reste d'une division inexacte va
+  à la dernière semaine (`semainesDuForfait`, `compteAuForfait`) ;
+- **les bonus hors facture, dans la paie** : `ligneDePrestataire` ne remplace
+  plus que la base (le total facturé) et la commission (zéro) ; la prime du
+  run et les primes du mois (Personnel) se versent en plus, sans charges ;
+- **le forfait seul** : ni prestation, ni signalement, ni prix à écrire ;
+  l'écran et le PDF n'ont que les quatre semaines et le total.
+
+**Ce qui change** : `compteDuMois` choisit le mode (`CompteDeFacture.mode`) ;
+la ligne « Forfait du mois » ajoutée aux prestations disparaît (un compte
+figé d'avant la garde, `mode` absent, l'affiche encore). Une augmentation se
+pose sur la fiche et vaut pour toute facture pas encore acceptée.
+`verifie-facture-prestataire` porte 72 assertions.
+
 ## LA FACTURE DU PRESTATAIRE — 13 septembre 2026, PUBLIÉ · MIGRATIONS 0090 ET 0091 PASSÉES
 
 « J'aimerais que les employés du salon me remplissent une facture en tant que
@@ -156,8 +183,8 @@ ligne de montant pour chaque semaine du mois du mardi au samedi »).
 depuis le Carnet · **une grille de prix par personne**, écrite par la direction
 sur la fiche · **une ligne par semaine, du mardi au samedi**, coupée par le
 mois · un dimanche ou un lundi travaillé compte dans la **semaine d'avant** ·
-un montant mensuel sur la fiche (`salaireXof`) entre en ligne **« forfait du
-mois »** · **pas les produits** de la Gamme · soumise **avant le 5** · la paie
+au forfait, le montant de la fiche en quatre semaines (arbitrage suivant,
+voir LE FORFAIT DU PRESTATAIRE EN QUATRE SEMAINES) · **pas les produits** de la Gamme · soumise **avant le 5** · la paie
 **ne se valide pas** sans facture acceptée · la paie verse **le montant
 facturé, sans CNSS ni ITS**.
 

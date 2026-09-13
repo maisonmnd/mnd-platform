@@ -20,7 +20,12 @@ import { asArray, echeanceReglement, ligneDePrestataire, type PayrollLine, type 
    · « c'est moi qui écris le prix » : une grille par personne, sur sa fiche ;
    · « un résumé de ligne de montant pour chaque semaine du mois, du mardi au
      samedi » ; un jour de fermeture travaillé compte dans la semaine d'avant ;
-   · un montant mensuel convenu sur la fiche entre en ligne « forfait » ;
+   · AU FORFAIT (un montant dans « Salaire de base ») : « prendre la base de
+     son salaire, diviser par 4 semaines, sans compter le nombre de
+     prestations ; le forfait est négocié à la signature du contrat, hors
+     bonus et augmentation ». Quatre lignes égales, la semaine coupée par le
+     mois rejoint sa voisine, les bonus se versent hors facture, dans la
+     paie. Sans montant sur la fiche, la grille par prestation reste ;
    · les produits de la Gamme n'y entrent pas ;
    · soumise avant le 5, et la paie ne se valide pas sans facture acceptée ;
    · la paie verse le montant facturé, sans CNSS ni ITS.
@@ -159,6 +164,9 @@ export type SemaineDeFacture = {
 
 export type CompteDeFacture = {
   mois: string;
+  /** « forfait » : le montant de la fiche en quatre semaines égales, sans
+      prestation. Absent sur un compte d'avant : la grille. */
+  mode?: 'grille' | 'forfait';
   semaines: SemaineDeFacture[];
   forfaitXof: number;
   totalXof: number;
@@ -204,7 +212,8 @@ export const prixDeLaGrille = (m: Pick<StaffMember, 'grille'>, serviceId?: strin
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
 };
 
-/** Le montant mensuel convenu sur sa fiche, en ligne « forfait du mois ». */
+/** LE FORFAIT DU MOIS, négocié à la signature du contrat : le « Salaire de
+    base » de sa fiche. Posé, la facture passe au forfait. */
 export const forfaitDe = (m: Pick<StaffMember, 'salaireXof'>): number =>
   (m.salaireXof ?? 0) > 0 ? Math.round(m.salaireXof) : 0;
 
@@ -295,6 +304,7 @@ export function compteDeLaFacture(lignes: readonly LigneDeFacture[], mois: strin
   const forfait = Math.max(0, Math.round(forfaitXof));
   return {
     mois,
+    mode: 'grille',
     semaines: out,
     forfaitXof: forfait,
     totalXof: out.reduce((n, s) => n + s.montantXof, 0) + forfait,
@@ -303,13 +313,61 @@ export function compteDeLaFacture(lignes: readonly LigneDeFacture[], mois: strin
   };
 }
 
+/* ══ LE FORFAIT EN QUATRE SEMAINES — 13 septembre 2026 ═════════════════
+   « Il faut prendre la base de son salaire, diviser par 4 semaines. Mais il
+   ne faut pas compter le nombre de prestations effectuées » (Yéman).
+
+   QUATRE LIGNES, TOUJOURS. Un mois porte quatre ou cinq semaines du mardi au
+   samedi. Quand il en porte cinq, la plus courte (celle que le mois coupe)
+   rejoint sa voisine : septembre 2026 se lit « du mardi 22 au mercredi 30 ».
+   À égalité, c'est la dernière qui rejoint l'avant-dernière. Un dimanche et
+   un lundi seuls en début de mois ne font pas de ligne : rien ne s'y compte. */
+export function semainesDuForfait(mois: string): { debut: string; fin: string }[] {
+  const jours = (s: { debut: string; fin: string }) =>
+    Math.round((aMidi(s.fin).getTime() - aMidi(s.debut).getTime()) / 86400000) + 1;
+  const lignes = semainesDuMois(mois).filter((s) => s.ouvree).map((s) => ({ debut: s.debut, fin: s.finAffichee }));
+  while (lignes.length > 4) {
+    let i = 0;
+    for (let k = 1; k < lignes.length; k++) if (jours(lignes[k]) <= jours(lignes[i])) i = k;
+    const voisin = i === 0 ? 1
+      : i === lignes.length - 1 ? i - 1
+        : (jours(lignes[i - 1]) <= jours(lignes[i + 1]) ? i - 1 : i + 1);
+    const a = Math.min(i, voisin);
+    const b = Math.max(i, voisin);
+    lignes.splice(a, 2, { debut: lignes[a].debut, fin: lignes[b].fin });
+  }
+  return lignes;
+}
+
+/** Le forfait ÷ 4. Un montant qui ne se divise pas juste laisse son reste à
+    la dernière semaine : le total fait toujours le forfait, au franc près. */
+export function compteAuForfait(mois: string, forfaitXof: number): CompteDeFacture {
+  const forfait = Math.max(0, Math.round(forfaitXof));
+  const lignes = semainesDuForfait(mois);
+  const n = Math.max(1, lignes.length);
+  const quart = Math.floor(forfait / n);
+  const semaines: SemaineDeFacture[] = lignes.map((l, i) => ({
+    debut: l.debut,
+    fin: l.fin,
+    lignes: [],
+    montantXof: i === lignes.length - 1 ? forfait - quart * (n - 1) : quart,
+    prixManquants: 0,
+  }));
+  return { mois, mode: 'forfait', semaines, forfaitXof: forfait, totalXof: forfait, prixManquants: 0, nombre: 0 };
+}
+
+/** LE COMPTE DU MOIS, selon la fiche : au forfait quand elle porte un
+    montant (les prestations ne se comptent pas), à la grille sinon. */
 export const compteDuMois = (
   m: Pick<StaffMember, 'id' | 'grille' | 'salaireXof'>,
   mois: string,
   signalees: readonly PrestationSignalee[] | undefined,
   ctx: ContexteDesPrestations,
-): CompteDeFacture =>
-  compteDeLaFacture([...prestationsDuMois(m, mois, ctx), ...signaleesEnLignes(m, mois, signalees)], mois, forfaitDe(m));
+): CompteDeFacture => {
+  const forfait = forfaitDe(m);
+  if (forfait > 0) return compteAuForfait(mois, forfait);
+  return compteDeLaFacture([...prestationsDuMois(m, mois, ctx), ...signaleesEnLignes(m, mois, signalees)], mois);
+};
 
 /* ---------- L'identité et le numéro ---------- */
 const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');

@@ -1075,6 +1075,8 @@ export async function facturePrestatairePdf(o: {
   prestataire: { nom: string; ifu: string; telephone: string; email: string };
   destinataire: string[];
   semaines: { libelle: string; nombre: number; montant: string }[];
+  /** Au forfait : pas de colonne des prestations, rien ne s'y compte. */
+  auForfait?: boolean;
   forfait?: { libelle: string; montant: string };
   total: string;
   totalEnLettres?: string;
@@ -1157,7 +1159,7 @@ export async function facturePrestatairePdf(o: {
   doc.setFontSize(7.5);
   doc.setTextColor(COPPER);
   doc.text('SEMAINE', M, y);
-  doc.text('PRESTATIONS', colNb, y, { align: 'right' });
+  if (!o.auForfait) doc.text('PRESTATIONS', colNb, y, { align: 'right' });
   doc.text('MONTANT', W - M, y, { align: 'right' });
   y += 2.5;
   filet();
@@ -1176,7 +1178,7 @@ export async function facturePrestatairePdf(o: {
     doc.line(M, y, W - M, y);
     y += 6;
   };
-  for (const s of o.semaines) ligne(s.libelle, String(s.nombre), s.montant);
+  for (const s of o.semaines) ligne(s.libelle, o.auForfait ? '' : String(s.nombre), s.montant);
   if (o.forfait) ligne(o.forfait.libelle, '', o.forfait.montant);
 
   page(26);

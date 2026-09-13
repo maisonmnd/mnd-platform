@@ -62,7 +62,9 @@ export async function telechargeLaFacture(
       numero: f.numero,
       emiseLe: dateDite(emise),
       periode: `du 1er au ${dateDite(dernierJourDuMois(f.mois))}`,
-      sousTitre: `Prestations de soin de locks · ${moisDit(f.mois)}`,
+      sousTitre: compte.mode === 'forfait'
+        ? `Forfait de prestations de soin de locks · ${moisDit(f.mois)}`
+        : `Prestations de soin de locks · ${moisDit(f.mois)}`,
       prestataire: {
         nom: `${f.identite.prenoms} ${f.identite.nom.toLocaleUpperCase('fr')}`.trim(),
         ifu: f.identite.ifu, telephone: f.identite.telephone, email: f.identite.email,
@@ -71,7 +73,11 @@ export async function telechargeLaFacture(
       semaines: compte.semaines.map((s) => ({
         libelle: libelleDeSemaine(s.debut, s.fin, { annee: true }), nombre: s.lignes.length, montant: argent(s.montantXof),
       })),
-      forfait: compte.forfaitXof > 0 ? { libelle: 'Forfait du mois', montant: argent(compte.forfaitXof) } : undefined,
+      auForfait: compte.mode === 'forfait',
+      /* Un compte d'avant l'arbitrage portait le forfait en ligne à part. */
+      forfait: compte.mode !== 'forfait' && compte.forfaitXof > 0
+        ? { libelle: 'Forfait du mois', montant: argent(compte.forfaitXof) }
+        : undefined,
       total: argent(compte.totalXof),
       totalEnLettres: o.currency === 'XOF'
         ? `Arrêtée à la somme de ${nombreEnLettres(compte.totalXof)} francs CFA.`
@@ -130,6 +136,24 @@ export function SemainesDeLaFacture({ compte, ecritLePrix, retireSignalee }: {
 }) {
   const { currency } = useBranch();
   const argent = (n: number) => fmtMoney(n, currency);
+  /* AU FORFAIT, RIEN NE SE DÉPLIE : quatre semaines égales, aucune prestation
+     à compter ni à signaler. */
+  if (compte.mode === 'forfait') {
+    return (
+      <div className="tre-fp-semaines">
+        {compte.semaines.map((s) => (
+          <div key={s.debut} className="tre-fp-ligne">
+            <span>{libelleDeSemaine(s.debut, s.fin)}</span>
+            <b>{argent(s.montantXof)}</b>
+          </div>
+        ))}
+        <div className="tre-fp-total">
+          <span>Total du mois<small>le forfait convenu au contrat, en quatre semaines</small></span>
+          <b>{argent(compte.totalXof)}</b>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="tre-fp-semaines">
       {compte.semaines.map((s) => (
@@ -294,6 +318,7 @@ function FactureDuMois({ moi, mois, enregistree, precedente, auteurId }: {
       : compteDuMois(moi, mois, lesSignalees, ctx)),
     [enregistree, moi, mois, lesSignalees, ctx],
   );
+  const auForfait = compte.mode === 'forfait';
   const catalogue = useMemo(() => [...services].sort((a, b) => a.name.localeCompare(b.name, 'fr')), [services]);
 
   /* L'ÉCRITURE — brouillon ou soumission, un seul chemin. */
@@ -413,12 +438,13 @@ function FactureDuMois({ moi, mois, enregistree, precedente, auteurId }: {
       </div>
 
       <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
-        Une ligne par semaine, du mardi au samedi. Chaque semaine se déplie sur ses prestations, prises dans le
-        Carnet, au prix de votre grille. Un geste fait à plusieurs mains compte pour chacune.
+        {auForfait
+          ? 'Votre forfait du mois, convenu au contrat, en quatre semaines égales. Il ne dépend pas du nombre de prestations ; un bonus se verse à part, dans la paie.'
+          : 'Une ligne par semaine, du mardi au samedi. Chaque semaine se déplie sur ses prestations, prises dans le Carnet, au prix de votre grille. Un geste fait à plusieurs mains compte pour chacune.'}
       </div>
       <SemainesDeLaFacture compte={compte} retireSignalee={editable ? retireSignalee : undefined} />
 
-      {editable && (signal ? (
+      {editable && !auForfait && (signal ? (
         <div className="tre-fp-signal">
           <Field label="Le jour">
             <ChampDeDate
@@ -601,7 +627,9 @@ export function FactureDeLaDirection({ membre, mois, onClose }: { membre: StaffM
               {!f && `${m.name} n’a pas encore préparé sa facture. `}
               {f?.etat === 'brouillon' && `La facture est encore en brouillon chez ${m.name}. `}
               {f?.etat === 'refusee' && `Renvoyée le ${dateDite((f.refus?.le ?? f.creeLe).slice(0, 10))} : « ${f.refus?.mot ?? ''} ». `}
-              Voici ce que le Carnet et sa grille donnent aujourd’hui.
+              {vivant.mode === 'forfait'
+                ? 'Voici son forfait du mois, en quatre semaines.'
+                : 'Voici ce que le Carnet et sa grille donnent aujourd’hui.'}
             </span>
           </div>
         )}
@@ -625,7 +653,7 @@ export function FactureDeLaDirection({ membre, mois, onClose }: { membre: StaffM
 
         {f?.etat === 'soumise' && f.compteSoumis && f.compteSoumis.totalXof !== vivant.totalXof && (
           <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
-            Le compte a bougé depuis la soumission, par un prix écrit ou un Carnet corrigé : c’est le compte
+            Le compte a bougé depuis la soumission, par un prix écrit, un Carnet corrigé ou un forfait changé sur la fiche : c’est le compte
             ci-dessous, {argent(vivant.totalXof)}, qui sera accepté.
           </div>
         )}
