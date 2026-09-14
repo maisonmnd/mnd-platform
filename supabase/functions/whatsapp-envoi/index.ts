@@ -92,9 +92,36 @@ const numeroWa = (brut: string | undefined): string => {
   return d;
 };
 
+/* ══ LE NAVIGATEUR DEMANDE LA PERMISSION AVANT DE PARLER ═════════════
+   14 septembre 2026, au soir. « Failed to send a request to the Edge
+   Function » (Yéman), et la base ne portait AUCUNE ligne sortante depuis le
+   premier jour. La cause tenait en trois lignes absentes.
+
+   LE TRÔNE VIT SUR maisonmnd.github.io, LA FONCTION SUR supabase.co : ce sont
+   deux origines. Avant d'envoyer un POST qui porte un en-tête `authorization`
+   et du JSON, le navigateur envoie d'abord un OPTIONS pour demander la
+   permission. Cette fonction répondait « POST seulement », sans en-tête
+   d'autorisation d'origine : la permission était refusée, et le vrai POST
+   n'est JAMAIS parti. Ni erreur côté serveur, ni ligne en base, ni message
+   chez la cliente — rien, parce que rien n'avait quitté le navigateur.
+
+   ELLE ÉTAIT LA SEULE À LES OUBLIER. `suggest-client`, `push-notify` et
+   `kkiapay-verify`, toutes appelées depuis le navigateur elles aussi, les
+   portent depuis toujours. C'est pour cela qu'elles marchent.
+
+   ET CHAQUE RÉPONSE LES PORTE, y compris les REFUS. Sans elles sur un 400, le
+   navigateur interdit de LIRE le corps : la phrase « la fenêtre de 24 heures
+   est fermée » existerait, partirait, et resterait illisible. Un refus qu'on
+   ne peut pas lire ne vaut pas mieux qu'un silence. */
+const CORS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+};
+
 const refus = (texte: string, code = 400) =>
   new Response(JSON.stringify({ erreur: texte }), {
-    status: code, headers: { 'content-type': 'application/json' },
+    status: code, headers: { ...CORS, 'content-type': 'application/json' },
   });
 
 /** Le base64 d'une pièce, avec ou sans son en-tête `data:`. */
@@ -107,6 +134,10 @@ const enOctets = (b64: string): Uint8Array => {
 };
 
 Deno.serve(async (req) => {
+  /* La demande de permission du navigateur. Elle passe AVANT tout le reste :
+     elle ne porte ni jeton ni corps, et la juger comme un envoi la refuserait. */
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+
   /* ══ LA SONDE — 14 septembre 2026, au soir ═══════════════════════════
      « Ça dit message envoyé mais rien ne va sur le téléphone du client »
      (Yéman), et la base ne portait AUCUNE ligne sortante : ni refus, ni
@@ -168,7 +199,7 @@ Deno.serve(async (req) => {
       }
     }
     return new Response(JSON.stringify(rapport, null, 2), {
-      status: 200, headers: { 'content-type': 'application/json' },
+      status: 200, headers: { ...CORS, 'content-type': 'application/json' },
     });
   }
 
@@ -367,15 +398,15 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       erreur: `Le message est parti chez WhatsApp, mais la Maison n’a pas pu en garder la trace : ${errTrace.message}. Vérifiez la clé de service de la fonction.`,
       waId, version: VERSION,
-    }), { status: 500, headers: { 'content-type': 'application/json' } });
+    }), { status: 500, headers: { ...CORS, 'content-type': 'application/json' } });
   }
 
   if (etat === 'non-remis') {
     return new Response(JSON.stringify({ erreur: detail ?? 'refusé par WhatsApp', id }), {
-      status: 502, headers: { 'content-type': 'application/json' },
+      status: 502, headers: { ...CORS, 'content-type': 'application/json' },
     });
   }
   return new Response(JSON.stringify({ id, waId, quand, version: VERSION, piece: mediaId ? famille : undefined }), {
-    status: 200, headers: { 'content-type': 'application/json' },
+    status: 200, headers: { ...CORS, 'content-type': 'application/json' },
   });
 });

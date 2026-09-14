@@ -163,6 +163,31 @@ const estRefusDeDroit = (msg: string | undefined): boolean => {
 const failedTables = new Map<string, string>();
 /** Les canaux temps réel à terre — voir `SyncState.directEnPanne`. */
 const canauxMorts = new Set<string>();
+
+/* ══ UNE PASTILLE QUI BAT N'EST PAS UNE PASTILLE — 14 septembre 2026 ═══
+
+   « Le bouton vert et le bouton rouge se suivent chaque seconde. Ils
+   n'arrêtent pas » (Yéman).
+
+   UN CANAL QUI SE REJOINT PUIS RETOMBE faisait basculer la pastille à chaque
+   aller-retour. Le comptoir voyait un clignotant, et un clignotant permanent
+   n'apprend rien : on cesse de le regarder, et le jour où il dit vrai
+   personne ne le voit. Le pire état d'un indicateur n'est pas d'être faux,
+   c'est d'être ignoré.
+
+   ON LAISSE DONC AU CANAL LE TEMPS DE SE RELEVER. Une chute de moins de
+   quinze secondes ne se dit pas : elle se répare avant qu'on ait fini de lire
+   le mot. Ce qui se dit, c'est une panne qui DURE.
+
+   MAIS UN BATTEMENT N'EST PAS UNE SANTÉ. Un canal qui tombe trois fois de
+   suite ne va pas bien, même s'il se relève chaque fois avant le délai : on
+   le nomme alors sans plus attendre. Sinon l'hystérésis deviendrait un
+   silence, et l'on aurait remplacé un clignotant par un mensonge. */
+const DELAI_AVANT_DE_DIRE_LA_PANNE_MS = 15_000;
+const CHUTES_AVANT_DE_LE_DIRE = 3;
+
+const deuilsEnAttente = new Map<string, ReturnType<typeof setTimeout>>();
+const chutesDuCanal = new Map<string, number>();
 let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
@@ -212,8 +237,29 @@ const syncMark = {
   /* LE DIRECT SE DIT, LUI AUSSI — 14 septembre 2026. Un canal à terre ne
      perd aucune écriture, il retarde ce qu'on VOIT : la pastille le nomme
      plutôt que de laisser croire à un écran qui traîne. */
-  directOk(t: string) { if (canauxMorts.delete(t)) bumpSync(); },
-  directPerdu(t: string) { if (!canauxMorts.has(t)) { canauxMorts.add(t); bumpSync(); } },
+  directOk(t: string) {
+    const attente = deuilsEnAttente.get(t);
+    if (attente) { clearTimeout(attente); deuilsEnAttente.delete(t); }
+    /* LE COMPTE DES CHUTES NE SE REMET À ZÉRO QU'ICI, et seulement si le
+       canal tient vraiment : on l'efface au bout du délai qu'on lui laissait,
+       pas à la seconde où il dit « je suis là ». */
+    const t0 = setTimeout(() => { chutesDuCanal.delete(t); }, DELAI_AVANT_DE_DIRE_LA_PANNE_MS);
+    if (typeof t0 === 'object' && 'unref' in t0) (t0 as { unref: () => void }).unref();
+    if (canauxMorts.delete(t)) bumpSync();
+  },
+  directPerdu(t: string) {
+    if (canauxMorts.has(t) || deuilsEnAttente.has(t)) return;
+    const chutes = (chutesDuCanal.get(t) ?? 0) + 1;
+    chutesDuCanal.set(t, chutes);
+    /* TROIS CHUTES, ON LE DIT TOUT DE SUITE : ce canal-là ne se relève pas,
+       il bat. */
+    if (chutes >= CHUTES_AVANT_DE_LE_DIRE) { canauxMorts.add(t); bumpSync(); return; }
+    deuilsEnAttente.set(t, setTimeout(() => {
+      deuilsEnAttente.delete(t);
+      canauxMorts.add(t);
+      bumpSync();
+    }, DELAI_AVANT_DE_DIRE_LA_PANNE_MS));
+  },
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
   ok(t: string) {
     dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now();
