@@ -83,6 +83,41 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## SIX TABLES N'ÉTAIENT PAS EN DIRECT — 14 septembre 2026
+
+En croisant ce que la base PUBLIE avec ce que le Trône ÉCOUTE, six tables
+manquaient. Leurs canaux ne pouvaient pas réussir : ils échouaient, se
+relançaient, échouaient encore. C'était cela, la pastille cuivre.
+
+- **`documents` (0095, PASSÉE)** — née en 0001, jamais publiée. Les **57
+  magasins de réglages** de la Maison (horaires, commissions, paramètres de
+  paie, vitrine, protocoles, matrice des accès) ne recevaient donc **aucun**
+  changement en direct, depuis toujours.
+- **`0096_les_cinq_tables_muettes.sql` — PASSÉE** : `avances_remboursements`
+  (0078), `demandes_formule` (0076), `emprunts` (0085),
+  `entrees_hors_activite` (0084), `motifs_foyer` (0051).
+
+**Pourquoi personne ne l'avait vu** : chacune est née dans une migration qui a
+créé sa table, posé sa RLS et ses index — et oublié la ligne de publication.
+Cinq fois sur soixante-deux, la ligne n'a pas été recopiée. Rien ne le
+signalait, parce que jusqu'au 13 septembre `subscribe()` ne rendait son verdict
+à personne : **un canal refusé se taisait**.
+
+**LE CROISEMENT, à refaire dès qu'une table naît.** Côté base :
+
+```sql
+select tablename from pg_publication_tables
+where pubname = 'supabase_realtime' and schemaname = 'public'
+order by tablename;
+```
+
+Côté dépôt, la liste de ce qu'on écoute se tire de `bindCollection` (voir
+`scripts/verifie-le-direct.mjs`). Toute table écoutée et non publiée est un
+canal mort. La pastille les nomme désormais, mais mieux vaut ne pas l'y
+laisser arriver.
+
+**Au 14 septembre au soir : les 63 tables écoutées sont toutes publiées.**
+
 ## LA PORTE NE SE FIGE PLUS — 14 septembre 2026, PUBLIÉ
 
 « Vérification de vos accès… » et le Trône n'en sortait plus (Yéman), avec
