@@ -33,6 +33,7 @@ import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
    filtré par la branche, exprimé dans sa devise. */
@@ -749,7 +750,7 @@ export default function Dashboard() {
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {a.phone && (
-                    <a href={`https://wa.me/${a.phone.replace(/\D/g, '')}?text=${encodeURIComponent(signeLeMessage(messageAppel(a)))}`} target="_blank" rel="noreferrer" style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
+                    <a href={`#${cheminDeLaConversation(a.phone.replace(/\D/g, ''), signeLeMessage(messageAppel(a))) ?? '/conversations'}`} style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
                   )}
                   {a.clientId && a.suite === 'rdv' && (
                     <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>
@@ -1196,7 +1197,7 @@ export default function Dashboard() {
                   </button>
                   {tel && (
                     <a className="trf-act trf-act--ghost" style={{ textDecoration: 'none' }}
-                      href={`https://wa.me/${tel}`} target="_blank" rel="noreferrer">
+                      href={`#${cheminDeLaConversation(tel) ?? '/conversations'}`}>
                       WhatsApp
                     </a>
                   )}
@@ -1270,8 +1271,7 @@ export default function Dashboard() {
                 {tel && (
                   <a
                     className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
-                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
-                    target="_blank" rel="noreferrer"
+                    href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}
                     onClick={poser}
                   >
                     Déplacer et prévenir
@@ -1320,10 +1320,9 @@ export default function Dashboard() {
                         <a
                           className="trf-act"
                           style={{ textDecoration: 'none' }}
-                          href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(r.mode === 'forfait'
+                          href={`#${cheminDeLaConversation(tel, signeLeMessage(r.mode === 'forfait'
                             ? `Votre forfait « ${r.items[0]?.service ?? 'de la Maison'} » est entre nos mains, scellons vos créneaux, mèche après mèche.`
-                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains, scellons vos créneaux, mèche après mèche.`))}`}
-                          target="_blank" rel="noopener noreferrer"
+                            : `Votre ${r.mode === 'abonnement' ? 'abonnement' : 'rituel'} sur-mesure est entre nos mains, scellons vos créneaux, mèche après mèche.`)) ?? '/conversations'}`}
                         >
                           Sceller sur WhatsApp
                         </a>

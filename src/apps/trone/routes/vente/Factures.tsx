@@ -32,6 +32,7 @@ import { retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture } from '../_vie';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -888,7 +889,7 @@ export default function Factures() {
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+    window.location.hash = `#${cheminDeLaConversation(phone, msg) ?? '/conversations'}`;
     setWaHint('PDF téléchargé, joignez-le à votre message.');
     if (doc.status === 'brouillon') patchSelected({ status: 'envoyée' });
   };
@@ -1509,7 +1510,7 @@ export default function Factures() {
                   `Référence ${selected.number}`,
                 );
                 return (
-                  <a className="trv-wa-btn" style={{ textDecoration: 'none' }} href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">
+                  <a className="trv-wa-btn" style={{ textDecoration: 'none' }} href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}>
                     Envoyer le lien de paiement
                   </a>
                 );
@@ -1995,8 +1996,7 @@ export default function Factures() {
                 {lien && tel && (
                   <a
                     className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
-                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
-                    target="_blank" rel="noreferrer"
+                    href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}
                   >
                     {prenom ? `Adresser à ${prenom}` : 'Adresser par WhatsApp'}
                   </a>
@@ -2144,8 +2144,7 @@ export default function Factures() {
                 {lien && tel && (
                   <a
                     className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
-                    href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
-                    target="_blank" rel="noreferrer"
+                    href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}
                   >
                     Adresser à {(payeur?.name ?? '').split(' ')[0]}
                   </a>

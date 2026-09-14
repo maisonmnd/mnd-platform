@@ -6,6 +6,7 @@ import {
   CARTES_DE_LA_MAISON, MOTIFS_DE_MERCI, motDeLaCarte, nomDuFichier, objetDeLaCarte,
   prenomDe, texteDeLaCarte, type CleCarte, type CleMotif, type Genre,
 } from '../../../../shared/cartes';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* ══ LES CARTES DE LA MAISON — 6 septembre 2026 (maquette validée) ═══
 
@@ -84,7 +85,7 @@ export function CarteModal({ client, onClose }: { client: Client; onClose: () =>
 
   const tel = chiffresDe(client.phone ?? '');
   const surWhatsApp = () => {
-    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(motDeLaCarte(demande))}`, '_blank', 'noopener');
+    window.location.hash = `#${cheminDeLaConversation(tel, motDeLaCarte(demande)) ?? '/conversations'}`;
   };
   const parMail = () => {
     const sujet = encodeURIComponent(objetDeLaCarte(demande));

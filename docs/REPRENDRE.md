@@ -83,6 +83,36 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## ON NE SORT PLUS DU TRÔNE — 14 septembre 2026, PUBLIÉ
+
+« Quand je clique le numéro WhatsApp dans Clientes et dans Carnet, j'aimerais
+que ça m'ouvre la page WhatsApp dans Conversations directement dans le Trône.
+Ne sors pas du Trône » (Yéman).
+
+**C'ÉTAIT UNE INCOHÉRENCE D'AVANT LES CONVERSATIONS.** Dix-neuf liens ouvraient
+`wa.me` : un onglet de plus, une autre application, et surtout **un message
+écrit AILLEURS** — le Trône n'en gardait aucune trace, la cliente répondait
+dans un fil que la Maison ne voyait pas, et la conversation se coupait en deux.
+
+**Tous mènent maintenant aux Conversations**, dans sept écrans : Clientes (la
+pastille de la liste et les deux boutons de la fiche), le Carnet, les Appels,
+le Tableau de bord, À faire, la Caisse, Factures & devis, les Prêts, la carte
+de remerciement, les Consultations, et le composant partagé `WaLien`.
+
+**LE MESSAGE PRÉ-ÉCRIT VOYAGE AVEC** : `cheminDeLaConversation(numero, texte)`
+le porte en `?t=`, et l'écran le pose dans la zone de saisie **puis l'efface de
+l'adresse** — sans quoi un rafraîchissement le reposerait par-dessus ce qu'on
+est en train d'écrire.
+
+**`filNeuf` — le fil qui n'existe pas encore.** La plupart des têtes n'ont
+JAMAIS écrit, et un fil naît du premier message reçu : ouvrir leur numéro ne
+trouvait rien, et l'écran serait resté muet — pire que l'ancien lien. On
+fabrique donc un fil vide qui dit la vérité : « elle ne vous a jamais écrit,
+seul un modèle approuvé peut ouvrir la conversation ».
+
+**Les `wa.me` des apps SŒURS restent** (Ma Couronne, Bilan, Certificat) : là,
+c'est la CLIENTE qui écrit à la Maison depuis son téléphone, et c'est juste.
+
 ## DÉCROCHER DANS LE TRÔNE — 14 septembre 2026, DEUX MARCHES SUR TROIS
 
 « N'oublie pas que je dois recevoir les appels WhatsApp » (Yéman). Maquette

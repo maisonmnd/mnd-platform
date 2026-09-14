@@ -31,6 +31,7 @@ import { ligneNetteXof } from '../../../../shared/gamme';
 import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -624,7 +625,7 @@ export default function Caisse() {
         `Votre reçu ${inv.number} est en pièce jointe.`,
       );
       const phone = client?.phone.replace(/\D/g, '') ?? '';
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+      window.location.hash = `#${cheminDeLaConversation(phone, msg) ?? '/conversations'}`;
       setWaHint('Reçu PDF téléchargé, joignez-le à votre message WhatsApp.');
     } else {
       setWaHint(null);

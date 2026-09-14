@@ -10,7 +10,7 @@ import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
-  messagesQuiSonnent, messageCite, type MessageWa,
+  messagesQuiSonnent, messageCite, filNeuf, type MessageWa,
 } from '../../../../shared/conversations';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
@@ -178,11 +178,39 @@ export default function Conversations() {
   const nPrives = tous.filter((f) => f.prive).length;
 
   const ouvertNum = params.get('n') ?? '';
-  const fil = tous.find((f) => f.numero === ouvertNum) ?? null;
+  /* ── LE NUMÉRO PEUT VENIR D'AILLEURS — 14 septembre 2026 ──────────
+     « Ne sors pas du Trône » (Yéman). Clientes et le Carnet mènent désormais
+     ici, et la plupart des têtes n'ont JAMAIS écrit : leur fil n'existe donc
+     pas. On en fabrique un vide plutôt que de laisser un écran muet, et il
+     dit la vérité — elle ne vous a jamais écrit, seul un modèle ouvre la
+     conversation. */
+  const fil = tous.find((f) => f.numero === numeroWa(ouvertNum))
+    ?? (ouvertNum
+      ? filNeuf(ouvertNum, clients.find((c) => numeroWa(c.phone) === numeroWa(ouvertNum)
+        || numeroWa(c.phone2) === numeroWa(ouvertNum)))
+      : null);
   const ouvre = (n: string) => {
     setParams(n ? { n } : {}, { replace: true });
     setTexte('');
   };
+
+  /* ── LE MESSAGE PRÉ-ÉCRIT QUI ARRIVE D'AILLEURS ────────────────────
+     Le rappel de la veille, la relance d'un impayé, le mot d'anniversaire :
+     ils ouvraient `wa.me` avec leur texte. Ils ouvrent maintenant ce fil, et
+     leur texte se pose dans la zone de saisie — à relire, jamais à envoyer
+     tout seul.
+
+     ON L'EFFACE DE L'ADRESSE AUSSITÔT. Sans cela, un rafraîchissement le
+     reposerait par-dessus ce qu'on est en train d'écrire, et la zone de
+     saisie se battrait contre la barre du navigateur. */
+  const texteVenu = params.get('t') ?? '';
+  useEffect(() => {
+    if (!texteVenu) return;
+    setTexte(texteVenu);
+    const n = params.get('n');
+    setParams(n ? { n } : {}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texteVenu]);
 
   useEffect(() => {
     finDuFil.current?.scrollIntoView({ block: 'end' });

@@ -3,6 +3,8 @@ import { Eyebrow } from '../../../ds/components';
 import { signeLeMessage } from '../../../shared/identite';
 import { useCategories, type Service } from '../../../shared/catalog';
 import { fmtMoney } from '../../../shared/currency';
+import { Link } from 'react-router-dom';
+import { cheminDeLaConversation } from '../../../shared/conversations';
 
 /* ── LE CHOIX D'UNE PRESTATION, RANGÉ PAR ATELIER — 28 août 2026 ────────
    « Ça va dans tous les sens et je ne me retrouve pas facilement. Partout où
@@ -73,25 +75,29 @@ export function OptionsPrestations({ services, exclure, prix, devise }: {
   );
 }
 
-/** Un lien WhatsApp prêt à l'emploi : ouvre WhatsApp avec le numéro et un
-    message pré-écrit (signé de la devise). Ne s'affiche pas sans numéro joignable. */
+/** Un lien WhatsApp prêt à l'emploi : ouvre SA CONVERSATION DANS LE TRÔNE,
+    le message pré-écrit déjà posé dans la zone de saisie (signé de la
+    devise). Ne s'affiche pas sans numéro joignable.
+
+    ── ON NE SORT PAS DU TRÔNE — 14 septembre 2026 ───────────────────
+    « Ne sors pas du Trône. Tu ouvres WhatsApp directement dans le Trône »
+    (Yéman). Ce lien ouvrait `wa.me` : un onglet de plus, une autre
+    application, et surtout un message écrit AILLEURS — le Trône n'en gardait
+    aucune trace, la cliente répondait dans un fil que la Maison ne voyait
+    pas, et la conversation se coupait en deux. Depuis le 11 septembre le
+    Trône sait parler ; il n'y a plus de raison d'en sortir. */
 export function WaLien({ phone, message, children = 'WhatsApp', style }: {
   phone?: string;
   message: string;
   children?: ReactNode;
   style?: CSSProperties;
 }) {
-  const digits = (phone ?? '').replace(/\D/g, '');
-  if (!digits) return null;
+  const vers = cheminDeLaConversation(phone, signeLeMessage(message));
+  if (!vers) return null;
   return (
-    <a
-      href={`https://wa.me/${digits}?text=${encodeURIComponent(signeLeMessage(message))}`}
-      target="_blank"
-      rel="noreferrer"
-      style={{ textDecoration: 'none', ...style }}
-    >
+    <Link to={vers} style={{ textDecoration: 'none', ...style }}>
       {children}
-    </a>
+    </Link>
   );
 }
 

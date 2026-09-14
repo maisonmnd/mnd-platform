@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { Input } from '../../../../ds/components';
@@ -8,6 +8,7 @@ import { appointmentsStore } from '../../../../shared/agenda';
 import { useAppels, appelsAActer, marquerAppelFait, reporterAppel, rouvrirAppel, messageAppel, type AppelRecu } from '../../../../shared/appels';
 import { signeLeMessage } from '../../../../shared/identite';
 import { RdvModal, todayISO, addDaysISO, frShort } from './_shared';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 type Vue = 'a-traiter' | 'traites' | 'tous';
 
@@ -98,7 +99,12 @@ export default function Appels() {
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {a.phone && (
-                    <a href={`https://wa.me/${a.phone.replace(/\D/g, '')}?text=${encodeURIComponent(signeLeMessage(messageAppel(a)))}`} target="_blank" rel="noreferrer" style={{ ...chip, textDecoration: 'none' }}>WhatsApp</a>
+                    <Link
+                      to={cheminDeLaConversation(a.phone, signeLeMessage(messageAppel(a))) ?? '/conversations'}
+                      style={{ ...chip, textDecoration: 'none' }}
+                    >
+                      WhatsApp
+                    </Link>
                   )}
                   {!a.fait && a.clientId && a.suite === 'rdv' && (
                     <button type="button" style={{ ...chip, borderColor: 'var(--color-copper)', color: '#8A5A32', background: 'var(--copper-50, #FAF1E9)' }} onClick={() => ouvrirRdv(a.clientId!, a.id)}>Créer le RDV</button>

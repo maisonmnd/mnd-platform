@@ -20,7 +20,8 @@ import { pointsRateStore, pointsHistoryStore, pointsEnabledStore, estDuCercle, c
 import { uid } from '../../../../shared/store';
 import { sameName, normName } from '../../../../shared/text';
 import { addTipPartage, repartirPourboire, retirerPourboiresDesFactures, PART_POURBOIRE_DEFAUT } from '../../../../shared/tips';
-import { waLink, autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
+import { Link } from 'react-router-dom';
+import { autoConfigStore, automationsActiveStore, REVIEW_LINK_DEFAUT, lienPaiementMomo } from '../equipe/data';
 import { signeLeMessage } from '../../../../shared/identite';
 import { consommerPourRituel, rembobinerRituel, retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
@@ -31,6 +32,7 @@ import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
   ChampDeDate, frShortAn,
 } from './_shared';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -1534,7 +1536,11 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         const prenom = (tete?.name ?? '').trim().split(/\s+/)[0];
         const mot = `Merci pour votre passage à la Maison MND${prenom ? `, ${prenom}` : ''}. `
           + `Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lien}`;
-        window.open(waLink(tel, mot), '_blank', 'noopener');
+        /* ON NE SORT PAS DU TRÔNE (14 septembre) : la demande d'avis
+           ouvrait `wa.me`. Elle ouvre la conversation, le mot déjà écrit —
+           et la Maison saura qu'elle l'a demandé, ce que `wa.me` ne disait
+           à personne. */
+        window.location.hash = `#${cheminDeLaConversation(tel, mot) ?? '/conversations'}`;
       }
     }
 
@@ -1634,13 +1640,12 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
               `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
             );
             return (
-              <a
-                href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
-                target="_blank" rel="noreferrer"
+              <Link
+                to={cheminDeLaConversation(tel, msg) ?? '/conversations'}
                 style={{ display: 'inline-block', marginTop: 9, fontSize: 11.5, fontWeight: 600, color: 'var(--copper-200)', textDecoration: 'none' }}
               >
                 Envoyer le lien de paiement par WhatsApp
-              </a>
+              </Link>
             );
           })()}
         </div>

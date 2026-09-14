@@ -310,6 +310,74 @@ export function pourquoiLEnvoiEstImpossible(o: {
   return null;
 }
 
+/* ══ LE NUMÉRO MÈNE AU TRÔNE, PAS DEHORS — 14 septembre 2026 ═════════
+
+   « Quand je clique le numéro WhatsApp dans Clientes et dans Carnet,
+   j'aimerais que ça m'ouvre la page WhatsApp dans Conversations directement
+   dans le Trône. Ne sors pas du Trône » (Yéman).
+
+   C'ÉTAIT UNE INCOHÉRENCE, ET ELLE DATAIT D'AVANT LES CONVERSATIONS. Les
+   numéros ouvraient `wa.me` — un onglet de plus, une autre application, et
+   surtout un message écrit AILLEURS : le Trône n'en gardait aucune trace, la
+   cliente répondait dans un fil que la Maison ne voyait pas, et la
+   conversation se coupait en deux. Depuis le 11 septembre, le Trône SAIT
+   parler ; il n'y a plus aucune raison d'en sortir.
+
+   UN MESSAGE PRÉ-ÉCRIT VOYAGE AVEC. Plusieurs endroits de la Maison
+   ouvraient `wa.me` AVEC un texte déjà composé — le rappel de la veille, la
+   relance d'un impayé, le mot d'anniversaire. Ce texte suit : il se retrouve
+   dans la zone de saisie des Conversations, prêt à être relu. On garde donc
+   le geste, on change seulement l'endroit où il aboutit. */
+export const cheminDeLaConversation = (
+  brut: string | undefined, texte?: string,
+): string | null => {
+  const n = numeroWa(brut);
+  if (!n) return null;
+  /* LE TEXTE EST BORNÉ. Une adresse trop longue se fait couper par certains
+     navigateurs, et un message tronqué au milieu d'une phrase est pire qu'un
+     message absent. Mille signes couvrent largement tout ce que la Maison
+     écrit d'un geste. */
+  const t = (texte ?? '').trim().slice(0, 1000);
+  return t ? `/conversations?n=${n}&t=${encodeURIComponent(t)}` : `/conversations?n=${n}`;
+};
+
+/* ══ UN FIL QUI N'EXISTE PAS ENCORE ══════════════════════════════════
+
+   LA PLUPART DES TÊTES N'ONT JAMAIS ÉCRIT. Un fil naît du premier message
+   reçu : ouvrir le numéro d'une cliente qui ne s'est jamais manifestée ne
+   trouverait donc RIEN, et l'écran resterait vide sans rien expliquer — ce
+   qui serait pire que l'ancien lien vers `wa.me`.
+
+   ON FABRIQUE DONC UN FIL VIDE, et il dit la vérité : elle ne vous a jamais
+   écrit, la fenêtre est fermée, seul un modèle approuvé peut ouvrir la
+   conversation. C'est exactement ce que WhatsApp permet, ni plus ni moins, et
+   l'écran le portait déjà pour les fils refroidis. */
+export function filNeuf(numero: string, tete?: TeteConnue): Fil | null {
+  const n = numeroWa(numero);
+  if (!n) return null;
+  /* UN FIL SANS MESSAGE N'A PAS DE DERNIER. On en fabrique un, jamais rendu à
+     l'écran (la liste est vide), mais que le reste du code peut lire sans se
+     garder à chaque ligne — `dernier` est promis par le type. */
+  const fantome: MessageWa = {
+    id: `neuf-${n}`, sens: 'entrant', numero: n, texte: '', quand: new Date(0).toISOString(),
+  };
+  return {
+    numero: n,
+    clientId: tete?.id,
+    nom: tete?.name ?? `+${n}`,
+    sansFiche: !tete,
+    prive: false,
+    messages: [],
+    dernier: fantome,
+    /* JAMAIS OUVERTE : elle n'a rien écrit, donc rien n'a démarré la fenêtre
+       de 24 heures. `depuis` reste absent, et l'écran dit « elle ne vous a
+       jamais écrit » plutôt que « la fenêtre est fermée » — ce n'est pas la
+       même chose, et le remède non plus. */
+    fenetre: { ouverte: false, resteMs: 0 },
+    attendUneReponse: false,
+  };
+}
+
 /** LE MESSAGE QUE CELUI-CI CITE, retrouvé dans le fil.
 
     Il peut manquer : un fil ne remonte pas à l'infini, et elle peut citer un

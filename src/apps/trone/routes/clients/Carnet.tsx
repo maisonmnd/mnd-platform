@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
@@ -25,6 +25,7 @@ import {
 } from './_shared';
 import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -353,20 +354,21 @@ export default function Carnet() {
             {/* LE TÉLÉPHONE, AU CARNET. C'est ici qu'on cherche à joindre quelqu'un
                 — pour prévenir d'un retard, confirmer une venue, relancer un
                 impayé — et il n'y figurait pas : il fallait quitter le Carnet,
-                ouvrir Clientes, retrouver la fiche. Un clic ouvre WhatsApp ;
-                `stopPropagation` empêche d'ouvrir le rendez-vous au passage. */}
+                ouvrir Clientes, retrouver la fiche. Un clic ouvre SA CONVERSATION
+                DANS LE TRÔNE (14 septembre 2026, « ne sors pas du Trône ») :
+                elle menait à `wa.me`, donc à un message écrit ailleurs, dont la
+                Maison ne gardait aucune trace. `stopPropagation` empêche
+                d'ouvrir le rendez-vous au passage. */}
             {tel(c?.phone) && (
-              <a
+              <Link
                 className="trc-wa"
-                href={`https://wa.me/${tel(c?.phone)}`}
-                target="_blank"
-                rel="noreferrer"
+                to={cheminDeLaConversation(c?.phone) ?? '/conversations'}
                 onClick={(e) => e.stopPropagation()}
-                title={`Écrire sur WhatsApp`}
+                title="Ouvrir sa conversation dans le Trône"
                 style={{ alignSelf: 'flex-start' }}
               >
                 <span className="trc-wa__num">{c?.phone}</span>
-              </a>
+              </Link>
             )}
           </span>
         </span>

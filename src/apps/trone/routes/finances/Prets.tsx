@@ -17,7 +17,7 @@
    le montrer, dans l'ordre de l'urgence. */
 
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -35,7 +35,7 @@ import {
   usePrets, detteEnCours, etatsDesEmprunteurs, parUrgence, joursEntre,
   type EtatEmprunteur, type GenreEmprunteur, type Pret,
 } from '../../../../shared/foyer';
-import { useStaff, waLink } from '../equipe/data';
+import { useStaff } from '../equipe/data';
 import { ClientPicker } from '../clients/_shared';
 import {
   ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant,
@@ -47,6 +47,7 @@ import { addDaysISO, frJourAn } from '../clients/_shared';
 import { LesObjectifs } from './objectifs';
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
 const LIBELLE_GENRE: Record<GenreEmprunteur, string> = {
@@ -352,11 +353,16 @@ export default function Prets() {
         {e.reste > 0 && (
           <div className="trf-pret__gestes">
             <Button variant="copper" onClick={() => encaisserPour(e)}>Encaisser un remboursement</Button>
+            {/* ON NE SORT PAS DU TRÔNE (14 septembre) : la relance ouvrait
+                `wa.me`, donc un message écrit ailleurs dont la Maison ne
+                gardait aucune trace — sur une dette, c'est exactement ce
+                qu'il faut pouvoir prouver. Elle ouvre la conversation, le
+                mot déjà écrit dedans. */}
             {tel && (
-              <a className="trf-act trf-act--ghost" style={{ textDecoration: 'none' }}
-                href={waLink(tel, messageDeRelance(e))} target="_blank" rel="noopener noreferrer">
+              <Link className="trf-act trf-act--ghost" style={{ textDecoration: 'none' }}
+                to={cheminDeLaConversation(tel, messageDeRelance(e)) ?? '/conversations'}>
                 Relancer sur WhatsApp
-              </a>
+              </Link>
             )}
           </div>
         )}

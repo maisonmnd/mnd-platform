@@ -38,6 +38,7 @@ import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 export { ChampDeDate };
 
@@ -894,7 +895,10 @@ export function apptReminder(
     maison: maisonNom(),
     picto,
   });
-  return { href: `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, due, when };
+  /* ON NE SORT PAS DU TRÔNE (14 septembre) : la cloche ouvrait `wa.me`,
+     donc un message écrit ailleurs dont la Maison ne gardait aucune trace.
+     Elle ouvre maintenant la conversation, le rappel déjà écrit dedans. */
+  return { href: cheminDeLaConversation(digits, msg) ?? '/conversations', due, when };
 }
 
 /** Cloche de rappel WhatsApp : n'apparaît que sur un RDV À VENIR (confirmé ou en

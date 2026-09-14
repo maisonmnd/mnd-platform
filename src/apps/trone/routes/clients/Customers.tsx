@@ -42,7 +42,7 @@ import { useSettings } from '../../../../shared/settings';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
@@ -59,6 +59,7 @@ import { DroitImageModal } from './DroitImageModal';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
 import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -485,6 +486,9 @@ function FusionModal({ client, onClose, onDone }: {
 }
 
 export default function Customers() {
+  /* LE NAVIGATEUR DE L'ÉCRAN — depuis le 14 septembre, les gestes WhatsApp
+     mènent aux Conversations du Trône plutôt qu'à `wa.me`. */
+  const navigate = useNavigate();
   const { branch, currency } = useBranch();
   const clients = useBranchClients();
   const appts = useBranchAppointments();
@@ -634,7 +638,10 @@ export default function Customers() {
       + 'Pour marquer ce nouveau départ, la Maison vous offre 20 % sur votre prochaine prestation.\n\n'
       + 'Nous restons à votre disposition.',
     );
-    window.open(`https://wa.me/${digitsOf(c.phone)}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+    /* ON NE SORT PAS DU TRÔNE (14 septembre) : le mot voyage jusqu'à sa
+       conversation, où il se relit avant de partir — et où la Maison en
+       gardera la trace, ce que `wa.me` ne faisait pas. */
+    navigate(cheminDeLaConversation(c.phone, texte) ?? '/conversations');
   };
   /* Mémoïsés — deux filtres de plus sur toute la base à chaque frappe de la
      recherche ne payaient que deux compteurs. */
@@ -1339,17 +1346,23 @@ export default function Customers() {
                       {personaName(c.persona)}
                     </span>
                     {c.phone && digitsOf(c.phone) ? (
-                      <a
+                      /* ── ON NE SORT PAS DU TRÔNE — 14 septembre 2026 ──
+                         « Ne sors pas du Trône » (Yéman). Ce lien ouvrait
+                         `wa.me` : un onglet de plus, une autre application, et
+                         surtout un message écrit AILLEURS — le Trône n'en
+                         gardait aucune trace, elle répondait dans un fil que
+                         la Maison ne voyait pas, et la conversation se coupait
+                         en deux. Depuis le 11 septembre le Trône sait parler ;
+                         il n'y a plus de raison d'en sortir. */
+                      <Link
                         className="trc-wa"
-                        href={`https://wa.me/${digitsOf(c.phone)}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        to={cheminDeLaConversation(c.phone) ?? '/conversations'}
                         onClick={(e) => e.stopPropagation()}
-                        title={`Écrire à ${c.name.split(' ')[0]} sur WhatsApp`}
+                        title={`Écrire à ${c.name.split(' ')[0]} dans le Trône`}
                       >
                         <WaGlyph />
                         <span className="trc-wa__num">{c.phone}</span>
-                      </a>
+                      </Link>
                     ) : (
                       <span className="trc-sub">—</span>
                     )}
@@ -2698,7 +2711,7 @@ function Customer360({
               )}
 
               {client.phone && phoneDigits ? (
-                <a className="trc-cover-act" href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                <Link className="trc-cover-act" to={cheminDeLaConversation(client.phone) ?? '/conversations'}>WhatsApp</Link>
               ) : (
                 <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => { setTab('profil'); focusField('c360-phone'); }}>WhatsApp</button>
               )}
@@ -2708,7 +2721,7 @@ function Customer360({
                 <a className="trc-cover-act" href={telHref(client.phone2)} title={`Deuxième numéro · ${client.phone2}`}>Appeler · 2</a>
               )}
               {client.phone2 && phone2Digits && (
-                <a className="trc-cover-act" href={`https://wa.me/${phone2Digits}`} target="_blank" rel="noreferrer" title={`Deuxième numéro · ${client.phone2}`}>WhatsApp · 2</a>
+                <Link className="trc-cover-act" to={cheminDeLaConversation(client.phone2) ?? '/conversations'} title={`Deuxième numéro · ${client.phone2}`}>WhatsApp · 2</Link>
               )}
 
               {itineraireHref ? (

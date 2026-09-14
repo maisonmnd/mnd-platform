@@ -21,6 +21,7 @@ import {
 import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
    formulaires personnalisables (gestionnaire de questions) et les consultations
@@ -756,7 +757,7 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
          mieux, une fois pour toutes. */
     ].join('\n');
     const phone = digitsOnly(client.phone);
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(signeLeMessage(msg))}`, '_blank', 'noopener');
+    window.location.hash = `#${cheminDeLaConversation(phone, signeLeMessage(msg)) ?? '/conversations'}`;
   };
 
   return (

@@ -17,6 +17,7 @@ import { appointmentsStore } from '../../../../shared/agenda';
 
 import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './pilotage.css';
+import { cheminDeLaConversation } from '../../../../shared/conversations';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
     de stock, et leur liste est ailleurs. */
@@ -416,9 +417,7 @@ export default function AFaire() {
                   {SE_DEMANDE[ouvert] && tel && (
                     <a
                       className="trp-af-mbtn trp-af-mbtn--wa"
-                      href={`https://wa.me/${tel}?text=${encodeURIComponent(signeLeMessage(motPourDemander(ouvert, prenom)))}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={`#${cheminDeLaConversation(tel, signeLeMessage(motPourDemander(ouvert, prenom))) ?? '/conversations'}`}
                     >
                       WhatsApp
                     </a>
