@@ -1,3 +1,12 @@
+// whatsapp-webhook - l oreille de la Maison.
+//
+// LA PREMIERE LIGNE EST VOLONTAIREMENT PAUVRE - 14 septembre 2026.
+// Un deploiement a echoue ce jour-la sur « Unexpected character '=' at
+// index.ts:1:6 » : le « /* » d ouverture s etait perdu au collage, et le
+// parseur a bute sur la ligne de decor qui suivait, sans rien dire d utile.
+// Un fichier qu on colle a la main dans un navigateur doit commencer par
+// quelque chose qui survit a un collage de travers. Le decor vient apres.
+
 /* ═══════════════════════════════════════════════════════════════════
    WHATSAPP-WEBHOOK — l'oreille de la Maison.
 
