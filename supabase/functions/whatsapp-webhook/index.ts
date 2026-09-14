@@ -100,6 +100,23 @@ const ETAT: Record<string, string> = {
   sent: 'en-route', delivered: 'remis', read: 'lu', failed: 'non-remis',
 };
 
+/** LES ETAPES D UN APPEL, traduites une fois.
+
+    RECOPIEE DE `shared/appels-wa.ts` (`etatDeMeta`) — une fonction Edge
+    n importe rien du depot, et cette table-la doit dire la meme chose des
+    deux cotes, sans quoi le carnet et l ecran se contrediraient. */
+const ETAT_APPEL: Record<string, string> = {
+  ringing: 'sonne',
+  connect: 'pris',
+  accepted: 'pris',
+  terminate: 'fini',
+  completed: 'fini',
+  rejected: 'refuse',
+  declined: 'refuse',
+  missed: 'manque',
+  failed: 'refuse',
+};
+
 /** Le texte d'un message, quel que soit son habit. Une image, un audio, un
     contact n'ont pas de texte : on garde la LÉGENDE si elle existe, sinon on
     nomme le genre. Afficher un blanc laisserait croire à un message vide, et
@@ -466,6 +483,21 @@ Deno.serve(async (req) => {
   /* LES REACTIONS QU ELLE POSE. Elles ne font pas de ligne dans le fil :
      elles se posent sur le message qu elles visent. */
   const reactions: { surWaId: string; emoji: string; quand: string }[] = [];
+  /* ══ LES APPELS — 14 septembre 2026 ════════════════════════════════
+     « N oublie pas que je dois recevoir les appels WhatsApp » (Yeman).
+
+     META NOMME LES ETAPES A SA FACON, et l API d appels est jeune : les noms
+     de champs peuvent bouger. On lit donc LARGEMENT — plusieurs noms
+     possibles pour la meme chose — et l on JOURNALISE la charge brute quand
+     on ne reconnait rien. Un evenement qu on ne sait pas lire doit laisser
+     une trace lisible, sinon on le cherchera a l aveugle.
+
+     UN VERDICT INCONNU NE DEVIENT JAMAIS « PRIS » : mieux vaut une Maison qui
+     doute qu une Maison qui croit avoir repondu. */
+  const appels: {
+    callId: string; numero: string; etat: string; quand: string;
+    sens: 'entrant' | 'sortant'; dureeS?: number; detail?: string;
+  }[] = [];
 
   for (const entree of charge.entry ?? []) {
     for (const ch of entree.changes ?? []) {
@@ -522,6 +554,36 @@ Deno.serve(async (req) => {
           citeWaId: m.context?.id ? String(m.context.id) : undefined,
         });
       }
+      /* LE CHAMP `calls` — Meta l envoie quand une cliente appelle, puis a
+         chaque etape. Le meme identifiant revient a chaque fois : c est lui
+         qui relie « ca sonne » a « c est fini ». */
+      for (const c of v.calls ?? []) {
+        const callId = String(c?.id ?? '');
+        if (!callId) continue;
+        const brutEtat = String(c?.event ?? c?.status ?? '').toLowerCase();
+        const etat = ETAT_APPEL[brutEtat] ?? '';
+        if (!etat) {
+          /* ON NE DEVINE PAS. On garde ce que Meta a dit, pour pouvoir le
+             lire demain dans les journaux plutot que de chercher a l aveugle. */
+          dis('appel · verdict inconnu', { callId, brutEtat, charge: c });
+          continue;
+        }
+        const quandS = Number(c?.timestamp ?? 0);
+        appels.push({
+          callId,
+          numero: numeroWa(String(c?.from ?? '')),
+          etat,
+          quand: new Date(quandS ? quandS * 1000 : Date.now()).toISOString(),
+          /* UNE CLIENTE QUI APPELLE est un appel ENTRANT ; la Maison qui
+             appelle est sortant. Meta le dit par `direction`, et sans lui on
+             se fie a qui est l emetteur. */
+          sens: String(c?.direction ?? '').toUpperCase().startsWith('BUSINESS')
+            ? 'sortant' : 'entrant',
+          dureeS: Number.isFinite(Number(c?.duration)) ? Number(c.duration) : undefined,
+          detail: c?.error?.message ? String(c.error.message).slice(0, 200) : undefined,
+        });
+      }
+
       for (const st of v.statuses ?? []) {
         if (!st?.id || !st?.status) continue;
         const etat = ETAT[String(st.status)];
@@ -541,6 +603,7 @@ Deno.serve(async (req) => {
      à zéro message et zéro accusé veut dire que Meta nous parle d'autre
      chose, et ce n'est pas du tout la même panne qu'un appel jamais venu. */
   dis('charge lue', {
+    appels: appels.length,
     entrees: (charge.entry ?? []).length,
     champs: (charge.entry ?? []).flatMap((e: Record<string, any>) => e.changes ?? [])
       .map((c: Record<string, any>) => c.field ?? '?'),
@@ -648,8 +711,57 @@ Deno.serve(async (req) => {
     }).eq('id', ligne.id);
   }
 
+  /* ── ⑦ LES APPELS ──────────────────────────────────────────────────
+     L identifiant est DETERMINISTE (`wa-call-<id Meta>`) : Meta repete
+     volontiers le meme evenement, il ne s ecrira qu une fois. Chaque etape
+     COMPLETE la ligne plutot que de la refaire — la garde de 0098 protege
+     ensuite ce qui ne doit plus bouger (qui a decroche, l heure de la
+     sonnerie, le rappel deja pose). */
+  for (const a of appels) {
+    const id = `wa-call-${a.callId}`;
+    const { data: deja } = await sb.from('appels_wa').select('id, data').eq('id', id).limit(1);
+    const avant = ((deja ?? [])[0]?.data ?? {}) as Record<string, unknown>;
+    /* LA TETE, quand on la connait. Meta ne donne qu un numero : c est la
+       Maison qui reconnait la personne. */
+    const { data: fichesA } = avant.clientId ? { data: null } : await sb.from('clients').select('id, data');
+    const tete = avant.clientId
+      ? { id: String(avant.clientId), branchId: avant.branchId as string | undefined }
+      : (fichesA ?? []).map((r: any) => ({
+        id: r.id as string,
+        branchId: r.data?.branchId as string | undefined,
+        numeros: [numeroWa(r.data?.phone), numeroWa(r.data?.phone2)].filter(Boolean),
+      })).find((f: any) => f.numeros.includes(a.numero));
+
+    const data: Record<string, unknown> = {
+      ...avant,
+      id,
+      callId: a.callId,
+      numero: a.numero,
+      sens: a.sens,
+      etat: a.etat,
+      /* L HEURE DE LA SONNERIE NE SE POSE QU UNE FOIS : c est elle qui ancre
+         toutes les durees. La garde de 0098 la protege ensuite. */
+      sonneLe: avant.sonneLe ?? a.quand,
+      clientId: tete?.id ?? avant.clientId,
+      branchId: tete?.branchId ?? avant.branchId,
+      ...(a.etat === 'pris' && !avant.prisLe ? { prisLe: a.quand } : {}),
+      ...(a.etat === 'fini' || a.etat === 'manque' || a.etat === 'refuse'
+        ? { finiLe: a.quand } : {}),
+      ...(a.dureeS !== undefined ? { dureeS: a.dureeS } : {}),
+      ...(a.detail ? { detail: a.detail } : {}),
+    };
+    const { error } = await sb.from('appels_wa').upsert({
+      id, branch_id: (data.branchId as string) ?? null, data,
+    }, { onConflict: 'id' });
+    if (error) console.error(`whatsapp-webhook · APPEL · ${error.message}`);
+  }
+  if (appels.length) dis('appels rangés', { combien: appels.length });
+
   return new Response(
-    JSON.stringify({ recus: entrants.length, accuses: accuses.length, reactions: reactions.length }),
+    JSON.stringify({
+      recus: entrants.length, accuses: accuses.length,
+      reactions: reactions.length, appels: appels.length,
+    }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

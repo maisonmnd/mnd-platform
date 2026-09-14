@@ -83,6 +83,59 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## DÉCROCHER DANS LE TRÔNE — 14 septembre 2026, DEUX MARCHES SUR TROIS
+
+« N'oublie pas que je dois recevoir les appels WhatsApp » (Yéman). Maquette
+`public/maquette-decrocher-dans-le-trone.html`, validée.
+
+**LA SONDE A TRANCHÉ** (`…/whatsapp-webhook?appels=1`) : le numéro est
+**CLOUD_API, VERIFIED**, « Atelier MND », et Meta rend les réglages d'appel
+au lieu d'un refus — ils sont à **NOT_SET**. Pas indisponible : **pas encore
+allumé**.
+
+**L'ORDRE CHOISI PAR YÉMAN** : construire d'abord, allumer ensuite. Personne
+ne doit trouver un bouton d'appel qui sonne dans le vide. Et **tous les postes
+ouverts sonnent**, le premier qui décroche prend.
+
+### Ce qui est construit — marches ① et ②
+
+- **`shared/appels-wa.ts`** — le juge pur : ce que Meta dit traduit une fois,
+  combien de temps un appel sonne (**45 s**, sinon un panneau sonnerait pour
+  toujours quand le message de fin se perd), qui l'a pris, et ce qu'un manqué
+  laisse. `node scripts/verifie-appels-wa.mjs` (40 vérifications).
+- **Le webhook lit le champ `calls`** — écrit **tolérant**, parce que l'API
+  d'appels est jeune et que je ne peux pas l'éprouver : plusieurs noms lus
+  pour la même chose, et un verdict inconnu **journalisé avec sa charge
+  brute** plutôt que deviné.
+- **Le panneau qui sonne** (`shell/AppelQuiSonne.tsx`) — il paraît PARTOUT,
+  avec la fiche, le rendez-vous du jour et ce qu'elle doit. Ce qu'il montre
+  vient du Trône, pas de Meta : Meta ne donne qu'un numéro.
+
+### SQL À PASSER
+
+- **`0098_les_appels_whatsapp.sql`** — table `appels_wa`, RLS (personnel
+  seul : un journal d'appels dit qui a appelé qui), direct, trace, et surtout
+  **la garde qui arbitre**. Deux mains peuvent tomber sur le bouton dans la
+  même seconde et aucun écran n'a vu l'autre : le déclencheur fige `prisPar`
+  au premier nom posé, fige l'heure de la sonnerie (elle ancre les durées), et
+  empêche un second rappel pour le même appel.
+
+### RESTE — marche ③, et une action chez Meta
+
+- **Abonner le webhook au champ `calls`** dans la console Meta. Sans cela,
+  rien n'arrive : le code écoute, Meta ne parle pas encore.
+- **La voix dans le navigateur** — négociation d'appel, micro, serveur de
+  relais, et tenir la conversation sans qu'elle coupe. Plusieurs jours, et
+  **cela ne s'éprouve pas à sec** : il faudra une fenêtre d'essai avec les
+  appels allumés, à deux téléphones, un matin calme.
+- **L'écran ne promet pas ce qu'il ne tient pas** : tant que la voix ne passe
+  pas, « Prendre » dit aux autres postes qu'on s'en occupe et l'inscrit au
+  carnet — il ne prétend pas décrocher.
+- **On n'enregistre pas les appels** (proposition de la maquette, à
+  confirmer) : enregistrer sans l'accord des deux parties ne se fait pas, et
+  un enregistrement conservé est une donnée de plus à protéger sur un dépôt
+  qui a déjà connu une fuite.
+
 ## RATTRAPER UN MESSAGE — 14 septembre 2026, CONSTRUIT, SQL EN ATTENTE
 
 « J'aimerais éditer des messages qui sont partis. Les mêmes fonctionnalités

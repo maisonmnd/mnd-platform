@@ -1,0 +1,224 @@
+<title>Décrocher dans le Trône</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=EB+Garamond&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond','EB Garamond',Georgia,serif;
+    --sans:'Jost','EB Garamond','Century Gothic',system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding-block:52px 110px; padding-inline:22px; }
+  @media (max-width:600px){ .page { padding-block:30px 80px; padding-inline:16px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 12px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,7vw,56px); line-height:1.04; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.6vw,32px); line-height:1.12; color:var(--indigo); margin:0 0 8px; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin:0 0 6px; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 24px; font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .chapeau { max-width:70ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 20px; }
+  .exemple { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:10px 2px 0; max-width:80ch; }
+
+  .mur { border:1px solid var(--brique-p); border-left:3px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:15px 17px; font-size:14px; line-height:1.6; max-width:78ch; }
+  .mur b { color:var(--brique); }
+  .garde { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); background:var(--cuivre-f); border-radius:3px; padding:13px 15px; font-size:13.5px; line-height:1.55; }
+  .garde b { color:var(--cuivre-fonce); }
+  .bon { border:1px solid var(--vert-p); border-left:3px solid var(--vert); background:var(--vert-f); border-radius:3px; padding:15px 17px; font-size:14px; line-height:1.6; max-width:78ch; }
+  .bon b { color:var(--vert); }
+
+  /* L'appel qui sonne : indigo, plein écran dans un coin, impossible à rater. */
+  .appel { background:var(--indigo); color:#EFEAE0; border-radius:5px; padding:20px 22px; max-width:400px; box-shadow:0 10px 30px rgb(30 33 80 / 22%); }
+  .appel__q { font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--cuivre-p); }
+  .appel__n { font-family:var(--serif); font-size:30px; font-weight:300; color:#fff; margin:6px 0 2px; line-height:1.1; }
+  .appel__s { font-size:13px; color:#C9C6D8; }
+  .appel__r { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+  .appel__r span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; border-radius:3px; padding:10px 16px; }
+  .prendre { background:#4B7A57; color:#fff; }
+  .laisser { border:1px solid #6A6D95; color:#D8D5E4; }
+  .appel__f { margin-top:14px; padding-top:12px; border-top:1px solid #3A3F72; font-size:12.5px; color:#C9C6D8; }
+
+  .deux { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  @media (max-width:820px){ .deux { grid-template-columns:1fr; } }
+  .porte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .porte b.t { display:block; font-family:var(--serif); font-size:18px; color:var(--indigo); margin-bottom:4px; font-weight:500; }
+  .porte ul { margin:8px 0 0; padding-left:18px; }
+
+  .marches { counter-reset:m; margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+  .marches li { counter-increment:m; position:relative; padding-left:44px; border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding-block:14px; padding-right:16px; }
+  .marches li::before { content:counter(m); position:absolute; left:14px; top:13px; font-family:var(--serif); font-size:20px; color:var(--cuivre); }
+  .marches b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); margin-bottom:3px; }
+  .marches .duree { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); }
+
+  .atrancher { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px){ .atrancher { grid-template-columns:1fr; } }
+  .atrancher div { background:var(--ambre-f); border:1px solid var(--ambre-p); border-radius:4px; padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .atrancher b.propose { display:block; color:var(--ambre); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin-top:8px; }
+  .atrancher div.large { grid-column:1 / -1; }
+  .pied { margin-top:64px; padding-top:16px; border-top:1px solid var(--filet); font-family:var(--serif); font-style:italic; color:var(--encre-d); }
+</style>
+
+<main class="page">
+  <p class="eyebrow">Les Appels · maquette à valider</p>
+  <h1>Décrocher dans le Trône.</h1>
+  <blockquote class="cite">N’oublie pas que je dois recevoir les appels WhatsApp.<span>Yéman · 14 septembre 2026</span></blockquote>
+
+  <div class="bon">
+    <b>La sonde a répondu, et la réponse est bonne.</b> Votre numéro est un vrai numéro de production
+    (<b>CLOUD_API</b>, <b>VERIFIED</b>, « Atelier MND »), et Meta connaît les réglages d’appel pour lui :
+    ils sont à <b>NOT_SET</b>. Pas « refusé », pas « indisponible dans votre pays » — <b>pas encore allumé</b>.
+    Le chantier est donc possible, et il ne tient qu’à nous.
+  </div>
+
+  <p class="chapeau" style="margin-top:22px">Aujourd’hui, « Les Appels » est un <b>carnet qu’on remplit à la main</b> : une cliente appelle, quelqu’un tape son nom et ce qu’elle veut. Demain, l’appel sonne dans le Trône, sa fiche déjà ouverte, et s’inscrit tout seul. <b>Le carnet ne disparaît pas</b> : un appel reçu sur le téléphone du salon s’y note toujours à la main, et les deux se rangent au même endroit.</p>
+
+  <section>
+    <p class="eyebrow">Ce que verra le comptoir</p>
+    <h2>L’appel qui sonne</h2>
+    <p class="intro">Où que l’on soit dans le Trône — la caisse, le carnet, la paie — l’appel paraît. Avec ce que la Maison sait déjà d’elle, et qui change la première phrase qu’on prononce. <span class="exemple">Données d’exemple.</span></p>
+    <div class="appel">
+      <div class="appel__q">Appel WhatsApp</div>
+      <div class="appel__n">Akouavi K.</div>
+      <div class="appel__s">Rendez-vous samedi 10 h · SÍNSIN™ Essentielle</div>
+      <div class="appel__r">
+        <span class="prendre">Prendre l’appel</span>
+        <span class="laisser">Laisser sonner</span>
+      </div>
+      <div class="appel__f">Il reste 15 000 F sur sa facture du 6 septembre.</div>
+    </div>
+    <p class="legende"><b>Ce qui s’affiche vient du Trône, pas de Meta.</b> Meta ne donne qu’un numéro : c’est la Maison qui reconnaît la tête, retrouve son rendez-vous du jour et ce qu’elle doit. Décrocher en sachant déjà pourquoi elle appelle, c’est tout l’intérêt de décrocher ici plutôt que sur un téléphone.</p>
+    <div class="deux" style="margin-top:16px">
+      <div class="porte">
+        <b class="t">Tous les postes ouverts sonnent</b>
+        C’est ce qu’un salon fait naturellement avec un téléphone posé sur le comptoir.
+        <ul>
+          <li>le premier qui décroche prend l’appel ;</li>
+          <li><b>les autres se taisent aussitôt</b>, sans qu’on ait à leur dire ;</li>
+          <li>chacun voit ensuite qui l’a pris.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Un appel manqué n’est pas perdu</b>
+        C’est là que le carnet existant reprend la main, et il n’a rien à changer.
+        <ul>
+          <li>il devient <b>un rappel à faire</b>, au nom de la tête ;</li>
+          <li>il paraît au Tableau de bord et compte à la cloche ;</li>
+          <li>il reste tant qu’il n’est ni fait ni transformé en rendez-vous.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Ce qu’il faut construire</p>
+    <h2>Trois marches, et la troisième est la longue</h2>
+    <ol class="marches">
+      <li>
+        <b>Le Trône apprend qu’on l’appelle</b>
+        <span class="duree">une demi-journée</span>
+        <div>Le webhook s’abonne au champ <b>calls</b>. Meta annonce alors l’appel comme il annonce un message, et le Trône sait qu’une cliente sonne, de quel numéro, et à quelle seconde.</div>
+      </li>
+      <li>
+        <b>Le carnet se remplit tout seul</b>
+        <span class="duree">une demi-journée</span>
+        <div>L’appel s’inscrit, avec sa durée. Manqué, il devient un rappel. Cette marche vaut <b>déjà quelque chose toute seule</b> : même sans décrocher dans le Trône, savoir qui a appelé et quand vaut mieux qu’un carnet qu’on oublie de remplir.</div>
+      </li>
+      <li>
+        <b>La voix passe dans le navigateur</b>
+        <span class="duree">plusieurs jours</span>
+        <div>C’est un métier à part. Il faut négocier l’appel avec Meta, ouvrir le micro du poste, passer par un serveur de relais quand le réseau du salon ne laisse pas passer la voix directement, et tenir la conversation sans qu’elle coupe. Rien de tout cela ne se devine : cela s’éprouve, appel après appel.</div>
+      </li>
+    </ol>
+    <div class="mur" style="margin-top:16px">
+      <b>Et l’on ne pourra rien éprouver tant que les appels sont éteints.</b> C’est la tension de l’ordre que vous avez choisi — construire d’abord, allumer ensuite — et il est juste : personne ne doit trouver un bouton d’appel qui sonne dans le vide. Mais il faudra <b>une fenêtre d’essai</b> : allumer, essayer à deux téléphones un matin calme, corriger, et décider alors si l’on garde allumé. Autant le savoir maintenant.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Ce que cela change pour vos clientes</p>
+    <h2>Un bouton apparaît chez elles</h2>
+    <p class="intro">Allumer les appels fait apparaître <b>une icône d’appel dans WhatsApp</b>, sur la conversation de la Maison. Ce n’est pas un détail d’écran : c’est une porte qui s’ouvre, et elle ne se referme pas discrètement.</p>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">Ce qu’elles y gagnent</b>
+        <ul>
+          <li>appeler le salon sans quitter la conversation ;</li>
+          <li>sans payer d’appel, ni composer un numéro ;</li>
+          <li>et tomber sur quelqu’un qui sait déjà qui elles sont.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Ce que la Maison y engage</b>
+        <ul>
+          <li><b>répondre</b> — un salon qu’on peut appeler et qui ne répond jamais fait plus de mal qu’un salon qu’on ne peut pas appeler ;</li>
+          <li>décider ce qui se passe hors des heures ;</li>
+          <li>et tenir un poste ouvert, puisque le Trône est le téléphone.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">À trancher</p>
+    <h2>Trois points, dont un juridique</h2>
+    <div class="atrancher">
+      <div class="large">
+        <h3>Enregistre-t-on les appels ?</h3>
+        Techniquement, oui : la voix passe par le navigateur, elle peut s’y garder. Mais enregistrer une
+        conversation sans l’accord des deux parties ne se fait pas, et un enregistrement conservé est une
+        donnée personnelle de plus à protéger, sur un dépôt qui a déjà connu une fuite. Le gain — retrouver
+        ce qui a été dit — ne pèse pas lourd devant le risque.
+        <b class="propose">Proposé · on n’enregistre pas. Ce qui compte se note dans le carnet, en une phrase, comme aujourd’hui</b>
+      </div>
+      <div>
+        <h3>Hors des heures du salon</h3>
+        Une cliente qui appelle un dimanche à 22 h. Le Trône sonne dans le vide, ou dit quelque chose ?
+        <b class="propose">Proposé · l’appel devient un rappel à faire, et elle reçoit un message : « nous rouvrons demain à 9 h »</b>
+      </div>
+      <div>
+        <h3>Qui peut décrocher</h3>
+        Le Trône devient le téléphone de la Maison. Tout le personnel, ou seulement l’accueil et la direction ?
+        <b class="propose">Proposé · tout le personnel ; le carnet dit ensuite qui a pris l’appel</b>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Une fois validé</p>
+    <h2>Ce que le Trône fera</h2>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">Les deux premières marches, tout de suite</b>
+        Elles ne demandent pas d’allumer les appels et valent déjà seules.
+        <ul>
+          <li>le webhook écoute le champ <b>calls</b> ;</li>
+          <li>l’appel s’inscrit au carnet, avec sa durée ;</li>
+          <li>un manqué devient un rappel à faire.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">La troisième, ensuite</b>
+        L’écran qui sonne, et la voix qui passe.
+        <ul>
+          <li>le panneau d’appel, partout dans le Trône ;</li>
+          <li>tous les postes sonnent, le premier prend ;</li>
+          <li>puis la fenêtre d’essai, un matin calme.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <p class="pied">Maquette à valider. Les noms, heures et montants sont des exemples.</p>
+</main>

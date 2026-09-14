@@ -8,6 +8,7 @@ import NotificationsBell from './Notifications';
 import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
+import { AppelQuiSonne } from './AppelQuiSonne';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
@@ -585,6 +586,12 @@ export default function Shell() {
             </button>
           )}
         </header>
+
+        {/* L'APPEL WHATSAPP QUI SONNE — il paraît PARTOUT, et c'est pour
+            cela qu'il vit ici : à la caisse, au carnet, dans la paie. Un
+            téléphone qui ne sonne que dans une pièce n'est pas un téléphone
+            du salon. Il ne rend rien tant qu'aucun appel ne sonne. */}
+        <AppelQuiSonne />
 
         <AppelRecuModal
           open={appelOpen}
