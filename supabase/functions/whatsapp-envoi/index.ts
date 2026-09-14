@@ -246,11 +246,103 @@ Deno.serve(async (req) => {
   const branchId = corps.branchId ? String(corps.branchId) : undefined;
   const parQui = corps.parQui ? String(corps.parQui).slice(0, 80) : undefined;
 
+  /* ── LES TROIS GESTES DU FIL — 14 septembre 2026 ───────────────────
+     Citer, reagir, dire qu on a lu. Ce sont les seuls que l API donne en
+     plus d envoyer : elle ne sait ni editer ni effacer. */
+  /** Le message que celui-ci cite. WhatsApp l appelle un « contexte ». */
+  const citeWaId = corps.citeWaId ? String(corps.citeWaId) : '';
+  /** Poser une reaction : `{ surWaId, emoji }`. Un emoji vide la retire —
+      c est ainsi que Meta l entend, et c est aussi ainsi qu il l annonce. */
+  const reaction = corps.reaction && typeof corps.reaction === 'object'
+    ? { surWaId: String(corps.reaction.surWaId ?? ''), emoji: String(corps.reaction.emoji ?? '') }
+    : null;
+  /** Dire a Meta qu on a lu ce message entrant : les deux coches bleues. */
+  const marquerLu = corps.marquerLu ? String(corps.marquerLu) : '';
+
   /* LA PIÈCE JOINTE, quand il y en a une : `{ nom, type, donnees }`. */
   const piece = corps.piece && typeof corps.piece === 'object' ? corps.piece : null;
   const pieceNom = piece ? String(piece.nom ?? 'piece').slice(0, 120) : '';
   const pieceType = piece ? String(piece.type ?? 'application/octet-stream') : '';
   const pieceB64 = piece ? String(piece.donnees ?? '') : '';
+
+  const sb0 = createClient(urlBase, service);
+
+  /* ══ MARQUER LU — ni un envoi, ni une fenetre a respecter ══════════
+     Dire qu on a lu ne compte pas comme un message : Meta ne le facture pas
+     et la fenetre de 24 heures ne s y applique pas. On sort donc avant tout
+     le reste, et l on ne pose aucune ligne dans le fil — un accuse de lecture
+     n est pas une parole. */
+  if (marquerLu) {
+    try {
+      const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+        body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: marquerLu }),
+      });
+      const rep = await r.json().catch(() => ({}));
+      if (!r.ok) return refus(String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), 502);
+    } catch (e) {
+      return refus(String(e).slice(0, 200), 502);
+    }
+    /* ON L INSCRIT SUR LE MESSAGE LU, pour ne pas le redire a chaque
+       ouverture du fil : Meta compte les appels, et un accuse repete
+       n apprend rien de plus a la cliente. */
+    const { data: l } = await sb0.from('messages_wa').select('id, data')
+      .eq('data->>waId', marquerLu).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+    if (ligne) {
+      await sb0.from('messages_wa').update({
+        data: { ...ligne.data, luParLaMaisonLe: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }).eq('id', ligne.id);
+    }
+    return new Response(JSON.stringify({ lu: marquerLu, version: VERSION }), {
+      status: 200, headers: { ...CORS, 'content-type': 'application/json' },
+    });
+  }
+
+  /* ══ UNE REACTION — un geste, pas un message ═══════════════════════
+     Elle ne rouvre pas la fenetre de 24 heures et ne se facture pas. Elle ne
+     fait pas non plus de ligne dans le fil : elle se pose SUR le message
+     qu elle vise, comme dans WhatsApp. */
+  if (reaction) {
+    if (!reaction.surWaId) return refus('une réaction vise un message : lequel ?');
+    if (!numero) return refus('ce fil n’a pas de numéro lisible');
+    try {
+      const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp', recipient_type: 'individual', to: numero,
+          type: 'reaction',
+          reaction: { message_id: reaction.surWaId, emoji: reaction.emoji },
+        }),
+      });
+      const rep = await r.json().catch(() => ({}));
+      if (!r.ok) return refus(String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300), 502);
+    } catch (e) {
+      return refus(String(e).slice(0, 200), 502);
+    }
+    const { data: l } = await sb0.from('messages_wa').select('id, data')
+      .eq('data->>waId', reaction.surWaId).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+    if (ligne) {
+      /* UNE SEULE REACTION PAR PERSONNE : WhatsApp remplace la precedente, et
+         garder les deux ferait mentir le fil. */
+      const avant = (ligne.data.reactions ?? []) as { par: string }[];
+      const sansLaNotre = avant.filter((x) => x.par !== 'nous');
+      const apres = reaction.emoji
+        ? [...sansLaNotre, { par: 'nous', emoji: reaction.emoji, quand: new Date().toISOString() }]
+        : sansLaNotre;
+      await sb0.from('messages_wa').update({
+        data: { ...ligne.data, reactions: apres },
+        updated_at: new Date().toISOString(),
+      }).eq('id', ligne.id);
+    }
+    return new Response(JSON.stringify({ reaction: reaction.emoji || 'retirée', version: VERSION }), {
+      status: 200, headers: { ...CORS, 'content-type': 'application/json' },
+    });
+  }
 
   if (!numero) return refus('ce fil n’a pas de numéro lisible');
   if (!modele && !texte && !piece) return refus('le message est vide');
@@ -270,7 +362,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const sb = createClient(urlBase, service);
+  const sb = sb0;
 
   /* ── ② LA FENÊTRE, SUR LES DONNÉES DU MOMENT ──────────────────────
      Un modèle approuvé passe hors fenêtre : c'est tout son objet, et c'est
@@ -341,6 +433,12 @@ Deno.serve(async (req) => {
   } else {
     charge = { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: texte } };
   }
+
+  /* LA CITATION SE POSE SUR N IMPORTE QUEL MESSAGE, texte comme piece jointe.
+     C est le seul moyen que l API donne de DESIGNER un message precis, et
+     c est ce qui rend une reponse lisible quand elle a pose trois questions
+     d affilee. Un modele approuve, lui, ne cite rien : Meta ne l accepte pas. */
+  if (citeWaId && !modele) charge.context = { message_id: citeWaId };
 
   let waId = '';
   let etat = 'en-route';

@@ -83,6 +83,67 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## RATTRAPER UN MESSAGE — 14 septembre 2026, CONSTRUIT, SQL EN ATTENTE
+
+« J'aimerais éditer des messages qui sont partis. Les mêmes fonctionnalités
+que WhatsApp », puis « je voudrais une sonnette quand un nouveau message vient
+dans le Trône » (Yéman). Maquette
+`public/maquette-rattraper-un-message.html`, validée.
+
+**LE MUR, ET IL N'EST PAS DE NOUS** : l'API WhatsApp Business ne sait ni
+éditer ni effacer un message parti. L'application du téléphone le sait
+pendant quinze minutes ; l'API non. Tout ce qui suit fait le tour de ce mur.
+
+### Ce qui est construit
+
+- **La retenue** — le message paraît dans le fil mais ne quitte la Maison
+  qu'au bout de **huit secondes** (réglable, zéro compris). C'est le seul vrai
+  « annuler l'envoi » qui existe. **Si l'onglet se ferme, le message PART** :
+  `pagehide` + `fetch(keepalive)`, parce qu'un message qu'on croit envoyé et
+  qui n'est jamais parti est pire qu'un message qu'on aurait voulu retenir.
+- **La réécriture** (décision de Yéman : « juste réécrit ») — le fil du Trône
+  porte le texte juste, **sans rature ni mention**, et un mot de correction
+  part à la cliente sans citer la faute. Le prix est assumé : sur son
+  téléphone, l'original est toujours là, donc le fil montre à cet endroit un
+  texte qu'elle n'a jamais reçu.
+- **Répondre en citant**, dans les deux sens. **Ses citations à elle étaient
+  perdues depuis le premier jour** : Meta envoie un « contexte » que le
+  webhook ne lisait pas.
+- **Les réactions**, posées et reçues. Elles ne font pas de ligne dans le fil.
+- **Marquer lu** à l'ouverture du fil (réglable) — le DERNIER message suffit,
+  Meta marque lu tout ce qui le précède.
+- **La sonnette** — deux notes fabriquées au WebAudio, **aucun fichier son**.
+  Quatre pièges évités : rien au chargement, rien pour nos propres messages,
+  une sonnerie par rafale, rien pour le fil ouvert. Elle s'arme au premier
+  geste (un navigateur refuse tout son avant) et se tait hors des heures du
+  salon.
+
+### SQL À PASSER
+
+- **`0097_les_messages_entrent_dans_la_trace.sql`** — met `messages_wa` sous
+  `trace_le_geste()`. **Elle doit passer AVANT que la réécriture serve** :
+  sans elle, réécrire efface pour de bon, et l'on ne peut plus dire ce que la
+  cliente a réellement reçu. La trace gardera le texte d'avant, celui d'après,
+  l'heure et qui a corrigé.
+
+### LES APPELS — le chantier à part
+
+« N'oublie pas que je dois recevoir les appels WhatsApp » (Yéman). Meta a
+ouvert une API d'appels vocaux, et recevoir un appel dans un navigateur est
+possible. Mais cela dépend d'une autorisation par numéro et par pays.
+
+**Une sonde a été posée pour trancher sans fouiller** — ouvrir, sans jeton :
+
+```
+…/functions/v1/whatsapp-webhook?appels=1
+```
+
+Elle dit ce que Meta répond sur le numéro et sur ses réglages d'appel. Si les
+appels sont ouverts, il reste à abonner le webhook au champ `calls` et à
+porter l'audio dans le navigateur (WebRTC, relais, qui décroche). Si Meta
+refuse, le chantier s'arrête là et « Les Appels » reste le carnet qu'on
+remplit à la main.
+
 ## UN SEUL CANAL POUR TOUTE LA MAISON — 14 septembre 2026, PUBLIÉ
 
 « Direct en panne est toujours là. La page ne se stabilise pas. Elle retombe

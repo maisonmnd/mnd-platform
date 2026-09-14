@@ -255,6 +255,75 @@ Deno.serve(async (req) => {
       }
     }
 
+    /* ══ LES APPELS SONT-ILS OUVERTS SUR NOTRE NUMERO ? ════════════════
+       « N'oublie pas que je dois recevoir les appels WhatsApp » (Yeman,
+       14 septembre 2026).
+
+       Meta a ouvert une API d'appels vocaux aux entreprises, mais elle n'est
+       pas active partout ni sur tous les numeros, et la disponibilite varie
+       par pays. Tout le chantier depend de cette reponse-la : inutile
+       d'ecrire une ligne d'audio avant de la connaitre.
+
+       Plutot que d'envoyer quelqu'un fouiller une console, on demande a Meta.
+       Cette sonde n'envoie rien, ne change rien, et ne montre aucun secret.
+
+       `?appels=1` — le numero est celui deja pose dans WA_PHONE_ID. */
+    if (new URL(req.url).searchParams.has('appels')) {
+      const phone = Deno.env.get('WA_PHONE_ID');
+      const tok = Deno.env.get('WA_TOKEN');
+      if (!phone || !tok) {
+        return new Response(JSON.stringify({
+          verdict: 'les cles Meta ne sont pas posees sur cette fonction',
+        }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      const rapport: Record<string, unknown> = {};
+      /* ① CE QUE LE NUMERO DIT DE LUI-MEME. `platform_type` distingue un vrai
+         numero CLOUD_API d'un numero de test, et le nom verifie confirme que
+         l'on interroge bien celui de la Maison. */
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${phone}?fields=display_phone_number,verified_name,platform_type,code_verification_status`,
+          { headers: { authorization: `Bearer ${tok}` } },
+        );
+        const rep = await r.json().catch(() => ({}));
+        rapport.leNumero = r.ok
+          ? {
+            finDuNumero: String(rep.display_phone_number ?? '').slice(-4),
+            nom: rep.verified_name,
+            genre: rep.platform_type,
+            verification: rep.code_verification_status,
+          }
+          : { refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`) };
+      } catch (e) {
+        rapport.leNumero = { erreur: String(e).slice(0, 200) };
+      }
+      /* ② LES REGLAGES D'APPEL. Si Meta ne connait pas ce champ, c'est que
+         l'API d'appels n'est pas ouverte pour ce numero — et c'est la
+         reponse, meme si elle arrive sous forme de refus. */
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${phone}/settings?include_fields=calling`,
+          { headers: { authorization: `Bearer ${tok}` } },
+        );
+        const rep = await r.json().catch(() => ({}));
+        rapport.lesAppels = r.ok
+          ? { reglages: rep?.calling ?? rep, aLire: 'status ENABLED = les appels sont ouverts' }
+          : {
+            refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`),
+            aLire: 'un refus ici veut presque toujours dire que l API d appels '
+              + 'n est pas ouverte pour ce numero, ou pas dans ce pays',
+          };
+      } catch (e) {
+        rapport.lesAppels = { erreur: String(e).slice(0, 200) };
+      }
+      rapport.etEnsuite = 'Si les appels sont ouverts, il reste a abonner le webhook '
+        + 'au champ « calls » et a porter l audio dans le navigateur. Si Meta refuse, '
+        + 'le chantier s arrete ici et « Les Appels » reste le carnet qu on remplit a la main.';
+      return new Response(JSON.stringify(rapport, null, 2), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    }
+
     const aVerifier = new URL(req.url).searchParams.get('verifie');
     if (aVerifier) {
       const secret = (Deno.env.get('WA_APP_SECRET') ?? '').trim();
@@ -302,6 +371,7 @@ Deno.serve(async (req) => {
       pourVerifierLeSecret: 'ajoutez ?verifie=<identifiant de votre app Meta> à cette adresse',
       pourSavoirQuelNumero: 'ajoutez ?numero=1 à cette adresse',
       pourVoirTousLesNumeros: 'ajoutez ?numeros=<identifiant du compte WhatsApp> à cette adresse',
+      pourSavoirSiLesAppelsSontOuverts: 'ajoutez ?appels=1 à cette adresse',
     }, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
   }
 
@@ -378,9 +448,15 @@ Deno.serve(async (req) => {
   type Entrant = {
     waId: string; numero: string; texte: string; type: string; quand: string;
     nomProfil?: string; numeroMaison?: string;
+    /** L identifiant du message qu elle cite, quand elle repond a l un des
+      notres ou des siens. Voir le commentaire long a la lecture. */
+    citeWaId?: string;
   };
   const entrants: Entrant[] = [];
   const accuses: { waId: string; etat: string; detail?: string; numero: string }[] = [];
+  /* LES REACTIONS QU ELLE POSE. Elles ne font pas de ligne dans le fil :
+     elles se posent sur le message qu elles visent. */
+  const reactions: { surWaId: string; emoji: string; quand: string }[] = [];
 
   for (const entree of charge.entry ?? []) {
     for (const ch of entree.changes ?? []) {
@@ -397,6 +473,25 @@ Deno.serve(async (req) => {
       for (const m of v.messages ?? []) {
         if (!m?.id || !m?.from) continue;
         const de = numeroWa(String(m.from));
+
+        /* ══ UNE REACTION N EST PAS UN MESSAGE — 14 septembre 2026 ═══
+           Meta l annonce comme un message de type `reaction`, mais elle ne
+           dit rien par elle-meme : elle se pose SUR un autre message. La
+           ranger dans le fil y mettrait des lignes vides, et la cliente
+           passerait pour avoir ecrit sans rien dire.
+
+           UN EMOJI VIDE VEUT DIRE QU ELLE L A RETIREE : c est ainsi que Meta
+           l annonce, et l on retire la sienne plutot que d en poser une
+           invisible. */
+        if (String(m.type ?? '') === 'reaction' && m.reaction?.message_id) {
+          reactions.push({
+            surWaId: String(m.reaction.message_id),
+            emoji: String(m.reaction.emoji ?? ''),
+            quand: new Date(Number(m.timestamp ?? 0) * 1000 || Date.now()).toISOString(),
+          });
+          continue;
+        }
+
         entrants.push({
           waId: String(m.id),
           numeroMaison,
@@ -406,6 +501,16 @@ Deno.serve(async (req) => {
           /* Meta date en SECONDES ; le Trône lit des ISO. */
           quand: new Date(Number(m.timestamp ?? 0) * 1000 || Date.now()).toISOString(),
           nomProfil: profils.get(String(m.from)),
+          /* ══ CE QU ELLE CITE — perdu jusqu au 14 septembre ═══════════
+             Meta nomme cela un « contexte » : l identifiant du message
+             auquel elle repond. Il etait la depuis le premier jour et
+             personne ne le lisait, si bien qu une reponse a la troisieme
+             question sur quatre arrivait sans qu on sache laquelle.
+
+             ON NE GARDE QUE L IDENTIFIANT ICI : le texte du message cite se
+             retrouve dans le fil, qui l a deja. Le recopier le figerait, et
+             un message reecrit ferait mentir sa propre citation. */
+          citeWaId: m.context?.id ? String(m.context.id) : undefined,
         });
       }
       for (const st of v.statuses ?? []) {
@@ -463,6 +568,8 @@ Deno.serve(async (req) => {
           sens: 'entrant', numero: e.numero, clientId: tete?.id,
           nomProfil: e.nomProfil, texte: e.texte, type: e.type, quand: e.quand,
           numeroMaison: e.numeroMaison || undefined,
+          /* CE QU ELLE CITE — l identifiant seul ; le fil a deja le texte. */
+          citeWaId: e.citeWaId,
         },
       };
     });
@@ -513,8 +620,27 @@ Deno.serve(async (req) => {
     }
   }
 
+  /* ── ⑥ LES REACTIONS QU ELLE POSE ──────────────────────────────────
+     Une par personne : WhatsApp remplace la precedente, on fait pareil.
+     Un emoji vide la retire. */
+  for (const r of reactions) {
+    const { data: l } = await sb.from('messages_wa').select('id, data')
+      .eq('data->>waId', r.surWaId).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+    if (!ligne) continue;
+    const avant = (ligne.data.reactions ?? []) as { par: string }[];
+    const sansLaSienne = avant.filter((x) => x.par !== 'elle');
+    const apres = r.emoji
+      ? [...sansLaSienne, { par: 'elle', emoji: r.emoji, quand: r.quand }]
+      : sansLaSienne;
+    await sb.from('messages_wa').update({
+      data: { ...ligne.data, reactions: apres },
+      updated_at: new Date().toISOString(),
+    }).eq('id', ligne.id);
+  }
+
   return new Response(
-    JSON.stringify({ recus: entrants.length, accuses: accuses.length }),
+    JSON.stringify({ recus: entrants.length, accuses: accuses.length, reactions: reactions.length }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

@@ -2740,6 +2740,51 @@
 }
 .trc-piece__x:hover { color: var(--color-brique, #96412E); }
 
+/* ── LES GESTES DU FIL — 14 septembre 2026 ────────────────────────────
+   Maquette `public/maquette-rattraper-un-message.html`.
+
+   LES GESTES NE PARAISSENT QU'AU SURVOL. Quatre boutons sous chaque bulle
+   feraient un mur de boutons ; ils s'effacent, et la bulle reste une bulle.
+   Au doigt, ils restent visibles : il n'y a pas de survol sur une tablette,
+   et un geste qu'on ne peut pas atteindre n'existe pas. */
+.trc-b { position: relative; }
+.trc-b__gestes {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+  opacity: 0; transition: opacity .16s ease;
+}
+.trc-b:hover .trc-b__gestes, .trc-b:focus-within .trc-b__gestes { opacity: 1; }
+@media (hover: none) { .trc-b__gestes { opacity: 1; } }
+.trc-b__gestes button {
+  border: 1px solid var(--hairline); background: var(--paper-1); cursor: pointer;
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-soft); border-radius: 2px; padding: 3px 7px;
+}
+.trc-b__gestes button:hover { border-color: var(--copper-300); color: var(--copper-700); }
+
+/* LA CITATION — le morceau de l'autre message, au-dessus du sien. C'est le
+   seul moyen que l'API donne de DESIGNER un message precis. */
+.trc-cite {
+  display: block; border-left: 2px solid var(--copper-400, #B97A4A);
+  background: rgb(0 0 0 / 4%); border-radius: 2px; padding: 5px 8px;
+  margin-bottom: 6px; font-size: 12px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+
+/* LES RÉACTIONS DÉBORDENT LA BULLE, comme dans WhatsApp : elles sont POSÉES
+   dessus, elles n'en font pas partie. */
+.trc-reacts {
+  position: absolute; bottom: -9px; right: 10px;
+  background: var(--paper-1); border: 1px solid var(--hairline);
+  border-radius: 10px; padding: 0 6px; font-size: 12px; line-height: 1.5;
+}
+
+/* LE MESSAGE RETENU — ambre, parce qu'il n'est ni parti ni perdu : il
+   attend, et l'ambre est la couleur de ce qui attend dans la Maison. */
+.trc-b--attente {
+  align-self: flex-end;
+  background: var(--copper-50); border-color: var(--copper-300);
+}
+
 /* Le panneau de la promotion : trois champs sur une ligne, un par colonne. */
 .trc-promo__champs {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px;

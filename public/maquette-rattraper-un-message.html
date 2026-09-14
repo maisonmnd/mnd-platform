@@ -1,0 +1,310 @@
+<title>Rattraper un message</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=EB+Garamond&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
+    --indigo:#1E2150; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond','EB Garamond',Georgia,serif;
+    --sans:'Jost','EB Garamond','Century Gothic',system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding-block:52px 110px; padding-inline:22px; }
+  @media (max-width:600px){ .page { padding-block:30px 80px; padding-inline:16px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 12px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,7vw,56px); line-height:1.04; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.6vw,32px); line-height:1.12; color:var(--indigo); margin:0 0 8px; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin:0 0 6px; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 24px; font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .chapeau { max-width:70ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 20px; }
+  .exemple { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:10px 2px 0; max-width:80ch; }
+
+  .mur { border:1px solid var(--brique-p); border-left:3px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:15px 17px; font-size:14px; line-height:1.6; max-width:78ch; }
+  .mur b { color:var(--brique); }
+  .garde { border:1px solid var(--cuivre-p); border-left:3px solid var(--cuivre); background:var(--cuivre-f); border-radius:3px; padding:13px 15px; font-size:13.5px; line-height:1.55; }
+  .garde b { color:var(--cuivre-fonce); }
+
+  .ecran { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:12px 18px; display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  .ecran__tete b { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:16px 18px 18px; display:flex; flex-direction:column; gap:12px; }
+  @media (max-width:600px){ .ecran__corps { padding:13px; } }
+
+  .fil { background:#EFE9DC; border-radius:3px; padding:13px; display:flex; flex-direction:column; gap:8px; }
+  .b { max-width:78%; border-radius:4px; padding:9px 12px; font-size:13.5px; line-height:1.5; background:var(--blanc); border:1px solid var(--filet); position:relative; }
+  .b small { display:block; font-size:10.5px; color:var(--encre-d); margin-top:4px; letter-spacing:.06em; }
+  .b.nous { align-self:flex-end; background:var(--indigo-pale); border-color:#CFD2E3; }
+  .b.attente { align-self:flex-end; background:var(--ambre-f); border-color:var(--ambre-p); opacity:.9; }
+  .b.corrige { align-self:flex-end; background:#F2EFE8; border-color:var(--filet); color:var(--encre-d); }
+  .b.corrige .txt { text-decoration:line-through; }
+  /* LA CITATION — le morceau de l'autre message, au-dessus du sien. C'est le
+     seul moyen que l'API donne de désigner un message précis. */
+  .quote { border-left:2px solid var(--cuivre); background:#00000008; border-radius:2px; padding:5px 8px; margin-bottom:6px; font-size:12px; color:var(--encre-d); }
+  .quote b { display:block; color:var(--cuivre-fonce); font-size:10px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:2px; }
+  .reactions { position:absolute; bottom:-10px; right:8px; background:var(--blanc); border:1px solid var(--filet); border-radius:10px; padding:1px 7px; font-size:12px; }
+
+  .rangee { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+  .bouton { display:inline-block; font-size:11px; letter-spacing:.16em; text-transform:uppercase; border-radius:3px; padding:8px 14px; border:1px solid var(--indigo); color:var(--indigo); background:transparent; white-space:nowrap; }
+  .bouton.plein { background:var(--cuivre); border-color:var(--cuivre); color:var(--blanc); }
+  .bouton.retenir { border-color:var(--ambre); color:var(--ambre); background:var(--ambre-f); }
+  .compte { font-variant-numeric:tabular-nums; font-weight:600; color:var(--ambre); }
+
+  .deux { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  @media (max-width:820px){ .deux { grid-template-columns:1fr; } }
+  .porte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .porte b.t { display:block; font-family:var(--serif); font-size:18px; color:var(--indigo); margin-bottom:4px; font-weight:500; }
+  .porte ul { margin:8px 0 0; padding-left:18px; }
+
+  .peut { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px){ .peut { grid-template-columns:1fr; } }
+  .peut div { border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .peut .oui { background:var(--vert-f); border:1px solid var(--vert-p); }
+  .peut .non { background:var(--brique-f); border:1px solid var(--brique-p); }
+  .peut b.t { display:block; font-family:var(--serif); font-weight:500; font-size:17px; color:var(--indigo); margin-bottom:6px; }
+  .peut ul { margin:0; padding-left:18px; }
+  .peut li { margin-bottom:3px; }
+
+  .atrancher { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px){ .atrancher { grid-template-columns:1fr; } }
+  .atrancher div { background:var(--ambre-f); border:1px solid var(--ambre-p); border-radius:4px; padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .atrancher b.propose { display:block; color:var(--ambre); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin-top:8px; }
+  .construit { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; max-width:78ch; }
+  .construit li { position:relative; padding-left:20px; }
+  .construit li::before { content:''; position:absolute; left:0; top:.72em; width:9px; height:1px; background:var(--cuivre); }
+  .pied { margin-top:64px; padding-top:16px; border-top:1px solid var(--filet); font-family:var(--serif); font-style:italic; color:var(--encre-d); }
+</style>
+
+<main class="page">
+  <p class="eyebrow">Conversations · maquette à valider</p>
+  <h1>Rattraper un message.</h1>
+  <blockquote class="cite">J’aimerais éditer des messages qui sont partis. Les mêmes fonctionnalités que WhatsApp.<span>Yéman · 14 septembre 2026</span></blockquote>
+
+  <div class="mur">
+    <b>Un message parti ne peut pas être modifié, et ce n’est pas un choix de la Maison.</b>
+    L’application WhatsApp de votre téléphone sait éditer pendant quinze minutes ; l’API Business,
+    celle que le Trône utilise, ne le sait pas. Elle sait envoyer, citer, réagir, et dire qu’on a lu.
+    Elle ne sait pas revenir en arrière, ni effacer chez la cliente. Cette page ne contourne pas ce mur :
+    elle fait le tour de ce qu’il laisse passer, et c’est plus que ce qu’on croit.
+  </div>
+
+  <p class="chapeau" style="margin-top:22px">Derrière « je voudrais éditer », il y a presque toujours <b>une faute qu’on vient de voir partir</b>. Deux remèdes valent mieux qu’une édition : <b>ne pas l’envoyer</b>, et, quand il est trop tard, <b>la corriger en désignant le message fautif</b>. Le premier ne dépend que de nous. Le second est ce que l’API permet de plus proche. S’y ajoutent les gestes du fil, <b>une sonnette</b>, et une question d’une autre taille : les appels.</p>
+
+  <section>
+    <p class="eyebrow">Avant le départ</p>
+    <h2>Les huit secondes qui sauvent</h2>
+    <p class="intro">Le message part dans le fil <b>tout de suite</b>, mais il ne quitte pas la Maison avant huit secondes. Pendant ce temps, un seul bouton : <b>Retenir</b>. C’est le seul vrai « annuler l’envoi » qui existe, et il ne demande la permission de personne. <span class="exemple">Données d’exemple.</span></p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>A. K.</b><span>fenêtre ouverte</span></div>
+      <div class="ecran__corps">
+        <div class="fil">
+          <div class="b">Bonjour, c’est bien samedi 10 h ?<small>14 h 16</small></div>
+          <div class="b attente">
+            Bonjour A., c’est bien samedi à 11 h.
+            <small>part dans <span class="compte">6</span> secondes</small>
+          </div>
+        </div>
+        <div class="rangee">
+          <span class="bouton retenir">Retenir · 6 s</span>
+          <span class="exemple">Un clic, et il ne part pas. Le texte revient dans la zone de saisie, tel quel.</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Pourquoi huit et pas trois.</b> Trois secondes ne suffisent pas à relire ; trente font attendre le comptoir pour rien. Huit, c’est le temps du réflexe : on appuie, on relit, on voit la faute. La durée se règle dans les Paramètres, et se met à zéro pour qui n’en veut pas.</p>
+    <div class="garde" style="margin-top:14px">
+      <b>Si l’onglet se ferme pendant l’attente, le message PART.</b> C’est le choix le moins mauvais, et il mérite d’être dit : un message qu’on croit envoyé et qui n’est jamais parti est pire qu’un message qu’on aurait voulu retenir. Le Trône tente le départ en se fermant ; si la connexion tombe au même instant, le message revient en brouillon marqué <b>« pas parti »</b>, et l’écran le montre au prochain démarrage plutôt que de le perdre en silence.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Après le départ</p>
+    <h2>La correction réécrit, et la base se souvient</h2>
+    <p class="intro">Trop tard pour retenir. On corrige alors le message <b>sur place</b> : le fil du Trône porte le texte juste, sans rature et sans date ajoutée — comme dans WhatsApp. Et parce qu’elle doit l’apprendre, <b>un message de correction part</b>, avec le texte corrigé et sans citer la faute. <span class="exemple">Données d’exemple.</span></p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>Le fil du Trône, après correction</b><span>net, comme s’il avait toujours été juste</span></div>
+      <div class="ecran__corps">
+        <div class="fil">
+          <div class="b">Bonjour, c’est bien samedi 10 h ?<small>14 h 16</small></div>
+          <div class="b nous">Bonjour A., c’est bien samedi à 10 h.<small>14 h 18 · lu</small></div>
+          <div class="b nous">Petite correction : c’est bien samedi à 10 h. Toutes nos excuses.<small>14 h 19 · remis</small></div>
+        </div>
+        <p class="legende" style="margin:0">Le message de 14 h 18 disait « 11 h » il y a une minute. Il dit « 10 h » maintenant, et rien à l’écran ne le rappelle.</p>
+      </div>
+    </div>
+
+    <div class="mur" style="margin-top:16px">
+      <b>Le prix de ce choix, dit une fois et clairement.</b> Sur le téléphone de la cliente, le message de 14 h 18 dit <b>toujours « 11 h »</b> : l’API ne sait ni modifier ni effacer ce qui est parti. Le fil du Trône montre donc, à cet endroit, un texte qu’elle n’a jamais reçu. C’est ce qui rend le message de correction indispensable : sans lui, la Maison serait seule à savoir.
+    </div>
+
+    <div class="deux" style="margin-top:16px">
+      <div class="porte">
+        <b class="t">Ce que la cliente reçoit</b>
+        Un message ordinaire, qui porte le texte juste et ne pointe pas du doigt le précédent.
+        <ul>
+          <li>pas de citation : on ne souligne pas sa propre faute ;</li>
+          <li>le mot s’écrit et se relit comme tout le reste, il n’est pas imposé ;</li>
+          <li>il compte comme un message, dans la fenêtre des 24 heures.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Ce que la base retient</b>
+        L’ancien texte ne disparaît pas de la Maison, il quitte seulement l’écran.
+        <ul>
+          <li>la trace garde <b>le texte d’avant</b>, celui d’après, l’heure et <b>qui a corrigé</b> ;</li>
+          <li>elle est écrite par la base, pas par l’application : personne ne peut la retoucher ;</li>
+          <li>c’est « La vie d’un rendez-vous », appliquée aux messages.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="garde" style="margin-top:14px">
+      <b>Une migration manque, et c’est elle qui rend ce choix tenable.</b> La trace de la base couvre dix tables depuis le 14 septembre — les rendez-vous, les factures, les règlements, les fiches — mais <b>pas les messages</b>. Sans elle, réécrire un message l’effacerait pour de bon, et l’on ne pourrait plus répondre à « qui a écrit cela ». Elle se pose en trois lignes, et elle doit passer <b>avant</b> que la réécriture existe.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Les trois autres gestes</p>
+    <h2>Citer, réagir, dire qu’on a lu</h2>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">Répondre en citant</b>
+        On choisit un message du fil et on y répond : la cliente voit lequel. Indispensable quand elle a posé trois questions d’affilée.
+        <ul>
+          <li>dans les deux sens : <b>ses citations à elle sont perdues aujourd’hui</b>, le Trône ne les capte pas ;</li>
+          <li>c’est la même mécanique que la correction, à un mot près.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Les réactions</b>
+        Un cœur, un pouce. Peu de choses, mais elles évitent un message entier pour dire « bien reçu ».
+        <ul>
+          <li>poser la sienne, et voir la sienne à elle ;</li>
+          <li>une réaction ne rouvre pas la fenêtre de 24 heures et ne se facture pas.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Marquer lu</b>
+        Les deux coches bleues partent quand la Maison ouvre le fil. Aujourd’hui elle lit sans que la cliente le sache.
+        <ul>
+          <li>elle voit qu’on l’a lue, donc elle attend au lieu de réécrire ;</li>
+          <li><b>et elle voit aussi qu’on l’a lue sans répondre</b> — se règle dans les Paramètres, pour qui préfère le silence.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Ce qui va avec, sans qu’on l’ait demandé</b>
+        Trois champs manquent au message pour porter tout cela : la citation, les réactions, et l’accusé de lecture qu’on envoie.
+        <ul>
+          <li>ils se posent une fois, dans la table des messages ;</li>
+          <li>le webhook les remplit, l’écran les rend.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">La sonnette</p>
+    <h2>Savoir qu’on nous écrit sans regarder</h2>
+    <p class="intro">Aujourd’hui, un message qui arrive ne fait <b>aucun bruit</b>, et la cloche du Trône ne le compte même pas : elle ignore tout des conversations. On ne l’apprend qu’en ouvrant l’écran. Dans un salon où personne ne fixe une tablette, c’est une cliente qui attend vingt minutes une réponse qu’on aurait donnée en trente secondes.</p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>Deux notes, et la cloche qui compte</b><span>partout dans le Trône</span></div>
+      <div class="ecran__corps">
+        <div class="rangee" style="justify-content:flex-start; gap:14px">
+          <span class="bouton retenir">Cloche · 3</span>
+          <span class="exemple">A. K. vous écrit</span>
+        </div>
+        <p class="legende" style="margin:0">Deux notes brèves, montantes, jamais stridentes. <b>Aucun fichier son</b> : elles se fabriquent dans le navigateur, donc rien à télécharger et rien à héberger. Le nom de la tête paraît quelques secondes, où que l’on soit dans le Trône.</p>
+      </div>
+    </div>
+    <div class="deux" style="margin-top:14px">
+      <div class="porte">
+        <b class="t">Les quatre pièges, et comment on les évite</b>
+        Une sonnette mal posée devient un bruit qu’on coupe au bout d’un jour.
+        <ul>
+          <li><b>Au chargement, le Trône lit tous les messages du mois</b> : sans garde, elle sonnerait cinquante fois d’affilée. Elle ne sonne que pour ce qui arrive APRÈS que l’écran s’est posé.</li>
+          <li><b>Nos propres messages ne sonnent pas.</b> Évident, et pourtant c’est la faute la plus courante.</li>
+          <li><b>Trois messages d’un coup font une sonnerie</b>, pas trois. Une cliente qui écrit en rafale ne doit pas faire carillonner le salon.</li>
+          <li><b>Le fil déjà ouvert à l’écran ne sonne pas</b> : on est en train de lui parler.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Ce que le navigateur impose</b>
+        Un navigateur refuse de jouer un son tant que personne n’a touché la page — une protection contre les publicités sonores, et elle s’applique à nous aussi.
+        <ul>
+          <li>la sonnette <b>s’arme au premier clic</b> de la journée, quel qu’il soit ;</li>
+          <li>avant ce clic, la cloche et le nom paraissent quand même, en silence ;</li>
+          <li>l’écran ne promet donc jamais un son qu’il ne peut pas jouer.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="legende"><b>Elle se coupe, et elle se tait la nuit.</b> Un réglage dans les Paramètres, et le silence hors des heures du salon : une tablette oubliée allumée ne doit pas sonner à deux heures du matin. <b>La cloche, elle, compte toujours</b> — le son se coupe, pas le compte.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Recevoir les appels sur le Trône</p>
+    <h2>Celui-là est un chantier, pas un bouton</h2>
+    <p class="intro">Aujourd’hui, « Les Appels » est un <b>carnet qu’on remplit à la main</b> : une cliente appelle, quelqu’un tape son nom et ce qu’elle veut. Le code le dit lui-même depuis le 25 août : un navigateur ne peut pas détecter un appel. Votre demande change cela, et elle mérite d’être regardée en face.</p>
+    <div class="peut">
+      <div class="oui">
+        <b class="t">Ce qui est possible</b>
+        Meta a ouvert une API d’appels vocaux WhatsApp pour les entreprises. Elle permet bien de <b>recevoir un appel dans un navigateur</b> : l’appel arrive par le webhook, et la voix passe en direct entre la cliente et le poste.
+        <ul>
+          <li>l’appel sonne dans le Trône, avec la fiche déjà ouverte ;</li>
+          <li>il s’inscrit tout seul au carnet, avec sa durée ;</li>
+          <li>un appel manqué devient un rappel à faire, sans qu’on le tape.</li>
+        </ul>
+      </div>
+      <div class="non">
+        <b class="t">Ce que cela demande</b>
+        Ce n’est pas une case à cocher, et une partie ne dépend pas de nous.
+        <ul>
+          <li><b>Meta doit l’avoir ouvert pour votre numéro</b>, et la disponibilité varie par pays — à vérifier dans votre console avant tout ;</li>
+          <li>l’audio en direct dans un navigateur est un métier à part : une négociation d’appel, des serveurs de relais, et un son qui ne coupe pas ;</li>
+          <li>le Trône devient alors un téléphone : il faut décider qui décroche, ce qui se passe quand trois postes sonnent, et ce qu’on enregistre ou non.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="garde" style="margin-top:14px">
+      <b>Je ne le mets pas dans le même lot que les quatre autres, et voici pourquoi.</b> Les gestes du fil se construisent en une fois et ne dépendent que de nous. Les appels dépendent d’une autorisation de Meta que je ne peux pas vérifier d’ici, et représentent à eux seuls plusieurs jours. Les annoncer ensemble ferait attendre les quatre premiers pour le cinquième. <b>Premier geste, gratuit et immédiat</b> : ouvrez votre console Meta, WhatsApp, Numéros de téléphone, et regardez si « Calling » y paraît pour votre numéro. La réponse décide de tout le reste.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">À trancher</p>
+    <h2>Deux points, une proposition chacun</h2>
+    <div class="atrancher">
+      <div><h3>Les coches bleues, toujours ?</h3>Marquer lu rassure la cliente, mais lui montre aussi qu’on l’a lue sans répondre — un soir de rush, cela se retourne contre la Maison.<b class="propose">Proposé · oui par défaut, et un réglage pour le couper</b></div>
+      <div><h3>Qui peut réécrire un message</h3>Réécrire efface du fil ce que la cliente a pourtant reçu. Tout le personnel, ou seulement qui l’a écrit ?<b class="propose">Proposé · qui l’a écrit, et la direction ; la trace dit qui, dans les deux cas</b></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Une fois validé</p>
+    <h2>Ce que le Trône fera</h2>
+    <ul class="construit">
+      <li><b>Les huit secondes</b> : le message paraît dans le fil, part après le délai, et « Retenir » le rend à la zone de saisie. Réglable, zéro compris.</li>
+      <li><b>Corriger un message parti</b> : le fil se réécrit sur place, sans rature ; un message de correction part à la cliente, sans citer la faute.</li>
+      <li><b>Les messages entrent dans la trace de la base</b> — le texte d’avant, celui d’après, l’heure et qui a corrigé. À poser AVANT la réécriture.</li>
+      <li><b>Répondre en citant</b>, dans les deux sens : ce qu’on cite, et ce qu’elle cite.</li>
+      <li><b>Les réactions</b>, posées et reçues.</li>
+      <li><b>Marquer lu</b> à l’ouverture du fil, avec son réglage.</li>
+      <li><b>Trois champs dans la table des messages</b> pour porter tout cela, posés une seule fois.</li>
+      <li><b>La sonnette</b> : deux notes fabriquées dans le navigateur, la cloche qui compte enfin les conversations, et le silence hors des heures du salon.</li>
+      <li><b>Les appels</b> : après votre réponse sur « Calling », et comme chantier à part.</li>
+    </ul>
+  </section>
+
+  <p class="pied">Maquette à valider. Les noms, heures et messages sont des exemples.</p>
+</main>

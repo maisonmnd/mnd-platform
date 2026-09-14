@@ -37,3 +37,18 @@ export const supabase: SupabaseClient | null =
 
 /** Vrai quand un backend distant est configuré ; sinon la Maison tourne en local. */
 export const isRemote = supabase !== null;
+
+/* ══ JOINDRE UNE FONCTION QUAND L'ONGLET SE FERME — 14 sept. 2026 ════
+
+   Un message retenu huit secondes doit PARTIR si l'on ferme l'onglet avant la
+   fin du compte : un message qu'on croit envoyé et qui n'est jamais parti est
+   pire qu'un message qu'on aurait voulu retenir.
+
+   `functions.invoke` ne suffit pas là : le navigateur annule les requêtes en
+   vol d'une page qui se ferme. Seul `keepalive` les laisse finir — c'est
+   fait pour cela, et cela vaut aussi pour une tablette qu'on met en veille.
+
+   `sendBeacon` ne convenait pas : il ne porte aucun en-tête, donc pas le
+   jeton de session, et la porte de Supabase refuserait. */
+export const adresseDesFonctions = url ? `${url.replace(/\/$/, '')}/functions/v1` : null;
+export const cleAnonyme = anonKey ?? null;

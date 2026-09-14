@@ -14,6 +14,25 @@ export type Automations = {
 };
 
 export type Settings = {
+  /* ══ LES RÉGLAGES DU FIL — 14 septembre 2026 ═══════════════════════
+     Maquette `public/maquette-rattraper-un-message.html`, validée. Trois
+     réglages, et chacun répond à une objection qui viendra du comptoir. */
+
+  /** LES SECONDES DE RETENUE avant qu'un message quitte la Maison.
+      Absent = huit, le temps du réflexe. Zéro coupe la retenue pour qui la
+      trouve pénible : c'est un confort, pas une règle de sécurité. */
+  retenueSecondes?: number;
+
+  /** LES DEUX COCHES BLEUES. Marquer lu rassure la cliente — elle attend au
+      lieu de réécrire — mais lui montre aussi qu'on l'a lue SANS répondre, ce
+      qui se retourne contre la Maison un soir de rush. Absent = on marque lu,
+      puisque c'est ce qui a été demandé. */
+  cochesBleues?: boolean;
+
+  /** LA SONNETTE. Absent = elle sonne. Le compte de la cloche, lui, ne se
+      coupe jamais : c'est le SON qu'on éteint, pas l'information. */
+  sonnette?: boolean;
+
   /** ── LE VERROU DES CAISSES — 22 août 2026 ──────────────────────
       « Mettre un code de sécurité avant d'ouvrir tout l'onglet caisse. »
 

@@ -9,7 +9,13 @@ import { clientsStore, useClients } from '../../../../shared/clients';
 import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
+  delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
+  messagesQuiSonnent, messageCite, type MessageWa,
 } from '../../../../shared/conversations';
+import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
+import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
+import { useSettings } from '../../../../shared/settings';
+import { salonHoursStore } from '../equipe/data';
 import { ClientPicker } from './_shared';
 import { useEstDirection } from '../_vie';
 import {
@@ -84,6 +90,44 @@ async function motifDuRefus(e: unknown): Promise<string> {
   }
 }
 
+/* ── LES HEURES DU SALON, POUR CE JOUR-CI ─────────────────────────────
+   Elles vivent par jour de semaine (`mnd_salon_hours`) et s'écrivent
+   « 09h00 », à la française. La sonnette, elle, compare des « 09:00 » : on
+   traduit ici plutôt que d'imposer un format au réglage que la Maison lit
+   tous les jours.
+
+   UN JOUR DE FERMETURE EST UNE NUIT ENTIÈRE : le salon n'ouvre pas, donc la
+   sonnette se tait. Une tablette oubliée un dimanche ne carillonne pas. */
+const JOURS_COURTS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'] as const;
+
+const heuresDuJour = (): [string | undefined, string | undefined] => {
+  const h = salonHoursStore.get()[JOURS_COURTS[new Date().getDay()]];
+  if (!h) return [undefined, undefined];
+  if (h.closed) return ['23:59', '00:00'];
+  const enDeuxPoints = (s: string) => s.replace(/h/i, ':').replace(/^(\d):/, '0$1:');
+  return [enDeuxPoints(h.open), enDeuxPoints(h.close)];
+};
+
+/** LES DEUX RÉACTIONS DE LA MAISON. Le mot est en français sur le bouton ;
+    le signe est ce qui part chez Meta, et une réaction EST un signe — c'est
+    la seule chose que WhatsApp sache poser sur un message. */
+const REACTIONS = [
+  { mot: 'Cœur', signe: String.fromCodePoint(0x2764, 0xfe0f) },
+  { mot: 'Pouce', signe: String.fromCodePoint(0x1f44d) },
+] as const;
+
+/** CE QU'UN MESSAGE RETENU PORTE, le temps de son compte à rebours. */
+type Attente = {
+  texte: string;
+  piece: PieceRendue | null;
+  citeWaId?: string;
+  modele?: string;
+  variables: string[];
+  numero: string;
+  clientId?: string;
+  posteLe: number;
+};
+
 export default function Conversations() {
   const navigate = useNavigate();
   const { branch } = useBranch();
@@ -101,6 +145,14 @@ export default function Conversations() {
   const [piece, setPiece] = useState<PieceRendue | null>(null);
   const [promoOuverte, setPromoOuverte] = useState(false);
   const estDirection = useEstDirection();
+  const [reglages] = useSettings();
+  /* LE MESSAGE RETENU — il paraît dans le fil, mais n'a pas encore quitté la
+     Maison. Un seul à la fois : « retenir » n'a de sens que sur le dernier. */
+  const [enAttente, setEnAttente] = useState<Attente | null>(null);
+  /** Le message qu'on cite en répondant, s'il y en a un. */
+  const [cite, setCite] = useState<MessageWa | null>(null);
+  /** Le message qu'on est en train de réécrire, et son texte neuf. */
+  const [reecrit, setReecrit] = useState<{ m: MessageWa; texte: string } | null>(null);
   const finDuFil = useRef<HTMLDivElement>(null);
 
   /* L'HORLOGE BAT, SINON LA FENÊTRE MENT. Un écran ouvert depuis une heure
@@ -168,6 +220,94 @@ export default function Conversations() {
     }
   };
 
+  /* ══ LES HUIT SECONDES QUI SAUVENT — 14 septembre 2026 ═══════════════
+     « J'aimerais éditer des messages qui sont partis » (Yéman). Un message
+     parti ne se modifie pas chez la cliente : le meilleur remède n'est donc
+     pas de le corriger, c'est de ne pas l'envoyer. */
+  const delaiMs = delaiDeRetenue(reglages.retenueSecondes);
+
+  /* L'HORLOGE DU COMPTE À REBOURS. Elle ne tourne QUE tant qu'un message
+     attend : un intervalle qui bat pour rien réveille l'onglet toute la
+     journée et vide la batterie de la tablette. */
+  const [tacTac, setTacTac] = useState(0);
+  useEffect(() => {
+    if (!enAttente) return undefined;
+    const t = window.setInterval(() => setTacTac((n) => n + 1), 500);
+    return () => window.clearInterval(t);
+  }, [enAttente]);
+  void tacTac;
+
+  const partir = async (a: Attente, enFermant = false) => {
+    const corps = {
+      numero: a.numero,
+      texte: a.modele ? '' : a.texte,
+      modele: a.modele ?? '',
+      variables: a.variables,
+      clientId: a.clientId,
+      branchId: branch.id,
+      parQui: session?.user?.email ?? undefined,
+      ...(a.citeWaId ? { citeWaId: a.citeWaId } : {}),
+      /* RIEN DE PUBLIC : les octets traversent la fonction, qui les dépose
+         chez Meta. Aucune adresse n'existe, ni chez nous ni ailleurs. */
+      ...(a.piece && !a.modele ? { piece: a.piece } : {}),
+    };
+    /* ── EN FERMANT L'ONGLET, ON PART QUAND MÊME ──────────────────────
+       Le navigateur annule les requêtes en vol d'une page qui se ferme ;
+       `keepalive` les laisse finir. Un message qu'on croit envoyé et qui
+       n'est jamais parti est pire qu'un message qu'on aurait voulu retenir. */
+    if (enFermant) {
+      const base = adresseDesFonctions;
+      const jeton = (await supabase?.auth.getSession())?.data.session?.access_token;
+      if (!base || !jeton) return;
+      void fetch(`${base}/whatsapp-envoi`, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${jeton}`,
+          ...(cleAnonyme ? { apikey: cleAnonyme } : {}),
+        },
+        body: JSON.stringify(corps),
+      });
+      return;
+    }
+    setEnvoi(true);
+    try {
+      const { error } = await supabase!.functions.invoke('whatsapp-envoi', { body: corps });
+      if (error) throw error;
+      toast(a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
+    } catch (e) {
+      toast(`Non envoyé : ${await motifDuRefus(e)}`);
+    } finally {
+      setEnvoi(false);
+    }
+  };
+
+  /* LE DÉPART SE DÉCLENCHE AU BOUT DU COMPTE. */
+  const attenteEnCours = useRef<Attente | null>(null);
+  attenteEnCours.current = enAttente;
+  useEffect(() => {
+    if (!enAttente) return undefined;
+    const t = window.setTimeout(() => {
+      setEnAttente(null);
+      void partir(enAttente);
+    }, Math.max(0, enAttente.posteLe + delaiMs - Date.now()));
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enAttente, delaiMs]);
+
+  /* L'ONGLET QUI SE FERME NE MANGE PAS LE MESSAGE. `pagehide` plutôt que
+     `beforeunload` : c'est le seul que les navigateurs mobiles honorent. */
+  useEffect(() => {
+    const surFermeture = () => {
+      const a = attenteEnCours.current;
+      if (a) void partir(a, true);
+    };
+    window.addEventListener('pagehide', surFermeture);
+    return () => window.removeEventListener('pagehide', surFermeture);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── L'ENVOI PASSE PAR LA FONCTION, JAMAIS PAR LE NAVIGATEUR ────────
      Le jeton Meta autorise à écrire au nom de la Maison à n'importe quel
      numéro : le poser ici, ce serait le publier. */
@@ -177,50 +317,138 @@ export default function Conversations() {
     /* SANS SUPABASE, RIEN NE PART, et l'écran le dit. La Maison peut tourner
        hors ligne pour lire son carnet ; écrire à une cliente, non. */
     if (!supabase) { toast('Pas de connexion à la Maison : le message n’est pas parti.'); return; }
-    setEnvoi(true);
+
+    /* ON POSTE, ON N'ENVOIE PAS ENCORE. Le message paraît dans le fil tout de
+       suite ; il ne quitte la Maison qu'au bout du délai. C'est le seul vrai
+       « annuler l'envoi » qui existe, et il ne demande la permission de
+       personne — ni celle de Meta, ni celle de la cliente.
+
+       LE MOTIF D'UN REFUS VIT DANS LE CORPS, PAS DANS LE MESSAGE : voir
+       `motifDuRefus`, plus haut. C'est `partir` qui le lit désormais. */
+    const aPoster: Attente = {
+      texte: texte.trim(),
+      piece: modele ? null : piece,
+      citeWaId: cite?.waId,
+      modele,
+      variables,
+      numero: fil.numero,
+      clientId: fil.clientId,
+      posteLe: Date.now(),
+    };
+    setTexte('');
+    setPiece(null);
+    setCite(null);
+
+    /* UN SEUL MESSAGE RETENU À LA FOIS : le précédent part tout de suite,
+       sinon « retenir » ne désignerait plus rien. */
+    if (enAttente) void partir(enAttente);
+    if (delaiMs <= 0) { void partir(aPoster); return; }
+    setEnAttente(aPoster);
+  };
+
+  /* RETENIR — le texte revient dans la zone de saisie, tel quel. */
+  const retenir = () => {
+    if (!enAttente) return;
+    setTexte(enAttente.texte);
+    setPiece(enAttente.piece);
+    setEnAttente(null);
+    toast('Retenu. Il n’est pas parti.');
+  };
+
+  /* ══ LA SONNETTE — 14 septembre 2026 ═══════════════════════════════
+     « Je voudrais une sonnette quand un nouveau message vient dans le
+     Trône » (Yéman). Les quatre pièges sont jugés dans
+     `shared/conversations.ts` ; ici on se contente de sonner UNE fois. */
+  const vus = useRef<{ ids: string[]; premiere: boolean }>({ ids: [], premiere: true });
+  useEffect(() => {
+    const sonnants = messagesQuiSonnent({
+      avant: vus.current.ids.map((id) => ({ id })),
+      apres: messages,
+      filOuvert: ouvertNum || undefined,
+      premiereLecture: vus.current.premiere,
+    });
+    vus.current = { ids: messages.map((m) => m.id), premiere: false };
+    if (sonnants.length === 0 || reglages.sonnette === false) return;
+    /* UNE TABLETTE OUBLIÉE ALLUMÉE NE SONNE PAS À DEUX HEURES DU MATIN. */
+    const [ouvre, ferme] = heuresDuJour();
+    if (cestLaNuit(new Date(), ouvre, ferme)) return;
+    /* UNE RAFALE FAIT UNE SONNERIE, pas trois. */
+    sonne();
+    const premier = sonnants[0];
+    const qui = premier.nomProfil
+      ?? clients.find((c) => c.id === premier.clientId)?.name
+      ?? `+${premier.numero}`;
+    toast(sonnants.length === 1
+      ? `${qui} vous écrit.`
+      : `${sonnants.length} messages viennent d’arriver.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  /* LE NAVIGATEUR REFUSE TOUT SON avant qu'on ait touché la page — une
+     protection contre les publicités sonores, et elle s'applique à nous
+     aussi. On arme au premier geste, quel qu'il soit. */
+  useEffect(() => {
+    const arme = () => armeLaSonnette();
+    window.addEventListener('pointerdown', arme);
+    window.addEventListener('keydown', arme);
+    return () => {
+      window.removeEventListener('pointerdown', arme);
+      window.removeEventListener('keydown', arme);
+    };
+  }, []);
+
+  /* ══ MARQUER LU — les deux coches bleues ═══════════════════════════
+     Elle voit qu'on l'a lue, donc elle attend au lieu de réécrire. Et elle
+     voit aussi qu'on l'a lue SANS répondre : d'où le réglage. */
+  useEffect(() => {
+    if (!fil || !supabase || reglages.cochesBleues === false) return;
+    const aDire = fil.messages.filter((m) => m.sens === 'entrant' && m.waId && !m.luParLaMaisonLe);
+    if (aDire.length === 0) return;
+    /* LE DERNIER SUFFIT : Meta marque lu tout ce qui le précède, et le dire
+       message par message multiplierait les appels pour rien. */
+    const dernier = aDire[aDire.length - 1];
+    void supabase.functions.invoke('whatsapp-envoi', { body: { marquerLu: dernier.waId } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fil?.numero, fil?.messages.length, reglages.cochesBleues]);
+
+  /* ══ RÉÉCRIRE UN MESSAGE PARTI — décision de Yéman, 14 septembre ════
+     Le fil du Trône porte le texte juste, sans rature ni mention. Le prix est
+     assumé et il doit rester dit : sur le téléphone de la cliente, l'original
+     est TOUJOURS là — et c'est pour cela qu'un mot de correction part avec.
+
+     L'ANCIEN TEXTE N'EST PAS PERDU : la trace de la base le garde (0097),
+     avec l'heure et le nom de qui a corrigé. Elle est écrite par la base ;
+     personne ne peut la retoucher. */
+  const reecrisLeMessage = (m: MessageWa, neuf: string) => {
+    const t = neuf.trim();
+    if (!t || t === m.texte) { setReecrit(null); return; }
+    const empeche = pourquoiOnNeReecritPas({
+      message: m, moi: session?.user?.email ?? undefined, estDirection,
+    });
+    if (empeche) { toast(empeche); return; }
+    messagesWaStore.set((prev) => prev.map((x) => (x.id === m.id
+      ? { ...x, texte: t, reecritLe: new Date().toISOString(), reecritPar: session?.user?.email }
+      : x)));
+    setReecrit(null);
+    /* ET LA CLIENTE L'APPREND, sinon la Maison serait seule à savoir. Le mot
+       se relit avant de partir, comme tout le reste. */
+    const prenom = fil && !fil.sansFiche ? fil.nom.split(/\s+/)[0] : undefined;
+    setTexte(texteDeLaCorrection(t, prenom));
+    toast('Le fil est corrigé. Relisez le mot de correction avant de l’envoyer.');
+  };
+
+  /* ══ UNE RÉACTION — un geste, pas un message ═══════════════════════
+     Elle ne rouvre pas la fenêtre de 24 heures et ne se facture pas. Elle ne
+     fait pas non plus de ligne dans le fil : elle se pose SUR le message. */
+  const reagis = async (m: MessageWa, signe: string) => {
+    if (!m.waId || !supabase || !fil) return;
     try {
-      const { data, error } = await supabase.functions.invoke('whatsapp-envoi', {
-        body: {
-          numero: fil.numero,
-          texte: modele ? '' : texte.trim(),
-          modele: modele ?? '',
-          variables,
-          clientId: fil.clientId,
-          branchId: branch.id,
-          parQui: session?.user?.email ?? undefined,
-          /* RIEN DE PUBLIC : les octets traversent la fonction, qui les
-             dépose chez Meta. Aucune adresse n'existe, ni chez nous ni
-             ailleurs. C'est la décision du 14 septembre, et son prix est le
-             plafond de cinq mégaoctets. */
-          ...(piece && !modele ? { piece } : {}),
-        },
+      const { error } = await supabase.functions.invoke('whatsapp-envoi', {
+        body: { numero: fil.numero, reaction: { surWaId: m.waId, emoji: signe } },
       });
       if (error) throw error;
-      setTexte('');
-      setPiece(null);
-      /* LA LIGNE EST DÉJÀ ÉCRITE PAR LA FONCTION ; la synchro la ramènera.
-         On ne la pose pas à la main en plus : deux écritures pour un message
-         finiraient par en afficher deux. */
-      void data;
-      toast(modele ? `Modèle « ${modele} » envoyé.` : 'Message envoyé.');
     } catch (e) {
-      /* ══ LE MOTIF VIT DANS LE CORPS, PAS DANS LE MESSAGE ═══════════════
-         14 septembre 2026, au soir. « Ça dit message envoyé mais rien ne va
-         sur le téléphone du client » (Yéman).
-
-         La fonction refuse en disant POURQUOI — « la fenêtre de 24 heures est
-         fermée », « réservé au personnel », le reproche exact de Meta. Rien
-         de cela n'arrivait à l'écran : `functions.invoke` lève une erreur
-         dont le `message` est toujours le même, « Edge Function returned a
-         non-2xx status code », et la phrase utile dort dans le CORPS de la
-         réponse, qu'il faut aller lire.
-
-         Le comptoir voyait donc, depuis le premier jour, une phrase qui ne
-         dit rien de ce qu'il faut faire. C'est exactement la faute que la
-         fonction, elle, avait appris à ne pas commettre. */
-      toast(`Non envoyé : ${await motifDuRefus(e)}`);
-    } finally {
-      setEnvoi(false);
+      toast(`Réaction non posée : ${await motifDuRefus(e)}`);
     }
   };
 
@@ -361,17 +589,88 @@ export default function Conversations() {
                     <div key={m.id} style={{ display: 'contents' }}>
                       {nouveauJour && <span className="trc-jour">{jour(m.quand)}</span>}
                       <div className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}`}>
-                        {m.texte}
+                        {/* CE QUE CE MESSAGE CITE. Le fil a déjà le texte : on
+                            ne garde que l'identifiant, sinon un message réécrit
+                            ferait mentir sa propre citation. Un message plus
+                            ancien que le fil ne se retrouve pas, et l'écran le
+                            dit plutôt que de faire semblant. */}
+                        {m.citeWaId && (
+                          <span className="trc-cite">
+                            {messageCite(fil.messages, m.citeWaId)?.texte ?? 'un message plus ancien'}
+                          </span>
+                        )}
+                        {reecrit?.m.id === m.id ? (
+                          <>
+                            <textarea
+                              className="mnd-input"
+                              rows={2}
+                              autoFocus
+                              value={reecrit.texte}
+                              onChange={(e) => setReecrit({ m, texte: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') setReecrit(null);
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  reecrisLeMessage(m, reecrit.texte);
+                                }
+                              }}
+                            />
+                            <span className="trc-b__h">Entrée pour corriger, Échap pour laisser</span>
+                          </>
+                        ) : m.texte}
                         <span className="trc-b__h">
                           {m.modele ? `Modèle ${m.modele} · ` : ''}{heure(m.quand)}
                           {m.etat === 'lu' ? ' · lu' : m.etat === 'remis' ? ' · remis'
                             : m.etat === 'non-remis' ? ' · non remis' : m.etat === 'en-route' ? ' · en route' : ''}
                           {m.detail ? ` · ${m.detail}` : ''}
                         </span>
+                        {/* LES RÉACTIONS SE POSENT SUR LE MESSAGE, comme dans
+                            WhatsApp : elles ne font pas de ligne dans le fil. */}
+                        {(m.reactions ?? []).length > 0 && (
+                          <span className="trc-reacts">
+                            {(m.reactions ?? []).map((r) => r.emoji).join(' ')}
+                          </span>
+                        )}
+                        {fil.fenetre.ouverte && m.waId && !reecrit && (
+                          <span className="trc-b__gestes">
+                            <button type="button" onClick={() => setCite(m)}>Répondre</button>
+                            {REACTIONS.map((r) => (
+                              <button key={r.mot} type="button" onClick={() => void reagis(m, r.signe)}>
+                                {r.mot}
+                              </button>
+                            ))}
+                            {m.sens === 'sortant' && !pourquoiOnNeReecritPas({
+                              message: m, moi: session?.user?.email ?? undefined, estDirection,
+                            }) && (
+                              <button type="button" onClick={() => setReecrit({ m, texte: m.texte })}>
+                                Réécrire
+                              </button>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
                 })}
+                {/* LE MESSAGE RETENU — il paraît, mais n'a pas encore quitté
+                    la Maison. Quelques secondes pour se raviser. */}
+                {enAttente && enAttente.numero === fil.numero && (
+                  <div className="trc-b trc-b--attente">
+                    {enAttente.texte || enAttente.piece?.nom || `Modèle ${enAttente.modele}`}
+                    <span className="trc-b__h">
+                      part dans {resteDeLaRetenue(enAttente.posteLe, delaiMs, Date.now())} secondes
+                    </span>
+                    <span className="trc-b__gestes">
+                      <button type="button" onClick={retenir}>Retenir</button>
+                      <button
+                        type="button"
+                        onClick={() => { const a = enAttente; setEnAttente(null); void partir(a); }}
+                      >
+                        Envoyer maintenant
+                      </button>
+                    </span>
+                  </div>
+                )}
                 <div ref={finDuFil} />
               </div>
 
@@ -416,6 +715,18 @@ export default function Conversations() {
                         occupe={envoiEnCours}
                       />
                     </div>
+
+                    {/* CE QU'ON CITE, au-dessus de ce qu'on écrit — comme
+                        WhatsApp le montre à la cliente. */}
+                    {cite && (
+                      <div className="trc-piece">
+                        <span className="trc-piece__v">Cite</span>
+                        <span className="trc-piece__n">{cite.texte}</span>
+                        <button type="button" className="trc-piece__x" onClick={() => setCite(null)}>
+                          Ne plus citer
+                        </button>
+                      </div>
+                    )}
 
                     {piece && (
                       <div className="trc-piece">

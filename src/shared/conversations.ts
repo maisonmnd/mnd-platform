@@ -81,6 +81,57 @@ export type MessageWa = {
       seconde ligne, tout l'historique saura déjà de laquelle il vient ;
       sans lui, deux ans de conversations deviendraient indistinguables. */
   numeroMaison?: string;
+
+  /* ══ LES GESTES DU FIL — 14 septembre 2026 ═════════════════════════
+     « J'aimerais éditer des messages qui sont partis. Les mêmes
+     fonctionnalités que WhatsApp » (Yéman). Maquette
+     `public/maquette-rattraper-un-message.html`, validée.
+
+     UN MESSAGE PARTI NE SE MODIFIE PAS CHEZ LA CLIENTE, et ce n'est pas un
+     choix de la Maison : l'API Business ne sait ni éditer ni effacer. Ce que
+     ces champs portent est donc ce que l'API permet VRAIMENT — citer,
+     réagir, dire qu'on a lu — plus la réécriture du fil de la Maison, qui
+     est une décision assumée (voir `reecritLe`). */
+
+  /** LE MESSAGE QUE CELUI-CI CITE, par son identifiant Meta.
+
+      DANS LES DEUX SENS : ce qu'on cite, et ce qu'ELLE cite — ses citations
+      étaient perdues jusqu'ici, le webhook ne lisait pas le « contexte » que
+      Meta envoie pourtant depuis le premier jour. Une réponse à la troisième
+      question sur quatre arrivait donc sans qu'on sache laquelle.
+
+      ON NE GARDE QUE L'IDENTIFIANT, jamais une copie du texte cité. Le fil a
+      déjà ce texte, et le recopier ici le figerait : un message réécrit
+      ferait alors mentir sa propre citation. */
+  citeWaId?: string;
+
+  /** LES RÉACTIONS POSÉES SUR CE MESSAGE. Une par personne : WhatsApp
+      remplace la précédente, on fait pareil. Un `emoji` vide veut dire
+      qu'elle a été retirée — c'est ainsi que Meta l'annonce. */
+  reactions?: { par: 'nous' | 'elle'; emoji: string; quand: string }[];
+
+  /** L'ACCUSÉ DE LECTURE QUE LA MAISON A ENVOYÉ pour ce message entrant.
+      Sans lui on le renverrait à chaque ouverture du fil, et Meta compte. */
+  luParLaMaisonLe?: string;
+
+  /* ── LA RÉÉCRITURE — décision de Yéman, 14 septembre 2026 ──────────
+     « La correction ne cite pas l'original, l'original n'est pas barré,
+     daté, et juste réécrit. »
+
+     LE FIL DU TRÔNE PORTE LE TEXTE JUSTE, sans rature ni mention. C'est ce
+     qui a été demandé, et cela a un prix qui doit rester écrit quelque part :
+     sur le téléphone de la cliente, le message d'origine est TOUJOURS là,
+     inchangé. Le fil de la Maison montre donc, à cet endroit, un texte
+     qu'elle n'a jamais reçu — et c'est pour cela qu'un message de correction
+     part avec, sans quoi la Maison serait seule à savoir.
+
+     L'ANCIEN TEXTE N'EST PAS PERDU : la trace de la base le garde (migration
+     0097), avec l'heure et le nom de qui a corrigé. Elle est écrite par la
+     base et personne ne peut la retoucher. Ces deux champs-ci ne servent
+     qu'à empêcher une réécriture de repartir chez Meta — ils ne s'affichent
+     pas. */
+  reecritLe?: string;
+  reecritPar?: string;
 };
 
 export const messagesWaStore = createStore<MessageWa[]>('mnd_messages_wa', []);
@@ -258,6 +309,130 @@ export function pourquoiLEnvoiEstImpossible(o: {
   }
   return null;
 }
+
+/** LE MESSAGE QUE CELUI-CI CITE, retrouvé dans le fil.
+
+    Il peut manquer : un fil ne remonte pas à l'infini, et elle peut citer un
+    message d'il y a six mois. L'écran doit alors dire « un message plus
+    ancien » plutôt que de faire semblant. */
+export const messageCite = (
+  messages: readonly MessageWa[], citeWaId: string | undefined,
+): MessageWa | undefined =>
+  (citeWaId ? messages.find((m) => m.waId === citeWaId) : undefined);
+
+/* ══ LES HUIT SECONDES QUI SAUVENT — 14 septembre 2026 ═══════════════
+
+   Derrière « je voudrais éditer », il y a presque toujours une faute qu'on
+   vient de voir partir. Le meilleur remède n'est pas de la corriger : c'est
+   de ne pas l'envoyer.
+
+   LE MESSAGE PARAIT DANS LE FIL TOUT DE SUITE, mais il ne quitte la Maison
+   qu'au bout du délai. Pendant ce temps, un seul geste : le retenir. C'est le
+   seul vrai « annuler l'envoi » qui existe, et il ne demande la permission de
+   personne — ni celle de Meta, ni celle de la cliente.
+
+   HUIT SECONDES, ET PAS TROIS. Trois ne suffisent pas à relire ; trente font
+   attendre le comptoir pour rien. Huit, c'est le temps du réflexe : on
+   appuie, on relit, on voit la faute. Zéro coupe la retenue pour qui n'en
+   veut pas. */
+export const DELAI_DE_RETENUE_MS = 8000;
+
+/** Le délai tel qu'il est réglé, borné à ce qui a du sens. Au-delà d'une
+    minute ce n'est plus une retenue, c'est une file d'attente. */
+export const delaiDeRetenue = (secondes: number | undefined): number => {
+  const s = Number(secondes);
+  if (!Number.isFinite(s) || s < 0) return DELAI_DE_RETENUE_MS;
+  return Math.min(60, Math.round(s)) * 1000;
+};
+
+/** CE QU'IL RESTE À ATTENDRE, en secondes entières, pour l'afficher. */
+export const resteDeLaRetenue = (posteLe: number, delaiMs: number, maintenant: number): number =>
+  Math.max(0, Math.ceil((posteLe + delaiMs - maintenant) / 1000));
+
+/* ══ RÉÉCRIRE UN MESSAGE PARTI ═══════════════════════════════════════ */
+
+/** POURQUOI CE MESSAGE NE SE RÉÉCRIT PAS — la phrase du comptoir, ou `null`.
+
+    QUI L'A ÉCRIT, ET LA DIRECTION. Réécrire efface du fil ce que la cliente a
+    pourtant reçu : ce n'est pas un geste anodin, et il se rattache à un nom.
+    La trace de la base dit qui, dans tous les cas. */
+export function pourquoiOnNeReecritPas(o: {
+  message: Pick<MessageWa, 'sens' | 'modele' | 'etat' | 'parQui' | 'type'>;
+  moi?: string;
+  estDirection: boolean;
+}): string | null {
+  const m = o.message;
+  if (m.sens !== 'sortant') return 'On ne réécrit que ce que la Maison a écrit.';
+  /* UN MODÈLE EST UN TEXTE APPROUVÉ PAR META : le réécrire dans le fil
+     laisserait croire qu'on a envoyé autre chose que ce que Meta a validé. */
+  if (m.modele) return 'Un modèle approuvé ne se réécrit pas : son texte est celui que Meta a validé.';
+  if (m.type && m.type !== 'text') return 'Seul un message de texte se réécrit.';
+  if (m.etat === 'non-remis') return 'Ce message n’est jamais parti : renvoyez-le plutôt que de le réécrire.';
+  if (o.estDirection) return null;
+  if (!o.moi || !m.parQui) return 'Seule la direction peut réécrire un message qui n’est pas le sien.';
+  if (m.parQui.toLowerCase() !== o.moi.toLowerCase()) {
+    return 'Ce message est d’une autre main : seule la direction peut le réécrire.';
+  }
+  return null;
+}
+
+/** LE MOT DE LA CORRECTION, déjà écrit et toujours relu avant de partir.
+
+    IL NE CITE PAS LA FAUTE et ne la répète pas : on ne souligne pas sa propre
+    erreur devant une cliente. Il porte le texte juste, et c'est tout. */
+export const texteDeLaCorrection = (neuf: string, prenom?: string): string => {
+  const t = neuf.trim();
+  const tete = prenom ? `${prenom}, petite correction : ` : 'Petite correction : ';
+  /* LA PREMIÈRE LETTRE REDEVIENT MINUSCULE quand elle suit les deux points,
+     sauf si c'est un nom propre — on ne devine pas, on ne touche qu'à ce qui
+     est sûrement une phrase : une capitale suivie d'une minuscule.
+
+     L'APOSTROPHE COMPTE COMME UNE LIAISON. « C'est bien samedi » commence par
+     une capitale suivie d'une apostrophe, pas d'une minuscule : sans ce cas,
+     la moitié des phrases françaises gardaient leur majuscule au milieu de la
+     correction. */
+  const suite = /^[A-ZÀÂÉÈÊÎÔÛÇ]['’]?[a-zà-ÿ]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+  return `${tete}${suite}`;
+};
+
+/* ══ LA SONNETTE — 14 septembre 2026 ═════════════════════════════════
+
+   « Je voudrais une sonnette quand un nouveau message vient dans le Trône »
+   (Yéman). Aujourd'hui un message qui arrive ne fait aucun bruit, et la
+   cloche ne le compte même pas.
+
+   QUATRE PIÈGES, ET ILS SE LISENT TOUS ICI :
+
+   ① AU CHARGEMENT, le Trône lit tout le mois. Sans garde, la sonnette
+      sonnerait cinquante fois d'affilée, et l'on couperait le son dans la
+      journée. Elle ne sonne que pour ce qui arrive APRÈS que l'écran s'est
+      posé — d'où `premiereLecture`.
+   ② NOS PROPRES MESSAGES NE SONNENT PAS. Évident, et pourtant c'est la
+      faute la plus courante.
+   ③ UNE RAFALE FAIT UNE SONNERIE. Trois messages d'une même cliente en dix
+      secondes ne doivent pas carillonner trois fois : cette fonction rend
+      CE QUI EST NEUF, l'appelant sonne une fois si la liste n'est pas vide.
+   ④ LE FIL OUVERT À L'ÉCRAN NE SONNE PAS : on est en train de lui parler. */
+export function messagesQuiSonnent(o: {
+  avant: readonly Pick<MessageWa, 'id'>[];
+  apres: readonly MessageWa[];
+  /** Le numéro du fil ouvert à l'écran, s'il y en a un. */
+  filOuvert?: string;
+  /** Vrai tant que le premier chargement n'est pas passé. */
+  premiereLecture: boolean;
+}): MessageWa[] {
+  if (o.premiereLecture) return [];
+  const connus = new Set(o.avant.map((m) => m.id));
+  const ouvert = numeroWa(o.filOuvert);
+  return o.apres.filter((m) => !connus.has(m.id)
+    && m.sens === 'entrant'
+    && !(ouvert && numeroWa(m.numero) === ouvert));
+}
+
+/** CE QUE LA CLOCHE DOIT COMPTER : les fils dont le dernier mot vient d'elle
+    et que personne n'a repris. La cloche ignorait les conversations jusqu'ici. */
+export const filsQuiAttendent = (fils: readonly Fil[]): Fil[] =>
+  fils.filter((f) => f.attendUneReponse);
 
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas
    dans un navigateur : une conversation lue sur la tablette du salon doit se
