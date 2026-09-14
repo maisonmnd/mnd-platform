@@ -63,6 +63,27 @@ const jour = (iso: string) => {
 const initiales = (nom: string) =>
   nom.split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase() || '·';
 
+/** POURQUOI LA FONCTION A REFUSÉ, dans ses mots à elle.
+
+    `supabase-js` emballe un refus dans une `FunctionsHttpError` dont le
+    message est toujours identique ; la vraie phrase est dans le corps de la
+    réponse, qu'il porte sous `context`. On va l'y chercher, et l'on retombe
+    sur le message générique seulement si le corps est illisible — un refus
+    sans motif est la panne la plus longue à nommer. */
+async function motifDuRefus(e: unknown): Promise<string> {
+  const generique = (e as { message?: string })?.message ?? String(e);
+  const rep = (e as { context?: Response })?.context;
+  if (!rep || typeof rep.json !== 'function') return generique;
+  try {
+    const corps = await rep.json();
+    const dit = (corps as { erreur?: string; error?: string })?.erreur
+      ?? (corps as { error?: string })?.error;
+    return dit ? String(dit) : generique;
+  } catch {
+    return generique;
+  }
+}
+
 export default function Conversations() {
   const navigate = useNavigate();
   const { branch } = useBranch();
@@ -183,10 +204,21 @@ export default function Conversations() {
       void data;
       toast(modele ? `Modèle « ${modele} » envoyé.` : 'Message envoyé.');
     } catch (e) {
-      /* CE QUE META REFUSE SE DIT EN ENTIER. Un échec muet se cherche
-         pendant des semaines, la Maison a déjà payé cette leçon. */
-      const m = (e as { message?: string })?.message ?? String(e);
-      toast(`Non envoyé : ${m}`);
+      /* ══ LE MOTIF VIT DANS LE CORPS, PAS DANS LE MESSAGE ═══════════════
+         14 septembre 2026, au soir. « Ça dit message envoyé mais rien ne va
+         sur le téléphone du client » (Yéman).
+
+         La fonction refuse en disant POURQUOI — « la fenêtre de 24 heures est
+         fermée », « réservé au personnel », le reproche exact de Meta. Rien
+         de cela n'arrivait à l'écran : `functions.invoke` lève une erreur
+         dont le `message` est toujours le même, « Edge Function returned a
+         non-2xx status code », et la phrase utile dort dans le CORPS de la
+         réponse, qu'il faut aller lire.
+
+         Le comptoir voyait donc, depuis le premier jour, une phrase qui ne
+         dit rien de ce qu'il faut faire. C'est exactement la faute que la
+         fonction, elle, avait appris à ne pas commettre. */
+      toast(`Non envoyé : ${await motifDuRefus(e)}`);
     } finally {
       setEnvoi(false);
     }

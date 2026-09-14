@@ -50,6 +50,15 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/** LA VERSION DE CE FICHIER, dite par la sonde.
+
+    Sans elle, on ne sait pas quel code tourne vraiment : une fonction
+    déployée n'a pas de nom de branche, pas de commit, rien. Toute une soirée
+    s'est perdue le 14 septembre à chercher dans le dépôt une panne qui venait
+    d'une version plus ancienne restée en ligne. À incrémenter à chaque
+    déploiement. */
+const VERSION = '2026-09-14-b · pièces jointes et sonde';
+
 const FENETRE_MS = 24 * 60 * 60 * 1000;
 
 /** LE POIDS QU'UNE PIÈCE PEUT FAIRE, en octets réels.
@@ -98,6 +107,71 @@ const enOctets = (b64: string): Uint8Array => {
 };
 
 Deno.serve(async (req) => {
+  /* ══ LA SONDE — 14 septembre 2026, au soir ═══════════════════════════
+     « Ça dit message envoyé mais rien ne va sur le téléphone du client »
+     (Yéman), et la base ne portait AUCUNE ligne sortante : ni refus, ni
+     trace. Deux pannes se ressemblent alors, et il a fallu deviner.
+
+     Une sonde tranche en une seconde : elle dit quelle version est déployée,
+     si la clé de service sait vraiment écrire dans `messages_wa`, et ce que
+     Meta répond sur le numéro. ELLE N'ENVOIE RIEN et ne montre AUCUN SECRET —
+     on ne voit que des oui et des non.
+
+     Ouvrir : `…/functions/v1/whatsapp-envoi?sonde=1` dans un navigateur. */
+  if (req.method === 'GET' && new URL(req.url).searchParams.has('sonde')) {
+    const u = Deno.env.get('SUPABASE_URL') ?? '';
+    const cle = (Deno.env.get('CLE_SERVICE') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim();
+    const rapport: Record<string, unknown> = {
+      version: VERSION,
+      urlDeLaBase: !!u,
+      cleDeService: cle ? `posée (${cle.length} signes)` : 'ABSENTE',
+      jetonMeta: Deno.env.get('WA_TOKEN') ? 'posé' : 'ABSENT',
+      numeroMeta: Deno.env.get('WA_PHONE_ID') ? 'posé' : 'ABSENT',
+    };
+    if (u && cle) {
+      /* ON ÉCRIT VRAIMENT, puis on efface : une clé qui a l'air bonne et une
+         clé qui écrit ne sont pas la même chose, et c'est précisément la
+         différence qui a coûté cette soirée. */
+      const sonde = createClient(u, cle);
+      const id = `wa-sonde-${crypto.randomUUID()}`;
+      const { error: errEcrit } = await sonde.from('messages_wa').upsert({
+        id, branch_id: null, data: { id, sens: 'sonde', numero: '', texte: 'sonde', quand: new Date().toISOString() },
+      }, { onConflict: 'id' });
+      rapport.ecritureDansMessagesWa = errEcrit ? `REFUSÉE : ${errEcrit.message}` : 'elle passe';
+      if (!errEcrit) await sonde.from('messages_wa').delete().eq('id', id);
+    }
+    const phone = Deno.env.get('WA_PHONE_ID');
+    const tok = Deno.env.get('WA_TOKEN');
+    if (phone && tok) {
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v20.0/${phone}?fields=display_phone_number,verified_name,quality_rating,code_verification_status,platform_type`,
+          { headers: { authorization: `Bearer ${tok}` } },
+        );
+        const rep = await r.json().catch(() => ({}));
+        rapport.ceNumeroChezMeta = r.ok
+          ? {
+            /* Les quatre derniers chiffres suffisent à le reconnaître sans
+               l'écrire en entier dans une page que l'on collera ailleurs. */
+            finDuNumero: String(rep.display_phone_number ?? '').slice(-4),
+            nom: rep.verified_name,
+            qualite: rep.quality_rating,
+            verification: rep.code_verification_status,
+            genre: rep.platform_type,
+            aLire: rep.platform_type === 'NOT_APPLICABLE'
+              ? 'genre inconnu — vérifiez que ce n’est pas le numéro de TEST'
+              : 'CLOUD_API attendu ; un numéro de test ne livre qu’à une liste blanche',
+          }
+          : { refusDeMeta: String(rep?.error?.message ?? `HTTP ${r.status}`) };
+      } catch (e) {
+        rapport.ceNumeroChezMeta = { erreur: String(e).slice(0, 200) };
+      }
+    }
+    return new Response(JSON.stringify(rapport, null, 2), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    });
+  }
+
   if (req.method !== 'POST') return refus('POST seulement', 405);
 
   const urlBase = Deno.env.get('SUPABASE_URL') ?? '';
@@ -267,7 +341,7 @@ Deno.serve(async (req) => {
   const ditDansLeFil = modele
     ? (texte || `Modèle « ${modele} »`)
     : (mediaId ? (texte ? `${pieceNom} · ${texte}` : pieceNom) : texte);
-  const { error } = await sb.from('messages_wa').upsert({
+  const { error: errTrace } = await sb.from('messages_wa').upsert({
     id,
     branch_id: branchId ?? null,
     data: {
@@ -278,14 +352,30 @@ Deno.serve(async (req) => {
       ...(mediaId ? { piece: { nom: pieceNom, type: pieceType, octets: octets?.length ?? 0 } } : {}),
     },
   }, { onConflict: 'id' });
-  if (error) console.error('whatsapp-envoi: trace', error.message);
+  /* ══ ON NE DIT JAMAIS « ENVOYÉ » SANS AVOIR CONSIGNÉ ═══════════════
+     14 septembre 2026, au soir. La trace ratée partait en `console.error`
+     et la fonction répondait 200 : l'écran annonçait « Message envoyé », la
+     base ne portait rien, et la cliente ne recevait rien. Trois vérités
+     contradictoires, aucune visible.
+
+     UN MESSAGE QUE LA MAISON NE SE RAPPELLE PAS SERA RENVOYÉ. Et surtout, une
+     écriture refusée ici veut presque toujours dire que la clé de service
+     n'en est pas une — donc que rien d'autre non plus ne marche. Le taire
+     était la faute. */
+  if (errTrace) {
+    console.error('whatsapp-envoi: trace', errTrace.message);
+    return new Response(JSON.stringify({
+      erreur: `Le message est parti chez WhatsApp, mais la Maison n’a pas pu en garder la trace : ${errTrace.message}. Vérifiez la clé de service de la fonction.`,
+      waId, version: VERSION,
+    }), { status: 500, headers: { 'content-type': 'application/json' } });
+  }
 
   if (etat === 'non-remis') {
     return new Response(JSON.stringify({ erreur: detail ?? 'refusé par WhatsApp', id }), {
       status: 502, headers: { 'content-type': 'application/json' },
     });
   }
-  return new Response(JSON.stringify({ id, waId, quand, piece: mediaId ? famille : undefined }), {
+  return new Response(JSON.stringify({ id, waId, quand, version: VERSION, piece: mediaId ? famille : undefined }), {
     status: 200, headers: { 'content-type': 'application/json' },
   });
 });
