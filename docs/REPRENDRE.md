@@ -162,6 +162,38 @@ ATTEND META). Rien à changer dans le code du Trône.
 6. Essai : un message depuis un téléphone personnel vers le numéro du salon
    doit paraître dans Conversations en quelques secondes.
 
+### FAIT LE 14 SEPTEMBRE · L'OREILLE ENTEND
+
+`whatsapp-webhook · messages rangés · {"combien":1,"rattaches":1}` — un vrai
+message reçu, signature acceptée sur les octets bruts, rangé et rattaché à sa
+fiche. La chaîne entière est franchie.
+
+**Ce qui a été posé, dans cet ordre** :
+· **Jeton permanent** généré depuis l'utilisateur système `Employee`
+  (61594235823183, portefeuille MND) sur l'application **Maison MND**, sans
+  expiration, portées `whatsapp_business_messaging` +
+  `whatsapp_business_management`. L'app *Maison MND* a dû lui être ASSIGNÉE
+  d'abord (il ne portait que *MND messaging*, l'app de développement).
+  ⚠ La limite Meta est d'UN SEUL utilisateur système admin par portefeuille :
+  celui-ci est en rôle « Employee », et cela suffit — ce sont les ACTIFS
+  assignés qui donnent le droit, pas le rôle.
+· **`WA_APP_SECRET` remplacé** par le secret de *Maison MND* : la serrure de
+  signature appartient à l'application qui ENVOIE les webhooks. Changer d'app
+  sans changer ce secret aurait refait la nuit du 12 septembre.
+· **Webhook sur *Maison MND*** : `…/functions/v1/whatsapp-webhook`, champs
+  `messages` et `message_template_status_update` abonnés.
+
+**Les trois sondes ont tout tranché, sans jamais montrer une valeur** :
+`?numeros=<waba>` (le numéro, CONNECTED · VERIFIED · GREEN · `estCeluiDuTrone`),
+`?verifie=<app id>` (« LE SECRET EST BIEN CELUI DE CETTE APPLICATION »),
+`?numero=1` (« LE TRÔNE EST BRANCHÉ SUR CE NUMÉRO »).
+
+**RESTE** : `name_status: PENDING_REVIEW` — le nom affiché « Atelier MND »
+attend Meta, les messages partent quand même, les clientes voient le numéro.
+Et pour retirer l'ancien jeton : **ne jamais cliquer « Revoke tokens »** (il
+révoque TOUS les jetons de l'utilisateur système, le neuf compris) ; retirer
+l'actif *MND messaging* de ses applications suffit.
+
 **LE DOUBLE PUSH, FERMÉ AVANT D'AVOIR SERVI.** Sept jobs tournent, tous
 actifs : `avis-google-heures` (30 8-20), `confirmation-rdv` (*/10),
 `mnd-push-rappels` (0 * * * *), `mnd-staff-rdv-1h` (*/15), `rappels-j1-soir`
