@@ -1,0 +1,512 @@
+<title>La conversation outillée</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=EB+Garamond&family=Jost:wght@300;400;500;600&display=swap">
+<style>
+  /* UN SEUL MONDE, CELUI DE LA MAISON : parchemin, indigo, cuivre. La maquette
+     peint son propre fond et ne suit pas le thème du lecteur. */
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --blanc:#FFFFFF;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#8C5A33; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond','EB Garamond',Georgia,serif;
+    --sans:'Jost','EB Garamond','Century Gothic',system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1040px; margin:0 auto; padding-block:52px 110px; padding-inline:22px; }
+  @media (max-width:600px){ .page { padding-block:30px 80px; padding-inline:16px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 12px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,7vw,58px); line-height:1.03; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.6vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 8px; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 24px; font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:64ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .chapeau { max-width:70ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b { color:var(--encre); font-weight:500; }
+  section { margin-top:60px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 20px; }
+  .exemple { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:10px 2px 0; max-width:80ch; }
+
+  .decide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .decide { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:520px){ .decide { grid-template-columns:1fr; } }
+  .decide div { background:var(--vert-f); border:1px solid var(--vert-p); border-radius:4px; padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .decide b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); margin-bottom:4px; }
+
+  /* ── L'écran ── */
+  .ecran { background:var(--ivoire); border:1px solid var(--filet); border-radius:4px; overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  .ecran__tete b { font-family:var(--serif); font-weight:400; font-size:22px; color:#fff; }
+  .ecran__tete span { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:18px 20px 20px; display:flex; flex-direction:column; gap:14px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  .fil { background:#EFE9DC; border-radius:3px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .bulle { max-width:74%; border-radius:4px; padding:9px 12px; font-size:13.5px; line-height:1.5; background:var(--blanc); border:1px solid var(--filet); }
+  .bulle small { display:block; font-size:10.5px; color:var(--encre-d); margin-top:4px; letter-spacing:.08em; }
+  .bulle.nous { align-self:flex-end; background:var(--indigo-pale); border-color:#CFD2E3; }
+  .bulle.piece { display:flex; gap:10px; align-items:center; }
+  .bulle .vignette { width:34px; height:42px; flex:none; border:1px solid var(--filet); border-radius:2px; background:var(--blanc); display:flex; align-items:center; justify-content:center; font-size:9px; letter-spacing:.06em; color:var(--cuivre-fonce); }
+
+  .etat { display:inline-block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; border-radius:3px; padding:3px 9px; font-weight:500; white-space:nowrap; }
+  .etat--ouverte { color:var(--vert); border:1px solid var(--vert-p); background:var(--vert-f); }
+  .etat--fermee { color:var(--brique); border:1px solid var(--brique-p); background:var(--brique-f); }
+
+  .outils { display:flex; gap:8px; flex-wrap:wrap; }
+  .outil { display:inline-flex; align-items:center; gap:7px; font-size:12px; border:1px solid var(--filet); border-radius:3px; padding:7px 11px; background:var(--blanc); color:var(--encre); white-space:nowrap; }
+  .outil b { font-weight:600; color:var(--indigo); }
+  .outil.cuivre { border-color:var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre-fonce); }
+  .outil.eteint { opacity:.42; }
+  .outil .du { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--ambre); border:1px solid var(--ambre-p); background:var(--ambre-f); border-radius:2px; padding:2px 5px; }
+  .zone { border:1px solid var(--cuivre-p); border-radius:3px; background:var(--blanc); padding:11px 13px; color:var(--encre-d); font-size:13.5px; }
+  .bouton { display:inline-block; font-size:11px; letter-spacing:.16em; text-transform:uppercase; border-radius:3px; padding:9px 15px; border:1px solid var(--indigo); color:var(--indigo); background:transparent; white-space:nowrap; }
+  .bouton.plein { background:var(--cuivre); border-color:var(--cuivre); color:var(--blanc); }
+  .rangee { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+
+  .deux { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  @media (max-width:820px){ .deux { grid-template-columns:1fr; } }
+
+  .porte { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .porte b.t { display:block; font-family:var(--serif); font-size:18px; color:var(--indigo); margin-bottom:4px; font-weight:500; }
+  .porte ul { margin:8px 0 0; padding-left:18px; }
+
+  .defile { overflow-x:auto; border:1px solid var(--filet); border-radius:3px; background:var(--blanc); }
+  .tableau { width:100%; border-collapse:collapse; font-size:13px; min-width:620px; }
+  .tableau th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--filet); white-space:nowrap; }
+  .tableau td { padding:9px 10px; border-top:1px solid var(--filet); vertical-align:top; }
+  .tableau .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tableau .sous { display:block; font-size:11px; color:var(--encre-d); }
+  .tableau tr.total td { border-top:2px solid var(--cuivre-p); font-weight:600; color:var(--indigo); }
+  .tableau tr.avoir td { color:var(--vert); }
+
+  .code { font-family:var(--serif); font-size:26px; letter-spacing:.06em; color:var(--indigo); background:var(--cuivre-f); border:1px solid var(--cuivre-p); border-radius:3px; padding:8px 14px; display:inline-block; }
+  .champs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 14px; }
+  @media (max-width:720px){ .champs { grid-template-columns:1fr; } }
+  .champ { display:flex; flex-direction:column; gap:4px; }
+  .champ label { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-fonce); }
+  .champ div { border:1px solid var(--filet); border-radius:3px; background:var(--blanc); padding:8px 10px; font-size:13.5px; }
+  .champ small { font-size:11px; color:var(--encre-d); }
+
+  .trois { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .trois { grid-template-columns:1fr; } }
+  .lieu { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:0; overflow:hidden; }
+  .lieu__t { background:var(--ivoire); border-bottom:1px solid var(--filet); padding:9px 13px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre-fonce); }
+  .lieu__c { padding:13px; display:flex; flex-direction:column; gap:8px; font-size:13px; }
+  .ligne { display:flex; justify-content:space-between; gap:10px; }
+  .ligne b { font-variant-numeric:tabular-nums; }
+  .barre { text-decoration:line-through; color:var(--encre-d); }
+  .gagne { color:var(--vert); font-weight:600; }
+  .jeton { font-variant-numeric:tabular-nums; }
+  .fini { color:var(--brique); }
+  .encore { color:var(--vert); font-weight:600; }
+
+  .atrancher { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  @media (max-width:760px){ .atrancher { grid-template-columns:1fr; } }
+  .atrancher div { background:var(--ambre-f); border:1px solid var(--ambre-p); border-radius:4px; padding:15px 17px; font-size:13.5px; line-height:1.55; }
+  .atrancher b.propose { display:block; color:var(--ambre); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin-top:8px; }
+  .atrancher div.large { grid-column:1 / -1; }
+  .construit { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; max-width:78ch; }
+  .construit li { position:relative; padding-left:20px; }
+  .construit li::before { content:''; position:absolute; left:0; top:.72em; width:9px; height:1px; background:var(--cuivre); }
+  .construit b { font-weight:500; }
+  .garde { border:1px solid var(--brique-p); border-left:3px solid var(--brique); background:var(--brique-f); border-radius:3px; padding:12px 14px; font-size:13.5px; line-height:1.55; }
+  .garde b { color:var(--brique); }
+  .pied { margin-top:66px; padding-top:16px; border-top:1px solid var(--filet); font-family:var(--serif); font-style:italic; color:var(--encre-d); }
+</style>
+
+<main class="page">
+  <p class="eyebrow">Conversations · maquette à valider</p>
+  <h1>La conversation outillée</h1>
+  <blockquote class="cite">Comment avoir les boutons de l’automatisation, rappels de RDV, factures, itinéraires, codes QR, paiements… Comment aussi joindre des fichiers ? Des promos flash avec des codes de réduction ?<span>Yéman · 14 septembre 2026</span></blockquote>
+  <p class="chapeau">Une conversation ne sert pas qu’à écrire : c’est là qu’on envoie <b>un lien de paiement</b>, <b>un devis qui attend un oui</b>, <b>sa facture</b>, <b>son bilan pas encore remis</b>, <b>ses photos</b>, <b>où elle en est de son abonnement</b>, <b>le relevé de son foyer</b>, <b>le chemin du salon</b>, <b>le rappel de son rendez-vous</b>, et parfois <b>une promo qui ne vaut que pour elle</b>. Tout cela existe déjà dans la Maison, éparpillé dans neuf écrans. Ici, ça tient dans une barre d’outils, sous le fil. Rien n’est construit.</p>
+
+  <section>
+    <p class="eyebrow">Tranché le 14 septembre</p>
+    <h2>Ce qui est décidé</h2>
+    <div class="decide">
+      <div><b>Dix gestes</b>Paiement, devis, facture, bilan, photos, abonnement, foyer, itinéraire, prochain rendez-vous, promo flash.</div>
+      <div><b>Deux portes pour les fichiers</b>Un fichier de l’appareil, ou une pièce que le Trône fabrique déjà.</div>
+      <div><b>Rien de public</b>Le fichier est déposé chez Meta par le serveur. Aucune adresse atteignable n’existe.</div>
+      <div><b>Un code par cliente</b>À usage unique, 48 heures, reconnu à l’encaissement, sur le rendez-vous et dans Ma Couronne.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">La règle qui commande tout le dessin</p>
+    <h2>Fenêtre ouverte, fenêtre fermée</h2>
+    <p class="intro">Meta n’autorise un texte libre, un lien ou un fichier que pendant <b>24 heures après le dernier message de la cliente</b>. Passé ce délai, il ne reste que les modèles approuvés, payants, et sans pièce jointe. La barre d’outils change donc d’état, et <b>elle le dit</b> au lieu de refuser après le clic.</p>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">Fenêtre ouverte · 23 h 12</b>
+        Tout part : le texte, les cinq gestes, les fichiers. C’est le moment où une conversation se règle vraiment.
+        <ul>
+          <li>écrire librement ;</li>
+          <li>joindre une photo ou un PDF ;</li>
+          <li>les cinq boutons, sans supplément.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Fenêtre fermée</b>
+        Seuls vos trois modèles approuvés partent, et chacun rouvre une fenêtre de 24 heures, <b>facturée par Meta</b>.
+        <ul>
+          <li>Rappel de rendez-vous ;</li>
+          <li>Confirmation de rendez-vous ;</li>
+          <li>Demande d’avis.</li>
+        </ul>
+        Les cinq gestes restent visibles, éteints, avec un mot : « la fenêtre est fermée, un modèle la rouvre ».
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Conversations · fenêtre ouverte</p>
+    <h2>La barre d’outils, sous le fil</h2>
+    <p class="intro">Chaque bouton compose un message <b>déjà écrit, déjà rempli</b>, qu’on relit et qu’on peut corriger avant d’envoyer. Rien ne part d’un seul clic : un message à une cliente se relit toujours. <span class="exemple">Données d’exemple.</span></p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>A. K.</b><span>+229 01 90 00 00 00 · fiche connue</span></div>
+      <div class="ecran__corps">
+        <div class="fil">
+          <div class="bulle">Bonjour, je voudrais savoir combien je dois pour samedi.<small>14 h 16</small></div>
+          <div class="bulle nous">Bonjour A., il reste 15 000 F sur votre rituel de samedi. Voici le lien pour régler par Mobile Money : pay.mnd…<small>14 h 18 · remis</small></div>
+          <div class="bulle nous piece"><span class="vignette">PDF</span><span>Facture FA-2026-0412 · 15 000 F<small>14 h 19 · lu</small></span></div>
+        </div>
+
+        <div class="outils">
+          <span class="outil cuivre">+ <b>Pièce jointe</b></span>
+          <span class="outil"><b>Lien de paiement</b> · 15 000 F</span>
+          <span class="outil"><b>Son devis</b> · DV-2026-0088</span>
+          <span class="outil"><b>Sa facture</b> · FA-2026-0412</span>
+          <span class="outil"><b>Son bilan</b> <span class="du">à remettre</span></span>
+          <span class="outil"><b>Ses photos</b> · 4</span>
+          <span class="outil"><b>Son abonnement</b> · 2 jetons</span>
+          <span class="outil"><b>Le foyer</b> <span class="du">15 000 F dus</span></span>
+          <span class="outil"><b>Son rendez-vous</b> · sam. 19, 10 h</span>
+          <span class="outil"><b>Itinéraire</b></span>
+          <span class="outil"><b>Promo flash</b></span>
+        </div>
+
+        <div class="zone">Écrivez à A. …</div>
+        <div class="rangee">
+          <span class="etat etat--ouverte">Fenêtre ouverte · 23 h 12</span>
+          <span class="bouton plein">Envoyer</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Ce que chaque bouton compose</b> · <b>Lien de paiement</b> : le lien MoMo de la Maison, au montant qui reste dû sur sa dernière facture, ou un montant écrit à la main. · <b>Son devis</b>, <b>sa facture</b>, <b>son bilan</b>, <b>ses photos</b> : les quatre pièces qui lui reviennent, détaillées plus bas. · <b>Son abonnement</b> et <b>le foyer</b> : où elle en est de ses jetons, et le relevé des siens, chacun sa section. · <b>Son rendez-vous</b> : date, heure, prestations, et ce qui reste à régler. · <b>Itinéraire</b> : le chemin des Paramètres, le même pour tout le monde. · <b>Promo flash</b> : ouvre le panneau ci-dessous.</p>
+    <p class="legende"><b>Un bouton éteint dit pourquoi</b> : « aucun devis en attente », « son bilan de samedi est déjà remis », « aucune photo sur sa fiche », « elle n’est pas abonnée », « le relevé part à la payeuse ». Onze boutons dont on ne sait lesquels servent, c’est un mur ; onze boutons dont chacun dit son état, c’est une liste de ce qu’il reste à faire pour elle.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Quatre boutons, quatre boucles fermées</p>
+    <h2>Les pièces qui lui reviennent</h2>
+    <p class="intro">Ces quatre-là ne se contentent pas d’envoyer un fichier : <b>chacune fait avancer un compte qui traîne ailleurs dans le Trône</b>. C’est ce qui les sépare d’une pièce jointe ordinaire.</p>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">Son devis</b>
+        Un devis attend un oui, et ce oui arrive presque toujours par WhatsApp. Le bouton envoie le PDF, son total et sa validité.
+        <ul>
+          <li>elle répond « oui » dans le fil ;</li>
+          <li>on l’accepte <b>depuis la conversation</b> ;</li>
+          <li>le rendez-vous se pose tout seul, comme aujourd’hui.</li>
+        </ul>
+        Sans ce bouton, le oui reste dans un fil que personne ne relit, et le devis dort.
+      </div>
+      <div class="porte">
+        <b class="t">Son bilan à remettre</b>
+        Le Tableau de bord compte les séances honorées dont le bilan n’a pas été remis. Le bouton ouvre le sien.
+        <ul>
+          <li>il nomme la séance qui attend, avec sa date ;</li>
+          <li>l’envoyer le marque <b>remis</b> ;</li>
+          <li><b>le compte baisse d’un</b>, ici, pas dans un autre écran.</li>
+        </ul>
+        C’est la parole due après ce rendez-vous. Elle se paie d’un geste, au lieu d’une liste qu’on regarde grandir.
+      </div>
+      <div class="porte">
+        <b class="t">Ses photos</b>
+        Les siennes, et seulement les siennes : sa couronne au fil des séances, l’avant et l’après d’un resserrage.
+        <ul>
+          <li>on choisit lesquelles, une par une ;</li>
+          <li>elles partent en images, pas en lien ;</li>
+          <li>le fil garde ce qui a été montré, et quand.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Sa facture</b>
+        Le PDF de sa dernière pièce, ou d’une autre qu’on va chercher. Le montant qui reste dû s’écrit dans le message.
+        <ul>
+          <li>elle voit ce qu’elle a réglé et ce qui reste ;</li>
+          <li>le lien de paiement se pose juste après ;</li>
+          <li>le règlement revient à la caisse, pas au fil.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="garde" style="margin-top:14px">
+      <b>Lui rendre son image n’est pas la publier.</b> L’accord de droit à l’image couvre la vitrine, les réseaux, Ma Couronne et la simulation, c’est-à-dire la montrer à d’AUTRES. Envoyer sa photo à la personne photographiée n’est aucun de ces quatre usages, et ne demande donc pas son accord. Le reste ne change pas : une photo ne part jamais vers un lien public.
+    </div>
+    <p class="legende"><b>Ce qui manque aujourd’hui</b> : la fiche ne garde qu’une vignette de 192 px, faite pour un rond de 48. Il n’y a <b>nulle part où vivent les photos d’une séance</b>. Le coffre de fichiers existe déjà, il sert au Fil ; c’est là qu’elles iront, attachées au rendez-vous. Voir le point à trancher plus bas.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Le suivi d’abonnement</p>
+    <h2>Où elle en est de ses jetons</h2>
+    <p class="intro">Une abonnée demande deux choses, et toujours les mêmes : <b>combien il m’en reste</b>, et <b>jusqu’à quand</b>. Le Trône sait déjà répondre, écran Abonnements. Le bouton ne recompte rien : il reprend <b>exactement le même compteur</b>, et le met en phrase. <span class="exemple">Données d’exemple.</span></p>
+    <div class="deux">
+      <div class="lieu">
+        <div class="lieu__t">Un abonnement à cycle · L’Essentielle</div>
+        <div class="lieu__c">
+          <div class="ligne"><span>ABO-2026-014</span><span>depuis 8 mois</span></div>
+          <div class="ligne"><span>Rituels SÍNSIN™</span><b class="jeton encore">1 de 2 ce mois</b></div>
+          <div class="ligne"><span>Soins GBÈZÀ™</span><b class="jeton fini">0 de 2 ce mois</b></div>
+          <div class="ligne"><span>Prochaine échéance</span><b>1er octobre · 35 000 F</b></div>
+          <div class="zone" style="margin-top:4px">A., il vous reste 1 rituel SÍNSIN™ ce mois-ci sur L’Essentielle. Vos compteurs se rechargent le 1er octobre, à la prochaine échéance.</div>
+        </div>
+      </div>
+      <div class="lieu">
+        <div class="lieu__t">Un paquet de crédits · L’Année Sereine</div>
+        <div class="lieu__c">
+          <div class="ligne"><span>ABO-2026-031</span><span>acheté le 12 juin</span></div>
+          <div class="ligne"><span>Soins GBÈZÀ™</span><b class="jeton encore">2 de 6 restants</b></div>
+          <div class="ligne"><span>Rituels SÍNSIN™</span><b class="jeton fini">tous consommés</b></div>
+          <div class="ligne"><span>Valable jusqu’au</span><b>12 juin 2027</b></div>
+          <div class="zone" style="margin-top:4px">A., il vous reste 2 soins GBÈZÀ™ sur votre Année Sereine, valables jusqu’au 12 juin. Les rituels SÍNSIN™ sont tous consommés.</div>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Les deux ne se comptent pas pareil, et les confondre a déjà menti.</b> Un abonnement à cycle se recharge à chaque échéance, il ne doit rien d’avance. Un paquet s’achète d’un coup, s’épuise, et meurt à sa date. Le pack annuel de D. D., lu à travers une fenêtre mensuelle, affichait 0 séance sur 6 quand elle les avait toutes prises. Le bouton lit le mode, et écrit la phrase de ce mode-là.</p>
+    <div class="garde" style="margin-top:14px">
+      <b>Un retard ne s’annonce jamais comme un solde.</b> Si une échéance est passée sans être réglée, le bouton ne compose pas un compteur enjoué : il dit le montant, le jour où il était dû, et pose le lien de paiement juste en dessous. Annoncer « il vous reste 2 soins » à quelqu’un qui doit 35 000 F, c’est offrir ce qu’on n’a pas encaissé.
+    </div>
+    <p class="legende"><b>Un compteur qu’elle conteste est pire qu’aucun message.</b> Le Trône sait repérer une séance cochée « couverte par l’abonnement » dont aucune prestation n’est dans la formule : elle ne bouge aucun jeton et ne se voit nulle part. Quand il y en a une, le bouton le dit AVANT d’envoyer, pour qu’on la corrige d’abord.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">À deux, à trois</p>
+    <h2>Le bilan d’un foyer</h2>
+    <p class="intro">Oui, et la question difficile est déjà tranchée dans la Maison : <b>le parent payeur porte les têtes MINEURES de sa famille</b>. À dix-huit ans, l’enfant en sort de lui-même, ses données lui appartiennent. Le lien de famille demeure et le parent peut continuer à régler, mais il ne lit plus. <span class="exemple">Données d’exemple.</span></p>
+    <div class="defile">
+      <table class="tableau">
+        <thead><tr><th>La tête</th><th>Son bilan</th><th>Numéro</th><th>Part au message du foyer</th></tr></thead>
+        <tbody>
+          <tr><td>A. K.<span class="sous">la mère, payeuse</span></td><td>samedi 6 septembre</td><td>MND-BS-2026-0181</td><td class="gagne">oui, le sien</td></tr>
+          <tr><td>L. K.<span class="sous">12 ans</span></td><td>samedi 6 septembre</td><td>MND-BS-2026-0182</td><td class="gagne">oui, elle la porte</td></tr>
+          <tr><td>S. K.<span class="sous">9 ans</span></td><td>samedi 30 août</td><td>MND-BS-2026-0175</td><td class="gagne">oui, elle la porte</td></tr>
+          <tr><td>M. K.<span class="sous">21 ans</span></td><td>samedi 6 septembre</td><td>MND-BS-2026-0183</td><td class="fini">non, sur son propre numéro</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende"><b>Ce n’est pas un document de plus.</b> Le foyer ne fabrique pas un « bilan de foyer » : il en réunit plusieurs, et <b>chacun garde son numéro</b> de la série ancrée. Chaque bilan envoyé se marque remis pour lui-même, donc le compte des bilans à remettre baisse du bon nombre, et non de un.</p>
+    <div class="deux" style="margin-top:14px">
+      <div class="porte">
+        <b class="t">Le compteur du foyer est déjà juste</b>
+        La formule « Le foyer » partage ses jetons entre les têtes, par le lien explicite posé sur le rendez-vous, et non par qui s’est assise dans le fauteuil.
+        <ul>
+          <li>un rituel de la fille décompte le contrat de la mère ;</li>
+          <li>le suivi envoyé au payeur couvre donc tout le foyer ;</li>
+          <li>rien de neuf à compter, rien de neuf à stocker.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">La remise famille se dit dans le même souffle</b>
+        Elle vit sur le compte, pas sur la tête : un taux posé fait foi, sinon c’est le barème du foyer.
+        <ul>
+          <li>un enfant mineur rattaché : 10 % ;</li>
+          <li>deux et plus : 15 % ;</li>
+          <li>jamais sur les forfaits, déjà réduits.</li>
+        </ul>
+      </div>
+    </div>
+    <h3 style="margin-top:30px">Le relevé, avec les impayés</h3>
+    <p class="intro">Un bilan de foyer sans l’argent est à moitié utile : c’est justement au moment où l’on parle des siens qu’on règle ce qui traîne. Le bouton réunit donc les deux, en un seul message à la payeuse. <span class="exemple">Données d’exemple.</span></p>
+    <div class="defile">
+      <table class="tableau">
+        <thead><tr><th>La tête</th><th>Sur quelle pièce</th><th class="num">Reste dû</th></tr></thead>
+        <tbody>
+          <tr><td>A. K.<span class="sous">la mère, payeuse</span></td><td>FA-2026-0412 du 6 septembre</td><td class="num">15 000 F</td></tr>
+          <tr><td>L. K.<span class="sous">12 ans</span></td><td>FA-2026-0409 du 30 août</td><td class="num">22 000 F</td></tr>
+          <tr><td>M. K.<span class="sous">21 ans</span></td><td>FA-2026-0415 du 6 septembre</td><td class="num">8 000 F</td></tr>
+          <tr class="total"><td>Total des impayés</td><td>trois pièces</td><td class="num">45 000 F</td></tr>
+          <tr class="avoir"><td>Avoir du compte</td><td>déposé le 12 août</td><td class="num">− 30 000 F</td></tr>
+          <tr class="total"><td>Réellement dû</td><td>ce que le lien de paiement portera</td><td class="num">15 000 F</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ecran" style="margin-top:14px">
+      <div class="ecran__tete"><b>Le message composé</b><span>à A. K., payeuse du compte</span></div>
+      <div class="ecran__corps">
+        <div class="zone">A., voici le point sur la Famille A. Trois pièces restent ouvertes, pour 45 000 F. Votre compte porte un avoir de 30 000 F déposé le 12 août, qui s’en déduit : <b>il reste 15 000 F</b>. Vous trouverez ci-dessous les bilans de la maison et le lien pour régler.</div>
+        <div class="rangee">
+          <span class="etat etat--ouverte">Fenêtre ouverte</span>
+          <span class="bouton plein">Relire et envoyer</span>
+        </div>
+      </div>
+    </div>
+    <div class="deux" style="margin-top:14px">
+      <div class="porte">
+        <b class="t">L’avoir se déduit avant d’annoncer quoi que ce soit</b>
+        Réclamer 45 000 F à un foyer qui en a déposé 30 000 est la façon la plus sûre de perdre un compte, et la Maison aurait tort deux fois : sur le montant, et sur la mémoire.
+        <ul>
+          <li>l’impayé ne descend jamais sous zéro ;</li>
+          <li>un avoir plus grand que la dette se dit comme un avoir, pas comme « vous devez 0 » ;</li>
+          <li>le lien de paiement porte le net, jamais le brut.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Un rituel honoré mais pas facturé n’entre pas dans le total</b>
+        Le Trône les connaît : des séances rendues dont aucune pièce n’est née.
+        <ul>
+          <li>le bouton le signale avant l’envoi ;</li>
+          <li>il laisse le comptoir les poser d’abord ;</li>
+          <li>un montant qui grandit après coup ne se défend pas.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="garde" style="margin-top:14px">
+      <b>Le relevé ne part qu’à la payeuse, et la ligne de partage n’est pas la même pour l’argent et pour le soin.</b> L’argent du compte est à elle, parce que c’est elle qui règle : une pièce adressée au compte lui revient, même celle d’une adulte du foyer. Le SOIN d’une adulte reste à elle seule : son bilan part sur son numéro, jamais dans le message de sa mère. Deux règles, parce que ce ne sont pas deux fois la même chose.
+    </div>
+
+    <div class="garde" style="margin-top:14px">
+      <b>Une petite migration manque, et c’est important de le dire maintenant.</b> La base sait déjà qu’un parent porte les mineurs de sa famille : c’est <b>est_ma_tete</b>, passée le 9 août, et elle garde la fiche, les rendez-vous, les factures et les visites. <b>Les bilans n’ont jamais été mis sous sa garde</b> : leur règle est restée « cette fiche et elle seule ». Aujourd’hui, dans Ma Couronne, <b>une mère ne voit pas le bilan de sa fille</b>. Envoyer ce bilan par WhatsApp sans corriger la base ferait de WhatsApp une porte plus permissive que l’application, ce qui est exactement la porte à ne pas ouvrir. La migration aligne les deux, et elle sera présentée avant d’être posée.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Joindre un fichier</p>
+    <h2>Deux portes, aucune adresse publique</h2>
+    <div class="deux">
+      <div class="porte">
+        <b class="t">De l’appareil</b>
+        Une photo, une capture, un PDF choisi à la main. Le fichier monte au serveur, qui le dépose chez Meta et l’envoie.
+        <ul>
+          <li>images, PDF, documents ;</li>
+          <li>quelques méga-octets, la limite se dit avant l’envoi ;</li>
+          <li>il reste visible dans le fil, comme un message.</li>
+        </ul>
+      </div>
+      <div class="porte">
+        <b class="t">Ce que le Trône fabrique</b>
+        Les pièces de la Maison, sans les télécharger d’abord.
+        <ul>
+          <li>sa dernière facture, ou une autre ;</li>
+          <li>son certificat de l’Académie ;</li>
+          <li>sa carte QR, son bilan.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="garde" style="margin-top:14px">
+      <b>Aucun fichier n’est atteignable par un lien.</b> Le serveur le dépose chez Meta et n’en garde que l’identifiant : il n’existe pas d’adresse qu’on puisse deviner, partager ou retrouver dans un historique. C’est le choix de la Maison, et il coûte une limite : les très gros fichiers ne passent pas.
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">La promo flash</p>
+    <h2>Un code qui n’appartient qu’à elle</h2>
+    <p class="intro">Le bouton ouvre un petit panneau : l’avantage, ce qu’il couvre, et la durée. Le Trône fabrique alors <b>un code personnel, à usage unique</b>, écrit dans le message. <span class="exemple">Données d’exemple.</span></p>
+    <div class="ecran">
+      <div class="ecran__tete"><b>Promo flash pour A. K.</b><span>48 heures · usage unique</span></div>
+      <div class="ecran__corps">
+        <div class="champs">
+          <div class="champ"><label>L’avantage</label><div>−15 %</div><small>ou un montant en francs</small></div>
+          <div class="champ"><label>Sur quoi</label><div>Tout le rituel</div><small>ou une prestation précise</small></div>
+          <div class="champ"><label>Valable jusqu’au</label><div>mardi 16 septembre, 14 h</div><small>48 h par défaut</small></div>
+        </div>
+        <div class="rangee">
+          <span class="code">ÉCLAT15-A7K</span>
+          <span class="bouton">Refaire un code</span>
+        </div>
+        <div class="zone">A., la Maison vous offre −15 % sur votre prochain rituel, avec le code <b>ÉCLAT15-A7K</b>, valable jusqu’à mardi 14 h. Il n’appartient qu’à vous et ne sert qu’une fois.</div>
+        <div class="rangee">
+          <span class="etat etat--ouverte">Fenêtre ouverte</span>
+          <span class="bouton plein">Envoyer la promo</span>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Pourquoi un code par cliente</b> : un code partagé circule, et la Maison ne sait plus combien de fois elle a remisé. Celui-ci nomme sa destinataire, expire seul, et ne s’honore qu’une fois. <b>La trace de la base</b> (0092) dit qui l’a envoyé, qui l’a accepté, et sur quelle pièce.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Là où il se fait reconnaître</p>
+    <h2>Trois portes, une seule règle</h2>
+    <p class="intro">Le code se tape, le prix baisse, et il se consomme. La règle vit à un seul endroit : <b>valable, pas encore utilisé, à elle, et dans la durée</b>. Les trois écrans l’interrogent, aucun ne la réécrit.</p>
+    <div class="trois">
+      <div class="lieu">
+        <div class="lieu__t">À l’encaissement</div>
+        <div class="lieu__c">
+          <div class="champ"><label>Code de la cliente</label><div>ÉCLAT15-A7K</div></div>
+          <div class="ligne"><span>Rituel</span><b class="barre">17 000 F</b></div>
+          <div class="ligne"><span>Promo · ÉCLAT15</span><b class="gagne">− 2 550 F</b></div>
+          <div class="ligne"><span><b>À régler</b></span><b>14 450 F</b></div>
+        </div>
+      </div>
+      <div class="lieu">
+        <div class="lieu__t">Sur le rendez-vous</div>
+        <div class="lieu__c">
+          <div>Le code se pose comme une remise, à la création ou à la modification : <b>le prix annoncé est déjà le bon</b>, et l’acompte se calcule dessus.</div>
+          <div class="ligne"><span>SÍNSIN™ Essentielle</span><b>17 000 F</b></div>
+          <div class="ligne"><span>Promo · ÉCLAT15-A7K</span><b class="gagne">− 15 %</b></div>
+        </div>
+      </div>
+      <div class="lieu">
+        <div class="lieu__t">Dans Ma Couronne</div>
+        <div class="lieu__c">
+          <div>À la réservation, elle tape son code et <b>voit le prix remisé tout de suite</b>. Le rendez-vous naît avec la remise, sans qu’on ait à la reprendre au comptoir.</div>
+          <div class="ligne"><span>Total</span><b>14 450 F</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Un code refusé dit pourquoi</b> : « déjà utilisé le 15 septembre », « expiré mardi à 14 h », « ce code appartient à une autre cliente ». Un refus muet fait accuser la caisse.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Ce que la base retient</p>
+    <h2>Le registre des codes</h2>
+    <div class="defile">
+      <table class="tableau">
+        <thead><tr><th>Code</th><th>Pour</th><th>Avantage</th><th>Valable jusqu’à</th><th>Utilisé</th><th>Sur quelle pièce</th></tr></thead>
+        <tbody>
+          <tr><td>ÉCLAT15-A7K</td><td>A. K.</td><td>−15 % · tout le rituel</td><td>mar. 16 sept., 14 h</td><td>sam. 19 sept.<span class="sous">accepté par Rita G.</span></td><td>FA-2026-0431</td></tr>
+          <tr><td>ÉCLAT15-M2P</td><td>M. S.</td><td>−15 % · tout le rituel</td><td>mar. 16 sept., 14 h</td><td><span class="sous">pas encore</span></td><td>·</td></tr>
+          <tr><td>SOIN10-D4R</td><td>D. C.</td><td>−10 % · DÀNDÀN™</td><td>expiré dim. 14 sept.</td><td><span class="sous">jamais</span></td><td>·</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">Ce registre se lit aussi à l’envers : <b>combien la Maison a remisé ce mois-ci</b>, et combien de promos envoyées ont fait revenir quelqu’un. Sans lui, une promo est une dépense qu’on ne mesure jamais.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Avant de construire</p>
+    <h2>Cinq points à trancher</h2>
+    <div class="atrancher">
+      <div><h3>Le code et les autres remises</h3>Une cliente au tarif famille, ou un rituel déjà remisé à la main : la promo s’ajoute-t-elle ?<b class="propose">Proposé · elle ne s’ajoute pas, on garde la plus avantageuse, et l’écran le dit</b></div>
+      <div><h3>Qui peut envoyer une promo</h3>Une remise est de l’argent qui sort. Tout le personnel, ou la direction seule ?<b class="propose">Proposé · la direction seule crée un code, tout le monde peut l’honorer</b></div>
+      <div><h3>Une promo hors fenêtre</h3>Écrire à une cliente qui n’a rien dit depuis trois jours demande un modèle marketing, approuvé par Meta et facturé.<b class="propose">Proposé · plus tard, avec son propre modèle ; ici, la promo ne part que fenêtre ouverte</b></div>
+      <div class="large"><h3>Faut-il prévenir toute seule d’un paquet qui expire</h3>« Il vous reste 2 soins, jusqu’au 12 juin » est le message qui rapporte le plus à la Maison : il ramène une tête avant que ses crédits meurent. Mais il part souvent hors fenêtre, donc il lui faut son propre modèle approuvé par Meta, et chaque envoi est facturé.<b class="propose">Proposé · le bouton d’abord, à la main ; l’alerte automatique ensuite, quand le modèle sera approuvé</b></div>
+      <div><h3>Où vivent les photos d’une séance</h3>Les mettre dans la fiche referait la faute du 29 août : 2 874 ko redescendus à chaque ouverture, et le quota dépassé.<b class="propose">Proposé · dans le coffre de fichiers, attachées au rendez-vous, chargées seulement quand on les regarde</b></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Une fois validé</p>
+    <h2>Ce que le Trône fera</h2>
+    <ul class="construit">
+      <li><b>Dans Conversations</b>, la barre d’outils : neuf gestes qui composent un message déjà rempli, chacun disant son état, et deux portes pour les fichiers.</li>
+      <li><b>La fonction d’envoi apprend les pièces jointes</b> : elle dépose le fichier chez Meta, l’envoie, et range la ligne dans le fil comme un message. Aucune adresse publique.</li>
+      <li><b>Une table des codes</b>, privée, écrite par la direction : un code par cliente, à usage unique, avec sa durée, ce qu’il couvre, et ce qu’il a remisé.</li>
+      <li><b>Trois portes de reconnaissance</b> : l’encaissement, le rendez-vous, et la réservation dans Ma Couronne, qui interrogent toutes la même règle.</li>
+      <li><b>Les quatre boucles fermées</b> : accepter un devis depuis le fil, marquer un bilan remis en l’envoyant, retrouver la facture et son reste dû, choisir ses photos.</li>
+      <li><b>Le relevé d’un foyer</b> : les bilans du payeur et des têtes mineures qu’il porte, chacun avec son numéro et marqué remis pour lui-même, PLUS les impayés du compte, l’avoir déduit, et le lien de paiement au net. Il ne part qu’à la payeuse.</li>
+      <li><b>La migration qui met les bilans sous <code>est_ma_tete</code></b>, pour que Ma Couronne et WhatsApp disent la même chose.</li>
+      <li><b>Le suivi d’abonnement en phrase</b> : le même compteur que l’écran Abonnements, jamais recompté, avec la phrase du cycle ou celle du paquet, et le retard qui prend le dessus quand il y en a un.</li>
+      <li><b>Un logement pour les photos de séance</b> dans le coffre de fichiers, attachées au rendez-vous, hors de la fiche.</li>
+      <li><b>Le registre des promos</b> : ce qui a été envoyé, ce qui a été honoré, ce que cela a coûté et rapporté.</li>
+    </ul>
+  </section>
+
+  <p class="pied">Maquette à valider. Les noms, montants, codes et heures sont des exemples.</p>
+</main>

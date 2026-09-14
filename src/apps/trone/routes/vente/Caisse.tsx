@@ -20,6 +20,11 @@ import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
+import {
+  useCodesPromo, codesPromoStore, codeDit, pourquoiLeCodeNeVautPas, remiseDuCode,
+  laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
+} from '../../../../shared/promos';
+import { useAuth } from '../../../../shared/auth';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { ligneNetteXof } from '../../../../shared/gamme';
@@ -90,6 +95,16 @@ export default function Caisse() {
 
   const [globalDisc, setGlobalDisc] = useState(0);
   const [globalDiscXof, setGlobalDiscXof] = useState(0);
+  /* LE CODE DE PROMOTION TAPÉ AU COMPTOIR — 14 septembre 2026, maquette
+     `public/maquette-la-conversation-outillee.html`. La règle vit dans
+     `shared/promos.ts` et nulle part ailleurs : la caisse, le rendez-vous et
+     Ma Couronne l'interrogent, aucun ne la réécrit. */
+  const [codeTape, setCodeTape] = useState('');
+  const [codes] = useCodesPromo();
+  /* QUI A ACCEPTÉ LE CODE. Une remise sans nom derrière est une remise que
+     personne n'assume, et c'est exactement ce que la trace de la base
+     (0092) est là pour empêcher. */
+  const { session } = useAuth();
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres. */
   const [settings] = useSettings();
   const [fxOn, setFxOn] = useState(false);
@@ -400,7 +415,36 @@ export default function Caisse() {
   const devisMissing = lines.filter((l) => l.mode === 'devis' && l.unit <= 0);
   /* Remise globale en % puis remise en CFA — même ordre que `invoiceTotal`,
      sinon le net affiché ici ne serait pas celui inscrit sur la facture. */
-  const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof);
+  /* ── LE CODE DE PROMOTION AU COMPTOIR ──────────────────────────────
+     LE REFUS DIT POURQUOI. « Code invalide » fait accuser la caisse et la
+     cliente s'énerve devant tout le monde ; « déjà utilisé mardi à 11 h » se
+     discute en dix secondes.
+
+     LES CLÉS DU TICKET PORTENT LEUR PRÉFIXE (`s:`, `p:`, `f:`) : seules
+     les PRESTATIONS peuvent être visées par un code, un produit ne se remise
+     pas par une promotion de rituel. */
+  const lignesRemisables = lines
+    .filter((l) => l.kind === 'service')
+    .map((l) => ({ serviceId: l.key.slice(2), montantXof: Math.round(l.netXof) }));
+  const refusDuCode = pourquoiLeCodeNeVautPas({
+    tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
+  });
+  const codePromo = !refusDuCode && normaliseLeCode(codeTape)
+    ? codeDit(codeTape, codes, branch.id)
+    : undefined;
+  /* CE QUE LE CODE RETIRERAIT, en francs exacts, sur les prestations qu'il
+     couvre. Jamais plus que sa base : une promotion n'est pas un crédit. */
+  const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables) : 0;
+  /* IL SE BAT CONTRE CE QUI EST DÉJÀ POSÉ, et l'on garde la plus généreuse.
+     Deux remises qui s'empilent se défendent mal : personne n'a décidé qu'une
+     cliente au tarif famille paierait 72 % du prix parce qu'un code est
+     passé. À égalité, le code reste entier — le consommer sans qu'il apporte
+     un franc reviendrait à le voler à la cliente. */
+  const dejaPoseXof = Math.round(subXof * (globalDisc / 100)) + globalDiscXof;
+  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? '');
+  const promoXof = cumul.codeConsomme ? promoBrutXof : 0;
+
+  const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
   /* Ce que les remises retirent au ticket, toutes confondues (lignes + globale
      + manuelle) — la barre ancrée le dit en clair à côté du net. */
   const remisesXof = Math.max(0, Math.round(lines.reduce((s, l) => s + l.unit * l.qty, 0)) - netXof);
@@ -439,13 +483,35 @@ export default function Caisse() {
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
       lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.disc)),
       globalDiscountPct: globalDisc,
-      globalDiscountXof: globalDiscXof || undefined,
+      /* LA PROMOTION S'ÉCRIT SUR LA PIÈCE, en francs exacts, avec la remise
+         manuelle : c'est `invoiceTotal` qui fait foi partout, et le net du
+         ticket doit être celui du papier, au franc près. */
+      globalDiscountXof: (globalDiscXof + promoXof) || undefined,
+      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` } : {}),
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
       avoirXof: posAvoir > 0 ? posAvoir : undefined,
     });
     setInvoices((prev) => [inv, ...prev]);
+
+    /* LE CODE SE FERME ICI, ET PAS AVANT. Le consommer au moment où on le
+       tape le brûlerait sur un ticket abandonné ; le consommer après
+       l'encaissement le laisserait servir deux fois entre les deux gestes.
+       Il se ferme quand l'argent entre, avec la pièce qui l'a honoré et le
+       nom de qui l'a accepté — c'est ce que la trace devra dire.
+
+       `honoreLeCode` est idempotent, et le déclencheur de 0093 l'est aussi :
+       deux caisses qui cliquent ensemble ne remisent pas deux fois. */
+    if (promoXof > 0 && codePromo) {
+      const ferme = honoreLeCode(codePromo, {
+        parQui: session?.user?.email ?? undefined,
+        surPiece: inv.number,
+        remiseReelleXof: promoXof,
+      });
+      codesPromoStore.set((prev) => prev.map((c) => (c.id === ferme.id ? ferme : c)));
+      setCodeTape('');
+    }
 
     /* LE RITUEL SOLDE PORTE DESORMAIS SA FACTURE : les ecrans de chiffre
        d'affaires le compteront par elle, et cesseront de le compter aussi par
@@ -462,7 +528,7 @@ export default function Caisse() {
       const partRituel = lines
         .filter((l) => l.kind === 'service')
         .reduce((n, l) => n + l.netXof, 0);
-      const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof);
+      const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
       appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle
         ? {
           ...a,
@@ -882,6 +948,47 @@ export default function Caisse() {
                   aria-label={`Remise manuelle en ${currency}`}
                 />
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
+              </div>
+
+              {/* ── LE CODE DE PROMOTION ──────────────────────────────────
+                  Un code par cliente, à usage unique, valable 48 heures. Le
+                  REFUS DIT POURQUOI : « déjà utilisé mardi à 11 h », « ce code
+                  appartient à une autre cliente », « expiré dimanche à 14 h ».
+                  Un refus muet fait accuser la caisse devant tout le monde. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                  Code de promotion
+                </span>
+                <input
+                  className="mnd-input"
+                  value={codeTape}
+                  onChange={(e) => setCodeTape(e.target.value.toUpperCase().slice(0, 40))}
+                  style={{ width: 180, letterSpacing: '.06em' }}
+                  placeholder="ECLAT15-A7K"
+                  aria-label="Code de promotion de la cliente"
+                />
+                {promoXof > 0 && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#41604A', fontWeight: 600 }}>
+                    −{fmtMoney(promoXof, currency)}
+                  </span>
+                )}
+                {refusDuCode && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--color-brique, #96412E)' }}>
+                    {refusDuCode}
+                  </span>
+                )}
+                {/* CE QU'ON ÉCARTE SE NOMME : une remise qui disparaît en
+                    silence passe pour une erreur de caisse. */}
+                {!refusDuCode && cumul.ecartee && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    On garde {cumul.source} ; {cumul.ecartee} est écarté{cumul.codeConsomme ? 'e' : ''}.
+                  </span>
+                )}
+                {!refusDuCode && codePromo && promoBrutXof === 0 && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    Ce code ne couvre aucune prestation de ce ticket : il reste utilisable.
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>

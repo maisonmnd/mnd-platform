@@ -537,8 +537,17 @@ export type InvoicePdfData = {
   momo?: { qr: string; code?: string; marchand?: string };
 };
 
-/** Construit et télécharge le PDF d'une facture / d'un devis. Renvoie le nom du fichier. */
-export async function invoicePdf(d: InvoicePdfData): Promise<string> {
+/* ── UNE PIÈCE SE TÉLÉCHARGE, OU S'ENVOIE — 14 septembre 2026 ────────
+   « Comment aussi joindre des fichiers ? » (Yéman).
+
+   Le même document sert à deux gestes : on l'enregistre sur le poste, ou on
+   le joint à une conversation WhatsApp. Le CONSTRUIRE est la partie longue
+   et délicate (la police fon, le QR MoMo, le pied de la Maison) ; ce qu'on
+   en fait ensuite tient en une ligne. On sépare donc les deux, plutôt que
+   de recopier deux cents lignes qui divergeraient au premier changement de
+   maquette — et une facture envoyée qui ne ressemblerait pas à la facture
+   imprimée serait la pire des confusions au comptoir. */
+async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filename: string }> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   normalizeSpaces(doc);
@@ -767,8 +776,28 @@ export async function invoicePdf(d: InvoicePdfData): Promise<string> {
   await pieDeLaMaison(doc, W, 285);
 
   const filename = `${d.kind === 'devis' ? 'Devis' : d.kind === 'releve' ? 'Releve' : 'Facture'}-${d.number}.pdf`;
+  return { doc, filename };
+}
+
+/** Construit et télécharge le PDF d'une facture / d'un devis. Renvoie le nom du fichier. */
+export async function invoicePdf(d: InvoicePdfData): Promise<string> {
+  const { doc, filename } = await construitLaFacture(d);
   doc.save(filename);
   return filename;
+}
+
+/** UNE PIÈCE PRÊTE À PARTIR — son nom, son genre, et ses octets en base64.
+
+    C'EST LA MÊME FACTURE QUE CELLE QU'ON IMPRIME, au signe près : un seul
+    constructeur, deux sorties. Rien ne touche le disque ni le coffre de la
+    Maison — les octets vont de la mémoire du navigateur à la fonction
+    d'envoi, qui les dépose chez Meta. Aucune adresse publique n'existe à
+    aucun moment, ce qui est toute la décision du 14 septembre. */
+export type PieceRendue = { nom: string; type: string; donnees: string };
+
+export async function invoiceEnPiece(d: InvoicePdfData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLaFacture(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
 }
 
 export type ReceiptPdfData = {

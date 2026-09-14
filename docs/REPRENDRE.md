@@ -2,6 +2,110 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CONVERSATION OUTILLÉE — 14 septembre 2026, CONSTRUIT, SQL EN ATTENTE
+
+« Comment avoir les boutons de l'automatisation, rappels de RDV, factures,
+itinéraires, codes QR, paiements… Comment aussi joindre des fichiers ? », puis
+« rajoute ses devis, ses photos, et son bilan à remettre », « rajoute suivi
+d'abonnement », « rajoute dans les raccourcis le bilan du foyer avec les
+impayés », « des promos flash avec des codes de réductions ? » (Yéman).
+
+Maquette **`public/maquette-la-conversation-outillee.html`**, validée le
+14 septembre.
+
+### Les deux juges, purs et éprouvés
+
+**`shared/gestes-conversation.ts`** — les dix gestes : quelle pièce chacun
+choisit, ce qu'il écrit, et pourquoi il s'éteint. Aucune lecture de magasin,
+aucun `window`, aucune date implicite : tout entre par le contexte.
+`node scripts/verifie-gestes-conversation.mjs` (60 vérifications).
+
+**`shared/promos.ts`** — le code de promotion : **un par cliente, à usage
+unique, 48 heures**. `pourquoiLeCodeNeVautPas`, `remiseDuCode`,
+`laMeilleureEnFrancs`, `honoreLeCode`. `node scripts/verifie-promos.mjs`
+(65 vérifications). **Trois portes, une seule règle** : la caisse, le
+rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
+
+### Ce qui tourne déjà
+
+- **La barre d'outils** dans Conversations (`clients/_gestes.tsx`) : dix
+  gestes qui remplissent la zone de saisie, chacun disant son état, plus la
+  pièce jointe de l'appareil.
+- **La pièce jointe sans adresse publique** : `whatsapp-envoi` dépose le
+  fichier chez Meta et ne garde que l'identifiant. **À REDÉPLOYER** (fichier
+  entier, « Verify JWT » coché). Plafond **5 Mo** — le prix du « rien de
+  public ».
+- **Le panneau de la promo** : la direction fabrique un code, le message part
+  déjà écrit, le code se range dans `codes_promo`.
+- **La caisse honore le code** : champ au comptoir, refus qui dit POURQUOI
+  (« déjà utilisé mardi à 11 h », « ce code appartient à une autre cliente »),
+  remise en francs exacts sur la pièce (`discountLabel`), et fermeture du code
+  **à l'encaissement, pas avant** — le consommer à la frappe le brûlerait sur
+  un ticket abandonné.
+- **`pdf.ts` sait rendre les octets** : `invoiceEnPiece()` construit la MÊME
+  facture que `invoicePdf()` — un seul constructeur, deux sorties.
+
+### SQL À PASSER (dans l'ordre)
+
+- **`0093_les_codes_de_promotion.sql`** — table `codes_promo`, index unique
+  sur la forme normalisée du code, RLS (direction crée, personnel honore, **la
+  cliente lit le sien** pour Ma Couronne), déclencheur qui GÈLE l'avantage et
+  la consommation, direct, trace.
+- **`0094_les_bilans_du_foyer.sql`** — met `bilans` sous `est_ma_tete()`.
+  **Trouvaille du 14 septembre** : la garde du parent (0036, passée le 9 août)
+  couvrait la fiche, les rendez-vous, les factures et les visites, **jamais les
+  bilans**. Aujourd'hui, dans Ma Couronne, une mère ne voit pas le bilan de sa
+  fille. Envoyer ce bilan par WhatsApp sans corriger la base ferait de WhatsApp
+  une porte plus permissive que l'application.
+
+### RESTE À FAIRE
+
+- **Les deux autres portes du code** : sur le rendez-vous (RdvModal) et à la
+  réservation dans Ma Couronne (Booking). La règle existe et est éprouvée ; il
+  ne manque que le champ et l'appel.
+- **La pièce jointe des pièces du Trône** : `invoiceEnPiece` existe, mais
+  l'assemblage des données du PDF vit encore dans `Factures.tsx`
+  (`buildPdfData`, avec ses aides locales). À extraire pour que la facture
+  ENVOYÉE soit au signe près celle qu'on IMPRIME.
+- **Le bilan et les photos n'ont pas de corps** : le bilan vit dans une page
+  imprimable (`bilan.html`), pas dans un constructeur de PDF ; les photos de
+  séance **n'ont nulle part où vivre** (la fiche ne porte qu'une vignette de
+  192 px — voir la faute du 29 août). Le geste compose son message et l'écran
+  dit franchement que la pièce ne se joint pas encore.
+- **Le registre des promotions** (`bilanDesPromos` existe) : ce qui a été
+  envoyé, honoré, ce que cela a coûté et rapporté.
+- **L'alerte automatique de fin de paquet** — « il vous reste 2 soins, jusqu'au
+  12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
+  il lui faut son modèle Meta approuvé.
+
+## LE DIRECT DÉPASSE SON PLAFOND — 14 septembre 2026, DIAGNOSTIQUÉ
+
+« Bouton synchronisé rouge » (Yéman), et la pastille disait vrai.
+
+**Le Trône ouvre 118 canaux temps réel, tous au chargement** : 61 collections
+et 57 documents (`grep -c 'bindCollection(' `, `bindDocument(`). **Supabase
+en accepte 100 par client.** Dix-huit sont donc refusés à chaque ouverture,
+définitivement, et la reprise automatique posée la veille les relance sans fin
+— c'est aussi l'origine des 793 erreurs Realtime restées inexpliquées.
+
+**Le gaspillage est concentré** : les 57 documents sont TOUS sur la même table,
+`documents`, chacun avec son filtre `key=eq.…`.
+
+**Le remède, en deux temps** : ① un canal pour les 57 documents au lieu de 57,
+qui écoute `documents` sans filtre et distribue par la clé (118 → 62, sous le
+plafond) ; ② un canal pour toute la Maison, qui écoute le schéma et distribue
+par le nom de la table (118 → 1). Le second demande de savoir quelles tables
+sont publiées :
+
+```sql
+select tablename from pg_publication_tables
+where pubname = 'supabase_realtime' and schemaname = 'public'
+order by tablename;
+```
+
+**PAS ENCORE FAIT.** À faire avant que l'on accuse les boutons neufs d'un écran
+qui traîne.
+
 ## LES NEUF PARCOURS RETROUVENT LE LOGICIEL — 6 septembre 2026, PUBLIÉ
 
 « Pourrions-nous retrouver toutes les formations de l'Académie ? Et les

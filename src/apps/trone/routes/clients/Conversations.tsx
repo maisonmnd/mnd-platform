@@ -11,6 +11,11 @@ import {
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
 } from '../../../../shared/conversations';
 import { ClientPicker } from './_shared';
+import { useEstDirection } from '../_vie';
+import {
+  useGestesDuFil, BarreDesGestes, ChoisirUnFichier, PanneauDeLaPromo,
+  type PieceRendue, type Geste,
+} from './_gestes';
 import './clients.css';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -70,6 +75,11 @@ export default function Conversations() {
   const [envoiEnCours, setEnvoi] = useState(false);
   const [voirPrives, setVoirPrives] = useState(false);
   const [rattacher, setRattacher] = useState<Fil | null>(null);
+  /* LA PIÈCE EN ATTENTE — choisie, pas encore envoyée. Elle se relit comme
+     le texte : on doit pouvoir la retirer avant d'appuyer. */
+  const [piece, setPiece] = useState<PieceRendue | null>(null);
+  const [promoOuverte, setPromoOuverte] = useState(false);
+  const estDirection = useEstDirection();
   const finDuFil = useRef<HTMLDivElement>(null);
 
   /* L'HORLOGE BAT, SINON LA FENÊTRE MENT. Un écran ouvert depuis une heure
@@ -105,9 +115,37 @@ export default function Conversations() {
     finDuFil.current?.scrollIntoView({ block: 'end' });
   }, [fil?.numero, fil?.messages.length]);
 
+  /* ── LES DIX GESTES ────────────────────────────────────────────────
+     Maquette `public/maquette-la-conversation-outillee.html`, validée le
+     14 septembre 2026. Le juge est pur et vit dans `shared/gestes-conversation` :
+     ici on ne fait que le nourrir et dessiner ce qu'il rend. */
+  const { gestes, codesVivants } = useGestesDuFil(fil
+    ? { numero: fil.numero, nom: fil.nom, clientId: fil.clientId, fenetreOuverte: fil.fenetre.ouverte }
+    : null);
+
+  /* UNE PIÈCE SEULE EST UN MESSAGE : WhatsApp accepte un fichier sans
+     légende, et refuser ici obligerait à écrire « voici » pour rien. */
   const refus = fil
-    ? pourquoiLEnvoiEstImpossible({ texte, fenetre: fil.fenetre, numero: fil.numero })
+    ? (piece && fil.fenetre.ouverte
+      ? null
+      : pourquoiLEnvoiEstImpossible({ texte, fenetre: fil.fenetre, numero: fil.numero }))
     : 'Choisissez un fil.';
+
+  /* UN GESTE REMPLIT LA ZONE, IL N'ENVOIE PAS. C'est une main qui relit.
+     Ce qu'il AVERTIT se dit tout de suite : un compteur que la cliente
+     contestera est pire qu'un silence, et l'écran doit le dire AVANT. */
+  const poseLeGeste = (g: Geste) => {
+    if (g.eteint) { toast(g.eteint); return; }
+    if (g.compose) setTexte(g.compose);
+    if (g.avertit) toast(g.avertit);
+    if (g.piece && g.piece.quoi !== 'facture' && g.piece.quoi !== 'devis') {
+      /* ON NE PROMET PAS UN FICHIER QU'ON N'A PAS. Le bilan vit dans une page
+         imprimable, les photos de séance n'ont pas encore de logement : le
+         message part seul, et l'écran le dit plutôt que d'annoncer une pièce
+         absente. Voir la maquette, « où vivent les photos d'une séance ». */
+      toast(`${g.piece.nom} : le texte est prêt, la pièce ne se joint pas encore.`);
+    }
+  };
 
   /* ── L'ENVOI PASSE PAR LA FONCTION, JAMAIS PAR LE NAVIGATEUR ────────
      Le jeton Meta autorise à écrire au nom de la Maison à n'importe quel
@@ -129,10 +167,16 @@ export default function Conversations() {
           clientId: fil.clientId,
           branchId: branch.id,
           parQui: session?.user?.email ?? undefined,
+          /* RIEN DE PUBLIC : les octets traversent la fonction, qui les
+             dépose chez Meta. Aucune adresse n'existe, ni chez nous ni
+             ailleurs. C'est la décision du 14 septembre, et son prix est le
+             plafond de cinq mégaoctets. */
+          ...(piece && !modele ? { piece } : {}),
         },
       });
       if (error) throw error;
       setTexte('');
+      setPiece(null);
       /* LA LIGNE EST DÉJÀ ÉCRITE PAR LA FONCTION ; la synchro la ramènera.
          On ne la pose pas à la main en plus : deux écritures pour un message
          finiraient par en afficher deux. */
@@ -327,6 +371,30 @@ export default function Conversations() {
 
                 {fil.fenetre.ouverte ? (
                   <>
+                    {/* ── LA BARRE D'OUTILS ──────────────────────────────
+                        Dix gestes, chacun disant son état, et deux portes
+                        pour les fichiers. Un geste REMPLIT la zone ; c'est
+                        une main qui relit et qui envoie. */}
+                    <div className="trc-gestes-rangee">
+                      <ChoisirUnFichier surFichier={setPiece} occupe={envoiEnCours} />
+                      <BarreDesGestes
+                        gestes={gestes}
+                        surGeste={poseLeGeste}
+                        surPromo={() => setPromoOuverte(true)}
+                        occupe={envoiEnCours}
+                      />
+                    </div>
+
+                    {piece && (
+                      <div className="trc-piece">
+                        <span className="trc-piece__v">{piece.type.startsWith('image/') ? 'IMG' : 'PDF'}</span>
+                        <span className="trc-piece__n">{piece.nom}</span>
+                        <button type="button" className="trc-piece__x" onClick={() => setPiece(null)}>
+                          Retirer
+                        </button>
+                      </div>
+                    )}
+
                     <textarea
                       className="mnd-input"
                       rows={2}
@@ -372,6 +440,25 @@ export default function Conversations() {
           )}
         </div>
       </div>
+
+      {/* LA PROMO FLASH — un code par cliente, à usage unique, 48 heures.
+          La direction seule en crée : une remise est de l'argent qui sort.
+          La vraie barrière est la RLS (0093) ; celle-ci n'est que la
+          politesse de ne pas montrer un bouton qui refusera. */}
+      {promoOuverte && fil?.clientId && (
+        <PanneauDeLaPromo
+          tete={{ id: fil.clientId, name: fil.nom }}
+          estDirection={estDirection}
+          parQui={session?.user?.email ?? undefined}
+          vivants={codesVivants}
+          surCode={(c, message) => {
+            setTexte(message);
+            setPromoOuverte(false);
+            toast(`Code ${c.code} posé. Relisez le message avant de l’envoyer.`);
+          }}
+          surFermer={() => setPromoOuverte(false)}
+        />
+      )}
 
       {/* RATTACHER — on choisit une tête EXISTANTE. Créer une fiche depuis un
           numéro qui écrit remplirait la base de démarcheurs en un mois. */}

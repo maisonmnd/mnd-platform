@@ -2688,6 +2688,64 @@
 }
 .trc-saisie textarea { width: 100%; resize: vertical; }
 
+/* ── LA BARRE D'OUTILS D'UNE CONVERSATION — 14 septembre 2026 ─────────
+   Maquette `public/maquette-la-conversation-outillee.html`.
+
+   ONZE BOUTONS DOIVENT SE LIRE D'UN COUP D'ŒIL, sinon ils font un mur. Ils
+   restent donc bas, discrets, et c'est leur ÉTAT qui parle : un geste qui
+   attend porte une pastille ambre, un geste éteint s'efface sans disparaître
+   — le faire disparaître ferait croire qu'il n'existe pas. */
+.trc-gestes-rangee {
+  display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px;
+}
+.trc-gestes { display: contents; }
+.trc-geste {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.2;
+  padding: 7px 11px; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--hairline); background: var(--paper-1); color: var(--ink-1);
+  transition: border-color .18s ease, background .18s ease;
+}
+.trc-geste:hover:not(:disabled) { border-color: var(--copper-300); background: var(--copper-50); }
+.trc-geste b { font-weight: 600; color: var(--indigo-700, #1E2150); }
+.trc-geste__dit { color: var(--ink-3); }
+/* LA PASTILLE NE DIT PAS CE QUE LE BOUTON FAIT : elle dit ce qu'il RESTE à
+   faire pour elle. C'est ce qui transforme un mur en liste de tâches. */
+.trc-geste__du {
+  font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--copper-700); border: 1px solid var(--copper-300);
+  background: var(--copper-50); border-radius: 2px; padding: 2px 5px;
+}
+.trc-geste--cuivre { border-color: var(--copper-300); background: var(--copper-50); }
+.trc-geste--cuivre b { color: var(--copper-700); }
+.trc-geste.est-eteint { opacity: .42; cursor: not-allowed; }
+.trc-geste:disabled { cursor: not-allowed; }
+
+/* LA PIÈCE CHOISIE, PAS ENCORE ENVOYÉE. Elle se relit comme le texte, et se
+   retire avant qu'on appuie. */
+.trc-piece {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  padding: 8px 11px; border: 1px solid var(--copper-300);
+  background: var(--copper-50); border-radius: 3px; font-size: 13px;
+}
+.trc-piece__v {
+  font-size: 9px; letter-spacing: .08em; color: var(--copper-700);
+  border: 1px solid var(--copper-300); background: var(--paper-1);
+  border-radius: 2px; padding: 3px 5px;
+}
+.trc-piece__n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trc-piece__x {
+  border: 0; background: none; cursor: pointer; font-family: var(--font-sans);
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+}
+.trc-piece__x:hover { color: var(--color-brique, #96412E); }
+
+/* Le panneau de la promotion : trois champs sur une ligne, un par colonne. */
+.trc-promo__champs {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px;
+}
+@media (max-width: 560px) { .trc-promo__champs { grid-template-columns: 1fr; } }
+
 .trc-modal-fond {
   position: fixed; inset: 0; z-index: 60; background: rgb(20 20 27 / 45%);
   display: flex; align-items: center; justify-content: center; padding: 20px;
