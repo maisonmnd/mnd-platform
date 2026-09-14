@@ -3,8 +3,13 @@
 
    Réveillée par le cron (voir docs/BRANCHER-ENVOIS.md), elle :
      ① lit les rendez-vous de DEMAIN (au fuseau du salon, non annulés) ;
-     ② envoie le rappel PUSH via la fonction `push-notify` déjà déployée
-        (gratuit — pour toute cliente qui a installé Ma Couronne) ;
+     ② LE PUSH N'EST PLUS ICI — 14 septembre 2026. Le job horaire
+        `mnd-push-rappels` fait déjà ce balayage (fenêtres 22-24 h et 2 h
+        avant, journal `push_reminders`), et chacun tenait SON journal sans
+        voir l'autre : une cliente abonnée aurait reçu le rappel du soir
+        DEUX fois, et trois avec celui de la dernière heure. Personne n'en a
+        souffert — aucun abonnement n'était actif — mais le premier
+        abonnement l'aurait révélé. Ici, WhatsApp et SMS ; le push, au job ;
      ③ envoie le WhatsApp par l'API Meta SI les secrets sont posés
         (WA_TOKEN, WA_PHONE_ID, WA_TEMPLATE) — sinon elle passe, sans bruit :
         la « tournée du matin » du Trône prend le relais à la main ;
@@ -99,12 +104,13 @@ Deno.serve(async (req) => {
   /* ── Demain, au fuseau du salon ─────────────────────────────────── */
   const demain = new Date(Date.now() + 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
 
-  /* ── La voix de la Maison (nom, itinéraire) ─────────────────────── */
+  /* ── La voix de la Maison (son nom) ──────────────────────────────
+     L'itinéraire vivait ici pour le push ; il est parti avec lui, au job
+     horaire, qui le lit de son côté. */
   const { data: docs } = await sb.from('documents').select('key, data')
-    .in('key', ['mnd_house_identity', 'mnd_auto_config']);
+    .in('key', ['mnd_house_identity']);
   const nomMaison: string =
     (docs?.find((d) => d.key === 'mnd_house_identity')?.data?.nom ?? '').trim() || 'Maison MND';
-  const cfg = (docs?.find((d) => d.key === 'mnd_auto_config')?.data ?? {}) as { itineraire?: string };
 
   /* ── Les rendez-vous de demain, non annulés ─────────────────────── */
   const { data: apptRows, error: errA } = await sb.from('appointments')
@@ -202,33 +208,11 @@ Deno.serve(async (req) => {
     });
   };
 
-  let nPush = 0, nWa = 0, nSms = 0;
+  let nWa = 0, nSms = 0;
 
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
     const prenom = (a.clientName ?? fiche?.name ?? '').split(' ')[0] || 'Madame';
-
-    /* ① PUSH — gratuit, via la fonction déjà déployée. */
-    if (!deja.has(`env-${a.id}-push`)) {
-      try {
-        const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: `Bearer ${service}` },
-          body: JSON.stringify({
-            mode: 'to-client',
-            clientId: a.clientId,
-            title: `${nomMaison} · demain ${heureLisible(a.time)}`,
-            body: `${prenom}, votre rendez-vous est demain à ${heureLisible(a.time)}. ${cfg.itineraire?.trim() ?? ''}`.trim(),
-            url: '/couronne/',
-          }),
-        });
-        const sent = ((await r.json().catch(() => ({}))) as { sent?: number }).sent ?? 0;
-        consigne('push', a, sent > 0 ? 'envoyé' : 'sans-abonnement');
-        if (sent > 0) nPush++;
-      } catch (e) {
-        consigne('push', a, 'échec', String(e));
-      }
-    }
 
     /* ② WHATSAPP — seulement si la Maison a posé ses clés Meta.
        Le modèle approuvé attend deux variables : {{1}} le prénom,
@@ -317,7 +301,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ jour: demain, rdv: rdvs.length, push: nPush, whatsapp: nWa, sms: nSms }),
+    JSON.stringify({ jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', whatsapp: nWa, sms: nSms }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

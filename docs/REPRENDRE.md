@@ -141,6 +141,39 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## META A APPROUVÉ · LE DOUBLE PUSH FERMÉ AVANT D'AVOIR SERVI — 14 septembre 2026, 3 FONCTIONS À RECOLLER
+
+**`whatsapp_business_messaging` est APPROUVÉ** sur *Maison MND* (App ID
+1404457951135819, soumis le 13 septembre à 08:46, approuvé le jour même).
+L'accès avancé était la cause finale du silence de l'oreille (voir L'OREILLE
+ATTEND META). Rien à changer dans le code du Trône.
+
+**Les six gestes de la Maison, dans l'ordre** :
+1. **Jeton permanent** de *Maison MND* (utilisateur système, portées
+   `whatsapp_business_messaging` + `whatsapp_business_management`, assigné au
+   WABA 1891057041532944) → remplacer le secret `WA_TOKEN`. L'actuel appartient
+   à l'application de développement. Un seul secret sert aux quatre fonctions.
+2. **Déployer `whatsapp-envoi`**, `Verify JWT` COCHÉ — répondre depuis
+   Conversations.
+3. **Le webhook sur la BONNE application** : `whatsapp-webhook` sur *Maison
+   MND*, champ `messages` du WABA 1891057041532944, `Verify JWT` DÉCOCHÉ.
+4. **Recoller `rappels-j1`** (waMessageId, le fil, et le push retiré ci-dessous).
+5. **Recoller `confirmation-rdv` et `avis-google`** (règle du 13 septembre).
+6. Essai : un message depuis un téléphone personnel vers le numéro du salon
+   doit paraître dans Conversations en quelques secondes.
+
+**LE DOUBLE PUSH, FERMÉ AVANT D'AVOIR SERVI.** Sept jobs tournent, tous
+actifs : `avis-google-heures` (30 8-20), `confirmation-rdv` (*/10),
+`mnd-push-rappels` (0 * * * *), `mnd-staff-rdv-1h` (*/15), `rappels-j1-soir`
+(0 17), `rappels-j1-nuit` (0 20), `sauvegarde-nuit` (0 2). Le job horaire
+poussait DÉJÀ le rappel (fenêtres 22-24 h et 2 h avant, journal
+`push_reminders`) et `rappels-j1` poussait le sien (journal `envois`) : deux
+chemins, deux journaux, aucun ne voyant l'autre. **Vérifié en base : zéro
+cliente touchée deux fois**, parce qu'aucun abonnement push n'est actif — tous
+les envois push du journal sont « sans-abonnement ». Le premier abonnement
+l'aurait révélé. Le push quitte donc `rappels-j1`, qui ne fait plus que
+WhatsApp et SMS ; `mnd_auto_config` (l'itinéraire) ne s'y lit plus.
+
 ## UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 septembre 2026, PUBLIÉ · 2 FONCTIONS À RECOLLER
 
 « Chaque fois que je pose un rendez-vous dans le passé, n'envoie aucun WhatsApp,

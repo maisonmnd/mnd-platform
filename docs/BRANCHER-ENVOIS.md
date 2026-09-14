@@ -2,9 +2,15 @@
 
 L'architecture est UNE : la fonction planifiée `rappels-j1` se réveille chaque
 soir, lit les rendez-vous du lendemain, envoie ce que ses clés lui permettent,
-et consigne chaque tentative dans la table `envois` (migration 0043). Le push
-marche sans aucun compte ; WhatsApp et SMS s'allument le jour où leurs clés
-sont posées — sans retoucher le code.
+et consigne chaque tentative dans la table `envois` (migration 0043). WhatsApp
+et SMS s'allument le jour où leurs clés sont posées — sans retoucher le code.
+
+> **LE PUSH N'EST PLUS DANS `rappels-j1` — 14 septembre 2026.** Le job horaire
+> `mnd-push-rappels` (fonction `push-notify`, mode `reminders`) faisait DÉJÀ ce
+> balayage, fenêtres 22-24 h et 2 h avant, avec son propre journal
+> `push_reminders`. Deux chemins, deux journaux, aucun ne voyant l'autre : une
+> cliente abonnée aurait reçu le rappel du soir deux fois. Le push reste au
+> job ; `rappels-j1` ne fait plus que WhatsApp et SMS.
 
 Aucun secret dans ce dépôt (il est public). Toutes les clés vivent dans les
 « secrets » de Supabase, lus par la fonction à l'exécution.
@@ -44,12 +50,14 @@ Supabase → **Integrations** → **Cron** (activer si demandé) → **Create jo
 
 Essai immédiat sans attendre le soir : bouton **Run now** du job (ou
 « Invoke » sur la fonction avec la clé service). Réponse attendue :
-`{ "jour": "…", "rdv": N, "push": …, "whatsapp": 0, "sms": 0 }` — et les
-lignes apparaissent dans la table `envois` + la tournée du matin du Trône.
+`{ "jour": "…", "rdv": N, "push": "au job mnd-push-rappels", "whatsapp": 0,
+"sms": 0 }` — et les lignes apparaissent dans la table `envois` + la tournée
+du matin du Trône.
 
-**Dès cette étape, les rappels PUSH partent seuls.** Gratuit, pour toute
-cliente qui a installé Ma Couronne. Les autres restent servies par la tournée
-du matin (un tap par cliente).
+**Les rappels PUSH partent seuls, par le job horaire `mnd-push-rappels`.**
+Gratuit, pour toute cliente qui a installé Ma Couronne, la veille et deux
+heures avant. Les autres restent servies par la tournée du matin (un tap par
+cliente).
 
 ## Étape 3 — Allumer WhatsApp (API Meta, payant à la conversation)
 
