@@ -118,13 +118,13 @@ pendant quinze minutes ; l'API non. Tout ce qui suit fait le tour de ce mur.
   geste (un navigateur refuse tout son avant) et se tait hors des heures du
   salon.
 
-### SQL À PASSER
+### SQL — PASSÉE le 14 septembre 2026. NE PAS RELANCER.
 
-- **`0097_les_messages_entrent_dans_la_trace.sql`** — met `messages_wa` sous
-  `trace_le_geste()`. **Elle doit passer AVANT que la réécriture serve** :
-  sans elle, réécrire efface pour de bon, et l'on ne peut plus dire ce que la
-  cliente a réellement reçu. La trace gardera le texte d'avant, celui d'après,
-  l'heure et qui a corrigé.
+- **`0097_les_messages_entrent_dans_la_trace.sql` — PASSÉE.** `messages_wa`
+  est sous `trace_le_geste()`. Contrôle en base : **douze tables signées**
+  désormais — les dix de 0092, plus `codes_promo` (0093) et `messages_wa`.
+  La réécriture peut donc servir : la trace garde le texte d'avant, celui
+  d'après, l'heure et qui a corrigé, et personne ne peut la retoucher.
 
 ### LES APPELS — le chantier à part
 
