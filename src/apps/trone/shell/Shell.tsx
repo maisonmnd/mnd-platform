@@ -97,13 +97,22 @@ function SyncDot() {
   }
   const causes = [...parRaison.entries()].map(([raison, tables]) => `${tables.join(', ')}, ${raison}`);
   const premiere = [...parRaison.entries()][0];
+  /* ══ LE DIRECT TOMBÉ SE DIT — 14 septembre 2026 ═══════════════════
+     « Les messages arrivent avec du retard » (Yéman). Rien n'était perdu :
+     le canal temps réel était à terre et l'écran ne se relisait qu'au retour
+     de focus. Une pastille verte pendant qu'un écran traîne apprend à ne plus
+     la croire. */
+  const enRetard = s.directEnPanne.length;
   const label = mode === 'off' ? 'Hors ligne'
     : mode === 'err'
       ? (premiere
           ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
           : 'Synchro en échec')
-    : mode === 'wait' ? 'Synchronisation…' : 'Synchronisé';
-  const color = mode === 'ok' ? '#6e7c5c' : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
+    : mode === 'wait' ? 'Synchronisation…'
+    : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
+  const color = mode === 'ok'
+    ? (enRetard ? 'var(--color-copper)' : '#6e7c5c')
+    : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
     : mode === 'err'
@@ -111,7 +120,12 @@ function SyncDot() {
         ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
         : ' Ce refus ne guérira pas en attendant : il faut agir sur la base, puis refaire une modification pour relancer.'}`
     : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
-    : 'Toutes les écritures sont sur le serveur.';
+    : enRetard
+      ? `Tout est enregistré, mais le direct est tombé sur ${enRetard === 1 ? 'une table' : `${enRetard} tables`} :\n`
+        + `${s.directEnPanne.slice(0, 6).join(', ')}${enRetard > 6 ? '…' : ''}\n\n`
+        + 'Rien n’est perdu : ces écrans se relisent chaque minute au lieu de s’annoncer, '
+        + 'et le direct se rebranche tout seul, de plus en plus espacé.'
+      : 'Toutes les écritures sont sur le serveur.';
   return (
     <span className="tr-top__sync" title={title} role="status">
       <span className="tr-top__sync-dot" style={{ background: color }} />

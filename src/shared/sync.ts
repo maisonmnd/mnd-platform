@@ -44,6 +44,11 @@ export type SyncState = {
       un refus. La pastille le dit, pour qu'on n'aille pas « refaire une
       modification » à la main. */
   reprises: string[];
+  /** LES TABLES DONT LE DIRECT EST TOMBÉ — 14 septembre 2026. L'écriture
+      passe toujours ; c'est l'ANNONCE qui manque, et l'écran ne se met à jour
+      qu'au filet d'une minute. « Les messages arrivent avec du retard » vient
+      de là, et personne ne pouvait le voir. */
+  directEnPanne: string[];
   lastOkAt: number | null;
 };
 
@@ -156,6 +161,8 @@ const estRefusDeDroit = (msg: string | undefined): boolean => {
 };
 /** Les tables en échec ET le message brut du serveur, table → message. */
 const failedTables = new Map<string, string>();
+/** Les canaux temps réel à terre — voir `SyncState.directEnPanne`. */
+const canauxMorts = new Set<string>();
 let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
@@ -164,6 +171,7 @@ let syncSnapshot: SyncState = {
   failedWhy: [],
   ecartees: [],
   reprises: [],
+  directEnPanne: [],
   pending: 0,
   failed: 0,
   lastOkAt: null,
@@ -183,6 +191,7 @@ function bumpSync(): void {
     }),
     ecartees: [...horsPortee].sort(),
     reprises: [...reprises.keys()].sort(),
+    directEnPanne: [...canauxMorts].sort(),
     lastOkAt,
   };
   syncListeners.forEach((f) => f());
@@ -200,6 +209,11 @@ const syncMark = {
   /* CHAQUE TABLE DIT COMMENT ON LA REPOUSSE, une fois, à son branchement.
      La reprise ne connaît ni les magasins ni les diffs : elle rappelle. */
   relance(t: string, fn: () => void) { relances.set(t, fn); },
+  /* LE DIRECT SE DIT, LUI AUSSI — 14 septembre 2026. Un canal à terre ne
+     perd aucune écriture, il retarde ce qu'on VOIT : la pastille le nomme
+     plutôt que de laisser croire à un écran qui traîne. */
+  directOk(t: string) { if (canauxMorts.delete(t)) bumpSync(); },
+  directPerdu(t: string) { if (!canauxMorts.has(t)) { canauxMorts.add(t); bumpSync(); } },
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
   ok(t: string) {
     dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now();
@@ -825,15 +839,70 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
         lastPushed = snapshot(items);
       };
 
+  /* ══ LE DIRECT SE SURVEILLE ET SE RELÈVE — 14 septembre 2026 ═════════
+     « Les messages arrivent avec du retard » (Yéman), sur les Conversations.
+
+     L'ABONNEMENT PARTAIT SANS JAMAIS LIRE SON VERDICT. `subscribe()` rend le
+     statut à qui le demande ; personne ne le demandait. Un canal refusé
+     (droits, quota) ou tombé (réseau, veille de l'appareil) restait mort
+     jusqu'au prochain changement de session, et l'écran n'apprenait plus rien
+     qu'au retour de focus, throttlé à quinze secondes. Rien n'était perdu :
+     tout arrivait EN RETARD, ce qui est la panne la plus difficile à nommer.
+
+     TROIS REMÈDES, dans cet ordre : on se rejoint tout seul, de plus en plus
+     espacé ; tant que le canal est à terre, la table se relit chaque minute
+     (moins bien que le direct, infiniment mieux que rien) ; et la pastille du
+     comptoir le dit, parce qu'un écran qui traîne sans explication finit par
+     passer pour un écran qui ment.
+
+     ON RELIT EN SE REJOIGNANT : un canal ne rejoue jamais ce qui s'est dit
+     pendant son absence. */
   let canal: ReturnType<typeof sb.channel> | null = null;
+  let essaisDuCanal = 0;
+  let repriseDuCanal: ReturnType<typeof setTimeout> | undefined;
+  let filetDuCanal: ReturnType<typeof setInterval> | undefined;
+  const arreteLeFilet = () => {
+    if (filetDuCanal) { clearInterval(filetDuCanal); filetDuCanal = undefined; }
+  };
+  const poseLeFilet = () => {
+    if (filetDuCanal) return;
+    filetDuCanal = setInterval(() => {
+      if (typeof document === 'undefined' || !document.hidden) void refetch();
+    }, 60_000);
+  };
   rejoindreLeCanal = () => {
+    if (repriseDuCanal) { clearTimeout(repriseDuCanal); repriseDuCanal = undefined; }
     /* On retire l'ancien AVANT d'en ouvrir un neuf. Un doublon transitoire ne
        ferait pas de mal — le gestionnaire est idempotent, il compare avant
        d'appliquer — mais un canal anonyme laissé ouvert écoute pour rien. */
     if (canal) void sb.removeChannel(canal);
-    canal = sb.channel(`mnd:${table}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, surChangement)
-      .subscribe();
+    const neuf = sb.channel(`mnd:${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, surChangement);
+    canal = neuf;
+    neuf.subscribe((statut) => {
+      /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
+         fait dire « CLOSED » à l'ancien, et le prendre pour une panne
+         relancerait une rejointure à chaque changement de session. */
+      if (canal !== neuf) return;
+      if (statut === 'SUBSCRIBED') {
+        essaisDuCanal = 0;
+        arreteLeFilet();
+        syncMark.directOk(table);
+        void refetch();
+        return;
+      }
+      if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
+        syncMark.directPerdu(table);
+        poseLeFilet();
+        void refetch();
+        if (repriseDuCanal) return;
+        /* De deux secondes à une minute, avec un grain de hasard : cinquante
+           tables qui se rejoignent à la même seconde se font refuser ensemble. */
+        const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDuCanal, 5)) + Math.random() * 1000;
+        essaisDuCanal += 1;
+        repriseDuCanal = setTimeout(() => { repriseDuCanal = undefined; rejoindreLeCanal(); }, attente);
+      }
+    });
   };
   rejoindreLeCanal();
 }
@@ -995,16 +1064,50 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         lastPushed = j;
       };
 
+  /* LE MÊME SOIN QUE POUR LES COLLECTIONS (14 septembre 2026) : on lit le
+     verdict, on se rejoint tout seul, on relit en se rejoignant, et la
+     pastille nomme le document dont le direct est à terre. */
   let canal: ReturnType<typeof sb.channel> | null = null;
+  let essaisDuCanal = 0;
+  let repriseDuCanal: ReturnType<typeof setTimeout> | undefined;
+  let filetDuCanal: ReturnType<typeof setInterval> | undefined;
+  const arreteLeFilet = () => {
+    if (filetDuCanal) { clearInterval(filetDuCanal); filetDuCanal = undefined; }
+  };
+  const poseLeFilet = () => {
+    if (filetDuCanal) return;
+    filetDuCanal = setInterval(() => {
+      if (typeof document === 'undefined' || !document.hidden) void hydrate(false);
+    }, 60_000);
+  };
   rejoindreLeCanal = () => {
+    if (repriseDuCanal) { clearTimeout(repriseDuCanal); repriseDuCanal = undefined; }
     if (canal) void sb.removeChannel(canal);
-    canal = sb.channel(`mnd:doc:${key}`)
+    const neuf = sb.channel(`mnd:doc:${key}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'documents', filter: `key=eq.${key}` },
         surChangement,
-      )
-      .subscribe();
+      );
+    canal = neuf;
+    neuf.subscribe((statut) => {
+      if (canal !== neuf) return;
+      if (statut === 'SUBSCRIBED') {
+        essaisDuCanal = 0;
+        arreteLeFilet();
+        syncMark.directOk(`doc:${key}`);
+        void hydrate(false);
+        return;
+      }
+      if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
+        syncMark.directPerdu(`doc:${key}`);
+        poseLeFilet();
+        if (repriseDuCanal) return;
+        const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDuCanal, 5)) + Math.random() * 1000;
+        essaisDuCanal += 1;
+        repriseDuCanal = setTimeout(() => { repriseDuCanal = undefined; rejoindreLeCanal(); }, attente);
+      }
+    });
   };
   rejoindreLeCanal();
 }

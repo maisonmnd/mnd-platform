@@ -141,6 +141,46 @@ Les dates de naissance fausses sont toujours dans la base. La modale les
 nomme une par une au moment de réserver ; **aucune liste ne les rassemble**.
 À construire si la correction au fil de l'eau ne suffit pas.
 
+## LE DIRECT SE SURVEILLE ET SE RELÈVE — 14 septembre 2026, PUBLIÉ
+
+« Les messages arrivent avec du retard » (Yéman), sur les Conversations, le
+jour où l'oreille s'est ouverte.
+
+**RIEN N'ÉTAIT PERDU, TOUT ARRIVAIT EN RETARD** — la panne la plus difficile à
+nommer. La base portait bien les messages (vérifié : cinq depuis 14:02, dont
+deux que l'écran n'avait pas encore montrés) ; c'est l'ANNONCE qui manquait.
+
+**MA FAUTE, ET ELLE EST NETTE.** `bindCollection` et `bindDocument`
+s'abonnaient ainsi : `.subscribe()`. Sans retour. `subscribe()` rend pourtant
+le verdict à qui le demande, et personne ne le demandait : un canal REFUSÉ
+(droits, quota) ou TOMBÉ (réseau, veille) restait mort jusqu'au prochain
+changement de session. L'écran ne se relisait plus qu'au retour de focus,
+throttlé à quinze secondes. Le tableau de bord Supabase affichait **793 erreurs
+Realtime en 24 h** que rien, côté Trône, ne relevait.
+
+**Trois remèdes, dans cet ordre :**
+· on lit le statut et l'on se rejoint tout seul, de 2 s à 1 min, avec un grain
+  de hasard (cinquante tables qui se rejoignent à la même seconde se font
+  refuser ensemble) ;
+· tant qu'un canal est à terre, sa table se relit **chaque minute** (seulement
+  onglet visible, et seulement les tables en panne) ;
+· la pastille du comptoir passe au cuivre, « Synchronisé · direct en panne »,
+  et nomme les tables au survol.
+· ON RELIT EN SE REJOIGNANT : un canal ne rejoue jamais ce qui s'est dit
+  pendant son absence.
+
+**UN PIÈGE ÉVITÉ** : `removeChannel` fait dire « CLOSED » à l'ancien canal.
+Sans la garde `if (canal !== neuf) return`, chaque changement de session aurait
+lancé une rejointure en boucle.
+
+`SyncState.directEnPanne` porte la liste ; `syncMark.directOk` /
+`directPerdu` la tiennent.
+
+**RESTE À COMPRENDRE** : la CAUSE des refus Realtime (quota du plan, nombre de
+canaux — une par table et une par document, soit une soixantaine par poste —,
+ou jeton). À lire dans Supabase → Logs → Realtime. Le remède ci-dessus tient
+quelle que soit la cause, mais il la masque : ne pas oublier d'y retourner.
+
 ## META A APPROUVÉ · LE DOUBLE PUSH FERMÉ AVANT D'AVOIR SERVI — 14 septembre 2026, 3 FONCTIONS À RECOLLER
 
 **`whatsapp_business_messaging` est APPROUVÉ** sur *Maison MND* (App ID
