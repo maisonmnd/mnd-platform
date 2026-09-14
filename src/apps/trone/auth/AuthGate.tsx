@@ -4,7 +4,8 @@ import { maisonNom } from '../../../shared/identite';
 import { useClients } from '../../../shared/clients';
 import {
   useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff,
-  startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession, verifyInscription } from '../../../shared/auth';
+  startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession, verifyInscription,
+  PanneDAcces } from '../../../shared/auth';
 import './auth.css';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
@@ -38,7 +39,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
    fiche cliente. */
 function StaffGate({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const [state, setState] = useState<'loading' | 'ok' | 'denied'>('loading');
+  /* QUATRE RÉPONSES, PAS TROIS — 14 septembre 2026. « Vérification de vos
+     accès… » et le Trône n'en sortait plus : la lecture avait été emportée
+     par un `ERR_NETWORK_CHANGED`, la promesse rejetée n'a jamais traversé le
+     `then`, et l'état est resté « je cherche » pour toujours.
+
+     UNE PANNE NE SE CONFOND PAS AVEC UN REFUS. La dire « refus » aurait mis
+     un souverain dehors avec un écran lui expliquant qu'il attend son
+     autorisation ; la taire fige la porte. Elle se dit, elle se réessaie
+     toute seule, et elle ne ferme rien. */
+  const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'panne'>('loading');
+  const [raison, setRaison] = useState('');
+  const [essai, setEssai] = useState(0);
   const [clients] = useClients();
   const uid = session?.user?.id ?? '';
   const estCliente = origineDeLaSession(session) === 'couronne'
@@ -47,15 +59,53 @@ function StaffGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
     setState('loading');
-    void loadStaff().then((s) => {
-      if (alive) setState(s ? 'ok' : 'denied');
-    });
+    void loadStaff()
+      .then((s) => {
+        if (alive) setState(s ? 'ok' : 'denied');
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setRaison(e instanceof PanneDAcces ? e.raison : String((e as { message?: string })?.message ?? e));
+        setState('panne');
+      });
     return () => {
       alive = false;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, essai]);
+
+  /* ELLE SE RELÈVE TOUTE SEULE. Un réseau qui cligne ne doit pas demander un
+     geste : on redemande, de plus en plus espacé, et le bouton n'est là que
+     pour qui ne veut pas attendre. */
+  useEffect(() => {
+    if (state !== 'panne') return undefined;
+    const attente = Math.min(30_000, 2000 * 2 ** Math.min(essai, 4));
+    const t = window.setTimeout(() => setEssai((n) => n + 1), attente);
+    return () => window.clearTimeout(t);
+  }, [state, essai]);
 
   if (state === 'loading') return <AuthSplash>Vérification de vos accès…</AuthSplash>;
+  if (state === 'panne') {
+    return (
+      <div className="tra-shell">
+        <div className="tra-card">
+          <Seal color="copper" size={40} />
+          <div className="mnd-eyebrow" style={{ marginTop: 8 }}>La Maison n’a pas répondu</div>
+          <h1 className="mnd-serif tra-title">Votre accès n’est pas en cause.</h1>
+          <p className="tra-lede mnd-muted">
+            La connexion s’est interrompue pendant la vérification. Ce n’est ni un refus ni une
+            porte fermée : le Trône redemande tout seul, de plus en plus espacé.
+            {raison ? <> Ce que le réseau a dit : <b>{raison}</b>.</> : null}
+          </p>
+          <Button variant="copper" onClick={() => setEssai((n) => n + 1)} className="tra-submit">
+            Réessayer maintenant
+          </Button>
+          <Button variant="ghost" onClick={() => void signOut()} className="tra-submit">
+            Se déconnecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (state === 'denied' && estCliente) {
     return (
       <div className="tra-shell">

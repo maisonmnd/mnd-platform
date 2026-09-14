@@ -83,6 +83,59 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LA PORTE NE SE FIGE PLUS — 14 septembre 2026, PUBLIÉ
+
+« Vérification de vos accès… » et le Trône n'en sortait plus (Yéman), avec
+560 `net::ERR_NETWORK_CHANGED` dans la console.
+
+**`ERR_NETWORK_CHANGED` n'est pas un refus du serveur** : c'est l'appareil qui
+change de réseau (wifi vers données mobiles, VPN, veille) pendant que des
+requêtes sont en vol. Le navigateur les annule toutes d'un coup. Le Trône en
+lançait 118 à la seconde du chargement : une seule bascule les emportait
+toutes.
+
+**Deux fautes se tenaient la main dans `AuthGate`** :
+
+① `void loadStaff().then(…)` **sans `catch`**. Une promesse rejetée ne passe
+   jamais par `then` : l'état restait « je cherche encore », pour toujours. La
+   leçon était pourtant écrite dans `sync.ts` depuis le 31 août — « une garde
+   qui peut ne jamais rendre la main n'est pas une garde, c'est un écran
+   figé » — et n'avait pas été appliquée à la porte.
+
+② Et un `catch` rendant `null` aurait fait **pire** : `null` veut dire « ce
+   compte n'est pas du personnel ». Une coupure de trois secondes aurait mis
+   un souverain dehors avec un écran lui expliquant qu'il attend son
+   autorisation.
+
+**Quatre réponses, désormais** : c'est du personnel, ce n'en est pas, ou
+**la Maison n'a pas répondu** — ce troisième cas se dit, se réessaie tout seul
+de deux à trente secondes, et ne ferme rien. `loadStaff()` distingue une
+panne passagère d'un refus (`PanneDAcces`) et porte une **borne de 8 secondes** :
+une requête qui pend n'échoue pas, elle se tait, et sans borne il n'y a rien à
+rattraper.
+
+## LE DIRECT SOUS SON PLAFOND — 14 septembre 2026, MOITIÉ FAITE
+
+**Le remède ① est posé** : les 57 documents partagent désormais **un seul
+canal** (`mnd:documents`), qui écoute la table sans filtre et distribue par la
+clé. **118 canaux deviennent 62**, sous le plafond de 100 de Supabase.
+
+Deux gardes l'accompagnent, et elles comptent autant que le regroupement :
+`bindDocument` s'exécute 57 fois, et sans elles on aurait ouvert 57 canaux
+pour en fermer 56 dans la même seconde. La rejointure est **idempotente**
+(`force` seulement sur changement de session ou reprise), et les 57
+`onAuthStateChange` se **rassemblent dans un battement de 50 ms**.
+
+**RESTE LE REMÈDE ②** : un canal pour toute la Maison (62 → 1), qui écouterait
+le schéma et distribuerait par le nom de la table. Il demande de savoir ce qui
+est publié :
+
+```sql
+select tablename from pg_publication_tables
+where pubname = 'supabase_realtime' and schemaname = 'public'
+order by tablename;
+```
+
 ## LE DIRECT DÉPASSE SON PLAFOND — 14 septembre 2026, DIAGNOSTIQUÉ
 
 « Bouton synchronisé rouge » (Yéman), et la pastille disait vrai.

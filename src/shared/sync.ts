@@ -949,6 +949,123 @@ export const quandDocumentDescendu = (key: string): Promise<void> => {
   return d.promesse;
 };
 
+/* ══ UN SEUL CANAL POUR TOUS LES DOCUMENTS — 14 septembre 2026 ═══════
+
+   « Bouton synchronisé rouge », puis 560 erreurs réseau d'un coup (Yéman).
+
+   LE TRÔNE OUVRAIT 118 CANAUX, TOUS AU CHARGEMENT : 61 collections et
+   57 documents. Supabase en accepte CENT par client. Dix-huit étaient donc
+   refusés à chaque ouverture, définitivement, et la reprise automatique les
+   relançait sans fin — d'où la pastille cuivre qui ne s'éteignait jamais, et
+   les erreurs Realtime qu'on n'arrivait pas à expliquer.
+
+   LE GASPILLAGE ÉTAIT CONCENTRÉ EN UN SEUL ENDROIT : les 57 documents vivent
+   TOUS dans la même table, `documents`, et chacun ouvrait son canal avec un
+   filtre sur sa clé. Cinquante-sept canaux, une table.
+
+   ON EN OUVRE UN. Il écoute `documents` sans filtre et distribue par la clé.
+   Le compte tombe de 118 à 62, sous le plafond, sans rien changer à ce que
+   chaque magasin reçoit. Le tri qui se faisait chez Supabase se fait ici, sur
+   une table que la Maison écrit trois fois par heure : le coût est nul, et
+   l'on cesse de payer un canal pour le rendre.
+
+   CE QUI SE PERD, ET POURQUOI CE N'EST PAS GRAVE : un poste reçoit désormais
+   les changements des documents qu'il n'écoute pas. La RLS décide toujours de
+   ce qu'il a le droit de voir — ce n'est pas une porte qui s'ouvre — et une
+   clé sans abonné est ignorée en une comparaison. */
+const abonnesAuxDocuments = new Map<string, {
+  surChangement: (row: Record<string, unknown>) => void;
+  rehydrate: () => void;
+}>();
+
+let canalDesDocuments: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+let essaisDesDocuments = 0;
+let repriseDesDocuments: ReturnType<typeof setTimeout> | undefined;
+let filetDesDocuments: ReturnType<typeof setInterval> | undefined;
+
+const relitTousLesDocuments = () => {
+  for (const a of abonnesAuxDocuments.values()) a.rehydrate();
+};
+
+/** REJOINDRE, MAIS UNE SEULE FOIS.
+
+    `bindDocument` s'exécute cinquante-sept fois au chargement du module.
+    Sans cette garde, chaque appel aurait détruit le canal du précédent pour
+    en ouvrir un neuf : cinquante-sept ouvertures et cinquante-six fermetures,
+    en rafale, sur la seconde où l'application démarre. Exactement la tempête
+    qu'on essaie d'éteindre.
+
+    `force` n'est vrai que lorsqu'il FAUT repartir : un changement de session
+    (le canal doit porter la nouvelle identité), ou une reprise après panne. */
+const rejointLeCanalDesDocuments = (force = false) => {
+  const sb = supabase;
+  if (!sb) return;
+  if (canalDesDocuments && !force) return;
+  if (repriseDesDocuments) { clearTimeout(repriseDesDocuments); repriseDesDocuments = undefined; }
+  if (canalDesDocuments) void sb.removeChannel(canalDesDocuments);
+  const neuf = sb.channel('mnd:documents')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'documents' },
+      (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+        /* LA CLÉ VIENT DE LA LIGNE NEUVE, ou de l'ancienne quand on efface.
+           Une clé qu'aucun magasin n'écoute ne coûte qu'une comparaison. */
+        const row = (payload.new ?? payload.old) as Record<string, unknown> | undefined;
+        const k = row?.key ? String(row.key) : '';
+        if (!k) return;
+        const abonne = abonnesAuxDocuments.get(k);
+        if (abonne && payload.new) abonne.surChangement(payload.new);
+      },
+    );
+  canalDesDocuments = neuf;
+  neuf.subscribe((statut) => {
+    /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
+       fait dire « CLOSED » à l'ancien, et le prendre pour une panne
+       relancerait une rejointure à chaque changement de session. */
+    if (canalDesDocuments !== neuf) return;
+    if (statut === 'SUBSCRIBED') {
+      essaisDesDocuments = 0;
+      if (filetDesDocuments) { clearInterval(filetDesDocuments); filetDesDocuments = undefined; }
+      for (const k of abonnesAuxDocuments.keys()) syncMark.directOk(`doc:${k}`);
+      /* ON RELIT EN SE REJOIGNANT : un canal ne rejoue jamais ce qui s'est dit
+         pendant son absence. */
+      relitTousLesDocuments();
+      return;
+    }
+    if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
+      for (const k of abonnesAuxDocuments.keys()) syncMark.directPerdu(`doc:${k}`);
+      if (!filetDesDocuments) {
+        filetDesDocuments = setInterval(() => {
+          if (typeof document === 'undefined' || !document.hidden) relitTousLesDocuments();
+        }, 60_000);
+      }
+      if (repriseDesDocuments) return;
+      const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDesDocuments, 5)) + Math.random() * 1000;
+      essaisDesDocuments += 1;
+      repriseDesDocuments = setTimeout(() => {
+        repriseDesDocuments = undefined;
+        rejointLeCanalDesDocuments(true);
+      }, attente);
+    }
+  });
+};
+
+/** UN CHANGEMENT DE SESSION, UNE SEULE REJOINTURE.
+
+    Les cinquante-sept magasins écoutent chacun `onAuthStateChange` : une
+    connexion déclencherait donc cinquante-sept rejointures du même canal. On
+    les rassemble dans un battement — la première arme le minuteur, les
+    cinquante-six suivantes ne font rien, et le canal se rejoint une fois. */
+let rejointDesDocumentsPlanifie: ReturnType<typeof setTimeout> | undefined;
+
+const redemandeLeCanalDesDocuments = () => {
+  if (rejointDesDocumentsPlanifie) return;
+  rejointDesDocumentsPlanifie = setTimeout(() => {
+    rejointDesDocumentsPlanifie = undefined;
+    rejointLeCanalDesDocuments(true);
+  }, 50);
+};
+
 export function bindDocument<T>(store: Store<T>, key: string): void {
   /* Sans Supabase, rien ne descendra jamais : on le dit tout de suite. */
   if (!supabase) { registre(key).tenir(); return; }
@@ -1064,50 +1181,13 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         lastPushed = j;
       };
 
-  /* LE MÊME SOIN QUE POUR LES COLLECTIONS (14 septembre 2026) : on lit le
-     verdict, on se rejoint tout seul, on relit en se rejoignant, et la
-     pastille nomme le document dont le direct est à terre. */
-  let canal: ReturnType<typeof sb.channel> | null = null;
-  let essaisDuCanal = 0;
-  let repriseDuCanal: ReturnType<typeof setTimeout> | undefined;
-  let filetDuCanal: ReturnType<typeof setInterval> | undefined;
-  const arreteLeFilet = () => {
-    if (filetDuCanal) { clearInterval(filetDuCanal); filetDuCanal = undefined; }
-  };
-  const poseLeFilet = () => {
-    if (filetDuCanal) return;
-    filetDuCanal = setInterval(() => {
-      if (typeof document === 'undefined' || !document.hidden) void hydrate(false);
-    }, 60_000);
-  };
-  rejoindreLeCanal = () => {
-    if (repriseDuCanal) { clearTimeout(repriseDuCanal); repriseDuCanal = undefined; }
-    if (canal) void sb.removeChannel(canal);
-    const neuf = sb.channel(`mnd:doc:${key}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'documents', filter: `key=eq.${key}` },
-        surChangement,
-      );
-    canal = neuf;
-    neuf.subscribe((statut) => {
-      if (canal !== neuf) return;
-      if (statut === 'SUBSCRIBED') {
-        essaisDuCanal = 0;
-        arreteLeFilet();
-        syncMark.directOk(`doc:${key}`);
-        void hydrate(false);
-        return;
-      }
-      if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
-        syncMark.directPerdu(`doc:${key}`);
-        poseLeFilet();
-        if (repriseDuCanal) return;
-        const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDuCanal, 5)) + Math.random() * 1000;
-        essaisDuCanal += 1;
-        repriseDuCanal = setTimeout(() => { repriseDuCanal = undefined; rejoindreLeCanal(); }, attente);
-      }
-    });
-  };
-  rejoindreLeCanal();
+  /* ON S'INSCRIT AU CANAL COMMUN, on n'en ouvre plus un à soi. Voir le
+     commentaire long au-dessus de `bindDocument` : cinquante-sept canaux pour
+     une seule table, c'est ce qui faisait dépasser le plafond de cent. */
+  abonnesAuxDocuments.set(key, {
+    surChangement: surChangement as (row: Record<string, unknown>) => void,
+    rehydrate: () => { void hydrate(false); },
+  });
+  rejoindreLeCanal = redemandeLeCanalDesDocuments;
+  rejointLeCanalDesDocuments();
 }

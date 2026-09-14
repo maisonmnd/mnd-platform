@@ -343,17 +343,90 @@ export async function verifyPhoneOtp(phone: string, token: string): Promise<void
 export type StaffRole = 'souverain' | 'gerant' | 'maitre';
 export type Staff = { user_id: string; name: string | null; role: StaffRole; rubrics: string[] };
 
+/* ══ UNE PANNE N'EST PAS UN REFUS — 14 septembre 2026 ════════════════
+
+   « Vérification de vos accès… » (Yéman), et le Trône n'en sortait plus.
+   Dans la console, une seule ligne : `net::ERR_NETWORK_CHANGED` — le
+   téléphone avait changé de réseau pendant le chargement.
+
+   DEUX FAUTES SE TENAIENT LA MAIN.
+
+   ① `loadStaff()` pouvait ÉCHOUER, et les deux appels s'écrivaient
+      `void loadStaff().then(…)` — sans `catch`. Une promesse rejetée ne
+      passe jamais par `then` : l'état restait « je cherche encore », pour
+      toujours. La Maison avait pourtant déjà écrit la leçon, dans `sync.ts` :
+      « une garde qui peut ne jamais rendre la main n'est pas une garde, c'est
+      un écran figé ». Elle n'avait pas été appliquée ici.
+
+   ② Et si l'on s'était contenté d'un `catch` rendant `null`, on aurait fait
+      PIRE : `null` veut dire « ce compte n'est pas du personnel ». Une
+      coupure de trois secondes aurait mis un souverain dehors, avec un écran
+      lui expliquant qu'il attend son autorisation. Un réseau qui cligne ne
+      doit jamais ressembler à une porte qu'on ferme.
+
+   TROIS RÉPONSES, DONC, LÀ OÙ IL N'Y EN AVAIT QUE DEUX : c'est du personnel,
+   ce n'en est pas, ou LA MAISON N'A PAS RÉPONDU — et ce troisième cas se dit,
+   se réessaie, et ne ferme rien. */
+export class PanneDAcces extends Error {
+  constructor(public raison: string) {
+    super(raison);
+    this.name = 'PanneDAcces';
+  }
+}
+
+/** LES VISAGES D'UN RÉSEAU QUI MANQUE. Copié du juge de `sync.ts`
+    (`raisonLisible`) plutôt qu'importé : `sync` tire toute la couche de
+    synchronisation derrière lui, et la porte d'entrée doit pouvoir se dessiner
+    sans elle. Trois lignes recopiées valent mieux qu'un cycle d'import entre
+    la porte et la synchro. */
+const estUnePanneDeReseau = (msg: string | undefined): boolean => {
+  const m = (msg ?? '').toLowerCase();
+  return m.includes('failed to fetch') || m.includes('load failed') || m.includes('fetch failed')
+    || m.includes('networkerror') || m.includes('network request failed')
+    || m.includes('network changed') || m.includes('err_network')
+    || m.includes('timeout') || m.includes('timed out') || m.includes('econnreset')
+    || m.includes('gateway') || /50[234]/.test(m);
+};
+
+/** LE DÉLAI AU-DELÀ DUQUEL ON CESSE D'ATTENDRE. Une requête qui ne revient
+    jamais n'échoue pas : elle pend. Sans cette borne, un `catch` ne sert à
+    rien — il n'y a rien à rattraper, il n'y a que du silence. */
+const DELAI_DE_LA_PORTE_MS = 8000;
+
 export async function loadStaff(): Promise<Staff | null> {
   if (!supabase) return null;
-  const { data: userData } = await supabase.auth.getUser();
-  const uid = userData.user?.id;
-  if (!uid) return null;
-  const { data, error } = await supabase.from('staff').select('*').eq('user_id', uid).maybeSingle();
-  if (error) {
-    console.warn('[auth] loadStaff:', error.message);
-    return null;
+  const sb = supabase;
+  const lecture = (async (): Promise<Staff | null> => {
+    const { data: userData } = await sb.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) return null;
+    const { data, error } = await sb.from('staff').select('*').eq('user_id', uid).maybeSingle();
+    if (error) {
+      /* UN REFUS SE GARDE, UNE PANNE SE RELANCE. Confondre les deux, c'est
+         soit mettre un maître dehors, soit ouvrir sur une erreur. */
+      if (estUnePanneDeReseau(error.message)) throw new PanneDAcces(error.message);
+      console.warn('[auth] loadStaff:', error.message);
+      return null;
+    }
+    return (data as Staff) ?? null;
+  })();
+
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  const borne = new Promise<never>((_, rejette) => {
+    minuteur = setTimeout(
+      () => rejette(new PanneDAcces('la Maison n’a pas répondu à temps')),
+      DELAI_DE_LA_PORTE_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([lecture, borne]);
+  } catch (e) {
+    if (e instanceof PanneDAcces) throw e;
+    throw new PanneDAcces((e as { message?: string })?.message ?? String(e));
+  } finally {
+    if (minuteur) clearTimeout(minuteur);
   }
-  return (data as Staff) ?? null;
 }
 
 /* ── CE QU'ON SAIT, ON NE LE ROUBLIE PAS — 31 août 2026 ──────────────
@@ -397,10 +470,26 @@ export function useMaTete(): MaTete {
     if (!uid) { teteSue = null; setEtat({ tete: null, pret: true }); return; }
     if (teteSue && teteSue.uid === uid) { setEtat({ tete: teteSue.tete, pret: true }); return; }
     setEtat({ tete: null, pret: false });
-    void loadStaff().then((s) => {
-      teteSue = { uid, tete: s };
-      if (vivant) setEtat({ tete: s, pret: true });
-    });
+    /* ON RÉESSAIE, ET L'ON NE CONCLUT JAMAIS D'UNE PANNE. Tant que la Maison
+       n'a pas répondu, `pret` reste faux : toutes les gardes restent fermées,
+       ce qui est le bon défaut. Mais elles ne restent pas fermées POUR
+       TOUJOURS — on redemande, de plus en plus espacé. Rien n'est mis en
+       cache d'une panne : une réponse qu'on n'a pas eue ne se retient pas. */
+    let essai = 0;
+    const demande = () => {
+      void loadStaff()
+        .then((s) => {
+          teteSue = { uid, tete: s };
+          if (vivant) setEtat({ tete: s, pret: true });
+        })
+        .catch(() => {
+          if (!vivant) return;
+          const attente = Math.min(30_000, 1500 * 2 ** Math.min(essai, 4));
+          essai += 1;
+          setTimeout(() => { if (vivant) demande(); }, attente);
+        });
+    };
+    demande();
     return () => { vivant = false; };
   }, [uid]);
 
