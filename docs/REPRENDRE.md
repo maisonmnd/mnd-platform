@@ -45,18 +45,23 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
 - **`pdf.ts` sait rendre les octets** : `invoiceEnPiece()` construit la MÊME
   facture que `invoicePdf()` — un seul constructeur, deux sorties.
 
-### SQL À PASSER (dans l'ordre)
+### SQL — LES DEUX SONT PASSÉES le 14 septembre 2026. NE PAS RELANCER.
 
-- **`0093_les_codes_de_promotion.sql`** — table `codes_promo`, index unique
-  sur la forme normalisée du code, RLS (direction crée, personnel honore, **la
-  cliente lit le sien** pour Ma Couronne), déclencheur qui GÈLE l'avantage et
-  la consommation, direct, trace.
-- **`0094_les_bilans_du_foyer.sql`** — met `bilans` sous `est_ma_tete()`.
-  **Trouvaille du 14 septembre** : la garde du parent (0036, passée le 9 août)
-  couvrait la fiche, les rendez-vous, les factures et les visites, **jamais les
-  bilans**. Aujourd'hui, dans Ma Couronne, une mère ne voit pas le bilan de sa
-  fille. Envoyer ce bilan par WhatsApp sans corriger la base ferait de WhatsApp
-  une porte plus permissive que l'application.
+- **`0093_les_codes_de_promotion.sql` — PASSÉE.** Table `codes_promo`, index
+  unique sur la forme normalisée du code, quatre politiques vérifiées en base
+  (`promo_cree` INSERT, `promo_lu` SELECT, `promo_modifie` UPDATE,
+  `promo_efface` DELETE), déclencheur qui GÈLE l'avantage et la consommation,
+  direct, trace.
+- **`0094_les_bilans_du_foyer.sql` — PASSÉE.** `bilans` est sous
+  `est_ma_tete()`. Contrôle en base : `appointments`, `bilans` et
+  `invoices` portent maintenant la MÊME règle `own_sel`,
+  `is_staff() OR est_ma_tete(data->>'clientId')`.
+
+  **La trouvaille du 14 septembre** : la garde du parent (0036, passée le
+  9 août) couvrait la fiche, les rendez-vous, les factures et les visites,
+  **jamais les bilans**. Jusqu'à ce soir, dans Ma Couronne, une mère ne voyait
+  pas le bilan de sa fille. Envoyer ce bilan par WhatsApp sans corriger la base
+  aurait fait de WhatsApp une porte plus permissive que l'application.
 
 ### RESTE À FAIRE
 
