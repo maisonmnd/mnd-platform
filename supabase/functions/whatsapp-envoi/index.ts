@@ -1,3 +1,12 @@
+// whatsapp-envoi - la voix de la Maison dans une conversation.
+//
+// LA PREMIERE LIGNE EST VOLONTAIREMENT PAUVRE - 14 septembre 2026.
+// Le deploiement a echoue une fois sur « Unexpected character '=' at
+// index.ts:1:6 » : le « /* » d'ouverture s'etait perdu au collage, et le
+// parseur a bute sur la ligne de decor qui suivait, sans rien dire d'utile.
+// Un fichier qu'on colle a la main dans un navigateur doit commencer par
+// quelque chose qui survit a un collage de travers. Le decor vient apres.
+
 /* ═══════════════════════════════════════════════════════════════════
    WHATSAPP-ENVOI — la voix de la Maison dans une conversation.
 
