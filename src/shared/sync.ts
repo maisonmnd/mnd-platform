@@ -310,6 +310,141 @@ const marqueTableResolue = (t: string): void => {
   attentesLecture.delete(t);
   fns?.forEach((f) => f());
 };
+/* ══ UN SEUL CANAL POUR TOUTE LA MAISON — 14 septembre 2026, au soir ═══
+
+   « Direct en panne est toujours là. La page ne se stabilise pas. Elle
+   retombe toujours » (Yéman) — après que les six tables muettes eurent été
+   publiées, donc la publication n'était plus en cause.
+
+   LA MÉCANIQUE SE MORDAIT LA QUEUE. Chaque magasin ouvrait SON canal, et
+   chacun écoutait `onAuthStateChange` pour le rejoindre avec la bonne
+   identité. Or `supabase-js` émet `SIGNED_IN` à chaque retour de focus sur
+   l'onglet, pas seulement à la connexion : un simple aller-retour vers une
+   autre fenêtre déclenchait SOIXANTE ET UNE rejointures simultanées.
+
+   ET UNE REJOINTURE N'EST PAS INSTANTANÉE. `removeChannel` est asynchrone ;
+   le canal neuf naît avant que l'ancien soit parti, et deux canaux portent
+   alors le MÊME nom. Le serveur en ferme un — et cette fermeture est lue
+   comme une panne, qui déclenche une reprise, qui rouvre un doublon. La
+   pastille battait parce que le Trône se battait contre lui-même.
+
+   ON N'EN OUVRE PLUS QU'UN. Il écoute le schéma `public` en entier et
+   distribue par le NOM DE LA TABLE. Soixante-deux canaux deviennent un :
+   plus de doublons possibles, une seule rejointure à coordonner, une seule
+   reprise. C'est le remède ② noté le matin même, que l'on ne pouvait écrire
+   qu'en sachant ce que la base publie — on le sait depuis 0095 et 0096.
+
+   CE QUE CELA CHANGE POUR LE SERVEUR : une seule règle de sécurité à évaluer
+   par changement, au lieu de soixante-deux. C'est moins cher, pas plus.
+
+   CE QUE CELA CHANGE POUR LE POSTE : il reçoit les changements des tables
+   qu'il n'écoute pas. La RLS décide toujours de ce qu'il a le droit de voir
+   — aucune porte ne s'ouvre — et une table sans écoute est ignorée en une
+   comparaison. La Maison écrit quelques dizaines de lignes par heure : le
+   surcoût est nul, et l'on cesse de payer soixante et un canaux pour le
+   rendre. */
+type EcouteDeTable = (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => void;
+
+const ecoutesParTable = new Map<string, EcouteDeTable>();
+
+/** LE NOM SOUS LEQUEL LE DIRECT SE DIT. Un seul canal : quand il tombe, tout
+    tombe ensemble, et nommer les soixante-trois tables ne dirait rien de plus
+    qu'un mot. La pastille reste lisible. */
+const LE_DIRECT = 'le direct de la Maison';
+
+let canalDeLaMaison: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+let essaisDeLaMaison = 0;
+let repriseDeLaMaison: ReturnType<typeof setTimeout> | undefined;
+let filetDeLaMaison: ReturnType<typeof setInterval> | undefined;
+/** Ce qu'il faut relire quand le canal revient, ou pendant qu'il est à terre :
+    un canal ne rejoue JAMAIS ce qui s'est dit pendant son absence. */
+const relecturesDuDirect = new Map<string, () => void>();
+
+const relitToutLeDirect = () => {
+  for (const relit of relecturesDuDirect.values()) relit();
+};
+
+/** REJOINDRE, MAIS UNE SEULE FOIS.
+
+    `bindCollection` et `bindDocument` s'exécutent 118 fois au chargement du
+    module. Sans cette garde, chaque appel détruirait le canal du précédent
+    pour en ouvrir un neuf : exactement la tempête qu'on éteint.
+
+    `force` n'est vrai que lorsqu'il FAUT repartir — changement de session (le
+    canal doit porter la nouvelle identité) ou reprise après panne. */
+const rejointLeCanalDeLaMaison = (force = false) => {
+  const sb = supabase;
+  if (!sb) return;
+  if (canalDeLaMaison && !force) return;
+  if (repriseDeLaMaison) { clearTimeout(repriseDeLaMaison); repriseDeLaMaison = undefined; }
+  if (canalDeLaMaison) void sb.removeChannel(canalDeLaMaison);
+  const neuf = sb.channel('mnd:maison')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public' },
+      (payload: { table?: string; new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+        const t = payload.table ? String(payload.table) : '';
+        if (!t) return;
+        ecoutesParTable.get(t)?.(payload);
+      },
+    );
+  canalDeLaMaison = neuf;
+  neuf.subscribe((statut) => {
+    /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
+       fait dire « CLOSED » à l'ancien, et le prendre pour une panne
+       relancerait une rejointure à chaque changement de session. */
+    if (canalDeLaMaison !== neuf) return;
+    if (statut === 'SUBSCRIBED') {
+      essaisDeLaMaison = 0;
+      if (filetDeLaMaison) { clearInterval(filetDeLaMaison); filetDeLaMaison = undefined; }
+      syncMark.directOk(LE_DIRECT);
+      relitToutLeDirect();
+      return;
+    }
+    if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
+      syncMark.directPerdu(LE_DIRECT);
+      /* TANT QUE LE DIRECT EST À TERRE, on relit chaque minute. Moins bien que
+         le direct, infiniment mieux que rien. */
+      if (!filetDeLaMaison) {
+        filetDeLaMaison = setInterval(() => {
+          if (typeof document === 'undefined' || !document.hidden) relitToutLeDirect();
+        }, 60_000);
+      }
+      if (repriseDeLaMaison) return;
+      const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDeLaMaison, 5)) + Math.random() * 1000;
+      essaisDeLaMaison += 1;
+      repriseDeLaMaison = setTimeout(() => {
+        repriseDeLaMaison = undefined;
+        rejointLeCanalDeLaMaison(true);
+      }, attente);
+    }
+  });
+};
+
+/** UN CHANGEMENT DE SESSION, UNE SEULE REJOINTURE.
+
+    Les 118 magasins écoutent chacun `onAuthStateChange`, et `supabase-js`
+    émet `SIGNED_IN` à chaque retour de focus : sans ce rassemblement, revenir
+    sur l'onglet rejoindrait le canal 118 fois. La première demande arme le
+    battement, les 117 suivantes ne font rien. */
+let rejointDeLaMaisonPlanifie: ReturnType<typeof setTimeout> | undefined;
+
+const redemandeLeCanalDeLaMaison = () => {
+  if (rejointDeLaMaisonPlanifie) return;
+  rejointDeLaMaisonPlanifie = setTimeout(() => {
+    rejointDeLaMaisonPlanifie = undefined;
+    rejointLeCanalDeLaMaison(true);
+  }, 80);
+};
+
+/** S'INSCRIRE AU DIRECT DE LA MAISON. Un magasin dit quelle table il écoute,
+    ce qu'il en fait, et comment se relire quand le canal revient. */
+const ecouteLeDirect = (table: string, surChangement: EcouteDeTable, relit: () => void): void => {
+  ecoutesParTable.set(table, surChangement);
+  relecturesDuDirect.set(table, relit);
+  rejointLeCanalDeLaMaison();
+};
+
 export const tablePrete = (t: string): boolean => !supabase || tablesResolues.has(t);
 /** Appelle `fn` dès que la table est prête — tout de suite si elle l'est déjà. */
 export function quandTablePrete(t: string, fn: () => void): void {
@@ -902,55 +1037,17 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
      passer pour un écran qui ment.
 
      ON RELIT EN SE REJOIGNANT : un canal ne rejoue jamais ce qui s'est dit
-     pendant son absence. */
-  let canal: ReturnType<typeof sb.channel> | null = null;
-  let essaisDuCanal = 0;
-  let repriseDuCanal: ReturnType<typeof setTimeout> | undefined;
-  let filetDuCanal: ReturnType<typeof setInterval> | undefined;
-  const arreteLeFilet = () => {
-    if (filetDuCanal) { clearInterval(filetDuCanal); filetDuCanal = undefined; }
-  };
-  const poseLeFilet = () => {
-    if (filetDuCanal) return;
-    filetDuCanal = setInterval(() => {
-      if (typeof document === 'undefined' || !document.hidden) void refetch();
-    }, 60_000);
-  };
-  rejoindreLeCanal = () => {
-    if (repriseDuCanal) { clearTimeout(repriseDuCanal); repriseDuCanal = undefined; }
-    /* On retire l'ancien AVANT d'en ouvrir un neuf. Un doublon transitoire ne
-       ferait pas de mal — le gestionnaire est idempotent, il compare avant
-       d'appliquer — mais un canal anonyme laissé ouvert écoute pour rien. */
-    if (canal) void sb.removeChannel(canal);
-    const neuf = sb.channel(`mnd:${table}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, surChangement);
-    canal = neuf;
-    neuf.subscribe((statut) => {
-      /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
-         fait dire « CLOSED » à l'ancien, et le prendre pour une panne
-         relancerait une rejointure à chaque changement de session. */
-      if (canal !== neuf) return;
-      if (statut === 'SUBSCRIBED') {
-        essaisDuCanal = 0;
-        arreteLeFilet();
-        syncMark.directOk(table);
-        void refetch();
-        return;
-      }
-      if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
-        syncMark.directPerdu(table);
-        poseLeFilet();
-        void refetch();
-        if (repriseDuCanal) return;
-        /* De deux secondes à une minute, avec un grain de hasard : cinquante
-           tables qui se rejoignent à la même seconde se font refuser ensemble. */
-        const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDuCanal, 5)) + Math.random() * 1000;
-        essaisDuCanal += 1;
-        repriseDuCanal = setTimeout(() => { repriseDuCanal = undefined; rejoindreLeCanal(); }, attente);
-      }
-    });
-  };
-  rejoindreLeCanal();
+     pendant son absence.
+
+     ── 14 septembre, au soir : UN SEUL CANAL POUR TOUTE LA MAISON ──
+     Cette table n'ouvre plus le sien. Voir le commentaire long au-dessus de
+     `tablePrete` : soixante et un canaux qui se rejoignaient ensemble à
+     chaque retour de focus se faisaient fermer en doublon, et la pastille
+     battait. La surveillance, la reprise et le filet d'une minute vivent
+     désormais en un seul endroit ; ici on ne fait que dire ce qu'on écoute et
+     comment se relire. */
+  ecouteLeDirect(table, surChangement as EcouteDeTable, () => { void refetch(); });
+  rejoindreLeCanal = redemandeLeCanalDeLaMaison;
 }
 
 /** Lie un magasin singleton (une valeur) à une ligne de `documents` (clé stable). */
@@ -995,121 +1092,33 @@ export const quandDocumentDescendu = (key: string): Promise<void> => {
   return d.promesse;
 };
 
-/* ══ UN SEUL CANAL POUR TOUS LES DOCUMENTS — 14 septembre 2026 ═══════
+/* ══ LES DOCUMENTS PASSENT PAR LE CANAL DE LA MAISON ═════════════════
 
-   « Bouton synchronisé rouge », puis 560 erreurs réseau d'un coup (Yéman).
+   Les 57 magasins de réglages vivent TOUS dans la table `documents`. Chacun
+   ouvrait son canal avec un filtre sur sa clé : cinquante-sept canaux pour
+   une table. Le matin du 14 septembre on les a réunis en un ; au soir, ce
+   canal-là a rejoint celui de toute la Maison.
 
-   LE TRÔNE OUVRAIT 118 CANAUX, TOUS AU CHARGEMENT : 61 collections et
-   57 documents. Supabase en accepte CENT par client. Dix-huit étaient donc
-   refusés à chaque ouverture, définitivement, et la reprise automatique les
-   relançait sans fin — d'où la pastille cuivre qui ne s'éteignait jamais, et
-   les erreurs Realtime qu'on n'arrivait pas à expliquer.
-
-   LE GASPILLAGE ÉTAIT CONCENTRÉ EN UN SEUL ENDROIT : les 57 documents vivent
-   TOUS dans la même table, `documents`, et chacun ouvrait son canal avec un
-   filtre sur sa clé. Cinquante-sept canaux, une table.
-
-   ON EN OUVRE UN. Il écoute `documents` sans filtre et distribue par la clé.
-   Le compte tombe de 118 à 62, sous le plafond, sans rien changer à ce que
-   chaque magasin reçoit. Le tri qui se faisait chez Supabase se fait ici, sur
-   une table que la Maison écrit trois fois par heure : le coût est nul, et
-   l'on cesse de payer un canal pour le rendre.
-
-   CE QUI SE PERD, ET POURQUOI CE N'EST PAS GRAVE : un poste reçoit désormais
-   les changements des documents qu'il n'écoute pas. La RLS décide toujours de
-   ce qu'il a le droit de voir — ce n'est pas une porte qui s'ouvre — et une
-   clé sans abonné est ignorée en une comparaison. */
+   IL RESTE UNE DISTRIBUTION À FAIRE ICI, et une seule : le canal rend une
+   ligne de `documents`, il faut savoir à quel magasin elle appartient. C'est
+   la CLÉ qui le dit. Une clé sans magasin est ignorée en une comparaison. */
 const abonnesAuxDocuments = new Map<string, {
   surChangement: (row: Record<string, unknown>) => void;
   rehydrate: () => void;
 }>();
 
-let canalDesDocuments: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
-let essaisDesDocuments = 0;
-let repriseDesDocuments: ReturnType<typeof setTimeout> | undefined;
-let filetDesDocuments: ReturnType<typeof setInterval> | undefined;
+/** LA DISTRIBUTION PAR CLÉ, posée une seule fois sur la table `documents`.
+    La ligne neuve porte la clé ; l'ancienne la porte aussi quand on efface. */
+const distribueLesDocuments: EcouteDeTable = (payload) => {
+  const row = (payload.new ?? payload.old) as Record<string, unknown> | undefined;
+  const k = row?.key ? String(row.key) : '';
+  if (!k) return;
+  const abonne = abonnesAuxDocuments.get(k);
+  if (abonne && payload.new) abonne.surChangement(payload.new);
+};
 
 const relitTousLesDocuments = () => {
   for (const a of abonnesAuxDocuments.values()) a.rehydrate();
-};
-
-/** REJOINDRE, MAIS UNE SEULE FOIS.
-
-    `bindDocument` s'exécute cinquante-sept fois au chargement du module.
-    Sans cette garde, chaque appel aurait détruit le canal du précédent pour
-    en ouvrir un neuf : cinquante-sept ouvertures et cinquante-six fermetures,
-    en rafale, sur la seconde où l'application démarre. Exactement la tempête
-    qu'on essaie d'éteindre.
-
-    `force` n'est vrai que lorsqu'il FAUT repartir : un changement de session
-    (le canal doit porter la nouvelle identité), ou une reprise après panne. */
-const rejointLeCanalDesDocuments = (force = false) => {
-  const sb = supabase;
-  if (!sb) return;
-  if (canalDesDocuments && !force) return;
-  if (repriseDesDocuments) { clearTimeout(repriseDesDocuments); repriseDesDocuments = undefined; }
-  if (canalDesDocuments) void sb.removeChannel(canalDesDocuments);
-  const neuf = sb.channel('mnd:documents')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'documents' },
-      (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
-        /* LA CLÉ VIENT DE LA LIGNE NEUVE, ou de l'ancienne quand on efface.
-           Une clé qu'aucun magasin n'écoute ne coûte qu'une comparaison. */
-        const row = (payload.new ?? payload.old) as Record<string, unknown> | undefined;
-        const k = row?.key ? String(row.key) : '';
-        if (!k) return;
-        const abonne = abonnesAuxDocuments.get(k);
-        if (abonne && payload.new) abonne.surChangement(payload.new);
-      },
-    );
-  canalDesDocuments = neuf;
-  neuf.subscribe((statut) => {
-    /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
-       fait dire « CLOSED » à l'ancien, et le prendre pour une panne
-       relancerait une rejointure à chaque changement de session. */
-    if (canalDesDocuments !== neuf) return;
-    if (statut === 'SUBSCRIBED') {
-      essaisDesDocuments = 0;
-      if (filetDesDocuments) { clearInterval(filetDesDocuments); filetDesDocuments = undefined; }
-      for (const k of abonnesAuxDocuments.keys()) syncMark.directOk(`doc:${k}`);
-      /* ON RELIT EN SE REJOIGNANT : un canal ne rejoue jamais ce qui s'est dit
-         pendant son absence. */
-      relitTousLesDocuments();
-      return;
-    }
-    if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
-      for (const k of abonnesAuxDocuments.keys()) syncMark.directPerdu(`doc:${k}`);
-      if (!filetDesDocuments) {
-        filetDesDocuments = setInterval(() => {
-          if (typeof document === 'undefined' || !document.hidden) relitTousLesDocuments();
-        }, 60_000);
-      }
-      if (repriseDesDocuments) return;
-      const attente = Math.min(60_000, 2000 * 2 ** Math.min(essaisDesDocuments, 5)) + Math.random() * 1000;
-      essaisDesDocuments += 1;
-      repriseDesDocuments = setTimeout(() => {
-        repriseDesDocuments = undefined;
-        rejointLeCanalDesDocuments(true);
-      }, attente);
-    }
-  });
-};
-
-/** UN CHANGEMENT DE SESSION, UNE SEULE REJOINTURE.
-
-    Les cinquante-sept magasins écoutent chacun `onAuthStateChange` : une
-    connexion déclencherait donc cinquante-sept rejointures du même canal. On
-    les rassemble dans un battement — la première arme le minuteur, les
-    cinquante-six suivantes ne font rien, et le canal se rejoint une fois. */
-let rejointDesDocumentsPlanifie: ReturnType<typeof setTimeout> | undefined;
-
-const redemandeLeCanalDesDocuments = () => {
-  if (rejointDesDocumentsPlanifie) return;
-  rejointDesDocumentsPlanifie = setTimeout(() => {
-    rejointDesDocumentsPlanifie = undefined;
-    rejointLeCanalDesDocuments(true);
-  }, 50);
 };
 
 export function bindDocument<T>(store: Store<T>, key: string): void {
@@ -1234,6 +1243,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     surChangement: surChangement as (row: Record<string, unknown>) => void,
     rehydrate: () => { void hydrate(false); },
   });
-  rejoindreLeCanal = redemandeLeCanalDesDocuments;
-  rejointLeCanalDesDocuments();
+  rejoindreLeCanal = redemandeLeCanalDeLaMaison;
+  /* ON S'INSCRIT À SA CLÉ, et la table `documents` n'est branchée qu'UNE fois
+     au canal de la Maison — `ecouteLeDirect` remplace l'entrée, pas la
+     cinquante-septième qui l'écrase inutilement. */
+  ecouteLeDirect('documents', distribueLesDocuments, relitTousLesDocuments);
 }

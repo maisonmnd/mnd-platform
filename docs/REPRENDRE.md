@@ -83,6 +83,37 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## UN SEUL CANAL POUR TOUTE LA MAISON — 14 septembre 2026, PUBLIÉ
+
+« Direct en panne est toujours là. La page ne se stabilise pas. Elle retombe
+toujours » (Yéman) — APRÈS que les six tables muettes eurent été publiées.
+La publication n'était donc plus en cause.
+
+**La mécanique se mordait la queue.** Chaque magasin ouvrait SON canal et
+écoutait `onAuthStateChange` pour le rejoindre avec la bonne identité. Or
+`supabase-js` émet **`SIGNED_IN` à chaque retour de focus sur l'onglet**, pas
+seulement à la connexion : un aller-retour vers une autre fenêtre déclenchait
+**soixante et une rejointures simultanées**. Et `removeChannel` est
+asynchrone : le canal neuf naît avant que l'ancien soit parti, deux canaux
+portent le même nom, le serveur en ferme un — lu comme une panne, qui
+déclenche une reprise, qui rouvre un doublon. **La pastille battait parce que
+le Trône se battait contre lui-même.**
+
+**Il n'y en a plus qu'un** (`mnd:maison`). Il écoute le schéma `public` en
+entier et distribue par le NOM DE LA TABLE ; les 57 documents se distribuent
+ensuite par leur clé. **118 canaux le matin, 62 à midi, 1 au soir.** Plus de
+doublon possible, une seule rejointure à coordonner, une seule reprise, un
+seul filet d'une minute. Côté serveur : une règle de sécurité évaluée par
+changement au lieu de soixante-deux.
+
+**Ce qui se perd, et pourquoi ce n'est pas grave** : un poste reçoit les
+changements des tables qu'il n'écoute pas. La RLS décide toujours de ce qu'il
+a le droit de voir — aucune porte ne s'ouvre — et une table sans écoute est
+ignorée en une comparaison.
+
+**La pastille dit désormais `le direct de la Maison`**, un mot au lieu de
+soixante-trois noms : quand un seul canal tombe, tout tombe ensemble.
+
 ## SIX TABLES N'ÉTAIENT PAS EN DIRECT — 14 septembre 2026
 
 En croisant ce que la base PUBLIE avec ce que le Trône ÉCOUTE, six tables
