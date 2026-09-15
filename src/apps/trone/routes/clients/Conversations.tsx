@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PageHead } from '../_ui';
+import { PageHead, WaGlyph } from '../_ui';
 import { Button, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth } from '../../../../shared/auth';
@@ -609,14 +609,14 @@ export default function Conversations() {
                       saisie part avec, sinon il faudrait le retaper dans
                       l'application — et l'on ne sortirait jamais. */}
                   <a
-                    className="trv-minibtn"
+                    className="trc-wa trc-wa--seul"
                     href={lienWaMe(fil.numero, texte) ?? '#'}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ textDecoration: 'none' }}
                     title="Continuer dans l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                    aria-label="Ouvrir cette conversation dans l’application WhatsApp"
                   >
-                    Ouvrir sur WhatsApp
+                    <WaGlyph taille={15} />
                   </a>
                   {fil.sansFiche ? (
                     <button type="button" className="trv-minibtn" onClick={() => setRattacher(fil)}>

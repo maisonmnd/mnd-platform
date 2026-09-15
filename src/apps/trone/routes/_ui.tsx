@@ -75,6 +75,17 @@ export function OptionsPrestations({ services, exclure, prix, devise }: {
   );
 }
 
+/** LE PICTOGRAMME DE WHATSAPP — monochrome, il prend la couleur du texte.
+
+    IL DESCEND ICI LE 15 SEPTEMBRE : il vivait dans `Customers.tsx`, et les
+    Conversations en avaient besoin à leur tour. Deux copies d'un même dessin
+    finissent par ne plus se ressembler — celle qu'on corrige, et l'autre. */
+export const WaGlyph = ({ taille = 13 }: { taille?: number }) => (
+  <svg viewBox="0 0 24 24" width={taille} height={taille} fill="currentColor" aria-hidden="true">
+    <path d="M17.5 14.4c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.29-.76.96-.93 1.16-.17.2-.34.22-.63.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.18-.24-.57-.48-.5-.66-.5l-.56-.01c-.2 0-.51.07-.78.36-.27.29-1.02 1-1.02 2.42s1.05 2.8 1.19 3c.15.2 2.06 3.14 4.99 4.4.7.3 1.24.48 1.66.62.7.22 1.34.19 1.84.11.56-.08 1.75-.71 1.99-1.4.25-.69.25-1.28.17-1.4-.07-.12-.26-.19-.55-.34zM12.03 21.3a9.2 9.2 0 0 1-4.68-1.28l-.34-.2-3.48.91.93-3.39-.22-.35a9.15 9.15 0 0 1-1.4-4.87 9.19 9.19 0 0 1 9.2-9.17 9.14 9.14 0 0 1 9.17 9.19 9.19 9.19 0 0 1-9.18 9.16zm7.82-16.99A11.1 11.1 0 0 0 12.02.99C5.94.99 1 5.93.99 12a11 11 0 0 0 1.47 5.5L.9 23.2l5.84-1.53a11.1 11.1 0 0 0 5.28 1.35h.01c6.07 0 11.02-4.94 11.02-11.01a10.94 10.94 0 0 0-3.2-7.7z" />
+  </svg>
+);
+
 /** Un lien WhatsApp prêt à l'emploi : ouvre SA CONVERSATION DANS LE TRÔNE,
     le message pré-écrit déjà posé dans la zone de saisie (signé de la
     devise). Ne s'affiche pas sans numéro joignable.

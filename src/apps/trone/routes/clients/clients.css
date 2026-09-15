@@ -2793,6 +2793,12 @@
 /* LA SECONDE PORTE, PLUS DISCRÈTE QUE LA PREMIÈRE — 15 septembre 2026.
    Le Trône d'abord, l'application ensuite : c'est l'ordre voulu, et la
    taille le dit sans qu'on ait à l'écrire. */
+/* LE PICTOGRAMME SEUL — 15 septembre 2026. Dans l'en-tête d'un fil, le mot
+   « Ouvrir sur WhatsApp » pesait plus lourd que les deux gestes du Trône qui
+   le suivaient, alors qu'il est la porte SECONDAIRE. Le signe suffit : il est
+   reconnu partout, et il rend sa place aux boutons qui comptent. */
+.trc-wa--seul { padding: 5px 8px; gap: 0; }
+
 .trc-wa--app { opacity: .6; }
 .trc-wa--app:hover { opacity: 1; }
 
