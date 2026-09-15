@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>L&rsquo;&eacute;quipe sur WhatsApp &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9; --cuivre-s:#8A5326;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:30px 0 4px; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.88em;
+         background:var(--indigo-pale); padding:1px 5px; border-radius:2px; color:var(--indigo-2); }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:13px 18px; display:flex;
+                 align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:21px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:20px; }
+  @media (max-width:600px){ .ecran__corps { padding:14px; } }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  /* ── Les onglets de la boîte ── */
+  .onglets { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .onglet { font-size:11px; letter-spacing:.14em; text-transform:uppercase; padding:6px 12px;
+            border:1px solid var(--filet); border-radius:2px; background:var(--blanc); color:var(--encre-d); }
+  .onglet--on { background:var(--indigo); border-color:var(--indigo); color:#EFEAE0; }
+  .onglet i { font-style:normal; color:var(--cuivre); margin-left:6px; }
+  .onglet--on i { color:var(--cuivre-p); }
+
+  .fils { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .fil { display:flex; gap:13px; align-items:flex-start; padding:13px 15px; border-top:1px solid var(--sable); }
+  .fil:first-child { border-top:none; }
+  .fil--vif { background:var(--cuivre-f); }
+  .fil__rond { width:34px; height:34px; border-radius:50%; background:var(--indigo); color:#EFEAE0;
+               display:flex; align-items:center; justify-content:center; flex:none;
+               font-family:var(--serif); font-size:14px; }
+  .fil__rond--pr { background:var(--cuivre-s); }
+  .fil__c { min-width:0; flex:1; }
+  .fil__n { font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .fil__d { display:block; font-size:13px; color:var(--encre-d); margin-top:1px;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fil__r { text-align:right; flex:none; font-size:11px; color:var(--encre-d); }
+  .fil__r b { display:block; font-weight:500; }
+
+  .pas { display:inline-block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+         border-radius:2px; padding:3px 9px; border:1px solid; white-space:nowrap; }
+  .pas--ok { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .pas--att { color:var(--encre-d); border-color:var(--filet); background:var(--blanc); }
+  .pas--ko { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+  .pas--cu { color:var(--cuivre-s); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .pas--in { color:var(--indigo-2); border-color:#CBCDE0; background:var(--indigo-pale); }
+
+  /* ── Deux colonnes : le téléphone, et ce qui arrive dans le Trône ── */
+  .duo { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:14px; }
+  @media (max-width:760px){ .duo { grid-template-columns:1fr; } }
+  .cote { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre); margin:0 0 8px; }
+
+  .tel { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .tel__tete { background:var(--indigo-2); color:#EFEAE0; padding:10px 14px; font-size:13px; }
+  .tel__tete b { font-family:var(--serif); font-weight:500; font-size:17px; color:#fff; margin-right:8px; }
+  .bulles { padding:14px; display:flex; flex-direction:column; gap:9px; }
+  .b { max-width:86%; padding:9px 13px; border-radius:4px; font-size:13.5px; line-height:1.55; }
+  .b__h { display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--encre-d); margin-top:5px; }
+  .b--eux { align-self:flex-end; background:var(--blanc); border:1px solid var(--filet); }
+  .b--maison { align-self:flex-start; background:var(--indigo); color:#EFEAE0; }
+  .b--maison .b__h { color:var(--cuivre-p); }
+  .b--modele { align-self:flex-start; background:var(--indigo-2); color:#EFEAE0; border-left:3px solid var(--cuivre); }
+  .b--modele .b__h { color:var(--cuivre-p); }
+  .jour { align-self:center; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); margin:4px 0; }
+
+  .piece { display:flex; align-items:center; gap:10px; margin:0 0 8px; padding:8px 10px; border-radius:3px;
+           background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); font-size:12.5px; }
+  .b--eux .piece { background:var(--sable); border-color:var(--filet); }
+  .piece__ic { width:26px; height:32px; border:1px solid currentColor; border-radius:2px; flex:none;
+               display:flex; align-items:flex-end; justify-content:center; font-size:8px; letter-spacing:.08em;
+               padding-bottom:3px; opacity:.85; }
+  .photo { height:118px; border-radius:3px; margin:0 0 8px;
+           background:repeating-linear-gradient(135deg,var(--sable) 0 10px,#EFE7D8 10px 20px);
+           display:flex; align-items:center; justify-content:center; color:var(--encre-d);
+           font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+
+  .rep { display:flex; flex-direction:column; gap:1px; align-self:flex-start; width:86%; margin-top:-5px; }
+  .rep span { background:var(--blanc); border:1px solid var(--filet); text-align:center; padding:7px;
+              font-size:13px; color:var(--indigo-2); border-radius:2px; }
+
+  .flow { align-self:flex-start; width:86%; border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:12px 14px; }
+  .flow__t { font-family:var(--serif); font-size:17px; color:var(--indigo); margin:0 0 8px; }
+  .champ { margin-bottom:8px; }
+  .champ u { text-decoration:none; display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d); }
+  .champ div { border-bottom:1px solid var(--filet); padding:4px 0; font-size:13.5px; }
+  .flow__ok { margin-top:10px; text-align:center; background:var(--vert); color:#fff; border-radius:2px;
+              padding:8px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; }
+
+  .trone { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .trone__tete { background:var(--indigo); color:#EFEAE0; padding:10px 14px; font-size:11px;
+                 letter-spacing:.16em; text-transform:uppercase; }
+  .trone__corps { padding:14px; font-size:13.5px; color:var(--encre-d); }
+  .trone__corps b { color:var(--encre); font-weight:500; }
+  .ligne { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:8px 0;
+           border-bottom:1px solid var(--sable); flex-wrap:wrap; }
+  .ligne:last-child { border-bottom:none; }
+  .ligne em { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--indigo); }
+  .btn { border:1px solid var(--filet); border-radius:3px; background:var(--blanc); color:var(--encre-d);
+         padding:6px 13px; font-size:12.5px; font-family:var(--sans); }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .btn--vert { background:#1fa855; border-color:#1fa855; color:#fff; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .etapes { display:grid; gap:12px; margin-top:18px; }
+  .etape { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px;
+           background:var(--blanc); padding:14px 17px; display:flex; gap:15px; align-items:flex-start; }
+  .etape__n { font-family:var(--serif); font-size:27px; color:var(--cuivre-p); line-height:1; flex:none; }
+  .etape b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .etape small { display:block; font-size:13px; color:var(--encre-d); margin-top:4px; line-height:1.55; }
+  .etape--gris { border-left-color:var(--filet); }
+
+  .quest { border:1px solid var(--ambre-p); border-left:3px solid var(--ambre); border-radius:4px;
+           background:var(--ambre-f); padding:15px 18px; margin-top:16px; }
+  .quest b { color:var(--ambre); font-weight:600; }
+  .quest p { margin:7px 0 0; font-size:13.5px; line-height:1.6; }
+  .quest .prop { color:var(--encre); }
+  .quest .prop strong { font-weight:600; color:var(--vert); }
+
+  .fin { margin-top:64px; padding-top:26px; border-top:1px solid var(--filet);
+         font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">&Eacute;quipe &amp; prestataires &middot; le chantier WhatsApp</p>
+  <h1>L&rsquo;&eacute;quipe &eacute;crit &agrave; la Maison.</h1>
+  <p class="chapeau">
+    Le num&eacute;ro de la Maison ne conna&icirc;t que les clientes. Une ma&icirc;tre qui demande
+    son bulletin, un menuisier qui envoie son devis en photo : le Tr&ocirc;ne les range
+    <b>&laquo; sans fiche &raquo;</b>, et la photo se perd, le fil ne garde que les mots
+    &laquo; une photo &raquo;. Dans l&rsquo;autre sens, la paie fabrique les bulletins, Temps
+    &amp; absences d&eacute;cide les cong&eacute;s, les Engagements notent les versements, et
+    <b>rien de tout cela ne part jamais</b> vers la personne concern&eacute;e.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; How can this be done and arrive directly on the trone with employees and
+      prestataires &raquo;
+      <span>Y&eacute;man &middot; 15 septembre 2026 &middot; devant AskMandla</span>
+    </p>
+
+    <div class="alerte">
+      <b>Ce n&rsquo;est pas AskMandla, et ce n&rsquo;est pas un robot.</b>
+      <p>
+        AskMandla vend un service : un num&eacute;ro WhatsApp, un back-office, et des gens
+        derri&egrave;re. Les cartes dessin&eacute;es dans leur t&eacute;l&eacute;phone sont une
+        illustration. Un vrai WhatsApp n&rsquo;affiche que du texte, un PDF, trois boutons, une
+        liste, ou un petit formulaire (un <b>Flow</b>).
+      </p>
+      <p>
+        La Maison a d&eacute;j&agrave; les trois : le num&eacute;ro branch&eacute; et
+        approuv&eacute;, le back-office (le Tr&ocirc;ne), et les gens. <b>Il manque que le
+        num&eacute;ro sache qui &eacute;crit</b>, et que les &eacute;crans sachent r&eacute;pondre.
+      </p>
+      <p>
+        Le Fil reste la messagerie interne. Cette maquette sert &agrave; celles et ceux qui
+        n&rsquo;ouvrent pas le Tr&ocirc;ne tous les jours, et aux prestataires, qui n&rsquo;y
+        entreront jamais.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Ce qui manque, pr&eacute;cis&eacute;ment</p>
+    <h2>Cinq trous, pas un module.</h2>
+    <p class="intro">
+      Tout ce qui se dit ici repose sur l&rsquo;existant : le webhook, <code>messages_wa</code>,
+      l&rsquo;envoi de PDF, la paie, les cong&eacute;s, les engagements et leur coffre.
+      <b>Rien n&rsquo;est &agrave; r&eacute;inventer</b>, il faut raccorder.
+    </p>
+
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr><th>Le moment</th><th>Aujourd&rsquo;hui</th><th>Avec ce chantier</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Un num&eacute;ro &eacute;crit</b></td>
+            <td>Compar&eacute; aux seules fiches clientes. Sinon : sans fiche.</td>
+            <td>Compar&eacute; aussi &agrave; l&rsquo;&eacute;quipe et aux prestataires. Le fil sait qui parle, sans jamais cr&eacute;er de fiche.</td>
+          </tr>
+          <tr>
+            <td><b>Une photo arrive</b></td>
+            <td>Le fil &eacute;crit &laquo; une photo &raquo;. Le fichier reste chez Meta, puis dispara&icirc;t.</td>
+            <td>R&eacute;cup&eacute;r&eacute;e et rang&eacute;e dans le coffre, rattach&eacute;e au bon dossier.</td>
+          </tr>
+          <tr>
+            <td><b>Un bouton est touch&eacute;</b></td>
+            <td>Seul son libell&eacute; est gard&eacute;, comme un texte.</td>
+            <td>Son identifiant d&eacute;clenche le geste : versement confirm&eacute;, cong&eacute; demand&eacute;.</td>
+          </tr>
+          <tr>
+            <td><b>Un bulletin est pr&ecirc;t</b></td>
+            <td>Fabriqu&eacute;, t&eacute;l&eacute;chargeable. Jamais envoy&eacute;.</td>
+            <td>Part par WhatsApp quand le mois de paie passe &agrave; &laquo; pay&eacute; &raquo;.</td>
+          </tr>
+          <tr>
+            <td><b>Qui lit</b></td>
+            <td>Tout le personnel lit <code>messages_wa</code>.</td>
+            <td>Les fils de l&rsquo;&eacute;quipe et des prestataires : <b>la direction seule</b>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="legende">
+      <b>Le dernier trou passe avant tous les autres.</b> Aujourd&rsquo;hui, un bulletin envoy&eacute;
+      par le Tr&ocirc;ne serait lisible par les coll&egrave;gues dans les Conversations. Aucun
+      bulletin ne part tant que la porte n&rsquo;est pas ferm&eacute;e en base.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;L&rsquo;&eacute;cran &middot; la bo&icirc;te</p>
+    <h2>Trois tiroirs, un seul num&eacute;ro.</h2>
+    <p class="intro">
+      Les Conversations gardent leur place. Elles gagnent deux onglets, visibles de la
+      <b>direction seule</b>. Le personnel ne voit que &laquo; Clientes &raquo;, comme
+      aujourd&rsquo;hui.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__tete">
+        <h4>Les conversations</h4>
+        <span>Clients &amp; agenda</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="onglets">
+          <span class="onglet">Clientes<i>14</i></span>
+          <span class="onglet onglet--on">&Eacute;quipe<i>2</i></span>
+          <span class="onglet">Prestataires<i>1</i></span>
+        </div>
+        <div class="fils">
+          <div class="fil fil--vif">
+            <span class="fil__rond">AD</span>
+            <span class="fil__c">
+              <span class="fil__n">A. D.</span>
+              <span class="fil__d">Demande de cong&eacute; &middot; du 3 au 7 novembre</span>
+            </span>
+            <span class="fil__r">
+              <b>10 h 12</b>
+              <span class="pas pas--in" style="margin-top:5px">Ma&icirc;tre &middot; &agrave; d&eacute;cider</span>
+            </span>
+          </div>
+          <div class="fil">
+            <span class="fil__rond">SM</span>
+            <span class="fil__c">
+              <span class="fil__n">S. M.</span>
+              <span class="fil__d">Vous : Bulletin d&rsquo;octobre 2026 (PDF)</span>
+            </span>
+            <span class="fil__r">
+              <b>hier</b>
+              <span class="pas pas--ok" style="margin-top:5px">Lu</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="legende">
+      <b>Une employ&eacute;e qui est aussi cliente</b> (elle entretient ses locks &agrave; la
+      Maison) : son fil va dans &Eacute;quipe, avec un lien vers sa fiche cliente. Ses rappels de
+      rendez-vous y paraissent aussi. C&rsquo;est une question pour toi, en fin de maquette.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Parcours &middot; une ma&icirc;tre</p>
+    <h2>Le bulletin, le cong&eacute;, la r&eacute;ponse.</h2>
+    <p class="intro">
+      &Agrave; gauche ce qu&rsquo;elle voit sur son t&eacute;l&eacute;phone, &agrave; droite ce
+      que le Tr&ocirc;ne en fait. <b>Elle ne se connecte &agrave; rien</b> : WhatsApp suffit.
+    </p>
+
+    <h3>1 &middot; Le bulletin du mois</h3>
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <span class="jour">25 octobre</span>
+            <div class="b b--modele">
+              <div class="piece"><span class="piece__ic">PDF</span> Bulletin-octobre-2026.pdf</div>
+              Bonjour A., votre bulletin d&rsquo;octobre 2026 est joint.
+              <span class="b__h">Mod&egrave;le bulletin_du_mois &middot; utilitaire &middot; 9 h 00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne &middot; Paie</p>
+        <div class="trone">
+          <div class="trone__tete">Mois de paie &middot; octobre 2026</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>&Eacute;tat</span> <span class="pas pas--ok">Pay&eacute;</span></div>
+            <div class="ligne"><span>Bulletins</span> <em>9</em></div>
+            <div class="ligne"><span>Sans num&eacute;ro WhatsApp</span> <span>1 &middot; &agrave; compl&eacute;ter</span></div>
+            <div class="actions">
+              <button class="btn btn--vert">Envoyer les 8 bulletins</button>
+            </div>
+            <p style="font-size:12px;margin:10px 0 0">
+              Chaque bulletin part dans le fil de la personne. La confirmation dit combien de
+              messages seront factur&eacute;s, comme pour les mod&egrave;les des clientes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Le montant ne s&rsquo;&eacute;crit pas dans le message.</b> Un aper&ccedil;u sur
+      &eacute;cran verrouill&eacute; se lit par-dessus l&rsquo;&eacute;paule, au salon comme
+      &agrave; la maison. Le net vit dans le PDF, qu&rsquo;il faut ouvrir.
+    </p>
+
+    <h3>2 &middot; Elle demande un cong&eacute;</h3>
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <div class="b b--eux">Bonjour, je voudrais prendre mes cong&eacute;s d&eacute;but novembre
+              <span class="b__h">10 h 09</span>
+            </div>
+            <div class="b b--maison">Bonjour A., remplissez ce formulaire, la direction vous r&eacute;pond ici.
+              <span class="b__h">10 h 10 &middot; automatique</span>
+            </div>
+            <div class="flow">
+              <p class="flow__t">Demander un cong&eacute;</p>
+              <div class="champ"><u>Nature</u><div>Cong&eacute; pay&eacute;</div></div>
+              <div class="champ"><u>Du</u><div>lundi 3 novembre</div></div>
+              <div class="champ"><u>Au</u><div>vendredi 7 novembre</div></div>
+              <div class="champ"><u>Un mot (facultatif)</u><div>Mariage de ma s&oelig;ur</div></div>
+              <div class="flow__ok">Envoyer la demande</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne &middot; Temps &amp; absences</p>
+        <div class="trone">
+          <div class="trone__tete">Demande re&ccedil;ue par WhatsApp</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>A. D. &middot; ma&icirc;tre</span> <span class="pas pas--cu">&Agrave; d&eacute;cider</span></div>
+            <div class="ligne"><span>Cong&eacute; pay&eacute;</span> <em>5 jours</em></div>
+            <div class="ligne"><span>Solde avant</span> <span>17 jours</span></div>
+            <div class="ligne"><span>Rendez-vous d&eacute;j&agrave; pos&eacute;s sur ces jours</span> <span><b>6</b> &middot; &agrave; r&eacute;partir</span></div>
+            <div class="actions">
+              <button class="btn btn--cuivre">Accorder</button>
+              <button class="btn">Refuser</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Un arr&ecirc;t maladie porte une photo</b> : le Flow ajoute alors un champ &laquo; certificat
+      &raquo;, et l&rsquo;image rejoint l&rsquo;absence. <b>Les six rendez-vous</b> sont la
+      raison d&rsquo;&ecirc;tre de cet &eacute;cran : accorder un cong&eacute; sans voir ce
+      qu&rsquo;il d&eacute;place, c&rsquo;est d&eacute;couvrir le trou le 3 novembre au matin.
+    </p>
+
+    <h3>3 &middot; La r&eacute;ponse part d&rsquo;elle-m&ecirc;me</h3>
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <div class="b b--maison">
+              Votre cong&eacute; du lundi 3 au vendredi 7 novembre est accord&eacute;. Il vous
+              restera 12 jours.
+              <span class="b__h">14 h 31 &middot; dans la fen&ecirc;tre</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne</p>
+        <div class="trone">
+          <div class="trone__tete">Apr&egrave;s &laquo; Accorder &raquo;</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>Cong&eacute;</span> <span class="pas pas--ok">Accord&eacute;</span></div>
+            <div class="ligne"><span>Pr&eacute;venue</span> <span>WhatsApp &middot; 14 h 31 &middot; lu</span></div>
+            <p style="font-size:12px;margin:10px 0 0">
+              Si elle n&rsquo;a pas &eacute;crit depuis 24 h, la r&eacute;ponse passe par le
+              mod&egrave;le <code>decision_conge</code>, et la confirmation le dit.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Parcours &middot; un prestataire</p>
+    <h2>Le devis en photo, le versement confirm&eacute;.</h2>
+    <p class="intro">
+      Le module Engagements tient d&eacute;j&agrave; les devis re&ccedil;us, les versements et les
+      d&eacute;charges. <b>WhatsApp devient sa bo&icirc;te aux lettres</b>, et rien de plus.
+    </p>
+
+    <h3>1 &middot; Il envoie son devis</h3>
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <div class="b b--eux">
+              <div class="photo">Photo du devis</div>
+              Voici le devis pour les &eacute;tag&egrave;res du salon
+              <span class="b__h">16 h 02</span>
+            </div>
+            <div class="b b--maison">Bien re&ccedil;u, merci. La direction revient vers vous.
+              <span class="b__h">16 h 02 &middot; automatique</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne &middot; Engagements</p>
+        <div class="trone">
+          <div class="trone__tete">K. H. &middot; menuiserie &middot; &eacute;tag&egrave;res du salon</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>Devis re&ccedil;u par WhatsApp</span> <span class="pas pas--cu">&Agrave; saisir</span></div>
+            <div class="ligne"><span>Pi&egrave;ce</span> <span>photo &middot; coffre des engagements</span></div>
+            <div class="ligne"><span>Lignes et montant</span> <span>vides, tap&eacute;s par la direction</span></div>
+            <div class="actions">
+              <button class="btn btn--cuivre">Saisir le devis</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Personne ne lit le devis &agrave; ta place.</b> Une photo de devis manuscrit lue par une
+      machine donnerait un montant faux, et un montant faux dans un engagement est pire
+      qu&rsquo;une case vide. <b>Un seul engagement ouvert</b> avec ce prestataire : la photo
+      s&rsquo;y range seule. <b>Plusieurs</b> : elle attend &laquo; &agrave; ranger &raquo; en
+      t&ecirc;te des Engagements.
+    </p>
+
+    <h3>2 &middot; Le versement, confirm&eacute; d&rsquo;un geste</h3>
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <div class="b b--modele">
+              La Maison vous a vers&eacute; 150 000 F pour les &eacute;tag&egrave;res du salon.
+              L&rsquo;avez-vous bien re&ccedil;u ?
+              <span class="b__h">Mod&egrave;le versement_engagement &middot; 11 h 20</span>
+            </div>
+            <div class="rep"><span>Oui, bien re&ccedil;u</span><span>Pas encore</span></div>
+            <div class="b b--eux">Oui, bien re&ccedil;u
+              <span class="b__h">11 h 47</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne &middot; Engagements</p>
+        <div class="trone">
+          <div class="trone__tete">Versement n&deg; 2 &middot; 150 000 F</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>Vers&eacute;</span> <span>15 sept. &middot; MTN MoMo</span></div>
+            <div class="ligne"><span>R&eacute;ception</span> <span class="pas pas--ok">Confirm&eacute;e par WhatsApp &middot; 11 h 47</span></div>
+            <div class="ligne"><span>D&eacute;charge</span> <span class="pas pas--att">&Agrave; signer sur l&rsquo;&eacute;cran</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Le bouton est une trace, pas une signature.</b> Il vient de son num&eacute;ro, &agrave;
+      une heure dite, et c&rsquo;est pr&eacute;cieux le jour o&ugrave; il dit n&rsquo;avoir rien
+      re&ccedil;u. La d&eacute;charge sign&eacute;e sur l&rsquo;&eacute;cran reste la preuve.
+      <b>&laquo; Pas encore &raquo;</b> ne change rien au versement : il remonte en t&ecirc;te
+      des Engagements, &agrave; v&eacute;rifier.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;Ce que &ccedil;a co&ucirc;te</p>
+    <h2>Le 1<sup>er</sup> octobre change la r&egrave;gle.</h2>
+    <p class="intro">
+      Meta l&rsquo;a &eacute;crit dans sa documentation. <b>&Agrave; partir du 1<sup>er</sup>
+      octobre 2026</b>, r&eacute;pondre dans la fen&ecirc;tre de 24 heures se paie au message,
+      et un mod&egrave;le utilitaire aussi, m&ecirc;me envoy&eacute; dans une fen&ecirc;tre
+      ouverte.
+    </p>
+    <ul class="liste">
+      <li><b>1 000 r&eacute;ponses gratuites par mois</b>, par num&eacute;ro, annonc&eacute;es par Meta. Ce palier est <b>partag&eacute; avec les clientes</b> : l&rsquo;&eacute;quipe ne dispose pas d&rsquo;un compteur &agrave; part.</li>
+      <li><b>Les mod&egrave;les de ce chantier sont utilitaires</b> (bulletin, cong&eacute;, versement), la cat&eacute;gorie la moins ch&egrave;re apr&egrave;s l&rsquo;authentification. Chacun se paie, dedans comme hors fen&ecirc;tre.</li>
+      <li><b>L&rsquo;ordre de grandeur</b> : une dizaine de bulletins, quelques cong&eacute;s et quelques versements, soit quelques dizaines de messages par mois. On compte en messages, pas en francs : les tarifs du B&eacute;nin se lisent dans WhatsApp Manager.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VI</span> &nbsp;Ce que ce chantier ne fera pas</p>
+    <h2>Six refus, dits d&rsquo;avance.</h2>
+    <ul class="liste">
+      <li><b>Pas de robot qui r&eacute;pond.</b> Le Tr&ocirc;ne reconna&icirc;t, range et pr&eacute;vient. Seuls deux messages partent seuls : l&rsquo;accus&eacute; d&rsquo;un devis et l&rsquo;envoi du formulaire de cong&eacute;. Un robot parlerait de salaire &agrave; la place de la direction.</li>
+      <li><b>Pas de lecture automatique des devis.</b> Voir plus haut : un montant faux est pire qu&rsquo;une case vide.</li>
+      <li><b>Pas de fiche cr&eacute;&eacute;e par un num&eacute;ro inconnu.</b> Un num&eacute;ro qui n&rsquo;est ni cliente, ni &eacute;quipe, ni prestataire reste &laquo; sans fiche &raquo;, comme aujourd&rsquo;hui.</li>
+      <li><b>Pas de contrat sign&eacute; par WhatsApp.</b> Le texte peut partir en PDF pour relecture. La signature reste sur l&rsquo;&eacute;cran du Tr&ocirc;ne.</li>
+      <li><b>Pas de portail employ&eacute;.</b> Personne ne cr&eacute;e de compte. Les ma&icirc;tres connect&eacute;es gardent Mon mois ; les autres n&rsquo;ont besoin que de WhatsApp.</li>
+      <li><b>Pas de salaire vers&eacute; par WhatsApp.</b> Le paiement reste o&ugrave; il est. WhatsApp annonce, il ne paie pas.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VII</span> &nbsp;L&rsquo;ordre</p>
+    <h2>Cinq &eacute;tapes, chacune utile seule.</h2>
+
+    <div class="etapes">
+      <div class="etape">
+        <span class="etape__n">1</span>
+        <span>
+          <b>Reconna&icirc;tre, et fermer la porte</b>
+          <small>
+            Le webhook compare aussi &agrave; l&rsquo;&eacute;quipe et aux prestataires. Une
+            migration r&eacute;serve ces fils &agrave; la direction, pr&eacute;sent&eacute;e et
+            jamais appliqu&eacute;e par moi. Les deux onglets. Aucun message ne part encore.
+          </small>
+        </span>
+      </div>
+      <div class="etape">
+        <span class="etape__n">2</span>
+        <span>
+          <b>Garder ce qu&rsquo;on re&ccedil;oit</b>
+          <small>
+            Les photos et les documents sont r&eacute;cup&eacute;r&eacute;s chez Meta et rang&eacute;s
+            dans le coffre. Sert aussi aux clientes : leurs photos cessent de se perdre.
+          </small>
+        </span>
+      </div>
+      <div class="etape">
+        <span class="etape__n">3</span>
+        <span>
+          <b>&Eacute;crire depuis les &eacute;crans</b>
+          <small>
+            &laquo; Envoyer les bulletins &raquo; dans Paie, la d&eacute;cision dans Temps &amp;
+            absences, le versement dans Engagements. Dans la fen&ecirc;tre ouverte, en texte et
+            PDF, avec la porte &laquo; App &raquo; &agrave; c&ocirc;t&eacute;.
+          </small>
+        </span>
+      </div>
+      <div class="etape">
+        <span class="etape__n">4</span>
+        <span>
+          <b>Les trois mod&egrave;les utilitaires</b>
+          <small>
+            <code>bulletin_du_mois</code> avec le PDF en en-t&ecirc;te, <code>decision_conge</code>,
+            <code>versement_engagement</code> avec ses deux boutons. &Agrave; faire approuver par
+            Meta, et l&rsquo;envoi apprend &agrave; joindre un document &agrave; un mod&egrave;le.
+          </small>
+        </span>
+      </div>
+      <div class="etape etape--gris">
+        <span class="etape__n">5</span>
+        <span>
+          <b>Les boutons et le formulaire de cong&eacute;</b>
+          <small>
+            Lire l&rsquo;identifiant d&rsquo;un bouton, et publier le Flow &laquo; Demander un
+            cong&eacute; &raquo; dans WhatsApp Manager. Le plus long &agrave; construire, et le
+            seul qui demande d&rsquo;&eacute;prouver le parcours sur un vrai t&eacute;l&eacute;phone.
+          </small>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VIII</span> &nbsp;Ce que je ne d&eacute;cide pas seul</p>
+    <h2>Quatre questions pour toi.</h2>
+
+    <div class="quest">
+      <b>Qui lit les fils de l&rsquo;&eacute;quipe et des prestataires ?</b>
+      <p>On y parle de salaire, d&rsquo;absence, de sant&eacute;, d&rsquo;argent vers&eacute;.</p>
+      <p class="prop"><strong>Proposition :</strong> la direction, souveraine et g&eacute;rante,
+        comme la Paie aujourd&rsquo;hui. Pas les ma&icirc;tres.</p>
+    </div>
+
+    <div class="quest">
+      <b>Une employ&eacute;e qui est aussi cliente : son fil va o&ugrave; ?</b>
+      <p>Un m&ecirc;me num&eacute;ro ne peut vivre que dans un tiroir.</p>
+      <p class="prop"><strong>Proposition :</strong> &Eacute;quipe, avec un lien vers sa fiche
+        cliente. Ce qu&rsquo;elle dit de son cong&eacute; ne doit pas se lire parmi les clientes.</p>
+    </div>
+
+    <div class="quest">
+      <b>Le net &agrave; payer dans le texte du message ?</b>
+      <p>Plus pratique d&rsquo;un coup d&rsquo;&oelig;il, mais lisible sur un &eacute;cran verrouill&eacute;.</p>
+      <p class="prop"><strong>Proposition :</strong> non. Le montant vit dans le PDF seulement.</p>
+    </div>
+
+    <div class="quest">
+      <b>Le devis photographi&eacute; se range-t-il tout seul ?</b>
+      <p>Le prestataire peut avoir deux chantiers ouverts avec la Maison.</p>
+      <p class="prop"><strong>Proposition :</strong> oui s&rsquo;il n&rsquo;y a qu&rsquo;un
+        engagement ouvert avec lui ; sinon &laquo; &agrave; ranger &raquo;, et la direction choisit.</p>
+    </div>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Rien n&rsquo;est &eacute;crit dans le
+    Tr&ocirc;ne tant que tu n&rsquo;as pas dit &laquo; construis &raquo;. L&rsquo;&eacute;tape 1
+    porte une migration, pr&eacute;sent&eacute;e et jamais appliqu&eacute;e par moi. Les
+    &eacute;tapes 4 et 5 d&eacute;pendent de Meta : l&rsquo;approbation des mod&egrave;les et la
+    publication du formulaire prennent de quelques heures &agrave; quelques jours.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>
