@@ -2,7 +2,12 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026, CONSTRUIT, SQL ET FONCTIONS EN ATTENTE
+## L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026, PUBLIÉ, SQL PASSÉE, FONCTIONS À RECOLLER
+
+**0102 passée le 15 septembre** (contrôle : 6 fonctions · 2 politiques ·
+0 ligne réservée — personne de l'équipe n'avait encore écrit · compartiment
+privé · 2 politiques). Les deux fonctions Edge restent à recoller, les trois
+modèles à faire approuver, le Flow à publier.
 
 « How can this be done and arrive directly on the trone with employees and
 prestataires » (Yéman, devant AskMandla). Maquette
