@@ -37,11 +37,16 @@ export function toXof(amount: number, code: string): number {
   return amount * rate;
 }
 
+/** LES MONNAIES SANS CENTIMES. Une seule liste : l'habillage ci-dessous et
+    l'écriture des sommes (`lettres.ts`) la lisent tous deux, sinon un même
+    montant aurait des centimes sur un écran et pas sur l'autre. */
+export const SANS_CENTIMES: ReadonlySet<string> = new Set(['XOF', 'XAF', 'NGN', 'GNF', 'RWF', 'UGX', 'JPY', 'KRW']);
+
 /** Habillage d'un montant DÉJÀ exprimé dans `code` — symbole, séparateurs, décimales. */
 function dress(v: number, code: string): string {
   const cur = currencyByCode(code);
   const symbol = cur?.symbol ?? code;
-  const decimals = ['XOF', 'XAF', 'NGN', 'GNF', 'RWF', 'UGX', 'JPY', 'KRW'].includes(code) || Math.abs(v) >= 1000 ? 0 : 2;
+  const decimals = SANS_CENTIMES.has(code) || Math.abs(v) >= 1000 ? 0 : 2;
   const parts = v.toLocaleString('fr-FR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   if (code === 'USD' || code === 'CAD') return `${symbol}${v.toLocaleString('en-US', { maximumFractionDigits: decimals })}`;
   return `${parts} ${symbol}`;

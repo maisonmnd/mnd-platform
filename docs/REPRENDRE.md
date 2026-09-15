@@ -83,6 +83,53 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## PAYER UN PRESTATAIRE EN DEVISES — 15 septembre 2026, PUBLIÉ, SQL EN ATTENTE
+
+« Me permettre de payer des prestataires en devises, pas seulement en CFA »
+(Yéman). Tranché : **le dossier vit dans sa devise** (CFA par défaut, ou
+euro, dollar, livre…). Revue de code passée avant publication ; ses
+trouvailles sont intégrées.
+
+### Ce qui est décidé
+
+- `Engagement.devise` (absente = `DEVISE_DE_LA_MAISON` = XOF, **une
+  constante, pas la devise d'affichage de la branche** : une somme rangée ne
+  change pas d'unité parce qu'un réglage a changé). Devis, lignes, versements
+  et reste sont dans cette monnaie ; **les champs `…Xof` gardent leur nom**,
+  exception notée dans CLAUDE.md.
+- **La dépense reste en francs** (`amountXof` = le coût, `fx` = ce que perd
+  un tiroir qui ne compte pas en francs). Le versement ne recopie ni le coût
+  ni le tiroir : l'écran les lit sur la dépense liée, c'est elle qui fait foi.
+- **Trois monnaies peuvent se croiser** (`argentDuVersement`) : la devise du
+  dossier, le franc, la monnaie du tiroir. On ne demande que ce qui ne se
+  déduit pas. Le taux indicatif pré-remplit, **la main fait foi** ; un zéro ou
+  un gribouillis tapé n'est PAS remplacé en douce par la suggestion : il se
+  refuse. Une caisse dans une monnaie sans taux connu réclame le montant.
+- **La monnaie ne change plus** après le premier devis ou versement :
+  écran (`pourquoiLaDeviseNeChangePas`) ET base (0101, à passer).
+- **Les sommes en devise s'écrivent avec leurs centimes** (`sommeDite`), à
+  l'écran comme sur la décharge (« sept cents euros », « 740,50 € ») ; en
+  francs, `fmtMoney` comme tout le Trône. Le reste à payer se dit **devise par
+  devise** (`restesDits`), jamais additionné.
+- `lisLeNombre(saisie, devise)` : « 25.000 » = vingt-cinq mille (point des
+  milliers), « 12ooo » illisible, « 700 USD » dans un dossier en euros
+  illisible. `SANS_CENTIMES` (currency.ts) est la seule liste des monnaies sans
+  centimes, lue par l'affichage et par `decimalesDe`.
+
+### SQL — `0101_la_monnaie_du_dossier_ne_change_plus.sql` : EN ATTENTE
+
+Remplace SEULEMENT `engagement_garde()` (le déclencheur de 0099 l'appelle
+déjà) : `devise` est restaurée pour TOUS dès qu'un devis ou un versement
+existe ; les gardes de 0099 (numéro, identité, abandon) sont reprises.
+
+### Reste à faire, noté par la revue
+
+- `ContrepartieMaison` / `MontantDuTiroir` (tiroirs.tsx) et les deux champs
+  du versement disent la même règle en deux endroits ; `montantsDuTiroir`
+  pourrait déléguer à `argentDuVersement`. À faire quand on touche aux
+  tiroirs, pas en passant.
+- Les monnaies à trois décimales (KWD, BHD) sont arrondies à deux.
+
 ## LES TRAVAUX À VENIR — 15 septembre 2026, PUBLIÉ
 
 « Besoin de voir les notes sur le devis. Le résumé des travaux à venir »
@@ -383,6 +430,28 @@ section facturation.
 
 **Le panneau de la promo dit enfin son coût** : c'était le geste qui envoie des
 modèles MARKETING, les plus chers, et il n'en soufflait mot.
+
+### Le 1er octobre 2026, la fenêtre se paie (écrit le 15 septembre)
+
+Meta l'a écrit dans sa documentation (« Upcoming pricing updates », messages
+hors modèle). **Ce qui précède cesse d'être vrai le 1er octobre 2026** :
+
+- une **réponse libre** dans la fenêtre se paie au message, au tarif des
+  utilitaires du pays, **au-delà de 1 000 par mois et par numéro** (sans report) ;
+- un **modèle utilitaire** envoyé dans une fenêtre ouverte se paie aussi.
+
+**Une erreur plus ancienne corrigée au passage** : seul un modèle UTILITAIRE a
+jamais été offert dans la fenêtre. `avis_google` est marketing, il s'est
+toujours payé, et le compteur le disait gratuit dès qu'elle avait écrit la
+veille. `CATEGORIE_DES_MODELES` porte la catégorie de chaque modèle ; **un modèle
+absent de la table est tenu pour marketing**. Un nouveau modèle approuvé s'y
+ajoute le jour même.
+
+**La date est dans le code** (`laFenetreSePaie()`, minuit UTC) : les phrases de
+l'écran changent seules le 1er octobre, rien à republier ce jour-là. Le compteur
+du mois ajoute alors « N réponses sur 1 000 gratuites ». **Le palier se compte
+toutes branches confondues** : il est par numéro, et les branches partagent le
+numéro. Éprouvé dans `verifie-gestes-du-fil`.
 
 ## DEUX PORTES, PAS UNE — 15 septembre 2026, PUBLIÉ
 

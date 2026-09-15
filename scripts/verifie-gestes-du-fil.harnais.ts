@@ -10,7 +10,7 @@
 import {
   DELAI_DE_RETENUE_MS, delaiDeRetenue, resteDeLaRetenue,
   pourquoiOnNeReecritPas, texteDeLaCorrection, messagesQuiSonnent, filsQuiAttendent,
-  modeleFacture, compteDesModeles,
+  modeleFacture, compteDesModeles, laFenetreSePaie,
   type MessageWa, type Fil,
 } from '../src/shared/conversations';
 import { cestLaNuit } from '../src/shared/sonnette';
@@ -195,6 +195,49 @@ dit('le détail par modèle, du plus envoyé au moins',
   [{ nom: 'rappel_rdv', factures: 1, gratuits: 1 }, { nom: 'avis_google', factures: 1, gratuits: 0 }],
   compte.parModele);
 dit('un mois sans rien rend zéro', 0, compteDesModeles(filWa, '2026-01').envoyes);
+
+/* ══ LE 1er OCTOBRE 2026, LA FENÊTRE SE PAIE — 15 septembre 2026 ══════
+   Meta facture désormais les réponses libres au-delà de 1 000 par mois, et
+   les modèles utilitaires même dans une fenêtre ouverte. Un modèle marketing,
+   lui, s'est toujours payé. */
+dit('le 30 septembre à 23 h 59, la fenêtre est encore offerte', false,
+  laFenetreSePaie(Date.parse('2026-09-30T23:59:59.999Z')));
+dit('le 1er octobre à minuit UTC, elle se paie', true,
+  laFenetreSePaie(Date.parse('2026-10-01T00:00:00.000Z')));
+dit('un modèle marketing dans une fenêtre ouverte se facture', true,
+  modeleFacture(msg({ id: 's8', sens: 'sortant', numero: '22990000001', quand: T(12), modele: 'avis_google' }), filWa));
+dit('un modèle inconnu dans une fenêtre ouverte se facture', true,
+  modeleFacture(msg({ id: 's9', sens: 'sortant', numero: '22990000001', quand: T(12), modele: 'x' }), filWa));
+
+const O = (jour: number, h: number) => new Date(Date.UTC(2026, 9, jour, h)).toISOString();
+const filOctobre = [
+  msg({ id: 'e2', sens: 'entrant', numero: '22990000001', quand: O(2, 10) }),
+  msg({ id: 's10', sens: 'sortant', numero: '22990000001', quand: O(2, 12), modele: 'rappel_rdv' }),
+];
+dit('en octobre, un utilitaire dans une fenêtre ouverte se facture', true,
+  modeleFacture(filOctobre[1], filOctobre));
+
+dit('en septembre, les réponses libres ne se comptent pas', 0,
+  compteDesModeles([...filWa, msg({ id: 's11', sens: 'sortant', numero: '22990000001', quand: T(11) })], '2026-09').reponses);
+
+const reponsesOctobre = compteDesModeles([
+  ...filOctobre,
+  msg({ id: 's12', sens: 'sortant', numero: '22990000001', quand: O(2, 11), branchId: 'b1' }),
+  /* LE PALIER EST PAR NUMÉRO : une autre branche compte dans le même. */
+  msg({ id: 's13', sens: 'sortant', numero: '22990000001', quand: O(2, 13), branchId: 'b2' }),
+  /* Refusée par Meta : elle n'est jamais arrivée, elle ne compte pas. */
+  msg({ id: 's14', sens: 'sortant', numero: '22990000001', quand: O(2, 14), etat: 'non-remis' }),
+  /* Un message reçu n'est pas une réponse de la Maison. */
+  msg({ id: 'e3', sens: 'entrant', numero: '22990000001', quand: O(2, 15) }),
+], '2026-10', 'b1');
+dit('en octobre, deux réponses comptent, toutes branches', 2, reponsesOctobre.reponses);
+dit('… aucune n’est facturée sous le palier', 0, reponsesOctobre.reponsesFacturees);
+dit('… et le modèle d’octobre est facturé', 1, reponsesOctobre.factures);
+
+const auDela = Array.from({ length: 1002 }, (_, i) =>
+  msg({ id: `p${i}`, sens: 'sortant', numero: '22990000001', quand: O(3, 9) }));
+dit('au-delà de 1 000 réponses, Meta facture les suivantes', 2,
+  compteDesModeles(auDela, '2026-10').reponsesFacturees);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

@@ -507,12 +507,49 @@ export const messageCite = (
    de quelqu'un qui déciderait dessus. Le compteur dit COMBIEN ; le tarif se
    lit chez Meta. */
 
+/* ══ LE 1er OCTOBRE 2026, LA FENÊTRE SE PAIE — 15 septembre 2026 ══════
+
+   CE QUI PRÉCÈDE CESSE D'ÊTRE VRAI LE 1er OCTOBRE 2026. Meta l'a écrit dans
+   sa documentation (« Upcoming pricing updates », messages hors modèle) :
+
+     · une RÉPONSE LIBRE dans la fenêtre se paie au message, au tarif des
+       utilitaires du pays. Chaque numéro reçoit 1 000 réponses gratuites
+       par mois, sans report d'un mois sur l'autre ;
+     · un MODÈLE UTILITAIRE envoyé dans une fenêtre ouverte se paie aussi.
+
+   UNE ERREUR PLUS ANCIENNE SE CORRIGE AU PASSAGE. Même avant octobre, seul
+   un modèle UTILITAIRE était offert dans la fenêtre : un modèle marketing
+   s'est toujours payé. Le compteur tenait `avis_google` pour gratuit dès
+   qu'elle avait écrit la veille ; il le compte désormais facturé.
+
+   LA DATE EST DANS LE CODE, PAS DANS UNE MISE EN LIGNE. Les écrans lisent
+   `laFenetreSePaie()` et changent de phrase d'eux-mêmes le 1er octobre :
+   rien à republier ce jour-là, et rien d'annoncé trop tôt d'ici là. */
+
+/** L'instant où la fenêtre cesse d'être gratuite, minuit UTC. */
+export const LA_FENETRE_SE_PAIE_DES = Date.parse('2026-10-01T00:00:00Z');
+/** Les réponses libres offertes chaque mois, par numéro de la Maison. */
+export const REPONSES_GRATUITES_DU_MOIS = 1000;
+export const laFenetreSePaie = (instant: number = Date.now()): boolean =>
+  instant >= LA_FENETRE_SE_PAIE_DES;
+
+/** LA CATÉGORIE META DE CHAQUE MODÈLE, telle qu'approuvée (voir
+    docs/BRANCHER-ENVOIS.md). Un modèle absent d'ici est tenu pour marketing :
+    on répond « facturé » quand on ne sait pas. Un modèle nouvellement
+    approuvé s'ajoute ici le jour même. */
+export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'marketing'>> = {
+  rappel_rdv: 'utilitaire',
+  confirmation_rdv: 'utilitaire',
+  avis_google: 'marketing',
+};
+
 /** CE MODÈLE A-T-IL ÉTÉ FACTURÉ ?
 
     ON NE L'A PAS ÉCRIT AU MOMENT DE L'ENVOI, et c'est trop tard pour les
-    messages d'hier — mais on peut le RETROUVER : un modèle est gratuit s'il
-    est parti alors qu'elle avait écrit dans les 24 heures d'avant. Le fil
-    porte cette information depuis toujours.
+    messages d'hier, mais on peut le RETROUVER. Un modèle n'est gratuit qu'à
+    trois conditions : il est UTILITAIRE, il est parti AVANT le 1er octobre
+    2026, et elle avait écrit dans les 24 heures d'avant. Le fil porte tout
+    cela depuis toujours.
 
     ON RÉPOND « FACTURÉ » QUAND ON NE SAIT PAS. Un compteur qui sous-estime la
     dépense ne sert à rien : mieux vaut annoncer un peu trop que rassurer à
@@ -524,6 +561,8 @@ export function modeleFacture(
   if (m.sens !== 'sortant' || !m.modele) return false;
   const quand = Date.parse(m.quand);
   if (!Number.isFinite(quand)) return true;
+  if (CATEGORIE_DES_MODELES[m.modele] !== 'utilitaire') return true;
+  if (laFenetreSePaie(quand)) return true;
   const n = numeroWa(m.numero);
   return !tous.some((x) => x.sens === 'entrant'
     && numeroWa(x.numero) === n
@@ -536,15 +575,29 @@ export type CompteDesModeles = {
   mois: string;
   /** Tous les modèles partis ce mois-ci, gratuits compris. */
   envoyes: number;
-  /** Ceux que Meta facture : partis hors fenêtre. */
+  /** Ceux que Meta facture. */
   factures: number;
-  /** Ceux qui sont partis dans une fenêtre ouverte, donc gratuits. */
+  /** Les utilitaires partis dans une fenêtre ouverte, avant le 1er octobre 2026. */
   gratuits: number;
   /** Le détail par modèle, du plus envoyé au moins envoyé. */
   parModele: { nom: string; factures: number; gratuits: number }[];
+  /** LES RÉPONSES LIBRES DU MOIS qui entrent dans le palier de Meta. Zéro
+      pour un mois d'avant octobre 2026 : elles ne se comptaient pas. */
+  reponses: number;
+  /** Au-delà des réponses gratuites du mois : celles que Meta facture. */
+  reponsesFacturees: number;
 };
 
-/** CE QUE LA MAISON A ENVOYÉ CE MOIS-CI, modèle par modèle. */
+/** UNE RÉPONSE QUE META COMPTE : sortante, écrite sans modèle, pas refusée.
+    Une réaction ou un accusé de lecture ne sont pas des messages du fil. Une
+    heure illisible compte : on répond « facturé » quand on ne sait pas. */
+const reponseQuiCompte = (m: MessageWa): boolean => {
+  if (m.sens !== 'sortant' || m.modele || m.etat === 'non-remis') return false;
+  const t = Date.parse(m.quand);
+  return !Number.isFinite(t) || laFenetreSePaie(t);
+};
+
+/** CE QUE LA MAISON A ENVOYÉ CE MOIS-CI, modèle par modèle, et ses réponses. */
 export function compteDesModeles(
   messages: readonly MessageWa[], mois: string, branchId?: string,
 ): CompteDesModeles {
@@ -559,6 +612,10 @@ export function compteDesModeles(
     if (modeleFacture(m, messages)) { ligne.factures += 1; factures += 1; } else ligne.gratuits += 1;
     par.set(nom, ligne);
   }
+  /* LE PALIER EST PAR NUMÉRO, PAS PAR BRANCHE. Les branches partagent le
+     numéro de la Maison : les compter chacune à part ferait croire à deux
+     paliers là où Meta n'en offre qu'un. */
+  const reponses = messages.filter((m) => (m.quand ?? '').slice(0, 7) === mois && reponseQuiCompte(m)).length;
   return {
     mois,
     envoyes: duMois.length,
@@ -567,6 +624,8 @@ export function compteDesModeles(
     parModele: [...par.entries()]
       .map(([nom, l]) => ({ nom, ...l }))
       .sort((a, b) => (b.factures + b.gratuits) - (a.factures + a.gratuits) || a.nom.localeCompare(b.nom)),
+    reponses,
+    reponsesFacturees: Math.max(0, reponses - REPONSES_GRATUITES_DU_MOIS),
   };
 }
 

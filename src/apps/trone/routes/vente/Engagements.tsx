@@ -23,13 +23,14 @@ import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Segs, Select, Textarea, toast } from '../../../../ds/components';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useBranch } from '../../../../shared/branches';
-import { fmtMoney } from '../../../../shared/currency';
+import { fmtMoney, rateToXof } from '../../../../shared/currency';
+import { DEVISES, arrondiDans, decimalesDe } from '../../../../shared/lettres';
 import { uid, useStore } from '../../../../shared/store';
 import { useStaff } from '../../../../shared/auth';
 import { maisonNom, maisonVille } from '../../../../shared/identite';
 import { contratPdf } from '../../../../shared/pdf';
 import {
-  useCashboxes, useExpenses, usePaymentMethods, moyensAOffrir, expenseCategoriesStore,
+  useCashboxes, useExpenses, usePaymentMethods, moyensAOffrir, expenseCategoriesStore, cashboxCurrency,
 } from '../../../../shared/finance';
 import { useFournisseurs } from '../../../../shared/stock';
 import {
@@ -43,6 +44,8 @@ import {
   quantiteDite, LIGNE_VIDE, type LigneSaisie,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
   pourquoiLaDechargeNePeutPasSeFaire, FORMATS_DE_L_IDENTITE,
+  lisLeNombre, argentDuVersement, pourquoiLaDeviseNeChangePas, sommeDite, restesDits, retenuXof,
+  DEVISE_DE_LA_MAISON,
   type Engagement, type DevisRecu, type Versement, type Decharge, type LectureDuDossier,
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
@@ -60,7 +63,24 @@ const VERSION_DECHARGE = 'decharge-2026-09-15';
     évite un refus muet au bout d'une minute de téléversement. */
 const TAILLE_MAX = 10 * 1024 * 1024;
 
-const enFrancs = (s: string): number => parseInt(s.replace(/[^0-9]/g, '') || '0', 10);
+/** LIRE UN MONTANT TAPÉ, dans la monnaie du dossier : « 25 000 », « 12,35 ».
+    Zéro pour ce qui ne se lit pas ; c'est le refus, ensuite, qui le dit. */
+const montantTape = (s: string, devise: string): number => {
+  const n = lisLeNombre(s, devise);
+  return Number.isFinite(n) && n > 0 ? arrondiDans(n, devise) : 0;
+};
+
+/** CE QUE LA MAIN A TAPÉ dans un champ facultatif : rien (`undefined`), ou
+    un nombre, lisible ou non. Le juge fait la différence entre les deux. */
+const saisieFacultative = (s: string, devise: string): number | undefined =>
+  (s.trim() === '' ? undefined : lisLeNombre(s, devise));
+
+/** « euros », « francs CFA » — pour dire la monnaie d'un dossier. */
+const nomDeLaDevise = (code: string): string => DEVISES[code]?.plusieurs ?? code;
+
+/** Les monnaies qu'un dossier peut prendre : le franc d'abord. */
+const DEVISES_A_OFFRIR: string[] =
+  [DEVISE_DE_LA_MAISON, ...Object.keys(DEVISES).filter((c) => c !== DEVISE_DE_LA_MAISON)];
 
 /** OUVRIR UNE PIÈCE DU COFFRE. L'onglet s'ouvre AVANT d'attendre le lien :
     ouvert après, le navigateur le prend pour une fenêtre surgissante et le
@@ -127,6 +147,8 @@ type FormDossier = {
   metier: string;
   objet: string;
   note: string;
+  /** La monnaie du dossier — celle de la Maison, sauf choix contraire. */
+  devise: string;
 };
 
 export default function Engagements() {
@@ -179,8 +201,15 @@ export default function Engagements() {
   }, [estDirection, lectures, aujourdhui, setEngagements]);
 
   const ouvreLeFormulaire = (e?: Engagement) => setForm(e
-    ? { id: e.id, fournisseurId: e.fournisseurId ?? '', prestataire: e.prestataire, metier: e.metier ?? '', objet: e.objet, note: e.note ?? '' }
-    : { fournisseurId: '', prestataire: '', metier: '', objet: '', note: '' });
+    ? { id: e.id, fournisseurId: e.fournisseurId ?? '', prestataire: e.prestataire, metier: e.metier ?? '', objet: e.objet, note: e.note ?? '', devise: e.devise ?? DEVISE_DE_LA_MAISON }
+    : { fournisseurId: '', prestataire: '', metier: '', objet: '', note: '', devise: DEVISE_DE_LA_MAISON });
+
+  /* LA MONNAIE D'UN DOSSIER NE CHANGE PLUS après son premier montant : on ne
+     réinterprète pas des sommes déjà rangées. */
+  const lectureDuForm = form?.id ? lectures.find((l) => l.engagement.id === form.id) : undefined;
+  const verrouDevise = lectureDuForm
+    ? pourquoiLaDeviseNeChangePas({ devis: lectureDuForm.devis, versements: lectureDuForm.versements })
+    : null;
 
   const enregistreLeDossier = () => {
     if (!form) return;
@@ -193,9 +222,13 @@ export default function Engagements() {
       fournisseurId: form.fournisseurId || undefined,
       metier: form.metier.trim() || undefined,
       note: form.note.trim() || undefined,
+      /* Le franc ne s'écrit pas : absente, c'est lui. */
+      devise: form.devise && form.devise !== DEVISE_DE_LA_MAISON ? form.devise : undefined,
     };
     if (form.id) {
-      setEngagements((prev) => prev.map((x) => (x.id === form.id ? { ...x, ...champs } : x)));
+      setEngagements((prev) => prev.map((x) => (x.id === form.id
+        ? { ...x, ...champs, devise: verrouDevise ? x.devise : champs.devise }
+        : x)));
       setForm(null);
       toast('Dossier corrigé.');
       return;
@@ -264,6 +297,30 @@ export default function Engagements() {
             <Field label="Ce que la Maison commande">
               <Input value={form.objet} placeholder="Agencement du salon" onChange={(ev) => setForm({ ...form, objet: ev.target.value })} />
             </Field>
+            {/* ── LA MONNAIE DU DOSSIER — 15 septembre 2026 ──────────────
+                « Me permettre de payer des prestataires en devises » (Yéman).
+                Devis, versements et reste se lisent dans cette monnaie ; chaque
+                versement dit à côté ce qu'il coûte en francs. */}
+            <Field label="La monnaie du dossier">
+              <Select
+                value={form.devise}
+                disabled={!!verrouDevise}
+                title={verrouDevise ?? undefined}
+                onChange={(ev) => setForm({ ...form, devise: ev.target.value })}
+              >
+                {DEVISES_A_OFFRIR.map((c) => (
+                  <option key={c} value={c}>{c} · {nomDeLaDevise(c)}{c === DEVISE_DE_LA_MAISON ? ' · la Maison' : ''}</option>
+                ))}
+              </Select>
+            </Field>
+            {verrouDevise
+              ? <p className="eng-legende">{verrouDevise}</p>
+              : form.devise !== DEVISE_DE_LA_MAISON && (
+                <p className="eng-legende">
+                  Le devis et les versements se compteront en {nomDeLaDevise(form.devise)}. À chaque versement, le Trône
+                  demandera ce qu’il coûte en francs, au taux du jour : c’est ce coût qui entre aux Dépenses.
+                </p>
+              )}
             <Field label="Une note">
               <Textarea rows={2} value={form.note} onChange={(ev) => setForm({ ...form, note: ev.target.value })} />
             </Field>
@@ -306,7 +363,8 @@ function LaListe({ lectures, bilan, currency, onOuvre }: {
         </div>
         <div className="eng-kpi__reste">
           <span className="l">Reste à payer</span>
-          <span className="v">{fmtMoney(bilan.resteXof, currency)}</span>
+          {/* DEVISE PAR DEVISE : on n'additionne pas des euros et des francs. */}
+          <span className="v">{restesDits(bilan.restes, currency)}</span>
           <span className="c">ce que la Maison doit encore</span>
         </div>
         <div className={bilan.sansDecharge > 0 ? 'eng-kpi__alerte' : ''}>
@@ -324,7 +382,9 @@ function LaListe({ lectures, bilan, currency, onOuvre }: {
               <span className="eng-carte__qui">
                 <span className="eng-carte__numero">{e.numero}</span>
                 <span className="eng-carte__objet">{e.objet}</span>
-                <span className="eng-carte__sous">{e.prestataire}{e.metier ? ` · ${e.metier}` : ''}</span>
+                <span className="eng-carte__sous">
+                  {e.prestataire}{e.metier ? ` · ${e.metier}` : ''}{l.devise !== DEVISE_DE_LA_MAISON ? ` · en ${nomDeLaDevise(l.devise)}` : ''}
+                </span>
                 {(l.sansDecharge.length > 0 || l.expires.length > 0 || l.expirentBientot.length > 0) && (
                   <span className="eng-carte__alertes">
                     {l.sansDecharge.length > 0 && <Pastille ton="non">{pluriel(l.sansDecharge.length, 'versement')} sans décharge</Pastille>}
@@ -335,9 +395,9 @@ function LaListe({ lectures, bilan, currency, onOuvre }: {
               </span>
               <span className="eng-carte__combien">
                 <Pastille ton={TON_DE_L_ETAT[l.etat]}>{ETAT_DIT[l.etat]}</Pastille>
-                {l.etat === 'en-cours' && <><b>{fmtMoney(l.resteXof, currency)}</b><span>reste à payer</span></>}
+                {l.etat === 'en-cours' && <><b>{sommeDite(l.resteXof, l.devise, currency)}</b><span>reste à payer</span></>}
                 {l.etat === 'devis' && <><b>{pluriel(l.devis.length, 'devis', 'devis')}</b><span>à comparer</span></>}
-                {l.etat === 'solde' && <><b>{fmtMoney(l.verseXof, currency)}</b><span>versés</span></>}
+                {l.etat === 'solde' && <><b>{sommeDite(l.verseXof, l.devise, currency)}</b><span>versés</span></>}
               </span>
             </button>
           );
@@ -369,7 +429,12 @@ type FormVersement = {
   id?: string;
   mode: 'prevoir' | 'verser';
   libelle: string;
+  /** Dans la monnaie du dossier. */
   montant: string;
+  /** Ce que cela coûte à la Maison, en francs — quand le dossier est en devise. */
+  cout: string;
+  /** Ce qui sort du tiroir — quand la caisse compte dans une troisième monnaie. */
+  tiroir: string;
   avecEcheance: boolean;
   prevuLe: string;
   jour: string;
@@ -393,12 +458,26 @@ function LeDossier({ lecture, onRetour, onModifier }: {
   const [, setEngagements] = useEngagements();
   const [, setDevis] = useDevisRecus();
   const [, setVersements] = useVersementsEngagement();
-  const [, setExpenses] = useExpenses();
+  const [expenses, setExpenses] = useExpenses();
   const [cashboxes] = useCashboxes();
   const [moyensPoses] = usePaymentMethods();
   const [categories] = useStore(expenseCategoriesStore);
   const aujourdhui = todayISO();
-  const caisses = cashboxes.filter((c) => c.branchId === branch.id && (!c.currency || c.currency === currency));
+  /* LA MONNAIE DU DOSSIER — tout ce qui s'affiche ici se lit dedans. */
+  const devise = l.devise;
+  const enDevise = devise !== DEVISE_DE_LA_MAISON;
+  const dit = (x: number) => sommeDite(x, devise, currency);
+  /* TOUTES LES CAISSES DE LA BRANCHE : celles qui comptent dans la monnaie du
+     dossier d'abord, puis celles en francs, puis les autres. Un dossier en
+     euros se paie d'un tiroir en euros quand il y en a un, d'un tiroir en
+     francs sinon, et d'un tiroir en dollars seulement si on le choisit. */
+  const caisses = useMemo(() => {
+    const rang = (c: (typeof cashboxes)[number]): number =>
+      (cashboxCurrency(c) === devise ? 0 : cashboxCurrency(c) === DEVISE_DE_LA_MAISON ? 1 : 2);
+    return cashboxes
+      .filter((c) => c.branchId === branch.id)
+      .sort((a, b) => rang(a) - rang(b));
+  }, [cashboxes, branch.id, devise]);
   const base = devisDeBase(l.devis);
   const travaux = travauxAVenir(l.devis);
   const ferme = l.etat === 'abandonne';
@@ -429,9 +508,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       valableJusquau: d.valableJusquau ?? decaleLeJour(d.recuLe, 30),
       /* UN DEVIS SANS LIGNES garde son montant tapé ; un devis détaillé se
          rouvre ligne à ligne, et c'est le total qui refait le montant. */
-      montant: d.lignes?.length ? '' : String(d.montantXof),
+      montant: d.lignes?.length ? '' : quantiteDite(d.montantXof),
       lignes: d.lignes?.length
-        ? d.lignes.map((x) => ({ description: x.description, quantite: quantiteDite(x.quantite), prix: String(x.prixUnitaireXof) }))
+        ? d.lignes.map((x) => ({ description: x.description, quantite: quantiteDite(x.quantite), prix: quantiteDite(x.prixUnitaireXof) }))
         : [LIGNE_VIDE],
       resume: d.description ?? '',
       avenant: !!d.avenant,
@@ -450,14 +529,14 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       const refus = pourquoiOnNeModifiePas({ devis: existant, estDirection });
       if (refus) { toast(refus); return; }
     }
-    const lignes = lignesDeLaSaisie(f.lignes);
+    const lignes = lignesDeLaSaisie(f.lignes, devise);
     for (const [i, x] of lignes.entries()) {
       const pourquoi = pourquoiLaLigneNeVautPas(x);
       if (pourquoi) { toast(`Ligne ${i + 1} : ${pourquoi}`); return; }
     }
     /* LES LIGNES FONT LE MONTANT. Sans ligne, le montant tapé vaut : un devis
        reçu sans détail existe, et le refuser le laisserait dans le téléphone. */
-    const montant = lignes.length > 0 ? totalDesLignes(lignes) : enFrancs(f.montant);
+    const montant = lignes.length > 0 ? totalDesLignes(lignes, devise) : montantTape(f.montant, devise);
     if (montant <= 0) {
       toast(lignes.length > 0 ? 'Le total des lignes doit dépasser zéro.' : 'Écrivez le montant du devis, ou détaillez ses lignes.');
       return;
@@ -535,7 +614,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     id: v?.id,
     mode,
     libelle: v?.libelle ?? (l.versements.length === 0 ? 'Avance à la commande' : ''),
-    montant: v ? String(v.montantXof) : '',
+    montant: v ? quantiteDite(v.montantXof) : '',
+    cout: '',
+    tiroir: '',
     avecEcheance: !!v?.prevuLe || !v,
     prevuLe: v?.prevuLe ?? decaleLeJour(aujourdhui, 30),
     jour: aujourdhui,
@@ -545,10 +626,24 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     subcategory: '',
   });
 
+  /* LES TROIS MONNAIES D'UN VERSEMENT — ce qu'il reçoit, ce que ça coûte,
+     ce qui sort du tiroir. Le juge est pur (`argentDuVersement`) ; ici on
+     lui donne la caisse choisie et ce que la main a tapé. */
+  const caisseDe = (f: FormVersement) => caisses.find((c) => c.name === f.cashbox);
+  const argentDe = (f: FormVersement, montant: number, caisse = caisseDe(f)) => {
+    const deviseDuTiroir = caisse ? cashboxCurrency(caisse) : DEVISE_DE_LA_MAISON;
+    return argentDuVersement({
+      montant, devise, deviseDuTiroir,
+      coutSaisi: saisieFacultative(f.cout, DEVISE_DE_LA_MAISON),
+      tiroirSaisi: saisieFacultative(f.tiroir, deviseDuTiroir),
+      tauxIndicatif: rateToXof,
+    });
+  };
+
   const enregistreLeVersement = () => {
     if (!formVers) return;
     const f = formVers;
-    const montant = enFrancs(f.montant);
+    const montant = montantTape(f.montant, devise);
     const libelle = f.libelle.trim();
     if (!libelle) { toast('Dites ce que c’est : une avance, un deuxième versement, le solde.'); return; }
     const existant = f.id ? l.versements.find((x) => x.id === f.id) : undefined;
@@ -563,7 +658,16 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       return;
     }
 
-    const pourquoi = pourquoiOnNeVersePas({ montantXof: montant, estDirection, retenuXof: l.retenuXof, cashbox: f.cashbox });
+    const argent = argentDe(f, montant);
+    /* LA CAISSE DOIT EXISTER ENCORE : un versement prévu garde le nom d'une
+       caisse qui a pu être renommée depuis, et payer d'un tiroir qui n'existe
+       plus écrirait une dépense orpheline, sans monnaie. */
+    if (!caisseDe(f)) { toast('Cette caisse n’existe plus : choisissez d’où sort l’argent.'); return; }
+    const pourquoi = pourquoiOnNeVersePas({
+      montantXof: montant, estDirection, retenuXof: l.retenuXof, cashbox: f.cashbox,
+      coutXof: enDevise ? argent.coutXof : undefined,
+      tiroir: argent.demandeLeTiroir ? argent.tiroir : undefined,
+    });
     if (pourquoi) { toast(pourquoi); return; }
     const verse: Versement = {
       ...socle, libelle, montantXof: montant,
@@ -571,14 +675,19 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     };
     /* LA DÉPENSE ET LE VERSEMENT S'ÉCRIVENT D'UN SEUL GESTE. Demander deux
        saisies garantit qu'une manquera un jour, et la caisse ne tomberait
-       plus juste. */
-    const depense = depenseDuVersement(e, verse, { category: f.category, subcategory: f.subcategory });
+       plus juste. C'est la dépense qui porte le coût en francs et ce que le
+       tiroir a perdu ; le versement ne les recopie pas. */
+    const depense = depenseDuVersement(
+      e, verse, { category: f.category, subcategory: f.subcategory },
+      { coutXof: argent.coutXof, fx: argent.fx, devise: enDevise ? devise : undefined },
+    );
     const v: Versement = { ...verse, expenseId: depense.id };
     setExpenses((prev) => [depense, ...prev]);
     setVersements((prev) => (existant ? prev.map((x) => (x.id === v.id ? v : x)) : [v, ...prev]));
     setFormVers(null);
     setDechargeDe(v.id);
-    toast(`Versé. ${fmtMoney(montant, currency)} sortent de « ${f.cashbox} », la dépense est au journal.`);
+    const sorti = argent.deviseDuTiroir === devise ? dit(montant) : sommeDite(argent.tiroir, argent.deviseDuTiroir, currency);
+    toast(`Versé. ${sorti} sortent de « ${f.cashbox} », la dépense${enDevise ? ` de ${fmtMoney(argent.coutXof, currency)}` : ''} est au journal.`);
   };
 
   const effaceLeVersement = () => {
@@ -637,18 +746,23 @@ function LeDossier({ lecture, onRetour, onModifier }: {
 
   /* CE QUE LE FORMULAIRE DU DEVIS A DÉJÀ CALCULÉ. Une ligne illisible pèse
      zéro ici, et le refus dit laquelle à l'enregistrement. */
-  const lignesSaisies = formDevis ? lignesDeLaSaisie(formDevis.lignes) : [];
+  const lignesSaisies = formDevis ? lignesDeLaSaisie(formDevis.lignes, devise) : [];
   const avecLignes = lignesSaisies.length > 0;
-  const totalSaisi = totalDesLignes(lignesSaisies);
+  const totalSaisi = totalDesLignes(lignesSaisies, devise);
+  /* LE MONTANT DU DEVIS EN COURS DE SAISIE : les lignes, sinon ce qui est tapé. */
+  const montantDuDevis = avecLignes ? totalSaisi : (formDevis ? montantTape(formDevis.montant, devise) : 0);
   const devisEnCours = formDevis?.id ? l.devis.find((d) => d.id === formDevis.id) : undefined;
   const avertCorrection = devisEnCours && formDevis
     ? avertitAvantDeCorriger({
       devis: devisEnCours,
-      nouveauMontantXof: avecLignes ? totalSaisi : enFrancs(formDevis.montant),
+      nouveauMontantXof: montantDuDevis,
       tous: l.devis,
       versements: l.versements,
+      devise,
     })
     : null;
+  /* Des centimes se tapent en euros, jamais en francs. */
+  const clavierDuMontant = decimalesDe(devise) === 2 ? 'decimal' : 'numeric';
   const changeLaLigne = (i: number, champ: keyof LigneSaisie, valeur: string) =>
     setFormDevis((f) => (f ? { ...f, lignes: f.lignes.map((y, j) => (j === i ? { ...y, [champ]: valeur } : y)) } : f));
 
@@ -673,26 +787,26 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-ecran">
         <div className="eng-ecran__tete">
           <b>{e.numero} · {e.objet}</b>
-          <span>{e.prestataire}{e.metier ? ` · ${e.metier}` : ''} · {ETAT_DIT[l.etat]}</span>
+          <span>{e.prestataire}{e.metier ? ` · ${e.metier}` : ''}{enDevise ? ` · en ${nomDeLaDevise(devise)}` : ''} · {ETAT_DIT[l.etat]}</span>
         </div>
         <div className="eng-ecran__corps">
           <div className="eng-kpi">
             <div>
               <span className="l">Retenu au devis</span>
-              <span className="v">{l.retenuXof > 0 ? fmtMoney(l.retenuXof, currency) : 'Rien encore'}</span>
+              <span className="v">{l.retenuXof > 0 ? dit(l.retenuXof) : 'Rien encore'}</span>
               <span className="c">
                 {base ? `devis du ${jourDit(base.recuLe)}` : 'aucun devis retenu'}
-                {l.depassementXof > 0 ? ` · dont ${fmtMoney(l.depassementXof, currency)} d’avenant` : ''}
+                {l.depassementXof > 0 ? ` · dont ${dit(l.depassementXof)} d’avenant` : ''}
               </span>
             </div>
             <div>
               <span className="l">Déjà versé</span>
-              <span className="v">{fmtMoney(l.verseXof, currency)}</span>
+              <span className="v">{dit(l.verseXof)}</span>
               <span className="c">{pluriel(nVerses, 'versement')}, {pluriel(nDecharges, 'décharge')}</span>
             </div>
             <div className="eng-kpi__reste">
               <span className="l">Reste à payer</span>
-              <span className="v">{fmtMoney(l.resteXof, currency)}</span>
+              <span className="v">{dit(l.resteXof)}</span>
               <span className="c">{prochain ? `prochain : ${prochain.libelle.charAt(0).toLowerCase()}${prochain.libelle.slice(1)}` : l.etat === 'solde' ? 'dossier soldé' : 'aucun versement prévu'}</span>
             </div>
           </div>
@@ -717,13 +831,13 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           )}
           {l.tropVerseXof > 0 && (
             <div className="eng-mur">
-              <b>{fmtMoney(l.tropVerseXof, currency)} versés au-delà du devis retenu.</b> À récupérer, ou à déduire
+              <b>{dit(l.tropVerseXof)} versés au-delà du devis retenu.</b> À récupérer, ou à déduire
               d’un prochain avenant : taire ce trop-versé ferait perdre cet argent.
             </div>
           )}
           {l.depassementXof > 0 && (
             <p className="eng-legende">
-              <b>Le devis de base a été dépassé de {fmtMoney(l.depassementXof, currency)}.</b> Un dépassement
+              <b>Le devis de base a été dépassé de {dit(l.depassementXof)}.</b> Un dépassement
               qui ne se nomme pas passe pour le prix convenu.
             </p>
           )}
@@ -769,7 +883,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                             : bientot ? <b className="eng-ambre">{jourDit(d.valableJusquau)}, bientôt</b>
                               : jourDit(d.valableJusquau)}
                       </td>
-                      <td className="num">{fmtMoney(d.montantXof, currency)}</td>
+                      <td className="num">{dit(d.montantXof)}</td>
                       <td>
                         {d.etat === 'retenu' && <Pastille ton="ok">retenu</Pastille>}
                         {d.etat === 'recu' && <Pastille ton="att">à trancher</Pastille>}
@@ -804,8 +918,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                                   <tr key={i}>
                                     <td>{x.description}</td>
                                     <td className="num">{quantiteDite(x.quantite)} ×</td>
-                                    <td className="num">{fmtMoney(x.prixUnitaireXof, currency)}</td>
-                                    <td className="num"><b>{fmtMoney(totalDeLaLigne(x), currency)}</b></td>
+                                    <td className="num">{dit(x.prixUnitaireXof)}</td>
+                                    <td className="num"><b>{dit(totalDeLaLigne(x, devise))}</b></td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -867,8 +981,22 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                         {v.libelle}
                         {v.versePar && <span className="sous">remis par {v.versePar}</span>}
                       </td>
-                      <td>{verse ? [v.method, v.cashbox ? `caisse ${v.cashbox}` : ''].filter(Boolean).join(' · ') : <span className="eng-doux">pas encore versé</span>}</td>
-                      <td className="num">{fmtMoney(v.montantXof, currency)}</td>
+                      <td>
+                        {verse ? [v.method, v.cashbox ? `caisse ${v.cashbox}` : ''].filter(Boolean).join(' · ') : <span className="eng-doux">pas encore versé</span>}
+                        {/* CE QUE ÇA A COÛTÉ, ET CE QUI EST SORTI, lus sur la
+                            dépense liée : c'est elle qui fait foi, et c'est
+                            là que la direction corrige un taux. */}
+                        {verse && (() => {
+                          const dep = v.expenseId ? expenses.find((x) => x.id === v.expenseId) : undefined;
+                          if (!dep) return null;
+                          const dits = [
+                            dep.fx && dep.fx.code !== devise ? `${sommeDite(dep.fx.amount, dep.fx.code, currency)} sortis du tiroir` : '',
+                            enDevise ? `soit ${fmtMoney(dep.amountXof, currency)} pour la Maison` : '',
+                          ].filter(Boolean);
+                          return dits.length > 0 ? <span className="sous">{dits.join(' · ')}</span> : null;
+                        })()}
+                      </td>
+                      <td className="num">{dit(v.montantXof)}</td>
                       <td>
                         {!verse && <Pastille ton="att">prévu, non versé</Pastille>}
                         {verse && !prouve && <Pastille ton="non">en attente de décharge</Pastille>}
@@ -982,10 +1110,10 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <Field label="Son numéro à lui">
                 <Input value={formDevis.numeroPrestataire} autoFocus placeholder="DV-0231" onChange={(ev) => setFormDevis({ ...formDevis, numeroPrestataire: ev.target.value })} />
               </Field>
-              <Field label={avecLignes ? 'Le montant · calculé' : 'Le montant'}>
+              <Field label={avecLignes ? `Le montant · calculé` : `Le montant · ${devise}`}>
                 {avecLignes
-                  ? <Input value={fmtMoney(totalSaisi, currency)} disabled title="Le total des lignes, calculé par le Trône" />
-                  : <Input inputMode="numeric" value={formDevis.montant} placeholder="ou détaillez les lignes" onChange={(ev) => setFormDevis({ ...formDevis, montant: ev.target.value })} />}
+                  ? <Input value={dit(totalSaisi)} disabled title="Le total des lignes, calculé par le Trône" />
+                  : <Input inputMode={clavierDuMontant} value={formDevis.montant} placeholder="ou détaillez les lignes" onChange={(ev) => setFormDevis({ ...formDevis, montant: ev.target.value })} />}
               </Field>
             </div>
             <div className="eng-deux">
@@ -1013,19 +1141,19 @@ function LeDossier({ lecture, onRetour, onModifier }: {
             <div className="eng-lignes-saisie">
               <span className="mnd-field__label">Ce qu’il comprend</span>
               <div className="eng-ligne eng-ligne--tete" aria-hidden="true">
-                <span>Description</span><span>Quantité</span><span>Prix unitaire</span><span>Total</span><span />
+                <span>Description</span><span>Quantité</span><span>Prix unitaire · {devise}</span><span>Total</span><span />
               </div>
               {formDevis.lignes.map((x, i) => {
-                const lue = ligneDeLaSaisie(x);
+                const lue = ligneDeLaSaisie(x, devise);
                 const remplie = !!(x.description.trim() || x.prix.trim());
                 const illisible = remplie && (Number.isNaN(lue.quantite) || Number.isNaN(lue.prixUnitaireXof));
                 return (
                   <div key={i} className="eng-ligne">
                     <Input aria-label={`Ligne ${i + 1}, description`} value={x.description} placeholder="Madrier" onChange={(ev) => changeLaLigne(i, 'description', ev.target.value)} />
                     <Input aria-label={`Ligne ${i + 1}, quantité`} inputMode="decimal" value={x.quantite} onChange={(ev) => changeLaLigne(i, 'quantite', ev.target.value)} />
-                    <Input aria-label={`Ligne ${i + 1}, prix unitaire`} inputMode="numeric" value={x.prix} placeholder="25 000" onChange={(ev) => changeLaLigne(i, 'prix', ev.target.value)} />
+                    <Input aria-label={`Ligne ${i + 1}, prix unitaire`} inputMode={clavierDuMontant} value={x.prix} placeholder={enDevise ? '12,50' : '25 000'} onChange={(ev) => changeLaLigne(i, 'prix', ev.target.value)} />
                     <span className={`eng-ligne__total${illisible ? ' eng-brique' : ''}`}>
-                      {illisible ? 'à corriger' : remplie ? fmtMoney(totalDeLaLigne(lue), currency) : ''}
+                      {illisible ? 'à corriger' : remplie ? dit(totalDeLaLigne(lue, devise)) : ''}
                     </span>
                     <button
                       type="button"
@@ -1043,7 +1171,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                 <button type="button" className="eng-lien" onClick={() => setFormDevis({ ...formDevis, lignes: [...formDevis.lignes, LIGNE_VIDE] })}>
                   + Une ligne
                 </button>
-                <span>Total du devis<b>{fmtMoney(avecLignes ? totalSaisi : enFrancs(formDevis.montant), currency)}</b></span>
+                <span>Total du devis<b>{dit(montantDuDevis)}</b></span>
               </div>
             </div>
             {base && base.id !== devisEnCours?.id && devisEnCours?.etat !== 'retenu' && (
@@ -1088,12 +1216,12 @@ function LeDossier({ lecture, onRetour, onModifier }: {
             <div className="eng-formulaire">
               <div className="eng-recap">
                 <span>{aRetenir.numeroPrestataire || 'Devis sans numéro'}<span className="sous">reçu le {jourDit(aRetenir.recuLe)}</span></span>
-                <b>{fmtMoney(aRetenir.montantXof, currency)}</b>
+                <b>{dit(aRetenir.montantXof)}</b>
               </div>
               {avert && <div className="eng-mur">{avert}</div>}
               <p className="eng-legende">
                 {aRetenir.avenant
-                  ? `Le retenu passera à ${fmtMoney(l.retenuXof + aRetenir.montantXof, currency)}. Les autres devis ne bougent pas.`
+                  ? `Le retenu passera à ${dit(retenuXof([...l.devis.filter((d) => d.id !== aRetenir.id), { ...aRetenir, etat: 'retenu' }]))}. Les autres devis ne bougent pas.`
                   : [
                     base ? `Le devis retenu jusqu’ici sera marqué remplacé.` : '',
                     autres > 0 ? `${pluriel(autres, 'autre devis', 'autres devis')} en attente ${autres > 1 ? 'seront écartés' : 'sera écarté'}, sans être effacés.` : '',
@@ -1110,11 +1238,12 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       })()}
 
       {formVers && (() => {
-        const montant = enFrancs(formVers.montant);
+        const montant = montantTape(formVers.montant, devise);
         const avert = formVers.mode === 'verser'
-          ? avertitAvantDeVerser({ montantXof: montant, retenuXof: l.retenuXof, dejaVerseXof: l.verseXof })
+          ? avertitAvantDeVerser({ montantXof: montant, retenuXof: l.retenuXof, dejaVerseXof: l.verseXof, devise })
           : null;
         const sous = categories.find((c) => c.name === formVers.category)?.subs ?? [];
+        const argent = argentDe(formVers, montant);
         return (
           <Modal
             title={formVers.mode === 'verser' ? 'Verser au prestataire.' : formVers.id ? 'Corriger le versement prévu.' : 'Prévoir un versement.'}
@@ -1126,13 +1255,15 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                 <Field label="Ce que c’est">
                   <Input value={formVers.libelle} autoFocus placeholder="Avance à la commande" onChange={(ev) => setFormVers({ ...formVers, libelle: ev.target.value })} />
                 </Field>
-                <Field label="Le montant">
-                  <Input inputMode="numeric" value={formVers.montant} onChange={(ev) => setFormVers({ ...formVers, montant: ev.target.value })} />
+                <Field label={`Le montant · ${devise}`}>
+                  {/* UN MONTANT QUI CHANGE EFFACE LE COÛT ET LE TIROIR TAPÉS : ils
+                      valaient pour l'ancien montant, pas pour celui-ci. */}
+                  <Input inputMode={clavierDuMontant} value={formVers.montant} onChange={(ev) => setFormVers({ ...formVers, montant: ev.target.value, cout: '', tiroir: '' })} />
                 </Field>
               </div>
               {l.retenuXof > 0 && (
                 <p className="eng-legende">
-                  Retenu {fmtMoney(l.retenuXof, currency)}, déjà versé {fmtMoney(l.verseXof, currency)}, reste {fmtMoney(l.resteXof, currency)}.
+                  Retenu {dit(l.retenuXof)}, déjà versé {dit(l.verseXof)}, reste {dit(l.resteXof)}.
                 </p>
               )}
 
@@ -1152,14 +1283,57 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                 <>
                   <div className="eng-deux">
                     <Field label="D’où sort l’argent">
-                      <Select value={formVers.cashbox} onChange={(ev) => setFormVers({ ...formVers, cashbox: ev.target.value })}>
-                        {caisses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      <Select value={formVers.cashbox} onChange={(ev) => setFormVers({ ...formVers, cashbox: ev.target.value, tiroir: '' })}>
+                        {caisses.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}{cashboxCurrency(c) !== DEVISE_DE_LA_MAISON ? ` · ${cashboxCurrency(c)}` : ''}
+                          </option>
+                        ))}
                       </Select>
                     </Field>
                     <Field label="Le jour">
                       <ChampDeDate compact sens="arriere" value={formVers.jour} onChange={(iso) => setFormVers({ ...formVers, jour: iso })} />
                     </Field>
                   </div>
+                  {/* ── LES AUTRES MONNAIES DU VERSEMENT — 15 septembre 2026 ──
+                      Le taux indicatif pré-remplit, la main corrige au taux
+                      réellement pratiqué, et c'est la main qui fait foi. */}
+                  {argent.demandeLeCout && (
+                    <Field label="Ce que cela coûte à la Maison · francs">
+                      <Input
+                        inputMode="numeric"
+                        value={formVers.cout}
+                        placeholder={String(argent.suggestionCout)}
+                        onChange={(ev) => setFormVers({ ...formVers, cout: ev.target.value })}
+                      />
+                      <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+                        C’est ce coût qui entre aux Dépenses. Rempli au taux indicatif de la Maison
+                        ({rateToXof(devise).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} F pour 1 {devise}), corrigez-le au taux
+                        réellement pratiqué, il fait foi.
+                        {montant > 0 && argent.coutXof > 0 && ` Ici : ${(argent.coutXof / montant).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} F par ${devise}.`}
+                      </span>
+                    </Field>
+                  )}
+                  {argent.demandeLeTiroir && (
+                    <Field label={`Ce qui sort du tiroir · ${argent.deviseDuTiroir}`}>
+                      <Input
+                        inputMode="decimal"
+                        value={formVers.tiroir}
+                        placeholder={quantiteDite(argent.suggestionTiroir)}
+                        onChange={(ev) => setFormVers({ ...formVers, tiroir: ev.target.value })}
+                      />
+                      <span className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, display: 'block', lineHeight: 1.5 }}>
+                        « {formVers.cashbox} » compte ses billets en {argent.deviseDuTiroir}. Écrivez ce qui en sort réellement.
+                      </span>
+                    </Field>
+                  )}
+                  {/* LA CAISSE COMPTE DANS LA MONNAIE DU DOSSIER : rien à demander,
+                      elle perd exactement ce qu'il reçoit. */}
+                  {enDevise && argent.deviseDuTiroir === devise && montant > 0 && (
+                    <p className="eng-legende">
+                      « {formVers.cashbox} » compte en {devise} : elle perd {dit(montant)}.
+                    </p>
+                  )}
                   <Field label="Par quel moyen">
                     <Select value={formVers.method} onChange={(ev) => setFormVers({ ...formVers, method: ev.target.value })}>
                       {moyensAOffrir(moyensPoses, formVers.method).map((m) => <option key={m} value={m}>{m}</option>)}
@@ -1216,7 +1390,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           <div className="eng-formulaire">
             <div className="eng-recap">
               <span>{aEffacer.libelle}<span className="sous">{estVerse(aEffacer) ? `versé le ${jourDit(aEffacer.verseLe)}` : 'prévu, non versé'}</span></span>
-              <b>{fmtMoney(aEffacer.montantXof, currency)}</b>
+              <b>{dit(aEffacer.montantXof)}</b>
             </div>
             <p className="eng-legende">
               {aEffacer.expenseId
@@ -1236,7 +1410,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           <div className="eng-formulaire">
             <p className="eng-legende">
               Le dossier se ferme sans se solder : ses devis et ses versements restent, et il se rouvre d’un geste.
-              {l.verseXof > 0 ? ` ${fmtMoney(l.verseXof, currency)} ont déjà été versés : gardez-en les décharges.` : ''}
+              {l.verseXof > 0 ? ` ${dit(l.verseXof)} ont déjà été versés : gardez-en les décharges.` : ''}
             </p>
             <div className="eng-actions">
               <Button variant="ghost" onClick={() => setAbandon(false)}>Garder ouvert</Button>
@@ -1316,6 +1490,9 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose, onDeposeLIdenti
     objet: e.objet,
     devisNumero: base?.numeroPrestataire,
     devisDate: base?.recuLe,
+    /* « SEPT CENTS EUROS », pas « francs CFA » : la décharge dit la monnaie
+       du dossier, celle qu'il a reçue. */
+    devise: lecture.devise,
   });
 
   /** LE PAPIER. Signé, c'est son exemplaire ; sans signature, c'est la
@@ -1479,7 +1656,7 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose, onDeposeLIdenti
                 </div>
               </>
             )}
-            <p className="eng-legende">{fmtMoney(versement.montantXof, currency)} versés le {jourLongDit(versement.verseLe)}.</p>
+            <p className="eng-legende">{sommeDite(versement.montantXof, lecture.devise, currency)} versés le {jourLongDit(versement.verseLe)}.</p>
           </>
         )}
       </div>

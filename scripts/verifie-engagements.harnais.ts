@@ -8,7 +8,8 @@
    faux, une somme en lettres qui ne dit pas la même chose que les chiffres,
    une avance qui passe pour prouvée sans décharge, et une pièce d'identité
    qu'on garde au-delà de ce qui sert. */
-import { nombreEnLettres, nombreEnChiffres } from '../src/shared/lettres';
+import { nombreEnLettres, nombreEnChiffres, sommeEnLettres, sommeEnChiffres, arrondiDans, decimalesDe } from '../src/shared/lettres';
+import { fmtMoney, rateToXof } from '../src/shared/currency';
 import {
   jourLongDit, decaleLeJour, numeroEngagementSuivant,
   retenuXof, devisDeBase, depassementXof, devisExpire, devisExpireBientot,
@@ -22,6 +23,7 @@ import {
   ligneDeLaSaisie, lignesDeLaSaisie, LIGNE_VIDE,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
   pourquoiLaDechargeNePeutPasSeFaire, travauxAVenir,
+  argentDuVersement, pourquoiLaDeviseNeChangePas, sommeDite, restesDits,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -260,8 +262,8 @@ dit('le devis qui expire bientôt est vu', ['s1'], lectures[1].expirentBientot.m
 dit('un dossier abandonné ne fait plus sonner ses devis', [],
   litLesDossiers([{ ...dossiers[1], abandonneLe: AUJ }], [enseigne], [], 'b1', AUJ)[0].expirentBientot);
 const bilan = bilanDesEngagements(lectures);
-dit('le bilan du Tableau de bord', [1, 1090000, 1, 1],
-  [bilan.enCours, bilan.resteXof, bilan.sansDecharge, bilan.devisQuiExpirent.length]);
+dit('le bilan du Tableau de bord', [1, [{ devise: 'XOF', montant: 1090000 }], 1, 1],
+  [bilan.enCours, bilan.restes, bilan.sansDecharge, bilan.devisQuiExpirent.length]);
 
 /* ══ LES LIGNES D'UN DEVIS ═══════════════════════════════════════════
    « Description, quantité et prix avec un calcul total » (Yéman). Le
@@ -274,6 +276,15 @@ dit('… une remise, négative', -5000, lisLeNombre('-5 000'));
 dit('une case vide vaut zéro', 0, lisLeNombre(''));
 /* UN CALCUL N'EST PAS UN NOMBRE : on ne devine pas ce qu'il voulait dire. */
 dit('un calcul ne se lit pas', true, Number.isNaN(lisLeNombre('25000*2')));
+/* LE POINT DES MILLIERS, à la française : « 25.000 » est vingt-cinq mille. */
+dit('le point qui sépare les milliers', 25000, lisLeNombre('25.000'));
+dit('… même plusieurs', 1234567, lisLeNombre('1.234.567'));
+dit('… avec des décimales à la virgule', 1234.5, lisLeNombre('1.234,50'));
+dit('un point suivi d’un seul chiffre reste une décimale', 12.5, lisLeNombre('12.5'));
+/* UN ZÉRO TAPÉ EN LETTRE NE DEVIENT PAS DOUZE. */
+dit('des lettres collées au nombre ne se lisent pas', true, Number.isNaN(lisLeNombre('12ooo')));
+dit('… sauf une monnaie que la Maison connaît', 700, lisLeNombre('700 EUR'));
+dit('des lettres seules ne se lisent pas', true, Number.isNaN(lisLeNombre('abc')));
 dit('la quantité se dit à la française', '3,5', quantiteDite(3.5));
 
 const madriers = ligneDeLaSaisie({ description: ' Madrier ', quantite: '2', prix: '25 000' });
@@ -385,6 +396,136 @@ dit('un résumé vide ne compte pas', [], travauxAVenir([{ ...k2Retenu, descript
 dit('le résumé se corrige comme le reste', 'Deux étagères et portes moustiquaires',
   corrigeLeDevis(e1Retenu, 'k2', { description: 'Deux étagères et portes moustiquaires' }, 'Y. B.', AUJ)
     .find((d) => d.id === 'k2')?.description);
+
+/* ══ PAYER EN DEVISES ════════════════════════════════════════════════
+   « Me permettre de payer des prestataires en devises, pas seulement en
+   CFA » (Yéman). Tranché : le dossier vit dans sa devise. */
+
+/* ── LA SOMME, DANS SA MONNAIE ─────────────────────────────────────── */
+dit('le franc CFA ne change pas de phrase', 'sept cent quarante mille francs CFA', sommeEnLettres(740000, 'XOF'));
+dit('… ni de chiffres', '740 000 F', sommeEnChiffres(740000, 'XOF'));
+dit('un million de francs CFA', 'un million de francs CFA', sommeEnLettres(1000000, 'XOF'));
+dit('le franc n’a pas de centimes', 'douze francs CFA', sommeEnLettres(12.4, 'XOF'));
+dit('des euros et des centimes', 'sept cent quarante euros et cinquante centimes', sommeEnLettres(740.5, 'EUR'));
+dit('… en chiffres', '740,50 €', sommeEnChiffres(740.5, 'EUR'));
+dit('pas de « ,00 » quand il n’y a pas de centimes', '1 250 €', sommeEnChiffres(1250, 'EUR'));
+dit('un euro, au singulier', 'un euro', sommeEnLettres(1, 'EUR'));
+dit('deux millions d’euros, avec l’élision', 'deux millions d’euros', sommeEnLettres(2000000, 'EUR'));
+dit('des centimes seuls', 'vingt-neuf cents', sommeEnLettres(0.29, 'USD'));
+dit('la livre est féminine', 'vingt et une livres sterling', sommeEnLettres(21, 'GBP'));
+dit('le dollar dit d’où il vient', '1 000 $ US', sommeEnChiffres(1000, 'USD'));
+dit('arrondir au centime', 37.05, arrondiDans(3 * 12.35, 'EUR'));
+dit('arrondir au franc', 3, arrondiDans(2.5, 'XOF'));
+/* UNE MONNAIE QUE LA MAISON NE SAIT PAS NOMMER suit la liste des monnaies
+   sans centimes de l'affichage : le franc guinéen n'a pas de centimes ici
+   et pas là. */
+dit('le franc guinéen n’a pas de centimes', 0, decimalesDe('GNF'));
+dit('… un code inconnu à centimes en garde deux', 2, decimalesDe('KES'));
+
+/* ── LA SOMME À L'ÉCRAN — la même que sur la décharge ──────────────── */
+dit('en francs, l’écran passe par fmtMoney, comme tout le Trône', fmtMoney(90000, 'XOF'), sommeDite(90000, 'XOF', 'XOF'));
+dit('en devise, l’écran garde les centimes de la décharge', '1 250,50 €', sommeDite(1250.5, 'EUR', 'XOF'));
+dit('le reste se dit devise par devise', `${fmtMoney(1090000, 'XOF')} · 700,50 €`,
+  restesDits([{ devise: 'XOF', montant: 1090000 }, { devise: 'EUR', montant: 700.5 }], 'XOF'));
+dit('sans reste, zéro franc', fmtMoney(0, 'XOF'), restesDits([], 'XOF'));
+
+/* ── LES LIGNES ET LES SOMMES, AU CENTIME ──────────────────────────── */
+dit('une ligne en euros garde ses centimes', 37.05,
+  totalDeLaLigne(ligneDeLaSaisie({ description: 'Vis inox', quantite: '3', prix: '12,35' }, 'EUR'), 'EUR'));
+dit('le prix en euros se lit avec son signe', 12.35, lisLeNombre('12,35 €', 'EUR'));
+dit('… et avec son code', 700, lisLeNombre('700 EUR', 'EUR'));
+dit('le franc se lit avec son F', 25000, lisLeNombre('25 000 F', 'XOF'));
+/* « 700 USD » DANS UN DOSSIER EN EUROS N'EST PAS SEPT CENTS EUROS. */
+dit('une autre monnaie que celle du dossier ne se lit pas', true, Number.isNaN(lisLeNombre('700 USD', 'EUR')));
+/* 0,1 + 0,2 NE FAIT PAS 0,3 POUR UNE MACHINE : sans l'arrondi, ce dossier
+   resterait « en cours » pour une poussière. */
+dit('un dossier en euros se solde au centime près', 'solde',
+  etatDuDossier({}, [
+    dv({ id: 'eu1', montantXof: 0.1, etat: 'retenu' }),
+    dv({ id: 'eu2', montantXof: 0.2, etat: 'retenu', avenant: true }),
+  ], [vs({ id: 'eu3', montantXof: 0.3, verseLe: AUJ })]));
+
+/* ── LE TEXTE DE LA DÉCHARGE, EN EUROS ─────────────────────────────── */
+dit('la décharge dit la devise du dossier',
+  'Je soussigné(e) K. A., reconnais avoir reçu de L’atelier MND la somme de '
+  + 'sept cent quarante euros et cinquante centimes (740,50 €), à titre de solde.',
+  texteDeLaDecharge({ prestataire: 'K. A.', maison: 'L’atelier MND', montantXof: 740.5, libelle: 'Solde', devise: 'EUR' }));
+dit('verser au-delà dit la devise', 'Ce versement dépasse le devis retenu de 50 €.',
+  avertitAvantDeVerser({ montantXof: 600, retenuXof: 1000, dejaVerseXof: 450, devise: 'EUR' }));
+
+/* ── LES TROIS MONNAIES D'UN VERSEMENT ─────────────────────────────── */
+const taux = (c: string) => ({ XOF: 1, EUR: 655.96, USD: 601 } as Record<string, number>)[c] ?? 0;
+const enFrancsSeuls = argentDuVersement({ montant: 740000, devise: 'XOF', deviseDuTiroir: 'XOF', tauxIndicatif: taux });
+dit('tout en francs : rien à demander', [740000, false, false, 740000, undefined],
+  [enFrancsSeuls.coutXof, enFrancsSeuls.demandeLeCout, enFrancsSeuls.demandeLeTiroir, enFrancsSeuls.tiroir, enFrancsSeuls.fx]);
+
+const euroParEuro = argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'EUR', tauxIndicatif: taux });
+dit('un dossier en euros payé en euros : le coût est proposé au taux indicatif', [459172, true, false, 700],
+  [euroParEuro.coutXof, euroParEuro.demandeLeCout, euroParEuro.demandeLeTiroir, euroParEuro.tiroir]);
+dit('… et le tiroir en euros le sait', ['EUR', 700, 655.96],
+  [euroParEuro.fx?.code, euroParEuro.fx?.amount, euroParEuro.fx?.rate]);
+/* LE TAUX INDICATIF EST UN POINT DE DÉPART : la main fait foi. */
+dit('le taux réellement pratiqué remplace l’indicatif', 462000,
+  argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'EUR', coutSaisi: 462000, tauxIndicatif: taux }).coutXof);
+/* UN ZÉRO OU UN GRIBOUILLIS TAPÉ N'EST PAS REMPLACÉ EN DOUCE PAR LA
+   SUGGESTION : il donne zéro, et zéro se refuse. */
+dit('un zéro tapé ne redevient pas la suggestion', 0,
+  argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'EUR', coutSaisi: 0, tauxIndicatif: taux }).coutXof);
+dit('un coût illisible donne zéro', 0,
+  argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'EUR', coutSaisi: NaN, tauxIndicatif: taux }).coutXof);
+dit('… et se refuse', 'Dites ce que ce versement coûte à la Maison, en francs.',
+  pourquoiOnNeVersePas({ montantXof: 700, estDirection: true, retenuXof: 1000, cashbox: 'EUR', coutXof: 0 }));
+
+const euroParFrancs = argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'XOF', coutSaisi: 462000, tauxIndicatif: taux });
+dit('un dossier en euros payé d’une caisse en francs : ce qui sort, c’est le coût', [462000, 462000, false, undefined],
+  [euroParFrancs.coutXof, euroParFrancs.tiroir, euroParFrancs.demandeLeTiroir, euroParFrancs.fx]);
+
+const francsParDollars = argentDuVersement({ montant: 601000, devise: 'XOF', deviseDuTiroir: 'USD', tauxIndicatif: taux });
+dit('un dossier en francs payé en dollars : on demande ce qui sort du tiroir', [601000, false, true, 1000, 'USD'],
+  [francsParDollars.coutXof, francsParDollars.demandeLeCout, francsParDollars.demandeLeTiroir, francsParDollars.tiroir, francsParDollars.fx?.code]);
+
+const troisMonnaies = argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'USD', tiroirSaisi: 760, tauxIndicatif: taux });
+dit('euros dus, dollars sortis, francs comptés : les trois se demandent', [true, true, 764.01, 760, 459172],
+  [troisMonnaies.demandeLeCout, troisMonnaies.demandeLeTiroir, troisMonnaies.suggestionTiroir, troisMonnaies.tiroir, troisMonnaies.coutXof]);
+
+/* UNE CAISSE DANS UNE MONNAIE SANS TAUX CONNU PROPOSE ZÉRO, et zéro n'est
+   pas ce qu'elle a perdu : le versement le réclame. `rateToXof` est ce que
+   l'écran injecte, et il rend zéro pour ce qu'il ne connaît pas. */
+const sansTaux = argentDuVersement({ montant: 700, devise: 'EUR', deviseDuTiroir: 'GNF', tauxIndicatif: rateToXof });
+dit('une caisse dans une monnaie sans taux ne propose rien', [0, undefined], [sansTaux.tiroir, sansTaux.fx]);
+dit('… et le versement le réclame', 'Dites ce qui sort du tiroir, dans sa monnaie.',
+  pourquoiOnNeVersePas({ montantXof: 700, estDirection: true, retenuXof: 1000, cashbox: 'GNF', coutXof: 459172, tiroir: 0 }));
+
+/* ── LA DÉPENSE, EN FRANCS, AVEC SA DEVISE AU LIBELLÉ ─────────────── */
+const depEnEuros = depenseDuVersement(eng, { ...avance, montantXof: 700 }, { category: 'Équipement' },
+  { coutXof: 459172, fx: { code: 'EUR', rate: 655.96, amount: 700 }, devise: 'EUR' });
+dit('la dépense porte le coût en francs, le tiroir et la devise au libellé',
+  [459172, 700, 'ENG-2026-004 · Menuiserie K. · Avance à la commande · 700 €'],
+  [depEnEuros.amountXof, depEnEuros.fx?.amount, depEnEuros.label]);
+/* EN FRANCS, LA DÉPENSE NE CHANGE PAS DE FORME : ni suffixe, ni fx. */
+dit('en francs, rien de plus qu’avant', [740000, false, 'ENG-2026-004 · Menuiserie K. · Avance à la commande'],
+  [dep.amountXof, 'fx' in dep, dep.label]);
+
+/* ── LE DOSSIER, SA DEVISE, SON BILAN ──────────────────────────────── */
+dit('un dossier sans devise est en francs', 'XOF',
+  litLesDossiers([dossiers[2]], [], [], 'b1', AUJ)[0].devise);
+dit('un dossier en euros le dit', 'EUR',
+  litLesDossiers([{ ...dossiers[2], devise: 'EUR' }], [], [], 'b1', AUJ)[0].devise);
+const miroirs: Engagement = { id: 'e5', branchId: 'b1', numero: 'ENG-2026-006', prestataire: 'Atelier P.', objet: 'miroirs', creeLe: AUJ, devise: 'EUR' };
+const bilanDeuxDevises = bilanDesEngagements(litLesDossiers(
+  [...dossiers, miroirs],
+  [...e1Retenu, enseigne, dv({ id: 'm1', engagementId: 'e5', montantXof: 700.5, etat: 'retenu' })],
+  [...versements, sansPreuve], 'b1', AUJ,
+));
+/* ON N'ADDITIONNE PAS DES EUROS ET DES FRANCS. */
+dit('le reste se dit devise par devise, le franc d’abord',
+  [{ devise: 'XOF', montant: 1090000 }, { devise: 'EUR', montant: 700.5 }], bilanDeuxDevises.restes);
+dit('la devise se choisit tant que le dossier est vide', null, pourquoiLaDeviseNeChangePas({ devis: [], versements: [] }));
+dit('elle ne change plus après le premier devis',
+  'Des montants sont déjà rangés dans cette devise : la monnaie d’un dossier ne change plus après son premier devis ou son premier versement.',
+  pourquoiLaDeviseNeChangePas({ devis: [k1], versements: [] }));
+dit('… ni après un versement seulement prévu', true,
+  pourquoiLaDeviseNeChangePas({ devis: [], versements: [prevu] }) !== null);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

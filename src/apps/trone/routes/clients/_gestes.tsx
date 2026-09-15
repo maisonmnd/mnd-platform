@@ -26,6 +26,7 @@ import {
   type CodePromo,
 } from '../../../../shared/promos';
 import { lienPaiementMomo, useAutoConfig } from '../equipe/data';
+import { laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS } from '../../../../shared/conversations';
 import { todayISO } from './_shared';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -377,10 +378,14 @@ export function PanneauDeLaPromo({
                 « Combien Meta facture une conversation de 24 h ? » (Yéman).
                 Ce panneau ne disait rien du coût, alors que c'est le geste qui
                 envoie des modèles MARKETING — les plus chers de tous. */}
+            {/* LE 1er OCTOBRE 2026, LA FENÊTRE SE PAIE : voir `laFenetreSePaie`.
+                Et un modèle marketing s'est toujours payé, fenêtre ouverte ou non. */}
             <p className="trc-sub">
-              <b>Pendant une fenêtre ouverte, cet envoi ne coûte rien.</b> Hors fenêtre,
-              il faudrait un modèle marketing approuvé, et Meta facture chaque modèle
-              envoyé — depuis juillet 2025, au message et non à la conversation.
+              {laFenetreSePaie()
+                ? <><b>Pendant une fenêtre ouverte, cet envoi compte parmi les {REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites du mois.</b></>
+                : <><b>Pendant une fenêtre ouverte, cet envoi ne coûte rien</b> jusqu’au 30 septembre. Ensuite, il comptera parmi les {REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites du mois.</>}
+              {' '}Hors fenêtre, il faudrait un modèle marketing approuvé, et Meta le facture
+              toujours, au message.
             </p>
 
             <p className="trc-sub">

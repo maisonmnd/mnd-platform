@@ -35,7 +35,7 @@ import './pilotage.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import {
-  useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
+  useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
@@ -522,7 +522,10 @@ export default function Dashboard() {
         ? `${engagementsDus.enCours} engagement${engagementsDus.enCours > 1 ? 's' : ''} en cours`
         : `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`,
       sub: [
-        engagementsDus.enCours > 0 ? `${fmtMoney(engagementsDus.resteXof, currency)} restent à payer` : '',
+        /* DEVISE PAR DEVISE : « 1 090 000 F · 700 € restent à payer ». */
+        engagementsDus.enCours > 0
+          ? `${restesDits(engagementsDus.restes, currency)} restent à payer`
+          : '',
         engagementsDus.enCours > 0 && engagementsDus.sansDecharge > 0
           ? `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`
           : '',

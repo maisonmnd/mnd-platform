@@ -11,6 +11,7 @@ import {
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
+  laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
   useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil,
 } from '../../../../shared/conversations';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
@@ -587,16 +588,28 @@ export default function Conversations() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
               Les clientes
             </Button>
-            {modelesDuMois.envoyes > 0 && (
+            {(modelesDuMois.envoyes > 0 || modelesDuMois.reponses > 0) && (
               <span
                 className="trc-sub"
                 style={{ fontSize: 11.5, marginRight: 'auto' }}
                 title={modelesDuMois.parModele
                   .map((m) => `${m.nom} · ${m.factures} facturés, ${m.gratuits} gratuits`)
-                  .join(' — ')}
+                  .join('\n')}
               >
                 Ce mois : <b>{modelesDuMois.factures}</b> modèle{modelesDuMois.factures > 1 ? 's' : ''} facturé{modelesDuMois.factures > 1 ? 's' : ''}
                 {modelesDuMois.gratuits > 0 ? `, ${modelesDuMois.gratuits} gratuit${modelesDuMois.gratuits > 1 ? 's' : ''}` : ''}
+                {/* DEPUIS LE 1er OCTOBRE 2026, LES RÉPONSES COMPTENT AUSSI : voir
+                    `laFenetreSePaie`. Le palier se lit ici, là où l'on décide
+                    d'écrire, pas sur la facture de Meta un mois plus tard. */}
+                {laFenetreSePaie() && (
+                  <>
+                    {' · '}<b>{modelesDuMois.reponses}</b> réponse{modelesDuMois.reponses > 1 ? 's' : ''} sur
+                    {' '}{REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} gratuites
+                    {modelesDuMois.reponsesFacturees > 0
+                      ? `, ${modelesDuMois.reponsesFacturees} facturée${modelesDuMois.reponsesFacturees > 1 ? 's' : ''}`
+                      : ''}
+                  </>
+                )}
               </span>
             )}
             <Button variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
@@ -860,7 +873,9 @@ export default function Conversations() {
                       <span className="trc-sub" style={{ fontSize: 12 }}>
                         WhatsApp n’accepte plus que vos modèles approuvés. <b>Meta facture
                         le modèle</b>, pas la conversation : une fois qu’elle vous aura
-                        répondu, les 24 h qui suivent sont gratuites.
+                        répondu, {laFenetreSePaie()
+                          ? `vos réponses entrent dans les ${REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} gratuites du mois.`
+                          : `les 24 h qui suivent sont gratuites jusqu’au 30 septembre, puis ${REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites par mois.`}
                       </span>
                     </>
                   )}
@@ -998,8 +1013,19 @@ export default function Conversations() {
                 : ''}
             </p>
             <p className="trc-sub">
-              <b>Ce qui ne coûte rien :</b> attendre qu’elle vous écrive. Les 24 heures
-              qui suivent son message sont gratuites, autant de réponses que vous voulez.
+              {laFenetreSePaie() ? (
+                <>
+                  <b>Ce qui peut ne rien coûter :</b> attendre qu’elle vous écrive. Vos réponses
+                  entrent alors dans les {REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} gratuites
+                  du mois, dont <b>{modelesDuMois.reponses}</b> déjà utilisée{modelesDuMois.reponses > 1 ? 's' : ''}.
+                </>
+              ) : (
+                <>
+                  <b>Ce qui ne coûte rien :</b> attendre qu’elle vous écrive. Les 24 heures qui
+                  suivent son message sont gratuites jusqu’au 30 septembre, puis
+                  {' '}{REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites par mois.
+                </>
+              )}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <Button variant="ghost" size="sm" onClick={() => setModeleAConfirmer(null)}>
@@ -1043,9 +1069,11 @@ export default function Conversations() {
             <div className="trc-modal__t">Commencer une conversation</div>
             <p className="trc-sub" style={{ marginTop: 0 }}>
               <b>Si elle ne vous a jamais écrit</b>, WhatsApp n’acceptera qu’un de vos
-              trois modèles approuvés, <b>et Meta facture ce modèle-là</b> — pas la
+              trois modèles approuvés, <b>et Meta facture ce modèle-là</b>, pas la
               conversation qu’il ouvre. Si elle vous a écrit dans les 24 heures, vous
-              écrirez librement, et sans un franc.
+              écrirez librement, {laFenetreSePaie()
+                ? `dans la limite des ${REPONSES_GRATUITES_DU_MOIS.toLocaleString('fr-FR')} réponses gratuites du mois.`
+                : 'et sans un franc jusqu’au 30 septembre.'}
             </p>
 
             <div className="trc-sec-label" style={{ marginBottom: 6 }}>Une tête de la Maison</div>

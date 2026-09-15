@@ -41,6 +41,12 @@ Entrées : `index` (portail), `trone`, `couronne`, `consultation`, `lokaa`,
 - **La branche impose sa devise partout.** Tout est filtré par branche.
 - **Les montants sont stockés en XOF**, affichés via `fmtMoney(xof, devise)`.
   Jamais de montant affiché sans passer par là.
+  - *Une exception, documentée (15 septembre 2026) : l'engagement en devise.*
+    Un dossier des Engagements peut vivre en euros ou en dollars
+    (`Engagement.devise`) : ses devis et ses versements sont alors rangés dans
+    cette devise (les champs gardent leur nom `…Xof`, historique) et
+    s'affichent par `sommeDite`, avec leurs centimes. La dépense que crée
+    chaque versement, elle, reste en XOF, avec `fx` pour le tiroir.
 - **Un rendez-vous ne stocke que des identifiants** de prestation, pas la maison
   ni la catégorie : la ventilation se recalcule à l'affichage depuis le catalogue
   courant. Déplacer une prestation reclasse donc tout l'historique.

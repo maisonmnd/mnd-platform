@@ -1,8 +1,16 @@
 import { createStore, useStore, uid } from './store';
 import { bindCollection } from './sync';
 import { signatureInvalide, type SignatureTracee } from './contrats';
-import { nombreEnLettres, nombreEnChiffres } from './lettres';
+import { sommeEnLettres, sommeEnChiffres, arrondiDans, DEVISES } from './lettres';
+import { fmtMoney } from './currency';
 import type { Expense, PieceJointe } from './finance';
+
+/** LE FRANC CFA EST LA BASE DE TOUS LES MONTANTS DU TRÔNE (CLAUDE.md), et
+    donc d'un dossier qui n'a pas choisi d'autre monnaie. C'est une constante,
+    pas la devise d'affichage de la branche : celle-ci se règle dans Système ›
+    Branches, et une somme rangée ne change pas d'unité parce qu'un réglage a
+    changé. */
+export const DEVISE_DE_LA_MAISON = 'XOF';
 
 /* ══ LES ENGAGEMENTS — 15 septembre 2026 ═════════════════════════════════
 
@@ -61,6 +69,18 @@ export type Engagement = {
   /** CE QU'ON RANGE À CÔTÉ : une attestation, un plan, les photos du chantier.
       Le devis et la décharge papier ont leur place à eux, sur leur ligne. */
   pieces?: PieceDuDossier[];
+  /** LA DEVISE DU DOSSIER — 15 septembre 2026. Absente = le franc CFA
+      (`DEVISE_DE_LA_MAISON`). « Me permettre de payer des prestataires en
+      devises » (Yéman) : tranché, LE DOSSIER VIT DANS SA DEVISE. Devis,
+      lignes, versements et reste à payer sont dans cette monnaie, parce que
+      c'est elle qu'on doit ; la dépense de chaque versement, elle, reste en
+      francs (`Expense.amountXof`, avec `fx` pour le tiroir).
+
+      LES CHAMPS `…Xof` DES DEVIS, DES LIGNES ET DES VERSEMENTS PORTENT DONC
+      DES MONTANTS DANS CETTE DEVISE. Le nom est historique, comme
+      `Cashbox.openingXof` : le renommer casserait les dossiers déjà rangés.
+      C'est l'exception documentée dans CLAUDE.md. */
+  devise?: string;
 };
 
 export type EtatDevis = 'recu' | 'retenu' | 'ecarte' | 'remplace';
@@ -130,6 +150,11 @@ export type Versement = {
   /** LA DÉPENSE QUI PORTE CET ARGENT. Le dossier tient la preuve ; la dépense
       tient la comptabilité. Deux registres pour un même argent finiraient par
       ne plus dire la même chose. */
+  /* CE QUE LE VERSEMENT A COÛTÉ EN FRANCS ET CE QUI EST SORTI DU TIROIR ne
+     sont PAS recopiés ici : la dépense liée les porte (`amountXof`, `fx`),
+     et l'écran les y lit. Deux registres pour un même argent finiraient par
+     ne plus dire la même chose, le jour où la direction corrige le taux dans
+     Dépenses. */
   expenseId?: string;
   decharge?: Decharge;
 };
@@ -182,11 +207,32 @@ export function numeroEngagementSuivant(
 /** LIRE UN NOMBRE TEL QU'ON LE TAPE : « 25 000 », « 3,5 », « -5 000 »,
     « 25 000 F ». Rend `NaN` pour ce qui n'est pas un nombre — et un calcul
     (« 25000*2 ») n'en est pas un : on ne devine pas ce qu'il voulait dire. */
-export function lisLeNombre(saisie: string): number {
-  const t = saisie
-    .replace(/[\s  ]/g, '')
-    .replace(/(fcfa|cfa|xof|f)$/i, '')
-    .replace(',', '.');
+const echappe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** LA MONNAIE COLLÉE AU NOMBRE S'IGNORE : « 25 000 F », « 12,35 € »,
+    « 700 EUR ». SEULEMENT CELLE DU DOSSIER quand on la connaît, et seulement
+    après un chiffre : « 12ooo » (un zéro tapé en lettre) doit rester
+    illisible, pas devenir douze ; et « 700 USD » tapé dans un dossier en
+    euros n'est pas sept cents euros. */
+const monnaiesTolerees = (devise?: string): string[] => {
+  if (!devise) return ['fcfa', 'cfa', ...Object.keys(DEVISES), 'f', '€', '$', '£'];
+  const symbole = DEVISES[devise]?.symbole.replace(/\s/g, '');
+  return [
+    devise,
+    ...(symbole ? [symbole] : []),
+    ...(devise === 'XOF' || devise === 'XAF' ? ['fcfa', 'cfa', 'f'] : []),
+  ];
+};
+
+export function lisLeNombre(saisie: string, devise?: string): number {
+  const collee = new RegExp(`(\\d)(${monnaiesTolerees(devise).map(echappe).join('|')})$`, 'i');
+  let t = saisie.replace(/[\s\u00a0\u202f]/g, '').replace(collee, '$1');
+  /* « 25.000 » : LE POINT QUI SÉPARE LES MILLIERS, à la française. Trois
+     chiffres après chaque point, et la virgule seule pour les décimales :
+     c'est un séparateur, et « 25.000 F » vaut vingt-cinq mille, pas
+     vingt-cinq. « 12.5 » reste douze et demi. */
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, '');
+  t = t.replace(',', '.');
   if (t === '') return 0;
   const n = Number(t);
   return Number.isFinite(n) ? n : NaN;
@@ -195,14 +241,21 @@ export function lisLeNombre(saisie: string): number {
 /** « 3,5 », pas « 3.5 » : la quantité se lit à la française. */
 export const quantiteDite = (q: number): string => String(q).replace('.', ',');
 
-/** Le franc n'a pas de centimes : le total d'une ligne s'arrondit au franc. */
-export const totalDeLaLigne = (l: LigneDeDevis): number =>
+/** LE CENTIME, POUR TOUTES LES SOMMES. `0,1 + 0,2` ne fait pas `0,3` pour
+    une machine, et un dossier en euros qui resterait « en cours » pour
+    0,00000000000000004 € ne se solderait jamais. En francs, les montants
+    sont entiers et rien ne bouge. */
+const auCentime = (x: number): number => Math.round(x * 100) / 100;
+
+/** Le total d'une ligne s'arrondit à ce que la devise paie : au franc, ou
+    au centime. */
+export const totalDeLaLigne = (l: LigneDeDevis, devise = 'XOF'): number =>
   (Number.isFinite(l.quantite) && Number.isFinite(l.prixUnitaireXof)
-    ? Math.round(l.quantite * l.prixUnitaireXof)
+    ? arrondiDans(l.quantite * l.prixUnitaireXof, devise)
     : 0);
 
-export const totalDesLignes = (lignes: readonly LigneDeDevis[]): number =>
-  lignes.reduce((s, l) => s + totalDeLaLigne(l), 0);
+export const totalDesLignes = (lignes: readonly LigneDeDevis[], devise = 'XOF'): number =>
+  auCentime(lignes.reduce((s, l) => s + totalDeLaLigne(l, devise), 0));
 
 /** POURQUOI CETTE LIGNE NE VAUT PAS — la fin de phrase, ou `null`.
     L'écran la fait précéder de « Ligne 2 : ». */
@@ -222,24 +275,24 @@ export const LIGNE_VIDE: LigneSaisie = { description: '', quantite: '1', prix: '
 
 /** Une quantité laissée vide vaut un : on commande « une porte », on ne
     l'écrit pas. Le prix, lui, s'arrondit au franc dès la saisie. */
-export const ligneDeLaSaisie = (s: LigneSaisie): LigneDeDevis => {
-  const prix = lisLeNombre(s.prix);
+export const ligneDeLaSaisie = (s: LigneSaisie, devise = 'XOF'): LigneDeDevis => {
+  const prix = lisLeNombre(s.prix, devise);
   return {
     description: s.description.trim(),
     quantite: s.quantite.trim() === '' ? 1 : lisLeNombre(s.quantite),
-    prixUnitaireXof: Number.isFinite(prix) ? Math.round(prix) : NaN,
+    prixUnitaireXof: Number.isFinite(prix) ? arrondiDans(prix, devise) : NaN,
   };
 };
 
 /** LES LIGNES REMPLIES. Une ligne sans description ni prix est une ligne
     ajoutée puis laissée : elle ne compte pas, et ne bloque rien. */
-export const lignesDeLaSaisie = (saisies: readonly LigneSaisie[]): LigneDeDevis[] =>
-  saisies.filter((s) => s.description.trim() || s.prix.trim()).map(ligneDeLaSaisie);
+export const lignesDeLaSaisie = (saisies: readonly LigneSaisie[], devise = 'XOF'): LigneDeDevis[] =>
+  saisies.filter((s) => s.description.trim() || s.prix.trim()).map((s) => ligneDeLaSaisie(s, devise));
 
 /** CE QUE LA MAISON A ACCEPTÉ DE PAYER : le devis de base retenu, plus ses
     avenants retenus. */
 export const retenuXof = (devis: readonly DevisRecu[]): number =>
-  devis.filter((d) => d.etat === 'retenu').reduce((s, d) => s + Math.max(0, d.montantXof), 0);
+  auCentime(devis.filter((d) => d.etat === 'retenu').reduce((s, d) => s + Math.max(0, d.montantXof), 0));
 
 /** LE DEVIS DE BASE, celui qui a été choisi — sans les avenants. */
 export const devisDeBase = (devis: readonly DevisRecu[]): DevisRecu | undefined =>
@@ -262,7 +315,7 @@ export const travauxAVenir = (devis: readonly DevisRecu[]): { devis: DevisRecu; 
     qui ne se nomme pas passe pour le prix convenu. */
 export const depassementXof = (devis: readonly DevisRecu[]): number => {
   const base = devisDeBase(devis);
-  return base ? Math.max(0, retenuXof(devis) - base.montantXof) : 0;
+  return base ? Math.max(0, auCentime(retenuXof(devis) - base.montantXof)) : 0;
 };
 
 /** UN DEVIS EXPIRÉ, qu'on n'a pas encore retenu. Un devis retenu n'expire
@@ -329,17 +382,17 @@ export function retenirLeDevis(
 export const estVerse = (v: Pick<Versement, 'verseLe'>): boolean => !!v.verseLe;
 
 export const verseXof = (versements: readonly Versement[]): number =>
-  versements.filter(estVerse).reduce((s, v) => s + Math.max(0, v.montantXof), 0);
+  auCentime(versements.filter(estVerse).reduce((s, v) => s + Math.max(0, v.montantXof), 0));
 
 /** CE QUI RESTE À PAYER. Jamais négatif : un trop-versé se dit à part. */
 export const resteXof = (devis: readonly DevisRecu[], versements: readonly Versement[]): number =>
-  Math.max(0, retenuXof(devis) - verseXof(versements));
+  Math.max(0, auCentime(retenuXof(devis) - verseXof(versements)));
 
 /** CE QUI A ÉTÉ VERSÉ AU-DELÀ DU RETENU. Cela arrive — une avance consentie
     avant qu'un avenant à la baisse soit signé — et la Maison doit alors le
     récupérer ou le déduire. Le taire ferait perdre cet argent. */
 export const tropVerseXof = (devis: readonly DevisRecu[], versements: readonly Versement[]): number =>
-  Math.max(0, verseXof(versements) - retenuXof(devis));
+  Math.max(0, auCentime(verseXof(versements) - retenuXof(devis)));
 
 /** POURQUOI CE VERSEMENT NE SE POSE PAS — la phrase, ou `null`. */
 export function pourquoiOnNeVersePas(o: {
@@ -347,9 +400,17 @@ export function pourquoiOnNeVersePas(o: {
   estDirection: boolean;
   retenuXof: number;
   cashbox?: string;
+  /** Ce que le versement coûte en francs, quand le dossier est en devise. */
+  coutXof?: number;
+  /** Ce qui sort du tiroir, quand la caisse compte dans une troisième
+      monnaie. Une caisse dont la Maison n'a pas de taux proposerait zéro, et
+      zéro n'est pas ce qu'elle a perdu. */
+  tiroir?: number;
 }): string | null {
   if (!o.estDirection) return 'Verser engage la Maison : la direction seule le fait.';
   if (!(o.montantXof > 0)) return 'Un versement sans montant ne se pose pas.';
+  if (o.coutXof !== undefined && !(o.coutXof > 0)) return 'Dites ce que ce versement coûte à la Maison, en francs.';
+  if (o.tiroir !== undefined && !(o.tiroir > 0)) return 'Dites ce qui sort du tiroir, dans sa monnaie.';
   if (o.retenuXof <= 0) return 'Aucun devis n’est retenu : on ne verse pas avant d’avoir dit oui.';
   if (!(o.cashbox ?? '').trim()) return 'Nommez la caisse d’où sort l’argent.';
   return null;
@@ -357,13 +418,116 @@ export function pourquoiOnNeVersePas(o: {
 
 /** CE QUE L'ÉCRAN DOIT DIRE AVANT DE VERSER — sans l'empêcher. */
 export const avertitAvantDeVerser = (o: {
-  montantXof: number; retenuXof: number; dejaVerseXof: number;
+  montantXof: number; retenuXof: number; dejaVerseXof: number; devise?: string;
 }): string | null => {
-  const depasse = o.dejaVerseXof + o.montantXof - o.retenuXof;
+  const depasse = auCentime(o.dejaVerseXof + o.montantXof - o.retenuXof);
   return depasse > 0
-    ? `Ce versement dépasse le devis retenu de ${nombreEnChiffres(depasse)} F.`
+    ? `Ce versement dépasse le devis retenu de ${sommeEnChiffres(depasse, o.devise ?? 'XOF')}.`
     : null;
 };
+
+/* ══ PAYER DANS UNE AUTRE MONNAIE — 15 septembre 2026 ════════════════════
+
+   TROIS MONNAIES PEUVENT SE CROISER SUR UN SEUL VERSEMENT, et chacune dit
+   une vérité différente :
+   · LA DEVISE DU DOSSIER — ce qu'il reçoit, ce qui fait baisser le reste ;
+   · LE FRANC — ce que cela coûte à la Maison, le montant de la dépense ;
+   · LA MONNAIE DU TIROIR — ce que la caisse perd réellement.
+   Le plus souvent deux se confondent, parfois les trois. On ne demande
+   jamais que ce qui ne se déduit pas.
+
+   LE TAUX EST UN POINT DE DÉPART, PAS UNE VÉRITÉ — même règle que les
+   tiroirs (23 août) : le taux indicatif pré-remplit, la main corrige au taux
+   réellement pratiqué, et c'est la main qui fait foi. */
+
+export type ArgentDuVersement = {
+  /** La charge de la Maison, en francs : le montant de la dépense. */
+  coutXof: number;
+  suggestionCout: number;
+  /** Le coût en francs ne se déduit pas : il faut le demander. */
+  demandeLeCout: boolean;
+  /** Ce qui sort du tiroir, dans SA monnaie. */
+  tiroir: number;
+  suggestionTiroir: number;
+  demandeLeTiroir: boolean;
+  deviseDuTiroir: string;
+  /** Pour la dépense : ce que perd un tiroir qui ne compte pas en francs. */
+  fx?: { code: string; rate: number; amount: number };
+};
+
+export function argentDuVersement(o: {
+  /** Dans la devise du dossier. */
+  montant: number;
+  devise: string;
+  deviseDuTiroir: string;
+  /** CE QUE LA MAIN A TAPÉ. `undefined` = rien : la suggestion vaut. Un
+      nombre illisible ou nul n'est PAS remplacé par la suggestion en douce :
+      il donne zéro, et zéro se refuse (`pourquoiOnNeVersePas`). */
+  coutSaisi?: number;
+  tiroirSaisi?: number;
+  /** 1 unité de `code` = N francs, comme `rateToXof`. */
+  tauxIndicatif: (code: string) => number;
+}): ArgentDuVersement {
+  const { montant, devise } = o;
+  const maison = DEVISE_DE_LA_MAISON;
+  const caisse = o.deviseDuTiroir;
+  const lu = (tape: number | undefined, suggestion: number, code: string): number =>
+    (tape === undefined ? suggestion : Number.isFinite(tape) && tape > 0 ? arrondiDans(tape, code) : 0);
+
+  const demandeLeCout = devise !== maison;
+  const suggestionCout = Math.round(demandeLeCout ? montant * o.tauxIndicatif(devise) : montant);
+  const coutXof = demandeLeCout ? lu(o.coutSaisi, suggestionCout, maison) : suggestionCout;
+
+  const demandeLeTiroir = caisse !== maison && caisse !== devise;
+  const tauxDuTiroir = o.tauxIndicatif(caisse);
+  const suggestionTiroir = caisse === devise ? arrondiDans(montant, caisse)
+    : caisse === maison ? coutXof
+      : tauxDuTiroir > 0 ? arrondiDans(coutXof / tauxDuTiroir, caisse) : 0;
+  const tiroir = demandeLeTiroir ? lu(o.tiroirSaisi, suggestionTiroir, caisse) : suggestionTiroir;
+
+  return {
+    coutXof,
+    suggestionCout,
+    demandeLeCout,
+    tiroir,
+    suggestionTiroir,
+    demandeLeTiroir,
+    deviseDuTiroir: caisse,
+    fx: caisse !== maison && tiroir > 0 && coutXof > 0
+      ? { code: caisse, rate: coutXof / tiroir, amount: tiroir }
+      : undefined,
+  };
+}
+
+/* ══ UNE SOMME DU DOSSIER, À L'ÉCRAN ═════════════════════════════════════
+
+   EN FRANCS, PAR `fmtMoney`, comme tout le Trône : c'est la base de tous les
+   montants, et la branche l'habille. EN DEVISE, TELLE QUELLE, avec ses
+   centimes, par la même écriture que la décharge : « 1 250,50 € » à l'écran
+   et « 1 251 € » sur le papier feraient douter de l'un des deux. */
+export const sommeDite = (x: number, devise: string, deviseDeLaBranche: string): string =>
+  (devise === DEVISE_DE_LA_MAISON ? fmtMoney(x, deviseDeLaBranche) : sommeEnChiffres(x, devise));
+
+/** « 1 090 000 F · 700 € » — le reste à payer, devise par devise, pour le
+    Tableau de bord et la liste : une seule écriture, sinon deux écrans
+    diraient la même dette de deux façons. */
+export const restesDits = (
+  restes: readonly { devise: string; montant: number }[], deviseDeLaBranche: string,
+): string => (restes.length > 0
+  ? restes.map((r) => sommeDite(r.montant, r.devise, deviseDeLaBranche)).join(' · ')
+  : sommeDite(0, DEVISE_DE_LA_MAISON, deviseDeLaBranche));
+
+/** LA DEVISE D'UN DOSSIER NE CHANGE PLUS APRÈS SON PREMIER MONTANT. Passer
+    en euros un dossier dont le devis dit 90 000 ferait lire 90 000 euros :
+    on ne réinterprète pas des sommes déjà rangées. */
+export function pourquoiLaDeviseNeChangePas(o: {
+  devis: readonly DevisRecu[];
+  versements: readonly Versement[];
+}): string | null {
+  return o.devis.length > 0 || o.versements.length > 0
+    ? 'Des montants sont déjà rangés dans cette devise : la monnaie d’un dossier ne change plus après son premier devis ou son premier versement.'
+    : null;
+}
 
 /* ══ LA DÉCHARGE ═════════════════════════════════════════════════════════
 
@@ -431,6 +595,8 @@ export function texteDeLaDecharge(o: {
   objet?: string;
   devisNumero?: string;
   devisDate?: string;
+  /** La devise du dossier. Absente = le franc CFA. */
+  devise?: string;
 }): string {
   const qui = o.metier?.trim() ? `${o.prestataire.trim()}, ${o.metier.trim()},` : `${o.prestataire.trim()},`;
   const libelle = o.libelle.trim();
@@ -443,7 +609,7 @@ export function texteDeLaDecharge(o: {
     : '';
   const objet = o.objet?.trim() ? `, pour « ${o.objet.trim()} »` : '';
   return `Je soussigné(e) ${qui} reconnais avoir reçu de ${o.maison} la somme de `
-    + `${nombreEnLettres(o.montantXof)} francs CFA (${nombreEnChiffres(o.montantXof)} F), `
+    + `${sommeEnLettres(o.montantXof, o.devise ?? 'XOF')} (${sommeEnChiffres(o.montantXof, o.devise ?? 'XOF')}), `
     + `à titre ${de}${titre}${devis}${objet}.`;
 }
 
@@ -522,13 +688,23 @@ export function depenseDuVersement(
   e: Pick<Engagement, 'numero' | 'prestataire' | 'fournisseurId' | 'branchId'>,
   v: Pick<Versement, 'libelle' | 'montantXof' | 'verseLe' | 'cashbox'>,
   rangement: { category: string; subcategory?: string },
+  /** CE QUE LE VERSEMENT COÛTE EN FRANCS et ce que perd un tiroir qui ne
+      compte pas en francs. `devise` : celle du dossier quand ce n'est pas le
+      franc, pour l'écrire au libellé. Absent = tout en francs. */
+  argent?: { coutXof: number; fx?: { code: string; rate: number; amount: number }; devise?: string },
 ): Expense {
   const sous = rangement.subcategory?.trim();
+  /* LE MONTANT EN DEVISE S'ÉCRIT DANS LE LIBELLÉ : au journal des dépenses,
+     « 459 172 F » seul ne dirait pas que le menuisier a reçu 700 euros. */
+  const enDevise = argent?.devise && argent.devise !== DEVISE_DE_LA_MAISON
+    ? ` · ${sommeEnChiffres(v.montantXof, argent.devise)}`
+    : '';
   return {
     id: `exp-eng-${uid()}`,
     branchId: e.branchId,
-    label: libelleDeLaDepense(e, v),
-    amountXof: Math.round(v.montantXof),
+    label: `${libelleDeLaDepense(e, v)}${enDevise}`,
+    amountXof: Math.round(argent?.coutXof ?? v.montantXof),
+    ...(argent?.fx ? { fx: argent.fx } : {}),
     date: v.verseLe as string,
     cashbox: v.cashbox ?? '',
     category: rangement.category.trim() || CATEGORIE_PROPOSEE,
@@ -567,16 +743,18 @@ export function avertitAvantDeCorriger(o: {
   nouveauMontantXof: number;
   tous: readonly DevisRecu[];
   versements: readonly Versement[];
+  devise?: string;
 }): string | null {
   if (o.devis.etat !== 'retenu' || o.nouveauMontantXof === o.devis.montantXof) return null;
+  const dit = (x: number) => sommeEnChiffres(x, o.devise ?? 'XOF');
   const dossier = o.tous.filter((d) => d.engagementId === o.devis.engagementId);
   const apres = dossier.map((d) => (d.id === o.devis.id ? { ...d, montantXof: o.nouveauMontantXof } : d));
   const vs = o.versements.filter((v) => v.engagementId === o.devis.engagementId);
-  const phrase = `Le retenu passe de ${nombreEnChiffres(retenuXof(dossier))} F à ${nombreEnChiffres(retenuXof(apres))} F.`;
+  const phrase = `Le retenu passe de ${dit(retenuXof(dossier))} à ${dit(retenuXof(apres))}.`;
   const trop = tropVerseXof(apres, vs);
   return trop > 0
-    ? `${phrase} ${nombreEnChiffres(trop)} F auront été versés au-delà : à récupérer ou à déduire.`
-    : `${phrase} Reste à payer : ${nombreEnChiffres(resteXof(apres, vs))} F.`;
+    ? `${phrase} ${dit(trop)} auront été versés au-delà : à récupérer ou à déduire.`
+    : `${phrase} Reste à payer : ${dit(resteXof(apres, vs))}.`;
 }
 
 export type ChampsDuDevis = Partial<Pick<DevisRecu,
@@ -614,6 +792,8 @@ export function corrigeLeDevis(
 
 export type LectureDuDossier = {
   engagement: Engagement;
+  /** La devise dans laquelle se lisent TOUS les montants de cette lecture. */
+  devise: string;
   devis: DevisRecu[];
   versements: Versement[];
   etat: EtatDossier;
@@ -651,6 +831,7 @@ export function litLesDossiers(
         .sort((a, b) => (a.verseLe ?? a.prevuLe ?? '9999').localeCompare(b.verseLe ?? b.prevuLe ?? '9999'));
       return {
         engagement: e,
+        devise: e.devise || DEVISE_DE_LA_MAISON,
         devis: ds,
         versements: vs,
         etat: etatDuDossier(e, ds, vs),
@@ -675,14 +856,22 @@ export function litLesDossiers(
     prouver ce qui a été versé. */
 export function bilanDesEngagements(lectures: readonly LectureDuDossier[]): {
   enCours: number;
-  resteXof: number;
+  /** CE QUI RESTE À PAYER, DEVISE PAR DEVISE. On n'additionne pas des euros
+      et des francs : la somme serait fausse dès le lendemain, au premier
+      mouvement du change. La devise de la Maison d'abord. */
+  restes: { devise: string; montant: number }[];
   sansDecharge: number;
   devisQuiExpirent: { lecture: LectureDuDossier; devis: DevisRecu }[];
 } {
   const enCours = lectures.filter((l) => l.etat === 'en-cours');
+  const parDevise = new Map<string, number>();
+  for (const l of enCours) parDevise.set(l.devise, auCentime((parDevise.get(l.devise) ?? 0) + l.resteXof));
   return {
     enCours: enCours.length,
-    resteXof: enCours.reduce((s, l) => s + l.resteXof, 0),
+    restes: [...parDevise.entries()]
+      .map(([devise, montant]) => ({ devise, montant }))
+      .sort((a, b) => Number(b.devise === DEVISE_DE_LA_MAISON) - Number(a.devise === DEVISE_DE_LA_MAISON)
+        || a.devise.localeCompare(b.devise)),
     sansDecharge: lectures.reduce((s, l) => s + l.sansDecharge.length, 0),
     devisQuiExpirent: lectures.flatMap((l) => l.expirentBientot.map((d) => ({ lecture: l, devis: d }))),
   };
