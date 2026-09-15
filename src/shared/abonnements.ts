@@ -241,6 +241,12 @@ export type Subscriber = {
   /** La durée de vie ajustée d'un pack, en jours. Absente = celle de la
       formule. Sans effet sur un abonnement à cycle, qui ne s'épuise pas. */
   validiteJours?: number;
+
+  /** LA FIN DE PAQUET, PRÉVENUE — 15 septembre 2026. Quand le message
+      « il vous reste 1 séance » est parti sur WhatsApp. Un raccourci pour
+      l'écran ; le VERROU, lui, est la ligne `env-paquet-<contrat>` du journal
+      des envois (voir `shared/fin-de-paquet.ts`). */
+  finPrevenueLe?: string;
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
@@ -913,6 +919,66 @@ export function moteurDesAbonnements(o: {
     .filter((x) => x.tetes > 0)
     .sort((a, b) => (b.encaisseXof + b.resteXof) - (a.encaisseXof + a.resteXof));
   return m;
+}
+
+/* ══ LA FIN DE PAQUET — 15 septembre 2026 ═══════════════════════════
+   Maquette `public/maquette-la-fin-de-paquet.html`, validée avec ses trois
+   arbitrages : une séance restante OU quinze jours avant la date limite (le
+   premier des deux, une fois) ; un paquet sans date se prévient à la
+   dernière séance ; ceux déjà au seuil le jour de la mise en ligne aussi,
+   sauf les expirés.
+
+   LE JUGE EST ICI ET NULLE PART AILLEURS. Il lit les lignes déjà calculées
+   (`usageDetaille`), avec la règle de Ma Couronne : on annonce la prestation
+   LA PLUS CONTRAINTE, jamais la plus généreuse. Un compteur qu'elle conteste
+   est pire qu'aucun message. L'envoi vit à part (`shared/fin-de-paquet.ts`) ;
+   ce qui suit ne touche ni au réseau ni à l'heure. */
+
+export type FinDePaquet = {
+  sub: Subscriber;
+  clientId?: string;
+  nom: string;
+  formule: string;
+  /** Les séances restantes sur la prestation la plus contrainte. */
+  reste: number;
+  /** La date limite, ou `null` pour un paquet sans date. */
+  jusquau: string | null;
+  motif: 'derniere-seance' | 'date-proche';
+};
+
+export const SEUIL_FIN_DE_PAQUET = { seances: 1, jours: 15 } as const;
+
+/** Ce qu'il faut d'un contrat pour juger : le contrat, sa formule, son état,
+    ses lignes. `ContratDuCompte` le porte ; un harnais le fabrique. */
+export type ContratPourLaFin = Pick<ContratDuCompte, 'sub' | 'plan' | 'etat' | 'lignes'>;
+
+export function paquetsEnFin(
+  contrats: readonly ContratPourLaFin[], aujourdhui: string,
+  seuil: { seances: number; jours: number } = SEUIL_FIN_DE_PAQUET,
+): FinDePaquet[] {
+  const out: FinDePaquet[] = [];
+  for (const c of contrats) {
+    /* UN ABONNEMENT À CYCLE NE S'ÉPUISE PAS : il se recharge. Un paquet
+       épuisé, terminé ou résilié n'a plus rien à annoncer. */
+    if (c.plan?.mode !== 'pack' || c.etat !== 'en-cours') continue;
+    const bornees = c.lignes.filter((l) => l.qty !== null);
+    if (bornees.length === 0) continue;
+    const reste = Math.min(...bornees.map((l) => l.remaining ?? 0));
+    if (reste <= 0) continue;
+    const jusquau = c.sub.expiresIso ?? null;
+    /* UN PAQUET EXPIRÉ NE SE PRÉVIENT PLUS : « il vous reste une séance
+       jusqu'au 12 juin » en septembre serait une faute. */
+    if (jusquau && jusquau < aujourdhui) continue;
+    let motif: FinDePaquet['motif'] | null = null;
+    if (reste <= seuil.seances) motif = 'derniere-seance';
+    else if (jusquau && joursEntre(aujourdhui, jusquau) <= seuil.jours) motif = 'date-proche';
+    if (!motif) continue;
+    out.push({
+      sub: c.sub, clientId: c.sub.clientId, nom: c.sub.name,
+      formule: c.plan.name, reste, jusquau, motif,
+    });
+  }
+  return out;
 }
 
 /* ── CE QUI A ÉTÉ RÉELLEMENT VENDU — 28 août 2026 ────────────────────

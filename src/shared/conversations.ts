@@ -692,7 +692,14 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   bulletin_du_mois: 'utilitaire',
   decision_conge: 'utilitaire',
   versement_engagement: 'utilitaire',
+  /* LA FIN DE PAQUET — 15 septembre 2026 (étape 7). Il informe, il ne vend
+     pas : c'est ce qui le garde utilitaire. */
+  fin_de_paquet: 'utilitaire',
 };
+
+/** Le modèle de la fin de paquet, envoyé par le Trône lui-même
+    (`shared/fin-de-paquet.ts`). */
+export const MODELE_FIN_DE_PAQUET = 'fin_de_paquet';
 
 /** LES MODÈLES DE L'ÉQUIPE ET DES PRESTATAIRES, par leur nom Meta. Ils ne
     s'envoient pas depuis le fil : chacun part de l'écran qui décide (la Paie,

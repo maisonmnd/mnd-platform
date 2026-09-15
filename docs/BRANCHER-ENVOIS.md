@@ -381,6 +381,38 @@ de toute fiche reste « sans fiche », lisible du personnel, comme une cliente.
 - Deux messages partent seuls, jamais deux fois en 24 heures : l'accusé d'une
   pièce reçue d'un prestataire, et le formulaire de congé.
 
+## Étape 7 — La fin de paquet (15 septembre 2026)
+
+« Il vous reste 2 soins, jusqu'au 12 juin » : le message qui rapporte le
+plus. Maquette `public/maquette-la-fin-de-paquet.html`, validée. **Le Trône
+juge et envoie lui-même** : rien à déployer côté serveur, aucun cron, aucune
+migration. Un seul geste : faire approuver le modèle.
+
+**`fin_de_paquet`** — WhatsApp Manager → Modèles, français, catégorie
+**UTILITY**, sans en-tête. Corps :
+
+> Bonjour {{1}}, il vous reste {{2}} sur votre {{3}}, {{4}}. Pensez à
+> réserver : nous vous gardons votre place.
+
+({{1}} = prénom, {{2}} = « 1 séance » ou « 2 séances », {{3}} = le nom de la
+formule, {{4}} = « valable jusqu'au 12 juin » ou « sans date limite ».) Il
+informe, il ne vend pas : c'est ce qui le garde utilitaire chez Meta. La suite
+se propose au fauteuil.
+
+**Quand il part** : à la dernière séance de la prestation la plus contrainte,
+ou quinze jours avant la date limite s'il en reste plusieurs, le premier des
+deux, une seule fois par paquet. Jamais un paquet expiré. Entre 9 h 30 et
+21 h 30 à Cotonou, à l'ouverture du Trône par quelqu'un de la Maison (un
+dimanche sans personne, il part le lendemain).
+
+**Où le lire** : dans le fil de la cliente (Conversations), signé « la Maison,
+automatiquement » ; sur son contrat (Abonnements, « prévenue par WhatsApp
+le… ») ; à la cloche, qui dit surtout **qui n'a pas de numéro**, un appel à
+passer. Le journal des envois porte une ligne `env-paquet-<contrat>` par
+paquet : c'est le verrou qui empêche deux postes d'envoyer deux fois, et
+c'est là que se lit un refus de Meta (modèle pas encore approuvé) — repris
+seul le lendemain.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.

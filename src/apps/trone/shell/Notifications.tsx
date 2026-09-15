@@ -2,11 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2, FileClock,
-  KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
+  Hourglass, KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
 } from 'lucide-react';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
 } from '../../../shared/engagements';
+import { useSubscribers, usePlans, comptesAbonnement, paquetsEnFin } from '../../../shared/abonnements';
+import { previensLesFinsDePaquet, surveilleLesFinsDePaquet } from '../../../shared/fin-de-paquet';
+import { numeroWa } from '../../../shared/conversations';
 import { useBranch } from '../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../shared/agenda';
 import { askNotifyPermission, notifyLocal } from '../../../shared/ics';
@@ -34,7 +37,7 @@ const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
 type NotifKind =
   | 'consultation' | 'prospect' | 'inscription' | 'enligne'
-  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement';
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet';
 
 type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
@@ -51,6 +54,7 @@ const ICONS: Record<NotifKind, LucideIcon> = {
   impaye: Wallet,
   couronne: Crown,
   engagement: FileClock,
+  paquet: Hourglass,
 };
 
 /* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
@@ -98,6 +102,8 @@ function useNotifications(): Notif[] {
   const [engagements] = useEngagements();
   const [devisRecus] = useDevisRecus();
   const [versementsEng] = useVersementsEngagement();
+  const [subscribers] = useSubscribers();
+  const [plans] = usePlans();
 
   /* Battement : « dans 1h » et « en ligne » doivent se rafraîchir avec le temps. */
   const [tick, setTick] = useState(0);
@@ -253,9 +259,44 @@ function useNotifications(): Notif[] {
       });
     }
 
+    /* ══ LES FINS DE PAQUET — 15 septembre 2026 ═══════════════════════
+       Le message part seul (`shared/fin-de-paquet.ts`) ; la cloche dit ce
+       qu'il en est, et surtout QUI N'A PAS DE NUMÉRO : c'est un appel à
+       passer, et rien d'autre ne le dirait. */
+    {
+      const siens = subscribers.filter((s) => s.branchId === branch.id);
+      if (siens.length > 0) {
+        const comptes = comptesAbonnement({ subs: siens, plans, appts: appointments, aujourdhui: today });
+        for (const f of paquetsEnFin(comptes.flatMap((c) => c.contrats), today)) {
+          const fiche = clients.find((c) => c.id === f.clientId);
+          const numero = numeroWa(fiche?.phone) || numeroWa(fiche?.phone2);
+          const reste = `${f.reste} séance${f.reste > 1 ? 's' : ''}${f.jusquau ? ` · jusqu’au ${frShort(f.jusquau)}` : ''}`;
+          out.push({
+            id: `paquet-${f.sub.id}`, kind: 'paquet',
+            label: `Fin de paquet · ${f.nom}`,
+            meta: `${f.formule} · ${reste} · ${f.sub.finPrevenueLe ? 'prévenue par WhatsApp' : numero ? 'message en route' : 'aucun numéro, à appeler'}`,
+            to: '/abonnements',
+          });
+        }
+      }
+    }
+
     return out;
   }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick,
-    engagements, devisRecus, versementsEng]);
+    engagements, devisRecus, versementsEng, subscribers, plans]);
+}
+
+/* ══ LE PASSAGE QUI ENVOIE LES FINS DE PAQUET ═══════════════════════
+   Une fois les tables résolues, puis toutes les six heures. Le module tient
+   l'heure du salon, le verrou et le verdict ; ici on ne fait que le réveiller. */
+function useFinsDePaquet(): void {
+  const { branch } = useBranch();
+  const { session } = useAuth();
+  const connecte = !!session?.user?.id;
+  useEffect(() => {
+    if (!connecte) return undefined;
+    return surveilleLesFinsDePaquet(() => { void previensLesFinsDePaquet({ branchId: branch.id }); });
+  }, [connecte, branch.id]);
 }
 
 /* ---------- Veille Ma Couronne — alerte active à l'arrivée d'une réservation ---------- */
@@ -326,6 +367,7 @@ function useBrowserDelivery(items: Notif[]): void {
 export default function NotificationsBell() {
   const derived = useNotifications();
   const alerts = useCouronneAlerts();
+  useFinsDePaquet();
   const items = useMemo(() => {
     const seen = new Set<string>();
     return [...alerts, ...derived].filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)));

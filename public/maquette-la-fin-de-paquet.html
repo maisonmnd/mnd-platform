@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La fin de paquet &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9; --cuivre-s:#8A5326;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.88em;
+         background:var(--indigo-pale); padding:1px 5px; border-radius:2px; color:var(--indigo-2); }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  .duo { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:14px; }
+  @media (max-width:760px){ .duo { grid-template-columns:1fr; } }
+  .cote { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre); margin:0 0 8px; }
+  .tel { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .tel__tete { background:var(--indigo-2); color:#EFEAE0; padding:10px 14px; font-size:13px; }
+  .tel__tete b { font-family:var(--serif); font-weight:500; font-size:17px; color:#fff; margin-right:8px; }
+  .bulles { padding:14px; display:flex; flex-direction:column; gap:9px; }
+  .b { max-width:88%; padding:9px 13px; border-radius:4px; font-size:13.5px; line-height:1.55; }
+  .b__h { display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--encre-d); margin-top:5px; }
+  .b--modele { align-self:flex-start; background:var(--indigo-2); color:#EFEAE0; border-left:3px solid var(--cuivre); }
+  .b--modele .b__h { color:var(--cuivre-p); }
+  .b--eux { align-self:flex-end; background:var(--blanc); border:1px solid var(--filet); }
+  .jour { align-self:center; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); margin:4px 0; }
+
+  .trone { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); overflow:hidden; }
+  .trone__tete { background:var(--indigo); color:#EFEAE0; padding:10px 14px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; }
+  .trone__corps { padding:14px; font-size:13.5px; color:var(--encre-d); }
+  .trone__corps b { color:var(--encre); font-weight:500; }
+  .ligne { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:8px 0;
+           border-bottom:1px solid var(--sable); flex-wrap:wrap; }
+  .ligne:last-child { border-bottom:none; }
+  .ligne em { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--indigo); }
+  .pas { display:inline-block; font-size:10px; letter-spacing:.13em; text-transform:uppercase;
+         border-radius:2px; padding:3px 9px; border:1px solid; white-space:nowrap; }
+  .pas--ok { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .pas--att { color:var(--encre-d); border-color:var(--filet); background:var(--blanc); }
+  .pas--cu { color:var(--cuivre-s); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .quest { border:1px solid var(--ambre-p); border-left:3px solid var(--ambre); border-radius:4px;
+           background:var(--ambre-f); padding:15px 18px; margin-top:16px; }
+  .quest b { color:var(--ambre); font-weight:600; }
+  .quest p { margin:7px 0 0; font-size:13.5px; line-height:1.6; }
+  .quest .prop { color:var(--encre); }
+  .quest .prop strong { font-weight:600; color:var(--vert); }
+
+  .fin { margin-top:64px; padding-top:26px; border-top:1px solid var(--filet); font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Abonnements &middot; le message qui rapporte le plus</p>
+  <h1>La fin de paquet.</h1>
+  <p class="chapeau">
+    Une t&ecirc;te ach&egrave;te six soins. Au cinqui&egrave;me, personne ne lui dit qu&rsquo;il n&rsquo;en
+    reste qu&rsquo;un. Elle revient au plein tarif, ou ne revient pas, et la Maison
+    s&rsquo;en aper&ccedil;oit dans le compteur des &laquo; fins sans reprise &raquo;, trois mois
+    plus tard. <b>Le moment o&ugrave; l&rsquo;on prolonge, c&rsquo;est celui o&ugrave; le paquet
+    s&rsquo;&eacute;puise</b>, et ce moment se passe sans un mot.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; Il vous reste 2 soins, jusqu&rsquo;au 12 juin : c&rsquo;est le message qui rapporte
+      le plus, mais il part hors fen&ecirc;tre. Il lui faut son mod&egrave;le Meta. &raquo;
+      <span>REPRENDRE &middot; ce qui restait de la conversation outill&eacute;e</span>
+    </p>
+
+    <div class="alerte">
+      <b>Le juge existe d&eacute;j&agrave;, et il ne bougera pas.</b>
+      <p>
+        Le Tr&ocirc;ne sait ce qu&rsquo;il reste sur un paquet (<code>usageDetaille</code>), avec
+        la r&egrave;gle de Ma Couronne : on annonce la prestation <b>la plus contrainte</b>,
+        jamais la plus g&eacute;n&eacute;reuse. Un compteur qu&rsquo;elle conteste est pire
+        qu&rsquo;aucun message. Le refaire dans une fonction serveur, c&rsquo;est le refaire
+        faux un jour. Donc : <b>le Tr&ocirc;ne juge, et il envoie</b>.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Ce qu&rsquo;elle re&ccedil;oit</p>
+    <h2>Un mod&egrave;le utilitaire, une seule fois par paquet.</h2>
+    <p class="intro">
+      Elle n&rsquo;a pas &eacute;crit depuis des semaines : la fen&ecirc;tre est ferm&eacute;e, seul un
+      mod&egrave;le approuv&eacute; passe. Il <b>informe</b>, il ne vend pas : c&rsquo;est ce qui le
+      garde utilitaire chez Meta, et moins cher. La suite se propose au fauteuil.
+    </p>
+
+    <div class="duo">
+      <div>
+        <p class="cote">Son t&eacute;l&eacute;phone</p>
+        <div class="tel">
+          <div class="tel__tete"><b>L&rsquo;Atelier MND</b> compte professionnel</div>
+          <div class="bulles">
+            <span class="jour">Mardi 9 h 30</span>
+            <div class="b b--modele">
+              Bonjour R., il vous reste 1 s&eacute;ance sur votre Prolongement 6 soins, valable
+              jusqu&rsquo;au 12 juin. Pensez &agrave; r&eacute;server : nous vous gardons votre place.
+              <span class="b__h">Mod&egrave;le fin_de_paquet &middot; utilitaire</span>
+            </div>
+            <div class="b b--eux">Merci ! Je passe samedi, et on parle de la suite ?
+              <span class="b__h">10 h 02</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cote">Le Tr&ocirc;ne &middot; Abonnements</p>
+        <div class="trone">
+          <div class="trone__tete">R. A. &middot; Prolongement 6 soins</div>
+          <div class="trone__corps">
+            <div class="ligne"><span>S&eacute;ances</span> <em>5 sur 6</em></div>
+            <div class="ligne"><span>Valable jusqu&rsquo;au</span> <span>12 juin</span></div>
+            <div class="ligne"><span>Fin de paquet</span> <span class="pas pas--ok">Pr&eacute;venue mardi 9 h 30 &middot; lue</span></div>
+            <div class="ligne"><span>Elle a r&eacute;pondu</span> <span>voir le fil</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Le message part &agrave; 9 h 30 au plus t&ocirc;t</b>, jamais la nuit, comme l&rsquo;avis Google. Il
+      para&icirc;t dans son fil des Conversations, sign&eacute; &laquo; la Maison, automatiquement &raquo; :
+      quand elle r&eacute;pond, on voit ce qui lui a &eacute;t&eacute; dit une heure avant.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;Comment &ccedil;a part</p>
+    <h2>Le Tr&ocirc;ne juge, et il envoie. Aucun r&eacute;veil serveur.</h2>
+    <p class="intro">
+      &Agrave; chaque ouverture du Tr&ocirc;ne par quelqu&rsquo;un de la Maison, une fois les tables
+      charg&eacute;es, il regarde les paquets en cours. Ceux qui touchent au seuil re&ccedil;oivent
+      leur message par <code>whatsapp-envoi</code>, la porte qui existe d&eacute;j&agrave;.
+    </p>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Le pi&egrave;ge</th><th>Ce qui le tient</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Deux fois</b> &middot; deux postes ouvrent le Tr&ocirc;ne &agrave; la m&ecirc;me minute</td>
+            <td>Le journal des envois porte une ligne <code>env-paquet-&lt;contrat&gt;</code>, pos&eacute;e AVANT d&rsquo;envoyer. Une cl&eacute;, un seul gagnant : le second poste voit la ligne et se tait.</td>
+          </tr>
+          <tr>
+            <td><b>Un cache froid</b> &middot; le poste n&rsquo;a pas encore relu les rendez-vous</td>
+            <td>On attend que les quatre tables soient r&eacute;solues (rendez-vous, abonn&eacute;es, formules, fiches). Un compteur calcul&eacute; sur un cache d&rsquo;hier dirait &laquo; il vous reste 2 &raquo; &agrave; qui n&rsquo;en a plus.</td>
+          </tr>
+          <tr>
+            <td><b>Personne n&rsquo;ouvre le Tr&ocirc;ne</b> &middot; un dimanche</td>
+            <td>Le message part le lendemain. Une fin de paquet se pr&eacute;vient &agrave; la semaine, pas &agrave; l&rsquo;heure : le jour de retard ne co&ucirc;te rien.</td>
+          </tr>
+          <tr>
+            <td><b>Meta refuse</b> &middot; mod&egrave;le pas encore approuv&eacute;, num&eacute;ro faux</td>
+            <td>La ligne dit &laquo; &eacute;chec &raquo; et son motif ; on retente au prochain passage, une fois par jour au plus. La tourn&eacute;e du matin le montre, comme un rappel rat&eacute;.</td>
+          </tr>
+          <tr>
+            <td><b>Pas de num&eacute;ro</b></td>
+            <td>Rien ne part ; l&rsquo;&eacute;cran Abonnements le dit sur le compte, et la cloche aussi : c&rsquo;est un appel &agrave; passer.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">
+      <b>Pourquoi pas un r&eacute;veil serveur, comme les rappels du soir ?</b> Parce que le juge
+      des paquets vit dans le Tr&ocirc;ne (calibres, quotas propres, fen&ecirc;tres de cycle). Le
+      recopier dans une fonction, c&rsquo;est deux compteurs, et un jour deux v&eacute;rit&eacute;s. Et
+      cela vous &eacute;vite un d&eacute;ploiement et un cron de plus.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Ce que ce chantier ne fera pas</p>
+    <h2>Quatre refus, dits d&rsquo;avance.</h2>
+    <ul class="liste">
+      <li><b>Pas de vente dans le message.</b> &laquo; Prolongez d&egrave;s maintenant &raquo; le reclasserait marketing chez Meta, au tarif marketing, et sonnerait faux. La suite se propose au fauteuil.</li>
+      <li><b>Pas de relance.</b> Un message par paquet, jamais deux. Si elle ne r&eacute;pond pas, c&rsquo;est le compte &laquo; &agrave; relancer &raquo; des Abonnements qui prend le relais, &agrave; la main.</li>
+      <li><b>Pas les abonnements &agrave; cycle.</b> Un mensuel se recharge seul : rien &agrave; annoncer. Seuls les paquets s&rsquo;&eacute;puisent.</li>
+      <li><b>Pas de push Ma Couronne pour l&rsquo;instant.</b> Il serait gratuit, mais il doublerait le message chez les abonn&eacute;es qui ont l&rsquo;application. Un canal, bien fait.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Ce que je ne d&eacute;cide pas seul</p>
+    <h2>Trois questions pour toi.</h2>
+
+    <div class="quest">
+      <b>&Agrave; quel moment ?</b>
+      <p>Trop t&ocirc;t, le message ne dit rien ; trop tard, elle a d&eacute;j&agrave; laiss&eacute; passer sa date.</p>
+      <p class="prop"><strong>Proposition :</strong> quand il reste <b>1 s&eacute;ance</b> sur la prestation la plus
+        contrainte, OU <b>15 jours</b> avant la date limite s&rsquo;il en reste plusieurs. Le premier des deux, une seule fois.</p>
+    </div>
+
+    <div class="quest">
+      <b>Un paquet sans date limite ?</b>
+      <p>Certains paquets n&rsquo;expirent pas (<code>expiresIso</code> vide).</p>
+      <p class="prop"><strong>Proposition :</strong> le message part &agrave; la derni&egrave;re s&eacute;ance, sans la phrase
+        &laquo; valable jusqu&rsquo;au &raquo;. Un mod&egrave;le, deux variantes de texte, m&ecirc;me nom.</p>
+    </div>
+
+    <div class="quest">
+      <b>Les paquets d&eacute;j&agrave; au seuil aujourd&rsquo;hui ?</b>
+      <p>Le jour de la mise en ligne, plusieurs paquets sont peut-&ecirc;tre d&eacute;j&agrave; &agrave; leur derni&egrave;re s&eacute;ance depuis des semaines.</p>
+      <p class="prop"><strong>Proposition :</strong> ils re&ccedil;oivent le message aussi, ce jour-l&agrave;, sauf ceux dont
+        la date limite est pass&eacute;e. Un paquet expir&eacute; ne se pr&eacute;vient plus : &laquo; il vous reste une s&eacute;ance jusqu&rsquo;au 12 juin &raquo; en septembre serait une faute.</p>
+    </div>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Un mod&egrave;le &agrave; faire approuver
+    (<code>fin_de_paquet</code>, utilitaire), rien &agrave; d&eacute;ployer c&ocirc;t&eacute; serveur, aucune migration.
+    Le juge est pur et s&rsquo;&eacute;prouve au harnais avant de partir.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>

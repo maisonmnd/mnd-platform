@@ -2,6 +2,44 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA FIN DE PAQUET — 15 septembre 2026, CONSTRUIT, MODÈLE À APPROUVER
+
+« Il vous reste 2 soins, jusqu'au 12 juin : c'est le message qui rapporte le
+plus, mais il part hors fenêtre » (ce qui restait de la conversation
+outillée). Maquette `public/maquette-la-fin-de-paquet.html`, validée avec ses
+trois arbitrages : **une séance OU quinze jours** avant la date limite (le
+premier des deux, une fois) ; **sans date, à la dernière séance** ; **le stock
+déjà au seuil est prévenu aussi, sauf les expirés**.
+
+**LE TRÔNE JUGE, ET IL ENVOIE. AUCUN RÉVEIL SERVEUR.** Le juge des paquets
+(`usageDetaille`, calibres, quotas propres, fenêtres de cycle) vit dans le
+Trône : le recopier dans une fonction Edge ferait deux compteurs, et un jour
+deux vérités. `paquetsEnFin` (shared/abonnements.ts, pur, sur les lignes déjà
+calculées, la prestation LA PLUS CONTRAINTE) ; `previensLesFinsDePaquet`
+(shared/fin-de-paquet.ts) tourne depuis la cloche, une fois les quatre tables
+résolues (`quandTablePrete`), puis toutes les six heures, **de 9 h 30 à
+21 h 30 à Cotonou seulement**.
+
+**DEUX POSTES NE FONT PAS DEUX MESSAGES** : une ligne `env-paquet-<contrat>`
+est INSÉRÉE (pas upsertée) dans `envois` avant l'envoi ; la clé primaire ne se
+prend qu'une fois. Un échec se reprend une fois par jour par une mise à jour
+conditionnelle (`statut = échec` et `quand < hier`) qui ne rend une ligne
+qu'à un seul poste. Le verdict s'écrit sur la ligne (`envoyé` + `waMessageId`
+/ `échec` + `detail`), et `Subscriber.finPrevenueLe` sert de raccourci à
+l'écran. Le message part par `whatsapp-envoi` avec le modèle `fin_de_paquet`
+(utilitaire, à faire approuver : `docs/BRANCHER-ENVOIS.md`, étape 7) et le
+texte lisible dans le fil, signé « la Maison, automatiquement ».
+
+**Ce qu'il ne fait pas** : pas de vente dans le message, pas de relance, pas
+les abonnements à cycle, pas de push Ma Couronne (il doublerait). La cloche
+dit surtout **qui n'a pas de numéro**. Épreuves : `verifie-fin-de-paquet`
+(29, vertes). Publié le 15 septembre au soir.
+
+**PIÈGE** : tant que le modèle n'est pas approuvé, chaque paquet au seuil
+laisse une ligne `échec` avec le refus de Meta, reprise chaque jour ; rien
+d'autre à faire qu'approuver. Le stock déjà au seuil partira le premier jour
+où quelqu'un ouvre le Trône après l'approbation, entre 9 h 30 et 21 h 30.
+
 ## L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026, PUBLIÉ, SQL PASSÉE, FONCTIONS À RECOLLER
 
 **0102 passée le 15 septembre** (contrôle : 6 fonctions · 2 politiques ·

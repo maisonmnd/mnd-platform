@@ -1392,6 +1392,13 @@ export default function Abonnements() {
                                 ? `du ${dateComplete(debutDuContratLocal(x.sub))} au ${dateComplete(x.sub.expiresIso)}`
                                 : `${cycleLabel(x.sub.cycle ?? 'mensuel').split(' · ')[0]} · prochaine échéance le ${dateComplete(x.sub.nextIso)}`}
                             </span>
+                            {/* LA FIN DE PAQUET, PRÉVENUE — 15 septembre 2026. Le
+                                message est parti seul ; ici on le sait. */}
+                            {x.sub.finPrevenueLe && (
+                              <span className="tre-contrat__quand">
+                                Fin de paquet · prévenue par WhatsApp le {dateComplete(x.sub.finPrevenueLe.slice(0, 10))}
+                              </span>
+                            )}
                           </div>
                           <div className="tre-contrat__bas">
                             <span className="tre-jauge">
