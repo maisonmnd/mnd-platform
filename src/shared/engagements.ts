@@ -94,6 +94,10 @@ export type DevisRecu = {
   etat: EtatDevis;
   retenuLe?: string;
   retenuPar?: string;
+  /** LA DERNIÈRE CORRECTION — le jour et la main. Ce qu'il disait avant, la
+      trace de la base le garde (0092) : l'écran ne montre que le fait. */
+  corrigeLe?: string;
+  corrigePar?: string;
   /** UN AVENANT S'AJOUTE, il ne remplace pas. Le menuisier annonce
       200 000 F de plus en cours de route : c'est un devis de plus dans le
       même dossier, et le retenu devient la somme des deux. */
@@ -487,6 +491,75 @@ export function depenseDuVersement(
     ...(sous ? { subcategory: sous } : {}),
     ...(e.fournisseurId ? { fournisseurId: e.fournisseurId } : {}),
   };
+}
+
+/* ══ CORRIGER UN DEVIS — 15 septembre 2026 ═══════════════════════════════
+
+   « Modifier un devis accepté » (Yéman). Tranché le même jour : LA DIRECTION
+   CORRIGE un devis retenu, et la trace de la base garde la version d'avant.
+
+   C'EST UN RETOUR SUR UNE RÈGLE DE 0099, ET IL EST ASSUMÉ. 0099 figeait le
+   montant d'un devis retenu pour tout le monde : un prix qui bouge devait
+   passer par un avenant. C'est juste pour un prix qui CHANGE ; c'est absurde
+   pour une faute de frappe, un madrier compté deux fois, un fichier oublié.
+   0100 rend la correction à la direction, et la retire entièrement au reste
+   du personnel — lignes comprises, qu'0099 ne connaissait pas.
+
+   UN DEVIS PAS ENCORE RETENU se corrige par qui l'a saisi : ce n'est encore
+   qu'une proposition rangée. */
+
+export function pourquoiOnNeModifiePas(o: { devis: DevisRecu; estDirection: boolean }): string | null {
+  if (o.devis.etat === 'retenu' && !o.estDirection) return 'Ce devis est retenu : la direction seule le corrige.';
+  return null;
+}
+
+/** CE QUE LA CORRECTION FAIT À L'ARGENT — dit AVANT d'enregistrer.
+
+    Corriger un devis retenu change ce que la Maison doit. Quand des avances
+    sont déjà parties, baisser le devis peut faire qu'on a trop versé : c'est
+    à ce moment-là qu'il faut le savoir, pas au solde. */
+export function avertitAvantDeCorriger(o: {
+  devis: DevisRecu;
+  nouveauMontantXof: number;
+  tous: readonly DevisRecu[];
+  versements: readonly Versement[];
+}): string | null {
+  if (o.devis.etat !== 'retenu' || o.nouveauMontantXof === o.devis.montantXof) return null;
+  const dossier = o.tous.filter((d) => d.engagementId === o.devis.engagementId);
+  const apres = dossier.map((d) => (d.id === o.devis.id ? { ...d, montantXof: o.nouveauMontantXof } : d));
+  const vs = o.versements.filter((v) => v.engagementId === o.devis.engagementId);
+  const phrase = `Le retenu passe de ${nombreEnChiffres(retenuXof(dossier))} F à ${nombreEnChiffres(retenuXof(apres))} F.`;
+  const trop = tropVerseXof(apres, vs);
+  return trop > 0
+    ? `${phrase} ${nombreEnChiffres(trop)} F auront été versés au-delà : à récupérer ou à déduire.`
+    : `${phrase} Reste à payer : ${nombreEnChiffres(resteXof(apres, vs))} F.`;
+}
+
+export type ChampsDuDevis = Partial<Pick<DevisRecu,
+  'numeroPrestataire' | 'recuLe' | 'valableJusquau' | 'montantXof' | 'lignes' | 'avenant' | 'fichier'>>;
+
+/** CORRIGER UN DEVIS — son contenu, JAMAIS son état. Un devis retenu reste
+    retenu, par la même main et le même jour : corriger n'est pas redonner un
+    oui. Un champ passé à `undefined` s'efface (une validité retirée). */
+export function corrigeLeDevis(
+  tous: readonly DevisRecu[], id: string, champs: ChampsDuDevis, par: string | undefined, quand: string,
+): DevisRecu[] {
+  return tous.map((d) => {
+    if (d.id !== id) return d;
+    return {
+      ...d,
+      ...champs,
+      /* L'état et le oui ne passent pas par une correction. Un avenant ne
+         devient pas un devis de base après coup, ni l'inverse : le retenu
+         changerait de nature sans que personne l'ait décidé. */
+      etat: d.etat,
+      retenuLe: d.retenuLe,
+      retenuPar: d.retenuPar,
+      avenant: d.etat === 'retenu' || !('avenant' in champs) ? d.avenant : champs.avenant,
+      corrigeLe: quand,
+      corrigePar: par,
+    };
+  });
 }
 
 /* ══ LES DOSSIERS, LUS D'UN COUP ═════════════════════════════════════════

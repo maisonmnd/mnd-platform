@@ -20,6 +20,7 @@ import {
   litLesDossiers, bilanDesEngagements,
   lisLeNombre, quantiteDite, totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas,
   ligneDeLaSaisie, lignesDeLaSaisie, LIGNE_VIDE,
+  pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -305,6 +306,47 @@ dit('une description sans prix', 'la ligne n’a pas de prix.',
   pourquoiLaLigneNeVautPas(ligneDeLaSaisie({ description: 'Madrier', quantite: '2', prix: '' })));
 dit('une ligne illisible ne pèse rien dans le total', 50000,
   totalDesLignes([madriers, ligneDeLaSaisie({ description: 'Madrier', quantite: '2', prix: '25000*2' })]));
+
+/* ══ CORRIGER UN DEVIS ═══════════════════════════════════════════════
+   « Modifier un devis accepté » (Yéman) : la direction corrige, et l'écran
+   dit ce que ça change à l'argent avant d'enregistrer. */
+const k2Retenu = e1Retenu.find((d) => d.id === 'k2') as DevisRecu;
+dit('le comptoir ne corrige pas un devis retenu', 'Ce devis est retenu : la direction seule le corrige.',
+  pourquoiOnNeModifiePas({ devis: k2Retenu, estDirection: false }));
+dit('la direction le corrige', null, pourquoiOnNeModifiePas({ devis: k2Retenu, estDirection: true }));
+/* UN DEVIS PAS ENCORE RETENU se corrige par qui l'a saisi. */
+dit('un devis à trancher se corrige par tous', null, pourquoiOnNeModifiePas({ devis: k1, estDirection: false }));
+
+dit('corriger à la hausse dit le nouveau reste',
+  'Le retenu passe de 1 850 000 F à 1 900 000 F. Reste à payer : 1 160 000 F.',
+  avertitAvantDeCorriger({ devis: k2Retenu, nouveauMontantXof: 1900000, tous: e1Retenu, versements }));
+/* BAISSER APRÈS UNE AVANCE PEUT FAIRE QU'ON A TROP VERSÉ : le dire maintenant. */
+dit('corriger sous l’avance déjà versée dit le trop-versé',
+  'Le retenu passe de 1 850 000 F à 700 000 F. 40 000 F auront été versés au-delà : à récupérer ou à déduire.',
+  avertitAvantDeCorriger({ devis: k2Retenu, nouveauMontantXof: 700000, tous: e1Retenu, versements }));
+dit('un montant inchangé n’avertit de rien', null,
+  avertitAvantDeCorriger({ devis: k2Retenu, nouveauMontantXof: 1850000, tous: e1Retenu, versements }));
+dit('un devis non retenu n’engage rien à corriger', null,
+  avertitAvantDeCorriger({ devis: k1, nouveauMontantXof: 1, tous: e1Retenu, versements }));
+dit('l’avenant retenu compte dans le nouveau retenu',
+  'Le retenu passe de 2 050 000 F à 2 100 000 F. Reste à payer : 1 360 000 F.',
+  avertitAvantDeCorriger({ devis: k2Retenu, nouveauMontantXof: 1900000, tous: avecAvenant, versements }));
+
+const corriges = corrigeLeDevis(e1Retenu, 'k2', {
+  montantXof: 1900000, valableJusquau: undefined,
+  lignes: [{ description: 'Agencement', quantite: 1, prixUnitaireXof: 1900000 }],
+}, 'Y. B.', AUJ);
+const k2Corrige = corriges.find((d) => d.id === 'k2') as DevisRecu;
+dit('la correction change le contenu', [1900000, 1], [k2Corrige.montantXof, k2Corrige.lignes?.length]);
+/* CORRIGER N'EST PAS REDONNER UN OUI. */
+dit('le devis reste retenu, par la même main', ['retenu', 'yeman', '2026-09-12'],
+  [k2Corrige.etat, k2Corrige.retenuPar, k2Corrige.retenuLe]);
+dit('elle porte qui l’a corrigé et quand', ['Y. B.', AUJ], [k2Corrige.corrigePar, k2Corrige.corrigeLe]);
+dit('une validité retirée s’efface', false, 'valableJusquau' in JSON.parse(JSON.stringify(k2Corrige)));
+dit('les autres devis ne bougent pas', JSON.stringify(e1Retenu.filter((d) => d.id !== 'k2')),
+  JSON.stringify(corriges.filter((d) => d.id !== 'k2')));
+dit('un devis retenu ne devient pas un avenant par correction', undefined,
+  corrigeLeDevis(e1Retenu, 'k2', { avenant: true }, 'Y. B.', AUJ).find((d) => d.id === 'k2')?.avenant);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

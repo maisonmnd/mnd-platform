@@ -41,6 +41,7 @@ import {
   devisExpire, devisExpireBientot,
   totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas, ligneDeLaSaisie, lignesDeLaSaisie,
   quantiteDite, LIGNE_VIDE, type LigneSaisie,
+  pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
   type Engagement, type DevisRecu, type Versement, type Decharge, type LectureDuDossier,
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
@@ -347,6 +348,8 @@ function LaListe({ lectures, bilan, currency, onOuvre }: {
 /* ══ LE DOSSIER ══════════════════════════════════════════════════════════ */
 
 type FormDevis = {
+  /** Présent : on corrige ce devis-là. Absent : on en range un nouveau. */
+  id?: string;
   numeroPrestataire: string;
   recuLe: string;
   avecValidite: boolean;
@@ -412,14 +415,35 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     setEngagements((prev) => prev.map((x) => (x.id === e.id ? fn(x) : x)));
 
   /* ── LES DEVIS ─────────────────────────────────────────────────────── */
-  const ouvreLeDevis = () => setFormDevis({
-    numeroPrestataire: '', recuLe: aujourdhui, avecValidite: true, valableJusquau: decaleLeJour(aujourdhui, 30),
-    montant: '', lignes: [LIGNE_VIDE], avenant: !!base, fichier: null,
-  });
+  const ouvreLeDevis = (d?: DevisRecu) => setFormDevis(d
+    ? {
+      id: d.id,
+      numeroPrestataire: d.numeroPrestataire ?? '',
+      recuLe: d.recuLe,
+      avecValidite: !!d.valableJusquau,
+      valableJusquau: d.valableJusquau ?? decaleLeJour(d.recuLe, 30),
+      /* UN DEVIS SANS LIGNES garde son montant tapé ; un devis détaillé se
+         rouvre ligne à ligne, et c'est le total qui refait le montant. */
+      montant: d.lignes?.length ? '' : String(d.montantXof),
+      lignes: d.lignes?.length
+        ? d.lignes.map((x) => ({ description: x.description, quantite: quantiteDite(x.quantite), prix: String(x.prixUnitaireXof) }))
+        : [LIGNE_VIDE],
+      avenant: !!d.avenant,
+      fichier: null,
+    }
+    : {
+      numeroPrestataire: '', recuLe: aujourdhui, avecValidite: true, valableJusquau: decaleLeJour(aujourdhui, 30),
+      montant: '', lignes: [LIGNE_VIDE], avenant: !!base, fichier: null,
+    });
 
   const enregistreLeDevis = async () => {
     if (!formDevis) return;
     const f = formDevis;
+    const existant = f.id ? l.devis.find((x) => x.id === f.id) : undefined;
+    if (existant) {
+      const refus = pourquoiOnNeModifiePas({ devis: existant, estDirection });
+      if (refus) { toast(refus); return; }
+    }
     const lignes = lignesDeLaSaisie(f.lignes);
     for (const [i, x] of lignes.entries()) {
       const pourquoi = pourquoiLaLigneNeVautPas(x);
@@ -434,7 +458,10 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     }
     if (f.avecValidite && f.valableJusquau < f.recuLe) { toast('Un devis ne peut pas expirer avant d’avoir été reçu.'); return; }
     setOccupe(true);
-    let fichier: DevisRecu['fichier'];
+    /* UN FICHIER REMPLACÉ NE S'EFFACE PAS DU COFFRE : c'est la pièce que le
+       prestataire a réellement envoyée, et la trace de la base pointe encore
+       vers elle. */
+    let fichier: DevisRecu['fichier'] = existant?.fichier;
     if (f.fichier) {
       const p = await deposeDansLeCoffre(branch.id, e.id, 'devis', f.fichier);
       if (!p) {
@@ -443,6 +470,23 @@ function LeDossier({ lecture, onRetour, onModifier }: {
         return;
       }
       fichier = p;
+    }
+    if (existant) {
+      setDevis((prev) => corrigeLeDevis(prev, existant.id, {
+        numeroPrestataire: f.numeroPrestataire.trim() || undefined,
+        recuLe: f.recuLe,
+        valableJusquau: f.avecValidite ? f.valableJusquau : undefined,
+        montantXof: montant,
+        lignes: lignes.length > 0 ? lignes : undefined,
+        avenant: base && base.id !== existant.id && f.avenant ? true : undefined,
+        fichier,
+      }, monNom, aujourdhui));
+      setOccupe(false);
+      setFormDevis(null);
+      toast(existant.etat === 'retenu'
+        ? 'Devis retenu corrigé. La base garde la version d’avant.'
+        : 'Devis corrigé.');
+      return;
     }
     const d: DevisRecu = {
       id: `dvr-${uid()}`,
@@ -588,6 +632,15 @@ function LeDossier({ lecture, onRetour, onModifier }: {
   const lignesSaisies = formDevis ? lignesDeLaSaisie(formDevis.lignes) : [];
   const avecLignes = lignesSaisies.length > 0;
   const totalSaisi = totalDesLignes(lignesSaisies);
+  const devisEnCours = formDevis?.id ? l.devis.find((d) => d.id === formDevis.id) : undefined;
+  const avertCorrection = devisEnCours && formDevis
+    ? avertitAvantDeCorriger({
+      devis: devisEnCours,
+      nouveauMontantXof: avecLignes ? totalSaisi : enFrancs(formDevis.montant),
+      tous: l.devis,
+      versements: l.versements,
+    })
+    : null;
   const changeLaLigne = (i: number, champ: keyof LigneSaisie, valeur: string) =>
     setFormDevis((f) => (f ? { ...f, lignes: f.lignes.map((y, j) => (j === i ? { ...y, [champ]: valeur } : y)) } : f));
 
@@ -658,7 +711,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
             <h3>Ses devis</h3>
             <p>Plusieurs propositions, une seule retenue. Un devis écarté reste : c’est la preuve qu’on a comparé.</p>
           </div>
-          {!ferme && <Button variant="ghost" size="sm" onClick={ouvreLeDevis}>+ Devis reçu</Button>}
+          {!ferme && <Button variant="ghost" size="sm" onClick={() => ouvreLeDevis()}>+ Devis reçu</Button>}
         </div>
         {l.devis.length === 0 ? (
           <p className="eng-rien">Aucun devis rangé. Son numéro, sa validité et son fichier se gardent ici, PDF ou photo.</p>
@@ -680,6 +733,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                         {(d.description || d.avenant) && (
                           <span className="sous">{d.avenant ? 'avenant' : ''}{d.avenant && d.description ? ' · ' : ''}{d.description}</span>
                         )}
+                        {d.corrigeLe && (
+                          <span className="sous">corrigé le {jourDit(d.corrigeLe)}{d.corrigePar ? ` par ${d.corrigePar}` : ''}</span>
+                        )}
                       </td>
                       <td>{jourDit(d.recuLe)}</td>
                       <td>
@@ -697,6 +753,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                       </td>
                       <td className="eng-gestes">
                         {d.fichier && <button type="button" className="eng-lien" onClick={() => void ouvreLaPiece(d.fichier!.chemin)}>Le fichier</button>}
+                        {!ferme && !pourquoiOnNeModifiePas({ devis: d, estDirection }) && (
+                          <button type="button" className="eng-lien" onClick={() => ouvreLeDevis(d)}>Corriger</button>
+                        )}
                         {estDirection && !ferme && d.etat !== 'retenu' && (
                           <Button variant={d.etat === 'recu' ? 'copper' : 'ghost'} size="sm" onClick={() => setARetenir(d)}>Retenir</Button>
                         )}
@@ -878,7 +937,13 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       {/* ══ LES MODALES ══ */}
 
       {formDevis && (
-        <Modal title={formDevis.avenant && base ? 'Un avenant reçu.' : 'Un devis reçu.'} onClose={() => setFormDevis(null)} width={560}>
+        <Modal
+          title={devisEnCours
+            ? (devisEnCours.etat === 'retenu' ? 'Corriger le devis retenu.' : 'Corriger le devis.')
+            : formDevis.avenant && base ? 'Un avenant reçu.' : 'Un devis reçu.'}
+          onClose={() => setFormDevis(null)}
+          width={680}
+        >
           <div className="eng-formulaire">
             <div className="eng-deux">
               <Field label="Son numéro à lui">
@@ -940,22 +1005,35 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                 <span>Total du devis<b>{fmtMoney(avecLignes ? totalSaisi : enFrancs(formDevis.montant), currency)}</b></span>
               </div>
             </div>
-            {base && (
+            {base && base.id !== devisEnCours?.id && devisEnCours?.etat !== 'retenu' && (
               <label className="eng-coche">
                 <input type="checkbox" checked={formDevis.avenant} onChange={(ev) => setFormDevis({ ...formDevis, avenant: ev.target.checked })} />
                 C’est un avenant : il s’ajoute au devis retenu, il ne le remplace pas
               </label>
             )}
             <div className="eng-piece">
-              <span className={formDevis.fichier ? '' : 'eng-doux'}>{formDevis.fichier ? formDevis.fichier.name : 'Le fichier qu’il a envoyé, PDF ou photo.'}</span>
+              <span className={formDevis.fichier || devisEnCours?.fichier ? '' : 'eng-doux'}>
+                {formDevis.fichier
+                  ? formDevis.fichier.name
+                  : devisEnCours?.fichier ? `${devisEnCours.fichier.nom} · déjà rangé` : 'Le fichier qu’il a envoyé, PDF ou photo.'}
+              </span>
               <span className="eng-gestes">
-                <ChoisirUnePiece libelle={formDevis.fichier ? 'Changer' : 'Joindre'} onFichier={(f) => setFormDevis({ ...formDevis, fichier: f })} />
+                <ChoisirUnePiece libelle={formDevis.fichier || devisEnCours?.fichier ? 'Remplacer' : 'Joindre'} onFichier={(f) => setFormDevis({ ...formDevis, fichier: f })} />
                 {formDevis.fichier && <button type="button" className="eng-lien eng-lien--doux" onClick={() => setFormDevis({ ...formDevis, fichier: null })}>Retirer</button>}
               </span>
             </div>
+            {devisEnCours?.etat === 'retenu' && (
+              <div className={avertCorrection ? 'eng-mur' : 'eng-garde'}>
+                {avertCorrection ?? (
+                  <><b>Ce devis est retenu.</b> La correction s’enregistre à votre nom, et la base garde la version d’avant.</>
+                )}
+              </div>
+            )}
             <div className="eng-actions">
               <Button variant="ghost" onClick={() => setFormDevis(null)}>Annuler</Button>
-              <Button variant="copper" disabled={occupe} onClick={() => void enregistreLeDevis()}>{occupe ? 'Dépôt…' : 'Ranger le devis'}</Button>
+              <Button variant="copper" disabled={occupe} onClick={() => void enregistreLeDevis()}>
+                {occupe ? 'Dépôt…' : devisEnCours ? 'Enregistrer la correction' : 'Ranger le devis'}
+              </Button>
             </div>
           </div>
         </Modal>
