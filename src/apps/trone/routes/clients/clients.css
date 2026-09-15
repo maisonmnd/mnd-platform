@@ -2790,6 +2790,12 @@
    « Une tête de la Maison », « Ou un numéro » : deux portes dans la même
    modale, et sans ces intitulés elles se lisent comme un seul formulaire où
    l'on remplirait les deux. */
+/* LA SECONDE PORTE, PLUS DISCRÈTE QUE LA PREMIÈRE — 15 septembre 2026.
+   Le Trône d'abord, l'application ensuite : c'est l'ordre voulu, et la
+   taille le dit sans qu'on ait à l'écrire. */
+.trc-wa--app { opacity: .6; }
+.trc-wa--app:hover { opacity: 1; }
+
 .trc-sec-label {
   font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .14em;
   text-transform: uppercase; color: var(--copper-700);

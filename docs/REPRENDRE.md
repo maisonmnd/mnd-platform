@@ -142,6 +142,35 @@ C'était le vrai trou, et il était invisible.
 fait que changer d'onglet. Un encaissement d'il y a trois semaines est aussi
 modifiable qu'un d'aujourd'hui, et c'est la trace, pas un verrou, qui protège.
 
+## DEUX PORTES, PAS UNE — 15 septembre 2026, PUBLIÉ
+
+« Je veux garder la possibilité d'ouvrir le wa.me WhatsApp app de mon
+téléphone et en même temps la possibilité de rester dans le Trône » (Yéman).
+
+**LA VEILLE, J'AVAIS TROP CORRIGÉ.** Dix-neuf liens sortaient du Trône et je
+les ai TOUS ramenés dedans — juste pour la trace, faux pour la main. Il y a des
+moments où l'on veut l'application : au bout du salon sans la tablette, pour un
+vocal, pour une photo prise à l'instant, pour ce que le Trône ne sait pas
+encore faire.
+
+**Trois endroits portent désormais les deux portes** :
+
+- **L'en-tête d'un fil** (`Ouvrir sur WhatsApp`) — et c'est celle qui compte :
+  depuis le 14 septembre chaque numéro de la Maison mène à ce fil, donc **une
+  seule sortie posée là les dessert tous**, plutôt que dix-neuf boutons
+  recopiés qui divergeraient. Elle emporte le texte de la zone de saisie,
+  sinon on le retaperait dans l'application et l'on n'en sortirait jamais.
+- **La fiche cliente** — « WhatsApp » et « WhatsApp · l'app », côte à côte.
+- **Le Carnet** — le numéro mène au Trône, un « app » discret à côté.
+
+**CE QU'ON PERD EN SORTANT SE DIT AU SURVOL** : un message écrit dans
+l'application n'entre **pas** dans le fil de la Maison. Ce n'est pas un défaut
+à corriger — WhatsApp ne raconte à personne ce qu'on tape chez lui. On choisit
+en sachant, plutôt que de le découvrir.
+
+**L'ordre est voulu, et la taille le dit** : le Trône d'abord, l'application
+ensuite, plus discrète.
+
 ## ON NE SORT PLUS DU TRÔNE — 14 septembre 2026, PUBLIÉ
 
 « Quand je clique le numéro WhatsApp dans Clientes et dans Carnet, j'aimerais

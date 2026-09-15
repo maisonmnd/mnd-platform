@@ -59,7 +59,7 @@ import { DroitImageModal } from './DroitImageModal';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
 import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
-import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -2711,7 +2711,30 @@ function Customer360({
               )}
 
               {client.phone && phoneDigits ? (
-                <Link className="trc-cover-act" to={cheminDeLaConversation(client.phone) ?? '/conversations'}>WhatsApp</Link>
+                <>
+                  <Link className="trc-cover-act" to={cheminDeLaConversation(client.phone) ?? '/conversations'}>WhatsApp</Link>
+                  {/* ══ LA SECONDE PORTE — 15 septembre 2026 ═══════════════
+                      « Je veux garder la possibilité d'ouvrir le wa.me
+                      WhatsApp app de mon téléphone et en même temps la
+                      possibilité de rester dans le Trône » (Yéman). La veille,
+                      j'avais trop corrigé : j'ai ramené dix-neuf liens dans le
+                      Trône au lieu d'en ajouter un second à côté.
+
+                      CE QU'ON PERD EN SORTANT, et le survol le dit : un
+                      message écrit dans l'application n'entre pas dans le fil
+                      de la Maison. Ce n'est pas un défaut, c'est le prix de
+                      cette porte — WhatsApp ne raconte à personne ce qu'on
+                      tape chez lui. */}
+                  <a
+                    className="trc-cover-act"
+                    href={lienWaMe(client.phone) ?? '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                  >
+                    WhatsApp · l’app
+                  </a>
+                </>
               ) : (
                 <button type="button" className="trc-cover-act trc-cover-act--off" title="Ajoutez un numéro dans l’identité" onClick={() => { setTab('profil'); focusField('c360-phone'); }}>WhatsApp</button>
               )}

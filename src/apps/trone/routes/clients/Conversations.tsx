@@ -10,7 +10,7 @@ import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
-  messagesQuiSonnent, messageCite, filNeuf, type MessageWa,
+  messagesQuiSonnent, messageCite, filNeuf, lienWaMe, type MessageWa,
 } from '../../../../shared/conversations';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
@@ -594,6 +594,30 @@ export default function Conversations() {
                   </span>
                 </span>
                 <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                  {/* ══ L'AUTRE PORTE — 15 septembre 2026 ═══════════════════
+                      « Je veux garder la possibilité d'ouvrir le wa.me
+                      WhatsApp app de mon téléphone et en même temps la
+                      possibilité de rester dans le Trône » (Yéman).
+
+                      ELLE EST ICI, ET ELLE COUVRE TOUT. Depuis le 14
+                      septembre, chaque numéro de la Maison mène à ce fil :
+                      une seule porte de sortie posée là les dessert donc
+                      TOUS, plutôt que dix-neuf boutons recopiés qui
+                      finiraient par diverger.
+
+                      ELLE EMPORTE CE QU'ON A ÉCRIT : le texte de la zone de
+                      saisie part avec, sinon il faudrait le retaper dans
+                      l'application — et l'on ne sortirait jamais. */}
+                  <a
+                    className="trv-minibtn"
+                    href={lienWaMe(fil.numero, texte) ?? '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ textDecoration: 'none' }}
+                    title="Continuer dans l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                  >
+                    Ouvrir sur WhatsApp
+                  </a>
                   {fil.sansFiche ? (
                     <button type="button" className="trv-minibtn" onClick={() => setRattacher(fil)}>
                       Rattacher à une fiche

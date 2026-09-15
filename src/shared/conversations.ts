@@ -328,6 +328,33 @@ export function pourquoiLEnvoiEstImpossible(o: {
    relance d'un impayé, le mot d'anniversaire. Ce texte suit : il se retrouve
    dans la zone de saisie des Conversations, prêt à être relu. On garde donc
    le geste, on change seulement l'endroit où il aboutit. */
+/** L'AUTRE PORTE — l'application WhatsApp du téléphone.
+
+    ── DEUX PORTES, PAS UNE — 15 septembre 2026 ──────────────────────
+    « Je veux garder la possibilité d'ouvrir le wa.me WhatsApp app de mon
+    téléphone et en même temps la possibilité de rester dans le Trône »
+    (Yéman).
+
+    LA VEILLE, J'AVAIS TROP CORRIGÉ. Dix-neuf liens sortaient du Trône, et je
+    les ai tous ramenés dedans — ce qui était juste pour la trace, et faux
+    pour la main. Il y a des moments où l'on VEUT l'application : au bout du
+    salon sans la tablette, pour un vocal, pour une photo prise à l'instant,
+    pour ce que le Trône ne sait pas encore faire.
+
+    CE QU'IL FAUT SAVOIR EN SORTANT, et l'écran le dit : un message écrit dans
+    l'application n'entre PAS dans le fil de la Maison. Ce n'est pas un défaut
+    à corriger, c'est le prix de cette porte-là — WhatsApp ne raconte à
+    personne ce qu'on tape dans son application. On choisit donc en sachant,
+    au lieu de le découvrir. */
+export const lienWaMe = (
+  brut: string | undefined, texte?: string,
+): string | null => {
+  const n = numeroWa(brut);
+  if (!n) return null;
+  const t = (texte ?? '').trim();
+  return t ? `https://wa.me/${n}?text=${encodeURIComponent(t)}` : `https://wa.me/${n}`;
+};
+
 export const cheminDeLaConversation = (
   brut: string | undefined, texte?: string,
 ): string | null => {

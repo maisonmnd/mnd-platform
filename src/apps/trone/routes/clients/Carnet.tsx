@@ -25,7 +25,7 @@ import {
 } from './_shared';
 import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
-import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -360,15 +360,30 @@ export default function Carnet() {
                 Maison ne gardait aucune trace. `stopPropagation` empêche
                 d'ouvrir le rendez-vous au passage. */}
             {tel(c?.phone) && (
-              <Link
-                className="trc-wa"
-                to={cheminDeLaConversation(c?.phone) ?? '/conversations'}
-                onClick={(e) => e.stopPropagation()}
-                title="Ouvrir sa conversation dans le Trône"
-                style={{ alignSelf: 'flex-start' }}
-              >
-                <span className="trc-wa__num">{c?.phone}</span>
-              </Link>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
+                <Link
+                  className="trc-wa"
+                  to={cheminDeLaConversation(c?.phone) ?? '/conversations'}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Ouvrir sa conversation dans le Trône"
+                >
+                  <span className="trc-wa__num">{c?.phone}</span>
+                </Link>
+                {/* LA SECONDE PORTE (15 septembre) : l'application du
+                    téléphone, pour ce que le Trône ne sait pas encore faire —
+                    un vocal, une photo prise à l'instant. Ce qui s'y écrit
+                    n'entre pas dans le fil de la Maison, et le survol le dit. */}
+                <a
+                  className="trc-wa trc-wa--app"
+                  href={lienWaMe(c?.phone) ?? '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                >
+                  <span className="trc-wa__num">app</span>
+                </a>
+              </span>
             )}
           </span>
         </span>
