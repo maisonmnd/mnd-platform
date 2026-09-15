@@ -162,6 +162,26 @@ par un modèle se payait une fois, et tout ce qui suivait était compris.
 conversation payée on pouvait tout dire. Aujourd'hui chaque modèle hors fenêtre
 compte, et répondre ensuite dans la fenêtre qu'il ouvre ne coûte rien.
 
+### Un modèle se confirme avant de partir
+
+« Si j'appuie un des modèles je dois avoir un message qui m'avertit que je vais
+être facturé » (Yéman, 15 septembre).
+
+**À CET ENDROIT, C'EST TOUJOURS VRAI** : les modèles ne paraissent que lorsque
+la fenêtre est FERMÉE. Un modèle envoyé dans une fenêtre ouverte serait gratuit,
+mais ce cas-là n'existe pas dans cet écran — chaque clic engage donc une
+dépense.
+
+La modale dit à qui, quel modèle, et **le rang dans le mois** (« ce sera le
+12ᵉ modèle facturé ») : le rang est exact, là où un tarif en francs serait
+inventé. Elle rappelle aussi **ce qui ne coûte rien** — attendre qu'elle
+écrive — parce que c'est souvent la meilleure décision.
+
+**UN MODÈLE NE PASSE PLUS PAR LA RETENUE** de huit secondes : son texte est fixe
+et approuvé par Meta, il n'y a aucune faute de frappe à rattraper, et la
+confirmation joue ce rôle mieux. Lui imposer huit secondes de plus ferait
+attendre pour rien.
+
 ### Le compteur du mois
 
 `compteDesModeles` (pur, éprouvé) dit **combien** de modèles sont partis ce

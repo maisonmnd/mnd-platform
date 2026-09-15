@@ -171,6 +171,17 @@ export default function Conversations() {
      ON COMPTE DES MESSAGES, PAS DES FRANCS. La Maison n'a pas les tarifs du
      Bénin, ils bougent, et les inventer mettrait un chiffre faux sous les
      yeux de quelqu'un qui déciderait dessus. */
+  /* ── UN MODÈLE SE CONFIRME AVANT DE PARTIR — 15 septembre 2026 ────
+     « Si j'appuie un des modèles je dois avoir un message qui m'avertit que
+     je vais être facturé » (Yéman).
+
+     ICI, C'EST TOUJOURS VRAI. Les modèles ne paraissent que lorsque la
+     fenêtre est FERMÉE — un modèle envoyé dans une fenêtre ouverte serait
+     gratuit, mais ce cas-là n'existe pas à cet endroit de l'écran. Chaque
+     clic engage donc une dépense, et un geste qui coûte ne doit pas partir
+     d'un seul clic. */
+  const [modeleAConfirmer, setModeleAConfirmer] = useState<{ nom: string; dit: string } | null>(null);
+
   const moisCourant = new Date().toISOString().slice(0, 7);
   const modelesDuMois = useMemo(
     () => compteDesModeles(messages, moisCourant, branch.id),
@@ -393,6 +404,11 @@ export default function Conversations() {
     /* UN SEUL MESSAGE RETENU À LA FOIS : le précédent part tout de suite,
        sinon « retenir » ne désignerait plus rien. */
     if (enAttente) void partir(enAttente);
+    /* UN MODÈLE NE SE RETIENT PAS. Son texte est fixe et approuvé par Meta :
+       il n'y a aucune faute de frappe à rattraper, et la confirmation qui
+       vient de l'annoncer a déjà joué ce rôle, mieux. Lui imposer huit
+       secondes de plus ferait attendre pour rien. */
+    if (modele) { void partir(aPoster); return; }
     if (delaiMs <= 0) { void partir(aPoster); return; }
     setEnAttente(aPoster);
   };
@@ -873,7 +889,7 @@ export default function Conversations() {
                         size="sm"
                         disabled={envoiEnCours}
                         title={`${m.dit} · ${m.nom}`}
-                        onClick={() => void envoie(m.nom)}
+                        onClick={() => setModeleAConfirmer({ nom: m.nom, dit: m.dit })}
                       >
                         {m.dit}
                       </Button>
@@ -903,6 +919,59 @@ export default function Conversations() {
           }}
           surFermer={() => setPromoOuverte(false)}
         />
+      )}
+
+      {/* ══ UN MODÈLE SE CONFIRME AVANT DE PARTIR — 15 septembre 2026 ═══
+          « Si j'appuie un des modèles je dois avoir un message qui m'avertit
+          que je vais être facturé » (Yéman).
+
+          ON DIT COMBIEN, PAS EN FRANCS. La Maison n'a pas les tarifs du Bénin
+          et les inventer mettrait un chiffre faux sous les yeux de quelqu'un
+          qui déciderait dessus. Le RANG dans le mois, lui, est exact et rend
+          la dépense tangible : « le douzième ce mois-ci » se comprend mieux
+          qu'un tarif hors contexte.
+
+          ET L'ON RAPPELLE CE QUI EST GRATUIT, parce que c'est souvent la
+          meilleure décision : attendre qu'elle écrive ne coûte rien. */}
+      {modeleAConfirmer && fil && (
+        <div className="trc-modal-fond" onClick={() => setModeleAConfirmer(null)}>
+          <div className="trc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="trc-modal__t">Ce modèle sera facturé</div>
+            <p className="trc-sub" style={{ marginTop: 0 }}>
+              <b>{modeleAConfirmer.dit}</b> partira à <b>{fil.nom}</b>.
+              Sa fenêtre est fermée : WhatsApp n’accepte qu’un modèle approuvé, et
+              <b> Meta facture ce message</b> au tarif de sa catégorie.
+            </p>
+            <p className="trc-sub">
+              Ce sera le <b>{modelesDuMois.factures + 1}<sup>e</sup></b> modèle facturé
+              de la Maison ce mois-ci.
+              {modelesDuMois.gratuits > 0
+                ? ` ${modelesDuMois.gratuits} autre${modelesDuMois.gratuits > 1 ? 's sont partis' : ' est parti'} sans rien coûter.`
+                : ''}
+            </p>
+            <p className="trc-sub">
+              <b>Ce qui ne coûte rien :</b> attendre qu’elle vous écrive. Les 24 heures
+              qui suivent son message sont gratuites, autant de réponses que vous voulez.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <Button variant="ghost" size="sm" onClick={() => setModeleAConfirmer(null)}>
+                Ne pas envoyer
+              </Button>
+              <Button
+                variant="copper"
+                size="sm"
+                disabled={envoiEnCours}
+                onClick={() => {
+                  const m = modeleAConfirmer;
+                  setModeleAConfirmer(null);
+                  void envoie(m.nom);
+                }}
+              >
+                Envoyer quand même
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ══ COMMENCER UNE CONVERSATION — 15 septembre 2026 ═══════════════
