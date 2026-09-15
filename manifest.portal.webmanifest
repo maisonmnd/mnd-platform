@@ -1,0 +1,16 @@
+{
+  "name": "Maison MND",
+  "short_name": "Maison MND",
+  "description": "L'écosystème de la Maison MND",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#14141b",
+  "theme_color": "#1E2150",
+  "icons": [
+    { "src": "assets/icons/portal-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/portal-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/portal-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Ma Couronne — Maison MND",
+  "short_name": "Ma Couronne",
+  "description": "Votre espace beauté MND",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f1e7",
+  "theme_color": "#B97A4A",
+  "icons": [
+    { "src": "assets/icons/couronne-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/couronne-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/couronne-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
