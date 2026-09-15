@@ -83,6 +83,28 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## ARCHIVER UNE CONVERSATION — 15 septembre 2026, PUBLIÉ
+
+« Supprimer une conversation WhatsApp » (Yéman). Tranché : **archiver**, **la
+direction seule**. Aucune SQL.
+
+- **Rien ne peut effacer ce qu'elle a reçu** : Meta ne retire aucun message du
+  téléphone d'une cliente. « Supprimer » n'aurait effacé que la mémoire de la
+  Maison.
+- **Archiver n'efface rien** : le fil quitte la liste, la vue « Archivées (n) »
+  le retrouve, « Désarchiver » le rend.
+- **Il revient seul** : `estArchive` compare l'archive aux messages du fil, en
+  millisecondes. Un message reçu OU envoyé après l'archive le sort du tiroir.
+- **L'archive voyage** : document partagé `mnd_fils_archives` (hors liste
+  blanche publique de 0042), `{ numero: { le, par } }`. Les fils privés, eux,
+  restent sur l'appareil.
+- **Direction seule = garde d'écran** : `documents` s'écrit par tout le
+  personnel (0006). Rien n'étant effacé, pas de migration.
+- `filsQuiAttendent` ignore les fils archivés. Épreuves dans
+  `verifie-conversations`.
+- **Piège** : deux directions qui archivent au même instant sur deux postes,
+  la dernière écriture du document l'emporte, et une archive peut sauter.
+
 ## LES ENGAGEMENTS — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
 
 « Un prestataire menuisier veut me réaliser un devis immobilier pour le salon

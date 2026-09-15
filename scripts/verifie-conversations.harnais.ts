@@ -11,6 +11,7 @@
    à une étrangère alors qu'on a vingt de ses rituels au carnet. */
 import {
   numeroWa, fenetreDe, resteEnClair, filsDeLaMaison, pourquoiLEnvoiEstImpossible,
+  estArchive, archiveLeFil, desarchiveLeFil, filsQuiAttendent,
   FENETRE_MS, type MessageWa, type TeteConnue,
 } from '../src/shared/conversations';
 
@@ -153,5 +154,36 @@ dit('les messages d’un fil sont dans l’ordre du temps',
     m({ id: 'a2', sens: 'sortant', quand: il(29) }),
     m({ id: 'a1', quand: il(30) }),
   ], [t({})], [], T)[0].messages.map((x) => x.id));
+
+/* ── ARCHIVER UN FIL — 15 septembre 2026 ─────────────────────────────
+   « Supprimer une conversation WhatsApp » (Yéman) : tranché, on archive.
+   Deux fautes à éviter : une cliente qui réécrit et reste dans le tiroir,
+   et une archive qui rend un fil pour une simple différence d'écriture de
+   l'heure. */
+const filDe = (msgs: MessageWa[]) => filsDeLaMaison(msgs, [t({})], [], T)[0];
+const vieux = filDe([m({ id: 'x1', quand: il(5) }), m({ id: 'x2', sens: 'sortant', quand: il(4) })]);
+dit('sans archive, un fil n’est pas rangé', false, estArchive(vieux, {}));
+const rangee = archiveLeFil({}, '+229 0166144465', 'Y. B.', il(3));
+dit('l’archive se range sous le numéro réduit, avec qui et quand',
+  { '2290166144465': { le: il(3), par: 'Y. B.' } }, rangee);
+dit('archivé après son dernier message, le fil est rangé', true, estArchive(vieux, rangee));
+/* ELLE REVIENT SEULE : aucune case à décocher. */
+dit('un message reçu après l’archive le fait revenir', false,
+  estArchive(filDe([...vieux.messages, m({ id: 'x3', quand: il(2) })]), rangee));
+dit('… un message parti aussi', false,
+  estArchive(filDe([...vieux.messages, m({ id: 'x4', sens: 'sortant', quand: il(2) })]), rangee));
+dit('la même seconde écrite autrement ne le fait pas revenir', true,
+  estArchive(filDe([m({ id: 'x5', quand: '2026-09-11T06:00:00Z' })]),
+    archiveLeFil({}, '2290166144465', undefined, '2026-09-11T06:00:00.000Z')));
+dit('sans nom, l’archive ne porte pas de « par » vide',
+  { '2290166144465': { le: il(3) } }, archiveLeFil({}, '2290166144465', undefined, il(3)));
+dit('désarchiver retire l’entrée', {}, desarchiveLeFil(rangee, '2290166144465'));
+dit('désarchiver un fil non rangé ne touche à rien', rangee, desarchiveLeFil(rangee, '22997000000'));
+dit('un numéro illisible ne s’archive pas', {}, archiveLeFil({}, 'abc', 'Y. B.', il(3)));
+dit('un fil archivé n’attend plus de réponse', [],
+  filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])], archiveLeFil({}, '2290166144465', undefined, il(1)))
+    .map((f) => f.numero));
+dit('… mais un fil non archivé attend toujours', ['2290166144465'],
+  filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])]).map((f) => f.numero));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

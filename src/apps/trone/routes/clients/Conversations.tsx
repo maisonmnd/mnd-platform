@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaGlyph } from '../_ui';
 import { Button, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
-import { useAuth } from '../../../../shared/auth';
+import { useAuth, useStaff } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
 import { clientsStore, useClients } from '../../../../shared/clients';
 import {
@@ -11,6 +11,7 @@ import {
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
+  useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil,
 } from '../../../../shared/conversations';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
@@ -139,6 +140,11 @@ export default function Conversations() {
   const [texte, setTexte] = useState('');
   const [envoiEnCours, setEnvoi] = useState(false);
   const [voirPrives, setVoirPrives] = useState(false);
+  /* LES FILS ARCHIVÉS — 15 septembre 2026. La vue les retrouve ; la
+     direction seule les range et les rend. */
+  const [voirArchives, setVoirArchives] = useState(false);
+  const [archives, setArchives] = useFilsArchives();
+  const quiArchive = useStaff();
   const [rattacher, setRattacher] = useState<Fil | null>(null);
   /* LA PIÈCE EN ATTENTE — choisie, pas encore envoyée. Elle se relit comme
      le texte : on doit pouvoir la retirer avant d'appuyer. */
@@ -205,11 +211,16 @@ export default function Conversations() {
   /* « TOUT LE PERSONNEL, SAUF CE QUE JE MARQUE PRIVÉ » (Yéman, 11 septembre).
      Le fil privé se replie, il ne s'efface pas : un bouton le rouvre, et
      l'écran dit franchement que ce n'est pas un coffre. */
+  /* L'ARCHIVE NE RETIRE UN FIL QUE DE LA LISTE. `tous` le garde : un lien
+     venu des Clientes ou du Carnet doit rouvrir le VRAI fil, avec son
+     histoire, et non un fil neuf qui ferait croire qu'elle n'a jamais écrit. */
   const fils = useMemo(
-    () => (voirPrives ? tous : tous.filter((f) => !f.prive)),
-    [tous, voirPrives],
+    () => tous.filter((f) => (voirPrives || !f.prive)
+      && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives))),
+    [tous, voirPrives, voirArchives, archives],
   );
   const nPrives = tous.filter((f) => f.prive).length;
+  const nArchives = tous.filter((f) => estArchive(f, archives)).length;
 
   const ouvertNum = params.get('n') ?? '';
   /* ── LE NUMÉRO PEUT VENIR D'AILLEURS — 14 septembre 2026 ──────────
@@ -519,6 +530,20 @@ export default function Conversations() {
     }
   };
 
+  /* ARCHIVER, RENDRE — la direction seule. Le fil reste ouvert à l'écran :
+     on voit ce qu'on vient de ranger, et le bouton pour le rendre est à
+     l'endroit même où l'on vient d'appuyer. */
+  const basculeLArchive = (f: Fil) => {
+    if (!estDirection || f.messages.length === 0) return;
+    if (estArchive(f, archives)) {
+      setArchives((prev) => desarchiveLeFil(prev, f.numero));
+      toast('Conversation rendue à la liste.');
+      return;
+    }
+    setArchives((prev) => archiveLeFil(prev, f.numero, quiArchive?.name?.trim() || undefined, new Date().toISOString()));
+    toast('Conversation archivée. Rien n’est effacé, et elle revient seule au prochain message.');
+  };
+
   /* RATTACHER UN NUMÉRO INCONNU À UNE FICHE — jamais l'inverse, et jamais
      tout seul. On écrit le numéro sur la fiche choisie ; les messages
      rejoignent sa tête au prochain rendu, sans qu'aucun message ne bouge. */
@@ -549,6 +574,11 @@ export default function Conversations() {
         title="Les conversations."
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {(nArchives > 0 || voirArchives) && (
+              <Button variant="ghost" size="sm" onClick={() => setVoirArchives((v) => !v)}>
+                {voirArchives ? 'Revenir aux conversations' : `Archivées (${nArchives})`}
+              </Button>
+            )}
             {nPrives > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setVoirPrives((v) => !v)}>
                 {voirPrives ? 'Replier les fils privés' : `Voir les ${nPrives} fils privés`}
@@ -587,8 +617,14 @@ export default function Conversations() {
       <div className="trc-convs">
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
+          {voirArchives && (
+            <div className="trc-sub" style={{ fontSize: 11.5, lineHeight: 1.55, padding: '10px 14px' }}>
+              Les conversations archivées. Rien n’y est effacé, et chacune revient seule dans la liste
+              dès qu’un message part ou arrive.
+            </div>
+          )}
           {fils.length === 0 && messages.length > 0 && (
-            <div className="trc-empty">Aucun fil sur cette branche.</div>
+            <div className="trc-empty">{voirArchives ? 'Aucune conversation archivée.' : 'Aucun fil sur cette branche.'}</div>
           )}
           {fils.map((f) => (
             <button
@@ -685,6 +721,18 @@ export default function Conversations() {
                   >
                     {fil.prive ? 'Rouvrir' : 'Marquer privé'}
                   </button>
+                  {estDirection && fil.messages.length > 0 && (
+                    <button
+                      type="button"
+                      className="trv-minibtn"
+                      title={estArchive(fil, archives)
+                        ? 'Rendre cette conversation à la liste'
+                        : 'Retirer de la liste sans rien effacer. Elle revient seule au prochain message.'}
+                      onClick={() => basculeLArchive(fil)}
+                    >
+                      {estArchive(fil, archives) ? 'Désarchiver' : 'Archiver'}
+                    </button>
+                  )}
                 </span>
               </div>
 

@@ -1,5 +1,5 @@
 import { createStore, useStore } from './store';
-import { bindCollection } from './sync';
+import { bindCollection, bindDocument } from './sync';
 
 /* ══ LES CONVERSATIONS — 11 septembre 2026 ═══════════════════════════
    Maquette `public/maquette-les-conversations.html`, validée.
@@ -159,6 +159,70 @@ export function basculeLeSecret(numero: string): void {
   const n = numeroWa(numero);
   if (!n) return;
   filsPrivesStore.set((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
+}
+
+/* ══ ARCHIVER UN FIL — 15 septembre 2026 ═════════════════════════════
+   « Supprimer une conversation WhatsApp » (Yéman). Tranché le même jour :
+   ARCHIVER, et LA DIRECTION SEULE.
+
+   RIEN NE PEUT EFFACER CE QU'ELLE A REÇU. Meta n'offre aucun moyen de retirer
+   un message du téléphone d'une cliente : « supprimer » dans le Trône
+   n'aurait effacé que la mémoire de la Maison, pas la conversation. Et la
+   mémoire de la Maison est précisément ce qui permet de répondre à « vous ne
+   m'aviez pas dit ça ».
+
+   ARCHIVER N'EFFACE RIEN. Le fil quitte la liste, ses messages restent en
+   base, et la vue « Archivées » le retrouve.
+
+   ELLE REVIENT SEULE. Une archive vaut jusqu'au message suivant, dans un sens
+   ou dans l'autre : on la juge contre les messages du fil, pas contre une case
+   qu'il faudrait penser à décocher. Une cliente qui réécrit ne se perd pas
+   dans un tiroir.
+
+   ELLE VOYAGE, CONTRAIREMENT AUX FILS PRIVÉS. Ranger sa liste sur le téléphone
+   pour la retrouver en désordre sur la tablette du salon n'aurait aucun sens :
+   l'archive vit dans le document partagé `mnd_fils_archives`, hors de la liste
+   blanche publique (0042), donc lisible du seul personnel.
+
+   LA DIRECTION SEULE, ET C'EST UNE GARDE D'ÉCRAN. Les documents s'écrivent par
+   tout le personnel (0006). Rien n'étant effacé, un verrou en base ne vaudrait
+   pas une migration ; l'archive porte en revanche qui l'a posée, et quand. */
+
+export type ArchiveDuFil = { le: string; par?: string };
+/** Par numéro réduit, comme les fils eux-mêmes. */
+export type ArchivesDesFils = Record<string, ArchiveDuFil>;
+
+export const filsArchivesStore = createStore<ArchivesDesFils>('mnd_fils_archives', {});
+export const useFilsArchives = () => useStore(filsArchivesStore);
+
+/** CE FIL EST-IL RANGÉ ? Oui tant qu'aucun de ses messages n'est plus récent
+    que l'archive. Les instants se comparent en millisecondes, jamais en texte :
+    « 10:00:00Z » et « 10:00:00.000Z » disent la même heure et ne se trient pas
+    pareil. */
+export function estArchive(fil: Pick<Fil, 'numero' | 'messages'>, archives: ArchivesDesFils): boolean {
+  const a = archives[numeroWa(fil.numero)];
+  if (!a) return false;
+  const le = Date.parse(a.le);
+  if (!Number.isFinite(le)) return false;
+  return fil.messages.every((m) => {
+    const t = Date.parse(m.quand);
+    return !Number.isFinite(t) || t <= le;
+  });
+}
+
+export function archiveLeFil(
+  archives: ArchivesDesFils, numero: string, par: string | undefined, quand: string,
+): ArchivesDesFils {
+  const n = numeroWa(numero);
+  if (!n) return archives;
+  return { ...archives, [n]: par ? { le: quand, par } : { le: quand } };
+}
+
+export function desarchiveLeFil(archives: ArchivesDesFils, numero: string): ArchivesDesFils {
+  const n = numeroWa(numero);
+  if (!n || !(n in archives)) return archives;
+  const { [n]: _retiree, ...reste } = archives;
+  return reste;
 }
 
 /* ══ LA FENÊTRE DE 24 HEURES ═════════════════════════════════════════
@@ -617,8 +681,11 @@ export function messagesQuiSonnent(o: {
 
 /** CE QUE LA CLOCHE DOIT COMPTER : les fils dont le dernier mot vient d'elle
     et que personne n'a repris. La cloche ignorait les conversations jusqu'ici. */
-export const filsQuiAttendent = (fils: readonly Fil[]): Fil[] =>
-  fils.filter((f) => f.attendUneReponse);
+export const filsQuiAttendent = (fils: readonly Fil[], archives: ArchivesDesFils = {}): Fil[] =>
+  /* UN FIL ARCHIVÉ N'ATTEND PLUS : la direction l'a rangé en connaissance de
+     cause. S'il reçoit un mot de plus, il sort de l'archive, et attend de
+     nouveau. */
+  fils.filter((f) => f.attendUneReponse && !estArchive(f, archives));
 
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas
    dans un navigateur : une conversation lue sur la tablette du salon doit se
@@ -630,3 +697,5 @@ export const filsQuiAttendent = (fils: readonly Fil[]): Fil[] =>
    posé. Le jour où la Maison voudra un vrai verrou, ce sera une politique
    RLS et une notion de propriétaire, pas une case de plus. */
 bindCollection(messagesWaStore, 'messages_wa');
+/* L'ARCHIVE, ELLE, VOYAGE : voir « Archiver un fil ». */
+bindDocument(filsArchivesStore, 'mnd_fils_archives');
