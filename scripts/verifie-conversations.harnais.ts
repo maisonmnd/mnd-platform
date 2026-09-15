@@ -12,6 +12,7 @@
 import {
   numeroWa, fenetreDe, resteEnClair, filsDeLaMaison, pourquoiLEnvoiEstImpossible,
   estArchive, archiveLeFil, desarchiveLeFil, filsQuiAttendent,
+  tetesDeLaMaison, teteDuNumero, filNeuf, estReserve,
   FENETRE_MS, type MessageWa, type TeteConnue,
 } from '../src/shared/conversations';
 
@@ -185,5 +186,57 @@ dit('un fil archivé n’attend plus de réponse', [],
     .map((f) => f.numero));
 dit('… mais un fil non archivé attend toujours', ['2290166144465'],
   filsQuiAttendent([filDe([m({ id: 'x6', quand: il(5) })])]).map((f) => f.numero));
+
+/* ── ⑤ TROIS TIROIRS, UN NUMÉRO — 15 septembre 2026 ────────────────
+   « How can this be done and arrive directly on the trone with employees
+   and prestataires » (Yéman). Deux fautes coûteraient cher : une employée
+   qui est aussi cliente rangée parmi les clientes (son congé lu par les
+   collègues), et une personne partie de l'équipe dont les bulletins
+   redeviendraient lisibles à tous. */
+const carnet = tetesDeLaMaison({
+  clientes: [{ id: 'c1', name: 'R. A.', phone: '+229 0166144465', branchId: 'b1' },
+    { id: 'c2', name: 'A. D.', phone: '97 22 22 22', branchId: 'b1' }],
+  equipe: [{ id: 's1', name: 'A. D.', phone: '+229 0197222222', branchId: 'b1' }],
+  prestataires: [{ id: 'p1', name: 'K. H.', phone: '+229 0195000000', branchId: 'b1' },
+    { id: 'p2', name: 'Archivé', phone: '+229 0195000001', branchId: 'b1', archived: true }],
+  fournisseurs: [{ id: 'f1', nom: 'Menuiserie K.', telephone: '+229 0195000000', branchId: 'b1' },
+    { id: 'f2', nom: 'Fermé', telephone: '+229 0195000002', branchId: 'b1', actif: false }],
+});
+dit('une cliente est une cliente, avec sa fiche',
+  { tiroir: 'clientes', fiche: '/customers?id=c1' },
+  (({ tiroir, fiche }) => ({ tiroir, fiche }))(teteDuNumero('2290166144465', carnet)!));
+/* L'ÉQUIPE D'ABORD : le même numéro est sur une fiche cliente ET sur une
+   fiche d'équipe. C'est la décision du 15 septembre. */
+dit('une employée qui est aussi cliente va dans Équipe', 's1',
+  teteDuNumero('2290197222222', carnet)?.id);
+dit('… et sa fiche est celle de l’équipe', '/personnel', teteDuNumero('2290197222222', carnet)?.fiche);
+/* UN PRESTATAIRE DU RÉPERTOIRE ET UN FOURNISSEUR SUR LE MÊME NUMÉRO : le
+   répertoire passe devant, il est déclaré en premier dans le carnet. */
+dit('le répertoire des prestataires passe avant le fournisseur', 'p1',
+  teteDuNumero('2290195000000', carnet)?.id);
+dit('un prestataire archivé ne reconnaît plus son numéro', undefined,
+  teteDuNumero('2290195000001', carnet));
+dit('un fournisseur fermé non plus', undefined, teteDuNumero('2290195000002', carnet));
+dit('un inconnu reste inconnu', undefined, teteDuNumero('22997000000', carnet));
+dit('équipe et prestataires sont réservés, pas les clientes',
+  [true, true, false], [estReserve('equipe'), estReserve('prestataires'), estReserve('clientes')]);
+
+const filsTiroirs = filsDeLaMaison([
+  m({ id: 't1', numero: '2290197222222', quand: il(3) }),
+  m({ id: 't2', numero: '2290166144465', quand: il(2) }),
+  /* PARTIE DE L'ÉQUIPE : aucune tête ne porte ce numéro, mais la base avait
+     écrit le tiroir sur ses messages. Le fil reste réservé. */
+  m({ id: 't3', numero: '22997333333', quand: il(1), tiroir: 'equipe' }),
+], carnet, [], T);
+const tiroirDu = (n: string) => filsTiroirs.find((f) => f.numero === n)?.tiroir;
+dit('le fil de l’employée est dans Équipe', 'equipe', tiroirDu('2290197222222'));
+dit('… sans clientId : les gestes des clientes ne la concernent pas', undefined,
+  filsTiroirs.find((f) => f.numero === '2290197222222')?.clientId);
+dit('le fil de la cliente est dans Clientes', 'clientes', tiroirDu('2290166144465'));
+dit('une personne partie de l’équipe garde un fil réservé', 'equipe', tiroirDu('22997333333'));
+dit('… et se dit sans fiche', true, filsTiroirs.find((f) => f.numero === '22997333333')?.sansFiche);
+dit('un fil neuf porte le tiroir de sa tête', 'prestataires',
+  filNeuf('2290195000000', teteDuNumero('2290195000000', carnet))?.tiroir);
+dit('un fil neuf d’un inconnu est une cliente', 'clientes', filNeuf('22997000000')?.tiroir);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

@@ -50,6 +50,12 @@ import {
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
 import { deposeDansLeCoffre, adresseDuCoffre, retireDuCoffre, imageDuCoffre } from '../../../../shared/engagements-coffre';
+import { useAuth } from '../../../../shared/auth';
+import { signeLeMessage } from '../../../../shared/identite';
+import {
+  useMessagesWa, messagesWaStore, fenetreDe, numeroWa, MODELE_VERSEMENT, type MessageWa,
+} from '../../../../shared/conversations';
+import { envoieSurWhatsApp, fichierDeLaPieceRecue } from '../../../../shared/whatsapp';
 import { useEstDirection } from '../_vie';
 import { ToileDeSignature } from '../_signature';
 import { todayISO } from '../finances/_shared';
@@ -259,6 +265,13 @@ export default function Engagements() {
         actions={<Button variant="copper" onClick={() => ouvreLeFormulaire()}>+ Nouvel engagement</Button>}
       />
 
+      {/* LES PIÈCES REÇUES PAR WHATSAPP QUI ATTENDENT UN DOSSIER : un devis
+          photographié par un prestataire qui a deux chantiers ouverts, ou
+          aucun. La direction choisit. */}
+      {!ouvert && estDirection && (
+        <PiecesARanger lectures={lectures} branchId={branch.id} aujourdhui={aujourdhui} />
+      )}
+
       {ouvert
         ? (
           <LeDossier
@@ -407,6 +420,96 @@ function LaListe({ lectures, bilan, currency, onOuvre }: {
   );
 }
 
+/* ══ LES PIÈCES REÇUES PAR WHATSAPP, À RANGER — 15 septembre 2026 ═══════
+   Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. Le webhook
+   range seul une pièce quand le prestataire n'a qu'un dossier ouvert ; sinon
+   elle attend ici. Ranger = relire la pièce du compartiment `whatsapp`, la
+   déposer dans le coffre du dossier, et l'inscrire comme devis reçu, À ZÉRO :
+   personne ne lit le montant à la place de la direction. */
+function PiecesARanger({ lectures, branchId, aujourdhui }: {
+  lectures: LectureDuDossier[];
+  branchId: string;
+  aujourdhui: string;
+}) {
+  const [messages] = useMessagesWa();
+  const [, setDevis] = useDevisRecus();
+  const [choix, setChoix] = useState<Record<string, string>>({});
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const aRanger = messages.filter((m) => m.sens === 'entrant' && m.tiroir === 'prestataires'
+    && m.piece?.chemin && !m.rangeDans && (!m.branchId || m.branchId === branchId));
+  const ouverts = lectures.filter((l) => l.etat === 'devis' || l.etat === 'en-cours');
+  if (aRanger.length === 0) return null;
+
+  const range = async (m: MessageWa) => {
+    const engId = choix[m.id];
+    if (!engId || !m.piece) { toast('Choisissez le dossier où ranger cette pièce.'); return; }
+    setOccupe(m.id);
+    const f = await fichierDeLaPieceRecue(m.piece);
+    if (!f) { setOccupe(null); toast('La pièce n’a pas pu être relue. Vos droits ne le permettent peut-être pas.'); return; }
+    const p = await deposeDansLeCoffre(branchId, engId, 'devis', f);
+    setOccupe(null);
+    if (!p) { toast('La pièce n’a pas pu être déposée au dossier.'); return; }
+    const d: DevisRecu = {
+      id: `dvr-${uid()}`, branchId, engagementId: engId,
+      recuLe: m.quand.slice(0, 10) || aujourdhui, montantXof: 0, etat: 'recu',
+      description: `Reçu par WhatsApp, à saisir${m.texte && m.texte !== m.piece.nom ? ` · ${m.texte.slice(0, 200)}` : ''}`,
+      fichier: p,
+      recuParWhatsApp: { waId: m.waId ?? m.id, quand: m.quand },
+    };
+    setDevis((prev) => [d, ...prev]);
+    messagesWaStore.set((prev) => prev.map((x) => (x.id === m.id ? { ...x, rangeDans: engId } : x)));
+    toast('Pièce rangée au dossier, comme devis à saisir.');
+  };
+  /* CE N'EST PAS UN DEVIS : on l'écarte, elle reste lisible dans le fil. */
+  const ecarte = (m: MessageWa) =>
+    messagesWaStore.set((prev) => prev.map((x) => (x.id === m.id ? { ...x, rangeDans: '-' } : x)));
+
+  return (
+    <section className="eng-bloc">
+      <div className="eng-bloc__tete">
+        <div>
+          <h3>{pluriel(aRanger.length, 'pièce reçue', 'pièces reçues')} par WhatsApp, à ranger</h3>
+          <p>
+            Un prestataire a envoyé un devis en photo, et il a plusieurs dossiers ouverts avec la Maison, ou
+            aucun. Choisissez le dossier : la pièce y entre comme devis <b>à saisir</b>, personne ne lit le
+            montant à votre place.
+          </p>
+        </div>
+      </div>
+      <div className="eng-defile">
+        <table className="eng-table">
+          <thead><tr><th>Reçue le</th><th>De</th><th>La pièce</th><th>Le dossier</th><th /></tr></thead>
+          <tbody>
+            {aRanger.map((m) => (
+              <tr key={m.id}>
+                <td>{jourLongDit(m.quand.slice(0, 10))}</td>
+                <td>{m.nomProfil ?? `+${m.numero}`}{m.texte && m.texte !== m.piece?.nom ? <span className="sous">{m.texte.slice(0, 80)}</span> : null}</td>
+                <td>{m.piece?.nom}</td>
+                <td>
+                  {ouverts.length === 0
+                    ? <span className="eng-doux">aucun dossier ouvert : ouvrez-en un d’abord</span>
+                    : (
+                      <Select value={choix[m.id] ?? ''} onChange={(ev) => setChoix((c) => ({ ...c, [m.id]: ev.target.value }))}>
+                        <option value="">Choisir…</option>
+                        {ouverts.map((l) => <option key={l.engagement.id} value={l.engagement.id}>{l.engagement.numero} · {l.engagement.objet} · {l.engagement.prestataire}</option>)}
+                      </Select>
+                    )}
+                </td>
+                <td className="eng-gestes">
+                  <Button variant="copper" size="sm" disabled={occupe !== null || !choix[m.id]} onClick={() => void range(m)}>
+                    {occupe === m.id ? 'Rangement…' : 'Ranger'}
+                  </Button>
+                  <button type="button" className="eng-lien eng-lien--doux" onClick={() => ecarte(m)}>Ce n’est pas un devis</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 /* ══ LE DOSSIER ══════════════════════════════════════════════════════════ */
 
 type FormDevis = {
@@ -494,6 +597,51 @@ function LeDossier({ lecture, onRetour, onModifier }: {
      « 2026 » sur chaque ligne se lit moins bien, et ne dit rien de plus. */
   const annee = aujourdhui.slice(0, 4);
   const jourDit = (iso?: string) => (!iso ? '' : iso.slice(0, 4) === annee ? jourLongDit(iso).replace(/ \d{4}$/, '') : jourLongDit(iso));
+
+  /* ══ LE VERSEMENT S'ANNONCE SUR WHATSAPP — 15 septembre 2026 ═════════
+     Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. La Maison
+     prévient le prestataire, avec deux boutons : « Oui, bien reçu » et
+     « Pas encore ». Sa réponse revient sur le versement, par le webhook.
+     LE BOUTON EST UNE TRACE, PAS UNE SIGNATURE : la décharge reste la preuve.
+
+     LE NUMÉRO EST CELUI DE SA FICHE FOURNISSEUR, liée au dossier : un
+     dossier qui ne porte qu'un nom n'a personne à qui écrire. Dans la
+     fenêtre de 24 heures, un message à boutons ; hors fenêtre, le modèle
+     `versement_engagement`, que Meta facture. */
+  const { session } = useAuth();
+  const [messagesWa] = useMessagesWa();
+  const [fournisseurs] = useFournisseurs();
+  const numeroDuPrestataire = numeroWa(fournisseurs.find((f) => f.id === e.fournisseurId)?.telephone);
+  const previensDuVersement = async (v: Versement) => {
+    if (!numeroDuPrestataire) {
+      toast('Aucun numéro : liez le dossier à sa fiche fournisseur, avec son téléphone.');
+      return;
+    }
+    setOccupe(true);
+    const montant = dit(v.montantXof);
+    const boutons = [
+      { id: `RECU:${v.id}`, titre: 'Oui, bien reçu' },
+      { id: `PASENCORE:${v.id}`, titre: 'Pas encore' },
+    ];
+    const fen = fenetreDe(messagesWa.filter((x) => numeroWa(x.numero) === numeroDuPrestataire), Date.now());
+    const parQui = session?.user?.email ?? undefined;
+    const r = fen.ouverte
+      ? await envoieSurWhatsApp({
+        numero: numeroDuPrestataire, boutons, branchId: branch.id, parQui,
+        texte: signeLeMessage(`${maisonNom()} vous a versé ${montant} pour ${e.objet} (${v.libelle}). L’avez-vous bien reçu ?`),
+      })
+      : await envoieSurWhatsApp({
+        numero: numeroDuPrestataire, boutons, branchId: branch.id, parQui,
+        modele: MODELE_VERSEMENT, variables: [maisonNom(), montant, e.objet],
+      });
+    setOccupe(false);
+    if (r.ok) {
+      setVersements((prev) => prev.map((x) => (x.id === v.id ? { ...x, prevenuLe: new Date().toISOString(), prevenuParModele: !fen.ouverte } : x)));
+      toast('Le prestataire est prévenu sur WhatsApp. Sa réponse paraîtra sur ce versement.');
+    } else {
+      toast(`Non prévenu : ${r.erreur}`);
+    }
+  };
 
   const patch = (fn: (x: Engagement) => Engagement) =>
     setEngagements((prev) => prev.map((x) => (x.id === e.id ? fn(x) : x)));
@@ -980,6 +1128,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                       <td>
                         {v.libelle}
                         {v.versePar && <span className="sous">remis par {v.versePar}</span>}
+                        {v.prevenuLe && <span className="sous">prévenu par WhatsApp le {jourDit(v.prevenuLe.slice(0, 10))}{v.prevenuParModele ? ' (modèle)' : ''}</span>}
                       </td>
                       <td>
                         {verse ? [v.method, v.cashbox ? `caisse ${v.cashbox}` : ''].filter(Boolean).join(' · ') : <span className="eng-doux">pas encore versé</span>}
@@ -1002,6 +1151,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                         {verse && !prouve && <Pastille ton="non">en attente de décharge</Pastille>}
                         {prouve && v.decharge?.mode === 'ecran' && <Pastille ton="ok">signée à l’écran</Pastille>}
                         {prouve && v.decharge?.mode === 'papier' && <Pastille ton="ok">rapportée signée</Pastille>}
+                        {/* CE QU'IL A RÉPONDU SUR WHATSAPP — une trace, pas une preuve. */}
+                        {v.recuLe && <Pastille ton="ok">reçu, dit-il, le {jourDit(v.recuLe.slice(0, 10))}</Pastille>}
+                        {v.contesteLe && !v.recuLe && <Pastille ton="non">il dit ne pas l’avoir reçu</Pastille>}
                       </td>
                       <td className="eng-gestes">
                         {!verse && estDirection && !ferme && (
@@ -1014,6 +1166,17 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                           <Button variant={prouve ? 'ghost' : 'copper'} size="sm" onClick={() => setDechargeDe(v.id)}>
                             {prouve ? 'La décharge' : 'Faire la décharge'}
                           </Button>
+                        )}
+                        {verse && estDirection && (
+                          <button
+                            type="button"
+                            className="eng-lien"
+                            disabled={occupe}
+                            title={numeroDuPrestataire ? 'Lui annoncer le versement sur WhatsApp, avec deux boutons de réponse' : 'Liez le dossier à une fiche fournisseur avec son téléphone'}
+                            onClick={() => void previensDuVersement(v)}
+                          >
+                            {v.prevenuLe ? 'Reprévenir' : 'Prévenir par WhatsApp'}
+                          </button>
                         )}
                         {estDirection && <button type="button" className="eng-lien eng-lien--doux" onClick={() => setAEffacer(v)}>Effacer</button>}
                       </td>

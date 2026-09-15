@@ -501,6 +501,19 @@ export type LeaveRequest = {
   startDate: string; endDate: string; days: number;
   reason?: string; justificatif?: string; // note/pièce du justificatif (maladie)
   status: LeaveStatus; decidedBy?: string; decidedAt?: string; branchId?: string;
+  /* ══ L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026 ═════════════════════
+     Une demande peut ARRIVER par WhatsApp (le formulaire, posé par le
+     webhook) et la décision REPART par WhatsApp (Temps & absences). */
+  /** D'où vient la demande. Absent = saisie par la direction. */
+  source?: 'whatsapp';
+  waId?: string;
+  recueLe?: string;
+  /** Quand la décision lui a été envoyée sur WhatsApp, et par quel chemin
+      (« texte » dans la fenêtre, ou le modèle). Absent = pas prévenue. */
+  preventeLe?: string;
+  preventeParModele?: boolean;
+  /** Ce qui a empêché de la prévenir, pour le dire à l'écran. */
+  preventeRefus?: string;
 };
 export const leaveStore = createStore<LeaveRequest[]>('mnd_leave_requests', []);
 export const useLeave = (): [LeaveRequest[], typeof leaveStore.set] => {
@@ -581,6 +594,15 @@ export type PayrollLine = {
       `ligneDePrestataire` et `equipe/facture.ts`. */
   prestataire?: boolean;
   factureId?: string;
+
+  /* ══ LE BULLETIN PART SUR WHATSAPP — 15 septembre 2026 ══════════════
+     Maquette `maquette-lequipe-sur-whatsapp.html`. Il vit sur la ligne du
+     run, comme le pointage : on sait qui a reçu son bulletin, quand, et par
+     quel chemin. Le montant ne s'écrit jamais dans le message, il vit dans
+     le PDF (décision du 15 septembre). */
+  bulletinEnvoyeLe?: string;
+  bulletinParModele?: boolean;
+  bulletinRefus?: string;
 };
 export type PayrollRun = {
   id: string;

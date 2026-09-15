@@ -45,7 +45,27 @@
    Deux gardes pour une règle, ce n'est pas une redite : l'une sert à
    RENSEIGNER, l'autre à EMPÊCHER. Une pièce jointe n'y échappe pas — hors
    fenêtre, Meta n'accepte qu'un modèle approuvé, et un modèle ne porte pas
-   de fichier.
+   de fichier… sauf dans son EN-TÊTE (voir ci-dessous).
+
+   ═══ L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026 ═══════════════
+   Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée.
+
+   ① LA PORTE RÉSERVÉE. Un fil de l'équipe ou d'un prestataire ne se lit
+      qu'à la direction (0102). Il ne s'ÉCRIT donc qu'à la direction : on
+      demande à la base (`tiroir_du_numero`, puis `est_direction`) et l'on
+      refuse le reste. Un compte du personnel qui taperait un numéro
+      d'employée à la main écrirait dans un fil qu'il ne verra jamais.
+
+   ② UN MODÈLE PEUT PORTER UN DOCUMENT, dans son en-tête — c'est ainsi que
+      le bulletin de paie part hors fenêtre (`bulletin_du_mois`). La pièce
+      se dépose chez Meta comme n'importe quelle autre, et son identifiant
+      part dans le composant `header`. `enTete: 'document'` le demande.
+
+   ③ DES BOUTONS DE RÉPONSE, trois au plus. Dans la fenêtre : un message
+      interactif. Hors fenêtre : les réponses rapides d'un modèle, dont
+      chaque bouton porte l'identifiant qu'on lui donne (`RECU:<versement>`),
+      que le webhook lira. Le titre est ce qu'il lit ; l'identifiant ce que
+      le Trône fait.
 
    AUCUN SECRET ICI :
      · WA_TOKEN, WA_PHONE_ID — l'API Meta (déjà posés pour les rappels).
@@ -66,7 +86,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
     s'est perdue le 14 septembre à chercher dans le dépôt une panne qui venait
     d'une version plus ancienne restée en ligne. À incrémenter à chaque
     déploiement. */
-const VERSION = '2026-09-14-b · pièces jointes et sonde';
+const VERSION = '2026-09-15-c · l équipe, le modèle avec document, les boutons';
 
 const FENETRE_MS = 24 * 60 * 60 * 1000;
 
@@ -77,6 +97,10 @@ const FENETRE_MS = 24 * 60 * 60 * 1000;
     kilooctets. Le fichier arrive en base64, donc un tiers plus lourd sur le
     fil — la garde compte les octets RÉELS, pas la chaîne. */
 const TAILLE_MAX = 5 * 1024 * 1024;
+
+/** Trois boutons, vingt signes chacun : c'est la règle de WhatsApp. */
+const BOUTONS_MAX = 3;
+const TITRE_MAX = 20;
 
 /** CE QUE WHATSAPP SAIT MONTRER, et sous quel nom il faut le lui annoncer.
     Un type inconnu part en `document` : il s'affichera comme une pièce à
@@ -179,6 +203,10 @@ Deno.serve(async (req) => {
       }, { onConflict: 'id' });
       rapport.ecritureDansMessagesWa = errEcrit ? `REFUSÉE : ${errEcrit.message}` : 'elle passe';
       if (!errEcrit) await sonde.from('messages_wa').delete().eq('id', id);
+      /* LA PORTE DE 0102 EST-ELLE POSÉE ? Sans elle, un fil d'employée se
+         lirait par tout le personnel. */
+      const { error: errTiroir } = await sonde.rpc('tiroir_du_numero', { n: '0' });
+      rapport.migration0102 = errTiroir ? `ABSENTE : ${errTiroir.message}` : 'posée';
     }
     const phone = Deno.env.get('WA_PHONE_ID');
     const tok = Deno.env.get('WA_TOKEN');
@@ -245,6 +273,15 @@ Deno.serve(async (req) => {
   const clientId = corps.clientId ? String(corps.clientId) : undefined;
   const branchId = corps.branchId ? String(corps.branchId) : undefined;
   const parQui = corps.parQui ? String(corps.parQui).slice(0, 80) : undefined;
+  /** Le modèle porte un document en en-tête (le bulletin de paie). */
+  const enTete = corps.enTete === 'document' ? 'document' : '';
+  /** Les boutons de réponse : `{ id, titre }`, trois au plus. */
+  const boutons: { id: string; titre: string }[] = Array.isArray(corps.boutons)
+    ? corps.boutons
+      .map((b: any) => ({ id: String(b?.id ?? '').slice(0, 200), titre: String(b?.titre ?? '').trim().slice(0, TITRE_MAX) }))
+      .filter((b: { id: string; titre: string }) => b.id && b.titre)
+      .slice(0, BOUTONS_MAX)
+    : [];
 
   /* ── LES TROIS GESTES DU FIL — 14 septembre 2026 ───────────────────
      Citer, reagir, dire qu on a lu. Ce sont les seuls que l API donne en
@@ -301,13 +338,30 @@ Deno.serve(async (req) => {
     });
   }
 
+  if (!numero) return refus('ce fil n’a pas de numéro lisible');
+
+  /* ── ① bis LA PORTE RÉSERVÉE — 15 septembre 2026 ───────────────────
+     Un fil de l'équipe ou d'un prestataire ne s'écrit qu'à la direction,
+     parce qu'il ne se lit qu'à elle (0102). La base juge le numéro, puis
+     le compte ; cette fonction ne fait que relayer ses deux réponses.
+     Sans 0102 (la fonction n'existe pas), on continue comme avant : mieux
+     vaut une Maison qui parle qu'une Maison muette par prudence. */
+  {
+    const { data: tiroir, error: errTiroir } = await commeAppelant.rpc('tiroir_du_numero', { n: numero });
+    if (!errTiroir && tiroir && tiroir !== 'clientes') {
+      const { data: estDirection } = await commeAppelant.rpc('est_direction');
+      if (estDirection !== true) {
+        return refus('Ce fil est réservé à la direction : c’est un numéro de l’équipe ou d’un prestataire.', 403);
+      }
+    }
+  }
+
   /* ══ UNE REACTION — un geste, pas un message ═══════════════════════
      Elle ne rouvre pas la fenetre de 24 heures et ne se facture pas. Elle ne
      fait pas non plus de ligne dans le fil : elle se pose SUR le message
      qu elle vise, comme dans WhatsApp. */
   if (reaction) {
     if (!reaction.surWaId) return refus('une réaction vise un message : lequel ?');
-    if (!numero) return refus('ce fil n’a pas de numéro lisible');
     try {
       const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
         method: 'POST',
@@ -344,11 +398,14 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!numero) return refus('ce fil n’a pas de numéro lisible');
   if (!modele && !texte && !piece) return refus('le message est vide');
   /* UN MODÈLE NE PORTE PAS DE FICHIER — c'est la règle de Meta, pas la
-     nôtre. Le dire ici évite un refus obscur de l'API. */
-  if (modele && piece) return refus('un modèle approuvé ne peut pas porter de pièce jointe');
+     nôtre… sauf dans son EN-TÊTE, quand il a été approuvé avec (le
+     bulletin). Le dire ici évite un refus obscur de l'API. */
+  if (modele && piece && !enTete) return refus('un modèle approuvé ne peut pas porter de pièce jointe, sauf en en-tête (enTete: document)');
+  if (modele && enTete && !piece) return refus('ce modèle attend un document en en-tête, et il manque');
+  if (!modele && boutons.length > 0 && !texte) return refus('des boutons accompagnent un texte : lequel ?');
+  if (!modele && boutons.length > 0 && piece) return refus('des boutons ne s’ajoutent pas à une pièce jointe');
 
   let octets: Uint8Array | null = null;
   if (piece) {
@@ -413,13 +470,30 @@ Deno.serve(async (req) => {
   const famille = mediaId ? familleDuType(pieceType) : 'text';
   let charge: Record<string, unknown>;
   if (modele) {
+    /* LES COMPOSANTS D'UN MODÈLE, dans l'ordre où Meta les attend : l'en-tête
+       (le document), le corps (ses variables), puis chaque bouton de réponse
+       rapide avec l'identifiant qu'il portera en revenant. */
+    const composants: Record<string, unknown>[] = [];
+    if (enTete && mediaId) {
+      composants.push({
+        type: 'header',
+        parameters: [{ type: 'document', document: { id: mediaId, filename: pieceNom } }],
+      });
+    }
+    if (variables.length) {
+      composants.push({ type: 'body', parameters: variables.map((t) => ({ type: 'text', text: t })) });
+    }
+    boutons.forEach((b, i) => {
+      composants.push({
+        type: 'button', sub_type: 'quick_reply', index: String(i),
+        parameters: [{ type: 'payload', payload: b.id }],
+      });
+    });
     charge = {
       messaging_product: 'whatsapp', to: numero, type: 'template',
       template: {
         name: modele, language: { code: 'fr' },
-        ...(variables.length
-          ? { components: [{ type: 'body', parameters: variables.map((t) => ({ type: 'text', text: t })) }] }
-          : {}),
+        ...(composants.length ? { components: composants } : {}),
       },
     };
   } else if (mediaId) {
@@ -430,6 +504,17 @@ Deno.serve(async (req) => {
     if (famille === 'document') corpsMedia.filename = pieceNom;
     if (texte && famille !== 'audio') corpsMedia.caption = texte;
     charge = { messaging_product: 'whatsapp', to: numero, type: famille, [famille]: corpsMedia };
+  } else if (boutons.length > 0) {
+    /* UN MESSAGE À BOUTONS, dans la fenêtre : WhatsApp les dessine sous le
+       texte, et rend l'identifiant du bouton touché. */
+    charge = {
+      messaging_product: 'whatsapp', to: numero, type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: texte },
+        action: { buttons: boutons.map((b) => ({ type: 'reply', reply: { id: b.id, title: b.titre } })) },
+      },
+    };
   } else {
     charge = { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: texte } };
   }
@@ -477,7 +562,7 @@ Deno.serve(async (req) => {
   const id = waId ? `wa-${waId}` : `wa-local-${crypto.randomUUID()}`;
   const quand = new Date().toISOString();
   const ditDansLeFil = modele
-    ? (texte || `Modèle « ${modele} »`)
+    ? (texte || `Modèle « ${modele} »${mediaId ? ` · ${pieceNom}` : ''}`)
     : (mediaId ? (texte ? `${pieceNom} · ${texte}` : pieceNom) : texte);
   const { error: errTrace } = await sb.from('messages_wa').upsert({
     id,
@@ -485,9 +570,10 @@ Deno.serve(async (req) => {
     data: {
       id, waId: waId || undefined, branchId, sens: 'sortant', numero, clientId,
       texte: ditDansLeFil,
-      type: mediaId ? famille : 'text',
+      type: mediaId && !modele ? famille : (boutons.length && !modele ? 'interactive' : 'text'),
       quand, etat, detail, modele: modele || undefined, parQui,
       ...(mediaId ? { piece: { nom: pieceNom, type: pieceType, octets: octets?.length ?? 0 } } : {}),
+      ...(boutons.length ? { boutons } : {}),
     },
   }, { onConflict: 'id' });
   /* ══ ON NE DIT JAMAIS « ENVOYÉ » SANS AVOIR CONSIGNÉ ═══════════════

@@ -5,8 +5,11 @@ import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds
 import { pushNotifyStaff } from '../../../../shared/push';
 import { todayISO } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
-import { summaryPdf } from '../../../../shared/pdf';
-import { maisonNom } from '../../../../shared/identite';
+import { summaryPdf, bulletinEnPiece, type PayslipData, type PayslipRow } from '../../../../shared/pdf';
+import { maisonNom, signeLeMessage } from '../../../../shared/identite';
+import { useAuth, useStaff as useMaTete } from '../../../../shared/auth';
+import { useMessagesWa, fenetreDe, numeroWa, MODELE_BULLETIN } from '../../../../shared/conversations';
+import { envoieSurWhatsApp, moisDit } from '../../../../shared/whatsapp';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -309,7 +312,114 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     (lePersonnel.find((m) => m.id === l.employeeId)?.phone ?? '').trim();
 
   const frDate = (iso: string) =>
-    new Date(`${iso}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  /* ══ LES BULLETINS PARTENT SUR WHATSAPP — 15 septembre 2026 ═══════════
+     Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. Le
+     bulletin était fabriqué, téléchargeable, et jamais envoyé : chacun
+     part désormais dans le fil de la personne, en PDF, depuis le run payé.
+
+     LE MONTANT NE S'ÉCRIT PAS DANS LE MESSAGE (décision du 15 septembre) :
+     un aperçu sur écran verrouillé se lit par-dessus l'épaule, au salon
+     comme à la maison. Le net vit dans le PDF, qu'il faut ouvrir.
+
+     DANS LA FENÊTRE DE 24 HEURES, il part en texte avec sa pièce. HORS
+     FENÊTRE — presque toujours, une employée écrit rarement au numéro de
+     la Maison — il part par le modèle `bulletin_du_mois`, dont l'en-tête
+     est le document, et Meta le facture. Tant que Meta n'a pas approuvé le
+     modèle, l'écran dit le refus tel quel, ligne par ligne.
+
+     LE FIL EST RÉSERVÉ À LA DIRECTION (0102) : les collègues ne verront
+     jamais un bulletin qui n'est pas le leur. */
+  const { session } = useAuth();
+  const maTete = useMaTete();
+  const [messagesWa] = useMessagesWa();
+  const [bulletinsOuverts, setBulletinsOuverts] = useState(false);
+  const [bulletinEnCours, setBulletinEnCours] = useState<string | null>(null);
+  const bulletinsPossibles = run.status === 'paye' || run.status === 'cloture';
+  /* Le PDF veut des espaces simples : pas d'espace fine dans un montant. */
+  const pdfMoney = (n: number) => fmtMoney(n, currency).replace(/[  ]/g, ' ');
+  const fenetreDuNumero = (numero: string) =>
+    fenetreDe(messagesWa.filter((m) => numeroWa(m.numero) === numeroWa(numero)), Date.now());
+  const patchLigne = (employeeId: string, p: Partial<PayrollLine>) =>
+    payrollRunsStore.set((prev) => prev.map((r) => (r.id === run.id
+      ? { ...r, lines: asArray<PayrollLine>(r.lines).map((x) => (x.employeeId === employeeId ? { ...x, ...p } : x)) }
+      : r)));
+
+  /* LE BULLETIN D'UNE LIGNE DU RUN : les entrées figées et le résultat
+     stocké, jamais un recalcul. Une prestataire n'a pas de bulletin, elle a
+     un règlement de facture (13 septembre). */
+  const donneesDuBulletin = (l: PayrollLine): PayslipData => {
+    const g = l.gains; const d = l.deductions; const r = l.result;
+    const ligne = (label: string, n: number, neg = false): PayslipRow[] =>
+      (n > 0 ? [{ label, value: `${neg ? '- ' : ''}${pdfMoney(n)}` }] : []);
+    const rows: PayslipRow[] = l.prestataire
+      ? [
+        { label: 'Facture acceptée', value: pdfMoney(g.base) },
+        ...ligne('Bonus, hors facture', g.prime), ...ligne('Pourboires', g.pourboires),
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true),
+      ]
+      : [
+        { label: 'Salaire de base', value: pdfMoney(g.base) },
+        ...ligne('Heures supplémentaires', g.heuresSup), ...ligne('Primes', g.prime),
+        ...ligne('Commission', g.commission), ...ligne('Pourboires', g.pourboires),
+        ...ligne('Indemnités', g.indemnites),
+        ...ligne('CNSS (part salariale)', r.cnssSalariale, true), ...ligne('ITS (impôt sur le salaire)', r.its, true),
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true),
+      ];
+    const periode = frPeriod(run.period);
+    return {
+      houseName: maisonNom(),
+      houseSub: [branch.name, branch.city].filter(Boolean).join(' · '),
+      employeeName: l.name,
+      role: l.prestataire ? 'Prestataire' : l.poste,
+      period: periode.charAt(0).toUpperCase() + periode.slice(1),
+      rows,
+      net: pdfMoney(r.net),
+      paid: l.payeLe
+        ? { line: `Réglé le ${frDate(l.payeLe)}${l.payeMoyen ? ` · ${l.payeMoyen}` : ''}`, by: 'Pointé au bordereau de paie du Trône' }
+        : undefined,
+      gerantName: maTete?.name ?? undefined,
+      filename: `${l.prestataire ? 'reglement' : 'bulletin'}-${l.name.replace(/\s+/g, '-')}-${run.period}.pdf`,
+      ...(l.prestataire ? { docLabel: 'RÈGLEMENT DE FACTURE', partyLabel: 'PRESTATAIRE' } : {}),
+    };
+  };
+
+  const envoieLeBulletin = async (l: PayrollLine): Promise<boolean> => {
+    const numero = numeroDe(l);
+    if (!numero) { patchLigne(l.employeeId, { bulletinRefus: 'aucun numéro sur sa fiche' }); return false; }
+    const prenom = l.name.split(/\s+/)[0];
+    const mois = moisDit(run.period);
+    setBulletinEnCours(l.employeeId);
+    const piece = await bulletinEnPiece(donneesDuBulletin(l));
+    const fen = fenetreDuNumero(numero);
+    const parQui = session?.user?.email ?? undefined;
+    const r = fen.ouverte
+      ? await envoieSurWhatsApp({
+        numero, piece, branchId: branch.id, parQui,
+        texte: signeLeMessage(`Bonjour ${prenom}, votre ${l.prestataire ? 'règlement de facture' : 'bulletin de paie'} de ${mois} est joint à ce message. Il vous est personnel.`),
+      })
+      : await envoieSurWhatsApp({
+        numero, piece, branchId: branch.id, parQui,
+        modele: MODELE_BULLETIN, variables: [prenom, mois], enTete: 'document',
+      });
+    setBulletinEnCours(null);
+    if (r.ok) {
+      patchLigne(l.employeeId, { bulletinEnvoyeLe: new Date().toISOString(), bulletinParModele: !fen.ouverte, bulletinRefus: undefined });
+      return true;
+    }
+    patchLigne(l.employeeId, { bulletinRefus: r.erreur });
+    return false;
+  };
+
+  const envoieLesBulletins = async () => {
+    const cibles = lines.filter((x) => !x.bulletinEnvoyeLe && numeroDe(x));
+    let partis = 0;
+    for (const l of cibles) if (await envoieLeBulletin(l)) partis += 1;
+    toast(partis === cibles.length
+      ? `${partis} bulletin${partis > 1 ? 's' : ''} parti${partis > 1 ? 's' : ''} sur WhatsApp.`
+      : `${partis} parti${partis > 1 ? 's' : ''}, ${cibles.length - partis} refusé${cibles.length - partis > 1 ? 's' : ''} : lisez le motif sur chaque ligne.`);
+  };
 
   /* LE BORDEREAU SORT SUR PAPIER ET EN TABLEUR — pour l'avoir sous les yeux
      pendant les virements, ou pour le téléverser le jour où la banque
@@ -546,6 +656,14 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
               {resteAVerserXof(run) > 0 && ` · ${fmtMoney(resteAVerserXof(run), currency)} à verser`}
             </Button>
           )}
+          {/* LES BULLETINS NE PARTENT QU'UNE FOIS LE RUN PAYÉ : un bulletin
+              qui dit « en attente de règlement » n'a rien à faire sur un
+              téléphone. */}
+          {bulletinsPossibles && (
+            <Button size="sm" variant="ghost" onClick={() => setBulletinsOuverts(true)}>
+              Bulletins WhatsApp · {lines.filter((x) => x.bulletinEnvoyeLe).length}/{lines.length}
+            </Button>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="tre-livret-score__val">{fmtMoney(t.brut, currency)}<span style={{ fontSize: 12 }}> masse salariale</span></div>
@@ -656,6 +774,52 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                 }}
               >
                 Tout marquer versé
+              </Button>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ LES BULLETINS SUR WHATSAPP ═════════════════════════════════
+          Un par personne, dans son fil, réservé à la direction. La ligne
+          dit ce qui est parti, par quel chemin, et pourquoi quand ce n'est
+          pas parti. */}
+      {bulletinsOuverts && (
+        <Modal title={`Bulletins par WhatsApp · ${frPeriod(run.period)}`} onClose={() => setBulletinsOuverts(false)} width={640}>
+          <p className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, marginTop: 0 }}>
+            Chaque bulletin part <b>en PDF</b> dans le fil WhatsApp de la personne, lisible de la direction seule.
+            <b> Le montant ne s’écrit pas dans le message</b>, il vit dans le PDF. Dans la fenêtre de 24 heures
+            il part en texte ; hors fenêtre, par le modèle <code>bulletin_du_mois</code>, que Meta facture.
+          </p>
+          {lines.map((l) => {
+            const num = numeroDe(l);
+            const enCours = bulletinEnCours === l.employeeId;
+            return (
+              <div key={l.employeeId} className="tre-bord" style={{ alignItems: 'center' }}>
+                <span className="tre-bord__nom">{l.name}</span>
+                <span className="tre-bord__num">
+                  {num ? <b>{num}</b> : <span style={{ color: 'var(--trf-error)' }}>aucun numéro sur sa fiche</span>}
+                </span>
+                <span className="tre-bord__dit" style={l.bulletinRefus && !l.bulletinEnvoyeLe ? { color: 'var(--trf-error)' } : undefined}>
+                  {enCours ? 'Envoi…'
+                    : l.bulletinEnvoyeLe ? `Parti le ${frDate(l.bulletinEnvoyeLe)}${l.bulletinParModele ? ' · par le modèle' : ''}`
+                      : l.bulletinRefus ? `Refusé : ${l.bulletinRefus}`
+                        : num ? 'À envoyer' : ''}
+                </span>
+                {num && (
+                  <Button size="sm" variant={l.bulletinEnvoyeLe ? 'ghost' : 'copper'} disabled={bulletinEnCours !== null} onClick={() => void envoieLeBulletin(l)}>
+                    {l.bulletinEnvoyeLe ? 'Renvoyer' : 'Envoyer'}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+            <Button variant="ghost" size="sm" onClick={() => setBulletinsOuverts(false)}>Fermer</Button>
+            <span style={{ flex: 1 }} />
+            {lines.some((x) => !x.bulletinEnvoyeLe && numeroDe(x)) && (
+              <Button variant="copper" size="sm" disabled={bulletinEnCours !== null} onClick={() => void envoieLesBulletins()}>
+                Envoyer les {lines.filter((x) => !x.bulletinEnvoyeLe && numeroDe(x)).length} bulletins
               </Button>
             )}
           </div>

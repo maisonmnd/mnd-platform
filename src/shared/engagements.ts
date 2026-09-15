@@ -123,6 +123,11 @@ export type DevisRecu = {
       même dossier, et le retenu devient la somme des deux. */
   avenant?: boolean;
   fichier?: PieceJointe;
+  /** ARRIVÉ EN PHOTO PAR WHATSAPP, rangé par le webhook (15 septembre 2026)
+      dans le seul dossier ouvert du prestataire. Son montant est à zéro :
+      PERSONNE NE LIT LE DEVIS À LA PLACE DE LA DIRECTION, elle le tape en le
+      lisant. */
+  recuParWhatsApp?: { waId: string; quand: string };
 };
 
 /** LA DÉCHARGE — deux façons de la tenir, décidées le 15 septembre. */
@@ -157,6 +162,20 @@ export type Versement = {
      Dépenses. */
   expenseId?: string;
   decharge?: Decharge;
+
+  /* ══ LE VERSEMENT S'ANNONCE SUR WHATSAPP — 15 septembre 2026 ═════════
+     Maquette `maquette-lequipe-sur-whatsapp.html`. La Maison prévient le
+     prestataire, et il répond d'un bouton. LE BOUTON EST UNE TRACE, PAS UNE
+     SIGNATURE : il vient de son numéro, à une heure dite, et c'est précieux
+     le jour où il dit n'avoir rien reçu — mais la décharge reste la preuve. */
+  /** Quand l'annonce est partie, et par quel chemin. */
+  prevenuLe?: string;
+  prevenuParModele?: boolean;
+  /** Il a touché « Oui, bien reçu » — posé par le webhook. */
+  recuLe?: string;
+  recuPar?: 'whatsapp';
+  /** Il a touché « Pas encore » — à vérifier, le versement ne bouge pas. */
+  contesteLe?: string;
 };
 
 /* ══ LES DATES, DITES COMME SUR UN PAPIER ════════════════════════════════ */

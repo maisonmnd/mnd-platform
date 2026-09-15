@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { uid } from '../../../../shared/store';
-import { useStaff as useMyStaff } from '../../../../shared/auth';
+import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
+import { signeLeMessage } from '../../../../shared/identite';
+import { useMessagesWa, fenetreDe, numeroWa, MODELE_DECISION_CONGE } from '../../../../shared/conversations';
+import { envoieSurWhatsApp, jourDit } from '../../../../shared/whatsapp';
 import { useStaff } from './data';
 import { Pill, Tabs } from './ui';
 import {
@@ -112,8 +115,59 @@ function Conges() {
     .slice()
     .sort((a, b) => (a.status === 'demande' && b.status !== 'demande' ? -1 : b.status === 'demande' && a.status !== 'demande' ? 1 : b.startDate.localeCompare(a.startDate)));
 
-  const decide = (id: string, status: 'approuve' | 'refuse') =>
-    leaveStore.set((prev) => prev.map((l) => (l.id === id ? { ...l, status, decidedBy: me?.name ?? 'Direction', decidedAt: new Date().toISOString() } : l)));
+  /* ══ LA DÉCISION PART SUR WHATSAPP — 15 septembre 2026 ═══════════════
+     Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. Approuver
+     ou refuser ne prévenait personne : la réponse part désormais dans son
+     fil, réservé à la direction (0102). Dans la fenêtre de 24 heures, en
+     texte ; hors fenêtre, par le modèle `decision_conge`, que Meta facture.
+     Un refus d'envoi se lit sur la demande, avec un bouton pour réessayer. */
+  const { session } = useAuth();
+  const [messagesWa] = useMessagesWa();
+  const [prevenirEnCours, setPrevenirEnCours] = useState<string | null>(null);
+  const patchDemande = (id: string, p: Partial<LeaveRequest>) =>
+    leaveStore.set((prev) => prev.map((l) => (l.id === id ? { ...l, ...p } : l)));
+
+  const previens = async (l: LeaveRequest, status: 'approuve' | 'refuse') => {
+    const m = staff.find((x) => x.id === l.employeeId);
+    const numero = numeroWa(m?.phone);
+    if (!m || !numero) { patchDemande(l.id, { preventeRefus: 'aucun numéro sur sa fiche' }); return; }
+    const prenom = m.name.split(/\s+/)[0];
+    /* CE QU'IL LUI RESTERA : le solde d'aujourd'hui, moins ces jours-ci si on
+       les accorde maintenant (une demande déjà approuvée les compte déjà). */
+    const b = congeBalance(m.since, leaves, m.id, p.congesJoursParMois);
+    const reste = b.solde - (status === 'approuve' && l.type === 'conge' && l.status !== 'approuve' ? l.days : 0);
+    const decision = l.type === 'conge'
+      ? (status === 'approuve' ? `accordée, il vous restera ${reste} jour${reste > 1 ? 's' : ''} de congé` : 'refusée')
+      : (status === 'approuve' ? 'enregistrée' : 'refusée');
+    const du = jourDit(l.startDate);
+    const au = jourDit(l.endDate);
+    setPrevenirEnCours(l.id);
+    const fen = fenetreDe(messagesWa.filter((x) => numeroWa(x.numero) === numero), Date.now());
+    const parQui = session?.user?.email ?? undefined;
+    const r = fen.ouverte
+      ? await envoieSurWhatsApp({
+        numero, branchId: branch.id, parQui,
+        texte: signeLeMessage(`Bonjour ${prenom}, la direction a répondu à votre demande d’absence du ${du} au ${au} : ${decision}.`),
+      })
+      : await envoieSurWhatsApp({
+        numero, branchId: branch.id, parQui,
+        modele: MODELE_DECISION_CONGE, variables: [prenom, du, au, decision],
+      });
+    setPrevenirEnCours(null);
+    if (r.ok) {
+      patchDemande(l.id, { preventeLe: new Date().toISOString(), preventeParModele: !fen.ouverte, preventeRefus: undefined });
+      toast(`${prenom} a reçu la décision sur WhatsApp.`);
+    } else {
+      patchDemande(l.id, { preventeRefus: r.erreur });
+      toast(`La décision n’est pas partie : ${r.erreur}`);
+    }
+  };
+
+  const decide = (id: string, status: 'approuve' | 'refuse') => {
+    const l = leaves.find((x) => x.id === id);
+    leaveStore.set((prev) => prev.map((x) => (x.id === id ? { ...x, status, decidedBy: me?.name ?? 'Direction', decidedAt: new Date().toISOString() } : x)));
+    if (l) void previens(l, status);
+  };
   const remove = (id: string) => leaveStore.set((prev) => prev.filter((l) => l.id !== id));
 
   return (
@@ -158,15 +212,35 @@ function Conges() {
                 <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
                   {nameOf(l.employeeId)} · {l.type === 'conge' ? 'Congé' : 'Maladie'}
                 </div>
-                <Pill tone={l.status === 'approuve' ? 'ok' : l.status === 'refuse' ? 'error' : 'warn'}>{LEAVE_STATUS_LABEL[l.status]}</Pill>
+                <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                  {/* ARRIVÉE PAR WHATSAPP : le formulaire, posé par le webhook. */}
+                  {l.source === 'whatsapp' && <Pill tone="copper">Demandée par WhatsApp</Pill>}
+                  <Pill tone={l.status === 'approuve' ? 'ok' : l.status === 'refuse' ? 'error' : 'warn'}>{LEAVE_STATUS_LABEL[l.status]}</Pill>
+                </span>
               </div>
               <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4 }}>
                 {frDate(l.startDate)} → {frDate(l.endDate)} · {l.days} j{l.reason ? ` · ${l.reason}` : ''}{l.justificatif ? ` · justificatif : ${l.justificatif}` : ''}
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
                 {l.status === 'demande' && <button className="tre-link-btn" style={{ color: 'var(--trv-success, #2f7d54)' }} onClick={() => decide(l.id, 'approuve')}>Approuver</button>}
                 {l.status === 'demande' && <button className="tre-link-btn tre-link-btn--danger" onClick={() => decide(l.id, 'refuse')}>Refuser</button>}
                 {l.status !== 'demande' && <span className="mnd-muted" style={{ fontSize: 11 }}>{LEAVE_STATUS_LABEL[l.status]}{l.decidedBy ? ` par ${l.decidedBy}` : ''}</span>}
+                {/* CE QU'ELLE EN SAIT : prévenue, ou pas, et pourquoi. */}
+                {l.status !== 'demande' && (
+                  prevenirEnCours === l.id ? <span className="mnd-muted" style={{ fontSize: 11 }}>· envoi…</span>
+                    : l.preventeLe ? (
+                      <span className="mnd-muted" style={{ fontSize: 11 }}>
+                        · prévenue par WhatsApp le {frDate(l.preventeLe)}{l.preventeParModele ? ' (modèle)' : ''}
+                      </span>
+                    ) : (
+                      <>
+                        {l.preventeRefus && <span style={{ fontSize: 11, color: 'var(--trf-error, #8f3b30)' }}>· non prévenue : {l.preventeRefus}</span>}
+                        <button className="tre-link-btn" disabled={prevenirEnCours !== null} onClick={() => void previens(l, l.status as 'approuve' | 'refuse')}>
+                          Prévenir par WhatsApp
+                        </button>
+                      </>
+                    )
+                )}
                 <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 'auto' }} onClick={() => remove(l.id)}>Retirer</button>
               </div>
             </div>

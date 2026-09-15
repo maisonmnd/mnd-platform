@@ -27,6 +27,41 @@
         un message jamais remis se lisait comme parti. La tournée du matin
         peut enfin dire la vérité.
 
+   ═══ L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026 ═══════════════
+   Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée.
+
+   LE NUMÉRO NE CONNAISSAIT QUE LES CLIENTES. Quatre choses de plus, et rien
+   d'autre :
+
+     ③ QUI ÉCRIT. La base range chaque message dans son tiroir (0102,
+        `tete_du_numero`) : équipe, prestataire, cliente. Cette fonction lui
+        DEMANDE, elle ne décide pas — un seul juge, en base, qui ferme aussi
+        la porte aux comptes du personnel.
+
+     ④ CE QU'ON REÇOIT SE GARDE. Une photo, un PDF, un vocal arrivaient comme
+        « une photo » : l'identifiant Meta expire, le fichier se perdait. On va
+        le chercher chez Meta et on le range dans le compartiment `whatsapp`
+        (0102) — ou, pour un prestataire qui n'a qu'un dossier ouvert, dans
+        le coffre de cet engagement, comme un devis reçu « à saisir ».
+        PERSONNE NE LIT LE DEVIS À LA PLACE DE LA DIRECTION : un montant lu
+        par une machine sur une photo serait faux, et faux dans un
+        engagement est pire que vide.
+
+     ⑤ UN BOUTON AGIT. « Oui, bien reçu » sur l'annonce d'un versement
+        confirme la réception dans le dossier ; « Pas encore » le signale.
+        Le titre du bouton n'est que ce qu'il a lu — c'est l'identifiant qui
+        porte le geste.
+
+     ⑥ LE FORMULAIRE DE CONGÉ. Une employée qui parle de congé reçoit le
+        formulaire (un Flow WhatsApp, `WA_FLOW_CONGE`) ; sa réponse devient
+        une demande dans Temps & absences, à décider. Sans `WA_FLOW_CONGE`,
+        rien ne part : la direction répond à la main.
+
+   DEUX MESSAGES SEULEMENT PARTENT TOUT SEULS, dits d'avance dans la
+   maquette : l'accusé d'une pièce reçue d'un prestataire, et le formulaire
+   de congé. Ils portent `parQui: 'Le Trône'`, et jamais deux fois en
+   vingt-quatre heures. Pas de robot : la Maison reconnaît, range, prévient.
+
    ═══ CETTE ADRESSE EST PUBLIQUE ═══════════════════════════════════
    Meta ne peut présenter aucun jeton : il faut donc DÉCOCHER « Verify JWT »
    sur cette fonction dans le tableau de bord Supabase. C'est voulu, et c'est
@@ -39,6 +74,11 @@
      · WA_VERIFY_TOKEN — une chaîne que la Maison invente, recopiée chez Meta.
      · WA_APP_SECRET   — le secret de l'application Meta (App Secret).
      · CLE_SERVICE     — la clé secrète Supabase, pour écrire dans les tables.
+     · WA_TOKEN, WA_PHONE_ID — pour aller chercher les pièces chez Meta et
+                          envoyer les deux messages automatiques (les mêmes
+                          clés que whatsapp-envoi).
+     · WA_FLOW_CONGE   — l'identifiant du Flow « Demander un congé », publié
+                          dans WhatsApp Manager (docs/BRANCHER-ENVOIS.md).
 
    Déploiement : Supabase → Edge Functions → New function « whatsapp-webhook »
    → coller CE FICHIER ENTIER → Deploy → décocher « Verify JWT ». Puis, chez
@@ -47,6 +87,16 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+
+/** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
+    sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
+const VERSION = '2026-09-15-c · l équipe et les prestataires';
+
+/** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
+    `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
+const TAILLE_MAX_PIECE = 16 * 1024 * 1024;
+
+const FENETRE_MS = 24 * 60 * 60 * 1000;
 
 /** Numéro → format Meta (chiffres, sans « + »). MÊME RÈGLE que `numeroWa`
     de `shared/conversations.ts`, recopiée parce qu'une fonction Edge ne peut
@@ -117,26 +167,83 @@ const ETAT_APPEL: Record<string, string> = {
   failed: 'refuse',
 };
 
-/** Le texte d'un message, quel que soit son habit. Une image, un audio, un
-    contact n'ont pas de texte : on garde la LÉGENDE si elle existe, sinon on
-    nomme le genre. Afficher un blanc laisserait croire à un message vide, et
-    l'on répondrait à côté. */
-const texteDuMessage = (m: Record<string, any>): string => {
+/** Ce qu'un message dit, quel que soit son habit, et ce qu'il porte en plus.
+
+    Une image, un audio, un contact n'ont pas de texte : on garde la LÉGENDE
+    si elle existe, sinon on nomme le genre. Afficher un blanc laisserait
+    croire à un message vide, et l'on répondrait à côté.
+
+    UN BOUTON PORTE UN IDENTIFIANT, et c'est lui qui compte : le titre est ce
+    qu'elle a lu, l'identifiant ce que le Trône fait. Un FORMULAIRE (Flow)
+    rend un JSON que Meta range sous `nfm_reply.response_json`. */
+type Lecture = {
+  texte: string;
+  bouton?: { id?: string; texte: string };
+  formulaire?: { nom?: string; reponse: Record<string, unknown> };
+  media?: { id: string; mime: string; nom: string; genre: 'image' | 'document' | 'audio' | 'video' };
+};
+
+const NOMS: Record<string, string> = {
+  image: 'une photo', video: 'une vidéo', audio: 'un message vocal',
+  document: 'un document', sticker: 'un autocollant', location: 'sa position',
+  contacts: 'une fiche de contact',
+};
+
+const lectureDuMessage = (m: Record<string, any>): Lecture => {
   const t = m.type as string | undefined;
-  if (t === 'text') return String(m.text?.body ?? '');
-  if (t === 'button') return String(m.button?.text ?? '');
+  if (t === 'text') return { texte: String(m.text?.body ?? '') };
+  /* Le bouton d'un MODÈLE (réponse rapide) : `payload` est l'identifiant. */
+  if (t === 'button') {
+    const texte = String(m.button?.text ?? '');
+    const id = m.button?.payload ? String(m.button.payload) : undefined;
+    return { texte, bouton: { id, texte } };
+  }
   if (t === 'interactive') {
-    return String(m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? '');
+    const i = m.interactive ?? {};
+    if (i.nfm_reply) {
+      let reponse: Record<string, unknown> = {};
+      try { reponse = JSON.parse(String(i.nfm_reply.response_json ?? '{}')); } catch { /* illisible */ }
+      return {
+        texte: String(i.nfm_reply.body ?? 'a rempli un formulaire'),
+        formulaire: { nom: i.nfm_reply.name ? String(i.nfm_reply.name) : undefined, reponse },
+      };
+    }
+    const r = i.button_reply ?? i.list_reply;
+    const texte = String(r?.title ?? '');
+    return { texte, bouton: { id: r?.id ? String(r.id) : undefined, texte } };
   }
   const legende = m.image?.caption ?? m.video?.caption ?? m.document?.caption;
-  if (legende) return String(legende);
-  const NOMS: Record<string, string> = {
-    image: 'une photo', video: 'une vidéo', audio: 'un message vocal',
-    document: 'un document', sticker: 'un autocollant', location: 'sa position',
-    contacts: 'une fiche de contact',
-  };
-  return NOMS[t ?? ''] ?? 'un message que le Trône ne sait pas encore afficher';
+  const texte = legende ? String(legende) : (NOMS[t ?? ''] ?? 'un message que le Trône ne sait pas encore afficher');
+  if (t === 'image' || t === 'document' || t === 'audio' || t === 'video') {
+    const corps = m[t] ?? {};
+    if (corps.id) {
+      const mime = String(corps.mime_type ?? '').split(';')[0].trim() || 'application/octet-stream';
+      const ext = EXTENSION[mime] ?? '';
+      const nom = t === 'document' && corps.filename
+        ? String(corps.filename)
+        : `${t === 'image' ? 'photo' : t === 'audio' ? 'vocal' : 'video'}${ext}`;
+      return { texte, media: { id: String(corps.id), mime, nom, genre: t } };
+    }
+  }
+  return { texte };
 };
+
+/** L'extension qui va avec ce que Meta annonce — pour que le fichier s'ouvre
+    d'un tap chez qui le télécharge. */
+const EXTENSION: Record<string, string> = {
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
+  'application/pdf': '.pdf', 'text/plain': '.txt',
+  'audio/ogg': '.ogg', 'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/aac': '.aac', 'audio/amr': '.amr',
+  'video/mp4': '.mp4', 'video/3gpp': '.3gp',
+};
+
+/** Un nom de fichier qui survit à un chemin : accents ôtés, signes réduits,
+    coupé à quatre-vingts signes. Même règle que le coffre des engagements. */
+const nomPropre = (nom: string): string =>
+  nom.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').slice(-80) || 'piece';
+
+/** L'identifiant Meta réduit à ce qui tient dans un chemin. */
+const cleCourte = (waId: string): string => waId.replace(/[^A-Za-z0-9]/g, '').slice(-24) || 'x';
 
 /* ══ ELLE PARLE MAINTENANT — 12 septembre 2026 ══════════════════════
    « Mon message n'atteint toujours pas le serveur. Résous le problème par
@@ -158,6 +265,107 @@ const texteDuMessage = (m: Record<string, any>): string => {
    fuite de plus, dans un projet qui en a déjà connu une. */
 const dis = (quoi: string, o: Record<string, unknown> = {}) =>
   console.log(`whatsapp-webhook · ${quoi} · ${JSON.stringify(o)}`);
+
+/* ══ LES PIÈCES, CHEZ META PUIS DANS LE COFFRE — 15 septembre 2026 ═══
+   Meta ne livre pas le fichier : il livre un IDENTIFIANT, qu'il faut échanger
+   contre une adresse, puis lire avec le jeton. L'adresse expire en quelques
+   minutes, l'identifiant en quelques jours : ce qu'on ne va pas chercher tout
+   de suite est perdu. */
+async function telechargeChezMeta(
+  mediaId: string, jeton: string,
+): Promise<{ octets: Uint8Array; mime: string } | { tropLourde: true; octets?: undefined; mime?: undefined } | null> {
+  try {
+    const r1 = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(mediaId)}`, {
+      headers: { authorization: `Bearer ${jeton}` },
+    });
+    const meta = await r1.json().catch(() => ({}));
+    if (!r1.ok || !meta?.url) {
+      dis('pièce · Meta refuse l adresse', { statut: r1.status, motif: String(meta?.error?.message ?? '').slice(0, 120) });
+      return null;
+    }
+    if (Number(meta.file_size ?? 0) > TAILLE_MAX_PIECE) return { tropLourde: true };
+    const r2 = await fetch(String(meta.url), { headers: { authorization: `Bearer ${jeton}` } });
+    if (!r2.ok) { dis('pièce · le fichier ne se lit pas', { statut: r2.status }); return null; }
+    const octets = new Uint8Array(await r2.arrayBuffer());
+    if (octets.length > TAILLE_MAX_PIECE) return { tropLourde: true };
+    return { octets, mime: String(meta.mime_type ?? '').split(';')[0].trim() || 'application/octet-stream' };
+  } catch (e) {
+    dis('pièce · échec', { detail: String(e).slice(0, 160) });
+    return null;
+  }
+}
+
+/* ══ LES DEUX MESSAGES QUI PARTENT SEULS ═════════════════════════════
+   Ils partent dans la fenêtre qu'elle vient d'ouvrir en écrivant, donc sans
+   modèle. Chacun laisse une ligne dans le fil, comme tout ce que la Maison
+   envoie, signée « Le Trône » — la direction voit ce qui est parti sans
+   elle. JAMAIS DEUX FOIS EN VINGT-QUATRE HEURES pour un même numéro et un
+   même motif : un prestataire qui envoie trois photos reçoit un seul merci. */
+async function ditDepuisLeTrone(
+  sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
+  o: {
+    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis';
+    branchId?: string; interactive?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const depuis = new Date(Date.now() - FENETRE_MS).toISOString();
+  const { data: deja } = await sb.from('messages_wa').select('id')
+    .eq('data->>numero', o.numero).eq('data->>sens', 'sortant').eq('data->>auto', o.auto)
+    .gte('data->>quand', depuis).limit(1);
+  if ((deja ?? []).length > 0) return;
+
+  const charge = o.interactive
+    ? { messaging_product: 'whatsapp', to: o.numero, type: 'interactive', interactive: o.interactive }
+    : { messaging_product: 'whatsapp', to: o.numero, type: 'text', text: { body: o.texte } };
+  let waId = '';
+  let etat = 'en-route';
+  let detail: string | undefined;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${jeton}` },
+      body: JSON.stringify(charge),
+    });
+    const rep = await r.json().catch(() => ({}));
+    if (r.ok && rep?.messages?.[0]?.id) waId = String(rep.messages[0].id);
+    else { etat = 'non-remis'; detail = String(rep?.error?.message ?? `HTTP ${r.status}`).slice(0, 300); }
+  } catch (e) {
+    etat = 'non-remis';
+    detail = String(e).slice(0, 300);
+  }
+  const id = waId ? `wa-${waId}` : `wa-local-${crypto.randomUUID()}`;
+  const { error } = await sb.from('messages_wa').upsert({
+    id, branch_id: o.branchId ?? null,
+    data: {
+      id, waId: waId || undefined, branchId: o.branchId, sens: 'sortant', numero: o.numero,
+      texte: o.texte, type: o.interactive ? 'interactive' : 'text', quand: new Date().toISOString(),
+      etat, detail, parQui: 'Le Trône', auto: o.auto,
+    },
+  }, { onConflict: 'id' });
+  if (error) console.error(`whatsapp-webhook · AUTO · ${error.message}`);
+  else dis('parti tout seul', { auto: o.auto, etat });
+}
+
+/** « 2026-11-03 » depuis ce qu'un Flow rend : une date ISO, ou un instant
+    en millisecondes selon la version du formulaire. Vide si illisible. */
+const jourDuFlow = (v: unknown): string => {
+  const s = String(v ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{9,}$/.test(s)) {
+    const d = new Date(Number(s));
+    return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+  }
+  return '';
+};
+
+/** Jours calendaires inclus entre deux dates ISO. Même règle que
+    `daysInclusive` (equipe/payroll.ts). */
+const joursInclus = (du: string, au: string): number => {
+  const a = new Date(`${du}T12:00:00Z`).getTime();
+  const b = new Date(`${au}T12:00:00Z`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
+  return Math.round((b - a) / 86400000) + 1;
+};
 
 Deno.serve(async (req) => {
   /* LE PREMIER MOT, AVANT TOUTE GARDE : si cette ligne ne paraît pas au
@@ -385,11 +593,15 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       fonction: 'whatsapp-webhook',
+      version: VERSION,
       secrets: {
         WA_VERIFY_TOKEN: lg('WA_VERIFY_TOKEN') || 'ABSENT',
         WA_APP_SECRET: lg('WA_APP_SECRET') || 'ABSENT',
         CLE_SERVICE: lg('CLE_SERVICE') || 'ABSENT',
         SUPABASE_URL: lg('SUPABASE_URL') || 'ABSENT',
+        WA_TOKEN: lg('WA_TOKEN') || 'ABSENT — les pièces reçues ne seront pas gardées',
+        WA_PHONE_ID: lg('WA_PHONE_ID') || 'ABSENT',
+        WA_FLOW_CONGE: lg('WA_FLOW_CONGE') || 'ABSENT — le formulaire de congé ne partira pas',
       },
       /* Si vous lisez ceci dans un navigateur SANS être connecté, c'est que
          « Verify JWT » est bien décoché. C'est la preuve qu'on cherchait. */
@@ -466,6 +678,12 @@ Deno.serve(async (req) => {
     return new Response('ok', { status: 200 });
   }
   const sb = createClient(urlBase, service);
+  /* Les clés Meta servent à aller chercher les pièces et à envoyer les deux
+     messages automatiques. Absentes, l'oreille entend quand même — elle ne
+     garde pas les pièces, et le dit au contrôle de santé. */
+  const jetonMeta = (Deno.env.get('WA_TOKEN') ?? '').trim();
+  const phoneIdMeta = (Deno.env.get('WA_PHONE_ID') ?? '').trim();
+  const flowConge = (Deno.env.get('WA_FLOW_CONGE') ?? '').trim();
 
   let charge: Record<string, any> = {};
   try { charge = JSON.parse(brut); } catch { return new Response('ok', { status: 200 }); }
@@ -477,6 +695,9 @@ Deno.serve(async (req) => {
     /** L identifiant du message qu elle cite, quand elle repond a l un des
       notres ou des siens. Voir le commentaire long a la lecture. */
     citeWaId?: string;
+    bouton?: Lecture['bouton'];
+    formulaire?: Lecture['formulaire'];
+    media?: Lecture['media'];
   };
   const entrants: Entrant[] = [];
   const accuses: { waId: string; etat: string; detail?: string; numero: string }[] = [];
@@ -533,11 +754,12 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        const lu = lectureDuMessage(m);
         entrants.push({
           waId: String(m.id),
           numeroMaison,
           numero: de,
-          texte: texteDuMessage(m),
+          texte: lu.texte,
           type: String(m.type ?? 'text'),
           /* Meta date en SECONDES ; le Trône lit des ISO. */
           quand: new Date(Number(m.timestamp ?? 0) * 1000 || Date.now()).toISOString(),
@@ -552,6 +774,9 @@ Deno.serve(async (req) => {
              retrouve dans le fil, qui l a deja. Le recopier le figerait, et
              un message reecrit ferait mentir sa propre citation. */
           citeWaId: m.context?.id ? String(m.context.id) : undefined,
+          bouton: lu.bouton,
+          formulaire: lu.formulaire,
+          media: lu.media,
         });
       }
       /* LE CHAMP `calls` — Meta l envoie quand une cliente appelle, puis a
@@ -609,6 +834,9 @@ Deno.serve(async (req) => {
       .map((c: Record<string, any>) => c.field ?? '?'),
     messages: entrants.length,
     accuses: accuses.length,
+    pieces: entrants.filter((e) => e.media).length,
+    boutons: entrants.filter((e) => e.bouton?.id).length,
+    formulaires: entrants.filter((e) => e.formulaire).length,
   });
 
   /* ── ④ LES FICHES, POUR RATTACHER — une seule lecture.
@@ -627,27 +855,243 @@ Deno.serve(async (req) => {
   }
   const teteDuNumero = (n: string) => fiches.find((f) => f.numeros.includes(n));
 
+  /* ── ④ bis QUI ÉCRIT, SELON LA BASE — 15 septembre 2026 ─────────────
+     `tete_du_numero` (0102) est le seul juge : l'équipe d'abord, puis les
+     prestataires, puis les fournisseurs. On lui demande une fois par numéro. */
+  type Tete = { tiroir: string; staffId?: string; prestataireId?: string; fournisseurId?: string; branchId?: string };
+  const tetes = new Map<string, Tete>();
+  for (const n of new Set(entrants.map((e) => e.numero))) {
+    const { data, error } = await sb.rpc('tete_du_numero', { n });
+    if (error) { dis('tete_du_numero · refus', { motif: error.message.slice(0, 120) }); continue; }
+    tetes.set(n, (data ?? { tiroir: 'clientes' }) as Tete);
+  }
+  const tiroirDe = (n: string) => tetes.get(n)?.tiroir ?? 'clientes';
+
+  /* ── ④ ter LES PIÈCES, RANGÉES — 15 septembre 2026 ──────────────────
+     Une pièce se dépose AVANT d'écrire la ligne : elle ne s'écrit qu'une
+     fois, complète. Pour un prestataire qui n'a qu'un dossier ouvert, elle
+     va dans le coffre de ce dossier, comme un devis « à saisir » ; sinon dans
+     le compartiment `whatsapp`, « à ranger » par la direction. */
+  type PieceRangee = {
+    nom: string; type: string; octets?: number; chemin?: string; coffre?: string; mediaId: string; tropLourde?: boolean;
+  };
+  const pieces = new Map<string, PieceRangee>();
+  const rangeDans = new Map<string, string>();
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+
+  /** LE SEUL DOSSIER OUVERT d'un fournisseur, ou rien. Un dossier est
+      ouvert tant qu'il n'est ni abandonné ni soldé — même lecture que
+      `etatDuDossier` (shared/engagements.ts), refaite ici en cinq lignes
+      parce qu'une fonction Edge n'importe rien du dépôt. */
+  const dossierUnique = async (fournisseurId: string): Promise<{ id: string; branchId?: string } | null> => {
+    const { data: dossiers } = await sb.from('engagements').select('id, branch_id, data')
+      .eq('data->>fournisseurId', fournisseurId);
+    const vivants = (dossiers ?? []).filter((d: any) => !d.data?.abandonneLe);
+    if (vivants.length === 0) return null;
+    const ids = vivants.map((d: any) => d.id as string);
+    const [{ data: devis }, { data: versements }] = await Promise.all([
+      sb.from('devis_recus').select('data').in('data->>engagementId', ids),
+      sb.from('versements_engagement').select('data').in('data->>engagementId', ids),
+    ]);
+    const ouverts = vivants.filter((d: any) => {
+      const retenu = (devis ?? []).filter((x: any) => x.data?.engagementId === d.id && x.data?.etat === 'retenu')
+        .reduce((s: number, x: any) => s + Math.max(0, Number(x.data?.montantXof ?? 0)), 0);
+      const verse = (versements ?? []).filter((x: any) => x.data?.engagementId === d.id && x.data?.verseLe)
+        .reduce((s: number, x: any) => s + Math.max(0, Number(x.data?.montantXof ?? 0)), 0);
+      return !(retenu > 0 && verse >= retenu);
+    });
+    return ouverts.length === 1 ? { id: ouverts[0].id, branchId: ouverts[0].branch_id ?? undefined } : null;
+  };
+
+  for (const e of entrants) {
+    if (!e.media) continue;
+    const base: PieceRangee = { nom: e.media.nom, type: e.media.mime, mediaId: e.media.id };
+    if (!jetonMeta) { pieces.set(e.waId, base); continue; }
+    const lu = await telechargeChezMeta(e.media.id, jetonMeta);
+    if (!lu) { pieces.set(e.waId, base); continue; }
+    if (lu.tropLourde) { pieces.set(e.waId, { ...base, tropLourde: true }); continue; }
+    const type = lu.mime || e.media.mime;
+    const nom = e.media.nom;
+    const cle = cleCourte(e.waId);
+
+    let coffre = 'whatsapp';
+    let chemin = `${e.numero}/${cle}-${nomPropre(nom)}`;
+    const tete = tetes.get(e.numero);
+    let dossier: { id: string; branchId?: string } | null = null;
+    if (tete?.tiroir === 'prestataires' && tete.fournisseurId) {
+      dossier = await dossierUnique(tete.fournisseurId);
+      if (dossier) {
+        const branche = dossier.branchId ?? tete.branchId ?? 'sans-branche';
+        coffre = 'engagements';
+        chemin = `${branche}/pieces/${dossier.id}/${cle}-${nomPropre(nom)}`;
+      }
+    }
+    const { error } = await sb.storage.from(coffre).upload(chemin, lu.octets, { contentType: type, upsert: true });
+    if (error) {
+      dis('pièce · dépôt refusé', { coffre, motif: error.message.slice(0, 120) });
+      pieces.set(e.waId, base);
+      continue;
+    }
+    pieces.set(e.waId, { nom, type, octets: lu.octets.length, chemin, coffre, mediaId: e.media.id });
+    dis('pièce rangée', { coffre, genre: e.media.genre, octets: lu.octets.length, dansUnDossier: !!dossier });
+
+    /* LE DEVIS ENTRE AU DOSSIER, VIDE DE CHIFFRES : la direction les tape en
+       le lisant. La garde de 0099 le laisse « reçu », comme toute saisie du
+       comptoir. Un même message n'en fait jamais deux (identifiant dérivé). */
+    if (dossier) {
+      const id = `dvr-wa-${cle}`;
+      const { error: errDevis } = await sb.from('devis_recus').upsert({
+        id, branch_id: dossier.branchId ?? tete?.branchId ?? null,
+        data: {
+          id, branchId: dossier.branchId ?? tete?.branchId, engagementId: dossier.id,
+          recuLe: aujourdhui, montantXof: 0, etat: 'recu',
+          description: `Reçu par WhatsApp, à saisir${e.texte && e.texte !== NOMS[e.type] ? ` · ${e.texte.slice(0, 200)}` : ''}`,
+          fichier: { chemin, nom, type, taille: lu.octets.length },
+          recuParWhatsApp: { waId: e.waId, quand: e.quand },
+        },
+      }, { onConflict: 'id', ignoreDuplicates: true });
+      if (errDevis) dis('devis · écriture refusée', { motif: errDevis.message.slice(0, 120) });
+      else rangeDans.set(e.waId, dossier.id);
+    }
+  }
+
   /* ── ⑤ ON RANGE. Identifiant DÉTERMINISTE `wa-<id Meta>` : Meta rappelle
-     volontiers deux fois le même message, il ne s'écrira qu'une. */
+     volontiers deux fois le même message, il ne s'écrira qu'une.
+
+     ET IL NE S'ÉCRASE PAS : une seconde livraison du même message ne doit
+     pas effacer l'accusé, la réaction ou la lecture posés entre-temps.
+     `ignoreDuplicates` laisse la première ligne tranquille. */
   if (entrants.length > 0) {
     const lignes = entrants.map((e) => {
       const tete = teteDuNumero(e.numero);
+      const laTete = tetes.get(e.numero);
+      const piece = pieces.get(e.waId);
       return {
         id: `wa-${e.waId}`,
-        branch_id: tete?.branchId ?? null,
+        branch_id: tete?.branchId ?? laTete?.branchId ?? null,
         data: {
-          id: `wa-${e.waId}`, waId: e.waId, branchId: tete?.branchId,
+          id: `wa-${e.waId}`, waId: e.waId, branchId: tete?.branchId ?? laTete?.branchId,
           sens: 'entrant', numero: e.numero, clientId: tete?.id,
           nomProfil: e.nomProfil, texte: e.texte, type: e.type, quand: e.quand,
           numeroMaison: e.numeroMaison || undefined,
           /* CE QU ELLE CITE — l identifiant seul ; le fil a deja le texte. */
           citeWaId: e.citeWaId,
+          ...(piece ? { piece } : {}),
+          ...(e.bouton ? { bouton: e.bouton } : {}),
+          ...(e.formulaire ? { formulaire: e.formulaire } : {}),
+          ...(rangeDans.has(e.waId) ? { rangeDans: rangeDans.get(e.waId) } : {}),
         },
       };
     });
-    const { error } = await sb.from('messages_wa').upsert(lignes, { onConflict: 'id' });
+    const { error } = await sb.from('messages_wa').upsert(lignes, { onConflict: 'id', ignoreDuplicates: true });
     if (error) console.error(`whatsapp-webhook · ÉCHEC ÉCRITURE · ${error.message}`);
-    else dis('messages rangés', { combien: lignes.length, rattaches: lignes.filter((l) => l.data.clientId).length });
+    else {
+      dis('messages rangés', {
+        combien: lignes.length,
+        rattaches: lignes.filter((l) => l.data.clientId).length,
+        tiroirs: entrants.map((e) => tiroirDe(e.numero)),
+      });
+    }
+  }
+
+  /* ── ⑤ bis CE QU'UN BOUTON FAIT — 15 septembre 2026 ─────────────────
+     « RECU:<versement> » : il dit avoir reçu l'argent. « PASENCORE:<versement> » :
+     il dit ne pas l'avoir reçu, et le dossier le signale. Le bouton est une
+     trace, pas une signature : la décharge reste à signer sur l'écran. */
+  for (const e of entrants) {
+    const id = e.bouton?.id ?? '';
+    const m = id.match(/^(RECU|PASENCORE):(.+)$/);
+    if (!m) continue;
+    const { data: l } = await sb.from('versements_engagement').select('id, data').eq('id', m[2]).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+    if (!ligne) { dis('bouton · versement introuvable'); continue; }
+    const patch = m[1] === 'RECU'
+      ? { recuLe: e.quand, recuPar: 'whatsapp', contesteLe: undefined }
+      : { contesteLe: e.quand };
+    const { error } = await sb.from('versements_engagement').update({
+      data: { ...ligne.data, ...patch },
+      updated_at: new Date().toISOString(),
+    }).eq('id', ligne.id);
+    if (error) dis('bouton · écriture refusée', { motif: error.message.slice(0, 120) });
+    else dis('bouton · versement', { geste: m[1] });
+  }
+
+  /* ── ⑤ ter LE FORMULAIRE DE CONGÉ — 15 septembre 2026 ───────────────
+     Sa réponse devient une DEMANDE, à décider dans Temps & absences. Rien
+     n'est accordé ici : le Trône transmet, la direction décide. Un même
+     formulaire n'en fait jamais deux (identifiant dérivé du message). */
+  for (const e of entrants) {
+    if (!e.formulaire) continue;
+    const tete = tetes.get(e.numero);
+    if (tete?.tiroir !== 'equipe' || !tete.staffId) { dis('formulaire · pas de l équipe'); continue; }
+    const r = e.formulaire.reponse ?? {};
+    const du = jourDuFlow(r.du);
+    const au = jourDuFlow(r.au) || du;
+    const jours = joursInclus(du, au);
+    if (!du || jours <= 0) { dis('formulaire · dates illisibles'); continue; }
+    const nature = String(r.nature ?? '').toLowerCase() === 'maladie' ? 'maladie' : 'conge';
+    const mot = String(r.mot ?? '').trim().slice(0, 300);
+    const id = `lv-wa-${cleCourte(e.waId)}`;
+    const { error } = await sb.from('leave_requests').upsert({
+      id, branch_id: tete.branchId ?? null,
+      data: {
+        id, employeeId: tete.staffId, type: nature,
+        startDate: du, endDate: au, days: jours,
+        reason: mot || undefined,
+        status: 'demande', branchId: tete.branchId,
+        source: 'whatsapp', waId: e.waId, recueLe: e.quand,
+      },
+    }, { onConflict: 'id', ignoreDuplicates: true });
+    if (error) { dis('formulaire · écriture refusée', { motif: error.message.slice(0, 120) }); continue; }
+    dis('formulaire · demande posée', { nature, jours });
+    if (jetonMeta && phoneIdMeta) {
+      await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+        numero: e.numero, branchId: tete.branchId, auto: 'transmis',
+        texte: 'Votre demande est transmise à la direction. Elle vous répond ici.',
+      });
+    }
+  }
+
+  /* ── ⑤ quater LES DEUX MESSAGES QUI PARTENT SEULS ────────────────────
+     Dans la fenêtre qu'elle vient d'ouvrir, donc gratuits jusqu'au
+     30 septembre 2026, puis comptés parmi les réponses du mois. */
+  if (jetonMeta && phoneIdMeta) {
+    for (const e of entrants) {
+      const tete = tetes.get(e.numero);
+      if (!tete) continue;
+      /* L'ACCUSÉ D'UNE PIÈCE REÇUE D'UN PRESTATAIRE. Il sait que la Maison
+         l'a, et la direction reviendra vers lui : rien d'autre. */
+      if (tete.tiroir === 'prestataires' && e.media && pieces.get(e.waId)?.chemin) {
+        await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+          numero: e.numero, branchId: tete.branchId, auto: 'accuse',
+          texte: 'Bien reçu, merci. La direction revient vers vous.',
+        });
+      }
+      /* LE FORMULAIRE DE CONGÉ, à qui en parle. Sans Flow publié, rien ne
+         part et la direction répond à la main — l'écran le sait. */
+      if (tete.tiroir === 'equipe' && e.type === 'text' && flowConge
+        && /\b(cong[ée]s?|absence|malade|maladie|repos)\b/i.test(e.texte)) {
+        await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, {
+          numero: e.numero, branchId: tete.branchId, auto: 'formulaire',
+          texte: 'Remplissez ce formulaire : la direction vous répond ici.',
+          interactive: {
+            type: 'flow',
+            header: { type: 'text', text: 'Demander un congé' },
+            body: { text: 'Remplissez ce formulaire : la direction vous répond ici.' },
+            action: {
+              name: 'flow',
+              parameters: {
+                flow_message_version: '3',
+                flow_id: flowConge,
+                flow_cta: 'Remplir la demande',
+                flow_action: 'navigate',
+                flow_action_payload: { screen: 'DEMANDE' },
+              },
+            },
+          },
+        });
+      }
+    }
   }
 
   /* ── ⑥ LES ACCUSÉS. Ils corrigent DEUX journaux, et c'est voulu : les
@@ -761,6 +1205,7 @@ Deno.serve(async (req) => {
     JSON.stringify({
       recus: entrants.length, accuses: accuses.length,
       reactions: reactions.length, appels: appels.length,
+      pieces: pieces.size, version: VERSION,
     }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );

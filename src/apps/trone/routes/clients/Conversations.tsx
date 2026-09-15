@@ -13,11 +13,15 @@ import {
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
   laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
   useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil,
+  tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
 } from '../../../../shared/conversations';
+import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
+import { useProviders } from '../../../../shared/prestataires';
+import { useFournisseurs } from '../../../../shared/stock';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
-import { salonHoursStore } from '../equipe/data';
+import { salonHoursStore, useStaff as useEquipe } from '../equipe/data';
 import { ClientPicker } from './_shared';
 import { useEstDirection } from '../_vie';
 import {
@@ -71,25 +75,45 @@ const jour = (iso: string) => {
 const initiales = (nom: string) =>
   nom.split(/\s+/).map((m) => m.charAt(0)).slice(0, 2).join('').toUpperCase() || '·';
 
-/** POURQUOI LA FONCTION A REFUSÉ, dans ses mots à elle.
+/* `motifDuRefus` vit dans `shared/whatsapp` depuis le 15 septembre 2026 : la
+   Paie, Temps & absences et les Engagements envoient aussi, et lisent le même
+   refus. */
 
-    `supabase-js` emballe un refus dans une `FunctionsHttpError` dont le
-    message est toujours identique ; la vraie phrase est dans le corps de la
-    réponse, qu'il porte sous `context`. On va l'y chercher, et l'on retombe
-    sur le message générique seulement si le corps est illisible — un refus
-    sans motif est la panne la plus longue à nommer. */
-async function motifDuRefus(e: unknown): Promise<string> {
-  const generique = (e as { message?: string })?.message ?? String(e);
-  const rep = (e as { context?: Response })?.context;
-  if (!rep || typeof rep.json !== 'function') return generique;
-  try {
-    const corps = await rep.json();
-    const dit = (corps as { erreur?: string; error?: string })?.erreur
-      ?? (corps as { error?: string })?.error;
-    return dit ? String(dit) : generique;
-  } catch {
-    return generique;
+/* ══ UNE PIÈCE REÇUE, DANS LE FIL — 15 septembre 2026 ═══════════════
+   Le fil écrivait « une photo » et le fichier se perdait chez Meta. Le
+   webhook le range désormais dans le coffre (0102) ; ici on le montre, par
+   une adresse signée qui vaut une heure et que la base refuse à qui n'a pas
+   le droit de lire. Une image se voit, un vocal s'écoute, le reste s'ouvre. */
+function PieceDuFil({ piece }: { piece: PieceRecue }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    if (!piece.chemin) { setUrl(null); return undefined; }
+    void adresseDeLaPieceRecue(piece).then((u) => { if (vivant) setUrl(u); });
+    return () => { vivant = false; };
+  }, [piece]);
+  if (piece.tropLourde) {
+    return <span className="trc-b__piece trc-b__piece--mot">{piece.nom} · trop lourde pour être gardée, elle est restée chez Meta.</span>;
   }
+  if (!piece.chemin) {
+    return <span className="trc-b__piece trc-b__piece--mot">{piece.nom}{piece.octets ? ` · ${Math.round(piece.octets / 1024)} Ko` : ''}</span>;
+  }
+  if (!url) return <span className="trc-b__piece trc-b__piece--mot">{piece.nom} · chargement…</span>;
+  if (piece.type.startsWith('image/')) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="trc-b__piece">
+        <img src={url} alt={piece.nom} className="trc-b__img" />
+      </a>
+    );
+  }
+  if (piece.type.startsWith('audio/')) {
+    return <audio controls src={url} className="trc-b__audio" preload="none" />;
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="trc-b__piece trc-b__piece--doc">
+      Ouvrir {piece.nom}
+    </a>
+  );
 }
 
 /* ── LES HEURES DU SALON, POUR CE JOUR-CI ─────────────────────────────
@@ -167,6 +191,15 @@ export default function Conversations() {
      d'une cliente. */
   const [commencer, setCommencer] = useState(false);
   const [numeroNeuf, setNumeroNeuf] = useState('');
+  /* ══ TROIS TIROIRS, UN NUMÉRO — 15 septembre 2026 ═════════════════
+     Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. Clientes,
+     Équipe, Prestataires : LA BASE RÉSERVE LES DEUX DERNIERS À LA DIRECTION
+     (0102), le personnel ne voit que les clientes, comme avant. L'écran ne
+     fait que nommer et ranger ; la porte est en base. */
+  const [tiroir, setTiroir] = useState<Tiroir>('clientes');
+  const [equipe] = useEquipe();
+  const [prestataires] = useProviders();
+  const [fournisseurs] = useFournisseurs();
 
   /* ══ CE QUE LES MODÈLES COÛTENT CE MOIS-CI — 15 septembre 2026 ═════
      « Combien Meta facture une conversation de 24 h ? » (Yéman).
@@ -205,9 +238,15 @@ export default function Conversations() {
     return () => window.clearInterval(t);
   }, []);
 
+  /* TOUTES LES TÊTES QUE LE NUMÉRO RECONNAÎT, l'équipe d'abord : une employée
+     qui est aussi cliente se lit dans Équipe. Même priorité que la base. */
+  const tetes = useMemo(
+    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs }),
+    [clients, equipe, prestataires, fournisseurs],
+  );
   const tous = useMemo(
-    () => filsDeLaMaison(messages, clients, prives, tick, branch.id),
-    [messages, clients, prives, tick, branch.id],
+    () => filsDeLaMaison(messages, tetes, prives, tick, branch.id),
+    [messages, tetes, prives, tick, branch.id],
   );
   /* « TOUT LE PERSONNEL, SAUF CE QUE JE MARQUE PRIVÉ » (Yéman, 11 septembre).
      Le fil privé se replie, il ne s'efface pas : un bouton le rouvre, et
@@ -215,13 +254,24 @@ export default function Conversations() {
   /* L'ARCHIVE NE RETIRE UN FIL QUE DE LA LISTE. `tous` le garde : un lien
      venu des Clientes ou du Carnet doit rouvrir le VRAI fil, avec son
      histoire, et non un fil neuf qui ferait croire qu'elle n'a jamais écrit. */
+  /* LE TIROIR OUVERT, ET LUI SEUL. Un compte du personnel ne voit que les
+     clientes : la base ne lui livre rien d'autre, et l'écran ne montrerait
+     pas non plus un vieux cache. */
+  const tiroirVu: Tiroir = estDirection ? tiroir : 'clientes';
   const fils = useMemo(
-    () => tous.filter((f) => (voirPrives || !f.prive)
+    () => tous.filter((f) => f.tiroir === tiroirVu
+      && (voirPrives || !f.prive)
       && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives))),
-    [tous, voirPrives, voirArchives, archives],
+    [tous, tiroirVu, voirPrives, voirArchives, archives],
   );
-  const nPrives = tous.filter((f) => f.prive).length;
-  const nArchives = tous.filter((f) => estArchive(f, archives)).length;
+  const nPrives = tous.filter((f) => f.tiroir === tiroirVu && f.prive).length;
+  const nArchives = tous.filter((f) => f.tiroir === tiroirVu && estArchive(f, archives)).length;
+  /* CE QUI ATTEND, PAR TIROIR — pour que l'onglet le dise avant qu'on l'ouvre. */
+  const attendent = useMemo(() => {
+    const n: Record<Tiroir, number> = { clientes: 0, equipe: 0, prestataires: 0 };
+    for (const f of tous) if (f.attendUneReponse && !estArchive(f, archives)) n[f.tiroir] += 1;
+    return n;
+  }, [tous, archives]);
 
   const ouvertNum = params.get('n') ?? '';
   /* ── LE NUMÉRO PEUT VENIR D'AILLEURS — 14 septembre 2026 ──────────
@@ -230,11 +280,18 @@ export default function Conversations() {
      pas. On en fabrique un vide plutôt que de laisser un écran muet, et il
      dit la vérité — elle ne vous a jamais écrit, seul un modèle ouvre la
      conversation. */
-  const fil = tous.find((f) => f.numero === numeroWa(ouvertNum))
-    ?? (ouvertNum
-      ? filNeuf(ouvertNum, clients.find((c) => numeroWa(c.phone) === numeroWa(ouvertNum)
-        || numeroWa(c.phone2) === numeroWa(ouvertNum)))
-      : null);
+  const filTrouve = tous.find((f) => f.numero === numeroWa(ouvertNum))
+    ?? (ouvertNum ? filNeuf(ouvertNum, teteDuNumero(ouvertNum, tetes)) : null);
+  /* UN FIL RÉSERVÉ NE S'OUVRE PAS À UN COMPTE DU PERSONNEL, même par un lien :
+     la base ne lui en livre pas les messages, et un fil vide ferait croire
+     que la personne n'a jamais écrit. On le dit, plutôt que de faire semblant. */
+  const filInterdit = !!filTrouve && !estDirection && estReserve(filTrouve.tiroir);
+  const fil = filInterdit ? null : filTrouve;
+  /* LE TIROIR SUIT LE FIL OUVERT : un lien depuis la Paie ouvre Équipe. */
+  useEffect(() => {
+    if (fil && estDirection && fil.tiroir !== tiroir) setTiroir(fil.tiroir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fil?.numero]);
   const ouvre = (n: string) => {
     setParams(n ? { n } : {}, { replace: true });
     setTexte('');
@@ -454,8 +511,8 @@ export default function Conversations() {
     /* UNE RAFALE FAIT UNE SONNERIE, pas trois. */
     sonne();
     const premier = sonnants[0];
-    const qui = premier.nomProfil
-      ?? clients.find((c) => c.id === premier.clientId)?.name
+    const qui = teteDuNumero(premier.numero, tetes)?.name
+      ?? premier.nomProfil
       ?? `+${premier.numero}`;
     toast(sonnants.length === 1
       ? `${qui} vous écrit.`
@@ -627,9 +684,39 @@ export default function Conversations() {
         </div>
       )}
 
+      {filInterdit && (
+        <div className="trc-passage-banner">
+          <b>Ce fil est réservé à la direction</b> : c’est le numéro d’une personne de l’équipe ou d’un
+          prestataire. Ce qui s’y dit ne se lit pas ici.
+        </div>
+      )}
+
       <div className="trc-convs">
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
+          {/* LES TROIS TIROIRS — la direction seule les voit tous. Le compte
+              dit ce qui attend une réponse, pas ce qui existe. */}
+          {estDirection && (
+            <div className="trc-tabs trc-tiroirs">
+              {TIROIRS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`trc-tab${tiroir === t ? ' is-active' : ''}`}
+                  onClick={() => { setTiroir(t); setVoirArchives(false); }}
+                >
+                  {TIROIR_DIT[t]}{attendent[t] > 0 ? ` · ${attendent[t]}` : ''}
+                </button>
+              ))}
+            </div>
+          )}
+          {estDirection && estReserve(tiroir) && (
+            <div className="trc-sub" style={{ fontSize: 11.5, lineHeight: 1.55, padding: '10px 14px' }}>
+              {tiroir === 'equipe'
+                ? 'Les fils de l’équipe. Seule la direction les lit : on y parle de bulletins et d’absences.'
+                : 'Les fils des prestataires et des fournisseurs. Seule la direction les lit : on y parle de devis et d’argent versé.'}
+            </div>
+          )}
           {voirArchives && (
             <div className="trc-sub" style={{ fontSize: 11.5, lineHeight: 1.55, padding: '10px 14px' }}>
               Les conversations archivées. Rien n’y est effacé, et chacune revient seule dans la liste
@@ -637,7 +724,13 @@ export default function Conversations() {
             </div>
           )}
           {fils.length === 0 && messages.length > 0 && (
-            <div className="trc-empty">{voirArchives ? 'Aucune conversation archivée.' : 'Aucun fil sur cette branche.'}</div>
+            <div className="trc-empty">
+              {voirArchives
+                ? 'Aucune conversation archivée.'
+                : tiroirVu === 'clientes'
+                  ? 'Aucun fil sur cette branche.'
+                  : 'Personne n’a encore écrit dans ce tiroir. Un fil naît de son premier message, ou d’un envoi depuis la Paie, Temps & absences ou les Engagements.'}
+            </div>
           )}
           {fils.map((f) => (
             <button
@@ -652,7 +745,10 @@ export default function Conversations() {
               <span className="trc-conv__c">
                 <span className="trc-conv__n">{f.nom}</span>
                 <span className="trc-conv__d">
-                  {f.dernier.sens === 'sortant' ? 'Vous : ' : ''}{f.dernier.texte}
+                  {f.dernier.sens === 'sortant' ? (f.dernier.parQui === 'Le Trône' ? 'Le Trône : ' : 'Vous : ') : ''}
+                  {f.dernier.sens === 'entrant' && f.dernier.piece && !f.dernier.texte.startsWith(f.dernier.piece.nom)
+                    ? `${f.dernier.piece.nom} · ` : ''}
+                  {f.dernier.texte}
                 </span>
               </span>
               <span className="trc-conv__r">
@@ -684,6 +780,7 @@ export default function Conversations() {
                   <span className="trc-sub" style={{ display: 'block', fontSize: 11.5 }}>
                     +{fil.numero}
                     {fil.sansFiche ? ' · aucune fiche' : ''}
+                    {estReserve(fil.tiroir) ? ` · ${TIROIR_DIT[fil.tiroir].toLowerCase()} · direction seule` : ''}
                   </span>
                 </span>
                 <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
@@ -712,16 +809,27 @@ export default function Conversations() {
                     <WaGlyph taille={15} />
                   </a>
                   {fil.sansFiche ? (
-                    <button type="button" className="trv-minibtn" onClick={() => setRattacher(fil)}>
-                      Rattacher à une fiche
-                    </button>
+                    /* UN FIL RÉSERVÉ SANS FICHE : la personne a quitté l'équipe
+                       ou le répertoire. On ne le rattache pas à une cliente, ce
+                       serait rouvrir ses bulletins au personnel. */
+                    estReserve(fil.tiroir) ? (
+                      <span className="trc-sub" style={{ fontSize: 11 }}>Sans fiche : la personne n’est plus dans l’équipe ni au répertoire.</span>
+                    ) : (
+                      <button type="button" className="trv-minibtn" onClick={() => setRattacher(fil)}>
+                        Rattacher à une fiche
+                      </button>
+                    )
                   ) : (
+                    /* LA FICHE SELON LE TIROIR : la cliente, la fiche d'équipe,
+                       le répertoire, les engagements. */
                     <button
                       type="button"
                       className="trv-minibtn"
-                      onClick={() => navigate(`/customers?id=${fil.clientId}`)}
+                      onClick={() => navigate(fil.fiche ?? `/customers?id=${fil.clientId}`)}
                     >
-                      Ouvrir sa fiche
+                      {fil.tiroir === 'equipe' ? 'Sa fiche d’équipe'
+                        : fil.tiroir === 'prestataires' ? (fil.fiche === '/engagements' ? 'Ses engagements' : 'Le répertoire')
+                          : 'Ouvrir sa fiche'}
                     </button>
                   )}
                   <button
@@ -766,6 +874,28 @@ export default function Conversations() {
                             {messageCite(fil.messages, m.citeWaId)?.texte ?? 'un message plus ancien'}
                           </span>
                         )}
+                        {/* LA PIÈCE REÇUE, VISIBLE — le webhook la garde
+                            depuis le 15 septembre. Une pièce ENVOYÉE n'a pas
+                            de chemin : seuls son nom et son poids restent. */}
+                        {m.sens === 'entrant' && m.piece && <PieceDuFil piece={m.piece} />}
+                        {m.rangeDans && m.rangeDans !== '-' && (
+                          <span className="trc-b__note">
+                            Rangée dans son engagement, comme devis à saisir.{' '}
+                            <button type="button" onClick={() => navigate(`/engagements?id=${m.rangeDans}`)}>Ouvrir le dossier</button>
+                          </span>
+                        )}
+                        {m.sens === 'entrant' && m.piece?.chemin && !m.rangeDans && fil.tiroir === 'prestataires' && (
+                          <span className="trc-b__note">
+                            À ranger dans un engagement.{' '}
+                            <button type="button" onClick={() => navigate('/engagements?ranger=1')}>Ouvrir les engagements</button>
+                          </span>
+                        )}
+                        {m.formulaire && (
+                          <span className="trc-b__note">
+                            Formulaire{m.formulaire.nom ? ` « ${m.formulaire.nom} »` : ''} :{' '}
+                            {Object.entries(m.formulaire.reponse).map(([k, v]) => `${k} ${String(v)}`).join(' · ')}
+                          </span>
+                        )}
                         {reecrit?.m.id === m.id ? (
                           <>
                             <textarea
@@ -786,7 +916,10 @@ export default function Conversations() {
                           </>
                         ) : m.texte}
                         <span className="trc-b__h">
-                          {m.modele ? `Modèle ${m.modele} · ` : ''}{heure(m.quand)}
+                          {m.modele ? `Modèle ${m.modele} · ` : ''}
+                          {m.parQui === 'Le Trône' ? 'Parti tout seul · ' : ''}
+                          {m.bouton?.id ? 'A touché un bouton · ' : ''}
+                          {heure(m.quand)}
                           {m.etat === 'lu' ? ' · lu' : m.etat === 'remis' ? ' · remis'
                             : m.etat === 'non-remis' ? ' · non remis' : m.etat === 'en-route' ? ' · en route' : ''}
                           {m.detail ? ` · ${m.detail}` : ''}
@@ -943,6 +1076,15 @@ export default function Conversations() {
                       </Button>
                     </div>
                   </>
+                ) : estReserve(fil.tiroir) ? (
+                  /* LES MODÈLES DES CLIENTES NE SERVENT PAS ICI : un rappel de
+                     rendez-vous à une employée n'aurait pas de sens. Ses
+                     modèles à elle partent de l'écran qui décide. */
+                  <p className="trc-sub" style={{ margin: 0 }}>
+                    Hors fenêtre, écrivez-lui depuis l’écran qui décide : <b>la Paie</b> pour un bulletin,
+                    <b> Temps & absences</b> pour un congé, <b>les Engagements</b> pour un versement.
+                    Chacun part par son modèle approuvé. Ou attendez qu’elle écrive : la fenêtre se rouvre.
+                  </p>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {MODELES.map((m) => (
@@ -1129,13 +1271,28 @@ export default function Conversations() {
                 Ce numéro n’est pas lisible. Huit chiffres, ou le numéro complet avec son indicatif.
               </p>
             )}
-            {numeroWa(numeroNeuf) && !clients.some((c) => numeroWa(c.phone) === numeroWa(numeroNeuf)
-              || numeroWa(c.phone2) === numeroWa(numeroNeuf)) && (
-              <p className="trc-sub">
-                Aucune fiche ne porte ce numéro : le fil s’ouvrira <b>sans fiche</b>,
-                et vous pourrez le rattacher ensuite.
-              </p>
-            )}
+            {(() => {
+              const n = numeroWa(numeroNeuf);
+              if (!n) return null;
+              const t = teteDuNumero(n, tetes);
+              if (!t) {
+                return (
+                  <p className="trc-sub">
+                    Aucune fiche ne porte ce numéro : le fil s’ouvrira <b>sans fiche</b>,
+                    et vous pourrez le rattacher ensuite.
+                  </p>
+                );
+              }
+              if (!estReserve(t.tiroir)) return null;
+              return (
+                <p className="trc-sub">
+                  C’est le numéro de <b>{t.name}</b> ({TIROIR_DIT[t.tiroir as Tiroir].toLowerCase()}).
+                  {estDirection
+                    ? ' Le fil s’ouvrira dans son tiroir, réservé à la direction.'
+                    : ' Ce fil est réservé à la direction : il ne s’ouvrira pas ici.'}
+                </p>
+              );
+            })()}
           </div>
         </div>
       )}

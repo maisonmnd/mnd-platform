@@ -1,0 +1,67 @@
+{
+  "version": "6.3",
+  "screens": [
+    {
+      "id": "DEMANDE",
+      "title": "Demander un congé",
+      "terminal": true,
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "demande",
+            "children": [
+              {
+                "type": "TextBody",
+                "text": "La direction reçoit votre demande dans le Trône et vous répond ici."
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "nature",
+                "label": "Nature",
+                "required": true,
+                "data-source": [
+                  { "id": "conge", "title": "Congé payé" },
+                  { "id": "maladie", "title": "Absence maladie" }
+                ]
+              },
+              {
+                "type": "DatePicker",
+                "name": "du",
+                "label": "Du",
+                "required": true
+              },
+              {
+                "type": "DatePicker",
+                "name": "au",
+                "label": "Au",
+                "required": true
+              },
+              {
+                "type": "TextArea",
+                "name": "mot",
+                "label": "Un mot (facultatif)",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Envoyer la demande",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "nature": "${form.nature}",
+                    "du": "${form.du}",
+                    "au": "${form.au}",
+                    "mot": "${form.mot}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

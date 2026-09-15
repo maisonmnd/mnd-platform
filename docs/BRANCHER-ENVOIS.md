@@ -287,6 +287,100 @@ reçoit la demande sur son téléphone et valide par PIN), et le journal des
 demandes avec leur verdict. Le geste au comptoir change : c'est la Maison
 qui tend la main, la cliente ne compose plus rien.
 
+## Étape 6 — L'équipe et les prestataires sur WhatsApp (15 septembre 2026)
+
+« How can this be done and arrive directly on the trone with employees and
+prestataires » (Yéman). Maquette `public/maquette-lequipe-sur-whatsapp.html`,
+validée. Le numéro de la Maison reconnaît désormais l'équipe, le répertoire
+des prestataires et les fournisseurs ; leurs fils sont **réservés à la
+direction** ; les pièces reçues sont gardées ; la Paie, Temps & absences et
+les Engagements écrivent dans leurs fils. **Six gestes, dans cet ordre.**
+
+### 1. Passer la migration 0102
+
+Supabase → SQL Editor → coller `supabase/migrations/0102_lequipe_sur_whatsapp.sql`
+en entier → Run. Le contrôle en bas doit rendre `6 · 2 · N · false · 2`.
+**Elle passe avant tout le reste** : sans elle, un bulletin envoyé serait
+lisible par tout le personnel dans les Conversations.
+
+### 2. Recoller les deux fonctions, en entier
+
+- `whatsapp-webhook` — coller le fichier ENTIER, Deploy, « Verify JWT »
+  **décoché**. Le contrôle de santé (l'adresse dans un navigateur) doit dire
+  `version: 2026-09-15-c` et `WA_TOKEN: <longueur>` : c'est lui qui va
+  chercher les pièces chez Meta. S'il dit `ABSENT`, poser `WA_TOKEN` et
+  `WA_PHONE_ID` dans les secrets (les mêmes que pour `whatsapp-envoi`).
+- `whatsapp-envoi` — coller le fichier ENTIER, Deploy, « Verify JWT »
+  **coché**. La sonde (`?sonde=1`) doit dire `version: 2026-09-15-c` et
+  `migration0102: posée`.
+
+### 3. Faire approuver les trois modèles (WhatsApp Manager → Modèles)
+
+Tous en **français**, catégorie **UTILITY** : un bulletin, une décision, une
+annonce de versement ne vendent rien. Un nom mal recopié = un envoi refusé.
+
+**`bulletin_du_mois`** — en-tête : **Document** (un PDF d'exemple est demandé
+à la création, n'importe lequel). Corps :
+
+> Bonjour {{1}}, votre bulletin de paie de {{2}} est joint à ce message. Il
+> vous est personnel : merci de ne pas le partager.
+
+({{1}} = prénom, {{2}} = « octobre 2026 ». Le montant n'y est JAMAIS : il
+vit dans le PDF, décision du 15 septembre.)
+
+**`decision_conge`** — sans en-tête. Corps :
+
+> Bonjour {{1}}, la direction a répondu à votre demande d'absence du {{2}}
+> au {{3}} : {{4}}.
+
+({{1}} = prénom, {{2}} et {{3}} = « 3 novembre », {{4}} = « accordée, il vous
+restera 12 jours de congé » / « refusée » / « enregistrée ».)
+
+**`versement_engagement`** — sans en-tête, **deux boutons de réponse rapide**
+(Quick reply) : `Oui, bien reçu` et `Pas encore`, dans cet ordre. Corps :
+
+> Bonjour, {{1}} vous a versé {{2}} pour {{3}}. L'avez-vous bien reçu ?
+
+({{1}} = le nom de la Maison, {{2}} = « 150 000 F », {{3}} = l'objet du
+dossier.) Le Trône pose sur chaque bouton l'identifiant du versement : la
+réponse revient sur le versement, dans son dossier.
+
+Tant qu'un modèle n'est pas approuvé, l'écran qui l'envoie dit le refus de
+Meta tel quel, ligne par ligne ; rien ne se perd, on renvoie après.
+
+### 4. Publier le formulaire de congé (WhatsApp Manager → Flows)
+
+Créer un Flow, catégorie **Autre**, coller le contenu de
+`docs/whatsapp-flows/demander-un-conge.json`, **Publier**, puis relever son
+**identifiant** (dans l'adresse de la page, ou « Flow ID »). Le poser en
+secret de la fonction `whatsapp-webhook` :
+
+```
+WA_FLOW_CONGE=<identifiant du Flow>
+```
+
+Sans lui, rien ne part : une employée qui parle de congé reçoit une réponse
+de la direction, à la main. Avec lui, elle reçoit le formulaire, et sa
+réponse devient une demande dans Temps & absences, « Demandée par WhatsApp ».
+
+### 5. Les numéros
+
+Le numéro reconnaît une personne par **le téléphone de sa fiche** : Personnel
+& paie pour l'équipe, Prestataires pour le répertoire, la fiche fournisseur
+pour un engagement (le dossier doit être **lié** à sa fiche fournisseur pour
+que « Prévenir par WhatsApp » ait quelqu'un à qui écrire). Un numéro absent
+de toute fiche reste « sans fiche », lisible du personnel, comme une cliente.
+
+### 6. Ce qui se passe ensuite, sans rien faire
+
+- Une employée qui est aussi cliente se lit dans **Équipe**.
+- Une personne qui quitte l'équipe **garde un fil réservé** : ses bulletins ne
+  s'ouvrent pas au personnel le jour où sa fiche disparaît.
+- Un devis en photo d'un prestataire qui n'a **qu'un** dossier ouvert entre
+  dans ce dossier, « à saisir » ; sinon il attend en tête des Engagements.
+- Deux messages partent seuls, jamais deux fois en 24 heures : l'accusé d'une
+  pièce reçue d'un prestataire, et le formulaire de congé.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.

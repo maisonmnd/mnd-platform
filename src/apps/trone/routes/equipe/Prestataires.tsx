@@ -5,6 +5,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindDocument } from '../../../../shared/sync';
+import { providersStore, type Provider, type ProviderMode } from '../../../../shared/prestataires';
 import { expensesStore, expenseCategoriesStore, useCashboxes, cashboxCurrency, usePaymentMethods, moyensAOffrir, type Expense} from '../../../../shared/finance';
 import { MontantDuTiroir, montantsDuTiroir } from '../finances/tiroirs';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
@@ -15,28 +16,20 @@ import { maisonRaison, maisonVille } from '../../../../shared/identite';
 import { texteContratPrestataire } from '../../../../shared/contrat-prestataire';
 import { enVigueurDe } from '../../../../shared/textes';
 import { PRESTATAIRE_V1, useReglagesContrats } from '../../../../shared/reglages-contrats';
-import { type SignatureTracee } from '../../../../shared/contrats';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* Prestataires extérieurs — répertoire + missions + paiements confirmés (reçu PDF).
    Ce sont des CHARGES (sous-traitance), distinctes de la paie du personnel. */
 
-type ProviderMode = 'prestation' | 'forfait' | 'pourcentage' | 'horaire';
-type Provider = { id: string; branchId: string; name: string; specialty?: string; phone?: string; mode: ProviderMode; rateXof?: number; note?: string; archived?: boolean;
-  /** SON CONTRAT DE PRESTATION, signé — 6 septembre 2026.
-      Sans lui, la Maison n'a aucun recours si un prestataire part avec ses
-      têtes ou ses protocoles : les trois protections ne vivent que dans un
-      papier signé. Voir `shared/contrat-prestataire`. */
-  contrat?: SignatureTracee };
+/* LE RÉPERTOIRE VIT DANS `shared/prestataires` depuis le 15 septembre 2026 :
+   les Conversations WhatsApp le lisent pour reconnaître un numéro. On le
+   réexporte pour les Textes de la Maison, qui l'importaient d'ici. */
+export { providersStore };
 type Mission = { id: string; branchId: string; providerId: string; label: string; date: string; qty?: number; amountXof: number; paidAt?: string; byName?: string; method?: string; note?: string; expenseId?: string };
 
 const CHARGE_CATEGORY = 'Sous-traitance';
 
-/* EXPORTÉ POUR LES TEXTES DE LA MAISON : l'écran des contrats compte combien
-   de prestataires ont signé la version en vigueur. Il compte, il n'écrit pas. */
-export const providersStore = createStore<Provider[]>('mnd_prestataires', []);
-bindDocument(providersStore, 'mnd_prestataires');
 const missionsStore = createStore<Mission[]>('mnd_prestations', []);
 bindDocument(missionsStore, 'mnd_prestations');
 

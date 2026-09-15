@@ -132,6 +132,53 @@ export type MessageWa = {
      pas. */
   reecritLe?: string;
   reecritPar?: string;
+
+  /* ══ L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026 ═════════════════════
+     Maquette `public/maquette-lequipe-sur-whatsapp.html`, validée. */
+
+  /** LE TIROIR, POSÉ PAR LA BASE (0102) : elle reconnaît le numéro dans
+      l'équipe, le répertoire des prestataires et les fournisseurs, et c'est
+      elle qui ferme la porte — un fil réservé n'existe pas pour un compte du
+      personnel. L'écran le lit ; il ne l'écrit jamais. */
+  tiroir?: Tiroir;
+  /** La fiche d'équipe, du répertoire ou du fournisseur, quand la base l'a
+      retrouvée. Même rôle que `clientId` pour une cliente. */
+  staffId?: string;
+  prestataireId?: string;
+  fournisseurId?: string;
+  /** CE QU'ON A REÇU, OU ENVOYÉ, EN PIÈCE. Un message sortant ne garde que
+      le nom et le poids (voir whatsapp-envoi) ; un message reçu garde en
+      plus où le fichier est rangé, depuis que le webhook va le chercher chez
+      Meta au lieu de le laisser se perdre. */
+  piece?: PieceRecue;
+  /** LE BOUTON QU'ELLE A TOUCHÉ, avec son identifiant : c'est lui qui agit
+      (« RECU:<versement> » confirme une réception), le titre n'est que ce
+      qu'elle a lu. */
+  bouton?: { id?: string; texte: string };
+  /** LA RÉPONSE D'UN FORMULAIRE (un Flow WhatsApp), telle que Meta la rend.
+      Le webhook en fait quelque chose (une demande de congé) ; le fil garde
+      ce qu'elle a rempli, pour le relire. */
+  formulaire?: { nom?: string; reponse: Record<string, unknown> };
+  /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
+      formulaire de congé proposé. Deux seulement, dits d'avance dans la
+      maquette. Ils portent `parQui: 'Le Trône'`. */
+  auto?: 'accuse' | 'formulaire' | 'transmis';
+  /** UNE PIÈCE REÇUE D'UN PRESTATAIRE, RANGÉE DANS SON DOSSIER — l'identifiant
+      de l'engagement. Absent avec une pièce : elle attend « à ranger ». */
+  rangeDans?: string;
+};
+
+/** OÙ VIT LA PIÈCE REÇUE. `coffre` dit le compartiment : `whatsapp` (0102)
+    par défaut, `engagements` quand le webhook l'a rangée dans un dossier.
+    `tropLourde` : elle dépassait le plafond, et le fichier est resté chez Meta. */
+export type PieceRecue = {
+  nom: string;
+  type: string;
+  octets?: number;
+  chemin?: string;
+  coffre?: string;
+  mediaId?: string;
+  tropLourde?: boolean;
 };
 
 export const messagesWaStore = createStore<MessageWa[]>('mnd_messages_wa', []);
@@ -270,6 +317,30 @@ export const resteEnClair = (ms: number): string => {
 
 /* ── LES FILS ────────────────────────────────────────────────────────── */
 
+/* ══ TROIS TIROIRS, UN NUMÉRO — 15 septembre 2026 ═══════════════════
+
+   « How can this be done and arrive directly on the trone with employees
+   and prestataires » (Yéman). Maquette `maquette-lequipe-sur-whatsapp.html`.
+
+   LE NUMÉRO DE LA MAISON NE CONNAISSAIT QUE LES CLIENTES. Une maître qui
+   écrit, un menuisier qui envoie son devis tombaient « sans fiche », à côté
+   de leur propre fiche d'équipe ou de fournisseur. Trois tiroirs désormais,
+   et LA BASE FERME LES DEUX DERNIERS À LA DIRECTION (0102) : ici on ne fait
+   que nommer, ranger et afficher.
+
+   L'ÉQUIPE D'ABORD. Une employée qui est aussi cliente va dans Équipe, avec
+   un lien vers sa fiche cliente : ce qu'elle dit de son congé ne se lit pas
+   parmi les clientes. C'est la décision du 15 septembre, et `RANG_DU_TIROIR`
+   la porte — la même priorité que `tete_du_numero()` en base. */
+export type Tiroir = 'clientes' | 'equipe' | 'prestataires';
+export const TIROIRS: readonly Tiroir[] = ['clientes', 'equipe', 'prestataires'];
+export const TIROIR_DIT: Record<Tiroir, string> = {
+  clientes: 'Clientes', equipe: 'Équipe', prestataires: 'Prestataires',
+};
+const RANG_DU_TIROIR: Record<Tiroir, number> = { equipe: 0, prestataires: 1, clientes: 2 };
+/** Un tiroir que la base réserve à la direction. */
+export const estReserve = (t: Tiroir | undefined): boolean => t === 'equipe' || t === 'prestataires';
+
 export type Fil = {
   /** La clé du fil : le numéro réduit. Une tête sans fiche en a un aussi. */
   numero: string;
@@ -286,9 +357,72 @@ export type Fil = {
   fenetre: Fenetre;
   /** Le dernier mot vient d'elle et personne n'a répondu. */
   attendUneReponse: boolean;
+  /** Son tiroir : celui de sa tête, sinon celui que la base a écrit sur ses
+      messages (une personne partie de l'équipe garde un fil réservé). */
+  tiroir: Tiroir;
+  /** Où s'ouvre sa fiche dans le Trône, quand elle en a une. */
+  fiche?: string;
 };
 
-export type TeteConnue = { id: string; name: string; phone?: string; phone2?: string; branchId: string };
+export type TeteConnue = {
+  id: string;
+  name: string;
+  phone?: string;
+  phone2?: string;
+  branchId: string;
+  /** Absent = une cliente : c'est ce qu'étaient toutes les têtes avant. */
+  tiroir?: Tiroir;
+  /** Le chemin de sa fiche dans le Trône. */
+  fiche?: string;
+};
+
+/** TOUTES LES TÊTES QUE LE NUMÉRO PEUT RECONNAÎTRE, dans un seul carnet.
+    Les formes sont réduites au strict nécessaire : ce module ne connaît ni
+    la fiche d'équipe ni le fournisseur, seulement un nom et des numéros. */
+export function tetesDeLaMaison(o: {
+  clientes: readonly { id: string; name: string; phone?: string; phone2?: string; branchId: string }[];
+  equipe?: readonly { id: string; name: string; phone?: string; branchId: string }[];
+  prestataires?: readonly { id: string; name: string; phone?: string; branchId: string; archived?: boolean }[];
+  fournisseurs?: readonly { id: string; nom: string; telephone?: string; branchId: string; actif?: boolean }[];
+}): TeteConnue[] {
+  return [
+    ...(o.equipe ?? []).map((m): TeteConnue => ({
+      id: m.id, name: m.name, phone: m.phone, branchId: m.branchId, tiroir: 'equipe', fiche: '/personnel',
+    })),
+    ...(o.prestataires ?? []).filter((p) => !p.archived).map((p): TeteConnue => ({
+      id: p.id, name: p.name, phone: p.phone, branchId: p.branchId, tiroir: 'prestataires', fiche: '/prestataires',
+    })),
+    ...(o.fournisseurs ?? []).filter((f) => f.actif !== false).map((f): TeteConnue => ({
+      id: f.id, name: f.nom, phone: f.telephone, branchId: f.branchId, tiroir: 'prestataires', fiche: '/engagements',
+    })),
+    ...o.clientes.map((c): TeteConnue => ({
+      id: c.id, name: c.name, phone: c.phone, phone2: c.phone2, branchId: c.branchId,
+      tiroir: 'clientes', fiche: `/customers?id=${c.id}`,
+    })),
+  ];
+}
+
+/** LA TÊTE D'UN NUMÉRO, l'équipe d'abord. `undefined` pour un inconnu. */
+export function teteDuNumero(numero: string | undefined, tetes: readonly TeteConnue[]): TeteConnue | undefined {
+  const n = numeroWa(numero);
+  if (!n) return undefined;
+  let trouvee: TeteConnue | undefined;
+  for (const t of tetes) {
+    if (numeroWa(t.phone) !== n && numeroWa(t.phone2) !== n) continue;
+    if (!trouvee || RANG_DU_TIROIR[t.tiroir ?? 'clientes'] < RANG_DU_TIROIR[trouvee.tiroir ?? 'clientes']) trouvee = t;
+  }
+  return trouvee;
+}
+
+/** LE TIROIR D'UN FIL SANS TÊTE : ce que la base a écrit sur ses messages.
+    Une seule ligne réservée réserve le fil — même règle qu'en 0102. */
+const tiroirDesMessages = (messages: readonly Pick<MessageWa, 'tiroir'>[]): Tiroir => {
+  let t: Tiroir = 'clientes';
+  for (const m of messages) {
+    if (m.tiroir && RANG_DU_TIROIR[m.tiroir] < RANG_DU_TIROIR[t]) t = m.tiroir;
+  }
+  return t;
+};
 
 /** LES FILS DE LA MAISON, du plus vif au plus calme.
 
@@ -306,11 +440,15 @@ export function filsDeLaMaison(
      numéro est un recours (un mari, une sœur) : un message qui en vient
      appartient tout de même à sa tête, et le classer « inconnu » à côté de
      sa propre fiche serait la faute la plus vexante de l'écran. */
+  /* L'ÉQUIPE D'ABORD quand un numéro est sur deux fiches : une employée qui
+     est aussi cliente se lit dans Équipe (décision du 15 septembre). */
   const parNumero = new Map<string, TeteConnue>();
   for (const t of tetes) {
     for (const brut of [t.phone, t.phone2]) {
       const n = numeroWa(brut);
-      if (n && !parNumero.has(n)) parNumero.set(n, t);
+      if (!n) continue;
+      const deja = parNumero.get(n);
+      if (!deja || RANG_DU_TIROIR[t.tiroir ?? 'clientes'] < RANG_DU_TIROIR[deja.tiroir ?? 'clientes']) parNumero.set(n, t);
     }
   }
 
@@ -335,7 +473,10 @@ export function filsDeLaMaison(
     const dernier = liste[liste.length - 1];
     fils.push({
       numero,
-      clientId: tete?.id,
+      /* `clientId` reste celui d'une CLIENTE : une tête d'équipe ne l'est
+         pas, et les gestes du fil (facture, relevé, promo) ne la concernent
+         pas. */
+      clientId: tete && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
       nom: tete?.name ?? liste.find((m) => m.nomProfil)?.nomProfil ?? numero,
       sansFiche: !tete,
       prive: prives.includes(numero),
@@ -343,6 +484,8 @@ export function filsDeLaMaison(
       dernier,
       fenetre: fenetreDe(liste, maintenant),
       attendUneReponse: dernier.sens === 'entrant',
+      tiroir: tete?.tiroir ?? tiroirDesMessages(liste),
+      fiche: tete?.fiche,
     });
   }
 
@@ -454,12 +597,14 @@ export function filNeuf(numero: string, tete?: TeteConnue): Fil | null {
   };
   return {
     numero: n,
-    clientId: tete?.id,
+    clientId: tete && (tete.tiroir ?? 'clientes') === 'clientes' ? tete.id : undefined,
     nom: tete?.name ?? `+${n}`,
     sansFiche: !tete,
     prive: false,
     messages: [],
     dernier: fantome,
+    tiroir: tete?.tiroir ?? 'clientes',
+    fiche: tete?.fiche,
     /* JAMAIS OUVERTE : elle n'a rien écrit, donc rien n'a démarré la fenêtre
        de 24 heures. `depuis` reste absent, et l'écran dit « elle ne vous a
        jamais écrit » plutôt que « la fenêtre est fermée » — ce n'est pas la
@@ -541,7 +686,20 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   rappel_rdv: 'utilitaire',
   confirmation_rdv: 'utilitaire',
   avis_google: 'marketing',
+  /* L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026, à faire approuver
+     (docs/BRANCHER-ENVOIS.md, étape 6). Tous utilitaires : un bulletin, une
+     décision, une annonce de versement ne vendent rien. */
+  bulletin_du_mois: 'utilitaire',
+  decision_conge: 'utilitaire',
+  versement_engagement: 'utilitaire',
 };
+
+/** LES MODÈLES DE L'ÉQUIPE ET DES PRESTATAIRES, par leur nom Meta. Ils ne
+    s'envoient pas depuis le fil : chacun part de l'écran qui décide (la Paie,
+    Temps & absences, les Engagements), avec ses variables. */
+export const MODELE_BULLETIN = 'bulletin_du_mois';
+export const MODELE_DECISION_CONGE = 'decision_conge';
+export const MODELE_VERSEMENT = 'versement_engagement';
 
 /** CE MODÈLE A-T-IL ÉTÉ FACTURÉ ?
 

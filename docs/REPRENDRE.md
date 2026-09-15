@@ -2,6 +2,82 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'ÉQUIPE SUR WHATSAPP — 15 septembre 2026, CONSTRUIT, SQL ET FONCTIONS EN ATTENTE
+
+« How can this be done and arrive directly on the trone with employees and
+prestataires » (Yéman, devant AskMandla). Maquette
+`public/maquette-lequipe-sur-whatsapp.html`, validée le jour même avec ses
+quatre arbitrages : **la direction seule lit** ces fils ; une employée qui est
+aussi cliente va dans **Équipe** ; **le montant du bulletin ne s'écrit pas
+dans le message** ; un devis en photo se range seul **s'il n'y a qu'un dossier
+ouvert**.
+
+**CE N'EST PAS UN ROBOT.** Le Trône reconnaît, range et prévient. Deux
+messages seulement partent seuls (l'accusé d'une pièce reçue d'un
+prestataire, le formulaire de congé), jamais deux fois en 24 heures, signés
+« Le Trône » dans le fil. Personne ne lit un devis à la place de la direction.
+
+**À FAIRE, DANS CET ORDRE (`docs/BRANCHER-ENVOIS.md`, étape 6)** :
+① `0102_lequipe_sur_whatsapp.sql` — AVANT tout envoi ; ② recoller
+`whatsapp-webhook` (JWT décoché) et `whatsapp-envoi` (JWT coché), versions
+`2026-09-15-c` ; ③ faire approuver `bulletin_du_mois` (en-tête document),
+`decision_conge`, `versement_engagement` (deux boutons) ; ④ publier le Flow
+`docs/whatsapp-flows/demander-un-conge.json` et poser `WA_FLOW_CONGE`.
+
+**LA BASE RECONNAÎT ET FERME (0102).** `tete_du_numero(n)` cherche le numéro
+dans `team`, le répertoire `mnd_prestataires`, puis `fournisseurs` — l'équipe
+d'abord. Le déclencheur `messages_wa_range` pose `data.tiroir` (`equipe` /
+`prestataires`) et `staffId` / `prestataireId` / `fournisseurId` à chaque
+écriture ; deux politiques remplacent `staff_all` : le personnel lit et écrit
+les clientes, la direction tout. **Un numéro qui a été de l'équipe le reste**
+(`deja_reserve`) : partir de la Maison ne rouvre pas ses bulletins aux
+collègues. Quand une personne entre dans l'équipe, ses messages anciens la
+rejoignent (déclencheurs sur `team`, `fournisseurs`, `documents`). Les
+politiques CACHENT, elles ne refusent pas : la synchro ne voit aucune erreur.
+
+**LES PIÈCES SE GARDENT.** Compartiment privé `whatsapp` (0102, 16 Mo, écrit
+par le webhook seul) : `<numéro>/<message>-<nom>`, lu par le personnel sauf
+si `numero_est_reserve()`. Le webhook télécharge chez Meta AVANT d'écrire la
+ligne (`data.piece = { nom, type, octets, chemin, coffre, mediaId }`), et
+n'écrase plus une ligne déjà là (`ignoreDuplicates`). Sans `WA_TOKEN`, il
+entend toujours, il ne garde pas. Un devis d'un prestataire à UN dossier
+ouvert va dans le coffre `engagements` du dossier, comme `devis_recus` à zéro
+(`recuParWhatsApp`, `rangeDans` sur le message) ; sinon « à ranger » en tête
+des Engagements (`PiecesARanger`, relit la pièce et la dépose au dossier).
+
+**LES ÉCRANS ÉCRIVENT** par `shared/whatsapp.ts` (`envoieSurWhatsApp`, le
+même refus lisible partout) : la Paie (« Bulletins WhatsApp » sur un run
+payé, `bulletinEnPiece`, ligne par ligne, `bulletinEnvoyeLe` /
+`bulletinRefus`), Temps & absences (`previens` à la décision, `preventeLe` /
+`preventeRefus`, bouton « Prévenir » pour réessayer), les Engagements
+(« Prévenir par WhatsApp » sur un versement versé, deux boutons ; la réponse
+revient en `recuLe` / `contesteLe` par le webhook). Dans la fenêtre : texte ;
+hors fenêtre : le modèle, que Meta facture — et l'écran dit le refus tant que
+Meta n'a pas approuvé.
+
+**`whatsapp-envoi` sait trois choses de plus** : refuser un fil réservé à qui
+n'est pas direction (`tiroir_du_numero` puis `est_direction`), un modèle avec
+document en en-tête (`enTete: 'document'`), des boutons (`boutons`, message
+interactif dans la fenêtre, réponses rapides du modèle hors fenêtre).
+
+**LES CONVERSATIONS** : trois onglets (direction seule), la fiche selon le
+tiroir, la pièce reçue visible dans la bulle (`PieceDuFil`, adresse signée
+une heure), un fil réservé ne s'ouvre pas à un compte du personnel même par
+un lien. Le répertoire des prestataires a déménagé dans
+`shared/prestataires.ts` (réexporté depuis l'écran).
+
+**Épreuves** : `verifie-conversations` (+28 : têtes, priorité de l'équipe,
+fil réservé sans fiche), `verifie-gestes-du-fil`, `verifie-engagements`, tous
+verts. Typecheck 0.
+
+**PIÈGES** : Meta ne renvoie un `nfm_reply` que si le Flow est publié ET
+envoyé par ce numéro ; un DatePicker rend une date ISO ou un instant en
+millisecondes selon la version (`jourDuFlow` lit les deux). `leave_requests`
+est sous `is_souverain()` (0013) : une gérante ne verra pas les demandes
+venues du formulaire tant que cette politique n'est pas élargie. La
+« double fiche » (une employée aussi cliente) perd les gestes du fil des
+clientes (facture, promo) dans Équipe : c'est voulu.
+
 ## LA CONVERSATION OUTILLÉE — 14 septembre 2026, CONSTRUIT, SQL EN ATTENTE
 
 « Comment avoir les boutons de l'automatisation, rappels de RDV, factures,

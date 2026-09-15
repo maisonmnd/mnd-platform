@@ -1547,6 +1547,21 @@ export type PayslipData = {
     tampon de la Maison + mention PAYÉ. Toutes les valeurs doivent être en ASCII
     (espaces simples) : le PDF n'affiche pas les espaces fins Unicode. */
 export async function payslipPdf(d: PayslipData): Promise<string> {
+  const { doc, filename } = await construitLeBulletin(d);
+  doc.save(filename);
+  return filename;
+}
+
+/** LE BULLETIN EN PIÈCE, PRÊT À PARTIR SUR WHATSAPP — 15 septembre 2026.
+    Le même constructeur que celui qu'on télécharge, au signe près : rien ne
+    touche le disque ni le coffre, les octets vont de la mémoire à la
+    fonction d'envoi. Même décision que `invoiceEnPiece`. */
+export async function bulletinEnPiece(d: PayslipData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLeBulletin(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
+}
+
+async function construitLeBulletin(d: PayslipData): Promise<{ doc: any; filename: string }> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   normalizeSpaces(doc);
@@ -1631,8 +1646,7 @@ export async function payslipPdf(d: PayslipData): Promise<string> {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
   doc.text('Document généré par Le Trône', W / 2, 283, { align: 'center' });
   await pieDeLaMaison(doc, W, 288, { taille: 7.5 });
-  doc.save(d.filename);
-  return d.filename;
+  return { doc, filename: d.filename };
 }
 
 /* ---------- Le livre de caisse (rapport de caisse) ---------- */
