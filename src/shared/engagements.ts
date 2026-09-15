@@ -65,6 +65,17 @@ export type Engagement = {
 
 export type EtatDevis = 'recu' | 'retenu' | 'ecarte' | 'remplace';
 
+/** UNE LIGNE DU DEVIS — « description, quantité et prix avec un calcul
+    total » (Yéman, 15 septembre). « 2 madriers à 25 000 » se lit, se compare
+    et se conteste ; « 90 000 » tout court, non. */
+export type LigneDeDevis = {
+  description: string;
+  /** Décimale permise : 3,5 m² de contreplaqué se commandent. */
+  quantite: number;
+  /** Négatif permis : une remise est une ligne comme une autre. */
+  prixUnitaireXof: number;
+};
+
 export type DevisRecu = {
   id: string;
   branchId: string;
@@ -77,6 +88,9 @@ export type DevisRecu = {
   valableJusquau?: string;
   montantXof: number;
   description?: string;
+  /** CE QU'IL COMPREND, ligne à ligne. Présentes, elles FONT le montant :
+      un total écrit à côté de ses lignes finirait par les contredire. */
+  lignes?: LigneDeDevis[];
   etat: EtatDevis;
   retenuLe?: string;
   retenuPar?: string;
@@ -154,6 +168,69 @@ export function numeroEngagementSuivant(
 }
 
 /* ══ CE QUI EST RETENU ═══════════════════════════════════════════════════ */
+
+/* ══ LES LIGNES D'UN DEVIS ═══════════════════════════════════════════════
+
+   LE TOTAL SE CALCULE, IL NE SE TAPE PAS. « 25000*2 » écrit dans une case
+   de texte n'était lu par personne : le Trône range désormais la quantité et
+   le prix chacun à sa place, et fait la multiplication lui-même. */
+
+/** LIRE UN NOMBRE TEL QU'ON LE TAPE : « 25 000 », « 3,5 », « -5 000 »,
+    « 25 000 F ». Rend `NaN` pour ce qui n'est pas un nombre — et un calcul
+    (« 25000*2 ») n'en est pas un : on ne devine pas ce qu'il voulait dire. */
+export function lisLeNombre(saisie: string): number {
+  const t = saisie
+    .replace(/[\s  ]/g, '')
+    .replace(/(fcfa|cfa|xof|f)$/i, '')
+    .replace(',', '.');
+  if (t === '') return 0;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/** « 3,5 », pas « 3.5 » : la quantité se lit à la française. */
+export const quantiteDite = (q: number): string => String(q).replace('.', ',');
+
+/** Le franc n'a pas de centimes : le total d'une ligne s'arrondit au franc. */
+export const totalDeLaLigne = (l: LigneDeDevis): number =>
+  (Number.isFinite(l.quantite) && Number.isFinite(l.prixUnitaireXof)
+    ? Math.round(l.quantite * l.prixUnitaireXof)
+    : 0);
+
+export const totalDesLignes = (lignes: readonly LigneDeDevis[]): number =>
+  lignes.reduce((s, l) => s + totalDeLaLigne(l), 0);
+
+/** POURQUOI CETTE LIGNE NE VAUT PAS — la fin de phrase, ou `null`.
+    L'écran la fait précéder de « Ligne 2 : ». */
+export function pourquoiLaLigneNeVautPas(l: LigneDeDevis): string | null {
+  if (!l.description.trim()) return 'nommez ce qu’elle comprend.';
+  if (!Number.isFinite(l.quantite)) return 'la quantité ne se lit pas. Écrivez un nombre, sans calcul.';
+  if (l.quantite <= 0) return 'la quantité doit dépasser zéro.';
+  if (!Number.isFinite(l.prixUnitaireXof)) return 'le prix ne se lit pas. Écrivez un nombre, sans calcul.';
+  if (l.prixUnitaireXof === 0) return 'la ligne n’a pas de prix.';
+  return null;
+}
+
+/** UNE LIGNE TELLE QU'ON LA TAPE, avant d'être lue. */
+export type LigneSaisie = { description: string; quantite: string; prix: string };
+
+export const LIGNE_VIDE: LigneSaisie = { description: '', quantite: '1', prix: '' };
+
+/** Une quantité laissée vide vaut un : on commande « une porte », on ne
+    l'écrit pas. Le prix, lui, s'arrondit au franc dès la saisie. */
+export const ligneDeLaSaisie = (s: LigneSaisie): LigneDeDevis => {
+  const prix = lisLeNombre(s.prix);
+  return {
+    description: s.description.trim(),
+    quantite: s.quantite.trim() === '' ? 1 : lisLeNombre(s.quantite),
+    prixUnitaireXof: Number.isFinite(prix) ? Math.round(prix) : NaN,
+  };
+};
+
+/** LES LIGNES REMPLIES. Une ligne sans description ni prix est une ligne
+    ajoutée puis laissée : elle ne compte pas, et ne bloque rien. */
+export const lignesDeLaSaisie = (saisies: readonly LigneSaisie[]): LigneDeDevis[] =>
+  saisies.filter((s) => s.description.trim() || s.prix.trim()).map(ligneDeLaSaisie);
 
 /** CE QUE LA MAISON A ACCEPTÉ DE PAYER : le devis de base retenu, plus ses
     avenants retenus. */

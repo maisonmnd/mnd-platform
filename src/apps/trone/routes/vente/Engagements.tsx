@@ -17,7 +17,7 @@
    s'ouvre qu'à la direction. Cacher un bouton n'est pas une barrière — la
    barrière est en base, le bouton caché évite seulement un refus. */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
 import { Button, Field, Input, Modal, Segs, Select, Textarea, toast } from '../../../../ds/components';
@@ -39,6 +39,8 @@ import {
   pourquoiOnNeVersePas, avertitAvantDeVerser, dechargeInvalide, texteDeLaDecharge,
   effacementDeLIdentite, identiteAEffacer, depenseDuVersement, CATEGORIE_PROPOSEE, ETAT_DIT,
   devisExpire, devisExpireBientot,
+  totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas, ligneDeLaSaisie, lignesDeLaSaisie,
+  quantiteDite, LIGNE_VIDE, type LigneSaisie,
   type Engagement, type DevisRecu, type Versement, type Decharge, type LectureDuDossier,
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
@@ -349,8 +351,9 @@ type FormDevis = {
   recuLe: string;
   avecValidite: boolean;
   valableJusquau: string;
+  /** Le montant tapé à la main — ne sert que s'il n'y a aucune ligne. */
   montant: string;
-  description: string;
+  lignes: LigneSaisie[];
   avenant: boolean;
   fichier: File | null;
 };
@@ -411,14 +414,24 @@ function LeDossier({ lecture, onRetour, onModifier }: {
   /* ── LES DEVIS ─────────────────────────────────────────────────────── */
   const ouvreLeDevis = () => setFormDevis({
     numeroPrestataire: '', recuLe: aujourdhui, avecValidite: true, valableJusquau: decaleLeJour(aujourdhui, 30),
-    montant: '', description: '', avenant: !!base, fichier: null,
+    montant: '', lignes: [LIGNE_VIDE], avenant: !!base, fichier: null,
   });
 
   const enregistreLeDevis = async () => {
     if (!formDevis) return;
     const f = formDevis;
-    const montant = enFrancs(f.montant);
-    if (montant <= 0) { toast('Écrivez le montant du devis.'); return; }
+    const lignes = lignesDeLaSaisie(f.lignes);
+    for (const [i, x] of lignes.entries()) {
+      const pourquoi = pourquoiLaLigneNeVautPas(x);
+      if (pourquoi) { toast(`Ligne ${i + 1} : ${pourquoi}`); return; }
+    }
+    /* LES LIGNES FONT LE MONTANT. Sans ligne, le montant tapé vaut : un devis
+       reçu sans détail existe, et le refuser le laisserait dans le téléphone. */
+    const montant = lignes.length > 0 ? totalDesLignes(lignes) : enFrancs(f.montant);
+    if (montant <= 0) {
+      toast(lignes.length > 0 ? 'Le total des lignes doit dépasser zéro.' : 'Écrivez le montant du devis, ou détaillez ses lignes.');
+      return;
+    }
     if (f.avecValidite && f.valableJusquau < f.recuLe) { toast('Un devis ne peut pas expirer avant d’avoir été reçu.'); return; }
     setOccupe(true);
     let fichier: DevisRecu['fichier'];
@@ -439,7 +452,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       recuLe: f.recuLe,
       valableJusquau: f.avecValidite ? f.valableJusquau : undefined,
       montantXof: montant,
-      description: f.description.trim() || undefined,
+      lignes: lignes.length > 0 ? lignes : undefined,
       etat: 'recu',
       avenant: base && f.avenant ? true : undefined,
       fichier,
@@ -570,6 +583,14 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     patch((x) => ({ ...x, pieces: (x.pieces ?? []).filter((y) => y.chemin !== p.chemin) }));
   };
 
+  /* CE QUE LE FORMULAIRE DU DEVIS A DÉJÀ CALCULÉ. Une ligne illisible pèse
+     zéro ici, et le refus dit laquelle à l'enregistrement. */
+  const lignesSaisies = formDevis ? lignesDeLaSaisie(formDevis.lignes) : [];
+  const avecLignes = lignesSaisies.length > 0;
+  const totalSaisi = totalDesLignes(lignesSaisies);
+  const changeLaLigne = (i: number, champ: keyof LigneSaisie, valeur: string) =>
+    setFormDevis((f) => (f ? { ...f, lignes: f.lignes.map((y, j) => (j === i ? { ...y, [champ]: valeur } : y)) } : f));
+
   const versementDeLaDecharge = dechargeDe ? l.versements.find((v) => v.id === dechargeDe) : undefined;
   const nVerses = l.versements.filter(estVerse).length;
   const nDecharges = nVerses - l.sansDecharge.length;
@@ -652,7 +673,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                   const expire = devisExpire(d, aujourdhui);
                   const bientot = devisExpireBientot(d, aujourdhui);
                   return (
-                    <tr key={d.id} className={d.etat === 'retenu' ? 'is-retenu' : ''}>
+                    <Fragment key={d.id}>
+                    <tr className={`${d.etat === 'retenu' ? 'is-retenu' : ''}${d.lignes?.length ? ' a-des-lignes' : ''}`}>
                       <td>
                         {d.numeroPrestataire || 'sans numéro'}
                         {(d.description || d.avenant) && (
@@ -680,6 +702,27 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                         )}
                       </td>
                     </tr>
+                    {/* CE QU'IL COMPREND, sous sa ligne : comparer deux devis,
+                        c'est comparer leurs lignes, pas deux totaux. */}
+                    {d.lignes && d.lignes.length > 0 && (
+                      <tr className={`eng-detail${d.etat === 'retenu' ? ' is-retenu' : ''}`}>
+                        <td colSpan={6}>
+                          <table className="eng-lignes">
+                            <tbody>
+                              {d.lignes.map((x, i) => (
+                                <tr key={i}>
+                                  <td>{x.description}</td>
+                                  <td className="num">{quantiteDite(x.quantite)} ×</td>
+                                  <td className="num">{fmtMoney(x.prixUnitaireXof, currency)}</td>
+                                  <td className="num"><b>{fmtMoney(totalDeLaLigne(x), currency)}</b></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -841,8 +884,10 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <Field label="Son numéro à lui">
                 <Input value={formDevis.numeroPrestataire} autoFocus placeholder="DV-0231" onChange={(ev) => setFormDevis({ ...formDevis, numeroPrestataire: ev.target.value })} />
               </Field>
-              <Field label="Le montant">
-                <Input inputMode="numeric" value={formDevis.montant} onChange={(ev) => setFormDevis({ ...formDevis, montant: ev.target.value })} />
+              <Field label={avecLignes ? 'Le montant · calculé' : 'Le montant'}>
+                {avecLignes
+                  ? <Input value={fmtMoney(totalSaisi, currency)} disabled title="Le total des lignes, calculé par le Trône" />
+                  : <Input inputMode="numeric" value={formDevis.montant} placeholder="ou détaillez les lignes" onChange={(ev) => setFormDevis({ ...formDevis, montant: ev.target.value })} />}
               </Field>
             </div>
             <div className="eng-deux">
@@ -859,9 +904,42 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <input type="checkbox" checked={!formDevis.avecValidite} onChange={(ev) => setFormDevis({ ...formDevis, avecValidite: !ev.target.checked })} />
               Le devis ne dit pas jusqu’à quand il vaut
             </label>
-            <Field label="Ce qu’il comprend">
-              <Textarea rows={2} value={formDevis.description} placeholder="Agencement complet, six semaines" onChange={(ev) => setFormDevis({ ...formDevis, description: ev.target.value })} />
-            </Field>
+            <div className="eng-lignes-saisie">
+              <span className="mnd-field__label">Ce qu’il comprend</span>
+              <div className="eng-ligne eng-ligne--tete" aria-hidden="true">
+                <span>Description</span><span>Quantité</span><span>Prix unitaire</span><span>Total</span><span />
+              </div>
+              {formDevis.lignes.map((x, i) => {
+                const lue = ligneDeLaSaisie(x);
+                const remplie = !!(x.description.trim() || x.prix.trim());
+                const illisible = remplie && (Number.isNaN(lue.quantite) || Number.isNaN(lue.prixUnitaireXof));
+                return (
+                  <div key={i} className="eng-ligne">
+                    <Input aria-label={`Ligne ${i + 1}, description`} value={x.description} placeholder="Madrier" onChange={(ev) => changeLaLigne(i, 'description', ev.target.value)} />
+                    <Input aria-label={`Ligne ${i + 1}, quantité`} inputMode="decimal" value={x.quantite} onChange={(ev) => changeLaLigne(i, 'quantite', ev.target.value)} />
+                    <Input aria-label={`Ligne ${i + 1}, prix unitaire`} inputMode="numeric" value={x.prix} placeholder="25 000" onChange={(ev) => changeLaLigne(i, 'prix', ev.target.value)} />
+                    <span className={`eng-ligne__total${illisible ? ' eng-brique' : ''}`}>
+                      {illisible ? 'à corriger' : remplie ? fmtMoney(totalDeLaLigne(lue), currency) : ''}
+                    </span>
+                    <button
+                      type="button"
+                      className="eng-ligne__retire"
+                      aria-label={`Retirer la ligne ${i + 1}`}
+                      disabled={formDevis.lignes.length === 1}
+                      onClick={() => setFormDevis({ ...formDevis, lignes: formDevis.lignes.filter((_, j) => j !== i) })}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+              <div className="eng-ligne__pied">
+                <button type="button" className="eng-lien" onClick={() => setFormDevis({ ...formDevis, lignes: [...formDevis.lignes, LIGNE_VIDE] })}>
+                  + Une ligne
+                </button>
+                <span>Total du devis<b>{fmtMoney(avecLignes ? totalSaisi : enFrancs(formDevis.montant), currency)}</b></span>
+              </div>
+            </div>
             {base && (
               <label className="eng-coche">
                 <input type="checkbox" checked={formDevis.avenant} onChange={(ev) => setFormDevis({ ...formDevis, avenant: ev.target.checked })} />

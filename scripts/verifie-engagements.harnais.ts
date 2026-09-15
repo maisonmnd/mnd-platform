@@ -18,6 +18,8 @@ import {
   etatDuDossier, fermeLe, effacementDeLIdentite, identiteAEffacer,
   libelleDeLaDepense, depenseDuVersement, CATEGORIE_PROPOSEE,
   litLesDossiers, bilanDesEngagements,
+  lisLeNombre, quantiteDite, totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas,
+  ligneDeLaSaisie, lignesDeLaSaisie, LIGNE_VIDE,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -258,6 +260,51 @@ dit('un dossier abandonné ne fait plus sonner ses devis', [],
 const bilan = bilanDesEngagements(lectures);
 dit('le bilan du Tableau de bord', [1, 1090000, 1, 1],
   [bilan.enCours, bilan.resteXof, bilan.sansDecharge, bilan.devisQuiExpirent.length]);
+
+/* ══ LES LIGNES D'UN DEVIS ═══════════════════════════════════════════
+   « Description, quantité et prix avec un calcul total » (Yéman). Le
+   menuisier écrivait « 2 madrier 25000*2 » dans une case de texte. */
+dit('un nombre à la française', 25000, lisLeNombre('25 000'));
+dit('… avec l’espace fine que colle un tableur', 25000, lisLeNombre('25 000'));
+dit('… avec sa virgule', 3.5, lisLeNombre('3,5'));
+dit('… avec sa monnaie', 25000, lisLeNombre('25 000 F'));
+dit('… une remise, négative', -5000, lisLeNombre('-5 000'));
+dit('une case vide vaut zéro', 0, lisLeNombre(''));
+/* UN CALCUL N'EST PAS UN NOMBRE : on ne devine pas ce qu'il voulait dire. */
+dit('un calcul ne se lit pas', true, Number.isNaN(lisLeNombre('25000*2')));
+dit('la quantité se dit à la française', '3,5', quantiteDite(3.5));
+
+const madriers = ligneDeLaSaisie({ description: ' Madrier ', quantite: '2', prix: '25 000' });
+dit('la ligne tapée devient une ligne lue', { description: 'Madrier', quantite: 2, prixUnitaireXof: 25000 }, madriers);
+dit('deux madriers à 25 000', 50000, totalDeLaLigne(madriers));
+dit('une quantité vide vaut un', 1, ligneDeLaSaisie({ description: 'Porte', quantite: '', prix: '40000' }).quantite);
+dit('le franc n’a pas de centimes', 833, totalDeLaLigne({ description: 'Baguette', quantite: 2.5, prixUnitaireXof: 333 }));
+dit('le prix s’arrondit au franc dès la saisie', 1251, ligneDeLaSaisie({ description: 'Vis', quantite: '1', prix: '1250,6' }).prixUnitaireXof);
+
+const saisies = [
+  { description: 'Madrier', quantite: '2', prix: '25000' },
+  LIGNE_VIDE,
+  { description: 'Contreplaqué', quantite: '3,5', prix: '12 000' },
+  { description: 'Remise', quantite: '1', prix: '-2 000' },
+];
+const lues = lignesDeLaSaisie(saisies);
+/* UNE LIGNE AJOUTÉE PUIS LAISSÉE NE COMPTE PAS, et ne bloque rien. */
+dit('la ligne laissée vide ne compte pas', ['Madrier', 'Contreplaqué', 'Remise'], lues.map((x) => x.description));
+dit('le total du devis, remise déduite', 90000, totalDesLignes(lues));
+
+dit('une ligne juste vaut', null, pourquoiLaLigneNeVautPas(madriers));
+dit('une ligne sans description', 'nommez ce qu’elle comprend.',
+  pourquoiLaLigneNeVautPas({ description: ' ', quantite: 2, prixUnitaireXof: 25000 }));
+dit('une quantité écrite en calcul', 'la quantité ne se lit pas. Écrivez un nombre, sans calcul.',
+  pourquoiLaLigneNeVautPas(ligneDeLaSaisie({ description: 'Madrier', quantite: '2*2', prix: '25000' })));
+dit('une quantité nulle', 'la quantité doit dépasser zéro.',
+  pourquoiLaLigneNeVautPas({ description: 'Madrier', quantite: 0, prixUnitaireXof: 25000 }));
+dit('un prix écrit en calcul', 'le prix ne se lit pas. Écrivez un nombre, sans calcul.',
+  pourquoiLaLigneNeVautPas(ligneDeLaSaisie({ description: 'Madrier', quantite: '2', prix: '25000*2' })));
+dit('une description sans prix', 'la ligne n’a pas de prix.',
+  pourquoiLaLigneNeVautPas(ligneDeLaSaisie({ description: 'Madrier', quantite: '2', prix: '' })));
+dit('une ligne illisible ne pèse rien dans le total', 50000,
+  totalDesLignes([madriers, ligneDeLaSaisie({ description: 'Madrier', quantite: '2', prix: '25000*2' })]));
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

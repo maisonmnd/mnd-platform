@@ -83,6 +83,26 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LES LIGNES D'UN DEVIS REÇU — 15 septembre 2026, PUBLIÉ
+
+« Dans ce que comprend le devis, description, quantité et prix avec un calcul
+total » (Yéman, capture : « 2 madrier 25000*2 » tapé dans une case de texte).
+Aucune SQL.
+
+- `DevisRecu.lignes?: LigneDeDevis[]` (`description`, `quantite` décimale
+  permise, `prixUnitaireXof` négatif permis pour une remise).
+- **Les lignes FONT le montant** : présentes, `montantXof = totalDesLignes`,
+  le champ montant devient « calculé » et se grise. Sans ligne, le montant
+  tapé vaut toujours (un devis sans détail existe).
+- `lisLeNombre` lit « 25 000 », « 3,5 », « 25 000 F », « -5 000 » ; un calcul
+  (« 25000*2 ») rend `NaN` et la ligne est refusée avec son numéro.
+  Quantité vide = 1 ; total de ligne arrondi au franc.
+- Le tableau des devis montre les lignes sous chaque devis : comparer deux
+  devis, c'est comparer leurs lignes.
+- **Piège** : 0099 fige le MONTANT d'un devis retenu, pas ses lignes. Aucun
+  écran ne réécrit un devis, donc rien ne les fait diverger aujourd'hui ; le
+  jour où l'on permettra de corriger un devis, figer aussi `lignes`.
+
 ## ARCHIVER UNE CONVERSATION — 15 septembre 2026, PUBLIÉ
 
 « Supprimer une conversation WhatsApp » (Yéman). Tranché : **archiver**, **la
