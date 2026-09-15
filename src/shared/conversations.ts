@@ -415,6 +415,97 @@ export const messageCite = (
 ): MessageWa | undefined =>
   (citeWaId ? messages.find((m) => m.waId === citeWaId) : undefined);
 
+/* ══ CE QUE META FACTURE VRAIMENT — 15 septembre 2026 ════════════════
+
+   « Combien Meta facture une conversation de 24 h ? » (Yéman).
+
+   CE MODÈLE N'EXISTE PLUS, et trois écrans de la Maison le racontaient
+   encore. Jusqu'en juin 2025, Meta facturait À LA CONVERSATION : une fenêtre
+   de 24 heures ouverte par un modèle se payait une fois, et tout ce qui
+   suivait était compris.
+
+   DEPUIS LE 1er JUILLET 2025, C'EST AU MESSAGE. Et la nuance n'est pas
+   cosmétique, elle change la décision :
+
+     · la FENÊTRE DE SERVICE est gratuite — quand elle vous écrit, les
+       24 heures qui suivent ne coûtent rien, autant de messages qu'on veut ;
+     · un MODÈLE ENVOYÉ DANS une fenêtre ouverte est gratuit lui aussi ;
+     · ce qui se paie, c'est un MODÈLE ENVOYÉ HORS FENÊTRE, au message, et le
+       tarif dépend de sa catégorie (marketing, utilitaire, authentification)
+       et du pays.
+
+   Sous l'ancien modèle, une fois la conversation payée on pouvait tout dire.
+   Aujourd'hui, chaque modèle hors fenêtre compte, et répondre ensuite dans la
+   fenêtre ne coûte rien.
+
+   ON COMPTE DES MESSAGES, PAS DES FRANCS. La Maison n'a pas les tarifs du
+   Bénin, ils bougent, et les inventer mettrait un chiffre faux sous les yeux
+   de quelqu'un qui déciderait dessus. Le compteur dit COMBIEN ; le tarif se
+   lit chez Meta. */
+
+/** CE MODÈLE A-T-IL ÉTÉ FACTURÉ ?
+
+    ON NE L'A PAS ÉCRIT AU MOMENT DE L'ENVOI, et c'est trop tard pour les
+    messages d'hier — mais on peut le RETROUVER : un modèle est gratuit s'il
+    est parti alors qu'elle avait écrit dans les 24 heures d'avant. Le fil
+    porte cette information depuis toujours.
+
+    ON RÉPOND « FACTURÉ » QUAND ON NE SAIT PAS. Un compteur qui sous-estime la
+    dépense ne sert à rien : mieux vaut annoncer un peu trop que rassurer à
+    tort. */
+export function modeleFacture(
+  m: Pick<MessageWa, 'sens' | 'modele' | 'numero' | 'quand'>,
+  tous: readonly Pick<MessageWa, 'sens' | 'numero' | 'quand'>[],
+): boolean {
+  if (m.sens !== 'sortant' || !m.modele) return false;
+  const quand = Date.parse(m.quand);
+  if (!Number.isFinite(quand)) return true;
+  const n = numeroWa(m.numero);
+  return !tous.some((x) => x.sens === 'entrant'
+    && numeroWa(x.numero) === n
+    && Date.parse(x.quand) <= quand
+    && quand - Date.parse(x.quand) < FENETRE_MS);
+}
+
+export type CompteDesModeles = {
+  /** « 2026-09 ». */
+  mois: string;
+  /** Tous les modèles partis ce mois-ci, gratuits compris. */
+  envoyes: number;
+  /** Ceux que Meta facture : partis hors fenêtre. */
+  factures: number;
+  /** Ceux qui sont partis dans une fenêtre ouverte, donc gratuits. */
+  gratuits: number;
+  /** Le détail par modèle, du plus envoyé au moins envoyé. */
+  parModele: { nom: string; factures: number; gratuits: number }[];
+};
+
+/** CE QUE LA MAISON A ENVOYÉ CE MOIS-CI, modèle par modèle. */
+export function compteDesModeles(
+  messages: readonly MessageWa[], mois: string, branchId?: string,
+): CompteDesModeles {
+  const duMois = messages.filter((m) => m.sens === 'sortant' && m.modele
+    && (m.quand ?? '').slice(0, 7) === mois
+    && (!branchId || !m.branchId || m.branchId === branchId));
+  const par = new Map<string, { factures: number; gratuits: number }>();
+  let factures = 0;
+  for (const m of duMois) {
+    const nom = m.modele as string;
+    const ligne = par.get(nom) ?? { factures: 0, gratuits: 0 };
+    if (modeleFacture(m, messages)) { ligne.factures += 1; factures += 1; } else ligne.gratuits += 1;
+    par.set(nom, ligne);
+  }
+  return {
+    mois,
+    envoyes: duMois.length,
+    factures,
+    gratuits: duMois.length - factures,
+    parModele: [...par.entries()]
+      .map(([nom, l]) => ({ nom, ...l }))
+      .sort((a, b) => (b.factures + b.gratuits) - (a.factures + a.gratuits) || a.nom.localeCompare(b.nom)),
+  };
+}
+
 /* ══ LES HUIT SECONDES QUI SAUVENT — 14 septembre 2026 ═══════════════
 
    Derrière « je voudrais éditer », il y a presque toujours une faute qu'on

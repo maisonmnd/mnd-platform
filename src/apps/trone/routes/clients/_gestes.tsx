@@ -373,6 +373,16 @@ export function PanneauDeLaPromo({
               </select>
             </Field>
 
+            {/* ── CE QUE LA PROMO COÛTE — 15 septembre 2026 ──────────────
+                « Combien Meta facture une conversation de 24 h ? » (Yéman).
+                Ce panneau ne disait rien du coût, alors que c'est le geste qui
+                envoie des modèles MARKETING — les plus chers de tous. */}
+            <p className="trc-sub">
+              <b>Pendant une fenêtre ouverte, cet envoi ne coûte rien.</b> Hors fenêtre,
+              il faudrait un modèle marketing approuvé, et Meta facture chaque modèle
+              envoyé — depuis juillet 2025, au message et non à la conversation.
+            </p>
+
             <p className="trc-sub">
               Le code sera <b>personnel</b>, <b>à usage unique</b>, et il expirera seul.
               Il se reconnaît à l’encaissement, sur le rendez-vous, et à la réservation dans

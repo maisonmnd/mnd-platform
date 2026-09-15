@@ -10,6 +10,7 @@
 import {
   DELAI_DE_RETENUE_MS, delaiDeRetenue, resteDeLaRetenue,
   pourquoiOnNeReecritPas, texteDeLaCorrection, messagesQuiSonnent, filsQuiAttendent,
+  modeleFacture, compteDesModeles,
   type MessageWa, type Fil,
 } from '../src/shared/conversations';
 import { cestLaNuit } from '../src/shared/sonnette';
@@ -151,6 +152,49 @@ dit('… et se tait à 4 h', true, cestLaNuit(a(4), '10:00', '02:00'));
    qu'on lui ait dit quand serait une sonnette cassée. */
 dit('sans heures posées, elle sonne', false, cestLaNuit(a(3), undefined, undefined));
 dit('des heures illisibles ne la taisent pas', false, cestLaNuit(a(3), 'le matin', '19:00'));
+
+/* ══ CE QUE META FACTURE VRAIMENT — 15 septembre 2026 ════════════════
+   « Combien Meta facture une conversation de 24 h ? » (Yéman). Ce modèle
+   n'existe plus : depuis le 1er juillet 2025 c'est AU MESSAGE, et un modèle
+   parti DANS une fenêtre ouverte est gratuit. */
+const T = (h: number) => new Date(Date.UTC(2026, 8, 14, h)).toISOString();
+
+const filWa = [
+  msg({ id: 'e1', sens: 'entrant', numero: '22990000001', quand: T(10) }),
+  msg({ id: 's1', sens: 'sortant', numero: '22990000001', quand: T(12), modele: 'rappel_rdv' }),
+  msg({ id: 's2', sens: 'sortant', numero: '22990000002', quand: T(12), modele: 'rappel_rdv' }),
+];
+
+/* ELLE A ÉCRIT DEUX HEURES PLUS TÔT : la fenêtre est ouverte, le modèle est
+   gratuit. C'est tout le changement de juillet 2025. */
+dit('un modèle dans une fenêtre ouverte est gratuit', false, modeleFacture(filWa[1], filWa));
+/* CELLE-LÀ N'A JAMAIS ÉCRIT : le modèle se paie. */
+dit('un modèle hors fenêtre se facture', true, modeleFacture(filWa[2], filWa));
+/* PLUS DE 24 HEURES APRÈS SON MESSAGE, la fenêtre est refermée. */
+dit('au-delà de 24 heures, la fenêtre est refermée', true,
+  modeleFacture(msg({ id: 's3', sens: 'sortant', numero: '22990000001', quand: T(35), modele: 'x' }), filWa));
+dit('un message libre ne se facture jamais', false,
+  modeleFacture(msg({ id: 's4', sens: 'sortant', numero: '22990000002', quand: T(12) }), filWa));
+dit('un message reçu ne se facture pas non plus', false, modeleFacture(filWa[0], filWa));
+/* ON RÉPOND « FACTURÉ » QUAND ON NE SAIT PAS : un compteur qui sous-estime la
+   dépense ne sert à rien. */
+dit('une heure illisible compte comme facturée', true,
+  modeleFacture(msg({ id: 's5', sens: 'sortant', numero: '22990000001', quand: 'hier', modele: 'x' }), filWa));
+
+/* ── LE COMPTEUR DU MOIS ─────────────────────────────────────────── */
+const compte = compteDesModeles([
+  ...filWa,
+  msg({ id: 's6', sens: 'sortant', numero: '22990000003', quand: T(13), modele: 'avis_google' }),
+  /* Un mois qui n'est pas le nôtre ne compte pas. */
+  msg({ id: 's7', sens: 'sortant', numero: '22990000003', quand: '2026-08-14T12:00:00.000Z', modele: 'avis_google' }),
+], '2026-09');
+dit('trois modèles ce mois-ci', 3, compte.envoyes);
+dit('deux se facturent', 2, compte.factures);
+dit('un était gratuit', 1, compte.gratuits);
+dit('le détail par modèle, du plus envoyé au moins',
+  [{ nom: 'rappel_rdv', factures: 1, gratuits: 1 }, { nom: 'avis_google', factures: 1, gratuits: 0 }],
+  compte.parModele);
+dit('un mois sans rien rend zéro', 0, compteDesModeles(filWa, '2026-01').envoyes);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

@@ -142,6 +142,46 @@ C'était le vrai trou, et il était invisible.
 fait que changer d'onglet. Un encaissement d'il y a trois semaines est aussi
 modifiable qu'un d'aujourd'hui, et c'est la trace, pas un verrou, qui protège.
 
+## CE QUE META FACTURE VRAIMENT — 15 septembre 2026, PUBLIÉ
+
+« Combien Meta facture une conversation de 24 h ? » (Yéman).
+
+**CE MODÈLE N'EXISTE PLUS, et trois écrans le racontaient encore.** Jusqu'en
+juin 2025 Meta facturait À LA CONVERSATION : une fenêtre de 24 heures ouverte
+par un modèle se payait une fois, et tout ce qui suivait était compris.
+
+**Depuis le 1er juillet 2025, c'est AU MESSAGE** :
+
+- la **fenêtre de service est gratuite** — quand elle écrit, les 24 heures qui
+  suivent ne coûtent rien, autant de messages qu'on veut ;
+- un **modèle envoyé DANS une fenêtre ouverte** est gratuit lui aussi ;
+- ce qui se paie, c'est un **modèle envoyé HORS fenêtre**, au message, au tarif
+  de sa catégorie (marketing, utilitaire, authentification) et du pays.
+
+**La nuance change la décision** : sous l'ancien modèle, une fois la
+conversation payée on pouvait tout dire. Aujourd'hui chaque modèle hors fenêtre
+compte, et répondre ensuite dans la fenêtre qu'il ouvre ne coûte rien.
+
+### Le compteur du mois
+
+`compteDesModeles` (pur, éprouvé) dit **combien** de modèles sont partis ce
+mois-ci, combien étaient facturés, combien gratuits, et le détail par modèle.
+Il paraît en tête des Conversations.
+
+**Facturé ou gratuit se RETROUVE**, on ne l'avait pas écrit à l'envoi : un
+modèle est gratuit s'il est parti alors qu'elle avait écrit dans les 24 heures
+d'avant, et le fil porte cette information depuis toujours. **On répond
+« facturé » quand on ne sait pas** — un compteur qui sous-estime la dépense ne
+sert à rien.
+
+**ON COMPTE DES MESSAGES, PAS DES FRANCS.** La Maison n'a pas les tarifs du
+Bénin, ils bougent, et les inventer mettrait un chiffre faux sous les yeux de
+quelqu'un qui déciderait dessus. Les tarifs se lisent dans WhatsApp Manager,
+section facturation.
+
+**Le panneau de la promo dit enfin son coût** : c'était le geste qui envoie des
+modèles MARKETING, les plus chers, et il n'en soufflait mot.
+
 ## DEUX PORTES, PAS UNE — 15 septembre 2026, PUBLIÉ
 
 « Je veux garder la possibilité d'ouvrir le wa.me WhatsApp app de mon

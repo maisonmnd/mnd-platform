@@ -10,7 +10,7 @@ import {
   useMessagesWa, useFilsPrives, basculeLeSecret, filsDeLaMaison, resteEnClair,
   pourquoiLEnvoiEstImpossible, numeroWa, messagesWaStore, type Fil,
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
-  messagesQuiSonnent, messageCite, filNeuf, lienWaMe, type MessageWa,
+  messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
 } from '../../../../shared/conversations';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
@@ -160,6 +160,22 @@ export default function Conversations() {
      d'une cliente. */
   const [commencer, setCommencer] = useState(false);
   const [numeroNeuf, setNumeroNeuf] = useState('');
+
+  /* ══ CE QUE LES MODÈLES COÛTENT CE MOIS-CI — 15 septembre 2026 ═════
+     « Combien Meta facture une conversation de 24 h ? » (Yéman).
+
+     LE PANNEAU DE LA PROMO NE DISAIT RIEN DU COÛT, alors que c'est justement
+     le geste qui envoie des modèles hors fenêtre. Une dépense qu'on ne
+     mesure jamais finit par surprendre à la facture.
+
+     ON COMPTE DES MESSAGES, PAS DES FRANCS. La Maison n'a pas les tarifs du
+     Bénin, ils bougent, et les inventer mettrait un chiffre faux sous les
+     yeux de quelqu'un qui déciderait dessus. */
+  const moisCourant = new Date().toISOString().slice(0, 7);
+  const modelesDuMois = useMemo(
+    () => compteDesModeles(messages, moisCourant, branch.id),
+    [messages, moisCourant, branch.id],
+  );
   const finDuFil = useRef<HTMLDivElement>(null);
 
   /* L'HORLOGE BAT, SINON LA FENÊTRE MENT. Un écran ouvert depuis une heure
@@ -525,6 +541,18 @@ export default function Conversations() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
               Les clientes
             </Button>
+            {modelesDuMois.envoyes > 0 && (
+              <span
+                className="trc-sub"
+                style={{ fontSize: 11.5, marginRight: 'auto' }}
+                title={modelesDuMois.parModele
+                  .map((m) => `${m.nom} · ${m.factures} facturés, ${m.gratuits} gratuits`)
+                  .join(' — ')}
+              >
+                Ce mois : <b>{modelesDuMois.factures}</b> modèle{modelesDuMois.factures > 1 ? 's' : ''} facturé{modelesDuMois.factures > 1 ? 's' : ''}
+                {modelesDuMois.gratuits > 0 ? `, ${modelesDuMois.gratuits} gratuit${modelesDuMois.gratuits > 1 ? 's' : ''}` : ''}
+              </span>
+            )}
             <Button variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
               Nouvelle conversation
             </Button>
@@ -754,9 +782,21 @@ export default function Conversations() {
                       <span className="trc-horloge trc-horloge--close">
                         {fil.fenetre.depuis ? 'Fenêtre fermée' : 'Elle ne vous a jamais écrit'}
                       </span>
+                      {/* ── CE QUE META FACTURE VRAIMENT — 15 septembre 2026 ──
+                          Cette phrase disait « un modèle rouvre une conversation
+                          de 24 h, et Meta LA facture ». C'était vrai jusqu'en
+                          juin 2025 ; depuis le 1er juillet 2025 Meta facture AU
+                          MESSAGE, et la conversation n'est plus l'unité.
+
+                          LA NUANCE CHANGE LA DÉCISION : sous l'ancien modèle,
+                          une fois la conversation payée on pouvait tout dire.
+                          Aujourd'hui c'est chaque modèle hors fenêtre qui
+                          compte — et répondre ensuite dans la fenêtre qu'il
+                          ouvre ne coûte rien. */}
                       <span className="trc-sub" style={{ fontSize: 12 }}>
-                        WhatsApp n’accepte plus que vos modèles approuvés. Un modèle rouvre une
-                        conversation de 24 h, <b>et Meta la facture</b>.
+                        WhatsApp n’accepte plus que vos modèles approuvés. <b>Meta facture
+                        le modèle</b>, pas la conversation : une fois qu’elle vous aura
+                        répondu, les 24 h qui suivent sont gratuites.
                       </span>
                     </>
                   )}
@@ -877,15 +917,18 @@ export default function Conversations() {
 
           ET L'ÉCRAN DIT LA RÈGLE AVANT LE CLIC : une tête qui ne vous a jamais
           écrit ne se joint que par un modèle approuvé, et chaque modèle est
-          facturé par Meta. Ce n'est pas une surprise à découvrir après. */}
+          facturé par Meta — le MODÈLE, pas la conversation qu'il ouvre (la
+          facturation est passée au message le 1er juillet 2025). Ce n'est pas
+          une surprise à découvrir après. */}
       {commencer && (
         <div className="trc-modal-fond" onClick={() => setCommencer(false)}>
           <div className="trc-modal" onClick={(e) => e.stopPropagation()}>
             <div className="trc-modal__t">Commencer une conversation</div>
             <p className="trc-sub" style={{ marginTop: 0 }}>
               <b>Si elle ne vous a jamais écrit</b>, WhatsApp n’acceptera qu’un de vos
-              trois modèles approuvés — et Meta le facture. Si elle vous a écrit dans
-              les 24 heures, vous écrirez librement.
+              trois modèles approuvés, <b>et Meta facture ce modèle-là</b> — pas la
+              conversation qu’il ouvre. Si elle vous a écrit dans les 24 heures, vous
+              écrirez librement, et sans un franc.
             </p>
 
             <div className="trc-sec-label" style={{ marginBottom: 6 }}>Une tête de la Maison</div>
