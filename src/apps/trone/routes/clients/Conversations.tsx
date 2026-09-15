@@ -49,7 +49,7 @@ import './clients.css';
 const MODELES = [
   { nom: 'rappel_rdv', dit: 'Rappel de rendez-vous', variables: 2 },
   { nom: 'confirmation_rdv', dit: 'Confirmation de rendez-vous', variables: 2 },
-  { nom: 'avis_google', dit: 'Demande d’avis', variables: 1 },
+  { nom: 'avis_google', dit: 'Demande d’avis Google', variables: 1 },
 ] as const;
 
 const heure = (iso: string) => {
