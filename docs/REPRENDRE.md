@@ -83,6 +83,19 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LES TRAVAUX À VENIR — 15 septembre 2026, PUBLIÉ
+
+« Besoin de voir les notes sur le devis. Le résumé des travaux à venir »
+(Yéman). Aucune SQL.
+
+- Le formulaire du devis retrouve un champ **« Les travaux à venir · le
+  résumé »**, rangé dans `DevisRecu.description` (le champ existait ; la case de
+  texte avait disparu avec les lignes). Il se corrige comme le reste.
+- **Sous chaque devis** du tableau : son résumé, puis ses lignes.
+- **En tête du dossier** : `travauxAVenir`, le résumé du devis de base RETENU
+  puis ceux des avenants retenus, dans l'ordre d'arrivée. Un devis écarté ne dit
+  pas ce qui va se faire.
+
 ## LA PIÈCE D'IDENTITÉ SUR CHAQUE DÉCHARGE — 15 septembre 2026, PUBLIÉ
 
 « Toujours inclure la photo de sa pièce sur la décharge » (Yéman). Aucune SQL.

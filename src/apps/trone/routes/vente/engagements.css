@@ -239,3 +239,27 @@
   display: block; max-width: min(100%, 360px); max-height: 240px; height: auto; object-fit: contain;
   border: 1px solid var(--hairline, #D9CFBC); border-radius: 3px; background: #FFFFFF;
 }
+
+/* ── LES TRAVAUX À VENIR — 15 septembre 2026 ────────────────────────────
+   « Besoin de voir les notes sur le devis, le résumé des travaux à venir »
+   (Yéman). En tête du dossier : ce qui a été retenu. Sous chaque devis : ce
+   qu'il proposait. Les retours à la ligne tapés se gardent. */
+.eng-travaux {
+  display: flex; flex-direction: column; gap: 8px;
+  border-left: 2px solid var(--color-copper, #B97A4A); padding: 2px 0 2px 14px;
+}
+.eng-travaux__titre { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: #8C5A33; }
+.eng-travaux p {
+  margin: 0; max-width: 72ch; white-space: pre-line;
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 18px; line-height: 1.5;
+  color: var(--color-indigo, #1E2150);
+}
+.eng-travaux__source {
+  display: block; font-family: 'Jost', system-ui, sans-serif; font-size: 11px; line-height: 1.4; color: var(--ink-soft, #6E6961);
+}
+.eng-table .eng-resume {
+  margin: 0 0 8px; max-width: 80ch; white-space: pre-line; font-size: 13px; line-height: 1.55; color: var(--ink, #2A2722);
+}
+.eng-table .eng-resume span {
+  display: block; margin-bottom: 2px; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: #8C5A33;
+}

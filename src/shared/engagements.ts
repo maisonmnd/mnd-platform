@@ -245,6 +245,19 @@ export const retenuXof = (devis: readonly DevisRecu[]): number =>
 export const devisDeBase = (devis: readonly DevisRecu[]): DevisRecu | undefined =>
   devis.find((d) => d.etat === 'retenu' && !d.avenant);
 
+/** LES TRAVAUX À VENIR — « besoin de voir les notes sur le devis, le résumé
+    des travaux à venir » (Yéman, 15 septembre 2026).
+
+    CE QUI VA SE FAIRE, C'EST CE QUI A ÉTÉ RETENU : le résumé du devis de base,
+    puis ceux de ses avenants, dans l'ordre où ils sont arrivés. Un devis
+    écarté ne dit pas ce qui va se faire ; il reste lisible dans sa ligne du
+    tableau, et nulle part ailleurs. */
+export const travauxAVenir = (devis: readonly DevisRecu[]): { devis: DevisRecu; texte: string }[] =>
+  devis
+    .filter((d) => d.etat === 'retenu' && (d.description ?? '').trim() !== '')
+    .sort((a, b) => Number(!!a.avenant) - Number(!!b.avenant) || a.recuLe.localeCompare(b.recuLe))
+    .map((d) => ({ devis: d, texte: (d.description as string).trim() }));
+
 /** DE COMBIEN ON A DÉPASSÉ le devis de base. L'écran le dit : un dépassement
     qui ne se nomme pas passe pour le prix convenu. */
 export const depassementXof = (devis: readonly DevisRecu[]): number => {
@@ -567,7 +580,7 @@ export function avertitAvantDeCorriger(o: {
 }
 
 export type ChampsDuDevis = Partial<Pick<DevisRecu,
-  'numeroPrestataire' | 'recuLe' | 'valableJusquau' | 'montantXof' | 'lignes' | 'avenant' | 'fichier'>>;
+  'numeroPrestataire' | 'recuLe' | 'valableJusquau' | 'montantXof' | 'lignes' | 'avenant' | 'fichier' | 'description'>>;
 
 /** CORRIGER UN DEVIS — son contenu, JAMAIS son état. Un devis retenu reste
     retenu, par la même main et le même jour : corriger n'est pas redonner un

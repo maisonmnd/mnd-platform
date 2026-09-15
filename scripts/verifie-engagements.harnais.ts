@@ -21,7 +21,7 @@ import {
   lisLeNombre, quantiteDite, totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas,
   ligneDeLaSaisie, lignesDeLaSaisie, LIGNE_VIDE,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
-  pourquoiLaDechargeNePeutPasSeFaire,
+  pourquoiLaDechargeNePeutPasSeFaire, travauxAVenir,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -367,6 +367,24 @@ dit('… ni en HEIC',
   pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: 'image/heic' }, estDirection: true }));
 dit('une pièce ancienne sans type n’est pas refusée d’avance', null,
   pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: '' }, estDirection: true }));
+
+/* ══ LES TRAVAUX À VENIR ═════════════════════════════════════════════
+   « Besoin de voir les notes sur le devis, le résumé des travaux à venir »
+   (Yéman). Ce qui va se faire, c'est ce qui a été retenu. */
+const avecResumes = avecAvenant.map((d) => (
+  d.id === 'k2' ? { ...d, description: ' Agencement complet, six semaines ' }
+    : d.id === 'av' ? { ...d, description: 'Plan de travail en bois dur' }
+      : d.id === 'b1' ? { ...d, description: 'Hors plan de travail' }
+        : d));
+dit('le devis retenu d’abord, puis ses avenants', ['Agencement complet, six semaines', 'Plan de travail en bois dur'],
+  travauxAVenir(avecResumes).map((x) => x.texte));
+dit('un devis écarté ne dit pas ce qui va se faire', false,
+  travauxAVenir(avecResumes).some((x) => x.devis.id === 'b1'));
+dit('sans devis retenu, rien à venir', [], travauxAVenir([k1, b1]));
+dit('un résumé vide ne compte pas', [], travauxAVenir([{ ...k2Retenu, description: '  ' }]));
+dit('le résumé se corrige comme le reste', 'Deux étagères et portes moustiquaires',
+  corrigeLeDevis(e1Retenu, 'k2', { description: 'Deux étagères et portes moustiquaires' }, 'Y. B.', AUJ)
+    .find((d) => d.id === 'k2')?.description);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

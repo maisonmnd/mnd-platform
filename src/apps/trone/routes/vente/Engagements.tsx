@@ -38,7 +38,7 @@ import {
   pourquoiOnNeRetientPas, avertitAvantDeRetenir, retenirLeDevis,
   pourquoiOnNeVersePas, avertitAvantDeVerser, dechargeInvalide, texteDeLaDecharge,
   effacementDeLIdentite, identiteAEffacer, depenseDuVersement, CATEGORIE_PROPOSEE, ETAT_DIT,
-  devisExpire, devisExpireBientot,
+  devisExpire, devisExpireBientot, travauxAVenir,
   totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas, ligneDeLaSaisie, lignesDeLaSaisie,
   quantiteDite, LIGNE_VIDE, type LigneSaisie,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
@@ -359,6 +359,8 @@ type FormDevis = {
   /** Le montant tapé à la main — ne sert que s'il n'y a aucune ligne. */
   montant: string;
   lignes: LigneSaisie[];
+  /** Le résumé des travaux à venir, rangé dans `description`. */
+  resume: string;
   avenant: boolean;
   fichier: File | null;
 };
@@ -398,6 +400,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
   const aujourdhui = todayISO();
   const caisses = cashboxes.filter((c) => c.branchId === branch.id && (!c.currency || c.currency === currency));
   const base = devisDeBase(l.devis);
+  const travaux = travauxAVenir(l.devis);
   const ferme = l.etat === 'abandonne';
 
   const [formDevis, setFormDevis] = useState<FormDevis | null>(null);
@@ -430,12 +433,13 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       lignes: d.lignes?.length
         ? d.lignes.map((x) => ({ description: x.description, quantite: quantiteDite(x.quantite), prix: String(x.prixUnitaireXof) }))
         : [LIGNE_VIDE],
+      resume: d.description ?? '',
       avenant: !!d.avenant,
       fichier: null,
     }
     : {
       numeroPrestataire: '', recuLe: aujourdhui, avecValidite: true, valableJusquau: decaleLeJour(aujourdhui, 30),
-      montant: '', lignes: [LIGNE_VIDE], avenant: !!base, fichier: null,
+      montant: '', lignes: [LIGNE_VIDE], resume: '', avenant: !!base, fichier: null,
     });
 
   const enregistreLeDevis = async () => {
@@ -480,6 +484,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
         valableJusquau: f.avecValidite ? f.valableJusquau : undefined,
         montantXof: montant,
         lignes: lignes.length > 0 ? lignes : undefined,
+        description: f.resume.trim() || undefined,
         avenant: base && base.id !== existant.id && f.avenant ? true : undefined,
         fichier,
       }, monNom, aujourdhui));
@@ -499,6 +504,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       valableJusquau: f.avecValidite ? f.valableJusquau : undefined,
       montantXof: montant,
       lignes: lignes.length > 0 ? lignes : undefined,
+      description: f.resume.trim() || undefined,
       etat: 'recu',
       avenant: base && f.avenant ? true : undefined,
       fichier,
@@ -690,6 +696,25 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <span className="c">{prochain ? `prochain : ${prochain.libelle.charAt(0).toLowerCase()}${prochain.libelle.slice(1)}` : l.etat === 'solde' ? 'dossier soldé' : 'aucun versement prévu'}</span>
             </div>
           </div>
+          {/* LES TRAVAUX À VENIR, EN TÊTE DU DOSSIER : on ouvre un chantier
+              pour savoir ce qui va s'y faire avant de savoir combien il reste. */}
+          {travaux.length > 0 && (
+            <div className="eng-travaux">
+              <span className="eng-travaux__titre">Les travaux à venir</span>
+              {travaux.map(({ devis: d, texte }) => (
+                <p key={d.id}>
+                  {travaux.length > 1 && (
+                    <span className="eng-travaux__source">
+                      {d.avenant
+                        ? `Avenant du ${jourDit(d.recuLe)}`
+                        : `Devis ${d.numeroPrestataire ? `${d.numeroPrestataire} ` : ''}du ${jourDit(d.recuLe)}`}
+                    </span>
+                  )}
+                  {texte}
+                </p>
+              ))}
+            </div>
+          )}
           {l.tropVerseXof > 0 && (
             <div className="eng-mur">
               <b>{fmtMoney(l.tropVerseXof, currency)} versés au-delà du devis retenu.</b> À récupérer, ou à déduire
@@ -729,12 +754,10 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                   const bientot = devisExpireBientot(d, aujourdhui);
                   return (
                     <Fragment key={d.id}>
-                    <tr className={`${d.etat === 'retenu' ? 'is-retenu' : ''}${d.lignes?.length ? ' a-des-lignes' : ''}`}>
+                    <tr className={`${d.etat === 'retenu' ? 'is-retenu' : ''}${d.lignes?.length || d.description ? ' a-des-lignes' : ''}`}>
                       <td>
                         {d.numeroPrestataire || 'sans numéro'}
-                        {(d.description || d.avenant) && (
-                          <span className="sous">{d.avenant ? 'avenant' : ''}{d.avenant && d.description ? ' · ' : ''}{d.description}</span>
-                        )}
+                        {d.avenant && <span className="sous">avenant</span>}
                         {d.corrigeLe && (
                           <span className="sous">corrigé le {jourDit(d.corrigeLe)}{d.corrigePar ? ` par ${d.corrigePar}` : ''}</span>
                         )}
@@ -765,21 +788,29 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                     </tr>
                     {/* CE QU'IL COMPREND, sous sa ligne : comparer deux devis,
                         c'est comparer leurs lignes, pas deux totaux. */}
-                    {d.lignes && d.lignes.length > 0 && (
+                    {(d.description || (d.lignes && d.lignes.length > 0)) && (
                       <tr className={`eng-detail${d.etat === 'retenu' ? ' is-retenu' : ''}`}>
                         <td colSpan={6}>
-                          <table className="eng-lignes">
-                            <tbody>
-                              {d.lignes.map((x, i) => (
-                                <tr key={i}>
-                                  <td>{x.description}</td>
-                                  <td className="num">{quantiteDite(x.quantite)} ×</td>
-                                  <td className="num">{fmtMoney(x.prixUnitaireXof, currency)}</td>
-                                  <td className="num"><b>{fmtMoney(totalDeLaLigne(x), currency)}</b></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          {d.description && (
+                            <p className="eng-resume">
+                              <span>Les travaux à venir</span>
+                              {d.description}
+                            </p>
+                          )}
+                          {d.lignes && d.lignes.length > 0 && (
+                            <table className="eng-lignes">
+                              <tbody>
+                                {d.lignes.map((x, i) => (
+                                  <tr key={i}>
+                                    <td>{x.description}</td>
+                                    <td className="num">{quantiteDite(x.quantite)} ×</td>
+                                    <td className="num">{fmtMoney(x.prixUnitaireXof, currency)}</td>
+                                    <td className="num"><b>{fmtMoney(totalDeLaLigne(x), currency)}</b></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -971,6 +1002,14 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <input type="checkbox" checked={!formDevis.avecValidite} onChange={(ev) => setFormDevis({ ...formDevis, avecValidite: !ev.target.checked })} />
               Le devis ne dit pas jusqu’à quand il vaut
             </label>
+            <Field label="Les travaux à venir · le résumé">
+              <Textarea
+                rows={3}
+                value={formDevis.resume}
+                placeholder="Agencement du salon : deux étagères, portes moustiquaires, pose en six semaines"
+                onChange={(ev) => setFormDevis({ ...formDevis, resume: ev.target.value })}
+              />
+            </Field>
             <div className="eng-lignes-saisie">
               <span className="mnd-field__label">Ce qu’il comprend</span>
               <div className="eng-ligne eng-ligne--tete" aria-hidden="true">
