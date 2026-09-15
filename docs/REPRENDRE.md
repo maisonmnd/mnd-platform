@@ -83,7 +83,7 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
-## PAYER UN PRESTATAIRE EN DEVISES — 15 septembre 2026, PUBLIÉ, SQL EN ATTENTE
+## PAYER UN PRESTATAIRE EN DEVISES — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
 
 « Me permettre de payer des prestataires en devises, pas seulement en CFA »
 (Yéman). Tranché : **le dossier vit dans sa devise** (CFA par défaut, ou
@@ -106,7 +106,7 @@ trouvailles sont intégrées.
   un gribouillis tapé n'est PAS remplacé en douce par la suggestion : il se
   refuse. Une caisse dans une monnaie sans taux connu réclame le montant.
 - **La monnaie ne change plus** après le premier devis ou versement :
-  écran (`pourquoiLaDeviseNeChangePas`) ET base (0101, à passer).
+  écran (`pourquoiLaDeviseNeChangePas`) ET base (0101, passée).
 - **Les sommes en devise s'écrivent avec leurs centimes** (`sommeDite`), à
   l'écran comme sur la décharge (« sept cents euros », « 740,50 € ») ; en
   francs, `fmtMoney` comme tout le Trône. Le reste à payer se dit **devise par
@@ -116,7 +116,10 @@ trouvailles sont intégrées.
   illisible. `SANS_CENTIMES` (currency.ts) est la seule liste des monnaies sans
   centimes, lue par l'affichage et par `decimalesDe`.
 
-### SQL — `0101_la_monnaie_du_dossier_ne_change_plus.sql` : EN ATTENTE
+### SQL — `0101_la_monnaie_du_dossier_ne_change_plus.sql` : PASSÉE le 15 septembre 2026. NE PAS RELANCER.
+
+Contrôle en base : `engagement_garde` remplacée, `monnaie_figee` = vrai,
+`declencheur_branche` = vrai.
 
 Remplace SEULEMENT `engagement_garde()` (le déclencheur de 0099 l'appelle
 déjà) : `devise` est restaurée pour TOUS dès qu'un devis ou un versement
