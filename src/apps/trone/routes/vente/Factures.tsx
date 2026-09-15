@@ -32,7 +32,7 @@ import { retirerParReferences } from '../../../../shared/stock';
 import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture } from '../_vie';
-import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -885,14 +885,9 @@ export default function Factures() {
     window.setTimeout(() => document.body.classList.remove('trv-print-doc'), 400);
   };
 
-  const sendWhatsApp = async () => {
-    if (!selected) return;
-    const doc = selected;
-    /* 1) Un lien wa.me ne peut PAS joindre de fichier : on télécharge d'abord le vrai PDF… */
-    await invoicePdf(buildPdfData(doc));
-    /* 2) …puis on ouvre le chat pré-rempli, en signalant la pièce jointe. */
+  /** Le message qui accompagne la pièce, le MÊME par les deux portes. */
+  const messageDeLaPiece = (doc: Invoice) => {
     const label = doc.kind === 'devis' ? 'Devis' : 'Facture';
-    const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
     /* LA DEVISE FERME, ET ELLE SEULE — 22 août 2026. Le rappel MoMo tenait
        la dernière ligne : une consigne de paiement n'est pas une formule
        d'adieu, et elle poussait la Maison hors de son propre message. Le mot
@@ -902,14 +897,36 @@ export default function Factures() {
        montant, et où WhatsApp la colore en la prenant pour un numéro de
        téléphone. Le corps la dit déjà, à l'endroit où elle sert : le nom de la
        pièce jointe. */
-    const msg = signeLeMessage(
+    return signeLeMessage(
       `${maisonNom()} · ${label}\n` +
       `Pour ${prenomOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
-    window.location.hash = `#${cheminDeLaConversation(phone, msg) ?? '/conversations'}`;
-    setWaHint('PDF téléchargé, joignez-le à votre message.');
+  };
+
+  /* ══ DEUX PORTES POUR ADRESSER LA PIÈCE — 15 septembre 2026 ══════════
+     « La possibilité d'envoyer par WhatsApp app aussi » (Yéman).
+
+     LA RÈGLE DE CLIENTES ET DU CARNET : le Trône d'abord, l'application
+     ensuite, plus discrète. Même message, et le PDF se télécharge dans les
+     deux cas : un lien wa.me ne joint pas de fichier, le Trône non plus.
+
+     LA PORTE « APP » EST UN VRAI LIEN, qui s'ouvre au clic ; cette fonction
+     ne fait que suivre. Ouvrir l'onglet APRÈS le PDF le ferait bloquer comme
+     fenêtre surgissante dès que le PDF tarde : le navigateur ne tient un clic
+     pour un geste que quelques secondes. */
+  const sendWhatsApp = async (porte: 'trone' | 'app') => {
+    if (!selected) return;
+    const doc = selected;
+    await invoicePdf(buildPdfData(doc));
+    if (porte === 'trone') {
+      const phone = clientOf(doc)?.phone.replace(/\D/g, '') ?? '';
+      window.location.hash = `#${cheminDeLaConversation(phone, messageDeLaPiece(doc)) ?? '/conversations'}`;
+      setWaHint('PDF téléchargé, joignez-le à votre message.');
+    } else {
+      setWaHint('PDF téléchargé, joignez-le dans l’application. Ce message n’entrera pas dans le fil de la Maison.');
+    }
     if (doc.status === 'brouillon') patchSelected({ status: 'envoyée' });
   };
 
@@ -1560,7 +1577,29 @@ export default function Factures() {
                   Mettre au coffre, {fmtMoney(invoiceRegleXof(selected), currency)}
                 </Button>
               )}
-              <button className="trv-wa-btn" onClick={() => void sendWhatsApp()}>Adresser par WhatsApp</button>
+              {/* LES DEUX PORTES — voir sendWhatsApp. */}
+              {(() => {
+                const versLApp = lienWaMe(clientOf(selected)?.phone, messageDeLaPiece(selected));
+                return (
+                  <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
+                    <button className="trv-wa-btn" style={{ flex: 1 }} onClick={() => void sendWhatsApp('trone')}>
+                      Adresser par WhatsApp
+                    </button>
+                    {versLApp && (
+                      <a
+                        className="trv-wa-btn trv-wa-btn--app"
+                        href={versLApp}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => void sendWhatsApp('app')}
+                        title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                      >
+                        App
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
               {/* LE LIEN DE PAIEMENT, EN UN CLIC — la page payer.html au montant
                   exact du reste dû, envoyée sur le WhatsApp de la cliente. Le
                   message de facture, lui, reste sobre (décision du 22 août) :
@@ -1589,10 +1628,24 @@ export default function Factures() {
                   `Bonjour ${prenomOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}\n` +
                   `Référence ${selected.number}`,
                 );
+                const versLApp = lienWaMe(tel, msg);
                 return (
-                  <a className="trv-wa-btn" style={{ textDecoration: 'none' }} href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}>
-                    Envoyer le lien de paiement
-                  </a>
+                  <div className="trv-doc-actions__row" style={{ display: 'flex', gap: 8 }}>
+                    <a className="trv-wa-btn" style={{ textDecoration: 'none', flex: 1 }} href={`#${cheminDeLaConversation(tel, msg) ?? '/conversations'}`}>
+                      Envoyer le lien de paiement
+                    </a>
+                    {versLApp && (
+                      <a
+                        className="trv-wa-btn trv-wa-btn--app"
+                        href={versLApp}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+                      >
+                        App
+                      </a>
+                    )}
+                  </div>
                 );
               })()}
               {/* ══ UN SEUL LIEN POUR TOUT LE FOYER ═══════════════════════════

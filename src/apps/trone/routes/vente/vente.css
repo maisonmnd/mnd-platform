@@ -682,6 +682,20 @@
   width: 100%;
 }
 
+/* La porte « App » : l'application WhatsApp, hors du Trône. Plus discrète que
+   la porte du Trône, c'est l'ordre voulu (voir PortesWhatsApp). Placée AVANT
+   la règle mobile des rangées, qui la remet en pleine largeur. */
+.trv-wa-btn--app {
+  width: auto;
+  padding: 11px 18px;
+  background: transparent;
+  color: #157a3d;
+  border: 1px solid #1fa855;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.trv-wa-btn--app:hover { background: rgba(31, 168, 85, 0.08); }
+
 /* Itinéraire vers la cliente — ouvre Google Maps sur la position GPS partagée. */
 .trv-route-btn {
   cursor: pointer;

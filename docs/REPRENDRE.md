@@ -301,6 +301,11 @@ encore faire.
   sinon on le retaperait dans l'application et l'on n'en sortirait jamais.
 - **La fiche cliente** — « WhatsApp » et « WhatsApp · l'app », côte à côte.
 - **Le Carnet** — le numéro mène au Trône, un « app » discret à côté.
+- **Factures & devis** (ajouté le même jour) — « Adresser par WhatsApp » et
+  « Envoyer le lien de paiement » ont chacun leur « App ». Même message, et le
+  PDF se télécharge par les deux portes : wa.me ne joint pas de fichier. La
+  porte « App » est un vrai lien, pas un `window.open` après le PDF, qu'un
+  PDF lent ferait bloquer comme fenêtre surgissante.
 
 **CE QU'ON PERD EN SORTANT SE DIT AU SURVOL** : un message écrit dans
 l'application n'entre **pas** dans le fil de la Maison. Ce n'est pas un défaut
