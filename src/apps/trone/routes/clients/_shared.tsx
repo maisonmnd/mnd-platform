@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
 import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
@@ -38,7 +38,7 @@ import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
-import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 
 export { ChampDeDate };
 
@@ -3970,6 +3970,52 @@ export function RdvModal({
    doit compter dans la production du maître, donc il lui faut une fiche — mais
    deux champs suffisent, et le comptoir ne doit pas quitter son écran pour les
    saisir. Voir `Client.dePassage`. */
+/* ══ LES DEUX PORTES D'UN NUMÉRO — 15 septembre 2026 ═════════════════
+
+   « Que le bouton téléphone et app apparaissent sur Clientes exactement comme
+   sur Carnet » (Yéman).
+
+   UN SEUL COMPOSANT, DEUX ÉCRANS. « Exactement pareil » ne se tient pas en
+   recopiant : la copie diverge au premier réglage — celle qu'on corrige, et
+   l'autre. La Maison a déjà payé cette leçon sur la devise, sur le glyphe
+   WhatsApp, sur le format des jours.
+
+   LE TRÔNE D'ABORD, L'APPLICATION ENSUITE, et la seconde est plus discrète :
+   c'est l'ordre voulu, et la taille le dit sans qu'on ait à l'écrire. Ce
+   qu'on perd en sortant se dit au survol — un message écrit dans
+   l'application n'entre pas dans le fil de la Maison.
+
+   `stopPropagation` DANS LES DEUX : ces pastilles vivent dans des lignes
+   cliquables (une fiche, un rendez-vous), et ouvrir la ligne au passage
+   serait la faute la plus agaçante de l'écran. */
+export function PortesWhatsApp({ phone }: { phone?: string }) {
+  const versLeTrone = cheminDeLaConversation(phone);
+  if (!versLeTrone) return null;
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+      <Link
+        className="trc-wa"
+        to={versLeTrone}
+        onClick={stop}
+        title="Ouvrir sa conversation dans le Trône"
+      >
+        <span className="trc-wa__num">{phone}</span>
+      </Link>
+      <a
+        className="trc-wa trc-wa--app"
+        href={lienWaMe(phone) ?? '#'}
+        target="_blank"
+        rel="noreferrer"
+        onClick={stop}
+        title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
+      >
+        <span className="trc-wa__num">app</span>
+      </a>
+    </span>
+  );
+}
+
 export function ClientPicker({
   value,
   onChange,

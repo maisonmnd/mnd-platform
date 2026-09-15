@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../../../../shared/asset';
-import { PageHead, WaLien, WaGlyph } from '../_ui';
+import { PageHead, WaLien } from '../_ui';
 import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { signeLeMessage } from '../../../../shared/identite';
@@ -48,7 +48,7 @@ import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
   addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn, frShort, frDay,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  type Cadence, frJourAn, frShortAn } from './_shared';
+  type Cadence, frJourAn, frShortAn, PortesWhatsApp } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
 import { survivantDe, fusionnerFiches } from '../../../../shared/fusion';
 import { DemanderModal } from '../equipe/DemanderModal';
@@ -1339,23 +1339,14 @@ export default function Customers() {
                       {personaName(c.persona)}
                     </span>
                     {c.phone && digitsOf(c.phone) ? (
-                      /* ── ON NE SORT PAS DU TRÔNE — 14 septembre 2026 ──
-                         « Ne sors pas du Trône » (Yéman). Ce lien ouvrait
-                         `wa.me` : un onglet de plus, une autre application, et
-                         surtout un message écrit AILLEURS — le Trône n'en
-                         gardait aucune trace, elle répondait dans un fil que
-                         la Maison ne voyait pas, et la conversation se coupait
-                         en deux. Depuis le 11 septembre le Trône sait parler ;
-                         il n'y a plus de raison d'en sortir. */
-                      <Link
-                        className="trc-wa"
-                        to={cheminDeLaConversation(c.phone) ?? '/conversations'}
-                        onClick={(e) => e.stopPropagation()}
-                        title={`Écrire à ${c.name.split(' ')[0]} dans le Trône`}
-                      >
-                        <WaGlyph />
-                        <span className="trc-wa__num">{c.phone}</span>
-                      </Link>
+                      /* ── LES DEUX PORTES, EXACTEMENT COMME AU CARNET ──
+                         15 septembre 2026 : « que le bouton téléphone et app
+                         apparaissent sur Clientes exactement comme sur
+                         Carnet » (Yéman). Un seul composant sert les deux
+                         écrans — recopier le dessin les ferait diverger au
+                         premier réglage, et « exactement pareil » ne tiendrait
+                         pas une semaine. */
+                      <PortesWhatsApp phone={c.phone} />
                     ) : (
                       <span className="trc-sub">—</span>
                     )}

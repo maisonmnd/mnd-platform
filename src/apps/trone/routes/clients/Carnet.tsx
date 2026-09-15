@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
@@ -21,11 +21,10 @@ import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, type RdvInitial,
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  tarifsDuRituel,
+  tarifsDuRituel, PortesWhatsApp,
 } from './_shared';
 import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
-import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -359,32 +358,12 @@ export default function Carnet() {
                 elle menait à `wa.me`, donc à un message écrit ailleurs, dont la
                 Maison ne gardait aucune trace. `stopPropagation` empêche
                 d'ouvrir le rendez-vous au passage. */}
-            {tel(c?.phone) && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
-                <Link
-                  className="trc-wa"
-                  to={cheminDeLaConversation(c?.phone) ?? '/conversations'}
-                  onClick={(e) => e.stopPropagation()}
-                  title="Ouvrir sa conversation dans le Trône"
-                >
-                  <span className="trc-wa__num">{c?.phone}</span>
-                </Link>
-                {/* LA SECONDE PORTE (15 septembre) : l'application du
-                    téléphone, pour ce que le Trône ne sait pas encore faire —
-                    un vocal, une photo prise à l'instant. Ce qui s'y écrit
-                    n'entre pas dans le fil de la Maison, et le survol le dit. */}
-                <a
-                  className="trc-wa trc-wa--app"
-                  href={lienWaMe(c?.phone) ?? '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  title="Ouvrir l’application WhatsApp. Ce qui s’y écrit n’entre pas dans le fil de la Maison."
-                >
-                  <span className="trc-wa__num">app</span>
-                </a>
-              </span>
-            )}
+            {/* LES DEUX PORTES — un seul composant, partagé avec Clientes
+                (15 septembre 2026, « exactement comme sur Carnet »). Recopier
+                le dessin ferait diverger les deux écrans au premier réglage. */}
+            <span style={{ alignSelf: 'flex-start' }}>
+              <PortesWhatsApp phone={c?.phone} />
+            </span>
           </span>
         </span>
         <span className="trc-carnet__svc" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
