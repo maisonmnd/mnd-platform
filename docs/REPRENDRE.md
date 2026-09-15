@@ -83,7 +83,7 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
-## CORRIGER UN DEVIS RETENU — 15 septembre 2026, PUBLIÉ, SQL EN ATTENTE
+## CORRIGER UN DEVIS RETENU — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
 
 « Modifier un devis accepté » (Yéman). Tranché : **la direction corrige un
 devis retenu**, la trace de la base garde la version d'avant.
@@ -101,14 +101,16 @@ devis retenu**, la trace de la base garde la version d'avant.
   comprises), fichier remplacé SANS être effacé du coffre (la trace pointe
   encore vers lui), « corrigé le … par … » sous le numéro.
 
-### SQL — `0100_corriger_un_devis_retenu.sql` : EN ATTENTE
+### SQL — `0100_corriger_un_devis_retenu.sql` : PASSÉE le 15 septembre 2026. NE PAS RELANCER.
+
+Contrôle en base : `devis_recu_garde` remplacée, `retenu_fige_pour_le_personnel`
+= vrai, `declencheur_branche` = vrai.
 
 Remplace SEULEMENT `devis_recu_garde()` (le déclencheur de 0099 l'appelle
 déjà). Direction : tout passe. Personnel : un devis retenu est rendu tel quel
 (`new.data := old.data`, lignes comprises) ; un devis à trancher garde son état.
-**Tant qu'elle n'est pas passée**, corriger le MONTANT d'un devis retenu est
-annulé par la base (garde de 0099) alors que les lignes changent : ne pas
-corriger un retenu avant de l'avoir passée.
+Avant elle, corriger le MONTANT d'un devis retenu était annulé par la base
+(garde de 0099) alors que les lignes changeaient : c'est réglé.
 
 ## LES LIGNES D'UN DEVIS REÇU — 15 septembre 2026, PUBLIÉ
 
