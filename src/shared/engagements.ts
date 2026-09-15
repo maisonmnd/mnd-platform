@@ -371,6 +371,37 @@ export function dechargeInvalide(d: Decharge | undefined): string | undefined {
 export const versementsSansDecharge = (versements: readonly Versement[]): Versement[] =>
   versements.filter((v) => estVerse(v) && !!dechargeInvalide(v.decharge));
 
+/* LA PIÈCE D'IDENTITÉ FIGURE SUR CHAQUE DÉCHARGE — 15 septembre 2026.
+   « Toujours inclure la photo de sa pièce sur la décharge » (Yéman).
+
+   UNE DÉCHARGE DIT QUI A REÇU L'ARGENT ; SA PIÈCE LE MONTRE. Un nom écrit se
+   conteste (« ce n'est pas moi qui ai signé »), un visage à côté de la
+   signature, beaucoup moins.
+
+   CE QUI EN DÉCOULE, ET QUI N'EST PAS UN DÉTAIL :
+   · pas de décharge sans pièce déposée ;
+   · c'est la DIRECTION qui fait la décharge, puisqu'elle seule ouvre la pièce
+     (0099). Le personnel range encore la photo d'une décharge revenue signée :
+     celle-là porte déjà la pièce, imprimée.
+
+   UNE PHOTO, PAS UN PDF. Un PDF ne se pose pas dans un PDF, et le HEIC d'un
+   iPhone ne se lit pas dans tous les navigateurs. */
+export const FORMATS_DE_L_IDENTITE = 'image/jpeg,image/png,image/webp';
+
+export function pourquoiLaDechargeNePeutPasSeFaire(o: {
+  identite?: Pick<PieceJointe, 'type'>;
+  estDirection: boolean;
+}): string | null {
+  if (!o.identite) return 'Sa pièce d’identité figure sur chaque décharge : déposez-la d’abord.';
+  if (!o.estDirection) return 'La décharge porte sa pièce d’identité, que seule la direction ouvre : c’est la direction qui la fait.';
+  /* Un type vide (une pièce ancienne) n'est pas refusé d'avance : c'est la
+     lecture de l'image qui dira si elle se montre. */
+  if (o.identite.type && !/^image\/(jpe?g|png|webp)$/i.test(o.identite.type)) {
+    return 'Sa pièce d’identité n’est pas une photo que la décharge sait montrer : déposez-la en JPEG ou en PNG.';
+  }
+  return null;
+}
+
 /** LE TEXTE DE LA DÉCHARGE — le même à l'écran, sur le papier imprimé et dans
     le PDF signé.
 

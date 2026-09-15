@@ -21,6 +21,7 @@ import {
   lisLeNombre, quantiteDite, totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas,
   ligneDeLaSaisie, lignesDeLaSaisie, LIGNE_VIDE,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
+  pourquoiLaDechargeNePeutPasSeFaire,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -347,6 +348,25 @@ dit('les autres devis ne bougent pas', JSON.stringify(e1Retenu.filter((d) => d.i
   JSON.stringify(corriges.filter((d) => d.id !== 'k2')));
 dit('un devis retenu ne devient pas un avenant par correction', undefined,
   corrigeLeDevis(e1Retenu, 'k2', { avenant: true }, 'Y. B.', AUJ).find((d) => d.id === 'k2')?.avenant);
+
+/* ══ LA PIÈCE D'IDENTITÉ SUR LA DÉCHARGE ═════════════════════════════
+   « Toujours inclure la photo de sa pièce sur la décharge » (Yéman). */
+const photo = { type: 'image/jpeg' };
+dit('pas de décharge sans pièce déposée', 'Sa pièce d’identité figure sur chaque décharge : déposez-la d’abord.',
+  pourquoiLaDechargeNePeutPasSeFaire({ identite: undefined, estDirection: true }));
+/* LA DIRECTION SEULE OUVRE LA PIÈCE : c'est donc elle qui fait la décharge. */
+dit('le comptoir ne fait pas la décharge', 'La décharge porte sa pièce d’identité, que seule la direction ouvre : c’est la direction qui la fait.',
+  pourquoiLaDechargeNePeutPasSeFaire({ identite: photo, estDirection: false }));
+dit('la direction la fait, pièce en photo', null, pourquoiLaDechargeNePeutPasSeFaire({ identite: photo, estDirection: true }));
+dit('… en PNG aussi', null, pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: 'image/png' }, estDirection: true }));
+dit('une pièce en PDF ne se pose pas sur la décharge',
+  'Sa pièce d’identité n’est pas une photo que la décharge sait montrer : déposez-la en JPEG ou en PNG.',
+  pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: 'application/pdf' }, estDirection: true }));
+dit('… ni en HEIC',
+  'Sa pièce d’identité n’est pas une photo que la décharge sait montrer : déposez-la en JPEG ou en PNG.',
+  pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: 'image/heic' }, estDirection: true }));
+dit('une pièce ancienne sans type n’est pas refusée d’avance', null,
+  pourquoiLaDechargeNePeutPasSeFaire({ identite: { type: '' }, estDirection: true }));
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

@@ -42,10 +42,11 @@ import {
   totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas, ligneDeLaSaisie, lignesDeLaSaisie,
   quantiteDite, LIGNE_VIDE, type LigneSaisie,
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
+  pourquoiLaDechargeNePeutPasSeFaire, FORMATS_DE_L_IDENTITE,
   type Engagement, type DevisRecu, type Versement, type Decharge, type LectureDuDossier,
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
-import { deposeDansLeCoffre, adresseDuCoffre, retireDuCoffre } from '../../../../shared/engagements-coffre';
+import { deposeDansLeCoffre, adresseDuCoffre, retireDuCoffre, imageDuCoffre } from '../../../../shared/engagements-coffre';
 import { useEstDirection } from '../_vie';
 import { ToileDeSignature } from '../_signature';
 import { todayISO } from '../finances/_shared';
@@ -79,11 +80,12 @@ async function ouvreLaPiece(chemin: string): Promise<void> {
 
 /** Choisir un fichier depuis l'appareil — une photo prise sur le moment, ou
     un PDF reçu. */
-function ChoisirUnePiece({ libelle, onFichier, disabled, variant = 'ghost' }: {
+function ChoisirUnePiece({ libelle, onFichier, disabled, variant = 'ghost', accept = 'image/*,application/pdf' }: {
   libelle: string;
   onFichier: (f: File) => void;
   disabled?: boolean;
   variant?: 'ghost' | 'copper' | 'indigo';
+  accept?: string;
 }) {
   const champ = useRef<HTMLInputElement>(null);
   return (
@@ -92,7 +94,7 @@ function ChoisirUnePiece({ libelle, onFichier, disabled, variant = 'ghost' }: {
       <input
         ref={champ}
         type="file"
-        accept="image/*,application/pdf"
+        accept={accept}
         hidden
         onChange={(ev) => {
           const f = ev.target.files?.[0];
@@ -895,14 +897,14 @@ function LeDossier({ lecture, onRetour, onModifier }: {
             </span>
             <span className="eng-gestes">
               <Button variant="ghost" size="sm" onClick={() => void ouvreLaPiece(e.identite!.chemin)}>Ouvrir</Button>
-              <ChoisirUnePiece libelle="Remplacer" disabled={occupe} onFichier={(f) => void deposeLIdentite(f)} />
+              <ChoisirUnePiece libelle="Remplacer" accept={FORMATS_DE_L_IDENTITE} disabled={occupe} onFichier={(f) => void deposeLIdentite(f)} />
               <button type="button" className="eng-lien eng-lien--doux" disabled={occupe} onClick={() => void retireLIdentite()}>Effacer</button>
             </span>
           </div>
         ) : (
           <div className="eng-piece">
-            <span className="eng-doux">Aucune pièce d’identité. Une photo lisible des deux faces, ou un PDF.</span>
-            <ChoisirUnePiece libelle="Déposer sa pièce" disabled={occupe} onFichier={(f) => void deposeLIdentite(f)} />
+            <span className="eng-doux">Aucune pièce d’identité. Une photo lisible, JPEG ou PNG : elle figure sur chaque décharge.</span>
+            <ChoisirUnePiece libelle="Déposer sa pièce" accept={FORMATS_DE_L_IDENTITE} disabled={occupe} onFichier={(f) => void deposeLIdentite(f)} />
           </div>
         )}
       </section>
@@ -1138,6 +1140,12 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                     </Field>
                   </div>
                   {avert && <div className="eng-mur">{avert}</div>}
+                  {!e.identite && (
+                    <div className="eng-mur">
+                      <b>Sa pièce d’identité n’est pas déposée.</b> Elle figure sur chaque décharge : sans elle, la
+                      décharge ne pourra pas se faire. Déposez-la au dossier avant de lui remettre l’argent.
+                    </div>
+                  )}
                   <div className="eng-garde">
                     <b>Le Trône écrira deux choses d’un geste.</b> La dépense, dans la caisse choisie, et le versement
                     au dossier. La décharge s’ouvre juste après : faites-la signer tant qu’il est là.
@@ -1159,6 +1167,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           versement={versementDeLaDecharge}
           rang={l.versements.filter(estVerse).findIndex((v) => v.id === versementDeLaDecharge.id) + 1}
           onClose={() => setDechargeDe(null)}
+          onDeposeLIdentite={deposeLIdentite}
+          depotEnCours={occupe}
         />
       )}
 
@@ -1207,11 +1217,15 @@ function LeDossier({ lecture, onRetour, onModifier }: {
    imprimée, la rapporte signée au stylo, et on la photographie. C'est souvent
    la seconde qui arrive sur un chantier. */
 
-function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
+function ModaleDeLaDecharge({ lecture, versement, rang, onClose, onDeposeLIdentite, depotEnCours }: {
   lecture: LectureDuDossier;
   versement: Versement;
   rang: number;
   onClose: () => void;
+  /** Déposer sa pièce sans quitter la décharge : c'est là qu'on s'aperçoit
+      qu'elle manque. */
+  onDeposeLIdentite: (f: File) => Promise<void>;
+  depotEnCours: boolean;
 }) {
   const e = lecture.engagement;
   const { branch, currency } = useBranch();
@@ -1225,6 +1239,33 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
   const [signePar, setSignePar] = useState(e.prestataire);
   const [trace, setTrace] = useState('');
   const [occupe, setOccupe] = useState(false);
+  const estDirection = useEstDirection();
+
+  /* ── SA PIÈCE, CHARGÉE UNE FOIS À L'OUVERTURE ─────────────────────────
+     La même image sert l'aperçu et le PDF : ce qu'on voit à l'écran est ce
+     qui part sur le papier. Seule la direction la charge ; la base refuserait
+     de toute façon le lien aux autres. */
+  const cheminDeLaPiece = e.identite?.chemin;
+  const [piece, setPiece] = useState<{ donnees: string; ratio: number } | null>(null);
+  const [lecturePiece, setLecturePiece] = useState<'attente' | 'prete' | 'illisible'>('attente');
+  useEffect(() => {
+    setPiece(null);
+    setLecturePiece('attente');
+    if (!estDirection || !cheminDeLaPiece) return;
+    let vivant = true;
+    void imageDuCoffre(cheminDeLaPiece).then((img) => {
+      if (!vivant) return;
+      setPiece(img);
+      setLecturePiece(img ? 'prete' : 'illisible');
+    });
+    return () => { vivant = false; };
+  }, [cheminDeLaPiece, estDirection]);
+
+  const refusDeLaPiece = pourquoiLaDechargeNePeutPasSeFaire({ identite: e.identite, estDirection });
+  const bloque = refusDeLaPiece
+    ?? (lecturePiece === 'attente' ? 'Sa pièce d’identité se charge.'
+      : lecturePiece === 'illisible' ? 'Sa pièce d’identité ne se lit pas comme une photo : déposez-la en JPEG ou en PNG.'
+        : null);
 
   const signataire = posee?.mode === 'ecran' ? posee.signature.signePar : (signePar.trim() || e.prestataire);
   const texte = texteDeLaDecharge({
@@ -1242,6 +1283,9 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
       décharge qu'il emporte et rapporte signée. Le même texte dans les deux
       cas, parce que c'est le même engagement. */
   const imprime = async (signature: string, qui: string, jour: string) => {
+    /* TOUJOURS AVEC SA PIÈCE : une décharge qui sortirait sans elle serait
+       exactement celle qu'on a décidé de ne plus faire. */
+    if (bloque || !piece) { toast(bloque ?? 'Sa pièce d’identité manque.'); return; }
     try {
       await contratPdf({
         houseName: maisonNom(), ville: branch.city, villeDuSiege: maisonVille(),
@@ -1260,6 +1304,7 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
         signature,
         pied: `Décharge · ${e.numero} · ${versement.libelle}`,
         filename: `decharge-${e.numero.toLowerCase()}-${rang}.pdf`,
+        piece: { legende: 'Pièce d’identité du prestataire', donnees: piece.donnees, ratio: piece.ratio },
       });
     } catch {
       toast('Le PDF n’a pas pu être produit.');
@@ -1267,6 +1312,9 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
   };
 
   const signeALEcran = async () => {
+    /* LA DÉCHARGE NE S'ENREGISTRE PAS SANS SA PIÈCE : elle serait posée, et
+       figée par la base, sans le papier qui la montre. */
+    if (bloque) { toast(bloque); return; }
     if (!signePar.trim()) { toast('Écrivez le nom de qui signe.'); return; }
     if (trace.length < 64) { toast('Faites-le signer dans le cadre.'); return; }
     const d: Decharge = {
@@ -1298,6 +1346,18 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
         <div className="eng-decharge">
           <div className="eng-decharge__titre">Décharge · {e.numero} · versement {rang}</div>
           <p>{texte}</p>
+          <div className="eng-decharge__piece">
+            <span className="eng-decharge__legende">Pièce d’identité du prestataire</span>
+            {piece
+              ? <img src={piece.donnees} alt="Pièce d’identité du prestataire" />
+              : (
+                <span className="eng-decharge__trace">
+                  {!e.identite ? 'pièce non déposée'
+                    : !estDirection ? 'réservée à la direction'
+                      : lecturePiece === 'illisible' ? 'photo illisible' : 'chargement'}
+                </span>
+              )}
+          </div>
           <div className="eng-decharge__pied">
             <span>
               Fait à {branch.city || maisonVille()}, le {jourLongDit(posee?.mode === 'ecran' ? posee.signature.at : versement.verseLe)}
@@ -1314,7 +1374,7 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
             <p className="eng-legende">Signée à l’écran le {jourLongDit(posee.signature.at)} par {posee.signature.signePar}. Elle ne se réécrit plus.</p>
             <div className="eng-actions">
               <Button variant="ghost" onClick={onClose}>Fermer</Button>
-              <Button variant="copper" onClick={() => void imprime(posee.signature.signature, posee.signature.signePar, posee.signature.at)}>Son exemplaire en PDF</Button>
+              <Button variant="copper" disabled={!!bloque} title={bloque ?? undefined} onClick={() => void imprime(posee.signature.signature, posee.signature.signePar, posee.signature.at)}>Son exemplaire en PDF</Button>
             </div>
           </>
         )}
@@ -1329,6 +1389,23 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
           </>
         )}
 
+        {!posee && refusDeLaPiece && (
+          <div className="eng-mur">
+            <b>{refusDeLaPiece}</b>
+            {!estDirection && ' Vous pouvez en revanche ranger la photo d’une décharge revenue signée : elle porte déjà la pièce, imprimée.'}
+            {estDirection && !e.identite && (
+              <span className="eng-gestes" style={{ justifyContent: 'flex-start', marginTop: 8 }}>
+                <ChoisirUnePiece
+                  variant="copper"
+                  libelle={depotEnCours ? 'Dépôt…' : 'Déposer sa pièce'}
+                  accept={FORMATS_DE_L_IDENTITE}
+                  disabled={depotEnCours}
+                  onFichier={(f) => void onDeposeLIdentite(f)}
+                />
+              </span>
+            )}
+          </div>
+        )}
         {!posee && (
           <>
             <Segs
@@ -1348,7 +1425,7 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
                 <ToileDeSignature onChange={setTrace} invite="Passez-lui l’écran, il signe au doigt." />
                 <div className="eng-actions">
                   <Button variant="ghost" onClick={onClose}>Plus tard</Button>
-                  <Button variant="copper" onClick={() => void signeALEcran()}>Enregistrer la décharge</Button>
+                  <Button variant="copper" disabled={!!bloque} title={bloque ?? undefined} onClick={() => void signeALEcran()}>Enregistrer la décharge</Button>
                 </div>
               </>
             ) : (
@@ -1358,7 +1435,7 @@ function ModaleDeLaDecharge({ lecture, versement, rang, onClose }: {
                   reste en attente de décharge, et cela se voit.
                 </p>
                 <div className="eng-actions">
-                  <Button variant="ghost" onClick={() => void imprime('', e.prestataire, versement.verseLe ?? aujourdhui)}>Imprimer la décharge</Button>
+                  <Button variant="ghost" disabled={!!bloque} title={bloque ?? undefined} onClick={() => void imprime('', e.prestataire, versement.verseLe ?? aujourdhui)}>Imprimer la décharge</Button>
                   <ChoisirUnePiece variant="copper" libelle={occupe ? 'Dépôt…' : 'Elle est revenue : la photographier'} disabled={occupe} onFichier={(f) => void rapporteLaPhoto(f)} />
                 </div>
               </>

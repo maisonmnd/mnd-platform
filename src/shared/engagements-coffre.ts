@@ -59,6 +59,41 @@ export async function adresseDuCoffre(chemin: string): Promise<string | null> {
   return data?.signedUrl ?? null;
 }
 
+/** UNE PHOTO DU COFFRE, PRÊTE À POSER SUR UN PAPIER — la pièce d'identité
+    sur la décharge (15 septembre 2026).
+
+    ELLE EST REDESSINÉE, PAS RECOPIÉE : ramenée à 1 400 pixels au plus grand
+    côté et réécrite en JPEG sur fond blanc. Une photo de téléphone brute pèse
+    plusieurs mégaoctets, et une décharge qu'on ne peut plus envoyer par
+    WhatsApp ne sert à personne. Rend `null` si le fichier ne se lit pas comme
+    une image (un PDF, un HEIC que le navigateur ignore, un droit refusé). */
+export async function imageDuCoffre(
+  chemin: string, cote = 1400,
+): Promise<{ donnees: string; ratio: number } | null> {
+  const url = await adresseDuCoffre(chemin);
+  if (!url) return null;
+  try {
+    const rep = await fetch(url);
+    if (!rep.ok) return null;
+    const image = await createImageBitmap(await rep.blob());
+    const echelle = Math.min(1, cote / Math.max(image.width, image.height));
+    const l = Math.max(1, Math.round(image.width * echelle));
+    const h = Math.max(1, Math.round(image.height * echelle));
+    const toile = document.createElement('canvas');
+    toile.width = l; toile.height = h;
+    const c = toile.getContext('2d');
+    if (!c) return null;
+    c.fillStyle = '#FFFFFF';
+    c.fillRect(0, 0, l, h);
+    c.drawImage(image, 0, 0, l, h);
+    image.close();
+    return { donnees: toile.toDataURL('image/jpeg', 0.86), ratio: l / h };
+  } catch (e) {
+    console.warn('[mnd-engagements] image illisible :', e);
+    return null;
+  }
+}
+
 /** RETIRER DES PIÈCES DU COFFRE — par l'API de stockage, qui efface
     réellement le fichier. Effacer la seule ligne en base laisserait les
     octets derrière, et une carte d'identité « effacée » qui existe encore

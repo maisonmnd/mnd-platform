@@ -83,6 +83,25 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LA PIÈCE D'IDENTITÉ SUR CHAQUE DÉCHARGE — 15 septembre 2026, PUBLIÉ
+
+« Toujours inclure la photo de sa pièce sur la décharge » (Yéman). Aucune SQL.
+
+- **Sur l'aperçu, le PDF signé et la décharge à imprimer** : la même image,
+  chargée une fois (`imageDuCoffre` : lien signé, redessinée à 1 400 px au plus
+  grand côté, JPEG sur fond blanc). `contratPdf` accepte une `piece`
+  optionnelle, posée au-dessus de la signature, jamais coupée d'une page.
+- **Ce qui en découle** (`pourquoiLaDechargeNePeutPasSeFaire`) : pas de
+  décharge sans pièce déposée ; la DIRECTION fait la décharge, puisqu'elle seule
+  ouvre la pièce ; la pièce doit être une photo (JPEG, PNG, WebP), pas un PDF
+  ni un HEIC. Le personnel range encore la photo d'une décharge revenue signée
+  (elle porte déjà la pièce, imprimée).
+- La décharge sans pièce propose de la déposer sur place ; « Verser » prévient
+  si la pièce manque. Le choix de fichier de la pièce n'offre plus que des
+  photos.
+- **Piège** : chaque PDF de décharge emporte une copie de la carte, là où il
+  est téléchargé ou envoyé. L'effacement à un an ne rattrape pas ces copies.
+
 ## CORRIGER UN DEVIS RETENU — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
 
 « Modifier un devis accepté » (Yéman). Tranché : **la direction corrige un

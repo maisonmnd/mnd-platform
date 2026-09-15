@@ -959,6 +959,10 @@ export async function contratPdf(o: {
   jourLisible: string;
   /** Le tracé de sa signature, en data URL PNG. */
   signature: string;
+  /** UNE PHOTO POSÉE AVANT LA SIGNATURE — la pièce d'identité sur la décharge
+      d'un engagement (15 septembre 2026). JPEG en data URL ; `ratio` =
+      largeur / hauteur, pour la poser sans la déformer. */
+  piece?: { legende: string; donnees: string; ratio: number };
   pied: string;
   filename: string;
 }): Promise<string> {
@@ -1033,6 +1037,26 @@ export async function contratPdf(o: {
       }
     }
     y += 3.5;
+  }
+
+  /* LA PHOTO, AU-DESSUS DE LA SIGNATURE, JAMAIS COUPÉE : une pièce d'identité
+     seule en haut d'une page se détacherait de la décharge qu'elle appuie.
+     Encadrée d'un filet, comme une pièce jointe agrafée. */
+  if (o.piece?.donnees) {
+    const maxL = 120, maxH = 80;
+    let l = maxL;
+    let h = l / (o.piece.ratio > 0 ? o.piece.ratio : 1.58);
+    if (h > maxH) { h = maxH; l = h * (o.piece.ratio > 0 ? o.piece.ratio : 1.58); }
+    page(h + 12);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(INDIGO);
+    doc.text(pdfSafe(o.piece.legende), M, y);
+    y += 3;
+    try { doc.addImage(o.piece.donnees, 'JPEG', M, y, l, h, undefined, 'FAST'); } catch { /* image illisible */ }
+    doc.setDrawColor(220, 213, 195);
+    doc.rect(M, y, l, h);
+    y += h + 6;
   }
 
   /* LE BLOC DE SIGNATURE NE SE COUPE JAMAIS EN DEUX : une signature seule en
