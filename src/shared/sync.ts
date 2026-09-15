@@ -186,12 +186,40 @@ const canauxMorts = new Set<string>();
 const DELAI_AVANT_DE_DIRE_LA_PANNE_MS = 15_000;
 const CHUTES_AVANT_DE_LE_DIRE = 3;
 
+/* ══ ET ELLE NE REDIT « VERT » QU'APRÈS AVOIR TENU — 15 septembre 2026 ══
+
+   « Le bouton synchronisé passe du rouge au vert » (Yéman), le lendemain.
+
+   L'HYSTÉRÉSIS DU 14 NE JOUAIT QUE DANS UN SENS. Un canal déclaré à terre
+   redevenait vert à la seconde où il disait « je suis là », retombait deux
+   secondes plus tard, était redit à terre aussitôt (trois chutes, on le dit
+   tout de suite), puis revenait… Le silence de quinze secondes existait pour
+   annoncer la panne, pas pour annoncer la guérison, et un canal qui bat
+   faisait battre la pastille exactement comme avant.
+
+   LA GUÉRISON SE PROUVE COMME LA PANNE : quinze secondes de tenue avant de
+   dire « vert ». Un canal qui retombe avant reste à terre, sans un mot de
+   plus. */
+const DELAI_AVANT_DE_DIRE_LA_GUERISON_MS = DELAI_AVANT_DE_DIRE_LA_PANNE_MS;
+
 const deuilsEnAttente = new Map<string, ReturnType<typeof setTimeout>>();
+const guerisonsEnAttente = new Map<string, ReturnType<typeof setTimeout>>();
 const chutesDuCanal = new Map<string, number>();
+/** Les écritures en sursis : refusées par un réseau qui coupe, retentées,
+    et pas encore dites en rouge. Voir `syncMark.fail`. */
+const sursisDEcriture = new Map<string, ReturnType<typeof setTimeout>>();
+/* « HORS LIGNE » NE SE DIT PAS À LA PREMIÈRE SECONDE NON PLUS. Un réseau qui
+   coupe et revient fait battre `navigator.onLine`, et « Hors ligne » en rouge
+   suivait chaque battement. Cinq secondes de coupure avant de le dire ; le
+   retour, lui, se dit tout de suite. */
+const DELAI_AVANT_DE_DIRE_HORS_LIGNE_MS = 5_000;
+let ditHorsLigne = typeof navigator !== 'undefined' && !navigator.onLine;
+let horsLigneEnAttente: ReturnType<typeof setTimeout> | undefined;
+
 let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
-  online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  online: !ditHorsLigne,
   failedNames: [],
   failedWhy: [],
   ecartees: [],
@@ -207,7 +235,7 @@ function bumpSync(): void {
      pour apprendre laquelle, le 6 août, pendant que la Maison tournait. */
   const noms = [...failedTables.keys()].sort();
   syncSnapshot = {
-    enabled: !!supabase, online: navigator.onLine,
+    enabled: !!supabase, online: !ditHorsLigne,
     pending: dirtyTables.size, failed: failedTables.size,
     failedNames: noms,
     failedWhy: noms.map((t) => {
@@ -227,8 +255,20 @@ export function subscribeSync(fn: () => void): () => void {
 }
 export function getSyncState(): SyncState { return syncSnapshot; }
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', bumpSync);
-  window.addEventListener('offline', bumpSync);
+  window.addEventListener('online', () => {
+    if (horsLigneEnAttente) { clearTimeout(horsLigneEnAttente); horsLigneEnAttente = undefined; }
+    ditHorsLigne = false;
+    bumpSync();
+  });
+  window.addEventListener('offline', () => {
+    if (horsLigneEnAttente) return;
+    horsLigneEnAttente = setTimeout(() => {
+      horsLigneEnAttente = undefined;
+      if (navigator.onLine) return;
+      ditHorsLigne = true;
+      bumpSync();
+    }, DELAI_AVANT_DE_DIRE_HORS_LIGNE_MS);
+  });
 }
 const syncMark = {
   /* CHAQUE TABLE DIT COMMENT ON LA REPOUSSE, une fois, à son branchement.
@@ -240,14 +280,28 @@ const syncMark = {
   directOk(t: string) {
     const attente = deuilsEnAttente.get(t);
     if (attente) { clearTimeout(attente); deuilsEnAttente.delete(t); }
-    /* LE COMPTE DES CHUTES NE SE REMET À ZÉRO QU'ICI, et seulement si le
-       canal tient vraiment : on l'efface au bout du délai qu'on lui laissait,
-       pas à la seconde où il dit « je suis là ». */
-    const t0 = setTimeout(() => { chutesDuCanal.delete(t); }, DELAI_AVANT_DE_DIRE_LA_PANNE_MS);
-    if (typeof t0 === 'object' && 'unref' in t0) (t0 as { unref: () => void }).unref();
-    if (canauxMorts.delete(t)) bumpSync();
+    if (!canauxMorts.has(t)) {
+      /* LE COMPTE DES CHUTES NE SE REMET À ZÉRO QU'ICI, et seulement si le
+         canal tient vraiment : on l'efface au bout du délai qu'on lui
+         laissait, pas à la seconde où il dit « je suis là ». */
+      const t0 = setTimeout(() => { chutesDuCanal.delete(t); }, DELAI_AVANT_DE_DIRE_LA_PANNE_MS);
+      if (typeof t0 === 'object' && 'unref' in t0) (t0 as { unref: () => void }).unref();
+      return;
+    }
+    /* DÉCLARÉ À TERRE, IL DOIT TENIR AVANT D'ÊTRE DIT DEBOUT. Une guérison
+       déjà en attente ne se redemande pas. */
+    if (guerisonsEnAttente.has(t)) return;
+    guerisonsEnAttente.set(t, setTimeout(() => {
+      guerisonsEnAttente.delete(t);
+      chutesDuCanal.delete(t);
+      if (canauxMorts.delete(t)) bumpSync();
+    }, DELAI_AVANT_DE_DIRE_LA_GUERISON_MS));
   },
   directPerdu(t: string) {
+    /* RETOMBÉ AVANT D'AVOIR TENU : la guérison s'annule, la pastille n'a
+       rien dit, et ne dit rien de plus. */
+    const guerison = guerisonsEnAttente.get(t);
+    if (guerison) { clearTimeout(guerison); guerisonsEnAttente.delete(t); }
     if (canauxMorts.has(t) || deuilsEnAttente.has(t)) return;
     const chutes = (chutesDuCanal.get(t) ?? 0) + 1;
     chutesDuCanal.set(t, chutes);
@@ -262,6 +316,8 @@ const syncMark = {
   },
   dirty(t: string) { dirtyTables.add(t); bumpSync(); },
   ok(t: string) {
+    const sursis = sursisDEcriture.get(t);
+    if (sursis) { clearTimeout(sursis); sursisDEcriture.delete(t); }
     dirtyTables.delete(t); failedTables.delete(t); lastOkAt = Date.now();
     essaisDeReprise.delete(t); annuleLaReprise(t);
     bumpSync();
@@ -269,8 +325,35 @@ const syncMark = {
   /* Le message du serveur voyage avec l'échec : sans lui, la pastille nomme une
      table et laisse deviner la cause — ce qui envoie ouvrir la console. */
   fail(t: string, msg?: string) {
-    dirtyTables.delete(t); failedTables.set(t, msg ?? '');
-    if (estPassager(msg)) programmeUneReprise(t);
+    if (!estPassager(msg)) {
+      dirtyTables.delete(t); failedTables.set(t, msg ?? '');
+      bumpSync();
+      return;
+    }
+    /* ══ UNE COUPURE DE RÉSEAU NE ROUGIT PAS AVANT QUINZE SECONDES ══
+       15 septembre 2026 : « le bouton synchronisé passe du rouge au vert »,
+       un jour où le réseau du salon coupait et revenait (la publication
+       elle-même a échoué sur « Connection was reset », puis passé). Chaque
+       coupure rougissait la pastille, la reprise de cinq secondes la
+       reverdissait, et le comptoir voyait un clignotant.
+
+       CE QUI EST PASSAGER SE RETENTE EN SILENCE : l'écriture reste « en
+       attente » (la pastille dit « Synchronisation… »), la reprise part, et
+       le rouge n'arrive que si la panne DURE, quinze secondes, comme pour le
+       direct. Une panne qui dure se dit alors avec sa raison et son prochain
+       essai, comme avant. */
+    programmeUneReprise(t);
+    if (failedTables.has(t)) { failedTables.set(t, msg ?? ''); bumpSync(); return; }
+    dirtyTables.add(t);
+    if (!sursisDEcriture.has(t)) {
+      sursisDEcriture.set(t, setTimeout(() => {
+        sursisDEcriture.delete(t);
+        if (!dirtyTables.has(t)) return;
+        dirtyTables.delete(t);
+        failedTables.set(t, msg ?? '');
+        bumpSync();
+      }, DELAI_AVANT_DE_DIRE_LA_PANNE_MS));
+    }
     bumpSync();
   },
   /* La table sort du décompte ET des tentatives : une fois pour la session. */
@@ -356,12 +439,38 @@ let canalDeLaMaison: ReturnType<NonNullable<typeof supabase>['channel']> | null 
 let essaisDeLaMaison = 0;
 let repriseDeLaMaison: ReturnType<typeof setTimeout> | undefined;
 let filetDeLaMaison: ReturnType<typeof setInterval> | undefined;
+/** LES ESSAIS NE RETOMBENT À ZÉRO QU'APRÈS UNE TENUE (15 septembre 2026).
+    Ils retombaient à chaque « SUBSCRIBED » : un canal qui mourait deux
+    secondes après s'être joint repartait à deux secondes d'attente, pour
+    toujours. La reprise doit s'espacer tant que le canal ne tient pas. */
+let tenueDeLaMaison: ReturnType<typeof setTimeout> | undefined;
 /** Ce qu'il faut relire quand le canal revient, ou pendant qu'il est à terre :
     un canal ne rejoue JAMAIS ce qui s'est dit pendant son absence. */
 const relecturesDuDirect = new Map<string, () => void>();
 
+/* ON NE RELIT PAS SOIXANTE-SEPT TABLES TOUTES LES DEUX SECONDES. Un canal qui
+   bat rejoignait, relisait tout, retombait, rejoignait… et la Maison tirait
+   ses soixante-sept tables à chaque tour. La relecture se coalesce : tout de
+   suite si la dernière date de plus de vingt secondes, sinon une seule, à
+   l'échéance, pour tous les retours entre-temps. Rien n'est perdu : ce qui
+   s'est dit pendant l'absence se relit à cette échéance. */
+const ECART_MIN_ENTRE_RELECTURES_MS = 20_000;
+let derniereRelectureDuDirect = 0;
+let relectureDuDirectPlanifiee: ReturnType<typeof setTimeout> | undefined;
+
 const relitToutLeDirect = () => {
+  derniereRelectureDuDirect = Date.now();
   for (const relit of relecturesDuDirect.values()) relit();
+};
+
+const relitLeDirectSansSEssouffler = () => {
+  const depuis = Date.now() - derniereRelectureDuDirect;
+  if (depuis >= ECART_MIN_ENTRE_RELECTURES_MS) { relitToutLeDirect(); return; }
+  if (relectureDuDirectPlanifiee) return;
+  relectureDuDirectPlanifiee = setTimeout(() => {
+    relectureDuDirectPlanifiee = undefined;
+    relitToutLeDirect();
+  }, ECART_MIN_ENTRE_RELECTURES_MS - depuis);
 };
 
 /** REJOINDRE, MAIS UNE SEULE FOIS.
@@ -389,19 +498,24 @@ const rejointLeCanalDeLaMaison = (force = false) => {
       },
     );
   canalDeLaMaison = neuf;
-  neuf.subscribe((statut) => {
+  neuf.subscribe((statut, erreur) => {
     /* UN VERDICT DE CANAL REMPLACÉ NE NOUS CONCERNE PLUS : `removeChannel`
        fait dire « CLOSED » à l'ancien, et le prendre pour une panne
        relancerait une rejointure à chaque changement de session. */
     if (canalDeLaMaison !== neuf) return;
     if (statut === 'SUBSCRIBED') {
-      essaisDeLaMaison = 0;
+      if (tenueDeLaMaison) clearTimeout(tenueDeLaMaison);
+      tenueDeLaMaison = setTimeout(() => { tenueDeLaMaison = undefined; essaisDeLaMaison = 0; }, DELAI_AVANT_DE_DIRE_LA_GUERISON_MS);
       if (filetDeLaMaison) { clearInterval(filetDeLaMaison); filetDeLaMaison = undefined; }
       syncMark.directOk(LE_DIRECT);
-      relitToutLeDirect();
+      relitLeDirectSansSEssouffler();
       return;
     }
     if (statut === 'CHANNEL_ERROR' || statut === 'TIMED_OUT' || statut === 'CLOSED') {
+      if (tenueDeLaMaison) { clearTimeout(tenueDeLaMaison); tenueDeLaMaison = undefined; }
+      /* LA RAISON S'ÉCRIT, sinon la panne se cherche pendant des jours : le
+         serveur la donne avec le verdict, et personne ne la lisait. */
+      console.warn(`[mnd-sync] ${LE_DIRECT} : ${statut}${erreur ? ` · ${erreur.message}` : ''} (essai ${essaisDeLaMaison + 1})`);
       syncMark.directPerdu(LE_DIRECT);
       /* TANT QUE LE DIRECT EST À TERRE, on relit chaque minute. Moins bien que
          le direct, infiniment mieux que rien. */

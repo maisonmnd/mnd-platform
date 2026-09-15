@@ -202,6 +202,32 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LA PASTILLE NE BAT PLUS DANS L'AUTRE SENS — 15 septembre 2026, PUBLIÉ
+
+« Le bouton synchronisé passe du rouge au vert » (Yéman), un jour où le
+réseau du salon coupait et revenait (la publication de 16 h 03 a échoué sur
+« Connection was reset », la relance est passée). Aucune SQL. Rien de 0102 en
+cause : la session sœur n'a touché ni sync.ts ni le shell.
+
+Trois hystérésis manquaient dans `shared/sync.ts` :
+
+- **Un échec passager (réseau) ne rougit plus avant 15 s.** `syncMark.fail`
+  garde l'écriture « en attente » (« Synchronisation… »), lance la reprise, et
+  ne pose le rouge que si la panne dure (`sursisDEcriture`). Un échec non
+  passager rougit tout de suite, comme avant.
+- **Le direct ne redit « vert » qu'après 15 s de tenue** (`guerisonsEnAttente`)
+  ; retombé avant, il reste à terre sans un mot. Les essais de reprise ne
+  retombent à zéro qu'après cette tenue (`tenueDeLaMaison`), sinon un canal
+  qui mourait deux secondes après s'être joint repartait à deux secondes
+  d'attente pour toujours. La relecture des 67 tables au retour est espacée de
+  20 s. **La raison du CHANNEL_ERROR s'écrit maintenant dans la console**
+  (`[mnd-sync] le direct de la Maison : CHANNEL_ERROR · …`).
+- **« Hors ligne » attend 5 s** de coupure avant de se dire ; le retour se dit
+  tout de suite.
+
+Si la pastille bat encore : la ligne `[mnd-sync] <table> upsert: <message>`
+de la console nomme la table et la raison ; « Failed to fetch » = réseau.
+
 ## PAYER UN PRESTATAIRE EN DEVISES — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
 
 « Me permettre de payer des prestataires en devises, pas seulement en CFA »
