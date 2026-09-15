@@ -25,6 +25,8 @@ import {
   laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useAuth } from '../../../../shared/auth';
+import { ChampDeDate } from '../../../../ds/dates';
+import { useEstDirection } from '../_vie';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
 import { uid } from '../../../../shared/store';
 import { ligneNetteXof } from '../../../../shared/gamme';
@@ -100,12 +102,29 @@ export default function Caisse() {
      `public/maquette-la-conversation-outillee.html`. La règle vit dans
      `shared/promos.ts` et nulle part ailleurs : la caisse, le rendez-vous et
      Ma Couronne l'interrogent, aucun ne la réécrit. */
+  /* ══ LA DATE DE LA VENTE — 15 septembre 2026 ═══════════════════════
+     « Dans Encaisser, permets-moi d'éditer les dates des ventes » (Yéman).
+
+     LA CAISSE DATAIT TOUT D'AUJOURD'HUI, sans le demander. Une vente notée le
+     lendemain matin, un carnet rattrapé le lundi, une prestation d'hier qu'on
+     n'avait pas eu le temps de passer : tout tombait au mauvais jour, et le
+     journal de caisse s'en trouvait faux des deux côtés.
+
+     ELLE DATE LE VERSEMENT AUTANT QUE LA PIÈCE, et c'est le point qui compte :
+     depuis le 17 août, le chiffre du jour et celui du mois se comptent
+     VERSEMENT PAR VERSEMENT, pas à la date de la facture. Ne dater que la
+     pièce ne déplacerait pas un franc. */
+  const [dateVente, setDateVente] = useState(() => todayIso());
+
   const [codeTape, setCodeTape] = useState('');
   const [codes] = useCodesPromo();
   /* QUI A ACCEPTÉ LE CODE. Une remise sans nom derrière est une remise que
      personne n'assume, et c'est exactement ce que la trace de la base
      (0092) est là pour empêcher. */
   const { session } = useAuth();
+  /* CORRIGER UN ENCAISSEMENT, C'EST DÉPLACER DE L'ARGENT DÉJÀ COMPTÉ. La
+     direction seule (décision du 15 septembre) ; la trace dira qui. */
+  const estDirection = useEstDirection();
   /* Devise étrangère — exceptionnel, ouvert depuis Paramètres. */
   const [settings] = useSettings();
   const [fxOn, setFxOn] = useState(false);
@@ -482,6 +501,7 @@ export default function Caisse() {
       clientId: posPayerId || client?.id || '',
       clientName: client ? undefined : 'Walk-in',
       forClientId: posPayerId && posPayerId !== clientId ? clientId : undefined,
+      date: dateVente,
       lines: lines.map((l) => ligneFacture(l.n, l.unit, l.qty, l.disc)),
       globalDiscountPct: globalDisc,
       /* LA PROMOTION S'ÉCRIT SUR LA PIÈCE, en francs exacts, avec la remise
@@ -541,7 +561,7 @@ export default function Caisse() {
               {
                 id: `pay-${uid()}`,
                 amountXof: partNette,
-                date: todayIso(),
+                date: dateVente,
                 method: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
                 cashbox: activeCashbox || undefined,
                 invoiceId: inv.id,
@@ -583,7 +603,7 @@ export default function Caisse() {
     if (posAvoir > 0 && posAccount) {
       creditMovementsStore.set((prev) => [...prev, {
         id: uid(), branchId: branch.id, holderType: posAccount.type, holderId: posAccount.id,
-        kind: 'usage', amountXof: posAvoir, date: todayIso(), forClientId: clientId || undefined, invoiceId: inv.id,
+        kind: 'usage', amountXof: posAvoir, date: dateVente, forClientId: clientId || undefined, invoiceId: inv.id,
       }]);
     }
     if (pay === 'Lien WhatsApp') {
@@ -631,6 +651,10 @@ export default function Caisse() {
       setWaHint(null);
     }
     setCart({});
+    /* LA DATE REVIENT À AUJOURD'HUI. Laissée sur hier, elle ferait tomber la
+       vente suivante au mauvais jour sans que personne le remarque — et c'est
+       précisément la faute qu'on vient de corriger. */
+    setDateVente(todayIso());
     setApptToSettle('');
     setGlobalDisc(0);
     setGlobalDiscXof(0);
@@ -951,6 +975,36 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>{currency}</span>
               </div>
 
+              {/* ── LA DATE DE LA VENTE — 15 septembre 2026 ────────────────
+                  « Permets-moi d'éditer les dates des ventes » (Yéman). Elle
+                  ne paraît EN CUIVRE que si l'on s'écarte d'aujourd'hui : un
+                  champ de date visible en permanence au-dessus du net à payer
+                  serait une invitation à se tromper cinquante fois par jour.
+                  Discrète quand elle dit « aujourd'hui », voyante dès qu'elle
+                  dit autre chose. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-soft)', maxWidth: 84, lineHeight: 1.3 }}>
+                  Date de la vente
+                </span>
+                <ChampDeDate
+                  compact
+                  sens="arriere"
+                  value={dateVente}
+                  onChange={(iso) => setDateVente(iso || todayIso())}
+                  style={{ padding: '7px 10px', fontSize: 12 }}
+                />
+                {dateVente !== todayIso() && (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)', fontWeight: 600 }}>
+                      Cette vente ne comptera pas aujourd’hui.
+                    </span>
+                    <button type="button" className="trv-minibtn" onClick={() => setDateVente(todayIso())}>
+                      Revenir à aujourd’hui
+                    </button>
+                  </>
+                )}
+              </div>
+
               {/* ── LE CODE DE PROMOTION ──────────────────────────────────
                   Un code par cliente, à usage unique, valable 48 heures. Le
                   REFUS DIT POURQUOI : « déjà utilisé mardi à 11 h », « ce code
@@ -1206,7 +1260,31 @@ export default function Caisse() {
                 role="button"
                 tabIndex={0}
               >
-                <span style={{ fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>{i.number.slice(-8)}</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums', fontSize: 12.5, letterSpacing: '.04em', color: 'var(--copper-600)' }}>
+                  {i.number.slice(-8)}
+                  {/* ── MODIFIER UN ENCAISSEMENT — 15 septembre 2026 ────────
+                      « Dans encaissement je veux le bouton modifier » (Yéman).
+
+                      LA DIRECTION SEULE (décision du 15 septembre) : corriger
+                      un encaissement, c'est déplacer de l'argent déjà compté,
+                      et la trace de la base dira qui — mais mieux vaut que ce
+                      soit déjà rare.
+
+                      IL MÈNE À L'ÉDITEUR QUI EXISTE, dans Factures & devis,
+                      plutôt qu'à un second éditeur ici : deux éditeurs pour
+                      une facture finiraient par ne plus dire la même chose. */}
+                  {estDirection && (
+                    <button
+                      type="button"
+                      className="trv-minibtn"
+                      style={{ marginLeft: 8 }}
+                      title="Modifier cet encaissement"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/factures?id=${i.id}&modifier=1`); }}
+                    >
+                      Modifier
+                    </button>
+                  )}
+                </span>
                 <span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)' }}>{fmtDateFr(p.date ?? i.date)}</span>
                   <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{p.time ?? i.time ?? '—'}</span>

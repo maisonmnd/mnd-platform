@@ -83,6 +83,45 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## DATER ET CORRIGER UNE VENTE — 15 septembre 2026, PUBLIÉ
+
+« Dans Encaisser, permets-moi d'éditer les dates des ventes. Dans encaissement
+je veux le bouton modifier » (Yéman).
+
+**IL Y A DEUX DATES SUR UNE VENTE, et l'une seule déplace l'argent.** Celle de
+la PIÈCE s'imprime sur la facture ; celle du VERSEMENT est la seule que le
+journal de caisse et le chiffre du mois comptent — c'est la décision du 17 août
+(« une pièce contribue versement par versement, chacun au sien »).
+
+**L'ÉDITEUR DE FACTURE NE MONTRAIT QUE LA PREMIÈRE.** On pouvait donc changer
+la date d'une pièce, croire avoir corrigé, et **n'avoir déplacé aucun franc**.
+C'était le vrai trou, et il était invisible.
+
+### Ce qui est construit
+
+- **La Caisse date sa vente** : un champ à côté du code promo, qui date la
+  pièce ET le versement ET l'avoir consommé. Il paraît en cuivre dès qu'on
+  s'écarte d'aujourd'hui (« cette vente ne comptera pas aujourd'hui »), et
+  **revient à aujourd'hui après l'encaissement** — une date d'hier laissée en
+  place ferait tomber la vente suivante au mauvais jour.
+- **Le journal porte « Modifier »**, réservé à la **direction** (décision du
+  15 septembre) : corriger un encaissement, c'est déplacer de l'argent déjà
+  compté. Il mène à l'éditeur qui EXISTE, dans Factures & devis, plutôt qu'à
+  un second éditeur — deux éditeurs pour une facture finiraient par ne plus
+  dire la même chose. `?modifier=1`, ouvert une seule fois.
+- **La date du versement est éditable**, et nommée « celle qui compte ». Un
+  seul versement se déplace ici ; au-delà, l'écran le dit et renvoie au détail
+  de la pièce plutôt que de deviner lequel bouger.
+- **Un mois qui change se dit** (décision du 15 septembre) : le mois précédent
+  a peut-être déjà servi à payer des commissions.
+
+**LA TRACE COUVRE TOUT CELA** : `invoices` est sous `trace_le_geste()` depuis
+0092. Chaque correction porte un nom et une heure, signés par la base.
+
+**Aucune journée n'est verrouillée** dans la Maison — « Clôturer la caisse » ne
+fait que changer d'onglet. Un encaissement d'il y a trois semaines est aussi
+modifiable qu'un d'aujourd'hui, et c'est la trace, pas un verrou, qui protège.
+
 ## ON NE SORT PLUS DU TRÔNE — 14 septembre 2026, PUBLIÉ
 
 « Quand je clique le numéro WhatsApp dans Clientes et dans Carnet, j'aimerais

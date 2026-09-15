@@ -159,6 +159,25 @@ export default function Factures() {
     const pid = params.get('id');
     if (pid) setSelectedId(pid);
   }, [params]);
+
+  /* ── « MODIFIER » VENU DU JOURNAL DE CAISSE — 15 septembre 2026 ────
+     « Dans encaissement je veux le bouton modifier » (Yéman). Le journal
+     envoie ici avec `?modifier=1` plutôt que d'ouvrir un second éditeur chez
+     lui : deux éditeurs pour une même facture finiraient par ne plus dire la
+     même chose, et c'est la pièce qui en pâtirait.
+
+     ON N'OUVRE QU'UNE FOIS. Sans ce garde-fou, revenir sur l'écran ou changer
+     un filtre rouvrirait l'éditeur par-dessus ce qu'on est en train de faire. */
+  const dejaOuvertPour = useRef<string | null>(null);
+  useEffect(() => {
+    const pid = params.get('id');
+    if (!pid || params.get('modifier') !== '1' || dejaOuvertPour.current === pid) return;
+    const doc = invoices.find((x) => x.id === pid);
+    if (!doc) return;
+    dejaOuvertPour.current = pid;
+    openEdit(doc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, invoices]);
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
@@ -1382,6 +1401,67 @@ export default function Factures() {
                     <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Date de la pièce</span>
                     <ChampDeDate compact sens="arriere" value={draft.date} onChange={(iso) => patchDraft({ date: iso || draft.date })} style={{ padding: '7px 10px', fontSize: 12 }} />
                   </label>
+                  {/* ══ LA DATE QUI DÉPLACE VRAIMENT L'ARGENT ═════════════
+                      15 septembre 2026. « Permets-moi d'éditer les dates des
+                      ventes » (Yéman).
+
+                      IL Y A DEUX DATES SUR UNE PIÈCE, et l'éditeur n'en
+                      montrait qu'une. Celle de la PIÈCE s'imprime sur la
+                      facture ; celle du VERSEMENT est la seule que le journal
+                      de caisse et le chiffre du mois comptent — c'est la
+                      décision du 17 août, « une pièce contribue versement par
+                      versement, chacun au sien ». Changer la date de la pièce
+                      sans celle du versement ne déplaçait donc PAS UN FRANC,
+                      et l'on croyait avoir corrigé.
+
+                      UN SEUL VERSEMENT SE DÉPLACE ICI. Au-delà, on ne devine
+                      pas lequel il fallait bouger : l'écran le dit et renvoie
+                      au détail de la pièce. */}
+                  {(() => {
+                    const vers = invoiceReglements(draft as Invoice);
+                    if (vers.length === 0) return null;
+                    if (vers.length > 1) {
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'flex-end' }}>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Date du versement</span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                            Cette pièce porte {vers.length} versements, chacun à sa date.
+                            Ils se corrigent un par un depuis la pièce.
+                          </span>
+                        </div>
+                      );
+                    }
+                    const v = vers[0];
+                    const changeDeMois = (iso: string) => iso.slice(0, 7) !== (v.date ?? '').slice(0, 7);
+                    return (
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                          Date du versement · celle qui compte
+                        </span>
+                        <ChampDeDate
+                          compact
+                          sens="arriere"
+                          value={v.date}
+                          onChange={(iso) => {
+                            if (!iso) return;
+                            patchDraft({
+                              payments: vers.map((p) => (p.id === v.id ? { ...p, date: iso } : p)),
+                            });
+                          }}
+                          style={{ padding: '7px 10px', fontSize: 12 }}
+                        />
+                        {/* UN MOIS QUI CHANGE SE DIT — décision du 15 septembre.
+                            Le mois précédent a peut-être déjà servi à payer des
+                            commissions : une main décide en connaissance de
+                            cause, elle ne le découvre pas à la paie. */}
+                        {changeDeMois(draft.date) && (
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--color-brique, #96412E)', lineHeight: 1.4 }}>
+                            La pièce et le versement ne sont plus dans le même mois.
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })()}
                   {(() => {
                     const r = rituelDe(draft);
                     if (!r || !r.date || r.date === draft.date) return null;
