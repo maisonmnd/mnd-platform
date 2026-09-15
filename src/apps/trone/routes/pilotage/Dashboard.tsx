@@ -34,6 +34,9 @@ import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import {
+  useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
+} from '../../../../shared/engagements';
 
 /* Tableau de bord — la salle du conseil au matin. Tout est dérivé des magasins,
    filtré par la branche, exprimé dans sa devise. */
@@ -331,6 +334,19 @@ export default function Dashboard() {
     [appts, today],
   );
 
+  /* CE QUE LA MAISON DOIT ENCORE À SES PRESTATAIRES — 15 septembre 2026.
+     « Le dossier ne se solde pas tout seul. Tant qu'il reste un franc, le
+     Tableau de bord le compte : ce que la Maison doit encore est une dette,
+     même sans facture » (maquette des engagements, validée). Le lecteur est
+     celui de l'écran et de la cloche. */
+  const [engagements] = useEngagements();
+  const [devisRecus] = useDevisRecus();
+  const [versementsEng] = useVersementsEngagement();
+  const engagementsDus = useMemo(
+    () => bilanDesEngagements(litLesDossiers(engagements, devisRecus, versementsEng, branch.id, today)),
+    [engagements, devisRecus, versementsEng, branch.id, today],
+  );
+
   /* LES COMPOSITIONS SUR-MESURE (12 août). Le pont `mnd_couronne_compose` ne
      porte que la DERNIÈRE composition transmise — et AVANT ce jour, personne
      ne le lisait : les rituels composés dormaient en base pendant que la
@@ -499,6 +515,19 @@ export default function Dashboard() {
       /* EXACTEMENT CELLES-LÀ : À faire ouvre la même liste, du même juge,
          en tête de page, avec le WhatsApp prêt. */
       action: 'Voir', go: () => navigate('/a-faire'),
+    }] : []),
+    ...(engagementsDus.enCours > 0 || engagementsDus.sansDecharge > 0 ? [{
+      k: 'engagements',
+      label: engagementsDus.enCours > 0
+        ? `${engagementsDus.enCours} engagement${engagementsDus.enCours > 1 ? 's' : ''} en cours`
+        : `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`,
+      sub: [
+        engagementsDus.enCours > 0 ? `${fmtMoney(engagementsDus.resteXof, currency)} restent à payer` : '',
+        engagementsDus.enCours > 0 && engagementsDus.sansDecharge > 0
+          ? `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`
+          : '',
+      ].filter(Boolean).join(' · ') || 'l’argent est sorti, rien ne dit encore qu’il est arrivé',
+      action: 'Voir', go: () => navigate('/engagements'),
     }] : []),
     ...(unpaid.overdue.rows.length > 0 ? [{
       k: 'impayes',

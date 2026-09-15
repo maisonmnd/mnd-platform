@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, GraduationCap, HandCoins, Handshake, Handshake as PoigneeDeMain, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des 24 routes du Trône, groupées par domaine.
    Chaque domaine appartient à un module sous routes/<domaine>/. */
@@ -57,6 +57,8 @@ export const NAV: TroneGroup[] = [
       { path: '/caisse', label: 'Caisse POS', icon: Wallet, Component: lazy(() => import('./vente/Caisse')) },
       { path: '/home-rituals', label: 'Stock & Achats', icon: ShoppingBag, Component: lazy(() => import('./vente/HomeRituals')) },
       { path: '/factures', label: 'Factures & devis', icon: FileText, Component: lazy(() => import('./vente/Factures')) },
+      /* Ce que la Maison commande à un prestataire — 15 septembre 2026. */
+      { path: '/engagements', label: 'Les engagements', icon: Hammer, Component: lazy(() => import('./vente/Engagements')) },
       { path: '/laboratoire', label: 'Le Laboratoire', icon: FlaskConical, Component: lazy(() => import('./vente/Laboratoire')) },
     ],
   },

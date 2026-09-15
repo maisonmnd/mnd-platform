@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2,
+  AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2, FileClock,
   KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
 } from 'lucide-react';
+import {
+  useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
+} from '../../../shared/engagements';
 import { useBranch } from '../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../shared/agenda';
 import { askNotifyPermission, notifyLocal } from '../../../shared/ics';
@@ -31,7 +34,7 @@ const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
 type NotifKind =
   | 'consultation' | 'prospect' | 'inscription' | 'enligne'
-  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne';
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement';
 
 type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
@@ -47,6 +50,7 @@ const ICONS: Record<NotifKind, LucideIcon> = {
   stock: PackageSearch,
   impaye: Wallet,
   couronne: Crown,
+  engagement: FileClock,
 };
 
 /* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
@@ -91,6 +95,9 @@ function useNotifications(): Notif[] {
   const [queue] = useStore(consultationsQueueStore);
   const [sessions] = useClientSessions();
   const [settings] = useSettings();
+  const [engagements] = useEngagements();
+  const [devisRecus] = useDevisRecus();
+  const [versementsEng] = useVersementsEngagement();
 
   /* Battement : « dans 1h » et « en ligne » doivent se rafraîchir avec le temps. */
   const [tick, setTick] = useState(0);
@@ -229,8 +236,26 @@ function useNotifications(): Notif[] {
       }
     }
 
+    // 9 — Devis reçus d'un prestataire qui expirent — 15 septembre 2026.
+    /* TROIS JOURS AVANT, comme un rendez-vous. Apprendre qu'un devis a expiré
+       au moment de commander coûte une renégociation (maquette des
+       engagements, validée). Le juge est celui de l'écran : la cloche ne
+       compte pas autrement que le dossier. */
+    const { devisQuiExpirent } = bilanDesEngagements(
+      litLesDossiers(engagements, devisRecus, versementsEng, branch.id, today),
+    );
+    for (const { lecture, devis } of devisQuiExpirent) {
+      out.push({
+        id: `eng-devis-${devis.id}-${devis.valableJusquau}`, kind: 'engagement',
+        label: `Devis qui expire, ${lecture.engagement.prestataire}`,
+        meta: `${lecture.engagement.numero} · valable jusqu’au ${frShort(devis.valableJusquau as string)}`,
+        to: `/engagements?id=${lecture.engagement.id}`,
+      });
+    }
+
     return out;
-  }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick]);
+  }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick,
+    engagements, devisRecus, versementsEng]);
 }
 
 /* ---------- Veille Ma Couronne — alerte active à l'arrivée d'une réservation ---------- */

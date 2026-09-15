@@ -252,7 +252,7 @@ const CHAMPS_QUI_COMPTENT: Record<string, Set<string>> = {
 };
 
 const TABLES_D_ARGENT = new Set(['invoices', 'payments', 'credit_movements', 'expenses', 'cashboxes',
-  'transferts_caisse', 'coffre_movements', 'entrees_hors_activite']);
+  'transferts_caisse', 'coffre_movements', 'entrees_hors_activite', 'versements_engagement']);
 
 const PIECE: Record<string, { le: string; nom: string }> = {
   appointments: { le: 'le rendez-vous', nom: 'Rendez-vous' },
@@ -265,6 +265,10 @@ const PIECE: Record<string, { le: string; nom: string }> = {
   transferts_caisse: { le: 'le transfert entre caisses', nom: 'Transfert entre caisses' },
   coffre_movements: { le: 'le mouvement du coffre', nom: 'Coffre' },
   entrees_hors_activite: { le: 'l’entrée hors activité', nom: 'Entrée hors activité' },
+  /* Les engagements — 15 septembre 2026 (0099). */
+  engagements: { le: 'le dossier d’engagement', nom: 'Engagement' },
+  devis_recus: { le: 'le devis reçu', nom: 'Devis reçu' },
+  versements_engagement: { le: 'le versement au prestataire', nom: 'Versement' },
 };
 
 const ORDRE = ['clientName', 'name', 'number', 'date', 'time', 'status', 'serviceIds', 'master', 'mains', 'forfait',

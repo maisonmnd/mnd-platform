@@ -83,6 +83,85 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LES ENGAGEMENTS — 15 septembre 2026, PUBLIÉ, SQL PASSÉE
+
+« Un prestataire menuisier veut me réaliser un devis immobilier pour le salon
+de coiffure. Où stocker mes devis, mes validations et les avances reçues avec
+signature et décharge. Réserve un espace pour télécharger la carte
+d'identité » (Yéman). Maquette **`public/maquette-les-engagements.html`**,
+validée (« construits »).
+
+### Ce qui est tranché
+
+- **Tout prestataire qui engage la Maison** : menuisier, imprimeur,
+  photographe, électricien. Un seul dossier, pas un par métier.
+- **La décharge, deux façons** : signée au doigt à l'écran, OU imprimée,
+  rapportée signée au stylo et photographiée.
+- **La pièce d'identité** : direction seule, lien signé d'une heure,
+  **effacée un an après la fermeture du dossier** (dernier franc versé, ou
+  abandon).
+- **Le comptoir SAISIT** un devis et PRÉVOIT un versement ; **la direction
+  RETIENT et VERSE**.
+- **Un avenant est un devis de plus** dans le même dossier : le retenu devient
+  la somme, l'écran nomme le dépassement.
+- **Un devis qui expire sonne à la cloche trois jours avant.**
+- **L'argent sort par les Dépenses** : chaque versement crée sa dépense
+  (catégorie EXISTANTE choisie, « Équipement » proposée), et le versement
+  porte son `expenseId`. Aucune comptabilité parallèle.
+
+### Les juges
+
+- **`shared/engagements.ts`** — pur. AUCUN état d'argent stocké : soldé, reste,
+  dépassement, trop-versé se dérivent. `litLesDossiers` est le lecteur UNIQUE
+  de l'écran, de la cloche et du Tableau de bord ; `bilanDesEngagements` le
+  résume. `node scripts/verifie-engagements.mjs` (90 vérifications).
+- **`shared/lettres.ts`** — `nombreEnLettres` descendu de
+  `routes/equipe/facture.ts` (qui le réexporte, la facture prestataire n'a pas
+  bougé), plus `nombreEnChiffres` à espace ORDINAIRE (l'espace fine de
+  `toLocaleString` s'imprime en carré dans un PDF).
+- **`shared/engagements-coffre.ts`** — compartiment privé `engagements`. Le
+  DEUXIÈME SEGMENT DU CHEMIN porte la règle : `<branche>/identite/…` direction
+  seule, `<branche>/pieces/…` tout le personnel. Le genre est un paramètre,
+  jamais un dossier tapé à la main.
+- **`routes/_signature.tsx`** — `ToileDeSignature`, extraite du droit à
+  l'image. `DroitImageModal` garde encore sa copie.
+
+### L'écran
+
+`/engagements`, sous Vente (`vente/Engagements.tsx`). La liste : en cours,
+reste à payer (seul chiffre en cuivre), versements sans décharge. Le dossier :
+les trois chiffres, les devis comparés (un retenu, les écartés restent), les
+versements et leur décharge, la pièce d'identité, ce qu'on range à côté. La
+décharge sort en PDF par `contratPdf` : signée, ou vierge à imprimer.
+
+Branchés : la **cloche** (`Notifications.tsx`, devis qui expirent), le
+**Tableau de bord** (« Ce qui presse » : engagements en cours, reste à payer,
+versements sans décharge), le **Journal des gestes** (`traces.ts` nomme les
+trois tables ; `versements_engagement` compte comme table d'argent).
+
+### SQL — 0099 PASSÉE le 15 septembre 2026. NE PAS RELANCER.
+
+**`0099_les_engagements.sql`** : tables `engagements`, `devis_recus`,
+`versements_engagement` (lecture et écriture `is_staff()`, effacement
+`est_direction()`), trois gardes qui RESTAURENT au lieu de refuser (identité,
+abandon et numéro ; état et « retenu par », montant d'un devis retenu figé pour
+TOUS ; versé le, dépense, caisse, moyen, et décharge posée figée pour TOUS),
+horodatage, direct, trace. Compartiment privé `engagements`, 10 Mo, quatre
+politiques vérifiées en base : `engagements_deposer`, `engagements_lire`,
+`engagements_remplacer`, `engagements_retirer`.
+
+### Pièges
+
+- **Une décharge posée ne se réécrit plus, même pour la direction.** Pour la
+  refaire : effacer le versement (sa dépense part avec lui) et le reposer. La
+  trace de la base garde l'ancien.
+- **L'effacement de la pièce d'identité à son terme** se fait à la prochaine
+  visite de la DIRECTION sur l'écran (elle seule en a le droit en base). Pas de
+  tâche planifiée : un dossier que la direction n'ouvre jamais garde la carte
+  au-delà du terme.
+- **Deux `fournisseursStore` sur `mnd_fournisseurs`** (`fournisseurs.ts` et
+  `stock.ts`) : l'écran lit celui de `stock.ts`, le seul lié à la base.
+
 ## COMMENCER UNE CONVERSATION — 15 septembre 2026, PUBLIÉ
 
 « Me permettre de commencer une nouvelle discussion WhatsApp » (Yéman).
