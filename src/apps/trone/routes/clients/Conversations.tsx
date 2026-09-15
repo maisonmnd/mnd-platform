@@ -153,6 +153,13 @@ export default function Conversations() {
   const [cite, setCite] = useState<MessageWa | null>(null);
   /** Le message qu'on est en train de réécrire, et son texte neuf. */
   const [reecrit, setReecrit] = useState<{ m: MessageWa; texte: string } | null>(null);
+  /* ── COMMENCER UNE CONVERSATION — 15 septembre 2026 ────────────────
+     « Me permettre de commencer une nouvelle discussion WhatsApp » (Yéman).
+     Le Trône savait déjà OUVRIR un fil qui n'existe pas (`filNeuf`), mais
+     rien ne permettait d'en désigner un : il fallait passer par la fiche
+     d'une cliente. */
+  const [commencer, setCommencer] = useState(false);
+  const [numeroNeuf, setNumeroNeuf] = useState('');
   const finDuFil = useRef<HTMLDivElement>(null);
 
   /* L'HORLOGE BAT, SINON LA FENÊTRE MENT. Un écran ouvert depuis une heure
@@ -518,6 +525,9 @@ export default function Conversations() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
               Les clientes
             </Button>
+            <Button variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
+              Nouvelle conversation
+            </Button>
           </div>
         }
       />
@@ -829,6 +839,93 @@ export default function Conversations() {
           }}
           surFermer={() => setPromoOuverte(false)}
         />
+      )}
+
+      {/* ══ COMMENCER UNE CONVERSATION — 15 septembre 2026 ═══════════════
+          « Me permettre de commencer une nouvelle discussion WhatsApp »
+          (Yéman).
+
+          DEUX PORTES, ET LA PREMIÈRE EST LA BONNE. On désigne une tête de la
+          Maison — son numéro est déjà sur sa fiche, et le fil naîtra rattaché
+          à elle. Un numéro tapé à la main reste possible (une fournisseuse,
+          une tête qui n'a pas encore de fiche), mais il ouvre un fil SANS
+          FICHE, qu'il faudra rattacher ensuite.
+
+          ET L'ÉCRAN DIT LA RÈGLE AVANT LE CLIC : une tête qui ne vous a jamais
+          écrit ne se joint que par un modèle approuvé, et chaque modèle est
+          facturé par Meta. Ce n'est pas une surprise à découvrir après. */}
+      {commencer && (
+        <div className="trc-modal-fond" onClick={() => setCommencer(false)}>
+          <div className="trc-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="trc-modal__t">Commencer une conversation</div>
+            <p className="trc-sub" style={{ marginTop: 0 }}>
+              <b>Si elle ne vous a jamais écrit</b>, WhatsApp n’acceptera qu’un de vos
+              trois modèles approuvés — et Meta le facture. Si elle vous a écrit dans
+              les 24 heures, vous écrirez librement.
+            </p>
+
+            <div className="trc-sec-label" style={{ marginBottom: 6 }}>Une tête de la Maison</div>
+            <ClientPicker
+              value=""
+              onChange={(id) => {
+                const c = clients.find((x) => x.id === id);
+                if (!c) return;
+                const n = numeroWa(c.phone) || numeroWa(c.phone2);
+                if (!n) {
+                  toast(`${c.name.split(' ')[0]} n’a pas de numéro sur sa fiche.`);
+                  return;
+                }
+                setCommencer(false);
+                ouvre(n);
+              }}
+              placeholder="Cherchez une cliente…"
+            />
+
+            <div className="trc-sec-label" style={{ margin: '16px 0 6px' }}>Ou un numéro</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                className="mnd-input"
+                value={numeroNeuf}
+                onChange={(e) => setNumeroNeuf(e.target.value)}
+                placeholder="+229 01 90 00 00 00"
+                style={{ flex: 1, minWidth: 180 }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  const n = numeroWa(numeroNeuf);
+                  if (!n) { toast('Ce numéro n’est pas lisible.'); return; }
+                  setCommencer(false);
+                  ouvre(n);
+                }}
+              />
+              <Button
+                variant="copper"
+                size="sm"
+                disabled={!numeroWa(numeroNeuf)}
+                onClick={() => {
+                  const n = numeroWa(numeroNeuf);
+                  if (!n) return;
+                  setCommencer(false);
+                  ouvre(n);
+                }}
+              >
+                Ouvrir
+              </Button>
+            </div>
+            {numeroNeuf.trim() && !numeroWa(numeroNeuf) && (
+              <p className="trc-sub" style={{ color: 'var(--color-brique, #96412E)' }}>
+                Ce numéro n’est pas lisible. Huit chiffres, ou le numéro complet avec son indicatif.
+              </p>
+            )}
+            {numeroWa(numeroNeuf) && !clients.some((c) => numeroWa(c.phone) === numeroWa(numeroNeuf)
+              || numeroWa(c.phone2) === numeroWa(numeroNeuf)) && (
+              <p className="trc-sub">
+                Aucune fiche ne porte ce numéro : le fil s’ouvrira <b>sans fiche</b>,
+                et vous pourrez le rattacher ensuite.
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* RATTACHER — on choisit une tête EXISTANTE. Créer une fiche depuis un

@@ -2786,6 +2786,15 @@
 }
 
 /* Le panneau de la promotion : trois champs sur une ligne, un par colonne. */
+/* L'INTITULÉ D'UNE SECTION DANS UNE MODALE — 15 septembre 2026.
+   « Une tête de la Maison », « Ou un numéro » : deux portes dans la même
+   modale, et sans ces intitulés elles se lisent comme un seul formulaire où
+   l'on remplirait les deux. */
+.trc-sec-label {
+  font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--copper-700);
+}
+
 .trc-promo__champs {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px;
 }

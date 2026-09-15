@@ -83,6 +83,26 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## COMMENCER UNE CONVERSATION — 15 septembre 2026, PUBLIÉ
+
+« Me permettre de commencer une nouvelle discussion WhatsApp » (Yéman).
+
+Le Trône savait déjà OUVRIR un fil qui n'existe pas (`filNeuf`, 14 septembre),
+mais rien ne permettait d'en DÉSIGNER un : il fallait passer par la fiche
+d'une cliente. Un bouton « Nouvelle conversation » ouvre maintenant deux
+portes.
+
+- **Une tête de la Maison** — son numéro vient de sa fiche, et le fil naît
+  rattaché à elle. Si sa fiche n'a pas de numéro, l'écran le dit au lieu
+  d'ouvrir un fil vide.
+- **Un numéro tapé** — une fournisseuse, une tête sans fiche encore. L'écran
+  prévient alors que le fil s'ouvrira **sans fiche**, et qu'il faudra le
+  rattacher ensuite.
+
+**LA RÈGLE SE DIT AVANT LE CLIC, pas après** : une tête qui ne vous a jamais
+écrit ne se joint que par un modèle approuvé, et Meta le facture. C'est la
+même leçon que la fenêtre de 24 heures — un refus se dit avant qu'on ait tapé.
+
 ## DATER ET CORRIGER UNE VENTE — 15 septembre 2026, PUBLIÉ
 
 « Dans Encaisser, permets-moi d'éditer les dates des ventes. Dans encaissement
