@@ -1,6 +1,8 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { sameName } from '../../../../shared/text';
+import { palierDeLaFormation, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
@@ -8,7 +10,7 @@ import { summaryPdf } from '../../../../shared/pdf';
 import { uid } from '../../../../shared/store';
 import { ClientPicker, useBranchClients, frShortAn, useJoursFermes } from '../clients/_shared';
 import { jourCourtAn, jourDeSemaineLundi } from '../../../../shared/calendrier';
-import { useFormations, type Formation, type Payment } from './data';
+import { useFormations, staffStore, type Formation, type Payment } from './data';
 import { useManuel, planDeLaSeance, noteDesCriteres, type SeanceDuManuel } from '../../../../shared/manuel';
 import { Pill, Tabs, Toggle } from './ui';
 import { ContratModal } from '../_contrat';
@@ -1425,6 +1427,20 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
       isPublic: true,
     };
     setEnrollment(e.id, { certificate: cert, status: 'certifie' });
+    /* ══ LE CERTIFICAT POSE L'HABILITATION SEUL — 16 septembre 2026 ═══
+       Maquette `maquette-les-trois-paliers.html`. L'Académie et le catalogue
+       parlent la même échelle, côté main : Palier I habilite à Fondation,
+       II à Élévation, III (L'Œuvre, Maître MND) à Souveraineté. Si l'apprenante
+       est aussi une fiche d'équipe (même nom), son habilitation MONTE ; elle
+       ne redescend jamais, et une formation technique n'y touche pas. */
+    const habilite = palierDeLaFormation(formation);
+    if (habilite) {
+      const fiche = staffStore.get().find((m) => sameName(m.name, e.learnerName));
+      if (fiche && (!fiche.palier || RANG_DU_PALIER[fiche.palier] < RANG_DU_PALIER[habilite])) {
+        staffStore.set((prev) => prev.map((m) => (m.id === fiche.id ? { ...m, palier: habilite } : m)));
+        toast(`L’habilitation de ${fiche.name} passe à ${habilite}, par son certificat.`);
+      }
+    }
   };
 
   const link = (number: string, mn: 'certifie' | 'excellence', dateIso: string) => {

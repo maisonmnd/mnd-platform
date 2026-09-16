@@ -1,4 +1,6 @@
 import { SERVICES_SEED, PRODUCTS_SEED, servicesStore, productsStore, type Service } from '../../shared/catalog';
+import { settingsStore } from '../../shared/settings';
+import { palierParAgeDeCouronne, type Palier } from '../../shared/paliers';
 
 /* La Consultation — données du rite, moteur de diagnostic et de projection.
    Tout le texte est final (source : prototype La Consultation.dc.html). */
@@ -190,7 +192,15 @@ export type DiagScores = {
 export type Diag = {
   scores: DiagScores;
   avg: number;
+  /** Le palier de l'ACTE proposé — celui de la prestation recommandée. */
   palier: Service['palier'];
+  /** ══ LE PALIER DE LA TÊTE — 16 septembre 2026 ═══════════════════
+      Maquette `maquette-les-trois-paliers.html`. Le diagnostic disait le
+      palier de la prestation, et on le lisait comme un niveau de la
+      personne. Ce champ dit ce que sa couronne suggère d'elle-même : à
+      naître (création) ou d'après son âge (SOS), aux mêmes seuils que le
+      carnet du Trône. */
+  palierTete: Palier;
   service: Service;
   cadence: string;
   lecture: string;
@@ -259,7 +269,13 @@ export function computeDiag(a: Answers, parcours: Parcours): Diag {
   if (flags.length === 0) flags.push({ t: 'Aucun signal d’alerte majeur — terrain sain, on construit.', tone: 'sain' });
   flags.push({ t: 'Climat & mode de vie intégrés à votre protocole.', tone: 'info' });
 
-  return { scores: { hydratation, cuir, integrite, densite, maturite }, avg, palier: service.palier, service, cadence, lecture, flags, dry, nuitOk };
+  /* CE QUE SA COURONNE DIT D'ELLE-MÊME. Une création : elle naît, Fondation.
+     Un SOS : l'âge déclaré (« 1 – 3 ans » vaut au moins douze mois) passé aux
+     seuils de la Maison. */
+  const moisMin = a.etat === '6+' ? 72 : a.etat === '3-6' ? 36 : a.etat === '1-3' ? 12 : 0;
+  const palierTete: Palier = sos ? (palierParAgeDeCouronne(moisMin, settingsStore.get().paliers) ?? 'Fondation') : 'Fondation';
+
+  return { scores: { hydratation, cuir, integrite, densite, maturite }, avg, palier: service.palier, palierTete, service, cadence, lecture, flags, dry, nuitOk };
 }
 
 export function scoreTag(n: number): string {

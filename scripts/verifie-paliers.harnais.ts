@@ -12,6 +12,7 @@
 import {
   palierDeLaCliente, palierDuCarnet, pasSuivant, repartitionDesPaliers, rituelsDuMoisParPalier,
   seuilsPropres, moisEntre, plusDesMois, palierSuivant, plusHautDes, SEUILS_DEFAUT,
+  avertissementDHabilitation, palierDeLaFormation, palierParAgeDeCouronne,
   type Palier,
 } from '../src/shared/paliers';
 
@@ -139,5 +140,39 @@ dit('les rituels du mois, par palier de l’acte', { Fondation: 0, 'Élévation'
   rituelsDuMoisParPalier(rdvs, parId, '2026-09', 'b1'));
 dit('… un rituel mixte compte à son plus haut palier', { Fondation: 0, 'Élévation': 1, 'Souveraineté': 0 },
   rituelsDuMoisParPalier(rdvs, parId, '2026-08', 'b1'));
+
+/* ── ⑩ LE MAÎTRE EST HABILITÉ — étape 3 ───────────────────────────── */
+const avert = (acte: Palier | null, ...mains: { nom: string; palier?: Palier | null }[]) =>
+  avertissementDHabilitation({ acte, mains })?.texte ?? null;
+dit('une main à la hauteur : rien à dire', null, avert(S, { nom: 'A. D.', palier: S }));
+dit('… même au-dessus', null, avert(F, { nom: 'A. D.', palier: S }));
+dit('une main en dessous : on avertit, et on dit quoi faire',
+  'Cet acte est de Souveraineté ; A. D. est habilitée jusqu’à Élévation. Elle peut assister ; il faut une seconde main de Souveraineté.',
+  avert(S, { nom: 'A. D.', palier: E }));
+dit('une seconde main à la hauteur lève l’avertissement', null, avert(S, { nom: 'A. D.', palier: E }, { nom: 'K. H.', palier: S }));
+dit('deux mains en dessous : on les nomme toutes',
+  'Cet acte est de Souveraineté ; aucune des mains n’y est habilitée : A. D. (Élévation), K. H. (Fondation). Il faut une main de Souveraineté.',
+  avert(S, { nom: 'A. D.', palier: E }, { nom: 'K. H.', palier: F }));
+/* ON NE DEVINE PAS : une habilitation non posée ne vaut ni Fondation ni Souveraineté. */
+dit('une main sans habilitation posée : rien à dire', null, avert(S, { nom: 'A. D.' }));
+dit('… même à côté d’une main en dessous', null, avert(S, { nom: 'A. D.', palier: F }, { nom: 'K. H.', palier: null }));
+dit('sans acte, rien', null, avert(null, { nom: 'A. D.', palier: F }));
+dit('sans main, rien', null, avert(S));
+
+dit('Palier I habilite à Fondation', F, palierDeLaFormation({ name: 'Fondation', niveau: 'Palier I · L’Initiation' }));
+dit('Parcours II habilite à Élévation', E, palierDeLaFormation({ name: 'Praticien MND', niveau: 'Parcours II · L’Affirmation' }));
+dit('Palier III habilite à Souveraineté', S, palierDeLaFormation({ name: 'L’Œuvre', niveau: 'Palier III · L’Œuvre' }));
+dit('Maître MND rejoint L’Œuvre', S, palierDeLaFormation({ name: 'Maître MND', niveau: 'Parcours III · L’Œuvre' }));
+dit('… même sans niveau écrit', S, palierDeLaFormation({ name: 'Maître MND' }));
+dit('une formation technique n’habilite à rien', null, palierDeLaFormation({ name: 'Resserrage & soin des racines', niveau: 'Parcours technique' }));
+dit('sans formation, rien', null, palierDeLaFormation(undefined));
+
+/* ── ⑪ LA CONSULTATION DIT LES DEUX — étape 4 ─────────────────────── */
+dit('une couronne de trois mois : Fondation', F, palierParAgeDeCouronne(3));
+dit('six mois : Élévation', E, palierParAgeDeCouronne(6));
+dit('dix-huit mois : Souveraineté', S, palierParAgeDeCouronne(18));
+dit('… aux seuils réglés', S, palierParAgeDeCouronne(12, { souveraineteMois: 12 }));
+dit('sans âge, rien', null, palierParAgeDeCouronne(null));
+dit('un âge négatif ne dit rien', null, palierParAgeDeCouronne(-1));
 
 console.log(ko === 0 ? '\nLes trois paliers tiennent.' : `\n${ko} épreuve(s) en échec.`);

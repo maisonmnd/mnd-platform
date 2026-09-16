@@ -1433,6 +1433,21 @@ export default function Parametres() {
               </div>
             </div>
           ))}
+          <div className="sys-row">
+            <div>
+              <div className="sys-row__label">Une main non habilitée sur un acte</div>
+              <div className="sys-row__sub">Au rendez-vous, quand l’acte dépasse l’habilitation de toutes les mains posées. Sans habilitation posée, rien ne se dit.</div>
+            </div>
+            <select
+              className="sys-select"
+              value={settings.paliersStrict ? 'refuser' : 'avertir'}
+              onChange={(e) => setSettings((s) => ({ ...s, paliersStrict: e.target.value === 'refuser' }))}
+              aria-label="Une main non habilitée sur un acte"
+            >
+              <option value="avertir">Avertir, la direction tranche</option>
+              <option value="refuser">Refuser le rendez-vous</option>
+            </select>
+          </div>
           <div className="sys-row" style={{ display: 'block' }}>
             <div style={{ marginBottom: 8 }}>
               <div className="sys-row__label">Prestations exigeant un acompte</div>

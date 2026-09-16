@@ -38,7 +38,9 @@ export type OnlineConsultation = {
   parcours: 'creation' | 'sos';
   client: { name: string; phone: string; city: string; currency: string };
   answers: Record<string, unknown>;
-  diagnostic?: { palier: string; scores: Record<string, number> };
+  /** `palier` : celui de l'acte proposé. `palierTete` : ce que sa couronne
+      dit d'elle-même (16 septembre 2026). */
+  diagnostic?: { palier: string; palierTete?: string; scores: Record<string, number> };
   reservation?: { mode: 'salon' | 'visio'; date: string; time: string };
   paidXof: number;
   status: 'nouvelle' | 'traitée' | 'fermée';

@@ -19,6 +19,9 @@ export type Settings = {
       cliente d'un palier, lu sur son carnet (`shared/paliers.ts`). Absent =
       les seuils proposés le 16 septembre ; un seuil absurde retombe dessus. */
   paliers?: Partial<import('./paliers').SeuilsDePalier>;
+  /** UNE MAIN NON HABILITÉE SUR UN ACTE : avertir (défaut) ou refuser. Le
+      réglage « strict » existe pour le jour où l'équipe grandit. */
+  paliersStrict?: boolean;
 
   /* ══ LES RÉGLAGES DU FIL — 14 septembre 2026 ═══════════════════════
      Maquette `public/maquette-rattraper-un-message.html`, validée. Trois

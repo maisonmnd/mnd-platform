@@ -49,12 +49,30 @@ qu'elle n'a pas vécue ; en Souveraineté on approfondit.
 (la part de l'acte × le taux du palier de l'acte), le persona (QUI elle est ;
 le palier dit OÙ elle en est).
 
-**Étapes 3 et 4, à construire** : l'habilitation du maître (`StaffMember.palier`
-posé par la direction ou par un certificat de l'Académie, l'avertissement à
-l'attribution d'un acte d'un palier supérieur, le Planning, la fiche de paie
-qui lit l'habilitation à côté du taux) ; la Consultation qui dit le palier de
-la tête ET celui de l'acte proposé (aujourd'hui `diag.palier` est celui de la
-prestation recommandée, lu comme un niveau de la personne).
+**Étape 3, le maître est habilité** (construite le même jour) :
+`StaffMember.palier` (equipe/data.ts), posé par la direction sur la fiche
+(Personnel, quatre pastilles : « Pas posée », Fondation, Élévation,
+Souveraineté ; la pastille paraît dans la liste à côté du rôle) **ou par un
+certificat de l'Académie** (`AcademieSuivi.deliver` → `palierDeLaFormation` :
+Palier/Parcours I = Fondation, II = Élévation, III et Maître MND =
+Souveraineté ; une formation technique n'habilite à rien ; l'apprenante est
+reliée à sa fiche d'équipe par `sameName` ; ça ne fait que MONTER). **Au
+rendez-vous** (`_shared.tsx`, modale) : l'acte du rituel est le plus haut
+palier de ses prestations, les mains sont le maître au fauteuil + les mains
+posées ; `avertissementDHabilitation` n'avertit que si TOUTES les mains
+connues sont en dessous — une habilitation non posée ne vaut ni Fondation ni
+Souveraineté, on ne devine pas. Le réglage `Settings.paliersStrict`
+(Paramètres, « Avertir » / « Refuser ») transforme l'avertissement en refus à
+la sauvegarde. Pas de Planning : il n'existe pas d'écran de ce nom, la
+pastille sur le maître au fauteuil et la liste de l'équipe font ce travail.
+
+**Étape 4, la Consultation dit les deux** : `Diag.palierTete`
+(consultation/data.ts) — création : Fondation, elle naît ; SOS : l'âge déclaré
+(« 1 – 3 ans » vaut au moins douze mois) passé aux seuils de la Maison
+(`palierParAgeDeCouronne`, `settings.paliers` lu par la sœur). L'écran dit
+« Votre couronne » ET « L'acte proposé » ; le dossier envoyé au Trône porte
+`diagnostic.palierTete` (bridges.ts), et Consultations.tsx dit « Palier de
+l'acte proposé · sa couronne : … ». Harnais `verifie-paliers` : 84.
 
 ## LA FIN DE PAQUET — 15 septembre 2026, CONSTRUIT, MODÈLE À APPROUVER
 

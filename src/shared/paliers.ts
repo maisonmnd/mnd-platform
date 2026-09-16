@@ -251,6 +251,68 @@ export function pasSuivant<S extends Pick<Service, 'id' | 'name' | 'palier' | 'o
     .sort((a, b) => a.order - b.order)[0];
 }
 
+/* ── LE MAÎTRE EST HABILITÉ — étape 3 ────────────────────────────── */
+
+/** UNE MAIN, ET JUSQU'OÙ ELLE EST HABILITÉE. `palier` absent = pas encore
+    posé sur sa fiche : on ne suppose rien, ni le pire ni le mieux. */
+export type MainHabilitee = { nom: string; palier?: Palier | null };
+
+export type AvertissementDHabilitation = { texte: string; acte: Palier };
+
+/** LA MAIN DOIT ÊTRE À LA HAUTEUR DE L'ACTE. Arbitrage du 16 septembre :
+    on AVERTIT, on ne refuse pas — un rendez-vous se pose souvent dans
+    l'urgence, et la direction sait mieux que l'écran qui peut tenir quoi.
+
+    Rien à dire quand une des mains est habilitée à la hauteur, ni quand une
+    main n'a pas d'habilitation posée (on ne devine pas), ni sans acte, ni
+    sans main. On avertit seulement quand TOUTES les mains connues sont en
+    dessous de l'acte. */
+export function avertissementDHabilitation(o: {
+  acte: Palier | null;
+  mains: readonly MainHabilitee[];
+}): AvertissementDHabilitation | null {
+  if (!o.acte || o.mains.length === 0) return null;
+  const connues = o.mains.filter((m) => !!m.palier);
+  if (connues.length !== o.mains.length) return null;
+  const rang = RANG_DU_PALIER[o.acte];
+  if (connues.some((m) => RANG_DU_PALIER[m.palier as Palier] >= rang)) return null;
+  const qui = connues.map((m) => `${m.nom} (${m.palier})`).join(', ');
+  const texte = connues.length === 1
+    ? `Cet acte est de ${o.acte} ; ${connues[0].nom} est habilitée jusqu’à ${connues[0].palier}. Elle peut assister ; il faut une seconde main de ${o.acte}.`
+    : `Cet acte est de ${o.acte} ; aucune des mains n’y est habilitée : ${qui}. Il faut une main de ${o.acte}.`;
+  return { texte, acte: o.acte };
+}
+
+/** LE PALIER QU'UNE FORMATION HABILITE — la même échelle, côté main.
+    L'Académie dit « Palier I · L'Initiation », « Parcours II · L'Affirmation »,
+    « Palier III · L'Œuvre » : I = Fondation, II = Élévation, III = Souveraineté.
+    Maître MND rejoint L'Œuvre. Les parcours techniques (Resserrage,
+    Laboratoire, Référentiel) n'habilitent à rien par eux-mêmes. */
+export function palierDeLaFormation(f: { name?: string; niveau?: string } | undefined | null): Palier | null {
+  if (!f) return null;
+  const niveau = (f.niveau ?? '').toUpperCase();
+  const m = niveau.match(/\b(III|II|I)\b/);
+  if (m) return m[1] === 'III' ? 'Souveraineté' : m[1] === 'II' ? 'Élévation' : 'Fondation';
+  const nom = (f.name ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (/ma[iî]tre mnd|oeuvre|œuvre/.test(nom)) return 'Souveraineté';
+  if (/affirmation|praticien/.test(nom)) return 'Élévation';
+  if (/fondation|initiation/.test(nom)) return 'Fondation';
+  return null;
+}
+
+/* ── LA CONSULTATION DIT LES DEUX — étape 4 ──────────────────────── */
+
+/** LE PALIER QUE L'ÂGE D'UNE COURONNE SUGGÈRE, à qui n'a pas encore de
+    carnet à la Maison : ce qu'elle dit d'elle-même, aux mêmes seuils que le
+    carnet. `null` sans âge connu. */
+export function palierParAgeDeCouronne(mois: number | null, seuils?: Partial<SeuilsDePalier>): Palier | null {
+  if (mois === null || !Number.isFinite(mois) || mois < 0) return null;
+  const s = seuilsPropres(seuils);
+  if (mois >= s.souveraineteMois) return 'Souveraineté';
+  if (mois >= s.elevationMois) return 'Élévation';
+  return 'Fondation';
+}
+
 /* ── LA MAISON, PALIER PAR PALIER ─────────────────────────────────── */
 
 export type RepartitionDesPaliers = {

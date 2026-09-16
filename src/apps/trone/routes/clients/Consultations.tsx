@@ -905,7 +905,7 @@ function EditOnlineModal({
             </Select>
           </Field>
         </div>
-        <Field label="Palier lu"><Input value={palier} onChange={(e) => setPalier(e.target.value)} placeholder="—" /></Field>
+        <Field label="Palier de l’acte proposé"><Input value={palier} onChange={(e) => setPalier(e.target.value)} placeholder="—" /></Field>
 
         {/* Diagnostic — scores */}
         <div>
@@ -1024,8 +1024,11 @@ function OnlineSection() {
               <div style={{ fontSize: 11.5, color: 'var(--indigo-100)', marginTop: 4 }}>{live.client.city} · {live.parcours === 'sos' ? 'SOS Locks' : 'Création'}</div>
             </div>
             <div>
-              <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Palier lu</div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, marginTop: 2 }}>{live.diagnostic?.palier ?? '—'}</div>
+              <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Palier de l’acte proposé</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, marginTop: 2 }}>
+                {live.diagnostic?.palier ?? '—'}
+                {live.diagnostic?.palierTete ? <span style={{ fontSize: 12, marginLeft: 8, opacity: .8 }}>· sa couronne : {live.diagnostic.palierTete}</span> : null}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>Séance souhaitée</div>

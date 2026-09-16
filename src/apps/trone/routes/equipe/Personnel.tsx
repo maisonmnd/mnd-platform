@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { PageHead } from '../_ui';
+import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER, type Palier } from '../../../../shared/paliers';
 import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -192,12 +193,15 @@ type StaffForm = {
   paiement: string;
   /** Sa grille de prestataire, prestation → prix tel que saisi. */
   grille: Record<string, string>;
+  /** Son habilitation : jusqu'à quel palier elle exécute. Vide = pas posée. */
+  palier: string;
 };
 
 const emptyForm = (branchId: string): StaffForm => ({
   name: '', role: 'Maîtresse', branchId, phone: '+229 ', email: '', compteMail: '', since: new Date().toISOString().slice(0, 10), salaire: '', auFauteuil: true, partPourboire: '1', commissionne: false, commissionTaux: '',
   matricule: '', cnssNum: '', ifu: '', contractType: 'CDI', atelier: '', commissionPct: '', paiement: '',
   grille: {},
+  palier: '',
 });
 
 const CONTRACT_TYPES = ['CDI', 'CDD', 'apprentissage', 'prestataire'] as const;
@@ -870,6 +874,7 @@ export default function Personnel() {
       matricule: m.matricule ?? '', cnssNum: m.cnssNum ?? '', ifu: m.ifu ?? '',
       contractType: m.contractType ?? 'CDI', atelier: m.atelier ?? '', commissionPct: m.commissionPct != null ? String(m.commissionPct) : '', paiement: m.paiement ?? '',
       grille: Object.fromEntries(Object.entries(m.grille ?? {}).map(([k, v]) => [k, String(v)])),
+      palier: m.palier ?? '',
     });
     setModalOpen(true);
   };
@@ -887,6 +892,8 @@ export default function Personnel() {
       commissionPct: form.commissionPct.trim() === '' ? undefined : Math.max(0, Math.min(100, parseFloat(form.commissionPct) || 0)),
       paiement: form.paiement.trim() || undefined,
       grille: grilleDuFormulaire(form.grille),
+      /* L'HABILITATION — vide = pas posée, jamais « Fondation » par défaut. */
+      palier: (LES_PALIERS as readonly string[]).includes(form.palier) ? (form.palier as StaffMember['palier']) : undefined,
     };
     if (editId) {
       setStaff((prev) => prev.map((m) => m.id === editId
@@ -1014,7 +1021,11 @@ export default function Personnel() {
                           <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{m.name}</span>
                         </span>
                       </td>
-                      <td className="mnd-muted">{m.role}</td>
+                      <td className="mnd-muted">
+                        {m.role}
+                        {/* JUSQU'OÙ ELLE EXÉCUTE — la même pastille qu'au Catalogue. */}
+                        {m.palier && <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[m.palier]}`} style={{ marginLeft: 8 }} title="Son habilitation">{m.palier}</span>}
+                      </td>
                       <td className="mnd-muted">{branch.name}</td>
                       <td>{m.auFauteuil ? <Badge tone="copper">Au fauteuil</Badge> : <Badge>Hors fauteuil</Badge>}</td>
                       <td className="num">{anciennete(m.since)}</td>
@@ -1680,6 +1691,24 @@ export default function Personnel() {
                   fauteuil ou non — c'est la regle de la Maison. Une part, une
                   demi-part pour le couple fondateur qui n'en compte qu'une a
                   deux, zero pour qui n'entre pas dans le partage. */}
+              {/* ══ SON HABILITATION — 16 septembre 2026 ══════════════════
+                  Jusqu'à quel palier cette main exécute. La direction la
+                  pose ; un certificat de l'Académie la fait monter seul. Le
+                  rendez-vous avertit quand l'acte dépasse la main. Vide =
+                  pas posée : on ne devine pas, et l'écran ne dit rien. */}
+              <Field label="Habilitation · jusqu’à quel palier elle exécute">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className={`tre-chip ${!form.palier ? 'is-on' : ''}`} onClick={() => setForm({ ...form, palier: '' })}>Pas posée</button>
+                  {LES_PALIERS.map((p) => (
+                    <button key={p} className={`tre-chip ${form.palier === p ? 'is-on' : ''}`} onClick={() => setForm({ ...form, palier: p })}>{p}</button>
+                  ))}
+                </div>
+                <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, display: 'block', marginTop: 6 }}>
+                  {form.palier
+                    ? `${PALIER_DIT[form.palier as Palier].sous} Elle exécute les actes jusqu’à ce palier et assiste au-dessus.`
+                    : 'Sans habilitation posée, le rendez-vous n’avertit jamais : la Maison ne devine pas.'}
+                </span>
+              </Field>
               {/* LA COMMISSION — un reglage, jamais un statut deduit. Chez MND
                   on ne commissionne pas les salaries : elle ne concerne que le
                   maitre recrute ponctuellement, et le praticien devenu maitre

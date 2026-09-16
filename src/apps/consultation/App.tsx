@@ -353,7 +353,7 @@ export default function App() {
         cadence: diag.cadence,
         valeurPrestationXof: diag.service.priceXof,
       },
-      diagnostic: { palier: diag.palier, scores: { ...diag.scores } },
+      diagnostic: { palier: diag.palier, palierTete: diag.palierTete, scores: { ...diag.scores } },
       reservation: { mode, date: selDate.iso, time: selTime },
       paidXof: FEE_XOF,
       status: 'nouvelle',
@@ -1036,8 +1036,12 @@ export default function App() {
                 <div className="lc-eyebrow">Le diagnostic · {prenom || 'votre couronne'} · Étape 5 sur 8</div>
                 <h2 className="lc-h2">Ce que lit la Maison.</h2>
               </div>
+              {/* LES DEUX PALIERS, SÉPARÉS — 16 septembre 2026 : ce que sa
+                  couronne dit d'elle, et ce que l'acte proposé exige. */}
               <div className="lc-diag__palier">
-                <div className="lc-label">Palier de départ</div>
+                <div className="lc-label">Votre couronne</div>
+                <div className="lc-diag__palierv">{diag.palierTete}</div>
+                <div className="lc-label" style={{ marginTop: 8 }}>L’acte proposé</div>
                 <div className="lc-diag__palierv">{diag.palier}</div>
               </div>
             </div>
@@ -1341,7 +1345,7 @@ export default function App() {
               <aside className="lc-summary">
                 <div className="lc-label lc-label--copperlight">Votre dossier</div>
                 <div className="lc-summary__name">{answers.nom.trim() || 'Invitée'}</div>
-                <div className="lc-summary__line">{pathLabel} · {answers.pays ?? '—'} · {diag.palier}</div>
+                <div className="lc-summary__line">{pathLabel} · {answers.pays ?? '—'} · couronne {diag.palierTete} · acte {diag.palier}</div>
 
                 <div className="lc-summary__rows">
                   <div className="lc-summary__row"><span>Prescription</span><span className="lc-summary__val">{diag.service.name}</span></div>

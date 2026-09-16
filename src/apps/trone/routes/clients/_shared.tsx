@@ -21,8 +21,8 @@ import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
 import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
-import { RANG_DU_PALIER } from '../../../../shared/paliers';
-import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
+import { RANG_DU_PALIER, plusHautDes, avertissementDHabilitation, type Palier } from '../../../../shared/paliers';
+import { depositForServices, depositPctFor, useSettings, settingsStore } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
 import { ageDe, estKids, AGE_MND_KIDS } from '../../../../shared/accounts';
@@ -2103,6 +2103,22 @@ export function RdvModal({
      « Enregistrer et encaisser » ne pouvait donc pas savoir qu'une tête ou une
      prestation manquait, et aurait ouvert l'encaissement d'une fiche jamais
      écrite. `true` = écrit, `false` = refusé, avec son message à l'écran. */
+  /* ══ LA MAIN DOIT ÊTRE À LA HAUTEUR DE L'ACTE — 16 septembre 2026 ═══
+     Maquette `maquette-les-trois-paliers.html`, arbitrage : on AVERTIT, la
+     direction tranche ; un réglage « strict » refuse. L'acte du rituel est
+     le plus haut palier de ses prestations ; les mains sont le maître au
+     fauteuil et les mains posées par prestation. Une main sans habilitation
+     posée n'avertit jamais : on ne devine pas. */
+  const avertHabilitation = useMemo(() => {
+    const acte = chosen.reduce<Palier | null>((p, sv) => plusHautDes(p, sv.palier), null);
+    const ids = new Set(mains.flat());
+    const lesMains = [
+      ...equipe.filter((m) => sameName(m.name, master)),
+      ...equipe.filter((m) => ids.has(m.id) && !sameName(m.name, master)),
+    ];
+    return avertissementDHabilitation({ acte, mains: lesMains.map((m) => ({ nom: m.name, palier: m.palier ?? null })) });
+  }, [chosen, mains, master, equipe]);
+
   const save = (chosenStatus: Appointment['status']): boolean => {
     if (!clientId) {
       setError('Choisissez une tête couronnée.');
@@ -2110,6 +2126,11 @@ export function RdvModal({
     }
     if (serviceIds.length === 0) {
       setError('Ajoutez au moins une prestation.');
+      return false;
+    }
+    /* LE RÉGLAGE STRICT : la Maison a choisi de refuser plutôt que d'avertir. */
+    if (avertHabilitation && settingsStore.get().paliersStrict && chosenStatus !== 'annulé') {
+      setError(`${avertHabilitation.texte} Réglage strict : le rendez-vous ne se pose pas sans main habilitée (Paramètres).`);
       return false;
     }
     /* ══ UN RITUEL ENCAISSÉ RESTE HONORÉ — 13 septembre 2026 ═════════════
@@ -2598,7 +2619,19 @@ export function RdvModal({
                 <option key={m} value={m}>{m}</option>
               ))}
             </Select>
+            {/* JUSQU'OÙ CETTE MAIN EXÉCUTE, lu sur sa fiche d'équipe. */}
+            {(() => {
+              const fiche = equipe.find((m) => sameName(m.name, master));
+              return fiche?.palier
+                ? <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[fiche.palier]}`} title="Son habilitation">{fiche.palier}</span>
+                : null;
+            })()}
           </div>
+          {avertHabilitation && (
+            <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 3, fontSize: 12.5, lineHeight: 1.5, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', background: 'var(--copper-50)', color: 'var(--ink)' }}>
+              {avertHabilitation.texte}
+            </div>
+          )}
           {/* SES HABITUDES, À UN CLIC — À LA CRÉATION COMME À LA RELECTURE.
               Demande de Yéman, 17 août : ouvrir un rituel existant doit aussi
               montrer ses combinaisons. Elles servent alors à comparer autant

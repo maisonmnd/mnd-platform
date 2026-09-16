@@ -168,6 +168,13 @@ export type StaffMember = {
       s'accepte pas tant qu'il n'est pas écrit. Zéro est un prix écrit.
       Voir `equipe/facture.ts`. */
   grille?: Record<string, number>;
+  /** ══ SON HABILITATION — 16 septembre 2026 ═════════════════════════
+      Maquette `maquette-les-trois-paliers.html`. Jusqu'à quel palier cette
+      main EXÉCUTE : Fondation, Élévation, Souveraineté. Posée par la
+      direction sur la fiche, ou par un certificat de l'Académie (qui ne fait
+      que monter). Absente = pas encore posée : le rendez-vous n'avertit pas,
+      on ne devine pas. Voir `shared/paliers.ts`. */
+  palier?: 'Fondation' | 'Élévation' | 'Souveraineté';
 };
 
 /* Maison neuve — aucune donnée de démonstration ; tout naît de l’usage. */
