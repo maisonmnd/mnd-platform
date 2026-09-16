@@ -44,6 +44,17 @@ Harnais `verifie-paliers` : 98 épreuves, dont ⑫ le référentiel (les sept
 décisions, le raviveur du protocole aligné sur la semence, l'inconnue
 laissée, le bouton idempotent).
 
+**LE RANGEMENT PAR PALIER AU CATALOGUE** (« je voudrais voir dans le
+catalogue le rangement des prestations par paliers, pour mieux distinguer »,
+même jour) : au bout de la rangée « Palier », un sélecteur **Rangement · Par
+atelier / Par palier**, retenu sur le poste (`localStorage`
+`mnd_catalogue_rangement`). Par palier : trois bandes (pastille, la marche,
+ce que l'acte exige via `PALIER_DIT.exige`, le compte), et dessous les
+ateliers qui y ont une prestation, **dessinés par le même `blocDeCategorie`**
+que le rangement par atelier (une liste réduite, un filtre de palier, tout
+déplié, sans replis). Les produits Maison, sans palier, ne paraissent que par
+atelier. Le filtre de palier, posé, ne laisse que sa bande.
+
 ## LES TROIS PALIERS — 16 septembre 2026, ÉTAPES 1 ET 2 CONSTRUITES
 
 « Comment je peux mieux l'exploiter dans le Trône et faire une vraie

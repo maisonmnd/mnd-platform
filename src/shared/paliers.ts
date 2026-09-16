@@ -33,18 +33,24 @@ export const RANG_DU_PALIER: Record<Palier, number> = { Fondation: 0, 'Élévati
 /** CE QUE CHAQUE PALIER DIT — les mêmes phrases partout où il s'affiche.
     `sous` : la marche, pour une prestation. `couronne` : ce que Ma Couronne
     dit à la cliente qui y est. */
-export const PALIER_DIT: Record<Palier, { sous: string; couronne: string }> = {
+export const PALIER_DIT: Record<Palier, { sous: string; couronne: string; exige: string }> = {
   Fondation: {
     sous: 'Poser les bases, découvrir le rituel.',
     couronne: 'Votre couronne est née. Vous apprenez à la tenir.',
+    /* CE QUE LA PRESTATION EXIGE DE LA MAIN — la maquette validée, puis les
+       trois règles du 16 septembre (un lavage reste un lavage, le resserrage
+       est Élévation, un forfait prend le palier de son acte le plus haut). */
+    exige: 'Une création, un premier soin, un lavage.',
   },
   'Élévation': {
     sous: 'Affirmer sa couronne, séance après séance.',
     couronne: 'Votre couronne se tient. Vous l’entretenez.',
+    exige: 'Un resserrage, une reconstruction, une couleur.',
   },
   'Souveraineté': {
     sous: 'La maîtrise, mèche après mèche.',
     couronne: 'Votre couronne a une histoire. La Maison la connaît.',
+    exige: 'Une œuvre sur 450 locks, une restauration, un grand passage.',
   },
 };
 

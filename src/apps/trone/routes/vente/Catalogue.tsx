@@ -497,6 +497,19 @@ export default function Catalogue() {
      de la Gamme, qui n'en portent pas. */
   const [palierFiltre, setPalierFiltre] = useState<Service['palier'] | 'tout'>('tout');
   const matchPalier = (s: Service): boolean => palierFiltre === 'tout' || s.palier === palierFiltre;
+  /* LE RANGEMENT PAR PALIER — 16 septembre 2026. « Je voudrais voir dans le
+     catalogue le rangement des prestations par paliers, pour mieux
+     distinguer » (Yéman). Le filtre montre un palier à la fois ; le
+     rangement les montre tous les trois, l'un sous l'autre, chacun avec ce
+     qu'il exige et ses ateliers dedans. Les produits Maison n'ont pas de
+     palier : ils ne paraissent que par atelier. Le choix se retient sur ce
+     poste, comme un pli de lecture, sans rien écrire à la Maison. */
+  const [rangement, setRangement] = useState<'atelier' | 'palier'>(() => {
+    try { return localStorage.getItem('mnd_catalogue_rangement') === 'palier' ? 'palier' : 'atelier'; } catch { return 'atelier'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('mnd_catalogue_rangement', rangement); } catch { /* lecture seule : tant pis */ }
+  }, [rangement]);
   /* Le régime d'une prestation contre le filtre — MÊME juge que l'étiquette. */
   const matchRegime = (s: Service): boolean => {
     if (regimeFiltre === 'tout') return true;
@@ -1170,6 +1183,24 @@ export default function Catalogue() {
           {palierFiltre !== 'tout' && (
             <span className="mnd-muted" style={{ fontSize: 11.5 }}>{PALIER_DIT[palierFiltre].sous}</span>
           )}
+          <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
+              Rangement
+            </span>
+            {(['atelier', 'palier'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className="trv-minibtn"
+                onClick={() => setRangement(r)}
+                style={rangement === r
+                  ? { background: 'var(--color-indigo)', borderColor: 'var(--color-indigo)', color: 'var(--color-ivoire)' }
+                  : undefined}
+              >
+                {r === 'atelier' ? 'Par atelier' : 'Par palier'}
+              </button>
+            ))}
+          </span>
         </div>
       )}
 
@@ -1179,20 +1210,26 @@ export default function Catalogue() {
         </div>
       )}
 
-      {renderCats.map((cat, ci) => {
+      {(() => {
+      /* UN SEUL DESSIN DE BLOC, DEUX RANGEMENTS. Par atelier, la liste est
+         celle des catégories ; par palier, c'est la même liste réduite aux
+         catégories qui ont au moins une prestation de ce palier, et le bloc
+         ne montre que celles-là. Redessiner le bloc pour le second rangement
+         l'aurait fait diverger du premier au premier réglage. */
+      const blocDeCategorie = (cat: CatalogCategory, ci: number, liste: CatalogCategory[], palier?: Service['palier']): ReactNode => {
         const isOrphan = cat.id === ORPHAN_ID;
         /* Titre d'ensemble : posé sur la PREMIÈRE catégorie du groupe. */
         const g = isOrphan ? null : groupeDe(cat);
-        const gPrec = ci > 0 && renderCats[ci - 1].id !== ORPHAN_ID ? groupeDe(renderCats[ci - 1]).k : null;
+        const gPrec = ci > 0 && liste[ci - 1].id !== ORPHAN_ID ? groupeDe(liste[ci - 1]).k : null;
         const ouvreGroupe = g && g.k !== gPrec;
-        const list = (isOrphan ? orphanSvcs : svcOf(cat.id)).filter(matchSvc);
+        const list = (isOrphan ? orphanSvcs : svcOf(cat.id)).filter((sv) => matchSvc(sv) && (!palier || sv.palier === palier));
         /* LES FORFAITS A PART. Un forfait rassemble plusieurs gestes et se
            vend comme un engagement ; melange aux prestations, il se lisait
            comme l'une d'elles. On les range en fin d'atelier, sous leur propre
            en-tete, pour qu'on sache toujours dans lequel des deux on se trouve. */
         const prestations = list.filter((sv) => !sv.includes?.length);
         const forfaits = list.filter((sv) => !!sv.includes?.length);
-        const prods = (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
+        const prods = palier ? [] : (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
         const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
         /* Filtre actif (recherche ou régime) : on masque les catégories sans
@@ -1201,9 +1238,9 @@ export default function Catalogue() {
         /* Replié uniquement hors filtre — chercher ou filtrer DÉPLIE : le
            `!q &&` d'origine faisait l'inverse de son commentaire, une
            recherche repliait tous les ateliers (corrigé le 13 août). */
-        const open = filtreActif || !collapsed.has(cat.id);
+        const open = filtreActif || !!palier || !collapsed.has(cat.id);
         return (
-          <div key={`w-${cat.id}`}>
+          <div key={`w-${palier ?? 'atelier'}-${cat.id}`}>
           {ouvreGroupe && g && (
             <div
               style={{
@@ -1212,20 +1249,22 @@ export default function Catalogue() {
                 borderBottom: '2px solid var(--line)',
               }}
             >
-              <button
-                type="button"
-                className="trv-sq"
-                title="Replier ou déplier tout cet ensemble"
-                onClick={() => toggleGroupe(g.k)}
-                style={{ flex: 'none' }}
-              >
-                ⇅
-              </button>
+              {!palier && (
+                <button
+                  type="button"
+                  className="trv-sq"
+                  title="Replier ou déplier tout cet ensemble"
+                  onClick={() => toggleGroupe(g.k)}
+                  style={{ flex: 'none' }}
+                >
+                  ⇅
+                </button>
+              )}
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, letterSpacing: '.04em' }}>{g.titre}</span>
               <span className="mnd-muted" style={{ fontSize: 12 }}>{g.sous}</span>
               <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
-                {cats.filter((c) => groupeDe(c).k === g.k).length} catégories ·{' '}
-                {services.filter((sv) => cats.some((c) => c.id === sv.categoryId && groupeDe(c).k === g.k)).length} prestations
+                {(palier ? liste : cats).filter((c) => c.id !== ORPHAN_ID && groupeDe(c).k === g.k).length} catégories ·{' '}
+                {services.filter((sv) => (!palier || sv.palier === palier) && cats.some((c) => c.id === sv.categoryId && groupeDe(c).k === g.k)).length} prestations
               </span>
             </div>
           )}
@@ -1242,7 +1281,7 @@ export default function Catalogue() {
             }}
           >
             <div className="trv-catblock__band">
-              {!q && (
+              {!q && !palier && (
                 <button
                   className="trv-sq"
                   title={open ? 'Replier' : 'Déplier'}
@@ -1564,7 +1603,47 @@ export default function Catalogue() {
           </section>
           </div>
         );
-      })}
+      };
+
+      if (rangement === 'atelier') return renderCats.map((cat, ci) => blocDeCategorie(cat, ci, renderCats));
+
+      /* PAR PALIER : trois bandes, Fondation, Élévation, Souveraineté, chacune
+         avec ce que l'acte exige et le compte ; dessous, les ateliers qui y
+         ont une prestation. Le filtre de palier, s'il est posé, ne laisse que
+         sa bande. */
+      return (
+        <>
+          <div className="mnd-muted" style={{ fontSize: 11.5, margin: '-6px 0 4px' }}>
+            Les produits Maison n’ont pas de palier : ils restent dans le rangement par atelier.
+          </div>
+          {LES_PALIERS.filter((p) => palierFiltre === 'tout' || p === palierFiltre).map((p) => {
+            const catsDuPalier = renderCats.filter((cat) =>
+              (cat.id === ORPHAN_ID ? orphanSvcs : svcOf(cat.id)).some((sv) => matchSvc(sv) && sv.palier === p));
+            const n = services.filter((sv) => sv.palier === p && matchSvc(sv)).length;
+            return (
+              <div key={`palier-${p}`}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', margin: '30px 0 4px', paddingBottom: 8, borderBottom: '2px solid var(--color-indigo)' }}>
+                  <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[p]}`}>{p}</span>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, letterSpacing: '.02em' }}>{PALIER_DIT[p].sous}</span>
+                  <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+                    {n} prestation{n > 1 ? 's' : ''} · {catsDuPalier.length} catégorie{catsDuPalier.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="mnd-muted" style={{ fontSize: 12, margin: '0 0 12px' }}>
+                  Ce que l’acte exige : {PALIER_DIT[p].exige}
+                </div>
+                {catsDuPalier.length === 0 && (
+                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '8px 0' }}>
+                    {filtreActif ? 'Aucune prestation de ce palier ne répond au filtre.' : 'Aucune prestation à ce palier pour l’instant.'}
+                  </div>
+                )}
+                {catsDuPalier.map((cat, ci) => blocDeCategorie(cat, ci, catsDuPalier, p))}
+              </div>
+            );
+          })}
+        </>
+      );
+      })()}
 
       {svcForm && (
         <Modal title={svcForm.id ? (svcForm.estForfait ? 'Le forfait.' : 'La prestation.') : (svcForm.estForfait ? 'Nouveau forfait.' : 'Nouvelle prestation.')} onClose={() => setSvcForm(null)} width={900}>
