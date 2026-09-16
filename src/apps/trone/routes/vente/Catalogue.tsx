@@ -948,9 +948,16 @@ export default function Catalogue() {
       })(),
     };
     if (svcForm.id) {
+      /* LE PALIER CHANGÉ À LA MAIN EST POSÉ — 16 septembre 2026 : « quand je
+         modifie moi-même directement le palier d'une prestation, ne fais pas
+         revenir le bouton "Paliers · N à reprendre" » (Yéman). La marque ne se
+         pose QUE si le palier a bougé : rouvrir une fiche pour son prix ne
+         doit pas la soustraire au référentiel. Une fois posée, elle reste. */
+      const avant = services.find((s) => s.id === svcForm.id);
+      const palierPose = avant?.palierPose || (!!avant && avant.palier !== svcForm.palier) || undefined;
       patchSvc(svcForm.id, {
         categoryId: svcForm.categoryId, name: svcForm.name.trim(), description: svcForm.description.trim() || undefined,
-        priceXof: price, priceMode: svcForm.priceMode, hidePrice, palier: svcForm.palier, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
+        priceXof: price, priceMode: svcForm.priceMode, hidePrice, palier: svcForm.palier, palierPose, durationMin: dur, sessions: svcForm.sessions, master: svcForm.master,
         ...v6,
       });
     } else {

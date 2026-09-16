@@ -210,10 +210,16 @@ const vivant = [
 dit('les écarts : la reprise seule, l’inconnue est laissée à la Maison',
   [{ id: 'sv-atl-ii-e', name: 'La Reprise', actuel: F, voulu: E }], ecartsDePalier(vivant));
 dit('aucun écart quand tout est juste', [], ecartsDePalier([{ id: 'sv-atl-ii-e', name: 'La Reprise', palier: E }]));
+dit('un palier posé par la Maison n’est pas un écart', [],
+  ecartsDePalier([{ id: 'sv-atl-ii-e', name: 'La Reprise', palier: F, palierPose: true }]));
 
 servicesStore.set(vivant as unknown as Service[]);
 dit('le bouton reprend une fiche', 1, reprendLesPaliers());
 dit('… la reprise est passée en Élévation, l’inconnue et la Nano intactes', [E, S, S], servicesStore.get().map((s) => s.palier));
 dit('un second clic ne fait rien', 0, reprendLesPaliers());
+
+servicesStore.set([{ id: 'sv-atl-ii-e', name: 'La Reprise', palier: F, palierPose: true }] as unknown as Service[]);
+dit('le bouton laisse la fiche posée par la Maison', 0, reprendLesPaliers());
+dit('… et son palier reste celui de la Maison', F, servicesStore.get()[0].palier);
 
 console.log(ko === 0 ? '\nLes trois paliers tiennent.' : `\n${ko} épreuve(s) en échec.`);

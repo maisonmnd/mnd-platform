@@ -89,6 +89,15 @@ export type Service = {
   categoryId: string;
   name: string;
   palier: 'Fondation' | 'Élévation' | 'Souveraineté';
+  /** LE PALIER POSÉ PAR LA MAISON — 16 septembre 2026. « Quand je modifie
+      moi-même directement le palier d'une prestation, ne fais pas revenir le
+      bouton "Paliers · N à reprendre" » (Yéman). Vrai dès que le palier a été
+      changé à la main au Catalogue : le référentiel (referentiel-paliers)
+      passe alors son chemin, comme `crownPose` protège une date de couronne
+      écrite par la Maison. Une décision ne se réécrit pas dans le dos de qui
+      l'a prise. Absent = le palier vient de la semence, le référentiel peut
+      le reprendre. */
+  palierPose?: boolean;
   priceXof: number;
   hidePrice: boolean;
   priceMode?: PriceMode; // défaut dérivé de hidePrice (voir priceModeOf)

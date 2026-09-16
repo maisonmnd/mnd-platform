@@ -20,6 +20,12 @@ import type { Palier } from './paliers';
    la Maison. Une fiche que le référentiel ne connaît pas (créée au
    Catalogue) garde le palier qu'on lui a donné.
 
+   UN PALIER CHANGÉ À LA MAIN EST POSÉ (`Service.palierPose`, écrit par le
+   Catalogue à l'enregistrement quand le palier a bougé) : « quand je modifie
+   moi-même directement le palier d'une prestation, ne fais pas revenir le
+   bouton » (Yéman, même jour). Le référentiel ne le compte plus et ne le
+   reprend plus ; pour le lui rendre, la Maison le remet à la main.
+
    TROIS RÈGLES, TRANCHÉES LE 16 SEPTEMBRE : un lavage reste un lavage
    (Fondation) ; le resserrage est Élévation, même la reprise simple ; un
    forfait prend le palier de son acte le plus haut. Les petits gestes
@@ -36,13 +42,13 @@ export type EcartDePalier = { id: string; name: string; actuel: Palier; voulu: P
 /** LES FICHES QUI S'ÉCARTENT du référentiel : présentes au catalogue, connues
     de la semence, et pas au palier voulu. Pur, pour être éprouvé. */
 export const ecartsDePalier = (
-  services: readonly Pick<Service, 'id' | 'name' | 'palier'>[],
+  services: readonly Pick<Service, 'id' | 'name' | 'palier' | 'palierPose'>[],
   referentiel: ReadonlyMap<string, Palier> = PALIER_DU_REFERENTIEL,
 ): EcartDePalier[] => {
   const ecarts: EcartDePalier[] = [];
   for (const s of services) {
     const voulu = referentiel.get(s.id);
-    if (voulu && voulu !== s.palier) ecarts.push({ id: s.id, name: s.name, actuel: s.palier, voulu });
+    if (voulu && !s.palierPose && voulu !== s.palier) ecarts.push({ id: s.id, name: s.name, actuel: s.palier, voulu });
   }
   return ecarts;
 };
@@ -56,7 +62,7 @@ export function reprendLesPaliers(): number {
   let touchees = 0;
   servicesStore.set((prev) => prev.map((s) => {
     const voulu = PALIER_DU_REFERENTIEL.get(s.id);
-    if (!voulu || voulu === s.palier) return s;
+    if (!voulu || s.palierPose || voulu === s.palier) return s;
     touchees += 1;
     return { ...s, palier: voulu };
   }));

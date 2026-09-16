@@ -26,7 +26,11 @@ GBÀTÀ™ Intégral = le grand passage, l'Académie garde sa propre échelle.
 `ecartsDePalier` pur ; `reprendLesPaliers` ne touche que le palier). Au
 Catalogue, « Paliers · N à reprendre » paraît tant qu'il y a un écart, comme
 « MND Kids · N à remettre au tarif ». Une fiche créée au Catalogue, inconnue du
-référentiel, garde son palier. **À faire par la Maison : cliquer une fois**
+référentiel, garde son palier. **Un palier changé à la main au Catalogue est
+posé** (`Service.palierPose`, écrit à l'enregistrement quand le palier a
+bougé, jamais effacé) : le référentiel ne le compte plus et ne le reprend plus,
+comme `crownPose` pour la couronne ; pour le lui rendre, on le remet à la
+main. **À faire par la Maison : cliquer une fois**
 (7 fiches attendues : reprise Essentielle, KLƆKLƆ™ Prestige ×3, trois
 forfaits). Les bulletins déjà tirés ne bougent pas ; les prochains suivent.
 
