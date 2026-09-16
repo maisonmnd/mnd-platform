@@ -1999,45 +1999,65 @@ function paragrapheCentre(
   doc: any, morceaux: readonly { texte: string; gras?: boolean }[],
   cx: number, y: number, maxW: number, interligne: number, taillePt: number,
 ): number {
+  /* LES MOTS. Un morceau qui commence sans blanc, après un morceau qui finit
+     sans blanc, se colle au mot d'avant (« L'Œuvre » + « , Palier »). Un
+     blanc d'un côté ou de l'autre suffit à séparer : « le » + « Maître »
+     s'imprimait « leMaître » quand seul le début du morceau était regardé. */
   type Mot = { m: string; gras: boolean };
   const mots: Mot[] = [];
+  let finEnBlanc = true;
   for (const p of morceaux) {
     const t = pdfSafe(p.texte);
-    const colle = mots.length > 0 && !/^\s/.test(t);
+    if (!t) continue;
+    const colle = mots.length > 0 && !finEnBlanc && !/^\s/.test(t);
     const parts = t.split(/\s+/).filter(Boolean);
     parts.forEach((m, i) => {
       if (i === 0 && colle) mots[mots.length - 1].m += m;
       else mots.push({ m, gras: !!p.gras });
     });
+    finEnBlanc = /\s$/.test(t);
   }
   doc.setFontSize(taillePt);
-  const largeur = (w: Mot): number => {
-    doc.setFont('helvetica', w.gras ? 'bold' : 'normal');
-    return doc.getTextWidth(w.m);
-  };
-  doc.setFont('helvetica', 'normal');
-  const esp = doc.getTextWidth(' ');
-  const lignes: (Mot & { w: number })[][] = [[]];
+  const police = (gras: boolean) => doc.setFont('helvetica', gras ? 'bold' : 'normal');
+  const largeur = (s: string, gras: boolean): number => { police(gras); return doc.getTextWidth(s); };
+  const esp = largeur(' ', false);
+
+  /* LA COUPE, mot par mot, à la largeur mesurée. */
+  const lignes: Mot[][] = [[]];
   let lw = 0;
   for (const w of mots) {
-    const ww = largeur(w);
+    const ww = largeur(w.m, w.gras);
     const l = lignes[lignes.length - 1];
     const ajout = l.length ? esp + ww : ww;
-    if (l.length && lw + ajout > maxW) { lignes.push([{ ...w, w: ww }]); lw = ww; }
-    else { l.push({ ...w, w: ww }); lw += ajout; }
+    if (l.length && lw + ajout > maxW) { lignes.push([w]); lw = ww; }
+    else { l.push(w); lw += ajout; }
   }
+
+  /* LE TRACÉ, PAR SEGMENTS D'UN MÊME STYLE, jamais mot par mot : c'est jsPDF
+     qui espace les mots d'un segment, et une largeur de « Œ » ou de « ™ »
+     qu'il mesure de travers ne mange plus l'espace qui suit
+     (« L'Œuvre(quatre », « GBÀTÀ™,selon » au premier essai). Seule la
+     frontière entre normal et gras se pose à la mesure. */
   let yy = y;
   for (const l of lignes) {
-    const total = l.reduce((s, w) => s + w.w, 0) + esp * (l.length - 1);
+    const segments: { s: string; gras: boolean }[] = [];
+    l.forEach((w, i) => {
+      const texte = i < l.length - 1 ? `${w.m} ` : w.m;
+      const dernier = segments[segments.length - 1];
+      if (dernier && dernier.gras === w.gras) dernier.s += texte;
+      else segments.push({ s: texte, gras: w.gras });
+    });
+    const largeurs = segments.map((s) => largeur(s.s, s.gras));
+    const total = largeurs.reduce((a, b) => a + b, 0);
     let x = cx - total / 2;
-    for (const w of l) {
-      doc.setFont('helvetica', w.gras ? 'bold' : 'normal');
-      doc.text(w.m, x, yy);
-      x += w.w + esp;
-    }
+    segments.forEach((s, i) => {
+      police(s.gras);
+      doc.text(s.s, x, yy);
+      x += largeurs[i];
+    });
     yy += interligne;
   }
-  doc.setFont('helvetica', 'normal');
+  police(false);
   return yy;
 }
 
@@ -2203,8 +2223,8 @@ export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRend
     doc.setLineWidth(px(1));
     doc.line(gauche + wN, yM, gauche + wN + px(120), yM);
   }
-  texteLettre(doc, `MENTION ${d.mention}`, CX, yM, { taillePx: 10.5, em: 0.12 });
-  texteLettre(doc, `FAIT À COTONOU, LE ${d.jourLisible}`, droite, yM, { taillePx: 10.5, em: 0.12, ancre: 'droite' });
+  texteLettre(doc, `MENTION ${d.mention}`.toUpperCase(), CX, yM, { taillePx: 10.5, em: 0.12 });
+  texteLettre(doc, `FAIT À COTONOU, LE ${d.jourLisible}`.toUpperCase(), droite, yM, { taillePx: 10.5, em: 0.12, ancre: 'droite' });
 
   const centres = [gauche + px(130), droite - px(130)];
   d.signataires.slice(0, 2).forEach((s, i) => {

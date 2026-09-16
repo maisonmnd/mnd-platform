@@ -19,6 +19,11 @@ d'inscription>` ; sans lien, le PDF part sur le poste et la page le dit. Le
 Suivi (onglet Jury, certificat délivré) montre « Copie au dossier » avec un
 « Ouvrir » (lien signé d'une heure) et se relit au retour du focus. Le dessin
 et le coffre se chargent à la demande (`import()`), la page reste légère.
+**LE PARAGRAPHE DU PDF SE TRACE PAR SEGMENTS D'UN MÊME STYLE**, jamais mot
+par mot : au premier essai, une largeur de « Œ » ou de « ™ » mesurée de
+travers par jsPDF mangeait l'espace suivant (« L'Œuvre(quatre »,
+« GBÀTÀ™,selon »), et le morceau en gras se collait au mot d'avant
+(« leMaître »). La mention et la date passent en capitales, comme à l'écran.
 **Migration 0103** (compartiment privé, PDF seulement, cinq mégaoctets ;
 personnel lit, dépose, remplace ; direction efface) : PASSÉE le 16 septembre
 (contrôle : 4 politiques `certificats_*`). NE PAS RELANCER. Harnais
@@ -56,8 +61,9 @@ RELANCER. Les maquettes HTML de `public/` gardent leur texte
 d'époque. **Migration 0105** renomme les modules VIVANTS de L'Œuvre, index
 pour index (« Le resserrage SÍNSIN™ Essentiel et Élaboré », « La reprise
 frontale », « Les soins et la couleur végétale · YÈKPÈ™ »), pour que la
-phrase se lise mot pour mot comme Yéman l'a écrite : À PASSER, puis rouvrir
-le certificat depuis le Suivi. Un module sans article prend « du ». La
+phrase se lise mot pour mot comme Yéman l'a écrite : PASSÉE le 16 septembre
+(contrôle : sept modules, dans l'ordre attendu). NE PAS RELANCER. Rouvrir le
+certificat depuis le Suivi pour lire la phrase à jour. Un module sans article prend « du ». La
 semence de L'Œuvre (`parcours.ts`, quatre modules, douze séances) n'est pas
 alignée sur la formation vivante : elle ne sert qu'à poser une formation
 neuve.
