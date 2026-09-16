@@ -202,6 +202,34 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LE DIRECT SE FERMAIT LUI-MÊME — 16 septembre 2026, PUBLIÉ
+
+La console de Yéman, filtrée sur `mnd-sync` : « le direct de la Maison :
+CLOSED (essai 1) … (essai 5) », puis « essai 1 » de nouveau, sans fin, sans
+aucune erreur du serveur. **Le direct battait depuis le 14 septembre** ; les
+hystérésis de la veille ne faisaient que le cacher. Aucune SQL, rien de 0102.
+
+**La cause, dans `shared/sync.ts`** : `sb.channel('mnd:maison')` RÉUTILISE
+l'objet déjà inscrit sous ce nom, et `removeChannel` est asynchrone. À chaque
+`rejointLeCanalDeLaMaison(true)` (INITIAL_SESSION, SIGNED_IN au focus,
+reprise), `channel()` rendait l'ANCIEN canal en train de partir,
+`subscribe()` n'y faisait rien, et la fermeture du départ arrivait sur « le
+canal courant » : CLOSED, panne, reprise, qui recommençait pareil. Et
+`removeChannel` d'un canal déjà fermé déclenche sa fermeture en synchrone,
+avant que le neuf existe : cette fermeture-là aussi passait pour la sienne.
+
+**Deux gardes** : chaque canal porte un numéro de génération dans son nom
+(`mnd:maison:<n>`, le nom n'importe pas au serveur), et l'ancien est
+décroché (`canalDeLaMaison = null`) AVANT qu'on lui demande de partir. Un
+canal qui arrive « SUBSCRIBED » annule aussi toute reprise programmée. La
+ligne de console porte désormais le numéro du canal et l'état de la prise
+(`connectionState`).
+
+Si la pastille dit encore « direct en panne » après ceci, la ligne
+`[mnd-sync] le direct de la Maison : …` de la console est la première chose à
+lire : un `CHANNEL_ERROR · message` vient du serveur, un `CLOSED` sans message
+avec la prise `open` viendrait encore du poste.
+
 ## LES MODULES D'UNE FORMATION SE RÉORDONNENT — 16 septembre 2026, PUBLIÉ
 
 « Ajoute des toggles up and down pour modifier les positions des titres »

@@ -436,6 +436,29 @@ const ecoutesParTable = new Map<string, EcouteDeTable>();
 const LE_DIRECT = 'le direct de la Maison';
 
 let canalDeLaMaison: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+/* ══ CHAQUE CANAL PORTE SON PROPRE NOM — 16 septembre 2026 ═══════════════
+
+   La console de Yéman, filtrée sur `mnd-sync` : « le direct de la Maison :
+   CLOSED (essai 1) … (essai 5) », puis « essai 1 » de nouveau, sans fin, sans
+   aucune erreur du serveur. Le direct battait depuis le 14 septembre, et la
+   pastille ne faisait que le montrer.
+
+   LE TRÔNE SE FERMAIT LUI-MÊME. `sb.channel('mnd:maison')` RÉUTILISE l'objet
+   déjà inscrit sous ce nom, et `removeChannel` est asynchrone : au moment
+   de rejoindre, l'ancien canal était encore inscrit, `channel()` rendait
+   DONC L'ANCIEN, en train de partir, `subscribe()` n'y faisait rien, et la
+   fermeture de ce départ arrivait sur ce qui était devenu « le canal
+   courant » : CLOSED, panne, reprise… qui recommençait exactement pareil.
+   Pire : `removeChannel` d'un canal déjà fermé déclenche sa fermeture
+   IMMÉDIATEMENT, en synchrone, avant même que le neuf existe, et cette
+   fermeture-là aussi passait pour la sienne.
+
+   DEUX GARDES. Chaque canal porte un numéro de génération dans son nom :
+   `channel()` ne peut plus rendre l'ancien. Et l'ancien est décroché
+   (`canalDeLaMaison = null`) AVANT qu'on lui demande de partir : ce qu'il dit
+   en partant ne concerne plus personne. Le nom du canal n'a aucune
+   importance pour le serveur : `postgres_changes` n'écoute que le schéma. */
+let generationDuCanal = 0;
 let essaisDeLaMaison = 0;
 let repriseDeLaMaison: ReturnType<typeof setTimeout> | undefined;
 let filetDeLaMaison: ReturnType<typeof setInterval> | undefined;
@@ -486,8 +509,13 @@ const rejointLeCanalDeLaMaison = (force = false) => {
   if (!sb) return;
   if (canalDeLaMaison && !force) return;
   if (repriseDeLaMaison) { clearTimeout(repriseDeLaMaison); repriseDeLaMaison = undefined; }
-  if (canalDeLaMaison) void sb.removeChannel(canalDeLaMaison);
-  const neuf = sb.channel('mnd:maison')
+  /* L'ANCIEN EST DÉCROCHÉ AVANT DE PARTIR : sa fermeture, même déclenchée en
+     synchrone, trouve `canalDeLaMaison` vide et se tait. */
+  const ancien = canalDeLaMaison;
+  canalDeLaMaison = null;
+  if (ancien) void sb.removeChannel(ancien);
+  generationDuCanal += 1;
+  const neuf = sb.channel(`mnd:maison:${generationDuCanal}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public' },
@@ -504,6 +532,9 @@ const rejointLeCanalDeLaMaison = (force = false) => {
        relancerait une rejointure à chaque changement de session. */
     if (canalDeLaMaison !== neuf) return;
     if (statut === 'SUBSCRIBED') {
+      /* UN CANAL DEBOUT N'A PAS BESOIN D'UNE REPRISE : une reprise programmée
+         par une fausse chute le refermerait pour rien. */
+      if (repriseDeLaMaison) { clearTimeout(repriseDeLaMaison); repriseDeLaMaison = undefined; }
       if (tenueDeLaMaison) clearTimeout(tenueDeLaMaison);
       tenueDeLaMaison = setTimeout(() => { tenueDeLaMaison = undefined; essaisDeLaMaison = 0; }, DELAI_AVANT_DE_DIRE_LA_GUERISON_MS);
       if (filetDeLaMaison) { clearInterval(filetDeLaMaison); filetDeLaMaison = undefined; }
@@ -515,7 +546,7 @@ const rejointLeCanalDeLaMaison = (force = false) => {
       if (tenueDeLaMaison) { clearTimeout(tenueDeLaMaison); tenueDeLaMaison = undefined; }
       /* LA RAISON S'ÉCRIT, sinon la panne se cherche pendant des jours : le
          serveur la donne avec le verdict, et personne ne la lisait. */
-      console.warn(`[mnd-sync] ${LE_DIRECT} : ${statut}${erreur ? ` · ${erreur.message}` : ''} (essai ${essaisDeLaMaison + 1})`);
+      console.warn(`[mnd-sync] ${LE_DIRECT} : ${statut}${erreur ? ` · ${erreur.message}` : ''} (canal ${generationDuCanal}, essai ${essaisDeLaMaison + 1}, prise ${sb.realtime.connectionState()})`);
       syncMark.directPerdu(LE_DIRECT);
       /* TANT QUE LE DIRECT EST À TERRE, on relit chaque minute. Moins bien que
          le direct, infiniment mieux que rien. */
