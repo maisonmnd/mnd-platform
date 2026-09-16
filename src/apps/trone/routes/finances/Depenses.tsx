@@ -45,6 +45,7 @@ import { useApprenants, useSubscribers } from '../equipe/data';
 import { apptNetXof, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { reponsesManquantes, ditCeQuiManque, compteDesReponses, derniereDepenseDe, ditLaDerniereFois, groupeParJour, ditLeJour } from '../../../../shared/depenses-saisie';
 
 /** Jour d'un achat, ex. « 13 juil. » — pour afficher la date de chaque dépense. */
 /* `fmtDay` a rejoint `_shared` le 23 août 2026 — voir pourquoi là-bas. */
@@ -215,6 +216,12 @@ export default function Depenses() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Ce qui empêche d'enregistrer, dit à l'écran plutôt que tu en silence. */
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  /* LE SECOND TEMPS DE LA FENÊTRE (16 septembre 2026) : replié, sauf quand
+     la dépense a déjà quelque chose à y montrer. Le filtre du flux, à part. */
+  const [plusOuvert, setPlusOuvert] = useState(false);
+  const [voletRevenu, setVoletRevenu] = useState(false);
+  const [voletRecu, setVoletRecu] = useState(false);
+  const [filtreDuFlux, setFiltreDuFlux] = useState<string>('all');
   const [form, setForm] = useState<Form>({ label: '', amount: '', category: '', subcategory: '', cashbox: '', enDevise: '', recurring: '', date: '', flagged: false, items: [], sources: [], porteur: voitToutesLesDepenses ? '' : monNom, avancee: false, porteurChoisi: !voitToutesLesDepenses, caisseChoisie: false });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -540,6 +547,10 @@ export default function Depenses() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, moisDeLaPortee]);
   const visibleMonthExp = monthExp.filter(matches);
+  /* LE FLUX, JOUR PAR JOUR (16 septembre 2026), filtré d'un chip par catégorie. */
+  const categoriesDuFlux = Array.from(new Set(visibleMonthExp.map((e) => e.category)));
+  const lignesDuFlux = filtreDuFlux === 'all' ? visibleMonthExp : visibleMonthExp.filter((e) => e.category === filtreDuFlux);
+  const groupesDuFlux = groupeParJour(lignesDuFlux, expenseTotal);
 
   const engaged = live.reduce((s, e) => s + poids(e), 0);
   const savings = monthExp.filter((e) => e.stopped).reduce((s, e) => s + poids(e), 0);
@@ -642,6 +653,7 @@ export default function Depenses() {
   const openFor = (cashbox?: string) => {
     setSaveErr(null);
     setEditingId(null);
+    setPlusOuvert(false); setVoletRevenu(false); setVoletRecu(false);
     /* ══ RIEN N'EST CHOISI D'OFFICE — 13 septembre 2026 ══════════════════
        « Dans dépenses je ne veux rien de présélectionné : les équipements,
        qui fait l'achat, ni payer depuis la caisse. Rien de dur, sinon après
@@ -685,6 +697,9 @@ export default function Depenses() {
   const openEdit = (e: Expense) => {
     setSaveErr(null);
     setEditingId(e.id);
+    setPlusOuvert(!!(e.items?.length || e.sources?.length || e.fichier || e.recurring));
+    setVoletRevenu(!!e.sources?.length);
+    setVoletRecu(!!e.fichier);
     setForm({
       label: e.label, amount: String(e.fx ? e.fx.amount : e.amountXof), category: e.category, subcategory: e.subcategory ?? '',
       cashbox: e.cashbox, enDevise: e.fx ? String(e.amountXof) : '', recurring: e.recurring ?? '', date: e.date, flagged: !!e.flagged,
@@ -794,6 +809,36 @@ export default function Depenses() {
   // Total saisi = somme des lignes si présentes, sinon le montant simple.
   const cleanItems = form.items.filter((it) => it.label.trim() && it.amountXof > 0);
   const formTotal = cleanItems.length ? cleanItems.reduce((s, it) => s + it.amountXof, 0) : parseInt(form.amount || '0', 10);
+  /* CE QUI MANQUE SE LIT AVANT DE CLIQUER (16 septembre 2026) : les mêmes
+     exigences que `save`, dites au pied de la fenêtre et comptées dans le
+     bloc des trois réponses (`shared/depenses-saisie`). */
+  const saisie = {
+    montant: formTotal > 0, beneficiaire: !!form.label.trim(), categorie: !!form.category,
+    porteurChoisi: form.porteurChoisi, caisseChoisie: form.caisseChoisie,
+    avancee: form.avancee && !!form.porteur.trim(),
+  };
+  const manques = reponsesManquantes(saisie, { porteur: voitToutesLesDepenses });
+  const compteDesTrois = compteDesReponses(saisie, { porteur: voitToutesLesDepenses });
+  /* « COMME LA DERNIÈRE FOIS » : la dernière dépense de ce bénéficiaire
+     propose ses trois réponses en un clic, tant qu'elles ne sont pas toutes
+     données. Rien n'est présélectionné : c'est un geste, et il se voit. */
+  const derniere = useMemo(() => (editingId ? undefined : derniereDepenseDe(form.label, siennes)), [editingId, form.label, siennes]);
+  const rappel = derniere && !(form.category && form.porteurChoisi && form.caisseChoisie) ? derniere : undefined;
+  const reprendreLaDerniereFois = () => {
+    if (!rappel) return;
+    const categorie = catNames.includes(rappel.category) ? rappel.category : '';
+    const sous = categorie && rappel.subcategory && subsOf(categorie).includes(rappel.subcategory) ? rappel.subcategory : '';
+    setForm((f) => ({
+      ...f,
+      category: categorie || f.category,
+      subcategory: categorie ? sous : f.subcategory,
+      ...(voitToutesLesDepenses ? { porteur: rappel.porteur ?? '', porteurChoisi: true } : {}),
+    }));
+    /* La caisse passe par `changeLaCaisse`, qui garde ses règles (le porteur
+       d'une caisse tenue, les revenus remis à zéro). Une caisse disparue ne
+       se reprend pas. */
+    if (!rappel.cashbox || branchBoxes.some((b) => b.name === rappel.cashbox)) changeLaCaisse(rappel.cashbox);
+  };
 
   /* Ce qui est déjà nommé, et ce qui reste à nommer — le compte que la modale
      affiche sous le sélecteur. Déclarés APRÈS `formTotal` : les lire plus haut
@@ -1372,8 +1417,9 @@ export default function Depenses() {
             réalisées » y trônait en grand, à zéro onze mois sur douze, et le
             même montant se répétait plus bas dans les cartes. Un titre d'écran
             annonce l'écran ; les chiffres vivent dans les cartes, une fois. */}
-        <button className="trf-act" style={{ background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)', padding: '12px 18px' }} onClick={() => openFor()}>
-          + Ajouter une dépense
+        {/* UN BOUTON DE CUIVRE, UN SEUL, POUR INSCRIRE (16 septembre 2026). */}
+        <button className="trf-act" style={{ background: 'var(--color-copper)', color: 'var(--color-ivoire)', borderColor: 'var(--color-copper)', padding: '12px 18px' }} onClick={() => openFor()}>
+          + Dépense
         </button>
       </div>
 
@@ -1458,6 +1504,38 @@ export default function Depenses() {
                 ),
               ),
             });
+
+            /* DEUX RÉPONSES DE PLUS AUX QUESTIONS DU MOIS (16 septembre 2026) :
+               ce qu'il reste sur les enveloppes, et ce qui attend un oui. Elles
+               ne paraissent que si elles ont quelque chose à dire, comme les
+               autres. */
+            if (voitToutesLesDepenses && portee === 'mois' && allocated > 0) {
+              const depenseBudget = branchBudgets.reduce((n, b) => n + spentOfCat(b.category), 0);
+              const resteBudget = allocated - depenseBudget;
+              const partBudget = Math.min(100, Math.round((depenseBudget / allocated) * 100));
+              cartes.push({
+                k: 'budget',
+                n: kpiCard(
+                  'Sur le budget du mois', `${partBudget} %`,
+                  'var(--color-copper)', resteBudget < 0 ? 'var(--trf-error)' : 'var(--color-indigo)',
+                  resteBudget < 0
+                    ? `dépassé de ${fmtMoney(-resteBudget, currency)}`
+                    : `il reste ${fmtMoney(resteBudget, currency)} sur ${fmtMoney(allocated, currency)}`,
+                  '', () => setTab('budgets'),
+                ),
+              });
+            }
+            if (voitToutesLesDepenses && enAttente.length > 0) {
+              cartes.push({
+                k: 'attente',
+                n: kpiCard(
+                  'En attente de votre oui', String(enAttente.length),
+                  'var(--trf-warning)', 'var(--color-indigo)',
+                  `${fmtMoney(enAttente.reduce((n, e) => n + expenseTotal(e), 0), currency)}, pas encore dans les comptes`,
+                  '', () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+                ),
+              });
+            }
 
             /* La prévision n'a de sens que sur un mois EN COURS : sur un mois
                clos, elle répète le total au franc près. */
@@ -1604,17 +1682,33 @@ export default function Depenses() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <div className="trf-panel__title" style={{ marginBottom: 0 }}>Dépenses saisies · {nomDeLaPortee}</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
-                {visibleMonthExp.length}{q ? ` / ${monthExp.length}` : ''} · {fmtMoney(visibleMonthExp.reduce((s, e) => s + expenseTotal(e), 0), currency)}
+                {lignesDuFlux.length}{q || filtreDuFlux !== 'all' ? ` / ${monthExp.length}` : ''} · {fmtMoney(lignesDuFlux.reduce((s, e) => s + expenseTotal(e), 0), currency)}
               </div>
             </div>
-            {visibleMonthExp.length === 0 && (
+            {categoriesDuFlux.length > 1 && (
+              <div className="trf-chips trf-filtres">
+                <button type="button" className={`trf-chip ${filtreDuFlux === 'all' ? 'is-active' : ''}`} onClick={() => setFiltreDuFlux('all')}>Toutes</button>
+                {categoriesDuFlux.map((c) => (
+                  <button key={c} type="button" className={`trf-chip ${filtreDuFlux === c ? 'is-active' : ''}`} onClick={() => setFiltreDuFlux(c)}>{c}</button>
+                ))}
+              </div>
+            )}
+            {lignesDuFlux.length === 0 && (
               <div className="trf-empty">
                 {q
                   ? <>Aucune dépense de {monthName} ne répond à « {query.trim()} ».</>
                   : <>Aucune dépense saisie en {monthName}. « Ajouter une dépense » l’enregistre ici et débite la caisse choisie.</>}
               </div>
             )}
-            {visibleMonthExp.map((e) => (
+            {/* JOUR PAR JOUR (16 septembre 2026) : le plus récent en haut, le
+                total du jour en tête, la date n'est plus répétée sur chaque ligne. */}
+            {groupesDuFlux.map((g) => (
+              <Fragment key={g.jour || 'sans-date'}>
+              <div className="trf-jour">
+                <b>{ditLeJour(g.jour, todayISO())}</b>
+                <span>{g.lignes.length} dépense{g.lignes.length > 1 ? 's' : ''} · {fmtMoney(g.total, currency)}</span>
+              </div>
+              {g.lignes.map((e) => (
               <div key={e.id}>
                 {/* ── LA RANGÉE D’UNE DÉPENSE — revue le 24 août 2026 ─────
                     « Le nom des caisses est disproportionnellement écrit. » Il
@@ -1630,7 +1724,6 @@ export default function Depenses() {
                     trois gestes deviennent des liens discrets, et leur ordre
                     dit leur fréquence. */}
                 <div className={`trf-exprow ${e.stopped ? 'is-stopped' : ''}`}>
-                  <span className="trf-datepill" title="Date de l’achat">{fmtDay(e.date)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="trf-exprow__vendor">{e.label}</div>
                     <div className="trf-exprow__meta">
@@ -1729,6 +1822,8 @@ export default function Depenses() {
                 ) : null}
                 <Provenance dep={e} />
               </div>
+              ))}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -2160,7 +2255,23 @@ export default function Depenses() {
       {/* ============ MODALE · NOUVELLE DÉPENSE ============ */}
       {open && (
         <Modal title={editingId ? 'Modifier la dépense.' : 'Inscrire une dépense.'} onClose={() => setOpen(false)} width={560}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* ══ LA FENÊTRE EN DEUX TEMPS — 16 septembre 2026 ══════════════
+              « J'ai du mal à remplir les dépenses. Il faut simplifier le
+              processus et alléger. Améliorer l'UI des dépenses » (Yéman).
+              Maquette `public/maquette-les-depenses-allegees.html`, validée.
+
+              PREMIER TEMPS, CE QU'IL FAUT DIRE : le montant, à qui, la date
+              (sur aujourd'hui, à côté du bénéficiaire), et les trois réponses
+              de la Maison réunies dans UN bloc qui compte ce qui manque.
+              SECOND TEMPS, SI BESOIN : les articles, le revenu, le reçu, la
+              récurrence, repliés sous une seule ligne. Ce qui manque se lit au
+              pied AVANT de cliquer (`reponsesManquantes`, shared/depenses-saisie).
+
+              LES RÈGLES NE BOUGENT PAS : rien de présélectionné (13 septembre),
+              les trois réponses réclamées à l'enregistrement, un compte
+              restreint signe de son nom, la poche dispense de la caisse
+              (31 août), le revenu jamais devant un compte restreint. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* ═══ LE MONTANT EST LE HÉROS — 16 août 2026, demande de Yéman :
                 « quand on ouvre Ajouter une dépense, je veux le même modèle que
                 Inscrire un mouvement dans Salon & Foyer ». C'est le nombre
@@ -2220,165 +2331,170 @@ export default function Depenses() {
                 </div>
               );
             })()}
-
-            {/* LA QUESTION EN MOTS, comme au Salon & Foyer : on répond d'abord
-                à quoi va l'argent, le reste suit. */}
-            <div>
-              <div className="trc-microlabel" style={{ marginBottom: 9 }}>À quoi va cet argent ?</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {catNames.map((c) => (
-                  <button key={c} className={`trf-chip ${form.category === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, category: c, subcategory: '' }))}>{c}</button>
-                ))}
-              </div>
-              {subsOf(form.category).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9, paddingLeft: 2 }}>
-                  {subsOf(form.category).map((c) => (
-                    <button key={c} className={`trf-chip ${form.subcategory === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, subcategory: c }))}>{c}</button>
-                  ))}
-                </div>
-              )}
+            <div className="trf-ligne2">
+              {/* LE NOM SE COMPLÈTE TOUT SEUL (1er septembre) : les maisons
+                  déjà nommées se proposent pendant la frappe, et c'est ce qui
+                  garde « Super U » écrit d'une seule façon. */}
+              <label className="mnd-field trf-ligne2__qui">
+                <span className="mnd-field__label">Bénéficiaire · qui reçoit l’argent</span>
+                <input
+                  className="mnd-input"
+                  list="mnd-fournisseurs"
+                  value={form.label}
+                  onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                  placeholder="Ex. Fournisseur · Karité Bénin"
+                />
+                <datalist id="mnd-fournisseurs">
+                  {fournisseursDeLaBranche.map((f) => <option key={f.id} value={f.nom} />)}
+                </datalist>
+              </label>
+              <label className="mnd-field trf-ligne2__date">
+                <span className="mnd-field__label">Date</span>
+                <ChampDeDate compact sens="arriere" value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+              </label>
             </div>
 
-            <label className="mnd-field">
-              <span className="mnd-field__label">Bénéficiaire · qui reçoit l’argent</span>
-              {/* ── LE NOM SE COMPLÈTE TOUT SEUL — 1er septembre 2026 ─────
-                  Les maisons déjà nommées se proposent pendant la frappe. Ce
-                  n'est pas un confort : c'est ce qui garde « Super U » écrit
-                  d'une seule façon, et donc une seule fiche plutôt que trois.
+            {/* « COMME LA DERNIÈRE FOIS » : la dernière dépense de ce
+                bénéficiaire propose ses trois réponses en un clic. Rien n'est
+                présélectionné, c'est un geste, et il se voit. */}
+            {rappel && (
+              <div className="trf-rappel">
+                <span>
+                  <b>Comme la dernière fois pour {rappel.label}</b> · {ditLaDerniereFois(rappel)}
+                </span>
+                <button type="button" className="trf-act" onClick={reprendreLaDerniereFois}>Reprendre</button>
+              </div>
+            )}
 
-                  AUCUN CHAMP DE PLUS À REMPLIR. Le libellé EST le nom de la
-                  maison ; ajouter un sélecteur à côté aurait demandé de dire
-                  deux fois la même chose. */}
-              <input
-                className="mnd-input"
-                list="mnd-fournisseurs"
-                value={form.label}
-                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                placeholder="Ex. Fournisseur · Karité Bénin"
-              />
-              <datalist id="mnd-fournisseurs">
-                {fournisseursDeLaBranche.map((f) => <option key={f.id} value={f.nom} />)}
-              </datalist>
-            </label>
-
-            {/* ── QUI A FAIT CET ACHAT — 23 août 2026 ──────────────────
-                « Il y a des personnes à qui je remets tout le temps de
-                l’argent pour effectuer des dépenses. » À NE PAS CONFONDRE
-                AVEC LE BÉNÉFICIAIRE : le marché reçoit, Sandrine porte. */}
-            <div>
-              <div className="trc-microlabel" style={{ marginBottom: 9 }}>Qui a fait cet achat ?</div>
-              {/* UN COMPTE RESTREINT NE SIGNE QUE DE SON NOM — 31 août 2026.
-                  Le laisser choisir un autre porteur lui permettrait d'écrire
-                  au nom d'un collègue ; le laisser n'en choisir aucun ferait
-                  une dépense qu'il ne reverrait jamais, puisqu'il ne voit que
-                  les siennes. Son nom est donc posé, et il ne bouge pas. */}
-              {!voitToutesLesDepenses ? (
-                <div style={{
-                  border: '1px solid var(--hairline)', borderRadius: 3, padding: '9px 12px',
-                  background: 'var(--surface-card)', fontSize: 13, color: 'var(--color-indigo)',
-                }}>
-                  {monNom || 'Vous'}
-                  <span className="mnd-muted" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
-                    Vos dépenses sont signées de votre nom.
-                  </span>
+            <div className="trf-bloc">
+              <div className="trf-bloc__tete">
+                <span className="trc-microlabel">Les trois réponses</span>
+                <span className="trf-bloc__compte"><b>{compteDesTrois.donnees}</b> sur {compteDesTrois.total}</span>
+              </div>
+              <div className="trf-rep">
+                <div className="trf-rep__q">À quoi</div>
+                <div>
+                  <div className="trf-chips">
+                    {catNames.map((c) => (
+                      <button key={c} type="button" className={`trf-chip ${form.category === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, category: c, subcategory: '' }))}>{c}</button>
+                    ))}
+                  </div>
+                  {subsOf(form.category).length > 0 && (
+                    <div className="trf-chips trf-chips--sous">
+                      {subsOf(form.category).map((c) => (
+                        <button key={c} type="button" className={`trf-chip ${form.subcategory === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, subcategory: c }))}>{c}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                <button
-                  className={`trf-chip ${form.porteurChoisi && !form.porteur ? 'is-active' : ''}`}
-                  onClick={() => setForm((f) => ({ ...f, porteur: '', porteurChoisi: true }))}
-                >
-                  La Maison elle-même
-                </button>
-                {porteurs.map((nom) => (
-                  <button
-                    key={nom}
-                    className={`trf-chip ${form.porteur === nom ? 'is-active' : ''}`}
-                    onClick={() => setForm((f) => ({ ...f, porteur: nom, porteurChoisi: true }))}
-                  >
-                    {nom}
-                  </button>
-                ))}
-                <button
-                  className="trf-chip"
-                  style={{ borderStyle: 'dashed' }}
-                  onClick={() => {
-                    const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
-                    if (!nom?.trim()) return;
-                    ajouteUnPorteur(nom);
-                    setForm((f) => ({ ...f, porteur: nom.trim(), porteurChoisi: true }));
-                  }}
-                >
-                  + Quelqu’un
-                </button>
               </div>
-              )}
-              <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.5 }}>
-                Celui à qui vous confiez de l’argent pour acheter, pas celui qui l’encaisse.
-                Vous retrouverez tout ce qu’il a acheté dans « Où va l’argent ».
+              <div className="trf-rep">
+                <div className="trf-rep__q">Qui a acheté<small>pas celui qui encaisse</small></div>
+                <div>
+                  {/* UN COMPTE RESTREINT NE SIGNE QUE DE SON NOM (31 août). */}
+                  {!voitToutesLesDepenses ? (
+                    <div className="trf-rep__pose">{monNom || 'Vous'}<small>Vos dépenses sont signées de votre nom.</small></div>
+                  ) : (
+                    <div className="trf-chips">
+                      <button type="button" className={`trf-chip ${form.porteurChoisi && !form.porteur ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, porteur: '', porteurChoisi: true, avancee: false }))}>La Maison elle-même</button>
+                      {porteurs.map((nom) => (
+                        <button key={nom} type="button" className={`trf-chip ${form.porteur === nom ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, porteur: nom, porteurChoisi: true }))}>{nom}</button>
+                      ))}
+                      <button
+                        type="button"
+                        className="trf-chip trf-chip--plus"
+                        onClick={() => {
+                          const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
+                          if (!nom?.trim()) return;
+                          ajouteUnPorteur(nom);
+                          setForm((f) => ({ ...f, porteur: nom.trim(), porteurChoisi: true }));
+                        }}
+                      >
+                        + Quelqu’un
+                      </button>
+                    </div>
+                  )}
+                  {/* IL A AVANCÉ DE SA POCHE (31 août) : un seul interrupteur
+                      décide de la trésorerie, à côté de celui qui a acheté.
+                      Ouvert, aucun tiroir ne bouge, la Maison le lui doit. */}
+                  {!!form.porteur && (
+                    <div className="trf-chips" style={{ marginTop: 7 }}>
+                      <button
+                        type="button"
+                        className={`trf-chip trf-chip--poche ${form.avancee ? 'is-active' : ''}`}
+                        onClick={() => setForm((f) => ({ ...f, avancee: !f.avancee }))}
+                        title={form.avancee ? 'La Maison le lui doit. Aucune caisse ne bouge aujourd’hui.' : 'Il a payé de sa poche ? La Maison le lui devra, et aucune caisse ne bougera.'}
+                      >
+                        {form.avancee ? `${form.porteur} a avancé de sa poche` : 'de sa poche ?'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {/* ══ IL A AVANCÉ DE SA POCHE — 31 août 2026 ═══════════════
-                  « J'ai un staff qui préfinance des dépenses pour moi et je le
-                  règle à la fin du mois » (Yéman).
-
-                  UN SEUL INTERRUPTEUR DÉCIDE DE LA TRÉSORERIE. Fermé, la caisse
-                  choisie se vide comme toujours. Ouvert, AUCUN TIROIR NE BOUGE :
-                  l'argent n'est pas sorti de la Maison, il est sorti de sa poche.
-                  La charge, elle, compte au résultat dans les deux cas.
-
-                  Il n'a de sens qu'avec un porteur : sans nom, on ne pourrait
-                  rendre l'argent à personne. */}
-              {!!form.porteur && (
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, avancee: !f.avancee }))}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                    marginTop: 10, padding: '10px 12px', cursor: 'pointer', font: 'inherit',
-                    border: `1px solid ${form.avancee ? 'var(--copper-600)' : 'var(--hairline)'}`,
-                    background: form.avancee ? 'var(--copper-50)' : 'transparent',
-                    borderRadius: 3,
-                  }}
-                >
-                  <span style={{
-                    width: 34, height: 19, borderRadius: 10, flex: 'none', position: 'relative',
-                    background: form.avancee ? 'var(--copper-600)' : 'var(--hairline)',
-                    transition: 'background .2s ease',
-                  }}>
-                    <span style={{
-                      position: 'absolute', top: 2, width: 15, height: 15, borderRadius: '50%',
-                      background: '#fff', left: form.avancee ? 17 : 2, transition: 'left .2s ease',
-                    }} />
-                  </span>
-                  <span style={{ fontSize: 13 }}>
-                    {form.porteur} a avancé de sa poche
-                    <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
-                      {form.avancee
-                        ? 'La Maison le lui doit. Aucune caisse ne bouge aujourd’hui.'
-                        : 'La caisse choisie se videra, comme d’habitude.'}
-                    </span>
-                  </span>
-                </button>
-              )}
+              <div className="trf-rep">
+                <div className="trf-rep__q">Quelle caisse</div>
+                <div>
+                  {form.avancee && !!form.porteur ? (
+                    <div className="mnd-muted" style={{ fontSize: 12, paddingTop: 5 }}>Aucune ne bouge : la Maison doit cette somme à {form.porteur}.</div>
+                  ) : (
+                    <>
+                      <div className="trf-chips">
+                        {branchBoxes.map((c) => (
+                          <button key={c.id} type="button" className={`trf-chip ${form.caisseChoisie && form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>{libelleDeLaCaisse(c)}</button>
+                        ))}
+                        {/* « Sans caisse » se choisit, comme les autres (13 septembre). */}
+                        <button type="button" className={`trf-chip ${form.caisseChoisie && !form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>Sans caisse · Autres</button>
+                      </div>
+                      {cleanItems.length === 0 && (
+                        <ContrepartieMaison
+                          caisse={caisseDeLaDepense}
+                          maison={currency}
+                          saisie={form.amount}
+                          contrepartie={form.enDevise}
+                          onChange={(v: string) => setForm((f) => ({ ...f, enDevise: v }))}
+                          sortant
+                        />
+                      )}
+                      {branchBoxes.length === 0 && (
+                        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
+                          Aucune caisse déclarée pour cette branche, la dépense se rangera sous « Autres ». Les caisses se créent dans l’onglet « Les caisses ».
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* LE DÉTAIL SE REPLIE — un achat simple n'a rien à détailler, et
-                trois lignes de cases vides encombraient la fenêtre. */}
-            <div>
-              {form.items.length === 0 ? (
-                <button
-                  type="button"
-                  onClick={addItem}
-                  style={{
-                    width: '100%', cursor: 'pointer', font: 'inherit', fontSize: 13,
-                    border: '1px dashed var(--copper-500)', borderRadius: 3,
-                    background: 'transparent', color: 'var(--copper-700)', padding: '10px 13px',
-                  }}
-                >
-                  + Détailler cet achat (optionnel)
-                </button>
-              ) : (
+            <div className="trf-plus">
+              <button type="button" className="trf-plus__tete" onClick={() => setPlusOuvert((v) => !v)} aria-expanded={plusOuvert}>
+                <span>Plus, si besoin</span>
+                <span className="trf-plus__resume">{plusOuvert ? 'replier ▴' : 'Articles · revenu · reçu · récurrence ▸'}</span>
+              </button>
+              {plusOuvert && (
+                <div className="trf-plus__corps">
+                  <div className="trf-chips">
+                    {form.items.length === 0 && (
+                      <button type="button" className="trf-chip trf-chip--plus" onClick={addItem}>+ Détailler en articles</button>
+                    )}
+                    {/* LE REVENU : seulement avec une caisse, jamais devant un
+                        compte restreint, et pas pour une dépense avancée de sa
+                        poche, qui ne puise dans aucun tiroir. */}
+                    {voitToutesLesDepenses && !!form.cashbox && !(form.avancee && !!form.porteur) && (
+                      <button type="button" className={`trf-chip ${voletRevenu ? 'is-active' : ''}`} onClick={() => setVoletRevenu((v) => !v)}>
+                        Payée par quel revenu{form.sources.length ? ` · ${form.sources.length}` : ''}
+                      </button>
+                    )}
+                    <button type="button" className={`trf-chip ${voletRecu || form.fichier ? 'is-active' : ''}`} onClick={() => setVoletRecu((v) => !v)}>
+                      {form.fichier ? 'Le reçu' : 'Joindre le reçu'}
+                    </button>
+                    <span className="trf-chips__sep" aria-hidden="true" />
+                {([['', 'Ponctuel'], ['mensuel', 'Mensuel'], ['hebdomadaire', 'Hebdomadaire']] as [Form['recurring'], string][]).map(([k, label]) => (
+                  <button key={label} className={`trf-chip ${form.recurring === k ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, recurring: k }))}>{label}</button>
+                ))}
+                  </div>
+                  {form.items.length > 0 && (
+                    <div>
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
                     <span className="mnd-field__label">Articles de l’achat · {cleanItems.length}/{form.items.length}</span>
@@ -2441,61 +2557,11 @@ export default function Depenses() {
                     Quantité × prix fait le total de la ligne ; la somme des lignes devient le montant de l’achat. Quantité vide = 1.
                   </div>
                 </>
-              )}
-            </div>
-            <div>
-              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payer depuis quelle caisse</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {branchBoxes.map((c) => (
-                  <button key={c.id} className={`trf-chip ${form.caisseChoisie && form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>
-                    {libelleDeLaCaisse(c)}
-                  </button>
-                ))}
-                {/* La caisse reste FACULTATIVE : sans elle, la dépense se range
-                    sous « Autres ». L'exiger rendait la saisie impossible tant
-                    qu'aucune caisse n'était déclarée. Mais « Sans caisse » se
-                    choisit, comme les autres (13 septembre 2026). */}
-                <button className={`trf-chip ${form.caisseChoisie && !form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>
-                  Sans caisse · Autres
-                </button>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                {cleanItems.length === 0 && (
-                  <ContrepartieMaison
-                    caisse={caisseDeLaDepense}
-                    maison={currency}
-                    saisie={form.amount}
-                    contrepartie={form.enDevise}
-                    onChange={(v: string) => setForm((f) => ({ ...f, enDevise: v }))}
-                    sortant
-                  />
-                )}
-              </div>
-              {branchBoxes.length === 0 && (
-                <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
-                  Aucune caisse déclarée pour cette branche, la dépense se rangera sous « Autres ».
-                  Les caisses se créent dans l’onglet « Les caisses ».
-                </div>
-              )}
-            </div>
-
-            {/* ── PAYÉE PAR QUEL REVENU — 21 août 2026 ──────────────────
-                Le sélecteur ne paraît qu'avec une caisse : hors caisse, il n'y
-                a pas de tiroir où puiser, donc rien à nommer.
-
-                ET JAMAIS DEVANT UN COMPTE RESTREINT — 31 août 2026. Ce bloc
-                nomme les clientes une à une, avec la date, le mode de règlement
-                et ce qui reste sur chacune : c'était l'endroit le plus bavard
-                de tout l'écran, juste sous une bannière qui promettait de ne
-                montrer que ses propres dépenses.
-
-                CE QU'ON PERD EN LE FERMANT est mince : la dépense s'enregistre
-                sans source désignée, exactement comme lorsqu'aucun revenu n'est
-                disponible. Sa part reste sans nom, et la Maison la rattachera
-                depuis son propre écran. */}
-            {voitToutesLesDepenses && !!form.cashbox && (
-              <div>
-                <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payée par quel revenu</div>
+                    </div>
+                  )}
+                  {voletRevenu && voitToutesLesDepenses && !!form.cashbox && !(form.avancee && !!form.porteur) && (
+                    <div>
+                      <div className="mnd-field__label" style={{ marginBottom: 9 }}>Payée par quel revenu</div>
                 {/* SANS MONTANT, RIEN À NOMMER — un clic ne pourrait prendre
                     qu'un chiffre inventé. On le dit au lieu de ne rien faire. */}
                 {formTotal <= 0 ? (
@@ -2613,50 +2679,33 @@ export default function Depenses() {
                     })()}
                   </>
                 )}
-              </div>
-            )}
-            {/* LA PREUVE DE LA DÉPENSE — 23 août 2026. C’est ici qu’elle sert
-                le plus : un reçu de marché, une facture de fournisseur, la
-                capture d’un virement. Le champ est le même que celui des
-                caisses ; le compartiment aussi. */}
+                    </div>
+                  )}
+                  {(voletRecu || form.fichier) && (
             <ChampPieceJointe
               branchId={branch.id}
               dossier="depense"
               valeur={form.fichier}
               onChange={(pj) => setForm((f) => ({ ...f, fichier: pj }))}
             />
-
-            <div>
-              <div className="mnd-field__label" style={{ marginBottom: 9 }}>Récurrence</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {([['', 'Ponctuel'], ['mensuel', 'Mensuel'], ['hebdomadaire', 'Hebdomadaire']] as [Form['recurring'], string][]).map(([k, label]) => (
-                  <button key={label} className={`trf-chip ${form.recurring === k ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, recurring: k }))}>{label}</button>
-                ))}
-              </div>
-            </div>
-            {/* LA DATE FERME LA FENÊTRE, comme au Salon & Foyer : c'est le
-                dernier réglage, pas une question posée avant le montant. */}
-            <label className="mnd-field">
-              <span className="mnd-field__label">Date</span>
-              <ChampDeDate compact sens="arriere" value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
-            </label>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
-              {saveErr && (
-                <span style={{ marginRight: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--trf-error)' }}>
-                  {saveErr}
-                </span>
+                  )}
+                </div>
               )}
-              <button className="mnd-btn mnd-btn--ghost" onClick={() => setOpen(false)}>Annuler</button>
-              {/* LE BOUTON CHANGE DE MOT, ET LE MOT CHANGE LE GESTE — 31 août
-                  2026. On ne ment pas sur ce qui vient de se passer : rien n'est
-                  entré dans les comptes, une demande est partie. */}
-              <button className="mnd-btn" onClick={save}>
+            </div>
+
+            <div className="trf-pied">
+              {/* CE QUI MANQUE SE LIT AVANT DE CLIQUER ; le bouton pâlit tant
+                  qu'il manque quelque chose, et reste cliquable : un clic dit
+                  précisément ce qu'il attend. */}
+              <span className={`trf-pied__manque ${saveErr ? 'is-erreur' : ''}`}>{saveErr ?? ditCeQuiManque(manques)}</span>
+              <button type="button" className="mnd-btn mnd-btn--ghost" onClick={() => setOpen(false)}>Annuler</button>
+              <button type="button" className={`mnd-btn ${manques.length ? 'is-pale' : ''}`} onClick={save}>
                 {editingId ? 'Enregistrer les modifications'
                   : jeSoumets ? 'Soumettre pour validation' : 'Enregistrer la dépense'}
               </button>
             </div>
             {jeSoumets && !editingId && (
-              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 10, textAlign: 'right' }}>
+              <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, textAlign: 'right' }}>
                 Cette dépense partira à la Maison. Elle n’entrera dans les comptes qu’une fois
                 validée, et vous verrez la réponse ici même.
               </div>

@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES DÉPENSES, ALLÉGÉES — 16 septembre 2026
+
+« J'ai du mal à remplir les dépenses. Il faut simplifier le processus et
+alléger. Améliorer l'UI des dépenses » (Yéman). Maquette
+`public/maquette-les-depenses-allegees.html` validée avec ses quatre
+arbitrages : construire tout ; « comme la dernière fois » en un clic ; le
+revenu replié sous « Plus, si besoin » ; la date sur aujourd'hui et la liste
+jour par jour.
+
+**LA FENÊTRE EN DEUX TEMPS** (`Depenses.tsx`, la modale). Premier temps, ce
+qu'il faut dire : le montant (héros, inchangé), le bénéficiaire et la date côte
+à côte (`trf-ligne2`, la date part sur aujourd'hui), puis **le bloc des trois
+réponses** (`trf-bloc`, `trf-rep`) : à quoi (et ses sous-catégories), qui a
+acheté (un compte restreint voit son nom posé ; « de sa poche ? » est un chip
+à côté du porteur choisi), quelle caisse (« Aucune ne bouge » quand la poche
+est ouverte). Le bloc compte « n sur total ». Second temps, **« Plus, si
+besoin »** (`trf-plus`), replié : « + Détailler en articles », « Payée par
+quel revenu » (seulement avec une caisse, jamais devant un compte restreint,
+pas pour une dépense de sa poche), « Joindre le reçu », la récurrence. Il
+s'ouvre seul sur une dépense qui a déjà des articles, un revenu, un reçu ou
+une récurrence. **Le pied dit ce qui manque avant de cliquer**
+(`reponsesManquantes`, `ditCeQuiManque`) et le bouton pâlit sans se griser :
+un clic dit précisément ce qu'il attend, par `save`, inchangé.
+
+**« COMME LA DERNIÈRE FOIS »** (`derniereDepenseDe`, `ditLaDerniereFois`) :
+quand le bénéficiaire tapé a déjà une dépense (même nom aux accents près),
+une ligne pointillée propose « Produits · Huiles · La Maison elle-même ·
+Caisse principale · Reprendre », tant que les trois réponses ne sont pas
+toutes données. La caisse passe par `changeLaCaisse` (ses règles restent) ;
+une caisse disparue ne se reprend pas ; la poche ne se recopie jamais. Rien
+n'est présélectionné : c'est un clic, et il se voit.
+
+**LA PAGE** : un bouton de cuivre « + Dépense » ; deux cartes de plus quand
+elles ont quelque chose à dire, « Sur le budget du mois » (part des
+enveloppes, ouvre l'onglet Budgets) et « En attente de votre oui » (remonte à
+la file de validation, qui reste telle quelle en tête de page) ; la liste
+**jour par jour** (`groupeParJour`, `ditLeJour` : « Aujourd'hui », « Hier »,
+« Lundi 14 septembre », l'année si ce n'est pas la nôtre), le total du jour en
+tête, la date retirée des lignes ; des chips de catégorie au-dessus de la
+liste quand le mois en a plus d'une. `.tr-grid--5` posé pour cinq cartes.
+
+Les juges vivent dans `shared/depenses-saisie.ts`, éprouvés par
+`verifie-depenses-saisie` (62 harnais). Aucune SQL, rien au modèle.
+
 ## LE CERTIFICAT S'ENREGISTRE, SES SIGNATAIRES SE CHANGENT, SA PHRASE EST CORRIGÉE — 16 septembre 2026
 
 Trois demandes de Yéman dans l'heure, sur la page du certificat.
