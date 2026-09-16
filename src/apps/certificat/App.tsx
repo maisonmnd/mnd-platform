@@ -62,18 +62,27 @@ function initFromUrl() {
   const annee = new Date().getFullYear();
   const parcours = params.get('parcours')?.trim() || '';
   const match = findFormation(parcours);
-  /* Parcours absent du catalogue (formation maison, intitulé libre venu de l'ERP) :
-     on forge une formation sur-mesure — sans quoi le certificat affichait un autre
-     parcours que celui délivré. */
+  /* ══ L'ACADÉMIE FAIT FOI — 16 septembre 2026 ══════════════════════════
+     « Remets le texte du certificat à jour selon les nouvelles mises à jour
+     de l'Œuvre » (Yéman). Le certificat retrouvait le parcours par son nom
+     et imprimait la durée et les compétences de la SEMENCE, quand la
+     formation vivante, retouchée dans l'Académie, disait autre chose. Ce que
+     le lien apporte (niveau, durée, compétences lues sur les modules) PRIME
+     désormais, même quand le nom est connu ; la semence reste le repli d'un
+     certificat ouvert sans lien. Un parcours inconnu forge une formation
+     sur-mesure, comme avant. */
+  const niveauDuLien = params.get('niveau')?.trim() || '';
+  const dureeDuLien = params.get('duree')?.trim() || '';
+  const competencesDuLien = params.get('competences')?.trim() || '';
+  const leLienDitPlus = !!(niveauDuLien || dureeDuLien || competencesDuLien);
   const custom: Formation | null =
-    !match && parcours
+    parcours && (!match || leLienDitPlus)
       ? {
-          id: 'sur-mesure',
-          titre: parcours,
-          // Niveau et durée réels transmis par l'ERP (sinon repli générique).
-          niveau: params.get('niveau')?.trim() || 'Parcours de la Maison',
-          duree: params.get('duree')?.trim() || 'sur dossier',
-          competences: 'les gestes et le protocole de la Maison MND',
+          id: match?.id ?? 'sur-mesure',
+          titre: match?.titre ?? parcours,
+          niveau: niveauDuLien || match?.niveau || 'Parcours de la Maison',
+          duree: dureeDuLien || match?.duree || 'sur dossier',
+          competences: competencesDuLien || match?.competences || 'les gestes et le protocole de la Maison MND',
         }
       : null;
   /* Numéro, date et mention transmis par l'ERP à la délivrance (F6 → certificat). */
@@ -104,8 +113,11 @@ function initFromUrl() {
 
 export default function App() {
   const [init] = useState(initFromUrl);
-  /* Le catalogue affiché inclut, le cas échéant, la formation sur-mesure reçue par URL. */
-  const [formations] = useState<Formation[]>(() => (init.custom ? [init.custom, ...FORMATIONS] : FORMATIONS));
+  /* Le catalogue affiché inclut, le cas échéant, la formation reçue par URL,
+     à la place de sa jumelle de la semence quand elle en a une. */
+  const [formations] = useState<Formation[]>(() => (init.custom
+    ? [init.custom, ...FORMATIONS.filter((f) => f.id !== init.custom!.id)]
+    : FORMATIONS));
   const [apprenant, setApprenant] = useState(init.apprenant);
   const [formationId, setFormationId] = useState(init.formationId);
   const [dateIso, setDateIso] = useState(init.dateIso);
@@ -346,10 +358,10 @@ export default function App() {
                   <span className="ct-filet ct-filet--fin" aria-hidden="true" />
 
                   <p className="ct-texte">
-                    qui a accompli le parcours <b>{formation.titre}</b> — {formation.niveau} ·{' '}
-                    {formation.duree} — à l’atelier MND de Cotonou, et démontré devant le maître
-                    loctician {formation.competences}, selon la méthode des quatre temps — Purifier
-                    · Nourrir · Sceller · Couronner — et les exigences de la Maison.
+                    qui a accompli le parcours <b>{formation.titre}</b>, {formation.niveau} ·{' '}
+                    {formation.duree}, à l’atelier MND de Cotonou, et démontré devant le maître
+                    loctician {formation.competences}, selon la méthode des quatre temps, Purifier
+                    · Nourrir · Sceller · Couronner, et les exigences de la Maison.
                   </p>
 
                   <div className="ct-meta">

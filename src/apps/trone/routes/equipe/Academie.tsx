@@ -21,7 +21,7 @@ import AcademieSuivi from './AcademieSuivi';
 import './equipe.css';
 import './equipe.css';
 import { frShortAn } from '../clients/_shared';
-import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, type PublicDeFormation } from '../../../../shared/parcours';
+import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, dureeDite, competencesDesModules, type PublicDeFormation } from '../../../../shared/parcours';
 import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../../../shared/manuel';
 import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
@@ -438,8 +438,14 @@ export default function Academie() {
     const p = new URLSearchParams({ apprenant: name, parcours });
     const fo = formations.find((f) => f.name === parcours);
     if (fo) {
+      /* L'ACADÉMIE FAIT FOI — 16 septembre 2026. Le certificat imprime la
+         durée en lettres et les modules de la formation VIVANTE, pas ceux
+         de la semence : une formation retouchée ici se retrouve telle quelle
+         sur le papier. */
       p.set('niveau', fo.niveau);
-      p.set('duree', `${fo.dureeSemaines} semaine${fo.dureeSemaines > 1 ? 's' : ''} · ${fo.sessions} séance${fo.sessions > 1 ? 's' : ''}`);
+      p.set('duree', dureeDite(fo.dureeSemaines, fo.sessions));
+      const competences = competencesDesModules(formationModules(fo.id));
+      if (competences) p.set('competences', competences);
     }
     return `${asset('/certificat.html')}?${p.toString()}`;
   };

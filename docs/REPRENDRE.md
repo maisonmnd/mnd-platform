@@ -2,6 +2,39 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CERTIFICAT DIT L'ACADÉMIE, PAS LA SEMENCE — 16 septembre 2026
+
+« Remets le texte du certificat à jour selon les nouvelles mises à jour de
+l'Œuvre » (Yéman). Le certificat retrouvait le parcours par son nom dans
+`PARCOURS_MND` et imprimait la durée et les compétences de la semence du
+6 septembre (« trois mois · douze séances », la création, la restauration, la
+couleur, le défaisage), quand la formation vivante, retouchée dans l'Académie,
+disait quatre semaines, seize séances et d'autres modules. Deux vérités pour
+un papier signé.
+
+**L'ACADÉMIE FAIT FOI.** Les deux liens « Certificat » (`Academie.tsx`
+`certHref`, `AcademieSuivi.tsx` `link`) portent désormais la formation
+VIVANTE : `niveau` (inchangé, le chiffre romain y reste, `palierDeLaFormation`
+s'en sert), `duree` en lettres par `dureeDite` (« quatre semaines · seize
+séances » ; huit semaines et plus, par quatre, se disent en mois ; féminin
+« une semaine », « vingt et une séances »), et `competences` lu sur les modules
+par `competencesDesModules` (« la naissance VÈKPÈ™, la restauration FÍNFÍN™
+… et le défaisage GBÀTÀ™ » : le point médian entre le nom et son nom fon
+tombe, l'initiale se baisse, un module qui commence par son nom fon garde ses
+majuscules). Les deux juges vivent dans `shared/parcours.ts`, éprouvés dans
+`verifie-parcours` (⑦).
+
+**AU CERTIFICAT** (`certificat/App.tsx`, `initFromUrl`) : ce que le lien
+apporte PRIME sur la semence, même quand le nom du parcours est connu ; la
+formation reçue remplace sa jumelle dans le menu. Sans lien (certificat ouvert
+à la main), la semence reste le repli, comme avant. Les tirets cadratins du
+texte imprimé sont devenus des virgules.
+
+**À SAVOIR** : un certificat déjà imprimé ne bouge pas ; il faut rouvrir le
+lien depuis l'Académie pour avoir le texte à jour. La semence de l'Œuvre dans
+`parcours.ts` (trois mois, douze séances) n'a pas été retouchée : elle ne
+sert qu'à poser une formation neuve.
+
 ## LE CATALOGUE PAR PALIER, LA LISTE PAR PALIER — 16 septembre 2026
 
 « Selon ce que nous savons des paliers, peux-tu réorganiser les services du

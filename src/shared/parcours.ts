@@ -35,6 +35,8 @@
 
 /** DEUX PUBLICS QUI NE SE MÉLANGENT PAS. La débutante entre dans le métier ; la
     professionnelle y est déjà et ne refait pas le cursus. */
+import { nombreEnLettres } from './lettres';
+
 export type PublicDeFormation = 'debutante' | 'professionnelle';
 
 export const PUBLIC_LABEL: Record<PublicDeFormation, string> = {
@@ -398,4 +400,59 @@ export function completeLaFiche<F extends FicheDeFormation>(
   }
 
   return rubriques.length ? { fiche: { ...f, ...patch }, rubriques } : { fiche: f, rubriques };
+}
+
+/* ══ CE QUE LE CERTIFICAT DIT D'UNE FORMATION — 16 septembre 2026 ═══════
+   « Remets le texte du certificat à jour selon les nouvelles mises à jour de
+   l'Œuvre » (Yéman).
+
+   LE CERTIFICAT DISAIT LA SEMENCE, PAS L'ACADÉMIE. Il retrouvait le parcours
+   par son nom dans `PARCOURS_MND` et imprimait la durée et les compétences
+   écrites ici le 6 septembre, quand la formation vivante, retouchée dans
+   l'Académie (ses modules, ses séances, ses semaines), disait autre chose.
+   Deux vérités pour un papier signé.
+
+   L'ACADÉMIE FAIT FOI. Ces deux juges écrivent, depuis la formation
+   VIVANTE, ce que le certificat imprime : la durée en lettres, et la liste
+   des modules accomplis, en une phrase qui se lit après « démontré devant
+   le maître loctician ». La semence ne sert plus que de repli, quand le
+   certificat s'ouvre sans lien. */
+
+
+/** « quatre semaines · seize séances », « trois mois · douze séances ».
+    En lettres, comme un acte : un chiffre se rature. Huit semaines et plus,
+    par quatre, se disent en mois, comme la Maison les dit. */
+const auFeminin = (n: number): string => nombreEnLettres(n).replace(/\bun$/, 'une');
+
+export function dureeDite(semaines: number, seances: number): string {
+  const s = Math.max(0, Math.round(semaines));
+  const n = Math.max(0, Math.round(seances));
+  const temps = s >= 8 && s % 4 === 0
+    ? `${nombreEnLettres(s / 4)} mois`
+    : `${auFeminin(s)} semaine${s > 1 ? 's' : ''}`;
+  return `${temps} · ${auFeminin(n)} séance${n > 1 ? 's' : ''}`;
+}
+
+/** UN NOM DE MODULE, TEL QU'IL SE LIT DANS UNE PHRASE. « La couleur végétale
+    · YÈKPÈ™ » devient « la couleur végétale YÈKPÈ™ » : le point médian qui
+    sépare le nom de son nom fon tombe, et l'initiale se baisse, sauf quand
+    le module commence par son nom fon (« SÍNSIN™, le resserrage »), qui
+    garde ses majuscules. */
+export const moduleEnPhrase = (nom: string): string => {
+  const plat = nom.trim().replace(/\s*·\s*/g, ' ').replace(/\s+/g, ' ');
+  if (!plat) return '';
+  const premier = plat.split(' ')[0];
+  const enCapitales = premier.replace(/[^\p{L}]/gu, '').length >= 2 && premier === premier.toUpperCase();
+  return enCapitales ? plat : plat.charAt(0).toLowerCase() + plat.slice(1);
+};
+
+/** LA LISTE DES MODULES, EN UNE PHRASE : « la naissance VÈKPÈ™, la
+    restauration FÍNFÍN™ et le défaisage GBÀTÀ™ ». Un module sans nom ne
+    compte pas ; sans aucun module, une chaîne vide, et le certificat
+    retombe sur le texte de la semence. */
+export function competencesDesModules(modules: readonly string[]): string {
+  const dits = modules.map(moduleEnPhrase).filter(Boolean);
+  if (dits.length === 0) return '';
+  if (dits.length === 1) return dits[0];
+  return `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}`;
 }

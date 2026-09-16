@@ -30,6 +30,7 @@ import {
   type ModuleEvaluation, type PracticeRecord, type JuryReview, type JuryRole,
 } from './academy';
 import './equipe.css';
+import { dureeDite, competencesDesModules } from '../../../../shared/parcours';
 
 /* Académie — Suivi & Certification. La table des apprenants (F2 + statut) et le
    livret F1→F6 avec note finale en direct et délivrance du certificat. */
@@ -1452,8 +1453,13 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
       mention: mn === 'excellence' ? 'Excellence' : 'Honorable',
     });
     if (formation) {
+      /* L'ACADÉMIE FAIT FOI — 16 septembre 2026 : la durée en lettres et
+         les modules de la formation VIVANTE partent dans le lien, et le
+         certificat les imprime plutôt que la semence. */
       p.set('niveau', formation.niveau);
-      p.set('duree', `${formation.dureeSemaines} semaine${formation.dureeSemaines > 1 ? 's' : ''} · ${formation.sessions} séance${formation.sessions > 1 ? 's' : ''}`);
+      p.set('duree', dureeDite(formation.dureeSemaines, formation.sessions));
+      const competences = competencesDesModules(modules);
+      if (competences) p.set('competences', competences);
     }
     return `${asset('/certificat.html')}?${p.toString()}`;
   };

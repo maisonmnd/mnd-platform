@@ -4,7 +4,7 @@
    il faudrait les démêler un par un dans une liste qui porte déjà des
    inscriptions. */
 import {
-  PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche,
+  PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche, dureeDite, competencesDesModules,
 } from '../src/shared/parcours';
 import { depositAmountFor, depositLabelOf, seancesDuProgramme, datesDesSeances, lignesDuPlan } from '../src/apps/trone/routes/equipe/academy';
 import type { Formation } from '../src/apps/trone/routes/equipe/data';
@@ -182,6 +182,24 @@ dit('un dossier qui a déjà des séances ne renumérote rien', [[5, 1, false], 
   lignesDuPlan([{ sessionNumber: 5, moduleIndex: 1 }], [{ cle: 'z', moduleIndex: 0 }], false, 4).map((l) => [l.sessionNumber, l.moduleIndex, l.ajoutee]));
 dit('sans séance du programme, les ajouts suivent la dernière faite', [7, 8],
   lignesDuPlan([], [{ cle: 'a' }, { cle: 'b' }], false, 6).map((l) => l.sessionNumber));
+
+
+/* ── ⑦ CE QUE LE CERTIFICAT DIT (16 septembre) ───────────────────────────
+   Le certificat imprime la formation VIVANTE de l'Académie : sa durée en
+   lettres et ses modules en une phrase, pas la semence. */
+dit('la durée se dit en lettres, semaines et séances', 'quatre semaines · seize séances', dureeDite(4, 16));
+dit('douze semaines se disent trois mois', 'trois mois · douze séances', dureeDite(12, 12));
+dit('huit semaines se disent deux mois', 'deux mois · huit séances', dureeDite(8, 8));
+dit('six semaines restent des semaines', 'six semaines · dix séances', dureeDite(6, 10));
+dit('une semaine, une séance : au féminin, au singulier', 'une semaine · une séance', dureeDite(1, 1));
+dit('vingt et une séances, au féminin', 'trois semaines · vingt et une séances', dureeDite(3, 21));
+dit('les modules se lisent en une phrase, le point médian tombé, l’initiale baissée',
+  'la naissance VÈKPÈ™, la restauration FÍNFÍN™, la couleur végétale YÈKPÈ™ et le défaisage GBÀTÀ™',
+  competencesDesModules(['La naissance · VÈKPÈ™', 'La restauration · FÍNFÍN™', 'La couleur végétale · YÈKPÈ™', 'Le défaisage · GBÀTÀ™']));
+dit('un module qui commence par son nom fon garde ses majuscules', 'SÍNSIN™ le resserrage et la pose', competencesDesModules(['SÍNSIN™ · le resserrage', 'La pose']));
+dit('un seul module se dit seul', 'la tenue', competencesDesModules(['La tenue']));
+dit('sans module, rien : le certificat retombe sur la semence', '', competencesDesModules(['', '   ']));
+dit('la semence de l’Œuvre garde ses quatre modules', 4, parcoursParId('oeuvre')?.programme.length);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
