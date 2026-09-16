@@ -120,7 +120,7 @@ export const PARCOURS_MND: ParcoursMND[] = [
     ],
     programme: [
       { nom: 'Le diagnostic KÒKÒ™', seances: 2, contenu: 'Compter les locks et reconnaître le calibre. Lire la pousse et les zones fragiles. Écrire la fiche et l’orientation vers le bon atelier.' },
-      { nom: 'SÍNSIN™, le resserrage', seances: 4, contenu: 'Crochet ou torsion selon la texture. La tension juste qui préserve la racine, le contrôle d’uniformité. SÍNSIN™ Essentielle, puis Élaborée et son scellement renforcé.' },
+      { nom: 'SÍNSIN™, le resserrage', seances: 4, contenu: 'Crochet ou torsion selon la texture. La tension juste qui préserve la racine, le contrôle d’uniformité. SÍNSIN™ Essentiel, puis Élaborée et son scellement renforcé.' },
       { nom: 'La reprise frontale', seances: 2, contenu: 'Tempes, nuque, baby hairs. Des lignes nettes entre deux resserrages complets, sans fragiliser la lisière.' },
       { nom: 'Le rituel complet', seances: 2, contenu: 'Enchaîner diagnostic, lavage, resserrage, soin et styling. Tenir le temps, expliquer la cadence à la cliente, mettre la fiche à jour.' },
     ],
@@ -236,8 +236,8 @@ export const PARCOURS_MND: ParcoursMND[] = [
     ],
     programme: [
       { nom: 'La racine et le cuir chevelu', seances: 1, contenu: 'La pousse, la tension, la casse de traction. Les signes qui imposent d’orienter vers un diagnostic.' },
-      { nom: 'SÍNSIN™ Essentielle', seances: 2, contenu: 'Crochet et torsion, l’uniformité lock par lock, le temps d’un resserrage complet.' },
-      { nom: 'SÍNSIN™ Élaborée et reprise frontale', seances: 2, contenu: 'Le scellement renforcé qui espace les visites. Tempes, nuque, lisière.' },
+      { nom: 'SÍNSIN™ Essentiel', seances: 2, contenu: 'Crochet et torsion, l’uniformité lock par lock, le temps d’un resserrage complet.' },
+      { nom: 'SÍNSIN™ Élaboré et reprise frontale', seances: 2, contenu: 'Le scellement renforcé qui espace les visites. Tempes, nuque, lisière.' },
       { nom: 'VÍVÍVÓ™ et la longueur', seances: 1, contenu: 'Ail noir, moringa, gingembre, cannelle, et vingt minutes de massage crânien. Le programme de pousse : DÀNDÀN™ à quatre semaines, GBÌGBÌ™ à huit, WÈWÈ™ et la remesure à douze.' },
     ],
     tetesReelles: 'quatre resserrages, dont deux en autonomie supervisée',
@@ -447,12 +447,86 @@ export const moduleEnPhrase = (nom: string): string => {
 };
 
 /** LA LISTE DES MODULES, EN UNE PHRASE : « la naissance VÈKPÈ™, la
-    restauration FÍNFÍN™ et le défaisage GBÀTÀ™ ». Un module sans nom ne
+    restauration FÍNFÍN™, ainsi que le défaisage GBÀTÀ™ ». Un module sans nom ne
     compte pas ; sans aucun module, une chaîne vide, et le certificat
     retombe sur le texte de la semence. */
 export function competencesDesModules(modules: readonly string[]): string {
   const dits = modules.map(moduleEnPhrase).filter(Boolean);
   if (dits.length === 0) return '';
   if (dits.length === 1) return dits[0];
-  return `${dits.slice(0, -1).join(', ')} et ${dits[dits.length - 1]}`;
+  /* « AINSI QUE » DEVANT LE DERNIER (version corrigée du 16 septembre) :
+     une longue liste reste lisible. */
+  return `${dits.slice(0, -1).join(', ')}, ainsi que ${dits[dits.length - 1]}`;
+}
+
+/* ══ LA PHRASE DU CERTIFICAT — 16 septembre 2026, version corrigée par Yéman.
+
+   « [Nom] a accompli le Palier III · L'Œuvre (quatre semaines, seize séances,
+   à l'atelier MND de Cotonou) et a démontré devant le Maître Locticien sa
+   maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, …, ainsi
+   que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier ·
+   Nourrir · Sceller · Couronner) et les exigences de la Maison. »
+
+   Ce qu'il a changé, et pourquoi : un sujet et un verbe (« a accompli ») ;
+   « sa maîtrise de », donc chaque élément de la liste prend son article (de
+   la, du, des) ; « Soins » en minuscule, nom commun et non marque ; « ainsi
+   que » devant le dernier élément, pour qu'une longue liste reste lisible ;
+   les quatre temps entre parenthèses ; « Maître Locticien » en gras. */
+
+/** « la racine et le cuir chevelu » → « de la racine et du cuir chevelu ».
+    Chaque élément de la liste (séparés par une virgule, « et », « ainsi
+    que ») prend son article : la → de la, le → du, les → des, l' → de l' ;
+    un élément sans article, un nom fon, prend « du » (« du SÍNSIN™ », « du
+    SÍNSIN™ Élaboré », Yéman, 16 septembre). Après « et », un morceau SANS
+    article reste attaché à ce qui précède : « Essentiel et Élaboré »
+    sont deux adjectifs, pas deux éléments. L'initiale d'un nom commun se
+    baisse (« Soins » → « soins »), un nom fon en capitales garde les
+    siennes. Une liste qui porte déjà ses « de » ne bouge pas. */
+export function maitriseDe(liste: string): string {
+  const morceaux = liste.split(/(, ainsi que |, | et )/);
+  let sortie = '';
+  morceaux.forEach((m, i) => {
+    if (i % 2 === 1) { sortie += m; return; }
+    const apresEt = i > 0 && morceaux[i - 1] === ' et ';
+    sortie += apresEt && !aUnArticle(m) ? m : avecSonArticle(m);
+  });
+  return sortie;
+}
+
+const aUnArticle = (s: string): boolean => /^(la |le |les |l['’]|de la |du |des |de l['’]|d['’])/i.test(s.trim());
+
+const avecSonArticle = (segment: string): string => {
+  const s = segment.trim();
+  if (!s) return segment;
+  if (/^(de la |du |des |de l['’]|d['’])/i.test(s)) return s;
+  /* « les » avant « le », sinon « Les Soins » se lit « le » + « s Soins ». */
+  const m = s.match(/^(les|la|le|l['’])\s*/i);
+  const article = m ? m[1].toLowerCase().replace('’', "'") : '';
+  const reste = m ? s.slice(m[0].length) : s;
+  const de = article === 'la' ? 'de la ' : article === 'les' ? 'des ' : article === "l'" ? 'de l’' : 'du ';
+  return de + initialeBaissee(reste);
+};
+
+const initialeBaissee = (s: string): string => {
+  const premier = s.split(' ')[0];
+  const enCapitales = premier.replace(/[^\p{L}]/gu, '').length >= 2 && premier === premier.toUpperCase();
+  return enCapitales ? s : s.charAt(0).toLowerCase() + s.slice(1);
+};
+
+/** LE TEXTE DU CERTIFICAT, EN TROIS MORCEAUX : ce qui précède les mots en
+    gras, « Maître Locticien », et ce qui suit. L'écran et le PDF lisent la
+    même phrase ici. Le niveau porte d'ordinaire le titre (« Palier III ·
+    L'Œuvre ») ; sinon le parcours est nommé avant. La durée se lit avec des
+    virgules entre parenthèses. */
+export function texteDuCertificat(o: {
+  apprenant: string; titre: string; niveau: string; duree: string; competences: string;
+}): { avant: string; gras: string; apres: string } {
+  const plat = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const parcours = plat(o.niveau).includes(plat(o.titre)) ? o.niveau : `parcours ${o.titre}, ${o.niveau}`;
+  const duree = o.duree.replace(/\s*·\s*/g, ', ');
+  return {
+    avant: `${o.apprenant} a accompli le ${parcours} (${duree}, à l’atelier MND de Cotonou) et a démontré devant le `,
+    gras: 'Maître Locticien',
+    apres: ` sa maîtrise ${maitriseDe(o.competences)}, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.`,
+  };
 }

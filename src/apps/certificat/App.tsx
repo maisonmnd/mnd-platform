@@ -2,7 +2,7 @@ import { asset } from '../../shared/asset';
 import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Field, Input, Select } from '../../ds/components';
-import { PARCOURS_MND } from '../../shared/parcours';
+import { PARCOURS_MND, texteDuCertificat } from '../../shared/parcours';
 import { enVignette } from '../../shared/photo';
 import { ChampDeDate } from '../../ds/dates';
 
@@ -30,6 +30,65 @@ const FORMATIONS: Formation[] = PARCOURS_MND.map((p) => ({
 }));
 
 const MENTIONS = ['Honorable', 'Distinction', 'Excellence'];
+
+/* ══ LES SIGNATAIRES SE CHANGENT — 16 septembre 2026 ═══════════════════
+   « Je veux pouvoir changer les noms des signataires du certificat »
+   (Yéman). Deux signataires, chacun son nom et sa qualité, réglés dans le
+   panneau. ILS RESTENT SUR CE POSTE (localStorage), d'un certificat à
+   l'autre : on ne retape pas la direction à chaque papier. Sans réglage,
+   ceux de la Maison. */
+type Signataire = { nom: string; role: string };
+const SIGNATAIRES_PAR_DEFAUT: Signataire[] = [
+  { nom: 'Brice Ahouansou', role: 'Le Maître Locticien' },
+  { nom: 'Yéman Ahouansou', role: 'La Direction · Maison MND' },
+];
+const CLE_SIGNATAIRES = 'mnd_certificat_signataires';
+function litLesSignataires(): Signataire[] {
+  try {
+    const brut = localStorage.getItem(CLE_SIGNATAIRES);
+    if (!brut) return SIGNATAIRES_PAR_DEFAUT;
+    const l: unknown = JSON.parse(brut);
+    if (!Array.isArray(l) || l.length !== 2) return SIGNATAIRES_PAR_DEFAUT;
+    return SIGNATAIRES_PAR_DEFAUT.map((d, i) => {
+      const s = l[i] as Partial<Signataire> | null;
+      return {
+        nom: typeof s?.nom === 'string' ? s.nom : d.nom,
+        role: typeof s?.role === 'string' ? s.role : d.role,
+      };
+    });
+  } catch { return SIGNATAIRES_PAR_DEFAUT; }
+}
+
+/** Le fichier part sur le poste, comme un calendrier ou un reçu. */
+function telecharge(blob: Blob, nom: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nom;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+type EtatDuDepot = '' | 'en-cours' | 'depose' | 'sans-dossier' | 'refuse' | 'pdf-impossible';
+const DIT_LE_DEPOT: Record<Exclude<EtatDuDepot, ''>, string> = {
+  'en-cours': 'Le certificat se dessine…',
+  depose: 'PDF enregistré sur ce poste, et sa copie déposée au dossier de l’apprenant, au Suivi de l’Académie.',
+  'sans-dossier': 'PDF enregistré sur ce poste. Ouvert sans lien du Suivi, ce certificat n’a pas de dossier où déposer sa copie.',
+  refuse: 'PDF enregistré sur ce poste, mais la copie au dossier n’a pas pu être déposée : connectez-vous au Trône sur ce poste, puis recommencez.',
+  'pdf-impossible': 'Le PDF n’a pas pu se dessiner. Réessayez, ou passez par « Imprimer ».',
+};
+
+function SignatureDuCertificat({ s }: { s: Signataire }) {
+  return (
+    <div className="ct-sign">
+      <div className="ct-sign__nom">{s.nom.trim() || ' '}</div>
+      <span className="ct-sign__ligne" aria-hidden="true" />
+      <div className="ct-sign__role">{s.role.trim()}</div>
+    </div>
+  );
+}
 
 const SHEET_W = 1120;
 const SHEET_H = 792;
@@ -108,6 +167,9 @@ function initFromUrl() {
     certNo: numero || '',
     mention,
     custom,
+    /* L'INSCRIPTION D'OÙ VIENT LE LIEN (16 septembre 2026) : c'est là que la
+       copie du PDF se dépose. Sans lien du Suivi, pas de dossier. */
+    dossier: (params.get('dossier') ?? '').trim().replace(/[^A-Za-z0-9_-]/g, ''),
   };
 }
 
@@ -123,15 +185,23 @@ export default function App() {
   const [dateIso, setDateIso] = useState(init.dateIso);
   const [certNo, setCertNo] = useState(init.certNo);
   const [mention, setMention] = useState(init.mention);
+  const [signataires, setSignataires] = useState<Signataire[]>(litLesSignataires);
+  useEffect(() => {
+    try { localStorage.setItem(CLE_SIGNATAIRES, JSON.stringify(signataires)); } catch { /* poste sans mémoire */ }
+  }, [signataires]);
+  const poseSignataire = (i: number, champ: keyof Signataire, valeur: string) =>
+    setSignataires((prev) => prev.map((s, j) => (j === i ? { ...s, [champ]: valeur } : s)));
+  const [depot, setDepot] = useState<EtatDuDepot>('');
 
   /* ══ LA PHOTO D'IDENTITÉ — 13 septembre 2026 ══════════════════════════
      « Créer un espace pour télécharger la photo d'identité de l'apprenant sur
      le certificat » (Yéman).
 
-     ELLE NE QUITTE PAS CE POSTE. Le certificat se prépare par un lien
-     (?apprenant=…) : une photo ne tient pas dans un lien, et la déposer dans
-     la base pour une impression serait garder le visage d'une apprenante sans
-     raison. Elle vit le temps de la page, s'imprime, et s'en va.
+     ELLE NE VOYAGE PAS DANS LE LIEN. Le certificat se prépare par un lien
+     (?apprenant=…) : une photo ne tient pas dans un lien. Elle vit le temps
+     de la page, s'imprime, et depuis le 16 septembre elle figure sur le PDF
+     enregistré, et donc sur la copie déposée au dossier de l'apprenant
+     (décision de Yéman : « me permettre de sauvegarder le certificat »).
 
      ELLE EST RÉDUITE AVANT D'ÊTRE POSÉE (720 px de grand côté, `enVignette`) :
      une photo de téléphone de huit mégapixels alourdirait l'aperçu pour un
@@ -169,7 +239,7 @@ export default function App() {
   const dateAffichee = dateLongue(dateIso);
 
   const waMessage =
-    `Maison MND — votre certificat « ${formation.titre} » est prêt, ${nom}. ` +
+    `Maison MND · votre certificat « ${formation.titre} » est prêt, ${nom}. ` +
     `Toutes nos félicitations. ${DEVISE_COMPLETE}.`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
 
@@ -181,6 +251,55 @@ export default function App() {
     `Avec fierté,\nMaison MND · Académie du Lock`;
   const mailHref = `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
 
+  const texte = texteDuCertificat({
+    apprenant: nom, titre: formation.titre, niveau: formation.niveau,
+    duree: formation.duree, competences: formation.competences,
+  });
+
+  const ilNeManqueRien = (question: string): boolean => {
+    const manques = [
+      !apprenant.trim() ? 'le nom de l’apprenant' : '',
+      !certNo.trim() ? 'le numéro de certificat, sans lequel il ne se vérifie pas' : '',
+    ].filter(Boolean);
+    return manques.length === 0 || window.confirm(`Il manque ${manques.join(' et ')}.\n\n${question}`);
+  };
+
+  /* ══ ENREGISTRER LE CERTIFICAT — 16 septembre 2026 ═════════════════════
+     « Me permettre de sauvegarder le certificat » (Yéman) : un fichier PDF,
+     et une copie au dossier. Le PDF se dessine ici (`certificatEnPiece`, le
+     même papier que l'aperçu), part sur le poste, puis la MÊME copie se
+     dépose au coffre des certificats, au dossier de l'inscription d'où vient
+     le lien. Le dessin et le coffre se chargent à la demande : la page
+     reste légère tant qu'on ne fait qu'imprimer. */
+  const enregistreLePdf = async () => {
+    if (!ilNeManqueRien('Enregistrer quand même ?')) return;
+    setDepot('en-cours');
+    let piece: { nom: string; blob: Blob };
+    try {
+      const [{ certificatEnPiece }, coffre] = await Promise.all([
+        import('../../shared/pdf'),
+        import('../../shared/certificats-coffre'),
+      ]);
+      piece = await certificatEnPiece({
+        apprenant: nom,
+        texte,
+        numero: certNo.trim(),
+        mention,
+        jourLisible: dateAffichee,
+        photo: photo || undefined,
+        signataires,
+        filename: coffre.nomDuFichierCertificat(apprenant, certNo),
+      });
+      telecharge(piece.blob, piece.nom);
+      if (!init.dossier) { setDepot('sans-dossier'); return; }
+      const chemin = await coffre.deposeLeCertificat(init.dossier, certNo, piece.blob);
+      setDepot(chemin ? 'depose' : 'refuse');
+    } catch (e) {
+      console.warn('[mnd-certificat] PDF impossible :', e);
+      setDepot('pdf-impossible');
+    }
+  };
+
   return (
     <div className="ct-page">
       <div className="ct-inner">
@@ -190,20 +309,19 @@ export default function App() {
             <div className="ct-toolbar__title">Prêt à imprimer, envoyer, sceller.</div>
           </div>
           <div className="ct-actions">
-            {/* CE QUI MANQUE SE DIT AVANT L'IMPRESSION : un papier sans numéro
+            {/* CE QUI MANQUE SE DIT AVANT LE PAPIER : un papier sans numéro
                 n'est pas vérifiable, un papier sans nom n'est à personne. On peut
-                imprimer quand même (un modèle, une épreuve), mais en le sachant. */}
+                continuer quand même (un modèle, une épreuve), mais en le sachant. */}
+            <Button variant="copper" disabled={depot === 'en-cours'} onClick={() => void enregistreLePdf()}>
+              Enregistrer le PDF
+            </Button>
             <Button
               onClick={() => {
-                const manques = [
-                  !apprenant.trim() ? 'le nom de l’apprenant' : '',
-                  !certNo.trim() ? 'le numéro de certificat, sans lequel il ne se vérifie pas' : '',
-                ].filter(Boolean);
-                if (manques.length && !window.confirm(`Il manque ${manques.join(' et ')}.\n\nImprimer quand même ?`)) return;
+                if (!ilNeManqueRien('Imprimer quand même ?')) return;
                 window.print();
               }}
             >
-              Imprimer / PDF
+              Imprimer
             </Button>
             <a className="ct-action ct-action--wa" href={waHref} target="_blank" rel="noopener noreferrer">
               WhatsApp
@@ -213,6 +331,11 @@ export default function App() {
             </a>
           </div>
         </header>
+        {depot && (
+          <div className={`ct-depot ct-depot--${depot}`} role="status">
+            {DIT_LE_DEPOT[depot]}
+          </div>
+        )}
 
         <div className="ct-layout">
           <aside className="ct-controls mnd-rise">
@@ -285,7 +408,7 @@ export default function App() {
               )}
               {erreurPhoto && <div className="ct-photo__erreur">{erreurPhoto}</div>}
               <div className="ct-controls__meta">
-                Elle reste sur ce poste : elle ne voyage ni dans le lien, ni dans la base.
+                Elle ne voyage pas dans le lien. Elle figure sur le PDF enregistré, et sur la copie déposée au dossier.
               </div>
             </div>
 
@@ -311,6 +434,29 @@ export default function App() {
                 ))}
               </Select>
             </Field>
+
+            <div className="mnd-field ct-signataires">
+              <span className="mnd-field__label">Signataires</span>
+              {signataires.map((s, i) => (
+                <div key={i} className="ct-signataire">
+                  <Input
+                    value={s.nom}
+                    onChange={(e) => poseSignataire(i, 'nom', e.target.value)}
+                    placeholder={i === 0 ? 'Nom du maître locticien' : 'Nom de la direction'}
+                    aria-label={`Nom du signataire ${i + 1}`}
+                  />
+                  <Input
+                    value={s.role}
+                    onChange={(e) => poseSignataire(i, 'role', e.target.value)}
+                    placeholder="Sa qualité"
+                    aria-label={`Qualité du signataire ${i + 1}`}
+                  />
+                </div>
+              ))}
+              <div className="ct-controls__meta">
+                Ils restent sur ce poste, d’un certificat à l’autre.
+              </div>
+            </div>
 
             <div className="ct-controls__note">
               L’ERP Académie pré-remplit ce panneau par le lien
@@ -357,11 +503,11 @@ export default function App() {
                   <div className="ct-nom">{nom}</div>
                   <span className="ct-filet ct-filet--fin" aria-hidden="true" />
 
+                  {/* LA PHRASE VIT DANS `texteDuCertificat` (shared/parcours), la
+                      même pour l'écran et le PDF : version corrigée par Yéman le
+                      16 septembre, « Maître Locticien » en gras. */}
                   <p className="ct-texte">
-                    qui a accompli le parcours <b>{formation.titre}</b>, {formation.niveau} ·{' '}
-                    {formation.duree}, à l’atelier MND de Cotonou, et démontré devant le maître
-                    loctician {formation.competences}, selon la méthode des quatre temps, Purifier
-                    · Nourrir · Sceller · Couronner, et les exigences de la Maison.
+                    {texte.avant}<b>{texte.gras}</b>{texte.apres}
                   </p>
 
                   <div className="ct-meta">
@@ -375,11 +521,7 @@ export default function App() {
                   </div>
 
                   <div className="ct-signatures">
-                    <div className="ct-sign">
-                      <div className="ct-sign__nom">Brice Ahouansou</div>
-                      <span className="ct-sign__ligne" aria-hidden="true" />
-                      <div className="ct-sign__role">Le Maître Loctician</div>
-                    </div>
+                    <SignatureDuCertificat s={signataires[0]} />
 
                     {/* ══ LE TAMPON DE LA MAISON, EN CUIVRE — 6 septembre 2026 ══
                         « Change le tampon de l'Académie, mets celui qu'on a
@@ -432,11 +574,7 @@ export default function App() {
                       <img src={asset("/assets/monograms/mono-copper.png")} alt="" />
                     </div>
 
-                    <div className="ct-sign">
-                      <div className="ct-sign__nom">Yéman Ahouansou</div>
-                      <span className="ct-sign__ligne" aria-hidden="true" />
-                      <div className="ct-sign__role">La Direction · Maison MND</div>
-                    </div>
+                    <SignatureDuCertificat s={signataires[1]} />
                   </div>
 
                   <div className="ct-devise-culturelle">
@@ -447,8 +585,9 @@ export default function App() {
             </div>
 
             <p className="ct-hint">
-              Astuce — «&nbsp;Imprimer / PDF&nbsp;» ouvre la boîte d’impression&nbsp;: choisissez
-              «&nbsp;Enregistrer au format PDF&nbsp;» comme destination pour le télécharger.
+              «&nbsp;Enregistrer le PDF&nbsp;» télécharge le certificat et, quand il vient du Suivi de
+              l’Académie, en dépose une copie au dossier de l’apprenant. «&nbsp;Imprimer&nbsp;» ouvre
+              la boîte d’impression.
             </p>
           </div>
         </div>

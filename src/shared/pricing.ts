@@ -34,7 +34,7 @@ export type ModelBand = {
     Le calibre se constate au KÒKÒ™ et s'inscrit sur la fiche cliente ; il ne se
     rediscute pas en caisse.
 
-    Les coefficients sont calés sur le SÍNSIN™ Essentielle de v6 (20 · 25 · 35 · 45 ·
+    Les coefficients sont calés sur le SÍNSIN™ Essentiel de v6 (20 · 25 · 35 · 45 ·
     55 000 F), le Medium servant de base ×1. GALAXY n'est pas dans v6 : il a été
     ajouté parce qu'une cliente réelle porte 700 locks — et que son resserrage a été
     facturé 70 000 F, soit exactement 2,8 × la base. Sans plafond, aucune cliente ne

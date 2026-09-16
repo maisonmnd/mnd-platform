@@ -404,6 +404,22 @@
   border: 1px solid var(--color-indigo);
 }
 
+/* ---------- Les signataires (16 septembre 2026) ---------- */
+.ct-signataires { display: flex; flex-direction: column; gap: 10px; }
+.ct-signataire { display: grid; gap: 6px; }
+
+/* ---------- Ce que dit le dépôt, sous la barre ---------- */
+.ct-depot {
+  margin: -8px 0 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--copper-300);
+  padding-left: 10px;
+}
+.ct-depot--depose { color: var(--color-indigo); border-color: var(--color-copper); }
+.ct-depot--refuse, .ct-depot--pdf-impossible { color: var(--color-brique, #96412E); border-color: var(--color-brique, #96412E); }
+
 /* ---------- Impression : A4 paysage exact ---------- */
 @media print {
   @page { size: A4 landscape; margin: 0; }

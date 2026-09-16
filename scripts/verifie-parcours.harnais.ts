@@ -5,6 +5,7 @@
    inscriptions. */
 import {
   PARCOURS_MND, parcoursParId, parcoursAPoser, completeLaFiche, dureeDite, competencesDesModules,
+  maitriseDe, texteDuCertificat,
 } from '../src/shared/parcours';
 import { depositAmountFor, depositLabelOf, seancesDuProgramme, datesDesSeances, lignesDuPlan } from '../src/apps/trone/routes/equipe/academy';
 import type { Formation } from '../src/apps/trone/routes/equipe/data';
@@ -194,12 +195,42 @@ dit('six semaines restent des semaines', 'six semaines · dix séances', dureeDi
 dit('une semaine, une séance : au féminin, au singulier', 'une semaine · une séance', dureeDite(1, 1));
 dit('vingt et une séances, au féminin', 'trois semaines · vingt et une séances', dureeDite(3, 21));
 dit('les modules se lisent en une phrase, le point médian tombé, l’initiale baissée',
-  'la naissance VÈKPÈ™, la restauration FÍNFÍN™, la couleur végétale YÈKPÈ™ et le défaisage GBÀTÀ™',
+  'la naissance VÈKPÈ™, la restauration FÍNFÍN™, la couleur végétale YÈKPÈ™, ainsi que le défaisage GBÀTÀ™',
   competencesDesModules(['La naissance · VÈKPÈ™', 'La restauration · FÍNFÍN™', 'La couleur végétale · YÈKPÈ™', 'Le défaisage · GBÀTÀ™']));
-dit('un module qui commence par son nom fon garde ses majuscules', 'SÍNSIN™ le resserrage et la pose', competencesDesModules(['SÍNSIN™ · le resserrage', 'La pose']));
+dit('un module qui commence par son nom fon garde ses majuscules', 'SÍNSIN™ le resserrage, ainsi que la pose', competencesDesModules(['SÍNSIN™ · le resserrage', 'La pose']));
 dit('un seul module se dit seul', 'la tenue', competencesDesModules(['La tenue']));
 dit('sans module, rien : le certificat retombe sur la semence', '', competencesDesModules(['', '   ']));
 dit('la semence de l’Œuvre garde ses quatre modules', 4, parcoursParId('oeuvre')?.programme.length);
+
+
+/* ── ⑧ LA PHRASE DU CERTIFICAT, VERSION CORRIGÉE (16 septembre) ─────────
+   Chaque élément prend son article, « ainsi que » devant le dernier, les
+   noms communs en minuscule, les noms fon en capitales. */
+const MODULES_DE_L_OEUVRE = [
+  'La racine et le cuir chevelu', 'La naissance · VÈKPÈ™',
+  'Le resserrage SÍNSIN™ Essentiel et Élaboré', 'La reprise frontale',
+  'La restauration · FÍNFÍN™', 'Les Soins et la couleur végétale · YÈKPÈ™', 'Le défaisage · GBÀTÀ™',
+];
+dit('chaque élément prend son article, « ainsi que » devant le dernier, « Soins » en minuscule',
+  'de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™',
+  maitriseDe(competencesDesModules(MODULES_DE_L_OEUVRE)));
+dit('la semence aussi prend ses articles', 'de la création VÈKPÈ™, de la restauration des locks en souffrance, de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™',
+  maitriseDe('la création VÈKPÈ™, la restauration des locks en souffrance, la couleur végétale YÈKPÈ™, ainsi que le défaisage GBÀTÀ™'));
+dit('une liste qui porte déjà ses « de » ne bouge pas', 'de la pose, ainsi que du resserrage', maitriseDe('de la pose, ainsi que du resserrage'));
+dit('l’élision', 'de l’hygiène du cuir chevelu', maitriseDe('l’hygiène du cuir chevelu'));
+dit('un nom fon sans article prend « du »', 'du SÍNSIN™, ainsi que du SÍNSIN™ Élaboré', maitriseDe('SÍNSIN™, ainsi que SÍNSIN™ Élaboré'));
+dit('deux adjectifs liés par « et » restent ensemble', 'du resserrage SÍNSIN™ Essentiel et Élaboré', maitriseDe('le resserrage SÍNSIN™ Essentiel et Élaboré'));
+dit('deux noms liés par « et » prennent chacun leur article', 'de la racine et du cuir chevelu', maitriseDe('la racine et le cuir chevelu'));
+const phrase = texteDuCertificat({
+  apprenant: 'Afi Dossou', titre: 'L’Œuvre', niveau: 'Palier III · L’Œuvre',
+  duree: dureeDite(4, 16), competences: competencesDesModules(MODULES_DE_L_OEUVRE),
+});
+dit('la phrase du certificat, telle que corrigée',
+  'Afi Dossou a accompli le Palier III · L’Œuvre (quatre semaines, seize séances, à l’atelier MND de Cotonou) et a démontré devant le Maître Locticien sa maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.',
+  phrase.avant + phrase.gras + phrase.apres);
+dit('« Maître Locticien » est ce qui se met en gras', 'Maître Locticien', phrase.gras);
+dit('un niveau sans le titre nomme le parcours avant', true,
+  texteDuCertificat({ apprenant: 'A', titre: 'La Tenue', niveau: 'Palier I', duree: 'une semaine · une séance', competences: 'la tenue' }).avant.startsWith('A a accompli le parcours La Tenue, Palier I (une semaine, une séance, '));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

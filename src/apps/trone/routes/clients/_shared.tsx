@@ -1651,7 +1651,7 @@ export function RdvModal({
      28/08/26, mais il ne compte que lavage » (Yéman).
 
      LE MOTEUR AVAIT RAISON, ET C'ÉTAIT LE PROBLÈME. Le rituel portait
-     « SÍNSIN Essentielle · La Reprise » quand la formule inclut « SÍNSIN
+     « SÍNSIN Essentiel · La Reprise » quand la formule inclut « SÍNSIN
      Élaborée · La Reprise Longue Durée » : deux prestations différentes au
      catalogue, un seul mot qui les sépare à l'œil. Un seul jeton se
      décomptait, et c'était juste.

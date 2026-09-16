@@ -18,14 +18,14 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 dit('KLƆKLƆ™ se réduit à kloklo',
   'kloklo essentiel le shampoing le souffle',
   clefDeRecherche('KLƆKLƆ™ Essentiel · Le Shampoing « Le Souffle »'));
-dit('les accents tombent', 'sinsin elaboree la reprise longue duree',
-  clefDeRecherche('SÍNSIN™ Élaborée · La Reprise Longue Durée'));
+dit('les accents tombent', 'sinsin elabore la reprise longue duree',
+  clefDeRecherche('SÍNSIN™ Élaboré · La Reprise Longue Durée'));
 dit('un texte fait de signes seuls devient vide', '', clefDeRecherche('™ · « » !'));
 
 /* ── ② LA FRAPPE DU SALON ──────────────────────────────────────────
    Personne ne tape Í ni Ɔ : la recherche doit répondre à la frappe nue. */
 dit('« sinsin » trouve SÍNSIN™', true,
-  prestationRepond('SÍNSIN™ Élaborée · La Reprise Longue Durée', 'sinsin'));
+  prestationRepond('SÍNSIN™ Élaboré · La Reprise Longue Durée', 'sinsin'));
 dit('« kloklo » trouve KLƆKLƆ™', true,
   prestationRepond('KLƆKLƆ™ Signature · Le Shampoing « L’Ancrage »', 'kloklo'));
 dit('« vekpe » trouve VÈKPÈ™', true,
@@ -39,9 +39,9 @@ dit('une saisie accentuée trouve aussi', true,
 /* ── ③ PLUSIEURS MOTS, ORDRE LIBRE ─────────────────────────────────
    On se souvient de « reprise » et de « sinsin », pas de l'ordre du menu. */
 dit('« reprise sinsin » trouve, dans le désordre', true,
-  prestationRepond('SÍNSIN™ Élaborée · La Reprise Longue Durée', 'reprise sinsin'));
+  prestationRepond('SÍNSIN™ Élaboré · La Reprise Longue Durée', 'reprise sinsin'));
 dit('chaque mot doit répondre — un intrus élimine', false,
-  prestationRepond('SÍNSIN™ Essentielle · La Reprise', 'reprise gbigbi'));
+  prestationRepond('SÍNSIN™ Essentiel · La Reprise', 'reprise gbigbi'));
 
 /* ── ④ LES BORDS ───────────────────────────────────────────────────
    Ne rien chercher, c'est tout voir : la barre vide n'élimine personne. */

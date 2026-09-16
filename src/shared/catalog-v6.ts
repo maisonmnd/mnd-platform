@@ -123,7 +123,7 @@ const VEKPE: Service[] = [
     desc: '100 à 180 locks. L’équilibre entre volume et facilité d’entretien. Le choix le plus fréquent. Inclus : shampoing de préparation, DÀNDÀN™ post pose, styling signature de sortie.' },
     RATE_VEKPE, { [MED]: 150000 }, 240, 330),
   auLock({ code: 'ATL·I·MIN', name: 'VÈKPÈ™ Mini · La Naissance Fine', cat: 'atl-i-vekpe',
-    desc: '180 à 250 locks. Pose précision lock par lock. Définition élevée, tombé fluide. Inclus : DÀNDÀN™ post pose, 1 SÍNSIN™ Essentielle offert à 6 semaines, styling signature de sortie.',
+    desc: '180 à 250 locks. Pose précision lock par lock. Définition élevée, tombé fluide. Inclus : DÀNDÀN™ post pose, 1 SÍNSIN™ Essentiel offert à 6 semaines, styling signature de sortie.',
     palier: 'Élévation' }, RATE_VEKPE, { [MIN]: 200000 }, 330, 420),
   auLock({ code: 'ATL·I·MIC', name: 'VÈKPÈ™ Micro · La Haute Précision', cat: 'atl-i-vekpe',
     desc: '250 à 400 locks. Travail sur 2 jours. Réservé aux clientes diagnostiquées aptes au KÒKÒ™ Origine. Inclus : DÀNDÀN™ + GBÌGBÌ™ post pose, 1 Retouches Post Création à 4 semaines, coiffure signature de sortie.',
@@ -147,7 +147,7 @@ const VEKPE: Service[] = [
    sur 13 rendez-vous au franc près.
    ───────────────────────────────────────────────────────────────── */
 const SINSIN: Service[] = [
-  auLock({ code: 'ATL·II·E', name: 'SÍNSIN™ Essentielle · La Reprise', cat: 'atl-ii-gbeji',
+  auLock({ code: 'ATL·II·E', name: 'SÍNSIN™ Essentiel · La Reprise', cat: 'atl-ii-gbeji',
     desc: 'Le resserrage seul, net et efficace. Diagnostic KÒKÒ™ intégré, resserrage lock par lock, contrôle d’uniformité, mise à jour de la fiche cliente. Styling de sortie inclus, au choix : chignon, demi-attache ou détaché structuré.',
     /* LE RESSERRAGE EST UN ACTE D'ÉLÉVATION — 16 septembre 2026, les trois
        paliers. « Affirmer sa couronne, séance après séance » : c'est la
@@ -157,7 +157,7 @@ const SINSIN: Service[] = [
        et habilitations en conséquence. */
     palier: 'Élévation' },
     100, { [JUM]: 20000, [MED]: 25000, [MIN]: 35000, [MIC]: 45000, [NAN]: 55000, [GAL]: 70000 }, 45, 240),
-  auLock({ code: 'ATL·II·L', name: 'SÍNSIN™ Élaborée · La Reprise Longue Durée', cat: 'atl-ii-gbeji',
+  auLock({ code: 'ATL·II·L', name: 'SÍNSIN™ Élaboré · La Reprise Longue Durée', cat: 'atl-ii-gbeji',
     desc: 'Reprise plus minutieuse, scellement renforcé, tenue prolongée, elle espace les visites. Styling de sortie inclus.',
     palier: 'Élévation' },
     125, { [JUM]: 25000, [MED]: 35000, [MIN]: 45000, [MIC]: 55000, [NAN]: 70000, [GAL]: 90000 }, 60, 270),
@@ -403,21 +403,21 @@ const STUDIO: Service[] = [
    ───────────────────────────────────────────────────────────────── */
 const FORFAITS: Service[] = [
   ferme({ code: 'FFT·I·01', name: 'VÈKPÈ™ Initiation · La Naissance + Trousse MND™', cat: 'atl-i-vekpe',
-    desc: 'VÈKPÈ™ Medium · Kit Home Rituals™ 3 produits · guide d’entretien · 1 SÍNSIN™ Essentielle offert à 6 semaines · 1 Retouches Post Création à 3 semaines.',
+    desc: 'VÈKPÈ™ Medium · Kit Home Rituals™ 3 produits · guide d’entretien · 1 SÍNSIN™ Essentiel offert à 6 semaines · 1 Retouches Post Création à 3 semaines.',
     /* UN FORFAIT PREND LE PALIER DE SON ACTE LE PLUS HAUT — 16 septembre
        2026. L'engagement se paie au prix ; le palier dit ce que la main
        exécute. Ici une naissance Medium : Fondation. */
     palier: 'Fondation' }, 175000, 330),
   ferme({ code: 'FFT·I·02', name: 'VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens', cat: 'atl-i-vekpe',
-    desc: 'VÈKPÈ™ Mini · 3 SÍNSIN™ Essentielle aux semaines 6, 10 et 14 · 2 DÀNDÀN™ · 1 coiffure signature à 3 mois.',
+    desc: 'VÈKPÈ™ Mini · 3 SÍNSIN™ Essentiel aux semaines 6, 10 et 14 · 2 DÀNDÀN™ · 1 coiffure signature à 3 mois.',
     /* Une naissance Mini et trois reprises : rien ici n'est une œuvre sur
        450 locks, une restauration ni un grand passage. Élévation. */
     palier: 'Élévation', sessions: 4 }, 380000, 420),
   ferme({ code: 'FFT·II·01', name: 'GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois', cat: 'atl-ii-gbeji',
-    desc: '3 SÍNSIN™ Essentielle au calibre · 1 WÈWÈ™ · 1 DÀNDÀN™ · 1 coiffure signature au 3ᵉ mois · accès prioritaire planning.',
+    desc: '3 SÍNSIN™ Essentiel au calibre · 1 WÈWÈ™ · 1 DÀNDÀN™ · 1 coiffure signature au 3ᵉ mois · accès prioritaire planning.',
     palier: 'Élévation', sessions: 5 }, 130000, 105),
   ferme({ code: 'FFT·II·02', name: 'GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois', cat: 'atl-ii-gbeji',
-    desc: '12 SÍNSIN™ Essentielle · 4 WÈWÈ™ · 4 DÀNDÀN™ · 2 VÍVÍVÓ™ · 2 coiffures signature semestrielles · 1 YÈKPÈ™ Lumière offert · créneau réservé annuel.',
+    desc: '12 SÍNSIN™ Essentiel · 4 WÈWÈ™ · 4 DÀNDÀN™ · 2 VÍVÍVÓ™ · 2 coiffures signature semestrielles · 1 YÈKPÈ™ Lumière offert · créneau réservé annuel.',
     /* Douze reprises et des soins : un an d'Élévation, pas une Souveraineté.
        Elle viendra à la cliente par l'ancienneté de sa couronne. */
     palier: 'Élévation', sessions: 24 }, 480000, 105),
@@ -428,7 +428,7 @@ const FORFAITS: Service[] = [
     desc: '3 séances GBÌGBÌ™ Profond espacées de 3 semaines · 1 WÈWÈ™ en ouverture · plan de soin 6 mois · 1 Retouches Post Restauration · 1 coiffure signature de clôture.',
     palier: 'Souveraineté', sessions: 3 }, 270000, 240),
   ferme({ code: 'FFT·IV·02', name: 'FÍNFÍN™ × GBÈJÍ™ · La Renaissance + 6 Mois d’Entretien', cat: 'atl-iv-finfin',
-    desc: 'ÀLÀLÀ™ complet · 6 SÍNSIN™ Essentielle mensuels au calibre · 3 DÀNDÀN™ trimestriels · 1 coiffure signature de clôture · créneau prioritaire 6 mois.',
+    desc: 'ÀLÀLÀ™ complet · 6 SÍNSIN™ Essentiel mensuels au calibre · 3 DÀNDÀN™ trimestriels · 1 coiffure signature de clôture · créneau prioritaire 6 mois.',
     palier: 'Souveraineté', sessions: 10 }, 425000, 900),
 ];
 

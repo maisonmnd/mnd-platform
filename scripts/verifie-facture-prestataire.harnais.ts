@@ -59,7 +59,7 @@ dit('mai 2026 finit un dimanche, rattaché à la dernière semaine', 'Du mardi 2
 
 /* ── ② LES PRESTATIONS, DEPUIS LE CARNET ───────────────────────────── */
 const sv = (id: string, name: string) => ({ id, name, palier: 'Fondation', priceXof: 0 } as unknown as Service);
-const byId = new Map([sv('s1', 'SÍNSIN™ Essentielle'), sv('s2', 'DÀNDÀN™'), sv('s3', 'VÈKPÈ™ Medium')].map((s) => [s.id, s]));
+const byId = new Map([sv('s1', 'SÍNSIN™ Essentiel'), sv('s2', 'DÀNDÀN™'), sv('s3', 'VÈKPÈ™ Medium')].map((s) => [s.id, s]));
 const team = [{ id: 'awa', name: 'Awa D.' }, { id: 'koffi', name: 'Koffi A.' }];
 const rdv = (o: Partial<Appointment> & { id: string; date: string; serviceIds: string[] }): Appointment => ({
   branchId: 'b1', clientId: 'c', time: '10:00', master: '', status: 'honoré', ...o,

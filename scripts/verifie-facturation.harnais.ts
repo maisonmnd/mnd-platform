@@ -21,7 +21,7 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
 const sv = (id: string, name: string, priceXof: number): Service =>
   ({ id, categoryId: 'c', name, palier: 'Fondation', priceXof, sessions: 1, master: '', durationMin: 60, order: 1 } as Service);
 const A = sv('a', 'KƆKLƆ™ Essentiel', 10_000);
-const B = sv('b', 'SÍNSIN™ Essentielle', 20_000);
+const B = sv('b', 'SÍNSIN™ Essentiel', 20_000);
 const byId = new Map([[A.id, A], [B.id, B]]);
 
 const appt = (ids: string[]): Appointment =>
@@ -36,7 +36,7 @@ const pose = (lines: Invoice['lines']) => {
 const piece = () => invoicesStore.get()[0];
 
 /* ── LE CAS DE YÉMAN : une pièce PAYÉE d'UNE ligne aux noms collés ── */
-pose([ligneFacture('KƆKLƆ™ Essentiel + SÍNSIN™ Essentielle', 30_000)]);
+pose([ligneFacture('KƆKLƆ™ Essentiel + SÍNSIN™ Essentiel', 30_000)]);
 const avant = invoiceTotal(piece());
 alignerFacturesDuRituel(appt(['a']), byId, (s) => s.priceXof); // on retire SÍNSIN du rituel
 dit('la pièce payée a suivi le rituel', ['KƆKLƆ™ Essentiel', 'Ajustement · prix consenti ce jour-là'],
@@ -47,7 +47,7 @@ dit('… et le total n’a pas bougé', avant, invoiceTotal(piece()));
 pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000)]);
 const avant2 = invoiceTotal(piece());
 alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof); // on AJOUTE SÍNSIN
-dit('les deux gestes paraissent', ['KƆKLƆ™ Essentiel', 'SÍNSIN™ Essentielle'],
+dit('les deux gestes paraissent', ['KƆKLƆ™ Essentiel', 'SÍNSIN™ Essentiel'],
   piece().lines.map((l) => l.label));
 dit('… la remise dit l’écart', 20_000, piece().globalDiscountXof);
 dit('… et le total n’a toujours pas bougé', avant2, invoiceTotal(piece()));
@@ -76,7 +76,7 @@ pose([
 const avant4 = invoiceTotal(piece());
 alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof, GAMME);
 dit('un libellé vieilli n’empêche plus la pièce de suivre',
-  ['KƆKLƆ™ Essentiel', 'SÍNSIN™ Essentielle'], piece().lines.map((l) => l.label));
+  ['KƆKLƆ™ Essentiel', 'SÍNSIN™ Essentiel'], piece().lines.map((l) => l.label));
 dit('… et le total tient toujours', avant4, invoiceTotal(piece()));
 
 /* ── LE GESTE DE LA MAISON SE LIT (16 août — le cas de Kèmi) ────────
@@ -85,7 +85,7 @@ dit('… et le total tient toujours', avant4, invoiceTotal(piece()));
    prix DÉJÀ diminué : un cadeau rendu invisible n'est pas reçu. */
 /* La pièce telle qu'elle était écrite AVANT : le shampoing à 0 F, le cadeau
    rendu invisible. Le total payé, 20 000 F, est celui du catalogue. */
-pose([ligneFacture('KƆKLƆ™ Essentiel', 0), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+pose([ligneFacture('KƆKLƆ™ Essentiel', 0), ligneFacture('SÍNSIN™ Essentiel', 20_000)]);
 const avant5 = invoiceTotal(piece());
 alignerFacturesDuRituel(
   appt(['a', 'b']), byId,
@@ -149,7 +149,7 @@ dit('un préfixe sans suite non plus', null, cible({ id: 'r-pay-' }));
        rendez-vous, là où elle sautait la pièce entière. */
 const pieceMixte = {
   lines: [
-    ligneFacture('SÍNSIN™ Élaborée', 25_000),
+    ligneFacture('SÍNSIN™ Élaboré', 25_000),
     ligneFacture('KLƆKLƆ™ Essentiel', 8_000),
     ligneProduit('pr-huile', 'L’Huile de Nuit', 10_000, 2),
     ligneProduit('pr-spray', 'Le Spray', 6_000),
@@ -184,7 +184,7 @@ dit('une pièce d’avant ne porte aucun produit', 0,
 const piece2 = (payments?: InvoicePayment[], status: Invoice['status'] = 'payée'): Invoice =>
   ({
     id: 'inv2', branchId: 'br', kind: 'facture', number: 'F-2', clientId: 'c1', date: '2026-08-12',
-    lines: [ligneFacture('KƆKLƆ™ Essentiel', 30_000), ligneFacture('SÍNSIN™ Essentielle', 51_000)],
+    lines: [ligneFacture('KƆKLƆ™ Essentiel', 30_000), ligneFacture('SÍNSIN™ Essentiel', 51_000)],
     globalDiscountPct: 0, theme: 'Aube', status, payments,
   } as Invoice);
 
@@ -350,7 +350,7 @@ dit('un non-commissionné ne touche rien', 0,
    `priceOf` REND LE PRIX D'AUJOURD'HUI. C'est ce qu'il faut pour émettre, et
    exactement ce qu'il ne faut pas pour réparer : un document remis à une
    cliente est une trace, pas une vue. */
-pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentiel', 20_000)]);
 invoicesStore.set((prev) => prev.map((x) => ({ ...x, status: 'envoyée' as const })));
 const avantPrix = invoiceTotal(piece());
 /* Le catalogue a baissé de moitié depuis : la pièce ne doit pas le savoir. */
@@ -360,7 +360,7 @@ dit('les prix de la pièce émise ne bougent pas', [10_000, 20_000],
 dit('… ni son total', avantPrix, invoiceTotal(piece()));
 
 /* UN BROUILLON, LUI, SUIT LE CATALOGUE : il n'a été remis à personne. */
-pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentiel', 20_000)]);
 invoicesStore.set((prev) => prev.map((x) => ({ ...x, status: 'brouillon' as const })));
 alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof / 2);
 dit('le brouillon suit le catalogue', [5_000, 10_000], piece().lines.map((l) => l.unitXof));
@@ -375,7 +375,7 @@ dit('l’ancienne garde son prix, la neuve prend celui du jour', [10_000, 10_000
 
 /* UNE PIÈCE PAYÉE GARDE SES PRIX AUSSI, et son total encore plus : c'est de
    l'argent reçu. */
-pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentielle', 20_000)]);
+pose([ligneFacture('KƆKLƆ™ Essentiel', 10_000), ligneFacture('SÍNSIN™ Essentiel', 20_000)]);
 const avantPayee = invoiceTotal(piece());
 alignerFacturesDuRituel(appt(['a', 'b']), byId, (s) => s.priceXof * 3);
 dit('la pièce payée garde ses prix', [10_000, 20_000], piece().lines.map((l) => l.unitXof));
@@ -490,7 +490,7 @@ const rituelDeSeptembre = lignesDuRituelPiece({
   gestes: [
     { nom: 'KLƆKLƆ™ Essentiel', pleinXof: 10_000, remisePct: 50 },
     { nom: 'DÀNDÀN™ Le Soin Ultra-Hydratant', pleinXof: 25_000 },
-    { nom: 'SÍNSIN™ Essentielle · La Reprise', pleinXof: 40_000 },
+    { nom: 'SÍNSIN™ Essentiel · La Reprise', pleinXof: 40_000 },
     { nom: 'FÍNFÍN™ Légère · La Réparation Douce', pleinXof: 15_000 },
   ],
   netXof: 85_000,

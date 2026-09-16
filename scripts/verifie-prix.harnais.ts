@@ -192,8 +192,8 @@ dit('une table VIDE ne personnalise pas', false,
    le shampoing dès qu'une coloration est sélectionnée ». Deux règles sur la
    même prestation, et une règle qui dépend du PANIER : elle ne se prouve pas
    prestation par prestation. */
-const gReprise = svc({ id: 'g-reprise', name: 'SÍNSIN Essentielle · La Reprise', priceXof: 60_000 });
-const gRepriseEl = svc({ id: 'g-reprise-el', name: 'SÍNSIN Élaborée · La Reprise', priceXof: 75_000 });
+const gReprise = svc({ id: 'g-reprise', name: 'SÍNSIN Essentiel · La Reprise', priceXof: 60_000 });
+const gRepriseEl = svc({ id: 'g-reprise-el', name: 'SÍNSIN Élaboré · La Reprise', priceXof: 75_000 });
 const gColo = svc({ id: 'g-colo', name: 'La Coloration', priceXof: 25_000 });
 const gSoin = svc({ id: 'g-soin', name: 'Le Soin', priceXof: 15_000 });
 const gShamp = svc({

@@ -2,6 +2,58 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CERTIFICAT S'ENREGISTRE, SES SIGNATAIRES SE CHANGENT, SA PHRASE EST CORRIGÉE — 16 septembre 2026
+
+Trois demandes de Yéman dans l'heure, sur la page du certificat.
+
+**« ME PERMETTRE DE SAUVEGARDER LE CERTIFICAT »** : arbitrage à l'écran, « un
+fichier PDF, et une copie au dossier ». Le bouton « Enregistrer le PDF »
+dessine le certificat en PDF (`certificatEnPiece`, `shared/pdf.ts`, A4
+paysage, le MÊME papier que l'aperçu : chaque cote est lue en pixels d'écran
+aux places de `certificat.css` et convertie ; double filet, filigrane,
+portrait recadré, tampon de cuivre, devise en fon par `pieDeLaMaison` avec
+`nom: ''`), le télécharge, puis dépose la MÊME copie au coffre `certificats`
+(`shared/certificats-coffre.ts`, `<inscription>/<numéro>.pdf`, remplacée
+sous le même numéro, jamais doublée). Le lien du Suivi porte `dossier=<id
+d'inscription>` ; sans lien, le PDF part sur le poste et la page le dit. Le
+Suivi (onglet Jury, certificat délivré) montre « Copie au dossier » avec un
+« Ouvrir » (lien signé d'une heure) et se relit au retour du focus. Le dessin
+et le coffre se chargent à la demande (`import()`), la page reste légère.
+**Migration 0103** (compartiment privé, PDF seulement, cinq mégaoctets ;
+personnel lit, dépose, remplace ; direction efface) : À PASSER. Harnais
+`verifie-certificats` (61 harnais désormais). « Imprimer / PDF » s'appelle
+« Imprimer ».
+
+**LES SIGNATAIRES SE CHANGENT** : deux champs (nom, qualité) par signataire
+dans le panneau, gardés sur le poste (`localStorage`,
+`mnd_certificat_signataires`), par défaut ceux de la Maison. La qualité du
+premier est passée de « Le Maître Loctician » à « Le Maître Locticien »,
+comme dans la phrase.
+
+**LA PHRASE, VERSION CORRIGÉE PAR YÉMAN** (`texteDuCertificat`,
+`shared/parcours.ts`, la même pour l'écran et le PDF) : « [Nom] a accompli le
+Palier III · L'Œuvre (quatre semaines, seize séances, à l'atelier MND de
+Cotonou) et a démontré devant le **Maître Locticien** sa maîtrise de la
+racine et du cuir chevelu, …, ainsi que du défaisage GBÀTÀ™, selon la
+méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les
+exigences de la Maison. » `maitriseDe` donne son article à chaque élément
+(la → de la, le → du, les → des, l' → de l'), « du » à un nom fon sans
+article (**SÍNSIN™ est masculin dans la Maison**), laisse ensemble deux
+adjectifs liés par « et » (« Essentiel et Élaboré »), baisse l'initiale d'un
+nom commun (« Soins » → « soins ») ; `competencesDesModules` met « ainsi
+que » devant le dernier. Le nom de l'apprenant ouvre la phrase, sous le nom
+en grand : c'est la version de Yéman, mot pour mot.
+
+**SÍNSIN™ AU MASCULIN PARTOUT** : semence du catalogue (« SÍNSIN™
+Essentiel · La Reprise », « SÍNSIN™ Élaboré · La Reprise Longue Durée », les
+formules), semence des parcours, commentaires et fixtures des harnais.
+**Migration 0104** met le catalogue VIVANT au même genre (nom et
+description) : À PASSER. Les maquettes HTML de `public/` gardent leur texte
+d'époque. Les modules vivants de L'Œuvre se renomment dans l'Académie (« Le
+resserrage SÍNSIN™ Essentiel et Élaboré », « La reprise frontale ») pour que
+la phrase se lise comme Yéman l'a écrite ; un module sans article prend
+« du ».
+
 ## LE CERTIFICAT DIT L'ACADÉMIE, PAS LA SEMENCE — 16 septembre 2026
 
 « Remets le texte du certificat à jour selon les nouvelles mises à jour de

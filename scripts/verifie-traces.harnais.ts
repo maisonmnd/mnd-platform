@@ -38,7 +38,7 @@ dit('les initiales', ['RG', 'KO'], [initiales('Rita G.'), initiales('koffi')]);
 
 /* ── ③ LE GESTE, NOMMÉ ──────────────────────────────────────────── */
 const ctx: ContexteDeLecture = {
-  nomDePrestation: (id) => ({ s1: 'SÍNSIN™ Essentielle', s2: 'DÀNDÀN™' } as Record<string, string>)[id],
+  nomDePrestation: (id) => ({ s1: 'SÍNSIN™ Essentiel', s2: 'DÀNDÀN™' } as Record<string, string>)[id],
   nomDeMembre: (id) => ({ awa: 'Awa D.', sena: 'Sènan H.' } as Record<string, string>)[id],
   argent: (n) => `${n} F`,
 };
@@ -55,7 +55,7 @@ const pose = litLeGeste(trace({
 }), ctx);
 dit('la création d’un rendez-vous', ['Créé', 'a posé le rendez-vous', 'pose'], [pose.verbe, pose.phrase, pose.famille]);
 dit('… avec ses champs lisibles, sans bruit de machine', ['Cliente', 'Date', 'Heure', 'Statut', 'Prestations', 'Maître'], pose.diff.map((d) => d.champ));
-dit('… les prestations par leur nom, la date en clair', ['SÍNSIN™ Essentielle · DÀNDÀN™', '13 sept. 2026'],
+dit('… les prestations par leur nom, la date en clair', ['SÍNSIN™ Essentiel · DÀNDÀN™', '13 sept. 2026'],
   [pose.diff.find((d) => d.champ === 'Prestations')?.apres, pose.diff.find((d) => d.champ === 'Date')?.apres]);
 
 const heure = litLeGeste(trace({ avant: { time: '09:00', status: 'confirmé', date: '2026-09-13' }, apres: { time: '10:30', status: 'confirmé', date: '2026-09-13' } }), ctx);
@@ -71,7 +71,7 @@ const remise = litLeGeste(trace({ avant: { status: 'honoré' }, apres: { status:
 dit('une remise est sensible, et comptée', ['Remise', true, 2000], [remise.verbe, remise.sensible, remise.remiseXof]);
 
 const mains = litLeGeste(trace({ avant: { serviceIds: ['s1'], mains: [[]] }, apres: { serviceIds: ['s1'], mains: [['awa', 'sena']] } }), ctx);
-dit('les mains, nommées par prestation', ['Mains', 'SÍNSIN™ Essentielle : Awa D., Sènan H.'], [mains.verbe, mains.diff[0]?.apres]);
+dit('les mains, nommées par prestation', ['Mains', 'SÍNSIN™ Essentiel : Awa D., Sènan H.'], [mains.verbe, mains.diff[0]?.apres]);
 
 const acompte = litLeGeste(trace({ avant: { depositConfirmed: false }, apres: { depositConfirmed: true } }), ctx);
 dit('l’acompte confirmé est un geste d’argent', ['Acompte', 'argent'], [acompte.verbe, acompte.famille]);

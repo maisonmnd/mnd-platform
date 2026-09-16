@@ -447,7 +447,9 @@ export async function pieDeLaMaison(
   /* L'apostrophe typographique ’ (U+2019) n'est PAS dans le sous-ensemble de la
      police : « L'atelier MND » sortirait en carré. On la ramène à l'apostrophe
      droite ' (U+0027), qui, elle, y est. */
-  const prefixe = `${(o.nom ?? maisonNom()).replace(/[‘’]/g, "'")} · `;
+  /* UN NOM VIDE (`nom: ''`) : la devise seule, sans préfixe. Le certificat
+     la porte ainsi, sous les signatures, comme à l'écran. */
+  const prefixe = o.nom === '' ? '' : `${(o.nom ?? maisonNom()).replace(/[‘’]/g, "'")} · `;
   const fonPrete = await assureFon(doc);
 
   doc.setFontSize(taille);
@@ -1930,4 +1932,306 @@ export async function cashbookPdf(o: {
   }
   doc.save(o.filename);
   return o.filename;
+}
+
+/* ══ LE CERTIFICAT DE L'ACADÉMIE, EN PDF — 16 septembre 2026 ══════════════
+   « Me permettre de sauvegarder le certificat » (Yéman) : un fichier PDF sur
+   le poste, et une copie au dossier de l'apprenant (`certificats-coffre`).
+
+   LE MÊME PAPIER QUE L'APERÇU. La feuille à l'écran fait 1120 × 792 px pour
+   un A4 paysage : chaque cote d'ici se lit en pixels d'écran, aux mêmes
+   places que `certificat.css`, et se convertit en millimètres. Ce qui bouge
+   à l'écran bouge ici, au même endroit.
+
+   LES POLICES DU PDF (times, helvetica) ne sont pas Cormorant et Jost, comme
+   pour tous les papiers de la Maison : la marque tient par le double filet,
+   le monogramme, le tampon de cuivre et la devise en fon, pas par la police. */
+
+const IVOIRE = '#F6F1E7';
+const OBSIDIENNE = '#2A2A32';
+const CUIVRE_300 = '#D6A06F';
+const CUIVRE_600 = '#9E6238';
+const FILET_GRIS = '#D7D3CB';
+
+const ECRAN_LARGEUR = 1120;
+const K = 297 / ECRAN_LARGEUR;
+/** Une cote d'écran (px) en millimètres. */
+const px = (n: number): number => n * K;
+/** Une taille de police d'écran (px) en points PDF. */
+const pt = (n: number): number => (n * K / 25.4) * 72;
+/** La ligne de base d'un texte posé au haut `haut` (px) : l'ascendante
+    d'une police ordinaire fait ~0,85 de sa taille. */
+const base = (haut: number, taille: number): number => px(haut + taille * 0.85);
+
+export type CertificatPdfData = {
+  apprenant: string;
+  /** Le texte du certificat en trois morceaux (`texteDuCertificat`,
+      shared/parcours) : ce qui précède les mots en gras, les mots en gras,
+      ce qui suit. */
+  texte: { avant: string; gras: string; apres: string };
+  numero: string;
+  mention: string;
+  jourLisible: string;
+  /** La photo d'identité en data URL (JPEG ou PNG), déjà réduite. */
+  photo?: string;
+  signataires: readonly { nom: string; role: string }[];
+  filename: string;
+};
+
+/** UN TEXTE LETTRÉ (interlettrage en em), CENTRÉ, ALIGNÉ À GAUCHE OU À
+    DROITE. jsPDF ne compte pas l'interlettrage dans sa mesure : on le compte
+    ici, sinon un mot lettré se centre de travers. */
+function texteLettre(
+  doc: any, s: string, x: number, y: number,
+  o: { taillePx: number; em: number; ancre?: 'centre' | 'gauche' | 'droite' },
+): void {
+  const t = pdfSafe(s);
+  const charSpace = px(o.em * o.taillePx);
+  const w = doc.getTextWidth(t) + charSpace * Math.max(0, t.length - 1);
+  const x0 = o.ancre === 'droite' ? x - w : o.ancre === 'gauche' ? x : x - w / 2;
+  doc.text(t, x0, y, { charSpace });
+}
+
+/** UN PARAGRAPHE CENTRÉ, AVEC DES MOTS EN GRAS AU MILIEU (le titre du
+    parcours). Un morceau qui commence sans espace (« , Palier III ») se
+    colle au mot d'avant, pour que la virgule ne flotte pas. */
+function paragrapheCentre(
+  doc: any, morceaux: readonly { texte: string; gras?: boolean }[],
+  cx: number, y: number, maxW: number, interligne: number, taillePt: number,
+): number {
+  type Mot = { m: string; gras: boolean };
+  const mots: Mot[] = [];
+  for (const p of morceaux) {
+    const t = pdfSafe(p.texte);
+    const colle = mots.length > 0 && !/^\s/.test(t);
+    const parts = t.split(/\s+/).filter(Boolean);
+    parts.forEach((m, i) => {
+      if (i === 0 && colle) mots[mots.length - 1].m += m;
+      else mots.push({ m, gras: !!p.gras });
+    });
+  }
+  doc.setFontSize(taillePt);
+  const largeur = (w: Mot): number => {
+    doc.setFont('helvetica', w.gras ? 'bold' : 'normal');
+    return doc.getTextWidth(w.m);
+  };
+  doc.setFont('helvetica', 'normal');
+  const esp = doc.getTextWidth(' ');
+  const lignes: (Mot & { w: number })[][] = [[]];
+  let lw = 0;
+  for (const w of mots) {
+    const ww = largeur(w);
+    const l = lignes[lignes.length - 1];
+    const ajout = l.length ? esp + ww : ww;
+    if (l.length && lw + ajout > maxW) { lignes.push([{ ...w, w: ww }]); lw = ww; }
+    else { l.push({ ...w, w: ww }); lw += ajout; }
+  }
+  let yy = y;
+  for (const l of lignes) {
+    const total = l.reduce((s, w) => s + w.w, 0) + esp * (l.length - 1);
+    let x = cx - total / 2;
+    for (const w of l) {
+      doc.setFont('helvetica', w.gras ? 'bold' : 'normal');
+      doc.text(w.m, x, yy);
+      x += w.w + esp;
+    }
+    yy += interligne;
+  }
+  doc.setFont('helvetica', 'normal');
+  return yy;
+}
+
+/** LA PHOTO RECADRÉE AU CADRE (comme `object-fit: cover` à l'écran), sur
+    fond blanc, en JPEG. `null` si l'image ne se lit pas. */
+async function recadre(dataUrl: string, ratio: number, hauteurMax = 900): Promise<string | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, ko) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => ko(new Error('Image illisible.'));
+      i.src = dataUrl;
+    });
+    let sw = img.width, sh = img.height;
+    if (sw / sh > ratio) sw = Math.round(sh * ratio); else sh = Math.round(sw / ratio);
+    const sx = Math.round((img.width - sw) / 2);
+    const sy = Math.round((img.height - sh) / 2);
+    const h = Math.max(1, Math.min(hauteurMax, sh));
+    const w = Math.max(1, Math.round(h * ratio));
+    const toile = document.createElement('canvas');
+    toile.width = w; toile.height = h;
+    const c = toile.getContext('2d');
+    if (!c) return null;
+    c.fillStyle = '#FFFFFF';
+    c.fillRect(0, 0, w, h);
+    c.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+    return toile.toDataURL('image/jpeg', 0.9);
+  } catch { return null; }
+}
+
+export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRendue & { blob: Blob }> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 297, H = 210;
+  const CX = W / 2;
+
+  /* LE PAPIER : ivoire, double filet, cuivre dehors, indigo dedans. */
+  doc.setFillColor(IVOIRE);
+  doc.rect(0, 0, W, H, 'F');
+  doc.setDrawColor(COPPER);
+  doc.setLineWidth(px(2));
+  doc.rect(px(22), px(22), W - 2 * px(22), H - 2 * px(22), 'S');
+  doc.setDrawColor(INDIGO);
+  doc.setLineWidth(px(1));
+  doc.rect(px(30), px(30), W - 2 * px(30), H - 2 * px(30), 'S');
+
+  /* LE FILIGRANE : le monogramme, à peine posé, au centre. */
+  const monoIndigo = await chargeMono('mono-indigo');
+  if (monoIndigo) {
+    const c = px(440);
+    try {
+      doc.saveGraphicsState?.();
+      const gs = doc.GState?.({ opacity: 0.05 });
+      if (gs) doc.setGState(gs);
+      doc.addImage(monoIndigo, 'PNG', CX - c / 2, H / 2 - 0.02 * c - c / 2, c, c, undefined, 'FAST');
+      doc.restoreGraphicsState?.();
+    } catch { try { doc.restoreGraphicsState?.(); } catch { /* rien */ } }
+  }
+
+  /* LE PORTRAIT, EN HAUT À GAUCHE, dans son double filet : cuivre dehors,
+     indigo dedans, comme la feuille. Sans photo, rien ne se dessine. */
+  if (d.photo) {
+    const bx = px(68), by = px(54), bw = px(120), bh = px(154);
+    const marge = px(6);
+    const iw = bw - 2 * marge, ih = bh - 2 * marge;
+    const image = await recadre(d.photo, iw / ih);
+    doc.setFillColor(IVOIRE);
+    doc.setDrawColor(COPPER);
+    doc.setLineWidth(px(1));
+    doc.rect(bx, by, bw, bh, 'FD');
+    if (image) {
+      try { doc.addImage(image, 'JPEG', bx + marge, by + marge, iw, ih, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+    doc.setDrawColor(INDIGO);
+    doc.rect(bx + marge, by + marge, iw, ih, 'S');
+  }
+
+  /* LE CORPS, CENTRÉ, DU HAUT VERS LE BAS — les mêmes marges que l'écran. */
+  let y = 52;
+  if (monoIndigo) {
+    try { doc.addImage(monoIndigo, 'PNG', CX - px(34), px(y), px(68), px(68), undefined, 'FAST'); } catch { /* rien */ }
+  }
+  y += 68;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(pt(25));
+  doc.setTextColor(INDIGO);
+  y += 10;
+  texteLettre(doc, 'MND', CX, base(y, 25), { taillePx: 25, em: 0.32 });
+  y += 30;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(pt(11));
+  y += 8;
+  texteLettre(doc, 'MAISON MND · ACADÉMIE DU LOCK · COTONOU · BÉNIN', CX, base(y, 11), { taillePx: 11, em: 0.24 });
+  y += 13;
+
+  y += 12;
+  doc.setFillColor(COPPER);
+  doc.rect(CX - px(22), px(y), px(44), px(2), 'F');
+  y += 2;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(pt(11));
+  doc.setTextColor(CUIVRE_600);
+  y += 16;
+  texteLettre(doc, 'MND ACADÉMIE', CX, base(y, 11), { taillePx: 11, em: 0.18 });
+  y += 13;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(pt(78));
+  doc.setTextColor(INDIGO);
+  y += 6;
+  texteLettre(doc, 'Certificat', CX, px(y + 37 + 78 * 0.35), { taillePx: 78, em: -0.01 });
+  y += 74;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(pt(12));
+  doc.setTextColor(SOFT);
+  y += 14;
+  texteLettre(doc, 'EST DÉCERNÉ À', CX, base(y, 12), { taillePx: 12, em: 0.2 });
+  y += 14;
+
+  doc.setFont('times', 'italic');
+  doc.setFontSize(pt(44));
+  doc.setTextColor(OBSIDIENNE);
+  y += 6;
+  doc.text(pdfSafe(d.apprenant), CX, px(y + 23 + 44 * 0.35), { align: 'center' });
+  y += 46;
+
+  y += 12;
+  doc.setFillColor(CUIVRE_300);
+  doc.rect(CX - px(65), px(y), px(130), px(1), 'F');
+  y += 1;
+
+  /* LE TEXTE, ses mots en gras au milieu, comme à l'écran. */
+  doc.setTextColor(INK);
+  y += 16;
+  paragrapheCentre(doc, [
+    { texte: d.texte.avant },
+    { texte: d.texte.gras, gras: true },
+    { texte: d.texte.apres },
+  ], CX, base(y, 14.5) + px(5), px(830), px(14.5 * 1.65), pt(14.5));
+
+  /* LE BAS DE LA FEUILLE, DU BAS VERS LE HAUT : la devise, les signatures et
+     le tampon, puis la ligne du numéro. */
+  const gauche = px(96), droite = W - px(96);
+  const ySign = 648;
+  const yMeta = 605;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(pt(10.5));
+  doc.setTextColor(SOFT);
+  const yM = base(yMeta, 10.5);
+  if (d.numero.trim()) {
+    texteLettre(doc, `CERTIFICAT N° ${d.numero.trim()}`, gauche, yM, { taillePx: 10.5, em: 0.12, ancre: 'gauche' });
+  } else {
+    texteLettre(doc, 'CERTIFICAT N°', gauche, yM, { taillePx: 10.5, em: 0.12, ancre: 'gauche' });
+    const wN = doc.getTextWidth('CERTIFICAT N°') + px(0.12 * 10.5) * 12 + px(6);
+    doc.setDrawColor(FILET_GRIS);
+    doc.setLineWidth(px(1));
+    doc.line(gauche + wN, yM, gauche + wN + px(120), yM);
+  }
+  texteLettre(doc, `MENTION ${d.mention}`, CX, yM, { taillePx: 10.5, em: 0.12 });
+  texteLettre(doc, `FAIT À COTONOU, LE ${d.jourLisible}`, droite, yM, { taillePx: 10.5, em: 0.12, ancre: 'droite' });
+
+  const centres = [gauche + px(130), droite - px(130)];
+  d.signataires.slice(0, 2).forEach((s, i) => {
+    const cx = centres[i];
+    doc.setFont('times', 'normal');
+    doc.setFontSize(pt(21));
+    doc.setTextColor(INK);
+    doc.text(pdfSafe(s.nom), cx, base(ySign, 21), { align: 'center' });
+    doc.setDrawColor(FILET_GRIS);
+    doc.setLineWidth(px(1));
+    doc.line(cx - px(130), px(ySign + 34), cx + px(130), px(ySign + 34));
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(pt(10));
+    doc.setTextColor(SOFT);
+    texteLettre(doc, s.role.toUpperCase(), cx, base(ySign + 42, 10), { taillePx: 10, em: 0.16 });
+  });
+
+  await tamponDeLaMaison(doc, px(560 - 55), px(612), px(110), {
+    nom: 'MND Académie', ville: 'Cotonou', encre: COPPER,
+  });
+
+  await pieDeLaMaison(doc, W, px(745), { taille: pt(15), couleur: SOFT, nom: '' });
+
+  return {
+    nom: d.filename,
+    type: 'application/pdf',
+    donnees: doc.output('datauristring'),
+    blob: doc.output('blob') as Blob,
+  };
 }

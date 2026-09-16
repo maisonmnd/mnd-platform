@@ -67,7 +67,7 @@ dit('l’écran lit le même moment, sans préposition', 'vendredi 11 septembre 
 const msg = texteDuRappel({
   ...jours, jourIso: '2026-09-11', heure: '08:30',
   prenom: 'Jocelyne', maison: 'Maison MND',
-  rituels: ['KLƆKLƆ™ Essentiel · Le Shampoing', 'SÍNSIN™ Essentielle · La Reprise', 'Styling'],
+  rituels: ['KLƆKLƆ™ Essentiel · Le Shampoing', 'SÍNSIN™ Essentiel · La Reprise', 'Styling'],
 });
 const blocs = msg.split('\n\n');
 
@@ -80,7 +80,7 @@ dit('le rendez-vous ensuite, avec son jour',
    marque déposée poussaient l'heure hors de l'écran sur un téléphone : ce qui
    compte le plus se lisait en dernier. */
 dit('un rituel par ligne', 3, blocs[2].split('\n').length);
-dit('… et rien n’est perdu en route', true, blocs[2].includes('SÍNSIN™ Essentielle · La Reprise'));
+dit('… et rien n’est perdu en route', true, blocs[2].includes('SÍNSIN™ Essentiel · La Reprise'));
 dit('la demande vient après le blanc',
   'Merci de nous prévenir en cas d’empêchement. À très vite.', blocs[3]);
 dit('la Maison signe en dernier', true, blocs[4].includes('la maison veille'));
