@@ -359,6 +359,68 @@ Si la pastille dit encore « direct en panne » après ceci, la ligne
 lire : un `CHANNEL_ERROR · message` vient du serveur, un `CLOSED` sans message
 avec la prise `open` viendrait encore du poste.
 
+## LE CATALOGUE PAR PALIER — 16 septembre 2026, PUBLIÉ
+
+« Refais l'UI de la page Catalogue. Mets bien en évidence les différents
+paliers. Que ce soit visible et compréhensible » (Yéman). Maquette
+**`public/maquette-le-catalogue-par-palier.html`**, validée (« maquette
+validé », transmis par la session sœur, confirmé par le sélecteur). Aucune
+SQL. Tranché avec la maquette : **par palier à l'ouverture d'un poste neuf**
+(chaque poste garde son choix), **une ligne pour trois longueurs**, **une
+bande grise pour les produits Maison** en fin de page.
+
+### Le parti pris
+
+**Le palier se lit avant le prix.** Trois couleurs tenues partout, avec le
+chiffre romain de l'Académie : Fondation en argile (I), Élévation en cuivre
+(II), Souveraineté en indigo (III), les mêmes que la pastille `mnd-palier`.
+La tuile de l'échelle en haut, la bande qui ouvre chaque palier, le rail à
+gauche de chaque prestation.
+
+### Le juge
+
+**`shared/catalogue-par-palier.ts`**, pur (`verifie-catalogue-par-palier`,
+27 épreuves) : `CHIFFRE_DU_PALIER`, `seuilDit(p, seuils)` (le seuil des
+Paramètres, dit comme `palierDeLaCliente` le juge), `longueurDuNom` (la
+longueur lue au bout du nom, libellés exacts de `LONGUEURS` seulement),
+`lignesDuCatalogue` (trois fiches d'un même nom, même palier, même atelier,
+même nombre de séances, longueurs différentes = une ligne ; une longueur
+seule garde son nom complet), `parPalier` (groupé du plus bas au plus haut,
+ordre saisi dans la marche), `compteParPalier`, `plusHautPalier`.
+
+### L'écran (`vente/Catalogue.tsx`, styles `trv-pal-*` dans `vente.css`)
+
+- **La barre** : recherche, le régime du prix dans un `select` (les chips ont
+  disparu, la phrase du régime reste sous la barre), « Paliers · N à
+  reprendre » déplacé ici depuis les actions de la page, « Tout replier »
+  seulement par atelier, le rangement en segments.
+- **L'échelle** : trois tuiles `trv-tuile--0/1/2`, `aria-pressed`, le filtre
+  `palierFiltre` au toucher. Souveraineté appuyée se remplit d'indigo.
+- **Par palier** : bande `trv-bande--0/1/2` (chiffre, nom, phrase, compte),
+  ligne « Ce que l'acte exige : … La cliente y est … », maisons dans l'ordre
+  de `groupeDe`, ateliers en lignes `trv-ligne` avec rail, prix cliquables
+  (une fiche par longueur), « Modifier » ouvre la première fiche. Bande
+  `trv-bande--prod` pour les produits, sans filtre seulement.
+- **Par atelier** : `blocDeCategorie` groupe les prestations par palier
+  (`parPalier`) avec un filet `trv-sep-palier` quand l'atelier en mêle
+  plusieurs ; la carte porte son rail `trv-svc--0/1/2` ; **« Détail »**
+  replie la règle du prix, les réglages Modèle / Fixe-Variable-Devis,
+  l'usage, les gardes et la description (`detailsOuverts`, par poste et
+  par session).
+- **La fiche** ouvre sur « Son palier » en trois choix (`trv-choix-palier`,
+  `role=radiogroup`) avec ce que chacun exige, et dit quand la Maison
+  s'écarte du référentiel (`PALIER_DU_REFERENTIEL`).
+
+### Pièges
+
+- **▲ ▼ par atelier** échangent l'ordre saisi avec le voisin de l'atelier,
+  pas avec le voisin AFFICHÉ : quand un atelier mêle plusieurs paliers, une
+  flèche peut ne rien changer à l'écran (la prestation reste dans sa marche).
+- Les réglages « Modèle » et « Fixe / Variable / Sur devis » ne sont plus sur
+  la ligne du prix : ils sont sous « Détail ».
+- Le rangement se retient dans `mnd_catalogue_rangement` ; un poste qui avait
+  choisi « atelier » le garde.
+
 ## LES MODULES D'UNE FORMATION SE RÉORDONNENT — 16 septembre 2026, PUBLIÉ
 
 « Ajoute des toggles up and down pour modifier les positions des titres »

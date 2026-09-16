@@ -1289,3 +1289,147 @@
 .trv-mag-etape + .trv-mag-etape { border-left: none; }
 .trv-mag-etape--fait { background: #EFF3EF; color: #4A6B52; border-color: #CBDACE; }
 .trv-mag-etape--la { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+
+/* ══ LE CATALOGUE PAR PALIER — 16 septembre 2026 ═══════════════════════
+   Maquette `public/maquette-le-catalogue-par-palier.html`, validée. LE
+   PALIER SE LIT AVANT LE PRIX : trois couleurs tenues partout, la tuile de
+   l'échelle en haut, la bande qui ouvre chaque palier, le rail à gauche de
+   chaque prestation. Fondation en argile (I), Élévation en cuivre (II),
+   Souveraineté en indigo (III) : les mêmes que la pastille `mnd-palier`. */
+.trv-pal { --pal-0: var(--color-argile); --pal-1: var(--color-copper); --pal-2: var(--color-indigo); }
+
+/* la barre */
+.trv-pal-barre { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+.trv-pal-barre .mnd-input { flex: 1 1 220px; max-width: 340px; }
+.trv-pal-barre select.trv-pal-menu {
+  appearance: auto; font-family: var(--font-sans); font-size: 12px; color: var(--ink);
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px; padding: 7px 10px; max-width: 100%;
+}
+.trv-pal-segs { display: inline-flex; border: 1px solid var(--hairline); border-radius: 3px; overflow: hidden; margin-left: auto; }
+.trv-pal-segs button {
+  appearance: none; cursor: pointer; border: none; background: var(--surface-card); color: var(--ink-soft);
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding: 8px 12px;
+}
+.trv-pal-segs button.is-on { background: var(--color-indigo); color: var(--color-ivoire); }
+.trv-pal-segs button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: -2px; }
+
+/* l'échelle : trois tuiles */
+.trv-echelle { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
+@media (max-width: 760px) { .trv-echelle { grid-template-columns: 1fr; } }
+.trv-tuile {
+  appearance: none; cursor: pointer; text-align: left; font: inherit; color: inherit;
+  position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); padding: 14px 16px 14px 20px;
+  transition: border-color var(--dur-fast) var(--ease-soft), background var(--dur-fast) var(--ease-soft);
+}
+.trv-tuile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 4px 0 0 4px; }
+.trv-tuile--0::before { background: var(--pal-0); }
+.trv-tuile--1::before { background: var(--pal-1); }
+.trv-tuile--2::before { background: var(--pal-2); }
+.trv-tuile:hover { border-color: var(--color-argile); }
+.trv-tuile:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trv-tuile__rang { font-family: var(--font-serif); font-size: 13px; letter-spacing: .2em; color: var(--ink-soft); }
+.trv-tuile__nom { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 26px; line-height: 1.1; color: var(--color-indigo); }
+.trv-tuile__sous { font-family: var(--font-serif); font-style: italic; font-size: 15px; color: var(--ink-soft); }
+.trv-tuile__exige { font-family: var(--font-sans); font-size: 12px; line-height: 1.5; color: var(--ink); margin-top: 6px; }
+.trv-tuile__exige i { display: block; font-style: normal; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700); }
+.trv-tuile__compte { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; font-variant-numeric: tabular-nums; }
+.trv-tuile.is-on { border-color: var(--color-indigo); box-shadow: 0 0 0 1px var(--color-indigo) inset; }
+.trv-tuile--2.is-on { background: var(--color-indigo); }
+.trv-tuile--2.is-on .trv-tuile__nom, .trv-tuile--2.is-on .trv-tuile__exige { color: var(--color-ivoire); }
+.trv-tuile--2.is-on .trv-tuile__rang, .trv-tuile--2.is-on .trv-tuile__sous, .trv-tuile--2.is-on .trv-tuile__compte, .trv-tuile--2.is-on .trv-tuile__exige i { color: var(--copper-300); }
+
+/* la bande d'un palier */
+.trv-bande { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 11px 16px; border-radius: 4px; margin-top: 26px; }
+.trv-bande:first-child { margin-top: 0; }
+.trv-bande__rang { font-family: var(--font-serif); font-size: 15px; letter-spacing: .2em; }
+.trv-bande__nom { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 22px; letter-spacing: .04em; text-transform: uppercase; }
+.trv-bande__sous { font-family: var(--font-serif); font-style: italic; font-size: 15px; }
+.trv-bande__compte { margin-left: auto; font-family: var(--font-sans); font-size: 11px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.trv-bande--0 { background: var(--color-sable); color: var(--color-indigo); }
+.trv-bande--0 .trv-bande__rang, .trv-bande--0 .trv-bande__sous, .trv-bande--0 .trv-bande__compte { color: var(--ink-soft); }
+.trv-bande--1 { background: var(--color-copper); color: var(--color-ivoire); }
+.trv-bande--1 .trv-bande__rang, .trv-bande--1 .trv-bande__sous, .trv-bande--1 .trv-bande__compte { color: #FBEBDC; }
+.trv-bande--2 { background: var(--color-indigo); color: var(--color-ivoire); }
+.trv-bande--2 .trv-bande__rang, .trv-bande--2 .trv-bande__sous, .trv-bande--2 .trv-bande__compte { color: var(--copper-300); }
+.trv-bande--prod { background: var(--surface-card); color: var(--ink-soft); border: 1px solid var(--hairline); }
+.trv-bande--prod .trv-bande__nom { color: var(--ink-soft); }
+.trv-bande__exige { font-family: var(--font-sans); font-size: 12px; line-height: 1.55; color: var(--ink-soft); padding: 6px 16px 0; max-width: 90ch; }
+.trv-bande__exige b { color: var(--ink); font-weight: 500; }
+
+/* la maison, sous une bande */
+.trv-maison { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--hairline); }
+.trv-maison b { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 16px; letter-spacing: .05em; color: var(--color-indigo); }
+.trv-maison span { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.trv-maison span:last-child { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* l'atelier en lignes */
+.trv-atelier { border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card); overflow: hidden; margin-bottom: 10px; }
+.trv-atelier__tete { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 9px 14px; background: var(--color-sable); border-bottom: 1px solid var(--hairline); }
+.trv-atelier__tete .fon { font-family: var(--font-serif); font-weight: var(--weight-medium); font-size: 19px; color: var(--copper-700); letter-spacing: .01em; }
+.trv-atelier__tete .lab { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trv-atelier__tete .n { margin-left: auto; font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trv-ligne {
+  display: grid; grid-template-columns: 5px minmax(0, 1fr) auto auto auto; gap: 0 12px; align-items: baseline;
+  padding: 8px 14px 8px 0; border-top: 1px solid var(--color-sable);
+}
+.trv-ligne:first-of-type { border-top: none; }
+.trv-ligne__rail { align-self: stretch; }
+.trv-ligne--0 .trv-ligne__rail { background: var(--pal-0); }
+.trv-ligne--1 .trv-ligne__rail { background: var(--pal-1); }
+.trv-ligne--2 .trv-ligne__rail { background: var(--pal-2); }
+.trv-ligne__nom { font-family: var(--font-serif); font-weight: var(--weight-light); font-size: 17px; line-height: 1.25; color: var(--color-indigo); min-width: 0; }
+.trv-ligne__nom small { display: block; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.trv-ligne__meta { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+.trv-ligne__prix { display: inline-flex; gap: 6px; align-items: baseline; font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trv-ligne__prix small { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-soft); }
+.trv-ligne__prix button {
+  appearance: none; cursor: pointer; background: none; border: none; padding: 0; font: inherit; color: inherit;
+  text-decoration: underline transparent; text-underline-offset: 4px; transition: text-decoration-color var(--dur-fast) var(--ease-soft);
+}
+.trv-ligne__prix button:hover, .trv-ligne__prix button:focus-visible { text-decoration-color: var(--color-copper); outline: none; }
+.trv-ligne__prix .point { color: var(--color-argile); }
+.trv-ligne__gestes { display: inline-flex; gap: 4px; align-items: center; }
+@media (max-width: 640px) {
+  .trv-ligne { grid-template-columns: 5px minmax(0, 1fr); row-gap: 4px; }
+  .trv-ligne__meta, .trv-ligne__prix, .trv-ligne__gestes { grid-column: 2; white-space: normal; }
+}
+.trv-ligne--prod .trv-ligne__rail { background: var(--hairline); }
+
+/* la marche, dans l'atelier (rangement par atelier) */
+.trv-sep-palier { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 6px; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; }
+.trv-sep-palier::after { content: ''; flex: 1; height: 1px; background: var(--color-sable); }
+.trv-sep-palier--0 { color: var(--ink-soft); }
+.trv-sep-palier--1 { color: var(--copper-700); }
+.trv-sep-palier--2 { color: var(--color-indigo); }
+
+/* la carte resserrée, avec son rail */
+.trv-svc--0 { border-left: 5px solid var(--pal-0); }
+.trv-svc--1 { border-left: 5px solid var(--pal-1); }
+.trv-svc--2 { border-left: 5px solid var(--pal-2); }
+.trv-svc__detail {
+  appearance: none; cursor: pointer; background: none; border: none; padding: 0; margin-top: 10px; text-align: left;
+  font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--copper-700);
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+}
+.trv-svc__detail span { letter-spacing: 0; text-transform: none; color: var(--ink-soft); font-size: 11px; }
+.trv-svc__detail:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+.trv-svc__plie { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--hairline); }
+
+/* le palier, premier bloc de la fiche */
+.trv-choix-palier { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .trv-choix-palier { grid-template-columns: 1fr; } }
+.trv-choix-palier button {
+  appearance: none; cursor: pointer; text-align: left; font: inherit; color: var(--ink-soft);
+  border: 1px solid var(--hairline); border-left-width: 5px; border-radius: 4px; padding: 10px 12px; background: var(--surface-card);
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.5; transition: border-color var(--dur-fast) var(--ease-soft), background var(--dur-fast) var(--ease-soft);
+}
+.trv-choix-palier button b { display: block; font-family: var(--font-serif); font-size: 17px; font-weight: var(--weight-medium); color: var(--color-indigo); }
+.trv-choix-palier button:nth-child(1) { border-left-color: var(--pal-0); }
+.trv-choix-palier button:nth-child(2) { border-left-color: var(--pal-1); }
+.trv-choix-palier button:nth-child(3) { border-left-color: var(--pal-2); }
+.trv-choix-palier button.is-on { border-color: var(--color-copper); background: var(--copper-50); color: var(--ink); }
+.trv-choix-palier button.is-on:nth-child(1) { border-left-color: var(--pal-0); }
+.trv-choix-palier button.is-on:nth-child(2) { border-left-color: var(--pal-1); }
+.trv-choix-palier button.is-on:nth-child(3) { border-left-color: var(--pal-2); }
+.trv-choix-palier button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }

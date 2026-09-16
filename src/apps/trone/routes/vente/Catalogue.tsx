@@ -6,9 +6,13 @@ import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
-import { paliersAReprendre, reprendLesPaliers } from '../../../../shared/referentiel-paliers';
+import { paliersAReprendre, reprendLesPaliers, PALIER_DU_REFERENTIEL } from '../../../../shared/referentiel-paliers';
 import { servicesStore } from '../../../../shared/catalog';
-import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER } from '../../../../shared/paliers';
+import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER, seuilsPropres } from '../../../../shared/paliers';
+import {
+  CHIFFRE_DU_PALIER, seuilDit, lignesDuCatalogue, parPalier, compteParPalier, plusHautPalier,
+} from '../../../../shared/catalogue-par-palier';
+import { useSettings } from '../../../../shared/settings';
 import { ProtocolesModal } from './Protocoles';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
@@ -252,6 +256,14 @@ export default function Catalogue() {
   const [prodForm, setProdForm] = useState<ProdForm | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  /* LA CARTE SE RESSERRE — 16 septembre 2026, maquette du catalogue par
+     palier. Le nom, le prix, le palier et le temps se lisent d'un coup ; la
+     règle du prix en toutes lettres, l'usage, la description, les gardes et
+     les réglages vivent sous « Détail », replié. Tout ce qui existe reste ;
+     il ne reste pas déplié. */
+  const [detailsOuverts, setDetailsOuverts] = useState<Set<string>>(() => new Set());
+  const basculeLeDetail = (id: string) =>
+    setDetailsOuverts((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   /* LE REGROUPEMENT PAR RÉGIME (13 août — « tous les services qui dépendent du
      Juste Prix doivent être regroupés »). Un filtre montre le catalogue entier
      réduit aux prestations du régime choisi, toujours rangées par atelier, et
@@ -396,6 +408,10 @@ export default function Catalogue() {
   }, [services, setServices]);
 
   const masters = branch.masters;
+  /* LES SEUILS DES PALIERS, ceux des Paramètres : la bande d'un palier dit
+     à quel moment une cliente y arrive, avec les vrais nombres. */
+  const [reglages] = useSettings();
+  const seuils = seuilsPropres(reglages.paliers);
 
   /* LES QUATRE ENSEMBLES DU CATALOGUE. 24 catégories à la suite, c'est un mur :
      on ne voit plus ni le Studio ni le plateau, noyés au milieu de l'Atelier.
@@ -504,8 +520,10 @@ export default function Catalogue() {
      qu'il exige et ses ateliers dedans. Les produits Maison n'ont pas de
      palier : ils ne paraissent que par atelier. Le choix se retient sur ce
      poste, comme un pli de lecture, sans rien écrire à la Maison. */
+  /* PAR PALIER À L'OUVERTURE D'UN POSTE NEUF (tranché le 16 septembre, avec
+     la maquette) ; chaque poste garde ensuite son dernier choix. */
   const [rangement, setRangement] = useState<'atelier' | 'palier'>(() => {
-    try { return localStorage.getItem('mnd_catalogue_rangement') === 'palier' ? 'palier' : 'atelier'; } catch { return 'atelier'; }
+    try { return localStorage.getItem('mnd_catalogue_rangement') === 'atelier' ? 'atelier' : 'palier'; } catch { return 'palier'; }
   });
   useEffect(() => {
     try { localStorage.setItem('mnd_catalogue_rangement', rangement); } catch { /* lecture seule : tant pis */ }
@@ -1081,133 +1099,120 @@ export default function Catalogue() {
                 MND Kids · {kidsADepasser(services)} à remettre au tarif
               </Button>
             )}
-            {/* LES PALIERS QUI S'ÉCARTENT DU RÉFÉRENTIEL — le bouton ne paraît
-                que s'il a quelque chose à reprendre, et dit combien. */}
-            {paliersAReprendre(services) > 0 && (
-              <Button variant="ghost" onClick={reprendrePaliers}>
-                Paliers · {paliersAReprendre(services)} à reprendre
-              </Button>
-            )}
+            {/* LES PALIERS QUI S'ÉCARTENT DU RÉFÉRENTIEL se reprennent depuis la
+                barre du catalogue, à côté de l'échelle : c'est là qu'on lit les
+                paliers, c'est là qu'on les reprend (maquette du 16 septembre). */}
           </>
         }
       />
 
+      {/* ══ LA BARRE ET L'ÉCHELLE — 16 septembre 2026 ═══════════════════
+          Maquette `maquette-le-catalogue-par-palier.html`, validée : LE
+          PALIER SE LIT AVANT LE PRIX. Une barre (la recherche, le régime du
+          prix rangé dans un menu, les paliers à reprendre, le rangement), puis
+          trois tuiles, une par palier, qui disent ce que l'acte exige et
+          combien de prestations y vivent. Appuyer sur une tuile filtre la
+          page ; appuyer de nouveau la relâche. */}
       {cats.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', flexWrap: 'wrap' }}>
+        <div className="trv-pal trv-pal-barre">
           <input
             className="mnd-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher une prestation, un produit…"
-            style={{ flex: '1 1 240px', maxWidth: 360 }}
           />
           {query && <button className="trv-minibtn" onClick={() => setQuery('')}>Effacer</button>}
-          <Button variant="ghost" onClick={toggleAll}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</Button>
-        </div>
-      )}
-
-      {/* LE REGROUPEMENT PAR RÉGIME — un clic montre ENSEMBLE toutes les
-          prestations d'un même régime tarifaire (rangées par atelier), avec
-          le compte sur chaque pastille. Le même juge que les étiquettes. */}
-      {cats.length > 0 && (() => {
-        const nb = {
-          jp: services.filter((s) => regimeTarifaire(s, cats).justePrix).length,
-          modele: services.filter((s) => regimeTarifaire(s, cats).k === 'modele').length,
-          lock: services.filter((s) => regimeTarifaire(s, cats).k === 'lock').length,
-          calibre: services.filter((s) => regimeTarifaire(s, cats).k === 'calibre').length,
-          longueur: services.filter((s) => regimeTarifaire(s, cats).k === 'longueur').length,
-          hors: services.filter((s) => !regimeTarifaire(s, cats).justePrix).length,
-        };
-        const chips: { v: typeof regimeFiltre; t: string; n?: number }[] = [
-          { v: 'tout', t: 'Tout' },
-          { v: 'jp', t: 'Juste Prix', n: nb.jp },
-          { v: 'modele', t: 'Barème du modèle', n: nb.modele },
-          { v: 'lock', t: 'Comptage des locks', n: nb.lock },
-          { v: 'calibre', t: 'Prix par calibre', n: nb.calibre },
-          { v: 'longueur', t: 'Grille par longueur', n: nb.longueur },
-          { v: 'hors', t: 'Hors Juste Prix', n: nb.hors },
-        ];
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 16px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>
-              Régime du prix
-            </span>
-            {chips.map((c) => {
-              const on = regimeFiltre === c.v;
-              return (
-                <button
-                  key={c.v}
-                  type="button"
-                  className="trv-minibtn"
-                  onClick={() => setRegimeFiltre(on && c.v !== 'tout' ? 'tout' : c.v)}
-                  style={on
-                    ? { background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: 'var(--color-ivoire)' }
-                    : undefined}
-                >
-                  {c.t}{c.n !== undefined ? ` · ${c.n}` : ''}
-                </button>
-              );
-            })}
-            {regimeFiltre !== 'tout' && (
-              <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-                {regimeFiltre === 'jp'
-                  ? 'toutes les prestations que le Juste Prix de la cliente modulera, les produits de la Gamme sont hors champ'
-                  : regimeFiltre === 'hors'
-                    ? 'prix fermes du catalogue et montants sur devis, le Juste Prix ne les touche pas'
-                    : 'les prestations de ce régime, rangées par atelier'}
-              </span>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* ══ LE PALIER — 16 septembre 2026 ══════════════════════════════
-          Fondation, Élévation, Souveraineté : le rang d'une prestation dans
-          le parcours de la cliente, et ce qu'elle exige de la main. Il se lit
-          ici comme le régime se lit, avec le compte sur chaque pastille. */}
-      {cats.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-6px 0 16px', flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>
-            Palier
-          </span>
-          {(['tout', ...PALIERS] as (Service['palier'] | 'tout')[]).map((p) => {
-            const on = palierFiltre === p;
-            const n = p === 'tout' ? undefined : services.filter((s) => s.palier === p).length;
+          {(() => {
+            const nb = {
+              jp: services.filter((s) => regimeTarifaire(s, cats).justePrix).length,
+              modele: services.filter((s) => regimeTarifaire(s, cats).k === 'modele').length,
+              lock: services.filter((s) => regimeTarifaire(s, cats).k === 'lock').length,
+              calibre: services.filter((s) => regimeTarifaire(s, cats).k === 'calibre').length,
+              longueur: services.filter((s) => regimeTarifaire(s, cats).k === 'longueur').length,
+              hors: services.filter((s) => !regimeTarifaire(s, cats).justePrix).length,
+            };
             return (
-              <button
-                key={p}
-                type="button"
-                className="trv-minibtn"
-                onClick={() => setPalierFiltre(on && p !== 'tout' ? 'tout' : p)}
-                style={on
-                  ? { background: 'var(--color-indigo)', borderColor: 'var(--color-indigo)', color: 'var(--color-ivoire)' }
-                  : undefined}
+              <select
+                className="trv-pal-menu"
+                value={regimeFiltre}
+                aria-label="Régime du prix"
+                title="Ne montrer que les prestations d’un régime de prix"
+                onChange={(e) => setRegimeFiltre(e.target.value as typeof regimeFiltre)}
               >
-                {p === 'tout' ? 'Tous' : p}{n !== undefined ? ` · ${n}` : ''}
-              </button>
+                <option value="tout">Tous les régimes de prix</option>
+                <option value="jp">Juste Prix · {nb.jp}</option>
+                <option value="modele">Barème du modèle · {nb.modele}</option>
+                <option value="lock">Comptage des locks · {nb.lock}</option>
+                <option value="calibre">Prix par calibre · {nb.calibre}</option>
+                <option value="longueur">Grille par longueur · {nb.longueur}</option>
+                <option value="hors">Hors Juste Prix · {nb.hors}</option>
+              </select>
             );
-          })}
-          {palierFiltre !== 'tout' && (
-            <span className="mnd-muted" style={{ fontSize: 11.5 }}>{PALIER_DIT[palierFiltre].sous}</span>
+          })()}
+          {paliersAReprendre(services) > 0 && (
+            <button
+              type="button"
+              className="trv-minibtn"
+              style={{ borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }}
+              title="Sept fiches s’écartent du référentiel des paliers de la Maison : les reprendre d’un coup, sans toucher au reste"
+              onClick={reprendrePaliers}
+            >
+              Paliers · {paliersAReprendre(services)} à reprendre
+            </button>
           )}
-          <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>
-              Rangement
-            </span>
-            {(['atelier', 'palier'] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className="trv-minibtn"
-                onClick={() => setRangement(r)}
-                style={rangement === r
-                  ? { background: 'var(--color-indigo)', borderColor: 'var(--color-indigo)', color: 'var(--color-ivoire)' }
-                  : undefined}
-              >
+          {rangement === 'atelier' && (
+            <button type="button" className="trv-minibtn" onClick={toggleAll}>{allCollapsed ? 'Tout déplier' : 'Tout replier'}</button>
+          )}
+          <span className="trv-pal-segs" role="group" aria-label="Rangement">
+            {(['palier', 'atelier'] as const).map((r) => (
+              <button key={r} type="button" className={rangement === r ? 'is-on' : ''} onClick={() => setRangement(r)}>
                 {r === 'atelier' ? 'Par atelier' : 'Par palier'}
               </button>
             ))}
           </span>
+        </div>
+      )}
+
+      {cats.length > 0 && (() => {
+        const compte = compteParPalier(services);
+        return (
+          <div className="trv-pal trv-echelle" role="group" aria-label="Les trois paliers">
+            {LES_PALIERS.map((p) => {
+              const on = palierFiltre === p;
+              const c = compte[p];
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  className={`trv-tuile trv-tuile--${RANG_DU_PALIER[p]}${on ? ' is-on' : ''}`}
+                  aria-pressed={on}
+                  title={on ? 'Relâcher le filtre' : `Ne montrer que ${p}`}
+                  onClick={() => setPalierFiltre(on ? 'tout' : p)}
+                >
+                  <span className="trv-tuile__rang">{CHIFFRE_DU_PALIER[p]}</span>
+                  <span className="trv-tuile__nom">{p}</span>
+                  <span className="trv-tuile__sous">{PALIER_DIT[p].sous}</span>
+                  <span className="trv-tuile__exige"><i>Ce que l’acte exige</i>{PALIER_DIT[p].exige}</span>
+                  <span className="trv-tuile__compte">
+                    {c.prestations} prestation{c.prestations > 1 ? 's' : ''} · {c.categories} catégorie{c.categories > 1 ? 's' : ''}{on ? ' · filtre posé' : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* LE RÉGIME DU PRIX se choisit dans le menu de la barre ; quand il est
+          posé, une ligne dit ce qu'on regarde. Le même juge que les étiquettes
+          (`regimeTarifaire`). */}
+      {cats.length > 0 && regimeFiltre !== 'tout' && (
+        <div className="mnd-muted" style={{ fontSize: 11.5, margin: '-12px 0 14px' }}>
+          {regimeFiltre === 'jp'
+            ? 'Toutes les prestations que le Juste Prix de la cliente modulera ; les produits de la Gamme sont hors champ.'
+            : regimeFiltre === 'hors'
+              ? 'Prix fermes du catalogue et montants sur devis : le Juste Prix ne les touche pas.'
+              : 'Les prestations de ce régime seulement.'}
         </div>
       )}
 
@@ -1234,8 +1239,14 @@ export default function Catalogue() {
            vend comme un engagement ; melange aux prestations, il se lisait
            comme l'une d'elles. On les range en fin d'atelier, sous leur propre
            en-tete, pour qu'on sache toujours dans lequel des deux on se trouve. */
-        const prestations = list.filter((sv) => !sv.includes?.length);
-        const forfaits = list.filter((sv) => !!sv.includes?.length);
+        /* PAR ATELIER, LES PRESTATIONS SE GROUPENT PAR PALIER, du plus bas au
+           plus haut, sous un filet qui le nomme (maquette du 16 septembre) :
+           on sait toujours, sans lire la pastille, à quelle marche on est.
+           Dans une marche, l'ordre saisi tient. Par palier, la liste n'en a
+           qu'une : rien ne bouge. */
+        const prestations = parPalier(list.filter((sv) => !sv.includes?.length)).flatMap((g) => g.items);
+        const forfaits = parPalier(list.filter((sv) => !!sv.includes?.length)).flatMap((g) => g.items);
+        const marches = !palier && new Set(prestations.map((sv) => sv.palier)).size > 1;
         const prods = palier ? [] : (isOrphan ? orphanProds : prodsOf(cat.id)).filter(matchProd);
         const count = list.length + prods.length;
         const catMatches = !q || cat.fon.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q);
@@ -1368,29 +1379,18 @@ export default function Catalogue() {
                     </span>
                   </div>
                 )}
-                <article className="trv-svc">
+                {/* LA MARCHE, dans l'atelier : un filet nommé avant la première
+                    prestation de chaque palier, quand l'atelier en mêle
+                    plusieurs. */}
+                {marches && si < prestations.length && (si === 0 || prestations[si - 1].palier !== svc.palier) && (
+                  <div className={`trv-sep-palier trv-sep-palier--${RANG_DU_PALIER[svc.palier]}`}>
+                    {CHIFFRE_DU_PALIER[svc.palier]} · {svc.palier} · {prestations.filter((x) => x.palier === svc.palier).length}
+                  </div>
+                )}
+                <article className={`trv-pal trv-svc trv-svc--${RANG_DU_PALIER[svc.palier]}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                     <div className="trv-svc__name">{svc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flex: 'none' }}>
-                      {/* Suit le MODÈLE : le prix (et la durée) s'ajustent au nombre de
-                          locks de la cliente via le barème du Juste Prix. */}
-                      <button
-                        className="trv-hideprice"
-                        style={suitLeModeleRegle(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
-                        title={suitLeModeleRegle(svc)
-                          ? 'Suit le modèle de la cliente (barème par tranches de locks), cliquer pour désactiver'
-                          : 'Prix identique quel que soit le modèle, cliquer pour suivre le barème par tranches de locks'}
-                        onClick={() => patchSvc(svc.id, { scalesWithModel: !suitLeModeleRegle(svc) })}
-                      >
-                        {suitLeModeleRegle(svc) ? '◈ Modèle' : 'Modèle —'}
-                      </button>
-                      <button
-                        className="trv-hideprice"
-                        title="Mode de prix, cliquez pour changer : Fixe → Variable → Sur devis"
-                        onClick={() => cyclePriceMode(svc)}
-                      >
-                        {PRICE_MODES.find((m) => m.k === priceModeOf(svc))?.label}
-                      </button>
                       <div className="trv-svc__price">
                         {priceModeOf(svc) === 'devis'
                           ? <em style={{ fontSize: 15, color: 'var(--ink-soft)' }}>sur devis</em>
@@ -1424,23 +1424,6 @@ export default function Catalogue() {
                     </div>
                   )}
 
-                  {/* CE QUI FAIT SON PRIX — la règle en une phrase, par LE juge
-                      du moteur (`regimeTarifaire`). Comptage, plancher, grille,
-                      Juste Prix : ça se lisait champ par champ, jamais comme
-                      une règle (13 août). */}
-                  {(() => {
-                    const regime = regimeTarifaire(svc, cats);
-                    return (
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, marginTop: 5, lineHeight: 1.45, color: 'var(--ink-soft)' }}>
-                        <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Son prix · </span>
-                        {regime.mots}
-                        <span style={{ color: regime.justePrix ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
-                          {regime.justePrix ? ' · Juste Prix : oui' : ' · Juste Prix : non'}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
                   <div className="trv-svc__meta">
                     <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[svc.palier]}`} title={PALIER_DIT[svc.palier].sous}>{svc.palier}</span>
                     <span style={{ color: 'var(--color-argile)' }}>·</span>
@@ -1452,6 +1435,76 @@ export default function Catalogue() {
                       <button className="trv-sq" style={{ width: 24, height: 24 }} title="Ajouter une séance" onClick={() => patchSvc(svc.id, { sessions: svc.sessions + 1 })}>+</button>
                       <span>séance{svc.sessions > 1 ? 's' : ''}</span>
                     </span>
+                    <span style={{ color: 'var(--color-argile)' }}>·</span>
+                    <span>{regimeTarifaire(svc, cats).justePrix ? 'Juste Prix' : 'prix ferme'}</span>
+                  </div>
+
+                  <div className="trv-temps">
+                    {QUATRE_TEMPS.map((t, i) => (
+                      <span key={t} className={(svc.temps ?? [1, 1, 1, 1])[i] ? 'on' : ''}>{t}</span>
+                    ))}
+                  </div>
+
+                  {/* « DÉTAIL » — ce qui n'a pas besoin d'être lu à chaque fois
+                      se replie : la règle du prix en toutes lettres, l'usage,
+                      la description, les gardes, les réglages du prix. Le mot
+                      porte un résumé de l'usage, pour qu'on sache s'il vaut
+                      d'être ouvert. */}
+                  {(() => {
+                    const u = usage.get(svc.id);
+                    const ouvert = detailsOuverts.has(svc.id);
+                    return (
+                      <button type="button" className="trv-svc__detail" aria-expanded={ouvert} onClick={() => basculeLeDetail(svc.id)}>
+                        Détail {ouvert ? '▾' : '▸'}
+                        <span>
+                          {u && (u.done > 0 || u.upcoming > 0)
+                            ? `${u.done} honoré${u.done > 1 ? 's' : ''}${u.upcoming > 0 ? ` · ${u.upcoming} à venir` : ''}${u.rev > 0 ? ` · ${fmtMoney(Math.round(u.rev), currency)} générés` : ''}`
+                            : 'jamais réservée'}
+                        </span>
+                      </button>
+                    );
+                  })()}
+
+                  {detailsOuverts.has(svc.id) && (
+                  <div className="trv-svc__plie">
+                  {/* CE QUI FAIT SON PRIX — la règle en une phrase, par LE juge
+                      du moteur (`regimeTarifaire`). Comptage, plancher, grille,
+                      Juste Prix : ça se lisait champ par champ, jamais comme
+                      une règle (13 août). */}
+                  {(() => {
+                    const regime = regimeTarifaire(svc, cats);
+                    return (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, lineHeight: 1.45, color: 'var(--ink-soft)' }}>
+                        <span style={{ fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Son prix · </span>
+                        {regime.mots}
+                        <span style={{ color: regime.justePrix ? 'var(--copper-700)' : 'var(--ink-soft)' }}>
+                          {regime.justePrix ? ' · Juste Prix : oui' : ' · Juste Prix : non'}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Réglages</span>
+                    {/* Suit le MODÈLE : le prix (et la durée) s'ajustent au nombre de
+                        locks de la cliente via le barème du Juste Prix. */}
+                    <button
+                      className="trv-hideprice"
+                      style={suitLeModeleRegle(svc) ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined}
+                      title={suitLeModeleRegle(svc)
+                        ? 'Suit le modèle de la cliente (barème par tranches de locks), cliquer pour désactiver'
+                        : 'Prix identique quel que soit le modèle, cliquer pour suivre le barème par tranches de locks'}
+                      onClick={() => patchSvc(svc.id, { scalesWithModel: !suitLeModeleRegle(svc) })}
+                    >
+                      {suitLeModeleRegle(svc) ? '◈ Modèle' : 'Modèle —'}
+                    </button>
+                    <button
+                      className="trv-hideprice"
+                      title="Mode de prix, cliquez pour changer : Fixe → Variable → Sur devis"
+                      onClick={() => cyclePriceMode(svc)}
+                    >
+                      {PRICE_MODES.find((m) => m.k === priceModeOf(svc))?.label}
+                    </button>
                   </div>
 
                   {/* Le point d'usage — ce que cette prestation a réellement servi. */}
@@ -1537,13 +1590,9 @@ export default function Catalogue() {
                     </div>
                   )}
 
-                  <div className="trv-temps">
-                    {QUATRE_TEMPS.map((t, i) => (
-                      <span key={t} className={(svc.temps ?? [1, 1, 1, 1])[i] ? 'on' : ''}>{t}</span>
-                    ))}
+                  {svc.description && <div className="trv-svc__desc" style={{ marginTop: 4 }}>{svc.description}</div>}
                   </div>
-
-                  {svc.description && <div className="trv-svc__desc">{svc.description}</div>}
+                  )}
 
                   <div className="trv-svc__foot">
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
@@ -1614,40 +1663,169 @@ export default function Catalogue() {
 
       if (rangement === 'atelier') return renderCats.map((cat, ci) => blocDeCategorie(cat, ci, renderCats));
 
-      /* PAR PALIER : trois bandes, Fondation, Élévation, Souveraineté, chacune
-         avec ce que l'acte exige et le compte ; dessous, les ateliers qui y
-         ont une prestation. Le filtre de palier, s'il est posé, ne laisse que
-         sa bande. */
-      return (
-        <>
-          <div className="mnd-muted" style={{ fontSize: 11.5, margin: '-6px 0 4px' }}>
-            Les produits Maison n’ont pas de palier : ils restent dans le rangement par atelier.
-          </div>
-          {LES_PALIERS.filter((p) => palierFiltre === 'tout' || p === palierFiltre).map((p) => {
-            const catsDuPalier = renderCats.filter((cat) =>
-              (cat.id === ORPHAN_ID ? orphanSvcs : svcOf(cat.id)).some((sv) => matchSvc(sv) && sv.palier === p));
-            const n = services.filter((sv) => sv.palier === p && matchSvc(sv)).length;
-            return (
-              <div key={`palier-${p}`}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', margin: '30px 0 4px', paddingBottom: 8, borderBottom: '2px solid var(--color-indigo)' }}>
-                  <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[p]}`}>{p}</span>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: 21, letterSpacing: '.02em' }}>{PALIER_DIT[p].sous}</span>
-                  <span className="mnd-muted" style={{ fontSize: 11.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
-                    {n} prestation{n > 1 ? 's' : ''} · {catsDuPalier.length} catégorie{catsDuPalier.length > 1 ? 's' : ''}
+      /* ══ PAR PALIER — redessiné le 16 septembre 2026, maquette validée ══
+         Une bande de couleur ouvre chaque palier : le chiffre, le nom, la
+         phrase, le compte ; dessous, ce que l'acte exige et le seuil auquel
+         la cliente y arrive. Puis les maisons, et dans chaque maison les
+         ateliers EN LIGNES, pas en cartes : dix prestations par écran au
+         lieu de quatre. Le rail à gauche redit le palier quand la bande est
+         sortie de l'écran. Trois fiches d'une même prestation qui ne
+         diffèrent que par la longueur se lisent sur une ligne, avec leurs
+         trois prix (`lignesDuCatalogue`). Le filtre de palier, s'il est posé,
+         ne laisse que sa bande. Les produits Maison, sans palier, ferment
+         la page dans une bande grise. */
+      const atelierEnLignes = (cat: CatalogCategory, fiches: Service[]): ReactNode => {
+        const lignes = lignesDuCatalogue(fiches);
+        return (
+          <section key={`l-${cat.id}`} className="trv-atelier">
+            <div className="trv-atelier__tete">
+              <span className="fon">{cat.fon}</span>
+              <span className="lab">{cat.label}</span>
+              <span className="n">
+                {fiches.length} prestation{fiches.length > 1 ? 's' : ''}
+                {fiches.length !== svcOf(cat.id).length && cat.id !== ORPHAN_ID ? ` sur ${svcOf(cat.id).length}` : ''}
+              </span>
+            </div>
+            {lignes.map((l) => {
+              const premiere = l.fiches[0];
+              const regime = regimeTarifaire(premiere, cats);
+              const meta = [
+                l.longueurs.length > 0 ? 'grille par longueur' : regime.k === 'lock' ? `au lock${premiere.ratePerLock ? ` · ${fmtMoney(premiere.ratePerLock, currency)}` : ''}` : regime.k === 'modele' ? 'barème du modèle' : regime.k === 'calibre' ? 'prix par calibre' : priceModeOf(premiere) === 'devis' ? 'sur devis' : 'prix fixe',
+                regime.justePrix ? 'Juste Prix' : '',
+              ].filter(Boolean).join(' · ');
+              const sous = [
+                l.sous,
+                l.longueurs.length > 0
+                  ? (() => {
+                    const d = l.fiches.map((f) => f.durationMin).filter((x) => x > 0);
+                    return d.length ? `${fmtDuration(Math.min(...d))} à ${fmtDuration(Math.max(...d))}` : '';
+                  })()
+                  : fmtDuration(premiere.durationMin),
+                premiere.sessions > 1 ? `${premiere.sessions} séances` : '',
+                premiere.includes?.length ? 'forfait' : '',
+              ].filter(Boolean).join(' · ');
+              return (
+                <div key={l.cle} className={`trv-ligne trv-ligne--${RANG_DU_PALIER[plusHautPalier(l.fiches.map((f) => f.palier))]}`}>
+                  <span className="trv-ligne__rail" />
+                  <span className="trv-ligne__nom">{l.nom}{sous ? <small>{sous}</small> : null}</span>
+                  <span className="trv-ligne__meta">{meta}</span>
+                  <span className="trv-ligne__prix">
+                    {l.longueurs.length > 0
+                      ? l.longueurs.map((x, i) => (
+                        <Fragment key={x.id}>
+                          {i > 0 && <span className="point">·</span>}
+                          <button type="button" title={`Ouvrir la fiche ${LONGUEURS.find((z) => z.id === x.id)?.label ?? x.id}`} onClick={() => openSvcEdit(x.service)}>
+                            {priceModeOf(x.service) === 'devis' ? 'sur devis' : fmtMoney(x.service.priceXof, currency)}
+                          </button>
+                        </Fragment>
+                      ))
+                      : (
+                        <button type="button" title="Ouvrir la fiche" onClick={() => openSvcEdit(premiere)}>
+                          {priceModeOf(premiere) === 'variable' && <small>dès </small>}
+                          {priceModeOf(premiere) === 'devis' ? 'sur devis' : fmtMoney(premiere.priceXof, currency)}
+                        </button>
+                      )}
+                  </span>
+                  <span className="trv-ligne__gestes">
+                    <button className="trv-minibtn" onClick={() => openSvcEdit(premiere)}>Modifier</button>
                   </span>
                 </div>
-                <div className="mnd-muted" style={{ fontSize: 12, margin: '0 0 12px' }}>
-                  Ce que l’acte exige : {PALIER_DIT[p].exige}
-                </div>
-                {catsDuPalier.length === 0 && (
-                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '8px 0' }}>
-                    {filtreActif ? 'Aucune prestation de ce palier ne répond au filtre.' : 'Aucune prestation à ce palier pour l’instant.'}
-                  </div>
-                )}
-                {catsDuPalier.map((cat, ci) => blocDeCategorie(cat, ci, catsDuPalier, p))}
+              );
+            })}
+          </section>
+        );
+      };
+
+      const bandes = LES_PALIERS.filter((p) => palierFiltre === 'tout' || p === palierFiltre).map((p) => {
+        const parCat = renderCats
+          .map((cat) => ({ cat, fiches: (cat.id === ORPHAN_ID ? orphanSvcs : svcOf(cat.id)).filter((sv) => matchSvc(sv) && sv.palier === p) }))
+          .filter((x) => x.fiches.length > 0);
+        const n = parCat.reduce((s, x) => s + x.fiches.length, 0);
+        /* LES MAISONS, dans l'ordre du Trône : l'Atelier ouvre, le plateau
+           relie, le Studio suit, l'Académie ferme. Un titre par maison, posé
+           sur sa première catégorie. */
+        const parMaison: { k: string; titre: string; sous: string; cats: typeof parCat }[] = [];
+        for (const x of parCat) {
+          const g = x.cat.id === ORPHAN_ID ? { k: 'orphelins', titre: 'À RECLASSER', sous: 'Sans catégorie, à ranger' } : groupeDe(x.cat);
+          const m = parMaison.find((y) => y.k === g.k);
+          if (m) m.cats.push(x); else parMaison.push({ ...g, cats: [x] });
+        }
+        return (
+          <div key={`palier-${p}`} className="trv-pal">
+            <div className={`trv-bande trv-bande--${RANG_DU_PALIER[p]}`}>
+              <span className="trv-bande__rang">{CHIFFRE_DU_PALIER[p]}</span>
+              <span className="trv-bande__nom">{p}</span>
+              <span className="trv-bande__sous">{PALIER_DIT[p].sous}</span>
+              <span className="trv-bande__compte">
+                {n} prestation{n > 1 ? 's' : ''} · {parCat.length} catégorie{parCat.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="trv-bande__exige">
+              <b>Ce que l’acte exige :</b> {PALIER_DIT[p].exige.charAt(0).toLowerCase() + PALIER_DIT[p].exige.slice(1)}{' '}
+              <b>La cliente y est</b> {seuilDit(p, seuils)}.
+            </div>
+            {parCat.length === 0 && (
+              <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)', padding: '10px 16px' }}>
+                {filtreActif ? 'Aucune prestation de ce palier ne répond au filtre.' : 'Aucune prestation à ce palier pour l’instant.'}
               </div>
-            );
-          })}
+            )}
+            {parMaison.map((m) => (
+              <div key={m.k}>
+                <div className="trv-maison">
+                  <b>{m.titre}</b>
+                  <span>{m.sous}</span>
+                  <span>{m.cats.length} catégorie{m.cats.length > 1 ? 's' : ''} · {m.cats.reduce((s, x) => s + x.fiches.length, 0)} prestations</span>
+                </div>
+                {m.cats.map((x) => atelierEnLignes(x.cat, x.fiches))}
+              </div>
+            ))}
+          </div>
+        );
+      });
+
+      /* LA BANDE DES PRODUITS — grise, sans palier, en fin de page (tranché
+         le 16 septembre). Elle ne paraît que sans filtre : un filtre regarde
+         des prestations. */
+      const catsAvecProduits = palierFiltre === 'tout' && regimeFiltre === 'tout'
+        ? renderCats
+          .map((cat) => ({ cat, prods: (cat.id === ORPHAN_ID ? orphanProds : prodsOf(cat.id)).filter(matchProd) }))
+          .filter((x) => x.prods.length > 0)
+        : [];
+      const nProds = catsAvecProduits.reduce((s, x) => s + x.prods.length, 0);
+
+      return (
+        <>
+          {bandes}
+          {catsAvecProduits.length > 0 && (
+            <div className="trv-pal">
+              <div className="trv-bande trv-bande--prod">
+                <span className="trv-bande__nom">Produits Maison</span>
+                <span className="trv-bande__sous">Sans palier : un pot de crème se vend à toutes.</span>
+                <span className="trv-bande__compte">{nProds} produit{nProds > 1 ? 's' : ''} · {catsAvecProduits.length} ligne{catsAvecProduits.length > 1 ? 's' : ''}</span>
+              </div>
+              <div style={{ height: 10 }} />
+              {catsAvecProduits.map(({ cat, prods }) => (
+                <section key={`p-${cat.id}`} className="trv-atelier">
+                  <div className="trv-atelier__tete">
+                    <span className="fon">{cat.fon}</span>
+                    <span className="lab">{cat.label}</span>
+                    <span className="n">{prods.length} produit{prods.length > 1 ? 's' : ''}</span>
+                  </div>
+                  {prods.map((p) => (
+                    <div key={p.id} className="trv-ligne trv-ligne--prod">
+                      <span className="trv-ligne__rail" />
+                      <span className="trv-ligne__nom">{p.name}<small>Produit Maison · stock {p.stock}</small></span>
+                      <span className="trv-ligne__meta" style={p.stock <= 8 ? { color: 'var(--trv-warning)' } : undefined}>{p.stock <= 8 ? 'stock bas' : ''}</span>
+                      <span className="trv-ligne__prix"><button type="button" title="Ouvrir le produit" onClick={() => openProdEdit(p)}>{fmtMoney(p.priceXof, currency)}</button></span>
+                      <span className="trv-ligne__gestes">
+                        <button className="trv-minibtn" onClick={() => openProdEdit(p)}>Modifier</button>
+                      </span>
+                    </div>
+                  ))}
+                </section>
+              ))}
+            </div>
+          )}
         </>
       );
       })()}
@@ -1729,16 +1907,38 @@ export default function Catalogue() {
                 <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
               </Field>
                   </div>
+              {/* LE PALIER EST LA PREMIÈRE QUESTION — 16 septembre 2026. Il
+                  était un menu parmi vingt champs ; trois choix, avec ce que
+                  chacun exige, pour qu'on choisisse en sachant. Et la fiche dit
+                  si elle s'écarte du référentiel : la Maison garde le dernier
+                  mot, elle le garde en le sachant. */}
+              <Field label="Son palier · ce que l’acte exige de la main">
+                <div className="trv-pal trv-choix-palier" role="radiogroup" aria-label="Le palier de la prestation">
+                  {PALIERS.map((pa) => (
+                    <button
+                      key={pa}
+                      type="button"
+                      role="radio"
+                      aria-checked={svcForm.palier === pa}
+                      className={svcForm.palier === pa ? 'is-on' : ''}
+                      onClick={() => setSvcForm({ ...svcForm, palier: pa })}
+                    >
+                      <b>{CHIFFRE_DU_PALIER[pa]} · {pa}</b>
+                      {PALIER_DIT[pa].exige}
+                    </button>
+                  ))}
+                </div>
+                {(() => {
+                  const voulu = svcForm.id ? PALIER_DU_REFERENTIEL.get(svcForm.id) : undefined;
+                  if (!voulu || voulu === svcForm.palier) return null;
+                  return (
+                    <span className="mnd-muted" style={{ display: 'block', marginTop: 6, fontSize: 11.5, lineHeight: 1.5 }}>
+                      Le référentiel de la Maison place cette prestation en {voulu} ; vous la mettez en {svcForm.palier}. Votre choix tient, et le bouton « à reprendre » ne le reprendra pas.
+                    </span>
+                  );
+                })()}
+              </Field>
               <div className="tr-grid tr-grid--2">
-                <Field label="Palier d’expérience">
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {PALIERS.map((pa) => (
-                      <button key={pa} className={`trv-palier-chip ${svcForm.palier === pa ? 'is-active' : ''}`} onClick={() => setSvcForm({ ...svcForm, palier: pa })}>
-                        {pa}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
                 <Field label="Maître assigné">
                   <Select value={svcForm.master} onChange={(e) => setSvcForm({ ...svcForm, master: e.target.value })}>
                     {[...new Set([svcForm.master, ...masters])].filter(Boolean).map((m) => (
