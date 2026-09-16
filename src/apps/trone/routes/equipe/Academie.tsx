@@ -25,7 +25,7 @@ import { parcoursAPoser, completeLaFiche, PUBLIC_LABEL, PARCOURS_MND, type Publi
 import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../../../shared/manuel';
 import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
-import { useEnrollments, depositAmountFor } from './academy';
+import { useEnrollments, depositAmountFor, realigneLesModules } from './academy';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
@@ -143,7 +143,7 @@ export default function Academie() {
      À LA MAIN, COMME « POSER LES PARCOURS » : un contenu qui arriverait tout
      seul sur une formation que la Maison a peut-être réécrite serait une
      surprise, et la confirmation dit ce qui va bouger. */
-  const [enrollments] = useEnrollments();
+  const [enrollments, setEnrollments] = useEnrollments();
   const aCompleter = useMemo(() => formations
     .map((f) => ({
       f,
@@ -222,6 +222,18 @@ export default function Academie() {
   const openFoNew = () => { setFoEditId(null); setFoForm({ ...BASE_FORMATION, modules: defaultModules.map((m) => moduleVide(m)) }); };
   const majModule = (i: number, patch: Partial<ModuleForm>) =>
     setFoForm((prev) => (prev ? { ...prev, modules: prev.modules.map((x, j) => (j === i ? { ...x, ...patch } : x)) } : prev));
+  /* MONTER, DESCENDRE — 16 septembre 2026. « Ajoute des toggles up and down
+     pour modifier les positions des titres » (Yéman). Le module emporte son
+     nombre de séances et son contenu : on déplace une ligne, pas un titre. */
+  const deplaceModule = (i: number, sens: -1 | 1) =>
+    setFoForm((prev) => {
+      if (!prev) return prev;
+      const j = i + sens;
+      if (j < 0 || j >= prev.modules.length) return prev;
+      const modules = [...prev.modules];
+      [modules[i], modules[j]] = [modules[j], modules[i]];
+      return { ...prev, modules };
+    });
   const openFoEdit = (f: Formation) => {
     setFoEditId(f.id);
     const noms = f.modules && f.modules.length ? f.modules : defaultModules;
@@ -280,6 +292,10 @@ export default function Academie() {
           const done = new Map(oldNames.map((nm, i) => [nm, !!a.modulesDone[i]]));
           return { ...a, modulesDone: modules.map((nm) => done.get(nm) ?? false) };
         }));
+        /* ET LES DOSSIERS DE SÉANCES SUIVENT AUSSI, par le nom du module :
+           une séance ou une note ne doit pas glisser vers le module d'à côté
+           parce qu'on en a déplacé un (voir `realigneLesModules`). */
+        setEnrollments((prev) => prev.map((e) => (e.formationId === foEditId ? realigneLesModules(e, oldNames, modules) : e)));
       }
     } else {
       setFormations((prev) => [
@@ -1015,7 +1031,7 @@ export default function Academie() {
             <Field label="Modules du parcours">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {foForm.modules.map((m, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 78px auto', gap: 8, alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 78px auto auto', gap: 8, alignItems: 'center' }}>
                     <span className="mnd-muted" style={{ fontSize: 12, textAlign: 'right' }}>{i + 1}</span>
                     <Input
                       value={m.nom}
@@ -1030,6 +1046,10 @@ export default function Academie() {
                       aria-label={`Séances du module ${i + 1}`}
                       style={{ textAlign: 'right' }}
                     />
+                    <span style={{ display: 'flex', gap: 3 }}>
+                      <button type="button" className="tre-reorder__btn" disabled={i === 0} onClick={() => deplaceModule(i, -1)} title="Monter" aria-label={`Monter le module ${i + 1}`}>▲</button>
+                      <button type="button" className="tre-reorder__btn" disabled={i === foForm.modules.length - 1} onClick={() => deplaceModule(i, 1)} title="Descendre" aria-label={`Descendre le module ${i + 1}`}>▼</button>
+                    </span>
                     <button
                       type="button"
                       aria-label="Retirer le module"
@@ -1044,7 +1064,7 @@ export default function Academie() {
                       onChange={(e) => majModule(i, { contenu: e.target.value })}
                       placeholder="Ce qu’on y apprend, ce qu’on y pratique"
                       rows={2}
-                      style={{ gridColumn: '2 / 5', minHeight: 56 }}
+                      style={{ gridColumn: '2 / 6', minHeight: 56 }}
                     />
                   </div>
                 ))}

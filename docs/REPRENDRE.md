@@ -202,6 +202,23 @@ rendez-vous et Ma Couronne l'interrogent, aucun ne la réécrit.
   12 juin » est le message qui rapporte le plus, mais il part hors fenêtre :
   il lui faut son modèle Meta approuvé.
 
+## LES MODULES D'UNE FORMATION SE RÉORDONNENT — 16 septembre 2026, PUBLIÉ
+
+« Ajoute des toggles up and down pour modifier les positions des titres »
+(Yéman), dans l'éditeur d'une formation de l'Académie. Aucune SQL.
+
+- Deux flèches par module (`tre-reorder__btn`, les mêmes que sur les cartes)
+  : le module emporte son nombre de séances et son contenu.
+- **Le piège qu'il fallait fermer** : une séance et une évaluation ne
+  connaissent leur module que par son rang (`moduleIndex`). Réordonner,
+  ajouter ou retirer un module décalait chaque séance et chaque note vers le
+  module d'à côté, en silence, alors que `modulesDone` était déjà réaligné
+  par nom. `realigneLesModules(e, anciens, nouveaux)` (academy.ts) suit le
+  nom : module retiré = séance sans module, note à -1 (gardée, hors de tout
+  rang) ; rang inconnu = laissé tel quel. Appelé à l'enregistrement de la
+  formation, avec la réalignement des cases cochées.
+- Harnais neuf : `node scripts/verifie-academie.mjs` (9 vérifications).
+
 ## LA PASTILLE NE BAT PLUS DANS L'AUTRE SENS — 15 septembre 2026, PUBLIÉ
 
 « Le bouton synchronisé passe du rouge au vert » (Yéman), un jour où le

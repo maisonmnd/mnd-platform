@@ -187,6 +187,49 @@ export type Enrollment = {
   certificate?: AcademyCertificate;
 };
 
+/* ══ LES SÉANCES ET LES NOTES SUIVENT LEUR MODULE PAR SON NOM — 16 septembre 2026 ══
+
+   « Ajoute des toggles up and down pour modifier les positions des titres »
+   (Yéman) : les modules d'une formation se réordonnent.
+
+   OR UNE SÉANCE ET UNE ÉVALUATION NE CONNAISSENT LEUR MODULE QUE PAR SON
+   RANG (`moduleIndex`). Réordonner, ajouter ou retirer un module décalait
+   donc chaque séance et chaque note vers le module d'à côté, en silence :
+   la note de « La couleur végétale » se retrouvait sur « Le défaisage ». Les
+   cases cochées (`modulesDone`) étaient déjà réalignées par nom à
+   l'enregistrement ; le dossier de séances, non.
+
+   ON SUIT LE NOM. Un module retiré laisse sa séance sans module, et sa note
+   hors de tout rang (-1) : elle ne compte plus pour la certification, mais
+   elle reste lisible, on n'efface pas une note. Un rang hors de l'ancien
+   parcours (une donnée déjà cassée) reste tel quel : on ne devine pas. */
+export function realigneLesModules(
+  e: Enrollment, anciens: readonly string[], nouveaux: readonly string[],
+): Enrollment {
+  const rangNeuf = (i: number): number | 'retire' | 'inconnu' => {
+    const nom = anciens[i];
+    if (nom === undefined) return 'inconnu';
+    const j = nouveaux.indexOf(nom);
+    return j >= 0 ? j : 'retire';
+  };
+  let change = false;
+  const sessions = e.sessions.map((s) => {
+    if (s.moduleIndex == null) return s;
+    const r = rangNeuf(s.moduleIndex);
+    if (r === 'inconnu' || r === s.moduleIndex) return s;
+    change = true;
+    if (r === 'retire') { const { moduleIndex: _m, ...sans } = s; return sans; }
+    return { ...s, moduleIndex: r };
+  });
+  const evaluations = e.evaluations.map((ev) => {
+    const r = rangNeuf(ev.moduleIndex);
+    if (r === 'inconnu' || r === ev.moduleIndex) return ev;
+    change = true;
+    return { ...ev, moduleIndex: r === 'retire' ? -1 : r };
+  });
+  return change ? { ...e, sessions, evaluations } : e;
+}
+
 /* ---------- Magasins ---------- */
 export const academyApplicationsStore = createStore<AcademyApplication[]>('mnd_academy_applications', []);
 export const useAcademyApplications = () => useStore(academyApplicationsStore);
