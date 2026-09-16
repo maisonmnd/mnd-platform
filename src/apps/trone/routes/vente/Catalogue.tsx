@@ -6,6 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
+import { paliersAReprendre, reprendLesPaliers } from '../../../../shared/referentiel-paliers';
 import { servicesStore } from '../../../../shared/catalog';
 import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { ProtocolesModal } from './Protocoles';
@@ -834,6 +835,19 @@ export default function Catalogue() {
       : 'MND Kids est déjà aux tarifs de la Maison.');
   };
 
+  /* LES PALIERS SE REPRENNENT DU RÉFÉRENTIEL — 16 septembre 2026. Le palier
+     d'une prestation commande le taux de commission, l'habilitation de la
+     main, et le palier que la cliente atteint ; quand la Maison tranche une
+     règle (« le resserrage est Élévation »), c'est le catalogue vivant qu'il
+     faut aligner, pas seulement la semence. Même geste que MND Kids : on
+     voit combien, on clique une fois. */
+  const reprendrePaliers = () => {
+    const n = reprendLesPaliers();
+    toast(n > 0
+      ? `Paliers repris du référentiel : ${n} fiche${n > 1 ? 's' : ''} corrigée${n > 1 ? 's' : ''}.`
+      : 'Les paliers sont déjà ceux du référentiel.');
+  };
+
   /* ══ LE PROTOCOLE POST-COULEUR AU CATALOGUE — 5 septembre 2026 ════
      « Un protocole qu'on mettra au catalogue avec des prix associés » (Yéman).
      Trois lignes du Plateau vendues d'un tenant, comme PLT·60 le fait déjà
@@ -1045,6 +1059,13 @@ export default function Catalogue() {
             {kidsADepasser(services) > 0 && (
               <Button variant="ghost" onClick={rafraichirKids}>
                 MND Kids · {kidsADepasser(services)} à remettre au tarif
+              </Button>
+            )}
+            {/* LES PALIERS QUI S'ÉCARTENT DU RÉFÉRENTIEL — le bouton ne paraît
+                que s'il a quelque chose à reprendre, et dit combien. */}
+            {paliersAReprendre(services) > 0 && (
+              <Button variant="ghost" onClick={reprendrePaliers}>
+                Paliers · {paliersAReprendre(services)} à reprendre
               </Button>
             )}
           </>

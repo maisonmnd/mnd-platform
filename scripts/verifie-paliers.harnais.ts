@@ -15,6 +15,10 @@ import {
   avertissementDHabilitation, palierDeLaFormation, palierParAgeDeCouronne,
   type Palier,
 } from '../src/shared/paliers';
+import { PALIER_DU_REFERENTIEL, ecartsDePalier, reprendLesPaliers } from '../src/shared/referentiel-paliers';
+import { CATALOG_V6 } from '../src/shared/catalog-v6';
+import { SERVICES_RAVIVEUR } from '../src/shared/protocoles';
+import { servicesStore, type Service } from '../src/shared/catalog';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -174,5 +178,42 @@ dit('dix-huit mois : Souveraineté', S, palierParAgeDeCouronne(18));
 dit('… aux seuils réglés', S, palierParAgeDeCouronne(12, { souveraineteMois: 12 }));
 dit('sans âge, rien', null, palierParAgeDeCouronne(null));
 dit('un âge négatif ne dit rien', null, palierParAgeDeCouronne(-1));
+
+/* ── ⑫ LE RÉFÉRENTIEL DES PALIERS — 16 septembre 2026 ─────────────────
+   Trois règles tranchées par la Maison : un lavage reste un lavage, le
+   resserrage est Élévation, un forfait prend le palier de son acte le plus
+   haut. Les petits gestes et le raviveur restent en Fondation. */
+const ref = (id: string) => PALIER_DU_REFERENTIEL.get(id) ?? null;
+dit('la reprise Essentielle est Élévation', E, ref('sv-atl-ii-e'));
+dit('la reprise Élaborée aussi', E, ref('sv-atl-ii-l'));
+dit('KLƆKLƆ Prestige, un lavage, est Fondation', F, ref('sv-plt-05-pre-l'));
+dit('VÈKPÈ Initiation, une naissance Medium, est Fondation', F, ref('sv-fft-i-01'));
+dit('VÈKPÈ × GBÈJÍ, Mini et reprises, est Élévation', E, ref('sv-fft-i-02'));
+dit('GBÈJÍ Annuel, un an de reprises, est Élévation', E, ref('sv-fft-ii-02'));
+dit('la Cure GBÌGBÌ Profond reste Souveraineté', S, ref('sv-fft-iv-01'));
+dit('la Nano reste Souveraineté, l’œuvre sur 450 locks', S, ref('sv-atl-i-nan'));
+dit('ÀLÀLÀ reste Souveraineté', S, ref('sv-atl-iv-ala-c'));
+dit('GBÀTÀ Intégral, le grand passage, reste Souveraineté', S, ref('sv-plt-45-int'));
+dit('la Reprise Frontale Essentielle reste Fondation, décision de la Maison', F, ref('sv-plt-55-e'));
+dit('les Retouches Post Restauration restent Fondation', F, ref('sv-plt-50-ret-r-c'));
+dit('le raviveur reste Fondation', F, ref('sv-atl-iii-ecl-c'));
+dit('le raviveur du protocole dit la même chose que la semence', true,
+  SERVICES_RAVIVEUR.every((r) => CATALOG_V6.find((s) => s.id === r.id)?.palier === r.palier));
+dit('MND Kids est tout entier en Fondation', F, ref('sv-kids-naissance'));
+dit('une fiche inconnue du référentiel n’a pas de palier voulu', null, ref('sv-inventee-au-catalogue'));
+
+const vivant = [
+  { id: 'sv-atl-ii-e', name: 'La Reprise', palier: F },
+  { id: 'sv-inventee-au-catalogue', name: 'Créée par la Maison', palier: S },
+  { id: 'sv-atl-i-nan', name: 'La Nano', palier: S },
+];
+dit('les écarts : la reprise seule, l’inconnue est laissée à la Maison',
+  [{ id: 'sv-atl-ii-e', name: 'La Reprise', actuel: F, voulu: E }], ecartsDePalier(vivant));
+dit('aucun écart quand tout est juste', [], ecartsDePalier([{ id: 'sv-atl-ii-e', name: 'La Reprise', palier: E }]));
+
+servicesStore.set(vivant as unknown as Service[]);
+dit('le bouton reprend une fiche', 1, reprendLesPaliers());
+dit('… la reprise est passée en Élévation, l’inconnue et la Nano intactes', [E, S, S], servicesStore.get().map((s) => s.palier));
+dit('un second clic ne fait rien', 0, reprendLesPaliers());
 
 console.log(ko === 0 ? '\nLes trois paliers tiennent.' : `\n${ko} épreuve(s) en échec.`);

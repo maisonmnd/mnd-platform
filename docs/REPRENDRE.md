@@ -2,6 +2,48 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CATALOGUE PAR PALIER, LA LISTE PAR PALIER — 16 septembre 2026
+
+« Selon ce que nous savons des paliers, peux-tu réorganiser les services du
+catalogue selon chaque palier et mettre à jour la fiche des clientes selon
+leur rituel ? » (Yéman). Proposition lue prestation par prestation sur la
+semence v6, quatre arbitrages tranchés à l'écran.
+
+**TROIS RÈGLES, ÉCRITES DANS LA SEMENCE** (`catalog-v6.ts`, avec la raison à
+côté de chaque fiche) : **un lavage reste un lavage** (KLƆKLƆ™ Prestige passe
+en Fondation, comme le Droit de service Prestige) ; **le resserrage est
+Élévation**, même la reprise Essentielle, l'acte le plus vendu (taux de
+commission et habilitations en conséquence) ; **un forfait prend le palier de
+son acte le plus haut** (VÈKPÈ™ Initiation en Fondation, VÈKPÈ™ × GBÈJÍ™ et
+GBÈJÍ™ Annuel en Élévation). **La Maison a gardé en Fondation** la Reprise
+Frontale Essentielle, les Retouches Post Restauration et le raviveur de
+couleur. Rien d'autre ne bouge : les créations montent par calibre (Nano et
+Galaxy = l'œuvre sur 450 locks), GBÌGBÌ™ Profond et ÀLÀLÀ™ = la restauration,
+GBÀTÀ™ Intégral = le grand passage, l'Académie garde sa propre échelle.
+
+**LE CATALOGUE VIVANT SE REPREND D'UN BOUTON** : `shared/referentiel-paliers.ts`
+(`PALIER_DU_REFERENTIEL` par identifiant, depuis v6 + Kids + protocoles ;
+`ecartsDePalier` pur ; `reprendLesPaliers` ne touche que le palier). Au
+Catalogue, « Paliers · N à reprendre » paraît tant qu'il y a un écart, comme
+« MND Kids · N à remettre au tarif ». Une fiche créée au Catalogue, inconnue du
+référentiel, garde son palier. **À faire par la Maison : cliquer une fois**
+(7 fiches attendues : reprise Essentielle, KLƆKLƆ™ Prestige ×3, trois
+forfaits). Les bulletins déjà tirés ne bougent pas ; les prochains suivent.
+
+**LA FICHE NE SE MET PAS À JOUR, ELLE SE LIT** : le palier n'est stocké nulle
+part (arbitrage validé), il se recalcule sur le carnet dès que le catalogue est
+juste. `crownSince` est déjà daté automatiquement sur la première création
+VÈKPÈ™ honorée (`useReconcileClients`, 19 août). Ce qui est nouveau : sur
+**Clientes**, une pastille de palier par tête à côté du persona, et une rangée
+de chips « Palier » (Tous / Fondation / Élévation / Souveraineté / Sans rituel)
+sous les segments, comptée sur La Maison. Une lecture par tête, groupée une
+fois (`palierParTete`). Une cliente montée en Souveraineté par le seul GBÈJÍ™
+Annuel redescend en Élévation : c'est la vérité des nouvelles règles.
+
+Harnais `verifie-paliers` : 98 épreuves, dont ⑫ le référentiel (les sept
+décisions, le raviveur du protocole aligné sur la semence, l'inconnue
+laissée, le bouton idempotent).
+
 ## LES TROIS PALIERS — 16 septembre 2026, ÉTAPES 1 ET 2 CONSTRUITES
 
 « Comment je peux mieux l'exploiter dans le Trône et faire une vraie

@@ -39,7 +39,10 @@ import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
-import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT, RANG_DU_PALIER } from '../../../../shared/paliers';
+import {
+  palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT, RANG_DU_PALIER, PALIERS as LES_PALIERS,
+  type Palier, type PalierDeLaCliente,
+} from '../../../../shared/paliers';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
@@ -493,6 +496,13 @@ export default function Customers() {
   const today = todayISO();
 
   const [seg, setSeg] = useState('Tous');
+  /* LE PALIER SE FILTRE COMME UN SEGMENT — 16 septembre 2026. « Mettre à
+     jour la fiche des clientes selon leur rituel » : le palier n'est écrit
+     nulle part, il se lit sur le carnet, la fiche le dit déjà. Ici on le
+     rend lisible sans ouvrir cent fiches : une pastille par tête, et un
+     filtre pour voir d'un coup qui est en Fondation, en Élévation, en
+     Souveraineté, ou sans rituel honoré. */
+  const [palierFiltre, setPalierFiltre] = useState<'Tous' | Palier | 'Sans rituel'>('Tous');
   const [query, setQuery] = useState('');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<SortKey>('nom');
@@ -667,6 +677,22 @@ export default function Customers() {
   const personaName = (id: string) => personas.find((p) => p.id === id)?.name ?? 'À classer';
 
   const apptsOf = (id: string) => appts.filter((a) => a.clientId === id);
+  /* UNE LECTURE PAR TÊTE, LE MÊME JUGE QUE LA FICHE ET MA COURONNE. Les
+     rendez-vous sont groupés une fois : cent têtes fois trois mille rituels
+     se filtrent mal, se lisent bien. */
+  const [reglagesDesPaliers] = useSettings();
+  const palierParTete = useMemo(() => {
+    const parTete = new Map<string, Appointment[]>();
+    for (const a of appts) {
+      if (!a.clientId) continue;
+      const l = parTete.get(a.clientId);
+      if (l) l.push(a); else parTete.set(a.clientId, [a]);
+    }
+    const auj = jourLocal();
+    const lectures = new Map<string, PalierDeLaCliente>();
+    for (const c of clients) lectures.set(c.id, palierDuCarnet(c, parTete.get(c.id) ?? [], byId, auj, reglagesDesPaliers.paliers));
+    return lectures;
+  }, [appts, clients, byId, reglagesDesPaliers.paliers]);
 
   const predictNext = (id: string): Cadence => predictNextVisit(appts, clients, id, today);
 
@@ -800,6 +826,14 @@ export default function Customers() {
     for (const c of maisonClients) for (const s of c.segments) counts.set(s, (counts.get(s) ?? 0) + 1);
     return [{ label: 'Tous', count: maisonClients.length }, ...[...counts].map(([label, count]) => ({ label, count }))];
   }, [maisonClients]);
+  const chipsDePalier = useMemo(() => {
+    const n = (p: Palier | null) => maisonClients.filter((c) => (palierParTete.get(c.id)?.palier ?? null) === p).length;
+    return [
+      { label: 'Tous' as const, count: maisonClients.length },
+      ...LES_PALIERS.map((p) => ({ label: p, count: n(p) })),
+      { label: 'Sans rituel' as const, count: n(null) },
+    ];
+  }, [maisonClients, palierParTete]);
 
   const filtered = useMemo(() => {
     /* LE FOCUS PASSE AVANT LES REGISTRES. Il reprend exactement la population de
@@ -827,6 +861,9 @@ export default function Customers() {
     let list = focus === 'aucun' && view === 'maison' && seg !== 'Tous'
       ? base.filter((c) => c.segments.includes(seg))
       : base;
+    if (focus === 'aucun' && view === 'maison' && palierFiltre !== 'Tous') {
+      list = list.filter((c) => (palierParTete.get(c.id)?.palier ?? 'Sans rituel') === palierFiltre);
+    }
     if (q) {
       const qd = digitsOf(q);
       list = list.filter((c) =>
@@ -861,7 +898,7 @@ export default function Customers() {
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, maisonClients, passageClients, tetesNouvelles, tetesAnniversaire, tetesEnLigne,
-    focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre]);
+    focus, seg, q, sort, stats, view, bandsCrm, rangDuCalibre, palierFiltre, palierParTete]);
 
   /* ── LE GESTE GROUPÉ (26 août) ────────────────────────────────────
      Quatorze têtes à remettre « de passage » après un ménage du carnet, c'est
@@ -1178,6 +1215,16 @@ export default function Customers() {
           ))}
         </div>
       )}
+      {view === 'maison' && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>Palier</span>
+          {chipsDePalier.map((p) => (
+            <button key={p.label} className={`trc-chip ${palierFiltre === p.label ? 'is-active' : ''}`} onClick={() => setPalierFiltre(p.label)}>
+              {p.label} <span className="count">{p.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Registre Diaspora : constituer la liste par recherche, sans ouvrir les fiches. */}
       {view === 'diaspora' && (
@@ -1248,6 +1295,7 @@ export default function Customers() {
           const st = stats.get(c.id);
           const online = onlineIds.has(c.id);
           const bd = c.birthday ? bdayInfo(c.birthday) : null;
+          const palierDeLaTete = palierParTete.get(c.id)?.palier ?? null;
           /* L'EN-TÊTE DE CALIBRE — seulement au tri par modèle, et seulement à
              la première tête de chaque tranche : le carnet se lit alors par
              groupes, chacun annoncé par son étendue et son compte. */
@@ -1339,6 +1387,11 @@ export default function Customers() {
                     <span style={{ flex: 'none', borderRadius: 999, padding: '2px 9px', background: 'var(--indigo-50)', fontSize: 10, letterSpacing: '.02em', color: 'var(--indigo-600)' }}>
                       {personaName(c.persona)}
                     </span>
+                    {palierDeLaTete && (
+                      <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[palierDeLaTete]}`} title={PALIER_DIT[palierDeLaTete].sous}>
+                        {palierDeLaTete}
+                      </span>
+                    )}
                     {c.phone && digitsOf(c.phone) ? (
                       /* ── LES DEUX PORTES, EXACTEMENT COMME AU CARNET ──
                          15 septembre 2026 : « que le bouton téléphone et app

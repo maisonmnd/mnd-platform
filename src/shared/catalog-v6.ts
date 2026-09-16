@@ -148,7 +148,14 @@ const VEKPE: Service[] = [
    ───────────────────────────────────────────────────────────────── */
 const SINSIN: Service[] = [
   auLock({ code: 'ATL·II·E', name: 'SÍNSIN™ Essentielle · La Reprise', cat: 'atl-ii-gbeji',
-    desc: 'Le resserrage seul, net et efficace. Diagnostic KÒKÒ™ intégré, resserrage lock par lock, contrôle d’uniformité, mise à jour de la fiche cliente. Styling de sortie inclus, au choix : chignon, demi-attache ou détaché structuré.' },
+    desc: 'Le resserrage seul, net et efficace. Diagnostic KÒKÒ™ intégré, resserrage lock par lock, contrôle d’uniformité, mise à jour de la fiche cliente. Styling de sortie inclus, au choix : chignon, demi-attache ou détaché structuré.',
+    /* LE RESSERRAGE EST UN ACTE D'ÉLÉVATION — 16 septembre 2026, les trois
+       paliers. « Affirmer sa couronne, séance après séance » : c'est la
+       reprise, simple ou élaborée, qui tient une couronne. Elle vivait en
+       Fondation parce qu'elle est l'acte le plus vendu ; le volume ne dit
+       pas ce que le geste exige. Tranché par la Maison, taux de commission
+       et habilitations en conséquence. */
+    palier: 'Élévation' },
     100, { [JUM]: 20000, [MED]: 25000, [MIN]: 35000, [MIC]: 45000, [NAN]: 55000, [GAL]: 70000 }, 45, 240),
   auLock({ code: 'ATL·II·L', name: 'SÍNSIN™ Élaborée · La Reprise Longue Durée', cat: 'atl-ii-gbeji',
     desc: 'Reprise plus minutieuse, scellement renforcé, tenue prolongée, elle espace les visites. Styling de sortie inclus.',
@@ -219,7 +226,10 @@ const PLATEAU: Service[] = [
     [15000, 18000, 20000], [50, 60, 70]),
   ...troisLongueurs({ code: 'PLT·05·PRE', name: 'KLƆKLƆ™ Prestige · « La Dépose »', cat: 'plt-05',
     desc: 'Bain d’huile pré-shampoing, double lavage, massage prolongé, masque profond sous chaleur douce, séchage et styling de sortie. Le rituel cérémonial complet.',
-    palier: 'Élévation' }, [28000, 33000, 38000], [75, 82, 90]),
+    /* UN LAVAGE RESTE UN LAVAGE — 16 septembre 2026. Sa profondeur en fait
+       le prix, pas le palier : le Droit de service Prestige, le même geste
+       avec le produit de la cliente, vivait déjà en Fondation. */
+    palier: 'Fondation' }, [28000, 33000, 38000], [75, 82, 90]),
 
   /* PLT·10 · DÀNDÀN™ */
   ...troisLongueurs({ code: 'PLT·10', name: 'DÀNDÀN™ · Le Soin Hydratant', cat: 'plt-10',
@@ -394,16 +404,23 @@ const STUDIO: Service[] = [
 const FORFAITS: Service[] = [
   ferme({ code: 'FFT·I·01', name: 'VÈKPÈ™ Initiation · La Naissance + Trousse MND™', cat: 'atl-i-vekpe',
     desc: 'VÈKPÈ™ Medium · Kit Home Rituals™ 3 produits · guide d’entretien · 1 SÍNSIN™ Essentielle offert à 6 semaines · 1 Retouches Post Création à 3 semaines.',
-    palier: 'Élévation' }, 175000, 330),
+    /* UN FORFAIT PREND LE PALIER DE SON ACTE LE PLUS HAUT — 16 septembre
+       2026. L'engagement se paie au prix ; le palier dit ce que la main
+       exécute. Ici une naissance Medium : Fondation. */
+    palier: 'Fondation' }, 175000, 330),
   ferme({ code: 'FFT·I·02', name: 'VÈKPÈ™ × GBÈJÍ™ · La Naissance + Les 3 Premiers Entretiens', cat: 'atl-i-vekpe',
     desc: 'VÈKPÈ™ Mini · 3 SÍNSIN™ Essentielle aux semaines 6, 10 et 14 · 2 DÀNDÀN™ · 1 coiffure signature à 3 mois.',
-    palier: 'Souveraineté', sessions: 4 }, 380000, 420),
+    /* Une naissance Mini et trois reprises : rien ici n'est une œuvre sur
+       450 locks, une restauration ni un grand passage. Élévation. */
+    palier: 'Élévation', sessions: 4 }, 380000, 420),
   ferme({ code: 'FFT·II·01', name: 'GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois', cat: 'atl-ii-gbeji',
     desc: '3 SÍNSIN™ Essentielle au calibre · 1 WÈWÈ™ · 1 DÀNDÀN™ · 1 coiffure signature au 3ᵉ mois · accès prioritaire planning.',
     palier: 'Élévation', sessions: 5 }, 130000, 105),
   ferme({ code: 'FFT·II·02', name: 'GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois', cat: 'atl-ii-gbeji',
     desc: '12 SÍNSIN™ Essentielle · 4 WÈWÈ™ · 4 DÀNDÀN™ · 2 VÍVÍVÓ™ · 2 coiffures signature semestrielles · 1 YÈKPÈ™ Lumière offert · créneau réservé annuel.',
-    palier: 'Souveraineté', sessions: 24 }, 480000, 105),
+    /* Douze reprises et des soins : un an d'Élévation, pas une Souveraineté.
+       Elle viendra à la cliente par l'ancienneté de sa couronne. */
+    palier: 'Élévation', sessions: 24 }, 480000, 105),
   ferme({ code: 'FFT·III·01', name: 'YÈKPÈ™ × 3 · Le Cycle de Transformation, 3 mois', cat: 'atl-iii-yekpe',
     desc: '3 YÈKPÈ™ Lumière mensuels · 1 YÈKPÈ™ Couleur trimestriel · 3 SÍNSIN™ inclus · 1 coiffure signature événement à activer sur date choisie · créneau prioritaire.',
     palier: 'Élévation', sessions: 7 }, 220000, 90),
