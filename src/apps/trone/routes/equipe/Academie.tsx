@@ -26,6 +26,8 @@ import { useManuel, manuelStore, lisLeManuel, peutEcrireLeManuel } from '../../.
 import ManuelEditeur from './ManuelEditeur';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { useEnrollments, depositAmountFor, realigneLesModules } from './academy';
+import { sameName } from '../../../../shared/text';
+import CopieAuDossier from './CopieAuDossier';
 import { ChampDeDate } from '../../../../ds/dates';
 
 /* Académie — Formations / Apprenants / Certifications / Référentiel « les quatre temps ».
@@ -434,8 +436,22 @@ export default function Academie() {
      `?apprenant=`, `?parcours=` — et, si la formation existe au catalogue de la
      maison, son niveau et sa durée réels, pour que le certificat porte les vrais
      chiffres plutôt qu'un générique. */
-  const certHref = (name: string, parcours: string) => {
+  /* LE DOSSIER OÙ LA VERSION ENREGISTRÉE SE DÉPOSE — 16 septembre 2026.
+     « Quand j'enregistre le certificat, je veux que cette dernière version
+     soit sur la page de certification » (Yéman). Le lien porte `dossier` :
+     l'inscription du Suivi quand la certification en a une (même
+     apprenante, même formation), et alors aussi son numéro, sa date et sa
+     mention ; sinon la certification elle-même. La copie déposée sous ce
+     dossier se relit ici, sous la ligne. */
+  type Inscription = { id: string; certificate?: { number: string; mention: 'certifie' | 'excellence'; issuedAt: string } };
+  const certHref = (name: string, parcours: string, dossier?: string, inscription?: Inscription) => {
     const p = new URLSearchParams({ apprenant: name, parcours });
+    if (dossier) p.set('dossier', dossier);
+    if (inscription?.certificate) {
+      p.set('numero', inscription.certificate.number);
+      p.set('date', inscription.certificate.issuedAt.slice(0, 10));
+      p.set('mention', inscription.certificate.mention === 'excellence' ? 'Excellence' : 'Honorable');
+    }
     const fo = formations.find((f) => f.name === parcours);
     if (fo) {
       /* L'ACADÉMIE FAIT FOI — 16 septembre 2026. Le certificat imprime la
@@ -691,7 +707,11 @@ export default function Academie() {
             <Button variant="copper" onClick={openCeNew}>+ Délivrer une certification</Button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {certifs.map((c) => (
+            {certifs.map((c) => {
+              const inscription = enrollments.find((e) =>
+                sameName(e.learnerName, c.name) && formations.find((f) => f.id === e.formationId)?.name === c.parcours);
+              const dossier = inscription?.id ?? `cert-${c.id}`;
+              return (
               <Card key={c.id} style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 18 }}>
                 <span style={{ width: 44, height: 44, borderRadius: 999, flex: 'none', background: c.statut === 'Délivrée' ? 'var(--copper-50)' : 'var(--paper-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={asset("/assets/monograms/mono-copper.png")} alt="" style={{ width: 20, opacity: c.statut === 'Délivrée' ? 1 : 0.4 }} />
@@ -699,12 +719,13 @@ export default function Academie() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}>{c.name}</div>
                   <div className="mnd-muted" style={{ fontSize: 12 }}>{c.parcours}</div>
+                  <CopieAuDossier dossier={dossier} compact />
                 </div>
                 <span className="mnd-muted" style={{ fontSize: 12 }}>{c.date}</span>
                 <Pill tone={c.statut === 'Délivrée' ? 'ok' : 'warn'}>{c.statut}</Pill>
                 <div style={{ display: 'flex', gap: 12, flex: 'none', alignItems: 'center' }}>
                   <a
-                    href={certHref(c.name, c.parcours)}
+                    href={certHref(c.name, c.parcours, dossier, inscription)}
                     target="_blank"
                     rel="noreferrer"
                     className="mnd-btn mnd-btn--indigo mnd-btn--sm"
@@ -716,7 +737,8 @@ export default function Academie() {
                   <button className="tre-link-btn tre-link-btn--danger" onClick={() => removeCe(c.id)}>Retirer</button>
                 </div>
               </Card>
-            ))}
+              );
+            })}
             {certifs.length === 0 && (
               <Card className="tre-empty"><div className="tre-empty__title">Aucune certification.</div><div className="tre-empty__sub">Délivrez un certificat scellé MND à un parcours achevé.</div></Card>
             )}

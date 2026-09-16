@@ -24,6 +24,14 @@ par mot : au premier essai, une largeur de « Œ » ou de « ™ » mesurée de
 travers par jsPDF mangeait l'espace suivant (« L'Œuvre(quatre »,
 « GBÀTÀ™,selon »), et le morceau en gras se collait au mot d'avant
 (« leMaître »). La mention et la date passent en capitales, comme à l'écran.
+**LA DERNIÈRE VERSION SE VOIT AUSSI À L'ONGLET CERTIFICATIONS** (« quand
+j'enregistre le certificat, je veux que cette dernière version soit sur la
+page de certification ») : `CopieAuDossier.tsx` (sorti du Suivi, partagé)
+se pose sous chaque ligne, en compact (« Dernière version enregistrée le … ·
+Ouvrir le PDF »). Le lien « Voir / Envoyer » porte `dossier` : l'inscription
+du Suivi quand la certification en a une (même apprenante, même formation),
+et alors son numéro, sa date, sa mention ; sinon `cert-<id>` de la
+certification. Le Suivi et l'onglet lisent donc la même copie.
 **Migration 0103** (compartiment privé, PDF seulement, cinq mégaoctets ;
 personnel lit, dépose, remplace ; direction efface) : PASSÉE le 16 septembre
 (contrôle : 4 politiques `certificats_*`). NE PAS RELANCER. Harnais
