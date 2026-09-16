@@ -20,7 +20,8 @@ Suivi (onglet Jury, certificat délivré) montre « Copie au dossier » avec un
 « Ouvrir » (lien signé d'une heure) et se relit au retour du focus. Le dessin
 et le coffre se chargent à la demande (`import()`), la page reste légère.
 **Migration 0103** (compartiment privé, PDF seulement, cinq mégaoctets ;
-personnel lit, dépose, remplace ; direction efface) : À PASSER. Harnais
+personnel lit, dépose, remplace ; direction efface) : PASSÉE le 16 septembre
+(contrôle : 4 politiques `certificats_*`). NE PAS RELANCER. Harnais
 `verifie-certificats` (61 harnais désormais). « Imprimer / PDF » s'appelle
 « Imprimer ».
 
@@ -48,7 +49,10 @@ en grand : c'est la version de Yéman, mot pour mot.
 Essentiel · La Reprise », « SÍNSIN™ Élaboré · La Reprise Longue Durée », les
 formules), semence des parcours, commentaires et fixtures des harnais.
 **Migration 0104** met le catalogue VIVANT au même genre (nom et
-description) : À PASSER. Les maquettes HTML de `public/` gardent leur texte
+description) : PASSÉE le 16 septembre (contrôle : « SÍNSIN™ Essentiel · La
+Reprise », « SÍNSIN™ Élaboré · La Reprise Longue Durée » ; les deux fiches Kids
+gardent « La Reprise Essentielle », qui s'accorde avec « Reprise »). NE PAS
+RELANCER. Les maquettes HTML de `public/` gardent leur texte
 d'époque. Les modules vivants de L'Œuvre se renomment dans l'Académie (« Le
 resserrage SÍNSIN™ Essentiel et Élaboré », « La reprise frontale ») pour que
 la phrase se lise comme Yéman l'a écrite ; un module sans article prend
