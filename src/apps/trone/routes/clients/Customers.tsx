@@ -39,6 +39,7 @@ import { BilanModal } from './BilanModal';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
+import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { pushToClient } from '../../../../shared/push';
 import { PayAppointmentModal } from './actions';
 import { useSubscribers, usePlans, activeSubscriberOf } from '../equipe/data';
@@ -1910,6 +1911,20 @@ function Customer360({
   const [tousServices] = useServices();
   /* Le barème des tranches — pour dire le CALIBRE que son comptage donne. */
   const [bands] = useModelBands();
+  /* ══ SON PALIER — 16 septembre 2026 ═════════════════════════════════
+     Maquette `maquette-les-trois-paliers.html`. Où en est sa couronne, lu
+     sur son carnet (jamais saisi), et le pas suivant : la prestation du
+     palier d'au-dessus qu'elle n'a pas encore vécue. Le persona dit QUI elle
+     est ; le palier dit OÙ elle en est. */
+  const [reglagesPalier] = useSettings();
+  const lecturePalier = useMemo(
+    () => palierDuCarnet(client, appts, byId, jourLocal(), reglagesPalier.paliers),
+    [client, appts, byId, reglagesPalier.paliers],
+  );
+  const pasSuivantDeLaTete = useMemo(() => {
+    const vecus = new Set(appts.filter((a) => a.clientId === client.id && a.status === 'honoré').flatMap((a) => a.serviceIds));
+    return pasSuivant(lecturePalier.palier, tousServices, vecus);
+  }, [appts, client.id, lecturePalier.palier, tousServices]);
   const [fixSvc, setFixSvc] = useState('');
   const [fixMontant, setFixMontant] = useState('');
   /* SA CARTE — anniversaire, merci, Cercle. Elle s'ouvre depuis sa fiche :
@@ -3660,6 +3675,40 @@ function Customer360({
         </div>
 
         <div className="trc-profil">
+        {/* ══ SA COURONNE, OÙ ELLE EN EST — 16 septembre 2026 ══════════════
+            Elle monte, elle ne redescend jamais ; rien ne se dit avant son
+            premier rituel honoré. */}
+        <div className="trc-palier">
+          <span className="trc-palier__mot">
+            {lecturePalier.palier ?? 'Pas encore de palier'}
+            {lecturePalier.palier && (
+              <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[lecturePalier.palier]}`}>{lecturePalier.palier}</span>
+            )}
+          </span>
+          {lecturePalier.palier ? (
+            <>
+              <span className="trc-palier__l">Ce qui l’y a menée</span>
+              <span className="trc-palier__v">
+                {lecturePalier.motif}{lecturePalier.depuis ? `, le ${frJourAn(lecturePalier.depuis)}` : ''} · {lecturePalier.resume}
+              </span>
+              <span className="trc-palier__l">Ce que cela dit</span>
+              <span className="trc-palier__v">{PALIER_DIT[lecturePalier.palier].couronne}</span>
+            </>
+          ) : (
+            <>
+              <span className="trc-palier__l">Pourquoi</span>
+              <span className="trc-palier__v">La Maison ne dit rien de ce qu’elle n’a pas vu : son premier rituel honoré la posera en Fondation.</span>
+            </>
+          )}
+          <span className="trc-palier__l">Le pas suivant</span>
+          <span className="trc-palier__v">
+            {pasSuivantDeLaTete
+              ? <><b>{pasSuivantDeLaTete.name}</b> · {pasSuivantDeLaTete.palier}</>
+              : lecturePalier.palier === 'Souveraineté'
+                ? 'Elle a vécu tous les actes de Souveraineté du catalogue.'
+                : 'Aucune prestation du palier suivant qu’elle n’ait déjà vécue.'}
+          </span>
+        </div>
         {/* Persona & segments — deux colonnes sur le panneau élargi */}
         <div className="tr-grid tr-grid--2">
           <div>
@@ -3974,7 +4023,7 @@ function Customer360({
                     ? `Du Cercle · ${(client.loyaltyPoints ?? 0).toLocaleString('fr-FR')} points.`
                     : `Cercle à sa ${seuilCercle}ᵉ venue, elle en a ${venuesCercle}.`}
               {statut.foyer && !statut.dependant && (
-                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <> — palier « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
+                <> Foyer : {fmtMoney(statut.depenseFoyer, currency)} cumulés{palierFoyer ? <> — sceau « {tousServices.find((s) => s.id === palierFoyer.serviceId)?.name ?? 'soin'} » à offrir à la maisonnée.</> : '.'}</>
               )}
             </div>
 

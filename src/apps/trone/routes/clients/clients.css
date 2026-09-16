@@ -2844,3 +2844,17 @@
    13 septembre 2026. Il portait la classe `.trc-cal`, celle du carnet du jour
    plus haut : sa bordure, son rembourrage de 11 px et sa marge de 6 px
    écrasaient ceux de la grille des maîtres. */
+
+/* ══ SA COURONNE, OÙ ELLE EN EST — 16 septembre 2026 ═════════════════
+   Le palier de la cliente, lu sur son carnet, en tête du Profil. */
+.trc-palier {
+  display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: baseline;
+  border: 1px solid var(--hairline); border-radius: 3px; padding: 12px 14px; margin-bottom: 14px;
+  background: var(--surface-card);
+}
+.trc-palier__mot { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); grid-column: 1 / -1; }
+.trc-palier__mot .mnd-palier { margin-left: 8px; }
+.trc-palier__l { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.trc-palier__v { font-size: 12.5px; color: var(--ink); }
+.trc-palier__v b { font-weight: 500; }
+@media (max-width: 560px) { .trc-palier { grid-template-columns: 1fr; gap: 3px; } }

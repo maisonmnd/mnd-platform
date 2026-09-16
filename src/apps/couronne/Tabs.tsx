@@ -23,7 +23,8 @@ import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useTiers, useFoyerTiers } from '../../shared/offers';
-import { deliveryFee } from '../../shared/settings';
+import { deliveryFee, useSettings } from '../../shared/settings';
+import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   MONTHS,
@@ -477,7 +478,7 @@ export function HomeTab({
               </span>
             </div>
             {cercle.membre && attained.length > 0 && (
-              <span className="mc-pillseal">Palier {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
+              <span className="mc-pillseal">Sceau {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
             )}
           </div>
           {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
@@ -514,8 +515,8 @@ export function HomeTab({
               <div className="mc-bar"><div style={{ width: `${tierPct}%` }} /></div>
               <span>
                 {nextTier
-                  ? `Palier ${tierGlyph(nextTier, ladder.indexOf(nextTier))} · encore ${(nextTier.pts - points).toLocaleString('fr-FR')} points`
-                  : 'Tous les paliers sont honorés'}
+                  ? `Sceau ${tierGlyph(nextTier, ladder.indexOf(nextTier))} · encore ${(nextTier.pts - points).toLocaleString('fr-FR')} points`
+                  : 'Tous les sceaux sont honorés'}
               </span>
             </div>
           )}
@@ -1502,9 +1503,9 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
             <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
             <div className="mc-pointscard__hint">
               {nextTier
-                ? `Prochain palier à ${nextTier.pts.toLocaleString('fr-FR')} points, encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
+                ? `Prochain sceau à ${nextTier.pts.toLocaleString('fr-FR')} points, encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
                 : ladder.length > 0
-                  ? 'Tous les paliers sont honorés, la maison vous salue.'
+                  ? 'Tous les sceaux sont honorés, la maison vous salue.'
                   : 'Chaque rituel honoré nourrit votre reconnaissance.'}
             </div>
             <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
@@ -1522,14 +1523,14 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
             <div className="mc-pointscard__label">Le Foyer</div>
             <div className="mc-pointscard__row">
               <span className="mc-pointscard__big">{pctFoyer}%</span>
-              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain geste du foyer' : 'de votre palier famille'}</span>
+              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain geste du foyer' : 'de votre sceau famille'}</span>
             </div>
             <div className="mc-bar mc-bar--invert"><div style={{ width: `${pctFoyer}%` }} /></div>
             <div className="mc-pointscard__hint">
               {prochainFoyer
                 ? `Encore un peu et « ${services.find((s) => s.id === prochainFoyer.serviceId)?.name ?? 'un soin'} » s’offre à la maisonnée.`
                 : cercle.foyerAtteint
-                  ? 'Votre foyer a franchi son palier, la maison a un geste pour la maisonnée.'
+                  ? 'Votre foyer a franchi son sceau, la maison a un geste pour la maisonnée.'
                   : 'La venue de chaque membre du foyer avance vers un geste offert à la famille.'}
             </div>
           </div>
@@ -1538,7 +1539,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
 
       {/* Les paliers du Foyer — le geste s'offre de lui-même dès le seuil passé. */}
       {cercle.foyer && !cercle.dependant && foyerLadder.length > 0 && (<>
-        <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Les paliers du Foyer</div>
+        <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Les sceaux du Foyer</div>
         <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
           {foyerLadder.map((t, i) => {
             const on = cercle.depenseFoyer >= t.seuilXof;
@@ -1578,7 +1579,7 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           );
         })}
         {ladder.length === 0 && (
-          <div className="mc-emptyline">Les paliers du Cercle se préparent, la maison vous les révélera bientôt.</div>
+          <div className="mc-emptyline">Les sceaux du Cercle se préparent, la maison vous les révélera bientôt.</div>
         )}
       </div>
       </>)}
@@ -1815,6 +1816,24 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const email = client?.email ?? session?.user?.email ?? '';
   /* Le calibre affiché se déduit du comptage — le style à la main est retiré. */
   const [bandsProfil] = useModelBands();
+  /* ══ OÙ EN EST SA COURONNE — 16 septembre 2026 ══════════════════════
+     Maquette `maquette-les-trois-paliers.html`, arbitrage de Yéman : elle
+     lit son palier ici, avec le pas suivant. JAMAIS le palier du maître qui
+     la coiffe, jamais un compte à rebours : on n'achète pas un palier. Le
+     même juge que la fiche du Trône, sur les mêmes rituels honorés. */
+  const apptsProfil = useClientAppointments(clientId);
+  const [servicesProfil] = useServices();
+  const [reglagesProfil] = useSettings();
+  const lecturePalier = client
+    ? palierDuCarnet(client, apptsProfil, new Map(servicesProfil.map((s) => [s.id, s])), jourLocal(), reglagesProfil.paliers)
+    : null;
+  const pasSuivantProfil = client && lecturePalier?.palier
+    ? pasSuivant(
+      lecturePalier.palier,
+      servicesProfil,
+      new Set(apptsProfil.filter((a) => a.status === 'honoré').flatMap((a) => a.serviceIds)),
+    )
+    : undefined;
 
   const [name, setName] = useState(client?.name ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
@@ -1990,8 +2009,27 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           <span>Nombre de locks</span>
           <span className="mc-inforow__v">{client?.lockCount ?? '—'}</span>
         </div>
+        {/* SON PALIER, ET LE PAS SUIVANT — lus sur ses rituels honorés. */}
+        {lecturePalier?.palier && (
+          <>
+            <div className="mc-inforow">
+              <span>Où elle en est</span>
+              <span className="mc-inforow__v">{lecturePalier.palier}</span>
+            </div>
+            {pasSuivantProfil && (
+              <div className="mc-inforow">
+                <span>Le pas suivant</span>
+                <span className="mc-inforow__v">{pasSuivantProfil.name}</span>
+              </div>
+            )}
+          </>
+        )}
       </div>
-      <div className="mc-emptyline" style={{ paddingTop: 6 }}>Renseignés par la maison, lors de vos rituels.</div>
+      <div className="mc-emptyline" style={{ paddingTop: 6 }}>
+        {lecturePalier?.palier
+          ? `${PALIER_DIT[lecturePalier.palier].couronne} Renseignés par la maison, lors de vos rituels.`
+          : 'Renseignés par la maison, lors de vos rituels.'}
+      </div>
 
       <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => void signOut()}>
         Se déconnecter

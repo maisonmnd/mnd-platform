@@ -21,6 +21,7 @@ import {
   type Appointment, type ReminderKind,
 } from '../../../../shared/agenda';
 import { sousArbreOf, useServices, useCategories, useProducts, priceModeOf, catsDansLOrdre, mondeDeCat, mondeLabel, LONGUEURS, suitLongueur, type LongueurId, type Service } from '../../../../shared/catalog';
+import { RANG_DU_PALIER } from '../../../../shared/paliers';
 import { depositForServices, depositPctFor, useSettings } from '../../../../shared/settings';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { consommerPourRituel, rembobinerRituel } from '../../../../shared/stock';
@@ -2675,8 +2676,11 @@ export function RdvModal({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13.5, color: 'var(--color-indigo)' }}>{sv.name}</span>
-                  <span style={{ display: 'block', fontSize: 10, color: 'var(--ink-soft)', marginTop: 2 }}>
-                    {Math.round(sv.durationMin / 60 * 10) / 10} h · {sv.sessions > 1 ? `${sv.sessions} séances · ` : ''}palier {sv.palier}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'var(--ink-soft)', marginTop: 3, flexWrap: 'wrap' }}>
+                    {Math.round(sv.durationMin / 60 * 10) / 10} h{sv.sessions > 1 ? ` · ${sv.sessions} séances` : ''}
+                    {/* LE PALIER SE VOIT — 16 septembre 2026 : la même pastille
+                        qu'au Catalogue, ce que l'acte exige de la main. */}
+                    <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[sv.palier]}`}>{sv.palier}</span>
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>

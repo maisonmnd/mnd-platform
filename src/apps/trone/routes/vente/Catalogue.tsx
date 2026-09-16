@@ -7,6 +7,7 @@ import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
 import { poseLeProtocoleAuCatalogue, protocoleAbsent } from '../../../../shared/protocoles';
 import { servicesStore } from '../../../../shared/catalog';
+import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { ProtocolesModal } from './Protocoles';
 import { fmtMoney } from '../../../../shared/currency';
 import { racineOf, sousArbreOf, LONGUEURS, suitLongueur, type LongueurId, type ServiceInclus, type TarifMode,
@@ -28,7 +29,9 @@ import './vente.css';
    éditables et supprimables ; prestations et produits Maison éditables au fauteuil.
    Les produits partagent productsStore avec le Laboratoire (gamme & stock). */
 
-const PALIERS: Service['palier'][] = ['Fondation', 'Élévation', 'Souveraineté'];
+/* LES TROIS PALIERS VIVENT DANS `shared/paliers` depuis le 16 septembre 2026 :
+   la fiche cliente, Ma Couronne et la Synthèse lisent la même échelle. */
+const PALIERS: readonly Service['palier'][] = LES_PALIERS;
 
 /** Une ligne du détail d'usage d'une prestation — un rituel qui la portait. */
 type UsageRow = {
@@ -487,6 +490,12 @@ export default function Catalogue() {
   /* Recherche + repli — le catalogue peut être dense ; on aide à s'y retrouver.
      Une recherche déplie tout et masque les catégories sans correspondance. */
   const q = query.trim().toLowerCase();
+  /* ══ LE FILTRE PAR PALIER — 16 septembre 2026 ═══════════════════════
+     Maquette `maquette-les-trois-paliers.html` : le catalogue se lit par
+     palier, comme il se lit par régime. Un palier choisi masque les produits
+     de la Gamme, qui n'en portent pas. */
+  const [palierFiltre, setPalierFiltre] = useState<Service['palier'] | 'tout'>('tout');
+  const matchPalier = (s: Service): boolean => palierFiltre === 'tout' || s.palier === palierFiltre;
   /* Le régime d'une prestation contre le filtre — MÊME juge que l'étiquette. */
   const matchRegime = (s: Service): boolean => {
     if (regimeFiltre === 'tout') return true;
@@ -495,12 +504,12 @@ export default function Catalogue() {
     if (regimeFiltre === 'hors') return !r.justePrix;
     return r.k === regimeFiltre;
   };
-  /* Un filtre actif (recherche OU régime) masque les catégories vides. */
-  const filtreActif = !!q || regimeFiltre !== 'tout';
-  const matchSvc = (s: Service) => (!q || s.name.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q)) && matchRegime(s);
-  /* Les produits de la Gamme ne portent pas de régime tarifaire : un filtre
-     par régime les met de côté — on regarde des PRESTATIONS. */
-  const matchProd = (p: Product) => (!q || p.name.toLowerCase().includes(q)) && regimeFiltre === 'tout';
+  /* Un filtre actif (recherche OU régime OU palier) masque les catégories vides. */
+  const filtreActif = !!q || regimeFiltre !== 'tout' || palierFiltre !== 'tout';
+  const matchSvc = (s: Service) => (!q || s.name.toLowerCase().includes(q) || (s.description ?? '').toLowerCase().includes(q)) && matchRegime(s) && matchPalier(s);
+  /* Les produits de la Gamme ne portent ni régime tarifaire ni palier : un
+     filtre par l'un ou l'autre les met de côté — on regarde des PRESTATIONS. */
+  const matchProd = (p: Product) => (!q || p.name.toLowerCase().includes(q)) && regimeFiltre === 'tout' && palierFiltre === 'tout';
   const toggleCollapse = (id: string) =>
     setCollapsed((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allCollapsed = cats.length > 0 && cats.every((c) => collapsed.has(c.id));
@@ -1111,6 +1120,38 @@ export default function Catalogue() {
         );
       })()}
 
+      {/* ══ LE PALIER — 16 septembre 2026 ══════════════════════════════
+          Fondation, Élévation, Souveraineté : le rang d'une prestation dans
+          le parcours de la cliente, et ce qu'elle exige de la main. Il se lit
+          ici comme le régime se lit, avec le compte sur chaque pastille. */}
+      {cats.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-6px 0 16px', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', flex: 'none' }}>
+            Palier
+          </span>
+          {(['tout', ...PALIERS] as (Service['palier'] | 'tout')[]).map((p) => {
+            const on = palierFiltre === p;
+            const n = p === 'tout' ? undefined : services.filter((s) => s.palier === p).length;
+            return (
+              <button
+                key={p}
+                type="button"
+                className="trv-minibtn"
+                onClick={() => setPalierFiltre(on && p !== 'tout' ? 'tout' : p)}
+                style={on
+                  ? { background: 'var(--color-indigo)', borderColor: 'var(--color-indigo)', color: 'var(--color-ivoire)' }
+                  : undefined}
+              >
+                {p === 'tout' ? 'Tous' : p}{n !== undefined ? ` · ${n}` : ''}
+              </button>
+            );
+          })}
+          {palierFiltre !== 'tout' && (
+            <span className="mnd-muted" style={{ fontSize: 11.5 }}>{PALIER_DIT[palierFiltre].sous}</span>
+          )}
+        </div>
+      )}
+
       {cats.length === 0 && (
         <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, lineHeight: 1.6, color: 'var(--ink-soft)', padding: '28px 0', textAlign: 'center' }}>
           Le catalogue est vierge. Commencez par inscrire une catégorie ™, elle accueillera vos prestations et vos produits Maison.
@@ -1334,7 +1375,7 @@ export default function Catalogue() {
                   })()}
 
                   <div className="trv-svc__meta">
-                    <span>{svc.palier}</span>
+                    <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[svc.palier]}`} title={PALIER_DIT[svc.palier].sous}>{svc.palier}</span>
                     <span style={{ color: 'var(--color-argile)' }}>·</span>
                     <span>{fmtDuration(svc.durationMin)}</span>
                     <span style={{ color: 'var(--color-argile)' }}>·</span>

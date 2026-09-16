@@ -380,3 +380,17 @@
   margin-top: 8px; font-size: 10.5px; color: var(--ink-soft);
   display: flex; gap: 12px; flex-wrap: wrap;
 }
+
+/* ══ LE PALIER, LISIBLE — 16 septembre 2026 ══════════════════════════
+   Maquette `maquette-les-trois-paliers.html`. Une pastille par palier, la
+   même au Catalogue, à la modale de rendez-vous et sur la fiche : Fondation
+   en retrait, Élévation en cuivre, Souveraineté en indigo. Globale, parce que
+   `vente.css` n'est pas chargée sur le Carnet ni le Calendrier. */
+.mnd-palier {
+  display: inline-block; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: .1em;
+  text-transform: uppercase; border: 1px solid; border-radius: 2px; padding: 2px 7px; white-space: nowrap;
+  vertical-align: middle;
+}
+.mnd-palier--0 { color: var(--ink-soft); border-color: var(--hairline); background: var(--surface-card); }
+.mnd-palier--1 { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+.mnd-palier--2 { color: var(--color-ivoire); border-color: var(--color-indigo); background: var(--color-indigo); }

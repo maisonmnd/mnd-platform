@@ -7,7 +7,11 @@ import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { useCategories } from '../../../../shared/catalog';
 import { splitByWeights } from '../../../../shared/pricing';
 import { totalsOf, splitByMaison, MAISON_BUCKETS, sumTotals, type MaisonBucket, type Part } from '../../../../shared/maisons';
-import { useClients } from '../../../../shared/clients';
+import { useClients, type Client } from '../../../../shared/clients';
+import { useSettings } from '../../../../shared/settings';
+import {
+  palierDuCarnet, repartitionDesPaliers, rituelsDuMoisParPalier, PALIERS, PALIER_DIT, RANG_DU_PALIER, jourLocal,
+} from '../../../../shared/paliers';
 import { useSubscribers, useApprenants, useFormations } from '../equipe/data';
 import { apptDiscountFactor, apptLabel, apptNetXof, apptServices, useServicesById, revenuDuMois } from '../clients/_shared';
 import { todayISO, monthKey, monthLabel, monthShort, shiftMonth, lastMonths, MonthNav, downloadCsv, fmtDay as jourDesFinances } from './_shared';
@@ -910,6 +914,12 @@ export default function Synthese() {
         )}
       </div>
 
+      {/* ══ LES PALIERS — 16 septembre 2026 ═══════════════════════════════
+          Maquette `maquette-les-trois-paliers.html`. C'est le chiffre qui dit
+          si la Maison fait grandir ses clientes, ou si elle recommence chaque
+          mois à la Fondation. */}
+      <LesPaliers clients={clients} appts={appts} byId={byId} branchId={branch.id} month={month} monthName={monthName} />
+
       {/* Détail cliquable d'un montant — les écritures qui le composent */}
       {detail && (
         <Modal title={detail.title} onClose={() => setDetail(null)} width={560}>
@@ -935,6 +945,72 @@ export default function Synthese() {
           )}
         </Modal>
       )}
+    </div>
+  );
+}
+
+/* ══ LES PALIERS DE LA MAISON — 16 septembre 2026 ═════════════════════
+   Le même juge que la fiche cliente et Ma Couronne (`palierDuCarnet`), passé
+   sur toutes les têtes de la branche. Aucune projection : des rituels
+   honorés, des dates. Le mois choisi dit qui est MONTÉE ce mois-là, et
+   combien de rituels honorés relèvent de chaque palier. */
+function LesPaliers({ clients, appts, byId, branchId, month, monthName }: {
+  clients: Client[];
+  appts: Appointment[];
+  byId: ReturnType<typeof useServicesById>;
+  branchId: string;
+  month: string;
+  monthName: string;
+}) {
+  const [reglages] = useSettings();
+  const lecture = useMemo(() => {
+    const aujourdhui = jourLocal();
+    const tetes = clients.filter((c) => c.branchId === branchId);
+    const paliers = tetes.map((c) => palierDuCarnet(c, appts, byId, aujourdhui, reglages.paliers));
+    return {
+      total: tetes.length,
+      repartition: repartitionDesPaliers(paliers, month),
+      rituels: rituelsDuMoisParPalier(appts, byId, month, branchId),
+    };
+  }, [clients, appts, byId, branchId, month, reglages.paliers]);
+  const avecPalier = lecture.total - lecture.repartition.sansPalier;
+  const pct = (n: number, sur: number) => (sur > 0 ? `${Math.round((n / sur) * 100)} %` : '—');
+  const rituelsDuMois = PALIERS.reduce((s, p) => s + lecture.rituels[p], 0);
+  const montees = PALIERS.reduce((s, p) => s + lecture.repartition.monteesDuMois[p], 0);
+  if (lecture.total === 0) return null;
+  return (
+    <div style={{ marginTop: 28 }}>
+      <Eyebrow>Les paliers · où en sont les couronnes</Eyebrow>
+      <div className="tr-grid tr-grid--3" style={{ marginTop: 10 }}>
+        {PALIERS.map((p) => (
+          <div key={p} style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '14px 16px', background: 'var(--surface-card)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span className={`mnd-palier mnd-palier--${RANG_DU_PALIER[p]}`}>{p}</span>
+              <span className="mnd-muted" style={{ fontSize: 11 }}>{PALIER_DIT[p].sous}</span>
+            </div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--color-indigo)', lineHeight: 1 }}>
+              {lecture.repartition.parPalier[p]}
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)', marginLeft: 8 }}>
+                {pct(lecture.repartition.parPalier[p], avecPalier)} des clientes
+              </span>
+            </div>
+            <div className="mnd-muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+              {lecture.repartition.monteesDuMois[p] > 0
+                ? `${lecture.repartition.monteesDuMois[p]} montée${lecture.repartition.monteesDuMois[p] > 1 ? 's' : ''} en ${monthName}`
+                : `aucune montée en ${monthName}`}
+              {' · '}
+              {lecture.rituels[p]} rituel{lecture.rituels[p] > 1 ? 's' : ''} honoré{lecture.rituels[p] > 1 ? 's' : ''} ce mois
+              {rituelsDuMois > 0 ? ` (${pct(lecture.rituels[p], rituelsDuMois)})` : ''}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mnd-muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55 }}>
+        {avecPalier} cliente{avecPalier > 1 ? 's' : ''} avec un rituel honoré
+        {lecture.repartition.sansPalier > 0 ? `, ${lecture.repartition.sansPalier} sans palier encore (aucun rituel honoré)` : ''}.
+        {montees > 0 ? ` ${montees} montée${montees > 1 ? 's' : ''} de palier en ${monthName}.` : ''}
+        {' '}Le palier se lit sur le carnet, il ne se saisit pas : les seuils se règlent dans Paramètres.
+      </div>
     </div>
   );
 }

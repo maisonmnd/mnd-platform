@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les trois paliers &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE; --blanc:#fff;
+    --indigo:#1E2150; --indigo-2:#3A3F72; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9; --cuivre-s:#8A5326;
+    --encre:#2A2722; --encre-d:#6E6961; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --ambre:#8A5F1B; --ambre-f:#FCF5E6; --ambre-p:#E2CDA1;
+    --vert:#41604A; --vert-f:#EDF2EE; --vert-p:#C4D5C8;
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 22px 100px; }
+  @media (max-width:600px){ .page { padding:30px 15px 70px; } }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 13px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,7vw,56px); line-height:1.03;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3.4vw,31px); color:var(--indigo);
+       margin:0 0 5px; letter-spacing:-.01em; }
+  h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:30px 0 4px; }
+  .chapeau { max-width:64ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:56px; }
+  .intro { max-width:70ch; color:var(--encre-d); margin:0 0 22px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:76ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:0 0 28px;
+          font-family:var(--serif); font-size:20px; line-height:1.45; color:var(--indigo); max-width:60ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.88em;
+         background:var(--indigo-pale); padding:1px 5px; border-radius:2px; color:var(--indigo-2); }
+
+  .alerte { border:1px solid var(--brique-p); border-left:3px solid var(--brique); border-radius:4px;
+            background:var(--brique-f); padding:15px 18px; }
+  .alerte b { color:var(--brique); font-weight:600; }
+  .alerte p { margin:6px 0 0; font-size:13.5px; line-height:1.6; }
+  .alerte p:first-of-type { margin-top:8px; }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+       color:var(--cuivre); font-weight:500; padding:0 10px 9px 0; border-bottom:1px solid var(--sable); }
+  td { padding:11px 10px 11px 0; border-bottom:1px solid var(--sable); vertical-align:top; color:var(--encre-d); }
+  td b { color:var(--indigo); font-weight:500; font-family:var(--serif); font-size:16px; }
+  td s { color:var(--brique); text-decoration-thickness:1px; }
+  tr:last-child td { border-bottom:none; }
+  .wrap { overflow-x:auto; }
+
+  .echelle { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; margin-top:16px; }
+  @media (max-width:680px){ .echelle { grid-template-columns:1fr; } }
+  .marche { border:1px solid var(--filet); border-radius:4px; background:var(--blanc); padding:15px 17px; border-top:3px solid var(--cuivre-p); }
+  .marche:nth-child(2) { border-top-color:var(--cuivre); }
+  .marche:nth-child(3) { border-top-color:var(--cuivre-s); }
+  .marche u { text-decoration:none; display:block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre); margin-bottom:6px; }
+  .marche b { font-family:var(--serif); font-weight:500; font-size:22px; color:var(--indigo); display:block; }
+  .marche i { display:block; font-style:italic; font-family:var(--serif); font-size:15px; color:var(--encre-d); margin:2px 0 10px; }
+  .marche small { display:block; font-size:12.5px; color:var(--encre-d); line-height:1.55; }
+  .marche small b { font-family:var(--sans); font-size:12.5px; color:var(--encre); display:inline; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; margin-top:14px; }
+  .ecran__tete { background:var(--indigo); color:#EFEAE0; padding:11px 16px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .ecran__tete h4 { font-family:var(--serif); font-weight:400; font-size:19px; color:#fff; margin:0; }
+  .ecran__tete span { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--cuivre-p); }
+  .ecran__corps { padding:16px; font-size:13.5px; color:var(--encre-d); }
+  .ligne { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:8px 0; border-bottom:1px solid var(--sable); flex-wrap:wrap; }
+  .ligne:last-child { border-bottom:none; }
+  .ligne em { font-style:normal; font-family:var(--serif); font-size:17px; color:var(--indigo); }
+  .pas { display:inline-block; font-size:10px; letter-spacing:.13em; text-transform:uppercase; border-radius:2px; padding:3px 9px; border:1px solid; white-space:nowrap; }
+  .pas--ok { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .pas--att { color:var(--ambre); border-color:var(--ambre-p); background:var(--ambre-f); }
+  .pas--cu { color:var(--cuivre-s); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .pas--in { color:var(--indigo-2); border-color:#CBCDE0; background:var(--indigo-pale); }
+  .pas--ko { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+  .avert { border:1px solid var(--ambre-p); border-left:3px solid var(--ambre); background:var(--ambre-f); border-radius:3px; padding:9px 12px; font-size:12.5px; margin-top:8px; }
+
+  .liste { margin:0; padding:0; list-style:none; }
+  .liste li { position:relative; padding:0 0 11px 20px; font-size:14px; color:var(--encre-d); }
+  .liste li::before { content:'·'; position:absolute; left:6px; top:-1px; color:var(--cuivre); font-size:19px; }
+  .liste li b { color:var(--encre); font-weight:500; }
+
+  .etapes { display:grid; gap:12px; margin-top:18px; }
+  .etape { border:1px solid var(--filet); border-left:3px solid var(--cuivre); border-radius:4px; background:var(--blanc); padding:14px 17px; display:flex; gap:15px; align-items:flex-start; }
+  .etape__n { font-family:var(--serif); font-size:27px; color:var(--cuivre-p); line-height:1; flex:none; }
+  .etape b { display:block; font-family:var(--serif); font-weight:500; font-size:18px; color:var(--indigo); }
+  .etape small { display:block; font-size:13px; color:var(--encre-d); margin-top:4px; line-height:1.55; }
+
+  .quest { border:1px solid var(--ambre-p); border-left:3px solid var(--ambre); border-radius:4px; background:var(--ambre-f); padding:15px 18px; margin-top:16px; }
+  .quest b { color:var(--ambre); font-weight:600; }
+  .quest p { margin:7px 0 0; font-size:13.5px; line-height:1.6; }
+  .quest .prop { color:var(--encre); }
+  .quest .prop strong { font-weight:600; color:var(--vert); }
+
+  .fin { margin-top:64px; padding-top:26px; border-top:1px solid var(--filet); font-size:12.5px; color:var(--encre-d); }
+  .fin b { color:var(--indigo); font-weight:500; }
+  .devise { font-family:var(--serif); font-size:16px; color:var(--cuivre); margin-top:16px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Tr&ocirc;ne &middot; une seule &eacute;chelle, dite partout</p>
+  <h1>Les trois paliers.</h1>
+  <p class="chapeau">
+    Fondation, &Eacute;l&eacute;vation, Souverainet&eacute; : les trois mots existent, et ils ne
+    servent presque &agrave; rien. Une prestation en porte un, choisi &agrave; sa cr&eacute;ation,
+    et il ne d&eacute;cide que d&rsquo;une chose : le taux de commission d&rsquo;un ma&icirc;tre.
+    <b>Ni la cliente, ni le ma&icirc;tre, ni la Maison n&rsquo;ont de palier.</b> Et le mot
+    lui-m&ecirc;me sert quatre &eacute;chelles diff&eacute;rentes dans le Tr&ocirc;ne. C&rsquo;est
+    l&agrave; que la clart&eacute; se perd.
+  </p>
+
+  <section>
+    <p class="cite">
+      &laquo; Comment je peux mieux l&rsquo;exploiter dans le Tr&ocirc;ne et faire une vraie
+      distinction et un vrai usage, et que le tout soit tr&egrave;s clair &raquo;
+      <span>Y&eacute;man &middot; 16 septembre 2026</span>
+    </p>
+
+    <div class="alerte">
+      <b>Le parti pris : un mot, une &eacute;chelle, trois portes.</b>
+      <p>
+        Le palier devient <b>la colonne vert&eacute;brale de la Maison</b> : la prestation en a un
+        (ce qu&rsquo;elle exige), la cliente en a un (o&ugrave; en est sa couronne), le ma&icirc;tre en a
+        un (jusqu&rsquo;o&ugrave; il est habilit&eacute;). Les trois se lisent avec les m&ecirc;mes trois
+        mots, et c&rsquo;est leur rencontre qui fait le sens : une cliente en &Eacute;l&eacute;vation
+        se voit proposer le pas suivant, un acte de Souverainet&eacute; ne s&rsquo;attribue pas
+        &agrave; une main de Fondation, et la commission par palier cesse d&rsquo;&ecirc;tre un
+        r&eacute;glage sans raison.
+      </p>
+      <p>
+        Et les trois autres &laquo; paliers &raquo; du Tr&ocirc;ne changent de nom, pour que celui-ci
+        soit le seul.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">I</span> &nbsp;Un mot, une &eacute;chelle</p>
+    <h2>Quatre choses s&rsquo;appellent &laquo; palier &raquo;. Une seule le restera.</h2>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Aujourd&rsquo;hui</th><th>Ce que c&rsquo;est</th><th>Demain</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Palier d&rsquo;exp&eacute;rience</b></td>
+            <td>Fondation, &Eacute;l&eacute;vation, Souverainet&eacute; : le rang d&rsquo;une prestation dans le parcours.</td>
+            <td><b>Le palier</b>, tout court. La seule &eacute;chelle qui porte ce mot.</td>
+          </tr>
+          <tr>
+            <td><s>Paliers du Cercle</s></td>
+            <td>Les r&eacute;compenses par points (&#8544;, &#8545;, &#8546;), dans le Tr&ocirc;ne et Ma Couronne.</td>
+            <td><b>Les sceaux du Cercle.</b> Ils portent d&eacute;j&agrave; un chiffre de sceau ; le mot &eacute;tait l&agrave;.</td>
+          </tr>
+          <tr>
+            <td><s>Paliers de locks</s></td>
+            <td>Le prix des Kids qui monte au-del&agrave; d&rsquo;un nombre de locks.</td>
+            <td><b>Les seuils de locks.</b> Un seuil se franchit, un palier se gravit.</td>
+          </tr>
+          <tr>
+            <td><s>Palier d&rsquo;envoi</s></td>
+            <td>Les 250 conversations par jour que Meta autorise.</td>
+            <td><b>La limite d&rsquo;envoi.</b> C&rsquo;est le mot de Meta lui-m&ecirc;me.</td>
+          </tr>
+          <tr>
+            <td>Fondation &middot; Affirmation &middot; L&rsquo;&OElig;uvre</td>
+            <td>Les trois formations des d&eacute;butantes &agrave; l&rsquo;Acad&eacute;mie. Elles gardent leurs noms.</td>
+            <td>Chacune <b>habilite &agrave; un palier</b> : Fondation &rarr; Fondation, Affirmation &rarr; &Eacute;l&eacute;vation, L&rsquo;&OElig;uvre et Ma&icirc;tre MND &rarr; Souverainet&eacute;.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="legende">
+      <b>Des textes seulement</b>, aucune donn&eacute;e ne bouge : les sceaux gardent leurs points,
+      les seuils leurs prix. C&rsquo;est le geste le moins co&ucirc;teux de tout ce chantier, et
+      celui qui rend le reste lisible.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">II</span> &nbsp;La colonne vert&eacute;brale</p>
+    <h2>Trois portes, les m&ecirc;mes trois mots.</h2>
+    <div class="echelle">
+      <div class="marche">
+        <u>Fondation</u>
+        <b>Poser les bases.</b>
+        <i>D&eacute;couvrir le rituel.</i>
+        <small><b>La prestation</b> : une cr&eacute;ation, un premier soin, un lavage.</small>
+        <small><b>La cliente</b> : sa couronne est n&eacute;e, elle apprend &agrave; la tenir.</small>
+        <small><b>Le ma&icirc;tre</b> : il ex&eacute;cute les actes de Fondation, et assiste au-dessus.</small>
+      </div>
+      <div class="marche">
+        <u>&Eacute;l&eacute;vation</u>
+        <b>Affirmer sa couronne.</b>
+        <i>S&eacute;ance apr&egrave;s s&eacute;ance.</i>
+        <small><b>La prestation</b> : un resserrage, une reconstruction, une couleur.</small>
+        <small><b>La cliente</b> : elle revient, sa couronne se tient, elle entretient.</small>
+        <small><b>Le ma&icirc;tre</b> : il ex&eacute;cute jusqu&rsquo;&agrave; l&rsquo;&Eacute;l&eacute;vation.</small>
+      </div>
+      <div class="marche">
+        <u>Souverainet&eacute;</u>
+        <b>La ma&icirc;trise.</b>
+        <i>M&egrave;che apr&egrave;s m&egrave;che.</i>
+        <small><b>La prestation</b> : une &oelig;uvre sur 450 locks, une restauration, un grand passage.</small>
+        <small><b>La cliente</b> : sa couronne a une histoire, elle fait confiance &agrave; la Maison.</small>
+        <small><b>Le ma&icirc;tre</b> : il ex&eacute;cute tout, et il transmet.</small>
+      </div>
+    </div>
+    <p class="legende">
+      <b>La cliente ne saisit rien, et personne ne le saisit pour elle</b> : son palier se
+      LIT sur son carnet, comme son persona. Ce qu&rsquo;elle a v&eacute;cu au fauteuil la fait
+      monter ; rien ne la fait redescendre. <b>Le ma&icirc;tre</b>, lui, est habilit&eacute; par
+      la direction sur sa fiche d&rsquo;&eacute;quipe, et un certificat de l&rsquo;Acad&eacute;mie
+      le pose seul.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">III</span> &nbsp;Ce que &ccedil;a change, &eacute;cran par &eacute;cran</p>
+    <h2>Six endroits, un seul mot.</h2>
+
+    <h3>1 &middot; La fiche cliente et Ma Couronne : o&ugrave; elle en est, et le pas suivant</h3>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>R. A.</h4><span>Clientes &middot; profil</span></div>
+      <div class="ecran__corps">
+        <div class="ligne"><span>Sa couronne</span> <span><em>&Eacute;l&eacute;vation</em> &nbsp;<span class="pas pas--cu">depuis f&eacute;vrier</span></span></div>
+        <div class="ligne"><span>Ce qui l&rsquo;y a men&eacute;e</span> <span>7 rituels honor&eacute;s, 11 mois de couronne</span></div>
+        <div class="ligne"><span>Le pas suivant</span> <span>une &oelig;uvre de Souverainet&eacute; : <b>GB&Igrave;GB&Igrave;&trade; Restauration</b></span></div>
+        <div class="ligne"><span>Ma Couronne lui dit</span> <span>&laquo; Votre couronne est en &Eacute;l&eacute;vation. &raquo;</span></div>
+      </div>
+    </div>
+    <p class="legende">
+      Le persona dit <b>qui elle est</b> (la Constante, l&rsquo;Audacieuse) ; le palier dit
+      <b>o&ugrave; elle en est</b>. Les deux se compl&egrave;tent, ils ne se remplacent pas. Le pas
+      suivant est la prestation du palier d&rsquo;au-dessus que son carnet ne porte pas encore :
+      c&rsquo;est le geste de vente le plus naturel, et il n&rsquo;existait nulle part.
+    </p>
+
+    <h3>2 &middot; Le rendez-vous : la main doit &ecirc;tre &agrave; la hauteur de l&rsquo;acte</h3>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Nouveau rendez-vous</h4><span>Calendrier</span></div>
+      <div class="ecran__corps">
+        <div class="ligne"><span>Prestation</span> <span>GB&Igrave;GB&Igrave;&trade; Restauration &middot; <span class="pas pas--in">Souverainet&eacute;</span></span></div>
+        <div class="ligne"><span>Ma&icirc;tre</span> <span>A. D. &middot; <span class="pas pas--att">habilit&eacute;e &Eacute;l&eacute;vation</span></span></div>
+        <div class="avert">Cet acte est de <b>Souverainet&eacute;</b> ; A. D. est habilit&eacute;e jusqu&rsquo;&agrave; l&rsquo;&Eacute;l&eacute;vation. Elle peut assister ; il faut une seconde main de Souverainet&eacute;.</div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>On avertit, on ne refuse pas</b> : un rendez-vous se pose souvent dans l&rsquo;urgence, et
+      la direction sait mieux que l&rsquo;&eacute;cran qui peut tenir quoi. Le Planning des
+      ma&icirc;tres montre, pour chaque jour, qui est l&agrave; et jusqu&rsquo;o&ugrave;.
+    </p>
+
+    <h3>3 &middot; Le catalogue : lisible par palier</h3>
+    <p class="intro" style="margin-bottom:0">
+      Un filtre Fondation &middot; &Eacute;l&eacute;vation &middot; Souverainet&eacute; en t&ecirc;te du Catalogue,
+      et la pastille du palier sur chaque prestation, au Catalogue comme &agrave; la modale de
+      rendez-vous, l&agrave; o&ugrave; elle n&rsquo;&eacute;tait qu&rsquo;un mot gris. <b>La r&eacute;servation de
+      Ma Couronne, elle, ne bouge pas</b> : le palier en a &eacute;t&eacute; retir&eacute; le 6 ao&ucirc;t
+      parce qu&rsquo;il ne dit rien &agrave; la cliente au moment de r&eacute;server, et c&rsquo;&eacute;tait
+      juste. Il para&icirc;t sur son profil, pas dans le tunnel.
+    </p>
+
+    <h3>4 &middot; La paie : la commission par palier prend son sens</h3>
+    <p class="intro" style="margin-bottom:0">
+      Rien ne change au calcul : la part d&rsquo;un acte &times; le taux de son palier. Mais le
+      bar&egrave;me se lit enfin : <b>un acte de Souverainet&eacute; rapporte plus parce qu&rsquo;il
+      exige une main de Souverainet&eacute;</b>, et la fiche d&rsquo;&eacute;quipe dit c&ocirc;te &agrave;
+      c&ocirc;te l&rsquo;habilitation et le taux. Une main habilit&eacute;e Fondation qui touche une
+      commission de Souverainet&eacute; se voit.
+    </p>
+
+    <h3>5 &middot; La Synth&egrave;se : la maturit&eacute; de la client&egrave;le</h3>
+    <div class="ecran">
+      <div class="ecran__tete"><h4>Les paliers</h4><span>Synth&egrave;se &middot; ce mois</span></div>
+      <div class="ecran__corps">
+        <div class="ligne"><span>Clientes en Fondation</span> <span><em>41</em> &middot; 38 %</span></div>
+        <div class="ligne"><span>En &Eacute;l&eacute;vation</span> <span><em>52</em> &middot; 48 %</span></div>
+        <div class="ligne"><span>En Souverainet&eacute;</span> <span><em>15</em> &middot; 14 %</span></div>
+        <div class="ligne"><span>Mont&eacute;es ce mois</span> <span><em>6</em> &middot; dont 2 en Souverainet&eacute;</span></div>
+        <div class="ligne"><span>Chiffre par palier</span> <span>Fondation 31 % &middot; &Eacute;l&eacute;vation 44 % &middot; Souverainet&eacute; 25 %</span></div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>C&rsquo;est le chiffre qui dit si la Maison fait grandir ses clientes</b> ou si elle
+      recommence chaque mois &agrave; la Fondation. Aucune projection : des rituels honor&eacute;s,
+      des dates, des francs encaiss&eacute;s.
+    </p>
+
+    <h3>6 &middot; La Consultation : le palier de la cliente, pas seulement celui de l&rsquo;acte</h3>
+    <p class="intro" style="margin-bottom:0">
+      Le diagnostic affiche aujourd&rsquo;hui le palier de la prestation recommand&eacute;e, ce
+      qui se lit comme un niveau de la personne. Il dira les deux : &laquo; votre couronne
+      na&icirc;t : Fondation &raquo;, et &laquo; ce que nous proposons : une pose, Fondation &raquo;.
+      Une t&ecirc;te d&eacute;j&agrave; en &Eacute;l&eacute;vation qui vient pour un SOS ne redescend pas.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">IV</span> &nbsp;Ce que ce chantier ne fera pas</p>
+    <h2>Quatre refus, dits d&rsquo;avance.</h2>
+    <ul class="liste">
+      <li><b>Pas de prix par palier.</b> Le prix est celui de la prestation, de son calibre, de sa longueur. Le palier dit le rang, jamais le tarif : une Souverainet&eacute; n&rsquo;est pas &laquo; plus ch&egrave;re parce que Souverainet&eacute; &raquo;.</li>
+      <li><b>Pas de palier saisi &agrave; la main pour une cliente.</b> Il se lit sur son carnet. Un niveau qu&rsquo;on d&eacute;cide devient un cadeau qu&rsquo;on fait, et un cadeau qu&rsquo;on reprend.</li>
+      <li><b>Pas de refus automatique au rendez-vous.</b> L&rsquo;&eacute;cran avertit ; la direction tranche.</li>
+      <li><b>Pas de palier affich&eacute; du ma&icirc;tre &agrave; la cliente.</b> Ma Couronne dit le sien, jamais celui de la main qui la coiffe.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">V</span> &nbsp;L&rsquo;ordre</p>
+    <h2>Quatre &eacute;tapes, chacune utile seule.</h2>
+    <div class="etapes">
+      <div class="etape"><span class="etape__n">1</span><span><b>Un mot, une &eacute;chelle</b><small>Les sceaux du Cercle, les seuils de locks, la limite d&rsquo;envoi : des textes. La pastille du palier sur chaque prestation, le filtre au Catalogue et au rendez-vous. Un jour.</small></span></div>
+      <div class="etape"><span class="etape__n">2</span><span><b>La cliente a un palier</b><small>Le juge, pur et &eacute;prouv&eacute; (le carnet, les seuils r&eacute;glables dans Param&egrave;tres), la fiche, Ma Couronne, le pas suivant, la Synth&egrave;se. Le gros du chantier.</small></span></div>
+      <div class="etape"><span class="etape__n">3</span><span><b>Le ma&icirc;tre est habilit&eacute;</b><small>La fiche d&rsquo;&eacute;quipe, l&rsquo;avertissement au rendez-vous, le Planning, la fiche de paie qui lit l&rsquo;habilitation &agrave; c&ocirc;t&eacute; du taux. Le certificat de l&rsquo;Acad&eacute;mie pose l&rsquo;habilitation seul.</small></span></div>
+      <div class="etape"><span class="etape__n">4</span><span><b>La Consultation dit les deux</b><small>Le palier de la t&ecirc;te et celui de l&rsquo;acte, s&eacute;par&eacute;s.</small></span></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="num">VI</span> &nbsp;Ce que je ne d&eacute;cide pas seul</p>
+    <h2>Quatre questions pour toi.</h2>
+
+    <div class="quest">
+      <b>Qu&rsquo;est-ce qui fait monter une cliente ?</b>
+      <p>Il faut une r&egrave;gle que le carnet sait lire, et que tu puisses r&eacute;gler.</p>
+      <p class="prop"><strong>Proposition :</strong> <b>Fondation</b> d&egrave;s son premier rituel honor&eacute;.
+        <b>&Eacute;l&eacute;vation</b> au troisi&egrave;me rituel honor&eacute;, ou &agrave; six mois de couronne, le premier des deux.
+        <b>Souverainet&eacute;</b> au premier acte de Souverainet&eacute; honor&eacute;, ou &agrave; dix-huit mois de couronne.
+        Les nombres se r&egrave;glent dans Param&egrave;tres ; on ne redescend jamais.</p>
+    </div>
+
+    <div class="quest">
+      <b>Une main non habilit&eacute;e sur un acte : avertir ou refuser ?</b>
+      <p>Un refus prot&egrave;ge la couronne ; un avertissement respecte l&rsquo;urgence du comptoir.</p>
+      <p class="prop"><strong>Proposition :</strong> avertir, et dire qu&rsquo;il faut une seconde main habilit&eacute;e.
+        La direction peut passer outre. Un r&eacute;glage &laquo; strict &raquo; existe pour le jour o&ugrave; l&rsquo;&eacute;quipe grandit.</p>
+    </div>
+
+    <div class="quest">
+      <b>Renomme-t-on les trois autres &laquo; paliers &raquo; ?</b>
+      <p>Sceaux du Cercle, seuils de locks, limite d&rsquo;envoi. Des mots que tes clientes lisent d&eacute;j&agrave; dans Ma Couronne.</p>
+      <p class="prop"><strong>Proposition :</strong> oui, les trois, d&egrave;s l&rsquo;&eacute;tape 1. Le Cercle disait d&eacute;j&agrave; &laquo; sceau &raquo; ; personne ne perd un rep&egrave;re.</p>
+    </div>
+
+    <div class="quest">
+      <b>Ma Couronne montre-t-elle le palier de la cliente ?</b>
+      <p>&laquo; Votre couronne est en &Eacute;l&eacute;vation &raquo; est un beau mot, et un engagement.</p>
+      <p class="prop"><strong>Proposition :</strong> oui, sur son profil, avec le pas suivant. Jamais le palier du ma&icirc;tre, jamais un compte &agrave; rebours (&laquo; encore 2 rituels &raquo;) : on n&rsquo;ach&egrave;te pas un palier.</p>
+    </div>
+  </section>
+
+  <div class="fin">
+    <b>Maquette &agrave; valider avant construction.</b> Aucune migration : le palier de la
+    cliente se lit, il ne se stocke pas ; l&rsquo;habilitation du ma&icirc;tre est un champ de
+    sa fiche d&rsquo;&eacute;quipe. Le juge du palier d&rsquo;une cliente s&rsquo;&eacute;prouve au harnais
+    avant de para&icirc;tre sur une fiche.
+    <div class="devise">mi ny&#596;&#769; &#598;&#603;kp&#603; &middot; la maison veille</div>
+  </div>
+
+</div>
+</body>
+</html>

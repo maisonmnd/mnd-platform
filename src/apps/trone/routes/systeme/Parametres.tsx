@@ -11,6 +11,7 @@ import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
 import { currencyByCode } from '../../../../shared/geo';
 import { useSettings, type DayHours } from '../../../../shared/settings';
+import { seuilsPropres, type SeuilsDePalier } from '../../../../shared/paliers';
 import { useSegments, renameSegment, clientsStore, useClients } from '../../../../shared/clients';
 import { bilanDesPhotos, enVignette, photoTropLourde, poidsLisible } from '../../../../shared/photo';
 import { useServices, servicesStore } from '../../../../shared/catalog';
@@ -1074,6 +1075,16 @@ export default function Parametres() {
     setSettings((s) => ({ ...s, deliveryFeeXof: n }));
   };
 
+  /* ══ LES SEUILS DES PALIERS — 16 septembre 2026 ═════════════════════
+     Ce qui fait monter une cliente d'un palier, lu sur son carnet. Entier ≥ 1 :
+     un zéro ferait monter tout le monde au premier jour. Lus par la fiche,
+     Ma Couronne et la Synthèse (`shared/paliers.ts`). */
+  const seuilsPaliers = seuilsPropres(settings.paliers);
+  const setSeuilPalier = (champ: keyof SeuilsDePalier, raw: string) => {
+    const n = Math.max(1, Math.round(Number(raw) || 0));
+    setSettings((s) => ({ ...s, paliers: { ...seuilsPropres(s.paliers), [champ]: n } }));
+  };
+
   /* Acompte par prestation : la table `depositPctByService` fait foi. On la
      reconstruit une fois à partir des anciens réglages (liste + taux global)
      pour ne pas perdre le paramétrage existant à la bascule. */
@@ -1395,6 +1406,33 @@ export default function Parametres() {
               <span className="sys-row__value">%</span>
             </div>
           </div>
+          {/* ══ LES PALIERS — 16 septembre 2026 ═══════════════════════════
+              Trois nombres, et une règle qui ne redescend jamais. */}
+          {([
+            ['elevationRituels', 'Élévation au Nᵉ rituel honoré', 'ou à N mois de couronne, le premier des deux. Souveraineté au premier acte de Souveraineté honoré, ou à N mois.', 'rituels'],
+            ['elevationMois', 'Élévation à N mois de couronne', 'compté depuis la naissance de sa couronne, quand elle est datée sur la fiche.', 'mois'],
+            ['souveraineteMois', 'Souveraineté à N mois de couronne', 'un acte de Souveraineté honoré l’y mène aussi, plus tôt.', 'mois'],
+          ] as [keyof SeuilsDePalier, string, string, string][]).map(([champ, label, sub, unite]) => (
+            <div className="sys-row" key={champ}>
+              <div>
+                <div className="sys-row__label">{label}</div>
+                <div className="sys-row__sub">{sub}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  className="sys-select"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={seuilsPaliers[champ]}
+                  onChange={(e) => setSeuilPalier(champ, e.target.value)}
+                  style={{ width: 78, textAlign: 'right', fontFamily: 'var(--font-serif)' }}
+                  aria-label={label}
+                />
+                <span className="sys-row__value">{unite}</span>
+              </div>
+            </div>
+          ))}
           <div className="sys-row" style={{ display: 'block' }}>
             <div style={{ marginBottom: 8 }}>
               <div className="sys-row__label">Prestations exigeant un acompte</div>

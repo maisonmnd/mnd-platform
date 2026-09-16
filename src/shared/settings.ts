@@ -14,6 +14,12 @@ export type Automations = {
 };
 
 export type Settings = {
+  /** ══ LES SEUILS DES PALIERS — 16 septembre 2026 ═══════════════════
+      Maquette `maquette-les-trois-paliers.html`. Ce qui fait monter une
+      cliente d'un palier, lu sur son carnet (`shared/paliers.ts`). Absent =
+      les seuils proposés le 16 septembre ; un seuil absurde retombe dessus. */
+  paliers?: Partial<import('./paliers').SeuilsDePalier>;
+
   /* ══ LES RÉGLAGES DU FIL — 14 septembre 2026 ═══════════════════════
      Maquette `public/maquette-rattraper-un-message.html`, validée. Trois
      réglages, et chacun répond à une objection qui viendra du comptoir. */

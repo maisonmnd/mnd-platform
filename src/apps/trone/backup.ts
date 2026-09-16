@@ -75,7 +75,7 @@ const COLLECTIONS: { store: CollStore; label: string }[] = [
   { store: personasStore, label: 'personas' },
   { store: tipsStore, label: 'pourboires' },
   { store: offersStore, label: 'offres' },
-  { store: tiersStore, label: 'paliers du Cercle' },
+  { store: tiersStore, label: 'sceaux du Cercle' },
   { store: pointsHistoryStore, label: 'événements de points' },
   { store: plansStore, label: 'formules d’abonnement' },
   { store: subscribersStore, label: 'abonnées' },

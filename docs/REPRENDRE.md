@@ -2,6 +2,60 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES TROIS PALIERS — 16 septembre 2026, ÉTAPES 1 ET 2 CONSTRUITES
+
+« Comment je peux mieux l'exploiter dans le Trône et faire une vraie
+distinction et un vrai usage, et que le tout soit très clair » (Yéman).
+Maquette `public/maquette-les-trois-paliers.html`, validée avec ses quatre
+arbitrages : **la cliente monte par son carnet** (seuils réglables, jamais de
+descente) ; une main non habilitée **avertit** au rendez-vous ; **les trois
+autres « paliers » changent de nom** ; **Ma Couronne dit son palier** à la
+cliente, avec le pas suivant.
+
+**LE DIAGNOSTIC** : Fondation, Élévation, Souveraineté vivaient sur la seule
+prestation et ne décidaient que du taux de commission. Et le mot « palier »
+servait quatre échelles (l'expérience, les récompenses du Cercle, les seuils de
+locks des Kids, la limite d'envoi Meta) plus l'Académie (« Palier I ·
+L'Initiation »). **Le parti pris : un mot, une échelle, trois portes** — la
+prestation (ce qu'elle exige), la cliente (où en est sa couronne), le maître
+(jusqu'où il est habilité), avec les mêmes trois mots.
+
+**Étape 1, un mot une échelle** : les « paliers » du Cercle et du Foyer
+deviennent **les sceaux** (Cercle.tsx, Ma Couronne, la fiche, la sauvegarde :
+des textes, aucune donnée ne bouge, `RewardTier`/`FoyerTier` gardent leurs
+noms). Pastille `mnd-palier` (ds.css, globale : `vente.css` n'est pas chargée
+sur le Carnet) au Catalogue et dans la modale de rendez-vous ; **filtre par
+palier** au Catalogue, avec le compte. Les seuils de locks et la limite Meta
+n'avaient pas de texte d'écran : rien à renommer. **L'Académie garde ses
+« Palier I/II/III »** : c'est la même échelle, côté main (I = Fondation, II =
+Élévation, III = Souveraineté), à dire à l'étape 3.
+
+**Étape 2, la cliente a un palier** : `shared/paliers.ts`, pur (`verifie-paliers`,
+55 épreuves). `palierDeLaCliente` : Fondation dès le premier rituel honoré ;
+Élévation au Nᵉ rituel OU à N mois de couronne, le premier des deux ;
+Souveraineté au premier acte de Souveraineté honoré OU à N mois. **L'ancienneté
+ne compte que si `crownSince` est daté, et jamais avant le premier rituel vu.
+Un rituel à venir ne compte pas. Elle ne redescend jamais.** Le palier NE SE
+STOCKE PAS, il se lit. Seuils dans `Settings.paliers` (Paramètres, trois
+nombres ≥ 1, `seuilsPropres`). `palierDuCarnet` est le même juge pour la
+fiche (bloc « Sa couronne » en tête du Profil, avec le pas suivant), Ma
+Couronne (Profil, « Où elle en est » + « Le pas suivant » : PAS le tunnel de
+réservation, retiré le 6 août à raison), et la Synthèse (« Les paliers » :
+clientes par palier, montées du mois choisi, rituels honorés du mois par
+palier de l'acte). `pasSuivant` : la première prestation du palier d'au-dessus
+qu'elle n'a pas vécue ; en Souveraineté on approfondit.
+
+**Ce qui ne bouge pas** : le prix (jamais par palier), le calcul de commission
+(la part de l'acte × le taux du palier de l'acte), le persona (QUI elle est ;
+le palier dit OÙ elle en est).
+
+**Étapes 3 et 4, à construire** : l'habilitation du maître (`StaffMember.palier`
+posé par la direction ou par un certificat de l'Académie, l'avertissement à
+l'attribution d'un acte d'un palier supérieur, le Planning, la fiche de paie
+qui lit l'habilitation à côté du taux) ; la Consultation qui dit le palier de
+la tête ET celui de l'acte proposé (aujourd'hui `diag.palier` est celui de la
+prestation recommandée, lu comme un niveau de la personne).
+
 ## LA FIN DE PAQUET — 15 septembre 2026, CONSTRUIT, MODÈLE À APPROUVER
 
 « Il vous reste 2 soins, jusqu'au 12 juin : c'est le message qui rapporte le

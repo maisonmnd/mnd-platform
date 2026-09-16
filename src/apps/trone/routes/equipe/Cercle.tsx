@@ -146,7 +146,7 @@ export default function Cercle() {
   const saveTier = () => {
     const n = parseInt(tierForm.pts, 10);
     /* Un refus se dit — même leçon que les formules, le 28 août. */
-    if (!n || n <= 0) { toast('Posez le seuil du palier.'); return; }
+    if (!n || n <= 0) { toast('Posez le seuil du sceau.'); return; }
     if (!tierForm.serviceId) { toast('Choisissez la prestation offerte.'); return; }
     if (tierKind === 'foyer') {
       if (tierEditId) {
@@ -193,7 +193,7 @@ export default function Cercle() {
         eyebrow="Le Cercle MND · transmission & lignée"
         title="Le Cercle."
         sub={`${branch.name} · les points se rendent en soins.`}
-        actions={<Button variant="copper" onClick={() => openTierNew('cercle')}>+ Nouveau palier</Button>}
+        actions={<Button variant="copper" onClick={() => openTierNew('cercle')}>+ Nouveau sceau</Button>}
       />
 
       {/* Le programme n'attribue RIEN tant que la maison ne l'a pas lancé — pas de
@@ -226,7 +226,7 @@ export default function Cercle() {
           <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>jamais de date d’expiration</div>
         </Card>
         <Card filet="indigo" style={{ padding: 18 }}>
-          <div className="mnd-stat__label">Paliers de récompense</div>
+          <div className="mnd-stat__label">Sceaux de récompense</div>
           <div className="mnd-stat__value" style={{ fontSize: 32 }}>{sortedTiers.length}</div>
           <div className="mnd-muted" style={{ fontSize: 11, marginTop: 6 }}>points → services offerts</div>
         </Card>
@@ -238,7 +238,7 @@ export default function Cercle() {
       </div>
 
       <Tabs<Tab>
-        tabs={[{ k: 'points', l: 'Les paliers' }, { k: 'membres', l: 'Registre des soldes' }, { k: 'offrandes', l: 'Registre des offrandes' }]}
+        tabs={[{ k: 'points', l: 'Les sceaux' }, { k: 'membres', l: 'Registre des soldes' }, { k: 'offrandes', l: 'Registre des offrandes' }]}
         value={tab}
         onChange={setTab}
       />
@@ -324,16 +324,16 @@ export default function Cercle() {
           {/* ── LES PALIERS DU FOYER — la famille, sur sa dépense cumulée ── */}
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '34px 0 12px', borderTop: '1px solid var(--hairline)', paddingTop: 24 }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--color-indigo)' }}>Les paliers du Foyer</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24, color: 'var(--color-indigo)' }}>Les sceaux du Foyer</div>
               <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 2 }}>
                 Franchis par la dépense CUMULÉE de la famille. Le geste s’offre de lui-même dès le seuil passé, sur Ma Couronne comme au comptoir.
               </div>
             </div>
-            <Button variant="ghost" onClick={() => openTierNew('foyer')}>+ Palier Foyer</Button>
+            <Button variant="ghost" onClick={() => openTierNew('foyer')}>+ Sceau du Foyer</Button>
           </div>
           {sortedFoyerTiers.length === 0 ? (
             <div className="mnd-muted" style={{ fontSize: 12.5, border: '1px dashed var(--hairline)', borderRadius: 2, padding: '16px 18px' }}>
-              Aucun palier Foyer encore. Ajoutez-en un : « à {fmtMoney(300000, currency)} cumulés, un soin offert à la maisonnée. »
+              Aucun sceau du Foyer encore. Ajoutez-en un : « à {fmtMoney(300000, currency)} cumulés, un soin offert à la maisonnée. »
             </div>
           ) : (
             <div className="tr-grid tr-grid--3">
@@ -518,7 +518,7 @@ export default function Cercle() {
               <Card className="tre-empty">
                 <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
                 <div className="tre-empty__title">{q ? 'Aucun foyer à ce nom.' : 'Aucun compte famille pour l’instant.'}</div>
-                <div className="tre-empty__sub">Les comptes famille apparaissent ici avec leur dépense cumulée et le palier atteint.</div>
+                <div className="tre-empty__sub">Les comptes famille apparaissent ici avec leur dépense cumulée et le sceau atteint.</div>
               </Card>
             ) : (
               <div className="tre-reg">
@@ -531,10 +531,10 @@ export default function Cercle() {
                         <span className="tre-reg__nom">{f.nom}</span>
                         <span className="tre-reg__meta">
                           {f.palier
-                            ? `Palier « ${serviceName(f.palier.serviceId)} » à offrir à la maisonnée`
+                            ? `Sceau « ${serviceName(f.palier.serviceId)} » à offrir à la maisonnée`
                             : f.prochain
                               ? `encore ${fmtMoney(Math.max(0, f.prochain.seuilXof - f.depense), currency)} avant un geste`
-                              : 'aucun palier Foyer défini'}
+                              : 'aucun sceau du Foyer défini'}
                         </span>
                       </span>
                       <span className="tre-reg__jauge"><Bar pct={pct} /></span>
@@ -608,7 +608,7 @@ export default function Cercle() {
       )}
 
       {tierModal && (
-        <Modal title={tierEditId ? 'Modifier le palier.' : tierKind === 'foyer' ? 'Nouveau palier du Foyer.' : 'Nouveau palier de récompense.'} onClose={() => setTierModal(false)} width={520}>
+        <Modal title={tierEditId ? 'Modifier le sceau.' : tierKind === 'foyer' ? 'Nouveau sceau du Foyer.' : 'Nouveau sceau de récompense.'} onClose={() => setTierModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label={tierKind === 'foyer' ? 'Dépense cumulée du foyer · seuil (F CFA)' : 'Points requis · seuil'}>
               <Input inputMode="numeric" value={tierForm.pts} placeholder={tierKind === 'foyer' ? 'Ex. 300000' : 'Ex. 3000'} onChange={(e) => setTierForm({ ...tierForm, pts: e.target.value.replace(/[^0-9]/g, '') })} />
@@ -626,7 +626,7 @@ export default function Cercle() {
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setTierModal(false)}>Annuler</Button>
               <Button variant="copper" style={{ flex: 1 }} onClick={saveTier} disabled={!tierForm.pts || !tierForm.serviceId}>
-                {tierEditId ? 'Enregistrer le palier' : 'Créer le palier'}
+                {tierEditId ? 'Enregistrer le sceau' : 'Créer le sceau'}
               </Button>
             </div>
           </div>
