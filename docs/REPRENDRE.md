@@ -53,10 +53,14 @@ description) : PASSÉE le 16 septembre (contrôle : « SÍNSIN™ Essentiel · L
 Reprise », « SÍNSIN™ Élaboré · La Reprise Longue Durée » ; les deux fiches Kids
 gardent « La Reprise Essentielle », qui s'accorde avec « Reprise »). NE PAS
 RELANCER. Les maquettes HTML de `public/` gardent leur texte
-d'époque. Les modules vivants de L'Œuvre se renomment dans l'Académie (« Le
-resserrage SÍNSIN™ Essentiel et Élaboré », « La reprise frontale ») pour que
-la phrase se lise comme Yéman l'a écrite ; un module sans article prend
-« du ».
+d'époque. **Migration 0105** renomme les modules VIVANTS de L'Œuvre, index
+pour index (« Le resserrage SÍNSIN™ Essentiel et Élaboré », « La reprise
+frontale », « Les soins et la couleur végétale · YÈKPÈ™ »), pour que la
+phrase se lise mot pour mot comme Yéman l'a écrite : À PASSER, puis rouvrir
+le certificat depuis le Suivi. Un module sans article prend « du ». La
+semence de L'Œuvre (`parcours.ts`, quatre modules, douze séances) n'est pas
+alignée sur la formation vivante : elle ne sert qu'à poser une formation
+neuve.
 
 ## LE CERTIFICAT DIT L'ACADÉMIE, PAS LA SEMENCE — 16 septembre 2026
 
