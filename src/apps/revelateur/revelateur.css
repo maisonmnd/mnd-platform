@@ -138,7 +138,16 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 .carte-porte--cuivre .carte-porte__rang,
 .carte-porte--indigo .carte-porte__rang { color: var(--accent-profond); }
 .carte-porte--ivoire .carte-porte__rang { color: #F6F1E7; opacity: .75; }
-.carte-porte__tete img { height: 26px; width: auto; opacity: .9; }
+/* UN FLEX EN COLONNE ETIRE SES ENFANTS EN LARGEUR — 17 septembre 2026.
+   Le monogramme sortait ecrase, large comme le bandeau et haut de 26 px.
+   La regle de l'image etait pourtant juste (height fixe, width auto) : le
+   coupable est le conteneur. Dans un flex, align-items vaut STRETCH par
+   defaut, et en direction column l'axe transverse est la LARGEUR : l'image
+   s'etirait donc sur toute la carte, sa hauteur restant celle qu'on lui
+   donne. La preuve est a cote : .logo porte align-items: center et son
+   monogramme, avec la meme regle, sort juste. On ne change pas l'alignement
+   du bandeau, qui sert aussi au titre ; l'image se desolidarise seule. */
+.carte-porte__tete img { height: 26px; width: auto; align-self: flex-start; object-fit: contain; opacity: .9; }
 .carte-porte__tete b { font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.1; }
 .carte-porte__rang { position: absolute; top: 14px; right: 16px; font-family: var(--serif); font-size: 15px; color: var(--accent-sombre); letter-spacing: .1em; }
 .carte-porte__corps { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
