@@ -281,6 +281,16 @@ jamais ete ecrits dans le fichier. **La parade** : sonder par la STRUCTURE, le
 numeral, le titre, la position, jamais par une formulation qu'on se rappelle
 avoir employee.
 
+**MEME FAUTE, AUTRE CAUSE.** Chercher `<nav class="nav">` dans une page
+SERVIE a rendu ZERO trois fois de suite, et failli faire croire le menu vide.
+La balise reelle portait un attribut de plus : `<nav class="nav"
+aria-label="Navigation">`. Le motif ne reprenait pas un souvenir de
+formulation, il decrivait un BALISAGE IMAGINE au lieu du balisage ECRIT.
+**La parade** : chercher l'ATTRIBUT DISCRIMINANT seul, `class="nav"`, et lire
+ce qui l'entoure, au lieu d'apparier de memoire une balise entiere. Plus
+generalement, un motif long est une hypothese deguisee : plus il decrit, plus
+il peut se tromper en silence.
+
 **⑦ ET ⑧ SONT LA MEME FAUTE**, et c'est la plus sournoise de la liste : une
 PREUVE PAR L'ABSENCE. Un zero et un silence ressemblent a des reponses, alors
 qu'ils ne disent souvent rien d'autre que « la question a ete mal posee ».
