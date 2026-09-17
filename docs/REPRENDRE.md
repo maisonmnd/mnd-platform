@@ -166,7 +166,7 @@ ferment vraiment une journée sont `mnd_settings.hours`, une exception dans
 et `maxRdvParJourMaitre` valent toujours ZERO, donc sans limite, et cela
 mérite d'être posé maintenant que n'importe qui peut réserver.
 
-## DIX FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
+## ONZE FACONS DE SE TROMPER AVEC UNE MESURE — 17 et 18 septembre 2026
 
 Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,
 deux dans l'autre. Aucun n'etait absurde : tous avaient l'air credibles, et
@@ -268,6 +268,27 @@ meme qui devait etablir un fait, et l'une en verifiant l'autre. C'est la
 morale de toute la section : **l'outil de controle n'est pas au-dessus du
 soupcon**, et une verification qu'on n'a pas verifiee n'est qu'une opinion
 de plus.
+
+**⑪ DEDUIRE UNE POSITION D'UNE SEULE RELATION.** Raisonnement tenu : « mon
+commit est POSTERIEUR a son premier, donc il tombe ENTRE ses deux commits,
+donc ma liste de chemins explicites m'a protege de son fichier reste
+indexe ». Seul le premier maillon etait vrai. **Posterieur a X ne dit rien
+d'anterieur a Y** : il faut les DEUX bornes. Mesure faite ensuite dans les
+deux sens, sa correction precedait mon commit de TRENTE-HUIT SECONDES,
+l'index etait deja vide, et ma liste de chemins n'a rien eu a ecarter. La
+fenetre dangereuse avait dure sept minutes et personne n'y avait commite.
+**La parade** : verifier l'ordre par `git merge-base --is-ancestor` DANS LES
+DEUX SENS, ou par la chaine de parents, jamais par la lecture d'un journal
+ni par le souvenir d'avoir commite « entre les deux ».
+
+**ET UNE MISE EN GARDE QUI VAUT POUR TOUTE LA SECTION** : ce recit-la
+s'auto-recompensait, il finissait par « et ma bonne pratique m'a sauve ».
+Une histoire dont on sort gagnant merite une verification de PLUS, pas une
+de moins. L'autre session l'avait d'ailleurs inscrite en memoire mot pour
+mot avant de la verifier, et une memoire qui traverse les sessions en
+portant une histoire fausse est pire que pas de memoire du tout. La regle
+des chemins explicites reste bonne et se garde ; c'est l'anecdote qui ne la
+demontrait pas.
 
 **CE QUI A FINI PAR MARCHER**, et qui servira au prochain audit CSS : lire
 chaque feuille de `src/`, aplatir les espaces, decouper sur `}`, ne retenir
