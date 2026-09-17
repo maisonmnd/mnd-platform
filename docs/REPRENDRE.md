@@ -2,6 +2,69 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## PLUSIEURS GESTES DANS UNE MEME VENUE — 18 septembre 2026
+
+« J'aimerais avoir la possibilité de réserver plusieurs services à la fois.
+Aussi quand je réserve un entretien je veux les lavage et la reprise de
+racines. Si je choisis faire un soin donc je vois les aqua locks ritual,
+dàndàn » (Yéman). **Deux demandes dans une phrase**, et la seconde était la
+plus importante.
+
+**LE REGROUPEMENT EXISTAIT DEJA.** Relevée en base, la porte Entretien porte
+trente gestes en SIX familles bien nommées : Hydrater purifier reconstruire
+(8), Coloration (8), Les lavages rituels (4), Les reprises de racines (4),
+Entretien la vie (3), Les sorties signature (3). Ce qui manquait n'était pas
+le regroupement, c'était **l'ORDRE** : `groupesDePrestations` finissait par
+`.sort((a, b) => b.items.length - a.items.length)`, un tri par TAILLE. Les
+huit soins et les huit couleurs passaient donc mécaniquement devant les
+quatre lavages et les quatre reprises, et qui venait pour un entretien devait
+faire défiler pour trouver ce pour quoi il était venu. **La leçon** : une
+capture qui montre le haut d'une liste ne prouve pas que la liste est en
+vrac. Relever la base avant de conclure à l'absence de structure.
+
+**CE QUI A ETE CONSTRUIT.** Les familles se plient, la porte ouvre les
+siennes (`FAMILLES_DABORD`, reconnues PAR LE NOM et jamais par l'identifiant,
+leçon du 17 septembre), le reste se plie sans jamais disparaître, « tout ce
+que la porte propose » (Yéman, au sélecteur). Les gestes se cochent, la
+durée et le prix se cumulent, et les heures se recalculent sur le total.
+
+**LE SERVEUR N'A RIEN EU A CHANGER**, et c'est ce qui a rendu le chantier
+court : `demande-submit` accepte `serviceIds` au pluriel depuis le début,
+somme les durées et vérifie fenêtre et chevauchement avec ce total. Il
+plafonne aussi à six par un `slice(0, 6)`. **Ce plafond est désormais dit à
+l'écran** (`PLAFOND_GESTES`) au lieu d'être subi : sans cela le septième geste
+disparaissait sans un mot. Les deux chiffres doivent bouger ensemble.
+
+**TROIS GESTES SANS PRIX FERME.** Les deux abonnements GBÈJÍ™ Cycle de Vie
+et GBÈJÍ™ Fidélité sont à zéro franc en base. `prixDit` rendait une chaîne
+vide, donc rien de faux ne s'affichait ; mais dans un TOTAL CUMULÉ, un zéro
+se fond sans bruit. Le total bascule donc en « à partir de » dès qu'un geste
+n'a pas de prix ferme, et la ligne dit « prix au salon ».
+
+## LES DIMANCHES ET LES LUNDIS ETAIENT DEJA FERMES — 18 septembre 2026
+
+« Les dimanches et les lundis sont fermés, pas de prise de RDV disponibles »
+(Yéman). **Vérifié plutôt que déduit, et rien n'était cassé.**
+
+`mnd_settings.hours` porte bien `closed: true` sur `dim` ET sur `lun`. La
+table de correspondance `JOURS` de `agenda-pur.ts` commence par `dim`, ce qui
+correspond exactement à `getDay()` où zéro vaut dimanche, et la recherche se
+fait **par clé**, `semaine.find((h) => h.key === JOURS[dow])`, jamais par
+rang. Le piège classique du décalage d'un cran n'existe donc pas ici.
+
+**LA PREUVE, ET LA METHODE.** On a fait tourner LA VRAIE fonction du dépôt
+contre LES VRAIS horaires de la base sur les vingt et un jours proposés :
+zéro dimanche et zéro lundi ouverts. C'est la seule façon de répondre à ce
+genre de signalement. Un raisonnement sur le code aurait donné la même
+réponse, mais sans la preuve, et la journée du 17 a montré ce que valent les
+conclusions non vérifiées.
+
+**A RETENIR POUR LE PROCHAIN SIGNALEMENT D'HORAIRES** : les trois leviers qui
+ferment vraiment une journée sont `mnd_settings.hours`, une exception dans
+`mnd_horaires_exceptions`, et un blocage. Les plafonds `maxRdvParJourMaison`
+et `maxRdvParJourMaitre` valent toujours ZERO, donc sans limite, et cela
+mérite d'être posé maintenant que n'importe qui peut réserver.
+
 ## QUATRE FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 septembre 2026
 
 Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,

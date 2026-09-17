@@ -383,4 +383,53 @@ footer .logo img { height: 34px; }
 .merci p { max-width: 52ch; color: var(--texte-doux); }
 .erreur { color: var(--accent-profond); font-size: 13.5px; }
 
+/* PLUSIEURS GESTES DANS UNE MEME VENUE — 18 septembre 2026. « J'aimerais
+   avoir la possibilite de reserver plusieurs services a la fois » (Yeman).
+   Les familles se plient, les gestes se cochent, et la Maison additionne.
+
+   LA GARDE SE POSE A CHAQUE NIVEAU, sans exception : min-width: 0 ne se
+   transmet pas d'une grille a sa fille. Chaque conteneur ajoute ici porte
+   donc la sienne, et tout ce qui peut s'allonger, un nom de geste, une
+   ligne de recapitulatif, peut se couper. Seuls la duree et le prix gardent
+   leur nowrap : ils se lisent d'un bloc. */
+.famille__tete { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; margin-bottom: 10px; padding: 12px 14px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond-2); border: 1px solid var(--filet); border-radius: 4px; transition: border-color var(--t), background var(--t); }
+.famille__tete:hover { border-color: var(--accent); background: var(--accent-clair); }
+.famille__tete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.famille__nom { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-family: var(--serif); font-size: 19px; }
+.famille__pour { display: block; font-family: var(--sans); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); margin-bottom: 2px; }
+.famille__compte { flex: 0 0 auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+.famille__chevron { flex: 0 0 auto; width: 9px; height: 9px; border-right: 1px solid var(--texte-doux); border-bottom: 1px solid var(--texte-doux); transform: rotate(45deg); transition: transform var(--t); }
+.famille.est-depliee .famille__chevron { transform: rotate(-135deg); }
+/* La famille que la porte ouvre se signale, sans crier. */
+.famille.de-la-porte .famille__tete { border-color: rgba(185, 122, 74, .45); }
+
+/* LA CASE A COCHER. Elle est dessinee, jamais native : le geste tout entier
+   est un bouton, et un input dedans capterait le clic. `aria-pressed` porte
+   l'etat pour qui n'a pas les yeux sur la case. */
+.geste-choix .case { flex: 0 0 auto; align-self: center; position: relative; width: 17px; height: 17px; border: 1px solid var(--texte-doux); border-radius: 2px; background: var(--carte); transition: background var(--t), border-color var(--t); }
+.geste-choix.est-choisi .case { background: var(--accent); border-color: var(--accent); }
+.geste-choix.est-choisi .case::after { content: ''; position: absolute; left: 5px; top: 1px; width: 4px; height: 9px; border-right: 1.5px solid var(--plein-texte); border-bottom: 1.5px solid var(--plein-texte); transform: rotate(42deg); }
+.geste-choix .au-salon { color: var(--texte-doux); font-style: italic; }
+/* Au septieme geste, le serveur refuserait : on le dit au lieu de le subir. */
+.geste-choix.est-ferme { opacity: .45; cursor: not-allowed; }
+.geste-choix.est-ferme:hover { border-color: var(--filet); background: var(--fond); }
+
+/* LE RECAPITULATIF. Ce que la visiteuse emporte, et ce que cela fait. */
+.panier { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; min-width: 0; }
+.panier > * { min-width: 0; }
+.panier__ligne { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--filet); }
+.panier__quoi { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 14.5px; color: var(--titre); }
+.panier__combien { flex: 0 0 auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+.panier__oter { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--texte-doux); font-size: 18px; line-height: 1; transition: color var(--t); }
+.panier__oter:hover { color: var(--accent-profond); }
+.panier__oter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.totaux { display: grid; gap: 6px; min-width: 0; padding-top: 14px; }
+.totaux > * { min-width: 0; }
+.total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; margin: 0; }
+.total span { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--texte-doux); }
+.total b { font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--titre); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.total b em { font-style: normal; font-family: var(--sans); font-size: 12.5px; color: var(--texte-doux); letter-spacing: .04em; }
+.legende.avertit { margin-top: 12px; padding: 9px 11px; background: var(--accent-voile); border-left: 2px solid var(--accent); color: var(--accent-profond); }
+
 @media (prefers-reduced-motion: reduce) { *, .sortie, .merci, .venir { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } }

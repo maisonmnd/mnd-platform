@@ -248,12 +248,50 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
   });
 }
 
+/* SIX GESTES AU PLUS DANS UNE MÊME VENUE — 18 septembre 2026.
+
+   Ce n’est pas une idée d’écran : `demande-submit` applique déjà ce plafond
+   par un `slice(0, 6)` avant d’écrire. Le dire ici, et le dire à la visiteuse,
+   vaut mieux que de la laisser cocher un septième geste que le serveur
+   retirerait sans un mot. Les deux chiffres doivent bouger ensemble. */
+export const PLAFOND_GESTES = 6;
+
+/* CE QUE LA PORTE OUVRE D’ABORD — 18 septembre 2026.
+
+   « Quand je réserve un entretien je veux les lavage et la reprise de
+   racines. Si je choisis faire un soin donc je vois les aqua locks ritual,
+   dàndàn » (Yéman). Les familles existaient déjà et portaient leurs noms ;
+   ce qui manquait, c’était leur ORDRE. Elles étaient rangées de la plus
+   fournie à la plus maigre, si bien que les huit soins et les huit couleurs
+   passaient devant les quatre lavages et les quatre reprises. Une visiteuse
+   venue pour un entretien devait faire défiler pour trouver ce pour quoi
+   elle était venue.
+
+   ON RANGE DONC PAR INTENTION. La porte ouvre ses familles, le reste se plie
+   sans jamais disparaître : « tout ce que la porte propose » (Yéman, au
+   sélecteur). ON RECONNAÎT PAR LE NOM, pas par l’identifiant : la leçon du
+   17 septembre, où le site cherchait une catégorie que la Maison avait
+   renommée et rendait une page vide. Un nom qui change fait perdre la
+   priorité, jamais la famille. */
+const FAMILLES_DABORD: Readonly<Partial<Record<Besoin, readonly RegExp[]>>> = {
+  entretien: [/lavage|shampoing/i, /racine|reprise/i],
+};
+
+export type GroupeDeGestes = {
+  id: string;
+  titre: string;
+  items: PrestationPublique[];
+  /** La porte l’ouvre d’emblée : c’est ce pour quoi la visiteuse est venue. */
+  deLaPorte: boolean;
+};
+
 /** Les mêmes, rangées par famille : une liste de trente gestes à plat ne se
     lit pas, la même par familles se parcourt d'un regard. */
 export function groupesDePrestations(
   agenda: AgendaDeLaMaison,
   prestations: readonly PrestationPublique[],
-): { titre: string; items: PrestationPublique[] }[] {
+  besoin: Besoin = 'inconnu',
+): GroupeDeGestes[] {
   const nom = (id: string): string =>
     agenda.categories.find((c) => c.id === id)?.label ?? 'Les autres gestes';
   const par = new Map<string, PrestationPublique[]>();
@@ -261,7 +299,17 @@ export function groupesDePrestations(
     const cle = s.categoryId;
     par.set(cle, [...(par.get(cle) ?? []), s]);
   }
+  const dabord = FAMILLES_DABORD[besoin] ?? [];
+  /* Le rang d’une famille : sa place dans l’intention de la porte, et
+     `dabord.length` pour toutes celles qui n’y figurent pas. */
+  const rang = (titre: string): number => {
+    const i = dabord.findIndex((r) => r.test(titre));
+    return i < 0 ? dabord.length : i;
+  };
   return [...par.entries()]
-    .map(([cle, items]) => ({ titre: nom(cle), items }))
-    .sort((a, b) => b.items.length - a.items.length);
+    .map(([cle, items]) => ({ cle, titre: nom(cle), items }))
+    .map(({ cle, titre, items }) => ({ id: cle, titre, items, deLaPorte: rang(titre) < dabord.length }))
+    /* À intention égale, la famille la plus fournie d’abord : c’est l’ordre
+       qui valait pour toutes avant le 18 septembre, et il reste bon ici. */
+    .sort((a, b) => (rang(a.titre) - rang(b.titre)) || (b.items.length - a.items.length));
 }
