@@ -166,7 +166,7 @@ ferment vraiment une journée sont `mnd_settings.hours`, une exception dans
 et `maxRdvParJourMaitre` valent toujours ZERO, donc sans limite, et cela
 mérite d'être posé maintenant que n'importe qui peut réserver.
 
-## HUIT FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
+## DIX FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
 
 Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,
 deux dans l'autre. Aucun n'etait absurde : tous avaient l'air credibles, et
@@ -247,6 +247,27 @@ PREUVE PAR L'ABSENCE. Un zero et un silence ressemblent a des reponses, alors
 qu'ils ne disent souvent rien d'autre que « la question a ete mal posee ».
 Avant de conclure de ce qu'on ne voit pas, verifier qu'on regardait au bon
 endroit.
+
+**⑨ UNE ETIQUETTE PRE-ECRITE AFFIRME CE QU'ON ESPERE.** Une commande de
+controle imprimait « (vide au-dessus = arbre propre) » juste sous une ligne
+qui disait `A src/shared/offres-pur.ts`. L'etiquette avait ete tapee AVANT
+d'avoir vu la sortie, et elle a failli faire passer au travers un fichier
+reste indexe, qui serait parti dans le commit de l'AUTRE session. **La
+parade** : ne jamais pre-ecrire la conclusion dans la commande qui doit
+l'etablir. Afficher les faits nus, et juger apres.
+
+**⑩ UNE CLASSE DE CARACTERES MULTI-OCTETS APPARIE OCTET PAR OCTET.** Un
+`grep -c "^**[⑦⑧]"` a rendu CINQUANTE ET UN pour deux entrees. Les
+numeraux cercles sont multi-octets en UTF-8, `grep` apparie leurs octets
+isolement, et la classe attrape donc tous les autres numeraux du fichier.
+**La parade** : sonder sur des chaines ASCII pures, jamais sur une classe de
+caracteres non ASCII.
+
+**⑨ ET ⑩ SE SONT PRODUITES DANS UNE COMMANDE DE VERIFICATION**, celle-la
+meme qui devait etablir un fait, et l'une en verifiant l'autre. C'est la
+morale de toute la section : **l'outil de controle n'est pas au-dessus du
+soupcon**, et une verification qu'on n'a pas verifiee n'est qu'une opinion
+de plus.
 
 **CE QUI A FINI PAR MARCHER**, et qui servira au prochain audit CSS : lire
 chaque feuille de `src/`, aplatir les espaces, decouper sur `}`, ne retenir
