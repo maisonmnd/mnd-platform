@@ -43,6 +43,13 @@ const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVIC
 const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
 const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
 
+/* LA CONSULTATION EN LIGNE SE PAIE AVANT D'EXISTER — 17 septembre 2026.
+   Aucune ligne à relire : la barre est celle de la Maison, tenue ICI, et
+   jamais par le corps de la requête. Le tunnel affiche le même montant
+   (FEE_XOF, consultation/data.ts) ; le changer se fait aux deux endroits, et
+   ce secret optionnel évite de redéployer pour un tarif. */
+const CONSULTATION_FEE_XOF = Math.round(Number(Deno.env.get('CONSULTATION_FEE_XOF') ?? 15000));
+
 type KkiaTransaction = {
   status?: string;
   amount?: number;
@@ -85,6 +92,8 @@ export async function applyPayment(admin: any, opts: {
   subId?: string;
   /** L'inscription à l'Académie réglée, quand c'en est une (17 septembre). */
   inscriptionId?: string;
+  /** La consultation en ligne réglée, quand c'en est une (17 septembre). */
+  consultationId?: string;
 }): Promise<void> {
   const amount = Math.round(Number(opts.tx.amount ?? 0));
   const fees = Math.round(Number(opts.tx.fees ?? 0));
@@ -175,6 +184,21 @@ export async function applyPayment(admin: any, opts: {
     }
   }
 
+  /* 2quater) LA CONSULTATION EN LIGNE — 17 septembre 2026. Le paiement précède
+     le questionnaire : la ligne n'existe pas encore quand on vérifie, et on ne
+     la crée PAS ici (le Trône y lit un nom, une ville ; une ligne vide le
+     ferait trébucher). Si elle existe déjà (rejeu, webhook tardif), on y pose
+     le règlement ; sinon `push-notify` (tunnel-submit) relit le registre des
+     paiements par `partnerId` au moment du dépôt. */
+  if (opts.consultationId) {
+    const { data: row } = await admin
+      .from('consultations_queue').select('id, data').eq('id', opts.consultationId).maybeSingle();
+    if (row) {
+      const next = { ...(row.data ?? {}), paidXof: amount, transactionId: opts.transactionId, payeLe: at, reglement: 'kkiapay' };
+      await admin.from('consultations_queue').update({ data: next }).eq('id', opts.consultationId);
+    }
+  }
+
   /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
         4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
         demandé, entier. Les inscrire en dépense sortirait d'une caisse un
@@ -186,7 +210,7 @@ export async function applyPayment(admin: any, opts: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { transactionId, apptId, subId, inscriptionId, expectedXof, branchId, clientId } = await req.json();
+    const { transactionId, apptId, subId, inscriptionId, consultationId, expectedXof, branchId, clientId } = await req.json();
     if (!transactionId || !branchId) return json({ error: 'bad_request' }, 400);
 
     const tx = await fetchTransaction(String(transactionId));
@@ -239,6 +263,9 @@ Deno.serve(async (req) => {
         .from('academie_demandes').select('data').eq('id', String(inscriptionId)).maybeSingle();
       expected = Math.round(Number(dem?.data?.acompteXof ?? 0));
     }
+    /* LA CONSULTATION EN LIGNE — 17 septembre 2026. Pas de ligne à relire :
+       la barre est celle de la Maison, tenue par le serveur. */
+    if (consultationId) expected = CONSULTATION_FEE_XOF;
     if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
 
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
@@ -254,11 +281,12 @@ Deno.serve(async (req) => {
       /* La référence porte l'abonnement quand il n'y a pas de rendez-vous :
          c'est elle qui relie le paiement à ce qu'il règle, au registre comme
          au comptoir. */
-      partnerId: String(apptId || subId || inscriptionId || ''),
+      partnerId: String(apptId || subId || inscriptionId || consultationId || ''),
       branchId: String(branchId),
       clientId: clientId ? String(clientId) : undefined,
       subId: subId ? String(subId) : undefined,
       inscriptionId: inscriptionId ? String(inscriptionId) : undefined,
+      consultationId: consultationId ? String(consultationId) : undefined,
     });
 
     return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });

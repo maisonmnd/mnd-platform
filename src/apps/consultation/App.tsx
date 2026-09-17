@@ -7,7 +7,8 @@ import { COUNTRIES, currencyByCode } from '../../shared/geo';
 import { consultationsQueueStore, type OnlineConsultation } from '../../shared/bridges';
 import { pushNotifyStaff } from '../../shared/push';
 import { supabase } from '../../shared/supabase';
-import { appointmentsStore, type Appointment } from '../../shared/agenda';
+import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
+import { branchesStore } from '../../shared/branches';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
   ANALYSE_LINES, ANALYSE_STEPS, CURRENCY_CHOICES, DOW_NAMES, DOW_SHORT, ETAT_CREATION, ETAT_SOS,
@@ -21,12 +22,22 @@ import {
 /* La Consultation — le rite d'entrée mondial de la Maison MND.
    Huit temps numérotés, du seuil à la porte du salon. */
 
-/* Déverrouillage persisté localement (l'accès survit au rechargement).
-   PRODUCTION : le paiement réel passe par le widget KkiaPay — le succès renvoie
-   un signal à l'écran ET un webhook serveur marque la consultation payée ;
-   ici, le succès est simulé côté client (1,5 s de traitement). */
-type Access = { paid: boolean; ref: string | null; at: string | null };
-const accessStore = createStore<Access>('mnd_consultation_access', { paid: false, ref: null, at: null });
+/* L'ACCÈS, PERSISTÉ LOCALEMENT (il survit au rechargement) — 17 septembre 2026.
+   « Brancher le vrai paiement KkiaPay » (Yéman). Le widget encaisse, puis
+   `kkiapay-verify` redemande la vérité à KkiaPay et contrôle le montant :
+   `paid` ne devient vrai QUE sur ce verdict. Jusqu'ici le succès était SIMULÉ
+   côté navigateur (1,5 s), et la file recevait « 15 000 F crédités » pour de
+   l'argent que personne n'avait reçu.
+   `consultationId` est tiré AVANT le paiement : c'est la référence que porte
+   la transaction (`partnerId`), et l'identifiant de la ligne déposée à la fin ;
+   le serveur relie les deux sans croire le navigateur. */
+type Reglement = 'kkiapay' | 'declare' | 'aucun';
+type Access = {
+  paid: boolean; ref: string | null; at: string | null;
+  consultationId: string | null; amountXof: number; reglement: Reglement;
+};
+const ACCES_VIDE: Access = { paid: false, ref: null, at: null, consultationId: null, amountXof: 0, reglement: 'aucun' };
+const accessStore = createStore<Access>('mnd_consultation_access', ACCES_VIDE);
 
 type Scene =
   | 'seuil' | 'acces'
@@ -137,12 +148,11 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [tried, setTried] = useState<Record<string, boolean>>({});
 
-  // paywall
-  const [payTab, setPayTab] = useState<'momo' | 'paypal' | 'card'>('momo');
+  // l'accès
   const [momoOp, setMomoOp] = useState('MTN');
   const [payPhone, setPayPhone] = useState('');
-  const [card, setCard] = useState({ num: '', exp: '', cvc: '' });
   const [paying, setPaying] = useState(false);
+  const [payErreur, setPayErreur] = useState<string | null>(null);
 
   // analyse & projection
   const [analysePct, setAnalysePct] = useState(0);
@@ -158,11 +168,12 @@ export default function App() {
   const today = useMemo(() => new Date(), []);
   const months = useMemo(() => monthsFrom(today, 2), [today]);
   const toastTimer = useRef<number | undefined>(undefined);
-  const payTimer = useRef<number | undefined>(undefined);
 
   const sos = parcours === 'sos';
   const pathLabel = sos ? 'SOS Locks' : 'Création';
   const fee = fmtMoney(FEE_XOF, cur);
+  /* Le crédit sur la première séance n'existe que si le serveur a vu l'argent. */
+  const credit = access.paid ? access.amountXof : 0;
   const diag = useMemo(() => computeDiag(answers, parcours), [answers, parcours]);
   const prenom = answers.nom.trim().split(/\s+/)[0] || '';
 
@@ -180,7 +191,6 @@ export default function App() {
 
   useEffect(() => () => {
     window.clearTimeout(toastTimer.current);
-    window.clearTimeout(payTimer.current);
   }, []);
 
   const setA = (patch: Partial<Answers>) => setAnswers((a) => ({ ...a, ...patch }));
@@ -229,31 +239,52 @@ export default function App() {
     setAnswers((a) => ({ ...a, etat: null, goalLen: null, inspo: null, sosGoals: [], sosZones: [], horizon: null }));
     setTried({});
     if (access.paid) {
-      fire(`Accès déjà réglé — vos ${fee} restent crédités sur votre premier rituel.`);
+      fire(`Accès déjà réglé, vos ${fee} restent crédités sur votre premier rituel.`);
       go('portrait');
     } else {
-      setPayTab('momo');
+      setPayErreur(null);
       go('acces');
     }
   };
 
-  /* ---- paiement simulé ---- */
-  const payNow = () => {
+  /* ---- le paiement, vérifié par le serveur ---- */
+  /* La branche se lit dans la table des branches, lisible sans compte : la
+     Maison phare, sinon la première. Plus jamais un identifiant écrit en dur. */
+  const branchId = branchesStore.get().find((b) => b.flagship)?.id ?? branchesStore.get()[0]?.id ?? 'maison';
+  const consultationId = access.consultationId ?? uid();
+  const payNow = async () => {
     if (paying) return;
-    if (payTab === 'momo' && payPhone.replace(/\D/g, '').length < 8) {
-      fire('Renseignez le numéro Mobile Money à débiter.');
-      return;
-    }
+    if (!kkiapayEnabled()) { fire('Le paiement en ligne n’est pas encore ouvert.'); return; }
     setPaying(true);
-    fire('KkiaPay · transaction en cours…');
-    window.clearTimeout(payTimer.current);
-    payTimer.current = window.setTimeout(() => {
-      setPaying(false);
-      // PRODUCTION : c'est le webhook serveur KkiaPay qui marque l'accès payé.
-      setAccess({ paid: true, ref: 'MND-' + uid().toUpperCase(), at: new Date().toISOString() });
-      fire('Paiement confirmé — la consultation est déverrouillée.');
+    setPayErreur(null);
+    setAccess({ ...access, consultationId });
+    try {
+      const { transactionId } = await payWithKkiapay({
+        amountXof: FEE_XOF,
+        partnerId: consultationId,
+        branchId,
+        phone: payPhone.trim() ? `${answers.dial}${payPhone}` : undefined,
+        name: answers.nom.trim() || undefined,
+      });
+      /* Le serveur relit la barre de la Maison (jamais ce corps de requête),
+         enregistre le paiement, et c'est LUI qui dit « reçu ». */
+      const v = await verifyDeposit({ transactionId, apptId: '', consultationId, expectedXof: FEE_XOF, branchId });
+      if (!v.ok) throw new Error('Vérification impossible pour l’instant, gardez votre référence.');
+      setAccess({ paid: true, ref: transactionId, at: new Date().toISOString(), consultationId, amountXof: v.amountXof, reglement: 'kkiapay' });
+      fire('Paiement confirmé, la consultation est déverrouillée.');
       go('portrait');
-    }, 1500);
+    } catch (e) {
+      setPayErreur(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+    } finally {
+      setPaying(false);
+    }
+  };
+  /* Sans paiement vérifié, la consultation continue quand même : la Maison
+     rapproche un versement Mobile Money déclaré, ou encaisse au salon. Rien
+     n'est « crédité » tant que le serveur ne l'a pas dit. */
+  const poursuivreSansPaiement = (reglement: Reglement) => {
+    setAccess({ ...ACCES_VIDE, consultationId, reglement });
+    go('portrait');
   };
 
   const copyUssd = async () => {
@@ -325,7 +356,7 @@ export default function App() {
       return;
     }
     const consultation: OnlineConsultation = {
-      id: uid(),
+      id: consultationId,
       createdAt: new Date().toISOString(),
       parcours,
       client: {
@@ -355,7 +386,13 @@ export default function App() {
       },
       diagnostic: { palier: diag.palier, palierTete: diag.palierTete, scores: { ...diag.scores } },
       reservation: { mode, date: selDate.iso, time: selTime },
-      paidXof: FEE_XOF,
+      /* Le montant réglé est posé PAR LE SERVEUR (`push-notify` relit le
+         registre des paiements par `partnerId`) ; la valeur locale ne sert
+         qu'au pont même-navigateur vers le Trône. */
+      paidXof: credit,
+      reglement: access.reglement,
+      transactionId: access.ref ?? undefined,
+      branchId,
       status: 'nouvelle',
     };
     consultationsQueueStore.set((q) => [consultation, ...q]);
@@ -391,22 +428,10 @@ export default function App() {
       }
     })();
 
-    if (mode === 'salon') {
-      const appt: Appointment = {
-        id: uid(),
-        branchId: 'cotonou-flagship',
-        clientId: 'consult-' + consultation.id,
-        serviceIds: [diag.service.id],
-        date: selDate.iso,
-        time: selTime,
-        master: diag.service.master,
-        status: 'en attente',
-        depositXof: FEE_XOF,
-        note: `Consultation en ligne · ${pathLabel} · ${consultation.client.name}`,
-        source: 'consultation',
-      };
-      appointmentsStore.set((list) => [...list, appt]);
-    }
+    /* Plus aucun rendez-vous n'est écrit d'ici (17 septembre 2026) : sous
+       session anonyme la RLS le refusait de toute façon, et la branche y
+       était inventée. Le créneau choisi voyage dans `reservation` ; c'est le
+       Trône qui pose le rendez-vous, depuis la file, quand la Maison rappelle. */
     setBooked(true);
     go('bienvenue');
   };
@@ -422,9 +447,9 @@ export default function App() {
     setSelTime(null);
     setBooked(false);
     setPayPhone('');
-    setCard({ num: '', exp: '', cvc: '' });
-    // Un nouveau rite requiert un nouvel accès — le crédit précédent est déjà scellé au dossier transmis.
-    setAccess({ paid: false, ref: null, at: null });
+    setPayErreur(null);
+    // Un nouveau rite requiert un nouvel accès : le crédit précédent est déjà scellé au dossier transmis.
+    setAccess(ACCES_VIDE);
     go('seuil');
   };
 
@@ -564,8 +589,8 @@ export default function App() {
                 <div className="lc-eyebrow">{pathLabel} · L’accès à la Maison</div>
                 <h2 className="lc-h2">Déverrouillez votre consultation.</h2>
                 <p className="lc-intro lc-acces__intro">
-                  La consultation souveraine se règle à l’entrée — <span className="lc-strong">{fee}</span>,
-                  intégralement crédités sur votre premier rituel au salon.
+                  La consultation souveraine se règle à l’entrée : <span className="lc-strong">{fee}</span>,
+                  crédités sur votre premier rituel au salon dès que le paiement est vérifié.
                 </p>
               </div>
 
@@ -575,7 +600,7 @@ export default function App() {
                     <span className="lc-pay__k">k</span>
                     <span>
                       <span className="lc-pay__kkia">KkiaPay</span>
-                      <span className="lc-pay__secure">Paiement sécurisé</span>
+                      <span className="lc-pay__secure">Mobile Money · carte · vérifié par la Maison</span>
                     </span>
                   </div>
                   <div className="lc-pay__amount">
@@ -584,112 +609,60 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="lc-pay__tabs">
-                  {([
-                    ['momo', 'Mobile Money', 'MTN · Moov · Celtis'],
-                    ['paypal', 'PayPal', 'diaspora'],
-                    ['card', 'Carte', 'Visa · MC'],
-                  ] as const).map(([k, n, sub]) => (
-                    <button type="button" key={k} className={`lc-pay__tab${payTab === k ? ' is-on' : ''}`} onClick={() => setPayTab(k)}>
-                      <span className="lc-pay__tabn">{n}</span>
-                      <span className="lc-pay__tabsub">{sub}</span>
-                    </button>
-                  ))}
-                </div>
-
                 <div className="lc-pay__body">
-                  {payTab === 'momo' && (
-                    <div className="lc-momo">
-                      <div className="lc-momo__left">
-                        <div className="lc-qr">
-                          <QrBlock />
-                        </div>
-                        <div className="lc-momo__acct">Compte marchand MND · n° {MOMO_ACCOUNT}</div>
+                  <div className="lc-momo">
+                    <div className="lc-momo__left">
+                      <div className="lc-qr">
+                        <QrBlock />
                       </div>
-                      <div className="lc-momo__right">
-                        <div className="lc-label lc-label--copper">Mobile Money · {momoOp}</div>
-                        <div className="lc-momo__ops">
-                          {['MTN', 'Moov', 'Celtis'].map((op) => (
-                            <Chip key={op} on={momoOp === op} onClick={() => setMomoOp(op)}>{op}</Chip>
-                          ))}
-                        </div>
-                        <div className="lc-momo__phone">
-                          <span className="lc-momo__dial">+229</span>
-                          <input
-                            className="lc-input lc-momo__num"
-                            placeholder="01 97 00 00 00"
-                            inputMode="tel"
-                            value={payPhone}
-                            onChange={(e) => setPayPhone(e.target.value)}
-                          />
-                        </div>
-                        <div className="lc-momo__or">Scannez le QR, ou composez sur votre téléphone :</div>
-                        <button type="button" className="lc-ussd" onClick={copyUssd} title="Copier la syntaxe">
-                          <span className="lc-ussd__code">{MOMO_USSD}</span>
-                          <span className="lc-ussd__copy">Copier</span>
-                        </button>
-                      </div>
+                      <div className="lc-momo__acct">Compte marchand MND · n° {MOMO_ACCOUNT}</div>
                     </div>
-                  )}
-
-                  {payTab === 'paypal' && (
-                    <div className="lc-paypal">
-                      <div className="lc-label">Pour la diaspora</div>
-                      <div className="lc-paypal__btn">
-                        <span className="lc-paypal__pay">Pay</span>
-                        <span className="lc-paypal__pal">Pal</span>
+                    <div className="lc-momo__right">
+                      <div className="lc-label lc-label--copper">Mobile Money · {momoOp}</div>
+                      <div className="lc-momo__ops">
+                        {['MTN', 'Moov', 'Celtis'].map((op) => (
+                          <Chip key={op} on={momoOp === op} onClick={() => setMomoOp(op)}>{op}</Chip>
+                        ))}
                       </div>
-                      <p className="lc-paypal__note">
-                        Réglez en EUR, USD ou CAD depuis votre compte PayPal — la confiance de la diaspora, où qu’elle vive.
-                      </p>
-                    </div>
-                  )}
-
-                  {payTab === 'card' && (
-                    <div className="lc-card">
-                      <div className="lc-card__head">
-                        <span className="lc-label">Carte bancaire</span>
-                        <span className="lc-card__nets">
-                          <span className="lc-card__net">VISA</span>
-                          <span className="lc-card__net">Mastercard</span>
-                        </span>
-                      </div>
-                      <input
-                        className="lc-input lc-card__num"
-                        placeholder="Numéro de carte"
-                        inputMode="numeric"
-                        value={card.num}
-                        onChange={(e) => setCard((c) => ({ ...c, num: e.target.value }))}
-                      />
-                      <div className="lc-card__row">
+                      <div className="lc-momo__phone">
+                        <span className="lc-momo__dial">{answers.dial}</span>
                         <input
-                          className="lc-input"
-                          placeholder="Exp. MM / AA"
-                          value={card.exp}
-                          onChange={(e) => setCard((c) => ({ ...c, exp: e.target.value }))}
-                        />
-                        <input
-                          className="lc-input"
-                          placeholder="CVC"
-                          inputMode="numeric"
-                          value={card.cvc}
-                          onChange={(e) => setCard((c) => ({ ...c, cvc: e.target.value }))}
+                          className="lc-input lc-momo__num"
+                          inputMode="tel"
+                          aria-label="Numéro Mobile Money à débiter"
+                          value={payPhone}
+                          onChange={(e) => setPayPhone(e.target.value)}
                         />
                       </div>
-                      <div className="lc-card__note">Visa & Mastercard du monde entier, traités par KkiaPay. 3-D Secure activé.</div>
+                      <div className="lc-momo__or">Vous préférez régler vous-même ? Scannez le QR, ou composez :</div>
+                      <button type="button" className="lc-ussd" onClick={copyUssd} title="Copier la syntaxe">
+                        <span className="lc-ussd__code">{MOMO_USSD}</span>
+                        <span className="lc-ussd__copy">Copier</span>
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 <div className="lc-pay__foot">
-                  <button type="button" className={`lc-pay__btn${paying ? ' is-paying' : ''}`} onClick={payNow}>
-                    {paying ? 'Transaction en cours…' : `Payer ${fee}`}
-                  </button>
+                  {kkiapayEnabled() ? (
+                    <button type="button" className={`lc-pay__btn${paying ? ' is-paying' : ''}`} onClick={() => void payNow()} disabled={paying}>
+                      {paying ? 'Vérification en cours…' : `Payer ${fee} avec KkiaPay`}
+                    </button>
+                  ) : (
+                    <button type="button" className="lc-pay__btn" onClick={() => poursuivreSansPaiement('aucun')}>
+                      Poursuivre, je règle à la Maison
+                    </button>
+                  )}
+                  {payErreur && <div className="lc-hint" style={{ marginTop: 10, color: 'var(--color-copper)' }}>{payErreur}</div>}
                   <div className="lc-pay__webhook">
                     <span className="lc-dot lc-dot--ok" />
-                    À la réussite, KkiaPay renvoie le signal à l’écran (accès débloqué instantanément) et notifie
-                    nos serveurs par webhook — aucun SMS à lire, partout, à toute heure.
+                    {kkiapayEnabled()
+                      ? 'À la réussite, la Maison vérifie la transaction auprès de KkiaPay avant d’ouvrir la consultation.'
+                      : 'Le paiement en ligne n’est pas encore ouvert : la consultation se règle à la Maison.'}
                   </div>
+                  <button type="button" className="lc-back" style={{ marginTop: 12 }} onClick={() => poursuivreSansPaiement('declare')}>
+                    J’ai réglé par Mobile Money moi-même, poursuivre →
+                  </button>
                 </div>
               </div>
 
@@ -1215,7 +1188,7 @@ export default function App() {
                     {fmtMoney(diag.service.priceXof + kitOf().reduce((s, k) => s + k.priceXof, 0), cur)}
                   </span>
                 </div>
-                <div className="lc-prescription__credit">Vos {fee} d’accès sont déjà crédités sur la première séance.</div>
+                {access.paid && <div className="lc-prescription__credit">Vos {fee} d’accès sont déjà crédités sur la première séance.</div>}
               </div>
             </div>
 
@@ -1234,8 +1207,8 @@ export default function App() {
             <div className="lc-eyebrow">Dernière étape · la porte s’ouvre · Étape 8 sur 8</div>
             <h2 className="lc-h2">Réservez. Entrez.</h2>
             <p className="lc-intro" style={{ maxWidth: 600 }}>
-              Les frais de consultation sont <span className="lc-strong">intégralement crédités</span> sur votre
-              première séance. Vous arrivez attendue, votre protocole déjà entre les mains du Maître.
+              {access.paid && <>Les frais de consultation sont <span className="lc-strong">intégralement crédités</span> sur votre première séance. </>}
+              Vous arrivez attendue, votre protocole déjà entre les mains du Maître.
             </p>
 
             <div className="lc-resa">
@@ -1334,8 +1307,8 @@ export default function App() {
                 <div className="lc-panel">
                   <div className="lc-label lc-panel__title">Le solde</div>
                   <div className="lc-hint" style={{ marginBottom: 0 }}>
-                    Les frais de consultation sont déjà réglés via KkiaPay et crédités à 100 %. Le solde de la
-                    prestation se règle {mode === 'visio' ? 'à la séance' : 'au salon'} — carte, mobile money ou
+                    {access.paid ? 'Les frais de consultation sont réglés via KkiaPay et crédités à 100 %. ' : ''}
+                    Le solde de la prestation se règle {mode === 'visio' ? 'à la séance' : 'au salon'} : carte, mobile money ou
                     espèces, comme il vous plaira.
                   </div>
                 </div>
@@ -1358,21 +1331,23 @@ export default function App() {
                     <span>Première séance</span>
                     <span>{fmtMoney(diag.service.priceXof, cur)}</span>
                   </div>
-                  <div className="lc-summary__mrow lc-summary__mrow--credit">
-                    <span><span className="lc-check">✓</span>Frais de consultation crédités</span>
-                    <span>− {fee}</span>
-                  </div>
+                  {access.paid && (
+                    <div className="lc-summary__mrow lc-summary__mrow--credit">
+                      <span><span className="lc-check">✓</span>Frais de consultation crédités</span>
+                      <span>− {fmtMoney(credit, cur)}</span>
+                    </div>
+                  )}
                   <div className="lc-summary__msep" />
                   <div className="lc-summary__mrow lc-summary__mrow--total">
                     <span>Solde {mode === 'visio' ? 'à la séance' : 'au salon'}</span>
-                    <span className="lc-summary__total">{fmtMoney(Math.max(0, diag.service.priceXof - FEE_XOF), cur)}</span>
+                    <span className="lc-summary__total">{fmtMoney(Math.max(0, diag.service.priceXof - credit), cur)}</span>
                   </div>
                 </div>
 
                 <button type="button" className={`lc-next lc-next--copper lc-summary__cta${readyBook ? '' : ' is-off'}`} onClick={confirm}>
                   Confirmer ma séance →
                 </button>
-                <div className="lc-summary__foot">Transmis à l’instant à la Maison. Vous recevrez votre dossier par e-mail & WhatsApp.</div>
+                <div className="lc-summary__foot">Transmis à l’instant à la Maison. Elle vous rappelle sur WhatsApp pour confirmer.</div>
               </aside>
             </div>
 
@@ -1394,16 +1369,15 @@ export default function App() {
               <div className="lc-eyebrow lc-fin__eyebrow">Le dossier est scellé</div>
               <h1 className="lc-display lc-fin__title">Bienvenue à la<br />Maison, {prenom || 'chère couronne'}.</h1>
               <p className="lc-lead lc-fin__lead">
-                Votre consultation est transmise au Trône — le Maître la reçoit avec votre diagnostic, votre
-                projection et votre protocole. Vos frais de consultation ({fee}) sont réglés et crédités sur
-                votre première séance.
+                Votre consultation est transmise au Trône : le Maître la reçoit avec votre diagnostic, votre
+                projection et votre protocole.{access.paid && <> Vos frais de consultation ({fee}) sont réglés et crédités sur votre première séance.</>}
               </p>
               <p className="lc-fin__devise">Transmise au Trône. La maison vous attend.</p>
 
               <div className="lc-fin__steps">
                 {[
-                  { no: '1', t: 'Votre dossier arrive', s: 'Diagnostic, projection & protocole par e-mail et WhatsApp.' },
-                  { no: '2', t: 'La Maison vous confirme', s: 'Le salon valide le créneau sous 24 h.' },
+                  { no: '1', t: 'Votre dossier arrive', s: 'Diagnostic, projection et protocole, sur le Trône du Maître.' },
+                  { no: '2', t: 'La Maison vous rappelle', s: 'Sur WhatsApp, pour confirmer votre créneau.' },
                   { no: '3', t: 'Vous entrez', s: `${mode === 'visio' ? 'En visio' : 'Cotonou · Flagship'} · déjà attendue, déjà lue.` },
                 ].map((n) => (
                   <div key={n.no} className="lc-fin__step">

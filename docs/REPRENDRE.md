@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CONSULTATION FAIT PAYER POUR DE VRAI — 17 septembre 2026
+
+« Brancher le vrai paiement KkiaPay » (Yéman), après la relecture adversaire
+de l'audit du site : le paiement du tunnel était SIMULÉ (`payNow`, 1,5 s de
+minuteur), la file recevait `paidXof: 15000`, et le Trône affichait
+« 15 000 F crédités » pour de l'argent que personne n'avait reçu.
+
+**LE RAIL** (`consultation/App.tsx`). L'identifiant de la consultation est
+tiré AVANT le paiement et persisté dans l'accès (`mnd_consultation_access`) :
+il devient le `partnerId` de la transaction KkiaPay et l'identifiant de la
+ligne déposée à la fin. `payWithKkiapay` ouvre le widget ; `verifyDeposit`
+(avec `consultationId`) fait relire la transaction par le serveur, qui tient
+la barre lui-même (`CONSULTATION_FEE_XOF`, secret optionnel, 15 000 F par
+défaut) et enregistre le paiement au registre `payments`. `paid` ne devient
+vrai que sur ce verdict. Sans clé publique au build, plus aucune simulation :
+« Poursuivre, je règle à la Maison ». Dans tous les cas, « J'ai réglé par
+Mobile Money moi-même » continue avec `reglement: 'declare'`. Les faux
+onglets PayPal et carte (des cases jamais reliées à rien) sont partis.
+
+**LE SERVEUR A LE DERNIER MOT.** `push-notify` (tunnel-submit) RETIRE
+`paidXof`, `transactionId`, `payeLe` de ce que le navigateur envoie et relit
+`payments` par `partnerId` : ce qui a été reçu vient du registre, jamais du
+corps. `kkiapay-verify` (2quater) pose le règlement sur une ligne déjà
+déposée, sans jamais en créer une vide. **Les deux fonctions Edge sont à
+redéployer en entier** (`supabase/functions/kkiapay-verify/index.ts`,
+`supabase/functions/push-notify/index.ts`).
+
+**CE QUE LE TRÔNE DIT** : `shared/consultation-reglement.ts`, seul juge,
+harnais `verifie-consultation-reglement` (huit épreuves) : « 15 000 F réglés
+en ligne · réf. … », « règlement Mobile Money déclaré, à rapprocher », ou
+« à régler à la Maison ». Plus jamais « crédités » sur un montant que le
+serveur n'a pas vu. Les promesses du tunnel suivent : le crédit sur la
+première séance ne s'affiche que payé ; « dossier par e-mail » et « validé
+sous 24 h », que rien ne tenait, deviennent « la Maison vous rappelle sur
+WhatsApp ».
+
+**RETIRÉS AU PASSAGE** : le rendez-vous que le tunnel écrivait en local avec
+`branchId: 'cotonou-flagship'` (la RLS le refusait sous session anonyme, et
+la branche était inventée) ; la branche vient désormais de `branches`, la
+Maison phare, et voyage sur la ligne (`OnlineConsultation.branchId`).
+
+**RESTE, HORS DE CE CHANTIER** : la recommandation du tunnel vise encore
+cinq identifiants de prestations (`sv-microlocks`…) qui ne vivent que dans
+`rescueServices.ts` ; si le catalogue vivant ne les porte plus, l'écran
+d'analyse plante. Recommander par catégorie (`atl-i-vekpe`, `atl-iv-finfin`).
+
 ## LE SITE RÉVÉLATEUR, PHASES 1 À 3 — 17 septembre 2026
 
 « Mission : créer le site révélateur MND » (Yéman), le brief de trente-sept

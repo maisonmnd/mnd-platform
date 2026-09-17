@@ -6,6 +6,7 @@ import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
 import { fmtMoney } from '../../../../shared/currency';
+import { ditLeReglement } from '../../../../shared/consultation-reglement';
 import { signeLeMessage } from '../../../../shared/identite';
 import { clientsStore, usePersonas, type Client } from '../../../../shared/clients';
 import { type Appointment } from '../../../../shared/agenda';
@@ -443,7 +444,7 @@ function DossierPanel({
               {online.parcours === 'sos' ? 'SOS Locks' : 'Création'} · {online.diagnostic?.palier ?? 'palier à lire'}
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3 }}>
-              {fmtMoney(online.paidXof, online.client.currency)} crédités · statut {online.status}
+              {ditLeReglement(online)} · statut {online.status}
               {online.reservation ? ` · ${online.reservation.mode} ${online.reservation.date} ${online.reservation.time}` : ''}
             </div>
           </div>
@@ -1062,7 +1063,7 @@ function OnlineSection() {
           <div key={o.id} style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--color-indigo)' }}>{o.client.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{o.client.city} · {o.parcours === 'sos' ? 'SOS Locks' : 'Création'} · {fmtMoney(o.paidXof, o.client.currency)} crédités</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{o.client.city} · {o.parcours === 'sos' ? 'SOS Locks' : 'Création'} · {ditLeReglement(o)}</div>
             </div>
             <span style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>{whenAgo(o.createdAt)}</span>
             <span className={`trc-pill ${o.status === 'nouvelle' ? 'trc-pill--new' : 'trc-pill--honore'}`}>{o.status}</span>

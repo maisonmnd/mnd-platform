@@ -192,6 +192,9 @@ export async function verifyDeposit(input: {
   /** L'INSCRIPTION à l'Académie réglée (17 septembre 2026). Même règle : le
       serveur relit `acompteXof` sur la demande, écrit avant tout paiement. */
   inscriptionId?: string;
+  /** LA CONSULTATION EN LIGNE réglée (17 septembre 2026). Aucune ligne
+      n'existe encore : la barre est celle de la Maison, tenue par le serveur. */
+  consultationId?: string;
   expectedXof: number;
   branchId: string;
   clientId?: string;

@@ -260,10 +260,27 @@ Deno.serve(async (req) => {
     const id = typeof c?.id === 'string' ? c.id : '';
     if (!id || !c?.data || typeof c.data !== 'object') return json({ error: 'bad request' }, 400);
     if (JSON.stringify(c.data).length > 20_000) return json({ error: 'too large' }, 400); // anti-abus
+    /* CE QUI A ÉTÉ RÉGLÉ VIENT DU REGISTRE, JAMAIS DU CORPS — 17 septembre 2026.
+       Le navigateur annonçait `paidXof: 15000` après un paiement SIMULÉ, et le
+       Trône affichait « crédités ». On retire donc ces champs de ce qu'il envoie
+       et on relit `payments` par `partnerId` : l'identifiant de la consultation,
+       posé sur la transaction KkiaPay et vérifié par `kkiapay-verify`. */
+    const { paidXof: _p, transactionId: _t, payeLe: _l, ...propre } = c.data as Record<string, unknown>;
+    const { data: regles } = await admin.from('payments').select('id, data').eq('data->>partnerId', id);
+    type Regle = { id: string; data?: { status?: string; amountXof?: number; at?: string } };
+    const reussis = ((regles ?? []) as Regle[]).filter((r) => (r.data?.status ?? '') === 'success');
+    const paidXof = reussis.reduce((somme, r) => somme + Math.round(Number(r.data?.amountXof ?? 0)), 0);
+    const data = {
+      ...propre,
+      paidXof,
+      ...(reussis.length > 0
+        ? { transactionId: reussis[0].id, payeLe: reussis[0].data?.at ?? null, reglement: 'kkiapay' }
+        : { reglement: propre.reglement === 'declare' ? 'declare' : 'aucun' }),
+    };
     const { error } = await admin.from('consultations_queue').upsert({
       id,
-      branch_id: (c.data.branchId as string | undefined) ?? null,
-      data: c.data,
+      branch_id: (propre.branchId as string | undefined) ?? null,
+      data,
     });
     if (error) return json({ error: 'insert failed' }, 500);
     const sent = await sendToStaff({

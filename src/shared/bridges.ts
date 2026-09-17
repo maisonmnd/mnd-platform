@@ -42,7 +42,18 @@ export type OnlineConsultation = {
       dit d'elle-même (16 septembre 2026). */
   diagnostic?: { palier: string; palierTete?: string; scores: Record<string, number> };
   reservation?: { mode: 'salon' | 'visio'; date: string; time: string };
+  /** Ce que la Maison a REÇU, posé par le serveur seul (17 septembre 2026) :
+      `push-notify` le relit dans le registre des paiements au dépôt,
+      `kkiapay-verify` le pose sur une ligne déjà déposée. Le navigateur peut
+      écrire ce qu'il veut, le serveur l'écrase. */
   paidXof: number;
+  /** Ce que la cliente a annoncé : réglé par KkiaPay (et vérifié), réglé
+      par Mobile Money elle-même (à rapprocher), ou rien (à régler au salon). */
+  reglement?: 'kkiapay' | 'declare' | 'aucun';
+  transactionId?: string;
+  payeLe?: string;
+  /** La Maison qui reçoit la demande, lue dans `branches` par le tunnel. */
+  branchId?: string;
   status: 'nouvelle' | 'traitée' | 'fermée';
 };
 

@@ -1,323 +1,326 @@
 <title>Le Site Révélateur MND</title>
-<meta name="description" content="Maquette des quatre écrans clés du site public de la Maison MND : accueil, mon parcours, Première Couronne, réserver.">
+<meta name="description" content="Maquette du site public de la Maison MND : accueil, mon parcours, les cinq services, réserver. Charte de la Maison, quatre palettes à comparer.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap">
 <style>
   /* ══ MAQUETTE · LE SITE RÉVÉLATEUR MND · 17 septembre 2026 ═══════════
-     Or, crème, terre, et l'indigo de la Maison pour tout ce qui est sombre.
-     Aucun noir. Cormorant Garamond 300 pour la voix, Jost pour la clarté.
-     Quatre écrans dans une seule page, commutés par la barre du bas. */
+     La charte de la Maison par défaut : indigo, cuivre, ivoire. Trois autres
+     palettes se comparent depuis la barre du bas. Aucun noir, nulle part.
+     Cormorant Garamond 300 pour la voix, Jost pour la clarté. Moins de
+     texte : une ligne par carte, un mot par gage, un verbe par bouton. */
   @font-face {
     font-family: 'MND Fon';
     src: url('fonts/devise-fon.woff2') format('woff2');
     font-weight: 400; font-style: normal; font-display: swap;
     unicode-range: U+0186, U+0189, U+0190, U+0254, U+025B, U+0256, U+0301;
   }
+  /* ── LA CHARTE (par défaut) ─────────────────────────────────────── */
   :root {
-    --or: #C9A84C; --or-clair: #F5EDD6; --or-profond: #8B5E15; --or-voile: rgba(201, 168, 76, .18);
-    --creme: #FBF7F0; --creme-2: #F6F0E3; --blanc: #FFFDF9;
-    --terre: #3D2B1F; --terre-douce: #6E5A4B;
-    --indigo: #1E2150; --indigo-profond: #131532; --indigo-doux: #2C3470; --indigo-voile: rgba(30, 33, 80, .10);
-    --filet: #E6DCC4; --filet-invert: rgba(251, 247, 240, .18);
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C; --accent-voile: rgba(185, 122, 74, .14);
+    --accent-sombre: #D6A06F;            /* l'accent posé sur l'indigo */
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150;
+    --sombre: #1E2150; --sombre-2: #15173A; --filet: rgba(20, 20, 27, .14);
+    --fort: #1E2150; --fort-texte: #F6F1E7;
+    --plein-texte: #F6F1E7;              /* texte sur le bouton plein */
     --serif: 'MND Fon', 'Cormorant Garamond', Georgia, serif;
     --sans: 'MND Fon', 'Jost', system-ui, sans-serif;
-    --r: 3px;
-    --ombre: 0 18px 50px rgba(30, 33, 80, .14);
-    --transition: .22s ease;
+    --r: 3px; --ombre: 0 18px 50px rgba(30, 33, 80, .14); --t: .22s ease;
   }
+  :root[data-palette="or"] {
+    --accent: #C9A84C; --accent-clair: #F5EDD6; --accent-profond: #8B5E15; --accent-voile: rgba(201, 168, 76, .18);
+    --accent-sombre: #C9A84C; --fond: #FBF7F0; --fond-2: #F6F0E3; --carte: #FFFDF9;
+    --texte: #3D2B1F; --texte-doux: #6E5A4B; --sombre-2: #131532; --plein-texte: #131532;
+  }
+  :root[data-palette="cuivre-or"] {
+    --accent: #B97A4A; --accent-clair: #F5EDD6; --accent-profond: #8B5E15; --accent-voile: rgba(201, 168, 76, .18);
+    --accent-sombre: #C9A84C; --fond: #F6F1E7; --fond-2: #F2EBDC; --carte: #FFFDF9; --plein-texte: #F6F1E7;
+  }
+  :root[data-palette="velours"] {
+    --accent: #C9A84C; --accent-clair: rgba(201, 168, 76, .12); --accent-profond: #C9A84C; --accent-voile: rgba(201, 168, 76, .16);
+    --accent-sombre: #C9A84C; --fond: #15173A; --fond-2: #131532; --carte: #1E2150;
+    --texte: #F6F1E7; --texte-doux: rgba(246, 241, 231, .68); --titre: #F6F1E7;
+    --sombre: #1E2150; --sombre-2: #0C0D20; --filet: rgba(246, 241, 231, .16);
+    --fort: #F6F1E7; --fort-texte: #1E2150; --plein-texte: #131532; --ombre: 0 18px 50px rgba(0, 0, 0, .35);
+  }
+
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body {
-    margin: 0; background: var(--creme); color: var(--terre);
-    font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.62;
-    -webkit-font-smoothing: antialiased; padding-bottom: 64px;
-  }
+  body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; padding-bottom: 60px; transition: background var(--t), color var(--t); }
   img { max-width: 100%; display: block; }
-  a { color: var(--or-profond); text-decoration: none; }
-  h1, h2, h3, h4 { font-family: var(--serif); font-weight: 300; color: var(--indigo); margin: 0; text-wrap: balance; line-height: 1.08; }
+  a { color: var(--accent-profond); text-decoration: none; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--titre); margin: 0; text-wrap: balance; line-height: 1.06; }
   h1 { font-size: clamp(38px, 6vw, 66px); }
   h2 { font-size: clamp(30px, 4.2vw, 46px); }
-  h3 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 400; }
+  h3 { font-size: clamp(22px, 2.6vw, 27px); font-weight: 400; }
   p { margin: 0; }
-  .sur { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--or-profond); }
-  .sombre .sur { color: var(--or); }
-  .chapeau { font-size: 18px; line-height: 1.55; color: var(--terre-douce); max-width: 60ch; }
-  .sombre { background: var(--indigo); color: var(--creme); }
-  .sombre h1, .sombre h2, .sombre h3 { color: var(--creme); }
-  .sombre .chapeau { color: rgba(251, 247, 240, .78); }
+  .sur { font-weight: 400; font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--accent-profond); }
+  .ligne { font-size: 18px; line-height: 1.5; color: var(--texte-doux); max-width: 52ch; }
+  .sombre { background: var(--sombre); color: #F6F1E7; }
+  .sombre h1, .sombre h2, .sombre h3 { color: #F6F1E7; }
+  .sombre .sur { color: var(--accent-sombre); }
+  .sombre .ligne { color: rgba(246, 241, 231, .78); }
   .conteneur { max-width: 1120px; margin: 0 auto; padding-inline: clamp(18px, 4vw, 40px); }
-  section { padding-block: clamp(44px, 7vw, 92px); }
-  .tete { display: grid; gap: 14px; max-width: 70ch; margin-bottom: clamp(26px, 4vw, 44px); }
+  section { padding-block: clamp(40px, 6.5vw, 84px); }
+  .tete { display: grid; gap: 12px; max-width: 64ch; margin-bottom: clamp(22px, 3.5vw, 36px); }
 
   /* ── boutons ─────────────────────────────────────────────────────── */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-    font-family: var(--sans); font-weight: 400; font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
-    padding: 15px 24px; border-radius: var(--r); border: 1px solid var(--or); color: var(--or-profond);
-    background: transparent; cursor: pointer; transition: background var(--transition), color var(--transition);
-    text-align: center;
-  }
-  .btn:hover { background: var(--or-voile); }
-  .btn--or { background: var(--or); border-color: var(--or); color: var(--indigo-profond); }
-  .btn--or:hover { background: #D6B75C; }
-  .btn--indigo { background: var(--indigo); border-color: var(--indigo); color: var(--creme); }
-  .btn--indigo:hover { background: var(--indigo-doux); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; font-family: var(--sans); font-weight: 400; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; padding: 13px 22px; border-radius: var(--r); border: 1px solid var(--accent); color: var(--accent-profond); background: transparent; cursor: pointer; transition: background var(--t), color var(--t), transform var(--t); text-align: center; }
+  .btn:hover { background: var(--accent-voile); }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+  .btn--plein:hover { filter: brightness(1.06); background: var(--accent); }
+  .btn--fort { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
+  .btn--fort:hover { background: var(--fort); filter: brightness(1.12); }
   .btn--lien { border-color: transparent; padding-inline: 8px; }
-  .btn--lien:hover { background: transparent; color: var(--indigo); }
-  .sombre .btn { color: var(--or); border-color: var(--or); }
-  .sombre .btn:hover { background: rgba(201, 168, 76, .14); }
-  .sombre .btn--or { color: var(--indigo-profond); }
-  .sombre .btn--lien { color: var(--creme); border-color: transparent; }
-  .btn svg { width: 16px; height: 16px; }
-  .legende { font-size: 13.5px; color: var(--terre-douce); }
-  .sombre .legende { color: rgba(251, 247, 240, .66); }
+  .btn--lien:hover { background: transparent; color: var(--titre); }
+  .sombre .btn { color: var(--accent-sombre); border-color: var(--accent-sombre); }
+  .sombre .btn:hover { background: rgba(255, 255, 255, .06); }
+  .sombre .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+  .sombre .btn--lien { color: #F6F1E7; border-color: transparent; }
+  .btn svg { width: 15px; height: 15px; flex: none; }
+  .legende { font-size: 13px; color: var(--texte-doux); }
+  .sombre .legende { color: rgba(246, 241, 231, .62); }
   .rangee { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 
-  /* ── la barre ───────────────────────────────────────────────────── */
-  .barre {
-    position: sticky; top: 0; z-index: 20;
-    background: rgba(251, 247, 240, .92); backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--filet);
-  }
-  .barre .conteneur { display: flex; align-items: center; gap: 18px; min-height: 66px; }
-  .marque { display: flex; flex-direction: column; line-height: 1; }
-  .marque b { font-family: var(--serif); font-weight: 400; font-size: 24px; letter-spacing: .22em; color: var(--indigo); }
-  .marque span { font-family: var(--serif); font-size: 13px; color: var(--or-profond); letter-spacing: .04em; margin-top: 3px; }
-  .nav { margin-left: auto; display: flex; gap: 4px; }
-  .nav a { font-size: 13px; color: var(--terre); padding: 8px 10px; border-radius: var(--r); font-weight: 400; }
-  .nav a:hover { background: var(--or-voile); color: var(--indigo); }
-  .barre .btn { padding: 11px 16px; font-size: 11px; }
+  /* ── la barre : le monogramme seul annonce la page ─────────────── */
+  .barre { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--fond) 90%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--filet); }
+  .barre .conteneur { display: flex; align-items: center; gap: 18px; min-height: 64px; }
+  .logo { display: flex; align-items: center; }
+  .logo img { height: 30px; width: auto; }
+  .logo .mono-clair { display: none; }
+  :root[data-palette="velours"] .logo .mono-sombre { display: none; }
+  :root[data-palette="velours"] .logo .mono-clair { display: block; }
+  .nav { margin-left: auto; display: flex; gap: 2px; }
+  .nav a { font-size: 13px; color: var(--texte); padding: 8px 10px; border-radius: var(--r); font-weight: 400; }
+  .nav a:hover { background: var(--accent-voile); color: var(--titre); }
+  .barre .btn { padding: 10px 16px; min-height: 40px; font-size: 11px; }
   @media (max-width: 860px) { .nav { display: none; } .barre .btn { margin-left: auto; } }
 
-  /* ── écrans (maquette) ──────────────────────────────────────────── */
+  /* ── écrans ──────────────────────────────────────────────────────── */
   .ecran { display: none; }
-  .ecran.actif { display: block; }
-  .maquette-barre {
-    position: fixed; inset-inline: 0; bottom: 0; z-index: 40;
-    background: var(--indigo-profond); color: var(--creme); border-top: 1px solid var(--or);
-    display: flex; gap: 4px; align-items: center; padding: 8px clamp(10px, 3vw, 24px); overflow-x: auto;
-  }
-  .maquette-barre small { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--or); margin-right: 10px; white-space: nowrap; }
-  .maquette-barre button {
-    font: inherit; font-size: 12.5px; color: var(--creme); background: transparent; border: 1px solid transparent;
-    border-radius: var(--r); padding: 7px 12px; cursor: pointer; white-space: nowrap;
-  }
-  .maquette-barre button.actif { border-color: var(--or); color: var(--or); }
-  .maquette-barre button:hover { background: rgba(251, 247, 240, .08); }
+  .ecran.actif { display: block; animation: venir .38s ease both; }
+  @keyframes venir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .maquette-barre { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; background: #0C0D20; color: #F6F1E7; border-top: 1px solid var(--accent); display: flex; gap: 4px; align-items: center; padding: 8px clamp(10px, 3vw, 24px); overflow-x: auto; font-size: 12.5px; }
+  .maquette-barre small { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); margin-inline: 4px 8px; white-space: nowrap; }
+  .maquette-barre button { font: inherit; color: #F6F1E7; background: transparent; border: 1px solid transparent; border-radius: var(--r); padding: 7px 11px; cursor: pointer; white-space: nowrap; }
+  .maquette-barre button.actif { border-color: var(--accent-sombre); color: var(--accent-sombre); }
+  .maquette-barre .sep { width: 1px; height: 22px; background: rgba(246, 241, 231, .2); margin-inline: 8px; flex: none; }
 
-  /* ── le grand écran ─────────────────────────────────────────────── */
-  .hero { padding-block: clamp(40px, 6vw, 80px); position: relative; overflow: hidden; }
+  /* ── le grand écran ──────────────────────────────────────────────── */
+  .hero { padding-block: clamp(36px, 5vw, 72px); }
   .hero .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
   @media (max-width: 860px) { .hero .conteneur { grid-template-columns: 1fr; } }
-  .devise { font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); color: var(--or); letter-spacing: .02em; }
-  .devise small { display: block; font-family: var(--sans); font-size: 12px; letter-spacing: .08em; color: rgba(251, 247, 240, .6); margin-top: 6px; }
-  .hero h1 { margin-block: 18px 16px; }
-  .hero .chapeau { margin-bottom: 26px; }
+  .devise { font-family: var(--serif); font-size: clamp(20px, 2.4vw, 26px); color: var(--accent-sombre); letter-spacing: .02em; }
+  .devise small { font-family: var(--sans); font-size: 12px; letter-spacing: .06em; color: rgba(246, 241, 231, .6); margin-left: 10px; }
+  .hero h1 { margin-block: 16px 14px; }
+  .hero .ligne { margin-bottom: 26px; }
   .hero-image { position: relative; margin: 0; }
-  .hero-image img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
-  .hero-image::after {
-    content: ''; position: absolute; inset: 14px; border: 1px solid rgba(201, 168, 76, .55); border-radius: 3px; pointer-events: none;
-  }
-  .hero-image figcaption { position: absolute; left: 26px; bottom: 26px; font-family: var(--serif); font-size: 15px; color: var(--creme); background: rgba(19, 21, 50, .72); padding: 8px 14px; border-radius: 3px; }
+  .hero-image img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
+  .hero-image::after { content: ''; position: absolute; inset: 12px; border: 1px solid rgba(214, 160, 111, .5); border-radius: 3px; pointer-events: none; }
 
-  /* ── les cinq portes ────────────────────────────────────────────── */
-  .portes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .porte {
-    display: flex; flex-direction: column; background: var(--blanc); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden;
-    transition: transform var(--transition), box-shadow var(--transition);
-  }
-  .porte:hover { transform: translateY(-3px); box-shadow: var(--ombre); }
-  .porte img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
-  .porte .tuile { aspect-ratio: 4 / 3; display: grid; place-items: center; background: var(--indigo); color: var(--or); font-family: var(--serif); font-size: 34px; letter-spacing: .06em; }
-  .porte .tuile small { display: block; text-align: center; font-family: var(--sans); font-size: 10px; letter-spacing: .24em; color: rgba(251, 247, 240, .55); margin-top: 4px; }
-  .porte-corps { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-  .porte h3 { font-size: 24px; }
-  .porte p { font-size: 15px; color: var(--terre-douce); }
-  .porte ul { margin: 2px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--terre); display: grid; gap: 3px; }
-  .porte .pied { margin-top: auto; padding-top: 12px; display: grid; gap: 6px; }
-  .porte .btn { width: 100%; }
-  .porte .legende { font-size: 12.5px; }
-  .repli { margin-top: 30px; padding: 22px 26px; border: 1px solid var(--or); border-radius: 4px; background: var(--or-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
-  .repli p { font-family: var(--serif); font-size: 21px; color: var(--indigo); }
+  /* ── les cinq portes ─────────────────────────────────────────────── */
+  .portes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
+  .porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
+  .porte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .porte img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+  .porte .tuile { aspect-ratio: 4 / 5; display: grid; place-items: center; background: var(--sombre); color: var(--accent-sombre); font-family: var(--serif); font-size: 34px; letter-spacing: .06em; text-align: center; }
+  .porte .tuile small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .22em; color: rgba(246, 241, 231, .5); margin-top: 4px; }
+  .porte-corps { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .porte h3 { font-size: 23px; }
+  .porte p { font-size: 14.5px; color: var(--texte-doux); }
+  .porte .suite { margin-top: auto; padding-top: 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); display: flex; align-items: center; gap: 8px; }
+  .porte .suite svg { width: 14px; height: 14px; }
+  .repli { margin-top: 26px; padding: 20px 24px; border: 1px solid var(--accent); border-radius: 4px; background: var(--accent-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+  .repli p { font-family: var(--serif); font-size: 21px; color: var(--titre); }
 
-  /* ── la bande de confiance ──────────────────────────────────────── */
+  /* ── la confiance ────────────────────────────────────────────────── */
   .confiance .conteneur { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
   @media (max-width: 860px) { .confiance .conteneur { grid-template-columns: 1fr; } }
-  .citation { font-family: var(--serif); font-size: clamp(26px, 3.4vw, 40px); line-height: 1.22; color: var(--creme); }
-  .citation::before { content: '« '; color: var(--or); }
-  .citation::after { content: ' »'; color: var(--or); }
-  .gages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+  .citation { font-family: var(--serif); font-size: clamp(26px, 3.4vw, 40px); line-height: 1.2; color: #F6F1E7; }
+  .citation::before { content: '« '; color: var(--accent-sombre); }
+  .citation::after { content: ' »'; color: var(--accent-sombre); }
+  .gages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
   @media (max-width: 480px) { .gages { grid-template-columns: 1fr; } }
-  .gage b { display: block; font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--or); margin-bottom: 4px; }
-  .gage p { font-size: 14px; color: rgba(251, 247, 240, .74); }
+  .gage b { display: block; font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--accent-sombre); margin-bottom: 2px; }
+  .gage p { font-size: 14px; color: rgba(246, 241, 231, .74); }
 
-  /* ── derrière MND ───────────────────────────────────────────────── */
-  .fondateurs .conteneur { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+
+  /* ── les avis Google ─────────────────────────────────────────────── */
+  .avis .conteneur { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+  @media (max-width: 860px) { .avis .conteneur { grid-template-columns: 1fr; } }
+  .note { display: flex; align-items: baseline; gap: 14px; margin-top: 12px; }
+  .note b { font-family: var(--serif); font-weight: 300; font-size: 64px; line-height: 1; color: var(--titre); }
+  .etoiles { color: var(--accent); font-size: 20px; letter-spacing: 3px; }
+  .avis-liste { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .avis-carte { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: 18px; display: grid; gap: 10px; }
+  .avis-carte .qui { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--texte-doux); }
+  .avis-carte .qui i { width: 34px; height: 34px; border-radius: 50%; background: var(--accent-clair); border: 1px solid var(--filet); }
+  .avis-carte .ligne-vide { height: 10px; border-radius: 5px; background: var(--fond-2); }
+  .avis-carte .ligne-vide.courte { width: 62%; }
+  .g { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--texte-doux); }
+  /* ── derrière MND ────────────────────────────────────────────────── */
+  .fondateurs .conteneur { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
   @media (max-width: 860px) { .fondateurs .conteneur { grid-template-columns: 1fr; } }
-  .fondateurs img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
-  .message { font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.3; color: var(--indigo); border-left: 2px solid var(--or); padding-left: 22px; margin-block: 22px; }
-  .trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 8px; }
-  @media (max-width: 620px) { .trois { grid-template-columns: 1fr; } }
-  .trois b { display: block; font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--indigo); margin-bottom: 4px; }
-  .trois p { font-size: 14px; color: var(--terre-douce); }
+  .fondateurs img { width: 100%; max-width: 440px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
+  .message { font-family: var(--serif); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.3; color: var(--titre); border-left: 2px solid var(--accent); padding-left: 20px; margin-block: 20px; }
+  .trois { display: flex; gap: 22px; flex-wrap: wrap; }
+  .trois b { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--titre); }
 
-  /* ── l'univers ──────────────────────────────────────────────────── */
-  .quatre { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-  .porte-univers { border-top: 2px solid var(--or); padding-top: 16px; }
-  .porte-univers b { display: block; font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--indigo); margin-bottom: 6px; }
-  .porte-univers p { font-size: 14.5px; color: var(--terre-douce); }
-  .liaison { margin-top: 30px; font-family: var(--serif); font-size: 22px; color: var(--indigo); max-width: 60ch; }
-
-  /* ── journal ────────────────────────────────────────────────────── */
-  .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-  .article { background: var(--blanc); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; }
+  /* ── journal ─────────────────────────────────────────────────────── */
+  .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .article { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
+  .article:hover { transform: translateY(-3px); box-shadow: var(--ombre); }
   .article img { aspect-ratio: 16 / 10; object-fit: cover; width: 100%; }
-  .article div { padding: 18px 20px 20px; display: grid; gap: 8px; }
-  .article h3 { font-size: 22px; }
-  .article p { font-size: 14px; color: var(--terre-douce); }
-  .article a { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 400; }
+  .article h3 { font-size: 21px; padding: 16px 18px 18px; }
 
-  /* ── l'appel du bas ─────────────────────────────────────────────── */
-  .appel { background: var(--or-clair); border-block: 1px solid var(--filet); }
-  .appel .conteneur { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 32px; align-items: center; }
+  /* ── l'appel du bas ──────────────────────────────────────────────── */
+  .appel { background: var(--accent-clair); border-block: 1px solid var(--filet); }
+  .appel .conteneur { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 28px; align-items: center; }
   @media (max-width: 760px) { .appel .conteneur { grid-template-columns: 1fr; } }
   .appel h2 { font-size: clamp(26px, 3.4vw, 38px); }
   .appel .rangee { justify-content: flex-end; }
   @media (max-width: 760px) { .appel .rangee { justify-content: flex-start; } }
 
-  /* ── pied ───────────────────────────────────────────────────────── */
-  footer { background: var(--indigo-profond); color: rgba(251, 247, 240, .72); padding-block: 48px 40px; font-size: 14px; }
-  footer .conteneur { display: grid; grid-template-columns: 1.3fr repeat(3, 1fr); gap: 28px; }
+  /* ── pied ────────────────────────────────────────────────────────── */
+  footer { background: var(--sombre-2); color: rgba(246, 241, 231, .72); padding-block: 44px 36px; font-size: 14px; }
+  footer .conteneur { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 26px; }
   @media (max-width: 860px) { footer .conteneur { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 480px) { footer .conteneur { grid-template-columns: 1fr; } }
-  footer .marque b { color: var(--creme); }
-  footer .marque span { color: var(--or); }
-  footer h4 { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--or); margin-bottom: 12px; }
-  footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; }
-  footer a { color: rgba(251, 247, 240, .78); }
-  footer a:hover { color: var(--or); }
-  .pied-bas { grid-column: 1 / -1; border-top: 1px solid var(--filet-invert); padding-top: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 13px; }
-  .pied-bas .devise { font-size: 16px; }
+  footer h4 { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); margin: 0 0 10px; }
+  footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+  footer a { color: rgba(246, 241, 231, .78); }
+  footer a:hover { color: var(--accent-sombre); }
+  footer .logo img { height: 34px; }
+  .pied-bas { grid-column: 1 / -1; border-top: 1px solid rgba(246, 241, 231, .16); padding-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 13px; }
+  .pied-bas .devise { font-size: 15px; }
 
-  /* ── MON PARCOURS (triage) ──────────────────────────────────────── */
-  .triage { max-width: 760px; margin: 0 auto; }
-  .etapes { display: flex; gap: 8px; margin-bottom: 26px; }
-  .etapes span { flex: 1; height: 2px; background: var(--filet); border-radius: 2px; }
-  .etapes span.fait { background: var(--or); }
+  /* ── MON PARCOURS ────────────────────────────────────────────────── */
+  .triage { max-width: 720px; margin: 0 auto; }
+  .etapes { display: flex; gap: 8px; margin-bottom: 24px; }
+  .etapes span { flex: 1; height: 2px; background: var(--filet); border-radius: 2px; transition: background var(--t); }
+  .etapes span.fait { background: var(--accent); }
   .question { display: none; }
-  .question.actif { display: block; }
-  .question h2 { font-size: clamp(28px, 3.6vw, 40px); margin-bottom: 22px; }
+  .question.actif { display: block; animation: venir .3s ease both; }
+  .question h2 { font-size: clamp(28px, 3.6vw, 40px); margin-bottom: 20px; }
   .reponses { display: grid; gap: 10px; }
-  .reponse {
-    display: flex; align-items: center; gap: 16px; width: 100%; text-align: left; cursor: pointer;
-    font: inherit; font-size: 17px; color: var(--indigo); background: var(--blanc); border: 1px solid var(--filet); border-radius: 4px; padding: 18px 20px;
-    transition: border-color var(--transition), background var(--transition);
-  }
-  .reponse:hover { border-color: var(--or); background: var(--or-clair); }
-  .reponse i { width: 18px; height: 18px; border: 1px solid var(--or); border-radius: 50%; flex: none; }
-  .reponse:hover i { background: var(--or); }
-  .reponse small { display: block; font-size: 13px; color: var(--terre-douce); margin-top: 2px; }
-  .retour { margin-top: 18px; }
-  .sortie { display: none; background: var(--indigo); color: var(--creme); border-radius: 4px; padding: clamp(26px, 4vw, 44px); }
-  .sortie.actif { display: grid; gap: 14px; }
-  .sortie h2 { color: var(--creme); font-size: clamp(28px, 3.6vw, 40px); }
-  .sortie p { color: rgba(251, 247, 240, .8); font-size: 17px; max-width: 58ch; }
+  .reponse { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 60px; text-align: left; cursor: pointer; font: inherit; font-size: 17px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 20px; transition: border-color var(--t), background var(--t), transform var(--t); }
+  .reponse:hover { border-color: var(--accent); background: var(--accent-clair); transform: translateX(3px); }
+  .reponse:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .reponse i { width: 18px; height: 18px; border: 1px solid var(--accent); border-radius: 50%; flex: none; transition: background var(--t); }
+  .reponse:hover i { background: var(--accent); }
+  .reponse small { display: block; font-size: 13px; color: var(--texte-doux); margin-top: 2px; }
+  .retour { margin-top: 16px; }
+  .sortie { display: none; background: var(--sombre); color: #F6F1E7; border-radius: 4px; padding: clamp(24px, 4vw, 40px); }
+  .sortie.actif { display: grid; gap: 12px; animation: venir .3s ease both; }
+  .sortie h2 { color: #F6F1E7; font-size: clamp(28px, 3.6vw, 40px); }
+  .sortie p { color: rgba(246, 241, 231, .8); font-size: 17px; max-width: 52ch; }
+  .sortie .sur { color: var(--accent-sombre); }
   .sortie .rangee { margin-top: 8px; }
-  .sortie .btn--or { color: var(--indigo-profond); }
-  .sortie .btn--lien { color: var(--creme); }
+  .sortie .btn { color: var(--accent-sombre); border-color: var(--accent-sombre); }
+  .sortie .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+  .sortie .btn--lien { color: #F6F1E7; border-color: transparent; }
 
-  /* ── PAGE PARCOURS ──────────────────────────────────────────────── */
-  .fil { font-size: 12.5px; color: var(--terre-douce); display: flex; gap: 8px; flex-wrap: wrap; padding-top: 22px; }
-  .fil a { color: var(--terre-douce); }
-  .fil a:hover { color: var(--indigo); }
+  /* ── PAGE DE SERVICE ─────────────────────────────────────────────── */
+  .fil { font-size: 12.5px; color: var(--texte-doux); display: flex; gap: 8px; flex-wrap: wrap; padding-top: 20px; }
+  .fil a { color: var(--texte-doux); }
+  .fil a:hover { color: var(--titre); }
+  .page-hero { padding-top: 26px; }
   .page-hero .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
   @media (max-width: 860px) { .page-hero .conteneur { grid-template-columns: 1fr; } }
-  .page-hero img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
-  .page-hero h1 { margin-block: 12px 18px; }
-  .geste { background: var(--or-clair); border: 1px solid var(--filet); border-radius: 4px; padding: 26px clamp(20px, 3vw, 34px); display: grid; gap: 14px; }
-  .geste p { font-size: 16.5px; max-width: 70ch; }
-  .geste b { font-weight: 500; color: var(--indigo); }
-  .temps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
-  @media (max-width: 620px) { .temps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .temps span { background: var(--blanc); border: 1px solid var(--filet); border-radius: 3px; padding: 12px; text-align: center; font-family: var(--serif); font-size: 20px; color: var(--indigo); }
-  .temps span small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--or-profond); margin-bottom: 4px; }
-  .pas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: pas; max-width: 760px; }
-  .pas li { position: relative; display: grid; grid-template-columns: 56px 1fr; gap: 18px; padding-block: 22px; border-top: 1px solid var(--filet); }
+  .page-hero img, .page-hero .tuile { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
+  .page-hero .tuile { display: grid; place-items: center; background: var(--sombre); color: var(--accent-sombre); font-family: var(--serif); font-size: 44px; letter-spacing: .06em; text-align: center; }
+  .page-hero .tuile small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .22em; color: rgba(246, 241, 231, .5); margin-top: 6px; }
+  .page-hero h1 { margin-block: 12px 14px; }
+  .geste { background: var(--accent-clair); border: 1px solid var(--filet); border-radius: 4px; padding: 20px clamp(18px, 3vw, 30px); display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+  .geste b { font-weight: 500; color: var(--titre); }
+  .geste .temps { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .geste .temps span { font-family: var(--serif); font-size: 18px; color: var(--titre); border: 1px solid var(--filet); background: var(--carte); border-radius: 3px; padding: 6px 12px; }
+  .pas { list-style: none; margin: 0; padding: 0; counter-reset: pas; max-width: 720px; }
+  .pas li { display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: baseline; padding-block: 16px; border-top: 1px solid var(--filet); }
   .pas li:last-child { border-bottom: 1px solid var(--filet); }
-  .pas li::before { counter-increment: pas; content: counter(pas, decimal-leading-zero); font-family: var(--serif); font-size: 34px; line-height: 1; color: var(--or); }
-  .pas b { display: block; font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--indigo); margin-bottom: 4px; }
-  .pas p { font-size: 15.5px; color: var(--terre-douce); max-width: 60ch; }
-  .rassure { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; background: var(--blanc); border: 1px solid var(--or); border-radius: 4px; padding: 26px clamp(20px, 3vw, 34px); }
+  .pas li::before { counter-increment: pas; content: counter(pas, decimal-leading-zero); font-family: var(--serif); font-size: 30px; line-height: 1; color: var(--accent); }
+  .pas b { font-family: var(--serif); font-weight: 400; font-size: 23px; color: var(--titre); }
+  .pas span { display: block; font-size: 15px; color: var(--texte-doux); }
+  .pas--liste li::before { content: '·'; font-size: 30px; }
+  .rassure { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center; background: var(--carte); border: 1px solid var(--accent); border-radius: 4px; padding: 22px clamp(18px, 3vw, 30px); }
   @media (max-width: 760px) { .rassure { grid-template-columns: 1fr; } }
-  .rassure p { font-size: 16.5px; max-width: 62ch; }
+  .rassure p { font-family: var(--serif); font-size: 21px; color: var(--titre); max-width: 40ch; }
   .rassure .colonne { display: grid; gap: 8px; justify-items: start; }
-  .faq { max-width: 760px; }
+  .faq { max-width: 720px; }
   .faq details { border-top: 1px solid var(--filet); }
   .faq details:last-child { border-bottom: 1px solid var(--filet); }
-  .faq summary { cursor: pointer; list-style: none; font-family: var(--serif); font-size: 22px; color: var(--indigo); padding-block: 18px; display: flex; justify-content: space-between; gap: 16px; }
+  .faq summary { cursor: pointer; list-style: none; font-family: var(--serif); font-size: 21px; color: var(--titre); padding-block: 16px; display: flex; justify-content: space-between; gap: 16px; }
   .faq summary::-webkit-details-marker { display: none; }
-  .faq summary::after { content: '+'; color: var(--or); font-size: 26px; line-height: 1; }
+  .faq summary::after { content: '+'; color: var(--accent); font-size: 26px; line-height: 1; }
   .faq details[open] summary::after { content: '·'; }
-  .faq details p { padding-bottom: 18px; color: var(--terre-douce); max-width: 62ch; }
+  .faq details p { padding-bottom: 16px; color: var(--texte-doux); max-width: 58ch; }
   .galerie { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 620px) { .galerie { grid-template-columns: 1fr 1fr; } }
-  .galerie img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 3px; }
-  .galerie figcaption { font-size: 12.5px; color: var(--terre-douce); margin-top: 8px; }
   .galerie figure { margin: 0; }
-  .barre-mobile {
-    display: none; position: fixed; inset-inline: 0; bottom: 48px; z-index: 30; padding: 10px 14px; gap: 10px;
-    background: rgba(251, 247, 240, .96); border-top: 1px solid var(--filet); backdrop-filter: blur(10px);
-  }
-  .barre-mobile .btn { flex: 1; padding: 13px 10px; font-size: 11px; }
-  @media (max-width: 760px) { .ecran.actif .barre-mobile { display: flex; } }
+  .galerie img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 3px; }
+  .galerie figcaption { font-size: 12.5px; color: var(--texte-doux); margin-top: 8px; }
+  .barre-mobile { display: none; position: fixed; inset-inline: 0; bottom: 44px; z-index: 30; padding: 10px 14px; gap: 10px; background: color-mix(in srgb, var(--fond) 94%, transparent); border-top: 1px solid var(--filet); backdrop-filter: blur(10px); }
+  .barre-mobile .btn { flex: 1; padding: 12px 10px; font-size: 11px; }
+  @media (max-width: 760px) { #service.actif .barre-mobile { display: flex; } }
 
-  /* ── RÉSERVER ───────────────────────────────────────────────────── */
+  /* ── RÉSERVER ────────────────────────────────────────────────────── */
   .reserver .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
   @media (max-width: 860px) { .reserver .conteneur { grid-template-columns: 1fr; } }
-  .formulaire { background: var(--blanc); border: 1px solid var(--filet); border-radius: 4px; padding: clamp(22px, 3.5vw, 36px); display: grid; gap: 18px; }
+  .formulaire { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: clamp(20px, 3.5vw, 32px); display: grid; gap: 16px; }
   .champ { display: grid; gap: 6px; }
-  .champ label { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 400; color: var(--or-profond); }
-  .champ input, .champ select, .champ textarea {
-    font: inherit; font-size: 16px; color: var(--indigo); background: var(--creme); border: 1px solid var(--filet); border-radius: var(--r); padding: 13px 14px; width: 100%;
-  }
-  .champ input:focus, .champ select:focus, .champ textarea:focus { outline: 2px solid var(--or); outline-offset: 1px; border-color: var(--or); }
-  .champ small { font-size: 12.5px; color: var(--terre-douce); }
+  .champ label { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
+  .champ input, .champ select { font: inherit; font-size: 16px; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: var(--r); padding: 13px 14px; width: 100%; min-height: 48px; }
+  .champ input:focus, .champ select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .champ small { font-size: 12.5px; color: var(--texte-doux); }
   .deux-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 560px) { .deux-champs { grid-template-columns: 1fr; } }
-  .consentement { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; color: var(--terre-douce); }
-  .consentement input { margin-top: 4px; accent-color: var(--or-profond); }
+  .consentement { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; color: var(--texte-doux); }
+  .consentement input { margin-top: 4px; accent-color: var(--accent-profond); width: 18px; height: 18px; }
   .formulaire .btn { width: 100%; }
-  .suite { display: grid; gap: 22px; }
-  .suite ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
-  .suite li { display: grid; grid-template-columns: 44px 1fr; gap: 14px; padding-block: 16px; border-top: 1px solid var(--filet); }
-  .suite li::before { counter-increment: s; content: counter(s); font-family: var(--serif); font-size: 30px; line-height: 1; color: var(--or); }
-  .suite b { display: block; font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--indigo); }
-  .suite p { font-size: 14.5px; color: var(--terre-douce); }
-  .carte-wa { background: var(--indigo); color: var(--creme); border-radius: 4px; padding: 24px; display: grid; gap: 12px; }
-  .carte-wa p { font-size: 14.5px; color: rgba(251, 247, 240, .74); }
-  .carte-wa .btn { color: var(--indigo-profond); }
-  .compte { font-size: 14px; color: var(--terre-douce); border-top: 1px solid var(--filet); padding-top: 16px; }
-  .merci { display: none; background: var(--or-clair); border: 1px solid var(--or); border-radius: 4px; padding: clamp(22px, 3.5vw, 36px); }
-  .merci.actif { display: grid; gap: 14px; }
+  .suite { display: grid; gap: 20px; }
+  .suite ol { list-style: none; margin: 10px 0 0; padding: 0; counter-reset: s; }
+  .suite li { display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding-block: 14px; border-top: 1px solid var(--filet); }
+  .suite li::before { counter-increment: s; content: counter(s); font-family: var(--serif); font-size: 28px; line-height: 1; color: var(--accent); }
+  .suite b { display: block; font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--titre); }
+  .suite p { font-size: 14px; color: var(--texte-doux); }
+  .carte-wa { background: var(--sombre); color: #F6F1E7; border-radius: 4px; padding: 22px; display: grid; gap: 12px; }
+  .carte-wa .sur { color: var(--accent-sombre); }
+  .carte-wa h3 { color: #F6F1E7; }
+  .carte-wa .msg { font-family: var(--serif); font-size: 17px; color: rgba(246, 241, 231, .9); }
+  .carte-wa .btn--plein { color: var(--plein-texte); }
+  .carte-wa .legende { color: rgba(246, 241, 231, .6); }
+  .compte { font-size: 14px; color: var(--texte-doux); border-top: 1px solid var(--filet); padding-top: 14px; }
+  .merci { display: none; background: var(--accent-clair); border: 1px solid var(--accent); border-radius: 4px; padding: clamp(20px, 3.5vw, 32px); }
+  .merci.actif { display: grid; gap: 12px; animation: venir .3s ease both; }
   .merci h2 { font-size: clamp(26px, 3.4vw, 36px); }
-  .merci p { max-width: 58ch; color: var(--terre-douce); }
-  .aide-maquette { font-size: 12px; color: var(--terre-douce); text-align: right; }
-  .aide-maquette button { font: inherit; font-size: 12px; color: var(--or-profond); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+  .merci p { max-width: 52ch; color: var(--texte-doux); }
+  .aide-maquette { font-size: 12px; color: var(--texte-doux); text-align: right; margin-top: 8px; }
+  .aide-maquette button { font: inherit; font-size: 12px; color: var(--accent-profond); background: none; border: 0; cursor: pointer; text-decoration: underline; }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } html { scroll-behavior: auto; } }
+  @media (prefers-reduced-motion: reduce) { *, .ecran.actif, .question.actif, .sortie.actif, .merci.actif { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } }
 </style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wa" viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+</svg>
 
 <header class="barre">
   <div class="conteneur">
-    <a class="marque" href="#accueil"><b>MND</b><span>Mi nyɔ́ ɖɛkpɛ</span></a>
+    <a class="logo" href="#accueil" aria-label="MND, accueil">
+      <img class="mono-sombre" src="assets/photos/site/mono-indigo.png" alt="MND" width="240" height="198">
+      <img class="mono-clair" src="assets/photos/site/mono-ivoire.png" alt="MND" width="240" height="198">
+    </a>
     <nav class="nav">
       <a href="#mon-parcours">Mon parcours</a>
-      <a href="#premiere-couronne">Services</a>
-      <a href="#accueil">La Maison</a>
-      <a href="#accueil">Journal</a>
-      <a href="#reserver">Contact</a>
+      <a href="#portes">Services</a>
+      <a href="#maison">La Maison</a>
+      <a href="#journal">Journal</a>
     </nav>
-    <a class="btn btn--or" href="#reserver">Prendre rendez-vous</a>
+    <a class="btn btn--plein" href="#reserver">Prendre rendez-vous</a>
   </div>
 </header>
 
@@ -327,19 +330,17 @@
   <section class="hero sombre">
     <div class="conteneur">
       <div>
-        <p class="devise">Mi nyɔ́ ɖɛkpɛ<small>En fon : « Vous êtes belle. »</small></p>
+        <p class="devise">Mi nyɔ́ ɖɛkpɛ<small>Vous êtes belle.</small></p>
         <h1>Votre couronne mérite d'être comprise, soignée et révélée.</h1>
-        <p class="chapeau">Que vous n'ayez jamais porté de locks, que les vôtres aient besoin d'attention ou que vous cherchiez simplement à bien les entretenir, il existe un chemin pour vous à la Maison MND, à Cotonou. Nous commençons toujours par vous écouter.</p>
+        <p class="ligne">Première couronne, réparation, entretien, enfants ou formation : il existe un chemin pour vous, à Cotonou. Nous commençons par vous écouter.</p>
         <div class="rangee">
-          <a class="btn btn--or" href="#mon-parcours">Je découvre mon parcours</a>
-          <a class="btn" href="#portes">Je sais déjà ce dont j'ai besoin</a>
-          <a class="btn btn--lien" href="#reserver">Prendre rendez-vous</a>
+          <a class="btn btn--plein" href="#mon-parcours">Je découvre mon parcours</a>
+          <a class="btn" href="#portes">Je sais ce qu'il me faut</a>
         </div>
-        <p class="legende" style="margin-top:16px">Une création ou une réparation commence par une consultation. Un entretien se réserve directement.</p>
+        <p class="legende" style="margin-top:14px">Une création ou une réparation commence par une consultation. Un entretien se réserve directement.</p>
       </div>
       <figure class="hero-image">
-        <img src="assets/photos/hero-poster.jpg" alt="Une couronne de locks vue de dos, en lumière douce" width="1600" height="1600">
-        <figcaption>La Maison MND · Cotonou · depuis 2014</figcaption>
+        <img src="assets/photos/site/hero.jpg" alt="Une couronne de locks relevée, de profil" width="960" height="1200" fetchpriority="high">
       </figure>
     </div>
   </section>
@@ -349,58 +350,32 @@
       <div class="tete">
         <p class="sur">Cinq parcours, une seule méthode</p>
         <h2>Vous êtes où aujourd'hui ?</h2>
-        <p class="chapeau">Il n'y a pas de bonne réponse. Choisissez ce qui vous ressemble aujourd'hui, et nous vous montrons la suite.</p>
       </div>
       <div class="portes">
-        <article class="porte">
-          <img src="assets/photos/portrait-1.jpg" alt="Une femme aux locks naissantes" loading="lazy">
-          <div class="porte-corps">
-            <h3>Je veux créer ma couronne</h3>
-            <p>Vous n'avez jamais porté de locks ? Vous n'avez pas besoin de tout savoir avant de commencer. Nous regardons vos cheveux, nous écoutons ce que vous souhaitez, puis nous choisissons ensemble la méthode qui vous convient.</p>
-            <ul><li>Vous n'avez jamais eu de locks</li><li>Vous portez des tresses ou des vanilles</li><li>Vous y pensez depuis longtemps</li></ul>
-            <div class="pied"><a class="btn btn--or" href="#premiere-couronne">Découvrir la Première Couronne</a><span class="legende">Commence par une consultation.</span></div>
-          </div>
-        </article>
-        <article class="porte">
-          <img src="assets/photos/portrait-3.jpg" alt="Une femme aux locks fines, main sur le cœur" loading="lazy">
-          <div class="porte-corps">
-            <h3>Ma couronne a besoin d'attention</h3>
-            <p>Locks qui s'affinent, racines fragilisées, pointes qui se défont, ou simplement le sentiment que quelque chose ne va plus. Votre couronne raconte déjà une histoire. Nous allons commencer par l'écouter.</p>
-            <ul><li>Vos locks cassent, s'amincissent ou se défont</li><li>Vous avez perdu une ou plusieurs locks</li><li>Vous voulez un avis</li></ul>
-            <div class="pied"><a class="btn btn--or" href="#reserver" data-besoin="reparation">Faire diagnostiquer ma couronne</a><span class="legende">Une réparation commence par un diagnostic.</span></div>
-          </div>
-        </article>
-        <article class="porte">
-          <img src="assets/photos/model-microlocks.jpg" alt="Des microlocks établies, de profil" loading="lazy">
-          <div class="porte-corps">
-            <h3>Je veux entretenir ma couronne</h3>
-            <p>Vous avez des locks mais vous ne savez plus comment vous en occuper ? Nous pouvons commencer par regarder ensemble. Lavage, resserrage, hydratation, coiffure. Vos locks ont été créées ailleurs ? Bienvenue quand même.</p>
-            <ul><li>Vos locks sont établies, créées chez MND ou ailleurs</li><li>Vous cherchez un rendez-vous régulier</li><li>Vous voulez une coiffure pour une occasion</li></ul>
-            <div class="pied"><a class="btn btn--or" href="#reserver" data-besoin="entretien">Trouver mon entretien</a><span class="legende">Se réserve directement, sans consultation.</span></div>
-          </div>
-        </article>
-        <article class="porte">
+        <a class="porte" href="#premiere-couronne">
+          <img src="assets/photos/site/creation.jpg" alt="" loading="lazy" width="800" height="1000">
+          <div class="porte-corps"><h3>Je veux créer ma couronne</h3><p>Vous n'avez jamais porté de locks. Nous choisissons la méthode ensemble.</p><span class="suite">La Première Couronne <svg><use href="#i-fleche"/></svg></span></div>
+        </a>
+        <a class="porte" href="#reparation">
+          <img src="assets/photos/site/attention.jpg" alt="" loading="lazy" width="800" height="1000">
+          <div class="porte-corps"><h3>Ma couronne a besoin d'attention</h3><p>Casse, racines fragiles, locks perdues. Nous regardons d'abord.</p><span class="suite">La Réparation <svg><use href="#i-fleche"/></svg></span></div>
+        </a>
+        <a class="porte" href="#entretien">
+          <img src="assets/photos/site/entretien.jpg" alt="" loading="lazy" width="800" height="1000">
+          <div class="porte-corps"><h3>Je veux entretenir ma couronne</h3><p>Lavage, resserrage, hydratation, coiffure. Créées ailleurs ? Bienvenue quand même.</p><span class="suite">Entretien et soins <svg><use href="#i-fleche"/></svg></span></div>
+        </a>
+        <a class="porte" href="#mnd-kids">
           <div class="tuile">MND Kids<small>Photo de la séance à venir</small></div>
-          <div class="porte-corps">
-            <h3>Ma couronne grandit avec moi</h3>
-            <p>Les locks d'un enfant demandent de la douceur, de la patience et un espace pensé pour lui. Chez MND Kids, nous prenons le temps, avec vous à ses côtés.</p>
-            <ul><li>Votre enfant porte déjà des locks</li><li>Vous y pensez pour lui</li><li>Vous voulez un suivi en famille</li></ul>
-            <div class="pied"><a class="btn btn--or" href="#reserver" data-besoin="enfant">Découvrir MND Kids</a><span class="legende">La visite commence par un échange avec vous.</span></div>
-          </div>
-        </article>
-        <article class="porte">
-          <img src="assets/photos/uniform-beige.jpg" alt="La tenue beige de l'atelier MND" loading="lazy">
-          <div class="porte-corps">
-            <h3>Je veux apprendre le métier</h3>
-            <p>Vous voulez faire des locks votre métier, ou approfondir ce que vous savez déjà ? MND Formation transmet la méthode, les gestes et la tenue d'un salon.</p>
-            <ul><li>Vous débutez et voulez apprendre proprement</li><li>Vous êtes déjà coiffeuse ou coiffeur</li><li>Vous voulez structurer votre activité</li></ul>
-            <div class="pied"><a class="btn btn--or" href="#reserver" data-besoin="formation">Découvrir les formations MND</a><span class="legende">Pour celles et ceux qui veulent transmettre à leur tour.</span></div>
-          </div>
-        </article>
+          <div class="porte-corps"><h3>Ma couronne grandit avec moi</h3><p>Douceur, patience, et vous à ses côtés.</p><span class="suite">MND Kids <svg><use href="#i-fleche"/></svg></span></div>
+        </a>
+        <a class="porte" href="#formations">
+          <img src="assets/photos/site/brice.jpg" alt="" loading="lazy" width="800" height="1000">
+          <div class="porte-corps"><h3>Je veux apprendre le métier</h3><p>La méthode, les gestes, la tenue d'un salon.</p><span class="suite">MND Formation <svg><use href="#i-fleche"/></svg></span></div>
+        </a>
       </div>
       <div class="repli">
-        <p>Vous hésitez entre deux cartes ? Trois questions suffisent pour vous orienter.</p>
-        <a class="btn btn--indigo" href="#mon-parcours">Je ne sais pas quel service choisir</a>
+        <p>Vous hésitez ? Trois questions suffisent.</p>
+        <a class="btn btn--fort" href="#mon-parcours">Je ne sais pas quel service choisir</a>
       </div>
     </div>
   </section>
@@ -408,89 +383,78 @@
   <section class="confiance sombre">
     <div class="conteneur">
       <div>
-        <p class="sur">Vous êtes entre de bonnes mains</p>
-        <p class="citation" style="margin-top:14px">Vous n'avez pas besoin de savoir ce qu'il vous faut. Nous sommes là pour vous aider à le déterminer.</p>
+        <p class="sur">Entre de bonnes mains</p>
+        <p class="citation" style="margin-top:12px">Vous n'avez pas besoin de savoir ce qu'il vous faut. Nous sommes là pour vous aider à le déterminer.</p>
       </div>
       <div class="gages">
-        <div class="gage"><b>Consultation</b><p>Pour une création ou une réparation, nous commençons toujours par une consultation. Comprendre avant de proposer.</p></div>
-        <div class="gage"><b>Devis avant intervention</b><p>Rien ne commence sans une proposition écrite que vous avez acceptée.</p></div>
-        <div class="gage"><b>Hygiène</b><p>Outils désinfectés entre chaque personne, linge propre pour chacune, produits que nous connaissons.</p></div>
-        <div class="gage"><b>Suivi</b><p>Après le geste, nous restons là. Vos questions ont une réponse.</p></div>
+        <div class="gage"><b>Consultation</b><p>Comprendre avant de proposer.</p></div>
+        <div class="gage"><b>Devis</b><p>Rien ne commence sans votre oui.</p></div>
+        <div class="gage"><b>Hygiène</b><p>Outils désinfectés, linge propre, pour chacune.</p></div>
+        <div class="gage"><b>Suivi</b><p>Après le geste, nous restons là.</p></div>
       </div>
     </div>
   </section>
 
-  <section class="fondateurs">
+  <section class="avis" id="avis">
     <div class="conteneur">
-      <img src="assets/photos/founders-couple.jpg" alt="Brice et Yéman Ahouansou" loading="lazy">
+      <div>
+        <p class="sur">Avis Google</p>
+        <h2 style="margin-top:10px">Ce que disent nos clientes</h2>
+        <div class="note" title="Gabarit : la note réelle vient de Google"><b>5,0</b><span><span class="etoiles">&#9733;&#9733;&#9733;&#9733;&#9733;</span><br><span class="g">sur Google · tels quels</span></span></div>
+        <div class="rangee" style="margin-top:18px"><a class="btn" href="#avis">Voir tous les avis sur Google</a><a class="btn btn--lien" href="#avis">Laisser un avis</a></div>
+        <p class="legende" style="margin-top:12px">Les avis affichés seront ceux de la fiche Google de la Maison, chargés tels quels par le serveur. Aucun avis n’est écrit ici.</p>
+      </div>
+      <div class="avis-liste">
+        <div class="avis-carte"><span class="etoiles">&#9733;&#9733;&#9733;&#9733;&#9733;</span><div class="ligne-vide"></div><div class="ligne-vide"></div><div class="ligne-vide courte"></div><div class="qui"><i></i><span>Avis Google · prénom et date</span></div></div>
+        <div class="avis-carte"><span class="etoiles">&#9733;&#9733;&#9733;&#9733;&#9733;</span><div class="ligne-vide"></div><div class="ligne-vide"></div><div class="ligne-vide courte"></div><div class="qui"><i></i><span>Avis Google · prénom et date</span></div></div>
+        <div class="avis-carte"><span class="etoiles">&#9733;&#9733;&#9733;&#9733;&#9733;</span><div class="ligne-vide"></div><div class="ligne-vide"></div><div class="ligne-vide courte"></div><div class="qui"><i></i><span>Avis Google · prénom et date</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="fondateurs" id="maison">
+    <div class="conteneur">
+      <img src="assets/photos/site/fondateurs.jpg" alt="Brice et Yéman Ahouansou" loading="lazy" width="800" height="1000">
       <div>
         <p class="sur">Derrière MND</p>
-        <h2 style="margin-top:12px">Brice et Yéman Ahouansou</h2>
-        <p class="chapeau" style="margin-top:14px">MND est une maison de famille, née en 2014 à Cotonou. Brice Ahouansou, maître loctician, tient les mains. Yéman Ahouansou tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet.</p>
-        <p class="message">Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.</p>
-        <div class="trois">
-          <div><b>Prendre soin</b><p>Écouter, laver, nourrir, réparer : le soin est le premier geste de la Maison, et il ne s'arrête pas quand vous partez.</p></div>
-          <div><b>Transformer</b><p>Créer une couronne, la restaurer, la colorer, la défaire quand il le faut : respecter ce qui est là pour aller vers ce que vous voulez.</p></div>
-          <div><b>Transmettre</b><p>Apprendre à celles et ceux qui viennent après nous, pour que la méthode vive au-delà de nos mains.</p></div>
-        </div>
+        <h2 style="margin-top:10px">Brice et Yéman Ahouansou</h2>
+        <p class="ligne" style="margin-top:12px">Une maison de famille, née en 2014 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction.</p>
+        <p class="message">Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir et développer votre couronne.</p>
+        <div class="trois"><b>Prendre soin</b><b>Transformer</b><b>Transmettre</b></div>
       </div>
     </div>
   </section>
 
-  <section class="univers" style="background:var(--creme-2); border-block:1px solid var(--filet)">
+  <section class="journal" id="journal" style="background:var(--fond-2); border-block:1px solid var(--filet)">
     <div class="conteneur">
-      <div class="tete">
-        <p class="sur">L'univers MND</p>
-        <h2>Une maison à quatre portes</h2>
-        <p class="chapeau">MND n'est pas seulement un salon. C'est une maison à quatre portes, et chacune s'ouvre sur la même méthode.</p>
-      </div>
-      <div class="quatre">
-        <div class="porte-univers"><b>Ma Couronne</b><p>Votre espace personnel : vos rendez-vous, l'historique de vos soins, vos conseils, votre abonnement.</p></div>
-        <div class="porte-univers"><b>La Maison MND</b><p>Le lieu, à Cotonou, où vos locks sont créées, réparées et entretenues.</p></div>
-        <div class="porte-univers"><b>Le Trône</b><p>L'atelier intérieur de la Maison : l'outil qui organise nos rendez-vous, nos soins et notre suivi, pour que rien ne se perde.</p></div>
-        <div class="porte-univers"><b>MND Formation</b><p>L'école de la méthode : pour apprendre le métier, du premier geste à la tenue d'un salon.</p></div>
-      </div>
-      <p class="liaison">Tout est relié. Une seule méthode, quatre portes, la même exigence.</p>
-    </div>
-  </section>
-
-  <section class="journal">
-    <div class="conteneur">
-      <div class="tete">
-        <p class="sur">Le Journal MND</p>
-        <h2>Comprendre sa couronne</h2>
-      </div>
+      <div class="tete"><p class="sur">Le Journal MND</p><h2>Comprendre sa couronne</h2></div>
       <div class="articles">
-        <article class="article"><img src="assets/photos/portrait-2.jpg" alt="" loading="lazy"><div><h3>Commencer ses dreadlocks : par où commencer</h3><p>Ce qu'il faut savoir avant la première consultation, et ce qu'il n'est pas nécessaire de savoir.</p><a href="#premiere-couronne">Lire l'article</a></div></article>
-        <article class="article"><img src="assets/photos/model-microlocks.jpg" alt="" loading="lazy"><div><h3>Entretenir ses racines sans les fragiliser</h3><p>Le resserrage SÍNSIN™, régulier et sans excès, pour que la repousse rejoigne la lock proprement.</p><a href="#reserver">Lire l'article</a></div></article>
-        <article class="article"><img src="assets/photos/portrait-3.jpg" alt="" loading="lazy"><div><h3>Mes locks ont été créées ailleurs</h3><p>Ce que la Maison regarde d'abord, et pourquoi vous n'avez pas à recommencer.</p><a href="#reserver">Lire l'article</a></div></article>
+        <a class="article" href="#premiere-couronne"><img src="assets/photos/site/journal-1.jpg" alt="" loading="lazy" width="960" height="600"><h3>Comment commencer ses dreadlocks ?</h3></a>
+        <a class="article" href="#entretien"><img src="assets/photos/site/journal-2.jpg" alt="" loading="lazy" width="960" height="600"><h3>Comment entretenir ses racines ?</h3></a>
+        <a class="article" href="#entretien"><img src="assets/photos/site/journal-3.jpg" alt="" loading="lazy" width="960" height="600"><h3>Peut-on entretenir des locks créées ailleurs ?</h3></a>
       </div>
     </div>
   </section>
 
   <section class="appel">
     <div class="conteneur">
-      <div>
-        <h2>Vous préférez que nous vous rappelions ?</h2>
-        <p class="chapeau" style="margin-top:10px">Dites-nous simplement où vous en êtes. Nous vous répondons personnellement, sur WhatsApp ou par téléphone.</p>
-      </div>
+      <div><h2>Vous préférez qu'on vous rappelle ?</h2><p class="ligne" style="margin-top:8px">Un prénom, un numéro. Nous vous répondons personnellement.</p></div>
       <div class="rangee">
-        <a class="btn btn--indigo" href="#reserver">Laisser mes coordonnées</a>
-        <a class="btn" href="#reserver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z"/></svg>Parler à MND sur WhatsApp</a>
+        <a class="btn btn--fort" href="#reserver">Laisser mes coordonnées</a>
+        <a class="btn" data-wa="inconnu" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a>
       </div>
     </div>
   </section>
 
 </main>
 
-<!-- ═══════════════════ ÉCRAN 2 · MON PARCOURS (triage) ═══════════════════ -->
+<!-- ═══════════════════ ÉCRAN 2 · MON PARCOURS ═══════════════════ -->
 <main class="ecran" id="mon-parcours">
   <section>
     <div class="conteneur triage">
       <div class="tete">
         <p class="sur">Mon parcours</p>
-        <h2>Je ne sais pas quel service choisir</h2>
-        <p class="chapeau">C'est souvent le cas, et c'est très bien ainsi. Répondez à trois questions, nous vous montrons la porte qui vous correspond.</p>
+        <h2>Trois questions, et la bonne porte.</h2>
       </div>
       <div class="etapes"><span class="fait" id="et1"></span><span id="et2"></span><span id="et3"></span></div>
 
@@ -505,150 +469,81 @@
       </div>
 
       <div class="question" id="q2">
-        <h2>Comment se portent-elles en ce moment ?</h2>
+        <h2>Comment se portent-elles ?</h2>
         <div class="reponses">
-          <button class="reponse" data-vers="q3"><i></i><span>Elles vont bien, je veux simplement les entretenir</span></button>
+          <button class="reponse" data-vers="q3"><i></i><span>Bien, je veux les entretenir</span></button>
           <button class="reponse" data-vers="s-reparation"><i></i><span>Quelque chose m'inquiète<small>Casse, amincissement, racines, locks perdues</small></span></button>
           <button class="reponse" data-vers="s-regard"><i></i><span>Je ne sais pas trop, j'aimerais un avis</span></button>
         </div>
-        <button class="btn btn--lien retour" data-vers="q1">Revenir en arrière</button>
+        <button class="btn btn--lien retour" data-vers="q1">Revenir</button>
       </div>
 
       <div class="question" id="q3">
-        <h2>Que souhaitez-vous pour votre prochain rendez-vous ?</h2>
+        <h2>Pour votre prochain rendez-vous ?</h2>
         <div class="reponses">
-          <button class="reponse" data-vers="s-entretien"><i></i><span>Un geste régulier<small>Lavage, resserrage, hydratation, reprise de racines</small></span></button>
-          <button class="reponse" data-vers="s-entretien"><i></i><span>Une coiffure, pour tous les jours ou pour une occasion</span></button>
+          <button class="reponse" data-vers="s-entretien"><i></i><span>Un geste régulier<small>Lavage, resserrage, hydratation</small></span></button>
+          <button class="reponse" data-vers="s-entretien"><i></i><span>Une coiffure</span></button>
           <button class="reponse" data-vers="s-regard"><i></i><span>Un changement<small>Couleur végétale, défaisage, nouvelle forme</small></span></button>
         </div>
-        <button class="btn btn--lien retour" data-vers="q2">Revenir en arrière</button>
+        <button class="btn btn--lien retour" data-vers="q2">Revenir</button>
       </div>
 
-      <div class="sortie" id="s-creation">
-        <p class="sur">Votre parcours · Première Couronne</p>
-        <h2>Votre couronne commence ici.</h2>
-        <p>Une création débute toujours par une consultation. Nous regardons vos cheveux, nous écoutons votre envie, puis nous vous proposons une méthode et un devis. Rien d'autre à décider aujourd'hui.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="creation">Réserver ma consultation Première Couronne</a><a class="btn btn--lien" href="#premiere-couronne">Lire le parcours</a></div>
-      </div>
-      <div class="sortie" id="s-reparation">
-        <p class="sur">Votre parcours · Réparation</p>
-        <h2>Regardons d'abord.</h2>
-        <p>Une réparation commence par un diagnostic. Pendant la consultation, nous examinons votre couronne zone par zone et nous vous disons ce que nous voyons. Ensuite seulement, nous proposons.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="reparation">Réserver ma consultation Réparation</a></div>
-      </div>
-      <div class="sortie" id="s-regard">
-        <p class="sur">Votre parcours · Réparation</p>
-        <h2>Regardons d'abord.</h2>
-        <p>Vous n'avez pas à mettre un nom sur ce que vous ressentez. Prenons le temps de regarder votre couronne ensemble. Nous déciderons après.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="reparation">Réserver ma consultation Réparation</a></div>
-      </div>
-      <div class="sortie" id="s-entretien">
-        <p class="sur">Votre parcours · Entretien</p>
-        <h2>Vos locks ont juste besoin de leur rendez-vous.</h2>
-        <p>Pas de consultation nécessaire. Choisissez votre geste et votre créneau, nous vous attendons.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="entretien">Réserver mon entretien</a></div>
-      </div>
-      <div class="sortie" id="s-kids">
-        <p class="sur">Votre parcours · MND Kids</p>
-        <h2>Pour votre enfant, tout va plus doucement.</h2>
-        <p>Découvrez comment se passe une séance chez MND Kids, puis organisons votre visite ensemble.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="enfant">Organiser notre visite</a></div>
-      </div>
-      <div class="sortie" id="s-formation">
-        <p class="sur">Votre parcours · Formations</p>
-        <h2>Apprendre à faire, et à bien faire.</h2>
-        <p>MND Formation transmet la méthode, les gestes et la manière de tenir un salon. Découvrez les parcours proposés.</p>
-        <div class="rangee"><a class="btn btn--or" href="#reserver" data-besoin="formation">Découvrir les formations MND</a></div>
-      </div>
+      <div class="sortie" id="s-creation"><p class="sur">Première Couronne</p><h2>Votre couronne commence ici.</h2><p>Une création débute par une consultation. Rien d'autre à décider aujourd'hui.</p><div class="rangee"><a class="btn btn--plein" href="#premiere-couronne">Voir la Première Couronne</a><a class="btn btn--lien" data-wa="creation" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
+      <div class="sortie" id="s-reparation"><p class="sur">Réparation</p><h2>Regardons d'abord.</h2><p>Une réparation commence par un diagnostic, zone par zone. Ensuite seulement, nous proposons.</p><div class="rangee"><a class="btn btn--plein" href="#reparation">Voir la Réparation</a><a class="btn btn--lien" data-wa="reparation" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
+      <div class="sortie" id="s-regard"><p class="sur">Réparation</p><h2>Regardons d'abord.</h2><p>Vous n'avez pas à mettre un nom sur ce que vous ressentez. Nous déciderons après avoir vu.</p><div class="rangee"><a class="btn btn--plein" href="#reparation">Voir la Réparation</a><a class="btn btn--lien" data-wa="reparation" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
+      <div class="sortie" id="s-entretien"><p class="sur">Entretien</p><h2>Vos locks ont juste besoin de leur rendez-vous.</h2><p>Pas de consultation. Choisissez votre geste et votre créneau.</p><div class="rangee"><a class="btn btn--plein" href="#entretien">Voir l'entretien</a><a class="btn btn--lien" data-wa="entretien" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
+      <div class="sortie" id="s-kids"><p class="sur">MND Kids</p><h2>Pour votre enfant, tout va plus doucement.</h2><p>Découvrez la séance, puis organisons votre visite.</p><div class="rangee"><a class="btn btn--plein" href="#mnd-kids">Voir MND Kids</a><a class="btn btn--lien" data-wa="enfant" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
+      <div class="sortie" id="s-formation"><p class="sur">Formations</p><h2>Apprendre à faire, et à bien faire.</h2><p>La méthode, les gestes, la tenue d'un salon.</p><div class="rangee"><a class="btn btn--plein" href="#formations">Voir les formations</a><a class="btn btn--lien" data-wa="formation" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>WhatsApp</a></div></div>
 
-      <p class="legende" style="margin-top:28px">Vous hésitez encore ? Écrivez-nous, nous vous répondons simplement.</p>
-      <div class="rangee" style="margin-top:10px"><a class="btn" href="#reserver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z"/></svg>Parler à MND sur WhatsApp</a><button class="btn btn--lien" data-vers="q1" id="recommencer">Recommencer</button></div>
+      <div class="rangee" style="margin-top:26px"><button class="btn btn--lien" data-vers="q1">Recommencer</button></div>
     </div>
   </section>
 </main>
 
-<!-- ═══════════════════ ÉCRAN 3 · PAGE PREMIÈRE COURONNE ═══════════════════ -->
-<main class="ecran" id="premiere-couronne">
-  <div class="conteneur fil"><a href="#accueil">Accueil</a><span>·</span><a href="#portes">Services</a><span>·</span><span>La Première Couronne</span></div>
-  <section class="page-hero" style="padding-top:28px">
+<!-- ═══════════════════ ÉCRAN 3 · UNE PAGE DE SERVICE (les cinq) ═══════════════════ -->
+<main class="ecran" id="service">
+  <div class="conteneur fil"><a href="#accueil">Accueil</a><span>·</span><a href="#portes">Services</a><span>·</span><span id="sv-fil"></span></div>
+  <section class="page-hero">
     <div class="conteneur">
       <div>
-        <p class="sur">Je veux créer ma couronne</p>
-        <h1>La Première Couronne</h1>
-        <p class="chapeau">Vous n'avez jamais porté de locks ? Vous n'avez pas besoin de tout savoir avant de commencer. La Première Couronne est le parcours de création de la Maison MND. Nous partons de vos cheveux tels qu'ils sont, nous choisissons ensemble la méthode, et nous posons les fondations d'une couronne qui vous ressemble.</p>
-        <div class="rangee" style="margin-top:24px"><a class="btn btn--or" href="#reserver" data-besoin="creation">Réserver ma consultation</a><a class="btn btn--lien" href="#pas">Voir les six pas</a></div>
-        <p class="legende" style="margin-top:12px">Le premier pas, et le seul à faire aujourd'hui.</p>
+        <p class="sur" id="sv-sur"></p>
+        <h1 id="sv-titre"></h1>
+        <p class="ligne" id="sv-ligne"></p>
+        <div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="sv-cta" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg><span></span></a><a class="btn btn--lien" href="#reserver" id="sv-rappel">Me faire rappeler</a></div>
+        <p class="legende" id="sv-note" style="margin-top:10px"></p>
       </div>
-      <img src="assets/photos/portrait-1.jpg" alt="Une femme aux locks naissantes, de trois quarts" width="2048" height="2406">
+      <div id="sv-image"></div>
     </div>
   </section>
-
+  <section style="padding-top:0" id="sv-geste-bloc"><div class="conteneur"><div class="geste" id="sv-geste"></div></div></section>
   <section style="padding-top:0">
     <div class="conteneur">
-      <div class="geste">
-        <p class="sur">Le geste</p>
-        <p>La création porte un nom chez MND : <b>VÈKPÈ™</b>. Elle suit les quatre temps de la méthode et pose le premier palier de votre chemin : <b>la Fondation</b>.</p>
-        <div class="temps">
-          <span><small>Un</small>Purifier</span><span><small>Deux</small>Nourrir</span><span><small>Trois</small>Sceller</span><span><small>Quatre</small>Couronner</span>
-        </div>
-      </div>
+      <div class="tete"><p class="sur" id="sv-pas-sur"></p><h2 id="sv-pas-titre"></h2></div>
+      <ol class="pas" id="sv-pas"></ol>
     </div>
   </section>
-
-  <section id="pas" style="padding-top:0">
-    <div class="conteneur">
-      <div class="tete"><p class="sur">Comment cela se passe</p><h2>Le parcours en six pas</h2></div>
-      <ol class="pas">
-        <li><div><b>Consultation</b><p>Nous prenons le temps de vous écouter : votre envie, votre quotidien, vos questions.</p></div></li>
-        <li><div><b>Diagnostic</b><p>Nous observons vos cheveux, leur texture, leur densité, leur longueur, pour savoir d'où nous partons.</p></div></li>
-        <li><div><b>Choix de la méthode</b><p>Nous vous expliquons les méthodes possibles et nous choisissons avec vous celle qui convient à vos cheveux et à votre vie.</p></div></li>
-        <li><div><b>Devis</b><p>Vous recevez une proposition écrite et claire, avant toute intervention. Vous décidez sans pression.</p></div></li>
-        <li><div><b>Atelier Création</b><p>Le jour de VÈKPÈ™, votre couronne prend forme, geste après geste, dans le calme de la Maison.</p></div></li>
-        <li><div><b>Suivi</b><p>Les premières semaines comptent. Nous restons présents pour vos questions et nous fixons ensemble votre premier rendez-vous d'entretien.</p></div></li>
-      </ol>
-    </div>
-  </section>
-
   <section style="padding-top:0">
     <div class="conteneur">
-      <div class="rassure">
-        <p>Cheveux fins, courts, colorés ou fragilisés : la consultation sert justement à voir ce qui est possible pour vous. Rien ne se fait sans que vous ayez compris et accepté.</p>
-        <div class="colonne"><a class="btn btn--or" href="#reserver" data-besoin="creation">Réserver ma consultation</a><span class="legende">Le premier pas, et le seul à faire aujourd'hui.</span></div>
-      </div>
+      <div class="rassure"><p id="sv-rassure"></p><div class="colonne"><a class="btn btn--plein" id="sv-cta2" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg><span></span></a><span class="legende" id="sv-note2"></span></div></div>
     </div>
   </section>
-
   <section style="padding-top:0">
     <div class="conteneur">
-      <div class="tete"><p class="sur">À la Maison</p><h2>Ce que vous verrez en arrivant</h2></div>
+      <div class="tete"><p class="sur">Vos questions</p></div>
+      <div class="faq" id="sv-faq"></div>
+    </div>
+  </section>
+  <section style="padding-top:0" id="sv-galerie-bloc">
+    <div class="conteneur">
+      <div class="tete"><p class="sur">À la Maison</p></div>
       <div class="galerie">
-        <figure><img src="assets/photos/brice-portrait.jpg" alt="Brice Ahouansou, maître loctician" loading="lazy"><figcaption>Brice Ahouansou, maître loctician, tient les mains.</figcaption></figure>
-        <figure><img src="assets/photos/yeman-smile.jpg" alt="Yéman Ahouansou" loading="lazy"><figcaption>Yéman Ahouansou vous accueille et tient la direction.</figcaption></figure>
-        <figure><img src="assets/photos/uniform-beige.jpg" alt="La tenue beige de l'atelier" loading="lazy"><figcaption>La tenue de l'atelier, la même pour chaque geste.</figcaption></figure>
+        <figure><img src="assets/photos/site/brice.jpg" alt="Brice Ahouansou" loading="lazy" width="800" height="1000"><figcaption>Brice, maître loctician.</figcaption></figure>
+        <figure><img src="assets/photos/site/yeman.jpg" alt="Yéman Ahouansou" loading="lazy" width="800" height="1000"><figcaption>Yéman vous accueille.</figcaption></figure>
+        <figure><img src="assets/photos/site/regard.jpg" alt="" loading="lazy" width="800" height="1000"><figcaption>Une couronne établie, suivie à la Maison.</figcaption></figure>
       </div>
     </div>
   </section>
-
-  <section style="padding-top:0">
-    <div class="conteneur">
-      <div class="tete"><p class="sur">Vos questions</p><h2>Avant de commencer</h2></div>
-      <div class="faq">
-        <details open><summary>J'ai les cheveux fins. Puis-je avoir des locks ?</summary><p>La réponse dépend de vos cheveux, pas d'une règle générale. C'est exactement ce que la consultation permet de voir. Nous vous dirons honnêtement ce qui est possible et quelle méthode convient.</p></details>
-        <details><summary>Combien de temps dure une création ?</summary><p>Cela dépend de la méthode, de la longueur et de la densité de vos cheveux. Une création peut prendre quelques heures ou une journée entière. Vous connaîtrez la durée prévue avec votre devis.</p></details>
-        <details><summary>Pourquoi les prix sont-ils sur devis ?</summary><p>Parce que deux couronnes ne demandent jamais la même chose. Le devis suit la consultation et décrit précisément ce qui sera fait. Vous le recevez par écrit avant toute intervention.</p></details>
-        <details><summary>La consultation est-elle obligatoire ?</summary><p>Pour une création ou une réparation, oui : nous ne faisons pas de geste important sans avoir regardé. Pour un entretien simple, non, vous réservez directement.</p></details>
-      </div>
-    </div>
-  </section>
-
-  <section class="appel">
-    <div class="conteneur">
-      <div><h2>Votre couronne commence ici.</h2><p class="chapeau" style="margin-top:10px">Une consultation, puis une proposition écrite. Vous décidez ensuite.</p></div>
-      <div class="rangee"><a class="btn btn--indigo" href="#reserver" data-besoin="creation">Réserver ma consultation</a><a class="btn" href="#reserver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z"/></svg>Parler à MND sur WhatsApp</a></div>
-    </div>
-  </section>
-
-  <div class="barre-mobile"><a class="btn btn--or" href="#reserver" data-besoin="creation">Réserver ma consultation</a><a class="btn" href="#reserver">WhatsApp</a></div>
+  <div class="barre-mobile"><a class="btn btn--plein" id="sv-cta3" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg><span></span></a><a class="btn" href="#reserver">Me faire rappeler</a></div>
 </main>
 
 <!-- ═══════════════════════ ÉCRAN 4 · RÉSERVER ═══════════════════════ -->
@@ -658,15 +553,13 @@
       <div>
         <div class="tete">
           <p class="sur">Réserver</p>
-          <h2>Laissez-nous vos coordonnées, nous vous orientons</h2>
-          <p class="chapeau">Vous préférez que nous vous rappelions ? Dites-nous simplement où vous en êtes. Nous vous répondons personnellement.</p>
+          <h2>Un prénom, un numéro. Nous vous rappelons.</h2>
         </div>
         <form class="formulaire" id="demande">
           <div class="deux-champs">
-            <div class="champ"><label for="prenom">Votre prénom</label><input id="prenom" name="prenom" autocomplete="given-name" placeholder="Comment vous appelle-t-on ?"></div>
-            <div class="champ"><label for="numero">Votre numéro WhatsApp ou téléphone</label><input id="numero" name="numero" inputmode="tel" autocomplete="tel"><small>C'est par là que nous vous répondrons.</small></div>
+            <div class="champ"><label for="prenom">Votre prénom</label><input id="prenom" name="prenom" autocomplete="given-name"></div>
+            <div class="champ"><label for="numero">Votre WhatsApp ou téléphone</label><input id="numero" name="numero" inputmode="tel" autocomplete="tel"></div>
           </div>
-          <div class="champ"><label for="email">Votre e-mail (facultatif)</label><input id="email" name="email" type="email" autocomplete="email"><small>Utile pour recevoir votre proposition par écrit.</small></div>
           <div class="deux-champs">
             <div class="champ"><label for="besoin">Ce dont vous avez besoin</label>
               <select id="besoin" name="besoin">
@@ -686,41 +579,38 @@
                 <option>J'ai des locks créées ailleurs</option>
                 <option>Je suis parent</option>
                 <option>Je suis coiffeuse ou coiffeur</option>
-                <option>Autre</option>
               </select></div>
           </div>
-          <div class="champ"><label for="mot">Un mot, si vous voulez (facultatif)</label><textarea id="mot" name="mot" rows="3"></textarea></div>
-          <label class="consentement"><input type="checkbox" id="consent" name="consent"><span>J'accepte que MND me contacte au sujet de ma demande et conserve mes coordonnées pour cela. Rien d'autre.</span></label>
-          <button class="btn btn--or" type="submit">Envoyer ma demande à MND</button>
+          <label class="consentement"><input type="checkbox" id="consent" name="consent"><span>MND peut me contacter au sujet de ma demande et garder mes coordonnées pour cela. Rien d'autre.</span></label>
+          <button class="btn btn--plein" type="submit">Envoyer ma demande</button>
           <p class="legende" id="erreur" hidden>Il nous manque votre numéro pour vous répondre.</p>
         </form>
         <div class="merci" id="merci">
           <p class="sur">Demande reçue</p>
-          <h2>Merci, nous avons bien reçu votre demande.</h2>
-          <p>Nous vous répondons sur WhatsApp ou par téléphone, dès que possible, pendant les heures d'ouverture de la Maison. En attendant, vous pouvez découvrir votre parcours ou nous écrire directement.</p>
-          <div class="rangee"><a class="btn btn--indigo" href="#reserver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z"/></svg>Parler à MND sur WhatsApp</a><a class="btn btn--lien" href="#accueil">Retour à l'accueil</a></div>
+          <h2>Merci. Nous vous rappelons.</h2>
+          <p>Sur WhatsApp ou par téléphone, pendant les heures d'ouverture de la Maison.</p>
+          <div class="rangee"><a class="btn btn--fort" data-wa="inconnu" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Parler à MND sur WhatsApp</a><a class="btn btn--lien" href="#accueil">Retour à l'accueil</a></div>
         </div>
-        <p class="aide-maquette" style="margin-top:10px">Maquette : <button type="button" id="voir-merci">voir l'écran après envoi</button></p>
+        <p class="aide-maquette">Maquette : <button type="button" id="voir-merci">voir l'écran après envoi</button></p>
       </div>
 
       <aside class="suite">
         <div>
           <p class="sur">Ce qui se passe ensuite</p>
-          <ol style="margin-top:12px">
-            <li><div><b>Nous vous rappelons</b><p>Sur WhatsApp ou par téléphone, pendant les heures d'ouverture de la Maison.</p></div></li>
-            <li><div><b>Consultation, ou créneau direct</b><p>Pour une création ou une réparation, nous fixons votre consultation. Pour un entretien, nous vous proposons directement un créneau.</p></div></li>
-            <li><div><b>Votre place est confirmée</b><p>Vous recevez la confirmation, et votre espace Ma Couronne s'ouvre à votre premier rendez-vous.</p></div></li>
+          <ol>
+            <li><div><b>Nous vous rappelons</b><p>Pendant les heures d'ouverture.</p></div></li>
+            <li><div><b>Consultation, ou créneau direct</b><p>Création et réparation : une consultation d'abord. Entretien : un créneau tout de suite.</p></div></li>
+            <li><div><b>Votre place est confirmée</b><p>Votre espace Ma Couronne s'ouvre à votre premier rendez-vous.</p></div></li>
           </ol>
         </div>
         <div class="carte-wa">
           <p class="sur">Plus direct</p>
           <h3>Parler à MND sur WhatsApp</h3>
-          <p>Le message est déjà écrit selon votre parcours. Vous n'avez qu'à l'envoyer.</p>
-          <p id="wa-message" style="font-family:var(--serif); font-size:17px; color:var(--creme)">« Bonjour MND, je ne sais pas encore quel service choisir et j'aimerais être orientée. »</p>
-          <a class="btn btn--or" href="#reserver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z"/></svg>Ouvrir WhatsApp</a>
-          <p class="legende">Nous répondons pendant les heures d'ouverture de la Maison.</p>
+          <p class="msg" id="wa-message"></p>
+          <a class="btn btn--plein" id="wa-bouton" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Ouvrir WhatsApp</a>
+          <p class="legende">Le message est déjà écrit. Vous n'avez qu'à l'envoyer.</p>
         </div>
-        <p class="compte">Vous avez déjà un compte Ma Couronne ? <a href="#reserver">Réservez-y directement votre créneau.</a></p>
+        <p class="compte">Aucun compte à créer, rien à payer aujourd’hui.</p>
       </aside>
     </div>
   </section>
@@ -729,30 +619,36 @@
 <footer>
   <div class="conteneur">
     <div>
-      <div class="marque"><b>MND</b><span>Mi nyɔ́ ɖɛkpɛ</span></div>
-      <p style="margin-top:14px; max-width:36ch">La Maison MND, Cotonou. Création, réparation et entretien de locks, depuis 2014.</p>
+      <a class="logo" href="#accueil" aria-label="MND"><img src="assets/photos/site/mono-ivoire.png" alt="MND" width="240" height="198"></a>
+      <p style="margin-top:14px; max-width:32ch">La Maison MND, Cotonou. Locks créées, réparées, entretenues, depuis 2014.</p>
     </div>
-    <div><h4>Services</h4><ul><li><a href="#premiere-couronne">Première Couronne</a></li><li><a href="#reserver">Réparation</a></li><li><a href="#reserver">Entretien et soins</a></li><li><a href="#reserver">MND Kids</a></li><li><a href="#reserver">Abonnements</a></li></ul></div>
-    <div><h4>La Maison</h4><ul><li><a href="#accueil">Derrière MND</a></li><li><a href="#accueil">L'univers MND</a></li><li><a href="#accueil">Le Journal</a></li><li><a href="#accueil">Vos questions</a></li><li><a href="#reserver">Formations</a></li></ul></div>
-    <div><h4>Contact</h4><ul><li><a href="#reserver">WhatsApp</a></li><li><a href="#reserver">Instagram</a></li><li><a href="#reserver">Google</a></li><li><a href="#reserver">Ma Couronne</a></li></ul></div>
+    <div><h4>Services</h4><ul><li><a href="#premiere-couronne">Première Couronne</a></li><li><a href="#reparation">Réparation</a></li><li><a href="#entretien">Entretien et soins</a></li><li><a href="#mnd-kids">MND Kids</a></li><li><a href="#formations">Formations</a></li></ul></div>
+    <div><h4>La Maison</h4><ul><li><a href="#maison">Derrière MND</a></li><li><a href="#journal">Le Journal</a></li><li><a href="#mon-parcours">Mon parcours</a></li><li><a href="#reserver">Réserver</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a data-wa="inconnu" target="_blank" rel="noopener">WhatsApp</a></li><li><a href="#reserver">Instagram</a></li><li><a href="#reserver">Google</a></li><li><a href="#reserver">Me faire rappeler</a></li></ul></div>
     <div class="pied-bas">
       <span class="devise">mi nyɔ́ ɖɛkpɛ · la maison veille</span>
-      <span><a href="#accueil">Mentions légales</a> · <a href="#accueil">Politique de confidentialité</a> · <a href="#accueil">Conditions</a></span>
+      <span><a href="#accueil">Mentions légales</a> · <a href="#accueil">Confidentialité</a> · <a href="#accueil">Conditions</a></span>
     </div>
   </div>
 </footer>
 
 <div class="maquette-barre">
-  <small>Maquette</small>
-  <button data-ecran="accueil" class="actif">1 · Accueil</button>
-  <button data-ecran="mon-parcours">2 · Mon parcours</button>
-  <button data-ecran="premiere-couronne">3 · Première Couronne</button>
-  <button data-ecran="reserver">4 · Réserver</button>
+  <small>Écrans</small>
+  <button data-ecran="accueil" class="actif">Accueil</button>
+  <button data-ecran="mon-parcours">Mon parcours</button>
+  <button data-ecran="premiere-couronne">Un service</button>
+  <button data-ecran="reserver">Réserver</button>
+  <span class="sep"></span>
+  <small>Palettes</small>
+  <button data-palette="charte" class="actif">La charte · cuivre</button>
+  <button data-palette="or">Or et crème</button>
+  <button data-palette="cuivre-or">Cuivre et or</button>
+  <button data-palette="velours">Indigo velours</button>
 </div>
 
 <script>
-  /* Commutation des écrans par le hash, comme le feront les vraies adresses. */
-  const ECRANS = ['accueil', 'mon-parcours', 'premiere-couronne', 'reserver'];
+  /* ── Les messages WhatsApp, un par parcours. Le numéro de la Maison sera
+     posé par le code ; ici le lien ouvre WhatsApp avec le message prêt. ── */
   const MESSAGES = {
     creation: 'Bonjour MND, je viens du parcours Première Couronne et je souhaite être accompagnée pour créer mes locks.',
     reparation: 'Bonjour MND, je viens du parcours Réparation et je souhaite faire diagnostiquer ma couronne.',
@@ -761,55 +657,136 @@
     formation: 'Bonjour MND, je viens du parcours Formations et je souhaite en savoir plus sur les formations MND.',
     inconnu: 'Bonjour MND, je ne sais pas encore quel service choisir et j’aimerais être orientée.'
   };
+  const lienWa = (cle) => 'https://wa.me/?text=' + encodeURIComponent(MESSAGES[cle] || MESSAGES.inconnu);
+  document.querySelectorAll('[data-wa]').forEach(a => { a.href = lienWa(a.dataset.wa); });
+
+  /* ── Les cinq services, une seule page. ── */
+  const SERVICES = {
+    'premiere-couronne': {
+      besoin: 'creation', sur: 'Je veux créer ma couronne', titre: 'La Première Couronne',
+      ligne: 'Vous n’avez jamais porté de locks ? Vous n’avez pas besoin de tout savoir avant de commencer.',
+      image: 'assets/photos/site/creation.jpg', cta: 'Réserver ma consultation', note: 'Le premier pas, et le seul à faire aujourd’hui.',
+      geste: '<span>La création porte un nom : <b>VÈKPÈ™</b>. Elle pose le palier <b>Fondation</b>.</span><div class="temps"><span>Purifier</span><span>Nourrir</span><span>Sceller</span><span>Couronner</span></div>',
+      pasSur: 'Comment cela se passe', pasTitre: 'Six pas',
+      pas: [['Consultation', 'Nous vous écoutons.'], ['Diagnostic', 'Nous regardons vos cheveux tels qu’ils sont.'], ['Méthode', 'Nous la choisissons ensemble.'], ['Devis', 'Écrit, clair, avant tout geste.'], ['Atelier Création', 'Le jour de VÈKPÈ™.'], ['Suivi', 'Les premières semaines comptent.']],
+      rassure: 'Cheveux fins, courts ou fragilisés : la consultation sert justement à voir ce qui est possible pour vous.',
+      faq: [['J’ai les cheveux fins. Puis-je avoir des locks ?', 'Cela dépend de vos cheveux, pas d’une règle. C’est ce que la consultation permet de voir.'], ['Combien de temps dure une création ?', 'Quelques heures ou une journée, selon la méthode et vos cheveux. Vous le saurez avec votre devis.'], ['Pourquoi les prix sont-ils sur devis ?', 'Deux couronnes ne demandent jamais la même chose. Le devis suit la consultation, par écrit.']]
+    },
+    'reparation': {
+      besoin: 'reparation', sur: 'Ma couronne a besoin d’attention', titre: 'La Réparation',
+      ligne: 'Une réparation commence par un diagnostic. Votre couronne raconte déjà une histoire : nous l’écoutons d’abord.',
+      image: 'assets/photos/site/attention.jpg', cta: 'Diagnostiquer ma couronne', note: 'Le diagnostic a lieu pendant la consultation Réparation.',
+      geste: '<span>La restauration porte un nom : <b>FÍNFÍN™</b>. Selon le regard, un <b>SÍNSIN™</b>, un <b>DÀNDÀN™</b> ou un <b>GBÀTÀ™</b> l’accompagne.</span>',
+      pasSur: 'Comment cela se passe', pasTitre: 'Six pas',
+      pas: [['Consultation Réparation', 'Vous racontez, nous écoutons.'], ['Diagnostic', 'Racines, corps, pointes, cuir chevelu.'], ['Plan', 'Ce qui se restaure, ce qui demande du temps.'], ['Devis', 'Écrit, avant de dire oui.'], ['Intervention', 'À votre rythme, en une ou plusieurs séances.'], ['Suivi', 'Nous ajustons si besoin.']],
+      rassure: 'Nous ne promettons pas une couronne neuve. Nous regardons honnêtement, et rien ne se fait sans votre accord.',
+      faq: [['Mes locks ont été créées ailleurs. Puis-je venir ?', 'Oui, bienvenue quand même. Nous prenons votre couronne là où elle en est.'], ['La consultation est-elle obligatoire ?', 'Pour une réparation, oui : nous ne faisons pas de geste important sans avoir regardé.'], ['Que se passe-t-il si je dois annuler ?', 'Prévenez-nous dès que possible, nous déplaçons votre rendez-vous.']]
+    },
+    'entretien': {
+      besoin: 'entretien', sur: 'Je veux entretenir ma couronne', titre: 'Entretien et soins',
+      ligne: 'Vos locks ont été créées ailleurs ? Bienvenue quand même. Nous prenons votre couronne là où elle en est.',
+      image: 'assets/photos/site/entretien.jpg', cta: 'Réserver mon entretien', note: 'Se réserve directement, sans consultation.',
+      geste: '<span>Chaque entretien suit les quatre temps de la méthode.</span><div class="temps"><span>Purifier</span><span>Nourrir</span><span>Sceller</span><span>Couronner</span></div>',
+      pasSur: 'Les gestes', pasTitre: 'Ce que nous faisons', liste: true,
+      pas: [['Le lavage · KLƆKLƆ™', 'En profondeur, sans agresser.'], ['La reprise de racines · SÍNSIN™', 'Régulière, sans excès.'], ['L’hydratation · DÀNDÀN™', 'Le soin aux sept huiles.'], ['Les soins', 'Selon ce que votre couronne demande ce jour-là.'], ['La coiffure', 'Pour tous les jours ou pour une occasion.']],
+      rassure: 'Nous vous conseillons la fréquence qui convient à votre couronne, pas une règle générale.',
+      faq: [['À quelle fréquence entretenir mes locks ?', 'Votre couronne a son propre rythme. Nous vous le disons après l’avoir vue.'], ['Proposez-vous la coloration végétale ?', 'Oui, avec YÈKPÈ™, après un regard sur l’état de vos locks.'], ['Faut-il une consultation ?', 'Non. Un entretien se réserve directement.']]
+    },
+    'mnd-kids': {
+      besoin: 'enfant', sur: 'MND Kids', titre: 'Ma couronne grandit avec moi',
+      ligne: 'Un enfant a besoin de temps, de douceur, et d’une main qui ne tire pas. Vous restez à ses côtés.',
+      image: null, cta: 'Organiser notre visite', note: 'La visite commence par un échange avec vous.',
+      geste: '',
+      pasSur: 'L’univers', pasTitre: 'Cinq promesses', liste: true,
+      pas: [['Douceur', 'Une séance plus longue plutôt qu’un enfant qui a mal.'], ['Sécurité', 'Un parent toujours présent.'], ['Patience', 'Une pause, une histoire, un moment.'], ['Hygiène', 'Comme pour les adultes, sans exception.'], ['Famille', 'Les rendez-vous peuvent se suivre.']],
+      rassure: 'Nous ne créons pas de locks sur un enfant sans en avoir parlé avec ses parents, et sans qu’il le souhaite lui-même.',
+      faq: [['À partir de quel âge ?', 'Il n’y a pas d’âge fixe. Cela dépend de l’enfant, de ses cheveux et de son envie.'], ['Que proposez-vous ?', 'Premières locks, entretien, reprise de racines, coiffures d’école ou de fête.']]
+    },
+    'formations': {
+      besoin: 'formation', sur: 'Je veux apprendre le métier', titre: 'MND Formation',
+      ligne: 'La méthode, les gestes et la tenue d’un salon, transmis par celles et ceux qui la pratiquent chaque jour.',
+      image: 'assets/photos/site/brice.jpg', cta: 'Découvrir la formation', note: 'Neuf parcours, pour débutantes et professionnels.',
+      geste: '<span>Trois paliers : <b>Fondation</b>, <b>Élévation</b>, <b>Souveraineté</b>.</span>',
+      pasSur: 'Les portes', pasTitre: 'Trois entrées', liste: true,
+      pas: [['Débutante', 'Apprendre proprement, du premier geste.'], ['Professionnelle', 'Se spécialiser, structurer son activité.'], ['Certifiante', 'Le référentiel MND, reconnu par la Maison.']],
+      rassure: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi transmettre.',
+      faq: [['Puis-je me former sans expérience ?', 'Oui. Un parcours s’adresse à celles et ceux qui débutent.'], ['Comment se passe l’inscription ?', 'Une demande, un rappel de la Maison, puis un acompte pour tenir votre place.']]
+    }
+  };
+  const el = (id) => document.getElementById(id);
+  function rendService(cle) {
+    const s = SERVICES[cle];
+    el('sv-fil').textContent = s.titre; el('sv-sur').textContent = s.sur; el('sv-titre').textContent = s.titre; el('sv-ligne').textContent = s.ligne;
+    el('sv-note').textContent = s.note; el('sv-note2').textContent = s.note;
+    ['sv-cta', 'sv-cta2', 'sv-cta3'].forEach(id => { const a = el(id); a.href = lienWa(s.besoin); a.querySelector('span').textContent = s.cta; a.dataset.besoin = s.besoin; });
+    el('sv-rappel').dataset.besoin = s.besoin;
+    el('sv-image').innerHTML = s.image ? `<img src="${s.image}" alt="" width="800" height="1000">` : '<div class="tuile">MND Kids<small>Photo de la séance à venir</small></div>';
+    el('sv-geste-bloc').hidden = !s.geste; el('sv-geste').innerHTML = s.geste;
+    el('sv-pas-sur').textContent = s.pasSur; el('sv-pas-titre').textContent = s.pasTitre;
+    el('sv-pas').className = 'pas' + (s.liste ? ' pas--liste' : '');
+    el('sv-pas').innerHTML = s.pas.map(([t, l]) => `<li><div><b>${t}</b><span>${l}</span></div></li>`).join('');
+    el('sv-rassure').textContent = s.rassure;
+    el('sv-faq').innerHTML = s.faq.map(([q, r], i) => `<details${i === 0 ? ' open' : ''}><summary>${q}</summary><p>${r}</p></details>`).join('');
+    poseLeBesoin(s.besoin);
+  }
+
+  /* ── Les écrans, commutés par le hash comme le feront les vraies adresses. ── */
+  const ECRANS = ['accueil', 'mon-parcours', 'reserver'];
   function montre(nom) {
-    if (!ECRANS.includes(nom)) nom = 'accueil';
     document.querySelectorAll('.ecran').forEach(e => e.classList.toggle('actif', e.id === nom));
-    document.querySelectorAll('.maquette-barre button').forEach(b => b.classList.toggle('actif', b.dataset.ecran === nom));
+    document.querySelectorAll('.maquette-barre [data-ecran]').forEach(b => b.classList.toggle('actif', b.dataset.ecran === nom || (nom === 'service' && b.dataset.ecran === 'premiere-couronne')));
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
   function depuisHash() {
-    const h = location.hash.replace('#', '');
+    const h = location.hash.replace('#', '') || 'accueil';
+    if (SERVICES[h]) { rendService(h); montre('service'); return; }
     if (ECRANS.includes(h)) { montre(h); return; }
     const cible = document.getElementById(h);
-    if (cible) {
-      const ecran = cible.closest('.ecran');
-      if (ecran) { montre(ecran.id); cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-    } else montre('accueil');
+    const ecran = cible && cible.closest('.ecran');
+    if (ecran) { montre(ecran.id); cible.scrollIntoView({ behavior: 'smooth', block: 'start' }); } else montre('accueil');
   }
   window.addEventListener('hashchange', depuisHash);
-  document.querySelectorAll('.maquette-barre button').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.ecran; }));
-  depuisHash();
+  document.querySelectorAll('.maquette-barre [data-ecran]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.ecran; }));
 
-  /* Le parcours choisi voyage jusqu'au formulaire et jusqu'au message WhatsApp. */
-  const besoin = document.getElementById('besoin');
-  const waMessage = document.getElementById('wa-message');
+  /* ── Les palettes, pour comparer. ── */
+  document.querySelectorAll('.maquette-barre [data-palette]').forEach(b => b.addEventListener('click', () => {
+    const p = b.dataset.palette;
+    if (p === 'charte') document.documentElement.removeAttribute('data-palette'); else document.documentElement.dataset.palette = p;
+    document.querySelectorAll('.maquette-barre [data-palette]').forEach(x => x.classList.toggle('actif', x === b));
+    try { localStorage.setItem('mnd_maquette_palette', p); } catch (e) {}
+  }));
+  try { const p = localStorage.getItem('mnd_maquette_palette'); if (p) document.querySelector(`.maquette-barre [data-palette="${p}"]`)?.click(); } catch (e) {}
+
+  /* ── Le parcours choisi voyage jusqu'au formulaire et au message WhatsApp. ── */
+  const besoin = el('besoin');
   function poseLeBesoin(v) {
     if (v) besoin.value = v;
-    waMessage.textContent = '« ' + (MESSAGES[besoin.value] || MESSAGES.inconnu) + ' »';
+    const cle = besoin.value || 'inconnu';
+    el('wa-message').textContent = '« ' + (MESSAGES[cle] || MESSAGES.inconnu) + ' »';
+    el('wa-bouton').href = lienWa(cle);
   }
-  document.querySelectorAll('[data-besoin]').forEach(a => a.addEventListener('click', () => poseLeBesoin(a.dataset.besoin)));
+  document.addEventListener('click', (e) => { const a = e.target.closest('[data-besoin]'); if (a) poseLeBesoin(a.dataset.besoin); });
   besoin.addEventListener('change', () => poseLeBesoin());
+  poseLeBesoin();
 
-  /* Le triage : trois questions, une sortie. */
+  /* ── Le triage : trois questions, une sortie. ── */
   const questions = ['q1', 'q2', 'q3'];
   function versQuestion(id) {
     document.querySelectorAll('.question, .sortie').forEach(e => e.classList.remove('actif'));
-    document.getElementById(id).classList.add('actif');
+    el(id).classList.add('actif');
     const rang = questions.indexOf(id);
-    ['et1', 'et2', 'et3'].forEach((e, i) => document.getElementById(e).classList.toggle('fait', rang < 0 || i <= rang));
+    ['et1', 'et2', 'et3'].forEach((e, i) => el(e).classList.toggle('fait', rang < 0 || i <= rang));
   }
   document.querySelectorAll('[data-vers]').forEach(b => b.addEventListener('click', () => versQuestion(b.dataset.vers)));
 
-  /* Le formulaire : un seul champ obligatoire, le numéro. */
-  const form = document.getElementById('demande');
-  const merci = document.getElementById('merci');
-  const erreur = document.getElementById('erreur');
+  /* ── Le formulaire : un seul champ obligatoire, le numéro. ── */
+  const form = el('demande'), merci = el('merci'), erreur = el('erreur');
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (!document.getElementById('numero').value.trim()) { erreur.hidden = false; return; }
+    if (!el('numero').value.trim()) { erreur.hidden = false; el('numero').focus(); return; }
     erreur.hidden = true; form.hidden = true; merci.classList.add('actif');
   });
-  document.getElementById('voir-merci').addEventListener('click', () => {
-    const ouvert = merci.classList.toggle('actif'); form.hidden = ouvert;
-  });
+  el('voir-merci').addEventListener('click', () => { const ouvert = merci.classList.toggle('actif'); form.hidden = ouvert; });
+
+  depuisHash();
 </script>
