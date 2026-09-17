@@ -3,12 +3,13 @@ import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { campagne, mesure } from '../mesure';
 import {
-  agendaDeLaMaison, creneauxOccupes, heuresLibres, jourCourt, jourDit, prochainsJours,
+  agendaDeLaMaison, creneauxOccupes, groupesDePrestations, heuresLibres,
+  jourCourt, jourDit, prestationsReservables, prochainsJours,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
-import { CATEGORIE_DOTO } from '../../../shared/catalogue-pur';
-import { exigeConsultation, porteDuBesoin, type Besoin } from '../../../shared/qualification';
+import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
+import Demande from './Demande';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
 
@@ -23,11 +24,13 @@ import type { CreneauOccupe } from '../../../shared/agenda-pur';
 
    CE QUE LA RÈGLE IMPOSE (`shared/qualification.ts`) : une création ou une
    réparation se réserve en CONSULTATION, jamais en acte direct. Un entretien
-   et des soins se réservent tels quels. L'écran ne propose donc pas les mêmes
-   prestations selon la porte d'où l'on vient.
+   et des soins se réservent tels quels. QUELLES prestations exactement, et
+   comment on les reconnaît quand la Maison les renomme, c'est
+   `prestationsReservables` qui le dit.
 
-   IL NE FERME JAMAIS LA PORTE : sans base, sans horaires descendus ou sans
-   créneau libre, il retombe sur la demande de rappel et sur WhatsApp. */
+   IL NE FERME JAMAIS LA PORTE, et cette leçon a coûté une mise en ligne :
+   sans prestation à proposer, il retombe sur la DEMANDE DE RAPPEL, jamais
+   sur un cul-de-sac. Sans base du tout, sur WhatsApp. */
 
 type Props = { besoin?: Besoin };
 
@@ -48,20 +51,6 @@ const dit = (min?: number): string => {
   const m = min % 60;
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 };
-
-/** Les prestations que CETTE porte autorise à réserver.
-
-    Création et réparation : les consultations de la Maison (l'atelier ÐÓTÓ™,
-    reconnu par sa CATÉGORIE et jamais par son nom, comme le catalogue s'y
-    engage). Entretien et soins : ce qui se réserve sans regard préalable,
-    hors consultations et hors prix sur devis, qui se fixe au fauteuil. */
-function prestationsDe(agenda: AgendaDeLaMaison, besoin: Besoin): PrestationPublique[] {
-  const cats = agenda.categories;
-  const consultations = agenda.services.filter((s) => s.categoryId === CATEGORIE_DOTO);
-  if (porteDuBesoin(besoin) === 'consultation') return consultations;
-  return agenda.services.filter((s) =>
-    s.categoryId !== CATEGORIE_DOTO && !exigeConsultation(s, cats));
-}
 
 export default function Reserver({ besoin: besoinInitial }: Props) {
   const f = COMMUN.formulaire;
@@ -102,11 +91,15 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
     return () => { vivant = false; };
   }, []);
 
-  useEffect(() => { mesure(consultation ? 'consultation_ouverte' : 'page_vue', { parcours: besoin }); }, [besoin, consultation]);
+  useEffect(() => { if (consultation) mesure('consultation_ouverte', { parcours: besoin }); }, [besoin, consultation]);
 
   const prestations = useMemo(
-    () => (agenda ? prestationsDe(agenda, besoin) : []),
+    () => (agenda ? prestationsReservables(agenda, besoin) : []),
     [agenda, besoin],
+  );
+  const groupes = useMemo(
+    () => (agenda ? groupesDePrestations(agenda, prestations) : []),
+    [agenda, prestations],
   );
 
   /* Les jours qui ont au moins une heure libre pour le geste choisi. */
@@ -118,8 +111,8 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
   }, [agenda, serviceId, occupes]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
-
   const wa = lienWhatsApp(whatsapp, COMMUN.messages[besoin] ?? COMMUN.messages.inconnu);
+  const choisie: PrestationPublique | undefined = prestations.find((s) => s.id === serviceId);
 
   const choisirLeGeste = (id: string) => {
     setServiceId(id);
@@ -153,8 +146,8 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         const code = r.error ?? (error?.message ?? '');
         if (code.includes('creneau')) {
           setErreur('Cette heure vient d’être prise. Choisissez-en une autre, la liste est à jour.');
-          const jours2 = prochainsJours(JOURS_PROPOSES);
-          setOccupes(await creneauxOccupes(agenda!.branchId, jours2[0], jours2[jours2.length - 1]));
+          const suite = prochainsJours(JOURS_PROPOSES);
+          if (agenda) setOccupes(await creneauxOccupes(agenda.branchId, suite[0], suite[suite.length - 1]));
           setHeure(null);
         } else if (code.includes('rate')) {
           setErreur('Beaucoup de demandes d’un coup : réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.');
@@ -188,8 +181,11 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
     );
   }
 
-  /* ── Sans calendrier, la porte reste ouverte ──────────────────────── */
-  if (agenda === null || (agenda && prestations.length === 0)) {
+  /* ── Le calendrier se charge ──────────────────────────────────────── */
+  if (agenda === undefined) return <div className="formulaire"><p className="corps">Le calendrier se charge.</p></div>;
+
+  /* ── Sans base : WhatsApp, qui marche toujours ────────────────────── */
+  if (agenda === null) {
     return (
       <div className="formulaire">
         <p className="corps">La réservation en ligne n’est pas disponible pour l’instant. Écrivez-nous, nous vous répondons personnellement.</p>
@@ -197,7 +193,22 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
       </div>
     );
   }
-  if (agenda === undefined) return <div className="formulaire"><p className="corps">Le calendrier se charge.</p></div>;
+
+  /* ── Rien à proposer ici : LA DEMANDE DE RAPPEL, jamais un cul-de-sac.
+     C'est la leçon du 17 septembre : l'écran cherchait une catégorie que la
+     Maison avait renommée, et n'offrait plus qu'un lien WhatsApp. ── */
+  if (prestations.length === 0) {
+    return (
+      <>
+        <p className="corps" style={{ marginBottom: 16 }}>
+          {consultation
+            ? 'Les consultations se prennent avec la Maison, de vive voix. Laissez-nous votre numéro, nous vous rappelons pour fixer l’heure.'
+            : 'Dites-nous ce dont votre couronne a besoin. Nous vous rappelons pour fixer l’heure.'}
+        </p>
+        <Demande genre="rdv" besoin={besoin} />
+      </>
+    );
+  }
 
   /* ── Les trois pas ────────────────────────────────────────────────── */
   return (
@@ -211,19 +222,24 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
       <div className="bloc-reservation">
         <p className="sur">{consultation ? 'La consultation' : 'Votre geste'}</p>
         <h3>{consultation ? 'Ce que nous allons regarder' : 'Ce dont votre couronne a besoin'}</h3>
-        <div className="gestes">
-          {prestations.map((s) => (
-            <button
-              type="button"
-              key={s.id}
-              className={`geste-choix${serviceId === s.id ? ' est-choisi' : ''}`}
-              onClick={() => choisirLeGeste(s.id)}
-            >
-              <b>{s.name}</b>
-              {s.durationMin ? <small>{dit(s.durationMin)}</small> : null}
-            </button>
-          ))}
-        </div>
+        {groupes.map((g) => (
+          <div key={g.titre} className="famille">
+            {groupes.length > 1 && <p className="famille__titre">{g.titre}</p>}
+            <div className="gestes">
+              {g.items.map((s) => (
+                <button
+                  type="button"
+                  key={s.id}
+                  className={`geste-choix${serviceId === s.id ? ' est-choisi' : ''}`}
+                  onClick={() => choisirLeGeste(s.id)}
+                >
+                  <b>{s.name}</b>
+                  {s.durationMin ? <small>{dit(s.durationMin)}</small> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
         {consultation && <p className="legende" style={{ marginTop: 12 }}>Une création ou une réparation commence toujours par une consultation. Le devis vient après, et vous décidez ensuite.</p>}
       </div>
 
@@ -231,6 +247,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <div className="bloc-reservation venir">
           <p className="sur">Le jour</p>
           <h3>Quand vous convient-il ?</h3>
+          {choisie && <p className="legende" style={{ marginBottom: 14 }}>{choisie.name}{choisie.durationMin ? ` · ${dit(choisie.durationMin)}` : ''}</p>}
           {jours.length === 0
             ? (
               <p className="corps">Aucune heure libre dans les trois prochaines semaines. Écrivez-nous, nous trouverons ensemble.

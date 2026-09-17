@@ -2,6 +2,53 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PAGE VIDE, ET CE QU'ELLE A APPRIS — 17 septembre 2026
+
+« Voilà ce qui sort » (Yéman, capture à l'appui) : la page `/reserver/` du
+site, mise en ligne une heure plus tôt, n'affichait que « La réservation en
+ligne n'est pas disponible pour l'instant ». Trois fautes en une, toutes
+instructives.
+
+**① LE SITE CHERCHAIT UNE CATÉGORIE QUE LA MAISON AVAIT RENOMMÉE.** Il
+filtrait sur `doto`, l'atelier des consultations de la SEMENCE. La Maison, en
+vrai, a posé le sien : **`koko`** (KÒKÒ™, « Le Diagnostic »), qui porte ses
+trois consultations (KÒKÒ™ Origine, KÒKÒ™ Suivi, Consultation Conseil).
+Zéro prestation trouvée, donc page vide. C'est EXACTEMENT ce que la relecture
+adversaire avait annoncé le matin même (constat ⑤) : reconnaître par un
+identifiant que la base vivante ne porte pas. `estUneConsultation`
+(`catalogue-pur.ts`) connaît désormais les deux identifiants ET se rabat sur
+le nom (`/consultation|diagnostic/i`) : une règle qui ne sait plus reconnaître
+ce qu'elle cherche doit se rabattre, jamais rendre une page vide. Sept
+épreuves de plus dans `verifie-qualification`.
+
+**② LES MASQUES DE LA VITRINE NE SONT PAS CEUX DU SITE.** `mnd_vitrine_config`
+est lisible sans compte et porte de vrais masques posés par la Maison : la
+tentation était grande de les respecter. Il ne faut pas. **`koko` y est
+masqué**, avec `atl-i-vekpe`, `atl-iv-finfin`, les `stu-*`, les `aca-*`,
+`sup`, `meches`, `home-rituals`. Ces masques règlent LA CARTE DU COMPTOIR et
+MA COURONNE, deux surfaces où la Maison a choisi de ne pas montrer le
+Diagnostic. Les suivre aurait caché exactement ce que le site doit faire
+réserver. Le site a donc sa propre règle : `ATELIERS_RESERVABLES`
+(`revelateur/agenda.ts`) ouvre l'Entretien (`atl-ii-gbeji` et ses familles :
+lavages, soins, reprises, sorties) et la Coloration (`atl-iii-yekpe`). Trente
+gestes, rangés par famille ; sans cette restriction, le filtre en rendait
+soixante-seize, formations et paquets de mèches compris.
+
+**③ UN ÉCRAN QUI NE TROUVE RIEN NE DOIT PAS FINIR EN CUL-DE-SAC.** Le repli
+n'offrait qu'un lien WhatsApp. Il retombe maintenant sur la DEMANDE DE RAPPEL
+(l'îlot `Demande`) : la visiteuse laisse son numéro, la Maison rappelle. Seule
+l'absence totale de base renvoie à WhatsApp.
+
+**CE QU'UNE VISITEUSE VOIT MAINTENANT** : trois consultations pour une
+création, une réparation ou « je ne sais pas » ; trente gestes en six familles
+pour un entretien ou des soins.
+
+**LA LEÇON, POUR LA PROCHAINE RÈGLE** : une règle qui reconnaît par un
+identifiant doit être ÉPROUVÉE CONTRE LA BASE VIVANTE, pas contre la semence.
+Le catalogue de production se lit sans compte, en une commande, avec la clé
+anon du `.env.local` : `catalog_categories`, `catalog_services`. Le faire
+avant de publier coûte une minute.
+
 ## RÉSERVER SUR LE SITE, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026
 
 « Est-ce possible de tomber directement sur les consultations et réserver

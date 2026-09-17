@@ -2,6 +2,8 @@ import {
   creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
+import { estUneConsultation, priceModeOf, racineOf } from '../../shared/catalogue-pur';
+import { exigeConsultation, porteDuBesoin, type Besoin } from '../../shared/qualification';
 import { client } from './maison';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
@@ -174,3 +176,52 @@ export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {
   const d = new Date(`${iso}T00:00:00`);
   return { lettre: JOURS_DITS[d.getDay()].slice(0, 3), chiffre: String(d.getDate()) };
 };
+
+
+/* ══ CE QUE LE SITE OUVRE À LA RÉSERVATION ═════════════════════════
+   Deux ateliers, et c'est délibéré : l'Entretien (avec ses familles, les
+   lavages, les soins, les reprises de racines, les sorties signature) et la
+   Coloration. Tout le reste ne se prend pas d'un clic par une inconnue : une
+   création et une restauration passent par la consultation, les formations
+   sont des candidatures, les mèches et les fournitures ne sont pas des
+   rendez-vous, et MND Kids commence par un échange avec les parents.
+
+   POURQUOI PAS LES MASQUES DE LA VITRINE, qui sont pourtant lisibles ici :
+   ils règlent la carte du comptoir et Ma Couronne, deux surfaces où la
+   Maison a choisi de cacher le Diagnostic, la Création et la Renaissance.
+   Les suivre aurait caché exactement ce que ce site doit faire réserver. */
+export const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
+
+/** Les prestations que CETTE porte autorise à réserver. Vide = l'écran
+    retombe sur la demande de rappel, jamais sur une page morte. */
+export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin): PrestationPublique[] {
+  const cats = agenda.categories;
+  if (porteDuBesoin(besoin) === 'consultation') {
+    return agenda.services.filter((s) => estUneConsultation(s, cats));
+  }
+  return agenda.services.filter((s) => {
+    if (estUneConsultation(s, cats)) return false;
+    if (exigeConsultation(s, cats)) return false;
+    if (priceModeOf(s) === 'devis') return false;
+    const racine = racineOf(cats, s.categoryId)?.id ?? s.categoryId;
+    return ATELIERS_RESERVABLES.includes(racine);
+  });
+}
+
+/** Les mêmes, rangées par famille : une liste de trente gestes à plat ne se
+    lit pas, la même par familles se parcourt d'un regard. */
+export function groupesDePrestations(
+  agenda: AgendaDeLaMaison,
+  prestations: readonly PrestationPublique[],
+): { titre: string; items: PrestationPublique[] }[] {
+  const nom = (id: string): string =>
+    agenda.categories.find((c) => c.id === id)?.label ?? 'Les autres gestes';
+  const par = new Map<string, PrestationPublique[]>();
+  for (const s of prestations) {
+    const cle = s.categoryId;
+    par.set(cle, [...(par.get(cle) ?? []), s]);
+  }
+  return [...par.entries()]
+    .map(([cle, items]) => ({ titre: nom(cle), items }))
+    .sort((a, b) => b.items.length - a.items.length);
+}

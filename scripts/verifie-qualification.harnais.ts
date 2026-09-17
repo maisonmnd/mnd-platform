@@ -3,7 +3,7 @@
    Le site et Ma Couronne lisent le même juge ; s'il se trompe, le site
    refuse ce que la Maison accepte, ou l'inverse. */
 import { exigeConsultation, porteDe, porteDuBesoin, ditLaPorte } from '../src/shared/qualification';
-import { CATEGORIE_VEKPE, CATEGORIE_FINFIN } from '../src/shared/catalogue-pur';
+import { CATEGORIE_VEKPE, CATEGORIE_FINFIN, estUneConsultation } from '../src/shared/catalogue-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -34,6 +34,20 @@ dit('⑧ une catégorie inconnue se réserve directement', 'directe', porteDe({ 
 dit('⑨ les besoins du site', ['consultation', 'consultation', 'directe', 'consultation', 'directe', 'consultation'],
   (['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu'] as const).map(porteDuBesoin));
 dit('⑩ la porte se dit', ['Commence par une consultation.', 'Se réserve directement.'], [ditLaPorte('consultation'), ditLaPorte('directe')]);
+
+/* ── RECONNAÎTRE UNE CONSULTATION — la faute du 17 septembre, en ligne ──
+   Le site ne connaissait que `doto`, la Maison avait posé `koko` : l'écran
+   de réservation est sorti vide en production. */
+const catsC = [{ id: 'doto' }, { id: 'koko' }, { id: 'fam-koko', parentId: 'koko' }, { id: 'atl-ii-gbeji' }];
+dit('⑪ l\u2019atelier de la semence est une consultation', true, estUneConsultation({ categoryId: 'doto' }, catsC));
+dit('⑫ celui que la Maison a posé aussi', true, estUneConsultation({ categoryId: 'koko' }, catsC));
+dit('⑬ une famille rangée dessous en est une', true, estUneConsultation({ categoryId: 'fam-koko' }, catsC));
+dit('⑭ un entretien n\u2019en est pas une', false, estUneConsultation({ categoryId: 'atl-ii-gbeji', name: 'KLƆKLƆ™ Essentiel' }, catsC));
+dit('⑮ renommée encore, le nom la sauve d\u2019une page vide', true,
+  estUneConsultation({ categoryId: 'inconnu-demain', name: 'Consultation Origine' }, catsC));
+dit('⑯ … et « Diagnostic » vaut autant', true,
+  estUneConsultation({ categoryId: 'inconnu-demain', name: 'KÒKÒ™ Suivi · Diagnostic locks Externes' }, catsC));
+dit('⑰ sans catégorie connue ni nom parlant, non', false, estUneConsultation({ categoryId: 'x', name: 'Nattes Couronne' }, catsC));
 
 if (ko) { console.error(`\n${ko} vérification(s) en échec.`); process.exit(1); }
 console.log('\nLe juge tient.');

@@ -15,10 +15,29 @@ export type PriceMode = 'fixe' | 'variable' | 'devis';
    Les identifiants sont ceux de la semence, stables depuis le premier jour. */
 export const CATEGORIE_VEKPE = 'atl-i-vekpe';
 export const CATEGORIE_FINFIN = 'atl-iv-finfin';
-/* ÐÓTÓ™, l'atelier des consultations : c'est LUI que le site public propose
-   quand la règle exige un regard avant tout geste. Reconnu par sa catégorie,
-   jamais par son nom (une consultation renommée reste une consultation). */
-export const CATEGORIE_DOTO = 'doto';
+/* L'ATELIER DES CONSULTATIONS — corrigé le 17 septembre 2026, EN LIGNE.
+
+   Le site public ne proposait que la catégorie `doto`, celle de la semence.
+   La Maison, elle, a posé le sien : `koko` (KÒKÒ™, « Le Diagnostic »), qui
+   porte ses trois consultations. Résultat, l'écran de réservation est sorti
+   VIDE en production : « voilà ce qui sort » (Yéman, capture à l'appui).
+   C'est exactement la faute que la relecture adversaire avait annoncée,
+   reconnaître par un identifiant que la base vivante ne porte pas.
+
+   ON EN CONNAÎT DONC LES DEUX, et on garde un dernier recours par le nom :
+   une règle qui ne sait plus reconnaître ce qu'elle cherche doit se rabattre,
+   jamais rendre une page vide. */
+export const CATEGORIES_CONSULTATION: readonly string[] = ['doto', 'koko'];
+
+export function estUneConsultation(
+  s: { categoryId: string; name?: string },
+  cats: readonly { id: string; parentId?: string }[] = [],
+): boolean {
+  if (CATEGORIES_CONSULTATION.includes(s.categoryId)) return true;
+  const racine = racineOf(cats, s.categoryId)?.id;
+  if (racine && CATEGORIES_CONSULTATION.includes(racine)) return true;
+  return /consultation|diagnostic/i.test(s.name ?? '');
+}
 
 export const fondeLaCouronne = (s: { categoryId: string }): boolean => s.categoryId === CATEGORIE_VEKPE;
 
@@ -29,7 +48,7 @@ export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): 
 /** LA RACINE d'une catégorie — l'atelier dont elle relève, ou elle-même si
     c'en est un. La remontée est bornée pour qu'un parent circulaire ne fige
     pas l'écran. */
-export const racineOf = <C extends { id: string; parentId?: string }>(cats: C[], id: string | undefined): C | undefined => {
+export const racineOf = <C extends { id: string; parentId?: string }>(cats: readonly C[], id: string | undefined): C | undefined => {
   let cur = cats.find((c) => c.id === id);
   for (let i = 0; cur?.parentId && i < 8; i += 1) {
     const parent = cats.find((c) => c.id === cur!.parentId);
