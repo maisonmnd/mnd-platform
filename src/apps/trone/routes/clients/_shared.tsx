@@ -39,7 +39,7 @@ import type { CommRates } from '../equipe/payroll';
 import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type Invoice, type InvoiceLine, type Cashbox, totalProduitsXof } from '../../../../shared/finance';
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
-import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
+import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 
 export { ChampDeDate };
 
@@ -899,7 +899,12 @@ export function apptReminder(
   /* ON NE SORT PAS DU TRÔNE (14 septembre) : la cloche ouvrait `wa.me`,
      donc un message écrit ailleurs dont la Maison ne gardait aucune trace.
      Elle ouvre maintenant la conversation, le rappel déjà écrit dedans. */
-  return { href: cheminDeLaConversation(digits, msg) ?? '/conversations', due, when };
+  /* LE DIÈSE FAIT PARTIE DU LIEN — 17 septembre 2026. `cheminDeLaConversation`
+     rend une ROUTE du Trône, pas une adresse du web. Posée telle quelle dans
+     un `href`, le navigateur la résout sur la RACINE du domaine : la cloche
+     tombait sur « Site not found » (capture de Yéman). Le Trône route par le
+     dièse ; on le pose ICI, pour qu'aucun appelant ne l'oublie. */
+  return { href: lienDuFil(digits, msg) ?? '#/conversations', due, when };
 }
 
 /** Cloche de rappel WhatsApp : n'apparaît que sur un RDV À VENIR (confirmé ou en
@@ -948,8 +953,8 @@ export function ReminderBell({
       data-due={due}
       data-sent={sent ? '1' : undefined}
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      /* NI ONGLET NI FENÊTRE : le fil de la Maison vit DANS le Trône. Un
+         onglet neuf sur une route interne sortait de l'application. */
       draggable={false}
       onClick={(e) => { e.stopPropagation(); markReminderSent(appt.id, appt.date, kind); }}
       title={sent ? `Rappel déjà envoyé, RDV ${when}. Cliquez pour renvoyer.` : `Rappel WhatsApp, ${label}, RDV ${when}`}

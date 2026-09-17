@@ -13,7 +13,7 @@ import {
   numeroWa, fenetreDe, resteEnClair, filsDeLaMaison, pourquoiLEnvoiEstImpossible,
   estArchive, archiveLeFil, desarchiveLeFil, filsQuiAttendent,
   tetesDeLaMaison, teteDuNumero, filNeuf, estReserve,
-  FENETRE_MS, type MessageWa, type TeteConnue,
+  FENETRE_MS, type MessageWa, type TeteConnue, lienDuFil,
 } from '../src/shared/conversations';
 
 let ko = 0;
@@ -238,5 +238,16 @@ dit('… et se dit sans fiche', true, filsTiroirs.find((f) => f.numero === '2299
 dit('un fil neuf porte le tiroir de sa tête', 'prestataires',
   filNeuf('2290195000000', teteDuNumero('2290195000000', carnet))?.tiroir);
 dit('un fil neuf d’un inconnu est une cliente', 'clientes', filNeuf('22997000000')?.tiroir);
+
+/* UN LIEN DE FIL SE POSE DANS UN href — la faute du 17 septembre 2026.
+   La cloche du calendrier posait la ROUTE telle quelle : le navigateur la
+   resolvait sur la racine du domaine, et la Maison tombait sur un 404. */
+dit('le lien d’un fil porte le diese du Trone', true,
+  (lienDuFil('0197000000') ?? '').startsWith('#/conversations?n='));
+dit('… et le message voyage avec lui', true,
+  (lienDuFil('0197000000', 'Bonjour') ?? '').includes('&t=Bonjour'));
+dit('… il ne ressemble jamais a une adresse du web', true,
+  (lienDuFil('0197000000') ?? '').startsWith('#'));
+dit('sans numero, aucun lien', null, lienDuFil(''));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

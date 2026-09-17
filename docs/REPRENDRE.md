@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CLOCHE DU RAPPEL TOMBAIT SUR UN 404 — 17 septembre 2026
+
+« Quand j'essaie d'envoyer une confirmation WhatsApp, j'ai un message 404 »
+(Yéman, capture à l'appui). L'adresse ouverte était
+`maisonmnd.github.io/conversations?n=…&t=Bonjour…`, hors de toute
+application.
+
+**LA CAUSE, ET ELLE EST INSTRUCTIVE.** Le 14 septembre, la cloche du
+calendrier a cessé d'ouvrir `wa.me` pour ouvrir le FIL DE LA MAISON, afin
+qu'aucun message ne parte sans laisser de trace. `apptReminder`
+(`routes/clients/_shared.tsx`) s'est donc mise à rendre
+`cheminDeLaConversation(...)`, c'est-à-dire **une route du Trône**
+(`/conversations?n=…`). Mais `ReminderBell` a gardé le rendu de l'époque
+`wa.me` : `<a href={href} target="_blank">`. Or une route posée dans un
+`href` brut n'est pas une adresse : le navigateur la résout sur la **racine
+du domaine**, et l'onglet neuf sortait de l'application. Le Trône route par
+le DIÈSE.
+
+**CE QUI EST CORRIGÉ.** La règle vit désormais là où elle s'éprouve :
+`lienDuFil` (`shared/conversations.ts`) rend `#/conversations?n=…`, prêt à
+être posé dans n'importe quel `href`. `apptReminder` la lit, et la cloche a
+perdu son `target="_blank"` : le fil de la Maison vit DANS le Trône. Quatre
+épreuves de plus dans `verifie-conversations` (le dièse, le message qui
+voyage, jamais une adresse du web, aucun lien sans numéro).
+
+**RIEN D'AUTRE NE PORTAIT LA FAUTE** : balayage de tous les `target="_blank"`
+du Trône. `certHref` (`Academie.tsx`), `bulletinFor` (`Paie.tsx`) et
+`lienPapeterie` (`BilanModal.tsx`) passent tous par `asset()` et portent donc
+leur base ; les autres liens neufs sont de vraies adresses du web.
+
+**LA LEÇON, GÉNÉRALE** : une ROUTE (`/conversations?…`) se donne à
+`<Link to>`, à `navigate()` ou derrière un dièse. Une ADRESSE
+(`https://wa.me/…`, `asset('/bilan.html')`) se donne à un `href`. Les deux
+sont des chaînes qui se ressemblent, et rien ne les distingue à la
+compilation : c'est au nom de la fonction de le dire. D'où `lienDuFil` à
+côté de `cheminDeLaConversation`, et `lienWaMe` à côté.
+
 ## LA PAGE VIDE, ET CE QU'ELLE A APPRIS — 17 septembre 2026
 
 « Voilà ce qui sort » (Yéman, capture à l'appui) : la page `/reserver/` du

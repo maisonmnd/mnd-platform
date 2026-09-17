@@ -575,6 +575,22 @@ export const cheminDeLaConversation = (
   return t ? `/conversations?n=${n}&t=${encodeURIComponent(t)}` : `/conversations?n=${n}`;
 };
 
+/** LE MÊME FIL, PRÊT À ÊTRE POSÉ DANS UN `href` — 17 septembre 2026.
+
+    `cheminDeLaConversation` rend une ROUTE du Trône. Un `<Link to=…>` et un
+    `navigate(…)` la comprennent ; un `href` brut, NON : le navigateur la
+    résout sur la RACINE du domaine. La cloche de rappel du calendrier l'a
+    appris en production, en ouvrant « Site not found » (capture de Yéman).
+
+    Le Trône route par le dièse : cette fonction le pose, pour que le lien
+    d'un fil soit posable partout sans y penser. */
+export const lienDuFil = (
+  brut: string | undefined, texte?: string,
+): string | null => {
+  const chemin = cheminDeLaConversation(brut, texte);
+  return chemin ? `#${chemin}` : null;
+};
+
 /* ══ UN FIL QUI N'EXISTE PAS ENCORE ══════════════════════════════════
 
    LA PLUPART DES TÊTES N'ONT JAMAIS ÉCRIT. Un fil naît du premier message
