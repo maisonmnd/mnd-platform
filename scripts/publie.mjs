@@ -46,7 +46,7 @@ import path from 'node:path';
 
 const racine = path.resolve(import.meta.dirname, '..');
 const source = path.join(racine, 'dist-sites');
-const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'mnd-platform'];
+const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'mnd-platform'];
 /** Refonder : une branche neuve, un seul commit, poussée en force. */
 const REFONDE = !!process.env.MND_REFONDE;
 

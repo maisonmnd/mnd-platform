@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
+import { execSync } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 
 // Une seule origine pour les 5 surfaces sœurs : les ponts localStorage
 // (mnd_branches, mnd_couronne_compose, mnd_consultations_queue) fonctionnent
@@ -22,9 +24,36 @@ const ALL_INPUTS: Record<string, string> = {
   bulletin: resolve(__dirname, 'bulletin.html'),
 };
 const apps = (process.env.VITE_APPS || '').split(',').map((s) => s.trim()).filter(Boolean);
-const input = apps.length
+const choisies = apps.length
   ? Object.fromEntries(Object.entries(ALL_INPUTS).filter(([k]) => apps.includes(k)))
   : ALL_INPUTS;
+
+/* LE SITE RÉVÉLATEUR : SES PAGES SONT ÉCRITES AVANT QUE VITE NE LES LISE —
+   17 septembre 2026. `scripts/genere-revelateur.mjs` transforme le contenu
+   en données et le Journal en vraies pages HTML sous `revelateur/` (dossier
+   généré, ignoré par git), une adresse par dossier. Elles deviennent autant
+   d'entrées, en développement (localhost:5173/revelateur/) comme à la
+   construction (VITE_APPS=revelateur, VITE_BASE=/revelateur/). */
+function entreesDuRevelateur(): Record<string, string> {
+  if (apps.length && !apps.includes('revelateur')) return {};
+  try {
+    execSync('node scripts/genere-revelateur.mjs', { cwd: __dirname, stdio: 'inherit', env: process.env });
+  } catch {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  const marche = (dossier: string, rel: string) => {
+    if (!existsSync(dossier)) return;
+    for (const f of readdirSync(dossier)) {
+      const chemin = resolve(dossier, f);
+      if (statSync(chemin).isDirectory()) marche(chemin, rel ? `${rel}/${f}` : f);
+      else if (f.endsWith('.html')) out[`revelateur${rel ? `/${rel}` : ''}/${f.replace(/\.html$/, '')}`] = chemin;
+    }
+  };
+  marche(resolve(__dirname, 'revelateur'), '');
+  return out;
+}
+const input = { ...choisies, ...entreesDuRevelateur() };
 
 export default defineConfig({
   base: process.env.VITE_BASE || '/',

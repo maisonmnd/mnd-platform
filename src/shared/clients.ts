@@ -18,6 +18,13 @@ export type Client = {
       n'est qu'un recours, appelable et joignable sur WhatsApp depuis la fiche. */
   phone2?: string;
   email?: string;
+  /** D'OÙ ELLE VIENT — 17 septembre 2026. Le site public dépose des prospects
+      (`shared/demandes`) ; sans provenance, la Maison ne sait pas ce qui l'a
+      menée à elle : ni la page, ni la campagne, ni le jour où elle a consenti. */
+  source?: 'site' | 'consultation' | 'maison';
+  campagne?: string;
+  pageOrigine?: string;
+  consentementLe?: string;
   /** LE COMPTE MA COURONNE RATTACHÉ À CETTE FICHE.
 
       Ma Couronne reliait une cliente à son dossier par l'IDENTIFIANT : la

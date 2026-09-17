@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync } from 'node:fs';
+import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
@@ -48,7 +48,7 @@ const ORIGINE_PAGES = origineDesPages();
    LOKAA sont faits pour être trouvés. Le Trône est un ERP et Ma Couronne
    demande un compte : les laisser indexer offrirait aux moteurs des écrans
    que personne ne doit lire, et des adresses de connexion. */
-const INDEXABLES = new Set(['academie', 'lokaa', 'mnd-platform']);
+const INDEXABLES = new Set(['academie', 'lokaa', 'mnd-platform', 'revelateur']);
 
 const SITES = [
   {
@@ -73,6 +73,12 @@ const SITES = [
   /* MND ACADÉMIE — 17 septembre 2026. La vitrine publique des neuf parcours.
      Aucune connexion : elle se lit, elle ne s'ouvre pas. */
   { name: 'academie', base: '/academie/', apps: 'academie', rename: { 'academie.html': 'index.html' } },
+  /* LE SITE RÉVÉLATEUR — 17 septembre 2026. La porte d'entrée publique : de
+     vraies pages, une adresse par dossier, générées par
+     `scripts/genere-revelateur.mjs` avant la construction (vite.config.ts
+     s'en charge). Vite les écrit sous `dist/revelateur/…` : `racine` les
+     remonte à la racine du site, où GitHub Pages les sert. */
+  { name: 'revelateur', base: '/revelateur/', apps: 'revelateur', rename: {}, racine: 'revelateur' },
   {
     name: 'mnd-platform',
     base: '/mnd-platform/',
@@ -91,6 +97,18 @@ const SITES = [
 /* EMPREINTE DE CONSTRUCTION — injectee dans le bundle ET deposee a cote de lui.
    L'app compare les deux et se recharge quand elles divergent : c'est ce qui
    fait qu'un deploiement atteint enfin le comptoir sans purge manuelle. */
+/** Toutes les pages HTML d'un dossier, chemins relatifs avec des barres obliques. */
+function pagesHtml(dossier, rel = '') {
+  const out = [];
+  for (const f of readdirSync(dossier)) {
+    const chemin = path.join(dossier, f);
+    const ici = rel ? `${rel}/${f}` : f;
+    if (statSync(chemin).isDirectory()) out.push(...pagesHtml(chemin, ici));
+    else if (f.endsWith('.html')) out.push(ici);
+  }
+  return out;
+}
+
 const BUILD_ID = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
 
 const out = path.join(root, 'dist-sites');
@@ -106,6 +124,13 @@ for (const site of SITES) {
   const dist = path.join(root, 'dist');
   for (const [from, to] of Object.entries(site.rename)) {
     if (existsSync(path.join(dist, from))) renameSync(path.join(dist, from), path.join(dist, to));
+  }
+  if (site.racine) {
+    const nid = path.join(dist, site.racine);
+    if (existsSync(nid)) {
+      for (const f of readdirSync(nid)) renameSync(path.join(nid, f), path.join(dist, f));
+      rmSync(nid, { recursive: true, force: true });
+    }
   }
   writeFileSync(path.join(dist, '.nojekyll'), '');
   writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ build: BUILD_ID }));
@@ -130,13 +155,14 @@ for (const site of SITES) {
      Chaque page porte la sienne ; l'image, elle, vit à la racine du site. */
   if (ORIGINE_PAGES) {
     const dossierSite = path.join(out, site.name);
-    for (const f of readdirSync(dossierSite)) {
-      if (!f.endsWith('.html')) continue;
-      const chemin = path.join(dossierSite, f);
+    const lienSite = `${ORIGINE_PAGES}${site.base}`;
+    /* Récursif depuis le 17 septembre : le site révélateur range une page
+       par dossier, et chacune porte sa canonique et sa carte de lien. */
+    for (const rel of pagesHtml(dossierSite)) {
+      const chemin = path.join(dossierSite, rel);
       const avant = readFileSync(chemin, 'utf8');
       if (!avant.includes('__LIEN_DU_SITE__')) continue;
-      const lienSite = `${ORIGINE_PAGES}${site.base}`;
-      const lienPage = f === 'index.html' ? lienSite : `${lienSite}${f}`;
+      const lienPage = rel === 'index.html' ? lienSite : `${lienSite}${rel.replace(/index\.html$/, '')}`;
       writeFileSync(chemin, avant
         .replaceAll('__LIEN_DE_LA_PAGE__', lienPage)
         .replaceAll('__LIEN_DU_SITE__', lienSite));
@@ -171,15 +197,24 @@ Allow: /
   writeFileSync(path.join(dossierPublie, 'robots.txt'), robots);
   if (indexable && adresseDuSite) {
     const jour = new Date().toISOString().slice(0, 10);
+    /* Un site à une page ne liste que sa racine ; le site révélateur liste
+       chacune de ses adresses canoniques (la forme avec barre finale), la
+       page 404 exceptée. */
+    const adresses = site.racine
+      ? pagesHtml(dossierPublie)
+        .filter((rel) => rel.endsWith('index.html'))
+        .map((rel) => `${adresseDuSite}${rel.replace(/index\.html$/, '')}`)
+      : [adresseDuSite];
     writeFileSync(path.join(dossierPublie, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${adresseDuSite}</loc>
+${adresses.map((loc) => `  <url>
+    <loc>${loc}</loc>
     <lastmod>${jour}</lastmod>
     <changefreq>weekly</changefreq>
-  </url>
+  </url>`).join('\n')}
 </urlset>
 `);
+    if (site.racine) console.log(`  sitemap : ${adresses.length} adresses`);
   }
   console.log(`  ${indexable ? 'explorable' : 'ferme aux moteurs'} : robots.txt${indexable && adresseDuSite ? ' + sitemap.xml' : ''}`);
 }

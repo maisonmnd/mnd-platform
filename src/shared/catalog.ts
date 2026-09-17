@@ -1,4 +1,5 @@
 import { createStore, useStore, HOUSE_BLANK } from './store';
+import { racineOf, priceModeOf, fondeLaCouronne, CATEGORIE_VEKPE } from './catalogue-pur';
 
 /* Catalogue — double nomenclature fon™ de la maison.
    Chaque catégorie porte un nom fon (marque déposée) + un descripteur français.
@@ -64,7 +65,8 @@ export const categoriesOfMaison = (cats: CatalogCategory[], m: Maison): CatalogC
     · devis    — aucun prix affiché (« sur devis »), donné au cas par cas.
     `hidePrice` (ancien booléen) est conservé et reste synchronisé avec `devis`
     pour ne rien casser du front / de la caisse ; `priceModeOf` fait le pont. */
-export type PriceMode = 'fixe' | 'variable' | 'devis';
+export type { PriceMode } from './catalogue-pur';
+import type { PriceMode } from './catalogue-pur';
 
 /** LES TROIS LONGUEURS. Un axe de prix distinct du calibre : le calibre compte
     les locks, la longueur mesure ce qui pend. Une tête Micro peut être courte,
@@ -98,6 +100,10 @@ export type Service = {
       l'a prise. Absent = le palier vient de la semence, le référentiel peut
       le reprendre. */
   palierPose?: boolean;
+  /** CONSULTATION D'ABORD (17 septembre 2026) : l'exception posée à la main
+      pour une prestation qui exige un regard avant réservation, même hors
+      création, devis et restauration. Le juge : `shared/qualification.ts`. */
+  consultationAvant?: boolean;
   priceXof: number;
   hidePrice: boolean;
   priceMode?: PriceMode; // défaut dérivé de hidePrice (voir priceModeOf)
@@ -290,9 +296,8 @@ export const PRICE_MODES: { k: PriceMode; label: string; hint: string }[] = [
   { k: 'devis', label: 'Sur devis', hint: 'prix donné au cas par cas' },
 ];
 
-/** Mode de prix effectif — dérive des anciennes données (hidePrice) si non renseigné. */
-export const priceModeOf = (s: { priceMode?: PriceMode; hidePrice?: boolean }): PriceMode =>
-  s.priceMode ?? (s.hidePrice ? 'devis' : 'fixe');
+/** Mode de prix effectif — vit dans `catalogue-pur.ts` (17 septembre 2026), ré-exporté ici. */
+export { priceModeOf } from './catalogue-pur';
 
 /** L'ORDRE DU CATALOGUE, l'arbre mis à plat (12 août) : les ateliers par leur
     `order`, chacun aussitôt suivi de ses FAMILLES (mêmes règles, récursif).
@@ -429,9 +434,7 @@ export type Product = {
    couronne, y compris les créations que la Maison ajoutera demain, du moment
    qu'elle les range dans cet atelier. L'identifiant est celui de la semence,
    stable depuis le premier jour. */
-export const CATEGORIE_VEKPE = 'atl-i-vekpe';
-export const fondeLaCouronne = (s: Pick<Service, 'categoryId'>): boolean =>
-  s.categoryId === CATEGORIE_VEKPE;
+export { CATEGORIE_VEKPE, CATEGORIE_FINFIN, fondeLaCouronne } from './catalogue-pur';
 
 /* ══ L'ACTE INVERSE — GBÀTÀ™, Le Défaisage · 11 septembre 2026 ═══════
    « Quand une cliente a fait le Gbata, elle n'a plus de locks, donc ce n'est
@@ -523,15 +526,7 @@ export const removedServiceIds = (): Set<string> => new Set(removedServicesStore
     c'en est un. La maison, les baremes du Juste Prix et les calibres sont
     attaches a l'atelier : une famille en herite, elle ne les redefinit pas.
     La remontee est bornee pour qu'un parent circulaire ne fige pas l'ecran. */
-export const racineOf = (cats: CatalogCategory[], id: string | undefined): CatalogCategory | undefined => {
-  let cur = cats.find((c) => c.id === id);
-  for (let i = 0; cur?.parentId && i < 8; i += 1) {
-    const parent = cats.find((c) => c.id === cur!.parentId);
-    if (!parent) break;
-    cur = parent;
-  }
-  return cur;
-};
+export { racineOf } from './catalogue-pur';
 
 /** L'ATELIER ET TOUTES SES FAMILLES. Designer « GBEJI » dans un forfait doit
     couvrir ce qui est range dessous : sans cette descente, sortir les SINSIN

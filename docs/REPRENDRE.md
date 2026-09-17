@@ -2,6 +2,85 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SITE RÉVÉLATEUR EST CONSTRUIT — 17 septembre 2026
+
+« On choisit nos couleurs de la charte : cuivre. Construis » (Yéman), après
+la maquette v2 (charte, quatre palettes, monogramme seul, photos retaillées,
+cinq pages de service qui ouvrent WhatsApp, avis Google, sans compte
+préalable). Une septième sœur, publique et explorable : le site `revelateur`.
+
+**DE VRAIES PAGES, PAS UNE APPLICATION.** `scripts/genere-revelateur.mjs`
+prend le contenu en données (`src/apps/revelateur/contenu.ts`, typé par
+`contenu-types.ts`, rédigé depuis `docs/site-revelateur/`) et les dix
+articles du Journal (Markdown) et écrit une page HTML par adresse, avec sa
+barre finale, dans `revelateur/<chemin>/index.html` : titre, description,
+canonique, Open Graph, JSON-LD (HairSalon, WebSite, BreadcrumbList,
+Service, FAQPage, Course, Article), textes, liens, tout est dans le
+fichier. Le dossier `revelateur/` est GÉNÉRÉ (ignoré par git) :
+`vite.config.ts` lance le générateur et en fait des entrées, en
+développement (localhost:5173/revelateur/) comme à la construction.
+Vingt-huit pages : l'accueil, quatorze pages, dix articles, trois pages
+légales ; plus une 404 qui n'est qu'une page d'erreur (`noindex`).
+
+**CE QUI VIT, ET RIEN DE PLUS.** `main.ts` est léger par principe : ni
+React ni Supabase tant que la page n'en a pas besoin. Il relie les boutons
+WhatsApp au numéro de la Maison (lu dans `branches`, la Maison phare, sans
+compte ; `maison.ts`), compte les huit événements du plan SEO (`mesure.ts`,
+vers GA4 si `VITE_GA_ID` est au build, sinon nulle part), et ne charge
+`monte.tsx` (React) que si la page porte un `data-ilot` : le triage
+(`ilots/Triage.tsx`), la demande (`ilots/Demande.tsx`), les avis Google
+(`ilots/Avis.tsx`), le contact (`ilots/Contact.tsx`). Chaque emplacement
+porte un repli statique.
+
+**LA DEMANDE SANS COMPTE, PAR UNE SEULE PORTE.** Le formulaire parle à la
+fonction Edge **`demande-submit`** (À DÉPLOYER, fichier entier) : limite de
+débit de 0007, téléphone en E.164 (huit chiffres reçoivent +22901, comme
+`numeroWa`), doublon refusé à 24 h, identifiant et date posés par le
+serveur, branche résolue dans `branches`, ligne écrite dans la table
+**`demandes`** (migration **0108**, À PASSER : aucune politique pour anon,
+lecture et vie réservées au personnel), puis alerte poussée au personnel.
+Le Trône la reçoit dans **« Les demandes »** (`routes/clients/Demandes.tsx`,
+`shared/demandes.ts`, harnais `verifie-demandes`, 23 épreuves) : trois
+tuiles, filtres, WhatsApp avec le message de rappel signé par le code,
+« Rappelée », « En faire une cliente » (fiche segment Prospect, rattachée
+à une fiche existante par le numéro, identifiant déterministe
+`prospect-<id>`), « Écarter », note. Le type `Client` porte désormais sa
+provenance (`source`, `campagne`, `pageOrigine`, `consentementLe`).
+
+**LES AVIS GOOGLE, TELS QUELS.** Rien n'est écrit : la fonction Edge
+**`avis-google-releve`** (À DÉPLOYER ; secrets `GOOGLE_PLACES_KEY`,
+`GOOGLE_PLACE_ID`, `CRON_SECRET` facultatif ; un cron toutes les 12 h)
+relit note, nombre et cinq avis chez Google et les pose dans le document
+`mnd_avis_google`, seule clé ajoutée à la liste blanche par 0108. Sans lui,
+la section ne montre que les deux liens (la fiche, « Laisser un avis », le
+lien public que la Maison donne déjà). **Attention** : `avis-google` (sans
+suffixe) est l'AUTRE fonction, celle qui demande un avis après la première
+venue (19 août) ; elle n'a pas bougé.
+
+**LE JUGE DE LA PORTE** : `shared/qualification.ts`, pur (il n'importe
+que `shared/catalogue-pur.ts`, où vivent désormais `priceModeOf`,
+`racineOf`, `fondeLaCouronne`, `CATEGORIE_VEKPE`, `CATEGORIE_FINFIN`,
+ré-exportés par `catalog.ts`). `exigeConsultation` : création, devis,
+restauration, ou le drapeau `Service.consultationAvant` posé à la main ;
+`porteDuBesoin` pour le site. Harnais `verifie-qualification`, dix épreuves.
+Ma Couronne ne le lit pas encore (Booking) : à brancher pour que les deux
+surfaces disent la même chose.
+
+**LE MOTEUR** : `build-sites.mjs` connaît le site (`racine: 'revelateur'`
+remonte `dist/revelateur/` à la racine), remplace les repères de lien dans
+TOUTES les pages (récursif), écrit un sitemap de toutes les adresses
+canoniques ; `publie.mjs` le publie vers le dépôt `revelateur`.
+
+**RESTE À LA MAISON** : passer 0108 ; déployer `demande-submit`,
+`avis-google-releve` (et, du chantier précédent, `kkiapay-verify` et
+`push-notify`) ; poser `GOOGLE_PLACES_KEY` et `GOOGLE_PLACE_ID` ; déclarer
+le sitemap dans la Search Console ; renseigner le numéro WhatsApp de la
+branche phare (`Branch.phone`), sans quoi les boutons ouvrent WhatsApp sans
+destinataire. **Reste au code** : Booking lit `qualification.ts` ; scinder
+`mnd_settings` (empreintes de codes lisibles sans compte) ; la Consultation
+recommande par catégorie ; la séance photo (56 plans prescrits). Prochaine
+migration libre : **0109**.
+
 ## LA CONSULTATION FAIT PAYER POUR DE VRAI — 17 septembre 2026
 
 « Brancher le vrai paiement KkiaPay » (Yéman), après la relecture adversaire

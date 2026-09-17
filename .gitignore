@@ -4,6 +4,12 @@ dist/
 .DS_Store
 dist-sites/
 
+# LE SITE RÉVÉLATEUR, GÉNÉRÉ — 17 septembre 2026. Ses pages HTML sont
+# écrites par scripts/genere-revelateur.mjs depuis src/apps/revelateur/contenu.ts
+# et docs/site-revelateur/journal/ ; vite.config.ts les régénère à chaque
+# lancement. Le résultat n'entre pas dans le dépôt.
+/revelateur/
+
 # Réglages Claude Code personnels (chemins de la machine, allow-list locale).
 # .claude/settings.json et .claude/hooks/ restent versionnés, eux.
 .claude/settings.local.json
