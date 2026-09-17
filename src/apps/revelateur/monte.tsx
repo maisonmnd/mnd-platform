@@ -11,6 +11,7 @@ const ILOTS = {
   reserver: lazy(() => import('./ilots/Reserver')),
   avis: lazy(() => import('./ilots/Avis')),
   offres: lazy(() => import('./ilots/Offres')),
+  'bandeau-offre': lazy(() => import('./ilots/BandeauOffre')),
   contact: lazy(() => import('./ilots/Contact')),
 } as const;
 

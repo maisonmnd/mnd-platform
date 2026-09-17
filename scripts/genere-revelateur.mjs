@@ -371,6 +371,14 @@ function rendAccueil(articles) {
         <figure class="hero-image"><img src="/assets/photos/site/hero.jpg" alt="Une couronne de locks relevée, de profil" width="960" height="1200" fetchpriority="high"></figure>
       </div></section>
 
+      <!-- LE BANDEAU DE L'OFFRE EN COURS — 18 septembre 2026. « Un bandeau sur
+           la page d'accueil qui annonce l'offre en cours et disparaît quand il
+           n'y en a pas » (Yéman). Le point de montage est VIDE a dessein : rien
+           ne doit clignoter les jours sans offre. Il se remplit seulement si
+           le document mnd_offers porte une offre activee et dans sa saison. Place ici,
+           entre le grand ecran et les portes, pour ne pas repousser le titre. -->
+      <div data-ilot="bandeau-offre"></div>
+
       <section id="portes"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2></div>
         <div class="portes">

@@ -15,6 +15,12 @@ export const COMMUN: Commun = {
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },
+    /* LA CINQUIEME ENTREE — 18 septembre 2026, demandée par Yéman. Placée
+       après Services, là où l'œil se pose, sans déplacer « Mon parcours »
+       qui reste la porte d'entrée du site. Sous 860 pixels la barre cache
+       tout le menu et ne garde que le bouton de rendez-vous : cette entrée
+       ne change donc rien sur téléphone. */
+    { texte: 'Les offres', vers: '/les-offres/' },
     { texte: 'La Maison', vers: '/maison-mnd/' },
     { texte: 'Journal', vers: '/journal/' },
   ],

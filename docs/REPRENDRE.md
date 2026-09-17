@@ -2,6 +2,45 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UNE PAGE EN LIGNE QUE PERSONNE NE POUVAIT ATTEINDRE — 18 septembre 2026
+
+« Où sont les offres ? Sur le site ? Ou dans le Trône ? » (Yéman). La question
+a révélé une lacune : la page `/les-offres/` était **en ligne, servie, dans le
+sitemap, et AUCUNE page n'y menait**. Ni le menu du haut, ni le pied. Google
+l'aurait trouvée, une visiteuse jamais. **La leçon** : livrer une page ne
+suffit pas, il faut vérifier CE QUI Y MENE. Le contrôle tient en une commande,
+chercher les `href` vers le chemin dans le site construit ; si le seul fichier
+qui la cite est elle-même, elle est orpheline.
+
+**LES DEUX CHEMINS RETENUS** : un bandeau sur l'accueil qui annonce l'offre en
+cours, et une cinquième entrée au menu. Le bandeau est posé entre le grand
+écran et les portes, pour ne pas repousser le titre.
+
+**UN POINT DE MONTAGE VIDE, ET C'EST VOULU.** Partout ailleurs ici, un îlot
+qui ne charge pas affiche une phrase : une page de réservation muette est un
+cul-de-sac. Le bandeau fait l'inverse. Une annonce absente est un résultat
+JUSTE ; un « chargement » qui s'afficherait puis s'effacerait à chaque visite
+sans offre serait un clignotement pour rien ; et réserver une hauteur
+laisserait un trou les jours sans offre. **Un choix délibéré qui ressemble à
+un oubli sera défait par le prochain qui passe** : la raison est donc écrite
+SUR PLACE, en commentaire HTML dans la page servie, pas seulement dans le code.
+
+**LE PIEGE QUI A CASSE LA CONSTRUCTION** : des accents graves autour de
+`mnd_offers` dans un commentaire HTML, lui-même à l'intérieur d'un gabarit
+JavaScript délimité par ces mêmes accents. Ils ont FERMÉ la chaîne, et
+`build-sites` a rendu `SyntaxError: Unexpected identifier 'mnd_offers'`. **La
+parade** : dans `genere-revelateur.mjs`, jamais d'accent grave à l'intérieur
+du `return` de rendu, commentaires HTML compris. Dans un commentaire de bloc
+JavaScript ils sont inoffensifs, ce qui rend le piège discontinu et trompeur.
+
+**UNE MISE EN GARDE FAUSSE, CORRIGEE.** J'avais averti la Maison qu'une
+cinquième entrée « resserrerait le menu sur petit écran ». Faux : sous 860 px
+la barre CACHE tout le menu et ne garde que le bouton de rendez-vous. Le vrai
+risque est sur les écrans moyens, 860 à 1100 px. `min-width: 0` a été posé sur
+`.nav` **par avance** : c'est un item flex de la barre, et sans lui il
+s'élargit jusqu'à son contenu au lieu de se serrer. Une garde vaut mieux avant
+le défaut qu'après.
+
 ## LES OFFRES DE SAISON, ET LA VEILLE A VINGT ET UN JOURS — 18 septembre 2026
 
 « Faire une offre pour Octobre Rose, Noël, la Saint-Valentin, le mois de la
