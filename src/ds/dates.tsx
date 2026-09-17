@@ -318,6 +318,9 @@ export function ChampDeDate({
           autoFocus={autoFocus}
           disabled={disabled}
           title={title}
+          /* UNE CONSIGNE DE FORME, PAS UN EXEMPLE (17 septembre 2026) : le champ
+             lit « 3 sept », « 03-09-26 », mais il faut bien lui dire ce qu'il attend. */
+          placeholder="jj/mm/aaaa"
           aria-label={ariaLabel}
           /* AU CLIC, TOUT SE SÉLECTIONNE : on retape, on n'efface pas. Sans
              cela on obtenait « 12 sept. 202613 ». */

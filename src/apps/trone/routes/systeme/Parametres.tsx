@@ -1328,9 +1328,9 @@ export default function Parametres() {
               </button>
               {!d.closed && (
                 <>
-                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} style={{ width: 92, textAlign: 'center' }} />
+                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
                   <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} style={{ width: 92, textAlign: 'center' }} />
+                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="hh h mm" style={{ width: 92, textAlign: 'center' }} />
                 </>
               )}
               {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
@@ -1568,9 +1568,9 @@ export default function Parametres() {
                 </button>
                 {!ex.closed && (
                   <>
-                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
+                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
                     <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
+                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
                   </>
                 )}
                 <Input value={ex.note ?? ''} onChange={(e) => maj({ note: e.target.value })} placeholder="Inventaire" style={{ flex: 1, minWidth: 130 }} />
@@ -1680,9 +1680,9 @@ export default function Parametres() {
                   </button>
                   {!journee && (
                     <>
-                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
+                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
                       <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
+                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} placeholder="hh h mm" style={{ width: 86, textAlign: 'center' }} />
                     </>
                   )}
                   <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} style={{ flex: 1, minWidth: 130 }} />

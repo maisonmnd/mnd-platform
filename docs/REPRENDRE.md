@@ -19,6 +19,15 @@ du module (ex. Purifier) » devient « Nom du module »). Aucune logique
 touchée. Les valeurs calculées (`String(formation?.priceXof …)`) restent :
 elles sont vivantes, pas inventées. À tenir pour toute nouvelle case.
 
+**UNE CONSIGNE DE FORME N'EST PAS UN EXEMPLE** (correction du même jour). Le
+balayage avait emporté avec les exemples des consignes qui apprennent ce que
+la case attend : elles reviennent, en forme et non en valeur. Le champ de
+date libre (`ds/dates.tsx`, celui qui lit « 3 sept » comme « 03-09-26 ») dit
+de nouveau « jj/mm/aaaa », comme son jumeau compact ; l'arrivée et le départ
+du pointage (`MonMois.tsx`) disent « hh:mm » ; les six champs d'horaires de
+`Parametres.tsx` (semaine, exception, plage fermée) disent « hh h mm ».
+Aucune heure, aucune date d'exemple n'est revenue.
+
 ## LE TÉLÉPHONE DU PRESTATAIRE, LA LIVRAISON ATTENDUE — 17 septembre 2026
 
 « Rajouter le numéro de téléphone sur cette fiche. Avoir une date de livraison
