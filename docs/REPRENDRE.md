@@ -37,7 +37,7 @@ fonction Edge **`demande-submit`** (À DÉPLOYER, fichier entier) : limite de
 débit de 0007, téléphone en E.164 (huit chiffres reçoivent +22901, comme
 `numeroWa`), doublon refusé à 24 h, identifiant et date posés par le
 serveur, branche résolue dans `branches`, ligne écrite dans la table
-**`demandes`** (migration **0108**, À PASSER : aucune politique pour anon,
+**`demandes`** (migration **0108**, PASSÉE le 17 septembre : aucune politique pour anon,
 lecture et vie réservées au personnel), puis alerte poussée au personnel.
 Le Trône la reçoit dans **« Les demandes »** (`routes/clients/Demandes.tsx`,
 `shared/demandes.ts`, harnais `verifie-demandes`, 23 épreuves) : trois
@@ -71,7 +71,7 @@ remonte `dist/revelateur/` à la racine), remplace les repères de lien dans
 TOUTES les pages (récursif), écrit un sitemap de toutes les adresses
 canoniques ; `publie.mjs` le publie vers le dépôt `revelateur`.
 
-**RESTE À LA MAISON** : passer 0108 ; déployer `demande-submit`,
+**RESTE À LA MAISON** : déployer `demande-submit`,
 `avis-google-releve` (et, du chantier précédent, `kkiapay-verify` et
 `push-notify`) ; poser `GOOGLE_PLACES_KEY` et `GOOGLE_PLACE_ID` ; déclarer
 le sitemap dans la Search Console ; renseigner le numéro WhatsApp de la
@@ -164,7 +164,7 @@ identifiants de prestations (`sv-microlocks`…) qui ne vivent que dans
 plante (`service.palier` sur `undefined`). Recommander par catégorie.
 ② **0106 croyait le navigateur** : `acad_dem_depot ... with check (true)`
 laissait l'anonyme écrire l'acompte attendu ET les champs « acompte reçu »
-que `kkiapay-verify` relit. **Migration 0107** (À PASSER) : table
+que `kkiapay-verify` relit. **Migration 0107** (PASSÉE le 17 septembre) : table
 `academie_tarifs` écrite par la Maison seule, déclencheur qui recalcule prix
 et acompte et retire les champs de paiement hors service role, politique qui
 exige nom, téléphone, parcours. Un parcours ajouté à `PARCOURS_MND` doit
