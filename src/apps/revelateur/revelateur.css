@@ -290,7 +290,17 @@ footer .logo img { height: 34px; }
 @media (max-width: 760px) { .barre-mobile { display: flex; } body.a-barre-mobile { padding-bottom: 72px; } }
 
 /* ── LE CALENDRIER DE RÉSERVATION ────────────────────────────────── */
+/* CHAQUE NIVEAU DE GRILLE SE PROTEGE, LA GARDE NE SE TRANSMET PAS —
+   17 septembre 2026, seconde passe. Poser min-width: 0 sur les enfants du
+   conteneur n'a tenu que la PISTE : les pistes gardaient leurs proportions,
+   mais le contenu large remontait jusqu'au premier item non protege et
+   debordait par-dessus la colonne voisine. Ici deux grilles s'emboitent,
+   .reservation puis .gestes, et chacune a ses propres items a min-width
+   auto. On protege donc les deux, et le nom d'une prestation recoit le
+   droit de se couper : dans un bouton en flex, un enfant qui ne peut pas
+   se couper impose sa largeur a toute la chaine. */
 .reservation { display: grid; gap: 18px; }
+.reservation > * { min-width: 0; }
 .pas-reservation { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 18px; counter-reset: pr; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--texte-doux); }
 .pas-reservation li { display: flex; align-items: center; gap: 8px; }
 .pas-reservation li::before { counter-increment: pr; content: counter(pr); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--filet); font-size: 11px; letter-spacing: 0; }
@@ -300,6 +310,7 @@ footer .logo img { height: 34px; }
 .bloc-reservation { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: clamp(18px, 3vw, 26px); }
 .bloc-reservation h3 { margin-block: 4px 14px; }
 .gestes { display: grid; gap: 10px; }
+.gestes > * { min-width: 0; }
 /* LES FAMILLES — trente gestes à plat ne se lisent pas ; rangés par famille,
    ils se parcourent d'un regard. Le titre ne paraît qu'à partir de deux. */
 .famille + .famille { margin-top: 18px; }
@@ -307,7 +318,7 @@ footer .logo img { height: 34px; }
 .geste-choix { display: flex; align-items: baseline; gap: 12px; width: 100%; min-height: 56px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 14px 16px; transition: border-color var(--t), background var(--t); }
 .geste-choix:hover { border-color: var(--accent); background: var(--accent-clair); }
 .geste-choix.est-choisi { border-color: var(--accent); background: var(--accent-clair); box-shadow: inset 2px 0 0 var(--accent); }
-.geste-choix b { font-family: var(--serif); font-weight: 400; font-size: 19px; }
+.geste-choix b { font-family: var(--serif); font-weight: 400; font-size: 19px; min-width: 0; overflow-wrap: anywhere; }
 .geste-choix small { margin-left: auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
 /* LE PRIX SE LIT D'UN COUP D'OEIL, sans crier : il est ce que la visiteuse
    cherche en second, juste apres le nom du geste. */
