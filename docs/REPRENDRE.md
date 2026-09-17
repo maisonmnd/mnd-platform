@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEUX FACONS POUR UN PARENT DE DECIDER DE LA TAILLE D'UN ENFANT — 18 septembre 2026
+
+Deux defauts d'affichage signales le meme jour, deux causes differentes, une
+seule morale : **l'element n'est pas coupable, son parent decide pour lui**.
+Dans les deux cas la regle de l'enfant etait juste, et on a cherche trois fois
+du mauvais cote avant de regarder le conteneur.
+
+**① UNE RANGEE QUI DEFILE A BESOIN DE `min-width: 0`, A CHAQUE NIVEAU.**
+Un item de grille (et de flex sur son axe principal) garde `min-width: auto` :
+il s'elargit jusqu'a la largeur de son contenu et pousse son parent au lieu de
+se serrer. Une rangee en `overflow-x: auto` posee la ne defile donc pas, elle
+etale. **Le piege** : `minmax(0, 1fr)` protege la PISTE, jamais l'ELEMENT pose
+dedans. **Le second piege, plus couteux** : la garde NE SE TRANSMET PAS. Sur
+l'ecran de reservation, trois grilles s'emboitaient (`.reserver .conteneur`,
+`.reservation`, `.gestes`) et n'en proteger qu'une n'a rien regle : les pistes
+gardaient leurs proportions pendant que le contenu remontait jusqu'au premier
+item nu et debordait de la. Il a fallu trois publications pour le voir.
+
+**② UN FLEX EN COLONNE ETIRE SES ENFANTS EN LARGEUR.** Le monogramme des
+quatre portes sortait ecrase, large comme la carte et haut de 26 px, alors que
+sa regle disait `height: 26px; width: auto`. `align-items` vaut STRETCH par
+defaut, et en direction `column` l'axe transverse est la LARGEUR : l'image
+etait etiree, le `width: auto` resolu par l'etirement. **La preuve etait a
+cote** : `.logo` porte `align-items: center` et son monogramme, avec la meme
+regle, sortait juste.
+
+**LA NUANCE QUI COMMANDE CE QU'ON A LE DROIT DE FAIRE.** Les deux gardes ne se
+posent pas de la meme facon. `min-width: 0` est INERTE hors grille et hors
+flex, ou `auto` se resout a 0 : on peut donc le DISTRIBUER sur toute rangee
+defilante sans remonter l'arbre, ce qui a permis de couvrir les quatorze du
+depot, y compris un composant reutilisable dont le parent varie selon
+l'appelant et pour lequel la question « son parent est-il une grille » n'a pas
+de reponse. `align-self: flex-start` n'est PAS inerte : pose sur `.logo img`,
+il decentrerait le logo. Celui-la se CIBLE, apres avoir lu la regle du parent.
+
+**LA PARADE, DANS LES DEUX CAS** : quand un element sort a une taille qu'il n'a
+pas demandee, lire la regle du CONTENEUR avant celle de l'element. Et se
+souvenir qu'une garde posee sur un parent ne suit pas l'enfant qu'on deplace :
+`.jours` etait protegee par son ancetre, elle porte desormais la sienne.
+
 ## PLUSIEURS GESTES DANS UNE MEME VENUE — 18 septembre 2026
 
 « J'aimerais avoir la possibilité de réserver plusieurs services à la fois.

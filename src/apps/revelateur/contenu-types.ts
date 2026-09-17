@@ -41,8 +41,10 @@ export type Page = {
   /** Nom de fichier dans `public/assets/photos/site/` ; absent = tuile indigo. */
   image?: string;
   besoin?: Besoin;
-  /** L'appel principal de la page : ouvre WhatsApp avec le message du besoin. */
-  cta?: { texte: string; note?: string };
+  /** L'appel principal de la page. Sans `vers`, il ouvre WhatsApp avec le
+      message du besoin ; avec, il mène où on lui dit, y compris une sœur de
+      la Maison (`soeur:academie`). */
+  cta?: { texte: string; note?: string; vers?: string };
   /** Une ligne sur le geste (HTML léger : `<b>` seulement) et les quatre temps. */
   geste?: string;
   temps?: boolean;

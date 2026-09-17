@@ -279,7 +279,15 @@ function rendService(p) {
   const cta = p.cta
     ? (reservable
       ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
-      : bouton({ texte: p.cta.texte, vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein'))
+      /* LA DESTINATION DU CTA L'EMPORTE — 18 septembre 2026. `bouton()` a
+         toujours su suivre n'importe quelle adresse, `soeur:` comprise ;
+         c'est ICI qu'on l'écrasait en codant WhatsApp en dur. Sans `vers`,
+         la coalescence retombe mot pour mot sur l'ancien comportement.
+         ⚠ La branche du dessus, celle des pages RÉSERVABLES, ne passe pas
+         par `bouton()` et ignorerait un `cta.vers`. Si l'on rend un jour la
+         formation réservable, son lien vers l'Académie disparaîtrait sans
+         bruit : il faudra alors le porter là aussi. */
+      : bouton({ texte: p.cta.texte, vers: p.cta.vers ?? `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein'))
     : '';
   /* Le second geste : écrire à la Maison, toujours possible, jamais le premier. */
   const secondaire = bouton({ texte: 'Écrire sur WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--lien');
@@ -458,6 +466,13 @@ function litLeJournal() {
 function rendArticle(art) {
   const { html, appel } = markdownEnHtml(art.corps);
   const p = PARCOURS_DU_JOURNAL[art.parcours] ?? PARCOURS_DU_JOURNAL['premiere-couronne'];
+  /* ⚠ LA DESTINATION EST CODÉE EN DUR ICI — 18 septembre 2026. Ce bouton
+     part toujours sur WhatsApp, avec le message du besoin. Aujourd'hui aucun
+     des dix articles du Journal ne vise le parcours « formations », donc le
+     cas ne se présente pas ; le jour où l'un le visera, son bouton « Et
+     maintenant » enverra sur WhatsApp alors que la page Formations, elle,
+     conduit désormais à l'Académie. Il faudra alors lire la destination de
+     la page visée au lieu de la reconstruire. */
   const cta = bouton({ texte: appel || 'Trouver mon parcours', vers: `whatsapp:${p.besoin}` }, 'btn btn--plein');
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${lien('/journal/')}">Journal</a></li><li>·</li><li>${echappe(art.titre)}</li></ol></nav>

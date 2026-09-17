@@ -523,7 +523,14 @@ export const PAGES: Page[] = [
     ligne: "La méthode, les gestes et la tenue d'un salon, transmis par celles et ceux qui la pratiquent chaque jour.",
     image: 'brice.jpg',
     besoin: 'formation',
-    cta: { texte: 'Découvrir la formation', note: 'Pour celles et ceux qui veulent transmettre à leur tour.' },
+    /* LA PAGE CONDUIT, ELLE NE CÈDE PAS SA PLACE — 18 septembre 2026.
+       « Est-ce que je peux ouvrir l'adresse de la page de formation que nous
+       avons construite » (Yéman), en parlant du site Académie. Arbitrage
+       rendu au sélecteur : la carte des quatre portes continue de mener ICI,
+       et c'est cette page qui conduit à l'Académie. On garde ainsi la page
+       indexée et sa fiche de cours déclarée à Google, et la visiteuse lit ce
+       que la Maison forme avant d'aller s'inscrire. */
+    cta: { texte: 'Voir le programme et s’inscrire', note: 'Le programme, les dates et l’inscription vous attendent à l’Académie.', vers: 'soeur:academie' },
     geste: 'Trois paliers : <b>Fondation</b>, <b>Élévation</b>, <b>Souveraineté</b>.',
     pas: {
       sur: 'Les portes',
