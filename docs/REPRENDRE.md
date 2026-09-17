@@ -166,7 +166,7 @@ ferment vraiment une journée sont `mnd_settings.hours`, une exception dans
 et `maxRdvParJourMaitre` valent toujours ZERO, donc sans limite, et cela
 mérite d'être posé maintenant que n'importe qui peut réserver.
 
-## SIX FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
+## HUIT FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
 
 Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,
 deux dans l'autre. Aucun n'etait absurde : tous avaient l'air credibles, et
@@ -223,6 +223,30 @@ pour echapper aux edits de l'autre session ». `dist-sites/` est volatil, une
 publication le reconstruit entierement. Les deux seules preuves qui tiennent
 dans un arbre partage sont **la page SERVIE en ligne** et **la valeur en
 base**.
+
+**⑦ UN `git status` NE PROUVE AUCUNE PROPRIETE.** Dans un arbre partage a
+deux sessions, il annonce huit fichiers modifies, dont les quatre que l'autre
+session vient justement de nommer. Le reflexe est de repondre « j'ai quelque
+chose en cours » et de la bloquer sur un conflit qui n'existe pas. Un
+`git status` dit l'etat du DOSSIER, jamais QUI a ecrit. **La parade** : lire
+le VOCABULAIRE du diff avant de revendiquer ou d'accuser. Ici, 158 mentions de
+« saison » et « offre », zero de « academie » : c'etait son chantier, pas un
+reste du mien.
+
+**⑧ UN ZERO OBTENU AVEC SES PROPRES MOTS NE PROUVE RIEN.** Pour verifier
+qu'une entree de cette section existait bien, un `grep` sur « contexte fixe »
+a rendu ZERO, et a failli faire annoncer qu'elle manquait. Elle etait la,
+sous le titre « UN OUTIL QUI SOUS-ESTIME PAR CONSTRUCTION » : les mots
+cherches avaient ete inventes en la racontant a l'autre session, ils n'avaient
+jamais ete ecrits dans le fichier. **La parade** : sonder par la STRUCTURE, le
+numeral, le titre, la position, jamais par une formulation qu'on se rappelle
+avoir employee.
+
+**⑦ ET ⑧ SONT LA MEME FAUTE**, et c'est la plus sournoise de la liste : une
+PREUVE PAR L'ABSENCE. Un zero et un silence ressemblent a des reponses, alors
+qu'ils ne disent souvent rien d'autre que « la question a ete mal posee ».
+Avant de conclure de ce qu'on ne voit pas, verifier qu'on regardait au bon
+endroit.
 
 **CE QUI A FINI PAR MARCHER**, et qui servira au prochain audit CSS : lire
 chaque feuille de `src/`, aplatir les espaces, decouper sur `}`, ne retenir
