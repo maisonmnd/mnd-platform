@@ -46,6 +46,12 @@ liste quand le mois en a plus d'une. `.tr-grid--5` posé pour cinq cartes.
 Les juges vivent dans `shared/depenses-saisie.ts`, éprouvés par
 `verifie-depenses-saisie` (62 harnais). Aucune SQL, rien au modèle.
 
+**LES TROIS RÉPONSES EN MENUS DÉROULANTS** (17 septembre, « peut se mettre dans
+un menu dropdown ») : trois `Select`, « Choisir… » vide en première option,
+les sous-catégories en second menu quand il y en a, « + Quelqu'un d'autre… »
+et « Sans caisse · Autres » comme options. Le chip « de sa poche ? » reste
+sous le menu du porteur.
+
 ## LE CERTIFICAT S'ENREGISTRE, SES SIGNATAIRES SE CHANGENT, SA PHRASE EST CORRIGÉE — 16 septembre 2026
 
 Trois demandes de Yéman dans l'heure, sur la page du certificat.

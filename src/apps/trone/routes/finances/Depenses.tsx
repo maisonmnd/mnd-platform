@@ -2371,54 +2371,62 @@ export default function Depenses() {
                 <span className="trc-microlabel">Les trois réponses</span>
                 <span className="trf-bloc__compte"><b>{compteDesTrois.donnees}</b> sur {compteDesTrois.total}</span>
               </div>
+              {/* LES TROIS RÉPONSES EN MENUS DÉROULANTS — 17 septembre 2026.
+                  « À quoi, qui a acheté, quelle caisse peut se mettre dans un
+                  menu dropdown » (Yéman). Trois menus, une ligne chacun, et la
+                  première option est « Choisir… », vide : rien de présélectionné
+                  (13 septembre). Les sous-catégories font un second menu, qui ne
+                  paraît que si la catégorie en a. */}
               <div className="trf-rep">
                 <div className="trf-rep__q">À quoi</div>
-                <div>
-                  <div className="trf-chips">
-                    {catNames.map((c) => (
-                      <button key={c} type="button" className={`trf-chip ${form.category === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, category: c, subcategory: '' }))}>{c}</button>
-                    ))}
-                  </div>
+                <div className="trf-rep__menus">
+                  <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value, subcategory: '' }))} aria-label="À quoi va cet argent">
+                    <option value="">Choisir…</option>
+                    {catNames.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </Select>
                   {subsOf(form.category).length > 0 && (
-                    <div className="trf-chips trf-chips--sous">
-                      {subsOf(form.category).map((c) => (
-                        <button key={c} type="button" className={`trf-chip ${form.subcategory === c ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, subcategory: c }))}>{c}</button>
-                      ))}
-                    </div>
+                    <Select value={form.subcategory} onChange={(e) => setForm((f) => ({ ...f, subcategory: e.target.value }))} aria-label="Sous-catégorie">
+                      <option value="">Sans précision</option>
+                      {subsOf(form.category).map((c) => <option key={c} value={c}>{c}</option>)}
+                    </Select>
                   )}
                 </div>
               </div>
               <div className="trf-rep">
                 <div className="trf-rep__q">Qui a acheté<small>pas celui qui encaisse</small></div>
-                <div>
+                <div className="trf-rep__menus">
                   {/* UN COMPTE RESTREINT NE SIGNE QUE DE SON NOM (31 août). */}
                   {!voitToutesLesDepenses ? (
                     <div className="trf-rep__pose">{monNom || 'Vous'}<small>Vos dépenses sont signées de votre nom.</small></div>
                   ) : (
-                    <div className="trf-chips">
-                      <button type="button" className={`trf-chip ${form.porteurChoisi && !form.porteur ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, porteur: '', porteurChoisi: true, avancee: false }))}>La Maison elle-même</button>
-                      {porteurs.map((nom) => (
-                        <button key={nom} type="button" className={`trf-chip ${form.porteur === nom ? 'is-active' : ''}`} onClick={() => setForm((f) => ({ ...f, porteur: nom, porteurChoisi: true }))}>{nom}</button>
-                      ))}
-                      <button
-                        type="button"
-                        className="trf-chip trf-chip--plus"
-                        onClick={() => {
+                    <Select
+                      value={form.porteurChoisi ? (form.porteur || '__maison__') : ''}
+                      aria-label="Qui a fait cet achat"
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '') return;
+                        if (v === '__maison__') { setForm((f) => ({ ...f, porteur: '', porteurChoisi: true, avancee: false })); return; }
+                        if (v === '__nouveau__') {
                           const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
                           if (!nom?.trim()) return;
                           ajouteUnPorteur(nom);
                           setForm((f) => ({ ...f, porteur: nom.trim(), porteurChoisi: true }));
-                        }}
-                      >
-                        + Quelqu’un
-                      </button>
-                    </div>
+                          return;
+                        }
+                        setForm((f) => ({ ...f, porteur: v, porteurChoisi: true }));
+                      }}
+                    >
+                      <option value="">Choisir…</option>
+                      <option value="__maison__">La Maison elle-même</option>
+                      {porteurs.map((nom) => <option key={nom} value={nom}>{nom}</option>)}
+                      <option value="__nouveau__">+ Quelqu’un d’autre…</option>
+                    </Select>
                   )}
                   {/* IL A AVANCÉ DE SA POCHE (31 août) : un seul interrupteur
                       décide de la trésorerie, à côté de celui qui a acheté.
                       Ouvert, aucun tiroir ne bouge, la Maison le lui doit. */}
                   {!!form.porteur && (
-                    <div className="trf-chips" style={{ marginTop: 7 }}>
+                    <div className="trf-chips">
                       <button
                         type="button"
                         className={`trf-chip trf-chip--poche ${form.avancee ? 'is-active' : ''}`}
@@ -2433,18 +2441,25 @@ export default function Depenses() {
               </div>
               <div className="trf-rep">
                 <div className="trf-rep__q">Quelle caisse</div>
-                <div>
+                <div className="trf-rep__menus">
                   {form.avancee && !!form.porteur ? (
                     <div className="mnd-muted" style={{ fontSize: 12, paddingTop: 5 }}>Aucune ne bouge : la Maison doit cette somme à {form.porteur}.</div>
                   ) : (
                     <>
-                      <div className="trf-chips">
-                        {branchBoxes.map((c) => (
-                          <button key={c.id} type="button" className={`trf-chip ${form.caisseChoisie && form.cashbox === c.name ? 'is-active' : ''}`} onClick={() => changeLaCaisse(c.name)}>{libelleDeLaCaisse(c)}</button>
-                        ))}
+                      <Select
+                        value={form.caisseChoisie ? (form.cashbox || '__sans__') : ''}
+                        aria-label="Depuis quelle caisse"
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '') return;
+                          changeLaCaisse(v === '__sans__' ? '' : v);
+                        }}
+                      >
+                        <option value="">Choisir…</option>
+                        {branchBoxes.map((c) => <option key={c.id} value={c.name}>{libelleDeLaCaisse(c)}</option>)}
                         {/* « Sans caisse » se choisit, comme les autres (13 septembre). */}
-                        <button type="button" className={`trf-chip ${form.caisseChoisie && !form.cashbox ? 'is-active' : ''}`} onClick={() => changeLaCaisse('')}>Sans caisse · Autres</button>
-                      </div>
+                        <option value="__sans__">Sans caisse · Autres</option>
+                      </Select>
                       {cleanItems.length === 0 && (
                         <ContrepartieMaison
                           caisse={caisseDeLaDepense}
@@ -2456,7 +2471,7 @@ export default function Depenses() {
                         />
                       )}
                       {branchBoxes.length === 0 && (
-                        <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7 }}>
+                        <div className="mnd-muted" style={{ fontSize: 11.5 }}>
                           Aucune caisse déclarée pour cette branche, la dépense se rangera sous « Autres ». Les caisses se créent dans l’onglet « Les caisses ».
                         </div>
                       )}

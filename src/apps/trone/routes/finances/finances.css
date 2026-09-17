@@ -2169,6 +2169,8 @@
 .trf-rep:first-of-type { border-top: none; }
 .trf-rep__q { font-family: var(--font-sans); font-size: 12px; color: var(--ink); padding-top: 5px; }
 .trf-rep__q small { display: block; font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; font-weight: var(--weight-light); }
+.trf-rep__menus { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.trf-rep__menus .mnd-select, .trf-rep__menus select { width: 100%; }
 .trf-rep__pose { border: 1px solid var(--hairline); border-radius: 3px; padding: 7px 12px; font-family: var(--font-sans); font-size: 13px; color: var(--color-indigo); }
 .trf-rep__pose small { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 @media (max-width: 520px) { .trf-rep { grid-template-columns: 1fr; gap: 4px; } .trf-rep__q { padding-top: 0; } }
