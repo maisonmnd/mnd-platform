@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { toast } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
-import { maisonNom, DEVISE_COMPLETE } from '../../../../shared/identite';
+import { maisonNom, DEVISE_COMPLETE, signeLeMessage } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
@@ -410,6 +410,28 @@ export default function QrCodes() {
       .then(() => toast(`Lien ${quoi} copié, collez-le dans WhatsApp.`))
       .catch(() => window.prompt(`Copiez ce lien ${quoi} :`, lien));
   };
+  const copierTexte = (texte: string, quoi: string) => {
+    navigator.clipboard.writeText(texte)
+      .then(() => toast(`${quoi} copié, collez-le dans WhatsApp.`))
+      .catch(() => window.prompt(`Copiez ${quoi.toLowerCase()} :`, texte));
+  };
+
+  /* ── LE SITE DE L'ACADÉMIE — 17 septembre 2026 ──────────────────
+     « On y va pour le moteur » (Yéman). Le carré le moins cher de tous : une
+     cliente contente scanne au comptoir, et le monde entier apprend que la
+     Maison forme. Sœur du Trône, donc adresse voisine — jamais un domaine en
+     dur : sous /trone/ en ligne, à la racine en développement.
+
+     LE MESSAGE EST PRÊT À COLLER, et sa devise est posée PAR LE CODE
+     (`signeLeMessage`), comme tout ce qui sort de la Maison. */
+  const lienAcademie = new URL(
+    `${window.location.pathname.includes('/trone') ? '/academie/' : '/academie.html'}`,
+    window.location.origin,
+  ).href;
+  const messageAcademie = signeLeMessage(
+    `La ${maisonNom()} forme au métier du lock : neuf parcours, de la Fondation à L’Œuvre, `
+    + `sur des têtes réelles à Cotonou. Le programme, les prix et l’inscription sont ici : ${lienAcademie}`,
+  );
 
   const imprimerMomo = () => imprime(carteA5({
     titre: 'Régler par MoMo.',
@@ -619,6 +641,29 @@ export default function QrCodes() {
               { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) },
               { texte: 'Carte A5', faire: imprimeCarteCouronne },
               { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
+            ]}
+          />
+        </div>
+      </Moment>
+
+      {/* ══ APPRENDRE CHEZ NOUS ══ */}
+      <Moment
+        titre="Apprendre chez nous."
+        quand="à qui demande qui vous a formée"
+        sous="Le carré qu’on tend à celle qui veut le métier, et qu’on colle sur chaque certificat remis."
+      >
+        <div className="trq-grille trq-grille--1">
+          <CarteCode
+            signe={BookOpen}
+            nom="MND Académie."
+            qui="Elle scanne · elle voit les neuf parcours"
+            dit={<>Le site public de l’Académie : les neuf parcours avec leurs prix, le programme de chacun, et la réservation. Une demande laissée là revient dans l’Académie, onglet « Demandes du site ».</>}
+            valeur={lienAcademie}
+            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienAcademie}</span> }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'MND Académie.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) },
+              { texte: 'Copier le lien', faire: () => copier(lienAcademie, 'du site de l’Académie') },
+              { texte: 'Copier le message', faire: () => copierTexte(messageAcademie, 'Le message de l’Académie') },
             ]}
           />
         </div>

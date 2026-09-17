@@ -43,6 +43,13 @@ function origineDesPages() {
 }
 const ORIGINE_PAGES = origineDesPages();
 
+/* QUI SE LAISSE EXPLORER PAR GOOGLE, ET QUI NON — 17 septembre 2026.
+   « On y va pour le moteur » (Yéman). La vitrine de l'Académie, le portail et
+   LOKAA sont faits pour être trouvés. Le Trône est un ERP et Ma Couronne
+   demande un compte : les laisser indexer offrirait aux moteurs des écrans
+   que personne ne doit lire, et des adresses de connexion. */
+const INDEXABLES = new Set(['academie', 'lokaa', 'mnd-platform']);
+
 const SITES = [
   {
     name: 'trone',
@@ -135,5 +142,45 @@ for (const site of SITES) {
         .replaceAll('__LIEN_DU_SITE__', lienSite));
     }
   }
+
+  /* ── ROBOTS ET SITEMAP — 17 septembre 2026 ────────────────────────
+     Sans eux, un moteur explore au hasard et peut indexer ce qui ne le
+     regarde pas. Ils sont ÉCRITS ICI, site par site, parce que `public/` est
+     recopié tel quel dans TOUS les sites : un seul fichier partagé aurait
+     ouvert le Trône aux moteurs pour ouvrir la vitrine.
+
+     AUCUN DOMAINE EN DUR : l'adresse vient de `ORIGINE_PAGES`, lue sur le
+     dépôt. En développement elle est vide, et le sitemap ne s'écrit pas,
+     faute d'adresse absolue : un sitemap relatif ne vaut rien. */
+  const dossierPublie = path.join(out, site.name);
+  const indexable = INDEXABLES.has(site.name);
+  const adresseDuSite = ORIGINE_PAGES ? `${ORIGINE_PAGES}${site.base}` : '';
+  const robots = !indexable
+    ? `User-agent: *
+Disallow: /
+`
+    : adresseDuSite
+      ? `User-agent: *
+Allow: /
+
+Sitemap: ${adresseDuSite}sitemap.xml
+`
+      : `User-agent: *
+Allow: /
+`;
+  writeFileSync(path.join(dossierPublie, 'robots.txt'), robots);
+  if (indexable && adresseDuSite) {
+    const jour = new Date().toISOString().slice(0, 10);
+    writeFileSync(path.join(dossierPublie, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${adresseDuSite}</loc>
+    <lastmod>${jour}</lastmod>
+    <changefreq>weekly</changefreq>
+  </url>
+</urlset>
+`);
+  }
+  console.log(`  ${indexable ? 'explorable' : 'ferme aux moteurs'} : robots.txt${indexable && adresseDuSite ? ' + sitemap.xml' : ''}`);
 }
 console.log('\nSites construits dans dist-sites/.');

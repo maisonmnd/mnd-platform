@@ -28,6 +28,36 @@ du pointage (`MonMois.tsx`) disent « hh:mm » ; les six champs d'horaires de
 `Parametres.tsx` (semaine, exception, plage fermée) disent « hh h mm ».
 Aucune heure, aucune date d'exemple n'est revenue.
 
+## LE MOTEUR DE L'ACADÉMIE — 17 septembre 2026
+
+« On y va pour le moteur » (Yéman), après la mise en ligne de la vitrine.
+
+**CHAQUE SITE DIT AUX MOTEURS CE QU'IL EST** (`build-sites.mjs`, à la
+construction). `INDEXABLES` nomme les trois qui se laissent explorer :
+l'Académie, LOKAA, le portail. **Le Trône et Ma Couronne sont fermés**
+(`Disallow: /`) : un ERP et un espace cliente offriraient aux moteurs des
+écrans que personne ne doit lire, et des adresses de connexion. Les fichiers
+sont écrits SITE PAR SITE, jamais dans `public/` : ce dossier est recopié
+tel quel dans tous les sites, et un seul robots partagé aurait ouvert le
+Trône pour ouvrir la vitrine. Le sitemap ne s'écrit que pour les explorables
+et porte l'adresse absolue lue sur le dépôt (`ORIGINE_PAGES`) ; en
+développement, sans adresse, il ne s'écrit pas, car un sitemap relatif ne
+vaut rien.
+
+**LE CARRÉ DE L'ACADÉMIE, AU COMPTOIR** (`QrCodes.tsx`, moment « Apprendre
+chez nous »). Le QR du site, à afficher face cliente, à imprimer, et à
+coller sur chaque certificat remis : c'est le moteur le moins cher de tous,
+une cliente contente qui scanne. Trois gestes : afficher, copier le lien,
+**copier le message** tout prêt pour WhatsApp, dont la devise est posée PAR
+LE CODE (`signeLeMessage`), jamais tapée à la main. L'adresse se construit
+sur l'origine courante, comme la carte du comptoir : sous `/trone/` en
+ligne, à la racine en développement, aucun domaine en dur.
+
+**CE QUI RESTE, ET QUI NE PRESSE PAS** : déclarer le sitemap dans la Search
+Console (elle est déjà vérifiée), et, si la Maison le veut, une campagne
+Marketing par segment. Le message étant prêt à coller, elle n'est plus
+nécessaire pour envoyer.
+
 ## MND ACADÉMIE AU MONDE — 17 septembre 2026
 
 « Il nous faut absolument un site pour informer le monde entier que nous
