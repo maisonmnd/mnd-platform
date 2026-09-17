@@ -5,6 +5,7 @@ import { Button, Select, Textarea, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { signeLeMessage } from '../../../../shared/identite';
 import { clientsStore, ensureInitiePersona } from '../../../../shared/clients';
+import { appointmentsStore } from '../../../../shared/agenda';
 import {
   useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, messageDeRappel, ficheDepuisLaDemande,
   telephoneMasque, telephoneNormalise, depuisQuand, BESOINS,
@@ -40,6 +41,13 @@ const STATUT_DIT: Record<StatutDeLaDemande, { mot: string; classe: string }> = {
 };
 
 /** Le lundi de cette semaine, à minuit, en millisecondes. */
+/** « mercredi 24 septembre, 10:00 » — la place qu'une visiteuse a prise. */
+const placeDite = (d: Demande): string => {
+  if (!d.date || !d.time) return '';
+  const quand = new Date(`${d.date}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return `${quand}, ${d.time}${d.master ? ` · ${d.master}` : ''}`;
+};
+
 const debutDeSemaine = (maintenant: number): number => {
   const d = new Date(maintenant);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -113,6 +121,13 @@ export default function Demandes() {
       id = fiche.id;
       toast(`${fiche.name} entre au carnet, au segment Prospect.`);
     }
+    /* LE RENDEZ-VOUS SUIT LA FICHE. Posé par le site sans `clientId` (aucune
+       fiche n'existait), il s'y rattache maintenant : sans ce geste, le
+       carnet garderait « Cliente de passage » sur une tête qu'on connaît. */
+    if (d.apptId) {
+      appointmentsStore.set((prev) => prev.map((a) =>
+        (a.id === d.apptId ? { ...a, clientId: id, clientName: d.prenom || a.clientName } : a)));
+    }
     poser(d, { statut: 'convertie', clientId: id });
     navigate(`/customers?id=${id}`);
   };
@@ -129,7 +144,7 @@ export default function Demandes() {
       <PageHead
         eyebrow="Clients & Agenda"
         title="Les demandes"
-        sub="Ce que le site public a reçu : un prénom, un numéro, un besoin. La Maison rappelle."
+        sub="Ce que le site public a reçu : un prénom, un numéro, un besoin, parfois une place déjà prise au calendrier. La Maison confirme."
       />
 
       <div className="trc-kpis" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -196,6 +211,19 @@ export default function Demandes() {
                 {ditLeBesoin(d.besoin)}
                 {d.profil ? <span className="trc-sub"> · {d.profil}</span> : null}
               </div>
+              {/* LA PLACE DEMANDÉE EN LIGNE — 17 septembre 2026. Le site pose
+                  déjà le rendez-vous en attente : le comptoir n'a qu'à le
+                  confirmer au Calendrier, ou à le déplacer. */}
+              {d.date && d.time && (
+                <div className="trc-name" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span className="trc-pill trc-pill--new">{placeDite(d)}</span>
+                  {d.apptId && (
+                    <button type="button" className="trc-c360-linkbtn" onClick={() => navigate('/calendrier')}>
+                      Voir au calendrier
+                    </button>
+                  )}
+                </div>
+              )}
               {(d.page || d.campagne) && (
                 <div className="trc-sub">
                   {d.page ? `Depuis ${d.page}` : ''}

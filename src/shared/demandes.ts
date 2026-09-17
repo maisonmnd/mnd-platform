@@ -44,6 +44,17 @@ export type Demande = {
   rappeleeLe?: string;
   clientId?: string;          // la fiche cliente créée à la conversion
   note?: string;              // note du personnel
+  /* ── LA PLACE DEMANDÉE — 17 septembre 2026 ────────────────────────
+     « Est-ce possible de réserver directement sans passer par WhatsApp ? »
+     (Yéman). Le site montre les vraies heures libres, la visiteuse en prend
+     une, et la fonction Edge POSE le rendez-vous en attente après avoir
+     revérifié le créneau. Ces champs disent laquelle, et lequel. */
+  serviceIds?: string[];
+  date?: string;              // AAAA-MM-JJ
+  time?: string;              // HH:mm
+  master?: string;
+  /** Le rendez-vous posé par le serveur, à confirmer au Trône. */
+  apptId?: string;
 };
 
 export const BESOINS: readonly BesoinDeLaDemande[] = ['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu'];

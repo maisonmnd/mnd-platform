@@ -2,6 +2,70 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## RÉSERVER SUR LE SITE, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026
+
+« Est-ce possible de tomber directement sur les consultations et réserver
+directement sans passer par un message WhatsApp ? Même chose pour les
+entretiens et les soins » (Yéman). Oui, et deux arbitrages : **le rendez-vous
+est POSÉ** (pas seulement demandé), et **pas d'acompte en ligne pour
+l'instant**.
+
+**POURQUOI C'ÉTAIT POSSIBLE** : tout ce qu'un calendrier honnête demande était
+déjà lisible sans compte. Le catalogue et ses durées, la branche et ses
+maîtres, les horaires et les fermetures exceptionnelles, les murs de
+`blocages` (0042), et surtout `creneaux_occupes` (0079), la fonction écrite en
+août pour Ma Couronne, qui rend un jour, un maître, une heure et une durée,
+**sans un seul nom de cliente**. On dessine le mur, jamais ce qu'il y a
+derrière.
+
+**LE CALCUL EST DEVENU COMMUN** : `shared/agenda-pur.ts` n'importe RIEN (ni
+magasin, ni synchronisation, ni Supabase), parce qu'une page publique ne peut
+pas tirer la couche de données. Il porte `ouvertureDuJour`, `plagesBloquees`,
+`creneauxLibres`, `dureeDesPrestations`, `hourToMin`. `settings.ts`,
+`blocages.ts` et `couronne/lib.ts` lui délèguent et le ré-exportent : rien n'a
+changé d'adresse pour le reste du code, et les trois surfaces répondent
+désormais la même chose à la même journée. Harnais **verifie-agenda-pur**,
+vingt-six épreuves (dont : une semaine inconnue FERME, elle n'ouvre pas).
+
+**CE QUE VOIT LA VISITEUSE** (`revelateur/ilots/Reserver.tsx`, îlot de
+`/reserver/`) : trois pas, jamais plus. Le geste, le jour et l'heure, le
+numéro. Aucun compte, **aucun prix affiché** (ils se disent au devis), aucun
+paiement. Les gestes proposés suivent `shared/qualification.ts` : création et
+réparation ne proposent que les consultations (atelier **ÐÓTÓ™**, reconnu par
+sa CATÉGORIE `CATEGORIE_DOTO` et jamais par son nom) ; entretien et soins
+proposent ce qui se réserve sans regard préalable. Un enfant et une formation
+mènent au rappel, pas au calendrier : une visite d'enfant commence par un
+échange avec ses parents. L'écran ne ferme jamais la porte : sans base, sans
+horaires descendus ou sans créneau libre, il retombe sur WhatsApp.
+
+**LE SERVEUR DISPOSE** (`demande-submit`, **À REDÉPLOYER, fichier entier**).
+L'écran a déjà jugé, mais un écran vieux d'une minute ne juge rien : la
+fonction REVÉRIFIE tout avant d'écrire (jour ouvert, heure dans la fenêtre,
+durée qui tient, maître libre, mur, plafond du jour, date entre demain et
+trois mois), puis pose le rendez-vous **en attente**, `source: 'site'`,
+`clientId` VIDE. Le calcul y est RECOPIÉ depuis `agenda-pur.ts` (une fonction
+Edge n'importe rien du dépôt) : **les deux changent ensemble**. Si l'écriture
+du rendez-vous échoue, la demande vit quand même et la Maison rappelle : on
+ne perd jamais une visiteuse pour une ligne.
+
+**POURQUOI `clientId` RESTE VIDE** : inventer une fiche à chaque dépôt
+polluerait le carnet. La RLS `owned_by_data` (0006) fait qu'une ligne sans
+clientId n'est lisible QUE par le personnel. Le Trône crée la fiche quand la
+Maison confirme (« En faire une cliente »), et **rattache alors le
+rendez-vous**. En attendant, `Calendrier.tsx` retombe sur `clientName` : sans
+ce repli, tout le carnet venu du site s'appelait « Cliente de passage ».
+
+**CE QUE VOIT LA MAISON** : « Les demandes » montre la place prise
+(« mercredi 24 septembre, 10:00 · Brice ») et mène au Calendrier ; le
+rendez-vous y porte l'étiquette « Le site » et, au tableau de bord,
+« Demandée depuis le site · à confirmer ».
+
+**RESTE** : brancher l'acompte KkiaPay sur les prestations qui l'exigent
+(`depositPctByService` ; le rail existe, `verifyDeposit` sait déjà tenir un
+`apptId`) ; brancher Ma Couronne sur `qualification.ts` pour que les deux
+surfaces refusent la même chose. Prochaine migration libre : **0109** (aucune
+n'a été nécessaire ici : `demandes` et `appointments` existaient déjà).
+
 ## LE SITE RÉVÉLATEUR EST CONSTRUIT — 17 septembre 2026
 
 « On choisit nos couleurs de la charte : cuivre. Construis » (Yéman), après

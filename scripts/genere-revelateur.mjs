@@ -209,17 +209,29 @@ function rendSection(s) {
 }
 
 /* ── L'emplacement d'un îlot, avec son repli statique ────────────────── */
+/* CE QUI SE RÉSERVE EN LIGNE — 17 septembre 2026. Une création et une
+   réparation passent par une consultation, un entretien et des soins se
+   prennent tels quels : les quatre mènent au calendrier. Un enfant commence
+   par un échange avec ses parents, une formation est une candidature : ces
+   deux-là mènent au rappel. */
+const RESERVABLES = new Set(['creation', 'reparation', 'entretien']);
+const versLaReservation = (besoin) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}`;
+
 function ilot(nom, p) {
   if (nom === 'triage') {
     const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
       .map((x) => `<li><a href="${attr(lien(x.chemin))}">${echappe(x.h1)}</a></li>`).join('');
     return `<section class="serre"><div class="conteneur"><div data-ilot="triage"><p class="ligne">Trois questions, et la bonne porte.</p><ul class="corps" style="margin-top:12px">${repli}</ul></div></div></section>`;
   }
-  if (nom === 'demande') {
+  if (nom === 'demande' || nom === 'reserver') {
     const f = COMMUN.formulaire;
+    const titre = nom === 'reserver' ? 'Choisissez votre place.' : echappe(f.titre);
+    const ligne = nom === 'reserver'
+      ? 'Le geste, le jour, l\u2019heure. Votre numéro pour confirmer, et rien de plus.'
+      : echappe(f.ligne);
     return `<section class="reserver serre"><div class="conteneur">
-      <div><div class="tete"><p class="sur">Réserver</p><h2>${echappe(f.titre)}</h2><p class="ligne">${echappe(f.ligne)}</p></div>
-        <div data-ilot="demande" data-genre="rdv"><p class="corps">Le formulaire se charge. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
+      <div><div class="tete"><p class="sur">Réserver</p><h2>${titre}</h2><p class="ligne">${ligne}</p></div>
+        <div data-ilot="${nom}" data-genre="rdv"><p class="corps">Le calendrier se charge. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
       </div>
       <aside class="suite">
         <div><p class="sur">Ce qui se passe ensuite</p><ol>${f.suite.map(([t, l]) => `<li><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></li>`).join('')}</ol></div>
@@ -236,7 +248,14 @@ function ilot(nom, p) {
 
 /* ── Une page de service ─────────────────────────────────────────────── */
 function rendService(p) {
-  const cta = p.cta ? bouton({ texte: p.cta.texte, vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein') : '';
+  const reservable = RESERVABLES.has(p.besoin ?? '');
+  const cta = p.cta
+    ? (reservable
+      ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
+      : bouton({ texte: p.cta.texte, vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein'))
+    : '';
+  /* Le second geste : écrire à la Maison, toujours possible, jamais le premier. */
+  const secondaire = bouton({ texte: 'Écrire sur WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--lien');
   const visuel = p.image ? image(p.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '') : `<div class="tuile">${echappe(p.court)}<small>Photo de la séance à venir</small></div>`;
   const pas = p.pas ? `<section class="serre"><div class="conteneur"><div class="tete"><p class="sur">${echappe(p.pas.sur)}</p><h2>${echappe(p.pas.titre)}</h2></div><ol class="pas${p.pas.liste ? ' pas--liste' : ''}">${p.pas.items.map(([t, l]) => `<li><div><b>${echappe(t)}</b><span>${echappe(l)}</span></div></li>`).join('')}</ol></div></section>` : '';
   const geste = p.geste ? `<section class="serre"><div class="conteneur"><div class="geste"><span>${p.geste}</span>${p.temps ? '<div class="temps"><span>Purifier</span><span>Nourrir</span><span>Sceller</span><span>Couronner</span></div>' : ''}</div></div></section>` : '';
@@ -248,13 +267,13 @@ function rendService(p) {
     <figure>${image('regard.jpg')}<figcaption>Une couronne établie, suivie à la Maison.</figcaption></figure>
   </div></div></section>`;
   const sections = (p.sections ?? []).map(rendSection).join('\n');
-  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}<a class="btn" href="${lien('/reserver/')}?besoin=${p.besoin ?? 'inconnu'}">Me faire rappeler</a></div></div></section>`;
-  const mobile = p.cta ? `<div class="barre-mobile">${cta}<a class="btn" href="${lien('/reserver/')}?besoin=${p.besoin ?? 'inconnu'}">Me faire rappeler</a></div>` : '';
+  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;
+  const mobile = p.cta ? `<div class="barre-mobile">${cta}<a class="btn" href="${attr(versLaReservation(p.besoin))}">${reservable ? 'Autre heure' : 'Me faire rappeler'}</a></div>` : '';
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${BASE}#portes">Services</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
       <section class="page-hero"><div class="conteneur">
         <div>${p.sur ? `<p class="sur">${echappe(p.sur)}</p>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p class="ligne">${echappe(p.ligne)}</p>` : ''}
-          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}<a class="btn btn--lien" href="${lien('/reserver/')}?besoin=${p.besoin ?? 'inconnu'}">Me faire rappeler</a></div>` : ''}
+          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${reservable ? secondaire : `<a class="btn btn--lien" href="${attr(versLaReservation(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
           ${p.cta?.note ? `<p class="legende" style="margin-top:10px">${echappe(p.cta.note)}</p>` : ''}
         </div>
         <div>${visuel}</div>

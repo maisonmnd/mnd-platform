@@ -1,0 +1,176 @@
+import {
+  creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
+  type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
+} from '../../shared/agenda-pur';
+import { client } from './maison';
+
+/* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
+
+   « Est-ce possible de réserver directement sans passer par WhatsApp ? »
+   (Yéman). Oui : tout ce qu'il faut pour dessiner un calendrier honnête est
+   déjà lisible par la clé publique, et rien de plus.
+
+     • le catalogue et ses durées      `catalog_services` (0006)
+     • la Maison et ses maîtres        `branches` (0006)
+     • les heures et les fermetures    `mnd_settings`, `mnd_horaires_exceptions`
+     • les murs posés à la main        `blocages` (0042)
+     • les créneaux déjà pris          `creneaux_occupes` (0079)
+
+   La dernière est une fonction faite exprès : elle rend un jour, un maître,
+   une heure et une durée. Aucun nom, aucune prestation, aucun montant. On
+   dessine le mur, jamais ce qu'il y a derrière.
+
+   ÉCRIRE, EN REVANCHE, NE SE FAIT PAS D'ICI : `appointments` n'accepte aucune
+   écriture anonyme, et c'est juste. C'est la fonction Edge `demande-submit`
+   qui pose le rendez-vous, avec la clé de service, après avoir REVÉRIFIÉ le
+   créneau. Cet écran propose ; le serveur dispose. */
+
+export type PrestationPublique = {
+  id: string;
+  name: string;
+  categoryId: string;
+  durationMin?: number;
+  priceMode?: 'fixe' | 'variable' | 'devis';
+  hidePrice?: boolean;
+  consultationAvant?: boolean;
+  enabled?: boolean;
+  archived?: boolean;
+  master?: string;
+};
+
+export type CategoriePublique = { id: string; label: string; fon?: string; parentId?: string; enabled?: boolean };
+
+export type AgendaDeLaMaison = {
+  branchId: string;
+  maitres: string[];
+  services: PrestationPublique[];
+  categories: CategoriePublique[];
+  semaine: HeureDeLaSemaine[];
+  exceptions: ExceptionDHoraire[];
+  murs: MurPose[];
+  capMaison: number;
+  capMaitre: number;
+};
+
+type Doc<T> = { key: string; data: T };
+
+let promesse: Promise<AgendaDeLaMaison | null> | null = null;
+
+/** Tout ce que le calendrier a besoin de savoir, lu une seule fois. */
+export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | null> {
+  if (promesse) return promesse;
+  promesse = (async () => {
+    const supabase = await client();
+    if (!supabase || !branchId) return null;
+    const [services, categories, docs, blocages, branches] = await Promise.all([
+      supabase.from('catalog_services').select('id,data'),
+      supabase.from('catalog_categories').select('id,data'),
+      supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions']),
+      supabase.from('blocages').select('id,data'),
+      supabase.from('branches').select('id,data'),
+    ]);
+    const lignes = <T,>(r: { data: unknown }): T[] =>
+      ((r.data ?? []) as { data?: T }[]).map((x) => x.data).filter(Boolean) as T[];
+
+    const reglages = ((docs.data ?? []) as Doc<{ hours?: HeureDeLaSemaine[]; maxRdvParJourMaison?: number; maxRdvParJourMaitre?: number }>[])
+      .find((d) => d.key === 'mnd_settings')?.data ?? {};
+    const exceptions = ((docs.data ?? []) as Doc<ExceptionDHoraire[]>[])
+      .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
+    const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[] } }[])
+      .find((b) => b.id === branchId);
+
+    return {
+      branchId,
+      maitres: (branche?.data?.masters ?? []).filter(Boolean),
+      services: lignes<PrestationPublique>(services).filter((s) => s.enabled !== false && !s.archived),
+      categories: lignes<CategoriePublique>(categories),
+      /* Sans horaires descendus, la semaine reste VIDE et chaque jour se dit
+         fermé : mieux vaut ne rien proposer que d'ouvrir un jour que la
+         Maison ferme (la leçon du lundi 12 octobre, 5 septembre). */
+      semaine: Array.isArray(reglages.hours) ? reglages.hours : [],
+      exceptions: Array.isArray(exceptions) ? exceptions : [],
+      murs: lignes<MurPose>(blocages),
+      capMaison: Number(reglages.maxRdvParJourMaison ?? 0),
+      capMaitre: Number(reglages.maxRdvParJourMaitre ?? 0),
+    };
+  })();
+  return promesse;
+}
+
+/** Les créneaux déjà pris d'une période. ELLE ÉCHOUE OUVERT, comme Ma
+    Couronne : si la fonction n'est pas posée ou si le réseau tombe, on rend
+    une liste vide. Mieux vaut proposer une heure déjà prise, que le serveur
+    refusera à l'écriture, que de fermer le salon tout entier. */
+export async function creneauxOccupes(branchId: string, du: string, au: string): Promise<CreneauOccupe[]> {
+  const supabase = await client();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('creneaux_occupes', { p_branch: branchId, p_du: du, p_au: au });
+  return error ? [] : ((data ?? []) as CreneauOccupe[]);
+}
+
+/** Les heures libres d'un jour, pour un rituel donné. Le maître est celui de
+    la prestation quand elle en désigne un, sinon chacun de ceux de la Maison :
+    une heure libre chez l'un suffit à la proposer. */
+export function heuresLibres(o: {
+  agenda: AgendaDeLaMaison;
+  dateIso: string;
+  serviceIds: string[];
+  occupes: readonly CreneauOccupe[];
+  maintenant?: Date;
+}): { heure: string; maitre: string }[] {
+  const { agenda, dateIso, serviceIds } = o;
+  const opening = ouvertureDuJour(dateIso, agenda.semaine, agenda.exceptions);
+  if (opening.closed) return [];
+  const durationMin = dureeDesPrestations(serviceIds, agenda.services);
+  const occupes = occupesDuJour(o.occupes, dateIso);
+  const maintenant = o.maintenant ?? new Date();
+  const aujourdHui = dateIso === isoDuJour(maintenant);
+  const maintenantMin = aujourdHui ? maintenant.getHours() * 60 + maintenant.getMinutes() : null;
+
+  const demandes = serviceIds.map((id) => agenda.services.find((s) => s.id === id)?.master).filter(Boolean) as string[];
+  const maitres = demandes.length > 0 ? [...new Set(demandes)] : (agenda.maitres.length > 0 ? agenda.maitres : ['']);
+
+  const parHeure = new Map<string, string>();
+  for (const maitre of maitres) {
+    const heures = creneauxLibres({
+      opening,
+      durationMin,
+      occupes,
+      bloques: plagesBloquees(agenda.murs, agenda.branchId, dateIso, maitre),
+      master: maitre,
+      capMaison: agenda.capMaison,
+      capMaitre: agenda.capMaitre,
+      maintenantMin,
+    });
+    for (const h of heures) if (!parHeure.has(h)) parHeure.set(h, maitre);
+  }
+  return [...parHeure.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([heure, maitre]) => ({ heure, maitre }));
+}
+
+export const isoDuJour = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Les `n` prochains jours à partir de demain : on ne propose pas le jour
+    même, la Maison a besoin de préparer la venue. */
+export function prochainsJours(n: number, depuis = new Date()): string[] {
+  const out: string[] = [];
+  for (let i = 1; i <= n; i += 1) {
+    const d = new Date(depuis);
+    d.setDate(d.getDate() + i);
+    out.push(isoDuJour(d));
+  }
+  return out;
+}
+
+const JOURS_DITS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+export function jourDit(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${JOURS_DITS[d.getDay()]} ${d.getDate()} ${MOIS_DITS[d.getMonth()]}`;
+}
+
+export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {
+  const d = new Date(`${iso}T00:00:00`);
+  return { lettre: JOURS_DITS[d.getDay()].slice(0, 3), chiffre: String(d.getDate()) };
+};

@@ -621,11 +621,11 @@ export const PAGES: Page[] = [
     h1: 'Réserver',
     sur: 'Réserver',
     besoin: 'inconnu',
-    ilot: 'demande',
+    ilot: 'reserver',
     sections: [
       {
         type: 'texte',
-        corps: 'Une création ou une réparation commence par une consultation. Un entretien se réserve directement.',
+        corps: 'Choisissez votre geste, votre jour et votre heure. Aucun compte à créer, rien à payer aujourd\u2019hui : la Maison vous confirme.',
       },
     ],
     jsonld: 'aucun',

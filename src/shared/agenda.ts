@@ -230,7 +230,7 @@ export type Appointment = {
   seriesIndex?: number; // n° de la séance (1..N)
   seriesTotal?: number; // nombre total de séances de la série
   note?: string;
-  source?: 'trone' | 'couronne' | 'consultation';
+  source?: 'trone' | 'couronne' | 'consultation' | 'site';
   /** QUAND LA RÉSERVATION A ÉTÉ PRISE — 5 septembre 2026.
 
       « J'ai besoin de voir plus d'informations quand le client a fait la

@@ -56,7 +56,7 @@ export type Page = {
   /** Le nom court dans le fil d'Ariane et le sitemap. */
   court: string;
   /** Un îlot React à monter sur cette page. */
-  ilot?: 'triage' | 'demande' | 'contact';
+  ilot?: 'triage' | 'demande' | 'contact' | 'reserver';
 };
 
 export type Accueil = {

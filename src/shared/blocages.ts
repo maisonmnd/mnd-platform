@@ -1,4 +1,5 @@
 import { createStore, useStore, uid } from './store';
+import { plagesBloquees as plagesBloqueesPures } from './agenda-pur';
 
 /* LES CRÉNEAUX BLOQUÉS — ce que les horaires ne savent pas dire.
 
@@ -82,15 +83,11 @@ export function plagesBloquees(
   branchId: string,
   dateIso: string,
   master: string,
-  hourToMin: (h: string) => number,
+  /** Gardé pour les appelants d'avant le 17 septembre 2026 : le calcul pur
+      porte sa propre lecture des heures. */
+  _hourToMin?: (h: string) => number,
 ): Array<[number, number]> {
-  return blocages
-    .filter((b) => b.branchId === branchId && b.date === dateIso && (!b.master || b.master === master))
-    .map((b): [number, number] => [
-      b.debut?.trim() ? hourToMin(b.debut) : 0,
-      b.fin?.trim() ? hourToMin(b.fin) : 24 * 60,
-    ])
-    .filter(([s, e]) => e > s);
+  return plagesBloqueesPures(blocages, branchId, dateIso, master);
 }
 
 import { bindCollection } from './sync';

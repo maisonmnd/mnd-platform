@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 const ILOTS = {
   triage: lazy(() => import('./ilots/Triage')),
   demande: lazy(() => import('./ilots/Demande')),
+  reserver: lazy(() => import('./ilots/Reserver')),
   avis: lazy(() => import('./ilots/Avis')),
   contact: lazy(() => import('./ilots/Contact')),
 } as const;

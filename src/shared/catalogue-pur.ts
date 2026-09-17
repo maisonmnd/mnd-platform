@@ -15,6 +15,10 @@ export type PriceMode = 'fixe' | 'variable' | 'devis';
    Les identifiants sont ceux de la semence, stables depuis le premier jour. */
 export const CATEGORIE_VEKPE = 'atl-i-vekpe';
 export const CATEGORIE_FINFIN = 'atl-iv-finfin';
+/* ÐÓTÓ™, l'atelier des consultations : c'est LUI que le site public propose
+   quand la règle exige un regard avant tout geste. Reconnu par sa catégorie,
+   jamais par son nom (une consultation renommée reste une consultation). */
+export const CATEGORIE_DOTO = 'doto';
 
 export const fondeLaCouronne = (s: { categoryId: string }): boolean => s.categoryId === CATEGORIE_VEKPE;
 

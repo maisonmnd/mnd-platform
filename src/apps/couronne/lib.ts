@@ -17,6 +17,7 @@ import { branchesStore, useBranch } from '../../shared/branches';
 import { tablePrete } from '../../shared/sync';
 import { type Appointment } from '../../shared/agenda';
 import { openingForIso, hourToMin, settingsStore } from '../../shared/settings';
+import { creneauxLibres, minutesDeHhmm as toMin, type CreneauOccupe } from '../../shared/agenda-pur';
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
 
@@ -456,66 +457,17 @@ function apptDurationMin(a: Appointment, services: Service[]): number {
   return total || 60;
 }
 
-const toMin = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + (m || 0);
-};
-
 /** Heures de départ libres pour un maître, un jour, une durée — dans la fenêtre
     d'ouverture configurée au Trône (Paramètres : jours & heures, jours fermés,
     exceptions d'une date — `openingForIso` les résout toutes), MOINS les
     créneaux bloqués à la main, et SEULEMENT si le plafond de rendez-vous du
     jour n'est pas atteint. Trois murs, trois réglages du Trône. */
-/** UN CRÉNEAU DÉJÀ PRIS, dit sans dire par qui — voir la migration 0079.
-    C'est tout ce que le serveur consent à donner à une cliente, et tout ce
-    qu'un calendrier honnête demande. */
-export type CreneauOccupe = { jour: string; maitre: string; debut: string; duree: number };
-
-/** LE CŒUR DU CALCUL, SANS AUCUN MAGASIN — pour qu'il soit jugeable.
-
-    `freeSlots` lisait les réglages, les blocages et l'heure du jour dans des
-    variables globales : impossible à éprouver sans monter toute l'application.
-    Les murs entrent maintenant par la porte, et le harnais peut poser
-    n'importe quelle journée. */
-export function creneauxLibres(o: {
-  opening: { closed: boolean; openMin: number; closeMin: number };
-  durationMin: number;
-  /** Tout ce qui occupe la journée, tous maîtres confondus. */
-  occupes: readonly { maitre: string; debutMin: number; dureeMin: number }[];
-  /** Murs posés à la main (pause, absence), déjà résolus en minutes. */
-  bloques?: readonly (readonly [number, number])[];
-  master: string;
-  capMaison?: number;
-  capMaitre?: number;
-  /** Minutes depuis minuit si la date est aujourd'hui ; sinon `null`. */
-  maintenantMin?: number | null;
-  /** Le pas de la grille. Une heure, comme au comptoir. */
-  pasMin?: number;
-}): string[] {
-  if (o.opening.closed) return [];
-
-  /* LE PLAFOND D'ABORD : au-delà, plus aucun créneau — même si des heures
-     restent. La maison choisit son souffle ; le comptoir, lui, n'est pas
-     bridé (poser un RDV à la main reste un geste du personnel). 0 = illimité. */
-  const capMaison = o.capMaison ?? 0;
-  const capMaitre = o.capMaitre ?? 0;
-  if (capMaison > 0 && o.occupes.length >= capMaison) return [];
-  const duMaitre = o.occupes.filter((a) => a.maitre === o.master);
-  if (capMaitre > 0 && duMaitre.length >= capMaitre) return [];
-
-  const busy: Array<readonly [number, number]> = duMaitre
-    .map((a) => [a.debutMin, a.debutMin + a.dureeMin] as const);
-  if (o.bloques) busy.push(...o.bloques);
-
-  const pas = o.pasMin ?? 60;
-  const out: string[] = [];
-  for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
-    if (o.maintenantMin != null && m <= o.maintenantMin) continue;
-    const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
-    if (!overlaps) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
-  }
-  return out;
-}
+/* LE CŒUR DU CALCUL A DÉMÉNAGÉ — 17 septembre 2026. Il vit dans
+   `shared/agenda-pur.ts`, d'où le site public le lit aussi : les trois
+   surfaces répondent la même chose à la même journée. Rien n'a changé
+   d'adresse pour qui l'importait d'ici. */
+export { creneauxLibres };
+export type { CreneauOccupe };
 
 export function freeSlots(
   dateIso: string,

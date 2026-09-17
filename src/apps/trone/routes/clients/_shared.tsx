@@ -1018,7 +1018,7 @@ export function PayStatusPill({ a, byId }: { a: Appointment; byId: Map<string, S
   );
 }
 
-const SOURCE_LABEL: Record<string, string> = { couronne: 'Ma Couronne', consultation: 'Consultation', trone: 'Le Trône' };
+const SOURCE_LABEL: Record<string, string> = { couronne: 'Ma Couronne', consultation: 'Consultation', trone: 'Le Trône', site: 'Le site' };
 
 export function SourceBadge({ source }: { source?: Appointment['source'] }) {
   if (!source || source === 'trone') return null;

@@ -198,13 +198,10 @@ export function useSettings() {
 
 /* ---------- Heures d'ouverture résolues (partagé Trône ↔ Ma Couronne) ---------- */
 
-/** '09h30' → minutes depuis minuit. */
-export const hourToMin = (h: string): number => {
-  const m = /^(\d{1,2})h(\d{2})?$/.exec(h.trim());
-  return m ? Number(m[1]) * 60 + Number(m[2] ?? 0) : 9 * 60;
-};
-
-const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+/** '09h30' → minutes depuis minuit. Vit dans `agenda-pur.ts` (17 septembre
+    2026), d'où le site public le lit sans tirer la couche de données. */
+export { hourToMin } from './agenda-pur';
+import { hourToMin as _hourToMin, ouvertureDuJour } from './agenda-pur';
 
 /** Fenêtre d'ouverture d'une date ISO — la disponibilité de réservation la
     respecte, EXCEPTIONS COMPRISES : « deux sources d'horaires pour une seule
@@ -212,19 +209,12 @@ const DAY_KEYS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
     paie ferme AUSSI la réservation en ligne (celle de la Maison ; celles d'une
     personne restent l'affaire du pointage). */
 export function openingForIso(dateIso: string): { closed: boolean; openMin: number; closeMin: number } {
-  const dow = new Date(`${dateIso}T00:00:00`).getDay();
-  const day = settingsStore.get().hours.find((h) => h.key === DAY_KEYS[dow]);
-  if (!day || day.closed) return { closed: true, openMin: 0, closeMin: 0 };
-  const base = { closed: false, openMin: hourToMin(day.open), closeMin: hourToMin(day.close) };
-  const ex = exceptionsHorairesStore.get().find((e) => e.date === dateIso && !e.staffId);
-  if (!ex) return base;
-  if (ex.closed) return { closed: true, openMin: 0, closeMin: 0 };
-  return {
-    closed: false,
-    openMin: ex.open?.trim() ? hourToMin(ex.open) : base.openMin,
-    closeMin: ex.close?.trim() ? hourToMin(ex.close) : base.closeMin,
-  };
+  /* LE CALCUL EST AILLEURS, et c'est voulu : le site public le lit aussi, et
+     il ne peut pas importer ce fichier (qui tire la synchronisation). Ici,
+     on ne fait que lui passer les murs de la Maison. */
+  return ouvertureDuJour(dateIso, settingsStore.get().hours, exceptionsHorairesStore.get());
 }
+void _hourToMin;
 
 /* ══ LE VERROU DU JOUR FERMÉ — 5 septembre 2026 ═════════════════════
    « Je ne sais pas comment il a pu prendre RDV le lundi 12 octobre puisque le

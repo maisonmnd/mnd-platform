@@ -9,16 +9,30 @@
 // fermé). Cette fonction, avec le service role :
 //   1. applique la limite de débit de 0007 (`edge_rate_limits`, par IP) ;
 //   2. normalise le téléphone en E.164 et refuse ce qui n'en est pas un ;
-//   3. refuse un doublon (même téléphone, même besoin, dans les 24 h) en
-//      renvoyant l'identifiant déjà connu, sans rien réécrire ;
+//   3. refuse un doublon (même numéro, même place, ou même besoin dans les
+//      24 h) en renvoyant l'identifiant déjà connu, sans rien réécrire ;
 //   4. génère l'identifiant elle-même, résout la branche dans `branches`
 //      (la Maison phare par défaut : jamais un identifiant écrit en dur) ;
 //   5. écrit la ligne dans `demandes`, puis alerte le personnel.
 // Le navigateur ne choisit ni l'identifiant, ni le statut, ni la date.
 //
+// ══ ET, DEPUIS LE 17 SEPTEMBRE, ELLE POSE LE RENDEZ-VOUS ══════════════
+// « Est-ce possible de tomber directement sur les consultations et réserver
+// directement, sans passer par un message WhatsApp ? Même chose pour les
+// entretiens et les soins » (Yéman). Quand la demande porte une place
+// (`serviceIds`, `date`, `time`), on REVÉRIFIE tout ici avant d'écrire :
+// le jour est-il ouvert, l'heure tient-elle dans la fenêtre, le maître
+// est-il libre, un mur barre-t-il la plage, le plafond du jour est-il
+// atteint. L'écran propose ; le serveur dispose. Le rendez-vous naît
+// « en attente » : la Maison le confirme depuis Le Trône.
+//
+// LE CALCUL EST RECOPIÉ, PAS IMPORTÉ : une fonction Edge ne lit rien du
+// dépôt. Sa source de vérité est `src/shared/agenda-pur.ts`, éprouvé par
+// `scripts/verifie-agenda-pur.mjs` — les deux doivent changer ensemble.
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
-// fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour l'alerte,
-// VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes que push-notify).
+// fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
+// l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -83,15 +97,127 @@ const GENRES = new Set(['prospect', 'rdv']);
 const BESOINS = new Set(['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu']);
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
-async function brancheParDefaut(voulue: string): Promise<string> {
+async function brancheParDefaut(voulue: string): Promise<{ id: string; maitres: string[] }> {
   const { data: rows } = await admin.from('branches').select('id, data');
-  const branches = (rows ?? []) as { id: string; data?: { flagship?: boolean; status?: string } }[];
-  if (voulue && branches.some((b) => b.id === voulue)) return voulue;
-  const phare = branches.find((b) => b.data?.flagship && b.data?.status !== 'paused');
-  return phare?.id ?? branches[0]?.id ?? 'maison';
+  const branches = (rows ?? []) as { id: string; data?: { flagship?: boolean; status?: string; masters?: string[] } }[];
+  const choisie = (voulue && branches.find((b) => b.id === voulue))
+    || branches.find((b) => b.data?.flagship && b.data?.status !== 'paused')
+    || branches[0];
+  return { id: choisie?.id ?? 'maison', maitres: (choisie?.data?.masters ?? []).filter(Boolean) };
 }
 
-async function alerteLePersonnel(titre: string, corps: string): Promise<number> {
+/* ══ LE CALENDRIER, RECOPIÉ DE `shared/agenda-pur.ts` ═══════════════ */
+
+const hourToMin = (h: string): number => {
+  const m = /^(\d{1,2})h(\d{2})?$/.exec(String(h ?? '').trim());
+  return m ? Number(m[1]) * 60 + Number(m[2] ?? 0) : 9 * 60;
+};
+const minutesDeHhmm = (hhmm: string): number => {
+  const [h, m] = String(hhmm ?? '').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+const JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+
+type Fenetre = { closed: boolean; openMin: number; closeMin: number };
+type HeureSemaine = { key: string; open: string; close: string; closed: boolean };
+type Exception = { date: string; staffId?: string; open?: string; close?: string; closed?: boolean };
+
+function ouvertureDuJour(dateIso: string, semaine: HeureSemaine[], exceptions: Exception[]): Fenetre {
+  const FERME: Fenetre = { closed: true, openMin: 0, closeMin: 0 };
+  const dow = new Date(`${dateIso}T00:00:00`).getDay();
+  const jour = semaine.find((h) => h.key === JOURS[dow]);
+  if (!jour || jour.closed) return FERME;
+  const base: Fenetre = { closed: false, openMin: hourToMin(jour.open), closeMin: hourToMin(jour.close) };
+  const ex = exceptions.find((e) => e.date === dateIso && !e.staffId);
+  if (!ex) return base;
+  if (ex.closed) return FERME;
+  return {
+    closed: false,
+    openMin: ex.open?.trim() ? hourToMin(ex.open) : base.openMin,
+    closeMin: ex.close?.trim() ? hourToMin(ex.close) : base.closeMin,
+  };
+}
+
+/* ══ LA PLACE DEMANDÉE, REVÉRIFIÉE ICI ═════════════════════════════
+   Rend l'erreur à dire, ou la durée et le maître si la place tient. L'écran
+   a déjà jugé, mais un écran vieux d'une minute, un retour en arrière du
+   navigateur ou un appel direct à cette fonction ne jugent rien du tout. */
+async function laPlaceTient(o: {
+  branchId: string;
+  maitres: string[];
+  serviceIds: string[];
+  date: string;
+  time: string;
+  master: string;
+}): Promise<{ erreur: string } | { dureeMin: number; master: string }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !/^\d{2}:\d{2}$/.test(o.time)) return { erreur: 'creneau_invalide' };
+
+  /* Jamais le jour même ni le passé : la Maison prépare la venue. Jamais
+     au-delà de trois mois : un carnet ne se remplit pas à l'aveugle. */
+  const jour = new Date(`${o.date}T00:00:00`);
+  const aujourdHui = new Date();
+  aujourdHui.setHours(0, 0, 0, 0);
+  const joursDEcart = Math.round((jour.getTime() - aujourdHui.getTime()) / 86_400_000);
+  if (!(joursDEcart >= 1 && joursDEcart <= 90)) return { erreur: 'creneau_hors_fenetre' };
+
+  const [docs, services, blocages, rdvs] = await Promise.all([
+    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions']),
+    admin.from('catalog_services').select('id, data'),
+    admin.from('blocages').select('id, data'),
+    admin.from('appointments').select('id, data').eq('data->>branchId', o.branchId).eq('data->>date', o.date),
+  ]);
+
+  const reglages = ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_settings')?.data ?? {};
+  const exceptions = (((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? []) as Exception[];
+  const semaine = (Array.isArray(reglages.hours) ? reglages.hours : []) as HeureSemaine[];
+
+  /* Sans horaires en base, on refuse : ouvrir un jour que la Maison ferme
+     est pire que de demander un rappel (la leçon du lundi 12 octobre). */
+  const fenetre = ouvertureDuJour(o.date, semaine, exceptions);
+  if (fenetre.closed) return { erreur: 'creneau_ferme' };
+
+  const catalogue = ((services.data ?? []) as { id: string; data?: { durationMin?: number; enabled?: boolean; archived?: boolean } }[]);
+  const connus = o.serviceIds.filter((id) => catalogue.some((s) => s.id === id && s.data?.enabled !== false && !s.data?.archived));
+  if (connus.length === 0) return { erreur: 'prestation_inconnue' };
+  const dureeMin = Math.max(60, connus.reduce((s, id) =>
+    s + Number(catalogue.find((x) => x.id === id)?.data?.durationMin ?? 60), 0));
+
+  const debut = minutesDeHhmm(o.time);
+  if (debut < fenetre.openMin || debut + dureeMin > fenetre.closeMin) return { erreur: 'creneau_hors_ouverture' };
+
+  /* Le maître : celui que l'écran a retenu s'il est de la Maison, sinon le
+     premier. Un maître inventé ne doit pas ouvrir un agenda parallèle. */
+  const master = o.maitres.includes(o.master) ? o.master : (o.maitres[0] ?? '');
+
+  const poses = ((rdvs.data ?? []) as { id: string; data?: any }[])
+    .map((r) => r.data)
+    .filter((a) => a && String(a.status ?? '') !== 'annulé' && String(a.time ?? '') !== '');
+  const dureeDe = (a: any): number => Math.max(60, (Array.isArray(a.serviceIds) ? a.serviceIds : [])
+    .reduce((s: number, id: string) => s + Number(catalogue.find((x) => x.id === id)?.data?.durationMin ?? 60), 0));
+
+  const capMaison = Number(reglages.maxRdvParJourMaison ?? 0);
+  const capMaitre = Number(reglages.maxRdvParJourMaitre ?? 0);
+  if (capMaison > 0 && poses.length >= capMaison) return { erreur: 'creneau_plafond' };
+  const duMaitre = poses.filter((a) => String(a.master ?? '') === master);
+  if (capMaitre > 0 && duMaitre.length >= capMaitre) return { erreur: 'creneau_plafond' };
+
+  const murs = ((blocages.data ?? []) as { id: string; data?: any }[])
+    .map((b) => b.data)
+    .filter((b) => b && b.branchId === o.branchId && b.date === o.date && (!b.master || b.master === master))
+    .map((b) => [b.debut?.trim() ? hourToMin(b.debut) : 0, b.fin?.trim() ? hourToMin(b.fin) : 24 * 60] as [number, number])
+    .filter(([s, e]) => e > s);
+
+  const occupe: [number, number][] = duMaitre.map((a) => {
+    const d = minutesDeHhmm(String(a.time));
+    return [d, d + dureeDe(a)];
+  });
+  const chevauche = [...occupe, ...murs].some(([s, e]) => debut < e && debut + dureeMin > s);
+  if (chevauche) return { erreur: 'creneau_pris' };
+
+  return { dureeMin, master };
+}
+
+async function alerteLePersonnel(titre: string, corps: string, url: string): Promise<number> {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return 0;
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
   const { data: staff } = await admin.from('staff').select('user_id');
@@ -103,7 +229,7 @@ async function alerteLePersonnel(titre: string, corps: string): Promise<number> 
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        JSON.stringify({ title: titre, body: corps, url: '/trone/#/demandes', tag: 'mnd-staff' }),
+        JSON.stringify({ title: titre, body: corps, url, tag: 'mnd-staff' }),
       );
       n++;
     } catch (e) {
@@ -136,17 +262,38 @@ Deno.serve(async (req) => {
   const email = texte(d.email, 120).toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'email' }, 400);
 
-  /* Le doublon : même numéro, même besoin, dans les 24 h. On rend l'identifiant
-     connu, la Maison n'a qu'une ligne à rappeler. */
+  /* La place demandée, s'il y en a une. */
+  const serviceIds = Array.isArray(d.serviceIds)
+    ? (d.serviceIds as unknown[]).slice(0, 6).map((x) => texte(x, 60)).filter(Boolean)
+    : [];
+  const date = texte(d.date, 10);
+  const time = texte(d.time, 5);
+  const avecPlace = serviceIds.length > 0 && !!date && !!time;
+
+  /* Le doublon : la MÊME PLACE pour le même numéro, ou le même besoin dans
+     les 24 h. On rend l'identifiant connu, la Maison n'a qu'une ligne. */
   const depuis = new Date(Date.now() - 24 * 3_600_000).toISOString();
-  const { data: memes } = await admin
-    .from('demandes').select('id, data')
-    .eq('data->>telephone', telephone).eq('data->>besoin', besoin).gte('updated_at', depuis).limit(1);
+  const deja = admin.from('demandes').select('id, data').eq('data->>telephone', telephone).limit(1);
+  const { data: memes } = avecPlace
+    ? await deja.eq('data->>date', date).eq('data->>time', time)
+    : await deja.eq('data->>besoin', besoin).gte('updated_at', depuis);
   if (memes && memes.length > 0) return json({ ok: true, id: memes[0].id, deja: true });
 
   const id = `dem-${crypto.randomUUID()}`;
   const now = new Date().toISOString();
-  const branchId = await brancheParDefaut(String(d.branchId ?? ''));
+  const branche = await brancheParDefaut(String(d.branchId ?? ''));
+  const branchId = branche.id;
+
+  /* ── La place, revérifiée AVANT d'écrire quoi que ce soit ───────── */
+  let master = '';
+  if (avecPlace) {
+    const verdict = await laPlaceTient({
+      branchId, maitres: branche.maitres, serviceIds, date, time, master: texte(d.master, 60),
+    });
+    if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
+    master = verdict.master;
+  }
+
   const demande = {
     id,
     genre,
@@ -161,15 +308,53 @@ Deno.serve(async (req) => {
     source: 'site',
     ...(d.page ? { page: texte(d.page, 120) } : {}),
     ...(d.campagne ? { campagne: texte(d.campagne, 80) } : {}),
+    ...(avecPlace ? { serviceIds, date, time, master } : {}),
     consentementLe: now,
     statut: 'nouvelle',
-  };
+  } as Record<string, unknown>;
+
   const { error } = await admin.from('demandes').insert({ id, genre, branch_id: branchId, data: demande });
   if (error) return json({ error: 'insert_failed' }, 500);
 
+  /* ── LE RENDEZ-VOUS, POSÉ EN ATTENTE ───────────────────────────────
+     `clientId` reste VIDE : personne n'a de fiche, et en inventer une à
+     chaque dépôt polluerait le carnet. Le Trône la crée quand la Maison
+     confirme (« En faire une cliente »), et rattache alors ce rendez-vous.
+     La RLS de `appointments` (0006, `owned_by_data`) fait que cette ligne
+     n'est lisible QUE par le personnel : un clientId vide n'appartient à
+     aucune session. */
+  let apptId: string | undefined;
+  if (avecPlace) {
+    const candidat = `rdv-${crypto.randomUUID()}`;
+    const note = ['Réservé depuis le site', d.mot ? texte(d.mot, 300) : ''].filter(Boolean).join(' · ');
+    const appt = {
+      id: candidat,
+      branchId,
+      clientId: '',
+      clientName: prenom || 'Demande du site',
+      serviceIds,
+      date,
+      time,
+      master,
+      status: 'en attente',
+      source: 'site',
+      creeLe: now,
+      note,
+    };
+    const { error: errRdv } = await admin.from('appointments').insert({ id: candidat, branch_id: branchId, data: appt });
+    if (!errRdv) {
+      apptId = candidat;
+      await admin.from('demandes').update({ data: { ...demande, apptId } }).eq('id', id);
+    }
+    /* Si l'écriture échoue, la demande vit quand même et la Maison
+       rappellera : on ne perd jamais une visiteuse pour une ligne. */
+  }
+
+  const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(
-    genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site',
-    `${prenom || 'Une visiteuse'} · ${besoin}`,
+    avecPlace ? 'Place demandée depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
+    `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
+    avecPlace ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0);
-  return json({ ok: true, id, sent });
+  return json({ ok: true, id, apptId, sent });
 });

@@ -89,6 +89,11 @@ export default function Calendrier() {
 
   const clientOf = (id: string) => clients.find((c) => c.id === id);
   const clientName = (id: string) => clientOf(id)?.name ?? 'Cliente de passage';
+  /* LE NOM D'UN RENDEZ-VOUS VENU DU SITE — 17 septembre 2026. Une place
+     demandée en ligne n'a pas encore de fiche (`clientId` vide) : sans ce
+     repli, tout le carnet public s'appelait « Cliente de passage ». Le
+     prénom laissé au site tient jusqu'à ce que la Maison ouvre la fiche. */
+  const nomDuRdv = (a: Appointment) => clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage';
 
   /* Marque « k/N » d'une séance appartenant à une série multi-séances. */
   const serieMark = (a: Appointment): string | null =>
@@ -436,10 +441,10 @@ export default function Calendrier() {
                         onClick={(e) => { e.stopPropagation(); ouvrirFiche(a.clientId); }}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); ouvrirFiche(a.clientId); } }}
                         title={clientOf(a.clientId)?.phone
-                          ? `Ouvrir la fiche de ${clientName(a.clientId)}`
-                          : `${clientName(a.clientId)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
+                          ? `Ouvrir la fiche de ${nomDuRdv(a)}`
+                          : `${nomDuRdv(a)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
                       >
-                        {clientName(a.clientId)}
+                        {nomDuRdv(a)}
                       </span>
                       {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                       {live && <span style={{ opacity: .75, fontWeight: 400 }}> · en cours</span>}
@@ -515,7 +520,7 @@ export default function Calendrier() {
                       className={`trc-cal__appt trc-cal__appt--drag ${cls} ${dragId === a.id ? 'is-dragging' : ''}`}
                       key={a.id}
                       style={{ top, height: h }}
-                      title={`${clientName(a.clientId)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
+                      title={`${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser pour déplacer, cliquer pour modifier`}
                       draggable
                       onDragStart={(e) => onDragStart(e, a)}
                       onDragEnd={onDragEnd}
@@ -540,10 +545,10 @@ export default function Calendrier() {
                           onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={(e) => { e.stopPropagation(); ouvrirFiche(a.clientId); }}
                           title={clientOf(a.clientId)?.phone
-                            ? `Ouvrir la fiche de ${clientName(a.clientId)}`
-                            : `${clientName(a.clientId)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
+                            ? `Ouvrir la fiche de ${nomDuRdv(a)}`
+                            : `${nomDuRdv(a)} n’a pas de téléphone, ouvrir sa fiche pour l’inscrire`}
                         >
-                          {clientName(a.clientId)}
+                          {nomDuRdv(a)}
                         </button>
                         {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         {/* L'INDIGO SE DIT EN TOUTES LETTRES. La couleur seule
@@ -604,7 +609,7 @@ export default function Calendrier() {
                       <span className="trc-agenda__time">{a.time}</span>
                       <span className="trc-agenda__main">
                         <span className="trc-agenda__client">
-                          {clientName(a.clientId)}
+                          {nomDuRdv(a)}
                           {serieMark(a) && <span className="trc-cal__serie">{serieMark(a)}</span>}
                         </span>
                         <span className="trc-agenda__svc">{first?.name ?? 'Rituel'} · {a.master}</span>
@@ -649,7 +654,7 @@ export default function Calendrier() {
                       <div
                         className={`trc-week__chip trc-week__chip--drag ${deep ? 'trc-week__chip--deep' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
                         key={a.id}
-                        title={`${clientName(a.clientId)} · ${a.master}, glisser vers un autre jour, cliquer pour modifier`}
+                        title={`${nomDuRdv(a)} · ${a.master}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}
                         onDragEnd={onDragEnd}
@@ -661,7 +666,7 @@ export default function Calendrier() {
                         <b>{a.time}</b>
                         {/* Le nom sort de l'infobulle : sur une semaine on cherche
                             une cliente, pas une heure. */}
-                        <i className="trc-week__who">{clientName(a.clientId)}</i>
+                        <i className="trc-week__who">{nomDuRdv(a)}</i>
                         <i>
                           {a.master[0]} · {first?.name ?? 'Rituel'}
                           {serieMark(a) ? ` · ${serieMark(a)}` : ''}
@@ -722,7 +727,7 @@ export default function Calendrier() {
                       <div
                         key={a.id}
                         className={`trc-month__chip trc-month__chip--drag ${a.status === 'honoré' ? 'is-muted' : ''} ${dragId === a.id ? 'is-dragging' : ''}`}
-                        title={`${a.time} · ${clientName(a.clientId)} · ${apptLabel(a, byId)}, glisser vers un autre jour, cliquer pour modifier`}
+                        title={`${a.time} · ${nomDuRdv(a)} · ${apptLabel(a, byId)}, glisser vers un autre jour, cliquer pour modifier`}
                         draggable
                         onDragStart={(e) => onDragStart(e, a)}
                         onDragEnd={onDragEnd}
@@ -731,7 +736,7 @@ export default function Calendrier() {
                         onTouchEnd={onTouchEndDrag}
                         onClick={(e) => { e.stopPropagation(); clickAppt(a); }}
                       >
-                        <b>{a.time}</b> <span className="trc-month__who">{clientName(a.clientId)}</span>
+                        <b>{a.time}</b> <span className="trc-month__who">{nomDuRdv(a)}</span>
                       </div>
                     ))}
                     {c.appts.length > 3 && (
