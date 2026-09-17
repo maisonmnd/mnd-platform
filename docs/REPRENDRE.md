@@ -2,6 +2,72 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SITE RÉVÉLATEUR, PHASES 1 À 3 — 17 septembre 2026
+
+« Mission : créer le site révélateur MND » (Yéman), le brief de trente-sept
+sections : un guide d'orientation qui capte, oriente, réserve, et mène à Ma
+Couronne, au Trône et aux formations. Ordre reçu : « ne commence pas par
+écrire du code, commence par l'audit, présente-moi tes conclusions et ton
+architecture ». Puis : « travaille avec le meilleur Fable et les meilleurs
+agents ».
+
+**CE QUI EST FAIT, ET OÙ.** L'audit et l'architecture (artefact « Le Site
+Révélateur »), relus par un agent en adversaire ; la maquette des quatre
+écrans (`public/maquette-le-site-revelateur.html`, artefact « Le Site
+Révélateur MND »), à valider AVANT toute ligne de code ; et, sous
+`docs/site-revelateur/`, les textes de tous les écrans (`voix-du-site.md`),
+le plan SEO page par page (`plan-seo.md`), la direction photo en 56 plans
+(`direction-photo.md`) et les dix articles fondateurs du Journal
+(`journal/`). Tout est écrit par des agents Fable sous les règles de la
+Maison (pas de tiret cadratin, pas de prix, pas de témoignage inventé, gestes
+fon exacts) et contrôlé par script.
+
+**LES ARBITRAGES** : or et crème pour ce site seul, et **l'indigo de la
+Maison pour tout ce qui est sombre, aucun noir** (« je ne veux pas de noir
+je veux l'indigo de la maison ») ; demande sans compte, la Maison rappelle ;
+le Journal rédigé par nous ; les onze photos existantes d'abord, la séance
+ensuite.
+
+**CE QUE LA RELECTURE A TROUVÉ, VÉRIFIÉ DANS LE CODE, ET QUI PRESSE :**
+① **La Consultation ne fait pas payer** : `payNow` simule le succès
+(`consultation/App.tsx`), la file reçoit « 15 000 F crédités » et le Trône
+l'affiche. Brancher KkiaPay ou la déclarer gratuite : décision de la
+direction, et le site n'y envoie personne d'ici là. Elle écrit aussi
+`branchId: 'cotonou-flagship'` en dur, et ses recommandations visent cinq
+identifiants de prestations (`sv-microlocks`…) qui ne vivent que dans
+`rescueServices.ts` : si le catalogue vivant ne les porte plus, l'analyse
+plante (`service.palier` sur `undefined`). Recommander par catégorie.
+② **0106 croyait le navigateur** : `acad_dem_depot ... with check (true)`
+laissait l'anonyme écrire l'acompte attendu ET les champs « acompte reçu »
+que `kkiapay-verify` relit. **Migration 0107** (À PASSER) : table
+`academie_tarifs` écrite par la Maison seule, déclencheur qui recalcule prix
+et acompte et retire les champs de paiement hors service role, politique qui
+exige nom, téléphone, parcours. Un parcours ajouté à `PARCOURS_MND` doit
+recevoir sa ligne de tarif, sinon le dépôt échoue (c'est voulu).
+③ **`mnd_settings` est lisible sans compte et porte les empreintes des codes
+Caisses, Coffre et Prêts** (`docs_pub_read`, 0006/0029 ; `empreinteDuCode`,
+SHA-256 salé par un identifiant constant). Scinder en un document public et
+un document personnel avant d'ajouter quoi que ce soit à la liste blanche.
+④ La table `branches` est lisible sans compte depuis 0006 : le tampon
+`VitrineConfig.branchId` de l'Académie était inutile, le site lira la
+branche directement. ⑤ Le site de l'Académie lit la semence, pas la table
+`formations` : « un prix corrigé dans le Trône se corrige sur le site »
+(entrée du 17 septembre, plus bas) est faux. ⑥ Le prospect existe déjà : le
+Trône crée une fiche segment Prospect à chaque consultation
+(`useReconcileClients.ts`), dédoublonnée par nom OU téléphone.
+
+**L'ARCHITECTURE RETENUE POUR LA SUITE** : une sixième sœur `revelateur`,
+explorable, un dossier par adresse (`/premiere-couronne/`…) avec le contenu
+dans le HTML dès la construction et des îlots React qui n'importent que des
+modules purs ; une table `demandes` unique à genre (rendez-vous, prospect,
+académie), déposée par UNE fonction Edge `demande-submit` avec la limite de
+débit de 0007 (plus aucun dépôt anonyme direct) ; la branche posée une fois
+depuis `branches` et portée par chaque demande ; `shared/qualification.ts`,
+pur, seul juge de « consultation d'abord ou réservation directe », lu par le
+site et par Ma Couronne, avec son harnais ; le sitemap étendu à toutes les
+pages ; le domaine à trancher, car il conditionne chaque adresse du brief.
+Prochaine migration libre : **0108**.
+
 ## AUCUN EXEMPLE EN DUR DANS LES CASES — 17 septembre 2026
 
 « Enlève Article ex. Ganches en dur. Toutes les cases à remplir dans le Trône
