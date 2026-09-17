@@ -78,7 +78,10 @@ const SITES = [
      `scripts/genere-revelateur.mjs` avant la construction (vite.config.ts
      s'en charge). Vite les écrit sous `dist/revelateur/…` : `racine` les
      remonte à la racine du site, où GitHub Pages les sert. */
-  { name: 'revelateur', base: '/revelateur/', apps: 'revelateur', rename: {}, racine: 'revelateur' },
+  {
+    name: 'revelateur', base: '/revelateur/', apps: 'revelateur', rename: {}, racine: 'revelateur',
+    env: { VITE_LINK_COURONNE: `${HOST}/couronne/`, VITE_LINK_ACADEMIE: `${HOST}/academie/` },
+  },
   {
     name: 'mnd-platform',
     base: '/mnd-platform/',

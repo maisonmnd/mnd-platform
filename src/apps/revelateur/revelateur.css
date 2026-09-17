@@ -21,7 +21,11 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
-img { max-width: 100%; display: block; }
+/* `height: auto` : chaque image porte ses attributs width et height (pour
+   que la page ne saute pas au chargement), et sans cette ligne l'attribut
+   height fixerait la hauteur affichée : les portraits sortaient à mille
+   pixels de haut, le visage coupé. */
+img { max-width: 100%; height: auto; display: block; }
 a { color: var(--accent-profond); text-decoration: none; }
 h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--titre); margin: 0; text-wrap: balance; line-height: 1.06; }
 h1 { font-size: clamp(38px, 6vw, 66px); }
@@ -87,8 +91,13 @@ section.serre { padding-top: 0; }
 .hero-image img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; box-shadow: var(--ombre); }
 .hero-image::after { content: ''; position: absolute; inset: 12px; border: 1px solid rgba(214, 160, 111, .5); border-radius: 3px; pointer-events: none; }
 
-/* ── les cinq portes ─────────────────────────────────────────────── */
-.portes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+/* ── les cinq portes ─────────────────────────────────────────────────
+   Cinq colonnes sur un grand écran, une seule rangée : jamais de carte
+   orpheline. En dessous, une bande qui se fait glisser du doigt, carte par
+   carte (scroll-snap), comme une main de cartes. */
+.portes { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; margin-inline: calc(-1 * clamp(18px, 4vw, 40px)); padding-inline: clamp(18px, 4vw, 40px); scrollbar-width: thin; }
+.portes > * { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
+@media (min-width: 1000px) { .portes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; margin-inline: 0; padding-inline: 0; padding-bottom: 0; } .portes > * { flex: none; } }
 .porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
 .porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 .porte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -96,12 +105,26 @@ section.serre { padding-top: 0; }
 .tuile { aspect-ratio: 4 / 5; display: grid; place-items: center; background: var(--sombre); color: var(--accent-sombre); font-family: var(--serif); font-size: 34px; letter-spacing: .06em; text-align: center; }
 .tuile small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .22em; color: rgba(246, 241, 231, .5); margin-top: 4px; }
 .porte-corps { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.porte h3 { font-size: 23px; }
-.porte p { font-size: 14.5px; color: var(--texte-doux); }
+.porte h3 { font-size: 21px; }
+.porte p { font-size: 14px; color: var(--texte-doux); }
 .porte .suite { margin-top: auto; padding-top: 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); display: flex; align-items: center; gap: 8px; }
 .porte .suite svg { width: 14px; height: 14px; }
 .repli { margin-top: 26px; padding: 20px 24px; border: 1px solid var(--accent); border-radius: 4px; background: var(--accent-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 .repli p { font-family: var(--serif); font-size: 21px; color: var(--titre); }
+
+/* ── les cartes à bandeau (les quatre portes de la Maison) ──────── */
+.cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.carte-porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
+a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
+.carte-porte__tete { position: relative; background: var(--sombre); color: #F6F1E7; padding: 22px 20px 18px; min-height: 132px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+.carte-porte__tete img { height: 26px; width: auto; opacity: .9; }
+.carte-porte__tete b { font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.1; }
+.carte-porte__rang { position: absolute; top: 14px; right: 16px; font-family: var(--serif); font-size: 15px; color: var(--accent-sombre); letter-spacing: .1em; }
+.carte-porte__corps { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.carte-porte__corps p { font-size: 14.5px; color: var(--texte-doux); }
+.carte-porte .suite { margin-top: auto; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); display: flex; align-items: center; gap: 8px; }
+.carte-porte .suite svg { width: 14px; height: 14px; }
+.carte-porte .suite--muette { color: var(--texte-doux); }
 
 /* ── la confiance ────────────────────────────────────────────────── */
 .confiance .conteneur { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: center; }

@@ -56,8 +56,16 @@ const { COMMUN, ACCUEIL, PAGES, DEVISE_COMPLETE } = contenu;
 /* ── Petits outils ───────────────────────────────────────────────────── */
 const echappe = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const attr = echappe;
+/* Les sœurs vivent sur la même origine, hors de ce site : en ligne sous
+   `/couronne/` et `/academie/` (build-sites les nomme), en développement
+   sous leur page `.html`. Jamais un domaine. */
+const SOEURS = {
+  couronne: process.env.VITE_LINK_COURONNE || '/couronne.html',
+  academie: process.env.VITE_LINK_ACADEMIE || '/academie.html',
+};
 const lien = (vers) => {
   if (vers.startsWith('whatsapp:')) return null;
+  if (vers.startsWith('soeur:')) return SOEURS[vers.slice('soeur:'.length)] ?? BASE;
   if (vers.startsWith('#')) return `${BASE}${vers}`;
   if (vers.startsWith('/#')) return `${BASE}${vers.slice(1)}`;
   return `${BASE}${vers.replace(/^\//, '')}`;
@@ -156,10 +164,37 @@ function rendSection(s) {
   switch (s.type) {
     case 'texte':
       return `<section class="serre"><div class="conteneur">${tete}${s.image ? `<div class="fondateurs"><div class="conteneur" style="padding:0">${image(s.image)}<div class="corps">${s.corps}</div></div></div>` : `<div class="corps">${s.corps}</div>`}</div></section>`;
-    case 'grille':
+    case 'grille': {
+      if (s.style === 'portes') {
+        /* La même bande de cartes qu'à l'accueil : la photo et le nom court
+           viennent de la page de service que chaque item désigne. */
+        const cartes = s.items.map((it) => {
+          const p = PAGES.find((x) => x.chemin === it.vers);
+          return `<a class="porte" href="${attr(lien(it.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">
+          ${p?.image ? image(p.image) : `<div class="tuile">${echappe(p?.court ?? it.titre)}<small>Photo de la séance à venir</small></div>`}
+          <div class="porte-corps"><h3>${echappe(it.titre)}</h3><p>${echappe(it.texte)}</p><span class="suite">${echappe(it.suite ?? p?.court ?? 'Découvrir')} <svg><use href="#i-fleche"/></svg></span></div>
+        </a>`;
+        }).join('\n        ');
+        return `<section class="serre"><div class="conteneur">${tete}<div class="portes">${cartes}</div></div></section>`;
+      }
+      if (s.style === 'cartes') {
+        const cartes = s.items.map((it, i) => {
+          const corps = `<div class="carte-porte__tete"><span class="carte-porte__rang">${String(i + 1).padStart(2, '0')}</span><img src="/assets/photos/site/mono-ivoire.png" alt="" width="240" height="198"><b>${echappe(it.titre)}</b></div><div class="carte-porte__corps"><p>${echappe(it.texte)}</p>${it.vers ? `<span class="suite">${echappe(it.suite ?? 'Découvrir')} <svg><use href="#i-fleche"/></svg></span>` : '<span class="suite suite--muette">Réservé à la Maison</span>'}</div>`;
+          return it.vers ? `<a class="carte-porte" href="${attr(lien(it.vers))}">${corps}</a>` : `<div class="carte-porte">${corps}</div>`;
+        }).join('\n        ');
+        return `<section class="serre"><div class="conteneur">${tete}<div class="cartes">${cartes}</div></div></section>`;
+      }
       return `<section class="serre"><div class="conteneur">${tete}<div class="grille">${s.items.map((it) => it.vers
         ? `<a class="grille-item" href="${attr(lien(it.vers))}"><b>${echappe(it.titre)}</b><p>${echappe(it.texte)}</p></a>`
         : `<div class="grille-item"><b>${echappe(it.titre)}</b><p>${echappe(it.texte)}</p></div>`).join('')}</div></div></section>`;
+    }
+    case 'confiance': {
+      const c = ACCUEIL.confiance;
+      return `<section class="confiance sombre"><div class="conteneur">
+        <div><p class="sur">${echappe(c.sur)}</p><p class="citation" style="margin-top:12px">${echappe(c.citation)}</p></div>
+        <div class="gages">${c.gages.map((g) => `<div class="gage"><b>${echappe(g.titre)}</b><p>${echappe(g.ligne)}</p></div>`).join('')}</div>
+      </div></section>`;
+    }
     case 'pas':
       return `<section class="serre"><div class="conteneur">${tete}<ol class="pas${s.liste ? ' pas--liste' : ''}">${s.items.map(([t, l]) => `<li><div><b>${echappe(t)}</b><span>${echappe(l)}</span></div></li>`).join('')}</ol></div></section>`;
     case 'faq':

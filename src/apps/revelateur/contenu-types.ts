@@ -10,12 +10,19 @@
 export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
 
 /** Un lien : un chemin du site (`/premiere-couronne/`), une ancre (`#portes`),
-    ou `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours. */
+    `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours, ou
+    `soeur:couronne` / `soeur:academie` vers une sœur sur la même origine. */
 export type Lien = { texte: string; vers: string };
 
 export type Section =
   | { type: 'texte'; sur?: string; titre?: string; corps: string; image?: string }
-  | { type: 'grille'; sur?: string; titre?: string; items: { titre: string; texte: string; vers?: string }[] }
+  /** `style` : `lignes` (un filet cuivre, du texte), `cartes` (une carte à
+      bandeau indigo par item), `portes` (les cartes à photo des parcours,
+      la même bande qu'à l'accueil ; chaque `vers` doit désigner une page de
+      service). */
+  | { type: 'grille'; sur?: string; titre?: string; style?: 'lignes' | 'cartes' | 'portes'; items: { titre: string; texte: string; vers?: string; suite?: string }[] }
+  /** La bande sombre des quatre gages de l'accueil, réutilisée telle quelle. */
+  | { type: 'confiance' }
   | { type: 'pas'; sur?: string; titre?: string; liste?: boolean; items: [string, string][] }
   | { type: 'faq'; sur?: string; titre?: string; items: [string, string][] }
   | { type: 'citation'; texte: string; qui?: string }
