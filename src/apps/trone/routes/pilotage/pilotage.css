@@ -753,7 +753,7 @@
    garde sa largeur lisible et la carte défile sous le doigt, plutôt que de
    rendre le graphique illisible pour éviter un geste. */
 @media (max-width: 620px) {
-  .trp-hist { overflow-x: auto; overflow-y: hidden; gap: 5px; padding-bottom: 4px; }
+  .trp-hist { overflow-x: auto; overflow-y: hidden; gap: 5px; padding-bottom: 4px; min-width: 0; }
   .trp-hist__col { flex: 1 0 34px; }
   .trp-card { padding: 14px 14px; }
   .trp-hist__x { font-size: 9px; }

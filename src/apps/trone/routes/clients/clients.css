@@ -1509,7 +1509,7 @@
 /* Les tableaux à grille fixe (carnet, clients) défilent horizontalement
    au lieu d'écraser leurs colonnes. */
 @media (max-width: 900px) {
-  .trc-sheet { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .trc-sheet { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: 0; }
   .trc-sheet__head,
   .trc-sheet__row,
   .trc-sheet__group { min-width: 680px; }
@@ -1965,6 +1965,7 @@
    jamais la page. Le sillage des heures et l'en-tête défilent avec le corps. */
 @media (max-width: 640px) {
   .trc-cal {
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;

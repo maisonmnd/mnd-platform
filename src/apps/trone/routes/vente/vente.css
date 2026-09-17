@@ -1182,7 +1182,7 @@
 @media (max-width: 680px) {
   .trv-fiche { grid-template-columns: 1fr; }
   .trv-fiche__rail {
-    flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line);
+    flex-direction: row; overflow-x: auto; min-width: 0; border-right: 0; border-bottom: 1px solid var(--line);
     border-radius: 3px 3px 0 0;
   }
   .trv-fiche__rail button { border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; width: auto; }

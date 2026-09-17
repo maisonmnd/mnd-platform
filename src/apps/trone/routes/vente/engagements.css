@@ -96,7 +96,7 @@
 .eng-ambre { color: #8A5F1B; font-weight: 500; }
 
 /* ── LES TABLEAUX ───────────────────────────────────────────────────── */
-.eng-defile { overflow-x: auto; border: 1px solid var(--hairline, #D9CFBC); border-radius: 3px; }
+.eng-defile { overflow-x: auto; min-width: 0; border: 1px solid var(--hairline, #D9CFBC); border-radius: 3px; }
 .eng-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
 .eng-table th {
   text-align: left; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8C5A33;

@@ -96,7 +96,7 @@
 .tvie-periode { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
 .tvie-periode__titre { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); text-transform: capitalize; }
 .tvie-nav { background: none; border: 1px solid var(--hairline); border-radius: 3px; width: 30px; height: 30px; cursor: pointer; color: var(--color-indigo); font-size: 15px; }
-.tvie-table-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); }
+.tvie-table-wrap { overflow-x: auto; min-width: 0; border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); }
 .tvie-table { width: 100%; min-width: 820px; border-collapse: collapse; font-family: var(--font-sans); font-size: 13px; }
 .tvie-table th {
   text-align: left; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--copper-700);

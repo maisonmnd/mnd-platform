@@ -212,7 +212,15 @@
 .mnd-serif { font-family: var(--font-serif); font-weight: var(--weight-light); }
 .mnd-muted { color: var(--ink-soft); }
 .mnd-copper { color: var(--copper-600); }
-.mnd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* ── UNE RANGÉE QUI DÉFILE A BESOIN DE min-width: 0 ── 17 septembre 2026
+   Trouvé sur le site : une rangée à défilement horizontal posée dans une
+   grille NE DÉFILE PAS. Un item de grille (et de flex sur son axe principal)
+   garde min-width: auto, donc il s'élargit jusqu'à la largeur de son contenu
+   et pousse son parent au lieu de se serrer. La colonne voisine se retrouvait
+   recouverte. Le piège : minmax(0, 1fr) protège la PISTE, jamais l'ÉLÉMENT
+   posé dedans. La propriété est INERTE quand le parent est un bloc ordinaire,
+   on la pose donc sur toute rangée défilante sans avoir à remonter l'arbre. */
+.mnd-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: 0; }
 
 /* ============================================================
    Responsive — l'ERP dans la main (contenu)

@@ -27,6 +27,7 @@
    de défilement qui rognerait le filet cuivre de l'onglet actif (margin-bottom:-1px). */
 @media (max-width: 640px) {
   .tre-tabs {
+    min-width: 0;
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
@@ -1221,7 +1222,7 @@
 }
 .trt__mot b { color: var(--color-indigo); font-weight: 600; }
 
-.trt__cols { display: flex; align-items: stretch; overflow-x: auto; }
+.trt__cols { display: flex; align-items: stretch; overflow-x: auto; min-width: 0; }
 .trt__col {
   flex: 1 0 250px; min-width: 250px;
   border-right: 1px solid var(--hairline);
