@@ -24,7 +24,12 @@ prise de rendez-vous par message, alors qu'on réserve désormais un créneau
 sans compte. **Un texte légal qui décrit autre chose que ce que le code fait
 est faux**, même quand l'écart paraît anodin. **La parade** : quand la
 collecte de données ou le parcours de réservation change, la page légale fait
-PARTIE du chantier, au même titre qu'une épreuve. Les champs listés
+PARTIE du chantier, au même titre qu'une épreuve. **Et le déclencheur
+ne se limite pas aux champs d'un formulaire : qu'une surface se mette à
+ENCAISSER en est un aussi, et c'est le plus lourd.** Un paiement que les
+conditions ne décrivent nulle part n'est pas du même ordre qu'un champ en
+trop : il engage la Maison. La Consultation a gagné un vrai encaissement le
+17 septembre 2026, et personne n'a regardé ses textes le jour même. Les champs listés
 aujourd'hui sont exactement ceux que `demande-submit` enregistre.
 
 **LE PLAN DU SITE S'ECRIT APRES TOUTES LES BOUCLES**, et c'est la seule place
