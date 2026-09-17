@@ -213,8 +213,12 @@ function rendSection(s) {
    réparation passent par une consultation, un entretien et des soins se
    prennent tels quels : les quatre mènent au calendrier. Un enfant commence
    par un échange avec ses parents, une formation est une candidature : ces
-   deux-là mènent au rappel. */
-const RESERVABLES = new Set(['creation', 'reparation', 'entretien']);
+   deux-là mènent au rappel.
+
+   MND KIDS A REJOINT LA LISTE le 17 septembre : « la consultation de MND Kids
+   c'est Conseil et diagnostic » (Yéman). L'échange avec les parents reste le
+   premier geste, il se prend simplement au calendrier. */
+const RESERVABLES = new Set(['creation', 'reparation', 'entretien', 'enfant']);
 const versLaReservation = (besoin) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}`;
 
 function ilot(nom, p) {

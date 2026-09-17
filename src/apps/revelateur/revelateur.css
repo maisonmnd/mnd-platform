@@ -288,6 +288,9 @@ footer .logo img { height: 34px; }
 .geste-choix.est-choisi { border-color: var(--accent); background: var(--accent-clair); box-shadow: inset 2px 0 0 var(--accent); }
 .geste-choix b { font-family: var(--serif); font-weight: 400; font-size: 19px; }
 .geste-choix small { margin-left: auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+/* LE PRIX SE LIT D'UN COUP D'OEIL, sans crier : il est ce que la visiteuse
+   cherche en second, juste apres le nom du geste. */
+.geste-choix .prix { color: var(--titre); font-weight: 500; }
 .jours { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
 .jour { flex: 0 0 auto; scroll-snap-align: start; display: grid; gap: 2px; place-items: center; min-width: 58px; min-height: 62px; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 10px 8px; transition: border-color var(--t), background var(--t); }
 .jour:hover { border-color: var(--accent); }

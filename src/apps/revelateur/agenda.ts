@@ -32,6 +32,10 @@ export type PrestationPublique = {
   name: string;
   categoryId: string;
   durationMin?: number;
+  /** LE PRIX VIENT DU CATALOGUE, JAMAIS D'ICI — 17 septembre 2026. « Il faut
+      mettre les prix pour que le client comprenne d'entrée de jeu » (Yéman).
+      Un prix corrigé au Trône se corrige donc sur le site, le jour même. */
+  priceXof?: number;
   priceMode?: 'fixe' | 'variable' | 'devis';
   hidePrice?: boolean;
   consultationAvant?: boolean;
@@ -192,12 +196,33 @@ export const jourCourt = (iso: string): { lettre: string; chiffre: string } => {
    Les suivre aurait caché exactement ce que ce site doit faire réserver. */
 export const ATELIERS_RESERVABLES: readonly string[] = ['atl-ii-gbeji', 'atl-iii-yekpe'];
 
+/* LA CONSULTATION DE CHAQUE PORTE — 17 septembre 2026, dictée par la Maison :
+   « Le parcours 1 c'est le KÒKÒ Origine, première couronne ; le parcours 2
+   c'est le KÒKÒ Suivi ; la consultation de MND Kids c'est Conseil et
+   diagnostic. » Une visiteuse qui vient créer sa couronne n'a pas à choisir
+   entre trois diagnostics : on lui propose LE SIEN.
+
+   CE SONT DES IDENTIFIANTS, et on a appris ce matin ce qu'ils valent quand la
+   Maison renomme : si celui-ci a disparu, on montre TOUTES les consultations
+   plutôt qu'une page vide. Le prix n'est jamais écrit ici, il se lit sur le
+   catalogue. */
+export const CONSULTATION_PAR_PARCOURS: Readonly<Partial<Record<Besoin, string>>> = {
+  creation: 'sv-koko-ori',
+  reparation: 'sv-koko-sui',
+  enfant: 'svc-doto-conseil',
+};
+
 /** Les prestations que CETTE porte autorise à réserver. Vide = l'écran
     retombe sur la demande de rappel, jamais sur une page morte. */
 export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin): PrestationPublique[] {
   const cats = agenda.categories;
   if (porteDuBesoin(besoin) === 'consultation') {
-    return agenda.services.filter((s) => estUneConsultation(s, cats));
+    const consultations = agenda.services.filter((s) => estUneConsultation(s, cats));
+    const sienne = CONSULTATION_PAR_PARCOURS[besoin];
+    const laSienne = sienne ? consultations.filter((s) => s.id === sienne) : [];
+    /* Sa consultation si elle existe encore, sinon toutes : on ne ferme
+       jamais la porte sur un identifiant qui a changé de nom. */
+    return laSienne.length > 0 ? laSienne : consultations;
   }
   return agenda.services.filter((s) => {
     if (estUneConsultation(s, cats)) return false;

@@ -8,6 +8,7 @@ import {
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
+import { fmtMoney } from '../../../shared/currency';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
 import Demande from './Demande';
 
@@ -20,7 +21,10 @@ import Demande from './Demande';
    pose le rendez-vous avec la clé de service, après avoir REVÉRIFIÉ l'heure.
 
    TROIS PAS, JAMAIS PLUS : le geste, le jour et l'heure, le numéro. Aucun
-   compte, aucun prix affiché (ils se disent au devis), aucun paiement.
+   compte, aucun paiement. LE PRIX, LUI, SE DIT depuis le 17 septembre :
+   « il faut mettre les prix pour que le client comprenne d'entrée de jeu »
+   (Yéman). Il vient du catalogue, jamais du code, et chaque porte propose
+   SA consultation plutôt que les trois.
 
    CE QUE LA RÈGLE IMPOSE (`shared/qualification.ts`) : une création ou une
    réparation se réserve en CONSULTATION, jamais en acte direct. Un entretien
@@ -44,6 +48,16 @@ const besoinDeLAdresse = (): Besoin | '' => {
   } catch { return ''; }
 };
 
+/** CE QUE ÇA COÛTE, DIT SIMPLEMENT. « Il faut mettre les prix pour que le
+    client comprenne d'entrée de jeu » (Yéman, 17 septembre 2026). Le montant
+    vient du catalogue ; un prix variable se dit « à partir de », et une
+    prestation sans prix ferme ne dit rien plutôt que d'inventer. */
+const prixDit = (s: PrestationPublique, devise: string): string => {
+  const p = Number(s.priceXof ?? 0);
+  if (!p || s.priceMode === 'devis') return '';
+  return s.priceMode === 'variable' ? `à partir de ${fmtMoney(p, devise)}` : fmtMoney(p, devise);
+};
+
 const dit = (min?: number): string => {
   if (!min) return '';
   if (min < 60) return `${min} min`;
@@ -62,6 +76,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
   const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(undefined);
   const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
   const [whatsapp, setWhatsapp] = useState('');
+  const [devise, setDevise] = useState('XOF');
   const [serviceId, setServiceId] = useState('');
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState<{ heure: string; maitre: string } | null>(null);
@@ -78,6 +93,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
     void maison().then(async (m) => {
       if (!vivant) return;
       setWhatsapp(m?.whatsapp ?? '');
+      setDevise(m?.devise ?? 'XOF');
       if (!m) { setAgenda(null); return; }
       const a = await agendaDeLaMaison(m.branchId);
       if (!vivant) return;
@@ -234,7 +250,11 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
                   onClick={() => choisirLeGeste(s.id)}
                 >
                   <b>{s.name}</b>
-                  {s.durationMin ? <small>{dit(s.durationMin)}</small> : null}
+                  <small>
+                    {s.durationMin ? dit(s.durationMin) : ''}
+                    {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
+                    {prixDit(s, devise) ? <span className="prix">{prixDit(s, devise)}</span> : null}
+                  </small>
                 </button>
               ))}
             </div>
@@ -247,7 +267,13 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <div className="bloc-reservation venir">
           <p className="sur">Le jour</p>
           <h3>Quand vous convient-il ?</h3>
-          {choisie && <p className="legende" style={{ marginBottom: 14 }}>{choisie.name}{choisie.durationMin ? ` · ${dit(choisie.durationMin)}` : ''}</p>}
+          {choisie && (
+            <p className="legende" style={{ marginBottom: 14 }}>
+              {choisie.name}
+              {choisie.durationMin ? ` · ${dit(choisie.durationMin)}` : ''}
+              {prixDit(choisie, devise) ? ` · ${prixDit(choisie, devise)}` : ''}
+            </p>
+          )}
           {jours.length === 0
             ? (
               <p className="corps">Aucune heure libre dans les trois prochaines semaines. Écrivez-nous, nous trouverons ensemble.
@@ -285,6 +311,12 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <form className="formulaire venir" onSubmit={(e) => void envoyer(e)} noValidate>
           <p className="sur">Votre place</p>
           <h3 style={{ marginBottom: 6 }}>{jourDit(jour)}, à {heure.heure}</h3>
+          {choisie && (
+            <p className="legende" style={{ marginTop: -2 }}>
+              {choisie.name}
+              {prixDit(choisie, devise) ? ` · ${prixDit(choisie, devise)}` : ''}
+            </p>
+          )}
           <div className="deux-champs">
             <div className="champ"><label htmlFor="res-prenom">{f.prenom}</label><input id="res-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
             <div className="champ"><label htmlFor="res-numero">{f.numero}</label><input id="res-numero" name="numero" inputMode="tel" autoComplete="tel" value={numero} onChange={(e) => setNumero(e.target.value)} required /></div>
@@ -292,7 +324,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
           <div className="champ"><label htmlFor="res-mot">Un mot, si vous voulez</label><textarea id="res-mot" name="mot" rows={2} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
           <label className="consentement"><input type="checkbox" id="res-consent" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
           <button className="btn btn--plein" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : 'Demander cette place'}</button>
-          <p className="legende">Rien à payer aujourd’hui. La Maison vous confirme.</p>
+          <p className="legende">Rien à payer aujourd’hui, le règlement se fait à la Maison.</p>
           {erreur && <p className="erreur" role="alert">{erreur}</p>}
         </form>
       )}

@@ -14,6 +14,8 @@ export type Maison = {
   ville: string;
   /** Le numéro WhatsApp de la Maison, chiffres seuls, tel que wa.me l'attend. */
   whatsapp: string;
+  /** La devise de la branche : elle habille les prix du calendrier. */
+  devise: string;
   fiche?: string;
 };
 
@@ -43,7 +45,7 @@ export function maison(): Promise<Maison | null> {
     const supabase = await client();
     if (!supabase) return null;
     const { data } = await supabase.from('branches').select('id,data');
-    type Ligne = { id: string; data?: { name?: string; city?: string; phone?: string; mapsUrl?: string; flagship?: boolean; status?: string } };
+    type Ligne = { id: string; data?: { name?: string; city?: string; phone?: string; mapsUrl?: string; currency?: string; flagship?: boolean; status?: string } };
     const lignes = (data ?? []) as Ligne[];
     const b = lignes.find((l) => l.data?.flagship && l.data?.status !== 'paused') ?? lignes[0];
     if (!b) return null;
@@ -52,6 +54,7 @@ export function maison(): Promise<Maison | null> {
       nom: b.data?.name ?? 'Maison MND',
       ville: b.data?.city ?? '',
       whatsapp: (b.data?.phone ?? '').replace(/\D/g, ''),
+      devise: b.data?.currency || 'XOF',
       fiche: b.data?.mapsUrl || undefined,
     };
     try { sessionStorage.setItem(CLE, JSON.stringify(m)); } catch { /* tant pis */ }

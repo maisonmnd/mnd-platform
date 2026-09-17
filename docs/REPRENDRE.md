@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## CHAQUE PORTE SA CONSULTATION, ET SON PRIX — 17 septembre 2026
+
+« Le parcours 1 c'est le KÒKÒ Origine, première couronne, à 15 000 F. Le
+parcours 2 c'est le KÒKÒ Suivi, 10 000 F. La consultation de MND Kids c'est
+Conseil et diagnostic. Il faut mettre les prix pour que le client comprenne
+d'entrée de jeu » (Yéman).
+
+**UNE VISITEUSE NE CHOISIT PLUS ENTRE TROIS DIAGNOSTICS.** Chaque porte
+propose LE SIEN (`CONSULTATION_PAR_PARCOURS`, `revelateur/agenda.ts`) :
+création → `sv-koko-ori`, réparation → `sv-koko-sui`, enfant →
+`svc-doto-conseil`. « Je ne sais pas » les montre toutes les trois, et c'est
+le bon défaut. **Si l'identifiant a disparu**, on retombe sur les trois
+plutôt que sur une page vide : la leçon du matin même, appliquée d'avance.
+
+**LE PRIX EST DIT, ET C'EST UN RENVERSEMENT ASSUMÉ.** La règle du brief était
+« aucun prix chiffré sur le site ». Elle tombe LÀ OÙ LA VISITEUSE CHOISIT,
+c'est-à-dire sur l'écran de réservation : le nom du geste, sa durée, son
+prix. Elle tient ailleurs : les pages éditoriales et le Journal n'affichent
+aucun montant, parce qu'un chiffre écrit dans une phrase vieillit mal et que
+la création reste sur devis.
+
+**LE MONTANT NE S'ÉCRIT NULLE PART DANS LE CODE.** Il vient de
+`catalog_services`, lu sans compte : un prix corrigé au Trône se corrige sur
+le site le jour même. `priceXof` entre dans `PrestationPublique`, la devise
+vient de la branche, `fmtMoney` l'habille. Un prix VARIABLE se dit « à partir
+de » ; une prestation sur devis ne se réserve pas en ligne et ne dit rien.
+
+**MND KIDS SE RÉSERVE MAINTENANT** (`RESERVABLES` du générateur) : l'échange
+avec les parents reste le premier geste, il se prend simplement au
+calendrier, avec sa consultation Conseil et diagnostic.
+
+**LES TROIS, TELLES QU'ELLES SONT EN BASE** (vérifiées ce jour, et conformes
+à ce que la Maison a dicté) : KÒKÒ™ Origine · Première couronne, 45 min ;
+KÒKÒ™ Suivi · Diagnostic locks Externes, 60 min ; Consultation Conseil &
+Diagnostic, 30 min. Aucune ne porte de maître : le calendrier propose donc
+les heures libres de chacun des maîtres de la Maison.
+
 ## LA CLOCHE DU RAPPEL TOMBAIT SUR UN 404 — 17 septembre 2026
 
 « Quand j'essaie d'envoyer une confirmation WhatsApp, j'ai un message 404 »
