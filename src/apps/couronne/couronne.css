@@ -605,6 +605,7 @@
 .mc-offersrail {
   display: flex;
   gap: 11px;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   margin: 0 -22px;

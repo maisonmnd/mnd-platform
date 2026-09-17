@@ -932,7 +932,7 @@
 }
 .lk-cols .lk-card { margin-top: 0; }
 .lk-card--pad { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
-.lk-card--table { overflow-x: auto; }
+.lk-card--table { overflow-x: auto; min-width: 0; }
 .lk-card--indigo {
   background: var(--grad-indigo);
   border-color: transparent;

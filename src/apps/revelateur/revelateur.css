@@ -95,7 +95,16 @@ section.serre { padding-top: 0; }
    Cinq colonnes sur un grand écran, une seule rangée : jamais de carte
    orpheline. En dessous, une bande qui se fait glisser du doigt, carte par
    carte (scroll-snap), comme une main de cartes. */
-.portes { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; margin-inline: calc(-1 * clamp(18px, 4vw, 40px)); padding-inline: clamp(18px, 4vw, 40px); scrollbar-width: thin; }
+/* min-width: 0 SUR UNE RANGEE QUI DEFILE — 17 septembre 2026. Une rangee a
+   defilement horizontal posee dans une grille NE DEFILE PAS : un item de
+   grille (et de flex sur son axe principal) garde min-width: auto, il
+   s'elargit donc jusqu'a la largeur de son contenu et pousse son parent au
+   lieu de se serrer. C'est ce qui recouvrait la colonne de droite sur
+   /reserver/. Le piege : minmax(0, 1fr) protege la PISTE, jamais l'ELEMENT
+   pose dedans. La propriete est inerte hors grille et hors flex, on la pose
+   donc sur toute rangee defilante sans avoir a remonter l'arbre. Ecrit ici
+   et non dans ds.css : cette feuille ne l'importe pas. */
+.portes { display: flex; gap: 14px; min-width: 0; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; margin-inline: calc(-1 * clamp(18px, 4vw, 40px)); padding-inline: clamp(18px, 4vw, 40px); scrollbar-width: thin; }
 .portes > * { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
 @media (min-width: 1000px) { .portes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; margin-inline: 0; padding-inline: 0; padding-bottom: 0; } .portes > * { flex: none; } }
 .porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
@@ -303,7 +312,10 @@ footer .logo img { height: 34px; }
 /* LE PRIX SE LIT D'UN COUP D'OEIL, sans crier : il est ce que la visiteuse
    cherche en second, juste apres le nom du geste. */
 .geste-choix .prix { color: var(--titre); font-weight: 500; }
-.jours { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+/* min-width: 0 : voir la raison ecrite au-dessus de .portes. Cette rangee
+   etait deja couverte par la garde de son ancetre (.reserver .conteneur > *),
+   elle porte desormais la sienne, qui la suivra si on la deplace. */
+.jours { display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
 .jour { flex: 0 0 auto; scroll-snap-align: start; display: grid; gap: 2px; place-items: center; min-width: 58px; min-height: 62px; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 4px; padding: 10px 8px; transition: border-color var(--t), background var(--t); }
 .jour:hover { border-color: var(--accent); }
 .jour span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); }
