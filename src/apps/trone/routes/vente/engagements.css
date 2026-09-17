@@ -9,8 +9,9 @@
 .eng-barre__droite { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ── LES TROIS CHIFFRES ─────────────────────────────────────────────── */
-.eng-kpi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 720px) { .eng-kpi { grid-template-columns: 1fr; } }
+.eng-kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 980px) { .eng-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .eng-kpi { grid-template-columns: 1fr; } }
 .eng-kpi > div {
   display: flex; flex-direction: column; gap: 2px; min-width: 0;
   border: 1px solid var(--hairline, #D9CFBC); background: var(--surface-card, #FFFFFF);
@@ -263,3 +264,9 @@
 .eng-table .eng-resume span {
   display: block; margin-bottom: 2px; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: #8C5A33;
 }
+
+/* LA LIVRAISON ATTENDUE, LE TÉLÉPHONE — 17 septembre 2026 */
+.eng-livraison { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding: 9px 12px; border: 1px dashed var(--copper-300, #E3C9AE); border-radius: 3px; }
+.eng-livraison__mot { font-family: var(--font-sans); font-size: 12.5px; color: var(--color-indigo, #1E2150); }
+.eng-tel { color: inherit; text-decoration: underline; text-decoration-color: var(--copper-300, #E3C9AE); text-underline-offset: 3px; }
+.eng-tel:hover { text-decoration-color: currentColor; }

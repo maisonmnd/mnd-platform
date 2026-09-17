@@ -2,6 +2,31 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE TÉLÉPHONE DU PRESTATAIRE, LA LIVRAISON ATTENDUE — 17 septembre 2026
+
+« Rajouter le numéro de téléphone sur cette fiche. Avoir une date de livraison
+attendue pour tout devis validé et avancé » (Yéman), aux Engagements.
+
+**LE TÉLÉPHONE VIT SUR LA FICHE FOURNISSEUR quand il y en a une** (rappel du
+pair : un second numéro pour une même tête divergerait au premier changement).
+Le champ « Son téléphone » de la fenêtre du dossier lit et ÉCRIT la fiche
+liée (`setFournisseurs`), et le dossier n'en garde pas de copie ; sans fiche,
+`Engagement.telephone` le porte. `telephoneDuPrestataire(e, fournisseurs)`
+le lit partout : l'en-tête du dossier (lien `tel:`), et « prévenir sur
+WhatsApp » (`numeroWa`), qui marche donc aussi pour un nom seul.
+
+**LA LIVRAISON ATTENDUE SE POSE SUR LE DEVIS RETENU DE BASE**
+(`DevisRecu.livraisonAttendue`, `livreLe`). `livraisonDuDossier` juge :
+`aPoser` quand le dossier est retenu ET avancé (un versement versé) sans
+date ; `enRetard` passé le jour sans « livré » ; `bientot` à trois jours ;
+plus rien après `livreLe`. Une quatrième tuile « Livraison attendue » (À
+poser · date · Livré) et une ligne de gestes sous les tuiles : « Poser la
+date attendue » (sept jours par défaut), la date, « Retirer la date », « Livré
+aujourd'hui », « Pas encore livré, en fait ». Tout le monde peut la poser :
+ce n'est pas un montant. La cloche dit « Livraison en retard », le tableau de
+bord compte les retards et les dates à poser (`bilanDesEngagements`). Aucune
+SQL : tables en jsonb. Harnais `verifie-engagements` (211 épreuves).
+
 ## LES DÉPENSES, ALLÉGÉES — 16 septembre 2026
 
 « J'ai du mal à remplir les dépenses. Il faut simplifier le processus et

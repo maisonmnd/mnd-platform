@@ -56,6 +56,11 @@ export type Engagement = {
   prestataire: string;
   /** « menuisier », « imprimeur » — il s'écrit dans la décharge. */
   metier?: string;
+  /** SON TÉLÉPHONE, quand il n'a pas de fiche fournisseur (17 septembre
+      2026). Avec une fiche, c'est la fiche qui le porte, et
+      `telephoneDuPrestataire` la lit : deux numéros pour une même tête
+      divergeraient au premier changement. */
+  telephone?: string;
   /** « agencement du salon » — ce que la Maison commande. */
   objet: string;
   creeLe: string;
@@ -128,6 +133,13 @@ export type DevisRecu = {
       PERSONNE NE LIT LE DEVIS À LA PLACE DE LA DIRECTION, elle le tape en le
       lisant. */
   recuParWhatsApp?: { waId: string; quand: string };
+  /** LA LIVRAISON ATTENDUE — 17 septembre 2026. « Avoir une date de
+      livraison attendue pour tout devis validé et avancé » (Yéman). Elle se
+      pose sur le devis retenu de base ; un dossier retenu ET avancé sans
+      date la réclame (`livraisonDuDossier`). */
+  livraisonAttendue?: string;
+  /** Le jour où c'est arrivé : la date attendue cesse alors de presser. */
+  livreLe?: string;
 };
 
 /** LA DÉCHARGE — deux façons de la tenir, décidées le 15 septembre. */
@@ -346,6 +358,85 @@ export const devisExpire = (d: DevisRecu, aujourdhui: string): boolean =>
 export const devisExpireBientot = (d: DevisRecu, aujourdhui: string, jours = 3): boolean =>
   d.etat === 'recu' && !!d.valableJusquau
   && aujourdhui <= d.valableJusquau && decaleLeJour(aujourdhui, jours) >= d.valableJusquau;
+
+/* ══ LA LIVRAISON ATTENDUE — 17 septembre 2026 ═══════════════════════════
+   « Avoir une date de livraison attendue pour tout devis validé et avancé »
+   (Yéman). Elle se pose sur le devis RETENU DE BASE, c'est la livraison du
+   dossier ; un avenant ne change pas la date à lui seul. Un dossier retenu
+   ET avancé sans date la réclame ; passé le jour, il est en retard, jusqu'à
+   ce que quelqu'un dise « livré ». Le tableau de bord et la cloche lisent
+   ceci, jamais autre chose. */
+
+/** Une avance est partie : au moins un versement est versé. */
+export const estAvance = (versements: readonly Pick<Versement, 'verseLe'>[]): boolean =>
+  versements.some((v) => !!v.verseLe);
+
+const joursEntre = (a: string, b: string): number => {
+  const utc = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+  return Math.round((utc(b) - utc(a)) / 86400000);
+};
+
+export type Livraison = {
+  devis: DevisRecu;
+  quand?: string;
+  livreLe?: string;
+  /** Retenu et avancé, sans date : la Maison ne sait pas quand ça arrive. */
+  aPoser: boolean;
+  enRetard: boolean;
+  bientot: boolean;
+  /** Jours d'ici la date attendue ; négatif quand elle est passée. */
+  dans?: number;
+};
+
+export function livraisonDuDossier(
+  e: Pick<Engagement, 'abandonneLe'>, devis: readonly DevisRecu[], versements: readonly Versement[], aujourdhui: string,
+): Livraison | undefined {
+  const base = devisDeBase(devis);
+  if (!base || e.abandonneLe) return undefined;
+  const quand = base.livraisonAttendue;
+  const livre = !!base.livreLe;
+  return {
+    devis: base,
+    quand,
+    livreLe: base.livreLe,
+    aPoser: !quand && !livre && estAvance(versements),
+    enRetard: !livre && !!quand && aujourdhui > quand,
+    bientot: !livre && !!quand && aujourdhui <= quand && decaleLeJour(aujourdhui, 3) >= quand,
+    dans: quand ? joursEntre(aujourdhui, quand) : undefined,
+  };
+}
+
+export const poseLaLivraison = (tous: readonly DevisRecu[], id: string, quand: string | undefined): DevisRecu[] =>
+  tous.map((d) => (d.id === id ? { ...d, livraisonAttendue: quand } : d));
+
+export const marqueLivre = (tous: readonly DevisRecu[], id: string, jour: string | undefined): DevisRecu[] =>
+  tous.map((d) => (d.id === id ? { ...d, livreLe: jour } : d));
+
+/** Ce que la tuile affiche en grand. */
+export const valeurDeLaLivraison = (l: Livraison): string =>
+  (l.livreLe ? 'Livré' : l.quand ? jourLongDit(l.quand) : l.aPoser ? 'À poser' : 'Pas encore');
+
+/** Ce que la tuile dit dessous. */
+export function ditLaLivraison(l: Livraison): string {
+  if (l.livreLe) return `livré le ${jourLongDit(l.livreLe)}`;
+  if (l.quand && l.dans !== undefined) {
+    if (l.dans < 0) return `en retard de ${-l.dans} jour${l.dans < -1 ? 's' : ''}`;
+    if (l.dans === 0) return 'c’est aujourd’hui';
+    return `dans ${l.dans} jour${l.dans > 1 ? 's' : ''}${l.bientot ? ', bientôt' : ''}`;
+  }
+  if (l.aPoser) return 'retenu et avancé : dites quand il livre';
+  return 'après le devis retenu et la première avance';
+}
+
+/** LE TÉLÉPHONE DU PRESTATAIRE — sa fiche fournisseur d'abord, quand il en a
+    une ; sinon ce que le dossier porte. Un seul numéro par tête. */
+export const telephoneDuPrestataire = (
+  e: Pick<Engagement, 'fournisseurId' | 'telephone'>,
+  fournisseurs: readonly { id: string; telephone?: string }[],
+): string | undefined => {
+  const fiche = e.fournisseurId ? fournisseurs.find((f) => f.id === e.fournisseurId) : undefined;
+  return fiche?.telephone?.trim() || e.telephone?.trim() || undefined;
+};
 
 /** POURQUOI CE DEVIS NE SE RETIENT PAS — la phrase, ou `null`. */
 export function pourquoiOnNeRetientPas(o: {
@@ -777,7 +868,8 @@ export function avertitAvantDeCorriger(o: {
 }
 
 export type ChampsDuDevis = Partial<Pick<DevisRecu,
-  'numeroPrestataire' | 'recuLe' | 'valableJusquau' | 'montantXof' | 'lignes' | 'avenant' | 'fichier' | 'description'>>;
+  'numeroPrestataire' | 'recuLe' | 'valableJusquau' | 'montantXof' | 'lignes' | 'avenant' | 'fichier' | 'description'
+  | 'livraisonAttendue' | 'livreLe'>>;
 
 /** CORRIGER UN DEVIS — son contenu, JAMAIS son état. Un devis retenu reste
     retenu, par la même main et le même jour : corriger n'est pas redonner un
@@ -824,6 +916,8 @@ export type LectureDuDossier = {
   sansDecharge: Versement[];
   expirentBientot: DevisRecu[];
   expires: DevisRecu[];
+  /** La livraison du dossier, dès qu'un devis est retenu. */
+  livraison?: Livraison;
 };
 
 /** EN COURS D'ABORD : c'est là qu'il reste de l'argent à sortir. Puis ce qui
@@ -862,6 +956,7 @@ export function litLesDossiers(
         sansDecharge: versementsSansDecharge(vs),
         expirentBientot: e.abandonneLe ? [] : ds.filter((d) => devisExpireBientot(d, aujourdhui)),
         expires: e.abandonneLe ? [] : ds.filter((d) => devisExpire(d, aujourdhui)),
+        livraison: livraisonDuDossier(e, ds, vs, aujourdhui),
       };
     })
     .sort((a, b) => RANG_DE_L_ETAT[a.etat] - RANG_DE_L_ETAT[b.etat]
@@ -881,6 +976,9 @@ export function bilanDesEngagements(lectures: readonly LectureDuDossier[]): {
   restes: { devise: string; montant: number }[];
   sansDecharge: number;
   devisQuiExpirent: { lecture: LectureDuDossier; devis: DevisRecu }[];
+  /** Les livraisons passées sans « livré », et les dossiers avancés sans date. */
+  livraisonsEnRetard: { lecture: LectureDuDossier; devis: DevisRecu }[];
+  livraisonsAPoser: number;
 } {
   const enCours = lectures.filter((l) => l.etat === 'en-cours');
   const parDevise = new Map<string, number>();
@@ -893,6 +991,8 @@ export function bilanDesEngagements(lectures: readonly LectureDuDossier[]): {
         || a.devise.localeCompare(b.devise)),
     sansDecharge: lectures.reduce((s, l) => s + l.sansDecharge.length, 0),
     devisQuiExpirent: lectures.flatMap((l) => l.expirentBientot.map((d) => ({ lecture: l, devis: d }))),
+    livraisonsEnRetard: lectures.flatMap((l) => (l.livraison?.enRetard ? [{ lecture: l, devis: l.livraison.devis }] : [])),
+    livraisonsAPoser: lectures.filter((l) => l.livraison?.aPoser).length,
   };
 }
 

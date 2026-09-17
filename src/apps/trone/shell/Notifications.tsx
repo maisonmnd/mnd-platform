@@ -247,7 +247,7 @@ function useNotifications(): Notif[] {
        au moment de commander coûte une renégociation (maquette des
        engagements, validée). Le juge est celui de l'écran : la cloche ne
        compte pas autrement que le dossier. */
-    const { devisQuiExpirent } = bilanDesEngagements(
+    const { devisQuiExpirent, livraisonsEnRetard } = bilanDesEngagements(
       litLesDossiers(engagements, devisRecus, versementsEng, branch.id, today),
     );
     for (const { lecture, devis } of devisQuiExpirent) {
@@ -255,6 +255,16 @@ function useNotifications(): Notif[] {
         id: `eng-devis-${devis.id}-${devis.valableJusquau}`, kind: 'engagement',
         label: `Devis qui expire, ${lecture.engagement.prestataire}`,
         meta: `${lecture.engagement.numero} · valable jusqu’au ${frShort(devis.valableJusquau as string)}`,
+        to: `/engagements?id=${lecture.engagement.id}`,
+      });
+    }
+    /* LA LIVRAISON EN RETARD (17 septembre 2026) : la date attendue est
+       passée et personne n'a dit « livré ». */
+    for (const { lecture, devis } of livraisonsEnRetard) {
+      out.push({
+        id: `eng-livraison-${devis.id}-${devis.livraisonAttendue}`, kind: 'engagement',
+        label: `Livraison en retard, ${lecture.engagement.prestataire}`,
+        meta: `${lecture.engagement.numero} · attendue le ${frShort(devis.livraisonAttendue as string)}`,
         to: `/engagements?id=${lecture.engagement.id}`,
       });
     }

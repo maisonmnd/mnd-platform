@@ -24,6 +24,7 @@ import {
   pourquoiOnNeModifiePas, avertitAvantDeCorriger, corrigeLeDevis,
   pourquoiLaDechargeNePeutPasSeFaire, travauxAVenir,
   argentDuVersement, pourquoiLaDeviseNeChangePas, sommeDite, restesDits,
+  livraisonDuDossier, poseLaLivraison, marqueLivre, valeurDeLaLivraison, ditLaLivraison, telephoneDuPrestataire,
   type DevisRecu, type Engagement, type Versement,
 } from '../src/shared/engagements';
 
@@ -526,6 +527,44 @@ dit('elle ne change plus après le premier devis',
   pourquoiLaDeviseNeChangePas({ devis: [k1], versements: [] }));
 dit('… ni après un versement seulement prévu', true,
   pourquoiLaDeviseNeChangePas({ devis: [], versements: [prevu] }) !== null);
+
+/* ══ LA LIVRAISON ATTENDUE, LE TÉLÉPHONE (17 septembre) ═══════════════ */
+{
+  const eng = { id: 'e1', branchId: 'b', numero: 'ENG-2026-009', prestataire: 'Menuiserie K.', objet: 'Étagères', creeLe: AUJ } as Engagement;
+  const base = { id: 'd1', branchId: 'b', engagementId: 'e1', recuLe: '2026-09-10', montantXof: 90_000, etat: 'retenu', retenuLe: AUJ } as DevisRecu;
+  const avance = { id: 'v1', branchId: 'b', engagementId: 'e1', libelle: 'Avance', montantXof: 50_000, verseLe: AUJ } as Versement;
+  const prevu = { id: 'v2', branchId: 'b', engagementId: 'e1', libelle: 'Solde', montantXof: 40_000, prevuLe: '2026-10-01' } as Versement;
+
+  dit('sans devis retenu, pas de livraison à attendre', undefined, livraisonDuDossier(eng, [{ ...base, etat: 'recu' }], [avance], AUJ));
+  dit('retenu mais rien versé : rien ne presse', false, livraisonDuDossier(eng, [base], [prevu], AUJ)?.aPoser);
+  dit('retenu et avancé, sans date : à poser', true, livraisonDuDossier(eng, [base], [avance, prevu], AUJ)?.aPoser);
+  const dans2 = livraisonDuDossier(eng, [{ ...base, livraisonAttendue: '2026-09-17' }], [avance], AUJ)!;
+  dit('dans deux jours : bientôt', [true, false, 2], [dans2.bientot, dans2.enRetard, dans2.dans]);
+  dit('… et la tuile le dit', 'dans 2 jours, bientôt', ditLaLivraison(dans2));
+  const passe = livraisonDuDossier(eng, [{ ...base, livraisonAttendue: '2026-09-12' }], [avance], AUJ)!;
+  dit('passée : en retard', [true, -3], [passe.enRetard, passe.dans]);
+  dit('… en toutes lettres', 'en retard de 3 jours', ditLaLivraison(passe));
+  dit('le jour même', 'c’est aujourd’hui', ditLaLivraison(livraisonDuDossier(eng, [{ ...base, livraisonAttendue: AUJ }], [avance], AUJ)!));
+  const livre = livraisonDuDossier(eng, [{ ...base, livraisonAttendue: '2026-09-12', livreLe: '2026-09-14' }], [avance], AUJ)!;
+  dit('livré : plus rien ne presse', [false, false, false], [livre.enRetard, livre.bientot, livre.aPoser]);
+  dit('… la tuile dit Livré', ['Livré', 'livré le 14 septembre 2026'], [valeurDeLaLivraison(livre), ditLaLivraison(livre)]);
+  dit('à poser, en grand', 'À poser', valeurDeLaLivraison(livraisonDuDossier(eng, [base], [avance], AUJ)!));
+  dit('un dossier abandonné n’attend rien', undefined, livraisonDuDossier({ ...eng, abandonneLe: AUJ }, [{ ...base, livraisonAttendue: '2026-09-12' }], [avance], AUJ));
+  dit('la date se pose sur le devis, et se retire', ['2026-09-30', undefined],
+    [poseLaLivraison([base], 'd1', '2026-09-30')[0].livraisonAttendue, poseLaLivraison(poseLaLivraison([base], 'd1', '2026-09-30'), 'd1', undefined)[0].livraisonAttendue]);
+  dit('livré se marque, et se démarque', [AUJ, undefined],
+    [marqueLivre([base], 'd1', AUJ)[0].livreLe, marqueLivre(marqueLivre([base], 'd1', AUJ), 'd1', undefined)[0].livreLe]);
+  const lectures = litLesDossiers([eng, { ...eng, id: 'e2', numero: 'ENG-2026-010' }],
+    [{ ...base, livraisonAttendue: '2026-09-12' }, { ...base, id: 'd2', engagementId: 'e2' }],
+    [avance, { ...avance, id: 'v3', engagementId: 'e2' }], 'b', AUJ);
+  const bilanL = bilanDesEngagements(lectures);
+  dit('le bilan compte les retards et ce qui est à poser', [1, 1], [bilanL.livraisonsEnRetard.length, bilanL.livraisonsAPoser]);
+
+  const fiches = [{ id: 'f1', telephone: '+229 01 97 00 00 00' }];
+  dit('le téléphone vient de la fiche quand il y en a une', '+229 01 97 00 00 00', telephoneDuPrestataire({ fournisseurId: 'f1', telephone: '0000' }, fiches));
+  dit('… du dossier sinon', '0000', telephoneDuPrestataire({ telephone: '0000' }, fiches));
+  dit('… et rien sans l’un ni l’autre', undefined, telephoneDuPrestataire({ fournisseurId: 'f9' }, fiches));
+}
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

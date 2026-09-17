@@ -529,6 +529,13 @@ export default function Dashboard() {
         engagementsDus.enCours > 0 && engagementsDus.sansDecharge > 0
           ? `${engagementsDus.sansDecharge} versement${engagementsDus.sansDecharge > 1 ? 's' : ''} sans décharge`
           : '',
+        /* LA LIVRAISON (17 septembre 2026) : passée sans « livré », ou à poser. */
+        engagementsDus.livraisonsEnRetard.length > 0
+          ? `${engagementsDus.livraisonsEnRetard.length} livraison${engagementsDus.livraisonsEnRetard.length > 1 ? 's' : ''} en retard`
+          : '',
+        engagementsDus.livraisonsAPoser > 0
+          ? `${engagementsDus.livraisonsAPoser} date${engagementsDus.livraisonsAPoser > 1 ? 's' : ''} de livraison à poser`
+          : '',
       ].filter(Boolean).join(' · ') || 'l’argent est sorti, rien ne dit encore qu’il est arrivé',
       action: 'Voir', go: () => navigate('/engagements'),
     }] : []),

@@ -39,6 +39,7 @@ import {
   pourquoiOnNeRetientPas, avertitAvantDeRetenir, retenirLeDevis,
   pourquoiOnNeVersePas, avertitAvantDeVerser, dechargeInvalide, texteDeLaDecharge,
   effacementDeLIdentite, identiteAEffacer, depenseDuVersement, CATEGORIE_PROPOSEE, ETAT_DIT,
+  telephoneDuPrestataire, poseLaLivraison, marqueLivre, valeurDeLaLivraison, ditLaLivraison,
   devisExpire, devisExpireBientot, travauxAVenir,
   totalDeLaLigne, totalDesLignes, pourquoiLaLigneNeVautPas, ligneDeLaSaisie, lignesDeLaSaisie,
   quantiteDite, LIGNE_VIDE, type LigneSaisie,
@@ -151,6 +152,8 @@ type FormDossier = {
   fournisseurId: string;
   prestataire: string;
   metier: string;
+  /** Sur sa fiche fournisseur quand il en a une, sinon sur le dossier. */
+  telephone: string;
   objet: string;
   note: string;
   /** La monnaie du dossier — celle de la Maison, sauf choix contraire. */
@@ -165,7 +168,7 @@ export default function Engagements() {
   const [engagements, setEngagements] = useEngagements();
   const [devis] = useDevisRecus();
   const [versements] = useVersementsEngagement();
-  const [fournisseurs] = useFournisseurs();
+  const [fournisseurs, setFournisseurs] = useFournisseurs();
   const [params, setParams] = useSearchParams();
   const aujourdhui = todayISO();
 
@@ -207,8 +210,8 @@ export default function Engagements() {
   }, [estDirection, lectures, aujourdhui, setEngagements]);
 
   const ouvreLeFormulaire = (e?: Engagement) => setForm(e
-    ? { id: e.id, fournisseurId: e.fournisseurId ?? '', prestataire: e.prestataire, metier: e.metier ?? '', objet: e.objet, note: e.note ?? '', devise: e.devise ?? DEVISE_DE_LA_MAISON }
-    : { fournisseurId: '', prestataire: '', metier: '', objet: '', note: '', devise: DEVISE_DE_LA_MAISON });
+    ? { id: e.id, fournisseurId: e.fournisseurId ?? '', prestataire: e.prestataire, metier: e.metier ?? '', telephone: telephoneDuPrestataire(e, fournisseurs) ?? '', objet: e.objet, note: e.note ?? '', devise: e.devise ?? DEVISE_DE_LA_MAISON }
+    : { fournisseurId: '', prestataire: '', metier: '', telephone: '', objet: '', note: '', devise: DEVISE_DE_LA_MAISON });
 
   /* LA MONNAIE D'UN DOSSIER NE CHANGE PLUS après son premier montant : on ne
      réinterprète pas des sommes déjà rangées. */
@@ -223,10 +226,19 @@ export default function Engagements() {
     const objet = form.objet.trim();
     if (!prestataire) { toast('Nommez le prestataire, tel qu’il signera la décharge.'); return; }
     if (!objet) { toast('Dites ce que la Maison commande : l’agencement du salon, l’enseigne.'); return; }
+    /* LE TÉLÉPHONE (17 septembre 2026) : sur la fiche fournisseur quand il y
+       en a une, et le dossier n'en garde pas de copie ; sur le dossier sinon. */
+    const telephone = form.telephone.trim();
+    if (form.fournisseurId) {
+      setFournisseurs((prev) => prev.map((f) => (f.id === form.fournisseurId && (f.telephone?.trim() ?? '') !== telephone
+        ? { ...f, telephone: telephone || undefined }
+        : f)));
+    }
     const champs = {
       prestataire, objet,
       fournisseurId: form.fournisseurId || undefined,
       metier: form.metier.trim() || undefined,
+      telephone: form.fournisseurId ? undefined : telephone || undefined,
       note: form.note.trim() || undefined,
       /* Le franc ne s'écrit pas : absente, c'est lui. */
       devise: form.devise && form.devise !== DEVISE_DE_LA_MAISON ? form.devise : undefined,
@@ -291,7 +303,7 @@ export default function Engagements() {
                   value={form.fournisseurId}
                   onChange={(ev) => {
                     const f = fournisseursIci.find((x) => x.id === ev.target.value);
-                    setForm({ ...form, fournisseurId: ev.target.value, prestataire: f ? f.nom : form.prestataire });
+                    setForm({ ...form, fournisseurId: ev.target.value, prestataire: f ? f.nom : form.prestataire, telephone: f?.telephone?.trim() || form.telephone });
                   }}
                 >
                   <option value="">Un nom seul, sans fiche</option>
@@ -307,6 +319,14 @@ export default function Engagements() {
                 <Input value={form.metier} placeholder="menuisier" onChange={(ev) => setForm({ ...form, metier: ev.target.value })} />
               </Field>
             </div>
+            {/* SON TÉLÉPHONE — 17 septembre 2026 : « rajouter le numéro de
+                téléphone sur cette fiche » (Yéman). */}
+            <Field label="Son téléphone">
+              <Input inputMode="tel" value={form.telephone} onChange={(ev) => setForm({ ...form, telephone: ev.target.value })} />
+            </Field>
+            {form.fournisseurId && (
+              <p className="eng-legende">Il s’écrit sur sa fiche fournisseur : un seul numéro pour une même maison.</p>
+            )}
             <Field label="Ce que la Maison commande">
               <Input value={form.objet} placeholder="Agencement du salon" onChange={(ev) => setForm({ ...form, objet: ev.target.value })} />
             </Field>
@@ -611,7 +631,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
   const { session } = useAuth();
   const [messagesWa] = useMessagesWa();
   const [fournisseurs] = useFournisseurs();
-  const numeroDuPrestataire = numeroWa(fournisseurs.find((f) => f.id === e.fournisseurId)?.telephone);
+  const telephone = telephoneDuPrestataire(e, fournisseurs);
+  const numeroDuPrestataire = numeroWa(telephone);
   const previensDuVersement = async (v: Versement) => {
     if (!numeroDuPrestataire) {
       toast('Aucun numéro : liez le dossier à sa fiche fournisseur, avec son téléphone.');
@@ -935,7 +956,11 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-ecran">
         <div className="eng-ecran__tete">
           <b>{e.numero} · {e.objet}</b>
-          <span>{e.prestataire}{e.metier ? ` · ${e.metier}` : ''}{enDevise ? ` · en ${nomDeLaDevise(devise)}` : ''} · {ETAT_DIT[l.etat]}</span>
+          <span>
+            {e.prestataire}{e.metier ? ` · ${e.metier}` : ''}
+            {telephone ? <> · <a className="eng-tel" href={`tel:${telephone.replace(/\s+/g, '')}`}>{telephone}</a></> : null}
+            {enDevise ? ` · en ${nomDeLaDevise(devise)}` : ''} · {ETAT_DIT[l.etat]}
+          </span>
         </div>
         <div className="eng-ecran__corps">
           <div className="eng-kpi">
@@ -957,7 +982,38 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <span className="v">{dit(l.resteXof)}</span>
               <span className="c">{prochain ? `prochain : ${prochain.libelle.charAt(0).toLowerCase()}${prochain.libelle.slice(1)}` : l.etat === 'solde' ? 'dossier soldé' : 'aucun versement prévu'}</span>
             </div>
+            {/* LA LIVRAISON ATTENDUE — 17 septembre 2026 : « pour tout devis
+                validé et avancé ». La tuile presse quand la date est passée,
+                ou quand le dossier est avancé sans date. */}
+            <div className={l.livraison && (l.livraison.enRetard || l.livraison.aPoser) ? 'eng-kpi__alerte' : undefined}>
+              <span className="l">Livraison attendue</span>
+              <span className="v">{l.livraison ? valeurDeLaLivraison(l.livraison) : 'Pas encore'}</span>
+              <span className="c">{l.livraison ? ditLaLivraison(l.livraison) : 'après le devis retenu'}</span>
+            </div>
           </div>
+          {l.livraison && !ferme && (
+            <div className="eng-livraison">
+              {l.livraison.livreLe ? (
+                <>
+                  <span className="eng-livraison__mot">Livré le {jourLongDit(l.livraison.livreLe)}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setDevis((prev) => marqueLivre(prev, l.livraison!.devis.id, undefined))}>Pas encore livré, en fait</Button>
+                </>
+              ) : l.livraison.quand ? (
+                <>
+                  <span className="eng-livraison__mot">Livraison attendue le</span>
+                  <ChampDeDate compact sens="avant" value={l.livraison.quand} ariaLabel="Livraison attendue" onChange={(iso) => setDevis((prev) => poseLaLivraison(prev, l.livraison!.devis.id, iso))} />
+                  <Button variant="ghost" size="sm" onClick={() => setDevis((prev) => poseLaLivraison(prev, l.livraison!.devis.id, undefined))}>Retirer la date</Button>
+                  <Button variant="copper" size="sm" onClick={() => setDevis((prev) => marqueLivre(prev, l.livraison!.devis.id, aujourdhui))}>Livré aujourd’hui</Button>
+                </>
+              ) : (
+                <>
+                  <span className="eng-livraison__mot">{l.livraison.aPoser ? 'Le devis est retenu et avancé : quand livre-t-il ?' : 'Quand livre-t-il ?'}</span>
+                  <Button variant={l.livraison.aPoser ? 'copper' : 'ghost'} size="sm" onClick={() => setDevis((prev) => poseLaLivraison(prev, l.livraison!.devis.id, decaleLeJour(aujourdhui, 7)))}>Poser la date attendue</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setDevis((prev) => marqueLivre(prev, l.livraison!.devis.id, aujourdhui))}>Déjà livré</Button>
+                </>
+              )}
+            </div>
+          )}
           {/* LES TRAVAUX À VENIR, EN TÊTE DU DOSSIER : on ouvre un chantier
               pour savoir ce qui va s'y faire avant de savoir combien il reste. */}
           {travaux.length > 0 && (
