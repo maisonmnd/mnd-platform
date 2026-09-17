@@ -287,9 +287,11 @@ La balise reelle portait un attribut de plus : `<nav class="nav"
 aria-label="Navigation">`. Le motif ne reprenait pas un souvenir de
 formulation, il decrivait un BALISAGE IMAGINE au lieu du balisage ECRIT.
 **La parade** : chercher l'ATTRIBUT DISCRIMINANT seul, `class="nav"`, et lire
-ce qui l'entoure, au lieu d'apparier de memoire une balise entiere, et sonder SANS TENIR
-COMPTE DE LA CASSE : un simple ecart de majuscules suffit a rendre le meme
-zero, et c'est arrive en cherchant cette parade-ci. Plus
+ce qui l'entoure, au lieu d'apparier de memoire une balise entiere. Et sonder
+SANS TENIR COMPTE DE LA CASSE, sur une chaine COURTE qu'un retour a la ligne
+ne peut pas couper : un ecart de majuscules, ou une phrase qui enjambe deux
+lignes, rendent le meme zero que les autres causes. Les deux sont arrivees
+en verifiant cette parade-ci, l'une apres l'autre. Plus
 generalement, un motif long est une hypothese deguisee : plus il decrit, plus
 il peut se tromper en silence.
 
