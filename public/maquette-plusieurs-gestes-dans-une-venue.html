@@ -1,0 +1,444 @@
+<title>Plusieurs gestes, une venue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  /* LA CHARTE DE LA MAISON, telle qu elle est dans revelateur.css.
+     Cuivre pour l accent, indigo pour les surfaces sombres, ivoire pour le
+     fond. Jamais de noir. Cette maquette ne bascule pas en sombre : le site
+     public est ivoire, et une maquette doit montrer ce qui sera servi. */
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --accent-voile: rgba(185, 122, 74, .14);
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150;
+    --sombre: #1E2150; --filet: rgba(20, 20, 27, .14);
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', system-ui, sans-serif;
+    --r: 3px; --t: .18s ease;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.55; }
+  .page { max-width: 1120px; margin: 0 auto; padding-block: 0 56px; padding-left: 20px; padding-right: 20px; }
+
+  /* ── Le bandeau ─────────────────────────────────────────────── */
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 -20px 30px; padding: 26px 20px 24px; }
+  .bandeau .dedans { max-width: 1080px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(26px, 4.4vw, 40px); margin: 0 0 8px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 62ch; color: rgba(246, 241, 231, .82); font-size: 15px; }
+
+  /* ── L ecran ────────────────────────────────────────────────── */
+  .ecran { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); box-shadow: 0 18px 50px rgba(30, 33, 80, .10); overflow: hidden; }
+  .etapes { display: flex; flex-wrap: wrap; gap: 4px 22px; list-style: none; margin: 0; padding: 14px 22px; background: var(--fond-2); border-bottom: 1px solid var(--filet); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-doux); }
+  .etapes li.ici { color: var(--accent-profond); }
+  .etapes li.fait { color: var(--titre); }
+
+  .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 0; align-items: start; }
+  .conteneur > * { min-width: 0; }
+  @media (max-width: 880px) { .conteneur { grid-template-columns: minmax(0, 1fr); } }
+
+  .colonne { padding: 22px; min-width: 0; }
+  .colonne + .colonne { border-left: 1px solid var(--filet); background: var(--accent-clair); }
+  @media (max-width: 880px) { .colonne + .colonne { border-left: 0; border-top: 1px solid var(--filet); } }
+
+  h2.sous { font-family: var(--serif); font-weight: 400; font-size: 23px; color: var(--titre); margin: 0 0 4px; }
+  .legende { color: var(--texte-doux); font-size: 13.5px; margin: 0 0 18px; }
+
+  /* ── Les familles, pliees ou dépliées ───────────────────────── */
+  .familles { display: grid; gap: 8px; min-width: 0; }
+  .familles > * { min-width: 0; }
+  .famille { border: 1px solid var(--filet); border-radius: var(--r); background: #fff; overflow: hidden; min-width: 0; }
+  .famille.porte-du-besoin { border-color: rgba(185, 122, 74, .45); }
+  .tete { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 13px 14px; background: none; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: background var(--t); }
+  .tete:hover { background: var(--accent-voile); }
+  .tete:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .tete .nom { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 14.5px; letter-spacing: .02em; color: var(--titre); }
+  .tete .pour { display: block; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); margin-bottom: 2px; }
+  .tete .compte { flex: 0 0 auto; font-size: 12px; color: var(--texte-doux); white-space: nowrap; }
+  .tete .chevron { flex: 0 0 auto; width: 10px; height: 10px; border-right: 1px solid var(--texte-doux); border-bottom: 1px solid var(--texte-doux); transform: rotate(45deg); transition: transform var(--t); margin-left: 2px; }
+  .famille.ouverte .chevron { transform: rotate(-135deg); }
+  .famille .corps { display: none; border-top: 1px solid var(--filet); }
+  .famille.ouverte .corps { display: block; }
+
+  /* ── Un geste, cochable ─────────────────────────────────────── */
+  .geste { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-width: 0; padding: 11px 14px; background: none; border: 0; border-top: 1px solid rgba(20, 20, 27, .07); cursor: pointer; text-align: left; font: inherit; color: inherit; transition: background var(--t); }
+  .geste:first-child { border-top: 0; }
+  .geste:hover { background: var(--accent-voile); }
+  .geste:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .case { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px; border: 1px solid var(--texte-doux); border-radius: 2px; background: #fff; position: relative; transition: border-color var(--t), background var(--t); }
+  .geste.est-coche .case { background: var(--accent); border-color: var(--accent); }
+  .geste.est-coche .case::after { content: ''; position: absolute; left: 4.5px; top: 1px; width: 4px; height: 9px; border-right: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(42deg); }
+  .geste .texte { flex: 1 1 auto; min-width: 0; }
+  .geste b { display: block; min-width: 0; font-weight: 400; font-size: 14.5px; color: var(--texte); overflow-wrap: anywhere; }
+  .geste small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+  .geste small .prix { color: var(--accent-profond); }
+  .geste small .au-salon { color: var(--texte-doux); font-style: italic; }
+  .geste[aria-disabled="true"] { opacity: .42; cursor: not-allowed; }
+  .geste[aria-disabled="true"]:hover { background: none; }
+
+  /* ── Le recapitulatif ───────────────────────────────────────── */
+  .sur { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond); margin: 0 0 8px; }
+  .panier { display: grid; gap: 0; min-width: 0; margin-bottom: 4px; }
+  .panier > * { min-width: 0; }
+  .ligne { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 9px 0; border-bottom: 1px solid var(--filet); }
+  .ligne .quoi { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+  .ligne .combien { flex: 0 0 auto; font-size: 12.5px; color: var(--texte-doux); white-space: nowrap; }
+  .ligne .oter { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--texte-doux); font-size: 17px; line-height: 1; transition: color var(--t); }
+  .ligne .oter:hover { color: var(--accent-profond); }
+  .vide { color: var(--texte-doux); font-size: 13.5px; font-style: italic; padding: 10px 0 14px; }
+
+  .totaux { display: grid; gap: 6px; min-width: 0; padding: 12px 0 4px; }
+  .totaux > * { min-width: 0; }
+  .total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+  .total .quoi { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--texte-doux); }
+  .total .valeur { font-family: var(--serif); font-size: 24px; color: var(--titre); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .total .valeur em { font-style: normal; font-family: var(--sans); font-size: 12.5px; color: var(--texte-doux); letter-spacing: .04em; }
+  .avertit { margin: 10px 0 0; padding: 9px 11px; background: var(--accent-voile); border-left: 2px solid var(--accent); font-size: 13px; color: var(--accent-profond); }
+
+  /* ── Le jour et l heure ─────────────────────────────────────── */
+  .quand { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--filet); }
+  .jours { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; margin-bottom: 16px; }
+  .jour { flex: 0 1 auto; min-width: 0; padding: 8px 13px; border: 1px solid var(--filet); border-radius: var(--r); background: #fff; cursor: pointer; font: inherit; font-size: 13.5px; color: var(--texte); transition: all var(--t); }
+  .jour:hover { border-color: var(--accent); }
+  .jour.est-choisi { background: var(--sombre); border-color: var(--sombre); color: #F6F1E7; }
+  .heures { display: flex; flex-wrap: wrap; gap: 7px; min-width: 0; }
+  .heure { flex: 0 0 auto; padding: 8px 14px; border: 1px solid var(--filet); border-radius: var(--r); background: #fff; cursor: pointer; font: inherit; font-size: 14px; color: var(--texte); white-space: nowrap; font-variant-numeric: tabular-nums; transition: all var(--t); }
+  .heure:hover { border-color: var(--accent); color: var(--accent-profond); }
+  .heure.est-choisie { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rien { color: var(--texte-doux); font-size: 13.5px; }
+  .dessous { margin: 12px 0 0; font-size: 12.5px; color: var(--texte-doux); }
+
+  .continuer { display: block; width: 100%; margin-top: 20px; padding: 14px 18px; background: var(--accent); border: 0; border-radius: var(--r); color: #fff; font: inherit; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: background var(--t); }
+  .continuer:hover { background: var(--accent-profond); }
+  .continuer[disabled] { background: var(--fond-2); color: var(--texte-doux); cursor: not-allowed; }
+
+  /* ── Les decisions a valider ────────────────────────────────── */
+  .decisions { margin-top: 34px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
+  .decisions > * { min-width: 0; }
+  .decision { min-width: 0; padding: 16px 17px; background: var(--carte); border: 1px solid var(--filet); border-left: 2px solid var(--accent); border-radius: var(--r); }
+  .decision h3 { font-family: var(--serif); font-weight: 400; font-size: 18px; color: var(--titre); margin: 0 0 6px; text-wrap: balance; }
+  .decision p { margin: 0; font-size: 13.5px; color: var(--texte-doux); }
+  .decision p + p { margin-top: 7px; }
+  .decision b { font-weight: 500; color: var(--texte); }
+  .titre-bas { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--titre); margin: 34px 0 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bandeau">
+  <div class="dedans">
+    <p class="sur">Maison MND · maquette à valider</p>
+    <h1>Plusieurs gestes dans une seule venue</h1>
+    <p>Ce que vous voyez ici, ce sont les trente gestes réels de la porte Entretien, avec leurs durées et leurs prix tels qu’ils sont en base aujourd’hui. Cochez, la Maison compte.</p>
+  </div>
+</div>
+
+<div class="page">
+  <div class="ecran">
+    <ul class="etapes">
+      <li class="ici">Les gestes</li>
+      <li>Le jour et l’heure</li>
+      <li>Le numéro</li>
+    </ul>
+
+    <div class="conteneur">
+      <div class="colonne">
+        <h2 class="sous">Ce dont votre couronne a besoin</h2>
+        <p class="legende">Vous venez pour un entretien. Le lavage et la reprise de racines vous attendent ouverts, le reste de la porte est à un geste de là.</p>
+        <div class="familles" id="familles"></div>
+      </div>
+
+      <div class="colonne">
+        <p class="sur">Votre venue</p>
+        <div class="panier" id="panier"></div>
+        <div class="totaux" id="totaux"></div>
+        <div id="avertissement"></div>
+
+        <div class="quand" id="quand">
+          <p class="sur">Quand vous convient il ?</p>
+          <div class="jours" id="jours"></div>
+          <div class="heures" id="heures"></div>
+          <p class="dessous" id="dessous"></p>
+          <button class="continuer" id="continuer" disabled>Continuer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="titre-bas">Les quatre choses à valider</h2>
+  <div class="decisions">
+    <div class="decision">
+      <h3>L’ordre suit l’intention, plus la taille</h3>
+      <p>Aujourd’hui les familles sont rangées de la plus fournie à la plus maigre. Les huit soins et les huit couleurs passent donc devant les quatre lavages et les quatre reprises, alors que vous venez pour un entretien.</p>
+      <p><b>Ce que propose la maquette :</b> la porte ouvre ses deux familles, lavage et reprise, et plie les autres sans jamais les retirer.</p>
+    </div>
+    <div class="decision">
+      <h3>Le total se dit en durée et en prix</h3>
+      <p>Chaque coche met à jour les deux. Un geste dont le prix n’est pas ferme fait passer tout le total en <b>à partir de</b>, pour ne jamais promettre un chiffre qui bougerait au salon.</p>
+    </div>
+    <div class="decision">
+      <h3>Six gestes au plus</h3>
+      <p>C’est la limite que le serveur applique déjà. Au septième, la Maison le dit au lieu de laisser cocher dans le vide.</p>
+    </div>
+    <div class="decision">
+      <h3>Trois abonnements n’ont pas de prix</h3>
+      <p>Les deux GBÈJÍ™ Cycle de Vie et GBÈJÍ™ Fidélité sont à zéro en base. Ils s’affichent donc <b>prix au salon</b>.</p>
+      <p>Si vous préférez qu’ils ne soient pas réservables en ligne, l’onglet Site de la régie Vitrine les décoche sans toucher au code.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* LES TRENTE GESTES DE LA PORTE ENTRETIEN, relevés en base le 17 septembre
+     2026. Durées en minutes, prix en francs. Un prix à zéro veut dire que la
+     Maison le confirme au salon, il n est jamais affiché comme gratuit. */
+  var FAMILLES = [
+    { id: 'lavage', titre: 'Les lavages rituels', pour: 'Pour votre entretien', ouverte: true, items: [
+      { n: 'KLƆKLƆ™ Essentiel · Le Shampoing « Le Souffle »', d: 30, p: 8000 },
+      { n: 'KLƆKLƆ™ à Façon Lavage · Shampoing apporté', d: 30, p: 6000 },
+      { n: 'KLƆKLƆ™ Signature · Le Shampoing « L’Ancrage »', d: 50, p: 12000 },
+      { n: 'KLƆKLƆ™ Prestige · Le Shampoing « La Dépose »', d: 75, p: 18000 }
+    ] },
+    { id: 'racines', titre: 'Les reprises de racines', pour: 'Pour votre entretien', ouverte: true, items: [
+      { n: 'Retouches Post Reprise', d: 45, p: 4000 },
+      { n: 'SÍNSIN™ Essentiel · La Reprise', d: 60, p: 20000 },
+      { n: 'Sublimation · Le Renfort Durable', d: 60, p: 15000 },
+      { n: 'SÍNSIN™ Élaboré · La Reprise Longue Durée', d: 60, p: 25000 }
+    ] },
+    { id: 'soin', titre: 'Hydrater, purifier, reconstruire', pour: '', ouverte: false, items: [
+      { n: 'Forfait Cure VÍVÍVÓ™ × 3 séances', d: 20, p: 15000 },
+      { n: 'VÍVÍVÓ™ · Le Soin L’Activateur de Pousse', d: 20, p: 6000 },
+      { n: 'WÈWÈ™ à Façon Soin · masque ou huile apportés', d: 45, p: 10000 },
+      { n: 'WÈWÈ™ · Le Soin La Purification', d: 60, p: 22000 },
+      { n: 'WÈWÈ™ à Façon Décapage · décapant apporté', d: 60, p: 10000 },
+      { n: 'DÀNDÀN™ · Le Soin Ultra-Hydratant', d: 60, p: 25000 },
+      { n: 'AQUA LOCKS RITUAL™ · Le Soin Ultra-Hydratant', d: 90, p: 25000 },
+      { n: 'WÈWÈ™ + DÀNDÀN™ · la combinaison trimestrielle', d: 120, p: 38500 }
+    ] },
+    { id: 'couleur', titre: 'Coloration', pour: '', ouverte: false, items: [
+      { n: 'YÈKPÈ™ Couleur', d: 20, p: 10000 },
+      { n: 'YÈKPÈ™ à Façon · pose de couleur apportée', d: 30, p: 8000 },
+      { n: 'YÈKPÈ™ Couleur Lumière · La Brillance Signature', d: 60, p: 25000 },
+      { n: 'YÈKPÈ™ Éclat · Le Raviveur de Couleur · Court', d: 75, p: 5000 },
+      { n: 'YÈKPÈ™ × 3 · Le Cycle de Transformation, 3 mois', d: 90, p: 0 },
+      { n: 'YÈKPÈ™ Couleur Sublimation · La Transformation Totale', d: 100, p: 25000 },
+      { n: 'YÈKPÈ™ Couleur · La Révélation Végétale', d: 150, p: 15000 },
+      { n: 'YÈKPÈ™ Couleur + Lumière · la combinaison complète', d: 210, p: 37000 }
+    ] },
+    { id: 'sortie', titre: 'Les sorties signature', pour: '', ouverte: false, items: [
+      { n: 'Styling · sortie soignée', d: 20, p: 2000 },
+      { n: 'Styling Signature · sortie élaborée', d: 30, p: 5000 },
+      { n: 'Coiffure Signature Événement', d: 45, p: 10000 }
+    ] },
+    { id: 'suivi', titre: 'Entretien, la vie', pour: '', ouverte: false, items: [
+      { n: 'Abonnement : GBÈJÍ™ Annuel · Le Cycle de Vie, 12 mois', d: 60, p: 0 },
+      { n: 'Abonnement : GBÈJÍ™ Trimestriel · Le Cycle de Vie, 3 mois', d: 105, p: 0 },
+      { n: 'GBÈJÍ™ Fidélité · Reprise & Shampoing Signature', d: 110, p: 0 }
+    ] }
+  ];
+
+  /* LA JOURNEE TELLE QUE LA BASE LA PORTE. Le samedi 19 septembre compte
+     trois rituels déjà posés, tous sur le maître Team. La Maison a deux
+     fauteuils : au delà de deux rituels qui se croisent, l heure tombe. */
+  var OUVERT = 540, FERME = 1200, PAS = 60, FAUTEUILS = 2;
+  var JOURS = [
+    { id: 'sam', nom: 'samedi 19 septembre', occupes: [[540, 85], [780, 90], [840, 90]] },
+    { id: 'lun', nom: 'lundi 21 septembre', occupes: [[600, 60]] },
+    { id: 'mar', nom: 'mardi 22 septembre', occupes: [] }
+  ];
+  var PLAFOND = 6;
+
+  var choisis = [];
+  var jourChoisi = 'sam';
+  var heureChoisie = '';
+
+  var TOUS = [];
+  FAMILLES.forEach(function (f) {
+    f.items.forEach(function (it, i) { it.id = f.id + '-' + i; it.famille = f.titre; TOUS.push(it); });
+  });
+  var parId = function (id) { for (var i = 0; i < TOUS.length; i++) { if (TOUS[i].id === id) return TOUS[i]; } return null; };
+
+  var sou = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); };
+  var argent = function (p) { return sou(p) + ' ' + 'F'; };
+  var duree = function (min) {
+    if (!min) return '';
+    if (min < 60) return min + ' min';
+    var h = Math.floor(min / 60), m = min % 60;
+    return m ? h + ' h ' + (m < 10 ? '0' + m : m) : h + ' h';
+  };
+
+  /* ── Les familles ─────────────────────────────────────────── */
+  function rendFamilles() {
+    var hote = document.getElementById('familles');
+    hote.innerHTML = '';
+    FAMILLES.forEach(function (f) {
+      var pris = f.items.filter(function (it) { return choisis.indexOf(it.id) >= 0; }).length;
+      var bloc = document.createElement('div');
+      bloc.className = 'famille' + (f.ouverte ? ' ouverte' : '') + (f.pour ? ' porte-du-besoin' : '');
+
+      var tete = document.createElement('button');
+      tete.className = 'tete';
+      tete.type = 'button';
+      tete.setAttribute('aria-expanded', f.ouverte ? 'true' : 'false');
+      tete.innerHTML = '<span class="nom">' + (f.pour ? '<span class="pour">' + f.pour + '</span>' : '') + f.titre + '</span>'
+        + '<span class="compte">' + (pris ? pris + ' sur ' + f.items.length : f.items.length + ' gestes') + '</span>'
+        + '<span class="chevron"></span>';
+      tete.addEventListener('click', function () { f.ouverte = !f.ouverte; rendFamilles(); });
+      bloc.appendChild(tete);
+
+      var corps = document.createElement('div');
+      corps.className = 'corps';
+      f.items.forEach(function (it) {
+        var coche = choisis.indexOf(it.id) >= 0;
+        var plein = !coche && choisis.length >= PLAFOND;
+        var b = document.createElement('button');
+        b.className = 'geste' + (coche ? ' est-coche' : '');
+        b.type = 'button';
+        b.setAttribute('aria-pressed', coche ? 'true' : 'false');
+        if (plein) b.setAttribute('aria-disabled', 'true');
+        b.innerHTML = '<span class="case"></span><span class="texte"><b>' + it.n + '</b>'
+          + '<small>' + duree(it.d) + ' · '
+          + (it.p ? '<span class="prix">' + argent(it.p) + '</span>' : '<span class="au-salon">prix au salon</span>')
+          + '</small></span>';
+        b.addEventListener('click', function () {
+          if (plein) return;
+          var k = choisis.indexOf(it.id);
+          if (k >= 0) choisis.splice(k, 1); else choisis.push(it.id);
+          heureChoisie = '';
+          tout();
+        });
+        corps.appendChild(b);
+      });
+      bloc.appendChild(corps);
+      hote.appendChild(bloc);
+    });
+  }
+
+  /* ── Le recapitulatif ─────────────────────────────────────── */
+  function totalDuree() {
+    return choisis.reduce(function (s, id) { var it = parId(id); return s + (it ? it.d : 0); }, 0);
+  }
+  function rendPanier() {
+    var hote = document.getElementById('panier');
+    hote.innerHTML = '';
+    if (!choisis.length) {
+      hote.innerHTML = '<p class="vide">Cochez un geste, ou plusieurs. La Maison compte la durée et le prix au fur et à mesure.</p>';
+      return;
+    }
+    choisis.forEach(function (id) {
+      var it = parId(id);
+      var l = document.createElement('div');
+      l.className = 'ligne';
+      l.innerHTML = '<span class="quoi">' + it.n + '</span>'
+        + '<span class="combien">' + duree(it.d) + (it.p ? ' · ' + argent(it.p) : '') + '</span>';
+      var o = document.createElement('button');
+      o.className = 'oter';
+      o.type = 'button';
+      o.setAttribute('aria-label', 'Retirer ' + it.n);
+      o.textContent = '×';
+      o.addEventListener('click', function () {
+        choisis.splice(choisis.indexOf(id), 1);
+        heureChoisie = '';
+        tout();
+      });
+      l.appendChild(o);
+      hote.appendChild(l);
+    });
+  }
+
+  function rendTotaux() {
+    var hote = document.getElementById('totaux');
+    if (!choisis.length) { hote.innerHTML = ''; return; }
+    var d = totalDuree();
+    var somme = 0, flou = false;
+    choisis.forEach(function (id) { var it = parId(id); if (it.p) somme += it.p; else flou = true; });
+    hote.innerHTML =
+      '<div class="total"><span class="quoi">Durée</span><span class="valeur">' + duree(d) + '</span></div>'
+      + '<div class="total"><span class="quoi">Prix</span><span class="valeur">'
+      + (flou ? '<em>à partir de</em> ' : '') + argent(somme) + '</span></div>';
+
+    var av = document.getElementById('avertissement');
+    var mots = [];
+    if (choisis.length >= PLAFOND) mots.push('Six gestes au plus dans une même venue. Retirez en un pour en cocher un autre.');
+    if (flou) mots.push('Un geste au moins se règle au salon. Le total est donc un plancher, jamais une promesse.');
+    av.innerHTML = mots.length ? '<p class="avertit">' + mots.join(' ') + '</p>' : '';
+  }
+
+  /* ── Le jour et l heure ───────────────────────────────────── */
+  function hhmm(m) { var h = Math.floor(m / 60), r = m % 60; return (h < 10 ? '0' + h : h) + ':' + (r < 10 ? '0' + r : r); }
+  function heuresLibres(jour, d) {
+    var libres = [];
+    if (!d) return libres;
+    for (var m = OUVERT; m + d <= FERME; m += PAS) {
+      var ensemble = 0;
+      for (var i = 0; i < jour.occupes.length; i++) {
+        var deb = jour.occupes[i][0], fin = deb + jour.occupes[i][1];
+        if (m < fin && m + d > deb) ensemble++;
+      }
+      if (ensemble < FAUTEUILS) libres.push(hhmm(m));
+    }
+    return libres;
+  }
+
+  function rendQuand() {
+    var d = totalDuree();
+    var jours = document.getElementById('jours');
+    jours.innerHTML = '';
+    JOURS.forEach(function (j) {
+      var b = document.createElement('button');
+      b.className = 'jour' + (j.id === jourChoisi ? ' est-choisi' : '');
+      b.type = 'button';
+      b.textContent = j.nom;
+      b.addEventListener('click', function () { jourChoisi = j.id; heureChoisie = ''; tout(); });
+      jours.appendChild(b);
+    });
+
+    var jour = JOURS.filter(function (j) { return j.id === jourChoisi; })[0];
+    var libres = heuresLibres(jour, d);
+    var hote = document.getElementById('heures');
+    hote.innerHTML = '';
+    var dessous = document.getElementById('dessous');
+
+    if (!d) {
+      hote.innerHTML = '<p class="rien">Les heures s’affichent dès que vous avez coché un geste.</p>';
+      dessous.textContent = '';
+    } else if (!libres.length) {
+      hote.innerHTML = '<p class="rien">Aucune heure de cette journée ne peut accueillir ' + duree(d)
+        + '. Retirez un geste, ou nous poserons votre venue sur deux jours.</p>';
+      dessous.textContent = '';
+    } else {
+      libres.forEach(function (h) {
+        var b = document.createElement('button');
+        b.className = 'heure' + (h === heureChoisie ? ' est-choisie' : '');
+        b.type = 'button';
+        b.textContent = h;
+        b.addEventListener('click', function () { heureChoisie = h; tout(); });
+        hote.appendChild(b);
+      });
+      dessous.textContent = 'Ces heures tiennent compte de vos ' + duree(d)
+        + ' cumulées, et des deux fauteuils de la Maison.';
+    }
+
+    var suite = document.getElementById('continuer');
+    suite.disabled = !(d && heureChoisie);
+    suite.textContent = heureChoisie
+      ? 'Continuer vers le numéro, ' + (jour ? jour.nom : '') + ' à ' + heureChoisie
+      : 'Continuer';
+
+    var etapes = document.querySelectorAll('.etapes li');
+    etapes[0].className = choisis.length ? 'fait' : 'ici';
+    etapes[1].className = heureChoisie ? 'fait' : (choisis.length ? 'ici' : '');
+    etapes[2].className = heureChoisie ? 'ici' : '';
+  }
+
+  function tout() { rendFamilles(); rendPanier(); rendTotaux(); rendQuand(); }
+
+  /* La maquette s ouvre sur un cas vrai : un lavage et une reprise, ce que
+     Yéman a demandé de voir ensemble quand on vient pour un entretien. */
+  choisis = ['lavage-0', 'racines-1'];
+  tout();
+})();
+</script>
