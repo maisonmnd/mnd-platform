@@ -135,15 +135,18 @@ const veilleDe = (iso: string): string => {
   return d.toISOString().slice(0, 10);
 };
 
-/** « Aujourd’hui », « Hier », « Mardi 16 septembre », et l'année quand ce
-    n'est pas celle du jour. */
+/** « Aujourd’hui · mercredi 16 septembre », « Hier · mardi 15 septembre »,
+    « Lundi 14 septembre », et l'année quand ce n'est pas celle du jour. Le
+    jour relatif garde sa date entière (17 septembre : « je ne vois pas la
+    différence entre hier, mardi 15, dimanche 13 »), pour que tous les
+    bandeaux se lisent de la même façon. */
 export function ditLeJour(jour: string, aujourdhui: string): string {
   if (!jour) return 'Sans date';
-  if (jour === aujourdhui) return 'Aujourd’hui';
-  if (jour === veilleDe(aujourdhui)) return 'Hier';
   const d = new Date(`${jour}T12:00:00`);
   if (Number.isNaN(d.getTime())) return jour;
   const memeAnnee = jour.slice(0, 4) === aujourdhui.slice(0, 4);
   const mot = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', ...(memeAnnee ? {} : { year: 'numeric' }) });
+  if (jour === aujourdhui) return `Aujourd’hui · ${mot}`;
+  if (jour === veilleDe(aujourdhui)) return `Hier · ${mot}`;
   return mot.charAt(0).toUpperCase() + mot.slice(1);
 }

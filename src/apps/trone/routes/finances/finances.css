@@ -2199,9 +2199,24 @@
 .trf-pied .mnd-btn.is-pale { opacity: .55; }
 
 .trf-filtres { margin: 12px 0 4px; }
-.trf-jour { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 2px 6px; border-bottom: 1px solid var(--hairline); }
-.trf-jour b { font-family: var(--font-serif); font-weight: 400; font-size: 17px; color: var(--color-indigo); }
+/* LE BANDEAU DU JOUR SE DISTINGUE D'UNE LIGNE (17 septembre 2026) : « je ne
+   vois pas la différence entre hier, mardi 15, dimanche 13 ». Il était en
+   serif indigo, comme le bénéficiaire. Il devient une bande sur fond papier,
+   filet de cuivre à gauche, en petites capitales sans, collée en haut quand
+   on fait défiler ; ses lignes s'indentent sous un rail. */
+.trf-jour {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin-top: 16px; padding: 8px 12px 7px;
+  background: var(--paper-2); border-left: 3px solid var(--color-copper); border-radius: 3px;
+}
+.trf-jour:first-child { margin-top: 6px; }
+.trf-jour b { font-family: var(--font-sans); font-weight: var(--weight-medium); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-indigo); }
 .trf-jour span { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trf-jour span::first-letter { text-transform: none; }
+.trf-jour-groupe { margin-left: 9px; padding-left: 14px; border-left: 2px solid var(--hairline); }
+.trf-jour-groupe .trf-exprow { padding: 12px 0; }
+.trf-jour-groupe > div:last-child .trf-exprow { border-bottom: 0; }
 
 /* Cinq cartes tiennent sur trois colonnes, comme quatre sur deux au petit écran. */
 .tr-grid--5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

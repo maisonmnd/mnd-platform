@@ -1708,6 +1708,7 @@ export default function Depenses() {
                 <b>{ditLeJour(g.jour, todayISO())}</b>
                 <span>{g.lignes.length} dépense{g.lignes.length > 1 ? 's' : ''} · {fmtMoney(g.total, currency)}</span>
               </div>
+              <div className="trf-jour-groupe">
               {g.lignes.map((e) => (
               <div key={e.id}>
                 {/* ── LA RANGÉE D’UNE DÉPENSE — revue le 24 août 2026 ─────
@@ -1823,6 +1824,7 @@ export default function Depenses() {
                 <Provenance dep={e} />
               </div>
               ))}
+              </div>
               </Fragment>
             ))}
           </div>

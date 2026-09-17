@@ -64,8 +64,8 @@ dit('le plus récent en haut, sans date en dernier', ['2026-09-16', '2026-09-15'
 dit('les deux écritures de date se rangent dans le même jour, l’ordre reçu gardé', ['a', 'c'], groupes[0].lignes.map((l) => l.id));
 dit('le total du jour', 42_500, groupes[0].total);
 dit('une clé de jour depuis jj/mm/aaaa', '2026-09-16', cleDuJour('16/09/2026'));
-dit('aujourd’hui', 'Aujourd’hui', ditLeJour('2026-09-16', '2026-09-16'));
-dit('hier', 'Hier', ditLeJour('2026-09-15', '2026-09-16'));
+dit('aujourd’hui, avec sa date entière', 'Aujourd’hui · mercredi 16 septembre', ditLeJour('2026-09-16', '2026-09-16'));
+dit('hier, avec sa date entière', 'Hier · mardi 15 septembre', ditLeJour('2026-09-15', '2026-09-16'));
 dit('un jour de la même année', 'Lundi 14 septembre', ditLeJour('2026-09-14', '2026-09-16'));
 dit('un jour d’une autre année porte l’année', 'Mardi 31 décembre 2024', ditLeJour('2024-12-31', '2026-09-16'));
 dit('sans date', 'Sans date', ditLeJour('', '2026-09-16'));

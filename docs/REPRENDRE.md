@@ -52,6 +52,14 @@ les sous-catégories en second menu quand il y en a, « + Quelqu'un d'autre… �
 et « Sans caisse · Autres » comme options. Le chip « de sa poche ? » reste
 sous le menu du porteur.
 
+**LE BANDEAU DU JOUR SE DISTINGUE D'UNE LIGNE** (17 septembre, « je ne vois
+pas la différence entre hier, mardi 15, dimanche 13 ») : il était en serif
+indigo comme le bénéficiaire. Bande sur fond papier, filet de cuivre à
+gauche, petites capitales sans, collée en haut au défilement ; les lignes du
+jour s'indentent sous un rail (`trf-jour-groupe`). « Aujourd'hui » et « Hier »
+gardent leur date entière (`ditLeJour`), pour que tous les bandeaux se lisent
+pareil. La case du bénéficiaire part vide, sans exemple en dur.
+
 ## LE CERTIFICAT S'ENREGISTRE, SES SIGNATAIRES SE CHANGENT, SA PHRASE EST CORRIGÉE — 16 septembre 2026
 
 Trois demandes de Yéman dans l'heure, sur la page du certificat.
