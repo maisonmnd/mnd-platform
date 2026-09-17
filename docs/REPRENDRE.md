@@ -28,8 +28,16 @@ PARTIE du chantier, au même titre qu'une épreuve. **Et le déclencheur
 ne se limite pas aux champs d'un formulaire : qu'une surface se mette à
 ENCAISSER en est un aussi, et c'est le plus lourd.** Un paiement que les
 conditions ne décrivent nulle part n'est pas du même ordre qu'un champ en
-trop : il engage la Maison. La Consultation a gagné un vrai encaissement le
-17 septembre 2026, et personne n'a regardé ses textes le jour même. Les champs listés
+trop : il engage la Maison. **MESURÉ le 17 septembre 2026 sur La
+Consultation**, qui venait d'encaisser pour de vrai, et l'alarme n'a PAS
+tenu dans sa forme forte : son écran décrit le montant deux fois, sa nature
+(crédité sur le premier rituel), le prestataire nommé, le compte marchand et
+le mécanisme de vérification, avec deux échappatoires. **L'écart était
+ailleurs, et il est réel** : AUCUNE surface autre que le site ne renvoie à
+ses pages légales, donc qui paie n'a aucun texte à lire depuis l'écran où il
+paie ; et le REMBOURSEMENT, si la personne ne vient jamais, n'est écrit nulle
+part. Constat porté à la Maison, non corrigé : réécrire les conditions d'une
+surface qui encaisse ne se fait pas sans son accord. Les champs listés
 aujourd'hui sont exactement ceux que `demande-submit` enregistre.
 
 **LE PLAN DU SITE S'ECRIT APRES TOUTES LES BOUCLES**, et c'est la seule place
