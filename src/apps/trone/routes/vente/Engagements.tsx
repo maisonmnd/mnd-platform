@@ -273,7 +273,7 @@ export default function Engagements() {
       <PageHead
         eyebrow="Vente"
         title="Les engagements"
-        sub="Ce que la Maison commande à un prestataire : ses devis, le oui, les avances et leurs décharges."
+        sub="Les devis, les avances, les décharges."
         actions={<Button variant="copper" onClick={() => ouvreLeFormulaire()}>+ Nouvel engagement</Button>}
       />
 
@@ -488,12 +488,8 @@ function PiecesARanger({ lectures, branchId, aujourdhui }: {
     <section className="eng-bloc">
       <div className="eng-bloc__tete">
         <div>
-          <h3>{pluriel(aRanger.length, 'pièce reçue', 'pièces reçues')} par WhatsApp, à ranger</h3>
-          <p>
-            Un prestataire a envoyé un devis en photo, et il a plusieurs dossiers ouverts avec la Maison, ou
-            aucun. Choisissez le dossier : la pièce y entre comme devis <b>à saisir</b>, personne ne lit le
-            montant à votre place.
-          </p>
+          <h3>{pluriel(aRanger.length, 'pièce reçue', 'pièces reçues')} par WhatsApp</h3>
+          <p>Choisissez son dossier : elle y entre comme devis à saisir.</p>
         </div>
       </div>
       <div className="eng-defile">
@@ -1053,13 +1049,12 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-bloc">
         <div className="eng-bloc__tete">
           <div>
-            <h3>Ses devis</h3>
-            <p>Plusieurs propositions, une seule retenue. Un devis écarté reste : c’est la preuve qu’on a comparé.</p>
+            <h3>Les devis</h3>
           </div>
           {!ferme && <Button variant="ghost" size="sm" onClick={() => ouvreLeDevis()}>+ Devis reçu</Button>}
         </div>
         {l.devis.length === 0 ? (
-          <p className="eng-rien">Aucun devis rangé. Son numéro, sa validité et son fichier se gardent ici, PDF ou photo.</p>
+          <p className="eng-rien">Aucun devis rangé.</p>
         ) : (
           <div className="eng-defile">
             <table className="eng-table">
@@ -1140,7 +1135,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           </div>
         )}
         {!estDirection && l.devis.some((d) => d.etat === 'recu') && (
-          <p className="eng-legende">Retenir un devis engage la Maison : la direction seule le fait.</p>
+          <p className="eng-legende">La direction seule retient un devis.</p>
         )}
       </section>
 
@@ -1148,8 +1143,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-bloc">
         <div className="eng-bloc__tete">
           <div>
-            <h3>L’argent, et sa preuve</h3>
-            <p>Une avance sans décharge n’est pas une avance : c’est de l’argent sorti dont rien ne dit qu’il est arrivé.</p>
+            <h3>Les versements</h3>
           </div>
           {!ferme && (
             <span className="eng-bloc__gestes">
@@ -1165,8 +1159,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
         {l.versements.length === 0 ? (
           <p className="eng-rien">
             {l.retenuXof > 0
-              ? 'Rien de versé ni de prévu. Prévoyez l’échéancier convenu : l’avance, le versement à mi-chantier, le solde.'
-              : 'On ne verse pas avant d’avoir dit oui : retenez d’abord un devis.'}
+              ? 'Rien de versé ni de prévu.'
+              : 'Retenez d’abord un devis.'}
           </p>
         ) : (
           <div className="eng-defile">
@@ -1244,9 +1238,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           </div>
         )}
         <div className="eng-garde">
-          <b>L’argent sort par la porte des Dépenses.</b> Chaque versement EST une dépense, avec sa caisse et son
-          moyen : il entre au journal du jour et pèse sur le résultat du mois. Le dossier tient la preuve, pas une
-          seconde comptabilité.
+          <b>Chaque versement est une dépense</b>, avec sa caisse et son moyen.
         </div>
       </section>
 
@@ -1254,16 +1246,12 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-bloc">
         <div className="eng-bloc__tete">
           <div>
-            <h3>Sa pièce d’identité</h3>
-            <p>
-              Elle sert à savoir qui la Maison paie, et à le prouver en cas de litige. La direction seule l’ouvre,
-              par un lien qui expire en une heure ; elle s’efface un an après la fermeture du dossier.
-              Dites-le au prestataire : il a le droit de savoir à quoi sert la copie de sa carte.
-            </p>
+            <h3>La pièce d’identité</h3>
+            <p>Direction seule. Effacée un an après la fermeture du dossier.</p>
           </div>
         </div>
         {!estDirection ? (
-          <p className="eng-rien">{e.identite ? 'Une pièce est rangée. Elle est réservée à la direction.' : 'Réservée à la direction : c’est elle qui la dépose.'}</p>
+          <p className="eng-rien">{e.identite ? 'Une pièce est rangée, réservée à la direction.' : 'Réservée à la direction.'}</p>
         ) : e.identite ? (
           <div className="eng-piece">
             <span>
@@ -1281,7 +1269,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           </div>
         ) : (
           <div className="eng-piece">
-            <span className="eng-doux">Aucune pièce d’identité. Une photo lisible, JPEG ou PNG : elle figure sur chaque décharge.</span>
+            <span className="eng-doux">Aucune pièce. JPEG ou PNG, lisible : elle figure sur chaque décharge.</span>
             <ChoisirUnePiece libelle="Déposer sa pièce" accept={FORMATS_DE_L_IDENTITE} disabled={occupe} onFichier={(f) => void deposeLIdentite(f)} />
           </div>
         )}
@@ -1291,8 +1279,8 @@ function LeDossier({ lecture, onRetour, onModifier }: {
       <section className="eng-bloc">
         <div className="eng-bloc__tete">
           <div>
-            <h3>Ce qu’on range à côté</h3>
-            <p>Ses attestations, un plan, les photos du chantier. Le même coffre, sans adresse publique.</p>
+            <h3>Les pièces jointes</h3>
+            <p>Attestations, plans, photos du chantier.</p>
           </div>
           <ChoisirUnePiece libelle="+ Une pièce" disabled={occupe} onFichier={(f) => void deposeUnePiece(f)} />
         </div>

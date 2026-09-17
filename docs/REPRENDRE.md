@@ -28,6 +28,21 @@ du pointage (`MonMois.tsx`) disent « hh:mm » ; les six champs d'horaires de
 `Parametres.tsx` (semaine, exception, plage fermée) disent « hh h mm ».
 Aucune heure, aucune date d'exemple n'est revenue.
 
+## DE VRAIS TITRES, MOINS À LIRE — 17 septembre 2026
+
+« Réduire les textes à lire : trop long et inutile. Allège la page, je veux de
+vrais titres » (Yéman), aux Engagements.
+
+**UN TITRE NOMME LA SECTION** : « Ses devis » devient **Les devis**,
+« L'argent, et sa preuve » **Les versements**, « Sa pièce d'identité » **La
+pièce d'identité**, « Ce qu'on range à côté » **Les pièces jointes**. Les
+sous-titres de prose partent ; ce qui reste tient en une ligne quand c'est une
+RÈGLE qui doit survivre (« Direction seule. Effacée un an après la fermeture
+du dossier. », « Chaque versement est une dépense, avec sa caisse et son
+moyen. », « La direction seule retient un devis. »). Les états vides se
+réduisent à leur fait (« Aucun devis rangé. »). Rien du jugement ne bouge.
+À tenir ailleurs : un écran se lit, il ne se récite pas.
+
 ## LE TÉLÉPHONE DU PRESTATAIRE, LA LIVRAISON ATTENDUE — 17 septembre 2026
 
 « Rajouter le numéro de téléphone sur cette fiche. Avoir une date de livraison
