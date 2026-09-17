@@ -2,6 +2,35 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES QUATRE PORTES, CHACUNE SA TEINTE — 17 septembre 2026
+
+« Sur les icônes mets différentes couleurs du pictogramme de la maison, le
+cuivre, l'indigo » (Yéman). Les quatre cartes de `/maison-mnd/` portaient le
+même monogramme ivoire sur le même bandeau indigo.
+
+**LE BANDEAU SUIT LE PICTOGRAMME, il ne le précède pas.** Un monogramme
+indigo sur un bandeau indigo ne se verrait pas, et c'est justement l'indigo
+qui était demandé : chaque teinte va donc avec le fond qui la fait lire.
+L'or sur l'indigo, le cuivre sur la crème, l'ivoire sur le cuivre, l'indigo
+sur la crème claire. Les quatre alternent clair et sombre, ce qui donne son
+rythme à la rangée. **L'obsidienne n'y est pas** : règle de marque, l'indigo
+pour les surfaces sombres.
+
+La teinte suit le RANG de la carte (`TEINTES`, `genere-revelateur.mjs`).
+Réordonner les portes réordonne les couleurs, sans conséquence : elles ne
+portent aucun sens, elles distinguent. Les quatre monogrammes sont taillés à
+240 px dans `public/assets/photos/site/` (commit 01e78d5).
+
+**UNE RÈGLE DE GRILLE, APPRISE LE MÊME JOUR ET QUI VAUT PARTOUT.** La session
+voisine a trouvé pourquoi la colonne gauche de `/reserver/` recouvrait
+l'aside : `.jours` porte `overflow-x: auto` et vit dans un item de grille. Un
+conteneur à défilement horizontal dans un item de grille SANS `min-width: 0`
+ne défile pas, il force son parent à s'élargir jusqu'à la largeur de son
+contenu. `minmax(0, 1fr)` protège la PISTE, jamais l'ÉLÉMENT posé dedans.
+D'où `min-width: 0` sur `.ensuite`. Vérifié pour `.portes`, la bande des cinq
+parcours : elle vit dans `.conteneur`, qui n'est pas une grille, elle est
+hors de danger. À se rappeler pour toute rangée défilante à venir.
+
 ## UN LIBELLE INOCCUPE ROUVRAIT UN SALON PLEIN — 17 septembre 2026
 
 « Pourquoi toutes les heures sont disponibles sur le site pourtant il n'y a

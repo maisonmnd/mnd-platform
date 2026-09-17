@@ -117,6 +117,18 @@ section.serre { padding-top: 0; }
 .carte-porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
 a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 .carte-porte__tete { position: relative; background: var(--sombre); color: #F6F1E7; padding: 22px 20px 18px; min-height: 132px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+/* LES QUATRE ACCORDS — 17 septembre 2026. Chaque porte porte le monogramme
+   de la Maison dans une couleur, et son bandeau est choisi POUR QUE CETTE
+   COULEUR SE LISE : l'or et l'ivoire sur un fond sombre, le cuivre et
+   l'indigo sur un fond clair. Le titre suit le fond, jamais la teinte. */
+.carte-porte--or .carte-porte__tete { background: var(--sombre); color: #F6F1E7; }
+.carte-porte--cuivre .carte-porte__tete { background: var(--fond-2); color: var(--titre); }
+.carte-porte--ivoire .carte-porte__tete { background: var(--accent); color: #F6F1E7; }
+.carte-porte--indigo .carte-porte__tete { background: var(--accent-clair); color: var(--titre); }
+/* Le rang se lit sans jamais prendre le pas sur le nom de la porte. */
+.carte-porte--cuivre .carte-porte__rang,
+.carte-porte--indigo .carte-porte__rang { color: var(--accent-profond); }
+.carte-porte--ivoire .carte-porte__rang { color: #F6F1E7; opacity: .75; }
 .carte-porte__tete img { height: 26px; width: auto; opacity: .9; }
 .carte-porte__tete b { font-family: var(--serif); font-weight: 400; font-size: 25px; line-height: 1.1; }
 .carte-porte__rang { position: absolute; top: 14px; right: 16px; font-family: var(--serif); font-size: 15px; color: var(--accent-sombre); letter-spacing: .1em; }

@@ -159,6 +159,27 @@ ${corps}
 }
 
 /* ── Les sections libres ─────────────────────────────────────────────── */
+/* LES QUATRE PORTES, CHACUNE SA TEINTE — 17 septembre 2026. « Sur les icônes
+   mets différentes couleurs du pictogramme de la maison, le cuivre,
+   l'indigo » (Yéman). Les quatre cartes portaient le même monogramme ivoire
+   sur le même bandeau indigo.
+
+   LE BANDEAU SUIT LE PICTOGRAMME, il ne le précède pas : un monogramme
+   indigo sur un bandeau indigo ne se verrait pas. Chaque teinte va donc avec
+   le fond qui la fait lire, et les quatre alternent clair et sombre, ce qui
+   donne son rythme à la rangée. L'obsidienne n'y est pas : règle de marque,
+   l'indigo pour les surfaces sombres.
+
+   La teinte suit le RANG de la carte. Réordonner les portes réordonne les
+   couleurs, et c'est sans conséquence : elles ne portent aucun sens, elles
+   distinguent. */
+const TEINTES = [
+  { classe: 'or', mono: 'mono-or.png' },          // sur bandeau indigo
+  { classe: 'cuivre', mono: 'mono-copper.png' },  // sur bandeau crème
+  { classe: 'ivoire', mono: 'mono-ivoire.png' },  // sur bandeau cuivre
+  { classe: 'indigo', mono: 'mono-indigo.png' },  // sur bandeau crème claire
+];
+
 function rendSection(s) {
   const tete = (s.sur || s.titre) ? `<div class="tete">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}</div>` : '';
   switch (s.type) {
@@ -179,8 +200,10 @@ function rendSection(s) {
       }
       if (s.style === 'cartes') {
         const cartes = s.items.map((it, i) => {
-          const corps = `<div class="carte-porte__tete"><span class="carte-porte__rang">${String(i + 1).padStart(2, '0')}</span><img src="/assets/photos/site/mono-ivoire.png" alt="" width="240" height="198"><b>${echappe(it.titre)}</b></div><div class="carte-porte__corps"><p>${echappe(it.texte)}</p>${it.vers ? `<span class="suite">${echappe(it.suite ?? 'Découvrir')} <svg><use href="#i-fleche"/></svg></span>` : '<span class="suite suite--muette">Réservé à la Maison</span>'}</div>`;
-          return it.vers ? `<a class="carte-porte" href="${attr(lien(it.vers))}">${corps}</a>` : `<div class="carte-porte">${corps}</div>`;
+          const t = TEINTES[i % TEINTES.length];
+          const corps = `<div class="carte-porte__tete"><span class="carte-porte__rang">${String(i + 1).padStart(2, '0')}</span><img src="/assets/photos/site/${t.mono}" alt="" width="240" height="198"><b>${echappe(it.titre)}</b></div><div class="carte-porte__corps"><p>${echappe(it.texte)}</p>${it.vers ? `<span class="suite">${echappe(it.suite ?? 'Découvrir')} <svg><use href="#i-fleche"/></svg></span>` : '<span class="suite suite--muette">Réservé à la Maison</span>'}</div>`;
+          const classe = `carte-porte carte-porte--${t.classe}`;
+          return it.vers ? `<a class="${classe}" href="${attr(lien(it.vers))}">${corps}</a>` : `<div class="${classe}">${corps}</div>`;
         }).join('\n        ');
         return `<section class="serre"><div class="conteneur">${tete}<div class="cartes">${cartes}</div></div></section>`;
       }
