@@ -2,6 +2,53 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## QUATRE FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 septembre 2026
+
+Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,
+deux dans l'autre. Aucun n'etait absurde : tous avaient l'air credibles, et
+c'est exactement ce qui les rend dangereux. Les quatre pieges, et leur parade.
+
+**① COMPTER DES LIGNES, OU REGARDER « A COTE ».** Un `grep .suite{` attrape
+aussi `.porte .suite{`. Un `-A 2` ne regarde qu'APRES, alors que la
+declaration cherchee etait parfois sur la ligne d'AVANT. Un `tr '}'` decoupe
+les blocs sans joindre les lignes deja existantes. **La parade** : aplatir
+tous les sauts de ligne D'ABORD, decouper sur l'accolade ENSUITE, et juger le
+BLOC entier, jamais le voisinage d'une ligne.
+
+**② NE PAS VERIFIER CE QUE LE COMPTE COMPTE.** « 23 occurrences de
+`min-width: 0` dans clients.css » : vrai, et sans rapport avec la question,
+qui portait sur les ajouts du jour et non sur tout le depot. De meme, deux
+rangees signalees « sans protection » declaraient `overflow-x: hidden` :
+elles ne defilent pas, donc elles ne pouvaient pas elargir leur parent, donc
+elles n'etaient pas dans le sujet. **La parade** : ouvrir UNE entree du
+compte avant d'en tirer une conclusion.
+
+**③ CONCLURE D'UNE SORTIE QU'ON A SOI-MEME COUPEE.** Un `tail -6` sur
+`publie.mjs` m'a fait annoncer que le script sortait en code 0 sur un echec,
+donc que ma boucle de reprise n'avait pas mordu. Faux sur les deux points :
+il sort bien en 1 (ligne 188), la boucle avait bien reessaye trois fois, et
+je ne lisais que le dernier essai. Un `tail -14` a cache a l'autre session le
+sort de trois sites sur six. **La parade** : capturer le journal ENTIER dans
+un fichier, puis en extraire les verdicts.
+
+**④ RECENSER DANS LES SOURCES CE QUE LE PAQUET ASSEMBLE.** Quatorze rangees
+defilantes dans `src/`, vingt dans `dist-sites/` : `ds.css` entre dans
+plusieurs soeurs, et le paquet du Trone embarque aussi la Carte. Un audit
+limite a `src/apps/trone` en manquait donc une partie. **La parade** : quand
+la question porte sur ce qui est SERVI, recenser sur le paquet construit.
+
+**CE QUI A FINI PAR MARCHER**, et qui servira au prochain audit CSS : lire
+chaque feuille de `src/`, aplatir les espaces, decouper sur `}`, ne retenir
+que les blocs dont la declaration est `overflow-x: auto` ou `scroll`, et
+verifier `min-width` DANS CE BLOC. Resultat croise par les deux sessions :
+quatorze rangees, quatorze protegees.
+
+**LE RESEAU, CE SOIR-LA** : GitHub a renvoye des 408 et des connexions
+coupees sur les poussees vers `gh-pages`, quatre sur six pour une
+publication. Ce n'est pas un defaut du script : on relance, et cela passe.
+Ne pas conclure a une panne de `publie.mjs` sans avoir relu son journal
+entier.
+
 ## LES QUATRE PORTES, CHACUNE SA TEINTE — 17 septembre 2026
 
 « Sur les icônes mets différentes couleurs du pictogramme de la maison, le
