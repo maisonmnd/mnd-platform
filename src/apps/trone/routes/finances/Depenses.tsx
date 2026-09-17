@@ -2342,7 +2342,7 @@ export default function Depenses() {
                   list="mnd-fournisseurs"
                   value={form.label}
                   onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                  placeholder="Ex. Fournisseur · Karité Bénin"
+                  /* AUCUN EXEMPLE EN DUR (17 septembre) : « enlève Fournisseur Karité écrit en dur, make it blank » (Yéman). La case est vide, le libellé au-dessus dit ce qu'on attend. */
                 />
                 <datalist id="mnd-fournisseurs">
                   {fournisseursDeLaBranche.map((f) => <option key={f.id} value={f.nom} />)}
