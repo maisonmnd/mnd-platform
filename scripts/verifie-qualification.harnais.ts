@@ -3,7 +3,7 @@
    Le site et Ma Couronne lisent le même juge ; s'il se trompe, le site
    refuse ce que la Maison accepte, ou l'inverse. */
 import { exigeConsultation, porteDe, porteDuBesoin, ditLaPorte } from '../src/shared/qualification';
-import { CATEGORIE_VEKPE, CATEGORIE_FINFIN, estUneConsultation } from '../src/shared/catalogue-pur';
+import { CATEGORIE_VEKPE, CATEGORIE_FINFIN, estUneConsultation, masquePourLeSite } from '../src/shared/catalogue-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -48,6 +48,27 @@ dit('⑮ renommée encore, le nom la sauve d\u2019une page vide', true,
 dit('⑯ … et « Diagnostic » vaut autant', true,
   estUneConsultation({ categoryId: 'inconnu-demain', name: 'KÒKÒ™ Suivi · Diagnostic locks Externes' }, catsC));
 dit('⑰ sans catégorie connue ni nom parlant, non', false, estUneConsultation({ categoryId: 'x', name: 'Nattes Couronne' }, catsC));
+
+/* ── CE QUE LA MAISON DECOCHE POUR LE SITE — 17 septembre 2026 ──
+   « Il y a des services que je ne voudrais pas sur le site » (Yeman). La
+   regle sert DEUX FOIS : l'ecran pour ne plus proposer, la fonction Edge
+   pour refuser. Sans la seconde, decocher ne serait qu'un decor. */
+const catsM = [
+  { id: 'atl-ii-gbeji' },
+  { id: 'cat-soins', parentId: 'atl-ii-gbeji' },
+  { id: 'atl-iii-yekpe' },
+  { id: 'boucle-a', parentId: 'boucle-b' },
+  { id: 'boucle-b', parentId: 'boucle-a' },
+];
+const soin = { id: 'sv-aqua', categoryId: 'cat-soins' };
+dit('\u3256 sans masques, rien ne se cache', false, masquePourLeSite(soin, undefined, catsM));
+dit('\u3257 une liste vide ne cache rien', false, masquePourLeSite(soin, { services: [], categories: [] }, catsM));
+dit('\u3258 une prestation decochee ne parait plus', true, masquePourLeSite(soin, { services: ['sv-aqua'] }, catsM));
+dit('\u3259 sa voisine reste visible', false, masquePourLeSite({ id: 'sv-wewe', categoryId: 'cat-soins' }, { services: ['sv-aqua'] }, catsM));
+dit('\u325a une famille decochee emporte ses gestes', true, masquePourLeSite(soin, { categories: ['cat-soins'] }, catsM));
+dit('\u325b un atelier decoche emporte ses familles', true, masquePourLeSite(soin, { categories: ['atl-ii-gbeji'] }, catsM));
+dit('\u325c un autre atelier ne l\u2019emporte pas', false, masquePourLeSite(soin, { categories: ['atl-iii-yekpe'] }, catsM));
+dit('\u325d un parent circulaire ne fige rien', false, masquePourLeSite({ id: 'x', categoryId: 'boucle-a' }, { categories: ['ailleurs'] }, catsM));
 
 if (ko) { console.error(`\n${ko} vérification(s) en échec.`); process.exit(1); }
 console.log('\nLe juge tient.');

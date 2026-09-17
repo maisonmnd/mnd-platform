@@ -138,6 +138,38 @@ function ouvertureDuJour(dateIso: string, semaine: HeureSemaine[], exceptions: E
   };
 }
 
+/* ══ CE QUE LA MAISON A DÉCOCHÉ POUR LE SITE ═══════════════════════
+   « Il y a des services que je ne voudrais pas sur le site » (Yéman,
+   17 septembre 2026). La Maison décoche depuis la régie de la Vitrine,
+   onglet « Sur le site public » ; la liste vit dans
+   `mnd_vitrine_config.siteMasques`, À PART de `hiddenServices` et
+   `hiddenCategories`, qui règlent le comptoir et Ma Couronne.
+
+   SANS CE REFUS, DÉCOCHER NE SERAIT QU'UN DÉCOR : l'écran cesserait de
+   proposer, mais un appel direct à cette fonction réserverait encore, et le
+   rendez-vous naîtrait dans le carnet. L'écran propose, le serveur dispose.
+
+   RECOPIÉ DE `src/shared/catalogue-pur.ts` (`masquePourLeSite`), éprouvé par
+   `scripts/verifie-qualification.mjs` : les deux changent ensemble. */
+type MasquesDuSite = { services?: string[]; categories?: string[] };
+
+function masquePourLeSite(
+  s: { id: string; categoryId: string },
+  masques: MasquesDuSite | undefined,
+  cats: { id: string; parentId?: string }[],
+): boolean {
+  if (!masques) return false;
+  if ((masques.services ?? []).includes(s.id)) return true;
+  const caches = masques.categories ?? [];
+  if (caches.length === 0) return false;
+  let cur: string | undefined = s.categoryId;
+  for (let i = 0; cur && i < 8; i += 1) {
+    if (caches.includes(cur)) return true;
+    cur = cats.find((c) => c.id === cur)?.parentId;
+  }
+  return false;
+}
+
 /* ══ LA PLACE DEMANDÉE, REVÉRIFIÉE ICI ═════════════════════════════
    Rend l'erreur à dire, ou la durée et le maître si la place tient. L'écran
    a déjà jugé, mais un écran vieux d'une minute, un retour en arrière du
@@ -160,9 +192,10 @@ async function laPlaceTient(o: {
   const joursDEcart = Math.round((jour.getTime() - aujourdHui.getTime()) / 86_400_000);
   if (!(joursDEcart >= 1 && joursDEcart <= 90)) return { erreur: 'creneau_hors_fenetre' };
 
-  const [docs, services, blocages, rdvs] = await Promise.all([
-    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions']),
+  const [docs, services, categories, blocages, rdvs] = await Promise.all([
+    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config']),
     admin.from('catalog_services').select('id, data'),
+    admin.from('catalog_categories').select('id, data'),
     admin.from('blocages').select('id, data'),
     admin.from('appointments').select('id, data').eq('data->>branchId', o.branchId).eq('data->>date', o.date),
   ]);
@@ -176,9 +209,18 @@ async function laPlaceTient(o: {
   const fenetre = ouvertureDuJour(o.date, semaine, exceptions);
   if (fenetre.closed) return { erreur: 'creneau_ferme' };
 
-  const catalogue = ((services.data ?? []) as { id: string; data?: { durationMin?: number; enabled?: boolean; archived?: boolean } }[]);
+  const catalogue = ((services.data ?? []) as { id: string; data?: { categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } }[]);
   const connus = o.serviceIds.filter((id) => catalogue.some((s) => s.id === id && s.data?.enabled !== false && !s.data?.archived));
   if (connus.length === 0) return { erreur: 'prestation_inconnue' };
+
+  /* CE QUE LA MAISON A DÉCOCHÉ NE SE RÉSERVE PAS, même par un appel direct. */
+  const masques = (((docs.data ?? []) as { key: string; data?: any }[])
+    .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {}) as MasquesDuSite;
+  const arbre = ((categories.data ?? []) as { id: string; data?: { parentId?: string } }[])
+    .map((c) => ({ id: c.id, parentId: c.data?.parentId }));
+  const retiree = connus.some((id) => masquePourLeSite(
+    { id, categoryId: catalogue.find((x) => x.id === id)?.data?.categoryId ?? '' }, masques, arbre));
+  if (retiree) return { erreur: 'prestation_retiree' };
   const dureeMin = Math.max(60, connus.reduce((s, id) =>
     s + Number(catalogue.find((x) => x.id === id)?.data?.durationMin ?? 60), 0));
 

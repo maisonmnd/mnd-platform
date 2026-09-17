@@ -199,6 +199,20 @@ export type VitrineConfig = {
   hiddenCategories?: string[];
   hiddenServices: string[];
   hiddenProducts: string[];
+  /** CE QUE LE SITE PUBLIC NE MONTRE PAS — 17 septembre 2026. « Il y a des
+      services que je ne voudrais pas sur le site. Comment je peux avoir la
+      main pour les décocher ? » (Yéman).
+
+      À PART DES MASQUES CI-DESSUS, et c'est tout l'enjeu : ceux-là règlent la
+      carte du comptoir et Ma Couronne, où la Maison a masqué le Diagnostic,
+      la Création et la Renaissance. Les confondre viderait le site de ses
+      consultations, on l'a vérifié en production.
+
+      La régie de la Vitrine porte le troisième onglet qui l'écrit ;
+      `revelateur/agenda.ts` le lit pour ne plus proposer, et la fonction
+      `demande-submit` le RELIT pour refuser, sans quoi décocher ne serait
+      qu'un décor. Le juge est `masquePourLeSite` (shared/catalogue-pur). */
+  siteMasques?: { services?: string[]; categories?: string[] };
   /** LES FORMULES QU'ON NE MONTRE PAS — « je ne veux pas rendre visible tous
       les abonnements en ligne sur Ma Couronne » (Yéman, 28 août).
 

@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA MAISON DECOCHE CE QUI NE VA PAS SUR LE SITE — 17 septembre 2026
+
+« Il y a des services que je ne voudrais pas sur le site. Comment je peux
+avoir la main pour les décocher ? » (Yéman). Choix retenu : **un troisième
+onglet dans la régie de la Vitrine**, « Sur le site public », à côté de
+« Pour cette cliente » et « Pour toutes les clientes ». Même écran, mêmes
+gestes, un tapis de plus.
+
+**UNE LISTE À PART, ET C'EST TOUT L'ENJEU.** `mnd_vitrine_config` gagne
+`siteMasques` (`{ services, categories }`), DISTINCT de `hiddenServices` et
+`hiddenCategories`. Ces deux-là règlent la carte du comptoir et Ma Couronne,
+où la Maison a masqué le Diagnostic, la Création et la Renaissance : les
+confondre viderait le site de ses consultations, on l'a vérifié en
+production. Les produits et les formules ne paraissent pas dans cette portée,
+ils ne se réservent pas en ligne.
+
+**LE JUGE EST PUR ET ÉPROUVÉ** : `masquePourLeSite` (`shared/catalogue-pur`),
+huit épreuves dans `verifie-qualification`. Masquer, pas sélectionner : on
+liste ce qu'on RETIRE, et un atelier décoché emporte ses familles.
+
+**LE MÊME JUGE SERT DEUX FOIS, ET LE SECOND COMPTE PLUS QUE LE PREMIER.**
+`revelateur/agenda.ts` le lit pour ne plus proposer ; **`demande-submit` le
+RECOPIE et REFUSE** (`prestation_retiree`, 409). Sans ce refus, décocher ne
+serait qu'un décor : l'écran cesserait de proposer, mais un appel direct
+poserait encore le rendez-vous dans le carnet. L'écran propose, le serveur
+dispose. L'angle mort a été signalé par la session voisine avant que je
+commence, ce qui a évité de le découvrir après coup.
+
+**À REDÉPLOYER, UNE FOIS DE PLUS** : `supabase/functions/demande-submit`,
+fichier entier. Tant que ce n'est pas fait, le décochage vaut pour l'écran
+seulement.
+
 ## CHAQUE PORTE SA CONSULTATION, ET SON PRIX — 17 septembre 2026
 
 « Le parcours 1 c'est le KÒKÒ Origine, première couronne, à 15 000 F. Le

@@ -29,6 +29,46 @@ export const CATEGORIE_FINFIN = 'atl-iv-finfin';
    jamais rendre une page vide. */
 export const CATEGORIES_CONSULTATION: readonly string[] = ['doto', 'koko'];
 
+/* CE QUE LE SITE PUBLIC NE MONTRE PAS — 17 septembre 2026. « Il y a des
+   services que je ne voudrais pas sur le site. Comment je peux avoir la main
+   pour les décocher ? » (Yéman). La Maison décoche depuis la régie de la
+   Vitrine, onglet « Sur le site public » ; la liste vit dans
+   `mnd_vitrine_config.siteMasques`.
+
+   ELLE EST À PART DE `hiddenServices` ET `hiddenCategories`, et c'est tout
+   l'enjeu : ces deux-là règlent la carte du comptoir et Ma Couronne, où la
+   Maison a masqué le Diagnostic, la Création et la Renaissance. Les confondre
+   viderait le site de ses consultations, on l'a vérifié.
+
+   MASQUER, PAS SÉLECTIONNER : on liste ce qu'on RETIRE, jamais ce qu'on
+   garde, sinon toute prestation née après la liste resterait invisible sans
+   qu'aucun réglage ne le dise. Un atelier décoché emporte ses familles,
+   comme partout ailleurs dans la Maison.
+
+   LE MÊME JUGE SERT DEUX FOIS : l'écran du site pour ne plus proposer, et la
+   fonction `demande-submit` pour REFUSER (elle le recopie, une fonction Edge
+   n'importe rien du dépôt). Sans le second, décocher ne serait qu'un décor :
+   un appel direct réserverait encore. */
+export type MasquesDuSite = { services?: string[]; categories?: string[] };
+
+export function masquePourLeSite(
+  s: { id: string; categoryId: string },
+  masques: MasquesDuSite | undefined,
+  cats: readonly { id: string; parentId?: string }[] = [],
+): boolean {
+  if (!masques) return false;
+  if ((masques.services ?? []).includes(s.id)) return true;
+  const caches = masques.categories ?? [];
+  if (caches.length === 0) return false;
+  /* La remontée est bornée : un parent circulaire ne fige pas l'écran. */
+  let cur: string | undefined = s.categoryId;
+  for (let i = 0; cur && i < 8; i += 1) {
+    if (caches.includes(cur)) return true;
+    cur = cats.find((c) => c.id === cur)?.parentId;
+  }
+  return false;
+}
+
 export function estUneConsultation(
   s: { categoryId: string; name?: string },
   cats: readonly { id: string; parentId?: string }[] = [],

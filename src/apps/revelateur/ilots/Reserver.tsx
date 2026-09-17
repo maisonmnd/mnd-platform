@@ -167,6 +167,8 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
           setHeure(null);
         } else if (code.includes('rate')) {
           setErreur('Beaucoup de demandes d’un coup : réessayez dans quelques minutes, ou écrivez-nous sur WhatsApp.');
+        } else if (code.includes('retiree')) {
+          setErreur('Ce geste ne se réserve plus en ligne. Choisissez-en un autre, ou écrivez-nous sur WhatsApp.');
         } else if (code.includes('telephone')) {
           setErreur(f.erreurNumero);
         } else {

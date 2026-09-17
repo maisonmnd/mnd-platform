@@ -2,7 +2,7 @@ import {
   creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
 } from '../../shared/agenda-pur';
-import { estUneConsultation, priceModeOf, racineOf } from '../../shared/catalogue-pur';
+import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { exigeConsultation, porteDuBesoin, type Besoin } from '../../shared/qualification';
 import { client } from './maison';
 
@@ -56,6 +56,8 @@ export type AgendaDeLaMaison = {
   murs: MurPose[];
   capMaison: number;
   capMaitre: number;
+  /** Ce que la Maison a décoché pour le site (régie de la Vitrine). */
+  masques: MasquesDuSite;
 };
 
 type Doc<T> = { key: string; data: T };
@@ -71,7 +73,7 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
     const [services, categories, docs, blocages, branches] = await Promise.all([
       supabase.from('catalog_services').select('id,data'),
       supabase.from('catalog_categories').select('id,data'),
-      supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions']),
+      supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config']),
       supabase.from('blocages').select('id,data'),
       supabase.from('branches').select('id,data'),
     ]);
@@ -84,6 +86,8 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
       .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
     const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[] } }[])
       .find((b) => b.id === branchId);
+    const masques = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite }>[])
+      .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {};
 
     return {
       branchId,
@@ -98,6 +102,7 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
       murs: lignes<MurPose>(blocages),
       capMaison: Number(reglages.maxRdvParJourMaison ?? 0),
       capMaitre: Number(reglages.maxRdvParJourMaitre ?? 0),
+      masques,
     };
   })();
   return promesse;
@@ -216,8 +221,12 @@ export const CONSULTATION_PAR_PARCOURS: Readonly<Partial<Record<Besoin, string>>
     retombe sur la demande de rappel, jamais sur une page morte. */
 export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin): PrestationPublique[] {
   const cats = agenda.categories;
+  /* CE QUE LA MAISON A DÉCOCHÉ NE SE PROPOSE PLUS (17 septembre 2026). Le
+     même juge sert à `demande-submit`, qui REFUSE : sans lui, décocher ne
+     serait qu'un décor. */
+  const offert = (s: PrestationPublique) => !masquePourLeSite(s, agenda.masques, cats);
   if (porteDuBesoin(besoin) === 'consultation') {
-    const consultations = agenda.services.filter((s) => estUneConsultation(s, cats));
+    const consultations = agenda.services.filter((s) => estUneConsultation(s, cats) && offert(s));
     const sienne = CONSULTATION_PAR_PARCOURS[besoin];
     const laSienne = sienne ? consultations.filter((s) => s.id === sienne) : [];
     /* Sa consultation si elle existe encore, sinon toutes : on ne ferme
@@ -225,6 +234,7 @@ export function prestationsReservables(agenda: AgendaDeLaMaison, besoin: Besoin)
     return laSienne.length > 0 ? laSienne : consultations;
   }
   return agenda.services.filter((s) => {
+    if (!offert(s)) return false;
     if (estUneConsultation(s, cats)) return false;
     if (exigeConsultation(s, cats)) return false;
     if (priceModeOf(s) === 'devis') return false;

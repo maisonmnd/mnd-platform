@@ -494,12 +494,19 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   /* DEUX PORTÉES, UN COMMUTATEUR (12 août) : le tapis se compose pour CETTE
      cliente (sa fiche, `vitrineMasques`) ou pour TOUTE LA MAISON (le socle,
      VitrineConfig). Les masques individuels s'ajoutent toujours au socle. */
-  const [portee, setPortee] = useState<'cliente' | 'maison'>('cliente');
+  const [portee, setPortee] = useState<'cliente' | 'maison' | 'site'>('cliente');
   const masques = client.vitrineMasques ?? {};
   const herCats = masques.categories ?? [];
   const herSvcs = masques.services ?? [];
   const herProds = masques.products ?? [];
   const gCats = cfg.hiddenCategories ?? [];
+  /* LE TAPIS DU SITE PUBLIC — 17 septembre 2026, à part des deux autres :
+     les masques de la Maison règlent le comptoir et Ma Couronne, où le
+     Diagnostic est justement masqué. */
+  const siteCats = cfg.siteMasques?.categories ?? [];
+  const siteSvcs = cfg.siteMasques?.services ?? [];
+  const setSiteMasques = (patch: { services?: string[]; categories?: string[] }) =>
+    vitrineConfigStore.set((c) => ({ ...c, siteMasques: { ...(c.siteMasques ?? {}), ...patch } }));
   const setMasques = (patch: Partial<NonNullable<typeof client.vitrineMasques>>) =>
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id
       ? { ...c, vitrineMasques: { ...(c.vitrineMasques ?? {}), ...patch } }
@@ -511,15 +518,21 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const masqueMaisonCat = (id: string) => gCats.includes(id);
   const masqueMaisonSvc = (id: string) => cfg.hiddenServices.includes(id);
   const masqueMaisonProd = (id: string) => cfg.hiddenProducts.includes(id);
-  const catVisible = (id: string) => (portee === 'maison' ? !gCats.includes(id) : !herCats.includes(id) && !gCats.includes(id));
-  const svcVisible = (id: string) => (portee === 'maison' ? !cfg.hiddenServices.includes(id) : !herSvcs.includes(id) && !cfg.hiddenServices.includes(id));
+  const catVisible = (id: string) => (portee === 'site' ? !siteCats.includes(id)
+    : portee === 'maison' ? !gCats.includes(id) : !herCats.includes(id) && !gCats.includes(id));
+  const svcVisible = (id: string) => (portee === 'site' ? !siteSvcs.includes(id)
+    : portee === 'maison' ? !cfg.hiddenServices.includes(id) : !herSvcs.includes(id) && !cfg.hiddenServices.includes(id));
   const prodVisible = (id: string) => (portee === 'maison' ? !cfg.hiddenProducts.includes(id) : !herProds.includes(id) && !cfg.hiddenProducts.includes(id));
-  const toggleCat = (id: string) => (portee === 'maison'
-    ? vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: bascule(c.hiddenCategories ?? [], id) }))
-    : (masqueMaisonCat(id) ? undefined : setMasques({ categories: bascule(herCats, id) })));
-  const toggleSvc = (id: string) => (portee === 'maison'
-    ? vitrineConfigStore.set((c) => ({ ...c, hiddenServices: bascule(c.hiddenServices, id) }))
-    : (masqueMaisonSvc(id) ? undefined : setMasques({ services: bascule(herSvcs, id) })));
+  const toggleCat = (id: string) => (portee === 'site'
+    ? setSiteMasques({ categories: bascule(siteCats, id) })
+    : portee === 'maison'
+      ? vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: bascule(c.hiddenCategories ?? [], id) }))
+      : (masqueMaisonCat(id) ? undefined : setMasques({ categories: bascule(herCats, id) })));
+  const toggleSvc = (id: string) => (portee === 'site'
+    ? setSiteMasques({ services: bascule(siteSvcs, id) })
+    : portee === 'maison'
+      ? vitrineConfigStore.set((c) => ({ ...c, hiddenServices: bascule(c.hiddenServices, id) }))
+      : (masqueMaisonSvc(id) ? undefined : setMasques({ services: bascule(herSvcs, id) })));
   const toggleProd = (id: string) => (portee === 'maison'
     ? vitrineConfigStore.set((c) => ({ ...c, hiddenProducts: bascule(c.hiddenProducts, id) }))
     : (masqueMaisonProd(id) ? undefined : setMasques({ products: bascule(herProds, id) })));
@@ -787,7 +800,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
               la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            {([['cliente', `Pour ${client.name.split(' ')[0]}`], ['maison', 'Pour toutes les clientes']] as const).map(([k, l]) => (
+            {([['cliente', `Pour ${client.name.split(' ')[0]}`], ['maison', 'Pour toutes les clientes'], ['site', 'Sur le site public']] as const).map(([k, l]) => (
               <button
                 key={k}
                 type="button"
@@ -819,6 +832,23 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                 }}
               >
                 Rétablir le tapis complet
+              </button>
+            )}
+            {/* LE RETOUR AUX DÉFAUTS DU SITE — tout remontrer au monde. */}
+            {portee === 'site' && (siteCats.length > 0 || siteSvcs.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm('Tout remontrer sur le site public ? Les ateliers et prestations que vous en aviez retirés y reparaîtront. La carte du comptoir et Ma Couronne ne bougent pas.')) return;
+                  vitrineConfigStore.set((c) => ({ ...c, siteMasques: {} }));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Tout remontrer sur le site
               </button>
             )}
             {/* LE RETOUR AUX DÉFAUTS POUR ELLE SEULE — lève ses masques à elle,
@@ -898,6 +928,14 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
           Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle, masquer
           « WÈWÈ™ à Façon » laisse LES SOINS entiers. Une prestation masquée disparaît de la
           Vitrine, de Ma Couronne et des recommandations ; le comptoir, lui, la garde.
+          {portee === 'site' && (
+            <>
+              <br />
+              <b style={{ fontWeight: 500 }}>Sur le site public</b>, c’est une liste À PART : ce que vous
+              décochez ici disparaît du site et de sa réservation, sans rien changer à la carte du
+              comptoir ni à Ma Couronne. Les consultations, elles, restent proposées par leur porte.
+            </>
+          )}
         </div>
 
         {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
@@ -945,7 +983,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                     onToggle={() => toggleSvc(s.id)}
                   />
                 ))}
-                {cp.map((p) => (
+                {portee !== 'site' && cp.map((p) => (
                   <ToggleCard
                     key={p.id}
                     name={p.name}
@@ -963,10 +1001,12 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
         {/* Le tapis de cuivre */}
         <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
           <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
-            Le tapis de cuivre · {portee === 'cliente' ? client.name.split(' ')[0] : 'toute la Maison'}
+            Le tapis de cuivre · {portee === 'cliente' ? client.name.split(' ')[0] : portee === 'site' ? 'le site public' : 'toute la Maison'}
           </div>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>
-            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre, rien d’autre.' : 'Le socle commun, chaque fiche peut encore y retrancher.'}
+            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre, rien d’autre.'
+              : portee === 'site' ? 'Ce que le monde entier peut réserver en ligne.'
+              : 'Le socle commun, chaque fiche peut encore y retrancher.'}
           </div>
           <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>
             {carpet.length === 0 ? (
