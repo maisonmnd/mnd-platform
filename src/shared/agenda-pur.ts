@@ -101,6 +101,20 @@ export function creneauxLibres(o: {
   master: string;
   capMaison?: number;
   capMaitre?: number;
+  /** LE SALON N'A QU'UN NOMBRE DE FAUTEUILS — 17 septembre 2026.
+      « Pourquoi toutes les heures sont disponibles sur le site pourtant il
+      n'y a pas de place la journée du samedi ? » (Yéman).
+
+      LA CAUSE ÉTAIT L'UNION PAR MAÎTRE : le site demandait les heures libres
+      de CHAQUE maître et gardait leur union. La branche porte deux libellés,
+      « Team » et « Expert » ; le second ne reçoit jamais, donc toutes ses
+      heures étaient libres, et un libellé inoccupé rouvrait un salon plein.
+
+      Ce plafond compte les rituels qui SE CHEVAUCHENT, tous maîtres
+      confondus : c'est la contrainte réelle d'un salon, ses fauteuils
+      (`Branch.seats`). 0 ou absent = pas de limite, le comportement d'avant,
+      celui que Ma Couronne garde. */
+  capSimultane?: number;
   /** Minutes depuis minuit si la date est aujourd'hui ; sinon `null`. */
   maintenantMin?: number | null;
   /** Le pas de la grille. Une heure, comme au comptoir. */
@@ -123,11 +137,19 @@ export function creneauxLibres(o: {
   if (o.bloques) busy.push(...o.bloques);
 
   const pas = o.pasMin ?? 60;
+  const cap = o.capSimultane ?? 0;
   const out: string[] = [];
   for (let m = o.opening.openMin; m + o.durationMin <= o.opening.closeMin; m += pas) {
     if (o.maintenantMin != null && m <= o.maintenantMin) continue;
     const overlaps = busy.some(([s, e]) => m < e && m + o.durationMin > s);
-    if (!overlaps) out.push(hhmmDeMinutes(m));
+    if (overlaps) continue;
+    /* LES FAUTEUILS : le maître est libre, mais la Maison peut être pleine. */
+    if (cap > 0) {
+      const ensemble = o.occupes
+        .filter((a) => m < a.debutMin + a.dureeMin && m + o.durationMin > a.debutMin).length;
+      if (ensemble >= cap) continue;
+    }
+    out.push(hhmmDeMinutes(m));
   }
   return out;
 }

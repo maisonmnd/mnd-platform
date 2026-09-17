@@ -77,6 +77,28 @@ dit('⑳ le plafond de la Maison ferme le jour', [], libres({ capMaison: 2, occu
 dit('㉑ le plafond d’un maître ne ferme que le sien', [], libres({ capMaitre: 1, occupes: [{ maitre: 'Brice', debutMin: 540, dureeMin: 60 }] }));
 dit('㉒ aujourd’hui, les heures passées ne se proposent plus', ['16:00', '17:00', '18:00'], libres({ maintenantMin: 15 * 60 + 10 }));
 
+/* ── LES FAUTEUILS DE LA MAISON — la faute du samedi plein ──────────
+   Le site prenait l'UNION des heures libres de chaque maitre : « Expert »
+   ne recevant jamais, toutes ses heures ressortaient libres et rouvraient un
+   salon plein. Le plafond compte les rituels qui se CHEVAUCHENT, tous
+   maitres confondus. */
+const samedi = [
+  { maitre: 'Team', debutMin: 540, dureeMin: 85 },
+  { maitre: 'Team', debutMin: 780, dureeMin: 90 },
+  { maitre: 'Team', debutMin: 840, dureeMin: 90 },
+];
+dit('\u3244 sans plafond, le maitre inoccupe ouvre tout', true,
+  libres({ master: 'Expert', occupes: samedi }).length === 10);
+dit('\u3245 a deux fauteuils, l\u2019heure ou deux rituels se croisent se ferme', false,
+  libres({ master: 'Expert', occupes: samedi, capSimultane: 2 }).includes('14:00'));
+dit('\u3246 … et les autres heures restent ouvertes', true,
+  libres({ master: 'Expert', occupes: samedi, capSimultane: 2 }).includes('11:00'));
+dit('\u3247 a un seul fauteuil, toute heure occupee se ferme', [],
+  libres({ master: 'Expert', occupes: samedi, capSimultane: 1 })
+    .filter((h) => ['09:00', '10:00', '13:00', '14:00', '15:00'].includes(h)));
+dit('\u3248 le plafond ne touche pas une journee vide', 10,
+  libres({ capSimultane: 2 }).length);
+
 /* ── Les durées ─────────────────────────────────────────────────── */
 const CATALOGUE = [{ id: 'a', durationMin: 45 }, { id: 'b', durationMin: 90 }];
 dit('㉓ une prestation courte vaut quand même une heure', 60, dureeDesPrestations(['a'], CATALOGUE));

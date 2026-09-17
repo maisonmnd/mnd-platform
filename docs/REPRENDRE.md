@@ -2,6 +2,38 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UN LIBELLE INOCCUPE ROUVRAIT UN SALON PLEIN — 17 septembre 2026
+
+« Pourquoi toutes les heures sont disponibles sur le site pourtant il n'y a
+pas de place la journée du samedi ? » (Yéman, capture à l'appui).
+
+**LA CAUSE ÉTAIT CHEZ MOI, ET LA BASE AVAIT RAISON.** Interrogée directement,
+`creneaux_occupes` rendait bien les trois rituels du samedi 19, tous sur le
+maître **« Team »** (09:00 · 85 min, 13:00 · 90 min, 14:00 · 90 min). Mais
+`heuresLibres` (`revelateur/agenda.ts`) demandait les heures libres de CHAQUE
+maître de la branche et gardait leur **union**. La branche porte deux
+libellés, `['Team', 'Expert']`, et « Expert » ne reçoit jamais : toutes ses
+heures étaient donc libres, et un libellé inoccupé rouvrait un salon plein.
+
+**LA VRAIE CONTRAINTE D'UN SALON, CE SONT SES FAUTEUILS.** `Branch.seats`
+vaut 2 ici. `creneauxLibres` (`shared/agenda-pur.ts`) gagne un
+`capSimultane` optionnel : il compte les rituels qui SE CHEVAUCHENT, tous
+maîtres confondus, et refuse l'heure au-delà. Absent ou 0 = pas de limite,
+donc **Ma Couronne ne change pas de comportement** ; seul le site le passe,
+depuis `Branch.seats`. Cinq épreuves de plus dans `verifie-agenda-pur`.
+
+**CE QUE LE CORRECTIF FAIT, ET CE QU'IL NE FAIT PAS.** Sur ce samedi précis,
+il ferme **une** heure, 14:00, la seule où deux rituels se croisent. La
+journée reste ouverte, et c'est juste : la base ne porte que trois rituels ce
+jour-là. **Fermer une journée entière n'est pas l'affaire du code** : c'est le
+plafond du jour (Paramètres → capacité, `maxRdvParJourMaison`, à 0 donc sans
+limite aujourd'hui), une exception d'horaires, ou un blocage. Les trois
+existent déjà et le site les respecte tous.
+
+**LA LEÇON** : un agenda par maître ne dit pas la capacité d'une Maison. Deux
+libellés qui ne travaillent pas en parallèle ne font pas deux fauteuils, et
+l'union de leurs disponibilités ne veut rien dire.
+
 ## LA MAISON DECOCHE CE QUI NE VA PAS SUR LE SITE — 17 septembre 2026
 
 « Il y a des services que je ne voudrais pas sur le site. Comment je peux

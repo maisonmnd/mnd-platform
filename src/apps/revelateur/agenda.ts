@@ -56,6 +56,9 @@ export type AgendaDeLaMaison = {
   murs: MurPose[];
   capMaison: number;
   capMaitre: number;
+  /** Les fauteuils de la Maison : au-delà, plus d'heure, quel que soit le
+      maître. C'est ce qui manquait au samedi plein (17 septembre 2026). */
+  sieges: number;
   /** Ce que la Maison a décoché pour le site (régie de la Vitrine). */
   masques: MasquesDuSite;
 };
@@ -84,7 +87,7 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
       .find((d) => d.key === 'mnd_settings')?.data ?? {};
     const exceptions = ((docs.data ?? []) as Doc<ExceptionDHoraire[]>[])
       .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
-    const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[] } }[])
+    const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[]; seats?: number } }[])
       .find((b) => b.id === branchId);
     const masques = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite }>[])
       .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {};
@@ -102,6 +105,7 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
       murs: lignes<MurPose>(blocages),
       capMaison: Number(reglages.maxRdvParJourMaison ?? 0),
       capMaitre: Number(reglages.maxRdvParJourMaitre ?? 0),
+      sieges: Math.max(0, Number(branche?.data?.seats ?? 0)),
       masques,
     };
   })();
@@ -151,6 +155,7 @@ export function heuresLibres(o: {
       master: maitre,
       capMaison: agenda.capMaison,
       capMaitre: agenda.capMaitre,
+      capSimultane: agenda.sieges,
       maintenantMin,
     });
     for (const h of heures) if (!parHeure.has(h)) parHeure.set(h, maitre);
