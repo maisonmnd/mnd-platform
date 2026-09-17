@@ -628,6 +628,27 @@ export const PAGES: Page[] = [
     court: 'Contact',
   },
   {
+    /* LES OFFRES DE SAISON — 18 septembre 2026. Une page à deux onglets,
+       l'offre en cours et celles qui viennent. Elle ne porte aucun chiffre
+       en dur : tout vient de `mnd_offers`, et seules les offres que la Maison
+       a activées la remplissent. */
+    chemin: '/les-offres/',
+    titre: 'Les offres du moment · Maison MND',
+    description: 'Les offres de la Maison MND à Cotonou : l’offre en cours et celles qui arrivent, sur les soins, la couleur, les lavages et les reprises de racines.',
+    h1: 'Les offres de la Maison',
+    sur: 'Les offres',
+    besoin: 'inconnu',
+    ilot: 'offres',
+    sections: [
+      {
+        type: 'texte',
+        corps: 'La Maison marque les saisons. Voici ce qui court en ce moment, et ce qui vient.',
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Les offres',
+  },
+  {
     chemin: '/reserver/',
     titre: 'Réserver une consultation ou un entretien · Maison MND',
     description: 'Réservez votre consultation ou votre entretien à la Maison MND à Cotonou : choisissez votre parcours et votre créneau, puis confirmez avec la Maison.',

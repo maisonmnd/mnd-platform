@@ -1,6 +1,7 @@
 import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import { hourToMin } from './settings';
+import { isoDuJour, joursEntre, dansLaSaison, FENETRE_PROPOSITION } from './offres-pur';
 
 /* Offres instantanées & Cercle — ponts Trône (Marketing/Cercle) → Ma Couronne.
    Gérés côté ERP, consommés côté cliente. Synchronisés via Supabase (documents)
@@ -26,6 +27,17 @@ export type InstantOffer = {
   serviceId?: string;
   /** Remise réellement appliquée au prix à la réservation. */
   discountPct?: number;
+  /** LA SAISON D'UNE OFFRE — 18 septembre 2026. Jusqu'ici une offre se
+      répétait par jour de semaine et par tranche horaire : parfait pour une
+      heure creuse, inutilisable pour Octobre Rose ou pour Noël, qui ont un
+      premier et un dernier jour.
+
+      LES DEUX SONT FACULTATIVES, et c'est ce qui rend le changement sûr :
+      une offre sans dates se comporte EXACTEMENT comme avant. Format ISO
+      `AAAA-MM-JJ`, bornes INCLUSES, comparées comme des chaînes, ce qui est
+      juste pour cette graphie et évite tout piège de fuseau. */
+  du?: string;
+  au?: string;
 };
 
 export const offersStore = createStore<InstantOffer[]>('mnd_offers', []);
@@ -35,10 +47,169 @@ export const useOffers = () => useStore(offersStore);
     Aucun jour coché = jamais visible (cohérent avec « Aucun jour » à l'écran). */
 export function offerLiveNow(o: InstantOffer, now = new Date()): boolean {
   if (!o.active) return false;
+  if (!dansLaSaison(o, now)) return false;
   const day = OFFER_DAYS[(now.getDay() + 6) % 7]; // getDay(): 0=dim → index 6
   if (!o.days.includes(day)) return false;
   const nowMin = now.getHours() * 60 + now.getMinutes();
   return nowMin >= hourToMin(o.heureDebut) && nowMin < hourToMin(o.heureFin);
+}
+
+/* ══ LES SAISONS DE LA MAISON ═══════════════════════════════════════
+   « J'aimerais avoir un onglet sur les offres instantanées, à venir ou les
+   offres en cours. Faire une offre pour le mois d'Octobre Rose, Noël, la
+   Saint-Valentin, le mois de la femme, le Ramadan, la fête des mères, et que
+   j'aie la possibilité de les activer dès qu'on se rapproche de ces dates à
+   21 jours près » (Yéman, 18 septembre 2026). */
+
+/* Le noyau pur des saisons vit dans `offres-pur.ts`, que voici rendu a
+   tous ceux qui importaient depuis ici. */
+export * from './offres-pur';
+
+/** UNE SAISON EST UN PATRON, pas une offre. Elle dort dans le code, la Maison
+    l'active, et c'est CE GESTE qui écrit une vraie offre datée dans
+    `mnd_offers`. Ainsi une saison revient chaque année sans qu'on redéploie,
+    et l'offre née d'elle reste modifiable comme n'importe quelle autre. */
+export type Saison = {
+  cle: string;
+  nom: string;
+  tag: string;
+  deal: string;
+  sub: string;
+  /** Saison À DATE FIXE : premier et dernier jour en `MM-JJ`. Elle se
+      reporte d'elle-même à l'année suivante une fois passée. */
+  debut?: string;
+  fin?: string;
+  /** Saison QUI NE SE CALCULE PAS : dates explicites, par année. Le Ramadan
+      suit la lune et se constate ; la fête des mères varie selon les pays.
+      Aucune règle ne les déduit, la Maison les inscrit. */
+  parAnnee?: Record<string, { du: string; au: string }>;
+  /** Vrai tant que la Maison n'a pas confirmé la date portée ici. */
+  aConfirmer?: boolean;
+};
+
+export const SAISONS: readonly Saison[] = [
+  {
+    cle: 'rentree', nom: 'La rentrée des couronnes', tag: 'Offre de saison', deal: '−10 %',
+    sub: 'Sur les lavages rituels et les reprises de racines, pour repartir net.',
+    debut: '09-01', fin: '09-30',
+  },
+  {
+    cle: 'octobre-rose', nom: 'Octobre Rose', tag: 'Engagement', deal: '−15 %',
+    sub: 'Sur les soins, et la Maison reverse une part à la lutte contre le cancer du sein.',
+    debut: '10-01', fin: '10-31',
+  },
+  {
+    cle: 'noel', nom: 'Noël à la Maison', tag: 'Offre de saison', deal: '2 = 1',
+    sub: 'Un styling signature offert pour tout forfait couleur.',
+    debut: '12-01', fin: '12-31',
+  },
+  {
+    cle: 'saint-valentin', nom: 'La Saint-Valentin', tag: 'Offre éclair', deal: '−20 %',
+    sub: 'Pour deux couronnes qui viennent ensemble.',
+    debut: '02-07', fin: '02-14',
+  },
+  {
+    cle: 'mois-de-la-femme', nom: 'Le mois de la femme', tag: 'Engagement', deal: '−15 %',
+    sub: 'Sur tous les forfaits féminins, jusqu’au 8 mars.',
+    debut: '03-01', fin: '03-08',
+  },
+  {
+    /* LE RAMADAN SE CONSTATE. Les dates ci-dessous sont une ESTIMATION et
+       portent `aConfirmer` : la Maison les corrige d'un champ. Sans entrée
+       pour l'année visée, la saison ne se propose pas, plutôt que de
+       proposer un jour faux. */
+    cle: 'ramadan', nom: 'Le Ramadan', tag: 'Offre de saison', deal: 'Heures allongées',
+    sub: 'Ouverture après la rupture du jeûne, et un soin hydratant à prix doux.',
+    parAnnee: {
+      '2027': { du: '2027-02-08', au: '2027-03-09' },
+      '2028': { du: '2028-01-28', au: '2028-02-26' },
+    },
+    aConfirmer: true,
+  },
+  {
+    /* LA FÊTE DES MÈRES ne tombe pas le même jour partout. Celle-ci suit le
+       dernier dimanche de mai ; à confirmer pour le Bénin. */
+    cle: 'fete-des-meres', nom: 'La fête des mères', tag: 'Offre de saison', deal: 'Le soin de la mère',
+    sub: 'Un soin offert à la mère pour toute venue mère et fille.',
+    parAnnee: {
+      '2027': { du: '2027-05-29', au: '2027-05-30' },
+      '2028': { du: '2028-05-27', au: '2028-05-28' },
+    },
+    aConfirmer: true,
+  },
+];
+
+/** LA PROCHAINE FOIS QUE CETTE SAISON OUVRE, ou `null` si la Maison ne l'a
+    pas encore datée. Une saison à date fixe déjà passée cette année se
+    reporte à l'an prochain : c'est ce qui la fait revenir sans redéploiement. */
+export function prochaineOccurrence(
+  s: Saison,
+  now = new Date(),
+): { du: string; au: string } | null {
+  const j = isoDuJour(now);
+  if (s.parAnnee) {
+    const annees = Object.keys(s.parAnnee).sort();
+    for (const a of annees) {
+      const d = s.parAnnee[a];
+      if (d.au >= j) return d;
+    }
+    return null;
+  }
+  if (!s.debut || !s.fin) return null;
+  for (let i = 0; i <= 1; i += 1) {
+    const an = now.getFullYear() + i;
+    const d = { du: `${an}-${s.debut}`, au: `${an}-${s.fin}` };
+    if (d.au >= j) return d;
+  }
+  return null;
+}
+
+/** Les saisons que la Maison doit regarder aujourd'hui : datées, à moins de
+    trois semaines de leur ouverture, et pas déjà posées en offre. */
+export function saisonsAProposer(
+  saisons: readonly Saison[],
+  dejaPosees: readonly InstantOffer[],
+  now = new Date(),
+  fenetre = FENETRE_PROPOSITION,
+): { saison: Saison; du: string; au: string; dans: number }[] {
+  const j = isoDuJour(now);
+  const out: { saison: Saison; du: string; au: string; dans: number }[] = [];
+  for (const s of saisons) {
+    const d = prochaineOccurrence(s, now);
+    if (!d) continue;
+    const dans = joursEntre(j, d.du);
+    if (dans > fenetre) continue;
+    /* Déjà posée pour CETTE occurrence : on ne la propose pas deux fois. */
+    if (dejaPosees.some((o) => o.du === d.du && o.title === s.nom)) continue;
+    out.push({ saison: s, du: d.du, au: d.au, dans });
+  }
+  return out.sort((a, b) => a.dans - b.dans);
+}
+
+/** L'offre qu'une saison fait naître quand la Maison l'active. Elle court
+    toute la semaine ; l'heure de fin s'arrête à la dernière heure que la
+    Maison sait dire (`OFFER_HOURS`), et non à minuit. */
+export function offreDepuisLaSaison(
+  s: Saison,
+  d: { du: string; au: string },
+  branchId: string,
+  id: string,
+): InstantOffer {
+  return {
+    id,
+    branchId,
+    title: s.nom,
+    tag: s.tag,
+    deal: s.deal,
+    sub: s.sub,
+    audience: 'Tous',
+    days: [...OFFER_DAYS],
+    heureDebut: OFFER_HOURS[0],
+    heureFin: OFFER_HOURS[OFFER_HOURS.length - 1],
+    active: true,
+    du: d.du,
+    au: d.au,
+  };
 }
 
 /* ---------- Cercle — paliers de récompense & points ---------- */

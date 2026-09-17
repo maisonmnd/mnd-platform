@@ -2,6 +2,67 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES OFFRES DE SAISON, ET LA VEILLE A VINGT ET UN JOURS — 18 septembre 2026
+
+« Faire une offre pour Octobre Rose, Noël, la Saint-Valentin, le mois de la
+femme, le Ramadan, la fête des mères, et que j'aie la possibilité de les
+activer dès qu'on se rapproche de ces dates à 21 jours près » (Yéman), plus
+la rentrée, ajoutée à la validation de la maquette.
+
+**LE SYSTEME EXISTAIT DEJA, ET C'EST CE QUI A FAIT LE CHANTIER.**
+`shared/offers.ts` portait le type `InstantOffer`, le store `mnd_offers` et
+`offerLiveNow`. Mais une offre n'avait **AUCUNE DATE** : elle se répétait par
+jour de semaine et par tranche horaire. Parfait pour une heure creuse,
+inutilisable pour une saison, qui a un premier et un dernier jour. Chercher
+d'abord ce qui existe a transformé « bâtir un module » en « apprendre les
+dates à une fonction ».
+
+**UN SEUL JUGE DU TEMPS.** `offerLiveNow` n'est appelé que de TROIS endroits,
+Ma Couronne et deux fois la pastille du Trône. Lui apprendre les dates a donc
+suffi à ce que tout suive ensemble.
+
+**LES DATES SONT FACULTATIVES, et c'est la garantie.** Une offre sans `du` ni
+`au` se comporte exactement comme avant. Les trois premières épreuves des
+trente et une sont explicitement des épreuves de NON-RÉGRESSION pour les
+heures creuses de Ma Couronne.
+
+**UNE SAISON EST UN PATRON, PAS UNE OFFRE.** `SAISONS` dort dans le code ; la
+Maison clique, et CE GESTE écrit une vraie offre datée dans `mnd_offers`,
+modifiable ensuite comme n'importe quelle autre. Une saison à date fixe se
+reporte d'elle-même à l'année suivante : elle revient chaque année sans qu'on
+redéploie. Rien ne s'active tout seul, et une offre non activée reste
+invisible pour la clientèle.
+
+**CE QUI NE SE CALCULE PAS SE CONSTATE.** Le Ramadan suit la lune ; la fête
+des mères varie selon les pays. Ces deux-là portent des dates **par année**,
+marquées `aConfirmer`, et sans entrée pour l'année visée la saison **ne se
+propose pas**, plutôt que de proposer un jour faux.
+
+**LE NOYAU PUR, TROISIEME DU NOM.** `offers.ts` importe le store et la
+synchronisation, or `revelateur/maison.ts` refuse délibérément de les charger
+pour qu'une page publique s'ouvre vite. D'où `shared/offres-pur.ts`, qui
+n'importe rien, comme `agenda-pur` et `catalogue-pur`. **Ses paramètres sont
+STRUCTURELS et non des `Pick` d'un type emprunté** : c'est ce qui lui permet
+de servir `InstantOffer` du Trône et `OffreDuSite` du site sans connaître ni
+l'un ni l'autre. Un `Pick<InstantOffer, …>` dans un module qui n'importe pas
+`InstantOffer` produit cinq erreurs en cascade, toutes trompeuses, qui
+parlent de propriétés « requises » au lieu de dire que le type est introuvable.
+
+**UNE ASSERTION FAUSSE A REVELE UN MENSONGE AFFICHE**, et c'est la leçon à
+garder. Mon épreuve affirmait qu'à quatorze jours d'Octobre Rose, SEULE
+Octobre Rose se présentait. Faux : la rentrée courait déjà depuis seize jours
+sans avoir été posée, et se présentait aussi, ce qui est le bon comportement,
+une saison commencée et jamais activée étant précisément celle qu'il ne faut
+pas manquer. Le code avait raison, mon attente était fausse. **Mais en
+regardant, j'ai trouvé un vrai défaut à côté** : l'écran disait « elle ouvre
+aujourd'hui » pour toute valeur négative, donc il annonçait une saison
+entamée depuis seize jours comme ouvrant le jour même. **La parade** : quand
+une épreuve échoue, regarder ce que le code fait VRAIMENT avant de supposer
+qu'il a tort ; l'écart est parfois un défaut voisin, pas celui qu'on visait.
+
+**UNE CONTRAINTE A CONNAITRE** : `OFFER_HOURS` s'arrête à `22h`. Une offre qui
+court toute la journée se pose donc de `00h` à `22h`, et non jusqu'à minuit.
+
 ## DEUX FACONS POUR UN PARENT DE DECIDER DE LA TAILLE D'UN ENFANT — 18 septembre 2026
 
 Deux defauts d'affichage signales le meme jour, deux causes differentes, une

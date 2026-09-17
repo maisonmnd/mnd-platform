@@ -1856,3 +1856,13 @@
 @media (prefers-reduced-motion: reduce) { .tre-fp-jours::before { transition: none; } }
 /* Au forfait, les semaines sont des lignes simples : la première n'a pas de filet. */
 .tre-fp-semaines > .tre-fp-ligne:first-child { border-top: 0; }
+
+/* LA VEILLE DES SAISONS — 18 septembre 2026. Une saison se PRESENTE trois
+   semaines avant son ouverture, avec un bouton. Elle ne s'allume jamais
+   d'elle-meme : la Maison garde la main. */
+.tre-saisons { border-left: 2px solid var(--copper-700); margin-bottom: 14px; }
+.tre-saisons__titre { font-family: var(--font-display, Georgia, serif); font-weight: 400; font-size: 20px; color: var(--ink); margin: 6px 0 2px; }
+.tre-saison { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; padding: 11px 13px; border: 1px solid var(--line, rgba(20,20,27,.14)); border-radius: 4px; background: var(--surface, #fff); }
+.tre-saison > * { min-width: 0; }
+.tre-saison__nom { font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.tre-saison__doute { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: var(--copper-700); color: #fff; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }

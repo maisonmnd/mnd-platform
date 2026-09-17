@@ -267,6 +267,13 @@ function ilot(nom, p) {
       </aside>
     </div></section>`;
   }
+  if (nom === 'offres') {
+    /* LES OFFRES DE LA MAISON — 18 septembre 2026. Le repli est une phrase et
+       jamais un écran blanc : si l'îlot ne monte pas, la visiteuse sait encore
+       où demander. Les offres elles-mêmes viennent de `mnd_offers`, et seules
+       celles que la Maison a activées sortent jusqu'ici. */
+    return `<section class="serre"><div class="conteneur"><div data-ilot="offres"><p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
+  }
   if (nom === 'contact') {
     return `<section class="serre"><div class="conteneur"><div data-ilot="contact" style="max-width:560px"><p class="corps">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }

@@ -270,6 +270,8 @@ export const useCampaigns = () => useStore(campaignsStore);
 export {
   OFFER_DAYS, OFFER_AUDIENCES, OFFER_HOURS,
   offersStore, useOffers, offerLiveNow,
+  etatDeLOffre, prochaineOccurrence, saisonsAProposer, offreDepuisLaSaison,
+  SAISONS, FENETRE_PROPOSITION,
   type InstantOffer,
 } from '../../../../shared/offers';
 

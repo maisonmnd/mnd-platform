@@ -433,3 +433,29 @@ footer .logo img { height: 34px; }
 .legende.avertit { margin-top: 12px; padding: 9px 11px; background: var(--accent-voile); border-left: 2px solid var(--accent); color: var(--accent-profond); }
 
 @media (prefers-reduced-motion: reduce) { *, .sortie, .merci, .venir { transition: none !important; animation: none !important; } html { scroll-behavior: auto; } }
+
+/* LES OFFRES DE SAISON, COTE VISITEUSE — 18 septembre 2026. Deux onglets,
+   l'offre en cours et celles qui viennent. Comme partout ici, min-width: 0
+   se pose a CHAQUE niveau imbrique : il ne se transmet pas. */
+.offres-site { min-width: 0; }
+.offres-onglets { display: flex; min-width: 0; border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; background: var(--fond-2); }
+.offres-onglets > * { min-width: 0; }
+.offres-onglet { flex: 1 1 0; min-width: 0; padding: 15px 12px; border: 0; background: none; font: inherit; font-size: 13.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); cursor: pointer; transition: background var(--t), color var(--t); }
+.offres-onglet:hover { background: var(--accent-voile); }
+.offres-onglet.est-choisi { background: var(--carte); color: var(--titre); font-weight: 500; }
+.offres-onglet:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.offres-onglet small { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--plein-texte); font-size: 11px; letter-spacing: 0; }
+.offres-volet { display: grid; gap: 22px; min-width: 0; margin-top: 22px; }
+.offres-volet > * { min-width: 0; }
+.offres-vide { color: var(--texte-doux); font-style: italic; }
+
+.offre-site { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 24px; align-items: start; min-width: 0; padding: 22px; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; }
+.offre-site > * { min-width: 0; }
+@media (max-width: 760px) { .offre-site { grid-template-columns: minmax(0, 1fr); } }
+.offre-site__sceau { display: grid; place-items: center; text-align: center; min-width: 0; aspect-ratio: 4 / 5; max-width: 100%; padding: 20px; background: var(--accent-clair); border-radius: 4px; }
+.offre-site__sceau b { display: block; font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 7vw, 46px); line-height: 1; color: var(--titre); overflow-wrap: anywhere; }
+.offre-site__sceau span { display: block; margin-top: 10px; font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+.offre-site__dire { min-width: 0; }
+.offre-site__dire h3 { font-family: var(--serif); font-weight: 400; font-size: 25px; color: var(--titre); margin: 0 0 10px; overflow-wrap: anywhere; }
+.offre-site__dire p { margin: 0 0 12px; font-size: 15px; overflow-wrap: anywhere; }
+.offres-conditions { font-size: 12.5px; color: var(--texte-doux); }

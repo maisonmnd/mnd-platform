@@ -71,6 +71,37 @@ export async function avisGoogle(): Promise<AvisGoogle | null> {
   return d && Number(d.note) > 0 ? d : null;
 }
 
+/** UNE OFFRE, VUE DU TROTTOIR — 18 septembre 2026. La Maison compose ses
+    offres au Trône ; le site n'en lit qu'une part, et seulement celles
+    qu'elle a ACTIVÉES. Une offre qui dort ne sort jamais de la Maison.
+
+    `mnd_offers` est dans la liste blanche de lecture publique depuis 0006 :
+    aucune migration n'est nécessaire. La forme est déclarée ici plutôt
+    qu'importée, pour la même raison que le reste de ce module, ne pas tirer
+    la synchronisation de l'ERP dans une page qui doit s'ouvrir vite. */
+export type OffreDuSite = {
+  id: string;
+  branchId: string;
+  title: string;
+  tag: string;
+  deal: string;
+  sub: string;
+  active: boolean;
+  du?: string;
+  au?: string;
+};
+
+export async function offresDuSite(): Promise<OffreDuSite[]> {
+  const supabase = await client();
+  if (!supabase) return [];
+  const { data } = await supabase.from('documents').select('data').eq('key', 'mnd_offers').maybeSingle();
+  const d = (data as { data?: OffreDuSite[] } | null)?.data;
+  if (!Array.isArray(d)) return [];
+  /* Actives seulement, et datées seulement : une offre sans saison est une
+     heure creuse de Ma Couronne, elle n'a rien à faire sur la vitrine. */
+  return d.filter((o) => o && o.active && (o.du || o.au));
+}
+
 /** Le lien WhatsApp d'un parcours : le numéro de la Maison quand on le
     connaît, sinon WhatsApp s'ouvre avec le message et laisse choisir. */
 export function lienWhatsApp(numero: string, message: string): string {

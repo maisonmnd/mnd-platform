@@ -16,6 +16,7 @@ import {
   AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
+  etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
@@ -27,13 +28,16 @@ type OfferForm = {
   title: string; tag: string; deal: string; sub: string; audience: string;
   days: string[]; heureDebut: string; heureFin: string;
   serviceId: string; discountPct: string;
+  /* LA SAISON — 18 septembre 2026. Vides pour une offre qui se répète, comme
+     une heure creuse ; remplies pour Octobre Rose, Noël ou le Ramadan. */
+  du: string; au: string;
 };
 
 const emptyOffer: OfferForm = {
   title: '', tag: 'Offre éclair', deal: '', sub: '', audience: 'Tous',
   // Tous les jours par défaut (un salon travaille surtout le week-end) et large plage horaire.
   days: [...OFFER_DAYS], heureDebut: '08h', heureFin: '20h',
-  serviceId: '', discountPct: '',
+  serviceId: '', discountPct: '', du: '', au: '',
 };
 
 const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' : s === 'Programmée' ? 'warn' : 'muted');
@@ -195,6 +199,7 @@ export default function Marketing() {
       title: o.title, tag: o.tag, deal: o.deal, sub: o.sub, audience: o.audience,
       days: [...o.days], heureDebut: o.heureDebut, heureFin: o.heureFin,
       serviceId: o.serviceId ?? '', discountPct: o.discountPct != null ? String(o.discountPct) : '',
+      du: o.du ?? '', au: o.au ?? '',
     });
     setOfferModal(true);
   };
@@ -206,6 +211,10 @@ export default function Marketing() {
       audience: offerForm.audience, days: [...offerForm.days], heureDebut: offerForm.heureDebut, heureFin: offerForm.heureFin,
       serviceId: offerForm.serviceId || undefined,
       discountPct: Number.isFinite(disc) && disc > 0 ? Math.min(90, disc) : undefined,
+      /* Une date vide NE S ECRIT PAS : l'offre reste alors sans saison et se
+         comporte comme avant, ce qui protège toutes celles d'hier. */
+      du: offerForm.du || undefined,
+      au: offerForm.au || undefined,
     };
     if (offerEditId) {
       setOffers((prev) => prev.map((o) => (o.id === offerEditId ? { ...o, ...payload } : o)));
@@ -224,6 +233,39 @@ export default function Marketing() {
 
   const daysLabel = (o: InstantOffer) =>
     o.days.length === 0 ? 'Aucun jour' : o.days.length === 7 ? 'Tous les jours' : o.days.join(' · ');
+
+  /* ── LES SAISONS ─────────────────────────────────────────────────────
+     « Faire une offre pour Octobre Rose, Noël, la Saint-Valentin, le mois de
+     la femme, le Ramadan, la fête des mères, et que j'aie la possibilité de
+     les activer dès qu'on se rapproche de ces dates à 21 jours près »
+     (Yéman, 18 septembre 2026). */
+
+  const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+  const ditLeJour = (iso?: string): string => {
+    if (!iso) return 'sans borne';
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return 'sans borne';
+    return `${d.getDate()} ${MOIS_COURTS[d.getMonth()]}`;
+  };
+
+  /* Les saisons qu'il faut regarder AUJOURD'HUI : datées, à moins de trois
+     semaines, et pas déjà posées pour cette occurrence. Le calcul se refait
+     à chaque rendu, ce qui suffit : la fenêtre se compte en jours, pas en
+     minutes, et l'écran se rouvre plus souvent qu'elle ne bouge. */
+  const saisonsProposees = useMemo(
+    () => saisonsAProposer(SAISONS, branchOffers),
+    [branchOffers],
+  );
+
+  /* ACTIVER, C'EST ÉCRIRE UNE VRAIE OFFRE. La saison n'est qu'un patron : ce
+     geste en tire une offre datée, modifiable ensuite comme n'importe quelle
+     autre, et c'est elle, jamais le patron, qui paraît au salon et sur le
+     site. Ainsi une saison revient chaque année sans qu'on redéploie. */
+  const activerLaSaison = (saison: (typeof SAISONS)[number], du: string, au: string) => {
+    setOffers((prev) => [...prev, offreDepuisLaSaison(saison, { du, au }, branch.id, `of-${uid()}`)]);
+  };
 
   return (
     <div className="mnd-rise">
@@ -301,6 +343,52 @@ export default function Marketing() {
             </div>
           </div>
 
+          {/* LA VEILLE DES SAISONS — 18 septembre 2026. « Que j'aie la
+              possibilité de les activer dès qu'on se rapproche de ces dates à
+              21 jours près » (Yéman). Une saison se PRÉSENTE, elle ne s'allume
+              jamais d'elle-même : la Maison garde la main, et tant qu'elle n'a
+              pas cliqué, rien ne paraît nulle part. */}
+          {saisonsProposees.length > 0 && (
+            <Card className="tre-saisons">
+              <Eyebrow>La Maison prépare</Eyebrow>
+              <div className="tre-saisons__titre">
+                {saisonsProposees.length > 1
+                  ? `${saisonsProposees.length} saisons approchent`
+                  : 'Une saison approche'}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginBottom: 12 }}>
+                À trois semaines de l’ouverture, et tant qu’elle court encore. Rien ne s’active sans vous.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {saisonsProposees.map(({ saison, du, au, dans }) => (
+                  <div key={saison.cle} className="tre-saison">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tre-saison__nom">
+                        {saison.nom}
+                        {saison.aConfirmer && <span className="tre-saison__doute">date à confirmer</span>}
+                      </div>
+                      <div className="mnd-muted" style={{ fontSize: 12, fontWeight: 300 }}>
+                        {ditLeJour(du)} → {ditLeJour(au)} · {saison.deal}
+                      </div>
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {/* UNE SAISON COMMENCÉE N'OUVRE PAS AUJOURD'HUI. L'écran
+                          le disait pourtant, pour toute valeur négative : la
+                          rentrée, entamée depuis seize jours, s'annonçait
+                          comme ouvrant le jour même. */}
+                      {dans > 0
+                        ? `dans ${dans} jour${dans > 1 ? 's' : ''}`
+                        : dans === 0
+                          ? 'elle ouvre aujourd’hui'
+                          : `commencée depuis ${-dans} jour${-dans > 1 ? 's' : ''}`}
+                    </div>
+                    <Button variant="copper" onClick={() => activerLaSaison(saison, du, au)}>Activer</Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {branchOffers.length === 0 && (
             <Card className="tre-empty">
               <img src={asset("/assets/monograms/mono-indigo.png")} alt="" style={{ width: 36, opacity: 0.4 }} />
@@ -320,9 +408,24 @@ export default function Marketing() {
                       {/* Statut HONNÊTE : « En ligne » seulement si visible MAINTENANT côté
                           cliente ; « Programmée » si active mais hors de sa fenêtre jour/heure
                           (les jours/heures ci-dessous disent quand elle apparaîtra). */}
-                      <Pill tone={!o.active ? 'muted' : offerLiveNow(o) ? 'ok' : 'warn'}>
-                        {!o.active ? 'Hors ligne' : offerLiveNow(o) ? 'En ligne' : 'Programmée'}
-                      </Pill>
+                      {/* DEUX VÉRITÉS, ET ON NE LES CONFOND PAS. La SAISON dit
+                          si l'offre est dans ses dates ; la FENÊTRE jour et
+                          heure dit si elle est visible à cette minute. Une
+                          offre en pleine saison mais hors de sa tranche
+                          horaire reste « Programmée » : c'est l'honnêteté que
+                          portait déjà cette pastille, et elle est conservée. */}
+                      {(() => {
+                        const e = etatDeLOffre(o);
+                        if (e === 'passee') return <Pill tone="muted">Saison passée</Pill>;
+                        if (e === 'dort') return <Pill tone="muted">Hors ligne</Pill>;
+                        if (e === 'activer') return <Pill tone="warn">À activer</Pill>;
+                        if (e === 'venir') return <Pill tone="warn">À venir</Pill>;
+                        return (
+                          <Pill tone={offerLiveNow(o) ? 'ok' : 'warn'}>
+                            {offerLiveNow(o) ? 'En ligne' : 'Programmée'}
+                          </Pill>
+                        );
+                      })()}
                     </div>
                     <div className="tre-offer__title">{o.title}</div>
                     <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 2 }}>{o.sub}</div>
@@ -334,6 +437,12 @@ export default function Marketing() {
                       <div>
                         <div className="tre-offer__meta-label">Jours</div>
                         <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{daysLabel(o)}</div>
+                      </div>
+                      <div>
+                        <div className="tre-offer__meta-label">Saison</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>
+                          {o.du || o.au ? `${ditLeJour(o.du)} → ${ditLeJour(o.au)}` : 'Elle se répète'}
+                        </div>
                       </div>
                       <div>
                         <div className="tre-offer__meta-label">Heures</div>
@@ -595,6 +704,28 @@ export default function Marketing() {
                 ))}
               </div>
             </Field>
+            {/* LA SAISON — 18 septembre 2026. Vide pour une heure creuse, qui
+                se répète ; remplie pour Octobre Rose, Noël ou le Ramadan, qui
+                ont un premier et un dernier jour. Hors de ces bornes l'offre
+                ne paraît nulle part, ni au salon ni sur le site. */}
+            <div className="tr-grid tr-grid--2">
+              <Field label="Premier jour · laisser vide si elle se répète">
+                <Input
+                  type="date"
+                  value={offerForm.du}
+                  max={offerForm.au || undefined}
+                  onChange={(e) => setOfferForm({ ...offerForm, du: e.target.value })}
+                />
+              </Field>
+              <Field label="Dernier jour · inclus">
+                <Input
+                  type="date"
+                  value={offerForm.au}
+                  min={offerForm.du || undefined}
+                  onChange={(e) => setOfferForm({ ...offerForm, au: e.target.value })}
+                />
+              </Field>
+            </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Visible dès">
                 <Select value={offerForm.heureDebut} onChange={(e) => setOfferForm({ ...offerForm, heureDebut: e.target.value })}>
