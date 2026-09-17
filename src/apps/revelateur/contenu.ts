@@ -96,10 +96,16 @@ export const COMMUN: Commun = {
       titre: 'Merci. Nous vous rappelons.',
       texte: "Sur WhatsApp ou par téléphone, pendant les heures d'ouverture de la Maison.",
     },
+    /* L'ORDRE SUIT CE QUI SE PASSE VRAIMENT — 17 septembre 2026 :
+       « corrige l'ordre, elle n'est plus juste, on fait maintenant une
+       réservation » (Yéman). Ces trois lignes dataient du simple rappel :
+       elles ouvraient sur « Nous vous rappelons », alors que la visiteuse
+       vient de choisir son geste, son jour et son heure. Le rappel n'est
+       plus le premier geste de la Maison, c'est le deuxième. */
     suite: [
-      ['Nous vous rappelons', "Pendant les heures d'ouverture."],
-      ['Consultation, ou créneau direct', "Création et réparation : une consultation d'abord. Entretien : un créneau tout de suite."],
-      ['Votre place est confirmée', 'Votre espace Ma Couronne s\'ouvre à votre premier rendez-vous.'],
+      ['Votre place est retenue', "Le créneau est mis de côté à votre nom, dès l'envoi."],
+      ['La Maison confirme', "Un mot sur WhatsApp, pendant les heures d'ouverture."],
+      ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
     ],
   },
 };
