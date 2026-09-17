@@ -2,6 +2,42 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PIED DE PAGE, ET UN TEXTE LEGAL QUI AVAIT DERIVE — 18 septembre 2026
+
+Demande de Yéman : ajouter au pied de page un copyright, un plan du site, des
+CGU de prise de rendez-vous en ligne et une politique de gestion des données.
+
+**J'AI CRU QUE LE SITE SERVAIT TROIS LIENS MORTS. C'ETAIT FAUX.** Le pied
+portait déjà Mentions légales, Confidentialité et Conditions, et aucun de ces
+chemins n'apparaissait dans `PAGES`. J'allais annoncer trois 404 sur chaque
+page. Mesuré en ligne : les trois répondent **200**. **Pourquoi je me suis
+trompé** : j'ai demandé « quels chemins figurent dans `PAGES` » et j'ai conclu
+« quelles pages le site possède ». Deux questions différentes. **A RETENIR SUR
+CE SITE** : les pages viennent de TROIS sources, `PAGES` dans `contenu.ts`,
+`LEGALES` dans le générateur, et la boucle du Journal. Pour savoir ce qui
+existe, lire `dist-sites/` ou `pages.json`, jamais une seule des trois listes.
+
+**UN TEXTE LEGAL DERIVE SANS QUE PERSONNE NE LE VOIE.** La politique annonçait
+« parfois votre e-mail » : le formulaire n'en a jamais demandé, et la
+réservation en ligne encore moins. Les conditions, elles, décrivaient une
+prise de rendez-vous par message, alors qu'on réserve désormais un créneau
+sans compte. **Un texte légal qui décrit autre chose que ce que le code fait
+est faux**, même quand l'écart paraît anodin. **La parade** : quand la
+collecte de données ou le parcours de réservation change, la page légale fait
+PARTIE du chantier, au même titre qu'une épreuve. Les champs listés
+aujourd'hui sont exactement ceux que `demande-submit` enregistre.
+
+**LE PLAN DU SITE S'ECRIT APRES TOUTES LES BOUCLES**, et c'est la seule place
+possible : il liste ce qui a été écrit, donc il ne peut pas naître au milieu
+de l'écriture. Il est bâti depuis les mêmes sources que les pages, pas depuis
+`pagesEcrites`, parce qu'une liste de chemins n'a pas de noms à afficher ; il
+entre dans `pagesEcrites` juste avant `pages.json`, donc il paraît de lui-même
+dans le plan pour les moteurs.
+
+**CE QUE LA MAISON DOIT ENCORE FOURNIR**, et qui est marqué en toutes lettres
+sur les pages plutôt qu'inventé : l'immatriculation de l'entreprise, la durée
+exacte de conservation des données, et les délais et frais d'annulation.
+
 ## UNE PAGE EN LIGNE QUE PERSONNE NE POUVAIT ATTEINDRE — 18 septembre 2026
 
 « Où sont les offres ? Sur le site ? Ou dans le Trône ? » (Yéman). La question

@@ -59,9 +59,14 @@ export const COMMUN: Commun = {
       },
     ],
     legal: [
+      /* LES LIBELLES DEMANDES PAR LA MAISON — 18 septembre 2026. Les pages
+         existaient deja sous des noms courts ; Yéman les veut nommees en
+         entier, comme le fait un site de salon. Les chemins ne changent PAS,
+         donc rien de ce qui est indexe ne se casse. */
       { texte: 'Mentions légales', vers: '/mentions-legales/' },
-      { texte: 'Confidentialité', vers: '/confidentialite/' },
-      { texte: 'Conditions', vers: '/conditions/' },
+      { texte: 'Plan du site', vers: '/plan-du-site/' },
+      { texte: 'CGU Conditions générales prise de rendez-vous en ligne', vers: '/conditions/' },
+      { texte: 'Politique de Gestion des Données Personnelles', vers: '/confidentialite/' },
     ],
   },
   messages: {

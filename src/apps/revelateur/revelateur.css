@@ -483,3 +483,23 @@ footer .logo img { height: 34px; }
    il s'elargit jusqu'a son contenu et pousse la barre au lieu de se serrer,
    exactement le piege du 17 septembre. La propriete est inerte ailleurs. */
 .barre .nav { min-width: 0; }
+
+/* LE BAS DE PIED A QUATRE MENTIONS — 18 septembre 2026. Les libelles demandes
+   par la Maison sont longs (CGU, Politique de Gestion des Donnees). La rangee
+   portait deux elements, elle en porte quatre : on laisse donc les mentions
+   prendre leur propre ligne au lieu de serrer la devise et le copyright. */
+.pied-bas { row-gap: 10px; }
+.pied-copyright { white-space: nowrap; }
+.pied-bas > span:last-child { flex: 1 1 100%; min-width: 0; line-height: 1.9; }
+
+/* LE PLAN DU SITE — 18 septembre 2026. Une page de service, pas une vitrine :
+   des listes lisibles en colonnes, qui retombent a une seule sur telephone. */
+.plan { display: grid; gap: 30px; min-width: 0; }
+.plan > * { min-width: 0; }
+.plan-titre { font-family: var(--serif); font-weight: 400; font-size: 23px; color: var(--titre); margin: 0 0 12px; }
+.plan-liste { list-style: none; margin: 0; padding: 0; min-width: 0; columns: 2; column-gap: 30px; }
+.plan-liste > * { min-width: 0; break-inside: avoid; }
+.plan-liste li { margin-bottom: 8px; overflow-wrap: anywhere; }
+.plan-liste a { color: var(--texte); border-bottom: 1px solid var(--filet); }
+.plan-liste a:hover { color: var(--accent-profond); border-bottom-color: var(--accent); }
+@media (max-width: 620px) { .plan-liste { columns: 1; } }

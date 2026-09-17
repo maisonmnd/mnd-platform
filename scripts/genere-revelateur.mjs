@@ -148,6 +148,7 @@ ${corps}
     ${colonnes}
         <div class="pied-bas">
           <span class="devise">${echappe(DEVISE_COMPLETE)}</span>
+          <span class="pied-copyright">&copy;Copyright ${new Date().getFullYear()}</span>
           <span>${legal}</span>
         </div>
       </div>
@@ -499,8 +500,19 @@ function rendArticle(art) {
 /* ── Les pages légales, sobres et vraies ─────────────────────────────── */
 const LEGALES = [
   { chemin: '/mentions-legales/', court: 'Mentions légales', titre: 'Mentions légales · Maison MND', description: 'Lisez qui édite ce site, qui l’héberge et comment joindre la Maison MND à Cotonou.', h1: 'Mentions légales', corps: `<p><b>Éditeur.</b> ${echappe(COMMUN.nom)}, ${echappe(COMMUN.ville)}, Bénin. Les informations d’immatriculation sont à renseigner par la Maison.</p><p><b>Direction de la publication.</b> Yéman Ahouansou.</p><p><b>Hébergement.</b> GitHub Pages (GitHub, Inc.).</p><p><b>Nous joindre.</b> Par WhatsApp, depuis n’importe quelle page du site, ou en laissant vos coordonnées.</p><p><b>Photographies.</b> Les images de ce site appartiennent à la Maison MND ou lui ont été confiées avec l’accord des personnes qui y figurent.</p>` },
-  { chemin: '/confidentialite/', court: 'Confidentialité', titre: 'Politique de confidentialité · Maison MND', description: 'Découvrez ce que la Maison MND garde de vos coordonnées, pourquoi, combien de temps, et comment demander leur effacement.', h1: 'Vos données, et rien d’autre', corps: `<p><b>Ce que nous recevons.</b> Quand vous laissez vos coordonnées, nous recevons votre prénom, votre numéro, parfois votre e-mail, ce dont vous avez besoin et le mot que vous nous laissez.</p><p><b>Pourquoi.</b> Pour vous rappeler et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne.</p><p><b>Combien de temps.</b> Le temps de vous répondre, puis, si vous devenez cliente, le temps de votre suivi. Vous pouvez demander l’effacement à tout moment, par WhatsApp.</p><p><b>La mesure d’audience.</b> Elle compte les pages vues et les parcours choisis, sans nom ni numéro.</p>` },
-  { chemin: '/conditions/', court: 'Conditions', titre: 'Conditions de réservation · Maison MND', description: 'Comprenez comment se prend, se confirme et se déplace un rendez-vous à la Maison MND, et ce qu’engage un devis.', h1: 'Conditions de réservation', corps: `<p><b>La consultation d’abord.</b> Une création ou une réparation commence par une consultation. Un entretien se réserve directement.</p><p><b>Le devis.</b> Rien ne commence sans une proposition écrite que vous avez acceptée. Les prix sont donnés au cas par cas.</p><p><b>La confirmation.</b> Votre place est confirmée par la Maison, sur WhatsApp ou par téléphone. Certains rendez-vous demandent un acompte, indiqué avant.</p><p><b>Déplacer ou annuler.</b> Prévenez-nous dès que possible ; nous déplaçons votre rendez-vous. Les délais précis vous sont indiqués à la confirmation.</p>` },
+  /* LA POLITIQUE DIT CE QUE LE SITE FAIT VRAIMENT — 18 septembre 2026. Le
+     texte precedent annoncait « parfois votre e-mail » : le formulaire n'en
+     a jamais demande, et depuis la reservation en ligne il en demande encore
+     moins. Une politique qui decrit une collecte qui n'a pas lieu est fausse
+     dans le sens le moins grave mais reste fausse. Les champs listes ici sont
+     exactement ceux que `demande-submit` enregistre. */
+  { chemin: '/confidentialite/', court: 'Politique de données', titre: 'Politique de gestion des données personnelles · Maison MND', description: 'Découvrez ce que la Maison MND reçoit quand vous réservez en ligne, pourquoi, qui le lit, combien de temps et comment demander l’effacement.', h1: 'Politique de gestion des données personnelles', corps: `<p><b>Ce que nous recevons, exactement.</b> Quand vous réservez ou nous laissez vos coordonnées : votre prénom, votre numéro de téléphone, le parcours qui vous amène, le mot que vous nous laissez si vous en écrivez un, la page depuis laquelle vous nous écrivez, et la date à laquelle vous avez coché la case d’accord. Le site ne demande NI e-mail, NI adresse, NI date de naissance, et aucun paiement n’est demandé en ligne.</p><p><b>Pourquoi.</b> Pour vous rappeler, confirmer votre place et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée, pas de publicité ciblée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne. Une réservation prise sur le site n’ouvre aucun compte et n’est visible que par la Maison.</p><p><b>Votre numéro sert aussi à ne pas vous inscrire deux fois.</b> Quand une demande arrive, nous vérifions qu’une demande identique n’a pas déjà été posée avec le même numéro, pour ne pas vous appeler en double.</p><p><b>Combien de temps.</b> Le temps de vous répondre, puis, si vous devenez cliente, le temps de votre suivi. <em>La durée exacte est en cours de fixation par la Maison et sera inscrite ici.</em></p><p><b>Vos droits.</b> Vous pouvez demander à voir, à corriger ou à effacer ce que nous avons, à tout moment, par WhatsApp ou de vive voix au salon. Nous donnons suite sans avoir à vous en demander la raison.</p><p><b>La mesure d’audience.</b> Elle compte les pages vues et les parcours choisis, sans nom ni numéro.</p><p><b>Hébergement.</b> Les pages du site sont servies par GitHub Pages ; vos demandes sont enregistrées chez notre prestataire de base de données, à accès restreint.</p>` },
+  /* LES CONDITIONS DISENT LA RESERVATION EN LIGNE — 18 septembre 2026. Le
+     texte precedent datait d'avant : il decrivait une prise de rendez-vous
+     par message. Depuis, une visiteuse choisit son geste, son jour et son
+     heure sans compte et sans paiement, et le serveur revérifie la place
+     avant d'écrire. Les conditions doivent dire ce qui se passe vraiment. */
+  { chemin: '/conditions/', court: 'Conditions générales', titre: 'CGU · Conditions de prise de rendez-vous en ligne · Maison MND', description: 'Comprenez comment se prend, se confirme, se déplace et s’annule un rendez-vous réservé en ligne à la Maison MND.', h1: 'Conditions générales de prise de rendez-vous en ligne', corps: `<p><b>Ce que vous réservez.</b> Vous choisissez un ou plusieurs gestes, un jour et une heure. Aucun compte n’est créé, aucun paiement n’est demandé en ligne : le règlement se fait à la Maison.</p><p><b>Une demande, pas encore une place tenue.</b> Votre réservation arrive à la Maison à l’état « en attente ». Elle devient ferme quand la Maison vous le confirme, sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.</p><p><b>La consultation d’abord.</b> Une création ou une réparation commence par une consultation ; un entretien et des soins se réservent directement.</p><p><b>Plusieurs gestes dans une même venue.</b> Vous pouvez en cocher jusqu’à six. La durée et le prix s’additionnent, et les heures proposées tiennent compte du total.</p><p><b>Les prix affichés.</b> Ils viennent du catalogue de la Maison. Un geste sans prix ferme se règle au salon, et le total est alors annoncé « à partir de ».</p><p><b>Le devis.</b> Pour une création ou une restauration, rien ne commence sans une proposition écrite que vous avez acceptée. Les prix sont donnés au cas par cas.</p><p><b>Si l’heure vient d’être prise.</b> La Maison vérifie la disponibilité au moment de l’enregistrement. Si le créneau part entre votre choix et votre envoi, l’écran vous le dit et vous en propose un autre.</p><p><b>Déplacer ou annuler.</b> Prévenez-nous dès que possible, par WhatsApp ou par téléphone ; nous déplaçons votre rendez-vous. L’annulation ne se fait pas encore depuis le site. <em>Les délais et les éventuels frais sont en cours de fixation par la Maison et seront inscrits ici.</em></p><p><b>Acompte.</b> Certains rendez-vous demandent un acompte ; il vous est indiqué avant, jamais après.</p>` },
 ];
 
 /* ── On écrit ────────────────────────────────────────────────────────── */
@@ -568,6 +580,37 @@ writeFileSync(path.join(SORTIE, '404.html'), page({
   corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Page introuvable</p><h1>Cette page n’existe pas.</h1><p class="ligne">Reprenez depuis l’accueil, ou trouvez votre parcours en trois questions.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" href="${BASE}">Retour à l’accueil</a><a class="btn" href="${lien('/mon-parcours/')}">Trouver mon parcours</a></div></div></div></section>`,
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
+
+/* LE PLAN DU SITE — 18 septembre 2026, demandé par Yéman au pied de page.
+
+   Il s'écrit APRÈS toutes les boucles, et c'est la seule place possible : il
+   liste ce qui a été écrit, donc il ne peut pas naître au milieu de
+   l'écriture. Il est bâti depuis les MÊMES sources que les pages (PAGES,
+   LEGALES, articles) plutôt que depuis la liste des chemins, parce qu'une
+   liste de chemins n'a pas de noms à afficher.
+
+   Il entre dans `pagesEcrites` avant que `pages.json` ne soit écrit : il
+   paraît donc de lui-même dans le plan pour les moteurs, sans rien ajouter
+   ailleurs. */
+const lignesDuPlan = (titre, entrees) => `<h2 class="plan-titre">${echappe(titre)}</h2><ul class="plan-liste">${entrees
+  .map(([nom, chemin]) => `<li><a href="${attr(lien(chemin))}">${echappe(nom)}</a></li>`).join('')}</ul>`;
+
+const PLAN = '/plan-du-site/';
+ecrit(PLAN, page({
+  chemin: PLAN,
+  titre: 'Plan du site · Maison MND',
+  description: 'Toutes les pages de la Maison MND en un coup d’œil : les parcours, la Maison, le Journal et les mentions.',
+  corps: `
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>Plan du site</li></ol></nav>
+      <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>Plan du site</h1><p class="ligne">Toutes les pages de la Maison, rassemblées.</p></div></div></section>
+      <section class="serre"><div class="conteneur"><div class="plan">
+        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.map((p) => [p.court, p.chemin])])}
+        ${articles.length ? lignesDuPlan('Le Journal', articles.map((a) => [a.titre, `/journal/${a.slug}/`])) : ''}
+        ${lignesDuPlan('Les mentions', [...LEGALES.map((l) => [l.court, l.chemin]), ['Plan du site', PLAN]])}
+      </div></div></section>`,
+  noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Plan du site', PLAN]])],
+}));
+pagesEcrites.push(PLAN);
 
 writeFileSync(path.join(SORTIE, 'pages.json'), JSON.stringify(pagesEcrites, null, 2));
 console.log(`Site révélateur : ${pagesEcrites.length} pages écrites dans revelateur/ (base ${BASE}).`);
