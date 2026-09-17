@@ -355,6 +355,24 @@ publication. Ce n'est pas un defaut du script : on relance, et cela passe.
 Ne pas conclure a une panne de `publie.mjs` sans avoir relu son journal
 entier.
 
+**ET LA BORNE, SANS QUOI CETTE SECTION NUIT.** Onze causes alignees peuvent
+faire croire qu'il faut tout verifier sept fois. C'est le defaut INVERSE, et
+il coute plus cher que celui qu'on soigne ici. LA REGLE EST PROPORTIONNELLE :
+on verifie ce qui PORTE une decision, pas tout ce qui passe. Le cout d'avoir
+tort commande l'effort ; la ou il est nul, on se croit et on avance. Les deux
+sessions se sont arretees la d'un commun accord, apres avoir trouve chaque
+cause en verifiant la precedente : la suite etait previsible, et un document
+qui enfle cesse d'etre lu. **N'ajouter une cause de plus QUE si elle resiste
+a la parade consolidee** : chaine COURTE, insensible a la casse, sur
+l'attribut discriminant seul, blocs aplatis AVANT d'etre decoupes. Sinon elle
+n'apprend rien.
+
+**ET CE QUI TIENT LIEU DE MORALE** : un sondage repond a la question POSEE ;
+seule la LECTURE montre ce qu'on n'a pas pense a demander. A force d'affiner
+nos motifs, nous perfectionnions l'art de poser la mauvaise question. C'est
+en LISANT un paragraphe, et non en le cherchant, qu'on a vu qu'il debordait
+de la largeur du document : aucune sonde ne pouvait le dire.
+
 ## LES QUATRE PORTES, CHACUNE SA TEINTE — 17 septembre 2026
 
 « Sur les icônes mets différentes couleurs du pictogramme de la maison, le
