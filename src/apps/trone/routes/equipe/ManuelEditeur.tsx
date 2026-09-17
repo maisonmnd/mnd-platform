@@ -257,7 +257,7 @@ export default function ManuelEditeur({ id, lectureSeule, onClose }: { id: strin
                           </Select>
                         </Field>
                         <Field label="Durée">
-                          <Input value={s.duree} placeholder="3 h" onChange={(e) => majSeance(s.cle, { duree: e.target.value })} />
+                          <Input value={s.duree} onChange={(e) => majSeance(s.cle, { duree: e.target.value })} />
                         </Field>
                       </div>
                       <Field label="Objectif">

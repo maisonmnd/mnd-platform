@@ -392,7 +392,7 @@ function AjoutEnfantAuCompte({ famille, parent, tetes }: { famille: Family; pare
     <div style={{ marginTop: 8, border: '1px dashed var(--copper-500)', borderRadius: 3, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="tr-grid tr-grid--2">
         <Field label="Son prénom">
-          <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Mahoussi" autoComplete="off" />
+          <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} autoComplete="off" />
         </Field>
         <Field label="Son nom de famille">
           <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Le sien, à l’état civil" autoComplete="off" />
@@ -4409,7 +4409,6 @@ function Customer360({
             className="trc-dossier-notes"
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Une attention, une préférence, un détail du rituel…"
             rows={3}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
@@ -5427,7 +5426,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <ChampTelephone value={phone} onChange={setPhone} dialDefaut={branch.dial} />
           </Field>
           <Field label="Adresse e-mail">
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" autoComplete="email" />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           </Field>
           <Field label="Ville">
             <Input value={city} onChange={(e) => setCity(e.target.value)} />

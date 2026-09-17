@@ -342,7 +342,7 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
     <Modal title="Inscrire un apprenant." onClose={onClose} width={640}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Nom de l’apprenant·e">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Prénom Nom" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <div className="tr-grid tr-grid--2">
           <Field label="Formation">
@@ -351,7 +351,7 @@ function IntakeModal({ formations, onClose, onCreated }: { formations: Formation
             </Select>
           </Field>
           <Field label="Cohorte">
-            <Input value={cohortLabel} onChange={(e) => setCohort(e.target.value)} placeholder="Fondation · Sept 2026" />
+            <Input value={cohortLabel} onChange={(e) => setCohort(e.target.value)} />
           </Field>
           <Field label="Début de formation">
             <ChampDeDate compact sens="avant" value={startDate} onChange={setStartDate} />
@@ -637,7 +637,7 @@ function TabFormation({ e, formation, notify }: { e: Enrollment; formation?: For
                   <ChampDeDate value={debut} onChange={setDebut} ariaLabel="Le premier jour de la formation" />
                 </Field>
                 <Field label="Durée (semaines)">
-                  <Input inputMode="numeric" value={semaines} onChange={(ev) => setSemaines(ev.target.value)} placeholder="12" />
+                  <Input inputMode="numeric" value={semaines} onChange={(ev) => setSemaines(ev.target.value)} />
                 </Field>
                 <Field label="Nombre de versements">
                   <Input inputMode="numeric" value={echeances} onChange={(ev) => setEcheances(ev.target.value)} placeholder="1" />
@@ -715,7 +715,7 @@ function PaymentForm({ methods, due, onAdd }: { methods: PaymentMethod[]; due: n
   return (
     <div className="tre-fiche tre-fiche--form" style={{ marginTop: 10 }}>
       <div className="tr-grid tr-grid--3">
-        <Field label="Montant (F CFA)"><Input inputMode="numeric" value={amount} onChange={(ev) => setAmount(ev.target.value)} placeholder="Ex. 100 000" /></Field>
+        <Field label="Montant (F CFA)"><Input inputMode="numeric" value={amount} onChange={(ev) => setAmount(ev.target.value)} /></Field>
         <Field label="Date"><ChampDeDate compact sens="avant" value={date} onChange={setDate} /></Field>
         <Field label="Moyen"><Select value={method} onChange={(ev) => setMethod(ev.target.value as PaymentMethod)}>{methods.map((m) => <option key={m} value={m}>{m}</option>)}</Select></Field>
       </div>

@@ -1019,7 +1019,6 @@ export default function Caisse() {
                   value={codeTape}
                   onChange={(e) => setCodeTape(e.target.value.toUpperCase().slice(0, 40))}
                   style={{ width: 180, letterSpacing: '.06em' }}
-                  placeholder="ECLAT15-A7K"
                   aria-label="Code de promotion de la cliente"
                 />
                 {promoXof > 0 && (

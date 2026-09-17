@@ -673,11 +673,11 @@ export default function Caisses() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <label className="mnd-field">
               <span className="mnd-field__label">Nom de la caisse</span>
-              <input className="mnd-input" value={boxForm.name} placeholder="Caisse Principale · Tiroir EUR…" onChange={(e) => setBoxForm((f) => ({ ...f, name: e.target.value }))} />
+              <input className="mnd-input" value={boxForm.name} onChange={(e) => setBoxForm((f) => ({ ...f, name: e.target.value }))} />
             </label>
             <label className="mnd-field">
               <span className="mnd-field__label">Ce qu’elle est · facultatif</span>
-              <input className="mnd-input" value={boxForm.sub} placeholder="Caisse manuelle · compte Mobile Money…" onChange={(e) => setBoxForm((f) => ({ ...f, sub: e.target.value }))} />
+              <input className="mnd-input" value={boxForm.sub} onChange={(e) => setBoxForm((f) => ({ ...f, sub: e.target.value }))} />
             </label>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Son signe</div>
@@ -922,7 +922,7 @@ export default function Caisses() {
             </label>
             <label className="mnd-field">
               <span className="mnd-field__label">Motif · facultatif</span>
-              <input className="mnd-input" value={fTr.note} placeholder="Ex. approvisionner le comptoir…" onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))} />
+              <input className="mnd-input" value={fTr.note} onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))} />
             </label>
 
             <ChampPieceJointe

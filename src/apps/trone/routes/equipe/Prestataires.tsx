@@ -432,8 +432,8 @@ export default function Prestataires() {
         <Modal title={provEditId ? 'Modifier le prestataire.' : 'Nouveau prestataire.'} onClose={() => setProvModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="tr-grid tr-grid--2">
-              <Field label="Nom"><Input value={provForm.name} onChange={(e) => setProvForm({ ...provForm, name: e.target.value })} placeholder="Ex. Awa · tresseuse" /></Field>
-              <Field label="Spécialité"><Input value={provForm.specialty} onChange={(e) => setProvForm({ ...provForm, specialty: e.target.value })} placeholder="Ex. Tresses · Shooting · Formation" /></Field>
+              <Field label="Nom"><Input value={provForm.name} onChange={(e) => setProvForm({ ...provForm, name: e.target.value })} /></Field>
+              <Field label="Spécialité"><Input value={provForm.specialty} onChange={(e) => setProvForm({ ...provForm, specialty: e.target.value })} /></Field>
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Téléphone"><Input value={provForm.phone} onChange={(e) => setProvForm({ ...provForm, phone: e.target.value })} placeholder={`${branch.dial} `} /></Field>
@@ -462,7 +462,7 @@ export default function Prestataires() {
             <div className="mnd-muted" style={{ fontSize: 12.5 }}>
               Pour <strong style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{missionFor.name}</strong> · {MODE_LABEL[missionFor.mode]}{missionFor.rateXof ? ` · ${fmtMoney(missionFor.rateXof, currency)}` : ''}.
             </div>
-            <Field label="Prestation réalisée"><Input value={missionForm.label} onChange={(e) => setMissionForm({ ...missionForm, label: e.target.value })} placeholder="Ex. Tresses, 4 têtes · Shooting gamme" /></Field>
+            <Field label="Prestation réalisée"><Input value={missionForm.label} onChange={(e) => setMissionForm({ ...missionForm, label: e.target.value })} /></Field>
             <div className="tr-grid tr-grid--3">
               {missionFor.mode === 'prestation' && (
                 <Field label="Quantité"><Input value={missionForm.qty} inputMode="decimal" onChange={(e) => setMissionQty(missionFor, e.target.value)} /></Field>

@@ -2017,10 +2017,10 @@ export default function Abonnements() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="tr-grid tr-grid--2">
               <Field label="Nom de la formule">
-                <Input value={planForm.name} placeholder="Ex. La Régente" onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
+                <Input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
               </Field>
               <Field label="Accroche courte">
-                <Input value={planForm.tag} placeholder="Ex. L’équilibre" onChange={(e) => setPlanForm({ ...planForm, tag: e.target.value })} />
+                <Input value={planForm.tag} onChange={(e) => setPlanForm({ ...planForm, tag: e.target.value })} />
               </Field>
             </div>
             {/* LE MODE SE CHOISIT — il ne se devinait nulle part, et une
@@ -2059,7 +2059,7 @@ export default function Abonnements() {
             </Field>
 
             <Field label={`${planForm.mode === 'pack' ? 'Prix du paquet' : 'Prix mensuel'} · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
-              <Input inputMode="numeric" value={planForm.price} placeholder="45000" onChange={(e) => setPlanForm({ ...planForm, price: e.target.value.replace(/[^0-9]/g, '') })} />
+              <Input inputMode="numeric" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: e.target.value.replace(/[^0-9]/g, '') })} />
             </Field>
 
             {/* ══ LE PRIX SUIT LA TÊTE — 1er septembre 2026 ═══════════════════
@@ -2156,10 +2156,10 @@ export default function Abonnements() {
               </div>
             </div>
             <Field label="La promesse">
-              <Input value={planForm.line} placeholder="Une phrase souveraine qui donne envie…" onChange={(e) => setPlanForm({ ...planForm, line: e.target.value })} />
+              <Input value={planForm.line} onChange={(e) => setPlanForm({ ...planForm, line: e.target.value })} />
             </Field>
             <Field label="Avantages · séparés par ·">
-              <Textarea rows={3} value={planForm.perks} placeholder="1 resserrage / mois · Créneau réservé · −10 % Care & Store" onChange={(e) => setPlanForm({ ...planForm, perks: e.target.value })} />
+              <Textarea rows={3} value={planForm.perks} onChange={(e) => setPlanForm({ ...planForm, perks: e.target.value })} />
             </Field>
 
             <Field label="Prestations incluses · suivi de consommation">
@@ -3068,7 +3068,7 @@ export default function Abonnements() {
             })()}
 
             <Field label="Son créneau réservé">
-              <Input value={subForm.slot} placeholder="Ex. Jeu · 14h00 · Yéman" onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
+              <Input value={subForm.slot} onChange={(e) => setSubForm({ ...subForm, slot: e.target.value })} />
             </Field>
 
             {/* ── L'OPTION COULEUR, SUR TOUTES LES FORMULES ─────────────

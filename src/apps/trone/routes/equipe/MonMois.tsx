@@ -441,7 +441,6 @@ export default function MonMois() {
                           onKeyDown={(e) => { if (e.key === 'Enter') validerCode(); }}
                           inputMode="numeric"
                           autoFocus
-                          placeholder="0000"
                           aria-label="Code du jour"
                           style={{ width: 128, textAlign: 'center', fontFamily: 'var(--font-serif)', fontSize: 22, letterSpacing: '.28em' }}
                         />
@@ -753,12 +752,12 @@ export default function MonMois() {
                       <td>{new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</td>
                       <td>
                         {corrige === a.id
-                          ? <Input value={a.arrivee ?? ''} onChange={(e) => corriger(a, 'arrivee', e.target.value)} placeholder="09:00" style={{ width: 92 }} />
+                          ? <Input value={a.arrivee ?? ''} onChange={(e) => corriger(a, 'arrivee', e.target.value)} style={{ width: 92 }} />
                           : a.arrivee ?? '—'}
                       </td>
                       <td>
                         {corrige === a.id
-                          ? <Input value={a.depart ?? ''} onChange={(e) => corriger(a, 'depart', e.target.value)} placeholder="19:00" style={{ width: 92 }} />
+                          ? <Input value={a.depart ?? ''} onChange={(e) => corriger(a, 'depart', e.target.value)} style={{ width: 92 }} />
                           : a.depart ?? '—'}
                       </td>
                       <td style={{ fontSize: 11.5 }}>

@@ -1488,7 +1488,6 @@ export default function Personnel() {
                       <Input
                         value={regle.libelle}
                         onChange={(e) => majRegle(regle.id, { libelle: e.target.value })}
-                        placeholder="Shampoings"
                       />
                     </Field>
                     <Field label="Ce qui est compté">
@@ -1614,14 +1613,14 @@ export default function Personnel() {
         <Modal title={editId ? 'Paramètres du membre.' : 'Nouveau membre.'} onClose={() => setModalOpen(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom du membre">
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Prénom Nom" />
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Téléphone">
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" placeholder="+229 01 00 00 00 00" />
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} inputMode="tel" />
               </Field>
               <Field label="Email">
-                <Input value={form.email} disabled={!estDirection} onChange={(e) => setForm({ ...form, email: e.target.value })} inputMode="email" placeholder="prenom@mnd.bj" />
+                <Input value={form.email} disabled={!estDirection} onChange={(e) => setForm({ ...form, email: e.target.value })} inputMode="email" />
               </Field>
               {/* LE LIEN FICHE ↔ COMPTE — 20 août. L'adresse avec laquelle la
                   personne SE CONNECTE au Trône, quand elle diffère du contact
@@ -1679,7 +1678,7 @@ export default function Personnel() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`${form.contractType === 'prestataire' ? 'Forfait du mois, au contrat' : 'Salaire de base'} · ${currency === 'XOF' ? 'F / mois' : 'XOF / mois'}`}>
-                <Input value={form.salaire} disabled={!estDirection} onChange={(e) => setForm({ ...form, salaire: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="180000" />
+                <Input value={form.salaire} disabled={!estDirection} onChange={(e) => setForm({ ...form, salaire: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" />
               </Field>
               <Field label="Au fauteuil">
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -1760,7 +1759,7 @@ export default function Personnel() {
               </div>
             )}
             <div className="tr-grid tr-grid--2">
-              <Field label="Matricule"><Input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} placeholder="MND-EMP-001" /></Field>
+              <Field label="Matricule"><Input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} /></Field>
               <Field label="Type de contrat">
                 <Select value={form.contractType} disabled={!estDirection} onChange={(e) => setForm({ ...form, contractType: e.target.value })}>
                   {CONTRACT_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -1768,11 +1767,11 @@ export default function Personnel() {
               </Field>
               <Field label="N° CNSS"><Input value={form.cnssNum} onChange={(e) => setForm({ ...form, cnssNum: e.target.value })} placeholder="—" /></Field>
               <Field label="IFU (identifiant fiscal)"><Input value={form.ifu} onChange={(e) => setForm({ ...form, ifu: e.target.value })} placeholder="—" /></Field>
-              <Field label="Atelier d’affectation"><Input value={form.atelier} onChange={(e) => setForm({ ...form, atelier: e.target.value })} placeholder="Cotonou" /></Field>
+              <Field label="Atelier d’affectation"><Input value={form.atelier} onChange={(e) => setForm({ ...form, atelier: e.target.value })} /></Field>
               <Field label="Commission sur prestations (%)"><Input inputMode="decimal" value={form.commissionPct} onChange={(e) => setForm({ ...form, commissionPct: e.target.value })} placeholder="0" /></Field>
             </div>
             <Field label="Coordonnées de paiement (Mobile Money / banque)">
-              <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} placeholder="MTN MoMo · +229 …" />
+              <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} />
             </Field>
 
             {/* SA GRILLE DE PRIX — pour une prestataire seulement : elle
@@ -1864,7 +1863,7 @@ export default function Personnel() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
-                <Input value={avanceForm.amount} onChange={(e) => setAvanceForm({ ...avanceForm, amount: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="50000" />
+                <Input value={avanceForm.amount} onChange={(e) => setAvanceForm({ ...avanceForm, amount: e.target.value.replace(/[^0-9]/g, '') })} inputMode="numeric" />
               </Field>
               <Field label="Date de l’avance">
                 <ChampDeDate compact sens="arriere" value={avanceForm.date} onChange={(iso) => setAvanceForm({ ...avanceForm, date: iso })} />
@@ -1964,14 +1963,14 @@ export default function Personnel() {
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
-                <Input value={primeForm.amount} inputMode="numeric" placeholder="25000" onChange={(e) => setPrimeForm({ ...primeForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
+                <Input value={primeForm.amount} inputMode="numeric" onChange={(e) => setPrimeForm({ ...primeForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
               <Field label="Date">
                 <ChampDeDate compact sens="arriere" value={primeForm.date} onChange={(iso) => setPrimeForm({ ...primeForm, date: iso })} />
               </Field>
             </div>
             <Field label="Note (facultatif)">
-              <Input value={primeForm.note} onChange={(e) => setPrimeForm({ ...primeForm, note: e.target.value })} placeholder="Motif, ex. objectif de rétention atteint" />
+              <Input value={primeForm.note} onChange={(e) => setPrimeForm({ ...primeForm, note: e.target.value })} placeholder="Motif" />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setPrimeFor(null)}>Annuler</Button>
@@ -1991,14 +1990,14 @@ export default function Personnel() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label={`Montant · ${currency === 'XOF' ? 'F' : 'XOF'}`}>
-                <Input value={tipForm.amount} inputMode="numeric" placeholder="5000" onChange={(e) => setTipForm({ ...tipForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
+                <Input value={tipForm.amount} inputMode="numeric" onChange={(e) => setTipForm({ ...tipForm, amount: e.target.value.replace(/[^0-9]/g, '') })} />
               </Field>
               <Field label="Date">
                 <ChampDeDate compact sens="arriere" value={tipForm.date} onChange={(iso) => setTipForm({ ...tipForm, date: iso })} />
               </Field>
             </div>
             <Field label="Note (facultatif)">
-              <Input value={tipForm.note} onChange={(e) => setTipForm({ ...tipForm, note: e.target.value })} placeholder="Ex. espèces · cliente ravie" />
+              <Input value={tipForm.note} onChange={(e) => setTipForm({ ...tipForm, note: e.target.value })} />
             </Field>
             {tipTotalMonth(tipFor.id, M) > 0 && (
               <div className="tre-inline-note">
@@ -2045,7 +2044,7 @@ export default function Personnel() {
               </Field>
             </div>
             <Field label="Note (facultatif)">
-              <Input value={retenueForm.note} onChange={(e) => setRetenueForm({ ...retenueForm, note: e.target.value })} placeholder="Précision, ex. maladie sans maintien, mise à pied disciplinaire…" />
+              <Input value={retenueForm.note} onChange={(e) => setRetenueForm({ ...retenueForm, note: e.target.value })} placeholder="Précision" />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setRetenueFor(null)}>Annuler</Button>

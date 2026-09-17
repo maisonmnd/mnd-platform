@@ -2532,7 +2532,7 @@ export default function Depenses() {
                       return (
                         <div className="trf-items__row" key={it.id}>
                           <input
-                            className="mnd-input" value={it.label} placeholder="Article · ex. Ganches"
+                            className="mnd-input" value={it.label}
                             onChange={(ev) => patchItem(it.id, (x) => ({ ...x, label: ev.target.value }))}
                             style={{ flex: 1, minWidth: 130 }}
                           />
@@ -2769,11 +2769,11 @@ export default function Depenses() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <label className="mnd-field">
               <span className="mnd-field__label">Nom de la caisse</span>
-              <input className="mnd-input" value={boxForm.name} onChange={(e) => setBoxForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex. Caisse principale" />
+              <input className="mnd-input" value={boxForm.name} onChange={(e) => setBoxForm((f) => ({ ...f, name: e.target.value }))} />
             </label>
             <label className="mnd-field">
               <span className="mnd-field__label">Type / référence</span>
-              <input className="mnd-input" value={boxForm.sub} onChange={(e) => setBoxForm((f) => ({ ...f, sub: e.target.value }))} placeholder="Ex. MTN MoMo · 07 00 00 00" />
+              <input className="mnd-input" value={boxForm.sub} onChange={(e) => setBoxForm((f) => ({ ...f, sub: e.target.value }))} />
             </label>
             <div>
               <div className="mnd-field__label" style={{ marginBottom: 9 }}>Emblème</div>
@@ -3032,7 +3032,7 @@ export default function Depenses() {
             <label className="mnd-field">
               <span className="mnd-field__label">Motif · facultatif</span>
               <input
-                className="mnd-input" value={fTr.note} placeholder="Ex. approvisionner le comptoir…"
+                className="mnd-input" value={fTr.note}
                 onChange={(e) => setFTr((f) => ({ ...f, note: e.target.value }))}
               />
             </label>
@@ -3144,7 +3144,6 @@ export default function Depenses() {
                 className="mnd-input"
                 rows={3}
                 value={motifRefus}
-                placeholder="Ex. Ce n’est pas pour la Maison, c’est une course personnelle."
                 onChange={(e) => setMotifRefus(e.target.value)}
               />
               <span className="mnd-muted" style={{ fontSize: 11, marginTop: 6, display: 'block', lineHeight: 1.55 }}>

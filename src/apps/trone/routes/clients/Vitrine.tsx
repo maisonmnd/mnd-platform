@@ -1224,7 +1224,6 @@ function CouronnePreview({ client }: { client: ReturnType<typeof useBranchClient
               className="mnd-input"
               value={cfg.couronneMot ?? ''}
               onChange={(e) => vitrineConfigStore.set((c) => ({ ...c, couronneMot: e.target.value || undefined }))}
-              placeholder="La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra."
               style={{ width: '100%', boxSizing: 'border-box', minHeight: 62, resize: 'vertical', fontSize: 12.5 }}
               aria-label="Le mot lu par les clientes"
             />

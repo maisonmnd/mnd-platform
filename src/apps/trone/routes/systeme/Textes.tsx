@@ -237,7 +237,6 @@ function OngletFiches() {
           </div>
           <input
             className="mnd-input" value={(fiche.aussi ?? []).join(', ')}
-            placeholder="Maîtresse"
             onChange={(e) => pose({
               aussi: e.target.value.split(',').map((t) => t.trim()).filter(Boolean),
             })}
@@ -307,7 +306,7 @@ function OngletFiches() {
                 />
                 <span className="txt-li__mot">auprès de</span>
                 <input
-                  className="mnd-input" value={d.a} placeholder="la gérance"
+                  className="mnd-input" value={d.a}
                   onChange={(e) => pose({
                     demandeAvant: fiche.demandeAvant.map((x, j) => (j === k ? { ...x, a: e.target.value } : x)),
                   })}

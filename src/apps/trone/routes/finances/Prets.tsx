@@ -775,7 +775,6 @@ export default function Prets() {
             <Field label="Motif · facultatif">
               <Input
                 value={fPret.motif}
-                placeholder="Avance sur salaire · dépannage · …"
                 onChange={(e) => setFPret((f) => ({ ...f, motif: e.target.value }))}
               />
             </Field>
@@ -969,7 +968,7 @@ function CeQueLaMaisonDoit() {
                 <Input value={form.preteur} autoFocus onChange={(ev) => setForm({ ...form, preteur: ev.target.value })} />
               </Field>
               <Field label="Pourquoi">
-                <Input value={form.motif} placeholder="Avance du loyer" onChange={(ev) => setForm({ ...form, motif: ev.target.value })} />
+                <Input value={form.motif} onChange={(ev) => setForm({ ...form, motif: ev.target.value })} />
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">

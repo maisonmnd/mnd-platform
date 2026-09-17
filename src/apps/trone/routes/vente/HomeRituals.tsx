@@ -350,10 +350,10 @@ function OngletGamme() {
         <Modal title={ligne.id ? 'La ligne.' : 'Nouvelle ligne.'} onClose={() => setLigne(null)} width={460}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom de la ligne">
-              <Input value={ligne.fon} onChange={(e) => setLigne({ ...ligne, fon: e.target.value })} placeholder="Ex. Bougies &amp; Parfums d’intérieur" />
+              <Input value={ligne.fon} onChange={(e) => setLigne({ ...ligne, fon: e.target.value })} />
             </Field>
             <Field label="Ce qu’elle rassemble">
-              <Input value={ligne.label} onChange={(e) => setLigne({ ...ligne, label: e.target.value })} placeholder="Ex. La maison qui sent la Maison" />
+              <Input value={ligne.label} onChange={(e) => setLigne({ ...ligne, label: e.target.value })} />
             </Field>
             <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
               Une ligne est une collection de la Gamme. Elle apparaît ici, au Catalogue et à la Caisse,
@@ -371,7 +371,7 @@ function OngletGamme() {
         <Modal title={form.id ? 'Le produit.' : 'Nouveau produit.'} onClose={() => setForm(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom">
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex. Vapo Hydra Mist 350 ml" />
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
             <Field label="Ligne">
               <select className="ds-select" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
@@ -382,7 +382,7 @@ function OngletGamme() {
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Prix (F CFA)">
-                <Input inputMode="numeric" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="8 000" />
+                <Input inputMode="numeric" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
               </Field>
               <Field label="Stock">
                 <Input inputMode="numeric" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0" />
@@ -532,7 +532,7 @@ function OngletVue() {
         <button type="button" className={`trv-pill${seulAlerte ? ' is-active--copper' : ''}`} onClick={() => setSeulAlerte((v) => !v)}>
           À commander seulement
         </button>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un produit… (vapo, karité, gants)" style={{ flex: '1 1 220px' }} />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un produit…" style={{ flex: '1 1 220px' }} />
         <Button onClick={() => setFiche(ficheVide())}>+ Fiche produit</Button>
       </div>
       <label className="mnd-muted" style={{ fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginTop: 8 }}>
@@ -616,7 +616,6 @@ function OngletVue() {
               <Input
                 value={ajuste.note}
                 onChange={(e) => setAjuste({ ...ajuste, note: e.target.value })}
-                placeholder={ajuste.perte ? 'Pot renversé, péremption…' : 'Inventaire du soir…'}
               />
             </Field>
             <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
@@ -677,7 +676,7 @@ function OngletVue() {
                   <div className="trv-mag-bloc__t">Identité</div>
                   <div className="trv-mag-bloc__c">
                     <Field label="Nom">
-                      <Input value={fiche.nom} onChange={(e) => setFiche({ ...fiche, nom: e.target.value })} placeholder="Ex. Henné du Sahel" autoFocus={!fiche.id} />
+                      <Input value={fiche.nom} onChange={(e) => setFiche({ ...fiche, nom: e.target.value })} autoFocus={!fiche.id} />
                     </Field>
                     <div className="tr-grid tr-grid--2">
                       <Field label="Famille">
@@ -688,7 +687,7 @@ function OngletVue() {
                         </Select>
                       </Field>
                       <Field label="Sous-famille">
-                        <Input value={fiche.sousFamille} onChange={(e) => setFiche({ ...fiche, sousFamille: e.target.value })} placeholder="HOME RITUALS™…" />
+                        <Input value={fiche.sousFamille} onChange={(e) => setFiche({ ...fiche, sousFamille: e.target.value })} />
                       </Field>
                     </div>
                     <div className="tr-grid tr-grid--2">
@@ -696,11 +695,11 @@ function OngletVue() {
                         <Input value={fiche.unite} onChange={(e) => setFiche({ ...fiche, unite: e.target.value })} placeholder="pièce" />
                       </Field>
                       <Field label="Conditionnement">
-                        <Input value={fiche.conditionnement} onChange={(e) => setFiche({ ...fiche, conditionnement: e.target.value })} placeholder="Pot de 250 g" />
+                        <Input value={fiche.conditionnement} onChange={(e) => setFiche({ ...fiche, conditionnement: e.target.value })} />
                       </Field>
                     </div>
                     <Field label="Emplacement">
-                      <Input value={fiche.emplacement} onChange={(e) => setFiche({ ...fiche, emplacement: e.target.value })} placeholder="Étagère vitrine · B2" />
+                      <Input value={fiche.emplacement} onChange={(e) => setFiche({ ...fiche, emplacement: e.target.value })} />
                     </Field>
                   </div>
                 </div>
@@ -1030,11 +1029,11 @@ function OngletAchats() {
               <Field label="Téléphone"><Input value={ff.telephone} onChange={(e) => setFf({ ...ff, telephone: e.target.value })} /></Field>
             </div>
             <Field label="Ce qu’il fournit">
-              <Input value={ff.produitsFournis} onChange={(e) => setFf({ ...ff, produitsFournis: e.target.value })} placeholder="Henné, indigo, huiles…" />
+              <Input value={ff.produitsFournis} onChange={(e) => setFf({ ...ff, produitsFournis: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Délai de livraison (jours)"><Input inputMode="numeric" value={ff.delai} onChange={(e) => setFf({ ...ff, delai: e.target.value })} /></Field>
-              <Field label="Conditions de paiement"><Input value={ff.conditions} onChange={(e) => setFf({ ...ff, conditions: e.target.value })} placeholder="Comptant, 30 j…" /></Field>
+              <Field label="Conditions de paiement"><Input value={ff.conditions} onChange={(e) => setFf({ ...ff, conditions: e.target.value })} /></Field>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <Button variant="ghost" onClick={() => setFf(null)}>Annuler</Button>
@@ -1565,7 +1564,6 @@ function OngletComptage() {
                       <Input
                         value={motifs[x.id] ?? ''}
                         onChange={(ev) => setMotifs((prev) => ({ ...prev, [x.id]: ev.target.value }))}
-                        placeholder="paquet entamé, boîte retrouvée…"
                         style={{ minWidth: 180, padding: '4px 8px', fontSize: 12 }}
                       />
                     )}

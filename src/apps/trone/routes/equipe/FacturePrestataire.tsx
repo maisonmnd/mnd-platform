@@ -677,7 +677,6 @@ export function FactureDeLaDirection({ membre, mois, onClose }: { membre: StaffM
                 rows={3}
                 value={mot}
                 onChange={(e) => setMot(e.target.value)}
-                placeholder="Une prestation manque le 12, l’IFU est incomplet…"
                 style={{ width: '100%', resize: 'vertical' }}
               />
             </Field>
@@ -826,7 +825,6 @@ export function GrilleDePrix({ staffId, valeur, onChange, lectureSeule = false }
                     <Input
                       inputMode="numeric"
                       value={valeur[id] ?? ''}
-                      placeholder="à écrire"
                       disabled={lectureSeule}
                       onChange={(e) => onChange({ ...valeur, [id]: e.target.value.replace(/[^0-9]/g, '') })}
                       aria-label={`Son prix pour ${parId.get(id)?.name ?? 'cette prestation'}`}

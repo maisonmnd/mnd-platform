@@ -1241,7 +1241,6 @@ export default function Conversations() {
                 className="mnd-input"
                 value={numeroNeuf}
                 onChange={(e) => setNumeroNeuf(e.target.value)}
-                placeholder="+229 01 90 00 00 00"
                 style={{ flex: 1, minWidth: 180 }}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;

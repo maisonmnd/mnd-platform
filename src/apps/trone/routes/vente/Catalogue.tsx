@@ -1893,7 +1893,7 @@ export default function Catalogue() {
               {rubrique === 'identite' && (
                 <Bloc titre="L’identité" aide="ce qu'elle est, et sous quel nom la cliente la reconnaît">
               <Field label="Nom de la prestation">
-                <Input value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })} placeholder="Ex. Création microlocks" />
+                <Input value={svcForm.name} onChange={(e) => setSvcForm({ ...svcForm, name: e.target.value })} />
               </Field>
                   <div className="tr-grid tr-grid--2">
                 <Field label="Catégorie ™">
@@ -1904,7 +1904,7 @@ export default function Catalogue() {
                   </Select>
                 </Field>
               <Field label="Code ERP">
-                <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} placeholder="ATL·II·MIN·E" />
+                <Input value={svcForm.code} onChange={(e) => setSvcForm({ ...svcForm, code: e.target.value })} />
               </Field>
                   </div>
               {/* LE PALIER EST LA PREMIÈRE QUESTION — 16 septembre 2026. Il
@@ -1961,10 +1961,10 @@ export default function Catalogue() {
                 <Bloc titre="Le prix" aide="combien elle vaut, et sur quoi ce montant se calcule">
                   <div className="tr-grid tr-grid--2">
                 <Field label={svcForm.priceMode === 'variable' ? 'Prix de départ (F CFA)' : svcForm.priceMode === 'devis' ? 'Prix indicatif (facultatif)' : 'Prix (F CFA)'}>
-                  <Input inputMode="numeric" value={svcForm.price} onChange={(e) => setSvcForm({ ...svcForm, price: e.target.value })} placeholder="45 000" />
+                  <Input inputMode="numeric" value={svcForm.price} onChange={(e) => setSvcForm({ ...svcForm, price: e.target.value })} />
                 </Field>
               <Field label="Prix haut affiché">
-                <Input inputMode="numeric" value={svcForm.priceTo} onChange={(e) => setSvcForm({ ...svcForm, priceTo: e.target.value })} placeholder="« de 15 000 à 25 000 »" />
+                <Input inputMode="numeric" value={svcForm.priceTo} onChange={(e) => setSvcForm({ ...svcForm, priceTo: e.target.value })} />
               </Field>
                   </div>
               <Field label="Mode de prix">
@@ -2106,7 +2106,6 @@ export default function Catalogue() {
                   inputMode="numeric"
                   value={svcForm.rate}
                   onChange={(e) => setSvcForm({ ...svcForm, rate: e.target.value })}
-                  placeholder="Ex. 100"
                 />
                 {svcForm.rate && (
                   <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 6 }}>
@@ -2218,7 +2217,7 @@ export default function Catalogue() {
                 <Bloc titre="Le temps" aide="ce qu'elle occupe au fauteuil, et en combien de venues">
               <div className="tr-grid tr-grid--2">
                 <Field label="Durée (minutes)">
-                  <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} placeholder="120" />
+                  <Input inputMode="numeric" value={svcForm.durationMin} onChange={(e) => setSvcForm({ ...svcForm, durationMin: e.target.value })} />
                 </Field>
                 <Field label="Nombre de séances">
                   <span className="trv-stepper">
@@ -2230,7 +2229,7 @@ export default function Catalogue() {
                 </Field>
               </div>
               <Field label="Durée haute">
-                <Input inputMode="numeric" value={svcForm.durationMax} onChange={(e) => setSvcForm({ ...svcForm, durationMax: e.target.value })} placeholder="« 3h à 4h30 »" />
+                <Input inputMode="numeric" value={svcForm.durationMax} onChange={(e) => setSvcForm({ ...svcForm, durationMax: e.target.value })} />
               </Field>
                 </Bloc>
               )}
@@ -2755,7 +2754,7 @@ export default function Catalogue() {
         <Modal title={prodForm.id ? 'Le produit Maison.' : 'Nouveau produit Maison.'} onClose={() => setProdForm(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom du produit">
-              <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex. Le Sérum Moringa & Prêle" />
+              <Input value={prodForm.name} onChange={(e) => setProdForm({ ...prodForm, name: e.target.value })} />
             </Field>
             <Field label="Catégorie ™">
               <Select value={prodForm.categoryId} onChange={(e) => setProdForm({ ...prodForm, categoryId: e.target.value })}>
@@ -2766,7 +2765,7 @@ export default function Catalogue() {
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Prix conseillé (F CFA)">
-                <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="12 000" />
+                <Input inputMode="numeric" value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} />
               </Field>
               <Field label="Stock">
                 <Input inputMode="numeric" value={prodForm.stock} onChange={(e) => setProdForm({ ...prodForm, stock: e.target.value })} placeholder="0" />
@@ -2826,12 +2825,11 @@ export default function Catalogue() {
               <Input
                 value={catForm.fon}
                 onChange={(e) => setCatForm({ ...catForm, fon: e.target.value })}
-                placeholder="Ex. VÈKPÈ™"
                 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}
               />
             </Field>
             <Field label="Libellé · ce qu’elle regroupe">
-              <Input value={catForm.label} onChange={(e) => setCatForm({ ...catForm, label: e.target.value })} placeholder="Ex. Pose & structure" />
+              <Input value={catForm.label} onChange={(e) => setCatForm({ ...catForm, label: e.target.value })} />
             </Field>
             {/* LA MAISON — le catalogue du Trône est commun à toute la Maison :
                 c'est ce champ, et non la branche, qui sépare l'Atelier du Studio.
@@ -2853,7 +2851,7 @@ export default function Catalogue() {
               </div>
             </Field>
             <Field label="Code ERP">
-              <Input value={catForm.code} onChange={(e) => setCatForm({ ...catForm, code: e.target.value })} placeholder="ATL·II · PLT·05 · STU·A" />
+              <Input value={catForm.code} onChange={(e) => setCatForm({ ...catForm, code: e.target.value })} />
             </Field>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
               <input type="checkbox" checked={catForm.enabled} onChange={(e) => setCatForm({ ...catForm, enabled: e.target.checked })} />

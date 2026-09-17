@@ -488,7 +488,6 @@ export default function Coffre() {
             <Field label="Pourquoi · facultatif">
               <Input
                 value={fRetrait.note}
-                placeholder="Ex. règlement d’un fournisseur, besoin du comptoir…"
                 onChange={(e) => setFRetrait((f) => ({ ...f, note: e.target.value }))}
               />
             </Field>
@@ -506,7 +505,6 @@ export default function Coffre() {
             <Field label="Ce que la Maison prépare">
               <Input
                 value={objOuvert.nom}
-                placeholder="Scolarité 2027 · Voyage · Second fauteuil…"
                 onChange={(e) => setObjOuvert((o) => (o ? { ...o, nom: e.target.value } : o))}
               />
             </Field>

@@ -545,7 +545,6 @@ export function LesObjectifs() {
               <Field label="Ce que la Maison prépare">
                 <Input
                   value={objOuvert.nom}
-                  placeholder="Vacances 2027 · scolarité · second fauteuil…"
                   onChange={(e) => setObjOuvert((f) => (f ? { ...f, nom: e.target.value } : f))}
                 />
               </Field>
@@ -877,7 +876,7 @@ export function DepositModal({
           <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Note · facultatif">
-          <Textarea rows={2} value={note} placeholder="Ex. épargne du mois, mise de côté prudente…" onChange={(e) => setNote(e.target.value)} />
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -931,7 +930,7 @@ export function TransferModal({
           </div>
         </div>
         <Field label="Banque / compte destinataire">
-          <Input value={bank} placeholder="Ex. Ecobank · MND Épargne" onChange={(e) => setBank(e.target.value)} />
+          <Input value={bank} onChange={(e) => setBank(e.target.value)} />
         </Field>
         <Field label={`Montant du virement (${currency})`}>
           <Input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
@@ -941,7 +940,7 @@ export function TransferModal({
           <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Référence · facultatif">
-          <Textarea rows={2} value={note} placeholder="Ex. n° de bordereau, motif…" onChange={(e) => setNote(e.target.value)} />
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>

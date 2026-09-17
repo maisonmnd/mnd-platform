@@ -318,7 +318,6 @@ export function ChampDeDate({
           autoFocus={autoFocus}
           disabled={disabled}
           title={title}
-          placeholder="3/9 · 3 sept · 3 septembre · 03-09-26"
           aria-label={ariaLabel}
           /* AU CLIC, TOUT SE SÉLECTIONNE : on retape, on n'efface pas. Sans
              cela on obtenait « 12 sept. 202613 ». */

@@ -570,7 +570,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
           </div>
         </div>
         <Field label="Note d’atelier (facultative)">
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cuir sensible, moitié de menthe…" />
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -1010,7 +1010,7 @@ function LierModal({ ingredient, onClose }: { ingredient: string; onClose: () =>
                 <Input value={unite} onChange={(e) => setUnite(e.target.value)} autoFocus />
               </Field>
               <Field label="Prix d’achat (F CFA / unité)">
-                <Input inputMode="numeric" value={prixAchat} onChange={(e) => setPrixAchat(e.target.value)} placeholder="20" />
+                <Input inputMode="numeric" value={prixAchat} onChange={(e) => setPrixAchat(e.target.value)} />
               </Field>
             </div>
             <Field label="Quantité en réserve aujourd’hui">

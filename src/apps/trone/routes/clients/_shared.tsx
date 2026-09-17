@@ -3096,7 +3096,7 @@ export function RdvModal({
                 style={{ borderStyle: 'dashed', color: 'var(--copper-600)' }}
                 value={chercheSv}
                 aria-expanded={svOuvert}
-                placeholder="+ Ajouter une prestation… (tapez : sinsin, kloklo, styling)"
+                placeholder="+ Ajouter une prestation…"
                 onFocus={() => setSvOuvert(true)}
                 onClick={() => setSvOuvert(true)}
                 onChange={(e) => { setChercheSv(e.target.value); setSvOuvert(true); }}
@@ -3366,7 +3366,7 @@ export function RdvModal({
             toujours. Le pli s'ouvre de lui-même quand elle porte un mot. */}
         {noteOuverte ? (
           <Field label="Note du carnet">
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Une attention, une préférence…" autoFocus={!appt?.note?.trim()} />
+            <Input value={note} onChange={(e) => setNote(e.target.value)} autoFocus={!appt?.note?.trim()} />
           </Field>
         ) : (
           <button

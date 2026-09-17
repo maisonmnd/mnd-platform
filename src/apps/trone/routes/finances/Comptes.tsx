@@ -776,7 +776,7 @@ function FamilyModal({
     <Modal title={family ? 'Modifier le compte famille.' : 'Nouveau compte famille.'} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Nom du compte">
-          <Input value={name} placeholder="Ex. Famille A." onChange={(e) => setName(e.target.value)} />
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="Membres du compte">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -881,7 +881,7 @@ function FamilyModal({
           </Field>
         )}
         <Field label="Note · facultatif">
-          <Textarea rows={2} value={note} placeholder="Ex. mère + 2 filles, règle en une fois chaque mois…" onChange={(e) => setNote(e.target.value)} />
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
@@ -1059,7 +1059,7 @@ function DepositModal({
           <ChampDeDate compact sens="arriere" value={date} onChange={setDate} />
         </Field>
         <Field label="Note · facultatif">
-          <Textarea rows={2} value={note} placeholder={kind === 'depot' ? 'Ex. acompte de la famille pour le mois…' : 'Ex. solde rendu en espèces…'} onChange={(e) => setNote(e.target.value)} />
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>

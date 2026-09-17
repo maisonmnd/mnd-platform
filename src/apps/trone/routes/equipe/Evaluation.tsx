@@ -392,7 +392,6 @@ export function EvaluationModal(o: {
             <textarea
               className="mnd-textarea"
               value={ev.aTravailler}
-              placeholder="Un ou deux gestes, pas dix. Une liste longue ne se travaille pas."
               onChange={(e) => setEv((p) => ({ ...p, aTravailler: e.target.value }))}
             />
           </div>

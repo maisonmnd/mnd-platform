@@ -611,7 +611,7 @@ export default function Cercle() {
         <Modal title={tierEditId ? 'Modifier le sceau.' : tierKind === 'foyer' ? 'Nouveau sceau du Foyer.' : 'Nouveau sceau de récompense.'} onClose={() => setTierModal(false)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label={tierKind === 'foyer' ? 'Dépense cumulée du foyer · seuil (F CFA)' : 'Points requis · seuil'}>
-              <Input inputMode="numeric" value={tierForm.pts} placeholder={tierKind === 'foyer' ? 'Ex. 300000' : 'Ex. 3000'} onChange={(e) => setTierForm({ ...tierForm, pts: e.target.value.replace(/[^0-9]/g, '') })} />
+              <Input inputMode="numeric" value={tierForm.pts} onChange={(e) => setTierForm({ ...tierForm, pts: e.target.value.replace(/[^0-9]/g, '') })} />
             </Field>
             <Field label="Prestation offerte · tirée du catalogue">
               <Select value={tierForm.serviceId} onChange={(e) => setTierForm({ ...tierForm, serviceId: e.target.value })}>
@@ -621,7 +621,7 @@ export default function Cercle() {
               </Select>
             </Field>
             <Field label="Description · une phrase">
-              <Input value={tierForm.desc} placeholder="Ex. Un soin signature, sans frais." onChange={(e) => setTierForm({ ...tierForm, desc: e.target.value })} />
+              <Input value={tierForm.desc} onChange={(e) => setTierForm({ ...tierForm, desc: e.target.value })} />
             </Field>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setTierModal(false)}>Annuler</Button>

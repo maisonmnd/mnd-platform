@@ -418,23 +418,23 @@ export default function Fournisseurs() {
         <Modal title={form.id ? 'Modifier la maison' : 'Nommer une maison'} onClose={() => setForm(null)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Field label="Nom">
-              <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex. Super U" />
+              <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
             </Field>
             <Field label="Famille · facultatif">
-              <Input value={form.famille} onChange={(e) => setForm({ ...form, famille: e.target.value })} placeholder="Supermarché, matières, local…" />
+              <Input value={form.famille} onChange={(e) => setForm({ ...form, famille: e.target.value })} />
             </Field>
             <Field label="Téléphone · facultatif">
               <Input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} placeholder="+229…" />
             </Field>
             <Field label="Ses autres noms · séparés par des virgules">
-              <Input value={form.alias} onChange={(e) => setForm({ ...form, alias: e.target.value })} placeholder="SuperU, SUPER-U" />
+              <Input value={form.alias} onChange={(e) => setForm({ ...form, alias: e.target.value })} />
               <span className="mnd-muted" style={{ fontSize: 11, marginTop: 5, display: 'block', lineHeight: 1.55 }}>
                 Chaque nom rassemble les dépenses qui le portent. <b>Aucune dépense n’est
                 modifiée</b> : c’est la fiche qui apprend un nom de plus.
               </span>
             </Field>
             <Field label="Note · facultatif">
-              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Livre le mardi, demander Séraphin…" />
+              <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </Field>
             <div style={{ display: 'flex', gap: 10 }}>
               <Button variant="ghost" style={{ flex: 1 }} onClick={() => setForm(null)}>Annuler</Button>

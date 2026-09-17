@@ -603,7 +603,6 @@ export default function Encaissements() {
             value={texteReleve}
             onChange={(e) => setTexteReleve(e.target.value)}
             rows={6}
-            placeholder={'12/08/2026  15 000 F  réf 123456789012  AKOSSIWA D.\n12/08/2026  40 000 F  réf 123456789013  …'}
             style={{ width: '100%', marginTop: 12, padding: '10px 12px', border: '1px solid var(--hairline)', borderRadius: 4, fontFamily: 'var(--font-sans)', fontSize: 13, background: 'var(--surface-card)', color: 'var(--ink)', resize: 'vertical' }}
             aria-label="Relevé MoMo à pointer"
           />
@@ -900,7 +899,6 @@ export default function Encaissements() {
               <Input
                 value={horsForm.label}
                 autoFocus
-                placeholder="Prêt de M. A. pour l’avance du loyer, remboursable en 3 fois"
                 onChange={(e) => setHorsForm({ ...horsForm, label: e.target.value })}
               />
             </Field>

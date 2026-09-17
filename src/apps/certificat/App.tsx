@@ -417,7 +417,7 @@ export default function App() {
             </Field>
 
             <Field label="Numéro de certificat">
-              <Input value={certNo} onChange={(e) => setCertNo(e.target.value)} placeholder={`MND-AC-${new Date().getFullYear()}-0001`} />
+              <Input value={certNo} onChange={(e) => setCertNo(e.target.value)} />
             </Field>
             {!certNo.trim() && (
               <div className="ct-controls__meta" style={{ marginTop: -8 }}>

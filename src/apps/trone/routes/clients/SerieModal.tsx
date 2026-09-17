@@ -820,7 +820,6 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
               className="mnd-input"
               value={colle}
               onChange={(e) => setColle(e.target.value)}
-              placeholder={teteDuMois ? '14/02 09:00 Stephanie\n7 mars Mylène\n19/05 11h Adjaratou' : '14/02/2025 09:00\n7 mars 2025\n19/05'}
               style={{ minHeight: 130, lineHeight: 1.9, fontFamily: 'var(--font-sans)' }}
             />
             <div className="mnd-muted" style={{ fontSize: 11, marginTop: 5, lineHeight: 1.55 }}>

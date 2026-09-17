@@ -517,7 +517,6 @@ function DossierPanel({
             className="trc-dossier-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Une attention, une préférence, un détail du rituel…"
             rows={4}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>

@@ -424,19 +424,18 @@ export default function Marketing() {
             </p>
             <div className="tr-grid tr-grid--2" style={{ marginTop: 16 }}>
               <Field label="Lien de paiement MoMo">
-                <Input value={autoCfg.momoLink} placeholder="https://momo.example/pay/salon" onChange={(e) => setAutoCfg({ ...autoCfg, momoLink: e.target.value })} />
+                <Input value={autoCfg.momoLink} onChange={(e) => setAutoCfg({ ...autoCfg, momoLink: e.target.value })} />
               </Field>
               <Field label="Lien Google Maps · itinéraire">
-                <Input value={autoCfg.mapsLink} placeholder="https://maps.google.com/?q=…" onChange={(e) => setAutoCfg({ ...autoCfg, mapsLink: e.target.value })} />
+                <Input value={autoCfg.mapsLink} onChange={(e) => setAutoCfg({ ...autoCfg, mapsLink: e.target.value })} />
               </Field>
               <Field label="Lien Google Avis">
-                <Input value={autoCfg.reviewLink} placeholder="https://g.page/r/…/review" onChange={(e) => setAutoCfg({ ...autoCfg, reviewLink: e.target.value })} />
+                <Input value={autoCfg.reviewLink} onChange={(e) => setAutoCfg({ ...autoCfg, reviewLink: e.target.value })} />
               </Field>
               <Field label="Itinéraire · texte libre">
                 <Textarea
                   rows={2}
                   value={autoCfg.itineraire}
-                  placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage."
                   onChange={(e) => setAutoCfg({ ...autoCfg, itineraire: e.target.value })}
                 />
               </Field>
@@ -527,7 +526,7 @@ export default function Marketing() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 18px', borderTop: '1px solid var(--hairline)', flexWrap: 'wrap' }}>
               <Input
                 value={newSeg}
-                placeholder="Nommer un segment, ex. Diaspora Paris"
+                placeholder="Nommer un segment"
                 onChange={(e) => setNewSeg(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addNewSeg(); }}
                 style={{ maxWidth: 260 }}
@@ -545,18 +544,18 @@ export default function Marketing() {
         <Modal title={offerEditId ? 'Modifier l’offre instantanée.' : 'Nouvelle offre instantanée.'} onClose={() => setOfferModal(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Prestation / offre">
-              <Input value={offerForm.title} placeholder="Ex. Resserrage racines" onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })} />
+              <Input value={offerForm.title} onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Accroche">
-                <Input value={offerForm.tag} placeholder="Ex. Offre éclair" onChange={(e) => setOfferForm({ ...offerForm, tag: e.target.value })} />
+                <Input value={offerForm.tag} onChange={(e) => setOfferForm({ ...offerForm, tag: e.target.value })} />
               </Field>
               <Field label="Avantage · remise">
-                <Input value={offerForm.deal} placeholder="Ex. −25%" onChange={(e) => setOfferForm({ ...offerForm, deal: e.target.value })} />
+                <Input value={offerForm.deal} onChange={(e) => setOfferForm({ ...offerForm, deal: e.target.value })} />
               </Field>
             </div>
             <Field label="Détail">
-              <Input value={offerForm.sub} placeholder="Ex. Sérum Densité offert" onChange={(e) => setOfferForm({ ...offerForm, sub: e.target.value })} />
+              <Input value={offerForm.sub} onChange={(e) => setOfferForm({ ...offerForm, sub: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Prestation liée · réservable en un geste">
@@ -569,7 +568,6 @@ export default function Marketing() {
                 <Input
                   inputMode="numeric"
                   value={offerForm.discountPct}
-                  placeholder="Ex. 25"
                   onChange={(e) => {
                     const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
                     setOfferForm({ ...offerForm, discountPct: raw });
@@ -664,14 +662,12 @@ function AutomationModal({
         <Field label="Déclencheur, quand ?">
           <Input
             value={trig}
-            placeholder="Ex. Anniversaire · le jour même"
             onChange={(e) => { setTrig(e.target.value); setError(null); }}
           />
         </Field>
         <Field label="Action, quoi ?">
           <Input
             value={act}
-            placeholder="Ex. Mot d’anniversaire + geste du Cercle"
             onChange={(e) => { setAct(e.target.value); setError(null); }}
           />
         </Field>

@@ -909,7 +909,6 @@ export default function SalonFoyer() {
                             <Input
                               value={p.label}
                               onChange={(e) => majPoste(p.id, { label: e.target.value })}
-                              placeholder="Ex. marché"
                               style={{ flex: 1, minWidth: 0 }}
                               aria-label="Libellé du poste"
                             />
@@ -963,7 +962,6 @@ export default function SalonFoyer() {
                     <Input
                       value={fMvtUni.note}
                       onChange={(e) => setFMvtUni({ ...fMvtUni, note: e.target.value })}
-                      placeholder={geste === 'foyer' ? 'Marché + supermarché…' : geste === 'cote' ? 'Achat fauteuil, acompte impôt…' : 'Retenue sur prélèvement…'}
                     />
                   </Field>
 
@@ -1317,7 +1315,6 @@ export default function SalonFoyer() {
                       <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Input
                           value={x.label}
-                          placeholder="Poste, marché, pharmacie, taxi…"
                           onChange={(e) => setEditPrel({ ...editPrel, postes: editPrel.postes.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })}
                           style={{ flex: 1, minWidth: 160 }}
                         />
@@ -1535,8 +1532,8 @@ export default function SalonFoyer() {
                   <option value="retrait">Retrait, à bon escient</option>
                 </Select>
               </Field>
-              <Field label="Note"><Input value={fRes.note} onChange={(e) => setFRes({ ...fRes, note: e.target.value })} placeholder="Achat fauteuil, acompte impôts…" /></Field>
-              <Field label={`Montant (${currency})`}><Input inputMode="numeric" value={fRes.montant} onChange={(e) => { setFRes({ ...fRes, montant: e.target.value }); setVrsErr(null); }} placeholder="100 000" /></Field>
+              <Field label="Note"><Input value={fRes.note} onChange={(e) => setFRes({ ...fRes, note: e.target.value })} /></Field>
+              <Field label={`Montant (${currency})`}><Input inputMode="numeric" value={fRes.montant} onChange={(e) => { setFRes({ ...fRes, montant: e.target.value }); setVrsErr(null); }} /></Field>
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <button className="trf-act" onClick={ajouteReserve} disabled={litXof(fRes.montant) <= 0}>Inscrire</button>
@@ -1681,7 +1678,6 @@ export default function SalonFoyer() {
               <Input
                 value={fMvt.label}
                 onChange={(e) => setFMvt({ ...fMvt, label: e.target.value })}
-                placeholder="Report de solde, frais notaire, virement reçu…"
               />
             </Field>
 
@@ -1800,7 +1796,6 @@ export default function SalonFoyer() {
                   <Input
                     value={po.label}
                     onChange={(e) => majPosteCaisse(po.id, { label: e.target.value })}
-                    placeholder="Ex. frais notaire"
                     style={{ flex: 1, minWidth: 0 }}
                     aria-label="Libellé du poste"
                   />
@@ -1839,7 +1834,7 @@ export default function SalonFoyer() {
               <Field label="Date"><ChampDeDate compact sens="arriere" value={fMvt.date} onChange={(iso) => setFMvt({ ...fMvt, date: iso })} /></Field>
               {enDevise && (
                 <Field label={'Taux (1 ' + deviseActive + ' en ' + currency + ')'}>
-                  <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} placeholder="655" />
+                  <Input inputMode="decimal" value={fMvt.taux} onChange={(e) => setFMvt({ ...fMvt, taux: e.target.value })} />
                 </Field>
               )}
             </div>
@@ -1889,7 +1884,7 @@ export default function SalonFoyer() {
           {fCaisse && (
             <Panel title="Une nouvelle caisse indépendante">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-                <Field label="Nom"><Input value={fCaisse.nom} onChange={(e) => setFCaisse({ ...fCaisse, nom: e.target.value })} placeholder="Succession · Projet terrain · Tontine…" /></Field>
+                <Field label="Nom"><Input value={fCaisse.nom} onChange={(e) => setFCaisse({ ...fCaisse, nom: e.target.value })} /></Field>
                 <Field label="Monnaie tenue">
                   <Select value={fCaisse.devise} onChange={(e) => setFCaisse({ ...fCaisse, devise: e.target.value })}>
                     <option value={currency}>{currency}, la monnaie de la maison</option>

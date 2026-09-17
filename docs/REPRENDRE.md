@@ -2,6 +2,23 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## AUCUN EXEMPLE EN DUR DANS LES CASES — 17 septembre 2026
+
+« Enlève Article ex. Ganches en dur. Toutes les cases à remplir dans le Trône
+qui ont des noms en dur pour servir d'exemples : remove » (Yéman), après
+« Fournisseur · Karité Bénin » la veille et « Rachelle A. » le 13.
+
+**LA RÈGLE** : une case s'ouvre vide, ou avec une CONSIGNE (« Rechercher une
+cliente… », « Nom du membre », « jj/mm/aaaa », « +229… », « 0 », « — »),
+jamais avec un EXEMPLE : pas de nom, pas de somme, pas d'heure, pas de phrase
+de démonstration, pas de « Ex. … ». Un exemple pré-rempli finit un jour
+enregistré tel quel, ou lu comme une donnée. Balayage
+(`balaie-exemples.py`, scratchpad) sur `src/apps/trone`, `src/apps/certificat`
+et `src/ds` : 170 placeholders retirés ou raccourcis dans 40 fichiers (« Nom
+du module (ex. Purifier) » devient « Nom du module »). Aucune logique
+touchée. Les valeurs calculées (`String(formation?.priceXof …)`) restent :
+elles sont vivantes, pas inventées. À tenir pour toute nouvelle case.
+
 ## LE TÉLÉPHONE DU PRESTATAIRE, LA LIVRAISON ATTENDUE — 17 septembre 2026
 
 « Rajouter le numéro de téléphone sur cette fiche. Avoir une date de livraison

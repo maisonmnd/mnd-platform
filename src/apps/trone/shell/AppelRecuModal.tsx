@@ -103,7 +103,7 @@ export function AppelRecuModal({ open, onClose, initial, onPoserRdv }: {
         )}
 
         <Field label="Ce qu'elle veut · une phrase">
-          <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. Un RDV pour ses locks, plutôt samedi matin." />
+          <Input value={motif} onChange={(e) => setMotif(e.target.value)} />
         </Field>
 
         <div>

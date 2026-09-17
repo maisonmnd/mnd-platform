@@ -108,12 +108,12 @@ export function BilanModal({ client, honored, byId, branchId, onClose }: {
 
         <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
           <Field label="Séance du"><ChampDeDate compact sens="arriere" value={date} onChange={setDate} ariaLabel="Le jour de la séance" /></Field>
-          <Field label="Durée"><Input value={duree} onChange={(e) => setDuree(e.target.value)} placeholder="2 h 30" /></Field>
+          <Field label="Durée"><Input value={duree} onChange={(e) => setDuree(e.target.value)} /></Field>
         </div>
         <Field label="Prestation"><Input value={prestation} onChange={(e) => setPrestation(e.target.value)} /></Field>
         <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
           <Field label="Praticien"><Input value={praticien} onChange={(e) => setPraticien(e.target.value)} /></Field>
-          <Field label="Prochaine visite conseillée"><Input value={prochaineVisite} onChange={(e) => setProchaineVisite(e.target.value)} placeholder="Semaine du 31 août" /></Field>
+          <Field label="Prochaine visite conseillée"><Input value={prochaineVisite} onChange={(e) => setProchaineVisite(e.target.value)} /></Field>
         </div>
 
         <div>

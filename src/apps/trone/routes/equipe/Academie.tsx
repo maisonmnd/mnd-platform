@@ -948,7 +948,7 @@ export default function Academie() {
         <Modal title={foEditId ? 'La formation.' : 'Nouvelle formation.'} onClose={() => setFoForm(null)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Intitulé de la formation">
-              <Input value={foForm.name} onChange={(e) => setFoForm({ ...foForm, name: e.target.value })} placeholder="Ex. Fondations du Lock" />
+              <Input value={foForm.name} onChange={(e) => setFoForm({ ...foForm, name: e.target.value })} />
             </Field>
             <Field label="Pour quel public">
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -971,7 +971,7 @@ export default function Academie() {
                 </Select>
               </Field>
               <Field label="Prix (F CFA)">
-                <Input inputMode="numeric" value={foForm.price} onChange={(e) => setFoForm({ ...foForm, price: e.target.value })} placeholder="250 000" />
+                <Input inputMode="numeric" value={foForm.price} onChange={(e) => setFoForm({ ...foForm, price: e.target.value })} />
               </Field>
               {/* CE QU'ELLE APPREND, en une phrase. Elle se lit sur la carte,
                   et c'est elle qui fait choisir un parcours plutot qu'un autre :
@@ -980,7 +980,6 @@ export default function Academie() {
                 <Input
                   value={foForm.description}
                   onChange={(e) => setFoForm({ ...foForm, description: e.target.value })}
-                  placeholder="la reprise de racines, le resserrage de precision…"
                 />
               </Field>
             </div>
@@ -1006,9 +1005,9 @@ export default function Academie() {
                   ))}
                 </div>
                 {foForm.depositMode === 'pct' ? (
-                  <Input inputMode="numeric" value={foForm.deposit} onChange={(e) => setFoForm({ ...foForm, deposit: e.target.value })} placeholder="40" style={{ width: 90 }} aria-label="Acompte en pourcentage" />
+                  <Input inputMode="numeric" value={foForm.deposit} onChange={(e) => setFoForm({ ...foForm, deposit: e.target.value })} style={{ width: 90 }} aria-label="Acompte en pourcentage" />
                 ) : (
-                  <Input inputMode="numeric" value={foForm.depositXof} onChange={(e) => setFoForm({ ...foForm, depositXof: e.target.value })} placeholder="60 000" style={{ width: 140 }} aria-label="Acompte en francs" />
+                  <Input inputMode="numeric" value={foForm.depositXof} onChange={(e) => setFoForm({ ...foForm, depositXof: e.target.value })} style={{ width: 140 }} aria-label="Acompte en francs" />
                 )}
               </div>
               {(() => {
@@ -1036,14 +1035,14 @@ export default function Academie() {
             </div>
             <div className="tr-grid tr-grid--2">
               <Field label="Démarrage">
-                <Input value={foForm.demarrage} onChange={(e) => setFoForm({ ...foForm, demarrage: e.target.value })} placeholder="démarre 8 juil" />
+                <Input value={foForm.demarrage} onChange={(e) => setFoForm({ ...foForm, demarrage: e.target.value })} />
               </Field>
               <Field label="Places">
-                <Input value={foForm.places} onChange={(e) => setFoForm({ ...foForm, places: e.target.value })} placeholder="4 places / complet" />
+                <Input value={foForm.places} onChange={(e) => setFoForm({ ...foForm, places: e.target.value })} />
               </Field>
             </div>
             <Field label="L’accroche · une phrase pour la carte">
-              <Input value={foForm.accroche} onChange={(e) => setFoForm({ ...foForm, accroche: e.target.value })} placeholder="Poser les gestes justes avant d’aller vite…" />
+              <Input value={foForm.accroche} onChange={(e) => setFoForm({ ...foForm, accroche: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Pour qui">
@@ -1064,7 +1063,7 @@ export default function Academie() {
                     <Input
                       value={m.nom}
                       onChange={(e) => majModule(i, { nom: e.target.value })}
-                      placeholder="Nom du module (ex. Purifier)"
+                      placeholder="Nom du module"
                     />
                     <Input
                       inputMode="numeric"
@@ -1119,7 +1118,7 @@ export default function Academie() {
               </div>
             </Field>
             <Field label="Sur têtes réelles">
-              <Input value={foForm.tetesReelles} onChange={(e) => setFoForm({ ...foForm, tetesReelles: e.target.value })} placeholder="trois rituels d’entretien au salon, en observation puis assistée" />
+              <Input value={foForm.tetesReelles} onChange={(e) => setFoForm({ ...foForm, tetesReelles: e.target.value })} />
             </Field>
             <Field label="Mise en avant">
               <button
@@ -1152,7 +1151,7 @@ export default function Academie() {
         <Modal title={apEditId ? 'L’apprenant·e.' : 'Nouvel apprenant.'} onClose={() => setApForm(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom de l’apprenant·e">
-              <Input value={f.name} onChange={(e) => setApForm({ ...f, name: e.target.value })} placeholder="Prénom Nom" />
+              <Input value={f.name} onChange={(e) => setApForm({ ...f, name: e.target.value })} />
             </Field>
             <Field label="Formation">
               <Select
@@ -1168,7 +1167,7 @@ export default function Academie() {
 
             <div className="tr-grid tr-grid--2">
               <Field label="Montant de la formation (F CFA)">
-                <Input inputMode="numeric" value={f.priceInput} onChange={(e) => setApForm({ ...f, priceInput: e.target.value })} placeholder="Ex. 250 000" />
+                <Input inputMode="numeric" value={f.priceInput} onChange={(e) => setApForm({ ...f, priceInput: e.target.value })} />
               </Field>
               <Field label="Remise accordée (F CFA)">
                 <Input inputMode="numeric" value={f.remiseInput} onChange={(e) => setApForm({ ...f, remiseInput: e.target.value })} placeholder="0" />
@@ -1192,7 +1191,7 @@ export default function Academie() {
             {f.payMode === 'partiel' && (
               <div className="tr-grid tr-grid--2">
                 <Field label="Montant réglé (F CFA)">
-                  <Input inputMode="numeric" value={f.amountInput} onChange={(e) => setApForm({ ...f, amountInput: e.target.value })} placeholder="Ex. 100 000" />
+                  <Input inputMode="numeric" value={f.amountInput} onChange={(e) => setApForm({ ...f, amountInput: e.target.value })} />
                 </Field>
                 <Field label="Date du règlement">
                   <ChampDeDate compact sens="arriere" value={f.payDate} onChange={(iso) => setApForm({ ...f, payDate: iso })} />
@@ -1246,7 +1245,7 @@ export default function Academie() {
         <Modal title={ceEditId ? 'La certification.' : 'Délivrer une certification.'} onClose={() => setCeForm(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Nom du·de la certifié·e">
-              <Input value={ceForm.name} onChange={(e) => setCeForm({ ...ceForm, name: e.target.value })} placeholder="Prénom Nom" />
+              <Input value={ceForm.name} onChange={(e) => setCeForm({ ...ceForm, name: e.target.value })} />
             </Field>
             <Field label="Parcours">
               <Select value={ceForm.parcours} onChange={(e) => setCeForm({ ...ceForm, parcours: e.target.value })}>
@@ -1255,7 +1254,7 @@ export default function Academie() {
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Date · jury">
-                <Input value={ceForm.date} onChange={(e) => setCeForm({ ...ceForm, date: e.target.value })} placeholder="12 mars 2026" />
+                <Input value={ceForm.date} onChange={(e) => setCeForm({ ...ceForm, date: e.target.value })} />
               </Field>
               <Field label="Statut">
                 <div style={{ display: 'flex', gap: 8 }}>

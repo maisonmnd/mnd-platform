@@ -280,11 +280,11 @@ export default function Branches() {
         <Modal title={editId ? 'Modifier la branche.' : 'Nouvelle branche.'} onClose={() => setOpen(false)} width={600}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Field label="Nom de la branche">
-              <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Ex. Porto-Novo · La Résidence" />
+              <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Ville">
-                <Input value={form.city} onChange={(e) => patch({ city: e.target.value })} placeholder="Cotonou" />
+                <Input value={form.city} onChange={(e) => patch({ city: e.target.value })} />
               </Field>
               <Field label="Adresse (facultative)">
                 <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} placeholder="Quartier, rue…" />
@@ -294,7 +294,6 @@ export default function Branches() {
               <Input
                 value={form.mapsUrl}
                 onChange={(e) => patch({ mapsUrl: e.target.value })}
-                placeholder="https://maps.app.goo.gl/…"
               />
               <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.5 }}>
                 C'est lui que porte le QR « Où nous trouver » et le lien qu'on envoie. Sans lui, la carte
@@ -308,7 +307,7 @@ export default function Branches() {
                 </Select>
               </Field>
               <Field label="Numéro de téléphone">
-                <Input value={form.phone} onChange={(e) => patch({ phone: e.target.value })} inputMode="tel" placeholder="+229 01 00 00 00 00" />
+                <Input value={form.phone} onChange={(e) => patch({ phone: e.target.value })} inputMode="tel" />
               </Field>
             </div>
             <Field label="Devise de la branche">

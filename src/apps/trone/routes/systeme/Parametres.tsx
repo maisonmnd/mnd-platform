@@ -1328,9 +1328,9 @@ export default function Parametres() {
               </button>
               {!d.closed && (
                 <>
-                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} placeholder="08h00" style={{ width: 92, textAlign: 'center' }} />
+                  <Input value={d.open} onChange={(e) => setHour(d.key, 'open', e.target.value)} style={{ width: 92, textAlign: 'center' }} />
                   <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} placeholder="20h30" style={{ width: 92, textAlign: 'center' }} />
+                  <Input value={d.close} onChange={(e) => setHour(d.key, 'close', e.target.value)} style={{ width: 92, textAlign: 'center' }} />
                 </>
               )}
               {d.closed && <span className="mnd-muted" style={{ fontSize: 12 }}>Fermé ce jour</span>}
@@ -1568,9 +1568,9 @@ export default function Parametres() {
                 </button>
                 {!ex.closed && (
                   <>
-                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} placeholder="10h00" style={{ width: 86, textAlign: 'center' }} />
+                    <Input value={ex.open ?? ''} onChange={(e) => maj({ open: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
                     <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} placeholder="19h00" style={{ width: 86, textAlign: 'center' }} />
+                    <Input value={ex.close ?? ''} onChange={(e) => maj({ close: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
                   </>
                 )}
                 <Input value={ex.note ?? ''} onChange={(e) => maj({ note: e.target.value })} placeholder="Inventaire" style={{ flex: 1, minWidth: 130 }} />
@@ -1680,12 +1680,12 @@ export default function Parametres() {
                   </button>
                   {!journee && (
                     <>
-                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} placeholder="12h00" style={{ width: 86, textAlign: 'center' }} />
+                      <Input value={bl.debut ?? ''} onChange={(e) => maj({ debut: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
                       <span className="mnd-muted" style={{ fontSize: 12 }}>→</span>
-                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} placeholder="14h00" style={{ width: 86, textAlign: 'center' }} />
+                      <Input value={bl.fin ?? ''} onChange={(e) => maj({ fin: e.target.value })} style={{ width: 86, textAlign: 'center' }} />
                     </>
                   )}
-                  <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} placeholder="Fermeture exceptionnelle" style={{ flex: 1, minWidth: 130 }} />
+                  <Input value={bl.motif ?? ''} onChange={(e) => maj({ motif: e.target.value })} style={{ flex: 1, minWidth: 130 }} />
                   <button
                     className="tre-link-btn tre-link-btn--danger"
                     onClick={() => setBlocages(blocages.filter((x) => x.id !== bl.id))}
@@ -1785,7 +1785,7 @@ export default function Parametres() {
             value={newSeg}
             onChange={(e) => setNewSeg(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addSeg(); }}
-            placeholder="Nouveau segment, ex. Fidèle"
+            placeholder="Nouveau segment"
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addSeg} disabled={!newSeg.trim()}>Ajouter</Button>
@@ -1836,7 +1836,7 @@ export default function Parametres() {
             value={newPay}
             onChange={(e) => setNewPay(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addPay(); }}
-            placeholder="Nouveau mode, ex. Orange Money"
+            placeholder="Nouveau mode"
             style={{ flex: 1 }}
           />
           <Button variant="copper" onClick={addPay} disabled={!newPay.trim()}>Ajouter</Button>
@@ -2068,15 +2068,15 @@ export default function Parametres() {
         <div className="tr-grid tr-grid--2" style={{ marginTop: 8 }}>
           <label className="mnd-field">
             <span className="mnd-field__label">Lien de paiement Mobile Money</span>
-            <Input value={autoCfg.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} placeholder="https://pay.moov-africa.bj/…" />
+            <Input value={autoCfg.momoLink} onChange={(e) => setAuto('momoLink', e.target.value)} />
           </label>
           <label className="mnd-field">
             <span className="mnd-field__label">Lien Google Maps (itinéraire)</span>
-            <Input value={autoCfg.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} placeholder="https://maps.google.com/?q=…" />
+            <Input value={autoCfg.mapsLink} onChange={(e) => setAuto('mapsLink', e.target.value)} />
           </label>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Lien Google Avis</span>
-            <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} placeholder="https://g.page/r/…/review" />
+            <Input value={autoCfg.reviewLink} onChange={(e) => setAuto('reviewLink', e.target.value)} />
           </label>
           {/* L'AVIS SANS MAIN — 19 août 2026. Allumé : la fonction planifiée
               `avis-google` envoie elle-même le WhatsApp à chaque PREMIÈRE
@@ -2098,7 +2098,7 @@ export default function Parametres() {
           </div>
           <label className="mnd-field" style={{ gridColumn: '1 / -1' }}>
             <span className="mnd-field__label">Itinéraire · texte libre</span>
-            <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} placeholder="Ex. En face de la pharmacie Fifadji, portail vert, 2ᵉ étage." />
+            <Textarea rows={2} value={autoCfg.itineraire} onChange={(e) => setAuto('itineraire', e.target.value)} />
           </label>
         </div>
         <div style={{ marginTop: 4 }}>
@@ -2135,15 +2135,15 @@ export default function Parametres() {
             <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label className="mnd-field">
                 <span className="mnd-field__label">Nom affiché, compte marchand</span>
-                <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} placeholder="Ets ACIA1" />
+                <Input value={autoCfg.momoMarchand ?? ''} onChange={(e) => setAuto('momoMarchand', e.target.value)} />
               </label>
               <label className="mnd-field">
                 <span className="mnd-field__label">Code USSD, sans appareil photo</span>
-                <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} placeholder="*880*41*506846*montant#" />
+                <Input value={autoCfg.momoUssd ?? ''} onChange={(e) => setAuto('momoUssd', e.target.value)} />
               </label>
               <label className="mnd-field">
                 <span className="mnd-field__label">Donnée du QR, identifiant marchand</span>
-                <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} placeholder="506846@momopay" />
+                <Input value={autoCfg.momoQr ?? ''} onChange={(e) => setAuto('momoQr', e.target.value)} />
               </label>
               <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
                 Dans le code USSD, « montant » se remplace par la somme en francs, 15 000 F se

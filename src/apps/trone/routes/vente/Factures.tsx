@@ -2066,7 +2066,6 @@ export default function Factures() {
                   autoFocus
                   value={lienLibre.montant}
                   onChange={(e) => setLienLibre({ ...lienLibre, montant: e.target.value.replace(/[^0-9]/g, '') })}
-                  placeholder="45000"
                   style={{ textAlign: 'right', fontSize: 20, fontFamily: 'var(--font-serif)' }}
                 />
               </Field>
@@ -2099,7 +2098,6 @@ export default function Factures() {
                 <Input
                   value={lienLibre.motif}
                   onChange={(e) => setLienLibre({ ...lienLibre, motif: e.target.value })}
-                  placeholder="Acompte sur la pose du 12 septembre"
                 />
               </Field>
 

@@ -313,10 +313,10 @@ export default function Engagements() {
             )}
             <div className="eng-deux">
               <Field label="Le prestataire">
-                <Input value={form.prestataire} autoFocus placeholder="Menuiserie K." onChange={(ev) => setForm({ ...form, prestataire: ev.target.value })} />
+                <Input value={form.prestataire} autoFocus onChange={(ev) => setForm({ ...form, prestataire: ev.target.value })} />
               </Field>
               <Field label="Son métier">
-                <Input value={form.metier} placeholder="menuisier" onChange={(ev) => setForm({ ...form, metier: ev.target.value })} />
+                <Input value={form.metier} onChange={(ev) => setForm({ ...form, metier: ev.target.value })} />
               </Field>
             </div>
             {/* SON TÉLÉPHONE — 17 septembre 2026 : « rajouter le numéro de
@@ -328,7 +328,7 @@ export default function Engagements() {
               <p className="eng-legende">Il s’écrit sur sa fiche fournisseur : un seul numéro pour une même maison.</p>
             )}
             <Field label="Ce que la Maison commande">
-              <Input value={form.objet} placeholder="Agencement du salon" onChange={(ev) => setForm({ ...form, objet: ev.target.value })} />
+              <Input value={form.objet} onChange={(ev) => setForm({ ...form, objet: ev.target.value })} />
             </Field>
             {/* ── LA MONNAIE DU DOSSIER — 15 septembre 2026 ──────────────
                 « Me permettre de payer des prestataires en devises » (Yéman).
@@ -1327,7 +1327,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
           <div className="eng-formulaire">
             <div className="eng-deux">
               <Field label="Son numéro à lui">
-                <Input value={formDevis.numeroPrestataire} autoFocus placeholder="DV-0231" onChange={(ev) => setFormDevis({ ...formDevis, numeroPrestataire: ev.target.value })} />
+                <Input value={formDevis.numeroPrestataire} autoFocus onChange={(ev) => setFormDevis({ ...formDevis, numeroPrestataire: ev.target.value })} />
               </Field>
               <Field label={avecLignes ? `Le montant · calculé` : `Le montant · ${devise}`}>
                 {avecLignes
@@ -1353,7 +1353,6 @@ function LeDossier({ lecture, onRetour, onModifier }: {
               <Textarea
                 rows={3}
                 value={formDevis.resume}
-                placeholder="Agencement du salon : deux étagères, portes moustiquaires, pose en six semaines"
                 onChange={(ev) => setFormDevis({ ...formDevis, resume: ev.target.value })}
               />
             </Field>
@@ -1368,9 +1367,9 @@ function LeDossier({ lecture, onRetour, onModifier }: {
                 const illisible = remplie && (Number.isNaN(lue.quantite) || Number.isNaN(lue.prixUnitaireXof));
                 return (
                   <div key={i} className="eng-ligne">
-                    <Input aria-label={`Ligne ${i + 1}, description`} value={x.description} placeholder="Madrier" onChange={(ev) => changeLaLigne(i, 'description', ev.target.value)} />
+                    <Input aria-label={`Ligne ${i + 1}, description`} value={x.description} onChange={(ev) => changeLaLigne(i, 'description', ev.target.value)} />
                     <Input aria-label={`Ligne ${i + 1}, quantité`} inputMode="decimal" value={x.quantite} onChange={(ev) => changeLaLigne(i, 'quantite', ev.target.value)} />
-                    <Input aria-label={`Ligne ${i + 1}, prix unitaire`} inputMode={clavierDuMontant} value={x.prix} placeholder={enDevise ? '12,50' : '25 000'} onChange={(ev) => changeLaLigne(i, 'prix', ev.target.value)} />
+                    <Input aria-label={`Ligne ${i + 1}, prix unitaire`} inputMode={clavierDuMontant} value={x.prix} onChange={(ev) => changeLaLigne(i, 'prix', ev.target.value)} />
                     <span className={`eng-ligne__total${illisible ? ' eng-brique' : ''}`}>
                       {illisible ? 'à corriger' : remplie ? dit(totalDeLaLigne(lue, devise)) : ''}
                     </span>
@@ -1472,7 +1471,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
             <div className="eng-formulaire">
               <div className="eng-deux">
                 <Field label="Ce que c’est">
-                  <Input value={formVers.libelle} autoFocus placeholder="Avance à la commande" onChange={(ev) => setFormVers({ ...formVers, libelle: ev.target.value })} />
+                  <Input value={formVers.libelle} autoFocus onChange={(ev) => setFormVers({ ...formVers, libelle: ev.target.value })} />
                 </Field>
                 <Field label={`Le montant · ${devise}`}>
                   {/* UN MONTANT QUI CHANGE EFFACE LE COÛT ET LE TIROIR TAPÉS : ils

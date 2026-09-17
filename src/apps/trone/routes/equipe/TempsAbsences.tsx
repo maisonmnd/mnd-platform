@@ -296,7 +296,7 @@ function LeaveForm({ team, onClose }: { team: ReturnType<typeof useStaff>[0]; on
         <div className="mnd-muted" style={{ fontSize: 12.5, marginTop: -6 }}>{days > 0 ? `${days} jour${days > 1 ? 's' : ''}` : 'Dates invalides.'}</div>
         <Field label="Motif"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="—" /></Field>
         {type === 'maladie' && (
-          <Field label="Justificatif (référence / note)"><Input value={justificatif} onChange={(e) => setJustificatif(e.target.value)} placeholder="Certificat médical du…" /></Field>
+          <Field label="Justificatif (référence / note)"><Input value={justificatif} onChange={(e) => setJustificatif(e.target.value)} /></Field>
         )}
         <div style={{ display: 'flex', gap: 10 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
