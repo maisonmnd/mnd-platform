@@ -44,7 +44,12 @@ export default function Avis() {
       </div>
       {avis && avis.avis.length > 0 && (
         <div className="avis-liste">
-          {avis.avis.slice(0, 3).map((a, i) => (
+          {/* TOUS CEUX QUE GOOGLE DONNE — 17 septembre 2026 : « choisir au
+              moins 5 avis » (Yéman). L'écran en coupait trois alors que les
+              cinq étaient rangés. Google n'en rend jamais plus de cinq, c'est
+              lui qui borne, pas nous : un nombre écrit ici en cacherait
+              silencieusement d'autres le jour où il en donnerait davantage. */}
+          {avis.avis.map((a, i) => (
             <div className="avis-carte" key={i}>
               <span className="etoiles">{etoiles(a.note)}</span>
               <p>{a.texte.length > 280 ? a.texte.slice(0, 277).trimEnd() + '…' : a.texte}</p>
