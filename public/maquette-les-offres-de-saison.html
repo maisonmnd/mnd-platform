@@ -1,0 +1,337 @@
+<title>Les offres de saison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --accent-voile: rgba(185, 122, 74, .14);
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150; --sombre: #1E2150;
+    --filet: rgba(20, 20, 27, .14);
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', system-ui, sans-serif;
+    --r: 3px; --t: .18s ease;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.55; }
+  .page { max-width: 1140px; margin: 0 auto; padding-block: 0 56px; padding-left: 20px; padding-right: 20px; }
+
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 0 30px; padding: 26px 20px 24px; }
+  .bandeau .dedans { max-width: 1100px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(26px, 4.4vw, 40px); margin: 0 0 8px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 66ch; color: rgba(246, 241, 231, .82); font-size: 15px; }
+
+  h2.part { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--titre); margin: 34px 0 4px; }
+  .part-sous { color: var(--texte-doux); font-size: 14px; margin: 0 0 18px; max-width: 74ch; }
+
+  /* ── Le curseur du temps ────────────────────────────────────── */
+  .temps { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-width: 0; padding: 14px 16px; background: var(--fond-2); border: 1px solid var(--filet); border-radius: var(--r); margin-bottom: 20px; }
+  .temps > * { min-width: 0; }
+  .temps label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); white-space: nowrap; }
+  .temps input[type=range] { flex: 1 1 240px; min-width: 160px; accent-color: var(--accent); }
+  .temps .valeur { font-family: var(--serif); font-size: 21px; color: var(--titre); white-space: nowrap; }
+
+  /* ── La bande des propositions ──────────────────────────────── */
+  .proposition { border: 1px solid var(--accent); border-left: 3px solid var(--accent); border-radius: var(--r); background: var(--accent-clair); padding: 16px 18px; margin-bottom: 18px; min-width: 0; }
+  .proposition h3 { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--titre); margin: 0 0 4px; }
+  .proposition p { margin: 0 0 12px; font-size: 13.5px; color: var(--accent-profond); }
+  .prop-liste { display: grid; gap: 10px; min-width: 0; }
+  .prop-liste > * { min-width: 0; }
+  .prop-ligne { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; padding: 11px 13px; background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); }
+  .prop-ligne .quoi { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+  .prop-ligne .quoi b { display: block; font-weight: 400; font-size: 15px; color: var(--titre); }
+  .prop-ligne .quoi small { font-size: 12.5px; color: var(--texte-doux); }
+  .prop-ligne .dans { flex: 0 0 auto; font-size: 12.5px; color: var(--accent-profond); white-space: nowrap; }
+
+  .btn { padding: 9px 16px; border: 1px solid var(--accent); border-radius: var(--r); background: var(--accent); color: #fff; font: inherit; font-size: 13px; letter-spacing: .06em; cursor: pointer; white-space: nowrap; transition: background var(--t); }
+  .btn:hover { background: var(--accent-profond); border-color: var(--accent-profond); }
+  .btn--creux { background: none; color: var(--accent-profond); }
+  .btn--creux:hover { background: var(--accent-voile); }
+  .btn:focus-visible { outline: 2px solid var(--titre); outline-offset: 2px; }
+
+  /* ── Les cartes d offre, côté Maison ────────────────────────── */
+  .offres { display: grid; gap: 12px; min-width: 0; }
+  .offres > * { min-width: 0; }
+  .offre { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; min-width: 0; padding: 16px 18px; background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); transition: opacity var(--t); }
+  .offre.est-passee { opacity: .5; }
+  .offre .corps { flex: 1 1 320px; min-width: 0; }
+  .offre .haut { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; margin-bottom: 4px; }
+  .pastille { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .pastille--tag { background: var(--accent-voile); color: var(--accent-profond); }
+  .pastille--cours { background: var(--accent); color: #fff; }
+  .pastille--venir { background: none; color: var(--titre); border: 1px solid var(--titre); }
+  .pastille--activer { background: var(--titre); color: #F6F1E7; }
+  .pastille--muet { background: var(--fond-2); color: var(--texte-doux); }
+  .offre .titre { font-family: var(--serif); font-size: 21px; color: var(--titre); overflow-wrap: anywhere; }
+  .offre .deal { font-weight: 500; color: var(--accent-profond); }
+  .offre .sub { font-size: 13px; color: var(--texte-doux); margin-top: 2px; overflow-wrap: anywhere; }
+  .meta { display: flex; gap: 22px; flex-wrap: wrap; min-width: 0; margin-top: 10px; }
+  .meta > * { min-width: 0; }
+  .meta-label { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--texte-doux); }
+  .meta-valeur { font-size: 13.5px; color: var(--titre); white-space: nowrap; }
+  .offre .agir { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
+  .aconfirmer { display: inline-block; margin-left: 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--accent-profond); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+
+  /* ── La page publique ───────────────────────────────────────── */
+  .publique { border: 1px solid var(--filet); border-radius: var(--r); overflow: hidden; background: var(--carte); }
+  .onglets { display: flex; min-width: 0; background: var(--fond-2); }
+  .onglet { flex: 1 1 0; min-width: 0; padding: 16px 12px; border: 0; background: none; font: inherit; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); cursor: pointer; transition: background var(--t), color var(--t); }
+  .onglet.est-choisi { background: var(--carte); color: var(--titre); font-weight: 500; }
+  .onglet:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .volet { padding: 26px 24px; min-width: 0; }
+  .volet-vide { color: var(--texte-doux); font-style: italic; font-size: 14px; }
+  .aff { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 26px; align-items: start; min-width: 0; }
+  .aff > * { min-width: 0; }
+  @media (max-width: 760px) { .aff { grid-template-columns: minmax(0, 1fr); } }
+  .visuel { aspect-ratio: 4 / 5; max-width: 100%; border-radius: var(--r); display: grid; place-items: center; text-align: center; padding: 22px; }
+  .visuel b { display: block; font-family: var(--serif); font-size: 40px; line-height: 1; color: var(--titre); }
+  .visuel span { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-profond); margin-top: 8px; }
+  .aff h3 { font-family: var(--serif); font-weight: 400; font-size: 27px; color: var(--titre); margin: 0 0 10px; overflow-wrap: anywhere; }
+  .aff p { margin: 0 0 10px; font-size: 14.5px; overflow-wrap: anywhere; }
+  .aff .conditions { font-size: 12.5px; color: var(--texte-doux); }
+  .aff + .aff { margin-top: 26px; padding-top: 26px; border-top: 1px solid var(--filet); }
+
+  /* ── Les décisions ──────────────────────────────────────────── */
+  .decisions { margin-top: 34px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+  .decisions > * { min-width: 0; }
+  .decision { min-width: 0; padding: 16px 17px; background: var(--carte); border: 1px solid var(--filet); border-left: 2px solid var(--accent); border-radius: var(--r); }
+  .decision h3 { font-family: var(--serif); font-weight: 400; font-size: 18px; color: var(--titre); margin: 0 0 6px; text-wrap: balance; }
+  .decision p { margin: 0; font-size: 13.5px; color: var(--texte-doux); }
+  .decision p + p { margin-top: 7px; }
+  .decision b { font-weight: 500; color: var(--texte); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bandeau">
+  <div class="dedans">
+    <p class="sur">Maison MND · maquette à valider</p>
+    <h1>Les offres de saison</h1>
+    <p>Octobre Rose, Noël, la Saint-Valentin, le mois de la femme, le Ramadan, la fête des mères. Chacune dort dans la Maison, et se propose d’elle-même à vingt et un jours de son ouverture. Vous gardez la main : rien ne s’active tout seul.</p>
+  </div>
+</div>
+
+<div class="page">
+  <h2 class="part">Côté Maison</h2>
+  <p class="part-sous">Le Trône, écran Marketing, onglet Les offres. Faites glisser le curseur pour avancer dans l’année et voir la règle des vingt et un jours se déclencher.</p>
+
+  <div class="temps">
+    <label for="curseur">Nous sommes le</label>
+    <span class="valeur" id="valeurDate"></span>
+    <input type="range" id="curseur" min="0" max="270" value="0" step="1">
+  </div>
+
+  <div id="propositions"></div>
+  <div class="offres" id="listeOffres"></div>
+
+  <h2 class="part">Côté visiteuse</h2>
+  <p class="part-sous">La page publique du site, deux onglets. Seule une offre que vous avez activée y paraît : tant qu’elle dort, elle reste dans la Maison.</p>
+
+  <div class="publique">
+    <div class="onglets">
+      <button class="onglet est-choisi" id="ongletCours" type="button">Votre offre en cours</button>
+      <button class="onglet" id="ongletVenir" type="button">Vos offres à venir</button>
+    </div>
+    <div class="volet" id="volet"></div>
+  </div>
+
+  <h2 class="part">Les cinq choses à valider</h2>
+  <div class="decisions">
+    <div class="decision">
+      <h3>Une offre gagne deux dates</h3>
+      <p>Aujourd’hui une offre se répète par jour de semaine et par tranche horaire, ce qui convient à une heure creuse mais pas à une saison. Elle gagne un <b>début</b> et une <b>fin</b>, tous deux facultatifs.</p>
+      <p>Les offres déjà créées n’ont pas ces dates et continuent donc de fonctionner exactement comme avant.</p>
+    </div>
+    <div class="decision">
+      <h3>Un seul juge du temps</h3>
+      <p>Une seule fonction décide si une offre est visible, et elle n’est appelée que de trois endroits : Ma Couronne, et deux fois la pastille du Trône. Lui apprendre les dates suffit à ce que tout suive ensemble.</p>
+    </div>
+    <div class="decision">
+      <h3>Vingt et un jours, une proposition et non un ordre</h3>
+      <p>À trois semaines de l’ouverture, l’offre remonte en haut de l’écran avec un bouton <b>Activer</b>. Elle ne s’allume jamais d’elle-même.</p>
+      <p>Une offre non activée reste invisible pour la clientèle.</p>
+    </div>
+    <div class="decision">
+      <h3>Deux dates ne se calculent pas</h3>
+      <p>Le <b>Ramadan</b> suit la lune et se constate, il ne se déduit d’aucune règle : ses dates s’inscrivent année par année.</p>
+      <p>La <b>fête des mères</b> se célèbre à des jours différents selon les pays. Dites-moi la date retenue au Bénin et je la pose.</p>
+    </div>
+    <div class="decision">
+      <h3>Une contrainte d’heure à connaître</h3>
+      <p>La liste d’heures de la Maison s’arrête à vingt-deux heures. Une offre qui court toute la journée se pose donc de minuit à vingt-deux heures, et non jusqu’à minuit.</p>
+      <p>Dites-moi si vous voulez que j’ajoute la fin de soirée.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var AUJOURDHUI = new Date('2026-09-17T00:00:00');
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  var FENETRE = 21;
+
+  /* Les saisons de la Maison. « du » et « au » sont les deux dates nouvelles.
+     aConfirmer marque celles qui ne se calculent pas et que la Maison doit dire. */
+  var OFFRES = [
+    { id: 'rentree', nom: 'La rentrée des couronnes', tag: 'Offre de saison', deal: '−10 %',
+      sub: 'Sur tous les lavages rituels et les reprises de racines.',
+      du: '2026-09-01', au: '2026-09-30', active: true },
+    { id: 'octobre', nom: 'Octobre Rose', tag: 'Engagement', deal: '−15 %',
+      sub: 'Sur les soins, et la Maison reverse une part à la lutte contre le cancer du sein.',
+      du: '2026-10-01', au: '2026-10-31', active: false },
+    { id: 'noel', nom: 'Noël à la Maison', tag: 'Offre de saison', deal: '2 = 1',
+      sub: 'Un styling signature offert pour tout forfait couleur.',
+      du: '2026-12-01', au: '2026-12-31', active: false },
+    { id: 'valentin', nom: 'La Saint-Valentin', tag: 'Offre éclair', deal: '−20 %',
+      sub: 'Pour deux couronnes qui viennent ensemble.',
+      du: '2027-02-07', au: '2027-02-14', active: false },
+    { id: 'ramadan', nom: 'Le Ramadan', tag: 'Offre de saison', deal: 'Heures allongées',
+      sub: 'Ouverture après la rupture du jeûne, et un soin hydratant à prix doux.',
+      du: '2027-02-08', au: '2027-03-09', active: false, aConfirmer: true },
+    { id: 'femme', nom: 'Le mois de la femme', tag: 'Engagement', deal: '−15 %',
+      sub: 'Sur tous les forfaits féminins, toute la première semaine de mars.',
+      du: '2027-03-01', au: '2027-03-08', active: false },
+    { id: 'meres', nom: 'La fête des mères', tag: 'Offre de saison', deal: 'Le soin de la mère',
+      sub: 'Un soin offert à la mère pour toute venue mère et fille.',
+      du: '2027-05-30', au: '2027-05-31', active: false, aConfirmer: true }
+  ];
+
+  var decalage = 0;
+  var ongletActif = 'cours';
+
+  function jourSimule() {
+    var d = new Date(AUJOURDHUI.getTime());
+    d.setDate(d.getDate() + decalage);
+    return d;
+  }
+  function litDate(s) { return new Date(s + 'T00:00:00'); }
+  function ecarts(a, b) { return Math.round((b.getTime() - a.getTime()) / 86400000); }
+  function dit(s) {
+    var d = litDate(s);
+    return d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function ditCourt(s) {
+    var d = litDate(s);
+    return d.getDate() + ' ' + MOIS[d.getMonth()].slice(0, 4) + '.';
+  }
+
+  /* L etat d une offre au jour simule. C est exactement ce que la fonction
+     unique du depot devra rendre une fois qu elle connaitra les dates. */
+  function etat(o) {
+    var n = jourSimule();
+    var debut = litDate(o.du), fin = litDate(o.au);
+    if (n > fin) return 'passee';
+    if (o.active) return n >= debut ? 'cours' : 'venir';
+    return ecarts(n, debut) <= FENETRE ? 'activer' : 'dort';
+  }
+
+  var MOTS = {
+    cours: { texte: 'En cours', classe: 'pastille--cours' },
+    venir: { texte: 'À venir', classe: 'pastille--venir' },
+    activer: { texte: 'À activer', classe: 'pastille--activer' },
+    dort: { texte: 'Hors ligne', classe: 'pastille--muet' },
+    passee: { texte: 'Passée', classe: 'pastille--muet' }
+  };
+
+  function rendTemps() {
+    var d = jourSimule();
+    document.getElementById('valeurDate').textContent =
+      JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function rendPropositions() {
+    var hote = document.getElementById('propositions');
+    var prop = OFFRES.filter(function (o) { return etat(o) === 'activer'; });
+    if (!prop.length) { hote.innerHTML = ''; return; }
+    var lignes = prop.map(function (o) {
+      var j = ecarts(jourSimule(), litDate(o.du));
+      var quand = j <= 0 ? 'elle ouvre aujourd’hui' : 'dans ' + j + (j > 1 ? ' jours' : ' jour');
+      return '<div class="prop-ligne">'
+        + '<span class="quoi"><b>' + o.nom + (o.aConfirmer ? '<span class="aconfirmer">date à confirmer</span>' : '') + '</b>'
+        + '<small>' + dit(o.du) + ' au ' + dit(o.au) + '</small></span>'
+        + '<span class="dans">' + quand + '</span>'
+        + '<button class="btn" data-activer="' + o.id + '" type="button">Activer</button>'
+        + '</div>';
+    }).join('');
+    hote.innerHTML = '<div class="proposition"><h3>' + prop.length
+      + (prop.length > 1 ? ' offres approchent' : ' offre approche') + '</h3>'
+      + '<p>À trois semaines de l’ouverture, la Maison vous les présente. Rien ne s’active sans vous.</p>'
+      + '<div class="prop-liste">' + lignes + '</div></div>';
+  }
+
+  function rendListe() {
+    var hote = document.getElementById('listeOffres');
+    var rangs = { cours: 0, activer: 1, venir: 2, dort: 3, passee: 4 };
+    var triees = OFFRES.slice().sort(function (a, b) {
+      var d = rangs[etat(a)] - rangs[etat(b)];
+      return d !== 0 ? d : litDate(a.du) - litDate(b.du);
+    });
+    hote.innerHTML = triees.map(function (o) {
+      var e = etat(o), m = MOTS[e];
+      var bouton = e === 'passee' ? ''
+        : o.active
+          ? '<button class="btn btn--creux" data-eteindre="' + o.id + '" type="button">Éteindre</button>'
+          : '<button class="btn" data-activer="' + o.id + '" type="button">Activer</button>';
+      return '<div class="offre' + (e === 'passee' ? ' est-passee' : '') + '">'
+        + '<div class="corps">'
+        + '<div class="haut"><span class="pastille pastille--tag">' + o.tag + '</span>'
+        + '<span class="deal">' + o.deal + '</span>'
+        + '<span class="pastille ' + m.classe + '">' + m.texte + '</span></div>'
+        + '<div class="titre">' + o.nom + (o.aConfirmer ? '<span class="aconfirmer">date à confirmer</span>' : '') + '</div>'
+        + '<div class="sub">' + o.sub + '</div>'
+        + '<div class="meta">'
+        + '<div><div class="meta-label">Du</div><div class="meta-valeur">' + ditCourt(o.du) + '</div></div>'
+        + '<div><div class="meta-label">Au</div><div class="meta-valeur">' + ditCourt(o.au) + '</div></div>'
+        + '<div><div class="meta-label">Qui la voit</div><div class="meta-valeur">Tous</div></div>'
+        + '<div><div class="meta-label">Heures</div><div class="meta-valeur">00h à 22h</div></div>'
+        + '</div></div>'
+        + '<div class="agir">' + bouton + '</div></div>';
+    }).join('');
+  }
+
+  function rendPublique() {
+    document.getElementById('ongletCours').className = 'onglet' + (ongletActif === 'cours' ? ' est-choisi' : '');
+    document.getElementById('ongletVenir').className = 'onglet' + (ongletActif === 'venir' ? ' est-choisi' : '');
+    var vises = OFFRES.filter(function (o) { return etat(o) === ongletActif; });
+    var hote = document.getElementById('volet');
+    if (!vises.length) {
+      hote.innerHTML = '<p class="volet-vide">' + (ongletActif === 'cours'
+        ? 'Aucune offre en cours aujourd’hui. Activez-en une côté Maison et elle paraît ici.'
+        : 'Aucune offre annoncée pour l’instant. Activez une offre à venir et elle s’annonce ici.') + '</p>';
+      return;
+    }
+    hote.innerHTML = vises.map(function (o) {
+      return '<div class="aff">'
+        + '<div class="visuel" style="background: var(--accent-clair)"><div><b>' + o.deal + '</b>'
+        + '<span>' + o.nom + '</span></div></div>'
+        + '<div><h3>' + o.nom + '</h3>'
+        + '<p>' + o.sub + '</p>'
+        + '<p class="conditions">Offre valable du ' + dit(o.du) + ' au ' + dit(o.au)
+        + ' inclus, dans les salons participants, non cumulable avec toute promotion en cours.</p>'
+        + '<button class="btn" type="button">J’en profite</button></div></div>';
+    }).join('');
+  }
+
+  function tout() { rendTemps(); rendPropositions(); rendListe(); rendPublique(); }
+
+  document.getElementById('curseur').addEventListener('input', function (e) {
+    decalage = parseInt(e.target.value, 10) || 0;
+    tout();
+  });
+  document.getElementById('ongletCours').addEventListener('click', function () { ongletActif = 'cours'; rendPublique(); });
+  document.getElementById('ongletVenir').addEventListener('click', function () { ongletActif = 'venir'; rendPublique(); });
+  document.addEventListener('click', function (e) {
+    var a = e.target.getAttribute && e.target.getAttribute('data-activer');
+    var x = e.target.getAttribute && e.target.getAttribute('data-eteindre');
+    if (!a && !x) return;
+    OFFRES.forEach(function (o) { if (o.id === (a || x)) o.active = !!a; });
+    tout();
+  });
+
+  tout();
+})();
+</script>
