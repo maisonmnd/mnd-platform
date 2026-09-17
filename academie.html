@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1E2150" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MND Académie" />
+    <link rel="icon" type="image/png" href="/assets/monograms/mono-indigo.png" />
+    <title>MND Académie — Apprendre le lock à Cotonou</title>
+    <!-- ══ LA CARTE DE LIEN — même règle que ses sœurs ═══════════════════
+         AUCUN DOMAINE EN DUR : les repères __LIEN_DU_SITE__ et
+         __LIEN_DE_LA_PAGE__ sont remplacés à la construction par
+         build-sites.mjs, qui lit le compte GitHub depuis l'origine du dépôt.
+         En développement ils restent tels quels : personne ne partage
+         localhost.
+
+         PAS DE MANIFESTE ICI, et c'est un choix : une vitrine se lit, elle
+         ne s'installe pas. Le jour où l'Académie veut son icône d'écran
+         d'accueil, il faudra d'abord dessiner ses icônes ; en attendant, un
+         manifeste qui pointe des fichiers absents vaut moins que rien. -->
+    <meta name="description" content="Neuf parcours pour apprendre le soin du lock selon la méthode des quatre temps, à l'atelier MND de Cotonou." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MND Académie" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="MND Académie · apprendre le lock" />
+    <meta property="og:description" content="Neuf parcours, de la Fondation à L'Œuvre. Sur des têtes réelles, à Cotonou." />
+    <meta property="og:url" content="__LIEN_DE_LA_PAGE__" />
+    <meta property="og:image" content="__LIEN_DU_SITE__assets/og/carte-lien.png" />
+    <meta property="og:image:width" content="240" />
+    <meta property="og:image:height" content="240" />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body data-surface="academie">
+    <div id="root"></div>
+    <script type="module" src="/src/apps/academie/main.tsx"></script>
+  </body>
+</html>

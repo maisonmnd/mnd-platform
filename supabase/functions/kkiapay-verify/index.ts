@@ -83,6 +83,8 @@ export async function applyPayment(admin: any, opts: {
   clientId?: string;
   /** L'abonnement réglé, quand c'en est un (29 août). */
   subId?: string;
+  /** L'inscription à l'Académie réglée, quand c'en est une (17 septembre). */
+  inscriptionId?: string;
 }): Promise<void> {
   const amount = Math.round(Number(opts.tx.amount ?? 0));
   const fees = Math.round(Number(opts.tx.fees ?? 0));
@@ -154,6 +156,25 @@ export async function applyPayment(admin: any, opts: {
     }
   }
 
+  /* 2ter) L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. La place n'est
+     tenue qu'à l'acompte : c'est le SERVEUR qui le dit, sur la ligne déposée
+     par le site public. Rejouable sans effet double — on n'écrase que des
+     champs constants pour une même transaction. */
+  if (opts.inscriptionId) {
+    const { data: dem } = await admin
+      .from('academie_demandes').select('id, data').eq('id', opts.inscriptionId).maybeSingle();
+    if (dem) {
+      const next = {
+        ...(dem.data ?? {}),
+        acompteConfirme: true,
+        acompteVerseXof: amount,
+        transactionId: opts.transactionId,
+        payeLe: at,
+      };
+      await admin.from('academie_demandes').update({ data: next }).eq('id', opts.inscriptionId);
+    }
+  }
+
   /* 3) AUCUNE dépense de commission. Les frais KkiaPay (1,9 % Mobile Money,
         4 % carte) sont à la charge de la CLIENTE : la Maison reçoit le montant
         demandé, entier. Les inscrire en dépense sortirait d'une caisse un
@@ -165,7 +186,7 @@ export async function applyPayment(admin: any, opts: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { transactionId, apptId, subId, expectedXof, branchId, clientId } = await req.json();
+    const { transactionId, apptId, subId, inscriptionId, expectedXof, branchId, clientId } = await req.json();
     if (!transactionId || !branchId) return json({ error: 'bad_request' }, 400);
 
     const tx = await fetchTransaction(String(transactionId));
@@ -209,6 +230,15 @@ Deno.serve(async (req) => {
         expected = premiere > 0 ? premiere : Math.round(Number(d.priceXof ?? d.mrrXof ?? 0));
       }
     }
+    /* L'INSCRIPTION À L'ACADÉMIE — 17 septembre 2026. Le site public dépose
+       la demande AVANT d'ouvrir le widget, avec son acompte déjà écrit : on le
+       relit ici, comme on relit celui d'un rendez-vous. Le corps de la requête
+       ne fixe jamais la barre. */
+    if (inscriptionId) {
+      const { data: dem } = await admin
+        .from('academie_demandes').select('data').eq('id', String(inscriptionId)).maybeSingle();
+      expected = Math.round(Number(dem?.data?.acompteXof ?? 0));
+    }
     if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
 
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
@@ -224,10 +254,11 @@ Deno.serve(async (req) => {
       /* La référence porte l'abonnement quand il n'y a pas de rendez-vous :
          c'est elle qui relie le paiement à ce qu'il règle, au registre comme
          au comptoir. */
-      partnerId: String(apptId || subId || ''),
+      partnerId: String(apptId || subId || inscriptionId || ''),
       branchId: String(branchId),
       clientId: clientId ? String(clientId) : undefined,
       subId: subId ? String(subId) : undefined,
+      inscriptionId: inscriptionId ? String(inscriptionId) : undefined,
     });
 
     return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });

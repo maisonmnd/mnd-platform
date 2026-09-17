@@ -15,6 +15,7 @@ const ALL_INPUTS: Record<string, string> = {
   couronne: resolve(__dirname, 'couronne.html'),
   consultation: resolve(__dirname, 'consultation.html'),
   lokaa: resolve(__dirname, 'lokaa.html'),
+  academie: resolve(__dirname, 'academie.html'),
   certificat: resolve(__dirname, 'certificat.html'),
   bilan: resolve(__dirname, 'bilan.html'),
   carte: resolve(__dirname, 'carte.html'),

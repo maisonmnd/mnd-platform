@@ -63,6 +63,9 @@ const SITES = [
     env: { VITE_REQUIRE_AUTH: 'true', VITE_AUTH_SCOPE: 'couronne' },
   },
   { name: 'lokaa', base: '/lokaa/', apps: 'lokaa', rename: { 'lokaa.html': 'index.html' } },
+  /* MND ACADÉMIE — 17 septembre 2026. La vitrine publique des neuf parcours.
+     Aucune connexion : elle se lit, elle ne s'ouvre pas. */
+  { name: 'academie', base: '/academie/', apps: 'academie', rename: { 'academie.html': 'index.html' } },
   {
     name: 'mnd-platform',
     base: '/mnd-platform/',

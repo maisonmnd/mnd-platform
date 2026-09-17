@@ -189,6 +189,9 @@ export async function verifyDeposit(input: {
       dans l'échéancier de CET abonnement, jamais dans ce corps de requête :
       un appelant pourrait annoncer ce qu'il veut. */
   subId?: string;
+  /** L'INSCRIPTION à l'Académie réglée (17 septembre 2026). Même règle : le
+      serveur relit `acompteXof` sur la demande, écrit avant tout paiement. */
+  inscriptionId?: string;
   expectedXof: number;
   branchId: string;
   clientId?: string;

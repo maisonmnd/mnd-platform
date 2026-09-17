@@ -165,6 +165,14 @@ export const gardeSurLaCarte = <T extends { id: string }>(
 
 export type VitrineConfig = {
   autoplay: boolean;
+  /** LA BRANCHE QUE LE MONDE VOIT — 17 septembre 2026. La vitrine publique de
+      l'Académie dépose des demandes et encaisse des acomptes : les deux
+      exigent de savoir de quelle maison il s'agit, et une page sans compte ne
+      peut pas lire `mnd_branches`. Elle vit donc ici, dans le SEUL document
+      déjà lisible publiquement, comme les réglages de la carte du comptoir.
+      L'Académie du Trône l'estampille ; absente, le site accepte encore les
+      demandes mais n'ouvre pas le paiement. */
+  branchId?: string;
   /** LES RÉGLAGES DE LA CARTE DU COMPTOIR — ils vivent ici parce que
       `mnd_vitrine_config` est déjà lisible publiquement : la carte est une
       entrée SANS compte, elle doit pouvoir lire ses réglages sans être

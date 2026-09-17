@@ -28,6 +28,58 @@ du pointage (`MonMois.tsx`) disent « hh:mm » ; les six champs d'horaires de
 `Parametres.tsx` (semaine, exception, plage fermée) disent « hh h mm ».
 Aucune heure, aucune date d'exemple n'est revenue.
 
+## MND ACADÉMIE AU MONDE — 17 septembre 2026
+
+« Il nous faut absolument un site pour informer le monde entier que nous
+faisons des formations à MND Académie, et il faut réserver massivement » ;
+« rajouter des images sur la première page » ; « brancher un paiement avec
+KkiaPay quand le client choisit de réserver un parcours » (Yéman). Maquette
+`public/maquette-lacademie-au-monde.html`, validée avec ses quatre
+arbitrages : un site à part, une demande sans compte, les neuf parcours,
+WhatsApp et Google ensemble.
+
+**UNE CINQUIÈME SŒUR** (`academie.html`, `src/apps/academie/`). Ouverture,
+deux portes (débutante, professionnelle), les neuf parcours en cartes, la
+fiche d'un parcours avec son programme, la méthode des quatre temps, les
+fondateurs, et la réservation. Les images sont celles du dépôt, déjà
+publiées ailleurs : aucune nouvelle exposition. **Les plaques de la galerie
+n'ont pas été retenues : elles écrivent « MNÐ », et le ɖ appartient à la
+devise seule.** Aucun manifeste : une vitrine se lit, elle ne s'installe pas
+(et ses icônes n'existent pas encore).
+
+**ELLE NE RECOPIE RIEN.** Les neuf parcours viennent de `shared/parcours`,
+prix compris. Un prix corrigé dans le Trône se corrige sur le site.
+
+**LA DEMANDE, PUIS L'ACOMPTE** (`shared/academie-demandes.ts`, migration
+**0106**). Cinq lignes, deux obligatoires ; la ligne part dans
+`academie_demandes` (dépôt ouvert à tous, lecture réservée au personnel,
+RLS dans la même migration). **L'acompte attendu, 40 %, est écrit AVANT le
+paiement** : `kkiapay-verify` le relit sur la ligne pour contrôler ce qui a
+été payé, comme il le fait depuis le 24 août pour un rendez-vous. Le
+navigateur n'annonce jamais le prix. Le widget KkiaPay ne s'ouvre que si la
+clé publique est au build ET si la branche est connue
+(`VitrineConfig.branchId`, estampillée par l'onglet Demandes du Trône : une
+page sans compte ne peut pas lire `mnd_branches`). Sans paiement, la demande
+vit quand même : la Maison rappelle.
+
+**CE QUE LA MAISON VOIT** : Académie, onglet **Demandes du site**
+(`AcademieDemandes.tsx`). Nom, parcours, ville, numéro, le mot, l'acompte
+reçu avec sa référence. « En faire une candidature » ouvre l'inscription
+déjà remplie dans le Suivi, en reliant le parcours à la formation **par son
+nom** (le site porte l'identifiant de la semence, le Suivi celui de la
+formation vivante). Plus « Rappelée », « Écarter », WhatsApp.
+
+**DEUX GESTES RESTENT À LA MAISON, ET RIEN NE MARCHE SANS EUX :**
+① passer la migration 0106 ; ② **créer un dépôt GitHub vide nommé
+`academie`** — `publie.mjs` pousse chaque site vers `<compte>/<site>`, et
+la liste le contient désormais. Tant qu'il n'existe pas, publier l'Académie
+échoue ; les quatre autres sites se publient normalement
+(`node scripts/publie.mjs trone couronne lokaa mnd-platform`).
+
+**IL RESTE, POUR LE MOTEUR** : un `robots.txt` et un `sitemap.xml` (Google
+explore à l'aveugle sans eux), le message WhatsApp par segment depuis
+Marketing, et le code QR du site au comptoir.
+
 ## DE VRAIS TITRES, MOINS À LIRE — 17 septembre 2026
 
 « Réduire les textes à lire : trop long et inutile. Allège la page, je veux de
