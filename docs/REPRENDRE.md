@@ -105,7 +105,7 @@ ferment vraiment une journée sont `mnd_settings.hours`, une exception dans
 et `maxRdvParJourMaitre` valent toujours ZERO, donc sans limite, et cela
 mérite d'être posé maintenant que n'importe qui peut réserver.
 
-## QUATRE FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 septembre 2026
+## SIX FACONS DE SE TROMPER AVEC UN CHIFFRE — 17 et 18 septembre 2026
 
 Une journee d'audit CSS a produit sept comptes faux, cinq dans une session,
 deux dans l'autre. Aucun n'etait absurde : tous avaient l'air credibles, et
@@ -139,6 +139,29 @@ defilantes dans `src/`, vingt dans `dist-sites/` : `ds.css` entre dans
 plusieurs soeurs, et le paquet du Trone embarque aussi la Carte. Un audit
 limite a `src/apps/trone` en manquait donc une partie. **La parade** : quand
 la question porte sur ce qui est SERVI, recenser sur le paquet construit.
+
+**⑤ UN OUTIL QUI SOUS-ESTIME PAR CONSTRUCTION.** Pour lire le contexte des
+occurrences de `academie`, un `grep -oE '.{85}academie.{25}'` en a rendu
+TROIS ; le grep sur le motif nu en rendait QUATRE. C'est celui avec contexte
+qui mentait : `grep -o` CONSOMME le texte qu'il apparie et reprend APRES la
+fin du match, donc deux occurrences separees par moins que la fenetre ne
+peuvent pas sortir ensemble, et une occurrence trop proche du debut de ligne
+ne sort jamais. **La parade** : compter sur le motif NU, et n'ajouter du
+contexte que pour LIRE, jamais pour COMPTER.
+
+**⑥ UN DIFF QUI COMPTE DES EMPREINTES.** Apres une modification de
+`contenu.ts`, dix-sept des vingt-huit pages construites differaient de la
+veille. Aucune n'avait bouge : `contenu.ts` entre dans le paquet JS, dont le
+nom porte une empreinte, et ce nom est cite dans l'en-tete de CHAQUE page. Un
+diff a pourtant l'air d'un constat. **La parade** : regarder la NATURE des
+differences avant leur NOMBRE ; ici, trois lignes de `diff` suffisaient a voir
+qu'il ne s'agissait que de `main-XXXX.js`.
+
+**ET UN CONSEIL A RETIRER**, car il etait faux : « lire l'artefact construit
+pour echapper aux edits de l'autre session ». `dist-sites/` est volatil, une
+publication le reconstruit entierement. Les deux seules preuves qui tiennent
+dans un arbre partage sont **la page SERVIE en ligne** et **la valeur en
+base**.
 
 **CE QUI A FINI PAR MARCHER**, et qui servira au prochain audit CSS : lire
 chaque feuille de `src/`, aplatir les espaces, decouper sur `}`, ne retenir
