@@ -9,10 +9,12 @@ import {
   soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre,
   verserDansEnveloppe, retirerDeEnveloppe, supprimeLigneEpargne,
   moisPlus, joursEntre, echeancesDuPret, etatsDesEmprunteurs, parUrgence, pretsASurveiller,
+  retenueDeLaPart, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, restesParPret, moisDecale,
   type PartageConfig, type Prelevement, type PretAssocie, type Pret,
   type CaisseIndep, type MouvementCaisseIndep,
 } from '../src/shared/foyer';
 import { coffreStore, coffreBalance } from '../src/shared/finance';
+import { nombreEnLettres } from '../src/shared/nombre-en-lettres';
 import type { Receipt } from '../src/shared/receipts';
 import { statutFidelite } from '../src/shared/accounts';
 import { meilleurPalierFoyer, type FoyerTier } from '../src/shared/offers';
@@ -287,6 +289,98 @@ const veille = pretsASurveiller([
   pret({ id: 'i', associe: 'Lointain', amountXof: 10_000, echeance: '2026-11-30' }),
 ], BRP, '2026-08-23');
 dit('seule l’échéance proche remonte', ['Proche'], veille.map((e) => e.nom));
+
+/* ── LA RETENUE EN PART DU SALAIRE — 18 septembre 2026 ─────────────
+   Les chiffres du banc de la maquette validée
+   (`maquette-la-retenue-sur-salaire.html`) : 300 000 F prêtés, sans intérêt,
+   à un salaire de base de 120 000 F. Montant = retenue × mois : on règle la
+   part OU la durée, jamais les deux. */
+dit('le mois d’après décembre est janvier', '2027-01', moisDecale('2026-12', 1));
+dit('20 % de 120 000 F retiennent 24 000 F', 24_000, retenueDeLaPart(20, 120_000));
+dit('sans salaire connu, la part ne retient rien', 0, retenueDeLaPart(20, 0));
+const plan20 = projectionDeLaRetenue(300_000, 24_000, '2026-10');
+dit('20 % : treize bulletins', 13, plan20.length);
+dit('… d’octobre 2026 à octobre 2027', ['2026-10', '2027-10'], [plan20[0].mois, plan20[12].mois]);
+dit('… le dernier ne retient que ce qui reste', 12_000, plan20[12].retenueXof);
+dit('… et le prêt se solde exactement', [300_000, 0], [plan20.reduce((n, l) => n + l.retenueXof, 0), plan20[12].resteApresXof]);
+dit('dix mois demandent 25 % du salaire', 25, partPourDuree(300_000, 10, 120_000));
+dit('… soit 30 000 F par bulletin', 30_000, retenueDeLaPart(partPourDuree(300_000, 10, 120_000), 120_000));
+/* La mensualité s'arrondit au franc SUPÉRIEUR : sinon un huitième bulletin
+   de quelques francs naîtrait après les sept promis. */
+const sept = projectionDeLaRetenue(300_000, retenueDeLaPart(partPourDuree(300_000, 7, 120_000), 120_000), '2026-10');
+dit('sept mois tiennent en sept bulletins', 7, sept.length);
+dit('… le dernier porte l’arrondi', 300_000 - 6 * 42_858, sept[6].retenueXof);
+dit('20 % d’un salaire de 80 000 F : dix-neuf mois', 19, projectionDeLaRetenue(300_000, retenueDeLaPart(20, 80_000), '2026-10').length);
+
+/* LE BULLETIN D'UN MOIS — la part n'entre qu'à son premier mois, et jamais
+   au-delà du reste dû. */
+const ak = (o: Partial<Pret>): Pret => ({
+  id: 'ak1', branchId: BRP, date: '2026-09-18', type: 'pret', associe: 'A. K.', motif: 'Prêt',
+  amountXof: 300_000, genre: 'equipe', personneId: 'st-ak', ...o,
+} as Pret);
+const membreAK = { id: 'st-ak', nom: 'A. K.', baseXof: 120_000 };
+const pretAK = ak({ retenue: { partPct: 20, premierMois: '2026-10' } });
+dit('septembre : le prêt n’a pas commencé, rien n’est retenu', null, retenuePrevueDuMois([pretAK], BRP, membreAK, '2026-09'));
+dit('octobre : 24 000 F prévus sur 300 000 F dus', { prevu: 24_000, reste: 300_000, part: 20 },
+  (() => { const r = retenuePrevueDuMois([pretAK], BRP, membreAK, '2026-10'); return { prevu: r?.prevuXof, reste: r?.resteXof, part: r?.partPct }; })());
+dit('le membre se retrouve par son nom quand la fiche manque', 24_000,
+  retenuePrevueDuMois([ak({ personneId: undefined, retenue: { partPct: 20, premierMois: '2026-10' } })], BRP, membreAK, '2026-10')?.prevuXof);
+dit('au dernier mois, jamais plus que le reste dû', 12_000, retenuePrevueDuMois([
+  pretAK, ak({ id: 'rb', type: 'remboursement', amountXof: 288_000, date: '2027-09-30', retenue: undefined }),
+], BRP, membreAK, '2027-10')?.prevuXof);
+/* LA PART FAIT FOI (arbitrage ②) : une augmentation raccourcit le prêt. */
+dit('augmentée à 150 000 F, la même part retient 30 000 F', 30_000,
+  retenuePrevueDuMois([pretAK], BRP, { ...membreAK, baseXof: 150_000 }, '2026-10')?.prevuXof);
+
+/* DEUX PRÊTS : le remboursé couvre le plus ancien d'abord, et la part d'un
+   prêt soldé s'éteint pendant que l'autre court. */
+const deuxPrets: Pret[] = [
+  ak({ id: 'vieux', date: '2026-01-10', amountXof: 100_000, retenue: { partPct: 10, premierMois: '2026-02' } }),
+  ak({ id: 'neuf', date: '2026-06-10', amountXof: 200_000, retenue: { partPct: 15, premierMois: '2026-07' } }),
+  ak({ id: 'rb2', type: 'remboursement', date: '2026-08-31', amountXof: 100_000, retenue: undefined }),
+];
+dit('le remboursé solde le plus ancien d’abord', { vieux: 0, neuf: 200_000 },
+  Object.fromEntries(restesParPret(deuxPrets, 100_000)));
+dit('… et seule la part du prêt qui court est retenue', { prevu: 18_000, part: 15 },
+  (() => { const r = retenuePrevueDuMois(deuxPrets, BRP, membreAK, '2026-09'); return { prevu: r?.prevuXof, part: r?.partPct }; })());
+
+/* LES PRÊTS D'AVANT NE BOUGENT PAS : une retenue fixe court tant que la
+   personne doit quelque chose, comme le 23 août. */
+dit('une retenue fixe d’avant reste proposée telle quelle', { prevu: 25_000, fixe: 25_000 },
+  (() => { const r = retenuePrevueDuMois([ak({ retenueXof: 25_000 })], BRP, membreAK, '2026-10'); return { prevu: r?.prevuXof, fixe: r?.fixeXof }; })());
+
+/* L'ÉTAT SUR L'ÉCRAN DES PRÊTS — la part, sa somme au salaire du jour, sa
+   fin ; ni retard ni « sans échéance » : la paie le rembourse. */
+const salaireAK = (s: number) => () => s;
+const [etatAK] = etatsDesEmprunteurs([pretAK], BRP, '2026-09-18', salaireAK(120_000));
+dit('l’écran lit la part et sa somme', { part: 20, retenue: 24_000 }, { part: etatAK.partPct, retenue: etatAK.retenueXof });
+dit('… son premier et son dernier bulletin', ['2026-10', '2027-10'], [etatAK.retenueDes, etatAK.retenueFin]);
+dit('… sans calendrier à réclamer, donc jamais en retard', [0, 0], [etatAK.attendus.length, etatAK.retardJours]);
+dit('… et il ne se dit pas « sans échéance »', false, etatAK.sansEcheance);
+dit('augmenté, le prêt finit plus tôt', '2027-07',
+  etatsDesEmprunteurs([pretAK], BRP, '2026-09-18', salaireAK(150_000))[0].retenueFin);
+dit('sans salaire connu, la part se dit sans se chiffrer', { part: 20, retenue: 0 },
+  (() => { const e = etatsDesEmprunteurs([pretAK], BRP, '2026-09-18')[0]; return { part: e.partPct, retenue: e.retenueXof }; })());
+dit('le Tableau de bord ne relance pas un prêt retenu sur salaire', 0,
+  pretsASurveiller([pretAK], BRP, '2026-10-28').length);
+
+/* ── LA SOMME EN LETTRES — 18 septembre 2026, lettres du prêt ──
+   Une reconnaissance de dette porte le montant en lettres : l'orthographe
+   traditionnelle, sans faute, ou la pièce se discute. */
+dit('300 000 : trois cent mille', 'trois cent mille', nombreEnLettres(300_000));
+dit('80 : quatre-vingts, le s final', 'quatre-vingts', nombreEnLettres(80));
+dit('80 000 : quatre-vingt mille, sans s devant mille', 'quatre-vingt mille', nombreEnLettres(80_000));
+dit('81 : quatre-vingt-un, sans « et »', 'quatre-vingt-un', nombreEnLettres(81));
+dit('71 : soixante et onze', 'soixante et onze', nombreEnLettres(71));
+dit('91 : quatre-vingt-onze', 'quatre-vingt-onze', nombreEnLettres(91));
+dit('21 : vingt et un', 'vingt et un', nombreEnLettres(21));
+dit('200 : deux cents', 'deux cents', nombreEnLettres(200));
+dit('201 : deux cent un', 'deux cent un', nombreEnLettres(201));
+dit('200 000 : deux cent mille', 'deux cent mille', nombreEnLettres(200_000));
+dit('1 000 : mille, jamais un mille', 'mille', nombreEnLettres(1_000));
+dit('42 858 : le détail des dizaines', 'quarante-deux mille huit cent cinquante-huit', nombreEnLettres(42_858));
+dit('1 250 000 : un million deux cent cinquante mille', 'un million deux cent cinquante mille', nombreEnLettres(1_250_000));
+dit('2 000 000 : deux millions', 'deux millions', nombreEnLettres(2_000_000));
 
 
 /* ── LE CERCLE PAR TÊTE, LE FOYER À PART (25 août) ──

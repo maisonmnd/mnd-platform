@@ -2,7 +2,7 @@
    `node scripts/verifie-paie.mjs`. */
 import {
   PAYROLL_PARAMETERS_SEED, computePay, computeIts, cnssEstActive, tauxCnssSalarial, itsEstActif,
-  bulletinHref, chargeSalaireId,
+  bulletinHref, chargeSalaireId, plafondDeLaRetenue,
   type PayGains, type PayDeductions, type PayrollParameters,
 } from '../src/apps/trone/routes/equipe/payroll';
 
@@ -96,6 +96,25 @@ dit('… un autre mois, une autre ligne', true,
   chargeSalaireId('2026-08', 'emp1') !== chargeSalaireId('2026-09', 'emp1'));
 dit('… une autre personne aussi', true,
   chargeSalaireId('2026-08', 'emp1') !== chargeSalaireId('2026-08', 'emp2'));
+
+/* ── LE REMBOURSEMENT DE PRÊT, SUR SA LIGNE — 18 septembre 2026 ──
+   Il baisse le net comme toute retenue, et le plafond se juge sur le net
+   AVANT lui. Absent (runs d’avant), rien ne change. */
+const avecPret = computePay(gains, { avance: 0, autresRetenues: 0, retenuePret: 24_000 }, allumee);
+const sansPret = computePay(gains, rien, allumee);
+dit('la retenue du prêt baisse le net d’autant', 24_000, sansPret.net - avecPret.net);
+dit('… et compte dans le total des retenues', 24_000, avecPret.retenues);
+dit('absente, le calcul d’avant est intact', sansPret.net, computePay(gains, { avance: 0, autresRetenues: 0 }, allumee).net);
+dit('plafond non fixé : aucune borne inventée', null, plafondDeLaRetenue(110_400, allumee));
+dit('30 % d’un net de 110 400 F : 33 120 F', 33_120, plafondDeLaRetenue(110_400, { ...allumee, plafondRetenuePretPct: 30 }));
+dit('le plafond s’arrondit au franc inférieur', 33_333, plafondDeLaRetenue(100_000, { ...allumee, plafondRetenuePretPct: 33.3333 }));
+dit('un net négatif ne permet aucune retenue', 0, plafondDeLaRetenue(-5_000, { ...allumee, plafondRetenuePretPct: 30 }));
+dit('un taux nul vaut « non fixé »', null, plafondDeLaRetenue(110_400, { ...allumee, plafondRetenuePretPct: 0 }));
+const lienPret = new URL(bulletinHref('/bulletin.html', { nom: 'A. K.', periode: '2026-10', base: 120_000, pret: 24_000, pretReste: 276_000 }), 'http://x');
+dit('le bulletin reçoit le prêt et le reste dû', ['24000', '276000'],
+  [lienPret.searchParams.get('pret'), lienPret.searchParams.get('pretreste')]);
+dit('sans prêt, le lien ne dit rien du prêt', false,
+  bulletinHref('/bulletin.html', { nom: 'S. D.', periode: '2026-10', base: 80_000 }).includes('pret'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

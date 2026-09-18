@@ -42,6 +42,12 @@ export type PayrollParameters = {
   /** Congés payés : jours ouvrables acquis par mois de service (référence Bénin : 2). */
   congesJoursParMois: number;
   its: ItsBracket[];                 // barème progressif ITS (mensuel)
+  /** LE PLAFOND DES RETENUES DE PRÊT, en % du net du mois — 18 septembre
+      2026, arbitrage de Yéman : « sur le net, fixé avec le comptable ».
+      ABSENT = PAS ENCORE FIXÉ, et le Trône le dit au lieu d'en inventer un :
+      le droit du travail encadre les retenues sur salaire, et le taux qui
+      s'applique à la Maison n'est écrit nulle part ici. */
+  plafondRetenuePretPct?: number;
 };
 
 /* Valeurs de départ (spec) — PROVISOIRES, à faire valider par le comptable. */
@@ -137,6 +143,11 @@ export type PayGains = {
 export type PayDeductions = {
   avance: number;        // avances sur salaire du mois
   autresRetenues: number;// autres retenues libellées
+  /** LE REMBOURSEMENT DE PRÊT, SUR SA PROPRE LIGNE — 18 septembre 2026.
+      Il vivait dans « autres retenues » : le bulletin ne pouvait pas dire
+      ce qui remboursait un prêt. ABSENT sur les runs d'avant, dont la
+      retenue de prêt reste lue dans `autresRetenues` (inscrireLesRetenues). */
+  retenuePret?: number;
 };
 
 export type PayResult = {
@@ -258,7 +269,7 @@ export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParame
   const actif = cnssEstActive(p);
   const cnssSalariale = actif ? round(brut * p.cnssSalarialePct / 100) : 0;
   const its = itsEstActif(p) ? computeIts(brut, p.its) : 0;
-  const retenues = round(ded.avance + ded.autresRetenues);
+  const retenues = round(ded.avance + ded.autresRetenues + (ded.retenuePret ?? 0));
   const net = brut - cnssSalariale - its - retenues;
   /* Éteinte, la part patronale tombe aussi : sans déclaration, l'employeur ne
      doit rien non plus, et un coût employeur gonflé fausserait la décision. */
@@ -267,6 +278,16 @@ export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParame
     : 0;
   const coutEmployeur = brut + cnssPatronale;
   return { brut, cnssSalariale, its, retenues, net, cnssPatronale, coutEmployeur };
+}
+
+/** CE QU'UN MOIS PEUT RETENIR POUR LES PRÊTS, au plus : la part du net du
+    mois AVANT la retenue du prêt que fixe le plafond, arrondie au franc
+    inférieur. `null` tant que le plafond n'est pas fixé : aucune borne n'est
+    inventée, l'écran le dit. */
+export function plafondDeLaRetenue(netAvantXof: number, p: PayrollParameters): number | null {
+  const pct = p.plafondRetenuePretPct;
+  if (pct == null || !Number.isFinite(pct) || pct <= 0) return null;
+  return Math.max(0, Math.floor((Math.max(0, netAvantXof) * pct) / 100));
 }
 
 /** Numéro de bulletin MND-BP-AAAA-MM-NNN — NNN = suffixe du matricule MND-EMP-NNN. */
@@ -603,6 +624,13 @@ export type PayrollLine = {
   bulletinEnvoyeLe?: string;
   bulletinParModele?: boolean;
   bulletinRefus?: string;
+
+  /** LE PRÊT DE LA LIGNE — 18 septembre 2026. Ce que la part du salaire
+      demandait ce mois, le plafond du mois quand il est fixé, et ce qui
+      restait dû avant ce bulletin. Figé à la création du run, comme le
+      reste de la ligne : de quoi dire « reste dû après » et « écart reporté
+      à la fin » sans rien recalculer d'un prêt qui a pu bouger depuis. */
+  pret?: { prevuXof: number; resteAvantXof: number; plafondXof?: number; partPct?: number };
 };
 export type PayrollRun = {
   id: string;
@@ -724,6 +752,8 @@ export type BulletinLink = {
   periode: string; // AAAA-MM
   base: number; hs?: number; prime?: number; pourboires?: number; commission?: number;
   avance?: number; retenue?: number; paiement?: string;
+  /** Le remboursement de prêt du mois, et ce qui reste dû après lui. */
+  pret?: number; pretReste?: number;
   /** Taux salarial CNSS à appliquer — 0 quand la cotisation est éteinte.
       SANS LUI, LA PAGE RETOMBE SUR SES 3,6 % PAR DÉFAUT et imprime un net
       inférieur à celui que l'ERP a calculé et que l'employé a reçu. */
@@ -751,6 +781,10 @@ export function bulletinHref(base: string, b: BulletinLink): string {
   if (b.commission) q.set('commission', String(b.commission));
   if (b.avance) q.set('avance', String(b.avance));
   if (b.retenue) q.set('retenue', String(b.retenue));
+  if (b.pret) {
+    q.set('pret', String(b.pret));
+    if (b.pretReste != null) q.set('pretreste', String(b.pretReste));
+  }
   if (b.paiement) q.set('paiement', b.paiement);
   /* `!= null` et non `if (b.cnssPct)` : zéro est précisément la valeur qu'il
      faut transmettre — c'est elle qui éteint la retenue sur le bulletin. */

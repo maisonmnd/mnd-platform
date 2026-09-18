@@ -274,6 +274,17 @@ export type Pret = {
       avance sur salaire se rembourse par le salaire : aucune caisse ne bouge,
       puisque l’argent n’est jamais sorti de la Maison. */
   retenueXof?: number;
+  /** LA RETENUE EN PART DU SALAIRE — 18 septembre 2026. Maquette
+      `maquette-la-retenue-sur-salaire.html`, quatre arbitrages de Yéman :
+      la part se calcule sur le SALAIRE DE BASE ; c'est LA PART QUI FAIT FOI
+      (une augmentation raccourcit le prêt, une baisse l'allonge) ; elle
+      arrive seule sur chaque bulletin et reste corrigeable, l'écart d'un mois
+      réduit se reportant à la fin ; un plafond sur le net du mois la borne
+      (Paramètres de paie). LA DURÉE NE SE STOCKE PAS : elle se déduit du
+      reste dû et du salaire du jour. La stocker ferait deux vérités, qui se
+      contrediraient à la première augmentation. Équipe seulement ;
+      `premierMois` est le mois du premier bulletin, « AAAA-MM ». */
+  retenue?: { partPct: number; premierMois: string };
   /** CE QUI EST SORTI (ou rentré dans) LE TIROIR quand la caisse tient une
       autre devise — 22 août 2026. La dette reste en francs ; le tiroir compte
       ses billets. Voir surLeTiroir dans finance.ts. */
@@ -678,6 +689,118 @@ export const echeancesDuPret = (p: Pret): EcheanceAttendue[] => {
   return [];
 };
 
+/* ══ LA RETENUE EN PART DU SALAIRE — 18 septembre 2026 ═════════════════
+   « On doit pouvoir ajouter combien de pourcentage du salaire sera
+   automatiquement prélevé, et sur combien de temps » (Yéman).
+
+   MONTANT PRÊTÉ = RETENUE MENSUELLE × NOMBRE DE MOIS. Fixer la part fixe
+   donc la durée, et l'inverse : les régler séparément finirait en prêt
+   jamais soldé, ou en retenue sur un prêt déjà soldé. On choisit un levier,
+   le Trône calcule l'autre. Éprouvé par `verifie-foyer`. */
+
+/** Le mois « AAAA-MM » décalé de `n` mois. */
+export const moisDecale = (mois: string, n: number): string => moisPlus(`${mois}-01`, n).slice(0, 7);
+
+/** Ce que retient un mois : la part du salaire de base, au franc. */
+export const retenueDeLaPart = (partPct: number, baseXof: number): number =>
+  (partPct > 0 && baseXof > 0 ? Math.round((baseXof * partPct) / 100) : 0);
+
+/** La part du salaire qui rembourse `montantXof` en `mois` bulletins. La
+    mensualité s'arrondit au franc SUPÉRIEUR : arrondie en dessous, un
+    dernier bulletin de quelques francs naîtrait après la durée promise. */
+export const partPourDuree = (montantXof: number, mois: number, baseXof: number): number =>
+  (baseXof > 0 && mois > 0 && montantXof > 0 ? (Math.ceil(montantXof / mois) / baseXof) * 100 : 0);
+
+/** Un mois de l'échéancier d'une retenue. */
+export type MoisDeRetenue = { mois: string; retenueXof: number; resteApresXof: number };
+
+/** L'ÉCHÉANCIER SE SIMULE, il ne se divise pas : chaque mois retient la
+    mensualité ou ce qui reste, le plus petit des deux. Le dernier mois solde
+    le prêt, il ne le dépasse jamais. */
+export const projectionDeLaRetenue = (
+  resteXof: number, mensXof: number, depuisMois: string, max = 120,
+): MoisDeRetenue[] => {
+  const out: MoisDeRetenue[] = [];
+  let reste = Math.max(0, Math.round(resteXof));
+  if (!(mensXof > 0)) return out;
+  for (let k = 0; reste > 0 && k < max; k += 1) {
+    const r = Math.min(Math.round(mensXof), reste);
+    reste -= r;
+    out.push({ mois: moisDecale(depuisMois, k), retenueXof: r, resteApresXof: reste });
+  }
+  return out;
+};
+
+/** CE QUI RESTE SUR CHAQUE LIGNE DE PRÊT. Les remboursements couvrent le
+    prêt le plus ancien d'abord, la règle du comptoir, comme pour les
+    échéances. C'est ce qui éteint la part d'un prêt soldé quand un second
+    prêt court encore. */
+export const restesParPret = (prets: readonly Pret[], rembourseXof: number): Map<string, number> => {
+  const out = new Map<string, number>();
+  let couvre = Math.max(0, rembourseXof);
+  const ordre = prets.filter((p) => p.type === 'pret')
+    .slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  for (const p of ordre) {
+    const c = Math.min(p.amountXof, couvre);
+    couvre -= c;
+    out.set(p.id, p.amountXof - c);
+  }
+  return out;
+};
+
+const cleDuNom = (nom: string): string => (nom || 'Sans nom').trim().toLowerCase();
+
+/** Ce que les prêts d'un membre demandent à un bulletin. */
+export type RetenuePrevue = {
+  /** Ce que le bulletin doit retenir, borné au reste dû. */
+  prevuXof: number;
+  /** Ce qui restait dû avant ce bulletin. */
+  resteXof: number;
+  /** La part du salaire de base, prêts en cours et commencés. */
+  partPct: number;
+  /** Les retenues fixes d'avant le 18 septembre, en francs. */
+  fixeXof: number;
+  nom: string;
+  genre: GenreEmprunteur;
+  personneId?: string;
+};
+
+/** CE QUE LE BULLETIN D'UN MOIS DOIT RETENIR POUR LES PRÊTS D'UN MEMBRE.
+    Un prêt en part du salaire n'entre qu'à partir de son premier mois, et
+    tant que sa propre ligne n'est pas soldée. LES RETENUES FIXES D'AVANT
+    gardent leur règle d'origine (23 août) : elles courent tant que la
+    personne doit quelque chose. Les prêts d'avant ne bougent pas. Le
+    plafond sur le net ne se juge pas ici : il demande le bulletin entier
+    (voir `plafondDeLaRetenue`, paie). */
+export const retenuePrevueDuMois = (
+  lignes: readonly Pret[],
+  branchId: string,
+  membre: { id: string; nom: string; baseXof: number },
+  mois: string,
+): RetenuePrevue | null => {
+  const s = soldesParEmprunteur(lignes, branchId)
+    .find((x) => (!!membre.id && x.personneId === membre.id) || cleDuNom(x.nom) === cleDuNom(membre.nom));
+  if (!s || s.reste <= 0) return null;
+  const prets = lignes.filter((p) => p.branchId === branchId && p.type === 'pret'
+    && cleDuNom(p.associe) === cleDuNom(s.nom));
+  const restes = restesParPret(prets, s.rembourse);
+  let partPct = 0;
+  let fixeXof = 0;
+  for (const p of prets) {
+    if (p.retenue) {
+      if ((restes.get(p.id) ?? 0) > 0 && p.retenue.premierMois <= mois) partPct += p.retenue.partPct;
+    } else if (p.retenueXof) {
+      fixeXof += p.retenueXof;
+    }
+  }
+  const brut = retenueDeLaPart(partPct, membre.baseXof) + fixeXof;
+  if (brut <= 0) return null;
+  return {
+    prevuXof: Math.min(brut, s.reste), resteXof: s.reste, partPct, fixeXof,
+    nom: s.nom, genre: s.genre, personneId: s.personneId,
+  };
+};
+
 /** L'état d'un emprunteur : son solde, ce qu'il doit encore et quand. */
 export type EtatEmprunteur = SoldePret & {
   /** Ce qui reste attendu, du plus ancien au plus récent — arriérés en tête. */
@@ -686,26 +809,53 @@ export type EtatEmprunteur = SoldePret & {
   prochaine?: EcheanceAttendue;
   /** Jours de retard sur la plus ancienne échéance dépassée. 0 = à jour. */
   retardJours: number;
-  /** La retenue mensuelle proposée sur le bulletin, s'il y en a une. */
+  /** La retenue mensuelle proposée sur le bulletin, s'il y en a une — la
+      part du salaire n'y entre que si le salaire est connu (`salaireDe`). */
   retenueXof: number;
-  /** Aucune de ses lignes de prêt ne porte de date de retour. */
+  /** La part du salaire de base retenue chaque mois, prêts en cours. */
+  partPct: number;
+  /** Le premier bulletin de la retenue en part du salaire, « AAAA-MM ». */
+  retenueDes?: string;
+  /** Le dernier bulletin prévu, au salaire du jour, « AAAA-MM ». */
+  retenueFin?: string;
+  /** Aucune de ses lignes de prêt ne porte de date de retour — ni de retenue
+      sur salaire, qui est une façon de revenir. */
   sansEcheance: boolean;
 };
 
 /* CE QUI EST REMBOURSÉ COUVRE LES ÉCHÉANCES LES PLUS ANCIENNES D'ABORD. C'est
    la règle du comptoir : on solde ce qui traîne avant ce qui vient. L'imputer
    autrement ferait apparaître un retard là où l'emprunteur a payé. */
+/* LE SALAIRE VIENT DE L'APPELANT (`salaireDe`, 18 septembre) : ce module ne
+   lit pas le répertoire de l'équipe. Sans lui, la part du salaire se dit en
+   pourcentage et ne se chiffre pas ; le Tableau de bord n'en a pas besoin. */
 export const etatsDesEmprunteurs = (
   lignes: readonly Pret[],
   branchId: string,
   aujourdhui: string,
+  salaireDe?: (e: { personneId?: string; nom: string }) => number,
 ): EtatEmprunteur[] => {
   const soldes = soldesParEmprunteur(lignes, branchId);
   return soldes.map((s) => {
     const siennes = lignes.filter((p) => p.branchId === branchId
       && (p.associe || 'Sans nom').trim().toLowerCase() === s.nom.toLowerCase());
     const prets = siennes.filter((p) => p.type === 'pret');
-    const calendrier = prets.flatMap(echeancesDuPret).sort((a, b) => a.date.localeCompare(b.date));
+    /* UN PRÊT RETENU SUR LE SALAIRE N'A PAS DE CALENDRIER À RÉCLAMER : la paie
+       le rembourse, et un mois réduit reporte son écart à la fin au lieu de
+       le mettre en retard. Il ne remonte donc ni en retard ni au Tableau de
+       bord, qui sert à relancer. */
+    const calendrier = prets.filter((p) => !p.retenue)
+      .flatMap(echeancesDuPret).sort((a, b) => a.date.localeCompare(b.date));
+    const restes = restesParPret(prets, s.rembourse);
+    const enPart = prets.filter((p) => p.retenue && (restes.get(p.id) ?? 0) > 0);
+    const partPct = enPart.reduce((n, p) => n + (p.retenue?.partPct ?? 0), 0);
+    const fixeXof = prets.reduce((n, p) => n + (s.reste > 0 && !p.retenue ? (p.retenueXof ?? 0) : 0), 0);
+    const base = salaireDe ? salaireDe({ personneId: s.personneId, nom: s.nom }) : 0;
+    const retenueXof = retenueDeLaPart(partPct, base) + fixeXof;
+    const retenueDes = enPart.map((p) => p.retenue!.premierMois).sort()[0];
+    const ceMois = aujourdhui.slice(0, 7);
+    const depart = retenueDes && retenueDes > ceMois ? retenueDes : ceMois;
+    const plan = enPart.length > 0 ? projectionDeLaRetenue(s.reste, retenueXof, depart) : [];
 
     let couvre = s.rembourse;
     const attendus: EcheanceAttendue[] = [];
@@ -720,8 +870,12 @@ export const etatsDesEmprunteurs = (
       attendus,
       prochaine: attendus[0],
       retardJours: enSouffrance.length > 0 ? joursEntre(enSouffrance[0].date, aujourdhui) : 0,
-      retenueXof: prets.reduce((n, p) => n + (s.reste > 0 ? (p.retenueXof ?? 0) : 0), 0),
-      sansEcheance: prets.length > 0 && calendrier.length === 0,
+      retenueXof,
+      partPct,
+      retenueDes,
+      retenueFin: plan.length > 0 ? plan[plan.length - 1].mois : undefined,
+      sansEcheance: prets.length > 0 && calendrier.length === 0
+        && !prets.some((p) => p.retenue || p.retenueXof),
     };
   });
 };

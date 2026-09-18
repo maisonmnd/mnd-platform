@@ -33,9 +33,12 @@ import { useClients } from '../../../../shared/clients';
 import { signeLeMessage } from '../../../../shared/identite';
 import {
   usePrets, detteEnCours, etatsDesEmprunteurs, parUrgence, joursEntre,
+  retenueDeLaPart, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, moisDecale,
   type EtatEmprunteur, type GenreEmprunteur, type Pret,
 } from '../../../../shared/foyer';
 import { useStaff } from '../equipe/data';
+import { usePayrollParameters, parametersFor, computePay, plafondDeLaRetenue, periodeLisible } from '../equipe/payroll';
+import { ouvreLesLettresDuPret } from './lettres-du-pret';
 import { ClientPicker } from '../clients/_shared';
 import {
   ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant,
@@ -46,7 +49,7 @@ import { todayISO, fmtDay } from './_shared';
 import { addDaysISO, frJourAn } from '../clients/_shared';
 import { LesObjectifs } from './objectifs';
 import './finances.css';
-import { ChampDeDate } from '../../../../ds/dates';
+import { ChampDeDate, ChampDeMois } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 
 /** Le genre d'un emprunteur, en français — ce que l'œil lit sur la carte. */
@@ -73,6 +76,12 @@ const delai = (aujourdhui: string, date: string): string => {
 };
 
 type Filtre = 'retard' | 'proche' | 'cours' | 'sans' | 'soldes';
+
+/** « 20 % », « 35,7 % » : une part du salaire se lit à la décimale près. */
+const pctDit = (n: number): string => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`;
+
+/** Le mois du prochain bulletin : la première retenue proposée par défaut. */
+const moisSuivant = (): string => moisDecale(todayISO().slice(0, 7), 1);
 
 export default function Prets() {
   const { branch, currency } = useBranch();
@@ -111,9 +120,13 @@ export default function Prets() {
   };
 
   const [prets, setPrets] = usePrets();
+  /* LE SALAIRE DE CHACUN, pour chiffrer la part retenue (18 septembre). Le
+     module des prêts ne lit pas l'équipe : c'est l'écran qui la lui prête. */
   const etats = useMemo(
-    () => etatsDesEmprunteurs(prets, branch.id, aujourdhui).sort(parUrgence),
-    [prets, branch.id, aujourdhui],
+    () => etatsDesEmprunteurs(prets, branch.id, aujourdhui, ({ personneId, nom }) =>
+      staff.find((m) => m.id === personneId || m.name.trim().toLowerCase() === nom.toLowerCase())?.salaireXof ?? 0,
+    ).sort(parUrgence),
+    [prets, branch.id, aujourdhui, staff],
   );
   const dette = detteEnCours(prets, branch.id);
   const [emprunts] = useEmprunts();
@@ -152,25 +165,37 @@ export default function Prets() {
     nom: '', personneId: '', motif: '', montant: '',
     cashbox: '', method: 'Espèces', date: todayISO(), enDevise: '',
     /* « Quand doit-il revenir ? » — le champ qui manquait. */
-    retour: 'sans' as 'sans' | 'une' | 'plusieurs',
+    retour: 'salaire' as 'sans' | 'une' | 'plusieurs' | 'salaire',
     echeance: '', nombre: '3', premier: '',
     retenue: '',
+    /* LA RETENUE EN PART DU SALAIRE — 18 septembre 2026. On règle un levier,
+       la part ou la durée ; le Trône calcule l'autre. */
+    levier: 'part' as 'part' | 'duree', part: '20', duree: '10', premierMois: moisSuivant(),
   });
 
   const corrigerLePret = (p: Pret) => {
+    /* Un prêt d'équipe d'avant ne porte parfois que le nom : on retrouve
+       la fiche, sans quoi la part du salaire ne pourrait pas se calculer. */
+    const fiche = p.personneId ?? (p.genre === 'equipe'
+      ? staff.find((m) => m.branchId === branch.id && m.name.trim().toLowerCase() === p.associe.trim().toLowerCase())?.id
+      : undefined);
     setFPret({
       type: p.type,
       genre: (p.genre ?? 'tiers') as GenreEmprunteur,
-      nom: p.associe, personneId: p.personneId ?? '',
+      nom: p.associe, personneId: fiche ?? '',
       motif: p.motif ?? '',
       cashbox: p.cashbox ?? '', method: p.method ?? 'Espèces', date: p.date.slice(0, 10),
       montant: p.fx ? String(p.fx.amount) : String(p.amountXof),
       enDevise: p.fx ? String(p.amountXof) : '',
-      retour: p.echeancier ? 'plusieurs' : p.echeance ? 'une' : 'sans',
+      retour: p.retenue ? 'salaire' : p.echeancier ? 'plusieurs' : p.echeance ? 'une' : 'sans',
       echeance: p.echeance ?? '',
       nombre: String(p.echeancier?.nombre ?? 3),
       premier: p.echeancier?.premier ?? '',
       retenue: p.retenueXof ? String(p.retenueXof) : '',
+      levier: 'part',
+      part: p.retenue ? String(p.retenue.partPct) : '20',
+      duree: '10',
+      premierMois: p.retenue?.premierMois ?? moisSuivant(),
     });
     setPretEdite(p);
   };
@@ -198,6 +223,78 @@ export default function Prets() {
   const caisseDuPret = caissesMaison.find((c) => c.name === fPret.cashbox);
   const montantsPret = montantsDuTiroir(caisseDuPret, currency, fPret.montant, fPret.enDevise);
 
+  /* ══ LA RETENUE EN PART DU SALAIRE — 18 septembre 2026 ═══════════════
+     Maquette `maquette-la-retenue-sur-salaire.html`, validée, quatre
+     arbitrages. Montant prêté = retenue × nombre de mois : on règle la part
+     OU la durée, le Trône calcule l'autre et montre les deux côte à côte,
+     pour que chacun sache ce qu'il signe. Le plafond se juge sur le NET
+     HABITUEL (salaire de base et prime, après CNSS et ITS, sans commission) :
+     le même juge qu'au bulletin, sinon le formulaire laisserait passer un
+     prêt que chaque bulletin réduirait ensuite. Les retenues des autres prêts
+     du membre comptent dans le plafond. */
+  const [versionsPaie] = usePayrollParameters();
+  const equipeIci = staff.filter((m) => m.branchId === branch.id);
+  const membreDuPret = fPret.genre === 'equipe' ? equipeIci.find((m) => m.id === fPret.personneId) : undefined;
+  const baseDuMembre = membreDuPret?.salaireXof ?? 0;
+  const planSalaire = (() => {
+    const montant = montantsPret.xof;
+    const partSaisie = Math.max(0, Number(fPret.part.replace(',', '.')) || 0);
+    const duree = Math.max(1, parseInt(fPret.duree, 10) || 1);
+    const mens = fPret.levier === 'part'
+      ? retenueDeLaPart(partSaisie, baseDuMembre)
+      : (montant > 0 ? Math.ceil(montant / duree) : 0);
+    const partPct = fPret.levier === 'part' ? partSaisie : partPourDuree(montant, duree, baseDuMembre);
+    const plan = projectionDeLaRetenue(montant, mens, fPret.premierMois);
+    const bareme = parametersFor(fPret.premierMois, versionsPaie);
+    const netHabituel = membreDuPret
+      ? computePay(
+        { base: baseDuMembre, heuresSup: 0, prime: membreDuPret.primeXof ?? 0, pourboires: 0, commission: 0, indemnites: 0 },
+        { avance: 0, autresRetenues: 0 }, bareme,
+      ).net
+      : 0;
+    const plafond = plafondDeLaRetenue(netHabituel, bareme);
+    const autres = membreDuPret
+      ? (retenuePrevueDuMois(prets.filter((x) => x.id !== pretEdite?.id), branch.id,
+        { id: membreDuPret.id, nom: membreDuPret.name, baseXof: baseDuMembre }, fPret.premierMois)?.prevuXof ?? 0)
+      : 0;
+    return {
+      mens, partPct, plan, plafond, autres,
+      pctPlafond: bareme.plafondRetenuePretPct,
+      trop: plafond != null && mens + autres > plafond,
+    };
+  })();
+  const enPartDuSalaire = fPret.type === 'pret' && fPret.genre === 'equipe' && fPret.retour === 'salaire';
+  const imprimerLesLettres = () => {
+    if (!membreDuPret) return;
+    const motif = fPret.motif.trim();
+    const ok = ouvreLesLettresDuPret({
+      nom: membreDuPret.name,
+      fonction: membreDuPret.role || undefined,
+      telephone: membreDuPret.phone || undefined,
+      depuis: /^\d{4}-\d{2}-\d{2}/.test(membreDuPret.since ?? '') ? membreDuPret.since : undefined,
+      montantXof: montantsPret.xof,
+      date: fPret.date || todayISO(),
+      motif: motif && motif !== 'Prêt' ? motif : undefined,
+      baseXof: baseDuMembre,
+      partPct: planSalaire.partPct,
+      mensXof: planSalaire.mens,
+      mois: planSalaire.plan.length,
+      premierMois: fPret.premierMois,
+      plafondPct: planSalaire.pctPlafond,
+    });
+    if (!ok) toast('Le navigateur a bloqué la fenêtre des lettres : autorisez les fenêtres pour le Trône, puis recommencez.');
+  };
+  /* BASCULER DE LEVIER GARDE LE PRÊT TEL QU'IL EST : la durée reprend ce
+     que la part donnait, et l'inverse. Rien ne saute sous les yeux. */
+  const basculeLevier = (k: 'part' | 'duree') => setFPret((f) => {
+    if (f.levier === k) return f;
+    const m = planSalaire.mens;
+    if (k === 'duree') {
+      return { ...f, levier: k, duree: String(m > 0 && montantsPret.xof > 0 ? Math.min(60, Math.max(1, Math.ceil(montantsPret.xof / m))) : 10) };
+    }
+    return { ...f, levier: k, part: String(baseDuMembre > 0 && m > 0 ? Math.min(50, Math.max(1, Math.round((m / baseDuMembre) * 100))) : 20) };
+  });
+
   const enregistrerPret = () => {
     const montant = montantsPret.xof;
     const nom = fPret.nom.trim();
@@ -222,6 +319,27 @@ export default function Prets() {
       return;
     }
     const estPret = fPret.type === 'pret';
+    /* LA RETENUE EN PART DU SALAIRE REFUSE CE QU'ELLE NE PEUT PAS TENIR, et
+       dit pourquoi (18 septembre) : sans fiche ni salaire, la part ne se
+       chiffre pas ; au-delà du plafond, c'est l'arbitrage ④. */
+    if (enPartDuSalaire) {
+      if (!membreDuPret) {
+        toast('Choisissez le membre de l’équipe : la part se calcule sur son salaire de base.');
+        return;
+      }
+      if (!(baseDuMembre > 0)) {
+        toast(`La fiche de ${membreDuPret.name} ne porte pas de salaire de base. Renseignez-le dans Équipe : sans lui, la part ne se calcule pas.`);
+        return;
+      }
+      if (!(planSalaire.mens > 0)) {
+        toast('Réglez la part du salaire ou la durée.');
+        return;
+      }
+      if (planSalaire.trop) {
+        toast(`Au-delà du plafond de la Maison, ${fmtMoney(planSalaire.plafond ?? 0, currency)} par mois : baissez la part, ou allongez la durée.`);
+        return;
+      }
+    }
     const ligne: Pret = {
       id: pretEdite?.id ?? `prt-${uid()}`,
       branchId: branch.id,
@@ -241,7 +359,14 @@ export default function Prets() {
       echeancier: estPret && fPret.retour === 'plusieurs' && fPret.premier
         ? { nombre: Math.max(2, parseInt(fPret.nombre || '2', 10) || 2), premier: fPret.premier }
         : undefined,
-      retenueXof: estPret && fPret.genre === 'equipe' && fPret.retenue
+      /* LA PART FAIT FOI (arbitrage ②) : c'est elle qu'on garde, jamais la
+         durée, qui se déduira du salaire du jour. */
+      retenue: enPartDuSalaire
+        ? { partPct: planSalaire.partPct, premierMois: fPret.premierMois }
+        : undefined,
+      /* La retenue fixe d'avant ne survit que sur un prêt qui ne passe pas
+         en part du salaire. */
+      retenueXof: estPret && fPret.genre === 'equipe' && !enPartDuSalaire && fPret.retenue
         ? (parseInt(fPret.retenue.replace(/[^0-9]/g, ''), 10) || 0) || undefined
         : undefined,
     };
@@ -316,7 +441,7 @@ export default function Prets() {
           <span className="trf-pret__nom">{e.nom}</span>
           <span className="trf-tag">{LIBELLE_GENRE[e.genre] ?? e.genre}</span>
           {e.retardJours > 0 && <span className="trf-tag trf-tag--brique">en retard</span>}
-          {e.retenueXof > 0 && <span className="trf-tag trf-tag--vert">retenu sur salaire</span>}
+          {(e.retenueXof > 0 || e.partPct > 0) && e.reste > 0 && <span className="trf-tag trf-tag--vert">retenu sur salaire</span>}
           {e.reste <= 0 && <span className="trf-tag trf-tag--vert">soldé</span>}
           <span className="trf-pret__reste">
             <em>{e.reste > 0 ? 'Reste dû' : 'Soldé'}</em>
@@ -330,20 +455,31 @@ export default function Prets() {
           <span>{part} %</span>
         </div>
 
-        {e.reste > 0 && (
+        {e.reste > 0 && !(e.partPct > 0 && !e.prochaine) && (
           e.prochaine ? (
             <div className={`trf-echeance ${e.retardJours > 0 ? 'trf-echeance--brique' : ''}`}>
               {e.prochaine.sur > 1
                 ? `Échéancier · versement ${e.prochaine.rang} sur ${e.prochaine.sur}, ${fmtMoney(e.prochaine.montantXof, currency)} le ${frLong(e.prochaine.date)}, ${delai(aujourdhui, e.prochaine.date)}.`
                 : `Attendu le ${frLong(e.prochaine.date)}, ${delai(aujourdhui, e.prochaine.date)}.`}
             </div>
-          ) : (
+          ) : e.retenueXof > 0 ? null : (
             <div className="trf-echeance trf-echeance--nu">
               Aucune date de retour. Un prêt sans échéance ne se réclame pas, il s’oublie.
             </div>
           )
         )}
-        {e.retenueXof > 0 && (
+        {/* LA PART DU SALAIRE SE DIT AVEC SA FIN (18 septembre) : la part fait
+            foi, la date de fin se recalcule au salaire du jour. */}
+        {e.reste > 0 && e.partPct > 0 && (
+          <div className="trf-echeance trf-echeance--vert">
+            {pctDit(e.partPct)} du salaire de base retenus sur chaque bulletin
+            {e.retenueXof > 0 ? `, soit ${fmtMoney(e.retenueXof, currency)}` : ''}
+            {e.retenueDes && e.retenueDes > aujourdhui.slice(0, 7) ? `, à partir de ${periodeLisible(e.retenueDes)}` : ''}
+            {e.retenueFin ? `. Dernier bulletin prévu : ${periodeLisible(e.retenueFin)}` : ''}
+            . Aucune caisse ne bouge : la retenue est déduite du salaire.
+          </div>
+        )}
+        {e.reste > 0 && !(e.partPct > 0) && e.retenueXof > 0 && (
           <div className="trf-echeance trf-echeance--vert">
             {fmtMoney(e.retenueXof, currency)} proposés en retenue sur chaque bulletin, l’argent
             n’est jamais sorti de la Maison, aucune caisse ne bouge.
@@ -638,13 +774,35 @@ export default function Prets() {
                     key={g}
                     type="button"
                     className={`trc-chip ${fPret.genre === g ? 'is-active' : ''}`}
-                    onClick={() => setFPret((f) => ({ ...f, genre: g }))}
+                    onClick={() => setFPret((f) => ({
+                      ...f, genre: g,
+                      /* Le salaire n'est un chemin de retour que pour l'équipe. */
+                      retour: g === 'equipe' && f.retour === 'sans' ? 'salaire'
+                        : g !== 'equipe' && f.retour === 'salaire' ? 'sans' : f.retour,
+                    }))}
                   >
                     {LIBELLE_GENRE[g]}
                   </button>
                 ))}
               </div>
-              {fPret.genre === 'cliente' ? (
+              {/* UN MEMBRE DE L'ÉQUIPE SE CHOISIT DANS L'ÉQUIPE (18 septembre) :
+                  c'est sa fiche qui porte le salaire de base, sur lequel se
+                  calcule la part. Un prêt d'avant dont le nom ne correspond à
+                  aucune fiche garde son champ libre. */}
+              {fPret.genre === 'equipe' && equipeIci.length > 0 && !(pretEdite && !fPret.personneId && fPret.nom.trim()) ? (
+                <Select
+                  value={fPret.personneId}
+                  onChange={(e) => {
+                    const m = equipeIci.find((x) => x.id === e.target.value);
+                    setFPret((f) => ({ ...f, personneId: m?.id ?? '', nom: m?.name ?? '' }));
+                  }}
+                >
+                  <option value="">Choisir le membre de l’équipe…</option>
+                  {equipeIci.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>
+                  ))}
+                </Select>
+              ) : fPret.genre === 'cliente' ? (
                 <ClientPicker
                   value={fPret.personneId}
                   onChange={(id) => setFPret((f) => ({
@@ -700,7 +858,10 @@ export default function Prets() {
             {fPret.type === 'pret' && (
               <Field label="Quand doit-il revenir ?">
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 10 }}>
-                  {([['sans', 'Sans échéance'], ['une', 'En une fois'], ['plusieurs', 'En plusieurs fois']] as const).map(([k, mot]) => (
+                  {([
+                    ...(fPret.genre === 'equipe' ? [['salaire', 'Retenu sur le salaire']] as const : []),
+                    ['sans', 'Sans échéance'], ['une', 'En une fois'], ['plusieurs', 'En plusieurs fois'],
+                  ] as const).map(([k, mot]) => (
                     <button
                       key={k}
                       type="button"
@@ -729,6 +890,144 @@ export default function Prets() {
                     </label>
                   </div>
                 )}
+                {fPret.retour === 'salaire' && fPret.genre === 'equipe' && (
+                  !membreDuPret ? (
+                    <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.55 }}>
+                      Choisissez le membre de l’équipe : la part se calcule sur son salaire de base.
+                    </div>
+                  ) : !(baseDuMembre > 0) ? (
+                    <div style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--copper-700)' }}>
+                      La fiche de {membreDuPret.name} ne porte pas de salaire de base. Renseignez-le dans
+                      Équipe : sans lui, la part ne peut pas se calculer.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                      <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+                        Salaire de base de {membreDuPret.name} : {fmtMoney(baseDuMembre, currency)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                        {([['part', 'Par la part du salaire'], ['duree', 'Par la durée']] as const).map(([k, mot]) => (
+                          <button
+                            key={k}
+                            type="button"
+                            className={`trc-chip ${fPret.levier === k ? 'is-active' : ''}`}
+                            onClick={() => basculeLevier(k)}
+                          >
+                            {mot}
+                          </button>
+                        ))}
+                      </div>
+                      {fPret.levier === 'part' ? (
+                        <label className="mnd-field">
+                          <span className="mnd-field__label">Part du salaire de base retenue chaque mois</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <input
+                              type="range" min={1} max={50} step={1}
+                              value={Math.round(Number(fPret.part) || 0)}
+                              onChange={(e) => setFPret((f) => ({ ...f, part: e.target.value }))}
+                              style={{ flex: 1, minWidth: 0, accentColor: 'var(--color-copper)' }}
+                              aria-label="Part du salaire de base"
+                            />
+                            <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 20, color: 'var(--color-indigo)', minWidth: 64, textAlign: 'right' }}>
+                              {pctDit(planSalaire.partPct)}
+                            </b>
+                          </span>
+                        </label>
+                      ) : (
+                        <label className="mnd-field">
+                          <span className="mnd-field__label">Remboursé en</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button
+                              type="button" className="trv-sq" aria-label="Un mois de moins"
+                              onClick={() => setFPret((f) => ({ ...f, duree: String(Math.max(1, (parseInt(f.duree, 10) || 1) - 1)) }))}
+                            >
+                              −
+                            </button>
+                            <input
+                              className="mnd-input" inputMode="numeric" value={fPret.duree} aria-label="Nombre de mois"
+                              onChange={(e) => setFPret((f) => ({ ...f, duree: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }))}
+                              style={{ width: 64, textAlign: 'center' }}
+                            />
+                            <button
+                              type="button" className="trv-sq" aria-label="Un mois de plus"
+                              onClick={() => setFPret((f) => ({ ...f, duree: String(Math.min(60, (parseInt(f.duree, 10) || 0) + 1)) }))}
+                            >
+                              +
+                            </button>
+                            <span className="mnd-muted" style={{ fontSize: 12 }}>mois</span>
+                          </span>
+                        </label>
+                      )}
+                      <label className="mnd-field">
+                        <span className="mnd-field__label">Première retenue sur le bulletin de</span>
+                        <ChampDeMois
+                          value={fPret.premierMois}
+                          onChange={(m) => setFPret((f) => ({ ...f, premierMois: m }))}
+                          ariaLabel="Premier bulletin"
+                        />
+                      </label>
+
+                      {montantsPret.xof > 0 && planSalaire.mens > 0 && planSalaire.plan.length > 0 && (() => {
+                        const plan = planSalaire.plan;
+                        const fin = plan[plan.length - 1].mois;
+                        return (
+                          <div style={{ border: '1px solid var(--hairline)', borderRadius: 4, padding: '12px 14px', background: 'var(--surface-card)' }}>
+                            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--color-indigo)', lineHeight: 1.2 }}>
+                              {fmtMoney(planSalaire.mens, currency)}
+                              <span className="mnd-muted" style={{ fontFamily: 'var(--font-sans)', fontSize: 12, marginLeft: 8 }}>
+                                par bulletin, soit {pctDit(planSalaire.partPct)} du salaire de base
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}>
+                              {fPret.levier === 'part'
+                                ? <>La part fixe la durée : <b>{plan.length} mois</b>, de {periodeLisible(plan[0].mois)} à {periodeLisible(fin)}.</>
+                                : <>La durée fixe la part : <b>{pctDit(planSalaire.partPct)} du salaire</b>, fin en {periodeLisible(fin)}.</>}
+                            </div>
+                            {planSalaire.trop ? (
+                              <div style={{ marginTop: 9, padding: '8px 11px', borderLeft: '3px solid #96412E', background: '#FBF0ED', fontSize: 12, lineHeight: 1.55, color: '#2A2722' }}>
+                                Au-delà du plafond de la Maison : {pctDit(planSalaire.pctPlafond ?? 0)} du net habituel, soit{' '}
+                                <b>{fmtMoney(planSalaire.plafond ?? 0, currency)}</b> par mois
+                                {planSalaire.autres > 0 ? `, dont ${fmtMoney(planSalaire.autres, currency)} déjà retenus pour un autre prêt` : ''}.
+                                Le Trône refuse ce prêt ainsi : baissez la part, ou allongez la durée.
+                              </div>
+                            ) : planSalaire.plafond == null ? (
+                              <div className="mnd-muted" style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.55 }}>
+                                Plafond de la Maison non fixé : rien ne dit encore si cette retenue pèse trop. Il se
+                                règle avec le comptable, dans les Paramètres de paie.
+                              </div>
+                            ) : null}
+                            <div className="mnd-scroll-x" style={{ maxHeight: 200, overflowY: 'auto', marginTop: 10 }}>
+                              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+                                <thead>
+                                  <tr className="mnd-muted" style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase' }}>
+                                    <th style={{ textAlign: 'left', fontWeight: 400, padding: '4px 0' }}>Bulletin</th>
+                                    <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 0' }}>Retenue</th>
+                                    <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 0' }}>Reste dû après</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {plan.map((l) => (
+                                    <tr key={l.mois} style={{ borderTop: '1px solid var(--hairline)' }}>
+                                      <td style={{ padding: '4px 0' }}>{periodeLisible(l.mois)}</td>
+                                      <td style={{ textAlign: 'right', padding: '4px 0' }}>{fmtMoney(l.retenueXof, currency)}</td>
+                                      <td style={{ textAlign: 'right', padding: '4px 0' }}>{l.resteApresXof > 0 ? fmtMoney(l.resteApresXof, currency) : 'soldé'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.55 }}>
+                              La retenue arrive seule sur chaque bulletin et se corrige au moment de la paie ; un mois
+                              réduit reporte son écart à la fin. Aucune caisse ne bouge : elle est déduite du salaire.
+                              Si le salaire de base change, la part reste la même et la durée suit.
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )
+                )}
+                {fPret.retour !== 'salaire' && (
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 7, lineHeight: 1.55 }}>
                   {fPret.retour === 'sans'
                     ? 'Sans date, ce prêt ne sera jamais annoncé en retard, et ne sera jamais rappelé non plus.'
@@ -736,12 +1035,17 @@ export default function Prets() {
                       ? `${fPret.nombre} versements d’environ ${fmtMoney(Math.round(montantsPret.xof / (parseInt(fPret.nombre, 10) || 1)), currency)}, de mois en mois. Ce sont des attentes, pas des écritures : rien ne bouge dans une caisse tant que l’argent n’est pas revenu.`
                       : 'Ce sont des attentes, pas des écritures : rien ne bouge dans une caisse tant que l’argent n’est pas revenu.'}
                 </div>
+                )}
               </Field>
             )}
 
-            {/* LA RETENUE SUR SALAIRE ferme la boucle des avances. */}
-            {fPret.type === 'pret' && fPret.genre === 'equipe' && (
-              <Field label="Retenir sur le bulletin de paie · facultatif">
+            {/* LA RETENUE FIXE D'AVANT (23 août) ne se propose plus sur un prêt
+                neuf : la part du salaire la remplace. Elle reste lisible et
+                corrigeable sur les prêts qui la portent déjà, tant qu'ils ne
+                passent pas en part du salaire. */}
+            {fPret.type === 'pret' && fPret.genre === 'equipe' && fPret.retour !== 'salaire'
+              && !!pretEdite?.retenueXof && !pretEdite.retenue && (
+              <Field label="Retenue fixe d’avant · par bulletin">
                 <Input
                   inputMode="numeric"
                   value={fPret.retenue}
@@ -749,9 +1053,9 @@ export default function Prets() {
                   onChange={(e) => setFPret((f) => ({ ...f, retenue: e.target.value.replace(/[^0-9]/g, '') }))}
                 />
                 <div className="mnd-muted" style={{ fontSize: 10.5, marginTop: 5, lineHeight: 1.55 }}>
-                  Ce montant sera PROPOSÉ en retenue sur chaque bulletin, jusqu’à extinction du
-                  prêt, vous le validez ou l’écartez au moment de la paie. Aucune caisse ne
-                  bouge : l’argent n’est jamais sorti de la Maison.
+                  Ce montant est proposé en retenue sur chaque bulletin, jusqu’à extinction du
+                  prêt. Choisissez « Retenu sur le salaire » ci-dessus pour le fixer plutôt en
+                  part du salaire de base, avec son échéancier.
                 </div>
               </Field>
             )}
@@ -782,6 +1086,21 @@ export default function Prets() {
             <Field label="Date">
               <ChampDeDate compact sens="arriere" value={fPret.date} onChange={(iso) => setFPret((f) => ({ ...f, date: iso }))} />
             </Field>
+
+            {/* LES LETTRES À SIGNER — 18 septembre 2026. Remplies d'après ce
+                formulaire, avant même l'enregistrement : la demande se signe
+                avant le prêt, l'engagement le jour où l'argent est remis. Un
+                prêt refusé par le plafond n'a pas de lettre à signer. */}
+            {enPartDuSalaire && membreDuPret && baseDuMembre > 0 && planSalaire.mens > 0
+              && montantsPret.xof > 0 && !planSalaire.trop && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                <button type="button" className="mnd-btn mnd-btn--ghost" onClick={imprimerLesLettres}>Lettres à signer</button>
+                <span className="mnd-muted" style={{ fontSize: 10.5, lineHeight: 1.5, flex: 1, minWidth: 200 }}>
+                  La demande et l’engagement, remplis d’après ce formulaire, avec la place de la carte
+                  d’identité et des signatures.
+                </span>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
               {/* EFFACER VIT À GAUCHE, loin d’Enregistrer : un geste sans retour

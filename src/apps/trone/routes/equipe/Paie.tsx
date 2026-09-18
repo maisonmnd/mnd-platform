@@ -17,7 +17,7 @@ import { expensesStore, expenseCategoriesStore, useDepensesComptees, useInvoices
 import { useStaff, type StaffMember } from './data';
 import { FacturesDuRun, FactureDeLaDirection } from './FacturePrestataire';
 import { useFacturesPrestataires, prestatairesSansFactureAcceptee, factureDe, totalAccepte, estPrestataire } from './facture';
-import { usePrets, etatsDesEmprunteurs, type Pret } from '../../../../shared/foyer';
+import { usePrets, etatsDesEmprunteurs, retenuePrevueDuMois, type Pret } from '../../../../shared/foyer';
 import { useBranchAppointments, useServicesById, apptNetXof, commissionDetaillee } from '../clients/_shared';
 import { Pill, Tabs } from './ui';
 import {
@@ -25,7 +25,7 @@ import {
   parametersFor, asArray, healPayrollStores, computePay, recomputeLine, runTotals, bulletinHref, bulletinNumber,
   cnssEstActive, tauxCnssSalarial, itsEstActif, chargeSalaireId, chargeSalaire, SALAIRES_CATEGORIE,
   RUN_STATUS_LABEL, PAYROLL_PARAMETERS_SEED, ligneDePrestataire, parametresDeLaLigne,
-  ligneEstPayee, resteAVerserXof, dejaVerseXof, avancementDuRun, runEntierementVerse,
+  ligneEstPayee, resteAVerserXof, dejaVerseXof, avancementDuRun, runEntierementVerse, plafondDeLaRetenue,
   type PayrollRun, type PayrollLine, type RunStatus, type PayGains, type PayDeductions,
   type PayrollParameters, type ItsBracket,
 } from './payroll';
@@ -125,23 +125,13 @@ export function PaieRuns() {
     return out;
   }, [open, staff, appts, branch.id]);
 
-  /* CE QUE CHAQUE PRÊT DEMANDE DE RETENIR CE MOIS-CI. On ne retient jamais
-     plus que le reste dû : le dernier mois solde le prêt, il ne le dépasse
-     pas. Un emprunteur se reconnaît par sa fiche, sinon par son nom — les
-     prêts d’avant ne portent pas toujours de `personneId`. */
-  const [lesPrets, setLesPrets] = usePrets();
-  const retenuesDuMois = useMemo(() => {
-    const par = new Map<string, number>();
-    const etats = etatsDesEmprunteurs(lesPrets, branch.id, nowStamp().slice(0, 10));
-    for (const m of asArray(staff)) {
-      if (!m || m.branchId !== branch.id) continue;
-      const e = etats.find((x) => x.personneId === m.id
-        || x.nom.trim().toLowerCase() === (m.name ?? '').trim().toLowerCase());
-      if (!e || e.reste <= 0 || e.retenueXof <= 0) continue;
-      par.set(m.id, Math.min(e.retenueXof, e.reste));
-    }
-    return par;
-  }, [lesPrets, staff, branch.id]);
+  /* CE QUE CHAQUE PRÊT DEMANDE DE RETENIR — pour le mois DU RUN, pas pour
+     aujourd’hui (18 septembre 2026) : un prêt qui commence en octobre n’a
+     rien à faire sur le bulletin de septembre. On ne retient jamais plus que
+     le reste dû. Un emprunteur se reconnaît par sa fiche, sinon par son nom,
+     les prêts d’avant ne portant pas toujours de `personneId`. Le calcul vit
+     dans `retenuePrevueDuMois` (shared/foyer), éprouvé par verifie-foyer. */
+  const [lesPrets] = usePrets();
 
   const createRun = (period: string, atelier: string) => {
    try {
@@ -172,12 +162,27 @@ export function PaieRuns() {
          Maison. Elle arrive pré-remplie dans « autres retenues » et se
          corrige ligne à ligne — un mois difficile se gère à la main, sans
          défaire le prêt. Elle ne s’inscrit pour de bon qu’au règlement. */
-      const retenuePret = retenuesDuMois.get(s.id) ?? 0;
-      const deductions: PayDeductions = { avance, autresRetenues: retenuePret };
+      /* LA RETENUE DU PRÊT, SUR SA LIGNE ET BORNÉE — 18 septembre 2026,
+         quatre arbitrages. La part du salaire de base (①, la part fait foi
+         ②), jamais plus que le reste dû, jamais plus que le plafond sur le
+         net du mois AVANT elle (④). Réduite par le plafond, l’écart n’est pas
+         perdu : le reste dû baisse moins, et le prêt dure d’autant (③). Elle
+         se corrige ligne à ligne et ne s’inscrit qu’au règlement. */
+      const prevu = retenuePrevueDuMois(lesPrets, branch.id, { id: s.id, nom: s.name, baseXof: s.salaireXof ?? 0 }, period);
+      const plafond = prevu ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: 0 }, p).net, p) : null;
+      const retenuePret = prevu ? Math.min(prevu.prevuXof, plafond ?? prevu.prevuXof) : 0;
+      const deductions: PayDeductions = { avance, autresRetenues: 0, retenuePret };
       const ligne: PayrollLine = {
         employeeId: s.id, name: s.name, poste: s.role, matricule: s.matricule,
         cnssNum: s.cnssNum, paiement: s.paiement,
         gains, deductions, result: computePay(gains, deductions, p),
+        ...(prevu ? {
+          pret: {
+            prevuXof: prevu.prevuXof, resteAvantXof: prevu.resteXof,
+            ...(plafond != null ? { plafondXof: plafond } : {}),
+            ...(prevu.partPct > 0 ? { partPct: prevu.partPct } : {}),
+          },
+        } : {}),
       };
       /* UNE PRESTATAIRE EST PAYÉE SUR SA FACTURE — 13 septembre 2026. Sa
          ligne porte le total accepté (zéro tant qu'il n'y en a pas), sans
@@ -353,11 +358,16 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     const g = l.gains; const d = l.deductions; const r = l.result;
     const ligne = (label: string, n: number, neg = false): PayslipRow[] =>
       (n > 0 ? [{ label, value: `${neg ? '- ' : ''}${pdfMoney(n)}` }] : []);
+    /* CHAQUE BULLETIN DIT CE QUI RESTE DÛ (18 septembre) : c’est ce que
+       la lettre d’engagement promet au membre. */
+    const pretRow = ligne(l.pret
+      ? `Remboursement de prêt, reste dû après : ${pdfMoney(Math.max(0, l.pret.resteAvantXof - (d.retenuePret ?? 0)))}`
+      : 'Remboursement de prêt', d.retenuePret ?? 0, true);
     const rows: PayslipRow[] = l.prestataire
       ? [
         { label: 'Facture acceptée', value: pdfMoney(g.base) },
         ...ligne('Bonus, hors facture', g.prime), ...ligne('Pourboires', g.pourboires),
-        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true),
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow,
       ]
       : [
         { label: 'Salaire de base', value: pdfMoney(g.base) },
@@ -365,7 +375,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         ...ligne('Commission', g.commission), ...ligne('Pourboires', g.pourboires),
         ...ligne('Indemnités', g.indemnites),
         ...ligne('CNSS (part salariale)', r.cnssSalariale, true), ...ligne('ITS (impôt sur le salaire)', r.its, true),
-        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true),
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow,
       ];
     const periode = frPeriod(run.period);
     return {
@@ -526,7 +536,11 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
   const inscrireLesRetenues = () => {
     const nouvelles: Pret[] = [];
     for (const l of lines) {
-      const montant = l.deductions.autresRetenues;
+      /* SA PROPRE LIGNE DEPUIS LE 18 SEPTEMBRE. Avant, la retenue du prêt
+         vivait dans « autres retenues », et toute autre retenue d’un membre
+         endetté partait en remboursement. Les runs d’avant, sans le champ,
+         gardent leur lecture d’origine. */
+      const montant = l.deductions.retenuePret ?? l.deductions.autresRetenues;
       if (!(montant > 0)) continue;
       const etats = etatsDesEmprunteurs(lesPrets, branch.id, nowStamp().slice(0, 10));
       const e = etats.find((x) => x.personneId === l.employeeId
@@ -616,6 +630,8 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     nom: l.name, poste: l.poste, matricule: l.matricule, cnssnum: l.cnssNum, periode: run.period,
     base: l.gains.base, hs: l.gains.heuresSup, prime: l.gains.prime, pourboires: l.gains.pourboires,
     commission: l.gains.commission, avance: l.deductions.avance, retenue: l.deductions.autresRetenues,
+    pret: l.deductions.retenuePret,
+    pretReste: l.pret ? Math.max(0, l.pret.resteAvantXof - (l.deductions.retenuePret ?? 0)) : undefined,
     paiement: l.paiement,
     /* LE TAUX SUIT LE BULLETIN. La page refait le calcul de son côté et
        retomberait sur ses 3,6 % par défaut : elle imprimerait alors un net
@@ -898,7 +914,17 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                 <td className="mnd-muted">{fmtMoney(l.result.brut, currency)}</td>
                 <td className="mnd-muted">{fmtMoney(l.result.cnssSalariale, currency)}</td>
                 <td className="mnd-muted">{fmtMoney(l.result.its, currency)}</td>
-                <td className="mnd-muted">{fmtMoney(l.result.retenues, currency)}</td>
+                <td className="mnd-muted">
+                  {fmtMoney(l.result.retenues, currency)}
+                  {(l.deductions.retenuePret ?? 0) > 0 && (
+                    <div style={{ fontSize: 10.5 }}>dont prêt {fmtMoney(l.deductions.retenuePret ?? 0, currency)}</div>
+                  )}
+                  {l.pret && (l.deductions.retenuePret ?? 0) < l.pret.prevuXof && (
+                    <div style={{ fontSize: 10.5, color: 'var(--color-copper)' }}>
+                      {fmtMoney(l.pret.prevuXof - (l.deductions.retenuePret ?? 0), currency)} reportés en fin de prêt
+                    </div>
+                  )}
+                </td>
                 <td style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-copper)' }}>{fmtMoney(l.result.net, currency)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   {editable && <button className="tre-link-btn" onClick={() => setEditLine(i)}>Modifier</button>}
@@ -944,13 +970,41 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
     base: String(line.gains.base), heuresSup: String(line.gains.heuresSup), prime: String(line.gains.prime),
     pourboires: String(line.gains.pourboires), commission: String(line.gains.commission), indemnites: String(line.gains.indemnites),
   });
-  const [d, setD] = useState({ avance: String(line.deductions.avance), autresRetenues: String(line.deductions.autresRetenues) });
+  const [d, setD] = useState({
+    avance: String(line.deductions.avance), autresRetenues: String(line.deductions.autresRetenues),
+    retenuePret: String(line.deductions.retenuePret ?? 0),
+  });
   const gains: PayGains = { base: digits(g.base), heuresSup: digits(g.heuresSup), prime: digits(g.prime), pourboires: digits(g.pourboires), commission: digits(g.commission), indemnites: digits(g.indemnites) };
-  const deductions: PayDeductions = { avance: digits(d.avance), autresRetenues: digits(d.autresRetenues) };
+  /* LE CHAMP DU PRÊT n'existe que sur une ligne qui en porte un : les runs
+     d'avant gardent leur retenue de prêt dans « autre retenue ». */
+  const aUnPret = line.pret != null || (line.deductions.retenuePret ?? 0) > 0;
+  const deductions: PayDeductions = {
+    avance: digits(d.avance), autresRetenues: digits(d.autresRetenues),
+    ...(line.deductions.retenuePret != null || aUnPret ? { retenuePret: digits(d.retenuePret) } : {}),
+  };
   /* L'aperçu calcule avec les MÊMES barèmes que l'enregistrement (ceux en vigueur
      pour la période du run) — avec la graine, il mentait dès que le comptable
      ajustait un taux : l'écran annonçait un net différent de celui sauvegardé. */
   const preview = computePay(gains, deductions, bareme);
+
+  /* ══ LA RETENUE DU PRÊT SE CORRIGE, SOUS DEUX BORNES — 18 septembre ═══
+     Automatique et modifiable (arbitrage ③) : un mois difficile se règle ici.
+     Le plafond se rejuge sur le net DE CETTE LIGNE telle qu'on la corrige,
+     avant la retenue du prêt : baisser le salaire du mois baisse aussi ce
+     qu'on peut retenir. Réduire n'efface rien, le reste dû baisse moins et
+     le prêt dure d'autant. */
+  const retenuePret = deductions.retenuePret ?? 0;
+  const plafondPret = aUnPret
+    ? plafondDeLaRetenue(computePay(gains, { ...deductions, retenuePret: 0 }, bareme).net, bareme)
+    : null;
+  const resteAvant = line.pret?.resteAvantXof;
+  const refusPret = !aUnPret ? ''
+    : resteAvant != null && retenuePret > resteAvant
+      ? `Plus que ce qui reste dû sur le prêt (${fmtMoney(resteAvant, currency)}).`
+      : plafondPret != null && retenuePret > plafondPret
+        ? `Au-delà du plafond de la Maison sur ce mois : ${fmtMoney(plafondPret, currency)} au plus.`
+        : '';
+  const ecartPret = line.pret ? Math.max(0, line.pret.prevuXof - retenuePret) : 0;
 
   const F = (label: string, key: keyof typeof g) => (
     <Field label={label}><Input inputMode="numeric" value={g[key]} onChange={(e) => setG({ ...g, [key]: e.target.value })} /></Field>
@@ -968,6 +1022,34 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
           <Field label="Avance sur salaire"><Input inputMode="numeric" value={d.avance} onChange={(e) => setD({ ...d, avance: e.target.value })} /></Field>
           <Field label="Autre retenue"><Input inputMode="numeric" value={d.autresRetenues} onChange={(e) => setD({ ...d, autresRetenues: e.target.value })} /></Field>
         </div>
+        {aUnPret && (
+          <>
+            <Field label="Remboursement de prêt">
+              <Input inputMode="numeric" value={d.retenuePret} onChange={(e) => setD({ ...d, retenuePret: e.target.value })} />
+            </Field>
+            <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: -6 }}>
+              {line.pret && (
+                <>
+                  Prévu ce mois : <b>{fmtMoney(line.pret.prevuXof, currency)}</b>
+                  {line.pret.partPct ? `, ${line.pret.partPct.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} % du salaire de base` : ''}.{' '}
+                </>
+              )}
+              {plafondPret != null
+                ? <>Plafond du mois : {fmtMoney(plafondPret, currency)}.{' '}</>
+                : <>Plafond non fixé : à régler avec le comptable dans les Paramètres de paie.{' '}</>}
+              {resteAvant != null && (
+                <>Reste dû après ce bulletin : <b>{fmtMoney(Math.max(0, resteAvant - retenuePret), currency)}</b>.</>
+              )}
+              {ecartPret > 0 && !refusPret && (
+                <div style={{ color: 'var(--color-copper)', marginTop: 3 }}>
+                  {fmtMoney(ecartPret, currency)} de moins que prévu : l’écart se reporte à la fin du prêt,
+                  qui durera d’autant. Rien n’est effacé.
+                </div>
+              )}
+              {refusPret && <div style={{ color: 'var(--trf-error, #96412E)', marginTop: 3 }}>{refusPret}</div>}
+            </div>
+          </>
+        )}
         <div className="tre-pay-recap">
           <div className="tre-pay-recap__line"><span className="mnd-muted">Brut</span><span>{fmtMoney(preview.brut, currency)}</span></div>
           <div className="tre-pay-recap__line"><span className="mnd-muted">CNSS · ITS</span><span>− {fmtMoney(preview.cnssSalariale + preview.its, currency)}</span></div>
@@ -975,7 +1057,7 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button variant="copper" style={{ flex: 1 }} onClick={() => onSave(gains, deductions)}>Enregistrer la ligne</Button>
+          <Button variant="copper" style={{ flex: 1 }} disabled={!!refusPret} onClick={() => onSave(gains, deductions)}>Enregistrer la ligne</Button>
         </div>
       </div>
     </Modal>
@@ -1085,6 +1167,37 @@ export function PaieParametres() {
               <Field label="Taux %"><Input type="number" step="1" value={String(b.rate)} onChange={(e) => setBracket(i, 'rate', e.target.value)} style={{ maxWidth: 100 }} /></Field>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* ══ LE PLAFOND DES RETENUES DE PRÊT — 18 septembre 2026 ═════════
+          Arbitrage ④ : « sur le net, fixé une fois avec le comptable ». VIDE
+          TANT QU'IL NE L'EST PAS : le Trône ne propose aucun chiffre, il dit
+          seulement que la borne manque. */}
+      <Card style={{ padding: '20px 22px' }}>
+        <div className="tre-sec-label" style={{ marginBottom: 14 }}>Prêts à l’équipe · plafond des retenues</div>
+        <Field label="Une retenue de prêt ne dépasse jamais">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Input
+              type="number" step="1" min="1" max="100"
+              value={p.plafondRetenuePretPct != null ? String(p.plafondRetenuePretPct) : ''}
+              placeholder="à fixer"
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                const n = Number(v.replace(',', '.'));
+                patch({ plafondRetenuePretPct: v === '' || !(n > 0) ? undefined : Math.min(100, n) });
+              }}
+              style={{ maxWidth: 120 }}
+            />
+            <span className="mnd-muted" style={{ fontSize: 12 }}>% du net du mois, avant elle</span>
+          </div>
+        </Field>
+        <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, marginTop: 8 }}>
+          {p.plafondRetenuePretPct != null
+            ? <>Au-delà, le formulaire du prêt refuse ; sur un bulletin, le Trône propose le plafond et reporte
+              l’écart à la fin du prêt.</>
+            : <><b>Pas encore fixé.</b> Aucune retenue de prêt n’est bornée tant que ce taux manque. Le droit du
+              travail encadre les retenues sur salaire : fixez-le avec votre comptable.</>}
         </div>
       </Card>
 

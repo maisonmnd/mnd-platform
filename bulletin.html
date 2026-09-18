@@ -333,6 +333,11 @@
         <label for="r-autre">Autre retenue</label>
         <input id="r-autre" type="number" value="0" min="0" step="500">
       </div>
+      <div class="field">
+        <label for="r-pret">Remboursement de prêt</label>
+        <input id="r-pret" type="number" value="0" min="0" step="500">
+        <input id="r-pretreste" type="hidden" value="">
+      </div>
     </div>
 
     <p class="p-section">Paramètres</p>
@@ -420,6 +425,7 @@
           <tr><td class="lib">ITS — impôt sur les traitements et salaires</td><td class="det" id="d-detits">barème progressif</td><td class="mnt" id="m-its"></td></tr>
           <tr id="l-avance"><td class="lib">Avance sur salaire</td><td class="det">remboursement</td><td class="mnt" id="m-avance"></td></tr>
           <tr id="l-autre"><td class="lib">Autre retenue</td><td class="det"></td><td class="mnt" id="m-autre"></td></tr>
+          <tr id="l-pret"><td class="lib">Remboursement de prêt</td><td class="det" id="d-pret">prêt sans intérêt</td><td class="mnt" id="m-pret"></td></tr>
           <tr class="subtotal"><td class="lib">Total des retenues</td><td class="det"></td><td class="mnt" id="m-retenues"></td></tr>
         </table>
       </section>
@@ -545,7 +551,11 @@
     var cnss = brut * tauxCnss;
     var its = ITS_ACTIF ? calcITS(brut) : 0;
     var avance = num('r-avance'), autre = num('r-autre');
-    var retenues = cnss + its + avance + autre;
+    // Le remboursement de pret a sa ligne (18 septembre 2026) : le bulletin
+    // dit ce qui rembourse un pret, et ce qui reste du apres ce mois.
+    var pret = num('r-pret');
+    var pretReste = document.getElementById('r-pretreste').value;
+    var retenues = cnss + its + avance + autre + pret;
 
     // Le bulletin DIT ce qui n'a pas ete applique : un zero sans explication se
     // lit comme un oubli, et l'employe doit pouvoir verifier son net.
@@ -557,6 +567,8 @@
     set('m-its', fcfa(its));
     set('m-avance', fcfa(avance)); row('l-avance', avance);
     set('m-autre', fcfa(autre)); row('l-autre', autre);
+    set('m-pret', fcfa(pret)); row('l-pret', pret);
+    set('d-pret', pretReste !== '' ? 'reste dû après : ' + fcfa(Number(pretReste)) : 'prêt sans intérêt');
     set('m-retenues', fcfa(retenues));
 
     // Net + employeur
@@ -584,6 +596,7 @@
       periode:'f-periode', base:'g-base', hs:'g-hs', prime:'g-prime',
       pourboires:'g-pourboires', commission:'g-commission',
       avance:'r-avance', retenue:'r-autre', paiement:'p-paiement',
+      pret:'r-pret', pretreste:'r-pretreste',
       // Le taux CNSS vient de l'ERP : tant que personne n'est declare, il vaut
       // 0 et la retenue s'eteint. Sans ce parametre la page gardait ses 3,6 %
       // et imprimait un net inferieur a celui reellement verse.
