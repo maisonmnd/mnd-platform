@@ -2,6 +2,26 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA SEARCH CONSOLE EST VALIDEE : NE JAMAIS SUPPRIMER LES FICHIERS google*.html — 18 septembre 2026
+
+Yéman a créé les propriétés Search Console « Préfixe de l'URL » pour
+`/couronne/` et pour `/revelateur/`. **Elles se sont validées toutes seules**, par
+la méthode « Fichier HTML » : deux fichiers de Google vivent dans `public/`,
+`google18c384e156b4399e.html` et `google769f20e8cbe77b60.html`, et `public/` est
+copié dans CHAQUE site. Ils sont servis sous `/revelateur/`, `/couronne/` et
+`/trone/`.
+
+**NE LES SUPPRIMEZ NI NE LES RENOMMEZ JAMAIS, et n'y ajoutez rien** : Google
+revérifie la propriété de temps en temps et exige leur contenu exact ; s'ils
+disparaissent, la Maison perd l'accès à ses données de recherche. `build-sites`
+ne retire que `maquette-*.html` ; si ce filtre s'élargit un jour, il doit les
+épargner.
+
+**LA MESURE DES VISITES** (Google Analytics) reste éteinte : le site est câblé
+depuis le 17 septembre (`revelateur/mesure.ts`, huit événements), mais
+`VITE_GA_ID` n'est pas renseigné. L'allumer exige de mettre à jour la page de
+données personnelles, qui devra dire Google Analytics et ses cookies.
+
 ## LA NOTIFICATION SUR LE TELEPHONE, ET UNE ALARME EN CUIVRE — 18 septembre 2026
 
 Trois demandes de Yéman sur la capture de l'alarme en ligne.
