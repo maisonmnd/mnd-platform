@@ -87,10 +87,14 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+/* La meme bibliotheque et la meme version que push-notify, avec les memes
+   secrets (VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT) : les secrets Edge
+   valent pour toutes les fonctions du projet. */
+import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-09-15-c · l équipe et les prestataires';
+const VERSION = '2026-09-18-a · la notification sur le telephone';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -366,6 +370,93 @@ const joursInclus = (du: string, au: string): number => {
   if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
   return Math.round((b - a) / 86400000) + 1;
 };
+
+/* ══ LA NOTIFICATION SUR LE TELEPHONE — 18 septembre 2026 ══════════════
+
+   « Construis la notification sur mon telephone » (Yeman). L alarme du
+   tableau de bord ne se voit que Trone ouvert ; celle-ci arrive meme Trone
+   ferme, des qu un message est range.
+
+   COPIE de `alerteDuTelephone` (src/shared/conversations.ts), eprouvee par
+   scripts/verifie-alarme-whatsapp. Une fonction Edge n importe rien du depot :
+   LES DEUX CHANGENT ENSEMBLE.
+
+   POURQUOI PAS push-notify : son mode staff est plafonne a six appels par dix
+   minutes et par adresse, plafond partage avec le tunnel public. Tous les
+   appels du webhook partiraient de la meme adresse, et un samedi charge
+   perdrait des alertes sans bruit. On envoie donc d ici, avec la meme
+   bibliotheque et les memes cles.
+
+   CE QU ELLE DIT : le PRENOM d une cliente, jamais le texte, car un ecran
+   verrouille se lit par-dessus l epaule. Un message de l equipe ou d un
+   prestataire ne previent que la direction, et sans nom (0102). */
+type Arrivee = { numero: string; tiroir: string; nom: string };
+type Alerte = { titre: string; corps: string; url: string };
+
+const prenomDe = (nom: string): string => nom.trim().split(/\s+/)[0] || nom;
+
+function alerteDuTelephone(arrivees: readonly Arrivee[], pourLaDirection: boolean): Alerte | null {
+  const visibles = pourLaDirection ? arrivees : arrivees.filter((a) => a.tiroir === 'clientes');
+  const numeros = [...new Set(visibles.map((a) => a.numero))];
+  if (numeros.length === 0) return null;
+  if (numeros.length === 1) {
+    const a = visibles.find((x) => x.numero === numeros[0]) as Arrivee;
+    const url = `/trone/#/conversations?n=${a.numero}`;
+    return a.tiroir === 'clientes'
+      ? { titre: `${prenomDe(a.nom)} vous écrit sur WhatsApp`, corps: 'Vous avez 24 h pour lui répondre librement.', url }
+      : { titre: 'Un message WhatsApp réservé à la direction', corps: 'Ouvrez le Trône pour le lire. Vous avez 24 h pour répondre librement.', url };
+  }
+  return {
+    titre: `${numeros.length} personnes vous écrivent sur WhatsApp`,
+    corps: 'Vous avez 24 h pour leur répondre librement.',
+    url: '/trone/#/',
+  };
+}
+
+/** Previent les telephones abonnes. Ne leve JAMAIS : une alerte manquee ne
+    doit pas faire echouer le rangement du message, ni la reponse a Meta. */
+async function alerteLePersonnel(sb: ReturnType<typeof createClient>, arrivees: Arrivee[]): Promise<void> {
+  if (arrivees.length === 0) return;
+  const pub = Deno.env.get('VAPID_PUBLIC');
+  const priv = Deno.env.get('VAPID_PRIVATE');
+  if (!pub || !priv) { dis('alerte · cles VAPID absentes'); return; }
+  try {
+    webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:contact@maison-mnd.bj', pub, priv);
+  } catch (e) {
+    dis('alerte · cles VAPID refusees', { motif: String(e).slice(0, 120) });
+    return;
+  }
+  const { data: staff, error } = await sb.from('staff').select('user_id, role');
+  if (error) { dis('alerte · equipe illisible', { motif: error.message.slice(0, 120) }); return; }
+  const estDirection = (role: unknown) => role === 'souverain' || role === 'gerant';
+  const direction = (staff ?? []).filter((s: any) => estDirection(s.role)).map((s: any) => String(s.user_id));
+  const autres = (staff ?? []).filter((s: any) => !estDirection(s.role)).map((s: any) => String(s.user_id));
+
+  const envoie = async (uids: string[], a: Alerte | null): Promise<number> => {
+    if (!a || uids.length === 0) return 0;
+    const { data: abonnes } = await sb.from('push_subscriptions').select('endpoint,p256dh,auth').in('client_id', uids);
+    let n = 0;
+    for (const s of (abonnes ?? []) as any[]) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          JSON.stringify({ title: a.titre, body: a.corps, url: a.url }),
+        );
+        n++;
+      } catch (e) {
+        /* Un abonnement mort (telephone change, permission retiree) se retire,
+           comme le fait push-notify. */
+        const code = (e as { statusCode?: number })?.statusCode;
+        if (code === 404 || code === 410) await sb.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+      }
+    }
+    return n;
+  };
+
+  const n = (await envoie(direction, alerteDuTelephone(arrivees, true)))
+    + (await envoie(autres, alerteDuTelephone(arrivees, false)));
+  dis('alerte · telephones prevenus', { envois: n, messages: arrivees.length });
+}
 
 Deno.serve(async (req) => {
   /* LE PREMIER MOT, AVANT TOUTE GARDE : si cette ligne ne paraît pas au
@@ -844,12 +935,14 @@ Deno.serve(async (req) => {
      rapproche en mémoire. Le jour où elles seront dix mille, il faudra un
      index sur le numéro plutôt que ce balayage, et ce commentaire sera le
      rappel qu'on le savait. */
-  let fiches: { id: string; branchId?: string; numeros: string[] }[] = [];
+  let fiches: { id: string; branchId?: string; numeros: string[]; nom?: string }[] = [];
   if (entrants.length > 0) {
     const { data } = await sb.from('clients').select('id, data');
     fiches = (data ?? []).map((r: any) => ({
       id: r.id as string,
       branchId: r.data?.branchId,
+      /* Le nom, pour la notification du telephone : elle en dit le prenom. */
+      nom: typeof r.data?.name === 'string' ? r.data.name : undefined,
       numeros: [numeroWa(r.data?.phone), numeroWa(r.data?.phone2)].filter(Boolean),
     }));
   }
@@ -983,7 +1076,11 @@ Deno.serve(async (req) => {
         },
       };
     });
-    const { error } = await sb.from('messages_wa').upsert(lignes, { onConflict: 'id', ignoreDuplicates: true });
+    /* `.select('id')` rend les SEULES lignes vraiment ecrites : avec
+       ignoreDuplicates, une seconde livraison du meme message ne revient pas.
+       C est ce qui empeche la notification de sonner deux fois. */
+    const { data: ecrits, error } = await sb.from('messages_wa')
+      .upsert(lignes, { onConflict: 'id', ignoreDuplicates: true }).select('id');
     if (error) console.error(`whatsapp-webhook · ÉCHEC ÉCRITURE · ${error.message}`);
     else {
       dis('messages rangés', {
@@ -991,6 +1088,20 @@ Deno.serve(async (req) => {
         rattaches: lignes.filter((l) => l.data.clientId).length,
         tiroirs: entrants.map((e) => tiroirDe(e.numero)),
       });
+      /* ── ⑤ quater LA NOTIFICATION SUR LE TELEPHONE — 18 septembre 2026 ── */
+      const neufs = new Set(((ecrits ?? []) as { id: string }[]).map((r) => r.id));
+      const arrivees: Arrivee[] = entrants
+        .filter((e) => neufs.has(`wa-${e.waId}`))
+        .map((e) => ({
+          numero: e.numero,
+          tiroir: tiroirDe(e.numero),
+          nom: teteDuNumero(e.numero)?.nom ?? e.nomProfil ?? `+${e.numero}`,
+        }));
+      try {
+        await alerteLePersonnel(sb, arrivees);
+      } catch (e) {
+        dis('alerte · echec', { motif: String(e).slice(0, 120) });
+      }
     }
   }
 

@@ -242,6 +242,17 @@ export type ArchivesDesFils = Record<string, ArchiveDuFil>;
 export const filsArchivesStore = createStore<ArchivesDesFils>('mnd_fils_archives', {});
 export const useFilsArchives = () => useStore(filsArchivesStore);
 
+/** RETIRÉS DE L'ALARME — 18 septembre 2026. « Tu peux me donner la main pour
+    enlever le message » (Yéman). Un retrait ne touche QUE l'alarme du tableau
+    de bord : le fil reste dans l'écran des conversations, à sa place, et la
+    cloche le compte toujours. C'est dire « celui-là n'appelle pas de réponse »
+    sans le ranger. MÊME FORME ET MÊME RÈGLE QUE L'ARCHIVE : un mot de plus
+    après le retrait le ramène, et `estArchive` en juge. Partagé entre les
+    appareils, parce qu'un retrait fait sur l'ordinateur doit valoir sur le
+    téléphone. */
+export const alarmeRetiresStore = createStore<ArchivesDesFils>('mnd_alarme_retires', {});
+export const useAlarmeRetires = () => useStore(alarmeRetiresStore);
+
 /** CE FIL EST-IL RANGÉ ? Oui tant qu'aucun de ses messages n'est plus récent
     que l'archive. Les instants se comparent en millisecondes, jamais en texte :
     « 10:00:00Z » et « 10:00:00.000Z » disent la même heure et ne se trient pas
@@ -937,11 +948,16 @@ export const filsQuiAttendent = (fils: readonly Fil[], archives: ArchivesDesFils
     Répondre, même par un modèle, l'éteint ; archiver aussi, parce que c'est
     dire en connaissance de cause qu'aucune réponse n'est due.
 
-    DU PLUS PRESSÉ AU MOINS PRESSÉ. D'abord les fenêtres OUVERTES, celle qui
-    se ferme le plus tôt en tête : c'est là qu'une réponse libre et gratuite
-    se perd si l'on attend. Ensuite les fenêtres fermées, la plus récente
-    d'abord : elles demandent un modèle, donc elles ne pressent plus de la
-    même façon. Les instants se comparent en millisecondes, jamais en texte.
+    LES SEULES FENÊTRES OUVERTES — révisé le même jour. « Quand la fenêtre est
+    fermée je ne peux plus rien faire. Faire apparaître les messages qui ont
+    une fenêtre ouverte de 24 h » (Yéman). Une fenêtre fermée quitte donc
+    l'alarme d'elle-même, à la minute où elle se ferme ; le fil reste dans
+    l'écran des conversations et la cloche le compte encore, rien ne se perd.
+    Celle qui se ferme le plus tôt passe en tête : c'est là qu'une réponse
+    libre et gratuite se perd si l'on attend.
+
+    RETIRER À LA MAIN : `retires`, même forme que l'archive et même règle, un
+    mot de plus le ramène. Pour un « merci » qui n'appelle pas de réponse.
 
     LES TIROIRS VUS : la direction voit tout, le personnel les seules
     clientes, exactement comme l'écran des conversations. */
@@ -949,14 +965,58 @@ export const filsSansReponse = (
   fils: readonly Fil[],
   archives: ArchivesDesFils = {},
   tiroirs: readonly Tiroir[] = TIROIRS,
+  retires: ArchivesDesFils = {},
 ): Fil[] =>
   filsQuiAttendent(fils, archives)
-    .filter((f) => tiroirs.includes(f.tiroir))
-    .sort((a, b) => {
-      if (a.fenetre.ouverte !== b.fenetre.ouverte) return a.fenetre.ouverte ? -1 : 1;
-      if (a.fenetre.ouverte) return a.fenetre.resteMs - b.fenetre.resteMs;
-      return Date.parse(b.dernier.quand) - Date.parse(a.dernier.quand);
-    });
+    .filter((f) => f.fenetre.ouverte && tiroirs.includes(f.tiroir) && !estArchive(f, retires))
+    .sort((a, b) => a.fenetre.resteMs - b.fenetre.resteMs);
+
+/* ══ LA NOTIFICATION SUR LE TÉLÉPHONE — 18 septembre 2026 ══════════════
+
+   « Construis la notification sur mon téléphone » (Yéman). L'alarme du
+   tableau de bord ne se voit que si le Trône est ouvert ; celle-ci arrive
+   même Trône fermé, dès que le webhook range un message.
+
+   CE QU'ELLE DIT, ET CE QU'ELLE TAIT :
+   · UNE CLIENTE : son PRÉNOM seul, jamais le texte. Un écran verrouillé se lit
+     par-dessus l'épaule, au salon ; le prénom suffit pour savoir qu'il faut
+     répondre, et le fil dit le reste.
+   · UN MESSAGE DE L'ÉQUIPE OU D'UN PRESTATAIRE : la base réserve ces tiroirs
+     à la direction (0102). Le reste du personnel n'en est pas prévenu du
+     tout, et la direction l'est SANS nom.
+   · PLUSIEURS PERSONNES D'UN COUP : on les compte, et le clic mène au tableau
+     de bord, où l'alarme les range.
+
+   LA COPIE DANS LE WEBHOOK : `supabase/functions/whatsapp-webhook` porte une
+   copie de cette fonction, parce qu'une fonction Edge n'importe rien du dépôt.
+   LES DEUX CHANGENT ENSEMBLE ; celle-ci est éprouvée par
+   `scripts/verifie-alarme-whatsapp`. */
+export type ArriveeWa = { numero: string; tiroir: string; nom: string };
+export type AlerteTelephone = { titre: string; corps: string; url: string };
+
+/** Le prénom : le premier mot du nom. Un numéro reste un numéro. */
+export const prenomDe = (nom: string): string => nom.trim().split(/\s+/)[0] || nom;
+
+export function alerteDuTelephone(
+  arrivees: readonly ArriveeWa[],
+  pourLaDirection: boolean,
+): AlerteTelephone | null {
+  const visibles = pourLaDirection ? arrivees : arrivees.filter((a) => a.tiroir === 'clientes');
+  const numeros = [...new Set(visibles.map((a) => a.numero))];
+  if (numeros.length === 0) return null;
+  if (numeros.length === 1) {
+    const a = visibles.find((x) => x.numero === numeros[0]) as ArriveeWa;
+    const url = `/trone/#/conversations?n=${a.numero}`;
+    return a.tiroir === 'clientes'
+      ? { titre: `${prenomDe(a.nom)} vous écrit sur WhatsApp`, corps: 'Vous avez 24 h pour lui répondre librement.', url }
+      : { titre: 'Un message WhatsApp réservé à la direction', corps: 'Ouvrez le Trône pour le lire. Vous avez 24 h pour répondre librement.', url };
+  }
+  return {
+    titre: `${numeros.length} personnes vous écrivent sur WhatsApp`,
+    corps: 'Vous avez 24 h pour leur répondre librement.',
+    url: '/trone/#/',
+  };
+}
 
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas
    dans un navigateur : une conversation lue sur la tablette du salon doit se
@@ -970,3 +1030,4 @@ export const filsSansReponse = (
 bindCollection(messagesWaStore, 'messages_wa');
 /* L'ARCHIVE, ELLE, VOYAGE : voir « Archiver un fil ». */
 bindDocument(filsArchivesStore, 'mnd_fils_archives');
+bindDocument(alarmeRetiresStore, 'mnd_alarme_retires');

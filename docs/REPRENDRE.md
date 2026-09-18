@@ -2,6 +2,52 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA NOTIFICATION SUR LE TELEPHONE, ET UNE ALARME EN CUIVRE — 18 septembre 2026
+
+Trois demandes de Yéman sur la capture de l'alarme en ligne.
+
+**LE CUIVRE.** « Le rouge n'existe pas dans la charte de la Maison. Mets la couleur
+cuivre de la charte. » Le bandeau porte `--copper-500` (#B97A4A) avec le texte
+blanc des boutons cuivre du Trône ; le temps restant se lit en `--copper-700`.
+**La leçon** : un rouge d'état semblait légitime hors charte, la Maison a
+tranché autrement. La charte passe avant les conventions d'interface.
+
+**LES SEULES FENÊTRES OUVERTES.** « Quand la fenêtre est fermée je ne peux plus
+rien faire. » `filsSansReponse` ne garde que les fenêtres ouvertes : une fenêtre
+qui se ferme quitte l'alarme à la minute près. **Rien ne se perd** : le fil
+reste dans l'écran des conversations et la CLOCHE le compte toujours
+(`filsQuiAttendent` n'a pas changé).
+
+**RETIRER À LA MAIN.** « Donne-moi la main pour enlever le message. » Un bouton
+Retirer, stocké dans le document partagé `mnd_alarme_retires`, même forme et
+même règle que l'archive : un mot de plus après le retrait le ramène. Il ne
+touche QUE l'alarme, pas la liste des conversations.
+
+**LA NOTIFICATION, ET POURQUOI PAS push-notify.** Tout existait sauf un maillon :
+le Trône abonne déjà le téléphone de l'équipe (cloche, « Activer les alertes sur
+cet appareil »), le service worker affiche et ouvre les notifications, mais le
+webhook ne prévenait personne. **Le mode `staff` de `push-notify` est plafonné à
+six appels par dix minutes et par adresse**, plafond partagé avec le tunnel
+public : tous les appels du webhook partant de la même adresse, un samedi
+chargé aurait perdu des alertes sans bruit. **Le webhook envoie donc lui-même**,
+avec `web-push@3.6.7` et les mêmes secrets VAPID que `push-notify`. Il n'envoie
+que pour les lignes VRAIMENT écrites (`upsert(...).select('id')` avec
+`ignoreDuplicates`) : Meta rappelle parfois deux fois le même message.
+
+**CE QU'ELLE DIT** : le PRÉNOM d'une cliente, jamais le texte, un écran verrouillé
+se lisant par-dessus l'épaule. Un message de l'équipe ou d'un prestataire ne
+prévient QUE la direction (rôles souverain et gérant de `staff`), sans nom.
+`alerteDuTelephone` vit dans `shared/conversations.ts`, éprouvée par
+`verifie-alarme-whatsapp` (vingt et une assertions), et le webhook en porte une
+COPIE : **les deux changent ensemble**. Sans Deno sur la machine, la syntaxe du
+webhook se vérifie par `npx esbuild <fichier> --loader:.ts=ts`, et l'identité de
+la copie par comparaison des corps.
+
+**A FAIRE PAR LA MAISON** : recoller `whatsapp-webhook/index.ts` EN ENTIER (version
+`2026-09-18-a`), puis sur le téléphone ouvrir le Trône, la cloche, « Activer les
+alertes sur cet appareil ». Sur iPhone, ajouter d'abord le Trône à l'écran
+d'accueil : Safari ne reçoit les notifications que d'une application installée.
+
 ## UNE ALARME ROUGE SUR LE TABLEAU DE BORD, ET UNE FENETRE QUI N'ETAIT PAS FAUSSE — 18 septembre 2026
 
 « Quand je reçois des messages WhatsApp il faut absolument pouvoir répondre
@@ -31,15 +77,11 @@ nuit, jamais si la sonnette est coupée dans les Réglages. Les heures du salon
 sont sorties dans `clients/_heures.ts`, pour que l'écran des conversations et
 le tableau de bord aient une seule définition de la nuit.
 
-**UN ROUGE QUE LA CHARTE N'AVAIT PAS.** Le système de design ne porte aucun rouge,
-seulement indigo, cuivre, sable, argile et ivoire. Celui de l'alarme,
-`#B42318`, est un rouge D'ÉTAT, réservé à l'urgence et choisi loin du cuivre
-pour ne jamais se confondre avec l'accent. Il est déclaré sur le bloc même et
-ne sert nulle part ailleurs.
+**LE ROUGE N'A DURÉ QUE QUELQUES HEURES.** La charte n'en a aucun, et la Maison l'a
+remplacé par son cuivre le même jour : voir l'entrée suivante, plus haut.
 
-**CE QUE L'ALARME NE FAIT PAS** : elle ne se voit et ne sonne que si le Trône est
-ouvert sur le tableau de bord. Une Maison qui ne l'ouvre pas manquera encore des
-fenêtres ; une notification poussée sur le téléphone serait l'étape suivante.
+**LA NOTIFICATION SUR LE TÉLÉPHONE** a été construite le même jour : voir l'entrée
+suivante, plus haut.
 
 ## LE PIED DE PAGE, ET UN TEXTE LEGAL QUI AVAIT DERIVE — 18 septembre 2026
 

@@ -856,12 +856,13 @@
 .trp-jauges--pied .trp-jauge { padding: 10px 14px; }
 .trp-jauges--pied .trp-jauge b { font-size: 21px; }
 
-/* L'ALARME DES MESSAGES SANS REPONSE — 18 septembre 2026. « Une alarme rouge
-   tant que je ne réponds pas » (Yéman). La charte de la Maison n'a AUCUN
-   rouge : indigo, cuivre, sable, argile, ivoire. Celui-ci est un rouge
-   D'ETAT, réservé à l'urgence, et choisi loin du cuivre pour ne jamais se
-   confondre avec l'accent. Il ne sert qu'ici. */
-.trp-alarme { --alarme: #B42318; --alarme-fond: #FEF3F2; --alarme-filet: #F5C2BC; margin-top: 22px; border: 1px solid var(--alarme); border-radius: 4px; overflow: hidden; background: var(--alarme-fond); min-width: 0; }
+/* L'ALARME DES MESSAGES SANS REPONSE — 18 septembre 2026, en CUIVRE. « Le rouge
+   n'existe pas dans la charte de la Maison. Mets la couleur cuivre de la
+   charte » (Yéman). Le bandeau porte le cuivre de la charte, #B97A4A, avec le
+   texte blanc des boutons cuivre du Trône ; les lignes portent le cuivre le
+   plus clair, et le temps qui reste se lit dans le cuivre profond, lisible sur
+   ce fond clair. Toutes les teintes viennent de la gamme `--copper-*`. */
+.trp-alarme { --alarme: var(--copper-500, #B97A4A); --alarme-profond: var(--copper-700, #7C4C2C); --alarme-fond: var(--copper-50, #FAF1E9); --alarme-filet: var(--copper-100, #F1DDC9); margin-top: 22px; border: 1px solid var(--alarme); border-radius: 4px; overflow: hidden; background: var(--alarme-fond); min-width: 0; }
 .trp-alarme__tete { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; padding: 12px 16px; background: var(--alarme); color: #fff; }
 .trp-alarme__tete > * { min-width: 0; }
 .trp-alarme__voyant { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0 rgba(255, 255, 255, .7); animation: trp-alarme-pouls 1.6s ease-out infinite; }
@@ -874,21 +875,22 @@
 .trp-alarme__ligne:first-child { border-top: 0; }
 .trp-alarme__qui { min-width: 0; }
 .trp-alarme__nom { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); overflow-wrap: anywhere; }
-.trp-alarme__tiroir { display: inline-block; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--alarme-filet); border-radius: 999px; font-family: var(--font-sans, inherit); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--alarme); vertical-align: middle; }
+.trp-alarme__tiroir { display: inline-block; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--alarme-filet); border-radius: 999px; font-family: var(--font-sans, inherit); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--alarme-profond); vertical-align: middle; }
 .trp-alarme__dit { margin-top: 2px; font-size: 13.5px; color: var(--ink-soft, #5E5750); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trp-alarme__quand { display: grid; gap: 2px; text-align: right; min-width: 0; }
 .trp-alarme__recu { font-size: 12px; color: var(--ink-soft, #5E5750); white-space: nowrap; }
-.trp-alarme__fenetre { font-size: 13px; font-weight: 500; color: var(--alarme); white-space: nowrap; }
-.trp-alarme__ligne.est-pressante { background: #FEE4E2; }
+.trp-alarme__fenetre { font-size: 13px; font-weight: 500; color: var(--alarme-profond); white-space: nowrap; }
+.trp-alarme__ligne.est-pressante { background: var(--copper-100, #F1DDC9); }
 .trp-alarme__ligne.est-pressante .trp-alarme__fenetre { font-weight: 700; }
-.trp-alarme__ligne.est-fermee .trp-alarme__fenetre { font-weight: 400; }
+.trp-alarme__gestes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .trp-alarme__repondre { flex: none; padding: 9px 16px; border-radius: 3px; background: var(--alarme); color: #fff; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
-.trp-alarme__repondre:hover { filter: brightness(1.1); }
-.trp-alarme__repondre:focus-visible, .trp-alarme__tout:focus-visible { outline: 2px solid var(--color-indigo); outline-offset: 2px; }
+.trp-alarme__repondre:hover { background: var(--copper-600, #9E6238); }
+.trp-alarme__retirer { flex: none; padding: 8px 14px; border: 1px solid var(--alarme); border-radius: 3px; background: none; color: var(--alarme-profond); font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+.trp-alarme__retirer:hover { background: var(--copper-100, #F1DDC9); }
+.trp-alarme__repondre:focus-visible, .trp-alarme__retirer:focus-visible, .trp-alarme__tout:focus-visible { outline: 2px solid var(--color-indigo); outline-offset: 2px; }
 @media (max-width: 720px) {
   .trp-alarme__ligne { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .trp-alarme__quand { text-align: left; }
   .trp-alarme__fenetre, .trp-alarme__recu { white-space: normal; }
-  .trp-alarme__repondre { justify-self: start; }
 }
 @media (prefers-reduced-motion: reduce) { .trp-alarme__voyant { animation: none; } }
