@@ -920,10 +920,15 @@ export default function Personnel() {
 
   /* RETIRER UNE FICHE EFFACE SA PIÈCE D'IDENTITÉ (18 septembre 2026) : une
      carte gardée pour quelqu'un qui n'est plus de la Maison n'a plus de
-     raison d'être. D'où la question avant : ce geste ne se défait pas. */
+     raison d'être. D'où la question avant : ce geste ne se défait pas.
+
+     LA QUESTION SE POSE SUR LE BOUTON, JAMAIS PAR `window.confirm` : le
+     navigateur laisse « empêcher cette page de créer d'autres dialogues », et
+     la question rend alors non SANS RIEN MONTRER. Un premier clic arme
+     « Confirmer le retrait », le second retire (comme dans Accès & personnel). */
+  const [aRetirer, setARetirer] = useState<string | null>(null);
   const remove = (id: string) => {
-    const m = staff.find((x) => x.id === id);
-    if (!window.confirm(`Retirer ${m?.name?.trim() || 'ce membre'} de l’équipe ?${estDirection ? ' Sa pièce d’identité sera effacée du coffre.' : ''}`)) return;
+    setARetirer(null);
     setStaff((prev) => prev.filter((x) => x.id !== id));
     if (estDirection) {
       void effaceLIdentiteDuPersonnel(id).then((ok) => {
@@ -1088,7 +1093,14 @@ export default function Personnel() {
                           {motDeLEtat(ouEnEst(m.reglement, reglementDuJour.version))}
                         </button>
                         <button className="tre-link-btn" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); openAvance(m); }}>Avance sur salaire</button>
-                        <button className="tre-link-btn tre-link-btn--danger" style={{ marginLeft: 12 }} onClick={(e) => { e.stopPropagation(); remove(m.id); }}>Retirer</button>
+                        <button
+                          className="tre-link-btn tre-link-btn--danger"
+                          style={{ marginLeft: 12 }}
+                          title={estDirection ? 'Retire la fiche et efface sa pièce d’identité du coffre' : 'Retire la fiche'}
+                          onClick={(e) => { e.stopPropagation(); if (aRetirer === m.id) remove(m.id); else setARetirer(m.id); }}
+                        >
+                          {aRetirer === m.id ? 'Confirmer le retrait' : 'Retirer'}
+                        </button>
                       </td>
                     </tr>
                   ))}

@@ -33,6 +33,10 @@ export default function PieceDIdentite({ staffId, estDirection }: {
   /* 'lecture' : on interroge le coffre ; null : il n'a pas répondu. */
   const [rangees, setRangees] = useState<IdentiteRangee[] | null | 'lecture'>('lecture');
   const [occupe, setOccupe] = useState(false);
+  /* EFFACER SE CONFIRME SUR LE BOUTON, pas par `window.confirm`, qu'un
+     navigateur peut taire (voir Accès & personnel) : un clic arme, le second
+     efface. */
+  const [arme, setArme] = useState(false);
 
   useEffect(() => {
     if (!estDirection || !staffId) return;
@@ -61,7 +65,8 @@ export default function PieceDIdentite({ staffId, estDirection }: {
 
   const efface = async () => {
     if (!Array.isArray(rangees) || rangees.length === 0) return;
-    if (!window.confirm('Effacer sa pièce d’identité du coffre ? Elle ne se retrouvera pas.')) return;
+    if (!arme) { setArme(true); return; }
+    setArme(false);
     setOccupe(true);
     const ok = await retireDuCoffre(rangees.map((r) => r.chemin));
     setOccupe(false);
@@ -95,7 +100,9 @@ export default function PieceDIdentite({ staffId, estDirection }: {
           <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Button variant="ghost" size="sm" onClick={() => void ouvreLaPiece(piece.chemin)}>Ouvrir</Button>
             <ChoisirUnePiece libelle="Remplacer" accept={FORMATS_DE_L_IDENTITE} disabled={occupe} onFichier={(f) => void depose(f)} />
-            <button type="button" className="tre-link-btn" disabled={occupe} onClick={() => void efface()}>Effacer</button>
+            <button type="button" className="tre-link-btn" disabled={occupe} onClick={() => void efface()}>
+              {arme ? 'Confirmer l’effacement' : 'Effacer'}
+            </button>
           </span>
         </div>
       ) : (

@@ -35,7 +35,12 @@ interroger.
 la règle « un an après la fermeture » des prestataires n'a pas d'équivalent. La
 carte vit tant que la fiche vit, et « Retirer » l'efface du coffre (direction).
 « Retirer » demande maintenant confirmation : le geste ne se défait pas, et il
-n'en demandait aucune. Reste à trancher par Yéman : une durée, légale ou de la
+n'en demandait aucune. La question se pose SUR LE BOUTON (« Confirmer le
+retrait », « Confirmer l'effacement »), jamais par `window.confirm` : la
+première version en posait deux, alors que la leçon du 5 septembre (Accès &
+personnel) dit qu'un navigateur peut taire ces dialogues et répondre non en
+silence. Corrigé le même jour. Il en reste trois, plus anciens, dans
+Personnel.tsx (barème, règlement confirmé, règlement annulé) : non touchés. Reste à trancher par Yéman : une durée, légale ou de la
 Maison, après le départ, qui demanderait un champ « date de sortie ».
 
 **Un trou connu.** Une fiche retirée par quelqu'un qui n'est pas de la direction
@@ -8485,6 +8490,10 @@ laissait croire qu on restait connecte.
 - Refuse d écarter un membre du personnel : ce serait une porte ouverte que
   plus aucun écran ne montre.
 - Rattrapage : tout compte portant déjà une fiche cliente est marqué d office.
+- **PASSÉE le 18 septembre 2026** (et pas avant : le serveur ne connaissait pas
+  la fonction, « Écarter » affichait « ce geste attend sa migration 0080 »).
+  Contrôle : `fonction_posee` 1, `marques_couronne` 21, `restants` 0. Ne pas la
+  recoller.
 
 ## LE CALENDRIER DE MA COURONNE · 31 août 2026
 
