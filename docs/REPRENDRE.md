@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEUX CARNETS DE FOURNISSEURS SUR UNE MEME CLE, ET « REMPLACER LA MAISON » QUI VIDAIT SANS REMETTRE — 18 septembre 2026
+
+Trouvés par l'inventaire des données locales (préparation du domaine
+maisonmnd.com), vérifiés dans le code, puis mesurés en base par Yéman.
+
+**Les fournisseurs.** Du 1er au 18 septembre, `shared/fournisseurs.ts`
+(carnet des Dépenses, document `mnd_fournisseurs`) et `shared/stock.ts`
+(carnet du Stock, table `fournisseurs`) créaient chacun un magasin sur la clé
+`mnd_fournisseurs`. Deux magasins sur une même case du navigateur n'en font
+qu'un : chaque binder renvoyait à SON serveur ce que l'autre avait écrit.
+Mesuré le 18 : les deux côtés portaient les mêmes 6 fiches (Stock : Amazon,
+Aroma-Zone, Clientes, Local ; Dépenses : BSS, Super U), et aucune référence
+croisée (aucune dépense ne pointe par identifiant, les commandes, produits et
+engagements ne visent que le Stock). Yéman : « Deux carnets séparés ». Le
+carnet des Dépenses passe à la clé `mnd_fournisseurs_depenses`, sur le poste ET
+sur le serveur, pour qu'un poste resté sur l'ancien code n'écrive plus que dans
+l'ancien document, que personne ne lit plus (gardé comme archive).
+Ordre tenu : ① SQL qui amorce `mnd_fournisseurs_depenses` avec les fiches sans
+`code` ; ② publication ; ③ SQL qui retire de la table `fournisseurs` les fiches
+sans `code`. Pour qu'Amazon réapparaisse côté Dépenses, il suffit de le recréer :
+les Dépenses rattachent par le nom.
+
+**« Remplacer la Maison » vidait le serveur sans rien remettre** (depuis le
+6 août). `activateBlankAndReload` gardait `mnd_reset_v4` alors que le drapeau
+vivant est `mnd_reset_v5` : au rechargement, la purge de reprise de `store.ts`
+repartait et emportait `mnd_pending_replace` (le fichier) et `mnd_house_blank`.
+Et le fichier lui-même était vide : l'export ne gardait que les clés qui
+COMMENCENT par `mnd_`, alors que les magasins vivent sous `trone::mnd_…`.
+Corrigé : `purgeDeReprise` exportée et éprouvée, le vidage garde le bon
+drapeau et vide aussi les `::mnd_`, l'export range chaque magasin sous son nom
+logique (celui que la restauration cherche, et celui des fichiers d'avant le
+6 août), et la réapplication écrit dans la case du magasin. « Repartir du
+serveur » (Paramètres) marchait par accident : en retirant `mnd_reset_v5`, il
+déclenchait la purge complète au rechargement. Non touché.
+
+**Gardes** : `verifie-cles-uniques` (refuse deux `createStore`, deux
+`bindDocument` ou deux `bindCollection` sur une même clé ; échoue bien sur
+l'arbre d'avant), `verifie-sauvegarde-maison` (16 : photographier, vider,
+recharger, réappliquer, vieux fichier, et le défaut d'avant reproduit).
+
 ## LE PICTOGRAMME SUR LES LETTRES DU PRET, ET LA CARTE D'IDENTITE DU PERSONNEL — 18 septembre 2026
 
 « Il manque le logo de MND sur la lettre. Le pictogramme. Je veux avoir un

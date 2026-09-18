@@ -37,8 +37,20 @@ export type Fournisseur = {
   archived?: boolean;
 };
 
-export const fournisseursStore = createStore<Fournisseur[]>('mnd_fournisseurs', []);
-bindDocument(fournisseursStore, 'mnd_fournisseurs');
+/* ══ SON PROPRE TIROIR — 18 septembre 2026 ════════════════════════════
+   Du 1er au 18 septembre, ce carnet portait la clé `mnd_fournisseurs`, celle
+   du carnet du STOCK (`shared/stock.ts`, table `fournisseurs`). Deux magasins
+   sur une même case du navigateur n'en font qu'un : chaque fournisseur créé
+   d'un côté partait dans l'autre, et le serveur a fini par porter les mêmes
+   six fiches aux deux endroits (constaté le 18, 4 du Stock + 2 des Dépenses).
+
+   « Deux carnets séparés » (Yéman). Le carnet des Dépenses a donc sa clé à
+   lui, ICI ET SUR LE SERVEUR : un poste resté sur l'ancien code n'écrit plus
+   que dans l'ancien document, que plus personne ne lit. Le nouveau document
+   a été amorcé en SQL avec les seules fiches sans `code` (BSS, Super U).
+   `verifie-cles-uniques` refuse désormais deux magasins sur une même clé. */
+export const fournisseursStore = createStore<Fournisseur[]>('mnd_fournisseurs_depenses', []);
+bindDocument(fournisseursStore, 'mnd_fournisseurs_depenses');
 export const useFournisseurs = () => useStore(fournisseursStore);
 
 /** LE BÉNÉFICIAIRE LU DANS UN LIBELLÉ — « Loyer — Août 2026 » devient

@@ -1,4 +1,5 @@
 import { supabase } from '../../shared/supabase';
+import { RESET_FLAG, estCleDeLaMaison } from '../../shared/store';
 
 /* Réinitialisation TOTALE de la Maison (« repartir à zéro ») — pour un nouvel
    import depuis une autre plateforme.
@@ -70,12 +71,24 @@ export const PENDING_REPLACE_KEY = 'mnd_pending_replace';
 /** Pose le mode « Maison à blanc », purge le cache local (sauf le drapeau lui-même),
     puis recharge : l'app ré-hydrate d'un serveur vide sans repeupler les semences. */
 export function activateBlankAndReload(): void {
-  const KEEP = new Set(['mnd_house_blank', 'mnd_reset_v4', PENDING_REPLACE_KEY]);
-  Object.keys(localStorage)
-    .filter((k) => k.startsWith('mnd_') && !KEEP.has(k))
-    .forEach((k) => localStorage.removeItem(k));
+  videLeCacheSaufLesDrapeaux();
   localStorage.setItem('mnd_house_blank', '1');
   window.location.reload();
+}
+
+/** LE VIDAGE, SANS LE RECHARGEMENT — pour s'éprouver.
+
+    LE DRAPEAU DE REPRISE RESTE (18 septembre 2026). On gardait `mnd_reset_v4`
+    alors que le drapeau vivant est `mnd_reset_v5` : retiré ici, il relançait
+    au rechargement la purge de reprise (`store.ts`), qui emportait le fichier
+    en attente ET `mnd_house_blank`. « Remplacer la Maison » vidait alors le
+    serveur sans rien remettre. Et `startsWith('mnd_')` seul laissait tous les
+    magasins (« trone::mnd_… ») en place. */
+export function videLeCacheSaufLesDrapeaux(): void {
+  const KEEP = new Set(['mnd_house_blank', RESET_FLAG, PENDING_REPLACE_KEY]);
+  Object.keys(localStorage)
+    .filter((k) => estCleDeLaMaison(k) && !KEEP.has(k))
+    .forEach((k) => localStorage.removeItem(k));
 }
 
 /** « Remplacer TOUTE la Maison par un fichier » : vide le serveur, met le fichier en

@@ -1,4 +1,4 @@
-import type { Store } from '../../shared/store';
+import { cleDeSurface, cleLogique, RESET_FLAG, type Store } from '../../shared/store';
 import { clientsStore, personasStore, familiesStore } from '../../shared/clients';
 import { appointmentsStore } from '../../shared/agenda';
 import {
@@ -97,18 +97,37 @@ const COLLECTIONS: { store: CollStore; label: string }[] = [
   { store: consultationsQueueStore, label: 'consultations en ligne' },
 ];
 
-/** Photographie complète : toutes les clés `mnd_*` du localStorage, valeurs décodées. */
+/** Photographie complète : les magasins de CE Trône et les clés `mnd_*`
+    directes, rangés sous leur nom LOGIQUE (« mnd_clients »).
+
+    LE FICHIER ÉTAIT VIDE DEPUIS LE 6 AOÛT (constaté le 18 septembre 2026). Les
+    magasins vivent sous « trone::mnd_… » depuis le cloisonnement des surfaces,
+    et l'on ne gardait que ce qui COMMENCE par `mnd_` : il ne partait que des
+    drapeaux. Le nom logique est celui que la restauration cherche, et celui
+    des fichiers d'avant le 6 août : les deux époques se relisent pareil.
+    Les caches d'une autre surface (« couronne::… ») ne sont pas la Maison. */
 export function collectBackup(): BackupFile {
   const keys: Record<string, unknown> = {};
+  const lis = (raw: string): unknown => { try { return JSON.parse(raw); } catch { return raw; } };
+  const directes: [string, string][] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k || !k.startsWith('mnd_')) continue;
+    if (!k) continue;
     const raw = localStorage.getItem(k);
     if (raw === null) continue;
-    try { keys[k] = JSON.parse(raw); } catch { keys[k] = raw; }
+    const logique = cleLogique(k);
+    if (logique?.startsWith('mnd_')) keys[logique] = lis(raw);
+    else if (k.startsWith('mnd_')) directes.push([k, raw]);
   }
+  /* Une clé directe ne recouvre jamais le magasin du même nom : c'est un
+     reste d'avant le cloisonnement. */
+  for (const [k, raw] of directes) if (!(k in keys)) keys[k] = lis(raw);
   return { format: 'mnd-maison', version: 1, exportedAt: new Date().toISOString(), keys };
 }
+
+/** Ce qui, dans un fichier, n'est pas une donnée de la Maison mais l'état
+    d'un poste : ces clés ne se réécrivent jamais depuis un fichier. */
+const ETAT_DU_POSTE = new Set([LAST_BACKUP_KEY, 'mnd_house_blank', PENDING_REPLACE_KEY, RESET_FLAG, 'mnd_reset_v4']);
 
 /** Télécharge la sauvegarde et consigne la date du geste (locale à ce poste). */
 export function downloadBackup(): { fileName: string } {
@@ -197,7 +216,10 @@ export function applyPendingReplace(): boolean {
     const collKeys = new Set(COLLECTIONS.map((c) => c.store.key));
     for (const [k, v] of Object.entries(parsed.keys)) {
       if (collKeys.has(k)) continue; // les collections passent par restoreBackup ci-dessous
-      try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* quota localStorage */ }
+      if (ETAT_DU_POSTE.has(k) || !k.startsWith('mnd_')) continue;
+      /* DANS LA CASE DU MAGASIN (« trone::mnd_… ») : écrite sous son nom nu,
+         la valeur n'était lue par personne depuis le 6 août. */
+      try { localStorage.setItem(cleDeSurface(k), JSON.stringify(v)); } catch { /* quota localStorage */ }
     }
     /* 2. COLLECTIONS (clientes, RDV, factures, catalogue…) : via les magasins, pour
        l'état en mémoire ET la poussée au serveur (overwrite = le fichier fait foi). */

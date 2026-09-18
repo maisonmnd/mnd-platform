@@ -26,6 +26,17 @@ import { useSyncExternalStore } from 'react';
 const SURFACE = (typeof document !== 'undefined' && document.body?.dataset?.surface) || 'trone';
 const nsKey = (key: string): string => `${SURFACE}::${key}`;
 
+/** LA CASE RÉELLE d'un magasin de CETTE surface (« trone::mnd_clients »), et
+    son nom logique (« mnd_clients ») pour qui la lit de l'extérieur : la
+    sauvegarde, la remise à blanc. Toute boucle sur `localStorage` qui cherche
+    `mnd_*` au début de la clé manque les magasins depuis le 6 août : c'est ce
+    qui vidait la sauvegarde et le « Remplacer la Maison » (18 septembre 2026). */
+export const cleDeSurface = nsKey;
+export const cleLogique = (cleReelle: string): string | null =>
+  (cleReelle.startsWith(`${SURFACE}::`) ? cleReelle.slice(SURFACE.length + 2) : null);
+/** Une clé de la Maison, d'avant ou d'après le cloisonnement. */
+export const estCleDeLaMaison = (k: string): boolean => k.startsWith('mnd_') || k.includes('::mnd_');
+
 type Listener = () => void;
 
 const EVT = 'mnd:store';
@@ -34,15 +45,20 @@ const EVT = 'mnd:store';
    démonstration (bump le suffixe pour re-purger tous les navigateurs).
    v3 : après la fuite d'un onglet resté ouvert sur l'ancien déploiement.
    S'exécute avant toute création de magasin. */
-const RESET_FLAG = 'mnd_reset_v5';
-if (!localStorage.getItem(RESET_FLAG)) {
+export const RESET_FLAG = 'mnd_reset_v5';
+/** Exportée pour s'éprouver (`verifie-sauvegarde-maison`) : c'est elle qui,
+    au rechargement, emportait le fichier de « Remplacer la Maison » quand la
+    remise à blanc avait retiré ce drapeau. */
+export function purgeDeReprise(): void {
+  if (localStorage.getItem(RESET_FLAG)) return;
   /* v5 : emporte AUSSI les clés partagées d'avant le cloisonnement. Un cache
      hérité de l'ancien régime peut porter la vue tronquée d'une cliente. */
   Object.keys(localStorage)
-    .filter((k) => k.startsWith('mnd_') || k.includes('::mnd_'))
+    .filter(estCleDeLaMaison)
     .forEach((k) => localStorage.removeItem(k));
   localStorage.setItem(RESET_FLAG, '1');
 }
+purgeDeReprise();
 
 export type Store<T> = {
   key: string;
