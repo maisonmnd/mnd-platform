@@ -21,7 +21,8 @@ import { useFournisseurs } from '../../../../shared/stock';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
-import { salonHoursStore, useStaff as useEquipe } from '../equipe/data';
+import { useStaff as useEquipe } from '../equipe/data';
+import { heuresDuJour } from './_heures';
 import { ClientPicker } from './_shared';
 import { useEstDirection } from '../_vie';
 import {
@@ -124,15 +125,8 @@ function PieceDuFil({ piece }: { piece: PieceRecue }) {
 
    UN JOUR DE FERMETURE EST UNE NUIT ENTIÈRE : le salon n'ouvre pas, donc la
    sonnette se tait. Une tablette oubliée un dimanche ne carillonne pas. */
-const JOURS_COURTS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'] as const;
-
-const heuresDuJour = (): [string | undefined, string | undefined] => {
-  const h = salonHoursStore.get()[JOURS_COURTS[new Date().getDay()]];
-  if (!h) return [undefined, undefined];
-  if (h.closed) return ['23:59', '00:00'];
-  const enDeuxPoints = (s: string) => s.replace(/h/i, ':').replace(/^(\d):/, '0$1:');
-  return [enDeuxPoints(h.open), enDeuxPoints(h.close)];
-};
+/* Les heures du salon vivent dans `./_heures` depuis le 18 septembre 2026 :
+   l'alarme du tableau de bord se tait la nuit selon la même définition. */
 
 /** LES DEUX RÉACTIONS DE LA MAISON. Le mot est en français sur le bouton ;
     le signe est ce qui part chez Meta, et une réaction EST un signe — c'est

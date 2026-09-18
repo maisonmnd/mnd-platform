@@ -2,6 +2,45 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## UNE ALARME ROUGE SUR LE TABLEAU DE BORD, ET UNE FENETRE QUI N'ETAIT PAS FAUSSE — 18 septembre 2026
+
+« Quand je reçois des messages WhatsApp il faut absolument pouvoir répondre
+dans la fenêtre de 24 h. Je veux que tous les nouveaux messages viennent sur
+mon tableau de bord avec une alarme rouge tant que je ne réponds pas » (Yéman,
+capture à l'appui : une cliente écrit le 16 à 18 h 01 pour annuler, l'écran
+affiche « fenêtre fermée »).
+
+**LA FENETRE N'ETAIT PAS FAUSSE.** `fenetreDe` compte 24 h à partir du dernier
+message REÇU, jamais du nôtre, et la zone de saisie libre existe dès que la
+fenêtre est ouverte. La fenêtre de cette cliente s'est fermée le 17 à 18 h 01,
+exactement comme l'écran le disait. **Ce qui manquait, c'était de LE SAVOIR À
+TEMPS** : personne n'avait ouvert l'écran des conversations avant la fermeture.
+Vérifier le calcul avant de le « réparer » a évité de casser ce qui marchait.
+
+**L'ALARME** (`pilotage/AlarmeWhatsApp.tsx`), en tête du tableau de bord : un
+bandeau rouge qui liste chaque fil dont le dernier mot vient d'elle, avec le
+temps qui reste pour répondre LIBREMENT, et un bouton Répondre. Les fenêtres
+ouvertes d'abord, la plus proche de se fermer en tête ; les fermées ensuite,
+la plus récente d'abord. Sous deux heures, la ligne se fonce. Répondre, même
+par un modèle, l'éteint ; archiver aussi. Le juge est `filsSansReponse`, bâti
+sur `filsQuiAttendent`, celui de la cloche : les trois ne peuvent pas diverger.
+
+**ELLE SONNE**, avec la sonnette de la Maison et selon SES règles, via
+`messagesQuiSonnent` : rien au chargement, une sonnerie par rafale, jamais la
+nuit, jamais si la sonnette est coupée dans les Réglages. Les heures du salon
+sont sorties dans `clients/_heures.ts`, pour que l'écran des conversations et
+le tableau de bord aient une seule définition de la nuit.
+
+**UN ROUGE QUE LA CHARTE N'AVAIT PAS.** Le système de design ne porte aucun rouge,
+seulement indigo, cuivre, sable, argile et ivoire. Celui de l'alarme,
+`#B42318`, est un rouge D'ÉTAT, réservé à l'urgence et choisi loin du cuivre
+pour ne jamais se confondre avec l'accent. Il est déclaré sur le bloc même et
+ne sert nulle part ailleurs.
+
+**CE QUE L'ALARME NE FAIT PAS** : elle ne se voit et ne sonne que si le Trône est
+ouvert sur le tableau de bord. Une Maison qui ne l'ouvre pas manquera encore des
+fenêtres ; une notification poussée sur le téléphone serait l'étape suivante.
+
 ## LE PIED DE PAGE, ET UN TEXTE LEGAL QUI AVAIT DERIVE — 18 septembre 2026
 
 Demande de Yéman : ajouter au pied de page un copyright, un plan du site, des

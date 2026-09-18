@@ -34,6 +34,7 @@ import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import AlarmeWhatsApp from './AlarmeWhatsApp';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
@@ -754,6 +755,12 @@ export default function Dashboard() {
         <button type="button" className="trp-af-pill" onClick={() => navigate('/a-faire')}>À faire</button>
         <button type="button" className="trp-af-pill" onClick={() => navigate('/cadence')}>La Cadence</button>
       </div>
+
+      {/* L'ALARME DES MESSAGES SANS RÉPONSE — 18 septembre 2026. En tête,
+          avant tout le reste : une fenêtre de 24 h ne se rattrape pas, un
+          rendez-vous à caler, si. Elle disparaît d'elle-même à la dernière
+          réponse. */}
+      <AlarmeWhatsApp />
 
       {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
           soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}

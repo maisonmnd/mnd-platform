@@ -927,6 +927,37 @@ export const filsQuiAttendent = (fils: readonly Fil[], archives: ArchivesDesFils
      nouveau. */
   fils.filter((f) => f.attendUneReponse && !estArchive(f, archives));
 
+/** L'ALARME DU TABLEAU DE BORD — 18 septembre 2026. « Quand je reçois des
+    messages WhatsApp il faut absolument pouvoir répondre dans la fenêtre de
+    24 h. Je veux que tous les nouveaux messages viennent sur mon tableau de
+    bord avec une alarme rouge tant que je ne réponds pas » (Yéman).
+
+    LE MÊME JUGE QUE LA CLOCHE : `filsQuiAttendent`. L'alarme ne peut donc
+    jamais dire autre chose que la cloche et que l'écran des conversations.
+    Répondre, même par un modèle, l'éteint ; archiver aussi, parce que c'est
+    dire en connaissance de cause qu'aucune réponse n'est due.
+
+    DU PLUS PRESSÉ AU MOINS PRESSÉ. D'abord les fenêtres OUVERTES, celle qui
+    se ferme le plus tôt en tête : c'est là qu'une réponse libre et gratuite
+    se perd si l'on attend. Ensuite les fenêtres fermées, la plus récente
+    d'abord : elles demandent un modèle, donc elles ne pressent plus de la
+    même façon. Les instants se comparent en millisecondes, jamais en texte.
+
+    LES TIROIRS VUS : la direction voit tout, le personnel les seules
+    clientes, exactement comme l'écran des conversations. */
+export const filsSansReponse = (
+  fils: readonly Fil[],
+  archives: ArchivesDesFils = {},
+  tiroirs: readonly Tiroir[] = TIROIRS,
+): Fil[] =>
+  filsQuiAttendent(fils, archives)
+    .filter((f) => tiroirs.includes(f.tiroir))
+    .sort((a, b) => {
+      if (a.fenetre.ouverte !== b.fenetre.ouverte) return a.fenetre.ouverte ? -1 : 1;
+      if (a.fenetre.ouverte) return a.fenetre.resteMs - b.fenetre.resteMs;
+      return Date.parse(b.dernier.quand) - Date.parse(a.dernier.quand);
+    });
+
 /* LA SYNCHRO — la table `messages_wa` (0086). Le fil vit dans la Maison, pas
    dans un navigateur : une conversation lue sur la tablette du salon doit se
    retrouver sur le téléphone du soir.
