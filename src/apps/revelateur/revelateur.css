@@ -490,7 +490,21 @@ footer .logo img { height: 34px; }
    prendre leur propre ligne au lieu de serrer la devise et le copyright. */
 .pied-bas { row-gap: 10px; }
 .pied-copyright { white-space: nowrap; }
-.pied-bas > span:last-child { flex: 1 1 100%; min-width: 0; line-height: 1.9; }
+/* LES MENTIONS AEREES — 18 septembre 2026. « Trop condensé » (Yéman). Une
+   vraie liste, avec un écart franc entre chaque mention au lieu d'un point
+   collé ; elles passent à la ligne d'elles-mêmes, et s'empilent sur
+   téléphone. Spécificité : `footer ul` impose une grille, la classe gagne. */
+.pied-mentions { flex: 1 1 100%; min-width: 0; list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 40px; }
+.pied-mentions > * { min-width: 0; }
+.pied-mentions a { display: inline-block; padding-block: 2px; line-height: 1.5; }
+@media (max-width: 620px) { .pied-mentions { flex-direction: column; gap: 14px; } }
+
+/* L'ICONE WHATSAPP DU PIED — 18 septembre 2026. Dans la colonne Contact le
+   lien est rendu SANS la classe de bouton : son icône ne recevait donc
+   aucune taille, et le navigateur lui donnait la sienne, environ trois cents
+   pixels. La bulle géante de la capture de Yéman venait de là. */
+footer li a:has(svg) { display: inline-flex; align-items: center; gap: 8px; }
+footer li svg { width: 15px; height: 15px; flex: none; }
 
 /* LE PLAN DU SITE — 18 septembre 2026. Une page de service, pas une vitrine :
    des listes lisibles en colonnes, qui retombent a une seule sur telephone. */

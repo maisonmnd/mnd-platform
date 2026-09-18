@@ -104,7 +104,12 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
   const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
   const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h4>${echappe(c.titre)}</h4><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ');
-  const legal = COMMUN.pied.legal.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join(' · ');
+  /* LES MENTIONS EN LISTE — 18 septembre 2026. « Il faut espacer les
+     mentions, les CGU, le plan du site, trop condensé » (Yéman). Jointes par
+     des points dans une seule ligne de texte, elles ne pouvaient pas
+     s'aérer : une feuille de style n'espace pas du texte. En liste, chacune
+     est un élément que la feuille place avec un vrai écart. */
+  const legal = `<ul class="pied-mentions">${COMMUN.pied.legal.map((l) => `<li><a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a></li>`).join('')}</ul>`;
   return `<!doctype html>
 <html lang="fr">
   <head>
@@ -149,7 +154,7 @@ ${corps}
         <div class="pied-bas">
           <span class="devise">${echappe(DEVISE_COMPLETE)}</span>
           <span class="pied-copyright">&copy;Copyright ${new Date().getFullYear()}</span>
-          <span>${legal}</span>
+          ${legal}
         </div>
       </div>
     </footer>
