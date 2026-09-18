@@ -50,7 +50,8 @@ import {
   type Engagement, type DevisRecu, type Versement, type Decharge, type LectureDuDossier,
   type PieceDuDossier, type EtatDossier,
 } from '../../../../shared/engagements';
-import { deposeDansLeCoffre, adresseDuCoffre, retireDuCoffre, imageDuCoffre } from '../../../../shared/engagements-coffre';
+import { deposeDansLeCoffre, retireDuCoffre, imageDuCoffre } from '../../../../shared/engagements-coffre';
+import { ouvreLaPiece, ChoisirUnePiece } from '../_piece';
 import { useAuth } from '../../../../shared/auth';
 import { signeLeMessage } from '../../../../shared/identite';
 import {
@@ -65,10 +66,6 @@ import './engagements.css';
 /** La version du texte de la décharge. Elle se range avec la signature : le
     jour où le texte change, on saura lequel a été signé. */
 const VERSION_DECHARGE = 'decharge-2026-09-15';
-
-/** Dix mégaoctets, le plafond du compartiment (0099). Le dire avant l'envoi
-    évite un refus muet au bout d'une minute de téléversement. */
-const TAILLE_MAX = 10 * 1024 * 1024;
 
 /** LIRE UN MONTANT TAPÉ, dans la monnaie du dossier : « 25 000 », « 12,35 ».
     Zéro pour ce qui ne se lit pas ; c'est le refus, ensuite, qui le dit. */
@@ -88,52 +85,6 @@ const nomDeLaDevise = (code: string): string => DEVISES[code]?.plusieurs ?? code
 /** Les monnaies qu'un dossier peut prendre : le franc d'abord. */
 const DEVISES_A_OFFRIR: string[] =
   [DEVISE_DE_LA_MAISON, ...Object.keys(DEVISES).filter((c) => c !== DEVISE_DE_LA_MAISON)];
-
-/** OUVRIR UNE PIÈCE DU COFFRE. L'onglet s'ouvre AVANT d'attendre le lien :
-    ouvert après, le navigateur le prend pour une fenêtre surgissante et le
-    bloque. Le lien vaut une heure, et se redemande à chaque ouverture. */
-async function ouvreLaPiece(chemin: string): Promise<void> {
-  const onglet = window.open('', '_blank');
-  if (!onglet) { toast('Le navigateur a bloqué l’onglet. Autorisez les fenêtres pour le Trône.'); return; }
-  const url = await adresseDuCoffre(chemin);
-  if (!url) {
-    onglet.close();
-    toast('La pièce n’a pas pu s’ouvrir. Vos droits ne le permettent peut-être pas.');
-    return;
-  }
-  onglet.opener = null;
-  onglet.location.href = url;
-}
-
-/** Choisir un fichier depuis l'appareil — une photo prise sur le moment, ou
-    un PDF reçu. */
-function ChoisirUnePiece({ libelle, onFichier, disabled, variant = 'ghost', accept = 'image/*,application/pdf' }: {
-  libelle: string;
-  onFichier: (f: File) => void;
-  disabled?: boolean;
-  variant?: 'ghost' | 'copper' | 'indigo';
-  accept?: string;
-}) {
-  const champ = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <Button variant={variant} size="sm" disabled={disabled} onClick={() => champ.current?.click()}>{libelle}</Button>
-      <input
-        ref={champ}
-        type="file"
-        accept={accept}
-        hidden
-        onChange={(ev) => {
-          const f = ev.target.files?.[0];
-          ev.target.value = '';
-          if (!f) return;
-          if (f.size > TAILLE_MAX) { toast('La pièce dépasse 10 Mo. Photographiez-la plus petit, ou envoyez le PDF.'); return; }
-          onFichier(f);
-        }}
-      />
-    </>
-  );
-}
 
 const Pastille = ({ ton, children }: { ton: 'ok' | 'att' | 'non' | 'neutre'; children: ReactNode }) => (
   <span className={`eng-pastille eng-pastille--${ton}`}>{children}</span>

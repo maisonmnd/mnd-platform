@@ -11,7 +11,12 @@
 
    UNE FENÊTRE, PAS UNE ADRESSE : bulletin.html reçoit ses montants par
    l'URL, qui reste dans l'historique du navigateur. Ici le nom, le salaire
-   et la dette d'un membre ne quittent pas la page qui les écrit. */
+   et la dette d'un membre ne quittent pas la page qui les écrit.
+
+   LE PICTOGRAMME DE LA MAISON EN TÊTE — 18 septembre 2026. « Il manque le
+   logo de MND sur la lettre. Le pictogramme » (Yéman). Celui du site, déjà
+   recadré (240 × 198) : net à l'impression, dix kilo-octets. La fenêtre
+   d'impression n'a pas d'adresse à elle, d'où une adresse ENTIÈRE. */
 
 import { nombreEnLettres } from '../../../../shared/nombre-en-lettres';
 import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
@@ -70,6 +75,8 @@ const STYLE = `
   .feuille { width:210mm; height:297mm; background:#fff; overflow:hidden; padding:13mm 16mm 10mm; box-shadow:0 14px 40px rgba(30,33,80,.10);
              font-size:10pt; line-height:1.5; display:flex; flex-direction:column; }
   .entete { display:flex; justify-content:space-between; align-items:flex-end; gap:10mm; border-bottom:.6pt solid var(--indigo); padding-bottom:3mm; margin-bottom:5mm; }
+  .marque { display:flex; align-items:flex-end; gap:4mm; min-width:0; }
+  .picto { display:block; height:11mm; width:auto; flex:none; }
   .maison { font-family:'Cormorant Garamond',Georgia,serif; font-size:17pt; color:var(--indigo); line-height:1.05; }
   .maison small, .reference, .etq, .objet small { font-family:'Jost',sans-serif; font-size:7.4pt; letter-spacing:.15em; text-transform:uppercase; color:var(--encre-d); }
   .maison small { display:block; margin-top:1.2mm; }
@@ -119,15 +126,25 @@ const carteIdentite = (titre: string): string => `
     </div>
   </div>`;
 
-/** Les deux lettres, en une page HTML imprimable. */
-export function lettresDuPretHtml(d: DonneesDesLettres): string {
+/** Le pictogramme de la Maison, par une adresse entière : la fenêtre
+    d'impression, ouverte sur une page blanche, ne résout pas les adresses
+    relatives. */
+const adresseDuPicto = (): string =>
+  new URL(`${import.meta.env.BASE_URL}assets/photos/site/mono-indigo.png`, window.location.origin).href;
+
+/** Les deux lettres, en une page HTML imprimable. `picto` : l'adresse du
+    pictogramme ; vide, l'en-tête s'en passe. */
+export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
   const maison = maisonNom();
   const raison = maisonRaison();
   const societe = raison.split('·')[0].trim() || maison;
   const ville = maisonVille();
   const entete = (reference: string) => `
     <div class="entete">
-      <div class="maison">${echappe(maison)}<small>${echappe(raison)} &middot; ${echappe(ville)}</small></div>
+      <div class="marque">
+        ${picto ? `<img class="picto" src="${echappe(picto)}" alt="" onerror="this.remove()" />` : ''}
+        <div class="maison">${echappe(maison)}<small>${echappe(raison)} &middot; ${echappe(ville)}</small></div>
+      </div>
       <div class="reference">${reference}</div>
     </div>`;
   const lettres = echappe(nombreEnLettres(d.montantXof));
@@ -267,7 +284,7 @@ export function ouvreLesLettresDuPret(d: DonneesDesLettres): boolean {
   const w = window.open('', '_blank');
   if (!w) return false;
   w.document.open();
-  w.document.write(lettresDuPretHtml(d));
+  w.document.write(lettresDuPretHtml(d, adresseDuPicto()));
   w.document.close();
   return true;
 }

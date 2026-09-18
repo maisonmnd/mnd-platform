@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PICTOGRAMME SUR LES LETTRES DU PRET, ET LA CARTE D'IDENTITE DU PERSONNEL — 18 septembre 2026
+
+« Il manque le logo de MND sur la lettre. Le pictogramme. Je veux avoir un
+espace réservé dans la fiche du personnel avec sa carte d'identité exactement
+comme quand je crée la fiche d'engagement pour les prestataires » (Yéman).
+
+**Le pictogramme.** `lettres-du-pret.ts` pose en tête, à gauche du nom de la
+Maison, le monogramme DÉJÀ RECADRÉ du site (`assets/photos/site/mono-indigo.png`,
+240 × 198, 10 Ko, net à l'impression), et non celui des `monograms/` (1600 × 1600,
+dont les deux tiers sont du vide). La fenêtre d'impression s'ouvre sur une page
+blanche : l'adresse est ENTIÈRE (`location.origin` + `BASE_URL`), une adresse
+relative n'y résoudrait rien. Mesuré dans Chrome, cas chargé (nom long, motif
+long, plafond en blanc) : l'en-tête gagne 0,8 mm, chaque lettre tient sur sa
+page (8,7 mm libres sur la page 2, la plus pleine), 2 pages au PDF.
+
+**La carte d'identité du personnel.** Même coffre (`engagements`), même règle,
+AUCUNE migration : le chemin `personnel/identite/<fiche>/…` a `identite` pour
+deuxième segment, et la base ne l'ouvre qu'à la direction (0099). Mêmes gestes
+que l'engagement : Ouvrir (lien d'une heure), Remplacer, Effacer. Les deux gestes
+partagés vivent maintenant dans `routes/_piece.tsx` (sortis d'Engagements.tsx).
+
+**Pourquoi la fiche ne garde PAS le chemin de la carte.** La table `team` se lit
+ET s'écrit par tout le personnel (0006 ; 0091 ne garde que la paie et les
+adresses). Y ranger `identite` montrerait à tous qu'une carte existe et son nom
+de fichier, et une fiche renvoyée par un poste en retard l'effacerait. On lit
+donc le COFFRE (`identiteDuPersonnel`, une liste que la base ne rend qu'à la
+direction). Hors direction, l'écran dit « Réservée à la direction » sans
+interroger.
+
+**Combien de temps on la garde.** Rien dans la fiche ne dit une date de départ :
+la règle « un an après la fermeture » des prestataires n'a pas d'équivalent. La
+carte vit tant que la fiche vit, et « Retirer » l'efface du coffre (direction).
+« Retirer » demande maintenant confirmation : le geste ne se défait pas, et il
+n'en demandait aucune. Reste à trancher par Yéman : une durée, légale ou de la
+Maison, après le départ, qui demanderait un champ « date de sortie ».
+
+**Un trou connu.** Une fiche retirée par quelqu'un qui n'est pas de la direction
+laisse la carte dans le coffre (seule la direction efface). Personne ne la voit,
+mais elle reste.
+
+**Garde** : `verifie-identite-du-personnel` (10) : le chemin porte `identite`,
+ce qu'on dépose est dans le dossier qu'on relit, et les chemins des engagements
+n'ont pas bougé.
+
 ## LA SEARCH CONSOLE EST VALIDEE : NE JAMAIS SUPPRIMER LES FICHIERS google*.html — 18 septembre 2026
 
 Yéman a créé les propriétés Search Console « Préfixe de l'URL » pour

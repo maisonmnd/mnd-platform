@@ -31,6 +31,8 @@ import {
 import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import { GrilleDePrix } from './FacturePrestataire';
+import PieceDIdentite from './PieceDIdentite';
+import { effaceLIdentiteDuPersonnel } from '../../../../shared/engagements-coffre';
 import { useFacturesPrestataires, estPrestataire, factureDe, totalAccepte } from './facture';
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -916,7 +918,19 @@ export default function Personnel() {
     setModalOpen(false);
   };
 
-  const remove = (id: string) => setStaff((prev) => prev.filter((m) => m.id !== id));
+  /* RETIRER UNE FICHE EFFACE SA PIÈCE D'IDENTITÉ (18 septembre 2026) : une
+     carte gardée pour quelqu'un qui n'est plus de la Maison n'a plus de
+     raison d'être. D'où la question avant : ce geste ne se défait pas. */
+  const remove = (id: string) => {
+    const m = staff.find((x) => x.id === id);
+    if (!window.confirm(`Retirer ${m?.name?.trim() || 'ce membre'} de l’équipe ?${estDirection ? ' Sa pièce d’identité sera effacée du coffre.' : ''}`)) return;
+    setStaff((prev) => prev.filter((x) => x.id !== id));
+    if (estDirection) {
+      void effaceLIdentiteDuPersonnel(id).then((ok) => {
+        if (!ok) toast('La fiche est retirée, mais sa pièce d’identité n’a pas pu être effacée du coffre.');
+      });
+    }
+  };
 
   return (
     <div className="mnd-rise">
@@ -1773,6 +1787,10 @@ export default function Personnel() {
             <Field label="Coordonnées de paiement (Mobile Money / banque)">
               <Input value={form.paiement} onChange={(e) => setForm({ ...form, paiement: e.target.value })} />
             </Field>
+
+            {/* SA PIÈCE D'IDENTITÉ — comme sur la fiche d'engagement d'un
+                prestataire : direction seule, un lien d'une heure. */}
+            <PieceDIdentite staffId={editId} estDirection={estDirection} />
 
             {/* SA GRILLE DE PRIX — pour une prestataire seulement : elle
                 facture son mois à ces prix-là (voir equipe/facture.ts). */}
