@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
   const rdvs = candidats.filter((a) => !poseApresSonHeure(a, poses.get(a.id)));
 
   if (rdvs.length === 0) {
-    return new Response(JSON.stringify({ vus: 0, ecartes: candidats.length, push: 0, whatsapp: 0 }), {
+    return new Response(JSON.stringify({ version: VERSION, vus: 0, ecartes: candidats.length, push: 0, whatsapp: 0 }), {
       headers: { 'content-type': 'application/json' },
     });
   }
