@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le journal des envois &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --indigo:#1E2150; --indigo-f:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-f:#FAF1E9; --cuivre-p:#E3C9AE;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --vert:#4A6B52; --vert-f:#EEF3EE; --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --serif:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans:'Jost', 'Century Gothic', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 20px 90px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(36px,5.6vw,56px); line-height:1.04; letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(26px,3.4vw,34px); line-height:1.1; color:var(--indigo); margin:0 0 10px; }
+  .chapeau { max-width:70ch; font-size:16px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b { color:var(--encre); font-weight:500; }
+  section { margin-top:60px; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.1em; margin:0 0 4px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 20px; }
+  .legende { font-size:13px; color:var(--encre-d); margin:12px 0 0; max-width:78ch; }
+  .grille { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px) { .grille { grid-template-columns:1fr; } }
+  .carte { min-width:0; border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:15px 17px; font-size:14px; color:var(--encre-d); }
+  .carte b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin-bottom:3px; }
+  .carte--mal { border-left:3px solid var(--brique); }
+
+  /* ── l'écran simulé ── */
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:#fff; box-shadow:0 14px 40px rgba(30,33,80,.08); overflow:hidden; }
+  .ecran__barre { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:10px 16px; border-bottom:1px solid var(--filet); background:var(--ivoire); }
+  .ecran__barre span { color:var(--cuivre); margin:0 6px; }
+  .ecran__corps { padding:18px 18px 20px; }
+  .compte { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+  @media (max-width:760px) { .compte { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .compte div { min-width:0; border:1px solid var(--filet); border-radius:3px; padding:9px 12px; }
+  .compte small { display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .compte b { font-family:var(--serif); font-weight:500; font-size:26px; color:var(--indigo); line-height:1.1; }
+  .compte .alerte { border-color:var(--brique-p); background:var(--brique-f); }
+  .compte .alerte b { color:var(--brique); }
+  .rail { display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .rail .etq { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); margin-right:4px; }
+  .puce { font:inherit; font-size:12.5px; cursor:pointer; padding:5px 12px; border-radius:999px; border:1px solid var(--filet); background:#fff; color:var(--encre); }
+  .puce.on { background:var(--indigo); border-color:var(--indigo); color:#F3EDE1; }
+  .defile { overflow-x:auto; margin-top:6px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:760px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:8px 8px; border-bottom:1px solid var(--filet); }
+  td { padding:9px 8px; border-bottom:1px solid #EFE8DA; vertical-align:top; }
+  td.h { font-variant-numeric:tabular-nums; color:var(--encre-d); white-space:nowrap; }
+  td .qui { font-family:var(--serif); font-size:16px; color:var(--indigo); }
+  td .sous { display:block; font-size:11.5px; color:var(--encre-d); }
+  .type { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--filet); white-space:nowrap; }
+  .type--accuse { border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .type--conf { border-color:#C9CDE0; background:var(--indigo-f); }
+  .etat { font-size:12px; white-space:nowrap; }
+  .etat--lu { color:var(--vert); } .etat--remis { color:var(--indigo); } .etat--route { color:var(--encre-d); }
+  .etat--echec { color:var(--brique); font-weight:500; }
+  .lien { color:var(--cuivre); text-decoration:none; border-bottom:1px solid var(--cuivre-p); font-size:12px; white-space:nowrap; }
+  .vide { padding:18px 8px; font-family:var(--serif); font-style:italic; color:var(--encre-d); }
+
+  /* ── le fil ── */
+  .fil { max-width:520px; margin:0 auto; background:#EFE9DD; border-radius:6px; padding:16px 14px; display:flex; flex-direction:column; gap:10px; }
+  .bulle { max-width:84%; padding:9px 12px 7px; border-radius:8px; font-size:14px; line-height:1.5; box-shadow:0 1px 1px rgba(0,0,0,.06); }
+  .bulle--elle { align-self:flex-start; background:#fff; }
+  .bulle--maison { align-self:flex-end; background:#E7EEDD; }
+  .bulle--auto { align-self:flex-end; background:#fff; border-left:3px solid var(--cuivre); }
+  .bulle .marque { display:block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--cuivre); margin-bottom:3px; }
+  .bulle .pied { display:block; text-align:right; font-size:11px; color:var(--encre-d); margin-top:3px; }
+  .bulle .pied .vu { color:#3C83C9; }
+  .jourfil { align-self:center; font-size:11px; color:var(--encre-d); background:rgba(255,255,255,.7); padding:2px 10px; border-radius:999px; }
+
+  /* ── le parcours ── */
+  .parcours { list-style:none; margin:0; padding:0; display:grid; gap:0; }
+  .parcours li { display:grid; grid-template-columns:120px 1fr; gap:16px; padding:14px 0; border-top:1px solid var(--filet); }
+  @media (max-width:640px) { .parcours li { grid-template-columns:1fr; gap:4px; } }
+  .parcours .quand { font-size:12px; color:var(--encre-d); font-variant-numeric:tabular-nums; }
+  .parcours b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); }
+  .parcours .neuf { display:inline-block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#fff; background:var(--cuivre); padding:1px 7px; border-radius:2px; margin-left:8px; vertical-align:3px; }
+  .parcours .msg { margin-top:6px; padding:9px 12px; background:#fff; border-left:3px solid var(--cuivre); border-radius:3px; font-size:14px; }
+  .bascule { display:inline-flex; gap:6px; flex-wrap:wrap; margin:6px 0 4px; }
+
+  .modele { border:1px solid var(--filet); border-radius:4px; background:#fff; padding:16px 18px; }
+  .modele dl { display:grid; grid-template-columns:140px 1fr; gap:6px 14px; margin:0 0 12px; font-size:13.5px; }
+  @media (max-width:640px) { .modele dl { grid-template-columns:1fr; } }
+  .modele dt { color:var(--encre-d); }
+  .modele dd { margin:0; }
+  .modele code { font-family:ui-monospace, 'Cascadia Code', Consolas, monospace; font-size:13px; background:var(--ivoire); padding:1px 6px; border-radius:3px; }
+  .corps { font-size:15px; background:var(--ivoire); border-left:3px solid var(--indigo); padding:10px 14px; }
+
+  ul.interdits { margin:0; padding:0; list-style:none; display:grid; gap:10px; }
+  ul.interdits li { background:var(--ivoire); border:1px solid var(--filet); border-radius:3px; padding:11px 14px; font-size:14px; color:var(--encre-d); }
+  ul.interdits b { color:var(--encre); font-weight:500; }
+
+  .arbitrages { display:grid; gap:14px; }
+  .arb { background:var(--ivoire); border:1px solid var(--filet); border-radius:3px; padding:15px 17px; }
+  .arb h3 { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); margin:0 0 6px; }
+  .arb p { margin:0 0 8px; font-size:14px; color:var(--encre-d); }
+  .arb .prop { margin:0; padding:9px 12px; background:#fff; border-left:3px solid var(--cuivre); color:var(--encre); }
+  .arb .prop b { font-weight:500; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Pilotage &rsaquo; Journal des envois &middot; Conversations &middot; Site public</p>
+  <h1>Ce qui part chez la cliente, retrouvé.</h1>
+  <p class="chapeau">Deux décisions du 18 septembre. <b>Les confirmations WhatsApp se retrouvent à deux endroits</b> :
+  un journal de tout ce que le Trône envoie seul, et le fil de chaque cliente. <b>La cliente du site reçoit un
+  accusé tout de suite</b>, puis sa confirmation quand la Maison valide. Les noms sont des initiales, les heures des
+  exemples.</p>
+
+  <section>
+    <p class="num">01</p>
+    <h2>Ce qui se passe aujourd'hui</h2>
+    <div class="grille">
+      <div class="carte carte--mal"><b class="t">Les confirmations partent, mais ne se voient nulle part</b>
+        Toutes les dix minutes, le Trône confirme les rendez-vous neufs et note chaque envoi dans un registre. Aucun
+        écran ne lit ce registre : le tableau de bord n'y cherche que les rappels de la veille.</div>
+      <div class="carte carte--mal"><b class="t">Absentes du fil de la cliente</b>
+        Les rappels de la veille s'inscrivent dans sa conversation WhatsApp depuis le 11 septembre. La confirmation,
+        non : ouvrir son fil ne dit pas qu'elle l'a reçue.</div>
+      <div class="carte carte--mal"><b class="t">« Envoyé » ne veut pas dire « remis »</b>
+        Le Trône note que Meta a accepté le message, mais ne garde pas son identifiant. Quand Meta rapporte ensuite
+        « remis », « lu » ou « non remis », l'accusé ne se rattache à rien.</div>
+      <div class="carte carte--mal"><b class="t">La cliente du site attend en silence</b>
+        Elle ne reçoit rien en réservant. Elle reçoit « c'est confirmé » quand on clique « En faire une cliente »,
+        même si le rendez-vous est encore en attente ; et rien du tout si on le valide depuis le calendrier.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">02</p>
+    <h2>Le journal des envois</h2>
+    <p class="intro">Une page du Trône, sous Pilotage. <b>Tout ce que la Maison envoie seule</b>, message par message :
+    l'accusé d'une demande, la confirmation, le rappel de la veille, la demande d'avis. Chaque ligne dit à qui, pour
+    quel rendez-vous, par quel canal, et <b>ce que le message est devenu</b>. Essayez les filtres.</p>
+
+    <div class="ecran">
+      <div class="ecran__barre">Pilotage <span>&rsaquo;</span> Journal des envois</div>
+      <div class="ecran__corps">
+        <div class="compte" id="compte"></div>
+        <div class="rail">
+          <span class="etq">Jour</span>
+          <button class="puce on" data-f="jour" data-v="auj">Aujourd'hui</button>
+          <button class="puce" data-f="jour" data-v="hier">Hier</button>
+          <button class="puce" data-f="jour" data-v="tout">7 derniers jours</button>
+        </div>
+        <div class="rail">
+          <span class="etq">Message</span>
+          <button class="puce on" data-f="type" data-v="tout">Tous</button>
+          <button class="puce" data-f="type" data-v="accuse">Accusés de demande</button>
+          <button class="puce" data-f="type" data-v="conf">Confirmations</button>
+          <button class="puce" data-f="type" data-v="rappel">Rappels de la veille</button>
+          <button class="puce" data-f="type" data-v="avis">Avis Google</button>
+          <span class="etq" style="margin-left:10px">État</span>
+          <button class="puce on" data-f="etat" data-v="tout">Tous</button>
+          <button class="puce" data-f="etat" data-v="echec">Échecs seulement</button>
+        </div>
+        <div class="defile">
+          <table>
+            <thead><tr><th>Parti à</th><th>Cliente</th><th>Message</th><th>Pour le rendez-vous</th><th>Canal</th><th>Devenu</th><th></th></tr></thead>
+            <tbody id="lignes"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Un échec dit pourquoi, en français.</b> « Ce numéro n'a pas WhatsApp », « modèle en attente
+    d'approbation chez Meta », « pas de numéro sur la fiche » : c'est le motif qui dit quoi faire, pas un code d'erreur.
+    Un échec se retente seul tant que le rendez-vous est à venir, comme aujourd'hui.</p>
+  </section>
+
+  <section>
+    <p class="num">03</p>
+    <h2>Dans le fil de la cliente</h2>
+    <p class="intro">Ouvrir la conversation d'une cliente dit tout ce qu'elle a reçu, <b>y compris ce que le Trône a
+    envoyé seul</b>, marqué comme tel, avec ses coches. Comme les rappels depuis le 11 septembre.</p>
+    <div class="fil">
+      <span class="jourfil">Mardi 17 septembre</span>
+      <div class="bulle bulle--auto"><span class="marque">Envoyé par le Trône &middot; accusé de demande</span>
+        Bonjour A., la Maison MND a bien reçu votre demande de rendez-vous pour vendredi 20 septembre à 10:00. Nous
+        vous confirmons très vite, sur ce numéro.
+        <span class="pied">21:40 <span class="vu">&#10003;&#10003;</span> lu</span></div>
+      <div class="bulle bulle--elle">Merci beaucoup, j'attends votre retour.<span class="pied">21:44</span></div>
+      <span class="jourfil">Mercredi 18 septembre</span>
+      <div class="bulle bulle--auto"><span class="marque">Envoyé par le Trône &middot; confirmation</span>
+        Bonjour A., c'est confirmé : votre rendez-vous est retenu vendredi 20 septembre à 10:00. Nous vous attendons.
+        Merci de nous prévenir en cas d'empêchement.
+        <span class="pied">09:12 <span class="vu">&#10003;&#10003;</span> lu</span></div>
+      <span class="jourfil">Jeudi 19 septembre</span>
+      <div class="bulle bulle--auto"><span class="marque">Envoyé par le Trône &middot; rappel de la veille</span>
+        Bonjour A., petit rappel de la maison : votre rendez-vous est prévu demain à 10:00. Merci de nous
+        prévenir en cas d'empêchement. À très vite.
+        <span class="pied">18:00 &#10003;&#10003; remis</span></div>
+    </div>
+    <p class="legende">La marque cuivre sépare ce que la Maison a écrit elle-même de ce que le Trône a envoyé seul :
+    on sait qui a parlé, et on ne répond pas deux fois à la même chose.</p>
+  </section>
+
+  <section>
+    <p class="num">04</p>
+    <h2>La cliente du site, du clic au rendez-vous</h2>
+    <p class="intro">Elle choisit son geste, son jour et son heure, et coche la case qui autorise la Maison à la
+    contacter au sujet de sa demande. <b>Deux messages la suivent désormais</b> : l'accusé tout de suite, la
+    confirmation quand la Maison valide.</p>
+    <ol class="parcours">
+      <li><span class="quand">Mar. 21:40</span><div><b class="t">Elle réserve sur le site</b>
+        La place est retenue « en attente » à son prénom, comme aujourd'hui. Le personnel reçoit sa notification.</div></li>
+      <li><span class="quand">Mar. 21:40</span><div><b class="t">L'accusé part, dans la seconde <span class="neuf">nouveau</span></b>
+        Envoyé par le site lui-même au moment de la réservation, pas par le balayage de dix minutes : c'est le
+        seul message qu'elle attend en fermant la page.
+        <div class="msg">Bonjour A., la Maison MND a bien reçu votre demande de rendez-vous pour vendredi 20 septembre
+        à 10:00. Nous vous confirmons très vite, sur ce numéro.</div></div></li>
+      <li><span class="quand">Mer. 09:05</span><div><b class="t">La Maison valide dans le Trône</b>
+        Le rendez-vous passe à « confirmé »,
+        <span class="bascule">
+          <button class="puce on" data-chemin="demandes">depuis Demandes</button>
+          <button class="puce" data-chemin="calendrier">depuis le calendrier</button>
+        </span>
+        <span id="chemin"></span></div></li>
+      <li><span class="quand">Mer. 09:12</span><div><b class="t">La confirmation part <span class="neuf">changé</span></b>
+        Au prochain passage du balayage, dans les dix minutes. <b>Seulement maintenant</b> : un rendez-vous encore en
+        attente ne reçoit jamais « c'est confirmé ».</div></li>
+      <li><span class="quand">Jeu. 18:00</span><div><b class="t">Le rappel de la veille</b>
+        Inchangé.</div></li>
+    </ol>
+    <p class="legende">Le site promet aujourd'hui « La Maison confirme : un mot sur WhatsApp, pendant les heures
+    d'ouverture ». Avec l'accusé, cette étape gagnerait une ligne : <b>« Un accusé sur WhatsApp, tout de suite. »</b></p>
+  </section>
+
+  <section>
+    <p class="num">05</p>
+    <h2>Le modèle à faire approuver par Meta</h2>
+    <p class="intro">Hors conversation ouverte, WhatsApp n'accepte que des phrases approuvées à l'avance. L'accusé est
+    une phrase neuve : <b>il lui faut son propre modèle</b>, distinct de la confirmation, parce qu'une demande reçue
+    n'est pas un rendez-vous confirmé.</p>
+    <div class="modele">
+      <dl>
+        <dt>Nom</dt><dd><code>demande_recue</code></dd>
+        <dt>Catégorie</dt><dd>Utility (service), pas Marketing</dd>
+        <dt>Langue</dt><dd>Français</dd>
+        <dt>Variables</dt><dd>{{1}} le prénom, {{2}} le moment en clair : « vendredi 20 septembre à 10:00 »</dd>
+      </dl>
+      <div class="corps">Bonjour {{1}}, la Maison MND a bien reçu votre demande de rendez-vous pour {{2}}. Nous vous
+      confirmons très vite, sur ce numéro.</div>
+    </div>
+    <p class="legende">Tant que Meta n'a pas approuvé le modèle, l'accusé ne part pas, et le journal le dit sur chaque
+    ligne : « modèle en attente d'approbation chez Meta ». Rien d'autre n'est bloqué.</p>
+  </section>
+
+  <section>
+    <p class="num">06</p>
+    <h2>Ce que ça ne fera pas</h2>
+    <ul class="interdits">
+      <li><b>Pas de prix ni de montant dans les messages.</b> Un aperçu d'écran verrouillé se lit par-dessus l'épaule.</li>
+      <li><b>Pas deux accusés pour la même place.</b> Réserver deux fois le même créneau depuis le même numéro est déjà écarté : une seule ligne, un seul message.</li>
+      <li><b>Rien sans la case cochée.</b> Le formulaire refuse d'envoyer sans l'accord de la visiteuse ; l'accusé parle de sa demande, et de rien d'autre.</li>
+      <li><b>Rien pour un rendez-vous posé après son heure</b>, ni pour un rendez-vous annulé ou déjà tenu : les règles d'aujourd'hui restent.</li>
+      <li><b>Pas de message automatique quand la Maison ne peut pas tenir la place.</b> Proposer un autre créneau demande une personne : la Maison l'écrit dans le fil, où l'accusé a souvent déjà ouvert la conversation.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="num">07</p>
+    <h2>Quatre arbitrages avant de construire</h2>
+    <p class="intro">Chacun porte une proposition. Ils vous seront posés un par un, à l'écran.</p>
+    <div class="arbitrages">
+      <div class="arb"><h3>&#9312; « C'est confirmé » seulement pour un rendez-vous confirmé, d'où qu'il vienne ?</h3>
+        <p>Aujourd'hui, un rendez-vous posé « en attente » dans le Trône (une place qui attend son acompte, par
+        exemple) reçoit quand même « c'est confirmé ».</p>
+        <p class="prop"><b>Proposition : oui, pour tous.</b> La phrase ne se dit que d'un rendez-vous confirmé ; celui
+        qui attend son acompte reçoit sa confirmation le jour où il passe à « confirmé ».</p></div>
+      <div class="arb"><h3>&#9313; Valider depuis le calendrier une réservation du site, sans fiche ?</h3>
+        <p>La visiteuse n'a pas encore de fiche. Sans fiche, pas de numéro, donc pas de confirmation.</p>
+        <p class="prop"><b>Proposition : la fiche se crée seule à la validation</b>, au segment Prospect, exactement
+        comme « En faire une cliente », en se rattachant à une fiche existante si le numéro est déjà connu.</p></div>
+      <div class="arb"><h3>&#9314; Et une simple demande de renseignement, sans place ?</h3>
+        <p>Le formulaire « être rappelée » ne retient aucun créneau.</p>
+        <p class="prop"><b>Proposition : pas d'accusé.</b> Il parle d'un rendez-vous ; une question reçoit la réponse
+        de la Maison, à la main, dans le fil.</p></div>
+      <div class="arb"><h3>&#9315; Où vit le journal ?</h3>
+        <p>Il sert à vérifier, pas à agir tous les jours.</p>
+        <p class="prop"><b>Proposition : sous Pilotage</b>, à côté du tableau de bord, avec un lien depuis chaque ligne
+        vers le fil de la cliente, et un lien depuis Conversations vers le journal.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  /* Les lignes d'exemple : initiales, heures d'exemple. */
+  const L = [
+    { j: 'auj', h: '09:12', qui: 'A. K.', type: 'conf', rdv: 'ven. 20 sept. · 10:00', canal: 'WhatsApp', etat: 'lu' },
+    { j: 'auj', h: '09:12', qui: 'A. K.', type: 'conf', rdv: 'ven. 20 sept. · 10:00', canal: 'Notification', etat: 'sans', motif: 'pas d’application Ma Couronne' },
+    { j: 'auj', h: '10:32', qui: 'M. D.', type: 'conf', rdv: 'sam. 21 sept. · 14:30', canal: 'WhatsApp', etat: 'remis' },
+    { j: 'auj', h: '11:05', qui: 'R. H.', type: 'accuse', rdv: 'lun. 23 sept. · 09:00', canal: 'WhatsApp', etat: 'lu' },
+    { j: 'auj', h: '13:47', qui: 'F. A.', type: 'accuse', rdv: 'mar. 24 sept. · 16:00', canal: 'WhatsApp', etat: 'echec', motif: 'ce numéro n’a pas WhatsApp' },
+    { j: 'auj', h: '15:20', qui: 'S. B.', type: 'avis', rdv: 'rituel du jour', canal: 'WhatsApp', etat: 'route' },
+    { j: 'auj', h: '18:00', qui: 'C. T.', type: 'rappel', rdv: 'jeu. 19 sept. · 11:00', canal: 'WhatsApp', etat: 'remis' },
+    { j: 'auj', h: '18:00', qui: 'N. O.', type: 'rappel', rdv: 'jeu. 19 sept. · 15:00', canal: 'WhatsApp', etat: 'lu' },
+    { j: 'hier', h: '21:40', qui: 'A. K.', type: 'accuse', rdv: 'ven. 20 sept. · 10:00', canal: 'WhatsApp', etat: 'lu' },
+    { j: 'hier', h: '16:02', qui: 'L. G.', type: 'conf', rdv: 'mer. 18 sept. · 10:30', canal: 'WhatsApp', etat: 'echec', motif: 'pas de numéro sur la fiche' },
+    { j: 'hier', h: '18:00', qui: 'M. D.', type: 'rappel', rdv: 'mer. 18 sept. · 12:00', canal: 'WhatsApp', etat: 'nonremis', motif: 'téléphone éteint depuis 24 h' },
+  ];
+  const TYPE = { accuse: ['Accusé de demande', 'type--accuse'], conf: ['Confirmation', 'type--conf'], rappel: ['Rappel de la veille', ''], avis: ['Demande d’avis', ''] };
+  const ETAT = {
+    lu: ['✓✓ lu', 'etat--lu'], remis: ['✓✓ remis', 'etat--remis'], route: ['✓ en route', 'etat--route'],
+    echec: ['échec', 'etat--echec'], nonremis: ['non remis', 'etat--echec'], sans: ['personne à joindre', 'etat--route'],
+  };
+  const f = { jour: 'auj', type: 'tout', etat: 'tout' };
+  const rend = () => {
+    const vues = L.filter((l) => (f.jour === 'tout' || l.j === f.jour)
+      && (f.type === 'tout' || l.type === f.type)
+      && (f.etat === 'tout' || l.etat === 'echec' || l.etat === 'nonremis'));
+    const duJour = L.filter((l) => f.jour === 'tout' || l.j === f.jour);
+    const n = (p) => duJour.filter(p).length;
+    const partis = n((l) => l.etat !== 'sans');
+    const echecs = n((l) => l.etat === 'echec' || l.etat === 'nonremis');
+    document.getElementById('compte').innerHTML =
+      `<div><small>Partis</small><b>${partis}</b></div>`
+      + `<div><small>Remis</small><b>${n((l) => l.etat === 'remis' || l.etat === 'lu')}</b></div>`
+      + `<div><small>Lus</small><b>${n((l) => l.etat === 'lu')}</b></div>`
+      + `<div><small>En route</small><b>${n((l) => l.etat === 'route')}</b></div>`
+      + `<div class="${echecs ? 'alerte' : ''}"><small>À regarder</small><b>${echecs}</b></div>`;
+    document.getElementById('lignes').innerHTML = vues.length === 0
+      ? '<tr><td colspan="7" class="vide">Rien à montrer pour ce filtre.</td></tr>'
+      : vues.map((l) => `<tr>
+          <td class="h">${l.j === 'hier' ? 'hier ' : ''}${l.h}</td>
+          <td><span class="qui">${l.qui}</span></td>
+          <td><span class="type ${TYPE[l.type][1]}">${TYPE[l.type][0]}</span></td>
+          <td>${l.rdv}</td>
+          <td>${l.canal}</td>
+          <td><span class="etat ${ETAT[l.etat][1]}">${ETAT[l.etat][0]}</span>${l.motif ? `<span class="sous">${l.motif}</span>` : ''}</td>
+          <td><a class="lien" href="#fil" onclick="return false">Ouvrir le fil</a></td>
+        </tr>`).join('');
+  };
+  document.querySelectorAll('.puce[data-f]').forEach((b) => b.addEventListener('click', () => {
+    f[b.dataset.f] = b.dataset.v;
+    document.querySelectorAll(`.puce[data-f="${b.dataset.f}"]`).forEach((x) => x.classList.toggle('on', x === b));
+    rend();
+  }));
+  rend();
+
+  const CHEMIN = {
+    demandes: 'en cliquant « En faire une cliente », puis en confirmant le rendez-vous : la fiche existe, le numéro aussi.',
+    calendrier: 'directement sur le rendez-vous : la fiche se crée seule au segment Prospect, à partir du numéro de la demande (arbitrage ②).',
+  };
+  const choix = (k) => {
+    document.querySelectorAll('.puce[data-chemin]').forEach((x) => x.classList.toggle('on', x.dataset.chemin === k));
+    document.getElementById('chemin').textContent = CHEMIN[k];
+  };
+  document.querySelectorAll('.puce[data-chemin]').forEach((b) => b.addEventListener('click', () => choix(b.dataset.chemin)));
+  choix('demandes');
+})();
+</script>
+</body>
+</html>
