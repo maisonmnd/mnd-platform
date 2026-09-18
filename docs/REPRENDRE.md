@@ -8534,6 +8534,14 @@ laissait croire qu on restait connecte.
   la fonction, « Écarter » affichait « ce geste attend sa migration 0080 »).
   Contrôle : `fonction_posee` 1, `marques_couronne` 21, `restants` 0. Ne pas la
   recoller.
+- **Mais « Écarter » ne faisait rien de visible** : la `list_pending_staff` en
+  production était encore celle de la 0007, sans `origine` ni `a_fiche`. Le
+  Trône ne voyait donc pas la marque posée par la 0080. **La partie ① de la
+  0075 (et elle seule) est passée le 18 septembre 2026.** Contrôle :
+  `pg_get_function_result` rend `…, origine text, a_fiche boolean`. Ne JAMAIS
+  recoller la 0075 entière : sa partie ② réécrirait `adopter_ma_fiche`, refaite
+  depuis en 0083. On ignore si la partie ② de la 0075 avait été passée ; la 0083
+  la remplace de toute façon.
 
 ## LE CALENDRIER DE MA COURONNE · 31 août 2026
 
