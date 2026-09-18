@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La retenue sur salaire &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:78ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:32px 0 0;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+
+  .deux { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+  @media (max-width:820px) { .deux { grid-template-columns:1fr; } }
+  .deux > * { min-width:0; }
+  .carte { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:16px 18px; }
+  .carte b.t { display:block; font-family:var(--serif); font-size:20px; font-weight:400; color:var(--indigo); margin-bottom:4px; }
+  .carte p { margin:0; color:var(--encre-d); font-size:14px; }
+  .carte--avant { border-left:3px solid var(--filet); }
+  .carte--apres { border-left:3px solid var(--cuivre); }
+
+  /* l'écran du Trône */
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__barre { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:11px 18px; background:var(--indigo);
+                  color:#F3EDE1; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .ecran__barre span { opacity:.6; }
+  .ecran__corps { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); }
+  @media (max-width:880px) { .ecran__corps { grid-template-columns:1fr; } }
+  .ecran__corps > * { min-width:0; padding:22px 24px; }
+  .ecran__corps > * + * { border-left:1px solid var(--filet); background:#FDFBF7; }
+  @media (max-width:880px) { .ecran__corps > * + * { border-left:0; border-top:1px solid var(--filet); } }
+
+  .champ { display:grid; gap:6px; margin-bottom:17px; }
+  .champ label, .etiq { font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--encre-d); }
+  select, input[type=number] { font:inherit; font-size:15px; color:var(--indigo); background:#fff;
+         border:1px solid var(--filet); border-radius:3px; padding:9px 11px; width:100%; }
+  .sous { font-size:12.5px; color:var(--encre-d); }
+
+  .levier { display:flex; gap:6px; flex-wrap:wrap; }
+  .levier button { font:inherit; font-size:13px; letter-spacing:.04em; cursor:pointer; padding:7px 14px;
+        border:1px solid var(--filet); background:#fff; color:var(--encre); border-radius:999px; }
+  .levier button.on { background:var(--indigo); border-color:var(--indigo); color:#F3EDE1; }
+
+  .regle { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; }
+  input[type=range] { width:100%; accent-color:var(--cuivre); }
+  .valeur { font-family:var(--serif); font-size:30px; color:var(--indigo); line-height:1; min-width:3.6ch; text-align:right;
+            font-variant-numeric:tabular-nums; }
+  .pas { display:flex; align-items:center; gap:10px; }
+  .pas button { font:inherit; width:34px; height:34px; border:1px solid var(--filet); background:#fff;
+        border-radius:3px; cursor:pointer; color:var(--indigo); font-size:17px; }
+
+  .grand { font-family:var(--serif); font-weight:300; font-size:clamp(30px,4vw,40px); color:var(--indigo); line-height:1.08; margin:4px 0 2px; }
+  .grand small { font-family:var(--sans); font-size:14px; color:var(--encre-d); }
+  .lien { margin:14px 0 4px; padding:10px 13px; background:var(--cuivre-f); border:1px solid var(--cuivre-p);
+          border-radius:3px; font-size:13.5px; }
+  .lien b { font-weight:500; color:var(--encre); }
+  .alerte { margin-top:12px; padding:10px 13px; border-radius:3px; font-size:13.5px;
+            background:var(--brique-f); border:1px solid var(--brique-p); color:var(--brique); }
+
+  .defile { max-height:250px; overflow-y:auto; margin-top:14px; border:1px solid #EFE8DA; border-radius:3px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  th { text-align:left; font-weight:400; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+       color:var(--encre-d); border-bottom:1px solid var(--filet); padding:6px 8px; position:sticky; top:0; background:#FDFBF7; }
+  td { padding:6px 8px; border-bottom:1px solid #EFE8DA; }
+  td.m, th.m { text-align:right; }
+  tr.fin td { color:var(--cuivre); }
+
+  /* le bulletin */
+  .bulletin { background:#fff; border:1px solid var(--filet); border-radius:3px; padding:22px 24px; max-width:560px;
+              box-shadow:0 18px 40px rgba(30,33,80,.06); }
+  .bulletin h3 { font-family:var(--serif); font-weight:400; font-size:22px; color:var(--indigo); margin:0; }
+  .bulletin .qui { font-size:12.5px; color:var(--encre-d); margin:2px 0 14px; }
+  .bl { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid #F0EADF;
+        font-size:14px; font-variant-numeric:tabular-nums; }
+  .bl > span:first-child { color:var(--encre-d); }
+  .bl > span:last-child { white-space:nowrap; }
+  .bl.retenue > span { color:var(--cuivre); }
+  .bl.total { border-bottom:0; border-top:1px solid var(--indigo); margin-top:4px; padding-top:10px;
+              font-family:var(--serif); font-size:21px; }
+  .bl.total > span { color:var(--indigo); }
+  .bl .note { display:block; font-size:11.5px; color:var(--encre-d); }
+
+  .bascule { display:inline-flex; align-items:center; gap:10px; cursor:pointer; font-size:14px; margin-bottom:16px;
+             padding:8px 14px; border:1px solid var(--filet); border-radius:999px; background:#fff; }
+  .bascule input { accent-color:var(--brique); width:16px; height:16px; }
+
+  .interdits { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+  .interdits li { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:12px 16px; font-size:14px; color:var(--encre-d); }
+  .interdits li b { color:var(--encre); font-weight:500; }
+
+  .arbitrages { display:grid; gap:14px; }
+  .arb { border:1px solid var(--filet); border-left:3px solid var(--indigo); border-radius:3px; background:var(--ivoire); padding:16px 19px; }
+  .arb h3 { font-family:var(--serif); font-weight:400; font-size:21px; color:var(--indigo); margin:0 0 6px; }
+  .arb p { margin:0 0 8px; color:var(--encre-d); font-size:14px; max-width:80ch; }
+  .arb .prop { margin:10px 0 0; padding:9px 12px; background:var(--indigo-pale); border-radius:3px; color:var(--indigo); font-size:14px; }
+  .arb .prop b { font-weight:500; }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Maquette &middot; Équipe &rsaquo; Paie &middot; Finances &rsaquo; Prêts</p>
+  <h1>La retenue sur salaire.</h1>
+  <p class="chapeau">Quand la Maison prête à un membre de l'équipe, sans intérêt, le remboursement se fait sur
+  son salaire. Aujourd'hui on le règle <b>en francs</b>. Cette maquette le règle <b>en part du salaire ou en durée</b>,
+  et montre pourquoi les deux ne se choisissent pas séparément.</p>
+
+  <p class="cite">« Le personnel fait souvent des prêts à 0 % remboursables en plusieurs fois. On doit pouvoir ajouter
+  combien de pourcentage du salaire sera automatiquement prélevé sur son salaire, et sur combien de temps. »
+  <span>Yéman, 18 septembre 2026</span></p>
+
+  <section>
+    <p class="num">01</p>
+    <h2>Ce qui existe déjà, et ce qui change</h2>
+    <p class="intro">Les prêts à l'équipe vivent déjà dans Finances &rsaquo; Prêts, et la paie propose déjà une retenue
+    sur chaque bulletin, plafonnée au reste dû. On ne bâtit donc pas un module : on change <b>la façon de fixer la retenue</b>.</p>
+    <div class="deux">
+      <div class="carte carte--avant">
+        <b class="t">Aujourd'hui</b>
+        <p>Une retenue fixe en francs, saisie à la main : « 25 000 F par bulletin ». Pour savoir combien de temps
+        cela durera, il faut diviser soi-même. Et rien ne dit si 25 000 F pèsent peu ou beaucoup sur ce salaire-là.</p>
+      </div>
+      <div class="carte carte--apres">
+        <b class="t">Avec la maquette</b>
+        <p>On règle <b>la part du salaire</b> ou <b>la durée</b>, au choix. Le Trône calcule l'autre, la mensualité
+        et la date de fin, puis prépare seul la retenue sur chaque bulletin jusqu'à ce que le prêt soit soldé.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">02</p>
+    <h2>Le geste, à essayer</h2>
+    <p class="intro">Changez le membre, le montant, puis faites glisser. <b>Bougez la part du salaire : la durée suit.
+    Passez sur « Par la durée » : c'est la part qui suit.</b> Les noms sont des initiales et les montants des exemples.</p>
+
+    <div class="ecran">
+      <div class="ecran__barre">Finances <span>&rsaquo;</span> Prêts <span>&rsaquo;</span> Nouveau prêt &middot; membre de l'équipe</div>
+      <div class="ecran__corps">
+        <div>
+          <div class="champ">
+            <label for="membre">Membre de l'équipe</label>
+            <select id="membre">
+              <option value="120000">A. K. &middot; coiffeuse</option>
+              <option value="80000">S. D. &middot; assistante</option>
+              <option value="250000">B. A. &middot; maître locticien</option>
+            </select>
+            <span class="sous" id="baseDit"></span>
+          </div>
+          <div class="champ">
+            <label for="montant">Montant prêté, sans intérêt</label>
+            <input type="number" id="montant" value="300000" step="5000" min="5000" />
+          </div>
+          <div class="champ">
+            <span class="etiq">Fixer le remboursement</span>
+            <div class="levier">
+              <button type="button" id="parPart" class="on">Par la part du salaire</button>
+              <button type="button" id="parDuree">Par la durée</button>
+            </div>
+          </div>
+          <div class="champ" id="blocPart">
+            <label for="pct">Part du salaire de base retenue chaque mois</label>
+            <div class="regle"><input type="range" id="pct" min="5" max="50" step="1" value="20" /><span class="valeur" id="pctDit">20 %</span></div>
+          </div>
+          <div class="champ" id="blocDuree" hidden>
+            <span class="etiq">Remboursé en</span>
+            <div class="pas"><button type="button" id="moins" aria-label="Un mois de moins">&minus;</button><span class="valeur" id="dureeDit">10</span><span class="sous">mois</span><button type="button" id="plus" aria-label="Un mois de plus">+</button></div>
+          </div>
+          <div class="champ">
+            <label for="premier">Première retenue sur le bulletin de</label>
+            <select id="premier">
+              <option value="2026-09">septembre 2026</option>
+              <option value="2026-10" selected>octobre 2026</option>
+              <option value="2026-11">novembre 2026</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <span class="etiq">Chaque mois</span>
+          <div class="grand" id="mensDit"></div>
+          <div class="lien" id="lienDit"></div>
+          <div class="alerte" id="alerte" hidden></div>
+          <div class="defile">
+            <table>
+              <thead><tr><th>Bulletin</th><th class="m">Retenue</th><th class="m">Reste dû après</th></tr></thead>
+              <tbody id="echeancier"></tbody>
+            </table>
+          </div>
+          <p class="legende">Le dernier mois ne retient que ce qui reste : le prêt se solde, il ne se dépasse jamais.</p>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>Plafond de la Maison, dans cet exemple : 30 % du net du mois.</b> Ce chiffre est une valeur
+    d'illustration, pas une règle : le vrai plafond se fixe une fois dans Paramètres, avec votre comptable.</p>
+  </section>
+
+  <section>
+    <p class="num">03</p>
+    <h2>Pourquoi la part et la durée ne se règlent pas séparément</h2>
+    <p class="intro">Pour un prêt donné, <b>montant prêté = retenue mensuelle &times; nombre de mois</b>. Fixer la part
+    du salaire fixe donc la durée, et l'inverse. Si l'on pouvait régler les deux librement, on créerait tôt ou tard l'un
+    de ces deux défauts :</p>
+    <div class="deux">
+      <div class="carte"><b class="t">Un prêt jamais soldé</b>
+        <p>300 000 F prêtés, 10 % d'un salaire de 120 000 F pendant 12 mois : 144 000 F retenus. Il reste 156 000 F
+        dont plus aucun bulletin ne s'occupe.</p></div>
+      <div class="carte"><b class="t">Une retenue sur un prêt déjà soldé</b>
+        <p>Le même prêt, 25 % pendant 12 mois : il serait remboursé au dixième bulletin, et les deux suivants
+        retiendraient de l'argent qui n'est plus dû.</p></div>
+    </div>
+    <p class="legende">D'où le geste de la maquette : <b>on choisit le levier, le Trône calcule l'autre</b>, et les deux
+    restent affichés côte à côte pour que chacun sache ce qu'il signe.</p>
+  </section>
+
+  <section>
+    <p class="num">04</p>
+    <h2>Sur le bulletin, sans que personne ne saisisse rien</h2>
+    <p class="intro">Au moment de la paie, la retenue arrive <b>déjà remplie</b> sur la ligne du membre, avec le rang de
+    l'échéance et ce qui restera dû. Elle se corrige toujours ligne à ligne, comme vous l'aviez décidé le 23 août. Cochez
+    le mois difficile pour voir ce qui se passe quand le salaire du mois est amputé.</p>
+
+    <label class="bascule"><input type="checkbox" id="difficile" /> Un mois difficile : dix jours d'absence non payés</label>
+
+    <div class="bulletin">
+      <h3>Bulletin &middot; <span id="bMois"></span></h3>
+      <p class="qui" id="bQui"></p>
+      <div class="bl"><span>Salaire de base</span><span id="bBase"></span></div>
+      <div class="bl" id="bAbs" hidden><span>Absence non payée, 10 jours</span><span id="bAbsV"></span></div>
+      <div class="bl"><span>Net du mois avant retenue <span class="note">exemple ; la vraie paie calcule CNSS et ITS</span></span><span id="bNet"></span></div>
+      <div class="bl retenue"><span>Remboursement de prêt <span class="note" id="bRang"></span></span><span id="bRet"></span></div>
+      <div class="bl total"><span>Net à payer</span><span id="bTotal"></span></div>
+      <p class="legende" id="bApres"></p>
+    </div>
+    <p class="legende" id="bMorale"></p>
+  </section>
+
+  <section>
+    <p class="num">05</p>
+    <h2>Ce que la retenue ne fera pas</h2>
+    <ul class="interdits">
+      <li><b>Pas d'intérêt.</b> Le prêt reste à 0 % : aucun champ de taux, aucune somme due au-delà de ce qui a été prêté.</li>
+      <li><b>Rien ne sort d'une caisse.</b> La retenue réduit le net versé ; elle devient un remboursement du prêt au moment où le bulletin est réglé, comme aujourd'hui.</li>
+      <li><b>Pas d'effet rétroactif.</b> Un bulletin déjà réglé ne se réécrit pas ; seul le reste de l'échéancier se recalcule.</li>
+      <li><b>Pas de dépassement du plafond.</b> Si la retenue prévue dépasse le plafond de la Maison sur le net d'un mois, le Trône propose le plafond et reporte l'écart.</li>
+      <li><b>Les prêts d'avant ne bougent pas.</b> Une retenue déjà réglée en francs continue telle quelle ; la part du salaire est une façon de la fixer, pas une obligation.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="num">06</p>
+    <h2>Quatre arbitrages, avec une proposition ferme pour chacun</h2>
+    <div class="arbitrages">
+      <div class="arb">
+        <h3>&#9312; Sur quoi se calcule la part du salaire ?</h3>
+        <p>Sur le salaire de base, fixe et connu d'avance, ou sur le net de chaque mois, qui varie avec les primes, les commissions et les absences.</p>
+        <p class="prop"><b>Proposition : le salaire de base.</b> L'échéancier reste le même d'un mois sur l'autre et la date de fin est sûre. Le net protège mieux, mais rend la fin du prêt imprévisible ; la protection vient plutôt du plafond, arbitrage &#9315;.</p>
+      </div>
+      <div class="arb">
+        <h3>&#9313; Qu'est-ce qui fait foi : la part ou la durée ?</h3>
+        <p>On règle l'un ou l'autre au moment du prêt. Mais le jour où le salaire de base change, il faut savoir lequel des deux on garde.</p>
+        <p class="prop"><b>Proposition : la part du salaire fait foi.</b> C'est ce que vous avez demandé, et c'est ce que le membre ressent sur sa fiche de paie. Une augmentation raccourcit alors le prêt ; une baisse l'allonge, sans que la retenue ne pèse plus lourd.</p>
+      </div>
+      <div class="arb">
+        <h3>&#9314; Automatique, ou automatique et modifiable ?</h3>
+        <p>Le 23 août, vous aviez décidé que la retenue était proposée, jamais imposée. « Automatiquement prélevé » peut vouloir dire l'inverse.</p>
+        <p class="prop"><b>Proposition : automatique et modifiable.</b> Elle arrive seule sur chaque bulletin, personne n'a rien à saisir ; mais elle reste corrigeable pour un mois difficile, et l'écart se reporte à la fin du prêt au lieu de disparaître.</p>
+      </div>
+      <div class="arb">
+        <h3>&#9315; Un plafond, et sur quoi ?</h3>
+        <p>Rien n'empêche aujourd'hui de retenir la moitié d'un salaire. Le droit du travail encadre les retenues sur salaire ; le taux qui s'applique à la Maison n'est pas écrit dans cette maquette.</p>
+        <p class="prop"><b>Proposition : un plafond sur le net du mois, réglé une fois dans Paramètres avec votre comptable.</b> Le Trône refuse d'aller au-delà dans le formulaire du prêt ; sur un bulletin, il propose le plafond et reporte l'écart, comme dans le mois difficile ci-dessus.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const PLAFOND = 30;   /* valeur d'illustration, voir la légende */
+  const NET = 0.92;     /* net d'exemple ; la vraie paie calcule CNSS et ITS */
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const F = (n) => Math.round(n).toLocaleString('fr-FR') + ' F';
+  const P = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %';
+  const moisDe = (ym, k) => {
+    const [a, m] = ym.split('-').map(Number);
+    const d = new Date(a, m - 1 + k, 1);
+    return MOIS[d.getMonth()] + ' ' + d.getFullYear();
+  };
+  const s = { levier: 'part', pct: 20, duree: 10 };
+
+  const lit = () => {
+    const base = Number($('membre').value);
+    const montant = Math.max(5000, Number($('montant').value) || 0);
+    const mens = s.levier === 'part' ? Math.round(base * s.pct / 100) : Math.ceil(montant / s.duree);
+    return { base, montant, mens, premier: $('premier').value, nom: $('membre').selectedOptions[0].text };
+  };
+
+  /* L'échéancier se SIMULE : chaque mois retient le plus petit de la
+     mensualité, du reste dû et, un mois difficile, du plafond sur le net. */
+  /* `plafonner` : le formulaire montre le plan DEMANDÉ, tel quel, et laisse
+     l'alerte dire s'il passe ; seul le bulletin applique le plafond. */
+  const simule = (o, moisDifficile, plafonner) => {
+    const lignes = [];
+    let reste = o.montant;
+    for (let k = 0; reste > 0 && k < 120; k += 1) {
+      const difficile = moisDifficile === k;
+      const net = difficile ? o.base * NET * (20 / 30) : o.base * NET;
+      /* Le plafond se juge sur le net de CHAQUE mois, comme au formulaire. */
+      const plafond = plafonner ? Math.floor(net * PLAFOND / 100) : Infinity;
+      const prevu = Math.min(o.mens, reste);
+      const ret = Math.min(prevu, plafond);
+      reste -= ret;
+      lignes.push({ k, ret, reste, net, plafonne: ret < prevu });
+    }
+    return lignes;
+  };
+
+  const rend = () => {
+    const o = lit();
+    const pctEff = o.mens / o.base * 100;
+    $('baseDit').textContent = 'Salaire de base : ' + F(o.base);
+    $('pctDit').textContent = s.pct + ' %';
+    $('dureeDit').textContent = s.duree;
+
+    const lignes = simule(o, null, false);
+    const n = lignes.length;
+    const dernier = lignes[n - 1];
+    $('mensDit').innerHTML = F(o.mens) + ' <small>soit ' + P(pctEff) + ' du salaire de base</small>';
+    $('lienDit').innerHTML = s.levier === 'part'
+      ? 'La part fixe la durée : <b>' + n + ' mois</b>, de ' + moisDe(o.premier, 0) + ' à ' + moisDe(o.premier, n - 1) + '.'
+      : 'La durée fixe la part : <b>' + P(pctEff) + ' du salaire</b>, fin en ' + moisDe(o.premier, n - 1) + '.';
+
+    /* LE MÊME JUGE QU'AU BULLETIN : le net habituel, pas le salaire de base.
+       Juger le formulaire sur la base laissait passer un prêt que chaque
+       bulletin aurait ensuite réduit. */
+    const plafondNet = Math.floor(o.base * NET * PLAFOND / 100);
+    const trop = o.mens > plafondNet;
+    $('alerte').hidden = !trop;
+    $('alerte').textContent = trop
+      ? 'Au-delà du plafond de la Maison : ' + PLAFOND + ' % du net habituel, soit ' + F(plafondNet) + ' par mois. Le Trône refuserait d’enregistrer ce prêt ainsi : baissez la part, ou allongez la durée.'
+      : '';
+
+    $('echeancier').innerHTML = lignes.map((l, i) =>
+      '<tr class="' + (i === n - 1 ? 'fin' : '') + '"><td>' + moisDe(o.premier, l.k) + '</td><td class="m">' + F(l.ret)
+      + '</td><td class="m">' + (l.reste > 0 ? F(l.reste) : 'soldé') + '</td></tr>').join('');
+
+    /* Le bulletin montre la troisième échéance, ou la dernière si le prêt est plus court. */
+    const difficile = $('difficile').checked;
+    const k = Math.min(2, n - 1);
+    const avecDiff = simule(o, difficile ? k : null, true);
+    const l = avecDiff[k];
+    $('bMois').textContent = moisDe(o.premier, k);
+    $('bQui').textContent = o.nom + ' · prêt de ' + F(o.montant) + ' sans intérêt';
+    $('bBase').textContent = F(o.base);
+    $('bAbs').hidden = !difficile;
+    $('bAbsV').textContent = '− ' + F(o.base / 3);
+    $('bNet').textContent = F(l.net);
+    $('bRang').textContent = 'échéance ' + (k + 1) + ' sur ' + avecDiff.length + (l.plafonne ? ', ramenée au plafond' : '');
+    $('bRet').textContent = '− ' + F(l.ret);
+    $('bTotal').textContent = F(l.net - l.ret);
+    $('bApres').innerHTML = 'Reste dû après ce bulletin : <b>' + (l.reste > 0 ? F(l.reste) : 'rien, le prêt est soldé') + '</b>.';
+
+    if (trop) {
+      $('bMorale').innerHTML = 'Ce prêt dépasse le plafond même un mois ordinaire : le Trône ne l’enregistrerait pas ainsi, voyez l’alerte du formulaire.';
+    } else if (difficile && l.plafonne) {
+      const ecart = lignes[k].ret - l.ret;
+      const fin = avecDiff[avecDiff.length - 1];
+      $('bMorale').innerHTML = 'Ce mois-ci, la retenue prévue dépasserait le plafond sur un net amputé. Le Trône propose donc <b>'
+        + F(l.ret) + '</b> au lieu de ' + F(lignes[k].ret) + ', et <b>reporte les ' + F(ecart) + ' à la fin du prêt</b> : '
+        + (avecDiff.length > n
+          ? 'il se termine désormais en ' + moisDe(o.premier, avecDiff.length - 1) + ', un mois plus tard.'
+          : 'la dernière retenue passe de ' + F(dernier.ret) + ' à ' + F(fin.ret) + ', et la date de fin ne bouge pas.');
+    } else if (difficile) {
+      $('bMorale').innerHTML = 'Même amputé, le net du mois laisse la retenue sous le plafond : elle reste de <b>' + F(l.ret)
+        + '</b>. Montez la part du salaire pour voir le plafond jouer.';
+    } else {
+      $('bMorale').innerHTML = 'Un mois ordinaire : la retenue prévue passe telle quelle, et le prêt avance d’une échéance.';
+    }
+  };
+
+  const bascule = (levier) => {
+    const o = lit();
+    s.levier = levier;
+    if (levier === 'part') {
+      s.pct = Math.min(50, Math.max(5, Math.round(o.mens / o.base * 100)));
+      $('pct').value = s.pct;
+    } else {
+      s.duree = Math.min(60, Math.max(1, Math.ceil(o.montant / o.mens)));
+    }
+    $('parPart').classList.toggle('on', levier === 'part');
+    $('parDuree').classList.toggle('on', levier === 'duree');
+    $('blocPart').hidden = levier !== 'part';
+    $('blocDuree').hidden = levier !== 'duree';
+    rend();
+  };
+  $('parPart').onclick = () => bascule('part');
+  $('parDuree').onclick = () => bascule('duree');
+  $('pct').oninput = (e) => { s.pct = Number(e.target.value); rend(); };
+  $('moins').onclick = () => { s.duree = Math.max(1, s.duree - 1); rend(); };
+  $('plus').onclick = () => { s.duree = Math.min(60, s.duree + 1); rend(); };
+  ['membre', 'montant', 'premier', 'difficile'].forEach((id) => { $(id).addEventListener('input', rend); $(id).addEventListener('change', rend); });
+  rend();
+})();
+</script>
+</body>
+</html>
