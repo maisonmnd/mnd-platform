@@ -737,6 +737,22 @@ export const poseApresSonHeure = (a: { date: string; time?: string; creeLe?: str
   return Number.isFinite(quand) && momentDuRdv(a) <= quand;
 };
 
+/* ══ « C'EST CONFIRMÉ » NE SE DIT QUE D'UN RENDEZ-VOUS CONFIRMÉ — 18 sept. 2026 ══
+   Arbitrage de Yéman (maquette `maquette-le-journal-des-envois.html`) : un
+   rendez-vous posé « en attente », qu'il vienne du site ou du Trône, reçoit sa
+   confirmation le jour où il passe à « confirmé », jamais avant. Avant, tout
+   rendez-vous non annulé la recevait, et la cliente du site lisait « c'est
+   confirmé » sur une place que la Maison n'avait pas encore acceptée.
+   Sans fiche, pas de numéro : il attend sa fiche (`rattachementsAFaire`,
+   shared/demandes). À venir, jugé à l'heure du salon.
+
+   RECOPIÉ À L'IDENTIQUE dans la fonction confirmation-rdv ; éprouvé par
+   `verifie-envois`. */
+export const estAConfirmer = (
+  a: { status: string; clientId?: string; date: string; time?: string },
+  maintenantMs: number,
+): boolean => a.status === 'confirmé' && !!a.clientId && momentDuRdv(a) > maintenantMs;
+
 /* ══ CE QUE LA MAISON A ÉCRIT DANS UNE NOTE — 5 septembre 2026 ══════
    « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
    quelque part sur la fiche du client aussi ? » (Yéman).

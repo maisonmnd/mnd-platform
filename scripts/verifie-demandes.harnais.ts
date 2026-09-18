@@ -10,7 +10,7 @@
    jamais des exemples affichés à l'écran. */
 import {
   telephoneNormalise, telephoneMasque, demandesTriees, doublonDe, messageDeRappel,
-  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, type Demande,
+  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, type Demande,
 } from '../src/shared/demandes';
 import { porteLaDevise, signeLeMessage, DEVISE_COMPLETE } from '../src/shared/identite';
 
@@ -100,6 +100,25 @@ dit('sans page ni campagne, rien d’inventé', false,
 const T0 = Date.parse('2026-09-17T12:00:00.000Z');
 dit('deux heures', 'il y a 2 h', depuisQuand('2026-09-17T10:00:00.000Z', T0));
 dit('hier', 'hier', depuisQuand('2026-09-16T11:00:00.000Z', T0));
+
+/* ── LA RÉSERVATION DU SITE, CONFIRMÉE SANS FICHE — 18 septembre 2026 ──
+   Arbitrage de Yéman : la valider depuis le calendrier crée sa fiche, ou la
+   rattache à celle qui porte déjà ce numéro. Le juge regarde le résultat,
+   d'où que vienne la confirmation. */
+const dRdv = demande({ id: 'd-rdv', genre: 'rdv', apptId: 'rdv-1', date: '2026-09-20', time: '10:00' });
+const rdvSite = (o: { status?: string; clientId?: string } = {}) => ({ id: 'rdv-1', status: 'confirmé', clientId: '', ...o });
+dit('en attente : rien à rattacher', 0, rattachementsAFaire([rdvSite({ status: 'en attente' })], [dRdv], []).length);
+dit('confirmé sans fiche : une fiche neuve', [{ apptId: 'rdv-1', demande: 'd-rdv', existante: null }],
+  rattachementsAFaire([rdvSite()], [dRdv], []).map((r) => ({ apptId: r.apptId, demande: r.demande.id, existante: r.ficheExistante?.id ?? null })));
+dit('le numéro est déjà connu, sous une autre forme : on se rattache à sa fiche', 'cl-connue',
+  rattachementsAFaire([rdvSite()], [dRdv], [{ id: 'cl-connue', name: 'A. K.', phone: '01 97 00 00 00' }])[0]?.ficheExistante?.id);
+dit('une fiche archivée ne capte pas la réservation', null,
+  rattachementsAFaire([rdvSite()], [dRdv], [{ id: 'cl-archivee', name: 'A. K.', phone: '+2290197000000', archived: true }])[0]?.ficheExistante?.id ?? null);
+dit('déjà rattaché : plus rien à faire', 0, rattachementsAFaire([rdvSite({ clientId: 'cl-1' })], [dRdv], []).length);
+dit('un rendez-vous du Trône sans demande n’est pas concerné', 0,
+  rattachementsAFaire([{ id: 'rdv-trone', status: 'confirmé', clientId: '' }], [dRdv], []).length);
+dit('la fiche neuve porte un identifiant fixe : deux postes, une fiche', 'prospect-d-rdv',
+  ficheDepuisLaDemande(dRdv, 'p-initie').id);
 
 if (ko) {
   console.error(`\n${ko} vérification(s) en échec.`);

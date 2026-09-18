@@ -8,7 +8,8 @@
    les fonctions confirmation-rdv et avis-google. Une confirmation envoyée à
    une cliente déjà repartie, ou une réservation réelle privée de son rappel :
    les deux fautes se lisent ici. */
-import { momentDuRdv, poseApresSonHeure } from '../src/shared/agenda';
+import { readFileSync } from 'node:fs';
+import { momentDuRdv, poseApresSonHeure, estAConfirmer } from '../src/shared/agenda';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -41,6 +42,32 @@ dit('sans aucune date de pose, on ne présume rien', false, poseApresSonHeure({ 
 dit('une date de pose illisible ne présume rien non plus', false, poseApresSonHeure({ ...rdv, creeLe: 'hier' }));
 dit('posé dans le passé puis déplacé à la semaine prochaine : ses messages reviennent', false,
   poseApresSonHeure({ date: '2026-09-20', time: '10:00', creeLe: '2026-09-13T15:00:00.000Z' }));
+
+/* ── « C'EST CONFIRMÉ » SEULEMENT D'UN RENDEZ-VOUS CONFIRMÉ — 18 septembre ──
+   Arbitrage de Yéman : un rendez-vous « en attente », du site ou du Trône,
+   attend d'être confirmé ; sans fiche, il attend sa fiche. */
+const maintenant = Date.parse('2026-09-18T08:00:00.000Z');
+const prochain = { date: '2026-09-20', time: '10:00', clientId: 'cl-1' };
+dit('confirmé, avec fiche, à venir : la confirmation part', true, estAConfirmer({ ...prochain, status: 'confirmé' }, maintenant));
+dit('en attente : rien encore', false, estAConfirmer({ ...prochain, status: 'en attente' }, maintenant));
+dit('annulé : jamais', false, estAConfirmer({ ...prochain, status: 'annulé' }, maintenant));
+dit('honoré : jamais', false, estAConfirmer({ ...prochain, status: 'honoré' }, maintenant));
+dit('confirmé mais sans fiche (réservation du site) : il attend sa fiche', false,
+  estAConfirmer({ ...prochain, clientId: '', status: 'confirmé' }, maintenant));
+dit('confirmé mais déjà passé, à l’heure du salon : rien', false,
+  estAConfirmer({ date: '2026-09-18', time: '08:30', clientId: 'cl-1', status: 'confirmé' }, maintenant));
+dit('confirmé plus tard dans la journée : oui', true,
+  estAConfirmer({ date: '2026-09-18', time: '10:00', clientId: 'cl-1', status: 'confirmé' }, maintenant));
+
+/* LA COPIE DE LA FONCTION NE DÉRIVE PAS : une fonction Edge n'importe rien
+   du dépôt, la règle y est recopiée. Les deux phrases doivent rester
+   identiques, sinon le Trône et l'envoi ne jugent plus pareil. */
+const regle = "a.status === 'confirmé' && !!a.clientId && momentDuRdv(a) > maintenantMs";
+dit('shared/agenda.ts porte la règle', true, readFileSync('src/shared/agenda.ts', 'utf8').includes(regle));
+dit('confirmation-rdv porte la même, mot pour mot', true,
+  readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8').includes(regle));
+dit('… et s’en sert pour choisir', true,
+  readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8').includes('estAConfirmer(a, maintenant)'));
 
 if (ko) {
   console.log(`\n${ko} échec(s).`);

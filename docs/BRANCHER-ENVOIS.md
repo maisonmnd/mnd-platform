@@ -143,6 +143,41 @@ installé Ma Couronne reçoit sa confirmation immédiatement, gratuitement. Le
 WhatsApp s'ajoutera le jour où la vérification Meta aboutira — sans qu'on
 retouche une ligne de code.
 
+### Depuis le 18 septembre 2026
+
+Maquette `public/maquette-le-journal-des-envois.html`, arbitrages tranchés :
+
+- **« C'est confirmé » ne part que pour un rendez-vous au statut
+  « confirmé »**, d'où qu'il vienne. Un rendez-vous « en attente » attend ;
+  il reçoit sa confirmation dans les dix minutes qui suivent sa validation.
+- **L'identifiant Meta se garde** (journal `envois` et fil `messages_wa`) :
+  « remis », « lu » et « non remis » se lisent dans le Trône, onglet
+  Conversations › Envois automatiques, et la confirmation paraît dans le fil
+  de la cliente.
+- Recoller `confirmation-rdv` EN ENTIER. Sa réponse porte `version` :
+  `2026-09-18-a`.
+
+## Étape 3 ter — L'accusé d'une réservation du site (18 septembre 2026)
+
+« Accusé tout de suite, puis confirmation » (Yéman). La visiteuse qui réserve
+une place sur le site reçoit un mot sur WhatsApp dans la seconde, envoyé par
+`demande-submit` lui-même. Seulement pour une place réservée : une demande
+sans créneau n'en reçoit pas. Recoller `demande-submit` EN ENTIER.
+
+### Le modèle Meta, à faire approuver
+
+Nom : `demande_recue`, catégorie **UTILITY**, français.
+
+> Bonjour {{1}}, la Maison MND a bien reçu votre demande de rendez-vous pour
+> {{2}}. Nous vous confirmons très vite, sur ce numéro.
+
+({{1}} = prénom, {{2}} = le moment en clair : « vendredi 20 septembre à 10 h ».)
+
+Aucun nouveau secret : `WA_TOKEN` et `WA_PHONE_ID` sont déjà posés pour toutes
+les fonctions. `WA_TEMPLATE_ACCUSE` n'est à poser que si le modèle porte un
+autre nom. Tant que Meta ne l'a pas approuvé, l'accusé ne part pas, la place
+reste réservée, et le journal dit « modèle pas encore approuvé chez Meta ».
+
 ## Étape 4 — Allumer les SMS (fournisseur à choisir)
 
 Il faut un compte chez un fournisseur d'envoi SMS qui couvre le Bénin

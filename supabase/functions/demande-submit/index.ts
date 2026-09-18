@@ -282,6 +282,137 @@ async function alerteLePersonnel(titre: string, corps: string, url: string): Pro
   return n;
 }
 
+/* ══ L'ACCUSÉ, DANS LA SECONDE — 18 septembre 2026 ═══════════════════════
+   « Accusé tout de suite, puis confirmation » (Yéman, maquette
+   `maquette-le-journal-des-envois.html`). La visiteuse qui vient de réserver
+   reçoit un mot sur WhatsApp avant même d'avoir fermé la page : sa demande
+   est arrivée, la Maison confirme bientôt. « C'est confirmé » ne partira
+   qu'au moment où la Maison validera (confirmation-rdv).
+
+   ENVOYÉ D'ICI, PAS PAR LE BALAYAGE : c'est le seul message qu'elle attend en
+   fermant la page, et dix minutes de silence après « Réserver » se lisent
+   comme un échec.
+
+   SEULEMENT POUR UNE PLACE RÉSERVÉE (arbitrage ③) : une question sans
+   créneau reçoit la réponse de la Maison, à la main. Elle a coché la case
+   qui autorise la Maison à la contacter au sujet de sa demande : l'accusé
+   n'en dit pas plus. Modèle Meta à part, `demande_recue` (UTILITY), car une
+   demande reçue n'est pas un rendez-vous confirmé.
+
+   JAMAIS UN REFUS DE RÉSERVATION : sans clés Meta, il ne part pas, sans
+   bruit ; un échec s'écrit au journal `envois` avec son motif, et la place
+   reste réservée. L'identifiant Meta se garde, au journal et dans le fil :
+   c'est lui qui rapproche « remis » et « lu » quand le webhook les apporte. */
+const TZ = 'Africa/Porto-Novo';
+
+/** « 10 h », « 14 h 30 » : l'heure telle qu'on la dit. Recopiée de
+    confirmation-rdv (une fonction Edge n'importe rien du dépôt). */
+const heureLisible = (hhmm: string | undefined): string => {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+};
+
+/** « vendredi 20 septembre ». Recopiée de confirmation-rdv. */
+const jourEnClair = (iso: string): string => {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
+    });
+  } catch { return iso; }
+};
+
+async function envoieLAccuse(o: {
+  apptId: string; demandeId: string; branchId: string; prenom: string; telephone: string; date: string; time: string;
+}): Promise<string> {
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  const MODELE = Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue';
+  if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
+  /* Meta veut le numéro international sans « + » ; le serveur l'a déjà mis
+     en E.164 (telephoneNormalise). */
+  const tel = o.telephone.replace(/\D/g, '');
+  if (!tel) return 'sans-numero';
+  const prenom = o.prenom || 'Madame';
+  const quand = `${jourEnClair(o.date)} à ${heureLisible(o.time)}`;
+
+  let statut = 'échec';
+  let detail: string | undefined;
+  let codeMeta: number | undefined;
+  let waId = '';
+  try {
+    /* Huit secondes au plus : la visiteuse attend la réponse du bouton. */
+    const garde = new AbortController();
+    const minuterie = setTimeout(() => garde.abort(), 8000);
+    const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: tel,
+        type: 'template',
+        template: {
+          name: MODELE,
+          language: { code: 'fr' },
+          components: [{
+            type: 'body',
+            parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }],
+          }],
+        },
+      }),
+      signal: garde.signal,
+    });
+    clearTimeout(minuterie);
+    const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+    waId = String(rep?.messages?.[0]?.id ?? '');
+    if (r.ok) {
+      statut = 'envoyé';
+      if (!waId) detail = 'accepté sans identifiant Meta';
+    } else {
+      codeMeta = Number(rep?.error?.code) || undefined;
+      detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+    }
+  } catch (e) {
+    detail = String(e);
+  }
+
+  const id = `acc-${o.apptId}-whatsapp`;
+  const maintenant = new Date().toISOString();
+  await admin.from('envois').upsert({
+    id,
+    branch_id: o.branchId,
+    data: {
+      id, branchId: o.branchId, type: 'accuse', canal: 'whatsapp',
+      apptId: o.apptId, demandeId: o.demandeId, prenom, numero: `+${tel}`,
+      dateRdv: o.date, heure: o.time, statut,
+      ...(detail ? { detail: detail.slice(0, 300) } : {}),
+      ...(codeMeta ? { codeMeta } : {}),
+      ...(waId ? { waMessageId: waId } : {}),
+      quand: maintenant,
+    },
+  }, { onConflict: 'id' });
+
+  /* DANS LE FIL : la Maison voit ce que la visiteuse a reçu avant de lui
+     répondre. Même forme que les rappels (rappels-j1). */
+  if (waId) {
+    const idFil = `wa-${waId}`;
+    const { error } = await admin.from('messages_wa').upsert({
+      id: idFil,
+      branch_id: o.branchId,
+      data: {
+        id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: '',
+        texte: `Bonjour ${prenom}, la Maison MND a bien reçu votre demande de rendez-vous pour ${quand}. Nous vous confirmons très vite, sur ce numéro.`,
+        type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône',
+      },
+    }, { onConflict: 'id' });
+    if (error) console.error('demande-submit: fil', error.message);
+  }
+  return statut;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
@@ -392,11 +523,18 @@ Deno.serve(async (req) => {
        rappellera : on ne perd jamais une visiteuse pour une ligne. */
   }
 
+  /* L'ACCUSÉ — pour une place réellement posée, jamais pour une question.
+     Un échec ne défait rien : la place est prise, le journal le dira. */
+  const accuse = apptId
+    ? await envoieLAccuse({ apptId, demandeId: id, branchId, prenom, telephone, date, time })
+      .catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; })
+    : 'sans-place';
+
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(
     avecPlace ? 'Place demandée depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
     `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
     avecPlace ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0);
-  return json({ ok: true, id, apptId, sent });
+  return json({ ok: true, id, apptId, sent, accuse });
 });

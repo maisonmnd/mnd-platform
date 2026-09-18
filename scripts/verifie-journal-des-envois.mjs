@@ -4,19 +4,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/* AUCUN MESSAGE POUR UN RENDEZ-VOUS POSE APRES SON HEURE, EPROUVE.
+/* LE JOURNAL DES ENVOIS, EPROUVE (18 septembre 2026).
 
-   Le juge vit dans src/shared/agenda.ts (poseApresSonHeure), recopie
-   a l identique dans confirmation-rdv et avis-google.
+   La lecture vit dans src/shared/envois.ts : ce qu un envoi est devenu,
+   le motif d un echec en francais, ce qu un jour compte.
  */
 
 const racine = path.resolve(import.meta.dirname, '..');
-const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-envois-'));
+const dossier = mkdtempSync(path.join(tmpdir(), 'verifie-journal-des-envois-'));
 const sortie = path.join(dossier, 'harnais.mjs');
 
 try {
   await build({
-    entryPoints: [path.join(racine, 'scripts/verifie-envois.harnais.ts')],
+    entryPoints: [path.join(racine, 'scripts/verifie-journal-des-envois.harnais.ts')],
     bundle: true,
     format: 'esm',
     platform: 'node',

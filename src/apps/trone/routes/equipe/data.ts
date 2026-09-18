@@ -419,15 +419,26 @@ export const REVIEW_LINK_DEFAUT = 'https://g.page/r/CYEt1s4BqvZDEBE/review';
 export type Envoi = {
   id: string;
   branchId?: string;
-  type: 'rappel-j1' | 'avis-google';
+  /** « confirmation » (confirmation-rdv) et « accuse » (demande-submit, 18
+      septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
+      être déclaré. Le journal les lit tous (`shared/envois`). */
+  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet';
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
+  /** Le numéro et le prénom, quand il n'y a pas encore de fiche : l'accusé
+      part vers une visiteuse du site qui n'en a pas. */
+  numero?: string;
+  prenom?: string;
+  /** Le code d'erreur de Meta : c'est lui qui dit le motif en français. */
+  codeMeta?: number;
   /** La pièce concernée — les envois d'avis n'ont pas de rendez-vous. */
   invoiceId?: string;
   clientId?: string;
   dateRdv: string;
   heure?: string;
-  statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main';
+  /** « sans-numero » : la fiche ne porte aucun numéro (18 septembre). Il
+      verrouille comme « sans-abonnement » : réessayer ne l'inventera pas. */
+  statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main' | 'sans-numero' | 'en cours';
   /** L'IDENTIFIANT META DU MESSAGE — le fil qui relie l'envoi à son accusé.
       Sans lui, l'accusé que Meta rapporte minutes plus tard ne se rapproche
       de rien, et « envoyé » reste le dernier mot pour toujours. */

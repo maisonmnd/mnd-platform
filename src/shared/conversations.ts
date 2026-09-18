@@ -1,5 +1,6 @@
 import { createStore, useStore } from './store';
 import { bindCollection, bindDocument } from './sync';
+import { estEnvoiAutomatique } from './envois';
 
 /* ══ LES CONVERSATIONS — 11 septembre 2026 ═══════════════════════════
    Maquette `public/maquette-les-conversations.html`, validée.
@@ -482,6 +483,17 @@ export function filsDeLaMaison(
     liste.sort((a, b) => a.quand.localeCompare(b.quand));
     const tete = parNumero.get(numero);
     const dernier = liste[liste.length - 1];
+    /* ══ UN MODÈLE PARTI TOUT SEUL NE RÉPOND À PERSONNE — 18 septembre 2026 ══
+       Un fil se disait « répondu » dès que son dernier message était sortant.
+       Or la Maison envoie seule ses rappels (depuis le 11), ses
+       confirmations et ses accusés (depuis le 18) : une cliente qui écrit
+       « je peux décaler ? », puis reçoit sa confirmation automatique, voyait
+       son fil passer pour traité, et l’alarme s’éteignait sans que personne
+       ait lu sa question. Le juge regarde donc le dernier message qui COMPTE :
+       un modèle envoyé automatiquement n’en est pas un. Ce qu’une personne
+       écrit de sa main, modèle ou non, répond toujours. */
+    const dernierQuiCompte = [...liste].reverse()
+      .find((x) => !(x.sens === 'sortant' && !!x.modele && estEnvoiAutomatique(x.parQui))) ?? dernier;
     fils.push({
       numero,
       /* `clientId` reste celui d'une CLIENTE : une tête d'équipe ne l'est
@@ -494,7 +506,7 @@ export function filsDeLaMaison(
       messages: liste,
       dernier,
       fenetre: fenetreDe(liste, maintenant),
-      attendUneReponse: dernier.sens === 'entrant',
+      attendUneReponse: dernierQuiCompte.sens === 'entrant',
       tiroir: tete?.tiroir ?? tiroirDesMessages(liste),
       fiche: tete?.fiche,
     });

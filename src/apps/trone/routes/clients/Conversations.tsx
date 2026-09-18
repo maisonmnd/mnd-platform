@@ -21,7 +21,9 @@ import { useFournisseurs } from '../../../../shared/stock';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
-import { useStaff as useEquipe } from '../equipe/data';
+import { useStaff as useEquipe, useEnvois } from '../equipe/data';
+import { EnvoisAutomatiques } from './EnvoisAutomatiques';
+import { compteDuJournal, envoisDeLaPeriode, jourDuSalon, estEnvoiAutomatique, modeleDit } from '../../../../shared/envois';
 import { heuresDuJour } from './_heures';
 import { ClientPicker } from './_shared';
 import { useEstDirection } from '../_vie';
@@ -156,6 +158,16 @@ export default function Conversations() {
   const [messages] = useMessagesWa();
   const [prives] = useFilsPrives();
   const [params, setParams] = useSearchParams();
+  /* ══ LES ENVOIS AUTOMATIQUES — 18 septembre 2026 ═══════════════════
+     Arbitrage ④ : le journal de ce que la Maison envoie seule vit ICI, à
+     côté des fils. Le bouton dit ce qui est à regarder aujourd'hui avant
+     qu'on l'ouvre. Les fils restent montés pendant qu'on lit le journal :
+     y revenir retrouve la conversation là où on l'avait laissée. */
+  const [vue, setVue] = useState<'fils' | 'envois'>('fils');
+  const [lesEnvois] = useEnvois();
+  const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
+    lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
+  )).aRegarder, [lesEnvois]);
   const [texte, setTexte] = useState('');
   const [envoiEnCours, setEnvoi] = useState(false);
   const [voirPrives, setVoirPrives] = useState(false);
@@ -639,6 +651,11 @@ export default function Conversations() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
               Les clientes
             </Button>
+            <Button variant={vue === 'envois' ? 'copper' : 'ghost'} size="sm" onClick={() => setVue((v) => (v === 'envois' ? 'fils' : 'envois'))}>
+              {vue === 'envois'
+                ? 'Revenir aux conversations'
+                : `Envois automatiques${aRegarderAujourdhui > 0 ? ` · ${aRegarderAujourdhui} à regarder` : ''}`}
+            </Button>
             {(modelesDuMois.envoyes > 0 || modelesDuMois.reponses > 0) && (
               <span
                 className="trc-sub"
@@ -685,7 +702,17 @@ export default function Conversations() {
         </div>
       )}
 
-      <div className="trc-convs">
+      {vue === 'envois' && (
+        <EnvoisAutomatiques
+          onOuvrirLeFil={(numero) => {
+            const n = numeroWa(numero);
+            setVue('fils');
+            if (n) setParams({ n });
+          }}
+        />
+      )}
+
+      <div className="trc-convs" style={vue === 'envois' ? { display: 'none' } : undefined}>
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
           {/* LES TROIS TIROIRS — la direction seule les voit tous. Le compte
@@ -739,7 +766,7 @@ export default function Conversations() {
               <span className="trc-conv__c">
                 <span className="trc-conv__n">{f.nom}</span>
                 <span className="trc-conv__d">
-                  {f.dernier.sens === 'sortant' ? (f.dernier.parQui === 'Le Trône' ? 'Le Trône : ' : 'Vous : ') : ''}
+                  {f.dernier.sens === 'sortant' ? (estEnvoiAutomatique(f.dernier.parQui) ? 'Le Trône : ' : 'Vous : ') : ''}
                   {f.dernier.sens === 'entrant' && f.dernier.piece && !f.dernier.texte.startsWith(f.dernier.piece.nom)
                     ? `${f.dernier.piece.nom} · ` : ''}
                   {f.dernier.texte}
@@ -910,8 +937,8 @@ export default function Conversations() {
                           </>
                         ) : m.texte}
                         <span className="trc-b__h">
-                          {m.modele ? `Modèle ${m.modele} · ` : ''}
-                          {m.parQui === 'Le Trône' ? 'Parti tout seul · ' : ''}
+                          {m.modele ? `Modèle ${modeleDit(m.modele)} · ` : ''}
+                          {estEnvoiAutomatique(m.parQui) ? 'Parti tout seul · ' : ''}
                           {m.bouton?.id ? 'A touché un bouton · ' : ''}
                           {heure(m.quand)}
                           {m.etat === 'lu' ? ' · lu' : m.etat === 'remis' ? ' · remis'

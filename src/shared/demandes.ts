@@ -201,6 +201,49 @@ export function ficheDepuisLaDemande(d: Demande, persona: string): Client {
   return fiche;
 }
 
+/* ══ LA RÉSERVATION DU SITE, CONFIRMÉE SANS FICHE — 18 septembre 2026 ══
+   Arbitrage de Yéman : valider depuis le calendrier une réservation du site
+   crée sa fiche toute seule, au segment Prospect, exactement comme « En faire
+   une cliente ». Sans fiche, pas de numéro, donc pas de confirmation : la
+   cliente attendait en silence une place que la Maison avait acceptée.
+
+   UN SEUL JUGE POUR SEPT CHEMINS. Un rendez-vous passe à « confirmé » depuis
+   le calendrier, le carnet, le tableau de bord, À faire… Brancher la fiche
+   sur chacun, c'est sept occasions d'en oublier un. Ce juge regarde le
+   résultat, d'où qu'il vienne : un rendez-vous confirmé, sans fiche, que
+   porte une demande du site.
+
+   LA FICHE QUI A DÉJÀ CE NUMÉRO L'EMPORTE : deux fiches pour une tête, ce
+   sont deux histoires qui ne se retrouvent plus. Pur ; éprouvé par
+   `verifie-demandes`. */
+export type Rattachement = {
+  apptId: string;
+  demande: Demande;
+  /** La fiche qui porte déjà ce numéro ; absente, on la crée. */
+  ficheExistante?: Pick<Client, 'id' | 'name'>;
+};
+
+export function rattachementsAFaire(
+  appts: readonly { id: string; status: string; clientId?: string }[],
+  demandes: readonly Demande[],
+  clients: readonly Pick<Client, 'id' | 'name' | 'phone' | 'archived'>[],
+): Rattachement[] {
+  const parRdv = new Map<string, Demande>();
+  for (const d of demandes) if (d.apptId) parRdv.set(d.apptId, d);
+  const out: Rattachement[] = [];
+  for (const a of appts) {
+    if (a.status !== 'confirmé' || a.clientId) continue;
+    const demande = parRdv.get(a.id);
+    if (!demande) continue;
+    const numero = telephoneNormalise(demande.telephone);
+    const ficheExistante = numero
+      ? clients.find((c) => !c.archived && telephoneNormalise(c.phone ?? '') === numero)
+      : undefined;
+    out.push({ apptId: a.id, demande, ...(ficheExistante ? { ficheExistante: { id: ficheExistante.id, name: ficheExistante.name } } : {}) });
+  }
+  return out;
+}
+
 /* ── LE MAGASIN ET SA LIAISON ────────────────────────────────────────── */
 export const demandesStore = createStore<Demande[]>('mnd_demandes', []);
 export const useDemandes = () => useStore(demandesStore);

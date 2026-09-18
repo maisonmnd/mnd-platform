@@ -79,6 +79,23 @@ const poseApresSonHeure = (a: { date: string; time?: string; creeLe?: string }, 
   return Number.isFinite(quand) && momentDuRdv(a) <= quand;
 };
 
+/* ══ « C'EST CONFIRMÉ » NE SE DIT QUE D'UN RENDEZ-VOUS CONFIRMÉ — 18 sept. 2026 ══
+   Arbitrage de Yéman (maquette `maquette-le-journal-des-envois.html`). Avant,
+   tout rendez-vous non annulé était confirmé : la cliente du site lisait
+   « c'est confirmé » sur une place encore en attente. Désormais le message
+   part quand le rendez-vous PASSE à « confirmé », d'où qu'il vienne ; son
+   `updated_at` bouge à ce moment-là, le balayage le voit dans les dix minutes.
+   Recopié à l'identique de `shared/agenda.ts` ; éprouvé par `verifie-envois`. */
+const estAConfirmer = (
+  a: { status: string; clientId?: string; date: string; time?: string },
+  maintenantMs: number,
+): boolean => a.status === 'confirmé' && !!a.clientId && momentDuRdv(a) > maintenantMs;
+
+/** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
+    vraiment évite de chercher une panne dans un fichier qui n'est pas celui
+    qu'on croit déployé. */
+const VERSION = '2026-09-18-a';
+
 /** L'heure de pose signée par la base, rendez-vous par rendez-vous. Une trace
     absente (rendez-vous d'avant 0092) laisse la place à `creeLe`. */
 // deno-lint-ignore no-explicit-any
@@ -189,8 +206,7 @@ Deno.serve(async (req) => {
        sur un rituel d'hier, ou déjà tenu, ferait douter de tout le reste. Le
        passé se juge À L'HEURE, pas au jour : un rendez-vous de 10 h confirmé
        à 16 h est un rendez-vous d'hier. */
-    .filter((a) => a.status !== 'annulé' && a.status !== 'honoré' && a.date >= aujourdhui && a.clientId
-      && momentDuRdv(a) > maintenant);
+    .filter((a) => a.date >= aujourdhui && estAConfirmer(a, maintenant));
 
   /* POSÉ APRÈS SON HEURE : aucun message, jamais (voir `poseApresSonHeure`). */
   const poses = await posesSignees(sb, candidats.map((a) => a.id));
@@ -241,7 +257,14 @@ Deno.serve(async (req) => {
   const WA_TEMPLATE = Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv';
 
   const aInserer: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
-  const consigne = (canal: string, a: Rdv, statut: string, detail?: string) => {
+  /* ══ L'IDENTIFIANT META ET LE CODE SE GARDENT — 18 septembre 2026 ══════
+     « Comment retrouver toutes les confirmations ? » (Yéman). Le journal
+     écrivait « envoyé » dès que Meta acceptait, sans l'identifiant du
+     message : l'accusé que le webhook reçoit ensuite (remis, lu, non remis)
+     ne se rapprochait de rien. C'est la leçon des rappels du 11 septembre,
+     appliquée ici. Le code d'erreur de Meta se garde aussi : c'est lui que
+     le Trône traduit en motif lisible (`motifEnClair`, shared/envois). */
+  const consigne = (canal: string, a: Rdv, statut: string, detail?: string, waMessageId?: string, codeMeta?: number) => {
     aInserer.push({
       id: `conf-${a.id}-${canal}`,
       branch_id: a.branchId ?? null,
@@ -249,7 +272,28 @@ Deno.serve(async (req) => {
         id: `conf-${a.id}-${canal}`, branchId: a.branchId, type: 'confirmation', canal,
         apptId: a.id, clientId: a.clientId, dateRdv: a.date, heure: a.time,
         statut, ...(detail ? { detail: detail.slice(0, 300) } : {}),
+        ...(waMessageId ? { waMessageId } : {}),
+        ...(codeMeta ? { codeMeta } : {}),
         quand: new Date().toISOString(),
+      },
+    });
+  };
+
+  /* ══ LA CONFIRMATION PARAÎT DANS LE FIL — 18 septembre 2026 ═══════════
+     Comme les rappels depuis le 11 : ouvrir la conversation d'une cliente
+     dit tout ce qu'elle a reçu, y compris ce que le Trône a envoyé seul.
+     Identifiant déduit de celui de Meta, pour que l'accusé du webhook
+     retrouve sa ligne. */
+  const auFil: { id: string; branch_id: string | null; data: Record<string, unknown> }[] = [];
+  const consigneAuFil = (a: Rdv, numero: string, waId: string, texte: string) => {
+    const id = `wa-${waId}`;
+    auFil.push({
+      id,
+      branch_id: a.branchId ?? null,
+      data: {
+        id, waId, branchId: a.branchId, sens: 'sortant', numero, clientId: a.clientId,
+        texte, type: 'text', quand: new Date().toISOString(), etat: 'en-route',
+        modele: WA_TEMPLATE, parQui: 'Le Trône',
       },
     });
   };
@@ -287,6 +331,12 @@ Deno.serve(async (req) => {
        approuvé attend deux variables : {{1}} le prénom, {{2}} le moment
        (« vendredi 28 août à 14:00 »). Sans les clés, on passe sans bruit. */
     const tel = numeroIntl(fiche?.phone);
+    /* SANS NUMÉRO, ON LE DIT AU JOURNAL (18 septembre) : la Maison voit qu'une
+       confirmation n'a pas pu partir, et peut appeler. « sans-numero »
+       verrouille comme « sans-abonnement » : réessayer ne l'inventera pas. */
+    if (WA_TOKEN && WA_PHONE_ID && !tel && !deja.has(`conf-${a.id}-whatsapp`)) {
+      consigne('whatsapp', a, 'sans-numero');
+    }
     if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`conf-${a.id}-whatsapp`)) {
       try {
         const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
@@ -306,8 +356,24 @@ Deno.serve(async (req) => {
             },
           }),
         });
-        if (r.ok) { consigne('whatsapp', a, 'envoyé'); nWa++; }
-        else consigne('whatsapp', a, 'échec', await r.text());
+        const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { code?: number; message?: string } };
+        const waId = String(rep?.messages?.[0]?.id ?? '');
+        if (r.ok && waId) {
+          consigne('whatsapp', a, 'envoyé', undefined, waId);
+          consigneAuFil(
+            a, tel, waId,
+            `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
+          );
+          nWa++;
+        } else if (r.ok) {
+          /* Accepté sans identifiant : on ne saura pas ce qu'il devient, et le
+             journal le dit plutôt que de promettre un suivi. */
+          consigne('whatsapp', a, 'envoyé', 'accepté sans identifiant Meta');
+          nWa++;
+        } else {
+          consigne('whatsapp', a, 'échec', String(rep?.error?.message ?? `HTTP ${r.status}`), undefined,
+            Number(rep?.error?.code) || undefined);
+        }
       } catch (e) {
         consigne('whatsapp', a, 'échec', String(e));
       }
@@ -320,9 +386,15 @@ Deno.serve(async (req) => {
   if (aInserer.length > 0) {
     await sb.from('envois').upsert(aInserer, { onConflict: 'id' });
   }
+  /* Le fil, s'il y a quelque chose à y mettre. Une erreur d'écriture ne fait
+     pas tomber l'envoi : la confirmation est partie, c'est l'essentiel. */
+  if (auFil.length > 0) {
+    const { error } = await sb.from('messages_wa').upsert(auFil, { onConflict: 'id' });
+    if (error) console.error('confirmation-rdv: fil', error.message);
+  }
 
   return new Response(
-    JSON.stringify({ vus: rdvs.length, ecartes: candidats.length - rdvs.length, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
+    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

@@ -60,6 +60,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
   return [...connus, ...nouveaux];
 };
 import { useReconcileClients } from './useReconcileClients';
+import { useRattacheLesReservations } from './useRattacheLesReservations';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
 import { useSansLocksVivant } from './useSansLocksVivant';
@@ -280,6 +281,8 @@ export default function Shell() {
 
   /* Toute réservation/facture Ma Couronne orpheline devient une vraie fiche cliente. */
   useReconcileClients();
+  /* La réservation du site confirmée trouve sa fiche (18 septembre). */
+  useRattacheLesReservations();
   /* L'archétype de chaque cliente se relit à chaque mouvement du carnet — sauf
      s'il a été figé à la main. Voir shared/persona.ts pour la pesée. */
   usePersonaVivant();

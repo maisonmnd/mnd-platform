@@ -114,6 +114,22 @@ const fils = filsDeLaMaison(
   [t({})], [], T,
 );
 dit('le fil sans réponse remonte', ['22997000000', '2290166144465'], fils.map((f) => f.numero));
+/* UN MODÈLE PARTI TOUT SEUL NE RÉPOND PAS (18 septembre) : sa question
+   reste en attente, même après la confirmation automatique. */
+const apresAuto = filsDeLaMaison([
+  m({ id: 'q1', numero: '2290166144465', quand: il(30), texte: 'Je peux décaler ?' }),
+  m({ id: 'q2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: 'Bonjour R., c’est confirmé…', modele: 'confirmation_rdv', parQui: 'Le Trône' }),
+], [t({})], [], T)[0];
+dit('une question suivie d’une confirmation automatique attend toujours', true, apresAuto.attendUneReponse);
+dit('… et le fil montre bien la confirmation en dernier', 'q2', apresAuto.dernier.id);
+dit('un rappel automatique d’avant (la Maison, automatiquement) non plus', true, filsDeLaMaison([
+  m({ id: 'r1', numero: '2290166144465', quand: il(30), texte: 'Bonjour' }),
+  m({ id: 'r2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: 'Rappel', modele: 'rappel_rdv', parQui: 'la Maison, automatiquement' }),
+], [t({})], [], T)[0].attendUneReponse);
+dit('un modèle envoyé à la main répond, lui', false, filsDeLaMaison([
+  m({ id: 'h1', numero: '2290166144465', quand: il(30), texte: 'Bonjour' }),
+  m({ id: 'h2', numero: '2290166144465', sens: 'sortant', quand: il(20), texte: '', modele: 'rappel_rdv', parQui: 'accueil@maison.bj' }),
+], [t({})], [], T)[0].attendUneReponse);
 dit('le fil connu porte le nom de la fiche', 'R. A.',
   fils.find((f) => f.numero === '2290166144465')?.nom);
 dit('… et son identifiant', 'c1', fils.find((f) => f.numero === '2290166144465')?.clientId);
