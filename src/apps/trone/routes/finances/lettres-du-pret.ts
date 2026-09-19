@@ -39,6 +39,10 @@ export type DonneesDesLettres = {
   premierMois: string;
   /** Le plafond de la Maison, en % du net ; absent tant qu'il n'est pas fixé. */
   plafondPct?: number;
+  /** SA PIÈCE D'IDENTITÉ, celle de sa fiche (19 septembre 2026), redessinée
+      en JPEG par `imageDuCoffre`. Absente : les cases recto et verso restent,
+      à coller à la main. */
+  identite?: { donnees: string; ratio: number };
 };
 
 const echappe = (s: string): string => s
@@ -105,6 +109,7 @@ const STYLE = `
   .cartes { display:flex; gap:5mm; }
   .carte-id { width:85.6mm; height:54mm; flex:none; border:.8pt dashed #8b8578; border-radius:3mm; display:flex; align-items:center;
               justify-content:center; text-align:center; font-size:8.2pt; color:var(--encre-d); padding:4mm; line-height:1.4; }
+  .carte-photo { display:block; max-width:100%; max-height:54mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
   .carte-id b { display:block; font-family:'Cormorant Garamond',Georgia,serif; font-size:12pt; font-weight:400; color:var(--indigo); margin-bottom:1mm; }
   .pied-page { margin-top:3mm; padding-top:2mm; border-top:.4pt solid var(--filet); font-size:7.2pt; color:var(--encre-d); display:flex; justify-content:space-between; gap:6mm; }
   @page { size:A4; margin:0; }
@@ -117,14 +122,22 @@ const STYLE = `
   }
 `;
 
-const carteIdentite = (titre: string): string => `
+const carteIdentite = (titre: string, identite?: DonneesDesLettres['identite']): string => (identite
+  /* LA CARTE DE LA FICHE, DÉJÀ POSÉE : dans la même hauteur que les deux
+     cases (54 mm), pour que chaque lettre tienne toujours sur sa page. */
+  ? `
+  <div class="identite">
+    <span class="etq">${titre}</span>
+    <img class="carte-photo" src="${identite.donnees}" alt="Pièce d'identité du membre" />
+  </div>`
+  : `
   <div class="identite">
     <span class="etq">${titre}</span>
     <div class="cartes">
       <div class="carte-id"><div><b>Recto</b>Coller ou agrafer ici la copie du recto</div></div>
       <div class="carte-id"><div><b>Verso</b>Coller ou agrafer ici la copie du verso</div></div>
     </div>
-  </div>`;
+  </div>`);
 
 /** Le pictogramme de la Maison, par une adresse entière : la fenêtre
     d'impression, ouverte sur une page blanche, ne résout pas les adresses
@@ -199,7 +212,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Le ………………… &middot; signature et cachet</div>
         </div>
       </div>
-      ${carteIdentite(`Copie de la carte d'identité, n° <span class="blanc" style="--l:40mm"></span>`)}
+      ${carteIdentite(`Copie de la carte d'identité, n° <span class="blanc" style="--l:40mm"></span>`, d.identite)}
       <div class="pied-page"><span>${echappe(maison)} &middot; demande de prêt sans intérêt</span><span>À conserver au dossier du membre</span></div>
     </div>
   </article>`;
@@ -248,7 +261,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Signature et cachet</div>
         </div>
       </div>
-      ${carteIdentite("Copie de la carte d'identité du membre")}
+      ${carteIdentite("Copie de la carte d'identité du membre", d.identite)}
       <div class="pied-page"><span>${echappe(maison)} &middot; prêt sans intérêt, autorisation de retenue sur salaire</span><span>Un exemplaire au membre, un au dossier</span></div>
     </div>
   </article>`;
@@ -279,12 +292,22 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
 }
 
 /** Ouvre les lettres dans une fenêtre d'impression. Faux si le navigateur
-    a refusé la fenêtre : l'appelant le dit, au lieu d'un clic sans effet. */
-export function ouvreLesLettresDuPret(d: DonneesDesLettres): boolean {
+    a refusé la fenêtre : l'appelant le dit, au lieu d'un clic sans effet.
+
+    LA FENÊTRE S'OUVRE AVANT D'ATTENDRE LA CARTE (19 septembre 2026) : ouverte
+    après une attente, le navigateur la prendrait pour une fenêtre surgissante
+    et la bloquerait. Elle dit qu'elle prépare, puis reçoit les lettres. */
+export function ouvreLesLettresDuPret(
+  d: DonneesDesLettres,
+  identite?: Promise<DonneesDesLettres['identite'] | null>,
+): boolean {
   const w = window.open('', '_blank');
   if (!w) return false;
-  w.document.open();
-  w.document.write(lettresDuPretHtml(d, adresseDuPicto()));
-  w.document.close();
+  const ecris = (html: string) => { w.document.open(); w.document.write(html); w.document.close(); };
+  if (!identite) { ecris(lettresDuPretHtml(d, adresseDuPicto())); return true; }
+  ecris('<!doctype html><meta charset="utf-8"><title>Lettres du prêt</title><p style="font-family:system-ui,sans-serif;margin:40px;color:#1E2150">Préparation des lettres, avec la pièce d’identité…</p>');
+  void identite
+    .catch(() => null)
+    .then((carte) => { if (!w.closed) ecris(lettresDuPretHtml({ ...d, identite: carte ?? undefined }, adresseDuPicto())); });
   return true;
 }

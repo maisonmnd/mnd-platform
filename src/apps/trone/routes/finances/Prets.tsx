@@ -33,12 +33,13 @@ import { useClients } from '../../../../shared/clients';
 import { signeLeMessage } from '../../../../shared/identite';
 import {
   usePrets, detteEnCours, etatsDesEmprunteurs, parUrgence, joursEntre,
-  retenueDeLaPart, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, moisDecale,
+  retenueDeLaPart, partDeLaRetenue, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, moisDecale,
   type EtatEmprunteur, type GenreEmprunteur, type Pret,
 } from '../../../../shared/foyer';
 import { useStaff } from '../equipe/data';
 import { usePayrollParameters, parametersFor, computePay, plafondDeLaRetenue, periodeLisible } from '../equipe/payroll';
 import { ouvreLesLettresDuPret } from './lettres-du-pret';
+import { identiteDuPersonnel, imageDuCoffre } from '../../../../shared/engagements-coffre';
 import { ClientPicker } from '../clients/_shared';
 import {
   ContrepartieMaison, montantsDuTiroir, libelleDuMontant, nettoieLeMontant,
@@ -157,6 +158,10 @@ export default function Prets() {
 
   /* ── Poser, corriger, effacer une ligne ── */
   const [pretOuvert, setPretOuvert] = useState(false);
+  /* LA RETENUE TAPÉE EN FRANCS, le temps de la frappe (19 septembre 2026) :
+     tant qu'on tape, le champ garde ce qu'on écrit ; ensuite il redit le
+     montant que la part retient. `null` = on ne tape pas. */
+  const [retenueTapee, setRetenueTapee] = useState<string | null>(null);
   const [pretEdite, setPretEdite] = useState<Pret | null>(null);
   const [moyensPose] = usePaymentMethods();
   const [fPret, setFPret] = useState({
@@ -267,6 +272,12 @@ export default function Prets() {
   const imprimerLesLettres = () => {
     if (!membreDuPret) return;
     const motif = fPret.motif.trim();
+    /* SA PIÈCE D'IDENTITÉ, DÉJÀ SUR LA LETTRE — 19 septembre 2026. « Que la
+       lettre à signer porte déjà la carte d'identité que j'ai mise sur le
+       profil de l'employé » (Yéman). Celle de sa fiche, lue au coffre (la
+       direction seule l'obtient) ; un PDF ou une absence laisse les cases. */
+    const carte = identiteDuPersonnel(membreDuPret.id)
+      .then((rangees) => (rangees && rangees[0] ? imageDuCoffre(rangees[0].chemin) : null));
     const ok = ouvreLesLettresDuPret({
       nom: membreDuPret.name,
       fonction: membreDuPret.role || undefined,
@@ -281,7 +292,7 @@ export default function Prets() {
       mois: planSalaire.plan.length,
       premierMois: fPret.premierMois,
       plafondPct: planSalaire.pctPlafond,
-    });
+    }, carte);
     if (!ok) toast('Le navigateur a bloqué la fenêtre des lettres : autorisez les fenêtres pour le Trône, puis recommencez.');
   };
   /* BASCULER DE LEVIER GARDE LE PRÊT TEL QU'IL EST : la durée reprend ce
@@ -924,13 +935,39 @@ export default function Prets() {
                             <input
                               type="range" min={1} max={50} step={1}
                               value={Math.round(Number(fPret.part) || 0)}
-                              onChange={(e) => setFPret((f) => ({ ...f, part: e.target.value }))}
+                              onChange={(e) => { setRetenueTapee(null); setFPret((f) => ({ ...f, part: e.target.value })); }}
                               style={{ flex: 1, minWidth: 0, accentColor: 'var(--color-copper)' }}
                               aria-label="Part du salaire de base"
                             />
                             <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 20, color: 'var(--color-indigo)', minWidth: 64, textAlign: 'right' }}>
                               {pctDit(planSalaire.partPct)}
                             </b>
+                          </span>
+                        </label>
+                      ) : null}
+                      {/* EN FRANCS AUSSI — 19 septembre 2026. « La retenue en
+                          chiffre également, pas seulement en pourcentage »
+                          (Yéman). Le montant tapé devient la part exacte : le
+                          prêt garde une part, et le bulletin retiendra ce
+                          montant au franc près (`partDeLaRetenue`). */}
+                      {fPret.levier === 'part' ? (
+                        <label className="mnd-field">
+                          <span className="mnd-field__label">Ou retenue par bulletin, en francs</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              className="mnd-input" inputMode="numeric"
+                              value={retenueTapee ?? (planSalaire.mens > 0 ? String(planSalaire.mens) : '')}
+                              onChange={(e) => {
+                                const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 9);
+                                setRetenueTapee(v);
+                                const n = parseInt(v, 10) || 0;
+                                if (n > 0) setFPret((f) => ({ ...f, part: String(partDeLaRetenue(n, baseDuMembre)) }));
+                              }}
+                              onBlur={() => setRetenueTapee(null)}
+                              aria-label="Retenue par bulletin, en francs"
+                              style={{ width: 140, textAlign: 'right' }}
+                            />
+                            <span className="mnd-muted" style={{ fontSize: 12 }}>F par bulletin</span>
                           </span>
                         </label>
                       ) : (

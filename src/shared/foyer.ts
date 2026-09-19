@@ -705,6 +705,14 @@ export const moisDecale = (mois: string, n: number): string => moisPlus(`${mois}
 export const retenueDeLaPart = (partPct: number, baseXof: number): number =>
   (partPct > 0 && baseXof > 0 ? Math.round((baseXof * partPct) / 100) : 0);
 
+/** LA PART QUE DIT UN MONTANT — 19 septembre 2026. « La retenue en chiffre
+    également, pas seulement en pourcentage » (Yéman). Le prêt garde une PART
+    (si le salaire change, la part reste et la durée suit) : un montant tapé
+    devient donc la part exacte, sans arrondi, pour que `retenueDeLaPart` en
+    redonne le franc près. */
+export const partDeLaRetenue = (retenueXof: number, baseXof: number): number =>
+  (retenueXof > 0 && baseXof > 0 ? (retenueXof / baseXof) * 100 : 0);
+
 /** La part du salaire qui rembourse `montantXof` en `mois` bulletins. La
     mensualité s'arrondit au franc SUPÉRIEUR : arrondie en dessous, un
     dernier bulletin de quelques francs naîtrait après la durée promise. */

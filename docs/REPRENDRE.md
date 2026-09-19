@@ -2,6 +2,29 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PRÊT : LA RETENUE EN FRANCS, ET LA CARTE DE LA FICHE SUR LA LETTRE — 19 septembre 2026
+
+« Première retenue en chiffre également, pas seulement en pourcentage. Sur
+prêt, que la lettre à signer porte déjà la carte d'identité que j'ai mise sur
+le profil de l'employé » (Yéman).
+
+**En francs.** Sous le curseur de la part, un champ « Ou retenue par bulletin,
+en francs ». Le prêt garde une PART (le salaire change, la part reste, la
+durée suit) : le montant tapé devient la part EXACTE (`partDeLaRetenue`,
+`shared/foyer.ts`, sans arrondi), et `retenueDeLaPart` en redonne le franc
+près. `verifie-foyer` +3 (dont 14 667 F sur 80 000 F et 33 333 F sur
+123 457 F qui ressortent intacts). Le curseur reste en pas de 1 % ; le
+pourcentage affiché s'arrondit au dixième, le montant fait foi.
+
+**La carte.** `imprimerLesLettres` lit au coffre la pièce de la fiche
+(`identiteDuPersonnel`, direction seule par la base), la redessine en JPEG
+(`imageDuCoffre`) et la pose à la place des cases recto/verso, DANS LA MÊME
+HAUTEUR (54 mm) : mesuré dans Chrome, carte en largeur comme en hauteur, les
+deux lettres tiennent chacune sur leur page, marge inchangée (8,7 mm sur la
+page 2). La fenêtre s'ouvre AVANT l'attente (sinon le navigateur la bloque),
+dit « Préparation… », puis reçoit les lettres. Un PDF, une absence ou un refus
+laissent les cases à coller. L'image ne vit que dans la fenêtre d'impression.
+
 ## LE PRESTATAIRE D'UN ENGAGEMENT SE RECONNAÎT DANS LES CONVERSATIONS — 19 septembre 2026
 
 « Est-ce possible de rattacher la fiche automatiquement au numéro WhatsApp qui

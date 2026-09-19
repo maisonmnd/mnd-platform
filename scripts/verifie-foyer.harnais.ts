@@ -9,7 +9,7 @@ import {
   soldeEnveloppe, mvtsEnveloppe, dotationDuMois, doterAuCoffre,
   verserDansEnveloppe, retirerDeEnveloppe, supprimeLigneEpargne,
   moisPlus, joursEntre, echeancesDuPret, etatsDesEmprunteurs, parUrgence, pretsASurveiller,
-  retenueDeLaPart, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, restesParPret, moisDecale,
+  retenueDeLaPart, partDeLaRetenue, partPourDuree, projectionDeLaRetenue, retenuePrevueDuMois, restesParPret, moisDecale,
   type PartageConfig, type Prelevement, type PretAssocie, type Pret,
   type CaisseIndep, type MouvementCaisseIndep,
 } from '../src/shared/foyer';
@@ -305,6 +305,14 @@ dit('… le dernier ne retient que ce qui reste', 12_000, plan20[12].retenueXof)
 dit('… et le prêt se solde exactement', [300_000, 0], [plan20.reduce((n, l) => n + l.retenueXof, 0), plan20[12].resteApresXof]);
 dit('dix mois demandent 25 % du salaire', 25, partPourDuree(300_000, 10, 120_000));
 dit('… soit 30 000 F par bulletin', 30_000, retenueDeLaPart(partPourDuree(300_000, 10, 120_000), 120_000));
+/* LA RETENUE TAPÉE EN FRANCS (19 septembre) redevient ELLE-MÊME, au franc près,
+   même quand la part tombe mal (18,33… %). */
+dit('16 000 F sur 80 000 F, c’est 20 %', 20, partDeLaRetenue(16_000, 80_000));
+dit('un montant tapé ressort au franc près, même sur une part qui ne tombe pas juste',
+  [15_000, 14_667, 33_333, 1, 80_000],
+  [[15_000, 80_000], [14_667, 80_000], [33_333, 123_457], [1, 80_000], [80_000, 80_000]]
+    .map(([a, b]) => retenueDeLaPart(partDeLaRetenue(a, b), b)));
+dit('sans salaire connu, un montant ne fait aucune part', 0, partDeLaRetenue(16_000, 0));
 /* La mensualité s'arrondit au franc SUPÉRIEUR : sinon un huitième bulletin
    de quelques francs naîtrait après les sept promis. */
 const sept = projectionDeLaRetenue(300_000, retenueDeLaPart(partPourDuree(300_000, 7, 120_000), 120_000), '2026-10');
