@@ -396,6 +396,14 @@ export function tetesDeLaMaison(o: {
   equipe?: readonly { id: string; name: string; phone?: string; branchId: string }[];
   prestataires?: readonly { id: string; name: string; phone?: string; branchId: string; archived?: boolean }[];
   fournisseurs?: readonly { id: string; nom: string; telephone?: string; branchId: string; actif?: boolean }[];
+  /** LES PRESTATAIRES D'UN ENGAGEMENT SANS FICHE FOURNISSEUR — 19 septembre
+      2026. « Est-ce possible de rattacher la fiche automatiquement au numéro
+      qui écrit ? » (Yéman), devant un menuisier à qui l'on venait d'annoncer
+      un versement et que l'écran disait « sans fiche ». Depuis le 17, son
+      numéro vit sur le DOSSIER (`telephone`) quand il n'a pas de fiche
+      fournisseur ; avec une fiche, c'est elle qui le porte, et elle est déjà
+      lue ci-dessus. Le clic mène au dossier lui-même. */
+  engagements?: readonly { id: string; prestataire: string; telephone?: string; fournisseurId?: string; branchId: string }[];
 }): TeteConnue[] {
   return [
     ...(o.equipe ?? []).map((m): TeteConnue => ({
@@ -406,6 +414,10 @@ export function tetesDeLaMaison(o: {
     })),
     ...(o.fournisseurs ?? []).filter((f) => f.actif !== false).map((f): TeteConnue => ({
       id: f.id, name: f.nom, phone: f.telephone, branchId: f.branchId, tiroir: 'prestataires', fiche: '/engagements',
+    })),
+    ...(o.engagements ?? []).filter((e) => !e.fournisseurId && e.telephone?.trim()).map((e): TeteConnue => ({
+      id: e.id, name: e.prestataire, phone: e.telephone, branchId: e.branchId, tiroir: 'prestataires',
+      fiche: `/engagements?id=${encodeURIComponent(e.id)}`,
     })),
     ...o.clientes.map((c): TeteConnue => ({
       id: c.id, name: c.name, phone: c.phone, phone2: c.phone2, branchId: c.branchId,

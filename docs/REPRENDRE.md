@@ -2,6 +2,30 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE PRESTATAIRE D'UN ENGAGEMENT SE RECONNAÎT DANS LES CONVERSATIONS — 19 septembre 2026
+
+« Est-ce possible de rattacher la fiche automatiquement au numéro WhatsApp qui
+écrit ? » (Yéman), devant un fil « sans fiche » : un prestataire à qui le
+Trône avait envoyé le modèle `versement_engagement`. Le rattachement ÉTAIT
+automatique (clientes phone/phone2, équipe, répertoire des prestataires,
+fournisseurs du Stock ; 8 et 10 chiffres confondus par `numeroWa`), mais il
+ignorait les DOSSIERS d'engagement : depuis le 17, un prestataire sans fiche
+fournisseur a son numéro sur le dossier (`Engagement.telephone`).
+`tetesDeLaMaison` lit maintenant `engagements` (seulement ceux sans
+`fournisseurId`, dont le numéro est sur la fiche) : tiroir « prestataires »,
+réservé comme les autres, et le clic ouvre `/engagements?id=…`. Branché dans
+Conversations et l'alarme du Tableau de bord. `verifie-conversations` : 3 de
+plus (8 chiffres reconnus, pas de doublon avec une fiche, le répertoire
+d'abord).
+
+Ce qui reste manuel, À DESSEIN : un numéro que AUCUNE fiche ne porte ne se
+rattache pas seul (« jamais tout seul », Conversations.tsx) ; « Rattacher à
+une fiche » l'écrit en second numéro, et la suite devient automatique.
+
+Vu sur la même capture : le modèle `versement_engagement` est « non remis »,
+erreur Meta #132001 (le nom n'existe pas dans la langue demandée) : le modèle
+n'est pas créé ou pas approuvé dans WhatsApp Manager. À traiter côté Meta.
+
 ## ACIA 1, ENTREPRISE INDIVIDUELLE, ET NON « MND SARL » — 19 septembre 2026
 
 Meta a refusé le nom WhatsApp « Maison MND » (et avant lui « Atelier MND »).

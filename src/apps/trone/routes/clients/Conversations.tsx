@@ -18,6 +18,7 @@ import {
 import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
+import { useEngagements } from '../../../../shared/engagements';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
 import { useSettings } from '../../../../shared/settings';
@@ -206,6 +207,7 @@ export default function Conversations() {
   const [equipe] = useEquipe();
   const [prestataires] = useProviders();
   const [fournisseurs] = useFournisseurs();
+  const [engagements] = useEngagements();
 
   /* ══ CE QUE LES MODÈLES COÛTENT CE MOIS-CI — 15 septembre 2026 ═════
      « Combien Meta facture une conversation de 24 h ? » (Yéman).
@@ -247,8 +249,8 @@ export default function Conversations() {
   /* TOUTES LES TÊTES QUE LE NUMÉRO RECONNAÎT, l'équipe d'abord : une employée
      qui est aussi cliente se lit dans Équipe. Même priorité que la base. */
   const tetes = useMemo(
-    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs }),
-    [clients, equipe, prestataires, fournisseurs],
+    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs, engagements }),
+    [clients, equipe, prestataires, fournisseurs, engagements],
   );
   const tous = useMemo(
     () => filsDeLaMaison(messages, tetes, prives, tick, branch.id),

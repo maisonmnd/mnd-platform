@@ -217,6 +217,12 @@ const carnet = tetesDeLaMaison({
     { id: 'p2', name: 'Archivé', phone: '+229 0195000001', branchId: 'b1', archived: true }],
   fournisseurs: [{ id: 'f1', nom: 'Menuiserie K.', telephone: '+229 0195000000', branchId: 'b1' },
     { id: 'f2', nom: 'Fermé', telephone: '+229 0195000002', branchId: 'b1', actif: false }],
+  engagements: [
+    { id: 'e1', prestataire: 'Soudure D.', telephone: '96 00 00 01', branchId: 'b1' },
+    { id: 'e2', prestataire: 'Avec fiche', telephone: '+229 0196000002', fournisseurId: 'f1', branchId: 'b1' },
+    { id: 'e3', prestataire: 'Même que K. H.', telephone: '+229 0195000000', branchId: 'b1' },
+    { id: 'e4', prestataire: 'Sans numéro', branchId: 'b1' },
+  ],
 });
 dit('une cliente est une cliente, avec sa fiche',
   { tiroir: 'clientes', fiche: '/customers?id=c1' },
@@ -234,6 +240,16 @@ dit('un prestataire archivé ne reconnaît plus son numéro', undefined,
   teteDuNumero('2290195000001', carnet));
 dit('un fournisseur fermé non plus', undefined, teteDuNumero('2290195000002', carnet));
 dit('un inconnu reste inconnu', undefined, teteDuNumero('22997000000', carnet));
+/* ⑤ bis — LE PRESTATAIRE D'UN ENGAGEMENT, 19 septembre 2026. Son numéro est
+   sur le dossier, écrit à l'ancienne (8 chiffres) : il se reconnaît quand
+   même, dans le tiroir réservé, et le clic ouvre SON dossier. */
+dit('le prestataire d’un engagement sans fiche se reconnaît, même écrit sur 8 chiffres',
+  { id: 'e1', name: 'Soudure D.', tiroir: 'prestataires', fiche: '/engagements?id=e1' },
+  (({ id, name, tiroir, fiche }) => ({ id, name, tiroir, fiche }))(teteDuNumero('2290196000001', carnet)!));
+dit('avec une fiche fournisseur, le dossier ne double pas le numéro', undefined,
+  teteDuNumero('2290196000002', carnet));
+dit('le répertoire passe encore devant un dossier au même numéro', 'p1',
+  teteDuNumero('2290195000000', carnet)?.id);
 dit('équipe et prestataires sont réservés, pas les clientes',
   [true, true, false], [estReserve('equipe'), estReserve('prestataires'), estReserve('clientes')]);
 

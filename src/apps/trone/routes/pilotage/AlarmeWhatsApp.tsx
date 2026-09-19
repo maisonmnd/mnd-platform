@@ -8,6 +8,7 @@ import {
 } from '../../../../shared/conversations';
 import { useProviders } from '../../../../shared/prestataires';
 import { useFournisseurs } from '../../../../shared/stock';
+import { useEngagements } from '../../../../shared/engagements';
 import { useSettings } from '../../../../shared/settings';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { useStaff as useEquipe } from '../equipe/data';
@@ -80,6 +81,7 @@ export default function AlarmeWhatsApp() {
   const [equipe] = useEquipe();
   const [prestataires] = useProviders();
   const [fournisseurs] = useFournisseurs();
+  const [engagements] = useEngagements();
   const [reglages] = useSettings();
   const estDirection = useEstDirection();
 
@@ -93,8 +95,8 @@ export default function AlarmeWhatsApp() {
 
   /* LES MÊMES TÊTES ET LES MÊMES FILS QUE L'ÉCRAN DES CONVERSATIONS. */
   const tetes = useMemo(
-    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs }),
-    [clients, equipe, prestataires, fournisseurs],
+    () => tetesDeLaMaison({ clientes: clients, equipe, prestataires, fournisseurs, engagements }),
+    [clients, equipe, prestataires, fournisseurs, engagements],
   );
   const tous = useMemo(
     () => filsDeLaMaison(messages, tetes, prives, tick, branch.id),
