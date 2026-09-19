@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA MAISON A SON DOMAINE — 19 septembre 2026
+
+Yéman a acheté le domaine propre de la Maison (Cloudflare, renouvellement
+automatique) et l'a fait vérifier sur le compte GitHub (Settings › Pages ›
+Verified domains, ligne TXT `_github-pages-challenge-…` dans Cloudflare, À
+GARDER). **Le nom du domaine ne s'écrit jamais dans ce dépôt**, qui est public.
+
+**Comment c'est branché.** Un dépôt `<compte>.github.io` (site PRINCIPAL du
+compte, hors de ce dépôt) porte le fichier CNAME et renvoie sa racine vers
+`/revelateur/`. GitHub sert alors TOUS les sites-projets sous le domaine, au
+même chemin (`/trone/`, `/couronne/`, `/revelateur/`, `/academie/`,
+`/lokaa/`, `/mnd-platform/`), et redirige en 301 les anciennes adresses
+github.io, chemin ET paramètres compris : mesuré sur
+`/trone/payer.html?m=…&c=…&montant=…`, donc les liens MoMo déjà envoyés par
+WhatsApp et les QR imprimés restent bons. DNS dans Cloudflare : 4 A et 4 AAAA
+de GitHub sur l'apex, un CNAME `www` vers `<compte>.github.io`, TOUS en
+« DNS only » (nuage gris), sinon GitHub ne délivre pas le certificat.
+Certificat émis, https forcé.
+
+**Le code.** `scripts/origine-des-pages.mjs` demande à GitHub le domaine du
+site principal (`gh api repos/<compte>/<compte>.github.io/pages`) ;
+`build-sites` (canonique, og:url, sitemap, robots) et `publie` (vérification
+de la mise en ligne) le lisent. Sans `gh` ou sans domaine : github.io, comme
+avant. Les 6 sites ont été republiés : plus aucun github.io dans les pages.
+
+**Ce qui ne suit pas une origine** (inventaire du 18) : le stockage du
+navigateur (tout le monde se reconnecte ; les fils privés, le poste commun et
+le rangement du catalogue se reposent à la main), les alertes du téléphone (à
+réactiver ; les anciens abonnements continuent d'arriver, d'où une suppression
+ciblée des abonnements du PERSONNEL antérieurs à la bascule, une fois chacun
+réabonné ; ceux des clientes restent). Supabase Auth : la nouvelle adresse
+ajoutée aux Redirect URLs, le Site URL à passer au domaine ; les anciennes
+adresses gardées tant que des e-mails de connexion anciens circulent.
+
+**Encore à faire** : vérifier que `http://` redirige bien vers `https://`
+(forcé, pas encore appliqué à la minute de la bascule) ; propriété Search
+Console « Domaine » ; lien du site sur la fiche Google ; champs Website de
+WhatsApp et de Meta Business APRÈS l'accord de Meta sur « Maison MND »
+(l'ancienne adresse redirige, rien n'est coupé).
+
 ## DEUX CARNETS DE FOURNISSEURS SUR UNE MEME CLE, ET « REMPLACER LA MAISON » QUI VIDAIT SANS REMETTRE — 18 septembre 2026
 
 Trouvés par l'inventaire des données locales (préparation du domaine
