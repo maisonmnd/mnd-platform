@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
 import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { origineDuCompte } from './origine-des-pages.mjs';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
 
@@ -36,7 +37,9 @@ function origineDesPages() {
   try {
     const url = execSync('git remote get-url origin', { cwd: root, encoding: 'utf8' }).trim();
     const m = url.match(/[/:]([^/:]+)\/[^/]+?(?:\.git)?$/);
-    return m ? `https://${m[1]}.github.io` : '';
+    /* Le domaine propre du compte s'il en a un (19 septembre 2026), lu chez
+       GitHub : voir `origine-des-pages.mjs`. */
+    return m ? origineDuCompte(m[1]) : '';
   } catch {
     return '';
   }

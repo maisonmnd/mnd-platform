@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { origineDuCompte } from './origine-des-pages.mjs';
 
 /* PUBLIE LES SITES CONSTRUITS SUR GITHUB PAGES — en vérifiant avant de pousser.
 
@@ -232,7 +233,7 @@ export async function attendLaMiseEnLigne(site, dist, proprietaire) {
   const cname = path.join(dist, 'CNAME');
   const base = existsSync(cname)
     ? `https://${readFileSync(cname, 'utf8').trim()}`
-    : `https://${proprietaire}.github.io/${site}`;
+    : `${origineDuCompte(proprietaire)}/${site}`;
 
   /* Réglables — non pour le confort, mais pour que le chemin « pas encore
      servi » soit ÉPROUVABLE en quelques secondes au lieu de cinq minutes. Un
