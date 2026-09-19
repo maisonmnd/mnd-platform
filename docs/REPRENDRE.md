@@ -5,7 +5,7 @@
 ## DEUX CARNETS DE FOURNISSEURS SUR UNE MEME CLE, ET « REMPLACER LA MAISON » QUI VIDAIT SANS REMETTRE — 18 septembre 2026
 
 Trouvés par l'inventaire des données locales (préparation du domaine
-maisonmnd.com), vérifiés dans le code, puis mesurés en base par Yéman.
+propre de la Maison), vérifiés dans le code, puis mesurés en base par Yéman.
 
 **Les fournisseurs.** Du 1er au 18 septembre, `shared/fournisseurs.ts`
 (carnet des Dépenses, document `mnd_fournisseurs`) et `shared/stock.ts`
