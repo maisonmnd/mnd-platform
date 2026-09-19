@@ -79,6 +79,14 @@ export type Accueil = {
 export type Commun = {
   nom: string;
   ville: string;
+  /** QUI ÉDITE LE SITE, tel que l'écrit l'extrait du registre du commerce
+      (19 septembre 2026). Les mentions légales et la fiche lue par Google le
+      disent ; c'est aussi ce qui relie « Maison MND » à son immatriculation
+      pour l'examen du nom WhatsApp par Meta. */
+  editeur: {
+    nomCommercial: string; forme: string; exploitante: string;
+    rccm: string; greffe: string; adresse: string; telephone: string;
+  };
   nav: Lien[];
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };
   /** Un message WhatsApp par parcours, déjà écrit. */

@@ -1156,7 +1156,7 @@ export const PARAM_SECTIONS: {
   {
     title: 'Identité de la Maison', cap: 'Ce que la Maison montre au monde.', rows: [
       { l: 'Nom de la Maison', v: 'Maison MND' },
-      { l: 'Raison sociale', v: 'MND SARL · RCCM COT-B-2021' },
+      { l: 'Raison sociale', v: 'ACIA 1 · RCCM RB/COT/12 A 14509' },
       { l: 'Devise de référence', v: 'Franc CFA · XOF · F' },
       { l: 'Fuseau horaire', v: 'Cotonou · GMT+1' },
     ],

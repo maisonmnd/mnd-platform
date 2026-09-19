@@ -36,7 +36,10 @@ export type HouseIdentity = {
 
 export const DEFAULT_IDENTITY: HouseIdentity = {
   nom: 'Maison MND',
-  raison: 'MND SARL · RCCM COT-B-2021',
+  /* 19 septembre 2026 : l'extrait du registre du commerce dit ACIA 1,
+     ENTREPRISE INDIVIDUELLE, et non « MND SARL » (valeur d'origine, fausse).
+     C'est elle qui nomme l'employeur dans les contrats et les lettres. */
+  raison: 'ACIA 1 · RCCM RB/COT/12 A 14509',
   ville: 'Cotonou',
   fuseau: 'Cotonou · GMT+1',
   dureeRituel: '2 h 30',

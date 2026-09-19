@@ -2,6 +2,31 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## ACIA 1, ENTREPRISE INDIVIDUELLE, ET NON « MND SARL » — 19 septembre 2026
+
+Meta a refusé le nom WhatsApp « Maison MND » (et avant lui « Atelier MND »).
+Pour la nouvelle demande, il faut que le site relie publiquement la marque à
+son immatriculation. Yéman a envoyé l'extrait du RCCM : l'éditeur est **ACIA 1**
+(nom commercial et enseigne, avec un espace), **entreprise individuelle** de
+Yéman Ahouansou, **RCCM RB/COT/12 A 14509** (greffe de Cotonou), établissement
+principal à Suru-Léré. Ce n'est PAS une SARL : la valeur d'origine du code,
+« MND SARL · RCCM COT-B-2021 », était fausse, et c'est elle qui nomme
+l'employeur dans les contrats et les lettres de prêt quand Paramètres ›
+Identité n'est pas rempli.
+
+Fait : `COMMUN.editeur` (contenu.ts) alimente les mentions légales (la phrase
+« informations d'immatriculation à renseigner » a disparu) et le JSON-LD
+(`legalName`, `telephone`, adresse). Valeur par défaut de la raison corrigée
+dans `shared/identite.ts` et `equipe/data.ts`. **Rien de personnel** de
+l'extrait (naissance, domicile, téléphone privé) n'entre dans le dépôt ni sur
+le site ; le document lui-même n'est rangé nulle part. Les harnais gardent
+« MND SARL » comme donnée d'essai (valeur passée en paramètre) : sans effet.
+
+À faire par Yéman : Paramètres › Identité › ligne légale = « ACIA 1 · RCCM
+RB/COT/12 A 14509 » si ce n'est pas déjà le cas ; profil WhatsApp (photo,
+description, site `…/revelateur/`) ; Business info Meta au nom légal ACIA 1 ;
+vérification d'entreprise Meta avec l'extrait ; PUIS la nouvelle demande du nom.
+
 ## LA MAISON A SON DOMAINE — 19 septembre 2026
 
 Yéman a acheté le domaine propre de la Maison (Cloudflare, renouvellement

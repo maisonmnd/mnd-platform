@@ -12,6 +12,17 @@ import type { Accueil, Commun, Page } from './contenu-types';
 export const COMMUN: Commun = {
   nom: 'Maison MND',
   ville: 'Cotonou',
+  /* Recopié de l'extrait du RCCM, sans rien de ce qui est personnel
+     (naissance, domicile, téléphone privé ne sortent jamais d'ici). */
+  editeur: {
+    nomCommercial: 'ACIA 1',
+    forme: 'entreprise individuelle',
+    exploitante: 'Yéman Ahouansou',
+    rccm: 'RB/COT/12 A 14509',
+    greffe: 'Cotonou',
+    adresse: 'Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
+    telephone: '+229 01 51 99 77 99',
+  },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },

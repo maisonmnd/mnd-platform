@@ -88,7 +88,9 @@ const noeudMaison = () => ({
   '@type': 'HairSalon', '@id': `${SITE}#maison`,
   name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/hero.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
   description: 'Maison boutique de soin et de création de dreadlocks afro à Cotonou.',
-  address: { '@type': 'PostalAddress', addressLocality: COMMUN.ville, addressCountry: 'BJ' },
+  legalName: COMMUN.editeur.nomCommercial,
+  telephone: COMMUN.editeur.telephone.replace(/\s/g, ''),
+  address: { '@type': 'PostalAddress', streetAddress: 'Îlot 130-F, quartier Suru-Léré', postOfficeBoxNumber: '06 BP 2076', addressLocality: COMMUN.ville, addressCountry: 'BJ' },
   areaServed: `${COMMUN.ville}, Bénin`, knowsLanguage: 'fr',
   founder: [{ '@type': 'Person', name: 'Brice Ahouansou' }, { '@type': 'Person', name: 'Yéman Ahouansou' }],
 });
@@ -504,7 +506,7 @@ function rendArticle(art) {
 
 /* ── Les pages légales, sobres et vraies ─────────────────────────────── */
 const LEGALES = [
-  { chemin: '/mentions-legales/', court: 'Mentions légales', titre: 'Mentions légales · Maison MND', description: 'Lisez qui édite ce site, qui l’héberge et comment joindre la Maison MND à Cotonou.', h1: 'Mentions légales', corps: `<p><b>Éditeur.</b> ${echappe(COMMUN.nom)}, ${echappe(COMMUN.ville)}, Bénin. Les informations d’immatriculation sont à renseigner par la Maison.</p><p><b>Direction de la publication.</b> Yéman Ahouansou.</p><p><b>Hébergement.</b> GitHub Pages (GitHub, Inc.).</p><p><b>Nous joindre.</b> Par WhatsApp, depuis n’importe quelle page du site, ou en laissant vos coordonnées.</p><p><b>Photographies.</b> Les images de ce site appartiennent à la Maison MND ou lui ont été confiées avec l’accord des personnes qui y figurent.</p>` },
+  { chemin: '/mentions-legales/', court: 'Mentions légales', titre: 'Mentions légales · Maison MND', description: 'Lisez qui édite ce site, qui l’héberge et comment joindre la Maison MND à Cotonou.', h1: 'Mentions légales', corps: `<p><b>Éditeur.</b> ${echappe(COMMUN.nom)} est la marque exploitée par ${echappe(COMMUN.editeur.nomCommercial)}, ${echappe(COMMUN.editeur.forme)} de ${echappe(COMMUN.editeur.exploitante)}, immatriculée au Registre du commerce et du crédit mobilier de ${echappe(COMMUN.editeur.greffe)} sous le n° ${echappe(COMMUN.editeur.rccm)}.</p><p><b>Établissement principal.</b> ${echappe(COMMUN.editeur.adresse)}. Téléphone et WhatsApp : ${echappe(COMMUN.editeur.telephone)}.</p><p><b>Direction de la publication.</b> Yéman Ahouansou.</p><p><b>Hébergement.</b> GitHub Pages (GitHub, Inc.).</p><p><b>Nous joindre.</b> Par WhatsApp, depuis n’importe quelle page du site, ou en laissant vos coordonnées.</p><p><b>Photographies.</b> Les images de ce site appartiennent à la Maison MND ou lui ont été confiées avec l’accord des personnes qui y figurent.</p>` },
   /* LA POLITIQUE DIT CE QUE LE SITE FAIT VRAIMENT — 18 septembre 2026. Le
      texte precedent annoncait « parfois votre e-mail » : le formulaire n'en
      a jamais demande, et depuis la reservation en ligne il en demande encore
