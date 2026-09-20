@@ -24,9 +24,12 @@ Au-delà de 18 bulletins : six premiers, points de suspension, deux derniers.
 
 **La place, mesurée dans Chrome** (6 cas : sans plan, 13, 18 et 60 bulletins,
 avec et sans photo) : la page 2 n'avait que 8,7 mm de libre et débordait. Les
-cadres de signature passent de 33 à 30 mm, et sur l'engagement SEUL la carte
-(photo ou cases) passe de 54 à 44 mm, la copie pleine taille restant sur la
-demande. Résultat : aucune page ne déborde, 9,7 mm de libre au pire cas.
+cadres de signature passent de 33 à 30 mm. Sur l'engagement, la PHOTO passe à
+44 mm ; SANS photo, il n'y a plus de cases à coller du tout, mais une ligne
+qui renvoie à la demande, laquelle garde ses deux cases de 54 mm. Une case à
+coller de 44 mm ne recevrait pas une photocopie à l'échelle (une carte fait
+85,6 × 54 mm) : le défaut a été relevé par la session paire, et corrigé le
+jour même. Résultat : aucune page ne déborde, 9,7 mm de libre au pire cas.
 
 ## LE PRÊT : LA RETENUE EN FRANCS, ET LA CARTE DE LA FICHE SUR LA LETTRE — 19 septembre 2026
 

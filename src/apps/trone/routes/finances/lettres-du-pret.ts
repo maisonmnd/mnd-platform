@@ -158,7 +158,6 @@ const STYLE = `
   /* Sur l'engagement, la même carte qu'en page 1 : plus petite, elle laisse
      la place au calendrier des retenues (19 septembre 2026). */
   .feuille--engagement .carte-photo { max-height:44mm; }
-  .feuille--engagement .carte-id { height:44mm; }
   .carte-photo { display:block; max-width:100%; max-height:54mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
   .carte-id b { display:block; font-family:'Cormorant Garamond',Georgia,serif; font-size:12pt; font-weight:400; color:var(--indigo); margin-bottom:1mm; }
   .pied-page { margin-top:3mm; padding-top:2mm; border-top:.4pt solid var(--filet); font-size:7.2pt; color:var(--encre-d); display:flex; justify-content:space-between; gap:6mm; }
@@ -315,7 +314,13 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Signature et cachet</div>
         </div>
       </div>
-      ${carteIdentite("Copie de la carte d'identité du membre", d.identite)}
+      ${d.identite
+    /* SUR L'ENGAGEMENT, LA PHOTO SEULE — 19 septembre 2026. Un cadre à coller
+       y tiendrait mal : une carte fait 85,6 × 54 mm, et la page n'a plus
+       cette hauteur depuis le calendrier des retenues. La copie pleine taille
+       se colle sur la demande, qui garde ses deux cases. */
+    ? carteIdentite("Copie de la carte d'identité du membre", d.identite)
+    : '<p class="mention">La copie de la carte d’identité est jointe à la demande de prêt, pièce 1 sur 2.</p>'}
       <div class="pied-page"><span>${echappe(maison)} &middot; prêt sans intérêt, autorisation de retenue sur salaire</span><span>Un exemplaire au membre, un au dossier</span></div>
     </div>
   </article>`;
