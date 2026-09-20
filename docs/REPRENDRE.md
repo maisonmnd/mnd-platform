@@ -2,6 +2,32 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES LETTRES DU PRÊT : LES ÉCARTS, L'ARTICLE, ET LE CALENDRIER DES RETENUES — 19 septembre 2026
+
+« Corriger les écarts à partir de 200 000 F sur toute la ligne » et « inclure
+la date des retenues sur le bulletin sur la lettre d'engagement » (Yéman).
+
+**Les écarts.** La ligne du motif était une case insécable de 78 mm en fin de
+phrase : quand elle ne tenait plus, elle basculait, et la justification
+écartait les mots de la ligne d'avant. Le motif prend désormais SA ligne
+(`.blanc--plein`, pleine largeur) ou s'écrit en clair quand il est connu.
+
+**L'article.** La lettre collait « de la » devant le nom de la Maison :
+« Employé(e) de la L'atelier MND ». `deLaMaison()` et `avecArticle()` (mêmes
+fichier) regardent le nom : « de la Maison MND », mais « de L'atelier MND »
+et « J'autorise L'atelier MND ».
+
+**Le calendrier.** `DonneesDesLettres.plan` (posé par Prets.tsx) donne les
+bulletins retenus ; la clause 1 de l'engagement les liste en petits caractères
+(« oct. 2026 · nov. 2026 · … »), et dit le montant de la dernière retenue.
+Au-delà de 18 bulletins : six premiers, points de suspension, deux derniers.
+
+**La place, mesurée dans Chrome** (6 cas : sans plan, 13, 18 et 60 bulletins,
+avec et sans photo) : la page 2 n'avait que 8,7 mm de libre et débordait. Les
+cadres de signature passent de 33 à 30 mm, et sur l'engagement SEUL la carte
+(photo ou cases) passe de 54 à 44 mm, la copie pleine taille restant sur la
+demande. Résultat : aucune page ne déborde, 9,7 mm de libre au pire cas.
+
 ## LE PRÊT : LA RETENUE EN FRANCS, ET LA CARTE DE LA FICHE SUR LA LETTRE — 19 septembre 2026
 
 « Première retenue en chiffre également, pas seulement en pourcentage. Sur

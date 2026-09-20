@@ -39,6 +39,11 @@ export type DonneesDesLettres = {
   premierMois: string;
   /** Le plafond de la Maison, en % du net ; absent tant qu'il n'est pas fixé. */
   plafondPct?: number;
+  /** LE CALENDRIER DES RETENUES, bulletin par bulletin (19 septembre 2026) :
+      « Inclure la date des retenues sur le bulletin sur la lettre
+      d'engagement » (Yéman). Ce que le Trône projette au moment de la
+      signature ; la dernière retenue ne prend que ce qui reste. */
+  plan?: readonly { mois: string; retenueXof: number }[];
   /** SA PIÈCE D'IDENTITÉ, celle de sa fiche (19 septembre 2026), redessinée
       en JPEG par `imageDuCoffre`. Absente : les cases recto et verso restent,
       à coller à la main. */
@@ -50,6 +55,23 @@ const echappe = (s: string): string => s
 
 const francs = (n: number): string => Math.round(n).toLocaleString('fr-FR').replace(/\s/g, ' ');
 const pct = (n: number): string => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+/** « oct. 2026 » — court, parce qu'un calendrier de treize bulletins tient
+    sur deux lignes, jamais sur six. */
+const moisCourt = (mois: string): string => new Date(`${mois}-01T00:00:00`)
+  .toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+
+/** LES BULLETINS RETENUS, dans l'ordre. Au-delà de dix-huit, on nomme les
+    six premiers et les deux derniers : la lettre tient sur sa page, et
+    personne ne signe une liste qu'il ne lit pas. */
+const calendrierDesRetenues = (plan: readonly { mois: string }[]): string => {
+  if (plan.length === 0) return '';
+  const noms = plan.map((m) => moisCourt(m.mois));
+  const dits = noms.length <= 18
+    ? noms
+    : [...noms.slice(0, 6), '…', ...noms.slice(-2)];
+  return `<span class="calendrier">${echappe(dits.join(' · '))}</span>`;
+};
+
 const jourLong = (iso: string): string => new Date(`${iso.slice(0, 10)}T00:00:00`)
   .toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 const moisLong = (mois: string): string => new Date(`${mois}-01T00:00:00`)
@@ -59,6 +81,25 @@ const moisLong = (mois: string): string => new Date(`${mois}-01T00:00:00`)
 const duMois = (mois: string): string => {
   const m = moisLong(mois);
   return `du mois ${/^[aeiouyâ]/i.test(m) ? 'd’' : 'de '}<span class="v">${m}</span>`;
+};
+
+/** « de la Maison MND », mais « de L'atelier MND » — 19 septembre 2026. Le
+    nom de la Maison se règle dans Paramètres : la lettre ne peut pas coller
+    « de la » devant sans regarder ce qu'elle nomme. */
+export const deLaMaison = (nom: string): string => {
+  const n = nom.trim();
+  if (/^l['’]/i.test(n)) return `de ${n}`;
+  if (/^les\s/i.test(n)) return `des ${n.slice(4)}`;
+  if (/^le\s/i.test(n)) return `du ${n.slice(3)}`;
+  if (/^la\s/i.test(n)) return `de ${n}`;
+  return `de la ${n}`;
+};
+
+/** « la Maison MND », mais « L'atelier MND » tout court : un nom qui porte
+    déjà son article n'en reçoit pas un second. */
+export const avecArticle = (nom: string): string => {
+  const n = nom.trim();
+  return /^(l['’]|les?\s|la\s)/i.test(n) ? n : `la ${n}`;
 };
 
 /** Une valeur connue, ou une ligne à remplir à la main de la largeur dite. */
@@ -96,12 +137,17 @@ const STYLE = `
   b { font-weight:500; }
   .v { color:var(--indigo); font-weight:500; }
   .blanc { display:inline-block; min-width:var(--l,30mm); height:1.05em; border-bottom:.6pt dotted #6b6559; vertical-align:baseline; }
+  /* UNE LIGNE ENTIÈRE À REMPLIR — 19 septembre 2026. Une longue case
+     insécable en fin de phrase basculait à la ligne suivante, et la
+     justification écartait alors les mots de celle d'avant. */
+  .blanc--plein { display:block; width:100%; min-width:0; margin-top:1mm; }
   .nw { white-space:nowrap; }
   .zone { margin-top:auto; }
   .deux { display:grid; grid-template-columns:1fr 1fr; gap:6mm; }
-  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:3mm 4mm; min-height:33mm; display:flex; flex-direction:column; }
+  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:3mm 4mm; min-height:30mm; display:flex; flex-direction:column; }
   .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:5.6mm; }
   .bloc .pied { margin-top:auto; padding-top:2mm; font-size:8pt; color:var(--encre-d); }
+  .calendrier { display:block; margin-top:.6mm; font-size:8.2pt; line-height:1.45; color:var(--encre-d); }
   .mention { font-size:8.4pt; color:var(--encre-d); margin:0 0 1mm; line-height:1.4; text-align:left; }
   .cases { display:flex; flex-direction:column; gap:1.6mm; font-size:9pt; }
   .case { display:inline-block; width:3.2mm; height:3.2mm; border:.7pt solid #4a463f; margin-right:1.8mm; vertical-align:-.4mm; }
@@ -109,6 +155,10 @@ const STYLE = `
   .cartes { display:flex; gap:5mm; }
   .carte-id { width:85.6mm; height:54mm; flex:none; border:.8pt dashed #8b8578; border-radius:3mm; display:flex; align-items:center;
               justify-content:center; text-align:center; font-size:8.2pt; color:var(--encre-d); padding:4mm; line-height:1.4; }
+  /* Sur l'engagement, la même carte qu'en page 1 : plus petite, elle laisse
+     la place au calendrier des retenues (19 septembre 2026). */
+  .feuille--engagement .carte-photo { max-height:44mm; }
+  .feuille--engagement .carte-id { height:44mm; }
   .carte-photo { display:block; max-width:100%; max-height:54mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
   .carte-id b { display:block; font-family:'Cormorant Garamond',Georgia,serif; font-size:12pt; font-weight:400; color:var(--indigo); margin-bottom:1mm; }
   .pied-page { margin-top:3mm; padding-top:2mm; border-top:.4pt solid var(--filet); font-size:7.2pt; color:var(--encre-d); display:flex; justify-content:space-between; gap:6mm; }
@@ -180,16 +230,18 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
       </div>
       <div class="a">
         <span class="etq">À</span>
-        La Direction de la ${echappe(maison)}<br />${echappe(societe)}<br />${echappe(ville)}
+        La Direction ${echappe(deLaMaison(maison))}<br />${echappe(societe)}<br />${echappe(ville)}
       </div>
     </div>
     <p style="text-align:right">${echappe(ville)}, le <span class="v">${le}</span></p>
     <h2 class="objet"><small>Objet</small>Demande de prêt sans intérêt</h2>
     <p>Madame, Monsieur,</p>
-    <p>Employé(e) de la ${echappe(maison)} en qualité de ${champ(d.fonction?.toLowerCase(), 30)}
+    <p>Employé(e) ${echappe(deLaMaison(maison))} en qualité de ${champ(d.fonction?.toLowerCase(), 30)}
     depuis le ${champ(d.depuis ? jourLong(d.depuis) : undefined, 30)}, j'ai l'honneur de solliciter un prêt sans
     intérêt de <span class="v">${lettres}</span> francs CFA (<span class="v nw">${chiffres}</span> F), pour le motif
-    suivant : <span class="nw">${champ(d.motif, 78)}.</span></p>
+    suivant :<br />${d.motif?.trim()
+    ? `<span class="v">${echappe(d.motif.trim())}</span>`
+    : '<span class="blanc blanc--plein"></span>'}</p>
     <p>Je propose de le rembourser par une retenue sur mon salaire de base, qui est aujourd'hui de
     <span class="v nw">${francs(d.baseXof)}</span> F : <span class="v">${pct(d.partPct)}</span> % de ce salaire, soit
     <span class="v nw">${francs(d.mensXof)}</span> F par mois, pendant <span class="v">${d.mois}</span> mois, à compter
@@ -218,21 +270,23 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
   </article>`;
 
   const engagement = `
-  <article class="feuille">
+  <article class="feuille feuille--engagement">
     ${entete('Engagement de remboursement<br />Pièce 2 sur 2')}
     <h2 class="objet"><small>Lettre d'engagement</small>Reconnaissance de prêt et autorisation de retenue sur salaire</h2>
     <p>Je soussigné(e), ${champ(d.nom, 56)}, titulaire de la carte d'identité n°
     <span class="blanc" style="--l:30mm"></span>, demeurant à <span class="blanc" style="--l:40mm"></span>,
     employé(e) de ${echappe(societe)}, ${echappe(maison)}, en qualité de <span class="nw">${champ(d.fonction?.toLowerCase(), 32)},</span></p>
-    <p><b>reconnais avoir reçu</b> de la ${echappe(maison)}, le <span class="v">${le}</span>, la somme de
+    <p><b>reconnais avoir reçu</b> ${echappe(deLaMaison(maison))}, le <span class="v">${le}</span>, la somme de
     <span class="v">${lettres}</span> francs CFA (<span class="v nw">${chiffres}</span> F), à titre de
     <b>prêt sans intérêt</b>. Je ne devrai à la Maison que cette somme, et rien au-delà.</p>
     <p><b>Je m'engage à la rembourser</b> par des retenues sur mon salaire, dans les conditions suivantes :</p>
     <ol>
       <li><b>La retenue</b> est de <span class="v">${pct(d.partPct)}</span> % de mon salaire de base, soit
       <span class="v nw">${francs(d.mensXof)}</span> F par mois à ce jour, à compter du bulletin
-      ${duMois(d.premierMois)}, pendant <span class="v">${d.mois}</span> mois environ.
-      La dernière retenue se limite à ce qui reste dû.</li>
+      ${duMois(d.premierMois)}, pendant <span class="v">${d.mois}</span> mois.
+      La dernière retenue se limite à ce qui reste dû${d.plan?.length
+    ? ` : <span class="v nw">${francs(d.plan[d.plan.length - 1].retenueXof)}</span> F`
+    : ''}.${d.plan?.length ? calendrierDesRetenues(d.plan) : ''}</li>
       <li><b>Si mon salaire de base change</b>, la même part s'applique au nouveau salaire : le remboursement
       s'en trouve raccourci ou allongé d'autant.</li>
       <li><b>Une retenue ne dépasse jamais</b> ${plafond} % de mon salaire net du mois, plafond fixé par la
@@ -242,7 +296,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
       les dernières sommes qui me seront versées, dans les limites prévues par la loi. Le reliquat éventuel
       restera dû, et je m'engage à le rembourser selon un échéancier convenu avec la Maison.</li>
     </ol>
-    <p><b>J'autorise la ${echappe(maison)}</b> à opérer ces retenues sur mes bulletins de paie jusqu'au
+    <p><b>J'autorise ${echappe(avecArticle(maison))}</b> à opérer ces retenues sur mes bulletins de paie jusqu'au
     remboursement complet. Chaque bulletin indique la retenue du mois et ce qui reste dû.</p>
     <p>Fait à ${echappe(ville)}, le <span class="v">${le}</span>, en deux exemplaires, dont un m'est remis.</p>
     <div class="zone">
@@ -255,7 +309,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Signature</div>
         </div>
         <div class="bloc">
-          <span class="etq">Pour la ${echappe(maison)}</span>
+          <span class="etq">Pour ${echappe(avecArticle(maison))}</span>
           <div class="mention">Nom et qualité</div>
           <div class="ligne"></div>
           <div class="pied">Signature et cachet</div>

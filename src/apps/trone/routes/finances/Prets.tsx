@@ -290,6 +290,7 @@ export default function Prets() {
       partPct: planSalaire.partPct,
       mensXof: planSalaire.mens,
       mois: planSalaire.plan.length,
+      plan: planSalaire.plan.map(({ mois, retenueXof }) => ({ mois, retenueXof })),
       premierMois: fPret.premierMois,
       plafondPct: planSalaire.pctPlafond,
     }, carte);
