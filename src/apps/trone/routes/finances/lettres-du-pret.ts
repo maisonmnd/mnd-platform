@@ -80,13 +80,18 @@ const echeancierDesRetenues = (plan: readonly LigneDEcheancier[]): string => {
   const cellules = (l: LigneDEcheancier | null | undefined): string => {
     if (l === undefined) return '<td></td><td></td><td></td>';
     if (l === null) return '<td class="creux" colspan="3">…</td>';
-    return `<td>${echappe(moisCourt(l.mois))}</td><td class="v">${francs(l.retenueXof)} F</td>`
-      + `<td>${l.resteApresXof > 0 ? `${francs(l.resteApresXof)} F` : 'soldé'}</td>`;
+    /* L'UNITÉ VIT DANS L'EN-TÊTE, PAS DANS CHAQUE CELLULE (20 septembre
+       2026) : quatre colonnes de « F » en moins, c'est douze millimètres
+       rendus à la carte d'identité, à côté. */
+    return `<td>${echappe(moisCourt(l.mois))}</td><td class="v">${francs(l.retenueXof)}</td>`
+      + `<td>${l.resteApresXof > 0 ? francs(l.resteApresXof) : 'soldé'}</td>`;
   };
-  const tete = '<th>Bulletin</th><th>Retenue</th><th>Reste dû après</th>';
+  /* EN-TÊTES COURTS : plus larges que les chiffres, ils commandaient la
+     largeur des colonnes. L'unité se dit une fois, dans le titre du bloc. */
+  const tete = '<th>Bulletin</th><th>Retenue</th><th>Reste dû</th>';
   return `
     <div class="ech">
-      <span class="etq">L'échéancier des retenues &middot; ${plan.length} bulletin${plan.length > 1 ? 's' : ''}</span>
+      <span class="etq">L'échéancier des retenues &middot; ${plan.length} bulletin${plan.length > 1 ? 's' : ''} &middot; en francs</span>
       <table>
         <tr>${tete}${droite.length ? `<td class="sep"></td>${tete}` : ''}</tr>
         ${gauche.map((l, i) => `<tr>${cellules(l)}${droite.length ? `<td class="sep"></td>${cellules(droite[i])}` : ''}</tr>`).join('')}
@@ -186,12 +191,12 @@ const STYLE = `
   /* LA COLONNE DE DROITE SE MESURE SUR LA CARTE, PAS SUR SON LIBELLÉ
      (20 septembre 2026) : le titre tenait sur une ligne et élargissait le
      bloc, jusqu'à pousser la colonne « reste dû » hors de la feuille. */
-  .bas .identite { flex:0 0 auto; margin:0; max-width:62mm; }
+  .bas .identite { flex:0 0 auto; margin:0; max-width:70mm; }
   .bas .identite .etq { white-space:normal; line-height:1.35; }
   /* LA CARTE NE MANGE PAS L'ÉCHÉANCIER (20 septembre 2026) : à pleine
      largeur, elle repoussait la colonne « reste dû » du second groupe hors
      de la feuille, qui coupe ce qui dépasse. */
-  .feuille--engagement .carte-photo { max-height:46mm; max-width:62mm; }
+  .feuille--engagement .carte-photo { max-height:50mm; max-width:70mm; }
   .ech { margin:0 0 2.6mm; font-size:8.4pt; color:var(--encre-d); }
   .ech .etq { display:block; margin-bottom:1.2mm; }
   .ech table { width:100%; border-collapse:collapse; }

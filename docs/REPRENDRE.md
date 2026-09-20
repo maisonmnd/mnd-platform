@@ -19,6 +19,14 @@ carte 62 × 46 mm au plus. Marges en bas : 15 mm à 7 bulletins, 10 à 13, 8,2 �
 18 et au-delà, 6,3 sans photo. Sur la demande, la photo passe à 68 mm de haut
 (6,1 mm de marge) ; les cases à coller gardent 54 mm, la taille d'une carte.
 
+**La carte agrandie, le 20 septembre au soir** : « agrandir la carte à côté
+de l'échéancier, dans la largeur qui lui reste » (Yéman). L'unité est sortie
+des cellules (« 30 000 » et non « 30 000 F ») et dite une fois dans le titre
+du bloc, et les en-têtes raccourcis (« Reste dû », non « Reste dû après ») :
+ils étaient plus larges que les chiffres et commandaient la colonne. Le
+tableau descend à 103 mm, la carte monte à 70 × 44 mm. Marges en bas : 13,5 mm
+à 7 bulletins, 10,1 à 13, 7,7 à 18 et au-delà.
+
 **L'échéancier se limite à 14 lignes** (sept rangées) : au-delà, onze premiers
 bulletins, points de suspension, deux derniers.
 
