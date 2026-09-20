@@ -2,6 +2,43 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES LETTRES DU PRÊT SE RANGENT AU DOSSIER — 20 septembre 2026
+
+« J'aimerais sauvegarder le PDF des lettres d'engagement et partager »
+(Yéman), maquette `maquette-les-lettres-au-dossier.html` validée, puis
+« construis ».
+
+**Le PDF.** `finances/lettres-du-pret-pdf.ts` dessine les deux lettres avec
+jsPDF, comme les contrats et les bulletins : une page chacune, monogramme en
+tête, échéancier en deux groupes, carte d'identité (ou deux cases à coller),
+cadres à signer, pied de page. Mesuré sur le PDF produit : 2 pages, rien
+dessiné sous 12 mm du bas, rien au-delà de 194 mm de large.
+
+**DEUX DESSINS, UN SEUL TEXTE.** La fenêtre reste en HTML (la plus fidèle),
+le PDF est un second dessin. `verifie-lettres-au-dossier` (10) vérifie que
+CHAQUE phrase du PDF se retrouve mot pour mot dans la lettre à l'écran : il a
+trouvé sept écarts dès le premier passage, tous dus à ma comparaison (espaces
+laissés par les balises), aucun au texte. C'est la seule garde qui tienne
+contre deux vérités.
+
+**Le rangement.** `prets/identite/<fiche>/…` dans le coffre `engagements` :
+`identite` en deuxième segment, donc la direction seule, sans migration
+(0099 accepte déjà les PDF). Le nom du fichier porte le prêt et l'état :
+`<pret>__vierge__<jeton>-…pdf` ou `__signee__`. Le VIERGE se remplace (le
+montant change), le SIGNÉ jamais : il s'efface à la main. Tout part avec la
+fiche (`effaceLesLettresDuPret`, appelée par « Retirer » comme la pièce
+d'identité).
+
+**Les écrans.** `finances/LettresAuDossier.tsx`, le même bloc deux fois :
+dans le formulaire du prêt (fabriquer, déposer la copie signée, ouvrir,
+partager, effacer) et dans la fiche du membre (lecture, partage, effacement).
+« Partager » copie un lien signé d'une heure. « Effacer » se confirme sur le
+bouton, jamais par une boîte du navigateur.
+
+**Ce que cela ne fait pas** : pas de signature électronique, pas d'envoi
+automatique au membre (il faudrait un modèle WhatsApp approuvé), pas d'aperçu
+dans le Trône (« Ouvrir » ouvre un onglet).
+
 ## LA LARGEUR SE PARTAGE : L'ÉCHÉANCIER OU LA CARTE — 20 septembre 2026
 
 « Enlever l'article 3 et agrandir le CIP et l'échéancier, il y a de la place

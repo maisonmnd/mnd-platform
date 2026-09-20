@@ -37,8 +37,15 @@ import {
   type EtatEmprunteur, type GenreEmprunteur, type Pret,
 } from '../../../../shared/foyer';
 import { useStaff } from '../equipe/data';
+import { useEstDirection } from '../_vie';
 import { usePayrollParameters, parametersFor, computePay, plafondDeLaRetenue, periodeLisible } from '../equipe/payroll';
-import { ouvreLesLettresDuPret } from './lettres-du-pret';
+import {
+  ouvreLesLettresDuPret, jourEnClair, duMoisEnClair, moisCourtEnClair, deLaMaison, avecArticle,
+} from './lettres-du-pret';
+import { lettresDuPretPdf } from './lettres-du-pret-pdf';
+import LettresAuDossier from './LettresAuDossier';
+import { maisonNom, maisonRaison, maisonVille } from '../../../../shared/identite';
+import { nombreEnLettres } from '../../../../shared/nombre-en-lettres';
 import { identiteDuPersonnel, imageDuCoffre } from '../../../../shared/engagements-coffre';
 import { ClientPicker } from '../clients/_shared';
 import {
@@ -88,6 +95,7 @@ export default function Prets() {
   const { branch, currency } = useBranch();
   const [clients] = useClients();
   const [staff] = useStaff();
+  const estDirection = useEstDirection();
   const aujourdhui = todayISO();
 
   /* ── LE VERROU DE L’ÉCRAN — 23 août 2026 ──────────────────────────
@@ -296,6 +304,39 @@ export default function Prets() {
     }, carte);
     if (!ok) toast('Le navigateur a bloqué la fenêtre des lettres : autorisez les fenêtres pour le Trône, puis recommencez.');
   };
+  /* LE PDF DES LETTRES, POUR LE COFFRE — 20 septembre 2026. Les mêmes
+     valeurs que la fenêtre d'impression, le même texte (éprouvé par
+     `verifie-lettres-au-dossier`), et la pièce d'identité de la fiche. */
+  const fabriqueLePdfDesLettres = async () => {
+    if (!membreDuPret) throw new Error('aucun membre');
+    const rangees = await identiteDuPersonnel(membreDuPret.id);
+    const identite = rangees && rangees[0] ? await imageDuCoffre(rangees[0].chemin) : null;
+    const raison = maisonRaison();
+    const motif = fPret.motif.trim();
+    return lettresDuPretPdf({
+      maison: maisonNom(), raison, ville: maisonVille(),
+      deLaMaison: deLaMaison(maisonNom()), avecArticle: avecArticle(maisonNom()),
+      societe: raison.split('·')[0].trim() || maisonNom(),
+      nom: membreDuPret.name,
+      fonction: membreDuPret.role || undefined,
+      telephone: membreDuPret.phone || undefined,
+      depuisDit: /^\d{4}-\d{2}-\d{2}/.test(membreDuPret.since ?? '') ? jourEnClair(membreDuPret.since) : undefined,
+      montantXof: montantsPret.xof,
+      montantEnLettres: nombreEnLettres(montantsPret.xof),
+      dateDite: jourEnClair(fPret.date || todayISO()),
+      motif: motif && motif !== 'Prêt' ? motif : undefined,
+      baseXof: baseDuMembre,
+      partPct: planSalaire.partPct,
+      mensXof: planSalaire.mens,
+      mois: planSalaire.plan.length,
+      premierMoisDit: duMoisEnClair(fPret.premierMois),
+      plafondPct: planSalaire.pctPlafond,
+      plan: planSalaire.plan.map(({ mois, retenueXof, resteApresXof }) => ({ mois, retenueXof, resteApresXof })),
+      identite: identite ?? undefined,
+      moisCourt: moisCourtEnClair,
+    });
+  };
+
   /* BASCULER DE LEVIER GARDE LE PRÊT TEL QU'IL EST : la durée reprend ce
      que la part donnait, et l'inverse. Rien ne saute sous les yeux. */
   const basculeLevier = (k: 'part' | 'duree') => setFPret((f) => {
@@ -1137,6 +1178,24 @@ export default function Prets() {
                   La demande et l’engagement, remplis d’après ce formulaire, avec la place de la carte
                   d’identité et des signatures.
                 </span>
+              </div>
+            )}
+
+            {/* LES LETTRES AU DOSSIER — 20 septembre 2026, maquette validée.
+                Le PDF se range au coffre du membre, la direction seule
+                l'ouvre, et le lien de partage vaut une heure. */}
+            {enPartDuSalaire && membreDuPret && (
+              <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
+                <span className="mnd-field__label" style={{ display: 'block', marginBottom: 8 }}>
+                  Les lettres au dossier de {membreDuPret.name}
+                </span>
+                <LettresAuDossier
+                  staffId={membreDuPret.id}
+                  pretId={pretEdite?.id}
+                  estDirection={estDirection}
+                  jour={fPret.date || todayISO()}
+                  fabriqueLePdf={fabriqueLePdfDesLettres}
+                />
               </div>
             )}
 

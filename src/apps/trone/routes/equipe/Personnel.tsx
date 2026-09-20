@@ -32,7 +32,8 @@ import { Bar, DeepNote, Gauge, Pill, Tabs } from './ui';
 import { PaieRuns, PaieParametres, RhDashboard } from './Paie';
 import { GrilleDePrix } from './FacturePrestataire';
 import PieceDIdentite from './PieceDIdentite';
-import { effaceLIdentiteDuPersonnel } from '../../../../shared/engagements-coffre';
+import LettresAuDossier from '../finances/LettresAuDossier';
+import { effaceLIdentiteDuPersonnel, effaceLesLettresDuPret } from '../../../../shared/engagements-coffre';
 import { useFacturesPrestataires, estPrestataire, factureDe, totalAccepte } from './facture';
 import TempsAbsences from './TempsAbsences';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -931,8 +932,13 @@ export default function Personnel() {
     setARetirer(null);
     setStaff((prev) => prev.filter((x) => x.id !== id));
     if (estDirection) {
+      /* TOUT CE QUE LE COFFRE GARDAIT POUR ELLE S'EFFACE AVEC LA FICHE : la
+         pièce d'identité et les lettres de prêt (20 septembre 2026). */
       void effaceLIdentiteDuPersonnel(id).then((ok) => {
         if (!ok) toast('La fiche est retirée, mais sa pièce d’identité n’a pas pu être effacée du coffre.');
+      });
+      void effaceLesLettresDuPret(id).then((ok) => {
+        if (!ok) toast('La fiche est retirée, mais ses lettres de prêt n’ont pas pu être effacées du coffre.');
       });
     }
   };
@@ -1803,6 +1809,15 @@ export default function Personnel() {
             {/* SA PIÈCE D'IDENTITÉ — comme sur la fiche d'engagement d'un
                 prestataire : direction seule, un lien d'une heure. */}
             <PieceDIdentite staffId={editId} estDirection={estDirection} />
+
+            {/* SES LETTRES DE PRÊT — 20 septembre 2026, maquette validée. Le
+                PDF se fabrique depuis l'écran des prêts ; ici on les relit,
+                on les partage, on les efface. */}
+            <div className="tre-sec-label" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 14 }}>Ses lettres de prêt</div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5, marginTop: -6 }}>
+              Direction seule. Le lien de partage vaut une heure. Effacées quand la fiche est retirée de l’équipe.
+            </div>
+            <LettresAuDossier staffId={editId} estDirection={estDirection} />
 
             {/* SA GRILLE DE PRIX — pour une prestataire seulement : elle
                 facture son mois à ces prix-là (voir equipe/facture.ts). */}

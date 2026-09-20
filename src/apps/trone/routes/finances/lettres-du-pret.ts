@@ -252,6 +252,13 @@ const carteIdentite = (titre: string, identite?: DonneesDesLettres['identite']):
 const adresseDuPicto = (): string =>
   new URL(`${import.meta.env.BASE_URL}assets/photos/site/mono-indigo.png`, window.location.origin).href;
 
+/** LES MÊMES MOTS POUR LE PDF — 20 septembre 2026. Le dessin PDF
+    (`lettres-du-pret-pdf.ts`) écrit les jours et les mois comme la fenêtre :
+    une seule façon de dire une date sur un papier de la Maison. */
+export const jourEnClair = (iso: string): string => jourLong(iso);
+export const duMoisEnClair = (mois: string): string => duMois(mois).replace(/<[^>]*>/g, '');
+export const moisCourtEnClair = (mois: string): string => moisCourt(mois);
+
 /** Les deux lettres, en une page HTML imprimable. `picto` : l'adresse du
     pictogramme ; vide, l'en-tête s'en passe. */
 export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {

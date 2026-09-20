@@ -209,6 +209,14 @@ export function dessineQrPaiement(doc: any, valeur: string, x: number, y: number
    que de ne jamais sortir. */
 const HUIT_SECONDES = 8_000;
 
+/** LES COULEURS ET LE MONOGRAMME, POUR LES AUTRES PAPIERS — 20 septembre
+    2026. Les lettres du prêt se dessinent dans `finances/lettres-du-pret-pdf`
+    et veulent la même encre que les contrats : une seule charte, un seul
+    endroit. */
+export const ENCRES_PDF = { INDIGO, COPPER, INK, SOFT, FILET: '#D9CFBC' } as const;
+export const monogrammeDeLaMaison = (): Promise<string | null> => loadSeal();
+export const espacesNormalises = (doc: { text: (...args: any[]) => any }): void => normalizeSpaces(doc);
+
 async function loadSeal(): Promise<string | null> {
   try {
     const url = import.meta.env.BASE_URL.replace(/\/$/, '') + '/assets/monograms/mono-copper.png';

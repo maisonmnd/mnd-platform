@@ -173,3 +173,93 @@ export async function effaceLIdentiteDuPersonnel(staffId: string): Promise<boole
   if (rangees === null) return false;
   return retireDuCoffre(rangees.map((r) => r.chemin));
 }
+
+/* ══ LES LETTRES DU PRÊT, AU DOSSIER DU MEMBRE — 20 septembre 2026 ══════
+
+   « J'aimerais sauvegarder le PDF des lettres d'engagement et partager »
+   (Yéman). Maquette `maquette-les-lettres-au-dossier.html`, validée.
+
+   MÊME COFFRE, MÊME RÈGLE, AUCUNE MIGRATION : le chemin
+   `prets/identite/<fiche>/…` porte `identite` en deuxième segment, donc la
+   direction seule l'ouvre (0099). Un prêt dit un salaire et parfois une
+   difficulté : il ne se lit pas au comptoir.
+
+   DEUX ÉTATS, ET C'EST LE NOM DU FICHIER QUI LES PORTE. La lettre VIERGE est
+   celle qu'on fait signer : elle se remplace tant qu'elle n'est pas signée.
+   La lettre SIGNÉE ne se remplace jamais — elle s'efface à la main, et cela
+   se voit. Sans cette distinction, on ne saurait plus laquelle fait foi. */
+const DOSSIER_DES_PRETS = 'prets';
+
+export type EtatDeLaLettre = 'vierge' | 'signee';
+
+/** Le dossier où dorment les lettres d'un membre. */
+export const dossierDesLettresDuPret = (staffId: string): string =>
+  `${DOSSIER_DES_PRETS}/identite/${staffId}`;
+
+/** Le nom d'un fichier de lettre : le prêt, l'état, puis un nom lisible.
+    Les deux premières parts se relisent (`litLeNomDeLaLettre`). */
+export const nomDeLaLettre = (pretId: string, etat: EtatDeLaLettre, jeton: string, nomLisible: string): string =>
+  `${pretId}__${etat}__${jeton}-${nomLisible}`;
+
+/** Ce qu'un nom de fichier dit : le prêt et l'état, ou `null` s'il vient
+    d'ailleurs (un fichier posé à la main, par exemple). */
+export const litLeNomDeLaLettre = (
+  fichier: string,
+): { pretId: string; etat: EtatDeLaLettre; nom: string } | null => {
+  const parts = fichier.split('__');
+  if (parts.length < 3) return null;
+  const [pretId, etat] = parts;
+  if (!pretId || (etat !== 'vierge' && etat !== 'signee')) return null;
+  return { pretId, etat, nom: nomSansJeton(parts.slice(2).join('__')) };
+};
+
+/** Une lettre rangée, telle que l'écran la montre. */
+export type LettreRangee = {
+  chemin: string; pretId: string; etat: EtatDeLaLettre; nom: string; deposeLe: string;
+};
+
+/** DÉPOSER une lettre. Le PDF fabriqué par le Trône arrive en `Blob` ; une
+    copie signée arrive en `File`, photographiée ou scannée. */
+export async function deposeLaLettreDuPret(
+  staffId: string, pretId: string, etat: EtatDeLaLettre, fichier: Blob, nomLisible: string,
+): Promise<PieceJointe | null> {
+  if (!supabase) return null;
+  const propre = nomLisible.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-').slice(-60);
+  const chemin = `${dossierDesLettresDuPret(staffId)}/${nomDeLaLettre(pretId, etat, uid(), propre)}`;
+  const { error } = await supabase.storage.from(COFFRE_ENGAGEMENTS).upload(chemin, fichier, {
+    contentType: fichier.type || 'application/pdf',
+    upsert: false,
+  });
+  if (error) { console.warn('[mnd-engagements] lettre refusée :', error.message); return null; }
+  return { chemin, nom: propre, type: fichier.type, taille: fichier.size };
+}
+
+/** LES LETTRES D'UN MEMBRE, la plus récente d'abord. `null` si la lecture a
+    échoué : « rien » et « illisible » ne se confondent pas. */
+export async function lettresDuPretDuPersonnel(staffId: string): Promise<LettreRangee[] | null> {
+  if (!supabase) return null;
+  const dossier = dossierDesLettresDuPret(staffId);
+  const { data, error } = await supabase.storage.from(COFFRE_ENGAGEMENTS).list(dossier, {
+    limit: 100, sortBy: { column: 'created_at', order: 'desc' },
+  });
+  if (error) { console.warn('[mnd-engagements] lecture refusée :', error.message); return null; }
+  const out: LettreRangee[] = [];
+  for (const o of data ?? []) {
+    if (!o.id || !o.name || o.name === '.emptyFolderPlaceholder') continue;
+    const lu = litLeNomDeLaLettre(o.name);
+    if (!lu) continue;
+    out.push({
+      chemin: `${dossier}/${o.name}`, pretId: lu.pretId, etat: lu.etat, nom: lu.nom,
+      deposeLe: (o.created_at ?? '').slice(0, 10),
+    });
+  }
+  return out;
+}
+
+/** EFFACER toutes les lettres d'un membre — avec sa fiche, jamais avant. */
+export async function effaceLesLettresDuPret(staffId: string): Promise<boolean> {
+  const rangees = await lettresDuPretDuPersonnel(staffId);
+  if (rangees === null) return false;
+  return retireDuCoffre(rangees.map((l) => l.chemin));
+}
