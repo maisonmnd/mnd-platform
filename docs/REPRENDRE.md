@@ -2,6 +2,27 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## L'ÉCHÉANCIER SUR LA LETTRE D'ENGAGEMENT — 20 septembre 2026
+
+« Je veux le montant des retenues avec le solde à chaque versement pour que
+ce soit bien précis » (Yéman), et « pas besoin de la phrase » sur la dernière
+retenue. La clause 1 renvoie maintenant à un ÉCHÉANCIER : deux colonnes côte
+à côte, Bulletin · Retenue · Reste dû après, jusqu'à « soldé ». Le plan vient
+de `Prets.tsx` (`projectionDeLaRetenue`), avec le reste après chaque bulletin.
+
+**Ce que la page peut porter, mesuré** : 18 lignes. Au-delà, les quinze
+premiers bulletins, des points de suspension, les deux derniers (24 et 60
+bulletins tiennent alors comme 18). À 24 lignes, la page débordait.
+
+**La carte d'identité quitte l'engagement.** Une page ne porte pas les deux :
+l'engagement renvoie à la demande (« pièce 1 sur 2 »), qui garde la photo en
+54 mm ou ses deux cases à coller. Mesures : 34,4 mm de libre à 7 bulletins,
+19,3 à 13, 9,3 à 18 et au-delà.
+
+**Le PDF** : la barre de la fenêtre (qui ne s'imprime pas) dit comment en
+garder un, par la destination « Enregistrer au format PDF » de l'impression.
+Un PDF fabriqué par le Trône et rangé au dossier reste à décider.
+
 ## LES LETTRES DU PRÊT : LES ÉCARTS, L'ARTICLE, ET LE CALENDRIER DES RETENUES — 19 septembre 2026
 
 « Corriger les écarts à partir de 200 000 F sur toute la ligne » et « inclure

@@ -43,7 +43,7 @@ export type DonneesDesLettres = {
       « Inclure la date des retenues sur le bulletin sur la lettre
       d'engagement » (Yéman). Ce que le Trône projette au moment de la
       signature ; la dernière retenue ne prend que ce qui reste. */
-  plan?: readonly { mois: string; retenueXof: number }[];
+  plan?: readonly { mois: string; retenueXof: number; resteApresXof: number }[];
   /** SA PIÈCE D'IDENTITÉ, celle de sa fiche (19 septembre 2026), redessinée
       en JPEG par `imageDuCoffre`. Absente : les cases recto et verso restent,
       à coller à la main. */
@@ -60,16 +60,37 @@ const pct = (n: number): string => n.toLocaleString('fr-FR', { maximumFractionDi
 const moisCourt = (mois: string): string => new Date(`${mois}-01T00:00:00`)
   .toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
 
-/** LES BULLETINS RETENUS, dans l'ordre. Au-delà de dix-huit, on nomme les
-    six premiers et les deux derniers : la lettre tient sur sa page, et
-    personne ne signe une liste qu'il ne lit pas. */
-const calendrierDesRetenues = (plan: readonly { mois: string }[]): string => {
+/** L'ÉCHÉANCIER, BULLETIN PAR BULLETIN — 20 septembre 2026. « Je veux le
+    montant des retenues avec le solde à chaque versement pour que ce soit
+    bien précis » (Yéman). Deux colonnes côte à côte, pour que douze bulletins
+    tiennent en six lignes. Au-delà de dix-huit, on montre les quinze premiers
+    et les deux derniers : mesuré, c'est ce que la page porte sans déborder,
+    et personne ne signe une liste qu'il ne lit pas. */
+type LigneDEcheancier = { mois: string; retenueXof: number; resteApresXof: number };
+const echeancierDesRetenues = (plan: readonly LigneDEcheancier[]): string => {
   if (plan.length === 0) return '';
-  const noms = plan.map((m) => moisCourt(m.mois));
-  const dits = noms.length <= 18
-    ? noms
-    : [...noms.slice(0, 6), '…', ...noms.slice(-2)];
-  return `<span class="calendrier">${echappe(dits.join(' · '))}</span>`;
+  const MAX = 18;
+  const lignes: (LigneDEcheancier | null)[] = plan.length <= MAX
+    ? [...plan]
+    : [...plan.slice(0, MAX - 3), null, ...plan.slice(-2)];
+  const moitie = Math.ceil(lignes.length / 2);
+  const gauche = lignes.slice(0, moitie);
+  const droite = lignes.slice(moitie);
+  const cellules = (l: LigneDEcheancier | null | undefined): string => {
+    if (l === undefined) return '<td></td><td></td><td></td>';
+    if (l === null) return '<td class="creux" colspan="3">…</td>';
+    return `<td>${echappe(moisCourt(l.mois))}</td><td class="v">${francs(l.retenueXof)} F</td>`
+      + `<td>${l.resteApresXof > 0 ? `${francs(l.resteApresXof)} F` : 'soldé'}</td>`;
+  };
+  const tete = '<th>Bulletin</th><th>Retenue</th><th>Reste dû après</th>';
+  return `
+    <div class="ech">
+      <span class="etq">L'échéancier des retenues &middot; ${plan.length} bulletin${plan.length > 1 ? 's' : ''}</span>
+      <table>
+        <tr>${tete}${droite.length ? `<td class="sep"></td>${tete}` : ''}</tr>
+        ${gauche.map((l, i) => `<tr>${cellules(l)}${droite.length ? `<td class="sep"></td>${cellules(droite[i])}` : ''}</tr>`).join('')}
+      </table>
+    </div>`;
 };
 
 const jourLong = (iso: string): string => new Date(`${iso.slice(0, 10)}T00:00:00`)
@@ -147,7 +168,15 @@ const STYLE = `
   .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:3mm 4mm; min-height:30mm; display:flex; flex-direction:column; }
   .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:5.6mm; }
   .bloc .pied { margin-top:auto; padding-top:2mm; font-size:8pt; color:var(--encre-d); }
-  .calendrier { display:block; margin-top:.6mm; font-size:8.2pt; line-height:1.45; color:var(--encre-d); }
+  .ech { margin:0 0 2.6mm; font-size:7.8pt; color:var(--encre-d); }
+  .ech .etq { display:block; margin-bottom:1.2mm; }
+  .ech table { width:100%; border-collapse:collapse; }
+  .ech td, .ech th { padding:.45mm 1mm; text-align:right; white-space:nowrap; }
+  .ech th { font-family:'Jost',sans-serif; font-size:6.6pt; font-weight:500; letter-spacing:.08em; text-transform:uppercase;
+            border-bottom:.4pt solid var(--filet); }
+  .ech td:first-child, .ech th:first-child, .ech .sep + td, .ech .sep + th { text-align:left; }
+  .ech .sep { width:7mm; }
+  .ech .creux { text-align:center; color:var(--filet); }
   .mention { font-size:8.4pt; color:var(--encre-d); margin:0 0 1mm; line-height:1.4; text-align:left; }
   .cases { display:flex; flex-direction:column; gap:1.6mm; font-size:9pt; }
   .case { display:inline-block; width:3.2mm; height:3.2mm; border:.7pt solid #4a463f; margin-right:1.8mm; vertical-align:-.4mm; }
@@ -157,7 +186,6 @@ const STYLE = `
               justify-content:center; text-align:center; font-size:8.2pt; color:var(--encre-d); padding:4mm; line-height:1.4; }
   /* Sur l'engagement, la même carte qu'en page 1 : plus petite, elle laisse
      la place au calendrier des retenues (19 septembre 2026). */
-  .feuille--engagement .carte-photo { max-height:44mm; }
   .carte-photo { display:block; max-width:100%; max-height:54mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
   .carte-id b { display:block; font-family:'Cormorant Garamond',Georgia,serif; font-size:12pt; font-weight:400; color:var(--indigo); margin-bottom:1mm; }
   .pied-page { margin-top:3mm; padding-top:2mm; border-top:.4pt solid var(--filet); font-size:7.2pt; color:var(--encre-d); display:flex; justify-content:space-between; gap:6mm; }
@@ -268,6 +296,9 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
     </div>
   </article>`;
 
+  /* L'ÉCHÉANCIER A PRIS LA PLACE DE LA CARTE SUR CETTE PAGE — 20 septembre
+     2026. Une page ne porte pas les deux, et c'est l'échéancier qu'on signe ;
+     la copie, photo ou case à coller, reste sur la demande, en page 1. */
   const engagement = `
   <article class="feuille feuille--engagement">
     ${entete('Engagement de remboursement<br />Pièce 2 sur 2')}
@@ -282,10 +313,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
     <ol>
       <li><b>La retenue</b> est de <span class="v">${pct(d.partPct)}</span> % de mon salaire de base, soit
       <span class="v nw">${francs(d.mensXof)}</span> F par mois à ce jour, à compter du bulletin
-      ${duMois(d.premierMois)}, pendant <span class="v">${d.mois}</span> mois.
-      La dernière retenue se limite à ce qui reste dû${d.plan?.length
-    ? ` : <span class="v nw">${francs(d.plan[d.plan.length - 1].retenueXof)}</span> F`
-    : ''}.${d.plan?.length ? calendrierDesRetenues(d.plan) : ''}</li>
+      ${duMois(d.premierMois)}, pendant <span class="v">${d.mois}</span> mois, selon l'échéancier ci-dessous.</li>
       <li><b>Si mon salaire de base change</b>, la même part s'applique au nouveau salaire : le remboursement
       s'en trouve raccourci ou allongé d'autant.</li>
       <li><b>Une retenue ne dépasse jamais</b> ${plafond} % de mon salaire net du mois, plafond fixé par la
@@ -295,6 +323,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
       les dernières sommes qui me seront versées, dans les limites prévues par la loi. Le reliquat éventuel
       restera dû, et je m'engage à le rembourser selon un échéancier convenu avec la Maison.</li>
     </ol>
+    ${d.plan?.length ? echeancierDesRetenues(d.plan) : ''}
     <p><b>J'autorise ${echappe(avecArticle(maison))}</b> à opérer ces retenues sur mes bulletins de paie jusqu'au
     remboursement complet. Chaque bulletin indique la retenue du mois et ce qui reste dû.</p>
     <p>Fait à ${echappe(ville)}, le <span class="v">${le}</span>, en deux exemplaires, dont un m'est remis.</p>
@@ -314,13 +343,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Signature et cachet</div>
         </div>
       </div>
-      ${d.identite
-    /* SUR L'ENGAGEMENT, LA PHOTO SEULE — 19 septembre 2026. Un cadre à coller
-       y tiendrait mal : une carte fait 85,6 × 54 mm, et la page n'a plus
-       cette hauteur depuis le calendrier des retenues. La copie pleine taille
-       se colle sur la demande, qui garde ses deux cases. */
-    ? carteIdentite("Copie de la carte d'identité du membre", d.identite)
-    : '<p class="mention">La copie de la carte d’identité est jointe à la demande de prêt, pièce 1 sur 2.</p>'}
+      <p class="mention">La copie de la carte d’identité est jointe à la demande de prêt, pièce 1 sur 2.</p>
       <div class="pied-page"><span>${echappe(maison)} &middot; prêt sans intérêt, autorisation de retenue sur salaire</span><span>Un exemplaire au membre, un au dossier</span></div>
     </div>
   </article>`;
@@ -343,8 +366,10 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
   <div class="barre">
     <b>Les lettres du prêt</b>
     <span class="note">À faire relire par votre comptable avant la première signature : ${aValider}.
-    Deux exemplaires de l'engagement : un pour le membre, un pour le dossier.</span>
-    <button type="button" onclick="window.print()">Imprimer</button>
+    Deux exemplaires de l'engagement : un pour le membre, un pour le dossier.
+    <b>Pour en garder un PDF</b> : cliquez ci-contre, puis choisissez « Enregistrer au format PDF »
+    comme destination. Le fichier se partage ensuite comme n'importe quel document.</span>
+    <button type="button" onclick="window.print()">Imprimer ou enregistrer en PDF</button>
   </div>
   <div class="feuilles">${demande}${engagement}</div>
 </body></html>`;
