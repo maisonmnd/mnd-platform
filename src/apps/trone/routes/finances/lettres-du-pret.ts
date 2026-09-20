@@ -163,11 +163,27 @@ const STYLE = `
      justification écartait alors les mots de celle d'avant. */
   .blanc--plein { display:block; width:100%; min-width:0; margin-top:1mm; }
   .nw { white-space:nowrap; }
-  .zone { margin-top:auto; }
+  /* TOUT REMONTE — 20 septembre 2026, « remonte partout » (Yéman). La zone
+     des signatures était plaquée en bas de page (marge haute automatique) et
+     laissait un grand vide au milieu. Elle suit maintenant le texte ; le
+     blanc, s'il en reste, va en bas, là où il ne se voit pas.
+     JAMAIS D'ACCENT GRAVE DANS CES COMMENTAIRES : ils vivent dans un gabarit,
+     et un seul accent grave le referme. */
+  .zone { margin-top:7mm; }
   .deux { display:grid; grid-template-columns:1fr 1fr; gap:6mm; }
-  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:3mm 4mm; min-height:30mm; display:flex; flex-direction:column; }
-  .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:5.6mm; }
-  .bloc .pied { margin-top:auto; padding-top:2mm; font-size:8pt; color:var(--encre-d); }
+  /* LES CADRES DE SIGNATURE, PLUS PETITS — 20 septembre 2026, « là où sont les
+     signatures rends ça plus petit » (Yéman) : la place ainsi gagnée porte
+     l'échéancier ET la carte sur la même page. */
+  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:2.4mm 3.4mm; min-height:22mm; display:flex; flex-direction:column; }
+  .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:4.6mm; }
+  .bloc .pied { margin-top:auto; padding-top:1.4mm; font-size:7.6pt; color:var(--encre-d); }
+  /* L'ÉCHÉANCIER ET LA CARTE CÔTE À CÔTE — 20 septembre 2026, « remets la
+     carte d'identité sur la lettre d'engagement » (Yéman) : la page ne les
+     porte l'un sous l'autre qu'au prix d'un débordement. */
+  .bas { display:flex; align-items:flex-start; gap:6mm; margin:0 0 2.6mm; }
+  .bas .ech { flex:1 1 auto; min-width:0; margin:0; }
+  .bas .identite { flex:0 0 auto; margin:0; }
+  .feuille--engagement .carte-photo { max-height:44mm; }
   .ech { margin:0 0 2.6mm; font-size:7.8pt; color:var(--encre-d); }
   .ech .etq { display:block; margin-bottom:1.2mm; }
   .ech table { width:100%; border-collapse:collapse; }
@@ -177,10 +193,11 @@ const STYLE = `
   .ech td:first-child, .ech th:first-child, .ech .sep + td, .ech .sep + th { text-align:left; }
   .ech .sep { width:7mm; }
   .ech .creux { text-align:center; color:var(--filet); }
-  .mention { font-size:8.4pt; color:var(--encre-d); margin:0 0 1mm; line-height:1.4; text-align:left; }
+  .mention { font-size:8pt; color:var(--encre-d); margin:0 0 .8mm; line-height:1.35; text-align:left; }
   .cases { display:flex; flex-direction:column; gap:1.6mm; font-size:9pt; }
   .case { display:inline-block; width:3.2mm; height:3.2mm; border:.7pt solid #4a463f; margin-right:1.8mm; vertical-align:-.4mm; }
   .identite { margin-top:3mm; }
+  .zone .identite { margin:0 0 4mm; }
   .cartes { display:flex; gap:5mm; }
   .carte-id { width:85.6mm; height:54mm; flex:none; border:.8pt dashed #8b8578; border-radius:3mm; display:flex; align-items:center;
               justify-content:center; text-align:center; font-size:8.2pt; color:var(--encre-d); padding:4mm; line-height:1.4; }
@@ -273,9 +290,12 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
     <span class="v nw">${francs(d.baseXof)}</span> F : <span class="v">${pct(d.partPct)}</span> % de ce salaire, soit
     <span class="v nw">${francs(d.mensXof)}</span> F par mois, pendant <span class="v">${d.mois}</span> mois, à compter
     du bulletin ${duMois(d.premierMois)}.</p>
-    <p>Je joins à cette demande la copie de ma carte d'identité, et vous prie d'agréer, Madame, Monsieur,
+    <p>Je joins à cette demande la copie de ma carte d'identité ou de mon CIP, et vous prie d'agréer, Madame, Monsieur,
     l'expression de ma considération respectueuse.</p>
     <div class="zone">
+      <!-- LA CARTE AVANT LES SIGNATURES (20 septembre 2026, Yéman) : on la
+           regarde en signant, pas après avoir signé. -->
+      ${carteIdentite(`Copie de la carte d'identité ou du CIP, n° <span class="blanc" style="--l:40mm"></span>`, d.identite)}
       <div class="deux">
         <div class="bloc">
           <span class="etq">Signature</span>
@@ -291,19 +311,26 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Le ………………… &middot; signature et cachet</div>
         </div>
       </div>
-      ${carteIdentite(`Copie de la carte d'identité, n° <span class="blanc" style="--l:40mm"></span>`, d.identite)}
       <div class="pied-page"><span>${echappe(maison)} &middot; demande de prêt sans intérêt</span><span>À conserver au dossier du membre</span></div>
     </div>
   </article>`;
 
-  /* L'ÉCHÉANCIER A PRIS LA PLACE DE LA CARTE SUR CETTE PAGE — 20 septembre
-     2026. Une page ne porte pas les deux, et c'est l'échéancier qu'on signe ;
-     la copie, photo ou case à coller, reste sur la demande, en page 1. */
+  /* LE BAS DE L'ENGAGEMENT : l'échéancier, et la carte à côté quand la fiche
+     en porte une. SANS photo, pas de cases à coller ici : une case de la
+     taille d'une carte (85,6 × 54 mm) ne tient plus sous l'échéancier, et la
+     demande, en page 1, garde les siennes en pleine taille. */
+  const basDeLEngagement = (): string => {
+    const ech = d.plan?.length ? echeancierDesRetenues(d.plan) : '';
+    const carte = d.identite ? carteIdentite("Copie de la carte d'identité ou du CIP", d.identite) : '';
+    if (ech && carte) return `<div class="bas">${ech}${carte}</div>`;
+    return ech || carte;
+  };
+
   const engagement = `
   <article class="feuille feuille--engagement">
     ${entete('Engagement de remboursement<br />Pièce 2 sur 2')}
     <h2 class="objet"><small>Lettre d'engagement</small>Reconnaissance de prêt et autorisation de retenue sur salaire</h2>
-    <p>Je soussigné(e), ${champ(d.nom, 56)}, titulaire de la carte d'identité n°
+    <p>Je soussigné(e), ${champ(d.nom, 56)}, titulaire de la carte d'identité ou du CIP n°
     <span class="blanc" style="--l:30mm"></span>, demeurant à <span class="blanc" style="--l:40mm"></span>,
     employé(e) de ${echappe(societe)}, ${echappe(maison)}, en qualité de <span class="nw">${champ(d.fonction?.toLowerCase(), 32)},</span></p>
     <p><b>reconnais avoir reçu</b> ${echappe(deLaMaison(maison))}, le <span class="v">${le}</span>, la somme de
@@ -323,7 +350,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
       les dernières sommes qui me seront versées, dans les limites prévues par la loi. Le reliquat éventuel
       restera dû, et je m'engage à le rembourser selon un échéancier convenu avec la Maison.</li>
     </ol>
-    ${d.plan?.length ? echeancierDesRetenues(d.plan) : ''}
+    ${basDeLEngagement()}
     <p><b>J'autorise ${echappe(avecArticle(maison))}</b> à opérer ces retenues sur mes bulletins de paie jusqu'au
     remboursement complet. Chaque bulletin indique la retenue du mois et ce qui reste dû.</p>
     <p>Fait à ${echappe(ville)}, le <span class="v">${le}</span>, en deux exemplaires, dont un m'est remis.</p>
@@ -343,7 +370,7 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
           <div class="pied">Signature et cachet</div>
         </div>
       </div>
-      <p class="mention">La copie de la carte d’identité est jointe à la demande de prêt, pièce 1 sur 2.</p>
+      ${d.identite ? '' : '<p class="mention">La copie de la carte d’identité ou du CIP est jointe à la demande de prêt, pièce 1 sur 2.</p>'}
       <div class="pied-page"><span>${echappe(maison)} &middot; prêt sans intérêt, autorisation de retenue sur salaire</span><span>Un exemplaire au membre, un au dossier</span></div>
     </div>
   </article>`;

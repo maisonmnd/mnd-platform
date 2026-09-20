@@ -2,6 +2,33 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES LETTRES REMONTENT, ET LA CARTE REVIENT — 20 septembre 2026
+
+Quatre demandes de Yéman dans la même heure, sur les lettres du prêt :
+« remets la carte d'identité sur la lettre d'engagement », « met tout sur une
+page, là où sont les signatures rends ça plus petit », « remonte partout »,
+« écrire copie de la carte d'identité ou du CIP ».
+
+- **La carte revient sur l'engagement**, À CÔTÉ de l'échéancier (`.bas`, une
+  ligne en deux colonnes) : l'un sous l'autre, la page débordait.
+- **Les cadres de signature rétrécissent** (hauteur minimale 30 → 22 mm,
+  lignes 5,6 → 4,6 mm, mentions 8,4 → 8 pt) : c'est la place ainsi gagnée qui
+  porte la carte.
+- **Plus de vide au milieu** : la zone des signatures n'est plus plaquée en
+  bas de page (marge haute automatique retirée), elle suit le texte.
+- **La carte passe AVANT les signatures** sur la demande aussi : on la
+  regarde en signant, pas après avoir signé.
+- **Le mot juste** : « carte d'identité ou CIP », le certificat
+  d'identification personnelle du Bénin, sur les deux lettres et dans la
+  clause de reconnaissance.
+
+Mesuré dans Chrome (7, 13, 18, 60 bulletins, avec et sans photo) : aucune
+page ne déborde, marge en bas de 9,2 mm au pire cas, 20,9 mm sur la demande.
+
+**Le piège, retrouvé une fois de plus** : un accent grave dans un commentaire
+CSS à l'intérieur d'un gabarit referme le gabarit. La construction a échoué
+net. Ne jamais citer de code entre accents graves dans ces commentaires.
+
 ## L'ÉCHÉANCIER SUR LA LETTRE D'ENGAGEMENT — 20 septembre 2026
 
 « Je veux le montant des retenues avec le solde à chaque versement pour que
