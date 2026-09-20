@@ -63,16 +63,17 @@ const moisCourt = (mois: string): string => new Date(`${mois}-01T00:00:00`)
 /** L'ÉCHÉANCIER, BULLETIN PAR BULLETIN — 20 septembre 2026. « Je veux le
     montant des retenues avec le solde à chaque versement pour que ce soit
     bien précis » (Yéman). Deux colonnes côte à côte, pour que douze bulletins
-    tiennent en six lignes. Au-delà de dix-huit, on montre les quinze premiers
-    et les deux derniers : mesuré, c'est ce que la page porte sans déborder,
-    et personne ne signe une liste qu'il ne lit pas. */
+    tiennent en sept lignes. Au-delà de quatorze, on montre les onze premiers
+    et les deux derniers : mesuré, c'est ce que la page porte sans déborder
+    une fois l'échéancier agrandi (20 septembre), et personne ne signe une
+    liste qu'il ne lit pas. */
 type LigneDEcheancier = { mois: string; retenueXof: number; resteApresXof: number };
 const echeancierDesRetenues = (plan: readonly LigneDEcheancier[]): string => {
   if (plan.length === 0) return '';
-  const MAX = 18;
+  const MAX = 14;
   const lignes: (LigneDEcheancier | null)[] = plan.length <= MAX
     ? [...plan]
-    : [...plan.slice(0, MAX - 3), null, ...plan.slice(-2)];
+    : [...plan.slice(0, MAX - 3), null, ...plan.slice(-2)];  // 11 + … + 2
   const moitie = Math.ceil(lignes.length / 2);
   const gauche = lignes.slice(0, moitie);
   const droite = lignes.slice(moitie);
@@ -174,24 +175,31 @@ const STYLE = `
   /* LES CADRES DE SIGNATURE, PLUS PETITS — 20 septembre 2026, « là où sont les
      signatures rends ça plus petit » (Yéman) : la place ainsi gagnée porte
      l'échéancier ET la carte sur la même page. */
-  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:2.4mm 3.4mm; min-height:22mm; display:flex; flex-direction:column; }
-  .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:4.6mm; }
+  .bloc { border:.6pt solid var(--filet); border-radius:1.5mm; padding:2.8mm 3.8mm; min-height:25mm; display:flex; flex-direction:column; }
+  .bloc .ligne { border-bottom:.6pt dotted #6b6559; height:5mm; }
   .bloc .pied { margin-top:auto; padding-top:1.4mm; font-size:7.6pt; color:var(--encre-d); }
   /* L'ÉCHÉANCIER ET LA CARTE CÔTE À CÔTE — 20 septembre 2026, « remets la
      carte d'identité sur la lettre d'engagement » (Yéman) : la page ne les
      porte l'un sous l'autre qu'au prix d'un débordement. */
-  .bas { display:flex; align-items:flex-start; gap:6mm; margin:0 0 2.6mm; }
+  .bas { display:flex; align-items:flex-start; gap:5mm; margin:0 0 2.6mm; }
   .bas .ech { flex:1 1 auto; min-width:0; margin:0; }
-  .bas .identite { flex:0 0 auto; margin:0; }
-  .feuille--engagement .carte-photo { max-height:44mm; }
-  .ech { margin:0 0 2.6mm; font-size:7.8pt; color:var(--encre-d); }
+  /* LA COLONNE DE DROITE SE MESURE SUR LA CARTE, PAS SUR SON LIBELLÉ
+     (20 septembre 2026) : le titre tenait sur une ligne et élargissait le
+     bloc, jusqu'à pousser la colonne « reste dû » hors de la feuille. */
+  .bas .identite { flex:0 0 auto; margin:0; max-width:62mm; }
+  .bas .identite .etq { white-space:normal; line-height:1.35; }
+  /* LA CARTE NE MANGE PAS L'ÉCHÉANCIER (20 septembre 2026) : à pleine
+     largeur, elle repoussait la colonne « reste dû » du second groupe hors
+     de la feuille, qui coupe ce qui dépasse. */
+  .feuille--engagement .carte-photo { max-height:46mm; max-width:62mm; }
+  .ech { margin:0 0 2.6mm; font-size:8.4pt; color:var(--encre-d); }
   .ech .etq { display:block; margin-bottom:1.2mm; }
   .ech table { width:100%; border-collapse:collapse; }
-  .ech td, .ech th { padding:.45mm 1mm; text-align:right; white-space:nowrap; }
-  .ech th { font-family:'Jost',sans-serif; font-size:6.6pt; font-weight:500; letter-spacing:.08em; text-transform:uppercase;
+  .ech td, .ech th { padding:.75mm .6mm; text-align:right; white-space:nowrap; }
+  .ech th { font-family:'Jost',sans-serif; font-size:7.6pt; font-weight:500; letter-spacing:.08em; text-transform:uppercase;
             border-bottom:.4pt solid var(--filet); }
   .ech td:first-child, .ech th:first-child, .ech .sep + td, .ech .sep + th { text-align:left; }
-  .ech .sep { width:7mm; }
+  .ech .sep { width:5mm; }
   .ech .creux { text-align:center; color:var(--filet); }
   .mention { font-size:8pt; color:var(--encre-d); margin:0 0 .8mm; line-height:1.35; text-align:left; }
   .cases { display:flex; flex-direction:column; gap:1.6mm; font-size:9pt; }
@@ -203,7 +211,7 @@ const STYLE = `
               justify-content:center; text-align:center; font-size:8.2pt; color:var(--encre-d); padding:4mm; line-height:1.4; }
   /* Sur l'engagement, la même carte qu'en page 1 : plus petite, elle laisse
      la place au calendrier des retenues (19 septembre 2026). */
-  .carte-photo { display:block; max-width:100%; max-height:54mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
+  .carte-photo { display:block; max-width:100%; max-height:68mm; width:auto; height:auto; border:.6pt solid var(--filet); border-radius:2mm; }
   .carte-id b { display:block; font-family:'Cormorant Garamond',Georgia,serif; font-size:12pt; font-weight:400; color:var(--indigo); margin-bottom:1mm; }
   .pied-page { margin-top:3mm; padding-top:2mm; border-top:.4pt solid var(--filet); font-size:7.2pt; color:var(--encre-d); display:flex; justify-content:space-between; gap:6mm; }
   @page { size:A4; margin:0; }
@@ -254,12 +262,12 @@ export function lettresDuPretHtml(d: DonneesDesLettres, picto = ''): string {
       </div>
       <div class="reference">${reference}</div>
     </div>`;
-  const lettres = echappe(nombreEnLettres(d.montantXof));
-  const chiffres = francs(d.montantXof);
-  const le = jourLong(d.date);
   const plafond = d.plafondPct != null && d.plafondPct > 0
     ? `<span class="v">${pct(d.plafondPct)}</span>`
     : '<span class="blanc" style="--l:10mm"></span>';
+  const lettres = echappe(nombreEnLettres(d.montantXof));
+  const chiffres = francs(d.montantXof);
+  const le = jourLong(d.date);
 
   const demande = `
   <article class="feuille">

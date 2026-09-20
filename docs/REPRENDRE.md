@@ -2,6 +2,33 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA LARGEUR SE PARTAGE : L'ÉCHÉANCIER OU LA CARTE — 20 septembre 2026
+
+« Enlever l'article 3 et agrandir le CIP et l'échéancier, il y a de la place
+en bas de la page », puis, dix minutes après : « ne pas enlever l'article 3,
+c'est important ». L'article du plafond est donc REMIS (il est la seule chose
+qui plafonne la retenue par écrit ; le Trône, lui, refuse déjà un prêt qui le
+dépasse), et les tailles ont été réajustées autour de lui.
+
+**Ce que la page permet, mesuré.** Sur la lettre d'engagement, l'échéancier et
+la carte se partagent 178 mm de large. Le tableau à deux groupes demande
+111 mm en corps 8,4 : il reste 62 mm pour la carte, soit 39 mm de haut pour
+une carte au format paysage. Agrandir l'un rétrécit l'autre, il n'y a pas de
+troisième voie sur une seule page. Réglage retenu : corps 8,4 (contre 7,8),
+carte 62 × 46 mm au plus. Marges en bas : 15 mm à 7 bulletins, 10 à 13, 8,2 à
+18 et au-delà, 6,3 sans photo. Sur la demande, la photo passe à 68 mm de haut
+(6,1 mm de marge) ; les cases à coller gardent 54 mm, la taille d'une carte.
+
+**L'échéancier se limite à 14 lignes** (sept rangées) : au-delà, onze premiers
+bulletins, points de suspension, deux derniers.
+
+**Le piège du jour** : le libellé « Copie de la carte d'identité ou du CIP »,
+insécable, élargissait la colonne de droite et poussait la colonne « reste dû »
+hors de la feuille, qui coupe sans rien dire. Le libellé passe à la ligne, et
+le bloc est plafonné à la largeur de la carte. Une mesure de la largeur du
+tableau contre celle de son conteneur l'a montré ; l'œil seul ne l'aurait pas
+dit, la coupe était nette.
+
 ## LES LETTRES REMONTENT, ET LA CARTE REVIENT — 20 septembre 2026
 
 Quatre demandes de Yéman dans la même heure, sur les lettres du prêt :
