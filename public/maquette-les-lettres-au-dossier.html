@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Les lettres du prêt, rangées au dossier &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:21px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:82ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:32px 0 0;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .deux { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+  @media (max-width:880px) { .deux { grid-template-columns:1fr; } }
+  .deux > * { min-width:0; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__barre { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:11px 18px; background:var(--indigo);
+                  color:#F3EDE1; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .ecran__barre span { opacity:.6; }
+  .ecran__corps { padding:20px 22px 24px; }
+  .etq { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--encre-d); display:block; margin-bottom:9px; }
+
+  .ligne { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+           border:1px solid var(--filet); border-radius:3px; padding:12px 14px; background:#fff; }
+  .ligne + .ligne { margin-top:10px; }
+  .ligne b.t { font-weight:500; }
+  .sous { display:block; font-size:12px; color:var(--encre-d); }
+  .gestes { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+  .btn { font:inherit; font-size:13px; cursor:default; padding:7px 15px; border-radius:999px;
+         border:1px solid var(--filet); background:#fff; color:var(--encre); }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .btn--indigo { background:var(--indigo); border-color:var(--indigo); color:#F3EDE1; }
+  .lien { font-size:13px; color:var(--indigo); border-bottom:1px solid var(--cuivre-p); }
+
+  .pastille { display:inline-block; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+              padding:3px 9px; border-radius:999px; border:1px solid var(--cuivre-p); background:var(--cuivre-f); color:var(--cuivre); }
+  .pastille--vert { border-color:var(--vert-p); background:var(--vert-f); color:var(--vert); }
+
+  .toast { display:inline-flex; align-items:center; gap:10px; margin-top:14px; padding:9px 15px; border-radius:3px;
+           background:var(--indigo); color:#F3EDE1; font-size:13px; }
+
+  .mur { border:1px solid var(--brique-p); border-left:3px solid var(--brique); background:var(--brique-f);
+         border-radius:3px; padding:12px 15px; font-size:13.5px; line-height:1.6; }
+  .mur b { color:var(--brique); font-weight:500; }
+  .note { border:1px solid var(--filet); border-left:3px solid var(--cuivre); background:var(--ivoire);
+          border-radius:3px; padding:12px 15px; font-size:13.5px; line-height:1.6; }
+
+  /* l'aperçu des deux pages */
+  .feuilles { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; }
+  @media (max-width:880px) { .feuilles { grid-template-columns:1fr; } }
+  .feuille { background:#fff; border:1px solid var(--filet); border-radius:2px; padding:18px 20px; font-size:11px; line-height:1.5; color:var(--encre-d); }
+  .feuille .tete { display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid var(--indigo); padding-bottom:7px; margin-bottom:10px; }
+  .feuille .maison { font-family:var(--serif); font-size:17px; color:var(--indigo); line-height:1.1; }
+  .feuille .maison small { display:block; font-size:8px; letter-spacing:.14em; text-transform:uppercase; }
+  .feuille .ref { font-size:8px; letter-spacing:.14em; text-transform:uppercase; text-align:right; }
+  .feuille .titre { font-family:var(--serif); font-size:15px; color:var(--indigo); margin:8px 0 6px; }
+  .feuille .trait { height:7px; background:var(--indigo-pale); border-radius:2px; margin:5px 0; }
+  .feuille .trait.court { width:62%; }
+  .feuille table { width:100%; border-collapse:collapse; font-size:9px; margin-top:8px; }
+  .feuille th { text-align:left; font-size:7.5px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--filet); padding:2px 3px; font-weight:500; }
+  .feuille td { padding:2px 3px; }
+  .feuille td.n, .feuille th.n { text-align:right; }
+  .feuille .cases { display:flex; gap:8px; margin-top:10px; }
+  .feuille .case { flex:1; border:1px dashed #8b8578; border-radius:3px; height:46px; }
+  .feuille--pdf { font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .feuille--pdf .maison, .feuille--pdf .titre { font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:600; }
+
+  .choix { border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:16px 18px; }
+  .choix + .choix { margin-top:14px; }
+  .choix b.t { display:block; font-family:var(--serif); font-size:20px; font-weight:400; color:var(--indigo); margin-bottom:4px; }
+  .choix p { margin:0 0 8px; color:var(--encre-d); font-size:14px; }
+  .choix ul { margin:0; padding-left:18px; font-size:14px; }
+  .choix li { margin-bottom:5px; }
+  .choix li b { font-weight:500; color:var(--encre); }
+  .prop { display:inline-block; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--vert);
+          border:1px solid var(--vert-p); background:var(--vert-f); border-radius:999px; padding:2px 9px; margin-left:8px; vertical-align:2px; }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maquette à valider &middot; 20 septembre 2026</p>
+  <h1>Les lettres du prêt, rangées au dossier.</h1>
+  <p class="chapeau">
+    Aujourd'hui, les lettres s'ouvrent dans une fenêtre, s'impriment, et disparaissent. <b>Le Trône les
+    fabriquerait en PDF, les rangerait au coffre sur la fiche du membre, et donnerait un lien pour les
+    partager.</b> Voici ce que cela donnerait, et les cinq points à trancher.
+  </p>
+
+  <p class="cite">
+    J'aimerais sauvegarder le PDF des lettres d'engagement et partager.
+    <span>Yéman, 20 septembre 2026</span>
+  </p>
+
+  <section>
+    <p class="num">01</p>
+    <h2>Le geste, dans l'écran des prêts</h2>
+    <p class="intro">
+      Un seul bouton de plus, à côté de « Lettres à signer ». Il fabrique les deux pages, les range, et
+      le dit. <b>Rien ne s'ouvre, rien ne s'imprime</b> : on range, on partage.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__barre">Finances <span>&rsaquo;</span> Prêts <span>&rsaquo;</span> Nassim Maliki &middot; 200 000 F</div>
+      <div class="ecran__corps">
+        <span class="etq">Ce que la Maison peut faire de ce prêt</span>
+        <div class="gestes">
+          <button class="btn">Lettres à signer</button>
+          <button class="btn btn--cuivre">Ranger au dossier &middot; PDF</button>
+          <button class="btn">Déposer la copie signée</button>
+        </div>
+        <div class="toast">Les lettres sont rangées au dossier de Nassim Maliki.</div>
+        <p class="legende">
+          <b>« Ranger au dossier »</b> fabrique le PDF des deux pages, tel qu'il s'imprimerait, et le
+          dépose au coffre. <b>« Déposer la copie signée »</b> range la photo ou le scan des lettres une
+          fois signées : c'est celle-là qui vaut preuve.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">02</p>
+    <h2>Ce que la fiche du membre montre ensuite</h2>
+    <p class="intro">
+      Au même endroit que sa pièce d'identité, une rubrique <b>« Ses lettres de prêt »</b>. Chaque ligne
+      dit d'où elle vient, quand, et par qui.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__barre">Équipe <span>&rsaquo;</span> Personnel &amp; paie <span>&rsaquo;</span> Nassim Maliki</div>
+      <div class="ecran__corps">
+        <span class="etq">Ses lettres de prêt &middot; direction seule</span>
+
+        <div class="ligne">
+          <span>
+            <b class="t">Prêt du 20 septembre 2026 &middot; 200 000 F</b>
+            <span class="sous">rangé le 20 septembre par Yéman &middot; 2 pages</span>
+          </span>
+          <span class="gestes">
+            <span class="pastille">à signer</span>
+            <button class="btn">Ouvrir</button>
+            <button class="btn">Partager</button>
+            <button class="btn">Remplacer</button>
+            <span class="lien">Effacer</span>
+          </span>
+        </div>
+
+        <div class="ligne">
+          <span>
+            <b class="t">Prêt du 3 mars 2026 &middot; 120 000 F</b>
+            <span class="sous">signée, déposée le 5 mars par Brice &middot; photo</span>
+          </span>
+          <span class="gestes">
+            <span class="pastille pastille--vert">signée</span>
+            <button class="btn">Ouvrir</button>
+            <button class="btn">Partager</button>
+            <span class="lien">Effacer</span>
+          </span>
+        </div>
+
+        <p class="legende">
+          <b>« Partager » copie un lien qui vaut une heure.</b> Passé ce délai, il ne s'ouvre plus : un
+          lien qui traîne dans une conversation ne rouvre pas un salaire six mois plus tard. Le même
+          coffre que la pièce d'identité, la même règle : <b>la direction seule</b>, tenue par le serveur.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">03</p>
+    <h2>À quoi ressemblerait le PDF</h2>
+    <p class="intro">
+      Le Trône fabrique ses PDF avec la même bibliothèque que les contrats et les bulletins. <b>Le
+      contenu est identique, la typographie est plus simple</b> : les caractères de la Maison, Cormorant
+      et Jost, ne sont pas embarqués dans ces PDF.
+    </p>
+
+    <div class="feuilles">
+      <div class="feuille">
+        <div class="tete">
+          <div class="maison">L'atelier MND<small>ACIA 1 &middot; RCCM RB/COT/12 A 14509</small></div>
+          <div class="ref">Engagement<br />Pièce 2 sur 2</div>
+        </div>
+        <div class="titre">Reconnaissance de prêt</div>
+        <div class="trait"></div><div class="trait"></div><div class="trait court"></div>
+        <table>
+          <tr><th>Bulletin</th><th class="n">Retenue</th><th class="n">Reste dû</th></tr>
+          <tr><td>oct. 2026</td><td class="n">30 000 F</td><td class="n">170 000 F</td></tr>
+          <tr><td>nov. 2026</td><td class="n">30 000 F</td><td class="n">140 000 F</td></tr>
+          <tr><td>déc. 2026</td><td class="n">30 000 F</td><td class="n">110 000 F</td></tr>
+        </table>
+        <p class="legende" style="margin-top:10px">La fenêtre d'aujourd'hui, à l'écran et à l'impression.</p>
+      </div>
+
+      <div class="feuille feuille--pdf">
+        <div class="tete">
+          <div class="maison">L'atelier MND<small>ACIA 1 &middot; RCCM RB/COT/12 A 14509</small></div>
+          <div class="ref">Engagement<br />Pièce 2 sur 2</div>
+        </div>
+        <div class="titre">Reconnaissance de prêt</div>
+        <div class="trait"></div><div class="trait"></div><div class="trait court"></div>
+        <table>
+          <tr><th>Bulletin</th><th class="n">Retenue</th><th class="n">Reste dû</th></tr>
+          <tr><td>oct. 2026</td><td class="n">30 000 F</td><td class="n">170 000 F</td></tr>
+          <tr><td>nov. 2026</td><td class="n">30 000 F</td><td class="n">140 000 F</td></tr>
+          <tr><td>déc. 2026</td><td class="n">30 000 F</td><td class="n">110 000 F</td></tr>
+        </table>
+        <p class="legende" style="margin-top:10px">Le PDF fabriqué par le Trône, comme les contrats.</p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      <b>L'autre voie, sans rien construire :</b> dans la fenêtre des lettres, « Imprimer », puis
+      « Enregistrer au format PDF ». Le fichier garde EXACTEMENT l'aspect des lettres, mais il reste sur
+      l'ordinateur : le Trône n'en sait rien, et il faut le partager à la main.
+    </div>
+  </section>
+
+  <section>
+    <p class="num">04</p>
+    <h2>Les cinq points à trancher</h2>
+
+    <div class="choix">
+      <b class="t">① Qui peut ouvrir ces lettres <span class="prop">proposé : la direction seule</span></b>
+      <p>Un prêt dit un salaire, un motif, parfois une difficulté. Même règle que la pièce d'identité :
+        le serveur refuse le lien à qui n'est pas de la direction, l'écran ne fait que cacher le bouton.</p>
+    </div>
+
+    <div class="choix">
+      <b class="t">② Le partage <span class="prop">proposé : un lien d'une heure, copié</span></b>
+      <p>Le bouton copie un lien ; vous le collez où vous voulez, y compris dans WhatsApp. Il expire au
+        bout d'une heure. L'envoi automatique au membre par WhatsApp demanderait un modèle approuvé par
+        Meta : c'est un autre chantier.</p>
+    </div>
+
+    <div class="choix">
+      <b class="t">③ Le vierge et le signé <span class="prop">proposé : les deux, distingués</span></b>
+      <p>Le PDF rangé est <b>vierge</b> : c'est celui qu'on fait signer. La copie signée se dépose
+        ensuite, et porte la pastille « signée ». Sans cette distinction, on ne saurait plus lequel des
+        deux fait foi.</p>
+    </div>
+
+    <div class="choix">
+      <b class="t">④ Refaire les lettres <span class="prop">proposé : le vierge se remplace, le signé jamais</span></b>
+      <p>Tant qu'elles ne sont pas signées, refaire les lettres remplace le PDF : le montant a changé,
+        la retenue aussi. Une copie signée, elle, ne se remplace pas ; elle s'efface, à la main, et cela
+        se voit.</p>
+    </div>
+
+    <div class="choix">
+      <b class="t">⑤ Combien de temps on les garde <span class="prop">proposé : tant que la fiche vit</span></b>
+      <p>Comme la pièce d'identité : le retrait de la fiche efface tout ce que le coffre gardait pour ce
+        membre. Le prêt soldé, lui, reste au Trône avec son historique, sans le document.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">05</p>
+    <h2>Ce que cela ne fait pas</h2>
+    <div class="mur">
+      <b>Pas de signature électronique.</b> Ces lettres se signent à la main, et la copie signée se
+      dépose. <b>Pas d'envoi automatique au membre.</b> Le lien se partage à la main, tant qu'aucun
+      modèle WhatsApp n'est approuvé pour cela. <b>Pas d'aperçu dans le Trône</b> : « Ouvrir » ouvre le
+      PDF dans un onglet, comme la pièce d'identité aujourd'hui.
+    </div>
+    <p class="legende">
+      Une fois la maquette validée, je construis, avec le harnais qui garde les règles : le chemin du
+      coffre (direction seule), le vierge qui se remplace et le signé qui ne se remplace pas, et
+      l'effacement avec la fiche.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
