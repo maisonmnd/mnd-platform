@@ -53,6 +53,7 @@ type Rdv = {
   time: string;
   status: string;
   creeLe?: string;
+  source?: string;
 };
 
 /* ══ UN RENDEZ-VOUS POSÉ APRÈS SON HEURE NE SE DIT À PERSONNE — 13 sept. 2026 ══
@@ -91,10 +92,42 @@ const estAConfirmer = (
   maintenantMs: number,
 ): boolean => a.status === 'confirmé' && !!a.clientId && momentDuRdv(a) > maintenantMs;
 
+/* ══ UNE CONFIRMATION NE RATTRAPE JAMAIS LE PASSÉ — 21 septembre 2026 ══
+   « Pourquoi tous ces messages sont partis aujourd'hui à 18 h ? Je veux
+   juste les rappels du lendemain, pas tous les rendez-vous d'ici 2027 »
+   (Yéman). Ce soir-là, une écriture en bloc a touché des rendez-vous
+   d'octobre ; le balayage les a crus neufs et chaque cliente a reçu « c'est
+   confirmé » des semaines après avoir pris sa place.
+
+   LA FAUTE ÉTAIT DE REGARDER LA DERNIÈRE ÉCRITURE : elle bouge à chaque
+   geste, à chaque synchronisation, à chaque réparation. ON REGARDE DONC
+   L'HEURE DE POSE, qui ne bouge jamais. Sans aucune heure de pose, on ne
+   confirme pas. La réservation du site fait exception : elle naît « en
+   attente » et la Maison la confirme plus tard, c'est tout l'objet de son
+   message. Recopié à l'identique de `shared/agenda.ts`. */
+const confirmationEstNeuve = (
+  a: { source?: string; creeLe?: string },
+  poseLe: string | undefined,
+  maintenantMs: number,
+  fenetreMs: number,
+): boolean => {
+  if (a.source === 'site') return true;
+  const pose = Date.parse(poseLe ?? a.creeLe ?? '');
+  return Number.isFinite(pose) && maintenantMs - pose <= fenetreMs;
+};
+
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-09-18-a';
+const VERSION = '2026-09-21-a';
+
+/* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
+   21, une écriture en bloc a fait partir des dizaines de confirmations d'un
+   coup. Une prise de rendez-vous, c'est une ou deux confirmations par
+   passage ; au-delà, c'est un accident, et on n'envoie RIEN. Mieux vaut un
+   silence que la Maison peut voir dans le journal des fonctions qu'un
+   message inutile chez quarante clientes. */
+const RAFALE_MAX = 5;
 
 /** L'heure de pose signée par la base, rendez-vous par rendez-vous. Une trace
     absente (rendez-vous d'avant 0092) laisse la place à `creeLe`. */
@@ -208,14 +241,29 @@ Deno.serve(async (req) => {
        à 16 h est un rendez-vous d'hier. */
     .filter((a) => a.date >= aujourdhui && estAConfirmer(a, maintenant));
 
-  /* POSÉ APRÈS SON HEURE : aucun message, jamais (voir `poseApresSonHeure`). */
+  /* POSÉ APRÈS SON HEURE : aucun message, jamais (voir `poseApresSonHeure`).
+     PAS POSÉ RÉCEMMENT NON PLUS : une écriture en bloc ne réveille pas des
+     rendez-vous d'octobre (voir `confirmationEstNeuve`, 21 septembre). */
   const poses = await posesSignees(sb, candidats.map((a) => a.id));
-  const rdvs = candidats.filter((a) => !poseApresSonHeure(a, poses.get(a.id)));
+  const rdvs = candidats.filter((a) => !poseApresSonHeure(a, poses.get(a.id))
+    && confirmationEstNeuve(a, poses.get(a.id), maintenant, FENETRE_MS));
 
   if (rdvs.length === 0) {
     return new Response(JSON.stringify({ version: VERSION, vus: 0, ecartes: candidats.length, push: 0, whatsapp: 0 }), {
       headers: { 'content-type': 'application/json' },
     });
+  }
+
+  /* LA RAFALE S'ARRÊTE ICI. Une prise de rendez-vous, c'est un ou deux
+     messages par passage. Au-delà, quelque chose a écrit en bloc, et l'on
+     préfère un silence visible au journal des fonctions à quarante messages
+     inutiles chez les clientes. */
+  if (rdvs.length > RAFALE_MAX) {
+    console.error(`confirmation-rdv: rafale écartée, ${rdvs.length} rendez-vous d'un coup, rien n'est parti`);
+    return new Response(
+      JSON.stringify({ version: VERSION, rafaleEcartee: rdvs.length, push: 0, whatsapp: 0 }),
+      { headers: { 'content-type': 'application/json' } },
+    );
   }
 
   /* ── Les fiches, pour le prénom et le téléphone ──────────────────── */

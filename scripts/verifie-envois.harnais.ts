@@ -9,7 +9,7 @@
    une cliente déjà repartie, ou une réservation réelle privée de son rappel :
    les deux fautes se lisent ici. */
 import { readFileSync } from 'node:fs';
-import { momentDuRdv, poseApresSonHeure, estAConfirmer } from '../src/shared/agenda';
+import { momentDuRdv, poseApresSonHeure, estAConfirmer, confirmationEstNeuve } from '../src/shared/agenda';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -68,6 +68,37 @@ dit('confirmation-rdv porte la même, mot pour mot', true,
   readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8').includes(regle));
 dit('… et s’en sert pour choisir', true,
   readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8').includes('estAConfirmer(a, maintenant)'));
+
+/* ── UNE CONFIRMATION NE RATTRAPE PAS LE PASSÉ — 21 septembre 2026 ──
+   Le soir du 21, une écriture en bloc a touché des rendez-vous d'octobre et
+   chaque cliente a reçu « c'est confirmé » des semaines après. Le juge
+   regarde l'heure de POSE, qui ne bouge pas, et non la dernière écriture. */
+const DEUX_H = 2 * 60 * 60 * 1000;
+const t21 = Date.parse('2026-09-21T17:40:00.000Z');
+dit('posé il y a dix minutes : c’est un rendez-vous neuf', true,
+  confirmationEstNeuve({}, '2026-09-21T17:30:00.000Z', t21, DEUX_H));
+dit('posé il y a trois semaines, réécrit ce soir : rien ne part', false,
+  confirmationEstNeuve({}, '2026-08-30T09:00:00.000Z', t21, DEUX_H));
+dit('sans trace, l’horloge de l’appareil fait foi', true,
+  confirmationEstNeuve({ creeLe: '2026-09-21T16:20:00.000Z' }, undefined, t21, DEUX_H));
+dit('sans aucune heure de pose, on ne confirme pas', false,
+  confirmationEstNeuve({}, undefined, t21, DEUX_H));
+dit('une heure de pose illisible ne confirme pas non plus', false,
+  confirmationEstNeuve({ creeLe: 'hier' }, undefined, t21, DEUX_H));
+/* LA RÉSERVATION DU SITE EST L'EXCEPTION : posée la veille au soir, confirmée
+   le lendemain matin, c'est là que la cliente doit être prévenue. */
+dit('une réservation du site confirmée le lendemain part quand même', true,
+  confirmationEstNeuve({ source: 'site', creeLe: '2026-09-20T21:40:00.000Z' }, '2026-09-20T21:40:00.000Z', t21, DEUX_H));
+
+/* LA COPIE DE LA FONCTION NE DÉRIVE PAS. */
+const regleNeuve = "if (a.source === 'site') return true;";
+const posePasse = 'Number.isFinite(pose) && maintenantMs - pose <= fenetreMs';
+const edge = readFileSync('supabase/functions/confirmation-rdv/index.ts', 'utf8');
+dit('shared/agenda.ts porte la règle du neuf', true,
+  readFileSync('src/shared/agenda.ts', 'utf8').includes(posePasse));
+dit('confirmation-rdv porte la même, mot pour mot', true, edge.includes(posePasse) && edge.includes(regleNeuve));
+dit('… et s’en sert pour filtrer', true, edge.includes('confirmationEstNeuve(a, poses.get(a.id), maintenant, FENETRE_MS)'));
+dit('… et la rafale s’arrête à cinq', true, edge.includes('rdvs.length > RAFALE_MAX'));
 
 if (ko) {
   console.log(`\n${ko} échec(s).`);

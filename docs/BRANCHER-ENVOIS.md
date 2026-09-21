@@ -155,7 +155,22 @@ Maquette `public/maquette-le-journal-des-envois.html`, arbitrages tranchés :
   Conversations › Envois automatiques, et la confirmation paraît dans le fil
   de la cliente.
 - Recoller `confirmation-rdv` EN ENTIER. Sa réponse porte `version` :
-  `2026-09-18-a`.
+  `2026-09-21-a`.
+
+### Le 21 septembre 2026, la rafale
+
+Une écriture en bloc a touché des dizaines de rendez-vous d'octobre à
+17 h 40 ; le balayage les a crus neufs et chaque cliente a reçu « c'est
+confirmé » des semaines après avoir pris sa place. Deux gardes ont été
+posées, et il faut RECOLLER la fonction pour qu'elles s'appliquent :
+
+- la confirmation regarde désormais **l'heure de pose** du rendez-vous, qui
+  ne bouge jamais, et non sa dernière écriture. Sans heure de pose, rien ne
+  part. Une réservation du site fait exception, puisqu'elle est confirmée
+  plus tard par la Maison ;
+- **au-delà de cinq confirmations dans un même passage, rien ne part** : une
+  prise de rendez-vous en vaut une ou deux, au-delà c'est un accident. Le
+  journal des fonctions le dit (`rafaleEcartee`).
 
 ## Étape 3 ter — L'accusé d'une réservation du site (18 septembre 2026)
 

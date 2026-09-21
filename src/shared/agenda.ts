@@ -753,6 +753,36 @@ export const estAConfirmer = (
   maintenantMs: number,
 ): boolean => a.status === 'confirmé' && !!a.clientId && momentDuRdv(a) > maintenantMs;
 
+/* ══ UNE CONFIRMATION NE RATTRAPE JAMAIS LE PASSÉ — 21 septembre 2026 ══
+   « Pourquoi tous ces messages sont partis aujourd'hui à 18 h ? Je veux
+   juste les rappels du lendemain, pas tous les rendez-vous d'ici 2027 »
+   (Yéman). Ce soir-là, une écriture en bloc a touché des rendez-vous
+   d'octobre ; le balayage les a crus neufs et chaque cliente a reçu « c'est
+   confirmé » des semaines après avoir pris sa place.
+
+   LA FAUTE ÉTAIT DE REGARDER LA DERNIÈRE ÉCRITURE : elle bouge à chaque
+   geste, à chaque synchronisation, à chaque réparation. ON REGARDE DONC
+   L'HEURE DE POSE, qui ne bouge jamais : celle que signe la base (trace
+   0092), à défaut `creeLe`. Sans aucune heure de pose, on ne confirme pas :
+   un rendez-vous d'avant ces traces n'a pas à recevoir un mot aujourd'hui.
+
+   LA RÉSERVATION DU SITE FAIT EXCEPTION, et c'est tout son objet : elle naît
+   « en attente » le soir, la Maison la confirme le lendemain matin, et c'est
+   à ce moment-là que la cliente doit être prévenue.
+
+   RECOPIÉ À L'IDENTIQUE dans la fonction confirmation-rdv ; éprouvé par
+   `verifie-envois`. */
+export const confirmationEstNeuve = (
+  a: { source?: string; creeLe?: string },
+  poseLe: string | undefined,
+  maintenantMs: number,
+  fenetreMs: number,
+): boolean => {
+  if (a.source === 'site') return true;
+  const pose = Date.parse(poseLe ?? a.creeLe ?? '');
+  return Number.isFinite(pose) && maintenantMs - pose <= fenetreMs;
+};
+
 /* ══ CE QUE LA MAISON A ÉCRIT DANS UNE NOTE — 5 septembre 2026 ══════
    « Quand je prends RDV et je mets une note, est-ce que cela peut apparaître
    quelque part sur la fiche du client aussi ? » (Yéman).
