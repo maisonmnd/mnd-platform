@@ -2597,6 +2597,40 @@
   min-height: 520px;
 }
 @media (max-width: 900px) { .trc-convs { grid-template-columns: 1fr; } }
+/* ══ LES CONVERSATIONS SUR UN TÉLÉPHONE — 21 septembre 2026 ═════════
+   « Make conversation page responsive on mobile phone » (Yéman).
+
+   EMPILÉES, LES DEUX COLONNES NE MARCHENT PAS. La boîte occupait les deux
+   tiers de la hauteur AVANT le fil : il fallait faire défiler toute la liste
+   pour lire une réponse, et la zone de saisie n'arrivait jamais. Sur un
+   téléphone on ne montre donc qu'UNE chose à la fois, comme le fait
+   WhatsApp : la liste, ou le fil ouvert avec sa porte de retour. Le fil
+   ouvert se reconnaît à la classe `a-fil`, posée par l'écran. */
+.trc-retour {
+  display: none; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 5px 12px; font: inherit; font-size: 12px; color: var(--color-indigo);
+  cursor: pointer; margin-bottom: 2px;
+}
+@media (max-width: 760px) {
+  .trc-convs { gap: 0; min-height: 0; }
+  .trc-convs__boite { max-height: none; }
+  .trc-convs.a-fil .trc-convs__boite { display: none; }
+  .trc-convs:not(.a-fil) .trc-convs__fil { display: none; }
+  .trc-convs__fil { min-height: calc(100dvh - 180px); }
+  /* Le fil prend la hauteur qui reste : c'est la page qui ne défile plus,
+     seules les bulles défilent, et la zone de saisie reste sous le pouce. */
+  .trc-bulles { max-height: none; flex: 1; padding: 12px; }
+  .trc-b { max-width: 88%; }
+  .trc-fil__tete { padding: 10px 12px; gap: 8px; }
+  .trc-saisie { padding: 11px 12px; }
+  .trc-gestes-rangee { gap: 6px; margin-bottom: 8px; }
+  .trc-retour { display: inline-flex; }
+  /* Les trois tiroirs se lisent d'un trait plutôt que de se casser en deux
+     lignes : on les fait glisser. */
+  .trc-tiroirs { overflow-x: auto; }
+  .trc-tiroirs .trc-tab { white-space: nowrap; }
+}
 
 .trc-convs__boite {
   border: 1px solid var(--hairline);

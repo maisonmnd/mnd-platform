@@ -714,7 +714,16 @@ export default function Conversations() {
         />
       )}
 
-      <div className="trc-convs" style={vue === 'envois' ? { display: 'none' } : undefined}>
+      {/* ══ UNE CHOSE À LA FOIS SUR UN TÉLÉPHONE — 21 septembre 2026 ══
+          « Make conversation page responsive on mobile phone » (Yéman).
+          Sous 760 pixels, la feuille de style montre la liste OU le fil
+          ouvert : `a-fil` dit lequel, et le bouton de retour ci-dessous
+          referme le fil en vidant l'adresse. Sur un grand écran, rien ne
+          change : les deux colonnes restent côte à côte. */}
+      <div
+        className={`trc-convs${fil ? ' a-fil' : ''}`}
+        style={vue === 'envois' ? { display: 'none' } : undefined}
+      >
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
           {/* LES TROIS TIROIRS — la direction seule les voit tous. Le compte
@@ -798,6 +807,14 @@ export default function Conversations() {
           ) : (
             <>
               <div className="trc-fil__tete">
+                <button
+                  type="button"
+                  className="trc-retour"
+                  onClick={() => setParams({})}
+                  aria-label="Revenir à la liste des conversations"
+                >
+                  ← Toutes les conversations
+                </button>
                 <span>
                   <b>{fil.nom}</b>
                   <span className="trc-sub" style={{ display: 'block', fontSize: 11.5 }}>
