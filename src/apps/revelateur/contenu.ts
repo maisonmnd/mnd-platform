@@ -22,6 +22,7 @@ export const COMMUN: Commun = {
     greffe: 'Cotonou',
     adresse: 'Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
     telephone: '+229 01 51 99 77 99',
+    email: 'direction@maisonmnd.com',
   },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
@@ -490,6 +491,12 @@ export const PAGES: Page[] = [
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
         ],
       },
+      {
+        type: 'texte',
+        sur: 'La Maison',
+        titre: 'Qui est la Maison MND',
+        corps: `Maison MND est le nom commercial sous lequel exerce ${COMMUN.editeur.nomCommercial}, ${COMMUN.editeur.forme} de ${COMMUN.editeur.exploitante}, immatriculée au registre du commerce et du crédit mobilier de ${COMMUN.editeur.greffe} sous le numéro ${COMMUN.editeur.rccm}. Établissement principal : ${COMMUN.editeur.adresse}. Téléphone et WhatsApp : ${COMMUN.editeur.telephone}. Courriel : ${COMMUN.editeur.email}.`,
+      },
     ],
     jsonld: 'maison',
     court: 'La Maison',
@@ -635,6 +642,18 @@ export const PAGES: Page[] = [
       {
         type: 'texte',
         corps: "La Maison MND vous reçoit à Cotonou. Nous répondons pendant les heures d'ouverture de la Maison, sur WhatsApp ou par téléphone.",
+      },
+      /* QUI SIGNE LA MAISON — 21 septembre 2026. « Maison MND » est le nom
+         commercial, « ACIA 1 » le nom au registre : rien ne le disait hors des
+         mentions légales, et Meta a refusé deux fois le nom affiché de WhatsApp
+         faute de le trouver sur le site. Il se lit désormais là où l'on cherche
+         une maison, sa page de contact et sa page de présentation. Le texte vient
+         de `COMMUN.editeur`, jamais recopié à la main. */
+      {
+        type: 'texte',
+        sur: 'Contact',
+        titre: 'Qui est la Maison MND',
+        corps: `Maison MND est le nom commercial sous lequel exerce ${COMMUN.editeur.nomCommercial}, ${COMMUN.editeur.forme} de ${COMMUN.editeur.exploitante}, immatriculée au registre du commerce et du crédit mobilier de ${COMMUN.editeur.greffe} sous le numéro ${COMMUN.editeur.rccm}. Établissement principal : ${COMMUN.editeur.adresse}. Téléphone et WhatsApp : ${COMMUN.editeur.telephone}. Courriel : ${COMMUN.editeur.email}.`,
       },
       {
         type: 'appel',

@@ -85,7 +85,7 @@ export type Commun = {
       pour l'examen du nom WhatsApp par Meta. */
   editeur: {
     nomCommercial: string; forme: string; exploitante: string;
-    rccm: string; greffe: string; adresse: string; telephone: string;
+    rccm: string; greffe: string; adresse: string; telephone: string; email: string;
   };
   nav: Lien[];
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };
