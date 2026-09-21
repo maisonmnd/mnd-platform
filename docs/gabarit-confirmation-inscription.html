@@ -1,6 +1,6 @@
 <!--
   GABARIT « CONFIRM SIGNUP » — Supabase › Authentication › Emails.
-  4 septembre 2026.
+  4 septembre 2026, éclairci le 21 septembre 2026.
 
   POURQUOI CE FICHIER EXISTE. Le 31 août, le gabarit a été réécrit pour porter
   {{ .Token }} : Le Trône en avait besoin, son écran d'inscription attend six
@@ -13,61 +13,101 @@
   courriers qui mangent les liens. Retirer l'un des deux referme une des deux
   portes, et l'on ne s'en aperçoit qu'une fois la personne dehors.
 
+  ÉCLAIRCI LE 21 SEPTEMBRE 2026. « Pourquoi le message que les gens reçoivent
+  est aussi sombre ? » (Yéman). Il arrivait en indigo profond : un pavé noir
+  dans une boîte de réception, que certains courriers signalent même comme
+  suspect. Il prend la lumière de la Maison : parchemin, encre indigo, cuivre
+  en accent. C'est aussi ce que voit une cliente qui ouvre son courrier au
+  soleil, sur un téléphone.
+
+  ÉCRIT EN TABLEAUX, ET NON EN BLOCS : c'est la seule mise en page que tous les
+  courriers rendent pareil, Outlook compris. Les styles sont en ligne, pour la
+  même raison.
+
   À COLLER TEL QUEL dans Authentication › Emails › Confirm signup.
   Vérifier au passage Authentication › URL Configuration › Redirect URLs :
   l'adresse de CHAQUE app doit y figurer, sans quoi le lien raccompagne la
   cliente sur la mauvaise maison.
 -->
-<div style="margin:0;padding:32px 16px;background:#0E1030;font-family:'Jost',Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#141743;border:1px solid rgba(246,241,231,.14);border-radius:18px;padding:38px 34px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin:0;padding:0;background-color:#F3EDE1;">
+  <tr>
+    <td align="center" style="padding:32px 16px;font-family:'Jost',Helvetica,Arial,sans-serif;">
 
-    <div style="font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#B97A4A;">
-      Maison MND
-    </div>
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"
+             style="width:520px;max-width:100%;background-color:#FFFDF9;border:1px solid #D9CFBC;border-radius:14px;">
+        <tr>
+          <td style="padding:34px 32px 30px;">
 
-    <h1 style="margin:14px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:300;font-size:30px;line-height:1.2;color:#F6F1E7;">
-      Ouvrez votre couronne.
-    </h1>
+            <div style="font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#B97A4A;">
+              Maison MND
+            </div>
 
-    <p style="margin:16px 0 0;font-size:14.5px;line-height:1.75;color:rgba(246,241,231,.78);">
-      Votre compte est créé. Il ne reste qu'à confirmer cette adresse,
-      et la maison vous ouvre sa porte.
-    </p>
+            <h1 style="margin:14px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:29px;line-height:1.2;color:#1E2150;">
+              Ouvrez votre couronne.
+            </h1>
 
-    <a href="{{ .ConfirmationURL }}"
-       style="display:block;margin:26px 0 0;padding:15px 18px;background:#B97A4A;color:#0E1030;
-              text-decoration:none;text-align:center;border-radius:12px;
-              font-size:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;">
-      Confirmer mon adresse
-    </a>
+            <p style="margin:16px 0 0;font-size:14.5px;line-height:1.75;color:#2A2722;">
+              Votre compte est créé. Il ne reste qu'à confirmer cette adresse,
+              et la maison vous ouvre sa porte.
+            </p>
 
-    <p style="margin:18px 0 0;font-size:12.5px;line-height:1.7;color:rgba(246,241,231,.55);">
-      Le bouton ne s'ouvre pas ? Copiez cette adresse dans votre navigateur :<br />
-      <span style="color:#B97A4A;word-break:break-all;">{{ .ConfirmationURL }}</span>
-    </p>
+            <!-- LE BOUTON EST UN TABLEAU : un lien mis en bloc se déforme dans
+                 Outlook, qui ignore le remplissage des liens. -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0 0;width:100%;">
+              <tr>
+                <td align="center" bgcolor="#A96A3D" style="border-radius:10px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:block;padding:15px 18px;color:#FFFFFF;text-decoration:none;
+                            font-family:'Jost',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;
+                            letter-spacing:.06em;text-transform:uppercase;">
+                    Confirmer mon adresse
+                  </a>
+                </td>
+              </tr>
+            </table>
 
-    <div style="margin:28px 0 0;padding:20px 18px;border:1px solid rgba(246,241,231,.14);border-radius:12px;text-align:center;">
-      <div style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(246,241,231,.55);">
-        Ou saisissez ce code
+            <p style="margin:18px 0 0;font-size:12.5px;line-height:1.7;color:#746F65;">
+              Le bouton ne s'ouvre pas ? Copiez cette adresse dans votre navigateur :<br />
+              <span style="color:#8F5A33;word-break:break-all;">{{ .ConfirmationURL }}</span>
+            </p>
+
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                   style="margin:26px 0 0;width:100%;background-color:#F6F1E7;border:1px solid #E4DCC9;border-radius:10px;">
+              <tr>
+                <td align="center" style="padding:18px 16px;">
+                  <div style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#746F65;">
+                    Ou saisissez ce code
+                  </div>
+                  <div style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:.24em;color:#1E2150;font-weight:600;">
+                    {{ .Token }}
+                  </div>
+                  <div style="margin:10px 0 0;font-size:12px;line-height:1.6;color:#746F65;">
+                    Six chiffres, à recopier dans l'écran qui les attend.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:#8A847A;">
+              Ce lien et ce code expirent. Si vous n'êtes à l'origine d'aucune
+              inscription, ignorez ce courrier, rien ne sera ouvert.
+            </p>
+
+            <div style="margin:26px 0 0;padding-top:18px;border-top:1px solid #E4DCC9;
+                        font-family:Georgia,'Times New Roman',serif;font-style:italic;
+                        font-size:13px;color:#B97A4A;text-align:center;">
+              mi nyɔ́ ɖɛkpɛ, la maison veille.
+            </div>
+
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:14px 0 0;font-size:11px;line-height:1.6;color:#8A847A;">
+        Maison MND &middot; Cotonou
       </div>
-      <div style="margin:10px 0 0;font-size:30px;letter-spacing:.28em;color:#F6F1E7;font-weight:600;">
-        {{ .Token }}
-      </div>
-      <div style="margin:10px 0 0;font-size:12px;line-height:1.6;color:rgba(246,241,231,.55);">
-        Six chiffres, à recopier dans l'écran qui les attend.
-      </div>
-    </div>
 
-    <p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:rgba(246,241,231,.45);">
-      Ce lien et ce code expirent. Si vous n'êtes à l'origine d'aucune
-      inscription, ignorez ce courrier, rien ne sera ouvert.
-    </p>
-
-    <div style="margin:26px 0 0;padding-top:18px;border-top:1px solid rgba(246,241,231,.12);
-                font-family:Georgia,'Times New Roman',serif;font-style:italic;
-                font-size:13px;color:#B97A4A;text-align:center;">
-      mi nyɔ́ ɖɛkpɛ, la maison veille.
-    </div>
-
-  </div>
-</div>
+    </td>
+  </tr>
+</table>
