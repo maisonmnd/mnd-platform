@@ -12,7 +12,10 @@ import {
   dossierDesLettresDuPret, nomDeLaLettre, litLeNomDeLaLettre,
 } from '../src/shared/engagements-coffre';
 import { lettresDuPretHtml, type DonneesDesLettres } from '../src/apps/trone/routes/finances/lettres-du-pret';
-import { phrasesDesLettres, lignesDeLEcheancier, type LettresDuPretPdf } from '../src/apps/trone/routes/finances/lettres-du-pret-pdf';
+import {
+  phrasesDesLettres, lignesDeLEcheancier, mentionDuPret, VERSION_DES_LETTRES,
+  type LettresDuPretPdf,
+} from '../src/apps/trone/routes/finances/lettres-du-pret-pdf';
 import { maisonNom, maisonRaison, maisonVille } from '../src/shared/identite';
 
 let ko = 0;
@@ -92,9 +95,16 @@ const texteVisible = (html: string): string => serre(html
 const alEcran = texteVisible(lettresDuPretHtml(d));
 const duPdf = phrasesDesLettres(p);
 const nettoie = serre;
-const absentes = [...duPdf.demande, ...duPdf.engagement, ...duPdf.clauses]
+/* LA MENTION QU'ON FAIT RECOPIER À L'ÉCRAN est la même que celle imprimée
+   sur la lettre : sans cela, on ferait écrire autre chose que ce que le
+   papier demande. */
+const mention = mentionDuPret(p.montantEnLettres, p.montantXof);
+const absentes = [...duPdf.demande, ...duPdf.engagement, ...duPdf.clauses, mention]
   .filter((phrase) => !alEcran.includes(nettoie(phrase)));
 dit('⑩ CHAQUE PHRASE DU PDF SE RETROUVE DANS LA LETTRE À L’ÉCRAN', [], absentes.map((p2) => p2.slice(0, 70)));
+dit('⑪ la version du texte signé est datée', true, /^lettres-du-pret-\d{4}-\d{2}-\d{2}$/.test(VERSION_DES_LETTRES));
+dit('⑫ la mention dit la somme en lettres ET en chiffres',
+  [true, true], [mention.includes(p.montantEnLettres), mention.includes('1 275 500 F')]);
 if (absentes.length) {
   for (const phrase of absentes.slice(0, 3)) {
     const n = nettoie(phrase);

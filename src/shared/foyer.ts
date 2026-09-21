@@ -285,6 +285,10 @@ export type Pret = {
       contrediraient à la première augmentation. Équipe seulement ;
       `premierMois` est le mois du premier bulletin, « AAAA-MM ». */
   retenue?: { partPct: number; premierMois: string };
+  /** SES LETTRES ONT ÉTÉ SIGNÉES À L'ÉCRAN — 21 septembre 2026. Le jour, le
+      nom du signataire et la version du texte signé. LE TRACÉ N'EST PAS ICI :
+      il vit dans le PDF du coffre, que la direction seule ouvre. */
+  signatureDesLettres?: { at: string; signePar: string; version: string };
   /** CE QUI EST SORTI (ou rentré dans) LE TIROIR quand la caisse tient une
       autre devise — 22 août 2026. La dette reste en francs ; le tiroir compte
       ses billets. Voir surLeTiroir dans finance.ts. */

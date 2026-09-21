@@ -18,7 +18,7 @@
    jamais de page. Ce qui ne tiendrait pas se réduit (l'échéancier se résume),
    il ne déborde pas. */
 
-import { ENCRES_PDF, espacesNormalises, monogrammeDeLaMaison, pdfSafe } from '../../../../shared/pdf';
+import { ENCRES_PDF, espacesNormalises, monogrammeDeLaMaison, pdfSafe, tamponDeLaMaison } from '../../../../shared/pdf';
 
 export type LigneDEcheancierPdf = { mois: string; retenueXof: number; resteApresXof: number };
 
@@ -52,6 +52,10 @@ export type LettresDuPretPdf = {
   plafondPct?: number;
   plan?: readonly LigneDEcheancierPdf[];
   identite?: { donnees: string; ratio: number };
+  /** SIGNÉ À L'ÉCRAN — 21 septembre 2026. La mention écrite au doigt, le
+      tracé de la signature, le nom du signataire et le jour. Absent : les
+      cadres restent vides, à signer au stylo. */
+  signature?: { mention?: string; trace: string; signePar: string; jourDit: string };
   /** « oct. 2026 » pour l'échéancier. */
   moisCourt: (mois: string) => string;
 };
@@ -100,6 +104,16 @@ export function phrasesDesLettres(d: LettresDuPretPdf): { demande: string[]; eng
     ],
   };
 }
+
+/** LA MENTION QUE LA LOI ATTEND d'une reconnaissance de dette : la somme
+    écrite de la main de l'emprunteur, en lettres ET en chiffres. C'est elle
+    qu'on lui fait tracer à l'écran, au-dessus de sa signature. */
+export const mentionDuPret = (montantEnLettres: string, montantXof: number): string =>
+  `Lu et approuvé, bon pour la somme de ${montantEnLettres} francs CFA (${francs(montantXof)} F).`;
+
+/** LA VERSION DU TEXTE SIGNÉ. Elle se range avec la signature : le jour où
+    les clauses changent, on saura laquelle a été signée. */
+export const VERSION_DES_LETTRES = 'lettres-du-pret-2026-09-20';
 
 /** L'ÉCHÉANCIER QUI TIENT : quatorze lignes au plus, comme à l'écran. */
 export const lignesDeLEcheancier = (
@@ -274,6 +288,15 @@ function echeancier(doc: Doc, d: LettresDuPretPdf, y: number, largeur: number): 
   return y + moitie * hauteurLigne + 2;
 }
 
+/** UNE SIGNATURE TRACÉE, posée sans la déformer, au centre de son cadre. */
+function poseLaSignature(doc: Doc, image: string, x: number, y: number, l: number, h: number): void {
+  /* La toile fait 600 × 200 : on garde son rapport, jamais on ne l'étire. */
+  let li = l;
+  let hi = li / 3;
+  if (hi > h) { hi = h; li = hi * 3; }
+  try { doc.addImage(image, 'PNG', x + (l - li) / 2, y + (h - hi) / 2, li, hi, undefined, 'FAST'); } catch { /* illisible */ }
+}
+
 /** LES DEUX LETTRES, EN UN SEUL PDF DE DEUX PAGES. */
 export async function lettresDuPretPdf(d: LettresDuPretPdf): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
@@ -342,6 +365,7 @@ export async function lettresDuPretPdf(d: LettresDuPretPdf): Promise<Blob> {
   const hCadre = 26;
   const lCadre = (UTILE - 6) / 2;
   cadre(doc, MARGE, y, lCadre, hCadre, 'Signature');
+  if (d.signature?.trace) poseLaSignature(doc, d.signature.trace, MARGE + 4, y + 6, lCadre - 8, hCadre - 12);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(ENCRES_PDF.SOFT);
@@ -419,17 +443,35 @@ export async function lettresDuPretPdf(d: LettresDuPretPdf): Promise<Blob> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(ENCRES_PDF.SOFT);
-  const mention = doc.splitTextToSize(
-    pdfSafe(`Écrire à la main : « Lu et approuvé, bon pour la somme de ${d.montantEnLettres} francs CFA (${francs(d.montantXof)} F). »`),
-    lCadre - 6,
-  );
-  mention.forEach((l: string, i: number) => doc.text(l, MARGE + 3, y + 8 + i * 3.4));
-  doc.text('Signature', MARGE + 3, y + hSign - 3.5);
+  if (d.signature?.trace) {
+    /* SIGNÉ À L'ÉCRAN : la mention de sa main, sa signature, et la date. Le
+       cadre ne porte plus la consigne d'écriture : elle est faite. */
+    if (d.signature.mention) {
+      try { doc.addImage(d.signature.mention, 'PNG', MARGE + 3, y + 6, lCadre - 6, (lCadre - 6) / 4, undefined, 'FAST'); } catch { /* illisible */ }
+    }
+    poseLaSignature(doc, d.signature.trace, MARGE + 4, y + 13, lCadre - 8, 12);
+    doc.setFontSize(6.6);
+    doc.text(pdfSafe(`Signé à l'écran le ${d.signature.jourDit} par ${d.signature.signePar}`), MARGE + 3, y + hSign - 3.5);
+  } else {
+    const mention = doc.splitTextToSize(
+      pdfSafe(`Écrire à la main : « ${mentionDuPret(d.montantEnLettres, d.montantXof)} »`),
+      lCadre - 6,
+    );
+    mention.forEach((l: string, i: number) => doc.text(l, MARGE + 3, y + 8 + i * 3.4));
+    doc.text('Signature', MARGE + 3, y + hSign - 3.5);
+  }
   cadre(doc, MARGE + lCadre + 6, y, lCadre, hSign, `Pour ${d.avecArticle}`);
+  doc.setFontSize(7);
+  doc.setTextColor(ENCRES_PDF.SOFT);
   doc.text('Nom et qualité', MARGE + lCadre + 9, y + 9);
   doc.setDrawColor(ENCRES_PDF.FILET);
   doc.line(MARGE + lCadre + 9, y + 15, MARGE + lCadre + 3 + lCadre - 3, y + 15);
   doc.text('Signature et cachet', MARGE + lCadre + 9, y + hSign - 3.5);
+  /* LE TAMPON DE LA MAISON ne se pose QUE sur un exemplaire signé : un
+     cachet sur une lettre vierge vaudrait engagement sans contrepartie. */
+  if (d.signature?.trace) {
+    await tamponDeLaMaison(doc, MARGE + lCadre * 2 - 20, y + hSign - 26, 22, { nom: d.maison, ville: d.ville });
+  }
 
   pied(doc, `${d.maison} · prêt sans intérêt, autorisation de retenue sur salaire`, 'Un exemplaire au membre, un au dossier');
 

@@ -2,6 +2,34 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## SIGNER LES LETTRES DU PRÊT À L'ÉCRAN — 21 septembre 2026
+
+« Signer le PDF du prêt depuis l'écran du Trône, de manière digitale »
+(Yéman). Même geste que la décharge d'un engagement (15 septembre) : la toile
+de signature (`routes/_signature.tsx`), le doigt, la trace dans le PDF.
+
+**DEUX TRACÉS, PAS UN.** Une reconnaissance de dette veut la somme écrite DE
+LA MAIN de l'emprunteur, en lettres et en chiffres, au-dessus de sa signature.
+`SignerLesLettres.tsx` fait donc recopier la mention (`mentionDuPret`,
+affichée mot pour mot), puis signer. Sans la mention, le Trône laisse signer
+et le dit : une reconnaissance sans mention se conteste plus facilement.
+
+**Ce que le PDF signé porte** : la mention tracée, la signature, « Signé à
+l'écran le … par … », et LE TAMPON DE LA MAISON, qui ne se pose QUE sur un
+exemplaire signé (un cachet sur une lettre vierge vaudrait engagement sans
+contrepartie). Le PDF se range comme une copie signée : elle ne se remplace
+jamais, elle s'efface à la main.
+
+**Ce que le prêt garde** : `signatureDesLettres` (jour, nom, version du
+texte). JAMAIS l'image : le tracé ne vit que dans le PDF du coffre, que la
+direction seule ouvre. La table des prêts se lit plus largement.
+
+**Mesuré sur le PDF produit** : 2 pages, trois images (pièce d'identité,
+mention, signature), rien dessiné sous 12 mm du bas.
+
+**Garde** : `verifie-lettres-au-dossier` passe à 12, dont la mention à
+recopier, qui doit être la même que celle imprimée sur la lettre.
+
 ## LES LETTRES DU PRÊT SE RANGENT AU DOSSIER — 20 septembre 2026
 
 « J'aimerais sauvegarder le PDF des lettres d'engagement et partager »

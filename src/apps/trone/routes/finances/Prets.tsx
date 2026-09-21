@@ -307,7 +307,9 @@ export default function Prets() {
   /* LE PDF DES LETTRES, POUR LE COFFRE — 20 septembre 2026. Les mêmes
      valeurs que la fenêtre d'impression, le même texte (éprouvé par
      `verifie-lettres-au-dossier`), et la pièce d'identité de la fiche. */
-  const fabriqueLePdfDesLettres = async () => {
+  const fabriqueLePdfDesLettres = async (
+    signature?: { mention?: string; trace: string; signePar: string; jourDit: string },
+  ) => {
     if (!membreDuPret) throw new Error('aucun membre');
     const rangees = await identiteDuPersonnel(membreDuPret.id);
     const identite = rangees && rangees[0] ? await imageDuCoffre(rangees[0].chemin) : null;
@@ -333,6 +335,7 @@ export default function Prets() {
       plafondPct: planSalaire.pctPlafond,
       plan: planSalaire.plan.map(({ mois, retenueXof, resteApresXof }) => ({ mois, retenueXof, resteApresXof })),
       identite: identite ?? undefined,
+      signature,
       moisCourt: moisCourtEnClair,
     });
   };
@@ -1195,7 +1198,27 @@ export default function Prets() {
                   estDirection={estDirection}
                   jour={fPret.date || todayISO()}
                   fabriqueLePdf={fabriqueLePdfDesLettres}
+                  aSigner={baseDuMembre > 0 && montantsPret.xof > 0 && planSalaire.mens > 0 ? {
+                    nom: membreDuPret.name,
+                    montantXof: montantsPret.xof,
+                    montantEnLettres: nombreEnLettres(montantsPret.xof),
+                    mensXof: planSalaire.mens,
+                    mois: planSalaire.plan.length,
+                    partPct: planSalaire.partPct,
+                    devise: currency,
+                    jourDit: jourEnClair(fPret.date || todayISO()),
+                  } : undefined}
+                  onSignee={(s) => {
+                    if (!pretEdite) return;
+                    setPrets((prev) => prev.map((x) => (x.id === pretEdite.id ? { ...x, signatureDesLettres: s } : x)));
+                  }}
                 />
+                {pretEdite?.signatureDesLettres && (
+                  <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.5 }}>
+                    Lettres signées à l’écran le {jourEnClair(pretEdite.signatureDesLettres.at)} par{' '}
+                    {pretEdite.signatureDesLettres.signePar}.
+                  </div>
+                )}
               </div>
             )}
 

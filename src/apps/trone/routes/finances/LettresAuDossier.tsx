@@ -17,26 +17,45 @@ import {
 } from '../../../../shared/engagements-coffre';
 import { jourLongDit } from '../../../../shared/engagements';
 import { ouvreLaPiece, ChoisirUnePiece } from '../_piece';
+import SignerLesLettres, { type TraceDeSignature } from './SignerLesLettres';
+import { VERSION_DES_LETTRES } from './lettres-du-pret-pdf';
 
 const cadre = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
   border: '1px solid var(--hairline)', borderRadius: 3, padding: '9px 12px', fontSize: 13,
 } as const;
 
-export default function LettresAuDossier({ staffId, pretId, estDirection, fabriqueLePdf, jour }: {
+/** Ce que la signature laisse au prêt : le jour, le nom, la version du
+    texte signé. Le tracé, lui, ne vit que dans le PDF du coffre. */
+export type SignatureDesLettres = { at: string; signePar: string; version: string };
+
+export default function LettresAuDossier({
+  staffId, pretId, estDirection, fabriqueLePdf, jour, aSigner, onSignee,
+}: {
   /** La fiche du membre, une fois enregistrée. */
   staffId: string | null;
   /** Le prêt, quand le bloc vit dans l'écran des prêts. Absent : toutes ses lettres. */
   pretId?: string;
   estDirection: boolean;
-  /** Fabrique le PDF des deux lettres ; absent, le bloc ne fait que lire. */
-  fabriqueLePdf?: () => Promise<Blob>;
-  /** Le jour du prêt (ISO), pour nommer le fichier. */
+  /** Fabrique le PDF des deux lettres, signé ou non ; absent, le bloc ne
+      fait que lire. */
+  fabriqueLePdf?: (signature?: { mention?: string; trace: string; signePar: string; jourDit: string }) => Promise<Blob>;
+  /** Le jour du prêt (ISO), pour nommer le fichier et dater la signature. */
   jour?: string;
+  /** Ce qui s'affiche dans la fenêtre de signature. Absent : pas de signature
+      à l'écran (le bloc ne fait que ranger et partager). */
+  aSigner?: {
+    nom: string; montantXof: number; montantEnLettres: string;
+    mensXof: number; mois: number; partPct: number; devise: string; jourDit: string;
+  };
+  /** Appelé quand les lettres viennent d'être signées : le prêt garde la
+      trace (le jour, le nom, la version), jamais l'image. */
+  onSignee?: (s: SignatureDesLettres) => void;
 }) {
   const [rangees, setRangees] = useState<LettreRangee[] | null | 'lecture'>('lecture');
   const [occupe, setOccupe] = useState(false);
   const [aEffacer, setAEffacer] = useState<string | null>(null);
+  const [signeOuvert, setSigneOuvert] = useState(false);
 
   const relis = useCallback(async () => {
     if (!staffId) return;
@@ -74,6 +93,29 @@ export default function LettresAuDossier({ staffId, pretId, estDirection, fabriq
     } catch (e) {
       console.warn('[mnd-prets] PDF des lettres :', e);
       toast('Le PDF n’a pas pu être fabriqué.');
+    } finally {
+      setOccupe(false);
+    }
+  };
+
+  /* SIGNER À L'ÉCRAN — 21 septembre 2026. Le PDF naît AVEC la signature, la
+     mention de sa main et le tampon de la Maison, et se range comme une
+     copie signée : elle ne se remplacera jamais. */
+  const signeALEcran = async (t: TraceDeSignature) => {
+    if (!staffId || !pretId || !fabriqueLePdf || !aSigner) return;
+    setOccupe(true);
+    try {
+      const pdf = await fabriqueLePdf({ ...t, jourDit: aSigner.jourDit });
+      const nom = `lettres-signees-${(jour ?? '').slice(0, 10) || 'du-jour'}.pdf`;
+      const pose = await deposeLaLettreDuPret(staffId, pretId, 'signee', pdf, nom);
+      if (!pose) { toast('Les lettres signées n’ont pas pu être rangées.'); return; }
+      setSigneOuvert(false);
+      await relis();
+      onSignee?.({ at: (jour ?? '').slice(0, 10), signePar: t.signePar, version: VERSION_DES_LETTRES });
+      toast('Lettres signées et rangées au dossier. Elles ne se remplacent pas.');
+    } catch (e) {
+      console.warn('[mnd-prets] signature des lettres :', e);
+      toast('La signature n’a pas pu être enregistrée.');
     } finally {
       setOccupe(false);
     }
@@ -121,11 +163,23 @@ export default function LettresAuDossier({ staffId, pretId, estDirection, fabriq
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {signeOuvert && aSigner && (
+        <SignerLesLettres
+          sur={aSigner}
+          onFerme={() => setSigneOuvert(false)}
+          onSigne={(t) => signeALEcran(t)}
+        />
+      )}
       {fabriqueLePdf && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button variant="copper" size="sm" disabled={!staffId || !pretId || occupe} onClick={() => void range()}>
             {occupe ? 'Un instant…' : 'Ranger au dossier · PDF'}
           </Button>
+          {aSigner && (
+            <Button variant="indigo" size="sm" disabled={!staffId || !pretId || occupe} onClick={() => setSigneOuvert(true)}>
+              Faire signer à l’écran
+            </Button>
+          )}
           <ChoisirUnePiece
             libelle="Déposer la copie signée"
             disabled={!staffId || !pretId || occupe}
