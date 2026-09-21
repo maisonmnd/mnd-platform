@@ -392,6 +392,13 @@ function Login() {
 
 function messageFor(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err);
+  /* UNE ERREUR VIDE N'EST PAS UN MESSAGE — 21 septembre 2026. Quand le
+     serveur de courrier refuse (adresse inexistante, identifiants refusés),
+     Supabase renvoie un corps vide et l'écran affichait « {} » dans un cadre,
+     que personne ne pouvait comprendre. */
+  if (!m.trim() || m.trim() === '{}' || m === '[object Object]' || /^\{\s*\}$/.test(m.trim())) {
+    return 'L’e-mail n’a pas pu être envoyé. Vérifiez que l’adresse existe vraiment, puis réessayez.';
+  }
   if (/invalid login credentials/i.test(m)) return 'E-mail ou mot de passe incorrect.';
   if (/user already registered/i.test(m)) return 'Ce compte existe déjà, connectez-vous.';
   if (/email.*confirm/i.test(m)) return 'E-mail non confirmé. Vérifiez votre boîte.';
