@@ -1,0 +1,86 @@
+<!--
+  GABARIT « RESET PASSWORD » — Supabase › Authentication › Emails.
+  21 septembre 2026.
+
+  POURQUOI IL PORTE LE CODE, ET PAS DE LIEN. Les deux portes de la Maison
+  vérifient SIX CHIFFRES (`verifyPasswordReset`, type `recovery`), puis
+  demandent le nouveau mot de passe. Le lien de Supabase, lui, ouvre une
+  session et n'exige aucun nouveau mot de passe : la personne se retrouverait
+  entrée sans avoir changé ce qu'elle avait oublié, et le croirait changé.
+  Le code seul, donc, et il mène à l'écran qui l'attend.
+
+  MÊME LUMIÈRE QUE LA CONFIRMATION (`gabarit-confirmation-inscription.html`) :
+  parchemin, encre indigo, cuivre en accent, tableaux et styles en ligne, la
+  seule mise en page que tous les courriers rendent pareil.
+
+  À COLLER TEL QUEL dans Authentication › Emails › Reset password.
+  L'objet du message, juste au-dessus : « Votre code pour changer de mot de
+  passe · Maison MND ».
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin:0;padding:0;background-color:#F3EDE1;">
+  <tr>
+    <td align="center" style="padding:32px 16px;font-family:'Jost',Helvetica,Arial,sans-serif;">
+
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"
+             style="width:520px;max-width:100%;background-color:#FFFDF9;border:1px solid #D9CFBC;border-radius:14px;">
+        <tr>
+          <td style="padding:34px 32px 30px;">
+
+            <div style="font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#B97A4A;">
+              Maison MND
+            </div>
+
+            <h1 style="margin:14px 0 0;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:29px;line-height:1.2;color:#1E2150;">
+              Changez votre mot de passe.
+            </h1>
+
+            <p style="margin:16px 0 0;font-size:14.5px;line-height:1.75;color:#2A2722;">
+              Vous avez demandé à changer votre mot de passe. Saisissez ce code
+              dans l'écran qui l'attend, puis choisissez le nouveau.
+            </p>
+
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                   style="margin:26px 0 0;width:100%;background-color:#F6F1E7;border:1px solid #E4DCC9;border-radius:10px;">
+              <tr>
+                <td align="center" style="padding:20px 16px;">
+                  <div style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#746F65;">
+                    Votre code
+                  </div>
+                  <div style="margin:10px 0 0;font-family:Georgia,'Times New Roman',serif;font-size:32px;letter-spacing:.24em;color:#1E2150;font-weight:600;">
+                    {{ .Token }}
+                  </div>
+                  <div style="margin:10px 0 0;font-size:12px;line-height:1.6;color:#746F65;">
+                    Six chiffres, à recopier tels quels.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:24px 0 0;font-size:12.5px;line-height:1.7;color:#746F65;">
+              Ce code expire. Tant qu'il n'est pas saisi, rien ne change :
+              votre ancien mot de passe reste valable.
+            </p>
+
+            <p style="margin:14px 0 0;font-size:12px;line-height:1.7;color:#8A847A;">
+              Si vous n'avez rien demandé, ignorez ce courrier. Personne ne
+              peut changer votre mot de passe sans ce code.
+            </p>
+
+            <div style="margin:26px 0 0;padding-top:18px;border-top:1px solid #E4DCC9;
+                        font-family:Georgia,'Times New Roman',serif;font-style:italic;
+                        font-size:13px;color:#B97A4A;text-align:center;">
+              mi nyɔ́ ɖɛkpɛ, la maison veille.
+            </div>
+
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:14px 0 0;font-size:11px;line-height:1.6;color:#8A847A;">
+        Maison MND &middot; Cotonou
+      </div>
+
+    </td>
+  </tr>
+</table>
