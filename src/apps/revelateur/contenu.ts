@@ -22,7 +22,7 @@ export const COMMUN: Commun = {
     greffe: 'Cotonou',
     adresse: 'Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
     telephone: '+229 01 51 99 77 99',
-    email: 'direction@maisonmnd.com',
+    email: 'contact@maisonmnd.com',
   },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
