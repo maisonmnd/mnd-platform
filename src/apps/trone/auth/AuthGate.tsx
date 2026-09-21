@@ -5,6 +5,7 @@ import { useClients } from '../../../shared/clients';
 import {
   useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff,
   startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession, verifyInscription,
+  renvoyerLaConfirmation, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
   PanneDAcces } from '../../../shared/auth';
 import './auth.css';
 
@@ -177,6 +178,17 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /* L'ATTENTE AVANT DE RENVOYER — 21 septembre 2026. « Quand je ne reçois pas
+     le code, avoir un bouton qui me permet de renvoyer le code » (Yéman). Le
+     serveur refuse deux envois trop rapprochés : le bouton le dit et compte,
+     au lieu de laisser cliquer dans le vide. */
+  const [attente, setAttente] = useState(0);
+
+  useEffect(() => {
+    if (attente <= 0) return;
+    const t = window.setInterval(() => setAttente((n) => (n > 0 ? n - 1 : 0)), 1000);
+    return () => window.clearInterval(t);
+  }, [attente > 0]);
 
   /* Envoi d'un code. On n'indique jamais si le compte existe. */
   const askReset = async () => {
@@ -185,6 +197,30 @@ function Login() {
     setPassword('');
     setMode('oubli-code');
     setNotice('Si ce compte existe, un code à 6 chiffres vient de partir. Vérifiez vos indésirables.');
+  };
+
+  /* RENVOYER LE CODE, selon la porte où l'on se tient : la confirmation
+     d'inscription, ou le mot de passe oublié. */
+  const renvoieLeCode = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (mode === 'inscription-code') {
+        await renvoyerLaConfirmation(email);
+        setNotice('Un nouveau code vient de partir. Vérifiez aussi vos indésirables.');
+      } else {
+        await askReset();
+      }
+      setAttente(ATTENTE_ENTRE_RENVOIS);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      const dans = secondesAvantRenvoi(m);
+      if (dans > 0) { setAttente(dans); setError(`Un code vient déjà de partir. Réessayez dans ${dans} secondes.`); }
+      else setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submit = async (e: FormEvent) => {
@@ -327,19 +363,14 @@ function Login() {
           </button>
         )}
 
-        {mode === 'oubli-code' && (
+        {(mode === 'oubli-code' || mode === 'inscription-code') && (
           <button
             type="button"
             className="tra-switch"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              setError(null);
-              setNotice(null);
-              void askReset().catch((err) => setError(messageFor(err))).finally(() => setBusy(false));
-            }}
+            disabled={busy || attente > 0}
+            onClick={() => { void renvoieLeCode(); }}
           >
-            Renvoyer un code
+            {attente > 0 ? `Renvoyer le code dans ${attente} s` : 'Je n’ai rien reçu, renvoyer le code'}
           </button>
         )}
 

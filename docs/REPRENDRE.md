@@ -2,6 +2,29 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## RENVOYER LE CODE D'INSCRIPTION — 21 septembre 2026
+
+« Quand je ne reçois pas le code pour un nouvel abonné, avoir un bouton qui me
+permet de renvoyer le code » (Yéman), devant l'écran « Confirmer mon adresse »
+du Trône.
+
+**Le trou** : le bouton « Renvoyer un code » existait pour le MOT DE PASSE
+OUBLIÉ, jamais pour la CONFIRMATION d'inscription. Un code perdu fermait donc
+la porte pour de bon : Supabase refuse de recréer un compte avec la même
+adresse. `renvoyerLaConfirmation` existait pourtant depuis le 4 septembre, et
+Ma Couronne l'offrait déjà.
+
+**Fait** : le bouton sert désormais les deux portes du Trône (« Je n'ai rien
+reçu, renvoyer le code »), avec un COMPTE À REBOURS. Le serveur refuse deux
+envois rapprochés et le dit en anglais (« you can only request this after 47
+seconds ») : `secondesAvantRenvoi` lit ce délai et l'écran le dit en clair,
+puis grise le bouton le temps qu'il court. Sans délai annoncé, une minute
+(`ATTENTE_ENTRE_RENVOIS`). Même lecture du refus posée sur Ma Couronne, dont
+le bouton existait mais disait seulement « impossible ».
+
+**Garde** : `verifie-porte` +5 (le délai lu dans le refus, un refus qui n'en
+parle pas, un message vide, une attente démesurée bornée à cinq minutes).
+
 ## SIGNER LES LETTRES DU PRÊT À L'ÉCRAN — 21 septembre 2026
 
 « Signer le PDF du prêt depuis l'écran du Trône, de manière digitale »

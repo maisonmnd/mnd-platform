@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   signInClient, signUpClient, startPasswordReset, verifyPasswordReset, updatePassword,
-  signInWithGoogle, verifyInscription, renvoyerLaConfirmation,
+  signInWithGoogle, verifyInscription, renvoyerLaConfirmation, secondesAvantRenvoi,
 } from '../../shared/auth';
 import { pushNotifyStaff } from '../../shared/push';
 
@@ -226,7 +226,14 @@ export default function Onboarding() {
       await renvoyerLaConfirmation(email.trim());
       setNotice('C’est reparti. Regardez aussi vos indésirables.');
     } catch (e) {
-      setErr(errMessage(e, 'Envoi impossible pour l’instant, réessayez dans un moment.'));
+      /* LE REFUS DIT SON DÉLAI, EN CLAIR — 21 septembre 2026. Le serveur
+         refuse deux envois trop rapprochés, en anglais : on lit le nombre de
+         secondes et on le dit, au lieu d'un « impossible » qui laisse
+         recliquer sans fin. */
+      const dans = secondesAvantRenvoi(e instanceof Error ? e.message : String(e));
+      setErr(dans > 0
+        ? `Un code vient déjà de partir. Réessayez dans ${dans} secondes.`
+        : errMessage(e, 'Envoi impossible pour l’instant, réessayez dans un moment.'));
     } finally {
       setBusy(false);
     }

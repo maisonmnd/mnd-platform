@@ -294,6 +294,25 @@ export async function renvoyerLaConfirmation(email: string): Promise<void> {
   if (error) throw error;
 }
 
+/** COMBIEN DE TEMPS AVANT DE POUVOIR RENVOYER UN CODE — 21 septembre 2026.
+
+    « Quand je ne reçois pas le code pour un nouvel abonné, avoir un bouton
+    qui me permet de renvoyer le code » (Yéman). Le bouton existe, mais le
+    serveur refuse deux envois trop rapprochés, et il le dit en anglais
+    (« For security purposes, you can only request this after 47 seconds »).
+    On lit ce délai pour l'afficher en clair, au lieu d'un refus opaque.
+
+    Zéro quand le message ne parle pas d'attente. */
+export const secondesAvantRenvoi = (message: string): number => {
+  const m = /after\s+(\d+)\s*seconds?/i.exec(message ?? '');
+  const n = m ? parseInt(m[1], 10) : 0;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 300) : 0;
+};
+
+/** Le délai que la Maison s'impose entre deux envois, quand le serveur n'en
+    dit pas d'autre : une minute, celui de Supabase par défaut. */
+export const ATTENTE_ENTRE_RENVOIS = 60;
+
 /** Vérifie le code reçu et ouvre une session de récupération. */
 export async function verifyPasswordReset(email: string, token: string): Promise<void> {
   if (!supabase) throw new Error('Backend non configuré.');

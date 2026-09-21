@@ -5,7 +5,10 @@
    « Autoriser » à portée de clic — et ce clic lui ouvrait la paie, le coffre
    et les fiches de toutes les autres. Aucun écran ne rattrape cette erreur
    après coup : elle se voit le jour où l'accès a déjà servi. */
-import { vientDeMaCouronne, origineDeLaSession, adresseDejaPrise, type CompteEnAttente } from '../src/shared/auth';
+import {
+  vientDeMaCouronne, origineDeLaSession, adresseDejaPrise, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
+  type CompteEnAttente,
+} from '../src/shared/auth';
 import { gestesRapides, peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
 
 let ko = 0;
@@ -209,6 +212,19 @@ dit('… ni un réseau coupé', false, adresseDejaPrise(null, 'Failed to fetch')
    pas. Le doute doit laisser entrer, pas fermer la porte. */
 dit('sans identités, on n’accuse pas', false, adresseDejaPrise({ user: {} }));
 dit('… ni sur une réponse vide', false, adresseDejaPrise(null));
+
+/* ── RENVOYER UN CODE — 21 septembre 2026 ──────────────────────────
+   Le serveur refuse deux envois trop rapprochés et le dit en anglais : on lit
+   le délai pour l'afficher en clair, au lieu d'un refus que personne ne
+   comprend. */
+dit('le délai du serveur se lit dans son refus', 47,
+  secondesAvantRenvoi('For security purposes, you can only request this after 47 seconds.'));
+dit('un refus qui ne parle pas d’attente ne fait pas patienter', 0,
+  secondesAvantRenvoi('Invalid login credentials'));
+dit('un message vide non plus', 0, secondesAvantRenvoi(''));
+dit('une attente démesurée se borne à cinq minutes', 300,
+  secondesAvantRenvoi('you can only request this after 9999 seconds'));
+dit('sans délai dit, la Maison attend une minute', 60, ATTENTE_ENTRE_RENVOIS);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);
