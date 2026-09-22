@@ -60,11 +60,31 @@ dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.
 /* « La phrase est beaucoup trop longue » (Yéman, 22 septembre 2026) : le titre
    tient en six mots, le paragraphe en deux phrases courtes. */
 dit('… son titre tient en six mots', true, ACCUEIL.h1.trim().split(/\s+/).length <= 6);
-dit('… et son paragraphe en moins de quatre-vingts signes', true, ACCUEIL.ligne.length < 80);
+
+/* ── LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026 ──────────────
+   Trois pièges silencieux, nommés par l'autre session avant la construction :
+   un menu qui n'existe que par script fait disparaître la navigation de la
+   page la plus visitée ; une photo pleine largeur paresseuse ouvre l'accueil
+   sur un trou ; un voile réglé à l'œil ne survit pas à la photo suivante. */
+dit('l’accueil est en pleine largeur, l’entête posée dessus', true, /<body [^>]*class="accueil-plein"/.test(accueil) && accueil.includes('<section class="hero-plein">'));
+dit('… la ligne du métier est une pastille', true, accueil.includes(`<p class="pastille metier">${ACCUEIL.metier}</p>`));
+dit('… les promesses sont dans le bandeau sombre', true, accueil.includes('class="promesses promesses--sombre"'));
+const photoDuPremierEcran = accueil.match(/<img class="hero-plein__photo" src="([^"]+)"[^>]*>/);
+dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremierEcran && !photoDuPremierEcran[0].includes('loading="lazy"') && photoDuPremierEcran[0].includes('fetchpriority="high"'));
+dit('… et le document la précharge', true, !!photoDuPremierEcran && accueil.includes(`<link rel="preload" as="image" href="${photoDuPremierEcran[1]}"`));
+dit('les cinq liens du menu sont dans le HTML de l’accueil, script ou pas', [], COMMUN.nav.map((l) => l.vers).filter((v) => !new RegExp(`<nav class="nav"[^>]*>[\\s\\S]*?href="[^"]*${v}"[\\s\\S]*?</nav>`).test(accueil)));
+dit('… repliés par une case à cocher, jamais par un bouton qui attend un script', true, accueil.includes('<input class="menu-etat cache" type="checkbox" id="menu-etat"') && !accueil.includes('<button class="menu-bouton"'));
+/* La case doit rester dans le parcours du clavier : cachée par un clip
+   (.cache), jamais par display:none, hidden ou tabindex="-1", sinon Tab ne
+   l'atteint plus et le menu redevient un geste qui attend un script. */
+const laCase = accueil.match(/<input class="menu-etat cache"[^>]*>/)?.[0] ?? '';
+dit('… et la case reste atteignable au clavier', true, !!laCase && !/tabindex="-1"|aria-hidden|\bhidden\b/.test(laCase));
+const feuille = readFileSync('src/apps/revelateur/revelateur.css', 'utf8');
+dit('… ni display:none dans la feuille', [], [...feuille.matchAll(/^[^{\n]*\.(menu-etat|cache)\b[^{]*\{[^}]*display:\s*none/gm)].map((m) => m[0].slice(0, 50)));
 /* Les photos des 22 et 23 septembre : les cauris au premier écran (et en image
    de partage), le portrait sur la première porte, les trois couronnes sur
    l'entretien, la mère et l'enfant sur MND Kids. Plus aucune porte sans photo. */
-dit('le premier écran porte les cauris', true, /<figure class="hero-image"><img src="[^"]*photos\/site\/creation\.jpg" alt="[^"]+"/.test(accueil));
+dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" src="[^"]*photos\/site\/creation\.jpg" alt="[^"]+"/.test(accueil));
 /* L'image de partage est un PAYSAGE taillé dans la même photo : WhatsApp et
    Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
 dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,

@@ -113,7 +113,11 @@ const filAriane = (etapes) => ({
 const jsonld = (noeuds) => `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': noeuds })}</script>`;
 
 /* ── Le gabarit ──────────────────────────────────────────────────────── */
-function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '' }) {
+/* La photo du premier écran de l'accueil, nommée une fois : le gabarit la
+   précharge, l'accueil l'affiche, le harnais la vérifie. */
+const PHOTO_ACCUEIL = 'creation.jpg';
+
+function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '' }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
   const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
   const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h4>${echappe(c.titre)}</h4><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ');
@@ -142,16 +146,20 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'partage-accueil.jpg')}" />
     ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
     <meta name="twitter:card" content="summary_large_image" />
+    ${precharge ? `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />` : ''}
     ${jsonld(noeuds)}
   </head>
   <body data-surface="revelateur"${classeBody ? ` class="${classeBody}"` : ''}>
     ${ICONES}
     <header class="barre">
       <div class="conteneur">
+        <input class="menu-etat cache" type="checkbox" id="menu-etat" aria-label="Menu" aria-controls="nav-principale">
+        <label class="menu-bouton" for="menu-etat" aria-hidden="true"><span></span><span></span><span></span></label>
         <a class="logo" href="${BASE}" aria-label="${attr(COMMUN.nom)}, accueil"><img src="/assets/photos/site/mono-indigo.png" alt="MND" width="240" height="198"></a>
-        <nav class="nav" aria-label="Navigation">
+        <nav class="nav" id="nav-principale" aria-label="Navigation">
       ${nav}
         </nav>
+        <a class="tel" href="tel:${attr(COMMUN.editeur.telephone.replace(/\s/g, ''))}" aria-label="Appeler la Maison"><svg><use href="#i-tel"/></svg></a>
         <a class="btn btn--plein" href="${lien('/reserver/')}">Prendre rendez-vous</a>
       </div>
     </header>
@@ -443,22 +451,29 @@ function rendAccueil(articles) {
   }).join('\n        ');
   const journal = articles.slice(0, 3).map((art, i) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/journal-${(i % 3) + 1}.jpg" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
   return `
-      <section class="hero sombre"><div class="conteneur">
-        <div>
-          <p class="sur metier">${echappe(a.metier)}</p>
-          <p class="devise">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
+      <!-- LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026, maquette validée.
+           La photo sous le texte, l'entête posée dessus (la barre, transparente
+           sur l'accueil), la ligne du métier en pastille, le titre en bas à
+           gauche. Cette image est la plus grosse de la page : jamais paresseuse,
+           et préchargée depuis l'entête du document. Le paragraphe ne vit plus
+           ici, les cinq portes le disent juste dessous. -->
+      <section class="hero-plein">
+        <img class="hero-plein__photo" src="/assets/photos/site/${PHOTO_ACCUEIL}" alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high" decoding="async">
+        <div class="hero-plein__voile" aria-hidden="true"></div>
+        <div class="conteneur hero-plein__texte">
+          <p class="pastille metier">${echappe(a.metier)}</p>
           <h1>${echappe(a.h1)}</h1>
-          <p class="ligne">${echappe(a.ligne)}</p>
+          <p class="devise">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
         </div>
-        <figure class="hero-image"><img src="/assets/photos/site/creation.jpg" alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high"></figure>
-      </div></section>
+      </section>
 
       <!-- TROIS PROMESSES SOUS LE GRAND ÉCRAN — 22 septembre 2026. L'équivalent
            du « Switch in 15 minutes » de T-Mobile : la réassurance vivait trois
            écrans plus bas. Chacune est tenue par le site, vérifiée avant d'être
-           écrite (contenu.ts, ACCUEIL.promesses). -->
-      <div class="promesses"><div class="conteneur">
+           écrite (contenu.ts, ACCUEIL.promesses). Depuis le 23, dans le bandeau
+           indigo profond sous la photo. -->
+      <div class="promesses promesses--sombre"><div class="conteneur">
         ${a.promesses.map((g) => `<div class="promesse"><i aria-hidden="true"><svg><use href="#i-coche"/></svg></i><div><b>${echappe(g.titre)}</b><small>${echappe(g.ligne)}</small></div></div>`).join('\n        ')}
       </div></div>
 
@@ -626,6 +641,7 @@ const pagesEcrites = [];
 
 ecrit('/', page({
   chemin: '/', titre: ACCUEIL.titre, description: ACCUEIL.description, corps: rendAccueil(articles),
+  classeBody: 'accueil-plein', precharge: `/assets/photos/site/${PHOTO_ACCUEIL}`,
   noeuds: [noeudMaison(), noeudSite(), filAriane([['Accueil', '/']])],
 }));
 pagesEcrites.push('/');

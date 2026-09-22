@@ -573,6 +573,82 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .promesse i svg { width: 15px; height: 15px; }
 .promesse b { display: block; font-weight: 500; color: var(--titre); font-size: 14.5px; }
 .promesse small { display: block; font-size: 12.5px; color: var(--texte-doux); }
+
+/* ══ LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026 ══
+   « Ma première page peut ressembler à cette page ? » (Yéman, une page
+   d'hôtel en exemple). Maquette validée : la photo sous le texte, l'entête
+   posée dessus, le titre en bas à gauche, le bandeau sombre dessous. Sur grand
+   écran la photo (un portrait) tient la moitié droite à sa taille juste et
+   l'indigo la fond vers le titre ; sur téléphone elle couvre tout, un portrait
+   y est chez lui. La barre reste collante : transparente sur la photo, elle
+   redevient pleine dès qu'on descend (.solide, posé par main.ts). */
+.hero-plein { position: relative; min-height: clamp(560px, 82vh, 860px); margin-top: -64px; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sombre); color: #F6F1E7; }
+.hero-plein__photo { position: absolute; top: 0; bottom: 0; right: 0; width: min(58%, 880px); height: 100%; max-width: none; object-fit: cover; object-position: 50% 6%; }
+/* Le voile n'est pas réglé à l'œil sur cette photo-là : un PLATEAU d'indigo à
+   opacité fixe couvre toute la zone du texte (le bas de l'écran, où vivent
+   pastille, titre et boutons) et le tiers gauche, quelle que soit la photo ;
+   le dégradé ne commence qu'au-dessus du texte. Une autre photo demain, plus
+   claire, ne rendra pas le titre illisible. */
+.hero-plein__voile { position: absolute; inset: 0; background: linear-gradient(90deg, var(--sombre) 0%, var(--sombre) 36%, rgba(30, 33, 80, .86) 46%, rgba(30, 33, 80, .30) 62%, rgba(30, 33, 80, .08) 100%), linear-gradient(0deg, rgba(21, 23, 58, .78) 0%, rgba(21, 23, 58, .78) 44%, rgba(21, 23, 58, .30) 56%, rgba(21, 23, 58, 0) 66%); }
+.hero-plein__texte { position: relative; z-index: 2; margin-top: auto; width: 100%; padding-top: 150px; padding-bottom: clamp(40px, 6vw, 72px); }
+.pastille { display: inline-block; background: rgba(246, 241, 231, .14); backdrop-filter: blur(8px); border: 1px solid rgba(246, 241, 231, .28); border-radius: 999px; padding: 9px 18px; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase; color: #F6F1E7; }
+.hero-plein h1 { color: #F6F1E7; font-weight: 500; font-size: clamp(42px, 6.6vw, 88px); line-height: 1.02; margin-top: 22px; max-width: 15ch; text-shadow: 0 2px 26px rgba(21, 23, 58, .5); }
+.hero-plein .devise { font-family: var(--serif); font-size: 24px; color: var(--accent-sombre); margin-top: 18px; }
+.hero-plein .devise small { font-family: var(--sans); font-size: 12.5px; letter-spacing: .06em; color: rgba(246, 241, 231, .72); margin-left: 10px; }
+.hero-plein .rangee { margin-top: 26px; }
+.hero-plein .btn:not(.btn--plein) { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
+.hero-plein .btn:not(.btn--plein):hover { background: #fff; }
+.promesses.promesses--sombre { background: var(--sombre-2); border: 0; padding-block: 22px; }
+.promesses--sombre .promesse i { background: rgba(214, 160, 111, .18); color: var(--accent-sombre); }
+.promesses--sombre .promesse b { color: #F6F1E7; }
+.promesses--sombre .promesse small { color: rgba(246, 241, 231, .66); }
+@media (max-width: 860px) {
+  .hero-plein { min-height: min(88svh, 780px); }
+  .hero-plein__photo { width: 100%; left: 0; object-position: 60% 0%; }
+  .hero-plein__voile { background: linear-gradient(0deg, rgba(21, 23, 58, .92) 0%, rgba(21, 23, 58, .55) 42%, rgba(21, 23, 58, .12) 70%, rgba(21, 23, 58, .25) 100%); }
+  .hero-plein h1 { font-size: clamp(38px, 11.5vw, 56px); }
+  .hero-plein .rangee .btn { width: 100%; }
+  .hero-plein .devise small { display: block; margin: 2px 0 0; }
+}
+
+/* ── le menu derrière son bouton, et l'appel ──
+   Sur téléphone, la barre n'avait pas de menu : les cinq liens vivaient dans
+   le pied de page seulement. Le bouton les ouvre partout sous 860 px, et sur
+   l'accueil aussi en grand, où l'entête est posée sur la photo. */
+.barre .conteneur { position: relative; }
+.menu-bouton { display: none; width: 44px; height: 44px; margin-left: -8px; background: none; border: 0; padding: 0; cursor: pointer; place-content: center; gap: 7px; }
+.menu-bouton span { display: block; width: 26px; height: 1.5px; background: var(--titre); transition: background var(--t); }
+.tel { display: none; width: 44px; height: 44px; place-items: center; color: var(--titre); border-radius: 999px; margin-left: auto; transition: background var(--t), color var(--t); }
+.tel:hover { background: var(--accent-voile); }
+.tel svg { width: 22px; height: 22px; }
+/* L'état du menu est une case à cocher, pas un script : les liens sont dans
+   le HTML et seulement REPLIÉS par la feuille, la navigation survit à un
+   script qui tarde ou qui manque. main.ts n'ajoute que la fermeture au clic
+   ailleurs et à Échap. */
+.menu-etat:checked ~ .nav { display: flex; flex-direction: column; gap: 2px; position: absolute; top: calc(100% + 6px); left: clamp(18px, 4vw, 40px); min-width: 250px; background: var(--carte); border-radius: 6px; box-shadow: var(--ombre); padding: 10px; z-index: 30; margin: 0; }
+.menu-etat:checked ~ .nav a { font-size: 15px; padding: 10px 14px; }
+.menu-etat:focus-visible ~ .menu-bouton, .menu-bouton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 860px) { .menu-bouton { display: grid; } .tel { display: grid; } .barre .btn { margin-left: 0; } }
+
+/* L'entête de l'accueil : monogramme au centre, menu derrière le bouton,
+   transparente sur la photo, pleine dès qu'on descend. Le monogramme indigo
+   passe en ivoire par un filtre tant que la barre est transparente. */
+.accueil-plein .barre { transition: background var(--t), border-color var(--t); }
+.accueil-plein .barre .conteneur { min-height: 76px; }
+.accueil-plein .barre:not(.solide) { background: transparent; backdrop-filter: none; border-bottom-color: transparent; }
+.accueil-plein .barre:not(.solide) .logo img { filter: brightness(0) invert(1); opacity: .96; }
+.accueil-plein .barre:not(.solide) .menu-bouton span { background: #F6F1E7; }
+.accueil-plein .barre:not(.solide) .tel { color: #F6F1E7; }
+.accueil-plein .barre:not(.solide) .tel:hover { background: rgba(246, 241, 231, .14); }
+/* Ciblé sur la barre : le pied de page a son propre .logo, et un .logo absolu
+   sans ancêtre positionné se retrouvait au milieu du premier écran. */
+.accueil-plein .barre .logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.accueil-plein .barre .logo img { height: 36px; }
+.accueil-plein .nav { display: none; }
+.accueil-plein .menu-etat:checked ~ .nav { display: flex; }
+.accueil-plein .menu-bouton, .accueil-plein .tel { display: grid; }
+.accueil-plein .barre .btn { margin-left: 0; }
+@media (max-width: 860px) { .accueil-plein .barre .btn { display: none; } .accueil-plein .hero-plein { margin-top: -76px; } }
 @media (max-width: 760px) { .promesses .conteneur { grid-template-columns: 1fr; gap: 12px; } }
 
 /* Les offres sur l'accueil : fond d'ivoire foncé, et une grille de trois. */

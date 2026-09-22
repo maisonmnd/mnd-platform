@@ -46,4 +46,24 @@ function marqueLaPageCourante() {
 compte();
 marqueLaPageCourante();
 if (document.querySelector('[data-ilot]')) void import('./monte');
+
+/* LE MENU DERRIÈRE SON BOUTON, ET LA BARRE DE L'ACCUEIL — 23 septembre 2026.
+   Le bouton ouvre les liens (sur téléphone partout, sur l'accueil aussi en
+   grand) ; un clic ailleurs ou Échap referme. Sur l'accueil, la barre est
+   transparente sur la photo et redevient pleine dès qu'on descend. */
+const barre = document.querySelector<HTMLElement>('.barre');
+const menuEtat = barre?.querySelector<HTMLInputElement>('.menu-etat');
+if (barre && menuEtat) {
+  /* L'état vit dans la case à cocher, cachée par un clip et non par
+     display:none : Tab l'atteint, Espace la bascule, le menu s'ouvre sans une
+     ligne de script. Ici, seulement le confort : Échap et le clic ailleurs. */
+  const ferme = () => { menuEtat.checked = false; };
+  document.addEventListener('click', (e) => { if (menuEtat.checked && !(e.target as Element).closest('.barre')) ferme(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ferme(); });
+}
+if (barre && document.body.classList.contains('accueil-plein')) {
+  const suit = () => barre.classList.toggle('solide', window.scrollY > 24);
+  suit();
+  addEventListener('scroll', suit, { passive: true });
+}
 void maison().then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); });
