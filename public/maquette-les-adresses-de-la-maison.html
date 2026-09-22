@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Les adresses de la Maison · Zoho</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+
+/* en-tête */
+.tete{padding:44px 0 10px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:60ch}
+/* LE MONOGRAMME DE LA MAISON, jamais redessiné en CSS (22 septembre 2026).
+   Le fichier est carré, 1600 x 1600, transparent, et son encre n'occupe que
+   la moitié centrale : on garde le carré pour ne pas le déformer, et on
+   rattrape sa marge interne par des marges négatives. */
+.sceau{display:block;width:116px;height:116px;margin:-6px 0 -20px -29px}
+
+/* compteur de licences */
+.jauge{display:flex;gap:8px;align-items:center;margin:26px 0 6px;flex-wrap:wrap}
+.jauge b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400}
+.jauge span{font-size:13.5px;color:var(--encre-doux)}
+.pastilles{display:flex;gap:5px;margin-left:auto}
+.pastilles i{width:26px;height:9px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet);display:block}
+.pastilles i.prise{background:var(--indigo);border-color:var(--indigo)}
+
+h2{font-size:clamp(21px,3vw,27px);margin-top:42px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:66ch}
+
+/* tableaux */
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:11px 10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.adr{font-family:var(--sans);color:var(--indigo);white-space:nowrap}
+td.adr b{font-weight:500}
+.etiq{display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.etiq.lic{background:var(--indigo);color:#F6F1E7}
+.etiq.ali{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.etiq.grp{background:var(--fond-2);color:var(--encre-doux);border:1px solid var(--filet)}
+.dep{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;background:var(--indigo);color:#F6F1E7;margin:2px 3px 2px 0;white-space:nowrap}
+.dep.seul{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.atrouver{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* les étapes, cochables */
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);white-space:nowrap}
+
+/* encadrés */
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:20px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde p + p{margin-top:8px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+  td.adr{white-space:normal}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.pastilles{display:none}
+  ol.pas li{break-inside:avoid;background:#fff;padding-right:14px}
+  h2{break-after:avoid;margin-top:22px}
+  .garde,.regle{break-inside:avoid}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .regle small{color:var(--encre-doux)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="sceau" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <p class="sur">Maison MND · Zoho Mail &amp; Le Trône</p>
+    <h1>Les adresses de la Maison</h1>
+    <p class="ligne">Cinq boîtes, une par fonction qui répond de quelque chose. Les alias et les groupes portent les noms de fonction, et ne coûtent rien.</p>
+  </header>
+
+  <div class="jauge">
+    <b>5 / 5</b>
+    <span>licences employées. Les alias et les groupes restent gratuits et illimités.</span>
+    <span class="pastilles"><i class="prise"></i><i class="prise"></i><i class="prise"></i><i class="prise"></i><i class="prise"></i></span>
+  </div>
+
+  <h2>Les cinq boîtes</h2>
+  <p class="cap">Une licence va à qui doit répondre de ce qu'il fait. Le Trône reconnaît chaque personne à son adresse : c'est elle qui signe au Journal des gestes, donc une adresse de fonction partagée effacerait qui a fait quoi.</p>
+  <table>
+    <thead><tr><th>Boîte</th><th>Qui</th><th>Son alias de fonction</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="adr"><b>direction</b>@maisonmnd.com</td>
+        <td>Yéman</td>
+        <td class="adr">yeman@</td>
+        <td><span class="etiq lic">existe</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b><span class="atrouver">prénom</span></b>@maisonmnd.com</td>
+        <td>Ressources humaines, paie, contrats</td>
+        <td class="adr">rh@</td>
+        <td><span class="etiq lic">à créer</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b><span class="atrouver">prénom</span></b>@maisonmnd.com</td>
+        <td>Secrétariat</td>
+        <td class="adr">secretariat@</td>
+        <td><span class="etiq lic">à créer</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b><span class="atrouver">prénom</span></b>@maisonmnd.com</td>
+        <td>Comptabilité</td>
+        <td class="adr">comptabilite@</td>
+        <td><span class="etiq lic">à créer</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b>equipe</b>@maisonmnd.com</td>
+        <td>Le comptoir, partagée</td>
+        <td class="adr">gerard@ · nassim@ · aime@ · <span class="atrouver">4e</span></td>
+        <td><span class="etiq lic">à créer</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="garde">
+    <b>Le prénom porte la licence, la fonction n'est qu'un alias</b>
+    <p>On crée <kbd>mariam@maisonmnd.com</kbd> et on lui pose l'alias <kbd>rh@maisonmnd.com</kbd>, jamais l'inverse. Le Trône nomme alors la personne dans son Journal, le dehors écrit à la fonction, et le jour où elle part on déplace l'alias vers sa remplaçante en un clic, sans toucher à l'historique ni au mot de passe de personne.</p>
+    <p>Minuscules, sans accent, sans point. On écrit <kbd>aime</kbd> et jamais <kbd>aimé</kbd> : un accent fait rebondir le courrier chez la moitié des fournisseurs, sans message lisible.</p>
+  </div>
+
+  <h2>Ce que chacun ouvre dans Le Trône</h2>
+  <p class="cap">À poser dans Système › Accès &amp; rôles, département par département. Aucun de ces trois postes n'est souverain ni gérant : ils reçoivent le rang Maître, puis leurs départements.</p>
+  <table>
+    <thead><tr><th>Poste</th><th>Rang</th><th>Départements donnés</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Ressources humaines</td>
+        <td>Maître</td>
+        <td><span class="dep">Équipe</span><span class="dep">Académie</span><span class="dep seul">Les textes de la Maison</span></td>
+      </tr>
+      <tr>
+        <td>Secrétariat</td>
+        <td>Maître</td>
+        <td><span class="dep">Clientèle</span><span class="dep">Vente &amp; Caisse</span></td>
+      </tr>
+      <tr>
+        <td>Comptabilité</td>
+        <td>Maître</td>
+        <td><span class="dep">Finances</span><span class="dep seul">Fournisseurs</span><span class="dep seul">Bilan mensuel</span></td>
+      </tr>
+      <tr>
+        <td>Le comptoir, à quatre</td>
+        <td>Maître</td>
+        <td><span class="dep">Clientèle</span> et rien d'autre, sauf demande</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="cap" style="margin-top:12px">Les pastilles cuivre sont des écrans ouverts SEULS, sans leur département : Fournisseurs vit à l'Atelier et Bilan mensuel à la Direction, mais la comptabilité en a besoin sans avoir à ouvrir tout le reste.</p>
+
+  <h2>Le mur que vous rencontrerez</h2>
+  <div class="garde mur">
+    <b>La paie n'obéit pas à l'écran, elle obéit au serveur</b>
+    <p>Quatre tables sont réservées au souverain dans la base elle-même, décision du 3 août 2026 : les avances sur salaire, les pointages, les demandes de congé et les bulletins. Une cinquième l'est aussi, la fiche du personnel, qu'un non-souverain ne peut même pas LIRE.</p>
+    <p>Conséquence : la personne des ressources humaines pourra tenir les contrats, l'Académie et l'arrivée des recrues, mais <b>ni faire tourner la paie, ni ouvrir une fiche du personnel</b>. L'écran s'ouvrira et la base refusera, en silence.</p>
+    <p>Deux sorties, et c'est à vous de trancher. <b>Garder le mur</b> : la paie reste votre geste, la personne prépare tout le reste, c'est ce que je recommande pour commencer. <b>Ou l'ouvrir à la direction</b> : une migration change la garde de « souverain seul » à « souverain ou gérant », et vous nommez cette personne gérante. Elle verra alors aussi le Journal des gestes et les pièces d'identité des dossiers, mais jamais Salon &amp; Foyer, qui reste à vous seul.</p>
+  </div>
+
+  <h2>Les quatre groupes</h2>
+  <p class="cap">Un groupe n'a pas de boîte : il redistribue à ses membres. Gratuit, aucune licence.</p>
+  <table>
+    <thead><tr><th>Adresse</th><th>Membres</th><th>Sert à</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="adr"><b>contact</b>@maisonmnd.com</td>
+        <td>direction@ · secrétariat · equipe@</td>
+        <td>L'adresse publique. Le site, la fiche Google, les mentions légales, les factures.</td>
+        <td><span class="etiq grp">à créer</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b>facturation</b>@maisonmnd.com</td>
+        <td>direction@ · comptabilité</td>
+        <td>Les factures, les devis, les relances, les fournisseurs.</td>
+        <td><span class="etiq grp">à créer</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b>reservations</b>@maisonmnd.com</td>
+        <td>direction@ · secrétariat · equipe@</td>
+        <td>Les rendez-vous.</td>
+        <td><span class="etiq grp">existe</span></td>
+      </tr>
+      <tr>
+        <td class="adr"><b>accueil</b>@maisonmnd.com</td>
+        <td>direction@ · secrétariat · equipe@</td>
+        <td>Expéditeur des courriers automatiques du Trône. Branché, à ne pas supprimer.</td>
+        <td><span class="etiq grp">existe</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>À faire, dans cet ordre</h2>
+  <p class="cap">Sur <kbd>mailadmin.zoho.com</kbd> pour les adresses, puis dans Le Trône pour les accès. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
+  <ol class="pas" id="pas">
+    <li><b>Créer les trois boîtes personnelles</b><p>Users, Add User, une fois par personne : ressources humaines, secrétariat, comptabilité. Le prénom comme adresse, un mot de passe pour chacune.</p></li>
+    <li><b>Créer la boîte du comptoir</b><p>Users, Add User : adresse <kbd>equipe</kbd>, un mot de passe que les quatre connaîtront.</p></li>
+    <li><b>Poser les alias de fonction</b><p>Sur chaque boîte, onglet Mail, bloc Alias : <kbd>rh</kbd>, <kbd>secretariat</kbd>, <kbd>comptabilite</kbd>. Et sur direction@ : <kbd>yeman</kbd>.</p></li>
+    <li><b>Poser les quatre alias du comptoir</b><p>Sur equipe@ : gerard, nassim, aime, et le quatrième prénom.</p></li>
+    <li><b>Vérifier que contact@ est libre</b><p>Dans Groups. S'il y traîne déjà, dites-le moi : la même adresse ne peut pas être un groupe et un alias à la fois.</p></li>
+    <li><b>Créer les groupes contact@ et facturation@</b><p>Groups, Create Group, avec les membres du tableau ci-dessus.</p></li>
+    <li><b>Régler « Who can send » sur Everyone</b><p>Sur les quatre groupes, accueil@ et reservations@ compris. Sans ça, une cliente qui écrit de son Gmail est rejetée en silence.</p></li>
+    <li><b>Mettre le nom d'affichage « Maison MND »</b><p>Sur chaque boîte, dans mail.zoho.com : Paramètres, Comptes de messagerie.</p></li>
+    <li><b>Ouvrir les comptes du Trône</b><p>Chaque personne s'inscrit avec SON adresse, puis vous la rattachez dans Système › Accès &amp; rôles et vous lui donnez ses départements, selon le tableau plus haut.</p></li>
+    <li><b>Trancher le mur de la paie</b><p>Garder la paie pour vous seul, ou me demander la migration qui l'ouvre à la direction. Rien ne presse : tout le reste fonctionne sans.</p></li>
+  </ol>
+
+  <h2>Comment le comptoir écrit</h2>
+  <p class="cap">À remettre aux quatre. Les trois postes à boîte personnelle, eux, se connectent simplement avec leur propre adresse.</p>
+  <table>
+    <tbody>
+      <tr><td class="adr"><b>Se connecter</b></td><td>Sur mail.zoho.com, avec <b>equipe@maisonmnd.com</b> et le mot de passe commun. Jamais avec un alias : un alias n'a pas de mot de passe.</td></tr>
+      <tr><td class="adr"><b>Répondre</b></td><td>Au moment d'écrire, le champ <b>From</b> devient une liste. Gérard y choisit gerard@maisonmnd.com. Le courrier part sous « Maison MND ».</td></tr>
+      <tr><td class="adr"><b>À vérifier</b></td><td>Au tout premier envoi, que l'alias apparaît bien dans cette liste.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Ce qu'on emploie, et où</h2>
+  <table>
+    <thead><tr><th>Endroit</th><th>Adresse</th></tr></thead>
+    <tbody>
+      <tr><td>Le site, les mentions légales, la fiche Google</td><td class="adr">contact@maisonmnd.com</td></tr>
+      <tr><td>Les factures et les reçus</td><td class="adr">contact@maisonmnd.com</td></tr>
+      <tr><td>Les fournisseurs et les relances</td><td class="adr">facturation@maisonmnd.com</td></tr>
+      <tr><td>Les confirmations de rendez-vous automatiques</td><td class="adr">accueil@maisonmnd.com</td></tr>
+      <tr><td>Les réservations</td><td class="adr">reservations@maisonmnd.com</td></tr>
+      <tr><td>Les rapports techniques du domaine</td><td class="adr">direction@maisonmnd.com</td></tr>
+      <tr><td>Un contrat, un bulletin, une embauche</td><td class="adr">rh@maisonmnd.com</td></tr>
+    </tbody>
+  </table>
+
+  <h2>La règle, pour la suite</h2>
+  <div class="regle">
+    <p>Une licence pour qui répond de quelque chose : son nom doit pouvoir signer.</p>
+    <p>Un alias sur la boîte commune pour qui n'a que son Quotidien.</p>
+    <small>La raison n'est pas dans le courrier, elle est dans Le Trône : le code qui réinitialise un mot de passe arrive dans la boîte. Qui partage une boîte peut donc entrer sous le nom d'un collègue. C'est sans conséquence au comptoir, où les quatre ont les mêmes accès limités ; ce serait grave pour la paie ou la caisse. Vos cinq licences sont désormais placées exactement là où cette règle les voulait.</small>
+  </div>
+
+  <div class="pied">
+    <span>Maison MND · maisonmnd.com</span>
+    <span>Document de travail, à garder hors du dépôt public.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste, comme le rangement du menu. Si le
+   navigateur refuse son stockage (fenêtre privée, site bloqué), la page
+   marche quand même : on coche, ça ne se garde simplement pas. */
+const CLE = 'mnd_zoho_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+</script>
+</body>
+</html>
