@@ -13,6 +13,7 @@ const ILOTS = {
   offres: lazy(() => import('./ilots/Offres')),
   'bandeau-offre': lazy(() => import('./ilots/BandeauOffre')),
   contact: lazy(() => import('./ilots/Contact')),
+  joindre: lazy(() => import('./ilots/Joindre')),
 } as const;
 
 document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {

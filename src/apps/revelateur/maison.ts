@@ -1,3 +1,4 @@
+import type { ExceptionDHoraire, HeureDeLaSemaine } from '../../shared/agenda-pur';
 import type { Besoin } from '../../shared/qualification';
 
 /* CE QUE LE SITE SAIT DE LA MAISON, SANS COMPTE — 17 septembre 2026.
@@ -14,6 +15,8 @@ export type Maison = {
   ville: string;
   /** Le numéro WhatsApp de la Maison, chiffres seuls, tel que wa.me l'attend. */
   whatsapp: string;
+  /** Le même numéro, tel que la Maison l'écrit : c'est celui qu'on affiche. */
+  telephone: string;
   /** La devise de la branche : elle habille les prix du calendrier. */
   devise: string;
   fiche?: string;
@@ -54,6 +57,7 @@ export function maison(): Promise<Maison | null> {
       nom: b.data?.name ?? 'Maison MND',
       ville: b.data?.city ?? '',
       whatsapp: (b.data?.phone ?? '').replace(/\D/g, ''),
+      telephone: (b.data?.phone ?? '').trim(),
       devise: b.data?.currency || 'XOF',
       fiche: b.data?.mapsUrl || undefined,
     };
@@ -61,6 +65,33 @@ export function maison(): Promise<Maison | null> {
     return m;
   })();
   return promesse;
+}
+
+/* LES HEURES, LUES SEULES — 21 septembre 2026. La page contact les affiche
+   sans tirer tout l'agenda de réservation (cinq tables) : une seule requête,
+   sur les deux documents qui portent la semaine et ses exceptions. Les mêmes
+   clefs que `agendaDeLaMaison`, donc la même vérité. */
+export type HeuresDeLaMaison = { semaine: HeureDeLaSemaine[]; exceptions: ExceptionDHoraire[] };
+
+let heures: Promise<HeuresDeLaMaison> | null = null;
+
+export function heuresDeLaMaison(): Promise<HeuresDeLaMaison> {
+  if (heures) return heures;
+  heures = (async () => {
+    const vide: HeuresDeLaMaison = { semaine: [], exceptions: [] };
+    const supabase = await client();
+    if (!supabase) return vide;
+    const { data } = await supabase.from('documents').select('key,data')
+      .in('key', ['mnd_settings', 'mnd_horaires_exceptions']);
+    const docs = (data ?? []) as { key: string; data?: unknown }[];
+    const reglages = docs.find((d) => d.key === 'mnd_settings')?.data as { hours?: HeureDeLaSemaine[] } | undefined;
+    const exceptions = docs.find((d) => d.key === 'mnd_horaires_exceptions')?.data;
+    return {
+      semaine: Array.isArray(reglages?.hours) ? reglages.hours : [],
+      exceptions: Array.isArray(exceptions) ? exceptions as ExceptionDHoraire[] : [],
+    };
+  })();
+  return heures;
 }
 
 export async function avisGoogle(): Promise<AvisGoogle | null> {

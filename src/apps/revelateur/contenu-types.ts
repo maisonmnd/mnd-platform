@@ -58,7 +58,9 @@ export type Page = {
   /** Le nom court dans le fil d'Ariane et le sitemap. */
   court: string;
   /** Un îlot React à monter sur cette page. */
-  ilot?: 'triage' | 'demande' | 'contact' | 'reserver' | 'offres';
+  /** `contact` est la petite carte WhatsApp de la page de réservation ;
+      `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
+  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres';
 };
 
 export type Accueil = {
@@ -85,7 +87,13 @@ export type Commun = {
       pour l'examen du nom WhatsApp par Meta. */
   editeur: {
     nomCommercial: string; forme: string; exploitante: string;
-    rccm: string; greffe: string; adresse: string; telephone: string; email: string;
+    rccm: string; greffe: string; telephone: string; email: string;
+    /** L'adresse du registre : les mentions légales et la preuve faite à Meta. */
+    adresse: string;
+    /** La même, avec le repère, pour qui cherche la porte. */
+    adresseComplete: string;
+    /** Les parts que lit la fiche Google. */
+    rue: string; boitePostale: string;
   };
   nav: Lien[];
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };

@@ -517,3 +517,36 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .plan-liste a { color: var(--texte); border-bottom: 1px solid var(--filet); }
 .plan-liste a:hover { color: var(--accent-profond); border-bottom-color: var(--accent); }
 @media (max-width: 620px) { .plan-liste { columns: 1; } }
+
+/* ══ NOUS ÉCRIRE, NOUS TROUVER, QUAND VENIR — 21 septembre 2026 ══
+   Les trois cartes de la page contact (îlot `joindre`). Elles répondent aux
+   trois seules questions qu'on vient y poser. Le repli du générateur porte
+   les mêmes classes pour l'adresse : sans React, le bloc reste lisible. */
+.jo-cartes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: start; }
+.jo-carte { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); padding: 26px 24px 24px; height: 100%; display: flex; flex-direction: column; gap: 14px; }
+.jo-tete { display: flex; align-items: center; gap: 10px; }
+.jo-ic { width: 30px; height: 30px; flex: none; border-radius: 999px; background: var(--accent-voile); display: grid; place-items: center; color: var(--accent-profond); }
+.jo-carte h3 { font-size: 22px; }
+.jo-msg { font-family: var(--serif); font-size: 19px; line-height: 1.35; color: var(--texte-doux); border-left: 2px solid var(--accent); padding-left: 14px; }
+.jo-note, .jo-lien small { font-size: 12.5px; color: var(--texte-doux); display: block; }
+.jo-lien { display: flex; flex-direction: column; gap: 2px; }
+.jo-lien a { font-size: 15.5px; color: var(--titre); border-bottom: 1px solid var(--accent-voile); align-self: flex-start; padding-bottom: 1px; }
+.jo-lien a:hover { border-bottom-color: var(--accent); color: var(--accent-profond); }
+.jo-adresse { font-size: 15.5px; color: var(--titre); line-height: 1.5; max-width: 30ch; }
+/* Le bouton tombe au bas de la carte : les trois s'alignent, quelle que soit
+   la hauteur de ce qui les précède. */
+.jo-bt { width: 100%; margin-top: auto; }
+.jo-carte .btn:not(.btn--plein) { border-color: var(--filet); color: var(--titre); }
+.jo-carte .btn:not(.btn--plein):hover { border-color: var(--accent); color: var(--accent-profond); }
+.jo-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-profond); background: var(--accent-clair); border-radius: 999px; padding: 5px 12px; align-self: flex-start; }
+.jo-badge i { width: 6px; height: 6px; border-radius: 999px; background: #2E7D5B; display: block; }
+.jo-badge--ferme { color: var(--texte-doux); background: var(--fond-2); }
+.jo-badge--ferme i { background: #9A7B5F; }
+.jo-sem { display: flex; flex-direction: column; margin: 0; font-size: 14.5px; }
+.jo-sem > div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(20, 20, 27, .06); color: var(--texte-doux); }
+.jo-sem > div:last-child { border-bottom: 0; }
+.jo-sem .jo-auj { color: var(--titre); font-weight: 400; }
+.jo-sem dt { margin: 0; text-transform: capitalize; }
+.jo-sem dd { margin: 0; font-variant-numeric: tabular-nums; }
+.jo-repli { display: grid; gap: 8px; }
+@media (max-width: 900px) { .jo-cartes { grid-template-columns: 1fr; } }

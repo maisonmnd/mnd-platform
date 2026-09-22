@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Maquette · La page contact</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* Les jetons sont recopiés de src/apps/revelateur/revelateur.css, pour que la
+   maquette mente le moins possible sur les couleurs et les graisses. */
+:root{
+  --accent:#B97A4A; --accent-clair:#FAF1E9; --accent-profond:#7C4C2C; --accent-voile:rgba(185,122,74,.14);
+  --accent-sombre:#D6A06F;
+  --fond:#F6F1E7; --fond-2:#EEE6D6; --carte:#FFFDF9;
+  --texte:#2A2722; --texte-doux:#5E5750; --titre:#1E2150;
+  --sombre:#1E2150; --filet:rgba(20,20,27,.14);
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Jost',system-ui,sans-serif;
+  --r:3px; --ombre:0 18px 50px rgba(30,33,80,.14); --t:.22s ease;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.6}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent-profond);text-decoration:none}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--titre);margin:0;line-height:1.06;text-wrap:balance}
+h1{font-size:clamp(38px,6vw,66px)}
+h2{font-size:clamp(28px,3.6vw,42px)}
+h3{font-size:clamp(20px,2.2vw,25px);font-weight:400}
+p{margin:0}
+.sur{font-weight:400;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent-profond)}
+.ligne{font-size:18px;line-height:1.5;color:var(--texte-doux);max-width:52ch}
+.corps{color:var(--texte-doux);max-width:64ch}
+.conteneur{max-width:1120px;margin:0 auto;padding-inline:clamp(18px,4vw,40px)}
+section{padding-block:clamp(36px,5.5vw,72px)}
+
+/* ── LE BANDEAU DE LA MAQUETTE, il ne fait pas partie de la page ── */
+.mq{position:sticky;top:0;z-index:50;background:var(--sombre);color:#F6F1E7;padding:10px clamp(18px,4vw,40px);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.mq b{font-weight:500;font-size:13px;letter-spacing:.04em}
+.mq span{font-size:12.5px;color:rgba(246,241,231,.72);flex:1;min-width:200px}
+.bascule{display:inline-flex;border:1px solid rgba(246,241,231,.34);border-radius:999px;overflow:hidden}
+.bascule button{appearance:none;border:0;background:transparent;color:rgba(246,241,231,.72);font-family:var(--sans);font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:7px 16px;cursor:pointer;transition:var(--t)}
+.bascule button[aria-pressed=true]{background:var(--accent);color:#fff}
+
+/* ── LA BARRE DU SITE ── */
+.nav{border-bottom:1px solid var(--filet);background:rgba(246,241,231,.9);backdrop-filter:blur(8px)}
+.nav__in{display:flex;align-items:center;gap:26px;height:74px}
+.logo{width:42px;height:28px;border:1.5px solid var(--titre);border-bottom:0;border-radius:22px 22px 0 0;position:relative}
+.logo::after{content:'';position:absolute;left:50%;top:6px;width:1.5px;height:20px;background:var(--titre);transform:translateX(-50%)}
+.nav__liens{margin-left:auto;display:flex;gap:24px;font-size:14.5px;color:var(--texte-doux)}
+.nav__liens a:hover{color:var(--accent-profond)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans);font-size:13px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;padding:13px 22px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;transition:var(--t);text-align:center}
+.btn--plein{background:var(--accent);color:#fff}
+.btn--plein:hover{background:var(--accent-profond)}
+.btn--creux{border-color:var(--filet);color:var(--titre);background:transparent}
+.btn--creux:hover{border-color:var(--accent);color:var(--accent-profond)}
+.btn--clair{background:#F6F1E7;color:var(--titre)}
+.btn--lien{padding:13px 4px;color:var(--titre);border-bottom:1px solid var(--accent-voile)}
+.fil{font-size:12.5px;color:var(--texte-doux);padding-top:26px}
+.fil a{color:var(--texte-doux)}
+
+/* ── AVANT ── */
+.avant section+section{border-top:1px dashed rgba(185,122,74,.28)}
+.avant .vide{height:70px}
+
+/* ── APRÈS : LES TROIS CARTES ── */
+.hero{padding-block:clamp(28px,4vw,52px) clamp(24px,3vw,40px)}
+.hero h1{margin-top:10px}
+.hero .ligne{margin-top:18px}
+.cartes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
+.carte{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);padding:26px 24px 24px;height:100%;display:flex;flex-direction:column;gap:14px}
+.carte__tete{display:flex;align-items:center;gap:10px}
+.carte__ic{width:30px;height:30px;flex:none;border-radius:999px;background:var(--accent-voile);display:grid;place-items:center;color:var(--accent-profond)}
+.carte h3{font-size:22px}
+.ranglien{display:flex;flex-direction:column;gap:2px}
+.ranglien a,.ranglien span{font-size:15.5px;color:var(--titre)}
+.ranglien a{border-bottom:1px solid var(--accent-voile);align-self:flex-start;padding-bottom:1px}
+.ranglien a:hover{border-color:var(--accent)}
+.ranglien small{font-size:12.5px;color:var(--texte-doux);letter-spacing:.02em}
+.carte .btn{width:100%;margin-top:auto}
+.msg{font-family:var(--serif);font-size:19px;line-height:1.35;color:var(--texte-doux);border-left:2px solid var(--accent);padding-left:14px}
+.adresse{font-size:15.5px;color:var(--titre);line-height:1.5}
+
+/* les horaires */
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-profond);background:var(--accent-clair);border-radius:999px;padding:5px 12px;align-self:flex-start}
+.badge i{width:6px;height:6px;border-radius:999px;background:#2E7D5B;display:block}
+.badge.ferme{color:var(--texte-doux);background:var(--fond-2)}
+.badge.ferme i{background:#9A7B5F}
+.sem{display:flex;flex-direction:column;gap:0;font-size:14.5px}
+.sem div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid rgba(20,20,27,.06);color:var(--texte-doux)}
+.sem div:last-child{border-bottom:0}
+.sem div.auj{color:var(--titre);font-weight:400}
+.sem div.auj dt{position:relative}
+.sem dt{margin:0;text-transform:capitalize}
+.sem dd{margin:0;font-variant-numeric:tabular-nums}
+
+/* la bande de rendez-vous */
+.bande{background:var(--sombre);color:#F6F1E7;border-radius:var(--r)}
+.bande h2{color:#F6F1E7}
+.bande .ligne{color:rgba(246,241,231,.78)}
+.bande__in{padding:clamp(28px,4vw,44px);display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.bande__txt{flex:1;min-width:260px}
+.bande__bt{display:flex;gap:12px;flex-wrap:wrap}
+
+/* l'identité, en bas et discrète */
+.identite{border-top:1px solid var(--filet);padding-top:26px;display:grid;grid-template-columns:200px 1fr;gap:24px}
+.identite p{font-size:13.5px;line-height:1.65;color:var(--texte-doux);max-width:80ch}
+.pied{background:var(--fond-2);margin-top:40px;padding-block:26px;font-size:13px;color:var(--texte-doux)}
+
+@media(max-width:900px){
+  .cartes{grid-template-columns:1fr}
+  .identite{grid-template-columns:1fr;gap:10px}
+  .nav__liens{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="mq">
+  <b>MAQUETTE · /contact/</b>
+  <span>À valider avant que je touche au site. Les horaires, le numéro et l'itinéraire viendraient de la base, comme le calendrier de réservation.</span>
+  <div class="bascule">
+    <button type="button" id="bAvant">Avant</button>
+    <button type="button" id="bApres" aria-pressed="true">Après</button>
+  </div>
+</div>
+
+<nav class="nav"><div class="conteneur nav__in">
+  <div class="logo"></div>
+  <div class="nav__liens">
+    <a href="#">Mon parcours</a><a href="#">Services</a><a href="#">Les offres</a><a href="#">La Maison</a><a href="#">Journal</a>
+  </div>
+  <a class="btn btn--plein" href="#">Prendre rendez-vous</a>
+</div></nav>
+
+<!-- ══════════ AVANT ══════════ -->
+<div id="avant" class="avant" hidden>
+  <div class="conteneur fil"><a href="#">Accueil</a> · Contact</div>
+  <section>
+    <div class="conteneur">
+      <p class="sur">Contact</p>
+      <h1 style="margin-top:10px">Nous écrire, nous trouver</h1>
+      <div class="vide"></div>
+      <p class="corps">La Maison MND vous reçoit à Cotonou. Nous répondons pendant les heures d'ouverture de la Maison, sur WhatsApp ou par téléphone.</p>
+    </div>
+  </section>
+  <section>
+    <div class="conteneur">
+      <p class="sur">Contact</p>
+      <h2 style="margin-top:10px">Qui est la Maison MND</h2>
+      <div class="vide"></div>
+      <p class="corps">Maison MND est le nom commercial sous lequel exerce ACIA 1, entreprise individuelle de Yéman Ahouansou, immatriculée au registre du commerce et du crédit mobilier de Cotonou sous le numéro RB/COT/12 A 14509. Établissement principal : Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin. Téléphone et WhatsApp : +229 01 51 99 77 99. Courriel : contact@maisonmnd.com.</p>
+    </div>
+  </section>
+  <section>
+    <div class="conteneur">
+      <h2>Parler à MND</h2>
+      <p class="ligne" style="margin-top:14px">Le message est déjà écrit. Vous n'avez qu'à l'envoyer.</p>
+      <div style="display:flex;gap:12px;margin-top:22px;flex-wrap:wrap">
+        <a class="btn btn--plein" href="#">Parler à MND sur WhatsApp</a>
+        <a class="btn btn--creux" href="#">Me faire rappeler</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════ APRÈS ══════════ -->
+<div id="apres">
+  <div class="conteneur fil"><a href="#">Accueil</a> · Contact</div>
+
+  <section class="hero"><div class="conteneur">
+    <p class="sur">Contact</p>
+    <h1>Nous écrire, nous trouver</h1>
+    <p class="ligne">La Maison vous reçoit à Cotonou. Écrivez sur WhatsApp, appelez, ou venez nous voir pendant les heures d'ouverture.</p>
+  </div></section>
+
+  <section style="padding-top:0"><div class="conteneur">
+    <div class="cartes">
+
+      <!-- 1. ÉCRIRE -->
+      <article class="carte">
+        <div class="carte__tete">
+          <span class="carte__ic">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z"/></svg>
+          </span>
+          <h3>Nous écrire</h3>
+        </div>
+        <p class="msg">« Bonjour MND, je ne sais pas encore quel service choisir et j'aimerais être orientée. »</p>
+        <div class="ranglien">
+          <small>Le message est déjà écrit</small>
+        </div>
+        <div class="ranglien">
+          <a href="tel:+2290151997799">+229 01 51 99 77 99</a>
+          <small>Téléphone et WhatsApp</small>
+        </div>
+        <div class="ranglien">
+          <a href="mailto:contact@maisonmnd.com">contact@maisonmnd.com</a>
+          <small>Pour les devis et les partenariats</small>
+        </div>
+        <a class="btn btn--plein" href="#">Ouvrir WhatsApp</a>
+      </article>
+
+      <!-- 2. VENIR -->
+      <article class="carte">
+        <div class="carte__tete">
+          <span class="carte__ic">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10.5c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 1 1 16 0z"/><circle cx="12" cy="10.2" r="2.8"/></svg>
+          </span>
+          <h3>Nous trouver</h3>
+        </div>
+        <p class="adresse">Îlot 130-F, quartier Suru-Léré<br>06 BP 2076, Cotonou, Bénin</p>
+        <div class="ranglien">
+          <small>Le portail bleu, après la pharmacie. Parking devant la Maison.</small>
+        </div>
+        <div class="ranglien">
+          <a href="#">Notre fiche Google</a>
+          <small>Photos, avis, itinéraire</small>
+        </div>
+        <a class="btn btn--creux" href="#">Ouvrir l'itinéraire</a>
+      </article>
+
+      <!-- 3. QUAND -->
+      <article class="carte">
+        <div class="carte__tete">
+          <span class="carte__ic">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.2 2"/></svg>
+          </span>
+          <h3>Quand venir</h3>
+        </div>
+        <span class="badge" id="etat"><i></i><span>Ouvert jusqu'à 18h00</span></span>
+        <dl class="sem" id="sem"></dl>
+        <a class="btn btn--creux" href="#">Voir les heures libres</a>
+      </article>
+
+    </div>
+  </div></section>
+
+  <section style="padding-top:8px"><div class="conteneur">
+    <div class="bande"><div class="bande__in">
+      <div class="bande__txt">
+        <h2>Vous savez déjà ce que vous voulez ?</h2>
+        <p class="ligne" style="margin-top:12px">Choisissez votre heure en ligne, sans nous écrire. Vous recevez la confirmation sur WhatsApp.</p>
+      </div>
+      <div class="bande__bt">
+        <a class="btn btn--plein" href="#">Prendre rendez-vous</a>
+        <a class="btn btn--clair" href="#">Me faire rappeler</a>
+      </div>
+    </div></div>
+  </div></section>
+
+  <section style="padding-top:0"><div class="conteneur">
+    <div class="identite">
+      <div>
+        <p class="sur">La Maison</p>
+        <h3 style="margin-top:8px;font-size:20px">Qui signe ce site</h3>
+      </div>
+      <p>Maison MND est le nom commercial sous lequel exerce ACIA 1, entreprise individuelle de Yéman Ahouansou, immatriculée au registre du commerce et du crédit mobilier de Cotonou sous le numéro RB/COT/12 A 14509. Établissement principal : Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin. Téléphone et WhatsApp : +229 01 51 99 77 99. Courriel : contact@maisonmnd.com.</p>
+    </div>
+  </div></section>
+</div>
+
+<div class="pied"><div class="conteneur">Maison MND · Cotonou · contact@maisonmnd.com</div></div>
+
+<script>
+/* LES HEURES SONT CALCULÉES, PAS ÉCRITES. Dans la vraie page elles viendraient
+   de `mnd_settings`, la même source que le calendrier de réservation : la
+   Maison change ses heures au Trône et la page suit, sans publication. */
+const SEMAINE = [
+  { key: 'lun', jour: 'lundi',    open: '09:00', close: '18:00', closed: false },
+  { key: 'mar', jour: 'mardi',    open: '09:00', close: '18:00', closed: false },
+  { key: 'mer', jour: 'mercredi', open: '09:00', close: '18:00', closed: false },
+  { key: 'jeu', jour: 'jeudi',    open: '09:00', close: '18:00', closed: false },
+  { key: 'ven', jour: 'vendredi', open: '09:00', close: '18:00', closed: false },
+  { key: 'sam', jour: 'samedi',   open: '08:30', close: '19:00', closed: false },
+  { key: 'dim', jour: 'dimanche', open: '',      close: '',      closed: true  },
+];
+const dit = (h) => h.replace(':', 'h');
+const minutes = (h) => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
+
+const maintenant = new Date();
+const idxAuj = (maintenant.getDay() + 6) % 7; // 0 = lundi
+const sem = document.getElementById('sem');
+SEMAINE.forEach((j, i) => {
+  const d = document.createElement('div');
+  if (i === idxAuj) d.className = 'auj';
+  d.innerHTML = '<dt>' + j.jour + '</dt><dd>' + (j.closed ? 'fermé' : dit(j.open) + ' à ' + dit(j.close)) + '</dd>';
+  sem.appendChild(d);
+});
+
+/* L'ÉTAT SE DIT EN UNE LIGNE, c'est la seule chose qu'on cherche vraiment. */
+const auj = SEMAINE[idxAuj];
+const m = maintenant.getHours() * 60 + maintenant.getMinutes();
+const badge = document.getElementById('etat');
+const texte = badge.querySelector('span');
+if (!auj.closed && m >= minutes(auj.open) && m < minutes(auj.close)) {
+  texte.textContent = 'Ouvert jusqu’à ' + dit(auj.close);
+} else {
+  badge.classList.add('ferme');
+  let k = idxAuj, n = null;
+  for (let p = 1; p <= 7; p++) { const c = SEMAINE[(k + p) % 7]; if (!c.closed) { n = c; break; } }
+  const toutDeSuite = !auj.closed && m < minutes(auj.open);
+  texte.textContent = toutDeSuite
+    ? 'Fermé, ouvre à ' + dit(auj.open)
+    : 'Fermé, ouvre ' + (n ? n.jour + ' à ' + dit(n.open) : 'bientôt');
+}
+
+/* La bascule avant / après. */
+const av = document.getElementById('avant'), ap = document.getElementById('apres');
+const bAv = document.getElementById('bAvant'), bAp = document.getElementById('bApres');
+const montre = (quoi) => {
+  av.hidden = quoi !== 'avant'; ap.hidden = quoi !== 'apres';
+  bAv.setAttribute('aria-pressed', String(quoi === 'avant'));
+  bAp.setAttribute('aria-pressed', String(quoi === 'apres'));
+};
+bAv.onclick = () => montre('avant');
+bAp.onclick = () => montre('apres');
+</script>
+</body>
+</html>

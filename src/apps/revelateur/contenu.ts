@@ -20,7 +20,20 @@ export const COMMUN: Commun = {
     exploitante: 'Yéman Ahouansou',
     rccm: 'RB/COT/12 A 14509',
     greffe: 'Cotonou',
-    adresse: 'Îlot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
+    adresse: 'Ilot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
+    /* DEUX ADRESSES POUR UN SEUL LIEU — 22 septembre 2026, demandé par Yéman.
+       `adresse` est celle du registre : elle signe les mentions légales et le
+       paragraphe qui prouve la Maison à Meta, et elle ne prend pas de repère.
+       `adresseComplete` est celle qu'on donne à une cliente qui cherche la
+       porte, numéro de maison et couleur du portail compris. Une couleur de
+       portail dans un texte légal détonnerait ; une adresse sans repère fait
+       tourner une cliente dans Suru-Léré. */
+    adresseComplete: 'Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin',
+    /* Les mêmes parts, pour la fiche que lit Google : elles étaient recopiées
+       à la main dans le générateur, à côté d'un commentaire qui jurait le
+       contraire. Elles vivent ici désormais. */
+    rue: 'Ilot 130-F, quartier Suru-Léré',
+    boitePostale: '06 BP 2076',
     telephone: '+229 01 51 99 77 99',
     email: 'contact@maisonmnd.com',
   },
@@ -635,34 +648,44 @@ export const PAGES: Page[] = [
     titre: 'Contacter la Maison MND à Cotonou',
     description: 'Écrivez à la Maison MND à Cotonou par WhatsApp ou par le formulaire, et préparez votre visite : où nous trouver, quand venir, comment réserver.',
     h1: 'Nous écrire, nous trouver',
+    ligne: 'La Maison vous reçoit à Cotonou. Écrivez sur WhatsApp, appelez, ou venez nous voir pendant les heures d’ouverture.',
     sur: 'Contact',
     besoin: 'inconnu',
-    ilot: 'contact',
+    /* TROIS CARTES AVANT TOUT LE RESTE — 21 septembre 2026. La page posait
+       deux fois le surtitre « Contact », n'offrait rien de cliquable, et
+       taisait ses horaires : le numéro, l'adresse et le courriel dormaient au
+       milieu du paragraphe du registre du commerce. L'îlot `joindre` répond
+       aux trois questions qu'on vient poser ici, et le générateur le place
+       AVANT les sections, juste sous le titre. */
+    ilot: 'joindre',
     sections: [
+      /* L'APPEL PASSE AVANT LE REGISTRE. Qui arrive ici veut joindre la
+         Maison, pas lire son immatriculation : les trois cartes répondent,
+         cette bande propose l'heure, et le registre ferme la marche. */
       {
-        type: 'texte',
-        corps: "La Maison MND vous reçoit à Cotonou. Nous répondons pendant les heures d'ouverture de la Maison, sur WhatsApp ou par téléphone.",
+        type: 'appel',
+        titre: 'Vous savez déjà ce que vous voulez ?',
+        ligne: 'Choisissez votre heure en ligne, sans nous écrire. Vous recevez la confirmation sur WhatsApp.',
+        boutons: [
+          { texte: 'Prendre rendez-vous', vers: '/reserver/' },
+          { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
+        ],
       },
       /* QUI SIGNE LA MAISON — 21 septembre 2026. « Maison MND » est le nom
          commercial, « ACIA 1 » le nom au registre : rien ne le disait hors des
          mentions légales, et Meta a refusé deux fois le nom affiché de WhatsApp
          faute de le trouver sur le site. Il se lit désormais là où l'on cherche
          une maison, sa page de contact et sa page de présentation. Le texte vient
-         de `COMMUN.editeur`, jamais recopié à la main. */
+         de `COMMUN.editeur`, jamais recopié à la main.
+
+         IL A DESCENDU LA PAGE LE 21 AU SOIR, sans rien perdre de sa lettre :
+         il prouve la Maison à Meta et à Google, il ne renseigne pas la
+         cliente, et il occupait la place des heures d'ouverture. */
       {
         type: 'texte',
-        sur: 'Contact',
-        titre: 'Qui est la Maison MND',
+        sur: 'La Maison',
+        titre: 'Qui signe ce site',
         corps: `Maison MND est le nom commercial sous lequel exerce ${COMMUN.editeur.nomCommercial}, ${COMMUN.editeur.forme} de ${COMMUN.editeur.exploitante}, immatriculée au registre du commerce et du crédit mobilier de ${COMMUN.editeur.greffe} sous le numéro ${COMMUN.editeur.rccm}. Établissement principal : ${COMMUN.editeur.adresse}. Téléphone et WhatsApp : ${COMMUN.editeur.telephone}. Courriel : ${COMMUN.editeur.email}.`,
-      },
-      {
-        type: 'appel',
-        titre: 'Parler à MND',
-        ligne: "Le message est déjà écrit. Vous n'avez qu'à l'envoyer.",
-        boutons: [
-          { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
-          { texte: 'Me faire rappeler', vers: '/reserver/' },
-        ],
       },
     ],
     jsonld: 'maison',

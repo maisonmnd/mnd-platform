@@ -91,7 +91,7 @@ const noeudMaison = () => ({
   legalName: COMMUN.editeur.nomCommercial,
   email: COMMUN.editeur.email,
   telephone: COMMUN.editeur.telephone.replace(/\s/g, ''),
-  address: { '@type': 'PostalAddress', streetAddress: 'Îlot 130-F, quartier Suru-Léré', postOfficeBoxNumber: '06 BP 2076', addressLocality: COMMUN.ville, addressCountry: 'BJ' },
+  address: { '@type': 'PostalAddress', streetAddress: COMMUN.editeur.rue, postOfficeBoxNumber: COMMUN.editeur.boitePostale, addressLocality: COMMUN.ville, addressCountry: 'BJ' },
   areaServed: `${COMMUN.ville}, Bénin`, knowsLanguage: 'fr',
   founder: [{ '@type': 'Person', name: 'Brice Ahouansou' }, { '@type': 'Person', name: 'Yéman Ahouansou' }],
 });
@@ -286,6 +286,21 @@ function ilot(nom, p) {
   if (nom === 'contact') {
     return `<section class="serre"><div class="conteneur"><div data-ilot="contact" style="max-width:560px"><p class="corps">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }
+  /* LES TROIS CARTES DE LA PAGE CONTACT — 21 septembre 2026. Le repli n'est
+     pas une phrase d'attente : il porte l'adresse, le numéro et le courriel
+     en HTML, cliquables. Si React ne monte pas, ou si la base ne répond pas,
+     on peut encore joindre la Maison, et c'est aussi ce que lit un robot qui
+     n'exécute rien. React efface ce contenu en montant à sa place. */
+  if (nom === 'joindre') {
+    const e = COMMUN.editeur;
+    return `<section class="serre"><div class="conteneur"><div data-ilot="joindre">
+      <div class="jo-repli">
+        <p class="jo-adresse">${echappe(e.adresseComplete)}</p>
+        <p class="corps"><a href="tel:${attr(e.telephone.replace(/\s/g, ''))}">${echappe(e.telephone)}</a> · <a href="mailto:${attr(e.email)}">${echappe(e.email)}</a></p>
+        <p style="margin-top:14px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p>
+      </div>
+    </div></div></section>`;
+  }
   return '';
 }
 
@@ -343,6 +358,10 @@ ${mobile}`;
 function rendLibre(p, supplement = '') {
   const sections = (p.sections ?? []).map(rendSection).join('\n');
   const ilotHtml = p.ilot ? ilot(p.ilot, p) : '';
+  /* DEUX ÎLOTS SE LISENT AVANT LE TEXTE, pas après : le triage, qui EST la
+     page, et les trois cartes du contact, qui répondent aux questions qu'on
+     vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
+  const enTete = p.ilot === 'triage' || p.ilot === 'joindre';
   const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
@@ -351,9 +370,9 @@ function rendLibre(p, supplement = '') {
           ${p.cta ? `<div class="rangee" style="margin-top:22px">${bouton({ texte: p.cta.texte, vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn btn--plein')}</div>` : ''}
         </div>${visuel}
       </div></section>
-${p.ilot === 'triage' ? ilotHtml : ''}
+${enTete ? ilotHtml : ''}
 ${sections}
-${p.ilot && p.ilot !== 'triage' ? ilotHtml : ''}
+${p.ilot && !enTete ? ilotHtml : ''}
 ${supplement}`;
 }
 
