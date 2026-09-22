@@ -38,6 +38,21 @@ export type InstantOffer = {
       juste pour cette graphie et évite tout piège de fuseau. */
   du?: string;
   au?: string;
+  /** LA VITRINE — 22 septembre 2026. Une offre sans dates n'existait pas sur
+      le site : il ne montre que les actives ET datées. Or « la consultation
+      déduite de votre création » n'a pas de saison, elle dit comment la
+      Maison accueille. Coché, ce drapeau la fait paraître sans date de fin,
+      tant qu'elle est active. Rien ne change pour les offres d'hier. */
+  vitrine?: boolean;
+  /** Le parcours du site qu'elle sert : creation, reparation, entretien,
+      enfant, formation. Il choisit le bouton de la carte et sa destination,
+      calendrier ou rappel, comme les cinq portes de l'accueil. */
+  parcours?: string;
+  /** Le texte du bouton sur le site. Sans lui, la carte dit « J’en profite ». */
+  bouton?: string;
+  /** Les conditions, écrites par la Maison, dépliées sous la carte : c'est
+      l'équivalent honnête du « Get full terms ». Jamais écrites dans le site. */
+  conditions?: string;
 };
 
 export const offersStore = createStore<InstantOffer[]>('mnd_offers', []);

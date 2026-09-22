@@ -550,3 +550,84 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .jo-sem dd { margin: 0; font-variant-numeric: tabular-nums; }
 .jo-repli { display: grid; gap: 8px; }
 @media (max-width: 900px) { .jo-cartes { grid-template-columns: 1fr; } }
+
+/* ══ LA VITRINE REVISITÉE — 22 septembre 2026 ══════════════════════════
+   D'après la page « Deals » de T-Mobile, traduite pour un atelier premium :
+   le métier au premier écran, trois promesses sous le hero, les offres comme
+   de grandes promesses, la bulle « Nous joindre ». Maquette validée :
+   public/maquette-la-vitrine-revisitee.html. Aucune classe existante n'est
+   réutilisée pour autre chose (`.barre` est l'en-tête, `.gages` la bande de
+   confiance) : préfixes propres. */
+.hero .metier { color: var(--accent-sombre); margin-bottom: 4px; }
+
+/* Trois promesses, une bande claire sous le hero. */
+.promesses { background: var(--carte); border-bottom: 1px solid var(--filet); padding-block: 18px; }
+.promesses .conteneur { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.promesse { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.promesse i { width: 34px; height: 34px; flex: none; border-radius: 999px; background: var(--accent-voile); color: var(--accent-profond); display: grid; place-items: center; }
+.promesse i svg { width: 15px; height: 15px; }
+.promesse b { display: block; font-weight: 500; color: var(--titre); font-size: 14.5px; }
+.promesse small { display: block; font-size: 12.5px; color: var(--texte-doux); }
+@media (max-width: 760px) { .promesses .conteneur { grid-template-columns: 1fr; gap: 12px; } }
+
+/* Les offres sur l'accueil : fond d'ivoire foncé, et une grille de trois. */
+.vt-offres { background: var(--fond-2); }
+.vt-offres .offres-volet { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 26px; }
+@media (max-width: 960px) { .vt-offres .offres-volet { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .vt-offres .offres-volet { grid-template-columns: 1fr; } }
+
+/* LA CARTE D'OFFRE, À LA MANIÈRE DES « DEALS » : une tête indigo qui porte la
+   promesse en grand, le corps qui dit le mécanisme, un bouton, les conditions
+   dépliées. Elle remplace la carte en deux colonnes, partout où l'îlot vit. */
+.offre-site { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0; overflow: hidden; }
+.offre-site__sceau { aspect-ratio: auto; min-height: 168px; padding: 24px 22px 20px; text-align: left; place-items: stretch; align-content: end; background: var(--sombre); border-radius: 0; }
+.offre-site__sceau b { color: var(--plein-texte); font-size: clamp(40px, 5vw, 58px); line-height: .95; }
+.offre-site__sceau span { color: var(--accent-sombre); margin-top: 0; margin-bottom: 8px; }
+.offre-site__sceau .offre-site__deal-sous { display: block; margin-top: 8px; font-family: var(--sans); font-size: 12.5px; letter-spacing: .04em; text-transform: none; color: rgba(246, 241, 231, .7); }
+.offre-site.est-moment .offre-site__sceau { background: var(--accent-profond); }
+.offre-site.est-moment .offre-site__sceau span { color: var(--plein-texte); }
+.offre-site__moment { position: absolute; top: 14px; right: 14px; background: var(--accent); color: var(--plein-texte); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; }
+.offre-site { position: relative; }
+.offre-site__dire { padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 10px; }
+.offre-site__dire h3 { margin: 0; font-size: 23px; }
+.offre-site__dire p { margin: 0; font-size: 14.5px; color: var(--texte-doux); }
+.offre-site__dire .btn { margin-top: auto; width: 100%; }
+.offre-site__cond { font-size: 12.5px; color: var(--texte-doux); border-top: 1px solid var(--filet); padding-top: 10px; margin-top: 4px; }
+.offre-site__cond summary { cursor: pointer; color: var(--accent-profond); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
+.offre-site__cond summary::-webkit-details-marker { display: none; }
+.offre-site__cond p { margin-top: 6px; line-height: 1.5; font-size: 12.5px; }
+
+/* LA BULLE « NOUS JOINDRE » : en bas à droite, au-dessus de la barre du bas
+   sur téléphone, jamais au-dessus du pied (elle s'efface quand il paraît). */
+.joindre { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; transition: transform var(--t); }
+.joindre.est-cachee { transform: translateY(140%); }
+.joindre__bouton { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: var(--plein-texte); border: 0; border-radius: 999px; padding: 0 18px 0 0; height: 56px; cursor: pointer; box-shadow: var(--ombre); font-family: var(--sans); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; }
+.joindre__bouton i { width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center; background: var(--accent-profond); }
+.joindre__bouton i svg { width: 22px; height: 22px; }
+.joindre__bouton:hover { background: var(--accent-profond); }
+.joindre__bouton:focus-visible { outline: 2px solid var(--titre); outline-offset: 3px; }
+.joindre__volet { background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; box-shadow: var(--ombre); width: min(320px, calc(100vw - 32px)); padding: 14px 14px 10px; }
+.joindre__volet[hidden] { display: none; }
+.joindre__tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px 10px; }
+.joindre__tete b { font-family: var(--serif); font-size: 20px; font-weight: 400; color: var(--titre); }
+.joindre__fermer { width: 44px; height: 44px; border: 0; background: transparent; color: var(--texte-doux); font-size: 22px; cursor: pointer; border-radius: 999px; }
+.joindre__fermer:hover { background: var(--accent-voile); color: var(--accent-profond); }
+.joindre__ligne { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 8px; border-radius: 6px; color: var(--titre); font-size: 15px; }
+.joindre__ligne:hover { background: var(--accent-voile); }
+.joindre__ligne i { width: 34px; height: 34px; border-radius: 999px; background: var(--accent-voile); color: var(--accent-profond); display: grid; place-items: center; flex: none; }
+.joindre__ligne i svg { width: 15px; height: 15px; }
+.joindre__ligne small { display: block; font-size: 12px; color: var(--texte-doux); }
+.joindre__pied { font-size: 11.5px; color: var(--texte-doux); padding: 8px 8px 2px; border-top: 1px solid var(--filet); margin-top: 4px; }
+@media (max-width: 760px) {
+  body.a-barre-mobile .joindre { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  .joindre__bouton span { display: none; }
+  .joindre__bouton { padding: 0; }
+}
+
+/* LA PORTE AVANT LE CALENDRIER : « Prendre rendez-vous » sans parcours
+   demande d'abord où l'on en est, au lieu de n'offrir que des consultations. */
+.porte-rdv { display: grid; gap: 10px; }
+.porte-rdv__choix { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border: 1px solid var(--filet); border-radius: 6px; color: var(--titre); min-height: 60px; justify-content: center; background: var(--carte); text-align: left; font: inherit; cursor: pointer; }
+.porte-rdv__choix:hover { border-color: var(--accent); background: var(--accent-voile); }
+.porte-rdv__choix:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.porte-rdv__choix small { font-size: 12.5px; color: var(--texte-doux); }

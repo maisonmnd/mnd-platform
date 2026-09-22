@@ -32,7 +32,28 @@ const laPeriode = (o: OffreDuSite): string => {
   return '';
 };
 
-export default function Offres() {
+/* LE PARCOURS D'UNE OFFRE CHOISIT SON BOUTON ET SA PORTE — 22 septembre 2026.
+   Comme les cinq portes de l'accueil : un entretien se réserve en ligne, tout
+   le reste passe par le rappel, parce qu'une création ou une réparation
+   commence par une consultation, qui se prend de vive voix. */
+const PARCOURS: Record<string, { sur: string; bouton: string; porte: 'reserver' | 'rappel' }> = {
+  creation: { sur: 'Première Couronne', bouton: 'Réserver ma consultation', porte: 'rappel' },
+  reparation: { sur: 'Réparation', bouton: 'Faire diagnostiquer ma couronne', porte: 'rappel' },
+  entretien: { sur: 'Entretien', bouton: 'Réserver mon entretien', porte: 'reserver' },
+  enfant: { sur: 'MND Kids', bouton: 'Organiser notre visite', porte: 'rappel' },
+  formation: { sur: 'Formations', bouton: 'Voir le programme', porte: 'rappel' },
+};
+
+/* SANS PARCOURS, LE CALENDRIER : il pose lui-même la porte quand le besoin
+   est inconnu (Reserver.tsx), donc aucune impasse. */
+const laPorte = (o: OffreDuSite): string => {
+  const p = o.parcours ? PARCOURS[o.parcours] : undefined;
+  if (!p) return '../reserver/?besoin=inconnu';
+  return `../${p.porte}/?besoin=${o.parcours}`;
+};
+
+export default function Offres({ genre }: { genre?: string }) {
+  const accueil = genre === 'accueil';
   const [offres, setOffres] = useState<OffreDuSite[] | null | undefined>(undefined);
   const [onglet, setOnglet] = useState<'cours' | 'venir'>('cours');
 
@@ -55,64 +76,84 @@ export default function Offres() {
   /* L'onglet s'ouvre sur ce qui a quelque chose à dire : inutile de poser la
      visiteuse devant un volet vide quand l'autre est plein. */
   useEffect(() => {
-    if (offres && enCours.length === 0 && aVenir.length > 0) setOnglet('venir');
-  }, [offres, enCours.length, aVenir.length]);
+    if (!accueil && offres && enCours.length === 0 && aVenir.length > 0) setOnglet('venir');
+  }, [accueil, offres, enCours.length, aVenir.length]);
 
   if (offres === undefined) {
     return <div className="offres-site"><p className="corps">Les offres se chargent.</p></div>;
   }
 
-  const vues = onglet === 'cours' ? enCours : aVenir;
+  /* SUR L'ACCUEIL, LES OFFRES EN COURS SEULEMENT, sans onglets : la datée du
+     moment d'abord (elle porte la pastille), puis les permanentes. */
+  const vues = accueil
+    ? [...enCours].sort((a, b) => Number(!!b.du || !!b.au) - Number(!!a.du || !!a.au))
+    : (onglet === 'cours' ? enCours : aVenir);
+
+  const vide = offres === null
+    ? 'Les offres de la Maison se disent au salon. Écrivez-nous, nous vous les présentons.'
+    : accueil
+      ? 'Aucune offre en ce moment. Les cinq portes ci-dessus disent comment la Maison vous accueille.'
+      : onglet === 'cours'
+        ? 'Aucune offre en cours en ce moment. Regardez le second onglet, la Maison prépare la suite.'
+        : 'Aucune offre annoncée pour l’instant. Revenez bientôt, les saisons se suivent.';
 
   return (
     <div className="offres-site">
-      <div className="offres-onglets" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={onglet === 'cours'}
-          className={`offres-onglet${onglet === 'cours' ? ' est-choisi' : ''}`}
-          onClick={() => setOnglet('cours')}
-        >
-          Votre offre en cours
-          {enCours.length > 1 ? <small>{enCours.length}</small> : null}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={onglet === 'venir'}
-          className={`offres-onglet${onglet === 'venir' ? ' est-choisi' : ''}`}
-          onClick={() => setOnglet('venir')}
-        >
-          Vos offres à venir
-          {aVenir.length > 1 ? <small>{aVenir.length}</small> : null}
-        </button>
-      </div>
+      {!accueil && (
+        <div className="offres-onglets" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={onglet === 'cours'}
+            className={`offres-onglet${onglet === 'cours' ? ' est-choisi' : ''}`}
+            onClick={() => setOnglet('cours')}
+          >
+            Votre offre en cours
+            {enCours.length > 1 ? <small>{enCours.length}</small> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={onglet === 'venir'}
+            className={`offres-onglet${onglet === 'venir' ? ' est-choisi' : ''}`}
+            onClick={() => setOnglet('venir')}
+          >
+            Vos offres à venir
+            {aVenir.length > 1 ? <small>{aVenir.length}</small> : null}
+          </button>
+        </div>
+      )}
 
       <div className="offres-volet">
         {vues.length === 0 ? (
-          <p className="corps offres-vide">
-            {offres === null
-              ? 'Les offres de la Maison se disent au salon. Écrivez-nous, nous vous les présentons.'
-              : onglet === 'cours'
-                ? 'Aucune offre en cours en ce moment. Regardez le second onglet, la Maison prépare la suite.'
-                : 'Aucune offre annoncée pour l’instant. Revenez bientôt, les saisons se suivent.'}
-          </p>
+          <p className="corps offres-vide">{vide}</p>
         ) : (
-          vues.map((o) => (
-            <article className="offre-site" key={o.id}>
-              <div className="offre-site__sceau">
-                <b>{o.deal}</b>
-                <span>{o.tag}</span>
-              </div>
-              <div className="offre-site__dire">
-                <h3>{o.title}</h3>
-                {o.sub ? <p>{o.sub}</p> : null}
-                {laPeriode(o) ? <p className="offres-conditions">{laPeriode(o)}, dans la Maison, non cumulable avec toute promotion en cours.</p> : null}
-                <a className="btn btn--plein" href="../reserver/">J’en profite</a>
-              </div>
-            </article>
-          ))
+          vues.map((o) => {
+            const par = o.parcours ? PARCOURS[o.parcours] : undefined;
+            const datee = !!(o.du || o.au);
+            /* LES CONDITIONS VIENNENT DE LA MAISON ; la période et « dans la
+               Maison, non cumulable » restent, elles sont vraies de toutes. */
+            const conditions = [laPeriode(o), o.conditions?.trim() || 'Dans la Maison, au règlement, non cumulable avec toute promotion en cours.']
+              .filter(Boolean).join('. ').replace(/\.\./g, '.');
+            return (
+              <article className={`offre-site${datee && accueil ? ' est-moment' : ''}`} key={o.id}>
+                {datee && accueil ? <span className="offre-site__moment">Offre du moment</span> : null}
+                <div className="offre-site__sceau">
+                  <span>{par ? `${par.sur} · ${o.tag}` : o.tag}</span>
+                  <b>{o.deal}</b>
+                </div>
+                <div className="offre-site__dire">
+                  <h3>{o.title}</h3>
+                  {o.sub ? <p>{o.sub}</p> : null}
+                  <a className="btn btn--plein" href={laPorte(o)}>{o.bouton?.trim() || par?.bouton || 'J’en profite'}</a>
+                  <details className="offre-site__cond">
+                    <summary>Voir les conditions</summary>
+                    <p>{conditions}</p>
+                  </details>
+                </div>
+              </article>
+            );
+          })
         )}
       </div>
     </div>

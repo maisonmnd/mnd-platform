@@ -52,6 +52,13 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, DEVISE_COMPLETE } = contenu;
+/* UN LIEN WHATSAPP PORTE UN NUMÉRO DÈS LA CONSTRUCTION — 22 septembre 2026.
+   Il partait « wa.me/?text=… » et n'obtenait le numéro de la branche qu'une
+   fois Supabase chargé (214 Ko) : sur réseau faible, un tap trop tôt ouvrait
+   WhatsApp sans destinataire. Le numéro du registre y est écrit d'avance ;
+   `relieWhatsApp` (main.ts) le remplace par celui de la branche quand elle
+   répond. Jamais un chiffre en dur : il vient de COMMUN.editeur. */
+const NUMERO_WA = COMMUN.editeur.telephone.replace(/\D/g, '');
 
 /* ── Petits outils ───────────────────────────────────────────────────── */
 const echappe = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -73,13 +80,16 @@ const lien = (vers) => {
 const bouton = (l, classe = 'btn') => {
   if (l.vers.startsWith('whatsapp:')) {
     const besoin = l.vers.slice('whatsapp:'.length);
-    return `<a class="${classe}" data-wa="${attr(besoin)}" href="https://wa.me/?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
+    return `<a class="${classe}" data-wa="${attr(besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
   }
   return `<a class="${classe}" href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`;
 };
 const image = (nom, alt = '', extra = '') => `<img src="/assets/photos/site/${attr(nom)}" alt="${attr(alt)}" width="800" height="1000" loading="lazy"${extra}>`;
 const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-wa" viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-coche" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-tel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
   <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
 </svg>`;
 
@@ -161,7 +171,7 @@ ${corps}
         </div>
       </div>
     </footer>
-    <script type="module" src="/src/apps/revelateur/main.ts"></script>
+${bulle(chemin)}    <script type="module" src="/src/apps/revelateur/main.ts"></script>
   </body>
 </html>
 `;
@@ -252,6 +262,50 @@ function rendSection(s) {
    premier geste, il se prend simplement au calendrier. */
 const RESERVABLES = new Set(['creation', 'reparation', 'entretien', 'enfant']);
 const versLaReservation = (besoin) => `${lien('/reserver/')}?besoin=${besoin ?? 'inconnu'}`;
+/* LE RAPPEL A SA PAGE (22 septembre 2026) : « Me faire rappeler » y mène,
+   au lieu du calendrier qui n'offrait que des consultations à choisir. */
+const versLeRappel = (besoin) => `${lien('/rappel/')}?besoin=${besoin ?? 'inconnu'}`;
+
+/* ── LA BULLE « NOUS JOINDRE » — 22 septembre 2026 ──────────────────────
+   « Que le bouton d'appel soit rapide et accessible » (Yéman), d'après la
+   bulle « Need help ordering? » de T-Mobile. Sur toutes les pages sauf celles
+   qui SONT déjà le geste (/reserver/, /contact/), en bas à droite, repliée par
+   défaut, jamais ouverte seule. Trois gestes, de bas en haut parce que le
+   pouce part du bas : Appeler (le numéro du registre, statique, rien à
+   charger), WhatsApp avec le message DE LA PAGE, Réserver. Elle s'efface quand
+   le pied paraît pour ne rien recouvrir. HTML statique, script inline : elle
+   marche avant React et avant Supabase. Aucun numéro écrit à la main. */
+function bulle(chemin) {
+  if (chemin === '/reserver/' || chemin === '/contact/' || chemin === '/rappel/') return '';
+  const besoin = PAGES.find((x) => x.chemin === chemin)?.besoin ?? 'inconnu';
+  const tel = COMMUN.editeur.telephone;
+  return `    <div class="joindre" id="joindre">
+      <div class="joindre__volet" id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden>
+        <div class="joindre__tete"><b id="joindre-titre">Nous joindre</b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
+        <a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>Un entretien en trois pas, une consultation par rappel.</small></span></a>
+        <a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>
+        <a class="joindre__ligne" href="tel:${attr(tel.replace(/\s/g, ''))}" aria-label="Appeler la Maison au ${attr(tel)}" data-mesure="appel_clique" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-tel"/></svg></i><span>Appeler<small>${echappe(tel)}</small></span></a>
+        <p class="joindre__pied">Nous répondons pendant les heures d’ouverture de la Maison.</p>
+      </div>
+      <button type="button" class="joindre__bouton" id="joindre-bouton" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Nous joindre</span></button>
+    </div>
+    <script>
+    (function () {
+      var j = document.getElementById('joindre'), v = document.getElementById('joindre-volet'), b = document.getElementById('joindre-bouton');
+      if (!j || !v || !b) return;
+      var ouvre = function (o) { v.hidden = !o; b.setAttribute('aria-expanded', String(o)); if (o) { var l = v.querySelector('.joindre__ligne:last-of-type'); if (l) l.focus(); } else { b.focus(); } };
+      b.addEventListener('click', function () { ouvre(v.hidden); });
+      v.querySelector('.joindre__fermer').addEventListener('click', function () { ouvre(false); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !v.hidden) ouvre(false); });
+      document.addEventListener('click', function (e) { if (!v.hidden && !j.contains(e.target)) ouvre(false); });
+      var pied = document.querySelector('footer');
+      if (pied && 'IntersectionObserver' in window) {
+        new IntersectionObserver(function (es) { es.forEach(function (en) { j.classList.toggle('est-cachee', en.isIntersecting); }); }, { threshold: 0.05 }).observe(pied);
+      }
+    })();
+    </script>
+`;
+}
 
 function ilot(nom, p) {
   if (nom === 'triage') {
@@ -333,13 +387,13 @@ function rendService(p) {
     <figure>${image('regard.jpg')}<figcaption>Une couronne établie, suivie à la Maison.</figcaption></figure>
   </div></div></section>`;
   const sections = (p.sections ?? []).map(rendSection).join('\n');
-  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;
-  const mobile = p.cta ? `<div class="barre-mobile">${cta}<a class="btn" href="${attr(versLaReservation(p.besoin))}">${reservable ? 'Autre heure' : 'Me faire rappeler'}</a></div>` : '';
+  const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;
+  const mobile = p.cta ? `<div class="barre-mobile">${cta}${reservable ? bouton({ texte: 'WhatsApp', vers: `whatsapp:${p.besoin ?? 'inconnu'}` }, 'btn') : `<a class="btn" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : '';
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${BASE}#portes">Services</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
       <section class="page-hero"><div class="conteneur">
         <div>${p.sur ? `<p class="sur">${echappe(p.sur)}</p>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p class="ligne">${echappe(p.ligne)}</p>` : ''}
-          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${reservable ? secondaire : `<a class="btn btn--lien" href="${attr(versLaReservation(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
+          ${p.cta ? `<div class="rangee" style="margin-top:22px">${cta}${reservable ? secondaire : `<a class="btn btn--lien" href="${attr(versLeRappel(p.besoin))}">Me faire rappeler</a>`}</div>` : ''}
           ${p.cta?.note ? `<p class="legende" style="margin-top:10px">${echappe(p.cta.note)}</p>` : ''}
         </div>
         <div>${visuel}</div>
@@ -390,6 +444,7 @@ function rendAccueil(articles) {
   return `
       <section class="hero sombre"><div class="conteneur">
         <div>
+          <p class="sur metier">${echappe(a.metier)}</p>
           <p class="devise">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
           <p class="ligne">${echappe(a.ligne)}</p>
@@ -398,6 +453,14 @@ function rendAccueil(articles) {
         </div>
         <figure class="hero-image"><img src="/assets/photos/site/hero.jpg" alt="Une couronne de locks relevée, de profil" width="960" height="1200" fetchpriority="high"></figure>
       </div></section>
+
+      <!-- TROIS PROMESSES SOUS LE GRAND ÉCRAN — 22 septembre 2026. L'équivalent
+           du « Switch in 15 minutes » de T-Mobile : la réassurance vivait trois
+           écrans plus bas. Chacune est tenue par le site, vérifiée avant d'être
+           écrite (contenu.ts, ACCUEIL.promesses). -->
+      <div class="promesses"><div class="conteneur">
+        ${a.promesses.map((g) => `<div class="promesse"><i aria-hidden="true"><svg><use href="#i-coche"/></svg></i><div><b>${echappe(g.titre)}</b><small>${echappe(g.ligne)}</small></div></div>`).join('\n        ')}
+      </div></div>
 
       <!-- LE BANDEAU DE L'OFFRE EN COURS — 18 septembre 2026. « Un bandeau sur
            la page d'accueil qui annonce l'offre en cours et disparaît quand il
@@ -413,6 +476,16 @@ function rendAccueil(articles) {
         ${cartes}
         </div>
         <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}</div>
+      </div></section>
+
+      <!-- LES OFFRES SUR L'ACCUEIL — 22 septembre 2026, à la manière des
+           « Deals ». L'îlot est le même que sur /les-offres/, en genre
+           « accueil » : sans onglets, les offres en cours seulement. Le repli
+           dit où demander si rien ne se charge. -->
+      <section class="vt-offres" id="offres"><div class="conteneur">
+        <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.offres.ligne)}</p></div>
+        <div data-ilot="offres" data-genre="accueil"><p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
+        <p class="legende" style="margin-top:18px; max-width:70ch">${echappe(a.offres.note)}</p>
       </div></section>
 
       <section class="confiance sombre"><div class="conteneur">

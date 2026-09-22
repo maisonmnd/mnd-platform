@@ -120,6 +120,10 @@ export type OffreDuSite = {
   active: boolean;
   du?: string;
   au?: string;
+  vitrine?: boolean;
+  parcours?: string;
+  bouton?: string;
+  conditions?: string;
 };
 
 export async function offresDuSite(): Promise<OffreDuSite[]> {
@@ -128,9 +132,11 @@ export async function offresDuSite(): Promise<OffreDuSite[]> {
   const { data } = await supabase.from('documents').select('data').eq('key', 'mnd_offers').maybeSingle();
   const d = (data as { data?: OffreDuSite[] } | null)?.data;
   if (!Array.isArray(d)) return [];
-  /* Actives seulement, et datées seulement : une offre sans saison est une
-     heure creuse de Ma Couronne, elle n'a rien à faire sur la vitrine. */
-  return d.filter((o) => o && o.active && (o.du || o.au));
+  /* LA VITRINE PASSE SANS DATES (22 septembre 2026) : une offre permanente
+     dit comment la Maison accueille, elle n'a pas de saison. Le drapeau se
+     coche au Trône ; sans lui, une offre sans dates reste ce qu'elle était,
+     une heure creuse de Ma Couronne, invisible ici. */
+  return d.filter((o) => o && o.active && (o.du || o.au || o.vitrine));
 }
 
 /** Le lien WhatsApp d'un parcours : le numéro de la Maison quand on le

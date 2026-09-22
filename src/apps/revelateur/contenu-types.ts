@@ -71,6 +71,14 @@ export type Accueil = {
   ligne: string;
   boutons: Lien[];
   regle: string;
+  /** LE MÉTIER, DIT AU PREMIER ÉCRAN — 22 septembre 2026. Ni « locks » ni
+      « dreadlocks » n'apparaissaient avant de faire défiler : il fallait déjà
+      savoir que « couronne » veut dire locks. Une ligne au-dessus du titre. */
+  metier: string;
+  /** Trois promesses tenues par le site, posées juste sous le grand écran. */
+  promesses: { titre: string; ligne: string }[];
+  /** La section des offres sur l'accueil : l'îlot `offres` s'y monte. */
+  offres: { sur: string; titre: string; ligne: string; note: string };
   portes: { sur: string; titre: string; cartes: { titre: string; ligne: string; suite: string; vers: string; image?: string }[]; repli: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };

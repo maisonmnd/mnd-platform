@@ -89,7 +89,7 @@ const dit = (min?: number): string => {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 };
 
-export default function Reserver({ besoin: besoinInitial }: Props) {
+function Calendrier({ besoin: besoinInitial }: Props) {
   const f = COMMUN.formulaire;
   /* `||` et non `??` : l'adresse rend une chaîne VIDE quand elle ne porte
      aucun parcours, et `??` la laisserait passer pour une réponse. */
@@ -469,6 +469,43 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
           {erreur && <p className="erreur" role="alert">{erreur}</p>}
         </form>
       )}
+    </div>
+  );
+}
+
+/* ── LA PORTE AVANT LE CALENDRIER — 22 septembre 2026 ────────────────────
+   « Prendre rendez-vous », le bouton le plus visible du site, arrivait ici
+   sans parcours ; et sans parcours, `porteDuBesoin` tranche « consultation ».
+   Une cliente qui a des locks et veut un entretien ne pouvait pas réserver
+   depuis ce bouton, et rien ne le lui disait. On demande d'abord où elle en
+   est : trois réponses, chacune mène au bon endroit. Un clic de plus, zéro
+   impasse. Le calendrier lui-même ne change pas : il vit dans `Calendrier`,
+   avec tous ses crochets, et n'est monté qu'une fois le parcours connu. */
+export default function Reserver({ besoin: besoinInitial }: Props) {
+  const [besoin, setBesoin] = useState<Besoin | ''>(besoinInitial || besoinDeLAdresse());
+  if (besoin && besoin !== 'inconnu') return <Calendrier besoin={besoin} />;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const choisit = (b: Besoin) => {
+    mesure('parcours_choisi', { parcours: b });
+    try { history.replaceState(null, '', `${location.pathname}?besoin=${b}`); } catch { /* sans histoire, tant pis */ }
+    setBesoin(b);
+  };
+  return (
+    <div className="porte-rdv" role="group" aria-labelledby="porte-rdv-titre">
+      <p className="sur">Prendre rendez-vous</p>
+      <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>
+      <button type="button" className="porte-rdv__choix" onClick={() => choisit('entretien')}>
+        <span>Oui, elles ont besoin de leur entretien</span>
+        <small>Vous choisissez votre heure en ligne, en trois pas.</small>
+      </button>
+      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=reparation`}>
+        <span>Oui, mais elles ont besoin de soin, ou j’ai un doute</span>
+        <small>Une consultation d’abord. Laissez votre numéro, la Maison vous rappelle.</small>
+      </a>
+      <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=creation`}>
+        <span>Pas encore</span>
+        <small>Une création commence par une consultation. La Maison vous rappelle.</small>
+      </a>
     </div>
   );
 }

@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Maquette · La vitrine revisitée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* Jetons recopiés de src/apps/revelateur/revelateur.css : la maquette ment le
+   moins possible sur les couleurs et les graisses du site servi. */
+:root{
+  --accent:#B97A4A; --accent-clair:#FAF1E9; --accent-profond:#7C4C2C; --accent-voile:rgba(185,122,74,.14); --accent-sombre:#D6A06F;
+  --fond:#F6F1E7; --fond-2:#EEE6D6; --carte:#FFFDF9;
+  --texte:#2A2722; --texte-doux:#5E5750; --titre:#1E2150;
+  --sombre:#1E2150; --sombre-2:#15173A; --filet:rgba(20,20,27,.14);
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+  --r:3px; --ombre:0 18px 50px rgba(30,33,80,.14); --t:.22s ease;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--fond);color:var(--texte);font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.6}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent-profond);text-decoration:none}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--titre);margin:0;text-wrap:balance;line-height:1.06}
+h1{font-size:clamp(36px,6vw,64px)}
+h2{font-size:clamp(28px,4.2vw,44px)}
+h3{font-size:clamp(21px,2.6vw,26px);font-weight:400}
+p{margin:0}
+button{font-family:var(--sans)}
+.sur{font-weight:400;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent-profond)}
+.ligne{font-size:18px;line-height:1.5;color:var(--texte-doux);max-width:52ch}
+.conteneur{max-width:1120px;margin:0 auto;padding-inline:clamp(18px,4vw,40px)}
+section{padding-block:clamp(40px,6.5vw,84px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;padding:14px 22px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;transition:var(--t);text-align:center;min-height:48px}
+.btn--plein{background:var(--accent);color:#fff}
+.btn--plein:hover{background:var(--accent-profond)}
+.btn--creux{border-color:var(--filet);color:var(--titre);background:transparent}
+.btn--creux:hover{border-color:var(--accent);color:var(--accent-profond)}
+.btn--ivoire{background:#F6F1E7;color:var(--titre)}
+.btn--lien{padding:14px 4px;color:var(--titre);border-bottom:1px solid var(--accent-voile);border-radius:0}
+.rangee{display:flex;gap:12px;flex-wrap:wrap}
+.afixer{color:var(--accent-profond);border-bottom:1px dashed var(--accent);padding-bottom:1px}
+
+/* ── LE BANDEAU DE LA MAQUETTE, hors de la page ── */
+.mq{position:sticky;top:0;z-index:80;background:var(--sombre-2);color:#F6F1E7;padding:9px clamp(16px,3vw,28px);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.mq b{font-size:12.5px;letter-spacing:.06em;font-weight:500}
+.mq span{font-size:12px;color:rgba(246,241,231,.72);flex:1;min-width:220px}
+.bascule{display:inline-flex;border:1px solid rgba(246,241,231,.34);border-radius:999px;overflow:hidden}
+.bascule button{border:0;background:transparent;color:rgba(246,241,231,.72);font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:7px 16px;cursor:pointer}
+.bascule button[aria-pressed=true]{background:var(--accent);color:#fff}
+.mq .afixer{color:var(--accent-sombre);border-color:var(--accent-sombre)}
+
+/* ── AVANT : le site tel qu'il est servi ── */
+#avant{display:none}
+#avant.on{display:block}
+#avant iframe{width:100%;height:calc(100vh - 44px);border:0;background:#fff}
+#avant .note{padding:8px clamp(16px,3vw,28px);font-size:12.5px;color:var(--texte-doux);background:var(--fond-2)}
+
+/* ── LA BARRE DU SITE ── */
+.nav{position:sticky;top:44px;z-index:40;border-bottom:1px solid var(--filet);background:rgba(246,241,231,.92);backdrop-filter:blur(8px)}
+.nav__in{display:flex;align-items:center;gap:22px;height:66px}
+.mono{width:66px;height:66px;margin:-4px 0 -12px -17px;flex:none}
+.nav__liens{margin-left:auto;display:flex;gap:22px;font-size:14.5px;color:var(--texte-doux)}
+.nav__liens a:hover{color:var(--accent-profond)}
+@media(max-width:860px){.nav__liens{display:none}.nav .btn--plein{margin-left:auto}}
+
+/* ── LE HERO ── */
+.hero{background:var(--sombre);color:#F6F1E7;padding-block:clamp(48px,8vw,100px)}
+.hero .sur{color:var(--accent-sombre)}
+.hero h1{color:#F6F1E7;margin-top:14px}
+.hero .devise{font-family:var(--serif);font-size:22px;color:var(--accent-sombre);margin-top:22px}
+.hero .devise small{display:block;font-family:var(--sans);font-size:12.5px;letter-spacing:.06em;color:rgba(246,241,231,.66);margin-top:2px}
+.hero .ligne{color:rgba(246,241,231,.78);margin-top:18px}
+.hero .rangee{margin-top:26px}
+.hero .regle{font-size:13.5px;color:rgba(246,241,231,.66);margin-top:16px;max-width:52ch}
+.hero__grille{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+.hero__photo{aspect-ratio:4/5;border-radius:var(--r);background:linear-gradient(160deg,#2C3470,#15173A);position:relative;overflow:hidden}
+.hero__photo::after{content:'Photo de la Maison';position:absolute;inset:auto 16px 14px auto;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(246,241,231,.45)}
+@media(max-width:860px){.hero__grille{grid-template-columns:1fr}.hero__photo{display:none}.hero .rangee .btn{width:100%}}
+
+/* ── LA BANDE DE RÉASSURANCE, juste sous le hero ── */
+.gages{background:var(--carte);border-bottom:1px solid var(--filet);padding-block:18px}
+.gages__in{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.gage{display:flex;gap:12px;align-items:flex-start}
+.gage i{width:34px;height:34px;flex:none;border-radius:999px;background:var(--accent-voile);color:var(--accent-profond);display:grid;place-items:center}
+.gage b{display:block;font-weight:500;color:var(--titre);font-size:14.5px}
+.gage small{display:block;font-size:12.5px;color:var(--texte-doux)}
+@media(max-width:760px){.gages__in{grid-template-columns:1fr;gap:12px}}
+
+/* ── LES CINQ PORTES ── */
+.portes{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:28px}
+.porte{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden}
+.porte__photo{aspect-ratio:4/5;background:linear-gradient(160deg,#EEE6D6,#D6A06F55)}
+.porte__corps{padding:16px 16px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.porte h3{font-size:20px}
+.porte p{font-size:13.5px;color:var(--texte-doux)}
+.porte .btn{margin-top:auto;width:100%;font-size:11.5px;padding:12px 10px}
+.porte small{font-size:11.5px;color:var(--texte-doux)}
+.repli{margin-top:22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;color:var(--texte-doux)}
+.points{display:none;justify-content:center;gap:6px;margin-top:12px}
+.points i{width:6px;height:6px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet)}
+.points i.on{background:var(--accent);border-color:var(--accent)}
+@media(max-width:860px){
+  .portes{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+  .porte{flex:0 0 78%;scroll-snap-align:start}
+  .points{display:flex}
+}
+
+/* ── LES OFFRES, à la manière des « Deals » ── */
+.offres{background:var(--fond-2)}
+.offres__grille{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+.offre{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.offre__haut{background:var(--sombre);color:#F6F1E7;padding:26px 22px 22px;min-height:172px;display:flex;flex-direction:column;justify-content:flex-end}
+.offre__haut .sur{color:var(--accent-sombre)}
+.offre__deal{font-family:var(--serif);font-size:clamp(46px,5vw,64px);line-height:.95;color:#F6F1E7;margin-top:8px}
+.offre__deal small{display:block;font-family:var(--sans);font-size:12.5px;letter-spacing:.06em;color:rgba(246,241,231,.7);margin-top:8px;text-transform:none}
+.offre.est-moment .offre__haut{background:var(--accent-profond)}
+.offre.est-moment .offre__haut .sur{color:#F6F1E7}
+/* Une pastille, pas un ruban en biais : un ruban se rogne au coin de la carte et ne s'imprime pas. */
+.ruban{position:absolute;top:14px;right:14px;background:var(--accent);color:#fff;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 12px;border-radius:999px}
+.offre__corps{padding:18px 22px 20px;display:flex;flex-direction:column;gap:10px;flex:1}
+.offre h3{font-size:22px}
+.offre__sub{font-size:14px;color:var(--texte-doux)}
+.offre .btn{margin-top:auto;width:100%}
+.offre__cond{font-size:12px;color:var(--texte-doux);border-top:1px solid var(--filet);padding-top:10px;margin-top:6px}
+.offre__cond p{margin-top:6px;line-height:1.5}
+.offre__cond button{background:none;border:0;padding:0;font-family:var(--sans);font-size:12.5px;color:var(--accent-profond);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.offre__cond p[hidden]{display:none}
+.offres__note{font-size:13px;color:var(--texte-doux);margin-top:18px;max-width:70ch}
+@media(max-width:960px){.offres__grille{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.offres__grille{grid-template-columns:1fr}}
+
+/* ── ENTRE DE BONNES MAINS ── */
+.mains{background:var(--sombre);color:#F6F1E7}
+.mains .sur{color:var(--accent-sombre)}
+.mains h2{color:#F6F1E7;margin-top:12px}
+.mains .citation{font-family:var(--serif);font-size:clamp(22px,3vw,30px);color:rgba(246,241,231,.9);margin-top:18px;max-width:30ch;line-height:1.3}
+.mains__grille{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:34px}
+.mains__grille b{display:block;font-weight:500;font-size:15px;color:#F6F1E7}
+.mains__grille p{font-size:13.5px;color:rgba(246,241,231,.7);margin-top:6px}
+@media(max-width:860px){.mains__grille{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.mains__grille{grid-template-columns:1fr}}
+
+/* ── L'APPEL FINAL ── */
+.appel .conteneur{display:flex;gap:30px;align-items:center;flex-wrap:wrap}
+.appel__txt{flex:1;min-width:260px}
+@media(max-width:640px){.appel .rangee .btn{width:100%}}
+
+/* ── LE PIED ── */
+.pied{background:var(--sombre-2);color:rgba(246,241,231,.8);padding-block:44px 120px;font-size:14px}
+.pied__grille{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.pied h4{margin:0 0 10px;font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-sombre)}
+.pied ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.pied a{color:rgba(246,241,231,.8)}
+.pied__legal{margin-top:34px;padding-top:18px;border-top:1px solid rgba(246,241,231,.14);display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:rgba(246,241,231,.55)}
+@media(max-width:760px){.pied__grille{grid-template-columns:repeat(2,1fr)}}
+
+/* ── LA BARRE MOBILE, une seule couche fixe ── */
+.barre{display:none;position:fixed;inset-inline:0;bottom:0;z-index:30;padding:10px 14px calc(10px + env(safe-area-inset-bottom));gap:10px;background:rgba(246,241,231,.96);border-top:1px solid var(--filet);backdrop-filter:blur(8px)}
+.barre .btn{flex:1;padding:12px 10px;font-size:11px}
+@media(max-width:760px){.barre{display:flex}body.a-barre{padding-bottom:calc(84px + env(safe-area-inset-bottom))}}
+
+/* ── LA BULLE « NOUS JOINDRE » ── */
+.joindre{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:31;display:flex;flex-direction:column;align-items:flex-end;gap:10px;transition:transform var(--t)}
+.joindre.est-cachee{transform:translateY(140%)}
+.joindre__bouton{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;border:0;border-radius:999px;padding:0 18px 0 0;height:56px;cursor:pointer;box-shadow:var(--ombre);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase}
+.joindre__bouton i{width:56px;height:56px;border-radius:999px;display:grid;place-items:center;background:var(--accent-profond)}
+.joindre__bouton:hover{background:var(--accent-profond)}
+.joindre__volet{background:var(--carte);border:1px solid var(--filet);border-radius:8px;box-shadow:var(--ombre);width:min(320px,calc(100vw - 32px));padding:14px 14px 10px}
+.joindre__volet[hidden]{display:none}
+.joindre__tete{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px 10px}
+.joindre__tete b{font-family:var(--serif);font-size:20px;font-weight:400;color:var(--titre)}
+.joindre__fermer{width:44px;height:44px;border:0;background:transparent;color:var(--texte-doux);font-size:22px;cursor:pointer;border-radius:999px}
+.joindre__fermer:hover{background:var(--accent-voile);color:var(--accent-profond)}
+.joindre__ligne{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 8px;border-radius:6px;color:var(--titre);font-size:15px}
+.joindre__ligne:hover{background:var(--accent-voile)}
+.joindre__ligne i{width:34px;height:34px;border-radius:999px;background:var(--accent-voile);color:var(--accent-profond);display:grid;place-items:center;flex:none}
+.joindre__ligne small{display:block;font-size:12px;color:var(--texte-doux)}
+.joindre__pied{font-size:11.5px;color:var(--texte-doux);padding:8px 8px 2px;border-top:1px solid var(--filet);margin-top:4px}
+@media(max-width:760px){
+  .joindre{right:12px;bottom:calc(84px + env(safe-area-inset-bottom))}
+  .joindre__bouton span{display:none}
+  .joindre__bouton{padding:0}
+}
+
+/* ── LA PORTE AVANT LE CALENDRIER ── */
+.porte-rdv{position:fixed;inset:0;z-index:70;background:rgba(30,33,80,.55);display:grid;place-items:end center;padding:16px}
+.porte-rdv[hidden]{display:none}
+.porte-rdv__carte{background:var(--carte);border-radius:8px;width:min(520px,100%);padding:22px 22px 18px;box-shadow:var(--ombre)}
+.porte-rdv__carte h3{margin-top:6px}
+.porte-rdv__choix{display:grid;gap:10px;margin-top:16px}
+.porte-rdv__choix a{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border:1px solid var(--filet);border-radius:6px;color:var(--titre);min-height:60px;justify-content:center}
+.porte-rdv__choix a:hover{border-color:var(--accent);background:var(--accent-voile)}
+.porte-rdv__choix small{font-size:12.5px;color:var(--texte-doux)}
+.porte-rdv__fermer{margin-top:12px;background:none;border:0;color:var(--texte-doux);font-size:13px;cursor:pointer;padding:10px 0;text-decoration:underline;text-underline-offset:3px}
+@media(min-width:761px){.porte-rdv{place-items:center}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body class="a-barre">
+
+<div class="mq">
+  <b>MAQUETTE · La vitrine revisitée</b>
+  <span>À valider avant tout code. Trois regards d'experts fondus en une page : les offres, le parcours, l'appel. Ce qui est <span class="afixer">souligné en cuivre</span> attend une décision de la Maison, rien n'est inventé.</span>
+  <div class="bascule">
+    <button type="button" id="bAvant">Avant</button>
+    <button type="button" id="bApres" aria-pressed="true">Après</button>
+  </div>
+</div>
+
+<!-- ══════════ AVANT : le site réellement servi ══════════ -->
+<div id="avant">
+  <p class="note">Le site tel qu'il est servi aujourd'hui, en direct depuis maisonmnd.com. Si le cadre reste vide, ouvrez <a href="https://maisonmnd.com/revelateur/" target="_blank" rel="noopener">maisonmnd.com/revelateur</a> dans un autre onglet.</p>
+  <iframe src="https://maisonmnd.com/revelateur/" title="Le site servi aujourd'hui" loading="lazy"></iframe>
+</div>
+
+<!-- ══════════ APRÈS ══════════ -->
+<div id="apres">
+
+  <nav class="nav"><div class="conteneur nav__in">
+    <img class="mono" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <div class="nav__liens">
+      <a href="#portes">Mon parcours</a><a href="#portes">Services</a><a href="#offres">Les offres</a><a href="#">La Maison</a><a href="#">Journal</a>
+    </div>
+    <a class="btn btn--plein ouvre-porte" href="#">Prendre rendez-vous</a>
+  </div></nav>
+
+  <!-- 1. LE PREMIER ÉCRAN : il nomme le métier et la ville, il dit le mécanisme -->
+  <header class="hero"><div class="conteneur hero__grille">
+    <div>
+      <p class="sur">Locks créées, réparées, entretenues · Cotonou · depuis 2014</p>
+      <h1>Votre couronne mérite d'être comprise, soignée et révélée.</h1>
+      <p class="devise">Mi nyɔ́ ɖɛkpɛ <small>En fon : « Vous êtes belle. »</small></p>
+      <p class="ligne">Première couronne, réparation, entretien, enfants ou formation : il existe un chemin pour vous, à Cotonou. Nous commençons par vous écouter.</p>
+      <div class="rangee">
+        <a class="btn btn--plein" href="#portes">Je découvre mon parcours</a>
+        <a class="btn btn--ivoire" href="#portes">Je sais déjà ce dont j'ai besoin</a>
+      </div>
+      <p class="regle">Une création ou une réparation commence par une consultation. Un entretien se réserve directement.</p>
+    </div>
+    <div class="hero__photo" role="img" aria-label="Photo de la Maison"></div>
+  </div></header>
+
+  <!-- 2. TROIS PROMESSES, toutes tenues par le site aujourd'hui -->
+  <div class="gages"><div class="conteneur gages__in">
+    <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12l5 5L20 6"/></svg></i><div><b>Un entretien se réserve en ligne</b><small>En trois pas, sans créer de compte.</small></div></div>
+    <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z"/></svg></i><div><b>La Maison confirme sur WhatsApp</b><small>Pendant ses heures d'ouverture.</small></div></div>
+    <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i><div><b>Rien à payer en ligne</b><small>Un acompte, s'il est demandé, vous est dit avant.</small></div></div>
+  </div></div>
+
+  <!-- 3. LES CINQ PORTES -->
+  <section id="portes"><div class="conteneur">
+    <p class="sur">Vous êtes où aujourd'hui ?</p>
+    <h2 style="margin-top:10px">Il n'y a pas de bonne réponse.</h2>
+    <p class="ligne" style="margin-top:12px">Choisissez ce qui vous ressemble aujourd'hui, et nous vous montrons la suite.</p>
+    <div class="portes" id="lesPortes">
+      <article class="porte"><div class="porte__photo"></div><div class="porte__corps"><h3>Je veux créer ma couronne</h3><p>Vous n'avez jamais porté de locks ? Vous n'avez pas besoin de tout savoir avant de commencer.</p><a class="btn btn--plein" href="#">Découvrir la Première Couronne</a><small>Commence par une consultation.</small></div></article>
+      <article class="porte"><div class="porte__photo"></div><div class="porte__corps"><h3>Ma couronne a besoin d'attention</h3><p>Locks qui s'affinent, racines fragilisées, pointes qui se défont. Nous commençons par écouter.</p><a class="btn btn--plein" href="#">Faire diagnostiquer ma couronne</a><small>Une réparation commence par un diagnostic.</small></div></article>
+      <article class="porte"><div class="porte__photo"></div><div class="porte__corps"><h3>Je veux entretenir ma couronne</h3><p>Lavage, resserrage, hydratation, coiffure. Vos locks ont été créées ailleurs ? Bienvenue quand même.</p><a class="btn btn--plein" href="#">Trouver mon entretien</a><small>Se réserve directement, sans consultation.</small></div></article>
+      <article class="porte"><div class="porte__photo"></div><div class="porte__corps"><h3>Ma couronne grandit avec moi</h3><p>Les locks d'un enfant demandent de la douceur, de la patience et un espace pensé pour lui.</p><a class="btn btn--plein" href="#">Découvrir MND Kids</a><small>La visite commence par un échange avec vous.</small></div></article>
+      <article class="porte"><div class="porte__photo"></div><div class="porte__corps"><h3>Je veux apprendre le métier</h3><p>Faire des locks votre métier, ou approfondir ce que vous savez déjà. MND Formation transmet la méthode.</p><a class="btn btn--plein" href="#">Découvrir les formations MND</a><small>Pour celles et ceux qui veulent transmettre à leur tour.</small></div></article>
+    </div>
+    <div class="points" id="points" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    <div class="repli">
+      <span>Vous hésitez entre deux cartes ? Trois questions suffisent pour vous orienter.</span>
+      <a class="btn btn--creux" href="#">Je ne sais pas quel service choisir</a>
+    </div>
+  </div></section>
+
+  <!-- 4. LES OFFRES, à la manière des « Deals » : une promesse, un mécanisme, un bouton, les conditions -->
+  <section class="offres" id="offres"><div class="conteneur">
+    <p class="sur">Les offres de la Maison</p>
+    <h2 style="margin-top:10px">Ce que la Maison vous offre, et à quelles conditions.</h2>
+    <p class="ligne" style="margin-top:12px">Aucun prix n'est affiché ici : les montants passent par le devis. Ce qui est écrit est tenu, dans la Maison, au règlement.</p>
+    <div class="offres__grille">
+
+      <article class="offre est-moment">
+        <span class="ruban">Offre du moment</span>
+        <div class="offre__haut"><p class="sur">Engagement · Soins · du 1er au 31 octobre</p><p class="offre__deal">−15 %<small>sur les soins, et une part reversée</small></p></div>
+        <div class="offre__corps">
+          <h3>Octobre Rose</h3>
+          <p class="offre__sub">Sur les soins, et la Maison reverse une part à la lutte contre le cancer du sein.</p>
+          <a class="btn btn--plein" href="#">Réserver mon soin</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Du 1er au 31 octobre inclus, dans la Maison, non cumulable. Part reversée et bénéficiaire : <span class="afixer">à fixer par la Maison</span>.</p></div>
+        </div>
+      </article>
+
+      <article class="offre">
+        <div class="offre__haut"><p class="sur">Première Couronne · Réparation</p><p class="offre__deal">Déduite<small>votre consultation, de votre création</small></p></div>
+        <div class="offre__corps">
+          <h3>La consultation qui compte</h3>
+          <p class="offre__sub">Le prix de votre consultation s'ôte du devis de création ou de réparation que vous acceptez ensuite. Vous décidez après, jamais pendant.</p>
+          <a class="btn btn--plein" href="#">Réserver ma consultation</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Sur un devis écrit accepté dans les <span class="afixer">délai à fixer</span> jours suivant la consultation.</p></div>
+        </div>
+      </article>
+
+      <article class="offre">
+        <div class="offre__haut"><p class="sur">Entretien · Locks créées ailleurs</p><p class="offre__deal">Bienvenue<small>le premier regard est compris</small></p></div>
+        <div class="offre__corps">
+          <h3>La couronne venue d'ailleurs</h3>
+          <p class="offre__sub">Vos locks ne sont pas nées ici ? Leur premier regard est compris dans votre premier entretien à la Maison.</p>
+          <a class="btn btn--plein" href="#">Réserver mon premier entretien</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Première venue à la Maison. Si une réparation s'impose, elle passe par une consultation et un devis. Regard <span class="afixer">offert ou déduit : à fixer</span>.</p></div>
+        </div>
+      </article>
+
+      <article class="offre">
+        <div class="offre__haut"><p class="sur">Entretien · Formule</p><p class="offre__deal">6 pour 5<small>la sixième reprise, offerte</small></p></div>
+        <div class="offre__corps">
+          <h3>Le Carnet des Six</h3>
+          <p class="offre__sub">Six reprises de racines réglées une fois, la sixième offerte par la Maison, valables douze mois, suivies dans Ma Couronne.</p>
+          <a class="btn btn--plein" href="#">Découvrir le Carnet des Six</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Pour une même couronne, valable douze mois. La formule s'explique de vive voix, à la Maison ou sur WhatsApp.</p></div>
+        </div>
+      </article>
+
+      <article class="offre">
+        <div class="offre__haut"><p class="sur">Famille · Duo</p><p class="offre__deal">À deux<small>la seconde couronne est allégée</small></p></div>
+        <div class="offre__corps">
+          <h3>Deux couronnes, une venue</h3>
+          <p class="offre__sub">Venez à deux le même jour, l'une après l'autre : la seconde couronne est allégée.</p>
+          <a class="btn btn--plein" href="#">Réserver notre venue</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Deux gestes le même jour, à la suite. Remise appliquée à la Maison, au règlement, sur le second geste. Non cumulable. Taux : <span class="afixer">à fixer par la Maison</span>.</p></div>
+        </div>
+      </article>
+
+      <article class="offre">
+        <div class="offre__haut"><p class="sur">Formations · Académie</p><p class="offre__deal">Votre place<small>retenue avec un acompte</small></p></div>
+        <div class="offre__corps">
+          <h3>La première main</h3>
+          <p class="offre__sub">Un acompte retient votre place à l'Académie. Le solde se règle avant le premier jour.</p>
+          <a class="btn btn--plein" href="#">Voir le programme et m'inscrire</a>
+          <div class="offre__cond"><button type="button" aria-expanded="false">Voir les conditions</button><p hidden>Après l'entretien d'admission. Montants et échéancier dits par écrit avant tout versement. Échéancier : <span class="afixer">à fixer par la Maison</span>.</p></div>
+        </div>
+      </article>
+
+    </div>
+    <p class="offres__note">Les offres datées portent le ruban et disparaissent d'elles-mêmes à leur terme. Les autres sont permanentes : elles disent comment la Maison accueille, pas ce qu'elle solde.</p>
+  </div></section>
+
+  <!-- 5. ENTRE DE BONNES MAINS -->
+  <section class="mains"><div class="conteneur">
+    <p class="sur">Vous êtes entre de bonnes mains</p>
+    <h2>Vous n'avez pas besoin de savoir ce qu'il vous faut.</h2>
+    <p class="citation">« Nous sommes là pour vous aider à le déterminer. »</p>
+    <div class="mains__grille">
+      <div><b>Consultation</b><p>Pour une création ou une réparation, nous commençons toujours par une consultation. Comprendre avant de proposer.</p></div>
+      <div><b>Devis avant intervention</b><p>Rien ne commence sans une proposition écrite que vous avez acceptée.</p></div>
+      <div><b>Hygiène</b><p>Outils désinfectés entre chaque personne, linge propre pour chacune, produits que nous connaissons.</p></div>
+      <div><b>Suivi</b><p>Après le geste, nous restons là. Vos questions ont une réponse.</p></div>
+    </div>
+  </div></section>
+
+  <!-- 6. L'APPEL FINAL : le rappel promis existe vraiment -->
+  <section class="appel"><div class="conteneur">
+    <div class="appel__txt">
+      <h2>Vous préférez qu'on vous rappelle ?</h2>
+      <p class="ligne" style="margin-top:12px">Laissez votre numéro, la Maison vous rappelle pendant ses heures d'ouverture. Aucun compte à créer.</p>
+    </div>
+    <div class="rangee">
+      <a class="btn btn--plein" href="#">Laisser mes coordonnées</a>
+      <a class="btn btn--creux" href="#">Parler à MND sur WhatsApp</a>
+    </div>
+  </div></section>
+
+  <footer class="pied" id="pied"><div class="conteneur">
+    <div class="pied__grille">
+      <div><h4>Services</h4><ul><li><a href="#">Première Couronne</a></li><li><a href="#">Réparation</a></li><li><a href="#">Entretien et soins</a></li><li><a href="#">MND Kids</a></li><li><a href="#">Abonnements</a></li></ul></div>
+      <div><h4>Parcours</h4><ul><li><a href="#">Je veux créer ma couronne</a></li><li><a href="#">Ma couronne a besoin d'attention</a></li><li><a href="#">Je veux entretenir ma couronne</a></li><li><a href="#">Ma couronne grandit avec moi</a></li><li><a href="#">Je veux apprendre le métier</a></li></ul></div>
+      <div><h4>Comprendre</h4><ul><li><a href="#">Vos questions</a></li><li><a href="#">Votre parcours en dix pas</a></li><li><a href="#">Le Journal</a></li><li><a href="#">Derrière MND</a></li></ul></div>
+      <div><h4>Contact</h4><ul><li>Cotonou, Bénin</li><li><a href="#">Heures d'ouverture</a></li><li><a href="#">Prendre rendez-vous</a></li><li><a href="#">Parler à MND sur WhatsApp</a></li><li><a href="#">Trouver la Maison sur Google</a></li></ul></div>
+    </div>
+    <div class="pied__legal"><span>Maison MND · Cotonou</span><a href="#">Mentions légales</a><a href="#">Politique de confidentialité</a><a href="#">Conditions de réservation</a></div>
+  </div></footer>
+
+  <!-- LA BARRE MOBILE : une seule couche fixe, la bulle se loge à sa droite -->
+  <div class="barre">
+    <a class="btn btn--plein ouvre-porte" href="#">Prendre rendez-vous</a>
+    <a class="btn btn--creux" href="#">WhatsApp</a>
+  </div>
+
+  <!-- LA BULLE « NOUS JOINDRE » -->
+  <div class="joindre" id="joindre">
+    <div class="joindre__volet" id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden>
+      <div class="joindre__tete"><b id="joindre-titre">Nous joindre</b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
+      <a class="joindre__ligne" href="#"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></i><span>Réserver<small>Un entretien en trois pas, une consultation par rappel.</small></span></a>
+      <a class="joindre__ligne" href="#"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>
+      <a class="joindre__ligne" href="tel:+2290151997799" aria-label="Appeler la Maison au +229 01 51 99 77 99"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></i><span>Appeler<small>+229 01 51 99 77 99</small></span></a>
+      <p class="joindre__pied">Nous répondons pendant les heures d'ouverture de la Maison.</p>
+    </div>
+    <button type="button" class="joindre__bouton" id="joindre-bouton" aria-expanded="false" aria-controls="joindre-volet"><i aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z"/></svg></i><span>Nous joindre</span></button>
+  </div>
+
+  <!-- LA PORTE AVANT LE CALENDRIER : « Prendre rendez-vous » demande d'abord où l'on en est -->
+  <div class="porte-rdv" id="porte-rdv" hidden>
+    <div class="porte-rdv__carte" role="dialog" aria-modal="true" aria-labelledby="porte-rdv-titre">
+      <p class="sur">Prendre rendez-vous</p>
+      <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>
+      <div class="porte-rdv__choix">
+        <a href="#"><span>Oui, elles ont besoin de leur entretien</span><small>Vous choisissez votre heure en ligne, en trois pas.</small></a>
+        <a href="#"><span>Oui, mais elles ont besoin de soin, ou j'ai un doute</span><small>Une consultation d'abord. Laissez votre numéro, la Maison vous rappelle.</small></a>
+        <a href="#"><span>Pas encore</span><small>Une création commence par une consultation. La Maison vous rappelle.</small></a>
+      </div>
+      <button type="button" class="porte-rdv__fermer">Revenir à la page</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* Avant / Après */
+const av = document.getElementById('avant'), ap = document.getElementById('apres');
+const bAv = document.getElementById('bAvant'), bAp = document.getElementById('bApres');
+const montre = (q) => { av.classList.toggle('on', q === 'avant'); ap.hidden = q !== 'apres'; bAv.setAttribute('aria-pressed', String(q === 'avant')); bAp.setAttribute('aria-pressed', String(q === 'apres')); };
+bAv.onclick = () => montre('avant'); bAp.onclick = () => montre('apres');
+
+/* Les conditions d'une offre se dévoilent dans la carte, sans fenêtre. */
+document.querySelectorAll('.offre__cond button').forEach((b) => {
+  b.onclick = () => { const p = b.nextElementSibling; p.hidden = !p.hidden; b.setAttribute('aria-expanded', String(!p.hidden)); b.textContent = p.hidden ? 'Voir les conditions' : 'Masquer les conditions'; };
+});
+
+/* Les points sous les portes, sur téléphone. */
+const portes = document.getElementById('lesPortes'), points = document.getElementById('points');
+portes.addEventListener('scroll', () => {
+  const i = Math.round(portes.scrollLeft / (portes.scrollWidth / 5));
+  [...points.children].forEach((d, j) => d.classList.toggle('on', j === Math.min(i, 4)));
+}, { passive: true });
+
+/* LA BULLE : replié par défaut, jamais ouverte seule ; Échap referme et rend
+   le focus ; elle s'efface quand le pied paraît, pour ne rien recouvrir. */
+const joindre = document.getElementById('joindre'), volet = document.getElementById('joindre-volet'), bouton = document.getElementById('joindre-bouton');
+const ouvre = (o) => { volet.hidden = !o; bouton.setAttribute('aria-expanded', String(o)); if (o) volet.querySelector('.joindre__ligne:last-of-type').focus(); else bouton.focus(); };
+bouton.onclick = () => ouvre(volet.hidden);
+volet.querySelector('.joindre__fermer').onclick = () => ouvre(false);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !volet.hidden) ouvre(false); });
+document.addEventListener('click', (e) => { if (!volet.hidden && !joindre.contains(e.target)) ouvre(false); });
+if ('IntersectionObserver' in window) {
+  new IntersectionObserver((es) => es.forEach((en) => joindre.classList.toggle('est-cachee', en.isIntersecting)), { threshold: .05 }).observe(document.getElementById('pied'));
+}
+
+/* LA PORTE AVANT LE CALENDRIER : « Prendre rendez-vous » sans parcours ne
+   mène plus à une page de consultations seules ; il demande d'abord. */
+const porteRdv = document.getElementById('porte-rdv');
+document.querySelectorAll('.ouvre-porte').forEach((a) => { a.onclick = (e) => { e.preventDefault(); porteRdv.hidden = false; porteRdv.querySelector('a').focus(); }; });
+porteRdv.querySelector('.porte-rdv__fermer').onclick = () => { porteRdv.hidden = true; };
+porteRdv.addEventListener('click', (e) => { if (e.target === porteRdv) porteRdv.hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !porteRdv.hidden) porteRdv.hidden = true; });
+</script>
+</body>
+</html>

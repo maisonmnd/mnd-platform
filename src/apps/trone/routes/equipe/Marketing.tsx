@@ -28,6 +28,7 @@ type OfferForm = {
   title: string; tag: string; deal: string; sub: string; audience: string;
   days: string[]; heureDebut: string; heureFin: string;
   serviceId: string; discountPct: string;
+  vitrine: boolean; parcours: string; bouton: string; conditions: string;
   /* LA SAISON — 18 septembre 2026. Vides pour une offre qui se répète, comme
      une heure creuse ; remplies pour Octobre Rose, Noël ou le Ramadan. */
   du: string; au: string;
@@ -38,6 +39,7 @@ const emptyOffer: OfferForm = {
   // Tous les jours par défaut (un salon travaille surtout le week-end) et large plage horaire.
   days: [...OFFER_DAYS], heureDebut: '08h', heureFin: '20h',
   serviceId: '', discountPct: '', du: '', au: '',
+  vitrine: false, parcours: '', bouton: '', conditions: '',
 };
 
 const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' : s === 'Programmée' ? 'warn' : 'muted');
@@ -214,6 +216,7 @@ export default function Marketing() {
       days: [...o.days], heureDebut: o.heureDebut, heureFin: o.heureFin,
       serviceId: o.serviceId ?? '', discountPct: o.discountPct != null ? String(o.discountPct) : '',
       du: o.du ?? '', au: o.au ?? '',
+      vitrine: !!o.vitrine, parcours: o.parcours ?? '', bouton: o.bouton ?? '', conditions: o.conditions ?? '',
     });
     setOfferModal(true);
   };
@@ -229,6 +232,12 @@ export default function Marketing() {
          comporte comme avant, ce qui protège toutes celles d'hier. */
       du: offerForm.du || undefined,
       au: offerForm.au || undefined,
+      /* LA VITRINE ET SES MOTS (22 septembre 2026) : un vide ne s'écrit pas,
+         pour que les offres d'hier restent exactement ce qu'elles étaient. */
+      vitrine: offerForm.vitrine || undefined,
+      parcours: offerForm.parcours || undefined,
+      bouton: offerForm.bouton.trim() || undefined,
+      conditions: offerForm.conditions.trim() || undefined,
     };
     if (offerEditId) {
       setOffers((prev) => prev.map((o) => (o.id === offerEditId ? { ...o, ...payload } : o)));
@@ -738,6 +747,49 @@ export default function Marketing() {
                   min={offerForm.du || undefined}
                   onChange={(e) => setOfferForm({ ...offerForm, au: e.target.value })}
                 />
+              </Field>
+            </div>
+            {/* LA VITRINE — 22 septembre 2026. Le site ne montre que les offres
+                datées ; une offre permanente, « la consultation déduite de votre
+                création », n'a pas de saison. Cochée, elle paraît sans date de
+                fin. Le parcours choisit le bouton de la carte et sa destination ;
+                les conditions se déplient sous la carte, à la place d'une phrase
+                écrite en dur dans le site. */}
+            <div className="tr-grid tr-grid--2">
+              <Field label="Sur le site public">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <button
+                    type="button"
+                    className={`tre-chip ${offerForm.vitrine ? 'is-on' : ''}`}
+                    aria-pressed={offerForm.vitrine}
+                    onClick={() => setOfferForm({ ...offerForm, vitrine: !offerForm.vitrine })}
+                  >
+                    En vitrine, sans date de fin
+                  </button>
+                </div>
+              </Field>
+              <Field label="Parcours du site qu’elle sert">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {([['creation', 'Première Couronne'], ['reparation', 'Réparation'], ['entretien', 'Entretien'], ['enfant', 'MND Kids'], ['formation', 'Formations']] as const).map(([k, l]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`tre-chip ${offerForm.parcours === k ? 'is-on' : ''}`}
+                      aria-pressed={offerForm.parcours === k}
+                      onClick={() => setOfferForm({ ...offerForm, parcours: offerForm.parcours === k ? '' : k })}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+            <div className="tr-grid tr-grid--2">
+              <Field label="Texte du bouton sur le site · vide = « J’en profite »">
+                <Input value={offerForm.bouton} onChange={(e) => setOfferForm({ ...offerForm, bouton: e.target.value })} placeholder="Réserver ma consultation" />
+              </Field>
+              <Field label="Conditions, dépliées sous la carte">
+                <Input value={offerForm.conditions} onChange={(e) => setOfferForm({ ...offerForm, conditions: e.target.value })} placeholder="Dans la Maison, au règlement, non cumulable." />
               </Field>
             </div>
             <div className="tr-grid tr-grid--2">

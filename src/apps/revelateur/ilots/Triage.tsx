@@ -78,7 +78,24 @@ export default function Triage() {
           <h2>{sortie.titre}</h2>
           <p>{sortie.texte}</p>
           <div className="rangee">
-            <a className="btn btn--plein" href={base(sortie.vers)} onClick={() => mesure('parcours_choisi', { parcours: sortie.besoin })}>{sortie.bouton}</a>
+            {/* « TROIS QUESTIONS, ET LA BONNE PORTE » EN PROMETTAIT UNE DE MOINS
+                (22 septembre 2026) : la sortie menait à la page de service, pas
+                au geste. Le geste d'abord, la page en second. La formation
+                garde sa page, elle ne se réserve pas en ligne. */}
+            {sortie.besoin === 'formation' ? (
+              <a className="btn btn--plein" href={base(sortie.vers)} onClick={() => mesure('parcours_choisi', { parcours: sortie.besoin })}>{sortie.bouton}</a>
+            ) : (
+              <>
+                <a
+                  className="btn btn--plein"
+                  href={base(sortie.besoin === 'entretien' ? `/reserver/?besoin=${sortie.besoin}` : `/rappel/?besoin=${sortie.besoin}`)}
+                  onClick={() => mesure('parcours_choisi', { parcours: sortie.besoin })}
+                >
+                  {sortie.besoin === 'entretien' ? 'Choisir mon heure' : 'Me faire rappeler'}
+                </a>
+                <a className="btn" href={base(sortie.vers)}>{sortie.bouton}</a>
+              </>
+            )}
             <a className="btn btn--lien" href={lienWhatsApp(numero, COMMUN.messages[sortie.besoin])} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: sortie.besoin })}>WhatsApp</a>
           </div>
         </div>

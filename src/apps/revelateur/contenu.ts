@@ -79,7 +79,7 @@ export const COMMUN: Commun = {
         liens: [
           { texte: 'WhatsApp', vers: 'whatsapp:inconnu' },
           { texte: 'Nous écrire', vers: '/contact/' },
-          { texte: 'Me faire rappeler', vers: '/reserver/' },
+          { texte: 'Me faire rappeler', vers: '/rappel/' },
         ],
       },
     ],
@@ -157,6 +157,28 @@ export const ACCUEIL: Accueil = {
     { texte: "Je sais ce qu'il me faut", vers: '#portes' },
   ],
   regle: 'Une création ou une réparation commence par une consultation. Un entretien se réserve directement.',
+  metier: 'Locks créées, réparées, entretenues · Cotonou · depuis 2014',
+  /* TROIS PROMESSES, TOUTES TENUES PAR LE SITE AUJOURD'HUI, vérifiées dans
+     le code avant d'être écrites : la réservation en trois pas sans compte
+     (îlot reserver), la confirmation sur WhatsApp (formulaire.suite), rien à
+     payer en ligne (/conditions/). On ne promet pas « votre place est tenue »
+     ni un délai d'annulation : le site ne les tient pas. */
+  promesses: [
+    { titre: 'Un entretien se réserve en ligne', ligne: 'En trois pas, sans créer de compte.' },
+    { titre: 'La Maison confirme sur WhatsApp', ligne: 'Pendant ses heures d’ouverture.' },
+    { titre: 'Rien à payer en ligne', ligne: 'Un acompte, s’il est demandé, vous est dit avant.' },
+  ],
+  /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
+     Une promesse en grand, un mécanisme en une phrase, un bouton, les
+     conditions dépliées dans la carte. Aucun prix en francs : la voix du
+     site l'interdit, et c'est ce qui protège le premium. Les offres viennent
+     de `mnd_offers`, composées au Trône ; rien n'est écrit ici. */
+  offres: {
+    sur: 'Les offres de la Maison',
+    titre: 'Ce que la Maison vous offre, et à quelles conditions.',
+    ligne: 'Aucun prix n’est affiché ici : les montants passent par le devis. Ce qui est écrit est tenu, dans la Maison, au règlement.',
+    note: 'Les offres datées portent leur période et disparaissent d’elles-mêmes à leur terme. Les autres disent comment la Maison accueille, pas ce qu’elle solde.',
+  },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
     titre: "Vous êtes où aujourd'hui ?",
@@ -222,7 +244,7 @@ export const ACCUEIL: Accueil = {
     titre: "Vous préférez qu'on vous rappelle ?",
     ligne: 'Un prénom, un numéro. Nous vous répondons personnellement.',
     boutons: [
-      { texte: 'Laisser mes coordonnées', vers: '/reserver/' },
+      { texte: 'Laisser mes coordonnées', vers: '/rappel/' },
       { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
     ],
   },
@@ -711,6 +733,23 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'aucun',
     court: 'Les offres',
+  },
+  {
+    /* LE RAPPEL PROMIS EXISTE — 22 septembre 2026. « Me faire rappeler » et
+       « Laisser mes coordonnées » menaient au calendrier, qui n'offrait que
+       des consultations à choisir : le formulaire de rappel était écrit, mais
+       aucune page ne le montait. Celle-ci le porte, et c'est aussi la porte
+       des consultations, qui se prennent de vive voix. */
+    chemin: '/rappel/',
+    titre: 'Être rappelée par la Maison MND · Cotonou',
+    description: 'Laissez votre prénom et votre numéro : la Maison MND vous rappelle pendant ses heures d’ouverture, pour fixer votre consultation ou répondre à votre question.',
+    h1: 'Vous préférez qu’on vous rappelle ?',
+    sur: 'Rappel',
+    ligne: 'Un prénom, un numéro. La Maison vous rappelle pendant ses heures d’ouverture. Aucun compte à créer.',
+    besoin: 'inconnu',
+    ilot: 'demande',
+    jsonld: 'aucun',
+    court: 'Rappel',
   },
   {
     chemin: '/reserver/',
