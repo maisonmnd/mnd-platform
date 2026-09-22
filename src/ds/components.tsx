@@ -4,6 +4,12 @@ import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type Inpu
 
 /* MND — primitives React partagées. Styles dans ds.css. */
 
+/* LA QUESTION DE LA MAISON SE PREND ICI — 22 septembre 2026. Elle vit dans
+   `ds/demande.tsx`, mais les quatre-vingt-neuf écrans qui la posent importent
+   déjà `ds/components` : la faire passer par la même porte évite d'ajouter
+   une ligne d'import à chacun, et surtout évite qu'on la cherche. */
+export { demande, type DemandeDeLaMaison } from './demande';
+
 export function Eyebrow({ children, invert }: { children: ReactNode; invert?: boolean }) {
   return (
     <div className="mnd-eyebrow" style={invert ? { color: 'var(--copper-300)' } : undefined}>

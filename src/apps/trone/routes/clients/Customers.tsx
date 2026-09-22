@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead, WaLien } from '../_ui';
-import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
+import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, alerte, demande } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
@@ -428,12 +428,17 @@ function FusionModal({ client, onClose, onDone }: {
   const paire = duo && !('erreur' in duo) ? duo : null;
   const nRdv = paire ? appts.filter((x) => x.clientId === paire.absorbee.id).length : 0;
 
-  const fusionner = () => {
+  const fusionner = async () => {
     if (!paire) return;
-    const ok = window.confirm(
-      `Fondre « ${paire.absorbee.name} » dans « ${paire.survivant.name} » ? `
-      + `Son histoire suit (${nRdv} rendez-vous), puis sa fiche s'efface. Ce geste ne se défait pas.`,
-    );
+    const ok = await demande({
+      quoi: 'Fusion de deux fiches',
+      titre: `Fondre « ${paire.absorbee.name} » dans « ${paire.survivant.name} » ?`,
+      dit: `Son histoire suit : ${nRdv} rendez-vous rejoignent la fiche qui reste.`,
+      scelle: 'Puis sa fiche s’efface. Ce geste ne se défait pas.',
+      accepter: 'Fondre les deux fiches',
+      refuser: 'Garder les deux',
+      dur: true,
+    });
     if (!ok) return;
     fusionnerFiches(paire.survivant.id, paire.absorbee.id);
     onDone(paire.survivant.id);
@@ -915,13 +920,24 @@ export default function Customers() {
     return n;
   });
   const quitterSelection = () => { setSelMode(false); setSelection(new Set()); };
-  const marquerEnLot = (dePassage: boolean) => {
+  const marquerEnLot = async (dePassage: boolean) => {
     const ids = [...selection];
     if (ids.length === 0) return;
     const noms = clients.filter((c) => selection.has(c.id)).map((c) => c.name);
     const apercu = noms.slice(0, 6).join(', ') + (noms.length > 6 ? `, et ${noms.length - 6} autre${noms.length - 6 > 1 ? 's' : ''}` : '');
     const verbe = dePassage ? 'Marquer « de passage »' : 'Couronner';
-    if (!window.confirm(`${verbe} ${ids.length} tête${ids.length > 1 ? 's' : ''} ?\n\n${apercu}`)) return;
+    const ok = await demande({
+      quoi: `Geste sur ${ids.length} tête${ids.length > 1 ? 's' : ''}`,
+      titre: `${verbe} ${ids.length} tête${ids.length > 1 ? 's' : ''} ?`,
+      dit: dePassage
+        ? 'Elles sortent des têtes actives, de la rétention et des relances. Leur argent et leur travail restent comptés.'
+        : 'Elles redeviennent des clientes de la Maison, comptées dans la rétention et les relances.',
+      suite: apercu,
+      accepter: dePassage ? `Marquer les ${ids.length}` : `Couronner les ${ids.length}`,
+      refuser: 'Ne rien changer',
+      dur: dePassage,
+    });
+    if (!ok) return;
     clientsStore.set((prev) => prev.map((c) => (selection.has(c.id)
       /* Le témoin se pose dans les deux sens : la Maison retient qu'elles ont
          porté la marque, et le geste inverse leur reste ouvert. */
@@ -2050,9 +2066,17 @@ function Customer360({
     setNoteEditee(null);
     toast('Note reprise.');
   };
-  const effacerLaNote = (id: string) => {
+  const effacerLaNote = async (id: string) => {
     if (!maNote(id)) return;
-    if (!window.confirm('Effacer cette note ? Elle disparaîtra aussi du Fil, pour tout le monde.')) return;
+    if (!await demande({
+      quoi: 'Note du Fil',
+      titre: 'Effacer cette note ?',
+      dit: 'Elle disparaîtra aussi du Fil, pour tout le monde.',
+      scelle: 'Une note effacée ne se récupère pas.',
+      accepter: 'Effacer la note',
+      refuser: 'Garder la note',
+      dur: true,
+    })) return;
     filStore.set((prev) => prev.filter((m) => m.id !== id));
     toast('Note effacée.');
   };
@@ -2282,13 +2306,17 @@ function Customer360({
   /* ON DEMANDE AVANT DE RETIRER. Le portrait suit la cliente partout (listes,
      carnet, factures, Ma Couronne) et il ne se récupère pas : le fichier
      d'origine est sur un téléphone, pas dans le Trône. */
-  const retirerLaPhoto = () => {
+  const retirerLaPhoto = async () => {
     setMenuPhoto(false);
-    if (!window.confirm(
-      `Retirer la photo de ${client.name} ?\n\n`
-      + 'Elle disparaîtra des listes, du carnet et de Ma Couronne. La fiche et son '
-      + 'histoire ne bougent pas. Il faudra la reprendre pour en remettre une.',
-    )) return;
+    if (!await demande({
+      quoi: 'Portrait de la cliente',
+      titre: `Retirer la photo de ${client.name} ?`,
+      dit: 'Elle disparaîtra des listes, du carnet et de Ma Couronne. La fiche et son histoire ne bougent pas.',
+      scelle: 'Le fichier d’origine est sur un téléphone, pas dans Le Trône : il faudra la reprendre pour en remettre une.',
+      accepter: 'Retirer la photo',
+      refuser: 'Garder la photo',
+      dur: true,
+    })) return;
     patch({ photo: null });
   };
 
@@ -2369,9 +2397,17 @@ function Customer360({
     if (editIdx == null) return;
     persistBlocks(parsedNotes.blocks.map((b, i) => (i === editIdx ? updated : b)));
   };
-  const deleteConsult = () => {
+  const deleteConsult = async () => {
     if (editIdx == null) return;
-    if (!window.confirm('Supprimer définitivement cette consultation ?')) return;
+    if (!await demande({
+      quoi: 'Consultation du dossier',
+      titre: 'Supprimer cette consultation ?',
+      dit: 'Elle quitte le dossier de la cliente, avec ce qui y a été observé.',
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la consultation',
+      refuser: 'Garder la consultation',
+      dur: true,
+    })) return;
     persistBlocks(parsedNotes.blocks.filter((_, i) => i !== editIdx));
   };
 
@@ -2650,16 +2686,33 @@ function Customer360({
     clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, personaFige: undefined } : c)));
 
   /* Retrait doux — la cliente disparaît des listes sans quitter la Maison. */
-  const archiveClient = () => {
-    if (!window.confirm(`Archiver ${client.name} ? Elle sortira des listes sans être supprimée.`)) return;
+  const archiveClient = async () => {
+    if (!await demande({
+      quoi: 'Retrait doux',
+      titre: `Archiver ${client.name} ?`,
+      dit: 'Elle sort des listes et des relances sans être supprimée. Sa fiche, son histoire et ses factures restent.',
+      suite: 'Vous pourrez la rappeler à tout moment depuis les archives.',
+      accepter: 'Archiver la fiche',
+      refuser: 'Garder dans les listes',
+    })) return;
     patch({ archived: true });
     onClose();
   };
 
   /* Suppression définitive — les rendez-vous restent au carnet. */
-  const deleteClient = () => {
-    const warn = appts.length > 0 ? ' Ses rendez-vous resteront au carnet.' : '';
-    if (!window.confirm(`Supprimer définitivement ${client.name} ?${warn} Cette action est irréversible.`)) return;
+  const deleteClient = async () => {
+    if (!await demande({
+      quoi: 'Suppression définitive',
+      titre: `Supprimer la fiche de ${client.name} ?`,
+      dit: 'Sa fiche quitte la Clientèle, avec ses notes, ses photos et son suivi.',
+      suite: appts.length > 0
+        ? `Elle porte ${appts.length} rendez-vous, qui resteront au carnet : la Maison doit pouvoir les justifier.`
+        : undefined,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer définitivement',
+      refuser: 'Garder la fiche',
+      dur: true,
+    })) return;
     clientsStore.set((prev) => prev.filter((c) => c.id !== client.id));
     onClose();
   };

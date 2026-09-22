@@ -418,3 +418,67 @@
 .mnd-palier--0 { color: var(--ink-soft); border-color: var(--hairline); background: var(--surface-card); }
 .mnd-palier--1 { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
 .mnd-palier--2 { color: var(--color-ivoire); border-color: var(--color-indigo); background: var(--color-indigo); }
+
+/* ── LA QUESTION DE LA MAISON — 22 septembre 2026 ──────────────────────
+   Elle remplace `window.confirm`, que le navigateur laisse désactiver d'une
+   case à cocher. Maquette `public/maquette-la-question-de-la-maison.html`.
+   Cinq parties, chacune répondant à une question qu'on se pose la main sur
+   la souris : qu'est-ce que je fais, sur quoi, qu'est-ce que ça change,
+   qu'est-ce que je ne pourrai pas défaire, et comment je sors. */
+.mnd-dem {
+  width: min(440px, calc(100vw - 32px));
+  background: var(--paper, #FBF8F2);
+  border: 1px solid var(--hairline, #D9CFBC);
+  border-radius: 5px;
+  box-shadow: 0 18px 44px rgba(20, 20, 27, 0.18);
+  overflow: hidden;
+}
+/* LE FILET DU HAUT DIT LE TON avant qu'on ait lu : indigo pour un geste
+   ordinaire, brique pour un geste qui détruit. */
+.mnd-dem__haut { height: 3px; background: var(--color-indigo, #1E2150); }
+.mnd-dem--dur .mnd-dem__haut { background: var(--color-brique, #96412E); }
+.mnd-dem__corps { padding: 22px 24px 20px; }
+.mnd-dem__quoi {
+  font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-soft, #746F65);
+}
+.mnd-dem--dur .mnd-dem__quoi { color: var(--color-brique, #96412E); }
+.mnd-dem__titre {
+  font-family: var(--font-serif); font-weight: 400; font-size: 25px; line-height: 1.18;
+  color: var(--color-indigo, #1E2150); margin-top: 10px;
+}
+.mnd-dem__dit { font-size: 13.5px; line-height: 1.65; margin: 12px 0 0; }
+.mnd-dem__suite { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft, #746F65); margin: 10px 0 0; }
+.mnd-dem__scelle {
+  margin-top: 14px; padding: 9px 12px;
+  border-left: 2px solid var(--color-brique, #96412E);
+  background: var(--brique-faible, #FBF0ED);
+  font-size: 12.5px; line-height: 1.55;
+  /* Les messages repris de `window.confirm` portent des sauts de ligne qui
+     disent le refus PUIS le remède. */
+  white-space: pre-line;
+}
+.mnd-dem__pieds {
+  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+  padding: 16px 24px 20px; border-top: 1px solid var(--hairline, #D9CFBC);
+  background: #fff;
+}
+.mnd-dem__b {
+  font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 10px 16px; border-radius: 3px;
+  cursor: pointer; white-space: nowrap;
+}
+/* L'ISSUE SÛRE EST CREUSE, celle qui agit est pleine : la main va d'abord
+   vers le plein, donc le plein doit être celui qu'on a nommé. */
+.mnd-dem__b--sur {
+  background: transparent; color: var(--color-indigo, #1E2150);
+  border: 1px solid var(--color-indigo, #1E2150);
+}
+.mnd-dem__b--fait {
+  background: var(--color-indigo, #1E2150); color: var(--color-ivoire, #F6F1E7);
+  border: 1px solid var(--color-indigo, #1E2150);
+}
+.mnd-dem--dur .mnd-dem__b--fait {
+  background: var(--color-brique, #96412E); border-color: var(--color-brique, #96412E);
+}
+.mnd-dem__b:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
