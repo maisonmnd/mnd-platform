@@ -61,10 +61,18 @@ dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.
    tient en six mots, le paragraphe en deux phrases courtes. */
 dit('… son titre tient en six mots', true, ACCUEIL.h1.trim().split(/\s+/).length <= 6);
 dit('… et son paragraphe en moins de quatre-vingts signes', true, ACCUEIL.ligne.length < 80);
-/* Les deux photos du 22 septembre : le portrait au premier écran (et en image
-   de partage), les trois couronnes sur la porte de l'entretien. */
-dit('le premier écran porte le portrait', true, accueil.includes('photos/site/portrait-accueil.jpg" alt=') && /og:image" content="[^"]*photos\/site\/portrait-accueil\.jpg"/.test(accueil));
-dit('la porte de l’entretien porte les trois couronnes', true, /data-parcours="entretien">\s*<img src="[^"]*trois-couronnes\.jpg"/.test(accueil));
+/* Les photos des 22 et 23 septembre : les cauris au premier écran (et en image
+   de partage), le portrait sur la première porte, les trois couronnes sur
+   l'entretien, la mère et l'enfant sur MND Kids. Plus aucune porte sans photo. */
+dit('le premier écran porte les cauris', true, /<figure class="hero-image"><img src="[^"]*photos\/site\/creation\.jpg" alt="[^"]+"/.test(accueil));
+/* L'image de partage est un PAYSAGE taillé dans la même photo : WhatsApp et
+   Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
+dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,
+  /og:image" content="[^"]*photos\/site\/partage-accueil\.jpg"/.test(accueil) && accueil.includes('og:image:width" content="800"'));
+const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parcours="${parcours}">\\s*<img src="[^"]*photos/site/([^"]+)"`))?.[1] ?? null;
+dit('les portes portent chacune leur photo', ['portrait-accueil.jpg', 'attention.jpg', 'trois-couronnes.jpg', 'mnd-kids.jpg', 'brice.jpg'],
+  ['creation', 'reparation', 'entretien', 'enfant', 'formation'].map(photoDeLaPorte));
+dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
 dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
 dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/g) ?? []).length);
 dit('… juste après le hero, avant les portes', true,

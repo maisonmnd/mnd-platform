@@ -96,7 +96,7 @@ const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 /* ── Le balisage structuré ───────────────────────────────────────────── */
 const noeudMaison = () => ({
   '@type': 'HairSalon', '@id': `${SITE}#maison`,
-  name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/portrait-accueil.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
+  name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/partage-accueil.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
   description: 'Maison boutique de soin et de création de dreadlocks afro à Cotonou.',
   legalName: COMMUN.editeur.nomCommercial,
   email: COMMUN.editeur.email,
@@ -139,7 +139,8 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:title" content="${attr(titre)}" />
     <meta property="og:description" content="${attr(description)}" />
     <meta property="og:url" content="${canon}" />
-    <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'portrait-accueil.jpg')}" />
+    <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'partage-accueil.jpg')}" />
+    ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
     <meta name="twitter:card" content="summary_large_image" />
     ${jsonld(noeuds)}
   </head>
@@ -166,7 +167,7 @@ ${corps}
     ${colonnes}
         <div class="pied-bas">
           <span class="devise">${echappe(DEVISE_COMPLETE)}</span>
-          <span class="pied-copyright">&copy;Copyright ${new Date().getFullYear()}</span>
+          <span class="pied-copyright">&copy; Copyright ${new Date().getFullYear()}</span>
           ${legal}
         </div>
       </div>
@@ -450,7 +451,7 @@ function rendAccueil(articles) {
           <p class="ligne">${echappe(a.ligne)}</p>
           <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
         </div>
-        <figure class="hero-image"><img src="/assets/photos/site/portrait-accueil.jpg" alt="Une couronne de locks, portée avec le sourire" width="960" height="1200" fetchpriority="high"></figure>
+        <figure class="hero-image"><img src="/assets/photos/site/creation.jpg" alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high"></figure>
       </div></section>
 
       <!-- TROIS PROMESSES SOUS LE GRAND ÉCRAN — 22 septembre 2026. L'équivalent

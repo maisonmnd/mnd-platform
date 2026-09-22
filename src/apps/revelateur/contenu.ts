@@ -193,7 +193,9 @@ export const ACCUEIL: Accueil = {
         ligne: "Vous n'avez jamais porté de locks. Nous choisissons la méthode ensemble.",
         suite: 'La Première Couronne',
         vers: '/premiere-couronne/',
-        image: 'creation.jpg',
+        /* Le portrait descend ici le 23 septembre 2026 : les cauris (creation.jpg)
+           prennent le premier écran, et le même visage ne revient pas trois fois. */
+        image: 'portrait-accueil.jpg',
       },
       {
         titre: "Ma couronne a besoin d'attention",
@@ -214,6 +216,7 @@ export const ACCUEIL: Accueil = {
         ligne: 'Douceur, patience, et vous à ses côtés.',
         suite: 'MND Kids',
         vers: '/mnd-kids/',
+        image: 'mnd-kids.jpg',
       },
       {
         titre: 'Je veux apprendre le métier',
@@ -422,6 +425,7 @@ export const PAGES: Page[] = [
     description: 'Confiez la couronne de votre enfant à la Maison MND à Cotonou : création, reprise et soins pour les petites têtes. Organisez votre visite en famille.',
     h1: 'MND Kids : les dreadlocks des enfants, à Cotonou',
     sur: 'MND Kids',
+    image: 'mnd-kids.jpg',
     ligne: "Un enfant a besoin de temps, de douceur, et d'une main qui ne tire pas. Vous restez à ses côtés.",
     besoin: 'enfant',
     cta: { texte: 'Organiser notre visite', note: 'La visite commence par un échange avec vous.' },
