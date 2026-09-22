@@ -23,7 +23,7 @@ const SISTERS = [
     seal: 'or' as const,
     name: 'Le Trône',
     who: 'La maison · back-office',
-    desc: "L'ERP de commandement : pilotage, carnet, clients, caisse, laboratoire, finances, académie. Multi-branches, multi-devises — la branche impose sa loi à toutes les données.",
+    desc: "L'ERP de commandement : pilotage, carnet, clients, caisse, laboratoire, finances, académie. Multi-branches, multi-devises, la branche impose sa loi à toutes les données.",
   },
   {
     href: '/couronne.html',
@@ -47,7 +47,7 @@ const SISTERS = [
     seal: 'indigo' as const,
     name: 'LOKAA',
     who: 'Les salons · SaaS white-label',
-    desc: 'Le squelette du Trône offert aux autres maisons — thème du locataire, devise par tenant, console super-admin. Propulsé par MND.',
+    desc: 'Le squelette du Trône offert aux autres maisons : thème du locataire, devise par tenant, console super-admin. Propulsé par MND.',
   },
   {
     href: '/certificat.html',
@@ -55,7 +55,7 @@ const SISTERS = [
     seal: 'obsidian' as const,
     name: 'Certificat',
     who: 'L\'Académie · sceau officiel',
-    desc: 'Le certificat scellé MND — A4 paysage, prêt à imprimer, envoyer ou encadrer.',
+    desc: 'Le certificat scellé MND : A4 paysage, prêt à imprimer, envoyer ou encadrer.',
   },
 ];
 
@@ -84,7 +84,7 @@ export default function Portal() {
       </main>
 
       <footer className="po-foot">
-        Former, soigner, transmettre — contact@mnd.bj · @maison.mnd
+        Former, soigner, transmettre · contact@maisonmnd.com · @maison.mnd
       </footer>
     </>
   );
