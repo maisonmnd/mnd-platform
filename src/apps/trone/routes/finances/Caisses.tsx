@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eyebrow, Modal } from '../../../../ds/components';
+import { Eyebrow, Modal, demande } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -203,12 +203,17 @@ export default function Caisses() {
     setBoxOpen(false);
   };
 
-  const deleteBox = (c: Cashbox) => {
+  const deleteBox = async (c: Cashbox) => {
     if (caisseDiscrete(c) && !soldeVisible(c, ouvertes)) { demanderLeCode(c, 'retirer'); return; }
-    if (!window.confirm(
-      `Retirer la caisse « ${c.name} » ? Les écritures qui la nomment ne sont PAS supprimées, `
-      + 'elles resteront rattachées à un tiroir qui n’existe plus.',
-    )) return;
+    if (!await demande({
+      quoi: 'Tiroir de la Maison',
+      titre: `Retirer la caisse « ${c.name} » ?`,
+      dit: 'Les écritures qui la nomment ne sont PAS supprimées.',
+      scelle: 'Elles resteront rattachées à un tiroir qui n’existe plus.',
+      accepter: 'Retirer la caisse',
+      refuser: 'Garder la caisse',
+      dur: true,
+    })) return;
     setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
   };
 

@@ -22,7 +22,7 @@
    l'alimenter. Les deux modales vivent donc ici, et le Coffre les importe. */
 
 import { useState } from 'react';
-import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -388,29 +388,47 @@ export function LesObjectifs() {
   /* CLORE PLUTÔT QU'EFFACER : un objectif atteint quitte la liste vivante sans
      emporter son histoire — les versements qui l'ont nourri restent fléchés
      vers lui, et le coffre se retrouve toujours. */
-  const cloreObjectif = () => {
+  const cloreObjectif = async () => {
     if (!objOuvert?.id) return;
     const o = objectifs.find((x) => x.id === objOuvert.id);
-    if (!o || !window.confirm(`Refermer « ${o.nom} » ? Il quitte la liste, et les versements qui lui étaient destinés gardent leur trace.`)) return;
+    if (!o) return;
+    if (!await demande({
+      quoi: 'Objectif du coffre',
+      titre: `Refermer « ${o.nom} » ?`,
+      dit: 'Il quitte la liste des objectifs en cours.',
+      suite: 'Les versements qui lui étaient destinés gardent leur trace : l’argent ne bouge pas.',
+      accepter: 'Refermer l’objectif',
+      refuser: 'Le laisser ouvert',
+    })) return;
     setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, clos: true } : x)));
     setObjOuvert(null);
   };
 
   /* ── LES DEUX ISSUES D'UN RETARD ── */
-  const rattraper = (o: ObjectifCoffre) => {
+  const rattraper = async (o: ObjectifCoffre) => {
     const neuf = planPourTenir(o, moves, aujourdhui);
     if (!neuf) return;
-    if (!window.confirm(
-      `Rattraper « ${o.nom} » ?\n\nLe plan passe à ${fmtMoney(neuf.montantXof, currency)} par mois sur ${neuf.nombre} mois, la date visée est tenue, l'effort monte.`,
-    )) return;
+    if (!await demande({
+      quoi: 'Plan de l’objectif',
+      titre: `Rattraper « ${o.nom} » ?`,
+      dit: `Le plan passe à ${fmtMoney(neuf.montantXof, currency)} par mois sur ${neuf.nombre} mois.`,
+      suite: 'La date visée est tenue, l’effort monte.',
+      accepter: 'Reprendre le plan',
+      refuser: 'Garder le plan actuel',
+    })) return;
     setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, plan: neuf } : x)));
   };
-  const accepterLaGlisse = (o: ObjectifCoffre) => {
+  const accepterLaGlisse = async (o: ObjectifCoffre) => {
     const e = etats.find((x) => x.objectif.id === o.id);
     if (!e?.arriveeProjetee) return;
-    if (!window.confirm(
-      `Accepter la nouvelle date pour « ${o.nom} » ?\n\nLe rythme ne change pas ; l'échéance passe de ${monthLabelLong(o.echeance ?? '')} à ${monthLabelLong(e.arriveeProjetee)}.`,
-    )) return;
+    if (!await demande({
+      quoi: 'Échéance de l’objectif',
+      titre: `Accepter la nouvelle date pour « ${o.nom} » ?`,
+      dit: `L’échéance passe de ${monthLabelLong(o.echeance ?? '')} à ${monthLabelLong(e.arriveeProjetee)}.`,
+      suite: 'Le rythme ne change pas : c’est la date qui cède, pas l’effort.',
+      accepter: 'Accepter la date',
+      refuser: 'Garder l’échéance',
+    })) return;
     setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, echeance: e.arriveeProjetee } : x)));
   };
 

@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Field, Input, Modal, Segs, Select, toast, alerte } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Segs, Select, toast, alerte, demande } from '../../../../ds/components';
 import { uid } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -306,7 +306,7 @@ export default function Encaissements() {
      liées ne bougent pas. Souverain seulement : ce geste réécrit l'argent
      des mains de toute l'équipe. */
   const monProfil = useMonProfil();
-  const reconstruireLesParts = () => {
+  const reconstruireLesParts = async () => {
     const equipe = staffStore.get()
       .filter((m) => m.branchId === branch.id)
       .map((m) => ({ id: m.id, part: m.partPourboire ?? PART_POURBOIRE_DEFAUT }));
@@ -317,12 +317,15 @@ export default function Encaissements() {
       return;
     }
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);
-    if (!window.confirm(
-      `Reconstruire les parts de pourboire depuis ce registre ?\n\n`
-      + `Toutes les parts SANS facture liée (celles d'avant le 19 août, doublons compris) seront effacées chez chacun, `
-      + `puis les ${factures.length} pourboire(s) du registre seront repartagés entre l'équipe. `
-      + `Les parts déjà liées à une facture ne bougent pas.`,
-    )) return;
+    if (!await demande({
+      quoi: 'Parts de pourboire',
+      titre: 'Reconstruire les parts de pourboire depuis ce registre ?',
+      dit: `Les ${factures.length} pourboire(s) du registre seront repartagés entre l’équipe.`,
+      scelle: 'Toutes les parts SANS facture liée, celles d’avant le 19 août et les doublons, seront effacées chez chacun.',
+      accepter: 'Reconstruire les parts',
+      refuser: 'Laisser les parts en place',
+      dur: true,
+    })) return;
     const orphelines = tipsStore.get().filter((t) => !t.invoiceId).length;
     /* LA PURGE SE DÉCLARE — sans ce laissez-passer, le garde-fou des
        suppressions de masse prenait ce grand ménage pour un cache corrompu,

@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea, alerte } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -266,8 +266,16 @@ export default function SalonFoyer() {
      coffre comme elle y est entrée, d'un geste ; il fallait sinon descendre
      dans le registre de l'épargne chercher la ligne et la croix. On confirme :
      c'est de l'argent, et le geste ne se rejoue pas tout seul. */
-  const annulerDotation = (e: EnveloppeReserve, montant: number) => {
-    if (!window.confirm(`Annuler la dotation de ${fmtMoney(montant, currency)} en ${RESERVE_LABELS[e]} ? Elle ressort du coffre.`)) return;
+  const annulerDotation = async (e: EnveloppeReserve, montant: number) => {
+    if (!await demande({
+      quoi: 'Dotation de l’épargne',
+      titre: `Annuler la dotation de ${fmtMoney(montant, currency)} ?`,
+      dit: `Elle ressort du coffre et quitte l’enveloppe ${RESERVE_LABELS[e]}.`,
+      suite: 'C’est de l’argent : le geste ne se rejoue pas tout seul.',
+      accepter: 'Annuler la dotation',
+      refuser: 'La laisser au coffre',
+      dur: true,
+    })) return;
     annuleDotation({ branchId: branch.id, enveloppe: e, mois: month });
   };
 
@@ -551,13 +559,21 @@ export default function SalonFoyer() {
     setFEdit(null);
   };
 
-  const supprimeCaisse = (c: CaisseIndep) => {
+  const supprimeCaisse = async (c: CaisseIndep) => {
     const n = mouvementsDe(mvtsCaisse, c.id).length;
     if (n > 0) {
       alerte(`« ${c.nom} » porte ${n} mouvement${n > 1 ? 's' : ''}. Retire-les d'abord, une caisse ne se ferme pas sur son registre.`);
       return;
     }
-    if (!window.confirm(`Supprimer la caisse « ${c.nom} » ? Elle est vide, l'action est définitive.`)) return;
+    if (!await demande({
+      quoi: 'Caisse du foyer',
+      titre: `Supprimer la caisse « ${c.nom} » ?`,
+      dit: 'Elle est vide : aucun mouvement ne s’y trouve, rien ne sera perdu du registre.',
+      scelle: 'La caisse ne se retrouve pas. Il faudra la recréer pour s’en resservir.',
+      accepter: 'Supprimer la caisse',
+      refuser: 'Garder la caisse',
+      dur: true,
+    })) return;
     setCaisses((prev) => prev.filter((x) => x.id !== c.id));
     setCaisseSel(null);
   };
@@ -609,8 +625,16 @@ export default function SalonFoyer() {
     setCaisseMvtOuvert(false);
   };
 
-  const supprime = <T extends { id: string }>(set: (fn: (prev: T[]) => T[]) => void, id: string, quoi: string) => {
-    if (!window.confirm(`Supprimer ${quoi} ? Cette action est irréversible.`)) return;
+  const supprime = async <T extends { id: string }>(set: (fn: (prev: T[]) => T[]) => void, id: string, quoi: string) => {
+    if (!await demande({
+      quoi: 'Suppression définitive',
+      titre: `Supprimer ${quoi} ?`,
+      dit: 'La ligne quitte le registre du foyer.',
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
     set((prev) => prev.filter((x) => x.id !== id));
   };
 
@@ -720,8 +744,15 @@ export default function SalonFoyer() {
                   <button
                     type="button"
                     className="tre-link-btn tre-link-btn--danger"
-                    onClick={() => {
-                      if (!window.confirm(`Retirer le motif « ${m.name} » ? Les retraits déjà inscrits le gardent.`)) return;
+                    onClick={async () => {
+                      if (!await demande({
+                        quoi: 'Motif de retrait',
+                        titre: `Retirer le motif « ${m.name} » ?`,
+                        dit: 'Il ne sera plus proposé lors d’un retrait du foyer.',
+                        suite: 'Les retraits déjà inscrits le gardent : l’histoire ne change pas.',
+                        accepter: 'Retirer le motif',
+                        refuser: 'Garder le motif',
+                      })) return;
                       motifsFoyerStore.set((prev) => prev.filter((x) => x.id !== m.id));
                     }}
                   >
@@ -1595,8 +1626,16 @@ export default function SalonFoyer() {
                     <button
                       className="trf-iconbtn"
                       title="Supprimer"
-                      onClick={() => {
-                        if (!window.confirm('Retirer cette ligne du coffre ? Cette action est irréversible.')) return;
+                      onClick={async () => {
+                        if (!await demande({
+                          quoi: 'Registre de l’épargne',
+                          titre: 'Retirer cette ligne du coffre ?',
+                          dit: 'C’est une correction d’écriture : l’argent ne bouge pas, seul le registre change.',
+                          scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+                          accepter: 'Retirer la ligne',
+                          refuser: 'Garder la ligne',
+                          dur: true,
+                        })) return;
                         supprimeLigneEpargne(m.id);
                       }}
                     >
