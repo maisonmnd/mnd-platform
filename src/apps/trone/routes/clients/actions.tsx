@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast, alerte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -337,7 +337,7 @@ export function deshonoreLeRituel(appt: Appointment, byId: Map<string, Service>)
   const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
   if (frais.status !== 'honoré') return false;
   if (apptPaidXof(frais) > 0) {
-    window.alert(
+    alerte(
       'Ce rituel est encaissé : un rituel encaissé reste honoré.\n\n'
       + 'Annulez d’abord l’encaissement (écran « Encaisser », « Annuler l’encaissement »), '
       + 'puis dés-honorez-le.',
@@ -1579,8 +1579,13 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         : '';
     const msg = [(depMsg + (payMsg + tipMsg).replace(/^ · /, '')).trim(), reschedMsg, honneurMsg].filter(Boolean).join(' · ') || 'Enregistré.';
     /* Succès → toast (zéro clic, la caissière enchaîne). Un pourboire NON
-       attribuable, lui, doit être VU : il reste en alerte bloquante. */
-    if (tip > 0 && !tipRecorded) window.setTimeout(() => window.alert(msg), 30);
+       attribuable, lui, doit être VU : il passe par le bandeau d'ALERTE, qui
+       porte la brique, se tient sept secondes et interrompt les lecteurs
+       d'écran. Il était bloquant jusqu'au 22 septembre 2026 ; la fenêtre du
+       navigateur a été retirée parce qu'elle pouvait être désactivée d'une
+       case à cocher, auquel cas ce pourboire ne se voyait plus DU TOUT.
+       Le report de 30 ms reste : il laisse la modale se refermer d'abord. */
+    if (tip > 0 && !tipRecorded) window.setTimeout(() => alerte(msg), 30);
     else toast(msg);
   };
 

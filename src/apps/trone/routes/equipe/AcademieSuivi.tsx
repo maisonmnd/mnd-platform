@@ -1,6 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Button, Card, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
 import { sameName } from '../../../../shared/text';
 import { palierDeLaFormation, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { useBranch } from '../../../../shared/branches';
@@ -405,11 +405,11 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
 
   const changeStatus = (next: EnrollmentStatus) => {
     if (next === 'jury_planifie' && !canPlanJury(e, modules.length)) {
-      window.alert('Impossible : chaque module doit avoir une évaluation validée (≥ 70) avant le jury.');
+      alerte('Impossible : chaque module doit avoir une évaluation validée (≥ 70) avant le jury.');
       return;
     }
     if (next === 'certifie') {
-      window.alert('Le statut « Certifié » se pose en délivrant le certificat (onglet Certificat).');
+      alerte('Le statut « Certifié » se pose en délivrant le certificat (onglet Certificat).');
       return;
     }
     let reason: string | undefined;

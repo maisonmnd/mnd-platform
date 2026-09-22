@@ -5,7 +5,7 @@ import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
 import { gammeTouteReglee } from '../../../../shared/gamme';
-import { Button, Input } from '../../../../ds/components';
+import { Button, Input, alerte, refus } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
@@ -167,7 +167,7 @@ export default function Carnet() {
     });
     const r = factureAEnvoyer(a, byId, branch.id, t.prixPlein);
     setMenuFor(null);
-    if (!r.ok) { window.alert(r.erreur); return; }
+    if (!r.ok) { refus(r.erreur); return; }
     navigate(`/factures?id=${r.inv.id}`);
   };
   /* La recherche peut arriver par l'adresse — c'est ainsi qu'un chiffre du

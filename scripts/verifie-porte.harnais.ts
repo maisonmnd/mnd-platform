@@ -123,7 +123,17 @@ dit('un gérant voit tout le reste', true, peutVoir('gerant', '/depenses', {}));
    domaines cochés avant ce jour gardent EXACTEMENT leur ancienne portée. */
 dit('un département donné ouvre ses écrans', true, peutVoir('maitre', '/caisse', { 'dept-vente-caisse': true }));
 dit('… et pas ceux d’un autre', false, peutVoir('maitre', '/depenses', { 'dept-vente-caisse': true }));
-dit('le Quotidien donné ouvre le tableau de bord', true, peutVoir('maitre', '/', { 'dept-quotidien': true }));
+dit('le tableau de bord est à la Direction', true, peutVoir('maitre', '/', { 'dept-direction': true }));
+/* LE QUOTIDIEN N'EST PAS UN DÉPARTEMENT : chaque poste y envoie ses onglets
+   lui-même (Shell). Il ne s'attribue donc pas, et il n'est pas dans la barre. */
+dit('le Quotidien n’est pas un groupe de la barre', false, NAV.some((g) => g.group === 'Le Quotidien'));
+dit('… ni un département qu’on donne', false, DEPARTEMENTS.some((d) => d.k === 'dept-quotidien'));
+dit('le Calendrier vit à la Clientèle', true,
+  NAV.find((g) => g.group === 'Clientèle')!.items.some((it) => it.path === '/calendrier'));
+dit('Le Fil, Le Tableau et Mon mois vivent à l’Équipe', true,
+  ['/fil', '/tableau', '/mon-mois'].every((p) => NAV.find((g) => g.group === 'Équipe')!.items.some((it) => it.path === p)));
+dit('… et restent ouverts d’office, où qu’ils vivent', true,
+  ['/calendrier', '/fil', '/tableau', '/mon-mois'].every((p) => peutVoir('maitre', p, {})));
 dit('les Engagements sont aux Finances', true, peutVoir('maitre', '/engagements', { 'dept-finances': true }));
 dit('… et plus à la vente', false, peutVoir('maitre', '/engagements', { 'dept-vente-caisse': true }));
 /* UN ANCIEN DOMAINE NE S'ÉLARGIT PAS : « vente » ouvrait les Engagements,
@@ -139,7 +149,7 @@ dit('la Clientèle seule ne les rend pas', false, voitLesPrix('maitre', { 'dept-
 dit('Salon & Foyer reste au souverain, même avec Finances', false, peutVoir('maitre', '/salon-foyer', { 'dept-finances': true }));
 dit('le Journal reste à la direction, même avec Système', false, peutVoir('maitre', '/journal', { 'dept-systeme': true }));
 /* LA BARRE ET LES RÔLES DISENT LA MÊME CHOSE. */
-dit('dix groupes, dix départements, mêmes libellés', true,
+dit('autant de groupes que de départements, mêmes libellés', true,
   NAV.length === DEPARTEMENTS.length && NAV.every((g) => DEPARTEMENTS.some((d) => d.l === g.group)));
 dit('aucune clef de département ne ressemble à un ancien domaine', true,
   DEPARTEMENTS.every((d) => d.k.startsWith('dept-') && !(d.k in ANCIENS_DOMAINES)));

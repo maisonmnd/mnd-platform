@@ -2,7 +2,7 @@ import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
@@ -119,7 +119,7 @@ export default function Marketing() {
     const body = [o.deal, o.sub].filter(Boolean).join(' · ') || 'Une offre vous attend à la Maison.';
     const n = await pushBroadcastClients(`${o.tag} · ${o.title}`, body, '/couronne/');
     setNotifBusy(null);
-    window.alert(
+    alerte(
       n > 0
         ? `Notification envoyée à ${n} cliente${n > 1 ? 's' : ''} abonnée${n > 1 ? 's' : ''}.`
         : 'Aucune cliente n’a encore activé les notifications sur Ma Couronne.',

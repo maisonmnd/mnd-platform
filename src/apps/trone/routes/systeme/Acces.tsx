@@ -718,7 +718,7 @@ export default function Acces() {
                               );
                             })}
                             <div className="sys-acc-note">
-                              Sans rien de donné : son Quotidien, sans les montants. Lui donner
+                              Sans rien de donné : le Calendrier, Le Fil, Le Tableau et Mon mois, sans les montants. Lui donner
                               <strong> Vente &amp; Caisse</strong> ou <strong>Finances</strong>, ou ouvrir la
                               <strong> Caisse</strong> ou les <strong>Factures</strong>, lui rend aussi les prix.
                             </div>

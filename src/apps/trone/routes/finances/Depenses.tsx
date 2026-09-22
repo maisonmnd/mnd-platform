@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { prestationRepond } from '../../../../shared/recherche';
-import { Eyebrow, Modal, Button, Field, Input, Select, toast } from '../../../../ds/components';
+import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
@@ -1005,7 +1005,7 @@ export default function Depenses() {
        validée qu'on efface disparaît des comptes sans laisser de trace, et le
        tiroir cesse de correspondre aux livres. */
     if (figeePour(monProfil?.role, e)) {
-      window.alert('Cette dépense a été tranchée. Elle ne se supprime plus : seul un souverain peut y revenir.');
+      alerte('Cette dépense a été tranchée. Elle ne se supprime plus : seul un souverain peut y revenir.');
       return;
     }
     if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;

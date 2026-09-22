@@ -19,9 +19,13 @@ export type TroneGroup = { group: string; items: TroneRoute[] };
 /* ── LA BARRE PAR DÉPARTEMENTS — 22 septembre 2026 ─────────────────────
    « Le menu mélange fréquence d'usage, fonction et type d'objet, et il
    déborde » (Yéman). Chaque rubrique devient un DÉPARTEMENT de la Maison, et
-   chaque département un rôle qu'on donne aux personnes qui y travaillent. Le
-   Quotidien reste à part : c'est le poste de travail de chacun, filtré selon
-   ce qu'on lui a ouvert.
+   chaque département un rôle qu'on donne aux personnes qui y travaillent.
+
+   LE QUOTIDIEN N'EST PAS UN GROUPE DE LA BARRE — 22 septembre 2026, le
+   soir même. « Enlève tout du quotidien et remets-les à leurs places.
+   Permets-moi de déplacer selon mes envies ce que je veux vers le
+   quotidien » (Yéman). Chaque écran vit dans son département ; le Quotidien
+   est une liste que chaque poste remplit lui-même (Shell, mode rangement).
 
    LA RÈGLE DE PLACEMENT : « Vente & Caisse » couvre l'acte de vendre et
    d'encaisser ; « Finances » couvre ce qui arrive après, trésorerie, créances,
@@ -30,25 +34,12 @@ export type TroneGroup = { group: string; items: TroneRoute[] };
    bougent pas, seule la barre les range autrement. */
 export const NAV: TroneGroup[] = [
   {
-    /* LE POSTE DE TRAVAIL. Les quatre écrans ouverts d'office à tout le
-       personnel (voir ROUTES_MAITRE_FERMABLES) et le tableau de bord. Le Fil
-       et le Tableau y sont ensemble : le Tableau n'a pas de table à lui, une
-       carte EST une demande du Fil, c'est le même registre vu autrement. */
-    group: 'Le Quotidien',
-    items: [
-      { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
-      { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
-      { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
-      { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
-      { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
-    ],
-  },
-  {
     /* CE QUI SE LIT POUR DÉCIDER. Le Juste Prix est une analyse de prix, pas
        une écriture ; À faire dit où mettre son temps, en nombres et en
        boutons : c'est la direction qui le lit. */
     group: 'Direction',
     items: [
+      { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
       { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
@@ -71,6 +62,8 @@ export const NAV: TroneGroup[] = [
        avec la clientèle, pas avec la caisse. */
     group: 'Clientèle',
     items: [
+      /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
+      { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
       { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
@@ -148,6 +141,12 @@ export const NAV: TroneGroup[] = [
   {
     group: 'Équipe',
     items: [
+      /* LE FIL — le registre interne. Il vit avec l'équipe parce que c'est
+         d'elle qu'il parle. Le Tableau n'a pas de table à lui : une carte EST
+         une demande du Fil, c'est le même registre vu autrement. */
+      { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
+      { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
+      { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
       { path: '/personnel', label: 'Personnel & paie', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
       { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
     ],
@@ -259,7 +258,6 @@ export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/ta
    nouveau département aurait ouvert les Engagements à quiconque avait coché
    l'ancien domaine, sans que personne ne l'ait décidé. */
 export const DEPARTEMENTS: { k: string; l: string }[] = [
-  { k: 'dept-quotidien', l: 'Le Quotidien' },
   { k: 'dept-direction', l: 'Direction' },
   { k: 'dept-clientele', l: 'Clientèle' },
   { k: 'dept-atelier', l: 'Atelier' },

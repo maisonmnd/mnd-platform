@@ -282,9 +282,68 @@ export function Segs<T extends string>({
     marque ; le toast informe sans rien interrompre. Réserver l'alert aux
     erreurs qui DOIVENT être vues (ex. pourboire non attribuable). */
 export function toast(message: string, ms = 3800): void {
+  poseLeBandeau(message, ms, false);
+}
+
+/** UNE ALERTE N'EST PAS UNE RÉUSSITE — 22 septembre 2026.
+
+    Trente-cinq `window.alert` disaient les refus de la Maison : une commande
+    qui ne part pas, un fichier illisible, une caisse qu'on ne peut pas
+    fermer. Or le navigateur propose, au bout de deux ou trois fenêtres,
+    de « ne plus afficher de boîtes de dialogue sur cette page ». Qui coche,
+    par réflexe, ne voit PLUS AUCUN de ces refus : le geste échoue en silence
+    et l'on croit qu'il est passé. C'est la leçon d'Accès du 5 septembre,
+    jamais appliquée ailleurs.
+
+    Pourquoi un bandeau à part plutôt que `toast` : un refus qu'on doit lire
+    et une réussite qu'on peut manquer n'ont ni la même urgence ni le même
+    temps de lecture. Celui-ci se tient plus longtemps, porte la brique de la
+    Maison, et s'annonce en `role="alert"` pour que les lecteurs d'écran
+    l'interrompent au lieu d'attendre leur tour. */
+export function alerte(message: string, ms = 7000): void {
+  poseLeBandeau(message, ms, true);
+}
+
+/** UN REFUS SANS MOTIF RESTE UN REFUS — 22 septembre 2026.
+
+    Les gestes de la Maison rendent `{ ok, erreur? }`, où le motif est
+    FACULTATIF : rien, dans le type, n'oblige un refus à dire pourquoi. Tant
+    que ces messages passaient par `window.alert`, un refus muet affichait
+    « undefined » en pleine figure, et personne ne l'a jamais signalé, parce
+    qu'une fenêtre qu'on ferme vite ne se raconte pas.
+
+    Ici, un refus muet le dit. La phrase est volontairement gênante : elle
+    désigne un trou à combler dans le geste qui a refusé, au lieu de le
+    masquer derrière un « une erreur est survenue » qui n'apprend rien.
+
+    ⚠ Le vrai remède est ailleurs : lier `ok: false` à un motif obligatoire
+    dans les types de `shared/`. Ce jour-là, cette fonction deviendra inutile
+    et c'est très bien. */
+export const refus = (motif?: string): void =>
+  alerte(motif?.trim() || 'Ce geste n’a pas pu être fait, et la Maison n’a pas dit pourquoi.');
+
+/** LES BANDEAUX S'EMPILENT, ILS NE SE RECOUVRENT PAS — 22 septembre 2026.
+
+    `window.alert` faisait la queue : deux refus d'affilée se lisaient l'un
+    après l'autre. Un bandeau, lui, est posé à un endroit fixe, et le second
+    masquerait le premier sans laisser de trace. Or un message qu'on ne voit
+    pas est pire que pas de message : l'écran a l'air d'avoir répondu.
+
+    Chaque nouveau bandeau se pose donc AU-DESSUS de ceux qui tiennent
+    encore. La hauteur se lit sur le document, jamais dans un compteur en
+    mémoire : un bandeau peut disparaître avant les autres, et un compteur
+    se serait décalé au premier départ. */
+const HAUTEUR_DU_BANDEAU = 54;
+
+function poseLeBandeau(message: string, ms: number, estUneAlerte: boolean): void {
   const el = document.createElement('div');
-  el.className = 'mnd-toast';
-  el.setAttribute('role', 'status');
+  el.className = estUneAlerte ? 'mnd-toast mnd-toast--alerte' : 'mnd-toast';
+  el.setAttribute('role', estUneAlerte ? 'alert' : 'status');
+  const deja = document.querySelectorAll('.mnd-toast:not(.is-out)').length;
+  if (deja > 0) el.style.bottom = `${26 + deja * HAUTEUR_DU_BANDEAU}px`;
+  /* LE TEXTE, PAS DU HTML : ces messages portent des noms saisis à la main
+     (une cliente, une caisse, un motif), qui ne doivent jamais être lus
+     comme du balisage. */
   el.textContent = message;
   document.body.appendChild(el);
   window.setTimeout(() => {

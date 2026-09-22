@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead, WaLien } from '../_ui';
-import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
@@ -190,7 +190,7 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
                     variant="indigo"
                     onClick={() => {
                       const r = validerEnfant(d, today, nomComplet);
-                      if (!r.ok) window.alert(r.erreur ?? 'Impossible de valider cette demande.');
+                      if (!r.ok) alerte(r.erreur ?? 'Impossible de valider cette demande.');
                     }}
                   >
                     Ouvrir sa fiche
@@ -2273,7 +2273,7 @@ function Customer360({
     try {
       patch({ photo: await readImageDownscaled(file) });
     } catch {
-      window.alert('Cette image n’a pas pu être lue. Essayez une photo JPEG ou PNG.');
+      alerte('Cette image n’a pas pu être lue. Essayez une photo JPEG ou PNG.');
     } finally {
       setPhotoBusy(false);
     }
@@ -2341,7 +2341,7 @@ function Customer360({
     );
     patch({ birthdayGiftAt: todayISO() });
     setGiftBusy(false);
-    window.alert(
+    alerte(
       n > 0
         ? `Cadeau envoyé, notification reçue sur le téléphone de ${first}.`
         : `Cadeau enregistré côté Trône. ${first} n'a pas activé les notifications sur Ma Couronne, rien poussé sur son téléphone.`,

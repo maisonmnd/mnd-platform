@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { PageHead, WaLien } from '../_ui';
 import { prestationRepond } from '../../../../shared/recherche';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, alerte, refus } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
@@ -215,7 +215,7 @@ function OngletGamme() {
   const retirerLigne = (cat: CatalogCategory) => {
     const dedans = products.filter((p) => p.categoryId === cat.id);
     if (dedans.length) {
-      window.alert(`« ${cat.fon} » porte encore ${dedans.length} produit${dedans.length > 1 ? 's' : ''}. Déplacez-les vers une autre ligne avant de la retirer.`);
+      alerte(`« ${cat.fon} » porte encore ${dedans.length} produit${dedans.length > 1 ? 's' : ''}. Déplacez-les vers une autre ligne avant de la retirer.`);
       return;
     }
     if (!window.confirm(`Retirer la ligne « ${cat.fon} » ?`)) return;
@@ -478,7 +478,7 @@ function OngletVue() {
       seuilAlerte: nombre(fiche.seuil), stockCible: nombre(fiche.cible),
       emplacement: fiche.emplacement || undefined,
     }, litQuantite(fiche.stockInitial) || 0, jour());
-    if (!r.ok) { window.alert(r.erreur); return; }
+    if (!r.ok) { refus(r.erreur); return; }
     setFiche(null);
   };
 
@@ -488,7 +488,7 @@ function OngletVue() {
     const r = ajuste.perte
       ? declarerPerte(ajuste.p, n, ajuste.note, jour())
       : ajusterStock(ajuste.p, n, ajuste.note, jour());
-    if (!r.ok) { window.alert(r.erreur); return; }
+    if (!r.ok) { refus(r.erreur); return; }
     setAjuste(null);
   };
 
@@ -514,7 +514,7 @@ function OngletVue() {
             variant="copper" size="sm"
             onClick={() => {
               const n = reprendreGamme(branch.id, jour());
-              window.alert(n ? `${n} fiche${n > 1 ? 's' : ''} créée${n > 1 ? 's' : ''}.` : 'Rien à reprendre.');
+              alerte(n ? `${n} fiche${n > 1 ? 's' : ''} créée${n > 1 ? 's' : ''}.` : 'Rien à reprendre.');
             }}
           >
             Reprendre la Gamme
@@ -867,7 +867,7 @@ function OngletAchats() {
     const liste = groupes.get(fournisseurId) ?? [];
     if (!liste.length) return;
     const r = creerCommande(branch.id, fournisseurId, jour());
-    if (!r.ok || !r.id) { window.alert(r.erreur); return; }
+    if (!r.ok || !r.id) { refus(r.erreur); return; }
     const cmd = commandesAchatStoreGet(r.id);
     if (cmd) for (const l of liste) ajouterLigneCommande(cmd, l.produit, l.aCommander);
     setOuvert(r.id);
@@ -888,7 +888,7 @@ function OngletAchats() {
         nom: ff.nom, telephone: ff.telephone, produitsFournis: ff.produitsFournis,
         delaiJours: Number.isFinite(parseInt(ff.delai, 10)) ? parseInt(ff.delai, 10) : undefined, conditionsPaiement: ff.conditions,
       });
-      if (!r.ok) { window.alert(r.erreur); return; }
+      if (!r.ok) { refus(r.erreur); return; }
     }
     setFf(null);
   };
@@ -1175,7 +1175,7 @@ function BonOuvert({ commande, recus, setRecus }: {
                         onClick={() => {
                           const q = litQuantite(recus[l.id] ?? '');
                           const r = recevoirLigne(l, q, jour());
-                          if (!r.ok) { window.alert(r.erreur); return; }
+                          if (!r.ok) { refus(r.erreur); return; }
                           setRecus((prev) => ({ ...prev, [l.id]: '' }));
                         }}
                       >
@@ -1217,7 +1217,7 @@ function BonOuvert({ commande, recus, setRecus }: {
               const pr = produit(ajout.produitId);
               if (!pr) return;
               const r = ajouterLigneCommande(commande, pr, litQuantite(ajout.qte) || 0);
-              if (!r.ok) { window.alert(r.erreur); return; }
+              if (!r.ok) { refus(r.erreur); return; }
               setAjout({ produitId: '', qte: '' });
             }}
           >
@@ -1231,7 +1231,7 @@ function BonOuvert({ commande, recus, setRecus }: {
           {(commande.statut === 'brouillon' || commande.statut === 'envoyee') && (
             <Button
               size="sm" variant="ghost" style={{ color: '#8f3b30' }}
-              onClick={() => { const r = annulerCommande(commande); if (!r.ok) window.alert(r.erreur); }}
+              onClick={() => { const r = annulerCommande(commande); if (!r.ok) refus(r.erreur); }}
             >
               Annuler le bon
             </Button>
@@ -1245,7 +1245,7 @@ function BonOuvert({ commande, recus, setRecus }: {
         {brouillon && (
           <Button
             variant="indigo"
-            onClick={() => { const r = envoyerCommande(commande); if (!r.ok) window.alert(r.erreur); }}
+            onClick={() => { const r = envoyerCommande(commande); if (!r.ok) refus(r.erreur); }}
           >
             Marquer envoyé au fournisseur
           </Button>
@@ -1343,7 +1343,7 @@ function OngletRecettes() {
                 const p = produit(ajout.produitId);
                 if (!p || !serviceId) return;
                 const r = poserRecette(branch.id, serviceId, p, litQuantite(ajout.qte) || 0);
-                if (!r.ok) { window.alert(r.erreur); return; }
+                if (!r.ok) { refus(r.erreur); return; }
                 setAjout({ produitId: '', qte: '' });
               }}
             >
@@ -1503,8 +1503,8 @@ function OngletComptage() {
   const comptees = fiches.filter((x) => ecartDe(x) !== null).length;
 
   const valider = () => {
-    if (!aEcrire.length) { window.alert('Aucun écart à écrire : soit rien n’est compté, soit tout est juste.'); return; }
-    if (sansMotif.length) { window.alert(`${sansMotif.length} écart${sansMotif.length > 1 ? 's' : ''} sans motif. Chaque écart doit dire pourquoi, le journal le gardera.`); return; }
+    if (!aEcrire.length) { alerte('Aucun écart à écrire : soit rien n’est compté, soit tout est juste.'); return; }
+    if (sansMotif.length) { alerte(`${sansMotif.length} écart${sansMotif.length > 1 ? 's' : ''} sans motif. Chaque écart doit dire pourquoi, le journal le gardera.`); return; }
     if (!window.confirm(`Écrire ${aEcrire.length} ajustement${aEcrire.length > 1 ? 's' : ''} au journal, datés du jour ?`)) return;
     let ecrits = 0;
     for (const x of aEcrire) {
@@ -1514,7 +1514,7 @@ function OngletComptage() {
     }
     setComptes({});
     setMotifs({});
-    window.alert(`${ecrits} ajustement${ecrits > 1 ? 's' : ''} écrit${ecrits > 1 ? 's' : ''}. Le journal porte la photo du jour.`);
+    alerte(`${ecrits} ajustement${ecrits > 1 ? 's' : ''} écrit${ecrits > 1 ? 's' : ''}. Le journal porte la photo du jour.`);
   };
 
   return (

@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { normName, sameName } from '../../../../shared/text';
-import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast, alerte } from '../../../../ds/components';
 import { pushNotifyStaff } from '../../../../shared/push';
 import { todayISO } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
@@ -202,7 +202,7 @@ export function PaieRuns() {
     setOpenId(run.id);
    } catch (err) {
     // Un run ne doit jamais échouer en silence : on montre l'erreur plutôt que de « ne rien faire ».
-    window.alert(`Le run n'a pas pu être créé : ${err instanceof Error ? err.message : String(err)}`);
+    alerte(`Le run n'a pas pu être créé : ${err instanceof Error ? err.message : String(err)}`);
    }
   };
 

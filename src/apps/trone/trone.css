@@ -702,6 +702,8 @@ body[data-surface='trone'] {
 }
 .tr-nav__range__fleche:hover:not(:disabled) { border-color: var(--color-copper); background: rgba(185,122,74,.2); }
 .tr-nav__range__fleche:disabled { opacity: .25; cursor: default; }
+/* Le mot « quotidien » ne tient pas dans un carré de flèche. */
+.tr-nav__range__fleche--mot { width: auto; padding: 0 8px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 
 /* ═══ LA PASTILLE PARTAGÉE ════════════════════════════════════════════════
    « Je veux voir clairement quand je sélectionne un bouton actif. Aucune

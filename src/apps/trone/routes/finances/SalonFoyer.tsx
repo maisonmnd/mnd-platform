@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, alerte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -554,7 +554,7 @@ export default function SalonFoyer() {
   const supprimeCaisse = (c: CaisseIndep) => {
     const n = mouvementsDe(mvtsCaisse, c.id).length;
     if (n > 0) {
-      window.alert(`« ${c.nom} » porte ${n} mouvement${n > 1 ? 's' : ''}. Retire-les d'abord, une caisse ne se ferme pas sur son registre.`);
+      alerte(`« ${c.nom} » porte ${n} mouvement${n > 1 ? 's' : ''}. Retire-les d'abord, une caisse ne se ferme pas sur son registre.`);
       return;
     }
     if (!window.confirm(`Supprimer la caisse « ${c.nom} » ? Elle est vide, l'action est définitive.`)) return;

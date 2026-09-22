@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { useBranch } from '../../../../shared/branches';
@@ -1390,14 +1390,14 @@ function ManuelDesFormatrices() {
     try {
       brut = JSON.parse(await f.text());
     } catch {
-      window.alert('Ce fichier ne se lit pas : ce n’est pas un manuel au format attendu (.json).');
+      alerte('Ce fichier ne se lit pas : ce n’est pas un manuel au format attendu (.json).');
       return;
     }
     const d = new Date();
     const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const lu = lisLeManuel(brut, jour);
     if (lu.erreurs.length) {
-      window.alert(`Le manuel n’a pas été importé :\n\n${lu.erreurs.join('\n')}`);
+      alerte(`Le manuel n’a pas été importé :\n\n${lu.erreurs.join('\n')}`);
       return;
     }
     const seances = lu.manuels.reduce((n, m) => n + m.seances.length, 0);

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, alerte, refus } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { invoicesStore, nouvelleFacture, ligneFacture, type Invoice } from '../../../../shared/finance';
@@ -524,7 +524,7 @@ function ComposerModal({ cliente, concernK, nomFormule, forme, prixConseille, in
       { concernK, nomFormule, forme, ingredientsTexte: ingredients.map((x) => x.nom), prixXof: parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0, notes },
       lignes, jour(),
     );
-    if (!r.ok) { window.alert(r.erreur); return; }
+    if (!r.ok) { refus(r.erreur); return; }
     onFait();
   };
 
@@ -782,7 +782,7 @@ function OngletPreparations() {
       : '';
     if (!window.confirm(`Fabriquer « ${prep.nomFormule} » pour ${nomCliente(prep.clientId)} ? Les ingrédients seront décomptés du stock.${detail}`)) return;
     const r = fabriquerPreparation(prep, jour());
-    if (!r.ok) window.alert(r.erreur);
+    if (!r.ok) refus(r.erreur);
   };
 
   /* LA FACTURE REJOINT LES CIRCUITS COMMUNS : impayés, encaissements, avoirs —
@@ -804,7 +804,7 @@ function OngletPreparations() {
         lines: [ligneFacture(`Préparation du Laboratoire · ${prep.nomFormule}`, prep.prixXof)],
       });
       const r = poserFacture(prep, inv.id);
-      if (!r.ok) { window.alert(r.erreur); return; }
+      if (!r.ok) { refus(r.erreur); return; }
       invoicesStore.set((prev) => [inv, ...prev]);
       navigate(`/factures?id=${inv.id}`);
     } finally {
@@ -855,7 +855,7 @@ function OngletPreparations() {
                     </>
                   )}
                   {prep.statut === 'fabriquee' && (
-                    <Button size="sm" variant="indigo" onClick={() => { const r = remettrePreparation(prep, jour()); if (!r.ok) window.alert(r.erreur); }}>
+                    <Button size="sm" variant="indigo" onClick={() => { const r = remettrePreparation(prep, jour()); if (!r.ok) refus(r.erreur); }}>
                       Remettre à {nomCliente(prep.clientId).split(' ')[0]}
                     </Button>
                   )}
@@ -869,7 +869,7 @@ function OngletPreparations() {
                     <button
                       className="trv-minibtn"
                       title="Retire les sorties du journal, la réserve remonte"
-                      onClick={() => { if (window.confirm('Annuler la fabrication ? Les ingrédients reviennent au stock.')) { const r = annulerFabrication(prep); if (!r.ok) window.alert(r.erreur); } }}
+                      onClick={() => { if (window.confirm('Annuler la fabrication ? Les ingrédients reviennent au stock.')) { const r = annulerFabrication(prep); if (!r.ok) refus(r.erreur); } }}
                     >
                       Annuler la fabrication
                     </button>
@@ -971,7 +971,7 @@ function LierModal({ ingredient, onClose }: { ingredient: string; onClose: () =>
       nom: ingredient, famille: 'consommable', unite,
       prixAchatXof: Math.round(litQuantite(prixAchat) || 0),
     }, litQuantite(stockInitial) || 0, jour());
-    if (!r.ok || !r.id) { window.alert(r.erreur); return; }
+    if (!r.ok || !r.id) { refus(r.erreur); return; }
     lierIngredient(r.id, ingredient);
     onClose();
   };

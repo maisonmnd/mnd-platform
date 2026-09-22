@@ -282,6 +282,22 @@
   box-shadow: 0 10px 30px rgba(20, 20, 27, 0.28);
   max-width: min(560px, calc(100vw - 32px));
   animation: mnd-toast-in 0.25s ease;
+  /* LES RETOURS À LA LIGNE SURVIVENT — 22 septembre 2026. Les messages repris
+     de `window.alert` portent des paragraphes séparés par des sauts de ligne,
+     qui disaient le refus PUIS le remède (« annulez d'abord l'encaissement,
+     puis dés-honorez »). Sans ceci, tout se collait en un seul bloc et le
+     remède se noyait dans la cause. */
+  white-space: pre-line;
+}
+/* LE BANDEAU D'ALERTE — 22 septembre 2026. Il dit un refus, pas une
+   réussite : la brique de la Maison, et un filet clair à gauche pour qu'on
+   le distingue du bandeau ordinaire d'un seul regard, même de loin et même
+   sans lire. Il se tient plus longtemps (7 s contre 3,8) parce qu'un refus
+   se lit et se comprend, là où une confirmation se devine. */
+.mnd-toast--alerte {
+  background: var(--color-brique, #96412E);
+  border-left: 3px solid var(--color-ivoire);
+  font-weight: 500;
 }
 .mnd-toast.is-out { opacity: 0; transition: opacity 0.35s ease; }
 @keyframes mnd-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }

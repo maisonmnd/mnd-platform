@@ -30,12 +30,14 @@ import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
    LA CAISSE POS EN REDESCEND le 25 août : on encaisse depuis « + Encaisser »,
    qui est déjà dans l'en-tête, et depuis le Carnet — la ligne du menu faisait
    double emploi. Elle retrouve sa place sous « Vente ». */
-/* LE QUOTIDIEN EST UN DÉPARTEMENT DEPUIS LE 22 SEPTEMBRE 2026 : le poste de
-   travail de chacun, premier groupe de la barre (routes/index). La liste
-   vivait ici en double ; elle se lit désormais à sa source. Le Carnet, les
-   Clientes, les Factures et le Catalogue en sortent : ils ont chacun leur
-   département, et un maître ne les voit que si on le lui a ouvert. */
-const QUOTIDIEN: string[] = (NAV.find((g) => g.group === 'Le Quotidien')?.items ?? []).map((it) => it.path);
+/* LE QUOTIDIEN EST À LA MAIN — 22 septembre 2026. « Enlève tout du quotidien
+   et remets-les à leurs places. Permets-moi de déplacer selon mes envies ce
+   que je veux vers le quotidien » (Yéman). Il n'est plus un groupe de la
+   barre ni un département : une liste VIDE au départ, que chaque poste
+   remplit lui-même depuis le mode rangement, et qui vit PAR POSTE comme
+   l'ordre des onglets. Un écran n'y paraît que s'il est visible : s'il se
+   ferme un jour à cette personne, il en sort de lui-même. */
+const quotidienStore = createStore<string[]>('mnd_trone_quotidien', []);
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 
 /* ── LA MAIN RANGE SON MENU — 22 août 2026 ──────────────────────────
@@ -335,6 +337,7 @@ export default function Shell() {
      cacher où l'on est. */
   const [deplies, setDeplies] = useStore(menuDeplieStore);
   const [ordreNav, setOrdreNav] = useStore(navOrdreStore);
+  const [quotidienPerso, setQuotidienPerso] = useStore(quotidienStore);
   /* Le mode rangement : les onglets cessent de conduire quelque part et se
      laissent monter ou descendre. Un mode, pas un réglage caché — on le quitte
      du même bouton qui l'a ouvert. */
@@ -353,14 +356,14 @@ export default function Shell() {
   const visibles = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.horsMenu && peutVoir(role, it.path, mesDomaines)) }))
     .filter((g) => g.items.length > 0);
   const deuxEtages = visibles.reduce((s, g) => s + g.items.length, 0) > 8;
-  const quotidien = selonLaMain(ordreNav['Le quotidien'], QUOTIDIEN
+  const quotidien = selonLaMain(ordreNav['Le quotidien'], quotidienPerso
     .map((p) => visibles.flatMap((g) => g.items).find((it) => it.path === p))
     .filter((it): it is TroneRoute => !!it));
   const [filTous] = useFil();
   const [factures] = useInvoices();
   const monMailShell = (session?.user?.email ?? '').trim().toLowerCase();
   const replies = visibles
-    .map((g) => ({ ...g, items: selonLaMain(ordreNav[g.group], g.items.filter((it) => !QUOTIDIEN.includes(it.path))) }))
+    .map((g) => ({ ...g, items: selonLaMain(ordreNav[g.group], g.items.filter((it) => !quotidienPerso.includes(it.path))) }))
     .filter((g) => g.items.length > 0);
   /* ── UNE DEMANDE QUI ATTEND SE VOIT DEPUIS PARTOUT — 18 août 2026.
      « Comment savoir si j'ai une nouvelle demande à traiter dans les fils ? »
@@ -386,6 +389,27 @@ export default function Shell() {
   const lienRangeable = (cle: string, liste: TroneRoute[]) => (it: TroneRoute, i: number) => (
     <div className="tr-nav__range" key={it.path}>
       <span className="tr-nav__range__nom"><it.icon />{it.label}</span>
+      {/* ENVOYER AU QUOTIDIEN, OU L'EN RETIRER. Le geste n'existe qu'à deux
+          étages : un menu à plat n'a pas de haut où envoyer quoi que ce soit. */}
+      {deuxEtages && (cle === 'Le quotidien' ? (
+        <button
+          className="tr-nav__range__fleche tr-nav__range__fleche--mot"
+          aria-label={`Retirer ${it.label} du Quotidien`}
+          title="Rendre à son département"
+          onClick={() => setQuotidienPerso((prev) => prev.filter((p) => p !== it.path))}
+        >
+          retirer
+        </button>
+      ) : (
+        <button
+          className="tr-nav__range__fleche tr-nav__range__fleche--mot"
+          aria-label={`Envoyer ${it.label} au Quotidien`}
+          title="Envoyer en haut du menu"
+          onClick={() => setQuotidienPerso((prev) => (prev.includes(it.path) ? prev : [...prev, it.path]))}
+        >
+          quotidien
+        </button>
+      ))}
       <button
         className="tr-nav__range__fleche"
         disabled={i === 0}
@@ -516,12 +540,20 @@ export default function Shell() {
             ))
           ) : (
             <>
-              <div>
-                {/* La clef de rangement reste « Le quotidien » : c'est celle
-                    sous laquelle chaque poste a enregistré son ordre. */}
-                <div className="tr-nav__group">Le Quotidien</div>
-                {rangement ? quotidien.map(lienRangeable('Le quotidien', quotidien)) : quotidien.map(lien)}
-              </div>
+              {/* Vide, le Quotidien ne se montre pas : un titre sans rien
+                  dessous ne dirait que ce qu'on n'a pas rangé. En rangement,
+                  il se montre vide, pour qu'on sache où envoyer. */}
+              {(quotidien.length > 0 || rangement) && (
+                <div>
+                  {/* La clef de rangement reste « Le quotidien » : c'est celle
+                      sous laquelle chaque poste a enregistré son ordre. */}
+                  <div className="tr-nav__group">Le Quotidien</div>
+                  {rangement ? quotidien.map(lienRangeable('Le quotidien', quotidien)) : quotidien.map(lien)}
+                  {rangement && quotidien.length === 0 && (
+                    <div className="tr-nav__aide">Vide. Envoyez-y les onglets que vous ouvrez tous les jours.</div>
+                  )}
+                </div>
+              )}
               {replies.map((g) => {
                 const ouvert = deplies[g.group] === true || g.items.some((it) => emplacement.pathname === it.path);
                 return (
@@ -551,10 +583,11 @@ export default function Shell() {
           </button>
           {rangement && (
             <div className="tr-nav__aide">
-              Les flèches montent et descendent chaque onglet. L’ordre est le vôtre, sur CE poste
+              Les flèches montent et descendent chaque onglet ; « quotidien » l’envoie en haut du
+              menu, « retirer » le rend à son département. Tout ceci est le vôtre, sur CE poste
               seulement, il ne change rien pour les autres.
-              {Object.keys(ordreNav).length > 0 && (
-                <button className="tr-nav__reset" onClick={() => setOrdreNav({})}>
+              {(Object.keys(ordreNav).length > 0 || quotidienPerso.length > 0) && (
+                <button className="tr-nav__reset" onClick={() => { setOrdreNav({}); setQuotidienPerso([]); }}>
                   Revenir à l’ordre d’origine
                 </button>
               )}

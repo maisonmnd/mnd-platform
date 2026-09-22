@@ -2,6 +2,46 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES ALERTES CESSENT DE POUVOIR DISPARAÎTRE — 22 septembre 2026
+
+Demande de Yéman : retirer les vieilles fenêtres bloquantes du navigateur.
+**Je lui avais annoncé CINQ ; il y en a 140** dans Le Trône (89 `window.confirm`,
+35 `window.alert`, 16 `window.prompt`), chiffre faux tiré d'une recherche
+tronquée à dix lignes. Les autres applications sont propres, une seule dans
+Certificat. Il a tranché : les alertes d'abord.
+
+**Le danger n'est pas la laideur.** Au bout de deux ou trois fenêtres, le
+navigateur propose « ne plus afficher de boîtes de dialogue sur cette page ».
+Qui coche voit toutes les confirmations répondre « non » sans rien demander,
+et surtout **plus aucune alerte** : sur les Rituels maison, quatorze messages
+d'erreur disparaissaient alors en silence, la commande échouait et l'écran ne
+disait rien. C'est la leçon d'Accès du 5 septembre, jamais appliquée ailleurs.
+
+**Fait** : `alerte()` dans `ds/components` — brique de la Maison, sept secondes
+au lieu de 3,8, `role="alert"` pour que les lecteurs d'écran interrompent au
+lieu d'attendre. Distinct de `toast()` à dessein : un refus qu'on doit lire et
+une réussite qu'on peut manquer n'ont ni la même urgence ni le même temps de
+lecture.
+
+**Trois pièges rencontrés, qui ne se voient pas à l'œil.**
+1. `window.alert(r.erreur)` affichait « undefined » quand le refus ne disait pas
+   pourquoi — le type des gestes est `{ ok: boolean; erreur?: string }`, où le
+   motif est FACULTATIF. Personne ne l'avait jamais signalé : une fenêtre qu'on
+   ferme vite ne se raconte pas. `refus()` le dit maintenant en toutes lettres.
+   Le vrai remède est ailleurs : lier `ok: false` à un motif obligatoire dans
+   les types de `shared/`, et ce jour-là `refus()` deviendra inutile.
+2. `window.alert` FAISAIT LA QUEUE, un bandeau non : deux messages d'affilée se
+   seraient recouverts, et un message qu'on ne voit pas est pire que pas de
+   message. Ils s'empilent, la hauteur se lit sur le document et jamais dans un
+   compteur en mémoire, qui se décalerait au premier départ.
+3. Les anciens messages portent des sauts de ligne qui disent le refus PUIS le
+   remède. `white-space: pre-line` sur le bandeau, sans quoi le remède se noyait
+   dans la cause.
+
+**Reste** : 89 confirmations (il faut d'abord construire la confirmation maison,
+puis passer écran par écran) et 16 questions. Écrans les plus chargés : Rituels
+maison 17, Clientèle 11, Foyer du salon 10, Dépenses 10.
+
 ## LA PLACE EST PRÊTE AVANT L'ARRIVÉE — 22 septembre 2026
 
 « Ça sert à quoi de confirmer un compte avec le code à six chiffres et avoir

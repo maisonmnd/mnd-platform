@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Field, Input, Modal, Segs, Select, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Segs, Select, toast, alerte } from '../../../../ds/components';
 import { uid } from '../../../../shared/store';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -313,7 +313,7 @@ export default function Encaissements() {
     /* SANS ÉQUIPE, ON NE TOUCHE À RIEN. Effacer d'abord et repartager entre
        personne aurait vidé « Mon mois » de tout le monde sans rien rendre. */
     if (equipe.filter((m) => m.part > 0).length === 0) {
-      window.alert('Aucune fiche du personnel dans cette branche (Personnel & paie), rien n’a été touché : le repartage n’aurait crédité personne.');
+      alerte('Aucune fiche du personnel dans cette branche (Personnel & paie), rien n’a été touché : le repartage n’aurait crédité personne.');
       return;
     }
     const factures = invoices.filter((i) => i.branchId === branch.id && i.kind === 'facture' && (i.tipXof ?? 0) > 0);
