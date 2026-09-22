@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useMemo, useRef, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte, demande } from '../../../../ds/components';
 import { fmtMoney } from '../../../../shared/currency';
 import { usePaymentMethods, type PaymentMethod } from '../../../../shared/finance';
 import { useBranch } from '../../../../shared/branches';
@@ -157,15 +157,19 @@ export default function Academie() {
       }),
     }))
     .filter((x) => x.c.rubriques.length > 0), [formations, apprenants, enrollments, defaultModules]);
-  const completeLesFiches = () => {
+  const completeLesFiches = async () => {
     const n = aCompleter.length;
     const prix = aCompleter.filter((x) => x.c.rubriques.includes('prix')).length;
-    if (!window.confirm(
-      `Compléter ${n} formation${n > 1 ? 's' : ''} avec le contenu validé de l’Académie ?\n\n`
-      + 'Seules les rubriques vides se remplissent : rien de ce qui a été écrit à la main n’est repris.'
-      + (prix > 0 ? `\nLe prix proposé se pose sur ${prix} formation${prix > 1 ? 's' : ''} encore sans prix ; un prix déjà écrit reste.` : '')
-      + '\nLe programme d’une formation qui a déjà des inscrites ne change pas.',
-    )) return;
+    if (!await demande({
+      quoi: 'Contenu de l’Académie',
+      titre: `Compléter ${n} formation${n > 1 ? 's' : ''} avec le contenu validé ?`,
+      dit: 'Seules les rubriques vides se remplissent : rien de ce qui a été écrit à la main n’est repris.',
+      suite: prix > 0
+        ? `Le prix proposé se pose sur ${prix} formation${prix > 1 ? 's' : ''} encore sans prix ; un prix déjà écrit reste.`
+        : undefined,
+      accepter: `Compléter les ${n}`,
+      refuser: 'Ne rien compléter',
+    })) return;
     const parId = new Map(aCompleter.map((x) => [x.f.id, x.c.fiche]));
     setFormations((prev) => prev.map((f) => parId.get(f.id) ?? f));
     toast(`${n} fiche${n > 1 ? 's' : ''} complétée${n > 1 ? 's' : ''}.`);
@@ -327,12 +331,21 @@ export default function Academie() {
       return next;
     });
   };
-  const removeFo = (f: Formation) => {
+  const removeFo = async (f: Formation) => {
     const enrolled = apprenants.filter((a) => a.formationId === f.id).length;
     const warn = enrolled > 0
       ? `\n\nAttention : ${enrolled} apprenant·e${enrolled > 1 ? 's' : ''} y ${enrolled > 1 ? 'sont inscrit·e·s' : 'est inscrit·e'}. Leur suivi restera sans formation rattachée.`
       : '';
-    if (!window.confirm(`Supprimer la formation « ${f.name} » ?${warn}`)) return;
+    if (!await demande({
+      quoi: 'Formation de l’Académie',
+      titre: `Supprimer la formation « ${f.name} » ?`,
+      dit: 'Elle quitte le catalogue de l’Académie.',
+      suite: warn ? warn.trim() : undefined,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la formation',
+      refuser: 'Garder la formation',
+      dur: true,
+    })) return;
     setFormations((prev) => prev.filter((x) => x.id !== f.id));
   };
 
@@ -1310,10 +1323,17 @@ function RefEditor({
     });
   const del = (i: number) => store.set((prev) => prev.filter((_, j) => j !== i));
   const add = () => store.set((prev) => [...prev, { n: '', g: '' }]);
-  const reset = () => {
-    if (window.confirm(`Rétablir « ${title} » au standard MND ? Vos modifications de cette section seront remplacées.`)) {
-      store.set(() => seed.map((r) => ({ ...r })));
-    }
+  const reset = async () => {
+    if (!await demande({
+      quoi: 'Section du standard',
+      titre: `Rétablir « ${title} » au standard MND ?`,
+      dit: 'La section reprend le texte livré avec Le Trône.',
+      scelle: 'Vos modifications de cette section seront remplacées.',
+      accepter: 'Rétablir la section',
+      refuser: 'Garder mon texte',
+      dur: true,
+    })) return;
+    store.set(() => seed.map((r) => ({ ...r })));
   };
 
   return (
@@ -1408,7 +1428,13 @@ function ManuelDesFormatrices() {
       'Il sera rangé dans la base privée, visible du personnel seulement.',
     ].filter(Boolean);
     if (lu.alertes.length) lignes.push('', 'À savoir :', ...lu.alertes);
-    if (!window.confirm(lignes.join('\n'))) return;
+    if (!await demande({
+      quoi: 'Import d’un manuel',
+      titre: 'Importer ce manuel ?',
+      dit: lignes.join('\n'),
+      accepter: 'Importer le manuel',
+      refuser: 'Ne rien importer',
+    })) return;
     manuelStore.set((prev) => [...prev.filter((x) => !lu.manuels.some((m) => m.id === x.id)), ...lu.manuels]);
     toast(`Manuel importé : ${lu.manuels.length} formation${lu.manuels.length > 1 ? 's' : ''}, ${seances} séances.`);
   };

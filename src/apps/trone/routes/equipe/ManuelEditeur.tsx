@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { useStaff as useMonProfil } from '../../../../shared/auth';
 import { jourCourtAn } from '../../../../shared/calendrier';
 import { PARCOURS_MND, PUBLIC_LABEL } from '../../../../shared/parcours';
@@ -148,8 +148,15 @@ export default function ManuelEditeur({ id, lectureSeule, onClose }: { id: strin
     [suite[i], suite[j]] = [suite[j], suite[i]];
     return { ...b, seances: suite };
   });
-  const retire = (cle: string) => {
-    if (!window.confirm('Retirer cette séance du manuel ? Elle ne partira qu’à l’enregistrement.')) return;
+  const retire = async (cle: string) => {
+    if (!await demande({
+      quoi: 'Séance du manuel',
+      titre: 'Retirer cette séance du manuel ?',
+      dit: 'Elle ne partira qu’à l’enregistrement : tant que vous n’enregistrez pas, rien n’est perdu.',
+      accepter: 'Retirer la séance',
+      refuser: 'Garder la séance',
+      dur: true,
+    })) return;
     setBrouillon((b) => ({ ...b, seances: b.seances.filter((s) => s.cle !== cle) }));
   };
   const ajoute = () => {
@@ -164,20 +171,33 @@ export default function ManuelEditeur({ id, lectureSeule, onClose }: { id: strin
     }));
     setDeplie(cle);
   };
-  const ferme = () => {
-    if (!lectureSeule && modifie && !window.confirm('Fermer sans enregistrer ? Les corrections en cours seront perdues.')) return;
+  const ferme = async () => {
+    if (!lectureSeule && modifie && !await demande({
+      quoi: 'Corrections en cours',
+      titre: 'Fermer sans enregistrer ?',
+      dit: 'Les corrections en cours seront perdues.',
+      accepter: 'Fermer sans enregistrer',
+      refuser: 'Rester sur le manuel',
+      dur: true,
+    })) return;
     onClose();
   };
-  const enregistre = () => {
+  const enregistre = async () => {
     const lu = lisLeManuel({ formations: { [id]: versFichier(brouillon, noms) } }, existant?.importeLe ?? '');
     if (lu.erreurs.length || !lu.manuels[0]) {
       setErreurs(lu.erreurs.length ? lu.erreurs : ['Le manuel ne se lit pas.']);
       return;
     }
     const courant = JSON.stringify(manuelStore.get().find((m) => m.id === id) ?? null);
-    if (courant !== depart && !window.confirm(
-      'Ce manuel a été modifié sur un autre poste pendant que vous le corrigiez.\n\nEnregistrer vos corrections par-dessus ?',
-    )) return;
+    if (courant !== depart && !await demande({
+      quoi: 'Manuel modifié ailleurs',
+      titre: 'Enregistrer vos corrections par-dessus ?',
+      dit: 'Ce manuel a été modifié sur un autre poste pendant que vous le corrigiez.',
+      scelle: 'Les corrections de l’autre poste seront remplacées par les vôtres.',
+      accepter: 'Enregistrer par-dessus',
+      refuser: 'Ne rien écraser',
+      dur: true,
+    })) return;
     const manuel: ManuelDeFormation = {
       ...lu.manuels[0],
       importeLe: existant?.importeLe,

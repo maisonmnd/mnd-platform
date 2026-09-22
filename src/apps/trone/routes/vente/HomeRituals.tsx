@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { PageHead, WaLien } from '../_ui';
 import { prestationRepond } from '../../../../shared/recherche';
-import { Button, Field, Input, Modal, Select, alerte, refus } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
@@ -212,18 +212,33 @@ function OngletGamme() {
     setLigne(null);
   };
 
-  const retirerLigne = (cat: CatalogCategory) => {
+  const retirerLigne = async (cat: CatalogCategory) => {
     const dedans = products.filter((p) => p.categoryId === cat.id);
     if (dedans.length) {
       alerte(`« ${cat.fon} » porte encore ${dedans.length} produit${dedans.length > 1 ? 's' : ''}. Déplacez-les vers une autre ligne avant de la retirer.`);
       return;
     }
-    if (!window.confirm(`Retirer la ligne « ${cat.fon} » ?`)) return;
+    if (!await demande({
+      quoi: 'Ligne de la Gamme',
+      titre: `Retirer la ligne « ${cat.fon} » ?`,
+      dit: 'Elle est vide : aucun produit n’y est rattaché.',
+      accepter: 'Retirer la ligne',
+      refuser: 'Garder la ligne',
+      dur: true,
+    })) return;
     categoriesStore.set((prev) => prev.filter((c) => c.id !== cat.id));
   };
 
-  const supprimer = (p: Product) => {
-    if (!window.confirm(`Retirer « ${p.name} » de la Gamme ?`)) return;
+  const supprimer = async (p: Product) => {
+    if (!await demande({
+      quoi: 'Produit de la Gamme',
+      titre: `Retirer « ${p.name} » de la Gamme ?`,
+      dit: 'Il ne sera plus proposé au comptoir ni dans les rituels maison.',
+      scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Retirer le produit',
+      refuser: 'Garder le produit',
+      dur: true,
+    })) return;
     setProducts((prev) => prev.filter((x) => x.id !== p.id));
   };
 
@@ -1502,10 +1517,18 @@ function OngletComptage() {
   const sansMotif = aEcrire.filter((x) => !(motifs[x.id] ?? '').trim());
   const comptees = fiches.filter((x) => ecartDe(x) !== null).length;
 
-  const valider = () => {
+  const valider = async () => {
     if (!aEcrire.length) { alerte('Aucun écart à écrire : soit rien n’est compté, soit tout est juste.'); return; }
     if (sansMotif.length) { alerte(`${sansMotif.length} écart${sansMotif.length > 1 ? 's' : ''} sans motif. Chaque écart doit dire pourquoi, le journal le gardera.`); return; }
-    if (!window.confirm(`Écrire ${aEcrire.length} ajustement${aEcrire.length > 1 ? 's' : ''} au journal, datés du jour ?`)) return;
+    if (!await demande({
+      quoi: 'Journal des stocks',
+      titre: `Écrire ${aEcrire.length} ajustement${aEcrire.length > 1 ? 's' : ''} au journal ?`,
+      dit: 'Ils seront datés du jour, et le journal gardera la photo du comptage.',
+      scelle: 'Un ajustement écrit ne se reprend pas : il faudra en écrire un autre pour le corriger.',
+      accepter: `Écrire les ${aEcrire.length}`,
+      refuser: 'Ne rien écrire',
+      dur: true,
+    })) return;
     let ecrits = 0;
     for (const x of aEcrire) {
       const n = litQuantite(comptes[x.id] ?? '');

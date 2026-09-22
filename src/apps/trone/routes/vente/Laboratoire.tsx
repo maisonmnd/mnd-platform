@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, alerte, refus } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { invoicesStore, nouvelleFacture, ligneFacture, type Invoice } from '../../../../shared/finance';
@@ -775,12 +775,20 @@ function OngletPreparations() {
   const nomCliente = (id: string) => clients.find((c) => c.id === id)?.name ?? 'une cliente';
   const concernLabel = (k: string) => LAB_CONCERNS.find((c) => c.k === k)?.label ?? k;
 
-  const fabriquer = (prep: Preparation) => {
+  const fabriquer = async (prep: Preparation) => {
     const manques = manquesPourFabrication(prep, produits, mouvements);
     const detail = manques.length
       ? `\n\nATTENTION, la réserve est courte :\n${manques.map((m) => `· ${m.produit.nom} : ${m.stock.toLocaleString('fr-FR')} ${m.produit.unite} en réserve, il en faut ${(m.stock + m.manque).toLocaleString('fr-FR')}`).join('\n')}\n\nFabriquer quand même laissera un stock négatif, qui dit la vérité.`
       : '';
-    if (!window.confirm(`Fabriquer « ${prep.nomFormule} » pour ${nomCliente(prep.clientId)} ? Les ingrédients seront décomptés du stock.${detail}`)) return;
+    if (!await demande({
+      quoi: 'Fabrication',
+      titre: `Fabriquer « ${prep.nomFormule} » pour ${nomCliente(prep.clientId)} ?`,
+      dit: 'Les ingrédients seront décomptés du stock.',
+      suite: detail ? detail.trim() : undefined,
+      accepter: 'Fabriquer la préparation',
+      refuser: 'Ne pas fabriquer',
+      dur: manques.length > 0,
+    })) return;
     const r = fabriquerPreparation(prep, jour());
     if (!r.ok) refus(r.erreur);
   };
@@ -851,7 +859,17 @@ function OngletPreparations() {
                   {prep.statut === 'proposee' && (
                     <>
                       <Button size="sm" variant="copper" onClick={() => fabriquer(prep)}>Fabriquer</Button>
-                      <button className="trv-minibtn" onClick={() => { if (window.confirm('Retirer cette proposition ?')) supprimerPreparation(prep); }}>Retirer</button>
+                      <button className="trv-minibtn" onClick={async () => {
+                        if (!await demande({
+                          quoi: 'Proposition du laboratoire',
+                          titre: 'Retirer cette proposition ?',
+                          dit: 'Elle quitte la liste des préparations proposées.',
+                          accepter: 'Retirer la proposition',
+                          refuser: 'La garder',
+                          dur: true,
+                        })) return;
+                        supprimerPreparation(prep);
+                      }}>Retirer</button>
                     </>
                   )}
                   {prep.statut === 'fabriquee' && (
@@ -869,7 +887,18 @@ function OngletPreparations() {
                     <button
                       className="trv-minibtn"
                       title="Retire les sorties du journal, la réserve remonte"
-                      onClick={() => { if (window.confirm('Annuler la fabrication ? Les ingrédients reviennent au stock.')) { const r = annulerFabrication(prep); if (!r.ok) refus(r.erreur); } }}
+                      onClick={async () => {
+                        if (!await demande({
+                          quoi: 'Fabrication faite',
+                          titre: 'Annuler la fabrication ?',
+                          dit: 'Les sorties quittent le journal, et les ingrédients reviennent au stock.',
+                          accepter: 'Annuler la fabrication',
+                          refuser: 'La garder',
+                          dur: true,
+                        })) return;
+                        const r = annulerFabrication(prep);
+                        if (!r.ok) refus(r.erreur);
+                      }}
                     >
                       Annuler la fabrication
                     </button>
