@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Affiche · Le Lavage du mois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* L'AFFICHE DE L'OFFRE, en deux formats : le carré (1080 x 1080, Instagram,
+   Facebook) et le récit (1080 x 1920, statut WhatsApp, story). Ouvrir avec
+   ?f=story pour le second. Photo réelle de la Maison, jamais d'image
+   fabriquée ; indigo, cuivre, ivoire ; aucun prix. Le PNG s'exporte par une
+   capture de la fenêtre à la taille exacte. */
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-sombre:#D6A06F; --cuivre-profond:#7C4C2C;
+  --ivoire:#F6F1E7; --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--indigo-2)}
+body{font-family:var(--sans);color:var(--ivoire);-webkit-font-smoothing:antialiased}
+.aff{position:relative;width:1080px;height:1080px;overflow:hidden;background:var(--indigo);display:grid;grid-template-columns:1fr 1fr}
+.aff__texte{padding:88px 64px 80px 88px;display:flex;flex-direction:column;position:relative;z-index:2}
+.aff__photo{position:relative;margin:56px 56px 56px 0}
+.aff__photo img{width:100%;height:100%;object-fit:cover;object-position:center 20%;display:block;border-radius:6px}
+.aff__photo::after{content:'';position:absolute;inset:14px;border:1.5px solid rgba(214,160,111,.55);border-radius:4px;pointer-events:none}
+.marque{display:flex;align-items:center;gap:8px}
+.marque img{width:84px;height:84px;margin:-16px 0 -20px -22px}
+.marque span{font-size:15px;letter-spacing:.26em;text-transform:uppercase;color:rgba(246,241,231,.72)}
+.sur{margin-top:64px;font-size:16px;letter-spacing:.24em;text-transform:uppercase;color:var(--cuivre-sombre)}
+h1{font-family:var(--serif);font-weight:300;font-size:92px;line-height:.98;margin:18px 0 0;color:var(--ivoire);letter-spacing:-.01em}
+.promesse{font-family:var(--serif);font-style:italic;font-weight:300;font-size:64px;line-height:1;color:var(--cuivre-sombre);margin-top:22px}
+.ligne{font-size:22px;line-height:1.45;color:rgba(246,241,231,.82);margin-top:30px;max-width:24ch;font-weight:300}
+/* La pastille tient sur UNE ligne : coupée en deux, l'accroche perd sa voix. */
+.pastille{display:inline-block;margin-top:32px;background:var(--cuivre);color:#fff;font-size:15px;letter-spacing:.16em;text-transform:uppercase;padding:13px 20px;border-radius:999px;align-self:flex-start;white-space:nowrap}
+.pied{margin-top:auto;padding-top:36px;display:flex;flex-direction:column;gap:6px;font-size:19px;color:rgba(246,241,231,.78)}
+.pied b{font-weight:500;color:var(--ivoire);letter-spacing:.06em}
+.pied small{font-size:15px;color:rgba(246,241,231,.55);letter-spacing:.04em}
+
+/* Le récit : la photo en haut, le texte en bas. */
+body.story .aff{width:1080px;height:1920px;grid-template-columns:1fr;grid-template-rows:1fr auto}
+body.story .aff__photo{margin:0;order:0}
+body.story .aff__photo img{border-radius:0;object-position:center 15%}
+body.story .aff__photo::after{inset:auto;border:0}
+body.story .aff__photo::before{content:'';position:absolute;inset:auto 0 0 0;height:320px;background:linear-gradient(to top,var(--indigo),rgba(30,33,80,0));z-index:1}
+/* Le bloc de texte redevient statique : la marque, absolue, se place alors
+   par rapport à l'affiche entière (en haut), et non par rapport au bloc. */
+body.story .aff__texte{order:1;padding:0 88px 64px;margin-top:-220px;position:static}
+body.story .aff__photo::before{height:420px}
+body.story .marque{position:absolute;top:72px;left:88px;z-index:3}
+body.story .marque span{color:rgba(246,241,231,.85);text-shadow:0 2px 12px rgba(21,23,58,.6)}
+body.story .sur{margin-top:0}
+body.story h1{font-size:96px;margin-top:14px}
+body.story .promesse{font-size:66px;margin-top:14px}
+body.story .ligne{font-size:25px;max-width:32ch;margin-top:22px}
+body.story .pastille{font-size:18px;padding:15px 24px;margin-top:22px}
+body.story .pied{margin-top:30px;padding-top:0;font-size:21px;gap:4px}
+body.story .pied small{font-size:16px}
+</style>
+</head>
+<body>
+<div class="aff">
+  <div class="aff__texte">
+    <div class="marque"><img src="assets/monograms/mono-ivoire.png" width="1600" height="1600" alt=""><span>Maison MND · Cotonou</span></div>
+    <p class="sur">L'offre de la Maison · Entretien</p>
+    <h1>Le Lavage du mois</h1>
+    <p class="promesse">Coiffure offerte.</p>
+    <p class="ligne">Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Vous repartez prête pour la semaine.</p>
+    <span class="pastille">Toujours nette pour le boulot</span>
+    <div class="pied">
+      <b>Réservez en ligne · maisonmnd.com</b>
+      <span>WhatsApp · +229 01 96 75 60 62</span>
+      <small>Dans la Maison, au règlement. Non cumulable.</small>
+    </div>
+  </div>
+  <div class="aff__photo"><img src="assets/photos/site/entretien.jpg" alt=""></div>
+</div>
+<script>
+if (new URLSearchParams(location.search).get('f') === 'story') document.body.classList.add('story');
+</script>
+</body>
+</html>

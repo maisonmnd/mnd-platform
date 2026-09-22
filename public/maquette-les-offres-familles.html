@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Les offres familles · Le Lavage du mois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --cuivre-sombre:#D6A06F; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13);
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+button{font-family:var(--sans)}
+.wrap{max-width:960px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+.tete{padding:44px 0 10px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:62ch}
+.sceau{display:block;width:116px;height:116px;margin:-6px 0 -20px -29px}
+h2{font-size:clamp(22px,3vw,28px);margin-top:46px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:70ch}
+h3{font-size:19px}
+.afixer{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* la carte, telle qu'elle paraît sur le site */
+.duo{display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start;margin-top:16px}
+.offre{background:var(--carte);border:1px solid var(--filet);border-radius:4px;overflow:hidden;position:relative}
+.offre__haut{background:var(--indigo);color:#F6F1E7;padding:22px 20px 18px;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end}
+.offre__haut .sur{color:var(--cuivre-sombre)}
+.offre__deal{font-family:var(--serif);font-size:44px;line-height:.95;margin-top:8px}
+.offre__corps{padding:16px 20px 18px;display:flex;flex-direction:column;gap:9px}
+.offre__corps h3{font-size:21px}
+.offre__corps p{font-size:13.5px;color:var(--encre-doux)}
+.btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:12px 18px;border-radius:3px;background:var(--cuivre);color:#fff;text-decoration:none;margin-top:4px}
+.offre__cond{font-size:11.5px;color:var(--encre-doux);border-top:1px solid var(--filet);padding-top:8px}
+.offre__cond b{display:block;color:var(--cuivre-profond);font-weight:400;text-decoration:underline;text-underline-offset:3px;margin-bottom:4px}
+
+/* les champs du Trône */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 8px 7px;border-bottom:1px solid var(--filet)}
+td{padding:8px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.champ{color:var(--encre-doux);white-space:nowrap;width:32%}
+.val{display:flex;gap:8px;align-items:flex-start}
+.val span{flex:1;font-family:var(--sans);color:var(--indigo);background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:4px 8px;user-select:all}
+.val span.vide{color:var(--encre-doux);font-style:italic;background:transparent;user-select:auto}
+.copier{flex:none;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--filet);background:var(--carte);color:var(--cuivre-profond);border-radius:999px;padding:4px 9px;cursor:pointer;height:26px}
+.copier:hover{border-color:var(--cuivre)}
+.copier.fait{background:var(--cuivre);color:#fff;border-color:var(--cuivre)}
+
+/* la notification, telle que la cliente la reçoit */
+.notif{display:flex;gap:12px;background:var(--carte);border:1px solid var(--filet);border-radius:14px;padding:12px 14px;max-width:420px;margin-top:12px;box-shadow:0 10px 30px rgba(30,33,80,.08)}
+.notif img{width:36px;height:36px;border-radius:9px;background:var(--indigo);padding:6px;flex:none}
+.notif b{display:block;font-weight:500;color:var(--indigo);font-size:13.5px;line-height:1.3}
+.notif p{font-size:12.5px;color:var(--encre-doux);margin-top:2px;line-height:1.4}
+.notif small{display:block;font-size:10.5px;color:var(--encre-doux);margin-top:4px;letter-spacing:.04em}
+
+/* les affiches */
+.affiches{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px;align-items:start}
+.affiches figure{margin:0}
+.affiches img{width:100%;height:auto;display:block;border-radius:4px;border:1px solid var(--filet)}
+.affiches figcaption{font-size:12.5px;color:var(--encre-doux);margin-top:8px;line-height:1.5}
+.legende{background:var(--carte);border:1px solid var(--filet);border-radius:4px;padding:14px 16px;font-size:14px;line-height:1.6;margin-top:14px;white-space:pre-line;user-select:all}
+
+/* encadrés et étapes */
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:14px 18px;margin-top:16px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.regle{background:var(--indigo);color:#F6F1E7;padding:18px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:10px;line-height:1.6}
+ol.pas{list-style:none;margin:16px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:13px 46px 13px 56px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px}
+ol.pas li::before{content:counter(pas);position:absolute;left:15px;top:12px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:4px}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:13px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);white-space:nowrap}
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(max-width:760px){.duo{grid-template-columns:1fr}.affiches{grid-template-columns:1fr}td.champ{white-space:normal;width:auto}}
+@media print{
+  body{background:#fff;font-size:11.5px}.wrap{max-width:none;padding:0}
+  .coche,.copier{display:none}
+  ol.pas li,.offre,.garde,.notif{break-inside:avoid;background:#fff}
+  h2{break-after:avoid;margin-top:22px}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="sceau" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <p class="sur">Maison MND · Marketing</p>
+    <h1>Les offres familles, et le Lavage du mois</h1>
+    <p class="ligne">Quatre offres prêtes à coller dans Le Trône, une affiche en deux formats, la notification telle que vos clientes la recevront, et le lancement dans l'ordre. Aucun prix : la voix du site l'interdit, et c'est ce qui protège le premium. Ce qui est <span class="afixer">souligné en cuivre</span> attend votre décision.</p>
+  </header>
+
+  <!-- ══════════ A. LE LAVAGE DU MOIS ══════════ -->
+  <h2>A · Le Lavage du mois</h2>
+  <p class="cap">Votre idée, avec votre accroche. Un lavage KLƆKLƆ™ chaque mois, et la coiffure de sortie est offerte. Une cliente qui travaille repart nette, et elle revient tous les mois.</p>
+  <div class="duo">
+    <article class="offre">
+      <div class="offre__haut"><p class="sur">Entretien · Toujours nette pour le boulot</p><p class="offre__deal">Coiffure offerte</p></div>
+      <div class="offre__corps">
+        <h3>Le Lavage du mois</h3>
+        <p>Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Vous repartez prête pour la semaine.</p>
+        <a class="btn" href="#">Réserver mon lavage</a>
+        <div class="offre__cond"><b>Voir les conditions</b>Un lavage par mois, à la Maison. Le Styling · sortie soignée est offert le même jour, au règlement. Non cumulable.</div>
+      </div>
+    </article>
+    <table>
+      <thead><tr><th>Champ du Trône</th><th>Valeur à coller</th></tr></thead>
+      <tbody>
+        <tr><td class="champ">Titre</td><td><div class="val"><span>Le Lavage du mois</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Accroche</td><td><div class="val"><span>Toujours nette pour le boulot</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Avantage</td><td><div class="val"><span>Coiffure offerte</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Détail</td><td><div class="val"><span>Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Vous repartez prête pour la semaine.</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Audience</td><td><div class="val"><span class="vide">Tous</span></div></td></tr>
+        <tr><td class="champ">Jours</td><td><div class="val"><span class="vide">Tous les jours, ou <span class="afixer">du mardi au vendredi</span> si vous voulez la réserver aux jours de travail</span></div></td></tr>
+        <tr><td class="champ">Prestation</td><td><div class="val"><span class="vide">KLƆKLƆ™ Le Lavage (pré-remplit la réservation dans Ma Couronne)</span></div></td></tr>
+        <tr><td class="champ">Remise</td><td><div class="val"><span class="vide">Aucune. L'avantage est un geste offert, pas un pourcentage.</span></div></td></tr>
+        <tr><td class="champ">Premier et dernier jour</td><td><div class="val"><span class="vide">Vides : l'offre est permanente.</span></div></td></tr>
+        <tr><td class="champ">En vitrine, sans date de fin</td><td><div class="val"><span class="vide">Coché</span></div></td></tr>
+        <tr><td class="champ">Parcours</td><td><div class="val"><span class="vide">Entretien</span></div></td></tr>
+        <tr><td class="champ">Texte du bouton</td><td><div class="val"><span>Réserver mon lavage</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Conditions</td><td><div class="val"><span>Un lavage par mois, à la Maison. Le Styling · sortie soignée est offert le même jour, au règlement. Non cumulable.</span><button class="copier" type="button">Copier</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="garde">
+    <b>Une décision avant de lancer</b>
+    <p>La coiffure est-elle offerte <span class="afixer">à chaque lavage dès le premier</span>, ou <span class="afixer">à partir du deuxième mois consécutif</span> ? La première version est plus généreuse et plus simple à dire au comptoir. La seconde récompense la régularité, c'est le sens de « du mois ». Les conditions ci-dessus disent la première ; un mot et je réécris.</p>
+  </div>
+  <p class="sur" style="margin-top:18px">La notification, telle que vos clientes la recevront</p>
+  <div class="notif">
+    <img src="assets/monograms/mono-ivoire.png" alt="">
+    <div><b>Toujours nette pour le boulot · Le Lavage du mois</b><p>Coiffure offerte · Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Vous repartez prête pour la semaine.</p><small>Ma Couronne · maintenant</small></div>
+  </div>
+  <p class="cap" style="margin-top:8px">Le Trône compose le titre avec l'accroche et le titre, le corps avec l'avantage et le détail. C'est pour cela que ces quatre champs sont écrits pour se lire ainsi.</p>
+
+  <!-- ══════════ B. DEUX COURONNES, UNE VENUE ══════════ -->
+  <h2>B · Deux couronnes, une venue</h2>
+  <p class="cap">Le mécanisme des « 4 lines for $25 » de T-Mobile, traduit : venez à deux, le même jour, l'une après l'autre. La seconde couronne est allégée. Mère et fille, deux sœurs, deux amies.</p>
+  <div class="duo">
+    <article class="offre">
+      <div class="offre__haut"><p class="sur">Entretien · En famille</p><p class="offre__deal">À deux</p></div>
+      <div class="offre__corps">
+        <h3>Deux couronnes, une venue</h3>
+        <p>Venez à deux le même jour, l'une après l'autre : la seconde couronne est allégée.</p>
+        <a class="btn" href="#">Réserver notre venue</a>
+        <div class="offre__cond"><b>Voir les conditions</b>Deux gestes le même jour, à la suite. Remise appliquée à la Maison, au règlement, sur le second geste. Non cumulable.</div>
+      </div>
+    </article>
+    <table>
+      <thead><tr><th>Champ du Trône</th><th>Valeur à coller</th></tr></thead>
+      <tbody>
+        <tr><td class="champ">Titre</td><td><div class="val"><span>Deux couronnes, une venue</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Accroche</td><td><div class="val"><span>En famille</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Avantage</td><td><div class="val"><span>À deux</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Détail</td><td><div class="val"><span>Venez à deux le même jour, l'une après l'autre : la seconde couronne est allégée.</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Remise</td><td><div class="val"><span class="vide">Laisser vide. Le champ du Trône réduirait toute la venue dans Ma Couronne ; ici la remise porte sur le second geste et s'applique au comptoir. Taux : <span class="afixer">à fixer par la Maison</span>.</span></div></td></tr>
+        <tr><td class="champ">En vitrine · Parcours</td><td><div class="val"><span class="vide">Coché · Entretien</span></div></td></tr>
+        <tr><td class="champ">Texte du bouton</td><td><div class="val"><span>Réserver notre venue</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Conditions</td><td><div class="val"><span>Deux gestes le même jour, à la suite. Remise appliquée à la Maison, au règlement, sur le second geste. Non cumulable.</span><button class="copier" type="button">Copier</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══════════ C. PARENT ET ENFANT ══════════ -->
+  <h2>C · Parent et enfant</h2>
+  <p class="cap">La porte MND Kids, prise en famille : votre entretien et la séance de votre enfant le même jour, l'un à côté de l'autre. La séance de l'enfant est allégée.</p>
+  <div class="duo">
+    <article class="offre">
+      <div class="offre__haut"><p class="sur">MND Kids · En famille</p><p class="offre__deal">Ensemble</p></div>
+      <div class="offre__corps">
+        <h3>Parent et enfant</h3>
+        <p>Votre entretien et la séance de votre enfant le même jour, l'un à côté de l'autre. La séance MND Kids est allégée.</p>
+        <a class="btn" href="#">Organiser notre visite</a>
+        <div class="offre__cond"><b>Voir les conditions</b>Le même jour, à la suite. Remise sur la séance de l'enfant, au règlement. Non cumulable.</div>
+      </div>
+    </article>
+    <table>
+      <thead><tr><th>Champ du Trône</th><th>Valeur à coller</th></tr></thead>
+      <tbody>
+        <tr><td class="champ">Titre</td><td><div class="val"><span>Parent et enfant</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Accroche</td><td><div class="val"><span>En famille</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Avantage</td><td><div class="val"><span>Ensemble</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Détail</td><td><div class="val"><span>Votre entretien et la séance de votre enfant le même jour, l'un à côté de l'autre. La séance MND Kids est allégée.</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Remise</td><td><div class="val"><span class="vide">Laisser vide, même raison. Taux sur la séance de l'enfant : <span class="afixer">à fixer par la Maison</span>.</span></div></td></tr>
+        <tr><td class="champ">En vitrine · Parcours</td><td><div class="val"><span class="vide">Coché · MND Kids (le bouton mène au rappel : une visite d'enfant commence par un échange)</span></div></td></tr>
+        <tr><td class="champ">Texte du bouton</td><td><div class="val"><span>Organiser notre visite</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Conditions</td><td><div class="val"><span>Le même jour, à la suite. Remise sur la séance de l'enfant, au règlement. Non cumulable.</span><button class="copier" type="button">Copier</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══════════ D. LA COURONNE DE LA FAMILLE ══════════ -->
+  <h2>D · La couronne de la famille</h2>
+  <p class="cap">Celle-ci n'invente rien : le Trône sait déjà reconnaître un foyer et lui offrir un geste quand sa dépense cumulée passe un palier (Cercle MND › Foyer). La carte l'annonce sur le site ; les paliers se règlent au Trône, ils sont vides aujourd'hui.</p>
+  <div class="duo">
+    <article class="offre">
+      <div class="offre__haut"><p class="sur">Entretien · Le Foyer</p><p class="offre__deal">Un geste offert</p></div>
+      <div class="offre__corps">
+        <h3>La couronne de la famille</h3>
+        <p>Une famille qui vient ensemble à la Maison reçoit un geste offert à chaque palier, sans carte ni points. Déclarez votre foyer au comptoir.</p>
+        <a class="btn" href="#">Réserver en famille</a>
+        <div class="offre__cond"><b>Voir les conditions</b>Réservé aux foyers déclarés à la Maison. Le geste s'offre au passage de chaque palier, au règlement.</div>
+      </div>
+    </article>
+    <table>
+      <thead><tr><th>Champ du Trône</th><th>Valeur à coller</th></tr></thead>
+      <tbody>
+        <tr><td class="champ">Titre</td><td><div class="val"><span>La couronne de la famille</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Accroche</td><td><div class="val"><span>Le Foyer</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Avantage</td><td><div class="val"><span>Un geste offert</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Détail</td><td><div class="val"><span>Une famille qui vient ensemble à la Maison reçoit un geste offert à chaque palier, sans carte ni points. Déclarez votre foyer au comptoir.</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">En vitrine · Parcours</td><td><div class="val"><span class="vide">Coché · Entretien</span></div></td></tr>
+        <tr><td class="champ">Texte du bouton</td><td><div class="val"><span>Réserver en famille</span><button class="copier" type="button">Copier</button></div></td></tr>
+        <tr><td class="champ">Conditions</td><td><div class="val"><span>Réservé aux foyers déclarés à la Maison. Le geste s'offre au passage de chaque palier, au règlement.</span><button class="copier" type="button">Copier</button></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sur" style="margin-top:18px">Les paliers, dans Le Trône › Cercle MND › Foyer</p>
+  <table style="margin-top:8px">
+    <thead><tr><th>Palier</th><th>Seuil de dépense cumulée du foyer</th><th>Geste offert (proposition)</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><span class="afixer">à fixer</span> (le Trône propose un seuil par défaut, vous le voyez à l'écran)</td><td>Styling · sortie soignée</td></tr>
+      <tr><td>2</td><td><span class="afixer">à fixer</span></td><td>KLƆKLƆ™ Le Lavage</td></tr>
+      <tr><td>3</td><td><span class="afixer">à fixer</span></td><td>DÀNDÀN™ · Le Soin Hydratant</td></tr>
+    </tbody>
+  </table>
+  <div class="garde">
+    <b>Pourquoi le foyer plutôt qu'un pourcentage</b>
+    <p>Une remise se compare ; un geste offert se raconte. Trois paliers qui montent en valeur donnent à une famille une raison de revenir ensemble, sans que la Maison brade un seul prix. Et le Trône fait le compte tout seul.</p>
+  </div>
+
+  <!-- ══════════ E. L'AFFICHE ══════════ -->
+  <h2>E · L'affiche du Lavage du mois</h2>
+  <p class="cap">Deux formats, la photo réelle de la Maison, votre accroche. Le carré pour Instagram et Facebook, le récit pour le statut WhatsApp et la story. Les fichiers sont dans <kbd>docs/affiches/</kbd>, prêts à envoyer.</p>
+  <div class="affiches">
+    <figure><img src="../docs/affiches/lavage-du-mois-carre.png" alt="L'affiche carrée"><figcaption><b>Carré · 1080 × 1080</b> · lavage-du-mois-carre.png · Instagram, Facebook, la fiche Google.</figcaption></figure>
+    <figure><img src="../docs/affiches/lavage-du-mois-story.png" alt="L'affiche en récit"><figcaption><b>Récit · 1080 × 1920</b> · lavage-du-mois-story.png · Statut WhatsApp, story Instagram.</figcaption></figure>
+  </div>
+  <p class="sur" style="margin-top:18px">La légende, à coller sous l'affiche</p>
+  <div class="legende">Le Lavage du mois.
+Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Toujours nette pour le boulot.
+Réservez en ligne sur maisonmnd.com, ou écrivez-nous sur WhatsApp.
+Dans la Maison, au règlement. Non cumulable.</div>
+
+  <div class="regle">
+    <p>Une seule notification, pour une seule offre.</p>
+    <small>Quatre notifications le même jour, et vos clientes coupent les notifications de Ma Couronne pour toujours. Le Lavage du mois porte le lancement ; les trois offres familles vivent sur le site et se disent au comptoir. La notification suivante attendra la prochaine saison.</small>
+  </div>
+
+  <!-- ══════════ F. LE LANCEMENT ══════════ -->
+  <h2>F · Le lancement, dans cet ordre</h2>
+  <p class="cap">Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
+  <ol class="pas" id="pas">
+    <li><b>Créer les quatre offres</b><p>Le Trône › Marketing › Offres › Nouvelle offre. Collez chaque champ depuis les tableaux ci-dessus, avec les boutons « Copier ». Les champs de saison restent vides.</p></li>
+    <li><b>Cocher « En vitrine, sans date de fin » sur les quatre, puis les activer</b><p>Sans la case, une offre sans dates n'apparaît pas sur le site. Sans activation, elle dort.</p></li>
+    <li><b>Trancher les mentions en cuivre</b><p>La coiffure offerte dès le premier lavage ou à partir du deuxième mois ; les deux taux de remise famille ; les trois seuils du foyer.</p></li>
+    <li><b>Régler les paliers du foyer</b><p>Le Trône › Cercle MND › Foyer : trois paliers, les seuils que vous avez fixés, les gestes proposés ou d'autres.</p></li>
+    <li><b>Vérifier le site</b><p>Ouvrez maisonmnd.com : les quatre cartes sont sur l'accueil et sur /les-offres/. Le bandeau cuivre en haut n'annonce que les offres datées ; il ne montrera pas celles-ci, c'est normal.</p></li>
+    <li><b>Prévenir le comptoir avant la notification</b><p>La coiffure offerte s'honore au règlement ; la remise duo porte sur le second geste ; un foyer se déclare sur la fiche. Le comptoir doit le savoir avant la première cliente, pas après.</p></li>
+    <li><b>Notifier les clientes, une fois</b><p>Sur l'offre « Le Lavage du mois » seulement : « Notifier toutes les clientes ». Une notification partie ne se rappelle pas ; le Trône vous le redira.</p><p><b style="font-weight:500;color:var(--cuivre-profond)">Ce premier envoi sera partiel, et c'est normal.</b> Un abonnement aux notifications est attaché à l'adresse du site ; celles qui s'étaient abonnées avant le passage à maisonmnd.com, le 19 septembre, ne reçoivent plus rien tant qu'elles n'ont pas rouvert Ma Couronne sur la nouvelle adresse. Le nombre que le Trône affichera après l'envoi sera donc bien plus bas que vos abonnées : ce n'est ni un désintérêt ni une panne. Les abonnements se refont d'eux-mêmes, une par une, à chaque visite. C'est pour cela que l'offre vit aussi sur le site et sur WhatsApp.</p></li>
+    <li><b>Publier l'affiche</b><p>Le récit en statut WhatsApp de la Maison, le carré sur Instagram et la fiche Google, avec la légende. Pas d'émoji, pas de compte à rebours.</p></li>
+    <li><b>Dans un mois, compter</b><p>Le Trône › Calendrier et Encaissements : combien de lavages réservés, combien revenus le mois suivant. C'est ce chiffre qui dit si l'offre vit ou s'arrête.</p></li>
+  </ol>
+
+  <div class="pied">
+    <span>Maison MND · maisonmnd.com</span>
+    <span>Document de travail, à garder hors du dépôt public.</span>
+  </div>
+</div>
+
+<script>
+/* Copier une valeur pour la coller dans Le Trône ; sans presse-papiers, le
+   texte est déjà sélectionnable d'un clic (user-select: all). */
+document.querySelectorAll('.copier').forEach((b) => {
+  b.onclick = async () => {
+    const t = b.previousElementSibling.textContent;
+    try { await navigator.clipboard.writeText(t); b.textContent = 'Copié'; b.classList.add('fait'); setTimeout(() => { b.textContent = 'Copier'; b.classList.remove('fait'); }, 1400); }
+    catch { const r = document.createRange(); r.selectNodeContents(b.previousElementSibling); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  };
+});
+/* Les cases cochées vivent sur CE poste, dans un try/catch : la page marche
+   même si le navigateur refuse son stockage. */
+const CLE = 'mnd_offres_familles_pas';
+const items = [...document.querySelectorAll('#pas li')];
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche'; b.type = 'button'; b.setAttribute('aria-label', 'Marquer cette étape comme faite'); b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+</script>
+</body>
+</html>
