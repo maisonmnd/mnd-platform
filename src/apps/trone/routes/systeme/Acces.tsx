@@ -24,6 +24,12 @@ const ROLE_LABEL: Record<string, string> = {
   maitre: 'Maître, clients & vente',
 };
 
+const ROLE_COURT: Record<string, string> = {
+  souverain: 'Souverain·e',
+  gerant: 'Gérant·e',
+  maitre: 'Maître',
+};
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -45,6 +51,19 @@ export default function Acces() {
      commande desormais la barre de navigation. Clef : l'identifiant de compte,
      le seul qui ne bouge pas quand un nom se corrige. */
   const [acces, setAcces] = useStore(staffAccessStore);
+  /* ── UNE PERSONNE À LA FOIS — 22 septembre 2026 ────────────────────────
+     « Too congested. Je ne sais plus sur quel membre je suis quand je fais
+     défiler » (Yéman). L'écran dépliait les quarante-quatre écrans de chaque
+     maître, les uns sous les autres : aucune séparation entre deux personnes,
+     et nulle part où lire ce qu'une personne atteint sans tout parcourir.
+
+     Désormais chaque personne tient sur une ligne qui dit son résumé, un seul
+     panneau s'ouvre à la fois, et une barre collante porte son nom tant qu'on
+     règle ses écrans. Les domaines se déplient un par un. */
+  const [ouvertId, setOuvertId] = useState<string | null>(null);
+  const [domOuverts, setDomOuverts] = useState<string[]>([]);
+  const [requete, setRequete] = useState('');
+  const [vue, setVue] = useState<'gens' | 'ecrans'>('gens');
   /* DISTINGUER UNE CLIENTE D'UNE FUTURE COLLÈGUE.
 
      `list_pending_staff` rend TOUT compte qui n'est pas encore au personnel —
@@ -91,6 +110,44 @@ export default function Acces() {
       ...prev,
       [userId]: { ...(prev[userId] ?? {}), [d]: !(prev[userId]?.[d]) },
     }));
+
+  /* ── CE QU'UNE PERSONNE ATTEINT, EN UN NOMBRE ──────────────────────────
+     Le résumé de la ligne repliée et le compte de chaque domaine sortent
+     d'ici, donc ils ne peuvent pas se contredire. Un gérant ou un souverain
+     ouvre tout : on ne compte pas, on le dit. */
+  const domaineDuGroupe = (ecrans: { path: string }[]) => domaineDe(ecrans[0]?.path ?? '');
+  const toutLeDomaine = (userId: string, ecrans: { path: string }[]) => {
+    const d = domaineDuGroupe(ecrans);
+    return !!d && acces[userId]?.[d] === true;
+  };
+  const compteDuDomaine = (m: StaffFull, ecrans: { path: string }[]): [number, number] => {
+    if (m.role !== 'maitre') return [ecrans.length, ecrans.length];
+    const tout = toutLeDomaine(m.user_id, ecrans);
+    return [ecrans.filter((it) => ecranOuvert(m.user_id, it.path, tout)).length, ecrans.length];
+  };
+  /* Générique : le groupe garde ses libellés, qu'on affiche sur chaque pastille. */
+  const ecransDuGroupe = <T extends { path: string }>(items: T[]): T[] =>
+    items.filter((it) => !ROUTES_MAITRE.includes(it.path));
+
+  /* QUI ATTEINT CET ÉCRAN : la même question, prise par l'autre bout. On se
+     la pose après avoir fermé la Caisse à quelqu'un, et y répondre demandait
+     d'ouvrir les personnes une par une. */
+  const quiAtteint = (path: string, ecrans: { path: string }[]) =>
+    team.filter((m) => m.role !== 'maitre' || ecranOuvert(m.user_id, path, toutLeDomaine(m.user_id, ecrans)));
+
+  const initiales = (m: StaffFull) =>
+    (m.name || nameFromEmail(m.email)).split(/[\s.·-]+/).filter(Boolean).slice(0, 2)
+      .map((s) => s[0]).join('').toUpperCase();
+
+  const clefDom = (userId: string, groupe: string) => `${userId}::${groupe}`;
+  const basculeGroupe = (clef: string) =>
+    setDomOuverts((prev) => (prev.includes(clef) ? prev.filter((x) => x !== clef) : [...prev, clef]));
+
+  /* La recherche cherche ce qui est écrit à l'écran : un nom, une adresse,
+     un rôle. Elle ne cherche pas dans ce qui est caché. */
+  const cherche = requete.trim().toLowerCase();
+  const gensVus = team.filter((m) => !cherche
+    || [m.name, m.email, ROLE_LABEL[m.role] ?? m.role].some((x) => (x ?? '').toLowerCase().includes(cherche)));
   const [nameFor, setNameFor] = useState<Record<string, string>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -352,175 +409,287 @@ export default function Acces() {
             </Card>
           )}
 
-          {/* Personnel autorisé */}
+          {/* ── PERSONNEL AUTORISÉ ─────────────────────────────────────────
+              Une personne, une ligne. Ce qu'elle atteint se lit sans ouvrir ;
+              ouvrir sert à régler, et un seul panneau s'ouvre à la fois. */}
           <Card className="sys-section" style={{ marginTop: 16 }}>
             <div className="sys-section__title">
               Personnel autorisé {team.length > 0 && <span className="sys-badge-count">{team.length}</span>}
             </div>
-            <div className="sys-section__cap">Les comptes qui ont accès à la Maison, et leur rôle.</div>
+            <div className="sys-section__cap">
+              Qui entre dans la Maison, et jusqu’où. Le rôle et les écrans atteints se lisent
+              sur la ligne ; ouvrez une personne pour les régler.
+            </div>
+
+            <div className="sys-acc-outils">
+              <Input
+                className="sys-input sys-acc-rech"
+                type="search"
+                value={requete}
+                onChange={(e) => setRequete(e.target.value)}
+                placeholder={vue === 'gens' ? 'Trouver une personne, un rôle…' : 'Trouver un écran…'}
+                aria-label="Filtrer"
+              />
+              <div className="sys-acc-vues" role="group" aria-label="Façon de lire les accès">
+                <button type="button" aria-pressed={vue === 'gens'} onClick={() => setVue('gens')}>Par personne</button>
+                <button type="button" aria-pressed={vue === 'ecrans'} onClick={() => setVue('ecrans')}>Par écran</button>
+              </div>
+            </div>
+
+            {/* CE QUE CHAQUE ALLURE VEUT DIRE, DIT UNE SEULE FOIS. Elle était
+                répétée sous chaque maître, six fois le même paragraphe. */}
+            <div className="sys-acc-legende">
+              <span><i className="sys-acces__chip is-on" /> ouvert</span>
+              <span><i className="sys-acces__chip is-herite" /> ouvert par le domaine</span>
+              <span><i className="sys-acces__chip" /> fermé</span>
+              <span><i className="sys-acces__chip is-barre" /> retiré alors qu’il est ouvert d’office</span>
+            </div>
 
             {!loading && team.length === 0 && <div className="sys-acc-empty">Aucun personnel rattaché.</div>}
-            {team.map((m) => {
+
+            {vue === 'gens' && team.length > 0 && gensVus.length === 0 && (
+              <div className="sys-acc-empty">Personne ne répond à « {requete} ».</div>
+            )}
+
+            {vue === 'gens' && gensVus.map((m) => {
               const self = m.user_id === myId;
               const lastSouverain = m.role === 'souverain' && team.filter((x) => x.role === 'souverain').length <= 1;
               const editing = editId === m.user_id;
+              const ouvert = ouvertId === m.user_id;
+              const toutOuvertPartout = m.role !== 'maitre';
               return (
-                <div key={m.user_id}>
-                <div className="sys-acc-row">
-                  <div className="sys-acc-row__id">
-                    {editing ? (
-                      <Input
-                        className="sys-input"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Nom affiché"
-                        aria-label="Nom affiché"
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="sys-acc-row__email">
+                <div className={`sys-acc-carte${ouvert ? ' est-ouvert' : ''}`} key={m.user_id}>
+                  <button
+                    type="button"
+                    className="sys-acc-tete"
+                    aria-expanded={ouvert}
+                    onClick={() => {
+                      setMsg(null);
+                      setAConfirmer(null);
+                      setOuvertId(ouvert ? null : m.user_id);
+                    }}
+                  >
+                    <span className="sys-acc-jeton" aria-hidden="true">{initiales(m)}</span>
+                    <span className="sys-acc-qui">
+                      <span className="sys-acc-qui__nom">
                         {m.name || m.email || '—'}{self && <span className="sys-acc-you">vous</span>}
-                      </div>
-                    )}
-                    <div className="sys-acc-row__sub">
-                      {m.email}{!editing && ` · ${ROLE_LABEL[m.role] ?? m.role}`}
-                    </div>
-                  </div>
+                      </span>
+                      <span className="sys-acc-qui__mail">{m.email}</span>
+                    </span>
+                    {/* LE RÉSUMÉ : un jeton par domaine touché, et son compte.
+                        C'est la réponse à « qui a accès à quoi », sans ouvrir. */}
+                    <span className="sys-acc-resume">
+                      {toutOuvertPartout
+                        ? <span className="sys-acc-dom est-total">Accès total</span>
+                        : (() => {
+                          const jetons = NAV.map((g) => {
+                            const ecrans = ecransDuGroupe(g.items);
+                            if (!ecrans.length) return null;
+                            const [n, t] = compteDuDomaine(m, ecrans);
+                            if (!n) return null;
+                            return (
+                              <span className={`sys-acc-dom ${n === t ? 'est-plein' : 'est-part'}`} key={g.group}>
+                                {g.group} {n === t ? 'tout' : `${n}/${t}`}
+                              </span>
+                            );
+                          }).filter(Boolean);
+                          return jetons.length ? jetons : <span className="sys-acc-dom">Rien d’ouvert en plus</span>;
+                        })()}
+                    </span>
+                    <span className={`sys-acc-role${m.role === 'souverain' ? ' est-souverain' : m.role === 'gerant' ? ' est-gerant' : ''}`}>
+                      {ROLE_COURT[m.role] ?? m.role}
+                    </span>
+                    <svg className="sys-acc-fleche" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                  </button>
 
-                  {editing ? (
-                    <>
-                      <Select
-                        className="sys-select sys-acc-row__role"
-                        value={editRole}
-                        onChange={(e) => setEditRole(e.target.value as Role)}
-                        aria-label="Rôle"
-                        disabled={self}
-                        title={self ? 'Vous ne pouvez pas changer votre propre rôle.' : undefined}
-                      >
-                        <option value="maitre">Maître, clients & vente</option>
-                        <option value="gerant">Gérant·e, tout sauf système</option>
-                        <option value="souverain">Souverain·e, accès total</option>
-                      </Select>
-                      <Button variant="copper" size="sm" disabled={busy === m.user_id} onClick={() => void saveEdit(m)}>
-                        {busy === m.user_id ? '…' : 'Enregistrer'}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setEditId(null)}>Annuler</Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="ghost" size="sm" onClick={() => startEdit(m)}>Modifier</Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        style={{ color: 'var(--trv-error, #b0563e)' }}
-                        disabled={busy === m.user_id || self || lastSouverain}
-                        title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain, accès protégé.' : 'Retirer l’accès'}
-                        onClick={() => {
-                          if (aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id) { void revoke(m); return; }
-                          setMsg(null);
-                          setAConfirmer({ quoi: 'retirer', id: m.user_id });
-                        }}
-                      >
-                        {busy === m.user_id ? '…'
-                          : aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id ? 'Confirmer le retrait'
-                          : 'Retirer'}
-                      </Button>
-                    </>
+                  {ouvert && (
+                    <div className="sys-acc-panneau">
+                      {/* LA BARRE QUI SUIT LE DÉFILEMENT. C'est elle qui répond à
+                          « je ne sais plus sur quel membre je suis » : tant qu'on
+                          règle ses écrans, son nom reste sous les yeux. */}
+                      <div className="sys-acc-suit">
+                        <b>{m.name || m.email || '—'}</b>
+                        <small>{m.email} · {ROLE_LABEL[m.role] ?? m.role}</small>
+                        <span className="sys-acc-suit__actions">
+                          {editing ? (
+                            <>
+                              <Button variant="copper" size="sm" disabled={busy === m.user_id} onClick={() => void saveEdit(m)}>
+                                {busy === m.user_id ? '…' : 'Enregistrer'}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setEditId(null)}>Annuler</Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => startEdit(m)}>Nom &amp; rôle</Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy === m.user_id || self || lastSouverain}
+                                title={self ? 'Vous ne pouvez pas retirer votre propre accès.' : lastSouverain ? 'Dernier souverain, accès protégé.' : 'Retirer l’accès'}
+                                onClick={() => {
+                                  if (aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id) { void revoke(m); return; }
+                                  setMsg(null);
+                                  setAConfirmer({ quoi: 'retirer', id: m.user_id });
+                                }}
+                              >
+                                {busy === m.user_id ? '…'
+                                  : aConfirmer?.quoi === 'retirer' && aConfirmer.id === m.user_id ? 'Confirmer le retrait'
+                                  : 'Retirer'}
+                              </Button>
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="sys-acc-corps">
+                        {editing && (
+                          <div className="sys-acc-edit">
+                            <Input
+                              className="sys-input"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder="Nom affiché"
+                              aria-label="Nom affiché"
+                              autoFocus
+                            />
+                            <Select
+                              className="sys-select"
+                              value={editRole}
+                              onChange={(e) => setEditRole(e.target.value as Role)}
+                              aria-label="Rôle"
+                              disabled={self}
+                              title={self ? 'Vous ne pouvez pas changer votre propre rôle.' : undefined}
+                            >
+                              <option value="maitre">Maître, clients &amp; vente</option>
+                              <option value="gerant">Gérant·e, tout sauf système</option>
+                              <option value="souverain">Souverain·e, accès total</option>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* DEUX CASQUETTES, UN SEUL COMPTE. Un maître n'atteint que Mon
+                            mois et le Calendrier. Ouvrir un domaine lui rend les écrans
+                            de ce domaine, c'est ainsi qu'une personne qui tient le
+                            secrétariat ET le fauteuil garde un seul pointage, une seule
+                            part de pourboire et une seule prime.
+
+                            Rien à cocher pour un gérant ou un souverain : ils ouvrent
+                            tout, et des cases sans effet feraient croire au contraire. */}
+                        {toutOuvertPartout ? (
+                          <div className="sys-acc-note">
+                            {ROLE_LABEL[m.role] ?? m.role} : tous les écrans sont ouverts, il n’y a rien à
+                            cocher ici. Des cases feraient croire le contraire.
+                          </div>
+                        ) : (
+                          <>
+                            {NAV.map((g) => {
+                              const ecrans = ecransDuGroupe(g.items);
+                              if (!ecrans.length) return null;
+                              const dom = domaineDuGroupe(ecrans);
+                              const toutOuvert = toutLeDomaine(m.user_id, ecrans);
+                              const [n, t] = compteDuDomaine(m, ecrans);
+                              const clef = clefDom(m.user_id, g.group);
+                              const deplie = domOuverts.includes(clef);
+                              return (
+                                <section className={`sys-acc-grp${deplie ? ' est-deplie' : ''}`} key={g.group}>
+                                  <button type="button" className="sys-acc-grp__tete" aria-expanded={deplie} onClick={() => basculeGroupe(clef)}>
+                                    <svg className="sys-acc-fleche" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                                    <span className="sys-acc-grp__nom">{g.group}</span>
+                                    <span className="sys-acc-grp__compte">{n === t ? 'tout' : `${n} sur ${t}`}</span>
+                                    <span className="sys-acc-jauge" aria-hidden="true">
+                                      <i className={n === t ? 'est-plein' : ''} style={{ width: `${Math.round((n / t) * 100)}%` }} />
+                                    </span>
+                                  </button>
+                                  {deplie && (
+                                    <div className="sys-acc-grp__corps">
+                                      {/* LE DOMAINE ENTIER RESTE POSSIBLE, mais ce n'est plus
+                                          le seul geste : il éclaire alors tous ses écrans. */}
+                                      <button
+                                        className={`sys-acces__chip est-tout ${toutOuvert ? 'is-on' : ''}`}
+                                        aria-pressed={toutOuvert}
+                                        onClick={() => dom && basculeDomaine(m.user_id, dom)}
+                                      >
+                                        tout le domaine
+                                      </button>
+                                      {ecrans.map((it) => {
+                                        /* TROIS ÉTATS, ET ON LES DIT — 31 août 2026. Ouvert
+                                           d'un clic, ouvert PARCE QUE le domaine entier
+                                           l'est, ou fermé. Le deuxième s'éteindra en même
+                                           temps que « tout » : le confondre avec le premier
+                                           ferait croire à douze réglages posés à la main. */
+                                        const ouvertIci = ecranOuvert(m.user_id, it.path, toutOuvert);
+                                        const propre = acces[m.user_id]?.[it.path] === true;
+                                        const herite = ouvertIci && toutOuvert && !propre && !estFermable(it.path);
+                                        const barre = estFermable(it.path) && !ouvertIci;
+                                        return (
+                                          <button
+                                            key={it.path}
+                                            className={[
+                                              'sys-acces__chip',
+                                              herite ? 'is-herite' : (ouvertIci ? 'is-on' : ''),
+                                              barre ? 'is-barre' : '',
+                                            ].filter(Boolean).join(' ')}
+                                            aria-pressed={ouvertIci}
+                                            onClick={() => basculeEcran(m.user_id, it.path, toutOuvert)}
+                                            title={estFermable(it.path)
+                                              ? (ouvertIci
+                                                ? 'Ouvert d’office ; cliquez pour le fermer à cette personne.'
+                                                : 'Fermé à cette personne ; cliquez pour le rouvrir.')
+                                              : (herite ? 'Ouvert par le domaine entier' : undefined)}
+                                          >
+                                            {it.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </section>
+                              );
+                            })}
+                            <div className="sys-acc-note">
+                              Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la
+                              <strong> Caisse</strong>, les <strong>Factures</strong> ou tout le domaine
+                              <strong> Vente</strong> lui rend aussi les prix.
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
-                {/* DEUX CASQUETTES, UN SEUL COMPTE. Un maitre n'atteint que Mon
-                    mois et le Calendrier. Ouvrir un domaine lui rend les ecrans
-                    de ce domaine — c'est ainsi qu'une personne qui tient le
-                    secretariat ET le fauteuil garde un seul pointage, une seule
-                    part de pourboire et une seule prime.
-
-                    Rien a cocher pour un gerant ou un souverain : ils ouvrent
-                    tout, et des cases sans effet feraient croire au contraire. */}
-                {m.role === 'maitre' && (
-                  <div style={{ padding: '0 0 14px 2px' }}>
-                    <div className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8 }}>
-                      Écrans ouverts en plus
-                    </div>
-                    {NAV.map((g) => {
-                      const ecrans = g.items.filter((it) => !ROUTES_MAITRE.includes(it.path));
-                      if (!ecrans.length) return null;
-                      const dom = domaineDe(ecrans[0].path);
-                      const toutOuvert = !!dom && acces[m.user_id]?.[dom] === true;
-                      return (
-                        <div key={g.group} style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginBottom: 7 }}>
-                          <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', minWidth: 150 }}>
-                            {g.group}
-                          </span>
-                          {/* LE DOMAINE ENTIER RESTE POSSIBLE, mais ce n'est plus
-                              le seul geste : il eclaire alors tous ses ecrans. */}
-                          <button
-                            className={`sys-acces__chip ${toutOuvert ? 'is-on' : ''}`}
-                            style={{ fontSize: 11 }}
-                            aria-pressed={toutOuvert}
-                            onClick={() => dom && basculeDomaine(m.user_id, dom)}
-                          >
-                            tout
-                          </button>
-                          {ecrans.map((it) => {
-                            /* TROIS ÉTATS, ET ON LES DIT — 31 août 2026. Ouvert
-                               d'un clic, ouvert PARCE QUE le domaine entier
-                               l'est, ou fermé. Le deuxième s'éteindra en même
-                               temps que « tout » : le confondre avec le premier
-                               ferait croire à douze réglages posés à la main. */
-                            const ouvert = ecranOuvert(m.user_id, it.path, toutOuvert);
-                            const propre = acces[m.user_id]?.[it.path] === true;
-                            const herite = ouvert && toutOuvert && !propre && !estFermable(it.path);
-                            const barre = estFermable(it.path) && !ouvert;
-                            return (
-                              <button
-                                key={it.path}
-                                className={[
-                                  'sys-acces__chip',
-                                  herite ? 'is-herite' : (ouvert ? 'is-on' : ''),
-                                  barre ? 'is-barre' : '',
-                                ].filter(Boolean).join(' ')}
-                                style={{ fontSize: 11.5 }}
-                                aria-pressed={ouvert}
-                                onClick={() => basculeEcran(m.user_id, it.path, toutOuvert)}
-                                title={estFermable(it.path)
-                                  ? (ouvert
-                                    ? 'Ouvert d’office ; cliquez pour le fermer à cette personne.'
-                                    : 'Fermé à cette personne ; cliquez pour le rouvrir.')
-                                  : (herite ? 'Ouvert par le domaine entier' : undefined)}
-                              >
-                                {it.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                    {/* CE QUE CHAQUE ALLURE VEUT DIRE — sans quoi il faut le
-                        deviner, et une teinte devinée ne se fait pas confiance. */}
-                    <div className="mnd-muted" style={{ fontSize: 11, marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <i className="sys-acces__chip is-on" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> ouvert
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <i className="sys-acces__chip is-herite" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> ouvert par le domaine
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <i className="sys-acces__chip" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> fermé
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <i className="sys-acces__chip is-barre" style={{ width: 22, height: 12, padding: 0, display: 'inline-block' }} /> retiré alors qu’il est ouvert d’office
-                      </span>
-                    </div>
-                    <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.55 }}>
-                      Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la
-                      <strong style={{ fontWeight: 500 }}> Caisse</strong>, les
-                      <strong style={{ fontWeight: 500 }}> Factures</strong> ou tout le domaine
-                      <strong style={{ fontWeight: 500 }}> Vente</strong> lui rend aussi les prix.
-                    </div>
-                  </div>
-                )}
-                </div>
               );
+            })}
+
+            {/* ── PAR ÉCRAN : la même question, prise par l'autre bout ──────
+                Qui voit le Coffre-fort ? Y répondre demandait d'ouvrir chaque
+                personne, l'une après l'autre, et de retenir. */}
+            {vue === 'ecrans' && NAV.map((g) => {
+              const ecrans = ecransDuGroupe(g.items);
+              const vus = ecrans.filter((it) => !cherche
+                || it.label.toLowerCase().includes(cherche) || g.group.toLowerCase().includes(cherche));
+              if (!vus.length) return null;
+              return vus.map((it) => {
+                const dedans = quiAtteint(it.path, ecrans);
+                return (
+                  <div className="sys-acc-ecran" key={it.path}>
+                    <span className="sys-acc-ecran__grp">{g.group}</span>
+                    <span className="sys-acc-ecran__nom">{it.label}</span>
+                    <span className="sys-acc-ecran__gens">
+                      {dedans.length === 0
+                        ? <span className="sys-acc-ecran__vide">personne</span>
+                        : dedans.map((m) => (
+                          <span
+                            className={`sys-acc-mini${m.role === 'maitre' ? ' est-maitre' : ''}`}
+                            key={m.user_id}
+                            title={`${m.name || m.email} · ${ROLE_COURT[m.role] ?? m.role}`}
+                          >
+                            {initiales(m)}
+                          </span>
+                        ))}
+                    </span>
+                  </div>
+                );
+              });
             })}
           </Card>
         </>

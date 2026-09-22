@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Maquette · Accès &amp; personnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C;
+  --cuivre-voile:rgba(185,122,74,.13); --cuivre-clair:#FAF1E9;
+  --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13);
+  --vert:#2E7D5B; --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+  --r:4px; --t:.18s ease;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.55}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1}
+p{margin:0}
+button{font-family:var(--sans);cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,3vw,28px) 60px}
+
+/* bandeau de maquette */
+.mq{background:var(--indigo);color:#F6F1E7;padding:10px clamp(16px,3vw,28px);display:flex;gap:14px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:60}
+.mq b{font-size:12.5px;letter-spacing:.06em;font-weight:500}
+.mq span{font-size:12px;color:rgba(246,241,231,.72);flex:1;min-width:220px}
+
+/* en-tête d'écran */
+.tete{padding:26px 0 18px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond);font-weight:400}
+.tete h1{font-size:34px;margin-top:6px}
+.tete p{color:var(--encre-doux);font-size:14px;margin-top:8px;max-width:64ch}
+
+/* barre d'outils */
+.outils{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 14px;position:sticky;top:41px;z-index:40;background:var(--fond);padding:10px 0;border-bottom:1px solid var(--filet)}
+.rech{flex:1;min-width:190px;position:relative}
+.rech input{width:100%;padding:9px 12px 9px 32px;border:1px solid var(--filet);border-radius:var(--r);background:var(--carte);font-family:var(--sans);font-size:14px;color:var(--encre)}
+.rech input:focus{outline:none;border-color:var(--cuivre)}
+.rech svg{position:absolute;left:10px;top:11px;color:var(--encre-doux)}
+.onglets{display:inline-flex;border:1px solid var(--filet);border-radius:999px;overflow:hidden;background:var(--carte)}
+.onglets button{border:0;background:transparent;color:var(--encre-doux);font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;transition:var(--t)}
+.onglets button[aria-pressed=true]{background:var(--indigo);color:#F6F1E7}
+
+/* légende, dite une seule fois */
+.legende{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--encre-doux);padding:10px 0 16px}
+.legende span{display:inline-flex;align-items:center;gap:6px}
+.pastille{width:20px;height:11px;border-radius:999px;border:1px solid var(--filet);display:inline-block}
+.pastille.on{background:var(--indigo);border-color:var(--indigo)}
+.pastille.her{background:var(--cuivre-voile);border-color:var(--cuivre)}
+.pastille.barre{border-style:dashed;position:relative;overflow:hidden}
+.pastille.barre::after{content:'';position:absolute;left:-2px;top:4px;width:26px;height:1px;background:var(--encre-doux);transform:rotate(-12deg)}
+
+/* la liste des personnes */
+.gens{display:flex;flex-direction:column;gap:8px}
+/* PAS D'OVERFLOW ICI : `overflow:hidden` ferait de la carte le conteneur de
+   défilement de la barre collante, qui se décalerait de vingt-huit pixels au
+   lieu de suivre la page. Les angles se passent de rognage. */
+.pers{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);transition:var(--t)}
+.pers.ouvert{border-color:var(--indigo);box-shadow:0 10px 34px rgba(30,33,80,.09)}
+.ligne{display:flex;align-items:center;gap:14px;padding:13px 16px;width:100%;background:none;border:0;text-align:left}
+.ligne:hover{background:var(--cuivre-voile)}
+.jeton{width:34px;height:34px;flex:none;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:13px;letter-spacing:.04em}
+.qui{min-width:0;flex:1}
+.qui b{display:block;font-weight:400;font-size:15.5px;color:var(--indigo)}
+.qui small{display:block;font-size:12.5px;color:var(--encre-doux);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.role{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--filet);color:var(--encre-doux);flex:none}
+.role.souv{background:var(--indigo);color:#F6F1E7;border-color:var(--indigo)}
+.role.ger{background:var(--cuivre-voile);color:var(--cuivre-profond);border-color:var(--cuivre)}
+.vous{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cuivre-profond);margin-left:7px}
+
+/* le résumé : ce que la personne atteint, en un coup d'œil */
+.resume{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:430px;flex:none}
+.dom{font-size:11px;letter-spacing:.04em;padding:3px 9px;border-radius:999px;border:1px solid var(--filet);color:var(--encre-doux);white-space:nowrap}
+.dom.plein{background:var(--indigo);color:#F6F1E7;border-color:var(--indigo)}
+.dom.part{background:var(--cuivre-voile);color:var(--cuivre-profond);border-color:rgba(185,122,74,.45)}
+.dom.tout{background:var(--indigo);color:#F6F1E7;border-color:var(--indigo);letter-spacing:.1em;text-transform:uppercase;font-size:10.5px}
+.fleche{flex:none;color:var(--encre-doux);transition:var(--t)}
+.pers.ouvert .fleche{transform:rotate(90deg);color:var(--indigo)}
+
+/* le panneau ouvert */
+.panneau{border-top:1px solid var(--filet);display:none}
+.pers.ouvert .panneau{display:block}
+/* LA BARRE QUI SUIT : on sait toujours de qui on règle les écrans. */
+.suit{position:sticky;top:96px;z-index:30;background:var(--indigo);color:#F6F1E7;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.suit b{font-weight:400;font-size:14.5px}
+.suit small{color:rgba(246,241,231,.66);font-size:12px}
+.suit .pousse{margin-left:auto;display:flex;gap:8px}
+.bt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:7px 14px;border-radius:var(--r);border:1px solid rgba(246,241,231,.34);background:transparent;color:#F6F1E7;transition:var(--t)}
+.bt:hover{background:rgba(246,241,231,.12)}
+.bt.cuivre{background:var(--cuivre);border-color:var(--cuivre)}
+.bt.cuivre:hover{background:var(--cuivre-profond)}
+.corps{padding:16px}
+
+/* un domaine = une ligne pliable */
+.grp{border:1px solid var(--filet);border-radius:var(--r);margin-bottom:8px;background:var(--fond)}
+.grp__tete{display:flex;align-items:center;gap:12px;padding:10px 13px;width:100%;background:none;border:0;text-align:left}
+.grp__tete:hover{background:var(--cuivre-voile)}
+.grp__nom{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--indigo);flex:1}
+.compte{font-size:11.5px;color:var(--encre-doux);font-variant-numeric:tabular-nums}
+.jauge{width:74px;height:4px;border-radius:999px;background:var(--fond-2);overflow:hidden;flex:none}
+.jauge i{display:block;height:100%;background:var(--cuivre)}
+.jauge i.plein{background:var(--indigo)}
+.grp__corps{display:none;padding:2px 13px 13px;gap:6px;flex-wrap:wrap}
+.grp.ouvert .grp__corps{display:flex}
+.grp.ouvert{background:var(--carte)}
+.chip{font-size:11.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--filet);background:var(--carte);color:var(--encre-doux);transition:var(--t)}
+.chip:hover{border-color:var(--cuivre)}
+.chip.on{background:var(--indigo);border-color:var(--indigo);color:#F6F1E7}
+.chip.her{background:var(--cuivre-voile);border-color:rgba(185,122,74,.5);color:var(--cuivre-profond)}
+.chip.barre{border-style:dashed;text-decoration:line-through;color:var(--encre-doux)}
+.chip.tout{letter-spacing:.1em;text-transform:uppercase;font-size:10.5px}
+.note{font-size:12.5px;color:var(--encre-doux);padding:10px 2px 0;border-top:1px solid var(--filet);margin-top:6px}
+
+/* vue par écran */
+.parecran{display:none}
+.parecran.on{display:block}
+.pargens{display:none}
+.pargens.on{display:block}
+.ecr{display:flex;align-items:center;gap:12px;padding:9px 13px;background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);margin-bottom:6px}
+.ecr__nom{flex:1;font-size:14px;color:var(--indigo)}
+.ecr__grp{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--encre-doux);min-width:132px}
+.qui__jetons{display:flex;gap:4px}
+.mini{width:25px;height:25px;border-radius:999px;display:grid;place-items:center;font-size:10.5px;background:var(--indigo);color:#F6F1E7;border:2px solid var(--carte)}
+.mini.gris{background:var(--fond-2);color:var(--encre-doux)}
+.personne-vide{font-size:12px;color:var(--encre-doux)}
+@media(max-width:860px){
+  .resume{display:none}
+  .suit{top:96px}
+  .ecr__grp{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="mq">
+  <b>MAQUETTE · Système › Accès &amp; personnel</b>
+  <span>À valider avant que je touche à l'écran. Rien n'est branché : les clics ouvrent et ferment, ils n'enregistrent pas.</span>
+</div>
+
+<div class="wrap">
+  <div class="tete">
+    <p class="sur">Système</p>
+    <h1>Accès &amp; personnel</h1>
+    <p>Qui entre dans la Maison, et jusqu'où. Une personne par ligne : son rôle et ce qu'elle atteint se lisent sans ouvrir. Ouvrez-la pour régler ses écrans.</p>
+  </div>
+
+  <div class="outils">
+    <div class="rech">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input type="search" placeholder="Trouver une personne, un rôle, un écran…" id="q">
+    </div>
+    <div class="onglets">
+      <button type="button" id="bGens" aria-pressed="true">Par personne</button>
+      <button type="button" id="bEcrans">Par écran</button>
+    </div>
+  </div>
+
+  <div class="legende">
+    <span><i class="pastille on"></i> ouvert</span>
+    <span><i class="pastille her"></i> ouvert par le domaine</span>
+    <span><i class="pastille"></i> fermé</span>
+    <span><i class="pastille barre"></i> retiré alors qu'il est ouvert d'office</span>
+  </div>
+
+  <!-- ══════════ PAR PERSONNE ══════════ -->
+  <div class="pargens on" id="vueGens">
+    <div class="gens" id="gens"></div>
+  </div>
+
+  <!-- ══════════ PAR ÉCRAN ══════════ -->
+  <div class="parecran" id="vueEcrans"></div>
+</div>
+
+<script>
+/* Les six domaines et leurs écrans, recopiés de NAV (src/apps/trone/routes/index.tsx). */
+const NAV = [
+  ['Pilotage', ['Tableau de bord','Bilan mensuel','À faire','Analytics','La Cadence']],
+  ['Clients & Agenda', ['Calendrier','Les Appels','Conversations','Le Carnet','Clientes','Consultations','Les demandes','Personas','Vitrine client','QR Codes']],
+  ['Vente', ['Catalogue','Caisse POS','Stock & Achats','Factures & devis','Les engagements','Le Laboratoire']],
+  ['Finances', ['Synthèse & résultat','Encaissements','Les créances','Les caisses','Coffre-fort','Comptes & Avoirs','Les prêts','Le Juste Prix','Dépenses','Fournisseurs','Salon & Foyer']],
+  ['Équipe & croissance', ['Le Fil','Le Tableau','Mon mois','Personnel & paie','Prestataires','Marketing','Cercle MND','Abonnements','Recommandations IA','Académie']],
+  ['Système', ['Paramètres','Les textes de la Maison','Comptoir · code du jour','Accès & personnel','Journal des gestes','Branches','Marque & thème']],
+];
+/* Ouverts d'office à un maître, refermables un par un (ROUTES_MAITRE_FERMABLES). */
+const DOFFICE = ['Mon mois','Calendrier','Le Fil','Le Tableau'];
+
+/* Des personnes d'exemple, initiales seulement. */
+const GENS = [
+  { id:'y', nom:'Yeman B.', mail:'yeman@maisonmnd.com', role:'souverain', vous:true, ouverts:{} },
+  { id:'d', nom:'Direction', mail:'direction@maisonmnd.com', role:'gerant', ouverts:{} },
+  { id:'r', nom:'R. A.', mail:'accueil@maisonmnd.com', role:'maitre',
+    domaines:['Clients & Agenda'], ouverts:{ 'Caisse POS':1, 'Catalogue':1, 'Les demandes':1 }, retires:['Le Tableau'] },
+  { id:'i', nom:'I. K.', mail:'i.k@maisonmnd.com', role:'maitre',
+    domaines:[], ouverts:{ 'Clientes':1 }, retires:[] },
+  { id:'n', nom:'N. S.', mail:'n.s@maisonmnd.com', role:'maitre',
+    domaines:['Vente'], ouverts:{ 'Encaissements':1,'Les caisses':1 }, retires:['Le Fil','Le Tableau'] },
+];
+
+const estTout = (p) => p.role === 'souverain' || p.role === 'gerant';
+/* Ce qu'une personne atteint dans un domaine : [ouverts, total]. */
+function compte(p, grp, ecrans) {
+  if (estTout(p)) return [ecrans.length, ecrans.length];
+  if ((p.domaines || []).includes(grp)) return [ecrans.length, ecrans.length];
+  let n = 0;
+  for (const e of ecrans) {
+    if (p.ouverts[e]) n++;
+    else if (DOFFICE.includes(e) && !(p.retires || []).includes(e)) n++;
+  }
+  return [n, ecrans.length];
+}
+const etatChip = (p, grp, e) => {
+  if (estTout(p) || (p.domaines || []).includes(grp)) return 'her';
+  if (p.ouverts[e]) return 'on';
+  if (DOFFICE.includes(e)) return (p.retires || []).includes(e) ? 'barre' : 'on';
+  return '';
+};
+const initiales = (nom) => nom.split(/[\s.]+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+const LIB_ROLE = { souverain:'Souverain·e', gerant:'Gérant·e', maitre:'Maître' };
+
+/* ── LA LISTE ── */
+function rendGens() {
+  const hote = document.getElementById('gens');
+  hote.innerHTML = '';
+  for (const p of GENS) {
+    const art = document.createElement('article');
+    art.className = 'pers';
+    art.dataset.cherche = (p.nom + ' ' + p.mail + ' ' + LIB_ROLE[p.role]).toLowerCase();
+
+    /* le résumé : soit « accès total », soit un jeton par domaine touché */
+    let resume = '';
+    if (estTout(p)) {
+      resume = '<span class="dom tout">Accès total</span>';
+    } else {
+      const bouts = [];
+      for (const [grp, ecrans] of NAV) {
+        const [n, t] = compte(p, grp, ecrans);
+        if (!n) continue;
+        bouts.push(`<span class="dom ${n === t ? 'plein' : 'part'}">${grp} ${n === t ? 'tout' : n + '/' + t}</span>`);
+      }
+      resume = bouts.length ? bouts.join('') : '<span class="dom">Rien d’ouvert en plus</span>';
+    }
+
+    const groupes = NAV.map(([grp, ecrans]) => {
+      const [n, t] = compte(p, grp, ecrans);
+      const pct = Math.round(n / t * 100);
+      const chips = ecrans.map((e) => {
+        const cl = etatChip(p, grp, e);
+        return `<button class="chip ${cl}" data-e="${e}">${e}</button>`;
+      }).join('');
+      const tout = (p.domaines || []).includes(grp) || estTout(p);
+      return `<section class="grp">
+        <button class="grp__tete" type="button">
+          <svg class="fleche" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+          <span class="grp__nom">${grp}</span>
+          <span class="compte">${n === t ? 'tout' : n + ' sur ' + t}</span>
+          <span class="jauge"><i class="${n === t ? 'plein' : ''}" style="width:${pct}%"></i></span>
+        </button>
+        <div class="grp__corps">
+          <button class="chip tout ${tout ? 'on' : ''}">tout le domaine</button>
+          ${chips}
+        </div>
+      </section>`;
+    }).join('');
+
+    art.innerHTML = `
+      <button class="ligne" type="button">
+        <span class="jeton">${initiales(p.nom)}</span>
+        <span class="qui">
+          <b>${p.nom}${p.vous ? '<span class="vous">vous</span>' : ''}</b>
+          <small>${p.mail}</small>
+        </span>
+        <span class="resume">${resume}</span>
+        <span class="role ${p.role === 'souverain' ? 'souv' : p.role === 'gerant' ? 'ger' : ''}">${LIB_ROLE[p.role]}</span>
+        <svg class="fleche" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+      <div class="panneau">
+        <div class="suit">
+          <b>${p.nom}</b><small>${p.mail} · ${LIB_ROLE[p.role]}</small>
+          <span class="pousse">
+            <button class="bt">Changer le rôle</button>
+            <button class="bt">Retirer</button>
+            <button class="bt cuivre">Enregistrer</button>
+          </span>
+        </div>
+        <div class="corps">
+          ${estTout(p)
+            ? `<p class="note" style="border:0;margin:0;padding:6px 2px">${LIB_ROLE[p.role]} : tous les écrans sont ouverts, il n’y a rien à cocher. Des cases ici feraient croire le contraire.</p>`
+            : groupes + `<p class="note">Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la Caisse, les Factures ou tout le domaine Vente lui rend aussi les prix.</p>`}
+        </div>
+      </div>`;
+
+    art.querySelector('.ligne').onclick = () => {
+      const etait = art.classList.contains('ouvert');
+      document.querySelectorAll('.pers.ouvert').forEach((x) => x.classList.remove('ouvert'));
+      if (!etait) art.classList.add('ouvert');
+    };
+    art.querySelectorAll('.grp__tete').forEach((b) => {
+      b.onclick = () => b.parentElement.classList.toggle('ouvert');
+    });
+    art.querySelectorAll('.chip').forEach((c) => {
+      c.onclick = () => {
+        if (c.classList.contains('her')) return;
+        c.classList.toggle('on');
+      };
+    });
+    hote.appendChild(art);
+  }
+}
+
+/* ── PAR ÉCRAN : qui atteint quoi ── */
+function rendEcrans() {
+  const hote = document.getElementById('vueEcrans');
+  hote.innerHTML = NAV.map(([grp, ecrans]) => ecrans.map((e) => {
+    const dedans = GENS.filter((p) => etatChip(p, grp, e) === 'on' || etatChip(p, grp, e) === 'her');
+    const jetons = dedans.length
+      ? dedans.map((p) => `<span class="mini ${estTout(p) ? '' : 'gris'}" title="${p.nom}">${initiales(p.nom)}</span>`).join('')
+      : '<span class="personne-vide">personne</span>';
+    return `<div class="ecr" data-cherche="${(e + ' ' + grp).toLowerCase()}">
+      <span class="ecr__grp">${grp}</span>
+      <span class="ecr__nom">${e}</span>
+      <span class="qui__jetons">${jetons}</span>
+    </div>`;
+  }).join('')).join('');
+}
+
+rendGens();
+rendEcrans();
+
+/* ── LA RECHERCHE ── */
+document.getElementById('q').oninput = (ev) => {
+  const q = ev.target.value.trim().toLowerCase();
+  document.querySelectorAll('.pers').forEach((a) => { a.hidden = !!q && !a.dataset.cherche.includes(q); });
+  document.querySelectorAll('.ecr').forEach((a) => { a.hidden = !!q && !a.dataset.cherche.includes(q); });
+};
+
+/* ── LES DEUX VUES ── */
+const bG = document.getElementById('bGens'), bE = document.getElementById('bEcrans');
+const montre = (quoi) => {
+  document.getElementById('vueGens').classList.toggle('on', quoi === 'gens');
+  document.getElementById('vueEcrans').classList.toggle('on', quoi === 'ecrans');
+  bG.setAttribute('aria-pressed', String(quoi === 'gens'));
+  bE.setAttribute('aria-pressed', String(quoi === 'ecrans'));
+};
+bG.onclick = () => montre('gens');
+bE.onclick = () => montre('ecrans');
+</script>
+</body>
+</html>

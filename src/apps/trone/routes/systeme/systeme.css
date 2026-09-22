@@ -522,3 +522,148 @@
   color: var(--ink-soft);
   border-style: dashed;
 }
+
+/* ══ ACCÈS & PERSONNEL : UNE PERSONNE À LA FOIS — 22 septembre 2026 ══
+   « Too congested. Je ne sais plus sur quel membre je suis quand je fais
+   défiler » (Yéman). L'écran dépliait les quarante-quatre écrans de chaque
+   maître les uns sous les autres, et répétait la légende sous chacun.
+
+   Trois gestes ont tout réglé : la ligne repliée porte le résumé des accès,
+   un seul panneau s'ouvre, et une barre collante garde le nom sous les yeux. */
+.sys-acc-outils { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 14px 0 10px; }
+.sys-acc-rech { flex: 1 1 200px; min-width: 0; }
+.sys-acc-vues {
+  display: inline-flex; border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill); overflow: hidden; background: var(--surface-card);
+}
+.sys-acc-vues button {
+  border: 0; background: transparent; cursor: pointer; color: var(--ink-soft);
+  font-family: var(--font-sans); font-size: 11.5px; letter-spacing: .1em;
+  text-transform: uppercase; padding: 8px 16px; transition: var(--transition-base);
+}
+.sys-acc-vues button[aria-pressed="true"] { background: var(--color-indigo); color: var(--color-ivoire); }
+
+/* LA LÉGENDE, DITE UNE SEULE FOIS. Elle vivait sous chaque maître. */
+.sys-acc-legende {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+  font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft);
+  padding: 4px 0 14px;
+}
+.sys-acc-legende span { display: inline-flex; align-items: center; gap: 6px; }
+.sys-acc-legende .sys-acces__chip { width: 22px; height: 12px; padding: 0; display: inline-block; cursor: default; }
+
+/* LA CARTE D'UNE PERSONNE. Pas d'`overflow: hidden` ici : il ferait de la
+   carte le conteneur de défilement de la barre collante, qui suivrait la
+   carte au lieu de suivre la page. Les angles se passent de rognage. */
+.sys-acc-carte {
+  background: var(--surface-card); border: 1px solid var(--hairline);
+  border-radius: 4px; margin-bottom: 8px; transition: var(--transition-base);
+}
+.sys-acc-carte.est-ouvert { border-color: var(--color-indigo); box-shadow: 0 10px 34px rgba(30, 33, 80, .09); }
+
+.sys-acc-tete {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 12px 14px; background: none; border: 0; text-align: left; cursor: pointer;
+}
+.sys-acc-tete:hover { background: var(--copper-50); }
+.sys-acc-jeton {
+  width: 34px; height: 34px; flex: none; border-radius: var(--radius-pill);
+  background: var(--color-indigo); color: var(--color-ivoire);
+  display: grid; place-items: center; font-family: var(--font-sans); font-size: 12.5px;
+}
+.sys-acc-qui { min-width: 0; flex: 1; }
+.sys-acc-qui__nom { display: block; font-family: var(--font-sans); font-size: 14.5px; color: var(--color-indigo); }
+.sys-acc-qui__mail {
+  display: block; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* LE RÉSUMÉ : ce que la personne atteint, sans rien déplier. */
+.sys-acc-resume { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 430px; }
+.sys-acc-dom {
+  font-family: var(--font-sans); font-size: 10.5px; white-space: nowrap;
+  padding: 3px 9px; border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline); color: var(--ink-soft);
+}
+.sys-acc-dom.est-plein, .sys-acc-dom.est-total {
+  background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire);
+}
+.sys-acc-dom.est-total { letter-spacing: .1em; text-transform: uppercase; }
+.sys-acc-dom.est-part { background: var(--copper-50); border-color: var(--copper-200); color: var(--copper-700); }
+
+.sys-acc-role {
+  flex: none; font-family: var(--font-sans); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 4px 10px; border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline); color: var(--ink-soft);
+}
+.sys-acc-role.est-souverain { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.sys-acc-role.est-gerant { background: var(--copper-50); border-color: var(--copper-300); color: var(--copper-700); }
+.sys-acc-fleche { flex: none; color: var(--ink-soft); transition: var(--transition-base); }
+.sys-acc-carte.est-ouvert > .sys-acc-tete .sys-acc-fleche { transform: rotate(90deg); color: var(--color-indigo); }
+.sys-acc-grp.est-deplie > .sys-acc-grp__tete .sys-acc-fleche { transform: rotate(90deg); color: var(--color-indigo); }
+
+.sys-acc-panneau { border-top: 1px solid var(--hairline); }
+/* LA BARRE QUI SUIT : le nom reste sous les yeux tant qu'on règle les écrans. */
+.sys-acc-suit {
+  position: sticky; top: 0; z-index: 3;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 9px 14px; background: var(--color-indigo); color: var(--color-ivoire);
+}
+.sys-acc-suit b { font-family: var(--font-sans); font-weight: 500; font-size: 14px; }
+.sys-acc-suit small { font-family: var(--font-sans); font-size: 11.5px; color: rgba(246, 241, 231, .66); }
+.sys-acc-suit__actions { margin-left: auto; display: flex; gap: 8px; }
+.sys-acc-suit__actions button { color: var(--color-ivoire); }
+.sys-acc-corps { padding: 14px; }
+.sys-acc-edit { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sys-acc-edit .sys-input { flex: 1 1 180px; }
+.sys-acc-edit .sys-select { flex: 1 1 200px; }
+
+/* UN DOMAINE, UNE LIGNE PLIABLE, ET SON COMPTE. */
+.sys-acc-grp { border: 1px solid var(--hairline); border-radius: 4px; margin-bottom: 7px; }
+.sys-acc-grp.est-deplie { background: var(--indigo-50); }
+.sys-acc-grp__tete {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 9px 12px; background: none; border: 0; text-align: left; cursor: pointer;
+}
+.sys-acc-grp__tete:hover { background: var(--copper-50); }
+.sys-acc-grp__nom {
+  flex: 1; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--color-indigo);
+}
+.sys-acc-grp__compte { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sys-acc-jauge { width: 72px; height: 4px; flex: none; border-radius: var(--radius-pill); background: var(--indigo-50); overflow: hidden; }
+.sys-acc-jauge i { display: block; height: 100%; background: var(--copper-500); }
+.sys-acc-jauge i.est-plein { background: var(--color-indigo); }
+.sys-acc-grp__corps { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 12px 12px; }
+.sys-acces__chip.est-tout { letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; }
+.sys-acc-note {
+  font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft);
+  line-height: 1.55; padding-top: 10px; border-top: 1px solid var(--hairline); margin-top: 4px;
+}
+.sys-acc-note strong { font-weight: 500; color: var(--ink); }
+
+/* ── PAR ÉCRAN : qui atteint quoi ── */
+.sys-acc-ecran {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: var(--surface-card); border: 1px solid var(--hairline);
+  border-radius: 4px; margin-bottom: 6px;
+}
+.sys-acc-ecran__grp {
+  min-width: 132px; flex: none; font-family: var(--font-sans); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.sys-acc-ecran__nom { flex: 1; font-family: var(--font-sans); font-size: 13.5px; color: var(--color-indigo); }
+.sys-acc-ecran__gens { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.sys-acc-ecran__vide { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-soft); }
+.sys-acc-mini {
+  width: 25px; height: 25px; border-radius: var(--radius-pill); display: grid; place-items: center;
+  font-family: var(--font-sans); font-size: 10px;
+  background: var(--color-indigo); color: var(--color-ivoire);
+}
+.sys-acc-mini.est-maitre { background: var(--indigo-50); color: var(--indigo-600); }
+
+@media (max-width: 860px) {
+  .sys-acc-resume { display: none; }
+  .sys-acc-ecran__grp { display: none; }
+  .sys-acc-suit__actions { margin-left: 0; width: 100%; }
+}
