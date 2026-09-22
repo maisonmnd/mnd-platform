@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { createStore, uid, useStore } from '../../../../shared/store';
@@ -114,8 +114,14 @@ export default function Prestataires() {
     }
     setProvModal(false);
   };
-  const archiveProvider = (p: Provider) => {
-    if (!window.confirm(`Archiver le prestataire « ${p.name} » ? Ses missions restent au registre.`)) return;
+  const archiveProvider = async (p: Provider) => {
+    if (!await demande({
+      quoi: 'Retrait doux',
+      titre: `Archiver le prestataire « ${p.name} » ?`,
+      dit: 'Il sort des listes sans être supprimé. Ses missions restent au registre.',
+      accepter: 'Archiver le prestataire',
+      refuser: 'Le garder actif',
+    })) return;
     setProviders((prev) => prev.map((x) => (x.id === p.id ? { ...x, archived: true } : x)));
   };
 
@@ -158,9 +164,17 @@ export default function Prestataires() {
     setMissionEditId(null);
     setMissionFor(null);
   };
-  const removeMission = (id: string) => {
+  const removeMission = async (id: string) => {
     const m = missions.find((x) => x.id === id);
-    if (!window.confirm('Retirer cette mission du registre ? Action définitive.')) return;
+    if (!await demande({
+      quoi: 'Registre des missions',
+      titre: 'Retirer cette mission du registre ?',
+      dit: 'Elle quitte le registre, et la charge qu’elle portait quitte les Dépenses.',
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Retirer la mission',
+      refuser: 'Garder la mission',
+      dur: true,
+    })) return;
     if (m?.expenseId) expensesStore.set((prev) => prev.filter((e) => e.id !== m.expenseId));
     setMissions((prev) => prev.filter((x) => x.id !== id));
   };
@@ -223,8 +237,16 @@ export default function Prestataires() {
     setMissions((prev) => prev.map((m) => (m.id === payFor.id ? { ...m, paidAt, byName, method: payMethod, expenseId: expId } : m)));
     setPayFor(null);
   };
-  const unpay = (m: Mission) => {
-    if (!window.confirm('Annuler la confirmation de paiement ? La charge correspondante sera retirée des Dépenses.')) return;
+  const unpay = async (m: Mission) => {
+    if (!await demande({
+      quoi: 'Paiement d’une mission',
+      titre: 'Annuler la confirmation de paiement ?',
+      dit: 'La mission redevient à payer, et la charge correspondante quitte les Dépenses.',
+      suite: 'Le nom de qui avait confirmé et l’horodatage seront effacés.',
+      accepter: 'Annuler la confirmation',
+      refuser: 'La garder payée',
+      dur: true,
+    })) return;
     if (m.expenseId) expensesStore.set((prev) => prev.filter((e) => e.id !== m.expenseId));
     setMissions((prev) => prev.map((x) => (x.id === m.id ? { ...x, paidAt: undefined, byName: undefined, method: undefined, expenseId: undefined } : x)));
   };

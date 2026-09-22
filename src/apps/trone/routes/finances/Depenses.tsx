@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { prestationRepond } from '../../../../shared/recherche';
-import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte } from '../../../../ds/components';
+import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
@@ -1000,7 +1000,7 @@ export default function Depenses() {
     setMotifRefus('');
   };
 
-  const removeExpense = (e: Expense) => {
+  const removeExpense = async (e: Expense) => {
     /* MÊME CEINTURE POUR L'EFFACEMENT, et elle importe davantage : une dépense
        validée qu'on efface disparaît des comptes sans laisser de trace, et le
        tiroir cesse de correspondre aux livres. */
@@ -1008,7 +1008,15 @@ export default function Depenses() {
       alerte('Cette dépense a été tranchée. Elle ne se supprime plus : seul un souverain peut y revenir.');
       return;
     }
-    if (!window.confirm(`Supprimer la dépense « ${e.label} » (${fmtMoney(expenseTotal(e), currency)}) ? Cette action est définitive.`)) return;
+    if (!await demande({
+      quoi: 'Suppression définitive',
+      titre: `Supprimer la dépense « ${e.label} » ?`,
+      dit: `${fmtMoney(expenseTotal(e), currency)} quittent le registre des Dépenses, et le résultat du salon remonte d’autant.`,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la dépense',
+      refuser: 'Garder la dépense',
+      dur: true,
+    })) return;
     setExpenses((prev) => prev.filter((x) => x.id !== e.id));
   };
 
@@ -1082,12 +1090,19 @@ export default function Depenses() {
     setExpenses((prev) => prev.map((e) => (e.category === c.name ? { ...e, category: nn } : e)));
     setBudgets((prev) => prev.map((b) => (b.category === c.name ? { ...b, category: nn } : b)));
   };
-  const deleteCategory = (c: ExpenseCategory) => {
+  const deleteCategory = async (c: ExpenseCategory) => {
     const used = expenses.filter((e) => e.category === c.name).length;
     const msg = used > 0
       ? `« ${c.name} » est référencée par ${used} dépense(s), leur libellé de catégorie sera conservé. Supprimer la catégorie quand même ?`
       : `Supprimer la catégorie « ${c.name} » ?`;
-    if (!window.confirm(msg)) return;
+    if (!await demande({
+      quoi: 'Catégorie de dépense',
+      titre: `Supprimer « ${c.name} » ?`,
+      dit: msg,
+      accepter: 'Supprimer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
     setCategories((prev) => prev.filter((x) => x.id !== c.id));
   };
   const addSubTo = (c: ExpenseCategory) => {
@@ -1102,12 +1117,19 @@ export default function Depenses() {
     setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: x.subs.map((s) => (s === sub ? nn : s)) } : x)));
     setExpenses((prev) => prev.map((e) => (e.category === c.name && e.subcategory === sub ? { ...e, subcategory: nn } : e)));
   };
-  const deleteSub = (c: ExpenseCategory, sub: string) => {
+  const deleteSub = async (c: ExpenseCategory, sub: string) => {
     const used = expenses.filter((e) => e.category === c.name && e.subcategory === sub).length;
     const msg = used > 0
       ? `« ${sub} » est utilisée par ${used} dépense(s), qui perdront cette sous-catégorie. Supprimer ?`
       : `Supprimer la sous-catégorie « ${sub} » ?`;
-    if (!window.confirm(msg)) return;
+    if (!await demande({
+      quoi: 'Sous-catégorie',
+      titre: `Supprimer « ${sub} » ?`,
+      dit: msg,
+      accepter: 'Supprimer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
     setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: x.subs.filter((s) => s !== sub) } : x)));
     setExpenses((prev) => prev.map((e) => (e.category === c.name && e.subcategory === sub ? { ...e, subcategory: undefined } : e)));
   };
@@ -1164,13 +1186,20 @@ export default function Depenses() {
     }
     setBoxOpen(false);
   };
-  const deleteBox = (c: Cashbox) => {
+  const deleteBox = async (c: Cashbox) => {
     const expUsed = expenses.filter((e) => e.cashbox === c.name).length;
     const invUsed = invoices.filter((i) => i.cashbox === c.name).length;
     const msg = expUsed + invUsed > 0
       ? `« ${c.name} » est référencée par ${expUsed} dépense(s) et ${invUsed} encaissement(s), ces écritures ne seront pas modifiées. Supprimer la caisse ?`
       : `Supprimer la caisse « ${c.name} » ?`;
-    if (!window.confirm(msg)) return;
+    if (!await demande({
+      quoi: 'Caisse du registre',
+      titre: `Supprimer « ${c.name} » ?`,
+      dit: msg,
+      accepter: 'Supprimer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
     setCashboxes((prev) => prev.filter((b) => b.id !== c.id));
     if (filterCaisse === c.name) setFilterCaisse('all');
   };

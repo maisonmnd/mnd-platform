@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eyebrow } from '../../../../ds/components';
+import { Eyebrow, demande } from '../../../../ds/components';
 import { OptionsPrestations } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -387,9 +387,17 @@ function BaremeModeles({ currency }: { currency: string }) {
     const depart = catId === 'atl-i-vekpe' ? VEKPE_BANDS_SEED : maison;
     bandSetsStore.set((prev) => ({ ...prev, [catId]: depart.map((b) => ({ ...b })) }));
   };
-  const retirer = (catId: string) => {
+  const retirer = async (catId: string) => {
     const nom = categories.find((c) => c.id === catId)?.fon ?? catId;
-    if (!window.confirm(`Retirer le barème propre à ${nom} ? Cet atelier suivra de nouveau celui de la Maison.`)) return;
+    if (!await demande({
+      quoi: 'Barème d’un atelier',
+      titre: `Retirer le barème propre à ${nom} ?`,
+      dit: 'Cet atelier suivra de nouveau le barème de la Maison.',
+      scelle: 'Les tranches que vous aviez réglées pour lui seront perdues.',
+      accepter: 'Retirer le barème',
+      refuser: 'Garder son barème',
+      dur: true,
+    })) return;
     bandSetsStore.set((prev) => { const n = { ...prev }; delete n[catId]; return n; });
   };
 
@@ -422,9 +430,16 @@ function BaremeModeles({ currency }: { currency: string }) {
 
   const patchBand = (id: string, p: Partial<ModelBand>) =>
     writeToutes((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
-  const removeBand = (id: string) => {
+  const removeBand = async (id: string) => {
     if (bands.length <= 1) return;
-    if (!window.confirm('Retirer cette tranche du barème ?')) return;
+    if (!await demande({
+      quoi: 'Tranche du barème',
+      titre: 'Retirer cette tranche ?',
+      dit: 'Les têtes de cette plage tomberont dans la tranche voisine, et leur prix changera.',
+      accepter: 'Retirer la tranche',
+      refuser: 'Garder la tranche',
+      dur: true,
+    })) return;
     writeToutes((prev) => prev.filter((b) => b.id !== id));
   };
   const addBand = () => {
@@ -436,8 +451,16 @@ function BaremeModeles({ currency }: { currency: string }) {
        parce qu'on ne sait pas ce qu'elle est. */
     writeToutes((prev) => [...prev, { id: `mb-${uid()}`, name: 'Nouvelle tranche', maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
-  const resetBands = () => {
-    if (!window.confirm('Rétablir le barème recommandé (7 tranches, Jumbo → Pico → Galaxy) ? Vos tranches actuelles seront remplacées.')) return;
+  const resetBands = async () => {
+    if (!await demande({
+      quoi: 'Barème de la Maison',
+      titre: 'Rétablir le barème recommandé ?',
+      dit: 'Les sept tranches de la Maison reviennent, de Jumbo à Pico puis Galaxy.',
+      scelle: 'Vos tranches actuelles seront remplacées. Notez-les si vous y tenez.',
+      accepter: 'Rétablir les sept tranches',
+      refuser: 'Garder les miennes',
+      dur: true,
+    })) return;
     modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
     bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
   };
@@ -717,8 +740,16 @@ export default function JustePrix() {
 
   /* Anciens coefficients hérités des leviers (≠ ×1) — à neutraliser en un geste. */
   const legacyCoefCount = branchClients.filter((c) => (c.priceCoef ?? 1) !== 1).length;
-  const neutralizeAll = () => {
-    if (!window.confirm(`Remettre le coefficient personnel de ${legacyCoefCount} cliente(s) à ×1 ? Le prix ne dépendra plus que du modèle (nombre de locks).`)) return;
+  const neutralizeAll = async () => {
+    if (!await demande({
+      quoi: 'Coefficients personnels',
+      titre: `Remettre le coefficient de ${legacyCoefCount} cliente(s) à ×1 ?`,
+      dit: 'Leur prix ne dépendra plus que du modèle, c’est-à-dire du nombre de locks.',
+      scelle: 'Les coefficients hérités des anciens leviers seront perdus.',
+      accepter: `Remettre les ${legacyCoefCount} à ×1`,
+      refuser: 'Garder les coefficients',
+      dur: true,
+    })) return;
     setClients((prev) => prev.map((c) => (c.branchId === branch.id && (c.priceCoef ?? 1) !== 1 ? { ...c, priceCoef: 1 } : c)));
   };
 
