@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Card, Input, Select, toast } from '../../../../ds/components';
+/* `demande` porte ici un autre sens : c'est la correction d'un pointage que
+   l'on soumet. La question de la Maison entre donc sous son propre nom, pour
+   que les deux ne se recouvrent pas. */
+import { Card, Input, Select, toast, demande as laQuestionDeLaMaison } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMyStaff, useAuth } from '../../../../shared/auth';
@@ -291,18 +294,18 @@ export default function MonMois() {
      n'est pas une erreur a rectifier, c'est une ligne qui n'aurait jamais du
      exister ; la trainer fausse les points et le classement de tout le monde.
      D'ou ce geste, separe du reste, et volontairement plus lourd. */
-  const supprimerPointage = (a: Attendance) => {
+  const supprimerPointage = async (a: Attendance) => {
     const qui = equipe.find((m) => m.id === a.employeeId)?.name ?? 'ce membre';
     const quand = new Date(`${a.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-    if (!window.confirm(
-      `Supprimer le pointage de ${qui} du ${quand} ?
-
-`
-      + `${a.arrivee ?? '—'} → ${a.depart ?? '—'}
-
-`
-      + `Les points de cette journée disparaissent avec lui. C'est definitif.`,
-    )) return;
+    if (!await laQuestionDeLaMaison({
+      quoi: 'Pointage du mois',
+      titre: `Supprimer le pointage de ${qui} du ${quand} ?`,
+      dit: `${a.arrivee ?? '—'} → ${a.depart ?? '—'}`,
+      scelle: 'Un pointage supprimé ne laisse aucune trace : à n’utiliser que pour une ligne qui n’aurait jamais dû exister, jamais pour corriger une erreur, qui se corrige.',
+      accepter: 'Supprimer le pointage',
+      refuser: 'Garder le pointage',
+      dur: true,
+    })) return;
     setPointages((prev) => prev.filter((x) => x.id !== a.id));
     toast('Pointage supprimé.');
   };

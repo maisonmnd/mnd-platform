@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA QUESTION DE LA MAISON REMPLACE LES 89 FENÊTRES — 22 septembre 2026
+
+Maquette `public/maquette-la-question-de-la-maison.html`, validée, six
+arbitrages. Suite des 35 alertes du matin : il ne reste plus AUCUN
+`window.confirm` ni `window.alert` dans le dépôt.
+
+**Le danger n'était pas la laideur.** Le navigateur propose, au bout de deux
+ou trois fenêtres, de « ne plus afficher de boîtes de dialogue sur cette
+page ». Une case cochée par réflexe, et les quatre-vingt-neuf questions
+répondent « non » sans rien afficher : rien ne se supprime, rien ne se
+clôture, et l'écran ne dit pas pourquoi.
+
+**Ce qui a été construit** : `demande()` dans `ds/demande.tsx`, une FONCTION
+qui rend une promesse, et non un composant à poser dans chaque écran. Elle se
+substitue en une ligne par appel (`if (!await demande({…})) return;`) au lieu
+de quatre-vingt-neuf états, rendus conditionnels et rappels. `shared/demande-
+pure.ts` porte la langue, vérifiée au harnais (`verifie-la-demande`, 20).
+
+**Les deux règles.** Les boutons NOMMENT leur issue, « Garder la fiche » et
+« Supprimer définitivement », jamais « Annuler » et « OK » : c'est ce qui
+protège la personne pressée, qui lit les boutons et pas le texte
+(`libelleTropVague` avertit en développement). Et le repos est du côté sûr :
+le bouton qui ne fait rien prend le foyer, donc Entrée REFUSE. Un clavier qui
+valide par réflexe ne doit jamais supprimer une cliente.
+
+**Le scellé brique ne paraît que sur les gestes qui ne se défont pas** (23 des
+89). Affiché partout, il cesserait d'être lu et ne protégerait plus le jour où
+il compte.
+
+**Trois pièges rencontrés.**
+1. Une ancre de conversion posée sur `onClick={() => {` a MANGÉ un bouton
+   voisin dans Paie.tsx : ce fragment n'est unique nulle part. Sur un fichier
+   de mille lignes, seule la ligne du geste sert d'ancre. Fichier remis à son
+   état enregistré et repris.
+2. Rendre un gestionnaire asynchrone ne suffit pas : `deshonoreLeRituel`
+   RENDAIT un booléen lu par deux écrans, et devient une promesse ; ses
+   appelants prennent un `void`.
+3. `MonMois.tsx` avait déjà une variable `demande` (la correction d'un
+   pointage) : la question entre sous le nom `laQuestionDeLaMaison`.
+
+**Reste** : les 16 `window.prompt`, moins dangereux (une question qui ne
+s'affiche pas rend une réponse vide, le geste ne se fait pas : ennuyeux, pas
+destructeur). Ils passeront dans la même fenêtre, avec une ligne à remplir.
+
 ## LES ALERTES CESSENT DE POUVOIR DISPARAÎTRE — 22 septembre 2026
 
 Demande de Yéman : retirer les vieilles fenêtres bloquantes du navigateur.

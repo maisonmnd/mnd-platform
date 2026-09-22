@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { CalendarClock, MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Select } from '../../../../ds/components';
+import { Button, Select, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { maisonNom, maisonRaison, signeLeMessage, DEVISE_COMPLETE } from '../../../../shared/identite';
@@ -792,7 +792,7 @@ export default function Factures() {
     }
   };
 
-  const deleteDoc = (id: string, label: string) => {
+  const deleteDoc = async (id: string, label: string) => {
     /* Une facture qui règle un RITUEL porte deux registres : la pièce comptable
        (elle) et l'état du RDV (paidXof, honoré, points). Supprimer l'une sans
        rembobiner l'autre laissait le rituel « payé » à jamais — on rembobine. */
@@ -801,7 +801,16 @@ export default function Factures() {
     const warn = linked
       ? `\n\nCette facture règle le rituel de ${clientNameOf(doc!)} du ${frDay(linked.date)} : sa suppression annule aussi l'encaissement, le rituel redevient impayé. Il reste HONORÉ et garde ses points : supprimer une pièce n'efface que de l'argent.`
       : '';
-    if (!window.confirm(`Supprimer définitivement ${label} ?${warn} Cette action est irréversible.`)) return;
+    if (!await demande({
+      quoi: 'Pièce comptable',
+      titre: `Supprimer définitivement ${label} ?`,
+      dit: 'Elle quitte le registre des Factures.',
+      suite: warn ? warn.trim() : undefined,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la pièce',
+      refuser: 'Garder la pièce',
+      dur: true,
+    })) return;
     if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
     /* UNE PIÈCE D'ABONNEMENT EMPORTE SON VERSEMENT. Le rembobinage ci-dessus ne
        connaît que les RITUELS : une pièce d'abonnement n'a pas de rendez-vous,

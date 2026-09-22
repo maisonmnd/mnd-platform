@@ -1,7 +1,7 @@
 import { asset } from '../../shared/asset';
 import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Field, Input, Select } from '../../ds/components';
+import { Button, Field, Input, Select, demande } from '../../ds/components';
 import { PARCOURS_MND, texteDuCertificat } from '../../shared/parcours';
 import { enVignette } from '../../shared/photo';
 import { ChampDeDate } from '../../ds/dates';
@@ -256,12 +256,20 @@ export default function App() {
     duree: formation.duree, competences: formation.competences,
   });
 
-  const ilNeManqueRien = (question: string): boolean => {
+  const ilNeManqueRien = async (question: string, acte: string): Promise<boolean> => {
     const manques = [
       !apprenant.trim() ? 'le nom de l’apprenant' : '',
       !certNo.trim() ? 'le numéro de certificat, sans lequel il ne se vérifie pas' : '',
     ].filter(Boolean);
-    return manques.length === 0 || window.confirm(`Il manque ${manques.join(' et ')}.\n\n${question}`);
+    if (manques.length === 0) return true;
+    return demande({
+      quoi: 'Certificat incomplet',
+      titre: question,
+      dit: `Il manque ${manques.join(' et ')}.`,
+      accepter: acte,
+      refuser: 'Compléter d’abord',
+      dur: true,
+    });
   };
 
   /* ══ ENREGISTRER LE CERTIFICAT — 16 septembre 2026 ═════════════════════
@@ -272,7 +280,7 @@ export default function App() {
      le lien. Le dessin et le coffre se chargent à la demande : la page
      reste légère tant qu'on ne fait qu'imprimer. */
   const enregistreLePdf = async () => {
-    if (!ilNeManqueRien('Enregistrer quand même ?')) return;
+    if (!await ilNeManqueRien('Enregistrer ce certificat quand même ?', 'Enregistrer quand même')) return;
     setDepot('en-cours');
     let piece: { nom: string; blob: Blob };
     try {
@@ -316,8 +324,8 @@ export default function App() {
               Enregistrer le PDF
             </Button>
             <Button
-              onClick={() => {
-                if (!ilNeManqueRien('Imprimer quand même ?')) return;
+              onClick={async () => {
+                if (!await ilNeManqueRien('Imprimer ce certificat quand même ?', 'Imprimer quand même')) return;
                 window.print();
               }}
             >

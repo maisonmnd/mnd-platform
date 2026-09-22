@@ -552,7 +552,7 @@ export default function Carnet() {
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}
                 {a.status === 'honoré' && (
-                  <button className="is-danger" onClick={() => { deshonoreLeRituel(a, byId); setMenuFor(null); }}>
+                  <button className="is-danger" onClick={() => { void deshonoreLeRituel(a, byId); setMenuFor(null); }}>
                     Dés-honorer le rituel
                   </button>
                 )}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Segs } from '../../../../ds/components';
+import { Button, Segs, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useSettings, openingForIso } from '../../../../shared/settings';
@@ -219,8 +219,15 @@ export default function Predictions() {
        (`passagePose`) — une décision bat une déduction. */
     { mot: 'De passage', question: 'est de passage ?', pose: { dePassage: true, passagePose: true } },
   ] as const;
-  const marquer = (clientId: string, nom: string, m: (typeof MARQUES_GLISSE)[number]) => {
-    if (!window.confirm(`${nom} ${m.question}\n\nElle sortira des prédictions et des relances. Ses rendez-vous déjà pris continuent de s’afficher normalement.`)) return;
+  const marquer = async (clientId: string, nom: string, m: (typeof MARQUES_GLISSE)[number]) => {
+    if (!await demande({
+      quoi: 'Marque de la fiche',
+      titre: `${nom} ${m.question}`,
+      dit: 'Elle sortira des prédictions et des relances.',
+      suite: 'Ses rendez-vous déjà pris continuent de s’afficher normalement.',
+      accepter: 'Poser la marque',
+      refuser: 'Ne pas la poser',
+    })) return;
     clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, ...m.pose } : c)));
   };
 

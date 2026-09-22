@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import { PageHead } from '../_ui';
-import { Button, Input, Segs, toast } from '../../../../ds/components';
+import { Button, Input, Segs, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { libelleFourchette } from '../../../../shared/abonnements';
@@ -821,8 +821,16 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0 || gPlans.length > 0) && (
               <button
                 type="button"
-                onClick={() => {
-                  if (!window.confirm('Rétablir le tapis complet de la Maison ? Tous les masques valant pour toutes les clientes seront levés, ateliers, prestations, produits et formules redeviennent visibles. Les masques individuels posés sur les fiches ne bougent pas.')) return;
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Masques de la Maison',
+                    titre: 'Rétablir le tapis complet de la Maison ?',
+                    dit: 'Tous les masques valant pour toutes les clientes seront levés : ateliers, prestations, produits et formules redeviennent visibles.',
+                    suite: 'Les masques individuels posés sur les fiches ne bougent pas.',
+                    accepter: 'Rétablir le tapis complet',
+                    refuser: 'Garder les masques',
+                    dur: true,
+                  })) return;
                   vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [], hiddenPlans: [] }));
                 }}
                 style={{
@@ -838,8 +846,16 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             {portee === 'site' && (siteCats.length > 0 || siteSvcs.length > 0) && (
               <button
                 type="button"
-                onClick={() => {
-                  if (!window.confirm('Tout remontrer sur le site public ? Les ateliers et prestations que vous en aviez retirés y reparaîtront. La carte du comptoir et Ma Couronne ne bougent pas.')) return;
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Site public',
+                    titre: 'Tout remontrer sur le site public ?',
+                    dit: 'Les ateliers et prestations que vous en aviez retirés y reparaîtront.',
+                    suite: 'La carte du comptoir et Ma Couronne ne bougent pas.',
+                    accepter: 'Tout remontrer',
+                    refuser: 'Garder les retraits',
+                    dur: true,
+                  })) return;
                   vitrineConfigStore.set((c) => ({ ...c, siteMasques: {} }));
                 }}
                 style={{
@@ -856,8 +872,16 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
             {portee === 'cliente' && (herCats.length > 0 || herSvcs.length > 0 || herProds.length > 0) && (
               <button
                 type="button"
-                onClick={() => {
-                  if (!window.confirm(`Rétablir le tapis complet de ${client.name.split(' ')[0]} ? Tous SES masques seront levés, elle verra tout ce que la Maison montre. Les masques valant pour toutes les clientes ne bougent pas.`)) return;
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Masques de cette cliente',
+                    titre: `Rétablir le tapis complet de ${client.name.split(' ')[0]} ?`,
+                    dit: 'Tous SES masques seront levés : elle verra tout ce que la Maison montre.',
+                    suite: 'Les masques valant pour toutes les clientes ne bougent pas.',
+                    accepter: 'Rétablir son tapis',
+                    refuser: 'Garder ses masques',
+                    dur: true,
+                  })) return;
                   clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, vitrineMasques: undefined } : c)));
                 }}
                 style={{

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Button, Field, Input, Modal, Select, toast, alerte } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, rateToXof } from '../../../../shared/currency';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -333,7 +333,7 @@ export const ditLeRetrait = (r: HonneurRetire): string => `${[
 
 /** Le bouton « Dés-honorer » : refus si le rituel est encaissé, confirmation,
     puis le retrait complet. Rend `true` quand le rituel a été dés-honoré. */
-export function deshonoreLeRituel(appt: Appointment, byId: Map<string, Service>): boolean {
+export async function deshonoreLeRituel(appt: Appointment, byId: Map<string, Service>): Promise<boolean> {
   const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
   if (frais.status !== 'honoré') return false;
   if (apptPaidXof(frais) > 0) {
@@ -352,7 +352,14 @@ export function deshonoreLeRituel(appt: Appointment, byId: Map<string, Service>)
     'Les points du Cercle gagnés à sa clôture sont repris, et sa recette revient au stock.',
   ];
   if (reprise) lignes.push(`Sa reprise du ${frShortAn(reprise.date)}, posée à sa clôture, est retirée si rien n’y a été réglé.`);
-  if (!window.confirm(lignes.join('\n'))) return false;
+  if (!await demande({
+    quoi: 'Rituel honoré',
+    titre: `Dés-honorer le rituel du ${frShortAn(frais.date)} ?`,
+    dit: lignes.slice(2).join('\n'),
+    accepter: 'Dés-honorer le rituel',
+    refuser: 'Le laisser honoré',
+    dur: true,
+  })) return false;
   const r = retireLHonneur(frais, byId);
   appointmentsStore.set((prev) => prev.map((a) => (a.id === frais.id ? { ...a, status: 'confirmé' } : a)));
   toast(ditLeRetrait(r));
@@ -1736,16 +1743,16 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             type="button"
             className="tre-link-btn tre-link-btn--danger"
             style={{ alignSelf: 'flex-start', marginTop: -4 }}
-            onClick={() => {
-              if (!window.confirm(
-                `Annuler l'encaissement de ${fmtMoney(alreadyPaid, currency)} ?\n\n` +
-                `Le rituel redevient impayé et la ou les factures émises pour ce règlement ` +
-                `sont SUPPRIMÉES : une pièce atteste un paiement, le paiement annulé elle ` +
-                `n'a plus d'objet. L'avoir consommé est rendu au compte.\n\n` +
-                `Le rituel reste HONORÉ et garde ses points : ce geste n'efface que de ` +
-                `l'argent. S'il n'a pas eu lieu, dés-honorez-le ensuite, ici même ou au Carnet.\n\n` +
-                `La suppression des pièces est irréversible.`,
-              )) return;
+            onClick={async () => {
+              if (!await demande({
+                quoi: 'Encaissement',
+                titre: `Annuler l’encaissement de ${fmtMoney(alreadyPaid, currency)} ?`,
+                dit: 'Le rituel redevient impayé, et l’avoir consommé est rendu au compte.',
+                scelle: 'La ou les factures émises pour ce règlement sont SUPPRIMÉES : une pièce atteste un paiement, et le paiement annulé elle n’a plus d’objet.',
+                accepter: 'Annuler l’encaissement',
+                refuser: 'Garder l’encaissement',
+                dur: true,
+              })) return;
               const r = cancelAppointmentPayment(appt);
               const pieces = r.invoicesRemoved > 1 ? `${r.invoicesRemoved} factures supprimées` : 'facture supprimée';
               toast(`Encaissement annulé · ${fmtMoney(alreadyPaid, currency)}${r.invoicesRemoved > 0 ? ` · ${pieces}` : ''}`);
@@ -2330,7 +2337,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             {apptPaidXof(appt) > 0 ? (
               <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>· encaissé, il le reste</span>
             ) : (
-              <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => deshonoreLeRituel(appt, byId)}>
+              <button type="button" className="tre-link-btn tre-link-btn--danger" onClick={() => { void deshonoreLeRituel(appt, byId); }}>
                 Dés-honorer
               </button>
             )}
