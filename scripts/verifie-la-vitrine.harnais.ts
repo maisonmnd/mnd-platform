@@ -63,6 +63,30 @@ dit('… juste après le hero, avant les portes', true,
   accueil.indexOf('class="promesses"') < accueil.indexOf('id="portes"'));
 dit('les offres se montent sur l’accueil, en genre accueil', true, accueil.includes('data-ilot="offres" data-genre="accueil"'));
 
+/* ── L'ACCUEIL ÉPURÉ, ET DES MOTS QUI AFFIRMENT — 22 septembre 2026 ────
+   « Le salon existe depuis 2010 », « épure-moi cette page », « évite les
+   mots négatifs » (Yéman). Le bandeau et la bande de confiance ne vivent plus
+   sur l'accueil ; les phrases retirées ne doivent pas revenir par une
+   réécriture. */
+dit('la Maison existe depuis 2010, nulle part 2014', true, accueil.includes('depuis 2010') && !accueil.includes('2014'));
+dit('… sur chaque page servie', [], [...pages].filter(([, h]) => h.includes('2014')).map(([c]) => c));
+dit('le bandeau de l’offre ne vit plus sur l’accueil', false, accueil.includes('data-ilot="bandeau-offre"'));
+dit('la bande de confiance non plus', false, accueil.includes('class="confiance sombre"'));
+dit('le titre des offres affirme', false, /à quelles conditions|Aucun prix|ne solde pas|non cumulable|Rien à payer/.test(accueil));
+
+/* ── AUCUN ACCENT GRAVE DANS UN COMMENTAIRE DE GABARIT ──────────────
+   Les gabarits de genere-revelateur.mjs sont des template literals : un
+   accent grave dans un commentaire HTML les referme, et le générateur plante
+   sans rien écrire. Trois notes écrites (REPRENDRE.md:279 et :711,
+   lettres-du-pret.ts:176) n'ont pas suffi, le 22 septembre 2026 le piège
+   s'est refermé une troisième fois. Une règle qui ne vit qu'en prose se
+   lit après avoir écrit ; celle-ci se lit avant de publier. */
+const generateur = readFileSync('scripts/genere-revelateur.mjs', 'utf8');
+const commentairesAvecAccentGrave = [...generateur.matchAll(/<!--([\s\S]*?)-->/g)]
+  .filter((m) => m[1].includes('`'))
+  .map((m) => m[1].trim().slice(0, 60));
+dit('aucun accent grave dans un commentaire HTML du générateur', [], commentairesAvecAccentGrave);
+
 /* ── LE RAPPEL PROMIS EXISTE ───────────────────────────────────────── */
 dit('la page /rappel/ est écrite', true, pages.has('/rappel/'));
 dit('… et monte le formulaire de rappel', true, (pages.get('/rappel/') ?? '').includes('data-ilot="demande"'));

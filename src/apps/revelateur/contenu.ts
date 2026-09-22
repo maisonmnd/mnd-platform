@@ -50,7 +50,7 @@ export const COMMUN: Commun = {
     { texte: 'Journal', vers: '/journal/' },
   ],
   pied: {
-    phrase: 'La Maison MND, Cotonou. Locks créées, réparées, entretenues, depuis 2014.',
+    phrase: 'La Maison MND, Cotonou. Locks créées, réparées, entretenues, depuis 2010.',
     colonnes: [
       {
         titre: 'Services',
@@ -156,28 +156,30 @@ export const ACCUEIL: Accueil = {
     { texte: 'Je découvre mon parcours', vers: '/mon-parcours/' },
     { texte: "Je sais ce qu'il me faut", vers: '#portes' },
   ],
-  regle: 'Une création ou une réparation commence par une consultation. Un entretien se réserve directement.',
-  metier: 'Locks créées, réparées, entretenues · Cotonou · depuis 2014',
+  metier: 'Locks créées, réparées, entretenues · Cotonou · depuis 2010',
   /* TROIS PROMESSES, TOUTES TENUES PAR LE SITE AUJOURD'HUI, vérifiées dans
      le code avant d'être écrites : la réservation en trois pas sans compte
      (îlot reserver), la confirmation sur WhatsApp (formulaire.suite), rien à
      payer en ligne (/conditions/). On ne promet pas « votre place est tenue »
      ni un délai d'annulation : le site ne les tient pas. */
   promesses: [
-    { titre: 'Un entretien se réserve en ligne', ligne: 'En trois pas, sans créer de compte.' },
+    { titre: 'Un entretien se réserve en ligne', ligne: 'En trois pas, depuis votre téléphone.' },
     { titre: 'La Maison confirme sur WhatsApp', ligne: 'Pendant ses heures d’ouverture.' },
-    { titre: 'Rien à payer en ligne', ligne: 'Un acompte, s’il est demandé, vous est dit avant.' },
+    { titre: 'Vous réglez à la Maison', ligne: 'Le jour venu, au comptoir. Un acompte éventuel vous est dit avant.' },
   ],
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
      Une promesse en grand, un mécanisme en une phrase, un bouton, les
      conditions dépliées dans la carte. Aucun prix en francs : la voix du
      site l'interdit, et c'est ce qui protège le premium. Les offres viennent
      de `mnd_offers`, composées au Trône ; rien n'est écrit ici. */
+  /* DES MOTS QUI AFFIRMENT — 22 septembre 2026, au soir. « Évite les mots ou
+     textes négatifs » (Yéman) : le titre ne dit plus « et à quelles
+     conditions », la phrase sur l'absence de prix est partie, la note sur ce
+     que la Maison « ne solde pas » aussi. Les conditions restent, dépliées
+     dans chaque carte, là où elles servent. */
   offres: {
     sur: 'Les offres de la Maison',
-    titre: 'Ce que la Maison vous offre, et à quelles conditions.',
-    ligne: 'Aucun prix n’est affiché ici : les montants passent par le devis. Ce qui est écrit est tenu, dans la Maison, au règlement.',
-    note: 'Les offres datées portent leur période et disparaissent d’elles-mêmes à leur terme. Les autres disent comment la Maison accueille, pas ce qu’elle solde.',
+    titre: 'Ce que la Maison vous offre.',
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
@@ -234,7 +236,7 @@ export const ACCUEIL: Accueil = {
   fondateurs: {
     sur: 'Derrière MND',
     titre: 'Brice et Yéman Ahouansou',
-    ligne: 'Une maison de famille, née en 2014 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction.',
+    ligne: 'Une maison de famille, née en 2010 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction.',
     message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
@@ -547,7 +549,7 @@ export const PAGES: Page[] = [
       {
         type: 'texte',
         titre: 'Brice et Yéman Ahouansou',
-        corps: 'Une maison de famille, née en 2014 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l\'on prend soin, où l\'on transforme et où l\'on transmet.',
+        corps: 'Une maison de famille, née en 2010 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l\'on prend soin, où l\'on transforme et où l\'on transmet.',
         image: 'fondateurs.jpg',
       },
       {

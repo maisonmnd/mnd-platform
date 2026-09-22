@@ -349,7 +349,7 @@ Repères pour la pose :
 
 **Sous-titre :** Brice et Yéman Ahouansou
 
-**Introduction :** MND est une maison de famille, née en 2014 à Cotonou. Brice Ahouansou, maître loctician, tient les mains. Yéman Ahouansou tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet.
+**Introduction :** MND est une maison de famille, née en 2010 à Cotonou. Brice Ahouansou, maître loctician, tient les mains. Yéman Ahouansou tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet.
 
 ### Quatre manières d'être là
 
@@ -399,7 +399,7 @@ Repères pour la pose :
 
 ### Les rassurances
 
-**Expertise :** Une pratique des locks afro depuis 2014, et une méthode nommée, écrite et enseignée.
+**Expertise :** Une pratique des locks afro depuis 2010, et une méthode nommée, écrite et enseignée.
 
 **Consultation :** Pour une création ou une réparation, nous commençons toujours par une consultation. Comprendre avant de proposer.
 

@@ -503,7 +503,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <small>Une consultation d’abord. Laissez votre numéro, la Maison vous rappelle.</small>
       </a>
       <a className="porte-rdv__choix" href={`${base}/rappel/?besoin=creation`}>
-        <span>Pas encore</span>
+        <span>Je veux créer ma couronne</span>
         <small>Une création commence par une consultation. La Maison vous rappelle.</small>
       </a>
     </div>

@@ -449,7 +449,6 @@ function rendAccueil(articles) {
           <h1>${echappe(a.h1)}</h1>
           <p class="ligne">${echappe(a.ligne)}</p>
           <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
-          <p class="legende" style="margin-top:14px">${echappe(a.regle)}</p>
         </div>
         <figure class="hero-image"><img src="/assets/photos/site/hero.jpg" alt="Une couronne de locks relevée, de profil" width="960" height="1200" fetchpriority="high"></figure>
       </div></section>
@@ -462,13 +461,12 @@ function rendAccueil(articles) {
         ${a.promesses.map((g) => `<div class="promesse"><i aria-hidden="true"><svg><use href="#i-coche"/></svg></i><div><b>${echappe(g.titre)}</b><small>${echappe(g.ligne)}</small></div></div>`).join('\n        ')}
       </div></div>
 
-      <!-- LE BANDEAU DE L'OFFRE EN COURS — 18 septembre 2026. « Un bandeau sur
-           la page d'accueil qui annonce l'offre en cours et disparaît quand il
-           n'y en a pas » (Yéman). Le point de montage est VIDE a dessein : rien
-           ne doit clignoter les jours sans offre. Il se remplit seulement si
-           le document mnd_offers porte une offre activee et dans sa saison. Place ici,
-           entre le grand ecran et les portes, pour ne pas repousser le titre. -->
-      <div data-ilot="bandeau-offre"></div>
+      <!-- LE BANDEAU DE L'OFFRE EN COURS NE VIT PLUS ICI — 22 septembre 2026.
+           Posé le 18, il annonçait l'offre du moment entre le grand écran et
+           les portes. Depuis que les offres ont leur section sur l'accueil, il
+           disait la même offre deux fois sur la même page. « Épure-moi cette
+           page, beaucoup trop chargée » (Yéman) : la carte suffit. L'îlot
+           reste dans le code, prêt à revenir sur une autre page. -->
 
       <section id="portes"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2></div>
@@ -483,15 +481,14 @@ function rendAccueil(articles) {
            « accueil » : sans onglets, les offres en cours seulement. Le repli
            dit où demander si rien ne se charge. -->
       <section class="vt-offres" id="offres"><div class="conteneur">
-        <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.offres.ligne)}</p></div>
+        <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
         <div data-ilot="offres" data-genre="accueil"><p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
-        <p class="legende" style="margin-top:18px; max-width:70ch">${echappe(a.offres.note)}</p>
       </div></section>
 
-      <section class="confiance sombre"><div class="conteneur">
-        <div><p class="sur">${echappe(a.confiance.sur)}</p><p class="citation" style="margin-top:12px">${echappe(a.confiance.citation)}</p></div>
-        <div class="gages">${a.confiance.gages.map((g) => `<div class="gage"><b>${echappe(g.titre)}</b><p>${echappe(g.ligne)}</p></div>`).join('')}</div>
-      </div></section>
+      <!-- LA BANDE DE CONFIANCE NE VIT PLUS SUR L'ACCUEIL — 22 septembre 2026.
+           Les trois promesses sous le grand écran portent la réassurance ;
+           une seconde bande sombre disait la même chose plus bas. La section
+           « confiance » reste disponible aux pages libres (rendSection). -->
 
       <section class="avis" id="avis"><div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div></section>
 

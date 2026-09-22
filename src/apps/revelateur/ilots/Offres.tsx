@@ -92,10 +92,10 @@ export default function Offres({ genre }: { genre?: string }) {
   const vide = offres === null
     ? 'Les offres de la Maison se disent au salon. Écrivez-nous, nous vous les présentons.'
     : accueil
-      ? 'Aucune offre en ce moment. Les cinq portes ci-dessus disent comment la Maison vous accueille.'
+      ? 'La Maison prépare ses prochaines offres. Les cinq portes ci-dessus vous ouvrent la Maison.'
       : onglet === 'cours'
-        ? 'Aucune offre en cours en ce moment. Regardez le second onglet, la Maison prépare la suite.'
-        : 'Aucune offre annoncée pour l’instant. Revenez bientôt, les saisons se suivent.';
+        ? 'La Maison prépare la suite : regardez le second onglet.'
+        : 'Les saisons se suivent : revenez bientôt.';
 
   return (
     <div className="offres-site">
@@ -133,7 +133,7 @@ export default function Offres({ genre }: { genre?: string }) {
             const datee = !!(o.du || o.au);
             /* LES CONDITIONS VIENNENT DE LA MAISON ; la période et « dans la
                Maison, non cumulable » restent, elles sont vraies de toutes. */
-            const conditions = [laPeriode(o), o.conditions?.trim() || 'Dans la Maison, au règlement, non cumulable avec toute promotion en cours.']
+            const conditions = [laPeriode(o), o.conditions?.trim() || 'Dans la Maison, au règlement. Une offre à la fois.']
               .filter(Boolean).join('. ').replace(/\.\./g, '.');
             return (
               <article className={`offre-site${datee && accueil ? ' est-moment' : ''}`} key={o.id}>
