@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La question de la Maison &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:21px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:82ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:32px 0 0;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .deux { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; }
+  @media (max-width:880px) { .deux { grid-template-columns:1fr; } }
+  .deux > * { min-width:0; }
+
+  /* La fenêtre de la Maison, telle qu'elle se poserait. */
+  .voile { background:rgba(30,33,80,.10); border:1px solid var(--filet); border-radius:4px;
+           padding:26px 18px; display:flex; justify-content:center; }
+  .fen { width:100%; max-width:440px; background:var(--ivoire); border:1px solid var(--filet);
+         border-radius:5px; box-shadow:0 18px 44px rgba(20,20,27,.16); overflow:hidden; }
+  .fen__haut { height:3px; background:var(--indigo); }
+  .fen--dur .fen__haut { background:var(--brique); }
+  .fen__corps { padding:22px 24px 20px; }
+  .fen__quoi { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--encre-d); }
+  .fen--dur .fen__quoi { color:var(--brique); }
+  .fen__titre { font-family:var(--serif); font-weight:400; font-size:25px; line-height:1.18;
+                color:var(--indigo); margin:10px 0 0; }
+  .fen__dit { font-size:13.5px; line-height:1.65; color:var(--encre); margin:12px 0 0; }
+  .fen__suite { font-size:12.5px; line-height:1.6; color:var(--encre-d); margin:10px 0 0; }
+  .fen__scelle { margin:14px 0 0; padding:9px 12px; border-left:2px solid var(--brique);
+                 background:var(--brique-f); font-size:12.5px; line-height:1.55; color:var(--encre); }
+  .fen__pieds { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
+                padding:16px 24px 20px; border-top:1px solid var(--filet); background:#fff; }
+
+  .btn { font-family:var(--sans); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+         border:1px solid var(--indigo); background:var(--indigo); color:#F6F1E7;
+         padding:10px 16px; border-radius:3px; cursor:default; white-space:nowrap; }
+  .btn--vide { background:transparent; color:var(--indigo); }
+  .btn--dur { background:var(--brique); border-color:var(--brique); }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); }
+  .btn[data-focus]::after { content:''; }
+  .btn[data-focus] { outline:2px solid var(--cuivre); outline-offset:2px; }
+
+  .note { display:flex; gap:10px; align-items:flex-start; margin-top:12px; font-size:12.5px; color:var(--encre-d); }
+  .note b { color:var(--encre); font-weight:500; }
+  .note .p { flex:0 0 auto; width:20px; height:20px; border-radius:50%; background:var(--cuivre-f);
+             border:1px solid var(--cuivre-p); color:var(--cuivre); font-size:11px;
+             display:flex; align-items:center; justify-content:center; font-family:var(--serif); }
+
+  .ligne { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+           border:1px solid var(--filet); border-radius:3px; padding:12px 14px; background:#fff; }
+  .ligne + .ligne { margin-top:10px; }
+  .ligne b.t { font-weight:500; }
+  .ligne .sous { display:block; font-size:11.5px; color:var(--encre-d); }
+
+  .avant { border:1px solid var(--filet); border-radius:4px; background:#EFEFEF; padding:16px; }
+  .avant__barre { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#555; margin-bottom:10px; }
+  .avant__txt { font-family:-apple-system, 'Segoe UI', system-ui, sans-serif; font-size:13px; color:#111; white-space:pre-line; }
+  .avant__pieds { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+  .avant__b { font-family:-apple-system,'Segoe UI',system-ui,sans-serif; font-size:12.5px;
+              border:1px solid #9a9a9a; background:#e6e6e6; border-radius:3px; padding:5px 14px; color:#111; }
+  .avant__case { margin-top:12px; font-family:-apple-system,'Segoe UI',system-ui,sans-serif;
+                 font-size:12px; color:#333; display:flex; gap:7px; align-items:center; }
+
+  .arb { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:16px 18px; }
+  .arb + .arb { margin-top:12px; }
+  .arb__q { font-family:var(--serif); font-size:20px; color:var(--indigo); margin:0 0 8px; }
+  .arb__r { font-size:14px; color:var(--encre-d); margin:0; }
+  .arb__r b { color:var(--encre); font-weight:500; }
+
+  .chiffres { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
+  @media (max-width:880px) { .chiffres { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .ch { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:14px; }
+  .ch__n { font-family:var(--serif); font-size:34px; line-height:1; color:var(--indigo); }
+  .ch__l { font-size:12px; color:var(--encre-d); margin-top:6px; }
+
+  footer { margin-top:80px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:12px; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Tr&ocirc;ne &middot; Maquette &agrave; valider</p>
+  <h1>La question de la Maison</h1>
+  <p class="chapeau">
+    Quatre-vingt-neuf fois, Le Tr&ocirc;ne demande &laquo; &ecirc;tes-vous s&ucirc;r ? &raquo; avec une
+    fen&ecirc;tre du navigateur. <b>Une case &agrave; cocher suffit &agrave; les faire toutes
+    r&eacute;pondre &laquo; non &raquo; sans rien demander</b>, et le geste &eacute;choue alors en silence.
+    Les alertes sont d&eacute;j&agrave; parties. Voici ce qui remplace les questions.
+  </p>
+
+  <div class="chiffres">
+    <div class="ch"><div class="ch__n">89</div><div class="ch__l">questions &agrave; remplacer</div></div>
+    <div class="ch"><div class="ch__n">38</div><div class="ch__l">suppriment ou retirent quelque chose</div></div>
+    <div class="ch"><div class="ch__n">23</div><div class="ch__l">annoncent une cons&eacute;quence irr&eacute;versible</div></div>
+    <div class="ch"><div class="ch__n">16</div><div class="ch__l">questions &agrave; un champ, pour plus tard</div></div>
+  </div>
+
+  <section>
+    <h2>Ce qui cloche aujourd&rsquo;hui</h2>
+    <div class="deux">
+      <div>
+        <div class="avant">
+          <div class="avant__barre">maisonmnd.com indique</div>
+          <div class="avant__txt">Supprimer d&eacute;finitivement A. K. ? Elle a 12 rendez-vous et 4 factures. Cette action est irr&eacute;versible.</div>
+          <div class="avant__pieds">
+            <span class="avant__b">Annuler</span>
+            <span class="avant__b">OK</span>
+          </div>
+          <div class="avant__case"><input type="checkbox" disabled /> Emp&ecirc;cher cette page de cr&eacute;er des bo&icirc;tes de dialogue suppl&eacute;mentaires</div>
+        </div>
+        <p class="legende">
+          <b>La case, en bas.</b> Le navigateur la propose d&egrave;s la deuxi&egrave;me ou troisi&egrave;me
+          question. Coch&eacute;e une fois, par r&eacute;flexe, elle vaut pour toute la session :
+          les quatre-vingt-neuf questions r&eacute;pondent &laquo; non &raquo; sans rien afficher.
+          Rien ne se supprime, rien ne se cl&ocirc;ture, et l&rsquo;&eacute;cran ne dit pas pourquoi.
+        </p>
+      </div>
+      <div>
+        <h3>Trois d&eacute;fauts, pas un seul</h3>
+        <div class="note"><span class="p">1</span><span>
+          <b>Elle se coupe.</b> Une seule case, et la Maison devient muette sur
+          quatre-vingt-neuf gestes. C&rsquo;est le d&eacute;faut grave.
+        </span></div>
+        <div class="note"><span class="p">2</span><span>
+          <b>Le bouton dit &laquo; OK &raquo;.</b> Il ne dit pas ce qu&rsquo;il fait. On clique sur
+          &laquo; OK &raquo; comme on acquiesce, pas comme on supprime une cliente.
+        </span></div>
+        <div class="note"><span class="p">3</span><span>
+          <b>Elle n&rsquo;est pas de la Maison.</b> Elle porte l&rsquo;adresse du site en haut,
+          la police du syst&egrave;me, et le m&ecirc;me visage qu&rsquo;un message d&rsquo;erreur du navigateur :
+          rien ne distingue une question de la Maison d&rsquo;une alerte venue d&rsquo;ailleurs.
+        </span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>La fen&ecirc;tre de la Maison</h2>
+    <p class="intro">
+      Elle tient en cinq parties, et <b>chacune r&eacute;pond &agrave; une question que l&rsquo;on se pose
+      la main sur la souris</b> : qu&rsquo;est-ce que je fais, sur quoi, qu&rsquo;est-ce que &ccedil;a
+      change, qu&rsquo;est-ce que je ne pourrai pas d&eacute;faire, et comment je sors.
+    </p>
+    <div class="deux">
+      <div class="voile">
+        <div class="fen fen--dur">
+          <div class="fen__haut"></div>
+          <div class="fen__corps">
+            <div class="fen__quoi">Suppression d&eacute;finitive</div>
+            <div class="fen__titre">Supprimer la fiche de A. K. ?</div>
+            <p class="fen__dit">
+              Sa fiche quitte la Client&egrave;le, avec ses notes, ses photos et son suivi.
+            </p>
+            <p class="fen__suite">
+              Elle porte <b>12 rendez-vous</b> et <b>4 factures</b>. Les factures restent
+              au registre, la Maison doit pouvoir les justifier.
+            </p>
+            <div class="fen__scelle">
+              Rien ne pourra la r&eacute;tablir, sauf une sauvegarde ant&eacute;rieure &agrave; aujourd&rsquo;hui.
+            </div>
+          </div>
+          <div class="fen__pieds">
+            <button class="btn btn--vide" data-focus>Garder la fiche</button>
+            <button class="btn btn--dur">Supprimer d&eacute;finitivement</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="note"><span class="p">1</span><span>
+          <b>Le filet du haut dit le ton.</b> Indigo pour un geste ordinaire, brique
+          pour un geste qui d&eacute;truit. On le voit avant d&rsquo;avoir lu.
+        </span></div>
+        <div class="note"><span class="p">2</span><span>
+          <b>Le titre nomme l&rsquo;acte et la chose.</b> Pas &laquo; &Ecirc;tes-vous s&ucirc;r ? &raquo;, qui
+          ne dit rien &agrave; qui a cliqu&eacute; de travers.
+        </span></div>
+        <div class="note"><span class="p">3</span><span>
+          <b>Ce que &ccedil;a change, en une phrase</b>, puis les chiffres qui p&egrave;sent dans la
+          d&eacute;cision : douze rendez-vous, quatre factures. Ils viennent de la fiche,
+          pas d&rsquo;une formule g&eacute;n&eacute;rale.
+        </span></div>
+        <div class="note"><span class="p">4</span><span>
+          <b>Le scell&eacute; brique</b> ne para&icirc;t que si quelque chose ne se d&eacute;fait pas.
+          Vingt-trois des quatre-vingt-neuf questions sont dans ce cas. S&rsquo;il para&icirc;t
+          partout, on cesse de le lire.
+        </span></div>
+        <div class="note"><span class="p">5</span><span>
+          <b>Les deux boutons nomment leur issue.</b> &laquo; Garder la fiche &raquo; et
+          &laquo; Supprimer d&eacute;finitivement &raquo;, jamais &laquo; Annuler &raquo; et &laquo; OK &raquo;. On peut
+          d&eacute;cider en lisant les boutons seuls.
+        </span></div>
+        <div class="note"><span class="p">6</span><span>
+          <b>Le repos est du c&ocirc;t&eacute; s&ucirc;r.</b> C&rsquo;est &laquo; Garder &raquo; qui est pr&ecirc;t sous le doigt
+          et sous la touche Entr&eacute;e. &Eacute;chap ferme sans rien faire.
+        </span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Les quatre visages, sur de vrais gestes</h2>
+    <p class="intro">
+      Les quatre-vingt-neuf questions ne se ressemblent pas. <b>Quatre formes
+      suffisent</b>, et chacune est tir&eacute;e d&rsquo;un &eacute;cran que tu utilises.
+    </p>
+
+    <div class="deux">
+      <div class="voile">
+        <div class="fen">
+          <div class="fen__haut"></div>
+          <div class="fen__corps">
+            <div class="fen__quoi">Paie &middot; run de septembre</div>
+            <div class="fen__titre">Marquer ce run pay&eacute; ?</div>
+            <p class="fen__dit">
+              La masse salariale nette, <b>1 847 300 F</b>, s&rsquo;inscrit dans les D&eacute;penses,
+              en cat&eacute;gorie Salaires.
+            </p>
+            <p class="fen__suite">
+              C&rsquo;est ce qui la fait compter dans le r&eacute;sultat du salon et dans le Partage.
+            </p>
+          </div>
+          <div class="fen__pieds">
+            <button class="btn btn--vide" data-focus>Pas encore</button>
+            <button class="btn">Marquer pay&eacute;</button>
+          </div>
+        </div>
+      </div>
+      <div class="voile">
+        <div class="fen fen--dur">
+          <div class="fen__haut"></div>
+          <div class="fen__corps">
+            <div class="fen__quoi">Geste sur 12 t&ecirc;tes</div>
+            <div class="fen__titre">Archiver 12 t&ecirc;tes ?</div>
+            <p class="fen__dit">
+              Elles sortent des listes et des relances, sans &ecirc;tre supprim&eacute;es.
+            </p>
+            <p class="fen__suite">
+              A. K., B. T., C. M., D. S., et 8 autres.
+            </p>
+          </div>
+          <div class="fen__pieds">
+            <button class="btn btn--vide" data-focus>Ne rien faire</button>
+            <button class="btn btn--dur">Archiver les 12</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="deux" style="margin-top:18px">
+      <div class="voile">
+        <div class="fen">
+          <div class="fen__haut"></div>
+          <div class="fen__corps">
+            <div class="fen__quoi">Juste prix &middot; bar&egrave;me</div>
+            <div class="fen__titre">R&eacute;tablir le bar&egrave;me recommand&eacute; ?</div>
+            <p class="fen__dit">
+              Les sept tranches de la Maison reviennent, de Jumbo &agrave; Pico puis Galaxy.
+            </p>
+            <div class="fen__scelle">
+              Vos tranches actuelles seront remplac&eacute;es. Notez-les si vous y tenez.
+            </div>
+          </div>
+          <div class="fen__pieds">
+            <button class="btn btn--vide" data-focus>Garder les miennes</button>
+            <button class="btn btn--dur">R&eacute;tablir les sept tranches</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>Et ce qui ne change pas</h3>
+        <p class="legende" style="margin:0 0 14px">
+          Dans une liste, une fen&ecirc;tre pour effacer une ligne est trop lourde. Le
+          bouton &agrave; deux temps existe d&eacute;j&agrave; dans la Maison, sur les pi&egrave;ces d&rsquo;identit&eacute;,
+          les lettres du pr&ecirc;t et les acc&egrave;s. <b>Il reste, tel quel.</b>
+        </p>
+        <div class="ligne">
+          <span><b class="t">Lettres &agrave; signer</b>
+            <span class="sous">lettres-du-pret-2026-09-20.pdf &middot; rang&eacute;e le 20 septembre</span></span>
+          <span style="display:flex; gap:10px; align-items:center">
+            <button class="btn btn--vide">Ouvrir</button>
+            <button class="btn btn--vide" style="border-color:var(--brique); color:var(--brique)">Confirmer l&rsquo;effacement</button>
+          </span>
+        </div>
+        <p class="legende">
+          Le premier clic change le mot du bouton, le second efface, et un clic
+          ailleurs annule. <b>La question se pose l&agrave; o&ugrave; le doigt est d&eacute;j&agrave;</b>, sans
+          rien recouvrir de l&rsquo;&eacute;cran. La fen&ecirc;tre est pour ce qui m&eacute;rite qu&rsquo;on
+          s&rsquo;arr&ecirc;te ; le bouton &agrave; deux temps, pour ce qui m&eacute;rite qu&rsquo;on ralentisse.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Les arbitrages &agrave; trancher</h2>
+    <p class="intro">
+      Six questions. Tes r&eacute;ponses d&eacute;cident de ce qui sera construit, et je ne
+      commence rien avant.
+    </p>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9312;</span> &nbsp;Les boutons nomment-ils l&rsquo;acte ?</p>
+      <p class="arb__r">Propos&eacute; : <b>oui, toujours</b>. &laquo; Supprimer d&eacute;finitivement &raquo; et
+      &laquo; Garder la fiche &raquo;, jamais &laquo; OK &raquo; et &laquo; Annuler &raquo;. C&rsquo;est ce qui prot&egrave;ge
+      la personne press&eacute;e, qui lit les boutons et pas le texte.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9313;</span> &nbsp;Que fait la touche Entr&eacute;e ?</p>
+      <p class="arb__r">Propos&eacute; : <b>elle refuse</b>. Le bouton pr&ecirc;t sous la touche est
+      celui qui ne d&eacute;truit rien. Un clavier qui valide par r&eacute;flexe ne doit jamais
+      supprimer une cliente. &Eacute;chap ferme sans rien faire, dans tous les cas.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9314;</span> &nbsp;Les gestes en masse portent-ils leur compte ?</p>
+      <p class="arb__r">Propos&eacute; : <b>oui, dans le bouton lui-m&ecirc;me</b>, &laquo; Archiver les 12 &raquo;.
+      Et la fen&ecirc;tre nomme les premi&egrave;res concern&eacute;es. Un geste sur douze fiches ne se
+      distingue pas d&rsquo;un geste sur une, aujourd&rsquo;hui, tant qu&rsquo;on n&rsquo;a pas lu.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9315;</span> &nbsp;Le scell&eacute; brique, partout ou rarement ?</p>
+      <p class="arb__r">Propos&eacute; : <b>rarement</b>, sur les vingt-trois gestes qui ne se
+      d&eacute;font vraiment pas. Un avertissement affich&eacute; partout cesse d&rsquo;&ecirc;tre lu au bout
+      d&rsquo;une semaine, et il ne protégera plus le jour o&ugrave; il compte.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9316;</span> &nbsp;Dans quel ordre je passe les &eacute;crans ?</p>
+      <p class="arb__r">Propos&eacute; : <b>par danger, pas par &eacute;cran</b>. D&rsquo;abord les trente-huit
+      suppressions, puis l&rsquo;argent (paie, caisses, d&eacute;penses, factures), puis le reste.
+      Ainsi, m&ecirc;me si l&rsquo;on s&rsquo;arr&ecirc;te en chemin, ce qui est fait est ce qui comptait.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9317;</span> &nbsp;Et les seize questions &agrave; un champ ?</p>
+      <p class="arb__r">Propos&eacute; : <b>plus tard, dans la m&ecirc;me fen&ecirc;tre</b>, avec une ligne &agrave;
+      remplir (&laquo; Quelle fonction ajouter ? &raquo;, &laquo; Renommer ce motif &raquo;). Elles sont
+      moins dangereuses : une question qui ne s&rsquo;affiche pas rend une r&eacute;ponse vide,
+      et le geste ne se fait pas. Ennuyeux, pas destructeur.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que &ccedil;a ne fait pas</h2>
+    <ul style="max-width:74ch;color:var(--encre-d);padding-left:18px">
+      <li>&Ccedil;a n&rsquo;ajoute pas de question l&agrave; o&ugrave; il n&rsquo;y en avait pas. Les quatre-vingt-neuf restent quatre-vingt-neuf.</li>
+      <li>&Ccedil;a n&rsquo;en retire pas non plus : si un geste te demande confirmation aujourd&rsquo;hui, il te la demandera demain.</li>
+      <li>&Ccedil;a ne touche pas au bouton &agrave; deux temps des listes, qui existe d&eacute;j&agrave; et qui marche.</li>
+      <li>&Ccedil;a ne change rien &agrave; ce qui est d&eacute;j&agrave; fait : les trente-cinq alertes sont en ligne depuis ce matin.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Maquette &middot; La question de la Maison &middot; 22 septembre 2026 &middot;
+    &Agrave; valider avant toute construction. Aucun &eacute;cran du Tr&ocirc;ne n&rsquo;a &eacute;t&eacute; modifi&eacute;.
+  </footer>
+
+</div>
+</body>
+</html>
