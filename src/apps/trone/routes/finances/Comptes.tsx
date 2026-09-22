@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaLien } from '../_ui';
-import { Button, Card, Field, Input, Modal, Textarea } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Textarea, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -261,13 +261,20 @@ export default function Comptes() {
      « Avoir », avoirXof = total → jamais créditée à une caisse physique) et une
      écriture d'usage débite le compte. Réservé aux factures NON liées à un rituel
      (celles-là se soldent par « Encaisser le rituel » — invariant deux-registres). */
-  const settleInvoiceByAvoir = (inv: Invoice, holder: CreditHolder) => {
+  const settleInvoiceByAvoir = async (inv: Invoice, holder: CreditHolder) => {
     /* CE QUI RESTE DÛ, pas le total : une pièce déjà réglée à moitié ne se
        solde que de son solde, sinon l'avoir paierait deux fois la même part. */
     const total = invoiceResteXof(inv);
     const bal = creditBalanceOf(credits, holder);
     if (total <= 0 || bal < total) return;
-    if (!window.confirm(`Solder la facture ${inv.number} (${fmtMoney(total, currency)}) par l'avoir du compte ? Le solde d'avoir passera à ${fmtMoney(bal - total, currency)}.`)) return;
+    if (!await demande({
+      quoi: 'Avoir du compte',
+      titre: `Solder la facture ${inv.number} par l’avoir du compte ?`,
+      dit: `${fmtMoney(total, currency)} seront pris sur l’avoir, et la facture passera payée.`,
+      suite: `Le solde d’avoir passera à ${fmtMoney(bal - total, currency)}.`,
+      accepter: 'Solder par l’avoir',
+      refuser: 'Laisser la facture',
+    })) return;
     invoicesStore.set((prev) => prev.map((x) => (x.id === inv.id ? { ...x, status: 'payée', payment: 'Avoir', avoirXof: total } : x)));
     creditMovementsStore.set((prev) => [...prev, {
       id: uid(), branchId: branch.id, holderType: holder.type, holderId: holder.id,
@@ -747,9 +754,17 @@ function FamilyModal({
     if (payerId === id) setPayerId('');
   };
 
-  const del = () => {
+  const del = async () => {
     if (!family) return;
-    if (!window.confirm(`Supprimer le compte « ${family.name} » ? Les clientes ne sont pas effacées, seul le regroupement disparaît (leur avoir familial devient inaccessible).`)) return;
+    if (!await demande({
+      quoi: 'Compte de famille',
+      titre: `Supprimer le compte « ${family.name} » ?`,
+      dit: 'Seul le regroupement disparaît : les clientes ne sont pas effacées, leurs fiches et leur histoire restent.',
+      scelle: 'Leur avoir familial deviendra inaccessible.',
+      accepter: 'Supprimer le compte',
+      refuser: 'Garder le compte',
+      dur: true,
+    })) return;
     clientsStore.set((prev) => prev.map((c) => (c.familyId === family.id ? { ...c, familyId: undefined } : c)));
     familiesStore.set((prev) => prev.filter((f) => f.id !== family.id));
     onClose();

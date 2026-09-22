@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select, Textarea } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -150,9 +150,17 @@ export default function Coffre() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
 
-  const removeMove = (m: CoffreMovement) => {
+  const removeMove = async (m: CoffreMovement) => {
     const label = m.kind === 'depot' ? 'ce dépôt' : 'ce virement';
-    if (!window.confirm(`Retirer ${label} du registre ? (correction d’écriture, n’envoie ni ne rend d’argent)`)) return;
+    if (!await demande({
+      quoi: 'Correction d’écriture',
+      titre: `Retirer ${label} du registre ?`,
+      dit: 'C’est une correction d’écriture : rien n’est envoyé, rien n’est rendu, seul le registre change.',
+      scelle: 'La ligne disparaît du coffre et ne se retrouve plus.',
+      accepter: 'Retirer la ligne',
+      refuser: 'Garder la ligne',
+      dur: true,
+    })) return;
     coffreStore.set((prev) => prev.filter((x) => x.id !== m.id));
   };
 
@@ -239,10 +247,18 @@ export default function Coffre() {
   /* CLORE PLUTÔT QU'EFFACER : un objectif atteint quitte la liste vivante sans
      emporter son histoire — les versements qui l'ont nourri restent fléchés
      vers lui, et le coffre se retrouve toujours. */
-  const cloreObjectif = () => {
+  const cloreObjectif = async () => {
     if (!objOuvert?.id) return;
     const o = objectifs.find((x) => x.id === objOuvert.id);
-    if (!o || !window.confirm(`Refermer « ${o.nom} » ? Il quitte la liste, et les versements qui lui étaient destinés gardent leur trace.`)) return;
+    if (!o) return;
+    if (!await demande({
+      quoi: 'Objectif du coffre',
+      titre: `Refermer « ${o.nom} » ?`,
+      dit: 'Il quitte la liste des objectifs en cours.',
+      suite: 'Les versements qui lui étaient destinés gardent leur trace : l’argent ne bouge pas.',
+      accepter: 'Refermer l’objectif',
+      refuser: 'Le laisser ouvert',
+    })) return;
     setObjectifs((prev) => prev.map((x) => (x.id === o.id ? { ...x, clos: true } : x)));
     setObjOuvert(null);
   };

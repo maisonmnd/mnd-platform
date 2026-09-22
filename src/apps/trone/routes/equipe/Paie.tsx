@@ -1,7 +1,7 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState } from 'react';
 import { normName, sameName } from '../../../../shared/text';
-import { Button, Card, Field, Input, Modal, Select, toast, alerte } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { pushNotifyStaff } from '../../../../shared/push';
 import { todayISO } from '../clients/_shared';
 import { downloadCsv } from '../finances/_shared';
@@ -565,14 +565,22 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
     });
   };
 
-  const retirerCharges = () => {
-    if (!window.confirm('Retirer du registre des Dépenses les charges de salaire de ce run ? Le résultat du salon remontera d’autant.')) return;
+  const retirerCharges = async () => {
+    if (!await demande({
+      quoi: 'Registre des Dépenses',
+      titre: 'Retirer les charges de salaire de ce run ?',
+      dit: 'Les lignes de charge quittent les Dépenses. Le résultat du salon remontera d’autant.',
+      suite: 'Le run lui-même ne bouge pas : ses bulletins et ses montants restent.',
+      accepter: 'Retirer les charges',
+      refuser: 'Les laisser aux Dépenses',
+      dur: true,
+    })) return;
     const ids = new Set(lines.map(chargeId));
     expensesStore.set((prev) => prev.filter((e) => !ids.has(e.id)));
   };
 
   /* Cycle de vie — un run clôturé est immuable (les chiffres sont figés). */
-  const advance = (next: RunStatus) => {
+  const advance = async (next: RunStatus) => {
     /* ══ LA PAIE ATTEND LES FACTURES — 13 septembre 2026 ═══════════════
        « Bloquée » (Yéman) : une prestataire sans facture acceptée arrête la
        validation, et le refus dit qui manque. */
@@ -595,10 +603,23 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
       setBordereau(true);
       return;
     }
-    if (next === 'paye' && !window.confirm(
-      `Marquer ce run payé ?\n\nLa masse salariale nette (${fmtMoney(t.net, currency)}) s'inscrira dans les Dépenses, en catégorie Salaires, c'est ce qui la fait compter dans le résultat du salon et dans le Partage.`,
-    )) return;
-    if (next === 'cloture' && !window.confirm('Clôturer ce run ? Il deviendra immuable, toute correction passera par un run de régularisation le mois suivant.')) return;
+    if (next === 'paye' && !await demande({
+      quoi: 'Paie du mois',
+      titre: 'Marquer ce run payé ?',
+      dit: `La masse salariale nette, ${fmtMoney(t.net, currency)}, s’inscrit dans les Dépenses, en catégorie Salaires.`,
+      suite: 'C’est ce qui la fait compter dans le résultat du salon et dans le Partage.',
+      accepter: 'Marquer payé',
+      refuser: 'Pas encore',
+    })) return;
+    if (next === 'cloture' && !await demande({
+      quoi: 'Clôture du run',
+      titre: 'Clôturer ce run ?',
+      dit: 'Il deviendra immuable : plus aucune ligne, aucun montant, aucun bulletin ne pourra y être repris.',
+      scelle: 'Toute correction passera par un run de régularisation le mois suivant.',
+      accepter: 'Clôturer le run',
+      refuser: 'Le laisser ouvert',
+      dur: true,
+    })) return;
     const stamp = next === 'valide' ? { validatedAt: nowStamp() } : next === 'paye' ? { paidAt: nowStamp() } : next === 'cloture' ? { closedAt: nowStamp() } : {};
     /* À la validation, chaque ligne de prestataire reprend le total de sa
        facture acceptée : acceptée après la création du run, il n'y serait pas. */
@@ -784,8 +805,16 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
               <Button
                 variant="copper"
                 size="sm"
-                onClick={() => {
-                  if (!window.confirm('Marquer TOUTES les lignes versées ? À n’utiliser que si les virements sont réellement partis.')) return;
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Toutes les lignes',
+                    titre: 'Marquer TOUTES les lignes versées ?',
+                    dit: 'Chaque ligne du bordereau sera datée d’aujourd’hui, comme si le virement était parti.',
+                    scelle: 'À n’utiliser que si les virements sont réellement partis : la Maison croira ensuite avoir payé.',
+                    accepter: 'Tout marquer versé',
+                    refuser: 'Pointer une à une',
+                    dur: true,
+                  })) return;
                   setRun({ lines: lines.map((l) => (ligneEstPayee(l) ? l : { ...l, payeLe: todayISO(), payeMoyen: l.paiement ?? undefined })) });
                 }}
               >
@@ -1076,7 +1105,18 @@ export function PaieParametres() {
     });
   const setBracket = (i: number, field: keyof ItsBracket, v: string) =>
     patch({ its: p.its.map((b, j) => (j === i ? { ...b, [field]: field === 'upTo' ? (v === '' ? null : digits(v)) : Number(v) } : b)) });
-  const resetSeed = () => { if (window.confirm('Rétablir les barèmes de départ (valeurs de la spec) ?')) payrollParametersStore.set(() => [{ ...PAYROLL_PARAMETERS_SEED, its: PAYROLL_PARAMETERS_SEED.its.map((b) => ({ ...b })) }]); };
+  const resetSeed = async () => {
+    if (!await demande({
+      quoi: 'Barèmes de la paie',
+      titre: 'Rétablir les barèmes de départ ?',
+      dit: 'Les taux de cotisation et les tranches d’impôt reprennent les valeurs livrées avec Le Trône.',
+      scelle: 'Vos barèmes actuels seront remplacés. Notez-les si vous y tenez.',
+      accepter: 'Rétablir les barèmes',
+      refuser: 'Garder les miens',
+      dur: true,
+    })) return;
+    payrollParametersStore.set(() => [{ ...PAYROLL_PARAMETERS_SEED, its: PAYROLL_PARAMETERS_SEED.its.map((b) => ({ ...b })) }]);
+  };
   const cnssActif = cnssEstActive(p);
   const itsActif = itsEstActif(p);
 
