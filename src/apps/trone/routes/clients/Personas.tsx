@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Search } from 'lucide-react';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Field, Input, Select, Textarea } from '../../../../ds/components';
+import { Button, Field, Input, Select, Textarea, demande } from '../../../../ds/components';
 import { personasStore, clientsStore, useClients, usePersonas, initiePersonaId, type Persona, type Client } from '../../../../shared/clients';
 import { useServices } from '../../../../shared/catalog';
 import { ENVIES, type EnvieKey } from '../../../../shared/quiz';
@@ -338,8 +338,16 @@ function LectureTab({ personas, clients }: { personas: Persona[]; clients: Clien
 
   const supprimeRegle = (id: string) =>
     personaReglesStore.set((c) => ({ ...c, regles: c.regles.filter((r) => r.id !== id) }));
-  const retablir = () => {
-    if (!window.confirm('Rétablir les règles de la Maison ? Vos réglages seront perdus.')) return;
+  const retablir = async () => {
+    if (!await demande({
+      quoi: 'Règles des personas',
+      titre: 'Rétablir les règles de la Maison ?',
+      dit: 'Les archétypes reprennent les règles livrées avec Le Trône.',
+      scelle: 'Vos réglages seront perdus. Notez-les si vous y tenez.',
+      accepter: 'Rétablir les règles',
+      refuser: 'Garder les miennes',
+      dur: true,
+    })) return;
     personaReglesStore.set(() => structuredClone(REGLES_DEFAUT));
   };
 

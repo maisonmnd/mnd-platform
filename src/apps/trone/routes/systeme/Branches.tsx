@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Seal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Seal, Select, demande } from '../../../../ds/components';
 import { branchesStore, useBranch, type Branch } from '../../../../shared/branches';
 import { COUNTRIES, CURRENCIES } from '../../../../shared/geo';
 import { fmtMoney } from '../../../../shared/currency';
@@ -162,10 +162,18 @@ export default function Branches() {
     setOpen(false);
   };
 
-  const remove = (id: string) => {
+  const remove = async (id: string) => {
     if (branches.length <= 1) return;
     const target = branches.find((b) => b.id === id);
-    if (!window.confirm(`Retirer la branche « ${target?.name ?? ''} » ? Elle disparaît du Trône. Les fiches ou rendez-vous éventuellement rattachés à cette branche ne sont pas supprimés, ils cessent simplement d'apparaître ici.`)) return;
+    if (!await demande({
+      quoi: 'Branche de la Maison',
+      titre: `Retirer la branche « ${target?.name ?? ''} » ?`,
+      dit: 'Elle disparaît du Trône.',
+      suite: 'Les fiches et rendez-vous rattachés à cette branche ne sont pas supprimés : ils cessent simplement d’apparaître ici.',
+      accepter: 'Retirer la branche',
+      refuser: 'Garder la branche',
+      dur: true,
+    })) return;
     branchesStore.set((prev) => {
       const next = prev.filter((b) => b.id !== id);
       /* Retirer la Maison Mère : on promeut la première branche restante pour

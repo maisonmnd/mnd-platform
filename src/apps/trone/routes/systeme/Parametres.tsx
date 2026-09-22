@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth } from '../../../../shared/auth';
@@ -265,18 +265,34 @@ function CalibresCard() {
     if (!Number.isFinite(n) || n <= 0) return;
     ecrisCalibresPartout((prev) => prev.map((b) => (b.id === id ? { ...b, maxLocks: n } : b)));
   };
-  const retire = (id: string) => {
+  const retire = async (id: string) => {
     if (sorted.length <= 1) return;
     const nom = sorted.find((b) => b.id === id)?.name ?? 'ce calibre';
-    if (!window.confirm(`Retirer le calibre « ${nom} » de TOUS les barèmes ? Les têtes de cette plage tomberont dans le calibre voisin.`)) return;
+    if (!await demande({
+      quoi: 'Calibres de la Maison',
+      titre: `Retirer le calibre « ${nom} » de TOUS les barèmes ?`,
+      dit: 'Les têtes de cette plage tomberont dans le calibre voisin, et leur prix changera.',
+      scelle: 'Le retrait vaut pour tous les barèmes à la fois, celui de la Maison comme ceux des ateliers.',
+      accepter: 'Retirer le calibre',
+      refuser: 'Garder le calibre',
+      dur: true,
+    })) return;
     ecrisCalibresPartout((prev) => prev.filter((b) => b.id !== id));
   };
   const ajoute = () => {
     const lastMax = sorted.reduce((m, b) => Math.max(m, b.maxLocks ?? 0), 0);
     ecrisCalibresPartout((prev) => [...prev, { id: `mb-${uid()}`, maxLocks: lastMax + 100, coef: 1, durCoef: 1 }]);
   };
-  const retablit = () => {
-    if (!window.confirm('Rétablir les 7 calibres recommandés (Jumbo → Pico → Galaxy) ? Les calibres actuels seront remplacés dans tous les barèmes.')) return;
+  const retablit = async () => {
+    if (!await demande({
+      quoi: 'Calibres de la Maison',
+      titre: 'Rétablir les 7 calibres recommandés ?',
+      dit: 'De Jumbo à Pico puis Galaxy, tels que la Maison les a définis.',
+      scelle: 'Les calibres actuels seront remplacés dans TOUS les barèmes. Notez-les si vous y tenez.',
+      accepter: 'Rétablir les 7 calibres',
+      refuser: 'Garder les miens',
+      dur: true,
+    })) return;
     modelBandsStore.set(() => MODEL_BANDS_SEED.map((b) => ({ ...b })));
     bandSetsStore.set((prev) => (prev['atl-i-vekpe'] ? { ...prev, 'atl-i-vekpe': VEKPE_BANDS_SEED.map((b) => ({ ...b })) } : prev));
   };
@@ -511,12 +527,15 @@ function SauvegardeCard() {
       return;
     }
     if (mode === 'replace') {
-      if (!window.confirm(
-        'REMPLACER toute la Maison par ce fichier ?\n\n' +
-        'Tout est vidé (serveur + ce poste), puis la Maison est reconstruite À L’IDENTIQUE ' +
-        'du fichier, ajouts, mises à jour ET suppressions. Ce que contient la Maison ' +
-        'aujourd’hui mais PAS le fichier sera perdu. (Idéal pour appliquer une migration.)',
-      )) return;
+      if (!await demande({
+        quoi: 'Remplacement de la Maison',
+        titre: 'REMPLACER toute la Maison par ce fichier ?',
+        dit: 'Tout est vidé, le serveur comme ce poste, puis la Maison est reconstruite À L’IDENTIQUE du fichier : ajouts, mises à jour ET suppressions.',
+        scelle: 'Ce que contient la Maison aujourd’hui et qui n’est pas dans le fichier sera perdu, pour tout le monde et sur tous les appareils.',
+        accepter: 'Remplacer toute la Maison',
+        refuser: 'Ne rien remplacer',
+        dur: true,
+      })) return;
       try {
         setReport(null);
         toast('Remplacement en cours, vidage puis rechargement…');
@@ -660,17 +679,24 @@ function CetAppareil() {
      poussée en souffrance. */
   const enAttente = sync.pending + sync.failed;
 
-  const repartirDuServeur = () => {
-    if (enAttente > 0 && !window.confirm(
-      `${enAttente} écriture(s) de cet appareil ne sont pas encore parties au serveur. `
-      + 'Repartir du serveur maintenant les PERDRAIT définitivement. '
-      + 'Mieux vaut attendre que la pastille repasse au vert. Repartir quand même ?',
-    )) return;
-    if (!window.confirm(
-      'Cet appareil va oublier ce qu’il garde en mémoire et tout redemander au serveur. '
-      + 'La Maison n’est pas touchée : rien n’est effacé côté serveur, et les autres '
-      + 'appareils ne changent pas. Vous devrez vous reconnecter. Continuer ?',
-    )) return;
+  const repartirDuServeur = async () => {
+    if (enAttente > 0 && !await demande({
+      quoi: 'Écritures en souffrance',
+      titre: `${enAttente} écriture(s) de cet appareil ne sont pas parties au serveur.`,
+      dit: 'Repartir du serveur maintenant les perdrait.',
+      scelle: 'Mieux vaut attendre que la pastille de synchronisation repasse au vert.',
+      accepter: 'Repartir quand même',
+      refuser: 'Attendre le vert',
+      dur: true,
+    })) return;
+    if (!await demande({
+      quoi: 'Mémoire de cet appareil',
+      titre: 'Tout redemander au serveur ?',
+      dit: 'Cet appareil va oublier ce qu’il garde en mémoire et tout redemander au serveur.',
+      suite: 'La Maison n’est pas touchée : rien n’est effacé côté serveur, et les autres appareils ne changent pas. Vous devrez vous reconnecter.',
+      accepter: 'Repartir du serveur',
+      refuser: 'Garder la mémoire',
+    })) return;
     for (const k of Object.keys(localStorage)) {
       if (k.startsWith('mnd_')) localStorage.removeItem(k);
     }
@@ -1153,8 +1179,15 @@ export default function Parametres() {
     setSegEditIdx(null);
     setSegEditVal('');
   };
-  const removeSeg = (idx: number, name: string) => {
-    if (!window.confirm(`Retirer le segment « ${name} » ? Il ne sera plus proposé dans le CRM (les fiches déjà taguées le gardent).`)) return;
+  const removeSeg = async (idx: number, name: string) => {
+    if (!await demande({
+      quoi: 'Segment du CRM',
+      titre: `Retirer le segment « ${name} » ?`,
+      dit: 'Il ne sera plus proposé dans le CRM.',
+      suite: 'Les fiches déjà taguées le gardent : rien ne se perd du côté des clientes.',
+      accepter: 'Retirer le segment',
+      refuser: 'Garder le segment',
+    })) return;
     setSegments((prev) => prev.filter((_, i) => i !== idx));
     if (segEditIdx === idx) setSegEditIdx(null);
   };
@@ -1176,8 +1209,15 @@ export default function Parametres() {
       [n[idx], n[j]] = [n[j], n[idx]];
       return n;
     });
-  const removePay = (idx: number, name: string) => {
-    if (!window.confirm(`Retirer le mode de paiement « ${name} » ? Il ne sera plus proposé à l’encaissement (Factures & Académie).`)) return;
+  const removePay = async (idx: number, name: string) => {
+    if (!await demande({
+      quoi: 'Mode de paiement',
+      titre: `Retirer le mode « ${name} » ?`,
+      dit: 'Il ne sera plus proposé à l’encaissement, ni aux Factures ni à l’Académie.',
+      suite: 'Les écritures déjà passées par ce mode le gardent.',
+      accepter: 'Retirer le mode',
+      refuser: 'Garder le mode',
+    })) return;
     paymentMethodsStore.set((prev) => prev.filter((_, i) => i !== idx));
   };
 

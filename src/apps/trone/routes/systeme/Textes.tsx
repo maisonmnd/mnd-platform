@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Card, Modal, toast } from '../../../../ds/components';
+import { Button, Card, Modal, toast, demande } from '../../../../ds/components';
 import { Tabs } from '../equipe/ui';
 import { maisonNom, maisonVille } from '../../../../shared/identite';
 import { useStaff } from '../equipe/data';
@@ -148,8 +148,15 @@ function OngletFiches() {
     toast('Fiche enregistrée.');
   };
 
-  const choisis = (k: number) => {
-    if (modifiee && !window.confirm('Cette fiche a des modifications non enregistrées. Les abandonner ?')) return;
+  const choisis = async (k: number) => {
+    if (modifiee && !await demande({
+      quoi: 'Modifications en cours',
+      titre: 'Abandonner les modifications de cette fiche ?',
+      dit: 'Ce que vous avez écrit sans enregistrer sera perdu.',
+      accepter: 'Abandonner mes modifications',
+      refuser: 'Rester sur cette fiche',
+      dur: true,
+    })) return;
     setBrouillon(null);
     setI(k);
   };
@@ -617,8 +624,16 @@ function OngletReglement() {
                 <button className="txt-x" type="button" title="Descendre" onClick={() => bouge(k, 1)}>↓</button>
                 <button
                   className="txt-x" type="button" title="Retirer l’article"
-                  onClick={() => {
-                    if (!window.confirm(`Retirer l’article « ${a.titre} » ?`)) return;
+                  onClick={async () => {
+                    if (!await demande({
+                      quoi: 'Article du texte',
+                      titre: `Retirer l’article « ${a.titre} » ?`,
+                      dit: 'Il quitte ce texte de la Maison.',
+                      suite: 'Rien n’est enregistré tant que la fiche ne l’est pas.',
+                      accepter: 'Retirer l’article',
+                      refuser: 'Garder l’article',
+                      dur: true,
+                    })) return;
                     poseSource({ ...source, articles: source.articles.filter((_, j) => j !== k) });
                   }}
                 >
