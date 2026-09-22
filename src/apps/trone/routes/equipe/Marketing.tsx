@@ -2,7 +2,7 @@ import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
@@ -91,11 +91,18 @@ export default function Marketing() {
     setSegEditVal('');
   };
 
-  const dropSegment = (name: string, size: number) => {
+  const dropSegment = async (name: string, size: number) => {
     const msg = size > 0
       ? `Retirer « ${name} » ? ${size} fiche${size > 1 ? 's' : ''} le porte${size > 1 ? 'nt' : ''} : le tag sera retiré de ces fiches.`
       : `Retirer le segment « ${name} » ?`;
-    if (!window.confirm(msg)) return;
+    if (!await demande({
+      quoi: 'Segment de la Maison',
+      titre: `Retirer le segment « ${name} » ?`,
+      dit: msg,
+      accepter: 'Retirer le segment',
+      refuser: 'Garder le segment',
+      dur: true,
+    })) return;
     /* Ici on retire AUSSI des fiches : la table qu'on vient de lire montre
        combien sont touchées, la maison décide en connaissance de cause. */
     removeSegment(name, true);
@@ -114,7 +121,14 @@ export default function Marketing() {
 
   /* Diffuse une notification push à toutes les clientes abonnées pour cette offre. */
   const notifyOffer = async (o: InstantOffer) => {
-    if (!window.confirm(`Notifier toutes les clientes de l’offre « ${o.title} » sur leur téléphone ?`)) return;
+    if (!await demande({
+      quoi: 'Notification aux clientes',
+      titre: `Notifier toutes les clientes de l’offre « ${o.title} » ?`,
+      dit: 'Elles recevront une notification sur leur téléphone, tout de suite.',
+      scelle: 'Une notification partie ne se rappelle pas.',
+      accepter: 'Notifier les clientes',
+      refuser: 'Ne pas notifier',
+    })) return;
     setNotifBusy(o.id);
     const body = [o.deal, o.sub].filter(Boolean).join(' · ') || 'Une offre vous attend à la Maison.';
     const n = await pushBroadcastClients(`${o.tag} · ${o.title}`, body, '/couronne/');

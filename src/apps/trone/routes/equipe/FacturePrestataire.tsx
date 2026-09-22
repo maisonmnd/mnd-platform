@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -350,7 +350,7 @@ function FactureDuMois({ moi, mois, enregistree, precedente, auteurId }: {
       : [...prev, f]));
   };
 
-  const soumettre = () => {
+  const soumettre = async () => {
     const signature: SignatureTracee = {
       at: aujourdhuiIso(),
       signePar: `${identite.prenoms.trim()} ${identite.nom.trim()}`.trim(),
@@ -359,18 +359,28 @@ function FactureDuMois({ moi, mois, enregistree, precedente, auteurId }: {
     };
     const manque = ceQuiManqueASoumettre({ identite, numero, signature });
     if (manque) { toast(manque); return; }
-    if (!window.confirm(
-      `Soumettre votre facture de ${moisDit(mois)} ?\n\n`
-      + `Total${compte.prixManquants ? ' provisoire' : ''} : ${fmtMoney(compte.totalXof, currency)}. `
-      + 'La direction l’accepte, ou vous la renvoie avec un mot.',
-    )) return;
+    if (!await demande({
+      quoi: 'Votre facture',
+      titre: `Soumettre votre facture de ${moisDit(mois)} ?`,
+      dit: `Total${compte.prixManquants ? ' provisoire' : ''} : ${fmtMoney(compte.totalXof, currency)}.`,
+      suite: 'La direction l’accepte, ou vous la renvoie avec un mot.',
+      accepter: 'Soumettre la facture',
+      refuser: 'La garder en brouillon',
+    })) return;
     ecris('soumise', { signature });
     toast('Facture soumise.');
   };
 
-  const reprendre = () => {
+  const reprendre = async () => {
     if (!enregistree) return;
-    if (!window.confirm('Reprendre votre facture ? Elle repasse en brouillon, et il faudra la signer à nouveau.')) return;
+    if (!await demande({
+      quoi: 'Facture soumise',
+      titre: 'Reprendre votre facture ?',
+      dit: 'Elle repasse en brouillon, et il faudra la signer à nouveau.',
+      accepter: 'Reprendre la facture',
+      refuser: 'La laisser soumise',
+      dur: true,
+    })) return;
     facturesPrestatairesStore.set((prev) => prev.map((x) => (x.id === enregistree.id
       ? {
         ...x, etat: 'brouillon', signature: undefined, soumiseLe: undefined, compteSoumis: undefined,
@@ -566,14 +576,18 @@ export function FactureDeLaDirection({ membre, mois, onClose }: { membre: StaffM
     }
   };
 
-  const accepter = () => {
+  const accepter = async () => {
     if (!f) return;
     const manque = ceQuiManqueAAccepter(vivant);
     if (manque) { toast(manque); return; }
-    if (!window.confirm(
-      `Accepter la facture de ${m.name} pour ${moisDit(mois)} ?\n\n`
-      + `Total ${argent(vivant.totalXof)}. Elle ne se modifiera plus, et ce total entrera dans sa paie, sans CNSS ni ITS.`,
-    )) return;
+    if (!await demande({
+      quoi: 'Acceptation',
+      titre: `Accepter la facture de ${m.name} pour ${moisDit(mois)} ?`,
+      dit: `Total ${argent(vivant.totalXof)}. Ce total entrera dans sa paie, sans CNSS ni ITS.`,
+      scelle: 'Elle ne se modifiera plus.',
+      accepter: 'Accepter la facture',
+      refuser: 'La laisser en attente',
+    })) return;
     const maintenant = new Date().toISOString();
     /* LE COMPTE SE FIGE ICI, recalculé sur CE poste depuis le Carnet et la
        grille : on ne paie pas le chiffre écrit par un autre poste. */
@@ -599,10 +613,18 @@ export function FactureDeLaDirection({ membre, mois, onClose }: { membre: StaffM
   const paieEngagee = asArray(runs).some((r) => r.period === mois && r.status !== 'brouillon'
     && (!r.branchId || r.branchId === m.branchId)
     && asArray(r.lines).some((l) => l.employeeId === m.id));
-  const rouvrir = () => {
+  const rouvrir = async () => {
     if (!f) return;
     if (paieEngagee) { toast('La paie de ce mois est déjà validée : la facture ne se rouvre plus.'); return; }
-    if (!window.confirm('Rouvrir cette facture ? Elle redevient « soumise », et la paie du mois ne se validera plus tant qu’elle n’est pas acceptée à nouveau.')) return;
+    if (!await demande({
+      quoi: 'Facture acceptée',
+      titre: 'Rouvrir cette facture ?',
+      dit: 'Elle redevient « soumise » et pourra être modifiée.',
+      suite: 'La paie du mois ne se validera plus tant qu’elle n’est pas acceptée à nouveau.',
+      accepter: 'Rouvrir la facture',
+      refuser: 'La laisser acceptée',
+      dur: true,
+    })) return;
     pose({ etat: 'soumise', compteAccepte: undefined, accepteeLe: undefined, accepteePar: undefined });
   };
 

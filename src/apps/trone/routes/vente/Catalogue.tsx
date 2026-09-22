@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { AGE_MND_KIDS } from '../../../../shared/accounts';
 import { poseLaSectionKids, kidsAbsents, metAJourLaSectionKids, kidsADepasser } from '../../../../shared/kids';
@@ -598,14 +598,23 @@ export default function Catalogue() {
     setCatForm(null);
   };
 
-  const deleteCat = (cat: CatalogCategory) => {
+  const deleteCat = async (cat: CatalogCategory) => {
     const svcCount = services.filter((s) => s.categoryId === cat.id).length;
     const prodCount = products.filter((p) => p.categoryId === cat.id).length;
     const refs = svcCount + prodCount;
     const warn = refs > 0
       ? `\n\nAttention : ${svcCount} prestation${svcCount > 1 ? 's' : ''} et ${prodCount} produit${prodCount > 1 ? 's' : ''} y sont rattaché${refs > 1 ? 's' : ''}, ils resteront sans catégorie tant que vous ne les réaffectez pas.`
       : '';
-    if (!window.confirm(`Supprimer la catégorie « ${cat.fon} · ${cat.label} » ?${warn}`)) return;
+    if (!await demande({
+      quoi: 'Catégorie du catalogue',
+      titre: `Supprimer « ${cat.fon} · ${cat.label} » ?`,
+      dit: 'La catégorie quitte le catalogue.',
+      suite: warn ? warn.trim() : undefined,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la catégorie',
+      refuser: 'Garder la catégorie',
+      dur: true,
+    })) return;
     setCategories((prev) => prev.filter((c) => c.id !== cat.id));
   };
 
@@ -634,7 +643,7 @@ export default function Catalogue() {
     patchSvc(svc.id, { priceMode: next, hidePrice: next === 'devis' });
   };
 
-  const deleteSvc = (svc: Service) => {
+  const deleteSvc = async (svc: Service) => {
     /* Garde-fou : des RDV référencent peut-être cette prestation — la supprimer
        leur ferait perdre libellé et prix d'affichage (incident du 23 juil. 2026).
        On compte, on prévient, on nomme la conséquence. */
@@ -642,7 +651,16 @@ export default function Catalogue() {
     const warn = refs > 0
       ? `\n\n⚠ ${refs} rendez-vous du carnet porte${refs > 1 ? 'nt' : ''} cette prestation : ils perdront son libellé et son prix d'affichage (les montants déjà encaissés/figés ne bougent pas). Préférez la MASQUER de la vitrine si vous voulez seulement cesser de la vendre.`
       : '';
-    if (!window.confirm(`Supprimer la prestation « ${svc.name} » ? Cette action est définitive.${warn}`)) return;
+    if (!await demande({
+      quoi: 'Prestation du catalogue',
+      titre: `Supprimer la prestation « ${svc.name} » ?`,
+      dit: 'Elle quitte le catalogue, et rien ne la recréera : la Maison en garde la trace pour ne jamais la faire revenir.',
+      suite: warn ? warn.trim() : undefined,
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la prestation',
+      refuser: 'Garder la prestation',
+      dur: true,
+    })) return;
     /* Pierre tombale AVANT la suppression : les mécanismes de restauration
        (prestations de départ, sauvetage) ne la re-créeront plus jamais. */
     markServiceRemoved(svc.id);
@@ -1044,8 +1062,16 @@ export default function Catalogue() {
     setProdForm(null);
   };
 
-  const deleteProd = (prod: Product) => {
-    if (!window.confirm(`Retirer le produit « ${prod.name} » de la gamme ?`)) return;
+  const deleteProd = async (prod: Product) => {
+    if (!await demande({
+      quoi: 'Produit de la gamme',
+      titre: `Retirer « ${prod.name} » de la gamme ?`,
+      dit: 'Il ne sera plus proposé à la vente ni au comptoir.',
+      scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Retirer le produit',
+      refuser: 'Garder le produit',
+      dur: true,
+    })) return;
     setProducts((prev) => prev.filter((p) => p.id !== prod.id));
   };
 
@@ -3091,8 +3117,15 @@ function ProgrammerAuComptage({
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
           <Button
             disabled={concernees.length === 0}
-            onClick={() => {
-              if (!window.confirm(`Programmer ${concernees.length} prestation(s) de « ${cat.fon} » au comptage des locks ? Les prix affichés d'aujourd'hui deviennent leurs planchers.`)) return;
+            onClick={async () => {
+              if (!await demande({
+                quoi: 'Comptage des locks',
+                titre: `Programmer ${concernees.length} prestation(s) de « ${cat.fon} » au comptage ?`,
+                dit: 'Leur prix ne dépendra plus d’un montant fixe, mais du nombre de locks comptés.',
+                suite: 'Les prix affichés d’aujourd’hui deviennent leurs planchers.',
+                accepter: `Programmer les ${concernees.length}`,
+                refuser: 'Laisser au prix fixe',
+              })) return;
               onAppliquer(patchs);
             }}
           >

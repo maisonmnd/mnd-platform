@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER, type Palier } from '../../../../shared/paliers';
-import { Badge, Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Badge, Button, Card, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
@@ -572,8 +572,16 @@ export default function Personnel() {
     setSeuils((prev) => prev.map((r) => (r.id === id ? { ...r, paliers: r.paliers.filter((_, k) => k !== i) } : r)));
   const ajouterRegle = () =>
     setSeuils((prev) => [...prev, { id: `sl-${uid()}`, libelle: '', cible: { kind: 'tetes' }, paliers: [{ seuil: 25, montantXof: 5000 }] }]);
-  const retirerRegle = (id: string) => {
-    if (!window.confirm('Supprimer ce barème ? Les primes déjà inscrites au mois ne bougent pas.')) return;
+  const retirerRegle = async (id: string) => {
+    if (!await demande({
+      quoi: 'Barème de prime',
+      titre: 'Supprimer ce barème ?',
+      dit: 'Il ne servira plus à calculer les primes des mois suivants.',
+      suite: 'Les primes déjà inscrites au mois ne bougent pas.',
+      accepter: 'Supprimer le barème',
+      refuser: 'Garder le barème',
+      dur: true,
+    })) return;
     setSeuils((prev) => prev.filter((r) => r.id !== id));
   };
 
@@ -632,7 +640,7 @@ export default function Personnel() {
   const confKey = (month: string, staffId: string) => `${month}:${staffId}`;
   const confirmOf = (month: string, staffId: string): PayConfirm | undefined => confirms[confKey(month, staffId)];
   const months12Paid = (staffId: string, year: number) => yearMonths(year).filter((mk) => confirmOf(mk, staffId)).length;
-  const confirmPay = (m: StaffMember, month: string, amountXof: number) => {
+  const confirmPay = async (m: StaffMember, month: string, amountXof: number) => {
     /* LE RÈGLEMENT D'UNE PRESTATAIRE ATTEND SA FACTURE, comme le run : deux
        chemins de paie, une seule serrure. */
     if (estPrestataire(m) && totalAccepte(factureDe(factures, m.id, month)) === undefined) {
@@ -641,7 +649,14 @@ export default function Personnel() {
     }
     const method = payMethod;
     const byName = me?.name?.trim() || session?.user?.email?.split('@')[0] || 'La maison';
-    if (!window.confirm(`Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} pour ${monthTitle(month)} ?\nVotre nom (${byName}) et l'horodatage seront enregistrés comme preuve, et la charge s'inscrira dans les Dépenses.`)) return;
+    if (!await demande({
+      quoi: 'Règlement d’un salaire',
+      titre: `Confirmer le règlement de ${fmtMoney(amountXof, currency)} à ${m.name} ?`,
+      dit: `Pour ${monthTitle(month)}. La charge s’inscrira dans les Dépenses.`,
+      suite: `Votre nom (${byName}) et l’horodatage seront enregistrés comme preuve.`,
+      accepter: 'Confirmer le règlement',
+      refuser: 'Pas encore',
+    })) return;
     const paidAt = new Date().toISOString();
     /* MÊME CLÉ ET MÊME CONSTRUCTEUR QUE LE RUN DE PAIE (payroll.ts) : les deux
        chemins écrivent LA MÊME ligne — libellé, catégorie et jour LOCAL
@@ -660,8 +675,16 @@ export default function Personnel() {
       [confKey(month, m.id)]: { paidAt, byId: session?.user?.id ?? '', byName, method, amountXof, expenseId: expId },
     }));
   };
-  const unconfirmPay = (month: string, staffId: string) => {
-    if (!window.confirm('Annuler la confirmation de règlement ? La charge correspondante sera retirée des Dépenses.')) return;
+  const unconfirmPay = async (month: string, staffId: string) => {
+    if (!await demande({
+      quoi: 'Règlement confirmé',
+      titre: 'Annuler la confirmation de règlement ?',
+      dit: 'Le salaire redevient à régler, et la charge correspondante quitte les Dépenses.',
+      suite: 'Le nom de qui avait confirmé et l’horodatage seront effacés.',
+      accepter: 'Annuler la confirmation',
+      refuser: 'La garder',
+      dur: true,
+    })) return;
     const eid = confirms[confKey(month, staffId)]?.expenseId;
     if (eid) expensesStore.set((prev) => prev.filter((e) => e.id !== eid));
     setConfirms((prev) => {
