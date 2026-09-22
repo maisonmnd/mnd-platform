@@ -3,7 +3,8 @@ import { PageHead } from '../_ui';
 import { Button, Card, Input, Select } from '../../../../ds/components';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff, vientDeMaCouronne, type CompteEnAttente } from '../../../../shared/auth';
-import { staffAccessStore } from '../equipe/data';
+import { staffAccessStore, useStaff as useEquipe } from '../equipe/data';
+import { adresseDArrivee, etatDeLArrivee, seRessemblent } from '../../../../shared/arrivee-pure';
 import { NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
@@ -83,6 +84,30 @@ export default function Acces() {
      dans la file du Trône. */
   const fichesClientes = new Set(clients.flatMap((c) => [c.id, c.authUserId ?? '']));
   const estCliente = (userId: string) => fichesClientes.has(userId);
+  /* ROMPRE LE SILENCE D'UNE LETTRE MAL RECOPIÉE — 22 septembre 2026.
+
+     Depuis que la direction prépare la place d'une recrue AVANT son arrivée
+     (migration 0109), une faute d'une seule lettre dans l'adresse préparée
+     produit un silence : la recrue s'inscrit, rien ne se rattache, elle tombe
+     dans cette file, et personne ne comprend pourquoi. Le même silence que
+     « acceuil@ » écrit pour « accueil@ ».
+
+     La file rapproche donc d'elle-même. CE N'EST QU'UN INDICE, jamais un
+     rattachement : une ressemblance ne prouve rien, et c'est la direction qui
+     tranche, du même geste qu'avant. Une adresse qui ressemble à DEUX places
+     préparées n'en désigne aucune : une ambiguïté ne se tranche pas en
+     faveur de celui qui entre. */
+  const [equipe] = useEquipe();
+  const ceJour = new Date().toISOString().slice(0, 10);
+  const placesPreparees = equipe
+    .filter((m) => etatDeLArrivee(m, ceJour) === 'invitee')
+    .map((m) => ({ nom: (m.name ?? '').trim(), adresse: adresseDArrivee(m) }));
+  const placeVoisine = (mail: string | null) => {
+    const a = (mail ?? '').trim().toLowerCase();
+    if (!a) return null;
+    const proches = placesPreparees.filter((p) => seRessemblent(a, p.adresse));
+    return proches.length === 1 ? proches[0] : null;
+  };
   const attenteTrone = pending.filter((u) => !vientDeMaCouronne(u, estCliente));
   const attenteCouronne = pending.filter((u) => vientDeMaCouronne(u, estCliente));
   const nomCliente = (userId: string) =>
@@ -334,6 +359,17 @@ export default function Acces() {
                       ? 'Il quittera la file. Son compte reste intact, il peut continuer à ouvrir Ma Couronne. Confirmez, ou cliquez ailleurs.'
                       : `Connecté depuis le ${fmtDate(u.created_at)}`}
                   </div>
+                  {(() => {
+                    const v = placeVoisine(u.email);
+                    if (!v) return null;
+                    return (
+                      <div className="sys-acc-row__sub" style={{ color: 'var(--copper)' }}>
+                        Ressemble à la place préparée{v.nom ? ` de ${v.nom}` : ''} ({v.adresse}).
+                        Une lettre a peut-être été mal recopiée : corrigez l’e-mail de connexion sur sa fiche,
+                        ou autorisez ce compte ici.
+                      </div>
+                    );
+                  })()}
                 </div>
                 <Input
                   className="sys-input sys-acc-row__name"

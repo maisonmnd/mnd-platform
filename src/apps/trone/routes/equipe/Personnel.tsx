@@ -19,6 +19,10 @@ import { enVigueur, motDeLEtat, ouEnEst, useReglement } from '../../../../shared
 import { apptNetXof, svcPriceForAppt, commissionDetaillee } from '../clients/_shared';
 import { splitByWeights } from '../../../../shared/pricing';
 import { sameName } from '../../../../shared/text';
+import { lienWaMe } from '../../../../shared/conversations';
+import {
+  JOURS_DE_VALIDITE, adresseDArrivee, etatDeLArrivee, messageDeLInvitation,
+} from '../../../../shared/arrivee-pure';
 import {
   anciennete, ancienneteYears, monthLabel, shortDate, useStaff,
   type StaffMember, type StaffRisk, ordonneEquipe, staffStore,
@@ -1663,6 +1667,16 @@ export default function Personnel() {
                 <Input value={form.compteMail} disabled={!estDirection} onChange={(e) => setForm({ ...form, compteMail: e.target.value })} inputMode="email" placeholder="le compte avec lequel il/elle se connecte" />
               </Field>
             </div>
+            {/* SA PLACE, PRÉPARÉE AVANT SON ARRIVÉE — 22 septembre 2026.
+                Posé JUSTE SOUS l'adresse de connexion, parce que c'est elle
+                qui sert de serrure : les deux se lisent d'un seul regard. */}
+            <Field label="Son entrée dans Le Trône">
+              <SaPlaceDansLeTrone
+                fiche={editId ? (staff.find((m) => m.id === editId) ?? null) : null}
+                estDirection={estDirection}
+                onFiche={(patch) => setStaff((prev) => prev.map((m) => (m.id === editId ? { ...m, ...patch } : m)))}
+              />
+            </Field>
             <Field label="Fonction dans la Maison">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {fonctions.map((r) => (
@@ -2201,6 +2215,142 @@ export default function Personnel() {
           </Modal>
         );
       })()}
+    </div>
+  );
+}
+
+/* SA PLACE DANS LE TRÔNE — 22 septembre 2026.
+
+   « Ça sert à quoi de confirmer un compte avec le code à six chiffres et
+   avoir toujours un compte non rattaché ? » (Yéman). Maquette
+   `public/maquette-l-arrivee-d-une-employee.html`, validée.
+
+   LE GESTE EST INVERSÉ : la direction prépare la place AVANT l'arrivée, et
+   la recrue se rattache d'elle-même en confirmant son adresse. Ce bloc ne
+   dit qu'une chose, et une seule à la fois : où en est cette personne entre
+   la décision de la direction et sa première connexion.
+
+   IL N'OUVRE AUCUNE PORTE À LUI SEUL. Il pose deux champs sur la fiche ;
+   c'est la migration 0109 qui décide, côté serveur, si quelqu'un entre. */
+function SaPlaceDansLeTrone({
+  fiche, estDirection, onFiche,
+}: {
+  fiche: StaffMember | null;
+  estDirection: boolean;
+  onFiche: (patch: Partial<StaffMember>) => void;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [role, setRole] = useState<string>('maitre');
+  const [aAnnuler, setAAnnuler] = useState(false);
+
+  if (!fiche) {
+    return (
+      <div className="mnd-muted" style={{ fontSize: 12.5 }}>
+        Enregistrez d’abord la fiche : sa place se prépare ensuite.
+      </div>
+    );
+  }
+  if (!estDirection) {
+    return <div className="mnd-muted" style={{ fontSize: 12.5 }}>L’entrée dans Le Trône se prépare par la direction.</div>;
+  }
+
+  const adresse = adresseDArrivee(fiche);
+  const etat = etatDeLArrivee(fiche, new Date().toISOString().slice(0, 10));
+  const aujourdHui = () => new Date().toISOString().slice(0, 10);
+
+  /* L'ADRESSE DU TRÔNE SE LIT, ELLE NE S'ÉCRIT PAS. Le nom de domaine ne
+     figure nulle part dans le dépôt : la Maison a déjà déménagé une fois. */
+  const adresseDuTrone = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  const mot = messageDeLInvitation({ prenom: fiche.name ?? '', adresse, adresseDuTrone });
+
+  const prepare = () => {
+    if (!adresse) { toast('Posez d’abord son e-mail de connexion, c’est lui qui sert de serrure.'); return; }
+    onFiche({ roleDAcces: role, inviteeLe: aujourdHui(), entreeLe: undefined });
+    setOuvert(false);
+    toast('Sa place est prête. Envoyez-lui le mot, elle entrera seule.');
+  };
+
+  const partage = () => {
+    const lien = lienWaMe(fiche.phone, mot);
+    if (lien) { window.open(lien, '_blank', 'noopener'); return; }
+    void navigator.clipboard?.writeText(mot).then(
+      () => toast('Pas de numéro sur la fiche : le mot est copié.'),
+      () => toast('Pas de numéro sur la fiche, et le presse-papier a refusé.'),
+    );
+  };
+
+  const annule = () => {
+    if (!aAnnuler) { setAAnnuler(true); return; }
+    setAAnnuler(false);
+    onFiche({ roleDAcces: undefined, inviteeLe: undefined });
+    toast('Invitation annulée. Plus personne n’entre avec cette adresse.');
+  };
+
+  const cadre = {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+    border: '1px solid var(--hairline)', borderRadius: 3, padding: '10px 12px', fontSize: 13,
+  } as const;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div style={cadre}>
+        <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+          <b style={{ fontWeight: 500 }}>
+            {etat === 'entree' ? `Entrée le ${shortDate(fiche.entreeLe ?? '')}`
+              : etat === 'invitee' ? `Invitée le ${shortDate(fiche.inviteeLe ?? '')}`
+                : etat === 'perimee' ? 'Invitation périmée'
+                  : 'Pas encore invitée'}
+          </b>
+          <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5 }}>
+            {etat === 'entree'
+              ? `${adresse} · son compte est rattaché à cette fiche`
+              : etat === 'invitee'
+                ? `${adresse} · ${fiche.roleDAcces === 'gerant' ? 'gérante' : 'maîtresse'} · elle entrera seule en confirmant son adresse`
+                : etat === 'perimee'
+                  ? `${adresse} · passé ${JOURS_DE_VALIDITE} jours, la porte s’est refermée. Préparez-la de nouveau.`
+                  : adresse
+                    ? `${adresse} · aucune place ne l’attend encore`
+                    : 'Aucune adresse de connexion sur cette fiche'}
+          </span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {etat === 'invitee' && (
+            <>
+              <Button variant="ghost" size="sm" onClick={partage}>Renvoyer le mot</Button>
+              <button type="button" className="tre-link-btn" onClick={annule}>
+                {aAnnuler ? 'Confirmer l’annulation' : 'Annuler l’invitation'}
+              </button>
+            </>
+          )}
+          {etat !== 'invitee' && etat !== 'entree' && (
+            <Button variant="copper" size="sm" onClick={() => setOuvert((v) => !v)}>
+              {ouvert ? 'Fermer' : 'Préparer son entrée'}
+            </Button>
+          )}
+        </span>
+      </div>
+
+      {ouvert && etat !== 'entree' && (
+        <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Field label="Ce qu’elle voit en entrant">
+            <Select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="maitre">Maîtresse · ses écrans de travail</option>
+              <option value="gerant">Gérante · la conduite de l’atelier</option>
+            </Select>
+          </Field>
+          {/* LES PLEINS POUVOIRS NE S'ENVOIENT PAS PAR COURRIER. Un souverain
+              se donne en personne, depuis Accès & personnel : 0109 refuse ce
+              rôle au rattachement, l'écran ne le propose donc pas. */}
+          <div className="mnd-muted" style={{ fontSize: 11.5 }}>
+            Le réglage fin de ses écrans reste dans Système · Accès &amp; personnel, comme aujourd’hui.
+            Un souverain, lui, se donne en personne et jamais par invitation.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="copper" size="sm" onClick={prepare}>Préparer et écrire le mot</Button>
+            <Button variant="ghost" size="sm" onClick={partage}>Voir le mot</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

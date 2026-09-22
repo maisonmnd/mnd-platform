@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>L&rsquo;arriv&eacute;e d&rsquo;une employ&eacute;e &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin: #F3EDE1; --ivoire: #FBF8F2; --sable: #E8DFCE;
+    --indigo: #1E2150; --indigo-2: #3A3F72; --indigo-pale: #EDEEF4;
+    --cuivre: #B97A4A; --cuivre-p: #E3C9AE; --cuivre-f: #FAF1E9;
+    --encre: #2A2722; --encre-d: #746F65; --filet: #D9CFBC;
+    --brique: #96412E; --brique-f: #FBF0ED; --brique-p: #E4BDB2;
+    --vert: #4A6B52; --vert-f: #EFF3EF; --vert-p: #CBDACE;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'Jost', 'Century Gothic', 'Futura', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans);
+         font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1150px; margin:0 auto; padding:56px 24px 110px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(38px,6vw,60px); line-height:1.04;
+       letter-spacing:-.015em; color:var(--indigo); margin:0 0 18px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(23px,3vw,32px); color:var(--indigo);
+       margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  h3 { font-family:var(--serif); font-weight:400; font-size:21px; color:var(--indigo); margin:0 0 6px; }
+  .chapeau { max-width:66ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b { color:var(--encre); font-weight:500; }
+  section { margin-top:62px; }
+  .intro { max-width:74ch; color:var(--encre-d); margin:0 0 26px; }
+  .intro b { color:var(--encre); font-weight:500; }
+  .legende { font-size:12.5px; color:var(--encre-d); margin:14px 0 0; max-width:82ch; }
+  .legende b { color:var(--encre); font-weight:500; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre); letter-spacing:.06em; }
+  .cite { border-left:2px solid var(--cuivre); padding:2px 0 2px 16px; margin:32px 0 0;
+          font-family:var(--serif); font-size:21px; line-height:1.45; color:var(--indigo); max-width:62ch; }
+  .cite span { display:block; font-family:var(--sans); font-size:11px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--encre-d); margin-top:8px; }
+  .deux { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+  @media (max-width:880px) { .deux { grid-template-columns:1fr; } }
+  .deux > * { min-width:0; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:var(--ivoire); overflow:hidden; }
+  .ecran__barre { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:11px 18px; background:var(--indigo);
+                  color:#F3EDE1; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .ecran__barre span { opacity:.6; }
+  .ecran__corps { padding:20px 22px 24px; }
+  .etq { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--encre-d); display:block; margin-bottom:9px; }
+
+  .ligne { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+           border:1px solid var(--filet); border-radius:3px; padding:12px 14px; background:#fff; }
+  .ligne + .ligne { margin-top:10px; }
+  .ligne b.t { font-weight:500; }
+  .ligne .sous { display:block; font-size:11.5px; color:var(--encre-d); }
+
+  .btn { font-family:var(--sans); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+         border:1px solid var(--indigo); background:var(--indigo); color:#F6F1E7;
+         padding:9px 15px; border-radius:3px; cursor:default; white-space:nowrap; }
+  .btn--cuivre { background:var(--cuivre); border-color:var(--cuivre); }
+  .btn--vide { background:transparent; color:var(--indigo); }
+  .btn--lien { background:transparent; border:0; color:var(--indigo); text-decoration:underline;
+               text-transform:none; letter-spacing:0; font-size:13px; padding:6px 0; }
+
+  .puce { display:inline-block; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+          padding:3px 9px; border-radius:2px; border:1px solid var(--filet); color:var(--encre-d); background:#fff; }
+  .puce--vert { color:var(--vert); border-color:var(--vert-p); background:var(--vert-f); }
+  .puce--cuivre { color:var(--cuivre); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .puce--brique { color:var(--brique); border-color:var(--brique-p); background:var(--brique-f); }
+
+  .chemin { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; margin-top:8px; }
+  @media (max-width:880px) { .chemin { grid-template-columns:1fr; } }
+  .etape { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:14px; }
+  .etape__n { font-family:var(--serif); font-size:26px; color:var(--cuivre); line-height:1; }
+  .etape__t { font-weight:500; margin:8px 0 4px; }
+  .etape__d { font-size:12.5px; color:var(--encre-d); }
+  .etape--trou { background:var(--brique-f); border-color:var(--brique-p); }
+  .etape--trou .etape__n { color:var(--brique); }
+  .etape--neuf { background:var(--vert-f); border-color:var(--vert-p); }
+  .etape--neuf .etape__n { color:var(--vert); }
+  .chemin--4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
+  @media (max-width:880px) { .chemin--4 { grid-template-columns:1fr; } }
+
+  .bulle { background:#DCF8C6; border-radius:8px; padding:12px 14px; max-width:46ch;
+           font-size:14px; line-height:1.55; color:#111; }
+  .bulle .h { font-size:11px; color:#555; margin-bottom:6px; letter-spacing:.06em; text-transform:uppercase; }
+
+  .courrier { background:#FFFDF9; border:1px solid var(--filet); border-radius:8px; padding:22px; max-width:52ch; }
+  .courrier .marque { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre); }
+  .courrier h4 { font-family:var(--serif); font-weight:400; font-size:26px; color:var(--indigo); margin:12px 0 0; }
+  .courrier p { font-size:14px; color:var(--encre); margin:14px 0 0; }
+
+  .arb { border:1px solid var(--filet); border-radius:3px; background:#fff; padding:16px 18px; }
+  .arb + .arb { margin-top:12px; }
+  .arb__q { font-family:var(--serif); font-size:20px; color:var(--indigo); margin:0 0 8px; }
+  .arb__r { font-size:14px; color:var(--encre-d); margin:0; }
+  .arb__r b { color:var(--encre); font-weight:500; }
+
+  .avert { border-left:2px solid var(--brique); background:var(--brique-f); padding:14px 16px; margin-top:16px; max-width:74ch; }
+  .avert b { font-weight:500; }
+  footer { margin-top:80px; border-top:1px solid var(--filet); padding-top:18px;
+           font-size:12px; color:var(--encre-d); }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Le Tr&ocirc;ne &middot; Maquette &agrave; valider</p>
+  <h1>L&rsquo;arriv&eacute;e d&rsquo;une employ&eacute;e</h1>
+  <p class="chapeau">
+    Aujourd&rsquo;hui, une nouvelle recrue s&rsquo;inscrit, confirme son adresse,
+    et se retrouve devant une porte muette. Son compte existe et n&rsquo;atteint rien,
+    parfois jusqu&rsquo;au lendemain. <b>On renverse le geste : ce n&rsquo;est plus elle
+    qui demande &agrave; entrer, c&rsquo;est la Maison qui l&rsquo;invite.</b>
+  </p>
+
+  <p class="cite">
+    &laquo; &Ccedil;a sert &agrave; quoi de confirmer un compte avec le code &agrave; six chiffres
+    et avoir toujours un compte non rattach&eacute; avec un ma&icirc;tre qui doit valider l&rsquo;inscription ? &raquo;
+    <span>Y&eacute;man, 22 septembre 2026</span>
+  </p>
+
+  <section>
+    <h2>Ce qui se passe aujourd&rsquo;hui</h2>
+    <p class="intro">
+      Cinq &eacute;tapes, deux attentes, et un entre-deux o&ugrave; la personne ne sait pas
+      si elle a mal fait.
+    </p>
+    <div class="chemin">
+      <div class="etape"><div class="etape__n">1</div><div class="etape__t">Elle s&rsquo;inscrit</div>
+        <div class="etape__d">Elle choisit une adresse et un mot de passe, seule, sans que personne ne l&rsquo;attende.</div></div>
+      <div class="etape"><div class="etape__n">2</div><div class="etape__t">Elle confirme</div>
+        <div class="etape__d">Six chiffres re&ccedil;us par courrier. Cette porte prouve que l&rsquo;adresse est bien la sienne.</div></div>
+      <div class="etape etape--trou"><div class="etape__n">3</div><div class="etape__t">Le vide</div>
+        <div class="etape__d">Son compte existe, rattach&eacute; &agrave; rien. L&rsquo;&eacute;cran ne dit pas ce qu&rsquo;elle doit attendre, ni de qui.</div></div>
+      <div class="etape"><div class="etape__n">4</div><div class="etape__t">Tu la vois</div>
+        <div class="etape__d">Elle appara&icirc;t dans Acc&egrave;s &amp; personnel, au milieu des clientes de Ma Couronne, sous une adresse.</div></div>
+      <div class="etape"><div class="etape__n">5</div><div class="etape__t">Tu r&eacute;gles tout</div>
+        <div class="etape__d">Tu l&rsquo;autorises, tu nommes son r&ocirc;le, tu ouvres ses &eacute;crans un par un, apr&egrave;s coup.</div></div>
+    </div>
+
+    <div class="avert">
+      <b>Le code n&rsquo;est pas ce qui est de trop.</b> C&rsquo;est lui qui rend ta d&eacute;cision fiable :
+      sans lui, n&rsquo;importe qui peut s&rsquo;inscrire avec l&rsquo;adresse d&rsquo;une de tes ma&icirc;tresses,
+      et tu autoriserais un nom que tu reconnais derri&egrave;re lequel il y a quelqu&rsquo;un d&rsquo;autre.
+      Ce qui est de trop, c&rsquo;est <b>l&rsquo;&eacute;tape 3</b>, et le fait que tout se r&egrave;gle apr&egrave;s
+      plut&ocirc;t qu&rsquo;avant.
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qu&rsquo;on propose</h2>
+    <p class="intro">
+      Quatre &eacute;tapes, une seule attente, et elle entre chez elle du premier coup.
+      <b>Tu pr&eacute;pares sa place pendant qu&rsquo;elle n&rsquo;est pas encore l&agrave;</b>, exactement comme
+      tu pr&eacute;pares un fauteuil.
+    </p>
+    <div class="chemin chemin--4">
+      <div class="etape etape--neuf"><div class="etape__n">1</div><div class="etape__t">Tu pr&eacute;pares son entr&eacute;e</div>
+        <div class="etape__d">Dans sa fiche : l&rsquo;adresse avec laquelle elle se connectera, son r&ocirc;le, ses &eacute;crans. Avant qu&rsquo;elle n&rsquo;arrive.</div></div>
+      <div class="etape etape--neuf"><div class="etape__n">2</div><div class="etape__t">Tu lui envoies le mot</div>
+        <div class="etape__d">Un message pr&ecirc;t &agrave; partir par WhatsApp, avec le lien et l&rsquo;adresse &agrave; utiliser.</div></div>
+      <div class="etape"><div class="etape__n">3</div><div class="etape__t">Elle s&rsquo;inscrit et confirme</div>
+        <div class="etape__d">M&ecirc;me &eacute;cran qu&rsquo;aujourd&rsquo;hui, m&ecirc;mes six chiffres. Cette porte ne bouge pas.</div></div>
+      <div class="etape etape--neuf"><div class="etape__n">4</div><div class="etape__t">Elle est chez elle</div>
+        <div class="etape__d">L&rsquo;adresse correspond &agrave; la fiche qui l&rsquo;attend : le rattachement se fait tout seul, avec le r&ocirc;le et les &eacute;crans d&eacute;j&agrave; choisis.</div></div>
+    </div>
+    <p class="legende">
+      <b>Rien de nouveau ne s&rsquo;invente.</b> La fiche du personnel porte d&eacute;j&agrave; un champ
+      &laquo; le compte avec lequel il/elle se connecte &raquo;. C&rsquo;est lui qui sert de serrure :
+      l&rsquo;adresse confirm&eacute;e y r&eacute;pond, la porte s&rsquo;ouvre. Et comme le code a prouv&eacute; que
+      l&rsquo;adresse appartient bien &agrave; celle qui tape, la reconnaissance automatique est s&ucirc;re.
+      La comparaison elle-m&ecirc;me existe d&eacute;j&agrave; aussi, et elle fait foi partout o&ugrave; la Maison
+      reconna&icirc;t quelqu&rsquo;un : elle prend l&rsquo;adresse du compte, sinon celle de contact,
+      sans majuscules ni espaces de trop. <b>On la r&eacute;utilise telle quelle</b>, on n&rsquo;en
+      r&eacute;&eacute;crit pas une deuxi&egrave;me : deux fa&ccedil;ons de lire une adresse, ce sont deux personnes
+      diff&eacute;rentes, et un rattachement qui &eacute;choue sans rien dire.
+    </p>
+  </section>
+
+  <section>
+    <h2>Dans la fiche du membre</h2>
+    <p class="intro">
+      Un bloc nouveau, &agrave; la fin de la fiche, sous le dossier. Il ne dit qu&rsquo;une chose :
+      <b>o&ugrave; en est cette personne entre ta d&eacute;cision et sa premi&egrave;re connexion.</b>
+      Trois &eacute;tats, jamais deux &agrave; la fois.
+    </p>
+
+    <div class="ecran">
+      <div class="ecran__barre">&Eacute;quipe &amp; croissance <span>&middot;</span> Personnel <span>&middot;</span> R. A.</div>
+      <div class="ecran__corps">
+        <span class="etq">Son entr&eacute;e dans le Tr&ocirc;ne</span>
+
+        <div class="ligne">
+          <span>
+            <b class="t">Pas encore invit&eacute;e</b>
+            <span class="sous">Aucune adresse de connexion n&rsquo;est not&eacute;e sur cette fiche.</span>
+          </span>
+          <span><button class="btn btn--cuivre">Pr&eacute;parer son entr&eacute;e</button></span>
+        </div>
+
+        <div class="ligne">
+          <span>
+            <b class="t">Invit&eacute;e le 22 septembre <span class="puce puce--cuivre">en attente</span></b>
+            <span class="sous">r.a@maisonmnd.com &middot; Ma&icirc;tresse &middot; Clients &amp; Agenda tout, Vente 2/6</span>
+          </span>
+          <span>
+            <button class="btn btn--vide">Renvoyer le mot</button>
+            <button class="btn btn--lien">Annuler l&rsquo;invitation</button>
+          </span>
+        </div>
+
+        <div class="ligne">
+          <span>
+            <b class="t">Entr&eacute;e le 23 septembre <span class="puce puce--vert">rattach&eacute;e</span></b>
+            <span class="sous">r.a@maisonmnd.com &middot; Ma&icirc;tresse &middot; derni&egrave;re venue il y a 2 heures</span>
+          </span>
+          <span><button class="btn btn--vide">Voir ses acc&egrave;s</button></span>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      Les trois lignes sont montr&eacute;es ensemble pour la maquette seulement. Sur l&rsquo;&eacute;cran,
+      une fiche n&rsquo;en porte qu&rsquo;une. <b>Annuler l&rsquo;invitation</b> se confirme en deux temps,
+      comme tout geste qui d&eacute;fait, sans fen&ecirc;tre du navigateur.
+    </p>
+  </section>
+
+  <section>
+    <h2>Pr&eacute;parer son entr&eacute;e</h2>
+    <p class="intro">
+      Le bouton ouvre un panneau, pas une nouvelle page. <b>Trois d&eacute;cisions, et c&rsquo;est tout</b>,
+      les m&ecirc;mes que tu prends aujourd&rsquo;hui apr&egrave;s coup dans Acc&egrave;s &amp; personnel.
+    </p>
+    <div class="deux">
+      <div class="ecran">
+        <div class="ecran__barre">Pr&eacute;parer l&rsquo;entr&eacute;e de R. A.</div>
+        <div class="ecran__corps">
+          <span class="etq">1 &middot; L&rsquo;adresse avec laquelle elle se connectera</span>
+          <div class="ligne"><span><b class="t">r.a@maisonmnd.com</b>
+            <span class="sous">C&rsquo;est cette adresse exacte qui ouvrira la porte. Une autre la renverra dans la file d&rsquo;attente.</span></span></div>
+
+          <span class="etq" style="margin-top:18px">2 &middot; Son r&ocirc;le</span>
+          <div class="ligne"><span><b class="t">Ma&icirc;tresse</b>
+            <span class="sous">Direction, ma&icirc;tresse, ou apprentie. Il d&eacute;cide de ce qu&rsquo;elle voit par d&eacute;faut.</span></span></div>
+
+          <span class="etq" style="margin-top:18px">3 &middot; Ses &eacute;crans</span>
+          <div class="ligne"><span><b class="t">Clients &amp; Agenda tout &middot; Vente 2/6</b>
+            <span class="sous">R&eacute;gl&eacute;s ici, ou laiss&eacute;s &agrave; ceux de son r&ocirc;le. Modifiables plus tard comme aujourd&rsquo;hui.</span></span></div>
+
+          <div style="margin-top:20px"><button class="btn btn--cuivre">Pr&eacute;parer et &eacute;crire le mot</button></div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Le mot qu&rsquo;elle re&ccedil;oit</h3>
+        <p class="legende" style="margin:0 0 14px">
+          Pr&ecirc;t &agrave; partir par WhatsApp, l&agrave; o&ugrave; l&rsquo;atelier se parle vraiment.
+          Tu le relis, tu l&rsquo;envoies.
+        </p>
+        <div class="bulle">
+          <div class="h">WhatsApp &middot; &agrave; R. A.</div>
+          Bonjour R.,<br><br>
+          Votre place est pr&ecirc;te dans Le Tr&ocirc;ne.<br><br>
+          Ouvrez maisonmnd.com/trone/ et cr&eacute;ez votre compte avec cette adresse exactement :
+          <b>r.a@maisonmnd.com</b><br><br>
+          Vous recevrez un code &agrave; six chiffres par courrier. Une fois saisi, vous entrez
+          directement, tout est d&eacute;j&agrave; pr&ecirc;t.<br><br>
+          &Agrave; demain,<br>
+          La Maison
+        </div>
+        <p class="legende">
+          Le nom complet d&rsquo;une personne ne s&rsquo;&eacute;crit pas dans cette maquette, qui vit dans
+          un d&eacute;p&ocirc;t public. Sur l&rsquo;&eacute;cran, le message porte son vrai pr&eacute;nom.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce qu&rsquo;elle voit, elle</h2>
+    <p class="intro">
+      L&rsquo;&eacute;cran d&rsquo;apr&egrave;s le code. <b>C&rsquo;est l&agrave; que l&rsquo;entre-deux dispara&icirc;t</b>,
+      et c&rsquo;est le seul endroit o&ugrave; elle mesure qu&rsquo;on l&rsquo;attendait.
+    </p>
+    <div class="deux">
+      <div class="ecran">
+        <div class="ecran__barre">Aujourd&rsquo;hui <span>&middot;</span> apr&egrave;s les six chiffres</div>
+        <div class="ecran__corps" style="background:var(--brique-f)">
+          <p style="margin:0 0 6px"><span class="puce puce--brique">le vide</span></p>
+          <h3 style="margin-top:10px">Votre adresse est confirm&eacute;e.</h3>
+          <p style="font-size:14px;color:var(--encre-d);margin:8px 0 0">
+            Puis rien. Un &eacute;cran qui ne porte ni son nom, ni ce qu&rsquo;elle doit attendre,
+            ni de qui. Elle recommence, croit s&rsquo;&ecirc;tre tromp&eacute;e, et t&rsquo;appelle.
+          </p>
+        </div>
+      </div>
+      <div class="ecran">
+        <div class="ecran__barre">Demain <span>&middot;</span> apr&egrave;s les six chiffres</div>
+        <div class="ecran__corps" style="background:var(--vert-f)">
+          <p style="margin:0 0 6px"><span class="puce puce--vert">rattach&eacute;e</span></p>
+          <h3 style="margin-top:10px">Bienvenue R., votre place est pr&ecirc;te.</h3>
+          <p style="font-size:14px;color:var(--encre-d);margin:8px 0 0">
+            Vous entrez comme ma&icirc;tresse. Vos &eacute;crans sont ouverts, votre fiche vous attend.
+          </p>
+          <div style="margin-top:16px"><button class="btn">Entrer dans Le Tr&ocirc;ne</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">
+      <b>Et si l&rsquo;adresse ne correspond &agrave; aucune fiche</b>, rien n&rsquo;est cass&eacute; : elle voit
+      l&rsquo;&eacute;cran d&rsquo;aujourd&rsquo;hui, mais enfin expliqu&eacute; : &laquo; Votre compte est cr&eacute;&eacute;. La direction
+      doit encore vous rattacher &agrave; votre fiche. &raquo; La file d&rsquo;attente actuelle reste,
+      comme filet, pour celles qui s&rsquo;inscrivent d&rsquo;elles-m&ecirc;mes ou qui se trompent d&rsquo;adresse.
+    </p>
+  </section>
+
+  <section>
+    <h2>Les arbitrages &agrave; trancher</h2>
+    <p class="intro">
+      Sept questions. Tes r&eacute;ponses d&eacute;cident de ce qui sera construit,
+      et je ne commence rien avant.
+    </p>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9312;</span> &nbsp;Le rattachement automatique, sans ton clic ?</p>
+      <p class="arb__r">Propos&eacute; : <b>oui</b>. Tu as d&eacute;j&agrave; d&eacute;cid&eacute; en pr&eacute;parant la fiche, et le code
+      a prouv&eacute; l&rsquo;adresse. Te faire recliquer apr&egrave;s ne v&eacute;rifie plus rien.
+      L&rsquo;autre voie : elle arrive rattach&eacute;e mais <b>inactive</b>, et tu la r&eacute;veilles d&rsquo;un geste.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9313;</span> &nbsp;Qui peut pr&eacute;parer une entr&eacute;e ?</p>
+      <p class="arb__r">Propos&eacute; : <b>la direction seule</b>, comme pour les acc&egrave;s. Une ma&icirc;tresse
+      qui pourrait inviter pourrait se donner une coll&egrave;gue.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9314;</span> &nbsp;Une invitation expire-t-elle ?</p>
+      <p class="arb__r">Propos&eacute; : <b>oui, au bout de trente jours</b>. Une adresse pr&eacute;par&eacute;e
+      et jamais utilis&eacute;e est une porte laiss&eacute;e entrouverte sur une recrue qui n&rsquo;est
+      finalement pas venue. Tu peux la renvoyer d&rsquo;un clic.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9315;</span> &nbsp;Le mot part par WhatsApp, ou par courrier ?</p>
+      <p class="arb__r">Propos&eacute; : <b>WhatsApp d&rsquo;abord</b>, c&rsquo;est ainsi que l&rsquo;atelier se parle,
+      et &ccedil;a ne demande aucun r&eacute;glage nouveau. Un envoi par courrier depuis Le Tr&ocirc;ne
+      serait possible plus tard, maintenant que Resend est en service, mais il demande
+      une fonction serveur de plus.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9316;</span> &nbsp;Que devient la file d&rsquo;attente actuelle ?</p>
+      <p class="arb__r">Propos&eacute; : <b>elle reste, et on n&rsquo;y touche pas</b>. Elle garde sa raison
+      d&rsquo;&ecirc;tre comme filet des inscriptions spontan&eacute;es et des adresses mal recopi&eacute;es.
+      Elle s&eacute;pare d&eacute;j&agrave; les comptes du Tr&ocirc;ne et ceux de Ma Couronne en deux cartes,
+      la seconde volontairement sans aucun bouton pour qu&rsquo;un clic ne puisse jamais
+      ouvrir l&rsquo;atelier &agrave; une cliente. Cette protection existe : la refaire reviendrait
+      &agrave; la d&eacute;faire.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9318;</span> &nbsp;Et si tu te trompes d&rsquo;une lettre en pr&eacute;parant l&rsquo;adresse ?</p>
+      <p class="arb__r">C&rsquo;est le vrai danger de ce chemin, et il est silencieux : elle s&rsquo;inscrit,
+      rien ne se rattache, elle tombe dans la file sans que personne ne comprenne pourquoi.
+      Le m&ecirc;me silence que &laquo; acceuil@ &raquo; &eacute;crit pour &laquo; accueil@ &raquo;.
+      Propos&eacute; : <b>la file rapproche d&rsquo;elle-m&ecirc;me</b>. Quand un compte en attente porte une
+      adresse tr&egrave;s proche d&rsquo;une fiche pr&eacute;par&eacute;e, la ligne le dit,
+      &laquo; ressemble &agrave; la fiche pr&eacute;par&eacute;e de R. A. &raquo;, et te propose de rattacher
+      en un geste. Le silence devient une question.</p>
+    </div>
+
+    <div class="arb">
+      <p class="arb__q"><span class="num">&#9317;</span> &nbsp;Et une employ&eacute;e qui n&rsquo;a pas d&rsquo;adresse ?</p>
+      <p class="arb__r">Propos&eacute; : tu lui en cr&eacute;es une chez Zoho, <b>un alias ne co&ucirc;te aucune licence</b>.
+      &Agrave; d&eacute;faut, son adresse personnelle fait l&rsquo;affaire : la serrure est l&rsquo;adresse,
+      pas le domaine.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que &ccedil;a ne fait pas</h2>
+    <p class="intro">
+      Pour qu&rsquo;on ne d&eacute;couvre pas les limites apr&egrave;s coup.
+    </p>
+    <ul style="max-width:74ch;color:var(--encre-d);padding-left:18px">
+      <li>&Ccedil;a ne supprime pas le code &agrave; six chiffres. Cette porte reste, et c&rsquo;est elle qui rend le reste s&ucirc;r.</li>
+      <li>&Ccedil;a ne cr&eacute;e pas le compte &agrave; sa place. Elle choisit son mot de passe elle-m&ecirc;me, et personne dans la Maison ne le conna&icirc;t.</li>
+      <li>&Ccedil;a ne change rien aux comptes d&eacute;j&agrave; en place. Les fiches existantes continuent comme aujourd&rsquo;hui.</li>
+      <li>&Ccedil;a ne touche pas &agrave; Ma Couronne. Une cliente qui s&rsquo;inscrit l&agrave;-bas n&rsquo;est jamais concern&eacute;e.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Maquette &middot; L&rsquo;arriv&eacute;e d&rsquo;une employ&eacute;e &middot; 22 septembre 2026 &middot;
+    &Agrave; valider avant toute construction. Aucun &eacute;cran du Tr&ocirc;ne n&rsquo;a &eacute;t&eacute; modifi&eacute;.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -90,6 +90,26 @@ export type StaffMember = {
       compte avec lequel la personne se connecte ; `email` reste son adresse
       de contact. `adresseDe()` fait foi partout où l'identité compte. */
   compteMail?: string;
+  /** SA PLACE, PRÉPARÉE AVANT SON ARRIVÉE — 22 septembre 2026.
+
+      Une recrue s'inscrivait, confirmait son adresse, et tombait dans un
+      entre-deux : un compte qui existe et n'atteint rien, jusqu'à ce qu'un
+      souverain la remarque dans une file d'attente. Le geste est inversé :
+      la direction prépare la fiche AVANT, et la recrue se rattache d'elle-
+      même à la place qui l'attend. Maquette validée le 22 septembre 2026.
+
+      `roleDAcces` est le rôle DANS LE TRÔNE (`gerant` ou `maitre`), qui n'a
+      rien à voir avec `role`, le métier (« Maîtresse », « Apprentie »).
+      Deux vocabulaires, deux questions : ce qu'elle fait, et ce qu'elle voit.
+      `souverain` ne s'invite jamais, voir `ROLES_QUI_S_INVITENT`.
+
+      ⚠ `roleDAcces` et `inviteeLe` OUVRENT UNE PORTE : la migration 0109 les
+      réserve à la direction dans la garde de `team`, sans quoi tout le
+      personnel pourrait faire entrer qui il veut. `entreeLe` est posée par le
+      serveur au rattachement et ferme la porte derrière elle. */
+  roleDAcces?: string;
+  inviteeLe?: string; // ISO, le jour où la place a été préparée
+  entreeLe?: string;  // ISO, le jour de sa première entrée
   since: string; // ISO — l'ancienneté se calcule dynamiquement
   auFauteuil: boolean; // exécute des prestations
   /** L'ORDRE D'AFFICHAGE, décidé à la main dans Personnel & paie.

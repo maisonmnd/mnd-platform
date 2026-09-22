@@ -2,6 +2,50 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA PLACE EST PRÊTE AVANT L'ARRIVÉE — 22 septembre 2026
+
+« Ça sert à quoi de confirmer un compte avec le code à six chiffres et avoir
+toujours un compte non rattaché avec un maître qui doit valider l'inscription ? »
+(Yéman). Maquette `public/maquette-l-arrivee-d-une-employee.html`, validée, sept
+arbitrages.
+
+**Les deux portes ne posent pas la même question.** Le code prouve que l'adresse
+appartient à celle qui tape ; l'autorisation dit ce qu'elle a le droit de voir.
+Le code n'était donc PAS de trop : sans lui, n'importe qui s'inscrit avec
+l'adresse d'une maîtresse, et la direction autorise un nom qu'elle reconnaît
+derrière lequel il y a quelqu'un d'autre. Ce qui était de trop, c'est
+l'ENTRE-DEUX : un compte confirmé qui n'atteint rien, devant un écran muet.
+
+**Le geste est inversé.** La direction prépare la fiche AVANT l'arrivée
+(`roleDAcces`, `inviteeLe` sur la fiche `team`), envoie le mot par WhatsApp, et
+la recrue se rattache d'elle-même en confirmant son adresse. La serrure existait
+déjà : `compteMail`, lu par `adresseDe` (equipe/data.ts) et `est_ma_fiche`
+(0090). `arrivee-pure.ts` et la migration écrivent les MÊMES seuils, et le
+harnais garde les deux écritures d'accord.
+
+**Migration 0109**, quatre temps : la garde de `team` couvre `roleDAcces` et
+`inviteeLe` (sans quoi tout le personnel pourrait faire entrer qui il veut,
+alors que 0073 réserve l'autorisation au souverain) ; `fiche_qui_mattend()` dit
+quelle fiche attend l'appelant ; la garde de `staff` (0073) connaît un
+troisième cas légitime, son PROPRE rattachement au rôle préparé ;
+`rattacher_mon_compte()` est le seul geste offert à la recrue.
+
+**Ce qui rend la porte sûre** : l'adresse prouvée par le code, la fiche choisie
+par la direction, trente jours de validité, une fiche entrée qui ne rouvre plus
+(`entreeLe`), DEUX fiches qui répondent n'ouvrent RIEN, et `souverain` qui ne
+s'invite jamais. La date se compare comme du TEXTE (`left(...,10)`) : un `::date`
+sur une valeur écrite à la main lèverait une exception, et une seule fiche mal
+saisie ferait échouer l'arrivée de n'importe qui.
+
+**Contre le silence d'une lettre mal recopiée** (le même que « acceuil@ » pour
+« accueil@ ») : la file d'attente rapproche d'elle-même une adresse VOISINE
+d'une place préparée et le dit, avec le nom attendu. Un indice, jamais un
+rattachement ; deux ressemblances n'en désignent aucune.
+
+**Garde** : `verifie-l-arrivee` (32), dont la péremption au jour près, les rôles
+qui s'invitent, et la ressemblance qui écarte deux boîtes d'une seule lettre.
+Prochaine migration libre : **0110**.
+
 ## RENVOYER LE CODE D'INSCRIPTION — 21 septembre 2026
 
 « Quand je ne reçois pas le code pour un nouvel abonné, avoir un bouton qui me
@@ -1199,7 +1243,7 @@ rendez-vous y porte l'étiquette « Le site » et, au tableau de bord,
 **RESTE** : brancher l'acompte KkiaPay sur les prestations qui l'exigent
 (`depositPctByService` ; le rail existe, `verifyDeposit` sait déjà tenir un
 `apptId`) ; brancher Ma Couronne sur `qualification.ts` pour que les deux
-surfaces refusent la même chose. Prochaine migration libre : **0109** (aucune
+surfaces refusent la même chose. Prochaine migration libre : **0110** (aucune
 n'a été nécessaire ici : `demandes` et `appointments` existaient déjà).
 
 ## LE SITE RÉVÉLATEUR EST CONSTRUIT — 17 septembre 2026

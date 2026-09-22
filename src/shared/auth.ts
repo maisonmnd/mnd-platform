@@ -448,6 +448,38 @@ export async function loadStaff(): Promise<Staff | null> {
   }
 }
 
+/** CE QUE RÉPOND LA PLACE PRÉPARÉE. Jamais une erreur, toujours un état :
+    une absence d'invitation n'est pas une panne, et l'écran doit pouvoir
+    parler différemment dans les trois cas. */
+export type Rattachement = { statut: 'entree' | 'deja' | 'aucune'; nom?: string | null; role?: string | null };
+
+/** SE RATTACHER À LA PLACE QU'ON NOUS A PRÉPARÉE — 22 septembre 2026.
+
+    « Ça sert à quoi de confirmer un compte avec le code à six chiffres et
+    avoir toujours un compte non rattaché ? » (Yéman). Le serveur (0109) ne
+    rattache que si la direction a préparé une fiche pour CETTE adresse, avec
+    un rôle qui s'invite, une invitation de moins de trente jours, et pas déjà
+    entrée. Le navigateur ne décide de rien : il demande, et il obéit.
+
+    Un échec réseau rend `aucune` à dessein : l'écran affiche alors l'attente
+    ordinaire, qui est vraie de toute façon, plutôt qu'une panne qui
+    inquiéterait une recrue le jour de son arrivée. */
+export async function rattacherMonCompte(): Promise<Rattachement> {
+  if (!supabase) return { statut: 'aucune' };
+  try {
+    const { data, error } = await supabase.rpc('rattacher_mon_compte');
+    if (error) {
+      console.warn('[auth] rattacherMonCompte:', error.message);
+      return { statut: 'aucune' };
+    }
+    const r = data as Rattachement | null;
+    return r?.statut ? r : { statut: 'aucune' };
+  } catch (e) {
+    console.warn('[auth] rattacherMonCompte:', e);
+    return { statut: 'aucune' };
+  }
+}
+
 /* ── CE QU'ON SAIT, ON NE LE ROUBLIE PAS — 31 août 2026 ──────────────
    « Quand je me connecte sur le compte d'un employé je vois d'abord tout le
    montant des dépenses de la Maison pendant 3 secondes, et ensuite ça

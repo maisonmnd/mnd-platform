@@ -6,7 +6,7 @@ import {
   useAuth, requireAuth, signInEmail, signUpEmail, signOut, loadStaff,
   startPasswordReset, verifyPasswordReset, updatePassword, origineDeLaSession, verifyInscription,
   renvoyerLaConfirmation, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
-  PanneDAcces } from '../../../shared/auth';
+  rattacherMonCompte, PanneDAcces } from '../../../shared/auth';
 import './auth.css';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
@@ -49,20 +49,41 @@ function StaffGate({ children }: { children: ReactNode }) {
      un souverain dehors avec un écran lui expliquant qu'il attend son
      autorisation ; la taire fige la porte. Elle se dit, elle se réessaie
      toute seule, et elle ne ferme rien. */
-  const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'panne'>('loading');
+  const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'panne' | 'bienvenue'>('loading');
   const [raison, setRaison] = useState('');
   const [essai, setEssai] = useState(0);
+  /* CE QUE LA PLACE PRÉPARÉE A RÉPONDU, pour pouvoir la nommer à l'écran. */
+  const [accueil, setAccueil] = useState<{ nom: string; role: string }>({ nom: '', role: '' });
   const [clients] = useClients();
   const uid = session?.user?.id ?? '';
   const estCliente = origineDeLaSession(session) === 'couronne'
     || (!!uid && clients.some((c) => c.id === uid || c.authUserId === uid));
 
+  /* LA PLACE PRÉPARÉE, DEMANDÉE UNE SEULE FOIS — 22 septembre 2026.
+
+     Quand la lecture du personnel ne rend rien, la porte ne conclut plus tout
+     de suite à l'attente : elle demande au serveur si une fiche attend cette
+     adresse. Le navigateur ne décide de rien, c'est 0109 qui tranche, et il
+     n'ouvre que sur une invitation fraîche préparée par la direction.
+
+     UNE CLIENTE N'EST PAS CONCERNÉE : elle n'a pas de place à l'atelier, et
+     lui poser la question reviendrait à lui laisser croire le contraire.
+
+     Une seule tentative par session : sans ce verrou, un réseau qui cligne
+     relancerait la demande à chaque réessai de la porte. */
   useEffect(() => {
     let alive = true;
     setState('loading');
     void loadStaff()
-      .then((s) => {
-        if (alive) setState(s ? 'ok' : 'denied');
+      .then(async (s) => {
+        if (!alive) return;
+        if (s) { setState('ok'); return; }
+        if (origineDeLaSession(session) === 'couronne') { setState('denied'); return; }
+        const r = await rattacherMonCompte();
+        if (!alive) return;
+        if (r.statut !== 'entree') { setState('denied'); return; }
+        setAccueil({ nom: (r.nom ?? '').trim(), role: (r.role ?? '').trim() });
+        setState('bienvenue');
       })
       .catch((e: unknown) => {
         if (!alive) return;
@@ -129,16 +150,49 @@ function StaffGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  /* ELLE ÉTAIT ATTENDUE — 22 septembre 2026. Le seul endroit où une recrue
+     mesure qu'on lui avait préparé sa place. L'écran la nomme, dit ce qu'elle
+     devient, et ouvre : trois choses que l'entre-deux ne disait pas. */
+  if (state === 'bienvenue') {
+    const prenom = accueil.nom.split(/\s+/)[0] ?? '';
+    return (
+      <div className="tra-shell">
+        <div className="tra-card">
+          <Seal color="copper" size={40} />
+          <div className="mnd-eyebrow" style={{ marginTop: 8 }}>Votre place était prête</div>
+          <h1 className="mnd-serif tra-title">
+            {prenom ? `Bienvenue ${prenom}.` : 'Bienvenue.'}
+          </h1>
+          <p className="tra-lede mnd-muted">
+            Vous entrez comme {accueil.role === 'gerant' ? 'gérante' : 'maîtresse'}. Vos écrans sont
+            ouverts et votre fiche vous attend.
+          </p>
+          <Button variant="copper" onClick={() => setState('ok')} className="tra-submit">
+            Entrer dans Le Trône
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  /* L'ATTENTE SE DIT, ELLE NE SE SUBIT PLUS — 22 septembre 2026. L'ancien
+     texte laissait la personne devant une porte muette : elle recommençait,
+     croyait s'être trompée, et appelait. Il dit maintenant ce qui se passe,
+     qui agit, et ce qu'elle peut faire d'ici là. */
   if (state === 'denied') {
     return (
       <div className="tra-shell">
         <div className="tra-card">
           <Seal color="copper" size={40} />
           <div className="mnd-eyebrow" style={{ marginTop: 8 }}>Accès en attente</div>
-          <h1 className="mnd-serif tra-title">Compte non rattaché.</h1>
+          <h1 className="mnd-serif tra-title">Votre compte est créé.</h1>
           <p className="tra-lede mnd-muted">
-            Votre compte existe, mais il n'est pas encore rattaché au personnel de la Maison.
-            Un souverain doit vous autoriser depuis Le Trône.
+            Votre adresse est confirmée, et il n'y a rien à recommencer. La direction doit
+            encore vous rattacher à votre fiche pour ouvrir vos écrans.
+          </p>
+          <p className="tra-lede mnd-muted">
+            Si l'on vous avait indiqué une adresse à utiliser, vérifiez que c'est bien
+            celle-ci : <b>{session?.user?.email ?? ''}</b>. Une autre adresse laisse votre
+            place inoccupée. Prévenez la Maison, le rattachement prend un instant.
           </p>
           <Button variant="ghost" onClick={() => void signOut()} className="tra-submit">
             Se déconnecter
