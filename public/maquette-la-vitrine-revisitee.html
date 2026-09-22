@@ -81,6 +81,51 @@ section{padding-block:clamp(40px,6.5vw,84px)}
 .hero__photo img,.porte__photo img{width:100%;height:100%;object-fit:cover;display:block}
 @media(max-width:860px){.hero__grille{grid-template-columns:1fr}.hero__photo{display:none}.hero .rangee .btn{width:100%}}
 
+/* ── LE PREMIER ÉCRAN PLEINE LARGEUR (23 septembre 2026) ──
+   La photo couvre tout, un voile indigo la fond dans le texte (plus dense à
+   gauche et en bas, là où l'on lit), l'entête est posée dessus, le titre vit en
+   bas à gauche, le bandeau des promesses prend l'indigo profond dessous. */
+.hero-plein{position:relative;min-height:clamp(560px,82vh,860px);color:#F6F1E7;display:flex;flex-direction:column;overflow:hidden;background:var(--sombre)}
+/* Sur un grand écran, la photo (un portrait) tient la moitié droite à sa
+   taille juste, et l'indigo la fond vers le texte ; sur téléphone elle couvre
+   tout, un portrait y est chez lui. */
+.hero-plein__photo{position:absolute;top:0;bottom:0;right:0;width:min(58%,880px);height:100%;object-fit:cover;object-position:50% 12%}
+.hero-plein__voile{position:absolute;inset:0;background:linear-gradient(90deg,var(--sombre) 0%,var(--sombre) 36%,rgba(30,33,80,.86) 46%,rgba(30,33,80,.30) 62%,rgba(30,33,80,.08) 100%),linear-gradient(0deg,rgba(21,23,58,.82) 0%,rgba(21,23,58,.22) 34%,rgba(21,23,58,0) 60%)}
+.nav-plein{position:relative;z-index:4}
+.nav-plein__in{display:flex;align-items:center;height:88px;gap:18px;position:relative}
+.burger{width:44px;height:44px;margin-left:-8px;background:none;border:0;display:grid;gap:7px;place-content:center;cursor:pointer;padding:0}
+.burger span{display:block;width:28px;height:1.5px;background:#F6F1E7}
+.nav-plein__logo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.nav-plein__logo img{width:96px;height:96px}
+.nav-plein__droite{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-plein .tel{width:44px;height:44px;display:grid;place-items:center;color:#F6F1E7;border-radius:999px}
+.nav-plein .tel:hover{background:rgba(246,241,231,.14)}
+.menu-plein{position:absolute;z-index:6;top:78px;left:clamp(18px,4vw,40px);background:var(--carte);border-radius:6px;box-shadow:var(--ombre);padding:12px 0;min-width:250px}
+.menu-plein a{display:block;padding:11px 24px;color:var(--titre);font-size:15.5px}
+.menu-plein a:hover{background:var(--accent-voile);color:var(--accent-profond)}
+.menu-plein[hidden]{display:none}
+.hero-plein__texte{position:relative;z-index:2;margin-top:auto;width:100%;padding-top:100px;padding-bottom:clamp(40px,6vw,72px)}
+.pastille{display:inline-block;background:rgba(246,241,231,.14);backdrop-filter:blur(8px);border:1px solid rgba(246,241,231,.28);border-radius:999px;padding:9px 18px;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:#F6F1E7}
+.hero-plein h1{color:#F6F1E7;font-weight:500;font-size:clamp(42px,6.6vw,88px);line-height:1.02;margin-top:22px;max-width:15ch;text-shadow:0 2px 26px rgba(21,23,58,.5)}
+.hero-plein .devise{font-family:var(--serif);font-size:24px;color:var(--accent-sombre);margin-top:18px}
+.hero-plein .devise small{font-family:var(--sans);font-size:12.5px;letter-spacing:.06em;color:rgba(246,241,231,.72);margin-left:10px}
+.hero-plein .rangee{margin-top:26px}
+.gages.gages--sombre{background:var(--sombre-2);border:0;padding-block:22px;color:#F6F1E7}
+.gages.gages--sombre .gage i{background:rgba(214,160,111,.18);color:var(--accent-sombre)}
+.gages.gages--sombre .gage b{color:#F6F1E7}
+.gages.gages--sombre .gage small{color:rgba(246,241,231,.66)}
+@media(max-width:860px){
+  .hero-plein{min-height:min(88svh,780px)}
+  .hero-plein__photo{width:100%;left:0;object-position:60% 0%}
+  .hero-plein__voile{background:linear-gradient(0deg,rgba(21,23,58,.92) 0%,rgba(21,23,58,.55) 42%,rgba(21,23,58,.12) 70%,rgba(21,23,58,.25) 100%)}
+  .nav-plein__in{height:72px}
+  .nav-plein__logo img{width:76px;height:76px}
+  .nav-plein .btn--plein{display:none}
+  .hero-plein h1{font-size:clamp(38px,11.5vw,56px)}
+  .hero-plein .rangee .btn{width:100%}
+  .hero-plein .devise small{display:block;margin:2px 0 0}
+}
+
 /* ── LA BANDE DE RÉASSURANCE, juste sous le hero ── */
 .gages{background:var(--carte);border-bottom:1px solid var(--filet);padding-block:18px}
 .gages__in{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -223,32 +268,36 @@ section{padding-block:clamp(40px,6.5vw,84px)}
 <!-- ══════════ APRÈS ══════════ -->
 <div id="apres">
 
-  <nav class="nav"><div class="conteneur nav__in">
-    <img class="mono" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
-    <div class="nav__liens">
-      <a href="#portes">Mon parcours</a><a href="#portes">Services</a><a href="#offres">Les offres</a><a href="#">La Maison</a><a href="#">Journal</a>
-    </div>
-    <a class="btn btn--plein ouvre-porte" href="#">Prendre rendez-vous</a>
-  </div></nav>
-
-  <!-- 1. LE PREMIER ÉCRAN : il nomme le métier et la ville, il dit le mécanisme -->
-  <header class="hero"><div class="conteneur hero__grille">
-    <div>
-      <p class="sur">Locks créées, réparées, entretenues · Cotonou · depuis 2010</p>
+  <!-- 1. LE PREMIER ÉCRAN PLEINE LARGEUR (23 septembre 2026) : la photo sous
+       le texte, l'entête posée dessus, le titre en bas à gauche, et le bandeau
+       sombre des promesses dessous. Le menu tient derrière un bouton. -->
+  <header class="hero-plein">
+    <img class="hero-plein__photo" src="assets/photos/site/creation.jpg" alt="">
+    <div class="hero-plein__voile" aria-hidden="true"></div>
+    <nav class="nav-plein" aria-label="Navigation"><div class="conteneur nav-plein__in">
+      <button class="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-plein"><span></span><span></span><span></span></button>
+      <a class="nav-plein__logo" href="#" aria-label="Maison MND, accueil"><img src="assets/monograms/mono-ivoire.png" width="1600" height="1600" alt=""></a>
+      <div class="nav-plein__droite">
+        <a class="tel" href="#" aria-label="Appeler la Maison"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></a>
+        <a class="btn btn--plein ouvre-porte" href="#">Prendre rendez-vous</a>
+      </div>
+      <div class="menu-plein" id="menu-plein" hidden>
+        <a href="#portes">Mon parcours</a><a href="#portes">Services</a><a href="#offres">Les offres</a><a href="#">La Maison</a><a href="#">Journal</a><a href="#">Nous écrire, nous trouver</a>
+      </div>
+    </div></nav>
+    <div class="conteneur hero-plein__texte">
+      <span class="pastille">Locks créées, réparées, entretenues · Cotonou · depuis 2010</span>
       <h1>Votre couronne, comprise, soignée, révélée.</h1>
       <p class="devise">Mi nyɔ́ ɖɛkpɛ <small>En fon : « Vous êtes belle. »</small></p>
-      <p class="ligne">Un chemin existe pour vous, à Cotonou. Nous commençons par vous écouter.</p>
       <div class="rangee">
         <a class="btn btn--plein" href="#portes">Je découvre mon parcours</a>
         <a class="btn btn--ivoire" href="#portes">Je sais déjà ce dont j'ai besoin</a>
       </div>
-      <p class="regle">Une création ou une réparation commence par une consultation. Un entretien se réserve directement.</p>
     </div>
-    <div class="hero__photo"><img src="assets/photos/site/creation.jpg" alt=""></div>
-  </div></header>
+  </header>
 
-  <!-- 2. TROIS PROMESSES, toutes tenues par le site aujourd'hui -->
-  <div class="gages"><div class="conteneur gages__in">
+  <!-- 2. TROIS PROMESSES, toutes tenues par le site aujourd'hui, dans le bandeau sombre -->
+  <div class="gages gages--sombre"><div class="conteneur gages__in">
     <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12l5 5L20 6"/></svg></i><div><b>Un entretien se réserve en ligne</b><small>En trois pas, sans créer de compte.</small></div></div>
     <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-12.2 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z"/></svg></i><div><b>La Maison confirme sur WhatsApp</b><small>Pendant ses heures d'ouverture.</small></div></div>
     <div class="gage"><i aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></i><div><b>Vous réglez à la Maison</b><small>Le jour venu, au comptoir. Un acompte éventuel vous est dit avant.</small></div></div>
@@ -449,6 +498,12 @@ if ('IntersectionObserver' in window) {
 const porteRdv = document.getElementById('porte-rdv');
 document.querySelectorAll('.ouvre-porte').forEach((a) => { a.onclick = (e) => { e.preventDefault(); porteRdv.hidden = false; porteRdv.querySelector('a').focus(); }; });
 porteRdv.querySelector('.porte-rdv__fermer').onclick = () => { porteRdv.hidden = true; };
+/* Le menu derrière le bouton du premier écran. */
+const burger = document.querySelector('.burger'), menuPlein = document.getElementById('menu-plein');
+if (burger && menuPlein) {
+  burger.onclick = () => { menuPlein.hidden = !menuPlein.hidden; burger.setAttribute('aria-expanded', String(!menuPlein.hidden)); };
+  document.addEventListener('click', (e) => { if (!menuPlein.hidden && !e.target.closest('.nav-plein')) { menuPlein.hidden = true; burger.setAttribute('aria-expanded', 'false'); } });
+}
 porteRdv.addEventListener('click', (e) => { if (e.target === porteRdv) porteRdv.hidden = true; });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !porteRdv.hidden) porteRdv.hidden = true; });
 </script>
