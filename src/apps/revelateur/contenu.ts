@@ -150,8 +150,11 @@ export const ACCUEIL: Accueil = {
   titre: 'Dreadlocks à Cotonou, soin et création · Maison MND',
   description: 'Découvrez la Maison MND à Cotonou : création, réparation, entretien et soins des dreadlocks afro. Trouvez le parcours qui convient à votre couronne.',
   devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes belle.' },
-  h1: "Votre couronne mérite d'être comprise, soignée et révélée.",
-  ligne: 'Première couronne, réparation, entretien, enfants ou formation : il existe un chemin pour vous, à Cotonou. Nous commençons par vous écouter.',
+  /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
+     de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
+     du paragraphe, les cinq portes la disent juste dessous. */
+  h1: 'Votre couronne, comprise, soignée, révélée.',
+  ligne: 'Un chemin existe pour vous, à Cotonou. Nous commençons par vous écouter.',
   boutons: [
     { texte: 'Je découvre mon parcours', vers: '/mon-parcours/' },
     { texte: "Je sais ce qu'il me faut", vers: '#portes' },
@@ -204,7 +207,7 @@ export const ACCUEIL: Accueil = {
         ligne: 'Lavage, resserrage, hydratation, coiffure. Créées ailleurs ? Bienvenue quand même.',
         suite: 'Entretien et soins',
         vers: '/entretien-locks/',
-        image: 'entretien.jpg',
+        image: 'trois-couronnes.jpg',
       },
       {
         titre: 'Ma couronne grandit avec moi',

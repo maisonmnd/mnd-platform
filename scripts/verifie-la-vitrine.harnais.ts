@@ -57,6 +57,14 @@ dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joind
 
 /* ── LE PREMIER ÉCRAN DIT LE MÉTIER, ET TROIS PROMESSES SUIVENT ───── */
 dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.metier) && /Cotonou/.test(ACCUEIL.metier));
+/* « La phrase est beaucoup trop longue » (Yéman, 22 septembre 2026) : le titre
+   tient en six mots, le paragraphe en deux phrases courtes. */
+dit('… son titre tient en six mots', true, ACCUEIL.h1.trim().split(/\s+/).length <= 6);
+dit('… et son paragraphe en moins de quatre-vingts signes', true, ACCUEIL.ligne.length < 80);
+/* Les deux photos du 22 septembre : le portrait au premier écran (et en image
+   de partage), les trois couronnes sur la porte de l'entretien. */
+dit('le premier écran porte le portrait', true, accueil.includes('photos/site/portrait-accueil.jpg" alt=') && /og:image" content="[^"]*photos\/site\/portrait-accueil\.jpg"/.test(accueil));
+dit('la porte de l’entretien porte les trois couronnes', true, /data-parcours="entretien">\s*<img src="[^"]*trois-couronnes\.jpg"/.test(accueil));
 dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
 dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/g) ?? []).length);
 dit('… juste après le hero, avant les portes', true,

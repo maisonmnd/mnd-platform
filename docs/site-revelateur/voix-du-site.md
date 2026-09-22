@@ -20,9 +20,9 @@ Repères pour la pose :
 
 **Légende de la devise :** En fon : « Vous êtes belle. »
 
-**Titre :** Votre couronne mérite d'être comprise, soignée et révélée.
+**Titre :** Votre couronne, comprise, soignée, révélée.
 
-**Sous-titre :** Que vous n'ayez jamais porté de locks, que les vôtres aient besoin d'attention ou que vous cherchiez simplement à bien les entretenir, il existe un chemin pour vous à la Maison MND, à Cotonou. Nous commençons toujours par vous écouter.
+**Sous-titre :** Un chemin existe pour vous, à Cotonou. Nous commençons par vous écouter.
 
 **Bouton principal :** Je découvre mon parcours
 
