@@ -84,7 +84,7 @@ dit('… ni display:none dans la feuille', [], [...feuille.matchAll(/^[^{\n]*\.(
 /* Les photos des 22 et 23 septembre : les cauris au premier écran (et en image
    de partage), le portrait sur la première porte, les trois couronnes sur
    l'entretien, la mère et l'enfant sur MND Kids. Plus aucune porte sans photo. */
-dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" src="[^"]*photos\/site\/creation\.jpg" alt="[^"]+"/.test(accueil));
+dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" src="[^"]*photos\/site\/cauris-accueil\.jpg" alt="[^"]+"/.test(accueil));
 /* L'image de partage est un PAYSAGE taillé dans la même photo : WhatsApp et
    Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
 dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,

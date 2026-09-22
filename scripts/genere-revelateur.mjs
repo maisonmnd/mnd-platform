@@ -115,7 +115,7 @@ const jsonld = (noeuds) => `<script type="application/ld+json">${JSON.stringify(
 /* ── Le gabarit ──────────────────────────────────────────────────────── */
 /* La photo du premier écran de l'accueil, nommée une fois : le gabarit la
    précharge, l'accueil l'affiche, le harnais la vérifie. */
-const PHOTO_ACCUEIL = 'creation.jpg';
+const PHOTO_ACCUEIL = 'cauris-accueil.jpg';
 
 function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '' }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;

@@ -589,7 +589,12 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    pastille, titre et boutons) et le tiers gauche, quelle que soit la photo ;
    le dégradé ne commence qu'au-dessus du texte. Une autre photo demain, plus
    claire, ne rendra pas le titre illisible. */
-.hero-plein__voile { position: absolute; inset: 0; background: linear-gradient(90deg, var(--sombre) 0%, var(--sombre) 36%, rgba(30, 33, 80, .86) 46%, rgba(30, 33, 80, .30) 62%, rgba(30, 33, 80, .08) 100%), linear-gradient(0deg, rgba(21, 23, 58, .78) 0%, rgba(21, 23, 58, .78) 44%, rgba(21, 23, 58, .30) 56%, rgba(21, 23, 58, 0) 66%); }
+/* Sur grand écran, la zone du texte est la moitié GAUCHE : c'est elle que le
+   plateau couvre (indigo plein jusqu'à 36 %, .86 à 46 %). Le voile du bas y
+   reste léger pour ne pas éteindre le visage : « il faut déflouter un peu la
+   photo, surtout au niveau du visage » (Yéman, 23 septembre 2026). Sur
+   téléphone, le texte passe SUR la photo : le plateau du bas reprend sa force. */
+.hero-plein__voile { position: absolute; inset: 0; background: linear-gradient(90deg, var(--sombre) 0%, var(--sombre) 36%, rgba(30, 33, 80, .86) 46%, rgba(30, 33, 80, .22) 60%, rgba(30, 33, 80, .04) 100%), linear-gradient(0deg, rgba(21, 23, 58, .55) 0%, rgba(21, 23, 58, .42) 18%, rgba(21, 23, 58, 0) 40%); }
 .hero-plein__texte { position: relative; z-index: 2; margin-top: auto; width: 100%; padding-top: 150px; padding-bottom: clamp(40px, 6vw, 72px); }
 .pastille { display: inline-block; background: rgba(246, 241, 231, .14); backdrop-filter: blur(8px); border: 1px solid rgba(246, 241, 231, .28); border-radius: 999px; padding: 9px 18px; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase; color: #F6F1E7; }
 .hero-plein h1 { color: #F6F1E7; font-weight: 500; font-size: clamp(42px, 6.6vw, 88px); line-height: 1.02; margin-top: 22px; max-width: 15ch; text-shadow: 0 2px 26px rgba(21, 23, 58, .5); }

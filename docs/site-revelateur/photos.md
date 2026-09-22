@@ -12,7 +12,8 @@ sort du cadre ou elle reste, sur décision de Yéman.
 
 | Fichier | Où | Ce qu'elle montre | Accord |
 |---|---|---|---|
-| `creation.jpg` | premier écran de l'accueil, page Première Couronne | une couronne de locks et un collier de cauris | confiée par Yéman, photo de la Maison |
+| `creation.jpg` | page Première Couronne | une couronne de locks et un collier de cauris | confiée par Yéman, photo de la Maison |
+| `cauris-accueil.jpg` | premier écran de l'accueil, pleine largeur | la même photo, accentuée d'un masque flou léger pour tenir l'agrandissement d'un grand écran (800 px de large ; l'original de la séance est attendu) | même photo |
 | `partage-accueil.jpg` | image de partage (og:image) de toutes les pages sans image propre | le paysage 800 x 420 taillé dans `creation.jpg` | même photo |
 | `attention.jpg` | porte Réparation, page Réparation | la même personne, la main sur le collier | confiée par Yéman, photo de la Maison |
 | `portrait-accueil.jpg` | porte « Je veux créer ma couronne » | un portrait souriant, cadré 4/5 sur le visage | remise par Yéman le 22 septembre 2026 ; signature de la photographe hors cadre, sans crédit, sur sa décision |
