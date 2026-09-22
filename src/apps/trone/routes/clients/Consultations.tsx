@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, demande } from '../../../../ds/components';
 import { createStore, uid, useStore } from '../../../../shared/store';
 import { bindCollection, bindDocument } from '../../../../shared/sync';
 import { consultationsQueueStore, type OnlineConsultation } from '../../../../shared/bridges';
@@ -360,9 +360,17 @@ function DossierPanel({
     if (editIdx == null) return;
     persistBlocks(parsedNotes.blocks.map((b, i) => (i === editIdx ? updated : b)));
   };
-  const deleteConsult = () => {
+  const deleteConsult = async () => {
     if (editIdx == null) return;
-    if (!window.confirm('Supprimer définitivement cette consultation du dossier ?')) return;
+    if (!await demande({
+      quoi: 'Consultation du dossier',
+      titre: 'Supprimer cette consultation ?',
+      dit: 'Elle quitte le dossier de la cliente, avec ce qui y a été observé.',
+      scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer la consultation',
+      refuser: 'Garder la consultation',
+      dur: true,
+    })) return;
     persistBlocks(parsedNotes.blocks.filter((_, i) => i !== editIdx));
   };
 
@@ -1097,11 +1105,18 @@ function OnlineSection() {
         <EditOnlineModal
           consult={editConsult}
           onSave={(u) => { updateConsult(u); setEditId(null); }}
-          onDelete={() => {
-            if (window.confirm('Supprimer définitivement cette consultation en ligne ?')) {
-              removeConsult(editConsult.id);
-              setEditId(null);
-            }
+          onDelete={async () => {
+            if (!await demande({
+              quoi: 'Consultation en ligne',
+              titre: 'Supprimer cette consultation en ligne ?',
+              dit: 'Elle quitte le registre des consultations reçues par le site.',
+              scelle: 'Rien ne pourra la rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+              accepter: 'Supprimer la consultation',
+              refuser: 'Garder la consultation',
+              dur: true,
+            })) return;
+            removeConsult(editConsult.id);
+            setEditId(null);
           }}
           onClose={() => setEditId(null)}
         />

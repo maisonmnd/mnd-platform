@@ -5,7 +5,7 @@ import { useBilans } from '../../../../shared/bilans';
 import { manquesDeLaTete } from '../../../../shared/afaire';
 import { PageHead } from '../_ui';
 import { gammeTouteReglee } from '../../../../shared/gamme';
-import { Button, Input, alerte, refus } from '../../../../ds/components';
+import { Button, Input, alerte, refus, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
@@ -257,8 +257,16 @@ export default function Carnet() {
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
 
   /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
-  const deleteAppt = (a: Appointment) => {
-    if (!window.confirm('Supprimer définitivement ce rendez-vous ? Cette action est irréversible.')) return;
+  const deleteAppt = async (a: Appointment) => {
+    if (!await demande({
+      quoi: 'Suppression définitive',
+      titre: 'Supprimer ce rendez-vous ?',
+      dit: 'Il quitte le carnet et le calendrier, avec ce qui y était noté.',
+      scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer le rendez-vous',
+      refuser: 'Garder le rendez-vous',
+      dur: true,
+    })) return;
     appointmentsStore.set((prev) => prev.filter((x) => x.id !== a.id));
   };
 

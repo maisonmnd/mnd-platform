@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Select, Textarea, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth } from '../../../../shared/auth';
 import { useClients, clientsStore } from '../../../../shared/clients';
@@ -348,8 +348,16 @@ export default function Fil() {
   };
   /* Effacer la sienne — une note, pas une demande en cours : celle-là engage
      quelqu'un d'autre, et disparaîtrait de son « à traiter » sans un mot. */
-  const effacer = (m: FilMessage) => {
-    if (!window.confirm('Effacer ce message ? Il disparaîtra du fil pour tout le monde.')) return;
+  const effacer = async (m: FilMessage) => {
+    if (!await demande({
+      quoi: 'Message du Fil',
+      titre: 'Effacer ce message ?',
+      dit: 'Il disparaîtra du fil pour tout le monde, pas seulement pour vous.',
+      scelle: 'Un message effacé ne se récupère pas.',
+      accepter: 'Effacer le message',
+      refuser: 'Garder le message',
+      dur: true,
+    })) return;
     filStore.set((prev) => prev.filter((x) => x.id !== m.id));
     toast('Message effacé.');
   };

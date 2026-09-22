@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, BellOff, Check } from 'lucide-react';
-import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
 import { clefDeRecherche, prestationRepond } from '../../../../shared/recherche';
 import { useBranch, maitreParDefaut } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -2426,9 +2426,17 @@ export function RdvModal({
     onEncaisser(appt);
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!appt) return;
-    if (!window.confirm('Supprimer ce rendez-vous ? Cette action est définitive.')) return;
+    if (!await demande({
+      quoi: 'Suppression définitive',
+      titre: 'Supprimer ce rendez-vous ?',
+      dit: 'Il quitte le carnet et le calendrier. Ce qu’il avait consommé revient au stock.',
+      scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
+      accepter: 'Supprimer le rendez-vous',
+      refuser: 'Garder le rendez-vous',
+      dur: true,
+    })) return;
     /* Un rituel honoré a consommé sa recette : le supprimer sans rembobiner
        laissait des mouvements orphelins pointant vers un rendez-vous disparu. */
     rembobinerRituel(appt.id);
@@ -2438,13 +2446,20 @@ export function RdvModal({
 
   /* Annuler ≠ supprimer : le RDV annulé sort du calendrier et de tout chiffre,
      mais reste visible (barré) au Carnet — l'histoire n'est pas effacée. */
-  const cancelRdv = () => {
+  const cancelRdv = async () => {
     if (!appt) return;
     const paid = appt.paidXof ?? 0;
     const msg = paid > 0
       ? `Annuler ce rendez-vous ? Il porte déjà ${argent(paid)} encaissés, l'annulation ne rembourse rien (passez par « Encaisser → Annuler l'encaissement » d'abord si besoin). Le rituel sortira du calendrier et ne comptera dans aucun chiffre.`
       : 'Annuler ce rendez-vous ? Il sortira du calendrier et ne comptera dans aucun chiffre, il restera visible, barré, au Carnet.';
-    if (!window.confirm(msg)) return;
+    if (!await demande({
+      quoi: 'Annulation',
+      titre: 'Annuler ce rendez-vous ?',
+      dit: msg,
+      accepter: 'Annuler le rendez-vous',
+      refuser: 'Le garder au calendrier',
+      dur: true,
+    })) return;
     appointmentsStore.set((prev) => prev.map((x) => (x.id === appt.id ? { ...x, status: 'annulé' } : x)));
     /* S'il avait été honoré, sa recette revient au stock — un rituel annulé
        n'a rien consommé. Sans mouvement : geste muet. */

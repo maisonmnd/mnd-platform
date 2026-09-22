@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../../../shared/store';
 import { PageHead } from '../_ui';
-import { Button, Input, Select, toast } from '../../../../ds/components';
+import { Button, Input, Select, toast, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff as useMonProfil } from '../../../../shared/auth';
 import { useInvoices, invoiceTotal, invoiceResteXof, invoiceSoldee, invoiceReglements } from '../../../../shared/finance';
@@ -270,8 +270,16 @@ export default function Tableau() {
   /* EFFACER UNE CARTE TERMINÉE — 18 août, « supprimer les tâches terminées ».
      Elle disparaît du tableau ET du fil : c'est le même message. Le geste
      demande confirmation, parce qu'il n'a pas de retour. */
-  const effacerCarte = (m: FilMessage) => {
-    if (!window.confirm('Effacer cette carte terminée ? Elle disparaîtra aussi du Fil, pour tout le monde.')) return;
+  const effacerCarte = async (m: FilMessage) => {
+    if (!await demande({
+      quoi: 'Carte terminée',
+      titre: 'Effacer cette carte ?',
+      dit: 'Elle disparaîtra aussi du Fil, pour tout le monde.',
+      scelle: 'Une carte effacée ne se récupère pas.',
+      accepter: 'Effacer la carte',
+      refuser: 'Garder la carte',
+      dur: true,
+    })) return;
     filStore.set((prev) => prev.filter((x) => x.id !== m.id));
     toast('Carte effacée.');
   };
