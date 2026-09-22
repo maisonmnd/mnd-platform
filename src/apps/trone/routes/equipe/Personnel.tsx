@@ -2342,7 +2342,7 @@ function SaPlaceDansLeTrone({
               se donne en personne, depuis Accès & personnel : 0109 refuse ce
               rôle au rattachement, l'écran ne le propose donc pas. */}
           <div className="mnd-muted" style={{ fontSize: 11.5 }}>
-            Le réglage fin de ses écrans reste dans Système · Accès &amp; personnel, comme aujourd’hui.
+            Ses départements et le réglage fin de ses écrans restent dans Système · Accès &amp; rôles, comme aujourd’hui.
             Un souverain, lui, se donne en personne et jamais par invitation.
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

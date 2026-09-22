@@ -22,7 +22,8 @@ import { downloadBackup, restoreBackup, LAST_BACKUP_KEY, type RestoreReport } fr
 import { resetAllPaidInvoices } from '../clients/actions';
 import { factoryResetServer, activateBlankAndReload, replaceHouseFromFile } from '../../houseReset';
 import '../equipe/equipe.css'; // styles des composants partagés (Toggle, tre-*)
-import { ERP_DOMAINS, useStaff } from '../equipe/data';
+import { useStaff } from '../equipe/data';
+import { DEPARTEMENTS } from '../index';
 import { useExceptionsHoraires, usePointageConfig, assurerCodeDuJour, type HoraireException } from '../equipe/payroll';
 import { useBlocages, type Blocage } from '../../../../shared/blocages';
 import { uid } from '../../../../shared/store';
@@ -86,16 +87,18 @@ const JOUR_LABEL: Record<string, string> = {
    Écrit en dur, il ne commandait rien : c'était une intention, pas une règle.
    Tant que rien n'appliquait les accès, l'écart ne se voyait pas. Depuis que
    la barre les applique, un tableau qui ment est pire qu'un tableau absent. */
-const DOMAINS = ERP_DOMAINS;
+/* LES DÉPARTEMENTS DE LA BARRE, à leur source (22 septembre 2026) : ce
+   tableau montre ce qu'un rang ouvre, il doit dire la même chose qu'elle. */
+const DOMAINS = DEPARTEMENTS;
 type Role = { k: string; label: string; desc: string; perms: string[] };
-const TOUS = ERP_DOMAINS.map((d) => d.k);
+const TOUS = DEPARTEMENTS.map((d) => d.k);
 const ROLE_DEFS: Role[] = [
   { k: 'souverain', label: 'Souverain·e', desc: 'Accès total, la Maison entière.', perms: TOUS },
-  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: TOUS.filter((k) => k !== 'systeme') },
+  { k: 'gerant', label: 'Gérant·e', desc: 'Pilote tout sauf l’âme système.', perms: TOUS.filter((k) => k !== 'dept-systeme') },
   {
     k: 'maitre',
     label: 'Maître',
-    desc: 'Mon mois et son calendrier, sans les montants. Le reste s’ouvre domaine par domaine, personne par personne, depuis Accès & personnel.',
+    desc: 'Son Quotidien, sans les montants. Le reste s’ouvre département par département, personne par personne, depuis Accès & rôles.',
     perms: [],
   },
 ];
@@ -2019,8 +2022,8 @@ export default function Parametres() {
         <div className="sys-section__title">Accès ERP du personnel</div>
         <div className="sys-section__cap">
           Un membre rejoint le Trône avec son e-mail et son mot de passe, puis un souverain le
-          rattache au personnel depuis Accès &amp; personnel, il entre avec exactement les droits
-          de son rang, rien de plus. C’est là aussi qu’on ouvre à un maître les domaines
+          rattache au personnel depuis Accès &amp; rôles, il entre avec exactement les droits
+          de son rang, rien de plus. C’est là aussi qu’on donne à un maître les départements
           supplémentaires dont il a besoin : le secrétariat et le fauteuil tiennent sur un seul
           compte, jamais sur deux.
         </div>

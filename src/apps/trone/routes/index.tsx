@@ -1,8 +1,9 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
-/* Registre des 24 routes du Trône, groupées par domaine.
-   Chaque domaine appartient à un module sous routes/<domaine>/. */
+/* Registre des routes du Trône, groupées par DÉPARTEMENT.
+   Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
+   les dossiers n'ont pas bougé quand la barre a changé. */
 
 export type TroneRoute = {
   path: string;
@@ -15,99 +16,145 @@ export type TroneRoute = {
 
 export type TroneGroup = { group: string; items: TroneRoute[] };
 
+/* ── LA BARRE PAR DÉPARTEMENTS — 22 septembre 2026 ─────────────────────
+   « Le menu mélange fréquence d'usage, fonction et type d'objet, et il
+   déborde » (Yéman). Chaque rubrique devient un DÉPARTEMENT de la Maison, et
+   chaque département un rôle qu'on donne aux personnes qui y travaillent. Le
+   Quotidien reste à part : c'est le poste de travail de chacun, filtré selon
+   ce qu'on lui a ouvert.
+
+   LA RÈGLE DE PLACEMENT : « Vente & Caisse » couvre l'acte de vendre et
+   d'encaisser ; « Finances » couvre ce qui arrive après, trésorerie, créances,
+   dettes, charges. Les écrans sont placés d'après ce qu'ils FONT, lu dans
+   leur code, pas d'après leur ancien dossier : les chemins et les modules ne
+   bougent pas, seule la barre les range autrement. */
 export const NAV: TroneGroup[] = [
   {
-    group: 'Pilotage',
+    /* LE POSTE DE TRAVAIL. Les quatre écrans ouverts d'office à tout le
+       personnel (voir ROUTES_MAITRE_FERMABLES) et le tableau de bord. Le Fil
+       et le Tableau y sont ensemble : le Tableau n'a pas de table à lui, une
+       carte EST une demande du Fil, c'est le même registre vu autrement. */
+    group: 'Le Quotidien',
     items: [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, Component: lazy(() => import('./pilotage/Dashboard')) },
+      { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
+      { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
+      { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
+      { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
+    ],
+  },
+  {
+    /* CE QUI SE LIT POUR DÉCIDER. Le Juste Prix est une analyse de prix, pas
+       une écriture ; À faire dit où mettre son temps, en nombres et en
+       boutons : c'est la direction qui le lit. */
+    group: 'Direction',
+    items: [
       { path: '/bilan-mensuel', label: 'Bilan mensuel', icon: BarChart3, Component: lazy(() => import('./pilotage/BilanMensuel')) },
-      /* À FAIRE (6 septembre 2026) — le Trône sait déjà presque tout faire ;
-         ce qui manque, c'est de savoir ce qui manque. La page dit où mettre
-         son temps, en nombres et en boutons, jamais en phrases. */
-      { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
+      { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
       { path: '/analytics', label: 'Analytics', icon: LineChart, Component: lazy(() => import('./pilotage/Analytics')) },
       /* LA CADENCE (16 août) — la salle des prédictions. Le juge existait déjà
          (`shared/cadence.ts`) mais ne parlait qu'à l'oreille d'UNE fiche ;
          personne ne voyait la charge qui vient, ni qui a glissé. */
       { path: '/cadence', label: 'La Cadence', icon: Activity, Component: lazy(() => import('./pilotage/Predictions')) },
+      /* À FAIRE (6 septembre 2026) — le Trône sait déjà presque tout faire ;
+         ce qui manque, c'est de savoir ce qui manque. La page dit où mettre
+         son temps, en nombres et en boutons, jamais en phrases. */
+      { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
+      { path: '/recommandations', label: 'Recommandations IA', icon: Lightbulb, Component: lazy(() => import('./equipe/Recommandations')) },
+      { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
     ],
   },
   {
-    group: 'Clients & Agenda',
+    /* CE QUI ARRIVE DU DEHORS, ET QUI APPELLE UNE RÉPONSE : appels,
+       conversations, demandes. Le Carnet est le registre des rendez-vous et
+       de leur règlement, « ce qu'on vient chercher au comptoir » : il vit
+       avec la clientèle, pas avec la caisse. */
+    group: 'Clientèle',
     items: [
-      /* Ordre voulu par la maison : le jour d'abord, la lignée ensuite. */
-      { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, Component: lazy(() => import('./clients/Calendrier')) },
-      { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
-      /* LES CONVERSATIONS — 11 septembre 2026. À côté des Appels, parce que
-         c'est la même chose : ce qui arrive du dehors et qui appelle une
-         réponse. Le Fil, lui, reste interne. */
-      { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
-      { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
       { path: '/customers', label: 'Clientes', icon: Users, Component: lazy(() => import('./clients/Customers')) },
-      { path: '/consultations', label: 'Consultations', icon: ClipboardList, Component: lazy(() => import('./clients/Consultations')) },
+      { path: '/carnet', label: 'Le Carnet', icon: NotebookPen, Component: lazy(() => import('./clients/Carnet')) },
+      { path: '/appels', label: 'Les Appels', icon: PhoneIncoming, Component: lazy(() => import('./clients/Appels')) },
+      { path: '/conversations', label: 'Conversations', icon: MessagesSquare, Component: lazy(() => import('./clients/Conversations')) },
       { path: '/demandes', label: 'Les demandes', icon: Inbox, Component: lazy(() => import('./clients/Demandes')) },
-      { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
-      { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
-      { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
+      { path: '/consultations', label: 'Consultations', icon: ClipboardList, Component: lazy(() => import('./clients/Consultations')) },
     ],
   },
   {
-    group: 'Vente',
+    /* CE QUE LA MAISON FABRIQUE ET TIENT EN RÉSERVE. Le Laboratoire lie ses
+       ingrédients aux fiches d'inventaire et FABRIQUER consomme le stock :
+       c'est de la production, pas de la vente, même si la préparation se
+       facture ensuite. Les Fournisseurs sont l'autre lecture des Dépenses,
+       rangées par maison : placés ici avec les achats, à la demande de la
+       direction, alors que la règle de placement les mettrait aux Finances. */
+    group: 'Atelier',
     items: [
       { path: '/catalogue', label: 'Catalogue', icon: BookOpen, Component: lazy(() => import('./vente/Catalogue')) },
-      { path: '/caisse', label: 'Caisse POS', icon: Wallet, Component: lazy(() => import('./vente/Caisse')) },
-      { path: '/home-rituals', label: 'Stock & Achats', icon: ShoppingBag, Component: lazy(() => import('./vente/HomeRituals')) },
-      { path: '/factures', label: 'Factures & devis', icon: FileText, Component: lazy(() => import('./vente/Factures')) },
-      /* Ce que la Maison commande à un prestataire — 15 septembre 2026. */
-      { path: '/engagements', label: 'Les engagements', icon: Hammer, Component: lazy(() => import('./vente/Engagements')) },
       { path: '/laboratoire', label: 'Le Laboratoire', icon: FlaskConical, Component: lazy(() => import('./vente/Laboratoire')) },
+      { path: '/home-rituals', label: 'Stock & Achats', icon: ShoppingBag, Component: lazy(() => import('./vente/HomeRituals')) },
+      { path: '/fournisseurs', label: 'Fournisseurs', icon: Store, Component: lazy(() => import('./finances/Fournisseurs')) },
     ],
   },
   {
+    /* L'ACTE DE VENDRE ET D'ENCAISSER. Les Comptes & Avoirs s'y consomment
+       au moment de régler ; les Abonnements se vendent. */
+    group: 'Vente & Caisse',
+    items: [
+      { path: '/caisse', label: 'Caisse POS', icon: Wallet, Component: lazy(() => import('./vente/Caisse')) },
+      { path: '/factures', label: 'Factures & devis', icon: FileText, Component: lazy(() => import('./vente/Factures')) },
+      { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
+      { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
+      { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
+    ],
+  },
+  {
+    /* CE QUI ARRIVE APRÈS LA VENTE : trésorerie, créances, dettes, charges.
+       Les Engagements y descendent de « Vente » : c'est ce que la Maison
+       COMMANDE à un prestataire, devis reçus, retenue, avances versées, une
+       dette de la Maison, pas une vente. Salon & Foyer reste au souverain
+       seul, quel que soit le département (ROUTES_SOUVERAIN). */
     group: 'Finances',
     items: [
-      { path: '/synthese', label: 'Synthèse & résultat', icon: PieChart, Component: lazy(() => import('./finances/Synthese')) },
-      { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
-      /* LES CRÉANCES (26 août) — ce que la Maison attend, rangé par ÂGE. Le dû
-         se lisait rituel par rituel dans le Carnet : on savait qu'on attendait
-         de l'argent, jamais depuis quand ni de qui d'abord. */
-      { path: '/creances', label: 'Les créances', icon: HandCoins, Component: lazy(() => import('./finances/Creances')) },
       /* LES CAISSES ONT LEUR ÉCRAN — 22 août 2026. Elles vivaient sous
          « Dépenses » par accident d'histoire : une caisse n'appartient pas
          aux dépenses, c'est le tiroir par lequel TOUT passe. */
       { path: '/caisses', label: 'Les caisses', icon: Wallet, Component: lazy(() => import('./finances/Caisses')) },
       { path: '/coffre', label: 'Coffre-fort', icon: Landmark, Component: lazy(() => import('./finances/Coffre')) },
-      { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
+      /* LES CRÉANCES (26 août) — ce que la Maison attend, rangé par ÂGE. Le dû
+         se lisait rituel par rituel dans le Carnet : on savait qu'on attendait
+         de l'argent, jamais depuis quand ni de qui d'abord. */
+      { path: '/creances', label: 'Les créances', icon: HandCoins, Component: lazy(() => import('./finances/Creances')) },
       /* LES PRÊTS ONT LEUR ÉCRAN — 23 août 2026. Ils vivaient sous
          « Comptes & Avoirs » : un avoir est de l'argent que la Maison DOIT à
          une cliente, un prêt de l'argent qu'on lui doit, et l'emprunteur n'est
          pas forcément une cliente. Les mêler faisait lire le titre pour savoir
          de quel côté penchait la somme. */
       { path: '/prets', label: 'Les prêts', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
-      { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
+      /* Ce que la Maison commande à un prestataire — 15 septembre 2026. */
+      { path: '/engagements', label: 'Les engagements', icon: Hammer, Component: lazy(() => import('./vente/Engagements')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },
-      /* LES MAISONS CHEZ QUI L'ON ACHÈTE — 1er septembre 2026. Juste après les
-         Dépenses, dont il n'est que l'autre lecture : mêmes écritures, rangées
-         par maison plutôt que par mois. */
-      { path: '/fournisseurs', label: 'Fournisseurs', icon: Store, Component: lazy(() => import('./finances/Fournisseurs')) },
       { path: '/salon-foyer', label: 'Salon & Foyer', icon: PiggyBank, Component: lazy(() => import('./finances/SalonFoyer')) },
     ],
   },
   {
-    group: 'Équipe & Croissance',
+    group: 'Marketing & Fidélité',
     items: [
-      /* LE FIL — le registre interne. Il vit avec l'équipe parce que c'est
-         d'elle qu'il parle, et il est hissé au Quotidien (Shell) parce qu'on
-         l'ouvre tous les jours. */
-      { path: '/fil', label: 'Le Fil', icon: MessageSquare, Component: lazy(() => import('./equipe/Fil')) },
-      { path: '/tableau', label: 'Le Tableau', icon: SquareKanban, Component: lazy(() => import('./equipe/Tableau')) },
-      { path: '/mon-mois', label: 'Mon mois', icon: BadgeCheck, Component: lazy(() => import('./equipe/MonMois')) },
-      { path: '/personnel', label: 'Personnel & paie', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
-      { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
       { path: '/marketing', label: 'Marketing', icon: Megaphone, Component: lazy(() => import('./equipe/Marketing')) },
       { path: '/cercle', label: 'Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
-      { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
-      { path: '/recommandations', label: 'Recommandations IA', icon: Lightbulb, Component: lazy(() => import('./equipe/Recommandations')) },
+      { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
+      { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
+      { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
+    ],
+  },
+  {
+    group: 'Équipe',
+    items: [
+      { path: '/personnel', label: 'Personnel & paie', icon: UsersRound, Component: lazy(() => import('./equipe/Personnel')) },
+      { path: '/prestataires', label: 'Prestataires', icon: Handshake, Component: lazy(() => import('./equipe/Prestataires')) },
+    ],
+  },
+  {
+    group: 'Académie',
+    items: [
       { path: '/academie', label: 'Académie', icon: GraduationCap, Component: lazy(() => import('./equipe/Academie')) },
     ],
   },
@@ -119,7 +166,7 @@ export const NAV: TroneGroup[] = [
          Paramètres et depuis Personnel & paie, là où l'on tient les fiches et
          où l'on remet le règlement ; une barre de vingt-cinq entrées ne gagne
          rien à en porter une vingt-sixième qu'on ouvre trois fois par an.
-         Le domaine reste « systeme » : le groupe le donne, rien à déclarer. */
+         Le département reste « Système » : le groupe le donne, rien à déclarer. */
       { path: '/textes', label: 'Les textes de la Maison', icon: FileSignature, horsMenu: true, Component: lazy(() => import('./systeme/Textes')) },
       /* LE COMPTOIR N'EST PLUS DANS LE MENU. Un écran qu'on ouvre trois fois
          par an n'a pas sa place entre Paramètres et Accès : il encombrait une
@@ -127,7 +174,9 @@ export const NAV: TroneGroup[] = [
          règle la preuve de présence — et le code du jour se lit désormais
          directement dans « Mon mois », sur le compte du gérant. */
       { path: '/comptoir', label: 'Comptoir · code du jour', icon: KeyRound, horsMenu: true, Component: lazy(() => import('../routes/equipe/Comptoir')) },
-      { path: '/acces', label: 'Accès & personnel', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
+      /* ACCÈS & RÔLES — renommé le 22 septembre 2026 : on y donne des
+         départements à des personnes, c'est-à-dire des rôles. */
+      { path: '/acces', label: 'Accès & rôles', icon: ShieldCheck, Component: lazy(() => import('./systeme/Acces')) },
       { path: '/journal', label: 'Journal des gestes', icon: ScrollText, Component: lazy(() => import('./systeme/Journal')) },
       { path: '/branches', label: 'Branches', icon: MapPin, Component: lazy(() => import('./systeme/Branches')) },
       { path: '/marque', label: 'Marque & thème', icon: Palette, Component: lazy(() => import('./systeme/Marque')) },
@@ -190,23 +239,71 @@ export const ROUTES_MAITRE_FERMABLES = ['/mon-mois', '/calendrier', '/fil', '/ta
    couperait la personne en deux : deux pointages, deux productions, deux
    parts de pourboire — et le partage le compterait deux fois.
 
-   Son rôle reste donc `maitre`, et on lui OUVRE des domaines en plus. La
-   matrice existait dans le modèle depuis toujours (`staffAccessStore`,
-   `ERP_DOMAINS`) sans que rien ne la lise ; elle commande désormais la barre.
+   Son rôle reste donc `maitre`, et on lui OUVRE des départements en plus. La
+   matrice existait dans le modèle depuis toujours (`staffAccessStore`) sans
+   que rien ne la lise ; elle commande la barre depuis le 31 août.
 
-   Les groupes de la barre portent exactement les libellés des domaines : la
-   correspondance se lit, elle ne se maintient pas dans un second tableau. */
-const DOMAINE_DU_GROUPE: Record<string, string> = {
-  'Pilotage': 'pilotage',
-  'Clients & Agenda': 'clients',
-  'Vente': 'vente',
-  'Finances': 'finances',
-  'Équipe & Croissance': 'equipe',
-  'Système': 'systeme',
+   ── UN DÉPARTEMENT EST UN RÔLE — 22 septembre 2026 ──────────────────────
+   Chaque groupe de la barre est un département, et chaque département une
+   clef de la matrice : donner « Clientèle » à quelqu'un, c'est lui ouvrir les
+   écrans de ce groupe. Une personne cumule autant de départements qu'il en
+   faut. Le souverain voit tout, et reste seul sur la paie côté serveur : cette
+   garde est en base (`is_souverain()`), pas ici, et rien ne la touche.
+
+   TROIS SORTES DE CLEFS DANS LA MATRICE, chacune se reconnaît à sa forme :
+     « /caisse »        un écran seul ;
+     « dept-finances »  un département, donné depuis Accès & rôles ;
+     « finances »       un ANCIEN domaine, tel qu'il a été coché avant ce jour.
+   Les anciennes clefs restent lues et gardent EXACTEMENT leur ancienne
+   portée : ni migration, ni élargissement. Reprendre « finances » pour le
+   nouveau département aurait ouvert les Engagements à quiconque avait coché
+   l'ancien domaine, sans que personne ne l'ait décidé. */
+export const DEPARTEMENTS: { k: string; l: string }[] = [
+  { k: 'dept-quotidien', l: 'Le Quotidien' },
+  { k: 'dept-direction', l: 'Direction' },
+  { k: 'dept-clientele', l: 'Clientèle' },
+  { k: 'dept-atelier', l: 'Atelier' },
+  { k: 'dept-vente-caisse', l: 'Vente & Caisse' },
+  { k: 'dept-finances', l: 'Finances' },
+  { k: 'dept-marketing', l: 'Marketing & Fidélité' },
+  { k: 'dept-equipe', l: 'Équipe' },
+  { k: 'dept-academie', l: 'Académie' },
+  { k: 'dept-systeme', l: 'Système' },
+];
+
+/** La clef d'un département, d'après le libellé de son groupe dans la barre :
+    la correspondance se lit, elle ne se maintient pas dans un second tableau. */
+export const departementDuGroupe = (groupe: string): string | undefined =>
+  DEPARTEMENTS.find((d) => d.l === groupe)?.k;
+
+/** Le département d'un écran. Gardé sous son ancien nom : c'est ce que lit
+    Accès & rôles, et le nom disait déjà la bonne chose. */
+export const domaineDe = (path: string): string | undefined =>
+  departementDuGroupe(NAV.find((g) => g.items.some((i) => i.path === path))?.group ?? '');
+
+/* LES ANCIENS DOMAINES, TELS QU'ILS ÉTAIENT LE 21 SEPTEMBRE 2026. Une case
+   cochée avant ce jour ouvre encore les mêmes écrans, et seulement ceux-là.
+   Cette table ne se met pas à jour : c'est une photographie, pas une règle. */
+export const ANCIENS_DOMAINES: Record<string, string[]> = {
+  pilotage: ['/', '/bilan-mensuel', '/a-faire', '/analytics', '/cadence'],
+  clients: ['/calendrier', '/appels', '/conversations', '/carnet', '/customers', '/consultations', '/demandes', '/personas', '/vitrine', '/qr-codes'],
+  vente: ['/catalogue', '/caisse', '/home-rituals', '/factures', '/engagements', '/laboratoire'],
+  finances: ['/synthese', '/encaissements', '/creances', '/caisses', '/coffre', '/comptes', '/prets', '/juste-prix', '/depenses', '/fournisseurs', '/salon-foyer'],
+  equipe: ['/fil', '/tableau', '/mon-mois', '/personnel', '/prestataires', '/marketing', '/cercle', '/abonnements', '/recommandations', '/academie'],
+  systeme: ['/parametres', '/textes', '/comptoir', '/acces', '/journal', '/branches', '/marque'],
 };
 
-export const domaineDe = (path: string): string | undefined =>
-  DOMAINE_DU_GROUPE[NAV.find((g) => g.items.some((i) => i.path === path))?.group ?? ''];
+/** L'ancien domaine d'un écran, celui d'avant les départements. */
+export const ancienDomaineDe = (path: string): string | undefined =>
+  Object.keys(ANCIENS_DOMAINES).find((k) => ANCIENS_DOMAINES[k].includes(path));
+
+/** Un écran est-il ouvert par un département ou un ancien domaine coché ? */
+const ouvertParSonGroupe = (path: string, acces: Record<string, boolean>): boolean => {
+  const d = domaineDe(path);
+  if (d && acces[d] === true) return true;
+  const ancien = ancienDomaineDe(path);
+  return !!ancien && acces[ancien] === true;
+};
 
 /* ── OUVRIR UN ÉCRAN, PAS UN DOMAINE ────────────────────────────────────
    Cocher « Clients & Agenda » ouvrait onze écrans d'un coup — les
@@ -247,8 +344,7 @@ export const peutVoir = (
      comptes déjà autorisés perdraient ces écrans le jour de la mise en ligne. */
   if (ROUTES_MAITRE_FERMABLES.includes(path)) return acces[path] !== false;
   if (acces[path] === true) return true;
-  const d = domaineDe(path);
-  return !!d && acces[d] === true;
+  return ouvertParSonGroupe(path, acces);
 };
 
 /** LES MONTANTS SE TAISENT POUR UN MAÎTRE — sauf s'il tient aussi le comptoir.
@@ -256,6 +352,7 @@ export const peutVoir = (
     pointer, non. C'est le domaine ouvert qui tranche, pas le rôle. */
 export const voitLesPrix = (role: string | undefined, acces: Record<string, boolean> = {}): boolean =>
   role !== 'maitre'
+  || acces['dept-vente-caisse'] === true || acces['dept-finances'] === true
   || acces.vente === true || acces.finances === true
   /* Ouvrir la Caisse ou les Factures sans les montants n'aurait aucun sens :
      l'écran lui-même vaut autorisation de voir les prix. */

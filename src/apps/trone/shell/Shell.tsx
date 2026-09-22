@@ -30,7 +30,12 @@ import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
    LA CAISSE POS EN REDESCEND le 25 août : on encaisse depuis « + Encaisser »,
    qui est déjà dans l'en-tête, et depuis le Carnet — la ligne du menu faisait
    double emploi. Elle retrouve sa place sous « Vente ». */
-const QUOTIDIEN = ['/', '/calendrier', '/carnet', '/customers', '/factures', '/catalogue', '/fil', '/tableau'];
+/* LE QUOTIDIEN EST UN DÉPARTEMENT DEPUIS LE 22 SEPTEMBRE 2026 : le poste de
+   travail de chacun, premier groupe de la barre (routes/index). La liste
+   vivait ici en double ; elle se lit désormais à sa source. Le Carnet, les
+   Clientes, les Factures et le Catalogue en sortent : ils ont chacun leur
+   département, et un maître ne les voit que si on le lui a ouvert. */
+const QUOTIDIEN: string[] = (NAV.find((g) => g.group === 'Le Quotidien')?.items ?? []).map((it) => it.path);
 const menuDeplieStore = createStore<Record<string, boolean>>('mnd_trone_menu_deplie', {});
 
 /* ── LA MAIN RANGE SON MENU — 22 août 2026 ──────────────────────────
@@ -448,7 +453,7 @@ export default function Shell() {
           </h1>
           <p className="mnd-muted" style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
             Votre compte est bien rattaché à la Maison, mais aucun écran ne vous a encore été
-            ouvert. Demandez-le à un souverain, il le fait d'un clic dans « Accès &amp; personnel ».
+            ouvert. Demandez-le à un souverain, il le fait d'un clic dans « Accès &amp; rôles ».
           </p>
           <button
             type="button"
@@ -512,7 +517,9 @@ export default function Shell() {
           ) : (
             <>
               <div>
-                <div className="tr-nav__group">Le quotidien</div>
+                {/* La clef de rangement reste « Le quotidien » : c'est celle
+                    sous laquelle chaque poste a enregistré son ordre. */}
+                <div className="tr-nav__group">Le Quotidien</div>
                 {rangement ? quotidien.map(lienRangeable('Le quotidien', quotidien)) : quotidien.map(lien)}
               </div>
               {replies.map((g) => {

@@ -9,7 +9,7 @@ import {
   vientDeMaCouronne, origineDeLaSession, adresseDejaPrise, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
   type CompteEnAttente,
 } from '../src/shared/auth';
-import { gestesRapides, peutVoir, premierEcranVisible } from '../src/apps/trone/routes/index';
+import { ANCIENS_DOMAINES, DEPARTEMENTS, NAV, ancienDomaineDe, gestesRapides, peutVoir, premierEcranVisible, voitLesPrix } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -117,6 +117,36 @@ dit('… et s’ouvre au souverain', true, peutVoir('souverain', '/journal', {})
 dit('… et au gérant : la direction lit la trace de la base (0092)', true, peutVoir('gerant', '/journal', {}));
 dit('Salon & Foyer reste au souverain seul', false, peutVoir('gerant', '/salon-foyer', {}));
 dit('un gérant voit tout le reste', true, peutVoir('gerant', '/depenses', {}));
+
+/* ── LES DÉPARTEMENTS SONT DES RÔLES — 22 septembre 2026 ────────────────
+   Dix groupes dans la barre, dix clefs `dept-…` dans la matrice. Les anciens
+   domaines cochés avant ce jour gardent EXACTEMENT leur ancienne portée. */
+dit('un département donné ouvre ses écrans', true, peutVoir('maitre', '/caisse', { 'dept-vente-caisse': true }));
+dit('… et pas ceux d’un autre', false, peutVoir('maitre', '/depenses', { 'dept-vente-caisse': true }));
+dit('le Quotidien donné ouvre le tableau de bord', true, peutVoir('maitre', '/', { 'dept-quotidien': true }));
+dit('les Engagements sont aux Finances', true, peutVoir('maitre', '/engagements', { 'dept-finances': true }));
+dit('… et plus à la vente', false, peutVoir('maitre', '/engagements', { 'dept-vente-caisse': true }));
+/* UN ANCIEN DOMAINE NE S'ÉLARGIT PAS : « vente » ouvrait les Engagements,
+   il les ouvre encore ; il n'ouvrait pas les Encaissements, il ne les ouvre
+   toujours pas, même si les deux vivent ensemble aujourd'hui. */
+dit('l’ancien « vente » ouvre encore les Engagements', true, peutVoir('maitre', '/engagements', { vente: true }));
+dit('… mais pas les Encaissements', false, peutVoir('maitre', '/encaissements', { vente: true }));
+dit('l’ancien « clients » ouvre encore les Personas', true, peutVoir('maitre', '/personas', { clients: true }));
+dit('l’ancien « finances » n’ouvre pas les Engagements', false, peutVoir('maitre', '/engagements', { finances: true }));
+dit('Vente & Caisse rend les prix', true, voitLesPrix('maitre', { 'dept-vente-caisse': true }));
+dit('Finances aussi', true, voitLesPrix('maitre', { 'dept-finances': true }));
+dit('la Clientèle seule ne les rend pas', false, voitLesPrix('maitre', { 'dept-clientele': true }));
+dit('Salon & Foyer reste au souverain, même avec Finances', false, peutVoir('maitre', '/salon-foyer', { 'dept-finances': true }));
+dit('le Journal reste à la direction, même avec Système', false, peutVoir('maitre', '/journal', { 'dept-systeme': true }));
+/* LA BARRE ET LES RÔLES DISENT LA MÊME CHOSE. */
+dit('dix groupes, dix départements, mêmes libellés', true,
+  NAV.length === DEPARTEMENTS.length && NAV.every((g) => DEPARTEMENTS.some((d) => d.l === g.group)));
+dit('aucune clef de département ne ressemble à un ancien domaine', true,
+  DEPARTEMENTS.every((d) => d.k.startsWith('dept-') && !(d.k in ANCIENS_DOMAINES)));
+dit('chaque écran de la barre a un ancien domaine', true,
+  NAV.flatMap((g) => g.items).every((it) => !!ancienDomaineDe(it.path)));
+dit('… et aucun ancien domaine ne cite un écran disparu', true,
+  Object.values(ANCIENS_DOMAINES).flat().every((p) => NAV.some((g) => g.items.some((it) => it.path === p))));
 
 /* ── ⑦ ON NE RENVOIE QUE VERS UNE PORTE OUVERTE ────────────────────
    LE PIÈGE ÉTAIT UNE BOUCLE : le Shell renvoyait vers l'accueil du rôle, soit

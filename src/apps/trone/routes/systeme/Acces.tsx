@@ -5,7 +5,7 @@ import { supabase } from '../../../../shared/supabase';
 import { useAuth, useStaff, vientDeMaCouronne, type CompteEnAttente } from '../../../../shared/auth';
 import { staffAccessStore, useStaff as useEquipe } from '../equipe/data';
 import { adresseDArrivee, etatDeLArrivee, seRessemblent } from '../../../../shared/arrivee-pure';
-import { NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, domaineDe } from '../index';
+import { ANCIENS_DOMAINES, NAV, ROUTES_MAITRE, ROUTES_MAITRE_FERMABLES, ancienDomaineDe, domaineDe } from '../index';
 import { useClients } from '../../../../shared/clients';
 import { useStore } from '../../../../shared/store';
 import './systeme.css';
@@ -121,8 +121,17 @@ export default function Acces() {
      ILS NE DÉPENDENT PAS DU DOMAINE : ouvrir « Équipe & croissance » en entier
      ne doit pas rouvrir un fil qu'on vient de fermer à quelqu'un. */
   const estFermable = (path: string) => ROUTES_MAITRE_FERMABLES.includes(path);
+  /* UNE CASE COCHÉE AVANT LES DÉPARTEMENTS VAUT ENCORE, écran par écran :
+     l'ancien domaine « clients » ouvrait aussi les Personas, qui vivent
+     désormais sous Marketing. Même juge que `peutVoir` (routes/index). */
+  const ouvertParLAncienDomaine = (userId: string, path: string) => {
+    const ancien = ancienDomaineDe(path);
+    return !!ancien && acces[userId]?.[ancien] === true;
+  };
   const ecranOuvert = (userId: string, path: string, toutOuvert: boolean) =>
-    (estFermable(path) ? acces[userId]?.[path] !== false : (toutOuvert || acces[userId]?.[path] === true));
+    (estFermable(path)
+      ? acces[userId]?.[path] !== false
+      : (toutOuvert || acces[userId]?.[path] === true || ouvertParLAncienDomaine(userId, path)));
   const basculeEcran = (userId: string, path: string, toutOuvert: boolean) => {
     if (!estFermable(path)) { basculeDomaine(userId, path); return; }
     const ouvert = acces[userId]?.[path] !== false;
@@ -141,9 +150,35 @@ export default function Acces() {
      d'ici, donc ils ne peuvent pas se contredire. Un gérant ou un souverain
      ouvre tout : on ne compte pas, on le dit. */
   const domaineDuGroupe = (ecrans: { path: string }[]) => domaineDe(ecrans[0]?.path ?? '');
+  /* LE DÉPARTEMENT EST « DONNÉ » s'il l'est par sa clef, ou si chacun de ses
+     écrans l'est par un ancien domaine : dans les deux cas la pastille est
+     pleine, et le même clic referme tout. */
   const toutLeDomaine = (userId: string, ecrans: { path: string }[]) => {
     const d = domaineDuGroupe(ecrans);
-    return !!d && acces[userId]?.[d] === true;
+    if (!!d && acces[userId]?.[d] === true) return true;
+    return ecrans.length > 0 && ecrans.every((it) => ouvertParLAncienDomaine(userId, it.path));
+  };
+  /* DONNER OU REPRENDRE UN DÉPARTEMENT — 22 septembre 2026. Reprendre
+     convertit d'abord les anciens domaines qui le couvraient : chacun
+     s'éteint, et les écrans qu'il ouvrait AILLEURS reçoivent leur propre
+     case. Rien d'autre ne bouge : ni élargissement, ni fermeture silencieuse
+     dans un autre département. Une case fermée à la main reste fermée. */
+  const basculeDepartement = (userId: string, ecrans: { path: string }[]) => {
+    const d = domaineDuGroupe(ecrans);
+    if (!d) return;
+    const ouvert = toutLeDomaine(userId, ecrans);
+    setAcces((prev) => {
+      const mien = { ...(prev[userId] ?? {}) };
+      if (!ouvert) { mien[d] = true; return { ...prev, [userId]: mien }; }
+      mien[d] = false;
+      const ici = new Set(ecrans.map((it) => it.path));
+      for (const [ancien, chemins] of Object.entries(ANCIENS_DOMAINES)) {
+        if (mien[ancien] !== true || !chemins.some((c) => ici.has(c))) continue;
+        mien[ancien] = false;
+        for (const c of chemins) if (!ici.has(c) && mien[c] !== false) mien[c] = true;
+      }
+      return { ...prev, [userId]: mien };
+    });
   };
   const compteDuDomaine = (m: StaffFull, ecrans: { path: string }[]): [number, number] => {
     if (m.role !== 'maitre') return [ecrans.length, ecrans.length];
@@ -299,8 +334,8 @@ export default function Acces() {
     <div className="mnd-rise">
       <PageHead
         eyebrow="Système · Accès"
-        title="Accès & personnel."
-        sub="Comptes et rôles. Réservé au souverain."
+        title="Accès & rôles."
+        sub="Qui entre dans la Maison, et dans quels départements. Réservé au souverain."
       />
 
       {/* Dire VRAI sur la portée : les rôles/rubriques guident l'interface, ils ne
@@ -453,8 +488,9 @@ export default function Acces() {
               Personnel autorisé {team.length > 0 && <span className="sys-badge-count">{team.length}</span>}
             </div>
             <div className="sys-section__cap">
-              Qui entre dans la Maison, et jusqu’où. Le rôle et les écrans atteints se lisent
-              sur la ligne ; ouvrez une personne pour les régler.
+              Un département est un rôle : le donner ouvre ses écrans. Une personne en cumule
+              autant qu’il faut ; le rang et les départements se lisent sur la ligne, et l’on
+              ouvre une personne pour donner, reprendre, ou régler un écran seul.
             </div>
 
             <div className="sys-acc-outils">
@@ -621,7 +657,6 @@ export default function Acces() {
                             {NAV.map((g) => {
                               const ecrans = ecransDuGroupe(g.items);
                               if (!ecrans.length) return null;
-                              const dom = domaineDuGroupe(ecrans);
                               const toutOuvert = toutLeDomaine(m.user_id, ecrans);
                               const [n, t] = compteDuDomaine(m, ecrans);
                               const clef = clefDom(m.user_id, g.group);
@@ -638,14 +673,14 @@ export default function Acces() {
                                   </button>
                                   {deplie && (
                                     <div className="sys-acc-grp__corps">
-                                      {/* LE DOMAINE ENTIER RESTE POSSIBLE, mais ce n'est plus
-                                          le seul geste : il éclaire alors tous ses écrans. */}
+                                      {/* LE DÉPARTEMENT ENTIER : c'est le rôle qu'on donne. Un
+                                          écran seul reste possible en dessous, pour le réglage fin. */}
                                       <button
                                         className={`sys-acces__chip est-tout ${toutOuvert ? 'is-on' : ''}`}
                                         aria-pressed={toutOuvert}
-                                        onClick={() => dom && basculeDomaine(m.user_id, dom)}
+                                        onClick={() => basculeDepartement(m.user_id, ecrans)}
                                       >
-                                        tout le domaine
+                                        tout le département
                                       </button>
                                       {ecrans.map((it) => {
                                         /* TROIS ÉTATS, ET ON LES DIT — 31 août 2026. Ouvert
@@ -655,7 +690,7 @@ export default function Acces() {
                                            ferait croire à douze réglages posés à la main. */
                                         const ouvertIci = ecranOuvert(m.user_id, it.path, toutOuvert);
                                         const propre = acces[m.user_id]?.[it.path] === true;
-                                        const herite = ouvertIci && toutOuvert && !propre && !estFermable(it.path);
+                                        const herite = ouvertIci && !propre && !estFermable(it.path);
                                         const barre = estFermable(it.path) && !ouvertIci;
                                         return (
                                           <button
@@ -683,9 +718,9 @@ export default function Acces() {
                               );
                             })}
                             <div className="sys-acc-note">
-                              Sans rien de coché : Mon mois et le Calendrier, sans les montants. Ouvrir la
-                              <strong> Caisse</strong>, les <strong>Factures</strong> ou tout le domaine
-                              <strong> Vente</strong> lui rend aussi les prix.
+                              Sans rien de donné : son Quotidien, sans les montants. Lui donner
+                              <strong> Vente &amp; Caisse</strong> ou <strong>Finances</strong>, ou ouvrir la
+                              <strong> Caisse</strong> ou les <strong>Factures</strong>, lui rend aussi les prix.
                             </div>
                           </>
                         )}
