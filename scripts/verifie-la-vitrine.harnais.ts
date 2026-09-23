@@ -7,7 +7,7 @@
    peut ressortir d'une réécriture de titre en pleine demande Meta pour
    « Maison MND » ; une bulle posée sur la page qui EST le geste couvrirait
    son bouton d'envoi ; et un rappel promis qui mène au calendrier. */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ACCUEIL, COMMUN } from '../src/apps/revelateur/contenu';
 import { etatDeLOffre } from '../src/shared/offres-pur';
@@ -106,6 +106,15 @@ const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parc
 dit('les portes portent chacune leur photo', ['portrait-accueil.jpg', 'attention.jpg', 'trois-couronnes.jpg', 'mnd-kids.jpg', 'brice.jpg'],
   ['creation', 'reparation', 'entretien', 'enfant', 'formation'].map(photoDeLaPorte));
 dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
+/* LES COURONNES DE LA MAISON (23 septembre 2026) : cinq portraits de clientes
+   au-dessus des avis, hors de l'îlot, chacun servi ET inscrit au registre des
+   accords avant d'être publié. Un visage sans sa ligne ne part pas. */
+const registre = readFileSync('docs/site-revelateur/photos.md', 'utf8');
+const couronnesServies = [...(accueil.split('class="couronnes__bande"')[1] ?? '').split('</div>')[0].matchAll(/photos\/site\/([^"]+)"/g)].map((m) => m[1]);
+dit('cinq couronnes de clientes au-dessus des avis', ACCUEIL.couronnes.images, couronnesServies);
+dit('… chacune existe dans le dossier des photos', [], ACCUEIL.couronnes.images.filter((f) => !existsSync(`public/assets/photos/site/${f}`)));
+dit('… et chacune est inscrite au registre des accords', [], ACCUEIL.couronnes.images.filter((f) => !registre.includes(`\`${f}\``)));
+dit('… sans prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil));
 dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
 dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/g) ?? []).length);
 dit('… juste après le hero, avant les portes', true,

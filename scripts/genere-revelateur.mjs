@@ -506,7 +506,20 @@ function rendAccueil(articles) {
            une seconde bande sombre disait la même chose plus bas. La section
            « confiance » reste disponible aux pages libres (rendSection). -->
 
-      <section class="avis" id="avis"><div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div></section>
+      <!-- LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq clientes,
+           photographiées avec leur accord (registre : docs/site-revelateur/
+           photos.md), posées AU-DESSUS des avis : les visages et les mots de
+           leurs semblables ensemble, c'est la preuve entière. Hors de l'îlot,
+           qui ne redessine que sa propre boîte. Aucun prénom. -->
+      <section class="avis" id="avis">
+        <div class="conteneur couronnes">
+          <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2><p class="ligne">${echappe(a.couronnes.ligne)}</p></div>
+          <div class="couronnes__bande">
+            ${a.couronnes.images.map((img) => `<figure>${image(img, 'Une cliente de la Maison, photographiée avec son accord')}</figure>`).join('\n            ')}
+          </div>
+        </div>
+        <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
+      </section>
 
       <section class="fondateurs" id="maison"><div class="conteneur">
         ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}

@@ -78,6 +78,12 @@ export type Accueil = {
   promesses: { titre: string; ligne: string }[];
   /** La section des offres sur l'accueil : l'îlot `offres` s'y monte. */
   offres: { sur: string; titre: string };
+  /** LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq clientes,
+      photographiées avec leur accord, au-dessus des avis Google : les visages
+      et les mots de leurs semblables prouvent ensemble. Chaque fichier est
+      inscrit au registre docs/site-revelateur/photos.md avant d'être servi ;
+      le harnais le vérifie. Aucun prénom. */
+  couronnes: { sur: string; titre: string; ligne: string; images: string[] };
   portes: { sur: string; titre: string; cartes: { titre: string; ligne: string; suite: string; vers: string; image?: string }[]; repli: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };

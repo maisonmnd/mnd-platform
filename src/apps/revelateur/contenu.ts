@@ -184,6 +184,16 @@ export const ACCUEIL: Accueil = {
     sur: 'Les offres de la Maison',
     titre: 'Ce que la Maison vous offre.',
   },
+  /* LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq portraits remis par
+     Yéman, dans l'ordre alterné (locks, cheveux courts, locks…) pour que la
+     rangée dise la diversité de celles qui viennent. L'accord est celui que
+     Yéman a répondu au sélecteur ce jour-là (registre des photos). */
+  couronnes: {
+    sur: 'Nos clientes',
+    titre: 'Celles qui nous font confiance.',
+    ligne: 'Cinq clientes de la Maison, photographiées avec leur accord.',
+    images: ['cliente-1.jpg', 'cliente-4.jpg', 'cliente-2.jpg', 'cliente-5.jpg', 'cliente-3.jpg'],
+  },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
     titre: "Vous êtes où aujourd'hui ?",

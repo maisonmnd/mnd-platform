@@ -19,6 +19,7 @@ sort du cadre ou elle reste, sur décision de Yéman.
 | `portrait-accueil.jpg` | porte « Je veux créer ma couronne » | un portrait souriant, cadré 4/5 sur le visage | remise par Yéman le 22 septembre 2026 ; signature de la photographe hors cadre, sans crédit, sur sa décision |
 | `trois-couronnes.jpg` | porte Entretien | trois femmes, trois couronnes | remise par Yéman le 22 septembre 2026 |
 | `mnd-kids.jpg` | porte MND Kids, page MND Kids | une mère et son enfant, cadrés 4/5 | remise par Yéman le 23 septembre 2026 ; **accord de la mère confirmé par Yéman le 23 septembre 2026** ; signature de la photographe hors cadre ; aucun prénom nulle part |
+| `cliente-1.jpg`, `cliente-2.jpg`, `cliente-3.jpg`, `cliente-4.jpg`, `cliente-5.jpg` | accueil, « Nos clientes », au-dessus des avis Google | cinq clientes de la Maison, portraits 4/5 ancrés en haut | remises par Yéman le 23 septembre 2026 (Downloads/portraits-clientes-2026-09) ; **ce que nous savons, c'est la réponse de Yéman au sélecteur, le 23 septembre 2026 : « Des clientes, avec accord » (« elles ont dit oui pour paraître sur le site public »), alors que la voie « Des clientes, sans accord encore » lui était offerte et décrite** ; bandeau du studio photo (cliente-1, cliente-2) hors cadre par le recadrage, jamais gommé ; aucun prénom nulle part |
 | `brice.jpg` | porte Formation, page Formations | Brice | fondateur |
 | `fondateurs.jpg` | accueil, « Derrière MND » | Brice et Yéman | fondateurs |
 | `yeman.jpg` | page Brice et Yéman | Yéman | fondatrice |
