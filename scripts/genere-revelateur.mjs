@@ -449,7 +449,7 @@ function rendAccueil(articles) {
           <div class="porte-corps"><h3>${echappe(c.titre)}</h3><p>${echappe(c.ligne)}</p><span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span></div>
         </a>`;
   }).join('\n        ');
-  const journal = articles.slice(0, 3).map((art, i) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/journal-${(i % 3) + 1}.jpg" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
+  const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/${attr(art.image)}" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
   return `
       <!-- LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026, maquette validée.
            La photo sous le texte, l'entête posée dessus (la barre, transparente
@@ -653,6 +653,35 @@ const ecrit = (chemin, html) => {
 };
 
 const articles = litLeJournal();
+
+/* CHAQUE ARTICLE NOMME SA VIGNETTE — 23 septembre 2026, à la demande de Yéman
+   (« rajoute le reste des photos dans le journal »).
+
+   Avant, la vignette se tirait au sort : `journal-${(i % 3) + 1}.jpg`, où `i`
+   était le rang du fichier dans l'ordre alphabétique du dossier. Trois images
+   pour dix articles, et surtout : ajouter un article décalait les vignettes de
+   tous les suivants sans que personne ne le voie.
+
+   LA RÈGLE QUI COMPTE, et c'est pour elle que le tirage au sort devait partir :
+   les cinq portraits de clientes n'illustrent JAMAIS un article qui nomme un
+   défaut (locks abîmées, trop lourdes, fines, créées ailleurs). Une cliente a
+   dit oui pour paraître sur le site ; personne ne lui a demandé si son visage
+   pouvait répondre à « Peut-on réparer des dreadlocks abîmées ? ». Ces
+   articles gardent les photos de la Maison. Un tirage au sort, lui, l'aurait
+   fait tôt ou tard, et au prochain article ajouté.
+
+   D'où l'arrêt sec ci-dessous plutôt qu'une valeur par défaut : un article qui
+   ne nomme pas sa vignette ne se publie pas, et celui qui l'écrit choisit. */
+const sansVignette = articles.filter((a) => !a.image);
+if (sansVignette.length) {
+  throw new Error(`Article sans vignette : ${sansVignette.map((a) => a.slug).join(', ')}. `
+    + 'Ajoutez « image: journal-N.jpg » à son en-tête, et inscrivez la photo au registre '
+    + 'docs/site-revelateur/photos.md. Une cliente ne se pose pas sur un article au hasard.');
+}
+const vignetteAbsente = articles.filter((a) => !existsSync(path.join(racine, 'public', 'assets', 'photos', 'site', a.image)));
+if (vignetteAbsente.length) {
+  throw new Error(`Vignette introuvable : ${vignetteAbsente.map((a) => `${a.slug} → ${a.image}`).join(', ')}`);
+}
 const pagesEcrites = [];
 
 ecrit('/', page({
@@ -666,7 +695,7 @@ for (const p of PAGES) {
   const estService = !!(p.cta || p.pas);
   let corps;
   if (p.chemin === '/journal/') {
-    const liste = articles.map((art, i) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/journal-${(i % 3) + 1}.jpg" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
+    const liste = articles.map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/${attr(art.image)}" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
     corps = rendLibre(p, `<section class="serre"><div class="conteneur"><div class="articles">${liste}</div></div></section>`);
   } else corps = estService ? rendService(p) : rendLibre(p);
   const noeuds = [noeudSite(), filAriane([['Accueil', '/'], [p.court, p.chemin]])];

@@ -3,6 +3,7 @@ titre: "Comment hydrater des locks ?"
 slug: hydrater-ses-locks
 description: "Eau, huiles légères, brumes : comment hydrater des dreadlocks sans les alourdir ni laisser de résidus, et ce que la Maison appelle le DÀNDÀN™."
 parcours: entretien
+image: journal-1.jpg
 motsCles:
   - hydrater ses locks
   - huile pour dreadlocks

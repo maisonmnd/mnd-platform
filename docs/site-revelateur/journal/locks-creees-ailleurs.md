@@ -3,6 +3,7 @@ titre: "Peut-on entretenir des locks créées ailleurs ?"
 slug: locks-creees-ailleurs
 description: "Vos locks ont été créées dans un autre salon, à l'étranger ou par vous-même ? Elles sont les bienvenues chez MND. Ce qui change, et ce qui ne change pas."
 parcours: entretien
+image: journal-3.jpg
 motsCles:
   - entretien locks créées ailleurs
   - changer de loctician Cotonou

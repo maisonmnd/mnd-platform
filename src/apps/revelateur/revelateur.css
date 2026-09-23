@@ -175,15 +175,27 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 
 /* ── les avis Google ─────────────────────────────────────────────── */
 .avis .conteneur { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
-/* LES COURONNES DE LA MAISON — 23 septembre 2026 : cinq portraits 4/5 au-dessus
-   des avis, une rangée sur grand écran, une bande qui défile sur téléphone. */
-.avis .conteneur.couronnes { display: block; margin-bottom: clamp(28px, 4vw, 48px); }
-.couronnes__bande { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+/* LES COURONNES DE LA MAISON — 23 septembre 2026, deux portraits au-dessus
+   des avis (« garde 2 photos », Yéman, le soir même ; les trois autres sont
+   descendues au Journal).
+
+   Cinq portraits faisaient une rangée, et une rangée se pose sous son titre.
+   Deux ne font pas une rangée : sur la grille en cinq colonnes qu'ils
+   occupaient, il serait resté trois colonnes vides. On en fait donc une PAIRE
+   posée à côté du titre, dans les mêmes proportions que les avis juste en
+   dessous (.8fr / 1.2fr) : les deux blocs tombent sur la même verticale et la
+   section se lit d'un seul mouvement.
+
+   Le défilement horizontal du téléphone est parti avec la rangée : on ne fait
+   pas défiler deux images, elles tiennent côte à côte à n'importe quelle
+   largeur. */
+.avis .conteneur.couronnes { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
+.couronnes .tete { margin-bottom: 0; }
+.couronnes__bande { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .couronnes__bande figure { margin: 0; }
 .couronnes__bande img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 15%; border-radius: 4px; }
 @media (max-width: 860px) {
-  .couronnes__bande { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; margin-inline: calc(-1 * clamp(18px, 4vw, 40px)); padding-inline: clamp(18px, 4vw, 40px); scroll-padding-inline: clamp(18px, 4vw, 40px); scrollbar-width: thin; }
-  .couronnes__bande figure { flex: 0 0 min(58vw, 240px); scroll-snap-align: start; }
+  .avis .conteneur.couronnes { grid-template-columns: 1fr; gap: 20px; }
 }
 @media (max-width: 860px) { .avis .conteneur { grid-template-columns: 1fr; } }
 .note { display: flex; align-items: baseline; gap: 14px; margin-top: 12px; }

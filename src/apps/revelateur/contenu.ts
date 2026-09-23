@@ -184,15 +184,27 @@ export const ACCUEIL: Accueil = {
     sur: 'Les offres de la Maison',
     titre: 'Ce que la Maison vous offre.',
   },
-  /* LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq portraits remis par
-     Yéman, dans l'ordre alterné (locks, cheveux courts, locks…) pour que la
-     rangée dise la diversité de celles qui viennent. L'accord est celui que
-     Yéman a répondu au sélecteur ce jour-là (registre des photos). */
+  /* LES COURONNES DE LA MAISON, 23 septembre 2026, ramenées à deux le soir
+     même (« garde 2 photos au-dessus des avis Google », Yéman).
+
+     Pourquoi ces deux-là : la bande sert de preuve juste au-dessus des avis
+     d'un salon de locks, et cliente-2 et cliente-3 sont les seules dont les
+     locks sont indiscutables. Les trois autres portent un TWA, des cheveux
+     tirés, ou un plan en pied où le visage fait huit pour cent du cadre ;
+     elles sont descendues au Journal, recadrées en 16/10 (journal-4 à 6).
+
+     À deux, la bande n'est plus une rangée mais une paire posée à côté du
+     titre : voir `.couronnes` dans revelateur.css, qui passe en deux colonnes.
+
+     L'accord reste celui que Yéman a répondu au sélecteur (registre des
+     photos), et les figures n'ont pas de texte de remplacement : la ligne
+     ci-dessous les couvre toutes les deux, et rien dans ces images n'est
+     nommable séparément sans nommer une femme. */
   couronnes: {
     sur: 'Nos clientes',
     titre: 'Celles qui nous font confiance.',
-    ligne: 'Cinq clientes de la Maison, photographiées avec leur accord.',
-    images: ['cliente-1.jpg', 'cliente-4.jpg', 'cliente-2.jpg', 'cliente-5.jpg', 'cliente-3.jpg'],
+    ligne: 'Des clientes de la Maison, photographiées avec leur accord.',
+    images: ['cliente-2.jpg', 'cliente-3.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',

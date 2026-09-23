@@ -3,6 +3,7 @@ titre: "Dreadlocks enfants, comment les entretenir ?"
 slug: dreadlocks-enfants
 description: "À quel âge, avec quelle méthode, à quel rythme : prendre soin des locks d'un enfant sans tirer ni forcer, et faire de chaque soin un moment agréable."
 parcours: mnd-kids
+image: journal-2.jpg
 motsCles:
   - dreadlocks enfants Cotonou
   - locks enfant quel âge

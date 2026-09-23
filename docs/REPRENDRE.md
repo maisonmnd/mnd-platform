@@ -2,6 +2,64 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## DEUX CLIENTES SUR L'ACCUEIL, TROIS AU JOURNAL — 23 septembre 2026
+
+Le soir de leur publication, Yéman a tranché : « garde 2 photos au-dessus des
+avis Google, rajoute le reste des photos dans le journal MND ».
+
+**Lesquelles deux** : `cliente-2` et `cliente-3`, les seules dont les locks
+sont indiscutables. La bande sert de preuve juste au-dessus des avis d'un
+salon de locks ; les trois autres portent un TWA, des cheveux tirés, ou un
+plan en pied où le visage fait huit pour cent du cadre. Le choix n'a pas été
+demandé, il se change en un mot dans `contenu.ts`.
+
+**À deux, ce n'est plus une rangée.** La grille tenait en cinq colonnes ; il
+serait resté trois colonnes vides. La bande devient une PAIRE posée à côté du
+titre, dans les proportions des avis juste en dessous (.8fr / 1.2fr), si bien
+que les deux portraits tombent exactement au-dessus des deux premières cartes
+d'avis. Le défilement horizontal du téléphone est parti avec la rangée : on
+ne fait pas défiler deux images.
+
+**LA VRAIE TROUVAILLE EST AILLEURS, et elle vient de l'autre session.** Mettre
+les trois descendues au Journal n'était pas anodin : sur une carte, une photo
+ILLUSTRE un article. Un visage identifiable posé sur « Peut-on réparer des
+dreadlocks abîmées ? » devient une affirmation sur cette personne, que
+personne ne lui a demandée. Elle a dit oui pour PARAÎTRE sur le site, pas pour
+répondre d'un défaut.
+
+Et ce n'était pas qu'un risque futur : la vignette se tirait au sort,
+`journal-${(i % 3) + 1}.jpg`, où `i` était le rang du fichier dans l'ordre
+alphabétique du dossier. Trois images pour dix articles, et surtout : **ajouter
+un article décalait les vignettes de tous les suivants sans que personne ne le
+voie**. Aucune relecture n'attrape ça.
+
+**Donc chaque article NOMME sa vignette** dans son en-tête (`image:`), le
+générateur s'ARRÊTE si l'un ne la nomme pas, et le harnais refuse qu'une
+vignette de cliente se pose sur un titre qui nomme un défaut
+(`VIGNETTES_DE_CLIENTES`, `NOMME_UN_DEFAUT`). Les quatre articles qui nomment
+un défaut gardent les photos de la Maison. La règle est écrite en haut de
+`docs/site-revelateur/photos.md`, là où elle se lira avant le prochain article.
+
+**Le harnais vérifie désormais la RÈGLE, plus le nombre.** Il comptait « cinq
+couronnes » ; il aurait crié sur un changement voulu tout en laissant passer
+une sixième photo non inscrite au registre. Il vérifie maintenant, pour toute
+image de personne servie : elle existe, elle porte une ligne au registre, son
+alt ne nomme personne, et la page servie pose bien CELLE-LÀ sur CET article-là.
+61 vérifications.
+
+**Les recadrages, refaits depuis les originaux** et non depuis les 800x1000 de
+l'accueil : recadrer un recadrage perd deux fois. Les fenêtres exactes sont au
+registre, avec l'agrandissement de chacune. `journal-4` a été repris une fois,
+sa première fenêtre laissait le visage à vingt pour cent du cadre quand les
+autres cartes le portent à la moitié.
+
+**Deux pièges de l'atelier, notés parce qu'ils coûtent une heure.** Une page
+générée du révélateur ne se regarde PAS telle quelle : sa feuille de style
+n'arrive qu'après `vite build`, et la page brute s'affiche blanche. Et dans
+Git Bash, `VITE_BASE=/revelateur/ npx vite build` construit un site dont la
+base est `/Program Files/Git/revelateur/` : MSYS convertit toute valeur qui
+ressemble à un chemin. Passer par PowerShell pour ces constructions-là.
+
 ## LES SEIZE DERNIÈRES QUESTIONS, ET LA FIN DES FENÊTRES — 23 septembre 2026
 
 Suite des 35 alertes et des 89 confirmations : les 16 `window.prompt` passent

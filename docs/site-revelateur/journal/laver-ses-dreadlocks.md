@@ -3,6 +3,7 @@ titre: "Comment laver correctement ses dreadlocks ?"
 slug: laver-ses-dreadlocks
 description: "À quelle fréquence laver ses locks, avec quel shampoing, comment rincer et sécher pour éviter résidus et odeurs : le lavage expliqué pas à pas."
 parcours: entretien
+image: journal-4.jpg
 motsCles:
   - laver ses dreadlocks
   - shampoing pour locks sans résidus

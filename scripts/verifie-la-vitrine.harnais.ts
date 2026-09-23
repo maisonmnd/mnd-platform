@@ -106,15 +106,59 @@ const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parc
 dit('les portes portent chacune leur photo', ['portrait-accueil.jpg', 'attention.jpg', 'trois-couronnes.jpg', 'mnd-kids.jpg', 'brice.jpg'],
   ['creation', 'reparation', 'entretien', 'enfant', 'formation'].map(photoDeLaPorte));
 dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
-/* LES COURONNES DE LA MAISON (23 septembre 2026) : cinq portraits de clientes
-   au-dessus des avis, hors de l'îlot, chacun servi ET inscrit au registre des
-   accords avant d'être publié. Un visage sans sa ligne ne part pas. */
+/* LES VISAGES DE LA MAISON (23 septembre 2026) : la paire au-dessus des avis,
+   et les vignettes du Journal. Ces vérifications portent la RÈGLE, jamais le
+   nombre : le soir du 23, cinq portraits sont devenus deux, et un harnais qui
+   comptait cinq aurait crié sur un changement voulu tout en laissant passer
+   une sixième photo non inscrite. On vérifie donc, pour TOUTE image de
+   personne servie : elle existe dans le dossier, elle porte une ligne au
+   registre des accords, et aucun alt ne nomme quelqu'un. */
 const registre = readFileSync('docs/site-revelateur/photos.md', 'utf8');
-const couronnesServies = [...(accueil.split('class="couronnes__bande"')[1] ?? '').split('</div>')[0].matchAll(/photos\/site\/([^"]+)"/g)].map((m) => m[1]);
-dit('cinq couronnes de clientes au-dessus des avis', ACCUEIL.couronnes.images, couronnesServies);
+const inscriteAuRegistre = (f: string) => registre.includes('`' + f + '`');
+const figuresDeLaBande = [...(accueil.split('class="couronnes__bande"')[1] ?? '').split('</div>')[0]
+  .matchAll(/<img src="[^"]*photos\/site\/([^"]+)" alt="([^"]*)"/g)];
+dit('la bande sert exactement ce que le contenu nomme', ACCUEIL.couronnes.images, figuresDeLaBande.map((m) => m[1]));
 dit('… chacune existe dans le dossier des photos', [], ACCUEIL.couronnes.images.filter((f) => !existsSync(`public/assets/photos/site/${f}`)));
-dit('… et chacune est inscrite au registre des accords', [], ACCUEIL.couronnes.images.filter((f) => !registre.includes(`\`${f}\``)));
+dit('… et chacune est inscrite au registre des accords', [], ACCUEIL.couronnes.images.filter((f) => !inscriteAuRegistre(f)));
+/* Les alt sont VIDES depuis le 23 septembre 2026 : la ligne de la section les
+   couvre toutes, et répéter la même phrase sous chaque portrait la fait lire
+   autant de fois par un lecteur d'écran. Les rétablir serait une régression. */
+dit('… et aucune ne répète une description déjà lue au-dessus', [], figuresDeLaBande.map((m) => m[2]).filter(Boolean));
 dit('… sans prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil));
+
+/* LE JOURNAL NOMME SES VIGNETTES, ET UNE CLIENTE N'ILLUSTRE PAS UN DÉFAUT.
+   La règle est écrite en haut de docs/site-revelateur/photos.md. Elle tient à
+   une chose qu'aucun œil ne rattrape à la relecture : une cliente a dit oui
+   pour PARAÎTRE sur le site, et son visage posé sur « Peut-on réparer des
+   dreadlocks abîmées ? » devient une affirmation sur elle que personne ne lui
+   a demandée. Tant que la vignette se tirait au sort sur le rang du fichier
+   dans le dossier, le prochain article ajouté pouvait l'y poser tout seul. */
+const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-6.jpg'];
+/* Les mots par lesquels un article nomme un défaut. La liste s'allonge avec
+   le Journal : un article qui parlera de chute, d'odeur ou de moisissure
+   s'ajoute ici le jour où il est écrit. */
+const NOMME_UN_DEFAUT = /abîm|cass|trop lourd|fine|perdue|néglig|chute|pellicule|moisi|odeur|créées ailleurs/i;
+const articlesDuJournal = readdirSync('docs/site-revelateur/journal')
+  .filter((f) => f.endsWith('.md') && f !== 'index.md')
+  .map((f) => {
+    const tete = readFileSync(join('docs/site-revelateur/journal', f), 'utf8').replace(/\r\n/g, '\n').split('\n---\n')[0];
+    const champ = (c: string) => tete.match(new RegExp(`^${c}:\\s*"?(.*?)"?\\s*$`, 'm'))?.[1] ?? '';
+    return { fichier: f, slug: champ('slug'), titre: champ('titre'), image: champ('image') };
+  });
+dit('le Journal a ses dix articles', 10, articlesDuJournal.length);
+dit('… et chacun NOMME sa vignette, au lieu de la tirer au sort', [], articlesDuJournal.filter((a) => !a.image).map((a) => a.fichier));
+dit('… chaque vignette existe dans le dossier des photos', [], articlesDuJournal.filter((a) => !existsSync(`public/assets/photos/site/${a.image}`)).map((a) => a.image));
+dit('… et chaque vignette est inscrite au registre des accords', [], articlesDuJournal.filter((a) => !inscriteAuRegistre(a.image)).map((a) => a.image));
+const vignettesServies = [...(pages.get('/journal/') ?? '')
+  .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/"><img src="[^"]*photos\/site\/([^"]+)"/g)]
+  .map((m) => `${m[1]} · ${m[2]}`);
+dit('… et la page servie pose bien celle-là sur cet article-là',
+  articlesDuJournal.map((a) => `${a.slug} · ${a.image}`), vignettesServies);
+dit('AUCUNE CLIENTE n’illustre un article qui nomme un défaut', [],
+  articlesDuJournal.filter((a) => VIGNETTES_DE_CLIENTES.includes(a.image) && NOMME_UN_DEFAUT.test(a.titre))
+    .map((a) => `${a.image} sur « ${a.titre} »`));
+dit('… et chaque vignette de cliente sert bien quelque part', [],
+  VIGNETTES_DE_CLIENTES.filter((v) => !articlesDuJournal.some((a) => a.image === v)));
 dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
 dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/g) ?? []).length);
 dit('… juste après le hero, avant les portes', true,

@@ -3,6 +3,7 @@ titre: "Peut-on réparer des dreadlocks abîmées ?"
 slug: reparer-des-locks-abimees
 description: "Locks qui cassent, racines fragiles, trous, amincissements : ce qui peut être restauré, ce qui ne peut pas, et pourquoi tout commence par un diagnostic."
 parcours: reparation
+image: journal-3.jpg
 motsCles:
   - réparer des dreadlocks abîmées
   - locks qui cassent
