@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Trente jours de réseaux · du 28 septembre au 27 octobre 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* TRENTE JOURS DE RÉSEAUX (23 septembre 2026). La suite de « La Maison sur ses
+   réseaux » : les images elles-mêmes, jour par jour, du 28 septembre au 27
+   octobre. Le profil Instagram tel qu'il paraîtra (présentation, bulles,
+   grille), chaque publication avec son visuel en vraie proportion et sa
+   légende à coller, la direction artistique des Reels avec un scénarimage par
+   vidéo, et ce que Facebook et LinkedIn reçoivent. Chaque jour se coche.
+   Indigo, cuivre, ivoire ; le vrai monogramme ; aucun prix ; toutes les photos
+   sont celles du site, inscrites au registre ; initiales seulement. */
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-sombre:#D6A06F; --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+img{max-width:100%;display:block}
+.wrap{max-width:980px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+.afixer{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+kbd{font-family:var(--sans);font-size:12px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+.tete{padding:44px 0 12px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,46px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:62ch}
+.sceau{display:block;width:116px;height:116px;margin:-6px 0 -20px -29px}
+.jauge{display:flex;gap:18px;align-items:baseline;margin:22px 0 4px;flex-wrap:wrap}
+.jauge div b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400}
+.jauge div span{font-size:12.5px;color:var(--encre-doux);display:block;margin-top:-4px}
+h2{font-size:clamp(22px,3vw,29px);margin-top:46px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:70ch}
+h3{font-size:19px;font-weight:400;margin-top:26px}
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:14px 18px;margin-top:16px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:12px;line-height:1.6}
+ul.liste{margin:12px 0 0;padding-left:18px;font-size:14px;color:var(--encre-doux)}
+ul.liste li{margin-bottom:6px}
+ul.liste b{color:var(--indigo);font-weight:500}
+
+/* ── le profil Instagram ── */
+.profil{background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:22px 22px 18px;margin-top:16px;max-width:520px}
+.profil__haut{display:flex;gap:22px;align-items:center}
+.avatar{width:86px;height:86px;border-radius:999px;background:var(--indigo);display:grid;place-items:center;overflow:hidden;flex:none}
+.avatar img{width:108px;height:108px}
+.profil__nom b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+.profil__nom span{display:block;font-size:12.5px;color:var(--encre-doux)}
+.profil__chiffres{display:flex;gap:18px;margin-top:8px;font-size:12.5px;color:var(--encre-doux)}
+.profil__chiffres b{color:var(--indigo);font-weight:500}
+.profil__bio{margin-top:14px;font-size:13.5px;white-space:pre-line;line-height:1.5}
+.profil__bio b{font-weight:500;color:var(--indigo)}
+.profil__lien{font-size:13px;color:var(--cuivre-profond);margin-top:4px}
+.profil__boutons{display:flex;gap:8px;margin-top:12px}
+.profil__boutons span{flex:1;text-align:center;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 6px;border-radius:4px;background:var(--cuivre);color:#fff}
+.profil__boutons span.creux{background:var(--fond-2);color:var(--indigo)}
+.bulles{display:flex;gap:12px;margin-top:18px;overflow-x:auto;padding-bottom:4px}
+.bulle{flex:none;width:60px;text-align:center;font-size:10.5px;color:var(--encre-doux)}
+.bulle i{display:grid;place-items:center;width:56px;height:56px;margin:0 auto 4px;border-radius:999px;background:var(--indigo);border:2px solid var(--fond);box-shadow:0 0 0 1.5px var(--cuivre-sombre);overflow:hidden}
+.bulle i img{width:64px;height:64px}
+.grille{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:16px}
+.tuile{aspect-ratio:3/4;position:relative;overflow:hidden;background:var(--indigo);color:#F6F1E7}
+.tuile img.ph{width:100%;height:100%;object-fit:cover;object-position:50% 10%}
+.tuile .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,23,58,.88) 0%,rgba(21,23,58,.5) 36%,rgba(21,23,58,0) 62%)}
+.tuile .txt{position:absolute;left:8px;right:8px;bottom:8px}
+.tuile .txt .sur{color:var(--cuivre-sombre);font-size:5.5px;letter-spacing:.18em}
+.tuile .txt h4{color:#F6F1E7;font-size:12.5px;font-weight:500;margin-top:2px;line-height:1.02}
+.tuile .mono{position:absolute;right:2px;top:0;width:24px;height:24px;opacity:.9}
+.tuile.car{padding:11px 10px;display:flex;flex-direction:column}
+.tuile.car .sur{color:var(--cuivre-sombre);font-size:5.5px;letter-spacing:.18em}
+.tuile.car h4{color:#F6F1E7;font-size:13px;font-weight:400;margin-top:6px;line-height:1.05}
+.tuile.car .n{margin-top:auto;font-size:6px;color:rgba(246,241,231,.6);letter-spacing:.14em}
+.tuile.car .mono{right:2px;top:auto;bottom:0}
+.tuile.annonce{display:grid;place-items:center;text-align:center;padding:10px}
+.tuile.annonce img.gm{width:58px;height:58px;position:static;opacity:1}
+.tuile.annonce h4{color:#F6F1E7;font-size:11px;font-weight:400;line-height:1.1;margin-top:-6px}
+.tuile.annonce small{display:block;font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-sombre);margin-top:4px}
+.tuile .reel{position:absolute;left:6px;top:6px;font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:#F6F1E7;background:rgba(21,23,58,.55);padding:2px 6px;border-radius:999px}
+.tuile .epingle{position:absolute;left:6px;top:6px;font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--indigo);background:rgba(246,241,231,.9);padding:2px 6px;border-radius:999px}
+.tuile.offre .txt h4{font-size:11.5px}
+.tuile.offre .pastille{display:inline-block;background:var(--cuivre);color:#fff;font-size:5.5px;letter-spacing:.14em;text-transform:uppercase;padding:2px 6px;border-radius:999px;margin-bottom:4px}
+
+/* ── les visuels en vraie proportion ── */
+.v-post{width:190px;aspect-ratio:4/5;position:relative;overflow:hidden;background:var(--indigo);border-radius:2px;color:#F6F1E7;flex:none}
+.v-post img.ph{width:100%;height:100%;object-fit:cover;object-position:50% 10%}
+.v-post .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,23,58,.88) 0%,rgba(21,23,58,.55) 34%,rgba(21,23,58,0) 62%)}
+.v-post .txt{position:absolute;left:12px;right:12px;bottom:12px}
+.v-post .txt .sur{color:var(--cuivre-sombre);font-size:6.5px;letter-spacing:.2em}
+.v-post .txt h4{color:#F6F1E7;font-size:17px;font-weight:500;margin-top:3px;line-height:1.02}
+.v-post .txt .filet{width:26px;height:1px;background:var(--cuivre-sombre);margin-top:7px}
+.v-post .mono{position:absolute;right:4px;top:0;width:30px;height:30px;opacity:.9}
+.v-post .pastille{display:inline-block;background:var(--cuivre);color:#fff;font-size:6px;letter-spacing:.14em;text-transform:uppercase;padding:3px 7px;border-radius:999px;margin-bottom:5px}
+.v-post.car{padding:16px 14px;display:flex;flex-direction:column}
+.v-post.car .sur{color:var(--cuivre-sombre);font-size:6.5px;letter-spacing:.2em}
+.v-post.car h4{color:#F6F1E7;font-size:20px;font-weight:400;margin-top:8px;line-height:1.05}
+.v-post.car .n{margin-top:auto;font-size:7.5px;color:rgba(246,241,231,.6);letter-spacing:.14em}
+.v-post.car .mono{right:4px;top:auto;bottom:0}
+.v-post.int{background:var(--fond);color:var(--encre)}
+.v-post.int .num{font-family:var(--serif);font-size:26px;color:var(--cuivre);line-height:1}
+.v-post.int h4{color:var(--indigo);font-size:14px;font-weight:500;margin-top:6px;line-height:1.1}
+.v-post.int p{font-size:8.5px;color:var(--encre-doux);margin-top:6px;line-height:1.45}
+.v-post.int .n{color:var(--encre-doux)}
+.v-post.annonce{display:grid;place-items:center;text-align:center;padding:14px}
+.v-post.annonce img.gm{width:96px;height:96px;position:static;opacity:1}
+.v-post.annonce h4{color:#F6F1E7;font-size:17px;font-weight:400;line-height:1.1;margin-top:-10px}
+.v-post.annonce small{display:block;font-size:6.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--cuivre-sombre);margin-top:8px}
+.v-post.ivoire{background:var(--fond);color:var(--encre)}
+.v-post.ivoire img.ph{object-position:50% 20%}
+.v-post.ivoire .voile{background:linear-gradient(0deg,rgba(246,241,231,.96) 0%,rgba(246,241,231,.85) 36%,rgba(246,241,231,0) 62%)}
+.v-post.ivoire .txt h4{color:var(--indigo)}
+.v-post.ivoire .txt .sur{color:var(--cuivre-profond)}
+.v-story{width:118px;aspect-ratio:9/16;position:relative;overflow:hidden;background:var(--indigo);border-radius:2px;color:#F6F1E7;flex:none}
+.v-story img.ph{width:100%;height:100%;object-fit:cover;object-position:50% 0}
+.v-story .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,23,58,.92) 0%,rgba(21,23,58,.5) 40%,rgba(21,23,58,0) 62%,rgba(21,23,58,.3) 100%)}
+.v-story .mono{position:absolute;left:50%;top:5px;transform:translateX(-50%);width:28px;height:28px}
+.v-story .txt{position:absolute;left:8px;right:8px;bottom:32px}
+.v-story .txt h4{color:#F6F1E7;font-size:13px;font-weight:500;line-height:1.05}
+.v-story .txt .sur{color:var(--cuivre-sombre);font-size:5.5px;letter-spacing:.16em;margin-top:5px}
+.v-story .cta{position:absolute;left:8px;right:8px;bottom:8px;background:var(--cuivre);color:#fff;font-size:5.5px;letter-spacing:.14em;text-transform:uppercase;text-align:center;padding:6px 3px;border-radius:2px}
+.v-story.texte{display:flex;flex-direction:column;justify-content:center;padding:12px}
+.v-story.texte h4{color:#F6F1E7;font-size:14px;font-weight:400;line-height:1.1}
+.v-story.texte p{font-size:7.5px;color:rgba(246,241,231,.78);margin-top:8px;line-height:1.5}
+.v-story.texte .sur{position:absolute;top:44px;left:12px;color:var(--cuivre-sombre);font-size:5.5px;letter-spacing:.16em}
+.v-story .bande{position:absolute;left:0;right:0;bottom:44px;background:rgba(21,23,58,.82);color:#F6F1E7;font-size:6.5px;line-height:1.4;padding:5px 8px;text-align:center}
+.v-story.fin{display:grid;place-items:center;text-align:center;padding:10px}
+.v-story.fin img.gm{width:56px;height:56px;position:static;transform:none}
+.v-story.fin h4{color:#F6F1E7;font-size:11px;font-weight:400;margin-top:-6px;line-height:1.1}
+.v-story.fin .cta{position:static;margin-top:8px}
+
+/* ── les jours ── */
+ol.jours{list-style:none;margin:16px 0 0;padding:0}
+/* Un jour = une carte en une colonne : la rangée des visuels (un carrousel
+   en fait jusqu'à six) puis le texte, pour qu'un carrousel ne s'empile pas
+   dans une colonne étroite à côté d'un vide. */
+ol.jours li{position:relative;display:block;background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px 46px 16px 16px;margin-bottom:10px;transition:.18s ease}
+ol.jours li .visuels{margin-bottom:14px}
+ol.jours li.fait{opacity:.5}
+ol.jours li.fait .titre b{text-decoration:line-through}
+.visuels{display:flex;gap:8px;flex-wrap:wrap;align-content:start}
+.jour__meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux)}
+.jour__meta .date{font-family:var(--serif);font-size:19px;letter-spacing:0;text-transform:none;color:var(--indigo)}
+.dep{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;background:var(--indigo);color:#F6F1E7;letter-spacing:.1em;text-transform:uppercase}
+.dep.c{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.dep.g{background:var(--fond-2);color:var(--encre-doux);border:1px solid var(--filet)}
+.titre{margin-top:6px;font-size:15px}
+.titre b{font-weight:500;color:var(--indigo)}
+.titre span{color:var(--encre-doux)}
+.legende{position:relative;background:var(--fond);border:1px solid var(--filet);border-radius:4px;padding:10px 78px 10px 12px;font-size:13px;white-space:pre-line;line-height:1.5;margin-top:10px}
+.legende .tags{color:var(--cuivre-profond)}
+.copier{position:absolute;right:8px;top:8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--filet);background:var(--carte);color:var(--cuivre-profond);border-radius:999px;padding:3px 9px;cursor:pointer}
+.copier:hover{border-color:var(--cuivre)}
+.copier.fait{background:var(--cuivre);color:#fff;border-color:var(--cuivre)}
+.note{font-size:12.5px;color:var(--encre-doux);margin-top:8px}
+.note b{color:var(--indigo);font-weight:500}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+.semaine{margin-top:30px;padding-bottom:6px;border-bottom:1px solid var(--filet);display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.semaine h3{margin-top:0}
+.semaine span{font-size:12.5px;color:var(--encre-doux)}
+
+/* ── les Reels ── */
+.reels{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.reel{background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px}
+.reel h4{font-size:19px;font-weight:400}
+.reel .duree{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cuivre-profond);margin-top:2px}
+.reel .plans{display:flex;gap:8px;margin-top:12px}
+.reel .plan{flex:1;font-size:11.5px;color:var(--encre-doux);line-height:1.45}
+.reel .plan b{display:block;font-weight:500;color:var(--indigo);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:6px 0 2px}
+.reel .voix{margin-top:10px;font-size:13px;font-family:var(--serif);color:var(--indigo);font-style:italic;border-left:2px solid var(--cuivre);padding-left:10px;line-height:1.4}
+.deux{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.deux .bloc{background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px}
+.deux .bloc h4{font-size:18px;font-weight:400}
+.linkedin{background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px;margin-top:14px;display:grid;grid-template-columns:200px 1fr;gap:18px}
+.linkedin .texte{position:relative;font-size:13.5px;white-space:pre-line;line-height:1.55;background:var(--fond);border:1px solid var(--filet);border-radius:4px;padding:12px 78px 12px 14px}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:760px){
+  ol.jours li,ol.jours li.story,.linkedin{grid-template-columns:1fr}
+  .reels,.deux{grid-template-columns:1fr}
+  .reel .plans{flex-direction:column}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.copier{display:none}
+  ol.jours li,.reel,.linkedin,.garde,.regle,.profil{break-inside:avoid}
+  h2{break-after:avoid;margin-top:22px}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  @page{margin:12mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="sceau" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <p class="sur">Maquette · trente jours de réseaux · du lundi 28 septembre au mardi 27 octobre 2026</p>
+    <h1>Trente jours, image par image</h1>
+    <p class="ligne">Le profil Instagram tel qu'il paraîtra, chaque publication avec son visuel et sa légende à coller, la direction artistique des Reels, et ce que Facebook et LinkedIn reçoivent. Le rythme est celui que vous avez tranché : deux publications et une vidéo par semaine, une story le dimanche, LinkedIn deux fois par mois. À l'écran, les mains de Brice et la voix de Yéman.</p>
+    <div class="jauge">
+      <div><b>10</b><span>publications</span></div>
+      <div><b>4</b><span>Reels</span></div>
+      <div><b>4</b><span>stories du dimanche</span></div>
+      <div><b>2</b><span>textes LinkedIn</span></div>
+      <div><b>1</b><span>offre du mois</span></div>
+    </div>
+  </header>
+
+  <!-- ══ 1. INSTAGRAM, LE PROFIL ══ -->
+  <h2>Instagram, le profil au trentième jour</h2>
+  <p class="cap">Le compte « M Natural Dreadlocks » renommé, avec son historique. La présentation, les sept bulles, et la grille telle qu'Instagram l'affiche : trois publications épinglées en haut, puis les plus récentes d'abord.</p>
+  <div class="profil">
+    <div class="profil__haut">
+      <div class="avatar"><img src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="profil__nom"><b>Maison MND · Cotonou</b><span>@maison.mnd</span>
+        <div class="profil__chiffres"><span><b>14</b> publications</span><span><b>vos abonnées</b>, gardées</span></div>
+      </div>
+    </div>
+    <p class="profil__bio"><b>Maison MND · Cotonou</b>
+Locks créées, réparées, entretenues, depuis 2010.
+La Première Couronne, la réparation, l'entretien, MND Kids, MND Formation.
+Réservez en ligne, la Maison confirme sur WhatsApp.</p>
+    <p class="profil__lien">maisonmnd.com</p>
+    <div class="profil__boutons"><span>Réserver</span><span class="creux">WhatsApp</span><span class="creux">Appeler</span></div>
+    <div class="bulles">
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>Première Couronne</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>Réparation</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>Entretien</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>MND Kids</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>Formations</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>La Maison</div>
+      <div class="bulle"><i><img src="assets/monograms/mono-ivoire.png" alt=""></i>Avis</div>
+    </div>
+    <div class="grille">
+      <div class="tuile annonce"><span class="epingle">Épinglé</span><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>M Natural Dreadlocks devient Maison MND</h4><small>Même Maison · mêmes mains</small></div>
+      <div class="tuile offre"><span class="epingle">Épinglé</span><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><div class="txt"><span class="pastille">Offre du mois</span><h4>Le Lavage du mois</h4><p class="sur">Coiffure offerte</p></div></div>
+      <div class="tuile"><span class="epingle">Épinglé</span><img class="ph" src="assets/photos/site/portrait-accueil.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">La Première Couronne</p><h4>Vous n'avez jamais porté de locks.</h4></div></div>
+      <div class="tuile car"><p class="sur">Comprendre</p><h4>Avant la Première Couronne : quatre choses à savoir</h4><p class="n">1 / 6</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="tuile"><img class="ph" src="assets/photos/site/fondateurs.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">Offre familles</p><h4>Deux couronnes, une venue.</h4></div></div>
+      <div class="tuile"><span class="reel">Reel</span><img class="ph" src="assets/photos/site/regard.jpg" alt=""><div class="voile"></div><div class="txt"><h4>Ce qu'on ne fait jamais à une couronne</h4></div></div>
+      <div class="tuile car"><p class="sur">Comprendre</p><h4>Hydrater sans étouffer : eau d'abord, huile ensuite</h4><p class="n">1 / 6</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="tuile"><img class="ph" src="assets/photos/site/mnd-kids.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">MND Kids</p><h4>Ma couronne grandit avec moi.</h4></div></div>
+      <div class="tuile"><span class="reel">Reel</span><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><div class="txt"><h4>Un lavage à la Maison, du début à la fin</h4></div></div>
+      <div class="tuile car"><p class="sur">Comprendre</p><h4>Laver ses locks : quatre choses qui comptent</h4><p class="n">1 / 6</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="tuile"><img class="ph" src="assets/photos/site/trois-couronnes.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">Entretien</p><h4>Créées ailleurs ? Bienvenue quand même.</h4></div></div>
+      <div class="tuile"><span class="reel">Reel</span><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div><div class="txt"><h4>Le resserrage d'une racine, en vingt secondes</h4></div></div>
+      <div class="tuile car"><p class="sur">Comprendre</p><h4>Trois signes que vos racines demandent de l'attention</h4><p class="n">1 / 5</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="tuile"><span class="reel">Reel</span><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div><div class="txt"><h4>La Maison, en trente secondes</h4></div></div>
+    </div>
+  </div>
+  <ul class="liste">
+    <li><b>Les bulles</b> portent toutes le monogramme ivoire sur indigo : c'est leur nom qui les distingue, et la grille reste calme. Elles se remplissent au fil du mois avec les stories du dimanche et les Reels.</li>
+    <li><b>Les trois épinglés</b> tiennent la première ligne tout le mois : le nouveau nom, l'offre du mois, la Première Couronne. Le premier novembre, l'offre change, l'épingle aussi.</li>
+    <li><b>Un rythme visible</b> : la grille alterne un carrousel indigo, un Reel, un portrait. Lue de haut en bas, elle raconte la Maison sans une légende.</li>
+  </ul>
+
+  <!-- ══ 2. LES TRENTE JOURS ══ -->
+  <h2>Les trente jours</h2>
+  <p class="cap">Chaque jour se coche une fois publié. Les visuels sont en vraie proportion, les légendes se copient d'un geste, et chaque lien porte sa campagne. Un portrait est le même sur Instagram et Facebook ; un Reel devient une vidéo TikTok le même jour, sans filigrane.</p>
+  <div class="regle">
+    <p>Le lundi 28 septembre au matin, avant la première publication : l'avatar, la présentation, le lien et la couverture changent sur les quatre réseaux. Puis l'annonce part. Une visiteuse qui arrive depuis la publication doit trouver la Maison déjà à son nouveau nom.</p>
+  </div>
+
+  <div class="semaine"><h3>Semaine 1 · le nouveau nom</h3><span>du 28 septembre au 4 octobre</span></div>
+  <ol class="jours" id="jours">
+
+    <li>
+      <div class="visuels"><div class="v-post annonce"><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>M Natural Dreadlocks devient Maison MND.</h4><small>Même Maison · mêmes mains · Cotonou · depuis 2010</small></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Lundi 28 septembre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep">LinkedIn</span><span class="dep c">Annonce</span></div>
+        <p class="titre"><b>Le nouveau nom.</b> <span>Le portrait indigo, le monogramme au centre, une phrase. Épinglé en premier sur Instagram et Facebook.</span></p>
+        <div class="legende" data-copie>M Natural Dreadlocks devient Maison MND.
+Le nom change, la Maison reste : les mêmes mains, la même méthode, la même adresse à Suru-Léré, depuis 2010.
+Un nouveau site vous attend, et vous y réservez votre entretien en trois pas, sans créer de compte : maisonmnd.com
+<span class="tags">#MaisonMND #LocksCotonou #Dreadlocks #Cotonou #Bénin</span></div>
+        <p class="note"><b>Le même matin :</b> avatar, présentation, lien et couverture changés sur les quatre réseaux. Sur LinkedIn, le même visuel en indigo sur ivoire, avec la phrase de Yéman : « Seize ans après la première couronne, la Maison prend le nom qu'elle portait déjà entre nous. »</p>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Pourquoi ce nom · 1/3</p><h4>Une maison, pas un salon.</h4><p>On y entre, on y revient, on y est reçue. C'est ce que nous faisons depuis 2010.</p></div><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Pourquoi ce nom · 2/3</p><h4>Le monogramme.</h4><p>Une couronne vue de face, posée sur une ligne : la vôtre, tenue.</p></div><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Pourquoi ce nom · 3/3</p><h4>Ce qui ne change pas.</h4><p>Les mains, la méthode, l'adresse, le numéro WhatsApp. Réservez sur maisonmnd.com.</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mardi 29 septembre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Stories</span></div>
+        <p class="titre"><b>Pourquoi ce nom, en trois stories.</b> <span>Texte sur indigo, pas de photo : c'est la Maison qui parle. La troisième porte le lien vers le site, enregistrée dans la bulle « La Maison ».</span></p>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-story"><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>La Maison, en trente secondes</h4><p class="sur">Les mains · la méthode · l'adresse</p></div><div class="cta">Réserver · maisonmnd.com</div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mercredi 30 septembre</span><span class="dep">Reel</span><span class="dep">TikTok</span><span class="dep c">La Maison</span></div>
+        <p class="titre"><b>La Maison, en trente secondes.</b> <span>Le premier Reel : l'atelier, les mains de Brice, la voix de Yéman, le monogramme à la fin. Scénarimage plus bas.</span></p>
+        <div class="legende" data-copie>Trente secondes à la Maison. Les mains qui créent, réparent et entretiennent vos couronnes depuis 2010, à Cotonou. Nouveau nom, même Maison.
+Réservez votre entretien en ligne : maisonmnd.com
+<span class="tags">#MaisonMND #LocksCotonou #Dreadlocks</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><span class="pastille">Offre du mois</span><h4>Le Lavage du mois</h4><p class="sur">Coiffure offerte · Impeccable, chaque mois</p><div class="filet"></div></div></div><div class="v-story"><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>Le Lavage du mois</h4><p class="sur">Coiffure offerte</p></div><div class="cta">Réserver mon lavage</div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Jeudi 1er octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep">Story</span><span class="dep">Statut WhatsApp</span><span class="dep c">Prendre soin</span></div>
+        <p class="titre"><b>Le Lavage du mois.</b> <span>L'affiche déjà prête (dossier des affiches, formats carré et récit), épinglée en deuxième sur Instagram.</span></p>
+        <div class="legende" data-copie>Le Lavage du mois. Votre KLƆKLƆ™ Le Lavage chaque mois, et la coiffure de sortie est offerte. Vous repartez prête pour la semaine.
+Impeccable, chaque mois. Dans la Maison, au règlement, une offre à la fois.
+Réservez votre lavage : maisonmnd.com/les-offres/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=lavage-du-mois
+<span class="tags">#MaisonMND #LeLavageDuMois #LocksCotonou</span></div>
+        <p class="note"><b>Une seule fois</b> par mois, jamais de rappel dans le fil ; la story et le statut WhatsApp suffisent.</p>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/portrait-accueil.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">La Première Couronne · Cotonou</p><h4>Vous n'avez jamais porté de locks.</h4><div class="filet"></div></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Vendredi 2 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Transformer</span></div>
+        <p class="titre"><b>La Première Couronne.</b> <span>Le portrait de la porte du site, épinglé en troisième.</span></p>
+        <div class="legende" data-copie>Vous n'avez jamais porté de locks. Vous n'avez pas besoin de tout savoir avant de commencer : nous choisissons la méthode ensemble, à la consultation, après avoir regardé vos cheveux de près.
+Quelques centimètres suffisent pour poser une base solide.
+La Première Couronne : maisonmnd.com/premiere-couronne/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=premiere-couronne
+<span class="tags">#MaisonMND #PremiereCouronne #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Dimanche à la Maison</p><h4>Une photo prise le jour même.</h4><p>L'atelier avant l'ouverture, une main, un outil propre, la lumière de la fenêtre. Un mot, pas plus.</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Dimanche 4 octobre</span><span class="dep">Story</span><span class="dep c">La Maison</span></div>
+        <p class="titre"><b>Dimanche à la Maison.</b> <span>Une story vraie, prise le jour même, sans gabarit : une seule ligne de texte en Jost ivoire, le monogramme en haut. Enregistrée dans la bulle « La Maison ».</span></p>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="semaine"><h3>Semaine 2 · les racines</h3><span>du 5 au 11 octobre</span></div>
+  <ol class="jours">
+
+    <li>
+      <div class="visuels"><div class="v-post car"><p class="sur">Comprendre sa couronne</p><h4>Trois signes que vos racines demandent de l'attention</h4><p class="n">1 / 5 · MAISON MND</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div><div class="v-post int"><p class="num">01</p><h4>La tension qui dure</h4><p>Une sensibilité au sommet du crâne qui reste plus de deux jours après un resserrage dit une tension à revoir. On ne serre pas plus fort, on regarde.</p><p class="n">2 / 5</p></div><div class="v-post int"><p class="num">02</p><h4>Des racines qui s'affinent</h4><p>Une racine plus fine que la lock qu'elle porte s'use à chaque coiffure serrée. Le signe se voit au miroir, de près, à la lumière du jour.</p><p class="n">3 / 5</p></div><div class="v-post int"><p class="num">03</p><h4>Et un faux signe</h4><p>Quelques centimètres de cheveux libres entre deux visites sont normaux, et même souhaitables. Une racine qui repousse est une racine qui va bien.</p><p class="n">4 / 5</p></div><div class="v-post int"><p class="num">05</p><h4>À la Maison, le SÍNSIN™</h4><p>Le resserrage des racines, le geste le plus fréquent de la Maison. Réservez votre entretien en ligne, en trois pas.</p><p class="n">5 / 5 · maisonmnd.com</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Lundi 5 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Comprendre</span></div>
+        <p class="titre"><b>Trois signes que vos racines demandent de l'attention.</b> <span>Cinq diapositives, tirées de l'article du Journal « Comment entretenir ses racines ? ».</span></p>
+        <div class="legende" data-copie>Trois signes que vos racines demandent de l'attention, et un faux signe qui inquiète pour rien. Faites glisser.
+Le resserrage, à la Maison, s'appelle le SÍNSIN™. Il se réserve en ligne, en trois pas : maisonmnd.com/entretien-locks/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=racines
+<span class="tags">#MaisonMND #EntretienLocks #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post ivoire"><img class="ph" src="assets/photos/site/fondateurs.jpg" alt=""><div class="voile"></div><div class="txt"><p class="sur">Maison MND · depuis 2010</p><h4>Ce que seize ans de locks nous ont appris sur la patience.</h4></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mardi 6 octobre</span><span class="dep">LinkedIn</span><span class="dep c">Transmettre</span></div>
+        <p class="titre"><b>Seize ans de patience.</b> <span>Le premier texte long, signé Yéman depuis son profil, relayé par la page. Le visuel en indigo sur ivoire. Texte complet plus bas.</span></p>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-story"><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>Le resserrage d'une racine, en vingt secondes</h4><p class="sur">SÍNSIN™</p></div><div class="cta">Réserver · maisonmnd.com</div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mercredi 7 octobre</span><span class="dep">Reel</span><span class="dep">TikTok</span><span class="dep c">Le geste</span></div>
+        <p class="titre"><b>Le resserrage d'une racine, en vingt secondes.</b> <span>Un seul geste, du début à la fin, en plan serré sur les mains. Scénarimage plus bas.</span></p>
+        <div class="legende" data-copie>Une racine, vingt secondes, un geste : le SÍNSIN™. On ne serre pas plus fort, on serre juste.
+Votre entretien se réserve en ligne : maisonmnd.com
+<span class="tags">#MaisonMND #Sinsin #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/trois-couronnes.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">Entretien · Cotonou</p><h4>Créées ailleurs ? Bienvenue quand même.</h4><div class="filet"></div></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Vendredi 9 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Prendre soin</span></div>
+        <p class="titre"><b>Créées ailleurs ? Bienvenue quand même.</b> <span>La réponse à la question qui revient le plus.</span></p>
+        <div class="legende" data-copie>Vos locks ont été créées ailleurs, ou par vous-même ? Bienvenue quand même. À la première visite, nous regardons la méthode, les sections, l'état des racines. Puis le soin est le même pour toutes les couronnes : Purifier, Nourrir, Sceller, Couronner.
+Réservez votre entretien : maisonmnd.com/entretien-locks/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=creees-ailleurs
+<span class="tags">#MaisonMND #EntretienLocks #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Dimanche à la Maison</p><h4>Une photo prise le jour même.</h4><p>Les outils désinfectés, alignés. Une ligne : « Prêts pour la semaine. »</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Dimanche 11 octobre</span><span class="dep">Story</span><span class="dep c">La Maison</span></div>
+        <p class="titre"><b>Dimanche à la Maison.</b> <span>Les outils, la propreté, une ligne.</span></p>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="semaine"><h3>Semaine 3 · le lavage</h3><span>du 12 au 18 octobre</span></div>
+  <ol class="jours">
+
+    <li>
+      <div class="visuels"><div class="v-post car"><p class="sur">Comprendre sa couronne</p><h4>Laver ses locks : quatre choses qui comptent</h4><p class="n">1 / 6 · MAISON MND</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div><div class="v-post int"><p class="num">01</p><h4>À quel rythme</h4><p>Il n'y a pas de fréquence universelle. À Cotonou, avec la chaleur et l'humidité, la plupart des couronnes apprécient un lavage par semaine, parfois tous les dix jours.</p><p class="n">2 / 6</p></div><div class="v-post int"><p class="num">02</p><h4>Avec quoi</h4><p>Un shampoing clair, sans silicones ni huiles lourdes. Une lock retient ce qu'on y met, lavage après lavage.</p><p class="n">3 / 6</p></div><div class="v-post int"><p class="num">03</p><h4>Comment</h4><p>Mouillez longuement, jusqu'à ce que les locks soient lourdes. Un lavage sur des locks à moitié mouillées ne nettoie que la surface.</p><p class="n">4 / 6</p></div><div class="v-post int"><p class="num">04</p><h4>Sécher, vraiment</h4><p>Une lock humide à l'intérieur pendant des heures prend une odeur qui ne part pas au lavage suivant. Le séchage est la moitié du lavage.</p><p class="n">5 / 6</p></div><div class="v-post int"><p class="num">06</p><h4>À la Maison, le KLƆKLƆ™</h4><p>Le lavage de la Maison, et ce mois-ci la coiffure de sortie est offerte. Réservez en ligne.</p><p class="n">6 / 6 · maisonmnd.com</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Lundi 12 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Comprendre</span></div>
+        <p class="titre"><b>Laver ses locks : quatre choses qui comptent.</b> <span>Six diapositives, tirées de « Comment laver correctement ses dreadlocks ? ». La dernière ramène au Lavage du mois.</span></p>
+        <div class="legende" data-copie>Laver ses locks : le rythme, le produit, le geste, et le séchage, qui est la moitié du lavage. Quatre choses qui comptent, à faire glisser.
+À la Maison, le lavage s'appelle le KLƆKLƆ™, et ce mois-ci la coiffure de sortie est offerte : maisonmnd.com/les-offres/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=lavage
+<span class="tags">#MaisonMND #LaverSesLocks #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-story"><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>Un lavage à la Maison, du début à la fin</h4><p class="sur">KLƆKLƆ™</p></div><div class="cta">Réserver · maisonmnd.com</div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mercredi 14 octobre</span><span class="dep">Reel</span><span class="dep">TikTok</span><span class="dep c">Le geste</span></div>
+        <p class="titre"><b>Un lavage à la Maison, du début à la fin.</b> <span>Trente secondes, quatre temps : mouiller, laver, rincer, sécher. Scénarimage plus bas.</span></p>
+        <div class="legende" data-copie>Un lavage à la Maison, du début à la fin, en trente secondes. Mouiller longuement, laver clair, rincer jusqu'à l'eau claire, sécher vraiment.
+Le KLƆKLƆ™ se réserve en ligne : maisonmnd.com
+<span class="tags">#MaisonMND #Kloklo #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/mnd-kids.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">MND Kids · Cotonou</p><h4>Ma couronne grandit avec moi.</h4><div class="filet"></div></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Vendredi 16 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Prendre soin</span></div>
+        <p class="titre"><b>MND Kids.</b> <span>La photo de la porte, avec l'accord de la mère inscrit au registre. Aucun prénom.</span></p>
+        <div class="legende" data-copie>Un enfant a besoin de temps, de douceur, et d'une main qui ne tire pas. Vous restez à ses côtés, et la visite commence par un échange avec vous.
+MND Kids : maisonmnd.com/mnd-kids/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=mnd-kids
+<span class="tags">#MaisonMND #MNDKids #LocksEnfants #Cotonou</span></div>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Dimanche à la Maison</p><h4>Une photo prise le jour même.</h4><p>Le fauteuil vide, la lumière du matin. « À demain. »</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Dimanche 18 octobre</span><span class="dep">Story</span><span class="dep c">La Maison</span></div>
+        <p class="titre"><b>Dimanche à la Maison.</b></p>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="semaine"><h3>Semaine 4 · l'hydratation et la transmission</h3><span>du 19 au 25 octobre</span></div>
+  <ol class="jours">
+
+    <li>
+      <div class="visuels"><div class="v-post car"><p class="sur">Comprendre sa couronne</p><h4>Hydrater sans étouffer : eau d'abord, huile ensuite</h4><p class="n">1 / 6 · MAISON MND</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div><div class="v-post int"><p class="num">01</p><h4>Pourquoi les locks ont soif</h4><p>Le cheveu afro est naturellement sec : ses courbes empêchent le sébum de descendre. Dans une lock, la matière est dense, et il n'atteint que la racine.</p><p class="n">2 / 6</p></div><div class="v-post int"><p class="num">02</p><h4>L'huile n'hydrate pas</h4><p>L'huile retient l'eau. Appliquer de l'huile sur une lock sèche, c'est fermer une porte sur une pièce vide. Eau d'abord, huile ensuite.</p><p class="n">3 / 6</p></div><div class="v-post int"><p class="num">03</p><h4>Ce qui entre, ce qui étouffe</h4><p>Jojoba, pépins de raisin, amande douce, un peu de coco : elles entrent dans la fibre. Les huiles lourdes et les beurres laissent un film.</p><p class="n">4 / 6</p></div><div class="v-post int"><p class="num">04</p><h4>La routine</h4><p>Deux à trois fois par semaine, une brume d'eau sur les longueurs, puis une goutte d'huile légère entre les paumes. Le cuir chevelu, seulement quand il tire.</p><p class="n">5 / 6</p></div><div class="v-post int"><p class="num">06</p><h4>À la Maison, le DÀNDÀN™</h4><p>L'hydratation aux sept huiles, sur une couronne propre. Réservez votre soin en ligne.</p><p class="n">6 / 6 · maisonmnd.com</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Lundi 19 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Comprendre</span></div>
+        <p class="titre"><b>Hydrater sans étouffer.</b> <span>Six diapositives, tirées de « Comment hydrater des locks ? ». Le carrousel qui s'enregistre le plus, à parier.</span></p>
+        <div class="legende" data-copie>L'huile n'hydrate pas : elle retient l'eau. Eau d'abord, huile ensuite, et des huiles qui entrent plutôt que des beurres qui étouffent. La routine tient en deux gestes par semaine. Faites glisser.
+À la Maison, l'hydratation s'appelle le DÀNDÀN™ : maisonmnd.com/soins-locks/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=hydratation
+<span class="tags">#MaisonMND #HydraterSesLocks #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post ivoire"><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div><div class="txt"><p class="sur">MND Formation</p><h4>Transmettre la méthode.</h4></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mardi 20 octobre</span><span class="dep">LinkedIn</span><span class="dep c">Transmettre</span></div>
+        <p class="titre"><b>Transmettre la méthode.</b> <span>Le second texte long : MND Formation, pour celles et ceux qui feront des locks leur métier. Texte complet plus bas.</span></p>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-story"><img class="ph" src="assets/photos/site/regard.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>Ce qu'on ne fait jamais à une couronne</h4><p class="sur">Trois gestes</p></div><div class="cta">Réserver · maisonmnd.com</div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mercredi 21 octobre</span><span class="dep">Reel</span><span class="dep">TikTok</span><span class="dep c">Le geste</span></div>
+        <p class="titre"><b>Ce qu'on ne fait jamais à une couronne.</b> <span>Trois gestes montrés puis corrigés, en vingt-cinq secondes. Scénarimage plus bas.</span></p>
+        <div class="legende" data-copie>Trois choses qu'on ne fait jamais à une couronne : serrer plus fort une racine qui tire, huiler une lock sèche, la laisser humide des heures. Et ce qu'on fait à la place.
+Votre entretien se réserve en ligne : maisonmnd.com
+<span class="tags">#MaisonMND #EntretienLocks #LocksCotonou</span></div>
+      </div>
+    </li>
+
+    <li>
+      <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/fondateurs.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><span class="pastille">Offre familles</span><h4>Deux couronnes, une venue.</h4><p class="sur">À deux, la seconde couronne est accompagnée</p><div class="filet"></div></div></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Vendredi 23 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Prendre soin</span></div>
+        <p class="titre"><b>Deux couronnes, une venue.</b> <span>La première offre familles, telle qu'elle est écrite dans la maquette des offres. La remise se dit à la Maison, jamais dans la légende.</span></p>
+        <div class="legende" data-copie>Deux couronnes, une venue. Venez à deux, une sœur, une amie, une mère : la seconde couronne est accompagnée, et vous repartez ensemble.
+Les offres de la Maison : maisonmnd.com/les-offres/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=deux-couronnes
+<span class="tags">#MaisonMND #OffresFamilles #LocksCotonou</span></div>
+        <p class="note"><b>À condition</b> que l'offre soit créée et « en vitrine » dans Le Trône ce jour-là ; sinon, on publie le portrait « Je veux apprendre le métier » (brice.jpg) à sa place.</p>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Dimanche à la Maison</p><h4>Une photo prise le jour même.</h4><p>Les sept huiles du DÀNDÀN™, alignées. « Ce qui entre, ce qui scelle. »</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Dimanche 25 octobre</span><span class="dep">Story</span><span class="dep c">La Maison</span></div>
+        <p class="titre"><b>Dimanche à la Maison.</b></p>
+      </div>
+    </li>
+
+  </ol>
+
+  <div class="semaine"><h3>Semaine 5 · la Première Couronne, et le point</h3><span>26 et 27 octobre</span></div>
+  <ol class="jours">
+
+    <li>
+      <div class="visuels"><div class="v-post car"><p class="sur">Comprendre sa couronne</p><h4>Avant la Première Couronne : quatre choses à savoir</h4><p class="n">1 / 6 · MAISON MND</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div><div class="v-post int"><p class="num">01</p><h4>La longueur</h4><p>Quelques centimètres suffisent pour poser une base solide. Ce qui compte davantage, c'est la texture, la densité, et l'état du cuir chevelu.</p><p class="n">2 / 6</p></div><div class="v-post int"><p class="num">02</p><h4>La consultation</h4><p>Tout commence par elle. On regarde vos cheveux de près, on écoute ce que vous voulez et ce que vous craignez. Rien ne commence sans votre oui.</p><p class="n">3 / 6</p></div><div class="v-post int"><p class="num">03</p><h4>La création, le VÈKPÈ™</h4><p>Un geste long et précis, qui demande de la patience de part et d'autre. La taille des sections se choisit pour ce que votre cuir chevelu portera dans dix ans.</p><p class="n">4 / 6</p></div><div class="v-post int"><p class="num">04</p><h4>Les premiers mois</h4><p>La Fondation : les locks sont jeunes, elles bougent, gonflent parfois, paraissent irrégulières. Une lock se forme de l'intérieur, et cela prend du temps.</p><p class="n">5 / 6</p></div><div class="v-post int"><p class="num">06</p><h4>Réservez votre consultation</h4><p>En ligne, en trois pas, sans créer de compte. La Maison confirme sur WhatsApp.</p><p class="n">6 / 6 · maisonmnd.com</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Lundi 26 octobre</span><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep c">Comprendre</span></div>
+        <p class="titre"><b>Avant la Première Couronne : quatre choses à savoir.</b> <span>Six diapositives, tirées de « Comment commencer ses dreadlocks ? ».</span></p>
+        <div class="legende" data-copie>Avant la Première Couronne : la longueur qu'il faut (moins que vous ne pensez), la consultation, la création, et les premiers mois. Quatre choses à savoir, à faire glisser.
+Réservez votre consultation : maisonmnd.com/premiere-couronne/?utm_source=instagram&amp;utm_medium=post&amp;utm_campaign=premiere-couronne
+<span class="tags">#MaisonMND #PremiereCouronne #Dreadlocks #Cotonou</span></div>
+      </div>
+    </li>
+
+    <li class="story">
+      <div class="visuels"><div class="v-story texte"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><p class="sur">Trente jours</p><h4>Merci.</h4><p>Un mois sous notre nouveau nom. Vos réservations, vos avis, vos messages : merci. Le Lavage du mois de novembre arrive le premier.</p></div></div>
+      <div>
+        <div class="jour__meta"><span class="date">Mardi 27 octobre</span><span class="dep">Story</span><span class="dep g">Le point</span></div>
+        <p class="titre"><b>Le point à trente jours, et une story de merci.</b> <span>Dix minutes : les réservations par campagne dans Le Trône, le carrousel le plus enregistré, le Reel le plus regardé jusqu'au bout, les avis Google du mois. Une décision : ce qu'on refait, ce qu'on arrête.</span></p>
+      </div>
+    </li>
+
+  </ol>
+
+  <!-- ══ 3. LES REELS ══ -->
+  <h2>Les Reels : la direction artistique</h2>
+  <p class="cap">Les mains de Brice font, la voix de Yéman explique. Une seule opération par vidéo, filmée de près, sans musique à paroles, sous-titrée. Le monogramme n'apparaît qu'à la fin. La même vidéo part sur TikTok le jour même, exportée sans filigrane.</p>
+  <div class="regle">
+    <p>La première seconde montre le geste, pas le logo. Le regard reste sur les mains. Rien n'est accéléré au point de mentir sur le temps qu'un geste demande.</p>
+    <small>Téléphone vertical sur pied, lumière de la fenêtre le matin, deux angles seulement (par-dessus l'épaule de Brice, et de près sur les mains). Une coupe toutes les deux à quatre secondes. Aucun filtre. Sous-titres en Jost, ivoire sur une bande indigo, en bas, au-dessus de la zone des boutons. Vingt à trente-cinq secondes. Deux secondes de carte de fin : le monogramme, « Réservez · maisonmnd.com ». La couverture choisie pour la grille montre les mains ou le regard, son titre écrit dans la zone sûre 3/4.</small>
+  </div>
+  <div class="reels">
+    <div class="reel">
+      <h4>La Maison, en trente secondes</h4><p class="duree">Mercredi 30 septembre · 30 s</p>
+      <div class="plans">
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div></div><b>0 à 3 s</b>La porte s'ouvre, la lumière entre, les mains de Brice posent un outil. Pas de texte.</div>
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div><div class="bande">Depuis 2010, à Cotonou.</div></div><b>3 à 24 s</b>Cinq gestes, trois secondes chacun : laver, resserrer, hydrater, coiffer, regarder. Sous-titres.</div>
+        <div class="plan"><div class="v-story fin"><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>Maison MND</h4><div class="cta">Réserver · maisonmnd.com</div></div><b>24 à 30 s</b>Le monogramme, le nouveau nom, l'appel. Silence, puis la voix : « Bienvenue à la Maison. »</div>
+      </div>
+      <p class="voix">« Depuis 2010, nous créons, réparons et entretenons des couronnes, à Cotonou. Le nom change ; les mains restent. Bienvenue à la Maison. »</p>
+    </div>
+    <div class="reel">
+      <h4>Le resserrage d'une racine, en vingt secondes</h4><p class="duree">Mercredi 7 octobre · 22 s</p>
+      <div class="plans">
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div></div><b>0 à 2 s</b>Très près : une racine, quelques centimètres de cheveux libres, le crochet qui arrive.</div>
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div><div class="bande">On ne serre pas plus fort. On serre juste.</div></div><b>2 à 18 s</b>Le geste entier, en temps réel, un seul plan. La voix explique pendant que la main fait.</div>
+        <div class="plan"><div class="v-story fin"><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>SÍNSIN™</h4><div class="cta">Réserver · maisonmnd.com</div></div><b>18 à 22 s</b>La racine finie, de près, puis la carte de fin.</div>
+      </div>
+      <p class="voix">« Une racine qui repousse est une racine qui va bien. On la reprend quand elle le demande, pas avant. Ça s'appelle le SÍNSIN™. »</p>
+    </div>
+    <div class="reel">
+      <h4>Un lavage à la Maison, du début à la fin</h4><p class="duree">Mercredi 14 octobre · 32 s</p>
+      <div class="plans">
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div></div><b>0 à 3 s</b>L'eau qui coule sur une couronne, longtemps. Le son de l'eau, rien d'autre.</div>
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/entretien.jpg" alt=""><div class="voile"></div><div class="bande">Mouiller. Laver clair. Rincer. Sécher.</div></div><b>3 à 27 s</b>Quatre temps, six secondes chacun, un mot en sous-titre à chaque changement.</div>
+        <div class="plan"><div class="v-story fin"><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>KLƆKLƆ™</h4><div class="cta">Réserver mon lavage</div></div><b>27 à 32 s</b>La couronne sèche, coiffée : « Impeccable, chaque mois. » Carte de fin vers l'offre.</div>
+      </div>
+      <p class="voix">« Le séchage est la moitié du lavage. Une lock humide des heures prend une odeur que le lavage suivant n'enlève pas. Ici, on sèche vraiment. »</p>
+    </div>
+    <div class="reel">
+      <h4>Ce qu'on ne fait jamais à une couronne</h4><p class="duree">Mercredi 21 octobre · 25 s</p>
+      <div class="plans">
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/regard.jpg" alt=""><div class="voile"></div><div class="bande">Jamais.</div></div><b>0 à 2 s</b>Une main qui va serrer trop fort, arrêtée net. Un mot.</div>
+        <div class="plan"><div class="v-story"><img class="ph" src="assets/photos/site/regard.jpg" alt=""><div class="voile"></div><div class="bande">1 · 2 · 3, et ce qu'on fait à la place.</div></div><b>2 à 21 s</b>Trois gestes fautifs, chacun suivi du bon geste. Six secondes par paire.</div>
+        <div class="plan"><div class="v-story fin"><img class="gm" src="assets/monograms/mono-ivoire.png" alt=""><h4>Maison MND</h4><div class="cta">Réserver · maisonmnd.com</div></div><b>21 à 25 s</b>La carte de fin.</div>
+      </div>
+      <p class="voix">« Serrer plus fort une racine qui tire. Huiler une lock sèche. La laisser humide des heures. Trois choses qu'on ne fait jamais, et ce qu'on fait à la place. »</p>
+    </div>
+  </div>
+
+  <!-- ══ 4. FACEBOOK ET LINKEDIN ══ -->
+  <h2>Ce que Facebook et LinkedIn reçoivent</h2>
+  <div class="deux">
+    <div class="bloc">
+      <h4>Facebook, le même fil, et les offres</h4>
+      <ul class="liste">
+        <li><b>Le 28 septembre</b> : la page « M Natural Dreadlocks » renommée Maison MND, l'avatar, la couverture (le gabarit de la première maquette), le bouton Réserver, le bouton WhatsApp, le courriel contact@maisonmnd.com, les heures d'ouverture du site.</li>
+        <li><b>Les dix publications</b> d'Instagram, publiées directement sur Facebook le même jour (pas un lien vers Instagram), avec la même légende et le lien à campagne « facebook ».</li>
+        <li><b>Les Reels</b> aussi, en vidéo native.</li>
+        <li><b>Le premier octobre</b> : l'affiche du Lavage du mois, format carré, et en couverture d'événement si vous voulez la fixer en haut de la page pour le mois.</li>
+        <li><b>Les avis</b> se demandent sur Google, jamais sur Facebook : sous un compliment, un merci et le lien de la fiche Google.</li>
+      </ul>
+    </div>
+    <div class="bloc">
+      <h4>LinkedIn, deux textes, une page</h4>
+      <ul class="liste">
+        <li><b>Le 28 septembre</b> : la page Maison MND (créée ou renommée), la couverture 1128 × 191, le monogramme indigo sur ivoire, la présentation, le lien vers les formations, le courriel contact@maisonmnd.com.</li>
+        <li><b>Le 6 et le 20 octobre</b> : deux textes longs, signés Yéman depuis son profil, relayés par la page. Les visuels en indigo sur ivoire, ci-dessus.</li>
+        <li><b>Rien d'autre</b> : LinkedIn ne reçoit ni les offres ni les Reels. Il parle métier, méthode et transmission.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="linkedin">
+    <div class="v-post ivoire"><img class="ph" src="assets/photos/site/fondateurs.jpg" alt=""><div class="voile"></div><div class="txt"><p class="sur">Maison MND · depuis 2010</p><h4>Ce que seize ans de locks nous ont appris sur la patience.</h4></div></div>
+    <div>
+      <div class="jour__meta"><span class="date">Mardi 6 octobre</span><span class="dep">LinkedIn</span></div>
+      <div class="texte" data-copie>Ce que seize ans de locks nous ont appris sur la patience.
+
+En 2010, nous avons ouvert une petite maison à Cotonou avec une idée simple : une couronne de locks ne se fabrique pas, elle se construit. Brice tient les mains, je tiens la direction. Seize ans plus tard, la Maison prend le nom qu'elle portait déjà entre nous : Maison MND.
+
+Ce que ces années nous ont appris tient en trois choses.
+
+Une lock se forme de l'intérieur, et cela prend des mois. Les premières semaines sont irrégulières, et c'est normal. Celles qui reviennent nous voir dix ans plus tard sont celles à qui nous avons dit la vérité le premier jour.
+
+Une racine qui repousse est une racine qui va bien. Le geste le plus fréquent de la Maison, le resserrage, ne consiste pas à serrer plus fort, mais à serrer juste, quand la couronne le demande.
+
+Et une méthode se transmet. Depuis quelques années, MND Formation forme celles et ceux qui feront des locks leur métier, avec les mêmes quatre temps que nous appliquons chaque jour : Purifier, Nourrir, Sceller, Couronner.
+
+Le site de la Maison est en ligne : maisonmnd.com. Vous y trouverez ce que nous faisons, et comment nous le faisons.</div>
+    </div>
+  </div>
+
+  <div class="linkedin">
+    <div class="v-post ivoire"><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div><div class="txt"><p class="sur">MND Formation</p><h4>Transmettre la méthode.</h4></div></div>
+    <div>
+      <div class="jour__meta"><span class="date">Mardi 20 octobre</span><span class="dep">LinkedIn</span></div>
+      <div class="texte" data-copie>Transmettre la méthode.
+
+On nous demande souvent comment on apprend à faire des locks. La réponse honnête : en regardant longtemps des mains qui savent, puis en refaisant le geste jusqu'à ce qu'il soit juste.
+
+MND Formation transmet la méthode de la Maison à celles et ceux qui en feront leur métier, ou qui veulent approfondir ce qu'ils savent déjà. La création, la réparation, l'entretien, et la tenue d'un salon : les gestes, mais aussi le regard, celui qui voit une racine qui tire avant qu'elle ne casse.
+
+Chaque promotion repart avec un certificat de la Maison, et avec une chose qui ne s'imprime pas : la patience.
+
+Les prochaines sessions et la demande de rappel sont sur maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=formation
+
+Nous recrutons aussi, de temps en temps. Écrivez à contact@maisonmnd.com.</div>
+    </div>
+  </div>
+
+  <div class="garde"><b>Ce qui doit exister avant le 28 septembre</b><p>L'affiche du Lavage du mois (prête, dans le dossier des affiches), l'offre créée dans Le Trône et « en vitrine », l'avatar exporté en 1024 × 1024, les deux couvertures, et les cinq gabarits enregistrés dans l'outil de création. Les quatre Reels se tournent en une matinée, le samedi 26 septembre, tous à la suite, avec la même lumière.</p></div>
+  <div class="garde"><b>Ce qui reste en cuivre</b><p>Les visuels des Reels ci-dessus sont posés sur les photos du site, faute de leurs images de tournage : ils disent le cadrage, pas l'image finale. Et la story du dimanche se prend le jour même, jamais d'avance.</p></div>
+
+  <div class="pied">
+    <span>Maison MND · Trente jours de réseaux · maquette du 23 septembre 2026</span>
+    <span>Document de travail, initiales seulement, aucun prix.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les jours cochés vivent sur CE poste. Si le navigateur refuse son stockage,
+   la page marche quand même : on coche, ça ne se garde pas. */
+const CLE = 'mnd_30_jours_faits';
+const items = [...document.querySelectorAll('ol.jours > li')];
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche'; b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer ce jour comme publié');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+/* Les légendes et les textes se copient d'un geste. */
+document.querySelectorAll('[data-copie]').forEach((bloc) => {
+  const b = document.createElement('button');
+  b.className = 'copier'; b.type = 'button'; b.textContent = 'Copier';
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(bloc.textContent.replace(/\s*Copier\s*$/, '').trim()); b.textContent = 'Copié'; b.classList.add('fait'); }
+    catch { b.textContent = 'Sélectionnez'; }
+    setTimeout(() => { b.textContent = 'Copier'; b.classList.remove('fait'); }, 1800);
+  };
+  bloc.appendChild(b);
+});
+</script>
+</body>
+</html>
