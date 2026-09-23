@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>De M Natural Dreadlocks &agrave; Maison MND &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE;
+    --indigo:#1E2150; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --vert:#4A6B52; --vert-f:#EFF3EF; --vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:940px;margin:0 auto;padding:52px 24px 100px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(34px,6vw,54px);line-height:1.05;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(22px,3vw,30px);color:var(--indigo);
+     margin:0 0 6px;text-wrap:balance}
+  .chapeau{max-width:64ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:52px}
+  .intro{max-width:72ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+
+  .barrage{border:1px solid var(--brique-p);background:var(--brique-f);border-left:3px solid var(--brique);
+           border-radius:4px;padding:20px 22px;margin-top:26px}
+  .barrage h2{color:var(--brique)}
+  .barrage p{margin:10px 0 0;max-width:72ch}
+  .barrage p b{font-weight:500;color:var(--encre)}
+
+  .phase{margin-top:34px}
+  .phase__titre{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .phase__n{font-family:var(--serif);font-size:15px;color:var(--cuivre);letter-spacing:.06em}
+  .phase__quand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d)}
+
+  ol.pas{list-style:none;margin:0;padding:0;counter-reset:pas}
+  ol.pas li{counter-increment:pas;border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);
+            padding:14px 16px 14px 52px;position:relative;margin-top:10px}
+  ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;
+            font-family:var(--serif);font-size:19px;color:var(--cuivre);line-height:1}
+  ol.pas li.fait{opacity:.55}
+  ol.pas li.fait .quoi{text-decoration:line-through}
+  .quoi{font-weight:500;display:block}
+  .pourquoi{font-size:13px;color:var(--encre-d);margin-top:5px}
+  .pourquoi b{color:var(--encre);font-weight:500}
+  .ou{font-size:12px;color:var(--encre-d);margin-top:7px;letter-spacing:.02em}
+  .ou b{color:var(--indigo);font-weight:500}
+  .coche{position:absolute;right:14px;top:13px;display:flex;align-items:center;gap:7px;font-size:11px;
+         letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);cursor:pointer}
+  .coche input{width:17px;height:17px;accent-color:var(--cuivre);cursor:pointer}
+  @media (max-width:620px){
+    ol.pas li{padding-right:16px;padding-top:40px}
+    .coche{top:12px;right:auto;left:16px}
+    ol.pas li::before{top:40px}
+  }
+
+  .garde{border-left:2px solid var(--brique);background:var(--brique-f);padding:9px 12px;margin-top:10px;
+         font-size:12.5px;line-height:1.55}
+  .garde b{font-weight:500}
+  .bon{border-left:2px solid var(--vert);background:var(--vert-f);padding:9px 12px;margin-top:10px;
+       font-size:12.5px;line-height:1.55}
+
+  .deux{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  @media (max-width:820px){.deux{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:16px 18px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:8px 0 0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+
+  .mot{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#fff;
+       border:1px solid var(--filet);border-radius:3px;padding:1px 6px}
+  .avance{position:sticky;top:0;z-index:5;background:var(--parchemin);padding:12px 0 10px;
+          border-bottom:1px solid var(--filet);margin-bottom:-1px;font-size:12.5px;color:var(--encre-d)}
+  .avance b{color:var(--indigo);font-weight:500}
+  footer{margin-top:70px;border-top:1px solid var(--filet);padding-top:16px;font-size:12px;color:var(--encre-d)}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Cahier des charges &agrave; valider</p>
+  <h1>De M Natural Dreadlocks &agrave; Maison MND</h1>
+  <p class="chapeau">
+    Renommer deux comptes qui existent depuis des ann&eacute;es, <b>sans perdre les
+    abonn&eacute;s, l&rsquo;historique, ni l&rsquo;ancien nom d&rsquo;utilisateur</b>, et sans mettre en
+    danger la demande en cours chez Meta. Cochez au fur et &agrave; mesure : la page
+    garde vos coches.
+  </p>
+
+  <div class="avance" id="avance">&nbsp;</div>
+
+  <div class="barrage">
+    <h2>Rien ne commence avant cette phrase</h2>
+    <p>
+      Meta examine en ce moment le nom <b>&laquo; Maison MND &raquo;</b>. Personne n&rsquo;a lu o&ugrave; en
+      est cet examen : interrog&eacute;e, la Maison a r&eacute;pondu &laquo; je ne sais pas &raquo;.
+    </p>
+    <p>
+      <b>Renommer une page ou un compte pendant qu&rsquo;un nom est en examen peut
+      faire &eacute;chouer cet examen.</b> Tout ce qui suit attend donc qu&rsquo;un mot soit lu,
+      de vos yeux, &agrave; l&rsquo;endroit o&ugrave; il s&rsquo;&eacute;crit. C&rsquo;est le pas n&deg;&nbsp;1, et il n&rsquo;a pas
+      de raccourci.
+    </p>
+  </div>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase I</span>
+        <h2>Savoir avant d&rsquo;agir</h2>
+        <span class="phase__quand">un quart d&rsquo;heure &middot; aucun risque</span>
+      </div>
+      <p class="intro">
+        Quatre pas qui ne changent rien et qui d&eacute;cident de tout le reste.
+        <b>Aucun ne modifie quoi que ce soit</b> : on lit, on note.
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Lire l&rsquo;&eacute;tat de la demande de nom chez Meta</span>
+          <p class="pourquoi">
+            C&rsquo;est le verrou de tout le cahier. Un seul mot compte :
+            <b>Approuv&eacute;</b>, <b>En attente</b> ou <b>Refus&eacute;</b>.
+          </p>
+          <p class="ou">
+            <b>O&ugrave;</b> &middot; WhatsApp Manager, section Num&eacute;ros de t&eacute;l&eacute;phone, colonne du
+            nom affich&eacute;. Ou, pour une Page, dans ses param&egrave;tres, rubrique du nom.
+          </p>
+          <div class="garde">
+            <b>Si ce n&rsquo;est pas &laquo; Approuv&eacute; &raquo;, arr&ecirc;tez ici.</b> Faites les pas 2 &agrave; 4,
+            qui ne touchent &agrave; rien, puis attendez. La suite ne s&rsquo;ouvre qu&rsquo;avec ce mot.
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Noter ce que portent les comptes aujourd&rsquo;hui</span>
+          <p class="pourquoi">
+            Pour chaque compte, Instagram et Facebook : le <b>nom affich&eacute;</b>, le
+            <b>nom d&rsquo;utilisateur</b> (celui qui commence par une arobase), le nombre
+            d&rsquo;abonn&eacute;s, et qui en est administrateur. &Eacute;crivez-les quelque part hors
+            de ces applications.
+          </p>
+          <p class="ou">
+            <b>Pourquoi</b> &middot; le jour o&ugrave; quelque chose tourne mal, c&rsquo;est la seule
+            trace de ce qu&rsquo;il faut r&eacute;tablir.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Distinguer le nom et le nom d&rsquo;utilisateur</span>
+          <p class="pourquoi">
+            Ce sont <b>deux choses diff&eacute;rentes</b>, et elles ne se changent ni au m&ecirc;me
+            endroit ni avec les m&ecirc;mes cons&eacute;quences. Le nom affich&eacute; est ce qu&rsquo;on lit
+            en gros. Le nom d&rsquo;utilisateur est l&rsquo;adresse du compte, celle qui vit dans
+            les liens d&eacute;j&agrave; partag&eacute;s, les QR imprim&eacute;s et la m&eacute;moire des gens.
+          </p>
+          <div class="garde">
+            <b>Le nom affich&eacute; WhatsApp Business ne se touche pas</b>, c&rsquo;est
+            pr&eacute;cis&eacute;ment celui qui est en examen. Ce cahier ne concerne
+            qu&rsquo;Instagram et Facebook.
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">D&eacute;cider du sort de l&rsquo;ancien nom d&rsquo;utilisateur</span>
+          <p class="pourquoi">
+            Sur Instagram, l&rsquo;ancienne arobase est <b>lib&eacute;r&eacute;e au bout de quatorze
+            jours</b> et n&rsquo;importe qui peut la prendre. Deux voies :
+            la <b>reprendre</b> vous-m&ecirc;me depuis un second compte de la Maison, ce
+            qui la met &agrave; l&rsquo;abri d&eacute;finitivement ; ou <b>accepter de la perdre</b>.
+          </p>
+          <div class="garde">
+            Un concurrent, ou quelqu&rsquo;un de mal intentionn&eacute;, qui r&eacute;cup&egrave;re
+            <span class="mot">@mnaturaldreadlocks</span> h&eacute;rite de tous les liens
+            d&eacute;j&agrave; partag&eacute;s depuis des ann&eacute;es. <b>C&rsquo;est le seul risque irr&eacute;versible de
+            toute l&rsquo;op&eacute;ration.</b>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase II</span>
+        <h2>Pr&eacute;parer, avant de toucher &agrave; quoi que ce soit</h2>
+        <span class="phase__quand">une demi-heure &middot; rien n&rsquo;est encore visible</span>
+      </div>
+      <p class="intro">
+        Tout ce qui doit &ecirc;tre pr&ecirc;t <b>au moment</b> du changement, pour que le
+        public ne voie jamais un compte &agrave; moiti&eacute; renomm&eacute;.
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">R&eacute;unir l&rsquo;avatar, la couverture et les pr&eacute;sentations</span>
+          <p class="pourquoi">
+            Ils existent d&eacute;j&agrave;, &eacute;crits et dessin&eacute;s. <b>Ne les r&eacute;&eacute;crivez pas</b> : il ne
+            doit exister qu&rsquo;une version de chaque texte, sinon deux r&eacute;seaux diront
+            deux choses.
+          </p>
+          <p class="ou">
+            <b>O&ugrave;</b> &middot; maquette &laquo; Les r&eacute;seaux de la Maison &raquo;, fiches Instagram et
+            Facebook : gabarits d&rsquo;avatar et de couverture, pr&eacute;sentation &agrave; coller,
+            liens de suivi.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Pr&eacute;parer le visuel d&rsquo;annonce et sa l&eacute;gende</span>
+          <p class="pourquoi">
+            L&rsquo;annonce du nouveau nom est d&eacute;j&agrave; dessin&eacute;e et &eacute;crite. Elle se publie
+            <b>le jour m&ecirc;me</b> du renommage, pas la veille, pas la semaine d&rsquo;apr&egrave;s.
+          </p>
+          <p class="ou">
+            <b>O&ugrave;</b> &middot; maquette &laquo; Trente jours de r&eacute;seaux &raquo;, lundi 28 septembre.
+            L&rsquo;image est dans le dossier des affiches, sur le Bureau.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Cr&eacute;er le compte qui gardera l&rsquo;ancienne arobase</span>
+          <p class="pourquoi">
+            Seulement si vous avez choisi de la garder, au pas n&deg;&nbsp;4. Un compte
+            Instagram ordinaire, vide, cr&eacute;&eacute; avec une adresse de la Maison, qui
+            servira &agrave; prendre <span class="mot">@mnaturaldreadlocks</span> d&egrave;s qu&rsquo;elle
+            se lib&egrave;re.
+          </p>
+          <div class="bon">
+            Ce compte ne publie rien. Sa seule raison d&rsquo;&ecirc;tre est de tenir la porte
+            ferm&eacute;e derri&egrave;re vous.
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Choisir le jour et l&rsquo;heure</span>
+          <p class="pourquoi">
+            Un mardi ou un mercredi <b>en matin&eacute;e</b>. Pas un vendredi soir, pas la
+            veille d&rsquo;un d&eacute;placement : le renommage d&rsquo;une page Facebook peut demander
+            <b>jusqu&rsquo;&agrave; trois jours</b> d&rsquo;examen, et il faut &ecirc;tre disponible pour
+            r&eacute;pondre si Meta demande une pi&egrave;ce.
+          </p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase III</span>
+        <h2>Renommer, un r&eacute;seau &agrave; la fois</h2>
+        <span class="phase__quand">le jour choisi &middot; visible du public</span>
+      </div>
+      <p class="intro">
+        <b>Facebook d&rsquo;abord</b>, parce que son changement passe par un examen qui
+        prend du temps et qu&rsquo;on ne ma&icirc;trise pas. Instagram ensuite, qui est
+        imm&eacute;diat. Jamais les deux dans la m&ecirc;me heure : si quelque chose se
+        bloque, on veut savoir lequel.
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Demander le changement du nom de la page Facebook</span>
+          <p class="pourquoi">
+            Le nouveau nom est <b>Maison MND</b>. Meta l&rsquo;examine, ce qui peut prendre
+            jusqu&rsquo;&agrave; trois jours, et <b>bloque tout second changement pendant sept
+            jours</b> une fois accept&eacute;. On ne se trompe donc pas de graphie.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; param&egrave;tres de la page, rubrique du nom.</p>
+          <div class="garde">
+            Tant que l&rsquo;examen court, <b>ne touchez &agrave; rien d&rsquo;autre</b> sur cette page :
+            ni cat&eacute;gorie, ni nom d&rsquo;utilisateur, ni fusion. Une page qui change sur
+            plusieurs points &agrave; la fois se fait refuser sans qu&rsquo;on sache pourquoi.
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Attendre l&rsquo;accord de Facebook, et le v&eacute;rifier</span>
+          <p class="pourquoi">
+            Le nom doit s&rsquo;afficher <b>Maison MND</b> pour un visiteur, pas seulement
+            dans vos r&eacute;glages. Ouvrez la page depuis un t&eacute;l&eacute;phone o&ugrave; vous n&rsquo;&ecirc;tes pas
+            connect&eacute;e.
+          </p>
+          <div class="bon">
+            Tant que ce n&rsquo;est pas vu de l&rsquo;ext&eacute;rieur, ce n&rsquo;est pas fait. Un r&eacute;glage
+            enregistr&eacute; n&rsquo;est pas un nom servi.
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Changer le nom affich&eacute; sur Instagram</span>
+          <p class="pourquoi">
+            Le nom affich&eacute; devient <b>Maison MND</b>. C&rsquo;est imm&eacute;diat et sans examen.
+            Ne changez pas encore l&rsquo;arobase.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; profil, Modifier le profil, champ du nom.</p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Changer le nom d&rsquo;utilisateur Instagram</span>
+          <p class="pourquoi">
+            L&rsquo;arobase devient <span class="mot">@maison.mnd</span>, celle que la Maison
+            publie d&eacute;j&agrave; sur son portail. <b>C&rsquo;est ici que le compte de garde entre en
+            jeu</b> : d&egrave;s que l&rsquo;ancienne arobase se lib&egrave;re, prenez-la.
+          </p>
+          <div class="garde">
+            Tous les liens d&eacute;j&agrave; partag&eacute;s vers l&rsquo;ancienne arobase cessent de mener
+            chez vous &agrave; cet instant. <b>C&rsquo;est le pas le moins r&eacute;versible du cahier.</b>
+          </div>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Poser l&rsquo;avatar, la couverture et les pr&eacute;sentations</span>
+          <p class="pourquoi">
+            Dans la foul&eacute;e, sur les deux r&eacute;seaux, avec les gabarits pr&eacute;par&eacute;s &agrave; la
+            phase II. Un compte renomm&eacute; qui garde l&rsquo;ancienne image a l&rsquo;air pirat&eacute;.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Publier l&rsquo;annonce, le m&ecirc;me jour</span>
+          <p class="pourquoi">
+            Sur les deux r&eacute;seaux, avec le visuel et la l&eacute;gende pr&eacute;par&eacute;s.
+            <b>Une abonn&eacute;e qui voit un nom inconnu sans explication se d&eacute;sabonne</b> ;
+            la m&ecirc;me, pr&eacute;venue, trouve que la Maison a grandi.
+          </p>
+          <div class="bon">
+            &Eacute;pinglez cette publication en haut du profil pendant deux semaines,
+            et r&eacute;pondez aux commentaires le jour m&ecirc;me.
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase IV</span>
+        <h2>Refermer partout ailleurs</h2>
+        <span class="phase__quand">la semaine qui suit</span>
+      </div>
+      <p class="intro">
+        Le nom vit &agrave; plus d&rsquo;endroits qu&rsquo;on ne croit. <b>Chaque endroit oubli&eacute;
+        continue d&rsquo;envoyer des gens vers un nom qui n&rsquo;existe plus.</b>
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">La fiche Google</span>
+          <p class="pourquoi">
+            Elle s&rsquo;appelle encore <b>M Natural Dreadlocks</b>. C&rsquo;est elle que voient
+            les gens qui cherchent un salon &agrave; Cotonou, bien plus que les r&eacute;seaux.
+            Google demande parfois une v&eacute;rification : comptez quelques jours.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Les liens vers les r&eacute;seaux, partout</span>
+          <p class="pourquoi">
+            Site, signature de courriel, fiche WhatsApp, cartes imprim&eacute;es,
+            QR affich&eacute;s &agrave; l&rsquo;atelier. <b>Un QR imprim&eacute; ne se corrige pas &agrave;
+            distance</b> : rep&eacute;rez ceux qui pointent vers l&rsquo;ancienne arobase.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Le nom affich&eacute; sur WhatsApp, si et seulement si l&rsquo;examen est clos</span>
+          <p class="pourquoi">
+            Et pas avant. Si la demande est toujours en cours, ce champ reste
+            intouch&eacute; jusqu&rsquo;&agrave; ce qu&rsquo;elle aboutisse.
+          </p>
+        </li>
+
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Relire les deux profils en visiteur, huit jours apr&egrave;s</span>
+          <p class="pourquoi">
+            Depuis un t&eacute;l&eacute;phone non connect&eacute;. Le nom, l&rsquo;arobase, l&rsquo;image, la
+            pr&eacute;sentation, le lien du site. <b>C&rsquo;est le seul contr&ocirc;le qui compte</b>,
+            parce que c&rsquo;est ce que voient les gens.
+          </p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que ce cahier ne fait pas</h2>
+    <div class="deux">
+      <div class="carte">
+        <h3>Il ne touche pas &agrave; TikTok ni &agrave; LinkedIn</h3>
+        <p>
+          Ces deux r&eacute;seaux ne d&eacute;pendent pas de Meta et ne sont pas gel&eacute;s.
+          <b>C&rsquo;est par eux qu&rsquo;il faut commencer</b> si l&rsquo;examen du nom tra&icirc;ne.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Il ne fusionne aucun compte</h3>
+        <p>
+          S&rsquo;il existe plusieurs pages ou comptes pour la m&ecirc;me Maison, c&rsquo;est un
+          autre chantier, plus d&eacute;licat, et <b>jamais pendant un renommage</b>.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Il ne promet pas de garder l&rsquo;ancienne arobase</h3>
+        <p>
+          Il vous fait choisir, en connaissance de cause, au pas n&deg;&nbsp;4.
+          <b>La d&eacute;cision est &agrave; vous</b>, et elle ne se reprend pas apr&egrave;s quatorze
+          jours.
+        </p>
+      </div>
+      <div class="carte">
+        <h3>Il ne remplace pas la lecture de l&rsquo;&eacute;tat chez Meta</h3>
+        <p>
+          Aucun de ces pas ne devine ce que Meta a d&eacute;cid&eacute;. <b>Le mot se lit, il
+          ne se suppose pas</b>, et c&rsquo;est pour &ccedil;a qu&rsquo;il est le pas n&deg;&nbsp;1.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Cahier des charges &middot; De M Natural Dreadlocks &agrave; Maison MND &middot;
+    23 septembre 2026 &middot; &Agrave; valider avant de fabriquer les maquettes des &eacute;crans.
+  </footer>
+</div>
+
+<script>
+  /* LES COCHES SURVIVENT A LA FERMETURE. Un renommage de page Facebook demande
+     jusqu'a trois jours : une marche a suivre qui oublie ou l'on en etait
+     oblige a tout relire, et c'est ainsi qu'on saute un pas. */
+  (function () {
+    var CLE = 'mnd-cahier-renommage-v1';
+    var cases = Array.prototype.slice.call(document.querySelectorAll('.coche input'));
+    var lu = [];
+    try { lu = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch (e) { lu = []; }
+
+    function dit() {
+      var n = cases.filter(function (c) { return c.checked; }).length;
+      document.getElementById('avance').innerHTML = n === 0
+        ? 'Aucun pas fait. Le premier est de lire l&rsquo;&eacute;tat de la demande chez Meta.'
+        : '<b>' + n + '</b> pas sur ' + cases.length + ' faits.' + (n === cases.length ? ' Tout est fait.' : '');
+    }
+
+    cases.forEach(function (c, i) {
+      c.checked = !!lu[i];
+      if (c.checked) c.closest('li').classList.add('fait');
+      c.addEventListener('change', function () {
+        c.closest('li').classList.toggle('fait', c.checked);
+        try {
+          localStorage.setItem(CLE, JSON.stringify(cases.map(function (x) { return x.checked; })));
+        } catch (e) { /* page ouverte depuis un fichier : les coches valent pour la session */ }
+        dit();
+      });
+    });
+    dit();
+  }());
+</script>
+</body>
+</html>
