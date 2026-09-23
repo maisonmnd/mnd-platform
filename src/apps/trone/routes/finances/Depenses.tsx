@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { prestationRepond } from '../../../../shared/recherche';
-import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte, demande } from '../../../../ds/components';
+import { Eyebrow, Modal, Button, Field, Input, Select, toast, alerte, demande, demandeUnTexte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn, convertFromXof } from '../../../../shared/currency';
 import { uid, HOUSE_BLANK } from '../../../../shared/store';
@@ -1073,16 +1073,32 @@ export default function Depenses() {
   };
 
   // — Catégories : ajouter / renommer / supprimer, avec réétiquetage des dépenses —
-  const addCategory = (): string | null => {
-    const name = window.prompt('Nom de la nouvelle catégorie de dépense');
+  const addCategory = async (): Promise<string | null> => {
+    const name = await demandeUnTexte({
+      quoi: 'Registre des Dépenses',
+      titre: 'Ajouter une catégorie ?',
+      dit: 'Elle rejoindra la liste proposée à chaque dépense, sur tous les appareils.',
+      etiquette: 'Le nom de la catégorie',
+      gabarit: 'Loyer, Produits, Transport…',
+      accepter: 'Ajouter la catégorie',
+      refuser: 'Ne rien ajouter',
+    });
     if (name && name.trim() && !catNames.includes(name.trim())) {
       setCategories((prev) => [...prev, { id: uid(), name: name.trim(), subs: [] }]);
       return name.trim();
     }
     return null;
   };
-  const renameCategory = (c: ExpenseCategory) => {
-    const name = window.prompt('Renommer la catégorie', c.name);
+  const renameCategory = async (c: ExpenseCategory) => {
+    const name = await demandeUnTexte({
+      quoi: 'Catégorie de dépense',
+      titre: `Renommer « ${c.name} » ?`,
+      dit: 'Les dépenses déjà inscrites sous ce nom prendront le nouveau : rien ne se perd, tout se renomme avec.',
+      etiquette: 'Le nouveau nom',
+      valeur: c.name,
+      accepter: 'Renommer la catégorie',
+      refuser: 'Garder ce nom',
+    });
     if (!name || !name.trim()) return;
     const nn = name.trim();
     if (nn === c.name || catNames.some((x) => x === nn)) return;
@@ -1105,12 +1121,27 @@ export default function Depenses() {
     })) return;
     setCategories((prev) => prev.filter((x) => x.id !== c.id));
   };
-  const addSubTo = (c: ExpenseCategory) => {
-    const sub = window.prompt(`Nouvelle sous-catégorie pour « ${c.name} »`);
+  const addSubTo = async (c: ExpenseCategory) => {
+    const sub = await demandeUnTexte({
+      quoi: `Sous-catégories de « ${c.name} »`,
+      titre: 'Ajouter une sous-catégorie ?',
+      dit: 'Elle affine la catégorie sans la remplacer, et sera proposée aux dépenses qui la portent.',
+      etiquette: 'Le nom de la sous-catégorie',
+      accepter: 'Ajouter la sous-catégorie',
+      refuser: 'Ne rien ajouter',
+    });
     if (sub && sub.trim() && !c.subs.includes(sub.trim())) setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, subs: [...x.subs, sub.trim()] } : x)));
   };
-  const renameSub = (c: ExpenseCategory, sub: string) => {
-    const name = window.prompt('Renommer la sous-catégorie', sub);
+  const renameSub = async (c: ExpenseCategory, sub: string) => {
+    const name = await demandeUnTexte({
+      quoi: `Sous-catégorie de « ${c.name} »`,
+      titre: `Renommer « ${sub} » ?`,
+      dit: 'Les dépenses déjà inscrites sous ce nom prendront le nouveau.',
+      etiquette: 'Le nouveau nom',
+      valeur: sub,
+      accepter: 'Renommer la sous-catégorie',
+      refuser: 'Garder ce nom',
+    });
     if (!name || !name.trim()) return;
     const nn = name.trim();
     if (nn === sub || c.subs.some((s) => s === nn)) return;
@@ -2433,12 +2464,19 @@ export default function Depenses() {
                     <Select
                       value={form.porteurChoisi ? (form.porteur || '__maison__') : ''}
                       aria-label="Qui a fait cet achat"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const v = e.target.value;
                         if (v === '') return;
                         if (v === '__maison__') { setForm((f) => ({ ...f, porteur: '', porteurChoisi: true, avancee: false })); return; }
                         if (v === '__nouveau__') {
-                          const nom = window.prompt('Qui achète pour la Maison ? Son nom rejoindra la liste, sur tous les appareils.');
+                          const nom = await demandeUnTexte({
+                            quoi: 'Les porteurs de la Maison',
+                            titre: 'Qui achète pour la Maison ?',
+                            dit: 'Son nom rejoindra la liste, sur tous les appareils.',
+                            etiquette: 'Le nom de la personne',
+                            accepter: 'Ajouter le porteur',
+                            refuser: 'Ne rien ajouter',
+                          });
                           if (!nom?.trim()) return;
                           ajouteUnPorteur(nom);
                           setForm((f) => ({ ...f, porteur: nom.trim(), porteurChoisi: true }));

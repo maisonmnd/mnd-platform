@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { PageHead } from '../_ui';
 import { PALIERS as LES_PALIERS, PALIER_DIT, RANG_DU_PALIER, type Palier } from '../../../../shared/paliers';
-import { Badge, Button, Card, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
+import { Badge, Button, Card, Field, Input, Modal, Select, toast, demande, demandeUnTexte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useAppointments, appointmentsStore } from '../../../../shared/agenda';
@@ -1719,8 +1719,16 @@ export default function Personnel() {
                 <button
                   className="tre-chip"
                   style={{ borderStyle: 'dashed' }}
-                  onClick={() => {
-                    const nom = window.prompt('Quelle fonction ajouter ? Elle rejoindra la liste de la Maison, sur tous les appareils.');
+                  onClick={async () => {
+                    const nom = await demandeUnTexte({
+                      quoi: 'Les métiers de la Maison',
+                      titre: 'Quelle fonction ajouter ?',
+                      dit: 'Elle rejoindra la liste de la Maison, sur tous les appareils, et sera posée sur cette fiche.',
+                      etiquette: 'Le nom de la fonction',
+                      gabarit: 'Locticienne, Apprentie, Jardinier…',
+                      accepter: 'Ajouter la fonction',
+                      refuser: 'Ne rien ajouter',
+                    });
                     if (!nom?.trim()) return;
                     ajouteUneFonction(nom);
                     setForm({ ...form, role: nom.trim(), auFauteuil: FONCTIONS_AU_FAUTEUIL.has(nom.trim()) });

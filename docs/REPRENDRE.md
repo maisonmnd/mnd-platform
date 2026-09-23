@@ -2,6 +2,41 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LES SEIZE DERNIÈRES QUESTIONS, ET LA FIN DES FENÊTRES — 23 septembre 2026
+
+Suite des 35 alertes et des 89 confirmations : les 16 `window.prompt` passent
+à leur tour. **Il ne reste plus AUCUNE fenêtre du navigateur dans le dépôt**,
+ni `confirm`, ni `alert`, ni `prompt`.
+
+**Pourquoi les faire quand même**, alors qu'elles étaient les moins
+dangereuses (une question qui ne s'affiche pas rend une réponse vide, et le
+geste ne se fait pas : ennuyeux, pas destructeur) : un atelier où trois gestes
+sur quatre parlent la langue de la Maison et le quatrième celle du navigateur
+n'a pas une langue, il en a deux.
+
+**`demandeUnTexte()`** rejoint `demande()` dans `ds/demande.tsx`, même fenêtre,
+une ligne en plus. Une exception assumée à la règle du foyer : ici c'est la
+LIGNE qui prend le foyer et Entrée VALIDE. Écrire un nom n'est pas détruire une
+fiche ; exiger de tabuler jusqu'au bouton après avoir tapé serait une punition
+sans raison. Échap annule toujours. La ligne est sélectionnée à l'ouverture :
+un nom à corriger se remplace d'un mot. Le bouton reste ÉTEINT tant que la
+réponse est vide, sauf `facultatif` — refuser après le clic oblige à tout
+retaper, l'éteindre avant montre ce qui manque (`reponseValide`,
+`verifie-la-demande` 26).
+
+**TROIS DES SEIZE NE POSAIENT AUCUNE QUESTION** : elles servaient de repli
+quand `navigator.clipboard` refuse, pour offrir un lien à recopier. Elles font
+mieux que ça maintenant, et la raison est technique : **un navigateur refuse le
+presse-papier quand l'écriture ne suit aucun GESTE de l'utilisateur**. Le
+bouton « Copier » de la fenêtre EST un geste, donc la seconde tentative réussit
+là où la première a échoué. L'ancien `prompt` se contentait d'afficher.
+
+**Un piège de conversion, noté pour la prochaine fois** : `addCategory`
+(Depenses) RENDAIT `string | null` et devient `Promise<string | null>` ; ses
+trois appelants ignorent la valeur, donc rien à changer chez eux, mais un
+quatrième qui l'aurait lue aurait reçu une promesse sans que rien ne le dise.
+Vérifier les appelants avant de rendre une fonction attendante.
+
 ## LA QUESTION DE LA MAISON REMPLACE LES 89 FENÊTRES — 22 septembre 2026
 
 Maquette `public/maquette-la-question-de-la-maison.html`, validée, six

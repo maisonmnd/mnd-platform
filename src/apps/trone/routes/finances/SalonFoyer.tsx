@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../_ui';
-import { Button, Field, Input, Modal, Select, Textarea, alerte, demande } from '../../../../ds/components';
+import { Button, Field, Input, Modal, Select, Textarea, alerte, demande, demandeUnTexte } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney, fmtIn } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
@@ -734,8 +734,16 @@ export default function SalonFoyer() {
                   <button
                     type="button"
                     className="tre-link-btn"
-                    onClick={() => {
-                      const n = window.prompt('Renommer ce motif', m.name);
+                    onClick={async () => {
+                      const n = await demandeUnTexte({
+                        quoi: 'Motif de retrait',
+                        titre: `Renommer « ${m.name} » ?`,
+                        dit: 'Les retraits déjà inscrits gardent l’ancien nom : seul ce qui vient ensuite portera le nouveau.',
+                        etiquette: 'Le nouveau nom',
+                        valeur: m.name,
+                        accepter: 'Renommer le motif',
+                        refuser: 'Garder ce nom',
+                      });
                       if (n && n.trim()) motifsFoyerStore.set((prev) => prev.map((x) => (x.id === m.id ? { ...x, name: n.trim() } : x)));
                     }}
                   >
@@ -779,8 +787,15 @@ export default function SalonFoyer() {
                   ))}
                   <button
                     type="button"
-                    onClick={() => {
-                      const s = window.prompt(`Un sous-motif de « ${m.name} »`);
+                    onClick={async () => {
+                      const s = await demandeUnTexte({
+                        quoi: `Sous-motifs de « ${m.name} »`,
+                        titre: 'Ajouter un sous-motif ?',
+                        dit: 'Il affine le motif sans le remplacer, et sera proposé aux retraits qui le portent.',
+                        etiquette: 'Le nom du sous-motif',
+                        accepter: 'Ajouter le sous-motif',
+                        refuser: 'Ne rien ajouter',
+                      });
                       if (s && s.trim()) motifsFoyerStore.set((prev) => prev.map((x) => (x.id === m.id && !x.subs.includes(s.trim()) ? { ...x, subs: [...x.subs, s.trim()] } : x)));
                     }}
                     style={{
@@ -797,8 +812,16 @@ export default function SalonFoyer() {
 
             <Button
               variant="ghost"
-              onClick={() => {
-                const n = window.prompt('Le nom du nouveau motif');
+              onClick={async () => {
+                const n = await demandeUnTexte({
+                  quoi: 'Motifs du foyer',
+                  titre: 'Ajouter un motif de retrait ?',
+                  dit: 'Il sera proposé à chaque sortie du foyer, sur tous les appareils.',
+                  etiquette: 'Le nom du motif',
+                  gabarit: 'École, Santé, Marché…',
+                  accepter: 'Ajouter le motif',
+                  refuser: 'Ne rien ajouter',
+                });
                 if (n && n.trim()) motifsFoyerStore.set((prev) => [...prev, { id: `mf-${uid()}`, name: n.trim(), subs: [] }]);
               }}
             >
@@ -1749,8 +1772,15 @@ export default function SalonFoyer() {
                     type="button"
                     className="trf-chip"
                     style={{ borderStyle: 'dashed' }}
-                    onClick={() => {
-                      const nom = window.prompt('Qui a fait cette sortie ? Son nom rejoindra la liste, sur tous les appareils.');
+                    onClick={async () => {
+                      const nom = await demandeUnTexte({
+                        quoi: 'Les porteurs du foyer',
+                        titre: 'Qui a fait cette sortie ?',
+                        dit: 'Son nom rejoindra la liste, sur tous les appareils.',
+                        etiquette: 'Le nom de la personne',
+                        accepter: 'Ajouter le porteur',
+                        refuser: 'Ne rien ajouter',
+                      });
                       if (!nom?.trim()) return;
                       ajouteUnPorteur(nom);
                       setFMvt((f) => ({ ...f, porteur: nom.trim() }));

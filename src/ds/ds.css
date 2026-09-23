@@ -482,3 +482,26 @@
   background: var(--color-brique, #96412E); border-color: var(--color-brique, #96412E);
 }
 .mnd-dem__b:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
+
+/* LA LIGNE D'UNE QUESTION — 23 septembre 2026. Les seize dernières fenêtres
+   du navigateur demandaient un mot : un nom de motif, une fonction, qui tient
+   une caisse. La ligne prend le foyer à l'ouverture et son contenu est
+   sélectionné, pour qu'un nom se remplace d'un mot et qu'un lien proposé à la
+   recopie se copie d'un raccourci. */
+.mnd-dem__champ { display: block; margin-top: 16px; }
+.mnd-dem__champ > span {
+  display: block; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-soft, #746F65); margin-bottom: 7px;
+}
+.mnd-dem__champ input {
+  width: 100%; font-family: var(--font-sans); font-size: 15px; color: var(--ink, #2A2722);
+  background: #fff; border: 1px solid var(--hairline, #D9CFBC);
+  border-radius: var(--radius-sm, 3px); padding: 11px 12px;
+}
+.mnd-dem__champ input:focus {
+  outline: none; border-color: var(--color-copper, #B97A4A);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(185,122,74,.22));
+}
+/* UN BOUTON ÉTEINT DIT CE QUI MANQUE. Refuser un nom vide APRÈS le clic
+   oblige à tout retaper ; l'éteindre avant montre que la ligne attend. */
+.mnd-dem__b:disabled { opacity: .38; cursor: not-allowed; filter: saturate(.25); }

@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eyebrow, Modal, demande } from '../../../../ds/components';
+import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import { CURRENCIES } from '../../../../shared/geo';
@@ -744,8 +744,15 @@ export default function Caisses() {
                   type="button"
                   className="trf-chip"
                   style={{ borderStyle: 'dashed' }}
-                  onClick={() => {
-                    const nom = window.prompt('Qui tient cette caisse ? Son nom rejoindra la liste des porteurs.');
+                  onClick={async () => {
+                    const nom = await demandeUnTexte({
+                      quoi: 'Les porteurs de caisse',
+                      titre: 'Qui tient cette caisse ?',
+                      dit: 'Son nom rejoindra la liste des porteurs, sur tous les appareils.',
+                      etiquette: 'Le nom de la personne',
+                      accepter: 'Ajouter le porteur',
+                      refuser: 'Ne rien ajouter',
+                    });
                     if (!nom?.trim()) return;
                     ajouteUnPorteur(nom);
                     setBoxForm((f) => ({ ...f, porteur: nom.trim() }));

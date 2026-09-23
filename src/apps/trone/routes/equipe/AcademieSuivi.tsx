@@ -1,6 +1,6 @@
 import { asset } from '../../../../shared/asset';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, Textarea, toast, alerte, demandeUnTexte } from '../../../../ds/components';
 import { sameName } from '../../../../shared/text';
 import { palierDeLaFormation, RANG_DU_PALIER } from '../../../../shared/paliers';
 import { useBranch } from '../../../../shared/branches';
@@ -403,7 +403,7 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
      saisie des fiches — on lit le dossier, on n'y écrit plus. */
   const frozen = e.status === 'suspendu' || e.status === 'abandonne';
 
-  const changeStatus = (next: EnrollmentStatus) => {
+  const changeStatus = async (next: EnrollmentStatus) => {
     if (next === 'jury_planifie' && !canPlanJury(e, modules.length)) {
       alerte('Impossible : chaque module doit avoir une évaluation validée (≥ 70) avant le jury.');
       return;
@@ -414,7 +414,18 @@ function LivretPanel({ enrollment, formations, onClose }: { enrollment: Enrollme
     }
     let reason: string | undefined;
     if (next === 'abandonne' || next === 'suspendu') {
-      reason = window.prompt(`Motif (${STATUS_LABEL[next].toLowerCase()}) :`)?.trim() || undefined;
+      const dit = await demandeUnTexte({
+        quoi: 'Suivi de l’apprenant',
+        titre: `Pourquoi ce parcours est-il ${STATUS_LABEL[next].toLowerCase()} ?`,
+        dit: 'Le motif reste au dossier. Il explique, des mois plus tard, une interruption que personne ne se rappellera.',
+        etiquette: 'Le motif',
+        gabarit: 'Départ du pays, santé, arrêt demandé…',
+        accepter: 'Enregistrer le motif',
+        refuser: 'Sans motif',
+        facultatif: true,
+      });
+      if (dit === null) return;
+      reason = dit.trim() || undefined;
     }
     setEnrollment(e.id, { status: next, statusReason: reason ?? e.statusReason });
   };

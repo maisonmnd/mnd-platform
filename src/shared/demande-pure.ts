@@ -29,6 +29,38 @@ export type DemandeDeLaMaison = {
   dur?: boolean;
 };
 
+/** UNE QUESTION À UNE LIGNE — 23 septembre 2026.
+
+    Seize `window.prompt` restaient : « Quelle fonction ajouter ? », « Qui
+    tient cette caisse ? », « Renommer ce motif ». Elles étaient les moins
+    dangereuses des 140 fenêtres du navigateur, parce qu'une question qui ne
+    s'affiche pas rend une réponse vide et que le geste ne se fait alors pas :
+    ennuyeux, pas destructeur. Elles partent quand même, parce qu'un atelier
+    où trois gestes sur quatre parlent la langue de la Maison et le quatrième
+    celle du navigateur n'a pas une langue, il en a deux.
+
+    TROIS D'ENTRE ELLES NE POSAIENT AUCUNE QUESTION : elles servaient de repli
+    quand le presse-papier refuse, pour offrir un lien à recopier à la main.
+    La même fenêtre les sert, avec le lien déjà écrit dans la ligne et
+    sélectionné ; c'est même mieux qu'avant, puisqu'on peut le relire. */
+export type QuestionDeLaMaison = DemandeDeLaMaison & {
+  /** Ce que la ligne demande. « Le nom du motif », « Le lien ». */
+  etiquette: string;
+  /** Ce qu'elle contient d'avance : un nom à corriger, un lien à recopier. */
+  valeur?: string;
+  /** L'exemple gris, quand la ligne est vide. */
+  gabarit?: string;
+  /** Une réponse vide est acceptée. Par défaut non : un nom vide n'a jamais
+      été une réponse, et le bouton reste éteint tant que rien n'est écrit. */
+  facultatif?: boolean;
+};
+
+/** UNE RÉPONSE VIDE N'EST PAS UNE RÉPONSE, sauf si on l'a dit. Le bouton qui
+    agit reste éteint tant que c'est faux : refuser après coup un nom vide
+    oblige à tout retaper, l'éteindre avant montre ce qui manque. */
+export const reponseValide = (valeur: string, facultatif?: boolean): boolean =>
+  facultatif === true || (valeur ?? '').trim().length > 0;
+
 /** L'ISSUE SÛRE A UN NOM PAR DÉFAUT, jamais « Annuler ». Annuler est un mot
     ambigu dans un atelier où l'on annule aussi des rendez-vous et des
     encaissements : « Annuler » sur une fenêtre qui parle d'un encaissement

@@ -6,7 +6,7 @@
    boutons disent « OK » et « Annuler » reproduit exactement le défaut de la
    fenêtre du navigateur qu'elle remplace. */
 import {
-  REFUS_PAR_DEFAUT, annonceDeLaDemande, libelleTropVague, libellesDeLaDemande,
+  REFUS_PAR_DEFAUT, annonceDeLaDemande, libelleTropVague, libellesDeLaDemande, reponseValide,
 } from '../src/shared/demande-pure';
 
 let ko = 0;
@@ -71,5 +71,17 @@ dit('⑱ une partie vide ne met pas deux séparateurs',
 dit('⑲ aucun tiret cadratin dans le refus par défaut', false, REFUS_PAR_DEFAUT.includes('—'));
 dit('⑳ le refus par défaut ne crie pas', false, REFUS_PAR_DEFAUT === REFUS_PAR_DEFAUT.toUpperCase());
 
-console.log(ko === 0 ? `\nTOUT EST JUSTE (20 vérifications).` : `\n${ko} ÉCHEC(S).`);
+
+/* ── LA QUESTION À UNE LIGNE ─────────────────────────────────────
+   Seize `window.prompt` la rejoignent. Une réponse vide n'est pas une
+   réponse, sauf si on l'a dit : le bouton reste éteint tant que c'est faux,
+   parce que refuser APRÈS le clic oblige à tout retaper. */
+dit('㉑ un nom écrit est une réponse', true, reponseValide('Resserrage'));
+dit('㉒ une ligne vide n’en est pas une', false, reponseValide(''));
+dit('㉓ des espaces non plus', false, reponseValide('   '));
+dit('㉔ sauf si la question dit qu’elle accepte le vide', true, reponseValide('', true));
+dit('㉕ et le vide accepté reste accepté avec des espaces', true, reponseValide('  ', true));
+dit('㉖ un nom d’une seule lettre compte', true, reponseValide('A'));
+
+console.log(ko === 0 ? `\nTOUT EST JUSTE (26 vérifications).` : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

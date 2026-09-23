@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { asset } from '../../../../shared/asset';
 import { PageHead, WaLien } from '../_ui';
-import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, alerte, demande } from '../../../../ds/components';
+import { Button, ChampTelephone, Field, Input, Modal, Select, Textarea, toast, alerte, demande, demandeUnTexte } from '../../../../ds/components';
 import { numeroTelReel } from '../../../../shared/geo';
 import { signeLeMessage } from '../../../../shared/identite';
 import { useBranch } from '../../../../shared/branches';
@@ -2347,8 +2347,16 @@ function Customer360({
   /* Segments — multi-sélection depuis la liste gérée (Paramètres), persistée immédiatement. */
   const toggleSegment = (seg: string) =>
     patch({ segments: client.segments.includes(seg) ? client.segments.filter((s) => s !== seg) : [...client.segments, seg] });
-  const addSegment = () => {
-    const name = window.prompt('Nom du nouveau segment :')?.trim();
+  const addSegment = async () => {
+    const name = await demandeUnTexte({
+      quoi: 'Segment de la Maison',
+      titre: 'Ajouter un segment ?',
+      dit: 'Il rejoindra la liste proposée dans le CRM, sur tous les appareils, et sera posé sur cette fiche.',
+      etiquette: 'Le nom du segment',
+      gabarit: 'Diaspora, Mariée, Étudiante…',
+      accepter: 'Ajouter le segment',
+      refuser: 'Ne rien ajouter',
+    });
     if (!name) return;
     segmentsStore.set((prev) => (prev.some((s) => s.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name]));
     if (!client.segments.some((s) => s.toLowerCase() === name.toLowerCase())) patch({ segments: [...client.segments, name] });

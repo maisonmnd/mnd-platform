@@ -8,7 +8,7 @@ import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type Inpu
    `ds/demande.tsx`, mais les quatre-vingt-neuf écrans qui la posent importent
    déjà `ds/components` : la faire passer par la même porte évite d'ajouter
    une ligne d'import à chacun, et surtout évite qu'on la cherche. */
-export { demande, type DemandeDeLaMaison } from './demande';
+export { demande, demandeUnTexte, type DemandeDeLaMaison, type QuestionDeLaMaison } from './demande';
 
 export function Eyebrow({ children, invert }: { children: ReactNode; invert?: boolean }) {
   return (

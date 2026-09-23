@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Crown, Globe, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
-import { toast } from '../../../../ds/components';
+import { toast, demandeUnTexte } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage } from '../../../../shared/identite';
@@ -421,15 +421,38 @@ export default function QrCodes() {
     `Voici la ${maisonNom()} : nos gestes, nos parcours, et la prise de rendez-vous. ${lienSite}`,
   );
 
+  /* LE REPLI QUAND LE PRESSE-PAPIER REFUSE — refait le 23 septembre 2026.
+     Il passait par `window.prompt`, la dernière fenêtre du navigateur de cet
+     écran. La fenêtre de la Maison fait mieux que l'afficher : le texte y est
+     déjà écrit ET SÉLECTIONNÉ, et le bouton RÉESSAIE la copie. Ce n'est pas
+     une politesse : un navigateur refuse le presse-papier quand l'écriture ne
+     suit aucun GESTE de l'utilisateur, et un clic en est un. La seconde
+     tentative réussit donc là où la première a échoué. */
+  const aLaMain = async (texte: string, quoi: string) => {
+    const reponse = await demandeUnTexte({
+      quoi: 'Le presse-papier a refusé',
+      titre: `Copiez ${quoi} à la main.`,
+      dit: 'Votre navigateur n’a pas laissé la Maison écrire dans le presse-papier. Le texte est prêt et sélectionné.',
+      etiquette: 'À recopier',
+      valeur: texte,
+      accepter: 'Copier',
+      refuser: 'Fermer',
+      facultatif: true,
+    });
+    if (reponse === null) return;
+    navigator.clipboard.writeText(texte)
+      .then(() => toast('Copié.'))
+      .catch(() => toast('Le presse-papier refuse toujours : sélectionnez le texte et copiez-le.'));
+  };
   const copier = (lien: string, quoi: string) => {
     navigator.clipboard.writeText(lien)
       .then(() => toast(`Lien ${quoi} copié, collez-le dans WhatsApp.`))
-      .catch(() => window.prompt(`Copiez ce lien ${quoi} :`, lien));
+      .catch(() => { void aLaMain(lien, `ce lien ${quoi}`); });
   };
   const copierTexte = (texte: string, quoi: string) => {
     navigator.clipboard.writeText(texte)
       .then(() => toast(`${quoi} copié, collez-le dans WhatsApp.`))
-      .catch(() => window.prompt(`Copiez ${quoi.toLowerCase()} :`, texte));
+      .catch(() => { void aLaMain(texte, quoi.toLowerCase()); });
   };
 
   /* ── LE SITE DE L'ACADÉMIE — 17 septembre 2026 ──────────────────

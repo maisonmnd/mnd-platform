@@ -10,7 +10,7 @@
    fabrique le PDF ; dans la fiche du membre, en lecture seule. */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, toast } from '../../../../ds/components';
+import { Button, toast, demandeUnTexte } from '../../../../ds/components';
 import {
   adresseDuCoffre, deposeLaLettreDuPret, lettresDuPretDuPersonnel,
   retireDuCoffre, type LettreRangee,
@@ -142,7 +142,24 @@ export default function LettresAuDossier({
       await navigator.clipboard.writeText(url);
       toast('Lien copié. Il vaut une heure, puis il ne s’ouvre plus.');
     } catch {
-      window.prompt('Copiez ce lien, il vaut une heure :', url);
+      /* LE PRESSE-PAPIER REFUSE quand l'écriture ne suit aucun GESTE de
+         l'utilisateur. La fenêtre de la Maison propose le lien écrit et
+         sélectionné, et son bouton réessaie : ce clic-là EST un geste. */
+      const reponse = await demandeUnTexte({
+        quoi: 'Le presse-papier a refusé',
+        titre: 'Copiez ce lien à la main.',
+        dit: 'Votre navigateur n’a pas laissé la Maison écrire dans le presse-papier. Le lien est prêt et sélectionné.',
+        suite: 'Il vaut une heure, puis il ne s’ouvre plus.',
+        etiquette: 'À recopier',
+        valeur: url,
+        accepter: 'Copier',
+        refuser: 'Fermer',
+        facultatif: true,
+      });
+      if (reponse === null) return;
+      navigator.clipboard.writeText(url)
+        .then(() => toast('Lien copié. Il vaut une heure.'))
+        .catch(() => toast('Le presse-papier refuse toujours : sélectionnez le lien et copiez-le.'));
     }
   };
 
