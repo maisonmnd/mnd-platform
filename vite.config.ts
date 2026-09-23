@@ -4,6 +4,16 @@ import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 
+/* LA BASE EST UNE BASE, PAS UN CHEMIN WINDOWS, 23 septembre 2026. Sous Git
+   Bash, MSYS convertit VITE_BASE=/revelateur/ en /Program Files/Git/revelateur/
+   et le site sort sans feuille de style, ce qui ressemble à une erreur de
+   rendu. Payé deux fois (16 juillet, 23 septembre). On refuse ici, avant de
+   générer quoi que ce soit, en nommant le remède. */
+const base = process.env.VITE_BASE || '/';
+if (!/^\/(?:[\w.-]+\/)*$/.test(base)) {
+  throw new Error(`VITE_BASE « ${base} » n'est pas une base de site (attendu « / » ou « /nom/ »). Sous Git Bash, MSYS convertit la valeur : préfixe MSYS_NO_PATHCONV=1, ou passe par node scripts/build-sites.mjs.`);
+}
+
 // Une seule origine pour les 5 surfaces sœurs : les ponts localStorage
 // (mnd_branches, mnd_couronne_compose, mnd_consultations_queue) fonctionnent
 // entre apps en dev comme en prod.
@@ -56,7 +66,7 @@ function entreesDuRevelateur(): Record<string, string> {
 const input = { ...choisies, ...entreesDuRevelateur() };
 
 export default defineConfig({
-  base: process.env.VITE_BASE || '/',
+  base,
   plugins: [react()],
   build: {
     rollupOptions: { input },

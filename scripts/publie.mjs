@@ -48,6 +48,47 @@ import { origineDuCompte } from './origine-des-pages.mjs';
 const racine = path.resolve(import.meta.dirname, '..');
 const source = path.join(racine, 'dist-sites');
 const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'mnd-platform'];
+
+/* LE DIST NE PEUT PAS ÊTRE PLUS VIEUX QUE LA SOURCE, 23 septembre 2026. Ce
+   script n'a jamais rien construit : il envoie dist-sites/<site> tel quel et
+   compare le servi à ce dossier. Ce jour-là, une vignette retouchée APRÈS le
+   dernier build-sites est partie avec son ancien contenu, et « publié,
+   vérifié, et servi » restait vrai, puisque c'est vrai du dossier. Le nom du
+   fichier n'avait pas changé ; seuls les octets servis l'ont dit. Désormais,
+   si un fichier source est plus récent que le version.json du dist (écrit à
+   la fin de chaque construction), on refuse et on nomme le fichier. Aucun
+   contournement : le remède est toujours de reconstruire, et il ne coûte que
+   des minutes. `revelateur/` (généré) et `docs/` ne sont pas des sources. */
+const SOURCES = ['src', 'public', 'vite.config.ts', 'scripts/build-sites.mjs', 'scripts/genere-revelateur.mjs',
+  ...readdirSync(racine).filter((f) => f.endsWith('.html'))].map((s) => path.join(racine, s));
+
+/** Le fichier le plus récent sous `chemin` (fichier ou dossier), ou null. */
+export function plusRecent(chemin) {
+  if (!existsSync(chemin)) return null;
+  const st = statSync(chemin);
+  if (!st.isDirectory()) return { fichier: chemin, mtimeMs: st.mtimeMs };
+  let pire = null;
+  for (const f of readdirSync(chemin)) {
+    if (f === 'node_modules' || f === '.git') continue;
+    const r = plusRecent(path.join(chemin, f));
+    if (r && (!pire || r.mtimeMs > pire.mtimeMs)) pire = r;
+  }
+  return pire;
+}
+
+/** Null si le dist est au moins aussi récent que toutes ses sources ; sinon
+    le fichier source le plus récent, avec les deux instants. */
+export function distPerime(dist, sources = SOURCES) {
+  const version = path.join(dist, 'version.json');
+  if (!existsSync(version)) return null;
+  const construit = statSync(version).mtimeMs;
+  let pire = null;
+  for (const s of sources) {
+    const r = plusRecent(s);
+    if (r && r.mtimeMs > construit && (!pire || r.mtimeMs > pire.mtimeMs)) pire = r;
+  }
+  return pire ? { fichier: pire.fichier, modifie: new Date(pire.mtimeMs), construit: new Date(construit) } : null;
+}
 /** Refonder : une branche neuve, un seul commit, poussée en force. */
 const REFONDE = !!process.env.MND_REFONDE;
 
@@ -128,6 +169,13 @@ async function principal() {
     const dist = path.join(source, site);
     if (!existsSync(dist) || !statSync(dist).isDirectory()) {
       console.error(`\n${site} : rien à publier — lance d'abord node scripts/build-sites.mjs`);
+      echecs++;
+      continue;
+    }
+    const perime = distPerime(dist);
+    if (perime) {
+      const h = (d) => d.toLocaleTimeString('fr-FR');
+      console.error(`\n${site} : dist-sites/${site} est plus vieux que la source. ${path.relative(racine, perime.fichier)} a été modifié à ${h(perime.modifie)}, le site construit à ${h(perime.construit)}. Relance node scripts/build-sites.mjs (il refait les six sites), puis republie.`);
       echecs++;
       continue;
     }
