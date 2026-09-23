@@ -608,7 +608,15 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .promesses--sombre .promesse b { color: #F6F1E7; }
 .promesses--sombre .promesse small { color: rgba(246, 241, 231, .66); }
 @media (max-width: 860px) {
-  .hero-plein { min-height: min(88svh, 780px); }
+  /* « Sur la version mobile c'est très important qu'il n'y ait aucune écriture
+     sur les yeux. Le regard doit être visible. Baisser la taille des écritures
+     et descendre tout le texte » (Yéman, 23 septembre 2026). Le premier écran
+     prend toute la hauteur visible, le bloc du texte est plus court d'un tiers
+     et reste ancré en bas : il commence sous le menton, jamais sur le regard. */
+  /* vh d'abord, svh ensuite : les navigateurs d'avant 2022 (les Android
+     anciens, nombreux à Cotonou) ignorent svh et gardent vh ; sans le repli,
+     le premier écran n'aurait plus de hauteur du tout. */
+  .hero-plein { min-height: 100vh; min-height: 100svh; }
   .hero-plein__photo { width: 100%; left: 0; object-position: 60% 0%; }
   .hero-plein__voile { background: linear-gradient(0deg, rgba(21, 23, 58, .92) 0%, rgba(21, 23, 58, .55) 42%, rgba(21, 23, 58, .12) 70%, rgba(21, 23, 58, .25) 100%); }
   /* « Sur la version mobile, il faut enlever le texte qui se trouve au niveau
@@ -617,12 +625,13 @@ footer li svg { width: 15px; height: 15px; flex: none; }
      c'est la seule ligne du premier écran qui dit ce que la Maison fait, et
      c'est là que sont la plupart des visiteuses. En petites capitales cuivre
      sur l'indigo plein, elle ne recouvre plus rien. */
-  .hero-plein__texte { display: flex; flex-direction: column; align-items: flex-start; }
-  .hero-plein .pastille { order: 9; margin-top: 22px; padding: 0; background: none; border: 0; backdrop-filter: none; color: var(--accent-sombre); font-size: 11px; }
-  .hero-plein h1 { font-size: clamp(38px, 11.5vw, 56px); margin-top: 0; }
-  .hero-plein .rangee { align-self: stretch; }
-  .hero-plein .rangee .btn { width: 100%; }
-  .hero-plein .devise small { display: block; margin: 2px 0 0; }
+  .hero-plein__texte { display: flex; flex-direction: column; align-items: flex-start; padding-bottom: 26px; }
+  .hero-plein .pastille { order: 9; margin-top: 14px; padding: 0; background: none; border: 0; backdrop-filter: none; color: var(--accent-sombre); font-size: 11.5px; letter-spacing: .16em; max-width: calc(100% - 84px); }
+  .hero-plein h1 { font-size: clamp(30px, 8.8vw, 40px); margin-top: 0; max-width: none; }
+  .hero-plein .devise { font-size: 19px; margin-top: 10px; }
+  .hero-plein .devise small { display: inline; margin: 0 0 0 8px; font-size: 11.5px; }
+  .hero-plein .rangee { align-self: stretch; margin-top: 16px; gap: 8px; }
+  .hero-plein .rangee .btn { width: 100%; min-height: 44px; padding: 10px 14px; font-size: 11px; }
 }
 
 /* ── le menu derrière son bouton, et l'appel ──

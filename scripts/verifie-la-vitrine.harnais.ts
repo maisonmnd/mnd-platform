@@ -72,6 +72,15 @@ dit('… la ligne du métier est une pastille', true, accueil.includes(`<p class
    la seule ligne du premier écran qui dit ce que la Maison fait (arbitrage
    de Yéman, 23 septembre 2026). */
 dit('… et la feuille ne la cache sur aucun écran', false, /\.pastille[^{]*\{[^}]*display:\s*none/.test(readFileSync('src/apps/revelateur/revelateur.css', 'utf8')));
+/* Deux pièges de téléphone, nommés par l'autre session : une hauteur en svh
+   sans repli en vh s'effondre sur les navigateurs d'avant 2022 (les Android
+   anciens de Cotonou) ; et une ligne du métier sous 11 px est présente mais
+   illisible, ce qui revient à la cacher. */
+const feuilleSite = readFileSync('src/apps/revelateur/revelateur.css', 'utf8');
+dit('toute hauteur en svh est précédée de son repli en vh, dans la même règle', [],
+  [...feuilleSite.matchAll(/\{[^}]*\}/g)].map((m) => m[0]).filter((r) => /:\s*[^;]*\bsvh\b/.test(r) && !/min-height:\s*\d+vh;\s*min-height:\s*\d+svh/.test(r)).map((r) => r.slice(0, 60)));
+dit('la ligne du métier ne descend jamais sous 11 px', [],
+  [...feuilleSite.matchAll(/\.pastille[^{]*\{[^}]*font-size:\s*([\d.]+)px/g)].map((m) => Number(m[1])).filter((px) => px < 11));
 dit('… les promesses sont dans le bandeau sombre', true, accueil.includes('class="promesses promesses--sombre"'));
 const photoDuPremierEcran = accueil.match(/<img class="hero-plein__photo" src="([^"]+)"[^>]*>/);
 dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremierEcran && !photoDuPremierEcran[0].includes('loading="lazy"') && photoDuPremierEcran[0].includes('fetchpriority="high"'));
