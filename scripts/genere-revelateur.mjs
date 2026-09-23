@@ -510,12 +510,15 @@ function rendAccueil(articles) {
            photographiées avec leur accord (registre : docs/site-revelateur/
            photos.md), posées AU-DESSUS des avis : les visages et les mots de
            leurs semblables ensemble, c'est la preuve entière. Hors de l'îlot,
-           qui ne redessine que sa propre boîte. Aucun prénom. -->
+           qui ne redessine que sa propre boîte. Aucun prénom. Alt vide sur les
+           cinq (le-trone-35, même jour) : la ligne au-dessus porte déjà le sens
+           du groupe, et rien dans ces images n'est nommable une par une sans
+           nommer une femme ; cinq alt identiques n'étaient que du bruit. -->
       <section class="avis" id="avis">
         <div class="conteneur couronnes">
           <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2><p class="ligne">${echappe(a.couronnes.ligne)}</p></div>
           <div class="couronnes__bande">
-            ${a.couronnes.images.map((img) => `<figure>${image(img, 'Une cliente de la Maison, photographiée avec son accord')}</figure>`).join('\n            ')}
+            ${a.couronnes.images.map((img) => `<figure>${image(img, '')}</figure>`).join('\n            ')}
           </div>
         </div>
         <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
