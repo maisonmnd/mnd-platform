@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>LinkedIn · deux mois de communication · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* LINKEDIN, DEUX MOIS (23 septembre 2026). « J'aime beaucoup les posts
+   LinkedIn, peux-tu les approfondir, et me sortir toute la stratégie de
+   communication sur deux mois ? » (Yéman). La page entreprise, le profil qui
+   porte la voix, la ligne éditoriale en quatre séries, neuf textes entiers
+   prêts à coller, le calendrier du 28 septembre au 24 novembre, l'engagement
+   de chaque semaine, la mesure à soixante jours, les étapes cochables. Ce qui
+   est souligné en cuivre attend une décision ou un fait de la Maison. Aucun
+   prix, initiales seulement, aucun visage sans le registre. */
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-sombre:#D6A06F; --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+img{max-width:100%;display:block}
+.wrap{max-width:980px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+.afixer{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+kbd{font-family:var(--sans);font-size:12px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+.tete{padding:44px 0 12px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,46px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:62ch}
+.sceau{display:block;width:116px;height:116px;margin:-6px 0 -20px -29px}
+.jauge{display:flex;gap:18px;align-items:baseline;margin:22px 0 4px;flex-wrap:wrap}
+.jauge div b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400}
+.jauge div span{font-size:12.5px;color:var(--encre-doux);display:block;margin-top:-4px}
+h2{font-size:clamp(22px,3vw,29px);margin-top:46px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:70ch}
+h3{font-size:19px;font-weight:400;margin-top:26px}
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:14px 18px;margin-top:16px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:12px;line-height:1.6}
+ul.liste{margin:12px 0 0;padding-left:18px;font-size:14px;color:var(--encre-doux)}
+ul.liste li{margin-bottom:6px}
+ul.liste b{color:var(--indigo);font-weight:500}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td b{font-weight:500;color:var(--indigo)}
+.dep{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;background:var(--indigo);color:#F6F1E7;letter-spacing:.1em;text-transform:uppercase;margin:2px 3px 2px 0;white-space:nowrap}
+.dep.c{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.dep.g{background:var(--fond-2);color:var(--encre-doux);border:1px solid var(--filet)}
+
+/* les publics et les séries */
+.cartes{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
+.carte{background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px 18px}
+.carte h4{font-size:18px;font-weight:400}
+.carte p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.carte .sur{display:block;margin-bottom:4px}
+.series{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.serie{background:var(--indigo);color:#F6F1E7;border-radius:6px;padding:14px 16px}
+.serie .sur{color:var(--cuivre-sombre)}
+.serie h4{color:#F6F1E7;font-size:19px;margin-top:4px}
+.serie p{font-size:12.5px;color:rgba(246,241,231,.75);margin-top:6px}
+.serie small{display:block;margin-top:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cuivre-sombre)}
+
+/* la page et le profil */
+.page{background:var(--carte);border:1px solid var(--filet);border-radius:6px;overflow:hidden;margin-top:16px}
+.page__couv{aspect-ratio:1128/191;background:linear-gradient(90deg,var(--indigo) 0%,var(--indigo) 55%,var(--indigo-2) 100%);position:relative;color:#F6F1E7;display:flex;align-items:center;padding:0 22px;gap:12px;overflow:hidden}
+.page__couv img.mono{width:72px;height:72px;margin:-12px -14px -12px -18px}
+.page__couv .l1{font-family:var(--serif);font-size:18px}
+.page__couv .l2{font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cuivre-sombre);margin-top:2px}
+.page__couv img.photo{position:absolute;right:0;top:0;height:100%;width:34%;object-fit:cover;object-position:50% 20%;opacity:.55;mask-image:linear-gradient(90deg,transparent,#000 40%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%)}
+.page__corps{padding:0 22px 20px;position:relative}
+.page__logo{width:92px;height:92px;border-radius:6px;background:var(--indigo);display:grid;place-items:center;overflow:hidden;margin-top:-36px;border:3px solid var(--carte)}
+.page__logo img{width:112px;height:112px}
+.page__nom{margin-top:10px}
+.page__nom b{display:block;font-weight:500;color:var(--indigo);font-size:19px}
+.page__nom span{display:block;font-size:13.5px;color:var(--encre-doux);margin-top:2px}
+.page__nom small{display:block;font-size:12px;color:var(--encre-doux);margin-top:4px}
+.page__boutons{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.page__boutons span{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:999px;background:var(--indigo);color:#F6F1E7}
+.page__boutons span.creux{background:var(--fond-2);color:var(--indigo)}
+dl.fiche{margin:14px 0 0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:6px 12px;font-size:13.5px}
+dl.fiche dt{color:var(--encre-doux);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding-top:3px}
+dl.fiche dd{margin:0;min-width:0;overflow-wrap:anywhere}
+dl.fiche dd b{font-weight:500;color:var(--indigo)}
+.texte{position:relative;background:var(--fond);border:1px solid var(--filet);border-radius:4px;padding:12px 78px 12px 14px;font-size:13.5px;white-space:pre-line;line-height:1.55;margin-top:6px}
+.copier{position:absolute;right:8px;top:8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--filet);background:var(--carte);color:var(--cuivre-profond);border-radius:999px;padding:3px 9px;cursor:pointer}
+.copier:hover{border-color:var(--cuivre)}
+.copier.fait{background:var(--cuivre);color:#fff;border-color:var(--cuivre)}
+.profil{display:grid;grid-template-columns:110px 1fr;gap:18px;background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:18px;margin-top:14px}
+.profil img{width:110px;height:110px;border-radius:999px;object-fit:cover;object-position:50% 20%}
+.profil b{display:block;font-weight:500;color:var(--indigo);font-size:17px}
+.profil .titre{font-size:13.5px;color:var(--encre-doux);margin-top:2px}
+
+/* les textes */
+ol.posts{list-style:none;margin:16px 0 0;padding:0}
+ol.posts li{position:relative;background:var(--carte);border:1px solid var(--filet);border-radius:6px;padding:16px 46px 16px 16px;margin-bottom:12px;transition:.18s ease}
+ol.posts li.fait{opacity:.5}
+ol.posts li.fait .titre b{text-decoration:line-through}
+.post__haut{display:grid;grid-template-columns:200px 1fr;gap:18px}
+.post__meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.post__meta .date{font-family:var(--serif);font-size:19px;color:var(--indigo);margin-right:4px}
+.titre{margin-top:6px;font-size:15px}
+.titre b{font-weight:500;color:var(--indigo)}
+.titre span{color:var(--encre-doux)}
+.accroche{margin-top:8px;font-size:12.5px;color:var(--encre-doux)}
+.accroche b{color:var(--cuivre-profond);font-weight:500}
+.note{font-size:12.5px;color:var(--encre-doux);margin-top:8px}
+.note b{color:var(--indigo);font-weight:500}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+/* le visuel indigo sur ivoire, et le document */
+.v-post{width:190px;aspect-ratio:4/5;position:relative;overflow:hidden;background:var(--fond);border-radius:2px;border:1px solid var(--filet);flex:none}
+.v-post img.ph{width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.v-post .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(246,241,231,.97) 0%,rgba(246,241,231,.88) 38%,rgba(246,241,231,0) 64%)}
+.v-post .txt{position:absolute;left:12px;right:12px;bottom:12px}
+.v-post .txt .sur{font-size:6.5px;letter-spacing:.2em}
+.v-post .txt h4{color:var(--indigo);font-size:16px;font-weight:500;margin-top:3px;line-height:1.05}
+.v-post .txt .filet{width:26px;height:1px;background:var(--cuivre);margin-top:7px}
+.v-post .mono{position:absolute;right:4px;top:0;width:30px;height:30px}
+.v-doc{width:190px;aspect-ratio:4/5;position:relative;flex:none}
+.v-doc .p{position:absolute;inset:0;border-radius:2px;background:var(--fond);border:1px solid var(--filet);padding:14px 12px}
+.v-doc .p:nth-child(1){transform:translate(14px,14px);background:var(--fond-2)}
+.v-doc .p:nth-child(2){transform:translate(7px,7px)}
+.v-doc .p:nth-child(3){background:var(--indigo);color:#F6F1E7;border:0}
+.v-doc .p .sur{color:var(--cuivre-sombre);font-size:6.5px;letter-spacing:.2em}
+.v-doc .p h4{color:#F6F1E7;font-size:18px;font-weight:400;margin-top:8px;line-height:1.05}
+.v-doc .p small{position:absolute;left:12px;bottom:10px;font-size:7px;letter-spacing:.14em;color:rgba(246,241,231,.6)}
+.v-doc .p img{position:absolute;right:4px;bottom:0;width:30px;height:30px}
+.visuels{display:flex;gap:10px;flex-wrap:wrap}
+.spec{font-size:12px;color:var(--encre-doux);margin-top:8px;line-height:1.5}
+.spec b{color:var(--indigo);font-weight:500}
+
+.semaine{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.jour{background:var(--carte);border:1px solid var(--filet);border-radius:4px;padding:12px 14px}
+.jour .sur{font-size:10px}
+.jour b{display:block;font-family:var(--serif);font-size:19px;color:var(--indigo);font-weight:400;margin-top:4px}
+.jour p{font-size:12.5px;color:var(--encre-doux);margin-top:6px}
+
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:760px){
+  .cartes,.profil,.post__haut{grid-template-columns:1fr}
+  .series,.semaine{grid-template-columns:1fr 1fr}
+  dl.fiche{grid-template-columns:1fr}
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.copier{display:none}
+  ol.posts li,ol.pas li,.carte,.garde,.regle,.page,.profil{break-inside:avoid}
+  h2{break-after:avoid;margin-top:22px}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  @page{margin:12mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="sceau" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <p class="sur">Maquette · LinkedIn · deux mois de communication · du 28 septembre au 24 novembre 2026</p>
+    <h1>La Maison sur LinkedIn</h1>
+    <p class="ligne">LinkedIn est le seul réseau où la Maison parle métier, méthode et transmission à des gens qui lisent. Neuf textes entiers, écrits dans votre voix et prêts à coller, une page entreprise, votre profil qui la porte, l'engagement de chaque semaine et la mesure à soixante jours. Ce qui est <span class="afixer">souligné en cuivre</span> attend un fait ou une décision de la Maison.</p>
+    <div class="jauge">
+      <div><b>9</b><span>textes entiers</span></div>
+      <div><b>4</b><span>séries</span></div>
+      <div><b>2</b><span>documents à feuilleter</span></div>
+      <div><b>1</b><span>texte par semaine, le mardi</span></div>
+    </div>
+  </header>
+
+  <!-- ══ 1. POURQUOI, POUR QUI ══ -->
+  <h2>Pourquoi LinkedIn, et pour qui</h2>
+  <p class="cap">Instagram montre, TikTok fait, Facebook rassemble le quartier. LinkedIn est l'endroit où l'on explique, longuement, à des gens qui décident : de se former, de travailler avec vous, d'écrire sur vous, de vous rejoindre. C'est aussi le seul réseau où seize ans de métier pèsent plus qu'un visuel.</p>
+  <div class="cartes">
+    <div class="carte"><span class="sur">Premier public</span><h4>Celles et ceux qui veulent apprendre</h4><p>Une coiffeuse qui veut se spécialiser, une débutante qui cherche une vraie école, une professionnelle qui veut structurer son salon. MND Formation est la seule offre de la Maison qui se vend sur LinkedIn.</p></div>
+    <div class="carte"><span class="sur">Deuxième public</span><h4>Les partenaires et la presse</h4><p>Un fournisseur de soins, un espace de coworking, une école, une journaliste qui prépare un sujet sur l'entrepreneuriat féminin à Cotonou. Ils cherchent une maison sérieuse, formelle, ancienne.</p></div>
+    <div class="carte"><span class="sur">Troisième public</span><h4>Les futures recrues</h4><p>Une locticienne confirmée, une apprentie, une personne pour l'accueil. LinkedIn est l'endroit où l'on montre comment on travaille avant de dire qu'on recrute.</p></div>
+    <div class="carte"><span class="sur">Quatrième public</span><h4>Les clientes qui décident</h4><p>Cadres, entrepreneuses, la diaspora qui rentre : elles lisent LinkedIn le matin, et une maison qui explique sa méthode sans afficher de prix leur parle exactement.</p></div>
+  </div>
+  <table>
+    <thead><tr><th>À soixante jours</th><th>Aujourd'hui</th><th>Objectif</th><th>Où on le lit</th></tr></thead>
+    <tbody>
+      <tr><td><b>Demandes de formation venues de LinkedIn</b></td><td><span class="afixer">à relever</span></td><td><span class="afixer">à fixer</span></td><td>Les demandes du site portant la campagne « linkedin » ; le formulaire de rappel avec le parcours formation.</td></tr>
+      <tr><td><b>Abonnés de la page</b></td><td>0 ou <span class="afixer">le nombre actuel</span></td><td>+ <span class="afixer">à fixer</span></td><td>Les statistiques de la page, le premier de chaque mois.</td></tr>
+      <tr><td><b>Conversations ouvertes</b></td><td>0</td><td>3 partenaires, 1 contact presse</td><td>Les messages reçus après un texte, notés dans Le Trône.</td></tr>
+      <tr><td><b>Lecture des textes</b></td><td>0</td><td>Un texte sur deux dépasse les abonnés de la page</td><td>Les impressions par publication : quand un texte circule au-delà des abonnés, c'est qu'il a été partagé.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══ 2. LA LIGNE ══ -->
+  <h2>La ligne éditoriale : quatre séries, une voix</h2>
+  <p class="cap">Chaque texte appartient à une série ; les séries tournent, une par semaine. La voix est celle de Yéman, à la première personne, publiée depuis son profil et relayée par la page : sur LinkedIn, une personne est lue dix fois plus qu'une entreprise.</p>
+  <div class="series">
+    <div class="serie"><p class="sur">Série 1</p><h4>Seize ans</h4><p>Ce que le métier nous a appris. Des récits, une leçon chacun, jamais une morale.</p><small>2 textes</small></div>
+    <div class="serie"><p class="sur">Série 2</p><h4>La méthode</h4><p>Les quatre temps, les trois paliers, les gestes nommés. On explique comment, jamais combien.</p><small>2 documents</small></div>
+    <div class="serie"><p class="sur">Série 3</p><h4>Transmettre</h4><p>MND Formation : les trois entrées, le référentiel, le certificat, ce qu'on demande à une élève.</p><small>2 textes</small></div>
+    <div class="serie"><p class="sur">Série 4</p><h4>La Maison</h4><p>L'entreprise : le nom, le site, une position, le recrutement. Ce qui fait une maison, pas un salon.</p><small>3 textes</small></div>
+  </div>
+  <div class="regle">
+    <p>La première ligne fait tout : LinkedIn coupe après deux cents signes et cache le reste derrière « voir plus ». Elle affirme, elle intrigue, elle ne commence jamais par « Nous sommes heureux de ».</p>
+    <p>Un texte, une idée. Des paragraphes d'une à trois lignes. Aucun prix, aucun emoji, trois mots-dièse au plus. Le lien ne va pas dans le texte : il va dans le premier commentaire, posé par vous dans la minute, parce que LinkedIn montre moins un texte qui fait sortir de LinkedIn.</p>
+    <small>Le mardi à 8 h, heure de Cotonou. Un visuel par texte, en indigo sur ivoire, ou un document à feuilleter pour la série « La méthode » : le format que LinkedIn met le plus en avant. Chaque commentaire reçoit une réponse dans la journée. Le vouvoiement, les mots du site, et le registre des photos pour chaque visage.</small>
+  </div>
+
+  <!-- ══ 3. LA PAGE ══ -->
+  <h2>La page entreprise, telle qu'elle paraîtra</h2>
+  <p class="cap">Une seule page, celle de la Maison ; MND Formation y est un pilier. La page « M Natural Dreadlocks », si elle existe, se renomme ; sinon on la crée sous ce nom.</p>
+  <div class="page">
+    <div class="page__couv"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div><p class="l1">Maison MND</p><p class="l2">Locks créées, réparées, entretenues · Cotonou · depuis 2010 · MND Formation</p></div><img class="photo" src="assets/photos/site/brice.jpg" alt=""></div>
+    <div class="page__corps">
+      <div class="page__logo"><img src="assets/monograms/mono-ivoire.png" alt=""></div>
+      <div class="page__nom"><b>Maison MND</b><span>Locks créées, réparées, entretenues, à Cotonou depuis 2010. MND Formation transmet la méthode.</span><small>Services à la personne · Cotonou, Bénin · 2 à 10 employés · fondée en 2010</small></div>
+      <div class="page__boutons"><span>Visiter le site web</span><span class="creux">S'abonner</span></div>
+      <dl class="fiche">
+        <dt>À propos</dt><dd><div class="texte" data-copie>Maison MND est une maison de locks à Cotonou, ouverte en 2010. Nous créons, réparons et entretenons des couronnes de locks, avec une méthode en quatre temps, Purifier, Nourrir, Sceller, Couronner, et des gestes qui portent un nom : le VÈKPÈ™ pour créer, le FÍNFÍN™ pour restaurer, le SÍNSIN™ pour resserrer, le KLƆKLƆ™ pour laver, le DÀNDÀN™ pour hydrater.
+
+Une couronne se construit sur des années : la Fondation, l'Élévation, la Souveraineté. Chaque création commence par une consultation, et rien ne commence sans le oui de la cliente.
+
+MND Formation transmet cette méthode à celles et ceux qui feront des locks leur métier, ou qui veulent approfondir ce qu'ils savent déjà : un parcours pour débuter, un pour se spécialiser, un parcours certifiant sur le référentiel MND, reconnu par la Maison.
+
+Brice Ahouansou, maître loctician, tient les mains. Yéman Ahouansou tient la direction. La Maison est immatriculée au registre du commerce de Cotonou.
+
+Le site de la Maison, la réservation en ligne et le programme des formations : maisonmnd.com</div></dd>
+        <dt>Site</dt><dd><kbd>https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=page&amp;utm_campaign=linkedin</kbd></dd>
+        <dt>Secteur</dt><dd><b>Services à la personne</b> (la catégorie LinkedIn la plus proche ; « Formation professionnelle » en second si LinkedIn en autorise deux).</dd>
+        <dt>Spécialités</dt><dd>Dreadlocks · Locks · Création de locks · Réparation de locks · Entretien de locks · Soins capillaires naturels · Formation de locticiennes · Cotonou · Bénin</dd>
+        <dt>Adresse</dt><dd>Ilot 130-F, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin</dd>
+        <dt>Contact</dt><dd>contact@maisonmnd.com · le numéro du registre pour les appels</dd>
+        <dt>Mots-dièse</dt><dd>#MaisonMND · #MNDFormation · #LocksCotonou (les trois mots-dièse de la page, que LinkedIn suit pour elle)</dd>
+        <dt>À la une</dt><dd>Le texte du 28 septembre (le nouveau nom) et la page des formations du site, épinglés dans la section « À la une » de la page.</dd>
+        <dt>Employés</dt><dd>Brice, avec son profil s'il en a un (<span class="afixer">à vérifier</span>), et chaque personne de l'équipe qui accepte d'écrire « Maison MND » dans son expérience : c'est ce qui donne à la page ses premiers abonnés.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <h3>Le profil qui porte la voix</h3>
+  <div class="profil">
+    <img src="assets/photos/site/yeman.jpg" alt="">
+    <div>
+      <b>Yéman Ahouansou</b>
+      <p class="titre">Directrice, Maison MND · Locks à Cotonou depuis 2010 · MND Formation transmet la méthode</p>
+      <div class="texte" data-copie>Je dirige la Maison MND, à Cotonou, depuis 2010. Brice tient les mains ; je tiens la direction, l'accueil, la méthode écrite, et l'Académie.
+
+Une couronne de locks ne se fabrique pas, elle se construit, sur des années. J'écris ici ce que seize ans de ce métier nous ont appris : la patience, la méthode, et pourquoi nous n'affichons aucun prix.
+
+MND Formation transmet notre méthode à celles et ceux qui en feront leur métier. Si c'est votre cas, le programme est sur maisonmnd.com.</div>
+      <p class="note"><b>La règle :</b> Yéman publie depuis son profil, la page relaie dans l'heure. Sa photo est celle du site (registre : fondatrice). Son titre change avec la page, le jour du nouveau nom.</p>
+    </div>
+  </div>
+
+  <!-- ══ 4. LES NEUF TEXTES ══ -->
+  <h2>Les neuf textes, entiers</h2>
+  <p class="cap">Chacun se copie d'un geste, se relit à voix haute, et se publie le mardi à 8 h. La première ligne, en cuivre, est celle que LinkedIn montre avant « voir plus ». Le lien de chaque texte va dans le premier commentaire. Chaque texte se coche une fois publié.</p>
+  <ol class="posts" id="posts">
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/fondateurs.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 4 · La Maison</p><h4>M Natural Dreadlocks devient Maison MND.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Lundi 28 septembre</span><span class="dep">La Maison</span><span class="dep c">Le lancement</span></div>
+          <p class="titre"><b>Le nouveau nom.</b> <span>Le seul texte publié un lundi, le jour où tout change partout. Épinglé « À la une » sur la page.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Seize ans après la première couronne, notre maison prend le nom qu'elle portait déjà entre nous.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Seize ans après la première couronne, notre maison prend le nom qu'elle portait déjà entre nous.
+
+En 2010, nous avons ouvert à Cotonou un atelier de locks que nous avons appelé M Natural Dreadlocks. Le nom disait ce que nous faisions. Il ne disait pas ce que nous étions devenus.
+
+Aujourd'hui, M Natural Dreadlocks devient Maison MND.
+
+Une maison, pas un salon : on y entre, on y revient, on y est reçue. On y apprend, aussi. Depuis quelques années, MND Formation transmet notre méthode à celles et ceux qui feront des locks leur métier.
+
+Ce qui change : le nom, le monogramme, et un site où l'on réserve son entretien en trois pas, sans créer de compte.
+
+Ce qui ne change pas : les mains de Brice, la méthode en quatre temps, l'adresse à Suru-Léré, le numéro WhatsApp, et la règle que nous tenons depuis le premier jour : rien ne commence sans une consultation, et rien ne commence sans votre oui.
+
+Merci à celles et ceux qui nous suivent depuis M Natural Dreadlocks. Vous êtes chez vous ici.
+
+Le site est en premier commentaire.
+
+#MaisonMND #LocksCotonou #Entrepreneuriat</div>
+      <p class="note"><b>Premier commentaire :</b> « Le site de la Maison, et la réservation en ligne : https://maisonmnd.com/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=nouveau-nom » · <b>Visuel :</b> le portrait des fondateurs, indigo sur ivoire, 1080 × 1350.</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/attention.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 1 · Seize ans</p><h4>Ce que seize ans de locks nous ont appris sur la patience.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 6 octobre</span><span class="dep">Seize ans</span></div>
+          <p class="titre"><b>La patience.</b> <span>Le texte que vous aimiez, approfondi : trois leçons, une histoire pour chacune, et la raison pour laquelle une maison de locks ne peut pas être pressée.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Une cliente nous a demandé un jour de « finir » ses locks. Il nous a fallu du courage pour lui répondre qu'une lock ne se finit pas.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Une cliente nous a demandé un jour de « finir » ses locks. Il nous a fallu du courage pour lui répondre qu'une lock ne se finit pas.
+
+Elle se forme de l'intérieur, pendant des mois. Les premières semaines, elle bouge, elle gonfle, elle paraît irrégulière. C'est ce que nous appelons la Fondation, le premier des trois paliers d'une couronne. Ce n'est pas un défaut ; c'est le travail qui se fait.
+
+Seize ans de ce métier nous ont appris trois choses sur la patience.
+
+La première : dire la vérité le premier jour coûte une cliente pressée et en garde dix. Celles qui reviennent nous voir dix ans plus tard sont celles à qui nous avons dit, à la consultation, ce que les six premiers mois seraient.
+
+La deuxième : le geste le plus fréquent de la Maison, le resserrage des racines, ne consiste pas à serrer plus fort. Une racine qui repousse est une racine qui va bien. On la reprend quand la couronne le demande, pas avant, et pas plus. Nous l'appelons le SÍNSIN™, et c'est un geste de retenue autant que de main.
+
+La troisième : une couronne se construit pour dix ans. La taille des sections, choisie à la consultation, tient compte de ce que le cuir chevelu pourra porter longtemps. Ce qu'on décide en une heure, on le porte une décennie.
+
+Nous n'avons jamais trouvé le moyen d'aller plus vite. Nous avons trouvé le moyen de le dire.
+
+#MaisonMND #LocksCotonou #Artisanat</div>
+      <p class="note"><b>Premier commentaire :</b> « Comment entretenir ses racines, sur le Journal de la Maison : https://maisonmnd.com/journal/entretenir-ses-racines/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=patience » · <b>Visuel :</b> la main sur le collier, indigo sur ivoire.</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-doc"><div class="p"></div><div class="p"></div><div class="p"><p class="sur">Série 2 · La méthode</p><h4>Quatre temps, pas un de plus.</h4><small>1 / 6 · MAISON MND</small><img src="assets/monograms/mono-ivoire.png" alt=""></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 13 octobre</span><span class="dep">La méthode</span><span class="dep c">Document</span></div>
+          <p class="titre"><b>Quatre temps, pas un de plus.</b> <span>Le premier document à feuilleter : six pages, Purifier, Nourrir, Sceller, Couronner, et pourquoi l'ordre ne s'inverse jamais.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Toute couronne qui passe par la Maison reçoit les mêmes quatre temps, dans le même ordre. Voici pourquoi l'ordre ne s'inverse jamais.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Toute couronne qui passe par la Maison reçoit les mêmes quatre temps, dans le même ordre. Voici pourquoi l'ordre ne s'inverse jamais.
+
+Purifier. Une lock est une matière dense qui retient ce qu'on y met, lavage après lavage. On lave clair, on mouille longuement, on rince jusqu'à l'eau claire, et on sèche vraiment. Le séchage est la moitié du lavage. Chez nous, ce temps s'appelle le KLƆKLƆ™.
+
+Nourrir. L'huile n'hydrate pas : elle retient l'eau. Sur une lock sèche, l'huile ferme une porte sur une pièce vide. Eau d'abord, huile ensuite, et des huiles qui entrent dans la fibre plutôt que des beurres qui l'étouffent. C'est le DÀNDÀN™, l'hydratation aux sept huiles.
+
+Sceller. Les racines. On ne les serre pas plus fort ; on les reprend quand elles le demandent. Le SÍNSIN™.
+
+Couronner. La coiffure de sortie, celle avec laquelle on repart. Une couronne propre, nourrie, tenue, et portée.
+
+Inverser l'ordre, c'est sceller de la saleté, nourrir une fibre qui ne peut plus boire, coiffer ce qui n'est pas tenu. Les quatre temps sont une méthode parce qu'ils sont un ordre.
+
+Le document ci-joint les détaille, une page par temps. Il est le premier chapitre de ce que MND Formation enseigne.
+
+#MaisonMND #MNDFormation #LocksCotonou</div>
+      <p class="note"><b>Le document :</b> six pages 1080 × 1350 exportées en PDF : la couverture indigo, une page ivoire par temps (le numéro cuivre, le nom du geste, quatre lignes), une dernière page « Apprendre la méthode · maisonmnd.com/formations/ ». <b>Premier commentaire :</b> « Le programme de MND Formation : https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=methode ».</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/brice.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 3 · Transmettre</p><h4>Transmettre la méthode.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 20 octobre</span><span class="dep">Transmettre</span></div>
+          <p class="titre"><b>Transmettre la méthode.</b> <span>Le second texte que vous aimiez, approfondi : les trois entrées de MND Formation, le référentiel, le certificat, et ce qui ne s'imprime pas.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> On nous demande souvent comment on apprend à faire des locks. La réponse honnête tient en une phrase, et elle ne plaît pas à tout le monde.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>On nous demande souvent comment on apprend à faire des locks. La réponse honnête tient en une phrase, et elle ne plaît pas à tout le monde : en regardant longtemps des mains qui savent, puis en refaisant le geste jusqu'à ce qu'il soit juste.
+
+C'est ce que MND Formation transmet, à trois entrées.
+
+L'entrée Débutante, pour apprendre proprement, du premier geste. On n'y demande aucune expérience ; on y demande de la patience.
+
+L'entrée Professionnelle, pour celles et ceux qui pratiquent déjà et veulent se spécialiser, ou structurer leur activité : la tenue d'un salon fait partie du métier.
+
+L'entrée Certifiante, sur le référentiel MND, reconnu par la Maison. Elle se termine devant un jury, avec une mention, et un certificat numéroté délivré par la Maison.
+
+Ce qu'on y apprend, ce sont les gestes : créer, restaurer, resserrer, laver, hydrater. Mais surtout le regard : celui qui voit une racine qui tire avant qu'elle ne casse, une couronne qui devient lourde avant qu'elle ne pèse, une lock qui reste humide avant qu'elle ne sente.
+
+Chaque promotion repart avec un certificat, et avec une chose qui ne s'imprime pas : la patience de ne pas faire.
+
+La prochaine session : <span class="afixer">dates à fixer</span>. Le programme et la demande de rappel sont sur le site, en premier commentaire.
+
+#MNDFormation #MaisonMND #Formation</div>
+      <p class="note"><b>Premier commentaire :</b> « Le programme, les dates et l'inscription : https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=formation » · <b>Visuel :</b> Brice au travail, indigo sur ivoire. <b>En cuivre :</b> la date de la prochaine session, à écrire avant de publier ; sans date, la phrase devient « Les prochaines sessions sont sur le site ».</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/regard.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 4 · La Maison</p><h4>Pourquoi nous n'affichons aucun prix.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 27 octobre</span><span class="dep">La Maison</span><span class="dep c">Une position</span></div>
+          <p class="titre"><b>Pourquoi nous n'affichons aucun prix.</b> <span>Le texte qui fera parler. Une position tenue, expliquée sans arrogance, qui dit ce que la Maison est.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Sur notre site, aucun prix. Sur nos réseaux, aucun prix. On nous le reproche parfois. Voici pourquoi nous tenons.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Sur notre site, aucun prix. Sur nos réseaux, aucun prix. On nous le reproche parfois. Voici pourquoi nous tenons.
+
+Une couronne n'est pas un produit. Deux personnes qui demandent « une création » n'ont ni la même texture, ni la même densité, ni le même cuir chevelu, ni le même projet pour les dix ans qui viennent. Un prix affiché promettrait la même chose à deux têtes qui n'ont rien en commun.
+
+Alors nous commençons par regarder. La consultation n'est pas une formalité : c'est le moment où l'on décide ensemble de la méthode, de la taille des sections, de ce que votre cuir chevelu pourra porter. Le devis vient après, et il vous est dit avant que quoi que ce soit ne commence. Rien ne commence sans votre oui.
+
+Nous savons ce que cela coûte. Une cliente qui compare des grilles de tarifs ne nous trouve pas dans la comparaison. Nous préférons qu'elle nous trouve dans la consultation.
+
+Une chose est affichée, en revanche, et partout : ce qui est écrit est tenu, dans la Maison, au règlement. Une offre annoncée est une offre honorée. Un acompte, s'il est demandé, est dit avant.
+
+Ce n'est pas une stratégie. C'est ce qu'une maison doit à celles qui lui confient dix ans de leur couronne.
+
+#MaisonMND #LocksCotonou #Artisanat</div>
+      <p class="note"><b>Premier commentaire :</b> « Réserver une consultation, en trois pas : https://maisonmnd.com/reserver/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=aucun-prix » · <b>Visuel :</b> la couronne de près (regard.jpg), indigo sur ivoire. <b>Les commentaires :</b> ceux qui demandent un prix reçoivent la même phrase, calme : « Le devis se fait à la Maison, après avoir regardé votre couronne. Écrivez-nous, nous vous répondons. »</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/creation.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 1 · Seize ans</p><h4>Le jour où nous avons dit non.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 3 novembre</span><span class="dep">Seize ans</span></div>
+          <p class="titre"><b>Le jour où nous avons dit non.</b> <span>Un récit sur ce qu'une maison refuse : serrer plus fort, alourdir, créer sur un cuir chevelu qui ne pourra pas porter. Sans nommer personne.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Le geste le plus difficile de ce métier n'est pas un geste. C'est de ne pas le faire.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Le geste le plus difficile de ce métier n'est pas un geste. C'est de ne pas le faire.
+
+Une cliente arrive avec une couronne mûre, au palier de la Souveraineté, et une tension au sommet du crâne en fin de journée. Elle demande qu'on resserre. La racine porte déjà plus qu'elle ne peut. Resserrer, ce jour-là, c'est casser dans six mois.
+
+Nous disons non. Nous expliquons. Nous proposons de couper quelques centimètres, en deux fois si elle hésite, pour enlever du poids sans rien enlever à la couronne.
+
+Une autre demande une création sur un cuir chevelu qui ne pourra pas porter les sections qu'elle imagine. Nous disons non à ces sections-là, et oui à d'autres, plus nombreuses, plus fines, qu'elle portera dix ans.
+
+Une troisième, pressée, voudrait sauter la consultation. Non.
+
+Chacun de ces non a coûté quelque chose ce jour-là. Chacun a construit ce que la Maison est : un endroit où l'on vous dit ce qui est bon pour votre couronne, même quand ce n'est pas ce que vous êtes venue chercher.
+
+Seize ans nous ont appris que les couronnes qui vieillissent le mieux sont celles à qui l'on a su dire non, au bon moment, avec des mots.
+
+#MaisonMND #LocksCotonou #Artisanat</div>
+      <p class="note"><b>Premier commentaire :</b> « Comment savoir si mes locks sont trop lourdes, sur le Journal : https://maisonmnd.com/journal/locks-trop-lourdes/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=dire-non » · <b>Visuel :</b> les cauris, indigo sur ivoire. Aucun cas n'est identifiable : trois situations, aucune personne.</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-doc"><div class="p"></div><div class="p"></div><div class="p"><p class="sur">Série 2 · La méthode</p><h4>Trois paliers : Fondation, Élévation, Souveraineté.</h4><small>1 / 6 · MAISON MND</small><img src="assets/monograms/mono-ivoire.png" alt=""></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 10 novembre</span><span class="dep">La méthode</span><span class="dep c">Document</span></div>
+          <p class="titre"><b>Trois paliers.</b> <span>Le second document : une couronne sur dix ans, palier par palier, et ce que la Maison fait à chacun.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Une couronne de locks a un âge, et chaque âge demande autre chose. Nous en distinguons trois.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Une couronne de locks a un âge, et chaque âge demande autre chose. Nous en distinguons trois.
+
+La Fondation. Les premiers mois. Les locks sont jeunes ; elles bougent, gonflent, paraissent irrégulières. Elles se forment de l'intérieur. On y demande de la patience, un lavage doux, et surtout : qu'on n'y touche pas trop.
+
+L'Élévation. Les années où la couronne prend sa forme, sa longueur, son caractère. C'est le temps du SÍNSIN™ régulier, de l'hydratation qui tient, des coiffures qui ne tirent pas. La plupart des erreurs se font ici : trop serrer, trop huiler, trop attacher.
+
+La Souveraineté. Une couronne mûre, lourde de ses années. On y surveille le poids, on allège quand il faut, on protège les racines qui portent tout. C'est aussi le palier des plus belles couronnes que nous ayons vues.
+
+À chaque palier, les mêmes quatre temps, Purifier, Nourrir, Sceller, Couronner, mais pas les mêmes gestes ni le même rythme. Savoir à quel palier est une couronne, c'est la première chose qu'on apprend à voir, et la première chose que MND Formation enseigne à reconnaître.
+
+Le document ci-joint donne, pour chaque palier, ce qu'on fait et ce qu'on évite.
+
+#MaisonMND #MNDFormation #LocksCotonou</div>
+      <p class="note"><b>Le document :</b> six pages : la couverture, une page par palier (ce qu'on fait, ce qu'on évite), une page « les quatre temps à chaque palier », une dernière page vers les formations. <b>Premier commentaire :</b> « Le programme de MND Formation : https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=paliers ».</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/trois-couronnes.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 3 · Transmettre</p><h4>Ce que nous demandons à une élève avant de lui confier une tête.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 17 novembre</span><span class="dep">Transmettre</span></div>
+          <p class="titre"><b>Avant de confier une tête.</b> <span>Le chemin d'une élève à MND Formation, de la candidature au jury, tel qu'il existe dans Le Trône. Sans jargon interne.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> À MND Formation, personne ne touche une vraie couronne avant d'avoir montré trois choses. Aucune des trois n'est un geste.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>À MND Formation, personne ne touche une vraie couronne avant d'avoir montré trois choses. Aucune des trois n'est un geste.
+
+Le chemin d'une élève tient en six pas. Une candidature, où l'on regarde moins l'expérience que la raison de venir. Une inscription, avec un livret que l'élève garde. Des séances, où l'on regarde des mains qui savent, longtemps, avant de refaire. Une pratique sur cliente, à la Maison, sous nos yeux, sur des couronnes dont les propriétaires ont dit oui. Des modules, qui s'évaluent. Et un jury.
+
+Les trois choses que nous demandons avant la pratique sur cliente : savoir dire à quel palier est une couronne ; savoir ce qu'on ne fait jamais, et pourquoi ; et savoir dire « je ne sais pas encore » plutôt que d'improviser sur une tête qui n'est pas la sienne.
+
+Le jury donne une mention : certifiée, ou Excellence. Le certificat porte un numéro, délivré par la Maison, sur le référentiel MND.
+
+Nous ne formons pas vite. Nous formons des mains à qui l'on peut confier dix ans de couronne.
+
+Les trois entrées de MND Formation, Débutante, Professionnelle, Certifiante, sont sur le site, en premier commentaire.
+
+#MNDFormation #MaisonMND #Formation</div>
+      <p class="note"><b>Premier commentaire :</b> « Les trois parcours et la demande de rappel : https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=post&amp;utm_campaign=eleve » · <b>Visuel :</b> les trois couronnes, indigo sur ivoire. <b>Registre :</b> aucun prénom d'élève, aucun visage d'élève sans son accord écrit.</p>
+    </li>
+
+    <li>
+      <div class="post__haut">
+        <div class="visuels"><div class="v-post"><img class="ph" src="assets/photos/site/hero.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-indigo.png" alt=""><div class="txt"><p class="sur">Série 4 · La Maison</p><h4>Nous recrutons.</h4><div class="filet"></div></div></div></div>
+        <div>
+          <div class="post__meta"><span class="date">Mardi 24 novembre</span><span class="dep">La Maison</span><span class="dep c">À fixer</span></div>
+          <p class="titre"><b>Nous recrutons, ou : deux mois sous notre nom.</b> <span>Si la Maison recrute, ce texte ; sinon, le second, plus bas.</span></p>
+          <p class="accroche"><b>Avant « voir plus » :</b> Nous cherchons une personne. Pas un profil : une personne. Voici ce que nous lui demandons, et ce que nous lui promettons.</p>
+        </div>
+      </div>
+      <div class="texte" data-copie>Nous cherchons une personne. Pas un profil : une personne. Voici ce que nous lui demandons, et ce que nous lui promettons.
+
+Le poste : <span class="afixer">à fixer</span> (locticienne confirmée, apprentie, ou accueil et réservations).
+
+Ce que nous demandons : la patience de regarder avant de faire ; le respect d'une méthode qui a un ordre ; le vouvoiement avec chaque cliente ; et l'envie d'apprendre les gestes que nous nommons, ou de les transmettre.
+
+Ce que nous promettons : une maison, pas un salon. Une méthode écrite, transmise chaque jour. Des mains qui savent, à côté des vôtres. Un contrat, une fiche de paie, une entreprise immatriculée à Cotonou depuis 2010. Et des clientes qui reviennent depuis dix ans, parce qu'on leur a dit la vérité le premier jour.
+
+Écrivez-nous à contact@maisonmnd.com, avec trois lignes sur vous et une sur la raison. Pas de CV obligatoire ; si vous en avez un, joignez-le.
+
+#MaisonMND #Recrutement #Cotonou</div>
+      <div class="texte" data-copie>Deux mois sous notre nom.
+
+Le 28 septembre, M Natural Dreadlocks devenait Maison MND. Deux mois plus tard, voici ce qui s'est passé, en vrai.
+
+Des réservations en ligne, en trois pas, sans compte : <span class="afixer">le nombre</span>. Des couronnes venues d'ailleurs, accueillies : <span class="afixer">le nombre</span>. Des demandes de formation : <span class="afixer">le nombre</span>. Des avis laissés sur Google : <span class="afixer">le nombre</span>.
+
+Et une chose qu'on ne compte pas : le nombre de fois où nous avons dit « non, pas comme ça, mais voici comment ». C'est celle dont nous sommes le plus fiers.
+
+Merci à celles et ceux qui ont poussé la porte sous le nouveau nom. Le prochain chapitre s'écrit avec MND Formation, dont la prochaine session est sur le site.
+
+#MaisonMND #LocksCotonou #Entrepreneuriat</div>
+      <p class="note"><b>Deux textes, un seul publié.</b> Le premier si vous recrutez (poste en cuivre) ; sinon le second, avec les vrais chiffres relevés dans Le Trône la veille, jamais des chiffres ronds. <b>Premier commentaire :</b> le site, campagne « recrutement » ou « deux-mois ».</p>
+    </li>
+
+  </ol>
+
+  <!-- ══ 5. LE CALENDRIER ══ -->
+  <h2>Le calendrier des deux mois</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Série</th><th>Titre</th><th>Format</th><th>À préparer avant</th></tr></thead>
+    <tbody>
+      <tr><td><b>Lun 28 sept</b></td><td>La Maison</td><td>M Natural Dreadlocks devient Maison MND</td><td>Portrait · fondateurs</td><td>Page renommée ou créée, profil de Yéman à jour, le matin même.</td></tr>
+      <tr><td><b>Mar 6 oct</b></td><td>Seize ans</td><td>Ce que seize ans de locks nous ont appris sur la patience</td><td>Portrait · attention</td><td>Rien.</td></tr>
+      <tr><td><b>Mar 13 oct</b></td><td>La méthode</td><td>Quatre temps, pas un de plus</td><td>Document PDF · 6 pages</td><td>Les six pages exportées depuis le gabarit carrousel, le samedi d'avant.</td></tr>
+      <tr><td><b>Mar 20 oct</b></td><td>Transmettre</td><td>Transmettre la méthode</td><td>Portrait · brice</td><td><span class="afixer">La date de la prochaine session</span>.</td></tr>
+      <tr><td><b>Mar 27 oct</b></td><td>La Maison</td><td>Pourquoi nous n'affichons aucun prix</td><td>Portrait · regard</td><td>Une heure libre le mardi pour répondre aux commentaires.</td></tr>
+      <tr><td><b>Mar 3 nov</b></td><td>Seize ans</td><td>Le jour où nous avons dit non</td><td>Portrait · cauris</td><td>Rien.</td></tr>
+      <tr><td><b>Mar 10 nov</b></td><td>La méthode</td><td>Trois paliers : Fondation, Élévation, Souveraineté</td><td>Document PDF · 6 pages</td><td>Les six pages, le samedi d'avant.</td></tr>
+      <tr><td><b>Mar 17 nov</b></td><td>Transmettre</td><td>Ce que nous demandons à une élève avant de lui confier une tête</td><td>Portrait · trois couronnes</td><td>Rien.</td></tr>
+      <tr><td><b>Mar 24 nov</b></td><td>La Maison</td><td>Nous recrutons, ou Deux mois sous notre nom</td><td>Portrait · hero</td><td><span class="afixer">Le poste</span>, ou les chiffres relevés la veille dans Le Trône.</td></tr>
+    </tbody>
+  </table>
+  <div class="garde"><b>Le rythme, revu pour LinkedIn seul</b><p>La première maquette disait deux textes par mois. Ici, un par semaine : les neuf textes sont écrits, il ne reste qu'à relire, coller et répondre. Si une semaine manque, on saute, on ne double pas la suivante. Le reste des réseaux garde son rythme léger.</p></div>
+
+  <!-- ══ 6. L'ENGAGEMENT ══ -->
+  <h2>Ce qui se fait chaque semaine, hors publication</h2>
+  <p class="cap">Un texte seul ne fait rien sur LinkedIn. Ce qui compte se fait dans les commentaires, chez les autres, et dans les invitations. Un quart d'heure par jour, du profil de Yéman.</p>
+  <div class="semaine">
+    <div class="jour"><p class="sur">Mardi</p><b>Publier, puis répondre</b><p>8 h : le texte, depuis le profil. Dans la minute : le lien en premier commentaire. Dans l'heure : la page relaie. Dans la journée : une réponse à chaque commentaire, en vouvoiement.</p></div>
+    <div class="jour"><p class="sur">Mercredi et jeudi</p><b>Commenter chez les autres</b><p>Trois commentaires utiles par jour, sous des publications d'écoles de coiffure, d'entrepreneuses béninoises, de journalistes, de marques de soins. Pas « bravo » : une phrase qui apporte.</p></div>
+    <div class="jour"><p class="sur">Vendredi</p><b>Inviter</b><p>Dix invitations à se connecter, depuis le profil, avec un mot : clientes professionnelles, partenaires, anciennes élèves. Et les invitations à suivre la page, que LinkedIn accorde à l'administratrice chaque mois.</p></div>
+    <div class="jour"><p class="sur">Lundi suivant</p><b>Lire les chiffres</b><p>Cinq minutes : les impressions du texte de la semaine, les commentaires, les messages reçus. On note dans Le Trône ce qui a ouvert une conversation.</p></div>
+  </div>
+  <ul class="liste">
+    <li><b>Les messages privés</b> reçoivent une réponse dans la journée ouvrée. Une demande de prix reçoit la phrase de la Maison et une invitation à réserver une consultation. Une demande de formation reçoit le lien du programme et la date de la prochaine session.</li>
+    <li><b>La page</b> ne publie rien d'autre que les relais des textes de Yéman et, une fois par mois, une photo de la Maison avec une ligne. Elle ne partage jamais un Reel ni une offre.</li>
+    <li><b>Un événement LinkedIn</b>, une fois dans les deux mois, si une session de MND Formation ouvre : « Une matinée à l'Académie », avec la date, le lieu, et l'inscription par le site. <span class="afixer">À décider avec les dates de session.</span></li>
+    <li><b>L'équipe</b> : chaque personne qui écrit « Maison MND » dans son expérience LinkedIn donne à la page un abonné et une portée. On le demande, on ne l'impose pas.</li>
+  </ul>
+  <div class="garde mur"><b>Ce qui ne se fait jamais sur LinkedIn</b><p>Un prix. Une photo de cliente sans le registre. Un prénom d'enfant. Un texte généré qu'on n'a pas relu à voix haute. Un lien dans le corps du texte. Une réponse polémique en commentaire : une seule réponse calme, puis le silence.</p></div>
+
+  <!-- ══ 7. LA MESURE ══ -->
+  <h2>Le point à soixante jours</h2>
+  <table>
+    <thead><tr><th>Ce qu'on relève</th><th>Où</th><th>Ce qu'on en fait</th></tr></thead>
+    <tbody>
+      <tr><td><b>Les demandes de formation portant « linkedin »</b></td><td>Le site, les demandes de rappel ; Le Trône</td><td>Le seul chiffre qui paie. S'il est nul après deux mois, la série « Transmettre » change de forme avant de changer de fond.</td></tr>
+      <tr><td><b>Le texte le plus lu, le plus commenté</b></td><td>Les statistiques du profil et de la page</td><td>Sa série reçoit un texte de plus dans les deux mois suivants.</td></tr>
+      <tr><td><b>Les conversations ouvertes</b></td><td>Les messages, notés dans Le Trône</td><td>Chaque partenaire ou journaliste reçoit une invitation à la Maison, pas un courriel.</td></tr>
+      <tr><td><b>Les abonnés de la page</b></td><td>La page, le premier du mois</td><td>Un chiffre qu'on regarde sans le poursuivre : il suit les textes, il ne les précède pas.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══ 8. LES ÉTAPES ══ -->
+  <h2>Les étapes, dans l'ordre</h2>
+  <ol class="pas" id="pas">
+    <li><b>Renommer ou créer la page Maison MND</b><p>Le nom, la ligne de présentation, la catégorie, l'adresse, contact@maisonmnd.com, le site avec sa campagne, les spécialités, les trois mots-dièse.</p></li>
+    <li><b>Poser le logo et la couverture</b><p>Le monogramme ivoire sur indigo en 1024 × 1024 ; la couverture 1128 × 191 du gabarit. Vérifier sur téléphone que le monogramme et la ligne du métier tiennent au centre.</p></li>
+    <li><b>Mettre le profil de Yéman à jour</b><p>La photo du site, le titre, le texte « À propos » de cette page, Maison MND en expérience actuelle avec « depuis 2010 ».</p></li>
+    <li><b>Relier l'équipe à la page</b><p>Brice et chaque personne qui accepte : « Maison MND » dans leur expérience. C'est ce qui donne les premiers abonnés.</p></li>
+    <li><b>Préparer les deux documents</b><p>Six pages chacun, depuis le gabarit carrousel, exportées en PDF : « Quatre temps » pour le 13 octobre, « Trois paliers » pour le 10 novembre.</p></li>
+    <li><b>Fixer la date de la prochaine session de MND Formation</b><p>Elle entre dans le texte du 20 octobre, dans la réponse type aux messages, et décide de l'événement LinkedIn.</p></li>
+    <li><b>Publier le 28 septembre à 8 h</b><p>Le nouveau nom, depuis le profil, le lien en premier commentaire, la page relaie, « À la une » sur la page.</p></li>
+    <li><b>Tenir le mardi pendant huit semaines</b><p>Un texte, un lien en commentaire, un relais, des réponses dans la journée. Si une semaine manque, on saute.</p></li>
+    <li><b>Tenir le quart d'heure quotidien</b><p>Trois commentaires utiles chez les autres, dix invitations le vendredi, les chiffres le lundi.</p></li>
+    <li><b>Trancher le texte du 24 novembre</b><p>« Nous recrutons » avec le poste, ou « Deux mois sous notre nom » avec les chiffres relevés la veille.</p></li>
+    <li><b>Faire le point à soixante jours</b><p>Les quatre relevés, dix minutes, et une décision : la série qu'on prolonge, celle qu'on change.</p></li>
+  </ol>
+
+  <div class="pied">
+    <span>Maison MND · LinkedIn, deux mois · maquette du 23 septembre 2026</span>
+    <span>Document de travail, initiales seulement, aucun prix.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son
+   stockage, la page marche quand même : on coche, ça ne se garde pas. */
+[['#posts li', 'mnd_linkedin_textes_faits', 'Marquer ce texte comme publié'], ['#pas li', 'mnd_linkedin_pas_faits', 'Marquer cette étape comme faite']].forEach(([sel, cle, libelle]) => {
+  const items = [...document.querySelectorAll(sel)];
+  let faits = [];
+  try { faits = JSON.parse(localStorage.getItem(cle) || '[]'); } catch { faits = []; }
+  items.forEach((li, i) => {
+    const b = document.createElement('button');
+    b.className = 'coche'; b.type = 'button'; b.setAttribute('aria-label', libelle); b.textContent = '✓';
+    b.onclick = () => {
+      li.classList.toggle('fait');
+      const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+      try { localStorage.setItem(cle, JSON.stringify(cochees)); } catch { /* tant pis */ }
+    };
+    li.appendChild(b);
+    if (faits.includes(i)) li.classList.add('fait');
+  });
+});
+/* Les textes se copient d'un geste. */
+document.querySelectorAll('[data-copie]').forEach((bloc) => {
+  const b = document.createElement('button');
+  b.className = 'copier'; b.type = 'button'; b.textContent = 'Copier';
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(bloc.textContent.replace(/\s*Copier\s*$/, '').trim()); b.textContent = 'Copié'; b.classList.add('fait'); }
+    catch { b.textContent = 'Sélectionnez'; }
+    setTimeout(() => { b.textContent = 'Copier'; b.classList.remove('fait'); }, 1800);
+  };
+  bloc.appendChild(b);
+});
+</script>
+</body>
+</html>
