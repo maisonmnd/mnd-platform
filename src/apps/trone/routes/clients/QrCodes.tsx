@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Clock, Crown, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
+import { BookOpen, Clock, Crown, Globe, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
 import { toast } from '../../../../ds/components';
@@ -405,6 +405,22 @@ export default function QrCodes() {
      développement. Changer de compte GitHub ne doit rien casser. */
   const lienCarte = new URL(`${window.location.pathname.includes('/trone') ? '/trone/' : '/'}carte.html`, window.location.origin).href;
 
+  /* ── LE SITE PUBLIC — 23 septembre 2026 ────────────────────────
+     La RACINE du domaine, pas /revelateur/ : elle y renvoie d'elle-même, et
+     c'est la valeur la plus courte, donc le carré le plus lisible une fois
+     imprimé. En développement le site vit à côté, sous son nom de fichier.
+     Jamais de domaine en dur, l'origine se lit sur la fenêtre. */
+  const lienSite = new URL(
+    window.location.pathname.includes('/trone') ? '/' : '/revelateur.html',
+    window.location.origin,
+  ).href;
+  /* LE MESSAGE EST SIGNÉ PAR LE CODE, comme tout ce qui sort de la Maison :
+     la devise ne se recopie pas à la main, sinon elle finit par différer
+     d'un message à l'autre. */
+  const messageSite = signeLeMessage(
+    `Voici la ${maisonNom()} : nos gestes, nos parcours, et la prise de rendez-vous. ${lienSite}`,
+  );
+
   const copier = (lien: string, quoi: string) => {
     navigator.clipboard.writeText(lien)
       .then(() => toast(`Lien ${quoi} copié, collez-le dans WhatsApp.`))
@@ -483,6 +499,50 @@ export default function QrCodes() {
         sous="Ce qu’on tend à celle qui cherche la porte, puis à celle qui vient de s’installer."
       >
         <div className="trq-grille">
+          {/* ── LE SITE DE LA MAISON — 23 septembre 2026 ─────────────
+              « Crée le QR code selon la Maison pour le site, à ranger dans
+              Le Trône » (Yéman). Il manquait, alors que c'est le carré qui
+              se donne le PLUS TÔT : sur une vitrine, au dos d'une carte, au
+              bas d'une facture, à qui n'est pas encore venue. Les huit
+              autres supposent déjà une cliente assise.
+
+              IL MÈNE À LA RACINE DU DOMAINE, et non à /revelateur/. Trois
+              raisons : c'est la plus courte valeur possible, donc le carré
+              le moins dense et le plus facile à scanner de loin ou imprimé
+              petit ; c'est ce qu'on prononce et ce qu'on écrit sous le
+              carré ; et la racine renvoie elle-même vers le site, ce qui a
+              été vérifié sur le domaine servi. */}
+          <CarteCode
+            signe={Globe}
+            nom="Le site de la Maison."
+            qui="Elle scanne · la Maison s’ouvre"
+            dit={<>Ce que la Maison fait, pour qui ne la connaît pas encore : les gestes, les parcours, les avis et la prise de rendez-vous. C’est le carré de la vitrine et du dos de carte, celui qu’on donne avant la première visite.</>}
+            valeur={lienSite}
+            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienSite}</span> }}
+            gestes={[
+              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: `${maisonNom()}.`, phrase: 'Scannez, la Maison s’ouvre sur votre téléphone.', valeur: lienSite }) },
+              /* L'AFFICHE DE VITRINE, sur le gabarit A5 de la Maison. Un carré
+                 montré au comptoir ne sert qu'à celle qui est déjà entrée ;
+                 celui-ci doit tenir seul derrière une vitre, de nuit, quand
+                 l'atelier est fermé. C'est le seul des neuf codes dans ce cas. */
+              { texte: 'Imprimer l’affiche', faire: () => imprime(carteA5({
+                titre: 'La Maison, en entier.',
+                sous: 'Nos gestes, nos parcours, nos avis, et la prise de rendez-vous.',
+                qr: lienSite,
+                grand: lienSite.replace(/^https?:\/\//, '').replace(/\/$/, ''),
+                sousGrand: 'Ou tapez cette adresse.',
+                etapes: [
+                  'Ouvrez l’appareil photo du téléphone',
+                  'Visez le carré',
+                  'La Maison s’ouvre, prenez rendez-vous',
+                ],
+                ariaQr: 'QR du site de la Maison',
+              })) },
+              { texte: 'Ouvrir le site', faire: () => window.open(lienSite, '_blank', 'noopener') },
+              { texte: 'Copier le lien', faire: () => copier(lienSite, 'du site') },
+              { texte: 'Copier le message', faire: () => copier(messageSite, 'du site (message entier)') },
+            ]}
+          />
           {/* ── LA CARTE DES PRIX — 28 août 2026 ─────────────────────
               L'écran du comptoir a une adresse ; elle mérite son carré. Ce
               n'est plus seulement une tablette posée face à la cliente : le
