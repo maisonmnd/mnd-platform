@@ -68,6 +68,10 @@ dit('… son titre tient en six mots', true, ACCUEIL.h1.trim().split(/\s+/).leng
    sur un trou ; un voile réglé à l'œil ne survit pas à la photo suivante. */
 dit('l’accueil est en pleine largeur, l’entête posée dessus', true, /<body [^>]*class="accueil-plein"/.test(accueil) && accueil.includes('<section class="hero-plein">'));
 dit('… la ligne du métier est une pastille', true, accueil.includes(`<p class="pastille metier">${ACCUEIL.metier}</p>`));
+/* Sur téléphone elle descend sous les boutons, elle ne disparaît pas : c'est
+   la seule ligne du premier écran qui dit ce que la Maison fait (arbitrage
+   de Yéman, 23 septembre 2026). */
+dit('… et la feuille ne la cache sur aucun écran', false, /\.pastille[^{]*\{[^}]*display:\s*none/.test(readFileSync('src/apps/revelateur/revelateur.css', 'utf8')));
 dit('… les promesses sont dans le bandeau sombre', true, accueil.includes('class="promesses promesses--sombre"'));
 const photoDuPremierEcran = accueil.match(/<img class="hero-plein__photo" src="([^"]+)"[^>]*>/);
 dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremierEcran && !photoDuPremierEcran[0].includes('loading="lazy"') && photoDuPremierEcran[0].includes('fetchpriority="high"'));
