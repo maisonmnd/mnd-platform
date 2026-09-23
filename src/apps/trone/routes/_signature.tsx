@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../../ds/components';
 
 /* ══ LA TOILE DE SIGNATURE — 15 septembre 2026 ══════════════════════════
@@ -25,7 +25,9 @@ import { Button } from '../../../ds/components';
    capture n'est qu'un confort essayé ensuite, et le geste se suit sur la
    fenêtre entière tant que le doigt est posé, pour finir même hors du cadre.
    Les coordonnées se protègent d'un cadre sans taille, le pinceau se repose
-   à chaque trait, et le défilement au toucher est refusé à la source. */
+   à chaque trait, et le défilement au toucher est refusé à la source. Les
+   écouteurs posés sur la fenêtre sont des fonctions stables, retirées au
+   démontage : une modale fermée doigt posé n'en laisse aucun derrière elle. */
 
 const COTE = { l: 600, h: 200 } as const;
 
@@ -53,7 +55,50 @@ export function ToileDeSignature({
   const toile = useRef<HTMLCanvasElement>(null);
   const dessine = useRef(false);
   const pointeur = useRef<number | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   const [signee, setSignee] = useState(false);
+
+  const pointDe = useCallback((clientX: number, clientY: number) => {
+    const el = toile.current!;
+    const r = el.getBoundingClientRect();
+    /* Un cadre sans taille donnerait des coordonnées infinies : on retombe
+       sur la taille de la toile elle-même. */
+    const l = r.width || COTE.l;
+    const h = r.height || COTE.h;
+    return { x: ((clientX - r.left) / l) * COTE.l, y: ((clientY - r.top) / h) * COTE.h };
+  }, []);
+
+  const trace = useCallback((clientX: number, clientY: number) => {
+    const el = toile.current;
+    if (!el || !dessine.current) return;
+    const c = el.getContext('2d');
+    if (!c) return;
+    const p = pointDe(clientX, clientY);
+    c.lineTo(p.x, p.y); c.stroke();
+  }, [pointDe]);
+
+  /* LE GESTE SE SUIT SUR LA FENÊTRE : si la capture a été refusée, le doigt
+     qui sort du cadre continue son trait, et le lever de doigt est vu. */
+  const suitLaFenetre = useCallback((e: PointerEvent) => {
+    if (pointeur.current !== null && e.pointerId !== pointeur.current) return;
+    trace(e.clientX, e.clientY);
+  }, [trace]);
+
+  const finit = useCallback(() => {
+    if (!dessine.current) return;
+    dessine.current = false;
+    const el = toile.current;
+    if (el && pointeur.current !== null) {
+      try { el.releasePointerCapture(pointeur.current); } catch { /* jamais capturé */ }
+    }
+    pointeur.current = null;
+    window.removeEventListener('pointermove', suitLaFenetre);
+    window.removeEventListener('pointerup', finit);
+    window.removeEventListener('pointercancel', finit);
+    setSignee(true);
+    if (el) onChangeRef.current(el.toDataURL('image/png'));
+  }, [suitLaFenetre]);
 
   useEffect(() => {
     const el = toile.current;
@@ -69,49 +114,13 @@ export function ToileDeSignature({
     return () => {
       el.removeEventListener('touchstart', refuse);
       el.removeEventListener('touchmove', refuse);
+      /* Démontée doigt posé : rien ne reste accroché à la fenêtre. */
+      window.removeEventListener('pointermove', suitLaFenetre);
+      window.removeEventListener('pointerup', finit);
+      window.removeEventListener('pointercancel', finit);
+      dessine.current = false;
     };
-  }, []);
-
-  const pointDe = (clientX: number, clientY: number) => {
-    const el = toile.current!;
-    const r = el.getBoundingClientRect();
-    /* Un cadre sans taille donnerait des coordonnées infinies : on retombe
-       sur la taille de la toile elle-même. */
-    const l = r.width || COTE.l;
-    const h = r.height || COTE.h;
-    return { x: ((clientX - r.left) / l) * COTE.l, y: ((clientY - r.top) / h) * COTE.h };
-  };
-
-  const finit = () => {
-    if (!dessine.current) return;
-    dessine.current = false;
-    const el = toile.current;
-    if (el && pointeur.current !== null) {
-      try { el.releasePointerCapture(pointeur.current); } catch { /* jamais capturé */ }
-    }
-    pointeur.current = null;
-    window.removeEventListener('pointermove', suitLaFenetre);
-    window.removeEventListener('pointerup', finit);
-    window.removeEventListener('pointercancel', finit);
-    setSignee(true);
-    if (el) onChange(el.toDataURL('image/png'));
-  };
-
-  const trace = (clientX: number, clientY: number) => {
-    const el = toile.current;
-    if (!el || !dessine.current) return;
-    const c = el.getContext('2d');
-    if (!c) return;
-    const p = pointDe(clientX, clientY);
-    c.lineTo(p.x, p.y); c.stroke();
-  };
-
-  /* LE GESTE SE SUIT SUR LA FENÊTRE : si la capture a été refusée, le doigt
-     qui sort du cadre continue son trait, et le lever de doigt est vu. */
-  const suitLaFenetre = (e: PointerEvent) => {
-    if (pointeur.current !== null && e.pointerId !== pointeur.current) return;
-    trace(e.clientX, e.clientY);
-  };
+  }, [suitLaFenetre, finit]);
 
   const bas = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const el = toile.current;
@@ -143,7 +152,7 @@ export function ToileDeSignature({
     blanchit(el);
     prepare(el);
     setSignee(false);
-    onChange('');
+    onChangeRef.current('');
   };
 
   return (

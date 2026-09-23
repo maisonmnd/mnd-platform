@@ -134,12 +134,20 @@ bindDocument(houseIdentityStore, 'mnd_house_identity');
    on pose un marqueur sur ce poste ; la correction repart par la synchro, et
    le marqueur fait que plus rien ne se rejoue jamais. Ce n'est PAS un
    rattrapage permanent : demain, Yéman peut nommer sa Maison comme il veut,
-   le code ne le contredira pas. La ceinture des cinq secondes de la descente
-   peut rendre la main avant le serveur : on écoute encore une minute la
-   valeur distante, puis on se tait pour de bon. */
+   le code ne le contredira pas, et la migration EXPIRE fin 2026, sinon un
+   poste neuf sans marqueur la rejouerait dans un an contre une décision
+   prise entre-temps. La ceinture des cinq secondes de la descente peut
+   rendre la main avant le serveur : on écoute encore une minute la valeur
+   distante, puis on se tait pour de bon.
+
+   ELLE NE SE DÉCLENCHE QUE DEPUIS LE TRÔNE (son main.tsx) : ce module est
+   partagé par sept applications, dont Ma Couronne et les pages publiques, où
+   une migration des données de la Maison n'a rien à faire. Ici, seulement
+   la fonction. */
 import { quandDocumentDescendu } from './sync';
 const ANCIEN_NOM = /^\s*l\s*[’']\s*atelier\s+mnd\s*$/i;
 const MARQUEUR_NOM = 'mnd_nom_maison_2026_09';
+const EXPIRE_LE = Date.parse('2026-12-31T23:59:59+01:00');
 const dejaMigre = (): boolean => { try { return !!localStorage.getItem(MARQUEUR_NOM); } catch { return false; } };
 const marqueMigre = () => { try { localStorage.setItem(MARQUEUR_NOM, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet si le nom est déjà juste */ } };
 const remplaceLAncienNom = (): boolean => {
@@ -148,7 +156,10 @@ const remplaceLAncienNom = (): boolean => {
   houseIdentityStore.set({ ...i, nom: DEFAULT_IDENTITY.nom });
   return true;
 };
-if (!dejaMigre()) {
+/** À appeler une fois, au démarrage du Trône seulement. */
+export function migreLeNomDeLaMaison(): void {
+  if (Date.now() > EXPIRE_LE) return;
+  if (dejaMigre()) return;
   void quandDocumentDescendu('mnd_house_identity').then(() => {
     if (remplaceLAncienNom()) { marqueMigre(); return; }
     let arret: () => void = () => {};
