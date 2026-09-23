@@ -122,10 +122,42 @@ import { bindDocument } from './sync';
 bindDocument(houseIdentityStore, 'mnd_house_identity');
 
 /* LE NOM DE LA MARQUE EST « MAISON MND » — 23 septembre 2026. « Plus de
-   L'atelier MND, partout » (Yéman), devant une lettre du prêt qui portait
-   l'ancien nom en entête. Le nom qui signe vient de CE document, réglé dans
-   Système › Textes de la Maison ; le code ne l'écrit pas à sa place : à
-   l'hydratation le serveur gagne, donc un champ corrigé à l'écran se propage
-   à tous les postes, et un rattrapage automatique interdirait pour toujours
-   un nom en silence, ce que la Maison ne fait pas. Le nom se change d'un
-   geste, dans l'écran, jamais par un littéral ni par une écriture cachée. */
+   L'atelier MND, partout », puis « Fix Maison MND » (Yéman), devant une
+   lettre du prêt qui portait l'ancien nom en entête. Le nom qui signe vient
+   de CE document, réglé dans Système › Textes de la Maison ; à l'hydratation
+   le serveur gagne, donc un champ corrigé à l'écran se propage à tous les
+   postes.
+
+   UNE MIGRATION, UNE FOIS, DATÉE : le motif d'`ensureStarterPlanIncluded`
+   (`plans_included_seed_2026_07`). Après la descente du document, si le nom
+   est encore l'ancien, on le remplace une seule fois par le nom par défaut et
+   on pose un marqueur sur ce poste ; la correction repart par la synchro, et
+   le marqueur fait que plus rien ne se rejoue jamais. Ce n'est PAS un
+   rattrapage permanent : demain, Yéman peut nommer sa Maison comme il veut,
+   le code ne le contredira pas. La ceinture des cinq secondes de la descente
+   peut rendre la main avant le serveur : on écoute encore une minute la
+   valeur distante, puis on se tait pour de bon. */
+import { quandDocumentDescendu } from './sync';
+const ANCIEN_NOM = /^\s*l\s*[’']\s*atelier\s+mnd\s*$/i;
+const MARQUEUR_NOM = 'mnd_nom_maison_2026_09';
+const dejaMigre = (): boolean => { try { return !!localStorage.getItem(MARQUEUR_NOM); } catch { return false; } };
+const marqueMigre = () => { try { localStorage.setItem(MARQUEUR_NOM, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet si le nom est déjà juste */ } };
+const remplaceLAncienNom = (): boolean => {
+  const i = houseIdentityStore.get();
+  if (!ANCIEN_NOM.test(i.nom ?? '')) return false;
+  houseIdentityStore.set({ ...i, nom: DEFAULT_IDENTITY.nom });
+  return true;
+};
+if (!dejaMigre()) {
+  void quandDocumentDescendu('mnd_house_identity').then(() => {
+    if (remplaceLAncienNom()) { marqueMigre(); return; }
+    let arret: () => void = () => {};
+    const off = houseIdentityStore.subscribe(() => {
+      /* Différé d'un tour : pendant l'application d'une valeur distante, la
+         synchro ignore les écritures ; un tour plus tard, elle les porte. */
+      setTimeout(() => { if (remplaceLAncienNom()) { marqueMigre(); arret(); } }, 0);
+    });
+    const fin = setTimeout(() => { arret(); marqueMigre(); }, 60_000);
+    arret = () => { off(); clearTimeout(fin); };
+  });
+}
