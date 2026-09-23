@@ -3,6 +3,7 @@ import { bindCollection } from './sync';
 import { signatureInvalide, type SignatureTracee } from './contrats';
 import { sommeEnLettres, sommeEnChiffres, arrondiDans, DEVISES } from './lettres';
 import { fmtMoney } from './currency';
+import { deLaMaison } from './rappel';
 import type { Expense, PieceJointe } from './finance';
 
 /** LE FRANC CFA EST LA BASE DE TOUS LES MONTANTS DU TRÔNE (CLAUDE.md), et
@@ -718,7 +719,9 @@ export function texteDeLaDecharge(o: {
     ? ` sur le devis ${o.devisNumero}${o.devisDate ? ` du ${jourLongDit(o.devisDate)}` : ''}`
     : '';
   const objet = o.objet?.trim() ? `, pour « ${o.objet.trim()} »` : '';
-  return `Je soussigné(e) ${qui} reconnais avoir reçu de ${o.maison} la somme de `
+  /* « reçu de la Maison MND », jamais « reçu de Maison MND » : l'article se
+     pose selon le nom (23 septembre 2026). */
+  return `Je soussigné(e) ${qui} reconnais avoir reçu de ${deLaMaison(o.maison)} la somme de `
     + `${sommeEnLettres(o.montantXof, o.devise ?? 'XOF')} (${sommeEnChiffres(o.montantXof, o.devise ?? 'XOF')}), `
     + `à titre ${de}${titre}${devis}${objet}.`;
 }

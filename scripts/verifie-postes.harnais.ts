@@ -186,7 +186,7 @@ dit('un niveau absent se lit quand même', '—', signeDuNiveau(undefined));
 /* ── ④ LE RÈGLEMENT ────────────────────────────────────────────────
    Les quatre sujets tranchés par la Maison, et l'échelle. */
 const r = texteReglementInterieur({
-  maison: 'L’atelier MND', raison: 'MND SARL', ville: 'Cotonou',
+  maison: 'Maison MND', raison: 'MND SARL', ville: 'Cotonou',
   nom: 'Kossi A.', fonction: 'Praticien', jourIso: '2026-09-06',
 });
 const corps = r.articles.map((a) => a.lignes.join(' ')).join(' ');

@@ -16,7 +16,7 @@
    part comme ça. */
 
 import { asset } from '../shared/asset';
-import { DEVISE_COMPLETE } from '../shared/identite';
+import { DEVISE_COMPLETE, maisonNom } from '../shared/identite';
 import type { ContenuDeCarte } from '../shared/cartes';
 
 export const LARGEUR = 1080;
@@ -428,7 +428,8 @@ export async function dessineLaCarte(canvas: HTMLCanvasElement, k: ContenuDeCart
      laisse traîner l'espacement après la dernière lettre et pose le mot un
      demi-espacement trop à gauche — c'est ce décalage qu'on voyait sous le
      picto. Ici il n'existe pas. */
-  const marque = 'L’ATELIER MND';
+  /* Le nom vient des Paramètres, jamais d'un littéral (23 septembre 2026). */
+  const marque = maisonNom().toUpperCase();
   const inter = 36 * 0.32;
   c.font = `400 36px ${SANS}`;
   c.fillStyle = profond ? IVOIRE : INDIGO;

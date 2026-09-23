@@ -349,7 +349,7 @@ export async function tamponDeLaMaison(
     }
 
     doc.setFont('helvetica', 'bold');
-    texteEnArc(doc, (o.nom ?? 'L’ATELIER MND').toUpperCase(), cx, cy, R * 0.70, {
+    texteEnArc(doc, (o.nom ?? 'MAISON MND').toUpperCase(), cx, cy, R * 0.70, {
       axe: -90, taille: taille * 0.108, couleur: encre,
     });
     if (o.ville) {

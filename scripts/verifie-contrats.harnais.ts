@@ -28,7 +28,7 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
 
-const MAISON = { maison: 'L’atelier MND', raison: 'MND SARL', ville: 'Cotonou' };
+const MAISON = { maison: 'Maison MND', raison: 'MND SARL', ville: 'Cotonou' };
 const corps = (c: { articles: { lignes: string[] }[] }) =>
   c.articles.map((a) => a.lignes.join(' ')).join(' ');
 const art = (c: { articles: { titre: string; lignes: string[] }[] }, mot: string) =>
@@ -179,7 +179,7 @@ dit('le pied porte la version', true, f.pied.includes(VERSION_FORMATION));
    Un contrat dont on ne sait pas qui l'a passé ne vaut rien, quelle que soit
    la qualité de ses clauses. */
 dit('deux parties, toujours', 2, p.entete.length);
-dit('la Maison est nommée', true, p.entete[0].includes('L’atelier MND'));
+dit('la Maison est nommée', true, p.entete[0].includes('Maison MND'));
 dit('le siège aussi', true, p.entete[0].includes('Cotonou'));
 dit('la qualité de chacun est dite', true, p.entete[1].includes('le prestataire'));
 dit('et le « pour qui » quand il y en a un', true,

@@ -36,6 +36,8 @@
 /** DEUX PUBLICS QUI NE SE MÉLANGENT PAS. La débutante entre dans le métier ; la
     professionnelle y est déjà et ne refait pas le cursus. */
 import { nombreEnLettres } from './lettres';
+import { maisonNom, maisonVille } from './identite';
+import { deLaMaison } from './rappel';
 
 export type PublicDeFormation = 'debutante' | 'professionnelle';
 
@@ -525,7 +527,8 @@ export function texteDuCertificat(o: {
   const parcours = plat(o.niveau).includes(plat(o.titre)) ? o.niveau : `parcours ${o.titre}, ${o.niveau}`;
   const duree = o.duree.replace(/\s*·\s*/g, ', ');
   return {
-    avant: `${o.apprenant} a accompli le ${parcours} (${duree}, à l’atelier MND de Cotonou) et a démontré devant le `,
+    /* Le nom et la ville viennent des Paramètres, jamais d'un littéral (23 septembre 2026). */
+    avant: `${o.apprenant} a accompli le ${parcours} (${duree}, à ${deLaMaison(maisonNom())} de ${maisonVille()}) et a démontré devant le `,
     gras: 'Maître Locticien',
     apres: ` sa maîtrise ${maitriseDe(o.competences)}, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.`,
   };

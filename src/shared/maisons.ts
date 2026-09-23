@@ -29,7 +29,7 @@ import type { CatalogCategory, Maison, Service } from './catalog';
 export type MaisonBucket = Maison | 'plateau';
 
 export const MAISON_BUCKETS: { k: MaisonBucket; label: string }[] = [
-  { k: 'atelier', label: 'Atelier MND™' },
+  { k: 'atelier', label: 'Maison MND™' },
   { k: 'studio', label: 'Studio ACƆ™' },
   { k: 'plateau', label: 'Plateau seul' },
 ];

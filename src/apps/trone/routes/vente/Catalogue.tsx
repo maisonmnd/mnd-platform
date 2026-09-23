@@ -431,7 +431,7 @@ export default function Catalogue() {
        d'ensemble a chaque famille : trois « PLATEAU TECHNIQUE » sur une meme
        page, et les KLƆKLƆ™ coupes des SINSIN™ auxquels ils appartiennent. */
     const r = racineOf(categories, c.id) ?? c;
-    if (r.maison === 'atelier') return { k: 'atelier', titre: 'ATELIER MND™', sous: 'Les locks exclusivement' };
+    if (r.maison === 'atelier') return { k: 'atelier', titre: 'MAISON MND™', sous: 'Les locks exclusivement' };
     if (r.maison === 'studio') return { k: 'studio', titre: 'STUDIO MND · ACƆ™', sous: 'Le cheveu afro dans tous ses styles' };
     if (r.id.startsWith('aca-')) return { k: 'academie', titre: 'MND ACADÉMIE', sous: 'La transmission' };
     return { k: 'plateau', titre: 'LE PLATEAU TECHNIQUE', sous: 'Commun aux deux maisons, rituels annexes et lignes de produits' };

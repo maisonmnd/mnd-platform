@@ -13,7 +13,7 @@ import { racineOf, priceModeOf, fondeLaCouronne, CATEGORIE_VEKPE } from './catal
 export type Maison = 'atelier' | 'studio';
 
 export const MAISONS: { k: Maison; fon: string; label: string }[] = [
-  { k: 'atelier', fon: 'ATELIER MND™', label: 'Les locks exclusivement' },
+  { k: 'atelier', fon: 'MAISON MND™', label: 'Les locks exclusivement' },
   { k: 'studio', fon: 'STUDIO MND · ACƆ™', label: 'Le cheveu afro dans tous ses styles' },
 ];
 
@@ -336,7 +336,7 @@ export const rangMonde = (m: Monde): number =>
 
 /** Le nom du monde, en toutes lettres — pour les séparateurs des listes. */
 export const mondeLabel = (m: Monde): string =>
-  m === 'atelier' ? 'ATELIER MND™'
+  m === 'atelier' ? 'MAISON MND™'
     : m === 'studio' ? 'STUDIO MND · ACƆ™'
       : m === 'academie' ? 'MND ACADÉMIE'
         : 'LE PLATEAU TECHNIQUE · commun aux deux maisons';

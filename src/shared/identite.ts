@@ -120,3 +120,12 @@ export const fuseauIana = (label?: string): string =>
 
 import { bindDocument } from './sync';
 bindDocument(houseIdentityStore, 'mnd_house_identity');
+
+/* LE NOM DE LA MARQUE EST « MAISON MND » — 23 septembre 2026. « Plus de
+   L'atelier MND, partout » (Yéman), devant une lettre du prêt qui portait
+   l'ancien nom en entête. Le nom qui signe vient de CE document, réglé dans
+   Système › Textes de la Maison ; le code ne l'écrit pas à sa place : à
+   l'hydratation le serveur gagne, donc un champ corrigé à l'écran se propage
+   à tous les postes, et un rattrapage automatique interdirait pour toujours
+   un nom en silence, ce que la Maison ne fait pas. Le nom se change d'un
+   geste, dans l'écran, jamais par un littéral ni par une écriture cachée. */

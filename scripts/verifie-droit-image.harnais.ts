@@ -105,7 +105,7 @@ dit('la version a suivi le changement de durée', true, VERSION_DU_TEXTE.startsW
    Il porte SA VERSION : une formulation change avec le temps, et sans le
    numéro on ne saurait plus, dans deux ans, à quoi elle avait dit oui. */
 const t = texteDuContrat({
-  maison: 'L’atelier MND', tete: 'Adjaratou L.', signataire: 'Adjaratou L.',
+  maison: 'Maison MND', tete: 'Adjaratou L.', signataire: 'Adjaratou L.',
   usages: ['vitrine', 'reseaux'], jourIso: '2026-09-06',
 });
 dit('la version est au pied', true, t.pied.includes(VERSION_DU_TEXTE));
@@ -124,7 +124,7 @@ dit('refuser ne change rien à son accueil', true, corps.includes('ne change rie
 dit('pas de simulation, pas son article', false,
   t.articles.some((a) => a.titre.includes('simulation')));
 const tSim = texteDuContrat({
-  maison: 'L’atelier MND', tete: 'A.', signataire: 'A.',
+  maison: 'Maison MND', tete: 'A.', signataire: 'A.',
   usages: ['simulation'], jourIso: '2026-09-06',
 });
 dit('avec elle, l’article est là', true, tSim.articles.some((a) => a.titre.includes('simulation')));
@@ -134,7 +134,7 @@ dit('… et que ce n’est pas une photo d’elle', true,
   tSim.articles.map((a) => a.lignes.join(' ')).join(' ').includes('Ce n’est pas une photographie de la personne'));
 
 const tEnfant = texteDuContrat({
-  maison: 'L’atelier MND', tete: 'Ezra', signataire: 'Adjaratou L.', pourEnfant: 'Ezra',
+  maison: 'Maison MND', tete: 'Ezra', signataire: 'Adjaratou L.', pourEnfant: 'Ezra',
   usages: ['vitrine'], jourIso: '2026-09-06',
 });
 dit('l’enfant a son article', true, tEnfant.articles.some((a) => a.titre === 'Personne mineure'));
@@ -160,7 +160,7 @@ dit('… avec les deux', true, suite(texteDuContrat({
    2029 qui dirait cinq ans sous une signature donnée pour deux serait un faux.
 
    C'est pour ça que le texte ne dépend que de ce que l'accord porte. */
-const maison = { maison: 'L’atelier MND', ville: 'Cotonou', tete: 'Adjaratou L.' };
+const maison = { maison: 'Maison MND', ville: 'Cotonou', tete: 'Adjaratou L.' };
 const vieux = bon({ mois: 24, version: 'v1 · 6 septembre 2026', usages: ['vitrine'] });
 const neuf = bon({ mois: 60, usages: ['vitrine'] });
 

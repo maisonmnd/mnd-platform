@@ -226,7 +226,7 @@ const phrase = texteDuCertificat({
   duree: dureeDite(4, 16), competences: competencesDesModules(MODULES_DE_L_OEUVRE),
 });
 dit('la phrase du certificat, telle que corrigée',
-  'Afi Dossou a accompli le Palier III · L’Œuvre (quatre semaines, seize séances, à l’atelier MND de Cotonou) et a démontré devant le Maître Locticien sa maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.',
+  'Afi Dossou a accompli le Palier III · L’Œuvre (quatre semaines, seize séances, à la Maison MND de Cotonou) et a démontré devant le Maître Locticien sa maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.',
   phrase.avant + phrase.gras + phrase.apres);
 dit('« Maître Locticien » est ce qui se met en gras', 'Maître Locticien', phrase.gras);
 dit('un niveau sans le titre nomme le parcours avant', true,

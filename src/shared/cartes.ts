@@ -22,7 +22,15 @@
    (`pointsEnabledStore`, shared/offers), et une carte qui annonce un avantage
    inexistant se retourne au fauteuil, devant la cliente. */
 
-import { signeLeMessage } from './identite';
+import { maisonNom, signeLeMessage } from './identite';
+import { deLaMaison } from './rappel';
+
+/* LE NOM VIENT DES PARAMÈTRES, jamais d'un littéral — 23 septembre 2026.
+   Les cartes disaient « L'atelier MND » en dur pendant que la Maison signait
+   « Maison MND » trois lignes plus bas. Avec son article, pour tenir au milieu
+   d'une phrase : « de la Maison MND », mais « de L'Atelier du Port ». */
+const laMaison = (): string => deLaMaison(maisonNom());
+const LaMaison = (): string => { const n = laMaison(); return n.charAt(0).toUpperCase() + n.slice(1); };
 
 export type Genre = 'femme' | 'homme';
 export type CleCarte = 'anniversaire' | 'merci' | 'cercle';
@@ -102,7 +110,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
       sur: 'Joyeux',
       grand: 'anniversaire', grandTaille: 140,
       phrase: 'Que cette année te ressemble, douce et lumineuse.',
-      corps: `Toute l’équipe de **L’atelier MND** te souhaite une belle journée, ${g.entour} `
+      corps: `Toute l’équipe de **${laMaison()}** te souhaite une belle journée, ${g.entour} `
         + 'de celles et ceux qui t’aiment. Que la santé, la joie et la lumière t’accompagnent '
         + 'tout au long de l’année.',
     };
@@ -129,7 +137,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
         grand: 'de ta confiance', grandTaille: 118,
         phrase: 'Une couronne se construit à deux.',
         corps: 'Saison après saison, tu nous confies la tienne, et nous en sommes fiers. '
-          + 'Toute l’équipe de **L’atelier MND** te remercie.',
+          + `Toute l’équipe de **${laMaison()}** te remercie.`,
       };
     case 'parle':
       return {
@@ -137,7 +145,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
         grand: 'd’avoir parlé de nous', grandTaille: 88,
         phrase: 'Quelqu’un est venu de ta part.',
         corps: 'C’est le plus beau des compliments, et nous ne l’oublions pas. '
-          + 'Toute l’équipe de **L’atelier MND** te remercie.',
+          + `Toute l’équipe de **${laMaison()}** te remercie.`,
       };
     case 'etoiles':
       /* LA CARTE NE NOMME PAS GOOGLE : elle part à la cliente, pas à la
@@ -148,7 +156,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
         phrase: 'Cinq étoiles, et quelques mots qui nous portent.',
         corps: 'Ce que tu as écrit se lit avant nous, par celles qui nous cherchent. C’est ce '
           + 'qui fait venir la suivante, et nous ne l’oublions pas. Toute l’équipe de '
-          + '**L’atelier MND** te remercie.',
+          + `**${LaMaison()}** te remercie.`,
       };
     case 'annee':
       return {
@@ -156,7 +164,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
         grand: 'pour cette année', grandTaille: 116,
         phrase: 'Une année de plus à veiller sur ta couronne.',
         corps: 'Merci de nous l’avoir confiée. Que la prochaine te soit douce, et qu’elle nous '
-          + 'retrouve à **L’atelier MND**.',
+          + `retrouve à **${laMaison()}**.`,
       };
     default:
       /* LE SEUL MOTIF DONT LE TITRE S'ACCORDE — c'est celui qui partira le plus
@@ -166,7 +174,7 @@ export function texteDeLaCarte(o: DemandeDeCarte): ContenuDeCarte {
         grand: `d’être ${g.venue}`, grandTaille: 132,
         phrase: 'Ta couronne était entre nos mains aujourd’hui.',
         corps: 'C’est une confiance que nous ne prenons pas à la légère. Prends soin d’elle '
-          + 'jusqu’à la prochaine fois, et **L’atelier MND** s’occupe du reste.',
+          + `jusqu’à la prochaine fois, et **${laMaison()}** s’occupe du reste.`,
       };
   }
 }
@@ -181,7 +189,7 @@ export function motDeLaCarte(o: DemandeDeCarte): string {
   const p = o.prenom.trim() || 'Chère tête couronnée';
   const dit = (() => {
     if (o.carte === 'anniversaire') {
-      return `Joyeux anniversaire, ${p} ! Toute l’équipe de L’atelier MND te souhaite une belle `
+      return `Joyeux anniversaire, ${p} ! Toute l’équipe de ${laMaison()} te souhaite une belle `
         + 'journée, et une année douce et lumineuse.';
     }
     if (o.carte === 'cercle') {

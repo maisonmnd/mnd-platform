@@ -107,17 +107,17 @@ dit('… et toujours aucun trou double', false, /\n{3,}/.test(nu));
    L'ARTICLE EST LE PIÈGE : « de la L'atelier MND » aurait été pire que le nom
    figé. Un nom qui porte déjà son article n'en reçoit pas un second. */
 dit('un nom nu reçoit son article', 'la Maison MND', deLaMaison('Maison MND'));
-dit('un nom qui porte le sien n’en prend pas deux', 'L’atelier MND', deLaMaison('L’atelier MND'));
-dit('… l’apostrophe droite aussi', "L'atelier MND", deLaMaison("L'atelier MND"));
+dit('un nom qui porte le sien n’en prend pas deux', 'L’Atelier du Port', deLaMaison('L’Atelier du Port'));
+dit('… l’apostrophe droite aussi', "L'Atelier du Port", deLaMaison("L'Atelier du Port"));
 dit('… et l’article détaché', 'Le Trône', deLaMaison('Le Trône'));
 dit('un nom effacé ne signe pas en blanc', 'la Maison', deLaMaison('   '));
 
 const chezElle = texteDuRappel({
   ...jours, jourIso: '2026-09-11', heure: '08:30',
-  prenom: 'A', maison: 'L’atelier MND', rituels: [],
+  prenom: 'A', maison: 'Maison MND', rituels: [],
 });
 dit('le message porte le nom des Paramètres', true,
-  chezElle.includes('Petit rappel de L’atelier MND :'));
+  chezElle.includes('Petit rappel de la Maison MND :'));
 
 /* ── LA RELANCE D'UNE REPRISE, J-3 (9 septembre) ───────────────────
    Le rendez-vous a été posé par la cadence, pas choisi de vive voix : on
@@ -125,14 +125,14 @@ dit('le message porte le nom des Paramètres', true,
    déplacer plutôt que de faire subir. */
 const relance = texteDeLaRelance({
   prenom: 'Ruth', jourIso: '2026-09-12', heure: '09:00',
-  aujourdhuiIso: '2026-09-09', maison: 'L’atelier MND',
+  aujourdhuiIso: '2026-09-09', maison: 'Maison MND',
 });
 dit('la relance demande, elle n’impose pas', true,
   relance.includes('Dites-nous si le créneau vous convient toujours'));
 dit('… dit le rythme habituel et le moment en clair', true,
   relance.includes('selon votre rythme habituel') && relance.includes('samedi 12 septembre à 9 h'));
 dit('… et parle du bon nom, sans double article', true,
-  relance.includes('Petit mot de L’atelier MND'));
+  relance.includes('Petit mot de la Maison MND'));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);

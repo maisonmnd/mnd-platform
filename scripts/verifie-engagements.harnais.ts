@@ -193,18 +193,18 @@ dit('le versement parti sans décharge est réclamé', ['v3'],
 dit('un versement prévu ne réclame rien', [], versementsSansDecharge([prevu]).map((v) => v.id));
 
 dit('le texte de la décharge',
-  'Je soussigné(e) K. A., menuisier, reconnais avoir reçu de L’atelier MND la somme de '
+  'Je soussigné(e) K. A., menuisier, reconnais avoir reçu de la Maison MND la somme de '
   + 'sept cent quarante mille francs CFA (740 000 F), à titre d’avance à la commande'
   + ' sur le devis DV-MK-0231 du 12 septembre 2026, pour « agencement du salon ».',
   texteDeLaDecharge({
-    prestataire: 'K. A.', metier: 'menuisier', maison: 'L’atelier MND', montantXof: 740000,
+    prestataire: 'K. A.', metier: 'menuisier', maison: 'Maison MND', montantXof: 740000,
     libelle: 'Avance à la commande', objet: 'agencement du salon',
     devisNumero: 'DV-MK-0231', devisDate: '2026-09-12',
   }));
 dit('sans métier ni devis, elle reste juste',
-  'Je soussigné(e) K. A., reconnais avoir reçu de L’atelier MND la somme de '
+  'Je soussigné(e) K. A., reconnais avoir reçu de la Maison MND la somme de '
   + 'mille francs CFA (1 000 F), à titre de solde.',
-  texteDeLaDecharge({ prestataire: 'K. A.', maison: 'L’atelier MND', montantXof: 1000, libelle: 'Solde' }));
+  texteDeLaDecharge({ prestataire: 'K. A.', maison: 'Maison MND', montantXof: 1000, libelle: 'Solde' }));
 
 /* ══ L'ÉTAT DU DOSSIER — dérivé, jamais écrit ════════════════════════ */
 dit('sans devis retenu, on choisit encore', 'devis', etatDuDossier({}, [k1, b1], []));
@@ -448,9 +448,9 @@ dit('un dossier en euros se solde au centime près', 'solde',
 
 /* ── LE TEXTE DE LA DÉCHARGE, EN EUROS ─────────────────────────────── */
 dit('la décharge dit la devise du dossier',
-  'Je soussigné(e) K. A., reconnais avoir reçu de L’atelier MND la somme de '
+  'Je soussigné(e) K. A., reconnais avoir reçu de la Maison MND la somme de '
   + 'sept cent quarante euros et cinquante centimes (740,50 €), à titre de solde.',
-  texteDeLaDecharge({ prestataire: 'K. A.', maison: 'L’atelier MND', montantXof: 740.5, libelle: 'Solde', devise: 'EUR' }));
+  texteDeLaDecharge({ prestataire: 'K. A.', maison: 'Maison MND', montantXof: 740.5, libelle: 'Solde', devise: 'EUR' }));
 dit('verser au-delà dit la devise', 'Ce versement dépasse le devis retenu de 50 €.',
   avertitAvantDeVerser({ montantXof: 600, retenuXof: 1000, dejaVerseXof: 450, devise: 'EUR' }));
 
