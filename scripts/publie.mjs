@@ -58,9 +58,14 @@ const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'mnd-plat
    si un fichier source est plus récent que le version.json du dist (écrit à
    la fin de chaque construction), on refuse et on nomme le fichier. Aucun
    contournement : le remède est toujours de reconstruire, et il ne coûte que
-   des minutes. `revelateur/` (généré) et `docs/` ne sont pas des sources. */
-const SOURCES = ['src', 'public', 'vite.config.ts', 'scripts/build-sites.mjs', 'scripts/genere-revelateur.mjs',
-  ...readdirSync(racine).filter((f) => f.endsWith('.html'))].map((s) => path.join(racine, s));
+   des minutes. `revelateur/` (généré) n'est pas une source. `docs/` n'en est
+   pas une non plus, SAUF `docs/site-revelateur/journal` : c'est de là que le
+   générateur lit les dix articles, leurs titres et leurs vignettes
+   (le-trone-35, même soir : dix en-têtes retouchés après une construction
+   seraient partis dans leur version d'avant). Le reste de docs/ reste
+   dehors, sinon chaque note de reprise bloquerait une publication. */
+export const SOURCES = ['src', 'public', 'docs/site-revelateur/journal', 'vite.config.ts', 'scripts/build-sites.mjs',
+  'scripts/genere-revelateur.mjs', ...readdirSync(racine).filter((f) => f.endsWith('.html'))].map((s) => path.join(racine, s));
 
 /** Le fichier le plus récent sous `chemin` (fichier ou dossier), ou null. */
 export function plusRecent(chemin) {

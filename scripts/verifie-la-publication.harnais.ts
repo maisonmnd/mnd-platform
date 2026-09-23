@@ -1,11 +1,17 @@
 /* LE HARNAIS DE LA PUBLICATION, 23 septembre 2026. `publie.mjs` envoie
    dist-sites/<site> tel quel ; il doit refuser un dist plus vieux que sa
    source, et nommer le fichier. Éprouvé sur des dossiers fabriqués, sans
-   rien cloner ni publier. Lancer : npx tsx scripts/verifie-la-publication.harnais.ts */
-import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+   rien cloner ni publier. Lancer : node scripts/verifie-la-publication.mjs
+   (le rituel balaie scripts/verifie-*.mjs), ou npx tsx sur ce fichier.
+   publie.mjs est importé à l'exécution depuis la racine du dépôt, jamais
+   empaqueté : ses chemins (racine, SOURCES) se calculent depuis SON dossier. */
+import { existsSync, mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { distPerime } from './publie.mjs';
+import { pathToFileURL } from 'node:url';
+
+const racine = process.cwd();
+const { distPerime, SOURCES } = await import(pathToFileURL(path.join(racine, 'scripts/publie.mjs')).href) as typeof import('./publie.mjs');
 
 let rates = 0;
 const dit = (quoi: string, attendu: unknown, obtenu: unknown) => {
@@ -42,5 +48,13 @@ rmSync(path.join(dist, 'version.json'));
 dit('un dist sans version.json ne bloque pas ici (l\'attente de mise en ligne le dira)', null, distPerime(dist, sources));
 
 rmSync(banc, { recursive: true, force: true });
+
+/* Les sources par défaut, celles que la vraie publication regarde. */
+const rel = (s: string) => path.relative(racine, s).split(path.sep).join('/');
+dit('le Journal (docs/site-revelateur/journal) est une source : le générateur y lit les articles', true, SOURCES.map(rel).includes('docs/site-revelateur/journal'));
+dit("… et le reste de docs/ n'en est pas une (une note de reprise ne bloque pas une publication)", false, SOURCES.map(rel).some((s) => s === 'docs' || s.startsWith('docs/REPRENDRE')));
+dit('src, public, la config et les deux scripts de construction en sont', [], ['src', 'public', 'vite.config.ts', 'scripts/build-sites.mjs', 'scripts/genere-revelateur.mjs'].filter((s) => !SOURCES.map(rel).includes(s)));
+dit('… et chaque source nommée existe', [], SOURCES.filter((s) => !existsSync(s)).map(rel));
+
 if (rates) { console.log(`\n${rates} raté(s).`); process.exit(1); }
 console.log('\nTout est juste.');
