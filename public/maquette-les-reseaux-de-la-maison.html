@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>La Maison sur ses réseaux · direction artistique et stratégie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* LA MAISON SUR SES RÉSEAUX (23 septembre 2026). Une maquette de travail :
+   la direction artistique telle qu'elle se porte hors du site, un gabarit par
+   usage, une fiche par réseau, la stratégie, et les étapes cochables. Ce qui
+   est souligné en cuivre attend une décision de la Maison. Indigo, cuivre,
+   ivoire ; le vrai monogramme, jamais redessiné ; aucun prix ; initiales
+   seulement. Le fichier vit dans public/, il ne part pas avec le site. */
+:root{
+  --indigo:#1E2150; --indigo-2:#15173A; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-sombre:#D6A06F; --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+img{max-width:100%;display:block}
+.wrap{max-width:960px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+.afixer{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* en-tête */
+.tete{padding:44px 0 12px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,46px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:62ch}
+/* Le monogramme, jamais redessiné : carré 1600, encre dans la moitié centrale. */
+.sceau{display:block;width:116px;height:116px;margin:-6px 0 -20px -29px}
+.jauge{display:flex;gap:18px;align-items:baseline;margin:22px 0 4px;flex-wrap:wrap}
+.jauge div b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400}
+.jauge div span{font-size:12.5px;color:var(--encre-doux);display:block;margin-top:-4px}
+
+h2{font-size:clamp(22px,3vw,29px);margin-top:46px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:68ch}
+h3{font-size:19px;font-weight:400;margin-top:26px}
+
+/* les règles, en indigo */
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:18px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+
+/* la charte */
+.nuancier{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.nuance{border:1px solid var(--filet);border-radius:4px;overflow:hidden;background:var(--carte)}
+.nuance i{display:block;height:54px}
+.nuance b{display:block;font-weight:500;font-size:12px;color:var(--indigo);padding:7px 9px 0}
+.nuance small{display:block;font-size:11px;color:var(--encre-doux);padding:0 9px 8px;font-family:ui-monospace,monospace}
+.typos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.typo{background:var(--carte);border:1px solid var(--filet);border-radius:4px;padding:16px 18px}
+.typo .ex{font-family:var(--serif);font-size:34px;color:var(--indigo);line-height:1.05}
+.typo .ex.sans{font-family:var(--sans);font-size:18px;font-weight:300;margin-top:2px}
+.typo small{display:block;font-size:12.5px;color:var(--encre-doux);margin-top:8px}
+.marques{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.marque{border:1px solid var(--filet);border-radius:4px;overflow:hidden;background:var(--carte)}
+.marque .vue{height:120px;display:grid;place-items:center}
+.marque .vue img{width:150px;height:150px}
+.marque small{display:block;font-size:12px;color:var(--encre-doux);padding:8px 12px 10px;border-top:1px solid var(--filet)}
+ul.liste{margin:12px 0 0;padding-left:18px;font-size:14px;color:var(--encre-doux)}
+ul.liste li{margin-bottom:6px}
+ul.liste b{color:var(--indigo);font-weight:500}
+
+/* les gabarits, en vraie proportion */
+.gabarits{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px;align-items:start}
+.gab{background:var(--carte);border:1px solid var(--filet);border-radius:4px;overflow:hidden}
+.gab .cadre{background:var(--fond-2);padding:14px;display:grid;place-items:center}
+.gab .leg{padding:10px 12px 12px;border-top:1px solid var(--filet)}
+.gab .leg b{display:block;font-weight:500;color:var(--indigo);font-size:13.5px}
+.gab .leg small{display:block;font-size:12px;color:var(--encre-doux);margin-top:3px}
+.gab .leg kbd{margin-top:6px;display:inline-block}
+/* le portrait 4/5 */
+.g-post{width:216px;aspect-ratio:4/5;position:relative;overflow:hidden;background:var(--indigo);border-radius:2px}
+.g-post img{width:100%;height:100%;object-fit:cover;object-position:50% 10%}
+.g-post .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,23,58,.88) 0%,rgba(21,23,58,.55) 34%,rgba(21,23,58,0) 62%)}
+.g-post .txt{position:absolute;left:14px;right:14px;bottom:14px;color:#F6F1E7}
+.g-post .txt .sur{color:var(--cuivre-sombre);font-size:7px;letter-spacing:.2em}
+.g-post .txt h4{color:#F6F1E7;font-size:19px;font-weight:500;margin-top:4px;line-height:1.02}
+.g-post .txt .filet{width:28px;height:1px;background:var(--cuivre-sombre);margin-top:8px}
+.g-post .mono{position:absolute;right:6px;top:2px;width:34px;height:34px;opacity:.9}
+/* le carrousel */
+.g-car{width:216px;aspect-ratio:4/5;background:var(--indigo);border-radius:2px;position:relative;padding:18px 16px;color:#F6F1E7;display:flex;flex-direction:column}
+.g-car .sur{color:var(--cuivre-sombre);font-size:7px;letter-spacing:.2em}
+.g-car h4{color:#F6F1E7;font-size:23px;font-weight:400;margin-top:10px;line-height:1.05}
+.g-car .n{margin-top:auto;font-size:9px;color:rgba(246,241,231,.6);letter-spacing:.14em}
+.g-car .mono{position:absolute;right:6px;bottom:2px;width:36px;height:36px}
+.g-car.int{background:var(--fond);color:var(--encre)}
+.g-car.int .num{font-family:var(--serif);font-size:30px;color:var(--cuivre);line-height:1}
+.g-car.int h4{color:var(--indigo);font-size:16px;font-weight:500;margin-top:8px}
+.g-car.int p{font-size:9.5px;color:var(--encre-doux);margin-top:6px;line-height:1.45}
+.g-car.int .n{color:var(--encre-doux)}
+/* le récit 9/16 */
+.g-story{width:150px;aspect-ratio:9/16;position:relative;overflow:hidden;background:var(--indigo);border-radius:2px}
+.g-story img{width:100%;height:100%;object-fit:cover;object-position:50% 0}
+.g-story .voile{position:absolute;inset:0;background:linear-gradient(0deg,rgba(21,23,58,.92) 0%,rgba(21,23,58,.5) 40%,rgba(21,23,58,0) 62%,rgba(21,23,58,.3) 100%)}
+.g-story .mono{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:34px;height:34px}
+.g-story .txt{position:absolute;left:10px;right:10px;bottom:40px;color:#F6F1E7}
+.g-story .txt h4{color:#F6F1E7;font-size:16px;font-weight:500;line-height:1.05}
+.g-story .txt .sur{color:var(--cuivre-sombre);font-size:6.5px;letter-spacing:.18em;margin-top:6px}
+.g-story .cta{position:absolute;left:10px;right:10px;bottom:10px;background:var(--cuivre);color:#fff;font-size:7px;letter-spacing:.14em;text-transform:uppercase;text-align:center;padding:7px 4px;border-radius:2px}
+/* la couverture large */
+.g-couv{width:100%;aspect-ratio:1128/191;background:linear-gradient(90deg,var(--indigo) 0%,var(--indigo) 55%,var(--indigo-2) 100%);border-radius:2px;position:relative;color:#F6F1E7;display:flex;align-items:center;padding:0 18px;gap:10px;overflow:hidden}
+.g-couv img.mono{width:64px;height:64px;margin:-10px -12px -10px -16px}
+.g-couv .l1{font-family:var(--serif);font-size:15px;font-weight:400}
+.g-couv .l2{font-size:6.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cuivre-sombre);margin-top:2px}
+.g-couv .site{margin-left:auto;font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,231,.75)}
+.g-couv img.photo{position:absolute;right:0;top:0;height:100%;width:34%;object-fit:cover;object-position:50% 20%;opacity:.55;mask-image:linear-gradient(90deg,transparent,#000 40%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%)}
+/* l'avatar */
+.g-avatar{width:120px;height:120px;border-radius:999px;background:var(--indigo);display:grid;place-items:center;overflow:hidden}
+.g-avatar img{width:150px;height:150px}
+.g-avatar.iv{background:var(--fond);border:1px solid var(--filet)}
+
+/* tableaux */
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td b{font-weight:500;color:var(--indigo)}
+.dep{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;background:var(--indigo);color:#F6F1E7;margin:2px 3px 2px 0;white-space:nowrap}
+.dep.c{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+kbd{font-family:var(--sans);font-size:12px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);white-space:nowrap}
+
+/* les réseaux */
+.reseaux{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.reseau{background:var(--carte);border:1px solid var(--filet);border-radius:4px;overflow:hidden}
+.reseau__tete{background:var(--indigo);color:#F6F1E7;padding:14px 18px}
+.reseau__tete .sur{color:var(--cuivre-sombre)}
+.reseau__tete h3{color:#F6F1E7;margin-top:4px;font-size:22px}
+.reseau__tete p{font-size:13px;color:rgba(246,241,231,.75);margin-top:4px}
+.reseau__corps{padding:14px 18px 16px}
+.reseau dl{margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:6px 10px;font-size:13.5px}
+.reseau dt{color:var(--encre-doux);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding-top:3px}
+.reseau dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.reseau kbd{white-space:normal;overflow-wrap:anywhere;line-height:1.7}
+.reseau dd b{font-weight:500;color:var(--indigo)}
+.bio{position:relative;background:var(--fond);border:1px solid var(--filet);border-radius:4px;padding:10px 12px;font-size:13px;white-space:pre-line;color:var(--encre);margin-top:4px;line-height:1.5}
+.copier{position:absolute;right:8px;top:8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--filet);background:var(--carte);color:var(--cuivre-profond);border-radius:999px;padding:3px 9px;cursor:pointer}
+.copier:hover{border-color:var(--cuivre)}
+.copier.fait{background:var(--cuivre);color:#fff;border-color:var(--cuivre)}
+ul.idees{margin:6px 0 0;padding-left:16px;font-size:13px;color:var(--encre-doux)}
+ul.idees li{margin-bottom:4px}
+
+/* le calendrier */
+.cal{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.jour{background:var(--carte);border:1px solid var(--filet);border-radius:4px;padding:12px 14px}
+.jour .sur{font-size:10px}
+.jour b{display:block;font-family:var(--serif);font-size:20px;color:var(--indigo);font-weight:400;margin-top:4px}
+.jour p{font-size:12.5px;color:var(--encre-doux);margin-top:6px}
+
+/* les étapes, cochables */
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:760px){
+  .nuancier{grid-template-columns:repeat(3,1fr)}
+  .typos,.reseaux{grid-template-columns:1fr}
+  .marques{grid-template-columns:1fr 1fr 1fr}
+  .gabarits{grid-template-columns:1fr 1fr}
+  .cal{grid-template-columns:1fr 1fr}
+  .reseau dl{grid-template-columns:1fr}
+  .reseau dt{padding-top:6px}
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.copier{display:none}
+  ol.pas li,.reseau,.gab,.garde,.regle{break-inside:avoid}
+  h2{break-after:avoid;margin-top:22px}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="sceau" src="assets/monograms/mono-indigo.png" width="1600" height="1600" alt="Maison MND">
+    <p class="sur">Maquette · direction artistique et stratégie · 23 septembre 2026</p>
+    <h1>La Maison sur ses réseaux</h1>
+    <p class="ligne">Instagram, TikTok, Facebook et LinkedIn deviennent quatre fenêtres du même site : même regard, même voix, même monogramme, et chaque chemin mène à une réservation sur maisonmnd.com. Ce qui est <span class="afixer">souligné en cuivre</span> attend votre décision, rien n'est inventé.</p>
+    <div class="jauge">
+      <div><b>4</b><span>réseaux</span></div>
+      <div><b>5</b><span>gabarits</span></div>
+      <div><b>4</b><span>piliers</span></div>
+      <div><b>12</b><span>étapes à cocher</span></div>
+    </div>
+  </header>
+
+  <!-- ══ 1. LE PRINCIPE ══ -->
+  <h2>Une seule voix, un seul regard</h2>
+  <p class="cap">Le site est la source ; les réseaux sont ses fenêtres. Ce qui se dit sur un réseau se dit avec les mots du site, se montre avec ses photos, et renvoie vers ses pages. Une visiteuse qui passe d'un Reel au site ne doit pas sentir de porte.</p>
+  <div class="regle">
+    <p>Ce que la Maison dit dehors, elle le tient dedans, au comptoir. Aucun prix en public : le devis se fait à la Maison, et WhatsApp répond à celles qui demandent.</p>
+    <p>Une couronne, jamais « des cheveux ». Le vouvoiement, toujours. Des phrases qui affirment. Aucun visage sans accord écrit dans le registre, aucun prénom d'enfant, nulle part.</p>
+    <small>Le registre des photos vit dans docs/site-revelateur/photos.md : une ligne par photo servie, avec l'accord. La même règle vaut pour chaque image publiée sur un réseau ; une image partagée ne se rattrape pas comme une page.</small>
+  </div>
+
+  <!-- ══ 2. LA CHARTE ══ -->
+  <h2>La charte, telle qu'elle se porte dehors</h2>
+  <p class="cap">Les mêmes six couleurs, les deux mêmes caractères et le monogramme, posés une fois dans les outils de création (Canva, CapCut, l'application du téléphone) pour ne plus jamais choisir.</p>
+  <div class="nuancier">
+    <div class="nuance"><i style="background:#1E2150"></i><b>Indigo</b><small>#1E2150</small></div>
+    <div class="nuance"><i style="background:#15173A"></i><b>Indigo profond</b><small>#15173A</small></div>
+    <div class="nuance"><i style="background:#B97A4A"></i><b>Cuivre</b><small>#B97A4A</small></div>
+    <div class="nuance"><i style="background:#D6A06F"></i><b>Cuivre clair</b><small>#D6A06F</small></div>
+    <div class="nuance"><i style="background:#F6F1E7;border-bottom:1px solid var(--filet)"></i><b>Ivoire</b><small>#F6F1E7</small></div>
+    <div class="nuance"><i style="background:#EEE6D6"></i><b>Ivoire chaud</b><small>#EEE6D6</small></div>
+  </div>
+  <div class="typos">
+    <div class="typo"><p class="ex">Votre couronne, révélée.</p><small><b>Cormorant Garamond</b>, léger (300) pour les titres du site, demi-gras (500) sur une photo. Gratuit sur Google Fonts, donc dans Canva et CapCut.</small></div>
+    <div class="typo"><p class="ex sans">Un chemin existe pour vous, à Cotonou.</p><p class="ex sans" style="font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond);margin-top:8px">Locks créées, réparées, entretenues</p><small><b>Jost</b>, léger pour le texte, régulier pour les boutons, en petites capitales espacées pour les lignes de métier. Jamais de gras lourd.</small></div>
+  </div>
+  <div class="marques">
+    <div class="marque"><div class="vue" style="background:var(--indigo)"><img src="assets/monograms/mono-ivoire.png" alt=""></div><small><b>Ivoire sur indigo</b> : l'avatar de chaque réseau, la couverture d'un carrousel.</small></div>
+    <div class="marque"><div class="vue" style="background:var(--fond)"><img src="assets/monograms/mono-indigo.png" alt=""></div><small><b>Indigo sur ivoire</b> : les documents, les diapositives intérieures, LinkedIn.</small></div>
+    <div class="marque"><div class="vue" style="background:var(--indigo)"><img src="assets/monograms/mono-copper.png" alt=""></div><small><b>Cuivre sur indigo</b> : la signature d'une offre, une fois par visuel, jamais plus.</small></div>
+  </div>
+  <ul class="liste">
+    <li><b>Le monogramme</b> est un fichier carré, toujours entier, jamais redessiné, jamais étiré, jamais posé sur une photo sans le voile indigo dessous.</li>
+    <li><b>La photo</b> est un portrait de studio, le regard vers l'objectif, sur fond gris ou indigo, ou une main au travail ; jamais une image générée, jamais un filtre qui change la peau. Le voile indigo n'existe que sous du texte.</li>
+    <li><b>Le texte sur l'image</b> tient en une idée : un titre serif, une ligne en petites capitales cuivre, un filet. Aucun emoji dans un visuel ; dans une légende, au plus un, à la fin.</li>
+    <li><b>Les mots</b> sont ceux du site : « la Première Couronne », « la réparation », « l'entretien », « MND Kids », « MND Formation », « depuis 2010 ». Un tiret cadratin ne s'écrit jamais ; une virgule, ou un point médian « · ».</li>
+  </ul>
+
+  <!-- ══ 3. LES GABARITS ══ -->
+  <h2>Cinq gabarits, et rien d'autre</h2>
+  <p class="cap">Chaque publication entre dans l'un des cinq. C'est ce qui fait qu'un fil paraît tenu par une seule main, même à trois personnes. Les proportions ci-dessous sont les vraies ; les tailles à l'export sont dans le tableau.</p>
+  <div class="gabarits">
+    <div class="gab"><div class="cadre"><div class="g-post"><img src="assets/photos/site/cauris-accueil.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><p class="sur">Entretien · Cotonou</p><h4>Votre couronne, comprise.</h4><div class="filet"></div></div></div></div><div class="leg"><b>Le portrait</b><small>Une photo, un voile, un titre. Le visuel de base sur Instagram, Facebook et LinkedIn.</small><kbd>1080 × 1350</kbd></div></div>
+    <div class="gab"><div class="cadre"><div class="g-car"><p class="sur">Comprendre sa couronne</p><h4>Trois signes que vos racines demandent de l'attention</h4><p class="n">1 / 5 · MAISON MND</p><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""></div></div><div class="leg"><b>Le carrousel, couverture</b><small>Indigo plein, un titre qui pose une question ou compte. Le format qui s'enregistre.</small><kbd>1080 × 1350</kbd></div></div>
+    <div class="gab"><div class="cadre"><div class="g-car int"><p class="num">02</p><h4>Les racines tirent</h4><p>Une sensibilité au cuir chevelu après le resserrage, qui dure plus de deux jours, dit une tension à revoir. On ne serre pas plus fort, on regarde.</p><p class="n">2 / 5</p></div></div><div class="leg"><b>Le carrousel, intérieur</b><small>Ivoire, un numéro cuivre, un titre, quatre lignes au plus. La dernière diapositive appelle : « Réservez votre entretien ».</small><kbd>1080 × 1350</kbd></div></div>
+    <div class="gab"><div class="cadre"><div class="g-story"><img src="assets/photos/site/portrait-accueil.jpg" alt=""><div class="voile"></div><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div class="txt"><h4>Le Lavage du mois</h4><p class="sur">Impeccable, chaque mois</p></div><div class="cta">Réserver · maisonmnd.com</div></div></div><div class="leg"><b>Le récit et le Reel</b><small>Plein écran, le texte dans le tiers du bas, l'appel en cuivre. La même image sert TikTok, les stories et le statut WhatsApp.</small><kbd>1080 × 1920</kbd></div></div>
+    <div class="gab"><div class="cadre" style="gap:14px;grid-template-columns:1fr 1fr"><div class="g-avatar"><img src="assets/monograms/mono-ivoire.png" alt=""></div><div class="g-avatar iv"><img src="assets/monograms/mono-indigo.png" alt=""></div></div><div class="leg"><b>L'avatar</b><small>Le même sur les quatre réseaux, ivoire sur indigo. La version indigo sur ivoire reste pour LinkedIn si vous la préférez.</small><kbd>1024 × 1024</kbd></div></div>
+    <div class="gab" style="grid-column:1 / -1"><div class="cadre" style="padding:14px 18px"><div class="g-couv"><img class="mono" src="assets/monograms/mono-ivoire.png" alt=""><div><p class="l1">Maison MND</p><p class="l2">Locks créées, réparées, entretenues · Cotonou · depuis 2010</p></div><p class="site">maisonmnd.com</p><img class="photo" src="assets/photos/site/trois-couronnes.jpg" alt=""></div></div><div class="leg"><b>La couverture</b><small>Facebook et LinkedIn. Le monogramme, la ligne du métier, le site. La photo se fond à droite ; sur téléphone Facebook la coupe, donc rien d'important dans le tiers droit.</small><kbd>LinkedIn 1128 × 191</kbd> <kbd>Facebook 820 × 312</kbd></div></div>
+  </div>
+  <table>
+    <thead><tr><th>Format</th><th>Taille à l'export</th><th>Où</th><th>À savoir</th></tr></thead>
+    <tbody>
+      <tr><td><b>Portrait, carrousel</b></td><td>1080 × 1350 (4/5)</td><td>Instagram, Facebook, LinkedIn</td><td>La grille Instagram affiche désormais un rectangle 3/4 : rien d'important dans les 60 pixels du haut et du bas.</td></tr>
+      <tr><td><b>Récit, Reel, TikTok</b></td><td>1080 × 1920 (9/16)</td><td>Instagram, TikTok, Facebook, statut WhatsApp</td><td>Zone sûre : 250 pixels en bas, 120 à droite (les boutons de TikTok), 200 en haut (le nom du compte).</td></tr>
+      <tr><td><b>Couverture</b></td><td>820 × 312 Facebook, 1128 × 191 LinkedIn</td><td>Facebook, LinkedIn</td><td>Facebook la recadre en 640 × 360 sur téléphone : le monogramme et la ligne du métier tiennent au centre.</td></tr>
+      <tr><td><b>Avatar</b></td><td>1024 × 1024, rond à l'affichage</td><td>Les quatre</td><td>Le monogramme occupe la moitié centrale du carré : exporter depuis le fichier 1600 sans le recadrer.</td></tr>
+      <tr><td><b>Lien partagé</b></td><td>800 × 420, servi par le site</td><td>Partout où l'on colle maisonmnd.com</td><td>L'aperçu montre les cauris en paysage ; le site s'en charge, rien à faire.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══ 4. RÉSEAU PAR RÉSEAU ══ -->
+  <h2>Réseau par réseau</h2>
+  <p class="cap">Un même nom partout, <b>@maison.mnd</b> (celui que le portail affiche déjà), le même avatar, la même ligne du métier, et un rôle distinct par réseau pour ne pas publier quatre fois la même chose. Les textes de présentation sont prêts à coller.</p>
+  <div class="reseaux">
+
+    <article class="reseau">
+      <div class="reseau__tete"><p class="sur">La vitrine</p><h3>Instagram</h3><p>Celle qui découvre la Maison, regarde, enregistre, puis réserve.</p></div>
+      <div class="reseau__corps"><dl>
+        <dt>Nom</dt><dd><b>Maison MND · Cotonou</b> · <b>@maison.mnd</b>, le compte « M Natural Dreadlocks » renommé, avec son historique</dd>
+        <dt>Présentation</dt><dd><div class="bio" data-copie>Locks créées, réparées, entretenues, depuis 2010.
+La Première Couronne, la réparation, l'entretien, MND Kids, MND Formation.
+Réservez en ligne, la Maison confirme sur WhatsApp.</div></dd>
+        <dt>Lien</dt><dd><kbd>maisonmnd.com/?utm_source=instagram&amp;utm_medium=bio&amp;utm_campaign=instagram</kbd></dd>
+        <dt>À la une</dt><dd>Sept cercles, ivoire sur indigo, dans l'ordre des portes du site : Première Couronne · Réparation · Entretien · MND Kids · Formations · La Maison · Avis.</dd>
+        <dt>Rythme</dt><dd><b>2 publications</b> et <b>1 Reel</b> par semaine, tenus sans faute ; des stories quand la Maison vit (pas de story vide pour remplir).</dd>
+        <dt>Formats</dt><dd>Le portrait, le carrousel « Comprendre », le Reel du geste. Les Reels sont les mêmes vidéos que TikTok, sans le filigrane TikTok.</dd>
+        <dt>Idées</dt><dd><ul class="idees"><li>Carrousel : « Trois signes que vos racines demandent de l'attention ».</li><li>Portrait : une couronne de la Maison, avec l'accord, et le mot de sa propriétaire, initiales seulement.</li><li>Reel : le resserrage d'une racine en vingt secondes, les mains de Brice, sans musique forte.</li></ul></dd>
+        <dt>Mesure</dt><dd>Visites au lien, réservations portant la campagne « instagram », enregistrements par carrousel.</dd>
+      </dl></div>
+    </article>
+
+    <article class="reseau">
+      <div class="reseau__tete"><p class="sur">Le geste</p><h3>TikTok</h3><p>Celle qui ne connaît rien aux locks et regarde une main travailler.</p></div>
+      <div class="reseau__corps"><dl>
+        <dt>Nom</dt><dd><b>Maison MND</b> · <b>@maison.mnd</b></dd>
+        <dt>Présentation</dt><dd><div class="bio" data-copie>Locks à Cotonou, depuis 2010.
+Le geste, pas le filtre.
+Réservez en ligne :</div></dd>
+        <dt>Lien</dt><dd><kbd>maisonmnd.com/?utm_source=tiktok&amp;utm_medium=bio&amp;utm_campaign=tiktok</kbd></dd>
+        <dt>Rythme</dt><dd><b>1 vidéo</b> par semaine, de 15 à 40 secondes, verticale, sous-titrée en français : la même que le Reel du mercredi.</dd>
+        <dt>Formats</dt><dd>Le geste (une seule opération, du début à la fin), l'explication (une question, une réponse, face caméra), la Maison (un moment vrai, sans mise en scène).</dd>
+        <dt>Idées</dt><dd><ul class="idees"><li>« Un lavage à la Maison, du début à la fin », en 30 secondes.</li><li>« Ce qu'on ne fait jamais à une couronne », en trois gestes.</li><li>« Vos locks ont été créées ailleurs ? » : la réponse de la Maison, bienvenue quand même.</li></ul></dd>
+        <dt>Qui paraît</dt><dd><span class="afixer">Les mains de Brice et la voix de Yéman</span>, ou une seule personne pour tout. Une cliente n'apparaît qu'avec l'accord du registre, jamais un enfant en gros plan.</dd>
+        <dt>Mesure</dt><dd>Vues complètes (la vidéo regardée jusqu'au bout), visites du profil, clics vers le site.</dd>
+      </dl></div>
+    </article>
+
+    <article class="reseau">
+      <div class="reseau__tete"><p class="sur">Le quartier et les familles</p><h3>Facebook</h3><p>Celle qui cherche l'adresse, les horaires, une offre, un avis, et qui partage à sa sœur.</p></div>
+      <div class="reseau__corps"><dl>
+        <dt>Nom</dt><dd><b>Maison MND</b> · la page « M Natural Dreadlocks » renommée, avec ses abonnés ; le nom est accordé par Meta.</dd>
+        <dt>Présentation</dt><dd><div class="bio" data-copie>Locks créées, réparées, entretenues, à Cotonou depuis 2010. La Première Couronne, la réparation, l'entretien, MND Kids, MND Formation. Réservez en ligne sur maisonmnd.com, la Maison confirme sur WhatsApp.</div></dd>
+        <dt>Fiche</dt><dd>Catégorie « Salon de coiffure » · Ilot 130-F, quartier Suru-Léré, Cotonou · les heures d'ouverture du site · bouton <b>WhatsApp</b> sur le numéro de la branche · bouton <b>Réserver</b> vers <kbd>maisonmnd.com/reserver/?utm_source=facebook&amp;utm_medium=page&amp;utm_campaign=facebook</kbd>.</dd>
+        <dt>Rythme</dt><dd><b>2 publications</b> par semaine, les mêmes qu'Instagram, plus <b>les offres</b> (le Lavage du mois, les offres familles) et <b>les événements</b> (une journée de l'Académie).</dd>
+        <dt>Avis</dt><dd>Les avis se demandent sur Google, pas sur Facebook : une seule adresse d'avis, celle que le site affiche. Sur Facebook, on remercie et on renvoie.</dd>
+        <dt>Idées</dt><dd><ul class="idees"><li>L'affiche du Lavage du mois, avec sa légende, le premier du mois.</li><li>« Deux couronnes, une venue » pour les sœurs et les amies.</li><li>Une journée portes ouvertes de MND Formation, en événement.</li></ul></dd>
+        <dt>Mesure</dt><dd>Réservations portant la campagne « facebook », messages WhatsApp depuis le bouton, partages des offres.</dd>
+      </dl></div>
+    </article>
+
+    <article class="reseau">
+      <div class="reseau__tete"><p class="sur">La méthode et l'Académie</p><h3>LinkedIn</h3><p>Une future élève, un partenaire, un journaliste, une recrue : ceux qui veulent comprendre comment la Maison travaille.</p></div>
+      <div class="reseau__corps"><dl>
+        <dt>Nom</dt><dd><b>Maison MND</b> · une seule page entreprise ; MND Formation y est un pilier, pas une autre entreprise.</dd>
+        <dt>Présentation</dt><dd><div class="bio" data-copie>Maison de locks à Cotonou, depuis 2010. Nous créons, réparons et entretenons des couronnes, et MND Formation transmet la méthode à celles et ceux qui en feront leur métier.</div></dd>
+        <dt>Lien</dt><dd><kbd>maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=page&amp;utm_campaign=linkedin</kbd></dd>
+        <dt>Rythme</dt><dd><b>2 publications</b> par mois, longues, signées par Yéman depuis son propre profil et relayées par la page.</dd>
+        <dt>Formats</dt><dd>Le portrait (indigo sur ivoire), le texte long, le document (un carrousel PDF de cinq pages, le format que LinkedIn met en avant).</dd>
+        <dt>Idées</dt><dd><ul class="idees"><li>« Ce que seize ans de locks nous ont appris sur la patience. »</li><li>Une promotion de MND Formation et ses certificats, initiales et prénoms avec accord.</li><li>« Nous recrutons » : le poste, la méthode, l'adresse pour écrire.</li></ul></dd>
+        <dt>Mesure</dt><dd>Demandes de formation portant la campagne « linkedin », candidatures, abonnés à la page.</dd>
+      </dl></div>
+    </article>
+  </div>
+  <div class="garde"><b>Le numéro qui répond</b><p>Sur chaque réseau, le bouton d'appel compose le numéro du registre, celui qui décroche ; le bouton WhatsApp ouvre celui de la branche, celui qui répond par écrit. Ce sont les deux numéros du site, jamais un troisième.</p></div>
+
+  <!-- ══ 5. LA STRATÉGIE ══ -->
+  <h2>La stratégie : quatre piliers, une semaine, une mesure</h2>
+  <p class="cap">Les réseaux ne servent pas à « être présents ». Ils servent à trois choses que l'on compte : des réservations en ligne, des avis Google, des demandes de formation. Tout le reste est un moyen.</p>
+  <table>
+    <thead><tr><th>À quatre-vingt-dix jours</th><th>Aujourd'hui</th><th>Objectif</th><th>Où on le lit</th></tr></thead>
+    <tbody>
+      <tr><td><b>Réservations venues d'un réseau</b></td><td><span class="afixer">à relever dans Le Trône</span></td><td><span class="afixer">à fixer</span> par mois</td><td>Les réservations qui portent une campagne (instagram, tiktok, facebook, linkedin).</td></tr>
+      <tr><td><b>Avis Google</b></td><td><span class="afixer">le nombre du jour</span></td><td>+ <span class="afixer">à fixer</span></td><td>La fiche Google de la Maison ; le site les affiche.</td></tr>
+      <tr><td><b>Demandes de formation</b></td><td><span class="afixer">à relever</span></td><td><span class="afixer">à fixer</span> par trimestre</td><td>Les demandes du site portant « formation », depuis LinkedIn et Instagram.</td></tr>
+      <tr><td><b>Abonnées qui reviennent</b></td><td>0</td><td>Le tiers des vues d'un Reel vient d'abonnées</td><td>Les statistiques d'Instagram et de TikTok, une fois par mois.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Les quatre piliers</h3>
+  <table>
+    <thead><tr><th>Pilier</th><th>Ce qu'il dit</th><th>Gabarit</th><th>Réseaux</th></tr></thead>
+    <tbody>
+      <tr><td><b>Comprendre</b></td><td>Ce qu'est une couronne, ce qu'elle demande, ce qu'on lui évite. Les articles du Journal, découpés.</td><td>Carrousel, explication face caméra</td><td><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep">TikTok</span></td></tr>
+      <tr><td><b>Prendre soin</b></td><td>L'entretien, le lavage, l'hydratation, et les offres qui les rendent réguliers.</td><td>Portrait, récit, Reel du geste</td><td><span class="dep">Instagram</span><span class="dep">Facebook</span><span class="dep">TikTok</span></td></tr>
+      <tr><td><b>Transformer</b></td><td>La Première Couronne et la réparation : ce que la Maison fait d'un début ou d'un abîmé, avec accord.</td><td>Portrait, Reel</td><td><span class="dep">Instagram</span><span class="dep">TikTok</span></td></tr>
+      <tr><td><b>Transmettre</b></td><td>MND Formation, la méthode, les certificats, les recrues.</td><td>Texte long, document, portrait indigo sur ivoire</td><td><span class="dep">LinkedIn</span><span class="dep c">Instagram, une fois par mois</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>La semaine type</h3>
+  <div class="cal">
+    <div class="jour"><p class="sur">Lundi</p><b>Comprendre</b><p>Un carrousel de cinq diapositives, Instagram et Facebook. La dernière appelle à réserver.</p></div>
+    <div class="jour"><p class="sur">Mercredi</p><b>Le geste</b><p>Une vidéo de 15 à 40 secondes, TikTok puis Reel le lendemain, sans filigrane.</p></div>
+    <div class="jour"><p class="sur">Vendredi</p><b>La preuve</b><p>Un portrait avec le mot d'une cliente (initiales) ou un résultat, avec accord. Instagram et Facebook.</p></div>
+    <div class="jour"><p class="sur">Dimanche</p><b>La Maison</b><p>Une story vraie : l'atelier, une main, un rituel. Pas de publication dans le fil.</p></div>
+  </div>
+  <ul class="liste">
+    <li><b>Le premier du mois</b> : le Lavage du mois, son affiche et sa légende, sur Instagram, Facebook et en statut WhatsApp. Une seule fois.</li>
+    <li><b>Deux fois par mois</b> : LinkedIn, un texte long signé Yéman, relayé par la page.</li>
+    <li><b>Une semaine de lancement</b> : d'abord le portrait « M Natural Dreadlocks devient Maison MND », puis deux portraits (une porte chacun), un carrousel « Comprendre », un Reel du geste, et l'affiche du Lavage du mois. Tout est déjà dans le dossier des affiches ou dans les photos du site.</li>
+  </ul>
+
+  <h3>Les liens, et comment on compte</h3>
+  <p class="cap">Chaque lien posé sur un réseau porte sa campagne. Le site la lit dans l'adresse et la garde le temps de la visite : une réservation faite après un clic depuis Instagram le sait. Sans cela, tout arrive « en direct » et rien ne se compte.</p>
+  <table>
+    <thead><tr><th>Depuis</th><th>Lien à coller</th></tr></thead>
+    <tbody>
+      <tr><td><b>Instagram, présentation</b></td><td><kbd>https://maisonmnd.com/?utm_source=instagram&amp;utm_medium=bio&amp;utm_campaign=instagram</kbd></td></tr>
+      <tr><td><b>TikTok, présentation</b></td><td><kbd>https://maisonmnd.com/?utm_source=tiktok&amp;utm_medium=bio&amp;utm_campaign=tiktok</kbd></td></tr>
+      <tr><td><b>Facebook, bouton Réserver</b></td><td><kbd>https://maisonmnd.com/reserver/?utm_source=facebook&amp;utm_medium=page&amp;utm_campaign=facebook</kbd></td></tr>
+      <tr><td><b>LinkedIn, page</b></td><td><kbd>https://maisonmnd.com/formations/?utm_source=linkedin&amp;utm_medium=page&amp;utm_campaign=linkedin</kbd></td></tr>
+      <tr><td><b>Une offre, dans une légende ou une story</b></td><td><kbd>https://maisonmnd.com/les-offres/?utm_source=instagram&amp;utm_medium=story&amp;utm_campaign=lavage-du-mois</kbd></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Répondre</h3>
+  <ul class="liste">
+    <li><b>Dans les heures d'ouverture</b>, en vouvoiement, avec les mots du site. Un message reçu la nuit attend le matin ; il ne reçoit pas de réponse automatique froide.</li>
+    <li><b>Un prix demandé en public</b> reçoit toujours la même phrase : « Le devis se fait à la Maison, après avoir regardé votre couronne. Écrivez-nous sur WhatsApp, nous vous répondons. »</li>
+    <li><b>Une critique</b> reçoit une réponse, une seule, calme, qui propose de continuer sur WhatsApp. Jamais de débat en commentaires.</li>
+    <li><b>Un compliment</b> reçoit un merci et, si la personne est cliente, une invitation à laisser son avis sur Google.</li>
+  </ul>
+
+  <h3>Le point mensuel, en dix minutes</h3>
+  <table>
+    <thead><tr><th>Ce qu'on relève</th><th>Où</th><th>Ce qu'on en fait</th></tr></thead>
+    <tbody>
+      <tr><td><b>Réservations par campagne</b></td><td>Le Trône, les réservations du mois</td><td>Le réseau qui réserve reçoit plus ; celui qui ne réserve pas change de contenu avant de changer de rythme.</td></tr>
+      <tr><td><b>Le carrousel le plus enregistré</b></td><td>Instagram, statistiques</td><td>Son sujet devient un article du Journal, et une vidéo.</td></tr>
+      <tr><td><b>La vidéo la plus regardée jusqu'au bout</b></td><td>TikTok, statistiques</td><td>On en refait une du même geste, sous un autre angle.</td></tr>
+      <tr><td><b>Les avis Google du mois</b></td><td>La fiche Google</td><td>Le plus juste devient un portrait « La preuve », avec accord, initiales.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ══ 6. LES ARBITRAGES ══ -->
+  <h2>Ce qui attend votre décision</h2>
+  <div class="garde"><b>Le nom des comptes, tranché</b><p>Les comptes existent sous « M Natural Dreadlocks », avec leur historique et leurs abonnés ; le nom « Maison MND » est accordé par Meta. On ne crée donc rien : on <b>renomme</b> chaque compte en Maison MND · @maison.mnd, un réseau à la fois, en gardant tout. Le premier visuel du lancement le dit aux abonnées : « M Natural Dreadlocks devient Maison MND. Même Maison, mêmes mains. »</p></div>
+  <div class="garde"><b>LinkedIn et le rythme, tranchés</b><p>Une seule page LinkedIn, celle de la Maison. Deux publications et une vidéo par semaine, tenues sans faute : lundi, mercredi, vendredi. On monte le jour où une troisième main arrive, pas avant.</p></div>
+  <div class="garde"><b>Les visages</b><p><span class="afixer">Qui paraît à l'écran</span> : les mains de Brice et la voix de Yéman, ou une seule personne pour tout, ou l'équipe à tour de rôle. Une seule règle, tenue.</p></div>
+  <div class="garde mur"><b>Ce qui ne se négocie pas</b><p>Aucun prix en public. Aucun visage sans accord écrit dans le registre. Aucun prénom d'enfant. Le monogramme entier, jamais redessiné. Les mots du site.</p></div>
+
+  <!-- ══ 7. LES ÉTAPES ══ -->
+  <h2>Les étapes, dans l'ordre</h2>
+  <p class="cap">Vous cochez à mesure ; la page s'en souvient sur ce poste. Les étapes 1 à 6 se font en une après-midi, les suivantes sur le premier mois.</p>
+  <ol class="pas" id="pas">
+    <li><b>Trancher la dernière décision en cuivre : les visages</b><p>Qui paraît à l'écran. Le nom, LinkedIn et le rythme sont tranchés.</p></li>
+    <li><b>Renommer les comptes, un réseau à la fois</b><p>Chaque compte « M Natural Dreadlocks » devient Maison MND · @maison.mnd, avec son historique et ses abonnés ; on ne crée un second compte nulle part. Là où aucun compte n'existe (LinkedIn, peut-être TikTok), on le crée sous ce même nom.</p></li>
+    <li><b>Poser l'avatar</b><p>Le monogramme ivoire sur indigo, exporté en 1024 × 1024 depuis le fichier 1600 sans recadrage, le même sur les quatre.</p></li>
+    <li><b>Coller les présentations et les liens</b><p>Les textes de cette page, avec le bouton « Copier », et les liens à campagne du tableau. Le bouton d'appel sur le numéro du registre, le bouton WhatsApp sur celui de la branche.</p></li>
+    <li><b>Poser les couvertures</b><p>Facebook 820 × 312, LinkedIn 1128 × 191, depuis le gabarit « La couverture ». Vérifier sur un téléphone que le monogramme et la ligne du métier tiennent au centre.</p></li>
+    <li><b>Créer les sept « À la une » sur Instagram</b><p>Une couverture ivoire sur indigo chacune, dans l'ordre des portes du site, même vides au début.</p></li>
+    <li><b>Préparer les gabarits dans l'outil de création</b><p>Les six couleurs, les deux caractères, le monogramme, les cinq gabarits, enregistrés une fois comme modèles.</p></li>
+    <li><b>Publier la semaine de lancement</b><p>Le portrait du nouveau nom, deux portraits, un carrousel, un Reel, l'affiche du Lavage du mois. Les photos sont celles du site, toutes inscrites au registre.</p></li>
+    <li><b>Relier le site aux réseaux</b><p>Les quatre icônes dans le pied de page de maisonmnd.com, et la ligne du métier identique des deux côtés. Un mot, et je le construis.</p></li>
+    <li><b>Tenir la semaine type pendant un mois</b><p>Lundi, mercredi, vendredi, dimanche. Le premier du mois, le Lavage du mois. Deux fois par mois, LinkedIn.</p></li>
+    <li><b>Répondre chaque jour ouvré</b><p>Messages et commentaires, dans les heures d'ouverture, avec les quatre règles de réponse.</p></li>
+    <li><b>Faire le point à trente jours</b><p>Les quatre relevés du point mensuel, dix minutes, et une seule décision : ce qu'on refait, ce qu'on arrête.</p></li>
+  </ol>
+
+  <div class="pied">
+    <span>Maison MND · La Maison sur ses réseaux · maquette du 23 septembre 2026</span>
+    <span>Document de travail, initiales seulement, aucun prix.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son
+   stockage, la page marche quand même : on coche, ça ne se garde pas. */
+const CLE = 'mnd_reseaux_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche'; b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+/* Les présentations se copient d'un geste. */
+document.querySelectorAll('[data-copie]').forEach((bloc) => {
+  const b = document.createElement('button');
+  b.className = 'copier'; b.type = 'button'; b.textContent = 'Copier';
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(bloc.textContent.trim()); b.textContent = 'Copié'; b.classList.add('fait'); }
+    catch { b.textContent = 'Sélectionnez'; }
+    setTimeout(() => { b.textContent = 'Copier'; b.classList.remove('fait'); }, 1800);
+  };
+  bloc.appendChild(b);
+});
+</script>
+</body>
+</html>
