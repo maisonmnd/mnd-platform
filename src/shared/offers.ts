@@ -25,6 +25,24 @@ export type InstantOffer = {
   active: boolean;
   /** Prestation réservable en un geste depuis Ma Couronne (pré-remplit la réservation). */
   serviceId?: string;
+  /** LES PRESTATIONS QUE L'OFFRE COUVRE — 24 septembre 2026. « Dans
+      réservation liée à une offre je ne peux que choisir 1 dans la liste.
+      Besoin de cocher plusieurs au besoin » (Yéman). `serviceId` reste : il
+      dit la prestation qu'on réserve EN UN GESTE depuis Ma Couronne, ce qui
+      n'a de sens qu'au singulier. Celles-ci disent sur quoi la remise PORTE,
+      et il en faut plusieurs : « la rentrée des couronnes » couvre quatre
+      lavages et trois reprises.
+
+      VIDE NE VEUT PAS DIRE « TOUTES ». Une offre qui ne dit pas sur quoi
+      elle porte ne retire rien : un oubli de case ne doit jamais solder le
+      catalogue entier. Le Trône le signale à l'écran plutôt que de le taire. */
+  serviceIds?: string[];
+  /** LE CODE DE LA REMISE — 24 septembre 2026. « Il faut écrire remise de
+      10 % avec le code, du coup le code se remplit automatiquement lors de
+      la réservation avec son nom, plus facile à suivre » (Yéman). Une remise
+      silencieuse s'applique et disparaît ; un code se compte, et se dit à
+      voix haute sur une affiche. */
+  code?: string;
   /** Remise réellement appliquée au prix à la réservation. */
   discountPct?: number;
   /** LA SAISON D'UNE OFFRE — 18 septembre 2026. Jusqu'ici une offre se
@@ -100,33 +118,95 @@ export type Saison = {
   parAnnee?: Record<string, { du: string; au: string }>;
   /** Vrai tant que la Maison n'a pas confirmé la date portée ici. */
   aConfirmer?: boolean;
+
+  /* ── CE QUI FAIT QU'ACTIVER SUFFIT — 24 septembre 2026 ──────────────
+     « Pré-remplis toutes les offres à venir, il suffira juste que je les
+     active » (Yéman). Jusqu'ici une saison ne portait que son nom, sa
+     phrase et ses dates : l'activer donnait une offre qu'il fallait encore
+     ouvrir et remplir. Tout ce qui suit voyage désormais avec elle. */
+
+  /** Le code écrit sur la carte et retrouvé à la réservation. */
+  code?: string;
+  /** La remise retirée, en pour cent. ABSENTE VEUT DIRE CADEAU : Noël offre
+      un styling, la fête des mères un soin, le Ramadan allonge les heures.
+      Rien ne se déduit alors d'un prix, la Maison l'applique au salon, et le
+      code ne sert qu'à suivre ce que l'offre a fait venir. */
+  remise?: number;
+  /** LES CATÉGORIES du catalogue que l'offre couvre, résolues en
+      prestations À L'ACTIVATION.
+
+      DES CATÉGORIES ET NON DES PRESTATIONS, et c'est délibéré : un
+      identifiant de prestation écrit dans le code se périme au premier
+      renommage, et laisserait un code qui ne mord sur rien sans que
+      personne ne le voie. Une catégorie tient. La Maison décoche ensuite ce
+      qu'elle veut, sur l'offre, là où c'est visible. */
+  categories?: string[];
+  /** Le parcours du site, qui choisit la porte et le sceau de la carte. */
+  parcours?: string;
+  /** Les mots du bouton, quand ceux du parcours ne conviennent pas. */
+  bouton?: string;
+  /** Les conditions, dépliées sous la carte. La période s'y ajoute seule. */
+  conditions?: string;
 };
+
+/* LES CATÉGORIES DE LA MAISON, telles qu'elles vivent dans le catalogue.
+   Nommées ici pour que les saisons se lisent, et parce qu'un identifiant nu
+   au milieu d'une offre ne dit rien à celui qui la relira dans six mois. */
+const LAVAGES = 'cat-lavages';
+const REPRISES = 'tn29axgoc5';
+const SOINS = 'cat-soins';
+const STYLING = 'cat-styling';
 
 export const SAISONS: readonly Saison[] = [
   {
     cle: 'rentree', nom: 'La rentrée des couronnes', tag: 'Offre de saison', deal: '−10 %',
     sub: 'Sur les lavages rituels et les reprises de racines, pour repartir net.',
     debut: '09-01', fin: '09-30',
+    code: 'RENTREE10', remise: 10, categories: [LAVAGES, REPRISES],
+    parcours: 'entretien',
+    conditions: 'Sur les lavages rituels et les reprises de racines. '
+      + 'Les prestations dont le prix se dit au salon ne sont pas remisées. '
+      + 'Une offre à la fois, au règlement à la Maison.',
   },
   {
     cle: 'octobre-rose', nom: 'Octobre Rose', tag: 'Engagement', deal: '−15 %',
     sub: 'Sur les soins, et la Maison reverse une part à la lutte contre le cancer du sein.',
     debut: '10-01', fin: '10-31',
+    code: 'ROSE15', remise: 15, categories: [SOINS],
+    parcours: 'entretien', bouton: 'Réserver mon soin',
+    conditions: 'Sur les soins de la carte. La Maison reverse une part de chaque soin '
+      + 'à la lutte contre le cancer du sein. Une offre à la fois, au règlement à la Maison.',
   },
   {
+    /* UN CADEAU N'EST PAS UNE REMISE : pas de `remise`, donc aucun prix ne
+       bouge à l'écran. Le code voyage quand même, et c'est lui qui dit à
+       l'accueil qu'un styling est dû. Annoncer « −0 % » serait un mensonge,
+       et déduire un styling d'un forfait couleur d'avance en serait un autre. */
     cle: 'noel', nom: 'Noël à la Maison', tag: 'Offre de saison', deal: '2 = 1',
     sub: 'Un styling signature offert pour tout forfait couleur.',
     debut: '12-01', fin: '12-31',
+    code: 'NOEL', categories: [STYLING],
+    parcours: 'entretien', bouton: 'Réserver ma couleur',
+    conditions: 'Un styling signature offert pour tout forfait couleur pris dans le mois. '
+      + 'Le styling s’offre à la venue, il ne se déduit pas d’avance. Une offre à la fois.',
   },
   {
     cle: 'saint-valentin', nom: 'La Saint-Valentin', tag: 'Offre éclair', deal: '−20 %',
     sub: 'Pour deux couronnes qui viennent ensemble.',
     debut: '02-07', fin: '02-14',
+    code: 'DEUX20', remise: 20, categories: [LAVAGES, REPRISES, SOINS],
+    parcours: 'entretien', bouton: 'Réserver pour deux',
+    conditions: 'Pour deux couronnes qui viennent ensemble, sur le même rendez-vous, '
+      + 'sur les lavages, les reprises et les soins. Une offre à la fois, au règlement à la Maison.',
   },
   {
     cle: 'mois-de-la-femme', nom: 'Le mois de la femme', tag: 'Engagement', deal: '−15 %',
     sub: 'Sur tous les forfaits féminins, jusqu’au 8 mars.',
     debut: '03-01', fin: '03-08',
+    code: 'FEMME15', remise: 15, categories: [LAVAGES, REPRISES, SOINS, STYLING],
+    parcours: 'entretien',
+    conditions: 'Sur les lavages, les reprises, les soins et le styling, jusqu’au 8 mars. '
+      + 'Une offre à la fois, au règlement à la Maison.',
   },
   {
     /* LE RAMADAN SE CONSTATE. Les dates ci-dessous sont une ESTIMATION et
@@ -140,6 +220,12 @@ export const SAISONS: readonly Saison[] = [
       '2028': { du: '2028-01-28', au: '2028-02-26' },
     },
     aConfirmer: true,
+    /* Des heures allongées ne sont pas un pourcentage, et le prix doux du
+       soin se dit au salon : rien à déduire, un code pour suivre. */
+    code: 'RAMADAN',
+    parcours: 'entretien', bouton: 'Réserver après la rupture',
+    conditions: 'Ouverture après la rupture du jeûne pendant tout le mois, '
+      + 'et un soin hydratant à prix doux, dit à la Maison. Une offre à la fois.',
   },
   {
     /* LA FÊTE DES MÈRES ne tombe pas le même jour partout. Celle-ci suit le
@@ -151,6 +237,10 @@ export const SAISONS: readonly Saison[] = [
       '2028': { du: '2028-05-27', au: '2028-05-28' },
     },
     aConfirmer: true,
+    code: 'MERE', categories: [SOINS],
+    parcours: 'enfant', bouton: 'Organiser notre venue',
+    conditions: 'Un soin offert à la mère pour toute venue mère et fille, le même jour. '
+      + 'Le soin s’offre à la venue, il ne se déduit pas d’avance. Une offre à la fois.',
   },
 ];
 
@@ -204,12 +294,48 @@ export function saisonsAProposer(
 /** L'offre qu'une saison fait naître quand la Maison l'active. Elle court
     toute la semaine ; l'heure de fin s'arrête à la dernière heure que la
     Maison sait dire (`OFFER_HOURS`), et non à minuit. */
+/** LES PRESTATIONS D'UNE LISTE DE CATÉGORIES, descendantes comprises.
+
+    On descend l'arbre parce que la Maison range par famille : « les soins »
+    peut un jour se scinder en deux rayons, et une offre écrite sur le parent
+    doit continuer de couvrir les enfants. Sans cela, un rangement du
+    catalogue viderait une offre en silence. */
+export function prestationsDesCategories(
+  categories: readonly string[],
+  catalogue: readonly { id: string; categoryId?: string }[],
+  arbre: readonly { id: string; parentId?: string }[] = [],
+): string[] {
+  const voulues = new Set(categories);
+  /* Les descendantes, de proche en proche : l'arbre est petit, et une
+     boucle bornée vaut mieux qu'une récursion qui tournerait sur un cycle. */
+  for (let i = 0; i < 8; i += 1) {
+    const avant = voulues.size;
+    for (const c of arbre) if (c.parentId && voulues.has(c.parentId)) voulues.add(c.id);
+    if (voulues.size === avant) break;
+  }
+  return catalogue.filter((s) => s.categoryId && voulues.has(s.categoryId)).map((s) => s.id);
+}
+
+/** ACTIVER UNE SAISON ÉCRIT UNE OFFRE COMPLÈTE — 24 septembre 2026.
+
+    « Pré-remplis toutes les offres à venir, il suffira juste que je les
+    active » (Yéman). Le code, la remise, les prestations couvertes, le
+    parcours, les mots du bouton et les conditions descendent du patron. Les
+    catégories se résolvent ICI, contre le catalogue du jour : l'offre écrite
+    porte des prestations concrètes, que la Maison décoche ensuite à l'écran,
+    là où elle les voit.
+
+    Un champ vide NE S'ÉCRIT PAS, comme ailleurs dans ce fichier : c'est ce
+    qui laisse intactes toutes les offres d'hier. */
 export function offreDepuisLaSaison(
   s: Saison,
   d: { du: string; au: string },
   branchId: string,
   id: string,
+  catalogue: readonly { id: string; categoryId?: string }[] = [],
+  arbre: readonly { id: string; parentId?: string }[] = [],
 ): InstantOffer {
+  const couvertes = s.categories?.length ? prestationsDesCategories(s.categories, catalogue, arbre) : [];
   return {
     id,
     branchId,
@@ -224,6 +350,19 @@ export function offreDepuisLaSaison(
     active: true,
     du: d.du,
     au: d.au,
+    /* LE GESTE UNIQUE DE MA COURONNE N'EST PAS DÉDUIT D'UNE FAMILLE.
+       `serviceId` ouvre une réservation pré-remplie d'UNE prestation. Une
+       saison qui en couvre sept n'a pas de geste unique : en désigner un
+       ouvrirait la réservation sur une prestation tirée au hasard, et la
+       cliente croirait que la Maison a choisi pour elle. On ne l'écrit donc
+       que lorsque l'offre ne couvre qu'une seule prestation. */
+    ...(couvertes.length === 1 ? { serviceId: couvertes[0] } : {}),
+    ...(s.code ? { code: s.code } : {}),
+    ...(s.remise ? { discountPct: s.remise } : {}),
+    ...(couvertes.length ? { serviceIds: couvertes } : {}),
+    ...(s.parcours ? { parcours: s.parcours } : {}),
+    ...(s.bouton ? { bouton: s.bouton } : {}),
+    ...(s.conditions ? { conditions: s.conditions } : {}),
   };
 }
 

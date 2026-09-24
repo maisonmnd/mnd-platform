@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
-import { client, lienWhatsApp, maison } from '../maison';
+import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '../maison';
 import { campagne, mesure } from '../mesure';
 import {
   agendaDeLaMaison, creneauxOccupes, groupesDePrestations, heuresLibres,
@@ -10,6 +10,9 @@ import {
 import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
 import { fmtMoney } from '../../../shared/currency';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
+import {
+  ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
+} from '../../../shared/offres-pur';
 import Demande from './Demande';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
@@ -62,6 +65,23 @@ const besoinDeLAdresse = (): Besoin | '' => {
   } catch { return ''; }
 };
 
+/** UNE DATE ISO, DITE COMME ON PARLE. Sert à écrire pourquoi un code ne
+    prend plus : « ce code a couru du 1 septembre au 30 septembre » vaut
+    mieux qu'un refus muet, qui passe pour une panne. */
+const quandDit = (iso: string): string => {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+};
+
+/** LE CODE POSÉ PAR LE BOUTON DE L'OFFRE — 24 septembre 2026.
+    « Du coup le code se remplit automatiquement lors de la réservation avec
+    son nom, plus facile à suivre » (Yéman). La carte de l'offre écrit le
+    code en toutes lettres ET l'emporte ici dans l'adresse : la cliente n'a
+    rien à retenir, et celle qui l'a lu sur une affiche le tape. */
+const codeDeLAdresse = (): string => {
+  try { return codeNormalise(new URLSearchParams(location.search).get('code') ?? ''); } catch { return ''; }
+};
+
 /** LE PRIX FERME D'UNE PRESTATION, ou zéro. Un devis, un prix absent : la
     Maison ne l'invente pas. C'est le même juge pour la ligne et pour le
     total, de sorte qu'un geste sans prix ferme ne peut pas se fondre
@@ -110,6 +130,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const [numero, setNumero] = useState('');
   const [mot, setMot] = useState('');
   const [consent, setConsent] = useState(false);
+  const [code, setCode] = useState(codeDeLAdresse);
+  const [offres, setOffres] = useState<OffreDuSite[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [recu, setRecu] = useState<{ date: string; heure: string; gestes: string[] } | null>(null);
@@ -130,6 +152,14 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         if (vivant) setOccupes(pris);
       }
     }).catch(() => { if (vivant) setAgenda(null); });
+    return () => { vivant = false; };
+  }, []);
+
+  /* Les offres ne bloquent rien : si elles n'arrivent pas, la
+     réservation se fait au prix de la carte, ce qui est l'état d'hier. */
+  useEffect(() => {
+    let vivant = true;
+    void offresDuSite().then((o) => { if (vivant) setOffres(o); }).catch(() => { /* prix plein */ });
     return () => { vivant = false; };
   }, []);
 
@@ -165,7 +195,28 @@ function Calendrier({ besoin: besoinInitial }: Props) {
      ne compte que les prix fermes, et dès qu'un geste n'en a pas, le total
      se dit « à partir de » : on ne promet jamais un chiffre qui bougerait. */
   const dureeTotale = choisies.reduce((t, s) => t + Number(s.durationMin ?? 0), 0);
-  const prixTotal = choisies.reduce((t, s) => t + prixFerme(s), 0);
+
+  /* CE QUE LE CODE RETIRE, LIGNE À LIGNE — 24 septembre 2026. Jamais un
+     total opaque : une cliente doit voir LAQUELLE de ses prestations a
+     bougé, sinon la surprise l'attend au comptoir. Le calcul vit dans
+     `offres-pur`, éprouvé par son harnais ; ici on ne fait que l'afficher. */
+  const offreDuMoment = useMemo(() => offreDuCode(offres, code), [offres, code]);
+  const offrePassee = useMemo(
+    () => (offreDuMoment ? null : offreDuCodePassee(offres, code)),
+    [offres, code, offreDuMoment],
+  );
+  const lignes = useMemo(
+    () => lignesDuCode(
+      choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s), ferme: prixFerme(s) > 0 })),
+      offreDuMoment,
+    ),
+    [choisies, offreDuMoment],
+  );
+  const compte = useMemo(() => ceQueLeCodeRetire(lignes), [lignes]);
+  const netDe = (id: string): number => lignes.find((l) => l.id === id)?.net ?? 0;
+  const remisee = (id: string): boolean => !!lignes.find((l) => l.id === id)?.remisee;
+
+  const prixTotal = compte.net;
   const prixFlou = choisies.some((s) => !prixFerme(s) || s.priceMode === 'variable');
   const plein = serviceIds.length >= PLAFOND_GESTES;
 
@@ -212,6 +263,11 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           genre: 'rdv',
           data: {
             prenom, telephone: numero, besoin, mot,
+            /* LE CODE VOYAGE, LE POURCENTAGE NON : c'est au serveur de
+               résoudre le code contre les offres de la Maison. Un
+               navigateur à qui l'on demanderait sa propre remise
+               répondrait 90 le jour où quelqu'un s'en amuserait. */
+            ...(offreDuMoment ? { code: codeNormalise(code) } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
           },
@@ -379,7 +435,19 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 <span className="panier__combien">
                   {s.durationMin ? dit(s.durationMin) : ''}
                   {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
-                  {prixDit(s, devise)}
+                  {/* LA LIGNE DIT SI LE CODE PORTE SUR ELLE, et le plein
+                      reste visible barré : une remise qu'on ne peut pas
+                      vérifier n'est pas une remise, c'est une affirmation. */}
+                  {remisee(s.id)
+                    ? (
+                      <>
+                        <s className="panier__plein">{prixDit(s, devise)}</s>
+                        <b className="panier__net">
+                          {s.priceMode === 'variable' ? 'à partir de ' : ''}{fmtMoney(netDe(s.id), devise)}
+                        </b>
+                      </>
+                    )
+                    : prixDit(s, devise)}
                 </span>
                 <button
                   type="button"
@@ -398,6 +466,42 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               <span>Prix</span>
               <b>{prixFlou && prixTotal > 0 ? <em>à partir de </em> : null}{prixTotal > 0 ? fmtMoney(prixTotal, devise) : 'au salon'}</b>
             </p>
+          </div>
+          {/* LE CODE DE L'OFFRE — 24 septembre 2026. Il arrive rempli quand
+              la cliente vient de la carte, et reste ouvert pour celle qui l'a
+              lu sur une affiche. Il ne BLOQUE jamais une réservation : un
+              code inconnu se dit sans reproche et le prix reste celui de la
+              carte. On ne perd pas une venue sur une faute de frappe. */}
+          <div className="code-offre">
+            <label htmlFor="res-code">Code de remise, si vous en avez un</label>
+            <input
+              id="res-code"
+              name="code"
+              value={code}
+              placeholder="RENTREE10"
+              autoComplete="off"
+              onChange={(e) => setCode(codeNormalise(e.target.value))}
+            />
+            {offreDuMoment && compte.retire > 0 && (
+              <p className="code-offre__dit est-bonne">
+                {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
+              </p>
+            )}
+            {offreDuMoment && compte.retire === 0 && (
+              <p className="code-offre__dit">
+                {offreDuMoment.title} · ce code ne porte sur aucun des gestes cochés. Il reste inscrit sur votre demande.
+              </p>
+            )}
+            {!offreDuMoment && offrePassee && (
+              <p className="code-offre__dit">
+                {offrePassee.du && offrePassee.au
+                  ? `Ce code a couru du ${quandDit(offrePassee.du)} au ${quandDit(offrePassee.au)}. Il ne s’applique plus.`
+                  : 'Ce code ne court plus.'}
+              </p>
+            )}
+            {!offreDuMoment && !offrePassee && code && (
+              <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
+            )}
           </div>
           {plein && <p className="legende avertit">Six gestes au plus dans une même venue. Retirez-en un pour en cocher un autre.</p>}
           {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle au salon : ce total est un plancher, jamais une promesse.</p>}

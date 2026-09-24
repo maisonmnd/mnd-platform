@@ -124,6 +124,11 @@ export type OffreDuSite = {
   parcours?: string;
   bouton?: string;
   conditions?: string;
+  /* LE CODE DE L'OFFRE — 24 septembre 2026. La carte l'écrit, le bouton
+     l'emporte dans l'adresse, la réservation le trouve rempli. */
+  code?: string;
+  discountPct?: number;
+  serviceIds?: string[];
 };
 
 export async function offresDuSite(): Promise<OffreDuSite[]> {

@@ -9,14 +9,14 @@ import {
   useClients, useSegments, addSegment, renameSegment, removeSegment, estDePassage,
 } from '../../../../shared/clients';
 import { useInvoices, invoiceTotal } from '../../../../shared/finance';
-import { useServices } from '../../../../shared/catalog';
+import { useCategories, useServices } from '../../../../shared/catalog';
 import { useStore, uid } from '../../../../shared/store';
 import { pushBroadcastClients } from '../../../../shared/push';
 import {
   AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
-  etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION,
+  etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
@@ -27,7 +27,7 @@ type Tab = 'campagnes' | 'offres' | 'auto' | 'audience';
 type OfferForm = {
   title: string; tag: string; deal: string; sub: string; audience: string;
   days: string[]; heureDebut: string; heureFin: string;
-  serviceId: string; discountPct: string;
+  serviceId: string; serviceIds: string[]; code: string; discountPct: string;
   vitrine: boolean; parcours: string; bouton: string; conditions: string;
   /* LA SAISON — 18 septembre 2026. Vides pour une offre qui se répète, comme
      une heure creuse ; remplies pour Octobre Rose, Noël ou le Ramadan. */
@@ -38,7 +38,7 @@ const emptyOffer: OfferForm = {
   title: '', tag: 'Offre éclair', deal: '', sub: '', audience: 'Tous',
   // Tous les jours par défaut (un salon travaille surtout le week-end) et large plage horaire.
   days: [...OFFER_DAYS], heureDebut: '08h', heureFin: '20h',
-  serviceId: '', discountPct: '', du: '', au: '',
+  serviceId: '', serviceIds: [], code: '', discountPct: '', du: '', au: '',
   vitrine: false, parcours: '', bouton: '', conditions: '',
 };
 
@@ -58,6 +58,10 @@ export default function Marketing() {
   const [clients] = useClients();
   const [invoices] = useInvoices(); // valeur moyenne réelle par segment
   const [services] = useServices();
+  const [categories] = useCategories();
+  /* La liste des prestations est longue : un filtre évite de faire
+     défiler cent lignes pour en cocher quatre. */
+  const [filtrePresta, setFiltrePresta] = useState('');
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
   const [automations, setAutomations] = useAutomations();
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
@@ -214,7 +218,12 @@ export default function Marketing() {
     setOfferForm({
       title: o.title, tag: o.tag, deal: o.deal, sub: o.sub, audience: o.audience,
       days: [...o.days], heureDebut: o.heureDebut, heureFin: o.heureFin,
-      serviceId: o.serviceId ?? '', discountPct: o.discountPct != null ? String(o.discountPct) : '',
+      serviceId: o.serviceId ?? '',
+      /* Une offre d'hier n'a qu'une prestation liée : elle devient le
+         premier élément de la liste, et rien ne se perd. */
+      serviceIds: o.serviceIds ?? (o.serviceId ? [o.serviceId] : []),
+      code: o.code ?? '',
+      discountPct: o.discountPct != null ? String(o.discountPct) : '',
       du: o.du ?? '', au: o.au ?? '',
       vitrine: !!o.vitrine, parcours: o.parcours ?? '', bouton: o.bouton ?? '', conditions: o.conditions ?? '',
     });
@@ -226,7 +235,12 @@ export default function Marketing() {
     const payload = {
       title: offerForm.title.trim(), tag: offerForm.tag, deal: offerForm.deal, sub: offerForm.sub,
       audience: offerForm.audience, days: [...offerForm.days], heureDebut: offerForm.heureDebut, heureFin: offerForm.heureFin,
-      serviceId: offerForm.serviceId || undefined,
+      /* `serviceId` reste la prestation qu'on réserve EN UN GESTE depuis
+         Ma Couronne : elle n'a de sens qu'au singulier, et suit la
+         première cochée pour que ce geste continue de marcher. */
+      serviceId: offerForm.serviceIds.length === 1 ? offerForm.serviceIds[0] : undefined,
+      serviceIds: offerForm.serviceIds.length ? [...offerForm.serviceIds] : undefined,
+      code: codeNormalise(offerForm.code) || undefined,
       discountPct: Number.isFinite(disc) && disc > 0 ? Math.min(90, disc) : undefined,
       /* Une date vide NE S ECRIT PAS : l'offre reste alors sans saison et se
          comporte comme avant, ce qui protège toutes celles d'hier. */
@@ -287,7 +301,11 @@ export default function Marketing() {
      autre, et c'est elle, jamais le patron, qui paraît au salon et sur le
      site. Ainsi une saison revient chaque année sans qu'on redéploie. */
   const activerLaSaison = (saison: (typeof SAISONS)[number], du: string, au: string) => {
-    setOffers((prev) => [...prev, offreDepuisLaSaison(saison, { du, au }, branch.id, `of-${uid()}`)]);
+    setOffers((prev) => [...prev, offreDepuisLaSaison(
+      saison, { du, au }, branch.id, `of-${uid()}`,
+      services.map((sv) => ({ id: sv.id, categoryId: sv.categoryId })),
+      categories.map((c) => ({ id: c.id, parentId: c.parentId })),
+    )]);
   };
 
   return (
@@ -472,8 +490,16 @@ export default function Marketing() {
                         <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{o.heureDebut} – {o.heureFin}</div>
                       </div>
                       <div>
-                        <div className="tre-offer__meta-label">Prestation liée</div>
-                        <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>{o.serviceId ? serviceName(o.serviceId) : '—'}</div>
+                        <div className="tre-offer__meta-label">Code</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--ink)', letterSpacing: '.1em' }}>{o.code || '—'}</div>
+                      </div>
+                      <div>
+                        <div className="tre-offer__meta-label">Prestations couvertes</div>
+                        <div className="tre-offer__meta-value" style={{ color: 'var(--ink)' }}>
+                          {o.serviceIds?.length
+                            ? (o.serviceIds.length === 1 ? serviceName(o.serviceIds[0]) : `${o.serviceIds.length} prestations`)
+                            : (o.serviceId ? serviceName(o.serviceId) : '—')}
+                        </div>
                       </div>
                       <div>
                         <div className="tre-offer__meta-label">Remise appliquée</div>
@@ -690,11 +716,13 @@ export default function Marketing() {
               <Input value={offerForm.sub} onChange={(e) => setOfferForm({ ...offerForm, sub: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
-              <Field label="Prestation liée · réservable en un geste">
-                <Select value={offerForm.serviceId} onChange={(e) => setOfferForm({ ...offerForm, serviceId: e.target.value })}>
-                  <option value="">Aucune, offre libre</option>
-                  <OptionsPrestations services={services} prix devise={currency} />
-                </Select>
+              <Field label="Code de la remise · écrit sur la carte du site">
+                <Input
+                  value={offerForm.code}
+                  placeholder="RENTREE10"
+                  style={{ letterSpacing: '.12em', textTransform: 'uppercase' }}
+                  onChange={(e) => setOfferForm({ ...offerForm, code: codeNormalise(e.target.value) })}
+                />
               </Field>
               <Field label="Remise (%) · appliquée au prix">
                 <Input
@@ -707,6 +735,64 @@ export default function Marketing() {
                 />
               </Field>
             </div>
+            {/* LES PRESTATIONS SE COCHENT, PLUSIEURS — 24 septembre 2026.
+                « Dans réservation liée à une offre je ne peux que choisir 1
+                dans la liste. Besoin de cocher plusieurs au besoin » (Yéman).
+                La liste à un choix ne pouvait pas dire « les lavages rituels
+                ET les reprises de racines », qui est pourtant le texte même
+                de l'offre de rentrée. */}
+            <Field label="Prestations couvertes · la remise ne porte que sur elles">
+              <Input
+                value={filtrePresta}
+                placeholder="Filtrer : lavage, reprise, soin…"
+                onChange={(e) => setFiltrePresta(e.target.value)}
+              />
+              <div className="tre-presta">
+                {(() => {
+                  const cherche = filtrePresta.trim().toLowerCase();
+                  const vues = services.filter((sv) => !cherche || (sv.name ?? '').toLowerCase().includes(cherche));
+                  if (!vues.length) return <p className="tre-presta__vide">Aucune prestation ne porte ces lettres.</p>;
+                  return vues.map((sv) => {
+                    const coche = offerForm.serviceIds.includes(sv.id);
+                    return (
+                      <label key={sv.id} className={`tre-presta__l${coche ? ' is-on' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={coche}
+                          onChange={() => setOfferForm({
+                            ...offerForm,
+                            serviceIds: coche
+                              ? offerForm.serviceIds.filter((x) => x !== sv.id)
+                              : [...offerForm.serviceIds, sv.id],
+                          })}
+                        />
+                        <span className="tre-presta__nom">{sv.name}</span>
+                        <span className="tre-presta__prix">
+                          {sv.priceXof && sv.priceMode !== 'devis' ? fmtMoney(sv.priceXof, currency) : 'au salon'}
+                        </span>
+                      </label>
+                    );
+                  });
+                })()}
+              </div>
+              <div className="tre-presta__pied">
+                <span>
+                  {offerForm.serviceIds.length
+                    ? `${offerForm.serviceIds.length} prestation${offerForm.serviceIds.length > 1 ? 's' : ''} couverte${offerForm.serviceIds.length > 1 ? 's' : ''}.`
+                    : 'Aucune cochée : la remise ne retirerait rien nulle part.'}
+                </span>
+                {offerForm.serviceIds.length
+                  ? <button type="button" className="tre-presta__tout" onClick={() => setOfferForm({ ...offerForm, serviceIds: [] })}>Tout décocher</button>
+                  : null}
+              </div>
+              {/* Une promesse sans portée est le pire des deux mondes : la
+                  carte annonce une remise, et rien ne bouge au comptoir. */}
+              {parseInt(offerForm.discountPct, 10) > 0 && offerForm.serviceIds.length === 0 ? (
+                <p className="tre-presta__alerte">
+                  Cette offre annonce une remise mais ne couvre aucune prestation : elle ne retirera rien.
+                </p>
+              ) : null}
+            </Field>
             <Field label="Qui peut la voir · audience">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {OFFER_AUDIENCES.map((a) => (

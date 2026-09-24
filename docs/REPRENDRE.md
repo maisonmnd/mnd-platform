@@ -2,6 +2,65 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE CODE DE L'OFFRE, ET SEPT SAISONS QUI ARRIVENT REMPLIES — 24 septembre 2026
+
+Trois demandes du même soir, qui n'en font qu'une. « Les 10 % ne marchent sur
+aucun service, normalement ça devrait réduire le prix lors de la réservation ».
+Puis, mieux : « il faut écrire remise de 10 % AVEC LE CODE, du coup le code se
+remplit automatiquement lors de la réservation, plus facile à suivre ». Puis :
+« pré-remplis toutes les offres à venir, il suffira juste que je les active »,
+et « dans réservation liée à une offre je ne peux que choisir 1 dans la liste ».
+
+**Le constat d'abord**, lu dans `mnd_offers` comme le site le lit : ni « La
+rentrée des couronnes » ni « Octobre Rose » ne portaient de remise chiffrée.
+Le « −10 % » était une PHRASE, pas un nombre. Il n'y avait rien à déduire.
+
+**Le code plutôt que la remise silencieuse**, et l'idée est de Yéman. Une
+remise qui s'applique toute seule s'applique et disparaît : un mois plus tard
+personne ne peut dire ce que l'offre a fait venir. Un code se compte, et se dit
+sur une affiche. La carte l'écrit en toutes lettres, le bouton l'emporte dans
+l'adresse, la réservation le trouve rempli.
+
+**Ce qui est bâti** : `offres-pur.ts` porte le calcul (codeNormalise,
+offreDuCode, lignesDuCode, ceQueLeCodeRetire), éprouvé par
+`verifie-le-code-de-l-offre` (36 vérifications). L'offre gagne `code` et
+`serviceIds`. Au Trône, la liste à un seul choix devient des cases à cocher
+avec filtre, et l'écran ALERTE quand une offre annonce une remise sans couvrir
+aucune prestation. Les sept saisons portent code, remise, catégories,
+parcours, bouton et conditions ; activer écrit tout, les catégories se
+résolvant contre le catalogue du jour.
+
+**DES CATÉGORIES, PAS DES PRESTATIONS, dans les patrons de saison.** Un
+identifiant de prestation écrit en dur se périme au premier renommage et
+laisse un code qui ne mord sur rien, sans que personne ne le voie. Une
+catégorie tient, et la résolution descend l'arbre pour qu'un rangement du
+catalogue ne vide pas une offre.
+
+**Trois règles coûtent de l'argent, et sont au harnais.** Une offre sans
+portée ne retire RIEN : un oubli de case ne solde pas le catalogue. Un prix
+qui se dit au salon ne se remise pas. Et un cadeau n'est pas une remise :
+Noël offre un styling, la fête des mères un soin, le Ramadan allonge les
+heures. Ces trois saisons n'écrivent aucun `discountPct`, le code voyage
+quand même, et la Maison applique à la venue.
+
+**Le harnais a trouvé une faute que je n'aurais pas vue.** `serviceId` ouvre
+une réservation pré-remplie d'UNE prestation dans Ma Couronne. J'allais le
+déduire de la première prestation cochée : une offre couvrant sept lavages
+aurait ouvert la réservation sur l'un d'eux, tiré par l'ordre du catalogue, et
+la cliente aurait cru que la Maison avait choisi pour elle. Il ne s'écrit
+désormais que lorsque l'offre ne couvre QU'UNE prestation.
+
+**CE QUI RESTE À FAIRE, et c'est une question de sécurité.** Le navigateur
+envoie le CODE, jamais le pourcentage : `demande-submit` doit résoudre le code
+lui-même contre `mnd_offers` et écrire `discountPct` sur le rendez-vous. Un
+navigateur à qui l'on demanderait sa propre remise répondrait 90. Tant que ce
+n'est pas déployé, la remise s'AFFICHE à la réservation et le code arrive au
+Trône, mais le rendez-vous ne porte pas encore la remise.
+
+**Enfin, les deux offres en ligne n'ont pas de code** : elles ont été écrites
+avant qu'il existe. Yéman les ouvre au Trône et remplit le champ Code et les
+cases, ou retire l'offre et active la saison, qui arrive complète.
+
 ## « J'EN PROFITE » NE MENAIT NULLE PART — 24 septembre 2026
 
 « Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).

@@ -66,8 +66,13 @@ const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/,
    est inconnu (Reserver.tsx), donc aucune impasse. */
 const laPorte = (o: OffreDuSite): string => {
   const p = o.parcours ? PARCOURS[o.parcours] : undefined;
-  if (!p) return base('/reserver/?besoin=inconnu');
-  return base(`/${p.porte}/?besoin=${o.parcours}`);
+  /* LE BOUTON EMPORTE LE CODE — 24 septembre 2026. « Du coup le code se
+     remplit automatiquement lors de la réservation » (Yéman) : c'est cette
+     adresse qui le porte. Une cliente qui arrive autrement le tape, il est
+     écrit en toutes lettres sur la carte juste au-dessus. */
+  const code = o.code ? `&code=${encodeURIComponent(o.code)}` : '';
+  if (!p) return base(`/reserver/?besoin=inconnu${code}`);
+  return base(`/${p.porte}/?besoin=${o.parcours}${code}`);
 };
 
 export default function Offres({ genre }: { genre?: string }) {
@@ -163,6 +168,13 @@ export default function Offres({ genre }: { genre?: string }) {
                 <div className="offre-site__dire">
                   <h3>{o.title}</h3>
                   {o.sub ? <p>{o.sub}</p> : null}
+                  {/* LE CODE SE LIT SUR LA CARTE, et pas seulement dans le
+                      lien : il se recopie sur une affiche, se dit au
+                      téléphone, et se retape si la cliente revient plus tard
+                      par un autre chemin. */}
+                  {o.code ? (
+                    <p className="offre-site__code"><span>avec le code</span><b>{o.code}</b></p>
+                  ) : null}
                   <a className="btn btn--plein" href={laPorte(o)}>{o.bouton?.trim() || par?.bouton || 'J’en profite'}</a>
                   <details className="offre-site__cond">
                     <summary>Voir les conditions</summary>

@@ -194,6 +194,67 @@
 }
 .tre-offer__meta-value { font-size: 13px; color: var(--color-indigo); margin-top: 3px; }
 
+/* ---------- Les prestations couvertes par une offre ----------
+   24 septembre 2026. « Dans reservation liee a une offre je ne peux que
+   choisir 1 dans la liste. Besoin de cocher plusieurs au besoin » (Yeman).
+   La liste depasse la centaine de lignes : elle defile dans son cadre, et
+   un filtre la reduit, plutot que d'allonger la fenetre de l'offre. */
+.tre-presta {
+  display: grid;
+  gap: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
+}
+.tre-presta__l {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tre-presta__l:hover { border-color: var(--line); }
+.tre-presta__l.is-on { border-color: var(--copper-500, #b97a4a); background: rgba(185, 122, 74, 0.09); }
+.tre-presta__l input { flex: none; margin: 0; accent-color: var(--copper-500, #b97a4a); }
+.tre-presta__nom { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--color-indigo); overflow-wrap: anywhere; }
+.tre-presta__prix { flex: none; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tre-presta__vide { margin: 6px 8px; font-size: 12.5px; color: var(--ink-soft); }
+.tre-presta__pied {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.tre-presta__tout {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--copper-700, #7c4c2c);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tre-presta__alerte {
+  margin: 8px 0 0;
+  padding: 8px 11px;
+  border-left: 3px solid var(--copper-500, #b97a4a);
+  border-radius: 3px;
+  background: rgba(185, 122, 74, 0.1);
+  font-size: 12.5px;
+  color: var(--copper-700, #7c4c2c);
+}
+
 /* ---------- Chips (jours, audiences, rôles) ---------- */
 /* LA PASTILLE `tre-chip` A DÉMÉNAGÉ DANS `trone.css` — 31 août 2026.
    Six écrans hors de l'Équipe s'en servent (Vitrine, Clientes, Comptes,
