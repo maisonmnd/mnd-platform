@@ -47,7 +47,19 @@ import { origineDuCompte } from './origine-des-pages.mjs';
 
 const racine = path.resolve(import.meta.dirname, '..');
 const source = path.join(racine, 'dist-sites');
-const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'mnd-platform'];
+const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'revelateur-renvoi', 'mnd-platform'];
+
+/* OÙ VA CHAQUE SITE — 24 septembre 2026. Jusqu'ici, un site allait toujours
+   au dépôt de son nom, branche gh-pages, sous /<nom>/. Deux exceptions
+   depuis que la vitrine vit à la racine du domaine : elle va au dépôt
+   PRINCIPAL du compte (<compte>.github.io, branche main, chemin vide), et
+   l'ancien site-projet `revelateur` reçoit les pages de renvoi. Une table,
+   un seul endroit, exportée pour que le harnais la lise. */
+export function destinationDuSite(site, proprietaire) {
+  if (site === 'revelateur') return { depot: `${proprietaire}.github.io`, branche: 'main', chemin: '' };
+  if (site === 'revelateur-renvoi') return { depot: 'revelateur', branche: 'gh-pages', chemin: '/revelateur' };
+  return { depot: site, branche: 'gh-pages', chemin: `/${site}` };
+}
 
 /* LE DIST NE PEUT PAS ÊTRE PLUS VIEUX QUE LA SOURCE, 23 septembre 2026. Ce
    script n'a jamais rien construit : il envoie dist-sites/<site> tel quel et
@@ -65,7 +77,10 @@ const SITES = ['trone', 'couronne', 'lokaa', 'academie', 'revelateur', 'mnd-plat
    seraient partis dans leur version d'avant). Le reste de docs/ reste
    dehors, sinon chaque note de reprise bloquerait une publication. */
 export const SOURCES = ['src', 'public', 'docs/site-revelateur/journal', 'vite.config.ts', 'scripts/build-sites.mjs',
-  'scripts/genere-revelateur.mjs', ...readdirSync(racine).filter((f) => f.endsWith('.html'))].map((s) => path.join(racine, s));
+  /* renvoi.mjs fabrique les pages de renvoi de l'ancien chemin : une
+     retouche après construction rendrait le dist périmé sans que rien ne
+     le dise, la panne de journal-4 à un fichier près (remarque du pair). */
+  'scripts/genere-revelateur.mjs', 'scripts/renvoi.mjs', ...readdirSync(racine).filter((f) => f.endsWith('.html'))].map((s) => path.join(racine, s));
 
 /** Le fichier le plus récent sous `chemin` (fichier ou dossier), ou null. */
 export function plusRecent(chemin) {
@@ -186,16 +201,17 @@ async function principal() {
     }
     console.log(`\n═══ ${site} ═══`);
     const clone = mkdtempSync(path.join(os.tmpdir(), `mnd-${site}-`));
-    const origine = `https://github.com/${proprietaire}/${site}.git`;
+    const { depot, branche } = destinationDuSite(site, proprietaire);
+    const origine = `https://github.com/${proprietaire}/${depot}.git`;
     try {
       if (REFONDE) {
         /* Rien n'est cloné : on repart d'un dépôt vierge, donc la branche
            poussée n'aura qu'un seul commit et aucun passé. */
         git(['init', '-q'], clone);
-        git(['checkout', '-q', '-b', 'gh-pages'], clone);
+        git(['checkout', '-q', '-b', branche], clone);
         git(['remote', 'add', 'origin', origine], clone);
       } else {
-        git(['clone', '--depth', '1', '--branch', 'gh-pages', '-q', origine, clone]);
+        git(['clone', '--depth', '1', '--branch', branche, '-q', origine, clone]);
       }
       git(['config', 'user.name', nomAuteur], clone);
       git(['config', 'user.email', mailAuteur], clone);
@@ -225,8 +241,8 @@ async function principal() {
         continue;
       }
       git(['commit', '-q', '-m', message], clone);
-      if (REFONDE) git(['push', '-q', '--force', 'origin', 'gh-pages'], clone);
-      else git(['push', '-q', 'origin', 'gh-pages'], clone);
+      if (REFONDE) git(['push', '-q', '--force', 'origin', branche], clone);
+      else git(['push', '-q', 'origin', branche], clone);
       console.log(`   ${fichiers(dist).length} fichiers vérifiés, ${REFONDE ? 'REFONDÉ' : 'publié'} @ ${sha}.`);
       aAttendre.push({ site, dist });
     } catch (err) {
@@ -286,7 +302,7 @@ export async function attendLaMiseEnLigne(site, dist, proprietaire) {
   const cname = path.join(dist, 'CNAME');
   const base = existsSync(cname)
     ? `https://${readFileSync(cname, 'utf8').trim()}`
-    : `${origineDuCompte(proprietaire)}/${site}`;
+    : `${origineDuCompte(proprietaire)}${destinationDuSite(site, proprietaire).chemin}`;
 
   /* Réglables — non pour le confort, mais pour que le chemin « pas encore
      servi » soit ÉPROUVABLE en quelques secondes au lieu de cinq minutes. Un

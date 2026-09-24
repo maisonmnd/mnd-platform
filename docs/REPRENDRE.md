@@ -61,6 +61,50 @@ Trône, mais le rendez-vous ne porte pas encore la remise.
 avant qu'il existe. Yéman les ouvre au Trône et remplit le champ Code et les
 cases, ou retire l'offre et active la saison, qui arrive complète.
 
+## LA VITRINE À LA RACINE DU DOMAINE — 24 septembre 2026
+
+« Analyse mon site entier », puis « commence par 1, 2, 3 ensemble » (Yéman).
+L'état des lieux (`public/maquette-l-etat-du-site.html`, tout mesuré sur le
+servi) avait trouvé trois choses liées : la racine maisonmnd.com servait une
+page vide marquée noindex qui renvoyait par script vers /revelateur/ ; le
+Trône, écran de connexion de la gestion, était dans Google ; et aucun
+robots.txt n'existait à la seule adresse où les moteurs le lisent, la
+racine. Le robots.txt qui interdisait le Trône existait, mais à
+/trone/robots.txt, que personne ne lit.
+
+**Ce qui change.** La vitrine se construit en base « / » et se publie sur
+le dépôt principal du compte (`<compte>.github.io`, branche `main`), avec
+un CNAME ÉCRIT DANS LE DIST à la construction depuis l'origine lue chez
+GitHub, jamais dans ce dépôt public. `publie.mjs` sait désormais où va
+chaque site (`destinationDuSite`, exportée) : la branche n'est plus écrite
+trois fois en dur. L'ancien chemin /revelateur/ devient un site de renvois
+(`revelateur-renvoi`, dépôt `revelateur`, gh-pages) : une page par ancienne
+adresse avec canonique, refresh 0 et un script qui garde `search` et `hash`
+(un lien « ?code=RENTREE10 » parti hier sur WhatsApp arrive entier), plus un
+404 qui ôte le préfixe et renvoie sur le même chemin. `scripts/renvoi.mjs`
+est pur et entre dans SOURCES du garde-fou du dist (remarque du pair).
+
+**Pas de « Disallow: /trone/ » dans le robots.txt de la racine, et c'est
+voulu.** Le Trône et Ma Couronne sont DÉJÀ indexés. Un Disallow
+empêcherait Google de revenir lire la balise noindex qu'ils portent
+maintenant (les sept entrées à connexion ou à document) et les figerait en
+« indexés, bloqués ». La balise seule les fait sortir ; le Disallow viendra
+après leur disparition. La raison est écrite dans build-sites.mjs, et
+`verifie-les-adresses` refuse qu'on le pose avant.
+
+**Séquence de publication, dans cet ordre et pas un autre** : la racine
+d'abord, vérifiée servie (version.json, robots, plan du site, canoniques,
+ressources), PUIS les renvois. Entre les deux, les deux formes répondent :
+rien ne casse. Le pair remet ensuite ses quarante liens de maquettes à la
+forme courte.
+
+**Ce que la construction fait remonter à la racine, à regarder ensuite** :
+`public/` est recopié tel quel dans chaque site, donc `sw.js`, quatre
+manifestes, `payer.html`, `apropos.html`, `confidentialite.html` vivent
+maintenant à maisonmnd.com/… au lieu de /revelateur/… . Même exposition
+qu'avant, adresse plus courte. La vitrine n'enregistre aucun service
+worker : `/sw.js` y est inerte. Un tri de `public/` par site serait propre.
+
 ## « J'EN PROFITE » NE MENAIT NULLE PART — 24 septembre 2026
 
 « Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).

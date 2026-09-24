@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process';
-import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { origineDuCompte } from './origine-des-pages.mjs';
+import { adressesARenvoyer, cibleDe, pageDeRenvoi, page404DeRenvoi } from './renvoi.mjs';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
 
@@ -81,8 +82,17 @@ const SITES = [
      `scripts/genere-revelateur.mjs` avant la construction (vite.config.ts
      s'en charge). Vite les écrit sous `dist/revelateur/…` : `racine` les
      remonte à la racine du site, où GitHub Pages les sert. */
+  /* À LA RACINE DU DOMAINE — 24 septembre 2026. L'état des lieux du site
+     l'a mesuré : la racine servait une page vide marquée noindex qui
+     renvoyait par script vers /revelateur/, si bien que l'adresse imprimée
+     partout n'était pas celle que Google connaissait. La vitrine se
+     construit donc avec la base « / » ; `publie.mjs` la dépose sur le dépôt
+     principal du compte (voir `destinationDuSite`), et l'ancien chemin
+     /revelateur/ devient un site de RENVOIS, construit juste après celui-ci.
+     L'ancien préfixe reste écrit ici, à un seul endroit. */
   {
-    name: 'revelateur', base: '/revelateur/', apps: 'revelateur', rename: {}, racine: 'revelateur',
+    name: 'revelateur', base: '/', apps: 'revelateur', rename: {}, racine: 'revelateur',
+    ancienPrefixe: '/revelateur',
     env: { VITE_LINK_COURONNE: `${HOST}/couronne/`, VITE_LINK_ACADEMIE: `${HOST}/academie/` },
   },
   {
@@ -186,6 +196,14 @@ for (const site of SITES) {
      faute d'adresse absolue : un sitemap relatif ne vaut rien. */
   const dossierPublie = path.join(out, site.name);
   const indexable = INDEXABLES.has(site.name);
+  /* PAS DE « Disallow: /trone/ » DANS LE ROBOTS.TXT DE LA RACINE, et c'est
+     voulu (24 septembre 2026). Le Trône et Ma Couronne sont DÉJÀ dans
+     Google. Un Disallow empêcherait Google de revenir lire la balise
+     noindex qu'ils portent désormais, et les figerait en « indexés, mais
+     bloqués », indéfiniment. La balise seule les fait sortir ; le Disallow
+     ne vient qu'APRÈS leur disparition des résultats, et le harnais
+     verifie-les-adresses refuse qu'on le pose avant. Ne « réparez » pas
+     cet oubli : ce n'en est pas un. */
   const adresseDuSite = ORIGINE_PAGES ? `${ORIGINE_PAGES}${site.base}` : '';
   const robots = !indexable
     ? `User-agent: *
@@ -223,5 +241,37 @@ ${adresses.map((loc) => `  <url>
     if (site.racine) console.log(`  sitemap : ${adresses.length} adresses`);
   }
   console.log(`  ${indexable ? 'explorable' : 'ferme aux moteurs'} : robots.txt${indexable && adresseDuSite ? ' + sitemap.xml' : ''}`);
+
+  /* ── LE SITE QUI VIT À LA RACINE PORTE LE DOMAINE ────────────────
+     GitHub Pages lit le fichier CNAME du dépôt principal ; sans lui, une
+     publication REFONDUE effacerait le domaine, et le site retomberait sur
+     l'adresse github.io. Le nom vient de la configuration Pages lue chez
+     GitHub (`origineDesPages`), jamais de ce dépôt, qui est public. Sans
+     domaine propre, pas de CNAME : l'adresse github.io se sert d'elle-même. */
+  if (site.base === '/' && ORIGINE_PAGES) {
+    const hote = new URL(ORIGINE_PAGES).host;
+    if (!hote.endsWith('.github.io')) writeFileSync(path.join(dossierPublie, 'CNAME'), `${hote}\n`);
+  }
+
+  /* ── LES ANCIENNES ADRESSES RENVOIENT VERS LES NOUVELLES ─────────
+     Une page par adresse de la vitrine, plus un 404 qui garde le chemin :
+     voir `renvoi.mjs`. Construit dans un site à part, parce que c'est un
+     AUTRE dépôt qui le sert (l'ancien site-projet), et que `publie.mjs` sait
+     l'y déposer. Sans adresse publique (développement), rien ne s'écrit. */
+  if (site.ancienPrefixe && adresseDuSite) {
+    const renvoi = path.join(out, `${site.name}-renvoi`);
+    rmSync(renvoi, { recursive: true, force: true });
+    const pages = adressesARenvoyer(pagesHtml(dossierPublie));
+    for (const rel of pages) {
+      const chemin = path.join(renvoi, rel);
+      mkdirSync(path.dirname(chemin), { recursive: true });
+      writeFileSync(chemin, pageDeRenvoi(cibleDe(adresseDuSite, rel)));
+    }
+    writeFileSync(path.join(renvoi, '404.html'), page404DeRenvoi(adresseDuSite, site.ancienPrefixe));
+    writeFileSync(path.join(renvoi, '.nojekyll'), '');
+    writeFileSync(path.join(renvoi, 'version.json'), JSON.stringify({ build: BUILD_ID }));
+    writeFileSync(path.join(renvoi, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
+    console.log(`  renvois : ${pages.length} anciennes adresses sous ${site.ancienPrefixe}/ renvoient vers ${adresseDuSite}`);
+  }
 }
 console.log('\nSites construits dans dist-sites/.');
