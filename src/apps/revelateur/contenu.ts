@@ -227,7 +227,12 @@ export const ACCUEIL: Accueil = {
        variation. Les quatre qui restent ont le regard à la même hauteur et le
        visage à la même taille. `cliente-2` vit au Journal, recadrée depuis son
        original. */
-    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-8.jpg'],
+    /* CINQ VISAGES DEPUIS LE 24 SEPTEMBRE 2026, au soir. Yéman a confié de
+       nouvelles photos ; une seule par personne dans la rangée, sinon le même
+       visage y revient et la rangée se défait. `cliente-9` est recadrée à la
+       même échelle de visage que les autres, regard à 35 % de la hauteur, la
+       signature de la photographe sortie du cadre (jamais effacée). */
+    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-8.jpg', 'cliente-9.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
@@ -470,7 +475,12 @@ export const PAGES: Page[] = [
     description: 'Confiez la couronne de votre enfant à la Maison MND à Cotonou : création, reprise et soins pour les petites têtes. Organisez votre visite en famille.',
     h1: 'MND Kids : les dreadlocks des enfants, à Cotonou',
     sur: 'MND Kids',
-    image: 'mnd-kids.jpg',
+    /* SA PROPRE PHOTO DEPUIS LE 24 SEPTEMBRE 2026 : la page et la porte de
+       l'accueil montraient la même image. L'enfant au jardin tient seul sur
+       cette page, où son échelle de visage n'a personne à côté de qui se
+       régler. Accord de sa mère, donné à Yéman ; son prénom n'est écrit nulle
+       part, ici pas plus qu'ailleurs. */
+    image: 'enfant-jardin.jpg',
     ligne: "Un enfant a besoin de temps, de douceur, et d'une main qui ne tire pas. Vous restez à ses côtés.",
     besoin: 'enfant',
     cta: { texte: 'Organiser notre visite', note: 'La visite commence par un échange avec vous.' },
