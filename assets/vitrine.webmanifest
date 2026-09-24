@@ -1,0 +1,15 @@
+{
+  "name": "Maison MND",
+  "short_name": "Maison MND",
+  "description": "Dreadlocks à Cotonou, soin et création. Maison MND.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#F6F1E7",
+  "theme_color": "#1E2150",
+  "icons": [
+    { "src": "/assets/icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icones/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
