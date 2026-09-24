@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L'état du site</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150; --sombre: #1E2150;
+    --filet: rgba(20, 20, 27, .14); --bon: #2E6B45; --alerte: #8C2F2F;
+    --serif: 'Cormorant Garamond', Georgia, serif; --sans: 'Jost', system-ui, sans-serif; --r: 3px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.58; }
+  .page { max-width: 980px; margin: 0 auto; padding: 0 22px 90px; }
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 0 28px; padding: 28px 22px 26px; }
+  .bandeau .dedans { max-width: 940px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(27px, 4.6vw, 42px); margin: 0 0 10px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 70ch; color: rgba(246, 241, 231, .84); font-size: 15px; }
+
+  .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 26px; }
+  .chiffre { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); padding: 13px 15px; }
+  .chiffre b { display: block; font-family: var(--serif); font-weight: 300; font-size: 34px; line-height: 1; color: var(--titre); font-variant-numeric: tabular-nums; }
+  .chiffre span { font-size: 12px; color: var(--texte-doux); }
+
+  h2.part { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--titre); margin: 34px 0 4px; }
+  .part-sous { color: var(--texte-doux); font-size: 13.5px; margin: 0 0 14px; max-width: 76ch; }
+
+  .bon { border-left: 3px solid var(--bon); background: #F0F5F1; border-radius: var(--r); padding: 12px 16px; margin-bottom: 8px; font-size: 14px; }
+  .bon b { color: var(--bon); font-weight: 500; }
+
+  .pas { display: flex; gap: 13px; align-items: flex-start; padding: 14px 16px; background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); margin-bottom: 9px; }
+  .pas.est-fait { background: var(--fond-2); } .pas.est-fait .pas__quoi { text-decoration: line-through; color: var(--texte-doux); }
+  .pas input { margin: 4px 0 0; accent-color: var(--accent); flex: none; width: 17px; height: 17px; }
+  .pas__corps { flex: 1; min-width: 0; }
+  .pas__quoi { display: block; font-size: 15.5px; color: var(--titre); margin-bottom: 4px; }
+  .pas__dit { font-size: 13.5px; color: var(--texte-doux); }
+  .pas__dit code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--fond-2); padding: 1px 5px; border-radius: 2px; color: var(--accent-profond); overflow-wrap: anywhere; }
+  .pas__mesure { display: block; margin-top: 7px; padding-left: 11px; border-left: 2px solid var(--accent); font-size: 13px; color: var(--accent-profond); }
+  .pas__qui { display: inline-block; margin-left: 8px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--filet); color: var(--texte-doux); vertical-align: middle; }
+  .pas__qui.moi { border-color: var(--accent); color: var(--accent-profond); }
+  .grave .pas__quoi::before { content: '●'; color: var(--alerte); margin-right: 8px; font-size: 11px; vertical-align: 2px; }
+
+  .pied { margin-top: 36px; font-size: 13px; color: var(--texte-doux); max-width: 78ch; }
+</style>
+
+<div class="bandeau"><div class="dedans">
+  <p class="sur">État des lieux · mesuré le 24 septembre 2026</p>
+  <h1>L'état du site maisonmnd.com</h1>
+  <p>Tout ce qui est écrit ici a été mesuré sur le site tel qu'il est servi, page par page, et non lu dans le code. Ce qui n'a pas pu être mesuré est dit comme tel. Cochez ce qui est fait : la page s'en souvient.</p>
+</div></div>
+
+<div class="page">
+
+  <div class="chiffres">
+    <div class="chiffre"><b>31</b><span>pages, toutes en 200</span></div>
+    <div class="chiffre"><b>0</b><span>lien ou image cassé, sur 65 cibles</span></div>
+    <div class="chiffre"><b>118</b><span>images, toutes avec alt et dimensions</span></div>
+    <div class="chiffre"><b>1,4 Mo</b><span>l'accueil, dont 880 ko de photos</span></div>
+    <div class="chiffre"><b>&lt; 1 s</b><span>chaque page, en HTML compressé</span></div>
+  </div>
+
+  <h2 class="part">Ce qui tient, et c'est mesuré</h2>
+  <p class="part-sous">Autant le dire d'abord : la fondation est saine. Ce qui suit est ce qu'un audit trouve rarement en ordre.</p>
+  <div class="bon"><b>Chaque page a un titre unique, une description unique et bien calibrée, un seul H1, une canonical exacte, une image de partage, et un balisage structuré du bon type</b> : HairSalon, Service, Article, FAQPage, Course, BreadcrumbList. Une seule entorse : le titre des CGU fait 62 signes, Google en coupe à 60.</div>
+  <div class="bon"><b>Le texte est servi sans JavaScript</b> : 544 mots sur l'accueil, 346 sur une page de service, 1061 sur un article. Google lit le site, pas un écran vide.</div>
+  <div class="bon"><b>Toutes les redirections sont propres et en 301</b> : http vers https, www vers l'adresse nue, l'ancienne adresse GitHub vers le domaine. Une adresse inventée répond un vrai 404, pas un 200 déguisé.</div>
+  <div class="bon"><b>Plus aucune trace de « L'atelier MND », aucun tiret cadratin visible, le fon avec ses signes</b> dans une police auto-hébergée. La devise se lit comme elle s'écrit.</div>
+  <div class="bon"><b>Le code de l'offre est en ligne de bout en bout</b> : la carte servie dit « avec le code RENTREE10 », le bouton mène à l'entretien, la réservation le trouve rempli, et le serveur le résout.</div>
+
+  <h2 class="part">Ce qui coûte, par ordre d'importance</h2>
+  <p class="part-sous">Le premier point vaut à lui seul plus que tous les autres réunis. Les pastilles disent qui fait quoi.</p>
+
+  <label class="pas grave"><input type="checkbox" data-pas="1">
+    <span class="pas__corps"><b class="pas__quoi">La racine maisonmnd.com est une page vide, marquée « ne pas indexer »<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">L'adresse que vous imprimez partout, <code>maisonmnd.com</code>, sert une page de 611 octets qui dit à Google de ne pas l'indexer et renvoie par script vers <code>/revelateur/</code>. Le site que Google connaît est donc <code>maisonmnd.com/revelateur/</code>. Chaque lien depuis Facebook, Instagram, WhatsApp ou une affiche passe par cette redirection, et chaque partage montre « /revelateur/ » dans l'adresse.</span>
+      <span class="pas__mesure">Mesuré : racine HTTP 200, 611 octets, <code>meta robots noindex</code>, <code>canonical /revelateur/</code>, <code>meta refresh</code>. C'est le seul défaut structurel du site, et il pèse sur tout le référencement.</span>
+      <span class="pas__dit">Le remède : servir la vitrine à la racine, et faire des anciennes adresses <code>/revelateur/…</code> des renvois vers les nouvelles. Google n'a indexé l'adresse actuelle que depuis quelques jours : déménager maintenant coûte peu, dans six mois beaucoup.</span></span></label>
+
+  <label class="pas grave"><input type="checkbox" data-pas="2">
+    <span class="pas__corps"><b class="pas__quoi">Le Trône, l'outil interne, est dans Google<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">Une recherche <code>site:maisonmnd.com</code> rend « Le Trône · Maison MND », c'est-à-dire l'écran de connexion de votre gestion. Aucune des cinq applications sœurs ne dit à Google de ne pas l'indexer.</span>
+      <span class="pas__mesure">Mesuré : <code>/trone/</code>, <code>/couronne/</code>, <code>/lokaa/</code>, <code>/academie/</code>, <code>/mnd-platform/</code> servies sans balise <code>robots</code>. La règle écrite dans le code voulait le Trône et Ma Couronne hors des moteurs ; la page servie ne la porte pas.</span>
+      <span class="pas__dit">Le remède : la balise <code>noindex</code> sur les applications à connexion, et un fichier <code>robots.txt</code> qui les interdit.</span></span></label>
+
+  <label class="pas grave"><input type="checkbox" data-pas="3">
+    <span class="pas__corps"><b class="pas__quoi">Pas de robots.txt, et un plan du site que rien n'annonce<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">Google cherche <code>maisonmnd.com/robots.txt</code> : il reçoit un 404 dont le corps est la page de redirection. Le plan du site existe, en 31 adresses, mais à <code>/revelateur/sitemap.xml</code>, et rien ne le désigne. Google le trouve s'il le devine.</span>
+      <span class="pas__mesure">Mesuré : <code>/robots.txt</code> 404 · <code>/sitemap.xml</code> 404 · <code>/revelateur/sitemap.xml</code> 200, 31 adresses.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="4">
+    <span class="pas__corps"><b class="pas__quoi">La fiche structurée du salon dit son nom et son adresse, mais ni ses heures, ni sa position, ni ses comptes<span class="pas__qui moi">moi</span><span class="pas__qui">et vous</span></b>
+      <span class="pas__dit">Le balisage <code>HairSalon</code> porte le nom, le téléphone, le courriel, l'adresse. Il ne porte pas <code>openingHoursSpecification</code> (vos horaires, que le Trône connaît), ni <code>geo</code> (la position, que Google Maps connaît), ni <code>sameAs</code> (votre fiche Google, Instagram, Facebook), ni <code>priceRange</code>. Ce sont précisément les champs que Google lit pour les résultats locaux « salon de locks Cotonou ».</span>
+      <span class="pas__dit">Je pose les horaires depuis le Trône et la structure. Il me faut de vous : les coordonnées de la Maison lues sur Google Maps, et l'adresse de la nouvelle Page Facebook quand elle aura tenu.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="5">
+    <span class="pas__corps"><b class="pas__quoi">Les polices arrivent par un détour qui retarde le premier texte<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">Cormorant et Jost sont demandées par un <code>@import</code> au milieu de la feuille de style. Le navigateur doit donc lire le HTML, puis la feuille de 46 ko, puis seulement partir chercher les polices chez Google, puis les fichiers. Trois allers-retours en file avant que la première lettre s'affiche dans la bonne police.</span>
+      <span class="pas__mesure">Mesuré : <code>@import "https://fonts.googleapis.com/css2?…"</code> dans <code>main-*.css</code>. La devise, elle, est auto-hébergée, et c'est la bonne façon.</span>
+      <span class="pas__dit">Le remède : le lien vers les polices dans l'en-tête de la page avec un <code>preconnect</code>, ou mieux, les héberger comme la devise.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="6">
+    <span class="pas__corps"><b class="pas__quoi">Les photos pèsent un tiers de trop, et l'icône d'onglet fait 1600 pixels<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">L'accueil charge 1,4 Mo, dont 880 ko pour six photos en JPEG. Les mêmes en WebP, à qualité égale à l'œil : 642 ko, soit 28 % de moins. Et l'icône d'onglet est le monogramme complet, 1600 × 1600 et 92 ko, pour une case de 32 pixels. Il n'y a ni icône pour l'écran d'accueil d'un téléphone, ni manifeste.</span>
+      <span class="pas__mesure">Mesuré : fondateurs.jpg 196 ko, brice.jpg 151, cauris-accueil.jpg 145, mnd-kids.jpg 130, portrait-accueil.jpg 130, cliente-3.jpg 127. La photo du premier écran est bien préchargée en priorité haute : ce point-là est juste.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="7">
+    <span class="pas__corps"><b class="pas__quoi">Les offres n'existent pas sans JavaScript<span class="pas__qui moi">moi</span><span class="pas__qui">et vous</span></b>
+      <span class="pas__dit">La page des offres sert 175 mots : le titre et sa phrase. Les offres elles-mêmes arrivent par script depuis la base. Google exécute souvent le JavaScript, mais sans garantie ni délai, et un partage sur WhatsApp ou Facebook ne voit que la page vide.</span>
+      <span class="pas__dit">Deux remèdes possibles, et c'est un choix à vous : écrire les offres en cours dans la page à chaque construction (elles apparaissent alors partout, mais une offre changée au Trône attend la construction suivante), ou laisser ainsi et accepter qu'elles restent hors des moteurs. Je penche pour le premier, avec l'îlot qui rafraîchit ensuite.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="8">
+    <span class="pas__corps"><b class="pas__quoi">Aucun lien vers vos comptes, nulle part<span class="pas__qui">vous</span><span class="pas__qui moi">puis moi</span></b>
+      <span class="pas__dit">Le seul lien sortant du site est WhatsApp. Ni Facebook, ni Instagram, ni votre fiche Google dans le pied de page ou dans le balisage. C'est cohérent avec le gel en cours, mais ce sont les liens qui relient vos présences aux yeux de Google.</span>
+      <span class="pas__dit">Le jour où la nouvelle Page Facebook aura ses trois publications, donnez-moi son adresse et celle de votre fiche Google : je les pose au pied du site et dans <code>sameAs</code>, en un seul geste.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="9">
+    <span class="pas__corps"><b class="pas__quoi">Pas de lien d'évitement pour le clavier et les lecteurs d'écran<span class="pas__qui moi">moi</span></b>
+      <span class="pas__dit">Une personne qui navigue au clavier doit traverser tout le menu avant d'atteindre le contenu, sur chaque page. Un lien « Aller au contenu », invisible jusqu'à ce qu'on tabule dessus, règle cela en une ligne. Le menu, lui, est déjà atteignable au clavier, c'est vérifié par un harnais.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="10">
+    <span class="pas__corps"><b class="pas__quoi">Vérifier sur un vrai téléphone qu'aucun texte ne déborde<span class="pas__qui">vous</span></b>
+      <span class="pas__dit">Je n'ai pas pu simuler un écran de 390 pixels : l'outil dont je dispose impose une largeur minimale d'environ 500. À 504 et 762 pixels, mesuré sur les pages servies, rien ne déborde de l'écran (largeur du document égale à la largeur vue). Ma première capture montrait du texte coupé à droite ; c'était l'outil, pas le site, et je préfère vous le dire que de le taire.</span>
+      <span class="pas__dit">Ouvrez l'accueil, une page de service et la réservation sur votre téléphone, et faites glisser vers la droite : si rien ne bouge latéralement, c'est bon.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="11">
+    <span class="pas__corps"><b class="pas__quoi">Aucun en-tête de sécurité, et ce n'est pas réparable ici<span class="pas__qui">à savoir</span></b>
+      <span class="pas__dit">Ni HSTS, ni politique de contenu : GitHub Pages ne permet pas de les poser. Le site est en https, et c'est l'essentiel. Si Cloudflare, qui tient votre DNS, est un jour placé en proxy devant le site, HSTS s'y active en un réglage. Rien à faire aujourd'hui.</span></span></label>
+
+  <div class="pied">
+    <p>Ce que je ferais en premier, si vous me dites d'y aller : les points 1, 2 et 3 ensemble, parce qu'ils forment une seule décision sur les adresses, puis le 5 et le 6 qui se font à froid, puis le 4 et le 8 quand vous m'aurez donné les adresses. Le 7 attend votre choix. Le 9 se glisse dans le premier lot.</p>
+    <p>Mesures brutes conservées dans le bloc-notes de la session : les 31 pages avec titres, descriptions, balisage et images, la liste des 65 cibles vérifiées, les poids. Rien n'a été estimé de mémoire.</p>
+  </div>
+</div>
+
+<script>
+const CLEF = 'mnd-etat-du-site-2026-09-24';
+const cases = [...document.querySelectorAll('.pas input')];
+let faits = {};
+try { faits = JSON.parse(localStorage.getItem(CLEF) || '{}'); } catch (e) { faits = {}; }
+for (const c of cases) {
+  const k = c.dataset.pas;
+  c.checked = !!faits[k];
+  c.closest('.pas').classList.toggle('est-fait', c.checked);
+  c.addEventListener('change', () => {
+    faits[k] = c.checked;
+    c.closest('.pas').classList.toggle('est-fait', c.checked);
+    try { localStorage.setItem(CLEF, JSON.stringify(faits)); } catch (e) { /* onglet privé */ }
+  });
+}
+</script>
+</html>
