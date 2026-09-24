@@ -91,7 +91,7 @@
   <p class="chapeau">
     Le code de l'offre voyage déjà du site jusqu'à la demande. Pour que le rendez-vous
     <b>porte la remise</b>, la fonction qui reçoit les réservations doit résoudre le code
-    elle-même. Sept pas, dont trois de vérification. Cochez au fur et à mesure : la page
+    elle-même. Huit pas, dont quatre de vérification. Cochez au fur et à mesure : la page
     garde vos coches.
   </p>
 
@@ -197,8 +197,21 @@
         </li>
         <li>
           <label class="coche"><input type="checkbox" /> Fait</label>
-          <span class="quoi">Annuler ce rendez-vous d'essai dans Le Trône</span>
-          <p class="pourquoi">Il a servi ; il ne doit pas rester au carnet.</p>
+          <span class="quoi">Réserver une seconde fois, même numéro, même code</span>
+          <p class="pourquoi">
+            Un autre jour, le même geste. Cette fois la remise <b>ne doit pas</b> s'appliquer, et la
+            note doit dire <b>« code RENTREE10 déjà utilisé par ce numéro »</b>. La réservation, elle,
+            passe normalement : on ne perd pas une venue pour une remise déjà prise.
+          </p>
+          <div class="bon">
+            « Le code est utilisable une fois par personne. Non cumulable. » C'est le serveur qui le
+            tient, parce qu'un navigateur ne sait rien des venues passées.
+          </div>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Annuler ces rendez-vous d'essai dans Le Trône</span>
+          <p class="pourquoi">Ils ont servi ; ils ne doivent pas rester au carnet.</p>
         </li>
       </ol>
     </div>
@@ -215,6 +228,8 @@
            ferme. Un prix « au salon » n'est pas remisé.</p>
         <p>Elle <b>inscrit le code</b> sur la demande et sur le rendez-vous, même quand il ne retire
            rien : un cadeau (NOEL) ou un code hors saison se comptent quand même.</p>
+        <p>Elle tient <b>une fois par personne</b> : un numéro qui a déjà reçu ce code ne le reçoit
+           pas deux fois. Seul un rendez-vous ayant réellement porté la remise consomme la fois.</p>
       </div>
       <div class="carte">
         <h3>Elle ne fait pas</h3>
@@ -222,6 +237,8 @@
            que le code.</p>
         <p>Elle <b>n'invente pas</b> de remise pour un code inconnu ou périmé : le rendez-vous
            naît au prix de la carte, et la note dit « aucune offre en cours ».</p>
+        <p>Elle <b>ne refuse jamais</b> une réservation pour un code déjà utilisé, et ne l'écarte pas
+           en silence : la note, le rendez-vous et la réponse portent la raison.</p>
         <p>Elle ne touche pas à la remise de la cliente (la remise famille) : celle-ci porte sur
            tout le rendez-vous et vit ailleurs.</p>
       </div>

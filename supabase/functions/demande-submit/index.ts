@@ -51,6 +51,25 @@
 // silencieuse s'applique et disparaît, alors qu'un code dit ce que l'offre
 // a fait venir. Un code inconnu ou hors saison s'écrit aussi, sans offre.
 //
+// ══ UNE FOIS PAR PERSONNE, ET JAMAIS CUMULÉ ════════════════════════
+// « Le code est utilisable une fois par personne. Non cumulable » (Yéman,
+// 24 septembre 2026). Le non-cumul se tient tout seul : un seul code voyage,
+// rien ne s'empile. L'usage unique ne peut se tenir QU'ICI : le site ne sait
+// pas qui est la visiteuse avant son numéro, et ce qu'un navigateur
+// affirmerait de ses venues passées ne vaudrait rien.
+//
+// CE QUI COMPTE POUR UN USAGE, c'est un rendez-vous qui a REÇU la remise, et
+// non un code écrit quelque part : `codeApplique` ne se pose qu'après que le
+// rendez-vous a été inscrit avec ses `remisesLignes`. Un code tapé sur une
+// demande sans place, un code hors saison, un code qui ne mord sur aucun
+// geste ne consomment rien, et la fois suivante reste due.
+//
+// DEUX REFUS QUI COÛTERAIENT PLUS QUE LA REMISE, et qu'on ne fait donc pas.
+// On ne refuse JAMAIS la réservation : on ne perd pas une venue pour une
+// remise déjà prise. Et on n'écarte pas le code en silence : la demande, le
+// rendez-vous et la réponse portent sa raison, pour que l'accueil la lise
+// avant la cliente, et que la page puisse la dire au moment du clic.
+//
 // Sa source de vérité est `src/shared/offres-pur.ts` (`codeNormalise`,
 // `offreDuCode`, `lignesDuCode`), éprouvé par `verifie-le-code-de-l-offre` ;
 // la COPIE ci-dessous est confrontée à l'original par
@@ -323,6 +342,11 @@ function lignesDuCode(lignes: readonly LigneAPrix[], offre: OffreCodee | null): 
 }
 /* ══ COPIE DE offres-pur : FIN ══ */
 
+/* Tout ce qui suit jusqu'au repère de fin ne touche NI la base NI le réseau :
+   le harnais l'extrait et le fait tourner pour de vrai, plutôt que de juger
+   la résolution du code sur la lettre du fichier. */
+/* ══ RÉSOLUTION DU CODE : DÉBUT ══ */
+
 /** Le jour de la Maison, en ISO, dans SON fuseau : c'est lui qui borne une
     saison, pas l'horloge d'un serveur. */
 const jourDeLaMaison = (): string =>
@@ -340,23 +364,69 @@ const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
   return { id, prixXof: prix, ferme: prix > 0 };
 };
 
+/** POURQUOI LE CODE N'A RIEN RETIRÉ, en un mot. Absent quand il a retiré. */
+type RaisonDuCode = 'inconnu' | 'sans-effet' | 'deja-utilise';
+
+type VerdictDuCode = {
+  code: string;
+  offreId?: string;
+  remisesLignes?: ({ pct: number } | null)[];
+  raison?: RaisonDuCode;
+};
+
+/** LA RAISON, DITE COMME ON LA DIRAIT À L'ACCUEIL. Une ligne de note vaut
+    mieux qu'un mot-clef : c'est elle qu'une employée lira en ouvrant le
+    rendez-vous, sans rien connaître de nos conventions. */
+const raisonEnClair = (v: VerdictDuCode): string => {
+  if (!v.code) return '';
+  if (v.raison === 'deja-utilise') return `code ${v.code} déjà utilisé par ce numéro`;
+  if (v.raison === 'inconnu') return `code ${v.code} (aucune offre en cours)`;
+  if (v.raison === 'sans-effet') return `code ${v.code} (ne porte sur aucun geste choisi)`;
+  return `code ${v.code}`;
+};
+
 /** CE QUE LE CODE FAIT AU RENDEZ-VOUS. Rend le code normalisé (toujours,
     pour qu'il se compte), l'offre trouvée s'il y en a une, et les remises
     de ligne s'il en retire au moins une. Une offre qui ne mord sur rien
     n'écrit pas de tableau : un rendez-vous sans remise n'en porte pas. */
 function remiseDuCode(o: {
   code: unknown; serviceIds: string[]; branchId: string; catalogue: ServiceEnBase[]; offres: (OffreCodee & { id?: string; branchId?: string })[];
-}): { code: string; offreId?: string; remisesLignes?: ({ pct: number } | null)[] } {
+}): VerdictDuCode {
   const code = codeNormalise(o.code);
   if (!code) return { code: '' };
   /* De la branche du rendez-vous seulement ; une offre sans branche vaut partout. */
   const candidates = o.offres.filter((x) => !x.branchId || x.branchId === o.branchId);
   const offre = offreDuCode(candidates, code, jourDeLaMaison());
-  if (!offre) return { code };
+  if (!offre) return { code, raison: 'inconnu' };
   const lignes = lignesDuCode(o.serviceIds.map((id) => ligneAPrix(id, o.catalogue)), offre);
   const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
   const remisesLignes = lignes.some((l) => l.remisee) ? lignes.map((l) => (l.remisee ? { pct } : null)) : undefined;
-  return { code, ...(offre.id ? { offreId: String(offre.id) } : {}), ...(remisesLignes ? { remisesLignes } : {}) };
+  const base = { code, ...(offre.id ? { offreId: String(offre.id) } : {}) };
+  return remisesLignes ? { ...base, remisesLignes } : { ...base, raison: 'sans-effet' as const };
+}
+
+/* ══ RÉSOLUTION DU CODE : FIN ══ */
+
+/** CE NUMÉRO A-T-IL DÉJÀ REÇU CE CODE ? On ne regarde que les demandes dont
+    le code a RÉELLEMENT retiré quelque chose (`codeApplique`), posé après
+    l'écriture du rendez-vous.
+
+    EN CAS D'ERREUR DE LECTURE, ON LAISSE PASSER LA REMISE. Le choix est
+    délibéré : refuser une remise due à cause d'une panne de base se vit au
+    comptoir, devant la cliente, alors qu'une remise donnée deux fois se
+    rattrape sur une facture. L'erreur part au journal de la fonction. */
+async function codeDejaUtilise(code: string, telephone: string): Promise<boolean> {
+  if (!code || !telephone) return false;
+  const { data, error } = await admin.from('demandes').select('id')
+    .eq('data->>telephone', telephone)
+    .eq('data->>code', code)
+    .eq('data->>codeApplique', 'true')
+    .limit(1);
+  if (error) {
+    console.error('demande-submit: usage du code illisible', error.message);
+    return false;
+  }
+  return (data ?? []).length > 0;
 }
 
 async function alerteLePersonnel(titre: string, corps: string, url: string): Promise<number> {
@@ -560,7 +630,7 @@ Deno.serve(async (req) => {
   /* ── La place, revérifiée AVANT d'écrire quoi que ce soit ───────── */
   let master = '';
   /* Le code, résolu ICI : le navigateur ne dit que le code. */
-  let duCode: { code: string; offreId?: string; remisesLignes?: ({ pct: number } | null)[] } = { code: '' };
+  let duCode: VerdictDuCode = { code: '' };
   if (avecPlace) {
     const verdict = await laPlaceTient({
       branchId, maitres: branche.maitres, serviceIds, date, time, master: texte(d.master, 60),
@@ -568,6 +638,10 @@ Deno.serve(async (req) => {
     if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
     master = verdict.master;
     duCode = remiseDuCode({ code: d.code, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
+    /* Une fois par personne : la remise tombe, la réservation tient. */
+    if (duCode.remisesLignes && await codeDejaUtilise(duCode.code, telephone)) {
+      duCode = { code: duCode.code, offreId: duCode.offreId, raison: 'deja-utilise' };
+    }
   }
 
   const demande = {
@@ -587,6 +661,7 @@ Deno.serve(async (req) => {
     ...(avecPlace ? { serviceIds, date, time, master } : {}),
     ...(duCode.code ? { code: duCode.code } : {}),
     ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
+    ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
     consentementLe: now,
     statut: 'nouvelle',
   } as Record<string, unknown>;
@@ -606,7 +681,7 @@ Deno.serve(async (req) => {
     const candidat = `rdv-${crypto.randomUUID()}`;
     const note = [
       'Réservé depuis le site',
-      duCode.code ? `code ${duCode.code}${duCode.offreId ? '' : ' (aucune offre en cours)'}` : '',
+      raisonEnClair(duCode),
       d.mot ? texte(d.mot, 300) : '',
     ].filter(Boolean).join(' · ');
     const appt = {
@@ -625,12 +700,17 @@ Deno.serve(async (req) => {
       /* Le code se compte ; la remise, par ligne, n'existe que si le code a mordu. */
       ...(duCode.code ? { codeOffre: duCode.code } : {}),
       ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
+      ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
       ...(duCode.remisesLignes ? { remisesLignes: duCode.remisesLignes } : {}),
     };
     const { error: errRdv } = await admin.from('appointments').insert({ id: candidat, branch_id: branchId, data: appt });
     if (!errRdv) {
       apptId = candidat;
-      await admin.from('demandes').update({ data: { ...demande, apptId } }).eq('id', id);
+      /* L'USAGE SE POSE ICI, ET NULLE PART AILLEURS : le code n'est consommé
+         qu'une fois le rendez-vous réellement inscrit avec sa remise. Un
+         rendez-vous que la base refuse ne prend pas la fois de la cliente. */
+      const applique = duCode.remisesLignes ? { codeApplique: true } : {};
+      await admin.from('demandes').update({ data: { ...demande, apptId, ...applique } }).eq('id', id);
     }
     /* Si l'écriture échoue, la demande vit quand même et la Maison
        rappellera : on ne perd jamais une visiteuse pour une ligne. */
@@ -649,5 +729,11 @@ Deno.serve(async (req) => {
     `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
     avecPlace ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0);
-  return json({ ok: true, id, apptId, sent, accuse });
+  /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au
+     comptoir. `codeApplique` dit si la remise a réellement porté. */
+  return json({
+    ok: true, id, apptId, sent, accuse,
+    ...(duCode.code ? { code: duCode.code, codeApplique: !!duCode.remisesLignes } : {}),
+    ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
+  });
 });
