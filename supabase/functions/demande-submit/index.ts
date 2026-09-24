@@ -364,8 +364,15 @@ const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
   return { id, prixXof: prix, ferme: prix > 0 };
 };
 
-/** POURQUOI LE CODE N'A RIEN RETIRÉ, en un mot. Absent quand il a retiré. */
-type RaisonDuCode = 'inconnu' | 'sans-effet' | 'deja-utilise';
+/** POURQUOI LE CODE N'A RIEN RETIRÉ, en un mot. Absent quand il a retiré.
+
+    UN CADEAU N'EST PAS UN CODE SANS EFFET — 24 septembre 2026. Les deux ne
+    retirent aucun franc, et les confondre faisait écrire à l'accueil « ne
+    porte sur aucun geste choisi » sous une offre qui, elle, donne bel et
+    bien quelque chose. Quatre des cinq offres de parcours sont des cadeaux
+    (le-trone-35, même jour) : la confusion serait devenue le cas courant, et
+    une employée aurait refusé au comptoir ce que la carte avait promis. */
+type RaisonDuCode = 'inconnu' | 'cadeau' | 'sans-effet' | 'deja-utilise';
 
 type VerdictDuCode = {
   code: string;
@@ -381,6 +388,7 @@ const raisonEnClair = (v: VerdictDuCode): string => {
   if (!v.code) return '';
   if (v.raison === 'deja-utilise') return `code ${v.code} déjà utilisé par ce numéro`;
   if (v.raison === 'inconnu') return `code ${v.code} (aucune offre en cours)`;
+  if (v.raison === 'cadeau') return `code ${v.code} (cadeau de l'offre, à appliquer à la Maison)`;
   if (v.raison === 'sans-effet') return `code ${v.code} (ne porte sur aucun geste choisi)`;
   return `code ${v.code}`;
 };
@@ -402,7 +410,11 @@ function remiseDuCode(o: {
   const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
   const remisesLignes = lignes.some((l) => l.remisee) ? lignes.map((l) => (l.remisee ? { pct } : null)) : undefined;
   const base = { code, ...(offre.id ? { offreId: String(offre.id) } : {}) };
-  return remisesLignes ? { ...base, remisesLignes } : { ...base, raison: 'sans-effet' as const };
+  if (remisesLignes) return { ...base, remisesLignes };
+  /* Sans pourcentage, l'offre DONNE quelque chose que le calcul ne sait pas
+     retirer : un styling, un soin, des heures. Avec un pourcentage, elle ne
+     mord sur rien de ce qui a été choisi. Deux gestes différents au comptoir. */
+  return { ...base, raison: pct > 0 ? 'sans-effet' as const : 'cadeau' as const };
 }
 
 /* ══ RÉSOLUTION DU CODE : FIN ══ */

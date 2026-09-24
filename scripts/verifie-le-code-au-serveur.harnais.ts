@@ -138,19 +138,23 @@ dit('un code inconnu s inscrit et se dit inconnu',
   { code: 'JAMAISVU', raison: 'inconnu' }, verdict('JAMAISVU', ['lavage']));
 dit('un code hors saison se dit inconnu lui aussi', 'inconnu', verdict('ETE20', ['lavage']).raison);
 dit('le code d une autre branche ne mord pas ici', 'inconnu', verdict('AILLEURS10', ['lavage']).raison);
-dit('un cadeau garde son offre et ne retire rien',
-  { code: 'NOEL', offreId: 'off-noel', raison: 'sans-effet' }, verdict('NOEL', ['styling']));
+dit('un cadeau garde son offre, ne retire rien, et se dit CADEAU',
+  { code: 'NOEL', offreId: 'off-noel', raison: 'cadeau' }, verdict('NOEL', ['styling']));
+dit('... un cadeau et un code sans effet ne se confondent pas', ['cadeau', 'sans-effet'],
+  [verdict('NOEL', ['styling']).raison, verdict('RENTREE10', ['styling']).raison]);
 dit('un code qui ne porte sur aucun geste choisi le dit', 'sans-effet', verdict('RENTREE10', ['styling']).raison);
 dit('un prix qui se dit au salon ne se remise pas', 'sans-effet', verdict('GBEJI10', ['gbeji']).raison);
+dit('un cadeau qui ne couvre meme pas le geste choisi reste un cadeau', 'cadeau', verdict('NOEL', ['lavage']).raison);
 dit('sans code, rien a dire', { code: '' }, verdict('', ['lavage']));
 dit('la casse et les espaces ne changent rien', 'off-rentree', verdict(' rentree 10 ', ['lavage']).offreId);
 
 dit('la note dit la raison en clair, pour qui ne connait pas nos mots',
   ['code RENTREE10', 'code RENTREE10 déjà utilisé par ce numéro', 'code JAMAISVU (aucune offre en cours)',
-    'code NOEL (ne porte sur aucun geste choisi)', ''],
+    "code CREATION (cadeau de l'offre, à appliquer à la Maison)",
+    'code RENTREE10 (ne porte sur aucun geste choisi)', ''],
   [raisonEnClairDe({ code: 'RENTREE10' }), raisonEnClairDe({ code: 'RENTREE10', raison: 'deja-utilise' }),
-    raisonEnClairDe({ code: 'JAMAISVU', raison: 'inconnu' }), raisonEnClairDe({ code: 'NOEL', raison: 'sans-effet' }),
-    raisonEnClairDe({ code: '' })]);
+    raisonEnClairDe({ code: 'JAMAISVU', raison: 'inconnu' }), raisonEnClairDe({ code: 'CREATION', raison: 'cadeau' }),
+    raisonEnClairDe({ code: 'RENTREE10', raison: 'sans-effet' }), raisonEnClairDe({ code: '' })]);
 
 /* ── Les règles à la lettre du fichier, commentaires effacés ──────── */
 dit('le navigateur ne dicte jamais un pourcentage ni une remise', false,
