@@ -145,6 +145,14 @@ function pagesHtml(dossier, rel = '') {
 
 const BUILD_ID = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
 
+/* LES JUMEAUX WEBP AVANT TOUT — 24 septembre 2026. Le générateur enveloppe
+   chaque photo d'un <picture> qui offre son .webp ; un navigateur qui sait le
+   lire le CHOISIT, et s'il manque, l'image est cassée, sans repli vers le
+   JPEG. Une photo ajoutée sans conversion ne doit donc pas pouvoir exister :
+   le script tourne ici, avant toute construction, et ne refait que ce qui
+   manque ou a changé. */
+execSync('node scripts/photos-en-webp.mjs', { cwd: root, stdio: 'inherit' });
+
 const out = path.join(root, 'dist-sites');
 rmSync(out, { recursive: true, force: true });
 

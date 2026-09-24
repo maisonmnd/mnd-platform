@@ -271,6 +271,10 @@ const photosNues = [...pages].flatMap(([c, h]) => {
 dit('chaque photo servie est enveloppée d’un <picture> qui offre son WebP', [], photosNues);
 const jpgs = readdirSync('public/assets/photos/site').filter((f) => /\.jpe?g$/i.test(f));
 dit('chaque JPEG du dossier des photos a son jumeau WebP', [], jpgs.filter((f) => !existsSync(`public/assets/photos/site/${jumeau(f)}`)));
+/* Et la construction fabrique les jumeaux elle-même, avant de construire :
+   une photo ajoutée sans conversion n'existe pas comme cas. */
+dit('… et build-sites les fabrique avant toute construction', true,
+  /execSync\('node scripts\/photos-en-webp\.mjs'[\s\S]*?for \(const site of SITES\)/.test(readFileSync('scripts/build-sites.mjs', 'utf8')));
 dit('… plus léger que lui', [], jpgs.filter((f) => existsSync(`public/assets/photos/site/${jumeau(f)}`) && statSync(`public/assets/photos/site/${jumeau(f)}`).size >= statSync(`public/assets/photos/site/${f}`).size));
 dit('… et l’image de partage reste le JPEG, que les aperçus lisent partout', true, /og:image" content="[^"]*\.jpg"/.test(accueil));
 
