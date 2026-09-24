@@ -32,8 +32,24 @@ html { scroll-behavior: smooth; }
 main:focus { outline: none; }
 
 /* Le <picture> qui offre le WebP ne doit rien changer à la mise en page :
-   il disparaît de la boîte, l'image garde ses règles. */
+   il disparaît de la boîte, l'image garde ses règles.
+
+   ET SA <SOURCE> DISPARAÎT AVEC LUI — 24 septembre 2026, au soir, faute
+   réparée le jour même. `display: contents` efface la boîte du <picture>,
+   mais PROMEUT ses enfants au rang d'éléments du conteneur : la <source>,
+   qui ne dessine rien, prenait quand même une case. Sur la grille à deux
+   colonnes des fondateurs, elle prenait la première : la photo passait à
+   droite et le texte tombait à la ligne suivante. Yéman l'a vu sur la page
+   servie avant nous.
+
+   `display: none` sur la <source> ne la retire PAS du choix de l'image : le
+   navigateur lit les <source> dans le DOM, jamais dans la feuille de style.
+   Le WebP reste donc servi, et c'est vérifié au rendu sur `currentSrc`.
+   La règle vise `picture > source` et non toute `<source>` : celles d'une
+   <video> ou d'une <audio> ne dessinent rien non plus, mais les effacer ne
+   voudrait rien dire. */
 picture { display: contents; }
+picture > source { display: none; }
 body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 /* `height: auto` : chaque image porte ses attributs width et height (pour
    que la page ne saute pas au chargement), et sans cette ligne l'attribut
@@ -203,13 +219,26 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
    Le défilement horizontal du téléphone est parti avec la rangée : on ne fait
    pas défiler deux images, elles tiennent côte à côte à n'importe quelle
    largeur. */
-.avis .conteneur.couronnes { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
-.couronnes .tete { margin-bottom: 0; }
-.couronnes__bande { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* QUATRE FONT DE NOUVEAU UNE RANGÉE — 24 septembre 2026, au soir. « Mieux
+   ranger ces photos en horizontal » (Yéman). La paire posée à côté du titre
+   était la réponse à DEUX portraits ; depuis la séance photo, ils sont
+   quatre, et quatre tiennent la rangée que ce bloc cherchait au départ. Elle
+   se pose donc sous son titre, sur toute la largeur : chaque visage y est
+   deux fois plus grand qu'en carré à côté du texte, et la section perd la
+   moitié de sa hauteur.
+
+   La rangée se fait par `grid-auto-flow: column` et non par un nombre de
+   colonnes écrit à la main : une cinquième cliente entrerait dans la rangée
+   sans qu'on y pense. Sous 860 px, deux par deux, jamais un défilement
+   horizontal. */
+.avis .conteneur.couronnes { grid-template-columns: 1fr; align-items: start; gap: clamp(16px, 2.2vw, 26px); margin-bottom: clamp(28px, 4vw, 48px); }
+.couronnes .tete { margin-bottom: 0; max-width: 62ch; }
+.couronnes__bande { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
 .couronnes__bande figure { margin: 0; }
 .couronnes__bande img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 15%; border-radius: 4px; }
 @media (max-width: 860px) {
-  .avis .conteneur.couronnes { grid-template-columns: 1fr; gap: 20px; }
+  .avis .conteneur.couronnes { gap: 20px; }
+  .couronnes__bande { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) { .avis .conteneur { grid-template-columns: 1fr; } }
 .note { display: flex; align-items: baseline; gap: 14px; margin-top: 12px; }

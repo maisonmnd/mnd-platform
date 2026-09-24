@@ -108,6 +108,37 @@ le site qui vit à la racine ne garde de `public/` que les jetons Google et
 `assets/` (`JETON_GOOGLE` dans build-sites) ; le harnais tient la règle dans
 les deux sens, un fichier cité par une page et absent crie aussi.
 
+## UNE BOÎTE EFFACÉE, UNE CASE PRISE — 24 septembre 2026, tard
+
+Yéman, regardant la page servie : « mettre le texte des fondateurs à côté de
+la photo, pas en bas », et « mieux ranger ces photos en horizontal ».
+
+Le premier n'était pas un souhait de mise en page, c'était une panne, la
+mienne, entrée le soir même avec les WebP. `picture { display: contents }`
+efface la boîte du `<picture>` mais PROMEUT ses enfants au rang d'éléments
+du conteneur : la `<source>`, qui ne dessine rien, prenait quand même une
+case. Sur la grille à deux colonnes des fondateurs elle prenait la première,
+la photo passait à droite et le texte tombait à la ligne. Remède,
+`picture > source { display: none }` : la sélection de source se fait dans
+le DOM, jamais dans la feuille, donc le WebP reste choisi, et c'est vérifié
+au rendu sur `currentSrc` et non déduit. Portée large : le `<picture>` est
+enfant direct d'un flex ou d'une grille dans `.fondateurs`, `.porte`,
+`.article`, `.hero-plein`.
+
+Le second remet la rangée que ce bloc cherchait au départ : quatre portraits
+en une seule rangée sous leur titre (`grid-auto-flow: column`, pas un nombre
+de colonnes écrit à la main), deux colonnes sous 860 px.
+
+**Deux leçons de banc, prises le même quart d'heure.** ① Le harnais que
+j'avais écrit pour tenir la cause était MORT : dans un gabarit JS, `\}` vaut
+« } » et `\s` vaut « s », le motif ne pouvait rien attraper, et le contrôle
+passait au vert en toute circonstance. Un motif dans un gabarit s'écrit
+`String.raw`. ② Seule la panne remise l'a dit. Mesures du rendu (Chrome sans
+tête, copie du construit hors du dépôt, positions écrites dans le titre) :
+fondateurs côte à côte à 1440 et 1000 px, empilés à 520 ; bande à une rangée
+de quatre à 1440 et 1000, deux rangées à 520 ; `currentSrc` en `.webp`
+partout ; aucun débordement.
+
 ## L'ÉTAT DES LIEUX, POINTS 4 À 9 — 24 septembre 2026, le soir
 
 « Fais les points 4 à 9 » (Yéman), après les points 1, 2 et 3 du matin

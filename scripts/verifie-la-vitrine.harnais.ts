@@ -282,6 +282,25 @@ dit('… et build-sites les fabrique avant toute construction', true,
 dit('… plus léger que lui', [], jpgs.filter((f) => existsSync(`public/assets/photos/site/${jumeau(f)}`) && statSync(`public/assets/photos/site/${jumeau(f)}`).size >= statSync(`public/assets/photos/site/${f}`).size));
 dit('… et l’image de partage reste le JPEG, que les aperçus lisent partout', true, /og:image" content="[^"]*\.jpg"/.test(accueil));
 
+/* LA BOÎTE EFFACÉE ET L'ENFANT QUI NE DESSINE RIEN — 24 septembre 2026, au
+   soir. `picture { display: contents }` efface la boîte du <picture> mais
+   PROMEUT ses enfants au rang d'éléments du conteneur : la <source>, qui ne
+   dessine rien, prenait quand même une case sur la grille des fondateurs, la
+   photo passait à droite et le texte à la ligne. Rien ne le disait dans le
+   HTML ni dans la feuille lue séparément, et c'est Yéman qui l'a vu en ligne.
+
+   Cette règle tient la CAUSE : une boîte effacée n'a le droit de l'être que
+   si ce qu'elle contient et qui ne dessine rien l'est aussi. La mise en page
+   elle-même se prouve au rendu, pas ici. */
+const efface = (selecteur: string, valeur: string) =>
+  /* String.raw, et non un gabarit nu : dans un gabarit, `\}` vaut « } » et
+     `\s` vaut « s », ce qui rend le motif inoffensif et le contrôle MORT. Il
+     l'a été le temps d'un essai, et c'est la panne remise qui l'a dit. */
+  new RegExp(String.raw`(^|\})\s*${selecteur}\s*\{[^}]*display:\s*${valeur}`, 'm').test(feuille);
+dit('quand la feuille efface la boîte du <picture>, sa <source> ne peut pas prendre une case', [],
+  efface('picture', 'contents') && !efface(String.raw`(?:picture\s*>\s*)?source`, 'none')
+    ? ['picture efface sa boîte, la <source> garde la sienne'] : []);
+
 /* 6 · L'icône d'onglet est une icône : chaque <link> d'icône nomme sa taille,
    le fichier existe et fait exactement cette taille (lue dans l'en-tête PNG). */
 const taillePng = (f: string) => { const b = readFileSync(f); return `${b.readUInt32BE(16)}x${b.readUInt32BE(20)}`; };
