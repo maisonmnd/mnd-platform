@@ -283,7 +283,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       });
       const r = (data ?? {}) as {
         ok?: boolean; error?: string;
-        code?: string; codeApplique?: boolean; codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise';
+        code?: string; codeApplique?: boolean;
+        codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau';
       };
       if (error || !r.ok) {
         const code = r.error ?? (error?.message ?? '');
@@ -340,7 +341,14 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 ? `Le code ${recu.code} a déjà servi avec ce numéro : il vaut une seule fois par personne. Votre place est demandée, au prix de la carte.`
                 : recu.codeRaison === 'inconnu'
                   ? `Le code ${recu.code} ne court plus. Votre place est demandée, au prix de la carte.`
-                  : `Le code ${recu.code} est noté sur votre demande. Ce qu’il donne s’applique à la Maison, le jour venu.`}
+                  : recu.codeRaison === 'sans-effet'
+                    /* UN CADEAU ET UN CODE SANS EFFET NE DISENT PAS LA MÊME
+                       CHOSE, et ma phrase unique promettait trop pour le
+                       second : là, rien ne sera donné. Distinction trouvée
+                       par la session pair en éprouvant les cinq offres de
+                       parcours contre la résolution réellement déployée. */
+                    ? `Le code ${recu.code} ne porte sur aucun des gestes que vous avez choisis. Votre place est demandée, au prix de la carte.`
+                    : `Le code ${recu.code} est noté sur votre demande. Ce qu’il donne s’applique à la Maison, le jour venu.`}
           </p>
         )}
         <div className="rangee">
