@@ -2,7 +2,7 @@ import { asset } from '../../../../shared/asset';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { OptionsPrestations, PageHead } from '../_ui';
-import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte, demande } from '../../../../ds/components';
+import { Button, Card, Eyebrow, Field, Input, Modal, Select, Textarea, alerte, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import {
@@ -17,6 +17,7 @@ import {
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
   etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
+  prestationsDesCategories,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
@@ -41,6 +42,23 @@ const emptyOffer: OfferForm = {
   serviceId: '', serviceIds: [], code: '', discountPct: '', du: '', au: '',
   vitrine: false, parcours: '', bouton: '', conditions: '',
 };
+
+/* UNE OFFRE MUETTE — 24 septembre 2026. « La cliente ne voit pas son total
+   avec sa remise, RENTREE10 ne calcule pas » (Yéman), après avoir déployé la
+   fonction et testé sur le site.
+
+   Ce n'était pas une panne : l'offre en ligne ne portait ni code, ni
+   prestations. Elle annonçait « −10 % » dans son avantage, et rien derrière.
+
+   LA FAUTE ÉTAIT QUAND MÊME DE CE CÔTÉ-CI. L'alerte existait, mais SEULEMENT
+   dans la fenêtre d'édition : elle ne se voyait donc qu'une fois qu'on était
+   déjà en train de réparer. C'est le pire endroit pour une alerte. Elle
+   remonte ici, sur la carte, là où l'offre se regarde.
+
+   On lit l'AVANTAGE affiché (« −10 % », « 2 = 1 ») plutôt que `discountPct` :
+   c'est justement quand le pourcentage manque que la promesse est vide. */
+const promesseCreuse = (o: InstantOffer): boolean =>
+  /[−-]\s?\d/.test(o.deal ?? '') && !(o.discountPct && (o.serviceIds?.length || o.serviceId));
 
 const campTone = (s: string): 'ok' | 'warn' | 'muted' => (s === 'Active' ? 'ok' : s === 'Programmée' ? 'warn' : 'muted');
 
@@ -190,6 +208,42 @@ export default function Marketing() {
   }, [clients, invoices, branch.id, segmentList]);
 
   const serviceName = (id?: string) => (id ? services.find((s) => s.id === id)?.name ?? 'Prestation retirée du catalogue' : '');
+
+  /* LA SAISON D'OÙ VIENT UNE OFFRE, retrouvée par son nom. Les sept patrons
+     portent déjà code, remise, catégories, parcours et conditions : plutôt
+     que de faire retaper tout cela, un clic le reprend. Le nom suffit, et
+     c'est volontaire : une offre renommée à la main n'est plus la saison, et
+     n'a donc plus à en hériter. */
+  const saisonDe = (o: InstantOffer) => SAISONS.find((sa) => sa.nom === o.title);
+
+  /* REPRENDRE LES RÉGLAGES DE LA SAISON. C'est le geste de la Maison qui
+     écrit, jamais une migration silencieuse : elle voit ce qui change, et
+     peut le corriger juste après. Les dates et l'audience NE BOUGENT PAS,
+     ce sont les siennes. */
+  const reprendreLaSaison = (o: InstantOffer) => {
+    const sa = saisonDe(o);
+    if (!sa) return;
+    const couvertes = sa.categories?.length
+      ? prestationsDesCategories(
+        sa.categories,
+        services.map((sv) => ({ id: sv.id, categoryId: sv.categoryId })),
+        categories.map((c) => ({ id: c.id, parentId: c.parentId })),
+      )
+      : [];
+    setOffers((prev) => prev.map((x) => (x.id === o.id ? {
+      ...x,
+      ...(sa.code ? { code: sa.code } : {}),
+      ...(sa.remise ? { discountPct: sa.remise } : {}),
+      ...(couvertes.length ? { serviceIds: couvertes } : {}),
+      ...(couvertes.length === 1 ? { serviceId: couvertes[0] } : {}),
+      ...(sa.parcours ? { parcours: sa.parcours } : {}),
+      ...(sa.bouton ? { bouton: sa.bouton } : {}),
+      ...(sa.conditions ? { conditions: sa.conditions } : {}),
+    } : x)));
+    toast(couvertes.length
+      ? `« ${sa.nom} » reprend son code ${sa.code} et ${couvertes.length} prestation${couvertes.length > 1 ? 's' : ''}.`
+      : `« ${sa.nom} » reprend ses réglages.`);
+  };
 
   const isOn = (id: string) => autoActive[id] !== false;
   const activeCount = automations.filter((a) => isOn(a.id)).length;
@@ -470,6 +524,21 @@ export default function Marketing() {
                     </div>
                     <div className="tre-offer__title">{o.title}</div>
                     <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginTop: 2 }}>{o.sub}</div>
+                    {promesseCreuse(o) && (
+                      <div className="tre-offer__creuse">
+                        <b>Cette offre annonce « {o.deal} » et ne retirera rien.</b>
+                        <span>
+                          {o.code ? 'Elle ne couvre aucune prestation' : 'Elle n’a pas de code'}
+                          {o.discountPct ? '' : (o.code ? ' et ne porte pas de pourcentage' : ' ni de pourcentage')}
+                          {' : la carte du site promet une remise que rien n’applique.'}
+                        </span>
+                        {saisonDe(o) ? (
+                          <button type="button" className="tre-offer__reprendre" onClick={() => reprendreLaSaison(o)}>
+                            Reprendre les réglages de la saison
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
                     <div className="tre-offer__meta">
                       <div>
                         <div className="tre-offer__meta-label">Qui la voit</div>
@@ -785,13 +854,27 @@ export default function Marketing() {
                   ? <button type="button" className="tre-presta__tout" onClick={() => setOfferForm({ ...offerForm, serviceIds: [] })}>Tout décocher</button>
                   : null}
               </div>
-              {/* Une promesse sans portée est le pire des deux mondes : la
-                  carte annonce une remise, et rien ne bouge au comptoir. */}
-              {parseInt(offerForm.discountPct, 10) > 0 && offerForm.serviceIds.length === 0 ? (
-                <p className="tre-presta__alerte">
-                  Cette offre annonce une remise mais ne couvre aucune prestation : elle ne retirera rien.
-                </p>
-              ) : null}
+              {/* LA PROMESSE CREUSE A DEUX FORMES, et mon alerte n'en disait
+                  qu'une — 24 septembre 2026. « La cliente ne voit pas son total
+                  avec sa remise » (Yéman) : il avait posé le code ET coché une
+                  prestation, mais laissé la remise vide, et rien ne le lui
+                  disait. Un pourcentage sans portée et une portée sans
+                  pourcentage sont le même trou vu des deux côtés. */}
+              {(() => {
+                const pct = parseInt(offerForm.discountPct, 10) > 0;
+                const porte = offerForm.serviceIds.length > 0;
+                const annonce = /[−-]\s?\d/.test(offerForm.deal ?? '') || !!offerForm.code;
+                if (pct && !porte) {
+                  return <p className="tre-presta__alerte">Cette offre annonce une remise mais ne couvre aucune prestation : elle ne retirera rien.</p>;
+                }
+                if (porte && !pct) {
+                  return <p className="tre-presta__alerte">Ces prestations sont cochées, mais la remise est vide : le code sera reconnu et ne retirera rien. Écrivez le pourcentage juste au-dessus.</p>;
+                }
+                if (annonce && !pct && !porte) {
+                  return <p className="tre-presta__alerte">Cette offre promet un avantage chiffré et ne porte ni remise ni prestation : la carte du site annoncera une remise que rien n’applique.</p>;
+                }
+                return null;
+              })()}
             </Field>
             <Field label="Qui peut la voir · audience">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
