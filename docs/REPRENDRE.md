@@ -2,6 +2,35 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « J'EN PROFITE » NE MENAIT NULLE PART — 24 septembre 2026
+
+« Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).
+Ce n'était pas un bouton sans destination, c'était une destination fausse, et
+seulement sur l'accueil.
+
+L'îlot des offres écrivait `../reserver/`. Depuis `/revelateur/les-offres/`,
+ce chemin tombe juste ; depuis `/revelateur/`, il remonte d'un cran de trop et
+sort du site : `maisonmnd.com/reserver/` répond 404, `maisonmnd.com/revelateur/
+reserver/` répond 200. **Le même composant sert les deux pages**, donc aucun
+`../` ne pouvait être juste pour les deux. `laPorte` passe désormais par le
+`base()` que Contact, Demande et Joindre utilisent déjà.
+
+**POURQUOI RIEN NE L'A ATTRAPÉ, et c'est la vraie leçon.** Un îlot se monte
+par script : son lien n'existe dans AUCUN HTML généré. Le harnais de la
+vitrine lit les pages servies ; il ne pouvait pas le voir, quel que soit le
+soin mis à le relire. Il lit maintenant la SOURCE des îlots pour cette
+règle-là : aucun d'eux ne pose un lien relatif, puisqu'un îlot ne connaît pas
+la profondeur de la page qui le monte.
+
+Deux détails de fabrication, qui coûtent chacun un quart d'heure. La
+vérification s'est d'abord attrapée elle-même : le commentaire qui explique la
+panne cite `../reserver/`, et un exemple dans une explication n'est pas un
+lien. Les commentaires sont donc effacés avant la lecture, en gardant les
+retours à la ligne. Et pour prouver qu'elle sait crier, on remet la panne, on
+regarde, on restaure : **dans un `finally`**, parce que la première tentative a
+échoué à l'affichage avant la restauration et a laissé le fichier cassé. Une
+sortie en ASCII sur une console cp1252 pour la même raison.
+
 ## DEUX CLIENTES SUR L'ACCUEIL, TROIS AU JOURNAL — 23 septembre 2026
 
 Le soir de leur publication, Yéman a tranché : « garde 2 photos au-dessus des

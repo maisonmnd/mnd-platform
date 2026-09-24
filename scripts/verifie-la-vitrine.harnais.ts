@@ -164,6 +164,32 @@ dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/
 dit('… juste après le hero, avant les portes', true,
   accueil.indexOf('class="promesses"') < accueil.indexOf('id="portes"'));
 dit('les offres se montent sur l’accueil, en genre accueil', true, accueil.includes('data-ilot="offres" data-genre="accueil"'));
+/* AUCUN ÎLOT NE POSE UN LIEN RELATIF — 24 septembre 2026.
+
+   « Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).
+   Ce n'était pas un bouton sans destination : l'îlot des offres écrivait
+   `../reserver/`, ce qui tombe juste depuis /revelateur/les-offres/ et sort du
+   site depuis /revelateur/, sur une page qui répond 404. Le MÊME composant
+   sert les deux pages : un îlot ne connaît pas la profondeur de celle qui le
+   monte, donc aucun `../` ne peut être juste partout.
+
+   Cette vérification lit la SOURCE et non les pages, et c'est tout l'intérêt :
+   un îlot se monte par script, son lien n'existe dans aucun HTML généré. Le
+   reste de ce harnais n'aurait jamais pu l'attraper. Les liens des îlots
+   passent par `base()`, qui lit la base posée à la construction. */
+const ILOTS = 'src/apps/revelateur/ilots';
+/* Les commentaires sont effacés AVANT la lecture, en gardant les retours à la
+   ligne. Sans cela la vérification s'attrape elle-même : le commentaire qui
+   explique la panne cite `../reserver/`, et un exemple dans une explication
+   n'est pas un lien. */
+const sansCommentaires = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, (bloc) => bloc.replace(/[^\n]/g, ' '));
+const liensRelatifs = readdirSync(ILOTS).filter((f) => f.endsWith('.tsx')).flatMap((f) => sansCommentaires(readFileSync(join(ILOTS, f), 'utf8'))
+  .split('\n')
+  .filter((l) => /['"`]\.\.\//.test(l) && !/\bfrom\s*['"]\.\./.test(l) && !l.trim().startsWith('//'))
+  .map((l) => `${f} · ${l.trim().slice(0, 52)}`));
+dit('aucun îlot ne pose un lien relatif', [], liensRelatifs);
+dit('… et l’îlot des offres bâtit ses portes depuis la base du site', true,
+  readFileSync(join(ILOTS, 'Offres.tsx'), 'utf8').includes("import.meta.env.BASE_URL"));
 
 /* ── L'ACCUEIL ÉPURÉ, ET DES MOTS QUI AFFIRMENT — 22 septembre 2026 ────
    « Le salon existe depuis 2010 », « épure-moi cette page », « évite les

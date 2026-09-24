@@ -44,12 +44,30 @@ const PARCOURS: Record<string, { sur: string; bouton: string; porte: 'reserver' 
   formation: { sur: 'Formations', bouton: 'Voir le programme', porte: 'rappel' },
 };
 
+/* LA PORTE SE DIT DEPUIS LA RACINE DU SITE, JAMAIS EN RELATIF — 24 septembre
+   2026, « quand on appuie le bouton J'en profite ce n'est branché à rien »
+   (Yéman).
+
+   Ce n'était pas un bouton sans destination, c'était une destination fausse,
+   et seulement sur l'accueil. L'îlot écrivait `../reserver/`. Depuis
+   /revelateur/les-offres/, ce chemin tombe juste ; depuis /revelateur/, il
+   remonte d'un cran de trop et sort du site, sur une page qui répond 404.
+   UN ÎLOT NE CONNAÎT PAS LA PROFONDEUR DE LA PAGE QUI LE MONTE : le même
+   composant sert l'accueil et la page des offres, donc aucun `../` ne peut
+   être juste pour les deux. D'où `base()`, comme Contact, Demande et Joindre,
+   qui lit la base posée à la construction.
+
+   Et comme l'îlot se monte par script, son lien n'existe dans aucun HTML
+   généré : le harnais, qui lit les pages servies, ne pouvait pas l'attraper.
+   Il lit désormais la SOURCE des îlots pour cette règle-là. */
+const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
+
 /* SANS PARCOURS, LE CALENDRIER : il pose lui-même la porte quand le besoin
    est inconnu (Reserver.tsx), donc aucune impasse. */
 const laPorte = (o: OffreDuSite): string => {
   const p = o.parcours ? PARCOURS[o.parcours] : undefined;
-  if (!p) return '../reserver/?besoin=inconnu';
-  return `../${p.porte}/?besoin=${o.parcours}`;
+  if (!p) return base('/reserver/?besoin=inconnu');
+  return base(`/${p.porte}/?besoin=${o.parcours}`);
 };
 
 export default function Offres({ genre }: { genre?: string }) {
