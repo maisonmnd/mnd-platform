@@ -170,8 +170,12 @@ const AUTRES_DE_LA_MAISON = [
   ['cliente-8.jpg', '', 'Une cliente de la Maison.'],
   ['trois-couronnes.jpg', '', 'Trois couronnes, trois histoires.'],
 ];
-/** Un tour stable, tiré du chemin : même page, même trio, à jamais. */
-const tourDeLaPage = (chemin) => [...String(chemin)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
+/** Le RANG de la page, et non un hachage de son chemin : un hachage faisait
+    tomber deux pages sur le même trio (réparation et MND Kids, mesuré), ce qui
+    est précisément le défaut qu'on répare. Le rang garantit que deux pages
+    voisines diffèrent, et reste stable d'une construction à l'autre puisque
+    l'ordre de PAGES est écrit dans le contenu. */
+const tourDeLaPage = (chemin) => Math.max(0, PAGES.findIndex((x) => x.chemin === chemin));
 /** Le trio d'une page : un visage de la Maison, puis deux autres qui tournent.
     Les deux suivants ne peuvent pas être le même, 3 n'étant pas un multiple de
     la longueur de la liste. */
