@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Les échanges sur la fiche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150; --sombre: #1E2150;
+    --filet: rgba(20, 20, 27, .14);
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', system-ui, sans-serif;
+    --r: 3px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.55; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 0 20px 64px; }
+
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 0 30px; padding: 26px 20px 24px; }
+  .bandeau .dedans { max-width: 1100px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(26px, 4.4vw, 40px); margin: 0 0 8px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 70ch; color: rgba(246, 241, 231, .82); font-size: 15px; }
+
+  h2.part { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--titre); margin: 38px 0 4px; }
+  .part-sous { color: var(--texte-doux); font-size: 14px; margin: 0 0 18px; max-width: 76ch; }
+  .num { display: inline-block; font-size: 11px; letter-spacing: .2em; color: var(--accent-profond); text-transform: uppercase; margin-bottom: 2px; }
+  .constat { border-left: 3px solid var(--accent); background: var(--accent-clair); padding: 14px 18px; border-radius: var(--r); }
+  .constat p { margin: 0 0 8px; } .constat p:last-child { margin: 0; }
+  .constat b { color: var(--titre); font-weight: 400; }
+
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+  .ecran { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); overflow: hidden; }
+  .ecran__tete { background: var(--fond-2); border-bottom: 1px solid var(--filet); padding: 9px 16px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-profond); }
+  .ecran__corps { padding: 16px 18px; }
+
+  .onglets { display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--filet); margin-bottom: 14px; }
+  .onglets span { padding: 8px 13px; font-size: 13px; color: var(--texte-doux); border-bottom: 2px solid transparent; }
+  .onglets span.is-on { color: var(--titre); border-bottom-color: var(--accent); }
+  .onglets span.est-neuf { color: var(--accent-profond); font-weight: 500; }
+
+  .tete-fiche { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .tete-fiche b { font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--titre); }
+  .tete-fiche small { font-size: 12.5px; color: var(--texte-doux); }
+
+  .bloc { border: 1px solid var(--filet); border-radius: var(--r); padding: 13px 15px; background: #fff; }
+  .bloc__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+  .bloc__tete .etiq { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+  .bloc__tete a { font-size: 12.5px; color: var(--accent-profond); }
+
+  .msg { display: flex; flex-direction: column; gap: 3px; padding: 8px 0; border-bottom: 1px solid var(--filet); }
+  .msg:last-of-type { border-bottom: 0; }
+  .msg__qui { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); }
+  .msg__txt { font-size: 14px; color: var(--titre); overflow-wrap: anywhere; }
+  .msg--elle .msg__qui { color: var(--accent-profond); }
+  .attend { display: inline-block; margin-top: 8px; padding: 5px 11px; border-radius: 999px; background: var(--accent-clair); border: 1px solid var(--accent); font-size: 12px; color: var(--accent-profond); }
+
+  .fenetre { margin-top: 12px; padding: 10px 13px; border-radius: var(--r); font-size: 13px; border: 1px solid var(--filet); background: var(--fond-2); color: var(--texte-doux); }
+  .fenetre.est-ouverte { border-color: var(--accent); background: var(--accent-clair); color: var(--accent-profond); }
+  .champ { width: 100%; font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--filet); border-radius: var(--r); background: #fff; margin-top: 10px; }
+  .btn { display: inline-block; margin-top: 10px; padding: 9px 16px; border: 1px solid var(--accent); border-radius: var(--r); background: var(--accent); color: #fff; font: inherit; font-size: 13px; letter-spacing: .06em; cursor: pointer; }
+  .btn--creux { background: none; color: var(--accent-profond); }
+
+  table.cas { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.cas th, table.cas td { text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--filet); }
+  table.cas th { font-weight: 400; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+  table.cas td:first-child { color: var(--titre); width: 34%; }
+  .pied { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--filet); font-size: 13px; color: var(--texte-doux); max-width: 78ch; }
+</style>
+
+<div class="bandeau"><div class="dedans">
+  <p class="sur">Maquette à valider · 24 septembre 2026</p>
+  <h1>Les échanges sur la fiche</h1>
+  <p>« Je veux que chaque conversation WhatsApp soit reliée au profil du client : sans aller dans Conversations, je retrouve mes échanges avec lui sur sa fiche. »</p>
+</div></div>
+
+<div class="page">
+
+  <p class="num">Le constat</p>
+  <h2 class="part">Le lien existe déjà, il n'est simplement pas montré</h2>
+  <p class="part-sous">Avant de dessiner, ce que j'ai lu dans le Trône.</p>
+  <div class="constat">
+    <p><b>Chaque message porte déjà le numéro de la cliente, et sa fiche quand elle est connue.</b> Le rapprochement est écrit et tourne : c'est lui qui nomme les fils dans Conversations.</p>
+    <p><b>Il connaît même votre second numéro.</b> Un message venu de la seconde ligne d'une fiche, celle d'un mari ou d'une sœur, appartient déjà à la même tête. Le commentaire du code le dit : la classer « inconnue » à côté de sa propre fiche serait la faute la plus vexante de l'écran.</p>
+    <p>Rien n'est donc à inventer. Ce qui manque, c'est une porte : la fiche ne montre pas ce que la Maison sait déjà.</p>
+  </div>
+
+  <p class="num" style="margin-top:34px">Premier écran</p>
+  <h2 class="part">Sur l'Aperçu, ce qui se dit en trois lignes</h2>
+  <p class="part-sous">Le plus souvent, on ne veut pas relire la conversation : on veut savoir si elle attend une réponse, et de quoi on a parlé la dernière fois.</p>
+
+  <div class="duo">
+    <div class="ecran">
+      <div class="ecran__tete">Fiche cliente · Aperçu</div>
+      <div class="ecran__corps">
+        <div class="tete-fiche"><b>A. K.</b><small>01 XX XX XX XX · cliente depuis mars 2024</small></div>
+        <div class="onglets">
+          <span class="is-on">Aperçu</span><span>Profil</span><span>Compte</span><span>Parcours</span><span>Documents</span><span class="est-neuf">Échanges</span>
+        </div>
+
+        <div class="bloc">
+          <div class="bloc__tete">
+            <span class="etiq">Vos échanges</span>
+            <a href="#fil">Voir les 47 messages</a>
+          </div>
+          <div class="msg msg--elle">
+            <span class="msg__qui">Elle · hier, 18h42</span>
+            <span class="msg__txt">Bonsoir, est-ce que je peux décaler samedi à 11h au lieu de 9h ?</span>
+          </div>
+          <div class="msg">
+            <span class="msg__qui">La Maison · hier, 17h10 · lu</span>
+            <span class="msg__txt">Votre place de samedi est confirmée, 9h, avec Brice.</span>
+          </div>
+          <span class="attend">Elle attend une réponse depuis 14 heures</span>
+        </div>
+
+        <p style="font-size:12.5px; color:var(--texte-doux); margin:12px 0 0">
+          Deux messages, pas plus : c'est ce qu'on lit avant un rendez-vous. Le reste se déplie dans l'onglet.
+        </p>
+      </div>
+    </div>
+
+    <div class="ecran">
+      <div class="ecran__tete">Et quand il n'y a rien</div>
+      <div class="ecran__corps">
+        <div class="tete-fiche"><b>F. D.</b><small>01 XX XX XX XX</small></div>
+        <div class="bloc">
+          <div class="bloc__tete"><span class="etiq">Vos échanges</span></div>
+          <p style="margin:0; font-size:13.5px; color:var(--texte-doux)">
+            Aucun échange WhatsApp avec ce numéro. La Maison ne peut écrire la première que par un modèle approuvé.
+          </p>
+          <button class="btn btn--creux" type="button">Écrire par un modèle</button>
+        </div>
+        <p style="font-size:12.5px; color:var(--texte-doux); margin:12px 0 0">
+          Un bloc vide qui DIT pourquoi vaut mieux qu'un bloc absent : sans lui, on croit à une panne et on va chercher dans Conversations.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <p class="num" style="margin-top:34px">Deuxième écran</p>
+  <h2 class="part" id="fil">Un sixième onglet, « Échanges »</h2>
+  <p class="part-sous">Le fil entier, à sa place, sans quitter la fiche. Même fil que dans Conversations : ce n'est pas une copie, c'est la même chose vue d'ailleurs.</p>
+
+  <div class="duo">
+    <div class="ecran">
+      <div class="ecran__tete">Fiche cliente · Échanges</div>
+      <div class="ecran__corps">
+        <div class="onglets">
+          <span>Aperçu</span><span>Profil</span><span>Compte</span><span>Parcours</span><span>Documents</span><span class="is-on est-neuf">Échanges</span>
+        </div>
+        <div class="msg msg--elle"><span class="msg__qui">Elle · 12 sept., 09h02</span><span class="msg__txt">Bonjour, mes racines tirent un peu depuis le resserrage.</span></div>
+        <div class="msg"><span class="msg__qui">La Maison · 12 sept., 09h20 · lu · par Brice</span><span class="msg__txt">Bonjour. C'est normal les deux premiers jours. Si ça dure, passez, on regarde sans rendez-vous.</span></div>
+        <div class="msg msg--elle"><span class="msg__qui">Elle · hier, 18h42</span><span class="msg__txt">Bonsoir, est-ce que je peux décaler samedi à 11h au lieu de 9h ?</span></div>
+
+        <div class="fenetre est-ouverte">
+          Elle a écrit il y a 14 heures : vous pouvez répondre librement pendant encore 10 heures.
+        </div>
+        <input class="champ" placeholder="Votre réponse…">
+        <button class="btn" type="button">Envoyer</button>
+      </div>
+    </div>
+
+    <div class="ecran">
+      <div class="ecran__tete">Et quand la fenêtre est fermée</div>
+      <div class="ecran__corps">
+        <div class="msg"><span class="msg__qui">La Maison · 2 sept., 15h30 · remis</span><span class="msg__txt">Votre place de jeudi est confirmée.</span></div>
+        <div class="fenetre">
+          Son dernier message date de plus de 24 heures. WhatsApp n'autorise plus de réponse libre : seul un modèle approuvé peut rouvrir la conversation, et il est facturé.
+        </div>
+        <button class="btn btn--creux" type="button">Choisir un modèle</button>
+        <p style="font-size:12.5px; color:var(--texte-doux); margin:12px 0 0">
+          La règle des 24 heures vient de Meta, pas de la Maison. L'écran la dit plutôt que de laisser un envoi échouer sans raison.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <p class="num" style="margin-top:34px">Les cas</p>
+  <h2 class="part">Ce que j'ai tranché, et que vous pouvez contester</h2>
+  <p class="part-sous">Chaque ligne est une décision. Si l'une vous semble fausse, dites-le, elle se change avant que ce soit bâti.</p>
+  <div class="ecran" style="padding:4px 8px">
+    <table class="cas">
+      <tr><th>Le cas</th><th>Ce que fait la fiche</th></tr>
+      <tr>
+        <td>Deux numéros sur la même fiche</td>
+        <td>Un seul fil. Un message venu de la seconde ligne appartient à la même tête : le Trône le sait déjà, la fiche ne le défait pas.</td>
+      </tr>
+      <tr>
+        <td>Un fil marqué privé</td>
+        <td>Il reste replié, comme dans Conversations, et la fiche dit qu'il existe sans montrer son contenu. Un fil rendu privé d'un côté ne doit pas se rouvrir de l'autre : ce serait une porte dérobée.</td>
+      </tr>
+      <tr>
+        <td>Une employée qui est aussi cliente</td>
+        <td>Son fil se lit dans Équipe, jamais ici. C'est la règle du 15 septembre, et la doubler sur sa fiche cliente ferait deux endroits pour une seule conversation.</td>
+      </tr>
+      <tr>
+        <td>Un numéro sans fiche</td>
+        <td>Rien ne change : il reste dans Conversations, qui propose de l'attacher à une fiche. La fiche ne crée jamais une tête toute seule.</td>
+      </tr>
+      <tr>
+        <td>Les photos et les vocaux</td>
+        <td>Pas encore affichés, ici comme ailleurs. La fiche dira « une photo » plutôt que de faire croire à un message vide. Le jour où Conversations les montrera, la fiche suivra, parce que c'est le même fil.</td>
+      </tr>
+      <tr>
+        <td>Écrire depuis la fiche</td>
+        <td>Oui, quand la fenêtre de 24 heures est ouverte. Le message part du même endroit que depuis Conversations et s'y retrouve : une seule conversation, deux portes.</td>
+      </tr>
+      <tr>
+        <td>Le fil est long</td>
+        <td>L'Aperçu en montre deux, l'onglet les montre tous, du plus ancien au plus récent, la fin en premier plan. On ne charge pas mille messages pour en lire deux.</td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="pied">
+    Ce que je construirai si vous validez : un bloc « Vos échanges » sur l'Aperçu, un sixième onglet qui porte le fil entier, et la réponse directe quand la fenêtre est ouverte. Rien n'est copié ni dupliqué : c'est le même fil que dans Conversations, lu depuis la fiche. Ce qui est marqué privé le reste, et ce qui appartient à l'Équipe reste dans l'Équipe.
+  </p>
+</div>
+</html>

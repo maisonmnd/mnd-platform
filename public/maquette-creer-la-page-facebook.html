@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créer la Page Facebook Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150; --sombre: #1E2150;
+    --filet: rgba(20, 20, 27, .14); --alerte: #8C2F2F;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', system-ui, sans-serif;
+    --r: 3px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.58; }
+  .page { max-width: 940px; margin: 0 auto; padding: 0 22px 90px; }
+
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 0 30px; padding: 28px 22px 26px; }
+  .bandeau .dedans { max-width: 900px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(27px, 4.6vw, 42px); margin: 0 0 10px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 68ch; color: rgba(246, 241, 231, .84); font-size: 15px; }
+
+  .avance { position: sticky; top: 0; z-index: 5; background: var(--fond); border-bottom: 1px solid var(--filet); padding: 11px 0 12px; margin-bottom: 8px; }
+  .avance__barre { height: 5px; background: var(--fond-2); border-radius: 999px; overflow: hidden; }
+  .avance__plein { height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+  .avance__dit { font-size: 12.5px; color: var(--texte-doux); margin-top: 7px; }
+
+  .garde { border: 1px solid var(--alerte); border-left: 4px solid var(--alerte); border-radius: var(--r); background: #FBF3F2; padding: 16px 19px; margin-bottom: 20px; }
+  .garde h2 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--alerte); margin: 0 0 8px; }
+  .garde p { margin: 0 0 8px; font-size: 14px; } .garde p:last-child { margin: 0; }
+  .garde b { color: var(--alerte); font-weight: 500; }
+
+  h2.phase { font-family: var(--serif); font-weight: 400; font-size: 25px; color: var(--titre); margin: 34px 0 3px; }
+  .phase-sous { color: var(--texte-doux); font-size: 13.5px; margin: 0 0 14px; max-width: 74ch; }
+
+  .pas { display: flex; gap: 13px; align-items: flex-start; padding: 14px 16px; background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); margin-bottom: 9px; }
+  .pas.est-fait { background: var(--fond-2); }
+  .pas.est-fait .pas__quoi { text-decoration: line-through; color: var(--texte-doux); }
+  .pas input { margin: 3px 0 0; accent-color: var(--accent); flex: none; width: 17px; height: 17px; }
+  .pas__corps { flex: 1; min-width: 0; }
+  .pas__quoi { display: block; font-size: 15px; color: var(--titre); margin-bottom: 3px; }
+  .pas__dit { font-size: 13px; color: var(--texte-doux); }
+  .pas__dit code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--fond-2); padding: 1px 5px; border-radius: 2px; color: var(--accent-profond); overflow-wrap: anywhere; }
+  .pas__piege { display: block; margin-top: 6px; padding-left: 11px; border-left: 2px solid var(--accent); font-size: 13px; color: var(--accent-profond); }
+
+  .aecrire { margin: 0 0 9px; border: 1px solid var(--filet); border-radius: var(--r); background: var(--carte); overflow: hidden; }
+  .aecrire__tete { background: var(--fond-2); padding: 8px 15px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+  .aecrire table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .aecrire td { padding: 9px 15px; border-bottom: 1px solid var(--filet); vertical-align: top; }
+  .aecrire tr:last-child td { border-bottom: 0; }
+  .aecrire td:first-child { width: 34%; color: var(--texte-doux); }
+  .aecrire td:last-child { color: var(--titre); overflow-wrap: anywhere; }
+  .copie { float: right; font: inherit; font-size: 11.5px; padding: 2px 9px; margin-left: 10px; border: 1px solid var(--filet); border-radius: 2px; background: #fff; color: var(--accent-profond); cursor: pointer; }
+
+  .apres { margin-top: 40px; padding: 18px 20px; background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); }
+  .apres h2 { font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--titre); margin: 0 0 8px; }
+  .apres p { font-size: 14px; margin: 0 0 9px; } .apres p:last-child { margin: 0; }
+  .pied { margin-top: 34px; font-size: 13px; color: var(--texte-doux); max-width: 78ch; }
+</style>
+
+<div class="bandeau"><div class="dedans">
+  <p class="sur">Marche à suivre · 24 septembre 2026</p>
+  <h1>Créer la Page Facebook Maison MND</h1>
+  <p>Une Page neuve, à côté de « M Natural Dreadlocks » qui reste en place et intacte. Cochez au fur et à mesure : la page se souvient d'où vous en êtes, même si vous la fermez.</p>
+</div></div>
+
+<div class="page">
+
+  <div class="avance">
+    <div class="avance__barre"><div class="avance__plein" id="plein"></div></div>
+    <div class="avance__dit" id="dit">0 pas sur 14</div>
+  </div>
+
+  <div class="garde">
+    <h2>Trois choses à ne pas faire, avant tout le reste</h2>
+    <p><b>Ne touchez pas au nom affiché de WhatsApp Business.</b> C'est lui qui fait tourner vos conversations dans le Trône, vos accusés de réservation et vos confirmations. Il vit dans WhatsApp Manager, il n'a rien à voir avec cette Page, et il ne se répare pas en un clic.</p>
+    <p><b>Ne renommez pas « M Natural Dreadlocks ».</b> Un nom peut être en examen chez Meta ; vous ne l'avez pas encore lu. Renommer pendant un examen peut le faire échouer.</p>
+    <p><b>Ne rattachez pas la nouvelle Page à votre compte WhatsApp professionnel.</b> Facebook le proposera. Refusez : votre WhatsApp reste sur l'ancienne maison, et un rattachement mal fait coupe le fil avec vos clientes.</p>
+  </div>
+
+  <h2 class="phase">Phase I · La Page existe</h2>
+  <p class="phase-sous">Dix minutes. À faire depuis votre profil Facebook personnel : une Page se tient toujours depuis un profil, elle ne le remplace jamais.</p>
+
+  <label class="pas"><input type="checkbox" data-pas="1">
+    <span class="pas__corps"><b class="pas__quoi">Ouvrir la création de Page</b>
+      <span class="pas__dit">Sur un ordinateur, <code>facebook.com/pages/create</code>. Depuis le téléphone, l'écran est plus étroit et cache la catégorie : préférez l'ordinateur.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="2">
+    <span class="pas__corps"><b class="pas__quoi">Écrire le nom, exactement</b>
+      <span class="pas__dit">Deux mots, une majuscule à chacun, rien d'autre : <code>Maison MND</code>. Pas de tiret, pas de « salon », pas de ville.</span>
+      <span class="pas__piege">Le nom d'une Page se change ensuite, mais chaque changement est examiné par Meta. Autant l'écrire juste du premier coup.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="3">
+    <span class="pas__corps"><b class="pas__quoi">Choisir la catégorie</b>
+      <span class="pas__dit">Tapez « Salon de coiffure » et prenez celle-là. Facebook en propose trois : la catégorie décide des boutons que Meta vous offrira plus tard, dont « Réserver ».</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="4">
+    <span class="pas__corps"><b class="pas__quoi">Coller la description</b>
+      <span class="pas__dit">Elle est écrite plus bas, dans « Ce qu'il y a à écrire ». Copiez-la telle quelle.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="5">
+    <span class="pas__corps"><b class="pas__quoi">Créer la Page, et s'arrêter là un instant</b>
+      <span class="pas__dit">Facebook va proposer d'inviter vos amis, de lancer une publicité, de relier Instagram et WhatsApp. <b>Passez tout.</b> Une Page vide qu'on annonce est pire qu'une Page qui n'existe pas.</span></span></label>
+
+  <h2 class="phase">Phase II · La Page ressemble à la Maison</h2>
+  <p class="phase-sous">Vingt minutes. C'est ici que la Page cesse d'être une coquille.</p>
+
+  <label class="pas"><input type="checkbox" data-pas="6">
+    <span class="pas__corps"><b class="pas__quoi">Poser le monogramme en photo de profil</b>
+      <span class="pas__dit">Le vrai monogramme MND, carré, jamais redessiné ni déformé. Il est dans le projet : <code>public/assets/monograms/mono-indigo.png</code>.</span>
+      <span class="pas__piege">Facebook recadre en rond. Vérifiez que le monogramme n'est pas rogné sur les bords avant de valider.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="7">
+    <span class="pas__corps"><b class="pas__quoi">Poser une photo de couverture</b>
+      <span class="pas__dit">Une des affiches déjà produites, dans « Affiches Maison MND » sur votre Bureau. Pas un portrait de cliente : une couverture se recadre différemment sur téléphone et sur ordinateur, et un visage y perd toujours quelque chose.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="8">
+    <span class="pas__corps"><b class="pas__quoi">Remplir les informations</b>
+      <span class="pas__dit">Adresse, téléphone, courriel, site : tout est écrit plus bas, copié depuis le site lui-même. Ne les retapez pas de mémoire.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="9">
+    <span class="pas__corps"><b class="pas__quoi">Écrire les heures d'ouverture</b>
+      <span class="pas__dit">Reprenez-les du Trône, Système puis Horaires, pour qu'elles disent la même chose que le site et que Google. Trois sources qui divergent, c'est une cliente devant une porte fermée.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="10">
+    <span class="pas__corps"><b class="pas__quoi">Choisir le nom d'utilisateur</b>
+      <span class="pas__dit">Dans les paramètres de la Page. Demandez <code>maisonmnd</code>. S'il est pris, demandez <code>maison.mnd</code>, qui est déjà la forme retenue pour Instagram.</span>
+      <span class="pas__piege">C'est lui qui fait l'adresse <code>facebook.com/maisonmnd</code>. Sans lui, votre Page n'a qu'une adresse à chiffres, impossible à dire au téléphone ou à écrire sur une affiche.</span></span></label>
+
+  <h2 class="phase">Phase III · La Page se tient toute seule</h2>
+  <p class="phase-sous">Ce qui évite qu'elle redevienne une coquille dans trois semaines.</p>
+
+  <label class="pas"><input type="checkbox" data-pas="11">
+    <span class="pas__corps"><b class="pas__quoi">Publier trois affiches avant d'annoncer quoi que ce soit</b>
+      <span class="pas__dit">Trois, pas une : une Page à une seule publication se lit comme abandonnée. Elles sont prêtes dans « Affiches Maison MND ».</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="12">
+    <span class="pas__corps"><b class="pas__quoi">Mettre le bouton « En savoir plus » vers le site</b>
+      <span class="pas__dit">Vers <code>https://maisonmnd.com/revelateur/</code>. Pas « Envoyer un message » : votre WhatsApp reste sur l'ancienne maison, et ce bouton-là ouvrirait Messenger, que personne ne relève.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="13">
+    <span class="pas__corps"><b class="pas__quoi">Vérifier depuis un téléphone où vous n'êtes pas connecté</b>
+      <span class="pas__dit">Demandez à quelqu'un d'ouvrir <code>facebook.com/maisonmnd</code>. Une Page se voit autrement de l'extérieur : c'est là qu'on découvre une couverture rognée ou un numéro masqué.</span></span></label>
+
+  <label class="pas"><input type="checkbox" data-pas="14">
+    <span class="pas__corps"><b class="pas__quoi">Me dire que c'est fait, avec l'adresse</b>
+      <span class="pas__dit">J'ajouterai le lien au pied du site et au balisage que lit Google, pour que les deux se reconnaissent. Je ne le fais pas avant : un lien vers une Page vide abîme les deux.</span></span></label>
+
+  <div class="aecrire">
+    <div class="aecrire__tete">Ce qu'il y a à écrire · copié depuis le site, pas de mémoire</div>
+    <table>
+      <tr><td>Nom</td><td><button class="copie" type="button">Copier</button>Maison MND</td></tr>
+      <tr><td>Nom d'utilisateur</td><td><button class="copie" type="button">Copier</button>maisonmnd</td></tr>
+      <tr><td>Catégorie</td><td>Salon de coiffure</td></tr>
+      <tr><td>Description</td><td><button class="copie" type="button">Copier</button>Locks créées, réparées, entretenues. À Cotonou, depuis 2010.</td></tr>
+      <tr><td>Adresse</td><td><button class="copie" type="button">Copier</button>Ilot 130-F, Maison 88, Portail Marron, quartier Suru-Léré, 06 BP 2076, Cotonou, Bénin</td></tr>
+      <tr><td>Téléphone</td><td><button class="copie" type="button">Copier</button>+229 01 51 99 77 99</td></tr>
+      <tr><td>Courriel</td><td><button class="copie" type="button">Copier</button>contact@maisonmnd.com</td></tr>
+      <tr><td>Site</td><td><button class="copie" type="button">Copier</button>https://maisonmnd.com/revelateur/</td></tr>
+    </table>
+  </div>
+
+  <div class="apres">
+    <h2>Et l'ancienne Page, alors ?</h2>
+    <p>Elle reste. Vous aurez deux Pages pendant un temps, et c'est voulu : celle qui a vos abonnés et vos avis continue de vivre, celle qui porte le nom juste se construit à côté.</p>
+    <p><b>Le jour venu, Facebook sait FUSIONNER deux Pages</b> qui représentent le même commerce, à condition que les noms et les adresses se ressemblent. La fusion garde les abonnés de l'ancienne et le nom de la nouvelle. <b>Elle est définitive</b> : on ne la défait pas. Ce sera une décision à prendre à froid, quand la nouvelle Page aura tenu quelques semaines, et jamais pendant un examen de nom.</p>
+    <p>D'ici là, n'annoncez pas la nouvelle Page sur l'ancienne : deux Pages que le public confond sont pires qu'une Page mal nommée.</p>
+  </div>
+
+  <p class="pied">
+    Rien de ce qui est ici ne touche à votre WhatsApp, à vos conversations du Trône, ni à l'examen de nom en cours chez Meta. C'est une Page neuve, à côté, qui ne prend rien à personne. Le jour où vous voudrez lire l'état de cet examen, il se trouve dans WhatsApp Manager, section Numéros de téléphone, colonne du nom affiché.
+  </p>
+</div>
+
+<script>
+/* La page se souvient de vos pas, même fermée. Une marche à suivre qu'il
+   faut refaire depuis le début parce qu'on a fermé l'onglet ne se finit
+   jamais. */
+const CLEF = 'mnd-page-facebook';
+const cases = [...document.querySelectorAll('.pas input')];
+let faits = {};
+try { faits = JSON.parse(localStorage.getItem(CLEF) || '{}'); } catch (e) { faits = {}; }
+
+function compte() {
+  const n = cases.filter((c) => c.checked).length;
+  document.getElementById('plein').style.width = (n / cases.length * 100) + '%';
+  document.getElementById('dit').textContent = n === cases.length
+    ? 'Les 14 pas sont faits. Dites-le moi avec l’adresse de la Page.'
+    : n + (n > 1 ? ' pas faits sur ' : ' pas sur ') + cases.length;
+}
+
+for (const c of cases) {
+  const k = c.dataset.pas;
+  c.checked = !!faits[k];
+  c.closest('.pas').classList.toggle('est-fait', c.checked);
+  c.addEventListener('change', () => {
+    faits[k] = c.checked;
+    c.closest('.pas').classList.toggle('est-fait', c.checked);
+    try { localStorage.setItem(CLEF, JSON.stringify(faits)); } catch (e) { /* onglet privé */ }
+    compte();
+  });
+}
+compte();
+
+for (const b of document.querySelectorAll('.copie')) {
+  b.addEventListener('click', (e) => {
+    e.preventDefault();
+    const texte = b.parentElement.textContent.replace(/^Copier/, '').trim();
+    /* Le presse-papier refuse hors d'un geste ; ici on EST dans le geste,
+       donc le clic suffit. S'il refuse quand même, on sélectionne le texte
+       pour qu'il se copie à la main. */
+    const dit = (mot) => { b.textContent = mot; setTimeout(() => { b.textContent = 'Copier'; }, 1400); };
+    try {
+      navigator.clipboard.writeText(texte).then(() => dit('Copié'), () => {
+        const r = document.createRange(); r.selectNodeContents(b.parentElement);
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r); dit('Sélectionné');
+      });
+    } catch (err) { dit('À copier'); }
+  });
+}
+</script>
+</html>
