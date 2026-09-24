@@ -18,7 +18,7 @@ Repères pour la pose :
 
 **Devise :** Mi nyɔ́ ɖɛkpɛ
 
-**Légende de la devise :** En fon : « Vous êtes belle. »
+**Légende de la devise :** En fon : « Nous sommes beaux, et nous le savons. »
 
 **Titre :** Votre couronne, comprise, soignée, révélée.
 
@@ -371,7 +371,7 @@ Repères pour la pose :
 
 **Transmettre :** Apprendre à celles et ceux qui viennent après nous, clientes comme futurs professionnels, pour que la méthode vive au-delà de nos mains.
 
-**Le nom :** MND signifie « Mi nyɔ́ ɖɛkpɛ ». En fon : « Vous êtes belle. » Ce n'est pas un slogan. C'est ce que nous voulons que vous entendiez en sortant.
+**Le nom :** MND signifie « Mi nyɔ́ ɖɛkpɛ ». En fon : « Nous sommes beaux, et nous le savons. » Ce n'est pas un slogan. C'est ce que nous voulons que vous entendiez en sortant.
 
 ## 10. L'univers MND
 

@@ -160,7 +160,13 @@ export const COMMUN: Commun = {
 export const ACCUEIL: Accueil = {
   titre: 'Dreadlocks à Cotonou, soin et création · Maison MND',
   description: 'Découvrez la Maison MND à Cotonou : création, réparation, entretien et soins des dreadlocks afro. Trouvez le parcours qui convient à votre couronne.',
-  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes belle.' },
+  /* LA TRADUCTION DE LA DEVISE — 24 septembre 2026. « Vous êtes belle »
+     disait la Maison à sa cliente ; « Nous sommes beaux, et nous le savons »
+     est ce que la Maison dit AVEC elle. Yéman a tranché pour la seconde,
+     partout où elle est visible. Le Trône l'écrivait déjà ainsi depuis le
+     22 août (`DEVISE_TRADUITE`, shared/identite.ts) : le site disait autre
+     chose, et c'est le site qui avait tort. */
+  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Nous sommes beaux, et nous le savons.' },
   /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
      de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
      du paragraphe, les cinq portes la disent juste dessous. */
