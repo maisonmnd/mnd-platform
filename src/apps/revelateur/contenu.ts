@@ -47,7 +47,7 @@ export const COMMUN: Commun = {
   /* La position de la porte, lue par Yéman sur Google Maps le 24 septembre
      2026 (clic droit sur l'épingle de la Maison) : la fiche structurée la
      porte en `geo`, ce que Google lit pour « salon de locks Cotonou ». */
-  position: { latitude: 6.376295, longitude: 2.463199 },
+  position: { latitude: 6.376295137272732, longitude: 2.463199119044698 },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },
