@@ -76,3 +76,48 @@ compris intégrée à un document. Auteur : Georg Duffner, Octavio Pardo.
   main** : jsPDF n'a pas de moteur de composition, et le dessinerait à droite
   de la lettre. Le recul (0,219 em) vient des métriques de la police —
   le `ɔ` avance de 439 millièmes, son centre visuel est à 220.
+
+# Cormorant Garamond et Jost, servies par nous
+
+Depuis le 24 septembre 2026, les deux polices de la Maison ne viennent plus
+de Google Fonts à chaque visite : `fonts.css` les déclare en `@font-face`
+sur les fichiers de ce dossier. Google sert ces deux familles en polices
+VARIABLES : un seul fichier porte tout l'axe des graisses (300 à 700), et
+la feuille le déclare avec `font-weight: 300 700`. Six fichiers woff2 en
+tout, dont un navigateur ne charge que ceux qu'une page emploie (style, et
+plage unicode : le latin seul, tant qu'un « œ » n'appelle pas le latin
+étendu).
+
+Nommage : `<famille>[-italique]-<sous-ensemble>.woff2`, par exemple
+`cormorant-latin.woff2`, `cormorant-italique-latin-ext.woff2` ou
+`jost-latin.woff2`. (Le premier essai du 24 septembre avait téléchargé un
+fichier par graisse, vingt-huit noms pour six contenus : Vite les a
+dédoublonnés par empreinte, et c'est ainsi que le doublon s'est vu.)
+
+## D'où viennent les fichiers
+
+Ce sont exactement ceux que Google servait, téléchargés depuis la feuille
+que rend cette adresse avec un User-Agent de navigateur moderne :
+
+```
+https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Jost:wght@300;400;500;600;700&display=swap
+```
+
+Seuls les blocs `latin` et `latin-ext` sont gardés (cyrillique et
+vietnamien ne servent à rien ici). Les plages `unicode-range` sont
+recopiées telles quelles, pour que le navigateur découpe comme avant. Dans
+cette feuille, tous les blocs d'une même famille, d'un même style et d'un
+même sous-ensemble pointent le MÊME fichier : c'est la police variable.
+
+Pour régénérer : télécharger la feuille, prendre l'`url(...woff2)` d'un
+bloc par famille, style et sous-ensemble, l'enregistrer sous le nom
+ci-dessus, et réécrire les blocs `@font-face` de `fonts.css` avec le même
+`unicode-range` et l'axe `font-weight: 300 700`. Le harnais
+`verifie-les-polices` refuse une graisse promise hors de l'axe déclaré, et
+un fichier déclaré qui n'existe pas.
+
+## Licence
+
+Cormorant Garamond (Christian Thalmann) et Jost (indestructible type) sont
+toutes deux sous **SIL Open Font License 1.1** : redistribution et
+hébergement autorisés, y compris sur un site commercial.

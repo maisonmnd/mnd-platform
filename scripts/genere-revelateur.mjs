@@ -52,6 +52,57 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, DEVISE_COMPLETE } = contenu;
+
+/* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
+   L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
+   offres arrivaient par script depuis la base, invisibles aux aperçus de
+   partage et sans garantie pour Google. La construction lit maintenant la
+   base avec la MÊME clef publique que le navigateur, et rend le MÊME
+   composant que l'îlot (`statique.tsx`) dans le HTML, données à côté. Sans
+   clef ou sans réseau, les pages sortent sans elles, et on le dit. */
+const dossierStatique = mkdtempSync(path.join(tmpdir(), 'genere-revelateur-statique-'));
+let statique = null;
+try {
+  const sortieStatique = path.join(dossierStatique, 'statique.mjs');
+  await build({
+    entryPoints: [path.join(racine, 'src/apps/revelateur/statique.tsx')], bundle: true, format: 'esm', platform: 'node', outfile: sortieStatique, logLevel: 'error',
+    loader: { '.css': 'empty' }, jsx: 'automatic',
+    define: { 'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', BASE_URL: BASE, DEV: false, PROD: true, MODE: 'production' }), 'process.env.NODE_ENV': '"production"' },
+    /* react-dom/server est écrit en CommonJS et demande `util` par require :
+       dans un paquet ESM, esbuild remplace require par un refus. On lui
+       rend un vrai require, celui de Node. */
+    banner: { js: `import { createRequire as __creeRequire } from 'node:module'; const require = __creeRequire(import.meta.url);
+const __m = new Map();
+globalThis.localStorage = { getItem: (k) => (__m.has(k) ? __m.get(k) : null), setItem: (k, v) => __m.set(k, String(v)), removeItem: (k) => __m.delete(k) };
+globalThis.window = { addEventListener() {}, dispatchEvent() {}, location: { href: '' } };
+globalThis.document = { body: { dataset: {} }, addEventListener() {} };
+globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o); } };` },
+  });
+  statique = await import(pathToFileURL(sortieStatique).href);
+} catch (e) {
+  console.warn(`  rendu statique indisponible (${e.message}) : les offres resteront au script`);
+} finally {
+  rmSync(dossierStatique, { recursive: true, force: true });
+}
+
+async function documentsPublics(cles) {
+  const url = process.env.VITE_SUPABASE_URL, clef = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !clef) { console.log('  base non lue à la construction (pas de clef publique) : offres et horaires au script seulement'); return null; }
+  try {
+    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/documents?select=key,data&key=in.(${cles.join(',')})`, {
+      headers: { apikey: clef, Authorization: `Bearer ${clef}` }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return Object.fromEntries((await r.json()).map((l) => [l.key, l.data]));
+  } catch (e) {
+    console.warn(`  base non lue à la construction (${e.message}) : offres et horaires au script seulement`);
+    return null;
+  }
+}
+const documents = statique ? await documentsPublics(['mnd_offers', 'mnd_settings']) : null;
+const OFFRES = documents ? statique.offresDuTrottoir(documents.mnd_offers) : null;
+const HORAIRES = documents ? statique.horairesStructures(documents.mnd_settings?.hours) : [];
+if (documents) console.log(`  écrites dans la page : ${OFFRES.length} offre(s), ${HORAIRES.length} règle(s) d'horaires`);
 /* UN LIEN WHATSAPP PORTE UN NUMÉRO DÈS LA CONSTRUCTION — 22 septembre 2026.
    Il partait « wa.me/?text=… » et n'obtenait le numéro de la branche qu'une
    fois Supabase chargé (214 Ko) : sur réseau faible, un tap trop tôt ouvrait
@@ -84,7 +135,18 @@ const bouton = (l, classe = 'btn') => {
   }
   return `<a class="${classe}" href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`;
 };
-const image = (nom, alt = '', extra = '') => `<img src="/assets/photos/site/${attr(nom)}" alt="${attr(alt)}" width="800" height="1000" loading="lazy"${extra}>`;
+/* LES PHOTOS OFFRENT LEUR WEBP — 24 septembre 2026. Chaque JPEG du dossier a
+   son jumeau `.webp` (scripts/photos-en-webp.mjs), un bon quart plus léger ;
+   le <picture> le propose, et l'<img> garde le JPEG pour qui ne lit pas le
+   WebP et pour les aperçus de partage. Les attributs de l'image sont écrits
+   par l'appelant, dans l'ordre où le harnais les lit. */
+const estPhoto = (nom) => /\.jpe?g$/i.test(nom);
+const webp = (nom) => nom.replace(/\.jpe?g$/i, '.webp');
+const photo = (nom, avant = '', apres = '') => {
+  const img = `<img${avant ? ` ${avant}` : ''} src="/assets/photos/site/${attr(nom)}"${apres ? ` ${apres}` : ''}>`;
+  return estPhoto(nom) ? `<picture><source type="image/webp" srcset="/assets/photos/site/${attr(webp(nom))}">${img}</picture>` : img;
+};
+const image = (nom, alt = '', extra = '') => photo(nom, '', `alt="${attr(alt)}" width="800" height="1000" loading="lazy"${extra}`);
 const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-wa" viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
   <symbol id="i-coche" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
@@ -94,6 +156,11 @@ const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 </svg>`;
 
 /* ── Le balisage structuré ───────────────────────────────────────────── */
+/* LES COMPTES DE LA MAISON, dans l'ordre où le pied les montre. Seuls ceux
+   que le contenu connaît : on ne relie jamais une adresse qu'on n'a pas lue. */
+const comptesPublics = () => [
+  ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['google', 'Fiche Google'],
+].filter(([cle]) => COMMUN.comptes?.[cle]).map(([cle, nom]) => ({ nom, url: COMMUN.comptes[cle] }));
 const noeudMaison = () => ({
   '@type': 'HairSalon', '@id': `${SITE}#maison`,
   name: COMMUN.nom, url: SITE, image: `${SITE}assets/photos/site/partage-accueil.jpg`, logo: `${SITE}assets/monograms/mono-indigo.png`,
@@ -104,6 +171,15 @@ const noeudMaison = () => ({
   address: { '@type': 'PostalAddress', streetAddress: COMMUN.editeur.rue, postOfficeBoxNumber: COMMUN.editeur.boitePostale, addressLocality: COMMUN.ville, addressCountry: 'BJ' },
   areaServed: `${COMMUN.ville}, Bénin`, knowsLanguage: 'fr',
   founder: [{ '@type': 'Person', name: 'Brice Ahouansou' }, { '@type': 'Person', name: 'Yéman Ahouansou' }],
+  /* CE QUE GOOGLE LIT POUR « SALON DE LOCKS COTONOU » — 24 septembre 2026 :
+     les horaires du Trône (lus à la construction), la position (quand Yéman
+     l'aura lue sur Google Maps), les comptes, la fiche. `priceRange` est un
+     ordre de grandeur sans chiffre : aucun prix en public, règle de la Maison. */
+  ...(HORAIRES.length ? { openingHoursSpecification: HORAIRES } : {}),
+  ...(COMMUN.position ? { geo: { '@type': 'GeoCoordinates', latitude: COMMUN.position.latitude, longitude: COMMUN.position.longitude } } : {}),
+  ...(comptesPublics().length ? { sameAs: comptesPublics().map((c) => c.url) } : {}),
+  ...(COMMUN.comptes?.google ? { hasMap: COMMUN.comptes.google } : {}),
+  priceRange: '$$', currenciesAccepted: 'XOF',
 });
 const noeudSite = () => ({ '@type': 'WebSite', '@id': `${SITE}#site`, name: COMMUN.nom, url: SITE, inLanguage: 'fr', publisher: { '@id': `${SITE}#maison` } });
 const filAriane = (etapes) => ({
@@ -120,7 +196,10 @@ const PHOTO_ACCUEIL = 'cauris-accueil.jpg';
 function page({ chemin, titre, description, corps, noeuds, image: og, classeBody = '', precharge = '' }) {
   const canon = `${SITE}${chemin.replace(/^\//, '')}`;
   const nav = COMMUN.nav.map((l) => `<a href="${attr(lien(l.vers))}">${echappe(l.texte)}</a>`).join('\n      ');
-  const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h4>${echappe(c.titre)}</h4><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ');
+  const suivre = comptesPublics().length
+    ? `\n    <div><h4>Nous suivre</h4><ul>${comptesPublics().map((c) => `<li><a href="${attr(c.url)}" target="_blank" rel="noopener">${echappe(c.nom)}</a></li>`).join('')}</ul></div>`
+    : '';
+  const colonnes = COMMUN.pied.colonnes.map((c) => `<div><h4>${echappe(c.titre)}</h4><ul>${c.liens.map((l) => `<li>${bouton(l, '')}</li>`).join('')}</ul></div>`).join('\n    ') + suivre;
   /* LES MENTIONS EN LISTE — 18 septembre 2026. « Il faut espacer les
      mentions, les CGU, le plan du site, trop condensé » (Yéman). Jointes par
      des points dans une seule ligne de texte, elles ne pouvaient pas
@@ -133,7 +212,10 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1E2150" />
-    <link rel="icon" type="image/png" href="/assets/monograms/mono-indigo.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icones/icone-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/icones/icone-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icones/icone-180.png" />
+    <link rel="manifest" href="/assets/vitrine.webmanifest" />
     <title>${echappe(titre)}</title>
     <meta name="description" content="${attr(description)}" />
     <link rel="canonical" href="${canon}" />
@@ -146,10 +228,11 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'partage-accueil.jpg')}" />
     ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
     <meta name="twitter:card" content="summary_large_image" />
-    ${precharge ? `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />` : ''}
+    ${precharge ? (estPhoto(precharge) ? `<link rel="preload" as="image" href="${attr(webp(precharge))}" type="image/webp" fetchpriority="high" />` : `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />`) : ''}
     ${jsonld(noeuds)}
   </head>
   <body data-surface="revelateur"${classeBody ? ` class="${classeBody}"` : ''}>
+    <a class="evitement" href="#contenu">Aller au contenu</a>
     ${ICONES}
     <header class="barre">
       <div class="conteneur">
@@ -163,7 +246,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
         <a class="btn btn--plein" href="${lien('/reserver/')}">Prendre rendez-vous</a>
       </div>
     </header>
-    <main>
+    <main id="contenu" tabindex="-1">
 ${corps}
     </main>
     <footer>
@@ -316,6 +399,17 @@ function bulle(chemin) {
 `;
 }
 
+/* LES OFFRES DANS LA PAGE, OU LE REPLI. Quand la construction a lu la base,
+   l'emplacement porte les données en JSON puis le rendu du composant ; l'îlot
+   repart des deux au montage. Sinon, le repli d'avant : une phrase et un
+   bouton, jamais un écran blanc. */
+const offresDansLaPage = (genre) => {
+  if (!OFFRES || !statique) {
+    return `<p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p>`;
+  }
+  return `<script type="application/json" data-initiales>${statique.jsonPourLaPage(OFFRES)}</script>${statique.rendsLesOffres(OFFRES, genre)}`;
+};
+
 function ilot(nom, p) {
   if (nom === 'triage') {
     const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
@@ -344,7 +438,7 @@ function ilot(nom, p) {
        jamais un écran blanc : si l'îlot ne monte pas, la visiteuse sait encore
        où demander. Les offres elles-mêmes viennent de `mnd_offers`, et seules
        celles que la Maison a activées sortent jusqu'ici. */
-    return `<section class="serre"><div class="conteneur"><div data-ilot="offres"><p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
+    return `<section class="serre"><div class="conteneur"><div data-ilot="offres">${offresDansLaPage()}</div></div></section>`;
   }
   if (nom === 'contact') {
     return `<section class="serre"><div class="conteneur"><div data-ilot="contact" style="max-width:560px"><p class="corps">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
@@ -449,7 +543,7 @@ function rendAccueil(articles) {
           <div class="porte-corps"><h3>${echappe(c.titre)}</h3><p>${echappe(c.ligne)}</p><span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span></div>
         </a>`;
   }).join('\n        ');
-  const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/${attr(art.image)}" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
+  const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
   return `
       <!-- LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026, maquette validée.
            La photo sous le texte, l'entête posée dessus (la barre, transparente
@@ -458,7 +552,7 @@ function rendAccueil(articles) {
            et préchargée depuis l'entête du document. Le paragraphe ne vit plus
            ici, les cinq portes le disent juste dessous. -->
       <section class="hero-plein">
-        <img class="hero-plein__photo" src="/assets/photos/site/${PHOTO_ACCUEIL}" alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high" decoding="async">
+        ${photo(PHOTO_ACCUEIL, 'class="hero-plein__photo"', 'alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high" decoding="async"')}
         <div class="hero-plein__voile" aria-hidden="true"></div>
         <div class="conteneur hero-plein__texte">
           <p class="pastille metier">${echappe(a.metier)}</p>
@@ -498,7 +592,7 @@ function rendAccueil(articles) {
            dit où demander si rien ne se charge. -->
       <section class="vt-offres" id="offres"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
-        <div data-ilot="offres" data-genre="accueil"><p class="corps">Les offres de la Maison se chargent. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
+        <div data-ilot="offres" data-genre="accueil">${offresDansLaPage('accueil')}</div>
       </div></section>
 
       <!-- LA BANDE DE CONFIANCE NE VIT PLUS SUR L'ACCUEIL — 22 septembre 2026.
@@ -695,7 +789,7 @@ for (const p of PAGES) {
   const estService = !!(p.cta || p.pas);
   let corps;
   if (p.chemin === '/journal/') {
-    const liste = articles.map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}"><img src="/assets/photos/site/${attr(art.image)}" alt="" loading="lazy" width="960" height="600"><h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
+    const liste = articles.map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
     corps = rendLibre(p, `<section class="serre"><div class="conteneur"><div class="articles">${liste}</div></div></section>`);
   } else corps = estService ? rendService(p) : rendLibre(p);
   const noeuds = [noeudSite(), filAriane([['Accueil', '/'], [p.court, p.chemin]])];

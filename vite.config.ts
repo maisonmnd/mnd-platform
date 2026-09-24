@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
@@ -47,7 +47,13 @@ const choisies = apps.length
 function entreesDuRevelateur(): Record<string, string> {
   if (apps.length && !apps.includes('revelateur')) return {};
   try {
-    execSync('node scripts/genere-revelateur.mjs', { cwd: __dirname, stdio: 'inherit', env: process.env });
+    /* LA BASE, LUE À LA CONSTRUCTION — 24 septembre 2026. Le générateur écrit
+       les offres et les horaires dans les pages ; il les lit avec la MÊME clef
+       publique que le navigateur (`.env.local`, jamais une clef de service),
+       que Vite ne met pas dans process.env de lui-même. Sans clef, il écrit
+       les pages sans elles et le dit : la construction ne casse pas. */
+    const publiques = loadEnv(process.env.MODE ?? 'production', __dirname, 'VITE_');
+    execSync('node scripts/genere-revelateur.mjs', { cwd: __dirname, stdio: 'inherit', env: { ...publiques, ...process.env } });
   } catch {
     return {};
   }

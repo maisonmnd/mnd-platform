@@ -75,16 +75,29 @@ const laPorte = (o: OffreDuSite): string => {
   return base(`/${p.porte}/?besoin=${o.parcours}${code}`);
 };
 
-export default function Offres({ genre }: { genre?: string }) {
+/* LES OFFRES SONT DANS LA PAGE AVANT LE SCRIPT — 24 septembre 2026. L'état
+   des lieux l'a mesuré : la page des offres servait 175 mots, le titre et sa
+   phrase, et un partage WhatsApp ne voyait qu'une page vide. La construction
+   lit maintenant les offres et écrit ce même composant dans le HTML
+   (`statique.tsx`), avec les données en JSON à côté. Au montage, l'îlot
+   repart de ces `initiales` (rien ne clignote), puis relit la base : une
+   offre activée au Trône après la construction apparaît quand même, et une
+   offre retirée disparaît. Sans réponse de la base, les initiales restent. */
+export default function Offres({ genre, initiales }: { genre?: string; initiales?: OffreDuSite[] }) {
   const accueil = genre === 'accueil';
-  const [offres, setOffres] = useState<OffreDuSite[] | null | undefined>(undefined);
-  const [onglet, setOnglet] = useState<'cours' | 'venir'>('cours');
+  const [offres, setOffres] = useState<OffreDuSite[] | null | undefined>(initiales);
+  const [onglet, setOnglet] = useState<'cours' | 'venir'>(() => {
+    if (accueil || !initiales) return 'cours';
+    const cours = initiales.some((o) => etatDeLOffre(o) === 'cours');
+    const venir = initiales.some((o) => etatDeLOffre(o) === 'venir');
+    return !cours && venir ? 'venir' : 'cours';
+  });
 
   useEffect(() => {
     let vivant = true;
     void offresDuSite()
       .then((o) => { if (vivant) setOffres(o); })
-      .catch(() => { if (vivant) setOffres(null); });
+      .catch(() => { if (vivant) setOffres((avant) => avant ?? null); });
     return () => { vivant = false; };
   }, []);
 

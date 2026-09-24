@@ -37,6 +37,13 @@ export const COMMUN: Commun = {
     telephone: '+229 01 51 99 77 99',
     email: 'contact@maisonmnd.com',
   },
+  /* La fiche Google est celle de la Maison (inscrite sous son ancien nom,
+     « M Natural Dreadlocks », jusqu'au renommage) ; l'identifiant de lieu
+     est public, il vit dans l'adresse. Instagram et Facebook s'écriront ici
+     le jour où Yéman donnera l'adresse de la Page sous le nom Maison MND. */
+  comptes: {
+    google: 'https://www.google.com/maps/place/?q=place_id:ChIJbwIfV9hVIxARgS3WzgGq9kM',
+  },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },

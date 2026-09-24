@@ -108,6 +108,61 @@ le site qui vit à la racine ne garde de `public/` que les jetons Google et
 `assets/` (`JETON_GOOGLE` dans build-sites) ; le harnais tient la règle dans
 les deux sens, un fichier cité par une page et absent crie aussi.
 
+## L'ÉTAT DES LIEUX, POINTS 4 À 9 — 24 septembre 2026, le soir
+
+« Fais les points 4 à 9 » (Yéman), après les points 1, 2 et 3 du matin
+(`public/maquette-l-etat-du-site.html`). Tout est mesuré sur le construit
+puis sur le servi ; chaque point a sa règle dans un harnais.
+
+**5 · Les polices servies par nous.** `src/ds/tokens/fonts.css` n'importe
+plus rien de Google : six fichiers woff2 de polices VARIABLES (un par
+famille, style et sous-ensemble latin / latin étendu, tout l'axe 300 à 700
+dans chacun, mêmes plages unicode, mêmes dessins) vivent dans
+`src/ds/fonts/`, comme la police fon. Toute la plateforme en profite, pas
+seulement la vitrine. Harnais `verifie-les-polices` : l'attente est la
+PROMESSE (les graisses demandées à Google ce jour-là), pas la feuille.
+Leçon du soir : le premier essai avait téléchargé un fichier par graisse,
+vingt-huit noms pour six contenus ; c'est Vite, qui nomme par empreinte,
+qui a montré le doublon (sept woff2 dans le construit au lieu de vingt-neuf).
+Mesurer le construit avant de croire le dossier. Les documents imprimables du Trône
+(bilan.css, QR, lettres du prêt, bulletin) gardent leur lien Google : ce
+sont des pages à part, hors de la vitrine.
+
+**6 · WebP et icônes.** `scripts/photos-en-webp.mjs` (sharp, dépendance de
+développement) donne à chaque JPEG du dossier des photos son jumeau `.webp`
+(qualité 82 : de 22 à 50 % de moins selon la photo) et fabrique les icônes
+32, 180, 192 et 512 depuis `icone-app-meta.png`. Le générateur enveloppe
+chaque photo d'un `<picture>` qui offre le WebP, l'`<img>` garde le JPEG
+(aperçus de partage, navigateurs anciens), la précharge du premier écran
+vise le WebP en le disant. Manifeste `public/assets/vitrine.webmanifest`,
+`display: browser` : un site, pas une application.
+
+**7 · Les offres dans la page avant le script.** `vite.config.ts` passe la
+clef PUBLIQUE (loadEnv, jamais une clef de service) au générateur, qui lit
+`mnd_offers` et `mnd_settings` par PostgREST et rend le MÊME composant
+(`statique.tsx`, react-dom/server) dans le HTML, données en JSON à côté
+(`data-initiales`). L'îlot repart des initiales puis relit la base : une
+offre activée après la construction apparaît, une offre retirée disparaît ;
+sans réponse, les initiales restent. Sans clef ou sans réseau, le générateur
+écrit le repli d'avant et le dit. Le filtre du trottoir vit dans
+`offres-pur.ts` (`offresDuTrottoir`), une règle pour deux lecteurs.
+
+**4 et 8 · La fiche structurée et les comptes.** `openingHoursSpecification`
+depuis les heures du Trône (« 08h00 » lu, « 08:00 » écrit, jours consécutifs
+regroupés, lundi fermé n'écrit rien), `hasMap` et `sameAs` depuis
+`COMMUN.comptes`, `priceRange: '$$'` (un ordre de grandeur, aucun chiffre :
+aucun prix en public), `currenciesAccepted: 'XOF'`. Le pied porte une
+colonne « Nous suivre » avec les mêmes comptes, dans le même ordre. Seule la
+fiche Google est écrite pour l'instant. **ATTENDENT YÉMAN** : la position
+(`COMMUN.position`, à lire sur Google Maps ; sans elle, pas de `geo`),
+l'adresse de la Page Facebook sous le nom Maison MND, celle d'Instagram
+(le compte existant, à renommer, voir la mémoire des réseaux). Une ligne
+dans `contenu.ts` chacune, puis reconstruire et publier la vitrine.
+
+**9 · Le lien d'évitement.** `<a class="evitement" href="#contenu">` premier
+de chaque page, `<main id="contenu" tabindex="-1">`, sorti de l'écran par
+un déplacement et rendu au focus, jamais display:none.
+
 ## « J'EN PROFITE » NE MENAIT NULLE PART — 24 septembre 2026
 
 « Quand on appuie le bouton J'en profite ce n'est branché à rien » (Yéman).

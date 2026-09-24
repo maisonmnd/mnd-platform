@@ -108,6 +108,14 @@ export type Commun = {
     /** Les parts que lit la fiche Google. */
     rue: string; boitePostale: string;
   };
+  /** LES COMPTES DE LA MAISON, 24 septembre 2026 : le pied du site les porte
+      et la fiche structurée les relie (`sameAs`), en un seul geste. Un compte
+      absent n'est pas écrit : on ne relie jamais une adresse qu'on n'a pas
+      lue sous le nom de la Maison. */
+  comptes: { instagram?: string; facebook?: string; tiktok?: string; google?: string };
+  /** La position de la porte, lue sur Google Maps par Yéman. Sans elle, la
+      fiche structurée ne dit pas `geo` : mieux vaut rien qu'un point faux. */
+  position?: { latitude: number; longitude: number };
   nav: Lien[];
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };
   /** Un message WhatsApp par parcours, déjà écrit. */

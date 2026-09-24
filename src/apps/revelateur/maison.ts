@@ -1,5 +1,6 @@
 import type { ExceptionDHoraire, HeureDeLaSemaine } from '../../shared/agenda-pur';
 import type { Besoin } from '../../shared/qualification';
+import { offresDuTrottoir } from '../../shared/offres-pur';
 
 /* CE QUE LE SITE SAIT DE LA MAISON, SANS COMPTE — 17 septembre 2026.
 
@@ -135,13 +136,12 @@ export async function offresDuSite(): Promise<OffreDuSite[]> {
   const supabase = await client();
   if (!supabase) return [];
   const { data } = await supabase.from('documents').select('data').eq('key', 'mnd_offers').maybeSingle();
-  const d = (data as { data?: OffreDuSite[] } | null)?.data;
-  if (!Array.isArray(d)) return [];
   /* LA VITRINE PASSE SANS DATES (22 septembre 2026) : une offre permanente
      dit comment la Maison accueille, elle n'a pas de saison. Le drapeau se
      coche au Trône ; sans lui, une offre sans dates reste ce qu'elle était,
-     une heure creuse de Ma Couronne, invisible ici. */
-  return d.filter((o) => o && o.active && (o.du || o.au || o.vitrine));
+     une heure creuse de Ma Couronne, invisible ici. La règle est dans
+     `offres-pur.ts` depuis le 24 septembre : la construction la lit aussi. */
+  return offresDuTrottoir<OffreDuSite>((data as { data?: unknown } | null)?.data);
 }
 
 /** Le lien WhatsApp d'un parcours : le numéro de la Maison quand on le

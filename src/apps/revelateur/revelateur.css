@@ -20,6 +20,20 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+
+/* LE LIEN D'ÉVITEMENT — 24 septembre 2026. Une personne qui navigue au
+   clavier ou au lecteur d'écran traversait tout le menu avant d'atteindre le
+   contenu, sur chaque page. Ce lien est le premier de la page ; il ne se
+   voit qu'au moment où Tab se pose dessus, et mène à <main id="contenu">.
+   Sorti de l'écran par un déplacement, jamais par display:none, sinon le
+   clavier ne l'atteint plus. */
+.evitement { position: absolute; top: 0; left: 0; z-index: 1000; transform: translateY(-200%); padding: 12px 18px; background: var(--sombre); color: var(--fort-texte); font-family: var(--sans); font-size: 15px; text-decoration: none; border-radius: 0 0 var(--r) 0; }
+.evitement:focus { transform: none; outline: 3px solid var(--accent); outline-offset: 2px; }
+main:focus { outline: none; }
+
+/* Le <picture> qui offre le WebP ne doit rien changer à la mise en page :
+   il disparaît de la boîte, l'image garde ses règles. */
+picture { display: contents; }
 body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 /* `height: auto` : chaque image porte ses attributs width et height (pour
    que la page ne saute pas au chargement), et sans cette ligne l'attribut
@@ -242,7 +256,9 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 
 /* ── pied ────────────────────────────────────────────────────────── */
 footer { background: var(--sombre-2); color: rgba(246, 241, 231, .72); padding-block: 44px 36px; font-size: 14px; }
-footer .conteneur { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 26px; }
+/* Cinq colonnes depuis le 24 septembre 2026 : la présentation, Services,
+   La Maison, Contact, et « Nous suivre » (les comptes de la Maison). */
+footer .conteneur { display: grid; grid-template-columns: 1.2fr repeat(4, 1fr); gap: 26px; }
 @media (max-width: 860px) { footer .conteneur { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { footer .conteneur { grid-template-columns: 1fr; } }
 footer h4 { font-family: var(--sans); font-weight: 400; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-sombre); margin: 0 0 10px; }

@@ -11,6 +11,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ACCUEIL, COMMUN } from '../src/apps/revelateur/contenu';
 import { etatDeLOffre } from '../src/shared/offres-pur';
+import { horairesStructures } from '../src/apps/revelateur/schema-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -84,7 +85,9 @@ dit('la ligne du métier ne descend jamais sous 11 px', [],
 dit('… les promesses sont dans le bandeau sombre', true, accueil.includes('class="promesses promesses--sombre"'));
 const photoDuPremierEcran = accueil.match(/<img class="hero-plein__photo" src="([^"]+)"[^>]*>/);
 dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremierEcran && !photoDuPremierEcran[0].includes('loading="lazy"') && photoDuPremierEcran[0].includes('fetchpriority="high"'));
-dit('… et le document la précharge', true, !!photoDuPremierEcran && accueil.includes(`<link rel="preload" as="image" href="${photoDuPremierEcran[1]}"`));
+/* Depuis le 24 septembre, c'est le jumeau WebP qui est préchargé, avec son
+   type : un navigateur qui ne le lit pas ignore la précharge et prend le JPEG. */
+dit('… et le document précharge son jumeau WebP, en le disant', true, !!photoDuPremierEcran && accueil.includes(`<link rel="preload" as="image" href="${photoDuPremierEcran[1].replace(/\.jpe?g$/i, '.webp')}" type="image/webp" fetchpriority="high" />`));
 dit('les cinq liens du menu sont dans le HTML de l’accueil, script ou pas', [], COMMUN.nav.map((l) => l.vers).filter((v) => !new RegExp(`<nav class="nav"[^>]*>[\\s\\S]*?href="[^"]*${v}"[\\s\\S]*?</nav>`).test(accueil)));
 dit('… repliés par une case à cocher, jamais par un bouton qui attend un script', true, accueil.includes('<input class="menu-etat cache" type="checkbox" id="menu-etat"') && !accueil.includes('<button class="menu-bouton"'));
 /* La case doit rester dans le parcours du clavier : cachée par un clip
@@ -102,7 +105,7 @@ dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" 
    Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
 dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,
   /og:image" content="[^"]*photos\/site\/partage-accueil\.jpg"/.test(accueil) && accueil.includes('og:image:width" content="800"'));
-const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parcours="${parcours}">\\s*<img src="[^"]*photos/site/([^"]+)"`))?.[1] ?? null;
+const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parcours="${parcours}">\\s*(?:<picture><source [^>]*>)?<img src="[^"]*photos/site/([^"]+)"`))?.[1] ?? null;
 dit('les portes portent chacune leur photo', ['portrait-accueil.jpg', 'attention.jpg', 'trois-couronnes.jpg', 'mnd-kids.jpg', 'brice.jpg'],
   ['creation', 'reparation', 'entretien', 'enfant', 'formation'].map(photoDeLaPorte));
 dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
@@ -150,7 +153,7 @@ dit('… et chacun NOMME sa vignette, au lieu de la tirer au sort', [], articles
 dit('… chaque vignette existe dans le dossier des photos', [], articlesDuJournal.filter((a) => !existsSync(`public/assets/photos/site/${a.image}`)).map((a) => a.image));
 dit('… et chaque vignette est inscrite au registre des accords', [], articlesDuJournal.filter((a) => !inscriteAuRegistre(a.image)).map((a) => a.image));
 const vignettesServies = [...(pages.get('/journal/') ?? '')
-  .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/"><img src="[^"]*photos\/site\/([^"]+)"/g)]
+  .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/">(?:<picture><source [^>]*>)?<img src="[^"]*photos\/site\/([^"]+)"/g)]
   .map((m) => `${m[1]} · ${m[2]}`);
 dit('… et la page servie pose bien celle-là sur cet article-là',
   articlesDuJournal.map((a) => `${a.slug} · ${a.image}`), vignettesServies);
@@ -243,6 +246,100 @@ dit('l’appel de fin de page ne répète pas le H1', false, premiere.includes(`
 /* ── UNE OFFRE DE VITRINE EST EN COURS SANS DATES ──────────────────── */
 dit('une offre active sans dates est « en cours »', 'cours', etatDeLOffre({ active: true }));
 dit('… inactive, elle dort', 'dort', etatDeLOffre({ active: false }));
+
+/* ── L'ÉTAT DES LIEUX DU 24 SEPTEMBRE 2026, TENU ────────────────────── */
+
+/* 9 · Le lien d'évitement : premier de chaque page, cible focalisable,
+   visible seulement au clavier (déplacé hors écran, jamais display:none). */
+dit('chaque page ouvre sur le lien d’évitement, avant tout le reste', [],
+  [...pages].filter(([, h]) => !/<body[^>]*>\s*<a class="evitement" href="#contenu">Aller au contenu<\/a>/.test(h)).map(([c]) => c));
+dit('… et le contenu principal porte sa cible, focalisable', [],
+  [...pages].filter(([, h]) => !h.includes('<main id="contenu" tabindex="-1">')).map(([c]) => c));
+const regleEvitement = feuille.match(/\.evitement\s*\{[^}]*\}/)?.[0] ?? '';
+dit('… sorti de l’écran par un déplacement, jamais par display:none', true,
+  /transform:\s*translateY\(-/.test(regleEvitement) && !/display:\s*none/.test(regleEvitement) && /\.evitement:focus\s*\{[^}]*transform:\s*none/.test(feuille));
+
+/* 6 · Les photos offrent leur WebP. L'attente vient de la règle : TOUTE image
+   du dossier des photos servie en JPEG est enveloppée d'un <picture> qui
+   propose le jumeau, et tout JPEG du dossier a un jumeau plus léger. */
+const jumeau = (f: string) => f.replace(/\.jpe?g$/i, '.webp');
+const photosNues = [...pages].flatMap(([c, h]) => {
+  const toutes = [...h.matchAll(/<img[^>]* src="\/assets\/photos\/site\/[^"]+\.jpe?g"/g)].length;
+  const vetues = [...h.matchAll(/<picture><source type="image\/webp" srcset="\/assets\/photos\/site\/([^"]+)\.webp"><img[^>]* src="\/assets\/photos\/site\/\1\.jpe?g"/g)].length;
+  return toutes === vetues ? [] : [`${c} : ${toutes - vetues} photo(s) sans WebP`];
+});
+dit('chaque photo servie est enveloppée d’un <picture> qui offre son WebP', [], photosNues);
+const jpgs = readdirSync('public/assets/photos/site').filter((f) => /\.jpe?g$/i.test(f));
+dit('chaque JPEG du dossier des photos a son jumeau WebP', [], jpgs.filter((f) => !existsSync(`public/assets/photos/site/${jumeau(f)}`)));
+dit('… plus léger que lui', [], jpgs.filter((f) => existsSync(`public/assets/photos/site/${jumeau(f)}`) && statSync(`public/assets/photos/site/${jumeau(f)}`).size >= statSync(`public/assets/photos/site/${f}`).size));
+dit('… et l’image de partage reste le JPEG, que les aperçus lisent partout', true, /og:image" content="[^"]*\.jpg"/.test(accueil));
+
+/* 6 · L'icône d'onglet est une icône : chaque <link> d'icône nomme sa taille,
+   le fichier existe et fait exactement cette taille (lue dans l'en-tête PNG). */
+const taillePng = (f: string) => { const b = readFileSync(f); return `${b.readUInt32BE(16)}x${b.readUInt32BE(20)}`; };
+const icones = [...accueil.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]*sizes="(\d+x\d+)"[^>]*href="([^"]+)"/g)].map((m) => ({ taille: m[1], href: m[2] }));
+dit('l’onglet et l’écran d’accueil ont leurs icônes, aux tailles annoncées', ['180x180', '192x192', '32x32'],
+  icones.map((i) => (existsSync(`public${i.href}`) && taillePng(`public${i.href}`) === i.taille ? i.taille : `${i.taille} manquante ou fausse`)).sort());
+dit('… plus jamais le monogramme de 1600 pixels en icône', false, /<link rel="icon"[^>]*monograms/.test(accueil));
+const manifeste = accueil.match(/<link rel="manifest" href="([^"]+)"/)?.[1] ?? '';
+const manifesteLu = manifeste && existsSync(`public${manifeste}`) ? JSON.parse(readFileSync(`public${manifeste}`, 'utf8')) : null;
+dit('le manifeste existe, et ses icônes aussi, à leur taille', ['192x192', '512x512'],
+  (manifesteLu?.icons ?? []).map((i: { src: string; sizes: string }) => (existsSync(`public${i.src}`) && taillePng(`public${i.src}`) === i.sizes ? i.sizes : `${i.sizes} manquante ou fausse`)));
+dit('… et reste un site, pas une application', 'browser', manifesteLu?.display);
+
+/* 4 et 8 · La fiche structurée relie exactement les comptes que le contenu
+   nomme, le pied les porte dans le même ordre, et la position n'est écrite
+   que si le contenu la connaît. Les horaires viennent du Trône : la forme
+   pure s'éprouve ici sans réseau. */
+const graphe = JSON.parse(accueil.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '{}')['@graph'] ?? [];
+const fiche = graphe.find((n: { '@type': string }) => n['@type'] === 'HairSalon') ?? {};
+const comptes = (['instagram', 'facebook', 'tiktok', 'google'] as const).map((k) => COMMUN.comptes?.[k]).filter(Boolean);
+dit('la fiche structurée relie exactement les comptes que le contenu nomme', comptes, fiche.sameAs ?? []);
+dit('… le pied du site les porte, dans le même ordre, en nouvel onglet', comptes,
+  [...(accueil.split('<footer>')[1] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)].map((m) => m[1]));
+dit('… la position seulement si le contenu la connaît', COMMUN.position ?? null,
+  fiche.geo ? { latitude: fiche.geo.latitude, longitude: fiche.geo.longitude } : null);
+dit('… la fiche Google est la carte', COMMUN.comptes?.google ?? null, fiche.hasMap ?? null);
+dit('… un ordre de grandeur, jamais un chiffre', true, fiche.priceRange === '$$' && !/\d/.test(String(fiche.priceRange)));
+if (fiche.openingHoursSpecification) {
+  dit('… les horaires écrits ouvrent avant de fermer, un jour au moins chacun', [],
+    (fiche.openingHoursSpecification as { dayOfWeek: string[]; opens: string; closes: string }[]).filter((r) => !r.dayOfWeek.length || !(r.opens < r.closes)));
+} else console.log('—     la fiche ne porte pas d’horaires : base non lue à la génération, ou semaine vide au Trône.');
+dit('les horaires du Trône se regroupent par jours consécutifs aux mêmes heures, et un jour fermé n’écrit rien',
+  [{ '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], opens: '09:00', closes: '18:00' },
+   { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Saturday'], opens: '09:00', closes: '14:00' }],
+  horairesStructures([
+    { key: 'dim', open: '09:00', close: '18:00', closed: true },
+    ...['lun', 'mar', 'mer', 'jeu', 'ven'].map((key) => ({ key, open: '09:00', close: '18:00', closed: false })),
+    { key: 'sam', open: '09:00', close: '14:00', closed: false },
+  ]));
+dit('… une heure mal écrite ou à l’envers ne sort pas', [], horairesStructures([{ key: 'lun', open: '18:00', close: '09:00', closed: false }, { key: 'mar', open: '9h', close: '18:00', closed: false }]));
+/* Le Trône écrit « 08h00 » et « 20h30 » : lus tels quels, écrits « 08:00 ». */
+dit('… et la forme du Trône, « 08h00 », s’écrit « 08:00 »',
+  [{ '@type': 'OpeningHoursSpecification', dayOfWeek: ['Tuesday', 'Wednesday'], opens: '08:00', closes: '20:30' }],
+  horairesStructures([{ key: 'lun', open: '08h00', close: '19h00', closed: true }, { key: 'mar', open: '08h00', close: '20h30', closed: false }, { key: 'mer', open: '08h00', close: '20h30', closed: false }]));
+
+/* 7 · Les offres sont dans la page avant le script, quand la construction a
+   pu lire la base. La règle : l'onglet ouvert montre les offres en cours,
+   sinon celles à venir ; l'accueil montre les offres en cours, sans onglets ;
+   chaque carte écrit son code ; le JSON ne peut pas fermer son script. */
+const pageOffres = pages.get('/les-offres/') ?? '';
+const initialesBrutes = pageOffres.match(/<div data-ilot="offres">\s*<script type="application\/json" data-initiales>([\s\S]*?)<\/script>/)?.[1];
+if (initialesBrutes === undefined) {
+  console.log('—     les offres ne sont pas écrites dans la page (base non lue à la génération) : l’îlot les montera, rien à éprouver ici.');
+} else {
+  const initiales = JSON.parse(initialesBrutes) as { code?: string; active?: boolean; du?: string; au?: string }[];
+  const enCours = initiales.filter((o) => etatDeLOffre(o) === 'cours');
+  const aVenir = initiales.filter((o) => etatDeLOffre(o) === 'venir');
+  const cartes = (h: string) => (h.match(/<article class="offre-site/g) ?? []).length;
+  dit('la page des offres écrit ses cartes dans le HTML : en cours, sinon à venir', enCours.length || aVenir.length, cartes(pageOffres));
+  dit('… l’accueil écrit les offres en cours, sans onglets', enCours.length, cartes(accueil));
+  dit('… et n’y pose aucun onglet', false, accueil.includes('role="tablist"'));
+  const montrees = enCours.length ? enCours : aVenir;
+  dit('… chaque carte écrit son code en toutes lettres', [], montrees.filter((o) => o.code && !pageOffres.includes(`<b>${o.code}</b>`)).map((o) => o.code));
+  dit('… le JSON ne peut pas fermer son script', false, /<\/|<script/i.test(initialesBrutes));
+  dit('… et l’accueil porte les mêmes données', true, accueil.includes(`<script type="application/json" data-initiales>${initialesBrutes}</script>`));
+}
 
 console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec.`);
 process.exit(ko === 0 ? 0 : 1);

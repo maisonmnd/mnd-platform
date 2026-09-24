@@ -246,3 +246,13 @@ export function ceQueLeCodeRetire(lignes: readonly LigneRemisee[]): { plein: num
   const net = lignes.reduce((t, l) => t + l.net, 0);
   return { plein, net, retire: plein - net, combien: lignes.filter((l) => l.remisee).length };
 }
+
+/* CE QUI SORT SUR LE TROTTOIR — 24 septembre 2026. La règle vivait dans
+   `maison.ts` (navigateur) ; la construction du site la lit aussi désormais,
+   pour écrire les offres dans la page avant qu'un seul script ne tourne. Une
+   seule règle, deux lecteurs : seules les offres ACTIVÉES sortent, et une
+   offre sans dates ne sort que si la Maison l'a cochée « vitrine ». */
+export function offresDuTrottoir<T extends { active?: boolean; du?: string; au?: string; vitrine?: boolean }>(liste: unknown): T[] {
+  if (!Array.isArray(liste)) return [];
+  return (liste as T[]).filter((o) => !!o && !!o.active && (!!o.du || !!o.au || !!o.vitrine));
+}
