@@ -82,6 +82,81 @@ export const CODE_MAX = 16;
 export const codeNormalise = (v: unknown): string =>
   String(v ?? '').replace(/\s+/g, '').toUpperCase().slice(0, CODE_MAX);
 
+/* ── LE CODE SE FABRIQUE, IL NE S'ÉCRIT PAS ────────────────────────
+   24 septembre 2026. « Le code ne doit pas être réécrit, il doit se
+   reporter automatiquement. Quand une offre est créée son code se crée
+   automatiquement » (Yéman).
+
+   La faute était nette : un champ vide à remplir à la main se laisse vide.
+   Son offre portait « −10 % » sur sa carte et aucun code derrière, et
+   personne ne le lui disait avant que la cliente voie le prix plein.
+
+   LA RÈGLE, en deux morceaux qu'on peut lire à voix haute : le premier mot
+   qui PORTE du sens dans le titre, articles et accents ôtés, puis le
+   pourcentage lu dans l'avantage. « La rentrée des couronnes » avec
+   « −10 % » donne RENTREE10, qui est exactement le code écrit à la main
+   dans la saison le matin même. Une règle qui retombe sur ce qu'une main
+   avait choisi est une règle juste.
+
+   LES SEPT SAISONS GARDENT LEURS CODES ÉCRITS : ROSE15 vaut mieux
+   qu'OCTOBRE15, FEMME15 mieux que MOIS15. Une règle est là pour les offres
+   qu'on invente un mardi, pas pour remplacer un choix meilleur. */
+
+/** Les mots qui ne portent rien : ils feraient des codes qui ne disent
+    rien, LAMAISON ou LESOFFRES. */
+const MOTS_VIDES = new Set([
+  'LE', 'LA', 'LES', 'UN', 'UNE', 'DES', 'DU', 'DE', 'AU', 'AUX', 'ET', 'OU',
+  'POUR', 'SUR', 'DANS', 'PAR', 'AVEC', 'SANS', 'MON', 'MA', 'MES', 'NOS',
+  'NOTRE', 'VOTRE', 'SON', 'SA', 'SES', 'CE', 'CETTE', 'L', 'D', 'A',
+]);
+
+/** Le titre, réduit à des lettres nues : les accents tombent, la
+    ponctuation aussi. « La fête des mères » devient LA FETE DES MERES. */
+const motsDuTitre = (titre: string): string[] =>
+  String(titre ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+
+/** LE POURCENTAGE ANNONCÉ, s'il y en a un. « −10 % » rend 10 ; « 2 = 1 »
+    ne rend rien, parce qu'un cadeau n'est pas un pourcentage et qu'un code
+    NOEL2 mentirait sur ce qu'il fait. */
+const pourcentDeLAvantage = (deal: string): string => {
+  const m = /(\d{1,2})\s*%/.exec(String(deal ?? ''));
+  return m ? m[1] : '';
+};
+
+/** LE CODE D'UNE OFFRE, fabriqué depuis ce qu'elle dit déjà.
+
+    `dejaPris` évite qu'une deuxième offre porte le code d'une première :
+    deux offres au même code, c'est la première trouvée qui gagne, et
+    laquelle dépend de l'ordre du tableau. On suffixe alors, sobrement.
+
+    Sans titre lisible, rien n'est rendu : mieux vaut pas de code qu'un code
+    qui ne veut rien dire et que personne ne retapera. */
+export function codeDepuisLOffre(
+  titre: string,
+  deal = '',
+  dejaPris: readonly string[] = [],
+): string {
+  const tous = motsDuTitre(titre);
+  const mots = tous.filter((w) => !MOTS_VIDES.has(w));
+  /* UN CODE ENGENDRÉ N'EST JAMAIS VIDE. Un titre fait d'articles, ou vide,
+     donnerait « avec le code » suivi de rien sur la carte, et une chaîne
+     vide n'est résolue par personne. On retombe sur le premier mot venu,
+     fût-il un article, et à défaut sur un repli qui porte un nom. */
+  const racine = (mots[0] ?? tous[0] ?? 'OFFRE').slice(0, 10);
+  const pris = new Set(dejaPris.map((c) => codeNormalise(c)).filter(Boolean));
+  const base = codeNormalise(racine + pourcentDeLAvantage(deal));
+  if (!pris.has(base)) return base;
+  for (let n = 2; n <= 99; n += 1) {
+    const suite = codeNormalise(base.slice(0, CODE_MAX - String(n).length) + n);
+    if (!pris.has(suite)) return suite;
+  }
+  return base;
+}
+
 export type OffreCodee = {
   active: boolean;
   du?: string;

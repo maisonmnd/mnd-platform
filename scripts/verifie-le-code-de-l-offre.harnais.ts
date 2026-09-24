@@ -11,7 +11,7 @@
    pas (un pourcentage n'a rien à mordre sur « au salon »). */
 import {
   CODE_MAX, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
-  prestationsDesCategories, SAISONS, offreDepuisLaSaison,
+  prestationsDesCategories, SAISONS, offreDepuisLaSaison, codeDepuisLOffre,
 } from '../src/shared/offers';
 
 let ko = 0;
@@ -37,6 +37,39 @@ const OFFRES = [RENTREE, SANS_PORTEE, CADEAU];
 dit('① les espaces et la casse ne font pas un autre code', 'RENTREE10', codeNormalise(' rentree 10 '));
 dit('② un code vide reste vide', '', codeNormalise(undefined));
 dit('③ un code ne dépasse pas sa longueur', CODE_MAX, codeNormalise('A'.repeat(40)).length);
+
+/* ── LE CODE SE FABRIQUE, IL NE S'ÉCRIT PAS ──────────────────────
+   « Le code ne doit pas être réécrit, il doit se reporter automatiquement »
+   (Yéman, 24 septembre 2026). Un champ vide à remplir à la main se laisse
+   vide : son offre annonçait « −10 % » et ne portait aucun code. */
+dit('㊀ le titre et l’avantage suffisent à faire le code',
+  'RENTREE10', codeDepuisLOffre('La rentrée des couronnes', '−10 %'));
+/* La règle retombe sur le code qu'une main avait choisi le matin même, dans
+   la saison, sans le connaître. C'est ce qui dit qu'elle est juste. */
+dit('㊁ … et elle retombe sur le code écrit à la main dans la saison', true,
+  codeDepuisLOffre('La rentrée des couronnes', '−10 %') === SAISONS.find((s) => s.cle === 'rentree')!.code);
+dit('㊂ les accents et les articles tombent', 'FETE', codeDepuisLOffre('La fête des mères', 'Le soin de la mère'));
+dit('㊃ un cadeau ne porte pas de chiffre : NOEL2 mentirait sur ce qu’il fait',
+  'NOEL', codeDepuisLOffre('Noël à la Maison', '2 = 1'));
+dit('㊄ deux offres ne portent jamais le même code',
+  'RENTREE102', codeDepuisLOffre('La rentrée des couronnes', '−10 %', ['RENTREE10']));
+dit('㊅ … même écrit autrement dans la liste des pris',
+  'RENTREE102', codeDepuisLOffre('La rentrée des couronnes', '−10 %', [' rentree 10 ']));
+/* Deux propriétés signalées par la session pair, et chacune coûte cher si
+   elle manque : un code qui n'est pas son propre normalisé ferait chercher
+   au serveur une chaîne que la carte n'affiche pas ; un code vide ne serait
+   résolu par personne et la carte dirait « avec le code » suivi de rien. */
+dit('㊆ UN CODE ENGENDRÉ EST DÉJÀ SON PROPRE NORMALISÉ', [],
+  [['La rentrée des couronnes', '−10 %'], ['Noël à la Maison', '2 = 1'], ['L’été à la Maison', '−5 %'],
+    ['', ''], ['   ', '−7 %'], ['Le de la', '−9 %'], ['ÉTÉ', '']]
+    .map(([t, d]) => codeDepuisLOffre(t, d))
+    .filter((c) => c !== codeNormalise(c)));
+dit('㊇ UN CODE ENGENDRÉ N’EST JAMAIS VIDE', [],
+  [['', ''], ['   ', '−7 %'], ['Le de la', '−9 %'], ['!!! ???', ''], ['La', '']]
+    .map(([t, d]) => codeDepuisLOffre(t, d))
+    .filter((c) => !c));
+dit('㊈ un titre fait d’articles retombe sur son premier mot', 'LE9', codeDepuisLOffre('Le de la', '−9 %'));
+dit('㊉ un titre sans la moindre lettre porte un nom quand même', 'OFFRE', codeDepuisLOffre('!!! ???', ''));
 
 /* ── QUEL CODE DÉSIGNE QUELLE OFFRE ──────────────────────────────── */
 dit('④ le code trouve son offre, écrit comme on veut', 'RENTREE10', offreDuCode(OFFRES, 'rentree10', LE_15)?.code);
@@ -143,5 +176,5 @@ const noel = SAISONS.find((s) => s.cle === 'noel')!;
 dit('㉟ un cadeau n’écrit aucune remise', undefined,
   offreDepuisLaSaison(noel, { du: '2026-12-01', au: '2026-12-31' }, 'b1', 'of-2', [], []).discountPct);
 
-console.log(ko === 0 ? `\nTOUT EST JUSTE (36 vérifications).` : `\n${ko} ÉCHEC(S).`);
+console.log(ko === 0 ? `\nTOUT EST JUSTE (46 vérifications).` : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

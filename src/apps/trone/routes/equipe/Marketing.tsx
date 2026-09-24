@@ -17,7 +17,7 @@ import {
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
   etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
-  prestationsDesCategories,
+  prestationsDesCategories, codeDepuisLOffre,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
 import { Pill, Tabs, Toggle } from './ui';
@@ -80,6 +80,18 @@ export default function Marketing() {
   /* La liste des prestations est longue : un filtre évite de faire
      défiler cent lignes pour en cocher quatre. */
   const [filtrePresta, setFiltrePresta] = useState('');
+  /* UN CODE EN CIRCULATION NE SE RÉÉCRIT PAS — 24 septembre 2026,
+     remarque de la session pair, et c'est elle qui porte le risque.
+
+     Le bouton de la carte emporte le code dans l'adresse : une cliente peut
+     l'avoir dans un message, sur une affiche, dans un onglet ouvert depuis
+     hier. Un code changé sous les pieds d'un lien déjà parti ne se rattrape
+     pas, et le serveur, lui, ne retire alors rien du tout, en silence.
+
+     Donc : le code se fabrique tant qu'il n'existe pas, et ne bouge plus dès
+     qu'il existe. Corriger un titre après coup est fréquent ; recevoir une
+     cliente avec un code mort ne l'est pas. */
+  const [codeALaMain, setCodeALaMain] = useState(false);
   const [autoActive, setAutoActive] = useStore(automationsActiveStore);
   const [automations, setAutomations] = useAutomations();
   const [autoCfg, setAutoCfg] = useStore(autoConfigStore);
@@ -266,7 +278,23 @@ export default function Marketing() {
     setAutoModal(null);
   };
 
-  const openNewOffer = () => { setOfferEditId(null); setOfferForm(emptyOffer); setOfferModal(true); };
+  /* LES CODES DÉJÀ PRIS, celui qu'on modifie excepté : deux offres au même
+     code, c'est la première trouvée qui gagne, et laquelle dépend de
+     l'ordre du tableau. */
+  const codesPris = (sauf?: string | null) => branchOffers.filter((o) => o.id !== sauf).map((o) => o.code ?? '');
+
+  /* LE CODE SUIT LE TITRE, tant que la Maison ne l'a pas choisi elle-même.
+     C'est la demande : « le code ne doit pas être réécrit, il doit se
+     reporter automatiquement ». */
+  const ecrisLOffre = (champs: Partial<OfferForm>) => {
+    setOfferForm((f) => {
+      const suite = { ...f, ...champs };
+      if (codeALaMain) return suite;
+      return { ...suite, code: codeDepuisLOffre(suite.title, suite.deal, codesPris(offerEditId)) };
+    });
+  };
+
+  const openNewOffer = () => { setOfferEditId(null); setOfferForm(emptyOffer); setCodeALaMain(false); setOfferModal(true); };
   const openEditOffer = (o: InstantOffer) => {
     setOfferEditId(o.id);
     setOfferForm({
@@ -276,11 +304,16 @@ export default function Marketing() {
       /* Une offre d'hier n'a qu'une prestation liée : elle devient le
          premier élément de la liste, et rien ne se perd. */
       serviceIds: o.serviceIds ?? (o.serviceId ? [o.serviceId] : []),
-      code: o.code ?? '',
+      /* UNE OFFRE D'HIER N'A PAS DE CODE : on le lui fabrique À L'OUVERTURE
+         plutôt qu'en silence à l'enregistrement. Elle le VOIT avant de
+         valider, et peut encore en choisir un autre. */
+      code: o.code ?? codeDepuisLOffre(o.title, o.deal, codesPris(o.id)),
       discountPct: o.discountPct != null ? String(o.discountPct) : '',
       du: o.du ?? '', au: o.au ?? '',
       vitrine: !!o.vitrine, parcours: o.parcours ?? '', bouton: o.bouton ?? '', conditions: o.conditions ?? '',
     });
+    /* Un code déjà posé est peut-être déjà parti : on ne le refabrique pas. */
+    setCodeALaMain(!!o.code);
     setOfferModal(true);
   };
   const saveOffer = () => {
@@ -294,7 +327,12 @@ export default function Marketing() {
          première cochée pour que ce geste continue de marcher. */
       serviceId: offerForm.serviceIds.length === 1 ? offerForm.serviceIds[0] : undefined,
       serviceIds: offerForm.serviceIds.length ? [...offerForm.serviceIds] : undefined,
-      code: codeNormalise(offerForm.code) || undefined,
+      /* UN CHAMP VIDE SE LAISSE VIDE, et c'est exactement ce qui est
+         arrivé : une offre annonçait « −10 % » et ne portait aucun code.
+         À l'enregistrement, un code absent se fabrique. */
+      code: codeNormalise(offerForm.code)
+        || codeDepuisLOffre(offerForm.title, offerForm.deal, codesPris(offerEditId))
+        || undefined,
       discountPct: Number.isFinite(disc) && disc > 0 ? Math.min(90, disc) : undefined,
       /* Une date vide NE S ECRIT PAS : l'offre reste alors sans saison et se
          comporte comme avant, ce qui protège toutes celles d'hier. */
@@ -771,26 +809,26 @@ export default function Marketing() {
         <Modal title={offerEditId ? 'Modifier l’offre instantanée.' : 'Nouvelle offre instantanée.'} onClose={() => setOfferModal(false)} width={560}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Field label="Prestation / offre">
-              <Input value={offerForm.title} onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })} />
+              <Input value={offerForm.title} onChange={(e) => ecrisLOffre({ title: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
               <Field label="Accroche">
                 <Input value={offerForm.tag} onChange={(e) => setOfferForm({ ...offerForm, tag: e.target.value })} />
               </Field>
               <Field label="Avantage · remise">
-                <Input value={offerForm.deal} onChange={(e) => setOfferForm({ ...offerForm, deal: e.target.value })} />
+                <Input value={offerForm.deal} onChange={(e) => ecrisLOffre({ deal: e.target.value })} />
               </Field>
             </div>
             <Field label="Détail">
               <Input value={offerForm.sub} onChange={(e) => setOfferForm({ ...offerForm, sub: e.target.value })} />
             </Field>
             <div className="tr-grid tr-grid--2">
-              <Field label="Code de la remise · écrit sur la carte du site">
+              <Field label="Code de la remise · il se fabrique tout seul">
                 <Input
                   value={offerForm.code}
                   placeholder="RENTREE10"
                   style={{ letterSpacing: '.12em', textTransform: 'uppercase' }}
-                  onChange={(e) => setOfferForm({ ...offerForm, code: codeNormalise(e.target.value) })}
+                  onChange={(e) => { setCodeALaMain(true); setOfferForm({ ...offerForm, code: codeNormalise(e.target.value) }); }}
                 />
               </Field>
               <Field label="Remise (%) · appliquée au prix">
