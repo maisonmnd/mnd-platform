@@ -134,7 +134,15 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const [offres, setOffres] = useState<OffreDuSite[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
-  const [recu, setRecu] = useState<{ date: string; heure: string; gestes: string[] } | null>(null);
+  const [recu, setRecu] = useState<{
+    date: string; heure: string; gestes: string[];
+    /* CE QUE LE SERVEUR A FAIT DU CODE — 24 septembre 2026. « Le code est
+       utilisable une fois par personne » (Yéman) : la page ne peut pas le
+       savoir, il faut le numéro, et elle ne l'a qu'au clic. Le serveur rend
+       donc sa raison, et on la dit ICI plutôt que de la laisser se
+       découvrir au comptoir. */
+    code?: string; codeApplique?: boolean; codeRaison?: string;
+  } | null>(null);
 
   useEffect(() => {
     let vivant = true;
@@ -273,7 +281,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           },
         },
       });
-      const r = (data ?? {}) as { ok?: boolean; error?: string };
+      const r = (data ?? {}) as {
+        ok?: boolean; error?: string;
+        code?: string; codeApplique?: boolean; codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise';
+      };
       if (error || !r.ok) {
         const code = r.error ?? (error?.message ?? '');
         if (code.includes('creneau')) {
@@ -292,7 +303,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         }
         return;
       }
-      setRecu({ date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name) });
+      setRecu({
+        date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name),
+        code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
+      });
       mesure('reservation_demandee', { parcours: besoin, genre: 'rdv' });
     } catch {
       setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, nous vous répondons.');
@@ -312,6 +326,22 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           <ul className="panier">
             {recu.gestes.map((n) => <li key={n} className="panier__ligne"><span className="panier__quoi">{n}</span></li>)}
           </ul>
+        )}
+        {/* LE SORT DU CODE, DIT AU CLIC. Trois raisons possibles, et chacune
+            a ses mots : une remise déjà prise n'est pas une faute, un code
+            inconnu n'est pas un reproche, et un cadeau ne se déduit pas mais
+            s'applique bien. Le silence, lui, laisserait croire à une remise
+            qui n'aura pas lieu. */}
+        {recu.code && (
+          <p className="code-offre__dit" style={{ marginTop: 14 }}>
+            {recu.codeApplique && !recu.codeRaison
+              ? `Le code ${recu.code} est porté sur votre demande.`
+              : recu.codeRaison === 'deja-utilise'
+                ? `Le code ${recu.code} a déjà servi avec ce numéro : il vaut une seule fois par personne. Votre place est demandée, au prix de la carte.`
+                : recu.codeRaison === 'inconnu'
+                  ? `Le code ${recu.code} ne court plus. Votre place est demandée, au prix de la carte.`
+                  : `Le code ${recu.code} est noté sur votre demande. Ce qu’il donne s’applique à la Maison, le jour venu.`}
+          </p>
         )}
         <div className="rangee">
           <a className="btn btn--fort" href={wa} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>Parler à MND sur WhatsApp</a>

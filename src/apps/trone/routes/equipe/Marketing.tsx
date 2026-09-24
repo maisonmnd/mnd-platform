@@ -17,6 +17,7 @@ import {
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
   etatDeLOffre, saisonsAProposer, saisonsDeLaMaison, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
+  OFFRES_DE_PARCOURS, offreDeParcours,
   prestationsDesCategories, codeDepuisLOffre,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
@@ -400,6 +401,26 @@ export default function Marketing() {
     [branchOffers],
   );
 
+  /* UNE OFFRE PAR PARCOURS — 24 septembre 2026, « crée des offres pour
+     chaque parcours du client » (Yéman). Elles n'ont pas de saison : elles
+     disent comment la Maison accueille sur chacune de ses cinq portes. Comme
+     les saisons, elles attendent d'être allumées. */
+  const parcoursProposes = useMemo(
+    () => saisonsDeLaMaison(OFFRES_DE_PARCOURS, branchOffers),
+    [branchOffers],
+  );
+
+  const activerLeParcours = (saison: (typeof OFFRES_DE_PARCOURS)[number]) => {
+    setOffers((prev) => [...prev, offreDeParcours(
+      saison, branch.id, `of-${uid()}`,
+      services.map((sv) => ({ id: sv.id, categoryId: sv.categoryId })),
+      categories.map((c) => ({ id: c.id, parentId: c.parentId })),
+    )]);
+  };
+
+  const basculeLOffre = (offreId: string, enLigne?: boolean) =>
+    setOffers((prev) => prev.map((x) => (x.id === offreId ? { ...x, active: !enLigne } : x)));
+
   /* ACTIVER, C'EST ÉCRIRE UNE VRAIE OFFRE. La saison n'est qu'un patron : ce
      geste en tire une offre datée, modifiable ensuite comme n'importe quelle
      autre, et c'est elle, jamais le patron, qui paraît au salon et sur le
@@ -546,8 +567,8 @@ export default function Marketing() {
               Activer suffit. Rien ne s’active sans vous.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {toutesLesSaisons.map(({ saison, du, au, dans, etat }) => (
-                <div key={saison.cle} className={`tre-saison${etat === 'posee' ? ' est-posee' : ''}`}>
+              {toutesLesSaisons.map(({ saison, du, au, dans, etat, offreId, enLigne }) => (
+                <div key={saison.cle} className={`tre-saison${etat === 'posee' && enLigne ? ' est-posee' : ''}`}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tre-saison__nom">
                       {saison.nom}
@@ -570,16 +591,67 @@ export default function Marketing() {
                             ? 'elle ouvre aujourd’hui'
                             : `commencée depuis ${-(dans ?? 0)} jour${-(dans ?? 0) > 1 ? 's' : ''}`}
                   </div>
-                  {etat === 'posee' || etat === 'sansDate' || !du || !au
-                    ? <span style={{ width: 92 }} />
-                    : (
+                  {/* ÉTEINDRE N'EST PAS SUPPRIMER — 24 septembre 2026,
+                      « mettre le bouton désactiver aussi » (Yéman). Le
+                      bouton rend le geste d'activer réversible depuis le
+                      même endroit. Il éteint l'offre, il ne l'efface pas :
+                      les réglages et les corrections de la Maison restent,
+                      et « Réactiver » les rallume tels quels. Pour retirer
+                      vraiment, « Retirer » vit sur la carte de l'offre, là
+                      où l'on voit ce qu'on jette. */}
+                  {etat === 'posee' && offreId
+                    ? (
                       <Button
-                        variant={etat === 'proche' ? 'copper' : 'ghost'}
-                        onClick={() => activerLaSaison(saison, du, au)}
+                        variant="ghost"
+                        onClick={() => basculeLOffre(offreId, enLigne)}
                       >
-                        Activer
+                        {enLigne ? 'Désactiver' : 'Réactiver'}
                       </Button>
-                    )}
+                    )
+                    : etat === 'sansDate' || !du || !au
+                      ? <span style={{ width: 92 }} />
+                      : (
+                        <Button
+                          variant={etat === 'proche' ? 'copper' : 'ghost'}
+                          onClick={() => activerLaSaison(saison, du, au)}
+                        >
+                          Activer
+                        </Button>
+                      )}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* LES CINQ PORTES ONT CHACUNE SON OFFRE. Écrites, jamais allumées
+              d'elles-mêmes : les mots et les chiffres sont à la Maison, et
+              ce qui lui est épargné, c'est de les écrire à partir de rien. */}
+          <Card className="tre-saisons">
+            <Eyebrow>Les parcours de la Maison</Eyebrow>
+            <div className="tre-saisons__titre">Une offre par parcours</div>
+            <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginBottom: 12 }}>
+              Sans saison : elles disent comment la Maison accueille sur chacune de ses portes,
+              et paraissent sur le site tant qu’elles sont allumées.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {parcoursProposes.map(({ saison, etat, offreId, enLigne }) => (
+                <div key={saison.cle} className={`tre-saison${etat === 'posee' && enLigne ? ' est-posee' : ''}`}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="tre-saison__nom">{saison.nom}</div>
+                    <div className="mnd-muted" style={{ fontSize: 12, fontWeight: 300 }}>
+                      {saison.tag} · {saison.deal}{saison.code ? ` · code ${saison.code}` : ''}
+                    </div>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {etat === 'posee' ? (enLigne ? 'en ligne' : 'éteinte') : 'à allumer'}
+                  </div>
+                  {etat === 'posee' && offreId
+                    ? (
+                      <Button variant="ghost" onClick={() => basculeLOffre(offreId, enLigne)}>
+                        {enLigne ? 'Désactiver' : 'Réactiver'}
+                      </Button>
+                    )
+                    : <Button variant="copper" onClick={() => activerLeParcours(saison)}>Activer</Button>}
                 </div>
               ))}
             </div>

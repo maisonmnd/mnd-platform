@@ -118,6 +118,12 @@ export type Saison = {
   parAnnee?: Record<string, { du: string; au: string }>;
   /** Vrai tant que la Maison n'a pas confirmé la date portée ici. */
   aConfirmer?: boolean;
+  /** SANS SAISON — 24 septembre 2026. « Crée des offres pour chaque parcours
+      du client » (Yéman). Celles-ci n'ont pas de dates : elles ne disent pas
+      un moment de l'année, elles disent comment la Maison accueille sur un
+      parcours. Elles paraissent sur le site tant qu'elles sont actives, par
+      le drapeau `vitrine`, et ne se proposent jamais « dans X jours ». */
+  permanente?: boolean;
 
   /* ── CE QUI FAIT QU'ACTIVER SUFFIT — 24 septembre 2026 ──────────────
      « Pré-remplis toutes les offres à venir, il suffira juste que je les
@@ -291,6 +297,110 @@ export function saisonsAProposer(
   return out.sort((a, b) => a.dans - b.dans);
 }
 
+/* ══ UNE OFFRE PAR PARCOURS ═════════════════════════════════════════
+   24 septembre 2026. « Crée des offres pour chaque parcours du client »
+   (Yéman). Les cinq portes de l'accueil ont désormais chacune la sienne.
+
+   ELLES NE S'ACTIVENT PAS TOUTES SEULES, et c'est le point : ce sont des
+   propositions écrites, que la Maison lit et allume une par une. Les mots et
+   les chiffres sont à elle, changeables en un champ ; ce qui est fait ici,
+   c'est de lui épargner de les écrire à partir de rien.
+
+   QUATRE CADEAUX ET UNE SEULE REMISE, délibérément. Un geste offert se donne
+   à la venue et se mesure ; un pourcentage court sur tout ce que couvre
+   l'offre, et c'est plus lourd à porter qu'il n'y paraît. La Maison montera
+   les autres en pourcentage si elle le veut, en écrivant un nombre. */
+export const OFFRES_DE_PARCOURS: readonly Saison[] = [
+  {
+    /* La consultation déduite vient d'un mot de Yéman déjà écrit dans ce
+       dépôt : « elle n'a pas de saison, elle dit comment la Maison
+       accueille ». C'est exactement ce qu'est une offre de parcours. */
+    cle: 'p-creation', nom: 'La consultation déduite', tag: 'Première Couronne',
+    deal: 'Consultation déduite',
+    sub: 'Votre consultation de diagnostic est déduite du prix de votre création.',
+    permanente: true, code: 'CREATION', categories: ['koko'],
+    parcours: 'creation', bouton: 'Réserver ma consultation',
+    conditions: 'La consultation de diagnostic est déduite du prix de la création, le jour où '
+      + 'celle-ci se fait. Elle se déduit à la Maison, elle ne se retire pas d’avance. '
+      + 'Une seule fois par personne, et une offre à la fois.',
+  },
+  {
+    cle: 'p-reparation', nom: 'Le diagnostic offert', tag: 'Réparation',
+    deal: 'Diagnostic offert',
+    sub: 'Nous regardons votre couronne avant de rien promettre, et ce regard est offert.',
+    permanente: true, code: 'REPARATION', categories: ['koko'],
+    parcours: 'reparation', bouton: 'Faire diagnostiquer ma couronne',
+    conditions: 'Le diagnostic est offert pour toute couronne que la Maison n’a pas créée. '
+      + 'Il s’offre à la venue, il ne se déduit pas d’avance. '
+      + 'Une seule fois par personne, et une offre à la fois.',
+  },
+  {
+    cle: 'p-entretien', nom: 'Le shampoing offert', tag: 'Entretien',
+    deal: 'Shampoing offert',
+    sub: 'Un shampoing rituel offert pour toute reprise de racines prise le même jour.',
+    permanente: true, code: 'ENTRETIEN', categories: [LAVAGES],
+    parcours: 'entretien',
+    conditions: 'Un shampoing rituel offert pour toute reprise de racines prise dans la même '
+      + 'venue. Il s’offre à la Maison, il ne se déduit pas d’avance. '
+      + 'Une seule fois par personne, et une offre à la fois.',
+  },
+  {
+    cle: 'p-enfant', nom: 'MND Kids, le soin offert', tag: 'MND Kids',
+    deal: 'Soin offert',
+    sub: 'Un soin renfort offert à chaque première venue d’un enfant.',
+    permanente: true, code: 'KIDS', categories: ['cat-mnd-kids'],
+    parcours: 'enfant', bouton: 'Organiser notre venue',
+    conditions: 'Un soin renfort offert à la première venue de l’enfant. Il s’offre à la '
+      + 'Maison, il ne se déduit pas d’avance. Aucun prénom d’enfant n’est publié. '
+      + 'Une seule fois par enfant, et une offre à la fois.',
+  },
+  {
+    /* La seule en pourcentage : un cursus se décide longtemps à l'avance et
+       se paie d'un coup, ce qu'une remise reconnaît mieux qu'un cadeau. */
+    cle: 'p-formation', nom: 'Le cursus à moins dix', tag: 'Formations',
+    deal: '−10 %',
+    sub: 'Sur le cursus certifiant et ses modules, pour qui s’engage sur le parcours entier.',
+    permanente: true, code: 'CURSUS10', remise: 10, categories: ['aca-pro'],
+    parcours: 'formation', bouton: 'Voir le programme',
+    conditions: 'Sur le cursus certifiant et ses modules. '
+      + 'Une seule fois par personne, et une offre à la fois.',
+  },
+];
+
+/** L'offre PERMANENTE qu'un parcours fait naître. Sans dates, et portant le
+    drapeau `vitrine` : c'est lui qui la fait paraître sur le site sans
+    saison, là où une offre datée se montre par ses dates. */
+export function offreDeParcours(
+  s: Saison,
+  branchId: string,
+  id: string,
+  catalogue: readonly { id: string; categoryId?: string }[] = [],
+  arbre: readonly { id: string; parentId?: string }[] = [],
+): InstantOffer {
+  const couvertes = s.categories?.length ? prestationsDesCategories(s.categories, catalogue, arbre) : [];
+  return {
+    id,
+    branchId,
+    title: s.nom,
+    tag: s.tag,
+    deal: s.deal,
+    sub: s.sub,
+    audience: 'Tous',
+    days: [...OFFER_DAYS],
+    heureDebut: OFFER_HOURS[0],
+    heureFin: OFFER_HOURS[OFFER_HOURS.length - 1],
+    active: true,
+    vitrine: true,
+    ...(couvertes.length === 1 ? { serviceId: couvertes[0] } : {}),
+    ...(s.code ? { code: s.code } : {}),
+    ...(s.remise ? { discountPct: s.remise } : {}),
+    ...(couvertes.length ? { serviceIds: couvertes } : {}),
+    ...(s.parcours ? { parcours: s.parcours } : {}),
+    ...(s.bouton ? { bouton: s.bouton } : {}),
+    ...(s.conditions ? { conditions: s.conditions } : {}),
+  };
+}
+
 /** TOUTES LES SAISONS DE LA MAISON, ET OÙ ELLES EN SONT — 24 septembre
     2026. « Où sont les sept saisons d'offres à venir ? » (Yéman).
 
@@ -302,26 +412,53 @@ export function saisonsAProposer(
 
     Cette porte-ci rend les sept, toujours, avec leur prochaine ouverture et
     leur état. Avertir et montrer sont deux gestes différents. */
-export type EtatDeSaison = 'posee' | 'proche' | 'lointaine' | 'sansDate';
+export type EtatDeSaison = 'posee' | 'proche' | 'lointaine' | 'sansDate' | 'permanente';
+
+export type SaisonVue = {
+  saison: Saison;
+  du?: string;
+  au?: string;
+  dans?: number;
+  etat: EtatDeSaison;
+  /** L'offre qui porte cette saison, quand elle est posée. */
+  offreId?: string;
+  enLigne?: boolean;
+};
 
 export function saisonsDeLaMaison(
   saisons: readonly Saison[],
   dejaPosees: readonly InstantOffer[],
   now = new Date(),
   fenetre = FENETRE_PROPOSITION,
-): { saison: Saison; du?: string; au?: string; dans?: number; etat: EtatDeSaison }[] {
+): SaisonVue[] {
   const j = isoDuJour(now);
-  return saisons.map((saison) => {
+  return saisons.map((saison): SaisonVue => {
+    /* UNE PERMANENTE N'A PAS DE PROCHAINE FOIS : elle est là ou elle n'y
+       est pas. On la reconnaît à l'offre qui porte son nom, sans date. */
+    if (saison.permanente) {
+      const portee = dejaPosees.find((o) => o.title === saison.nom);
+      return {
+        saison,
+        etat: portee ? ('posee' as const) : ('permanente' as const),
+        ...(portee ? { offreId: portee.id, enLigne: !!portee.active } : {}),
+      };
+    }
     const d = prochaineOccurrence(saison, now);
     /* SANS DATE CONNUE, on le DIT plutôt que de la taire : le Ramadan et la
        fête des mères se constatent, et une année non inscrite est une chose
        à faire, pas une saison qui n'existe pas. */
     if (!d) return { saison, etat: 'sansDate' as const };
     const dans = joursEntre(j, d.du);
-    const posee = dejaPosees.some((o) => o.du === d.du && o.title === saison.nom);
+    /* L'OFFRE QUI PORTE LA SAISON, s'il y en a une : c'est elle qu'on éteint
+       et qu'on rallume depuis l'almanach. On la NOMME plutôt que de la faire
+       chercher, pour que « désactiver » ne devienne jamais « supprimer » par
+       raccourci : une offre éteinte garde ses réglages et les corrections que
+       la Maison y a faites. */
+    const portee = dejaPosees.find((o) => o.du === d.du && o.title === saison.nom);
     return {
       saison, du: d.du, au: d.au, dans,
-      etat: posee ? ('posee' as const) : (dans <= fenetre ? ('proche' as const) : ('lointaine' as const)),
+      etat: portee ? ('posee' as const) : (dans <= fenetre ? ('proche' as const) : ('lointaine' as const)),
+      ...(portee ? { offreId: portee.id, enLigne: !!portee.active } : {}),
     };
   }).sort((a, b) => (a.dans ?? 9999) - (b.dans ?? 9999));
 }

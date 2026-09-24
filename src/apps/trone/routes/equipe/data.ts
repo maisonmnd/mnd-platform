@@ -292,6 +292,7 @@ export {
   offersStore, useOffers, offerLiveNow,
   etatDeLOffre, prochaineOccurrence, saisonsAProposer, offreDepuisLaSaison,
   SAISONS, FENETRE_PROPOSITION, codeNormalise, prestationsDesCategories, codeDepuisLOffre, saisonsDeLaMaison,
+  OFFRES_DE_PARCOURS, offreDeParcours,
   type InstantOffer,
 } from '../../../../shared/offers';
 

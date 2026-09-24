@@ -12,6 +12,7 @@
 import {
   CODE_MAX, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, saisonsAProposer,
   prestationsDesCategories, SAISONS, offreDepuisLaSaison, codeDepuisLOffre, saisonsDeLaMaison,
+  OFFRES_DE_PARCOURS, offreDeParcours,
 } from '../src/shared/offers';
 
 let ko = 0;
@@ -221,5 +222,36 @@ const noel = SAISONS.find((s) => s.cle === 'noel')!;
 dit('㉟ un cadeau n’écrit aucune remise', undefined,
   offreDepuisLaSaison(noel, { du: '2026-12-01', au: '2026-12-31' }, 'b1', 'of-2', [], []).discountPct);
 
-console.log(ko === 0 ? `\nTOUT EST JUSTE (57 vérifications).` : `\n${ko} ÉCHEC(S).`);
+/* ── UNE OFFRE PAR PARCOURS ──────────────────────────────────────
+   « Crée des offres pour chaque parcours du client » (Yéman, 24 septembre
+   2026). Cinq portes, cinq offres, sans saison : elles ne disent pas un
+   moment de l'année mais comment la Maison accueille. */
+const PORTES = ['creation', 'reparation', 'entretien', 'enfant', 'formation'];
+dit('㊕ les cinq portes ont chacune la sienne', PORTES.sort(),
+  OFFRES_DE_PARCOURS.map((o) => o.parcours ?? '').sort());
+dit('㊖ toutes sont permanentes : aucune ne prétend à une saison', [],
+  OFFRES_DE_PARCOURS.filter((o) => !o.permanente || o.debut || o.au || o.parAnnee).map((o) => o.cle));
+dit('㊗ chacune porte un code, et deux n’en partagent jamais un',
+  OFFRES_DE_PARCOURS.length, new Set(OFFRES_DE_PARCOURS.map((o) => codeNormalise(o.code))).size);
+dit('㊘ aucun code de parcours ne heurte un code de saison', [],
+  OFFRES_DE_PARCOURS.map((o) => codeNormalise(o.code)).filter((c) => SAISONS.some((s) => codeNormalise(s.code) === c)));
+dit('㊙ chacune borne sa promesse', [],
+  OFFRES_DE_PARCOURS.filter((o) => !(o.conditions ?? '').toLowerCase().includes('une seule fois')).map((o) => o.cle));
+/* La règle qui coûte de l'argent vaut ici comme ailleurs : une remise sans
+   portée annoncerait un pourcentage que rien n'applique. */
+dit('㊚ AUCUNE REMISE SANS PORTÉE, ici non plus', [],
+  OFFRES_DE_PARCOURS.filter((o) => o.remise && !o.categories?.length).map((o) => o.cle));
+/* L'offre écrite doit porter `vitrine` : sans dates, c'est LUI qui la fait
+   paraître sur le site. Sans lui elle serait invisible, et personne ne le
+   verrait avant de chercher pourquoi. */
+const dePorte = offreDeParcours(
+  OFFRES_DE_PARCOURS.find((o) => o.cle === 'p-entretien')!, 'b1', 'of-p',
+  [{ id: 'sv-a', categoryId: 'cat-lavages' }, { id: 'sv-z', categoryId: 'cat-souverain' }], [],
+);
+dit('㊛ une offre de parcours PARAÎT SUR LE SITE sans dates', true, !!dePorte.vitrine);
+dit('㊜ … et ne s’invente aucune saison', [undefined, undefined], [dePorte.du, dePorte.au]);
+dit('㊝ … elle porte son code et ses prestations', ['ENTRETIEN', ['sv-a']], [dePorte.code, dePorte.serviceIds]);
+dit('㊞ un cadeau de parcours n’écrit aucune remise', undefined, dePorte.discountPct);
+
+console.log(ko === 0 ? `\nTOUT EST JUSTE (67 vérifications).` : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);
