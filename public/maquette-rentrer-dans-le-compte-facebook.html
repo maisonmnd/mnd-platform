@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Rentrer dans le compte Facebook &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE;
+    --indigo:#1E2150; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --vert:#4A6B52; --vert-f:#EFF3EF; --vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:940px;margin:0 auto;padding:52px 24px 100px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(34px,6vw,54px);line-height:1.05;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(22px,3vw,30px);color:var(--indigo);
+     margin:0 0 6px;text-wrap:balance}
+  .chapeau{max-width:64ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:52px}
+  .intro{max-width:72ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+
+  .barrage{border:1px solid var(--brique-p);background:var(--brique-f);border-left:3px solid var(--brique);
+           border-radius:4px;padding:20px 22px;margin-top:26px}
+  .barrage h2{color:var(--brique)}
+  .barrage p{margin:10px 0 0;max-width:72ch}
+  .barrage p b{font-weight:500;color:var(--encre)}
+
+  .constat{border:1px solid var(--filet);background:var(--ivoire);border-radius:4px;padding:18px 20px;margin-top:20px}
+  .constat h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 10px}
+  .constat ul{margin:0;padding-left:18px}
+  .constat li{margin-top:7px;color:var(--encre-d)}
+  .constat li b{color:var(--encre);font-weight:500}
+
+  .phase{margin-top:34px}
+  .phase__titre{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .phase__n{font-family:var(--serif);font-size:15px;color:var(--cuivre);letter-spacing:.06em}
+  .phase__quand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d)}
+
+  ol.pas{list-style:none;margin:0;padding:0;counter-reset:pas}
+  ol.pas li{counter-increment:pas;border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);
+            padding:14px 16px 14px 52px;position:relative;margin-top:10px}
+  ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;
+            font-family:var(--serif);font-size:19px;color:var(--cuivre);line-height:1}
+  ol.pas li.fait{opacity:.55}
+  ol.pas li.fait .quoi{text-decoration:line-through}
+  .quoi{font-weight:500;display:block;padding-right:80px}
+  .pourquoi{font-size:13px;color:var(--encre-d);margin-top:5px}
+  .pourquoi b{color:var(--encre);font-weight:500}
+  .ou{font-size:12px;color:var(--encre-d);margin-top:7px;letter-spacing:.02em}
+  .ou b{color:var(--indigo);font-weight:500}
+  .coche{position:absolute;right:14px;top:13px;display:flex;align-items:center;gap:7px;font-size:11px;
+         letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);cursor:pointer}
+  .coche input{width:17px;height:17px;accent-color:var(--cuivre);cursor:pointer}
+  @media (max-width:620px){
+    ol.pas li{padding-right:16px;padding-top:40px}
+    .quoi{padding-right:0}
+    .coche{top:12px;right:auto;left:16px}
+    ol.pas li::before{top:40px}
+  }
+
+  .garde{border-left:2px solid var(--brique);background:var(--brique-f);padding:9px 12px;margin-top:10px;
+         font-size:12.5px;line-height:1.55}
+  .garde b{font-weight:500}
+  .bon{border-left:2px solid var(--vert);background:var(--vert-f);padding:9px 12px;margin-top:10px;
+       font-size:12.5px;line-height:1.55}
+
+  .mot{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#fff;
+       border:1px solid var(--filet);border-radius:3px;padding:1px 6px;overflow-wrap:anywhere}
+  .avance{position:sticky;top:0;z-index:5;background:var(--parchemin);padding:12px 0 10px;
+          border-bottom:1px solid var(--filet);margin-bottom:-1px;font-size:12.5px;color:var(--encre-d)}
+  .avance b{color:var(--indigo);font-weight:500}
+  footer{margin-top:70px;border-top:1px solid var(--filet);padding-top:16px;font-size:12px;color:var(--encre-d)}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND &middot; Marche &agrave; suivre</p>
+  <h1>Rentrer dans le compte Facebook</h1>
+  <p class="chapeau">
+    Le mot de passe passe, la v&eacute;rification s&rsquo;ouvre, le code arrive sur WhatsApp, et Facebook
+    r&eacute;pond <b>&laquo; Ce code est incorrect &raquo;</b>. Huit pas, du moins co&ucirc;teux au dernier
+    recours. <b>Aucun ne cr&eacute;e de compte.</b> Cochez au fur et &agrave; mesure : la page garde vos coches.
+  </p>
+
+  <div class="avance" id="avance">&nbsp;</div>
+
+  <div class="constat">
+    <h3>Ce que l&rsquo;&eacute;cran dit d&eacute;j&agrave;</h3>
+    <ul>
+      <li><b>Le mot de passe est bon.</b> Sans lui, la double v&eacute;rification ne s&rsquo;ouvrirait pas.</li>
+      <li><b>Le compte n&rsquo;est pas d&eacute;sactiv&eacute;.</b> Un compte ferm&eacute; l&rsquo;annonce en toutes
+        lettres ; il ne demande pas de code.</li>
+      <li><b>Le code part sur un WhatsApp dont le num&eacute;ro finit par 25.</b> Ni le num&eacute;ro du
+        registre ni celui de la branche ne finit ainsi : c&rsquo;est un troisi&egrave;me num&eacute;ro. Savoir
+        lequel importe, car c&rsquo;est lui qui tient la porte de ce compte.</li>
+    </ul>
+  </div>
+
+  <div class="barrage">
+    <h2>Deux choses &agrave; ne pas faire</h2>
+    <p>
+      <b>Ne pas cr&eacute;er un second compte.</b> Meta examine en ce moment le nom &laquo; Maison MND &raquo;,
+      et un compte neuf &agrave; la m&ecirc;me enseigne peut faire &eacute;chouer cet examen. Les abonn&eacute;s,
+      l&rsquo;anciennet&eacute; et l&rsquo;historique ne se transf&egrave;rent pas : un second compte coupe
+      l&rsquo;audience en deux, et cela ne se d&eacute;fait pas.
+    </p>
+    <p>
+      <b>Ne pas encha&icirc;ner les tentatives.</b> Apr&egrave;s plusieurs codes refus&eacute;s, Facebook ferme
+      la v&eacute;rification pour plusieurs heures, et l&rsquo;attente devient la seule voie. Trois essais,
+      puis on change de porte.
+    </p>
+  </div>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase I</span>
+        <h2>Le code, et rien d&rsquo;autre</h2>
+        <span class="phase__quand">cinq minutes &middot; trois essais au plus</span>
+      </div>
+      <p class="intro">
+        La cause la plus fr&eacute;quente de &laquo; code incorrect &raquo; n&rsquo;est pas un compte
+        cass&eacute; : c&rsquo;est <b>un code p&eacute;rim&eacute; ou d&eacute;pass&eacute; par un autre</b>.
+        Les trois pas suivants ne co&ucirc;tent rien et suffisent souvent.
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Demander un nouveau code, et oublier tous les pr&eacute;c&eacute;dents</span>
+          <p class="pourquoi">
+            D&egrave;s qu&rsquo;un nouveau code part, celui d&rsquo;avant ne vaut plus, et il r&eacute;pond
+            exactement <b>&laquo; Ce code est incorrect &raquo;</b>. Un code juste, demand&eacute; il y a dix
+            minutes, donne le m&ecirc;me message qu&rsquo;un code faux.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; le lien <span class="mot">Recevoir un nouveau code</span>, sous le champ.</p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Le lire tout en bas de la conversation, pas plus haut</span>
+          <p class="pourquoi">
+            La conversation Facebook dans WhatsApp empile les codes des derni&egrave;res minutes. Seul
+            <b>le tout dernier message</b> compte. C&rsquo;est l&rsquo;erreur la plus facile &agrave; faire,
+            et elle ressemble &agrave; une panne.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; WhatsApp, conversation &laquo; Facebook &raquo;, dernier message re&ccedil;u.</p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Le saisir &agrave; la main, sans espace, dans la foul&eacute;e</span>
+          <p class="pourquoi">
+            Un code vit quelques minutes. Le copier-coller emporte parfois une espace invisible, que le
+            champ refuse sans le dire.
+          </p>
+          <div class="garde">
+            <b>Si ce troisi&egrave;me essai &eacute;choue, arr&ecirc;tez l&agrave;.</b> Un quatri&egrave;me
+            n&rsquo;apportera rien et rapproche du verrouillage. Passez &agrave; la phase II, qui ne passe
+            plus par WhatsApp.
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase II</span>
+        <h2>Changer de porte</h2>
+        <span class="phase__quand">dix minutes &middot; aucun risque</span>
+      </div>
+      <p class="intro">
+        Si le code de WhatsApp est refus&eacute; trois fois de suite, <b>c&rsquo;est la remise par WhatsApp
+        qui est en cause</b>, pas vous. Les trois voies suivantes l&rsquo;&eacute;vitent.
+      </p>
+
+      <ol class="pas" start="4" style="counter-reset:pas 3">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Essayer d&rsquo;une autre mani&egrave;re, et choisir le courriel ou le SMS</span>
+          <p class="pourquoi">
+            Le m&ecirc;me compte, une autre remise. Si le courriel propos&eacute; est
+            <span class="mot">contact@maisonmnd.com</span>, il est chez Zoho et vous y avez acc&egrave;s.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; le bouton <span class="mot">Essayer d&rsquo;une autre mani&egrave;re</span>, en bas de l&rsquo;&eacute;cran du code.</p>
+          <div class="bon">
+            Notez au passage <b>quelles voies Facebook propose</b>, et &agrave; quelle adresse ou quel
+            num&eacute;ro. C&rsquo;est la carte des cl&eacute;s de ce compte, et elle servira le jour du renommage.
+          </div>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Approuver depuis un appareil d&eacute;j&agrave; connect&eacute;</span>
+          <p class="pourquoi">
+            Si l&rsquo;application Facebook est rest&eacute;e ouverte sur un t&eacute;l&eacute;phone ou une
+            tablette, elle re&ccedil;oit une notification &agrave; approuver. <b>Cette voie ne passe par aucun
+            code</b>, donc aucune de ses pannes.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; dans &laquo; Essayer d&rsquo;une autre mani&egrave;re &raquo;, la ligne qui parle d&rsquo;un appareil ou d&rsquo;une notification.</p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Recommencer depuis un appareil qui s&rsquo;est d&eacute;j&agrave; connect&eacute;</span>
+          <p class="pourquoi">
+            Un ordinateur ou un t&eacute;l&eacute;phone que Facebook reconna&icirc;t peut sauter la
+            v&eacute;rification enti&egrave;rement. Essayez le t&eacute;l&eacute;phone si vous &ecirc;tes sur
+            l&rsquo;ordinateur, et l&rsquo;inverse.
+          </p>
+        </li>
+      </ol>
+    </div>
+
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase III</span>
+        <h2>Si aucune porte ne s&rsquo;ouvre</h2>
+        <span class="phase__quand">le lendemain, sans se presser</span>
+      </div>
+
+      <ol class="pas" start="7" style="counter-reset:pas 6">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Ouvrir le gestionnaire d&rsquo;entreprise avec les m&ecirc;mes identifiants</span>
+          <p class="pourquoi">
+            Il sert deux fois. La Page y appara&icirc;t parfois alors que l&rsquo;entr&eacute;e habituelle
+            r&eacute;siste. Et c&rsquo;est l&agrave; que se lit <b>l&rsquo;&eacute;tat du nom
+            &laquo; Maison MND &raquo; chez Meta</b>, le seul fait qui g&egrave;le tout le reste depuis le
+            23 septembre.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; <span class="mot">business.facebook.com</span>, puis WhatsApp Manager, Num&eacute;ros de t&eacute;l&eacute;phone, colonne du nom affich&eacute;.</p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Demander la r&eacute;cup&eacute;ration assist&eacute;e, avec une pi&egrave;ce d&rsquo;identit&eacute;</span>
+          <p class="pourquoi">
+            C&rsquo;est la voie officielle quand la double v&eacute;rification ne s&rsquo;ouvre plus. Elle
+            prend quelques jours et demande une pi&egrave;ce d&rsquo;identit&eacute; du titulaire du compte.
+          </p>
+          <p class="ou"><b>O&ugrave;</b> &middot; <span class="mot">facebook.com/login/identify</span></p>
+          <div class="garde">
+            <b>Aucun service payant.</b> Personne ne r&eacute;cup&egrave;re un compte Facebook contre
+            paiement : ceux qui le promettent prennent l&rsquo;argent, et souvent le compte.
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    Maison MND &middot; 24 septembre 2026 &middot; Un code de v&eacute;rification est un secret&nbsp;:
+    il ne se photographie pas et ne s&rsquo;envoie &agrave; personne, pas m&ecirc;me ici. Un code qui a
+    &eacute;t&eacute; vu ailleurs que sur votre &eacute;cran se remplace par un nouveau.
+  </footer>
+</div>
+
+<script>
+  /* LES COCHES SURVIVENT A LA FERMETURE : la phase III se joue le lendemain,
+     et une marche a suivre qui oublie ou l on en etait fait refaire les pas
+     qui ont deja echoue. */
+  (function () {
+    var CLE = 'mnd-cahier-compte-facebook-v1';
+    var cases = Array.prototype.slice.call(document.querySelectorAll('.coche input'));
+    var lu = [];
+    try { lu = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch (e) { lu = []; }
+
+    function dit() {
+      var n = cases.filter(function (c) { return c.checked; }).length;
+      document.getElementById('avance').innerHTML = n === 0
+        ? 'Aucun pas fait. Le premier est de demander un nouveau code.'
+        : '<b>' + n + '</b> pas sur ' + cases.length + ' faits.' + (n === cases.length ? ' Tout est fait.' : '');
+    }
+
+    cases.forEach(function (c, i) {
+      c.checked = !!lu[i];
+      if (c.checked) c.closest('li').classList.add('fait');
+      c.addEventListener('change', function () {
+        c.closest('li').classList.toggle('fait', c.checked);
+        try {
+          localStorage.setItem(CLE, JSON.stringify(cases.map(function (x) { return x.checked; })));
+        } catch (e) { /* page ouverte depuis un fichier : les coches valent pour la session */ }
+        dit();
+      });
+    });
+    dit();
+  }());
+</script>
+</body>
+</html>
