@@ -98,12 +98,15 @@ ressources), PUIS les renvois. Entre les deux, les deux formes répondent :
 rien ne casse. Le pair remet ensuite ses quarante liens de maquettes à la
 forme courte.
 
-**Ce que la construction fait remonter à la racine, à regarder ensuite** :
+**Ce que la construction faisait remonter à la racine, trié le soir même** :
 `public/` est recopié tel quel dans chaque site, donc `sw.js`, quatre
-manifestes, `payer.html`, `apropos.html`, `confidentialite.html` vivent
-maintenant à maisonmnd.com/… au lieu de /revelateur/… . Même exposition
-qu'avant, adresse plus courte. La vitrine n'enregistre aucun service
-worker : `/sw.js` y est inerte. Un tri de `public/` par site serait propre.
+manifestes, `payer.html`, `apropos.html`, `confidentialite.html` et
+l'affiche MoMo sont arrivés à maisonmnd.com/… par la copie, sans qu'aucune
+page ne les lie (le Trône lie /trone/payer.html sur sa propre adresse ; Meta
+connaît /couronne/confidentialite.html et /couronne/apropos.html). Depuis,
+le site qui vit à la racine ne garde de `public/` que les jetons Google et
+`assets/` (`JETON_GOOGLE` dans build-sites) ; le harnais tient la règle dans
+les deux sens, un fichier cité par une page et absent crie aussi.
 
 ## « J'EN PROFITE » NE MENAIT NULLE PART — 24 septembre 2026
 

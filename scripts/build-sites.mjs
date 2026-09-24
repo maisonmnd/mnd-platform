@@ -54,6 +54,24 @@ const ORIGINE_PAGES = origineDesPages();
    que personne ne doit lire, et des adresses de connexion. */
 const INDEXABLES = new Set(['academie', 'lokaa', 'mnd-platform', 'revelateur']);
 
+/* À LA RACINE DU DOMAINE, SEULEMENT CE QUI EST À LA VITRINE — 24 septembre 2026.
+   `public/` est recopié tel quel dans CHAQUE site. Tant que la vitrine vivait
+   sous /revelateur/, le service worker du Trône, les manifestes des
+   applications, la page de paiement du Trône (que le Trône lie sur SON
+   adresse, /trone/payer.html), l'affiche MoMo et les deux anciennes pages
+   légales de Ma Couronne (celles que Meta connaît sous /couronne/) y étaient
+   recopiés sans conséquence. Le jour où la vitrine est allée à la racine, ils
+   sont devenus maisonmnd.com/payer.html, maisonmnd.com/confidentialite.html :
+   la portée d'une page de la vitrine, sans qu'aucune page ne les lie.
+   Le site qui vit à la racine ne garde de `public/` que ce qui lui appartient :
+   les jetons de vérification Google (jamais effacés), la consigne `.nojekyll`
+   que Pages lit, et le dossier assets/.
+   Tout autre fichier posé à la racine de `public/` appartient aux applications
+   et reste sous leur chemin. Le harnais verifie-les-adresses tient la règle
+   dans les deux sens : un fichier cité par une page de la vitrine et absent
+   crie aussi. */
+const JETON_GOOGLE = /^google[0-9a-f]+\.html$/i;
+
 const SITES = [
   {
     name: 'trone',
@@ -164,6 +182,13 @@ for (const site of SITES) {
   const restees = readdirSync(dist).filter((f) => /^maquette-.*\.html$/i.test(f));
   for (const f of restees) rmSync(path.join(dist, f));
   if (restees.length) console.log(`  maquettes retirées du site : ${restees.join(', ')}`);
+  if (site.base === '/') {
+    const dossierPublic = path.join(root, 'public');
+    const auxApplications = readdirSync(dossierPublic)
+      .filter((f) => !statSync(path.join(dossierPublic, f)).isDirectory() && !JETON_GOOGLE.test(f) && f !== '.nojekyll' && existsSync(path.join(dist, f)));
+    for (const f of auxApplications) rmSync(path.join(dist, f));
+    if (auxApplications.length) console.log(`  rendus aux applications, hors de la racine du domaine : ${auxApplications.join(', ')}`);
+  }
   cpSync(dist, path.join(out, site.name), { recursive: true });
   rmSync(dist, { recursive: true, force: true });
 

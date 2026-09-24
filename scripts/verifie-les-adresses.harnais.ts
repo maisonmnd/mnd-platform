@@ -103,6 +103,21 @@ if (!existsSync(construit)) {
   dit('… le CNAME dit le domaine du plan du site, ou n’existe pas s’il n’y a pas de domaine propre',
     hote.endsWith('.github.io') ? 'aucun' : hote,
     existsSync(cname) ? readFileSync(cname, 'utf8').trim() : 'aucun');
+  /* ── LA RACINE NE PORTE QUE CE QUI EST À LA VITRINE ─────────────── */
+  /* `public/` est recopié dans chaque site. À la racine du domaine, un fichier
+     d'application (payer.html, sw.js, un manifeste, une ancienne page légale
+     de Ma Couronne) prend la portée d'une page de la vitrine. L'attente vient
+     de la RÈGLE, pas de la liste du script : la vitrine publie un fichier posé
+     à la racine de public/ s'il est un jeton de vérification Google, la
+     consigne .nojekyll que Pages lit, ou si l'une de ses pages le cite. Rien
+     d'autre. Dans les deux sens : un fichier
+     cité et absent crie aussi. */
+  const fichiersPublics = readdirSync('public')
+    .filter((f) => !statSync(join('public', f)).isDirectory() && !/^maquette-/i.test(f)).sort();
+  const contenus = pages.filter((r) => !fichiersPublics.includes(r)).map((r) => readFileSync(join(construit, r), 'utf8'));
+  dit('la racine du domaine ne publie de public/ que les jetons Google et ce qu’une page de la vitrine cite',
+    fichiersPublics.filter((f) => /^google[0-9a-f]+\.html$/i.test(f) || f === '.nojekyll' || contenus.some((c) => c.includes(f))),
+    fichiersPublics.filter((f) => existsSync(join(construit, f))));
   const renvois = 'dist-sites/revelateur-renvoi';
   if (!existsSync(renvois)) {
     console.log('—     dist-sites/revelateur-renvoi absent : pas d’adresse publique à la construction, les renvois n’ont pas été écrits.');
