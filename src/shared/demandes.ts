@@ -21,6 +21,21 @@ import type { Client } from './clients';
 
 export const TABLE_DEMANDES = 'demandes';
 
+/** LE GENRE, TEL QUE LA TABLE L'EXIGE — 24 septembre 2026.
+
+    `demandes.genre` est `not null` avec `check (genre in ('prospect','rdv'))`
+    et sans défaut. Le Trône ne le fournissait pas : la table refusait toute
+    écriture, et « Synchro en échec · demandes » restait allumé sans qu'on
+    sache que marquer une demande « rappelée » ne se gardait pas.
+
+    LE REPLI N'EST PAS DE LA POLITESSE. Une demande dont le `data` ne porte
+    pas de genre, ou un genre inconnu, repasserait NULL ou ferait sauter le
+    `check` : la table se rebloquerait ENTIÈREMENT pour une seule ligne mal
+    formée. On préfère ranger l'inconnu en `prospect`, qui est le genre le
+    moins engageant, plutôt que de tout arrêter. */
+export const genreEnBase = (d: { genre?: unknown }): GenreDeDemande =>
+  (d.genre === 'rdv' ? 'rdv' : 'prospect');
+
 export type GenreDeDemande = 'prospect' | 'rdv';
 export type BesoinDeLaDemande = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
 export type StatutDeLaDemande = 'nouvelle' | 'rappelee' | 'convertie' | 'ecartee';
@@ -254,7 +269,7 @@ let liee = false;
 export function lieLesDemandes(): void {
   if (liee) return;
   liee = true;
-  bindCollection(demandesStore, TABLE_DEMANDES);
+  bindCollection(demandesStore, TABLE_DEMANDES, { colonnes: (d) => ({ genre: genreEnBase(d) }) });
 }
 
 lieLesDemandes();

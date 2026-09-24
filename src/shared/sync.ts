@@ -66,9 +66,29 @@ export type SyncState = {
    confirme en base ce que cette phrase avance. */
 export function raisonLisible(msg: string | undefined): string {
   const m = (msg ?? '').toLowerCase();
+  /* PGRST204 PASSE EN PREMIER, et c'est une faute réparée le 24 septembre
+     2026 : son message est « Could not find the 'x' column of 'y' in the
+     SCHEMA CACHE », donc la règle de la table absente, juste en dessous, le
+     prenait le premier. Une colonne manquante s'annonçait ainsi comme une
+     table manquante, et envoyait chercher une migration qui n'aurait rien
+     réparé. Le harnais l'a trouvée en éprouvant le vrai message. */
+  if (m.includes('pgrst204')) {
+    return 'colonne manquante, le schéma de la table ne correspond pas';
+  }
   /* PostgREST ne trouve pas la table : la migration n'a pas été collée. */
   if (m.includes('pgrst205') || m.includes('does not exist') || m.includes('schema cache')) {
     return 'table absente en base, une migration n’a pas été collée';
+  }
+  /* UNE VALEUR ABSENTE N'EST PAS UNE COLONNE ABSENTE — 24 septembre 2026.
+     Le mot « column » apparaît dans les deux messages de Postgres, et les
+     deux gestes sont OPPOSÉS : l'un se répare en collant une migration,
+     l'autre en corrigeant ce que l'application écrit. La phrase d'avant
+     disait « colonne manquante » pour les deux, et a envoyé chercher une
+     migration qui avait bien été collée (la table `demandes`, dont le
+     `genre` n'était jamais fourni). On tranche donc AVANT le cas général,
+     sur les mots propres à chacun. */
+  if (m.includes('null value in column') || m.includes('not-null constraint')) {
+    return 'valeur obligatoire absente, l’application n’écrit pas cette colonne';
   }
   if (m.includes('pgrst204') || m.includes('column')) {
     return 'colonne manquante, le schéma de la table ne correspond pas';
@@ -634,7 +654,23 @@ const SANS_SUPPRESSION = new Set(['branches']);
 const purgesAutorisees = new Set<string>();
 export function autoriserLaPurge(table: string): void { purgesAutorisees.add(table); }
 
-export function bindCollection<T extends WithId>(store: Store<T[]>, table: string): void {
+export function bindCollection<T extends WithId>(
+  store: Store<T[]>,
+  table: string,
+  /* DES COLONNES EN PLUS DE `data` — 24 septembre 2026. Presque toutes les
+     tables de la Maison rangent tout dans `data jsonb` et n'ont, à côté, que
+     des colonnes fournies (`id`, `branch_id`) ou pourvues d'un défaut
+     (`updated_at`). UNE seule fait exception : `demandes.genre` est `not
+     null` sans défaut (migration 0108), et le Trône ne le fournissait
+     jamais. Postgres forme le tuple, `genre` est NULL, et la contrainte
+     saute AVANT la résolution du conflit : la table refusait donc TOUTE
+     écriture du Trône, même sur une ligne existante. Marquer une demande
+     « rappelée » ne se gardait pas.
+
+     On ouvre une porte étroite plutôt que de généraliser : c'est le seul cas
+     du dépôt, vérifié table par table. */
+  options?: { colonnes?: (it: T) => Record<string, unknown> },
+): void {
   if (!supabase) return;
   const sb = supabase;
 
@@ -694,7 +730,7 @@ export function bindCollection<T extends WithId>(store: Store<T[]>, table: strin
     return liste.some((e) => e.j === j);
   };
 
-  const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it });
+  const rowOf = (it: T) => ({ id: it.id, branch_id: it.branchId ?? null, data: it, ...(options?.colonnes?.(it) ?? {}) });
 
   const pushDiff = async (prev: Map<string, string>, next: Map<string, string>, items: readonly T[]) => {
     /* Le premier refus rencontré porte l'explication qui remontera à la

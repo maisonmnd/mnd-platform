@@ -33,6 +33,23 @@ dit('un nombre qui contient 503 n’est pas une passerelle', false, estPassager(
    cacherait qu'un humain doit agir. */
 dit('une table absente attend une migration', 'table absente en base, une migration n’a pas été collée',
   raisonLisible('PGRST205: relation "x" does not exist in schema cache'));
+
+/* ── UNE VALEUR ABSENTE N'EST PAS UNE COLONNE ABSENTE ──────────────
+   24 septembre 2026. Les deux messages de Postgres portent le mot
+   « column », et les deux gestes sont opposés : coller une migration, ou
+   corriger ce que l'application écrit. La phrase d'avant disait « colonne
+   manquante » pour les deux, et a envoyé chercher une migration qui avait
+   bien été collée. La table `demandes` refusait TOUTE écriture du Trône
+   parce que son `genre`, `not null` sans défaut, n'était jamais fourni. */
+dit('une valeur obligatoire absente se dit comme telle',
+  'valeur obligatoire absente, l’application n’écrit pas cette colonne',
+  raisonLisible('null value in column "genre" of relation "demandes" violates not-null constraint'));
+dit('… et la colonne vraiment absente garde sa phrase',
+  'colonne manquante, le schéma de la table ne correspond pas',
+  raisonLisible("PGRST204: Could not find the 'genre' column of 'demandes' in the schema cache"));
+dit('… les deux ne se confondent plus', false,
+  raisonLisible('null value in column "genre" violates not-null constraint')
+    === raisonLisible('PGRST204: could not find the column'));
 dit('… et ne se retente pas', false, estPassager('PGRST205'));
 dit('une contrainte violée ne se retente pas', false, estPassager('insert violates foreign key constraint'));
 dit('une session expirée ne se retente pas', false, estPassager('JWT expired'));

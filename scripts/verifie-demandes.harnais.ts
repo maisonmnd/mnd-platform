@@ -10,7 +10,7 @@
    jamais des exemples affichés à l'écran. */
 import {
   telephoneNormalise, telephoneMasque, demandesTriees, doublonDe, messageDeRappel,
-  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, type Demande,
+  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, genreEnBase, type Demande,
 } from '../src/shared/demandes';
 import { porteLaDevise, signeLeMessage, DEVISE_COMPLETE } from '../src/shared/identite';
 
@@ -125,3 +125,18 @@ if (ko) {
   process.exit(1);
 }
 console.log('\nLes demandes tiennent.');
+
+/* ── LE GENRE QUE LA TABLE EXIGE — 24 septembre 2026 ───────────────
+   `demandes.genre` est `not null check (genre in ('prospect','rdv'))` et
+   sans défaut. Le Trône ne le fournissait pas : la table refusait TOUTE
+   écriture, et marquer une demande « rappelée » ne se gardait pas.
+
+   LE REPLI N'EST PAS DE LA POLITESSE : une seule ligne dont le genre
+   manque ou est inconnu ferait sauter la contrainte et rebloquerait la
+   table entière. On range l'inconnu en `prospect`, le genre le moins
+   engageant, plutôt que de tout arrêter. */
+dit('une demande de rendez-vous garde son genre', 'rdv', genreEnBase({ genre: 'rdv' }));
+dit('un prospect aussi', 'prospect', genreEnBase({ genre: 'prospect' }));
+dit('une demande SANS genre ne bloque pas la table', 'prospect', genreEnBase({}));
+dit('un genre inconnu non plus', 'prospect', genreEnBase({ genre: 'formation' }));
+dit('ni un genre qui n’est même pas un mot', 'prospect', genreEnBase({ genre: 42 }));
