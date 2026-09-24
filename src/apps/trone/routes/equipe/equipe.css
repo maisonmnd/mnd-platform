@@ -249,6 +249,9 @@
    24 septembre 2026. L'alerte existait, mais SEULEMENT dans la fenetre
    d'edition : elle ne se voyait donc qu'une fois qu'on etait deja en train
    de la reparer. C'est le pire endroit pour une alerte. */
+/* Une saison deja posee se lit sans s'imposer : elle n'appelle aucun geste. */
+.tre-saison.est-posee { opacity: .55; }
+
 .tre-offer__creuse {
   display: flex;
   flex-wrap: wrap;

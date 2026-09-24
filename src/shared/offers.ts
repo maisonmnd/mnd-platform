@@ -291,6 +291,41 @@ export function saisonsAProposer(
   return out.sort((a, b) => a.dans - b.dans);
 }
 
+/** TOUTES LES SAISONS DE LA MAISON, ET OÙ ELLES EN SONT — 24 septembre
+    2026. « Où sont les sept saisons d'offres à venir ? » (Yéman).
+
+    Elles étaient invisibles onze mois sur douze. `saisonsAProposer` ne rend
+    que celles qui ouvrent dans les trois semaines et qui ne sont pas déjà
+    posées : c'est la bonne règle pour AVERTIR, et une mauvaise pour
+    MONTRER. Ce jour-là, les deux seules saisons dans la fenêtre étaient déjà
+    posées, et l'écran ne montrait rien du tout.
+
+    Cette porte-ci rend les sept, toujours, avec leur prochaine ouverture et
+    leur état. Avertir et montrer sont deux gestes différents. */
+export type EtatDeSaison = 'posee' | 'proche' | 'lointaine' | 'sansDate';
+
+export function saisonsDeLaMaison(
+  saisons: readonly Saison[],
+  dejaPosees: readonly InstantOffer[],
+  now = new Date(),
+  fenetre = FENETRE_PROPOSITION,
+): { saison: Saison; du?: string; au?: string; dans?: number; etat: EtatDeSaison }[] {
+  const j = isoDuJour(now);
+  return saisons.map((saison) => {
+    const d = prochaineOccurrence(saison, now);
+    /* SANS DATE CONNUE, on le DIT plutôt que de la taire : le Ramadan et la
+       fête des mères se constatent, et une année non inscrite est une chose
+       à faire, pas une saison qui n'existe pas. */
+    if (!d) return { saison, etat: 'sansDate' as const };
+    const dans = joursEntre(j, d.du);
+    const posee = dejaPosees.some((o) => o.du === d.du && o.title === saison.nom);
+    return {
+      saison, du: d.du, au: d.au, dans,
+      etat: posee ? ('posee' as const) : (dans <= fenetre ? ('proche' as const) : ('lointaine' as const)),
+    };
+  }).sort((a, b) => (a.dans ?? 9999) - (b.dans ?? 9999));
+}
+
 /** L'offre qu'une saison fait naître quand la Maison l'active. Elle court
     toute la semaine ; l'heure de fin s'arrête à la dernière heure que la
     Maison sait dire (`OFFER_HOURS`), et non à minuit. */

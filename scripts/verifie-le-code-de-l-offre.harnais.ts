@@ -10,8 +10,8 @@
    ne solde pas le catalogue), et un prix qui n'est pas ferme ne se remise
    pas (un pourcentage n'a rien à mordre sur « au salon »). */
 import {
-  CODE_MAX, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
-  prestationsDesCategories, SAISONS, offreDepuisLaSaison, codeDepuisLOffre,
+  CODE_MAX, ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, saisonsAProposer,
+  prestationsDesCategories, SAISONS, offreDepuisLaSaison, codeDepuisLOffre, saisonsDeLaMaison,
 } from '../src/shared/offers';
 
 let ko = 0;
@@ -70,6 +70,36 @@ dit('㊇ UN CODE ENGENDRÉ N’EST JAMAIS VIDE', [],
     .filter((c) => !c));
 dit('㊈ un titre fait d’articles retombe sur son premier mot', 'LE9', codeDepuisLOffre('Le de la', '−9 %'));
 dit('㊉ un titre sans la moindre lettre porte un nom quand même', 'OFFRE', codeDepuisLOffre('!!! ???', ''));
+/* LE NOMBRE SE PREND ENTIER, OU PAS DU TOUT — défaut trouvé par la session
+   pair en éprouvant la chaîne d'un bout à l'autre, et invisible tant qu'on
+   n'essaie que des remises rondes. La forme d'avant attrapait la FIN d'un
+   nombre plus long : « −7,5 % » rendait 5 et « −100 % » rendait 00. Une
+   offre à 7,5 % se serait appelée EPIPHANIE5, et la carte aurait dit à la
+   cliente un chiffre qui n'est pas la remise. */
+dit('㊊ cent pour cent se lit cent, jamais « 00 »', 'TOUT100', codeDepuisLOffre('Tout', '−100 %'));
+dit('㊋ UNE DÉCIMALE NE DONNE AUCUN CHIFFRE plutôt qu’un chiffre approché',
+  'EPIPHANIE', codeDepuisLOffre('Épiphanie', '−7,5 %'));
+dit('㊌ … avec le point aussi', 'EPIPHANIE', codeDepuisLOffre('Épiphanie', '−7.5 %'));
+dit('㊍ les formes usuelles restent justes', ['RENTREE10', 'RENTREE10', 'RENTREE5', 'RENTREE20'],
+  ['−10 %', '-10%', '−5 %', '−20 % sur 2 gestes'].map((d) => codeDepuisLOffre('La rentrée', d)));
+
+/* ── LES SEPT SAISONS SE VOIENT TOUTE L'ANNÉE ────────────────────
+   « Où sont les sept saisons d'offres à venir ? » (Yéman). Elles étaient
+   invisibles onze mois sur douze : l'écran ne montrait que celles qui
+   ouvrent dans les trois semaines ET ne sont pas déjà posées. Ce jour-là,
+   les deux seules dans la fenêtre étaient posées, et rien ne paraissait.
+   Avertir et montrer sont deux gestes différents. */
+const LE_24 = new Date('2026-09-24T10:00:00');
+const POSEES = [{ ...RENTREE, id: 'of-x', branchId: 'b1', title: 'Octobre Rose', du: '2026-10-01', au: '2026-10-31' } as never];
+dit('㊎ AVERTIR ne montrait rien ce jour-là', 0,
+  saisonsAProposer(SAISONS, POSEES, LE_24).filter((x) => x.saison.cle === 'octobre-rose').length);
+dit('㊏ MONTRER rend les sept, toujours', 7, saisonsDeLaMaison(SAISONS, POSEES, LE_24).length);
+dit('㊐ … et dit laquelle est déjà posée', 'posee',
+  saisonsDeLaMaison(SAISONS, POSEES, LE_24).find((x) => x.saison.cle === 'octobre-rose')?.etat);
+dit('㊑ … laquelle est lointaine', 'lointaine',
+  saisonsDeLaMaison(SAISONS, POSEES, LE_24).find((x) => x.saison.cle === 'noel')?.etat);
+dit('㊒ … et les rend de la plus proche à la plus lointaine', true,
+  saisonsDeLaMaison(SAISONS, POSEES, LE_24).every((x, i, t) => i === 0 || (t[i - 1].dans ?? 9999) <= (x.dans ?? 9999)));
 
 /* ── QUEL CODE DÉSIGNE QUELLE OFFRE ──────────────────────────────── */
 dit('④ le code trouve son offre, écrit comme on veut', 'RENTREE10', offreDuCode(OFFRES, 'rentree10', LE_15)?.code);
@@ -176,5 +206,5 @@ const noel = SAISONS.find((s) => s.cle === 'noel')!;
 dit('㉟ un cadeau n’écrit aucune remise', undefined,
   offreDepuisLaSaison(noel, { du: '2026-12-01', au: '2026-12-31' }, 'b1', 'of-2', [], []).discountPct);
 
-console.log(ko === 0 ? `\nTOUT EST JUSTE (46 vérifications).` : `\n${ko} ÉCHEC(S).`);
+console.log(ko === 0 ? `\nTOUT EST JUSTE (55 vérifications).` : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

@@ -121,9 +121,20 @@ const motsDuTitre = (titre: string): string[] =>
 
 /** LE POURCENTAGE ANNONCÉ, s'il y en a un. « −10 % » rend 10 ; « 2 = 1 »
     ne rend rien, parce qu'un cadeau n'est pas un pourcentage et qu'un code
-    NOEL2 mentirait sur ce qu'il fait. */
+    NOEL2 mentirait sur ce qu'il fait.
+
+    LE NOMBRE SE PREND ENTIER, ou pas du tout — corrigé le 24 septembre 2026,
+    défaut trouvé par la session pair en éprouvant la chaîne d'un bout à
+    l'autre. La forme d'avant cherchait un à deux chiffres suivis de « % » et
+    attrapait donc la FIN d'un nombre plus long : « −7,5 % » rendait 5, et
+    « −100 % » rendait 00. Une offre à 7,5 % se serait appelée EPIPHANIE5, et
+    la carte aurait dit à la cliente un chiffre qui n'est pas la remise.
+
+    Une décimale ne donne AUCUN chiffre plutôt qu'un chiffre approché : un
+    code se lit à voix haute, et 7 pour 7,5 % est un petit mensonge qui se
+    répète à chaque lecture. Le mot seul suffit alors. */
 const pourcentDeLAvantage = (deal: string): string => {
-  const m = /(\d{1,2})\s*%/.exec(String(deal ?? ''));
+  const m = /(?<![\d.,])(\d{1,3})(?![\d.,])\s*%/.exec(String(deal ?? ''));
   return m ? m[1] : '';
 };
 

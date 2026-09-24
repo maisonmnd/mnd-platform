@@ -16,7 +16,7 @@ import {
   AUTOMATION_CANAUX, OFFER_AUDIENCES, OFFER_DAYS, OFFER_HOURS,
   automationsActiveStore, automationsStore, autoConfigStore, segmentNotesStore, useAutomations,
   useCampaigns, useOffers, offerLiveNow,
-  etatDeLOffre, saisonsAProposer, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
+  etatDeLOffre, saisonsAProposer, saisonsDeLaMaison, offreDepuisLaSaison, SAISONS, FENETRE_PROPOSITION, codeNormalise,
   prestationsDesCategories, codeDepuisLOffre,
   type Automation, type AutomationCanal, type InstantOffer, type SegmentNote,
 } from './data';
@@ -388,6 +388,18 @@ export default function Marketing() {
     [branchOffers],
   );
 
+  /* LES SEPT, TOUTE L'ANNÉE — 24 septembre 2026. « Où sont les sept saisons
+     d'offres à venir ? » (Yéman). Elles étaient invisibles onze mois sur
+     douze : l'écran ne montrait que celles qui ouvrent dans les trois
+     semaines ET qui ne sont pas déjà posées. Ce jour-là, les deux seules
+     dans la fenêtre étaient posées, et la carte disparaissait entièrement.
+     AVERTIR ET MONTRER SONT DEUX GESTES : la veille garde sa règle, et
+     l'almanach ci-dessous les rend toutes. */
+  const toutesLesSaisons = useMemo(
+    () => saisonsDeLaMaison(SAISONS, branchOffers),
+    [branchOffers],
+  );
+
   /* ACTIVER, C'EST ÉCRIRE UNE VRAIE OFFRE. La saison n'est qu'un patron : ce
      geste en tire une offre datée, modifiable ensuite comme n'importe quelle
      autre, et c'est elle, jamais le patron, qui paraît au salon et sur le
@@ -521,6 +533,57 @@ export default function Marketing() {
               </div>
             </Card>
           )}
+
+          {/* L'ALMANACH DES SEPT. La veille ci-dessus AVERTIT ; celui-ci
+              MONTRE. Une saison lointaine s'active aussi, sobrement : c'est
+              la Maison qui décide de son calendrier, et préparer Noël en
+              septembre est son droit. */}
+          <Card className="tre-saisons">
+            <Eyebrow>Les saisons de la Maison</Eyebrow>
+            <div className="tre-saisons__titre">Sept saisons, déjà écrites</div>
+            <div className="mnd-muted" style={{ fontSize: 12.5, fontWeight: 300, marginBottom: 12 }}>
+              Chacune porte son code, sa remise, les prestations qu’elle couvre et ses conditions.
+              Activer suffit. Rien ne s’active sans vous.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {toutesLesSaisons.map(({ saison, du, au, dans, etat }) => (
+                <div key={saison.cle} className={`tre-saison${etat === 'posee' ? ' est-posee' : ''}`}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="tre-saison__nom">
+                      {saison.nom}
+                      {saison.aConfirmer && <span className="tre-saison__doute">date à confirmer</span>}
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 12, fontWeight: 300 }}>
+                      {du && au ? `${ditLeJour(du)} → ${ditLeJour(au)} · ` : ''}
+                      {saison.deal}
+                      {saison.code ? ` · code ${saison.code}` : ''}
+                    </div>
+                  </div>
+                  <div className="mnd-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {etat === 'sansDate'
+                      ? 'année à inscrire'
+                      : etat === 'posee'
+                        ? 'déjà posée'
+                        : (dans ?? 0) > 0
+                          ? `dans ${dans} jour${(dans ?? 0) > 1 ? 's' : ''}`
+                          : (dans ?? 0) === 0
+                            ? 'elle ouvre aujourd’hui'
+                            : `commencée depuis ${-(dans ?? 0)} jour${-(dans ?? 0) > 1 ? 's' : ''}`}
+                  </div>
+                  {etat === 'posee' || etat === 'sansDate' || !du || !au
+                    ? <span style={{ width: 92 }} />
+                    : (
+                      <Button
+                        variant={etat === 'proche' ? 'copper' : 'ghost'}
+                        onClick={() => activerLaSaison(saison, du, au)}
+                      >
+                        Activer
+                      </Button>
+                    )}
+                </div>
+              ))}
+            </div>
+          </Card>
 
           {branchOffers.length === 0 && (
             <Card className="tre-empty">

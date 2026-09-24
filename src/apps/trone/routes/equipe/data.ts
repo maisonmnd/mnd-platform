@@ -291,7 +291,7 @@ export {
   OFFER_DAYS, OFFER_AUDIENCES, OFFER_HOURS,
   offersStore, useOffers, offerLiveNow,
   etatDeLOffre, prochaineOccurrence, saisonsAProposer, offreDepuisLaSaison,
-  SAISONS, FENETRE_PROPOSITION, codeNormalise, prestationsDesCategories, codeDepuisLOffre,
+  SAISONS, FENETRE_PROPOSITION, codeNormalise, prestationsDesCategories, codeDepuisLOffre, saisonsDeLaMaison,
   type InstantOffer,
 } from '../../../../shared/offers';
 
