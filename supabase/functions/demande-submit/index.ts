@@ -30,6 +30,34 @@
 // dépôt. Sa source de vérité est `src/shared/agenda-pur.ts`, éprouvé par
 // `scripts/verifie-agenda-pur.mjs` — les deux doivent changer ensemble.
 //
+// ══ ET, DEPUIS LE 24 SEPTEMBRE, ELLE RÉSOUT LE CODE DE L'OFFRE ═══════
+// « Le −10 % de la vitrine ne réduit rien » (Yéman). La carte écrit un code
+// (RENTREE10), le lien l'emporte, la réservation le montre rempli et barre
+// les lignes couvertes. Mais LE NAVIGATEUR N'ENVOIE QUE LE CODE, jamais le
+// pourcentage : un navigateur à qui l'on demanderait sa propre remise
+// répondrait 90 le jour où quelqu'un s'en amuserait. C'est ici que le code
+// se résout contre `mnd_offers` : l'offre doit être active et dans sa
+// saison, couvrir la prestation, et la prestation avoir un prix ferme.
+//
+// LA REMISE S'ÉCRIT PAR LIGNE (`remisesLignes`, parallèle à `serviceIds`),
+// JAMAIS EN `discountPct` : celui-ci porte sur TOUT le rendez-vous, Gamme
+// comprise, c'est la remise de la cliente (un compte famille à −15 % est à
+// −15 % partout, arbitrage du 5 septembre). Une offre sur les lavages ne
+// remise que les lavages, et Le Trône retrouve au franc près ce que la
+// cliente a vu sur le site (le-trone-35, 24 septembre).
+//
+// LE CODE SE COMPTE : il s'écrit sur la demande et sur le rendez-vous, même
+// quand il ne retire rien (cadeau, prix au salon), parce qu'une remise
+// silencieuse s'applique et disparaît, alors qu'un code dit ce que l'offre
+// a fait venir. Un code inconnu ou hors saison s'écrit aussi, sans offre.
+//
+// Sa source de vérité est `src/shared/offres-pur.ts` (`codeNormalise`,
+// `offreDuCode`, `lignesDuCode`), éprouvé par `verifie-le-code-de-l-offre` ;
+// la COPIE ci-dessous est confrontée à l'original par
+// `scripts/verifie-le-code-au-serveur.mjs`, qui la lit entre ses deux
+// repères et la fait tourner sur les mêmes cas. Deux calculs d'argent
+// finissent toujours par diverger ; c'est au comptoir qu'on l'apprend.
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
 // l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
@@ -181,7 +209,7 @@ async function laPlaceTient(o: {
   date: string;
   time: string;
   master: string;
-}): Promise<{ erreur: string } | { dureeMin: number; master: string }> {
+}): Promise<{ erreur: string } | { dureeMin: number; master: string; catalogue: ServiceEnBase[]; offres: any[] }> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date) || !/^\d{2}:\d{2}$/.test(o.time)) return { erreur: 'creneau_invalide' };
 
   /* Jamais le jour même ni le passé : la Maison prépare la venue. Jamais
@@ -193,7 +221,7 @@ async function laPlaceTient(o: {
   if (!(joursDEcart >= 1 && joursDEcart <= 90)) return { erreur: 'creneau_hors_fenetre' };
 
   const [docs, services, categories, blocages, rdvs] = await Promise.all([
-    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config']),
+    admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_offers']),
     admin.from('catalog_services').select('id, data'),
     admin.from('catalog_categories').select('id, data'),
     admin.from('blocages').select('id, data'),
@@ -209,7 +237,11 @@ async function laPlaceTient(o: {
   const fenetre = ouvertureDuJour(o.date, semaine, exceptions);
   if (fenetre.closed) return { erreur: 'creneau_ferme' };
 
-  const catalogue = ((services.data ?? []) as { id: string; data?: { categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } }[]);
+  const catalogue = ((services.data ?? []) as ServiceEnBase[]);
+  /* Les offres de la Maison, pour résoudre un code : lues ici, avec le reste,
+     pour ne pas rouvrir la base une seconde fois. */
+  const offresBrutes = ((docs.data ?? []) as { key: string; data?: any }[]).find((d) => d.key === 'mnd_offers')?.data;
+  const offres = (Array.isArray(offresBrutes) ? offresBrutes : []) as any[];
   const connus = o.serviceIds.filter((id) => catalogue.some((s) => s.id === id && s.data?.enabled !== false && !s.data?.archived));
   if (connus.length === 0) return { erreur: 'prestation_inconnue' };
 
@@ -256,7 +288,75 @@ async function laPlaceTient(o: {
   const chevauche = [...occupe, ...murs].some(([s, e]) => debut < e && debut + dureeMin > s);
   if (chevauche) return { erreur: 'creneau_pris' };
 
-  return { dureeMin, master };
+  return { dureeMin, master, catalogue, offres };
+}
+
+/* ══ LE CODE DE L'OFFRE, RECOPIÉ DE `src/shared/offres-pur.ts` ══════
+   Entre les deux repères, RIEN qui ne soit dans l'original, à une différence
+   près : `dansLaSaison` reçoit le jour en graphie ISO au lieu d'une Date,
+   parce que le jour se calcule ici dans le fuseau de la Maison (Deno tourne
+   en UTC, et une saison qui finit le 30 se terminerait à 1 h du matin). */
+/* ══ COPIE DE offres-pur : DÉBUT ══ */
+const CODE_MAX = 16;
+const codeNormalise = (v: unknown): string =>
+  String(v ?? '').replace(/\s+/g, '').toUpperCase().slice(0, CODE_MAX);
+type OffreCodee = { active: boolean; du?: string; au?: string; code?: string; discountPct?: number; serviceIds?: string[] };
+const dansLaSaison = (o: { du?: string; au?: string }, j: string): boolean => {
+  if (o.du && j < o.du) return false;
+  if (o.au && j > o.au) return false;
+  return true;
+};
+function offreDuCode<T extends OffreCodee>(offres: readonly T[], code: unknown, j: string): T | null {
+  const c = codeNormalise(code);
+  if (!c) return null;
+  return offres.find((o) => o.active && codeNormalise(o.code) === c && dansLaSaison(o, j)) ?? null;
+}
+type LigneAPrix = { id: string; prixXof: number; ferme: boolean };
+type LigneRemisee = LigneAPrix & { net: number; remisee: boolean };
+function lignesDuCode(lignes: readonly LigneAPrix[], offre: OffreCodee | null): LigneRemisee[] {
+  const pct = Math.max(0, Math.min(90, Math.round(offre?.discountPct ?? 0)));
+  const couvre = new Set(offre?.serviceIds ?? []);
+  return lignes.map((l) => {
+    const porte = pct > 0 && l.ferme && l.prixXof > 0 && couvre.has(l.id);
+    return { ...l, net: porte ? Math.round(l.prixXof * (1 - pct / 100)) : l.prixXof, remisee: porte };
+  });
+}
+/* ══ COPIE DE offres-pur : FIN ══ */
+
+/** Le jour de la Maison, en ISO, dans SON fuseau : c'est lui qui borne une
+    saison, pas l'horloge d'un serveur. */
+const jourDeLaMaison = (): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Porto-Novo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+/** LE PRIX FERME D'UNE PRESTATION, ou zéro : même règle que la réservation
+    du site (`prixFerme`, Reserver.tsx). Un devis, un prix caché ou absent
+    valent zéro ; « variable » compte comme ferme et dit « à partir de ». */
+type ServiceEnBase = { id: string; data?: { priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } };
+const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
+  const s = catalogue.find((x) => x.id === id)?.data;
+  const mode = s?.priceMode ?? (s?.hidePrice ? 'devis' : 'fixe');
+  const p = Number(s?.priceXof ?? 0);
+  const prix = !p || mode === 'devis' ? 0 : p;
+  return { id, prixXof: prix, ferme: prix > 0 };
+};
+
+/** CE QUE LE CODE FAIT AU RENDEZ-VOUS. Rend le code normalisé (toujours,
+    pour qu'il se compte), l'offre trouvée s'il y en a une, et les remises
+    de ligne s'il en retire au moins une. Une offre qui ne mord sur rien
+    n'écrit pas de tableau : un rendez-vous sans remise n'en porte pas. */
+function remiseDuCode(o: {
+  code: unknown; serviceIds: string[]; branchId: string; catalogue: ServiceEnBase[]; offres: (OffreCodee & { id?: string; branchId?: string })[];
+}): { code: string; offreId?: string; remisesLignes?: ({ pct: number } | null)[] } {
+  const code = codeNormalise(o.code);
+  if (!code) return { code: '' };
+  /* De la branche du rendez-vous seulement ; une offre sans branche vaut partout. */
+  const candidates = o.offres.filter((x) => !x.branchId || x.branchId === o.branchId);
+  const offre = offreDuCode(candidates, code, jourDeLaMaison());
+  if (!offre) return { code };
+  const lignes = lignesDuCode(o.serviceIds.map((id) => ligneAPrix(id, o.catalogue)), offre);
+  const pct = Math.max(0, Math.min(90, Math.round(offre.discountPct ?? 0)));
+  const remisesLignes = lignes.some((l) => l.remisee) ? lignes.map((l) => (l.remisee ? { pct } : null)) : undefined;
+  return { code, ...(offre.id ? { offreId: String(offre.id) } : {}), ...(remisesLignes ? { remisesLignes } : {}) };
 }
 
 async function alerteLePersonnel(titre: string, corps: string, url: string): Promise<number> {
@@ -459,12 +559,15 @@ Deno.serve(async (req) => {
 
   /* ── La place, revérifiée AVANT d'écrire quoi que ce soit ───────── */
   let master = '';
+  /* Le code, résolu ICI : le navigateur ne dit que le code. */
+  let duCode: { code: string; offreId?: string; remisesLignes?: ({ pct: number } | null)[] } = { code: '' };
   if (avecPlace) {
     const verdict = await laPlaceTient({
       branchId, maitres: branche.maitres, serviceIds, date, time, master: texte(d.master, 60),
     });
     if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
     master = verdict.master;
+    duCode = remiseDuCode({ code: d.code, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
   }
 
   const demande = {
@@ -482,6 +585,8 @@ Deno.serve(async (req) => {
     ...(d.page ? { page: texte(d.page, 120) } : {}),
     ...(d.campagne ? { campagne: texte(d.campagne, 80) } : {}),
     ...(avecPlace ? { serviceIds, date, time, master } : {}),
+    ...(duCode.code ? { code: duCode.code } : {}),
+    ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
     consentementLe: now,
     statut: 'nouvelle',
   } as Record<string, unknown>;
@@ -499,7 +604,11 @@ Deno.serve(async (req) => {
   let apptId: string | undefined;
   if (avecPlace) {
     const candidat = `rdv-${crypto.randomUUID()}`;
-    const note = ['Réservé depuis le site', d.mot ? texte(d.mot, 300) : ''].filter(Boolean).join(' · ');
+    const note = [
+      'Réservé depuis le site',
+      duCode.code ? `code ${duCode.code}${duCode.offreId ? '' : ' (aucune offre en cours)'}` : '',
+      d.mot ? texte(d.mot, 300) : '',
+    ].filter(Boolean).join(' · ');
     const appt = {
       id: candidat,
       branchId,
@@ -513,6 +622,10 @@ Deno.serve(async (req) => {
       source: 'site',
       creeLe: now,
       note,
+      /* Le code se compte ; la remise, par ligne, n'existe que si le code a mordu. */
+      ...(duCode.code ? { codeOffre: duCode.code } : {}),
+      ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
+      ...(duCode.remisesLignes ? { remisesLignes: duCode.remisesLignes } : {}),
     };
     const { error: errRdv } = await admin.from('appointments').insert({ id: candidat, branch_id: branchId, data: appt });
     if (!errRdv) {

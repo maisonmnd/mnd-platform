@@ -144,16 +144,23 @@ bindDocument(houseIdentityStore, 'mnd_house_identity');
    partagé par sept applications, dont Ma Couronne et les pages publiques, où
    une migration des données de la Maison n'a rien à faire. Ici, seulement
    la fonction. */
-import { quandDocumentDescendu } from './sync';
+import { quandDocumentDescendu, quandTablePrete } from './sync';
+import { branchesStore } from './branches';
 const ANCIEN_NOM = /^\s*l\s*[’']\s*atelier\s+mnd\s*$/i;
+/** LE NOM CORRIGÉ, ou null s'il n'y a rien à corriger. Pur, et exporté pour
+    être éprouvé (`verifie-le-nom-de-la-maison`) : « L'atelier MND » sous
+    toutes ses graphies devient le nom par défaut ; tout autre nom reste. */
+export const corrigeLAncienNom = (nom: unknown): string | null =>
+  ANCIEN_NOM.test(String(nom ?? '')) ? DEFAULT_IDENTITY.nom : null;
 const MARQUEUR_NOM = 'mnd_nom_maison_2026_09';
 const EXPIRE_LE = Date.parse('2026-12-31T23:59:59+01:00');
-const dejaMigre = (): boolean => { try { return !!localStorage.getItem(MARQUEUR_NOM); } catch { return false; } };
-const marqueMigre = () => { try { localStorage.setItem(MARQUEUR_NOM, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet si le nom est déjà juste */ } };
+const dejaMigre = (marqueur = MARQUEUR_NOM): boolean => { try { return !!localStorage.getItem(marqueur); } catch { return false; } };
+const marqueMigre = (marqueur = MARQUEUR_NOM) => { try { localStorage.setItem(marqueur, new Date().toISOString()); } catch { /* sans stockage, on rejouera : sans effet si le nom est déjà juste */ } };
 const remplaceLAncienNom = (): boolean => {
   const i = houseIdentityStore.get();
-  if (!ANCIEN_NOM.test(i.nom ?? '')) return false;
-  houseIdentityStore.set({ ...i, nom: DEFAULT_IDENTITY.nom });
+  const nom = corrigeLAncienNom(i.nom);
+  if (!nom) return false;
+  houseIdentityStore.set({ ...i, nom });
   return true;
 };
 /** À appeler une fois, au démarrage du Trône seulement. */
@@ -169,6 +176,41 @@ export function migreLeNomDeLaMaison(): void {
       setTimeout(() => { if (remplaceLAncienNom()) { marqueMigre(); arret(); } }, 0);
     });
     const fin = setTimeout(() => { arret(); marqueMigre(); }, 60_000);
+    arret = () => { off(); clearTimeout(fin); };
+  });
+}
+
+/* ── LE NOM DE LA BRANCHE — 24 septembre 2026 ──────────────────────────
+   Le nom des documents vient de `mnd_house_identity` et a suivi le 23. Mais
+   le sélecteur de branche du Trône lit `mnd_branches`, et la branche
+   s'appelait encore « L'atelier MND » : la capture d'écran de Yéman le
+   montrait (vu par le-trone-35). Même geste que le nom de la Maison : une
+   fois, daté, sans effet si le nom est déjà juste, mort au 31 décembre.
+   Seul le NOM change ; identifiant, maîtres, adresse et rendez-vous restent
+   attachés à la même ligne. Depuis le Trône seulement, comme l'autre. */
+const MARQUEUR_BRANCHE = 'mnd_nom_branche_2026_09';
+const renommeLesBranches = (): boolean => {
+  let touche = false;
+  const corrigees = branchesStore.get().map((b) => {
+    const nom = corrigeLAncienNom(b.name);
+    if (!nom) return b;
+    touche = true;
+    return { ...b, name: nom };
+  });
+  if (touche) branchesStore.set(corrigees);
+  return touche;
+};
+/** À appeler une fois, au démarrage du Trône seulement. */
+export function migreLeNomDeLaBranche(): void {
+  if (Date.now() > EXPIRE_LE) return;
+  if (dejaMigre(MARQUEUR_BRANCHE)) return;
+  quandTablePrete('branches', () => {
+    if (renommeLesBranches()) { marqueMigre(MARQUEUR_BRANCHE); return; }
+    let arret: () => void = () => {};
+    const off = branchesStore.subscribe(() => {
+      setTimeout(() => { if (renommeLesBranches()) { marqueMigre(MARQUEUR_BRANCHE); arret(); } }, 0);
+    });
+    const fin = setTimeout(() => { arret(); marqueMigre(MARQUEUR_BRANCHE); }, 60_000);
     arret = () => { off(); clearTimeout(fin); };
   });
 }

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Déployer le code au serveur · Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --sable:#E8DFCE;
+    --indigo:#1E2150; --indigo-pale:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-p:#E3C9AE; --cuivre-f:#FAF1E9;
+    --encre:#2A2722; --encre-d:#746F65; --filet:#D9CFBC;
+    --brique:#96412E; --brique-f:#FBF0ED; --brique-p:#E4BDB2;
+    --vert:#4A6B52; --vert-f:#EFF3EF; --vert-p:#CBDACE;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Jost','Century Gothic','Futura',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parchemin);color:var(--encre);font-family:var(--sans);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .page{max-width:940px;margin:0 auto;padding:52px 24px 100px}
+  .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:300;font-size:clamp(34px,6vw,54px);line-height:1.05;
+     letter-spacing:-.015em;color:var(--indigo);margin:0 0 18px;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:clamp(22px,3vw,30px);color:var(--indigo);
+     margin:0 0 6px;text-wrap:balance}
+  .chapeau{max-width:64ch;font-size:16.5px;color:var(--encre-d);margin:0}
+  .chapeau b{color:var(--encre);font-weight:500}
+  section{margin-top:52px}
+  .intro{max-width:72ch;color:var(--encre-d);margin:0 0 22px}
+  .intro b{color:var(--encre);font-weight:500}
+
+  .phase{margin-top:34px}
+  .phase__titre{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .phase__n{font-family:var(--serif);font-size:15px;color:var(--cuivre);letter-spacing:.06em}
+  .phase__quand{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--encre-d)}
+
+  ol.pas{list-style:none;margin:0;padding:0;counter-reset:pas}
+  ol.pas li{counter-increment:pas;border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);
+            padding:14px 16px 14px 52px;position:relative;margin-top:10px}
+  ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;
+            font-family:var(--serif);font-size:19px;color:var(--cuivre);line-height:1}
+  ol.pas li.fait{opacity:.55}
+  ol.pas li.fait .quoi{text-decoration:line-through}
+  .quoi{font-weight:500;display:block;padding-right:80px}
+  .pourquoi{font-size:13px;color:var(--encre-d);margin-top:5px}
+  .pourquoi b{color:var(--encre);font-weight:500}
+  .ou{font-size:12px;color:var(--encre-d);margin-top:7px;letter-spacing:.02em}
+  .ou b{color:var(--indigo);font-weight:500}
+  .coche{position:absolute;right:14px;top:13px;display:flex;align-items:center;gap:7px;font-size:11px;
+         letter-spacing:.14em;text-transform:uppercase;color:var(--encre-d);cursor:pointer}
+  .coche input{width:17px;height:17px;accent-color:var(--cuivre);cursor:pointer}
+  @media (max-width:620px){
+    ol.pas li{padding-right:16px;padding-top:40px}
+    .quoi{padding-right:0}
+    .coche{top:12px;right:auto;left:16px}
+    ol.pas li::before{top:40px}
+  }
+
+  .garde{border-left:2px solid var(--brique);background:var(--brique-f);padding:9px 12px;margin-top:10px;
+         font-size:12.5px;line-height:1.55}
+  .garde b{font-weight:500}
+  .bon{border-left:2px solid var(--vert);background:var(--vert-f);padding:9px 12px;margin-top:10px;
+       font-size:12.5px;line-height:1.55}
+
+  .deux{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  @media (max-width:820px){.deux{grid-template-columns:1fr}}
+  .carte{border:1px solid var(--filet);border-radius:4px;background:var(--ivoire);padding:16px 18px}
+  .carte h3{font-family:var(--serif);font-weight:400;font-size:20px;color:var(--indigo);margin:0 0 6px}
+  .carte p{margin:8px 0 0;font-size:13.5px;color:var(--encre-d)}
+  .carte p b{color:var(--encre);font-weight:500}
+
+  .mot{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#fff;
+       border:1px solid var(--filet);border-radius:3px;padding:1px 6px;overflow-wrap:anywhere}
+  .avance{position:sticky;top:0;z-index:5;background:var(--parchemin);padding:12px 0 10px;
+          border-bottom:1px solid var(--filet);margin-bottom:-1px;font-size:12.5px;color:var(--encre-d)}
+  .avance b{color:var(--indigo);font-weight:500}
+  footer{margin-top:70px;border-top:1px solid var(--filet);padding-top:16px;font-size:12px;color:var(--encre-d)}
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Maison MND · Marche à suivre</p>
+  <h1>Déployer le code au serveur</h1>
+  <p class="chapeau">
+    Le code de l'offre voyage déjà du site jusqu'à la demande. Pour que le rendez-vous
+    <b>porte la remise</b>, la fonction qui reçoit les réservations doit résoudre le code
+    elle-même. Sept pas, dont trois de vérification. Cochez au fur et à mesure : la page
+    garde vos coches.
+  </p>
+
+  <div class="avance" id="avance">&nbsp;</div>
+
+  <section>
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase I</span>
+        <h2>Déployer la fonction</h2>
+        <span class="phase__quand">dix minutes · réversible</span>
+      </div>
+      <p class="intro">
+        La fonction se livre <b>entière</b>, jamais en morceau. L'ancienne version reste
+        dans l'historique du tableau de bord : un retour en arrière est un clic.
+      </p>
+
+      <ol class="pas">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Copier tout le fichier de la fonction</span>
+          <p class="pourquoi">
+            Le fichier du dépôt est la seule version qui compte. Tout sélectionner, copier,
+            sans rien retoucher.
+          </p>
+          <p class="ou">
+            <b>Où</b> · dans le dépôt, <span class="mot">supabase/functions/demande-submit/index.ts</span>,
+            depuis l'éditeur ou depuis GitHub (bouton « Raw », puis tout sélectionner).
+          </p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Ouvrir la fonction dans le tableau de bord Supabase</span>
+          <p class="ou">
+            <b>Où</b> · supabase.com/dashboard, projet de la Maison, rubrique Edge Functions,
+            fonction <span class="mot">demande-submit</span>.
+          </p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Remplacer tout le contenu par le fichier copié, puis Deploy</span>
+          <p class="pourquoi">
+            Effacer l'ancien contenu en entier avant de coller : un fichier collé à la suite
+            d'un autre ne se déploie pas.
+          </p>
+          <div class="garde">
+            <b>Ne rien changer d'autre.</b> Les secrets de la fonction (la clef de service, les clefs
+            de notification, les clefs WhatsApp) restent en place : le nouveau fichier les lit
+            exactement comme l'ancien.
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="phase">
+      <div class="phase__titre">
+        <span class="phase__n">Phase II</span>
+        <h2>Vérifier sur une vraie réservation</h2>
+        <span class="phase__quand">cinq minutes · avec votre numéro</span>
+      </div>
+      <p class="intro">
+        Une réservation d'essai, avec votre propre numéro, puis son annulation. C'est le
+        seul moyen de voir ce que la cliente verra.
+      </p>
+
+      <ol class="pas" start="4">
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Ouvrir la réservation du site avec le code dans l'adresse</span>
+          <p class="pourquoi">
+            Cocher un lavage : le champ « Code de remise » est déjà rempli et la ligne dit
+            son prix barré.
+          </p>
+          <p class="ou">
+            <b>Où</b> · <span class="mot">maisonmnd.com/revelateur/reserver/?code=RENTREE10</span>
+          </p>
+          <div class="garde">
+            <b>Après le 30 septembre</b>, « La rentrée des couronnes » ne court plus : utiliser le code
+            de l'offre en cours, par exemple ROSE15 en octobre, sur un soin.
+          </div>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Réserver avec votre propre numéro, un jour ouvert</span>
+          <p class="pourquoi">
+            L'accusé WhatsApp arrive comme pour toute cliente. Rien d'autre ne change à
+            cette étape.
+          </p>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Ouvrir ce rendez-vous dans Le Trône et lire trois choses</span>
+          <p class="pourquoi">
+            La note dit <b>« Réservé depuis le site · code RENTREE10 »</b>. La ligne du lavage porte
+            <b>−10 %</b>, les autres lignes non. Le total est <b>celui que le site a montré</b>.
+          </p>
+          <p class="ou"><b>Où</b> · Le Trône, Calendrier, le rendez-vous du jour choisi.</p>
+          <div class="bon">Au franc près : le site et Le Trône lisent la même règle.</div>
+          <div class="garde">
+            <b>Si le total diffère</b>, ne rien corriger à la main : dire l'écart, avec les deux
+            montants. C'est la règle qui se corrige, pas le rendez-vous.
+          </div>
+        </li>
+        <li>
+          <label class="coche"><input type="checkbox" /> Fait</label>
+          <span class="quoi">Annuler ce rendez-vous d'essai dans Le Trône</span>
+          <p class="pourquoi">Il a servi ; il ne doit pas rester au carnet.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ce que la fonction fait désormais</h2>
+    <div class="deux">
+      <div class="carte">
+        <h3>Elle fait</h3>
+        <p>Elle <b>résout le code</b> contre les offres de la Maison : l'offre doit être active,
+           dans sa saison, et couvrir la prestation.</p>
+        <p>Elle écrit la remise <b>par ligne</b>, sur les seules prestations couvertes au prix
+           ferme. Un prix « au salon » n'est pas remisé.</p>
+        <p>Elle <b>inscrit le code</b> sur la demande et sur le rendez-vous, même quand il ne retire
+           rien : un cadeau (NOEL) ou un code hors saison se comptent quand même.</p>
+      </div>
+      <div class="carte">
+        <h3>Elle ne fait pas</h3>
+        <p>Elle <b>n'écoute jamais</b> un pourcentage venu du navigateur. Le navigateur n'envoie
+           que le code.</p>
+        <p>Elle <b>n'invente pas</b> de remise pour un code inconnu ou périmé : le rendez-vous
+           naît au prix de la carte, et la note dit « aucune offre en cours ».</p>
+        <p>Elle ne touche pas à la remise de la cliente (la remise famille) : celle-ci porte sur
+           tout le rendez-vous et vit ailleurs.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Maison MND · 24 septembre 2026 · La règle du calcul vit dans le dépôt et son harnais
+    confronte la copie du serveur à l'original sur les mêmes cas.
+  </footer>
+</div>
+
+<script>
+  /* LES COCHES SURVIVENT A LA FERMETURE : un deploiement se fait en deux temps,
+     et une marche a suivre qui oublie ou l on en etait fait sauter un pas. */
+  (function () {
+    var CLE = 'mnd-cahier-code-au-serveur-v1';
+    var cases = Array.prototype.slice.call(document.querySelectorAll('.coche input'));
+    var lu = [];
+    try { lu = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch (e) { lu = []; }
+
+    function dit() {
+      var n = cases.filter(function (c) { return c.checked; }).length;
+      document.getElementById('avance').innerHTML = n === 0
+        ? 'Aucun pas fait. Le premier est de copier le fichier de la fonction.'
+        : '<b>' + n + '</b> pas sur ' + cases.length + ' faits.' + (n === cases.length ? ' Tout est fait.' : '');
+    }
+
+    cases.forEach(function (c, i) {
+      c.checked = !!lu[i];
+      if (c.checked) c.closest('li').classList.add('fait');
+      c.addEventListener('change', function () {
+        c.closest('li').classList.toggle('fait', c.checked);
+        try {
+          localStorage.setItem(CLE, JSON.stringify(cases.map(function (x) { return x.checked; })));
+        } catch (e) { /* page ouverte depuis un fichier : les coches valent pour la session */ }
+        dit();
+      });
+    });
+    dit();
+  }());
+</script>
+</body>
+</html>

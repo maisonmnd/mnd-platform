@@ -10,13 +10,14 @@ import Shell from './shell/Shell';
 import { NAV } from './routes/index';
 import { AuthGate } from './auth/AuthGate';
 import { applyPendingReplace } from './backup';
-import { migreLeNomDeLaMaison } from '../../shared/identite';
+import { migreLeNomDeLaBranche, migreLeNomDeLaMaison } from '../../shared/identite';
 
 /* LE NOM DE LA MAISON, corrigé une fois — 23 septembre 2026. Déclenchée ici,
    dans le seul Trône : le module d'identité est partagé par sept
    applications, et une migration des données de la Maison n'a rien à faire
    dans le navigateur d'une cliente. Elle expire fin 2026. */
 migreLeNomDeLaMaison();
+migreLeNomDeLaBranche();
 
 // « Remplacer la Maison » : après le redémarrage à blanc, appliquer le fichier en
 // attente sur les magasins vides AVANT le premier rendu (la synchro poussera au serveur).
