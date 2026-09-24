@@ -146,6 +146,44 @@ const photo = (nom, avant = '', apres = '') => {
   const img = `<img${avant ? ` ${avant}` : ''} src="/assets/photos/site/${attr(nom)}"${apres ? ` ${apres}` : ''}>`;
   return estPhoto(nom) ? `<picture><source type="image/webp" srcset="/assets/photos/site/${attr(webp(nom))}">${img}</picture>` : img;
 };
+/* ══ LE BANDEAU « À LA MAISON » NE RÉPÈTE PLUS LE MÊME TRIO ══════════
+   « Je veux des variantes sur le site » (Yéman, 24 septembre 2026). Brice,
+   Yéman et `regard.jpg` paraissaient sur SEPT pages, les mêmes trois, dans le
+   même ordre : le site semblait n'avoir que trois photos, alors que le dossier
+   en porte vingt-trois.
+
+   UN VISAGE DE LA MAISON RESTE TOUJOURS EN PREMIER, parce que ce bandeau sert
+   à montrer qui accueille ; ce sont les deux suivants qui tournent. Le tour se
+   calcule sur le CHEMIN de la page, donc il ne bouge pas d'une construction à
+   l'autre : la même page montre toujours le même trio, ce qui évite qu'une
+   photo saute d'une publication à la suivante sans raison. */
+const VISAGES_DE_LA_MAISON = [
+  ['brice.jpg', 'Brice Ahouansou', 'Brice, maître loctician.'],
+  ['yeman.jpg', 'Yéman Ahouansou', 'Yéman vous accueille.'],
+];
+const AUTRES_DE_LA_MAISON = [
+  ['regard.jpg', '', 'Une couronne établie, suivie à la Maison.'],
+  ['creation.jpg', '', 'Une couronne créée à la Maison.'],
+  ['attention.jpg', '', "L'attention portée à chaque tête."],
+  ['cliente-6.jpg', '', 'Une cliente de la Maison.'],
+  ['cliente-7.jpg', '', 'Une cliente de la Maison.'],
+  ['cliente-8.jpg', '', 'Une cliente de la Maison.'],
+  ['trois-couronnes.jpg', '', 'Trois couronnes, trois histoires.'],
+];
+/** Un tour stable, tiré du chemin : même page, même trio, à jamais. */
+const tourDeLaPage = (chemin) => [...String(chemin)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7);
+/** Le trio d'une page : un visage de la Maison, puis deux autres qui tournent.
+    Les deux suivants ne peuvent pas être le même, 3 n'étant pas un multiple de
+    la longueur de la liste. */
+function bandeauDeLaMaison(chemin) {
+  const t = tourDeLaPage(chemin);
+  return [
+    VISAGES_DE_LA_MAISON[t % VISAGES_DE_LA_MAISON.length],
+    AUTRES_DE_LA_MAISON[t % AUTRES_DE_LA_MAISON.length],
+    AUTRES_DE_LA_MAISON[(t + 3) % AUTRES_DE_LA_MAISON.length],
+  ];
+}
+
 const image = (nom, alt = '', extra = '') => photo(nom, '', `alt="${attr(alt)}" width="800" height="1000" loading="lazy"${extra}`);
 const ICONES = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-wa" viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8.3 19L4 20z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
@@ -485,9 +523,7 @@ function rendService(p) {
   const rassure = p.rassure ? `<section class="serre"><div class="conteneur"><div class="rassure"><p>${echappe(p.rassure)}</p><div class="colonne">${cta}${p.cta?.note ? `<span class="legende">${echappe(p.cta.note)}</span>` : ''}</div></div></div></section>` : '';
   const faq = p.faq?.length ? `<section class="serre"><div class="conteneur"><div class="tete"><p class="sur">Vos questions</p></div><div class="faq">${p.faq.map(([q, r], i) => `<details${i === 0 ? ' open' : ''}><summary>${echappe(q)}</summary><p>${echappe(r)}</p></details>`).join('')}</div></div></section>` : '';
   const galerie = `<section class="serre"><div class="conteneur"><div class="tete"><p class="sur">À la Maison</p></div><div class="galerie">
-    <figure>${image('brice.jpg', 'Brice Ahouansou')}<figcaption>Brice, maître loctician.</figcaption></figure>
-    <figure>${image('yeman.jpg', 'Yéman Ahouansou')}<figcaption>Yéman vous accueille.</figcaption></figure>
-    <figure>${image('regard.jpg')}<figcaption>Une couronne établie, suivie à la Maison.</figcaption></figure>
+    ${bandeauDeLaMaison(p.chemin).map(([f, alt, dit]) => `<figure>${image(f, alt)}<figcaption>${echappe(dit)}</figcaption></figure>`).join('\n    ')}
   </div></div></section>`;
   const sections = (p.sections ?? []).map(rendSection).join('\n');
   const appel = `<section class="appel"><div class="conteneur"><div><h2>${echappe(p.cta?.texte ?? p.h1)}</h2>${p.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(p.cta?.note ?? '')}</p>` : ''}</div><div class="rangee">${cta}${reservable ? secondaire : ''}</div></div></section>`;

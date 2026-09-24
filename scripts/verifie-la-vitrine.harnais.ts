@@ -136,7 +136,11 @@ dit('… sans prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil)
    dreadlocks abîmées ? » devient une affirmation sur elle que personne ne lui
    a demandée. Tant que la vignette se tirait au sort sur le rang du fichier
    dans le dossier, le prochain article ajouté pouvait l'y poser tout seul. */
-const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-6.jpg'];
+const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-6.jpg',
+  /* 24 septembre 2026 : trois de plus, dont un ENFANT (journal-7). La règle
+     compte double pour lui. journal-9 est `cliente-2.jpg`, descendue de
+     l'accueil au Journal. */
+  'journal-7.jpg', 'journal-8.jpg', 'journal-9.jpg'];
 /* Les mots par lesquels un article nomme un défaut. La liste s'allonge avec
    le Journal : un article qui parlera de chute, d'odeur ou de moisissure
    s'ajoute ici le jour où il est écrit. */

@@ -44,6 +44,10 @@ export const COMMUN: Commun = {
   comptes: {
     google: 'https://www.google.com/maps/place/?q=place_id:ChIJbwIfV9hVIxARgS3WzgGq9kM',
   },
+  /* La position de la porte, lue par Yéman sur Google Maps le 24 septembre
+     2026 (clic droit sur l'épingle de la Maison) : la fiche structurée la
+     porte en `geo`, ce que Google lit pour « salon de locks Cotonou ». */
+  position: { latitude: 6.376295, longitude: 2.463199 },
   nav: [
     { texte: 'Mon parcours', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },
@@ -211,7 +215,13 @@ export const ACCUEIL: Accueil = {
     sur: 'Nos clientes',
     titre: 'Celles qui nous font confiance.',
     ligne: 'Des clientes de la Maison, photographiées avec leur accord.',
-    images: ['cliente-2.jpg', 'cliente-3.jpg'],
+    /* MÊME ÉCHELLE, OU RIEN — 24 septembre 2026. `cliente-2.jpg` est partie :
+       son visage occupait deux fois moins de hauteur que celui de sa voisine,
+       et deux cadrages côte à côte se lisent comme un défaut, pas comme une
+       variation. Les quatre qui restent ont le regard à la même hauteur et le
+       visage à la même taille. `cliente-2` vit au Journal, recadrée depuis son
+       original. */
+    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-8.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
