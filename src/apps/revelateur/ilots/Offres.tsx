@@ -155,8 +155,14 @@ export default function Offres({ genre }: { genre?: string }) {
             const par = o.parcours ? PARCOURS[o.parcours] : undefined;
             const datee = !!(o.du || o.au);
             /* LES CONDITIONS VIENNENT DE LA MAISON ; la période et « dans la
-               Maison, non cumulable » restent, elles sont vraies de toutes. */
-            const conditions = [laPeriode(o), o.conditions?.trim() || 'Dans la Maison, au règlement. Une offre à la fois.']
+               Maison, non cumulable » restent, elles sont vraies de toutes.
+
+               UNE SEULE FOIS PAR PERSONNE — 24 septembre 2026, règle posée par
+               Yéman. Elle s'annonce ICI, sur la carte, AVANT que la promesse
+               soit faite : le serveur seul peut la tenir, puisqu'il faut
+               connaître le numéro pour savoir si le code a déjà servi, et une
+               règle qu'on n'apprend qu'au refus se vit comme un revirement. */
+            const conditions = [laPeriode(o), o.conditions?.trim() || 'Dans la Maison, au règlement. Une seule fois par personne, et une offre à la fois.']
               .filter(Boolean).join('. ').replace(/\.\./g, '.');
             return (
               <article className={`offre-site${datee && accueil ? ' est-moment' : ''}`} key={o.id}>

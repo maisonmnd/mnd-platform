@@ -98,6 +98,21 @@ dit('㊐ … et dit laquelle est déjà posée', 'posee',
   saisonsDeLaMaison(SAISONS, POSEES, LE_24).find((x) => x.saison.cle === 'octobre-rose')?.etat);
 dit('㊑ … laquelle est lointaine', 'lointaine',
   saisonsDeLaMaison(SAISONS, POSEES, LE_24).find((x) => x.saison.cle === 'noel')?.etat);
+/* ── LA PROMESSE EST BORNÉE AVANT D'ÊTRE FAITE ───────────────────
+   « Le code est utilisable une fois par personne, non cumulable » (Yéman,
+   24 septembre 2026). Le serveur seul peut le tenir : il faut le numéro
+   pour savoir si le code a déjà servi, et la page ne le connaît pas encore.
+   Une règle qu'on n'apprend qu'au refus se vit comme un revirement ; elle
+   doit donc être ÉCRITE sur chaque offre, avant la promesse. */
+/* Sans casse : la phrase ouvre parfois les conditions, parfois elle suit
+   un point, et une vérification qui dépend d'une majuscule mesure la
+   ponctuation au lieu de la règle. */
+const ditLaBorne = (s: { conditions?: string }, mot: string) => (s.conditions ?? '').toLowerCase().includes(mot);
+dit('㊓ les sept saisons disent toutes « une seule fois par personne »',
+  [], SAISONS.filter((s) => !ditLaBorne(s, 'une seule fois par personne')).map((s) => s.cle));
+dit('㊔ … et aucune ne promet sans borner', [],
+  SAISONS.filter((s) => !ditLaBorne(s, 'une offre à la fois')).map((s) => s.cle));
+
 dit('㊒ … et les rend de la plus proche à la plus lointaine', true,
   saisonsDeLaMaison(SAISONS, POSEES, LE_24).every((x, i, t) => i === 0 || (t[i - 1].dans ?? 9999) <= (x.dans ?? 9999)));
 
@@ -206,5 +221,5 @@ const noel = SAISONS.find((s) => s.cle === 'noel')!;
 dit('㉟ un cadeau n’écrit aucune remise', undefined,
   offreDepuisLaSaison(noel, { du: '2026-12-01', au: '2026-12-31' }, 'b1', 'of-2', [], []).discountPct);
 
-console.log(ko === 0 ? `\nTOUT EST JUSTE (55 vérifications).` : `\n${ko} ÉCHEC(S).`);
+console.log(ko === 0 ? `\nTOUT EST JUSTE (57 vérifications).` : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

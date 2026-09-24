@@ -166,7 +166,7 @@ export const SAISONS: readonly Saison[] = [
     parcours: 'entretien',
     conditions: 'Sur les lavages rituels et les reprises de racines. '
       + 'Les prestations dont le prix se dit au salon ne sont pas remisées. '
-      + 'Une offre à la fois, au règlement à la Maison.',
+      + 'Une seule fois par personne, et une offre à la fois, au règlement à la Maison.',
   },
   {
     cle: 'octobre-rose', nom: 'Octobre Rose', tag: 'Engagement', deal: '−15 %',
@@ -175,7 +175,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'ROSE15', remise: 15, categories: [SOINS],
     parcours: 'entretien', bouton: 'Réserver mon soin',
     conditions: 'Sur les soins de la carte. La Maison reverse une part de chaque soin '
-      + 'à la lutte contre le cancer du sein. Une offre à la fois, au règlement à la Maison.',
+      + 'à la lutte contre le cancer du sein. Une seule fois par personne, et une offre à la fois, au règlement à la Maison.',
   },
   {
     /* UN CADEAU N'EST PAS UNE REMISE : pas de `remise`, donc aucun prix ne
@@ -188,7 +188,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'NOEL', categories: [STYLING],
     parcours: 'entretien', bouton: 'Réserver ma couleur',
     conditions: 'Un styling signature offert pour tout forfait couleur pris dans le mois. '
-      + 'Le styling s’offre à la venue, il ne se déduit pas d’avance. Une offre à la fois.',
+      + 'Le styling s’offre à la venue, il ne se déduit pas d’avance. Une seule fois par personne, et une offre à la fois.',
   },
   {
     cle: 'saint-valentin', nom: 'La Saint-Valentin', tag: 'Offre éclair', deal: '−20 %',
@@ -197,7 +197,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'DEUX20', remise: 20, categories: [LAVAGES, REPRISES, SOINS],
     parcours: 'entretien', bouton: 'Réserver pour deux',
     conditions: 'Pour deux couronnes qui viennent ensemble, sur le même rendez-vous, '
-      + 'sur les lavages, les reprises et les soins. Une offre à la fois, au règlement à la Maison.',
+      + 'sur les lavages, les reprises et les soins. Une seule fois par personne, et une offre à la fois, au règlement à la Maison.',
   },
   {
     cle: 'mois-de-la-femme', nom: 'Le mois de la femme', tag: 'Engagement', deal: '−15 %',
@@ -206,7 +206,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'FEMME15', remise: 15, categories: [LAVAGES, REPRISES, SOINS, STYLING],
     parcours: 'entretien',
     conditions: 'Sur les lavages, les reprises, les soins et le styling, jusqu’au 8 mars. '
-      + 'Une offre à la fois, au règlement à la Maison.',
+      + 'Une seule fois par personne, et une offre à la fois, au règlement à la Maison.',
   },
   {
     /* LE RAMADAN SE CONSTATE. Les dates ci-dessous sont une ESTIMATION et
@@ -225,7 +225,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'RAMADAN',
     parcours: 'entretien', bouton: 'Réserver après la rupture',
     conditions: 'Ouverture après la rupture du jeûne pendant tout le mois, '
-      + 'et un soin hydratant à prix doux, dit à la Maison. Une offre à la fois.',
+      + 'et un soin hydratant à prix doux, dit à la Maison. Une seule fois par personne, et une offre à la fois.',
   },
   {
     /* LA FÊTE DES MÈRES ne tombe pas le même jour partout. Celle-ci suit le
@@ -240,7 +240,7 @@ export const SAISONS: readonly Saison[] = [
     code: 'MERE', categories: [SOINS],
     parcours: 'enfant', bouton: 'Organiser notre venue',
     conditions: 'Un soin offert à la mère pour toute venue mère et fille, le même jour. '
-      + 'Le soin s’offre à la venue, il ne se déduit pas d’avance. Une offre à la fois.',
+      + 'Le soin s’offre à la venue, il ne se déduit pas d’avance. Une seule fois par personne, et une offre à la fois.',
   },
 ];
 

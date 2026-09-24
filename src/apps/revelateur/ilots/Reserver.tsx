@@ -483,9 +483,18 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               onChange={(e) => setCode(codeNormalise(e.target.value))}
             />
             {offreDuMoment && compte.retire > 0 && (
-              <p className="code-offre__dit est-bonne">
-                {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
-              </p>
+              <>
+                <p className="code-offre__dit est-bonne">
+                  {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
+                </p>
+                {/* LA PROMESSE SE BORNE AVANT D'ÊTRE FAITE — 24 septembre
+                    2026. « Le code est utilisable une fois par personne, non
+                    cumulable » (Yéman). La Maison seule peut le vérifier, au
+                    moment où le numéro arrive : cette page ne sait pas encore
+                    qui réserve. On le DIT donc ici, pendant qu'elle choisit,
+                    plutôt que de la laisser l'apprendre au comptoir. */}
+                <p className="code-offre__dit">Une seule fois par personne, et une offre à la fois.</p>
+              </>
             )}
             {offreDuMoment && compte.retire === 0 && (
               <p className="code-offre__dit">
