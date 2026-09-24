@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le code de l'offre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root {
+    --accent: #B97A4A; --accent-clair: #FAF1E9; --accent-profond: #7C4C2C;
+    --accent-voile: rgba(185, 122, 74, .14);
+    --fond: #F6F1E7; --fond-2: #EEE6D6; --carte: #FFFDF9;
+    --texte: #2A2722; --texte-doux: #5E5750; --titre: #1E2150; --sombre: #1E2150;
+    --filet: rgba(20, 20, 27, .14);
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Jost', system-ui, sans-serif;
+    --r: 3px; --t: .18s ease;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font-family: var(--sans); font-weight: 300; line-height: 1.55; }
+  .page { max-width: 1140px; margin: 0 auto; padding: 0 20px 64px; }
+
+  .bandeau { background: var(--sombre); color: #F6F1E7; margin: 0 0 30px; padding: 26px 20px 24px; }
+  .bandeau .dedans { max-width: 1100px; margin: 0 auto; }
+  .bandeau .sur { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #D6A06F; margin: 0 0 8px; }
+  .bandeau h1 { font-family: var(--serif); font-weight: 300; font-size: clamp(26px, 4.4vw, 40px); margin: 0 0 8px; text-wrap: balance; }
+  .bandeau p { margin: 0; max-width: 68ch; color: rgba(246, 241, 231, .82); font-size: 15px; }
+
+  h2.part { font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--titre); margin: 38px 0 4px; }
+  .part-sous { color: var(--texte-doux); font-size: 14px; margin: 0 0 18px; max-width: 76ch; }
+  .num { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: .2em; color: var(--accent-profond); text-transform: uppercase; margin-bottom: 2px; }
+
+  .cadre { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); padding: 18px 20px; min-width: 0; }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; align-items: start; }
+  .etiq { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); display: block; margin-bottom: 6px; }
+  .constat { border-left: 3px solid var(--accent); background: var(--accent-clair); padding: 14px 18px; border-radius: var(--r); margin-bottom: 8px; }
+  .constat b { color: var(--titre); font-weight: 400; }
+
+  input[type=text], input[type=number] { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--filet); border-radius: var(--r); background: #fff; color: var(--texte); width: 100%; }
+  input:focus-visible { outline: 2px solid var(--titre); outline-offset: 1px; }
+  .code-champ { font-family: var(--sans); font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+
+  /* Un conteneur qui defile porte son cadre : sans lui, la rangee coupee au
+     bord passe pour un defaut d affichage plutot que pour la suite. */
+  .liste { display: grid; gap: 7px; margin: 10px 0 0; max-height: 262px; overflow-y: auto;
+    padding: 7px; border: 1px solid var(--filet); border-radius: var(--r); background: var(--fond-2); }
+  .ligne { display: flex; gap: 11px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--filet); border-radius: var(--r); background: #fff; }
+  .ligne.est-cochee { border-color: var(--accent); background: var(--accent-clair); }
+  .ligne input { margin: 0; accent-color: var(--accent); flex: none; }
+  .ligne .quoi { flex: 1 1 auto; min-width: 0; font-size: 14px; color: var(--titre); overflow-wrap: anywhere; }
+  .ligne .quoi small { display: block; font-size: 12px; color: var(--texte-doux); }
+  .ligne .sou { flex: none; font-size: 13px; color: var(--texte-doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .ecran { background: var(--carte); border: 1px solid var(--filet); border-radius: var(--r); overflow: hidden; }
+  .ecran__tete { background: var(--fond-2); border-bottom: 1px solid var(--filet); padding: 9px 16px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-profond); }
+  .ecran__corps { padding: 18px 20px; }
+
+  .carte-offre { border: 1px solid var(--filet); border-radius: var(--r); overflow: hidden; max-width: 380px; }
+  .carte-offre__haut { background: var(--accent-profond); color: #FAF1E9; padding: 18px 20px; }
+  .carte-offre__haut .sur { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: #E7C3A2; margin: 0 0 6px; }
+  .carte-offre__haut .deal { font-family: var(--serif); font-size: 42px; line-height: 1; margin: 0; }
+  .carte-offre__bas { padding: 16px 20px 18px; background: var(--carte); }
+  .carte-offre__bas h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--titre); margin: 0 0 4px; }
+  .carte-offre__bas p { margin: 0 0 12px; font-size: 13.5px; color: var(--texte-doux); }
+  .code-dit { display: inline-flex; align-items: baseline; gap: 8px; border: 1px dashed var(--accent); background: var(--accent-clair); border-radius: var(--r); padding: 7px 12px; margin-bottom: 13px; }
+  .code-dit span { font-size: 12px; color: var(--accent-profond); }
+  .code-dit b { font-weight: 500; letter-spacing: .16em; color: var(--titre); }
+
+  .btn { display: inline-block; padding: 10px 18px; border: 1px solid var(--accent); border-radius: var(--r); background: var(--accent); color: #fff; font: inherit; font-size: 13px; letter-spacing: .06em; cursor: pointer; transition: background var(--t); text-decoration: none; }
+  .btn:hover { background: var(--accent-profond); border-color: var(--accent-profond); }
+  .btn--creux { background: none; color: var(--accent-profond); }
+  .btn--creux:hover { background: var(--accent-voile); }
+  .btn:focus-visible { outline: 2px solid var(--titre); outline-offset: 2px; }
+  .btn--plein { width: 100%; text-align: center; }
+
+  .resa-ligne { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--filet); }
+  .resa-ligne:last-of-type { border-bottom: 0; }
+  .resa-ligne .quoi { flex: 1 1 auto; min-width: 0; font-size: 14px; color: var(--titre); overflow-wrap: anywhere; }
+  .resa-ligne .quoi small { display: block; font-size: 12px; color: var(--texte-doux); }
+  .resa-ligne .sou { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .resa-ligne .sou s { color: var(--texte-doux); font-size: 12.5px; margin-right: 7px; }
+  .resa-ligne .sou b { font-weight: 500; color: var(--accent-profond); }
+  .total { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--titre); }
+  .total .mot { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-doux); }
+  .total .chiffre { font-family: var(--serif); font-size: 30px; color: var(--titre); font-variant-numeric: tabular-nums; }
+  .gain { margin-top: 8px; font-size: 13px; color: var(--accent-profond); }
+  .gain s { color: var(--texte-doux); }
+
+  table.cas { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.cas th, table.cas td { text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--filet); }
+  table.cas th { font-weight: 400; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-profond); }
+  table.cas td:first-child { color: var(--titre); width: 34%; }
+  .fil { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  .fil button { font: inherit; font-size: 12.5px; padding: 7px 13px; border: 1px solid var(--filet); border-radius: 999px; background: #fff; color: var(--texte-doux); cursor: pointer; }
+  .fil button.is-on { border-color: var(--accent); background: var(--accent-clair); color: var(--accent-profond); }
+  .note { font-size: 12.5px; color: var(--texte-doux); margin: 10px 0 0; }
+  .avis { margin-top: 10px; padding: 10px 13px; border-radius: var(--r); font-size: 13px; border: 1px solid var(--filet); background: var(--fond-2); color: var(--texte-doux); }
+  .avis.est-bonne { border-color: var(--accent); background: var(--accent-clair); color: var(--accent-profond); }
+  .pied { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--filet); font-size: 13px; color: var(--texte-doux); max-width: 76ch; }
+</style>
+
+<div class="bandeau"><div class="dedans">
+  <p class="sur">Maquette à valider · 24 septembre 2026</p>
+  <h1>Le code de l'offre</h1>
+  <p>Une remise qui porte un nom : la Maison l'écrit une fois, la cliente le voit sur la carte, il se remplit tout seul quand elle réserve, et il reste sur la demande. On sait alors ce que chaque offre a réellement rapporté.</p>
+</div></div>
+
+<div class="page">
+
+  <p class="num">Le constat</p>
+  <h2 class="part">Aujourd'hui, le « −10 % » est une phrase</h2>
+  <p class="part-sous">Avant de construire, ce que j'ai lu dans vos offres, telles que le site les lit.</p>
+  <div class="constat">
+    <p style="margin:0 0 8px"><b>« La rentrée des couronnes » et « Octobre Rose » ne portent aucune remise chiffrée.</b> Elles ont un titre, un texte, des dates. Le champ « Remise appliquée » du Trône est vide sur les deux, et la case « Prestation liée » aussi.</p>
+    <p style="margin:0 0 8px">Le « −10 % » affiché est du texte, pas un nombre. Rien ne pouvait donc être déduit d'un prix : <b>il n'y avait rien à déduire.</b></p>
+    <p style="margin:0">Et le Trône ne laisse attacher qu'UNE prestation à une offre, quand la vôtre en couvre deux familles. C'est ce que cette maquette répare.</p>
+  </div>
+
+  <p class="num" style="margin-top:34px">Premier écran · au Trône</p>
+  <h2 class="part">L'offre gagne un code et ses prestations</h2>
+  <p class="part-sous">Deux champs de plus sur la fiche que vous connaissez, et une liste à cocher. Cochez, changez le code, le reste de la maquette suit.</p>
+
+  <div class="duo">
+    <div class="cadre">
+      <div style="display:grid; grid-template-columns:1fr 120px; gap:12px; align-items:end">
+        <div>
+          <label class="etiq" for="m-code">Le code de la remise</label>
+          <input id="m-code" class="code-champ" type="text" value="RENTREE10" maxlength="14">
+        </div>
+        <div>
+          <label class="etiq" for="m-pct">Remise</label>
+          <input id="m-pct" type="number" min="1" max="90" value="10">
+        </div>
+      </div>
+      <p class="note">Le code s'écrit une fois. Il ne distingue pas les majuscules et ignore les espaces : « rentree 10 » vaut « RENTREE10 ».</p>
+
+      <label class="etiq" style="margin-top:18px">Sur quelles prestations elle porte</label>
+      <div class="fil">
+        <button type="button" data-fam="lavages">Tous les lavages</button>
+        <button type="button" data-fam="reprises">Toutes les reprises</button>
+        <button type="button" data-fam="rien">Tout décocher</button>
+      </div>
+      <div class="liste" id="m-liste"></div>
+      <p class="note" id="m-compte"></p>
+    </div>
+
+    <div>
+      <div class="ecran">
+        <div class="ecran__tete">Sur le site · la carte de l'offre</div>
+        <div class="ecran__corps">
+          <div class="carte-offre">
+            <div class="carte-offre__haut">
+              <p class="sur">Offre de saison</p>
+              <p class="deal" id="c-deal">−10 %</p>
+            </div>
+            <div class="carte-offre__bas">
+              <h3>La rentrée des couronnes</h3>
+              <p>Sur les lavages rituels et les reprises de racines, pour repartir net.</p>
+              <div class="code-dit"><span>avec le code</span><b id="c-code">RENTREE10</b></div>
+              <a class="btn btn--plein" href="#resa">J'en profite</a>
+            </div>
+          </div>
+          <p class="note">Le bouton emporte le code. Une cliente qui arrive par un autre chemin peut toujours le taper, il est écrit en toutes lettres.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="num" style="margin-top:34px">Deuxième écran · sur le site</p>
+  <h2 class="part" id="resa">À la réservation, le code est déjà là</h2>
+  <p class="part-sous">Elle n'a rien à retenir ni à retaper. Cochez des prestations ci-dessous : la remise ne touche que celles que l'offre couvre, et le total le dit ligne à ligne.</p>
+
+  <div class="duo">
+    <div class="ecran">
+      <div class="ecran__tete">Ce qu'elle choisit</div>
+      <div class="ecran__corps">
+        <p style="margin:0; font-size:13.5px; color:var(--texte-doux)">Cochez tout ce que vous voulez faire en une seule venue. La Maison additionne la durée et le prix.</p>
+        <div class="liste" id="r-liste" style="max-height:300px"></div>
+      </div>
+    </div>
+
+    <div class="ecran">
+      <div class="ecran__tete">Votre place</div>
+      <div class="ecran__corps">
+        <label class="etiq" for="r-code">Code de remise</label>
+        <input id="r-code" class="code-champ" type="text" value="RENTREE10">
+        <div class="avis" id="r-avis"></div>
+
+        <div style="margin-top:16px" id="r-lignes"></div>
+
+        <div class="total">
+          <span class="mot">À régler à la Maison</span>
+          <span class="chiffre" id="r-total">0 F</span>
+        </div>
+        <p class="gain" id="r-gain"></p>
+        <button class="btn btn--plein" style="margin-top:16px" type="button">Demander cette place</button>
+        <p class="note">Rien à payer aujourd'hui, le règlement se fait à la Maison.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="num" style="margin-top:34px">Troisième écran · au Trône</p>
+  <h2 class="part">Ce qui arrive, et ce qu'on peut suivre</h2>
+  <p class="part-sous">La demande porte le code. C'est lui qui permet de dire, un mois plus tard, ce que l'offre a réellement fait venir.</p>
+  <div class="ecran">
+    <div class="ecran__tete">Demandes de rendez-vous</div>
+    <div class="ecran__corps" id="t-demande"></div>
+  </div>
+
+  <p class="num" style="margin-top:34px">Les cas</p>
+  <h2 class="part">Ce que j'ai tranché, et que vous pouvez contester</h2>
+  <p class="part-sous">Chaque ligne est une décision. Si l'une vous semble fausse, dites-le, elle se change avant que ce soit bâti.</p>
+  <div class="cadre" style="padding:4px 8px">
+    <table class="cas">
+      <tr><th>Le cas</th><th>Ce que fait la Maison</th></tr>
+      <tr>
+        <td>Une prestation dont le prix se dit au salon</td>
+        <td>La remise ne s'y applique pas, et la ligne le dit. « GBÈJÍ™ Fidélité · Reprise &amp; Shampoing Signature » est justement une reprise, mais son prix n'est pas ferme : rien ne peut en être déduit d'avance sans inventer un chiffre.</td>
+      </tr>
+      <tr>
+        <td>Une venue qui mêle couvert et non couvert</td>
+        <td>La remise ne porte que sur les lignes couvertes. Le total montre chaque ligne, barrée ou non, pour qu'aucune surprise n'attende au comptoir.</td>
+      </tr>
+      <tr>
+        <td>Un prix qui se dit « à partir de »</td>
+        <td>Le prix remisé se dit aussi « à partir de ». Le total reste un plancher, jamais une promesse.</td>
+      </tr>
+      <tr>
+        <td>Le code tapé hors de sa saison</td>
+        <td>Il ne prend pas, et la page dit pourquoi : « Ce code a couru du 1er au 30 septembre. » Un refus muet ferait croire à une panne.</td>
+      </tr>
+      <tr>
+        <td>Un code inconnu</td>
+        <td>La page le dit sans reproche et laisse réserver au prix plein. On ne bloque jamais une réservation sur une faute de frappe.</td>
+      </tr>
+      <tr>
+        <td>Deux offres qui couvrent la même prestation</td>
+        <td>Un seul code à la fois, celui qui est écrit dans le champ. Aucun cumul : deux remises qui s'ajoutent sont la façon la plus simple de vendre à perte sans s'en apercevoir.</td>
+      </tr>
+      <tr>
+        <td>La Maison réserve depuis le Trône</td>
+        <td>Rien ne change pour l'instant, à votre demande. La remise manuelle existe déjà à l'accueil. Le jour où vous voudrez que le code s'y propose tout seul, ce sera un ajout, pas une reprise.</td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="pied">
+    Ce que je construirai si vous validez : le code et les prestations couvertes sur la fiche d'offre du Trône, le code écrit sur la carte du site, le lien qui l'emporte, le champ pré-rempli à la réservation, le prix barré ligne à ligne, et le code porté jusqu'à la demande. Le prix lui-même ne bouge pas d'un franc dans le catalogue : la remise se lit, elle ne réécrit rien.
+  </p>
+</div>
+
+<script>
+/* Le catalogue est celui de la Maison, lu ce soir dans catalog_services :
+   ni noms ni prix inventés, sinon la maquette montrerait un salon qui
+   n'existe pas. */
+const CATALOGUE = [
+  { id: 'sv-dds-shp-e',     fam: 'lavages',  nom: 'KLƆKLƆ™ à Façon Lavage · Shampoing apporté', min: 30, prix: 6000 },
+  { id: 'sv-plt-05-ess-c',  fam: 'lavages',  nom: 'KLƆKLƆ™ Essentiel · Le Shampoing « Le Souffle »', min: 30, prix: 8000 },
+  { id: 'sv-plt-05-sig-c',  fam: 'lavages',  nom: 'KLƆKLƆ™ Signature · Le Shampoing « L’Ancrage »', min: 50, prix: 12000 },
+  { id: 'sv-plt-05-pre-c',  fam: 'lavages',  nom: 'KLƆKLƆ™ Prestige · Le Shampoing « La Dépose »', min: 75, prix: 18000 },
+  { id: 'sv-atl-ii-e',      fam: 'reprises', nom: 'SÍNSIN™ Essentiel · La Reprise', min: 150, prix: 20000 },
+  { id: 'sv-atl-ii-l',      fam: 'reprises', nom: 'SÍNSIN™ Élaboré · La Reprise Longue Durée', min: 210, prix: 25000 },
+  { id: 'sv-retouches-post-reprise', fam: 'reprises', nom: 'Retouches Post Reprise', min: 45, prix: 4000 },
+  { id: 'sv-forfait-gbeji-fidelite', fam: 'reprises', nom: 'GBÈJÍ™ Fidélité · Reprise & Shampoing Signature', min: 110, prix: 0 },
+  { id: 'sv-dandan',        fam: 'soins',    nom: 'DÀNDÀN™ · Le Soin Ultra-Hydratant', min: 60, prix: 25000 },
+  { id: 'sv-gbata-std',     fam: 'autres',   nom: 'GBÀTÀ™ Standard · Le Défaisage', min: 300, prix: 80000, apartir: true },
+  { id: 'sv-styling',       fam: 'autres',   nom: 'Styling · sortie soignée', min: 20, prix: 2000 },
+];
+
+const SAISON = { debut: '1er septembre', fin: '30 septembre', enCours: true };
+
+/* Ce que la Maison a coché sur l'offre : les lavages et les reprises, comme
+   le texte de l'offre le dit déjà. */
+let couvertes = new Set(CATALOGUE.filter((s) => s.fam === 'lavages' || s.fam === 'reprises').map((s) => s.id));
+let choisies = new Set(['sv-plt-05-sig-c', 'sv-atl-ii-e', 'sv-styling']);
+
+const argent = (n) => n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F';
+const $ = (s) => document.querySelector(s);
+const normalise = (s) => s.replace(/\s+/g, '').toUpperCase();
+
+function dessineOffre() {
+  const l = $('#m-liste');
+  l.innerHTML = '';
+  for (const s of CATALOGUE) {
+    const d = document.createElement('label');
+    d.className = 'ligne' + (couvertes.has(s.id) ? ' est-cochee' : '');
+    d.innerHTML = '<input type="checkbox"' + (couvertes.has(s.id) ? ' checked' : '') + '>'
+      + '<span class="quoi">' + s.nom + '</span>'
+      + '<span class="sou">' + (s.prix ? argent(s.prix) : 'au salon') + '</span>';
+    d.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) couvertes.add(s.id); else couvertes.delete(s.id);
+      tout();
+    });
+    l.appendChild(d);
+  }
+  $('#m-compte').textContent = couvertes.size
+    ? couvertes.size + ' prestation' + (couvertes.size > 1 ? 's' : '') + ' couverte' + (couvertes.size > 1 ? 's' : '') + ' par ce code.'
+    : 'Aucune prestation cochée : le code ne déduirait rien nulle part.';
+}
+
+function dessineChoix() {
+  const l = $('#r-liste');
+  l.innerHTML = '';
+  for (const s of CATALOGUE) {
+    const d = document.createElement('label');
+    d.className = 'ligne' + (choisies.has(s.id) ? ' est-cochee' : '');
+    d.innerHTML = '<input type="checkbox"' + (choisies.has(s.id) ? ' checked' : '') + '>'
+      + '<span class="quoi">' + s.nom + '<small>' + s.min + ' min</small></span>'
+      + '<span class="sou">' + (s.prix ? (s.apartir ? 'à partir de ' : '') + argent(s.prix) : 'prix au salon') + '</span>';
+    d.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) choisies.add(s.id); else choisies.delete(s.id);
+      tout();
+    });
+    l.appendChild(d);
+  }
+}
+
+function dessineResa() {
+  const codeOffre = normalise($('#m-code').value);
+  const tape = normalise($('#r-code').value);
+  const pct = Math.max(0, Math.min(90, parseInt($('#m-pct').value, 10) || 0));
+  const reconnu = !!codeOffre && tape === codeOffre;
+  const avis = $('#r-avis');
+
+  if (!tape) {
+    avis.className = 'avis';
+    avis.textContent = 'Sans code, tout se règle au prix de la carte.';
+  } else if (reconnu && !SAISON.enCours) {
+    avis.className = 'avis';
+    avis.textContent = 'Ce code a couru du ' + SAISON.debut + ' au ' + SAISON.fin + '. Il ne s’applique plus.';
+  } else if (reconnu) {
+    avis.className = 'avis est-bonne';
+    avis.textContent = 'La rentrée des couronnes · −' + pct + ' % sur les lavages rituels et les reprises de racines, jusqu’au ' + SAISON.fin + '.';
+  } else {
+    avis.className = 'avis';
+    avis.textContent = 'Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.';
+  }
+
+  const lignes = CATALOGUE.filter((s) => choisies.has(s.id));
+  const hote = $('#r-lignes');
+  hote.innerHTML = '';
+  let plein = 0; let net = 0; let flou = false; let remisees = 0;
+
+  for (const s of lignes) {
+    const porte = reconnu && SAISON.enCours && couvertes.has(s.id) && s.prix > 0 && pct > 0;
+    const apres = porte ? Math.round(s.prix * (1 - pct / 100)) : s.prix;
+    plein += s.prix; net += apres;
+    if (!s.prix || s.apartir) flou = true;
+    if (porte) remisees++;
+
+    const d = document.createElement('div');
+    d.className = 'resa-ligne';
+    let sou;
+    if (!s.prix) sou = '<span style="color:var(--texte-doux); font-size:13px">prix au salon</span>';
+    else if (porte) sou = '<s>' + argent(s.prix) + '</s><b>' + (s.apartir ? 'à partir de ' : '') + argent(apres) + '</b>';
+    else sou = (s.apartir ? 'à partir de ' : '') + argent(s.prix);
+    d.innerHTML = '<span class="quoi">' + s.nom
+      + '<small>' + s.min + ' min'
+      + (porte ? ' · le code porte ici' : (reconnu && SAISON.enCours && !s.prix && couvertes.has(s.id) ? ' · couverte, mais son prix se dit au salon' : ''))
+      + '</small></span><span class="sou">' + sou + '</span>';
+    hote.appendChild(d);
+  }
+
+  if (!lignes.length) hote.innerHTML = '<p class="note" style="margin:0">Aucune prestation choisie.</p>';
+  $('#r-total').textContent = net > 0 ? (flou ? 'à partir de ' : '') + argent(net) : 'au salon';
+  $('#r-gain').innerHTML = remisees
+    ? 'Le code retire <b>' + argent(plein - net) + '</b> sur ' + remisees + ' ligne' + (remisees > 1 ? 's' : '') + ' · <s>' + argent(plein) + '</s>'
+    : '';
+
+  const dem = $('#t-demande');
+  const noms = lignes.map((s) => s.nom.split(' · ')[0]).join(', ') || 'aucune prestation';
+  dem.innerHTML = '<div style="display:flex; flex-wrap:wrap; gap:18px; align-items:baseline">'
+    + '<div style="flex:1 1 260px; min-width:0"><span class="etiq">La demande</span>'
+    + '<p style="margin:0; font-size:14px; color:var(--titre)">A. K. · 01 XX XX XX XX</p>'
+    + '<p style="margin:2px 0 0; font-size:13px; color:var(--texte-doux)">Samedi 27 septembre, 10h00 · ' + noms + '</p></div>'
+    + '<div style="flex:0 0 auto"><span class="etiq">Code porté</span>'
+    + '<p style="margin:0; font-size:15px; letter-spacing:.14em; font-weight:500; color:' + (remisees ? 'var(--accent-profond)' : 'var(--texte-doux)') + '">'
+    + (remisees ? codeOffre + ' · −' + pct + ' %' : 'aucun') + '</p></div>'
+    + '<div style="flex:0 0 auto"><span class="etiq">À régler</span>'
+    + '<p style="margin:0; font-size:15px; color:var(--titre); font-variant-numeric:tabular-nums">' + (net > 0 ? argent(net) : 'au salon') + '</p></div>'
+    + '</div>'
+    + '<p class="note">Un mois plus tard, le Trône sait compter les venues qui portent ' + (codeOffre || 'ce code') + ', et ce qu’elles ont rapporté. C’est ce que « plus facile à suivre » veut dire.</p>';
+}
+
+function tout() { dessineOffre(); dessineChoix(); dessineResa(); }
+
+$('#m-code').addEventListener('input', () => {
+  $('#c-code').textContent = normalise($('#m-code').value) || '(sans code)';
+  dessineResa();
+});
+$('#m-pct').addEventListener('input', () => {
+  $('#c-deal').textContent = '−' + (parseInt($('#m-pct').value, 10) || 0) + ' %';
+  dessineResa();
+});
+$('#r-code').addEventListener('input', dessineResa);
+for (const b of document.querySelectorAll('.fil button')) {
+  b.addEventListener('click', () => {
+    const fam = b.dataset.fam;
+    if (fam === 'rien') couvertes = new Set();
+    else for (const s of CATALOGUE) if (s.fam === fam) couvertes.add(s.id);
+    tout();
+  });
+}
+tout();
+</script>
+</html>
