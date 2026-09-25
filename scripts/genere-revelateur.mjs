@@ -280,7 +280,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
       <div class="conteneur">
         <input class="menu-etat cache" type="checkbox" id="menu-etat" aria-label="Menu" aria-controls="nav-principale">
         <label class="menu-bouton" for="menu-etat" aria-hidden="true"><span></span><span></span><span></span></label>
-        <a class="logo" href="${BASE}" aria-label="${attr(COMMUN.nom)}, accueil"><img src="/assets/photos/site/mono-indigo.png" alt="MND" width="240" height="198"></a>
+        <a class="logo verrou" href="${BASE}" aria-label="${attr(COMMUN.nom)}, accueil"><img src="/assets/photos/site/mono-indigo.png" alt="" width="240" height="198"><span class="verrou__mots"><span class="verrou__maison">MAISON</span><span class="verrou__sigle">MND</span></span></a>
         <nav class="nav" id="nav-principale" aria-label="Navigation">
       ${nav}
         </nav>

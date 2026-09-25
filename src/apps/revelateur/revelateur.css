@@ -98,11 +98,46 @@ section.serre { padding-top: 0; }
 .sombre .legende { color: rgba(246, 241, 231, .62); }
 .rangee { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 
-/* ── la barre : le monogramme seul annonce la page ─────────────── */
+/* ── la barre : le verrou de la Maison annonce la page ─────────────── */
 .barre { position: sticky; top: 0; z-index: 20; background: rgba(246, 241, 231, .9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--filet); }
-.barre .conteneur { display: flex; align-items: center; gap: 18px; min-height: 64px; }
+/* LA HAUTEUR DE LA BARRE EST UN SEUL NOMBRE — 25 septembre 2026. Le grand
+   écran remonte sous la barre d'un `margin-top` négatif ; ce nombre était
+   RECOPIÉ (-64 px) à côté d'une barre qui en faisait 76 sur l'accueil, et les
+   douze pixels d'écart laissaient une bande crème en haut de page. Invisible
+   tant que le logo tenait au milieu ; le verrou, plus haut, tombait dedans et
+   son sommet ivoire s'y perdait. Un seul nombre, lu des deux côtés. */
+.barre .conteneur { display: flex; align-items: center; gap: 18px; min-height: var(--barre-h, 72px); }
 .logo { display: flex; align-items: center; }
 .logo img { height: 30px; width: auto; }
+
+/* ══ LE VERROU DE LA MAISON — 25 septembre 2026 ═══════════════════════
+   Le pictogramme et le nom, d'un seul tenant. Ici c'est du VRAI TEXTE, pas
+   une image : Cormorant est servie par le site, donc le nom reste net à toute
+   définition d'écran et se laisse relire par un lecteur d'écran.
+
+   TOUT SE DÉDUIT D'UN SEUL NOMBRE, --sigle, le corps de « MND ». Les rapports
+   qui suivent sont ceux de `src/ds/verrou.ts`, et le harnais verifie-le-verrou
+   refuse que cette feuille et ce fichier disent deux choses différentes.
+   Largeur totale du verrou = 5,057 × --sigle : c'est ce qui décide du plancher.
+
+   AUCUN text-indent ICI. Sur une ligne centrée, un retrait égal à l'écartement
+   rattrape le blanc qui suit la dernière lettre ; sur un bloc calé à gauche il
+   ne rattrape rien, il pousse la ligne, et comme MAISON et MND n'ont pas le
+   même écartement les deux lignes ne partaient plus du même bord. */
+.verrou { display: flex; align-items: center; gap: calc(var(--sigle) * .3333); }
+.verrou img { height: calc(var(--sigle) * 1.5833); width: auto; display: block; }
+.verrou__mots { display: flex; flex-direction: column; align-items: flex-start; }
+.verrou__maison, .verrou__sigle { font-family: var(--serif); font-weight: 400; color: var(--titre); line-height: 1; white-space: nowrap; }
+.verrou__maison { font-size: calc(var(--sigle) * .3182); letter-spacing: .44em; margin-bottom: calc(var(--sigle) * .1212); }
+.verrou__sigle { font-size: var(--sigle); letter-spacing: .3em; }
+.barre .verrou { --sigle: 28px; }
+
+/* SOUS LE PLANCHER, LE PICTOGRAMME SEUL. Le verrou tient à partir de 123 px de
+   large ; sur un téléphone étroit, la barre porte déjà le menu, le téléphone et
+   le bouton de rendez-vous, et il ne reste pas cette largeur. On ne rapetisse
+   pas le verrou en dessous de ce qui se lit : on retire le nom, le pictogramme
+   reste, et le nom se lit dans la page. */
+@media (max-width: 560px) { .barre .verrou__mots { display: none; } }
 .nav { margin-left: auto; display: flex; gap: 2px; }
 .nav a { font-size: 13px; color: var(--texte); padding: 8px 10px; border-radius: var(--r); font-weight: 400; }
 .nav a:hover, .nav a[aria-current="page"] { background: var(--accent-voile); color: var(--titre); }
@@ -661,7 +696,7 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    l'indigo la fond vers le titre ; sur téléphone elle couvre tout, un portrait
    y est chez lui. La barre reste collante : transparente sur la photo, elle
    redevient pleine dès qu'on descend (.solide, posé par main.ts). */
-.hero-plein { position: relative; min-height: clamp(560px, 82vh, 860px); margin-top: -64px; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sombre); color: #F6F1E7; }
+.hero-plein { position: relative; min-height: clamp(560px, 82vh, 860px); margin-top: calc(var(--barre-h, 72px) * -1); padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sombre); color: #F6F1E7; }
 .hero-plein__photo { position: absolute; top: 0; bottom: 0; right: 0; width: min(58%, 880px); height: 100%; max-width: none; object-fit: cover; object-position: 50% 6%; }
 /* Le voile n'est pas réglé à l'œil sur cette photo-là : un PLATEAU d'indigo à
    opacité fixe couvre toute la zone du texte (le bas de l'écran, où vivent
@@ -736,9 +771,12 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    transparente sur la photo, pleine dès qu'on descend. Le monogramme indigo
    passe en ivoire par un filtre tant que la barre est transparente. */
 .accueil-plein .barre { transition: background var(--t), border-color var(--t); }
-.accueil-plein .barre .conteneur { min-height: 76px; }
+.accueil-plein { --barre-h: 76px; }
+.accueil-plein .barre .conteneur { min-height: var(--barre-h); }
 .accueil-plein .barre:not(.solide) { background: transparent; backdrop-filter: none; border-bottom-color: transparent; }
 .accueil-plein .barre:not(.solide) .logo img { filter: brightness(0) invert(1); opacity: .96; }
+.accueil-plein .barre:not(.solide) .verrou__maison,
+.accueil-plein .barre:not(.solide) .verrou__sigle { color: #F6F1E7; }
 .accueil-plein .barre:not(.solide) .menu-bouton span { background: #F6F1E7; }
 .accueil-plein .barre:not(.solide) .tel { color: #F6F1E7; }
 .accueil-plein .barre:not(.solide) .tel:hover { background: rgba(246, 241, 231, .14); }
@@ -746,11 +784,14 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    sans ancêtre positionné se retrouvait au milieu du premier écran. */
 .accueil-plein .barre .logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .accueil-plein .barre .logo img { height: 36px; }
+/* Sur l'accueil la barre est plus haute : le verrou y prend un cran de plus. */
+.accueil-plein .barre .verrou { --sigle: 32px; }
+.accueil-plein .barre .verrou img { height: calc(var(--sigle) * 1.5833); }
 .accueil-plein .nav { display: none; }
 .accueil-plein .menu-etat:checked ~ .nav { display: flex; }
 .accueil-plein .menu-bouton, .accueil-plein .tel { display: grid; }
 .accueil-plein .barre .btn { margin-left: 0; }
-@media (max-width: 860px) { .accueil-plein .barre .btn { display: none; } .accueil-plein .hero-plein { margin-top: -76px; } }
+@media (max-width: 860px) { .accueil-plein .barre .btn { display: none; } }
 @media (max-width: 760px) { .promesses .conteneur { grid-template-columns: 1fr; gap: 12px; } }
 
 /* Les offres sur l'accueil : fond d'ivoire foncé, et une grille de trois. */

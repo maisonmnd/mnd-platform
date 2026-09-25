@@ -5,7 +5,7 @@
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
 import qrcode from 'qrcode-generator';
-import { maisonNom, DEVISE_COMPLETE } from './identite';
+import { maisonNom, DEVISE_COMPLETE, corrigeLAncienNom, DEFAULT_IDENTITY } from './identite';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
 
@@ -279,6 +279,71 @@ function chargeMono(nom: string): Promise<string | null> {
     });
   }
   return MONOS[nom];
+}
+
+/* ══ LE VERROU EN TÊTE DES PAPIERS — 25 septembre 2026 ═══════════════
+   « Pose le 5 couché en en-tête des documents, à la place du monogramme
+   seul » (Yéman). Le verrou, c'est le pictogramme ET le nom, dessinés
+   ensemble : il remplace donc le couple que chaque papier composait à la
+   main, un monogramme carré d'un côté et « Maison MND » en Times de l'autre.
+
+   POURQUOI UNE IMAGE ET NON DU TEXTE. jsPDF n'embarque que Times et
+   Helvetica. Composer le nom de la Maison en Times, ce serait redessiner la
+   marque avec une autre plume. L'image sort de `fabrique-le-verrou.mjs`, qui
+   la dessine dans la vraie Cormorant du dépôt.
+
+   IL NE S'EMPLOIE QUE SI LE PAPIER EST BIEN CELUI DE LA MAISON. Le nom d'un
+   document vient de la table d'identité ; s'il ne dit pas « Maison MND », le
+   verrou mentirait, et l'on repose le monogramme avec le nom écrit. */
+
+const VERROUS: Record<string, Promise<string | null>> = {};
+function chargeVerrou(encre: string): Promise<string | null> {
+  if (!VERROUS[encre]) {
+    VERROUS[encre] = (async () => {
+      try {
+        const url = import.meta.env.BASE_URL.replace(/\/$/, '') + `/assets/verrous/verrou-couche-${encre}.png`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(HUIT_SECONDES) });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return await new Promise<string | null>((ok) => {
+          const r = new FileReader();
+          r.onloadend = () => ok(typeof r.result === 'string' ? r.result : null);
+          r.onerror = () => ok(null);
+          r.readAsDataURL(blob);
+        });
+      } catch { return null; }
+    })().then((r) => {
+      if (r === null) delete VERROUS[encre];
+      return r;
+    });
+  }
+  return VERROUS[encre];
+}
+
+/** Le papier porte-t-il bien le nom de la Maison ? « L'atelier MND », l'ancien
+    nom, compte pour oui : c'est la même maison, et la migration le corrigera. */
+const estLaMaison = (nom: unknown): boolean =>
+  (corrigeLAncienNom(nom) ?? String(nom ?? '')).trim().toLowerCase()
+    === DEFAULT_IDENTITY.nom.toLowerCase();
+
+/** POSE LE VERROU COUCHÉ, et rend la hauteur qu'il occupe.
+    Rend `null` si l'image manque : l'appelant repose alors le monogramme et
+    écrit le nom, comme avant. Un papier sort toujours, avec ou sans réseau.
+    La LARGEUR ne descend jamais sous `PLANCHER_COUCHE_MM` ; c'est
+    `verifie-le-verrou` qui relit tous les appels et le prouve. */
+async function poseLeVerrou(
+  doc: any, x: number, y: number, largeur: number, encre: 'indigo' | 'cuivre' | 'ivoire' = 'indigo',
+): Promise<number | null> {
+  const img = await chargeVerrou(encre);
+  if (!img) return null;
+  try {
+    const p = doc.getImageProperties(img);
+    const h = (largeur * p.height) / p.width;
+    doc.addImage(img, 'PNG', x, y, largeur, h, undefined, 'FAST');
+    return h;
+  } catch {
+    return null;
+  }
 }
 
 /** UN TEXTE POSÉ SUR UN ARC, CENTRÉ SUR SON AXE.
@@ -565,21 +630,30 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   const M = 18;
   let y = 22;
 
-  // — Entête (sceau MND + nom de la Maison) —
-  const seal = await loadSeal();
-  if (seal) {
-    try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* image indisponible */ }
+  // — Entête : le verrou de la Maison, pictogramme et nom d'un seul tenant —
+  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  let sousX = M;
+  let sousY = 12 + (hVerrou ?? 0) + 4.5;
+  if (hVerrou === null) {
+    /* LE REPLI. Sans l'image, ou sur un papier qui ne porte pas le nom de la
+       Maison, on repose le monogramme et l'on écrit le nom : un papier sort
+       toujours, avec ou sans réseau. */
+    const seal = await loadSeal();
+    if (seal) {
+      try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+    sousX = seal ? M + 16 : M;
+    sousY = y + 5;
+    doc.setFont('times', 'normal');
+    doc.setTextColor(INDIGO);
+    doc.setFontSize(22);
+    doc.text(d.houseName, sousX, y);
   }
-  const nameX = seal ? M + 16 : M;
-  doc.setFont('times', 'normal');
-  doc.setTextColor(INDIGO);
-  doc.setFontSize(22);
-  doc.text(d.houseName, nameX, y);
   if (d.houseSub) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(SOFT);
-    doc.text(d.houseSub, nameX, y + 5);
+    doc.text(d.houseSub, sousX, sousY);
   }
   // Titre document (droite)
   doc.setFont('times', 'normal');
@@ -840,20 +914,28 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
   const M = 16;
   let y = 20;
 
-  const seal = await loadSeal();
-  if (seal) {
-    try { doc.addImage(seal, 'PNG', M, 12, 11, 11, undefined, 'FAST'); } catch { /* image indisponible */ }
+  /* Le reçu est un A5 couché : le verrou y tient à quarante millimètres, au-dessus
+     du plancher, et laisse la moitié droite au montant. */
+  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 10, 40) : null;
+  let sousX = M;
+  let sousY = 10 + (hVerrou ?? 0) + 4;
+  if (hVerrou === null) {
+    const seal = await loadSeal();
+    if (seal) {
+      try { doc.addImage(seal, 'PNG', M, 12, 11, 11, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+    sousX = seal ? M + 14 : M;
+    sousY = y + 4.5;
+    doc.setFont('times', 'normal');
+    doc.setTextColor(INDIGO);
+    doc.setFontSize(18);
+    doc.text(d.houseName, sousX, y);
   }
-  const nameX = seal ? M + 14 : M;
-  doc.setFont('times', 'normal');
-  doc.setTextColor(INDIGO);
-  doc.setFontSize(18);
-  doc.text(d.houseName, nameX, y);
   if (d.houseSub) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(SOFT);
-    doc.text(d.houseSub, nameX, y + 4.5);
+    doc.text(d.houseSub, sousX, sousY);
   }
   doc.setFont('times', 'normal');
   doc.setTextColor(COPPER);
@@ -989,22 +1071,34 @@ export async function contratPdf(o: {
     y = 22;
   };
 
-  /* LE MONOGRAMME EN TÊTE, EN CUIVRE. Le cuivre ponctue, l'indigo structure :
-     la marque ouvre le papier, le tampon le ferme. */
-  const seal = await loadSeal();
-  const CM = 22; // le monogramme en tête : la marque ouvre le papier, elle s'annonce
-  if (seal) {
-    try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
+  /* LE VERROU EN TÊTE. Le monogramme seul ouvrait le papier et le nom se
+     lisait à côté, en petites capitales ; le verrou dit les deux d'un trait.
+     IL PREND SA LIGNE, ET LE TITRE PASSE DESSOUS, sur toute la largeur : posé
+     à côté d'un verrou de quarante-six millimètres, un titre long n'aurait
+     plus eu la place d'un monogramme de vingt-deux. */
+  const hautDeLEntete = y - 10;
+  const hVerrou = estLaMaison(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
+  let gauche = M;
+  if (hVerrou === null) {
+    /* LE REPLI, EN CUIVRE. Le cuivre ponctue, l'indigo structure : la marque
+       ouvre le papier, le tampon le ferme. */
+    const seal = await loadSeal();
+    const CM = 22;
+    if (seal) {
+      try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+    gauche = seal ? M + CM + 5 : M;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SOFT);
+    doc.text(o.houseName.toUpperCase(), gauche, y);
   }
-  const gauche = seal ? M + CM + 5 : M;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(SOFT);
-  doc.text(o.houseName.toUpperCase(), gauche, y);
   doc.setTextColor(COPPER);
   doc.text(pdfSafe(o.titre.toUpperCase()), W - M, y, { align: 'right' });
-  y += 9;
+  y = hVerrou === null ? y + 9 : hautDeLEntete + hVerrou + 9;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(20);
@@ -1162,12 +1256,20 @@ export async function facturePrestatairePdf(o: {
   };
   const filet = () => { doc.setDrawColor(220, 213, 195); doc.setLineWidth(0.3); };
 
-  const seal = await loadSeal();
-  const CM = 16;
-  if (seal) {
-    try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
+  /* LE VERROU PREND LA PREMIÈRE LIGNE, le mot FACTURE passe dessous. */
+  const hautDeLEntete = y - 10;
+  const hVerrou = estLaMaison(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
+  let gauche = M;
+  if (hVerrou === null) {
+    const seal = await loadSeal();
+    const CM = 16;
+    if (seal) {
+      try { doc.addImage(seal, 'PNG', M, y - 9, CM, CM, undefined, 'FAST'); } catch { /* image indisponible */ }
+    }
+    gauche = seal ? M + CM + 5 : M;
+  } else {
+    y = hautDeLEntete + hVerrou + 11;
   }
-  const gauche = seal ? M + CM + 5 : M;
   doc.setFont('times', 'normal');
   doc.setFontSize(26);
   doc.setTextColor(INDIGO);
@@ -1579,13 +1681,19 @@ async function construitLeBulletin(d: PayslipData): Promise<{ doc: any; filename
   const M = 18;
   let y = 22;
 
-  // — En-tête —
-  const seal = await loadSeal();
-  if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* indisponible */ } }
-  const nameX = seal ? M + 16 : M;
-  doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
-  doc.text(d.houseName, nameX, y);
-  if (d.houseSub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(d.houseSub, nameX, y + 5); }
+  // — En-tête : le verrou de la Maison —
+  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  let sousX = M;
+  let sousY = 12 + (hVerrou ?? 0) + 4.5;
+  if (hVerrou === null) {
+    const seal = await loadSeal();
+    if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* indisponible */ } }
+    sousX = seal ? M + 16 : M;
+    sousY = y + 5;
+    doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
+    doc.text(d.houseName, sousX, y);
+  }
+  if (d.houseSub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(d.houseSub, sousX, sousY); }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(COPPER);
   doc.text(d.docLabel ?? 'BULLETIN DE PAIE', W - M, y - 1, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
