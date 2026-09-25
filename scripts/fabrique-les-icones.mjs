@@ -10,16 +10,23 @@
    QUATRE TUILES QUI NE SE CONFONDENT PAS :
      · Maison MND   champ indigo, encre ivoire    la Maison
      · Ma Couronne  champ cuivre, encre ivoire    la cliente, la chaleur
-     · Le Trône     champ or,     encre indigo    la Maison au travail
+     · Le Trône     champ indigo profond, encre cuivre   la Maison au travail
      · LOKAA        champ ivoire, encre indigo    le produit, à part
 
-   « BIEN DISTINCT » SE MESURE. Un premier essai donnait l'indigo à la Maison et
-   l'indigo PROFOND au Trône : neuf points d'écart perçu en Lab, c'est-à-dire
-   deux tuiles que l'œil confond à soixante pixels. On a calculé l'écart entre
-   toutes les paires de champs de la charte et cherché la répartition qui
-   sépare le mieux. Ma Couronne et Le Trône, les deux que Yéman veut distinguer,
-   s'opposent maintenant deux fois : par le champ, cuivre contre or, ET par
-   l'encre, claire contre sombre. Le champ seul ne les séparait pas assez.
+   « BIEN DISTINCT » SE MESURE, ET LA CHARTE NE DONNE PAS QUATRE CHAMPS.
+   Calcul fait sur toutes les paires de couleurs, en écart perçu (Lab) : la
+   charte n'a qu'UN bleu, un cuivre, et trois neutres clairs qui se tiennent à
+   moins de vingt points les uns des autres. Quatre champs bien séparés n'y
+   existent pas. La séparation vient donc du champ ET DE L'ENCRE.
+
+   Ma Couronne et Le Trône, les deux que Yéman veut distinguer, s'opposent sur
+   les deux axes : champ cuivre contre champ indigo profond, encre claire
+   contre encre cuivre. Soixante-seize points d'écart entre leurs champs.
+
+   L'OR A ÉTÉ ESSAYÉ ET RETIRÉ. Il donnait au Trône une tuile jaune qui séparait
+   le mieux sur le papier (quatre-vingt-seize points de l'indigo), et Yéman ne
+   l'a pas aimée, le 25 septembre. Le couple retenu est celui des papiers de la
+   Maison : le cuivre ponctue, l'indigo structure.
 
    CE QUI ÉTAIT CASSÉ. L'icône du portail portait un pictogramme indigo sur un
    champ OBSIDIENNE : 1,2 de contraste, une tuile noire où l'on ne voyait rien.
@@ -60,7 +67,7 @@ const PART_MASQUE = 0.50;
 const APPS = [
   { clef: 'portal', champ: charte.indigo, encre: 'mono-ivoire.png', dit: 'Maison MND' },
   { clef: 'couronne', champ: charte.copper, encre: 'mono-ivoire.png', dit: 'Ma Couronne' },
-  { clef: 'trone', champ: OR, encre: 'mono-indigo.png', dit: 'Le Trône' },
+  { clef: 'trone', champ: charte['indigo-deep'], encre: 'mono-copper.png', dit: 'Le Trône' },
   { clef: 'lokaa', champ: charte.ivoire, encre: 'mono-indigo.png', dit: 'LOKAA' },
 ];
 
