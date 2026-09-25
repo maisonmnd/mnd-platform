@@ -35,6 +35,7 @@ import sys
 import numpy as np
 import potrace
 from PIL import Image
+from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
@@ -148,27 +149,114 @@ class Police:
     def ligne(self, mot, corps, ecart, x, y):
         """Les contours d'un mot, posés à (x, y) = origine de la première
         lettre sur la ligne de base. `ecart` est en em, comme letter-spacing.
-        Rend (chemins, largeur d'encre, x du premier trait d'encre)."""
+        Rend (chemins, largeur d'encre, x du premier trait d'encre).
+
+        LA BOÎTE D'UNE LETTRE SE DEMANDE À LA POLICE, ELLE NE SE DEVINE PAS
+        DANS LE CHEMIN — 25 septembre 2026. Une première version lisait les
+        coordonnées du chemin SVG en les prenant une sur deux, en supposant
+        qu'elles allaient par paires. C'est faux : fontTools écrit des
+        raccourcis `H` et `V` pour les traits horizontaux et verticaux, qui ne
+        portent qu'UN nombre. Tout ce qui suivait était décalé d'un cran, et
+        des ordonnées passaient pour des abscisses. Le D de MND perdait quinze
+        unités sur sa droite, et la boîte le rognait. On demande donc ses
+        bornes à `BoundsPen`, qui suit le dessin et non son écriture."""
         e = corps / self.upem
         plume_x = x
         morceaux = []
-        gauche, droite = None, None
+        gauche = droite = haut = bas = None
         for c in mot:
             nom = self.cmap[ord(c)]
             stylo = SVGPathPen(self.glyphes)
             self.glyphes[nom].draw(stylo)
             d = stylo.getCommands()
+            bornes = BoundsPen(self.glyphes)
+            self.glyphes[nom].draw(bornes)
             if d:
                 morceaux.append(
                     '<path d="%s" transform="translate(%.3f %.3f) scale(%.6f %.6f)"/>'
                     % (d, plume_x, y, e, -e))
-                xs = [float(v) for v in re.findall(r"[-\d.]+", d)[0::2]]
-                if xs:
-                    a, b = plume_x + min(xs) * e, plume_x + max(xs) * e
-                    gauche = a if gauche is None else min(gauche, a)
-                    droite = b if droite is None else max(droite, b)
+            if bornes.bounds:
+                a, b = plume_x + bornes.bounds[0] * e, plume_x + bornes.bounds[2] * e
+                gauche = a if gauche is None else min(gauche, a)
+                droite = b if droite is None else max(droite, b)
+                # y descend dans un SVG : le haut de l'encre vient du yMax.
+                ha, ba = y - bornes.bounds[3] * e, y - bornes.bounds[1] * e
+                haut = ha if haut is None else min(haut, ha)
+                bas = ba if bas is None else max(bas, ba)
             plume_x += self.hmtx[nom][0] * e + ecart * corps
-        return morceaux, (droite - gauche if gauche is not None else 0), gauche
+        return {"d": morceaux, "gauche": gauche, "droite": droite,
+                "haut": haut, "bas": bas,
+                "large": (droite - gauche if gauche is not None else 0)}
+
+
+def rien_n_est_rogne(chemin_svg):
+    """LA BOITE DECLAREE EST-ELLE BIEN CELLE DE L'ENCRE ?
+
+    Un SVG dont la boîte est trop étroite ne prévient pas : il coupe. C'est
+    arrivé le 25 septembre 2026, le D de MND rogné dans les quatorze fichiers,
+    parce que les bornes des lettres étaient devinées dans le chemin au lieu
+    d'être demandées à la police.
+
+    On rend donc le même dessin dans une boîte ELARGIE de 10 % sur chaque bord,
+    et l'on regarde où l'encre commence et finit. Si la boîte déclarée est
+    juste, l'encre occupe exactement le rectangle du milieu : ni rognée, ni
+    flottant dans du vide.
+
+    L'ENCRE EST FORCEE EN NOIR pour la mesure. Rendue sur blanc, une encre
+    ivoire ou sable ne se voit pas, et le contrôle se tairait sur trois
+    fichiers en croyant les avoir lus."""
+    import subprocess
+    import tempfile
+    nav = next((p for p in [
+        "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    ] if os.path.exists(p)), None)
+    if not nav:
+        return None
+    src = open(chemin_svg, encoding="utf-8").read()
+    m = re.search(r'viewBox="([-\dd.]+) ([-\dd.]+) ([-\dd.]+) ([-\dd.]+)"', src)
+    if not m:
+        return None
+    x0, y0, L, H = (float(v) for v in m.groups())
+    marge = 0.10
+    elargi = src.replace(m.group(0), 'viewBox="%.2f %.2f %.2f %.2f"' % (
+        x0 - L * marge, y0 - H * marge, L * (1 + 2 * marge), H * (1 + 2 * marge)))
+    elargi = re.sub(r'fill="#[0-9A-Fa-f]{6}"', 'fill="#000000"', elargi, count=1)
+    tmp = tempfile.mkdtemp(prefix="boite-")
+    f2 = os.path.join(tmp, "e.svg")
+    open(f2, "w", encoding="utf-8").write(elargi)
+    large = 1400
+    haut = round(large * H / L)
+    page = os.path.join(tmp, "p.html")
+    png = os.path.join(tmp, "v.png")
+    open(page, "w", encoding="utf-8").write(
+        '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}'
+        'img{width:%dpx;height:auto;display:block}</style><img src="file:///%s">'
+        % (large, f2.replace(os.sep, "/")))
+    subprocess.run([nav, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                    "--user-data-dir=" + os.path.join(tmp, "p"),
+                    "--allow-file-access-from-files",
+                    "--window-size=%d,%d" % (large, haut + 60), "--virtual-time-budget=20000",
+                    "--screenshot=" + png, "file:///" + page.replace(os.sep, "/")],
+                   capture_output=True, timeout=180)
+    if not os.path.exists(png):
+        return None
+    im = Image.open(png).convert("L")
+    a = np.array(im.crop((0, 0, large, min(haut, im.height)))) < 200
+    cols = np.where(a.any(axis=0))[0]
+    rangs = np.where(a.any(axis=1))[0]
+    if not len(cols) or not len(rangs):
+        return None
+    # Le rendu elargi fait `large` de large pour L*(1+2*marge) unites : l'encre
+    # doit donc commencer a marge/(1+2*marge) de la largeur, et finir juste
+    # avant la meme marge de l'autre cote.
+    dx = large * marge / (1 + 2 * marge)
+    lx = large / (1 + 2 * marge)
+    dy = a.shape[0] * marge / (1 + 2 * marge)
+    ly = a.shape[0] / (1 + 2 * marge)
+    return max(abs(cols[0] - dx) / lx, abs(cols[-1] + 1 - (dx + lx)) / lx,
+               abs(rangs[0] - dy) / ly, abs(rangs[-1] + 1 - (dy + ly)) / ly)
+
 
 
 def compare_au_png(chemin_svg, chemin_png):
@@ -215,12 +303,18 @@ def compare_au_png(chemin_svg, chemin_png):
     return float((v != r).mean())
 
 
-def svg(contenu, L, H, teinte):
+def svg(contenu, boite, teinte):
+    """LA BOITE SE PREND SUR L'ENCRE, jamais sur les boîtes du CSS. Une boîte
+    tirée des hauteurs de ligne porte le vide que la police laisse sous la
+    ligne de base : le verrou debout traînait ainsi 5 % de transparent sous le
+    sigle, et l'on ne pose pas un logo avec du vide invisible au bord."""
+    x0, y0, x1, y1 = boite
+    L, H = x1 - x0, y1 - y0
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f %.2f" '
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.2f %.2f %.2f %.2f" '
             'width="%.0f" height="%.0f" fill="%s" role="img" '
             'aria-label="Maison MND">\n%s\n</svg>\n'
-            % (L, H, round(L), round(H), teinte, contenu))
+            % (x0, y0, L, H, round(L), round(H), teinte, contenu))
 
 
 TEINTES = {"indigo": "#1E2150", "indigo-profond": "#15173A", "cuivre": "#B97A4A",
@@ -243,9 +337,10 @@ def main():
             sys.exit("  le tracé s'écarte de plus d'un demi pour cent : on ne livre pas.")
 
     # ── 1. Le pictogramme seul, dans les huit encres ──────────────────
+    # Le tracé occupe exactement 0..pL et 0..pH : sa boîte EST son encre.
     for nom, teinte in TEINTES.items():
         open(os.path.join(SORTIE, "pictogramme-%s.svg" % nom), "w", encoding="utf-8").write(
-            svg('<path d="%s"/>' % d, pL, pH, teinte))
+            svg('<path d="%s"/>' % d, (0, 0, pL, pH), teinte))
     print("  pictogramme : 8 encres")
 
     p = Police()
@@ -260,44 +355,59 @@ def main():
     yBloc = (hautTotal - hBloc) / 2
     xTexte = lP + g["ecartPicto"] * S
     cM = g["partMaison"] * S
+    yPicto = (hautTotal - hP) / 2
 
-    maison, lM, gM = p.ligne("MAISON", cM, g["ecartMaison"], xTexte,
-                             yBloc + p.baseSurBoite * cM)
-    sigle, lS, gS = p.ligne("MND", S, g["ecartSigle"], xTexte,
-                            yBloc + cM + g["entreLignes"] * S + p.baseSurBoite * S)
-    # Le bloc est calé à gauche SUR L'ENCRE : on ramène chaque ligne à
-    # l'alignement du verrou du dépôt, où les deux mots partent du même bord.
-    droite = max(gM + lM, gS + lS)
-    L = droite
-    H = hautTotal
-    pic = '<path d="%s" transform="translate(0 %.3f) scale(%.6f)"/>' % (
-        d, (hautTotal - hP) / 2, hP / pH)
+    maison = p.ligne("MAISON", cM, g["ecartMaison"], xTexte, yBloc + p.baseSurBoite * cM)
+    sigle = p.ligne("MND", S, g["ecartSigle"], xTexte,
+                    yBloc + cM + g["entreLignes"] * S + p.baseSurBoite * S)
+    pic = '<path d="%s" transform="translate(0 %.3f) scale(%.6f)"/>' % (d, yPicto, hP / pH)
+    # LA BOITE EST L'UNION DES TROIS ENCRES, pas la somme des boîtes du CSS.
+    boite = (0,
+             min(yPicto, maison["haut"], sigle["haut"]),
+             max(lP, maison["droite"], sigle["droite"]),
+             max(yPicto + hP, maison["bas"], sigle["bas"]))
     for nom in VERROUS:
         open(os.path.join(SORTIE, "verrou-couche-%s.svg" % nom), "w", encoding="utf-8").write(
-            svg(pic + "\n" + "\n".join(maison + sigle), L, H, TEINTES[nom]))
-    print("  verrou couché : 3 encres, %.0f x %.0f" % (L, H))
+            svg(pic + "\n" + "\n".join(maison["d"] + sigle["d"]), boite, TEINTES[nom]))
+    print("  verrou couché : 3 encres, %.0f x %.0f" % (boite[2] - boite[0], boite[3] - boite[1]))
 
     # ── 3. Le verrou debout ───────────────────────────────────────────
     # Ici tout est CENTRÉ sur un axe : on centre l'encre de chaque ligne.
-    _, lS2, gS2 = p.ligne("MND", S, g["ecartSigle"], 0, 0)
-    lPicto = g["largePictoDebout"] * lS2
+    essai = p.ligne("MND", S, g["ecartSigle"], 0, 0)
+    lPicto = g["largePictoDebout"] * essai["large"]
     hPicto = lPicto / rapportPicto
-    axe = max(lPicto, lS2) / 2
+    axe = max(lPicto, essai["large"]) / 2
     yM = hPicto + g["souslePicto"] * S
-    maison2, lM2, gM2 = p.ligne("MAISON", cM, g["ecartMaison"], 0, 0)
-    maison2, _, _ = p.ligne("MAISON", cM, g["ecartMaison"], axe - lM2 / 2 - gM2,
-                            yM + p.baseSurBoite * cM)
-    sigle2, _, _ = p.ligne("MND", S, g["ecartSigle"], axe - lS2 / 2 - gS2,
-                           yM + cM + g["entreLignes"] * S + p.baseSurBoite * S)
-    H2 = yM + cM + g["entreLignes"] * S + S
+    essaiM = p.ligne("MAISON", cM, g["ecartMaison"], 0, 0)
+    maison2 = p.ligne("MAISON", cM, g["ecartMaison"],
+                      axe - essaiM["large"] / 2 - essaiM["gauche"], yM + p.baseSurBoite * cM)
+    sigle2 = p.ligne("MND", S, g["ecartSigle"],
+                     axe - essai["large"] / 2 - essai["gauche"],
+                     yM + cM + g["entreLignes"] * S + p.baseSurBoite * S)
     pic2 = '<path d="%s" transform="translate(%.3f 0) scale(%.6f)"/>' % (
         d, axe - lPicto / 2, lPicto / pL)
+    boite2 = (min(axe - lPicto / 2, maison2["gauche"], sigle2["gauche"]),
+              0,
+              max(axe + lPicto / 2, maison2["droite"], sigle2["droite"]),
+              max(hPicto, maison2["bas"], sigle2["bas"]))
     for nom in VERROUS:
         open(os.path.join(SORTIE, "verrou-debout-%s.svg" % nom), "w", encoding="utf-8").write(
-            svg(pic2 + "\n" + "\n".join(maison2 + sigle2), axe * 2, H2, TEINTES[nom]))
-    print("  verrou debout : 3 encres, %.0f x %.0f" % (axe * 2, H2))
+            svg(pic2 + "\n" + "\n".join(maison2["d"] + sigle2["d"]), boite2, TEINTES[nom]))
+    print("  verrou debout : 3 encres, %.0f x %.0f"
+          % (boite2[2] - boite2[0], boite2[3] - boite2[1]))
 
-    # ── 4. LE CONTROLE : superposer au dessin de reference ────────────
+
+    # ── 4. LES CONTROLES ──────────────────────────────────────────────
+    for nom in sorted(os.listdir(SORTIE)):
+        e = rien_n_est_rogne(os.path.join(SORTIE, nom))
+        if e is None:
+            print("  ATTENTION : la boîte de %s n'a pas pu être vérifiée" % nom)
+        elif e > 0.01:
+            sys.exit("  %s : l'encre déborde sa boîte de %.1f %% — elle est rognée."
+                     % (nom, e * 100))
+    print("  boîtes vérifiées : aucune encre ne déborde (14 fichiers)")
+
+
     e = compare_au_png(os.path.join(SORTIE, "verrou-couche-indigo.svg"),
                        os.path.join(RACINE, "public/assets/verrous/verrou-couche-indigo.png"))
     if e is None:
