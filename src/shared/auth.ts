@@ -407,17 +407,65 @@ const estUnePanneDeReseau = (msg: string | undefined): boolean => {
     || m.includes('gateway') || /50[234]/.test(m);
 };
 
+/* ══ LA PORTE PASSE D'ABORD — 25 septembre 2026 ══════════════════════
+
+   « À chaque fois que je me connecte au Trône j'ai un sérieux problème »
+   (Yéman). La cause tenait moins à la porte qu'à ce qui part en même temps
+   qu'elle : CENT DIX-HUIT magasins demandent leur contenu dès que la session
+   est connue, tous à la même seconde. Sur une connexion mobile à Cotonou, la
+   petite lecture de la porte se bat contre eux pour la bande passante, dépasse
+   la borne, et l'écran annonce une panne alors que le réseau travaille.
+
+   Les magasins attendent donc que la porte ait répondu. LA BORNE EST LÀ POUR
+   QUE CELA NE PUISSE PAS SE RETOURNER : une porte qui ne répond jamais, ou une
+   application qui n'en a pas (Ma Couronne, LOKAA), ne doit pas priver
+   l'utilisateur de ses données. Au bout de deux secondes et demie, les
+   magasins partent de toute façon. */
+let porteReglee = false;
+let ouvreLaVoie: () => void = () => {};
+const laVoie = new Promise<void>((r) => { ouvreLaVoie = r; });
+
+/** La porte a répondu, quoi qu'elle ait répondu : la voie est libre. */
+export const laPorteARepondu = (): void => {
+  porteReglee = true;
+  ouvreLaVoie();
+};
+
+/** À appeler avant une rafale de lectures, pour laisser passer la porte. */
+export const attendsLaPorte = (maxMs = 2500): Promise<void> => (porteReglee
+  ? Promise.resolve()
+  : Promise.race([laVoie, new Promise<void>((r) => { setTimeout(r, maxMs); })]));
+
 /** LE DÉLAI AU-DELÀ DUQUEL ON CESSE D'ATTENDRE. Une requête qui ne revient
     jamais n'échoue pas : elle pend. Sans cette borne, un `catch` ne sert à
-    rien — il n'y a rien à rattraper, il n'y a que du silence. */
-const DELAI_DE_LA_PORTE_MS = 8000;
+    rien — il n'y a rien à rattraper, il n'y a que du silence.
 
-export async function loadStaff(): Promise<Staff | null> {
+    QUINZE SECONDES DEPUIS LE 25 SEPTEMBRE 2026, et non huit. « À chaque fois
+    que je me connecte au Trône j'ai un sérieux problème, le message revient
+    trois ou quatre fois avant que ça me connecte » (Yéman, sur un téléphone à
+    Cotonou). Cette borne n'est pas un réglage de confort : c'est un garde-fou
+    contre une requête qui pend. La régler trop court transforme un réseau lent
+    en panne, et c'est ce qu'elle faisait. */
+const DELAI_DE_LA_PORTE_MS = 15000;
+
+/** LA LECTURE DU PERSONNEL.
+
+    UN SEUL ALLER-RETOUR, PAS DEUX — 25 septembre 2026. Cette fonction
+    demandait d'abord au serveur QUI est connecté (`auth.getUser()`), puis
+    lisait sa fiche. Deux allers-retours en série, alors que la session porte
+    déjà l'identifiant : `StaffGate` ne s'affiche même que lorsqu'elle existe.
+    Sur une connexion mobile lente, c'était deux fois la latence pour une
+    réponse qu'on avait sous la main, et c'est ce qui faisait déborder la
+    borne. L'appelant passe donc l'identifiant qu'il connaît ; sans lui, on
+    redemande, comme avant.
+
+    Le jeton n'est pas moins vérifié pour autant : la lecture de `staff` est
+    authentifiée et passe par RLS. Un jeton faux ne rend rien. */
+export async function loadStaff(uidConnu?: string): Promise<Staff | null> {
   if (!supabase) return null;
   const sb = supabase;
   const lecture = (async (): Promise<Staff | null> => {
-    const { data: userData } = await sb.auth.getUser();
-    const uid = userData.user?.id;
+    const uid = uidConnu || (await sb.auth.getUser()).data.user?.id;
     if (!uid) return null;
     const { data, error } = await sb.from('staff').select('*').eq('user_id', uid).maybeSingle();
     if (error) {
@@ -445,6 +493,8 @@ export async function loadStaff(): Promise<Staff | null> {
     throw new PanneDAcces((e as { message?: string })?.message ?? String(e));
   } finally {
     if (minuteur) clearTimeout(minuteur);
+    /* Répondu ou non, la porte a fini de parler : les magasins peuvent y aller. */
+    laPorteARepondu();
   }
 }
 

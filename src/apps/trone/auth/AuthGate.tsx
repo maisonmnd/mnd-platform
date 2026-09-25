@@ -52,6 +52,13 @@ function StaffGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'panne' | 'bienvenue'>('loading');
   const [raison, setRaison] = useState('');
   const [essai, setEssai] = useState(0);
+  /* COMBIEN DE FOIS LA PORTE A ÉCHOUÉ, et combien de temps elle a mis.
+     Le premier ratage ne justifie pas un écran d'alerte : sur un téléphone, la
+     première requête paie la connexion à froid, et la suivante passe. Le
+     compte sert à ne pas crier trop tôt ; la durée sert à savoir, la prochaine
+     fois, si c'est le réseau qui est lent ou la Maison qui ne répond pas. */
+  const [pannes, setPannes] = useState(0);
+  const [duree, setDuree] = useState(0);
   /* CE QUE LA PLACE PRÉPARÉE A RÉPONDU, pour pouvoir la nommer à l'écran. */
   const [accueil, setAccueil] = useState<{ nom: string; role: string }>({ nom: '', role: '' });
   const [clients] = useClients();
@@ -74,7 +81,11 @@ function StaffGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
     setState('loading');
-    void loadStaff()
+    const depart = Date.now();
+    /* L'IDENTIFIANT EST DÉJÀ LÀ : cet écran ne s'affiche que session en main.
+       Le passer épargne un aller-retour au serveur, celui qui faisait déborder
+       la borne sur une connexion lente. */
+    void loadStaff(session?.user?.id)
       .then(async (s) => {
         if (!alive) return;
         if (s) { setState('ok'); return; }
@@ -88,6 +99,8 @@ function StaffGate({ children }: { children: ReactNode }) {
       .catch((e: unknown) => {
         if (!alive) return;
         setRaison(e instanceof PanneDAcces ? e.raison : String((e as { message?: string })?.message ?? e));
+        setDuree(Math.round((Date.now() - depart) / 1000));
+        setPannes((n) => n + 1);
         setState('panne');
       });
     return () => {
@@ -100,12 +113,25 @@ function StaffGate({ children }: { children: ReactNode }) {
      pour qui ne veut pas attendre. */
   useEffect(() => {
     if (state !== 'panne') return undefined;
-    const attente = Math.min(30_000, 2000 * 2 ** Math.min(essai, 4));
+    /* LE PREMIER RATAGE SE RETENTE TOUT DE SUITE. Il coûte le plus souvent la
+       connexion à froid du téléphone ; une seconde et demie suffit, là où le
+       palier de départ à deux secondes puis quatre allongeait l'attente sans
+       rien y gagner. Ensuite seulement, on espace. */
+    const attente = essai === 0 ? 1500 : Math.min(30_000, 3000 * 2 ** Math.min(essai - 1, 3));
     const t = window.setTimeout(() => setEssai((n) => n + 1), attente);
     return () => window.clearTimeout(t);
   }, [state, essai]);
 
   if (state === 'loading') return <AuthSplash>Vérification de vos accès…</AuthSplash>;
+  /* UN PREMIER RATAGE NE SE CRIE PAS — 25 septembre 2026. « Le message revient
+     trois ou quatre fois avant que ça me connecte » (Yéman). L'écran d'alerte
+     partait dès la première seconde de silence, alors que la porte allait
+     réessayer d'elle-même et passer. On garde l'attente, en disant qu'elle
+     dure ; l'alerte ne vient qu'au second ratage, quand elle apprend enfin
+     quelque chose. */
+  if (state === 'panne' && pannes < 2) {
+    return <AuthSplash>Le réseau est lent, la Maison réessaie…</AuthSplash>;
+  }
   if (state === 'panne') {
     return (
       <div className="tra-shell">
@@ -117,6 +143,7 @@ function StaffGate({ children }: { children: ReactNode }) {
             La connexion s’est interrompue pendant la vérification. Ce n’est ni un refus ni une
             porte fermée : le Trône redemande tout seul, de plus en plus espacé.
             {raison ? <> Ce que le réseau a dit : <b>{raison}</b>.</> : null}
+            {duree ? <> La vérification a duré <b>{duree} s</b> avant d’abandonner.</> : null}
           </p>
           <Button variant="copper" onClick={() => setEssai((n) => n + 1)} className="tra-submit">
             Réessayer maintenant

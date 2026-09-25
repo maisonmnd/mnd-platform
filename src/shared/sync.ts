@@ -1,5 +1,6 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
+import { attendsLaPorte } from './auth';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -1141,7 +1142,15 @@ export function bindCollection<T extends WithId>(
   let rejoindreLeCanal: () => void = () => {};
   sb.auth.onAuthStateChange((event) => {
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') rejoindreLeCanal();
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') void refetch(true);
+    /* LA PORTE PASSE D'ABORD. Cent dix-huit magasins qui demandent leur
+       contenu à la même seconde noient la petite lecture de la porte sur une
+       connexion lente, et l'écran annonce une panne pendant que le réseau
+       travaille. `attendsLaPorte` rend la main dès qu'elle a répondu, et au
+       plus tard au bout de deux secondes et demie : une application sans porte
+       n'attend donc presque rien. */
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+      void attendsLaPorte().then(() => refetch(true));
+    }
   });
 
   // 2. Poussée des changements locaux (coalescée).
@@ -1359,7 +1368,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     if (event !== 'TOKEN_REFRESHED') rejoindreLeCanal();
     const premier = !amorce;
     amorce = true;
-    void hydrate(premier);
+    /* LA PORTE PASSE D'ABORD, ici aussi. Les documents s'hydratent par ce
+       chemin-ci et les collections par l'autre : les deux forment la meme
+       rafale, et n'en retenir qu'une moitie ne libere rien. */
+    void attendsLaPorte().then(() => hydrate(premier));
   });
 
   // 2. Poussée locale (coalescée).
