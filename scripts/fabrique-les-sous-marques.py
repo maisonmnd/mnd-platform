@@ -352,11 +352,19 @@ class Q(socketserver.TCPServer):
 def rends(nom, html, large, haut):
     io.open(os.path.join(TRAVAIL, "_%s.html" % nom), "w", encoding="utf-8").write(html)
     cible = os.path.join(TRAVAIL, "%s.png" % nom)
+    # ON EFFACE LA CAPTURE PRECEDENTE AVANT DE RELANCER. Chrome qui echoue ne
+    # dit rien et n'ecrit rien : on relisait alors l'image du rendu d'avant, a
+    # la bonne taille, donc sans qu'aucune verification ne bronche. Une mesure
+    # a rendu 226/255 d'ecart sur un degrade parfaitement juste, le temps de
+    # comprendre qu'elle portait sur l'image precedente.
+    if os.path.exists(cible):
+        os.remove(cible)
     subprocess.run([NAV, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--user-data-dir=" + os.path.join(TRAVAIL, "profil"),
                     "--window-size=%d,%d" % (large, haut), "--virtual-time-budget=25000",
                     "--screenshot=" + cible, "http://127.0.0.1:%d/_%s.html" % (PORT, nom)],
                    capture_output=True, timeout=300)
+    assert os.path.exists(cible), "%s : Chrome n'a rien rendu" % nom
     im = Image.open(cible)
     assert im.size == (large, haut), "%s : %sx%s au lieu de %sx%s" % (nom, *im.size, large, haut)
     return im
@@ -731,8 +739,15 @@ def eprouve_le_degrade_du_navigateur():
     Un premier controle voulait lire le degrade sur la planche elle-meme. Il
     cherchait le bain par sa couleur de depart et tombait sur LA TUILE, qui est
     du meme aplat : il annoncait un contraste de 0,9, ce qui n'existe pas. On
-    rend donc une bande a soi, pleine largeur, a une place connue."""
-    de, vers = "#004B41", "#18686B"
+    rend donc une bande a soi, pleine largeur, a une place connue.
+
+    LE COUPLE DE LA SONDE N'EST PAS CELUI DES PLANCHES, ET C'EST VOULU. Les
+    deux teintes du degrade de fete sont presque alignees : entre elles, sRGB
+    et oklab ne different que de 2 sur 255, si bien qu'une sonde faite sur ce
+    couple ne verrait RIEN si le navigateur changeait de methode. On prend donc
+    l'emeraude et le cuivre, qui traversent la roue : la meme bascule y creuse
+    20 sur 255. Une sonde se choisit pour ce qu'elle sait detecter."""
+    de, vers = "#004B41", "#B97A4A"
     large = 1000
     page = tete() + """
 <style>body{background:#fff;margin:0}</style>
@@ -841,8 +856,8 @@ def planche_charte(g, large_debout):
   <div class="palette" style="margin-top:0">
     <div class="pastille"><div class="carre" style="background:{C}"></div>
       <div class="n">{g['nomCouleur']}</div><div class="c">{C}</div></div>
-    <div class="pastille"><div class="carre" style="background:{INDIGO}"></div>
-      <div class="n">Indigo, la Maison</div><div class="c">{INDIGO}</div></div>
+    {'' if C == INDIGO else f'''<div class="pastille"><div class="carre" style="background:{INDIGO}"></div>
+      <div class="n">Indigo, la Maison</div><div class="c">{INDIGO}</div></div>'''}
     <div class="pastille"><div class="carre" style="background:#B97A4A"></div>
       <div class="n">Cuivre, l'accent</div><div class="c">#B97A4A</div></div>
     <div class="pastille"><div class="carre" style="background:#E3DACB"></div>
