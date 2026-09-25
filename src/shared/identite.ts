@@ -70,14 +70,28 @@ export const maisonVille = (): string => (houseIdentityStore.get().ville ?? '').
 /** La devise de la Maison, en fon. Le ɖ n'appartient qu'à elle. */
 export const DEVISE_MAISON = 'mi nyɔ́ ɖɛkpɛ';
 
-/** Sa traduction — pour les écrits publics, lus par qui ne parle pas fon. */
-export const DEVISE_TRADUITE = 'nous sommes beaux, et nous le savons';
+/** Sa traduction — pour les écrits publics, lus par qui ne parle pas fon.
 
-/* LA DEVISE ENTIÈRE, telle qu’elle s’écrit — 22 août 2026, rappel de Yéman.
-   Le fon et son écho français, séparés par le point médian du reste de la
-   Maison (« SÍNSÍN™ · La Reprise », « Maison MND · … ») : un seul point pour
-   tout ce qui sort, la devise comprise — décision d’harmonisation du 24 août. */
-export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ · la maison veille';
+    EN FON, « mi » PORTE LES DEUX PERSONNES : « vous » et « nous » se disent
+    pareil (Yéman, 25 septembre 2026). La phrase fon ne tranche donc pas, et
+    c'est le français qui choisit à qui elle parle. Elle a dit « vous êtes
+    belle », puis « nous sommes beaux » le 24 septembre ; elle dit « vous »
+    depuis le 25. Aucune de ces versions n'était une faute de traduction :
+    c'était à chaque fois un choix de la Maison, et celui-ci est le dernier. */
+export const DEVISE_TRADUITE = 'vous êtes beaux, et vous le savez';
+
+/* LA DEVISE ENTIÈRE, telle qu’elle s’écrit.
+   Le fon, puis le français QUI LE PROLONGE — 25 septembre 2026. Elle disait
+   « mi nyɔ́ ɖɛkpɛ · la maison veille » depuis le 24 août : deux phrases posées
+   côte à côte, séparées par le point médian de la Maison. Elle n'en fait plus
+   qu'une, qui traverse deux langues : le fon dit ce que vous êtes, le français
+   achève. C'est la cadence de « Parce que vous le valez bien », à ceci près
+   que la première moitié est en fon.
+
+   ET C'EST UNE VIRGULE, PAS LE POINT MÉDIAN. Le point médian sépare deux
+   choses de même rang (« SÍNSÍN™ · La Reprise ») ; ici la seconde moitié
+   dépend de la première, et une phrase ne se coupe pas d'un point. */
+export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ, et vous le savez';
 
 /** Signature au bas d'un message : le picto de la branche, le nom, la devise.
     ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut

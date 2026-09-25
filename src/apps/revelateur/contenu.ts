@@ -160,13 +160,19 @@ export const COMMUN: Commun = {
 export const ACCUEIL: Accueil = {
   titre: 'Dreadlocks à Cotonou, soin et création · Maison MND',
   description: 'Découvrez la Maison MND à Cotonou : création, réparation, entretien et soins des dreadlocks afro. Trouvez le parcours qui convient à votre couronne.',
-  /* LA TRADUCTION DE LA DEVISE — 24 septembre 2026. « Vous êtes belle »
-     disait la Maison à sa cliente ; « Nous sommes beaux, et nous le savons »
-     est ce que la Maison dit AVEC elle. Yéman a tranché pour la seconde,
-     partout où elle est visible. Le Trône l'écrivait déjà ainsi depuis le
-     22 août (`DEVISE_TRADUITE`, shared/identite.ts) : le site disait autre
-     chose, et c'est le site qui avait tort. */
-  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Nous sommes beaux, et nous le savons.' },
+  /* LA TRADUCTION DE LA DEVISE, CHANGÉE LE 25 SEPTEMBRE 2026.
+     Elle a dit « Vous êtes belle », puis « Nous sommes beaux, et nous le
+     savons » le 24 septembre, et elle dit « vous » depuis le 25. Ce ne sont
+     pas des corrections de traduction : en fon, « mi » porte les deux
+     personnes, « vous » et « nous » s'y disent pareil (Yéman). La phrase fon
+     ne tranche pas, c'est le français qui choisit à qui elle parle.
+
+     ICI LA TRADUCTION ENTIÈRE, ET C'EST VOULU. La signature des papiers et
+     des messages prolonge le fon sans le traduire (« mi nyɔ́ ɖɛkpɛ, et vous
+     le savez ») ; cette page-ci est celle où l'on rencontre la Maison pour la
+     première fois, et une demi-phrase dans une langue qu'on ne lit pas n'y
+     accueille personne. */
+  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes beaux, et vous le savez.' },
   /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
      de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
      du paragraphe, les cinq portes la disent juste dessous. */

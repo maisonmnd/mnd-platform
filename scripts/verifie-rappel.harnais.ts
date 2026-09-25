@@ -83,7 +83,16 @@ dit('un rituel par ligne', 3, blocs[2].split('\n').length);
 dit('… et rien n’est perdu en route', true, blocs[2].includes('SÍNSIN™ Essentiel · La Reprise'));
 dit('la demande vient après le blanc',
   'Merci de nous prévenir en cas d’empêchement. À très vite.', blocs[3]);
-dit('la Maison signe en dernier', true, blocs[4].includes('la maison veille'));
+/* LE BANC PORTE SUR LE FON, PAS SUR L'ÉCHO FRANÇAIS — 25 septembre 2026.
+   Il exigeait « la maison veille », l'écho d'alors, et il a crié le jour où
+   l'écho a changé. Il a eu raison de crier : c'est son métier. Mais la règle
+   qu'il garde n'est pas « ce message dit la maison veille », c'est « ce
+   message porte la devise de la Maison ». Cette devise, c'est le fon ; le
+   français qui la suit a déjà changé deux fois. On écrit donc le fon en
+   toutes lettres ici, ton compris, et non `DEVISE_COMPLETE` : un banc qui
+   lirait la même constante que le code éprouvé passerait même si elle
+   devenait vide. */
+dit('la Maison signe en dernier', true, blocs[4].includes('mi nyɔ́ ɖɛkpɛ'));
 /* JAMAIS DEUX LIGNES VIDES DE SUITE : un trou double se lit comme un message
    coupé, et sur WhatsApp on croit que la fin manque. */
 dit('aucun trou double', false, /\n{3,}/.test(msg));

@@ -90,7 +90,16 @@ dit('un nom vide ne rend rien', '', prenomDe('   '));
    recopie, et « mi nyo dekpe » sous un envoi public serait pire que rien. */
 const mot = motDeLaCarte({ carte: 'anniversaire', genre: 'femme', prenom: 'Baké' });
 dit('le mot nomme la tête', true, mot.includes('Baké'));
-dit('… et porte la devise', true, mot.toLowerCase().includes('la maison veille'));
+/* LE BANC PORTE SUR LE FON, PAS SUR L'ÉCHO FRANÇAIS — 25 septembre 2026.
+   Il exigeait « la maison veille », l'écho d'alors, et il a crié le jour où
+   l'écho a changé. Il a eu raison de crier : c'est son métier. Mais la règle
+   qu'il garde n'est pas « ce message dit la maison veille », c'est « ce
+   message porte la devise de la Maison ». Cette devise, c'est le fon ; le
+   français qui la suit a déjà changé deux fois. On écrit donc le fon en
+   toutes lettres ici, ton compris, et non `DEVISE_COMPLETE` : un banc qui
+   lirait la même constante que le code éprouvé passerait même si elle
+   devenait vide. */
+dit('… et porte la devise', true, mot.toLowerCase().includes('mi nyɔ́ ɖɛkpɛ'));
 dit('sans prénom, il reste poli', true,
   motDeLaCarte({ carte: 'merci', motif: 'venue', genre: 'femme', prenom: '  ' })
     .includes('Chère tête couronnée'));
