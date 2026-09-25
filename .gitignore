@@ -38,3 +38,6 @@ supabase/import_prix_achats.sql
 # Scripts SQL PONCTUELS écrits en session — ils peuvent porter des noms de
 # clientes (le dépôt est public). Motif générique : tout local_*.sql reste ici.
 supabase/local_*.sql
+
+# Python laisse ses caches a cote des scripts de fabrication.
+__pycache__/

@@ -1,0 +1,114 @@
+[
+ {
+  "nom": "Maison MND",
+  "ligne": "MAISON",
+  "vocation": "la marque mère",
+  "couleur": "#1E2150",
+  "nomCouleur": "Indigo Royal",
+  "pourquoi": "la signature de la Maison",
+  "signature": "Vous êtes beaux, ",
+  "accent": "et vous le savez.",
+  "degrades": []
+ },
+ {
+  "nom": "Académie MND",
+  "ligne": "ACADÉMIE",
+  "vocation": "formations",
+  "couleur": "#5C3402",
+  "nomCouleur": "Bronze d'Atelier",
+  "pourquoi": "le bronze de l'atelier, ce qui se transmet",
+  "signature": "Former. Transmettre. ",
+  "accent": "Affirmer.",
+  "degrades": []
+ },
+ {
+  "nom": "Boutique MND",
+  "ligne": "BOUTIQUE",
+  "vocation": "produits, outils, objets",
+  "couleur": "#6C271C",
+  "nomCouleur": "Brique Ancienne",
+  "pourquoi": "le cuivre assombri, le commerce",
+  "signature": "Choisir. Entretenir. ",
+  "accent": "Durer.",
+  "degrades": []
+ },
+ {
+  "nom": "Soins MND",
+  "ligne": "SOINS",
+  "vocation": "care, routines, cuir chevelu",
+  "couleur": "#004966",
+  "nomCouleur": "Bleu Lagune",
+  "pourquoi": "l'eau, le bleu du soin",
+  "signature": "Nourrir. Apaiser. ",
+  "accent": "Fortifier.",
+  "degrades": []
+ },
+ {
+  "nom": "Table MND",
+  "ligne": "TABLE",
+  "vocation": "restauration",
+  "couleur": "#124716",
+  "nomCouleur": "Vert Olivier",
+  "pourquoi": "le végétal, la table",
+  "signature": "Recevoir. Nourrir. ",
+  "accent": "Prolonger.",
+  "degrades": []
+ },
+ {
+  "nom": "Domicile MND",
+  "ligne": "DOMICILE",
+  "vocation": "salon mobile",
+  "couleur": "#60285B",
+  "nomCouleur": "Prune du Soir",
+  "pourquoi": "la prune, le déplacement du soir",
+  "signature": "Venir. Installer. ",
+  "accent": "Couronner.",
+  "degrades": []
+ },
+ {
+  "nom": "Événements MND",
+  "ligne": "ÉVÉNEMENTS",
+  "vocation": "cérémonies, mariages, hors les murs",
+  "couleur": "#004B41",
+  "nomCouleur": "Émeraude de Fête",
+  "pourquoi": "la teinte la plus libre de la roue, la fête qui ne se confond avec rien",
+  "signature": "Préparer. Célébrer. ",
+  "accent": "Couronner.",
+  "degrades": [
+   {
+    "nom": "Le dégradé de fête",
+    "de": "#004B41",
+    "a": "#18686B",
+    "pourquoi": "la teinte s'éclaircit sans quitter sa famille, pour les tuiles et les bandeaux"
+   },
+   {
+    "nom": "Le dégradé de la Maison",
+    "de": "#004B41",
+    "a": "#1E2150",
+    "pourquoi": "la fête revient à l'indigo, pour les grandes surfaces et les affiches"
+   }
+  ]
+ },
+ {
+  "nom": "Studio MND",
+  "ligne": "STUDIO",
+  "vocation": "portraits, contenu",
+  "couleur": "#353E4A",
+  "nomCouleur": "Ardoise",
+  "pourquoi": "l'ardoise, la chambre noire",
+  "signature": "Cadrer. Révéler. ",
+  "accent": "Garder.",
+  "degrades": []
+ },
+ {
+  "nom": "LOKAA by MND",
+  "ligne": "LOKAA",
+  "vocation": "l'offre entreprise",
+  "couleur": "#711F35",
+  "nomCouleur": "Bordeaux",
+  "pourquoi": "la terre brûlée, le produit vendu à part",
+  "signature": "Équiper. Servir. ",
+  "accent": "Grandir.",
+  "degrades": []
+ }
+]
