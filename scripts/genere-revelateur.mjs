@@ -285,7 +285,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
       ${nav}
         </nav>
         <a class="tel" href="tel:${attr(COMMUN.editeur.telephone.replace(/\s/g, ''))}" aria-label="Appeler la Maison"><svg><use href="#i-tel"/></svg></a>
-        <a class="btn btn--plein" href="${lien('/reserver/')}">Prendre rendez-vous</a>
+        <a class="btn btn--plein" href="${lien('/reserver/')}"><span class="btn__long">Prendre rendez-vous</span><span class="btn__court">Réserver</span></a>
       </div>
     </header>
     <main id="contenu" tabindex="-1">

@@ -130,14 +130,49 @@ section.serre { padding-top: 0; }
 .verrou__maison, .verrou__sigle { font-family: var(--serif); font-weight: 400; color: var(--titre); line-height: 1; white-space: nowrap; }
 .verrou__maison { font-size: calc(var(--sigle) * .3182); letter-spacing: .44em; margin-bottom: calc(var(--sigle) * .1212); }
 .verrou__sigle { font-size: var(--sigle); letter-spacing: .3em; }
-.barre .verrou { --sigle: 28px; }
+/* LE VERROU NE SE LAISSE PAS ÉCRASER — 25 septembre 2026. Posé dans une barre
+   en flex, il est un élément comme un autre : quand la place manque, le
+   navigateur le RÉTRÉCIT sans rien dire. Mesuré à 360 px de large, il tombait
+   à 112 px, sous son propre plancher de 123, et le nom s'y brouillait. Un
+   verrou qui rétrécit sous son plancher est précisément ce qu'on s'interdit :
+   `flex: none` le fige, et c'est alors la barre qui doit céder, pas la marque. */
+.barre .verrou { --sigle: 28px; flex: none; }
+.barre .verrou img { flex: none; }
 
-/* SOUS LE PLANCHER, LE PICTOGRAMME SEUL. Le verrou tient à partir de 123 px de
-   large ; sur un téléphone étroit, la barre porte déjà le menu, le téléphone et
-   le bouton de rendez-vous, et il ne reste pas cette largeur. On ne rapetisse
-   pas le verrou en dessous de ce qui se lit : on retire le nom, le pictogramme
-   reste, et le nom se lit dans la page. */
-@media (max-width: 560px) { .barre .verrou__mots { display: none; } }
+/* SUR UN TÉLÉPHONE, LA PLACE SE PREND AU BOUTON, PAS AU NOM — 25 septembre
+   2026. Le verrou tient à partir de 123 px de large, le pictogramme seul en
+   fait 44 : il faut donc trouver 79 px dans une barre qui porte déjà le menu,
+   le pictogramme, le téléphone et le bouton de rendez-vous. Mesuré sur le site
+   en ligne, il n'y restait que 31 px de jeu à 390 px de large.
+
+   Plutôt que de rapetisser le nom sous ce qui se lit, c'est le BOUTON qui
+   rend la place : sous 560 px il dit « Réserver » au lieu de « Prendre
+   rendez-vous » (choix de Yéman, 25 septembre). Quatre-vingt-dix pixels
+   gagnés, le nom tient.
+
+   SOUS 350 px, même cela ne suffit plus : on retire alors le nom et le
+   pictogramme reste seul. LE SEUIL EST MESURÉ, PAS CHOISI : on a laissé le nom
+   s'afficher jusqu'en bas pour voir où la barre déborde vraiment. À 350 px elle
+   ne déborde pas, à 340 elle déborde de six pixels. */
+/* DEUX MOTS POUR LE MÊME BOUTON, ET AUCUN aria-label. On échange le texte
+   VISIBLE plutôt que de le masquer : un `aria-label` qui annoncerait « Prendre
+   rendez-vous » pendant que l'écran affiche « Réserver » empêcherait quelqu'un
+   qui pilote à la voix de dire ce qu'il lit. Le nom accessible est donc celui
+   qu'on voit, dans les deux cas, et les deux se comprennent seuls. */
+.btn__court { display: none; }
+@media (max-width: 560px) {
+  .barre .btn__long { display: none; }
+  .barre .btn__court { display: inline; }
+  /* Quatre pieces dans une barre de telephone : l'ecart de dix-huit pixels y
+     coute plus qu'il ne donne, et c'est lui qu'on reprend, pas le nom. */
+  .barre .conteneur { gap: 13px; }
+}
+/* ET LE BOUTON NE SE CASSE PAS EN DEUX. Mesuré : sur tout téléphone il sortait
+   sur deux lignes, « RENDEZ- » puis « VOUS », et cela bien avant le verrou.
+   Un appel à l'action coupé au trait d'union se lit mal et grandit la barre
+   de dix-sept pixels pour rien. */
+.barre .btn { white-space: nowrap; }
+@media (max-width: 349px) { .barre .verrou__mots { display: none; } }
 .nav { margin-left: auto; display: flex; gap: 2px; }
 .nav a { font-size: 13px; color: var(--texte); padding: 8px 10px; border-radius: var(--r); font-weight: 400; }
 .nav a:hover, .nav a[aria-current="page"] { background: var(--accent-voile); color: var(--titre); }

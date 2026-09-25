@@ -120,6 +120,16 @@ vrai('la hauteur du bloc de texte se deduit des deux lignes',
 const blocVerrou = css.slice(css.indexOf('.verrou {'), css.indexOf('.barre .verrou'));
 vrai('le verrou ne porte aucun retrait', !/text-indent/.test(blocVerrou));
 
+/* LE VERROU NE SE LAISSE PAS ÉCRASER. Posé dans une barre en flex, il est un
+   élément comme un autre : quand la place manque, le navigateur le rétrécit
+   SANS RIEN DIRE. Mesuré le 25 septembre à 360 px de large, il tombait à
+   112 px, sous son plancher de 123, et le nom s'y brouillait. Un plancher ne
+   vaut rien si la mise en page peut passer dessous par-derrière. */
+vrai('le verrou de la barre ne retrecit pas',
+  /\.barre \.verrou \{[^}]*flex: none/.test(css));
+vrai('le pictogramme de la barre ne retrecit pas',
+  /\.barre \.verrou img \{[^}]*flex: none/.test(css));
+
 /* ── 4. CHAQUE TAILLE POSÉE À L'ÉCRAN TIENT LE PLANCHER ────────────── */
 const sigles = [...css.matchAll(/--sigle: (\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1]));
 vrai('des tailles de verrou sont posees a l ecran', sigles.length > 0, String(sigles.length));
