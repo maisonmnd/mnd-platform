@@ -6,7 +6,7 @@
    une seule marque : ce harnais refuse qu'ils se séparent.
 
    CE QU'IL TIENT, ET QUI N'EST PAS LE CAS DU JOUR :
-     · le plancher. Sous 135 px de large, la capitale de MAISON tombe sous six
+     · le plancher. Sous 123 px de large, la capitale de MAISON tombe sous six
        pixels et cesse de se lire. Tout appel du verrou, sur le papier comme à
        l'écran, doit rester au-dessus. La mesure est dans `verrou.ts`.
      · l'accord des proportions. Les nombres écrits dans la feuille de style
@@ -144,6 +144,8 @@ const fab = lis('scripts/fabrique-le-verrou.mjs');
 vrai('le fabricant lit src/ds/verrou.ts', /src\/ds\/verrou\.ts/.test(fab));
 vrai('le fabricant refuse un dessin qui touche le bord', /toucheLeBord/.test(fab));
 vrai('le fabricant prouve la police', /identiques au bit pres|Police Qui N Existe Pas/.test(fab));
+vrai('le fabricant refuse un pictogramme deforme',
+  /rapportDuPicto/.test(fab) && /EST DÉFORMÉ/.test(fab));
 
 /* ── 8. RIEN NE TRAÎNE DANS LE DOSSIER DU DESSIN ───────────────────── */
 const dedans = readdirSync(path.join(racine, DOSSIER)).sort();

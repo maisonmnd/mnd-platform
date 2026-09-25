@@ -90,10 +90,13 @@ const tmp = mkdtempSync(path.join(tmpdir(), 'verrou-'));
 mkdirSync(SORTIE, { recursive: true });
 
 /* ── Le pictogramme, détouré ──────────────────────────────────────────── */
+const RAPPORTS = {};
 for (const { mono } of Object.values(ENCRES)) {
   const src = path.join(racine, 'public', 'assets', 'monograms', mono);
   if (!existsSync(src)) { console.error(`Pictogramme introuvable : ${src}`); process.exit(1); }
   await sharp(src).trim().toFile(path.join(tmp, mono));
+  const m = await sharp(path.join(tmp, mono)).metadata();
+  RAPPORTS[mono] = m.width / m.height;
 }
 
 /* ── La police de la Maison, servie à côté de la page ─────────────────── */
@@ -173,6 +176,36 @@ const empreinte = (f) => createHash('sha256').update(readFileSync(f)).digest('he
    droite. Rien ne le signalait, sinon un rapport largeur/hauteur qui n'était
    plus le même d'une définition à l'autre. On regarde donc le bord : si de
    l'encre touche un côté de la photographie, c'est qu'il en manque derrière. */
+/* LE PICTOGRAMME N'EST JAMAIS DÉFORMÉ, ET CELA SE MESURE. La règle de la
+   Maison est qu'il ne se redessine ni ne s'étire : le verrou le COMPOSE avec
+   le nom, il ne le refait pas. La page le pose en hauteur seule, `width: auto`,
+   ce qui garde son rapport ; mais une largeur ajoutée un jour l'écraserait sans
+   bruit. On relit donc le rapport du dessin DANS le verrou rendu et on le
+   compare à celui du fichier du dépôt. Un écart au-delà du centième vient d'une
+   déformation, pas d'un arrondi de pixel. */
+async function rapportDuPicto(fichier) {
+  const { data, info } = await sharp(fichier).ensureAlpha().raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width: L, height: H, channels: c } = info;
+  const encre = (x, y) => data[(y * L + x) * c + (c - 1)] > 40;
+  const pleine = (x) => { for (let y = 0; y < H; y += 1) if (encre(x, y)) return true; return false; };
+  let x0 = -1;
+  let vu = false;
+  for (let x = 0; x < L; x += 1) {
+    if (pleine(x)) vu = true;
+    else if (vu) { x0 = x; break; }
+  }
+  if (x0 < 1) return null;
+  let haut = -1;
+  let bas = -1;
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < x0; x += 1) {
+      if (encre(x, y)) { if (haut < 0) haut = y; bas = y; break; }
+    }
+  }
+  return bas > haut ? x0 / (bas - haut + 1) : null;
+}
+
 async function toucheLeBord(fichier) {
   const { data, info } = await sharp(fichier).ensureAlpha().raw()
     .toBuffer({ resolveWithObject: true });
@@ -210,9 +243,19 @@ LE DESSIN TOUCHE LE BORD DE LA FENÊTRE (${encre}).`);
     }
     const cible = path.join(SORTIE, `verrou-couche-${encre}.png`);
     await sharp(brut).trim().png({ compressionLevel: 9 }).toFile(cible);
+    const attendu = RAPPORTS[ENCRES[encre].mono];
+    const obtenu = await rapportDuPicto(cible);
+    if (obtenu === null || Math.abs(obtenu - attendu) / attendu > 0.01) {
+      console.error(`
+LE PICTOGRAMME EST DÉFORMÉ (${encre}).`);
+      console.error(`Rapport du fichier du dépôt : ${attendu.toFixed(4)}.`);
+      console.error(`Rapport dans le verrou rendu : ${obtenu === null ? 'illisible' : obtenu.toFixed(4)}.`);
+      console.error('Le verrou COMPOSE le vrai dessin, il ne le refait pas : on ne livre pas.');
+      process.exit(1);
+    }
     const m = await sharp(cible).metadata();
     const poids = readFileSync(cible).length;
-    console.log(`  verrou-couche-${encre}.png  ${m.width}x${m.height}  rapport ${(m.width / m.height).toFixed(3)}  ${Math.round(poids / 1024)} ko`);
+    console.log(`  verrou-couche-${encre}.png  ${m.width}x${m.height}  rapport ${(m.width / m.height).toFixed(3)}  ${Math.round(poids / 1024)} ko  (pictogramme a ${(Math.abs(obtenu - attendu) / attendu * 100).toFixed(3)} % de son rapport d'origine)`);
     if (m.width < PLANCHER_COUCHE) {
       console.error(`  le dessin sort plus étroit que le plancher (${PLANCHER_COUCHE} px)`);
       process.exit(1);
