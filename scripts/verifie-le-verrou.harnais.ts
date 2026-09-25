@@ -26,6 +26,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import {
   VERROU, HAUT_DU_BLOC, HAUT_DU_PICTO, PLANCHER_COUCHE, PLANCHER_COUCHE_MM,
+  PLANCHER_DEBOUT,
 } from '../src/ds/verrou';
 
 const racine = process.cwd();
@@ -147,7 +148,29 @@ vrai('le fabricant prouve la police', /identiques au bit pres|Police Qui N Exist
 vrai('le fabricant refuse un pictogramme deforme',
   /rapportDuPicto/.test(fab) && /EST DÉFORMÉ/.test(fab));
 
-/* ── 8. RIEN NE TRAÎNE DANS LE DOSSIER DU DESSIN ───────────────────── */
+/* ── 8. LE DOCUMENT ET LE CODE DISENT LE MÊME NOMBRE ───────────────
+   `verrou.ts` se présente comme le seul endroit où les proportions s'écrivent.
+   Si le document de marque annonce un autre plancher, c'est le code qu'on
+   lira, et la règle écrite ne servira qu'à rassurer. Le 25 septembre les deux
+   ont divergé pendant une matinée, le temps qu'un relevé en largeur de sigle
+   soit repris en largeur de verrou entier : on ne le laisse plus arriver. */
+const doc = lis('docs/marque/verrou.md');
+/* LE MOTIF EST LITTÉRAL, JAMAIS CONSTRUIT DANS UN GABARIT. Une première
+   version montait l'expression dans un `template literal` : les contre-obliques
+   y sont mangées une fois de plus qu'on ne le croit, et le motif sort faux.
+   Ici, on trouve la ligne du tableau par un simple `includes`, et le nombre
+   par une expression écrite en clair. */
+const plancherDit = (forme: string): number | null => {
+  const ligne = doc.split('\n').find((l) => l.startsWith('|') && l.includes('**' + forme + '**'));
+  const m = ligne ? ligne.match(/\*\*(\d+) px\*\*/) : null;
+  return m ? Number(m[1]) : null;
+};
+dit('le document annonce le plancher du couché de verrou.ts',
+  PLANCHER_COUCHE, plancherDit('Couché'));
+dit('le document annonce le plancher du debout de verrou.ts',
+  PLANCHER_DEBOUT, plancherDit('Debout'));
+
+/* ── 9. RIEN NE TRAÎNE DANS LE DOSSIER DU DESSIN ───────────────────── */
 const dedans = readdirSync(path.join(racine, DOSSIER)).sort();
 dit('le dossier du dessin ne contient que les trois encres',
   ENCRES.map((e) => `verrou-couche-${e}.png`).sort(), dedans);

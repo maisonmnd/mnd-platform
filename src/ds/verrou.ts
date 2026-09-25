@@ -65,8 +65,13 @@ export const HAUT_DU_PICTO = HAUT_DU_BLOC * VERROU.hautPicto;
     marge de rognage et d'un défaut d'alignement depuis corrigé. On garde le
     nombre du dessin réel, et les tailles posées gardent leur marge au-dessus. */
 export const PLANCHER_COUCHE = 123;
-/** Largeur totale minimale du verrou debout, en pixels d'écran. */
-export const PLANCHER_DEBOUT = 73;
+/** Largeur totale minimale du verrou debout, en pixels d'écran.
+    Relu de LA MÊME FAÇON que le couché, en largeur d'encre du verrou ENTIER et
+    avec le même critère de six pixels de capitale. Un premier relevé disait
+    73 : il normalisait sur la largeur du SIGLE, pas du verrou, et mettait donc
+    deux unités dans un même tableau. C'est ainsi qu'on pose un logo trop
+    petit en croyant suivre la règle. */
+export const PLANCHER_DEBOUT = 64;
 
 /* SUR LE PAPIER, LE MÊME PLANCHER CHANGE D'UNITÉ, PAS DE NATURE. Six pixels
    d'écran valent 6 × 25,4 / 96 millimètres d'encre ; un PDF se lit d'ailleurs

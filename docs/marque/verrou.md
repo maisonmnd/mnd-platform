@@ -8,7 +8,12 @@ après épreuve mesurée.
 | | Où il va | Plancher mesuré |
 |---|---|---|
 | **Couché** · pictogramme à gauche, MAISON au-dessus de MND | en-têtes des papiers, barre du site, bandeaux, signatures | **123 px** de large |
-| **Debout** · les trois pièces l'une sous l'autre | enseigne, tampon, format carré | **73 px** de large |
+| **Debout** · les trois pièces l'une sous l'autre | enseigne, tampon, format carré | **64 px** de large |
+
+Les deux planchers sont relus de la même façon, en largeur d'encre du verrou **entier**.
+Un tableau qui mélangerait cette unité avec la largeur du seul sigle ferait poser un logo
+trop petit à qui croirait suivre la règle : `verifie-le-verrou` compare donc ces deux
+nombres à ceux de `src/ds/verrou.ts`, et refuse qu'ils diffèrent.
 
 Sous le plancher, on ne rapetisse pas le verrou : on pose le **pictogramme seul**, et le
 nom se lit ailleurs. C'est ce que fait la barre du site sous 560 px de large.
