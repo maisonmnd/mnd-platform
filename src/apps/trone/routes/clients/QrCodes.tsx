@@ -6,7 +6,7 @@ import { useBranch } from '../../../../shared/branches';
 import { toast, demandeUnTexte } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
-import { maisonNom, DEVISE_COMPLETE, signeLeMessage } from '../../../../shared/identite';
+import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
 import { autoConfigStore, MOMO_QR_DEFAUT, REVIEW_LINK_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT } from '../equipe/data';
 import { usePointageConfig } from '../equipe/payroll';
 import { QrSvg, qrMatrice, lienDuJour } from '../equipe/Comptoir';
@@ -50,8 +50,22 @@ const escHtml = (s: string): string =>
 const wifiPayload = (ssid: string, pass: string) =>
   `WIFI:T:WPA;S:${escWifi(ssid)};P:${escWifi(pass)};;`;
 
+/* LE VERROU EN TÊTE DES CARTES — 25 septembre 2026. Ces cartes portaient le
+   nom de la Maison en capitales espacées ; elles portent maintenant le verrou,
+   comme les papiers et le site.
+
+   L'ADRESSE EST ABSOLUE, et ce n'est pas un détail : la carte s'imprime dans
+   une fenêtre ouverte sur `about:blank` et remplie par `document.write`. Cette
+   fenêtre n'a pas d'adresse à elle, un chemin relatif n'y mène nulle part.
+
+   Et le verrou ne se pose que si le nom est bien celui de la Maison : ailleurs,
+   il nommerait une maison qui n'est pas la sienne. */
+const verrouDeLaMaison = (): string | null => (estLaMaisonMND(maisonNom())
+  ? new URL(asset('assets/verrous/verrou-couche-indigo.png'), window.location.href).href
+  : null);
+
 /* Le gabarit A5 partagé des cartes imprimées — comptoir, miroir, table. */
-const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; sousGrand?: string; etapes: string[]; ariaQr: string }) => {
+const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; sousGrand?: string; etapes: string[]; ariaQr: string; verrou?: string | null }) => {
   const { path, n } = qrMatrice(o.qr);
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8" />
 <title>${escHtml(maisonNom())}, ${escHtml(o.titre)}</title>
@@ -64,6 +78,9 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
            display: flex; flex-direction: column; align-items: center; text-align: center;
            border: 1px solid rgba(20,20,27,.14); outline: 2px solid #B97A4A; outline-offset: -6mm; }
   .marque { font-size: 13px; font-weight: 600; letter-spacing: .34em; color: #1E2150; }
+  /* 46 mm : bien au-dessus du plancher du verrou (33 mm), et 40 % de la
+     largeur utile de la carte. */
+  .verrou { width: 46mm; height: auto; display: block; margin: 0 auto; }
   .titre { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 38px; color: #1E2150; margin: 10mm 0 2mm; }
   .sous { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: #45454F; max-width: 96mm; line-height: 1.5; }
   .qr { width: 64mm; height: 64mm; margin: 10mm 0 6mm; }
@@ -74,7 +91,8 @@ const carteA5 = (o: { titre: string; sous: string; qr: string; grand?: string; s
   .devise { margin-top: auto; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: #9E6238; }
 </style></head><body>
   <div class="carte">
-    <div class="marque">${escHtml(maisonNom().toUpperCase())}</div>
+    ${o.verrou ? `<img class="verrou" src="${escHtml(o.verrou)}" alt="${escHtml(maisonNom())}" />`
+      : `<div class="marque">${escHtml(maisonNom().toUpperCase())}</div>`}
     <div class="titre">${escHtml(o.titre)}</div>
     <div class="sous">${escHtml(o.sous)}</div>
     <svg class="qr" viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="${escHtml(o.ariaQr)}">
@@ -215,6 +233,7 @@ function BoxWifi({ rang, portee, ssid, pass, pose, surComptoir }: {
   const valeur = pret ? wifiPayload(ssid.trim(), pass.trim()) : '';
 
   const imprimer = () => imprime(carteA5({
+    verrou: verrouDeLaMaison(),
     titre: 'Installez-vous.',
     sous: 'Le réseau de la Maison est à vous, scannez, votre téléphone se connecte seul.',
     qr: valeur,
@@ -294,9 +313,18 @@ function AuComptoir({ g, onClose }: { g: Grand; onClose: () => void }) {
         padding: '24px 20px', animation: 'mnd-fade var(--dur-base) var(--ease-soft)',
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.34em', color: '#1E2150' }}>
-        {maisonNom().toUpperCase()}
-      </div>
+      {estLaMaisonMND(maisonNom()) ? (
+        /* Le verrou, jamais sous son plancher : 150 px au plus petit. */
+        <img
+          src={asset('assets/verrous/verrou-couche-indigo.png')}
+          alt={maisonNom()}
+          style={{ width: 'clamp(150px, 18vw, 260px)', height: 'auto', display: 'block' }}
+        />
+      ) : (
+        <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.34em', color: '#1E2150' }}>
+          {maisonNom().toUpperCase()}
+        </div>
+      )}
       <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 'clamp(30px, 5vw, 46px)', color: '#1E2150', margin: '12px 0 2px', textAlign: 'center' }}>
         {g.titre}
       </div>
@@ -473,6 +501,7 @@ export default function QrCodes() {
   );
 
   const imprimerMomo = () => imprime(carteA5({
+    verrou: verrouDeLaMaison(),
     titre: 'Régler par MoMo.',
     sous: 'Scannez avec l’application MoMo, ou composez le code, le montant en francs.',
     qr: momoQr,
@@ -549,6 +578,7 @@ export default function QrCodes() {
                  celui-ci doit tenir seul derrière une vitre, de nuit, quand
                  l'atelier est fermé. C'est le seul des neuf codes dans ce cas. */
               { texte: 'Imprimer l’affiche', faire: () => imprime(carteA5({
+                verrou: verrouDeLaMaison(),
                 titre: 'La Maison, en entier.',
                 sous: 'Nos gestes, nos parcours, nos avis, et la prise de rendez-vous.',
                 qr: lienSite,

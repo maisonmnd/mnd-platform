@@ -5,7 +5,7 @@
    chat pré-rempli pour que l'utilisateur joigne le fichier en un geste. */
 
 import qrcode from 'qrcode-generator';
-import { maisonNom, DEVISE_COMPLETE, corrigeLAncienNom, DEFAULT_IDENTITY } from './identite';
+import { maisonNom, DEVISE_COMPLETE, estLaMaisonMND } from './identite';
 import { DEVISE_FON_B64 } from './devise-fon-b64';
 import { estIdentifiantMomo } from './momo';
 
@@ -320,12 +320,6 @@ function chargeVerrou(encre: string): Promise<string | null> {
   return VERROUS[encre];
 }
 
-/** Le papier porte-t-il bien le nom de la Maison ? « L'atelier MND », l'ancien
-    nom, compte pour oui : c'est la même maison, et la migration le corrigera. */
-const estLaMaison = (nom: unknown): boolean =>
-  (corrigeLAncienNom(nom) ?? String(nom ?? '')).trim().toLowerCase()
-    === DEFAULT_IDENTITY.nom.toLowerCase();
-
 /** POSE LE VERROU COUCHÉ, et rend la hauteur qu'il occupe.
     Rend `null` si l'image manque : l'appelant repose alors le monogramme et
     écrit le nom, comme avant. Un papier sort toujours, avec ou sans réseau.
@@ -631,7 +625,7 @@ async function construitLaFacture(d: InvoicePdfData): Promise<{ doc: any; filena
   let y = 22;
 
   // — Entête : le verrou de la Maison, pictogramme et nom d'un seul tenant —
-  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  const hVerrou = estLaMaisonMND(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
   let sousX = M;
   let sousY = 12 + (hVerrou ?? 0) + 4.5;
   if (hVerrou === null) {
@@ -916,7 +910,7 @@ export async function receiptPdf(d: ReceiptPdfData): Promise<string> {
 
   /* Le reçu est un A5 couché : le verrou y tient à quarante millimètres, au-dessus
      du plancher, et laisse la moitié droite au montant. */
-  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 10, 40) : null;
+  const hVerrou = estLaMaisonMND(d.houseName) ? await poseLeVerrou(doc, M, 10, 40) : null;
   let sousX = M;
   let sousY = 10 + (hVerrou ?? 0) + 4;
   if (hVerrou === null) {
@@ -1077,7 +1071,7 @@ export async function contratPdf(o: {
      à côté d'un verrou de quarante-six millimètres, un titre long n'aurait
      plus eu la place d'un monogramme de vingt-deux. */
   const hautDeLEntete = y - 10;
-  const hVerrou = estLaMaison(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
+  const hVerrou = estLaMaisonMND(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
   let gauche = M;
   if (hVerrou === null) {
     /* LE REPLI, EN CUIVRE. Le cuivre ponctue, l'indigo structure : la marque
@@ -1258,7 +1252,7 @@ export async function facturePrestatairePdf(o: {
 
   /* LE VERROU PREND LA PREMIÈRE LIGNE, le mot FACTURE passe dessous. */
   const hautDeLEntete = y - 10;
-  const hVerrou = estLaMaison(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
+  const hVerrou = estLaMaisonMND(o.houseName) ? await poseLeVerrou(doc, M, hautDeLEntete, 46) : null;
   let gauche = M;
   if (hVerrou === null) {
     const seal = await loadSeal();
@@ -1682,7 +1676,7 @@ async function construitLeBulletin(d: PayslipData): Promise<{ doc: any; filename
   let y = 22;
 
   // — En-tête : le verrou de la Maison —
-  const hVerrou = estLaMaison(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  const hVerrou = estLaMaisonMND(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
   let sousX = M;
   let sousY = 12 + (hVerrou ?? 0) + 4.5;
   if (hVerrou === null) {

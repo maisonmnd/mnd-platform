@@ -152,6 +152,16 @@ const ANCIEN_NOM = /^\s*l\s*[’']\s*atelier\s+mnd\s*$/i;
     toutes ses graphies devient le nom par défaut ; tout autre nom reste. */
 export const corrigeLAncienNom = (nom: unknown): string | null =>
   ANCIEN_NOM.test(String(nom ?? '')) ? DEFAULT_IDENTITY.nom : null;
+/** CE PAPIER, CET ÉCRAN, SONT-ILS BIEN CEUX DE LA MAISON ? — 25 septembre
+    2026. Le verrou (pictogramme + MAISON MND) ne se pose que là où le nom est
+    celui de la Maison : ailleurs, il nommerait une maison qui n'est pas la
+    sienne, et l'on repose le pictogramme avec le nom écrit. « L'atelier MND »,
+    l'ancien nom, compte pour oui : c'est la même maison, et la migration
+    ci-dessous le corrigera. */
+export const estLaMaisonMND = (nom: unknown): boolean =>
+  (corrigeLAncienNom(nom) ?? String(nom ?? '')).trim().toLowerCase()
+    === DEFAULT_IDENTITY.nom.toLowerCase();
+
 const MARQUEUR_NOM = 'mnd_nom_maison_2026_09';
 const EXPIRE_LE = Date.parse('2026-12-31T23:59:59+01:00');
 const dejaMigre = (marqueur = MARQUEUR_NOM): boolean => { try { return !!localStorage.getItem(marqueur); } catch { return false; } };
