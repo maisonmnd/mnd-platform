@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { origineDuCompte } from './origine-des-pages.mjs';
@@ -152,6 +152,37 @@ function copieObstinee(de, vers) {
   }
 }
 
+/* UN FIL COUPÉ N'EST PAS UN REFUS — 25 septembre 2026. Le clone du Trône est
+   tombé sur « RPC failed; curl 56 schannel: server closed abruptly », puis
+   « fatal: fetch-pack: invalid index-pack output ». La publication a compté un
+   échec et continué sans lui : les six autres sites sont partis, le Trône est
+   resté à l'ancienne version, et le correctif de connexion qu'on venait de
+   pousser n'a jamais été servi. Le Trône est le plus gros dépôt, donc celui
+   dont le clone dure le plus longtemps, donc celui qui perdra le plus souvent
+   à ce jeu. C'est un incident de réseau, pas une décision : on renoue.
+
+   Le dossier est VIDÉ avant chaque essai. `git clone` refuse un dossier non
+   vide, et un clone interrompu en laisse un : sans cela, le réessai échouerait
+   pour une raison différente de la première, ce qui est la meilleure façon de
+   rendre une panne incompréhensible. */
+const ESSAIS_DE_CLONE = 4;
+
+export function cloneObstine(origine, branche, clone) {
+  for (let essai = 1; essai <= ESSAIS_DE_CLONE; essai++) {
+    try {
+      git(['clone', '--depth', '1', '--branch', branche, '-q', origine, clone]);
+      return;
+    } catch (err) {
+      if (essai === ESSAIS_DE_CLONE) throw err;
+      const quoi = (err.stderr?.toString() || err.message).trim().split(/\r?\n/)[0];
+      console.log(`   clone interrompu (${quoi}) — nouvel essai dans 5 s (${essai}/${ESSAIS_DE_CLONE - 1})`);
+      rmSync(clone, { recursive: true, force: true });
+      mkdirSync(clone, { recursive: true });
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000);
+    }
+  }
+}
+
 /** Compare le publié à la source, fichier par fichier. Rend la liste des écarts. */
 export function ecarts(dist, clone) {
   const attendus = fichiers(dist);
@@ -211,7 +242,7 @@ async function principal() {
         git(['checkout', '-q', '-b', branche], clone);
         git(['remote', 'add', 'origin', origine], clone);
       } else {
-        git(['clone', '--depth', '1', '--branch', branche, '-q', origine, clone]);
+        cloneObstine(origine, branche, clone);
       }
       git(['config', 'user.name', nomAuteur], clone);
       git(['config', 'user.email', mailAuteur], clone);
