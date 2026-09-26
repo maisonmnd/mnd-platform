@@ -997,10 +997,14 @@ body.galerie-plein { scroll-behavior: smooth; }
    `--e` est la même course que `--p`, RETENUE AU DÉBUT : les cartes
    s'attardent, puis balayent. Une course régulière les faisait partir tout
    de suite et attendre ensuite. */
+/* LA CARTE N'EST QU'UNE PLACE ; LE DESSIN EST DEDANS. Le cadre, l'ombre et
+   le voile de profondeur vivent sur l'élément QUI BOUGE, pas sur la boîte qui
+   reste. Posés ici, ils ne suivaient pas l'orbite : la photo glissait dans un
+   cadre immobile et la carte sortait coupée en deux, moitié image, moitié
+   rectangle sombre. Ce qu'on veut voir se déplacer, c'est la carte entière. */
 .gal-carte { position: absolute; left: 50%; top: 50%; width: calc(var(--l) * var(--k));
   aspect-ratio: 4 / 5; margin-left: calc(var(--l) * var(--k) / -2);
-  margin-top: calc(var(--l) * var(--k) * -0.625); border-radius: 5px; overflow: hidden;
-  box-shadow: 0 26px 60px rgba(0, 0, 0, .5); will-change: transform;
+  margin-top: calc(var(--l) * var(--k) * -0.625); will-change: transform;
   transform: translate3d(
       calc((var(--x) + var(--dx) * var(--e)) * var(--k) * 1px),
       calc((var(--y) + var(--dy) * var(--e)) * var(--k) * 1px),
@@ -1026,7 +1030,8 @@ body.galerie-plein { scroll-behavior: smooth; }
    la lente rotation. Chacun le sien, aucun ne se marche dessus. */
 .gal-carte__flotte { width: 100%; height: 100%;
   animation: gal-x var(--duree, 24s) ease-in-out infinite alternate; }
-.gal-carte__tourne { width: 100%; height: 100%;
+.gal-carte__tourne { position: relative; width: 100%; height: 100%;
+  border-radius: 5px; overflow: hidden; box-shadow: 0 26px 60px rgba(0, 0, 0, .5);
   animation: gal-y var(--duree, 24s) ease-in-out infinite alternate,
              gal-pivot calc(var(--duree, 24s) * 2.5) ease-in-out infinite alternate;
   animation-delay: calc(var(--duree, 24s) / -4), 0s; }
@@ -1070,8 +1075,8 @@ body.galerie-plein { scroll-behavior: smooth; }
 }
 /* Les cartes du fond sont plus sombres : c'est la profondeur qui se voit, pas
    un filtre décoratif. */
-.gal-carte::after { content: ''; position: absolute; inset: 0; background: var(--sombre);
-  opacity: calc(var(--voile) * (1 - var(--e))); }
+.gal-carte__tourne::after { content: ''; position: absolute; inset: 0;
+  background: var(--sombre); opacity: calc(var(--voile) * (1 - var(--e))); }
 
 /* LA CONSTELLATION SE RESSERRE AVEC L'ÉCRAN. Les places sont écrites pour un
    grand écran ; sur un téléphone, la moitié des cartes sortiraient du cadre.

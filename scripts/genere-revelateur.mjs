@@ -835,16 +835,16 @@ if (vignetteAbsente.length) {
    pixels : toute carte dont le bord entre dans cette bande lui passe dessus,
    et c'est ce qui arrivait à gauche au premier essai. */
 const PLACES_DE_LA_GALERIE = [
-  '--l:230px;--x:-560;--y:-140;--z:-340;--r:-7;--dx:-560;--dy:-190;--dz:520;--dr:-5;--voile:.42;--o:.85',
-  '--l:200px;--x:-660;--y:190;--z:-520;--r:5;--dx:-720;--dy:280;--dz:660;--dr:7;--voile:.55;--o:.7',
-  '--l:260px;--x:545;--y:-115;--z:-260;--r:6;--dx:600;--dy:-170;--dz:470;--dr:6;--voile:.35;--o:.9',
-  '--l:190px;--x:680;--y:215;--z:-560;--r:-6;--dx:740;--dy:300;--dz:700;--dr:-8;--voile:.58;--o:.66',
-  '--l:170px;--x:-285;--y:-345;--z:-680;--r:8;--dx:-330;--dy:-470;--dz:800;--dr:10;--voile:.64;--o:.55',
-  '--l:175px;--x:290;--y:345;--z:-700;--r:-8;--dx:340;--dy:470;--dz:820;--dr:-9;--voile:.66;--o:.55',
-  '--l:150px;--x:-790;--y:-315;--z:-900;--r:10;--dx:-860;--dy:-430;--dz:980;--dr:12;--voile:.72;--o:.42',
-  '--l:155px;--x:800;--y:-330;--z:-880;--r:-9;--dx:880;--dy:-440;--dz:960;--dr:-11;--voile:.72;--o:.42',
-  '--l:145px;--x:-95;--y:395;--z:-980;--r:4;--dx:-120;--dy:560;--dz:1040;--dr:5;--voile:.76;--o:.38',
-  '--l:150px;--x:140;--y:-425;--z:-1020;--r:-5;--dx:200;--dy:-600;--dz:1080;--dr:-6;--voile:.78;--o:.36',
+  '--l:230px;--x:-560;--y:-140;--z:-340;--r:-7;--dx:-560;--dy:-190;--dz:520;--dr:-5;--voile:.20;--o:.96',
+  '--l:200px;--x:-660;--y:190;--z:-520;--r:5;--dx:-720;--dy:280;--dz:660;--dr:7;--voile:.26;--o:.90',
+  '--l:260px;--x:545;--y:-115;--z:-260;--r:6;--dx:600;--dy:-170;--dz:470;--dr:6;--voile:.16;--o:1',
+  '--l:190px;--x:680;--y:215;--z:-560;--r:-6;--dx:740;--dy:300;--dz:700;--dr:-8;--voile:.28;--o:.88',
+  '--l:170px;--x:-285;--y:-345;--z:-680;--r:8;--dx:-330;--dy:-470;--dz:800;--dr:10;--voile:.32;--o:.84',
+  '--l:175px;--x:290;--y:345;--z:-700;--r:-8;--dx:340;--dy:470;--dz:820;--dr:-9;--voile:.33;--o:.84',
+  '--l:150px;--x:-790;--y:-315;--z:-900;--r:10;--dx:-860;--dy:-430;--dz:980;--dr:12;--voile:.38;--o:.78',
+  '--l:155px;--x:800;--y:-330;--z:-880;--r:-9;--dx:880;--dy:-440;--dz:960;--dr:-11;--voile:.38;--o:.78',
+  '--l:145px;--x:-95;--y:395;--z:-980;--r:4;--dx:-120;--dy:560;--dz:1040;--dr:5;--voile:.42;--o:.74',
+  '--l:150px;--x:140;--y:-425;--z:-1020;--r:-5;--dx:200;--dy:-600;--dz:1080;--dr:-6;--voile:.44;--o:.72',
 ];
 
 /* L'ORBITE DE CHAQUE CARTE : son rayon, sa durée, son pivot. Les durées sont
@@ -860,16 +860,16 @@ const PLACES_DE_LA_GALERIE = [
    Une scène où la moitié des cartes semble arrêtée n'est pas un défilé. De
    treize à vingt-six secondes, toutes avancent. */
 const ORBITES_DE_LA_GALERIE = [
-  '--duree:21s;--rayon:118px;--pivot:2.6deg',
-  '--duree:17s;--rayon:104px;--pivot:3.1deg',
-  '--duree:23s;--rayon:122px;--pivot:2.4deg',
-  '--duree:16s;--rayon:98px;--pivot:3.4deg',
-  '--duree:14s;--rayon:92px;--pivot:3.8deg',
-  '--duree:25s;--rayon:110px;--pivot:2.9deg',
-  '--duree:13s;--rayon:86px;--pivot:4.2deg',
-  '--duree:26s;--rayon:100px;--pivot:2.7deg',
-  '--duree:15s;--rayon:88px;--pivot:4.6deg',
-  '--duree:19s;--rayon:94px;--pivot:3.3deg',
+  '--duree:14s;--rayon:118px;--pivot:2.6deg',
+  '--duree:11s;--rayon:104px;--pivot:3.1deg',
+  '--duree:15s;--rayon:122px;--pivot:2.4deg',
+  '--duree:10s;--rayon:98px;--pivot:3.4deg',
+  '--duree:9s;--rayon:92px;--pivot:3.8deg',
+  '--duree:16s;--rayon:110px;--pivot:2.9deg',
+  '--duree:8s;--rayon:86px;--pivot:4.2deg',
+  '--duree:17s;--rayon:100px;--pivot:2.7deg',
+  '--duree:10s;--rayon:88px;--pivot:4.6deg',
+  '--duree:12s;--rayon:94px;--pivot:3.3deg',
 ];
 
 function rendGalerie() {
