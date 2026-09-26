@@ -1035,13 +1035,25 @@ body.galerie-plein { scroll-behavior: smooth; }
   animation: gal-y var(--duree, 24s) ease-in-out infinite alternate,
              gal-pivot calc(var(--duree, 24s) * 2.5) ease-in-out infinite alternate;
   animation-delay: calc(var(--duree, 24s) / -4), 0s; }
+/* LE RAYON SUIT LA TAILLE DES CARTES — 26 septembre 2026. « Sur mobile c'est
+   rapide, sur PC c'est très lent » (Yéman), et la mesure lui donne raison au
+   chiffre près : les deux écrans montraient 71 pixels par seconde, mais
+   rapportés à la taille des cartes cela faisait 1,17 largeur de carte par
+   seconde sur un téléphone contre 0,52 sur un ordinateur. Deux fois moins de
+   mouvement pour le même déplacement, parce que le rayon était écrit en
+   pixels FIXES quand tout le reste de la constellation se resserre avec
+   l'écran.
+
+   Il se resserre donc lui aussi, par le même facteur `--k`. La vitesse ne se
+   règle plus en pixels par seconde, qui ne veut rien dire d'un écran à
+   l'autre, mais en largeurs de carte par seconde, qui est ce que l'œil voit. */
 @keyframes gal-x {
-  from { transform: translate3d(calc(var(--rayon, 100px) * -1), 0, 0); }
-  to { transform: translate3d(var(--rayon, 100px), 0, 0); }
+  from { transform: translate3d(calc(var(--rayon, 100px) * var(--k) * -1), 0, 0); }
+  to { transform: translate3d(calc(var(--rayon, 100px) * var(--k)), 0, 0); }
 }
 @keyframes gal-y {
-  from { transform: translate3d(0, calc(var(--rayon, 100px) * -0.8), 0); }
-  to { transform: translate3d(0, calc(var(--rayon, 100px) * 0.8), 0); }
+  from { transform: translate3d(0, calc(var(--rayon, 100px) * var(--k) * -0.8), 0); }
+  to { transform: translate3d(0, calc(var(--rayon, 100px) * var(--k) * 0.8), 0); }
 }
 @keyframes gal-pivot {
   from { rotate: calc(var(--pivot, 3deg) * -1); }
