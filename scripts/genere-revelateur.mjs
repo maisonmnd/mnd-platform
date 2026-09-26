@@ -860,16 +860,16 @@ const PLACES_DE_LA_GALERIE = [
    Une scène où la moitié des cartes semble arrêtée n'est pas un défilé. De
    treize à vingt-six secondes, toutes avancent. */
 const ORBITES_DE_LA_GALERIE = [
-  '--duree:14s;--rayon:118px;--pivot:2.6deg',
-  '--duree:11s;--rayon:104px;--pivot:3.1deg',
-  '--duree:15s;--rayon:122px;--pivot:2.4deg',
-  '--duree:10s;--rayon:98px;--pivot:3.4deg',
-  '--duree:9s;--rayon:92px;--pivot:3.8deg',
-  '--duree:16s;--rayon:110px;--pivot:2.9deg',
-  '--duree:8s;--rayon:86px;--pivot:4.2deg',
-  '--duree:17s;--rayon:100px;--pivot:2.7deg',
-  '--duree:10s;--rayon:88px;--pivot:4.6deg',
-  '--duree:12s;--rayon:94px;--pivot:3.3deg',
+  '--duree:3.5s;--rayon:118px;--pivot:2.6deg',
+  '--duree:2.75s;--rayon:104px;--pivot:3.1deg',
+  '--duree:3.75s;--rayon:122px;--pivot:2.4deg',
+  '--duree:2.5s;--rayon:98px;--pivot:3.4deg',
+  '--duree:2.25s;--rayon:92px;--pivot:3.8deg',
+  '--duree:4s;--rayon:110px;--pivot:2.9deg',
+  '--duree:2s;--rayon:86px;--pivot:4.2deg',
+  '--duree:4.25s;--rayon:100px;--pivot:2.7deg',
+  '--duree:2.6s;--rayon:88px;--pivot:4.6deg',
+  '--duree:3s;--rayon:94px;--pivot:3.3deg',
 ];
 
 function rendGalerie() {
