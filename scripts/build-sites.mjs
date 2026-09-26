@@ -276,14 +276,28 @@ ${adresses.map((loc) => `  <url>
   console.log(`  ${indexable ? 'explorable' : 'ferme aux moteurs'} : robots.txt${indexable && adresseDuSite ? ' + sitemap.xml' : ''}`);
 
   /* ── LE SITE QUI VIT À LA RACINE PORTE LE DOMAINE ────────────────
-     GitHub Pages lit le fichier CNAME du dépôt principal ; sans lui, une
-     publication REFONDUE effacerait le domaine, et le site retomberait sur
-     l'adresse github.io. Le nom vient de la configuration Pages lue chez
-     GitHub (`origineDesPages`), jamais de ce dépôt, qui est public. Sans
-     domaine propre, pas de CNAME : l'adresse github.io se sert d'elle-même. */
-  if (site.base === '/' && ORIGINE_PAGES) {
-    const hote = new URL(ORIGINE_PAGES).host;
-    if (!hote.endsWith('.github.io')) writeFileSync(path.join(dossierPublie, 'CNAME'), `${hote}\n`);
+     GitHub Pages lit le fichier CNAME du dépôt principal ; sans lui, TOUTE
+     publication efface le domaine — pas seulement une refonte, puisqu'une
+     publication ordinaire commence par `git rm -r .`. Le nom vient de la
+     configuration Pages lue chez GitHub (`origineDesPages`), jamais de ce
+     dépôt, qui est public.
+
+     « SANS DOMAINE PROPRE, PAS DE CNAME » EST VRAI ; « RIEN NE CASSE » NE
+     L'ÉTAIT PAS. Le 26 septembre 2026, la lecture chez GitHub a rendu vide
+     sans rien dire, aucun CNAME n'a été écrit, et la publication a emporté
+     le domaine : maisonmnd.com a rendu 404 sur toutes ses pages. On le DIT
+     désormais, au lieu de le taire, et `publie.mjs` reprend le CNAME du
+     dépôt quand la construction n'en donne pas : le silence d'ici ne suffit
+     plus à faire tomber le site. */
+  if (site.base === '/') {
+    const hote = ORIGINE_PAGES ? new URL(ORIGINE_PAGES).host : '';
+    if (hote && !hote.endsWith('.github.io')) {
+      writeFileSync(path.join(dossierPublie, 'CNAME'), `${hote}\n`);
+    } else {
+      console.log('  ATTENTION : aucun domaine propre lu chez GitHub, donc pas de CNAME '
+        + 'écrit pour le site de la racine. Si le dépôt en porte un, `publie.mjs` le '
+        + 'reprendra ; sinon le site ne sera servi que sous l\'adresse github.io.');
+    }
   }
 
   /* ── LES ANCIENNES ADRESSES RENVOIENT VERS LES NOUVELLES ─────────

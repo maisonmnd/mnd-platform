@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { origineDuCompte } from './origine-des-pages.mjs';
@@ -183,10 +183,46 @@ export function cloneObstine(origine, branche, clone) {
   }
 }
 
-/** Compare le publié à la source, fichier par fichier. Rend la liste des écarts. */
-export function ecarts(dist, clone) {
+/* LE DOMAINE NE SE PERD PAS DANS UNE PUBLICATION — 26 septembre 2026.
+
+   CE QUI S'EST PASSÉ. Le nom de domaine vit dans un fichier `CNAME` à la
+   racine du dépôt principal ; c'est lui, et lui seul, qui dit à GitHub Pages
+   de servir le site sous `maisonmnd.com`. `build-sites` l'écrit d'après la
+   configuration Pages, qu'il lit chez GitHub avec `gh`. Ce jour-là, la
+   lecture a rendu vide — réseau, jeton, peu importe : elle rend vide SANS LE
+   DIRE, et le commentaire d'à côté affirmait alors que « rien ne casse ».
+
+   Tout cassait. La publication efface d'abord tout (`git rm -r .`) puis copie
+   la construction : pas de CNAME dans la construction, pas de CNAME dans le
+   dépôt. GitHub a retiré le domaine de sa configuration, et maisonmnd.com a
+   rendu 404 sur TOUTES ses pages, pendant que la publication annonçait
+   « en ligne et servi » — parce qu'elle vérifie l'origine github.io, qui,
+   elle, marchait très bien.
+
+   ET LA BOUCLE SE REFERMAIT : le domaine ayant disparu de la configuration,
+   `gh` rendait vide pour de bon, donc la construction suivante ne pouvait
+   plus l'écrire non plus. Il a fallu le remettre à la main.
+
+   LA RÈGLE, MAINTENANT : une publication ne RETIRE jamais un CNAME qu'elle
+   trouve. Si le dépôt en porte un et que la construction n'en a pas, on le
+   reprend tel quel et on le dit tout haut. Le domaine ne se perd plus par
+   accident ; il ne peut plus partir que si quelqu'un l'enlève exprès du
+   dépôt. */
+export function domaineDuDepot(clone) {
+  const f = path.join(clone, 'CNAME');
+  return existsSync(f) ? readFileSync(f, 'utf8').trim() : '';
+}
+
+/** Compare le publié à la source, fichier par fichier. Rend la liste des écarts.
+
+    `repris` nomme les fichiers que le dépôt garde alors que la construction ne
+    les a pas écrits — aujourd'hui le seul CNAME. Sans cette porte, le fichier
+    repris serait compté « EN TROP » et annulerait la publication : le garde-fou
+    d'à côté se retournerait contre celui-ci. */
+export function ecarts(dist, clone, repris = new Set()) {
   const attendus = fichiers(dist);
   const presents = new Set(fichiers(clone));
+  for (const f of repris) presents.delete(f);
   const liste = [];
   for (const f of attendus) {
     const cible = path.join(clone, f);
@@ -246,10 +282,20 @@ async function principal() {
       }
       git(['config', 'user.name', nomAuteur], clone);
       git(['config', 'user.email', mailAuteur], clone);
+      /* On lit le domaine AVANT d'effacer : après, il n'y a plus rien à lire. */
+      const domaine = REFONDE ? '' : domaineDuDepot(clone);
       if (!REFONDE) git(['rm', '-rq', '.'], clone);
       copieObstinee(dist, clone);
 
-      const liste = ecarts(dist, clone);
+      const repris = new Set();
+      if (domaine && !existsSync(path.join(clone, 'CNAME'))) {
+        writeFileSync(path.join(clone, 'CNAME'), `${domaine}\n`);
+        repris.add('CNAME');
+        console.log(`   domaine « ${domaine} » REPRIS du dépôt : la construction ne l'a pas `
+          + 'écrit. Sans cela, GitHub retirerait le domaine et le site répondrait 404.');
+      }
+
+      const liste = ecarts(dist, clone, repris);
       if (liste.length) {
         /* RIEN N'EST POUSSÉ. Un site incomplet en ligne est pire qu'un site pas
            republié : l'ancienne version, elle, fonctionnait. */
