@@ -248,8 +248,11 @@ export const ACCUEIL: Accueil = {
        `cliente-3` est une autre photo de la même cliente, debout, remise par
        Yéman le 26 septembre : même échelle de visage que ses voisines, 0,55 de
        la hauteur, regard à 0,37, mesurée sur le rang assemblé et non sur la
-       photo seule. */
-    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-9.jpg'],
+       photo seule.
+       L'ORDRE EST CELUI DE YEMAN, 26 septembre 2026 au matin : `cliente-7`
+       ouvre la rangée. Ce n'est pas un détail d'arrangement, c'est le premier
+       visage que voit qui descend la page. */
+    images: ['cliente-7.jpg', 'cliente-3.jpg', 'cliente-6.jpg', 'cliente-9.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
