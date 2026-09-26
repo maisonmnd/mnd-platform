@@ -965,8 +965,33 @@ footer li svg { width: 15px; height: 15px; flex: none; }
   font-size: clamp(38px, 6.6vw, 82px); line-height: 1.04;
   max-width: 19ch; margin-inline: auto; }
 .gal-mot p { margin-top: 16px; font-weight: 300; font-size: 17px; color: rgba(246, 241, 231, .74); }
-.gal-mot .defile { margin-top: 32px; font-size: 12px; letter-spacing: .2em;
-  text-transform: uppercase; color: rgba(246, 241, 231, .5); }
+/* « FAITES DÉFILER » NE FAISAIT RIEN, ET AVAIT L'AIR D'UN BOUTON — 26
+   septembre 2026. « À quoi sert le bouton défiler ? » (Yéman). À rien : c'était
+   une indication, habillée comme les boutons du site, majuscules espacées et
+   centrées. Un élément qui a l'air cliquable et ne l'est pas est un défaut,
+   pas une décoration.
+
+   DEUX RÉPONSES POSSIBLES : le déguiser en simple phrase, ou lui donner ce
+   qu'il promet. On lui donne ce qu'il promet, parce que sur un téléphone,
+   descendre deux hauteurs d'écran au pouce est une corvée : il mène
+   maintenant à la grille, et le défilement s'y rend en glissant, de sorte que
+   l'animation se joue en chemin au lieu d'être sautée. */
+.gal-mot .defile { display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 32px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
+  color: rgba(246, 241, 231, .62); text-decoration: none;
+  padding: 10px 18px; border: 1px solid rgba(246, 241, 231, .22); border-radius: 999px; }
+.gal-mot .defile:hover { color: #F6F1E7; border-color: rgba(246, 241, 231, .5); }
+.gal-mot .defile span { font-size: 15px; animation: gal-pointe 2.4s ease-in-out infinite; }
+@keyframes gal-pointe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+
+/* Le glissement ne vaut QUE pour cette page, et pas pour qui demande moins de
+   mouvement : ailleurs sur le site, une ancre saute, comme elle l'a toujours
+   fait. */
+body.galerie-plein { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  body.galerie-plein { scroll-behavior: auto; }
+  .gal-mot .defile span { animation: none; }
+}
 
 /* Chaque carte part de sa place et s'en va vers le bord en se rapprochant.
    `--e` est la même course que `--p`, RETENUE AU DÉBUT : les cartes

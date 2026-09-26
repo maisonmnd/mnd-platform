@@ -911,12 +911,12 @@ function rendGalerie() {
             <p class="sur">${echappe(GALERIE.sur)}</p>
             <h1>${echappe(GALERIE.h1)}</h1>
             <p>${echappe(GALERIE.ligne)}</p>
-            <p class="defile">Faites défiler</p>
+            <a class="defile" href="#gal-grille">Voir les photos<span aria-hidden="true">↓</span></a>
           </div></div>
           ${cartes}
         </div>
       </div>
-      <section class="serre"><div class="conteneur">
+      <section class="serre" id="gal-grille"><div class="conteneur">
         <div class="gal-grille">
           ${grille}
         </div>

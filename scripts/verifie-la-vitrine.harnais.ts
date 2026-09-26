@@ -183,6 +183,16 @@ dit('… toutes les photos de la galerie sont cliquables',
   photosDeLaGalerie.length, ancres.size);
 dit('… et chaque vue se referme', [],
   vues.filter((v) => !v.includes('href="#" aria-label="Fermer"')));
+/* RIEN NE DOIT AVOIR L'AIR CLIQUABLE SANS L'ÊTRE. « À quoi sert le bouton
+   défiler ? » demandait Yéman : à rien. C'était une indication habillée comme
+   les boutons du site. On tient donc la règle, et non le cas : tout ce que la
+   scène présente comme une action mène quelque part. */
+const scene = (galerie.match(/<div class="gal-scene"[\s\S]*?<\/div>\s*<\/div>/) ?? [''])[0];
+const cliquables = [...scene.matchAll(/<(a|button)[^>]*>/g)].map((m) => m[0]);
+dit('rien dans la scène n’a l’air cliquable sans mener quelque part', [],
+  cliquables.filter((b) => !/href="[^"]+"/.test(b)));
+dit('… et l’invitation à défiler mène bien à la grille', true,
+  /class="defile" href="#gal-grille"/.test(galerie) && galerie.includes('id="gal-grille"'));
 dit('… le menu mène à la galerie', true,
   COMMUN.nav.some((l: { vers: string }) => l.vers === '/galerie/'));
 /* AUCUN PRÉNOM, comme partout ailleurs sur ce site. Le contrôle ne porte que
