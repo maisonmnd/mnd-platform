@@ -185,17 +185,17 @@ VOCATIONS = [
      "Nourrir. Apaiser. ", "Fortifier."),
     ("Table MND",      "restauration",                   140,  "Vert Olivier",
      "le végétal, la table",
-     "Recevoir. Nourrir. ", "Prolonger."),
+     "Recevoir. Régaler. ", "Prolonger."),
     ("Domicile MND",   "salon mobile",                   330,  "Prune du Soir",
      "la prune, le déplacement du soir",
-     "Venir. Installer. ", "Couronner."),
+     "Venir. Installer. ", "Transformer."),
     # L'emeraude est la teinte la plus LIBRE de la roue une fois les autres
     # posees : son ecart minimal aux huit vaut 24,5, quand la paire la plus
     # serree de la famille en vaut 16,1. Elle n'a pas ete choisie pour ce
     # qu'elle evoque, elle a ete trouvee pour ce qu'elle ne confond pas.
     ("Événements MND", "cérémonies, mariages, hors les murs", 184, "Émeraude de Fête",
      "la teinte la plus libre de la roue, la fête qui ne se confond avec rien",
-     "Préparer. Célébrer. ", "Couronner."),
+     "Rassembler. Parer. ", "Célébrer."),
     # L'ardoise est la seule DESATUREE de la gamme, et c'est voulu : deux bleus
     # voisins (Soins et Studio) se confondaient a soixante pixels. Une famille
     # a besoin d'un neutre.
@@ -211,6 +211,11 @@ VOCATIONS = [
 # exception dans cette charte, ou tout est aplat : il dit la fete, et il ne
 # dirait plus rien si tout le monde en avait un.
 AVEC_DEGRADE = ("Événements MND",)
+
+# LES MOTS QUI RESTENT A LA MERE. La couronne est l'embleme de la Maison, et
+# « Ma Couronne » porte deja le nom : le verbe ne se prete a aucune vocation.
+# Ecrit par racine, pour attraper « couronner » comme « couronnement ».
+MOTS_DE_LA_MAISON = ("couronn",)
 
 # Les deux seuils sont poses AVANT le calcul, et le script refuse de livrer
 # une planche qui les franchit.
@@ -272,6 +277,33 @@ def gamme():
     paires = sorted((dE(a["couleur"], b["couleur"]), a["nom"], b["nom"])
                     for i, a in enumerate(out) for b in out[i + 1:])
     assert paires[0][0] >= ECART_MINIMAL, "trop proches : %s" % (paires[0],)
+    # AUCUN VERBE DE SIGNATURE NE SERT DEUX FOIS. « Couronner » finissait la
+    # phrase de Domicile ET celle des Evenements, alors que la couronne est
+    # l'embleme de la mere et que « Ma Couronne » porte deja le nom. Un mot qui
+    # appartient a la Maison ne se prete pas, et un mot repete cesse de
+    # distinguer celles qui le portent.
+    vus = {}
+    for g in out:
+        for mot in (g["signature"] + g["accent"]).replace(".", " ").split():
+            cle = mot.strip(",").lower()
+            if len(cle) < 5:
+                continue          # les petits mots de liaison ne comptent pas
+            vus.setdefault(cle, []).append(g["nom"])
+    repetes = {m: n for m, n in vus.items() if len(n) > 1}
+    assert not repetes, "un verbe de signature sert deux fois : %s" % repetes
+    # ET CERTAINS MOTS N'APPARTIENNENT QU'A LA MERE. La regle du dessus
+    # n'interdit qu'un mot REPETE : « Couronner » pose une seule fois sur une
+    # fille y passait sans bruit, alors que c'est precisement ce qu'on s'est
+    # interdit. La couronne est l'embleme de la Maison et « Ma Couronne » porte
+    # deja le nom : le verbe reste a la mere, et une seule occurrence suffit a
+    # faire crier ce controle.
+    for g in out:
+        if g["nom"] == "Maison MND":
+            continue
+        for mot in (g["signature"] + g["accent"]).lower().replace(".", " ").split():
+            racine = mot.strip(",")
+            assert not any(racine.startswith(r) for r in MOTS_DE_LA_MAISON), (
+                "« %s » appartient a la Maison, %s ne peut pas le porter" % (racine, g["nom"]))
     return out, min(contraste(g["couleur"], IVOIRE) for g in out), paires[0][0]
 
 

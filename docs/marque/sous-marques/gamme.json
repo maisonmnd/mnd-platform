@@ -50,7 +50,7 @@
   "couleur": "#124716",
   "nomCouleur": "Vert Olivier",
   "pourquoi": "le végétal, la table",
-  "signature": "Recevoir. Nourrir. ",
+  "signature": "Recevoir. Régaler. ",
   "accent": "Prolonger.",
   "degrades": []
  },
@@ -62,7 +62,7 @@
   "nomCouleur": "Prune du Soir",
   "pourquoi": "la prune, le déplacement du soir",
   "signature": "Venir. Installer. ",
-  "accent": "Couronner.",
+  "accent": "Transformer.",
   "degrades": []
  },
  {
@@ -72,8 +72,8 @@
   "couleur": "#004B41",
   "nomCouleur": "Émeraude de Fête",
   "pourquoi": "la teinte la plus libre de la roue, la fête qui ne se confond avec rien",
-  "signature": "Préparer. Célébrer. ",
-  "accent": "Couronner.",
+  "signature": "Rassembler. Parer. ",
+  "accent": "Célébrer.",
   "degrades": [
    {
     "nom": "Le dégradé de fête",
