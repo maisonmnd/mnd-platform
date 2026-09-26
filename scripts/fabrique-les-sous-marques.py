@@ -183,6 +183,17 @@ VOCATIONS = [
      # pres. La traduction entiere, « Vous etes beaux, et vous le savez »,
      # reste la ou l'on rencontre la Maison pour la premiere fois.
      "mi nyɔ́ ɖɛkpɛ, ", "et vous le savez."),
+    # L'ATELIER, C'EST LA MAISON AILLEURS. « Les branches annexes de la Maison
+    # MND : Montreal, New York, Lome, Cocody, Dakar... » (Yeman, 26 septembre
+    # 2026). La vocation dit le ROLE et non la liste : une charte qui nommerait
+    # ces villes affirmerait qu'elles sont ouvertes, ce qu'aucune d'elles n'est
+    # encore. Le nom s'ecrit « Atelier MND » sans article : « L'atelier MND »
+    # est l'ANCIEN NOM DE LA MAISON, retire le 23 septembre, et `corrigeLAncienNom`
+    # le remplace partout ou il le trouve. Verifie : la forme sans article
+    # n'est pas attrapee.
+    ("Atelier MND",    "les branches de la Maison, d'une ville à l'autre", "Ocre Brûlé", "#936518",
+     "l'ocre, la Maison ailleurs qu'à Cotonou",
+     "Ouvrir. Porter. ", "Essaimer."),
     ("Académie MND",   "formations, certifications, transmission",  "Vert Savoir",    "#2F5D50",
      "le vert de ce qui s'apprend et se transmet",
      "Former. Transmettre. ", "Affirmer."),

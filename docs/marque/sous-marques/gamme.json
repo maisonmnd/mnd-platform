@@ -11,6 +11,17 @@
   "degrades": []
  },
  {
+  "nom": "Atelier MND",
+  "ligne": "ATELIER",
+  "vocation": "les branches de la Maison, d'une ville à l'autre",
+  "couleur": "#936518",
+  "nomCouleur": "Ocre Brûlé",
+  "pourquoi": "l'ocre, la Maison ailleurs qu'à Cotonou",
+  "signature": "Ouvrir. Porter. ",
+  "accent": "Essaimer.",
+  "degrades": []
+ },
+ {
   "nom": "Académie MND",
   "ligne": "ACADÉMIE",
   "vocation": "formations, certifications, transmission",
