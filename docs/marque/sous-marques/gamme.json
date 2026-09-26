@@ -2,7 +2,7 @@
  {
   "nom": "Maison MND",
   "ligne": "MAISON",
-  "vocation": "la marque mère",
+  "vocation": "la marque mère · le salon d'Akpakpa",
   "couleur": "#1E2150",
   "nomCouleur": "Indigo Royal",
   "pourquoi": "la signature de la Maison",
@@ -13,10 +13,10 @@
  {
   "nom": "Académie MND",
   "ligne": "ACADÉMIE",
-  "vocation": "formations",
-  "couleur": "#5C3402",
-  "nomCouleur": "Bronze d'Atelier",
-  "pourquoi": "le bronze de l'atelier, ce qui se transmet",
+  "vocation": "formations, certifications, transmission",
+  "couleur": "#2F5D50",
+  "nomCouleur": "Vert Savoir",
+  "pourquoi": "le vert de ce qui s'apprend et se transmet",
   "signature": "Former. Transmettre. ",
   "accent": "Affirmer.",
   "degrades": []
@@ -24,10 +24,10 @@
  {
   "nom": "Boutique MND",
   "ligne": "BOUTIQUE",
-  "vocation": "produits, outils, objets",
-  "couleur": "#6C271C",
-  "nomCouleur": "Brique Ancienne",
-  "pourquoi": "le cuivre assombri, le commerce",
+  "vocation": "produits, outils, objets de la Maison",
+  "couleur": "#4A2C5C",
+  "nomCouleur": "Prune Profonde",
+  "pourquoi": "la prune, l'objet choisi",
   "signature": "Choisir. Entretenir. ",
   "accent": "Durer.",
   "degrades": []
@@ -35,8 +35,8 @@
  {
   "nom": "Soins MND",
   "ligne": "SOINS",
-  "vocation": "care, routines, cuir chevelu",
-  "couleur": "#004966",
+  "vocation": "care · routines, cuir chevelu, entretien",
+  "couleur": "#2E6F8E",
   "nomCouleur": "Bleu Lagune",
   "pourquoi": "l'eau, le bleu du soin",
   "signature": "Nourrir. Apaiser. ",
@@ -46,10 +46,10 @@
  {
   "nom": "Table MND",
   "ligne": "TABLE",
-  "vocation": "restauration",
-  "couleur": "#124716",
-  "nomCouleur": "Vert Olivier",
-  "pourquoi": "le végétal, la table",
+  "vocation": "restauration · le comptoir du salon",
+  "couleur": "#6E283C",
+  "nomCouleur": "Bordeaux",
+  "pourquoi": "le bordeaux de la table",
   "signature": "Recevoir. Régaler. ",
   "accent": "Prolonger.",
   "degrades": []
@@ -57,44 +57,64 @@
  {
   "nom": "Domicile MND",
   "ligne": "DOMICILE",
-  "vocation": "salon mobile",
-  "couleur": "#60285B",
-  "nomCouleur": "Prune du Soir",
-  "pourquoi": "la prune, le déplacement du soir",
+  "vocation": "salon mobile · la Maison vient à vous",
+  "couleur": "#7A4A2C",
+  "nomCouleur": "Brun Sienne",
+  "pourquoi": "la terre parcourue, le déplacement",
   "signature": "Venir. Installer. ",
   "accent": "Transformer.",
   "degrades": []
  },
  {
+  "nom": "Immobilier MND",
+  "ligne": "IMMOBILIER",
+  "vocation": "acquisition, location, gestion des lieux",
+  "couleur": "#936518",
+  "nomCouleur": "Ocre Brûlé",
+  "pourquoi": "l'ocre des murs, ce qui se bâtit",
+  "signature": "Acquérir. Bâtir. ",
+  "accent": "Tenir.",
+  "degrades": []
+ },
+ {
   "nom": "Événements MND",
   "ligne": "ÉVÉNEMENTS",
-  "vocation": "cérémonies, mariages, hors les murs",
-  "couleur": "#004B41",
-  "nomCouleur": "Émeraude de Fête",
-  "pourquoi": "la teinte la plus libre de la roue, la fête qui ne se confond avec rien",
+  "vocation": "ateliers, rencontres, défilés, lancements",
+  "couleur": "#1F4D62",
+  "nomCouleur": "Bleu Pétrole",
+  "pourquoi": "le repli uni de la seule sous-marque en dégradé",
   "signature": "Rassembler. Parer. ",
   "accent": "Célébrer.",
   "degrades": [
    {
-    "nom": "Le dégradé de fête",
-    "de": "#004B41",
-    "a": "#18686B",
-    "pourquoi": "la teinte s'éclaircit sans quitter sa famille, pour les tuiles et les bandeaux"
+    "nom": "Option A · Souverain",
+    "arrets": [
+     "#1E2150",
+     "#1F4D62",
+     "#6E283C",
+     "#B97A4A"
+    ],
+    "pourquoi": "tout vient de la palette existante : sobre, cohérent avec la Maison, moins visible de loin"
    },
    {
-    "nom": "Le dégradé de la Maison",
-    "de": "#004B41",
-    "a": "#1E2150",
-    "pourquoi": "la fête revient à l'indigo, pour les grandes surfaces et les affiches"
+    "nom": "Option B · Vif",
+    "arrets": [
+     "#1E2150",
+     "#5B3FA6",
+     "#C2306E",
+     "#E8683A",
+     "#E9844C"
+    ],
+    "pourquoi": "part de l'Indigo Royal puis s'ouvre en violet, framboise, corail, or : lumineux, festif, se voit sur une affiche ou un écran"
    }
   ]
  },
  {
   "nom": "Studio MND",
   "ligne": "STUDIO",
-  "vocation": "portraits, contenu",
-  "couleur": "#353E4A",
-  "nomCouleur": "Ardoise",
+  "vocation": "portraits, contenu, éditorial",
+  "couleur": "#3F4450",
+  "nomCouleur": "Gris Ardoise",
   "pourquoi": "l'ardoise, la chambre noire",
   "signature": "Cadrer. Révéler. ",
   "accent": "Garder.",
@@ -103,10 +123,10 @@
  {
   "nom": "LOKAA by MND",
   "ligne": "LOKAA",
-  "vocation": "l'offre entreprise",
-  "couleur": "#711F35",
-  "nomCouleur": "Bordeaux",
-  "pourquoi": "la terre brûlée, le produit vendu à part",
+  "vocation": "offre entreprise · logiciel pour salons",
+  "couleur": "#1A1A1A",
+  "nomCouleur": "Noir Encre",
+  "pourquoi": "l'encre, le produit vendu à part",
   "signature": "Équiper. Servir. ",
   "accent": "Grandir.",
   "degrades": []

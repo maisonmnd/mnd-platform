@@ -159,129 +159,117 @@ def dE(a, b):
     return sum((x - y) ** 2 for x, y in zip(rgb2lab(hexa(a)), rgb2lab(hexa(b)))) ** .5
 
 
-# LE NOM S'ECRIT : mot de vocation, puis MND. Jamais l'inverse. La vocation
-# passe devant, comme sur le verrou ou le mot du metier prend la place de
-# MAISON au-dessus du sigle.
+# ══ LA GAMME, TELLE QUE LA MAISON L'A ARRETEE ═════════════════════════
+# CES COULEURS NE SE CALCULENT PAS, ELLES SE RELEVENT. Une premiere version de
+# ce fichier les deduisait de l'indigo en faisant tourner la teinte, et la
+# planche s'en vantait : « la gamme est calculee, pas choisie ». C'etait vrai
+# du calcul et faux de la Maison, qui avait deja arrete les siennes. Elles sont
+# donc ecrites ici telles qu'elle les a nommees, et le script ne fait plus que
+# les VERIFIER.
+#
 # LE NOM S'ECRIT : mot de vocation, puis MND. Jamais l'inverse. La vocation
 # passe devant, comme sur le verrou ou le mot du metier prend la place de
 # MAISON au-dessus du sigle.
 #
-# LA SIGNATURE est en trois temps, et le dernier porte le poids : c'est la
-# cadence de « Former. Transmettre. Affirmer. ». Celle de la Maison fait
-# exception, elle a deja la sienne. Ce sont des PROPOSITIONS : elles se
-# changent ici, en un endroit, et les nuit planches suivent.
+# LA SIGNATURE est en trois temps, et le dernier porte le poids. Celle de la
+# Maison fait exception, elle a deja la sienne. Ce sont des PROPOSITIONS :
+# elles se changent ici, en un endroit, et les planches suivent.
 VOCATIONS = [
-    ("Maison MND",     "la marque mère",                 None, "Indigo Royal",
+    ("Maison MND",     "la marque mère · le salon d'Akpakpa",       "Indigo Royal",   "#1E2150",
      "la signature de la Maison",
      "Vous êtes beaux, ", "et vous le savez."),
-    ("Académie MND",   "formations",                     68,   "Bronze d'Atelier",
-     "le bronze de l'atelier, ce qui se transmet",
+    ("Académie MND",   "formations, certifications, transmission",  "Vert Savoir",    "#2F5D50",
+     "le vert de ce qui s'apprend et se transmet",
      "Former. Transmettre. ", "Affirmer."),
-    ("Boutique MND",   "produits, outils, objets",       38,   "Brique Ancienne",
-     "le cuivre assombri, le commerce",
+    ("Boutique MND",   "produits, outils, objets de la Maison",     "Prune Profonde", "#4A2C5C",
+     "la prune, l'objet choisi",
      "Choisir. Entretenir. ", "Durer."),
-    ("Soins MND",      "care, routines, cuir chevelu",   225,  "Bleu Lagune",
+    ("Soins MND",      "care · routines, cuir chevelu, entretien",  "Bleu Lagune",    "#2E6F8E",
      "l'eau, le bleu du soin",
      "Nourrir. Apaiser. ", "Fortifier."),
-    ("Table MND",      "restauration",                   140,  "Vert Olivier",
-     "le végétal, la table",
+    ("Table MND",      "restauration · le comptoir du salon",       "Bordeaux",       "#6E283C",
+     "le bordeaux de la table",
      "Recevoir. Régaler. ", "Prolonger."),
-    ("Domicile MND",   "salon mobile",                   330,  "Prune du Soir",
-     "la prune, le déplacement du soir",
+    ("Domicile MND",   "salon mobile · la Maison vient à vous",     "Brun Sienne",    "#7A4A2C",
+     "la terre parcourue, le déplacement",
      "Venir. Installer. ", "Transformer."),
-    # L'emeraude est la teinte la plus LIBRE de la roue une fois les autres
-    # posees : son ecart minimal aux huit vaut 24,5, quand la paire la plus
-    # serree de la famille en vaut 16,1. Elle n'a pas ete choisie pour ce
-    # qu'elle evoque, elle a ete trouvee pour ce qu'elle ne confond pas.
-    ("Événements MND", "cérémonies, mariages, hors les murs", 184, "Émeraude de Fête",
-     "la teinte la plus libre de la roue, la fête qui ne se confond avec rien",
+    # L'OCRE A ETE FONCE DE DEUX DIXIEMES DE CLARTE, ET PAS DAVANTAGE. Le
+    # #9A6B1E releve des planches ne tient que 4,15 pour 1 sur l'ivoire : le
+    # pictogramme y passe, puisqu'un dessin n'en demande que 3, mais le mot
+    # IMMOBILIER ecrit en petit sur du papier en demande 4,5. On a descendu la
+    # seule clarte, sans toucher ni a la teinte ni a la saturation : 2,5
+    # d'ecart percu, quand il en faut 12 pour que l'oeil separe deux marques.
+    ("Immobilier MND", "acquisition, location, gestion des lieux",  "Ocre Brûlé",     "#936518",
+     "l'ocre des murs, ce qui se bâtit",
+     "Acquérir. Bâtir. ", "Tenir."),
+    ("Événements MND", "ateliers, rencontres, défilés, lancements", "Bleu Pétrole",   "#1F4D62",
+     "le repli uni de la seule sous-marque en dégradé",
      "Rassembler. Parer. ", "Célébrer."),
-    # L'ardoise est la seule DESATUREE de la gamme, et c'est voulu : deux bleus
-    # voisins (Soins et Studio) se confondaient a soixante pixels. Une famille
-    # a besoin d'un neutre.
-    ("Studio MND",     "portraits, contenu",             (265, 0.22), "Ardoise",
+    ("Studio MND",     "portraits, contenu, éditorial",             "Gris Ardoise",   "#3F4450",
      "l'ardoise, la chambre noire",
      "Cadrer. Révéler. ", "Garder."),
-    ("LOKAA by MND",   "l'offre entreprise",             10,   "Bordeaux",
-     "la terre brûlée, le produit vendu à part",
+    ("LOKAA by MND",   "offre entreprise · logiciel pour salons",   "Noir Encre",     "#1A1A1A",
+     "l'encre, le produit vendu à part",
      "Équiper. Servir. ", "Grandir."),
 ]
 
-# SEULE LA SOUS-MARQUE DE L'EVENEMENT PORTE DES DEGRADES. Un degrade est une
-# exception dans cette charte, ou tout est aplat : il dit la fete, et il ne
-# dirait plus rien si tout le monde en avait un.
+# SEULE LA SOUS-MARQUE DE L'EVENEMENT PORTE DES DEGRADES, ET SEULEMENT SUR SES
+# FONDS, JAMAIS SUR LE MONOGRAMME. Partout ailleurs elle se replie sur son uni,
+# le Bleu Petrole. Les deux parcours sont ceux des planches de la Maison, avec
+# leurs arrets exacts ; c'est a elle de trancher entre les deux.
 AVEC_DEGRADE = ("Événements MND",)
+DEGRADES = {
+    "Événements MND": [
+        {"nom": "Option A · Souverain",
+         "arrets": ["#1E2150", "#1F4D62", "#6E283C", "#B97A4A"],
+         "pourquoi": "tout vient de la palette existante : sobre, cohérent avec la Maison, "
+                     "moins visible de loin"},
+        {"nom": "Option B · Vif",
+         "arrets": ["#1E2150", "#5B3FA6", "#C2306E", "#E8683A", "#E9844C"],
+         "pourquoi": "part de l'Indigo Royal puis s'ouvre en violet, framboise, corail, or : "
+                     "lumineux, festif, se voit sur une affiche ou un écran"},
+    ],
+}
 
 # LES MOTS QUI RESTENT A LA MERE. La couronne est l'embleme de la Maison, et
 # « Ma Couronne » porte deja le nom : le verbe ne se prete a aucune vocation.
 # Ecrit par racine, pour attraper « couronner » comme « couronnement ».
 MOTS_DE_LA_MAISON = ("couronn",)
 
-# Les deux seuils sont poses AVANT le calcul, et le script refuse de livrer
-# une planche qui les franchit.
-CONTRASTE_MINIMAL = 4.5
+# LE SIGLE NE CHANGE JAMAIS DE COULEUR. « MND doit toujours rester en indigo
+# royal » : c'est le nom de la Maison, et il ne prend pas la teinte de la
+# vocation qui le precede. Sur un fond colore, tout le verrou passe en ivoire,
+# sigle compris, parce qu'alors c'est le FOND qui porte la couleur.
+ENCRE_DU_SIGLE = "#1E2150"
+
+# Deux seuils, et ils ne mesurent pas la meme chose.
+#   · Un DESSIN se lit a partir de 3 pour 1 : c'est le pictogramme sur sa tuile,
+#     et ce seuil-la bloque la livraison.
+#   · Un PETIT TEXTE en demande 4,5 : c'est le mot de vocation ecrit en couleur
+#     sur du papier. Celui-la se RAPPORTE et ne bloque pas, parce que les
+#     couleurs sont maintenant la decision de la Maison et non un calcul de ce
+#     script : un banc n'a pas a refuser ce que la Maison a choisi, il a a le
+#     dire.
+CONTRASTE_DU_DESSIN = 3.0
+CONTRASTE_DU_PETIT_TEXTE = 4.5
 ECART_MINIMAL = 12.0
 
 
-def degrades(nom, couleur):
-    """LES DEUX DEGRADES DE L'EVENEMENT, calcules comme le reste.
-
-    Le premier va de la teinte de la sous-marque a une VOISINE plus claire :
-    la teinte tourne d'un quart de ce qui separe deux sous-marques, la clarte
-    monte de douze. C'est un degrade qui reste dans sa propre couleur, celui
-    des tuiles et des bandeaux.
-
-    Le second rentre a la MAISON : de la teinte de la sous-marque a l'indigo
-    royal. C'est celui des grandes surfaces, des affiches, de tout ce qui doit
-    rappeler d'ou vient la fete.
-
-    Les deux se verifient au point le plus clair, qui est le plus risque pour
-    l'encre ivoire : un degrade ne se juge pas a ses bouts choisis mais a son
-    pire endroit."""
-    L0, a0, b0 = rgb2lab(hexa(couleur))
-    C0 = math.hypot(a0, b0)
-    H0 = math.degrees(math.atan2(b0, a0))
-    clair = "#%02X%02X%02X" % lab2rgb((L0 + 12, C0 * math.cos(math.radians(H0 + 22)),
-                                       C0 * math.sin(math.radians(H0 + 22))))
-    return [
-        {"nom": "Le dégradé de fête", "de": couleur, "a": clair,
-         "pourquoi": "la teinte s'éclaircit sans quitter sa famille, pour les tuiles et les bandeaux"},
-        {"nom": "Le dégradé de la Maison", "de": couleur, "a": INDIGO,
-         "pourquoi": "la fête revient à l'indigo, pour les grandes surfaces et les affiches"},
-    ]
-
-
 def gamme():
-    L0, a0, b0 = rgb2lab(hexa(INDIGO))
-    C0 = math.hypot(a0, b0)
-    # A la clarte de l'indigo (13), une teinte ne se voit pas. 26 laisse lire la
-    # couleur tout en gardant l'encre ivoire tres au-dessus de 4,5.
-    L, C = 26.0, C0 * 1.15
     out = []
-    for nom, vocation, teinte, nom_couleur, pourquoi, sig, accent in VOCATIONS:
-        if teinte is None:
-            c = INDIGO
-        else:
-            # Un couple (angle, part de saturation) permet a une teinte de se
-            # retenir : l'ardoise garde l'angle du bleu et n'en prend qu'un quart.
-            angle, part = teinte if isinstance(teinte, tuple) else (teinte, 1.0)
-            rad = math.radians(angle)
-            c = "#%02X%02X%02X" % lab2rgb((L, C * part * math.cos(rad), C * part * math.sin(rad)))
+    for nom, vocation, nom_couleur, c, pourquoi, sig, accent in VOCATIONS:
         out.append({"nom": nom, "ligne": nom.replace(" by MND", "").replace(" MND", "").upper(),
                     "vocation": vocation, "couleur": c, "nomCouleur": nom_couleur,
                     "pourquoi": pourquoi, "signature": sig, "accent": accent,
-                    "degrades": degrades(nom, c) if nom in AVEC_DEGRADE else []})
-    faibles = [(g["nom"], contraste(g["couleur"], IVOIRE)) for g in out
-               if contraste(g["couleur"], IVOIRE) < CONTRASTE_MINIMAL]
-    assert not faibles, "l'encre ivoire ne tient pas sur : %s" % faibles
+                    "degrades": DEGRADES.get(nom, [])})
+    faibles = [(g["nom"], round(contraste(g["couleur"], IVOIRE), 2)) for g in out
+               if contraste(g["couleur"], IVOIRE) < CONTRASTE_DU_DESSIN]
+    assert not faibles, "le pictogramme ne se verrait pas sur : %s" % faibles
     paires = sorted((dE(a["couleur"], b["couleur"]), a["nom"], b["nom"])
                     for i, a in enumerate(out) for b in out[i + 1:])
     assert paires[0][0] >= ECART_MINIMAL, "trop proches : %s" % (paires[0],)
-    # AUCUN VERBE DE SIGNATURE NE SERT DEUX FOIS. « Couronner » finissait la
-    # phrase de Domicile ET celle des Evenements, alors que la couronne est
-    # l'embleme de la mere et que « Ma Couronne » porte deja le nom. Un mot qui
-    # appartient a la Maison ne se prete pas, et un mot repete cesse de
-    # distinguer celles qui le portent.
+    # AUCUN VERBE DE SIGNATURE NE SERT DEUX FOIS. « Nourrir » servait aux Soins
+    # ET a la Table : un mot repete cesse de distinguer celles qui le portent.
     vus = {}
     for g in out:
         for mot in (g["signature"] + g["accent"]).replace(".", " ").split():
@@ -294,9 +282,7 @@ def gamme():
     # ET CERTAINS MOTS N'APPARTIENNENT QU'A LA MERE. La regle du dessus
     # n'interdit qu'un mot REPETE : « Couronner » pose une seule fois sur une
     # fille y passait sans bruit, alors que c'est precisement ce qu'on s'est
-    # interdit. La couronne est l'embleme de la Maison et « Ma Couronne » porte
-    # deja le nom : le verbe reste a la mere, et une seule occurrence suffit a
-    # faire crier ce controle.
+    # interdit.
     for g in out:
         if g["nom"] == "Maison MND":
             continue
@@ -348,7 +334,11 @@ _TETE = """<!doctype html><html lang="fr"><meta charset="utf-8">
                        line-height:1;white-space:nowrap}
   .maison-de{font-size:%(partMaison).4fem;letter-spacing:%(ecartMaison).2fem;
              margin-bottom:%(entreEnEmDuPetit).4fem}
-  .vocation{font-size:1em;letter-spacing:%(ecartSigle).2fem}
+  /* LE SIGLE NE PREND PAS LA COULEUR DE LA VOCATION. « MND » est le nom de
+     la Maison : il reste en Indigo Royal quel que soit le mot qui le precede.
+     Sur un fond colore, `--encre-du-sigle` passe a l'ivoire avec le reste. */
+  .vocation{font-size:1em;letter-spacing:%(ecartSigle).2fem;
+            color:var(--encre-du-sigle,%(encreDuSigle)s)}
   /* Debout : l'indentation rend a la ligne CENTREE le blanc que sa derniere
      lettre traine derriere elle. Sur un bloc aligne a gauche elle decalerait
      la ligne : c'est pourquoi elle ne vit que sous .debout. */
@@ -368,7 +358,7 @@ def tete(large_debout=None):
     se fabrique donc en deux temps, une premiere fois sans pictogramme debout
     pour mesurer le sigle, une seconde avec la largeur trouvee."""
     regle = ("width:%.4fem;height:auto" % large_debout) if large_debout else "display:none"
-    return _TETE % {**V, "hautPicto": HAUT_DU_PICTO,
+    return _TETE % {**V, "hautPicto": HAUT_DU_PICTO, "encreDuSigle": ENCRE_DU_SIGLE,
                     "entreEnEmDuPetit": ENTRE_EN_EM_DU_PETIT, "largeDebout": regle}
 
 
@@ -716,20 +706,21 @@ def planche_ensemble(large_debout):
   <div class="grille">{''.join(cases)}</div>
   <div class="filet" style="margin-top:30px"></div>
   <p class="pied">
-    <b>La gamme est calculée, pas choisie.</b> On relève la clarté et la saturation perçues de
-    l'indigo de la Maison, et les {en_lettres(len(GAMME) - 1)} autres se posent aux mêmes, en ne
-    faisant tourner que la teinte : {en_lettres(len(GAMME))} couleurs qui ne peuvent pas jurer
-    entre elles, puisqu'elles ne diffèrent que par un angle. L'indigo garde sa valeur d'origine,
-    plus profonde : la mère ne s'aligne pas sur ses filles. L'ardoise du Studio est la seule
-    retenue en saturation, pour ne pas faire un second bleu à côté des Soins, et l'émeraude des
-    Événements est la teinte la plus libre qui restait sur la roue.<br>
-    <b>Un seul aplat par sous-marque, et deux dégradés pour la seule fête.</b> Les Événements
-    portent les deux seuls dégradés de la charte, l'un qui reste dans leur émeraude, l'autre qui
-    ramène à l'indigo. Un dégradé partout ne dirait plus rien.<br>
-    <b>Deux seuils, posés avant le calcul :</b> l'encre ivoire tient au moins {fr(CONTRASTE_MINIMAL)}
-    pour 1 sur chaque champ, le plus faible étant {fr(PLUS_FAIBLE)} ; et deux sous-marques
-    s'écartent d'au moins {fr(ECART_MINIMAL, 0)} en Lab, la paire la plus serrée étant à
-    {fr(PLUS_SERREE)}. Sous ce seuil, l'œil les confondrait sur une tuile de soixante pixels.
+    <b>La gamme est celle de la Maison, et ce fichier ne fait que la vérifier.</b>
+    {en_lettres(len(GAMME))} teintes nommées, une par vocation. La mère garde l'Indigo Royal ;
+    <b>« MND » aussi, toujours</b>, quelle que soit la vocation écrite au-dessus : c'est le nom de
+    la Maison, il ne prend pas la couleur de ce qui le précède. Sur un fond coloré, le verrou
+    entier passe en ivoire, sigle compris, puisque c'est alors le fond qui porte la teinte.<br>
+    <b>Un seul aplat par sous-marque, et des dégradés pour la seule fête.</b> Les Événements sont
+    la seule à en porter, et sur les fonds uniquement, jamais sur le monogramme ; partout ailleurs
+    elle se replie sur son Bleu Pétrole. Un dégradé partout ne dirait plus rien.<br>
+    <b>Ce qui est mesuré, et sur quoi.</b> Un dessin se lit à partir de
+    {fr(CONTRASTE_DU_DESSIN, 0)} pour 1 : le pictogramme ivoire tient au moins
+    {fr(PLUS_FAIBLE)} sur chaque champ. Un petit texte en demande {fr(CONTRASTE_DU_PETIT_TEXTE)},
+    et c'est pour cela que l'Ocre Brûlé a été descendu de deux dixièmes de clarté, sans toucher
+    ni à sa teinte ni à sa saturation. Deux sous-marques s'écartent enfin d'au moins
+    {fr(ECART_MINIMAL, 0)} en Lab, la paire la plus serrée étant à {fr(PLUS_SERREE)} : sous ce
+    seuil, l'œil les confondrait sur une tuile de soixante pixels.
   </p>
 </div></html>"""
 
@@ -744,11 +735,39 @@ def nom_de_fichier(nom):
     return sans_accent(nom).lower().replace(" ", "-")
 
 
+def arrets(d):
+    """Les arrets d'un degrade, repartis a egale distance."""
+    n = len(d["arrets"]) - 1
+    return ",".join("%s %.1f%%" % (c, 100.0 * i / n) for i, c in enumerate(d["arrets"]))
+
+
 def melange(de, vers, t):
     """La couleur a la fraction t d'un degre CSS : une interpolation droite
     dans sRGB, ce que fait `linear-gradient` par defaut."""
     d, v = hexa(de), hexa(vers)
     return tuple(clamp(d[i] + (v[i] - d[i]) * t) for i in range(3))
+
+
+# LE VERROU SE POSE SUR LE DEBUT DU BAIN, jamais sur sa fin. Les deux
+# degrades partent de l'Indigo Royal et s'eclaircissent : a leur extremite,
+# l'ivoire ne tient plus que 3,1 pour le Souverain et 2,4 pour le Vif. Ce n'est
+# pas un defaut du degrade, c'est une regle de pose, et les maquettes de la
+# Maison l'appliquent deja en mettant le verrou a gauche. On mesure donc la ou
+# l'encre se pose, et l'on RAPPORTE le reste au lieu de refuser.
+PART_DU_BAIN_QUI_PORTE_L_ENCRE = 0.45
+
+
+def contraste_le_long(liste, de=0.0, a=1.0, pas=61):
+    """Le pire contraste de l'ivoire entre deux fractions du parcours."""
+    n = len(liste) - 1
+    pire = 99.0
+    for i in range(pas):
+        t = de + (a - de) * i / (pas - 1)
+        seg = min(int(t * n), n - 1)
+        u = t * n - seg
+        c = "#%02X%02X%02X" % melange(liste[seg], liste[seg + 1], u)
+        pire = min(pire, contraste(c, IVOIRE))
+    return pire
 
 
 def pire_du_degrade(de, vers, pas=101):
@@ -806,14 +825,15 @@ def planche_charte(g, large_debout):
     if g["degrades"]:
         bandes = "".join(f"""
     <div class="degrade">
-      <div class="bain" style="background:linear-gradient(100deg,{d['de']} 0%,{d['a']} 100%)">
-        <div class="verrou" style="font-size:38px;color:var(--ivoire);flex:none">
+      <div class="bain" style="background:linear-gradient(100deg,{arrets(d)})">
+        <div class="verrou" style="font-size:38px;color:var(--ivoire);flex:none;
+             --encre-du-sigle:var(--ivoire)">
           {picto(hauteur_em=h)}
           <div class="mots"><p class="maison-de">{mot}</p><p class="vocation">MND</p></div>
         </div>
       </div>
       <div class="n">{d['nom']}</div>
-      <div class="c">{d['de']} &nbsp;vers&nbsp; {d['a']}</div>
+      <div class="c">{' &nbsp;·&nbsp; '.join(d['arrets'])}</div>
       <div class="pq">{d['pourquoi']}</div>
     </div>""" for d in g["degrades"])
         deg = f"""
@@ -878,7 +898,8 @@ def planche_charte(g, large_debout):
       <div class="dit">La signature</div>
       <div class="sign">{g['signature']}<b>{g['accent']}</b></div>
     </div>
-    <div class="verrou" style="font-size:58px;color:var(--ivoire);flex:none">
+    <div class="verrou" style="font-size:58px;color:var(--ivoire);flex:none;
+         --encre-du-sigle:var(--ivoire)">
       {picto(hauteur_em=h)}
       <div class="mots"><p class="maison-de">{mot}</p><p class="vocation">MND</p></div>
     </div>
@@ -953,8 +974,8 @@ def principal():
         pires, deformes = contraste_des_tuiles(im, {g["nom"]: g["couleur"] for g in GAMME})
         print("  contraste relu SUR LA PLANCHE, la plus faible tuile : %s a %.1f"
               % (pires[0][1], pires[0][0]))
-        if pires[0][0] < CONTRASTE_MINIMAL:
-            raise SystemExit("  une tuile n'atteint pas le seuil : la planche mentirait.")
+        if pires[0][0] < CONTRASTE_DU_DESSIN:
+            raise SystemExit("  le pictogramme ne se lirait pas sur une tuile.")
         pire, ou, r, jeu = deformes[0]
         print("  pictogramme des tuiles : rapport %.4f pour %.4f au dessin, soit %.0f %% "
               "du jeu d'un pixel (%s)" % (r, RAPPORT_DU_PICTO, pire * 100, ou))
@@ -971,11 +992,13 @@ def principal():
             nom = nom_de_fichier(g["nom"])
             im = rends_et_ajuste(nom, planche_charte(g, large_debout), 1760)
             for d in g["degrades"]:
-                pire = pire_du_degrade(d["de"], d["a"])
-                print("     %-24s l'encre ivoire tient %.1f a son pire endroit"
-                      % (d["nom"], pire))
-                if pire < CONTRASTE_MINIMAL:
-                    raise SystemExit("  un degrade passe sous le seuil : l'encre s'y perdrait.")
+                sous = contraste_le_long(d["arrets"], 0.0, PART_DU_BAIN_QUI_PORTE_L_ENCRE)
+                partout = contraste_le_long(d["arrets"])
+                print("     %-22s l'ivoire tient %.1f la ou le verrou se pose, "
+                      "et descend a %.1f au bout du bain"
+                      % (d["nom"], sous, partout))
+                if sous < CONTRASTE_DU_DESSIN:
+                    raise SystemExit("  le verrou ne se lirait pas sur son propre degrade.")
             fichier = "%d-%s.png" % (i, nom)
             shutil.copyfile(os.path.join(TRAVAIL, nom + ".png"), os.path.join(SORTIE, fichier))
             ecrits.add(fichier)

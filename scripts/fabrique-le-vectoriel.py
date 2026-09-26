@@ -221,7 +221,13 @@ def rien_n_est_rogne(chemin_svg):
     marge = 0.10
     elargi = src.replace(m.group(0), 'viewBox="%.2f %.2f %.2f %.2f"' % (
         x0 - L * marge, y0 - H * marge, L * (1 + 2 * marge), H * (1 + 2 * marge)))
-    elargi = re.sub(r'fill="#[0-9A-Fa-f]{6}"', 'fill="#000000"', elargi, count=1)
+    # TOUS LES FILLS, pas seulement le premier. Tant qu'un SVG n'en portait
+    # qu'un, `count=1` suffisait. Depuis que le sigle des sous-marques garde
+    # son Indigo Royal dans un groupe a lui, un fichier en porte deux : le
+    # second restait ivoire sur blanc, donc invisible, et la boite mesuree
+    # ignorait le sigle. Le controle annoncait 17 % d'ecart sur un fichier
+    # juste, et aurait tout aussi bien pu se taire sur un fichier rogne.
+    elargi = re.sub(r'fill="#[0-9A-Fa-f]{6}"', 'fill="#000000"', elargi)
     tmp = tempfile.mkdtemp(prefix="boite-")
     f2 = os.path.join(tmp, "e.svg")
     open(f2, "w", encoding="utf-8").write(elargi)

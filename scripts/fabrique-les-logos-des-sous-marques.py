@@ -37,6 +37,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SORTIE = os.path.join(RACINE, "docs", "marque", "sous-marques", "logos")
 GAMME_JSON = os.path.join(RACINE, "docs", "marque", "sous-marques", "gamme.json")
 NAV = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+IVOIRE = "#F6F1E7"
 PORT = 8801
 # Le cote le plus long des images. Les SVG, eux, n'ont pas de taille.
 COTE = 2048
@@ -76,7 +77,15 @@ def slug(nom):
 
 
 # ══ LES TROIS FORMES ══════════════════════════════════════════════════
-def les_trois_formes(g, mot, teinte, label):
+ENCRE_DU_SIGLE = "#1E2150"
+
+
+def les_trois_formes(g, mot, teinte, label, sigle=None):
+    """Les trois formes. `sigle` est la couleur de « MND » ; a defaut l'Indigo
+    Royal, parce que MND est le nom de la Maison et ne prend jamais la teinte
+    de la vocation qui le precede. En version ivoire, tout est ivoire, sigle
+    compris : c'est alors le FOND qui porte la couleur."""
+    sigle = sigle or ENCRE_DU_SIGLE
     """Le pictogramme seul, le verrou couche et le verrou debout.
 
     Le calcul est celui du bâtisseur de la Maison, au mot pres. Il est repris
@@ -109,8 +118,12 @@ def les_trois_formes(g, mot, teinte, label):
     boite = (0, min(yPicto, ligne1["haut"], ligne2["haut"]),
              max(lP, ligne1["droite"], ligne2["droite"]),
              max(yPicto + hP, ligne1["bas"], ligne2["bas"]))
-    out["verrou-couche"] = V.svg(pic + "\n" + "\n".join(ligne1["d"] + ligne2["d"]),
-                                 boite, teinte, label)
+    # Le fill du <svg> vaut pour le pictogramme et le mot de vocation ; le
+    # sigle porte le sien, ecrit sur son groupe, qui prend le pas dessus.
+    out["verrou-couche"] = V.svg(
+        pic + "\n" + "\n".join(ligne1["d"])
+        + ('\n<g fill="%s">' % sigle) + "\n".join(ligne2["d"]) + "</g>",
+        boite, teinte, label)
 
     # ── Le verrou debout : tout est centre sur un axe, sur l'ENCRE de chaque ligne.
     essai = p.ligne("MND", S, geo["ecartSigle"], 0, 0)
@@ -129,8 +142,10 @@ def les_trois_formes(g, mot, teinte, label):
     boite2 = (min(axe - lPicto / 2, haut1["gauche"], haut2["gauche"]), 0,
               max(axe + lPicto / 2, haut1["droite"], haut2["droite"]),
               max(hPicto, haut1["bas"], haut2["bas"]))
-    out["verrou-debout"] = V.svg(pic2 + "\n" + "\n".join(haut1["d"] + haut2["d"]),
-                                 boite2, teinte, label)
+    out["verrou-debout"] = V.svg(
+        pic2 + "\n" + "\n".join(haut1["d"])
+        + ('\n<g fill="%s">' % sigle) + "\n".join(haut2["d"]) + "</g>",
+        boite2, teinte, label)
     return out
 
 
@@ -183,15 +198,18 @@ def en_image(travail, nom, svg_texte):
 
 
 # ══ LES CONTROLES ═════════════════════════════════════════════════════
-def eprouve_l_image(im, boite, teinte, nom):
+def eprouve_l_image(im, boite, teintes, nom):
     """Trois choses sur chaque image, relues sur ses pixels.
 
       · il reste du transparent, donc le fond n'a pas ete cuit dedans ;
       · l'encre touche les quatre bords, donc le fichier est au ras du dessin
         et ne traine pas de vide invisible ;
-      · l'encre est bien la couleur de la sous-marque, et pas celle d'une
-        autre : c'est la seule chose qui distingue ces fichiers entre eux, et
-        une boucle qui se trompe de teinte ne se voit pas dans un nom."""
+      · l'encre n'est faite que des couleurs attendues, et elles y sont TOUTES.
+        C'est la seule chose qui distingue ces fichiers entre eux, et une boucle
+        qui se trompe de teinte ne se voit pas dans un nom. Depuis que le sigle
+        reste en Indigo Royal, un verrou en porte deux : verifier une moyenne
+        ne dirait plus rien, on verifie donc que chaque pixel plein tombe sur
+        l'une des deux, et que chacune est bien presente."""
     a = np.asarray(im, dtype=int)
     alpha = a[:, :, 3]
     assert (alpha == 0).any(), "%s : aucun pixel transparent, le fond a ete cuit" % nom
@@ -204,10 +222,20 @@ def eprouve_l_image(im, boite, teinte, nom):
     ys, xs = np.where(encre)
     H, L = alpha.shape
     debords = (int(xs.min()), int(L - 1 - xs.max()), int(ys.min()), int(H - 1 - ys.max()))
-    attendu = tuple(int(teinte[i:i + 2], 16) for i in (1, 3, 5))
     plein = alpha > 250
-    moyenne = tuple(int(round(a[:, :, c][plein].mean())) for c in range(3))
-    ecart_teinte = max(abs(m - t) for m, t in zip(moyenne, attendu))
+    pixels = a[:, :, :3][plein]
+    attendues = [np.array([int(t[i:i + 2], 16) for i in (1, 3, 5)]) for t in teintes]
+    distances = np.stack([np.abs(pixels - c).max(axis=1) for c in attendues])
+    proche = distances.min(axis=0)
+    hors = int((proche > 6).sum())
+    assert hors * 200 <= pixels.shape[0], (
+        "%s : %d pixels pleins sur %d ne sont d'aucune des couleurs attendues"
+        % (nom, hors, pixels.shape[0]))
+    qui = distances.argmin(axis=0)
+    for i, t in enumerate(teintes):
+        part = int((qui == i).sum()) / max(1, pixels.shape[0])
+        assert part > 0.02, "%s : la couleur %s n'apparait pas (%.1f %%)" % (nom, t, part * 100)
+    ecart_teinte = int(proche.max())
     # Le rapport du fichier doit etre celui de la boite declaree dans le SVG.
     rapport = (xs.max() - xs.min() + 1) / (ys.max() - ys.min() + 1)
     voulu = boite[0] / boite[1]
@@ -237,9 +265,23 @@ def principal():
     n = 0
     try:
         for g in gamme:
-            formes = les_trois_formes(commun, g["ligne"], g["couleur"], g["nom"])
-            for forme, texte in formes.items():
-                nom = "%s-%s" % (forme, slug(g["nom"]))
+            # LA VERSION COULEUR, pour un fond clair : pictogramme et mot de
+            # vocation dans la teinte de la sous-marque, sigle en Indigo Royal.
+            jeux = [(les_trois_formes(commun, g["ligne"], g["couleur"], g["nom"]),
+                     "", [g["couleur"], ENCRE_DU_SIGLE])]
+            # LES COULEURS ATTENDUES DEPENDENT DE LA FORME. Le pictogramme seul
+            # n'en porte qu'une : exiger le sigle sur un dessin qui n'a pas de
+            # sigle faisait crier le controle sur un fichier juste.
+            # LA VERSION IVOIRE, pour un fond colore : tout est ivoire, sigle
+            # compris, puisque c'est le fond qui porte alors la couleur. Le
+            # pictogramme seul n'en a pas besoin : il serait le meme fichier
+            # pour les dix, et la Maison en livre deja un.
+            ivoire = les_trois_formes(commun, g["ligne"], IVOIRE, g["nom"], sigle=IVOIRE)
+            del ivoire["pictogramme"]
+            jeux.append((ivoire, "-ivoire", [IVOIRE]))
+            for formes, suffixe, teintes in jeux:
+              for forme, texte in formes.items():
+                nom = "%s-%s%s" % (forme, slug(g["nom"]), suffixe)
                 chemin = os.path.join(SORTIE, forme, nom + ".svg")
                 io.open(chemin, "w", encoding="utf-8").write(texte)
                 ecrits.add(os.path.join(forme, nom + ".svg"))
@@ -250,14 +292,17 @@ def principal():
                                      "(%.2f %%)" % (nom, ecart * 100))
                 im, boite = en_image(travail, nom, texte)
                 im.save(os.path.join(SORTIE, forme, nom + ".png"))
-                debord, teinte, rapport = eprouve_l_image(im, boite, g["couleur"], nom)
+                voulues = [teintes[0]] if forme == "pictogramme" else teintes
+                # Deux teintes identiques n'en font qu'une : c'est le cas de la
+                # Maison, dont la couleur EST l'indigo du sigle.
+                voulues = list(dict.fromkeys(voulues))
+                debord, teinte, rapport = eprouve_l_image(im, boite, voulues, nom)
                 for cle, valeur in (("debord", debord), ("teinte", teinte),
                                     ("rapport", rapport)):
                     if valeur > pires[cle][0]:
                         pires[cle] = (valeur, nom)
                 n += 2
-            print("  %-16s %s   pictogramme, verrou couche, verrou debout"
-                  % (g["nom"], g["couleur"]))
+            print("  %-16s %s   3 en couleur, 2 en ivoire" % (g["nom"], g["couleur"]))
     finally:
         srv.shutdown()
         shutil.rmtree(travail, ignore_errors=True)
@@ -286,8 +331,8 @@ def principal():
           % (pires["rapport"][0] * 100, pires["rapport"][1]))
     if pires["rapport"][0] > 0.01:
         raise SystemExit("  une image ne suit pas la boite de son vectoriel.")
-    print("  %d fichiers dans docs/marque/sous-marques/logos/ (%d sous-marques x 3 formes x 2)"
-          % (n, len(gamme)))
+    print("  %d fichiers dans docs/marque/sous-marques/logos/ "
+          "(%d sous-marques, 5 dessins chacune, en SVG et en PNG)" % (n, len(gamme)))
 
 
 if __name__ == "__main__":
