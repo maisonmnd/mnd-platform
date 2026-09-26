@@ -26,6 +26,26 @@ for (const v of ['Maison MND', "L'atelier MND Kids", 'Studio ACƆ', 'Ma Maison',
   dit(`« ${String(v)} » reste tel quel`, null, corrigeLAncienNom(v));
 }
 
+/* L'ANCIEN NOM DE LA MAISON EST DEVENU LE NOM D'UNE SOUS-MARQUE, et les deux
+   doivent pouvoir vivre ensemble. « L'Atelier MND » designe depuis le
+   26 septembre 2026 les branches annexes : Dakar, Lome, Cocody, Montreal.
+   Yeman a choisi l'article en connaissance de cause, apres qu'on lui a dit ce
+   qu'il coute.
+
+   CE QU'IL COUTE, LE VOICI, EPROUVE DANS LES DEUX SENS. Le nom NU reste
+   corrige, parce que c'est bien l'ancien nom de la Maison et que la regle du
+   23 septembre tient : personne ne doit retrouver « L'atelier MND » dans le
+   champ du nom. Mais une branche porte TOUJOURS sa ville, et c'est cette
+   forme-la qui doit traverser intacte. Les deux cas sont fixes ici pour
+   qu'aucun ne derive : desserrer le premier ramenerait le defaut du
+   23 septembre, resserrer le second avalerait les branches. */
+for (const v of ["L'Atelier MND", 'L\u2019Atelier MND']) {
+  dit(`« ${v} » nu reste corrige, c'est l'ancien nom`, 'Maison MND', corrigeLAncienNom(v));
+}
+for (const v of ["L'Atelier MND Dakar", 'L\u2019Atelier MND Lom\u00e9', 'L\u2019Atelier MND Cocody']) {
+  dit(`« ${v} » traverse intact, c'est une branche`, null, corrigeLAncienNom(v));
+}
+
 const identite = readFileSync(path.join(process.cwd(), 'src/shared/identite.ts'), 'utf8');
 const sansCommentaires = identite.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, '')).replace(/^[ \t]*\/\/.*$/gm, '');
 dit('les deux migrations existent', true, /export function migreLeNomDeLaMaison\(/.test(sansCommentaires) && /export function migreLeNomDeLaBranche\(/.test(sansCommentaires));

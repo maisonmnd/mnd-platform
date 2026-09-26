@@ -187,11 +187,22 @@ VOCATIONS = [
     # MND : Montreal, New York, Lome, Cocody, Dakar... » (Yeman, 26 septembre
     # 2026). La vocation dit le ROLE et non la liste : une charte qui nommerait
     # ces villes affirmerait qu'elles sont ouvertes, ce qu'aucune d'elles n'est
-    # encore. Le nom s'ecrit « Atelier MND » sans article : « L'atelier MND »
-    # est l'ANCIEN NOM DE LA MAISON, retire le 23 septembre, et `corrigeLAncienNom`
-    # le remplace partout ou il le trouve. Verifie : la forme sans article
-    # n'est pas attrapee.
-    ("Atelier MND",    "les branches de la Maison, d'une ville à l'autre", "Ocre Brûlé", "#936518",
+    # encore.
+    #
+    # LE NOM GARDE SON ARTICLE, ET IL FAUT SAVOIR CE QUE CELA COUTE. « L'Atelier
+    # MND » est l'ANCIEN NOM DE LA MAISON, retire le 23 septembre, et
+    # `corrigeLAncienNom` le reecrit en « Maison MND » — avec l'apostrophe
+    # droite comme avec la typographique, mesure faite. Cette correction ne
+    # touche qu'un endroit : le NOM DE LA MAISON et le NOM DE LA BRANCHE
+    # ranges en base, que les deux migrations du Trone relisent jusqu'au
+    # 31 decembre 2026. Les planches, les logos et le site n'y passent pas.
+    #
+    # En pratique, une branche portera toujours sa ville : « L'Atelier MND
+    # Dakar » et « L'Atelier MND Lome » traversent la correction INTACTS,
+    # verifie, comme « L'atelier MND Kids » qui figure deja dans ses exemples.
+    # Seul le nom nu, dans ce champ-la, serait avale. Yeman a choisi l'article
+    # en connaissance de cause le 26 septembre 2026.
+    ("L’Atelier MND",  "les branches de la Maison, d'une ville à l'autre", "Ocre Brûlé", "#936518",
      "l'ocre, la Maison ailleurs qu'à Cotonou",
      "Ouvrir. Porter. ", "Essaimer."),
     ("Académie MND",   "formations, certifications, transmission",  "Vert Savoir",    "#2F5D50",
@@ -791,7 +802,16 @@ def sans_accent(t):
 
 
 def nom_de_fichier(nom):
-    return sans_accent(nom).lower().replace(" ", "-")
+    """Le nom du fichier ne garde que des lettres, des chiffres et des tirets.
+
+    « L’Atelier MND » aurait donne « l’atelier-mnd.png » : une apostrophe
+    typographique dans un nom de fichier est legale, et c'est bien tout ce
+    qu'on peut en dire. Elle se copie mal, se tape mal, et se casse des qu'un
+    outil la croit fermante."""
+    out = []
+    for c in sans_accent(nom).lower():
+        out.append(c if c.isalnum() else "-")
+    return "-".join(x for x in "".join(out).split("-") if x)
 
 
 def arrets(d):
