@@ -177,7 +177,12 @@ def dE(a, b):
 VOCATIONS = [
     ("Maison MND",     "la marque mère · le salon d'Akpakpa",       "Indigo Royal",   "#1E2150",
      "la signature de la Maison",
-     "Vous êtes beaux, ", "et vous le savez."),
+     # LA DEVISE, ET NON SA TRADUCTION. La signature des papiers, des messages
+     # et des murs PROLONGE le fon sans le traduire : une seule phrase a
+     # travers deux langues. C'est `DEVISE_COMPLETE` du code, au caractere
+     # pres. La traduction entiere, « Vous etes beaux, et vous le savez »,
+     # reste la ou l'on rencontre la Maison pour la premiere fois.
+     "mi nyɔ́ ɖɛkpɛ, ", "et vous le savez."),
     ("Académie MND",   "formations, certifications, transmission",  "Vert Savoir",    "#2F5D50",
      "le vert de ce qui s'apprend et se transmet",
      "Former. Transmettre. ", "Affirmer."),
@@ -298,8 +303,14 @@ GAMME, PLUS_FAIBLE, PLUS_SERREE = gamme()
 
 # ══ 3. LE RENDU ═══════════════════════════════════════════════════════
 TRAVAIL = tempfile.mkdtemp(prefix="sous-marques-")
+# LA POLICE DES LETTRES FON VIENT AVEC LES AUTRES. Cormorant et Jost ne
+# portent ni « ɔ », ni « ɖ », ni « ɛ » : la Maison a taillé pour elles un
+# sous-ensemble d'EB Garamond, restreint par `unicode-range` a ces seules
+# lettres. Sans ce fichier, la devise en fon se dessinerait dans une police
+# choisie par la machine, et la ligne changerait de main en son milieu.
 for src, dst in [("src/ds/fonts/cormorant-latin.woff2", "cormorant.woff2"),
                  ("src/ds/fonts/cormorant-latin-ext.woff2", "cormorant-ext.woff2"),
+                 ("src/ds/fonts/devise-fon.woff2", "devise-fon.woff2"),
                  ("src/ds/fonts/jost-latin.woff2", "jost.woff2")]:
     shutil.copyfile(os.path.join(RACINE, src), os.path.join(TRAVAIL, dst))
 
@@ -312,11 +323,17 @@ _TETE = """<!doctype html><html lang="fr"><meta charset="utf-8">
     src:url('cormorant-ext.woff2') format('woff2-variations'),url('cormorant-ext.woff2') format('woff2')}
   @font-face{font-family:'Jost';font-weight:300 700;font-display:block;
     src:url('jost.woff2') format('woff2-variations'),url('jost.woff2') format('woff2')}
+  /* Les lettres fon, et RIEN d'autre : la plage ci-dessous les y enferme, tout
+     le reste du latin continue de venir de Cormorant. C'est pour cela que
+     'MND Fon' peut se poser en tete de la pile sans rien prendre aux autres. */
+  @font-face{font-family:'MND Fon';font-weight:400;font-display:block;
+    src:url('devise-fon.woff2') format('woff2');
+    unicode-range:U+0186,U+0189,U+0190,U+0254,U+025B,U+0256,U+0301}
   :root{--ivoire:#F6F1E7;--sable:#E3DACB;--indigo:#1E2150;--cuivre:#B97A4A;
         --cuivre-s:#9E6238;--doux:#746F65;--filet:#D9CFBC}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--ivoire);font-family:'Jost',system-ui,sans-serif;color:#22222C}
-  h1{font-family:'Cormorant',Georgia,serif;font-weight:400;color:var(--indigo)}
+  h1{font-family:'MND Fon','Cormorant',Georgia,serif;font-weight:400;color:var(--indigo)}
   .chapeau{color:var(--doux);font-size:19px;font-weight:300;line-height:1.55;max-width:96ch}
   .filet{height:1px;background:var(--filet)}
 
@@ -330,7 +347,7 @@ _TETE = """<!doctype html><html lang="fr"><meta charset="utf-8">
   .verrou{display:flex;align-items:center;gap:%(ecartPicto).4fem}
   .verrou svg{height:%(hautPicto).4fem;width:auto;display:block;flex:none}
   .mots{display:flex;flex-direction:column;align-items:flex-start}
-  .maison-de,.vocation{font-family:'Cormorant',Georgia,serif;font-weight:400;
+  .maison-de,.vocation{font-family:'MND Fon','Cormorant',Georgia,serif;font-weight:400;
                        line-height:1;white-space:nowrap}
   .maison-de{font-size:%(partMaison).4fem;letter-spacing:%(ecartMaison).2fem;
              margin-bottom:%(entreEnEmDuPetit).4fem}
@@ -592,6 +609,35 @@ def eprouve_le_blanc_entre_les_lignes():
     return a_nous, du_site
 
 
+def eprouve_la_police_fon():
+    """LA POLICE DES LETTRES FON EST-ELLE VRAIMENT EMPLOYEE ?
+
+    Declarer une @font-face ne prouve rien : si le fichier manque, si la plage
+    `unicode-range` se trompe d'un point de code, ou si le nom de famille est
+    mal ecrit, le navigateur se rabat sans un mot sur une police du systeme et
+    la ligne sort quand meme. Elle sort simplement d'une AUTRE main, et
+    personne ne le voit sur une capture.
+
+    On rend donc les trois lettres deux fois : une fois dans la pile
+    « 'MND Fon', monospace », une fois en monospace seul. Le repli du second
+    est une chasse fixe, tres loin d'une Garamond : si les deux encres tombent
+    pareil, c'est que 'MND Fon' n'a rien dessine."""
+    def encre(pile):
+        page = tete() + ("""
+<style>body{background:#fff;margin:0}</style>
+<div style="font-family:%s;font-size:200px;color:#000;padding:40px;display:inline-block">ɔɖɛ</div>
+</html>""" % pile)
+        im = rends("sonde-fon-" + pile.split(",")[0].strip("'").replace(" ", ""), page, 1400, 500)
+        a = np.asarray(im.convert("L"), dtype=int) < 128
+        ys, xs = np.where(a)
+        assert ys.size, "la sonde du fon n'a rien dessine avec la pile %s" % pile
+        return int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1), int(a.sum())
+
+    avec = encre("'MND Fon', monospace")
+    sans = encre("monospace")
+    return avec, sans
+
+
 def eprouve_les_ecartements():
     """LES ECARTEMENTS DE LA FEUILLE DE STYLE SONT-ILS CEUX DE LA SOURCE ?
 
@@ -689,7 +735,7 @@ def planche_ensemble(large_debout):
   .grille{{display:grid;grid-template-columns:repeat(2,1fr);gap:34px 64px;margin-top:36px}}
   .case{{display:flex;flex-direction:column;gap:2px}}
   .haut{{display:flex;align-items:center;gap:30px}}
-  .nom{{font-family:'Cormorant',Georgia,serif;font-size:29px;color:var(--indigo);margin-top:16px;line-height:1.1}}
+  .nom{{font-family:'MND Fon','Cormorant',Georgia,serif;font-size:29px;color:var(--indigo);margin-top:16px;line-height:1.1}}
   .voc{{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--cuivre-s);margin-top:6px}}
   .hex{{font-size:13px;color:#A8A196;margin-top:4px;letter-spacing:.06em}}
   .pq{{font-size:14.5px;color:var(--doux);margin-top:8px;line-height:1.5;font-weight:300}}
@@ -723,6 +769,17 @@ def planche_ensemble(large_debout):
     seuil, l'œil les confondrait sur une tuile de soixante pixels.
   </p>
 </div></html>"""
+
+
+def majuscule(t):
+    """La premiere lettre en capitale, ET RIEN D'AUTRE.
+
+    `.capitalize()` met la premiere en capitale et ECRASE toutes les suivantes.
+    Les chapeaux sortaient « le salon d'akpakpa » et, deux fois, « la maison
+    vient a vous » : le nom de la Maison ecrit en minuscule sur sa propre
+    charte. Le controle d'en bas refuse desormais de livrer une planche qui
+    l'ecrit ainsi."""
+    return t[:1].upper() + t[1:]
 
 
 def sans_accent(t):
@@ -847,7 +904,7 @@ def planche_charte(g, large_debout):
   .encadre{{border:1px solid var(--filet);border-radius:6px;background:#FBF8F2;padding:34px 38px}}
   .bande{{margin-top:42px;background:{C};border-radius:8px;padding:56px 60px;color:var(--ivoire);
           display:flex;align-items:center;justify-content:space-between;gap:60px}}
-  .sign{{font-family:'Cormorant',Georgia,serif;font-size:52px;line-height:1.18;font-weight:300}}
+  .sign{{font-family:'MND Fon','Cormorant',Georgia,serif;font-size:52px;line-height:1.18;font-weight:300}}
   .sign b{{font-weight:400}}
   .dit{{font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:rgba(246,241,231,.72);margin-bottom:14px}}
   .palette{{display:flex;gap:18px;margin-top:38px}}
@@ -865,7 +922,7 @@ def planche_charte(g, large_debout):
 <div class="page">
   <h1 style="font-size:46px">{g['nom']}</h1>
   <p class="chapeau" style="margin-top:12px">
-    {g['vocation'].capitalize()}. La charte complète, déduite du verrou de la Maison : le
+    {majuscule(g['vocation'])}. La charte complète, déduite du verrou de la Maison : le
     pictogramme garde la taille qu'il y a par rapport au texte, seul le mot change et la
     couleur avec lui.
   </p>
@@ -947,6 +1004,13 @@ def principal():
         if ecart_nav > 3:
             raise SystemExit("  le navigateur n'interpole pas comme on le calcule.")
 
+        avec, sans = eprouve_la_police_fon()
+        print("  lettres fon : %dx%d px et %d pixels d'encre avec la police de la Maison, "
+              "%dx%d et %d sans" % (*avec, *sans))
+        if avec == sans:
+            raise SystemExit("  la police des lettres fon n'est pas employee : "
+                             "la devise sortirait d'une autre main.")
+
         for cle, feuille, source in eprouve_les_ecartements():
             print("  %-12s : %d px pose par la feuille, %d px tire de la source"
                   % (cle, feuille, source))
@@ -990,7 +1054,19 @@ def principal():
         # si l'une demandait un reglage a elle, la regle ne tiendrait pas.
         for i, g in enumerate(GAMME, start=1):
             nom = nom_de_fichier(g["nom"])
-            im = rends_et_ajuste(nom, planche_charte(g, large_debout), 1760)
+            page = planche_charte(g, large_debout)
+            # LE NOM DE LA MAISON NE S'ECRIT PAS EN MINUSCULE. Un `.capitalize()`
+            # mal place l'avait fait deux fois, sur les chartes de la Boutique et
+            # du Domicile, et personne ne l'aurait vu en regardant les planches
+            # en petit.
+            # On ecarte « maisonmnd.com » par son MND, et non par le point
+            # qui le suit : un premier jet excluait tout « maison. », donc
+            # aussi la fin de phrase, et la charte de la Boutique passait.
+            minuscules = re.findall(r"(?<![-\w])maison(?!mnd)(?![-\w])", page)
+            if minuscules:
+                raise SystemExit("  la charte %s ecrit « maison » en minuscule "
+                                 "(%d fois)." % (g["nom"], len(minuscules)))
+            im = rends_et_ajuste(nom, page, 1760)
             for d in g["degrades"]:
                 sous = contraste_le_long(d["arrets"], 0.0, PART_DU_BAIN_QUI_PORTE_L_ENCRE)
                 partout = contraste_le_long(d["arrets"])

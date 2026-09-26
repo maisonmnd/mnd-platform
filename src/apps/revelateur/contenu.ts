@@ -243,7 +243,6 @@ export const ACCUEIL: Accueil = {
   couronnes: {
     sur: 'Nos clientes',
     titre: 'Celles qui nous font confiance.',
-    ligne: 'Des clientes de la Maison, photographiées avec leur accord.',
     /* MÊME ÉCHELLE, OU RIEN — 24 septembre 2026. `cliente-2.jpg` est partie :
        son visage occupait deux fois moins de hauteur que celui de sa voisine,
        et deux cadrages côte à côte se lisent comme un défaut, pas comme une

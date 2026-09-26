@@ -640,17 +640,24 @@ function rendAccueil(articles) {
            une seconde bande sombre disait la même chose plus bas. La section
            « confiance » reste disponible aux pages libres (rendSection). -->
 
-      <!-- LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq clientes,
-           photographiées avec leur accord (registre : docs/site-revelateur/
-           photos.md), posées AU-DESSUS des avis : les visages et les mots de
-           leurs semblables ensemble, c'est la preuve entière. Hors de l'îlot,
-           qui ne redessine que sa propre boîte. Aucun prénom. Alt vide sur les
-           cinq (le-trone-35, même jour) : la ligne au-dessus porte déjà le sens
-           du groupe, et rien dans ces images n'est nommable une par une sans
-           nommer une femme ; cinq alt identiques n'étaient que du bruit. -->
+      <!-- LES COURONNES DE LA MAISON — 23 septembre 2026, sept visages depuis
+           le 26. Des clientes de la Maison, posées AU-DESSUS des avis : les
+           visages et les mots de leurs semblables ensemble, c'est la preuve
+           entière. Hors de l'îlot, qui ne redessine que sa propre boîte.
+           Aucun prénom. Alt vide sur toutes (le-trone-35, 23 septembre) : rien
+           dans ces images n'est nommable une par une sans nommer une femme, et
+           des alt identiques ne seraient que du bruit.
+           LA LIGNE QUI ANNONÇAIT L'ACCORD A ÉTÉ RETIRÉE LE 26 SEPTEMBRE, à la
+           demande de Yéman. L'accord lui-même n'a pas changé : chaque photo
+           reste inscrite au registre docs/site-revelateur/photos.md avant
+           d'être servie, et le harnais le vérifie. C'est l'annonce qui s'est
+           tue, pas la règle. Le texte de remplacement des images s'appuyait
+           sur cette ligne pour porter le sens du groupe ; il ne le peut plus,
+           et c'est le titre « Celles qui nous font confiance » qui le porte
+           désormais, juste au-dessus. -->
       <section class="avis" id="avis">
         <div class="conteneur couronnes">
-          <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2><p class="ligne">${echappe(a.couronnes.ligne)}</p></div>
+          <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2>${a.couronnes.ligne ? `<p class="ligne">${echappe(a.couronnes.ligne)}</p>` : ''}</div>
           <div class="couronnes__bande">
             ${a.couronnes.images.map((img) => `<figure>${image(img, '')}</figure>`).join('\n            ')}
           </div>

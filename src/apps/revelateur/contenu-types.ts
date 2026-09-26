@@ -83,7 +83,11 @@ export type Accueil = {
       et les mots de leurs semblables prouvent ensemble. Chaque fichier est
       inscrit au registre docs/site-revelateur/photos.md avant d'être servi ;
       le harnais le vérifie. Aucun prénom. */
-  couronnes: { sur: string; titre: string; ligne: string; images: string[] };
+  /** `ligne` est FACULTATIVE depuis le 26 septembre 2026 : Yéman l'a
+      retirée du site. L'accord des clientes n'a pas changé, il reste
+      inscrit au registre ; c'est le fait de l'ANNONCER sur la page qui
+      s'arrête. Absente, la section ne pose pas de paragraphe vide. */
+  couronnes: { sur: string; titre: string; ligne?: string; images: string[] };
   portes: { sur: string; titre: string; cartes: { titre: string; ligne: string; suite: string; vers: string; image?: string }[]; repli: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };
