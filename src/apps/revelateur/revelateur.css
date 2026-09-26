@@ -303,7 +303,20 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
    horizontal. */
 .avis .conteneur.couronnes { grid-template-columns: 1fr; align-items: start; gap: clamp(16px, 2.2vw, 26px); margin-bottom: clamp(28px, 4vw, 48px); }
 .couronnes .tete { margin-bottom: 0; max-width: 62ch; }
-.couronnes__bande { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+/* LA RANGÉE SE REPLIE, ELLE NE RÉTRÉCIT PAS — 26 septembre 2026. Elle
+   coulait en COLONNES : chaque visage ajouté rétrécissait tous les autres, et
+   à sept la photo tombait de 300 à 200 pixels de large. Une rangée de
+   visages qui maigrit à chaque cliente accueillie est un réglage qui punit la
+   croissance. Elle se replie désormais d'elle-même : la colonne garde 280
+   pixels au minimum, et la ligne suivante s'ouvre quand il le faut. Choix de
+   Yéman au sélecteur, « deux rangées, les photos gardent leur taille ».
+
+   240 ET NON 280, ET LE NOMBRE SE CALCULE. Le conteneur fait 1040 px de large
+   sur un écran d'ordinateur ; à 280 px de minimum il n'entre que trois
+   colonnes, et sept visages tombent en 3 + 3 + 1, le dernier tout seul. À 240,
+   il en entre quatre : (1040 − 3 × 12) ÷ 4 = 251 px par photo, exactement la
+   largeur qu'elles avaient à quatre, et la rangée se lit en 4 + 3. */
+.couronnes__bande { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .couronnes__bande figure { margin: 0; }
 .couronnes__bande img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 15%; border-radius: 4px; }
 @media (max-width: 860px) {

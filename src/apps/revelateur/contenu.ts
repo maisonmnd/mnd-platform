@@ -267,9 +267,22 @@ export const ACCUEIL: Accueil = {
        la hauteur, regard à 0,37, mesurée sur le rang assemblé et non sur la
        photo seule.
        L'ORDRE EST CELUI DE YEMAN, 26 septembre 2026 : cliente-7, cliente-6,
-       cliente-3, cliente-9. Ce n'est pas un détail d'arrangement, c'est la
-       suite des visages que voit qui descend la page. */
-    images: ['cliente-7.jpg', 'cliente-6.jpg', 'cliente-3.jpg', 'cliente-9.jpg'],
+       cliente-9, puis les quatre remises ce jour-là. Ce n'est pas un détail
+       d'arrangement, c'est la suite des visages que voit qui descend la page.
+
+       SEPT DEPUIS LE 26 SEPTEMBRE AU SOIR. `cliente-3` est sortie de la
+       rangée à la demande de Yéman ; quatre clientes l'ont remplacée, toutes
+       recadrées à la même mesure que leurs voisines, la tête occupant 0,55 de
+       la hauteur et le regard posé à 0,37. Une seule a dû être ramenée dans
+       son cadre, `cliente-11`, dont les cheveux touchaient déjà le haut de la
+       photo : son regard tombe à 0,35, et cela ne se voit pas dans la rangée.
+
+       `cliente-12` EST LA FEMME DU PREMIER ÉCRAN, et c'est voulu : elle
+       paraît donc deux fois sur l'accueil, en haut et dans la rangée. Choix
+       de Yéman au sélecteur, la voie « elle reste au premier écran seulement »
+       lui étant offerte et décrite. */
+    images: ['cliente-7.jpg', 'cliente-6.jpg', 'cliente-9.jpg',
+      'cliente-10.jpg', 'cliente-11.jpg', 'cliente-12.jpg', 'cliente-13.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
