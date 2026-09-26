@@ -249,10 +249,10 @@ export const ACCUEIL: Accueil = {
        Yéman le 26 septembre : même échelle de visage que ses voisines, 0,55 de
        la hauteur, regard à 0,37, mesurée sur le rang assemblé et non sur la
        photo seule.
-       L'ORDRE EST CELUI DE YEMAN, 26 septembre 2026 au matin : `cliente-7`
-       ouvre la rangée. Ce n'est pas un détail d'arrangement, c'est le premier
-       visage que voit qui descend la page. */
-    images: ['cliente-7.jpg', 'cliente-3.jpg', 'cliente-6.jpg', 'cliente-9.jpg'],
+       L'ORDRE EST CELUI DE YEMAN, 26 septembre 2026 : cliente-7, cliente-6,
+       cliente-3, cliente-9. Ce n'est pas un détail d'arrangement, c'est la
+       suite des visages que voit qui descend la page. */
+    images: ['cliente-7.jpg', 'cliente-6.jpg', 'cliente-3.jpg', 'cliente-9.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
