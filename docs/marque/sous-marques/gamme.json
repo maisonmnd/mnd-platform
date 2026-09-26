@@ -44,39 +44,6 @@
   "degrades": []
  },
  {
-  "nom": "Table MND",
-  "ligne": "TABLE",
-  "vocation": "restauration · le comptoir du salon",
-  "couleur": "#6E283C",
-  "nomCouleur": "Bordeaux",
-  "pourquoi": "le bordeaux de la table",
-  "signature": "Recevoir. Régaler. ",
-  "accent": "Prolonger.",
-  "degrades": []
- },
- {
-  "nom": "Domicile MND",
-  "ligne": "DOMICILE",
-  "vocation": "salon mobile · la Maison vient à vous",
-  "couleur": "#7A4A2C",
-  "nomCouleur": "Brun Sienne",
-  "pourquoi": "la terre parcourue, le déplacement",
-  "signature": "Venir. Installer. ",
-  "accent": "Transformer.",
-  "degrades": []
- },
- {
-  "nom": "Immobilier MND",
-  "ligne": "IMMOBILIER",
-  "vocation": "acquisition, location, gestion des lieux",
-  "couleur": "#936518",
-  "nomCouleur": "Ocre Brûlé",
-  "pourquoi": "l'ocre des murs, ce qui se bâtit",
-  "signature": "Acquérir. Bâtir. ",
-  "accent": "Tenir.",
-  "degrades": []
- },
- {
   "nom": "Événements MND",
   "ligne": "ÉVÉNEMENTS",
   "vocation": "ateliers, rencontres, défilés, lancements",
@@ -113,9 +80,9 @@
   "nom": "Studio MND",
   "ligne": "STUDIO",
   "vocation": "portraits, contenu, éditorial",
-  "couleur": "#3F4450",
-  "nomCouleur": "Gris Ardoise",
-  "pourquoi": "l'ardoise, la chambre noire",
+  "couleur": "#6E283C",
+  "nomCouleur": "Bordeaux",
+  "pourquoi": "le bordeaux profond, le velours d'un fond de studio",
   "signature": "Cadrer. Révéler. ",
   "accent": "Garder.",
   "degrades": []

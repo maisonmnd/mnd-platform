@@ -192,26 +192,17 @@ VOCATIONS = [
     ("Soins MND",      "care · routines, cuir chevelu, entretien",  "Bleu Lagune",    "#2E6F8E",
      "l'eau, le bleu du soin",
      "Nourrir. Apaiser. ", "Fortifier."),
-    ("Table MND",      "restauration · le comptoir du salon",       "Bordeaux",       "#6E283C",
-     "le bordeaux de la table",
-     "Recevoir. Régaler. ", "Prolonger."),
-    ("Domicile MND",   "salon mobile · la Maison vient à vous",     "Brun Sienne",    "#7A4A2C",
-     "la terre parcourue, le déplacement",
-     "Venir. Installer. ", "Transformer."),
-    # L'OCRE A ETE FONCE DE DEUX DIXIEMES DE CLARTE, ET PAS DAVANTAGE. Le
-    # #9A6B1E releve des planches ne tient que 4,15 pour 1 sur l'ivoire : le
-    # pictogramme y passe, puisqu'un dessin n'en demande que 3, mais le mot
-    # IMMOBILIER ecrit en petit sur du papier en demande 4,5. On a descendu la
-    # seule clarte, sans toucher ni a la teinte ni a la saturation : 2,5
-    # d'ecart percu, quand il en faut 12 pour que l'oeil separe deux marques.
-    ("Immobilier MND", "acquisition, location, gestion des lieux",  "Ocre Brûlé",     "#936518",
-     "l'ocre des murs, ce qui se bâtit",
-     "Acquérir. Bâtir. ", "Tenir."),
+    # TROIS SONT PARTIES LE 26 SEPTEMBRE 2026, a la demande de Yeman : Table
+    # (restauration), Domicile (salon mobile) et Immobilier (les murs). Leurs
+    # teintes partent avec elles, sauf une : le BORDEAUX de la Table revient a
+    # Studio, qui laisse son gris ardoise. Une famille de sept se lit mieux
+    # qu'une famille de dix, et une teinte qui ne sert plus n'a pas a rester
+    # dans une charte.
     ("Événements MND", "ateliers, rencontres, défilés, lancements", "Bleu Pétrole",   "#1F4D62",
      "le repli uni de la seule sous-marque en dégradé",
      "Rassembler. Parer. ", "Célébrer."),
-    ("Studio MND",     "portraits, contenu, éditorial",             "Gris Ardoise",   "#3F4450",
-     "l'ardoise, la chambre noire",
+    ("Studio MND",     "portraits, contenu, éditorial",             "Bordeaux",       "#6E283C",
+     "le bordeaux profond, le velours d'un fond de studio",
      "Cadrer. Révéler. ", "Garder."),
     ("LOKAA by MND",   "offre entreprise · logiciel pour salons",   "Noir Encre",     "#1A1A1A",
      "l'encre, le produit vendu à part",
@@ -763,8 +754,8 @@ def planche_ensemble(large_debout):
     <b>Ce qui est mesuré, et sur quoi.</b> Un dessin se lit à partir de
     {fr(CONTRASTE_DU_DESSIN, 0)} pour 1 : le pictogramme ivoire tient au moins
     {fr(PLUS_FAIBLE)} sur chaque champ. Un petit texte en demande {fr(CONTRASTE_DU_PETIT_TEXTE)},
-    et c'est pour cela que l'Ocre Brûlé a été descendu de deux dixièmes de clarté, sans toucher
-    ni à sa teinte ni à sa saturation. Deux sous-marques s'écartent enfin d'au moins
+    et c'est à cette mesure qu'une teinte se fonce si elle ne l'atteint pas, de la clarté seule,
+    sans toucher ni à sa teinte ni à sa saturation. Deux sous-marques s'écartent enfin d'au moins
     {fr(ECART_MINIMAL, 0)} en Lab, la paire la plus serrée étant à {fr(PLUS_SERREE)} : sous ce
     seuil, l'œil les confondrait sur une tuile de soixante pixels.
   </p>
