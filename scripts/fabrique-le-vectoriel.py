@@ -303,7 +303,7 @@ def compare_au_png(chemin_svg, chemin_png):
     return float((v != r).mean())
 
 
-def svg(contenu, boite, teinte):
+def svg(contenu, boite, teinte, label="Maison MND"):
     """LA BOITE SE PREND SUR L'ENCRE, jamais sur les boîtes du CSS. Une boîte
     tirée des hauteurs de ligne porte le vide que la police laisse sous la
     ligne de base : le verrou debout traînait ainsi 5 % de transparent sous le
@@ -313,8 +313,8 @@ def svg(contenu, boite, teinte):
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.2f %.2f %.2f %.2f" '
             'width="%.0f" height="%.0f" fill="%s" role="img" '
-            'aria-label="Maison MND">\n%s\n</svg>\n'
-            % (x0, y0, L, H, round(L), round(H), teinte, contenu))
+            'aria-label="%s">\n%s\n</svg>\n'
+            % (x0, y0, L, H, round(L), round(H), teinte, label, contenu))
 
 
 TEINTES = {"indigo": "#1E2150", "indigo-profond": "#15173A", "cuivre": "#B97A4A",
