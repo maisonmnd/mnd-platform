@@ -1007,25 +1007,40 @@ body.galerie-plein { scroll-behavior: smooth; }
       calc((var(--z) + var(--dz) * var(--e)) * 1px))
     rotate(calc((var(--r) + var(--dr) * var(--e)) * 1deg));
   opacity: calc(var(--o) + (1 - var(--o)) * var(--e) * 1.6); }
-/* ELLE RESPIRE SANS QU'ON Y TOUCHE — 26 septembre 2026. « C'est figé et ça
-   attend que je déplace ma souris. Je veux un défilé continu » (Yéman). La
-   course au défilement ne bougeait qu'avec la molette : à l'arrêt, la scène
-   était une image fixe.
+/* ELLES TOURNENT, ELLES NE RESPIRENT PLUS — 26 septembre 2026. « C'est figé
+   et ça attend que je déplace ma souris », puis, le premier essai vu : « les
+   photos ne défilent pas ». Elles dérivaient pourtant, 36 pixels en sept
+   secondes — mais en ALLER-RETOUR : la carte revenait sur ses pas, et un
+   va-et-vient ne se lit pas comme un défilé. Il se lit comme une hésitation.
 
-   DEUX MOUVEMENTS, DEUX ÉLÉMENTS. Une seule propriété `transform` ne peut pas
-   porter deux animations à la fois : celle du défilement écrase celle du
-   temps, ou l'inverse. La carte porte donc la course, et un élément DEDANS
-   porte la dérive. Chacun son transform, aucun ne se marche dessus.
+   UNE ORBITE, FAITE DE DEUX BALANCEMENTS. Un mouvement circulaire en CSS pur
+   ne demande aucune bibliothèque : un élément balance en X, celui qu'il
+   contient balance en Y, à la MÊME durée mais décalé d'un quart de période.
+   Deux allers-retours perpendiculaires et déphasés font un cercle, et un
+   cercle n'a ni début ni fin : la carte ne revient jamais sur ses pas, elle
+   passe.
 
-   Les durées sont toutes différentes et premières entre elles : à durées
-   égales, dix cartes respirent comme une seule, et l'on voit un mécanisme au
-   lieu d'un air. */
+   TROIS ÉLÉMENTS IMBRIQUÉS, TROIS TRANSFORMATIONS. Une seule propriété
+   `transform` ne peut pas en porter trois : la carte porte la course du
+   défilement, le premier enfant le balancement en X, le second celui en Y et
+   la lente rotation. Chacun le sien, aucun ne se marche dessus. */
 .gal-carte__flotte { width: 100%; height: 100%;
-  animation: gal-derive var(--duree, 17s) ease-in-out var(--retard, 0s) infinite alternate; }
-@keyframes gal-derive {
-  from { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
-  to { transform: translate3d(var(--ddx, 10px), var(--ddy, -14px), 0)
-                  rotate(var(--ddr, 1.2deg)) scale(1.015); }
+  animation: gal-x var(--duree, 24s) ease-in-out infinite alternate; }
+.gal-carte__tourne { width: 100%; height: 100%;
+  animation: gal-y var(--duree, 24s) ease-in-out infinite alternate,
+             gal-pivot calc(var(--duree, 24s) * 2.5) ease-in-out infinite alternate;
+  animation-delay: calc(var(--duree, 24s) / -4), 0s; }
+@keyframes gal-x {
+  from { transform: translate3d(calc(var(--rayon, 100px) * -1), 0, 0); }
+  to { transform: translate3d(var(--rayon, 100px), 0, 0); }
+}
+@keyframes gal-y {
+  from { transform: translate3d(0, calc(var(--rayon, 100px) * -0.8), 0); }
+  to { transform: translate3d(0, calc(var(--rayon, 100px) * 0.8), 0); }
+}
+@keyframes gal-pivot {
+  from { rotate: calc(var(--pivot, 3deg) * -1); }
+  to { rotate: var(--pivot, 3deg); }
 }
 .gal-carte img, .gal-carte picture { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -1051,7 +1066,7 @@ body.galerie-plein { scroll-behavior: smooth; }
 .gal-plein__fermer:hover { background: rgba(246, 241, 231, .22); }
 
 @media (prefers-reduced-motion: reduce) {
-  .gal-carte__flotte { animation: none; }
+  .gal-carte__flotte, .gal-carte__tourne { animation: none; }
 }
 /* Les cartes du fond sont plus sombres : c'est la profondeur qui se voit, pas
    un filtre décoratif. */
