@@ -61,6 +61,30 @@ if (barre && menuEtat) {
   document.addEventListener('click', (e) => { if (menuEtat.checked && !(e.target as Element).closest('.barre')) ferme(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ferme(); });
 }
+/* LES FLÈCHES DE LA VUE PLEINE PAGE — 26 septembre 2026. Les liens font tout
+   sans script : suivante, précédente, fermer. Le script n'apporte que deux
+   conforts. Les flèches du clavier (et Échap) valent un clic sur le lien ; et
+   passer d'une photo à l'autre REMPLACE l'adresse au lieu de l'empiler, pour
+   que « retour » ramène à la grille en un geste, pas en dix-huit. */
+const pleines = document.querySelector<HTMLElement>('.gal-pleines');
+if (pleines) {
+  const va = (a: HTMLAnchorElement | null) => { if (a) location.replace(a.getAttribute('href') ?? '#'); };
+  pleines.addEventListener('click', (e) => {
+    const pas = (e.target as Element).closest<HTMLAnchorElement>('.gal-plein__pas');
+    if (pas) { e.preventDefault(); va(pas); }
+  });
+  const CIBLES: Record<string, string> = {
+    ArrowRight: '.gal-plein__pas--apres', ArrowLeft: '.gal-plein__pas--avant', Escape: '.gal-plein__fermer',
+  };
+  document.addEventListener('keydown', (e) => {
+    const vue = document.querySelector<HTMLElement>('.gal-plein:target');
+    const cible = CIBLES[e.key];
+    if (!vue || !cible) return;
+    e.preventDefault();
+    const a = vue.querySelector<HTMLAnchorElement>(cible);
+    if (e.key === 'Escape') a?.click(); else va(a);
+  });
+}
 if (barre && document.body.classList.contains('accueil-plein')) {
   const suit = () => barre.classList.toggle('solide', window.scrollY > 24);
   suit();

@@ -1124,10 +1124,10 @@ body.galerie-plein { scroll-behavior: smooth; }
    passage par `display` (`@starting-style`, Chrome 117, Safari 17.5,
    Firefox 129) ; ailleurs elle s'ouvre d'un coup, comme avant, sans rien
    casser. C'est une amélioration progressive, pas une dépendance. */
-.gal-plein { display: none; opacity: 0;
+.gal-plein { display: none; opacity: 0; pointer-events: none;
   transition: opacity .3s ease, display .3s allow-discrete; }
 .gal-plein:target { display: grid; position: fixed; inset: 0; z-index: 60; opacity: 1;
-  place-items: center; padding: 24px; background: rgba(21, 23, 58, .94); }
+  place-items: center; padding: 24px; background: rgba(21, 23, 58, .94); pointer-events: auto; }
 @starting-style { .gal-plein:target { opacity: 0; } }
 .gal-plein img { transform: scale(.96); transition: transform .3s cubic-bezier(.2, .7, .2, 1); }
 .gal-plein:target img { transform: none; }
@@ -1142,6 +1142,23 @@ body.galerie-plein { scroll-behavior: smooth; }
   background: rgba(246, 241, 231, .12); color: #F6F1E7; font-size: 22px; line-height: 1;
   text-decoration: none; }
 .gal-plein__fermer:hover { background: rgba(246, 241, 231, .22); }
+/* LES FLÈCHES — 26 septembre 2026. « Une flèche avant et arrière pour
+   naviguer entre les photos sans avoir à fermer ou retourner en arrière »
+   (Yéman). Une de chaque côté, à mi-hauteur, de la même étoffe que la croix.
+   Sur un téléphone elles chevauchent le bord de la photo, qui prend 92 % de
+   la largeur : c'est voulu, elles restent sous le pouce sans réduire la photo.
+   Pendant le fondu d'une vue à l'autre, seule la vue ciblée reçoit les clics
+   (`pointer-events` plus haut) : la sortante ne peut pas intercepter un
+   second appui. */
+.gal-plein__pas { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(246, 241, 231, .12); color: #F6F1E7; text-decoration: none;
+  transition: background var(--t); }
+.gal-plein__pas:hover { background: rgba(246, 241, 231, .22); }
+.gal-plein__pas svg { width: 22px; height: 22px; }
+.gal-plein__pas--avant { left: 18px; }
+.gal-plein__pas--apres { right: 18px; }
+.gal-plein__fermer { transition: background var(--t); }
 
 @media (prefers-reduced-motion: reduce) {
   .gal-carte__flotte, .gal-carte__tourne { animation: none; }

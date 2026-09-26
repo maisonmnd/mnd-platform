@@ -182,7 +182,45 @@ dit('… et aucune vue ne traîne sans photo qui y mène', [],
 dit('… toutes les photos de la galerie sont cliquables',
   photosDeLaGalerie.length, ancres.size);
 dit('… et chaque vue se referme', [],
-  vues.filter((v) => !v.includes('href="#" aria-label="Fermer"')));
+  vues.filter((v) => !/href="#[^"]+" aria-label="Fermer"/.test(v)).map((v) => v.match(/id="([^"]+)"/)?.[1]));
+/* FERMER NE BOUGE PAS LA PAGE. Un lien vers « # » ou « #top » remonte la page
+   en haut : on fermait une photo de la grille et l'on perdait sa place. La
+   fermeture vise donc un fragment qui ne nomme AUCUN élément : le navigateur
+   retire la cible et ne défile nulle part. Le jour où quelqu'un donne cet id
+   à un élément, la fermeture recommencera à sauter : ce contrôle le dira. */
+const fermetures = new Set([...galerie.matchAll(/href="#([^"]*)" aria-label="Fermer"/g)].map((m) => m[1]));
+dit('la fermeture vise un seul fragment', 1, fermetures.size);
+const [fermeture = ''] = fermetures;
+dit('… qui n’est ni vide ni « top », qui remontent la page', false,
+  ['', 'top'].includes(fermeture.toLowerCase()));
+dit('… et que rien dans la page ne porte comme id', false, galerie.includes(`id="${fermeture}"`));
+/* ON FAIT LE TOUR SANS FERMER — 26 septembre 2026. « Une flèche avant et
+   arrière pour naviguer entre les photos sans avoir à fermer ou retourner en
+   arrière » (Yéman). La règle, pas le cas : depuis n'importe quelle vue,
+   « suivante » parcourt TOUTES les vues et revient à la première, et
+   « précédente » défait exactement ce que « suivante » fait. Un maillon qui
+   manque, un doublon, une flèche vers une vue absente : le tour s'arrête ou
+   boucle court, et ce contrôle le dit. */
+const maillons = vues.map((v) => ({
+  id: v.match(/class="gal-plein" id="([^"]+)"/)?.[1] ?? '',
+  avant: v.match(/gal-plein__pas--avant" href="#([^"]+)"/)?.[1] ?? '',
+  apres: v.match(/gal-plein__pas--apres" href="#([^"]+)"/)?.[1] ?? '',
+}));
+dit('chaque vue porte ses deux flèches, vers des vues qui existent', [],
+  maillons.filter((m) => !vuesId.has(m.avant) || !vuesId.has(m.apres)).map((m) => m.id));
+const apresDe = new Map(maillons.map((m) => [m.id, m.apres]));
+const avantDe = new Map(maillons.map((m) => [m.id, m.avant]));
+const tour: string[] = [];
+for (let id = maillons[0]?.id ?? '', n = 0; id && n < maillons.length; n += 1) {
+  tour.push(id);
+  id = apresDe.get(id) ?? '';
+}
+dit('… « suivante » fait le tour de toutes les photos', [...vuesId].sort(), [...tour].sort());
+dit('… et revient à la première', maillons[0]?.id, apresDe.get(tour[tour.length - 1] ?? ''));
+dit('… « précédente » défait exactement « suivante »', [],
+  maillons.filter((m) => avantDe.get(m.apres) !== m.id).map((m) => m.id));
+dit('… et les flèches suivent l’ordre de la grille', GALERIE.photos.slice(0, 3).map((f) => `gal-${f.replace(/\.[a-z]+$/i, '')}`),
+  tour.slice(0, 3));
 /* RIEN NE DOIT AVOIR L'AIR CLIQUABLE SANS L'ÊTRE. « À quoi sert le bouton
    défiler ? » demandait Yéman : à rien. C'était une indication habillée comme
    les boutons du site. On tient donc la règle, et non le cas : tout ce que la

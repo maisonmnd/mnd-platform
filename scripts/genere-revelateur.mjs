@@ -879,9 +879,21 @@ function rendGalerie() {
       + 'à la relecture du contenu : on refuse plutôt que de livrer un trou.');
   }
   /* Une vue pleine page par photo, et UNE SEULE même si la photo paraît deux
-     fois : la constellation et la grille se partagent les mêmes fichiers. */
-  const toutes = [...new Set([...GALERIE.boite, ...GALERIE.photos])];
+     fois : la constellation et la grille se partagent les mêmes fichiers.
+     DANS L'ORDRE DE LA GRILLE : c'est l'ordre que suivent les flèches, et
+     celui que la personne a sous les yeux quand elle ouvre une photo. */
+  const toutes = [...new Set([...GALERIE.photos, ...GALERIE.boite])];
   const ancre = (nom) => `gal-${nom.replace(/\.[a-z]+$/i, '')}`;
+  /* FERMER NE BOUGE PAS LA PAGE. Un lien vers « # » remonte la page en haut :
+     on fermait une photo de la grille et l'on se retrouvait sur le titre. Un
+     fragment qui ne nomme AUCUN élément retire la cible sans défiler nulle
+     part ; le harnais veille à ce que rien ne porte jamais cet id. */
+  const FERME = '#photo-fermee';
+  const CHEVRON = (sens) => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" '
+    + 'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + `<path d="${sens === 'avant' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}"/></svg>`;
+  const pas = (sens, nom, mot) =>
+    `<a class="gal-plein__pas gal-plein__pas--${sens}" href="#${attr(ancre(nom))}" aria-label="${mot}">${CHEVRON(sens)}</a>`;
   const ouvre = (nom, dedans) =>
     `<a class="gal-ouvre" href="#${attr(ancre(nom))}" aria-label="Agrandir cette photo">${dedans}</a>`;
 
@@ -891,10 +903,15 @@ function rendGalerie() {
     + '<div class="gal-carte__tourne">'
     + ouvre(nom, photo(nom, '', 'alt="" width="800" height="1000"'))
     + '</div></div></div>').join('\n        ');
-  const pleines = toutes.map((nom) =>
+  /* UNE FLÈCHE DE CHAQUE CÔTÉ, sans script : chaque vue est un lien vers la
+     précédente et la suivante, et la dernière renvoie à la première. On fait
+     le tour sans fermer ni revenir en arrière. */
+  const pleines = toutes.map((nom, i) =>
     `<div class="gal-plein" id="${attr(ancre(nom))}" role="dialog" aria-label="Photo agrandie">`
-    + '<a class="gal-plein__fond" href="#" aria-label="Fermer"></a>'
-    + '<a class="gal-plein__fermer" href="#" aria-label="Fermer">&times;</a>'
+    + `<a class="gal-plein__fond" href="${FERME}" aria-label="Fermer"></a>`
+    + `<a class="gal-plein__fermer" href="${FERME}" aria-label="Fermer">&times;</a>`
+    + pas('avant', toutes[(i - 1 + toutes.length) % toutes.length], 'Photo précédente')
+    + pas('apres', toutes[(i + 1) % toutes.length], 'Photo suivante')
     + photo(nom, '', 'alt="" loading="lazy" width="800" height="1000"')
     + '</div>').join('\n        ');
   /* ALT VIDE, comme la rangée de l'accueil : rien dans ces images n'est
