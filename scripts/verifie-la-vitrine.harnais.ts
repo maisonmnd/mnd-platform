@@ -140,7 +140,14 @@ const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-6.jpg'
   /* 24 septembre 2026 : trois de plus, dont un ENFANT (journal-7). La règle
      compte double pour lui. journal-9 est `cliente-2.jpg`, descendue de
      l'accueil au Journal. */
-  'journal-7.jpg', 'journal-8.jpg', 'journal-9.jpg'];
+  'journal-7.jpg', 'journal-9.jpg',
+  /* 26 septembre 2026 : `journal-10` est `cliente-8.jpg`, descendue du rang de
+     l'accueil où elle doublait `cliente-7` — c'est la même femme. `journal-8`
+     a quitté le site le même jour : sa place était la seule qu'elle occupait,
+     et le contrôle d'en bas veut qu'une photo de cliente publiée serve quelque
+     part. Elle n'est pas détruite, son original reste chez Yéman ; elle n'est
+     simplement plus servie. */
+  'journal-10.jpg'];
 /* Les mots par lesquels un article nomme un défaut. La liste s'allonge avec
    le Journal : un article qui parlera de chute, d'odeur ou de moisissure
    s'ajoute ici le jour où il est écrit. */

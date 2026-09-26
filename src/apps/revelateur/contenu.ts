@@ -238,7 +238,18 @@ export const ACCUEIL: Accueil = {
        visage y revient et la rangée se défait. `cliente-9` est recadrée à la
        même échelle de visage que les autres, regard à 35 % de la hauteur, la
        signature de la photographe sortie du cadre (jamais effacée). */
-    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-8.jpg', 'cliente-9.jpg'],
+    /* QUATRE DEPUIS LE 26 SEPTEMBRE 2026. `cliente-8` est partie : c'est la
+       MEME FEMME que `cliente-7`, en veste pêche au lieu de rouge, et deux
+       photos d'une seule personne dans une rangée de clientes défont
+       précisément ce que la rangée dit. La règle était déjà écrite au-dessus,
+       « une seule par personne » ; elle n'était gardée par rien. `cliente-8`
+       continue de servir au bandeau « À la Maison », et sert désormais la
+       vignette de « Quelle méthode choisir pour créer ses premières locks ? ».
+       `cliente-3` est une autre photo de la même cliente, debout, remise par
+       Yéman le 26 septembre : même échelle de visage que ses voisines, 0,55 de
+       la hauteur, regard à 0,37, mesurée sur le rang assemblé et non sur la
+       photo seule. */
+    images: ['cliente-3.jpg', 'cliente-6.jpg', 'cliente-7.jpg', 'cliente-9.jpg'],
   },
   portes: {
     sur: 'Cinq parcours, une seule méthode',
