@@ -95,6 +95,22 @@ export type Accueil = {
   appel: { titre: string; ligne: string; boutons: Lien[] };
 };
 
+/** LA GALERIE — 26 septembre 2026. Une page à elle, où les photos de la
+    Maison flottent en profondeur puis s'écartent pour ouvrir la grille.
+
+    `boite` est la constellation du premier écran : DIX fichiers, dans l'ordre
+    des dix places que la feuille de style tient prêtes. Moins de dix laisse
+    des places vides, plus de dix ne sert à rien : le générateur refuse les
+    deux, parce qu'une place vide ne se voit pas à la relecture du contenu.
+
+    `photos` est la grille du dessous. Chaque fichier des deux listes doit être
+    inscrit au registre des accords AVANT d'être servi, et le harnais le
+    vérifie comme il le fait déjà pour la rangée de l'accueil. */
+export type Galerie = {
+  titre: string; description: string; sur: string; h1: string; ligne: string;
+  boite: string[]; photos: string[];
+};
+
 export type Commun = {
   nom: string;
   ville: string;

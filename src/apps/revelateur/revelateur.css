@@ -909,3 +909,108 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .porte-rdv__choix:hover { border-color: var(--accent); background: var(--accent-voile); }
 .porte-rdv__choix:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .porte-rdv__choix small { font-size: 12.5px; color: var(--texte-doux); }
+
+/* ══ LA GALERIE — 26 septembre 2026 ═══════════════════════════════════
+   « J'adore l'animation derrière » (Yéman, devant la page d'une autre
+   maison). Rien n'en a été recopié : l'idée seule est reprise, avec les
+   moyens d'ici.
+
+   UN RAIL DE DÉFILEMENT, UNE SCÈNE COLLÉE DEDANS, ET UNE SEULE VALEUR. Le
+   défilement n'écrit que `--p`, de 0 à 1, une fois par image de l'écran ;
+   tout le reste est du calcul de feuille de style, composé sur la carte
+   graphique. Aucune bibliothèque : sur une connexion de Cotonou, chaque
+   kilo-octet se paie.
+
+   ET SANS SCRIPT, LA PAGE TIENT DEBOUT. `--p` reste à 0, la constellation
+   garde sa place de départ avec le titre au milieu, et la grille se lit
+   dessous. On perd le mouvement, jamais le contenu. */
+.gal-rail { height: 190vh; position: relative; background: var(--sombre); }
+.gal-scene { position: sticky; top: 0; height: 100vh; overflow: hidden;
+  background: var(--sombre); color: #F6F1E7; perspective: 1200px; perspective-origin: 50% 45%; }
+/* L'ivoire monte PENDANT que les dernières cartes s'en vont. Posé après leur
+   départ, il laissait un écran vide entre les deux, et un temps mort se lit
+   comme une panne. */
+.gal-scene::after { content: ''; position: absolute; inset: 0; background: var(--fond);
+  opacity: calc((var(--p) - .74) * 3.85); pointer-events: none; }
+
+.gal-mot { position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  z-index: 3; padding: 0 24px; opacity: calc(1 - var(--p) * 2.6);
+  transform: translateY(calc(var(--p) * -60px)); }
+/* Un voile sous le titre, et il n'est pas décoratif : sur un téléphone la
+   constellation se resserre, les cartes passent derrière le texte, et le
+   titre y devenait illisible. C'est un dégradé du fond lui-même, éteint
+   avant les bords, pour qu'on voie une profondeur et non une boîte posée. */
+/* LE BLOC EST BORNÉ, par précaution et non par correction. Dans une grille
+   centrée, la colonne prend la largeur de son contenu le plus large : sans
+   borne, une ligne plus longue qu'aujourd'hui l'étirerait au-delà de l'écran.
+
+   IL N'Y AVAIT PAS DE DÉBORDEMENT, et je l'ai cru un moment : la capture
+   d'un téléphone de 390 pixels sortait rognée à droite. C'est un artefact
+   connu de Chrome sans tête, qui ne descend pas sous cinq cents pixels de
+   large et rogne ce qu'on lui demande de plus étroit. Mesuré dans un cadre
+   de 390 posé dans une fenêtre plus grande, le document fait 375 : il tenait
+   déjà. On ne conclut pas à un défaut sur une capture, on mesure. */
+.gal-mot__bloc { position: relative; padding: 8px 24px; max-width: min(660px, 90vw); }
+.gal-mot__bloc::before { content: ''; position: absolute; inset: -46px -72px; z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(21, 23, 58, .92) 0%,
+    rgba(21, 23, 58, .78) 40%, rgba(21, 23, 58, .32) 66%, rgba(21, 23, 58, 0) 82%); }
+.gal-mot .sur { font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--accent-sombre); margin-bottom: 14px; }
+/* LE TITRE SE PLIE EN DEUX, et ce n'est pas un choix de mise en page : sur
+   un grand écran il tenait sur une seule ligne de onze cents pixels et
+   passait sur les deux cartes qui l'encadrent. Une largeur en `ch` plutôt
+   qu'un saut de ligne écrit à la main, pour qu'il se replie tout seul quand
+   l'écran rétrécit encore. */
+.gal-mot h1 { font-family: var(--serif); font-weight: 400; color: #F6F1E7;
+  font-size: clamp(38px, 6.6vw, 82px); line-height: 1.04;
+  max-width: 19ch; margin-inline: auto; }
+.gal-mot p { margin-top: 16px; font-weight: 300; font-size: 17px; color: rgba(246, 241, 231, .74); }
+.gal-mot .defile { margin-top: 32px; font-size: 12px; letter-spacing: .2em;
+  text-transform: uppercase; color: rgba(246, 241, 231, .5); }
+
+/* Chaque carte part de sa place et s'en va vers le bord en se rapprochant.
+   `--e` est la même course que `--p`, RETENUE AU DÉBUT : les cartes
+   s'attardent, puis balayent. Une course régulière les faisait partir tout
+   de suite et attendre ensuite. */
+.gal-carte { position: absolute; left: 50%; top: 50%; width: calc(var(--l) * var(--k));
+  aspect-ratio: 4 / 5; margin-left: calc(var(--l) * var(--k) / -2);
+  margin-top: calc(var(--l) * var(--k) * -0.625); border-radius: 5px; overflow: hidden;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .5); will-change: transform;
+  transform: translate3d(
+      calc((var(--x) + var(--dx) * var(--e)) * var(--k) * 1px),
+      calc((var(--y) + var(--dy) * var(--e)) * var(--k) * 1px),
+      calc((var(--z) + var(--dz) * var(--e)) * 1px))
+    rotate(calc((var(--r) + var(--dr) * var(--e)) * 1deg));
+  opacity: calc(var(--o) + (1 - var(--o)) * var(--e) * 1.6); }
+.gal-carte img, .gal-carte picture { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Les cartes du fond sont plus sombres : c'est la profondeur qui se voit, pas
+   un filtre décoratif. */
+.gal-carte::after { content: ''; position: absolute; inset: 0; background: var(--sombre);
+  opacity: calc(var(--voile) * (1 - var(--e))); }
+
+/* LA CONSTELLATION SE RESSERRE AVEC L'ÉCRAN. Les places sont écrites pour un
+   grand écran ; sur un téléphone, la moitié des cartes sortiraient du cadre.
+   Un seul facteur les rapproche du centre : c'est la même constellation, vue
+   de plus loin. */
+.gal-rail { --k: 1; }
+@media (max-width: 1180px) { .gal-rail { --k: .82; } }
+@media (max-width: 900px) { .gal-rail { --k: .62; } }
+@media (max-width: 620px) { .gal-rail { --k: .44; } }
+
+.gal-grille { columns: 4; column-gap: 14px; margin-top: 34px; }
+.gal-grille figure { break-inside: avoid; margin: 0 0 14px; }
+.gal-grille img { width: 100%; display: block; border-radius: 4px; }
+@media (max-width: 980px) { .gal-grille { columns: 3; } }
+@media (max-width: 680px) { .gal-grille { columns: 2; } }
+
+/* QUI DEMANDE MOINS DE MOUVEMENT LE REÇOIT. Les cartes se posent à leur place
+   de départ, le rail se réduit à un écran, et la page se lit de haut en bas
+   sans rien qui glisse. Le script, lui, ne s'installe même pas. */
+@media (prefers-reduced-motion: reduce) {
+  .gal-rail { height: 100vh; }
+  .gal-scene::after { opacity: 0; }
+  .gal-mot { opacity: 1; transform: none; }
+  .gal-carte { transform: translate3d(calc(var(--x) * var(--k) * 1px),
+      calc(var(--y) * var(--k) * 1px), 0) rotate(calc(var(--r) * 1deg)); opacity: var(--o); }
+  .gal-carte::after { opacity: var(--voile); }
+}

@@ -9,7 +9,7 @@
    son bouton d'envoi ; et un rappel promis qui mène au calendrier. */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ACCUEIL, COMMUN } from '../src/apps/revelateur/contenu';
+import { ACCUEIL, COMMUN, GALERIE } from '../src/apps/revelateur/contenu';
 import { etatDeLOffre } from '../src/shared/offres-pur';
 import { horairesStructures } from '../src/apps/revelateur/schema-pur';
 
@@ -88,7 +88,7 @@ dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremi
 /* Depuis le 24 septembre, c'est le jumeau WebP qui est préchargé, avec son
    type : un navigateur qui ne le lit pas ignore la précharge et prend le JPEG. */
 dit('… et le document précharge son jumeau WebP, en le disant', true, !!photoDuPremierEcran && accueil.includes(`<link rel="preload" as="image" href="${photoDuPremierEcran[1].replace(/\.jpe?g$/i, '.webp')}" type="image/webp" fetchpriority="high" />`));
-dit('les cinq liens du menu sont dans le HTML de l’accueil, script ou pas', [], COMMUN.nav.map((l) => l.vers).filter((v) => !new RegExp(`<nav class="nav"[^>]*>[\\s\\S]*?href="[^"]*${v}"[\\s\\S]*?</nav>`).test(accueil)));
+dit('tous les liens du menu sont dans le HTML de l’accueil, script ou pas', [], COMMUN.nav.map((l) => l.vers).filter((v) => !new RegExp(`<nav class="nav"[^>]*>[\\s\\S]*?href="[^"]*${v}"[\\s\\S]*?</nav>`).test(accueil)));
 dit('… repliés par une case à cocher, jamais par un bouton qui attend un script', true, accueil.includes('<input class="menu-etat cache" type="checkbox" id="menu-etat"') && !accueil.includes('<button class="menu-bouton"'));
 /* La case doit rester dans le parcours du clavier : cachée par un clip
    (.cache), jamais par display:none, hidden ou tabindex="-1", sinon Tab ne
@@ -128,6 +128,48 @@ dit('… et chacune est inscrite au registre des accords', [], ACCUEIL.couronnes
    autant de fois par un lecteur d'écran. Les rétablir serait une régression. */
 dit('… et aucune ne répète une description déjà lue au-dessus', [], figuresDeLaBande.map((m) => m[2]).filter(Boolean));
 dit('… sans prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil));
+
+/* ══ LA GALERIE — 26 septembre 2026 ═══════════════════════════════════
+   La règle des photos ne connaît pas les pages : une image de cliente servie
+   quelque part est inscrite au registre des accords AVANT de partir, et cela
+   vaut pour la galerie comme pour la rangée de l'accueil et les vignettes du
+   Journal. Elle sert dix-huit photos, dont quatre qui ne servaient plus
+   nulle part depuis le 23 septembre.
+
+   ET LA PAGE TIENT DEBOUT SANS SCRIPT. L'animation n'écrit qu'une variable
+   de feuille de style ; si le script ne part pas, la constellation garde sa
+   place de départ et la grille se lit dessous. On le vérifie sur le HTML
+   SERVI, qui est justement ce qu'un navigateur reçoit avant d'exécuter quoi
+   que ce soit. */
+const galerie = pages.get('/galerie/') ?? '';
+dit('la galerie est servie', true, galerie.length > 0);
+const photosDeLaGalerie = [...new Set([...GALERIE.boite, ...GALERIE.photos])];
+dit('… chaque photo de la galerie existe dans le dossier', [],
+  photosDeLaGalerie.filter((f) => !existsSync(`public/assets/photos/site/${f}`)));
+dit('… et chacune est inscrite au registre des accords', [],
+  photosDeLaGalerie.filter((f) => !inscriteAuRegistre(f)));
+dit('… la boîte porte ses dix photos, sans place vide', 10, GALERIE.boite.length);
+dit('… le HTML les pose toutes, script ou pas', [],
+  GALERIE.boite.filter((f) => !galerie.includes(`photos/site/${f}`)));
+dit('… et la grille aussi', [],
+  GALERIE.photos.filter((f) => !galerie.includes(`photos/site/${f}`)));
+/* Le premier écran ne se charge pas en différé : une image qu'on voit tout
+   de suite ne s'attend pas. La grille du dessous, elle, doit l'être. */
+dit('… la grille se charge en différé, la constellation non', true,
+  (galerie.match(/loading="lazy"/g) ?? []).length === GALERIE.photos.length);
+dit('… le menu mène à la galerie', true,
+  COMMUN.nav.some((l: { vers: string }) => l.vers === '/galerie/'));
+/* AUCUN PRÉNOM, comme partout ailleurs sur ce site. Le contrôle ne porte que
+   sur LES IMAGES DE LA GALERIE : un premier jet lisait toute la page et
+   tombait sur le texte de remplacement du verrou dans l'en-tête, qui, lui,
+   doit bien dire « Maison MND ». Un contrôle trop large crie sur du juste, et
+   l'on prend l'habitude de l'ignorer. */
+const imagesDeLaGalerie = [
+  ...(galerie.match(/<div class="gal-carte"[\s\S]*?<\/div>/g) ?? []),
+  ...(galerie.match(/<figure>[\s\S]*?<\/figure>/g) ?? []),
+].join('');
+dit('… et aucune photo n’y est nommée', false, /alt="[^"]+"/.test(imagesDeLaGalerie));
+dit('… alors que le verrou de l’en-tête, lui, se nomme', true, /alt="[^"]+"/.test(galerie));
 
 /* LE JOURNAL NOMME SES VIGNETTES, ET UNE CLIENTE N'ILLUSTRE PAS UN DÉFAUT.
    La règle est écrite en haut de docs/site-revelateur/photos.md. Elle tient à

@@ -51,7 +51,7 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 } finally {
   rmSync(dossierTmp, { recursive: true, force: true });
 }
-const { COMMUN, ACCUEIL, PAGES, DEVISE_COMPLETE } = contenu;
+const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE } = contenu;
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
    L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
@@ -823,6 +823,89 @@ const vignetteAbsente = articles.filter((a) => !existsSync(path.join(racine, 'pu
 if (vignetteAbsente.length) {
   throw new Error(`Vignette introuvable : ${vignetteAbsente.map((a) => `${a.slug} → ${a.image}`).join(', ')}`);
 }
+/* ══ LA GALERIE ═══════════════════════════════════════════════════════
+   LES DIX PLACES DE LA CONSTELLATION, et elles sont un fait de dessin, pas
+   du contenu : `--x/--y/--z` la place de départ, `--dx/--dy/--dz` la course,
+   `--l` la taille, `--r/--dr` l'inclinaison, `--voile` la profondeur, `--o`
+   la présence au départ. Deux grandes au premier plan, deux moyennes de part
+   et d'autre, six petites qui s'éloignent : ce n'est pas un classement, c'est
+   un étagement.
+
+   Les places sont ÉCARTÉES DU CENTRE parce que le titre y tient six cents
+   pixels : toute carte dont le bord entre dans cette bande lui passe dessus,
+   et c'est ce qui arrivait à gauche au premier essai. */
+const PLACES_DE_LA_GALERIE = [
+  '--l:230px;--x:-560;--y:-140;--z:-340;--r:-7;--dx:-560;--dy:-190;--dz:520;--dr:-5;--voile:.42;--o:.85',
+  '--l:200px;--x:-660;--y:190;--z:-520;--r:5;--dx:-720;--dy:280;--dz:660;--dr:7;--voile:.55;--o:.7',
+  '--l:260px;--x:545;--y:-115;--z:-260;--r:6;--dx:600;--dy:-170;--dz:470;--dr:6;--voile:.35;--o:.9',
+  '--l:190px;--x:680;--y:215;--z:-560;--r:-6;--dx:740;--dy:300;--dz:700;--dr:-8;--voile:.58;--o:.66',
+  '--l:170px;--x:-285;--y:-345;--z:-680;--r:8;--dx:-330;--dy:-470;--dz:800;--dr:10;--voile:.64;--o:.55',
+  '--l:175px;--x:290;--y:345;--z:-700;--r:-8;--dx:340;--dy:470;--dz:820;--dr:-9;--voile:.66;--o:.55',
+  '--l:150px;--x:-790;--y:-315;--z:-900;--r:10;--dx:-860;--dy:-430;--dz:980;--dr:12;--voile:.72;--o:.42',
+  '--l:155px;--x:800;--y:-330;--z:-880;--r:-9;--dx:880;--dy:-440;--dz:960;--dr:-11;--voile:.72;--o:.42',
+  '--l:145px;--x:-95;--y:395;--z:-980;--r:4;--dx:-120;--dy:560;--dz:1040;--dr:5;--voile:.76;--o:.38',
+  '--l:150px;--x:140;--y:-425;--z:-1020;--r:-5;--dx:200;--dy:-600;--dz:1080;--dr:-6;--voile:.78;--o:.36',
+];
+
+function rendGalerie() {
+  if (GALERIE.boite.length !== PLACES_DE_LA_GALERIE.length) {
+    throw new Error(`La boîte de la galerie veut ${PLACES_DE_LA_GALERIE.length} photos, `
+      + `le contenu en donne ${GALERIE.boite.length}. Une place vide ne se voit pas `
+      + 'à la relecture du contenu : on refuse plutôt que de livrer un trou.');
+  }
+  const cartes = GALERIE.boite.map((nom, i) =>
+    `<div class="gal-carte" style="${attr(PLACES_DE_LA_GALERIE[i])}">`
+    + `${photo(nom, '', 'alt="" width="800" height="1000"')}</div>`).join('\n        ');
+  /* ALT VIDE, comme la rangée de l'accueil : rien dans ces images n'est
+     nommable une par une sans nommer une femme, et le titre juste au-dessus
+     porte déjà le sens du groupe. */
+  const grille = GALERIE.photos.map((nom) =>
+    `<figure>${photo(nom, '', 'alt="" loading="lazy" width="800" height="1000"')}</figure>`)
+    .join('\n          ');
+  return `
+      <div class="gal-rail" id="gal-rail">
+        <div class="gal-scene" id="gal-scene" style="--p:0;--e:0">
+          <div class="gal-mot"><div class="gal-mot__bloc">
+            <p class="sur">${echappe(GALERIE.sur)}</p>
+            <h1>${echappe(GALERIE.h1)}</h1>
+            <p>${echappe(GALERIE.ligne)}</p>
+            <p class="defile">Faites défiler</p>
+          </div></div>
+          ${cartes}
+        </div>
+      </div>
+      <section class="serre"><div class="conteneur">
+        <div class="gal-grille">
+          ${grille}
+        </div>
+      </div></section>
+      <script>
+      /* UNE SEULE VALEUR ÉCRITE PAR IMAGE DE L'ÉCRAN. Sans requestAnimationFrame,
+         un écouteur de défilement écrit plusieurs fois entre deux images, pour
+         rien. Qui demande moins de mouvement n'a pas de script du tout : la
+         feuille de style pose déjà les cartes. */
+      (function () {
+        var rail = document.getElementById('gal-rail'), scene = document.getElementById('gal-scene');
+        if (!rail || !scene) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var demande = false;
+        function pose() {
+          demande = false;
+          var course = rail.offsetHeight - window.innerHeight;
+          if (course <= 0) return;
+          var p = (window.scrollY - rail.offsetTop) / course;
+          p = p < 0 ? 0 : p > 1 ? 1 : p;
+          scene.style.setProperty('--p', p.toFixed(4));
+          scene.style.setProperty('--e', Math.pow(p, 1.75).toFixed(4));
+        }
+        function aDefile() { if (!demande) { demande = true; requestAnimationFrame(pose); } }
+        window.addEventListener('scroll', aDefile, { passive: true });
+        window.addEventListener('resize', aDefile);
+        pose();
+      })();
+      </script>`;
+}
+
 const pagesEcrites = [];
 
 ecrit('/', page({
@@ -831,6 +914,17 @@ ecrit('/', page({
   noeuds: [noeudMaison(), noeudSite(), filAriane([['Accueil', '/']])],
 }));
 pagesEcrites.push('/');
+
+ecrit('/galerie/', page({
+  chemin: '/galerie/', titre: GALERIE.titre, description: GALERIE.description,
+  corps: rendGalerie(), classeBody: 'galerie-plein',
+  precharge: `/assets/photos/site/${GALERIE.boite[2]}`,
+  noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Galerie', '/galerie/']]), {
+    '@type': 'ImageGallery', name: GALERIE.h1, description: GALERIE.description,
+    url: `${SITE}galerie/`,
+  }],
+}));
+pagesEcrites.push('/galerie/');
 
 for (const p of PAGES) {
   const estService = !!(p.cta || p.pas);

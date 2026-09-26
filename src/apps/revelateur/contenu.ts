@@ -7,7 +7,7 @@
    Un lien WhatsApp s'écrit `whatsapp:<besoin>` ; un chemin du site porte sa
    barre finale ; aucune adresse absolue, aucun prix, aucun témoignage. */
 
-import type { Accueil, Commun, Page } from './contenu-types';
+import type { Accueil, Commun, Galerie, Page } from './contenu-types';
 
 export const COMMUN: Commun = {
   nom: 'Maison MND',
@@ -75,6 +75,11 @@ export const COMMUN: Commun = {
        ne change donc rien sur téléphone. */
     { texte: 'Les offres', vers: '/les-offres/' },
     { texte: 'La Maison', vers: '/maison-mnd/' },
+    /* La galerie s'intercale entre la Maison et le Journal : on regarde
+       avant de lire. Sous 860 pixels la barre cache tout le menu, cette
+       entrée ne change donc rien sur téléphone ; le pied de page la porte
+       aussi, et c'est par là qu'on l'atteint depuis un téléphone. */
+    { texte: 'Galerie', vers: '/galerie/' },
     { texte: 'Journal', vers: '/journal/' },
   ],
   pied: {
@@ -355,6 +360,33 @@ export const ACCUEIL: Accueil = {
       { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
     ],
   },
+};
+
+/* LA GALERIE. Les dix de la boîte sont choisies pour la PROFONDEUR : deux
+   grandes au premier plan, deux moyennes de part et d'autre, six petites qui
+   s'éloignent. Ce n'est pas un classement, c'est un étagement. La grille du
+   dessous, elle, montre tout.
+
+   `cliente-1`, `cliente-3`, `cliente-4` et `cliente-5` y reprennent du
+   service : elles étaient publiées sans être servies nulle part depuis le
+   23 septembre, ce qui est précisément ce qu'on s'interdit pour les photos du
+   Journal. La galerie leur rend un emploi. */
+export const GALERIE: Galerie = {
+  titre: 'La galerie · Maison MND',
+  description: 'Regardez les couronnes créées, réparées et entretenues par la Maison MND à Cotonou, en images.',
+  sur: 'La galerie',
+  h1: 'Ce que la Maison fait de ses mains.',
+  ligne: 'Des couronnes créées, réparées, entretenues à Cotonou.',
+  boite: [
+    'creation.jpg', 'cliente-4.jpg', 'regard.jpg', 'cliente-1.jpg', 'mnd-kids.jpg',
+    'entretien.jpg', 'cliente-5.jpg', 'attention.jpg', 'enfant-jardin.jpg', 'cliente-3.jpg',
+  ],
+  photos: [
+    'creation.jpg', 'cliente-7.jpg', 'regard.jpg', 'cliente-6.jpg', 'attention.jpg',
+    'cliente-9.jpg', 'entretien.jpg', 'cliente-10.jpg', 'mnd-kids.jpg', 'cliente-11.jpg',
+    'enfant-jardin.jpg', 'cliente-12.jpg', 'trois-couronnes.jpg', 'cliente-13.jpg',
+    'cliente-1.jpg', 'cliente-3.jpg', 'cliente-4.jpg', 'cliente-5.jpg',
+  ],
 };
 
 export const PAGES: Page[] = [
