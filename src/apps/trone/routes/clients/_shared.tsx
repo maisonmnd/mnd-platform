@@ -219,6 +219,26 @@ export const apptDurationMin = (a: Appointment, byId: Map<string, Service>) =>
     disparues du catalogue, et les deux index divergent dès qu'un rituel ancien
     en porte une. Prendre le mauvais index appliquerait la remise au geste
     voisin — en silence. */
+/** Échange deux positions d'un tableau, ou en retire une quand `vers` vaut
+    `null`. TOUS LES TABLEAUX PARALLÈLES À `serviceIds` PASSENT PAR ICI.
+
+    Les prestations d'un rituel sont tenues dans plusieurs tableaux alignés :
+    les identifiants, les mains qui exécutent, les remises de ligne. Déplacer
+    l'un sans les autres donne le travail d'une personne — ou la remise
+    consentie à une cliente — à la prestation voisine. C'est arrivé : les
+    boutons Monter, Descendre et Retirer déplaçaient les identifiants et les
+    mains, mais pas les remises, arrivées après. Yéman l'a vu sur le Trône,
+    « la remise est figée à la ligne et non au service ». Le déplacement était
+    écrit quatre fois ; il ne l'est plus qu'une. */
+export function rangeeBougee<T>(t: T[], de: number, vers: number | null): T[] {
+  if (de < 0 || de >= t.length) return t;
+  if (vers === null) return t.filter((_, k) => k !== de);
+  if (vers < 0 || vers >= t.length) return t;
+  const n = [...t];
+  [n[de], n[vers]] = [n[vers], n[de]];
+  return n;
+}
+
 export const remiseDeLigne = (a: Appointment, i: number): { pct: number; xof: number } => {
   const r = a.remisesLignes?.[i];
   return { pct: Math.max(0, Math.min(100, r?.pct ?? 0)), xof: Math.max(0, r?.xof ?? 0) };
@@ -1408,6 +1428,27 @@ export function RdvModal({
   /* LES REMISES DE LIGNE — tableau parallèle à `serviceIds`, comme les mains. */
   const [remisesL, setRemisesL] = useState<({ pct?: number; xof?: number } | null)[]>(appt?.remisesLignes ?? []);
   const [remisesOuvertes, setRemisesOuvertes] = useState<string[]>([]);
+  /* LE DÉPLACEMENT D'UNE LIGNE, EN UN SEUL ENDROIT. Chaque tableau marqué
+     « parallèle à `serviceIds` » ci-dessus doit bouger ici, et le harnais
+     `verifie-la-remise-suit-sa-prestation` refuse qu'un seul y manque. Les
+     tableaux sont d'abord RENORMALISÉS sur la longueur courante : ils sont
+     souvent plus courts que les prestations, parce qu'on ne pose une main ou
+     une remise que là où il y en a une. */
+  const bougeLaLigne = (pos: number, vers: number | null) => {
+    if (pos < 0) return;
+    setServiceIds((ids) => rangeeBougee(ids, pos, vers));
+    setMains((prev) => rangeeBougee(serviceIds.map((_, k) => prev[k] ?? []), pos, vers));
+    setRemisesL((prev) => rangeeBougee(serviceIds.map((_, k) => prev[k] ?? null), pos, vers));
+  };
+  /* POSER UN RITUEL ENTIER remet les tableaux parallèles à zéro : les mains
+     disent QUI a travaillé ce jour-là, et une remise consentie sur l'ancienne
+     liste n'a aucun sens sur la nouvelle. Les laisser en place les collait à
+     des positions, donc à d'autres prestations. */
+  const poseLesPrestations = (ids: string[]) => {
+    setServiceIds(ids);
+    setMains([]);
+    setRemisesL([]);
+  };
   const [noteOuverte, setNoteOuverte] = useState(!!appt?.note?.trim());
   const [equipe] = useStaff();
   const mainsDe = (i: number) => mains[i] ?? [];
@@ -2677,10 +2718,7 @@ export function RdvModal({
                   const duree = m.ids.reduce((s, id) => s + (byId.get(id)?.durationMin ?? 0), 0);
                   const pose = [...m.ids].sort().join('|') === [...serviceIds].sort().join('|');
                   const poser = () => {
-                    setServiceIds(m.ids);
-                    /* Les mains repartent à zéro : elles disent QUI a travaillé
-                       ce jour-là, pas ce qui se répète. */
-                    setMains([]);
+                    poseLesPrestations(m.ids);
                     if (m.master) setMaster(m.master);
                     setModeleAConfirmer(null);
                   };
@@ -2815,16 +2853,7 @@ export function RdvModal({
                          qu'un rendez-vous ancien en porte une. */
                       onClick={() => {
                         const pos = serviceIds.indexOf(sv.id);
-                        if (pos <= 0) return;
-                        /* LES MAINS SUIVENT LEUR GESTE. Les deux tableaux sont
-                           paralleles : deplacer l'un sans l'autre attribuerait
-                           le travail d'une personne a la prestation voisine. */
-                        setServiceIds((ids) => { const n = [...ids]; [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]]; return n; });
-                        setMains((prev) => {
-                          const n = serviceIds.map((_, k) => prev[k] ?? []);
-                          [n[pos - 1], n[pos]] = [n[pos], n[pos - 1]];
-                          return n;
-                        });
+                        if (pos > 0) bougeLaLigne(pos, pos - 1);
                       }}
                       disabled={i === 0}
                       aria-label="Monter cette prestation"
@@ -2836,13 +2865,7 @@ export function RdvModal({
                     <button
                       onClick={() => {
                         const pos = serviceIds.indexOf(sv.id);
-                        if (pos < 0 || pos >= serviceIds.length - 1) return;
-                        setServiceIds((ids) => { const n = [...ids]; [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]]; return n; });
-                        setMains((prev) => {
-                          const n = serviceIds.map((_, k) => prev[k] ?? []);
-                          [n[pos], n[pos + 1]] = [n[pos + 1], n[pos]];
-                          return n;
-                        });
+                        if (pos >= 0 && pos < serviceIds.length - 1) bougeLaLigne(pos, pos + 1);
                       }}
                       disabled={i >= chosen.length - 1}
                       aria-label="Descendre cette prestation"
@@ -2853,11 +2876,7 @@ export function RdvModal({
                     </button>
                   </span>
                   <button
-                    onClick={() => {
-                      const pos = serviceIds.indexOf(sv.id);
-                      setServiceIds((ids) => ids.filter((_, k) => k !== pos));
-                      setMains((prev) => serviceIds.map((_, k) => prev[k] ?? []).filter((_, k) => k !== pos));
-                    }}
+                    onClick={() => bougeLaLigne(serviceIds.indexOf(sv.id), null)}
                     aria-label="Retirer"
                     style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13 }}
                   >
