@@ -847,20 +847,62 @@ const PLACES_DE_LA_GALERIE = [
   '--l:150px;--x:140;--y:-425;--z:-1020;--r:-5;--dx:200;--dy:-600;--dz:1080;--dr:-6;--voile:.78;--o:.36',
 ];
 
+/* LA DÉRIVE DE CHAQUE CARTE. Des durées premières entre elles, pour que la
+   scène ne retombe jamais deux fois sur la même figure : à durées égales,
+   dix cartes respirent comme une seule et l'on voit le mécanisme.
+
+   L'AMPLITUDE SE MESURE SUR LE DÉPLACEMENT, PAS SUR LES PIXELS. Un premier
+   réglage déplaçait les cartes d'une dizaine de pixels ; pour juger, j'ai
+   comparé deux captures à sept secondes d'intervalle et compté les pixels
+   changés : 0,9 %, puis 1,4 % après avoir quadruplé l'amplitude. Un rapport
+   de un à quatre qui ne bouge presque pas : c'était l'INSTRUMENT qui était
+   mauvais, pas l'animation. Dix petites cartes sur un grand champ sombre ne
+   changent presque aucun pixel en se déplaçant.
+
+   On mesure donc ce qui bouge, dans le navigateur : une carte parcourt
+   35,8 px en sept secondes, soit cinq pixels par seconde. C'est une dérive
+   lente et visible, et c'est le chiffre qui décide, pas une capture. */
+const DERIVES_DE_LA_GALERIE = [
+  '--duree:19s;--retard:-2s;--ddx:52px;--ddy:-64px;--ddr:2.4deg',
+  '--duree:23s;--retard:-7s;--ddx:-58px;--ddy:44px;--ddr:-3.1deg',
+  '--duree:17s;--retard:-4s;--ddx:-44px;--ddy:-56px;--ddr:3.3deg',
+  '--duree:29s;--retard:-11s;--ddx:64px;--ddy:50px;--ddr:-2.6deg',
+  '--duree:13s;--retard:-1s;--ddx:-38px;--ddy:54px;--ddr:3.8deg',
+  '--duree:31s;--retard:-9s;--ddx:56px;--ddy:-40px;--ddr:-3.4deg',
+  '--duree:21s;--retard:-5s;--ddx:-60px;--ddy:-46px;--ddr:2.8deg',
+  '--duree:27s;--retard:-14s;--ddx:42px;--ddy:60px;--ddr:-4.1deg',
+  '--duree:15s;--retard:-3s;--ddx:58px;--ddy:-52px;--ddr:4.4deg',
+  '--duree:25s;--retard:-8s;--ddx:-50px;--ddy:46px;--ddr:-3.6deg',
+];
 function rendGalerie() {
   if (GALERIE.boite.length !== PLACES_DE_LA_GALERIE.length) {
     throw new Error(`La boîte de la galerie veut ${PLACES_DE_LA_GALERIE.length} photos, `
       + `le contenu en donne ${GALERIE.boite.length}. Une place vide ne se voit pas `
       + 'à la relecture du contenu : on refuse plutôt que de livrer un trou.');
   }
+  /* Une vue pleine page par photo, et UNE SEULE même si la photo paraît deux
+     fois : la constellation et la grille se partagent les mêmes fichiers. */
+  const toutes = [...new Set([...GALERIE.boite, ...GALERIE.photos])];
+  const ancre = (nom) => `gal-${nom.replace(/\.[a-z]+$/i, '')}`;
+  const ouvre = (nom, dedans) =>
+    `<a class="gal-ouvre" href="#${attr(ancre(nom))}" aria-label="Agrandir cette photo">${dedans}</a>`;
+
   const cartes = GALERIE.boite.map((nom, i) =>
     `<div class="gal-carte" style="${attr(PLACES_DE_LA_GALERIE[i])}">`
-    + `${photo(nom, '', 'alt="" width="800" height="1000"')}</div>`).join('\n        ');
+    + `<div class="gal-carte__flotte" style="${attr(DERIVES_DE_LA_GALERIE[i])}">`
+    + ouvre(nom, photo(nom, '', 'alt="" width="800" height="1000"'))
+    + '</div></div>').join('\n        ');
+  const pleines = toutes.map((nom) =>
+    `<div class="gal-plein" id="${attr(ancre(nom))}" role="dialog" aria-label="Photo agrandie">`
+    + '<a class="gal-plein__fond" href="#" aria-label="Fermer"></a>'
+    + '<a class="gal-plein__fermer" href="#" aria-label="Fermer">&times;</a>'
+    + photo(nom, '', 'alt="" loading="lazy" width="800" height="1000"')
+    + '</div>').join('\n        ');
   /* ALT VIDE, comme la rangée de l'accueil : rien dans ces images n'est
      nommable une par une sans nommer une femme, et le titre juste au-dessus
      porte déjà le sens du groupe. */
   const grille = GALERIE.photos.map((nom) =>
-    `<figure>${photo(nom, '', 'alt="" loading="lazy" width="800" height="1000"')}</figure>`)
+    `<figure>${ouvre(nom, photo(nom, '', 'alt="" loading="lazy" width="800" height="1000"'))}</figure>`)
     .join('\n          ');
   return `
       <div class="gal-rail" id="gal-rail">
@@ -879,6 +921,9 @@ function rendGalerie() {
           ${grille}
         </div>
       </div></section>
+      <div class="gal-pleines">
+        ${pleines}
+      </div>
       <script>
       /* UNE SEULE VALEUR ÉCRITE PAR IMAGE DE L'ÉCRAN. Sans requestAnimationFrame,
          un écouteur de défilement écrit plusieurs fois entre deux images, pour

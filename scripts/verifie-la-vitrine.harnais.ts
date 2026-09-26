@@ -153,10 +153,36 @@ dit('… le HTML les pose toutes, script ou pas', [],
   GALERIE.boite.filter((f) => !galerie.includes(`photos/site/${f}`)));
 dit('… et la grille aussi', [],
   GALERIE.photos.filter((f) => !galerie.includes(`photos/site/${f}`)));
-/* Le premier écran ne se charge pas en différé : une image qu'on voit tout
-   de suite ne s'attend pas. La grille du dessous, elle, doit l'être. */
-dit('… la grille se charge en différé, la constellation non', true,
-  (galerie.match(/loading="lazy"/g) ?? []).length === GALERIE.photos.length);
+/* Le premier écran ne se charge pas en différé : une image qu'on voit tout de
+   suite ne s'attend pas. Tout le reste, si — la grille comme les vues pleine
+   page, qui sont cachées jusqu'au clic.
+
+   LE CONTRÔLE DIT L'INTENTION, PAS UN NOMBRE. Il comptait les `lazy` et les
+   comparait au nombre de photos de la grille ; le jour où les vues pleine
+   page sont arrivées, il a crié sur une page juste. Un compte est une
+   coïncidence, une règle est une règle. */
+const dansLaConstellation = (galerie.match(/<div class="gal-carte"[\s\S]*?<\/div><\/div>/g) ?? []).join('');
+dit('la constellation ne diffère aucune de ses images', false,
+  dansLaConstellation.includes('loading="lazy"'));
+const figures = galerie.match(/<figure>[\s\S]*?<\/figure>/g) ?? [];
+dit('… la grille les diffère toutes', [],
+  figures.filter((f) => !f.includes('loading="lazy"')));
+const vues = galerie.match(/<div class="gal-plein"[\s\S]*?<\/div>/g) ?? [];
+dit('… et les vues pleine page aussi', [],
+  vues.filter((v) => !v.includes('loading="lazy"')));
+/* CHAQUE PHOTO S'OUVRE, et sans script : une ancre par photo, une vue par
+   ancre. Une galerie qui ne s'ouvrirait qu'avec du JavaScript ne s'ouvrirait
+   pas du tout le jour où il ne part pas. */
+const ancres = new Set([...galerie.matchAll(/class="gal-ouvre" href="#([^"]+)"/g)].map((m) => m[1]));
+const vuesId = new Set([...galerie.matchAll(/class="gal-plein" id="([^"]+)"/g)].map((m) => m[1]));
+dit('chaque photo cliquable mène à une vue qui existe', [],
+  [...ancres].filter((a) => !vuesId.has(a)));
+dit('… et aucune vue ne traîne sans photo qui y mène', [],
+  [...vuesId].filter((v) => !ancres.has(v)));
+dit('… toutes les photos de la galerie sont cliquables',
+  photosDeLaGalerie.length, ancres.size);
+dit('… et chaque vue se referme', [],
+  vues.filter((v) => !v.includes('href="#" aria-label="Fermer"')));
 dit('… le menu mène à la galerie', true,
   COMMUN.nav.some((l: { vers: string }) => l.vers === '/galerie/'));
 /* AUCUN PRÉNOM, comme partout ailleurs sur ce site. Le contrôle ne porte que

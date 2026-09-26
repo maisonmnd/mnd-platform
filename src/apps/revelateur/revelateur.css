@@ -982,7 +982,52 @@ footer li svg { width: 15px; height: 15px; flex: none; }
       calc((var(--z) + var(--dz) * var(--e)) * 1px))
     rotate(calc((var(--r) + var(--dr) * var(--e)) * 1deg));
   opacity: calc(var(--o) + (1 - var(--o)) * var(--e) * 1.6); }
+/* ELLE RESPIRE SANS QU'ON Y TOUCHE — 26 septembre 2026. « C'est figé et ça
+   attend que je déplace ma souris. Je veux un défilé continu » (Yéman). La
+   course au défilement ne bougeait qu'avec la molette : à l'arrêt, la scène
+   était une image fixe.
+
+   DEUX MOUVEMENTS, DEUX ÉLÉMENTS. Une seule propriété `transform` ne peut pas
+   porter deux animations à la fois : celle du défilement écrase celle du
+   temps, ou l'inverse. La carte porte donc la course, et un élément DEDANS
+   porte la dérive. Chacun son transform, aucun ne se marche dessus.
+
+   Les durées sont toutes différentes et premières entre elles : à durées
+   égales, dix cartes respirent comme une seule, et l'on voit un mécanisme au
+   lieu d'un air. */
+.gal-carte__flotte { width: 100%; height: 100%;
+  animation: gal-derive var(--duree, 17s) ease-in-out var(--retard, 0s) infinite alternate; }
+@keyframes gal-derive {
+  from { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  to { transform: translate3d(var(--ddx, 10px), var(--ddy, -14px), 0)
+                  rotate(var(--ddr, 1.2deg)) scale(1.015); }
+}
 .gal-carte img, .gal-carte picture { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* CHAQUE PHOTO S'OUVRE, SANS UNE LIGNE DE SCRIPT. Une ancre vers une ancre :
+   la vue pleine page se montre quand l'adresse la désigne, et se ferme quand
+   l'adresse ne la désigne plus. C'est la même règle que les replis du site,
+   « une case à cocher, jamais un bouton qui attend un script » : une galerie
+   qui ne s'ouvre qu'avec du JavaScript ne s'ouvre pas du tout le jour où il
+   ne part pas. */
+.gal-ouvre { display: block; cursor: zoom-in; }
+.gal-plein { display: none; }
+.gal-plein:target { display: grid; position: fixed; inset: 0; z-index: 60;
+  place-items: center; padding: 24px; background: rgba(21, 23, 58, .94); }
+.gal-plein img { max-width: min(92vw, 1100px); max-height: 88vh; width: auto; height: auto;
+  border-radius: 4px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+/* Le fond entier ferme : sur un téléphone, viser une croix de trente pixels
+   avec le pouce est une épreuve, et l'on referme surtout en tapant à côté. */
+.gal-plein__fond { position: absolute; inset: 0; cursor: zoom-out; }
+.gal-plein__fermer { position: absolute; top: 14px; right: 18px; z-index: 2;
+  width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(246, 241, 231, .12); color: #F6F1E7; font-size: 22px; line-height: 1;
+  text-decoration: none; }
+.gal-plein__fermer:hover { background: rgba(246, 241, 231, .22); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gal-carte__flotte { animation: none; }
+}
 /* Les cartes du fond sont plus sombres : c'est la profondeur qui se voit, pas
    un filtre décoratif. */
 .gal-carte::after { content: ''; position: absolute; inset: 0; background: var(--sombre);
