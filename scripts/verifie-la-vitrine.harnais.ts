@@ -329,11 +329,43 @@ const graphe = JSON.parse(accueil.match(/<script type="application\/ld\+json">([
 const fiche = graphe.find((n: { '@type': string }) => n['@type'] === 'HairSalon') ?? {};
 const comptes = (['instagram', 'facebook', 'tiktok', 'google'] as const).map((k) => COMMUN.comptes?.[k]).filter(Boolean);
 dit('la fiche structurée relie exactement les comptes que le contenu nomme', comptes, fiche.sameAs ?? []);
+/* UNE ADRESSE LUE DANS DU HTML SE DÉSÉCHAPPE — 26 septembre 2026. L'adresse de
+   la fiche Google porte maintenant un `&`, et le générateur l'écrit `&amp;`,
+   ce qui est la bonne façon de l'écrire : un navigateur relit bien `&`. Ce
+   contrôle, lui, comparait le texte brut de l'attribut et criait sur une page
+   juste. Aucune des adresses du pied n'avait jamais porté de `&` avant ce
+   jour, et le défaut dormait là depuis le début. */
+const deshtml = (t: string) => t.replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 dit('… le pied du site les porte, dans le même ordre, en nouvel onglet', comptes,
-  [...(accueil.split('<footer>')[1] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)].map((m) => m[1]));
+  [...(accueil.split('<footer>')[1] ?? '').matchAll(/<a href="([^"]+)" target="_blank" rel="noopener">/g)]
+    .map((m) => deshtml(m[1])));
 dit('… la position seulement si le contenu la connaît', COMMUN.position ?? null,
   fiche.geo ? { latitude: fiche.geo.latitude, longitude: fiche.geo.longitude } : null);
 dit('… la fiche Google est la carte', COMMUN.comptes?.google ?? null, fiche.hasMap ?? null);
+/* L'ADRESSE DE LA FICHE S'OUVRE SUR UN TÉLÉPHONE — 26 septembre 2026. Elle
+   s'écrivait `maps/place/?q=place_id:…`. L'application Maps l'attrape avant le
+   navigateur, prend l'identifiant pour du TEXTE À CHERCHER et affiche « No
+   results found » ; Yéman est tombé dessus, capture à l'appui. C'est une panne
+   qu'aucun contrôle de page ne voyait, parce que le lien EXISTE, pointe vers
+   google.com et rend 200 : seul son FORMAT est faux. On tient donc le format,
+   pas la présence. */
+const lienGoogle = COMMUN.comptes?.google ?? '';
+dit('la fiche Google s’écrit dans la forme que Google documente', true,
+  /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&/.test(lienGoogle));
+dit('… elle nomme le lieu par son identifiant', true, /[?&]query_place_id=[A-Za-z0-9_-]{10,}/.test(lienGoogle));
+dit('… et porte le `query` que Google exige', true, /[?&]query=[^&]+/.test(lienGoogle));
+dit('… plus jamais la forme que l’application prend pour une recherche', false,
+  lienGoogle.includes('place_id:'));
+/* LE REPLI TOMBE SUR LA PORTE. Si l'identifiant n'est pas honoré, c'est
+   `query` qui décide seul de ce qu'on trouve : il doit porter les coordonnées
+   de la Maison, pas celles d'ailleurs, et pas un nom qu'elle quitte. */
+const q = decodeURIComponent((lienGoogle.match(/[?&]query=([^&]+)/) ?? [])[1] ?? '');
+const [qLat, qLon] = q.split(',').map(Number);
+dit('… et son repli tombe sur la porte de la Maison', true,
+  Number.isFinite(qLat) && Number.isFinite(qLon)
+  && Math.abs(qLat - (COMMUN.position?.latitude ?? 0)) < 1e-5
+  && Math.abs(qLon - (COMMUN.position?.longitude ?? 0)) < 1e-5);
 dit('… un ordre de grandeur, jamais un chiffre', true, fiche.priceRange === '$$' && !/\d/.test(String(fiche.priceRange)));
 if (fiche.openingHoursSpecification) {
   dit('… les horaires écrits ouvrent avant de fermer, un jour au moins chacun', [],

@@ -40,9 +40,26 @@ export const COMMUN: Commun = {
   /* La fiche Google est celle de la Maison (inscrite sous son ancien nom,
      « M Natural Dreadlocks », jusqu'au renommage) ; l'identifiant de lieu
      est public, il vit dans l'adresse. Instagram et Facebook s'écriront ici
-     le jour où Yéman donnera l'adresse de la Page sous le nom Maison MND. */
+     le jour où Yéman donnera l'adresse de la Page sous le nom Maison MND.
+
+     L'ADRESSE A CHANGÉ DE FORME LE 26 SEPTEMBRE 2026, ET CE N'EST PAS UN
+     DÉTAIL. Elle s'écrivait `maps/place/?q=place_id:…`. Sur un téléphone,
+     l'application Maps l'attrape avant le navigateur, prend l'identifiant
+     pour du TEXTE À CHERCHER, et affiche « No results found » : Yéman est
+     tombé dessus. Le format ci-dessous est celui que Google documente pour
+     ouvrir une fiche (« Search for a place using a place ID ») ; `api=1` et
+     `query` y sont l'un et l'autre obligatoires.
+
+     `query` PORTE LES COORDONNÉES, PAS LE NOM, et c'est délibéré. Ce champ
+     est le repli : si l'identifiant n'est pas honoré, il décide seul de ce
+     qu'on trouve. Un nom y mettrait « M Natural Dreadlocks », celui que la
+     Maison quitte, et l'écrirait dans une adresse publique. Les coordonnées
+     ne portent aucun nom et tombent sur la porte. Elles sont celles de
+     `position`, ci-dessous, à six décimales, et `verifie-la-vitrine` refuse
+     qu'elles s'en écartent. */
   comptes: {
-    google: 'https://www.google.com/maps/place/?q=place_id:ChIJbwIfV9hVIxARgS3WzgGq9kM',
+    google: 'https://www.google.com/maps/search/?api=1&query=6.376295,2.463199'
+      + '&query_place_id=ChIJbwIfV9hVIxARgS3WzgGq9kM',
   },
   /* La position de la porte, lue par Yéman sur Google Maps le 24 septembre
      2026 (clic droit sur l'épingle de la Maison) : la fiche structurée la
