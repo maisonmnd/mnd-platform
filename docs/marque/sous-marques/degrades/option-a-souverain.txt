@@ -1,0 +1,9 @@
+Option A · Souverain
+tout vient de la palette existante : sobre, cohérent avec la Maison, moins visible de loin
+
+Arrêts : #1E2150 → #1F4D62 → #6E283C → #B97A4A
+
+CSS :
+  background: linear-gradient(to right, #1E2150 0.0%, #1F4D62 33.3%, #6E283C 66.7%, #B97A4A 100.0%);
+
+Le verrou se pose sur le DÉBUT du bain, jamais sur sa fin : l'ivoire y tient 8.1 pour 1, contre 3.1 à l'autre bout.

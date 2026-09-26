@@ -1,0 +1,9 @@
+Option B · Vif
+part de l'Indigo Royal puis s'ouvre en violet, framboise, corail, or : lumineux, festif, se voit sur une affiche ou un écran
+
+Arrêts : #1E2150 → #5B3FA6 → #C2306E → #E8683A → #E9844C
+
+CSS :
+  background: linear-gradient(to right, #1E2150 0.0%, #5B3FA6 25.0%, #C2306E 50.0%, #E8683A 75.0%, #E9844C 100.0%);
+
+Le verrou se pose sur le DÉBUT du bain, jamais sur sa fin : l'ivoire y tient 5.3 pour 1, contre 2.4 à l'autre bout.
