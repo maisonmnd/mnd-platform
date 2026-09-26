@@ -80,7 +80,19 @@ section.serre { padding-top: 0; }
 /* ── boutons ─────────────────────────────────────────────────────── */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; font-family: var(--sans); font-weight: 400; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; padding: 13px 22px; border-radius: var(--r); border: 1px solid var(--accent); color: var(--accent-profond); background: transparent; cursor: pointer; transition: background var(--t), color var(--t), transform var(--t); text-align: center; }
 .btn:hover { background: var(--accent-voile); }
-.btn:active { transform: translateY(1px); }
+/* RIEN NE S'ENFONCE, RIEN NE FLASHE — 26 septembre 2026. « On ne doit pas
+   sentir qu'on clique un bouton, le fond ne doit pas devenir bleu » (Yéman).
+
+   Deux causes, deux lignes. Le bouton descendait d'un pixel à l'appui : c'est
+   la sensation de mécanique qu'on ne veut plus. Et le navigateur d'un
+   téléphone pose de lui-même un voile bleu ou gris sur tout ce qu'on touche,
+   `-webkit-tap-highlight-color`, tant que la feuille ne lui dit pas de s'en
+   abstenir : c'est le fond « qui devient bleu ». On l'éteint partout où l'on
+   touche, et l'on garde le liseré de focus au clavier, qui n'a rien à voir et
+   que quelqu'un qui navigue à la tabulation ne peut pas perdre. */
+.btn:active { transform: none; }
+a, button, label, input, select, textarea, summary, [role="button"] {
+  -webkit-tap-highlight-color: transparent; }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
 .btn--plein:hover { filter: brightness(1.06); background: var(--accent); }
@@ -174,10 +186,11 @@ section.serre { padding-top: 0; }
 .barre .btn { white-space: nowrap; }
 @media (max-width: 349px) { .barre .verrou__mots { display: none; } }
 .nav { margin-left: auto; display: flex; gap: 2px; }
-.nav a { font-size: 13px; color: var(--texte); padding: 8px 10px; border-radius: var(--r); font-weight: 400; }
+.nav a { font-size: 13px; color: var(--texte); padding: 8px 10px; border-radius: var(--r); font-weight: 400;
+  transition: background var(--t), color var(--t); }
 .nav a:hover, .nav a[aria-current="page"] { background: var(--accent-voile); color: var(--titre); }
 .barre .btn { padding: 10px 16px; min-height: 40px; font-size: 11px; }
-@media (max-width: 860px) { .nav { display: none; } .barre .btn { margin-left: auto; } }
+@media (max-width: 860px) { .barre .btn { margin-left: auto; } }
 
 /* ── le grand écran ──────────────────────────────────────────────── */
 .hero { padding-block: clamp(36px, 5vw, 72px); }
@@ -802,7 +815,15 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    l'accueil aussi en grand, où l'entête est posée sur la photo. */
 .barre .conteneur { position: relative; }
 .menu-bouton { display: none; width: 44px; height: 44px; margin-left: -8px; background: none; border: 0; padding: 0; cursor: pointer; place-content: center; gap: 7px; }
-.menu-bouton span { display: block; width: 26px; height: 1.5px; background: var(--titre); transition: background var(--t); }
+.menu-bouton span { display: block; width: 26px; height: 1.5px; background: var(--titre);
+  transition: background var(--t), transform .28s cubic-bezier(.2, .7, .2, 1), opacity .2s ease; }
+/* Les trois traits deviennent une croix : le bouton dit lui-même qu'il ferme.
+   Les traits sont espacés de 8,5 pixels de centre à centre (7 de blanc et 1,5
+   d'épaisseur) : c'est de cette distance que le premier et le troisième se
+   rejoignent au milieu. */
+.menu-etat:checked ~ .menu-bouton span:nth-child(1) { transform: translateY(8.5px) rotate(45deg); }
+.menu-etat:checked ~ .menu-bouton span:nth-child(2) { opacity: 0; transform: scaleX(.4); }
+.menu-etat:checked ~ .menu-bouton span:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); }
 .tel { display: none; width: 44px; height: 44px; place-items: center; color: var(--titre); border-radius: 999px; margin-left: auto; transition: background var(--t), color var(--t); }
 .tel:hover { background: var(--accent-voile); }
 .tel svg { width: 22px; height: 22px; }
@@ -810,8 +831,32 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    le HTML et seulement REPLIÉS par la feuille, la navigation survit à un
    script qui tarde ou qui manque. main.ts n'ajoute que la fermeture au clic
    ailleurs et à Échap. */
-.menu-etat:checked ~ .nav { display: flex; flex-direction: column; gap: 2px; position: absolute; top: calc(100% + 6px); left: clamp(18px, 4vw, 40px); min-width: 250px; background: var(--carte); border-radius: 6px; box-shadow: var(--ombre); padding: 10px; z-index: 30; margin: 0; }
-.menu-etat:checked ~ .nav a { font-size: 15px; padding: 10px 14px; }
+/* LE MENU DESCEND, IL N'APPARAÎT PAS — 26 septembre 2026. « Quand je clique
+   le menu, il doit descendre avec une animation » (Yéman). Il basculait par
+   `display`, qui ne s'anime pas : fermé, il n'existait pas ; ouvert, il était
+   là d'un coup.
+
+   Le menu replié EXISTE désormais toujours, posé en absolu sous la barre,
+   donc hors du flux et sans place prise : simplement transparent, remonté de
+   dix pixels, et invisible aux doigts comme à la tabulation (`visibility`).
+   Cocher la case le laisse descendre à sa place en s'opacifiant. La
+   `visibility` bascule tout de suite à l'ouverture et seulement à la FIN de
+   la fermeture : sans ce délai, le menu disparaîtrait avant d'avoir fini de
+   remonter.
+
+   Le volet vaut sous 860 pixels, et sur l'accueil plein écran à toute
+   largeur. Ailleurs, la barre garde ses liens en ligne et rien ici ne la
+   touche. */
+@media (max-width: 860px) {
+  .nav { display: flex; flex-direction: column; gap: 2px; position: absolute; top: calc(100% + 6px);
+    left: clamp(18px, 4vw, 40px); min-width: 250px; background: var(--carte); border-radius: 6px;
+    box-shadow: var(--ombre); padding: 10px; z-index: 30; margin: 0;
+    opacity: 0; transform: translateY(-10px); visibility: hidden; pointer-events: none;
+    transition: opacity .28s ease, transform .28s cubic-bezier(.2, .7, .2, 1), visibility 0s linear .28s; }
+  .nav a { font-size: 15px; padding: 10px 14px; }
+  .menu-etat:checked ~ .nav { opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+    transition: opacity .28s ease, transform .28s cubic-bezier(.2, .7, .2, 1), visibility 0s; }
+}
 .menu-etat:focus-visible ~ .menu-bouton, .menu-bouton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 @media (max-width: 860px) { .menu-bouton { display: grid; } .tel { display: grid; } .barre .btn { margin-left: 0; } }
 
@@ -835,8 +880,15 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 /* Sur l'accueil la barre est plus haute : le verrou y prend un cran de plus. */
 .accueil-plein .barre .verrou { --sigle: 32px; }
 .accueil-plein .barre .verrou img { height: calc(var(--sigle) * 1.5833); }
-.accueil-plein .nav { display: none; }
-.accueil-plein .menu-etat:checked ~ .nav { display: flex; }
+/* Sur l'accueil plein écran, le même volet, à toute largeur. */
+.accueil-plein .nav { display: flex; flex-direction: column; gap: 2px; position: absolute; top: calc(100% + 6px);
+  left: clamp(18px, 4vw, 40px); min-width: 250px; background: var(--carte); border-radius: 6px;
+  box-shadow: var(--ombre); padding: 10px; z-index: 30; margin: 0;
+  opacity: 0; transform: translateY(-10px); visibility: hidden; pointer-events: none;
+  transition: opacity .28s ease, transform .28s cubic-bezier(.2, .7, .2, 1), visibility 0s linear .28s; }
+.accueil-plein .nav a { font-size: 15px; padding: 10px 14px; }
+.accueil-plein .menu-etat:checked ~ .nav { opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+  transition: opacity .28s ease, transform .28s cubic-bezier(.2, .7, .2, 1), visibility 0s; }
 .accueil-plein .menu-bouton, .accueil-plein .tel { display: grid; }
 .accueil-plein .barre .btn { margin-left: 0; }
 @media (max-width: 860px) { .accueil-plein .barre .btn { display: none; } }
@@ -1068,9 +1120,18 @@ body.galerie-plein { scroll-behavior: smooth; }
    qui ne s'ouvre qu'avec du JavaScript ne s'ouvre pas du tout le jour où il
    ne part pas. */
 .gal-ouvre { display: block; cursor: zoom-in; }
-.gal-plein { display: none; }
-.gal-plein:target { display: grid; position: fixed; inset: 0; z-index: 60;
+/* La vue pleine page s'ouvre en fondu là où le navigateur sait animer un
+   passage par `display` (`@starting-style`, Chrome 117, Safari 17.5,
+   Firefox 129) ; ailleurs elle s'ouvre d'un coup, comme avant, sans rien
+   casser. C'est une amélioration progressive, pas une dépendance. */
+.gal-plein { display: none; opacity: 0;
+  transition: opacity .3s ease, display .3s allow-discrete; }
+.gal-plein:target { display: grid; position: fixed; inset: 0; z-index: 60; opacity: 1;
   place-items: center; padding: 24px; background: rgba(21, 23, 58, .94); }
+@starting-style { .gal-plein:target { opacity: 0; } }
+.gal-plein img { transform: scale(.96); transition: transform .3s cubic-bezier(.2, .7, .2, 1); }
+.gal-plein:target img { transform: none; }
+@starting-style { .gal-plein:target img { transform: scale(.96); } }
 .gal-plein img { max-width: min(92vw, 1100px); max-height: 88vh; width: auto; height: auto;
   border-radius: 4px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
 /* Le fond entier ferme : sur un téléphone, viser une croix de trente pixels
@@ -1115,4 +1176,11 @@ body.galerie-plein { scroll-behavior: smooth; }
   .gal-carte { transform: translate3d(calc(var(--x) * var(--k) * 1px),
       calc(var(--y) * var(--k) * 1px), 0) rotate(calc(var(--r) * 1deg)); opacity: var(--o); }
   .gal-carte::after { opacity: var(--voile); }
+}
+
+/* QUI DEMANDE MOINS DE MOUVEMENT le reçoit ici aussi : le menu s'ouvre sans
+   glisser, la vue pleine page sans fondu. Rien ne bouge, tout s'ouvre. */
+@media (prefers-reduced-motion: reduce) {
+  .nav, .menu-etat:checked ~ .nav, .accueil-plein .nav, .accueil-plein .menu-etat:checked ~ .nav,
+  .menu-bouton span, .gal-plein, .gal-plein img { transition: none; }
 }
