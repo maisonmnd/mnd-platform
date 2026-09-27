@@ -1,4 +1,5 @@
 import { createStore, useStore, HOUSE_BLANK } from '../../../../shared/store';
+import type { RetenueCompteCourant } from '../../../../shared/compte-courant';
 import { DEVISE_COMPLETE } from '../../../../shared/identite';
 import type { PaymentMethod } from '../../../../shared/finance';
 import type { Appointment } from '../../../../shared/agenda';
@@ -156,6 +157,13 @@ export type StaffMember = {
   cnssNum?: string;     // n° CNSS
   ifu?: string;         // identifiant fiscal unique
   contractType?: 'CDI' | 'CDD' | 'apprentissage' | 'prestataire';
+  /** ASSOCIÉ DE LA SOCIÉTÉ — 27 septembre 2026 au soir. Coché par la
+      direction sur la fiche ; ouvre sa page au compte courant d'associé
+      (Finances). Ses retenues prévues vivent ici, sur sa fiche, et non dans
+      une table neuve : la veille d'un changement de société, on ne passe pas
+      de migration. Voir `shared/compte-courant`. */
+  associe?: boolean;
+  retenuesCompteCourant?: RetenueCompteCourant[];
   atelier?: string;     // atelier d'affectation (Cotonou, Calavi…)
   commissionPct?: number; // taux de commission sur prestations encaissées
   paiement?: string;    // mode/coordonnées de règlement (Mobile Money / banque)

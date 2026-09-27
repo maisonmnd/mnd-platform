@@ -4,6 +4,8 @@ import { normName, sameName } from '../../../../shared/text';
 import { Button, Card, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { pushNotifyStaff } from '../../../../shared/push';
 import { todayISO } from '../clients/_shared';
+import { retenuePrevueDuCompteCourant, retenueApplicable, appliqueLaRetenue } from '../../../../shared/compte-courant';
+import { staffStore } from './data';
 import { downloadCsv } from '../finances/_shared';
 import { summaryPdf, bulletinEnPiece, type PayslipData, type PayslipRow } from '../../../../shared/pdf';
 import { maisonNom, signeLeMessage } from '../../../../shared/identite';
@@ -171,7 +173,15 @@ export function PaieRuns() {
       const prevu = retenuePrevueDuMois(lesPrets, branch.id, { id: s.id, nom: s.name, baseXof: s.salaireXof ?? 0 }, period);
       const plafond = prevu ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: 0 }, p).net, p) : null;
       const retenuePret = prevu ? Math.min(prevu.prevuXof, plafond ?? prevu.prevuXof) : 0;
-      const deductions: PayDeductions = { avance, autresRetenues: 0, retenuePret };
+      /* LE COMPTE COURANT D'ASSOCIÉ — 27 septembre 2026 au soir. La retenue
+         posée depuis le relevé pour cette période arrive ici, bornée par le
+         même plafond que le prêt, une fois le prêt servi : la loi plafonne
+         ce qu'on retient d'un salaire, prêt et compte courant ensemble. Ce
+         que le plafond ne laisse pas passer se reporte au règlement. */
+      const prevueCC = retenuePrevueDuCompteCourant(s.retenuesCompteCourant ?? [], period);
+      const plafondCC = prevueCC > 0 ? plafondDeLaRetenue(computePay(gains, { avance, autresRetenues: 0 }, p).net, p) : null;
+      const retenueCompteCourant = retenueApplicable(prevueCC, plafondCC, retenuePret);
+      const deductions: PayDeductions = { avance, autresRetenues: 0, retenuePret, ...(retenueCompteCourant > 0 ? { retenueCompteCourant } : {}) };
       const ligne: PayrollLine = {
         employeeId: s.id, name: s.name, poste: s.role, matricule: s.matricule,
         cnssNum: s.cnssNum, paiement: s.paiement,
@@ -367,7 +377,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
       ? [
         { label: 'Facture acceptée', value: pdfMoney(g.base) },
         ...ligne('Bonus, hors facture', g.prime), ...ligne('Pourboires', g.pourboires),
-        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow,
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow, ...ligne('Compte courant d’associé', d.retenueCompteCourant ?? 0, true),
       ]
       : [
         { label: 'Salaire de base', value: pdfMoney(g.base) },
@@ -375,7 +385,7 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
         ...ligne('Commission', g.commission), ...ligne('Pourboires', g.pourboires),
         ...ligne('Indemnités', g.indemnites),
         ...ligne('CNSS (part salariale)', r.cnssSalariale, true), ...ligne('ITS (impôt sur le salaire)', r.its, true),
-        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow,
+        ...ligne('Avances déduites', d.avance, true), ...ligne('Retenues', d.autresRetenues, true), ...pretRow, ...ligne('Compte courant d’associé', d.retenueCompteCourant ?? 0, true),
       ];
     const periode = frPeriod(run.period);
     return {
@@ -534,6 +544,17 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
      ferait entrer deux fois. L’identifiant est DÉTERMINISTE — rejouer le
      règlement ne double pas le remboursement. */
   const inscrireLesRetenues = () => {
+    /* LE COMPTE COURANT D'ASSOCIÉ : le run réglé applique, sur la fiche de
+       chaque associé, les retenues prévues de la période, et reporte ce que
+       le plafond a retenu. Déterministe par l'identifiant du run. */
+    const jourDuReglement = (run.paidAt ?? nowStamp()).slice(0, 10);
+    for (const l of lines) {
+      const cc = l.deductions.retenueCompteCourant ?? 0;
+      if (!(cc > 0)) continue;
+      staffStore.set((prev) => prev.map((m) => (m.id === l.employeeId
+        ? { ...m, retenuesCompteCourant: appliqueLaRetenue(m.retenuesCompteCourant ?? [], run.period, run.id, cc, jourDuReglement) }
+        : m)));
+    }
     const nouvelles: Pret[] = [];
     for (const l of lines) {
       /* SA PROPRE LIGNE DEPUIS LE 18 SEPTEMBRE. Avant, la retenue du prêt
@@ -948,6 +969,9 @@ function RunDetail({ run, orphanMasters = [], onClose }: { run: PayrollRun; orph
                   {(l.deductions.retenuePret ?? 0) > 0 && (
                     <div style={{ fontSize: 10.5 }}>dont prêt {fmtMoney(l.deductions.retenuePret ?? 0, currency)}</div>
                   )}
+                  {(l.deductions.retenueCompteCourant ?? 0) > 0 && (
+                    <div style={{ fontSize: 10.5 }}>dont compte courant {fmtMoney(l.deductions.retenueCompteCourant ?? 0, currency)}</div>
+                  )}
                   {l.pret && (l.deductions.retenuePret ?? 0) < l.pret.prevuXof && (
                     <div style={{ fontSize: 10.5, color: 'var(--color-copper)' }}>
                       {fmtMoney(l.pret.prevuXof - (l.deductions.retenuePret ?? 0), currency)} reportés en fin de prêt
@@ -1002,6 +1026,7 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
   const [d, setD] = useState({
     avance: String(line.deductions.avance), autresRetenues: String(line.deductions.autresRetenues),
     retenuePret: String(line.deductions.retenuePret ?? 0),
+    retenueCompteCourant: String(line.deductions.retenueCompteCourant ?? 0),
   });
   const gains: PayGains = { base: digits(g.base), heuresSup: digits(g.heuresSup), prime: digits(g.prime), pourboires: digits(g.pourboires), commission: digits(g.commission), indemnites: digits(g.indemnites) };
   /* LE CHAMP DU PRÊT n'existe que sur une ligne qui en porte un : les runs
@@ -1010,6 +1035,7 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
   const deductions: PayDeductions = {
     avance: digits(d.avance), autresRetenues: digits(d.autresRetenues),
     ...(line.deductions.retenuePret != null || aUnPret ? { retenuePret: digits(d.retenuePret) } : {}),
+    ...(line.deductions.retenueCompteCourant != null ? { retenueCompteCourant: digits(d.retenueCompteCourant) } : {}),
   };
   /* L'aperçu calcule avec les MÊMES barèmes que l'enregistrement (ceux en vigueur
      pour la période du run) — avec la graine, il mentait dès que le comptable
@@ -1050,6 +1076,11 @@ function LineEditor({ line, bareme, onClose, onSave }: { line: PayrollLine; bare
         <div className="tr-grid tr-grid--2">
           <Field label="Avance sur salaire"><Input inputMode="numeric" value={d.avance} onChange={(e) => setD({ ...d, avance: e.target.value })} /></Field>
           <Field label="Autre retenue"><Input inputMode="numeric" value={d.autresRetenues} onChange={(e) => setD({ ...d, autresRetenues: e.target.value })} /></Field>
+        {line.deductions.retenueCompteCourant != null && (
+          <Field label="Compte courant d’associé (F CFA)">
+            <Input inputMode="numeric" value={d.retenueCompteCourant} onChange={(e) => setD({ ...d, retenueCompteCourant: e.target.value })} />
+          </Field>
+        )}
         </div>
         {aUnPret && (
           <>

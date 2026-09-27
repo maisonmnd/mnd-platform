@@ -122,6 +122,12 @@ export const NAV: TroneGroup[] = [
          pas forcément une cliente. Les mêler faisait lire le titre pour savoir
          de quel côté penchait la somme. */
       { path: '/prets', label: 'Les prêts', icon: PoigneeDeMain, Component: lazy(() => import('./finances/Prets')) },
+      /* LE COMPTE COURANT D'ASSOCIÉ — 27 septembre 2026 au soir, la veille du
+         passage en société. Ce que la Maison avance pour un associé, ce qu'il
+         rend, ce que ses bulletins retiennent. Pas dans ANCIENS_DOMAINES :
+         cette table est une photographie, le département « Finances » ouvre
+         l'écran. */
+      { path: '/compte-courant', label: 'Compte courant', icon: Landmark, Component: lazy(() => import('./finances/CompteCourant')) },
       /* Ce que la Maison commande à un prestataire — 15 septembre 2026. */
       { path: '/engagements', label: 'Les engagements', icon: Hammer, Component: lazy(() => import('./vente/Engagements')) },
       { path: '/depenses', label: 'Dépenses', icon: ReceiptText, Component: lazy(() => import('./finances/Depenses')) },

@@ -148,6 +148,11 @@ export type PayDeductions = {
       ce qui remboursait un prêt. ABSENT sur les runs d'avant, dont la
       retenue de prêt reste lue dans `autresRetenues` (inscrireLesRetenues). */
   retenuePret?: number;
+  /** LA RETENUE DU COMPTE COURANT D'ASSOCIÉ — 27 septembre 2026 au soir. Ce
+      que l'associé rend à la Maison par son bulletin, posé depuis le relevé
+      (Finances → Compte courant) et lu à la création du run. Distinct du
+      prêt : le bulletin le nomme, et le relevé le compte au règlement. */
+  retenueCompteCourant?: number;
 };
 
 export type PayResult = {
@@ -269,7 +274,7 @@ export function computePay(gains: PayGains, ded: PayDeductions, p: PayrollParame
   const actif = cnssEstActive(p);
   const cnssSalariale = actif ? round(brut * p.cnssSalarialePct / 100) : 0;
   const its = itsEstActif(p) ? computeIts(brut, p.its) : 0;
-  const retenues = round(ded.avance + ded.autresRetenues + (ded.retenuePret ?? 0));
+  const retenues = round(ded.avance + ded.autresRetenues + (ded.retenuePret ?? 0) + (ded.retenueCompteCourant ?? 0));
   const net = brut - cnssSalariale - its - retenues;
   /* Éteinte, la part patronale tombe aussi : sans déclaration, l'employeur ne
      doit rien non plus, et un coût employeur gonflé fausserait la décision. */

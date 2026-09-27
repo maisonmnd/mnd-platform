@@ -1148,6 +1148,10 @@ export type MouvementHorsActivite = {
       échéances. Le lien empêche de compter l'argent deux fois et permet de
       remonter à la dette depuis le registre. */
   empruntId?: string;
+  /** L'associé que ce mouvement concerne (compte courant, 27 septembre 2026
+      au soir) : un prélèvement POUR lui, ou un remboursement DE lui. Absent
+      sur tout le reste. Voir `shared/compte-courant`. */
+  staffId?: string;
 };
 
 /** Nom conservé pour les appelants d'avant le second passage. */
