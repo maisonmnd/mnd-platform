@@ -1115,6 +1115,15 @@ export type SensHorsActivite = 'entree' | 'sortie';
     l'emprunt : on ne le saisit jamais à la main. */
 export const MOTIFS_SORTIE_HORS_ACTIVITE = [
   'Remboursement d’emprunt',
+  /* LE PRÉLÈVEMENT DE L'ASSOCIÉ — 27 septembre 2026 au soir. « À partir de
+     demain la Maison MND devient une société et je ne peux pas me permettre
+     de continuer à payer des dépenses perso » (Yéman). Une dépense
+     personnelle qui passe malgré tout par la Maison n'est PAS une charge :
+     c'est une avance faite à l'associé, qui la doit (compte 462 en OHADA,
+     « Associés, comptes courants ») et la rend, ou la voit retenue sur son
+     salaire. En sortie hors activité, elle n'entame pas le résultat et se
+     regroupe à la Synthèse ; la phrase dit QUI, obligatoirement. */
+  'Prélèvement de l’associé',
   'Autre',
 ] as const;
 export type MotifSortieHorsActivite = (typeof MOTIFS_SORTIE_HORS_ACTIVITE)[number];
