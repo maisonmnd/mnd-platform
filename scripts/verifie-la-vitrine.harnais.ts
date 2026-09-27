@@ -553,6 +553,11 @@ dit('… le menu y mène', true, COMMUN.nav.some((l) => l.vers === '/offrir/'));
 const MOTIFS = ['medaillon-seul-cuivre.png', 'allover-aere-indigo-ivoire.png', 'medaillon-aere-ivoire-cuivre.png'];
 dit('les trois motifs de la carte existent', [], MOTIFS.filter((f) => !existsSync(`public/assets/motifs/${f}`)));
 dit('… et la feuille les pose', [], MOTIFS.filter((f) => !feuilleSite.includes(`/assets/motifs/${f}`)));
+/* Les bandes indigo portent l'allover et le médaillon, la devise et les
+   marques leur sceau de cire (27 septembre 2026 au soir). */
+const MOTIFS_DES_BANDES = ['allover-aere-indigo-cuivre.png', 'cire-cuivre.png'];
+dit('les motifs des bandes existent', [], MOTIFS_DES_BANDES.filter((f) => !existsSync(`public/assets/motifs/${f}`)));
+dit('… le sceau de cire signe la devise et les marques', 2, (accueil.match(/class="cire" src="\/assets\/motifs\/cire-cuivre\.png"/g) ?? []).length);
 dit('rien ne s’enfonce ni ne glisse au survol', [],
   [...feuilleSite.matchAll(/^([^{\n]*:hover[^{\n]*)\{[^}]*transform:\s*translate/gm)].map((m) => m[1].trim()));
 dit('la galerie d’hier est gardée telle quelle', true,

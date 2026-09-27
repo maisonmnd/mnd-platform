@@ -1374,3 +1374,48 @@ body.galerie-plein { scroll-behavior: smooth; }
   .defile__piste { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
   .defile::before, .defile::after { display: none; }
 }
+
+/* ══ LES MOTIFS HABILLENT LES BANDES — 27 septembre 2026 au soir ══════════
+   « Fais ces parties avec les patterns de la Maison MND et un design de
+   ouf » (Yéman). Les trois bandes indigo (le diagnostic, la carte cadeau,
+   la devise) reçoivent le même habit, à trois profondeurs :
+
+     dessous   l'allover du pictogramme, cuivre sur indigo, en filigrane ;
+     derrière  le médaillon seul, très grand, qui tourne en un tour toutes
+               les trois minutes, si lentement qu'on le sent plus qu'on ne
+               le voit ;
+     autour    un filet cuivre en retrait des bords, comme un passe-partout.
+
+   Le texte reste devant : l'isolation ouvre un contexte, les motifs vivent
+   à z-index négatif. Les marques, sur ivoire, gardent l'air : le sceau de
+   cire au-dessus du titre et deux filets cuivre autour du défilé suffisent.
+   Qui demande moins de mouvement voit le médaillon immobile. */
+.diag, .offrir-teaser, .devise-bande { position: relative; isolation: isolate; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #272B6C 0%, var(--sombre) 55%, var(--sombre-2) 100%);
+  outline: 1px solid rgba(214, 160, 111, .26); outline-offset: -18px; }
+.diag::before, .offrir-teaser::before, .devise-bande::before { content: ''; position: absolute; inset: 0; z-index: -2;
+  background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 260px repeat; opacity: .13; }
+.diag::after, .offrir-teaser::after, .devise-bande::after { content: ''; position: absolute; z-index: -1; aspect-ratio: 1;
+  background: url(/assets/motifs/medaillon-seul-cuivre.png) center / contain no-repeat; pointer-events: none;
+  animation: medaillon-tourne 180s linear infinite; }
+.devise-bande::after { width: min(72vh, 64vw); left: 50%; top: 50%; translate: -50% -50%; opacity: .16; }
+.diag::after { width: 46vw; left: -16vw; bottom: -20vw; opacity: .18; }
+.offrir-teaser::after { width: 36vw; right: -8vw; top: 50%; translate: 0 -50%; opacity: .3; }
+@keyframes medaillon-tourne { to { rotate: 360deg; } }
+.devise-bande .devise--bande { text-shadow: 0 2px 30px rgba(21, 23, 58, .7); }
+.devise-bande .sens { text-shadow: 0 1px 18px rgba(21, 23, 58, .7); }
+.cire { width: 72px; height: 72px; filter: drop-shadow(0 14px 24px rgba(0, 0, 0, .35)); }
+.devise-bande .cire { margin-bottom: 4px; }
+.marques .cire { margin-bottom: 8px; }
+.marques { background: var(--fond); }
+.marques .defile { border-block: 1px solid rgba(185, 122, 74, .28); padding-block: 22px; }
+@media (max-width: 720px) {
+  .diag, .offrir-teaser, .devise-bande { outline-offset: -10px; }
+  .diag::after { width: 80vw; left: -30vw; bottom: -40vw; }
+  .offrir-teaser::after { width: 70vw; right: -30vw; opacity: .22; }
+  .devise-bande::after { width: 90vw; }
+  .cire { width: 56px; height: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .diag::after, .offrir-teaser::after, .devise-bande::after { animation: none; }
+}

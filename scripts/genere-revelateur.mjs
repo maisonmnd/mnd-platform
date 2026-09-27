@@ -349,7 +349,7 @@ function marques(s) {
     ? `<img class="marque__logo" src="/assets/marques/${attr(m.logo)}" alt="${attr(m.nom)}" loading="lazy" height="34">`
     : `<span class="marque__mot">${echappe(m.nom)}</span>`;
   const piste = (muette) => COMMUN.marques.map((m) => `<div class="marque"${muette ? ' aria-hidden="true"' : ''}>${logo(m)}</div>`).join('');
-  const tete = `<div class="tete tete--centre">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}${s.ligne ? `<p class="ligne">${echappe(s.ligne)}</p>` : ''}</div>`;
+  const tete = `<div class="tete tete--centre"><img class="cire" src="/assets/motifs/cire-cuivre.png" alt="" width="240" height="240" loading="lazy">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}${s.ligne ? `<p class="ligne">${echappe(s.ligne)}</p>` : ''}</div>`;
   return `<section class="marques" id="marques"><div class="conteneur">${tete}</div>
         <div class="defile" aria-label="Les marques que la Maison utilise"><div class="defile__piste">${piste(false)}${piste(true)}</div></div>
       </section>`;
@@ -691,6 +691,7 @@ function rendAccueil(articles) {
         <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/journal/')}">Tous les articles</a></p>
       </div></section>
       <section class="devise-bande sombre" id="signature"><div class="conteneur">
+        <img class="cire" src="/assets/motifs/cire-cuivre.png" alt="" width="240" height="240" loading="lazy">
         <p class="devise devise--bande">${echappe(a.appel.titre)}</p>
         <p class="sens">${echappe(a.appel.ligne)}</p>
         <div class="rangee">${a.appel.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
