@@ -34,8 +34,14 @@ marche('revelateur', '/');
 dit('les pages sont générées', true, pages.size >= 30);
 
 /* ── AUCUNE PAGE NE DIT « L'ATELIER MND » ──────────────────────────── */
-const atelier = [...pages].filter(([, h]) => /L[’']atelier MND/i.test(h)).map(([c]) => c);
-dit('aucune page ne nomme « L’atelier MND »', [], atelier);
+/* SAUF LA SOUS-MARQUE, DANS LA GAMME — 27 septembre 2026. « L'Atelier MND »
+   est depuis le 26 le nom des branches de la Maison (Montréal, Lomé,
+   Dakar…), une carte de l'univers avec sa teinte ocre. La règle tient pour
+   la MAISON, qui ne s'appelle plus ainsi : on retire les cartes de la gamme
+   avant de chercher, et tout autre emploi du nom reste refusé. */
+const sansLaGamme = (h: string) => h.replace(/<div class="teinte">[\s\S]*?<\/div>/g, '');
+const atelier = [...pages].filter(([, h]) => /L[’']atelier MND/i.test(sansLaGamme(h))).map(([c]) => c);
+dit('aucune page ne nomme « L’atelier MND », hors la sous-marque dans la gamme', [], atelier);
 
 /* ── CHAQUE LIEN WHATSAPP PORTE UN NUMÉRO DÈS LA CONSTRUCTION ─────── */
 const sansNumero = [...pages].flatMap(([c, h]) =>
@@ -60,7 +66,11 @@ dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joind
 dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.metier) && /Cotonou/.test(ACCUEIL.metier));
 /* « La phrase est beaucoup trop longue » (Yéman, 22 septembre 2026) : le titre
    tient en six mots, le paragraphe en deux phrases courtes. */
-dit('… son titre tient en six mots', true, ACCUEIL.h1.trim().split(/\s+/).length <= 6);
+/* HUIT MOTS DEPUIS LE 27 SEPTEMBRE 2026 : Yéman a choisi « Révélez ce que
+   vous avez de plus beau. » parmi quatre accroches posées en place dans la
+   maquette. La règle reste une borne, pas un souhait : au-delà, la ligne se
+   casse sur trois rangs au téléphone. */
+dit('… son titre tient en huit mots', true, ACCUEIL.h1.trim().split(/\s+/).length <= 8);
 
 /* ── LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026 ──────────────
    Trois pièges silencieux, nommés par l'autre session avant la construction :
@@ -82,7 +92,10 @@ dit('toute hauteur en svh est précédée de son repli en vh, dans la même règ
   [...feuilleSite.matchAll(/\{[^}]*\}/g)].map((m) => m[0]).filter((r) => /:\s*[^;]*\bsvh\b/.test(r) && !/min-height:\s*\d+vh;\s*min-height:\s*\d+svh/.test(r)).map((r) => r.slice(0, 60)));
 dit('la ligne du métier ne descend jamais sous 11 px', [],
   [...feuilleSite.matchAll(/\.pastille[^{]*\{[^}]*font-size:\s*([\d.]+)px/g)].map((m) => Number(m[1])).filter((px) => px < 11));
-dit('… les promesses sont dans le bandeau sombre', true, accueil.includes('class="promesses promesses--sombre"'));
+/* LA DEVISE EN SIGNATURE — 27 septembre 2026 : « le slogan en fon
+   également mis en valeur » (Yéman). Elle précède le titre, en grand. */
+dit('… la devise en fon signe le premier écran, au-dessus du titre', true,
+  accueil.indexOf('class="devise devise--grande"') > 0 && accueil.indexOf('class="devise devise--grande"') < accueil.indexOf('<h1>'));
 const photoDuPremierEcran = accueil.match(/<img class="hero-plein__photo" src="([^"]+)"[^>]*>/);
 dit('la photo du premier écran n’est jamais paresseuse', true, !!photoDuPremierEcran && !photoDuPremierEcran[0].includes('loading="lazy"') && photoDuPremierEcran[0].includes('fetchpriority="high"'));
 /* Depuis le 24 septembre, c'est le jumeau WebP qui est préchargé, avec son
@@ -105,9 +118,13 @@ dit('le premier écran porte les cauris', true, /<img class="hero-plein__photo" 
    Facebook coupent un portrait vertical au milieu, et le visage sort du cadre. */
 dit('… et l’image de partage est le paysage taillé dedans, avec ses dimensions', true,
   /og:image" content="[^"]*photos\/site\/partage-accueil\.jpg"/.test(accueil) && accueil.includes('og:image:width" content="800"'));
-const photoDeLaPorte = (parcours: string) => accueil.match(new RegExp(`data-parcours="${parcours}">\\s*(?:<picture><source [^>]*>)?<img src="[^"]*photos/site/([^"]+)"`))?.[1] ?? null;
-dit('les portes portent chacune leur photo', ['portrait-accueil.jpg', 'attention.jpg', 'trois-couronnes.jpg', 'mnd-kids.jpg', 'brice.jpg'],
-  ['creation', 'reparation', 'entretien', 'enfant', 'formation'].map(photoDeLaPorte));
+/* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026), dans l'ordre
+   et chacune avec sa photo. Par rang et non par parcours : les Soins et
+   l'Entretien partagent le même besoin. */
+const photosDesPortes = [...(accueil.split('id="portes"')[1] ?? '').split('id="diagnostic"')[0]
+  .matchAll(/<a class="porte"[\s\S]*?<img src="[^"]*photos\/site\/([^"]+)"/g)].map((m) => m[1]);
+dit('les portes portent chacune leur photo, dans l’ordre de la maquette',
+  ['portrait-accueil.jpg', 'regard.jpg', 'entretien.jpg', 'attention.jpg', 'mnd-kids.jpg'], photosDesPortes);
 dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
 /* LES VISAGES DE LA MAISON (23 septembre 2026) : la paire au-dessus des avis,
    et les vignettes du Journal. Ces vérifications portent la RÈGLE, jamais le
@@ -290,9 +307,11 @@ dit('AUCUNE CLIENTE n’illustre un article qui nomme un défaut', [],
 dit('… et chaque vignette de cliente sert bien quelque part', [],
   VIGNETTES_DE_CLIENTES.filter((v) => !articlesDuJournal.some((a) => a.image === v)));
 dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
-dit('trois promesses sous le grand écran', 3, (accueil.match(/class="promesse"/g) ?? []).length);
-dit('… juste après le hero, avant les portes', true,
-  accueil.indexOf('class="promesses"') < accueil.indexOf('id="portes"'));
+/* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 avec l'épure. Le
+   diagnostic se joue sur l'accueil, entre les portes et les offres. */
+dit('le diagnostic se monte sur l’accueil', true, accueil.includes('data-ilot="triage" data-genre="accueil"'));
+dit('… entre les portes et les offres', true,
+  accueil.indexOf('id="portes"') < accueil.indexOf('id="diagnostic"') && accueil.indexOf('id="diagnostic"') < accueil.indexOf('id="offres"'));
 dit('les offres se montent sur l’accueil, en genre accueil', true, accueil.includes('data-ilot="offres" data-genre="accueil"'));
 /* AUCUN ÎLOT NE POSE UN LIEN RELATIF — 24 septembre 2026.
 
@@ -356,7 +375,10 @@ dit('« Me faire rappeler » mène au rappel, avec le parcours', true, formation
 dit('… et plus au calendrier', false, /\/reserver\/\?besoin=\w+">Me faire rappeler/.test(formations));
 dit('le pied envoie « Me faire rappeler » au rappel, sur chaque page', true,
   [...pages.values()].every((h) => /rappel\/">Me faire rappeler/.test(h)));
-dit('l’accueil envoie « Laisser mes coordonnées » au rappel', true, /rappel\/"[^>]*>Laisser mes coordonnées/.test(accueil));
+/* LE RAPPEL SE PREND DEPUIS LE PIED depuis le 27 septembre 2026 : l'appel
+   de fin d'accueil est devenu la devise en grand, et « Me faire rappeler »
+   vit dans la colonne Contact du pied de page, sur toutes les pages. */
+dit('l’accueil mène au rappel depuis le pied de page', true, /rappel\/"[^>]*>Me faire rappeler/.test(accueil));
 
 /* ── LA BARRE DU BAS NE RÉPÈTE PLUS LE MÊME LIEN ───────────────────── */
 const entretien = pages.get('/entretien-locks/') ?? '';
@@ -522,6 +544,28 @@ if (initialesBrutes === undefined) {
   dit('… le JSON ne peut pas fermer son script', false, /<\/|<script/i.test(initialesBrutes));
   dit('… et l’accueil porte les mêmes données', true, accueil.includes(`<script type="application/json" data-initiales>${initialesBrutes}</script>`));
 }
+
+/* ══ LA MAISON REVISITÉE — 27 septembre 2026, maquette validée ══════════
+   Ce que la maquette a promis et que la page doit tenir : « Réserver »
+   toujours ce mot dans la barre ; le défilé des marques sans couture (chaque
+   marque deux fois, la seconde muette) et aucun logo annoncé qui n'existe
+   pas ; la page « Offrir » servie, au menu, avec ses trois motifs posés par
+   la feuille ; et rien qui s'enfonce ou glisse au survol. */
+dit('la barre dit « Réserver », toujours ce mot', true, /class="btn btn--plein" href="[^"]*\/reserver\/">Réserver<\/a>/.test(accueil.split('</header>')[0] ?? ''));
+const laPiste = (accueil.split('class="defile__piste"')[1] ?? '').split('</section>')[0];
+dit('le défilé des marques porte chaque marque deux fois, la boucle sans couture', [],
+  COMMUN.marques.filter((m) => laPiste.split(m.logo ? `alt="${m.nom}"` : `>${m.nom}<`).length - 1 !== 2).map((m) => m.nom));
+dit('… la seconde piste est muette pour les lecteurs d’écran', COMMUN.marques.length, (laPiste.match(/aria-hidden="true"/g) ?? []).length);
+dit('… et chaque logo annoncé existe', [], COMMUN.marques.filter((m) => m.logo && !existsSync(`public/assets/marques/${m.logo}`)).map((m) => m.logo));
+dit('la page « Offrir » est servie et compose sa carte', true, (pages.get('/offrir/') ?? '').includes('data-ilot="offrir"'));
+dit('… le menu y mène', true, COMMUN.nav.some((l) => l.vers === '/offrir/'));
+const MOTIFS = ['medaillon-seul-cuivre.png', 'allover-aere-indigo-ivoire.png', 'medaillon-aere-ivoire-cuivre.png'];
+dit('les trois motifs de la carte existent', [], MOTIFS.filter((f) => !existsSync(`public/assets/motifs/${f}`)));
+dit('… et la feuille les pose', [], MOTIFS.filter((f) => !feuilleSite.includes(`/assets/motifs/${f}`)));
+dit('rien ne s’enfonce ni ne glisse au survol', [],
+  [...feuilleSite.matchAll(/^([^{\n]*:hover[^{\n]*)\{[^}]*transform:\s*translate/gm)].map((m) => m[1].trim()));
+dit('la galerie d’hier est gardée telle quelle', true,
+  (pages.get('/galerie/') ?? '').includes('class="gal-rail"') && accueil.includes('href="/galerie/"'));
 
 console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec.`);
 process.exit(ko === 0 ? 0 : 1);

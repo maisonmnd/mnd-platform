@@ -285,7 +285,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
       ${nav}
         </nav>
         <a class="tel" href="tel:${attr(COMMUN.editeur.telephone.replace(/\s/g, ''))}" aria-label="Appeler la Maison"><svg><use href="#i-tel"/></svg></a>
-        <a class="btn btn--plein" href="${lien('/reserver/')}"><span class="btn__long">Prendre rendez-vous</span><span class="btn__court">Réserver</span></a>
+        <a class="btn btn--plein" href="${lien('/reserver/')}">Réserver</a>
       </div>
     </header>
     <main id="contenu" tabindex="-1">
@@ -333,6 +333,27 @@ const TEINTES = [
   { classe: 'indigo', mono: 'mono-indigo.png' },  // sur bandeau crème claire
 ];
 
+/* L'UNIVERS ET LES MARQUES — 27 septembre 2026, maquette validée. Deux
+   blocs que l'accueil et la page de la Maison partagent : la gamme des huit
+   maisons (nom, ligne, teinte, le sigle posé sur chaque teinte par la
+   feuille) et le défilé des marques. Le défilé lit COMMUN.marques et écrit
+   chaque marque DEUX FOIS : la seconde piste, muette pour les lecteurs
+   d'écran, prend le relais quand la première sort du cadre, et la boucle se
+   ferme sans couture. Un logo absent laisse le nom en lettres ; le harnais
+   refuse un logo annoncé qui n'existe pas dans public/assets/marques/. */
+function gamme(items) {
+  return `<div class="gamme">${items.map((t) => `<div class="teinte"><i style="background:${attr(t.teinte)}" aria-hidden="true"></i><b>${echappe(t.nom)}</b><small>${echappe(t.ligne)}</small></div>`).join('')}</div>`;
+}
+function marques(s) {
+  const logo = (m) => m.logo
+    ? `<img class="marque__logo" src="/assets/marques/${attr(m.logo)}" alt="${attr(m.nom)}" loading="lazy" height="34">`
+    : `<span class="marque__mot">${echappe(m.nom)}</span>`;
+  const piste = (muette) => COMMUN.marques.map((m) => `<div class="marque"${muette ? ' aria-hidden="true"' : ''}>${logo(m)}</div>`).join('');
+  const tete = `<div class="tete tete--centre">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}${s.ligne ? `<p class="ligne">${echappe(s.ligne)}</p>` : ''}</div>`;
+  return `<section class="marques" id="marques"><div class="conteneur">${tete}</div>
+        <div class="defile" aria-label="Les marques que la Maison utilise"><div class="defile__piste">${piste(false)}${piste(true)}</div></div>
+      </section>`;
+}
 function rendSection(s) {
   const tete = (s.sur || s.titre) ? `<div class="tete">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}</div>` : '';
   switch (s.type) {
@@ -377,6 +398,12 @@ function rendSection(s) {
       return `<section class="serre"><div class="conteneur">${tete}<div class="faq">${s.items.map(([q, r], i) => `<details${i === 0 ? ' open' : ''}><summary>${echappe(q)}</summary><p>${echappe(r)}</p></details>`).join('')}</div></div></section>`;
     case 'citation':
       return `<section class="serre"><div class="conteneur"><p class="citation citation--claire">${echappe(s.texte)}</p>${s.qui ? `<p class="legende" style="margin-top:10px">${echappe(s.qui)}</p>` : ''}</div></section>`;
+    case 'piliers':
+      return `<section class="serre"><div class="conteneur">${tete}${s.ligne ? `<p class="ligne">${echappe(s.ligne)}</p>` : ''}<div class="piliers">${s.items.map((it) => `<div><h3>${echappe(it.titre)}</h3><p>${echappe(it.ligne)}</p></div>`).join('')}</div></div></section>`;
+    case 'gamme':
+      return `<section class="univers"><div class="conteneur">${tete}${s.ligne ? `<p class="ligne" style="margin-top:-12px;margin-bottom:28px">${echappe(s.ligne)}</p>` : ''}${gamme(s.items)}</div></section>`;
+    case 'marques':
+      return marques(s);
     case 'appel':
       return `<section class="appel"><div class="conteneur"><div><h2>${echappe(s.titre)}</h2>${s.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(s.ligne)}</p>` : ''}</div><div class="rangee">${s.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--fort' : 'btn')).join('')}</div></div></section>`;
     default:
@@ -456,7 +483,7 @@ function ilot(nom, p) {
   if (nom === 'triage') {
     const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
       .map((x) => `<li><a href="${attr(lien(x.chemin))}">${echappe(x.h1)}</a></li>`).join('');
-    return `<section class="serre"><div class="conteneur"><div data-ilot="triage"><p class="ligne">Trois questions, et la bonne porte.</p><ul class="corps" style="margin-top:12px">${repli}</ul></div></div></section>`;
+    return `<section class="serre"><div class="conteneur"><div data-ilot="triage"><p class="ligne">Cinq questions, et votre routine.</p><ul class="corps" style="margin-top:12px">${repli}</ul></div></div></section>`;
   }
   if (nom === 'demande' || nom === 'reserver') {
     const f = COMMUN.formulaire;
@@ -474,6 +501,11 @@ function ilot(nom, p) {
         <p class="compte">Aucun compte à créer, rien à payer aujourd’hui.</p>
       </aside>
     </div></section>`;
+  }
+  /* LA CARTE CADEAU se compose dans l'îlot ; sans lui, la page dit encore
+     comment commander : WhatsApp, et la Maison la prépare avec vous. */
+  if (nom === 'offrir') {
+    return `<section class="serre"><div class="conteneur"><div data-ilot="offrir"><p class="corps">La carte se compose ici : un modèle, un geste ou un montant, un prénom, un mot. Si rien ne s’affiche, écrivez-nous, la Maison la prépare avec vous.</p><p style="margin-top:12px">${bouton({ texte: 'Commander sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
   }
   if (nom === 'offres') {
     /* LES OFFRES DE LA MAISON — 18 septembre 2026. Le repli est une phrase et
@@ -558,7 +590,7 @@ function rendLibre(p, supplement = '') {
   /* DEUX ÎLOTS SE LISENT AVANT LE TEXTE, pas après : le triage, qui EST la
      page, et les trois cartes du contact, qui répondent aux questions qu'on
      vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
-  const enTete = p.ilot === 'triage' || p.ilot === 'joindre';
+  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir';
   const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
@@ -585,39 +617,32 @@ function rendAccueil(articles) {
   }).join('\n        ');
   const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
   return `
-      <!-- LE PREMIER ÉCRAN PLEINE LARGEUR — 23 septembre 2026, maquette validée.
-           La photo sous le texte, l'entête posée dessus (la barre, transparente
-           sur l'accueil), la ligne du métier en pastille, le titre en bas à
-           gauche. Cette image est la plus grosse de la page : jamais paresseuse,
-           et préchargée depuis l'entête du document. Le paragraphe ne vit plus
-           ici, les cinq portes le disent juste dessous. -->
+      <!-- L'ACCUEIL REVISITÉ — 27 septembre 2026, maquette validée par Yéman.
+           « Épure-moi complètement le site et fais de la Maison MND une marque
+           de luxe. » Dans l'ordre : le premier écran avec la devise en fon en
+           signature au-dessus de l'accroche, l'objectif, les cinq portes, le
+           diagnostic joué sur la page, les offres, l'histoire, l'univers, les
+           marques qui défilent, la carte cadeau, quatre photos vers la
+           galerie (celle d'hier, gardée telle quelle), les couronnes et les
+           avis Google, le Journal, et la devise en grand pour finir. Les trois
+           promesses sont parties avec l'épure. -->
       <section class="hero-plein">
         ${photo(PHOTO_ACCUEIL, 'class="hero-plein__photo"', 'alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high" decoding="async"')}
         <div class="hero-plein__voile" aria-hidden="true"></div>
         <div class="conteneur hero-plein__texte">
           <p class="pastille metier">${echappe(a.metier)}</p>
+          <p class="devise devise--grande">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
-          <p class="devise">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
-          <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
+          <p class="ligne">${echappe(a.ligne)}</p>
+          <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn' : 'btn btn--plein')).join('')}</div>
         </div>
       </section>
-
-      <!-- TROIS PROMESSES SOUS LE GRAND ÉCRAN — 22 septembre 2026. L'équivalent
-           du « Switch in 15 minutes » de T-Mobile : la réassurance vivait trois
-           écrans plus bas. Chacune est tenue par le site, vérifiée avant d'être
-           écrite (contenu.ts, ACCUEIL.promesses). Depuis le 23, dans le bandeau
-           indigo profond sous la photo. -->
-      <div class="promesses promesses--sombre"><div class="conteneur">
-        ${a.promesses.map((g) => `<div class="promesse"><i aria-hidden="true"><svg><use href="#i-coche"/></svg></i><div><b>${echappe(g.titre)}</b><small>${echappe(g.ligne)}</small></div></div>`).join('\n        ')}
-      </div></div>
-
-      <!-- LE BANDEAU DE L'OFFRE EN COURS NE VIT PLUS ICI — 22 septembre 2026.
-           Posé le 18, il annonçait l'offre du moment entre le grand écran et
-           les portes. Depuis que les offres ont leur section sur l'accueil, il
-           disait la même offre deux fois sur la même page. « Épure-moi cette
-           page, beaucoup trop chargée » (Yéman) : la carte suffit. L'îlot
-           reste dans le code, prêt à revenir sur une autre page. -->
-
+      <section class="objectif" id="objectif"><div class="conteneur">
+        <p class="sur">${echappe(a.objectif.sur)}</p>
+        <h2>${echappe(a.objectif.titre)}</h2>
+        <p class="ligne">${echappe(a.objectif.ligne)}</p>
+        <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
+      </div></section>
       <section id="portes"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2></div>
         <div class="portes">
@@ -625,36 +650,38 @@ function rendAccueil(articles) {
         </div>
         <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}</div>
       </div></section>
-
-      <!-- LES OFFRES SUR L'ACCUEIL — 22 septembre 2026, à la manière des
-           « Deals ». L'îlot est le même que sur /les-offres/, en genre
-           « accueil » : sans onglets, les offres en cours seulement. Le repli
-           dit où demander si rien ne se charge. -->
+      <!-- LE DIAGNOSTIC SE JOUE SUR L'ACCUEIL : le même îlot que /mon-parcours/,
+           dans une carte ivoire sur l'indigo. Sans script, la carte mène à la
+           page du diagnostic. -->
+      <section class="diag sombre" id="diagnostic"><div class="conteneur">
+        <div class="tete"><p class="sur">${echappe(a.diagnostic.sur)}</p><h2>${echappe(a.diagnostic.titre)}</h2><p class="ligne">${echappe(a.diagnostic.ligne)}</p><p class="note">${echappe(a.diagnostic.note)}</p></div>
+        <div class="diag__quiz" data-ilot="triage" data-genre="accueil"><p class="ligne">Cinq questions, et votre routine.</p><p style="margin-top:12px"><a class="btn btn--fort" href="${lien('/mon-parcours/')}">Faire mon diagnostic</a></p></div>
+      </div></section>
       <section class="vt-offres" id="offres"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
         <div data-ilot="offres" data-genre="accueil">${offresDansLaPage('accueil')}</div>
       </div></section>
-
-      <!-- LA BANDE DE CONFIANCE NE VIT PLUS SUR L'ACCUEIL — 22 septembre 2026.
-           Les trois promesses sous le grand écran portent la réassurance ;
-           une seconde bande sombre disait la même chose plus bas. La section
-           « confiance » reste disponible aux pages libres (rendSection). -->
-
-      <!-- LES COURONNES DE LA MAISON — 23 septembre 2026, sept visages depuis
-           le 26. Des clientes de la Maison, posées AU-DESSUS des avis : les
-           visages et les mots de leurs semblables ensemble, c'est la preuve
-           entière. Hors de l'îlot, qui ne redessine que sa propre boîte.
-           Aucun prénom. Alt vide sur toutes (le-trone-35, 23 septembre) : rien
-           dans ces images n'est nommable une par une sans nommer une femme, et
-           des alt identiques ne seraient que du bruit.
-           LA LIGNE QUI ANNONÇAIT L'ACCORD A ÉTÉ RETIRÉE LE 26 SEPTEMBRE, à la
-           demande de Yéman. L'accord lui-même n'a pas changé : chaque photo
-           reste inscrite au registre docs/site-revelateur/photos.md avant
-           d'être servie, et le harnais le vérifie. C'est l'annonce qui s'est
-           tue, pas la règle. Le texte de remplacement des images s'appuyait
-           sur cette ligne pour porter le sens du groupe ; il ne le peut plus,
-           et c'est le titre « Celles qui nous font confiance » qui le porte
-           désormais, juste au-dessus. -->
+      <section class="fondateurs" id="maison"><div class="conteneur">
+        ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
+        <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
+          <p class="message">${echappe(a.fondateurs.message)}</p>
+          <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
+          <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
+        </div>
+      </div></section>
+      <section class="univers" id="univers"><div class="conteneur">
+        <div class="tete"><p class="sur">${echappe(a.univers.sur)}</p><h2>${echappe(a.univers.titre)}</h2><p class="ligne">${echappe(a.univers.ligne)}</p></div>
+        ${gamme(a.univers.gamme)}
+      </div></section>
+      ${marques(a.marques)}
+      <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
+        <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
+        <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
+      </div></section>
+      <section class="galerie-bande" id="galerie"><div class="conteneur">
+        <div class="tete tete--ligne"><div><p class="sur">${echappe(a.galerie.sur)}</p><h2>${echappe(a.galerie.titre)}</h2></div>${bouton(a.galerie.bouton, 'btn btn--lien')}</div>
+        <div class="bande">${a.galerie.images.map((img) => `<figure>${image(img, '')}</figure>`).join('')}</div>
+      </div></section>
       <section class="avis" id="avis">
         <div class="conteneur couronnes">
           <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2>${a.couronnes.ligne ? `<p class="ligne">${echappe(a.couronnes.ligne)}</p>` : ''}</div>
@@ -664,15 +691,6 @@ function rendAccueil(articles) {
         </div>
         <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
       </section>
-
-      <section class="fondateurs" id="maison"><div class="conteneur">
-        ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
-        <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
-          <p class="message">${echappe(a.fondateurs.message)}</p>
-          <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
-        </div>
-      </div></section>
-
       <section class="journal" id="journal" style="background:var(--fond-2); border-block:1px solid var(--filet)"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.journal.sur)}</p><h2>${echappe(a.journal.titre)}</h2></div>
         <div class="articles">
@@ -680,14 +698,12 @@ function rendAccueil(articles) {
         </div>
         <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/journal/')}">Tous les articles</a></p>
       </div></section>
-
-      <section class="appel"><div class="conteneur">
-        <div><h2>${echappe(a.appel.titre)}</h2><p class="ligne" style="margin-top:8px">${echappe(a.appel.ligne)}</p></div>
-        <div class="rangee">${a.appel.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--fort' : 'btn')).join('')}</div>
+      <section class="devise-bande sombre" id="signature"><div class="conteneur">
+        <p class="devise devise--bande">${echappe(a.appel.titre)}</p>
+        <p class="sens">${echappe(a.appel.ligne)}</p>
+        <div class="rangee">${a.appel.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
       </div></section>`;
 }
-
-/* ── Le Journal, depuis les fichiers Markdown ────────────────────────── */
 const PARCOURS_DU_JOURNAL = {
   'premiere-couronne': { chemin: '/premiere-couronne/', besoin: 'creation' },
   reparation: { chemin: '/reparation-locks/', besoin: 'reparation' },

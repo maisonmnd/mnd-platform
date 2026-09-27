@@ -78,8 +78,21 @@ section.serre { padding-top: 0; }
 .cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── boutons ─────────────────────────────────────────────────────── */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; font-family: var(--sans); font-weight: 400; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; padding: 13px 22px; border-radius: var(--r); border: 1px solid var(--accent); color: var(--accent-profond); background: transparent; cursor: pointer; transition: background var(--t), color var(--t), transform var(--t); text-align: center; }
-.btn:hover { background: var(--accent-voile); }
+/* LES BOUTONS, RECONSTRUITS — 27 septembre 2026, maquette validée. « Je
+   voudrais que tu reconstruises les boutons pour obtenir un site fluide et
+   compréhensible » (Yéman). Une famille, quatre membres, et un rang qu'on
+   reconnaît d'une page à l'autre :
+
+     .btn            la ligne : une pilule cernée, pour ce qui n'engage pas ;
+     .btn--fort      le plein indigo : LA décision principale de l'écran ;
+     .btn--plein     le plein cuivre : « Réserver », toujours ce mot, partout ;
+     .btn--lien      le mot avec son filet : découvrir, voir, lire.
+
+   Une pilule et jamais un rectangle, des capitales espacées, rien ne
+   s'enfonce : la couleur glisse en un quart de seconde, c'est tout ce qu'on
+   sent. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; font-family: var(--sans); font-weight: 400; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; padding: 14px 26px; border-radius: 999px; border: 1px solid rgba(30, 33, 80, .38); color: var(--titre); background: transparent; cursor: pointer; transition: background var(--t), color var(--t), border-color var(--t); text-align: center; }
+.btn:hover { border-color: var(--titre); background: rgba(30, 33, 80, .05); }
 /* RIEN NE S'ENFONCE, RIEN NE FLASHE — 26 septembre 2026. « On ne doit pas
    sentir qu'on clique un bouton, le fond ne doit pas devenir bleu » (Yéman).
 
@@ -98,13 +111,16 @@ a, button, label, input, select, textarea, summary, [role="button"] {
 .btn--plein:hover { filter: brightness(1.06); background: var(--accent); }
 .btn--fort { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
 .btn--fort:hover { background: var(--fort); filter: brightness(1.12); }
-.btn--lien { border-color: transparent; padding-inline: 8px; }
-.btn--lien:hover { background: transparent; color: var(--titre); }
+.btn--lien { border-color: transparent; padding-inline: 0; min-height: 0; padding-block: 4px; border-radius: 0; color: var(--accent-profond); border-bottom: 1px solid transparent; }
+.btn--lien:hover { background: transparent; color: var(--accent-profond); border-bottom-color: var(--accent-profond); }
 .btn[disabled] { opacity: .6; cursor: default; }
-.sombre .btn { color: var(--accent-sombre); border-color: var(--accent-sombre); }
-.sombre .btn:hover { background: rgba(255, 255, 255, .06); }
+.sombre .btn { color: #F6F1E7; border-color: rgba(246, 241, 231, .4); }
+.sombre .btn:hover { border-color: #F6F1E7; background: rgba(246, 241, 231, .08); }
+.sombre .btn--fort { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
+.sombre .btn--fort:hover { background: #fff; filter: none; }
 .sombre .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
-.sombre .btn--lien { color: #F6F1E7; border-color: transparent; }
+.sombre .btn--lien { color: var(--accent-sombre); border-color: transparent; }
+.sombre .btn--lien:hover { border-bottom-color: var(--accent-sombre); }
 .btn svg { width: 15px; height: 15px; flex: none; }
 .legende { font-size: 13px; color: var(--texte-doux); }
 .sombre .legende { color: rgba(246, 241, 231, .62); }
@@ -221,7 +237,7 @@ a, button, label, input, select, textarea, summary, [role="button"] {
 .portes > * { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
 @media (min-width: 1000px) { .portes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; margin-inline: 0; padding-inline: 0; padding-bottom: 0; } .portes > * { flex: none; } }
 .porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
-.porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
+.porte:hover { box-shadow: var(--ombre); }
 .porte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .porte img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
 .tuile { aspect-ratio: 4 / 5; display: grid; place-items: center; background: var(--sombre); color: var(--accent-sombre); font-family: var(--serif); font-size: 34px; letter-spacing: .06em; text-align: center; }
@@ -233,16 +249,19 @@ a, button, label, input, select, textarea, summary, [role="button"] {
    et les cinq sont sur la même ligne à la même hauteur (Yéman, 22 septembre
    2026) : hauteur fixe, poussé en bas d'une carte qui s'étire à la hauteur de
    la rangée. La flèche du lien texte n'a plus lieu d'être. */
-.porte .suite { margin-top: auto; min-height: 58px; padding: 12px 10px; border-radius: 3px; background: var(--accent); color: #fff; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; text-align: center; display: flex; align-items: center; justify-content: center; transition: background var(--t); }
-.porte:hover .suite { background: var(--accent-profond); }
-.porte .suite svg { display: none; }
+/* « DÉCOUVRIR » EST UN MOT, PLUS UN PAVÉ — 27 septembre 2026, maquette
+   validée : sur une porte, on avance sans décider ; le pavé cuivre est
+   réservé à « Réserver ». */
+.porte .suite { margin-top: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); padding-top: 6px; }
+.porte:hover .suite { color: var(--titre); }
+.porte .suite svg { width: 14px; height: 14px; }
 .repli { margin-top: 26px; padding: 20px 24px; border: 1px solid var(--accent); border-radius: 4px; background: var(--accent-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 .repli p { font-family: var(--serif); font-size: 21px; color: var(--titre); }
 
 /* ── les cartes à bandeau (les quatre portes de la Maison) ──────── */
 .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
 .carte-porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
-a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
+a.carte-porte:hover { box-shadow: var(--ombre); }
 .carte-porte__tete { position: relative; background: var(--sombre); color: #F6F1E7; padding: 22px 20px 18px; min-height: 132px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
 /* LES QUATRE ACCORDS — 17 septembre 2026. Chaque porte porte le monogramme
    de la Maison dans une couleur, et son bandeau est choisi POUR QUE CETTE
@@ -358,7 +377,7 @@ a.carte-porte:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
 /* ── journal ─────────────────────────────────────────────────────── */
 .articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .article { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); display: flex; flex-direction: column; }
-.article:hover { transform: translateY(-3px); box-shadow: var(--ombre); }
+.article:hover { box-shadow: var(--ombre); }
 .article img { aspect-ratio: 16 / 10; object-fit: cover; width: 100%; }
 .article h3 { font-size: 21px; padding: 16px 18px 6px; }
 .article p { font-size: 14px; color: var(--texte-doux); padding: 0 18px 18px; }
@@ -402,7 +421,7 @@ footer .logo img { height: 34px; }
 .question h2 { font-size: clamp(28px, 3.6vw, 40px); margin-bottom: 20px; }
 .reponses { display: grid; gap: 10px; }
 .reponse { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 60px; text-align: left; cursor: pointer; font: inherit; font-size: 17px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; padding: 16px 20px; transition: border-color var(--t), background var(--t), transform var(--t); }
-.reponse:hover { border-color: var(--accent); background: var(--accent-clair); transform: translateX(3px); }
+.reponse:hover { border-color: var(--accent); background: var(--accent-clair); }
 .reponse:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .reponse i { width: 18px; height: 18px; border: 1px solid var(--accent); border-radius: 50%; flex: none; transition: background var(--t); }
 .reponse:hover i { background: var(--accent); }
@@ -775,6 +794,15 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .hero-plein h1 { color: #F6F1E7; font-weight: 500; font-size: clamp(42px, 6.6vw, 88px); line-height: 1.02; margin-top: 22px; max-width: 15ch; text-shadow: 0 2px 26px rgba(21, 23, 58, .5); }
 .hero-plein .devise { font-family: var(--serif); font-size: 24px; color: var(--accent-sombre); margin-top: 18px; }
 .hero-plein .devise small { font-family: var(--sans); font-size: 12.5px; letter-spacing: .06em; color: rgba(246, 241, 231, .72); margin-left: 10px; }
+/* LA DEVISE EN SIGNATURE, AU-DESSUS DE L'ACCROCHE — 27 septembre 2026,
+   maquette validée : « le slogan en fon qui est également mis en valeur »
+   (Yéman). En grand, en italique, cuivre clair ; sa traduction dessous, en
+   petit ; puis l'accroche, un cran plus sobre qu'avant pour laisser la
+   devise signer. */
+.hero-plein .devise--grande { font-size: clamp(40px, 7vw, 84px); line-height: 1; font-style: italic; margin-top: 18px; letter-spacing: .01em; }
+.hero-plein .devise--grande small { display: block; margin: 8px 0 0; font-size: 13px; letter-spacing: .08em; }
+.hero-plein .devise--grande + h1 { margin-top: 14px; font-size: clamp(38px, 6.2vw, 78px); font-weight: 300; max-width: 14ch; }
+.hero-plein .ligne { color: rgba(246, 241, 231, .84); max-width: 46ch; margin-top: 14px; font-size: clamp(16px, 1.5vw, 19px); }
 .hero-plein .rangee { margin-top: 26px; }
 .hero-plein .btn:not(.btn--plein) { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
 .hero-plein .btn:not(.btn--plein):hover { background: #fff; }
@@ -804,6 +832,10 @@ footer li svg { width: 15px; height: 15px; flex: none; }
   .hero-plein .pastille { order: 9; margin-top: 14px; padding: 0; background: none; border: 0; backdrop-filter: none; color: var(--accent-sombre); font-size: 11.5px; letter-spacing: .16em; max-width: calc(100% - 84px); }
   .hero-plein h1 { font-size: clamp(30px, 8.8vw, 40px); margin-top: 0; max-width: none; }
   .hero-plein .devise { font-size: 19px; margin-top: 10px; }
+  .hero-plein .devise--grande { font-size: clamp(30px, 9vw, 40px); margin-top: 0; }
+  .hero-plein .devise.devise--grande small { display: block; margin: 4px 0 0; font-size: 11.5px; }
+  .hero-plein .devise--grande + h1 { font-size: clamp(28px, 8vw, 36px); margin-top: 8px; max-width: none; }
+  .hero-plein .ligne { font-size: 15px; margin-top: 8px; }
   .hero-plein .devise small { display: inline; margin: 0 0 0 8px; font-size: 11.5px; }
   .hero-plein .rangee { align-self: stretch; margin-top: 16px; gap: 8px; }
   .hero-plein .rangee .btn { width: 100%; min-height: 44px; padding: 10px 14px; font-size: 11px; }
@@ -1200,4 +1232,145 @@ body.galerie-plein { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   .nav, .menu-etat:checked ~ .nav, .accueil-plein .nav, .accueil-plein .menu-etat:checked ~ .nav,
   .menu-bouton span, .gal-plein, .gal-plein img { transition: none; }
+}
+
+/* ══ LA MAISON REVISITÉE — 27 septembre 2026, maquette validée ═══════════
+   L'objectif et ses piliers, le diagnostic sur l'accueil, l'univers, le
+   défilé des marques, la carte cadeau et ses trois modèles, la bande de la
+   galerie, la devise en grand pour finir. */
+.tete--centre { text-align: center; justify-items: center; margin-inline: auto; }
+.tete--ligne { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; max-width: none; }
+.objectif h2 { font-size: clamp(34px, 5.2vw, 64px); max-width: 16ch; margin-top: 14px; }
+.objectif .ligne { margin-top: 18px; max-width: 56ch; }
+.piliers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; border-top: 1px solid var(--filet); padding-top: 28px; margin-top: clamp(28px, 4vw, 48px); }
+.piliers h3 { margin-bottom: 8px; }
+.piliers p { color: var(--texte-doux); max-width: 30ch; }
+@media (max-width: 720px) { .piliers { grid-template-columns: 1fr; gap: 20px; } }
+
+/* Le diagnostic sur l'accueil : le texte à gauche, la carte ivoire à droite,
+   et le même îlot que la page du diagnostic dedans. */
+.diag .conteneur { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.diag .tete { margin: 0; }
+.diag .note { font-size: 14px; color: rgba(246, 241, 231, .62); max-width: 40ch; }
+.diag__quiz { background: var(--carte); color: var(--texte); border-radius: 10px; padding: clamp(22px, 3.4vw, 40px); box-shadow: 0 30px 80px rgba(0, 0, 0, .28); min-height: 320px; }
+.diag__quiz h2, .diag__quiz h3 { color: var(--titre); }
+.diag__quiz .sur { color: var(--accent-profond); }
+.diag__quiz .ligne { color: var(--texte-doux); }
+.diag__quiz .triage { max-width: none; }
+.diag__quiz .question h2 { font-size: clamp(24px, 3vw, 32px); }
+@media (max-width: 860px) { .diag .conteneur { grid-template-columns: 1fr; } }
+
+/* La sortie du diagnostic : la porte, la routine en trois colonnes, la
+   phrase de la Maison. Sur l'indigo de .sortie, comme avant. */
+.porte-r { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center; padding: 16px; border-radius: 8px; background: rgba(246, 241, 231, .08); }
+.porte-r img { width: 96px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 4px; }
+.porte-r h2 { font-size: clamp(24px, 3vw, 32px); }
+.porte-r p { font-size: 15px; }
+.routine { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.routine div { display: grid; gap: 8px; align-content: start; padding-top: 12px; border-top: 1px solid rgba(246, 241, 231, .22); }
+.routine b { font-weight: 500; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-sombre); }
+.routine p { font-size: 14px; line-height: 1.5; max-width: none; }
+.sortie .maison { padding: 12px 16px; border-left: 2px solid var(--accent); font-size: 15px; }
+.sortie .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.formulaire.garder { display: grid; gap: 14px; }
+.formulaire.garder .btn { width: auto; justify-self: start; }
+@media (max-width: 620px) { .routine { grid-template-columns: 1fr; } }
+
+/* L'univers : les huit maisons, chacune sur sa teinte, le sigle posé dessus. */
+.univers { background: var(--fond-2); }
+.gamme { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.teinte { display: grid; gap: 10px; }
+.teinte i { display: block; aspect-ratio: 5 / 3; border-radius: 4px; position: relative; }
+.teinte i::after { content: 'MND'; position: absolute; right: 12px; bottom: 8px; font-family: var(--serif); font-size: 22px; letter-spacing: .12em; color: rgba(246, 241, 231, .92); }
+.teinte b { font-weight: 400; font-size: 15px; color: var(--titre); }
+.teinte small { display: block; font-size: 13px; color: var(--texte-doux); line-height: 1.45; }
+@media (max-width: 900px) { .gamme { grid-template-columns: repeat(2, 1fr); } }
+
+/* LES MARQUES DÉFILENT, comme chez Ethos (Yéman, 27 septembre). Une piste
+   deux fois plus longue que l'écran, qui glisse d'une moitié puis repart :
+   la seconde moitié est la copie de la première, la boucle n'a pas de
+   couture. Les logos sont en gris et reprennent leur couleur au survol ; le
+   défilé s'arrête sous la souris. Qui demande moins de mouvement voit les
+   marques en rang, immobiles. */
+.marques { padding-block: clamp(48px, 6vw, 80px); border-block: 1px solid var(--filet); overflow: hidden; }
+.marques .tete--centre { margin-bottom: 36px; }
+.defile { position: relative; --duree: 34s; }
+.defile::before, .defile::after { content: ''; position: absolute; top: 0; bottom: 0; width: clamp(40px, 10vw, 140px); z-index: 1; pointer-events: none; }
+.defile::before { left: 0; background: linear-gradient(90deg, var(--fond), transparent); }
+.defile::after { right: 0; background: linear-gradient(270deg, var(--fond), transparent); }
+.defile__piste { display: flex; width: max-content; gap: clamp(48px, 7vw, 110px); padding-inline: clamp(24px, 3.5vw, 55px); animation: defile var(--duree) linear infinite; }
+.defile:hover .defile__piste { animation-play-state: paused; }
+@keyframes defile { to { transform: translateX(-50%); } }
+.marque { display: flex; align-items: center; height: 44px; flex: none; }
+.marque__logo { height: 34px; width: auto; max-width: 220px; opacity: .78; filter: grayscale(1); transition: opacity var(--t), filter var(--t); }
+.marque:hover .marque__logo { opacity: 1; filter: none; }
+.marque__mot { font-family: var(--serif); font-weight: 400; font-size: 28px; letter-spacing: .06em; color: var(--titre); opacity: .8; white-space: nowrap; }
+
+/* La carte cadeau annoncée sur l'accueil, et composée sur /offrir/. */
+.offrir-teaser .conteneur { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 28px; align-items: center; }
+.offrir-teaser .rangee { justify-content: flex-end; }
+.offrir-teaser .ligne { margin-top: 12px; }
+@media (max-width: 720px) { .offrir-teaser .conteneur { grid-template-columns: 1fr; } .offrir-teaser .rangee { justify-content: flex-start; } }
+.offrir-ilot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+@media (max-width: 900px) { .offrir-ilot { grid-template-columns: 1fr; } }
+
+/* TROIS MODÈLES SUR LES MOTIFS DE LA MAISON (Yéman, 27 septembre) : le
+   médaillon seul, entier dans le cadre ; l'allover du pictogramme sur
+   l'indigo ; le médaillon en semis sur ivoire. Le motif vit dans un ::after
+   SOUS le texte (z-index 0 contre 1) : un motif devant un prénom ne se lit
+   pas. Les fichiers : public/assets/motifs/, tirés des tuiles du 26. */
+.carte-cadeau { aspect-ratio: 1.586; border-radius: 14px; background: linear-gradient(135deg, #23265E 0%, var(--sombre) 45%, var(--sombre-2) 100%); color: #F6F1E7; padding: clamp(18px, 3vw, 30px); display: grid; grid-template-rows: auto 1fr auto; box-shadow: 0 30px 80px rgba(30, 33, 80, .32); position: relative; overflow: hidden; isolation: isolate; }
+.carte-cadeau::after { content: ''; position: absolute; z-index: 0; }
+.carte-cadeau .haut, .carte-cadeau .milieu, .carte-cadeau .bas { position: relative; z-index: 1; }
+.carte-cadeau--medaillon::after { right: 4%; top: 15%; width: 44%; aspect-ratio: 1; background: url(/assets/motifs/medaillon-seul-cuivre.png) center / contain no-repeat; opacity: .92; }
+.carte-cadeau--allover { background: var(--sombre) url(/assets/motifs/allover-aere-indigo-ivoire.png) center / 210px repeat; }
+.carte-cadeau--allover::after { inset: 0; background: linear-gradient(90deg, rgba(30, 33, 80, .97) 0%, rgba(30, 33, 80, .9) 46%, rgba(30, 33, 80, .3) 100%); }
+.carte-cadeau--ivoire { background: var(--fond) url(/assets/motifs/medaillon-aere-ivoire-cuivre.png) center / 200px repeat; color: var(--titre); box-shadow: 0 30px 80px rgba(30, 33, 80, .18); }
+.carte-cadeau--ivoire::after { inset: 0; background: linear-gradient(90deg, rgba(246, 241, 231, .98) 0%, rgba(246, 241, 231, .92) 50%, rgba(246, 241, 231, .18) 100%); }
+.carte-cadeau .haut { display: flex; justify-content: space-between; align-items: center; }
+.carte-cadeau .haut img { height: clamp(22px, 3vw, 30px); width: auto; }
+.carte-cadeau .haut small { font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: rgba(246, 241, 231, .7); }
+.carte-cadeau .milieu { display: grid; align-content: center; gap: 4px; }
+.carte-cadeau .pour { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 241, 231, .7); }
+.carte-cadeau .objet { font-family: var(--serif); font-size: clamp(22px, 3.4vw, 34px); line-height: 1.1; }
+.carte-cadeau .mot { font-family: var(--serif); font-style: italic; font-size: 17px; color: rgba(246, 241, 231, .8); min-height: 1.4em; }
+.carte-cadeau .bas { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+.carte-cadeau .fon { font-family: var(--serif); font-style: italic; color: var(--accent-sombre); font-size: clamp(16px, 2.2vw, 22px); }
+.carte-cadeau .code { font-size: 11px; letter-spacing: .22em; color: rgba(246, 241, 231, .6); }
+.carte-cadeau--ivoire .haut small, .carte-cadeau--ivoire .pour, .carte-cadeau--ivoire .code { color: rgba(30, 33, 80, .62); }
+.carte-cadeau--ivoire .mot { color: rgba(30, 33, 80, .8); }
+.carte-cadeau--ivoire .fon { color: var(--accent-profond); }
+.carte-cadeau .v-indigo { display: none; }
+.carte-cadeau--ivoire .v-ivoire { display: none; }
+.carte-cadeau--ivoire .v-indigo { display: block; }
+.config { display: grid; gap: 16px; }
+.config .btn { justify-self: start; }
+.onglets { display: flex; gap: 6px; padding: 4px; background: var(--fond-2); border-radius: 999px; width: fit-content; }
+.onglets button { font-family: var(--sans); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 9px 16px; border-radius: 999px; border: 0; background: transparent; color: var(--texte-doux); cursor: pointer; transition: background var(--t), color var(--t); }
+.onglets button[aria-selected="true"] { background: var(--carte); color: var(--titre); box-shadow: 0 2px 10px rgba(30, 33, 80, .1); }
+.pilules { display: flex; flex-wrap: wrap; gap: 8px; }
+.pilules label { position: relative; padding: 10px 16px; border: 1px solid var(--filet); border-radius: 999px; font-size: 14px; cursor: pointer; transition: border-color var(--t), background var(--t); }
+.pilules input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pilules label:has(input:checked) { border-color: var(--titre); background: rgba(30, 33, 80, .06); }
+.pilules label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Quatre photos vers la galerie d'hier, gardée telle quelle. */
+.galerie-bande .bande { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.galerie-bande figure { margin: 0; }
+.galerie-bande img { aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 15%; width: 100%; border-radius: 4px; }
+@media (max-width: 720px) { .galerie-bande .bande { grid-template-columns: repeat(2, 1fr); } }
+
+/* Le logo de Google à côté du mot, sur les avis. */
+.avis-google { display: inline-flex; align-items: center; gap: 10px; }
+
+/* La devise en grand pour finir : la Maison signe. */
+.devise-bande { text-align: center; }
+.devise-bande .conteneur { display: grid; gap: 14px; justify-items: center; }
+.devise-bande .devise--bande { font-family: var(--serif); font-style: italic; color: var(--accent-sombre); font-size: clamp(44px, 9vw, 120px); line-height: 1; }
+.devise-bande .sens { font-family: var(--serif); font-size: clamp(20px, 2.6vw, 30px); color: rgba(246, 241, 231, .85); }
+.devise-bande .rangee { margin-top: 14px; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .defile__piste { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
+  .defile::before, .defile::after { display: none; }
 }

@@ -65,15 +65,32 @@ export const COMMUN: Commun = {
      2026 (clic droit sur l'épingle de la Maison) : la fiche structurée la
      porte en `geo`, ce que Google lit pour « salon de locks Cotonou ». */
   position: { latitude: 6.376295137272732, longitude: 2.463199119044698 },
+  /* LES MARQUES QUE LA MAISON UTILISE ET VEND — 27 septembre 2026 : « Aroma-
+     Zone, Arganicare, Dr. Bronner's, L'Oréal, T444Z, Shea Moisture » (Yéman).
+     Quatre logos officiels pris sur les sites des marques ; T444Z et
+     SheaMoisture ne se laissent pas atteindre depuis ici, leur nom tient la
+     place en lettres jusqu'au fichier. Le défilé les porte dans cet ordre. */
+  marques: [
+    { cle: 'aroma-zone', nom: 'Aroma-Zone', logo: 'aroma-zone.png' },
+    { cle: 'arganicare', nom: 'Arganicare', logo: 'arganicare.png' },
+    { cle: 'dr-bronners', nom: 'Dr. Bronner’s', logo: 'dr-bronners.svg' },
+    { cle: 'loreal', nom: 'L’Oréal', logo: 'loreal.svg' },
+    { cle: 't444z', nom: 'T444Z' },
+    { cle: 'shea-moisture', nom: 'SheaMoisture' },
+  ],
   nav: [
-    { texte: 'Mon parcours', vers: '/mon-parcours/' },
+    /* LA MAISON REVISITÉE — 27 septembre 2026, maquette validée. « Mon
+       parcours » devient le diagnostic, la carte cadeau entre au menu
+       (« Offrir »), les offres descendent au pied de page : l'accueil les
+       montre déjà. */
+    { texte: 'Diagnostic', vers: '/mon-parcours/' },
     { texte: 'Services', vers: '/#portes' },
+    { texte: 'Offrir', vers: '/offrir/' },
     /* LA CINQUIEME ENTREE — 18 septembre 2026, demandée par Yéman. Placée
        après Services, là où l'œil se pose, sans déplacer « Mon parcours »
        qui reste la porte d'entrée du site. Sous 860 pixels la barre cache
        tout le menu et ne garde que le bouton de rendez-vous : cette entrée
        ne change donc rien sur téléphone. */
-    { texte: 'Les offres', vers: '/les-offres/' },
     { texte: 'La Maison', vers: '/maison-mnd/' },
     /* La galerie s'intercale entre la Maison et le Journal : on regarde
        avant de lire. Sous 860 pixels la barre cache tout le menu, cette
@@ -95,6 +112,7 @@ export const COMMUN: Commun = {
           { texte: 'MND Kids', vers: '/mnd-kids/' },
           { texte: 'Abonnements', vers: '/abonnements/' },
           { texte: 'Formations', vers: '/formations/' },
+          { texte: 'Les offres', vers: '/les-offres/' },
         ],
       },
       {
@@ -104,7 +122,8 @@ export const COMMUN: Commun = {
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
           { texte: 'Le Journal', vers: '/journal/' },
           { texte: 'Vos questions', vers: '/faq/' },
-          { texte: 'Mon parcours', vers: '/mon-parcours/' },
+          { texte: 'Le diagnostic locks', vers: '/mon-parcours/' },
+          { texte: 'Offrir la Maison', vers: '/offrir/' },
         ],
       },
       {
@@ -198,11 +217,17 @@ export const ACCUEIL: Accueil = {
   /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
      de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
      du paragraphe, les cinq portes la disent juste dessous. */
-  h1: 'Votre couronne, comprise, soignée, révélée.',
-  ligne: 'Un chemin existe pour vous, à Cotonou. Nous commençons par vous écouter.',
+  /* L'ACCROCHE D, CHOISIE PAR YÉMAN LE 27 SEPTEMBRE 2026 parmi quatre
+     posées en place dans la maquette (« on va garder la version D »). « Votre
+     couronne, comprise » n'était pas clair ; il fallait « une découverte
+     d'une vérité sur les locks, comme une coiffure révélatrice ». La ligne
+     du dessous est de lui, mot pour mot : « la maison de référence des locks
+     premium à Cotonou », ÊTRE et non devenir. */
+  h1: 'Révélez ce que vous avez de plus beau.',
+  ligne: 'Des locks créées, réparées et soignées, par la maison de référence des locks premium à Cotonou.',
   boutons: [
-    { texte: 'Je découvre mon parcours', vers: '/mon-parcours/' },
-    { texte: "Je sais ce qu'il me faut", vers: '#portes' },
+    { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
+    { texte: 'Réserver', vers: '/reserver/' },
   ],
   metier: 'Locks créées, réparées, entretenues · Cotonou · depuis 2010',
   /* TROIS PROMESSES, TOUTES TENUES PAR LE SITE AUJOURD'HUI, vérifiées dans
@@ -210,11 +235,64 @@ export const ACCUEIL: Accueil = {
      (îlot reserver), la confirmation sur WhatsApp (formulaire.suite), rien à
      payer en ligne (/conditions/). On ne promet pas « votre place est tenue »
      ni un délai d'annulation : le site ne les tient pas. */
-  promesses: [
-    { titre: 'Un entretien se réserve en ligne', ligne: 'En trois pas, depuis votre téléphone.' },
-    { titre: 'La Maison confirme sur WhatsApp', ligne: 'Pendant ses heures d’ouverture.' },
-    { titre: 'Vous réglez à la Maison', ligne: 'Le jour venu, au comptoir. Un acompte éventuel vous est dit avant.' },
-  ],
+  /* LES SECTIONS DE L'ACCUEIL REVISITÉ — 27 septembre 2026. Les trois
+     promesses sont parties avec l'épure ; l'objectif dit ce que la Maison
+     EST, le diagnostic se joue sur la page même, l'univers montre les huit
+     maisons, les marques défilent, la carte cadeau s'annonce, la galerie
+     donne quatre photos et mène à la sienne. */
+  objectif: {
+    sur: 'Notre objectif',
+    titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
+    ligne: "Une maison de famille née en 2010, où l'on crée, répare et soigne les locks avec une seule méthode. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+    piliers: [
+      { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
+      { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+      { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
+    ],
+  },
+  diagnostic: {
+    sur: 'Le diagnostic locks',
+    titre: 'Cinq questions. Votre routine.',
+    ligne: 'Dites-nous où en sont vos locks, votre cheveu, votre cuir chevelu et votre rythme. Vous repartez avec la porte qui vous convient et une routine de soins, chez vous et à la Maison.',
+    note: "Votre routine part sur WhatsApp si vous le voulez, et s'inscrit à votre fiche pour que la Maison s'en souvienne à votre prochain rendez-vous.",
+  },
+  univers: {
+    sur: 'Notre univers',
+    titre: 'Une Maison, huit maisons.',
+    ligne: "Chaque vocation de MND porte son nom et sa couleur, et le même sigle indigo. Ce que la Maison fait à Cotonou nourrit ce que l'Atelier ouvre ailleurs, ce que l'Académie enseigne et ce que la Boutique choisit.",
+    /* Les teintes sont celles de docs/marque/sous-marques/gamme.json, la
+       gamme fabriquée le 26 septembre ; l'indigo royal reste le sigle. */
+    gamme: [
+      { nom: 'Maison MND', ligne: "La marque mère, le salon d'Akpakpa.", teinte: '#1E2150' },
+      { nom: "L'Atelier MND", ligne: "Les branches de la Maison, d'une ville à l'autre.", teinte: '#936518' },
+      { nom: 'Académie MND', ligne: 'Formations, certifications, transmission.', teinte: '#2F5D50' },
+      { nom: 'Boutique MND', ligne: 'Produits, outils, objets de la Maison.', teinte: '#4A2C5C' },
+      { nom: 'Soins MND', ligne: 'Routines, cuir chevelu, entretien.', teinte: '#2E6F8E' },
+      { nom: 'Événements MND', ligne: 'Ateliers, rencontres, défilés, lancements.', teinte: '#1F4D62' },
+      { nom: 'Studio MND', ligne: 'Portraits, contenu, éditorial.', teinte: '#6E283C' },
+      { nom: 'LOKAA by MND', ligne: 'Le logiciel des salons, né du Trône.', teinte: '#1A1A1A' },
+    ],
+  },
+  marques: {
+    sur: 'Les marques que nous choisissons',
+    titre: 'Ce que nous avons éprouvé sur nos propres couronnes.',
+    ligne: "À la Maison et à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
+  },
+  offrir: {
+    sur: 'La carte cadeau',
+    titre: 'Offrez une couronne.',
+    ligne: 'Un geste de la Maison, ou un montant de votre choix, remis à qui vous voulez. La personne réserve quand elle veut, sur toute prestation, pendant douze mois.',
+    bouton: { texte: 'Composer une carte', vers: '/offrir/' },
+  },
+  galerie: {
+    sur: 'La galerie',
+    titre: 'Ce que la Maison fait de ses mains.',
+    /* Quatre visages déjà servis ailleurs sur le site et inscrits au
+       registre ; la galerie d'hier, avec son défilé, reste telle quelle et
+       c'est là que mène le bouton. */
+    images: ['cliente-12.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
+    bouton: { texte: 'Voir la galerie', vers: '/galerie/' },
+  },
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
      Une promesse en grand, un mécanisme en une phrase, un bouton, les
      conditions dépliées dans la carte. Aucun prix en francs : la voix du
@@ -289,49 +367,24 @@ export const ACCUEIL: Accueil = {
       'cliente-10.jpg', 'cliente-11.jpg', 'cliente-12.jpg', 'cliente-13.jpg'],
   },
   portes: {
-    sur: 'Cinq parcours, une seule méthode',
-    titre: "Vous êtes où aujourd'hui ?",
+    sur: 'Ce que la Maison fait',
+    titre: 'Cinq portes, une méthode.',
+    /* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026) : la
+       Première Couronne, la Réparation, l'Entretien, les Soins, MND Kids. La
+       formation garde sa page et son entrée au pied ; sur l'accueil, on ne
+       vend plus le métier entre deux soins. Les photos : le portrait sur la
+       première porte (la femme des cauris tient déjà le premier écran, on ne
+       la remet pas ici), le regard sur la réparation, l'entretien, l'attention
+       sur les soins, la mère et l'enfant sur MND Kids. */
     cartes: [
-      {
-        titre: 'Je veux créer ma couronne',
-        ligne: "Vous n'avez jamais porté de locks. Nous choisissons la méthode ensemble.",
-        suite: 'La Première Couronne',
-        vers: '/premiere-couronne/',
-        /* Le portrait descend ici le 23 septembre 2026 : les cauris (creation.jpg)
-           prennent le premier écran, et le même visage ne revient pas trois fois. */
-        image: 'portrait-accueil.jpg',
-      },
-      {
-        titre: "Ma couronne a besoin d'attention",
-        ligne: "Casse, racines fragiles, locks perdues. Nous regardons d'abord.",
-        suite: 'La Réparation',
-        vers: '/reparation-locks/',
-        image: 'attention.jpg',
-      },
-      {
-        titre: 'Je veux entretenir ma couronne',
-        ligne: 'Lavage, resserrage, hydratation, coiffure. Créées ailleurs ? Bienvenue quand même.',
-        suite: 'Entretien et soins',
-        vers: '/entretien-locks/',
-        image: 'trois-couronnes.jpg',
-      },
-      {
-        titre: 'Ma couronne grandit avec moi',
-        ligne: 'Douceur, patience, et vous à ses côtés.',
-        suite: 'MND Kids',
-        vers: '/mnd-kids/',
-        image: 'mnd-kids.jpg',
-      },
-      {
-        titre: 'Je veux apprendre le métier',
-        ligne: "La méthode, les gestes, la tenue d'un salon.",
-        suite: 'MND Formation',
-        vers: '/formations/',
-        image: 'brice.jpg',
-      },
+      { titre: 'Première Couronne', ligne: 'Vos premières locks, préparées puis posées, après une consultation.', suite: 'Découvrir', vers: '/premiere-couronne/', image: 'portrait-accueil.jpg' },
+      { titre: 'Réparation', ligne: "Casse, amincissement, racines : on regarde d'abord, zone par zone.", suite: 'Découvrir', vers: '/reparation-locks/', image: 'regard.jpg' },
+      { titre: 'Entretien', ligne: 'Lavage, resserrage, hydratation, au rythme de votre couronne.', suite: 'Découvrir', vers: '/entretien-locks/', image: 'entretien.jpg' },
+      { titre: 'Soins', ligne: 'Cuir chevelu et longueurs, en profondeur, selon la saison.', suite: 'Découvrir', vers: '/soins-locks/', image: 'attention.jpg' },
+      { titre: 'MND Kids', ligne: 'Pour les enfants, tout va plus doucement.', suite: 'Découvrir', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
     ],
-    repli: 'Vous hésitez ? Trois questions suffisent.',
-    repliBouton: { texte: 'Je ne sais pas quel service choisir', vers: '/mon-parcours/' },
+    repli: 'Vous hésitez ? Cinq questions suffisent.',
+    repliBouton: { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
   },
   confiance: {
     sur: 'Entre de bonnes mains',
@@ -344,20 +397,22 @@ export const ACCUEIL: Accueil = {
     ],
   },
   fondateurs: {
-    sur: 'Derrière MND',
-    titre: 'Brice et Yéman Ahouansou',
-    ligne: 'Une maison de famille, née en 2010 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction.',
+    sur: 'Notre histoire',
+    titre: 'Une maison de famille, née en 2010 à Cotonou.',
+    ligne: 'Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet.',
     message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
   },
   journal: { sur: 'Le Journal MND', titre: 'Comprendre sa couronne' },
+  /* LA FIN DE L'ACCUEIL EST LA DEVISE, EN GRAND — 27 septembre 2026. Le
+     rappel garde sa page et sa place au pied ; ici, la Maison signe. */
   appel: {
-    titre: "Vous préférez qu'on vous rappelle ?",
-    ligne: 'Un prénom, un numéro. Nous vous répondons personnellement.',
+    titre: 'Mi nyɔ́ ɖɛkpɛ.',
+    ligne: 'Vous êtes beaux, et vous le savez.',
     boutons: [
-      { texte: 'Laisser mes coordonnées', vers: '/rappel/' },
-      { texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' },
+      { texte: 'Réserver', vers: '/reserver/' },
+      { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     ],
   },
 };
@@ -392,17 +447,17 @@ export const GALERIE: Galerie = {
 export const PAGES: Page[] = [
   {
     chemin: '/mon-parcours/',
-    titre: 'Trouver mon parcours locks · Maison MND Cotonou',
-    description: 'Répondez à quelques questions et trouvez le parcours qui convient à vos cheveux ou à vos locks : création, réparation, entretien, soins ou enfants.',
-    h1: 'Trouver mon parcours',
-    sur: 'Mon parcours',
-    ligne: 'Trois questions, et la bonne porte.',
+    titre: 'Le diagnostic locks · Maison MND Cotonou',
+    description: 'Cinq questions sur vos locks, votre cheveu, votre cuir chevelu et votre rythme : la Maison MND vous dit la porte qui vous convient et votre routine de soins, à Cotonou.',
+    h1: 'Le diagnostic locks',
+    sur: 'Diagnostic',
+    ligne: 'Cinq questions. Votre routine.',
     besoin: 'inconnu',
     ilot: 'triage',
     sections: [
       {
         type: 'texte',
-        corps: "Il n'y a pas de bonne réponse. Choisissez ce qui vous ressemble aujourd'hui, nous vous montrons la suite.",
+        corps: "Il n'y a pas de bonne réponse. Dites où en sont vos locks : nous composons votre routine, chez vous et à la Maison, et la porte qui vous convient.",
       },
       {
         type: 'grille',
@@ -419,7 +474,7 @@ export const PAGES: Page[] = [
       },
     ],
     jsonld: 'aucun',
-    court: 'Mon parcours',
+    court: 'Diagnostic',
   },
   {
     chemin: '/premiere-couronne/',
@@ -640,22 +695,60 @@ export const PAGES: Page[] = [
     sur: "L'univers MND",
     besoin: 'inconnu',
     sections: [
+      /* LA MAISON REVISITÉE — 27 septembre 2026 : « rajoute des sections
+         notre histoire, notre objectif, notre univers » (Yéman). L'objectif
+         dit ce que la Maison EST, l'histoire est celle des fondateurs, mot
+         pour mot celle de leur page, l'univers montre les huit maisons, les
+         marques défilent. Les quatre portes d'avant (Ma Couronne, le Trône…)
+         se lisent désormais dans l'univers. */
       {
         type: 'texte',
-        corps: "Une maison boutique de soin et de création de dreadlocks afro, à Cotonou. MND n'est pas seulement un salon : c'est une maison à quatre portes, et chacune s'ouvre sur la même méthode.",
+        sur: 'Notre objectif',
+        titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
+        corps: "Une maison boutique de soin et de création de dreadlocks afro, née en 2010 à Cotonou, où l'on crée, répare et soigne les locks avec une seule méthode. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
         image: 'regard.jpg',
       },
       {
-        type: 'grille',
-        style: 'cartes',
-        sur: 'Les quatre portes',
-        titre: 'Une maison à quatre portes',
+        type: 'piliers',
         items: [
-          { titre: 'Ma Couronne', texte: "Votre espace personnel : vos rendez-vous, l'historique de vos soins, votre abonnement.", vers: 'soeur:couronne', suite: 'Ouvrir mon espace' },
-          { titre: 'La Maison MND', texte: 'Le lieu, à Cotonou, où vos locks sont créées, réparées et entretenues.', vers: '/contact/', suite: 'Venir à la Maison' },
-          { titre: 'Le Trône', texte: "L'atelier intérieur de la Maison, qui organise nos rendez-vous et notre suivi." },
-          { titre: 'MND Formation', texte: "L'école de la méthode, du premier geste à la tenue d'un salon.", vers: '/formations/', suite: 'Voir les formations' },
+          { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
+          { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+          { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
         ],
+      },
+      {
+        type: 'texte',
+        sur: 'Notre histoire',
+        titre: 'Une maison de famille, née en 2010 à Cotonou.',
+        corps: "Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet. Seize ans plus tard, la Maison a ses outils, ses règles, ses rythmes, une Académie, et des couronnes qui reviennent depuis la première année.",
+        image: 'fondateurs.jpg',
+      },
+      {
+        type: 'citation',
+        texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
+        qui: 'Brice et Yéman Ahouansou',
+      },
+      {
+        type: 'gamme',
+        sur: 'Notre univers',
+        titre: 'Une Maison, huit maisons.',
+        ligne: "Chaque vocation de MND porte son nom et sa couleur, et le même sigle indigo. Ce que la Maison fait à Cotonou nourrit ce que l'Atelier ouvre ailleurs, ce que l'Académie enseigne et ce que la Boutique choisit.",
+        items: [
+          { nom: 'Maison MND', ligne: "La marque mère, le salon d'Akpakpa.", teinte: '#1E2150' },
+          { nom: "L'Atelier MND", ligne: "Les branches de la Maison, d'une ville à l'autre.", teinte: '#936518' },
+          { nom: 'Académie MND', ligne: 'Formations, certifications, transmission.', teinte: '#2F5D50' },
+          { nom: 'Boutique MND', ligne: 'Produits, outils, objets de la Maison.', teinte: '#4A2C5C' },
+          { nom: 'Soins MND', ligne: 'Routines, cuir chevelu, entretien.', teinte: '#2E6F8E' },
+          { nom: 'Événements MND', ligne: 'Ateliers, rencontres, défilés, lancements.', teinte: '#1F4D62' },
+          { nom: 'Studio MND', ligne: 'Portraits, contenu, éditorial.', teinte: '#6E283C' },
+          { nom: 'LOKAA by MND', ligne: 'Le logiciel des salons, né du Trône.', teinte: '#1A1A1A' },
+        ],
+      },
+      {
+        type: 'marques',
+        sur: 'Les marques que nous choisissons',
+        titre: 'Ce que nous avons éprouvé sur nos propres couronnes.',
+        ligne: "À la Maison et à la Boutique MND, rien n'entre sans avoir été essayé sur des locks, longtemps.",
       },
       {
         type: 'citation',
@@ -878,6 +971,43 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'aucun',
     court: 'Les offres',
+  },
+  /* OFFRIR — 27 septembre 2026, maquette validée. La carte cadeau : trois
+     modèles sur les motifs de la Maison, un geste ou un montant, et la
+     commande qui arrive au Trône comme une demande. Rien ne se paie en
+     ligne ; aucun montant n'est suggéré, la voix du site n'écrit pas de prix. */
+  {
+    chemin: '/offrir/',
+    titre: 'Carte cadeau · Offrir la Maison MND',
+    description: 'Offrez un geste de la Maison MND ou un montant de votre choix : la carte cadeau se réserve sur toute prestation, pendant douze mois, à Cotonou.',
+    h1: 'Offrez une couronne.',
+    sur: 'La carte cadeau',
+    ligne: 'Un geste de la Maison, ou un montant de votre choix, remis à qui vous voulez. La personne réserve quand elle veut, sur toute prestation, pendant douze mois.',
+    besoin: 'inconnu',
+    ilot: 'offrir',
+    sections: [
+      {
+        type: 'pas',
+        sur: 'Comment ça se passe',
+        titre: 'Trois pas, et la carte arrive.',
+        items: [
+          ['Vous choisissez', 'Un geste (un entretien, un soin, une Première Couronne) ou un montant. Un prénom, un mot.'],
+          ['La Maison vous confirme sur WhatsApp', 'Vous réglez à la Maison ou par mobile money. Rien ne se paie en ligne.'],
+          ['La carte arrive', "Sur WhatsApp, ou imprimée à retirer à la Maison. Elle est portée sur le compte de la personne : elle n'a rien à présenter, la Maison sait."],
+        ],
+      },
+      {
+        type: 'faq',
+        sur: 'Bon à savoir',
+        items: [
+          ['Combien de temps la carte est-elle valable ?', 'Douze mois à partir du jour où elle est remise, sur toute prestation de la Maison.'],
+          ['La personne doit-elle présenter quelque chose ?', "Non. La carte est portée sur son compte à la Maison ; elle donne son prénom, et la Maison sait."],
+          ['Peut-on offrir un montant précis ?', "Oui, celui que vous choisissez. Il reste disponible jusqu'à épuisement, sur une ou plusieurs visites."],
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Offrir',
   },
   {
     /* LE RAPPEL PROMIS EXISTE — 22 septembre 2026. « Me faire rappeler » et

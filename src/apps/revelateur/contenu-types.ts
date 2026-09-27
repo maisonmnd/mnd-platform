@@ -26,7 +26,15 @@ export type Section =
   | { type: 'pas'; sur?: string; titre?: string; liste?: boolean; items: [string, string][] }
   | { type: 'faq'; sur?: string; titre?: string; items: [string, string][] }
   | { type: 'citation'; texte: string; qui?: string }
-  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[] };
+  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[] }
+  /* LA MAISON REVISITÉE — 27 septembre 2026, maquette validée. Trois blocs
+     de plus, ceux de l'accueil rendus disponibles aux pages libres : les
+     piliers (trois titres courts sous un objectif), la gamme (les huit
+     maisons de l'univers, chacune avec sa teinte) et le défilé des marques
+     (qui lit COMMUN.marques, rien n'est écrit dans la section). */
+  | { type: 'piliers'; sur?: string; titre?: string; ligne?: string; items: { titre: string; ligne: string }[] }
+  | { type: 'gamme'; sur?: string; titre?: string; ligne?: string; items: { nom: string; ligne: string; teinte: string }[] }
+  | { type: 'marques'; sur?: string; titre?: string; ligne?: string };
 
 export type Page = {
   /** Le chemin canonique, avec la barre finale : `/premiere-couronne/`. */
@@ -60,7 +68,7 @@ export type Page = {
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
-  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres';
+  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir';
 };
 
 export type Accueil = {
@@ -74,8 +82,16 @@ export type Accueil = {
       « dreadlocks » n'apparaissaient avant de faire défiler : il fallait déjà
       savoir que « couronne » veut dire locks. Une ligne au-dessus du titre. */
   metier: string;
-  /** Trois promesses tenues par le site, posées juste sous le grand écran. */
-  promesses: { titre: string; ligne: string }[];
+  /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 (« épure-moi
+     complètement le site », maquette validée). À leur place, l'accueil dit
+     l'objectif de la Maison, monte le diagnostic, montre l'univers, les
+     marques, la carte cadeau et un extrait de la galerie. */
+  objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[] };
+  diagnostic: { sur: string; titre: string; ligne: string; note: string };
+  univers: { sur: string; titre: string; ligne: string; gamme: { nom: string; ligne: string; teinte: string }[] };
+  marques: { sur: string; titre: string; ligne: string };
+  offrir: { sur: string; titre: string; ligne: string; bouton: Lien };
+  galerie: { sur: string; titre: string; images: string[]; bouton: Lien };
   /** La section des offres sur l'accueil : l'îlot `offres` s'y monte. */
   offres: { sur: string; titre: string };
   /** LES COURONNES DE LA MAISON — 23 septembre 2026. Cinq clientes,
@@ -137,6 +153,10 @@ export type Commun = {
       fiche structurée ne dit pas `geo` : mieux vaut rien qu'un point faux. */
   position?: { latitude: number; longitude: number };
   nav: Lien[];
+  /** Les marques que la Maison utilise et vend, dans l'ordre du défilé. `logo`
+      est un fichier de public/assets/marques/ ; sans logo, le nom tient la
+      place en lettres, et le harnais refuse un logo annoncé qui n'existe pas. */
+  marques: { cle: string; nom: string; logo?: string }[];
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };
   /** Un message WhatsApp par parcours, déjà écrit. */
   messages: Record<Besoin, string>;
