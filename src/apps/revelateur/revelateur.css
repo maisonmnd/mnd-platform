@@ -1419,3 +1419,13 @@ body.galerie-plein { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   .diag::after, .offrir-teaser::after, .devise-bande::after { animation: none; }
 }
+
+/* LA RÉSERVATION PAR ÉTAPES — 27 septembre 2026 au soir : une question par
+   famille, la liste des gestes de la famille, « Non, pas cette fois » ou
+   « Continuer », puis le résumé de ce qu'on a choisi avant le jour. */
+.assistant .gestes { margin-top: 4px; }
+.assistant__pied { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.assistant__resume { display: grid; gap: 6px; }
+.assistant__ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--filet); font-size: 15px; }
+.assistant__famille { color: var(--texte-doux); }
+@media (max-width: 520px) { .assistant__ligne { grid-template-columns: 1fr; gap: 2px; } }

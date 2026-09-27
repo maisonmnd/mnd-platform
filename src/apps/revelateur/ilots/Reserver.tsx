@@ -47,6 +47,35 @@ import Demande from './Demande';
    sans prestation à proposer, il retombe sur la DEMANDE DE RAPPEL, jamais
    sur un cul-de-sac. Sans base du tout, sur WhatsApp. */
 
+/* LA RÉSERVATION PAR ÉTAPES — 27 septembre 2026 au soir. « Au niveau de la
+   réservation je veux aller par étape, du style : vous avez besoin d'un
+   shampoing ? » (Yéman), et au sélecteur : une question par famille, dans
+   l'ordre du soin. Les familles restent celles du catalogue, nommées par la
+   Maison ; ici on ne fait que les RANGER (lavage, racines, soin, couleur,
+   coiffure, puis le reste) et leur donner une question. On reconnaît par le
+   nom, jamais par l'identifiant : une famille renommée perd sa question et
+   retombe sur la forme générale, elle ne disparaît pas. La consultation et
+   le cas d'une seule famille gardent l'écran d'avant : une question pour
+   une seule réponse serait une cérémonie. */
+const QUESTIONS_DES_FAMILLES: readonly (readonly [RegExp, string])[] = [
+  [/lavage|shampoing/i, 'Vous avez besoin d’un shampoing ?'],
+  [/racine|reprise/i, 'Vos racines ont besoin d’une reprise ?'],
+  [/hydrat|purif|reconstru|\bsoins?\b/i, 'Vous voulez un soin ?'],
+  [/color|couleur/i, 'Une couleur ?'],
+  [/tress|coiff|grands jours/i, 'Une coiffure pour l’occasion ?'],
+  [/d[ée]faisage/i, 'Un défaisage ?'],
+  [/sortie/i, 'Une sortie signature ?'],
+];
+const rangDuSoin = (titre: string): number => {
+  const i = QUESTIONS_DES_FAMILLES.findIndex(([r]) => r.test(titre));
+  return i < 0 ? QUESTIONS_DES_FAMILLES.length : i;
+};
+export const questionPour = (titre: string): string =>
+  QUESTIONS_DES_FAMILLES.find(([r]) => r.test(titre))?.[1] ?? `${titre} : vous en voulez ?`;
+/* Un tri STABLE : deux familles hors liste gardent l'ordre du catalogue. */
+export const ordonneParLeSoin = <T extends { titre: string }>(groupes: readonly T[]): T[] =>
+  groupes.map((g, i) => ({ g, i })).sort((a, b) => (rangDuSoin(a.g.titre) - rangDuSoin(b.g.titre)) || (a.i - b.i)).map(({ g }) => g);
+
 type Props = { besoin?: Besoin };
 
 const JOURS_PROPOSES = 21;
@@ -124,6 +153,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   /* `null` tant que la visiteuse n'a rien plié ni déplié : l'ouverture par
      défaut se calcule alors depuis la porte, sans effet ni synchronisation. */
   const [plies, setPlies] = useState<Record<string, boolean> | null>(null);
+  /* L'assistant : la famille en cours, et « toutes vues ». */
+  const [rang, setRang] = useState(0);
+  const [repondu, setRepondu] = useState(false);
   const [jour, setJour] = useState('');
   const [heure, setHeure] = useState<{ heure: string; maitre: string } | null>(null);
   const [prenom, setPrenom] = useState('');
@@ -181,6 +213,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     () => (agenda ? groupesDePrestations(agenda, prestations, besoin) : []),
     [agenda, prestations, besoin],
   );
+  const familles = useMemo(() => ordonneParLeSoin(groupes), [groupes]);
 
   /* L'ÉTAT D'OUVERTURE, SANS EFFET. La porte ouvre ses familles ; si elle
      n'en désigne aucune, la première s'ouvre, pour qu'un écran ne soit
@@ -389,6 +422,65 @@ function Calendrier({ besoin: besoinInitial }: Props) {
 
   const choisi = serviceIds.length > 0;
   const seuleFamille = groupes.length === 1;
+  /* L'assistant vaut pour les gestes qu'on choisit ; la consultation et la
+     famille unique gardent l'écran d'avant. Le jour ne se montre qu'une fois
+     toutes les questions posées. */
+  const assistant = !consultation && !seuleFamille;
+  const pret = choisi && (!assistant || repondu);
+  const familleEnCours = familles[Math.min(rang, Math.max(0, familles.length - 1))];
+  const suivant = () => {
+    if (rang + 1 >= familles.length) setRepondu(true); else setRang(rang + 1);
+  };
+  const boutonGeste = (s: PrestationPublique) => {
+    const coche = serviceIds.includes(s.id);
+    const ferme = plein && !coche;
+    return (
+      <button
+        type="button"
+        key={s.id}
+        className={`geste-choix${coche ? ' est-choisi' : ''}${ferme ? ' est-ferme' : ''}`}
+        aria-pressed={coche}
+        aria-disabled={ferme || undefined}
+        onClick={() => { if (!ferme) basculerLeGeste(s.id); }}
+      >
+        <span className="case" aria-hidden="true" />
+        <b>{s.name}</b>
+        <small>
+          {s.durationMin ? dit(s.durationMin) : ''}
+          {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
+          {prixDit(s, devise)
+            ? <span className="prix">{prixDit(s, devise)}</span>
+            : <span className="au-salon">prix au salon</span>}
+        </small>
+      </button>
+    );
+  };
+  const ecranDeLaFamille = familleEnCours ? (
+    <div className="assistant" key={familleEnCours.id}>
+      <div className="gestes">{familleEnCours.items.map(boutonGeste)}</div>
+      <div className="assistant__pied">
+        {rang > 0 ? <button type="button" className="btn btn--lien" onClick={() => setRang(rang - 1)}>Revenir</button> : <span />}
+        {familleEnCours.items.some((x) => serviceIds.includes(x.id))
+          ? <button type="button" className="btn btn--fort" onClick={suivant}>Continuer</button>
+          : <button type="button" className="btn" onClick={suivant}>Non, pas cette fois</button>}
+      </div>
+    </div>
+  ) : null;
+  const resumeDesReponses = (
+    <div className="assistant__resume">
+      {familles.map((g) => {
+        const pris = g.items.filter((x) => serviceIds.includes(x.id));
+        return (
+          <div key={g.id} className="assistant__ligne">
+            <span className="assistant__famille">{g.titre}</span>
+            <span>{pris.length ? pris.map((x) => x.name).join(', ') : 'Non, pas cette fois'}</span>
+          </div>
+        );
+      })}
+      {!choisi && <p className="legende">Choisissez au moins un geste pour voir les heures.</p>}
+      <p><button type="button" className="btn btn--lien" onClick={() => { setRepondu(false); setRang(0); }}>Modifier mes réponses</button></p>
+    </div>
+  );
 
   /* ── Les trois pas ────────────────────────────────────────────────── */
   return (
@@ -400,14 +492,23 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       </ol>
 
       <div className="bloc-reservation">
-        <p className="sur">{consultation ? 'La consultation' : 'Vos gestes'}</p>
-        <h3>{consultation ? 'Ce que nous allons regarder' : 'Ce dont votre couronne a besoin'}</h3>
-        {!consultation && !seuleFamille && (
+        <p className="sur">
+          {assistant && !repondu && familleEnCours ? `Question ${rang + 1} sur ${familles.length}` : consultation ? 'La consultation' : 'Vos gestes'}
+        </p>
+        <h3>
+          {assistant && !repondu && familleEnCours ? questionPour(familleEnCours.titre) : assistant ? 'Ce que vous avez choisi' : consultation ? 'Ce que nous allons regarder' : 'Ce dont votre couronne a besoin'}
+        </h3>
+        {assistant && !repondu && familleEnCours && (
+          <p className="legende" style={{ marginBottom: 14 }}>
+            {familleEnCours.titre} · cochez ce que vous voulez, ou passez. La Maison additionne la durée et le prix.
+          </p>
+        )}
+        {!assistant && !consultation && !seuleFamille && (
           <p className="legende" style={{ marginBottom: 14 }}>
             Cochez tout ce que vous voulez faire en une seule venue. La Maison additionne la durée et le prix.
           </p>
         )}
-        {groupes.map((g) => {
+        {assistant ? (repondu ? resumeDesReponses : ecranDeLaFamille) : groupes.map((g) => {
           const deplie = seuleFamille || ouvert[g.id];
           const pris = g.items.filter((s) => serviceIds.includes(s.id)).length;
           return (
@@ -431,30 +532,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               )}
               {deplie && (
                 <div className="gestes">
-                  {g.items.map((s) => {
-                    const coche = serviceIds.includes(s.id);
-                    const ferme = plein && !coche;
-                    return (
-                      <button
-                        type="button"
-                        key={s.id}
-                        className={`geste-choix${coche ? ' est-choisi' : ''}${ferme ? ' est-ferme' : ''}`}
-                        aria-pressed={coche}
-                        aria-disabled={ferme || undefined}
-                        onClick={() => { if (!ferme) basculerLeGeste(s.id); }}
-                      >
-                        <span className="case" aria-hidden="true" />
-                        <b>{s.name}</b>
-                        <small>
-                          {s.durationMin ? dit(s.durationMin) : ''}
-                          {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
-                          {prixDit(s, devise)
-                            ? <span className="prix">{prixDit(s, devise)}</span>
-                            : <span className="au-salon">prix au salon</span>}
-                        </small>
-                      </button>
-                    );
-                  })}
+                  {g.items.map(boutonGeste)}
                 </div>
               )}
             </div>
@@ -463,7 +541,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         {consultation && <p className="legende" style={{ marginTop: 12 }}>Une création ou une réparation commence toujours par une consultation. Le devis vient après, et vous décidez ensuite.</p>}
       </div>
 
-      {choisi && (
+      {pret && (
         <div className="bloc-reservation venir">
           <p className="sur">Votre venue</p>
           <ul className="panier">
@@ -555,7 +633,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         </div>
       )}
 
-      {choisi && (
+      {pret && (
         <div className="bloc-reservation venir">
           <p className="sur">Le jour</p>
           <h3>Quand vous convient-il ?</h3>
