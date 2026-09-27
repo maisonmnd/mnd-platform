@@ -623,14 +623,13 @@ function rendAccueil(articles) {
            signature au-dessus de l'accroche, l'objectif, les cinq portes, le
            diagnostic joué sur la page, les offres, l'histoire, l'univers, les
            marques qui défilent, la carte cadeau, quatre photos vers la
-           galerie (celle d'hier, gardée telle quelle), les couronnes et les
+           galerie (celle d'hier, gardée telle quelle), les
            avis Google, le Journal, et la devise en grand pour finir. Les trois
            promesses sont parties avec l'épure. -->
       <section class="hero-plein">
         ${photo(PHOTO_ACCUEIL, 'class="hero-plein__photo"', 'alt="Une couronne de locks et un collier de cauris" width="800" height="1000" fetchpriority="high" decoding="async"')}
         <div class="hero-plein__voile" aria-hidden="true"></div>
         <div class="conteneur hero-plein__texte">
-          <p class="pastille metier">${echappe(a.metier)}</p>
           <p class="devise devise--grande">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
           <p class="ligne">${echappe(a.ligne)}</p>
@@ -669,10 +668,6 @@ function rendAccueil(articles) {
           <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
         </div>
       </div></section>
-      <section class="univers" id="univers"><div class="conteneur">
-        <div class="tete"><p class="sur">${echappe(a.univers.sur)}</p><h2>${echappe(a.univers.titre)}</h2><p class="ligne">${echappe(a.univers.ligne)}</p></div>
-        ${gamme(a.univers.gamme)}
-      </div></section>
       ${marques(a.marques)}
       <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
         <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
@@ -682,13 +677,10 @@ function rendAccueil(articles) {
         <div class="tete tete--ligne"><div><p class="sur">${echappe(a.galerie.sur)}</p><h2>${echappe(a.galerie.titre)}</h2></div>${bouton(a.galerie.bouton, 'btn btn--lien')}</div>
         <div class="bande">${a.galerie.images.map((img) => `<figure>${image(img, '')}</figure>`).join('')}</div>
       </div></section>
+      <!-- LE SOIR DU 27 SEPTEMBRE 2026 : la ligne du métier, « Notre univers » et
+           « Nos clientes » sont partis de l'accueil (Yéman). Les avis Google
+           restent, importés depuis l'API de Google, avec son logo. -->
       <section class="avis" id="avis">
-        <div class="conteneur couronnes">
-          <div class="tete"><p class="sur">${echappe(a.couronnes.sur)}</p><h2>${echappe(a.couronnes.titre)}</h2>${a.couronnes.ligne ? `<p class="ligne">${echappe(a.couronnes.ligne)}</p>` : ''}</div>
-          <div class="couronnes__bande">
-            ${a.couronnes.images.map((img) => `<figure>${image(img, '')}</figure>`).join('\n            ')}
-          </div>
-        </div>
         <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
       </section>
       <section class="journal" id="journal" style="background:var(--fond-2); border-block:1px solid var(--filet)"><div class="conteneur">

@@ -63,7 +63,9 @@ dit('… et n’est jamais ouverte d’avance', true, accueil.includes('id="join
 dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joindre"')[1] ?? '').split('</script>')[0].includes('—'));
 
 /* ── LE PREMIER ÉCRAN DIT LE MÉTIER, ET TROIS PROMESSES SUIVENT ───── */
-dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.metier) && /Cotonou/.test(ACCUEIL.metier));
+/* La ligne du métier est partie du premier écran le 27 septembre 2026 au
+   soir ; c'est la ligne sous l'accroche qui nomme les locks et Cotonou. */
+dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.ligne) && /Cotonou/.test(ACCUEIL.ligne));
 /* « La phrase est beaucoup trop longue » (Yéman, 22 septembre 2026) : le titre
    tient en six mots, le paragraphe en deux phrases courtes. */
 /* HUIT MOTS DEPUIS LE 27 SEPTEMBRE 2026 : Yéman a choisi « Révélez ce que
@@ -78,11 +80,9 @@ dit('… son titre tient en huit mots', true, ACCUEIL.h1.trim().split(/\s+/).len
    page la plus visitée ; une photo pleine largeur paresseuse ouvre l'accueil
    sur un trou ; un voile réglé à l'œil ne survit pas à la photo suivante. */
 dit('l’accueil est en pleine largeur, l’entête posée dessus', true, /<body [^>]*class="accueil-plein"/.test(accueil) && accueil.includes('<section class="hero-plein">'));
-dit('… la ligne du métier est une pastille', true, accueil.includes(`<p class="pastille metier">${ACCUEIL.metier}</p>`));
 /* Sur téléphone elle descend sous les boutons, elle ne disparaît pas : c'est
    la seule ligne du premier écran qui dit ce que la Maison fait (arbitrage
    de Yéman, 23 septembre 2026). */
-dit('… et la feuille ne la cache sur aucun écran', false, /\.pastille[^{]*\{[^}]*display:\s*none/.test(readFileSync('src/apps/revelateur/revelateur.css', 'utf8')));
 /* Deux pièges de téléphone, nommés par l'autre session : une hauteur en svh
    sans repli en vh s'effondre sur les navigateurs d'avant 2022 (les Android
    anciens de Cotonou) ; et une ligne du métier sous 11 px est présente mais
@@ -90,8 +90,6 @@ dit('… et la feuille ne la cache sur aucun écran', false, /\.pastille[^{]*\{[
 const feuilleSite = readFileSync('src/apps/revelateur/revelateur.css', 'utf8');
 dit('toute hauteur en svh est précédée de son repli en vh, dans la même règle', [],
   [...feuilleSite.matchAll(/\{[^}]*\}/g)].map((m) => m[0]).filter((r) => /:\s*[^;]*\bsvh\b/.test(r) && !/min-height:\s*\d+vh;\s*min-height:\s*\d+svh/.test(r)).map((r) => r.slice(0, 60)));
-dit('la ligne du métier ne descend jamais sous 11 px', [],
-  [...feuilleSite.matchAll(/\.pastille[^{]*\{[^}]*font-size:\s*([\d.]+)px/g)].map((m) => Number(m[1])).filter((px) => px < 11));
 /* LA DEVISE EN SIGNATURE — 27 septembre 2026 : « le slogan en fon
    également mis en valeur » (Yéman). Elle précède le titre, en grand. */
 dit('… la devise en fon signe le premier écran, au-dessus du titre', true,
@@ -135,16 +133,10 @@ dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="p
    registre des accords, et aucun alt ne nomme quelqu'un. */
 const registre = readFileSync('docs/site-revelateur/photos.md', 'utf8');
 const inscriteAuRegistre = (f: string) => registre.includes('`' + f + '`');
-const figuresDeLaBande = [...(accueil.split('class="couronnes__bande"')[1] ?? '').split('</div>')[0]
-  .matchAll(/<img src="[^"]*photos\/site\/([^"]+)" alt="([^"]*)"/g)];
-dit('la bande sert exactement ce que le contenu nomme', ACCUEIL.couronnes.images, figuresDeLaBande.map((m) => m[1]));
-dit('… chacune existe dans le dossier des photos', [], ACCUEIL.couronnes.images.filter((f) => !existsSync(`public/assets/photos/site/${f}`)));
-dit('… et chacune est inscrite au registre des accords', [], ACCUEIL.couronnes.images.filter((f) => !inscriteAuRegistre(f)));
-/* Les alt sont VIDES depuis le 23 septembre 2026 : la ligne de la section les
-   couvre toutes, et répéter la même phrase sous chaque portrait la fait lire
-   autant de fois par un lecteur d'écran. Les rétablir serait une régression. */
-dit('… et aucune ne répète une description déjà lue au-dessus', [], figuresDeLaBande.map((m) => m[2]).filter(Boolean));
-dit('… sans prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil));
+/* La rangée « Nos clientes » est partie de l'accueil le 27 septembre 2026
+   au soir (Yéman) ; ses visages servent toujours à la galerie, qui est
+   vérifiée plus bas. */
+dit('aucun alt de l’accueil ne porte un prénom', false, /alt="[^"]*\b(?:Mme|Madame|Mlle)\b/.test(accueil));
 
 /* ══ LA GALERIE — 26 septembre 2026 ═══════════════════════════════════
    La règle des photos ne connaît pas les pages : une image de cliente servie
@@ -306,7 +298,6 @@ dit('AUCUNE CLIENTE n’illustre un article qui nomme un défaut', [],
     .map((a) => `${a.image} sur « ${a.titre} »`));
 dit('… et chaque vignette de cliente sert bien quelque part', [],
   VIGNETTES_DE_CLIENTES.filter((v) => !articlesDuJournal.some((a) => a.image === v)));
-dit('… et la page le porte au-dessus du titre', true, accueil.indexOf(ACCUEIL.metier) > 0 && accueil.indexOf(ACCUEIL.metier) < accueil.indexOf('<h1>'));
 /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 avec l'épure. Le
    diagnostic se joue sur l'accueil, entre les portes et les offres. */
 dit('le diagnostic se monte sur l’accueil', true, accueil.includes('data-ilot="triage" data-genre="accueil"'));

@@ -81,14 +81,12 @@ export type Accueil = {
   /** LE MÉTIER, DIT AU PREMIER ÉCRAN — 22 septembre 2026. Ni « locks » ni
       « dreadlocks » n'apparaissaient avant de faire défiler : il fallait déjà
       savoir que « couronne » veut dire locks. Une ligne au-dessus du titre. */
-  metier: string;
   /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 (« épure-moi
      complètement le site », maquette validée). À leur place, l'accueil dit
      l'objectif de la Maison, monte le diagnostic, montre l'univers, les
      marques, la carte cadeau et un extrait de la galerie. */
   objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[] };
   diagnostic: { sur: string; titre: string; ligne: string; note: string };
-  univers: { sur: string; titre: string; ligne: string; gamme: { nom: string; ligne: string; teinte: string }[] };
   marques: { sur: string; titre: string; ligne: string };
   offrir: { sur: string; titre: string; ligne: string; bouton: Lien };
   galerie: { sur: string; titre: string; images: string[]; bouton: Lien };
@@ -103,7 +101,6 @@ export type Accueil = {
       retirée du site. L'accord des clientes n'a pas changé, il reste
       inscrit au registre ; c'est le fait de l'ANNONCER sur la page qui
       s'arrête. Absente, la section ne pose pas de paragraphe vide. */
-  couronnes: { sur: string; titre: string; ligne?: string; images: string[] };
   portes: { sur: string; titre: string; cartes: { titre: string; ligne: string; suite: string; vers: string; image?: string }[]; repli: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
   fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };

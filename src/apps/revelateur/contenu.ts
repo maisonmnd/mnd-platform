@@ -229,7 +229,8 @@ export const ACCUEIL: Accueil = {
     { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     { texte: 'Réserver', vers: '/reserver/' },
   ],
-  metier: 'Locks créées, réparées, entretenues · Cotonou · depuis 2010',
+  /* LA LIGNE DU MÉTIER EST PARTIE DU PREMIER ÉCRAN le 27 septembre 2026 au
+     soir (Yéman) : la ligne sous l'accroche dit déjà les locks et Cotonou. */
   /* TROIS PROMESSES, TOUTES TENUES PAR LE SITE AUJOURD'HUI, vérifiées dans
      le code avant d'être écrites : la réservation en trois pas sans compte
      (îlot reserver), la confirmation sur WhatsApp (formulaire.suite), rien à
@@ -243,7 +244,7 @@ export const ACCUEIL: Accueil = {
   objectif: {
     sur: 'Notre objectif',
     titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-    ligne: "Une maison de famille née en 2010, où l'on crée, répare et soigne les locks avec une seule méthode. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+    ligne: "Une maison de famille née en 2010, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
     piliers: [
       { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
       { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
@@ -255,23 +256,6 @@ export const ACCUEIL: Accueil = {
     titre: 'Cinq questions. Votre routine.',
     ligne: 'Dites-nous où en sont vos locks, votre cheveu, votre cuir chevelu et votre rythme. Vous repartez avec la porte qui vous convient et une routine de soins, chez vous et à la Maison.',
     note: "Votre routine part sur WhatsApp si vous le voulez, et s'inscrit à votre fiche pour que la Maison s'en souvienne à votre prochain rendez-vous.",
-  },
-  univers: {
-    sur: 'Notre univers',
-    titre: 'Une Maison, huit maisons.',
-    ligne: "Chaque vocation de MND porte son nom et sa couleur, et le même sigle indigo. Ce que la Maison fait à Cotonou nourrit ce que l'Atelier ouvre ailleurs, ce que l'Académie enseigne et ce que la Boutique choisit.",
-    /* Les teintes sont celles de docs/marque/sous-marques/gamme.json, la
-       gamme fabriquée le 26 septembre ; l'indigo royal reste le sigle. */
-    gamme: [
-      { nom: 'Maison MND', ligne: "La marque mère, le salon d'Akpakpa.", teinte: '#1E2150' },
-      { nom: "L'Atelier MND", ligne: "Les branches de la Maison, d'une ville à l'autre.", teinte: '#936518' },
-      { nom: 'Académie MND', ligne: 'Formations, certifications, transmission.', teinte: '#2F5D50' },
-      { nom: 'Boutique MND', ligne: 'Produits, outils, objets de la Maison.', teinte: '#4A2C5C' },
-      { nom: 'Soins MND', ligne: 'Routines, cuir chevelu, entretien.', teinte: '#2E6F8E' },
-      { nom: 'Événements MND', ligne: 'Ateliers, rencontres, défilés, lancements.', teinte: '#1F4D62' },
-      { nom: 'Studio MND', ligne: 'Portraits, contenu, éditorial.', teinte: '#6E283C' },
-      { nom: 'LOKAA by MND', ligne: 'Le logiciel des salons, né du Trône.', teinte: '#1A1A1A' },
-    ],
   },
   marques: {
     sur: 'Les marques que nous choisissons',
@@ -323,49 +307,6 @@ export const ACCUEIL: Accueil = {
      photos), et les figures n'ont pas de texte de remplacement : la ligne
      ci-dessous les couvre toutes les deux, et rien dans ces images n'est
      nommable séparément sans nommer une femme. */
-  couronnes: {
-    sur: 'Nos clientes',
-    titre: 'Celles qui nous font confiance.',
-    /* MÊME ÉCHELLE, OU RIEN — 24 septembre 2026. `cliente-2.jpg` est partie :
-       son visage occupait deux fois moins de hauteur que celui de sa voisine,
-       et deux cadrages côte à côte se lisent comme un défaut, pas comme une
-       variation. Les quatre qui restent ont le regard à la même hauteur et le
-       visage à la même taille. `cliente-2` vit au Journal, recadrée depuis son
-       original. */
-    /* CINQ VISAGES DEPUIS LE 24 SEPTEMBRE 2026, au soir. Yéman a confié de
-       nouvelles photos ; une seule par personne dans la rangée, sinon le même
-       visage y revient et la rangée se défait. `cliente-9` est recadrée à la
-       même échelle de visage que les autres, regard à 35 % de la hauteur, la
-       signature de la photographe sortie du cadre (jamais effacée). */
-    /* QUATRE DEPUIS LE 26 SEPTEMBRE 2026. `cliente-8` est partie : c'est la
-       MEME FEMME que `cliente-7`, en veste pêche au lieu de rouge, et deux
-       photos d'une seule personne dans une rangée de clientes défont
-       précisément ce que la rangée dit. La règle était déjà écrite au-dessus,
-       « une seule par personne » ; elle n'était gardée par rien. `cliente-8`
-       continue de servir au bandeau « À la Maison », et sert désormais la
-       vignette de « Quelle méthode choisir pour créer ses premières locks ? ».
-       `cliente-3` est une autre photo de la même cliente, debout, remise par
-       Yéman le 26 septembre : même échelle de visage que ses voisines, 0,55 de
-       la hauteur, regard à 0,37, mesurée sur le rang assemblé et non sur la
-       photo seule.
-       L'ORDRE EST CELUI DE YEMAN, 26 septembre 2026 : cliente-7, cliente-6,
-       cliente-9, puis les quatre remises ce jour-là. Ce n'est pas un détail
-       d'arrangement, c'est la suite des visages que voit qui descend la page.
-
-       SEPT DEPUIS LE 26 SEPTEMBRE AU SOIR. `cliente-3` est sortie de la
-       rangée à la demande de Yéman ; quatre clientes l'ont remplacée, toutes
-       recadrées à la même mesure que leurs voisines, la tête occupant 0,55 de
-       la hauteur et le regard posé à 0,37. Une seule a dû être ramenée dans
-       son cadre, `cliente-11`, dont les cheveux touchaient déjà le haut de la
-       photo : son regard tombe à 0,35, et cela ne se voit pas dans la rangée.
-
-       `cliente-12` EST LA FEMME DU PREMIER ÉCRAN, et c'est voulu : elle
-       paraît donc deux fois sur l'accueil, en haut et dans la rangée. Choix
-       de Yéman au sélecteur, la voie « elle reste au premier écran seulement »
-       lui étant offerte et décrite. */
-    images: ['cliente-7.jpg', 'cliente-6.jpg', 'cliente-9.jpg',
-      'cliente-10.jpg', 'cliente-11.jpg', 'cliente-12.jpg', 'cliente-13.jpg'],
-  },
   portes: {
     sur: 'Ce que la Maison fait',
     titre: 'Cinq portes, une méthode.',
@@ -397,9 +338,13 @@ export const ACCUEIL: Accueil = {
     ],
   },
   fondateurs: {
+    /* L'HISTOIRE, RACONTÉE — 27 septembre 2026 au soir : « refais le
+       storytelling de Brice et Yéman » (Yéman). Rien d'inventé : 2010,
+       Cotonou, une maison de famille, ses mains, sa direction, l'Académie
+       née de leurs gestes, les couronnes qui reviennent. */
     sur: 'Notre histoire',
-    titre: 'Une maison de famille, née en 2010 à Cotonou.',
-    ligne: 'Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet.',
+    titre: 'Deux mains, une direction, une maison.',
+    ligne: "En 2010, à Cotonou, Brice et Yéman ouvrent une maison de famille pour les locks. Lui tient les mains, elle tient la direction. Seize ans plus tard, des couronnes de la première année reviennent encore s'asseoir dans le fauteuil.",
     message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
@@ -705,7 +650,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'Notre objectif',
         titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-        corps: "Une maison boutique de soin et de création de dreadlocks afro, née en 2010 à Cotonou, où l'on crée, répare et soigne les locks avec une seule méthode. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+        corps: "Une maison boutique de soin et de création de dreadlocks afro, née en 2010 à Cotonou, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
         image: 'regard.jpg',
       },
       {
@@ -719,8 +664,8 @@ export const PAGES: Page[] = [
       {
         type: 'texte',
         sur: 'Notre histoire',
-        titre: 'Une maison de famille, née en 2010 à Cotonou.',
-        corps: "Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet. Seize ans plus tard, la Maison a ses outils, ses règles, ses rythmes, une Académie, et des couronnes qui reviennent depuis la première année.",
+        titre: 'Deux mains, une direction, une maison.',
+        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
         image: 'fondateurs.jpg',
       },
       {
@@ -785,7 +730,8 @@ export const PAGES: Page[] = [
       {
         type: 'texte',
         titre: 'Brice et Yéman Ahouansou',
-        corps: 'Une maison de famille, née en 2010 à Cotonou. Brice, maître loctician, tient les mains. Yéman tient la direction. Ensemble, ils ont fait de MND un lieu où l\'on prend soin, où l\'on transforme et où l\'on transmet.',
+        /* Le récit, en trois paragraphes (27 septembre 2026 au soir). */
+        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
         image: 'fondateurs.jpg',
       },
       {
