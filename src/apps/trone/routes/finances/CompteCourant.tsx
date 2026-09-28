@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Card, Field, Input, Modal, Select, toast } from '../../../../ds/components';
+import { Button, Card, Field, Input, Modal, Select, toast, demande } from '../../../../ds/components';
+import './finances.css';
 import { ChampDeDate, ChampDeMois } from '../../../../ds/dates';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -81,11 +82,52 @@ export default function CompteCourant() {
   const [caisse, setCaisse] = useState('');
   const [date, setDate] = useState(todayISO());
   const [periode, setPeriode] = useState(periodeProposee);
+  /* UNE LIGNE SE CORRIGE — 28 septembre 2026 : « permettre de modifier un
+     montant prélevé de la caisse » (Yéman). Le mouvement se rouvre dans la
+     même fenêtre, pré-rempli ; le montant, le motif, le mot, la caisse et la
+     date se changent, et la ligne peut se retirer, après une question. Les
+     retenues de paie, elles, se corrigent sur le bulletin. */
+  const [enEdition, setEnEdition] = useState<string | null>(null);
   const ouvre = (g: Geste) => {
+    setEnEdition(null);
     setGeste(g); setPhrase(''); setMotif(''); setDate(todayISO()); setCaisse(caisses[0]?.name ?? ''); setPeriode(periodeProposee);
     setMontant(g === 'retenue' ? String(Math.max(0, solde - enAttente)) : '');
   };
-  const ferme = () => setGeste(null);
+  const ouvreEdition = (id: string) => {
+    const mv = mouvements.find((x) => x.id === id);
+    if (!mv || !associe) return;
+    const prelevement = mv.sens === 'sortie';
+    const sansLeNom = mv.label.startsWith(`${associe.name} · `) ? mv.label.slice(associe.name.length + 3) : mv.label;
+    const morceaux = prelevement
+      ? sansLeNom.split(' · ')
+      : sansLeNom.replace(/^remboursement du compte courant(?: · )?/, '').split(' · ').filter(Boolean);
+    const motifTrouve = prelevement && motifsFoyer.some((m) => m.name === morceaux[0]) ? morceaux[0] : '';
+    setEnEdition(id);
+    setGeste(prelevement ? 'prelevement' : 'remboursement');
+    setMotif(motifTrouve);
+    setPhrase((motifTrouve ? morceaux.slice(1) : morceaux).join(' · '));
+    setMontant(String(mv.amountXof));
+    setCaisse(mv.cashbox);
+    setDate(mv.date.slice(0, 10));
+  };
+  const ferme = () => { setGeste(null); setEnEdition(null); };
+  const retire = async () => {
+    if (!enEdition || !associe) return;
+    const mv = mouvements.find((x) => x.id === enEdition);
+    if (!mv) return;
+    if (!await demande({
+      quoi: 'Compte courant',
+      titre: `Retirer cette ligne de ${fmtMoney(mv.amountXof, DEVISE)} ?`,
+      dit: `« ${mv.label} », du ${mv.date.slice(0, 10).split('-').reverse().join('/')}, dans « ${mv.cashbox} ».`,
+      scelle: 'La caisse reprend ce montant comme si la ligne n’avait jamais existé, et le solde de l’associé change d’autant.',
+      accepter: 'Retirer la ligne',
+      refuser: 'La garder',
+      dur: true,
+    })) return;
+    entreesHorsActiviteStore.set((prev) => prev.filter((x) => x.id !== enEdition));
+    toast('Ligne retirée. Le solde est recalculé.');
+    ferme();
+  };
 
   const enregistre = () => {
     if (!associe) return;
@@ -105,6 +147,17 @@ export default function CompteCourant() {
     if (!caisse.trim()) { toast(geste === 'prelevement' ? 'Choisissez la caisse d’où sort l’argent.' : 'Choisissez la caisse qui reçoit l’argent.'); return; }
     if (geste === 'prelevement' && !motif && !phrase.trim()) { toast('Dites à quoi cet argent a servi, un motif ou un mot : dans six mois, il faudra le savoir.'); return; }
     const pourquoi = [motif, phrase.trim()].filter(Boolean).join(' · ');
+    if (enEdition) {
+      const label = geste === 'prelevement'
+        ? `${associe.name} · ${pourquoi}`
+        : `${associe.name} · remboursement du compte courant${phrase.trim() ? ` · ${phrase.trim()}` : ''}`;
+      entreesHorsActiviteStore.set((prev) => prev.map((x) => (x.id === enEdition
+        ? { ...x, date, label, amountXof: xof, cashbox: caisse }
+        : x)));
+      toast('Ligne corrigée. Le solde est recalculé.');
+      ferme();
+      return;
+    }
     const mouvement: MouvementHorsActivite = {
       id: `hors-${uid()}`,
       branchId: branch.id,
@@ -142,15 +195,15 @@ export default function CompteCourant() {
         eyebrow="Finances · les associés"
         title="Le compte courant d’associé."
         sub="Ce que la Maison a avancé pour un associé, ce qu’il a rendu, ce que ses bulletins ont retenu. Hors du résultat, toujours."
-        actions={associe && (
-          <div className="cc-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="copper" onClick={() => ouvre('prelevement')}>+ Prélèvement</Button>
-            <Button onClick={() => ouvre('remboursement')}>Remboursement en caisse</Button>
-            <Button onClick={() => ouvre('retenue')}>Retenir sur un bulletin</Button>
-            <Button variant="ghost" onClick={() => window.print()}>Imprimer le relevé</Button>
-          </div>
-        )}
       />
+      {associe && (
+        <div className="cc-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 14px' }}>
+          <Button variant="copper" onClick={() => ouvre('prelevement')}>+ Prélèvement</Button>
+          <Button onClick={() => ouvre('remboursement')}>Remboursement en caisse</Button>
+          <Button onClick={() => ouvre('retenue')}>Retenir sur un bulletin</Button>
+          <Button variant="ghost" onClick={() => window.print()}>Imprimer le relevé</Button>
+        </div>
+      )}
 
       {associes.length === 0 ? (
         <Card style={{ padding: 22 }}>
@@ -217,14 +270,14 @@ export default function CompteCourant() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Date', 'Quoi', 'Caisse', 'Prélèvement', 'Retour'].map((t, i) => (
-                        <th key={t} style={{ ...cellule, textAlign: i >= 3 ? 'right' : 'left', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', background: 'var(--surface-2, transparent)' }}>{t}</th>
+                      {['Date', 'Quoi', 'Caisse', 'Prélèvement', 'Retour', ''].map((t, i) => (
+                        <th key={t || 'geste'} style={{ ...cellule, textAlign: i >= 3 ? 'right' : 'left', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)', background: 'var(--surface-2, transparent)' }}>{t}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {lignes.length === 0 && (
-                      <tr><td colSpan={5} className="mnd-muted" style={{ ...cellule, padding: 18 }}>Rien encore. Le premier prélèvement, ou le solde de départ au 30 septembre, s’inscrit avec « + Prélèvement ».</td></tr>
+                      <tr><td colSpan={6} className="mnd-muted" style={{ ...cellule, padding: 18 }}>Rien encore. Le premier prélèvement, ou le solde de départ au 30 septembre, s’inscrit avec « + Prélèvement ».</td></tr>
                     )}
                     {lignes.map((l) => (
                       <tr key={l.id}>
@@ -233,6 +286,9 @@ export default function CompteCourant() {
                         <td style={{ ...cellule, color: 'var(--ink-soft)' }}>{l.ou}</td>
                         <td style={{ ...num, color: 'var(--color-copper)' }}>{l.prelevementXof > 0 ? fmtMoney(l.prelevementXof, DEVISE) : ''}</td>
                         <td style={{ ...num, color: 'var(--color-indigo)' }}>{l.retourXof > 0 ? fmtMoney(l.retourXof, DEVISE) : ''}</td>
+                        <td style={{ ...num }} className="cc-actions">
+                          {l.ou !== 'Paie' && <button className="tre-link-btn" onClick={() => ouvreEdition(l.id)}>Modifier</button>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -245,7 +301,9 @@ export default function CompteCourant() {
 
       {geste && associe && (
         <Modal
-          title={geste === 'prelevement' ? `Un prélèvement · ${associe.name}.` : geste === 'remboursement' ? `Un remboursement en caisse · ${associe.name}.` : `Retenir sur un bulletin · ${associe.name}.`}
+          title={enEdition
+            ? `Corriger cette ligne · ${associe.name}.`
+            : geste === 'prelevement' ? `Un prélèvement · ${associe.name}.` : geste === 'remboursement' ? `Un remboursement en caisse · ${associe.name}.` : `Retenir sur un bulletin · ${associe.name}.`}
           onClose={ferme}
           width={520}
         >
@@ -290,11 +348,14 @@ export default function CompteCourant() {
                 </div>
               </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Button variant="ghost" onClick={ferme}>Annuler</Button>
-              <Button variant="copper" onClick={enregistre}>
-                {geste === 'prelevement' ? 'Inscrire le prélèvement' : geste === 'remboursement' ? 'Inscrire le remboursement' : 'Poser la retenue'}
-              </Button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div>{enEdition && <Button variant="ghost" onClick={() => void retire()}>Retirer cette ligne</Button>}</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="ghost" onClick={ferme}>Annuler</Button>
+                <Button variant="copper" onClick={enregistre}>
+                  {enEdition ? 'Corriger la ligne' : geste === 'prelevement' ? 'Inscrire le prélèvement' : geste === 'remboursement' ? 'Inscrire le remboursement' : 'Poser la retenue'}
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>
