@@ -14,6 +14,7 @@ import {
   ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
+import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
 
@@ -77,6 +78,15 @@ export const ordonneParLeSoin = <T extends { titre: string }>(groupes: readonly 
   groupes.map((g, i) => ({ g, i })).sort((a, b) => (rangDuSoin(a.g.titre) - rangDuSoin(b.g.titre)) || (a.i - b.i)).map(({ g }) => g);
 
 type Props = { besoin?: Besoin };
+/* La demande, écrite pour WhatsApp : ce que la cliente envoie elle-même à la
+   Maison depuis l'écran « Demande reçue ». Le même contenu que ce que le
+   serveur a posé dans son fil. */
+const texteDeLaDemande = (r: { date: string; heure: string; gestes: string[] }, prenom: string, mot: string): string => [
+  `Bonjour MND, je viens de réserver depuis le site${prenom.trim() ? ` (${prenom.trim()})` : ''} :`,
+  `${r.gestes.join(', ')}${r.gestes.length ? ', ' : ''}le ${jourDit(r.date)} à ${r.heure}.`,
+  mot.trim() ? mot.trim() : '',
+  'Merci de me confirmer ici.',
+].filter(Boolean).join('\n');
 
 const JOURS_PROPOSES = 21;
 
@@ -115,8 +125,11 @@ const codeDeLAdresse = (): string => {
     Maison ne l'invente pas. C'est le même juge pour la ligne et pour le
     total, de sorte qu'un geste sans prix ferme ne peut pas se fondre
     silencieusement dans une somme. */
-const prixFerme = (s: PrestationPublique): number => {
-  const p = Number(s.priceXof ?? 0);
+/* LE PRIX SUIT LE CALIBRE — 28 septembre 2026 : quand la cliente a dit sa
+   tranche de locks, chaque geste prend son prix pour cette tranche (voir
+   `prix-calibre.ts`) ; sans tranche, le prix de la carte, comme avant. */
+const prixFerme = (s: PrestationPublique, ctx?: ContexteDuCalibre): number => {
+  const p = ctx ? (prixSelonLeCalibre(s, ctx) ?? 0) : Number(s.priceXof ?? 0);
   return !p || s.priceMode === 'devis' ? 0 : p;
 };
 
@@ -124,10 +137,10 @@ const prixFerme = (s: PrestationPublique): number => {
     client comprenne d'entrée de jeu » (Yéman, 17 septembre 2026). Le montant
     vient du catalogue ; un prix variable se dit « à partir de », et une
     prestation sans prix ferme ne dit rien plutôt que d'inventer. */
-const prixDit = (s: PrestationPublique, devise: string): string => {
-  const p = prixFerme(s);
+const prixDit = (s: PrestationPublique, devise: string, ctx?: ContexteDuCalibre): string => {
+  const p = prixFerme(s, ctx);
   if (!p) return '';
-  return s.priceMode === 'variable' ? `à partir de ${fmtMoney(p, devise)}` : fmtMoney(p, devise);
+  return s.priceMode === 'variable' || (ctx && seCompteAuLock(s)) ? `à partir de ${fmtMoney(p, devise)}` : fmtMoney(p, devise);
 };
 
 const dit = (min?: number): string => {
@@ -153,6 +166,11 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   /* `null` tant que la visiteuse n'a rien plié ni déplié : l'ouverture par
      défaut se calcule alors depuis la porte, sans effet ni synchronisation. */
   const [plies, setPlies] = useState<Record<string, boolean> | null>(null);
+  /* LE CALIBRE, PREMIER PAS — 28 septembre 2026. « Pour une nouvelle cliente
+     qui vient sur le site, elle doit choisir son palier de nombre de locks
+     pour que son prix soit ajusté » (Yéman). '' = pas encore dit,
+     'inconnu' = elle ne sait pas (prix de la carte, compté au fauteuil). */
+  const [calibreId, setCalibreId] = useState<string>('');
   /* L'assistant : la famille en cours, et « toutes vues ». */
   const [rang, setRang] = useState(0);
   const [repondu, setRepondu] = useState(false);
@@ -209,6 +227,15 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     () => (agenda ? prestationsReservables(agenda, besoin) : []),
     [agenda, besoin],
   );
+  const bandes = useMemo(() => bandesTriees(agenda?.bandes ?? []), [agenda]);
+  const bandeChoisie = bandes.find((b) => b.id === calibreId);
+  const ctx = useMemo<ContexteDuCalibre | undefined>(
+    () => (agenda && bandeChoisie
+      ? { bande: bandeChoisie, lockCount: representantDeLaBande(bandeChoisie, bandes), sets: agenda.bandSets, cats: agenda.categories, baremeSuspendu: agenda.baremeSuspendu }
+      : undefined),
+    [agenda, bandeChoisie, bandes],
+  );
+  const lockCountAnnonce = bandeChoisie ? representantDeLaBande(bandeChoisie, bandes) : 0;
   const groupes = useMemo(
     () => (agenda ? groupesDePrestations(agenda, prestations, besoin) : []),
     [agenda, prestations, besoin],
@@ -310,6 +337,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                répondrait 90 le jour où quelqu'un s'en amuserait. */
             ...(offreDuMoment ? { code: codeNormalise(code) } : {}),
             serviceIds, date: jour, time: heure.heure, master: heure.maitre,
+            ...(bandeChoisie ? { lockCount: lockCountAnnonce, calibre: bandeChoisie.name } : {}),
             page: location.pathname, campagne: campagne() || undefined, consentement: true,
           },
         },
@@ -384,9 +412,15 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                     : `Le code ${recu.code} est noté sur votre demande. Ce qu’il donne s’applique à la Maison, le jour venu.`}
           </p>
         )}
+        {/* SA DEMANDE, DANS SES MAINS — 28 septembre 2026. Le lien porte la
+            demande écrite : elle l'envoie elle-même sur le WhatsApp de la
+            Maison, la conversation s'ouvre de son côté, et la Maison lui
+            répond dedans. « Une cliente doit être autonome du début à la
+            fin » (Yéman). */}
         <div className="rangee">
-          <a className="btn btn--fort" href={wa} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>Parler à MND sur WhatsApp</a>
+          <a className="btn btn--fort" href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>Envoyer ma demande sur WhatsApp</a>
         </div>
+        <p className="legende">La Maison vous répond dans cette conversation.</p>
       </div>
     );
   }
@@ -426,6 +460,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
      famille unique gardent l'écran d'avant. Le jour ne se montre qu'une fois
      toutes les questions posées. */
   const assistant = !consultation && !seuleFamille;
+  /* Le calibre se demande avant tout geste, hors consultation (elle compte
+     les locks au fauteuil) et quand la Maison a un barème. */
+  const demandeLeCalibre = !consultation && bandes.length > 0 && calibreId === '';
   const pret = choisi && (!assistant || repondu);
   const familleEnCours = familles[Math.min(rang, Math.max(0, familles.length - 1))];
   const suivant = () => {
@@ -486,12 +523,40 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   return (
     <div className="reservation">
       <ol className="pas-reservation">
-        <li className={choisi ? 'fait' : 'ici'}>{consultation ? 'La consultation' : 'Vos gestes'}</li>
+        {!consultation && bandes.length > 0 && <li className={calibreId ? 'fait' : 'ici'}>Vos locks</li>}
+        <li className={choisi ? 'fait' : (consultation || calibreId) ? 'ici' : ''}>{consultation ? 'La consultation' : 'Vos gestes'}</li>
         <li className={heure ? 'fait' : choisi ? 'ici' : ''}>Le jour et l’heure</li>
         <li className={heure ? 'ici' : ''}>Votre numéro</li>
       </ol>
 
+      {demandeLeCalibre ? (
+        <div className="bloc-reservation">
+          <p className="sur">Vos locks</p>
+          <h3>Combien de locks, à peu près ?</h3>
+          <p className="legende" style={{ marginBottom: 14 }}>Le prix de chaque geste suit votre calibre. La Maison compte au fauteuil ; ici, une idée suffit.</p>
+          <div className="gestes">
+            {bandes.map((b) => (
+              <button type="button" key={b.id} className="geste-choix" onClick={() => setCalibreId(b.id)}>
+                <span className="case" aria-hidden="true" />
+                <b>{b.name}</b>
+                <small>{etendueDeLaBande(b, bandes)}</small>
+              </button>
+            ))}
+            <button type="button" className="geste-choix" onClick={() => setCalibreId('inconnu')}>
+              <span className="case" aria-hidden="true" />
+              <b>Je ne sais pas encore</b>
+              <small>les prix de la carte, comptés au fauteuil</small>
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="bloc-reservation">
+        {!consultation && calibreId && (
+          <p className="legende" style={{ marginBottom: 10 }}>
+            {bandeChoisie ? `Calibre ${bandeChoisie.name} · ${etendueDeLaBande(bandeChoisie, bandes)}` : 'Calibre à compter au fauteuil'}
+            {' · '}<button type="button" className="tre-link-btn btn--lien" style={{ font: 'inherit', background: 'none', border: 0, padding: 0, color: 'var(--accent-profond)', cursor: 'pointer' }} onClick={() => { setCalibreId(''); setServiceIds([]); setJour(''); setHeure(null); }}>modifier</button>
+          </p>
+        )}
         <p className="sur">
           {assistant && !repondu && familleEnCours ? `Question ${rang + 1} sur ${familles.length}` : consultation ? 'La consultation' : 'Vos gestes'}
         </p>
@@ -540,7 +605,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         })}
         {consultation && <p className="legende" style={{ marginTop: 12 }}>Une création ou une réparation commence toujours par une consultation. Le devis vient après, et vous décidez ensuite.</p>}
       </div>
-
+      )}
       {pret && (
         <div className="bloc-reservation venir">
           <p className="sur">Votre venue</p>

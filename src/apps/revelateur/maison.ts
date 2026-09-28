@@ -1,6 +1,7 @@
 import type { ExceptionDHoraire, HeureDeLaSemaine } from '../../shared/agenda-pur';
 import type { Besoin } from '../../shared/qualification';
 import { offresDuTrottoir } from '../../shared/offres-pur';
+import { COMMUN } from './contenu';
 
 /* CE QUE LE SITE SAIT DE LA MAISON, SANS COMPTE — 17 septembre 2026.
 
@@ -49,7 +50,7 @@ export function maison(): Promise<Maison | null> {
     const supabase = await client();
     if (!supabase) return null;
     const { data } = await supabase.from('branches').select('id,data');
-    type Ligne = { id: string; data?: { name?: string; city?: string; phone?: string; mapsUrl?: string; currency?: string; flagship?: boolean; status?: string } };
+    type Ligne = { id: string; data?: { name?: string; city?: string; phone?: string; whatsapp?: string; mapsUrl?: string; currency?: string; flagship?: boolean; status?: string } };
     const lignes = (data ?? []) as Ligne[];
     const b = lignes.find((l) => l.data?.flagship && l.data?.status !== 'paused') ?? lignes[0];
     if (!b) return null;
@@ -57,7 +58,13 @@ export function maison(): Promise<Maison | null> {
       branchId: b.id,
       nom: b.data?.name ?? 'Maison MND',
       ville: b.data?.city ?? '',
-      whatsapp: (b.data?.phone ?? '').replace(/\D/g, ''),
+      /* LE WHATSAPP DE LA MAISON EST LE NUMÉRO DU REGISTRE — 28 septembre 2026.
+         « Quand on coche ce bouton, le message doit venir sur le 01 51 99 77 99
+         et ouvrir une nouvelle conversation » (Yéman). Jusqu'ici le site
+         réécrivait ses liens vers le téléphone de la branche (01 96 75 60 62) ;
+         c'est le registre, relié aux Conversations du Trône, qui reçoit. Une
+         branche peut porter son propre `whatsapp` ; sans lui, le registre. */
+      whatsapp: (b.data?.whatsapp ?? COMMUN.editeur.telephone).replace(/\D/g, ''),
       telephone: (b.data?.phone ?? '').trim(),
       devise: b.data?.currency || 'XOF',
       fiche: b.data?.mapsUrl || undefined,

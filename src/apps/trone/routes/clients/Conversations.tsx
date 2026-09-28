@@ -777,7 +777,7 @@ export default function Conversations() {
               <span className="trc-conv__c">
                 <span className="trc-conv__n">{f.nom}</span>
                 <span className="trc-conv__d">
-                  {f.dernier.sens === 'sortant' ? (estEnvoiAutomatique(f.dernier.parQui) ? 'Le Trône : ' : 'Vous : ') : ''}
+                  {f.dernier.sens === 'sortant' ? (estEnvoiAutomatique(f.dernier.parQui) ? 'Le Trône : ' : 'Vous : ') : f.dernier.canal === 'site' ? 'Le site : ' : ''}
                   {f.dernier.sens === 'entrant' && f.dernier.piece && !f.dernier.texte.startsWith(f.dernier.piece.nom)
                     ? `${f.dernier.piece.nom} · ` : ''}
                   {f.dernier.texte}
@@ -956,6 +956,7 @@ export default function Conversations() {
                           </>
                         ) : m.texte}
                         <span className="trc-b__h">
+                          {m.canal === 'site' ? 'Depuis le site · ' : ''}
                           {m.modele ? `Modèle ${modeleDit(m.modele)} · ` : ''}
                           {estEnvoiAutomatique(m.parQui) ? 'Parti tout seul · ' : ''}
                           {m.bouton?.id ? 'A touché un bouton · ' : ''}

@@ -78,6 +78,14 @@ export default function Demande({ genre, besoin: besoinInitial }: Props) {
     }
   };
 
+  /* La demande, écrite pour WhatsApp (28 septembre 2026) : elle l'envoie
+     elle-même, la conversation s'ouvre de son côté. */
+  const texteDeLaDemande = (): string => [
+    `Bonjour MND, je viens de laisser une demande sur le site${prenom.trim() ? ` (${prenom.trim()})` : ''} :`,
+    `${f.besoins.find((b) => b.valeur === cle)?.texte ?? 'je ne sais pas encore quel service choisir'}${profil ? ` · ${profil}` : ''}.`,
+    mot.trim() ? mot.trim() : '',
+    'Merci de me répondre ici.',
+  ].filter(Boolean).join('\n');
   if (recu) {
     return (
       <div className="merci">
@@ -85,7 +93,7 @@ export default function Demande({ genre, besoin: besoinInitial }: Props) {
         <h2>{f.merci.titre}</h2>
         <p>{f.merci.texte}</p>
         <div className="rangee">
-          <a className="btn btn--fort" href={wa} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: cle })}>Parler à MND sur WhatsApp</a>
+          <a className="btn btn--fort" href={lienWhatsApp(whatsapp, texteDeLaDemande())} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: cle })}>Envoyer ma demande sur WhatsApp</a>
           <a className="btn btn--lien" href={base('/')}>Retour à l’accueil</a>
         </div>
       </div>

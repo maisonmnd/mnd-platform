@@ -8,6 +8,8 @@ import {
   type PersonalPricing,
 } from '../src/shared/pricing';
 import type { Service } from '../src/shared/catalog';
+import { prixSelonLeCalibre, representantDeLaBande } from '../src/apps/revelateur/prix-calibre';
+import { MODEL_BANDS_SEED, sortedBands, pricingOf, personalPriceXof } from '../src/shared/pricing';
 import type { ModelBand } from '../src/shared/pricing';
 import { aUnPrixConvenu, comptePrixConvenus } from '../src/shared/clients';
 
@@ -513,6 +515,36 @@ dit('un rituel de 20 min reste 20 min sans calibre', 15,
   personalDurationMin(soin({ durationMin: 10 }), {}));
 dit('… et jamais moins d’un quart d’heure', 15,
   personalDurationMin(soin({ durationMin: 1 }), { band: medium }));
+
+/* ══ LA COPIE DU SITE SUIT LE BARÈME — 28 septembre 2026 ═══════════════
+   `apps/revelateur/prix-calibre.ts` recopie la branche du barème qui sert
+   au site (une visiteuse sans fiche, qui a dit son calibre). Une copie
+   dérive ; celle-ci est comparée ici au vrai `personalPriceXof`, sur cinq
+   prestations témoins et chaque tranche de la Maison. */
+{
+  const temoins: Service[] = [
+    svc({ id: 'site-modele', name: 'Resserrage', categoryId: 'x', priceXof: 12000, scalesWithModel: true }),
+    svc({ id: 'site-calibre', name: 'Lavage', categoryId: 'x', priceXof: 25000, priceFloors: { 'cal-jumbo': 20000, 'cal-medium': 25000, 'cal-mini': 35000, 'cal-micro': 45000, 'cal-nano': 55000, 'cal-pico': 60000, 'cal-galaxy': 70000 } }),
+    svc({ id: 'site-lock', name: 'Création', categoryId: 'x', priceXof: 10000, ratePerLock: 100, tarifMode: 'lock' }),
+    svc({ id: 'site-carte', name: 'Soin', categoryId: 'x', priceXof: 8000 }),
+    svc({ id: 'site-marche', name: 'Kids', categoryId: 'x', priceXof: 25000, paliersDeLocks: [{ auDela: 250, prixXof: 30000 }] }),
+    svc({ id: 'site-longueur', name: 'Purification', categoryId: 'x', priceXof: 15000, scalesWithModel: true, prixParLongueur: { court: 15000, 'mi-long': 25000, long: 35000 } }),
+  ];
+  const ecarts: string[] = [];
+  for (const b of sortedBands(MODEL_BANDS_SEED)) {
+    const lockCount = representantDeLaBande(b, MODEL_BANDS_SEED);
+    for (const sv of temoins) {
+      const site = prixSelonLeCalibre(sv, { bande: b, lockCount });
+      const trone = personalPriceXof(sv, pricingOf({ lockCount } as never, MODEL_BANDS_SEED));
+      if (site !== trone) ecarts.push(`${sv.id} @ ${b.name} : site ${site} · Trône ${trone}`);
+    }
+  }
+  dit('la copie du site rend le même prix que le barème, sur chaque témoin et chaque tranche', [], ecarts);
+  const seul = svc({ id: 'site-seul', name: 'Solo', categoryId: 'y', priceXof: 9000, scalesWithModel: true });
+  const propre = [{ id: 'y-a', name: 'A', maxLocks: 100, coef: 1, durCoef: 1 }, { id: 'y-b', name: 'B', maxLocks: null, coef: 2, durCoef: 1 }];
+  dit('… et suit le barème propre d’une famille, comme le Trône', personalPriceXof(seul, pricingOf({ lockCount: 200 } as never, MODEL_BANDS_SEED, { y: propre })),
+    prixSelonLeCalibre(seul, { bande: MODEL_BANDS_SEED[2], lockCount: 200, sets: { y: propre } }));
+}
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} vérification(s) en échec.`);
 if (ko > 0) process.exit(1);

@@ -188,6 +188,24 @@ Nom : `demande_recue`, catégorie **UTILITY**, français.
 
 ({{1}} = prénom, {{2}} = le moment en clair : « vendredi 20 septembre à 10 h ».)
 
+### Le second modèle, pour les demandes sans place (28 septembre 2026)
+
+Depuis le 28 septembre, TOUTE demande du site reçoit un mot du salon sur
+WhatsApp : un rappel, un diagnostic, une carte cadeau aussi. Sans place, la
+phrase du modèle ci-dessus se lit mal (« demande de rendez-vous pour un
+rappel »). Faire approuver un second modèle, plus simple :
+
+Nom : `demande_recue_simple`, catégorie **UTILITY**, français.
+
+> Bonjour {{1}}, la Maison MND a bien reçu votre demande ({{2}}). Nous vous
+> répondons très vite, sur ce numéro.
+
+({{1}} = prénom, {{2}} = ce qu'elle a demandé : « un rappel de la Maison »,
+« votre routine locks », « une carte cadeau ».)
+
+Puis poser le secret `WA_TEMPLATE_ACCUSE_SIMPLE=demande_recue_simple`. Tant
+qu'il n'est pas posé, le premier modèle sert pour tout.
+
 Aucun nouveau secret : `WA_TOKEN` et `WA_PHONE_ID` sont déjà posés pour toutes
 les fonctions. `WA_TEMPLATE_ACCUSE` n'est à poser que si le modèle porte un
 autre nom. Tant que Meta ne l'a pas approuvé, l'accusé ne part pas, la place

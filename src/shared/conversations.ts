@@ -46,6 +46,13 @@ export type EtatDuMessage = 'en-route' | 'remis' | 'lu' | 'non-remis';
 
 export type MessageWa = {
   id: string;
+  /** VENU DU SITE — 28 septembre 2026. « Quand la cliente fait une demande sur
+      le site, j'aimerais que son message atterrisse dans les Conversations »
+      (Yéman). `demande-submit` écrit la demande dans le fil de son numéro,
+      comme un message d'elle, marqué `canal: 'site'`. Ce n'est PAS un message
+      WhatsApp : Meta ne l'a pas vu, il n'ouvre pas la fenêtre de 24 heures
+      (voir `fenetreDe`), et l'écran le dit « Depuis le site ». */
+  canal?: 'site';
   branchId?: string;
   /** L'identifiant Meta — c'est lui qui rend le webhook idempotent. */
   waId?: string;
@@ -307,7 +314,7 @@ export function fenetreDe(messages: readonly MessageWa[], maintenant: number): F
   let dernier = 0;
   let quand: string | undefined;
   for (const m of messages) {
-    if (m.sens !== 'entrant') continue;
+    if (m.sens !== 'entrant' || m.canal === 'site') continue;
     const t = Date.parse(m.quand);
     if (Number.isFinite(t) && t > dernier) { dernier = t; quand = m.quand; }
   }

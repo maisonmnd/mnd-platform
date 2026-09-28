@@ -70,6 +70,11 @@ export type Demande = {
   master?: string;
   /** Le rendez-vous posé par le serveur, à confirmer au Trône. */
   apptId?: string;
+  /** LE CALIBRE ANNONCÉ SUR LE SITE — 28 septembre 2026 : la tranche choisie
+      par la visiteuse (son représentant en locks, et son nom). La fiche créée
+      à la conversion le porte, pour que le Trône tarife comme le site. */
+  lockCount?: number;
+  calibre?: string;
 };
 
 export const BESOINS: readonly BesoinDeLaDemande[] = ['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu'];
@@ -211,6 +216,7 @@ export function ficheDepuisLaDemande(d: Demande, persona: string): Client {
     consentementLe: d.consentementLe,
   };
   if (d.email?.trim()) fiche.email = d.email.trim();
+  if (d.lockCount && d.lockCount > 0) fiche.lockCount = Math.round(d.lockCount);
   if (d.page) fiche.pageOrigine = d.page;
   if (d.campagne) fiche.campagne = d.campagne;
   return fiche;

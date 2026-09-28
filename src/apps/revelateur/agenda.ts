@@ -4,6 +4,7 @@ import {
 } from '../../shared/agenda-pur';
 import { estUneConsultation, masquePourLeSite, priceModeOf, racineOf, type MasquesDuSite } from '../../shared/catalogue-pur';
 import { exigeConsultation, porteDuBesoin, type Besoin } from '../../shared/qualification';
+import type { Bande } from './prix-calibre';
 import { client } from './maison';
 
 /* LE CALENDRIER DU SITE, SANS COMPTE — 17 septembre 2026.
@@ -32,6 +33,17 @@ export type PrestationPublique = {
   name: string;
   categoryId: string;
   durationMin?: number;
+  /* CE QUI FAIT LE PRIX SELON LE CALIBRE — 28 septembre 2026 : les mêmes
+     champs que le Trône, lus tels quels dans la ligne du catalogue. Voir
+     `prix-calibre.ts`, qui les lit. */
+  scalesWithModel?: boolean;
+  priceFloors?: Record<string, number>;
+  bandId?: string;
+  bandIds?: string[];
+  ratePerLock?: number;
+  tarifMode?: 'lock' | 'calibre';
+  prixParLongueur?: Partial<Record<string, number>>;
+  paliersDeLocks?: { auDela: number; prixXof: number }[];
   /** LE PRIX VIENT DU CATALOGUE, JAMAIS D'ICI — 17 septembre 2026. « Il faut
       mettre les prix pour que le client comprenne d'entrée de jeu » (Yéman).
       Un prix corrigé au Trône se corrige donc sur le site, le jour même. */
@@ -61,6 +73,13 @@ export type AgendaDeLaMaison = {
   sieges: number;
   /** Ce que la Maison a décoché pour le site (régie de la Vitrine). */
   masques: MasquesDuSite;
+  /** LE BARÈME DES CALIBRES — 28 septembre 2026 : les tranches de la Maison
+      (`mnd_model_bands`), celles propres à une famille (`mnd_model_band_sets`)
+      et l'interrupteur qui suspend le barème. Lisibles par la clé publique
+      depuis la migration 0011 : c'est une grille tarifaire, rien de privé. */
+  bandes: Bande[];
+  bandSets: Record<string, Bande[]>;
+  baremeSuspendu: boolean;
 };
 
 type Doc<T> = { key: string; data: T };
@@ -76,15 +95,17 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
     const [services, categories, docs, blocages, branches] = await Promise.all([
       supabase.from('catalog_services').select('id,data'),
       supabase.from('catalog_categories').select('id,data'),
-      supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config']),
+      supabase.from('documents').select('key,data').in('key', ['mnd_settings', 'mnd_horaires_exceptions', 'mnd_vitrine_config', 'mnd_model_bands', 'mnd_model_band_sets']),
       supabase.from('blocages').select('id,data'),
       supabase.from('branches').select('id,data'),
     ]);
     const lignes = <T,>(r: { data: unknown }): T[] =>
       ((r.data ?? []) as { data?: T }[]).map((x) => x.data).filter(Boolean) as T[];
 
-    const reglages = ((docs.data ?? []) as Doc<{ hours?: HeureDeLaSemaine[]; maxRdvParJourMaison?: number; maxRdvParJourMaitre?: number }>[])
+    const reglages = ((docs.data ?? []) as Doc<{ hours?: HeureDeLaSemaine[]; maxRdvParJourMaison?: number; maxRdvParJourMaitre?: number; baremeSuspendu?: boolean }>[])
       .find((d) => d.key === 'mnd_settings')?.data ?? {};
+    const bandes = ((docs.data ?? []) as Doc<Bande[]>[]).find((d) => d.key === 'mnd_model_bands')?.data;
+    const bandSets = ((docs.data ?? []) as Doc<Record<string, Bande[]>>[]).find((d) => d.key === 'mnd_model_band_sets')?.data;
     const exceptions = ((docs.data ?? []) as Doc<ExceptionDHoraire[]>[])
       .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
     const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[]; seats?: number } }[])
@@ -107,6 +128,9 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
       capMaitre: Number(reglages.maxRdvParJourMaitre ?? 0),
       sieges: Math.max(0, Number(branche?.data?.seats ?? 0)),
       masques,
+      bandes: Array.isArray(bandes) ? bandes.filter((b) => b && b.id && b.name) : [],
+      bandSets: bandSets && typeof bandSets === 'object' ? bandSets : {},
+      baremeSuspendu: reglages.baremeSuspendu === true,
     };
   })();
   return promesse;

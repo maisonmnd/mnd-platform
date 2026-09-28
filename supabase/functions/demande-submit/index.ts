@@ -142,6 +142,16 @@ function telephoneNormalise(brut: string, dial = '+229'): string {
 
 const GENRES = new Set(['prospect', 'rdv']);
 const BESOINS = new Set(['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu']);
+const BESOIN_DIT: Record<string, string> = {
+  creation: 'Créer ma couronne', reparation: 'Réparer ma couronne', entretien: 'Entretenir ma couronne',
+  enfant: 'Pour mon enfant', formation: 'Apprendre le métier', inconnu: 'Ne sait pas encore',
+};
+/* Le {{2}} de l'accusé quand il n'y a pas de place : ce que la cliente a
+   demandé, en clair, dans la phrase du modèle. */
+const quandDeLaDemande = (genre: string, profil: string): string =>
+  profil === 'Carte cadeau' ? 'une carte cadeau'
+    : profil === 'Diagnostic locks' ? 'votre routine locks'
+      : genre === 'rdv' ? 'un rendez-vous' : 'un rappel de la Maison';
 const texte = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 async function brancheParDefaut(voulue: string): Promise<{ id: string; maitres: string[] }> {
@@ -355,7 +365,7 @@ const jourDeLaMaison = (): string =>
 /** LE PRIX FERME D'UNE PRESTATION, ou zéro : même règle que la réservation
     du site (`prixFerme`, Reserver.tsx). Un devis, un prix caché ou absent
     valent zéro ; « variable » compte comme ferme et dit « à partir de ». */
-type ServiceEnBase = { id: string; data?: { priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } };
+type ServiceEnBase = { id: string; data?: { name?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean } };
 const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
   const s = catalogue.find((x) => x.id === id)?.data;
   const mode = s?.priceMode ?? (s?.hidePrice ? 'devis' : 'fixe');
@@ -507,19 +517,28 @@ const jourEnClair = (iso: string): string => {
   } catch { return iso; }
 };
 
+/* POUR TOUTE DEMANDE, PAS SEULEMENT UNE PLACE — 28 septembre 2026. « Que ce
+   soit juste un modèle, mais le message vient en WhatsApp du salon » (Yéman).
+   Un rappel, un diagnostic, une carte cadeau reçoivent aussi leur mot du
+   salon, et la conversation existe dès lors des deux côtés. Le modèle : celui
+   du rendez-vous quand il y a une place (« votre demande de rendez-vous pour
+   {{2}} »), sinon `WA_TEMPLATE_ACCUSE_SIMPLE` (« votre demande ({{2}}) ») s'il
+   est posé et approuvé, à défaut le même modèle avec un {{2}} qui se lit. */
 async function envoieLAccuse(o: {
-  apptId: string; demandeId: string; branchId: string; prenom: string; telephone: string; date: string; time: string;
+  apptId?: string; demandeId: string; branchId: string; prenom: string; telephone: string;
+  quand: string; date?: string; time?: string;
 }): Promise<string> {
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
-  const MODELE = Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue';
+  const MODELE_RDV = Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue';
+  const MODELE = o.apptId ? MODELE_RDV : (Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE') ?? MODELE_RDV);
   if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
   /* Meta veut le numéro international sans « + » ; le serveur l'a déjà mis
      en E.164 (telephoneNormalise). */
   const tel = o.telephone.replace(/\D/g, '');
   if (!tel) return 'sans-numero';
   const prenom = o.prenom || 'Madame';
-  const quand = `${jourEnClair(o.date)} à ${heureLisible(o.time)}`;
+  const quand = o.quand;
 
   let statut = 'échec';
   let detail: string | undefined;
@@ -561,15 +580,15 @@ async function envoieLAccuse(o: {
     detail = String(e);
   }
 
-  const id = `acc-${o.apptId}-whatsapp`;
+  const id = `acc-${o.apptId ?? o.demandeId}-whatsapp`;
   const maintenant = new Date().toISOString();
   await admin.from('envois').upsert({
     id,
     branch_id: o.branchId,
     data: {
       id, branchId: o.branchId, type: 'accuse', canal: 'whatsapp',
-      apptId: o.apptId, demandeId: o.demandeId, prenom, numero: `+${tel}`,
-      dateRdv: o.date, heure: o.time, statut,
+      ...(o.apptId ? { apptId: o.apptId } : {}), demandeId: o.demandeId, prenom, numero: `+${tel}`,
+      ...(o.date ? { dateRdv: o.date } : {}), ...(o.time ? { heure: o.time } : {}), moment: o.quand, statut,
       ...(detail ? { detail: detail.slice(0, 300) } : {}),
       ...(codeMeta ? { codeMeta } : {}),
       ...(waId ? { waMessageId: waId } : {}),
@@ -586,7 +605,9 @@ async function envoieLAccuse(o: {
       branch_id: o.branchId,
       data: {
         id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: '',
-        texte: `Bonjour ${prenom}, la Maison MND a bien reçu votre demande de rendez-vous pour ${quand}. Nous vous confirmons très vite, sur ce numéro.`,
+        texte: o.apptId
+          ? `Bonjour ${prenom}, la Maison MND a bien reçu votre demande de rendez-vous pour ${quand}. Nous vous confirmons très vite, sur ce numéro.`
+          : `Bonjour ${prenom}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`,
         type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône',
       },
     }, { onConflict: 'id' });
@@ -613,6 +634,11 @@ Deno.serve(async (req) => {
   const telephone = telephoneNormalise(String(d.telephone ?? ''), String(d.dial ?? '+229'));
   if (!telephone) return json({ error: 'telephone' }, 400);
   const besoin = BESOINS.has(String(d.besoin)) ? String(d.besoin) : 'inconnu';
+  /* LE CALIBRE ANNONCÉ — 28 septembre 2026 : la tranche de locks que la
+     visiteuse a choisie sur le site (son représentant, et son nom). Borné,
+     jamais cru sur parole pour le prix : le Trône compte au fauteuil. */
+  const lockCount = Math.max(0, Math.min(2000, Math.round(Number(d.lockCount) || 0)));
+  const calibre = texte(d.calibre, 30);
   const prenom = texte(d.prenom, 60);
   const email = texte(d.email, 120).toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'email' }, 400);
@@ -643,12 +669,14 @@ Deno.serve(async (req) => {
   let master = '';
   /* Le code, résolu ICI : le navigateur ne dit que le code. */
   let duCode: VerdictDuCode = { code: '' };
+  let nomsDesGestes: string[] = [];
   if (avecPlace) {
     const verdict = await laPlaceTient({
       branchId, maitres: branche.maitres, serviceIds, date, time, master: texte(d.master, 60),
     });
     if ('erreur' in verdict) return json({ error: verdict.erreur }, 409);
     master = verdict.master;
+    nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
     duCode = remiseDuCode({ code: d.code, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres });
     /* Une fois par personne : la remise tombe, la réservation tient. */
     if (duCode.remisesLignes && await codeDejaUtilise(duCode.code, telephone)) {
@@ -667,6 +695,7 @@ Deno.serve(async (req) => {
     besoin,
     ...(d.profil ? { profil: texte(d.profil, 80) } : {}),
     ...(d.mot ? { mot: texte(d.mot, 1000) } : {}),
+    ...(lockCount ? { lockCount, ...(calibre ? { calibre } : {}) } : {}),
     source: 'site',
     ...(d.page ? { page: texte(d.page, 120) } : {}),
     ...(d.campagne ? { campagne: texte(d.campagne, 80) } : {}),
@@ -680,6 +709,33 @@ Deno.serve(async (req) => {
 
   const { error } = await admin.from('demandes').insert({ id, genre, branch_id: branchId, data: demande });
   if (error) return json({ error: 'insert_failed' }, 500);
+  /* LA DEMANDE ATTERRIT DANS LES CONVERSATIONS — 28 septembre 2026. « Quand
+     la cliente fait une demande sur le site, j'aimerais que son message
+     atterrisse dans les Conversations » (Yéman). Elle s'écrit dans le fil de
+     son numéro comme un message d'elle, marqué `canal: 'site'` : Meta ne l'a
+     pas vu, il n'ouvre pas la fenêtre de 24 heures (fenetreDe), et l'écran le
+     dit « Depuis le site ». Un échec ici ne défait rien : la demande est
+     posée, le journal le dira. */
+  {
+    const tel = telephone.replace(/\D/g, '');
+    const idFil = `site-${id}`;
+    const texteDuFil = [
+      `${genre === 'rdv' ? 'Demande de rendez-vous' : 'Demande'} depuis le site${d.page ? ` · ${texte(d.page, 120)}` : ''}`,
+      `${BESOIN_DIT[besoin] ?? besoin}${d.profil ? ` · ${texte(d.profil, 80)}` : ''}`,
+      lockCount ? `Calibre annoncé : ${calibre || `${lockCount} locks`}` : '',
+      avecPlace ? `${nomsDesGestes.join(', ')} · le ${jourEnClair(date)} à ${heureLisible(time)}` : '',
+      d.mot ? `« ${texte(d.mot, 1000)} »` : '',
+    ].filter(Boolean).join('\n');
+    const { error: errFil } = await admin.from('messages_wa').upsert({
+      id: idFil,
+      branch_id: branchId,
+      data: {
+        id: idFil, branchId, sens: 'entrant', canal: 'site', numero: tel, clientId: '',
+        ...(prenom ? { nomProfil: prenom } : {}), texte: texteDuFil, type: 'text', quand: now, demandeId: id,
+      },
+    }, { onConflict: 'id' });
+    if (errFil) console.error('demande-submit: fil du site', errFil.message);
+  }
 
   /* ── LE RENDEZ-VOUS, POSÉ EN ATTENTE ───────────────────────────────
      `clientId` reste VIDE : personne n'a de fiche, et en inventer une à
@@ -693,6 +749,7 @@ Deno.serve(async (req) => {
     const candidat = `rdv-${crypto.randomUUID()}`;
     const note = [
       'Réservé depuis le site',
+      lockCount ? `Calibre annoncé : ${calibre || `${lockCount} locks`}` : '',
       raisonEnClair(duCode),
       d.mot ? texte(d.mot, 300) : '',
     ].filter(Boolean).join(' · ');
@@ -730,10 +787,11 @@ Deno.serve(async (req) => {
 
   /* L'ACCUSÉ — pour une place réellement posée, jamais pour une question.
      Un échec ne défait rien : la place est prise, le journal le dira. */
-  const accuse = apptId
-    ? await envoieLAccuse({ apptId, demandeId: id, branchId, prenom, telephone, date, time })
-      .catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; })
-    : 'sans-place';
+  const accuse = await envoieLAccuse({
+    apptId, demandeId: id, branchId, prenom, telephone,
+    quand: apptId ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(genre, texte(d.profil, 80)),
+    ...(apptId ? { date, time } : {}),
+  }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
 
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(

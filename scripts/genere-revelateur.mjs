@@ -686,6 +686,11 @@ function rendAccueil(articles) {
         <div class="tete"><p class="sur">${echappe(a.offres.sur)}</p><h2>${echappe(a.offres.titre)}</h2></div>
         <div data-ilot="offres" data-genre="accueil">${offresDansLaPage('accueil')}</div>
       </div></section>
+      <!-- LA CARTE CADEAU AVANT L'HISTOIRE — 28 septembre 2026 (Yéman). -->
+      <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
+        <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
+        <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
+      </div></section>
       <section class="fondateurs" id="maison"><div class="conteneur">
         ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
         <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
@@ -693,10 +698,6 @@ function rendAccueil(articles) {
           <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
           <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
         </div>
-      </div></section>
-      <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
-        <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
-        <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
       </div></section>
       <section class="galerie-bande" id="galerie"><div class="conteneur">
         <div class="tete tete--ligne"><div><p class="sur">${echappe(a.galerie.sur)}</p><h2>${echappe(a.galerie.titre)}</h2></div>${bouton(a.galerie.bouton, 'btn btn--lien')}</div>

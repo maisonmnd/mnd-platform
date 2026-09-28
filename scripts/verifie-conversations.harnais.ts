@@ -67,6 +67,10 @@ dit('NOS messages n’ouvrent rien', false,
 dit('… même très récents, si elle n’a jamais écrit', false,
   fenetreDe([m({ sens: 'sortant', quand: il(0) })], T).ouverte);
 dit('un fil vide n’a pas de fenêtre', false, fenetreDe([], T).ouverte);
+/* VENU DU SITE — 28 septembre 2026 : la demande écrite dans le fil par
+   demande-submit est d'elle, mais Meta ne l'a pas vue. Elle n'ouvre rien. */
+dit('un message venu du site n’ouvre pas la fenêtre', false, fenetreDe([m({ canal: 'site', quand: il(1) })], T).ouverte);
+dit('… et ne masque pas un vrai message plus ancien', true, fenetreDe([m({ canal: 'site', quand: il(1) }), m({ quand: il(3) })], T).ouverte);
 /* LE DERNIER ENTRANT COMMANDE, pas le premier : une cliente qui écrit trois
    fois rouvre la fenêtre à chaque fois. */
 dit('le DERNIER entrant commande', true,
