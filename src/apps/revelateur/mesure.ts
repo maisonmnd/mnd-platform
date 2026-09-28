@@ -15,7 +15,9 @@ export type Evenement =
   | 'prospect_depose'
   | 'consultation_ouverte'
   | 'reservation_demandee'
-  | 'whatsapp_clique';
+  | 'whatsapp_clique'
+  | 'parrainage_code'
+  | 'parrainage_partage';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string };
 

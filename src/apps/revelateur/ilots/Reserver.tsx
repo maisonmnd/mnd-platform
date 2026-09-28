@@ -15,6 +15,7 @@ import {
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
 import { lienLu } from '../../../shared/lien-reservation';
+import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
 import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
@@ -200,6 +201,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
        donc sa raison, et on la dit ICI plutôt que de la laisser se
        découvrir au comptoir. */
     code?: string; codeApplique?: boolean; codeRaison?: string;
+    /** Le parrainage : le prénom de la marraine, le cadeau de bienvenue dit au Trône. */
+    marraine?: string; cadeau?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -359,7 +362,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       const r = (data ?? {}) as {
         ok?: boolean; error?: string;
         code?: string; codeApplique?: boolean;
-        codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau';
+        codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau'
+          | 'parrainage' | 'parrainage-soi-meme' | 'parrainage-deja-cliente' | 'parrainage-deja-utilise';
+        marraine?: string; cadeau?: string;
       };
       if (error || !r.ok) {
         const code = r.error ?? (error?.message ?? '');
@@ -382,6 +387,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       setRecu({
         date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name),
         code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
+        marraine: r.marraine, cadeau: r.cadeau,
       });
       mesure('reservation_demandee', { parcours: besoin, genre: 'rdv' });
     } catch {
@@ -410,7 +416,17 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             qui n'aura pas lieu. */}
         {recu.code && (
           <p className="code-offre__dit" style={{ marginTop: 14 }}>
-            {recu.codeApplique && !recu.codeRaison
+            {/* LE PARRAINAGE — 28 septembre 2026 : quatre issues, chacune
+                sans reproche ; la place, elle, est toujours demandée. */}
+            {recu.codeRaison === 'parrainage'
+              ? `Bienvenue ! ${recu.marraine ? `${recu.marraine} vous offre la Maison` : 'Vous venez parrainée'} : ${recu.cadeau ? `votre cadeau de bienvenue, ${recu.cadeau},` : 'votre cadeau de bienvenue'} vous attend à votre première visite.`
+              : recu.codeRaison === 'parrainage-soi-meme'
+                ? `${recu.code} est votre propre code de marraine : il se partage avec une amie. Votre place est demandée, au prix de la carte.`
+                : recu.codeRaison === 'parrainage-deja-cliente'
+                  ? `Le parrainage accueille les nouvelles clientes, et vous êtes déjà de la Maison. Votre place est demandée, au prix de la carte.`
+                  : recu.codeRaison === 'parrainage-deja-utilise'
+                    ? `Vous avez déjà été parrainée une fois. Votre place est demandée, au prix de la carte.`
+            : recu.codeApplique && !recu.codeRaison
               ? `Le code ${recu.code} est porté sur votre demande.`
               : recu.codeRaison === 'deja-utilise'
                 ? `Le code ${recu.code} a déjà servi avec ce numéro : il vaut une seule fois par personne. Votre place est demandée, au prix de la carte.`
@@ -671,7 +687,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               code inconnu se dit sans reproche et le prix reste celui de la
               carte. On ne perd pas une venue sur une faute de frappe. */}
           <div className="code-offre">
-            <label htmlFor="res-code">Code de remise, si vous en avez un</label>
+            <label htmlFor="res-code">Code de remise ou de parrainage, si vous en avez un</label>
             <input
               id="res-code"
               name="code"
@@ -706,7 +722,10 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                   : 'Ce code ne court plus.'}
               </p>
             )}
-            {!offreDuMoment && !offrePassee && code && (
+            {!offreDuMoment && !offrePassee && code && FORME_DU_CODE.test(code) && (
+              <p className="code-offre__dit est-bonne">Code de parrainage. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
+            )}
+            {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
               <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
             )}
           </div>

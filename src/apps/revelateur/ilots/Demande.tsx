@@ -12,7 +12,8 @@ import type { Besoin } from '../../../shared/qualification';
    Un seul champ est obligatoire : le numéro. Sans lui, personne ne peut
    rappeler ; avec lui seul, la Maison peut déjà tout faire. */
 
-type Props = { genre: 'prospect' | 'rdv'; besoin?: Besoin };
+/** `profil` posé d'avance (« Testeuse ») : le choix du profil disparaît du formulaire. */
+type Props = { genre: 'prospect' | 'rdv'; besoin?: Besoin; profil?: string };
 
 const BESOINS = new Set<string>(['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu']);
 
@@ -25,12 +26,12 @@ function besoinDeLAdresse(): Besoin | '' {
 
 const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
 
-export default function Demande({ genre, besoin: besoinInitial }: Props) {
+export default function Demande({ genre, besoin: besoinInitial, profil: profilPose }: Props) {
   const f = COMMUN.formulaire;
   const [prenom, setPrenom] = useState('');
   const [numero, setNumero] = useState('');
   const [besoin, setBesoin] = useState<Besoin | ''>(besoinInitial ?? besoinDeLAdresse());
-  const [profil, setProfil] = useState('');
+  const [profil, setProfil] = useState(profilPose ?? '');
   const [mot, setMot] = useState('');
   const [consent, setConsent] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export default function Demande({ genre, besoin: besoinInitial }: Props) {
         <div className="champ"><label htmlFor="dem-prenom">{f.prenom}</label><input id="dem-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
         <div className="champ"><label htmlFor="dem-numero">{f.numero}</label><input id="dem-numero" name="numero" inputMode="tel" autoComplete="tel" value={numero} onChange={(e) => setNumero(e.target.value)} required /></div>
       </div>
-      <div className="deux-champs">
+      {!profilPose && <div className="deux-champs">
         <div className="champ"><label htmlFor="dem-besoin">{f.besoin}</label>
           <select id="dem-besoin" name="besoin" value={besoin} onChange={(e) => setBesoin(e.target.value as Besoin | '')}>
             <option value="">Choisir</option>
@@ -117,8 +118,8 @@ export default function Demande({ genre, besoin: besoinInitial }: Props) {
             <option value="">Choisir</option>
             {f.profils.map((p) => <option key={p} value={p}>{p}</option>)}
           </select></div>
-      </div>
-      <div className="champ"><label htmlFor="dem-mot">Un mot, si vous voulez</label><textarea id="dem-mot" name="mot" rows={3} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
+      </div>}
+      <div className="champ"><label htmlFor="dem-mot">{profilPose ? 'Vos locks en quelques mots (âge, calibre, ce qui vous préoccupe)' : 'Un mot, si vous voulez'}</label><textarea id="dem-mot" name="mot" rows={3} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
       <label className="consentement"><input type="checkbox" id="dem-consent" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
       <button className="btn btn--plein" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : f.bouton}</button>
       {erreur && <p className="erreur" role="alert">{erreur}</p>}

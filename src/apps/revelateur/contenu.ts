@@ -8,6 +8,10 @@
    barre finale ; aucune adresse absolue, aucun prix, aucun témoignage. */
 
 import type { Accueil, Commun, Galerie, Page } from './contenu-types';
+import { PARRAINAGE } from './communaute';
+
+/* La communauté, le parrainage, les ingrédients, l'avant / après : 28 septembre 2026. */
+export * from './communaute';
 
 export const COMMUN: Commun = {
   nom: 'Maison MND',
@@ -124,6 +128,9 @@ export const COMMUN: Commun = {
           { texte: 'Vos questions', vers: '/faq/' },
           { texte: 'Le diagnostic locks', vers: '/mon-parcours/' },
           { texte: 'Offrir la Maison', vers: '/offrir/' },
+          { texte: 'Parrainer une amie', vers: '/parrainage/' },
+          { texte: 'Nos ingrédients', vers: '/ingredients/' },
+          { texte: 'Nos engagements', vers: '/engagements/' },
         ],
       },
       {
@@ -1001,6 +1008,79 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'aucun',
     court: 'Réserver',
+  },
+  /* ── LA COMMUNAUTÉ MND — 28 septembre 2026 (maquette validée) ────── */
+  {
+    chemin: '/parrainage/',
+    titre: 'Parrainer une amie · Maison MND',
+    description: 'Offrez la Maison MND à une amie : votre code de marraine, son cadeau de bienvenue à sa première visite, et le vôtre quand elle est venue.',
+    h1: PARRAINAGE.titre,
+    sur: PARRAINAGE.sur,
+    ligne: PARRAINAGE.ligne,
+    besoin: 'inconnu',
+    ilot: 'parrainer',
+    sections: [
+      {
+        type: 'faq',
+        sur: 'Bon à savoir',
+        items: [
+          ['Qui peut être marraine ?', 'Toute personne qui aime la Maison, cliente ou non. Votre numéro vous rend toujours le même code.'],
+          ['Qui peut être filleule ?', 'Une personne qui vient à la Maison pour la première fois. Le code ne vaut pas pour une cliente déjà connue, ni pour la marraine elle-même.'],
+          ['Quand reçoit-on les cadeaux ?', 'Celui de votre amie l’attend à sa première visite. Le vôtre vous est remis dès que sa visite est passée, et la Maison vous le dit sur WhatsApp.'],
+          ['Combien d’amies puis-je parrainer ?', 'Autant que vous voulez : un cadeau pour chaque amie venue.'],
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Parrainage',
+  },
+  {
+    chemin: '/testeuse/',
+    titre: 'Devenir testeuse · Maison MND',
+    description: 'Essayez les nouveaux soins de la Maison MND avant tout le monde et dites-nous ce que vous en pensez. Inscription en une minute, à Cotonou.',
+    h1: 'Devenez testeuse.',
+    sur: 'La communauté MND',
+    ligne: 'Essayez nos nouveaux soins avant tout le monde, et dites-nous ce que vous en pensez. Votre avis façonne ce que la Maison propose ensuite.',
+    besoin: 'inconnu',
+    ilot: 'testeuse',
+    sections: [
+      {
+        type: 'pas',
+        sur: 'Comment ça se passe',
+        titre: 'Trois pas, et votre avis compte.',
+        items: [
+          ['Vous vous inscrivez', 'Votre prénom, votre numéro, et vos locks en quelques mots.'],
+          ['La Maison vous appelle', 'Quand un soin nouveau sort de notre Laboratoire et convient à votre couronne, nous vous le proposons.'],
+          ['Vous nous dites tout', 'Ce qui vous a plu, ce qui vous a gênée. Sans détour : c’est pour cela que nous vous le demandons.'],
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Testeuse',
+  },
+  {
+    chemin: '/engagements/',
+    titre: 'Nos engagements · Maison MND',
+    description: 'Ce que la Maison MND promet à chaque couronne : des produits éprouvés, une hygiène sans faille, un regard avant chaque geste et la vérité sur le temps.',
+    h1: 'Nos engagements.',
+    sur: 'La communauté MND',
+    ligne: 'Ce que nous promettons à chaque couronne qui passe notre porte.',
+    besoin: 'inconnu',
+    ilot: 'engagements',
+    jsonld: 'aucun',
+    court: 'Engagements',
+  },
+  {
+    chemin: '/ingredients/',
+    titre: 'Nos ingrédients · Maison MND',
+    description: 'Aloès, hibiscus, baobab, karité, neem, moringa : les plantes d’Afrique qui entrent dans les soins de la Maison MND, et l’histoire de chacune.',
+    h1: 'Ce qui entre dans nos soins.',
+    sur: 'Nos ingrédients',
+    ligne: 'Des plantes d’Afrique, choisies une à une, et chacune avec son histoire. Touchez-en une pour la lire.',
+    besoin: 'inconnu',
+    ilot: 'ingredients',
+    jsonld: 'aucun',
+    court: 'Ingrédients',
   },
 ];
 

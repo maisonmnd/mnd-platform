@@ -68,7 +68,10 @@ export type Page = {
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
-  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir';
+  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
+    /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
+       montent pas de React, ils se rendent à la construction. */
+    | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients';
 };
 
 export type Accueil = {

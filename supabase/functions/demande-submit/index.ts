@@ -77,6 +77,18 @@
 // repères et la fait tourner sur les mêmes cas. Deux calculs d'argent
 // finissent toujours par diverger ; c'est au comptoir qu'on l'apprend.
 //
+// LE PARRAINAGE — 28 septembre 2026. Deux gestes de plus :
+//   · `{ parrainage: true, data: { prenom, telephone, consentement } }` rend
+//     le code de marraine de ce numéro (PRENOM-XXX), le crée s'il n'existe
+//     pas, et rend les deux cadeaux écrits au Trône (`mnd_parrainage`). La
+//     marraine est une demande `prospect`, profil « Marraine ».
+//   · À la réservation, un code qu'aucune offre ne reconnaît est cherché
+//     parmi les codes de marraine. Il ne vaut que pour une NOUVELLE cliente
+//     (aucune fiche à ce numéro), jamais pour la marraine, et une seule fois
+//     par numéro. La raison `parrainage` et le cadeau de la filleule
+//     s'écrivent sur la demande et dans la note du rendez-vous ; l'accueil
+//     l'applique, le calcul ne retire rien.
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
 // l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
@@ -382,13 +394,18 @@ const ligneAPrix = (id: string, catalogue: ServiceEnBase[]): LigneAPrix => {
     bien quelque chose. Quatre des cinq offres de parcours sont des cadeaux
     (le-trone-35, même jour) : la confusion serait devenue le cas courant, et
     une employée aurait refusé au comptoir ce que la carte avait promis. */
-type RaisonDuCode = 'inconnu' | 'cadeau' | 'sans-effet' | 'deja-utilise';
+type RaisonDuCode = 'inconnu' | 'cadeau' | 'sans-effet' | 'deja-utilise'
+  | 'parrainage' | 'parrainage-soi-meme' | 'parrainage-deja-cliente' | 'parrainage-deja-utilise';
 
 type VerdictDuCode = {
   code: string;
   offreId?: string;
   remisesLignes?: ({ pct: number } | null)[];
   raison?: RaisonDuCode;
+  /** Le parrainage : le prénom de la marraine, l'id de sa demande, le cadeau dit. */
+  marraine?: string;
+  marraineId?: string;
+  cadeau?: string;
 };
 
 /** LA RAISON, DITE COMME ON LA DIRAIT À L'ACCUEIL. Une ligne de note vaut
@@ -400,6 +417,10 @@ const raisonEnClair = (v: VerdictDuCode): string => {
   if (v.raison === 'inconnu') return `code ${v.code} (aucune offre en cours)`;
   if (v.raison === 'cadeau') return `code ${v.code} (cadeau de l'offre, à appliquer à la Maison)`;
   if (v.raison === 'sans-effet') return `code ${v.code} (ne porte sur aucun geste choisi)`;
+  if (v.raison === 'parrainage') return `parrainée par ${v.marraine || 'une cliente'} (code ${v.code})${v.cadeau ? ` : cadeau de bienvenue, ${v.cadeau}` : ' : cadeau de bienvenue à offrir'}`;
+  if (v.raison === 'parrainage-soi-meme') return `code ${v.code} : c'est son propre code de marraine, sans cadeau`;
+  if (v.raison === 'parrainage-deja-cliente') return `code ${v.code} (parrainage) : déjà cliente, sans cadeau de bienvenue`;
+  if (v.raison === 'parrainage-deja-utilise') return `code ${v.code} (parrainage) : un parrainage déjà reçu par ce numéro`;
   return `code ${v.code}`;
 };
 
@@ -450,6 +471,97 @@ async function codeDejaUtilise(code: string, telephone: string): Promise<boolean
   }
   return (data ?? []).length > 0;
 }
+
+/* ══ LE PARRAINAGE ══════════════════════════════════════════════════════
+   La forme du code est le contrat avec `src/shared/parrainage.ts`
+   (FORME_DU_CODE, SIGNES_DU_CODE) ; `verifie-le-parrainage` les confronte. */
+const SIGNES_DU_CODE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const FORME_DU_CODE = /^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$/;
+const racineDuCode = (prenom: string): string =>
+  prenom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6) || 'MND';
+function codeDeMarraine(prenom: string): string {
+  const octets = crypto.getRandomValues(new Uint8Array(3));
+  return `${racineDuCode(prenom)}-${[...octets].map((o) => SIGNES_DU_CODE[o % SIGNES_DU_CODE.length]).join('')}`;
+}
+
+type ReglageParrainage = { actif?: boolean; cadeauFilleule?: string; cadeauMarraine?: string };
+async function reglageDuParrainage(): Promise<ReglageParrainage> {
+  const { data } = await admin.from('documents').select('data').eq('key', 'mnd_parrainage').maybeSingle();
+  return ((data as { data?: ReglageParrainage } | null)?.data) ?? { actif: true };
+}
+
+/** Les huit derniers chiffres : un numéro de fiche s'écrit de dix façons
+    (+229, espaces, 01 ou pas), ses huit derniers chiffres ne changent pas. */
+const huitDerniers = (t: string): string => String(t ?? '').replace(/\D/g, '').slice(-8);
+
+/** A-T-ELLE DÉJÀ UNE FICHE ? En cas d'erreur de lecture, on la dit nouvelle :
+    un cadeau de bienvenue donné à tort se rattrape au comptoir, qui voit la
+    fiche ; un cadeau refusé à tort se vit devant elle. */
+async function dejaCliente(telephone: string): Promise<boolean> {
+  const fin = huitDerniers(telephone);
+  if (fin.length < 8) return false;
+  const { data, error } = await admin.from('clients').select('id, phone:data->>phone, phone2:data->>phone2');
+  if (error) { console.error('demande-submit: fiches illisibles', error.message); return false; }
+  return (data ?? []).some((c: { phone?: string; phone2?: string }) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
+}
+
+/** LE CODE D'UNE MARRAINE, lu à la réservation quand aucune offre ne le
+    reconnaît. Rend `null` si ce n'est pas un code de marraine. */
+async function verdictDuParrainage(code: string, telephone: string): Promise<VerdictDuCode | null> {
+  if (!FORME_DU_CODE.test(code)) return null;
+  const { data: m } = await admin.from('demandes').select('id, data').eq('data->>codeParrain', code).limit(1);
+  const marraine = (m ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+  if (!marraine) return null;
+  const reglage = await reglageDuParrainage();
+  if (reglage.actif === false) return { code, raison: 'inconnu' };
+  const base = { code, marraine: String(marraine.data.prenom ?? ''), marraineId: marraine.id };
+  if (huitDerniers(String(marraine.data.telephone ?? '')) === huitDerniers(telephone)) return { ...base, raison: 'parrainage-soi-meme' };
+  const { data: deja } = await admin.from('demandes').select('id')
+    .eq('data->>telephone', telephone).eq('data->>codeRaison', 'parrainage').limit(1);
+  if ((deja ?? []).length > 0) return { ...base, raison: 'parrainage-deja-utilise' };
+  if (await dejaCliente(telephone)) return { ...base, raison: 'parrainage-deja-cliente' };
+  return { ...base, raison: 'parrainage', cadeau: texte(reglage.cadeauFilleule, 160) };
+}
+
+/** LE MODE `parrainage` : le code de ce numéro, créé s'il le faut. */
+async function codePourLaMarraine(body: Record<string, unknown>): Promise<Response> {
+  const d = (body.data ?? {}) as Record<string, unknown>;
+  if (d.consentement !== true) return json({ error: 'consentement' }, 400);
+  const telephone = telephoneNormalise(String(d.telephone ?? ''), String(d.dial ?? '+229'));
+  if (!telephone) return json({ error: 'telephone' }, 400);
+  const prenom = texte(d.prenom, 60);
+  if (!prenom) return json({ error: 'prenom' }, 400);
+  const reglage = await reglageDuParrainage();
+  if (reglage.actif === false) return json({ error: 'parrainage_ferme' }, 409);
+  const cadeaux = { filleule: texte(reglage.cadeauFilleule, 160), marraine: texte(reglage.cadeauMarraine, 160) };
+
+  const { data: siens } = await admin.from('demandes').select('id, data')
+    .eq('data->>telephone', telephone).not('data->>codeParrain', 'is', null).limit(1);
+  const connu = (siens ?? [])[0] as { data: Record<string, unknown> } | undefined;
+  if (connu?.data?.codeParrain) return json({ ok: true, code: connu.data.codeParrain, cadeaux, deja: true });
+
+  let code = '';
+  for (let i = 0; i < 6 && !code; i++) {
+    const essai = codeDeMarraine(prenom);
+    const { data: pris } = await admin.from('demandes').select('id').eq('data->>codeParrain', essai).limit(1);
+    if ((pris ?? []).length === 0) code = essai;
+  }
+  if (!code) return json({ error: 'generation_impossible' }, 500);
+
+  const id = `dem-${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const branche = await brancheParDefaut(String(d.branchId ?? ''));
+  const demande = {
+    id, genre: 'prospect', createdAt: now, branchId: branche.id, prenom, telephone,
+    besoin: 'inconnu', profil: 'Marraine', source: 'site', page: texte(d.page, 120) || '/parrainage/',
+    codeParrain: code, consentementLe: now, statut: 'nouvelle',
+  };
+  const { error } = await admin.from('demandes').insert({ id, genre: 'prospect', branch_id: branche.id, data: demande });
+  if (error) return json({ error: 'insert_failed' }, 500);
+  await alerteLePersonnel('Nouvelle marraine', `${prenom} · code ${code}`, '/trone/#/parrainages').catch(() => 0);
+  return json({ ok: true, code, cadeaux });
+}
+/* ══ LE PARRAINAGE : FIN ══ */
 
 async function alerteLePersonnel(titre: string, corps: string, url: string): Promise<number> {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return 0;
@@ -626,6 +738,8 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = JSON.parse(corps); } catch { return json({ error: 'bad_request' }, 400); }
 
+  if (body.parrainage === true) return await codePourLaMarraine(body);
+
   const genre = String(body.genre ?? 'prospect');
   const d = (body.data ?? {}) as Record<string, unknown>;
   if (!GENRES.has(genre)) return json({ error: 'genre' }, 400);
@@ -682,6 +796,10 @@ Deno.serve(async (req) => {
     if (duCode.remisesLignes && await codeDejaUtilise(duCode.code, telephone)) {
       duCode = { code: duCode.code, offreId: duCode.offreId, raison: 'deja-utilise' };
     }
+    /* Aucune offre ne le connaît : est-ce le code d'une marraine ? */
+    if (duCode.raison === 'inconnu') {
+      duCode = (await verdictDuParrainage(duCode.code, telephone).catch(() => null)) ?? duCode;
+    }
   }
 
   const demande = {
@@ -703,6 +821,7 @@ Deno.serve(async (req) => {
     ...(duCode.code ? { code: duCode.code } : {}),
     ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
+    ...(duCode.raison === 'parrainage' ? { parrainDe: duCode.code, marraineId: duCode.marraineId, ...(duCode.cadeau ? { cadeauFilleule: duCode.cadeau } : {}) } : {}),
     consentementLe: now,
     statut: 'nouvelle',
   } as Record<string, unknown>;
@@ -805,5 +924,6 @@ Deno.serve(async (req) => {
     ok: true, id, apptId, sent, accuse,
     ...(duCode.code ? { code: duCode.code, codeApplique: !!duCode.remisesLignes } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
+    ...(duCode.raison === 'parrainage' ? { marraine: duCode.marraine, cadeau: duCode.cadeau ?? '' } : {}),
   });
 });
