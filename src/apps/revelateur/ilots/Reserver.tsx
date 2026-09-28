@@ -99,7 +99,8 @@ const POUR_LA_PORTE: Readonly<Partial<Record<Besoin, string>>> = {
 
 const besoinDeLAdresse = (): Besoin | '' => {
   try {
-    const b = new URLSearchParams(location.search).get('besoin') ?? '';
+    const p = new URLSearchParams(location.search);
+    const b = p.get('besoin') ?? (p.get('r') ?? '').split('.')[0];
     return (['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu'] as const)
       .includes(b as Besoin) ? (b as Besoin) : '';
   } catch { return ''; }
