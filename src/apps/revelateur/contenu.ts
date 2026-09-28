@@ -310,6 +310,7 @@ export const ACCUEIL: Accueil = {
   portes: {
     sur: 'Ce que la Maison fait',
     titre: 'Cinq portes, une méthode.',
+    ligne: "Cinq parcours qui ne commencent pas au même endroit et ne se déroulent pas pareil. Trouvez le vôtre à sa situation de départ.",
     /* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026) : la
        Première Couronne, la Réparation, l'Entretien, les Soins, MND Kids. La
        formation garde sa page et son entrée au pied ; sur l'accueil, on ne
@@ -318,13 +319,14 @@ export const ACCUEIL: Accueil = {
        la remet pas ici), le regard sur la réparation, l'entretien, l'attention
        sur les soins, la mère et l'enfant sur MND Kids. */
     cartes: [
-      { titre: 'Première Couronne', ligne: 'Vos premières locks, préparées puis posées, après une consultation.', suite: 'Découvrir', vers: '/premiere-couronne/', image: 'portrait-accueil.jpg' },
-      { titre: 'Réparation', ligne: "Casse, amincissement, racines : on regarde d'abord, zone par zone.", suite: 'Découvrir', vers: '/reparation-locks/', image: 'regard.jpg' },
-      { titre: 'Entretien', ligne: 'Lavage, resserrage, hydratation, au rythme de votre couronne.', suite: 'Découvrir', vers: '/entretien-locks/', image: 'entretien.jpg' },
-      { titre: 'Soins', ligne: 'Cuir chevelu et longueurs, en profondeur, selon la saison.', suite: 'Découvrir', vers: '/soins-locks/', image: 'attention.jpg' },
-      { titre: 'MND Kids', ligne: 'Pour les enfants, tout va plus doucement.', suite: 'Découvrir', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
+      { titre: 'Première Couronne', pour: "Je n'ai pas encore de locks", ligne: 'Vos premières locks, préparées puis posées.', comment: 'Consultation · Préparation · Création · Premier suivi', suite: 'Découvrir', vers: '/premiere-couronne/', image: 'portrait-accueil.jpg' },
+      { titre: 'Réparation', pour: 'Mes locks m’inquiètent', ligne: "Casse, amincissement, racines : on regarde d'abord.", comment: 'Diagnostic zone par zone · Devis · Réparation', suite: 'Découvrir', vers: '/reparation-locks/', image: 'regard.jpg' },
+      { titre: 'Entretien', pour: 'Mes locks vont bien', ligne: 'Leur rendez-vous, au rythme de votre couronne.', comment: 'Se réserve directement · Lavage · Resserrage · Hydratation', suite: 'Découvrir', vers: '/entretien-locks/', image: 'entretien.jpg' },
+      { titre: 'Soins', pour: 'Cuir chevelu et longueurs', ligne: 'En profondeur, selon la saison.', comment: 'Purifier · Nourrir · Sceller · Couronner', suite: 'Découvrir', vers: '/soins-locks/', image: 'attention.jpg' },
+      { titre: 'MND Kids', pour: 'Pour mon enfant', ligne: 'Tout va plus doucement.', comment: 'Un échange avec vous · Une séance courte · Le temps qu’il faut', suite: 'Découvrir', vers: '/mnd-kids/', image: 'mnd-kids.jpg' },
     ],
-    repli: 'Vous hésitez ? Cinq questions suffisent.',
+    repli: 'Vous hésitez entre deux portes ?',
+    repliNote: 'Cinq questions, et la Maison vous dit la vôtre, avec votre routine.',
     repliBouton: { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
   },
   confiance: {

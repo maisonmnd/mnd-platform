@@ -608,11 +608,24 @@ ${supplement}`;
 /* ── L'accueil ───────────────────────────────────────────────────────── */
 function rendAccueil(articles) {
   const a = ACCUEIL;
-  const cartes = a.portes.cartes.map((c) => {
+  /* CINQ PARCOURS NUMÉROTÉS — 28 septembre 2026, d'après une page de clinique
+     que Yéman a montrée : le numéro en filigrane, la situation de départ en
+     tête, le titre, le déroulé en temps, et la photo en arche (la forme du
+     pictogramme de la Maison) au pied. Le numéro ne classe pas : il compte,
+     et fait lire cinq chemins distincts plutôt qu'une rangée de cartes. */
+  const cartes = a.portes.cartes.map((c, i) => {
     const p = PAGES.find((x) => x.chemin === c.vers);
+    const temps = c.comment.split('·').map((t) => t.trim()).filter(Boolean);
     return `<a class="porte" href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">
+          <span class="porte__rang" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
+          <div class="porte-corps">
+            <p class="porte__pour">${echappe(c.pour)}</p>
+            <h3>${echappe(c.titre)}</h3>
+            <p>${echappe(c.ligne)}</p>
+            <ol class="porte__temps">${temps.map((t) => `<li>${echappe(t)}</li>`).join('')}</ol>
+          </div>
           ${c.image ? image(c.image) : `<div class="tuile">${echappe(c.titre.length > 18 ? p?.court ?? c.titre : c.titre)}<small>Photo de la séance à venir</small></div>`}
-          <div class="porte-corps"><h3>${echappe(c.titre)}</h3><p>${echappe(c.ligne)}</p><span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span></div>
+          <span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span>
         </a>`;
   }).join('\n        ');
   const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
@@ -632,8 +645,10 @@ function rendAccueil(articles) {
         <div class="conteneur hero-plein__texte">
           <p class="devise devise--grande">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
-          <p class="ligne">${echappe(a.ligne)}</p>
-          <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn' : 'btn btn--plein')).join('')}</div>
+          <div class="hero-plein__geste">
+            <p class="ligne">${echappe(a.ligne)}</p>
+            <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn' : 'btn btn--plein')).join('')}</div>
+          </div>
         </div>
       </section>
       <section class="objectif" id="objectif"><div class="conteneur">
@@ -643,11 +658,11 @@ function rendAccueil(articles) {
         <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
       </div></section>
       <section id="portes"><div class="conteneur">
-        <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2></div>
+        <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2>${a.portes.ligne ? `<p class="ligne">${echappe(a.portes.ligne)}</p>` : ''}</div>
         <div class="portes">
         ${cartes}
         </div>
-        <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}</div>
+        <div class="repli"><p>${echappe(a.portes.repli)}</p>${bouton(a.portes.repliBouton, 'btn btn--fort')}${a.portes.repliNote ? `<small>${echappe(a.portes.repliNote)}</small>` : ''}</div>
       </div></section>
       <!-- LE DIAGNOSTIC SE JOUE SUR L'ACCUEIL : le même îlot que /mon-parcours/,
            dans une carte ivoire sur l'indigo. Sans script, la carte mène à la

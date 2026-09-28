@@ -236,26 +236,29 @@ a, button, label, input, select, textarea, summary, [role="button"] {
 .portes { display: flex; gap: 14px; min-width: 0; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; margin-inline: calc(-1 * clamp(18px, 4vw, 40px)); padding-inline: clamp(18px, 4vw, 40px); scrollbar-width: thin; }
 .portes > * { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
 @media (min-width: 1000px) { .portes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; margin-inline: 0; padding-inline: 0; padding-bottom: 0; } .portes > * { flex: none; } }
-.porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
-.porte:hover { box-shadow: var(--ombre); }
+/* LE PARCOURS NUMÉROTÉ — 28 septembre 2026. Le numéro en filigrane, la
+   situation de départ, le titre, le déroulé en temps, la photo en arche (la
+   forme du pictogramme) au pied, le mot « Découvrir ». Rien ne s'enfonce. */
+.porte { position: relative; display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 6px; padding: 22px 20px 20px; color: inherit; transition: box-shadow var(--t), border-color var(--t); overflow: hidden; }
+.porte:hover { box-shadow: var(--ombre); border-color: rgba(185, 122, 74, .4); }
 .porte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.porte img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
-.tuile { aspect-ratio: 4 / 5; display: grid; place-items: center; background: var(--sombre); color: var(--accent-sombre); font-family: var(--serif); font-size: 34px; letter-spacing: .06em; text-align: center; }
-.tuile small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .22em; color: rgba(246, 241, 231, .5); margin-top: 4px; }
-.porte-corps { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.porte h3 { font-size: 21px; }
+.porte__rang { position: absolute; top: -12px; right: 10px; font-family: var(--serif); font-size: 96px; line-height: 1; color: var(--fond-2); pointer-events: none; }
+.porte-corps { position: relative; display: flex; flex-direction: column; gap: 8px; flex: 1; padding: 0; }
+.porte__pour { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-profond); font-weight: 400; min-height: 2.6em; }
+.porte h3 { font-size: 24px; }
 .porte p { font-size: 14px; color: var(--texte-doux); }
-/* La suite d'une porte est un RECTANGLE cuivre, comme sur la maquette validée,
-   et les cinq sont sur la même ligne à la même hauteur (Yéman, 22 septembre
-   2026) : hauteur fixe, poussé en bas d'une carte qui s'étire à la hauteur de
-   la rangée. La flèche du lien texte n'a plus lieu d'être. */
-/* « DÉCOUVRIR » EST UN MOT, PLUS UN PAVÉ — 27 septembre 2026, maquette
-   validée : sur une porte, on avance sans décider ; le pavé cuivre est
-   réservé à « Réserver ». */
-.porte .suite { margin-top: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); padding-top: 6px; }
+.porte__temps { list-style: none; margin: 6px 0 0; padding: 10px 0 0; border-top: 1px solid var(--filet); display: flex; flex-wrap: wrap; gap: 4px 6px; font-size: 12px; color: var(--titre); }
+.porte__temps li { display: inline-flex; align-items: center; gap: 6px; }
+.porte__temps li + li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+.porte img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; object-position: 50% 18%; border-radius: 999px 999px 4px 4px; margin-top: 16px; }
+.porte .suite { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 400; color: var(--accent-profond); }
 .porte:hover .suite { color: var(--titre); }
 .porte .suite svg { width: 14px; height: 14px; }
-.repli { margin-top: 26px; padding: 20px 24px; border: 1px solid var(--accent); border-radius: 4px; background: var(--accent-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+/* La bande du diagnostic, centrée sous les parcours, comme l'appel d'une
+   clinique sous ses quatre temps : le mot, le bouton, la note. */
+.repli { margin-top: 34px; padding: 30px 24px; display: grid; justify-items: center; text-align: center; gap: 14px; }
+.repli small { font-size: 13px; color: var(--texte-doux); }
+.repli--ancien { margin-top: 26px; padding: 20px 24px; border: 1px solid var(--accent); border-radius: 4px; background: var(--accent-clair); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 .repli p { font-family: var(--serif); font-size: 21px; color: var(--titre); }
 
 /* ── les cartes à bandeau (les quatre portes de la Maison) ──────── */
@@ -776,7 +779,7 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    l'indigo la fond vers le titre ; sur téléphone elle couvre tout, un portrait
    y est chez lui. La barre reste collante : transparente sur la photo, elle
    redevient pleine dès qu'on descend (.solide, posé par main.ts). */
-.hero-plein { position: relative; min-height: clamp(560px, 82vh, 860px); margin-top: calc(var(--barre-h, 72px) * -1); padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sombre); color: #F6F1E7; }
+.hero-plein { position: relative; min-height: clamp(640px, 92vh, 980px); margin-top: calc(var(--barre-h, 72px) * -1); padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sombre); color: #F6F1E7; }
 .hero-plein__photo { position: absolute; top: 0; bottom: 0; right: 0; width: min(58%, 880px); height: 100%; max-width: none; object-fit: cover; object-position: 50% 6%; }
 /* Le voile n'est pas réglé à l'œil sur cette photo-là : un PLATEAU d'indigo à
    opacité fixe couvre toute la zone du texte (le bas de l'écran, où vivent
@@ -789,7 +792,15 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    photo, surtout au niveau du visage » (Yéman, 23 septembre 2026). Sur
    téléphone, le texte passe SUR la photo : le plateau du bas reprend sa force. */
 .hero-plein__voile { position: absolute; inset: 0; background: linear-gradient(90deg, var(--sombre) 0%, var(--sombre) 36%, rgba(30, 33, 80, .86) 46%, rgba(30, 33, 80, .22) 60%, rgba(30, 33, 80, .04) 100%), linear-gradient(0deg, rgba(21, 23, 58, .55) 0%, rgba(21, 23, 58, .42) 18%, rgba(21, 23, 58, 0) 40%); }
-.hero-plein__texte { position: relative; z-index: 2; margin-top: auto; width: 100%; padding-top: 150px; padding-bottom: clamp(40px, 6vw, 72px); }
+/* TROIS HAUTEURS, TROIS MESSAGES — 28 septembre 2026 : « tout est concentré
+   au même endroit côté gauche, j'ai besoin que tu aères et que chaque message
+   porte son impact » (Yéman). La signature en haut (la devise et son sens),
+   la promesse au milieu (l'accroche), le geste en bas (la ligne et les deux
+   boutons). Le bloc prend toute la hauteur du premier écran et les trois
+   s'écartent ; sur téléphone, ils se rapprochent sous le regard, comme
+   avant. */
+.hero-plein__texte { position: relative; z-index: 2; width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: clamp(28px, 5vh, 56px); padding-top: calc(var(--barre-h, 72px) + clamp(28px, 5vh, 56px)); padding-bottom: clamp(40px, 6vw, 72px); }
+.hero-plein__geste { display: grid; gap: 18px; }
 .pastille { display: inline-block; background: rgba(246, 241, 231, .14); backdrop-filter: blur(8px); border: 1px solid rgba(246, 241, 231, .28); border-radius: 999px; padding: 9px 18px; font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase; color: #F6F1E7; }
 .hero-plein h1 { color: #F6F1E7; font-weight: 500; font-size: clamp(42px, 6.6vw, 88px); line-height: 1.02; margin-top: 22px; max-width: 15ch; text-shadow: 0 2px 26px rgba(21, 23, 58, .5); }
 .hero-plein .devise { font-family: var(--serif); font-size: 24px; color: var(--accent-sombre); margin-top: 18px; }
@@ -799,11 +810,12 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    (Yéman). En grand, en italique, cuivre clair ; sa traduction dessous, en
    petit ; puis l'accroche, un cran plus sobre qu'avant pour laisser la
    devise signer. */
-.hero-plein .devise--grande { font-size: clamp(40px, 7vw, 84px); line-height: 1; font-style: italic; margin-top: 18px; letter-spacing: .01em; }
-.hero-plein .devise--grande small { display: block; margin: 8px 0 0; font-size: 13px; letter-spacing: .08em; }
-.hero-plein .devise--grande + h1 { margin-top: 14px; font-size: clamp(38px, 6.2vw, 78px); font-weight: 300; max-width: 14ch; }
-.hero-plein .ligne { color: rgba(246, 241, 231, .84); max-width: 46ch; margin-top: 14px; font-size: clamp(16px, 1.5vw, 19px); }
-.hero-plein .rangee { margin-top: 26px; }
+.hero-plein .devise--grande { font-size: clamp(40px, 6vw, 76px); line-height: 1; font-style: italic; margin-top: 0; letter-spacing: .01em; }
+.hero-plein .devise--grande small { display: block; margin: 10px 0 0; font-size: 13px; letter-spacing: .1em; }
+.hero-plein .devise--grande::after { content: ''; display: block; width: 56px; height: 1px; background: var(--accent-sombre); margin-top: 22px; opacity: .8; }
+.hero-plein .devise--grande + h1 { margin-top: 0; font-size: clamp(40px, 6.4vw, 92px); font-weight: 300; max-width: 12ch; line-height: 1; }
+.hero-plein .ligne { color: rgba(246, 241, 231, .84); max-width: 40ch; margin-top: 0; font-size: clamp(16px, 1.5vw, 19px); }
+.hero-plein .rangee { margin-top: 0; }
 .hero-plein .btn:not(.btn--plein) { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
 .hero-plein .btn:not(.btn--plein):hover { background: #fff; }
 .promesses.promesses--sombre { background: var(--sombre-2); border: 0; padding-block: 22px; }
@@ -828,7 +840,9 @@ footer li svg { width: 15px; height: 15px; flex: none; }
      c'est la seule ligne du premier écran qui dit ce que la Maison fait, et
      c'est là que sont la plupart des visiteuses. En petites capitales cuivre
      sur l'indigo plein, elle ne recouvre plus rien. */
-  .hero-plein__texte { display: flex; flex-direction: column; align-items: flex-start; padding-bottom: 26px; }
+  .hero-plein__texte { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 10px; padding-bottom: 26px; padding-top: 120px; }
+  .hero-plein .devise--grande::after { display: none; }
+  .hero-plein__geste { gap: 10px; }
   .hero-plein .pastille { order: 9; margin-top: 14px; padding: 0; background: none; border: 0; backdrop-filter: none; color: var(--accent-sombre); font-size: 11.5px; letter-spacing: .16em; max-width: calc(100% - 84px); }
   .hero-plein h1 { font-size: clamp(30px, 8.8vw, 40px); margin-top: 0; max-width: none; }
   .hero-plein .devise { font-size: 19px; margin-top: 10px; }
