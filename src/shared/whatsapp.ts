@@ -23,9 +23,10 @@ export type EnvoiWhatsApp = {
   /** Un modèle approuvé, pour écrire hors fenêtre. */
   modele?: string;
   variables?: string[];
-  /** Un modèle dont l'en-tête est un document (le bulletin) : la pièce
-      voyage avec, c'est la seule façon qu'un fichier passe hors fenêtre. */
-  enTete?: 'document';
+  /** Un modèle dont l'en-tête est un document (le bulletin) ou une image (la
+      carte de marraine, 28 septembre 2026) : la pièce voyage avec, c'est la
+      seule façon qu'un fichier passe hors fenêtre. */
+  enTete?: 'document' | 'image';
   piece?: PieceRendue;
   /** Jusqu'à trois boutons de réponse : `id` est ce que le webhook lira,
       `titre` ce qu'elle verra (vingt signes au plus). */

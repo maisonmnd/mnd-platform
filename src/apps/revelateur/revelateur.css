@@ -1671,3 +1671,12 @@ body.galerie-plein { scroll-behavior: smooth; }
 .aa figcaption b { color: var(--titre); font-weight: 400; font-size: 18px; }
 .aa figcaption span { font-size: 13px; color: var(--texte-doux); }
 @media (prefers-reduced-motion: reduce) { .ingr::before, .carte3 { transition: none; } }
+
+/* L'INVITATION DE LA MARRAINE — 28 septembre 2026 : l'amie qui a scanné une
+   carte est accueillie par le prénom de celle qui l'invite, sur l'allover. */
+.invitation { position: relative; isolation: isolate; overflow: hidden; border-radius: 14px; padding: 26px 24px; margin-bottom: 22px; background: var(--sombre); color: var(--fort-texte); display: grid; gap: 8px; }
+.invitation::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 150px repeat; opacity: .5; }
+.invitation::after { content: ''; position: absolute; z-index: -1; right: -80px; top: -60px; width: 240px; height: 240px; background: url(/assets/motifs/medaillon-seul-cuivre.png) center / contain no-repeat; opacity: .8; }
+.invitation .sur { color: var(--accent-sombre); }
+.invitation__titre { margin: 0; font-family: var(--serif); font-weight: 300; font-size: clamp(30px, 5vw, 42px); line-height: 1.05; max-width: 16ch; }
+.invitation__ligne { margin: 0; font-size: 15px; line-height: 1.6; color: rgba(246, 241, 231, .86); max-width: 46ch; }

@@ -10,7 +10,9 @@ import { useCategories, useServices, useProducts, productsStore, priceModeOf, ca
 import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
-import { useClients, useFamilies } from '../../../../shared/clients';
+import { useClients, useFamilies, clientsStore } from '../../../../shared/clients';
+import { soinsEnAttente, type SoinOffert } from '../../../../shared/parrainage-pur';
+import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
@@ -244,6 +246,11 @@ export default function Caisse() {
   /* La cliente choisie se dit en CHIP + « Changer » (maquette écran 3) — le
      sélecteur ne se rouvre que si on le demande, l'écran reste calme au rush. */
   const [changeCliente, setChangeCliente] = useState(false);
+  /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
+     ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
+     l'encaissement, comme un code : un ticket abandonné ne le brûle pas. */
+  const [soinPose, setSoinPose] = useState<{ id: string; cle: string } | null>(null);
+  useEffect(() => { setSoinPose(null); }, [clientId]);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -472,6 +479,23 @@ export default function Caisse() {
      ou solo). Applicable jusqu'au net ; le comptant couvre le reste. La part avoir
      est du revenu mais hors caisse (avoirXof — routée par la Synthèse). */
   const posClient = branchClients.find((c) => c.id === clientId);
+  const soinsDispo: SoinOffert[] = soinsEnAttente(posClient?.soinsOfferts);
+  /** OFFRIR LE SOIN : sa prestation (ou, s'il n'en nomme pas, la première
+      prestation du ticket) passe à 100 %. Absente du ticket, elle s'y ajoute. */
+  const offreLeSoin = (soin: SoinOffert) => {
+    const cle = soin.serviceId && flat[`s:${soin.serviceId}`]
+      ? `s:${soin.serviceId}`
+      : lines.find((l) => l.kind === 'service')?.key;
+    if (!cle) return;
+    setCart((c) => ({ ...c, [cle]: { ...c[cle], qty: Math.max(1, c[cle]?.qty ?? 0), disc: 100 } }));
+    setSoinPose({ id: soin.id, cle });
+  };
+  const retireLeSoin = () => {
+    if (!soinPose) return;
+    const cle = soinPose.cle;
+    setCart((c) => (c[cle] ? { ...c, [cle]: { ...c[cle], disc: 0 } } : c));
+    setSoinPose(null);
+  };
   const posAccount: CreditHolder | null = posClient ? holderOf(posClient, families) : null;
   const posAvoirBal = posAccount ? creditBalanceOf(credits, posAccount) : 0;
   const posAvoir = Math.max(0, Math.min(Math.min(posAvoirBal, netXof), Math.round(Number(avoirStr) || 0)));
@@ -532,6 +556,16 @@ export default function Caisse() {
       });
       codesPromoStore.set((prev) => prev.map((c) => (c.id === ferme.id ? ferme : c)));
       setCodeTape('');
+    }
+
+    /* LE SOIN OFFERT SE CONSOMME ICI, avec la pièce, et seulement si sa
+       ligne est encore offerte : une remise retirée entre-temps le rend. */
+    if (soinPose && clientId && cart[soinPose.cle]?.disc === 100) {
+      const idSoin = soinPose.id;
+      clientsStore.set((prev) => prev.map((c) => (c.id === clientId
+        ? { ...c, soinsOfferts: soinUtilise(c.soinsOfferts, idSoin, inv.number, dateVente) }
+        : c)));
+      setSoinPose(null);
     }
 
     /* LE RITUEL SOLDE PORTE DESORMAIS SA FACTURE : les ecrans de chiffre
@@ -1053,6 +1087,27 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
                 <span className="trv-net">{fmtMoney(netXof, currency)}</span>
               </div>
+
+              {soinsDispo.length > 0 && (
+                <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Soin offert · parrainage</span>
+                  {soinsDispo.map((s) => {
+                    const pose = soinPose?.id === s.id;
+                    const possible = !!(s.serviceId && flat[`s:${s.serviceId}`]) || lines.some((l) => l.kind === 'service');
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{s.libelle}<span style={{ display: 'block', fontSize: 11, color: 'var(--copper-700)' }}>{s.raison}</span></span>
+                        {pose
+                          ? <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={retireLeSoin}>Retirer</button>
+                          : <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !possible} onClick={() => offreLeSoin(s)}>Offrir</button>}
+                      </div>
+                    );
+                  })}
+                  {!soinsDispo.some((s) => s.serviceId && flat[`s:${s.serviceId}`]) && !lines.some((l) => l.kind === 'service') && (
+                    <span style={{ fontSize: 11, color: 'var(--copper-700)' }}>Ajoutez au ticket la prestation à offrir.</span>
+                  )}
+                </div>
+              )}
 
               {posAvoirBal > 0 && netXof > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px' }}>

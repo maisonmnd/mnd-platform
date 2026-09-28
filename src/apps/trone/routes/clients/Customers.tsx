@@ -36,6 +36,7 @@ import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/fina
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { BilanModal } from './BilanModal';
+import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
@@ -3219,6 +3220,9 @@ function Customer360({
                 </button>
               )}
             </div>
+
+            {/* ══ SA CARTE DE MARRAINE — 28 septembre 2026 ══════════════ */}
+            <CarteDeMarrainePanneau client={client} />
 
             {/* ══ SA PORTE — par où la Maison la joint ═══════════════════
                 La présence Ma Couronne, le bilan et la demande étaient trois

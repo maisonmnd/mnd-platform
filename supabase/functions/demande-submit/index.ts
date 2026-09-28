@@ -89,6 +89,16 @@
 //     s'écrivent sur la demande et dans la note du rendez-vous ; l'accueil
 //     l'applique, le calcul ne retire rien.
 //
+// LA CARTE DE MARRAINE DE CHAQUE CLIENTE — 28 septembre 2026. Toute fiche du
+// Trône porte désormais son code (`codeParrain`, posé par le Trône). La
+// marraine se cherche donc D'ABORD parmi les fiches, puis parmi les demandes
+// du site ; une cliente qui demande son code sur le site reçoit celui de sa
+// fiche. `{ parrainage: 'qui', code }` rend le seul PRÉNOM de la marraine,
+// pour que la page de l'amie dise « Adjoa vous offre la Maison ». À la
+// réservation d'une amie, la marraine est prévenue sur WhatsApp si le modèle
+// est posé (secret WA_TEMPLATE_PARRAINAGE_RESERVE, variables : son prénom,
+// celui de l'amie).
+//
 // Déployez via le tableau de bord (Edge Functions → New function → coller ce
 // fichier EN ENTIER). Secrets : SERVICE_KEY (comme push-notify) ; pour
 // l'alerte, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (les mêmes).
@@ -402,9 +412,12 @@ type VerdictDuCode = {
   offreId?: string;
   remisesLignes?: ({ pct: number } | null)[];
   raison?: RaisonDuCode;
-  /** Le parrainage : le prénom de la marraine, l'id de sa demande, le cadeau dit. */
+  /** Le parrainage : le prénom de la marraine, l'id de sa demande (ou de sa
+      fiche), le cadeau dit, et son numéro pour la prévenir. */
   marraine?: string;
   marraineId?: string;
+  marraineClientId?: string;
+  marraineTelephone?: string;
   cadeau?: string;
 };
 
@@ -497,25 +510,48 @@ const huitDerniers = (t: string): string => String(t ?? '').replace(/\D/g, '').s
 /** A-T-ELLE DÉJÀ UNE FICHE ? En cas d'erreur de lecture, on la dit nouvelle :
     un cadeau de bienvenue donné à tort se rattrape au comptoir, qui voit la
     fiche ; un cadeau refusé à tort se vit devant elle. */
-async function dejaCliente(telephone: string): Promise<boolean> {
+type FicheLue = { id: string; phone?: string; phone2?: string; code?: string; name?: string };
+async function fichesDuNumero(telephone: string): Promise<FicheLue[] | null> {
   const fin = huitDerniers(telephone);
-  if (fin.length < 8) return false;
-  const { data, error } = await admin.from('clients').select('id, phone:data->>phone, phone2:data->>phone2');
-  if (error) { console.error('demande-submit: fiches illisibles', error.message); return false; }
-  return (data ?? []).some((c: { phone?: string; phone2?: string }) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
+  if (fin.length < 8) return [];
+  const { data, error } = await admin.from('clients')
+    .select('id, phone:data->>phone, phone2:data->>phone2, code:data->>codeParrain, name:data->>name');
+  if (error) { console.error('demande-submit: fiches illisibles', error.message); return null; }
+  return ((data ?? []) as FicheLue[]).filter((c) => huitDerniers(c.phone ?? '') === fin || huitDerniers(c.phone2 ?? '') === fin);
+}
+async function dejaCliente(telephone: string): Promise<boolean> {
+  const fiches = await fichesDuNumero(telephone);
+  return !!fiches && fiches.length > 0;
+}
+
+const premierMot = (t: unknown): string => String(t ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** LA MARRAINE D'UN CODE : une fiche du Trône d'abord, une demande du site
+    ensuite. Rend `null` si personne ne porte ce code. */
+async function marraineDuCode(code: string): Promise<{ id: string; prenom: string; telephone: string; clientId?: string } | null> {
+  const { data: f } = await admin.from('clients').select('id, data').eq('data->>codeParrain', code).limit(1);
+  const fiche = (f ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+  if (fiche && fiche.data?.archived !== true) {
+    return { id: fiche.id, prenom: premierMot(fiche.data.name), telephone: String(fiche.data.phone ?? ''), clientId: fiche.id };
+  }
+  const { data: m } = await admin.from('demandes').select('id, data').eq('data->>codeParrain', code).limit(1);
+  const dem = (m ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+  return dem ? { id: dem.id, prenom: premierMot(dem.data.prenom), telephone: String(dem.data.telephone ?? '') } : null;
 }
 
 /** LE CODE D'UNE MARRAINE, lu à la réservation quand aucune offre ne le
     reconnaît. Rend `null` si ce n'est pas un code de marraine. */
 async function verdictDuParrainage(code: string, telephone: string): Promise<VerdictDuCode | null> {
   if (!FORME_DU_CODE.test(code)) return null;
-  const { data: m } = await admin.from('demandes').select('id, data').eq('data->>codeParrain', code).limit(1);
-  const marraine = (m ?? [])[0] as { id: string; data: Record<string, unknown> } | undefined;
+  const marraine = await marraineDuCode(code);
   if (!marraine) return null;
   const reglage = await reglageDuParrainage();
   if (reglage.actif === false) return { code, raison: 'inconnu' };
-  const base = { code, marraine: String(marraine.data.prenom ?? ''), marraineId: marraine.id };
-  if (huitDerniers(String(marraine.data.telephone ?? '')) === huitDerniers(telephone)) return { ...base, raison: 'parrainage-soi-meme' };
+  const base = {
+    code, marraine: marraine.prenom, marraineId: marraine.id, marraineTelephone: marraine.telephone,
+    ...(marraine.clientId ? { marraineClientId: marraine.clientId } : {}),
+  };
+  if (huitDerniers(marraine.telephone) === huitDerniers(telephone)) return { ...base, raison: 'parrainage-soi-meme' };
   const { data: deja } = await admin.from('demandes').select('id')
     .eq('data->>telephone', telephone).eq('data->>codeRaison', 'parrainage').limit(1);
   if ((deja ?? []).length > 0) return { ...base, raison: 'parrainage-deja-utilise' };
@@ -535,6 +571,11 @@ async function codePourLaMarraine(body: Record<string, unknown>): Promise<Respon
   if (reglage.actif === false) return json({ error: 'parrainage_ferme' }, 409);
   const cadeaux = { filleule: texte(reglage.cadeauFilleule, 160), marraine: texte(reglage.cadeauMarraine, 160) };
 
+  /* UNE CLIENTE A DÉJÀ SA CARTE : le site lui rend le code de sa fiche. */
+  const fiches = await fichesDuNumero(telephone);
+  const saFiche = (fiches ?? []).find((c) => c.code && FORME_DU_CODE.test(c.code));
+  if (saFiche?.code) return json({ ok: true, code: saFiche.code, cadeaux, deja: true });
+
   const { data: siens } = await admin.from('demandes').select('id, data')
     .eq('data->>telephone', telephone).not('data->>codeParrain', 'is', null).limit(1);
   const connu = (siens ?? [])[0] as { data: Record<string, unknown> } | undefined;
@@ -543,8 +584,7 @@ async function codePourLaMarraine(body: Record<string, unknown>): Promise<Respon
   let code = '';
   for (let i = 0; i < 6 && !code; i++) {
     const essai = codeDeMarraine(prenom);
-    const { data: pris } = await admin.from('demandes').select('id').eq('data->>codeParrain', essai).limit(1);
-    if ((pris ?? []).length === 0) code = essai;
+    if (!(await marraineDuCode(essai))) code = essai;
   }
   if (!code) return json({ error: 'generation_impossible' }, 500);
 
@@ -560,6 +600,80 @@ async function codePourLaMarraine(body: Record<string, unknown>): Promise<Respon
   if (error) return json({ error: 'insert_failed' }, 500);
   await alerteLePersonnel('Nouvelle marraine', `${prenom} · code ${code}`, '/trone/#/parrainages').catch(() => 0);
   return json({ ok: true, code, cadeaux });
+}
+/** `{ parrainage: 'qui', code }` : le PRÉNOM de la marraine, rien d'autre. */
+async function quiOffre(body: Record<string, unknown>): Promise<Response> {
+  const code = codeNormalise(body.code);
+  if (!FORME_DU_CODE.test(code)) return json({ ok: false });
+  const reglage = await reglageDuParrainage();
+  if (reglage.actif === false) return json({ ok: false });
+  const m = await marraineDuCode(code);
+  return m?.prenom ? json({ ok: true, prenom: m.prenom, cadeau: texte(reglage.cadeauFilleule, 160) }) : json({ ok: false });
+}
+
+/** LA MARRAINE EST PRÉVENUE quand une amie réserve avec son code. Seulement
+    si le modèle est posé (secret WA_TEMPLATE_PARRAINAGE_RESERVE) ; un échec
+    ne défait rien, il s'écrit au journal des envois. */
+async function previensLaMarraine(o: {
+  demandeId: string; branchId: string; prenomMarraine: string; prenomAmie: string; telephone: string; clientId?: string;
+}): Promise<string> {
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  const MODELE = Deno.env.get('WA_TEMPLATE_PARRAINAGE_RESERVE') ?? '';
+  if (!MODELE) return 'sans-modele';
+  if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
+  const tel = o.telephone.replace(/\D/g, '');
+  if (!tel) return 'sans-numero';
+  const prenom = o.prenomMarraine || 'Madame';
+  const amie = o.prenomAmie || 'Votre amie';
+  let statut = 'échec';
+  let detail: string | undefined;
+  let waId = '';
+  try {
+    const garde = new AbortController();
+    const minuterie = setTimeout(() => garde.abort(), 8000);
+    const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', to: tel, type: 'template',
+        template: {
+          name: MODELE, language: { code: 'fr' },
+          components: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: amie }] }],
+        },
+      }),
+      signal: garde.signal,
+    });
+    clearTimeout(minuterie);
+    const rep = await r.json().catch(() => ({})) as { messages?: { id?: string }[]; error?: { message?: string } };
+    waId = String(rep?.messages?.[0]?.id ?? '');
+    if (r.ok) statut = 'envoyé';
+    else detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+  } catch (err) {
+    detail = String(err);
+  }
+  const id = `parr-${o.demandeId}-whatsapp`;
+  const maintenant = new Date().toISOString();
+  await admin.from('envois').upsert({
+    id, branch_id: o.branchId,
+    data: {
+      id, branchId: o.branchId, type: 'parrainage', canal: 'whatsapp', demandeId: o.demandeId, prenom, numero: `+${tel}`,
+      moment: `réservation de ${amie}`, statut, ...(detail ? { detail: detail.slice(0, 300) } : {}),
+      ...(waId ? { waMessageId: waId } : {}), quand: maintenant,
+    },
+  }, { onConflict: 'id' });
+  if (waId) {
+    const idFil = `wa-${waId}`;
+    await admin.from('messages_wa').upsert({
+      id: idFil, branch_id: o.branchId,
+      data: {
+        id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: o.clientId ?? '',
+        texte: `Bonjour ${prenom}, ${amie} vient de réserver avec votre code. Nous vous dirons quand elle sera venue.`,
+        type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône · parrainage',
+      },
+    }, { onConflict: 'id' });
+  }
+  return statut;
 }
 /* ══ LE PARRAINAGE : FIN ══ */
 
@@ -738,6 +852,7 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = JSON.parse(corps); } catch { return json({ error: 'bad_request' }, 400); }
 
+  if (body.parrainage === 'qui') return await quiOffre(body);
   if (body.parrainage === true) return await codePourLaMarraine(body);
 
   const genre = String(body.genre ?? 'prospect');
@@ -821,7 +936,11 @@ Deno.serve(async (req) => {
     ...(duCode.code ? { code: duCode.code } : {}),
     ...(duCode.offreId ? { offreId: duCode.offreId } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
-    ...(duCode.raison === 'parrainage' ? { parrainDe: duCode.code, marraineId: duCode.marraineId, ...(duCode.cadeau ? { cadeauFilleule: duCode.cadeau } : {}) } : {}),
+    ...(duCode.raison === 'parrainage' ? {
+      parrainDe: duCode.code, marraineId: duCode.marraineId,
+      ...(duCode.marraineClientId ? { marraineClientId: duCode.marraineClientId } : {}),
+      ...(duCode.cadeau ? { cadeauFilleule: duCode.cadeau } : {}),
+    } : {}),
     consentementLe: now,
     statut: 'nouvelle',
   } as Record<string, unknown>;
@@ -911,6 +1030,13 @@ Deno.serve(async (req) => {
     quand: apptId ? `${jourEnClair(date)} à ${heureLisible(time)}` : quandDeLaDemande(genre, texte(d.profil, 80)),
     ...(apptId ? { date, time } : {}),
   }).catch((e) => { console.error('demande-submit: accusé', String(e)); return 'échec'; });
+
+  if (apptId && duCode.raison === 'parrainage' && duCode.marraineTelephone) {
+    await previensLaMarraine({
+      demandeId: id, branchId, prenomMarraine: duCode.marraine ?? '', prenomAmie: premierMot(prenom),
+      telephone: duCode.marraineTelephone, clientId: duCode.marraineClientId,
+    }).catch((err) => { console.error('demande-submit: marraine', String(err)); return 'échec'; });
+  }
 
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(

@@ -3,6 +3,8 @@ import { PageHead, WaLien } from '../_ui';
 import { Badge, Button, Card, Field, Input, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useAppointments } from '../../../../shared/agenda';
+import { useClients } from '../../../../shared/clients';
+import { useServices } from '../../../../shared/catalog';
 import { demandesStore, telephoneMasque, useDemandes } from '../../../../shared/demandes';
 import {
   VISITE_DITE, cadeauDu, marrainesEtFilleules, parrainageStore, useParrainage,
@@ -36,13 +38,29 @@ export default function Parrainages() {
   const [marraine, setMarraine] = useState(reglage.cadeauMarraine);
   useEffect(() => { setFilleule(reglage.cadeauFilleule); setMarraine(reglage.cadeauMarraine); }, [reglage.cadeauFilleule, reglage.cadeauMarraine]);
 
+  const [clients] = useClients();
+  const [services] = useServices();
   const liste = useMemo(
     () => marrainesEtFilleules(
       (demandes as DemandeParrainee[]).filter((d) => d && (!d.branchId || d.branchId === branch.id)),
       rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date })),
+      clients.filter((c) => c && c.branchId === branch.id),
     ),
-    [demandes, rdvs, branch.id],
+    [demandes, rdvs, clients, branch.id],
   );
+  const cartes = clients.filter((c) => c && c.branchId === branch.id && !c.archived && c.codeParrain).length;
+  const soinsCatalogue = useMemo(
+    () => services.filter((s) => s && !(s as { archived?: boolean }).archived).sort((a, b) => a.name.localeCompare(b.name)),
+    [services],
+  );
+  const choisitLeSoin = (id: string) => {
+    parrainageStore.set((r) => ({ ...r, soinMarraineServiceId: id || undefined }));
+    toast(id ? 'Le soin de la marraine est choisi : la caisse l’offrira à 100 %.' : 'Plus de soin choisi : la caisse offrira la ligne que vous indiquerez.');
+  };
+  const basculeMerci = () => {
+    parrainageStore.set((r) => ({ ...r, merciParWhatsApp: !r.merciParWhatsApp }));
+    toast(reglage.merciParWhatsApp ? 'Remerciement automatique éteint.' : 'Remerciement automatique allumé : il part à chaque amie venue.');
+  };
   const toutes = liste.flatMap((m) => m.filleules);
   const dus = toutes.filter(cadeauDu).length;
 
@@ -61,8 +79,8 @@ export default function Parrainages() {
     toast(remis ? 'Cadeau de la marraine marqué remis.' : 'Cadeau remis annulé.');
   };
 
-  const merci = (m: DemandeParrainee, f: DemandeParrainee): string =>
-    `Bonjour ${m.prenom || ''}, ${f.prenom || 'votre amie'} est venue à la Maison grâce à vous. Merci !${reglage.cadeauMarraine ? ` Votre cadeau vous attend : ${reglage.cadeauMarraine}.` : ''}`;
+  const merci = (prenom: string, f: DemandeParrainee): string =>
+    `Bonjour ${prenom || ''}, ${f.prenom || 'votre amie'} est venue à la Maison grâce à vous. Merci !${reglage.cadeauMarraine ? ` Votre cadeau vous attend : ${reglage.cadeauMarraine}.` : ''}`;
 
   return (
     <div className="tr-page">
@@ -73,7 +91,7 @@ export default function Parrainages() {
       />
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 18 }}>
-        {[['Marraines', liste.length], ['Filleules', toutes.length], ['Venues', toutes.filter((f) => f.visite === 'venue').length], ['Cadeaux à remettre', dus]].map(([l, n]) => (
+        {[['Cartes de marraine', cartes], ['Marraines actives', liste.length], ['Filleules', toutes.length], ['Venues', toutes.filter((f) => f.visite === 'venue').length], ['Cadeaux à remettre', dus]].map(([l, n]) => (
           <Card key={String(l)}><div className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>{l}</div><div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--color-indigo)' }}>{n}</div></Card>
         ))}
       </div>
@@ -93,17 +111,39 @@ export default function Parrainages() {
         <div style={{ marginTop: 12 }}><Button variant="copper" size="sm" onClick={enregistre} disabled={filleule.trim() === reglage.cadeauFilleule && marraine.trim() === reglage.cadeauMarraine}>Enregistrer</Button></div>
       </Card>
 
+      {/* LE SOIN OFFERT ET LE REMERCIEMENT — 28 septembre 2026 (carte de
+          marraine validée). Toute cliente a sa carte ; quand une amie vient,
+          le soin se pose sur la fiche de la marraine, et la caisse l'offre. */}
+      <Card style={{ marginBottom: 18 }}>
+        <strong>Le soin de la marraine</strong>
+        <p className="mnd-muted" style={{ fontSize: 13, margin: '6px 0 12px' }}>
+          Quand une amie est venue, ce soin se pose tout seul sur la fiche de sa marraine. À la caisse, il passe à 100 % en un geste.
+        </p>
+        <Field label="Prestation offerte">
+          <select className="mnd-input" value={reglage.soinMarraineServiceId ?? ''} onChange={(e) => choisitLeSoin(e.target.value)}>
+            <option value="">Aucune : la caisse offrira la ligne choisie</option>
+            {soinsCatalogue.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+          <span className="mnd-muted" style={{ fontSize: 13, maxWidth: 520 }}>
+            Le remerciement sur WhatsApp, avec sa carte en image, part tout seul à chaque amie venue. Allumez-le quand Meta aura approuvé le modèle « parrainage_merci ».
+          </span>
+          <Button variant={reglage.merciParWhatsApp ? 'ghost' : 'copper'} size="sm" onClick={basculeMerci}>{reglage.merciParWhatsApp ? 'Éteindre le remerciement' : 'Allumer le remerciement'}</Button>
+        </div>
+      </Card>
+
       {liste.length === 0 && (
         <Card><p className="mnd-muted" style={{ margin: 0 }}>Aucune marraine pour l’instant. Le code se demande sur le site, page « Parrainer une amie ».</p></Card>
       )}
 
       <div style={{ display: 'grid', gap: 12 }}>
         {liste.map((m) => (
-          <Card key={m.demande.id}>
+          <Card key={m.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
               <div>
-                <strong style={{ fontSize: 16 }}>{m.demande.prenom || 'Marraine'}</strong>
-                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 13 }}>{telephoneMasque(m.demande.telephone)} · depuis le {dateDite(m.demande.createdAt)}</span>
+                <strong style={{ fontSize: 16 }}>{m.prenom || 'Marraine'}</strong>
+                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 13 }}>{telephoneMasque(m.telephone)} · {m.clientId ? 'cliente' : 'code demandé sur le site'} depuis le {dateDite(m.depuis)}</span>
               </div>
               <Badge tone="copper">{m.code}</Badge>
             </div>
@@ -128,7 +168,7 @@ export default function Parrainages() {
                           <td style={{ padding: '9px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {cadeauDu(f) && (
                               <>
-                                <WaLien phone={m.demande.telephone} message={merci(m.demande, f.demande)} style={{ marginRight: 10, fontSize: 12.5 }}>Remercier</WaLien>
+                                <WaLien phone={m.telephone} message={merci(m.prenom, f.demande)} style={{ marginRight: 10, fontSize: 12.5 }}>Remercier</WaLien>
                                 <Button size="sm" variant="copper" onClick={() => marqueRemis(f, true)}>Cadeau remis</Button>
                               </>
                             )}

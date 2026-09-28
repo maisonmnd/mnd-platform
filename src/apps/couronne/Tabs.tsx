@@ -1,5 +1,8 @@
 import { asset } from '../../shared/asset';
 import { DEVISE_COMPLETE } from '../../shared/identite';
+import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
+import { donneesDeMaCarte } from './MaCarte';
+import { soinsEnAttente } from '../../shared/parrainage-pur';
 import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
@@ -258,6 +261,7 @@ export function HomeTab({
   onOpenRdv,
   goGamme,
   toast,
+  onOpenCarte,
 }: {
   onOpenBooking: OpenBooking;
   onOpenCompose: () => void;
@@ -265,8 +269,12 @@ export function HomeTab({
   onOpenRdv: () => void;
   goGamme: () => void;
   toast: (m: string) => void;
+  /** La carte de marraine (28 septembre 2026). */
+  onOpenCarte?: () => void;
 }) {
   const client = useClient();
+  const maCarte = donneesDeMaCarte(client);
+  const soinsQuiAttendent = soinsEnAttente(client?.soinsOfferts);
   const { currency } = useBranch();
   const [services] = useServices();
   /* LE CATALOGUE VISIBLE pour tout ce qui PROPOSE (reco) : une prestation
@@ -579,6 +587,26 @@ export function HomeTab({
             sur sa fiche garde sa carte. Sans désignation : rien du tout —
             l'ancien repli sur `products[0]` présentait le premier flacon de
             la Gamme en recommandation de la maison. */}
+        {/* ══ SA CARTE DE MARRAINE — 28 septembre 2026 ══════════════
+            Le recto à son prénom, en petit ; une touche ouvre la carte
+            entière, son QR et ses filleules. Un soin qui l'attend se dit
+            ici, en premier. */}
+        {maCarte && onOpenCarte && (
+          <>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Votre carte de marraine</div>
+            <button type="button" onClick={onOpenCarte}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid rgba(20,20,27,.12)', background: '#FFFDF9', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+              <CarteDeMarraine donnees={maCarte} largeur={120} retournable={false} />
+              <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
+                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: '#1E2150', lineHeight: 1.15 }}>Offrez la Maison à une amie.</span>
+                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? '#7C4C2C' : '#5E5750' }}>
+                  {soinsQuiAttendent.length ? `Un soin vous attend : ${soinsQuiAttendent[0].libelle}` : `Votre code ${maCarte.code}`}
+                </span>
+              </span>
+              <span aria-hidden style={{ color: '#7C4C2C', fontSize: 18 }}>→</span>
+            </button>
+          </>
+        )}
         {recoPresta ? (
           <>
             <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>

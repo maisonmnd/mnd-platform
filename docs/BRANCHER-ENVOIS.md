@@ -501,3 +501,30 @@ site (`lienLu`). Le Trône l'envoie depuis Conversations → Lien de
 réservation (hors fenêtre : « Envoyer par le modèle »). Il demande
 `whatsapp-envoi` avec le paramètre `boutonUrl` : RECOLLER `whatsapp-envoi`
 EN ENTIER après le 28 septembre.
+
+## La carte de marraine : trois modèles (28 septembre 2026)
+
+Tous en français, catégorie Utility (Marketing si Meta le refuse), pied
+« Maison MND · Cotonou ».
+
+1. **`parrainage_merci`** : en-tête IMAGE (la carte de la marraine, jointe
+   par le Trône). Corps : « Bonjour {{1}}, {{2}} est venue à la Maison grâce
+   à vous. Merci ! Votre soin offert vous attend : {{3}}. Il est déjà sur
+   votre compte, dites-le simplement à l'accueil. » Exemples : Adjoa, Grâce,
+   DÀNDÀN™. Envoyé par le Trône quand la visite de l'amie est honorée, une
+   fois « Allumer le remerciement » cliqué (Marketing & Fidélité →
+   Parrainages).
+2. **`carte_marraine`** : en-tête IMAGE (sa carte). Corps : « Bonjour {{1}},
+   voici votre carte de marraine de la Maison MND. Votre code : {{2}}.
+   Partagez-la : chaque amie qui vient grâce à vous vous offre un soin. »
+   Envoyé depuis la fiche cliente (« Envoyer sa carte sur WhatsApp ») quand
+   sa fenêtre de 24 h est fermée ; dans la fenêtre, l'image part sans modèle.
+3. **`parrainage_reservation`** : sans en-tête. Corps : « Bonjour {{1}},
+   {{2}} vient de réserver à la Maison MND avec votre code. Nous vous dirons
+   quand elle sera venue. » Envoyé par `demande-submit` à la réservation de
+   l'amie ; poser le secret `WA_TEMPLATE_PARRAINAGE_RESERVE=parrainage_reservation`
+   une fois approuvé.
+
+À RECOLLER EN ENTIER après le 28 septembre : `demande-submit` ET
+`whatsapp-envoi` (l'en-tête image). À PASSER dans le SQL Editor :
+`supabase/migrations/0110_la_carte_de_marraine.sql`.

@@ -68,6 +68,7 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 };
 import { useReconcileClients } from './useReconcileClients';
 import { useRattacheLesReservations } from './useRattacheLesReservations';
+import { useParrainageVivant } from './useParrainageVivant';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
 import { useSansLocksVivant } from './useSansLocksVivant';
@@ -290,6 +291,8 @@ export default function Shell() {
   useReconcileClients();
   /* La réservation du site confirmée trouve sa fiche (18 septembre). */
   useRattacheLesReservations();
+  /* Chaque cliente a sa carte de marraine, et ses soins offerts (28 septembre). */
+  useParrainageVivant();
   /* L'archétype de chaque cliente se relit à chaque mouvement du carnet — sauf
      s'il a été figé à la main. Voir shared/persona.ts pour la pesée. */
   usePersonaVivant();

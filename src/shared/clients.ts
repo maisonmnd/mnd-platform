@@ -1,3 +1,4 @@
+import type { ModeleDeCarte, ResumeParrainage, SoinOffert } from './parrainage-pur';
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { accordePour, type AccordImage } from './droit-image';
 import { type EnvieKey } from './quiz';
@@ -62,6 +63,14 @@ export type Client = {
       corrige jamais. Distinct de `notes`, qui porte les notes de consultation. */
   observation?: string;
   archived?: boolean;
+  /* LA CARTE DE MARRAINE — 28 septembre 2026. Son code (PRENOM-XXX), le
+     modèle de sa carte, le résumé de ses filleules et ses soins offerts.
+     Écrits par le Trône seul (useParrainageVivant, la caisse) ; la migration
+     0110 les réimpose à toute autre écriture. */
+  codeParrain?: string;
+  carteModele?: ModeleDeCarte;
+  parrainage?: ResumeParrainage;
+  soinsOfferts?: SoinOffert[];
   /** AU MASCULIN — 6 septembre 2026, pour les cartes de la Maison.
 
       Les cartes s'adressent à quelqu'un : « Chère » ou « Cher », « entourée »

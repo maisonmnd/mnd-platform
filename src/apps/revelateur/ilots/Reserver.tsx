@@ -811,9 +811,44 @@ function Calendrier({ besoin: besoinInitial }: Props) {
    est : trois réponses, chacune mène au bon endroit. Un clic de plus, zéro
    impasse. Le calendrier lui-même ne change pas : il vit dans `Calendrier`,
    avec tous ses crochets, et n'est monté qu'une fois le parcours connu. */
+/* L'INVITATION — 28 septembre 2026 (carte de marraine validée). L'amie qui
+   a scanné une carte arrive ici avec le code posé ; la fonction rend le
+   PRÉNOM de la marraine (rien d'autre), et la page l'accueille par lui. */
+function Invitation() {
+  const [qui, setQui] = useState<{ prenom: string; cadeau: string } | null>(null);
+  useEffect(() => {
+    const c = codeDeLAdresse();
+    if (!c || !FORME_DU_CODE.test(c)) return;
+    let vivant = true;
+    void (async () => {
+      try {
+        const supabase = await client();
+        if (!supabase) return;
+        const { data } = await supabase.functions.invoke('demande-submit', { body: { parrainage: 'qui', code: c } });
+        const r = (data ?? {}) as { ok?: boolean; prenom?: string; cadeau?: string };
+        if (vivant && r.ok && r.prenom) setQui({ prenom: r.prenom, cadeau: r.cadeau ?? '' });
+      } catch { /* sans invitation, la réservation reste entière */ }
+    })();
+    return () => { vivant = false; };
+  }, []);
+  if (!qui) return null;
+  return (
+    <div className="invitation sombre" role="note">
+      <p className="sur">Une invitation</p>
+      <p className="invitation__titre">{qui.prenom} vous offre la Maison.</p>
+      <p className="invitation__ligne">
+        {qui.cadeau
+          ? `Votre cadeau de bienvenue vous attend à votre première visite : ${qui.cadeau}.`
+          : 'Votre cadeau de bienvenue vous attend à votre première visite.'}
+        {' '}Son code est déjà posé.
+      </p>
+    </div>
+  );
+}
+
 export default function Reserver({ besoin: besoinInitial }: Props) {
   const [besoin, setBesoin] = useState<Besoin | ''>(besoinInitial || besoinDeLAdresse());
-  if (besoin && besoin !== 'inconnu') return <Calendrier besoin={besoin} />;
+  if (besoin && besoin !== 'inconnu') return <><Invitation /><Calendrier besoin={besoin} /></>;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const choisit = (b: Besoin) => {
     mesure('parcours_choisi', { parcours: b });
@@ -821,6 +856,8 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
     setBesoin(b);
   };
   return (
+    <>
+    <Invitation />
     <div className="porte-rdv" role="group" aria-labelledby="porte-rdv-titre">
       <p className="sur">Prendre rendez-vous</p>
       <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>
@@ -837,5 +874,6 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
         <small>Une création commence par une consultation. La Maison vous rappelle.</small>
       </a>
     </div>
+    </>
   );
 }

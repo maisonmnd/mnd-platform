@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
+import MaCarte from './MaCarte';
 import { useAuth, requireAuth, signOut, signInWithGoogle } from '../../shared/auth';
 import { useClients, useFamilies } from '../../shared/clients';
 import { ageDe, tetesPortees } from '../../shared/accounts';
@@ -107,6 +108,7 @@ function Shell() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [rdvOpen, setRdvOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [carteOpen, setCarteOpen] = useState(false);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -187,6 +189,7 @@ function Shell() {
             onOpenRdv={openRdv}
             goGamme={() => setTab('gamme')}
             toast={toast}
+            onOpenCarte={() => setCarteOpen(true)}
           />
         ))}
         {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}
@@ -239,6 +242,7 @@ function Shell() {
         />
       )}
       {ordersOpen && <MesCommandes onClose={() => setOrdersOpen(false)} />}
+      {carteOpen && <MaCarte onClose={() => setCarteOpen(false)} toast={toast} />}
 
       {toastMsg && <div className="mc-toast mc-rise">{toastMsg}</div>}
     </>
