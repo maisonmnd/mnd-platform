@@ -694,7 +694,6 @@ function rendAccueil(articles) {
           <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
         </div>
       </div></section>
-      ${marques(a.marques)}
       <section class="offrir-teaser sombre" id="offrir"><div class="conteneur">
         <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
         <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
@@ -716,6 +715,8 @@ function rendAccueil(articles) {
         </div>
         <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/journal/')}">Tous les articles</a></p>
       </div></section>
+      <!-- LES MARQUES APRÈS LE JOURNAL — 28 septembre 2026 (Yéman). -->
+      ${marques(a.marques)}
       <section class="devise-bande sombre" id="signature"><div class="conteneur">
         <img class="cire" src="/assets/motifs/cire-cuivre.png" alt="" width="240" height="240" loading="lazy">
         <p class="devise devise--bande">${echappe(a.appel.titre)}</p>
