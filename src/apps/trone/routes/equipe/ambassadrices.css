@@ -1,0 +1,87 @@
+/* ══ LES AMBASSADRICES, REVISITÉES — 28 septembre 2026 au soir ══════════
+   « Revisiter l'UI et l'UX de cette page » (Yéman, capture à l'appui) : les
+   champs débordaient des cartes, le bouton du défi sortait de la sienne, les
+   chiffres collaient aux bords (la carte du système n'a pas de marge
+   intérieure), les libellés en capitales espacées s'écrasaient sur trois
+   lignes. Le patron de la Maison pour un écran de réglages : les chiffres
+   d'abord, puis ce qu'on regarde tous les jours (le classement), puis les
+   réglages en LIGNES REPLIÉES qui portent leur résumé, un seul panneau
+   ouvert à la fois (mémoire « écrans en liste repliés »). */
+
+.amb { display: grid; gap: 20px; }
+
+/* ── Les quatre chiffres ── */
+.amb-chiffres { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.amb-chiffre {
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  padding: 18px 20px 16px; display: grid; gap: 6px; align-content: start;
+}
+.amb-chiffre--fort { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.amb-chiffre__label { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-700); }
+.amb-chiffre--fort .amb-chiffre__label { color: var(--copper-200, #E4BE9C); }
+.amb-chiffre__nombre { font-family: var(--font-serif); font-size: 42px; line-height: 1; color: var(--color-indigo); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: 'lnum' 1, 'tnum' 1; }
+.amb-chiffre--fort .amb-chiffre__nombre { color: var(--color-ivoire); }
+.amb-chiffre__dit { font-size: 12.5px; color: var(--ink-soft); }
+.amb-chiffre--fort .amb-chiffre__dit { color: rgba(244, 240, 232, .78); }
+.amb-jauge { height: 6px; border-radius: 99px; background: var(--hairline); overflow: hidden; margin-top: 4px; }
+.amb-jauge span { display: block; height: 100%; background: var(--color-copper, #B97A4A); border-radius: 99px; transition: width .6s ease; }
+
+/* ── Deux colonnes : le classement, les réglages ── */
+.amb-grille { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1100px) { .amb-grille { grid-template-columns: minmax(0, 1fr); } }
+.amb-carte {
+  background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  padding: 20px 22px; display: grid; gap: 14px; min-width: 0;
+}
+.amb-carte__tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.amb-carte__titre { font-family: var(--font-serif); font-size: 24px; color: var(--color-indigo); margin: 0; font-weight: 400; }
+.amb-muet { font-size: 13px; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+/* ── Le classement ── */
+.amb-vide { display: grid; justify-items: center; text-align: center; gap: 8px; padding: 26px 10px; border: 1px dashed var(--hairline); border-radius: var(--radius-md); }
+.amb-vide__rond { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--copper-300, #D6A06F); display: grid; place-items: center; font-family: var(--font-serif); font-size: 22px; color: var(--copper-700); }
+.amb-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.amb-table th { text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--copper-700); padding: 8px 6px; border-bottom: 1px solid var(--hairline); }
+.amb-table td { padding: 10px 6px; border-bottom: 1px solid var(--hairline); }
+.amb-table tr:last-child td { border-bottom: 0; }
+.amb-table__rang { font-family: var(--font-serif); font-size: 20px; color: var(--copper-700); width: 32px; font-variant-numeric: lining-nums; font-feature-settings: 'lnum' 1; }
+.amb-rangs { display: flex; flex-wrap: wrap; gap: 6px; }
+.amb-rang { font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--hairline); color: var(--color-indigo); background: transparent; }
+.amb-rang b { font-weight: 500; color: var(--copper-700); margin-left: 4px; }
+
+/* ── Les réglages repliés ── */
+.amb-reglages { display: grid; gap: 0; }
+.amb-reglage { border-top: 1px solid var(--hairline); }
+.amb-reglage:first-child { border-top: 0; }
+.amb-reglage__ligne {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; align-items: center;
+  padding: 14px 2px; background: transparent; border: 0; cursor: pointer; text-align: left; color: inherit; font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.amb-reglage__nom { font-size: 15px; font-weight: 500; color: var(--color-indigo); }
+.amb-reglage__resume { grid-column: 1; font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+.amb-reglage__chevron { grid-row: 1 / span 2; grid-column: 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--copper-700); border: 1px solid var(--hairline); transition: transform .2s ease; }
+.amb-reglage.is-ouvert .amb-reglage__chevron { transform: rotate(180deg); }
+.amb-reglage__ligne:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; border-radius: 6px; }
+.amb-reglage__corps { display: grid; gap: 12px; padding: 2px 2px 18px; }
+
+/* Une ligne de réglage : le libellé à gauche, la commande à droite ; sur
+   une carte étroite, l'un sous l'autre. */
+.amb-champ { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px); gap: 10px; align-items: center; }
+.amb-champ--large { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 560px) { .amb-champ { grid-template-columns: minmax(0, 1fr); } }
+.amb-champ__label { font-size: 13.5px; color: var(--color-indigo); line-height: 1.35; }
+.amb-champ__label small { display: block; font-size: 12px; color: var(--ink-soft); }
+.amb-champ select, .amb-champ input[type="text"] { width: 100%; min-width: 0; }
+.amb-suffixe { display: flex; align-items: center; gap: 8px; }
+.amb-suffixe input { width: 100%; min-width: 0; text-align: right; }
+.amb-suffixe span { font-size: 13px; color: var(--ink-soft); min-width: 36px; }
+.amb-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.amb-note { font-size: 12.5px; color: var(--copper-700); margin: 0; }
+
+/* ── Les marraines du site ── */
+.amb-site { display: grid; gap: 10px; }
+.amb-marraine { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 14px 18px; display: grid; gap: 8px; }
+.amb-marraine__ligne { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13.5px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+
+@media (prefers-reduced-motion: reduce) { .amb-jauge span, .amb-reglage__chevron { transition: none; } }
