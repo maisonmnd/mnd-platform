@@ -47,7 +47,6 @@ const numeros = (m: Maison | null): { numero: string; quoi: string }[] => {
 };
 
 function Ecrire({ m }: { m: Maison | null }) {
-  const wa = lienWhatsApp(numeroWa(m), COMMUN.messages.inconnu);
   return (
     <article className="jo-carte">
       <div className="jo-tete">
@@ -56,8 +55,13 @@ function Ecrire({ m }: { m: Maison | null }) {
         </span>
         <h3>Nous écrire</h3>
       </div>
-      <p className="jo-msg">« {COMMUN.messages.inconnu} »</p>
-      <p className="jo-note">Le message est déjà écrit. Vous n’avez qu’à l’envoyer.</p>
+      {/* « JE VEUX… » (28 septembre 2026) : elle choisit, le message part écrit. */}
+      <p className="jo-note">Dites-nous ce que vous voulez : le message s’écrit tout seul.</p>
+      <div className="jo-envies">
+        {COMMUN.envies.map((e) => (
+          <a key={e.texte} className="jo-envie" href={lienWhatsApp(numeroWa(m), e.message)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: e.besoin })}>{e.texte}</a>
+        ))}
+      </div>
       {numeros(m).map((n) => (
         <div className="jo-lien" key={n.quoi}>
           <a href={`tel:${n.numero.replace(/\s/g, '')}`}>{n.numero}</a>
@@ -68,15 +72,6 @@ function Ecrire({ m }: { m: Maison | null }) {
         <a href={`mailto:${COMMUN.editeur.email}`}>{COMMUN.editeur.email}</a>
         <small>Pour les devis et les partenariats</small>
       </div>
-      <a
-        className="btn btn--plein jo-bt"
-        href={wa}
-        target="_blank"
-        rel="noopener"
-        onClick={() => mesure('whatsapp_clique', { parcours: 'inconnu' })}
-      >
-        Ouvrir WhatsApp
-      </a>
     </article>
   );
 }

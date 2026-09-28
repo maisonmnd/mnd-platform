@@ -440,11 +440,16 @@ function bulle(chemin) {
   if (chemin === '/reserver/' || chemin === '/contact/' || chemin === '/rappel/') return '';
   const besoin = PAGES.find((x) => x.chemin === chemin)?.besoin ?? 'inconnu';
   const tel = COMMUN.editeur.telephone;
+  /* « JE VEUX… » — 28 septembre 2026. Sur une page qui a son parcours, le
+     message de la page ; sur l'accueil et les autres, six envies, chacune
+     son message déjà écrit : la cliente choisit ce qui lui convient. */
+  const ligneWa = `<a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>`;
+  const envies = `<div class="joindre__envies" role="group" aria-labelledby="joindre-envies"><p class="joindre__ligne joindre__ligne--titre" id="joindre-envies"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Dites-nous ce que vous voulez, le message s’écrit tout seul.</small></span></p><div class="joindre__choix">${COMMUN.envies.map((e) => `<a class="joindre__envie" data-wa="${attr(e.besoin)}" data-sortie="flottant" data-mesure="whatsapp_clique" data-parcours="${attr(e.besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(e.message)}" target="_blank" rel="noopener">${echappe(e.texte)}</a>`).join('')}</div></div>`;
   return `    <div class="joindre" id="joindre">
       <div class="joindre__volet" id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden>
         <div class="joindre__tete"><b id="joindre-titre">Nous joindre</b><button type="button" class="joindre__fermer" aria-label="Fermer">×</button></div>
         <a class="joindre__ligne" href="${attr(versLaReservation(besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(besoin)}" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-cal"/></svg></i><span>Réserver<small>Un entretien en trois pas, une consultation par rappel.</small></span></a>
-        <a class="joindre__ligne" data-wa="${attr(besoin)}" data-sortie="flottant" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}" target="_blank" rel="noopener"><i aria-hidden="true"><svg><use href="#i-wa"/></svg></i><span>Écrire sur WhatsApp<small>Le message de cette page est déjà écrit.</small></span></a>
+        ${besoin === 'inconnu' ? envies : ligneWa}
         <a class="joindre__ligne" href="tel:${attr(tel.replace(/\s/g, ''))}" aria-label="Appeler la Maison au ${attr(tel)}" data-mesure="appel_clique" data-sortie="flottant"><i aria-hidden="true"><svg><use href="#i-tel"/></svg></i><span>Appeler<small>${echappe(tel)}</small></span></a>
         <p class="joindre__pied">Nous répondons pendant les heures d’ouverture de la Maison.</p>
       </div>

@@ -1525,3 +1525,12 @@ body.galerie-plein { scroll-behavior: smooth; }
    (Yéman, 28 septembre) : un point cuivre devant chaque geste, rien à cocher. */
 .routine--guide li { position: relative; padding-left: 18px; font-size: 14px; line-height: 1.5; color: rgba(246, 241, 231, .9); }
 .routine--guide li::before { content: ''; position: absolute; left: 2px; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-sombre); }
+
+/* « JE VEUX… » — 28 septembre 2026 : dans la bulle et sur la page contact,
+   six envies en pilules, chacune un lien WhatsApp déjà écrit. */
+.joindre__ligne--titre { cursor: default; }
+.joindre__choix { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px 58px; }
+.joindre__envie, .jo-envie { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(30, 33, 80, .3); color: var(--titre); font-size: 13px; text-decoration: none; transition: background var(--t), border-color var(--t), color var(--t); }
+.joindre__envie:hover, .jo-envie:hover { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
+.jo-envies { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 14px; }
+@media (max-width: 520px) { .joindre__choix { padding-left: 14px; } }

@@ -146,13 +146,23 @@ export const COMMUN: Commun = {
       { texte: 'Politique de Gestion des Données Personnelles', vers: '/confidentialite/' },
     ],
   },
+  /* « JE VEUX… », 28 septembre 2026 : derrière « Nous écrire », la cliente
+     choisit, et le message part déjà écrit. */
+  envies: [
+    { texte: 'Entretenir mes locks', message: 'Bonjour MND, je veux entretenir mes locks.', besoin: 'entretien' },
+    { texte: 'Une coloration', message: 'Bonjour MND, je veux une coloration sur mes locks.', besoin: 'entretien' },
+    { texte: 'Un détox', message: 'Bonjour MND, je veux un détox pour mes locks.', besoin: 'entretien' },
+    { texte: 'Un soin', message: 'Bonjour MND, je veux un soin pour mes locks.', besoin: 'entretien' },
+    { texte: 'Réparer mes locks', message: 'Bonjour MND, je veux réparer mes locks.', besoin: 'reparation' },
+    { texte: 'Créer mes locks', message: 'Bonjour MND, je veux créer mes locks.', besoin: 'creation' },
+  ],
   messages: {
     creation: "Bonjour MND, je viens du parcours Première Couronne et je souhaite être accompagnée pour créer mes locks.",
     reparation: "Bonjour MND, je viens du parcours Réparation et je souhaite faire diagnostiquer ma couronne.",
     entretien: "Bonjour MND, je viens du parcours Entretien et je souhaite réserver un rendez-vous pour mes locks.",
     enfant: "Bonjour MND, je viens du parcours MND Kids et je souhaite organiser une visite pour mon enfant.",
     formation: "Bonjour MND, je viens du parcours Formations et je souhaite en savoir plus sur les formations MND.",
-    inconnu: "Bonjour MND, je ne sais pas encore quel service choisir et j'aimerais être orientée.",
+    inconnu: "Bonjour MND, je veux : entretenir mes locks, une coloration, un détox, un soin, réparer mes locks ou créer mes locks. Je garde ce qui me convient.",
   },
   formulaire: {
     titre: 'Un prénom, un numéro. Nous vous rappelons.',

@@ -61,6 +61,12 @@ const accueil = pages.get('/') ?? '';
 dit('la bulle appelle le numéro du registre', true, accueil.includes(`href="tel:${COMMUN.editeur.telephone.replace(/\s/g, '')}"`));
 dit('… et n’est jamais ouverte d’avance', true, accueil.includes('id="joindre-volet" role="group" aria-labelledby="joindre-titre" hidden'));
 dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joindre"')[1] ?? '').split('</script>')[0].includes('—'));
+/* « JE VEUX… » (28 septembre 2026) : sur l'accueil, qui n'a pas de parcours,
+   la bulle propose les six envies, chacune avec son message et le numéro. */
+const laBulle = (accueil.split('class="joindre"')[1] ?? '').split('</script>')[0];
+dit('la bulle de l’accueil propose les envies, toutes', COMMUN.envies.length, (laBulle.match(/class="joindre__envie"/g) ?? []).length);
+dit('… chacune avec son message déjà écrit', [], COMMUN.envies.filter((e) => !laBulle.includes(encodeURIComponent(e.message))).map((e) => e.texte));
+dit('… et une page qui a son parcours garde son seul message', true, (pages.get('/entretien-locks/') ?? '').includes('class="joindre__ligne" data-wa="entretien"') && !(pages.get('/entretien-locks/') ?? '').includes('joindre__envie'));
 
 /* ── LE PREMIER ÉCRAN DIT LE MÉTIER, ET TROIS PROMESSES SUIVENT ───── */
 /* La ligne du métier est partie du premier écran le 27 septembre 2026 au
@@ -562,6 +568,15 @@ dit('le défilé des marques porte chaque marque deux fois, la boucle sans coutu
 dit('… la seconde piste est muette pour les lecteurs d’écran', COMMUN.marques.length, (laPiste.match(/aria-hidden="true"/g) ?? []).length);
 dit('… et chaque logo annoncé existe', [], COMMUN.marques.filter((m) => m.logo && !existsSync(`public/assets/marques/${m.logo}`)).map((m) => m.logo));
 dit('la page « Offrir » est servie et compose sa carte', true, (pages.get('/offrir/') ?? '').includes('data-ilot="offrir"'));
+/* LE CALIBRE ARRIVE JUSQU'AU PRIX — 28 septembre 2026. « J'ai choisi Pico
+   mais les prix de reprise sont restés à 25 000 F » (Yéman) : le calcul
+   était juste et éprouvé, mais l'écran ne lui passait pas le calibre. Une
+   couture s'éprouve de bout en bout : chaque prix que l'îlot affiche ou
+   additionne reçoit le contexte. Source lue sans ses commentaires. */
+const reserverSrc = readFileSync('src/apps/revelateur/ilots/Reserver.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('la réservation passe le calibre à chaque prix qu’elle affiche', [],
+  [...reserverSrc.matchAll(/prix(?:Ferme|Dit)\(s(?:, devise)?\)/g)].map((m) => m[0]));
+dit('… et le passe bien quelque part', true, /prixDit\(s, devise, ctx\)/.test(reserverSrc) && /prixFerme\(s, ctx\)/.test(reserverSrc));
 dit('… le menu y mène', true, COMMUN.nav.some((l) => l.vers === '/offrir/'));
 const MOTIFS = ['medaillon-seul-cuivre.png', 'allover-aere-indigo-ivoire.png', 'medaillon-aere-ivoire-cuivre.png'];
 dit('les trois motifs de la carte existent', [], MOTIFS.filter((f) => !existsSync(`public/assets/motifs/${f}`)));

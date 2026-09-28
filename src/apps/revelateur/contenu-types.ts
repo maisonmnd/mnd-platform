@@ -167,6 +167,11 @@ export type Commun = {
   pied: { phrase: string; colonnes: { titre: string; liens: Lien[] }[]; legal: Lien[] };
   /** Un message WhatsApp par parcours, déjà écrit. */
   messages: Record<Besoin, string>;
+  /** « JE VEUX… » — 28 septembre 2026. « J'aimerais un message plus
+      conducteur : je veux entretenir mes locks, une coloration, un détox, un
+      soin, réparer ou créer mes locks, et la cliente choisit » (Yéman). Six
+      envies, chacune son message WhatsApp déjà écrit et son parcours. */
+  envies: { texte: string; message: string; besoin: Besoin }[];
   /** Les libellés du formulaire de rappel (îlot `demande`). */
   formulaire: {
     titre: string; ligne: string;

@@ -275,7 +275,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   );
   const lignes = useMemo(
     () => lignesDuCode(
-      choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s), ferme: prixFerme(s) > 0 })),
+      choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 })),
       offreDuMoment,
     ),
     [choisies, offreDuMoment],
@@ -285,7 +285,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const remisee = (id: string): boolean => !!lignes.find((l) => l.id === id)?.remisee;
 
   const prixTotal = compte.net;
-  const prixFlou = choisies.some((s) => !prixFerme(s) || s.priceMode === 'variable');
+  const prixFlou = choisies.some((s) => !prixFerme(s, ctx) || s.priceMode === 'variable');
   const plein = serviceIds.length >= PLAFOND_GESTES;
 
   /* Les jours qui ont au moins une heure libre pour TOUS les gestes cochés. */
@@ -484,9 +484,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         <b>{s.name}</b>
         <small>
           {s.durationMin ? dit(s.durationMin) : ''}
-          {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
-          {prixDit(s, devise)
-            ? <span className="prix">{prixDit(s, devise)}</span>
+          {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
+          {prixDit(s, devise, ctx)
+            ? <span className="prix">{prixDit(s, devise, ctx)}</span>
             : <span className="au-salon">prix au salon</span>}
         </small>
       </button>
@@ -615,20 +615,20 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                 <span className="panier__quoi">{s.name}</span>
                 <span className="panier__combien">
                   {s.durationMin ? dit(s.durationMin) : ''}
-                  {s.durationMin && prixDit(s, devise) ? ' · ' : ''}
+                  {s.durationMin && prixDit(s, devise, ctx) ? ' · ' : ''}
                   {/* LA LIGNE DIT SI LE CODE PORTE SUR ELLE, et le plein
                       reste visible barré : une remise qu'on ne peut pas
                       vérifier n'est pas une remise, c'est une affirmation. */}
                   {remisee(s.id)
                     ? (
                       <>
-                        <s className="panier__plein">{prixDit(s, devise)}</s>
+                        <s className="panier__plein">{prixDit(s, devise, ctx)}</s>
                         <b className="panier__net">
                           {s.priceMode === 'variable' ? 'à partir de ' : ''}{fmtMoney(netDe(s.id), devise)}
                         </b>
                       </>
                     )
-                    : prixDit(s, devise)}
+                    : prixDit(s, devise, ctx)}
                 </span>
                 <button
                   type="button"
