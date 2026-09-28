@@ -189,7 +189,7 @@ function Shell() {
             onOpenRdv={openRdv}
             goGamme={() => setTab('gamme')}
             toast={toast}
-            onOpenCarte={() => setCarteOpen(true)}
+            onOpenCarte={() => (visibleTabs.some((t) => t.id === 'cercle') ? setTab('cercle') : setCarteOpen(true))}
           />
         ))}
         {tab === 'suivi' && <SuiviTab regard={enfant} onOpenBooking={openBooking} onOpenRdv={openRdv} onOpenOrders={openOrders} goGamme={() => setTab('gamme')} />}

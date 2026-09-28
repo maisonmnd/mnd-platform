@@ -136,7 +136,10 @@ export function Choix({ s, nomDuSoin, produits, garde }: {
   );
 }
 
-export default function MaCarte({ onClose, toast }: { onClose: () => void; toast: (m: string) => void }) {
+/** L'AMBASSADE, SANS SON CADRE — 29 septembre 2026 : le Cercle et les
+    ambassadrices réunis. L'onglet « Le Cercle » de Ma Couronne la porte ;
+    l'écran superposé ci-dessous ne sert plus que lorsque cet onglet est fermé. */
+export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
   const client = useClient();
   const donnees = donneesDeMaCarte(client);
   const { services, products } = useVisibleCatalog();
@@ -202,15 +205,7 @@ export default function MaCarte({ onClose, toast }: { onClose: () => void; toast
   };
 
   return (
-    <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
-      <div className="mc-flowhead mc-flowhead--split">
-        <div>
-          <div className="mc-micro-eyebrow">Les ambassadrices de la Maison</div>
-          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Mon ambassade.</h1>
-        </div>
-        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
-      </div>
-      <div className="mc-scroll" style={{ flex: 1, padding: '8px 20px calc(24px + env(safe-area-inset-bottom))', display: 'grid', gap: 20, alignContent: 'start' }}>
+      <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
         {!donnees ? (
           <p style={{ fontSize: 14.5, lineHeight: 1.6, color: DOUX }}>Votre carte se prépare à la Maison. Revenez dans un instant : elle portera votre prénom et votre code.</p>
         ) : (
@@ -324,6 +319,22 @@ export default function MaCarte({ onClose, toast }: { onClose: () => void; toast
             </div>
           </>
         )}
+      </div>
+  );
+}
+
+export default function MaCarte({ onClose, toast }: { onClose: () => void; toast: (m: string) => void }) {
+  return (
+    <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
+      <div className="mc-flowhead mc-flowhead--split">
+        <div>
+          <div className="mc-micro-eyebrow">Le Cercle MND · transmettre</div>
+          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Mon ambassade.</h1>
+        </div>
+        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+      </div>
+      <div className="mc-scroll" style={{ flex: 1, padding: '8px 20px calc(24px + env(safe-area-inset-bottom))' }}>
+        <MonAmbassade toast={toast} />
       </div>
     </div>
   );

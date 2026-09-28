@@ -1,8 +1,8 @@
 import { asset } from '../../shared/asset';
 import { DEVISE_COMPLETE } from '../../shared/identite';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
-import { donneesDeMaCarte } from './MaCarte';
-import { nomDuRang, soinsEnAttente } from '../../shared/parrainage-pur';
+import { donneesDeMaCarte, MonAmbassade } from './MaCarte';
+import { nomDuRang, rangDe, rangSuivant, soinsEnAttente } from '../../shared/parrainage-pur';
 import { MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
@@ -25,7 +25,7 @@ import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles
 import { ageDe, tetesPortees, statutFidelite, type StatutFidelite } from '../../shared/accounts';
 import { corrigerNaissance, declarationsDe, rattacherEnfant, nomPropose, useEnfantsDeclares } from '../../shared/enfants';
 import { invoiceTotal, invoicesStore, useInvoices, type Invoice, type InvoiceLine } from '../../shared/finance';
-import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useTiers, useFoyerTiers } from '../../shared/offers';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../shared/offers';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { createStore, uid, useStore } from '../../shared/store';
@@ -286,13 +286,6 @@ export function HomeTab({
   const countdown = useOfferCountdown(endMin);
 
   const notifCount = useNotifCount();
-  const points = client?.loyaltyPoints ?? 0;
-  /* Paliers RÉELS du Cercle (définis au Trône) — jamais de seuils inventés. */
-  const [tiers] = useTiers();
-  const ladder = useMemo(() => tiers.slice().sort((a, b) => a.pts - b.pts), [tiers]);
-  const nextTier = ladder.find((t) => points < t.pts);
-  const attained = ladder.filter((t) => t.pts <= points);
-  const tierPct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
   const cercle = useCercle();
 
   /* LE PRÉNOM VRAI — jamais un identifiant (chantier ④). « Yemanboya1 » est
@@ -485,8 +478,10 @@ export function HomeTab({
                 })()}
               </span>
             </div>
-            {cercle.membre && attained.length > 0 && (
-              <span className="mc-pillseal">Sceau {tierGlyph(attained[attained.length - 1], attained.length - 1)}</span>
+            {/* LE CERCLE RÉUNI (29 septembre) : plus de sceau à points, son rang
+                d'ambassadrice dès qu'une amie est venue. */}
+            {(client?.parrainage?.venues ?? 0) > 0 && (
+              <span className="mc-pillseal">{nomDuRang(client?.parrainage?.rang)}</span>
             )}
           </div>
           {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
@@ -518,16 +513,19 @@ export function HomeTab({
                     : ''}
               </span>
             </div>
-          ) : ladder.length > 0 && (
-            <div className="mc-crownstatus__progress">
-              <div className="mc-bar"><div style={{ width: `${tierPct}%` }} /></div>
-              <span>
-                {nextTier
-                  ? `Sceau ${tierGlyph(nextTier, ladder.indexOf(nextTier))} · encore ${(nextTier.pts - points).toLocaleString('fr-FR')} points`
-                  : 'Tous les sceaux sont honorés'}
-              </span>
-            </div>
-          )}
+          ) : (() => {
+            const venues = client?.parrainage?.venues ?? 0;
+            const suivant = rangSuivant(venues);
+            if (!suivant) return null;
+            const base = rangDe(venues).seuil;
+            const pct = Math.round(((venues - base) / Math.max(1, suivant.seuil - base)) * 100);
+            return (
+              <div className="mc-crownstatus__progress">
+                <div className="mc-bar"><div style={{ width: `${pct}%` }} /></div>
+                <span>{venues === 0 ? 'Membre du Cercle · votre première amie vous fera Pousse' : `Encore ${suivant.seuil - venues} amie${suivant.seuil - venues > 1 ? 's' : ''} pour devenir ${suivant.nom}`}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* offres instantanées — créées au Trône (Marketing), fenêtre jour/heure vivante */}
@@ -1447,169 +1445,95 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 /* ================= CERCLE ================= */
 
 export function CercleTab({ toast }: { toast: (m: string) => void }) {
-  const client = useClient();
-  const [tiers] = useTiers();
   const [foyerTiers] = useFoyerTiers();
   const [services] = useServices();
-  const points = client?.loyaltyPoints ?? 0;
   const cercle = useCercle();
 
-  /* Les paliers sont ceux définis au Trône (Cercle) — la prestation offerte
-     vient du catalogue partagé. */
-  const ladder = useMemo(() => tiers.slice().sort((a, b) => a.pts - b.pts), [tiers]);
-  /* Les paliers du Foyer, franchis par la dépense cumulée de la famille. */
+  /* ══ LE CERCLE RÉUNI — 29 septembre 2026 (maquette validée) ══════════════
+     Le Cercle et les ambassadrices ne font plus qu'un. On y lit, dans
+     l'ordre : où elle en est au Cercle (sa 3ᵉ venue, son prix convenu, son
+     foyer), puis son ambassade (rang, récompense à choisir, défi, arbre,
+     récompenses, carte), puis le Foyer. Les POINTS sont partis : éteints
+     depuis juillet et jamais reliés à la caisse, ils affichaient un compteur
+     à zéro. Le bouton « Introduire » qui n'envoyait rien est parti avec eux :
+     la carte se partage pour de vrai. */
   const foyerLadder = useMemo(() => foyerTiers.slice().sort((a, b) => a.seuilXof - b.seuilXof), [foyerTiers]);
   const prochainFoyer = foyerLadder.find((t) => cercle.depenseFoyer < t.seuilXof);
   const cibleFoyer = prochainFoyer?.seuilXof ?? cercle.seuilFoyer;
   const pctFoyer = Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cibleFoyer)) * 100));
-  const nextTier = ladder.find((t) => points < t.pts);
-  const pct = nextTier ? Math.min(100, Math.round((points / nextTier.pts) * 100)) : 100;
+  const pctCercle = Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100));
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
       <div className="mc-micro-eyebrow">Le Cercle MND · transmettre</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>Votre lignée.</h1>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 14px' }}>Votre lignée.</h1>
 
-      {/* LE SEUIL, DIT AVANT LES POINTS. Un compteur à zéro sans un mot se lit
-          comme une panne ; le chemin restant se lit comme une invitation. */}
-      {cercle.convenu ? (
-        /* Prix convenu — le prix EST la reconnaissance, pas de points. */
-        <div className="mc-pointscard">
-          <div className="mc-pointscard__watermark" aria-hidden="true" />
-          <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Un prix rien qu’à vous</div>
-            <div className="mc-pointscard__row">
-              <span className="mc-pointscard__big" style={{ fontSize: 32 }}>Prix convenu</span>
-            </div>
-            <div className="mc-pointscard__hint">
-              La maison vous a accordé un prix à vous, geste par geste. C’est votre reconnaissance, à chaque venue, avant tout barème.
-            </div>
-          </div>
-        </div>
-      ) : cercle.dependant ? (
-        /* Dépendant d'un foyer — ses venues nourrissent le Foyer, pas un compte à part. */
-        <div className="mc-pointscard">
-          <div className="mc-pointscard__watermark" aria-hidden="true" />
-          <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Rattaché à votre foyer</div>
-            <div className="mc-pointscard__hint" style={{ marginTop: 6 }}>
-              Vos rendez-vous sont réglés par votre foyer : ils nourrissent la reconnaissance de la famille, le Foyer, plutôt qu’un compte à part.
-            </div>
-          </div>
-        </div>
-      ) : !cercle.membre ? (
-        <div className="mc-pointscard">
-          <div className="mc-pointscard__watermark" aria-hidden="true" />
-          <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Le Cercle s’ouvre à votre {cercle.seuil}ᵉ venue</div>
-            <div className="mc-pointscard__row">
-              <span className="mc-pointscard__big">{cercle.venues}</span>
-              <span className="mc-pointscard__unit">
-                {cercle.venues > 1 ? 'venues' : 'venue'} sur {cercle.seuil}
-              </span>
-            </div>
-            <div className="mc-bar mc-bar--invert">
-              <div style={{ width: `${Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100))}%` }} />
-            </div>
-            <div className="mc-pointscard__hint">
-              {cercle.venues === 0
-                ? `Votre lignée commence à votre première venue. Le Cercle vous accueillera à votre ${cercle.seuil}ᵉ.`
-                : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} et la maison vous accueille dans son Cercle.`}
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* points de reconnaissance */
-        <div className="mc-pointscard">
-          <div className="mc-pointscard__watermark" aria-hidden="true" />
-          <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Reconnaissance de la maison</div>
-            <div className="mc-pointscard__row">
-              <span className="mc-pointscard__big">{points.toLocaleString('fr-FR')}</span>
-              <span className="mc-pointscard__unit">points de reconnaissance</span>
-            </div>
-            <div className="mc-bar mc-bar--invert"><div style={{ width: `${pct}%` }} /></div>
-            <div className="mc-pointscard__hint">
-              {nextTier
-                ? `Prochain sceau à ${nextTier.pts.toLocaleString('fr-FR')} points, encore ${(nextTier.pts - points).toLocaleString('fr-FR')}.`
-                : ladder.length > 0
-                  ? 'Tous les sceaux sont honorés, la maison vous salue.'
-                  : 'Chaque rituel honoré nourrit votre reconnaissance.'}
-            </div>
-            <button className="mc-smallcta" onClick={() => toast('Invitation prête à transmettre sur WhatsApp.')}>
-              Introduire par WhatsApp
-            </button>
+      {/* OÙ ELLE EN EST AU CERCLE, en une ligne. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {cercle.convenu ? (
+          <span className="mc-pillseal">Prix convenu · votre reconnaissance, à chaque venue</span>
+        ) : cercle.dependant ? (
+          <span className="mc-pillseal">Rattachée à votre foyer</span>
+        ) : cercle.membre ? (
+          <span className="mc-pillseal">Membre du Cercle · {cercle.venues} venues</span>
+        ) : (
+          <span className="mc-pillseal">Le Cercle s’ouvre à votre {cercle.seuil}ᵉ venue · {cercle.venues} sur {cercle.seuil}</span>
+        )}
+      </div>
+      {!cercle.convenu && !cercle.dependant && !cercle.membre && (
+        <div style={{ marginBottom: 18 }}>
+          <div className="mc-bar"><div style={{ width: `${pctCercle}%` }} /></div>
+          <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6 }}>
+            {cercle.venues === 0
+              ? `Votre lignée commence à votre première venue. Le Cercle vous accueille à votre ${cercle.seuil}ᵉ.`
+              : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} et la Maison vous accueille dans son Cercle.`}
           </div>
         </div>
       )}
 
-      {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée. */}
-      {cercle.foyer && !cercle.dependant && (
-        <div className="mc-pointscard" style={{ marginTop: 12 }}>
+      {/* SON AMBASSADE : elle y est dès sa carte, membre du Cercle ou pas. */}
+      <MonAmbassade toast={toast} />
+
+      {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée.
+          Un sceau atteint se pose comme une récompense (Vos récompenses). */}
+      {cercle.foyer && !cercle.dependant && (<>
+        <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>Le Foyer</div>
+        <div className="mc-pointscard">
           <div className="mc-pointscard__watermark" aria-hidden="true" />
           <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Le Foyer</div>
+            <div className="mc-pointscard__label">Votre maisonnée</div>
             <div className="mc-pointscard__row">
               <span className="mc-pointscard__big">{pctFoyer}%</span>
-              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain geste du foyer' : 'de votre sceau famille'}</span>
+              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain sceau du foyer' : 'de votre sceau famille'}</span>
             </div>
             <div className="mc-bar mc-bar--invert"><div style={{ width: `${pctFoyer}%` }} /></div>
             <div className="mc-pointscard__hint">
               {prochainFoyer
                 ? `Encore un peu et « ${services.find((s) => s.id === prochainFoyer.serviceId)?.name ?? 'un soin'} » s’offre à la maisonnée.`
                 : cercle.foyerAtteint
-                  ? 'Votre foyer a franchi son sceau, la maison a un geste pour la maisonnée.'
-                  : 'La venue de chaque membre du foyer avance vers un geste offert à la famille.'}
+                  ? 'Votre foyer a franchi son sceau : le soin vous attend dans vos récompenses.'
+                  : 'La venue de chaque membre du foyer avance vers un soin offert à la famille.'}
             </div>
           </div>
         </div>
-      )}
-
-      {/* Les paliers du Foyer — le geste s'offre de lui-même dès le seuil passé. */}
-      {cercle.foyer && !cercle.dependant && foyerLadder.length > 0 && (<>
-        <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Les sceaux du Foyer</div>
-        <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
-          {foyerLadder.map((t, i) => {
-            const on = cercle.depenseFoyer >= t.seuilXof;
-            const svc = services.find((s) => s.id === t.serviceId);
-            return (
-              <div key={t.id} className={`mc-rewardrow ${on ? 'is-on' : ''}`}>
-                <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
-                <div className="mc-rewardrow__body">
-                  <div className="mc-rewardrow__t">{svc?.name ?? 'Un soin de la maison'}</div>
-                  <div className="mc-rewardrow__s">{t.desc || 'Offert à la maisonnée'}</div>
+        {foyerLadder.length > 0 && (
+          <div className="mc-stack mc-rewardgrid" style={{ gap: 10, marginTop: 12 }}>
+            {foyerLadder.map((t, i) => {
+              const on = cercle.depenseFoyer >= t.seuilXof;
+              const svc = services.find((s) => s.id === t.serviceId);
+              return (
+                <div key={t.id} className={`mc-rewardrow ${on ? 'is-on' : ''}`}>
+                  <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
+                  <div className="mc-rewardrow__body">
+                    <div className="mc-rewardrow__t">{svc?.name ?? 'Un soin de la maison'}</div>
+                    <div className="mc-rewardrow__s">{t.desc || 'Offert à la maisonnée'}</div>
+                  </div>
+                  <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>{on ? 'Offert' : 'À venir'}</span>
                 </div>
-                <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>{on ? 'Offert' : 'À venir'}</span>
-              </div>
-            );
-          })}
-        </div>
-      </>)}
-
-      {/* paliers de reconnaissance — définis au Trône */}
-      {!cercle.convenu && !cercle.dependant && (<>
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Reconnaissance honorifique</div>
-      <div className="mc-stack mc-rewardgrid" style={{ gap: 10 }}>
-        {ladder.map((t, i) => {
-          const svc = services.find((s) => s.id === t.serviceId);
-          const on = points >= t.pts;
-          return (
-            <div key={t.id} className="mc-rewardrow">
-              <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
-              <div className="mc-rewardrow__body">
-                <div className="mc-rewardrow__t">{svc?.name ?? 'Prestation de la maison'}</div>
-                <div className="mc-rewardrow__s">{t.desc} · à {t.pts.toLocaleString('fr-FR')} points</div>
-              </div>
-              <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>
-                {on ? 'Obtenu' : `${points.toLocaleString('fr-FR')} / ${t.pts.toLocaleString('fr-FR')}`}
-              </span>
-            </div>
-          );
-        })}
-        {ladder.length === 0 && (
-          <div className="mc-emptyline">Les sceaux du Cercle se préparent, la maison vous les révélera bientôt.</div>
+              );
+            })}
+          </div>
         )}
-      </div>
       </>)}
       <div style={{ height: 14 }} />
     </div>

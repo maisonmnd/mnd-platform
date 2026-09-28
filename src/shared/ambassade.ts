@@ -350,3 +350,39 @@ export function chiffresDuMois(clients: readonly FicheAmb[], L: Map<string, Lign
   for (const l of L.values()) for (const f of venuesDe(l)) if (f.venueLe!.startsWith(mois)) parUneAmie.add(f.cle);
   return { nouvelles: Math.max(nouvelles.size, parUneAmie.size), parUneAmie: parUneAmie.size };
 }
+
+/* ══ LE FOYER, DANS LE CERCLE — 29 septembre 2026 ══════════════════════
+   Le Cercle et les ambassadrices réunis (maquette « Le Cercle réuni »,
+   validée). Un SCEAU DU FOYER atteint (la dépense cumulée de la maisonnée
+   passe son seuil) devient une récompense comme les autres : posée sur la
+   fiche de celle qui règle le foyer, visible dans Ma Couronne, offerte à la
+   caisse en un geste. Avant ce jour, le Trône disait seulement « à offrir ».
+   Un sceau par palier et par foyer, jamais deux (son identifiant le dit). */
+export type FoyerLu = { famId: string; nom: string; payeurId: string; depense: number };
+export type SceauLu = { id: string; seuilXof: number; serviceId: string; desc?: string };
+
+export function sceauxDuFoyerAPoser(
+  foyers: readonly FoyerLu[], sceaux: readonly SceauLu[], clients: readonly FicheAmb[], aujourdhui: string,
+  validiteMois = 6, nomDuService: (id: string) => string | undefined = () => undefined,
+): Map<string, SoinOffert[]> {
+  const sortie = new Map<string, SoinOffert[]>();
+  const expireLe = ajouteMois(aujourdhui, Math.max(1, validiteMois));
+  for (const f of foyers) {
+    const payeur = clients.find((c) => c.id === f.payeurId);
+    if (!payeur || payeur.archived) continue;
+    const deja = new Set((payeur.soinsOfferts ?? []).map((s) => s.id));
+    for (const t of sceaux) {
+      if (!t.serviceId || f.depense < t.seuilXof) continue;
+      const id = `foyer-${t.id}-${f.famId}`;
+      if (deja.has(id)) continue;
+      deja.add(id);
+      const liste = sortie.get(payeur.id) ?? [];
+      liste.push({
+        id, genre: 'soin', serviceId: t.serviceId, libelle: nomDuService(t.serviceId) ?? 'Un soin offert',
+        raison: `Sceau du Foyer${f.nom ? ` · ${f.nom}` : ''}`, poseLe: aujourdhui, expireLe, source: 'foyer',
+      });
+      sortie.set(payeur.id, liste);
+    }
+  }
+  return sortie;
+}

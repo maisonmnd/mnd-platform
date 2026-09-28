@@ -41,7 +41,7 @@ export const MODELES_DE_CARTE: readonly ModeleDeCarte[] = ['indigo', 'ivoire', '
    mois. Deux générations, jamais d'argent : un programme de fidélité, pas une
    vente pyramidale. */
 export type GenreDeRecompense = 'soin' | 'remise' | 'a-choisir';
-export type SourceDeRecompense = 'amie' | 'echo' | 'rang' | 'defi';
+export type SourceDeRecompense = 'amie' | 'echo' | 'rang' | 'defi' | 'foyer';
 
 export type RangId = 'graine' | 'pousse' | 'tresse' | 'couronne' | 'reine';
 export const RANGS: readonly { id: RangId; nom: string; seuil: number }[] = [

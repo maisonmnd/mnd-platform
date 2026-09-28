@@ -5,7 +5,7 @@ import {
 import { codesAAttribuer, soinUtilise, type DemandeParrainee, type FicheLue } from '../src/shared/parrainage';
 import {
   lignees, venuesDe, recompensesAPoser, choixReportes, rattachementsDuSite, pourquoiPasDeMarraine,
-  resumeDeLAmbassade, classementDuMois, chiffresDuMois, type FicheAmb, type DemandeLue,
+  resumeDeLAmbassade, classementDuMois, chiffresDuMois, sceauxDuFoyerAPoser, type FicheAmb, type DemandeLue,
 } from '../src/shared/ambassade';
 import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, type SoinOffert } from '../src/shared/parrainage-pur';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
@@ -308,6 +308,32 @@ const picto = /drawImage\(picto, \d+, \d+, (\d+), (\d+)\)/.exec(peinture);
 dit('le pictogramme garde ses proportions (1 %)', true, !!vb && !!picto && Math.abs(Number(picto[1]) / Number(picto[2]) - Number(vb[1]) / Number(vb[2])) / (Number(vb[1]) / Number(vb[2])) < 0.01);
 dit('… et chaque motif que la carte peint existe', [],
   [...peinture.matchAll(/M\('([a-z0-9-]+\.png)'\)/g)].map((m) => m[1]).filter((f) => !existsSync(`public/assets/motifs/${f}`)));
+
+/* ══ (8) LE CERCLE RÉUNI — 29 septembre 2026 ═════════════════════════════
+   Un sceau du Foyer atteint devient une récompense, une fois ; les points
+   ont quitté le Cercle (ni gain ni retrait possible à l'écran, plus de
+   compteur dans Ma Couronne) ; un seul écran au Trône. */
+const foyersT = [{ famId: 'fam1', nom: 'Famille A.', payeurId: 'adjoa', depense: 450000 }, { famId: 'fam2', nom: 'Famille B.', payeurId: 'grace', depense: 100000 }];
+const sceauxT = [{ id: 's1', seuilXof: 300000, serviceId: 'svc-dandan' }, { id: 's2', seuilXof: 600000, serviceId: 'svc-signature' }, { id: 's3', seuilXof: 200000, serviceId: '' }];
+const posesF = sceauxDuFoyerAPoser(foyersT, sceauxT, ficheA, '2026-10-20', 6, nomsA);
+dit('un sceau du Foyer atteint pose UN soin sur la fiche de celle qui règle', ['foyer-s1-fam1'], (posesF.get('adjoa') ?? []).map((s) => s.id));
+dit('… un palier non atteint, ou sans soin choisi, ne pose rien', [false, false], [posesF.has('grace'), (posesF.get('adjoa') ?? []).some((s) => s.id.includes('s3'))]);
+dit('… et la reposer ne la double pas', 0, sceauxDuFoyerAPoser(foyersT, sceauxT, ficheA.map((c) => (c.id === 'adjoa' ? { ...c, soinsOfferts: posesF.get('adjoa') } : c)), '2026-10-21', 6, nomsA).size);
+dit('… c’est un soin, source foyer, avec sa date de fin', { genre: 'soin', source: 'foyer', expireLe: '2027-04-20' },
+  (() => { const s = (posesF.get('adjoa') ?? [])[0]; return { genre: s?.genre, source: s?.source, expireLe: s?.expireLe }; })());
+const onglets = readFileSync('src/apps/couronne/Tabs.tsx', 'utf8');
+const cercleTab = onglets.slice(onglets.indexOf('export function CercleTab('), onglets.indexOf('/* ================= PROFIL'));
+dit('Ma Couronne : l’onglet du Cercle porte l’ambassade', true, cercleTab.includes('<MonAmbassade toast={toast} />'));
+dit('… et plus de points, ni de bouton « Introduire » qui n’envoyait rien', [false, false, false],
+  [/loyaltyPoints/.test(cercleTab), /points de reconnaissance/.test(cercleTab), /Introduire par WhatsApp/.test(cercleTab)]);
+dit('… l’accueil ne compte plus de points', false, /loyaltyPoints/.test(onglets));
+const cercleTrone = readFileSync('src/apps/trone/routes/equipe/Cercle.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('Trône : le Cercle porte l’onglet des ambassadrices', true, cercleTrone.includes('<Parrainages dansLeCercle />'));
+dit('… et n’écrit plus aucun point (ni don, ni ajustement)', false, /loyaltyPoints\s*:/.test(cercleTrone) || /setHistory|setPointsOn/.test(cercleTrone));
+const nav = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
+dit('… une seule entrée au menu : l’écran des ambassadrices seul sort de la barre', true,
+  /path: '\/parrainages', horsMenu: true/.test(nav) && /path: '\/cercle', label: 'Le Cercle MND'/.test(nav));
+dit('le Trône pose les sceaux du Foyer en tâche de fond', true, /sceauxDuFoyerAPoser\(foyers, sceaux, clients/.test(hook));
 
 console.log(ko === 0 ? '\nTout tient.' : `\n${ko} échec(s).`);
 if (ko) process.exit(1);

@@ -75,7 +75,7 @@
 .amb-champ select, .amb-champ input[type="text"] { width: 100%; min-width: 0; }
 .amb-suffixe { display: flex; align-items: center; gap: 8px; }
 .amb-suffixe input { width: 100%; min-width: 0; text-align: right; }
-.amb-suffixe span { font-size: 13px; color: var(--ink-soft); min-width: 36px; }
+.amb-suffixe span { font-size: 13px; color: var(--ink-soft); min-width: 36px; white-space: nowrap; }
 .amb-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .amb-note { font-size: 12.5px; color: var(--copper-700); margin: 0; }
 

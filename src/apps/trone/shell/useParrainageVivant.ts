@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useAppointments } from '../../../shared/agenda';
-import { useClients, clientsStore } from '../../../shared/clients';
+import { useClients, useFamilies, clientsStore } from '../../../shared/clients';
+import { depenseFoyerXof } from '../../../shared/accounts';
+import { useFoyerTiers } from '../../../shared/offers';
 import { useDemandes, demandesStore } from '../../../shared/demandes';
 import { useProducts, useServices } from '../../../shared/catalog';
 import { useAuth } from '../../../shared/auth';
@@ -8,7 +10,7 @@ import { documentDescendu, tablePrete } from '../../../shared/sync';
 import { envoieSurWhatsApp } from '../../../shared/whatsapp';
 import { codesAAttribuer, useParrainage, type DemandeParrainee } from '../../../shared/parrainage';
 import {
-  choixReportes, classementDuMois, lignees, rattachementsDuSite, recompensesAPoser, resumeDeLAmbassade,
+  choixReportes, classementDuMois, lignees, rattachementsDuSite, recompensesAPoser, resumeDeLAmbassade, sceauxDuFoyerAPoser,
 } from '../../../shared/ambassade';
 import { CLASSEMENT_VIDE, classementStore, useClassement } from '../../../shared/classement-ambassade';
 import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
@@ -40,6 +42,8 @@ export function useParrainageVivant(): void {
   const [produits] = useProducts();
   const [reglage] = useParrainage();
   const [classement] = useClassement();
+  const [familles] = useFamilies();
+  const [sceaux] = useFoyerTiers();
   const enVol = useRef(new Set<string>());
 
   useEffect(() => {
@@ -129,9 +133,27 @@ export function useParrainageVivant(): void {
       return;
     }
 
+    /* ⑤ bis LES SCEAUX DU FOYER (29 septembre, le Cercle réuni) : un palier
+       atteint par la maisonnée pose sa récompense sur la fiche de celle qui
+       règle le foyer. Une fois par palier et par foyer. */
+    if (documentDescendu('mnd_foyer_tiers') && sceaux.length && tablePrete('families')) {
+      const foyers = familles.map((f) => {
+        const payeur = clients.find((c) => c.id === f.payerClientId);
+        return payeur ? { famId: f.id, nom: f.name, payeurId: payeur.id, depense: depenseFoyerXof(payeur, clients, familles, rdvs) } : null;
+      }).filter((x): x is NonNullable<typeof x> => !!x);
+      const poses = sceauxDuFoyerAPoser(foyers, sceaux, clients, aujourdhui, reglage.validiteMois ?? 6, nomDuService);
+      if (poses.size) {
+        clientsStore.set((prev) => prev.map((c) => {
+          const neuves = (poses.get(c.id) ?? []).filter((s) => !(c.soinsOfferts ?? []).some((x) => x.id === s.id));
+          return neuves.length ? { ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...neuves] } : c;
+        }));
+        return;
+      }
+    }
+
     /* ⑥ Le classement du mois, une fois le document descendu. */
     if (!documentDescendu('mnd_classement_ambassade')) return;
     const voulu = reglage.classementVisible ? classementDuMois(L, aujourdhui) : CLASSEMENT_VIDE;
     if (JSON.stringify(voulu) !== JSON.stringify(classement)) classementStore.set(voulu);
-  }, [session, clients, demandes, rdvs, services, produits, reglage, classement]);
+  }, [session, clients, demandes, rdvs, services, produits, reglage, classement, familles, sceaux]);
 }

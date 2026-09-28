@@ -138,9 +138,13 @@ export const NAV: TroneGroup[] = [
     group: 'Marketing & Fidélité',
     items: [
       { path: '/marketing', label: 'Marketing', icon: Megaphone, Component: lazy(() => import('./equipe/Marketing')) },
-      { path: '/cercle', label: 'Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
+      /* LE CERCLE RÉUNI — 29 septembre 2026 : le Cercle et les ambassadrices,
+         un seul écran à deux onglets. */
+      { path: '/cercle', label: 'Le Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
       /* LES PARRAINAGES — 28 septembre 2026 : marraines, filleules, cadeaux. */
-      { path: '/parrainages', label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
+      /* Hors de la barre depuis le Cercle réuni : l'onglet « Les ambassadrices »
+         du Cercle le porte. L'adresse reste (les alertes du site y mènent). */
+      { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
       { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
       { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
       { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },

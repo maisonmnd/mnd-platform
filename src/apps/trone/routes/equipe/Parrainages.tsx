@@ -7,7 +7,12 @@ import './equipe.css';
 import './ambassadrices.css';
 import { useBranch } from '../../../../shared/branches';
 import { useAppointments } from '../../../../shared/agenda';
-import { useClients } from '../../../../shared/clients';
+import { useClients, useFamilies, aUnPrixConvenu } from '../../../../shared/clients';
+import { estDependant } from '../../../../shared/accounts';
+import { venuesHonorees } from '../../../../shared/agenda';
+import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../../../shared/offers';
+import { useStore, uid } from '../../../../shared/store';
+import { fmtMoney } from '../../../../shared/currency';
 import { useServices } from '../../../../shared/catalog';
 import { demandesStore, telephoneMasque, useDemandes } from '../../../../shared/demandes';
 import { parrainageStore, useParrainage, type DemandeParrainee, type ReglageParrainage } from '../../../../shared/parrainage';
@@ -37,7 +42,7 @@ const borne = (v: string, min: number, max: number, defaut: number) => {
   return Number.isFinite(n) && n >= min ? Math.min(max, n) : defaut;
 };
 
-type IdReglage = 'recompenses' | 'rangs' | 'defi' | 'site';
+type IdReglage = 'cercle' | 'recompenses' | 'rangs' | 'defi' | 'foyer' | 'site';
 
 function Reglage({ id, nom, resume, ouvert, bascule, children }: {
   id: IdReglage; nom: string; resume: string; ouvert: boolean; bascule: (id: IdReglage) => void; children: ReactNode;
@@ -63,8 +68,15 @@ function Champ({ label, aide, large, children }: { label: string; aide?: string;
   );
 }
 
-export default function Parrainages() {
-  const { branch } = useBranch();
+/** `dansLeCercle` : l'onglet « Les ambassadrices » du Cercle MND (29 septembre,
+    le Cercle réuni) ; l'en-tête est celui du Cercle, et les réglages du Cercle
+    (l'entrée, les sceaux du Foyer) s'ajoutent aux leurs. */
+export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: boolean }) {
+  const { branch, currency } = useBranch();
+  const [familles] = useFamilies();
+  const [seuilCercle, setSeuilCercle] = useStore(cercleSeuilStore);
+  const [seuilFoyer, setSeuilFoyer] = useStore(foyerSeuilStore);
+  const [sceaux, setSceaux] = useFoyerTiers();
   const [demandes] = useDemandes();
   const [rdvs] = useAppointments();
   const [clients] = useClients();
@@ -90,6 +102,13 @@ export default function Parrainages() {
   const actives = [...L.values()].filter((l) => l.clientId && venuesDe(l).length > 0).length;
   const enAttente = fiches.reduce((n, c) => n + soinsEnAttente(c.soinsOfferts, aujourdhui).length, 0);
   const duSite = [...L.values()].filter((l) => !l.clientId);
+  /* LES MEMBRES DU CERCLE : par leurs propres venues, ni prix convenu ni tête
+     dépendante (la même règle que l'onglet Membres et Foyers). */
+  const membresDuCercle = useMemo(
+    () => fiches.filter((c) => !c.archived && !aUnPrixConvenu(c) && !estDependant(c, familles) && estDuCercle(venuesHonorees(rdvs, c.id, false), seuilCercle)).length,
+    [fiches, familles, rdvs, seuilCercle],
+  );
+  const sceauxTries = useMemo(() => [...sceaux].sort((a, b) => a.seuilXof - b.seuilXof), [sceaux]);
   const soins = useMemo(
     () => services.filter((s) => s && !(s as { archived?: boolean }).archived).sort((a, b) => a.name.localeCompare(b.name)),
     [services],
@@ -126,6 +145,10 @@ export default function Parrainages() {
 
   const bonusPoses = (['tresse', 'couronne', 'reine'] as const).filter((r) => reglage.bonusRangs?.[r]);
   const resumes: Record<IdReglage, string> = {
+    cercle: `À la ${seuilCercle}ᵉ venue · ni prix convenu, ni tête dépendante`,
+    foyer: sceauxTries.length
+      ? `${sceauxTries.length} sceau${sceauxTries.length > 1 ? 'x' : ''} · dès ${fmtMoney(sceauxTries[0].seuilXof, currency)} cumulés · offerts à la caisse`
+      : 'Aucun sceau : la maisonnée n’a pas encore de palier',
     recompenses: `${nomDuSoin(reglage.soinMarraineServiceId) ?? 'Soin à choisir'} ou −${remise} % produit · écho −${echo} % · ${validite} mois`,
     rangs: bonusPoses.length
       ? (['tresse', 'couronne', 'reine'] as const).map((r) => `${nomDuRang(r).split(' ')[0]} : ${nomDuSoin(reglage.bonusRangs?.[r]) ?? 'aucun'}`).join(' · ')
@@ -136,11 +159,13 @@ export default function Parrainages() {
 
   return (
     <div className="tr-page amb">
-      <PageHead
-        eyebrow="Marketing & Fidélité"
-        title="Les ambassadrices"
-        sub="Chaque cliente fait venir ses amies, et la Maison la récompense. Deux générations, jamais d’argent."
-      />
+      {!dansLeCercle && (
+        <PageHead
+          eyebrow="Marketing & Fidélité"
+          title="Les ambassadrices"
+          sub="Chaque cliente fait venir ses amies, et la Maison la récompense. Deux générations, jamais d’argent."
+        />
+      )}
 
       <section className="amb-chiffres" aria-label="Les chiffres du mois">
         <div className="amb-chiffre amb-chiffre--fort">
@@ -159,9 +184,9 @@ export default function Parrainages() {
           <span className="amb-chiffre__dit">soins et remises en attente</span>
         </div>
         <div className="amb-chiffre">
-          <span className="amb-chiffre__label">Ambassadrices actives</span>
-          <span className="amb-chiffre__nombre">{actives}</span>
-          <span className="amb-chiffre__dit">au moins une amie venue</span>
+          <span className="amb-chiffre__label">Membres du Cercle</span>
+          <span className="amb-chiffre__nombre">{membresDuCercle}</span>
+          <span className="amb-chiffre__dit">dont {actives} ambassadrice{actives > 1 ? 's' : ''} active{actives > 1 ? 's' : ''}</span>
         </div>
       </section>
 
@@ -202,6 +227,17 @@ export default function Parrainages() {
             <h3 className="amb-carte__titre" id="amb-reglages">Les réglages</h3>
           </div>
           <div className="amb-reglages">
+            <Reglage id="cercle" nom="L’entrée au Cercle" resume={resumes.cercle} ouvert={ouvert === 'cercle'} bascule={bascule}>
+              <p className="amb-muet">On entre au Cercle par ses propres venues. Un prix convenu et une tête dépendante sont reconnus autrement.</p>
+              <Champ label="Venues pour y entrer" aide="Une venue : un jour où un rituel a été honoré">
+                <span className="amb-suffixe">
+                  <input key={`seuil-${seuilCercle}`} className="mnd-input" type="number" min={1} max={20} defaultValue={seuilCercle} aria-label="Venue d’entrée au Cercle"
+                    onBlur={(e) => { const n = borne(e.target.value, 1, 20, 3); if (n !== seuilCercle) { setSeuilCercle(n); toast('Enregistré.'); } e.target.value = String(n); }} />
+                  <span>venues</span>
+                </span>
+              </Champ>
+            </Reglage>
+
             <Reglage id="recompenses" nom="Les récompenses" resume={resumes.recompenses} ouvert={ouvert === 'recompenses'} bascule={bascule}>
               <p className="amb-muet">À chaque amie venue, l’ambassadrice choisit l’une ou l’autre.</p>
               <Champ label="Le soin offert" aide="La caisse le passe à 100 %. Sans soin : la ligne choisie à la caisse">
@@ -240,6 +276,37 @@ export default function Parrainages() {
                 <Toggle on={defi.actif} label={defi.actif ? 'Défi en cours' : 'Défi arrêté'}
                   onToggle={() => { if (!defi.serviceId) { toast('Choisissez d’abord le soin du défi.'); return; } regle({ defi: { ...defi, actif: !defi.actif } }, defi.actif ? 'Défi arrêté.' : 'Défi du mois lancé.'); }} />
                 {!defi.serviceId && <p className="amb-note">Choisissez le soin pour pouvoir lancer le défi.</p>}
+              </div>
+            </Reglage>
+
+            <Reglage id="foyer" nom="Les sceaux du Foyer" resume={resumes.foyer} ouvert={ouvert === 'foyer'} bascule={bascule}>
+              <p className="amb-muet">La maisonnée franchit un sceau par sa dépense cumulée. Le soin se pose alors tout seul sur la fiche de celle qui règle le foyer, et la caisse l’offre.</p>
+              <Champ label="Le premier palier, dit dans Ma Couronne" aide="Quand aucun sceau n’est encore défini">
+                <span className="amb-suffixe">
+                  <input key={`sf-${seuilFoyer}`} className="mnd-input" type="number" min={1} step={10000} defaultValue={seuilFoyer} aria-label="Palier du Foyer (F CFA)"
+                    onBlur={(e) => { const n = borne(e.target.value, 1, 100000000, 300000); if (n !== seuilFoyer) { setSeuilFoyer(n); toast('Enregistré.'); } e.target.value = String(n); }} />
+                  <span>F</span>
+                </span>
+              </Champ>
+              {sceauxTries.map((t) => (
+                <div key={t.id} className="amb-champ">
+                  <span className="amb-suffixe">
+                    <input key={`t-${t.id}-${t.seuilXof}`} className="mnd-input" type="number" min={1} step={10000} defaultValue={t.seuilXof} aria-label="Seuil du sceau (F CFA)"
+                      onBlur={(e) => { const n = borne(e.target.value, 1, 100000000, t.seuilXof); if (n !== t.seuilXof) { setSceaux((prev) => prev.map((x) => (x.id === t.id ? { ...x, seuilXof: n } : x))); toast('Enregistré.'); } e.target.value = String(n); }} />
+                    <span>F</span>
+                  </span>
+                  <span className="amb-actions" style={{ flexWrap: 'nowrap' }}>
+                    {choixDuSoin(t.serviceId || undefined, (id) => { setSceaux((prev) => prev.map((x) => (x.id === t.id ? { ...x, serviceId: id ?? '' } : x))); toast('Enregistré.'); }, 'Soin à choisir', 'Soin du sceau')}
+                    <button type="button" className="tre-chip" style={{ color: '#8f3b30', flex: 'none' }} onClick={() => { setSceaux((prev) => prev.filter((x) => x.id !== t.id)); toast('Sceau retiré.'); }}>Retirer</button>
+                  </span>
+                </div>
+              ))}
+              <div className="amb-actions">
+                <Button size="sm" variant="ghost" onClick={() => {
+                  const dernier = sceauxTries[sceauxTries.length - 1]?.seuilXof ?? 0;
+                  setSceaux((prev) => [...prev, { id: `ftier-${uid()}`, seuilXof: dernier ? dernier + 200000 : seuilFoyer, serviceId: '', desc: '', g: '' }]);
+                  toast('Sceau ajouté : choisissez son soin.');
+                }}>+ Ajouter un sceau</Button>
               </div>
             </Reglage>
 
