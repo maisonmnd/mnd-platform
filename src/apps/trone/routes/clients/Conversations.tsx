@@ -147,6 +147,10 @@ type Attente = {
   citeWaId?: string;
   modele?: string;
   variables: string[];
+  /** Le mot ajouté à l'URL du bouton d'un modèle (reservation_preparee). */
+  boutonUrl?: string;
+  /** Ce que le fil affiche d'un modèle parti, à la place de « Modèle « x » ». */
+  texteAffiche?: string;
   numero: string;
   clientId?: string;
   posteLe: number;
@@ -231,7 +235,7 @@ export default function Conversations() {
      gratuit, mais ce cas-là n'existe pas à cet endroit de l'écran. Chaque
      clic engage donc une dépense, et un geste qui coûte ne doit pas partir
      d'un seul clic. */
-  const [modeleAConfirmer, setModeleAConfirmer] = useState<{ nom: string; dit: string } | null>(null);
+  const [modeleAConfirmer, setModeleAConfirmer] = useState<{ nom: string; dit: string; variables?: string[]; boutonUrl?: string; texteAffiche?: string } | null>(null);
 
   const moisCourant = new Date().toISOString().slice(0, 7);
   const modelesDuMois = useMemo(
@@ -382,9 +386,10 @@ export default function Conversations() {
   const partir = async (a: Attente, enFermant = false) => {
     const corps = {
       numero: a.numero,
-      texte: a.modele ? '' : a.texte,
+      texte: a.modele ? (a.texteAffiche ?? '') : a.texte,
       modele: a.modele ?? '',
       variables: a.variables,
+      ...(a.boutonUrl ? { boutonUrl: a.boutonUrl } : {}),
       clientId: a.clientId,
       branchId: branch.id,
       parQui: session?.user?.email ?? undefined,
@@ -453,7 +458,7 @@ export default function Conversations() {
   /* ── L'ENVOI PASSE PAR LA FONCTION, JAMAIS PAR LE NAVIGATEUR ────────
      Le jeton Meta autorise à écrire au nom de la Maison à n'importe quel
      numéro : le poser ici, ce serait le publier. */
-  const envoie = async (modele?: string, variables: string[] = []) => {
+  const envoie = async (modele?: string, variables: string[] = [], extra: { boutonUrl?: string; texteAffiche?: string } = {}) => {
     if (!fil || envoiEnCours) return;
     if (!modele && refus) { toast(refus); return; }
     /* SANS SUPABASE, RIEN NE PART, et l'écran le dit. La Maison peut tourner
@@ -473,6 +478,7 @@ export default function Conversations() {
       citeWaId: cite?.waId,
       modele,
       variables,
+      ...extra,
       numero: fil.numero,
       clientId: fil.clientId,
       posteLe: Date.now(),
@@ -1132,6 +1138,9 @@ export default function Conversations() {
                   </p>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
+                      Réservation préparée
+                    </Button>
                     {MODELES.map((m) => (
                       <Button
                         key={m.nom}
@@ -1159,7 +1168,12 @@ export default function Conversations() {
       {lienOuvert && fil && (
         <LienDeReservation
           prenom={fil.nom.split(' ')[0] ?? ''}
+          fenetreOuverte={fil.fenetre.ouverte}
           surMessage={(m) => { setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
+          surModele={(variables, boutonUrl, texteAffiche) => {
+            setLienOuvert(false);
+            setModeleAConfirmer({ nom: 'reservation_preparee', dit: 'Réservation préparée', variables, boutonUrl, texteAffiche });
+          }}
           surFermer={() => setLienOuvert(false)}
         />
       )}
@@ -1232,7 +1246,7 @@ export default function Conversations() {
                 onClick={() => {
                   const m = modeleAConfirmer;
                   setModeleAConfirmer(null);
-                  void envoie(m.nom);
+                  void envoie(m.nom, m.variables ?? [], { boutonUrl: m.boutonUrl, texteAffiche: m.texteAffiche });
                 }}
               >
                 Envoyer quand même

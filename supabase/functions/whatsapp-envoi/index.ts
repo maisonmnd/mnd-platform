@@ -270,6 +270,12 @@ Deno.serve(async (req) => {
   const texte = String(corps.texte ?? '').trim();
   const modele = corps.modele ? String(corps.modele) : '';
   const variables: string[] = Array.isArray(corps.variables) ? corps.variables.map(String) : [];
+  /* LE BOUTON À URL DYNAMIQUE — 28 septembre 2026, modèle `reservation_preparee`.
+     Meta ajoute ce mot à l'URL fixe du bouton (https://maisonmnd.com/reserver/?r=).
+     Un seul mot, fait de caractères qu'aucune adresse ne réécrit ; tout autre
+     chose est refusé plutôt que d'envoyer un lien cassé. */
+  const boutonUrl = corps.boutonUrl ? String(corps.boutonUrl) : '';
+  if (boutonUrl && !/^[A-Za-z0-9._~-]{1,500}$/.test(boutonUrl)) return refus('le paramètre du bouton n’a pas la forme attendue');
   const clientId = corps.clientId ? String(corps.clientId) : undefined;
   const branchId = corps.branchId ? String(corps.branchId) : undefined;
   const parQui = corps.parQui ? String(corps.parQui).slice(0, 80) : undefined;
@@ -482,6 +488,9 @@ Deno.serve(async (req) => {
     }
     if (variables.length) {
       composants.push({ type: 'body', parameters: variables.map((t) => ({ type: 'text', text: t })) });
+    }
+    if (boutonUrl) {
+      composants.push({ type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: boutonUrl }] });
     }
     boutons.forEach((b, i) => {
       composants.push({

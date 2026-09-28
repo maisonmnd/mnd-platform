@@ -488,3 +488,16 @@ seul le lendemain.
   personnel seulement — RLS de 0043).
 - Un rappel ne part qu'UNE fois par canal et par rendez-vous, quel que soit
   le nombre de réveils du cron (identifiants déterministes `env-<rdv>-<canal>`).
+
+## Le modèle `reservation_preparee` (28 septembre 2026, approuvé)
+
+Utility, français. Corps : « Bonjour {{1}}, la Maison MND a préparé votre
+réservation : {{2}}. Il ne vous reste qu'à choisir votre jour et votre
+heure. Touchez le bouton ci-dessous, tout est déjà rempli. » Pied :
+« Maison MND · Cotonou ». Bouton « Choisir mon heure », URL dynamique
+`https://maisonmnd.com/reserver/?r={{1}}`, où {{1}} est le jeton d'un seul
+mot écrit par `jetonDuLien` (`besoin.geste~geste.calibre`) et relu par le
+site (`lienLu`). Le Trône l'envoie depuis Conversations → Lien de
+réservation (hors fenêtre : « Envoyer par le modèle »). Il demande
+`whatsapp-envoi` avec le paramètre `boutonUrl` : RECOLLER `whatsapp-envoi`
+EN ENTIER après le 28 septembre.

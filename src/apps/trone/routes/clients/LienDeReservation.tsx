@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast } from '../../../../ds/components';
 import { useServices, useCategories } from '../../../../shared/catalog';
 import { useModelBands } from '../../../../shared/pricing';
-import { lienDeReservation, messageDuLien, type BesoinDuLien } from '../../../../shared/lien-reservation';
+import { lienDeReservation, messageDuLien, jetonDuLien, URL_DU_MODELE, type BesoinDuLien } from '../../../../shared/lien-reservation';
 
 /* LE LIEN DE RÉSERVATION PRÉPARÉ — 28 septembre 2026. « J'aimerais envoyer
    un lien de réservation avec les services présélectionnés pour que la
@@ -18,9 +18,13 @@ const BESOINS: { k: BesoinDuLien; l: string }[] = [
   { k: 'enfant', l: 'MND Kids' },
 ];
 
-export function LienDeReservation({ prenom, surMessage, surFermer }: {
+export function LienDeReservation({ prenom, fenetreOuverte, surMessage, surModele, surFermer }: {
   prenom: string;
+  fenetreOuverte: boolean;
   surMessage: (message: string) => void;
+  /** Le modèle approuvé `reservation_preparee` : {{1}} prénom, {{2}} les
+      gestes, et le mot du bouton. Il part hors de la fenêtre de 24 h. */
+  surModele: (variables: string[], boutonUrl: string, texteAffiche: string) => void;
   surFermer: () => void;
 }) {
   const [services] = useServices();
@@ -49,6 +53,10 @@ export function LienDeReservation({ prenom, surMessage, surFermer }: {
   const lien = lienDeReservation(site, { besoin, gestes: choisis, ...(calibre ? { calibre } : {}) });
   const noms = choisis.map((id) => actifs.find((s) => s.id === id)?.name ?? id);
   const message = messageDuLien(prenom, noms, lien);
+  const jeton = jetonDuLien({ besoin, gestes: choisis, ...(calibre ? { calibre } : {}) });
+  const prenomDit = prenom.trim() || 'Madame';
+  const gestesDits = noms.join(' et ') || 'vos gestes';
+  const texteDuModele = `Bonjour ${prenomDit}, la Maison MND a préparé votre réservation : ${gestesDits}. Il ne vous reste qu'à choisir votre jour et votre heure. [Choisir mon heure : ${URL_DU_MODELE}${jeton}]`;
   const bascule = (id: string) => setChoisis((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(0, 6)));
 
   return (
@@ -87,11 +95,19 @@ export function LienDeReservation({ prenom, surMessage, surFermer }: {
           ))}
         </div>
         <div style={{ background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 3, padding: '10px 12px', fontSize: 12.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-          {message}
+          {fenetreOuverte ? message : texteDuModele}
         </div>
+        {!fenetreOuverte && (
+          <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
+            Sa fenêtre est fermée : le lien part par le modèle approuvé « réservation préparée », avec un bouton « Choisir mon heure ». Meta facture ce message.
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="ghost" onClick={() => { void navigator.clipboard?.writeText(lien).then(() => toast('Lien copié.')).catch(() => toast(lien)); }}>Copier le lien</Button>
-          <Button variant="copper" disabled={choisis.length === 0} onClick={() => surMessage(message)}>Poser dans le message</Button>
+          {fenetreOuverte && <Button variant="ghost" disabled={choisis.length === 0} onClick={() => surModele([prenomDit, gestesDits], jeton, texteDuModele)}>Par le modèle</Button>}
+          {fenetreOuverte
+            ? <Button variant="copper" disabled={choisis.length === 0} onClick={() => surMessage(message)}>Poser dans le message</Button>
+            : <Button variant="copper" disabled={choisis.length === 0} onClick={() => surModele([prenomDit, gestesDits], jeton, texteDuModele)}>Envoyer par le modèle</Button>}
         </div>
       </div>
     </Modal>
