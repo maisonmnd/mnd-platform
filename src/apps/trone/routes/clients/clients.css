@@ -2893,3 +2893,39 @@
 .trc-palier__v { font-size: 12.5px; color: var(--ink); }
 .trc-palier__v b { font-weight: 500; }
 @media (max-width: 560px) { .trc-palier { grid-template-columns: 1fr; gap: 3px; } }
+
+/* ══ LES CONVERSATIONS AU TÉLÉPHONE, ACHEVÉES — 28 septembre 2026 ═══════
+   « Make conversations responsive on mobile phone » (Yéman). Le 21, la page
+   montrait déjà la liste OU le fil. Il restait ce qui encombrait autour :
+   le titre de la page et ses six boutons au-dessus du fil ouvert, une tête
+   de fil dont les boutons se cassaient sur trois lignes, la longue phrase de
+   la fenêtre de 24 h qui repoussait la saisie hors de l'écran, et une saisie
+   qui faisait zoomer l'iPhone (texte sous 16 px). Désormais, fil ouvert :
+   la tête reste en haut, les bulles défilent seules au milieu, la saisie
+   reste sous le pouce, comme dans WhatsApp. */
+@media (max-width: 760px) {
+  .trc-page-convs.a-fil .tr-page-head,
+  .trc-page-convs.a-fil .trc-passage-banner { display: none; }
+  /* La liste : les boutons de la page glissent sur une ligne au lieu de s'empiler. */
+  .trc-page-convs .tr-page-head__actions > div { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 4px; }
+  .trc-page-convs .tr-page-head__actions > div > * { flex: none; white-space: nowrap; }
+  .trc-page-convs .tr-page-head__actions .trc-sub { display: none; }
+  /* Le fil : une hauteur d'écran, la tête et la saisie fixes, les bulles au milieu. */
+  .trc-convs.a-fil .trc-convs__fil {
+    height: calc(100dvh - 96px); min-height: 0; border-radius: 0; border-left: 0; border-right: 0;
+  }
+  .trc-convs.a-fil .trc-bulles { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .trc-fil__tete { flex-wrap: nowrap; align-items: center; }
+  .trc-fil__tete > span:first-of-type { min-width: 0; flex: 1; }
+  .trc-fil__tete b { font-size: 17px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trc-fil__tete > span:last-child { flex-wrap: nowrap !important; overflow-x: auto; max-width: 52vw; }
+  .trc-fil__tete > span:last-child > * { flex: none; white-space: nowrap; }
+  .trc-retour { padding: 5px 9px; font-size: 0; }
+  .trc-retour::before { content: '←'; font-size: 16px; }
+  /* La saisie : l'horloge seule, la phrase d'explication se replie. */
+  .trc-saisie__q .trc-sub, .trc-saisie__note { display: none; }
+  .trc-saisie textarea { font-size: 16px; }
+  .trc-saisie > div:last-child { gap: 6px !important; }
+  .trc-gestes-rangee { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .trc-gestes-rangee > * { flex: none; }
+}

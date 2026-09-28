@@ -637,7 +637,7 @@ export default function Conversations() {
   };
 
   return (
-    <div className="tr-page">
+    <div className={`tr-page trc-page-convs${fil ? ' a-fil' : ''}`}>
       <PageHead
         eyebrow="Clients & agenda · ce qu’elles nous écrivent"
         title="Les conversations."
@@ -1107,7 +1107,7 @@ export default function Conversations() {
                       }}
                     />
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className="trc-sub" style={{ fontSize: 11, marginRight: 'auto' }}>
+                      <span className="trc-sub trc-saisie__note" style={{ fontSize: 11, marginRight: 'auto' }}>
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
                       <Button variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
