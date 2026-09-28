@@ -384,12 +384,39 @@ a.carte-porte:hover { box-shadow: var(--ombre); }
 .trois b { font-family: var(--serif); font-weight: 400; font-size: 21px; color: var(--titre); }
 
 /* ── journal ─────────────────────────────────────────────────────── */
-.articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.article { background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); display: flex; flex-direction: column; }
-.article:hover { box-shadow: var(--ombre); }
-.article img { aspect-ratio: 16 / 10; object-fit: cover; width: 100%; }
-.article h3 { font-size: 21px; padding: 16px 18px 6px; }
-.article p { font-size: 14px; color: var(--texte-doux); padding: 0 18px 18px; }
+/* LE JOURNAL EN GRILLE — 28 septembre 2026, d'après le blog que Yéman a
+   montré : pas de boîte, l'image arrondie, la catégorie en petit, le titre
+   en capitales sur deux lignes au plus, la date. Quatre colonnes sur la page
+   du Journal, trois sur l'accueil. Le filtre : des cases radio cachées et
+   des pilules ; la case cochée cache ce qui n'est pas de sa catégorie, la
+   feuille seule, sans script. Sans filtre coché (ou sans feuille), tout se
+   lit. */
+.articles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px 18px; }
+.articles--journal { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .articles--journal { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .articles--journal { grid-template-columns: 1fr; } }
+.article { display: block; color: inherit; transition: opacity var(--t); }
+.article:hover img { opacity: .92; }
+.article img { aspect-ratio: 16 / 10; object-fit: cover; width: 100%; border-radius: 8px; transition: opacity var(--t); }
+.article__cat { display: block; margin-top: 14px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-doux); }
+.article h3 { margin-top: 6px; font-family: var(--sans); font-weight: 500; font-size: 17px; line-height: 1.25; letter-spacing: .02em; text-transform: uppercase; color: var(--titre); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.article time { display: block; margin-top: 8px; font-size: 13px; color: var(--texte-doux); }
+.journal-filtre { display: grid; gap: 14px; }
+.filtre { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 5px; border: 1px solid var(--filet); border-radius: 999px; background: var(--carte); width: fit-content; max-width: 100%; margin-bottom: 14px; }
+.filtre label { padding: 10px 18px; border-radius: 999px; font-size: 14px; color: var(--texte-doux); cursor: pointer; transition: background var(--t), color var(--t); }
+.filtre label:hover { color: var(--titre); }
+#cat-toutes:checked ~ .filtre label[for="cat-toutes"],
+#cat-premiere-couronne:checked ~ .filtre label[for="cat-premiere-couronne"],
+#cat-reparation:checked ~ .filtre label[for="cat-reparation"],
+#cat-entretien:checked ~ .filtre label[for="cat-entretien"],
+#cat-mnd-kids:checked ~ .filtre label[for="cat-mnd-kids"],
+#cat-formations:checked ~ .filtre label[for="cat-formations"] { background: var(--sombre); color: #F6F1E7; }
+#cat-premiere-couronne:checked ~ .articles .article:not([data-cat="premiere-couronne"]),
+#cat-reparation:checked ~ .articles .article:not([data-cat="reparation"]),
+#cat-entretien:checked ~ .articles .article:not([data-cat="entretien"]),
+#cat-mnd-kids:checked ~ .articles .article:not([data-cat="mnd-kids"]),
+#cat-formations:checked ~ .articles .article:not([data-cat="formations"]) { display: none; }
+.journal-filtre input:focus-visible ~ .filtre label { outline: 2px solid var(--accent); outline-offset: 2px; }
 .prose { max-width: 66ch; color: var(--texte-doux); font-size: 17px; }
 .prose h2 { font-size: clamp(24px, 3vw, 32px); margin: 34px 0 12px; }
 .prose p { margin: 0 0 14px; }

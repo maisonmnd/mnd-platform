@@ -634,7 +634,7 @@ function rendAccueil(articles) {
           </a>
         </div>`;
   }).join('\n        ');
-  const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
+  const journal = articles.slice(0, 3).map(carteDArticle).join('\n        ');
   return `
       <!-- L'ACCUEIL REVISITÉ — 27 septembre 2026, maquette validée par Yéman.
            « Épure-moi complètement le site et fais de la Maison MND une marque
@@ -723,6 +723,40 @@ function rendAccueil(articles) {
         <div class="rangee">${a.appel.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div>
       </div></section>`;
 }
+/* LE JOURNAL EN GRILLE — 28 septembre 2026 : « que le journal soit présenté
+   comme ça » (Yéman, d'après un blog de barbiers parisiens) : une barre de
+   catégories, une grille de cartes, chaque carte avec son image, sa
+   catégorie, son titre, sa date. Les catégories SONT les parcours que les
+   articles portent déjà ; le filtre tient sans script (des cases radio et la
+   feuille), et sans filtre tout se lit. La date vient de l'en-tête de
+   l'article (`date:`), posée le jour où il est entré. */
+const NOMS_DU_JOURNAL = {
+  'premiere-couronne': 'Première Couronne',
+  reparation: 'Réparation',
+  entretien: 'Entretien',
+  'mnd-kids': 'MND Kids',
+  formations: 'Formations',
+};
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const dateDite = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+  if (!m) return '';
+  return `${Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}`;
+};
+function carteDArticle(art) {
+  const cat = art.parcours ?? '';
+  return `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}" data-cat="${attr(cat)}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}`
+    + `<span class="article__cat">${echappe(NOMS_DU_JOURNAL[cat] ?? 'Le Journal')}</span><h3>${echappe(art.titre)}</h3>`
+    + (art.date ? `<time datetime="${attr(art.date)}">${echappe(dateDite(art.date))}</time>` : '')
+    + '</a>';
+}
+function grilleDuJournal(articles) {
+  const cats = [...new Set(articles.map((a) => a.parcours).filter((c) => c && NOMS_DU_JOURNAL[c]))];
+  const cases = ['toutes', ...cats].map((c) => `<input class="cache" type="radio" name="journal-cat" id="cat-${attr(c)}"${c === 'toutes' ? ' checked' : ''}>`).join('');
+  const pilules = `<div class="filtre" role="group" aria-label="Par parcours"><label for="cat-toutes">Toutes</label>${cats.map((c) => `<label for="cat-${attr(c)}">${echappe(NOMS_DU_JOURNAL[c])}</label>`).join('')}</div>`;
+  return `<div class="journal-filtre">${cases}<p class="sur">Par parcours</p>${pilules}<div class="articles articles--journal">${articles.map(carteDArticle).join('\n        ')}</div></div>`;
+}
+
 const PARCOURS_DU_JOURNAL = {
   'premiere-couronne': { chemin: '/premiere-couronne/', besoin: 'creation' },
   reparation: { chemin: '/reparation-locks/', besoin: 'reparation' },
@@ -1026,8 +1060,7 @@ for (const p of PAGES) {
   const estService = !!(p.cta || p.pas);
   let corps;
   if (p.chemin === '/journal/') {
-    const liste = articles.map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
-    corps = rendLibre(p, `<section class="serre"><div class="conteneur"><div class="articles">${liste}</div></div></section>`);
+    corps = rendLibre(p, `<section class="serre"><div class="conteneur">${grilleDuJournal(articles)}</div></section>`);
   } else corps = estService ? rendService(p) : rendLibre(p);
   const noeuds = [noeudSite(), filAriane([['Accueil', '/'], [p.court, p.chemin]])];
   if (p.jsonld === 'maison') noeuds.unshift(noeudMaison());

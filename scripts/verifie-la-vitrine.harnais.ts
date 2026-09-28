@@ -301,7 +301,8 @@ dit('… et chacun NOMME sa vignette, au lieu de la tirer au sort', [], articles
 dit('… chaque vignette existe dans le dossier des photos', [], articlesDuJournal.filter((a) => !existsSync(`public/assets/photos/site/${a.image}`)).map((a) => a.image));
 dit('… et chaque vignette est inscrite au registre des accords', [], articlesDuJournal.filter((a) => !inscriteAuRegistre(a.image)).map((a) => a.image));
 const vignettesServies = [...(pages.get('/journal/') ?? '')
-  .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/">(?:<picture><source [^>]*>)?<img src="[^"]*photos\/site\/([^"]+)"/g)]
+  /* Depuis le 28 septembre 2026 la carte porte aussi sa catégorie (`data-cat`) après le lien. */
+  .matchAll(/class="article" href="[^"]*\/journal\/([^/"]+)\/"[^>]*>(?:<picture><source [^>]*>)?<img src="[^"]*photos\/site\/([^"]+)"/g)]
   .map((m) => `${m[1]} · ${m[2]}`);
 dit('… et la page servie pose bien celle-là sur cet article-là',
   articlesDuJournal.map((a) => `${a.slug} · ${a.image}`), vignettesServies);

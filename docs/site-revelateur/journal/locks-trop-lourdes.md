@@ -1,6 +1,7 @@
 ---
 titre: "Comment savoir si mes locks sont trop lourdes ?"
 slug: locks-trop-lourdes
+date: 2026-09-17
 description: "Racines qui tirent, locks qui s'amincissent au sommet, fatigue en fin de journée : les signes d'une couronne trop lourde et les façons de l'alléger."
 parcours: reparation
 image: journal-1.jpg

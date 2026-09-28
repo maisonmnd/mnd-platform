@@ -1,6 +1,7 @@
 ---
 titre: "Quelle méthode choisir pour créer ses premières locks ?"
 slug: quelle-methode-premieres-locks
+date: 2026-09-17
 description: "Torsades, crochet, interlocking, freeform, microlocks : comment choisir la méthode de création de vos premières locks selon votre texture et votre vie."
 parcours: premiere-couronne
 image: journal-10.jpg

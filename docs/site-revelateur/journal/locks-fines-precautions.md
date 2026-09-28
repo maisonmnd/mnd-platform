@@ -1,6 +1,7 @@
 ---
 titre: "Locks fines, quelles précautions ?"
 slug: locks-fines-precautions
+date: 2026-09-17
 description: "Microlocks et locks fines : tension, poids, fréquence de resserrage, coiffures à éviter. Les précautions qui protègent une couronne délicate dans la durée."
 parcours: reparation
 image: journal-2.jpg

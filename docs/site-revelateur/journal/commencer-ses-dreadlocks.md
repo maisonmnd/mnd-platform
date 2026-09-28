@@ -1,6 +1,7 @@
 ---
 titre: "Comment commencer ses dreadlocks ?"
 slug: commencer-ses-dreadlocks
+date: 2026-09-17
 description: "Longueur de départ, consultation, création, premiers mois : ce qu'il faut savoir avant de commencer ses dreadlocks à Cotonou, sans se tromper."
 parcours: premiere-couronne
 image: journal-5.jpg
