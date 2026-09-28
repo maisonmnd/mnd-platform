@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/compte-courant';
 import { useStaff, staffStore } from '../equipe/data';
 import { usePayrollRuns } from '../equipe/payroll';
+import { useMotifsFoyer } from '../../../../shared/foyer';
 import { todayISO } from './_shared';
 
 /* LE COMPTE COURANT D'ASSOCIÉ — 27 septembre 2026 au soir, maquette validée
@@ -66,14 +67,22 @@ export default function CompteCourant() {
     return dernier ? periodeSuivante(dernier) : periodeSuivante(todayISO().slice(0, 7));
   }, [runs, branch.id]);
 
+  /* LE POURQUOI PARLE LA LANGUE DU FOYER — 28 septembre 2026 (Yéman, au
+     sélecteur) : les mêmes motifs que Salon & Foyer (Maison, Nourriture,
+     École, Santé…), lus dans leur magasin pour suivre un motif renommé, et
+     une phrase en plus. Le foyer, lui, vit sur les salaires : ce qui sort
+     ici de la caisse pour lui va sur la page de Yéman, décision du même
+     jour. */
+  const [motifsFoyer] = useMotifsFoyer();
   const [geste, setGeste] = useState<Geste | null>(null);
   const [montant, setMontant] = useState('');
+  const [motif, setMotif] = useState('');
   const [phrase, setPhrase] = useState('');
   const [caisse, setCaisse] = useState('');
   const [date, setDate] = useState(todayISO());
   const [periode, setPeriode] = useState(periodeProposee);
   const ouvre = (g: Geste) => {
-    setGeste(g); setPhrase(''); setDate(todayISO()); setCaisse(caisses[0]?.name ?? ''); setPeriode(periodeProposee);
+    setGeste(g); setPhrase(''); setMotif(''); setDate(todayISO()); setCaisse(caisses[0]?.name ?? ''); setPeriode(periodeProposee);
     setMontant(g === 'retenue' ? String(Math.max(0, solde - enAttente)) : '');
   };
   const ferme = () => setGeste(null);
@@ -94,7 +103,8 @@ export default function CompteCourant() {
     }
     if (!(xof > 0)) { toast('Écrivez le montant.'); return; }
     if (!caisse.trim()) { toast(geste === 'prelevement' ? 'Choisissez la caisse d’où sort l’argent.' : 'Choisissez la caisse qui reçoit l’argent.'); return; }
-    if (geste === 'prelevement' && !phrase.trim()) { toast('Dites à quoi cet argent a servi : dans six mois, il faudra le savoir.'); return; }
+    if (geste === 'prelevement' && !motif && !phrase.trim()) { toast('Dites à quoi cet argent a servi, un motif ou un mot : dans six mois, il faudra le savoir.'); return; }
+    const pourquoi = [motif, phrase.trim()].filter(Boolean).join(' · ');
     const mouvement: MouvementHorsActivite = {
       id: `hors-${uid()}`,
       branchId: branch.id,
@@ -102,7 +112,7 @@ export default function CompteCourant() {
       sens: geste === 'prelevement' ? 'sortie' : 'entree',
       motif: geste === 'prelevement' ? MOTIF_PRELEVEMENT : MOTIF_REMBOURSEMENT,
       label: geste === 'prelevement'
-        ? `${associe.name} · ${phrase.trim()}`
+        ? `${associe.name} · ${pourquoi}`
         : `${associe.name} · remboursement du compte courant${phrase.trim() ? ` · ${phrase.trim()}` : ''}`,
       amountXof: xof,
       cashbox: caisse,
@@ -250,7 +260,17 @@ export default function CompteCourant() {
               </>
             ) : (
               <>
-                <Field label={geste === 'prelevement' ? 'À quoi cet argent a servi' : 'Un mot, si vous voulez'}>
+                {geste === 'prelevement' && (
+                  <Field label="À quoi cet argent a servi · les motifs du foyer">
+                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                      {motifsFoyer.map((m) => (
+                        <button key={m.id} type="button" className={`tre-chip ${motif === m.name ? 'is-on' : ''}`} onClick={() => setMotif(motif === m.name ? '' : m.name)}>{m.name}</button>
+                      ))}
+                    </div>
+                    <div className="mnd-muted" style={{ fontSize: 12, marginTop: 6 }}>Pour le foyer, la page de Yéman porte le prélèvement (décision du 28 septembre).</div>
+                  </Field>
+                )}
+                <Field label={geste === 'prelevement' ? 'Un mot, en plus du motif' : 'Un mot, si vous voulez'}>
                   <Input autoFocus value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder={geste === 'prelevement' ? 'Solde de départ au 30 septembre' : ''} />
                 </Field>
                 <div className="tr-grid tr-grid--2">
