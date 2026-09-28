@@ -269,7 +269,7 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
           <div><h2>{porte.sur}</h2><p>{porte.texte}</p></div>
         </div>
         <p className="sur" style={{ marginTop: 10 }}>Votre guide, en trois temps</p>
-        <p className="guide__note">Chaque ligne est un geste. Cochez-les chez vous, et gardez le guide : sur WhatsApp, copié, ou à votre fiche.</p>
+        <p className="guide__note">Chaque ligne est un geste à suivre chez vous. Gardez le guide : sur WhatsApp, copié, ou à votre fiche.</p>
         <div className="routine routine--guide">
           <div><b>Chaque semaine</b><ol>{routine.semaine.map((t) => <li key={t}>{t}</li>)}</ol></div>
           <div><b>Chaque mois</b><ol>{routine.mois.map((t) => <li key={t}>{t}</li>)}</ol></div>

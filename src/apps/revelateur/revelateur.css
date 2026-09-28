@@ -820,7 +820,17 @@ footer li svg { width: 15px; height: 15px; flex: none; }
 .hero-plein .devise--grande small { display: block; margin: 10px 0 0; font-size: 13px; letter-spacing: .1em; }
 .hero-plein .devise--grande::after { content: ''; display: block; width: 56px; height: 1px; background: var(--accent-sombre); margin-top: 22px; opacity: .8; }
 .hero-plein .devise--grande + h1 { margin-top: 0; font-size: clamp(40px, 6.4vw, 92px); font-weight: 300; max-width: 12ch; line-height: 1; }
-.hero-plein .ligne { color: rgba(246, 241, 231, .84); max-width: 40ch; margin-top: 0; font-size: clamp(16px, 1.5vw, 19px); }
+/* LA BANDE QUI DÉFILE — 28 septembre 2026. Au pied du premier écran, sur
+   toute la largeur, la phrase en morceaux qui glissent, séparés par le
+   pictogramme cuivre, sur l'allover de la Maison posé en filigrane (le motif
+   vit dans un ::before, sous le texte). Deux copies, l'une muette : la boucle
+   n'a pas de couture. Qui demande moins de mouvement lit la phrase immobile,
+   une fois. */
+.hero-plein__bande { position: relative; z-index: 2; overflow: hidden; background: rgba(21, 23, 58, .78); border-block: 1px solid rgba(214, 160, 111, .38); padding-block: 13px; backdrop-filter: blur(3px); }
+.hero-plein__bande::before { content: ''; position: absolute; inset: 0; background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 200px repeat; opacity: .28; pointer-events: none; }
+.bande__piste { position: relative; display: flex; width: max-content; gap: 0; animation: defile 46s linear infinite; }
+.bande__mot { display: inline-flex; align-items: center; gap: 22px; padding-inline: 22px; font-family: var(--serif); font-style: italic; font-size: clamp(17px, 1.7vw, 24px); color: #F6F1E7; white-space: nowrap; letter-spacing: .01em; }
+.bande__picto { height: 18px; width: auto; opacity: .9; }
 .hero-plein .rangee { margin-top: 0; }
 .hero-plein .btn:not(.btn--plein) { background: #F6F1E7; border-color: #F6F1E7; color: var(--titre); }
 .hero-plein .btn:not(.btn--plein):hover { background: #fff; }
@@ -855,7 +865,9 @@ footer li svg { width: 15px; height: 15px; flex: none; }
   .hero-plein .devise--grande { font-size: clamp(30px, 9vw, 40px); margin-top: 0; }
   .hero-plein .devise.devise--grande small { display: block; margin: 4px 0 0; font-size: 11.5px; }
   .hero-plein .devise--grande + h1 { font-size: clamp(28px, 8vw, 36px); margin-top: 8px; max-width: none; }
-  .hero-plein .ligne { font-size: 15px; margin-top: 8px; }
+  .hero-plein__bande { padding-block: 9px; }
+  .bande__mot { font-size: 15px; gap: 14px; padding-inline: 14px; }
+  .bande__picto { height: 14px; }
   .hero-plein .devise small { display: inline; margin: 0 0 0 8px; font-size: 11.5px; }
   .hero-plein .rangee { align-self: stretch; margin-top: 16px; gap: 8px; }
   .hero-plein .rangee .btn { width: 100%; min-height: 44px; padding: 10px 14px; font-size: 11px; }
@@ -1391,8 +1403,9 @@ body.galerie-plein { scroll-behavior: smooth; }
 .devise-bande .rangee { margin-top: 14px; justify-content: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .defile__piste { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
+  .defile__piste, .bande__piste { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
   .defile::before, .defile::after { display: none; }
+  .hero-plein__bande .bande__mot[aria-hidden="true"] { display: none; }
 }
 
 /* ══ LES MOTIFS HABILLENT LES BANDES — 27 septembre 2026 au soir ══════════
@@ -1479,5 +1492,7 @@ body.galerie-plein { scroll-behavior: smooth; }
 .sortie .porte-r h2 { font-size: clamp(26px, 3.2vw, 34px); text-shadow: 0 1px 12px rgba(21, 23, 58, .6); }
 .guide__note { font-size: 14px; color: rgba(246, 241, 231, .7); max-width: 52ch; }
 .routine--guide ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.routine--guide li { position: relative; padding-left: 26px; font-size: 14px; line-height: 1.5; color: rgba(246, 241, 231, .9); }
-.routine--guide li::before { content: ''; position: absolute; left: 0; top: 4px; width: 14px; height: 14px; border: 1px solid var(--accent-sombre); border-radius: 3px; }
+/* « Je n'aime pas le système de cocher, juste un indicateur, un point »
+   (Yéman, 28 septembre) : un point cuivre devant chaque geste, rien à cocher. */
+.routine--guide li { position: relative; padding-left: 18px; font-size: 14px; line-height: 1.5; color: rgba(246, 241, 231, .9); }
+.routine--guide li::before { content: ''; position: absolute; left: 2px; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-sombre); }

@@ -652,9 +652,14 @@ function rendAccueil(articles) {
           <p class="devise devise--grande">${echappe(a.devise.fon)}<small>${echappe(a.devise.sens)}</small></p>
           <h1>${echappe(a.h1)}</h1>
           <div class="hero-plein__geste">
-            <p class="ligne">${echappe(a.ligne)}</p>
             <div class="rangee">${a.boutons.map((b, i) => bouton(b, i === 0 ? 'btn' : 'btn btn--plein')).join('')}</div>
           </div>
+        </div>
+        <!-- LA BANDE QUI DÉFILE au pied du premier écran : les morceaux de la
+             phrase, séparés par le pictogramme, deux fois pour une boucle sans
+             couture (la seconde muette), sur le motif de la Maison. -->
+        <div class="hero-plein__bande" aria-label="${attr(a.bande.join('. '))}.">
+          <div class="bande__piste">${[false, true].map((muette) => a.bande.map((m) => `<span class="bande__mot"${muette ? ' aria-hidden="true"' : ''}><img class="bande__picto" src="/assets/photos/site/mono-copper.png" alt="" width="240" height="198" loading="lazy">${echappe(m)}</span>`).join('')).join('')}</div>
         </div>
       </section>
       <section class="objectif" id="objectif"><div class="conteneur">

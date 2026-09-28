@@ -224,7 +224,7 @@ export const ACCUEIL: Accueil = {
      du dessous est de lui, mot pour mot : « la maison de référence des locks
      premium à Cotonou », ÊTRE et non devenir. */
   h1: 'Révélez ce que vous avez de plus beau.',
-  ligne: 'Des locks créées, réparées et soignées, par la maison de référence des locks premium à Cotonou.',
+  bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'La maison de référence des locks premium à Cotonou'],
   boutons: [
     { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     { texte: 'Réserver', vers: '/reserver/' },

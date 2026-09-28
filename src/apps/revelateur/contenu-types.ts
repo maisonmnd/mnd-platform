@@ -76,7 +76,13 @@ export type Accueil = {
   description: string;
   devise: { fon: string; sens: string };
   h1: string;
-  ligne: string;
+  /* LA BANDE QUI DÉFILE — 28 septembre 2026 : « créer un défilé ou une
+     animation sur la phrase au pied de cette page » (Yéman). La phrase du
+     premier écran n'est plus une ligne sous l'accroche : ses morceaux
+     défilent au pied de l'écran, sur le motif de la Maison, séparés par le
+     pictogramme. Le premier écran doit toujours nommer les locks et Cotonou,
+     le harnais le lit ici. */
+  bande: string[];
   boutons: Lien[];
   /** LE MÉTIER, DIT AU PREMIER ÉCRAN — 22 septembre 2026. Ni « locks » ni
       « dreadlocks » n'apparaissaient avant de faire défiler : il fallait déjà

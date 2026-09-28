@@ -65,7 +65,13 @@ dit('… sans tiret cadratin dans ses mots', false, (accueil.split('class="joind
 /* ── LE PREMIER ÉCRAN DIT LE MÉTIER, ET TROIS PROMESSES SUIVENT ───── */
 /* La ligne du métier est partie du premier écran le 27 septembre 2026 au
    soir ; c'est la ligne sous l'accroche qui nomme les locks et Cotonou. */
-dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.ligne) && /Cotonou/.test(ACCUEIL.ligne));
+dit('le premier écran nomme les locks et Cotonou', true, /locks/i.test(ACCUEIL.bande.join(' ')) && /Cotonou/.test(ACCUEIL.bande.join(' ')));
+/* La bande qui défile (28 septembre 2026) : chaque morceau y est deux fois,
+   la seconde fois muette, pour une boucle sans couture. */
+const laBande = (accueil.split('class="hero-plein__bande"')[1] ?? '').split('</section>')[0];
+dit('… la bande du premier écran porte chaque morceau deux fois', [],
+  ACCUEIL.bande.filter((m) => laBande.split(`>${m}</span>`).length - 1 !== 2));
+dit('… dont une fois muette pour les lecteurs d’écran', ACCUEIL.bande.length, (laBande.match(/aria-hidden="true"/g) ?? []).length);
 /* « La phrase est beaucoup trop longue » (Yéman, 22 septembre 2026) : le titre
    tient en six mots, le paragraphe en deux phrases courtes. */
 /* HUIT MOTS DEPUIS LE 27 SEPTEMBRE 2026 : Yéman a choisi « Révélez ce que
