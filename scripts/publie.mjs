@@ -170,7 +170,12 @@ const ESSAIS_DE_CLONE = 4;
 export function cloneObstine(origine, branche, clone) {
   for (let essai = 1; essai <= ESSAIS_DE_CLONE; essai++) {
     try {
-      git(['clone', '--depth', '1', '--branch', branche, '-q', origine, clone]);
+      /* PROFONDEUR 2, PAS 1 — 28 septembre 2026. La génération précédente se
+         lit comme « ce que le dernier commit a ajouté » ; à profondeur 1, HEAD
+         n'a pas de parent et cette lecture est VIDE : la première publication
+         avec la garde n'a rien gardé, et l'ancien script a encore rendu 404.
+         Un commit de plus dans le clone, et le parent est là. */
+      git(['clone', '--depth', '2', '--branch', branche, '-q', origine, clone]);
       return;
     } catch (err) {
       if (essai === ESSAIS_DE_CLONE) throw err;
@@ -227,7 +232,9 @@ export function domaineDuDepot(clone) {
    avant l'extension, sur les scripts, les feuilles et les polices. */
 const EST_HACHE = /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css|woff2)$/;
 export function generationPrecedente(clone) {
-  const sortie = git(['diff-tree', '--no-commit-id', '--name-only', '-r', '--diff-filter=A', 'HEAD'], clone);
+  /* `--root` : si HEAD n'a vraiment pas de parent (la toute première
+     publication), tout son contenu compte comme ajouté, plutôt que rien. */
+  const sortie = git(['diff-tree', '--no-commit-id', '--name-only', '-r', '--root', '--diff-filter=A', 'HEAD'], clone);
   return sortie.split(/\r?\n/).map((f) => f.trim()).filter((f) => EST_HACHE.test(f));
 }
 export function gardeLaGenerationPrecedente(dist, clone, precedents) {

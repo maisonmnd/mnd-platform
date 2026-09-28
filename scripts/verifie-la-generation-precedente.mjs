@@ -57,6 +57,23 @@ dit('la génération précédente est ce que le dernier commit a ajouté, haché
 dit('… A, d’il y a deux générations, n’en est pas', false, precedents.includes('assets/main-AAAAAAAA.js'));
 dit('… ni la photo, qui n’est pas hachée', false, precedents.includes('assets/photos/site/photo.jpg'));
 
+/* ── (1 bis) SUR UN CLONE PEU PROFOND, COMME LA PUBLICATION ──────────
+   La publication ne travaille pas dans le dépôt : elle le clone. À
+   profondeur 1, HEAD n'a pas de parent et la lecture est vide (c'est ainsi
+   que la première garde n'a rien gardé, le 28 septembre au matin) ; à
+   profondeur 2, le parent est là et la lecture est juste. */
+const origine = path.join(bac, 'origine.git');
+git(['clone', '-q', '--bare', clone, origine], bac);
+const peuProfond = path.join(bac, 'peu-profond');
+const origineUrl = `file:///${origine.replace(/\\/g, '/').replace(/^\//, '')}`;
+git(['clone', '-q', '--depth', '2', origineUrl, peuProfond], bac);
+dit('sur un clone à profondeur 2, la même lecture', ['assets/main-BBBBBBBB.css', 'assets/main-BBBBBBBB.js'],
+  [...generationPrecedente(peuProfond)].sort());
+const tropPeu = path.join(bac, 'trop-peu');
+git(['clone', '-q', '--depth', '1', origineUrl, tropPeu], bac);
+dit('… à profondeur 1, HEAD sans parent compte TOUT comme ajouté : une génération de trop (A revient)', true,
+  generationPrecedente(tropPeu).includes('assets/main-AAAAAAAA.js'));
+
 /* ── (2) ON REJOUE LA PUBLICATION : effacer, copier C, garder B ──── */
 const dist = path.join(bac, 'dist');
 ecrit(dist, 'assets/main-CCCCCCCC.js', 'c');
@@ -84,6 +101,7 @@ dit('la publication lit la génération AVANT d’effacer', true,
 dit('… la garde APRÈS la copie et AVANT la comparaison', true,
   src.includes(GARDE) && src.indexOf(EFFACE) < src.indexOf(GARDE) && src.indexOf(GARDE) < src.indexOf(COMPARE));
 dit('… et passe les fichiers gardés à la porte de la comparaison', true, /for \(const f of gardes\) repris\.add\(f\);/.test(src));
+dit('… et clone à profondeur 2, pour que HEAD ait un parent', true, src.includes("['clone', '--depth', '2', '--branch', branche, '-q', origine, clone]"));
 
 rmSync(bac, { recursive: true, force: true });
 console.log(ko === 0 ? '\nLa génération précédente reste servie.' : `\n${ko} controle(s) en echec.`);
