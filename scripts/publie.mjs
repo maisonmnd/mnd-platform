@@ -212,6 +212,33 @@ export function domaineDuDepot(clone) {
   const f = path.join(clone, 'CNAME');
   return existsSync(f) ? readFileSync(f, 'utf8').trim() : '';
 }
+/* LA GÉNÉRATION PRÉCÉDENTE RESTE SERVIE — 28 septembre 2026. « Cette page ne
+   marche toujours pas, impossible de cliquer » (Yéman), sept minutes après
+   une publication : sa page d'accueil, gardée en cache dix minutes par
+   GitHub Pages, appelait encore `main-<ancien hash>.js`, que la publication
+   venait d'effacer. Une page à moitié morte, chez quiconque a ouvert le site
+   dans les dix minutes qui précèdent.
+
+   LA RÈGLE : les fichiers hachés que la publication PRÉCÉDENTE a apportés
+   (ceux que son commit a AJOUTÉS, et eux seuls : une génération en arrière,
+   jamais deux) restent dans le dépôt quand la construction ne les écrit
+   plus. Ils ne sont repris que s'ils manquent : une construction qui les
+   porte encore reste maîtresse. Le hash est celui de Vite, huit signes
+   avant l'extension, sur les scripts, les feuilles et les polices. */
+const EST_HACHE = /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css|woff2)$/;
+export function generationPrecedente(clone) {
+  const sortie = git(['diff-tree', '--no-commit-id', '--name-only', '-r', '--diff-filter=A', 'HEAD'], clone);
+  return sortie.split(/\r?\n/).map((f) => f.trim()).filter((f) => EST_HACHE.test(f));
+}
+export function gardeLaGenerationPrecedente(dist, clone, precedents) {
+  const gardes = [];
+  for (const f of precedents) {
+    if (existsSync(path.join(dist, f))) continue;
+    git(['checkout', 'HEAD', '--', f], clone);
+    gardes.push(f);
+  }
+  return gardes;
+}
 
 /** Compare le publié à la source, fichier par fichier. Rend la liste des écarts.
 
@@ -284,6 +311,8 @@ async function principal() {
       git(['config', 'user.email', mailAuteur], clone);
       /* On lit le domaine AVANT d'effacer : après, il n'y a plus rien à lire. */
       const domaine = REFONDE ? '' : domaineDuDepot(clone);
+      /* Et la génération précédente aussi, AVANT d'effacer : c'est HEAD qui la connaît. */
+      const precedents = REFONDE ? [] : generationPrecedente(clone);
       if (!REFONDE) git(['rm', '-rq', '.'], clone);
       copieObstinee(dist, clone);
 
@@ -295,6 +324,12 @@ async function principal() {
           + 'écrit. Sans cela, GitHub retirerait le domaine et le site répondrait 404.');
       }
 
+      const gardes = gardeLaGenerationPrecedente(dist, clone, precedents);
+      for (const f of gardes) repris.add(f);
+      if (gardes.length) {
+        console.log(`   ${gardes.length} fichier(s) de la génération précédente GARDÉS `
+          + '(les pages en cache pendant dix minutes les appellent encore).');
+      }
       const liste = ecarts(dist, clone, repris);
       if (liste.length) {
         /* RIEN N'EST POUSSÉ. Un site incomplet en ligne est pire qu'un site pas
