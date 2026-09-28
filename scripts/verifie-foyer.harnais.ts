@@ -2,7 +2,7 @@
    le revenu se lit hors pourboires ; la dette monte et s'éteint ; les caisses
    étanches comptent chacune chez elle. Lancé par `node scripts/verifie-foyer.mjs`. */
 import {
-  PARTAGE_DEFAUT, partageDe, partageValide, partageNormalise, enveloppesDuMois, revenuPartageDuMois,
+  PARTAGE_DEFAUT, partageDe, partageValide, partageNormalise, enveloppesDuMois, revenuPartageDuMois, occurrencesDepuis, prelevesDuMois as prelevesDepuis,
   beneficeReel, poidsDesCharges,
   prelevesDuMois, detteEnCours, pretSigneXof, pretDepassementId,
   dotationId, dotationIdLegacy, modifieLigneEpargne, caissesDe, deviseDeCaisse, soldeCaisse, mouvementsDe,
@@ -86,6 +86,26 @@ const recus: Receipt[] = [
 ];
 dit('la ligne pourboire est écartée du Partage', 70_000, revenuPartageDuMois(recus, '2026-08'));
 dit('l’autre mois ne compte pas', 88_000, revenuPartageDuMois(recus, '2026-07'));
+/* LE PARTAGE COMPTE À PARTIR D'UN JOUR — 28 septembre 2026 : la société.
+   Avant le départ, rien n'entre : ni revenu, ni retrait, ni charge, et une
+   charge récurrente ne compte que ses jours à partir du départ. */
+dit('avant le jour de départ, aucun revenu n’entre', 0,
+  revenuPartageDuMois(recus, '2026-08', '2026-09-01'));
+dit('… le jour de départ lui-même compte', 70_000,
+  revenuPartageDuMois(recus, '2026-08', recus.filter((r) => r.kind !== 'pourboire').map((r) => r.date.slice(0, 10)).sort()[0]));
+dit('… et un départ passé laisse le mois entier', 70_000, revenuPartageDuMois(recus, '2026-08', '2026-01-01'));
+const ponctuelle = { id: 'x1', branchId: 'b1', label: 'Peinture', amountXof: 10_000, date: '2026-09-10', cashbox: 'C' } as const;
+const mensuelle = { id: 'x2', branchId: 'b1', label: 'Loyer', amountXof: 300_000, date: '2026-03-05', cashbox: 'C', recurring: 'mensuel' } as const;
+const hebdo = { id: 'x3', branchId: 'b1', label: 'Ménage', amountXof: 5_000, date: '2026-03-02', cashbox: 'C', recurring: 'hebdomadaire' } as const;
+dit('une charge ponctuelle d’avant le départ ne compte pas', 0, occurrencesDepuis(ponctuelle as never, '2026-09', '2026-09-28'));
+dit('… datée du départ ou après, elle compte', 1, occurrencesDepuis({ ...ponctuelle, date: '2026-09-28' } as never, '2026-09', '2026-09-28'));
+dit('un loyer du 5 ne compte pas quand le départ est le 28', 0, occurrencesDepuis(mensuelle as never, '2026-09', '2026-09-28'));
+dit('… il compte le mois suivant, entier', 1, occurrencesDepuis(mensuelle as never, '2026-10', '2026-09-28'));
+dit('une charge hebdomadaire ne compte que ses jours à partir du départ (les lundis 28 septembre)', 1,
+  occurrencesDepuis(hebdo as never, '2026-09', '2026-09-28'));
+dit('… et tous ses lundis avant le départ, sans départ', 4, occurrencesDepuis(hebdo as never, '2026-09'));
+dit('un retrait d’avant le départ n’est pas du mois', [], prelevesDepuis(
+  [{ id: 'p', branchId: 'b1', date: '2026-09-25', beneficiaire: 'Foyer', motif: 'Maison', amountXof: 1 }], 'b1', '2026-09', '2026-09-28').map((p) => p.id));
 dit('sans ligne pourboire, rien n’est soustrait', 70_000,
   revenuPartageDuMois(recus.filter((r) => r.kind !== 'pourboire'), '2026-08'));
 

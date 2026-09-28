@@ -1,6 +1,6 @@
 import { createStore, uid, useStore } from './store';
 import { bindCollection } from './sync';
-import { coffreStore, type CoffreMovement } from './finance';
+import { coffreStore, expenseOccurrences, expenseTotal, type CoffreMovement, type Expense } from './finance';
 import type { Receipt } from './receipts';
 
 /* ═══════ SALON & FOYER — la séparation entreprise / foyer ═══════
@@ -56,6 +56,13 @@ export type PartageConfig = {
   /** Ce que chaque enveloppe recouvre, dans les mots de la Maison. Une clé
       absente ou vide retombe sur la phrase de départ (`PARTAGE_DITS`). */
   dits?: Partial<Record<CleEnveloppe, string>>;
+  /** LE PARTAGE COMPTE À PARTIR D'UN JOUR — 28 septembre 2026. « Remettre
+      tout à zéro, je n'ai pas encore commencé » (Yéman) : la Maison devient
+      une société ce jour-là, et ce qui précède est l'histoire de l'entreprise
+      individuelle. Les registres gardent tout ; le Partage, lui, ne lit rien
+      d'avant `debut` (AAAA-MM-JJ) : ni revenu, ni charge, ni retrait. Absent,
+      il compte depuis toujours, comme avant. */
+  debut?: string;
 };
 
 /** Défauts de départ — à ajuster aux vrais chiffres après quelques mois.
@@ -177,10 +184,44 @@ export const poidsDesCharges = (revenuXof: number, chargesXof: number): number |
     caisse Pourboires) : il suffit de l'écarter — c'est l'argent des maîtres,
     la Maison ne se le partage pas. (L'ancienne version soustrayait `tipXof`
     de la ligne de la facture ; la garder aurait retiré le pourboire DEUX fois.) */
-export const revenuPartageDuMois = (receipts: Receipt[], mk: string): number =>
+export const revenuPartageDuMois = (receipts: Receipt[], mk: string, debut?: string): number =>
   receipts
-    .filter((r) => r.date.slice(0, 7) === mk && r.kind !== 'pourboire')
+    .filter((r) => r.date.slice(0, 7) === mk && r.kind !== 'pourboire' && (!debut || r.date.slice(0, 10) >= debut))
     .reduce((s, r) => s + r.amountXof, 0);
+
+/* LES CHARGES DU PARTAGE, DEPUIS LE JOUR DE DÉPART. Le mois entier vaut
+   `expenseOccurrences` tel quel. Quand le départ tombe DANS le mois, une
+   charge ponctuelle compte si elle est datée du départ ou après ; une charge
+   mensuelle compte si son jour du mois (celui de sa première date, ramené à
+   la fin du mois si le mois est plus court) tombe le jour du départ ou
+   après ; une charge hebdomadaire ne compte que ses jours à partir du
+   départ. Avant le mois du départ, rien. Suspendue ou arrêtée, rien non plus,
+   comme partout. */
+export function occurrencesDepuis(e: Expense, mk: string, debut?: string): number {
+  if (!debut || debut.slice(0, 7) < mk) return expenseOccurrences(e, mk);
+  if (debut.slice(0, 7) > mk) return 0;
+  if (e.stopped || e.paused) return 0;
+  const date = (e.date ?? '').slice(0, 10);
+  if (!e.recurring) return date.slice(0, 7) === mk && date >= debut ? 1 : 0;
+  if (date.slice(0, 7) > mk) return 0;
+  const [y, m] = mk.split('-').map(Number);
+  if (!y || !m) return 0;
+  const fin = new Date(y, m, 0).getDate();
+  if (e.recurring === 'mensuel') {
+    const jour = Math.min(Number(date.slice(8, 10)) || 1, fin);
+    return `${mk}-${String(jour).padStart(2, '0')}` >= debut ? 1 : 0;
+  }
+  const semaine = new Date(`${date}T12:00:00`).getDay();
+  let n = 0;
+  for (let d = 1; d <= fin; d += 1) {
+    if (new Date(y, m - 1, d).getDay() === semaine && `${mk}-${String(d).padStart(2, '0')}` >= debut) n += 1;
+  }
+  return n;
+}
+export const chargesDuPartage = (expenses: Expense[], branchId: string, mk: string, debut?: string): number =>
+  expenses
+    .filter((e) => e.branchId === branchId && !e.stopped)
+    .reduce((s, e) => s + expenseTotal(e) * occurrencesDepuis(e, mk, debut), 0);
 
 /* ---------- Prélèvements associés — l'annexe du foyer ---------- */
 
@@ -238,8 +279,8 @@ export const useMotifsFoyer = () => useStore(motifsFoyerStore);
 export const prelevementsStore = createStore<Prelevement[]>('mnd_prelevements', []);
 export const usePrelevements = () => useStore(prelevementsStore);
 
-export const prelevesDuMois = (l: Prelevement[], branchId: string, mk: string): Prelevement[] =>
-  l.filter((p) => p.branchId === branchId && p.date.slice(0, 7) === mk);
+export const prelevesDuMois = (l: Prelevement[], branchId: string, mk: string, debut?: string): Prelevement[] =>
+  l.filter((p) => p.branchId === branchId && p.date.slice(0, 7) === mk && (!debut || p.date.slice(0, 10) >= debut));
 
 /* ---------- Prêts associés — le dépassement devient une dette ---------- */
 

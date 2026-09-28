@@ -15,7 +15,7 @@ import { buildReceipts } from '../../../../shared/receipts';
 import { apptLabel, useServicesById } from '../clients/_shared';
 import {
   usePartageConfigs, usePrelevements, usePrets, useCaissesIndep, useMouvementsCaisse,
-  partageDe, partageValide, partageNormalise, enveloppesDuMois, revenuPartageDuMois,
+  partageDe, partageValide, partageNormalise, enveloppesDuMois, revenuPartageDuMois, chargesDuPartage,
   beneficeReel, poidsDesCharges,
   prelevesDuMois, detteEnCours, pretSigneXof, pretDepassementId, pretDepassementIdLegacy,
   caissesDe, deviseDeCaisse, soldeCaisse, mouvementsDe,
@@ -191,22 +191,23 @@ export default function SalonFoyer() {
 
   const cfg = partageDe(configs, branch.id);
   const parts = partageNormalise(cfg);
-  const revenu = useMemo(() => revenuPartageDuMois(receipts, month), [receipts, month]);
+  const revenu = useMemo(() => revenuPartageDuMois(receipts, month, cfg.debut), [receipts, month, cfg.debut]);
   /* Même règle qu'à Dépenses et à la Synthèse : une récurrente active pèse sur
      chaque mois qu'elle traverse — et une dépense SUSPENDUE ne pèse sur aucun
      (12 août : le filtre `!e.stopped` manquait ici seul ; « Suspendre tout
      l'évitable » faisait diverger le bénéfice du Partage de la Synthèse, et un
      faux dépassement pouvait se convertir en prêt fantôme). */
+  /* Depuis le jour de départ du Partage, s'il est fixé (voir `occurrencesDepuis`). */
   const chargesMois = useMemo(
-    () => expenses.filter((e) => e.branchId === branch.id && !e.stopped).reduce((s, e) => s + expenseTotal(e) * expenseOccurrences(e, month), 0),
-    [expenses, branch.id, month],
+    () => chargesDuPartage(expenses, branch.id, month, cfg.debut),
+    [expenses, branch.id, month, cfg.debut],
   );
   /* LE PARTAGE PORTE SUR LE BÉNÉFICE (11 août) : les charges se paient
      d'abord, à leur montant réel, et c'est ce qui RESTE qui se partage. */
   const benefice = beneficeReel(revenu, chargesMois);
   const env = enveloppesDuMois(benefice, cfg);
   const poidsCharges = poidsDesCharges(revenu, chargesMois);
-  const duMois = prelevesDuMois(prelevements, branch.id, month).sort((a, b) => b.date.localeCompare(a.date));
+  const duMois = prelevesDuMois(prelevements, branch.id, month, cfg.debut).sort((a, b) => b.date.localeCompare(a.date));
   /* LE JOURNAL PAR JOURNÉES (15 août, demande de Yéman) — « besoin du total de
      cette journée-là du 14 août ». Une liste plate de retraits ne répond pas à
      « combien est sorti ce jour-là » : il fallait additionner de tête. Chaque
@@ -321,7 +322,7 @@ export default function SalonFoyer() {
   /* `sens` suit le type du mouvement, retrait compris (22 août) — le figer à
      deux valeurs faisait échouer la compilation dès qu'un troisième est né. */
   const [editEpa, setEditEpa] = useState<null | { id: string; date: string; enveloppe: EnveloppeReserve; sens: CoffreMovement['kind']; note: string; montant: string }>(null);
-  const [fCfg, setFCfg] = useState<null | { charges: string; reinvest: string; reserve: string; prelevement: string }>(null);
+  const [fCfg, setFCfg] = useState<null | { charges: string; reinvest: string; reserve: string; prelevement: string; debut: string }>(null);
   /* Les définitions se modifient à part : changer un pourcentage est un acte
      financier, renommer une enveloppe n'en est pas un. Deux gestes, deux
      boutons — et chacun préserve ce que l'autre a écrit. */
@@ -659,6 +660,7 @@ export default function SalonFoyer() {
   const cfgForm = fCfg ?? {
     charges: String(cfg.pctCharges), reinvest: String(parts.reinvest),
     reserve: String(parts.reserve), prelevement: String(parts.prelevement),
+    debut: cfg.debut ?? '',
   };
   const cfgNum = {
     pctCharges: litXof(cfgForm.charges), pctReinvest: litXof(cfgForm.reinvest),
@@ -669,7 +671,7 @@ export default function SalonFoyer() {
   const cfgTotal = cfgNum.pctReinvest + cfgNum.pctReserve + cfgNum.pctPrelevement;
   const sauveCfg = () => {
     if (!partageValide(cfgNum)) return;
-    const ligne: PartageConfig = { id: `pc-${branch.id}`, branchId: branch.id, ...cfgNum, dits: cfg.dits };
+    const ligne: PartageConfig = { id: `pc-${branch.id}`, branchId: branch.id, ...cfgNum, dits: cfg.dits, ...(cfgForm.debut ? { debut: cfgForm.debut } : {}) };
     setConfigs((prev) => [...prev.filter((c) => c.branchId !== branch.id), ligne]);
     setFCfg(null);
   };
@@ -686,14 +688,18 @@ export default function SalonFoyer() {
       pctCharges: cfg.pctCharges, pctReinvest: cfg.pctReinvest,
       pctReserve: cfg.pctReserve, pctPrelevement: cfg.pctPrelevement,
       dits,
+      ...(cfg.debut ? { debut: cfg.debut } : {}),
     };
     setConfigs((prev) => [...prev.filter((c) => c.branchId !== branch.id), ligne]);
     setFDits(null);
   };
 
+  const depuisLeDepart = cfg.debut && cfg.debut.slice(0, 7) === month
+    ? ` · depuis le ${cfg.debut.slice(8, 10)}/${cfg.debut.slice(5, 7)}, jour de départ du Partage`
+    : '';
   const kpis = [
-    { l: 'Revenu encaissé du mois', v: fmtMoney(revenu, currency), c: 'hors pourboires · registre des encaissements', a: 'var(--color-indigo)' },
-    { l: 'Charges salon réelles', v: fmtMoney(chargesMois, currency), c: 'le registre Dépenses, récurrentes comprises', a: 'var(--color-copper)' },
+    { l: 'Revenu encaissé du mois', v: fmtMoney(revenu, currency), c: `hors pourboires · registre des encaissements${depuisLeDepart}`, a: 'var(--color-indigo)' },
+    { l: 'Charges salon réelles', v: fmtMoney(chargesMois, currency), c: `le registre Dépenses, récurrentes comprises${depuisLeDepart}`, a: 'var(--color-copper)' },
     {
       l: 'Bénéfice réel du salon', v: fmtMoney(benefice, currency),
       c: 'revenu − charges salon. C’est ça, la santé du salon.',
@@ -2160,6 +2166,20 @@ export default function SalonFoyer() {
               <Field label="Réserve fiscale & imprévus (%)"><Input inputMode="numeric" value={cfgForm.reserve} onChange={(e) => setFCfg({ ...cfgForm, reserve: e.target.value })} /></Field>
               <Field label="Prélèvement Associés (%)"><Input inputMode="numeric" value={cfgForm.prelevement} onChange={(e) => setFCfg({ ...cfgForm, prelevement: e.target.value })} /></Field>
               <Field label="Repère de charges (% du revenu)"><Input inputMode="numeric" value={cfgForm.charges} onChange={(e) => setFCfg({ ...cfgForm, charges: e.target.value })} /></Field>
+            </div>
+            {/* LE PARTAGE COMPTE À PARTIR D'UN JOUR — 28 septembre 2026, la société.
+                Rien d'avant n'entre ici ; les registres gardent tout. */}
+            <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, alignItems: 'end' }}>
+              <Field label="Le Partage compte à partir du">
+                <ChampDeDate compact sens="arriere" value={cfgForm.debut} onChange={(iso) => setFCfg({ ...cfgForm, debut: iso })} />
+              </Field>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="trf-act trf-act--ghost" onClick={() => setFCfg({ ...cfgForm, debut: new Date().toISOString().slice(0, 10) })}>Compter à partir d’aujourd’hui</button>
+                {cfgForm.debut && <button className="trf-act trf-act--ghost" onClick={() => setFCfg({ ...cfgForm, debut: '' })}>Depuis toujours</button>}
+              </div>
+              <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.55, gridColumn: '1 / -1' }}>
+                Avant ce jour, rien n’entre dans le Partage : ni revenu, ni charge, ni retrait. Les registres (encaissements, dépenses, caisses) gardent toute l’histoire. Vide, le Partage compte depuis toujours.
+              </div>
             </div>
             <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: cfgTotal === 100 ? 'var(--trf-success)' : 'var(--trf-error)' }}>
