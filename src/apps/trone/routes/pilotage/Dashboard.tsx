@@ -35,6 +35,7 @@ import './pilotage.css';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
+import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque } from '../../../../shared/demandes';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
@@ -61,6 +62,16 @@ const payISO = (d: string): string => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { branch, currency } = useBranch();
+  /* LES DEMANDES DU SITE SUR LE TABLEAU DE BORD — 28 septembre 2026 :
+     « demande de RDV doit venir sur le tableau de bord » (Yéman). Les
+     demandes NOUVELLES de la branche, rendez-vous et rappels, les plus
+     récentes d'abord ; chacune s'ouvre dans Demandes, et un rendez-vous déjà
+     posé s'ouvre au calendrier, à son jour. */
+  const [demandes] = useDemandes();
+  const demandesRows = useMemo(
+    () => demandesTriees(demandes.filter((d) => d.branchId === branch.id && d.statut === 'nouvelle')),
+    [demandes, branch.id],
+  );
   const [appels] = useAppels();
   const appelsAFaire = appelsAActer(appels, branch.id);
   const demainAppel = addDaysISO(todayISO(), 1);
@@ -871,6 +882,32 @@ export default function Dashboard() {
       {/* Ce qui presse — chaque alerte porte son GESTE : réassort → le bon,
           impayés échus → la section qui les encaisse. L'ancienne tuile
           « Alertes stock : 5 » constatait ; ici l'écran tend la main. */}
+      <div className="trp-panel" style={{ marginTop: 14 }}>
+        <div className="trp-panel__title">
+          Demandes du site · rendez-vous et rappels{demandesRows.length > 0 ? ` · ${demandesRows.length}` : ''}
+        </div>
+        {demandesRows.length === 0
+          ? <div className="trp-empty">Aucune demande en attente. Celles du site arrivent ici, dès qu’elles sont envoyées.</div>
+          : demandesRows.map((d, i) => (
+            <div
+              key={d.id}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--hairline)', flexWrap: 'wrap' }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontWeight: 500 }}>{d.prenom || 'Sans prénom'}</span>
+                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 12 }}>
+                  {ditLeGenre(d.genre)} · {ditLeBesoin(d.besoin)}
+                  {d.date ? ` · le ${d.date.slice(8, 10)}/${d.date.slice(5, 7)}${d.time ? ` à ${d.time}` : ''}` : ''}
+                  {' · '}{telephoneMasque(d.telephone)} · {depuisQuand(d.createdAt)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {d.apptId && <button className="trp-af-pill" onClick={() => navigate('/calendrier')}>Le calendrier</button>}
+                <button className="trp-pay__cta" onClick={() => navigate('/demandes')}>Traiter</button>
+              </div>
+            </div>
+          ))}
+      </div>
       <div className="trp-panel" style={{ marginTop: 14 }}>
         <div className="trp-panel__title">Ce qui presse</div>
         {presseRows.length === 0
