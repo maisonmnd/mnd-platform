@@ -3,7 +3,7 @@ import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison, offresDuSite, type OffreDuSite } from '../maison';
 import { campagne, mesure } from '../mesure';
 import {
-  agendaDeLaMaison, creneauxOccupes, groupesDePrestations, heuresLibres,
+  agendaEnCache, calendrierDuSite, creneauxOccupes, groupesDePrestations, heuresLibres,
   jourCourt, jourDit, prestationsReservables, prochainsJours, PLAFOND_GESTES,
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
@@ -159,7 +159,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const besoin: Besoin = besoinInitial || besoinDeLAdresse() || 'inconnu';
   const consultation = porteDuBesoin(besoin) === 'consultation';
 
-  const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(undefined);
+  /* L'agenda de la dernière visite s'affiche tout de suite, le frais le remplace (voir calendrierDuSite). */
+  const [agenda, setAgenda] = useState<AgendaDeLaMaison | null | undefined>(() => agendaEnCache() ?? undefined);
   const [occupes, setOccupes] = useState<CreneauOccupe[]>([]);
   const [whatsapp, setWhatsapp] = useState('');
   const [devise, setDevise] = useState('XOF');
@@ -202,20 +203,17 @@ function Calendrier({ besoin: besoinInitial }: Props) {
 
   useEffect(() => {
     let vivant = true;
-    void maison().then(async (m) => {
+    void maison().then((m) => {
       if (!vivant) return;
       setWhatsapp(m?.whatsapp ?? '');
       setDevise(m?.devise ?? 'XOF');
-      if (!m) { setAgenda(null); return; }
-      const a = await agendaDeLaMaison(m.branchId);
+    }).catch(() => { /* le numéro garde celui du registre */ });
+    const jours = prochainsJours(JOURS_PROPOSES);
+    void calendrierDuSite(jours[0], jours[jours.length - 1]).then(({ agenda: a, occupes: pris }) => {
       if (!vivant) return;
       setAgenda(a);
-      if (a) {
-        const jours = prochainsJours(JOURS_PROPOSES);
-        const pris = await creneauxOccupes(a.branchId, jours[0], jours[jours.length - 1]);
-        if (vivant) setOccupes(pris);
-      }
-    }).catch(() => { if (vivant) setAgenda(null); });
+      setOccupes(pris);
+    }).catch(() => { if (vivant) setAgenda((prec) => prec ?? null); });
     return () => { vivant = false; };
   }, []);
 

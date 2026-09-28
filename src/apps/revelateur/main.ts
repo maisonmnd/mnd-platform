@@ -91,3 +91,12 @@ if (barre && document.body.classList.contains('accueil-plein')) {
   addEventListener('scroll', suit, { passive: true });
 }
 void maison().then((m) => { if (m?.whatsapp) relieWhatsApp(m.whatsapp); });
+/* LE CALENDRIER SE CHARGE PENDANT QUE SON CODE ARRIVE — 28 septembre 2026 :
+   sur une page qui porte la réservation, les données partent dès l'ouverture,
+   en parallèle du téléchargement de l'îlot (voir calendrierDuSite). */
+if (document.querySelector('[data-ilot="reserver"]')) {
+  void import('./agenda').then(({ calendrierDuSite, prochainsJours, JOURS_DU_CALENDRIER }) => {
+    const jours = prochainsJours(JOURS_DU_CALENDRIER);
+    void calendrierDuSite(jours[0], jours[jours.length - 1]).catch(() => { /* l'îlot réessaiera */ });
+  });
+}

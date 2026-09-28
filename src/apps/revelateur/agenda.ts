@@ -87,11 +87,15 @@ type Doc<T> = { key: string; data: T };
 let promesse: Promise<AgendaDeLaMaison | null> | null = null;
 
 /** Tout ce que le calendrier a besoin de savoir, lu une seule fois. */
-export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | null> {
+/* SANS BRANCHE DONNÉE, LA BRANCHE VEDETTE — 28 septembre 2026. Les
+   branches arrivent déjà dans le même lot que le reste : attendre `maison()`
+   avant de lancer ce lot ajoutait un aller-retour entier à la base. La règle
+   est celle de `maison()` : la vedette active, sinon la première. */
+export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMaison | null> {
   if (promesse) return promesse;
   promesse = (async () => {
     const supabase = await client();
-    if (!supabase || !branchId) return null;
+    if (!supabase) return null;
     const [services, categories, docs, blocages, branches] = await Promise.all([
       supabase.from('catalog_services').select('id,data'),
       supabase.from('catalog_categories').select('id,data'),
@@ -108,8 +112,13 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
     const bandSets = ((docs.data ?? []) as Doc<Record<string, Bande[]>>[]).find((d) => d.key === 'mnd_model_band_sets')?.data;
     const exceptions = ((docs.data ?? []) as Doc<ExceptionDHoraire[]>[])
       .find((d) => d.key === 'mnd_horaires_exceptions')?.data ?? [];
-    const branche = ((branches.data ?? []) as { id: string; data?: { masters?: string[]; seats?: number } }[])
-      .find((b) => b.id === branchId);
+    type LigneBranche = { id: string; data?: { masters?: string[]; seats?: number; flagship?: boolean; status?: string } };
+    const toutes = (branches.data ?? []) as LigneBranche[];
+    const branche = branchIdDonne
+      ? toutes.find((b) => b.id === branchIdDonne)
+      : toutes.find((b) => b.data?.flagship && b.data?.status !== 'paused') ?? toutes[0];
+    if (!branche) return null;
+    const branchId = branche.id;
     const masques = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite }>[])
       .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {};
 
@@ -140,6 +149,50 @@ export function agendaDeLaMaison(branchId: string): Promise<AgendaDeLaMaison | n
     Couronne : si la fonction n'est pas posée ou si le réseau tombe, on rend
     une liste vide. Mieux vaut proposer une heure déjà prise, que le serveur
     refusera à l'écriture, que de fermer le salon tout entier. */
+/* LE CALENDRIER DU SITE, EN UN SEUL ALLER-RETOUR — 28 septembre 2026. « Sur
+   le site le calendrier prend du temps pour se charger » (Yéman). Il
+   attendait trois réponses l'une après l'autre (la Maison, puis l'agenda,
+   puis les créneaux pris), chacune d'environ six dixièmes de seconde depuis
+   la base, davantage depuis Cotonou. Désormais :
+     · l'agenda part seul, sans attendre la Maison (il lit la branche lui-même) ;
+     · les créneaux pris partent EN MÊME TEMPS quand la branche est déjà
+       connue de la visite précédente ;
+     · l'agenda de la dernière visite s'affiche TOUT DE SUITE, puis se
+       remplace par le frais. Le serveur revérifie de toute façon l'heure
+       et le prix à l'envoi : un agenda d'hier ne peut rien réserver de faux ;
+     · la page lance tout cela dès son ouverture (main.ts), pendant que le
+       code du calendrier se télécharge encore. */
+const CLE_AGENDA = 'mnd_site_agenda_v1';
+const CLE_BRANCHE = 'mnd_site_branche';
+const JOURS_DU_SITE = 21;
+
+export function agendaEnCache(): AgendaDeLaMaison | null {
+  try {
+    const brut = localStorage.getItem(CLE_AGENDA);
+    return brut ? (JSON.parse(brut) as AgendaDeLaMaison) : null;
+  } catch { return null; }
+}
+
+let calendrier: Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> | null = null;
+export function calendrierDuSite(du: string, au: string): Promise<{ agenda: AgendaDeLaMaison | null; occupes: CreneauOccupe[] }> {
+  if (calendrier) return calendrier;
+  calendrier = (async () => {
+    let devine = '';
+    try { devine = localStorage.getItem(CLE_BRANCHE) ?? ''; } catch { /* pas de stockage */ }
+    const pris = devine ? creneauxOccupes(devine, du, au) : null;
+    const agenda = await agendaDeLaMaison();
+    if (!agenda) return { agenda: null, occupes: [] };
+    try {
+      localStorage.setItem(CLE_AGENDA, JSON.stringify(agenda));
+      localStorage.setItem(CLE_BRANCHE, agenda.branchId);
+    } catch { /* tant pis */ }
+    const occupes = pris && devine === agenda.branchId ? await pris : await creneauxOccupes(agenda.branchId, du, au);
+    return { agenda, occupes };
+  })();
+  return calendrier;
+}
+export const JOURS_DU_CALENDRIER = JOURS_DU_SITE;
+
 export async function creneauxOccupes(branchId: string, du: string, au: string): Promise<CreneauOccupe[]> {
   const supabase = await client();
   if (!supabase) return [];
