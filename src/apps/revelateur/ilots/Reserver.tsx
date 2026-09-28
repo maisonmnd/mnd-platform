@@ -14,6 +14,7 @@ import {
   ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
+import { lienLu } from '../../../shared/lien-reservation';
 import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
@@ -170,7 +171,12 @@ function Calendrier({ besoin: besoinInitial }: Props) {
      qui vient sur le site, elle doit choisir son palier de nombre de locks
      pour que son prix soit ajusté » (Yéman). '' = pas encore dit,
      'inconnu' = elle ne sait pas (prix de la carte, compté au fauteuil). */
-  const [calibreId, setCalibreId] = useState<string>('');
+  /* LE LIEN PRÉPARÉ PAR LA MAISON — 28 septembre 2026 : `?gestes=…&calibre=…`
+     arrive de Conversations ; les gestes se cochent, le calibre se dit, et
+     la cliente va droit au jour et à l'heure. Lu une fois, à l'ouverture. */
+  const [prepare] = useState(() => lienLu(typeof location === 'undefined' ? '' : location.search));
+  const [preparee, setPreparee] = useState(false);
+  const [calibreId, setCalibreId] = useState<string>(prepare.calibre);
   /* L'assistant : la famille en cours, et « toutes vues ». */
   const [rang, setRang] = useState(0);
   const [repondu, setRepondu] = useState(false);
@@ -228,6 +234,15 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     [agenda, besoin],
   );
   const bandes = useMemo(() => bandesTriees(agenda?.bandes ?? []), [agenda]);
+  /* Le lien préparé s'applique quand le catalogue est là : les gestes que la
+     porte ne propose pas sont écartés, un calibre inconnu se redemande. */
+  useEffect(() => {
+    if (!agenda || preparee) return;
+    setPreparee(true);
+    if (prepare.calibre && prepare.calibre !== 'inconnu' && !bandes.some((b) => b.id === prepare.calibre)) setCalibreId('');
+    const ok = prepare.gestes.filter((id) => prestations.some((p) => p.id === id)).slice(0, PLAFOND_GESTES);
+    if (ok.length) { setServiceIds(ok); setRepondu(true); }
+  }, [agenda, preparee, prepare, prestations, bandes]);
   const bandeChoisie = bandes.find((b) => b.id === calibreId);
   const ctx = useMemo<ContexteDuCalibre | undefined>(
     () => (agenda && bandeChoisie
@@ -505,6 +520,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   ) : null;
   const resumeDesReponses = (
     <div className="assistant__resume">
+      {prepare.gestes.length > 0 && serviceIds.some((id) => prepare.gestes.includes(id)) && (
+        <p className="legende">La Maison a préparé votre venue. Changez un geste si vous le souhaitez, puis choisissez votre jour.</p>
+      )}
       {familles.map((g) => {
         const pris = g.items.filter((x) => serviceIds.includes(x.id));
         return (

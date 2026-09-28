@@ -33,6 +33,7 @@ import {
   type PieceRendue, type Geste,
 } from './_gestes';
 import './clients.css';
+import { LienDeReservation } from './LienDeReservation';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -170,6 +171,8 @@ export default function Conversations() {
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
   )).aRegarder, [lesEnvois]);
   const [texte, setTexte] = useState('');
+  /* Le lien de réservation préparé (28 septembre 2026). */
+  const [lienOuvert, setLienOuvert] = useState(false);
   const [envoiEnCours, setEnvoi] = useState(false);
   const [voirPrives, setVoirPrives] = useState(false);
   /* LES FILS ARCHIVÉS — 15 septembre 2026. La vue les retrouve ; la
@@ -1107,6 +1110,7 @@ export default function Conversations() {
                       <span className="trc-sub" style={{ fontSize: 11, marginRight: 'auto' }}>
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
+                      <Button variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
                       <Button
                         variant="copper"
                         size="sm"
@@ -1152,6 +1156,13 @@ export default function Conversations() {
           La direction seule en crée : une remise est de l'argent qui sort.
           La vraie barrière est la RLS (0093) ; celle-ci n'est que la
           politesse de ne pas montrer un bouton qui refusera. */}
+      {lienOuvert && fil && (
+        <LienDeReservation
+          prenom={fil.nom.split(' ')[0] ?? ''}
+          surMessage={(m) => { setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
+          surFermer={() => setLienOuvert(false)}
+        />
+      )}
       {promoOuverte && fil?.clientId && (
         <PanneauDeLaPromo
           tete={{ id: fil.clientId, name: fil.nom }}
