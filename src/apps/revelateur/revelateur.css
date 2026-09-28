@@ -1443,3 +1443,22 @@ body.galerie-plein { scroll-behavior: smooth; }
 .assistant__ligne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--filet); font-size: 15px; }
 .assistant__famille { color: var(--texte-doux); }
 @media (max-width: 520px) { .assistant__ligne { grid-template-columns: 1fr; gap: 2px; } }
+
+/* LES CASES À COCHER DU DIAGNOSTIC — 28 septembre 2026. Aux questions à
+   plusieurs réponses, la pastille ronde devient une case carrée, et une
+   réponse cochée se voit : cadre cuivre, fond clair, coche blanche. Dans la
+   carte ivoire de l'accueil, les boutons reprennent leurs couleurs du clair :
+   la règle des bandes sombres ne vaut pas dans une carte claire. */
+.reponse--case i { border-radius: 3px; display: grid; place-items: center; color: #fff; }
+.reponse i svg { width: 12px; height: 12px; display: none; }
+.reponse[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-clair); }
+.reponse[aria-pressed="true"] i { background: var(--accent); border-color: var(--accent); }
+.reponse[aria-pressed="true"] i svg { display: block; }
+.diag__quiz .btn { color: var(--titre); border-color: rgba(30, 33, 80, .38); }
+.diag__quiz .btn:hover { border-color: var(--titre); background: rgba(30, 33, 80, .05); }
+.diag__quiz .btn--fort { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
+.diag__quiz .btn--fort:hover { background: var(--fort); filter: brightness(1.12); }
+.diag__quiz .btn--plein { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.diag__quiz .btn--lien { color: var(--accent-profond); border-color: transparent; }
+.diag__quiz .sortie .btn { color: #F6F1E7; border-color: rgba(246, 241, 231, .4); }
+.diag__quiz .sortie .btn--lien { color: var(--accent-sombre); }

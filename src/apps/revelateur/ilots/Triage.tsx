@@ -23,8 +23,13 @@ import type { Besoin } from '../../../shared/qualification';
    quel que soit le flacon. */
 
 type Cle = 'etat' | 'cheveu' | 'cuir' | 'soucis' | 'rythme';
-type Question = { cle: Cle; titre: string; multi?: boolean; reponses: [string, string][] };
-type Reponses = { etat?: string; cheveu?: string; cuir?: string; soucis?: string[]; rythme?: string };
+/* DEUX QUESTIONS SE COCHENT — 28 septembre 2026 : « sur la page 3 et 4 du
+   diagnostic, crée des cases à cocher, plusieurs options sont possibles »
+   (Yéman). Le cuir chevelu et les préoccupations acceptent plusieurs
+   réponses ; chacune a une réponse « rien de tout ça » (`exclusif`) qui
+   efface les autres, et que toute autre efface. */
+type Question = { cle: Cle; titre: string; multi?: boolean; exclusif?: string; reponses: [string, string][] };
+type Reponses = { etat?: string; cheveu?: string; cuir?: string[]; soucis?: string[]; rythme?: string };
 type Porte = { besoin: Besoin; sur: string; titre: string; texte: string; vers: string; bouton: string; image: string };
 
 const QUESTIONS: Question[] = [
@@ -35,11 +40,11 @@ const QUESTIONS: Question[] = [
   { cle: 'cheveu', titre: 'Votre cheveu, au naturel', reponses: [
     ['fin', 'Fin et souple'], ['epais', 'Dense et épais'], ['moyen', 'Entre les deux'], ['inconnu', 'Je ne sais pas'],
   ] },
-  { cle: 'cuir', titre: 'Votre cuir chevelu', reponses: [
+  { cle: 'cuir', titre: 'Votre cuir chevelu', multi: true, exclusif: 'ok', reponses: [
     ['sec', 'Il tiraille, il est sec'], ['gras', 'Il regraisse vite, il démange'], ['ok', 'Il est plutôt tranquille'],
     ['sensible', 'Il est sensible : pellicules, irritations'],
   ] },
-  { cle: 'soucis', titre: 'Ce qui vous préoccupe', multi: true, reponses: [
+  { cle: 'soucis', titre: 'Ce qui vous préoccupe', multi: true, exclusif: 'rien', reponses: [
     ['casse', 'Casse ou amincissement'], ['racines', 'Racines à reprendre'], ['secheresse', 'Sécheresse des longueurs'],
     ['residus', 'Résidus ou odeur après le lavage'], ['changement', 'Envie de changement : couleur, forme'], ['rien', 'Rien, je veux garder le cap'],
   ] },
@@ -82,7 +87,7 @@ export function composeLaRoutine(r: Reponses): Routine {
     ok: 'Un lavage doux tous les sept à dix jours, une brume d’eau les autres jours.',
     sensible: 'Un lavage apaisant, sans sulfates ni parfum, puis quelques gouttes d’un sérum calmant sur le cuir chevelu.',
   };
-  if (r.cuir && parCuir[r.cuir]) semaine.push(parCuir[r.cuir]);
+  for (const k of r.cuir ?? []) if (parCuir[k]) semaine.push(parCuir[k]);
   semaine.push('Dormez sous un foulard ou une taie en satin : c’est la moitié de l’hydratation.');
   if (s.has('secheresse')) semaine.push('Sur les longueurs, un lait hydratant léger une fois par semaine, jamais de beurre épais.');
   if (s.has('residus')) semaine.push('Rincez longtemps, essorez à la serviette microfibre, séchez complètement : l’odeur vient de l’humidité qui reste.');
@@ -117,9 +122,10 @@ export function composeLaRoutine(r: Reponses): Routine {
 function routineEnTexte(r: Reponses, t: Routine): string {
   const mot = (cle: Cle, v?: string) => QUESTIONS.find((q) => q.cle === cle)?.reponses.find(([k]) => k === v)?.[1] ?? '';
   const soucis = (r.soucis ?? []).map((v) => mot('soucis', v)).filter(Boolean).join(', ');
+  const cuir = (r.cuir ?? []).map((v) => mot('cuir', v)).filter(Boolean).join(', ');
   return [
     'Mon diagnostic locks (maisonmnd) :',
-    `État : ${mot('etat', r.etat)}. Cheveu : ${mot('cheveu', r.cheveu)}. Cuir chevelu : ${mot('cuir', r.cuir)}.`,
+    `État : ${mot('etat', r.etat)}. Cheveu : ${mot('cheveu', r.cheveu)}. Cuir chevelu : ${cuir || 'non dit'}.`,
     `Préoccupations : ${soucis || 'aucune'}. Rythme : ${mot('rythme', r.rythme)}.`,
     `Ma porte : ${t.porte.sur}.`,
     `Chaque semaine : ${t.semaine.join(' ')}`,
@@ -144,10 +150,10 @@ export default function Triage() {
   const repond = (q: Question, v: string) => {
     if (etape === 0) mesure('triage_commence');
     if (q.multi) {
-      const choisis = new Set(rep.soucis ?? []);
-      if (v === 'rien') choisis.clear(); else choisis.delete('rien');
+      const choisis = new Set((rep[q.cle] as string[] | undefined) ?? []);
+      if (q.exclusif && v === q.exclusif) choisis.clear(); else if (q.exclusif) choisis.delete(q.exclusif);
       if (choisis.has(v)) choisis.delete(v); else choisis.add(v);
-      setRep({ ...rep, soucis: [...choisis] });
+      setRep({ ...rep, [q.cle]: [...choisis] });
       return;
     }
     const suivant = { ...rep, [q.cle]: v };
@@ -158,9 +164,14 @@ export default function Triage() {
     }
     setEtape(etape + 1);
   };
-  const continueMulti = () => {
-    const suivant = rep.soucis?.length ? rep : { ...rep, soucis: ['rien'] };
+  const continueMulti = (q: Question) => {
+    const deja = (rep[q.cle] as string[] | undefined) ?? [];
+    const suivant = deja.length || !q.exclusif ? rep : { ...rep, [q.cle]: [q.exclusif] };
     setRep(suivant);
+    if (etape + 1 >= QUESTIONS.length) {
+      const t = composeLaRoutine(suivant);
+      mesure('triage_termine', { sortie: t.porte.besoin, parcours: t.porte.besoin });
+    }
     setEtape(etape + 1);
   };
   const recommence = () => { setRep({}); setEtape(0); };
@@ -169,7 +180,7 @@ export default function Triage() {
     return <Resultat rep={rep} routine={routine} numero={numero} recommence={recommence} />;
   }
   const q = QUESTIONS[etape];
-  const choisis = new Set(q.multi ? rep.soucis ?? [] : []);
+  const choisis = new Set(q.multi ? ((rep[q.cle] as string[] | undefined) ?? []) : []);
   return (
     <div className="triage">
       <div className="etapes">{QUESTIONS.map((x, i) => <span key={x.cle} className={i < etape ? 'fait' : ''} />)}</div>
@@ -178,14 +189,14 @@ export default function Triage() {
         <h2>{q.titre}</h2>
         <div className="reponses">
           {q.reponses.map(([v, texte]) => (
-            <button type="button" className="reponse" key={v} aria-pressed={q.multi ? choisis.has(v) : undefined} onClick={() => repond(q, v)}>
-              <i /><span>{texte}</span>
+            <button type="button" className={`reponse${q.multi ? ' reponse--case' : ''}`} key={v} aria-pressed={q.multi ? choisis.has(v) : undefined} onClick={() => repond(q, v)}>
+              <i aria-hidden="true">{q.multi && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path d="M5 12l5 5 9-11" /></svg>}</i><span>{texte}</span>
             </button>
           ))}
         </div>
         <div className="rangee" style={{ marginTop: 18, justifyContent: 'space-between' }}>
           {etape > 0 ? <button type="button" className="btn btn--lien retour" onClick={() => setEtape(etape - 1)}>Revenir</button> : <span />}
-          {q.multi && <button type="button" className="btn btn--fort" onClick={continueMulti}>Continuer</button>}
+          {q.multi && <button type="button" className="btn btn--fort" onClick={() => continueMulti(q)}>Continuer{choisis.size > 0 ? ` (${choisis.size})` : ''}</button>}
         </div>
       </div>
     </div>
