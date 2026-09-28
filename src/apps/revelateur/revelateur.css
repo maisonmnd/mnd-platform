@@ -826,8 +826,10 @@ footer li svg { width: 15px; height: 15px; flex: none; }
    vit dans un ::before, sous le texte). Deux copies, l'une muette : la boucle
    n'a pas de couture. Qui demande moins de mouvement lit la phrase immobile,
    une fois. */
-.hero-plein__bande { position: relative; z-index: 2; overflow: hidden; background: rgba(21, 23, 58, .78); border-block: 1px solid rgba(214, 160, 111, .38); padding-block: 13px; backdrop-filter: blur(3px); }
-.hero-plein__bande::before { content: ''; position: absolute; inset: 0; background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 200px repeat; opacity: .28; pointer-events: none; }
+/* SANS BANDE NI MOTIF — 28 septembre 2026, le soir même : « enlève la bande
+   indigo habillée de l'allover, cela alourdit » (Yéman). La phrase glisse à
+   même le premier écran, un seul filet cuivre au-dessus pour la tenir. */
+.hero-plein__bande { position: relative; z-index: 2; overflow: hidden; background: transparent; border-top: 1px solid rgba(214, 160, 111, .3); padding-block: 14px; }
 .bande__piste { position: relative; display: flex; width: max-content; gap: 0; animation: defile 46s linear infinite; }
 .bande__mot { display: inline-flex; align-items: center; gap: 22px; padding-inline: 22px; font-family: var(--serif); font-style: italic; font-size: clamp(17px, 1.7vw, 24px); color: #F6F1E7; white-space: nowrap; letter-spacing: .01em; }
 .bande__picto { height: 18px; width: auto; opacity: .9; }
