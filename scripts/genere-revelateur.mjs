@@ -616,17 +616,23 @@ function rendAccueil(articles) {
   const cartes = a.portes.cartes.map((c, i) => {
     const p = PAGES.find((x) => x.chemin === c.vers);
     const temps = c.comment.split('·').map((t) => t.trim()).filter(Boolean);
-    return `<a class="porte" href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">
+    /* LA SITUATION SORT DU CADRE — 28 septembre 2026 (Yéman) : « Je n'ai pas
+       encore de locks » se lit AU-DESSUS de la carte, comme une étiquette sur
+       la colonne, et la carte ne porte que le parcours. Les photos sont
+       redevenues rectangulaires, le même jour. */
+    return `<div class="parcours">
+          <p class="porte__pour">${echappe(c.pour)}</p>
+          <a class="porte" href="${attr(lien(c.vers))}" data-mesure="parcours_choisi" data-parcours="${attr(p?.besoin ?? 'inconnu')}">
           <span class="porte__rang" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>
           <div class="porte-corps">
-            <p class="porte__pour">${echappe(c.pour)}</p>
             <h3>${echappe(c.titre)}</h3>
             <p>${echappe(c.ligne)}</p>
             <ol class="porte__temps">${temps.map((t) => `<li>${echappe(t)}</li>`).join('')}</ol>
           </div>
           ${c.image ? image(c.image) : `<div class="tuile">${echappe(c.titre.length > 18 ? p?.court ?? c.titre : c.titre)}<small>Photo de la séance à venir</small></div>`}
           <span class="suite">${echappe(c.suite)} <svg><use href="#i-fleche"/></svg></span>
-        </a>`;
+          </a>
+        </div>`;
   }).join('\n        ');
   const journal = articles.slice(0, 3).map((art) => `<a class="article" href="${attr(lien(`/journal/${art.slug}/`))}">${photo(art.image, '', 'alt="" loading="lazy" width="960" height="600"')}<h3>${echappe(art.titre)}</h3><p>${echappe(art.description)}</p></a>`).join('\n        ');
   return `

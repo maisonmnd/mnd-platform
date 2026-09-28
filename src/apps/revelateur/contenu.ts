@@ -430,7 +430,7 @@ export const PAGES: Page[] = [
     h1: 'La première couronne : créer ses dreadlocks à Cotonou',
     sur: 'Je veux créer ma couronne',
     ligne: "Vous n'avez jamais porté de locks ? Vous n'avez pas besoin de tout savoir avant de commencer.",
-    image: 'creation.jpg',
+    image: 'portrait-accueil.jpg',
     besoin: 'creation',
     cta: { texte: 'Réserver ma consultation', note: "Le premier pas, et le seul à faire aujourd'hui." },
     geste: 'La création porte un nom : <b>VÈKPÈ™</b>. Elle pose le premier palier de votre chemin, <b>Fondation</b>.',
@@ -463,7 +463,7 @@ export const PAGES: Page[] = [
     h1: 'Réparer des locks abîmées : la restauration FÍNFÍN™',
     sur: "Ma couronne a besoin d'attention",
     ligne: "Une réparation commence par un diagnostic. Votre couronne raconte déjà une histoire : nous l'écoutons d'abord.",
-    image: 'attention.jpg',
+    image: 'regard.jpg',
     besoin: 'reparation',
     cta: { texte: 'Diagnostiquer ma couronne', note: 'Le diagnostic a lieu pendant la consultation Réparation.' },
     geste: 'La restauration porte un nom : <b>FÍNFÍN™</b>. Selon le diagnostic, un <b>SÍNSIN™</b> pour resserrer, un <b>DÀNDÀN™</b> pour hydrater ou un <b>GBÀTÀ™</b> pour défaire l\'accompagne.',
@@ -524,6 +524,7 @@ export const PAGES: Page[] = [
     chemin: '/soins-locks/',
     titre: 'Soins des dreadlocks, lavage et hydratation · Maison MND',
     description: 'Prenez soin de vos locks à Cotonou : lavage rituel KLƆKLƆ™, hydratation DÀNDÀN™, couleur végétale YÈKPÈ™. Les gestes de soin de la Maison MND.',
+    image: 'attention.jpg',
     h1: 'Les soins des locks : laver, hydrater, colorer',
     sur: 'Je veux entretenir ma couronne',
     ligne: 'Des gestes simples, répétés avec soin, qui gardent votre couronne propre, souple et bien tenue.',
@@ -563,7 +564,7 @@ export const PAGES: Page[] = [
        cette page, où son échelle de visage n'a personne à côté de qui se
        régler. Accord de sa mère, donné à Yéman ; son prénom n'est écrit nulle
        part, ici pas plus qu'ailleurs. */
-    image: 'enfant-jardin.jpg',
+    image: 'mnd-kids.jpg',
     ligne: "Un enfant a besoin de temps, de douceur, et d'une main qui ne tire pas. Vous restez à ses côtés.",
     besoin: 'enfant',
     cta: { texte: 'Organiser notre visite', note: 'La visite commence par un échange avec vous.' },

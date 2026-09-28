@@ -9,7 +9,7 @@
    son bouton d'envoi ; et un rappel promis qui mène au calendrier. */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ACCUEIL, COMMUN, GALERIE } from '../src/apps/revelateur/contenu';
+import { ACCUEIL, COMMUN, GALERIE, PAGES } from '../src/apps/revelateur/contenu';
 import { etatDeLOffre } from '../src/shared/offres-pur';
 import { horairesStructures } from '../src/apps/revelateur/schema-pur';
 
@@ -123,6 +123,12 @@ const photosDesPortes = [...(accueil.split('id="portes"')[1] ?? '').split('id="d
   .matchAll(/<a class="porte"[\s\S]*?<img src="[^"]*photos\/site\/([^"]+)"/g)].map((m) => m[1]);
 dit('les portes portent chacune leur photo, dans l’ordre de la maquette',
   ['portrait-accueil.jpg', 'regard.jpg', 'entretien.jpg', 'attention.jpg', 'mnd-kids.jpg'], photosDesPortes);
+/* LA MÊME PHOTO DE LA PORTE À SA PAGE — 28 septembre 2026 : « quand on appuie
+   Première Couronne et Réparation, on tombe sur une autre photo. Garder la
+   même » (Yéman). On ne change pas de visage entre la carte et la page
+   qu'elle ouvre. */
+dit('chaque porte ouvre une page qui porte sa photo', [],
+  ACCUEIL.portes.cartes.filter((c) => c.image && PAGES.find((p) => p.chemin === c.vers)?.image !== c.image).map((c) => c.vers));
 dit('… et aucune ne dit « photo à venir »', false, (accueil.split('class="portes"')[1] ?? '').split('</section>')[0].includes('Photo de la séance à venir'));
 /* LES VISAGES DE LA MAISON (23 septembre 2026) : la paire au-dessus des avis,
    et les vignettes du Journal. Ces vérifications portent la RÈGLE, jamais le

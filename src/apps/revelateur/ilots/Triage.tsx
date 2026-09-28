@@ -212,6 +212,20 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [garde, setGarde] = useState(false);
+  /* « La routine, comme un guide à suivre, à noter ou mémoriser quelque
+     part » (Yéman, 28 septembre 2026) : chaque geste est une ligne à cocher
+     chez soi, et la routine se copie d'un geste, en plus de WhatsApp et de
+     la fiche. */
+  const [copie, setCopie] = useState(false);
+  const copier = async () => {
+    try {
+      await navigator.clipboard.writeText(texte);
+      setCopie(true);
+      setTimeout(() => setCopie(false), 2500);
+    } catch {
+      window.prompt('Copiez votre routine :', texte);
+    }
+  };
   const f = COMMUN.formulaire;
 
   /* La routine s'inscrit à la fiche par la fonction Edge du rappel : genre
@@ -254,11 +268,12 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
           <img src={`/assets/photos/site/${porte.image}`} alt="" width="800" height="1000" loading="lazy" />
           <div><h2>{porte.sur}</h2><p>{porte.texte}</p></div>
         </div>
-        <p className="sur" style={{ marginTop: 10 }}>Votre routine</p>
-        <div className="routine">
-          <div><b>Chaque semaine</b>{routine.semaine.map((t) => <p key={t}>{t}</p>)}</div>
-          <div><b>Chaque mois</b>{routine.mois.map((t) => <p key={t}>{t}</p>)}</div>
-          <div><b>Chaque saison</b>{routine.saison.map((t) => <p key={t}>{t}</p>)}</div>
+        <p className="sur" style={{ marginTop: 10 }}>Votre guide, en trois temps</p>
+        <p className="guide__note">Chaque ligne est un geste. Cochez-les chez vous, et gardez le guide : sur WhatsApp, copié, ou à votre fiche.</p>
+        <div className="routine routine--guide">
+          <div><b>Chaque semaine</b><ol>{routine.semaine.map((t) => <li key={t}>{t}</li>)}</ol></div>
+          <div><b>Chaque mois</b><ol>{routine.mois.map((t) => <li key={t}>{t}</li>)}</ol></div>
+          <div><b>Chaque saison</b><ol>{routine.saison.map((t) => <li key={t}>{t}</li>)}</ol></div>
         </div>
         {routine.maison && <p className="maison">{routine.maison}</p>}
         <div className="rangee">
@@ -268,6 +283,7 @@ function Resultat({ rep, routine, numero, recommence }: { rep: Reponses; routine
             <a className="btn btn--plein" href={base(RESERVABLES.has(porte.besoin) ? `/reserver/?besoin=${porte.besoin}` : `/rappel/?besoin=${porte.besoin}`)} onClick={() => mesure('parcours_choisi', { parcours: porte.besoin })}>Réserver ce parcours</a>
           )}
           <a className="btn" href={lienWhatsApp(numero, texte)} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: porte.besoin })}>Recevoir ma routine sur WhatsApp</a>
+          <button type="button" className="btn" onClick={() => void copier()}>{copie ? 'Routine copiée' : 'Copier ma routine'}</button>
           {porte.besoin !== 'formation' && <a className="btn btn--lien" href={base(porte.vers)}>{porte.bouton}</a>}
         </div>
       </div>
