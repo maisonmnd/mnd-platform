@@ -1,4 +1,4 @@
-import type { ModeleDeCarte, ResumeParrainage, SoinOffert } from './parrainage-pur';
+import type { ChoixDeRecompense, ModeleDeCarte, ResumeParrainage, SoinOffert } from './parrainage-pur';
 import { createStore, useStore, uid, HOUSE_BLANK } from './store';
 import { accordePour, type AccordImage } from './droit-image';
 import { type EnvieKey } from './quiz';
@@ -71,6 +71,13 @@ export type Client = {
   carteModele?: ModeleDeCarte;
   parrainage?: ResumeParrainage;
   soinsOfferts?: SoinOffert[];
+  /* LES AMBASSADRICES — 28 septembre 2026. Le code de celle qui l'a fait
+     venir (posé au Trône, « Vient de la part de », ou tiré de sa réservation
+     du site), et quand. Protégés par 0111. `choixRecompenses` est à ELLE :
+     son choix entre un soin et une remise, écrit depuis Ma Couronne. */
+  parraineePar?: string;
+  parraineeLe?: string;
+  choixRecompenses?: Record<string, ChoixDeRecompense>;
   /** AU MASCULIN — 6 septembre 2026, pour les cartes de la Maison.
 
       Les cartes s'adressent à quelqu'un : « Chère » ou « Cher », « entourée »

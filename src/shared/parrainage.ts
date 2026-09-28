@@ -2,7 +2,7 @@ import { createStore, useStore } from './store';
 import { bindDocument } from './sync';
 import type { Demande } from './demandes';
 import type { Client } from './clients';
-import { FORME_DU_CODE, codeDeMarraine, prenomDuNom, type EtatDeLaFilleule, type ResumeParrainage, type SoinOffert } from './parrainage-pur';
+import { FORME_DU_CODE, codeDeMarraine, prenomDuNom, type SoinOffert } from './parrainage-pur';
 
 /* LE PARRAINAGE — 28 septembre 2026, maquette « La communauté MND » validée
    (« construis avec les patterns réels de la marque », Yéman).
@@ -37,6 +37,14 @@ export type ReglageParrainage = {
   /** Le remerciement part tout seul sur WhatsApp (modèle `parrainage_merci`)
       dès que Meta l'a approuvé. Éteint par défaut. */
   merciParWhatsApp?: boolean;
+  /* LES AMBASSADRICES — 28 septembre 2026 (voir shared/ambassade). */
+  remisePct?: number;
+  echoPct?: number;
+  validiteMois?: number;
+  bonusRangs?: Partial<Record<'tresse' | 'couronne' | 'reine', string>>;
+  defi?: { actif: boolean; objectif: number; serviceId?: string };
+  /** Le classement du mois se montre dans Ma Couronne (au prénom seul). */
+  classementVisible?: boolean;
 };
 
 export const REGLAGE_PARRAINAGE_DEFAUT: ReglageParrainage = {
@@ -49,9 +57,7 @@ export const parrainageStore = createStore<ReglageParrainage>('mnd_parrainage', 
 export const useParrainage = () => useStore(parrainageStore);
 bindDocument(parrainageStore, 'mnd_parrainage');
 
-/* ── CE QUE L'ÉCRAN MONTRE ─────────────────────────────────────────── */
-
-/** Ce que la base porte en plus sur une demande, pour le parrainage. */
+/* ── LES DEMANDES DU SITE, TELLES QUE LE PARRAINAGE LES LIT ─────────── */
 export type DemandeParrainee = Demande & {
   codeParrain?: string;
   code?: string;
@@ -59,92 +65,16 @@ export type DemandeParrainee = Demande & {
   parrainDe?: string;
   marraineId?: string;
   marraineClientId?: string;
-  /** Posé au Trône : le cadeau de la marraine lui a été remis (ou son soin posé). */
+  /** La récompense de la marraine a été posée (ou remise à la main). */
   cadeauMarraineRemisLe?: string;
-  /** Le remerciement WhatsApp est parti (ou a été tenté) : jamais deux fois. */
   merciEnvoyeLe?: string;
 };
 
-export type EtatDeLaVisite = EtatDeLaFilleule;
-
-export type Filleule = {
-  demande: DemandeParrainee;
-  visite: EtatDeLaVisite;
-  dateRdv?: string;
-};
-
-/** Une marraine : une FICHE du Trône (toute cliente a sa carte), ou une
-    personne qui a demandé son code sur le site sans être encore cliente. */
-export type Marraine = {
-  id: string;
-  prenom: string;
-  telephone: string;
-  depuis: string;
-  code: string;
-  clientId?: string;
-  demande?: DemandeParrainee;
-  filleules: Filleule[];
-};
-
-type RdvLu = { id: string; status: string; date: string };
 export type FicheLue = Pick<Client, 'id' | 'name' | 'phone' | 'since'> & Partial<Pick<Client, 'codeParrain' | 'archived' | 'soinsOfferts' | 'parrainage' | 'phone2'>>;
 
-export function etatDeLaVisite(d: DemandeParrainee, rdvs: readonly RdvLu[]): { visite: EtatDeLaVisite; dateRdv?: string } {
-  const r = d.apptId ? rdvs.find((x) => x.id === d.apptId) : undefined;
-  if (!r) return { visite: 'sans-rdv' };
-  if (r.status === 'honoré') return { visite: 'venue', dateRdv: r.date };
-  if (r.status === 'annulé') return { visite: 'annulee', dateRdv: r.date };
-  return { visite: 'a-venir', dateRdv: r.date };
-}
-
-const filleulesDe = (code: string, demandes: readonly DemandeParrainee[], rdvs: readonly RdvLu[]): Filleule[] =>
-  demandes
-    .filter((f) => f && f.codeRaison === 'parrainage' && f.parrainDe === code)
-    .map((f) => ({ demande: f, ...etatDeLaVisite(f, rdvs) }))
-    .sort((a, b) => b.demande.createdAt.localeCompare(a.demande.createdAt));
-
-/** Les marraines, chacune avec ses filleules, les plus récentes d'abord.
-    Une fiche n'y paraît que si son code a servi ; une marraine du site y
-    paraît toujours (elle a demandé son code). Une fiche et une demande qui
-    portent le même code sont UNE marraine : la fiche l'emporte. */
-export function marrainesEtFilleules(
-  demandes: readonly DemandeParrainee[], rdvs: readonly RdvLu[], clients: readonly FicheLue[] = [],
-): Marraine[] {
-  const parCode = new Map<string, Marraine>();
-  for (const d of demandes) {
-    if (!d || !d.codeParrain || !FORME_DU_CODE.test(d.codeParrain)) continue;
-    parCode.set(d.codeParrain, {
-      id: d.id, prenom: d.prenom, telephone: d.telephone, depuis: d.createdAt, code: d.codeParrain,
-      demande: d, filleules: filleulesDe(d.codeParrain, demandes, rdvs),
-    });
-  }
-  for (const c of clients) {
-    if (!c || c.archived || !c.codeParrain || !FORME_DU_CODE.test(c.codeParrain)) continue;
-    const filleules = filleulesDe(c.codeParrain, demandes, rdvs);
-    const deja = parCode.get(c.codeParrain);
-    if (!filleules.length && !deja) continue;
-    parCode.set(c.codeParrain, {
-      id: c.id, prenom: prenomDuNom(c.name), telephone: c.phone, depuis: deja?.depuis ?? c.since,
-      code: c.codeParrain, clientId: c.id, demande: deja?.demande, filleules,
-    });
-  }
-  return [...parCode.values()].sort((a, b) => b.depuis.localeCompare(a.depuis));
-}
-
-/** Le cadeau de la marraine est dû dès qu'UNE filleule est venue et qu'il
-    n'a pas été remis pour elle. */
-export const cadeauDu = (f: Filleule): boolean => f.visite === 'venue' && !f.demande.cadeauMarraineRemisLe;
-
-export const VISITE_DITE: Record<EtatDeLaVisite, string> = {
-  'sans-rdv': 'pas encore de rendez-vous',
-  'a-venir': 'rendez-vous à venir',
-  venue: 'venue',
-  annulee: 'rendez-vous annulé',
-};
-
 /* ══ LA CARTE DE CHAQUE CLIENTE — 28 septembre 2026 ═════════════════════
-   Trois juges PURS, que le Trône applique en tâche de fond
-   (`useParrainageVivant`) et que `verifie-le-parrainage` éprouve. */
+   Le code de chaque fiche. Les amies, les récompenses, les rangs : voir
+   `shared/ambassade`. */
 
 /** Les huit derniers chiffres d'un numéro : la même règle que la fonction. */
 export const huitDerniers = (t: string | undefined): string => String(t ?? '').replace(/\D/g, '').slice(-8);
@@ -197,68 +127,8 @@ export function codesAAttribuer(clients: readonly FicheLue[], demandes: readonly
   return sortie;
 }
 
-/** CE QUE LA CLIENTE VOIT DE SES FILLEULES : un prénom, un état, une date. */
-export function resumeDuParrainage(code: string, demandes: readonly DemandeParrainee[], rdvs: readonly RdvLu[]): ResumeParrainage {
-  return {
-    filleules: filleulesDe(code, demandes, rdvs).map((f) => ({
-      prenom: prenomDuNom(f.demande.prenom) || 'Une amie',
-      etat: f.visite,
-      ...(f.dateRdv ? { date: f.dateRdv } : {}),
-    })),
-  };
-}
-
-export const idDuSoin = (demandeId: string): string => `parr-${demandeId}`;
-
-export type GesteDuParrainage = {
-  clientId: string;
-  demandeId: string;
-  /** Le soin à poser, s'il n'est pas déjà sur la fiche. */
-  soin?: SoinOffert;
-  /** Le remerciement WhatsApp reste à envoyer. */
-  merci: boolean;
-  prenomMarraine: string;
-  prenomFilleule: string;
-  libelle: string;
-  telephone: string;
-};
-
-/** LES SOINS À POSER : une amie venue (visite HONORÉE) dont la marraine est
-    une fiche. Un soin par amie, jamais deux (son identifiant vient de la
-    demande de l'amie) ; une demande déjà marquée ne rend plus rien. */
-export function soinsAPoser(
-  clients: readonly FicheLue[], demandes: readonly DemandeParrainee[], rdvs: readonly RdvLu[],
-  reglage: Pick<ReglageParrainage, 'cadeauMarraine' | 'soinMarraineServiceId'>, aujourdhui: string,
-  nomDuService: (id: string) => string | undefined = () => undefined,
-): GesteDuParrainage[] {
-  const gestes: GesteDuParrainage[] = [];
-  const libelle = (reglage.soinMarraineServiceId && nomDuService(reglage.soinMarraineServiceId))
-    || reglage.cadeauMarraine.trim() || 'Un soin offert';
-  for (const c of clients) {
-    if (!c || c.archived || !c.codeParrain) continue;
-    for (const f of filleulesDe(c.codeParrain, demandes, rdvs)) {
-      if (f.visite !== 'venue' || f.demande.cadeauMarraineRemisLe) continue;
-      const id = idDuSoin(f.demande.id);
-      const dejaPose = (c.soinsOfferts ?? []).some((s) => s.id === id);
-      const prenomFilleule = prenomDuNom(f.demande.prenom) || 'votre amie';
-      gestes.push({
-        clientId: c.id, demandeId: f.demande.id,
-        ...(dejaPose ? {} : {
-          soin: {
-            id, libelle, raison: `Pour la venue de ${prenomFilleule}`, poseLe: aujourdhui,
-            ...(reglage.soinMarraineServiceId ? { serviceId: reglage.soinMarraineServiceId } : {}),
-          },
-        }),
-        merci: !f.demande.merciEnvoyeLe,
-        prenomMarraine: prenomDuNom(c.name), prenomFilleule, libelle, telephone: c.phone,
-      });
-    }
-  }
-  return gestes;
-}
-
 /** LE SOIN CONSOMMÉ À LA CAISSE : daté, avec la pièce. Un soin déjà utilisé
     ne se rouvre pas. */
-export function soinUtilise(soins: readonly SoinOffert[] | undefined, id: string, piece: string, quand: string): SoinOffert[] {
-  return (soins ?? []).map((s) => (s.id === id && !s.utiliseLe ? { ...s, utiliseLe: quand, piece } : s));
+export function soinUtilise(soins: readonly SoinOffert[] | undefined, id: string, piece: string, quand: string, precise: Partial<SoinOffert> = {}): SoinOffert[] {
+  return (soins ?? []).map((s) => (s.id === id && !s.utiliseLe ? { ...s, ...precise, utiliseLe: quand, piece } : s));
 }

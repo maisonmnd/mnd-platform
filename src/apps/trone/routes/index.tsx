@@ -140,7 +140,7 @@ export const NAV: TroneGroup[] = [
       { path: '/marketing', label: 'Marketing', icon: Megaphone, Component: lazy(() => import('./equipe/Marketing')) },
       { path: '/cercle', label: 'Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
       /* LES PARRAINAGES — 28 septembre 2026 : marraines, filleules, cadeaux. */
-      { path: '/parrainages', label: 'Parrainages', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
+      { path: '/parrainages', label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
       { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
       { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
       { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },

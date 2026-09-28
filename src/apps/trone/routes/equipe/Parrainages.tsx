@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { PageHead, WaLien } from '../_ui';
 import { Badge, Button, Card, Field, Input, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -6,183 +6,212 @@ import { useAppointments } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
 import { useServices } from '../../../../shared/catalog';
 import { demandesStore, telephoneMasque, useDemandes } from '../../../../shared/demandes';
+import { parrainageStore, useParrainage, type DemandeParrainee, type ReglageParrainage } from '../../../../shared/parrainage';
+import { RANGS, nomDuRang, soinsEnAttente } from '../../../../shared/parrainage-pur';
 import {
-  VISITE_DITE, cadeauDu, marrainesEtFilleules, parrainageStore, useParrainage,
-  type DemandeParrainee, type Filleule,
-} from '../../../../shared/parrainage';
+  ECHO_PAR_DEFAUT, REMISE_MAX, REMISE_PAR_DEFAUT, chiffresDuMois, classementDuMois, lignees, moisDit, venuesDe,
+} from '../../../../shared/ambassade';
 
-/* LES PARRAINAGES — 28 septembre 2026, maquette « La communauté MND »
-   validée (Marketing & Fidélité). Trois choses : les deux cadeaux, écrits
-   en phrases (la fonction Edge les rend au site quand une marraine reçoit
-   son code) ; chaque marraine et ses filleules, avec l'état de la première
-   visite lu dans l'agenda ; et le cadeau de la marraine, qu'on marque remis
-   quand la visite de la filleule est passée.
+/* ══ LES AMBASSADRICES — 28 septembre 2026 (maquette validée, « construits ») ══
+   Marketing & Fidélité. Ce que la Maison voit : les nouvelles clientes du
+   mois et la part venue par une amie, le classement, les récompenses en
+   attente, et TOUS les réglages (le soin, la remise, l'écho, les bonus de
+   rang, le défi du mois, le classement dans Ma Couronne, le remerciement).
+   Les marraines du site qui ne sont pas encore clientes gardent leur liste :
+   leur cadeau se remet à la main, elles n'ont pas de fiche où le poser.
 
-   Rien ne s'invente ici : les marraines et les filleules sont des demandes
-   écrites par `demande-submit`, la visite est le rendez-vous qu'elle a
-   posé. Le calcul vit dans `shared/parrainage`, éprouvé par
-   `verifie-le-parrainage`. */
+   Le calcul vit dans shared/ambassade, éprouvé par verifie-le-parrainage. */
 
+const ETAT_DIT = { 'sans-rdv': 'pas encore de rendez-vous', 'a-venir': 'rendez-vous à venir', venue: 'venue', annulee: 'rendez-vous annulé' } as const;
 const dateDite = (iso?: string): string => {
   if (!iso) return '';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+};
+const petit: CSSProperties = { fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' };
+const nombre = (v: string, min: number, max: number, defaut: number) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= min ? Math.min(max, n) : defaut;
 };
 
 export default function Parrainages() {
   const { branch } = useBranch();
   const [demandes] = useDemandes();
   const [rdvs] = useAppointments();
+  const [clients] = useClients();
+  const [services] = useServices();
   const [reglage] = useParrainage();
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+
   const [filleule, setFilleule] = useState(reglage.cadeauFilleule);
   const [marraine, setMarraine] = useState(reglage.cadeauMarraine);
   useEffect(() => { setFilleule(reglage.cadeauFilleule); setMarraine(reglage.cadeauMarraine); }, [reglage.cadeauFilleule, reglage.cadeauMarraine]);
 
-  const [clients] = useClients();
-  const [services] = useServices();
-  const liste = useMemo(
-    () => marrainesEtFilleules(
-      (demandes as DemandeParrainee[]).filter((d) => d && (!d.branchId || d.branchId === branch.id)),
-      rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date })),
-      clients.filter((c) => c && c.branchId === branch.id),
-    ),
-    [demandes, rdvs, clients, branch.id],
+  const fiches = useMemo(() => clients.filter((c) => c && c.branchId === branch.id), [clients, branch.id]);
+  const lus = useMemo(() => rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date, clientId: a.clientId })), [rdvs]);
+  const liste = demandes as DemandeParrainee[];
+  const L = useMemo(
+    () => lignees(fiches, liste.filter((d) => d && (!d.branchId || d.branchId === branch.id)), lus),
+    [fiches, liste, lus, branch.id],
   );
-  const cartes = clients.filter((c) => c && c.branchId === branch.id && !c.archived && c.codeParrain).length;
-  const soinsCatalogue = useMemo(
+  const chiffres = chiffresDuMois(fiches, L, lus, aujourdhui);
+  const classement = classementDuMois(L, aujourdhui);
+  const actives = [...L.values()].filter((l) => l.clientId && venuesDe(l).length > 0).length;
+  const enAttente = fiches.reduce((n, c) => n + soinsEnAttente(c.soinsOfferts, aujourdhui).length, 0);
+  const duSite = [...L.values()].filter((l) => !l.clientId);
+  const soins = useMemo(
     () => services.filter((s) => s && !(s as { archived?: boolean }).archived).sort((a, b) => a.name.localeCompare(b.name)),
     [services],
   );
-  const choisitLeSoin = (id: string) => {
-    parrainageStore.set((r) => ({ ...r, soinMarraineServiceId: id || undefined }));
-    toast(id ? 'Le soin de la marraine est choisi : la caisse l’offrira à 100 %.' : 'Plus de soin choisi : la caisse offrira la ligne que vous indiquerez.');
-  };
-  const basculeMerci = () => {
-    parrainageStore.set((r) => ({ ...r, merciParWhatsApp: !r.merciParWhatsApp }));
-    toast(reglage.merciParWhatsApp ? 'Remerciement automatique éteint.' : 'Remerciement automatique allumé : il part à chaque amie venue.');
-  };
-  const toutes = liste.flatMap((m) => m.filleules);
-  const dus = toutes.filter(cadeauDu).length;
 
-  const enregistre = () => {
-    parrainageStore.set((r) => ({ ...r, cadeauFilleule: filleule.trim(), cadeauMarraine: marraine.trim() }));
-    toast('Cadeaux enregistrés. Le site les dira dès le prochain code.');
+  const regle = (patch: Partial<ReglageParrainage>, dit?: string) => {
+    parrainageStore.set((r) => ({ ...r, ...patch }));
+    if (dit) toast(dit);
   };
-  const bascule = () => {
-    parrainageStore.set((r) => ({ ...r, actif: !r.actif }));
-    toast(reglage.actif ? 'Parrainage en pause : le site ne donne plus de code.' : 'Parrainage ouvert.');
-  };
-  const marqueRemis = (f: Filleule, remis: boolean) => {
-    demandesStore.set((prev) => prev.map((d) => (d.id === f.demande.id
-      ? { ...d, cadeauMarraineRemisLe: remis ? new Date().toISOString() : undefined } as DemandeParrainee
-      : d)));
+  const choixDuSoin = (valeur: string | undefined, onChange: (id: string | undefined) => void, vide = 'Aucun') => (
+    <select className="mnd-input" value={valeur ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+      <option value="">{vide}</option>
+      {soins.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+    </select>
+  );
+  const marqueRemis = (demandeId: string, remis: boolean) => {
+    demandesStore.set((prev) => prev.map((d) => (d.id === demandeId
+      ? { ...d, cadeauMarraineRemisLe: remis ? new Date().toISOString() : undefined } as DemandeParrainee : d)));
     toast(remis ? 'Cadeau de la marraine marqué remis.' : 'Cadeau remis annulé.');
   };
-
-  const merci = (prenom: string, f: DemandeParrainee): string =>
-    `Bonjour ${prenom || ''}, ${f.prenom || 'votre amie'} est venue à la Maison grâce à vous. Merci !${reglage.cadeauMarraine ? ` Votre cadeau vous attend : ${reglage.cadeauMarraine}.` : ''}`;
+  const part = chiffres.nouvelles ? Math.round((chiffres.parUneAmie / chiffres.nouvelles) * 100) : 0;
+  const defi = reglage.defi ?? { actif: false, objectif: 2 };
 
   return (
     <div className="tr-page">
       <PageHead
         eyebrow="Marketing & Fidélité"
-        title="Parrainages"
-        sub="Les marraines, leurs filleules, et les cadeaux que la Maison promet sur le site."
+        title="Les ambassadrices"
+        sub="Chaque cliente fait venir ses amies, et la Maison la récompense. Deux générations, jamais d’argent."
       />
 
-      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 18 }}>
-        {[['Cartes de marraine', cartes], ['Marraines actives', liste.length], ['Filleules', toutes.length], ['Venues', toutes.filter((f) => f.visite === 'venue').length], ['Cadeaux à remettre', dus]].map(([l, n]) => (
-          <Card key={String(l)}><div className="mnd-muted" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>{l}</div><div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--color-indigo)' }}>{n}</div></Card>
-        ))}
-      </div>
-
-      <Card filet="copper" style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <strong>Les cadeaux</strong>
-          <Button variant={reglage.actif ? 'ghost' : 'copper'} size="sm" onClick={bascule}>{reglage.actif ? 'Mettre en pause' : 'Ouvrir le parrainage'}</Button>
-        </div>
-        <p className="mnd-muted" style={{ fontSize: 13, margin: '6px 0 14px' }}>
-          Des phrases, pas des montants : le site les dit telles quelles. Tant qu’elles sont vides, il promet « un cadeau de bienvenue » sans le nommer.
-        </p>
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-          <Field label="Cadeau de la filleule (première visite)"><Input value={filleule} placeholder="un soin DÀNDÀN™ offert" onChange={(e) => setFilleule(e.target.value)} /></Field>
-          <Field label="Cadeau de la marraine (quand elle est venue)"><Input value={marraine} placeholder="un lavage offert" onChange={(e) => setMarraine(e.target.value)} /></Field>
-        </div>
-        <div style={{ marginTop: 12 }}><Button variant="copper" size="sm" onClick={enregistre} disabled={filleule.trim() === reglage.cadeauFilleule && marraine.trim() === reglage.cadeauMarraine}>Enregistrer</Button></div>
-      </Card>
-
-      {/* LE SOIN OFFERT ET LE REMERCIEMENT — 28 septembre 2026 (carte de
-          marraine validée). Toute cliente a sa carte ; quand une amie vient,
-          le soin se pose sur la fiche de la marraine, et la caisse l'offre. */}
-      <Card style={{ marginBottom: 18 }}>
-        <strong>Le soin de la marraine</strong>
-        <p className="mnd-muted" style={{ fontSize: 13, margin: '6px 0 12px' }}>
-          Quand une amie est venue, ce soin se pose tout seul sur la fiche de sa marraine. À la caisse, il passe à 100 % en un geste.
-        </p>
-        <Field label="Prestation offerte">
-          <select className="mnd-input" value={reglage.soinMarraineServiceId ?? ''} onChange={(e) => choisitLeSoin(e.target.value)}>
-            <option value="">Aucune : la caisse offrira la ligne choisie</option>
-            {soinsCatalogue.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </Field>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
-          <span className="mnd-muted" style={{ fontSize: 13, maxWidth: 520 }}>
-            Le remerciement sur WhatsApp, avec sa carte en image, part tout seul à chaque amie venue. Allumez-le quand Meta aura approuvé le modèle « parrainage_merci ».
-          </span>
-          <Button variant={reglage.merciParWhatsApp ? 'ghost' : 'copper'} size="sm" onClick={basculeMerci}>{reglage.merciParWhatsApp ? 'Éteindre le remerciement' : 'Allumer le remerciement'}</Button>
-        </div>
-      </Card>
-
-      {liste.length === 0 && (
-        <Card><p className="mnd-muted" style={{ margin: 0 }}>Aucune marraine pour l’instant. Le code se demande sur le site, page « Parrainer une amie ».</p></Card>
-      )}
-
-      <div style={{ display: 'grid', gap: 12 }}>
-        {liste.map((m) => (
-          <Card key={m.id}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-              <div>
-                <strong style={{ fontSize: 16 }}>{m.prenom || 'Marraine'}</strong>
-                <span className="mnd-muted" style={{ marginLeft: 10, fontSize: 13 }}>{telephoneMasque(m.telephone)} · {m.clientId ? 'cliente' : 'code demandé sur le site'} depuis le {dateDite(m.depuis)}</span>
-              </div>
-              <Badge tone="copper">{m.code}</Badge>
-            </div>
-            {m.filleules.length === 0
-              ? <p className="mnd-muted" style={{ fontSize: 13, margin: '10px 0 0' }}>Son code n’a pas encore servi.</p>
-              : (
-                <div style={{ overflowX: 'auto', marginTop: 10 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
-                    <thead><tr style={{ textAlign: 'left', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
-                      <th style={{ padding: '8px 6px' }}>Filleule</th><th style={{ padding: '8px 6px' }}>Première visite</th><th style={{ padding: '8px 6px' }}>Cadeau de la marraine</th><th />
-                    </tr></thead>
-                    <tbody>
-                      {m.filleules.map((f) => (
-                        <tr key={f.demande.id} style={{ borderTop: '1px solid var(--line, rgba(20,20,27,.12))' }}>
-                          <td style={{ padding: '9px 6px' }}>{f.demande.prenom || 'Sans prénom'}</td>
-                          <td style={{ padding: '9px 6px' }}>{VISITE_DITE[f.visite]}{f.dateRdv ? ` · ${dateDite(f.dateRdv)}` : ''}</td>
-                          <td style={{ padding: '9px 6px' }}>
-                            {f.demande.cadeauMarraineRemisLe
-                              ? <Badge tone="indigo">remis le {dateDite(f.demande.cadeauMarraineRemisLe)}</Badge>
-                              : cadeauDu(f) ? <Badge tone="copper">à remettre</Badge> : <span className="mnd-muted">après sa visite</span>}
-                          </td>
-                          <td style={{ padding: '9px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {cadeauDu(f) && (
-                              <>
-                                <WaLien phone={m.telephone} message={merci(m.prenom, f.demande)} style={{ marginRight: 10, fontSize: 12.5 }}>Remercier</WaLien>
-                                <Button size="sm" variant="copper" onClick={() => marqueRemis(f, true)}>Cadeau remis</Button>
-                              </>
-                            )}
-                            {f.demande.cadeauMarraineRemisLe && <Button size="sm" variant="ghost" onClick={() => marqueRemis(f, false)}>Annuler</Button>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', marginBottom: 18 }}>
+        {[
+          [`Nouvelles clientes, ${moisDit(aujourdhui.slice(0, 7))}`, String(chiffres.nouvelles), `dont ${chiffres.parUneAmie} venues par une amie`],
+          ['Part du bouche à oreille', `${part} %`, 'le chiffre qu’on veut voir monter'],
+          ['Récompenses à utiliser', String(enAttente), 'soins et remises en attente'],
+          ['Ambassadrices actives', String(actives), 'au moins une amie venue'],
+        ].map(([l, n, s]) => (
+          <Card key={l}>
+            <div style={petit}>{l}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 34, color: 'var(--color-indigo)', lineHeight: 1.1 }}>{n}</div>
+            <div className="mnd-muted" style={{ fontSize: 12.5 }}>{s}</div>
           </Card>
         ))}
       </div>
+
+      <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', alignItems: 'start' }}>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+            <strong>Le classement du mois</strong>
+            <span className="mnd-muted" style={{ fontSize: 12 }}>{reglage.classementVisible ? 'visible dans Ma Couronne' : 'visible ici seulement'}</span>
+          </div>
+          {classement.lignes.length === 0
+            ? <p className="mnd-muted" style={{ fontSize: 13, margin: '10px 0 0' }}>Aucune amie venue par une ambassadrice pour l’instant.</p>
+            : (
+              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, fontVariantNumeric: 'tabular-nums' }}>
+                  <thead><tr style={{ textAlign: 'left', ...petit }}><th style={{ padding: '8px 4px' }}>#</th><th style={{ padding: '8px 4px' }}>Ambassadrice</th><th style={{ padding: '8px 4px' }}>Rang</th><th style={{ padding: '8px 4px' }}>Ce mois</th><th style={{ padding: '8px 4px' }}>Amies</th></tr></thead>
+                  <tbody>
+                    {classement.lignes.map((x, i) => (
+                      <tr key={`${x.prenom}-${i}`} style={{ borderTop: '1px solid rgba(20,20,27,.1)' }}>
+                        <td style={{ padding: '9px 4px', fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--copper-700)' }}>{i + 1}</td>
+                        <td style={{ padding: '9px 4px' }}>{x.prenom}</td>
+                        <td style={{ padding: '9px 4px' }}>{nomDuRang(x.rang)}</td>
+                        <td style={{ padding: '9px 4px' }}>{x.ceMois}</td>
+                        <td style={{ padding: '9px 4px' }}>{x.amies}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+            <span className="mnd-muted" style={{ fontSize: 12.5, maxWidth: 360 }}>Dans Ma Couronne, au prénom seul, et seulement aux clientes connectées.</span>
+            <Button size="sm" variant={reglage.classementVisible ? 'ghost' : 'copper'} onClick={() => regle({ classementVisible: !reglage.classementVisible }, reglage.classementVisible ? 'Classement retiré de Ma Couronne.' : 'Classement visible dans Ma Couronne.')}>
+              {reglage.classementVisible ? 'Le cacher' : 'Le montrer'}
+            </Button>
+          </div>
+        </Card>
+
+        <Card filet="copper">
+          <strong>Les récompenses</strong>
+          <p className="mnd-muted" style={{ fontSize: 12.5, margin: '4px 0 12px' }}>À chaque amie venue, l’ambassadrice choisit l’une ou l’autre. Valables {reglage.validiteMois ?? 6} mois.</p>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field label="Au choix · le soin offert">{choixDuSoin(reglage.soinMarraineServiceId, (id) => regle({ soinMarraineServiceId: id }, 'Soin offert enregistré.'), 'Aucun : la caisse offrira la ligne choisie')}</Field>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+              <Field label="Au choix · remise produit (%)"><Input type="number" min={1} max={REMISE_MAX} defaultValue={reglage.remisePct ?? REMISE_PAR_DEFAUT} onBlur={(e) => regle({ remisePct: nombre(e.target.value, 1, REMISE_MAX, REMISE_PAR_DEFAUT) })} /></Field>
+              <Field label="L’écho (%)"><Input type="number" min={1} max={REMISE_MAX} defaultValue={reglage.echoPct ?? ECHO_PAR_DEFAUT} onBlur={(e) => regle({ echoPct: nombre(e.target.value, 1, REMISE_MAX, ECHO_PAR_DEFAUT) })} /></Field>
+              <Field label="Validité (mois)"><Input type="number" min={1} max={24} defaultValue={reglage.validiteMois ?? 6} onBlur={(e) => regle({ validiteMois: nombre(e.target.value, 1, 24, 6) })} /></Field>
+            </div>
+            <div style={petit}>Le bonus de rang, offert une fois</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+              {(['tresse', 'couronne', 'reine'] as const).map((r) => (
+                <Field key={r} label={`${nomDuRang(r)} · ${RANGS.find((x) => x.id === r)?.seuil} amies`}>
+                  {choixDuSoin(reglage.bonusRangs?.[r], (id) => regle({ bonusRangs: { ...(reglage.bonusRangs ?? {}), [r]: id } }, 'Bonus de rang enregistré.'))}
+                </Field>
+              ))}
+            </div>
+            <div style={petit}>Le défi du mois</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '120px minmax(0, 1fr) auto', gap: 10, alignItems: 'end' }}>
+              <Field label="Amies venues"><Input type="number" min={1} max={20} defaultValue={defi.objectif} onBlur={(e) => regle({ defi: { ...defi, objectif: nombre(e.target.value, 1, 20, 2) } })} /></Field>
+              <Field label="Soin offert">{choixDuSoin(defi.serviceId, (id) => regle({ defi: { ...defi, serviceId: id } }))}</Field>
+              <Button size="sm" variant={defi.actif ? 'ghost' : 'copper'} disabled={!defi.serviceId} onClick={() => regle({ defi: { ...defi, actif: !defi.actif } }, defi.actif ? 'Défi arrêté.' : 'Défi du mois lancé.')}>{defi.actif ? 'Arrêter' : 'Lancer'}</Button>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <strong>Le site et les messages</strong>
+            <Button variant={reglage.actif ? 'ghost' : 'copper'} size="sm" onClick={() => regle({ actif: !reglage.actif }, reglage.actif ? 'Parrainage en pause : le site ne donne plus de code.' : 'Parrainage ouvert.')}>{reglage.actif ? 'Mettre en pause' : 'Ouvrir le parrainage'}</Button>
+          </div>
+          <p className="mnd-muted" style={{ fontSize: 12.5, margin: '6px 0 12px' }}>Des phrases, pas des montants : le site les dit telles quelles.</p>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <Field label="Cadeau de bienvenue de l’amie (première visite)"><Input value={filleule} placeholder="un soin DÀNDÀN™ offert" onChange={(e) => setFilleule(e.target.value)} /></Field>
+            <Field label="Ce que gagne l’ambassadrice, dit sur le site"><Input value={marraine} placeholder="un soin offert ou une remise, à son choix" onChange={(e) => setMarraine(e.target.value)} /></Field>
+            <div><Button variant="copper" size="sm" disabled={filleule.trim() === reglage.cadeauFilleule && marraine.trim() === reglage.cadeauMarraine} onClick={() => regle({ cadeauFilleule: filleule.trim(), cadeauMarraine: marraine.trim() }, 'Phrases enregistrées.')}>Enregistrer</Button></div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+            <span className="mnd-muted" style={{ fontSize: 12.5, maxWidth: 380 }}>Le remerciement WhatsApp, avec sa carte, part à chaque amie venue. À allumer quand Meta a approuvé « parrainage_merci ».</span>
+            <Button variant={reglage.merciParWhatsApp ? 'ghost' : 'copper'} size="sm" onClick={() => regle({ merciParWhatsApp: !reglage.merciParWhatsApp }, reglage.merciParWhatsApp ? 'Remerciement éteint.' : 'Remerciement allumé.')}>{reglage.merciParWhatsApp ? 'Éteindre' : 'Allumer'}</Button>
+          </div>
+        </Card>
+      </div>
+
+      {duSite.length > 0 && (
+        <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>
+          <strong>Les marraines du site, pas encore clientes</strong>
+          {duSite.map((l) => (
+            <Card key={l.code}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <span><strong>{l.prenom || 'Marraine'}</strong> <span className="mnd-muted" style={{ fontSize: 13 }}>{telephoneMasque(l.telephone)} · depuis le {dateDite(l.depuis)}</span></span>
+                <Badge tone="copper">{l.code}</Badge>
+              </div>
+              {l.filleules.length === 0
+                ? <p className="mnd-muted" style={{ fontSize: 13, margin: '8px 0 0' }}>Son code n’a pas encore servi.</p>
+                : l.filleules.map((f) => (
+                  <div key={f.cle} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: '1px solid rgba(20,20,27,.08)', fontSize: 13.5 }}>
+                    <span>{f.prenom} <span className="mnd-muted">· {ETAT_DIT[f.etat]}{(f.venueLe ?? f.dateRdv) ? ` · ${dateDite(f.venueLe ?? f.dateRdv)}` : ''}</span></span>
+                    {f.venueLe && f.demandeId && (f.remisALaMain
+                      ? <Button size="sm" variant="ghost" onClick={() => marqueRemis(f.demandeId!, false)}>Annuler « remis »</Button>
+                      : (
+                        <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <WaLien phone={l.telephone} message={`Bonjour ${l.prenom}, ${f.prenom} est venue à la Maison grâce à vous. Merci !${reglage.cadeauMarraine ? ` Votre cadeau vous attend : ${reglage.cadeauMarraine}.` : ''}`} style={{ fontSize: 12.5 }}>Remercier</WaLien>
+                          <Button size="sm" variant="copper" onClick={() => marqueRemis(f.demandeId!, true)}>Cadeau remis</Button>
+                        </span>
+                      ))}
+                  </div>
+                ))}
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

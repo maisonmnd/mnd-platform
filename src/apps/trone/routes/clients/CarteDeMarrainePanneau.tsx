@@ -4,9 +4,12 @@ import { CarteDeMarraine } from '../../../../ds/CarteDeMarraine';
 import {
   carteDeMarraineEnBlob, carteDeMarraineEnPiece, dessineLaCarteDeMarraine, messageDeLaCarte, type DonneesDeCarte,
 } from '../../../../ds/carte-marraine';
-import { clientsStore, type Client } from '../../../../shared/clients';
+import { clientsStore, useClients, type Client } from '../../../../shared/clients';
+import { useDemandes } from '../../../../shared/demandes';
+import { useAppointments } from '../../../../shared/agenda';
+import { pourquoiPasDeMarraine, type DemandeLue } from '../../../../shared/ambassade';
 import { envoieSurWhatsApp } from '../../../../shared/whatsapp';
-import { MODELES_DE_CARTE, prenomDuNom, soinsEnAttente, type ModeleDeCarte } from '../../../../shared/parrainage-pur';
+import { MODELES_DE_CARTE, genreEffectif, nomDuRang, prenomDuNom, rangSuivant, soinsEnAttente, type ModeleDeCarte, type SoinOffert } from '../../../../shared/parrainage-pur';
 
 /* ══ SA CARTE DE MARRAINE, DANS SA FICHE — 28 septembre 2026 ════════════
    Maquette validée (« Au Trône, la fiche cliente »). La carte à son prénom,
@@ -39,6 +42,62 @@ async function imprime(d: DonneesDeCarte): Promise<void> {
   w.document.close();
 }
 
+/* « VIENT DE LA PART DE » — 28 septembre 2026 (les ambassadrices). L'amie
+   venue sans le site (WhatsApp, téléphone, en passant) se rattache ici à sa
+   marraine : par son code ou par son prénom. Le juge (`pourquoiPasDeMarraine`)
+   refuse sa propre marraine, une cliente déjà venue plusieurs fois, et un
+   rattachement dont la récompense est déjà posée. */
+function VientDeLaPartDe({ client }: { client: Client }) {
+  const [clients] = useClients();
+  const [rdvs] = useAppointments();
+  const [demandes] = useDemandes();
+  const [cherche, setCherche] = useState('');
+  const [ouvert, setOuvert] = useState(false);
+  const lus = rdvs.map((a) => ({ id: a.id, status: a.status, date: a.date, clientId: a.clientId }));
+  const marraine = client.parraineePar ? clients.find((c) => c.codeParrain === client.parraineePar) : undefined;
+  const q = cherche.trim().toLowerCase();
+  const trouvees = q.length < 2 ? [] : clients
+    .filter((c) => c.codeParrain && !c.archived && c.id !== client.id
+      && (c.codeParrain.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)))
+    .slice(0, 5);
+  const rattache = (c: Client) => {
+    const refus = pourquoiPasDeMarraine(client, c.codeParrain as string, clients, lus, demandes as DemandeLue[]);
+    if (refus) { toast(refus); return; }
+    clientsStore.set((prev) => prev.map((x) => (x.id === client.id
+      ? { ...x, parraineePar: c.codeParrain, parraineeLe: new Date().toISOString().slice(0, 10) } : x)));
+    setCherche(''); setOuvert(false);
+    toast(`Rattachée à ${prenomDuNom(c.name)}. Sa première visite honorée récompensera sa marraine.`);
+  };
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      <span className="trc-sub" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>Vient de la part de</span>
+      {marraine && !ouvert ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #D6A06F)' }}>
+          <span style={{ fontSize: 13.5 }}>{prenomDuNom(marraine.name)} <span className="trc-sub">· {marraine.codeParrain}</span></span>
+          <button type="button" onClick={() => setOuvert(true)} style={{ border: 0, background: 'transparent', color: 'var(--copper-700)', fontSize: 12, cursor: 'pointer', minHeight: 32 }}>Changer</button>
+        </div>
+      ) : (
+        <>
+          <input className="mnd-input" value={cherche} onChange={(e) => setCherche(e.target.value)} placeholder="Son code, ou le prénom de sa marraine" aria-label="Code ou prénom de la marraine" />
+          {trouvees.map((c) => (
+            <button key={c.id} type="button" onClick={() => rattache(c)}
+              style={{ textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,20,27,.12)', background: 'transparent', cursor: 'pointer', fontSize: 13.5 }}>
+              {c.name} <span className="trc-sub">· {c.codeParrain}</span>
+            </button>
+          ))}
+          {q.length >= 2 && trouvees.length === 0 && <span className="trc-sub" style={{ fontSize: 12 }}>Aucune cliente ne porte ce code ou ce prénom.</span>}
+        </>
+      )}
+    </div>
+  );
+}
+
+const genreDit = (s: SoinOffert, choix: Client['choixRecompenses']): string => {
+  const g = genreEffectif(s, choix);
+  if (g === 'a-choisir') return `à choisir : soin ou −${s.pct ?? 20} % produit`;
+  return g === 'remise' ? 'remise produit' : 'soin offert';
+};
+
 export function CarteDeMarrainePanneau({ client }: { client: Client }) {
   const [envoi, setEnvoi] = useState(false);
   if (!client.codeParrain) {
@@ -54,7 +113,10 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
     code: client.codeParrain,
     depuis: (client.since ?? '').slice(0, 4) || String(new Date().getFullYear()),
     modele: client.carteModele ?? 'indigo',
+    rang: client.parrainage?.rang,
   };
+  const venues = client.parrainage?.venues ?? 0;
+  const suivant = rangSuivant(venues);
   const filleules = client.parrainage?.filleules ?? [];
   const soins = client.soinsOfferts ?? [];
   const enAttente = soinsEnAttente(soins);
@@ -125,12 +187,17 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
           <button type="button" style={bouton} onClick={() => void telecharge()}>Enregistrer l’image</button>
         </div>
 
+        <div style={{ fontSize: 13, color: 'var(--color-indigo)' }}>
+          Ambassadrice · <b style={{ fontWeight: 500 }}>{nomDuRang(client.parrainage?.rang)}</b> · {venues} {venues > 1 ? 'amies venues' : 'amie venue'}
+          {suivant && <span className="trc-sub"> · encore {suivant.seuil - venues} pour {suivant.nom}</span>}
+        </div>
+
         {enAttente.length > 0 && (
           <div style={{ display: 'grid', gap: 6 }}>
             {enAttente.map((s) => (
               <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--copper-50, #FAF1E9)', border: '1px solid var(--copper-300, #D6A06F)' }}>
                 <span style={{ fontSize: 13 }}><b style={{ fontWeight: 500 }}>{s.libelle}</b> · <span className="trc-sub">{s.raison}</span></span>
-                <span style={{ fontSize: 11.5, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>à utiliser</span>
+                <span style={{ fontSize: 11.5, color: 'var(--copper-700)', whiteSpace: 'nowrap' }}>{genreDit(s, client.choixRecompenses)}</span>
               </div>
             ))}
           </div>
@@ -138,6 +205,8 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
         {soins.filter((s) => s.utiliseLe).map((s) => (
           <span key={s.id} className="trc-sub" style={{ fontSize: 12 }}>{s.libelle} offert, utilisé le {dateCourte(s.utiliseLe)}{s.piece ? ` (${s.piece})` : ''}</span>
         ))}
+
+        <VientDeLaPartDe client={client} />
 
         <div>
           <span className="trc-sub" style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase' }}>Ses filleules</span>

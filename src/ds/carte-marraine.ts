@@ -22,7 +22,7 @@
 import qrcode from 'qrcode-generator';
 import { asset } from '../shared/asset';
 import { assureLesPolices } from './carte';
-import { lienDuParrainage, type ModeleDeCarte } from '../shared/parrainage-pur';
+import { lienDuParrainage, nomDuRang, type ModeleDeCarte, type RangId } from '../shared/parrainage-pur';
 import { URL_DU_MODELE } from '../shared/lien-reservation';
 
 export const CARTE_L = 1012;
@@ -39,6 +39,8 @@ export type DonneesDeCarte = {
   /** L'année d'entrée à la Maison (la fiche, `since`). */
   depuis: string;
   modele?: ModeleDeCarte;
+  /** Son rang d'ambassadrice : il s'écrit à côté de « Carte de marraine ». */
+  rang?: RangId;
 };
 
 const SERIF = '"Cormorant Garamond", Georgia, serif';
@@ -184,7 +186,7 @@ async function peinsLeRecto(c: CanvasRenderingContext2D, d: DonneesDeCarte): Pro
   c.textBaseline = 'alphabetic';
   c.fillStyle = accent;
   c.font = `400 17px ${SANS}`;
-  espace(c, 'CARTE DE MARRAINE', 70, 250, 17 * 0.34);
+  espace(c, d.rang && d.rang !== 'graine' ? `CARTE DE MARRAINE · ${nomDuRang(d.rang).split(" ")[0].toUpperCase()}` : 'CARTE DE MARRAINE', 70, 250, 17 * 0.34);
 
   /* Le prénom, en grand ; il se resserre s'il est long, jamais ne déborde. */
   let taille = 132;

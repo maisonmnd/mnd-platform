@@ -43,13 +43,14 @@ export const COMMUNAUTE = {
 export const PARRAINAGE = {
   sur: 'Le parrainage',
   titre: 'Offrez la Maison à une amie.',
-  ligne: 'Votre amie découvre la Maison avec un cadeau de bienvenue. Quand elle est venue, vous recevez le vôtre.',
+  ligne: 'Chaque cliente est une ambassadrice. Votre amie découvre la Maison avec un cadeau de bienvenue ; quand elle est venue, vous choisissez le vôtre.',
   pas: [
     ['Vous recevez votre code', 'Votre prénom et votre numéro, et le site vous donne un code à vous, à partager sur WhatsApp.'],
     ['Votre amie réserve avec votre code', 'Sur le site, le code déjà posé dans le lien. Son cadeau de bienvenue l’attend à sa première visite.'],
-    ['Elle vient, vous êtes remerciée', 'Dès que sa visite est passée, la Maison vous le dit sur WhatsApp et vous remet votre cadeau.'],
+    ['Elle vient, vous choisissez', 'Dès que sa visite est passée, votre récompense vous attend dans Ma Couronne : un soin offert, ou une remise sur un produit de la Gamme.'],
+    ['Ses amies vous reviennent en écho', 'Quand votre amie fait venir les siennes, vous recevez un écho. Et vous montez de rang : Pousse, Tresse, Couronne, Reine de la Maison.'],
   ] as [string, string][],
-  regle: 'Un code sert une fois par nouvelle cliente, jamais à une cliente déjà connue de la Maison, ni à la marraine elle-même.',
+  regle: 'Un code sert une fois par nouvelle cliente, jamais à une cliente déjà connue de la Maison, ni à la marraine elle-même. Deux générations, jamais d’argent : des soins et des remises.',
 };
 
 /* ── LES INGRÉDIENTS ─────────────────────────────────────────────────── */

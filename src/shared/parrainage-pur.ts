@@ -34,7 +34,35 @@ export const lienDuParrainage = (site: string, code: string): string =>
 export type ModeleDeCarte = 'indigo' | 'ivoire' | 'cuivre';
 export const MODELES_DE_CARTE: readonly ModeleDeCarte[] = ['indigo', 'ivoire', 'cuivre'];
 
-/** Un soin offert à la marraine quand une amie est venue grâce à elle. */
+/* ── LES AMBASSADRICES — 28 septembre 2026 (maquette validée, « construits »)
+   Chaque cliente est une ambassadrice. Chaque amie venue lui vaut une
+   récompense À CHOISIR (un soin offert, ou une remise sur un produit de la
+   Gamme) ; les amies de ses amies lui valent un écho ; cinq rangs, un défi du
+   mois. Deux générations, jamais d'argent : un programme de fidélité, pas une
+   vente pyramidale. */
+export type GenreDeRecompense = 'soin' | 'remise' | 'a-choisir';
+export type SourceDeRecompense = 'amie' | 'echo' | 'rang' | 'defi';
+
+export type RangId = 'graine' | 'pousse' | 'tresse' | 'couronne' | 'reine';
+export const RANGS: readonly { id: RangId; nom: string; seuil: number }[] = [
+  { id: 'graine', nom: 'Graine', seuil: 0 },
+  { id: 'pousse', nom: 'Pousse', seuil: 1 },
+  { id: 'tresse', nom: 'Tresse', seuil: 3 },
+  { id: 'couronne', nom: 'Couronne', seuil: 5 },
+  { id: 'reine', nom: 'Reine de la Maison', seuil: 10 },
+];
+/** Le rang d'une ambassadrice, d'après le nombre d'amies VENUES. */
+export const rangDe = (venues: number) => [...RANGS].reverse().find((r) => venues >= r.seuil) ?? RANGS[0];
+export const rangSuivant = (venues: number) => RANGS.find((r) => r.seuil > venues);
+export const nomDuRang = (id: RangId | undefined): string => RANGS.find((r) => r.id === id)?.nom ?? 'Graine';
+
+/** Le choix de la cliente pour une récompense « à choisir » : écrit par ELLE
+    (Ma Couronne) ou à la caisse ; le Trône le reporte sur la récompense. */
+export type ChoixDeRecompense = { genre: 'soin' | 'remise'; produitId?: string; le: string };
+
+/** Une récompense de la Maison : un soin offert, une remise sur un produit,
+    ou l'un des deux au choix de la cliente. (Le nom `SoinOffert` date de la
+    carte de marraine ; le champ `soinsOfferts` de la fiche les porte tous.) */
 export type SoinOffert = {
   /** `parr-<id de la demande de la filleule>` : un par amie venue, jamais deux. */
   id: string;
@@ -47,7 +75,26 @@ export type SoinOffert = {
   utiliseLe?: string;
   /** Le numéro de la facture qui l'a consommé. */
   piece?: string;
+  /** Absent : un soin (les récompenses de la carte de marraine). */
+  genre?: GenreDeRecompense;
+  /** La remise sur un produit, en pour cent (posée avec la récompense). */
+  pct?: number;
+  /** Le produit choisi pour la remise, s'il l'a été. */
+  produitId?: string;
+  source?: SourceDeRecompense;
+  /** Au-delà, la récompense s'efface (six mois par défaut). */
+  expireLe?: string;
+  /** Le remerciement WhatsApp est parti pour elle. */
+  merciLe?: string;
 };
+
+/** LE GENRE RÉEL d'une récompense : celui qu'elle porte, ou celui que la
+    cliente a choisi pour une récompense « à choisir ». */
+export function genreEffectif(s: SoinOffert, choix?: Record<string, ChoixDeRecompense>): GenreDeRecompense {
+  const g = s.genre ?? 'soin';
+  if (g !== 'a-choisir') return g;
+  return choix?.[s.id]?.genre ?? 'a-choisir';
+}
 
 export type EtatDeLaFilleule = 'sans-rdv' | 'a-venir' | 'venue' | 'annulee';
 
@@ -55,10 +102,21 @@ export type EtatDeLaFilleule = 'sans-rdv' | 'a-venir' | 'venue' | 'annulee';
     un état, une date. Rien d'autre ne quitte le Trône. */
 export type ResumeParrainage = {
   filleules: { prenom: string; etat: EtatDeLaFilleule; date?: string }[];
+  /** Les amies de ses amies, venues : l'écho. */
+  echos?: { prenom: string; via: string; date?: string }[];
+  venues?: number;
+  rang?: RangId;
+  defi?: { mois: string; objectif: number; fait: number; libelle: string };
 };
 
-export const soinsEnAttente = (soins: readonly SoinOffert[] | undefined): SoinOffert[] =>
-  (soins ?? []).filter((s) => s && !s.utiliseLe);
+/** Les récompenses encore à utiliser : ni consommées, ni expirées. */
+export const soinsEnAttente = (soins: readonly SoinOffert[] | undefined, aujourdhui: string = new Date().toISOString().slice(0, 10)): SoinOffert[] =>
+  (soins ?? []).filter((s) => s && !s.utiliseLe && (!s.expireLe || s.expireLe >= aujourdhui));
+
+/** Le classement du mois, écrit par le Trône dans un document que seules les
+    clientes connectées lisent (0111) : un prénom, un rang, des nombres. */
+export type LigneDuClassement = { prenom: string; rang: RangId; ceMois: number; amies: number };
+export type ClassementAmbassade = { mois: string; lignes: LigneDuClassement[] };
 
 /** Le prénom d'une fiche : la fiche n'a qu'un nom complet. */
 export const prenomDuNom = (nom: string | undefined): string => String(nom ?? '').trim().split(/\s+/)[0] ?? '';

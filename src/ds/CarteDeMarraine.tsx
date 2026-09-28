@@ -15,7 +15,7 @@ export function CarteDeMarraine({ donnees, largeur = 350, retournable = true, fa
   useEffect(() => { if (faceImposee) setFace(faceImposee); }, [faceImposee]);
   const ref = useRef<HTMLCanvasElement>(null);
   const [prete, setPrete] = useState(false);
-  const cle = `${donnees.prenom}|${donnees.code}|${donnees.depuis}|${donnees.modele ?? 'indigo'}|${face}`;
+  const cle = `${donnees.prenom}|${donnees.code}|${donnees.depuis}|${donnees.modele ?? 'indigo'}|${donnees.rang ?? ''}|${face}`;
   useEffect(() => {
     let vivant = true;
     const canvas = ref.current;

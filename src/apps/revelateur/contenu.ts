@@ -1026,7 +1026,8 @@ export const PAGES: Page[] = [
         items: [
           ['Qui peut être marraine ?', 'Toute personne qui aime la Maison, cliente ou non. Votre numéro vous rend toujours le même code.'],
           ['Qui peut être filleule ?', 'Une personne qui vient à la Maison pour la première fois. Le code ne vaut pas pour une cliente déjà connue, ni pour la marraine elle-même.'],
-          ['Quand reçoit-on les cadeaux ?', 'Celui de votre amie l’attend à sa première visite. Le vôtre vous est remis dès que sa visite est passée, et la Maison vous le dit sur WhatsApp.'],
+          ['Quand reçoit-on les cadeaux ?', 'Celui de votre amie l’attend à sa première visite. Le vôtre vous attend dès que sa visite est passée : vous le choisissez dans Ma Couronne ou à l’accueil, un soin offert ou une remise sur un produit.'],
+          ['Qu’est-ce que l’écho ?', 'Quand une amie venue grâce à vous fait venir les siennes, vous recevez une petite remise sur un produit. L’arbre s’arrête là : deux générations.'],
           ['Combien d’amies puis-je parrainer ?', 'Autant que vous voulez : un cadeau pour chaque amie venue.'],
         ],
       },

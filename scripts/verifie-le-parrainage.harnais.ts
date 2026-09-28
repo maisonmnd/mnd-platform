@@ -2,11 +2,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
   FORME_DU_CODE, SIGNES_DU_CODE, codeDeMarraine, racineDuCode, lienDuParrainage,
 } from '../src/shared/parrainage-pur';
+import { codesAAttribuer, soinUtilise, type DemandeParrainee, type FicheLue } from '../src/shared/parrainage';
 import {
-  marrainesEtFilleules, cadeauDu, codesAAttribuer, resumeDuParrainage, soinsAPoser, soinUtilise,
-  type DemandeParrainee, type FicheLue,
-} from '../src/shared/parrainage';
-import { soinsEnAttente } from '../src/shared/parrainage-pur';
+  lignees, venuesDe, recompensesAPoser, choixReportes, rattachementsDuSite, pourquoiPasDeMarraine,
+  resumeDeLAmbassade, classementDuMois, chiffresDuMois, type FicheAmb, type DemandeLue,
+} from '../src/shared/ambassade';
+import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, type SoinOffert } from '../src/shared/parrainage-pur';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
 
 /* LA COMMUNAUTÉ MND, ÉPROUVÉE — 28 septembre 2026.
@@ -83,37 +84,10 @@ const reserver = readFileSync('src/apps/revelateur/ilots/Reserver.tsx', 'utf8');
 dit('la réservation dit les quatre issues du parrainage', [],
   ['parrainage', 'parrainage-soi-meme', 'parrainage-deja-cliente', 'parrainage-deja-utilise'].filter((r) => !reserver.includes(`recu.codeRaison === '${r}'`)));
 
-/* ── (4) Le Trône ── */
 const d = (o: Partial<DemandeParrainee> & { id: string }): DemandeParrainee => ({
   genre: 'prospect', createdAt: '2026-10-01T10:00:00Z', branchId: 'b1', prenom: 'X', telephone: '+2290100000000',
   besoin: 'inconnu', source: 'site', consentementLe: '2026-10-01T10:00:00Z', statut: 'nouvelle', ...o,
 } as DemandeParrainee);
-const demandes = [
-  d({ id: 'm1', prenom: 'Aïcha', codeParrain: 'AICHA-7K2', createdAt: '2026-10-01T09:00:00Z' }),
-  d({ id: 'm2', prenom: 'Nadège', codeParrain: 'NADEGE-3PQ', createdAt: '2026-10-02T09:00:00Z' }),
-  d({ id: 'f1', prenom: 'Sènami', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'AICHA-7K2', apptId: 'r1', createdAt: '2026-10-03T09:00:00Z' }),
-  d({ id: 'f2', prenom: 'Rama', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'AICHA-7K2', apptId: 'r2', createdAt: '2026-10-04T09:00:00Z' }),
-  d({ id: 'f3', prenom: 'Grâce', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'AICHA-7K2', apptId: 'r3', cadeauMarraineRemisLe: '2026-10-09T09:00:00Z', createdAt: '2026-10-02T09:00:00Z' }),
-  /* Refusées par la fonction : elles ne sont PAS des filleules. */
-  d({ id: 'x1', genre: 'rdv', codeRaison: 'parrainage-deja-cliente', parrainDe: undefined, code: 'AICHA-7K2' }),
-  d({ id: 'x2', genre: 'rdv', codeRaison: 'parrainage-soi-meme', code: 'NADEGE-3PQ' }),
-  /* Un code de marraine mal formé n'est pas une marraine. */
-  d({ id: 'x3', codeParrain: 'rentree10' }),
-];
-const rdvs = [
-  { id: 'r1', status: 'honoré', date: '2026-10-08' },
-  { id: 'r2', status: 'en attente', date: '2026-10-20' },
-  { id: 'r3', status: 'honoré', date: '2026-10-06' },
-];
-const liste = marrainesEtFilleules(demandes, rdvs);
-dit('deux marraines, la plus récente d’abord', ['m2', 'm1'], liste.map((m) => m.id));
-const aicha = liste.find((m) => m.code === 'AICHA-7K2');
-dit('Aïcha a trois filleules, les refusées exclues', ['f2', 'f1', 'f3'], aicha?.filleules.map((f) => f.demande.id));
-dit('la visite se lit dans l’agenda', ['a-venir', 'venue', 'venue'], aicha?.filleules.map((f) => f.visite));
-dit('le cadeau n’est dû qu’après une visite honorée, et une seule fois', ['f1'], aicha?.filleules.filter(cadeauDu).map((f) => f.demande.id));
-dit('Nadège n’a aucune filleule (son propre code ne compte pas)', 0, liste.find((m) => m.code === 'NADEGE-3PQ')?.filleules.length);
-dit('un rendez-vous annulé ne rend aucun cadeau dû', false,
-  cadeauDu(marrainesEtFilleules([demandes[0], { ...demandes[2], apptId: 'r9' }], [{ id: 'r9', status: 'annulé', date: '2026-10-08' }])[0].filleules[0]));
 
 /* ── (5) Le site servi ── */
 const SORTIE = 'revelateur';
@@ -180,53 +154,120 @@ dit('… mais jamais deux fiches pour un même code du site', 1,
 dit('… et un code neuf n’emprunte jamais celui d’une marraine du site', false,
   codesAAttribuer([fiche({ id: 'z1', name: 'Rama', phone: '+2290155555555' })], duSite).some((c) => c.code === 'RAMA-4HX'));
 
-/* ── Les marraines du Trône, et leurs filleules ── */
-const fiches = [
-  fiche({ id: 'adjoa', name: 'Adjoa Mensah', phone: '+2290170000000', codeParrain: 'ADJOA-7K2', since: '2019-01-01' }),
-  fiche({ id: 'ines', name: 'Inès', phone: '+2290171000000', codeParrain: 'INES-3PQ', since: '2020-01-01' }),
+/* ══ (7) LES AMBASSADRICES — 28 septembre 2026 ══════════════════════════
+   La règle, pas le cas : une amie compte UNE fois (site et Trône se
+   rejoignent), quand elle est VENUE ; une récompense au choix par amie ;
+   l'écho à la deuxième génération et JAMAIS à la troisième ; les rangs et le
+   défi ; rien ne se pose deux fois ; le choix de la cliente est reporté ; la
+   remise est bornée ; Ma Couronne ne reçoit que des prénoms. */
+const fa = (o: Partial<FicheAmb> & { id: string }): FicheAmb => ({ name: 'X', phone: '+2290100000000', since: '2019-01-01', ...o } as FicheAmb);
+const ficheA = [
+  fa({ id: 'adjoa', name: 'Adjoa Mensah', phone: '+2290170000000', codeParrain: 'ADJOA-7K2' }),
+  fa({ id: 'grace', name: 'Grâce H.', phone: '+2290171000000', codeParrain: 'GRACE-9MT', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'ines', name: 'Inès K.', phone: '+2290172000000', codeParrain: 'INES-3PQ', parraineePar: 'GRACE-9MT' }),
+  fa({ id: 'lea', name: 'Léa T.', phone: '+2290173000000', codeParrain: 'LEA-2WX', parraineePar: 'INES-3PQ' }),
+  fa({ id: 'rama', name: 'Rama D.', phone: '+2290174000000', codeParrain: 'RAMA-4HX', parraineePar: 'ADJOA-7K2' }),
+  fa({ id: 'zoe', name: 'Zoé A.', phone: '+2290175000000', codeParrain: 'ZOE-8KM', parraineePar: 'ADJOA-7K2' }),
 ];
-const dems = [
-  d({ id: 'g1', prenom: 'Grâce Houénou', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a1', createdAt: '2026-10-05T09:00:00Z' }),
-  d({ id: 'g2', prenom: 'Rama', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a2', createdAt: '2026-10-06T09:00:00Z' }),
-  d({ id: 'g3', prenom: 'Nadia', genre: 'rdv', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a3', cadeauMarraineRemisLe: '2026-10-08T09:00:00Z', createdAt: '2026-10-04T09:00:00Z' }),
+const demA: DemandeLue[] = [
+  { id: 'd1', prenom: 'Rama', telephone: '+2290174000000', createdAt: '2026-10-01T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a-r' },
+  { id: 'd2', prenom: 'Nadia', telephone: '+2290176000000', createdAt: '2026-10-02T09:00:00Z', codeRaison: 'parrainage', parrainDe: 'ADJOA-7K2', apptId: 'a-n' },
 ];
-const rdvsC = [{ id: 'a1', status: 'honoré', date: '2026-10-12' }, { id: 'a2', status: 'confirmé', date: '2026-10-20' }, { id: 'a3', status: 'honoré', date: '2026-10-07' }];
-const mTrone = marrainesEtFilleules(dems, rdvsC, fiches);
-dit('une fiche dont le code a servi est une marraine ; une fiche sans filleule n’encombre pas', ['adjoa'], mTrone.map((m) => m.id));
-dit('… avec son prénom et ses trois filleules', ['Adjoa', 3], [mTrone[0]?.prenom, mTrone[0]?.filleules.length]);
-const resume = resumeDuParrainage('ADJOA-7K2', dems, rdvsC);
-dit('le résumé de Ma Couronne ne porte qu’un prénom, un état, une date', [], resume.filleules.flatMap((f) => Object.keys(f).filter((k) => !['prenom', 'etat', 'date'].includes(k))));
-dit('… le prénom seul, jamais le nom', ['Rama', 'Grâce', 'Nadia'], resume.filleules.map((f) => f.prenom));
+const rdvA = [
+  { id: 'a-g', status: 'honoré', date: '2026-10-03', clientId: 'grace' },
+  { id: 'a-i', status: 'honoré', date: '2026-10-10', clientId: 'ines' },
+  { id: 'a-l', status: 'honoré', date: '2026-10-14', clientId: 'lea' },
+  { id: 'a-r', status: 'honoré', date: '2026-10-12', clientId: 'rama' },
+  { id: 'a-n', status: 'honoré', date: '2026-10-05' },
+  { id: 'a-z', status: 'confirmé', date: '2026-10-30', clientId: 'zoe' },
+];
+const LA = lignees(ficheA, demA, rdvA);
+const adjoa = LA.get('ADJOA-7K2')!;
+dit('une amie compte UNE fois, même venue par le site ET rattachée au Trône', 1, adjoa.filleules.filter((f) => f.clientId === 'rama').length);
+dit('… et garde l’identifiant de sa réservation', 'parr-d1', adjoa.filleules.find((f) => f.clientId === 'rama')?.recompenseId);
+dit('Adjoa : quatre amies, dont trois venues (une réservation seule ne compte pas)', [4, 3], [adjoa.filleules.length, venuesDe(adjoa).length]);
+const reglageA = { soinMarraineServiceId: 'svc-dandan', remisePct: 20, echoPct: 10, bonusRangs: { tresse: 'svc-signature' }, defi: { actif: true, objectif: 2, serviceId: 'svc-defi' } };
+const nomsA = (id: string) => ({ 'svc-dandan': 'DÀNDÀN™', 'svc-signature': 'Le rituel signature', 'svc-defi': 'KLƆKLƆ™' } as Record<string, string>)[id];
+const posesA = recompensesAPoser(ficheA, LA, reglageA, '2026-10-20', nomsA);
+const idsDe = (id: string) => (posesA.parFiche.get(id) ?? []).map((s) => s.id).sort();
+dit('Adjoa : une récompense par amie venue, l’écho d’Inès, le rang Tresse, le défi d’octobre',
+  ['defi-2026-10-adjoa', 'echo-parr-c-ines', 'parr-c-grace', 'parr-d1', 'parr-d2', 'rang-tresse-adjoa'], idsDe('adjoa'));
+dit('… JAMAIS d’écho à la troisième génération (Léa, amie d’Inès, amie de Grâce)', false, idsDe('adjoa').some((id) => id.includes('lea')));
+dit('Grâce : sa récompense pour Inès, et l’écho de Léa', ['echo-parr-c-lea', 'parr-c-ines'], idsDe('grace'));
+dit('Inès : sa récompense pour Léa', ['parr-c-lea'], idsDe('ines'));
+const parrD1 = (posesA.parFiche.get('adjoa') ?? []).find((s) => s.id === 'parr-d1');
+dit('la récompense d’une amie est À CHOISIR, avec son soin et sa remise', { genre: 'a-choisir', serviceId: 'svc-dandan', pct: 20, expireLe: '2027-04-20' },
+  { genre: parrD1?.genre, serviceId: parrD1?.serviceId, pct: parrD1?.pct, expireLe: parrD1?.expireLe });
+dit('l’écho est une remise plus petite', { genre: 'remise', pct: 10 }, (() => { const e = (posesA.parFiche.get('adjoa') ?? []).find((s) => s.id === 'echo-parr-c-ines'); return { genre: e?.genre, pct: e?.pct }; })());
+dit('les réservations du site récompensées sont marquées', ['d1', 'd2'], [...posesA.demandesMarquees].sort());
+dit('aucun remerciement tant que la Maison ne l’a pas allumé', 0, posesA.mercis.length);
+dit('… et un par amie venue quand elle l’allume', 5, recompensesAPoser(ficheA, LA, { ...reglageA, merciParWhatsApp: true }, '2026-10-20', nomsA).mercis.length);
+const ficheApres = ficheA.map((c) => ({ ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...(posesA.parFiche.get(c.id) ?? [])] }));
+dit('rien ne se pose deux fois (deux postes, un passage de plus)', 0, recompensesAPoser(ficheApres, lignees(ficheApres, demA, rdvA), reglageA, '2026-10-21', nomsA).parFiche.size);
+dit('un cadeau déjà remis à la main ne se repose pas', false,
+  (recompensesAPoser(ficheA, lignees(ficheA, [demA[0], { ...demA[1], cadeauMarraineRemisLe: '2026-10-06' }], rdvA), reglageA, '2026-10-20', nomsA).parFiche.get('adjoa') ?? []).some((s) => s.id === 'parr-d2'));
+dit('sans prestation choisie, pas de bonus de rang ni de défi (rien ne s’invente)', ['echo-parr-c-ines', 'parr-c-grace', 'parr-d1', 'parr-d2'],
+  (recompensesAPoser(ficheA, LA, { remisePct: 20 }, '2026-10-20').parFiche.get('adjoa') ?? []).map((s) => s.id).sort());
+dit('la remise ne dépasse jamais la moitié', 50, (recompensesAPoser(ficheA, LA, { remisePct: 80 }, '2026-10-20').parFiche.get('adjoa') ?? [])[0]?.pct);
 
-/* ── Le soin offert ── */
-const reglageTest = { cadeauMarraine: 'un lavage offert', soinMarraineServiceId: 'svc-dandan' };
-const gestes1 = soinsAPoser(fiches, dems, rdvsC, reglageTest, '2026-10-12', (id) => (id === 'svc-dandan' ? 'DÀNDÀN™' : undefined));
-dit('une amie venue pose UN soin sur la fiche de sa marraine', ['g1'], gestes1.map((g) => g.demandeId));
-dit('… à l’identifiant de la demande de l’amie, à la prestation choisie, au nom du catalogue',
-  { id: 'parr-g1', serviceId: 'svc-dandan', libelle: 'DÀNDÀN™', raison: 'Pour la venue de Grâce' },
-  { id: gestes1[0]?.soin?.id, serviceId: gestes1[0]?.soin?.serviceId, libelle: gestes1[0]?.soin?.libelle, raison: gestes1[0]?.soin?.raison });
-dit('… et un remerciement reste à envoyer', true, gestes1[0]?.merci);
-const fichesAvecSoin = fiches.map((f) => (f.id === 'adjoa' ? { ...f, soinsOfferts: [gestes1[0]!.soin!] } : f));
-const gestes2 = soinsAPoser(fichesAvecSoin, dems, rdvsC, reglageTest, '2026-10-12');
-dit('un soin déjà posé ne se repose pas (deux postes, un soin)', [undefined], gestes2.map((g) => g.soin));
-const demsMarquees = dems.map((x) => (x.id === 'g1' ? { ...x, cadeauMarraineRemisLe: '2026-10-12', merciEnvoyeLe: '2026-10-12' } : x));
-dit('… et une demande marquée ne rend plus rien', 0, soinsAPoser(fichesAvecSoin, demsMarquees, rdvsC, reglageTest, '2026-10-12').length);
-dit('sans prestation choisie, le soin prend la phrase de la Maison', 'un lavage offert',
-  soinsAPoser(fiches, dems, rdvsC, { cadeauMarraine: 'un lavage offert' }, '2026-10-12')[0]?.soin?.libelle);
-const utilise1 = soinUtilise([gestes1[0]!.soin!], 'parr-g1', 'MND-0042', '2026-10-20');
-const utilise2 = soinUtilise(utilise1, 'parr-g1', 'MND-0099', '2026-11-02');
-dit('la caisse consomme le soin une fois, avec sa pièce', { utiliseLe: '2026-10-20', piece: 'MND-0042' }, { utiliseLe: utilise2[0].utiliseLe, piece: utilise2[0].piece });
-dit('… et un soin consommé ne s’offre plus', 0, soinsEnAttente(utilise2).length);
+/* ── Le choix de la cliente ── */
+const aChoisir: SoinOffert = { id: 'parr-d1', genre: 'a-choisir', libelle: 'Une récompense à choisir', raison: 'Pour la venue de Rama', poseLe: '2026-10-20', pct: 20, serviceId: 'svc-dandan' };
+const dejaUtilisee: SoinOffert = { ...aChoisir, id: 'parr-d2', utiliseLe: '2026-10-21', piece: 'MND-1' };
+const choixRemise = choixReportes(fa({ id: 'adjoa', soinsOfferts: [aChoisir, dejaUtilisee], choixRecompenses: { 'parr-d1': { genre: 'remise', produitId: 'p-huile', le: 'x' }, 'parr-d2': { genre: 'soin', le: 'x' } } }), nomsA, (id) => (id === 'p-huile' ? 'L’huile Kòfí™' : undefined));
+dit('son choix « remise » est reporté, avec son produit', { genre: 'remise', produitId: 'p-huile', libelle: '−20 % sur L’huile Kòfí™' },
+  { genre: choixRemise?.[0].genre, produitId: choixRemise?.[0].produitId, libelle: choixRemise?.[0].libelle });
+dit('… une récompense déjà utilisée ne change plus', dejaUtilisee, choixRemise?.[1]);
+dit('son choix « soin » prend le nom du soin', 'DÀNDÀN™', choixReportes(fa({ id: 'x', soinsOfferts: [aChoisir], choixRecompenses: { 'parr-d1': { genre: 'soin', le: 'x' } } }), nomsA)?.[0].libelle);
+dit('sans choix, rien ne bouge', null, choixReportes(fa({ id: 'x', soinsOfferts: [aChoisir] })));
+dit('le genre réel suit son choix', ['a-choisir', 'soin'], [genreEffectif(aChoisir), genreEffectif(aChoisir, { 'parr-d1': { genre: 'soin', le: 'x' } })]);
+dit('une récompense expirée n’est plus à utiliser', 0, soinsEnAttente([{ ...aChoisir, expireLe: '2026-10-19' }], '2026-10-20').length);
 
-/* ── La base protège les champs (0110) ── */
-const migration = readFileSync('supabase/migrations/0110_la_carte_de_marraine.sql', 'utf8');
+/* ── Les rangs ── */
+dit('les rangs : 0 Graine, 1 Pousse, 3 Tresse, 5 Couronne, 10 Reine', ['graine', 'pousse', 'pousse', 'tresse', 'couronne', 'reine'], [0, 1, 2, 3, 5, 10].map((n) => rangDe(n).id));
+dit('… et le suivant', ['pousse', 'couronne', undefined], [0, 3, 10].map((n) => rangSuivant(n)?.id));
+
+/* ── Les deux chemins se rejoignent ── */
+const sansLien = ficheA.map((c) => (c.id === 'rama' ? { ...c, parraineePar: undefined } : c));
+dit('l’amie venue par le site reçoit le code sur sa fiche', [{ clientId: 'rama', code: 'ADJOA-7K2', le: '2026-10-01T09:00:00Z' }], rattachementsDuSite(sansLien, demA, rdvA));
+dit('… une fiche déjà rattachée ne bouge pas', [], rattachementsDuSite(ficheA, demA, rdvA));
+
+/* ── « Vient de la part de » ── */
+const nouvelle = fa({ id: 'neuve', name: 'Awa', codeParrain: 'AWA-3JJ' });
+dit('« Vient de la part de » : un code inconnu est refusé', true, !!pourquoiPasDeMarraine(nouvelle, 'NULLE-222', ficheA, rdvA));
+dit('… son propre code aussi', true, !!pourquoiPasDeMarraine(ficheA[0], 'ADJOA-7K2', ficheA, rdvA));
+dit('… une cliente déjà venue plusieurs fois aussi', true,
+  !!pourquoiPasDeMarraine(nouvelle, 'ADJOA-7K2', ficheA, [...rdvA, { id: 'v1', status: 'honoré', date: '2026-01-01', clientId: 'neuve' }, { id: 'v2', status: 'honoré', date: '2026-02-01', clientId: 'neuve' }]));
+dit('… une nouvelle cliente passe', null, pourquoiPasDeMarraine(nouvelle, 'ADJOA-7K2', [...ficheA, nouvelle], rdvA));
+dit('… et une récompense déjà posée ne se déplace plus', true,
+  !!pourquoiPasDeMarraine(ficheA[1], 'RAMA-4HX', ficheApres, rdvA));
+dit('… même quand elle est venue par le site (récompense de sa réservation)', true,
+  !!pourquoiPasDeMarraine(ficheA.find((c) => c.id === 'rama')!, 'GRACE-9MT', ficheApres, rdvA, demA));
+
+/* ── Ce que Ma Couronne reçoit ── */
+const resA = resumeDeLAmbassade(adjoa, LA, ficheA, reglageA, '2026-10-20', nomsA);
+dit('Ma Couronne : des prénoms, des états, des dates, rien d’autre', [],
+  [...resA.filleules.flatMap((f) => Object.keys(f)), ...(resA.echos ?? []).flatMap((e) => Object.keys(e))].filter((k) => !['prenom', 'etat', 'date', 'via'].includes(k)));
+dit('… son rang, ses échos, son défi', { rang: 'tresse', venues: 3, echos: ['Inès via Grâce'], defi: { fait: 2, objectif: 2 } },
+  { rang: resA.rang, venues: resA.venues, echos: (resA.echos ?? []).map((e) => `${e.prenom} via ${e.via}`), defi: { fait: resA.defi?.fait, objectif: resA.defi?.objectif } });
+const clA = classementDuMois(LA, '2026-10-20');
+dit('le classement : un prénom, un rang, deux nombres', [], clA.lignes.flatMap((l) => Object.keys(l)).filter((k) => !['prenom', 'rang', 'ceMois', 'amies'].includes(k)));
+dit('… Adjoa en tête', 'Adjoa', clA.lignes[0]?.prenom);
+dit('les chiffres du mois comptent les amies venues par une amie', 5, chiffresDuMois(ficheA, LA, rdvA, '2026-10-20').parUneAmie);
+
+/* ── La base protège les champs (0111, qui contient 0110) ── */
+dit('0110 existe toujours (le premier temps)', true, existsSync('supabase/migrations/0110_la_carte_de_marraine.sql'));
+const migration = readFileSync('supabase/migrations/0111_les_ambassadrices.sql', 'utf8');
 const sqlSansCommentaires = migration.replace(/--.*$/gm, '');
-dit('0110 : l’éditeur SQL et la clé de service gardent la main', true, /if auth\.uid\(\) is null then return new;/.test(sqlSansCommentaires));
-dit('0110 : le personnel aussi', true, /if public\.is_staff\(\) then return new;/.test(sqlSansCommentaires));
-dit('0110 : le code, le résumé et les soins sont réimposés', true,
-  ['codeParrain', 'parrainage', 'soinsOfferts'].every((k) => sqlSansCommentaires.includes(`'${k}', old.data -> '${k}'`)));
-dit('0110 : le modèle de carte reste libre', false, sqlSansCommentaires.includes("'carteModele'"));
-dit('0110 : garde l’insertion comme la mise à jour', true, /before insert or update on public\.clients/.test(sqlSansCommentaires));
+dit('0111 : l’éditeur SQL et la clé de service gardent la main', true, /if auth\.uid\(\) is null then return new;/.test(sqlSansCommentaires));
+dit('0111 : le personnel aussi', true, /if public\.is_staff\(\) then return new;/.test(sqlSansCommentaires));
+dit('0111 : le code, le résumé et les soins sont réimposés', true,
+  ['codeParrain', 'parrainage', 'soinsOfferts', 'parraineePar', 'parraineeLe'].every((k) => sqlSansCommentaires.includes(`'${k}', old.data -> '${k}'`)));
+dit('0111 : son choix entre soin et remise reste à ELLE', false, sqlSansCommentaires.includes("'choixRecompenses'"));
+dit('0111 : le classement se lit par les clientes connectées, jamais par le site public', true,
+  /create policy docs_ambassade_read on public\.documents for select to authenticated\s+using \(key = 'mnd_classement_ambassade'\)/.test(sqlSansCommentaires)
+  && !/docs_ambassade_read[^;]*anon/.test(sqlSansCommentaires));
+dit('0111 : le modèle de carte reste libre', false, sqlSansCommentaires.includes("'carteModele'"));
+dit('0111 : garde l’insertion comme la mise à jour', true, /before insert or update on public\.clients/.test(sqlSansCommentaires));
 
 /* ── La fonction : la fiche d'abord, le prénom seul ── */
 const qui = sansCommentaires.slice(sansCommentaires.indexOf('async function quiOffre'), sansCommentaires.indexOf('async function previensLaMarraine'));
@@ -244,11 +285,12 @@ const hook = readFileSync('src/apps/trone/shell/useParrainageVivant.ts', 'utf8')
 dit('le Trône n’écrit rien avant d’avoir lu fiches, demandes et carnet', true,
   /!tablePrete\('clients'\) \|\| !tablePrete\('demandes'\) \|\| !tablePrete\('appointments'\)/.test(hook));
 dit('… ni les soins avant le réglage', true, /if \(!documentDescendu\('mnd_parrainage'\)\) return;/.test(hook));
-dit('… et ne remercie que si la Maison l’a allumé', true, /reglage\.merciParWhatsApp \? gestes\.filter/.test(hook));
+dit('… et n’envoie que les remerciements que le juge a comptés', true, /for \(const m of poses\.mercis\)/.test(hook) && !/merciParWhatsApp/.test(hook));
+dit('… un passage, un geste : chaque étape rend la main après avoir écrit', 5, hook.split('      return;\n    }').length - 1);
 dit('le crochet est monté dans le Trône', true, /useParrainageVivant\(\);/.test(readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8')));
 const caisse = readFileSync('src/apps/trone/routes/vente/Caisse.tsx', 'utf8');
 dit('la caisse ne consomme le soin qu’à l’encaissement, ligne encore offerte, avec la pièce', true,
-  /if \(soinPose && clientId && cart\[soinPose\.cle\]\?\.disc === 100\)/.test(caisse) && /soinUtilise\(c\.soinsOfferts, idSoin, inv\.number, dateVente\)/.test(caisse));
+  /if \(soinPose && clientId && cart\[soinPose\.cle\]\?\.disc === soinPose\.disc\)/.test(caisse) && /soinUtilise\(c\.soinsOfferts, idSoin, inv\.number, dateVente, \{ genre \}\)/.test(caisse));
 const envoi = readFileSync('supabase/functions/whatsapp-envoi/index.ts', 'utf8');
 dit('whatsapp-envoi sait porter une image en en-tête', true, /\{ type: 'image', image: \{ id: mediaId \} \}/.test(envoi));
 

@@ -11,7 +11,7 @@ import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
 import { useClients, useFamilies, clientsStore } from '../../../../shared/clients';
-import { soinsEnAttente, type SoinOffert } from '../../../../shared/parrainage-pur';
+import { genreEffectif, soinsEnAttente, type SoinOffert } from '../../../../shared/parrainage-pur';
 import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
@@ -249,7 +249,7 @@ export default function Caisse() {
   /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
      ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
      l'encaissement, comme un code : un ticket abandonné ne le brûle pas. */
-  const [soinPose, setSoinPose] = useState<{ id: string; cle: string } | null>(null);
+  const [soinPose, setSoinPose] = useState<{ id: string; cle: string; disc: number; genre: 'soin' | 'remise' } | null>(null);
   useEffect(() => { setSoinPose(null); }, [clientId]);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
@@ -482,13 +482,20 @@ export default function Caisse() {
   const soinsDispo: SoinOffert[] = soinsEnAttente(posClient?.soinsOfferts);
   /** OFFRIR LE SOIN : sa prestation (ou, s'il n'en nomme pas, la première
       prestation du ticket) passe à 100 %. Absente du ticket, elle s'y ajoute. */
-  const offreLeSoin = (soin: SoinOffert) => {
-    const cle = soin.serviceId && flat[`s:${soin.serviceId}`]
-      ? `s:${soin.serviceId}`
-      : lines.find((l) => l.kind === 'service')?.key;
+  const cleDuSoin = (soin: SoinOffert) => (soin.serviceId && flat[`s:${soin.serviceId}`]
+    ? `s:${soin.serviceId}`
+    : lines.find((l) => l.kind === 'service')?.key);
+  /** LA REMISE DE L'AMBASSADRICE (28 septembre 2026) : sur le produit choisi,
+      ou sur le premier produit du ticket. Jamais sur une prestation. */
+  const cleDeLaRemise = (soin: SoinOffert) => (soin.produitId && flat[`p:${soin.produitId}`]
+    ? `p:${soin.produitId}`
+    : lines.find((l) => l.kind === 'product')?.key);
+  const offreLeSoin = (soin: SoinOffert, genre: 'soin' | 'remise' = 'soin') => {
+    const cle = genre === 'soin' ? cleDuSoin(soin) : cleDeLaRemise(soin);
     if (!cle) return;
-    setCart((c) => ({ ...c, [cle]: { ...c[cle], qty: Math.max(1, c[cle]?.qty ?? 0), disc: 100 } }));
-    setSoinPose({ id: soin.id, cle });
+    const disc = genre === 'soin' ? 100 : Math.max(1, Math.min(50, Math.round(soin.pct ?? 20)));
+    setCart((c) => ({ ...c, [cle]: { ...c[cle], qty: Math.max(1, c[cle]?.qty ?? 0), disc } }));
+    setSoinPose({ id: soin.id, cle, disc, genre });
   };
   const retireLeSoin = () => {
     if (!soinPose) return;
@@ -560,10 +567,10 @@ export default function Caisse() {
 
     /* LE SOIN OFFERT SE CONSOMME ICI, avec la pièce, et seulement si sa
        ligne est encore offerte : une remise retirée entre-temps le rend. */
-    if (soinPose && clientId && cart[soinPose.cle]?.disc === 100) {
-      const idSoin = soinPose.id;
+    if (soinPose && clientId && cart[soinPose.cle]?.disc === soinPose.disc) {
+      const { id: idSoin, genre } = soinPose;
       clientsStore.set((prev) => prev.map((c) => (c.id === clientId
-        ? { ...c, soinsOfferts: soinUtilise(c.soinsOfferts, idSoin, inv.number, dateVente) }
+        ? { ...c, soinsOfferts: soinUtilise(c.soinsOfferts, idSoin, inv.number, dateVente, { genre }) }
         : c)));
       setSoinPose(null);
     }
@@ -1090,21 +1097,26 @@ export default function Caisse() {
 
               {soinsDispo.length > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Soin offert · parrainage</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ses récompenses d’ambassadrice · une par ticket</span>
                   {soinsDispo.map((s) => {
                     const pose = soinPose?.id === s.id;
-                    const possible = !!(s.serviceId && flat[`s:${s.serviceId}`]) || lines.some((l) => l.kind === 'service');
+                    const g = genreEffectif(s, posClient?.choixRecompenses);
+                    const soinPossible = !!cleDuSoin(s);
+                    const remisePossible = !!cleDeLaRemise(s);
                     return (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{s.libelle}<span style={{ display: 'block', fontSize: 11, color: 'var(--copper-700)' }}>{s.raison}</span></span>
-                        {pose
-                          ? <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={retireLeSoin}>Retirer</button>
-                          : <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !possible} onClick={() => offreLeSoin(s)}>Offrir</button>}
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{g === 'a-choisir' ? 'À choisir : un soin, ou une remise produit' : s.libelle}<span style={{ display: 'block', fontSize: 11, color: 'var(--copper-700)' }}>{s.raison}</span></span>
+                        {pose ? <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={retireLeSoin}>Retirer</button> : (
+                          <span style={{ display: 'flex', gap: 6 }}>
+                            {(g === 'soin' || g === 'a-choisir') && <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !soinPossible} onClick={() => offreLeSoin(s, 'soin')}>{g === 'a-choisir' ? 'Soin' : 'Offrir'}</button>}
+                            {(g === 'remise' || g === 'a-choisir') && <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !remisePossible} onClick={() => offreLeSoin(s, 'remise')}>−{s.pct ?? 20} % produit</button>}
+                          </span>
+                        )}
                       </div>
                     );
                   })}
-                  {!soinsDispo.some((s) => s.serviceId && flat[`s:${s.serviceId}`]) && !lines.some((l) => l.kind === 'service') && (
-                    <span style={{ fontSize: 11, color: 'var(--copper-700)' }}>Ajoutez au ticket la prestation à offrir.</span>
+                  {!lines.some((l) => l.kind === 'service' || l.kind === 'product') && (
+                    <span style={{ fontSize: 11, color: 'var(--copper-700)' }}>Ajoutez au ticket la prestation ou le produit à offrir.</span>
                   )}
                 </div>
               )}

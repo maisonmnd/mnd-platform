@@ -509,9 +509,10 @@ Tous en français, catégorie Utility (Marketing si Meta le refuse), pied
 
 1. **`parrainage_merci`** : en-tête IMAGE (la carte de la marraine, jointe
    par le Trône). Corps : « Bonjour {{1}}, {{2}} est venue à la Maison grâce
-   à vous. Merci ! Votre soin offert vous attend : {{3}}. Il est déjà sur
-   votre compte, dites-le simplement à l'accueil. » Exemples : Adjoa, Grâce,
-   DÀNDÀN™. Envoyé par le Trône quand la visite de l'amie est honorée, une
+   à vous. Merci ! Votre récompense vous attend : {{3}}. Choisissez-la dans
+   Ma Couronne, ou dites-le simplement à l'accueil. » Exemples : Adjoa,
+   Grâce, un soin offert ou une remise, à votre choix. (Texte revu le 28 au
+   soir, avec les ambassadrices : la récompense se choisit.) Envoyé par le Trône quand la visite de l'amie est honorée, une
    fois « Allumer le remerciement » cliqué (Marketing & Fidélité →
    Parrainages).
 2. **`carte_marraine`** : en-tête IMAGE (sa carte). Corps : « Bonjour {{1}},
