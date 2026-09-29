@@ -107,6 +107,8 @@ casser ni demander aucune modification de code.
 ## Références
 
 - `docs/REPRENDRE.md` — état du chantier, à jour
+- `docs/marque/charte-graphique.md` — la charte graphique (verrou, sous-marques,
+  couleur, typographie, applications, accessibilité) ; version visuelle et PDF à côté
 - `docs/BACKEND.md` — Supabase, RLS, fonctions
 - `HANDOFF.md` — ce qui est fait / ce qui reste
 - `../MND Mobile App Design/design_handoff_mnd_platform/` — maquettes `.dc.html`,

@@ -2,6 +2,60 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LA CHARTE GRAPHIQUE, ÉCRITE — 29 septembre 2026
+
+« Créer moi une charte graphique respectant les normes internationales de la
+Maison MND » (Yéman). La Maison avait toutes ses règles, mais éparses : les
+tokens, `verrou.ts`, `verrou.md`, `gamme.json`, `identite.ts`, la direction
+photo, la voix du site, et les règles non négociables du `CLAUDE.md`. Aucun
+document ne les posait ensemble pour un imprimeur, un photographe, une
+agence ou une nouvelle recrue.
+
+**Ce qui est écrit** : `docs/marque/charte-graphique.md` (le texte de
+référence, quatorze chapitres et trois annexes), `charte-graphique.html` (la
+version visuelle, vingt pages A4, polices et logos lus depuis le dépôt) et
+`charte-graphique.pdf` (son export, rendu par Chromium). La structure est
+celle des chartes internationales : identité, logo, architecture de marque,
+couleur, typographie, grille, mouvement, motifs, photo, voix, applications,
+accessibilité, fichiers, gouvernance. Chaque chapitre cite la norme qui
+s'applique : sRGB (IEC 61966-2-1), ISO 12647-2 et 12647-7 pour l'impression,
+ISO 3664 pour l'observation, ISO 216 pour le papier, ISO 19005 pour les PDF
+d'archive, WCAG 2.2 AA (la 2.0 est ISO/IEC 40500), Unicode pour les lettres
+fon, ISO 8601 / 4217 / 3166 / 639 pour les données, OFL 1.1 pour les polices.
+
+**RIEN N'EST INVENTÉ, TOUT EST RELU DU DÉPÔT.** Les proportions et planchers
+du verrou viennent de `verrou.ts` ; la gamme des sous-marques de
+`gamme.json` ; les couleurs des tokens ; la devise de `DEVISE_COMPLETE`. Là
+où la charte ajoute une règle qui n'était écrite nulle part (zone de
+protection X = hauteur de capitale du sigle, formats des réseaux, marges du
+papier, tailles minimales d'impression), elle le fait dans la continuité des
+mesures existantes, et c'est à Yéman de les confirmer ou de les corriger.
+
+**CE QUE LA MESURE A DIT.** Les contrastes WCAG ont été calculés sur les
+tokens (annexe A) : le cuivre 500 tient 3,1:1 sur ivoire, ce qui fonde en
+chiffres la règle « jamais du texte courant sur fond clair » (4,5:1 exigé) ;
+le cuivre 700 (6,4:1) est le seul texte cuivré admis. Sur sable, le cuivre
+500 échoue même en composant (2,6:1) : un bouton cuivre sur sable est à
+proscrire. L'or du site tient 6,6:1 sur indigo mais 2,1:1 sur crème.
+
+**L'OR ET LES ÉTATS, NOMMÉS.** Deux teintes vivaient sans nom dans le code :
+l'or du sceau (`#B8902F`, `fabrique-le-vectoriel.py`) et l'or du site
+(`#C9A84C`) ; la charte les range dans une exception à périmètre fermé
+(sceau du Trône, site public), jamais mêlée au cuivre. La brique `#96412E`
+(alerte) et le vert `#4A6B52` (accord), très employés au Trône sans token,
+sont désignés comme couleurs d'état ; les nommer en tokens (`--color-brique`
+existe déjà en repli, pas en déclaration) reste à faire.
+
+**LES CMJN SONT DES VALEURS DE DÉPART, LES PANTONE SONT VIDES.** Une
+conversion sRGB → CMJN sans profil ne vaut pas une épreuve ; la charte le
+dit et laisse la colonne Pantone à remplir sur nuancier physique, en regard
+d'une épreuve contractuelle. Deviner un code Pantone depuis un écran aurait
+été une fausse précision.
+
+**À FAIRE ENSUITE** : produire la carte de partage en 1200 × 630 (celle du
+dépôt est carrée) ; poser `lang="fon"` sur les mots fon des nouvelles pages ;
+déclarer `--color-brique` et un `--color-accord` dans les tokens.
+
 ## LE CODE DE L'OFFRE, ET SEPT SAISONS QUI ARRIVENT REMPLIES — 24 septembre 2026
 
 Trois demandes du même soir, qui n'en font qu'une. « Les 10 % ne marchent sur

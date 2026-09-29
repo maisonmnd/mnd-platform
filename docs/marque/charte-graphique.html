@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Charte graphique · Maison MND</title>
+<meta name="description" content="Charte graphique de la Maison MND, version 1.0, 29 septembre 2026. Identité, verrou, sous-marques, couleur, typographie, grille, image, voix, applications, accessibilité." />
+<style>
+  /* Les polices de la Maison, servies depuis le dépôt (src/ds/fonts). Aucun hôte tiers. */
+  @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('../../src/ds/fonts/cormorant-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'Cormorant Garamond'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('../../src/ds/fonts/cormorant-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C0; }
+  @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 300 600; font-display: swap;
+    src: url('../../src/ds/fonts/cormorant-italique-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'Jost'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('../../src/ds/fonts/jost-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'Jost'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('../../src/ds/fonts/jost-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C0; }
+  @font-face { font-family: 'MND Fon'; font-weight: 400; font-style: normal; font-display: swap;
+    src: url('../../src/ds/fonts/devise-fon.woff2') format('woff2');
+    unicode-range: U+0186, U+0189, U+0190, U+0254, U+025B, U+0256, U+0301; }
+
+  :root {
+    --indigo: #1E2150; --indigo-deep: #15173A; --indigo-800: #131532; --indigo-500: #2C3470; --indigo-400: #4E5790;
+    --indigo-300: #7B82AD; --indigo-200: #A7ACC9; --indigo-100: #D3D5E5; --indigo-50: #EDEEF4;
+    --copper: #B97A4A; --copper-50: #FAF1E9; --copper-100: #F1DDC9; --copper-200: #E4BE9C; --copper-300: #D6A06F;
+    --copper-400: #C98A53; --copper-600: #9E6238; --copper-700: #7C4C2C; --copper-800: #5A3720; --copper-900: #3A2415;
+    --ivoire: #F6F1E7; --sable: #E3DACB; --argile: #CDBBA9; --ink: #14141B; --ink-soft: #45454F; --ink-300: #70707B;
+    --hairline: rgba(20,20,27,.14); --hairline-invert: rgba(246,241,231,.2);
+    --serif: 'MND Fon', 'Cormorant Garamond', Georgia, serif;
+    --sans: 'MND Fon', 'Jost', system-ui, sans-serif;
+    --brique: #96412E; --sauge: #4A6B52; --or: #B8902F; --or-site: #C9A84C; --creme: #FBF7F0; --terre: #3D2B1F;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--sable); }
+  body { margin: 0; color: var(--ink); background: var(--sable); font-family: var(--sans); font-size: 14px; font-weight: 400; line-height: 1.6;
+    -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; font-synthesis: none; }
+  h1, h2, h3, h4 { font-family: var(--serif); font-weight: 400; line-height: 1.05; letter-spacing: -0.01em; margin: 0; color: var(--indigo); }
+  h1 { font-weight: 300; font-size: 52px; }
+  h2 { font-weight: 300; font-size: 38px; margin-bottom: 18px; }
+  h3 { font-size: 24px; margin: 28px 0 10px; }
+  h4 { font-family: var(--sans); font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: var(--copper-700); font-weight: 600; margin: 22px 0 8px; }
+  p { margin: 0 0 10px; text-wrap: pretty; max-width: 68ch; }
+  ul { margin: 0 0 12px; padding-left: 18px; max-width: 70ch; } li { margin-bottom: 4px; }
+  strong { font-weight: 600; } em { font-family: var(--serif); font-style: italic; font-size: 1.08em; }
+  code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 12px; background: rgba(20,20,27,.05); padding: 1px 5px; border-radius: 2px; }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--copper); color: var(--ivoire); }
+
+  .eyebrow { font-family: var(--sans); font-weight: 600; font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: var(--copper); }
+  .page { background: var(--ivoire); width: 210mm; min-height: 297mm; margin: 24px auto; padding: 18mm 18mm 16mm; position: relative;
+    box-shadow: 0 10px 30px rgba(20,20,27,.10); break-after: page; page-break-after: always; display: flex; flex-direction: column; }
+  .page--indigo { background: var(--indigo); color: var(--ivoire); }
+  .page--indigo h1, .page--indigo h2, .page--indigo h3 { color: var(--ivoire); }
+  .page--indigo .eyebrow { color: var(--copper-300); }
+  .page--indigo .muted { color: var(--indigo-200); }
+  .folio { margin-top: auto; padding-top: 10mm; display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); border-top: 1px solid var(--hairline); }
+  .page--indigo .folio { color: var(--indigo-200); border-top-color: var(--hairline-invert); }
+  .folio .devise { font-family: var(--serif); text-transform: none; letter-spacing: 0; font-size: 14px; font-style: italic; }
+  .muted { color: var(--ink-soft); }
+  .lead { font-size: 18px; font-weight: 300; line-height: 1.5; max-width: 60ch; }
+  .rule { height: 2px; background: var(--copper); width: 64px; margin: 18px 0 22px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 8px 0 14px; }
+  th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--indigo); padding: 8px 8px 6px; border-bottom: 1px solid var(--indigo); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  .page--indigo th { color: var(--ivoire); border-bottom-color: var(--copper); } .page--indigo td { border-bottom-color: var(--hairline-invert); }
+  .num { font-family: var(--serif); font-size: 20px; color: var(--copper-700); font-weight: 400; }
+  .card { border: 1px solid var(--hairline); border-radius: 4px; padding: 14px 16px; background: rgba(255,255,255,.35); }
+  .card--deep { background: var(--indigo); color: var(--ivoire); border-color: var(--indigo); }
+  .note { border-left: 2px solid var(--copper); padding: 6px 0 6px 14px; margin: 14px 0; color: var(--ink-soft); font-size: 13px; }
+  .page--indigo .note { color: var(--indigo-100); }
+  .interdit { border: 1px solid var(--brique); border-radius: 2px; padding: 10px 14px; font-size: 12.5px; }
+  .interdit h4 { color: var(--brique); margin-top: 0; }
+
+  /* Verrou et pictogramme */
+  .logo-plate { display: flex; align-items: center; justify-content: center; border-radius: 4px; padding: 26px; min-height: 150px; }
+  .logo-plate img { max-width: 100%; height: auto; }
+  .plate-ivoire { background: var(--ivoire); border: 1px solid var(--hairline); }
+  .plate-sable { background: var(--sable); } .plate-argile { background: var(--argile); }
+  .plate-indigo { background: var(--indigo); } .plate-deep { background: var(--indigo-deep); }
+  .plate-copper { background: var(--copper); }
+  .clear { position: relative; display: inline-block; padding: 44px; border: 1px dashed var(--copper); border-radius: 2px; }
+  .clear::before, .clear::after { content: 'X'; position: absolute; font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--copper-700); }
+  .clear::before { top: 12px; left: 50%; transform: translateX(-50%); } .clear::after { left: 14px; top: 50%; transform: translateY(-50%); }
+  .clear img { display: block; width: 240px; }
+  .plancher { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; margin-top: 10px; }
+  .plancher figure { margin: 0; text-align: center; font-size: 11px; color: var(--ink-soft); letter-spacing: .08em; }
+  .plancher img { display: block; margin: 0 auto 6px; }
+
+  /* Couleur */
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 8px 0 16px; }
+  .sw { border-radius: 4px; overflow: hidden; border: 1px solid var(--hairline); background: #fff; }
+  .sw .chip { height: 72px; } .sw .meta { padding: 8px 10px; font-size: 11.5px; line-height: 1.45; }
+  .sw .meta b { display: block; font-family: var(--serif); font-size: 17px; font-weight: 400; color: var(--indigo); line-height: 1.1; margin-bottom: 3px; }
+  .ramp { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 6px 0 12px; }
+  .ramp div { height: 40px; border-radius: 2px; position: relative; }
+  .ramp div span { position: absolute; bottom: 3px; left: 4px; font-size: 9px; letter-spacing: .06em; }
+  .ramp-label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin-top: 6px; }
+  .contrast { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 14px; }
+  .contrast .c { border-radius: 4px; padding: 12px 14px; font-size: 13px; min-height: 76px; border: 1px solid var(--hairline); }
+  .contrast .c small { display: block; margin-top: 6px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+  .bain { height: 64px; border-radius: 4px; margin: 6px 0 10px; display: flex; align-items: center; padding-left: 18px; }
+  .bain img { height: 34px; }
+
+  /* Typo */
+  .specimen { border-top: 1px solid var(--indigo); border-bottom: 1px solid var(--hairline); padding: 14px 0; margin: 6px 0 14px; }
+  .specimen .display { font-family: var(--serif); font-weight: 300; font-size: 84px; line-height: .92; letter-spacing: -.01em; color: var(--indigo); }
+  .specimen .h1 { font-family: var(--serif); font-weight: 300; font-size: 46px; line-height: 1.05; color: var(--indigo); margin-top: 10px; }
+  .specimen .quote { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 30px; line-height: 1.25; color: var(--indigo); margin-top: 12px; }
+  .specimen .lead-s { font-size: 18px; font-weight: 300; margin-top: 12px; }
+  .specimen .body { font-size: 14px; max-width: 60ch; margin-top: 8px; }
+  .specimen .label { font-size: 12px; letter-spacing: .26em; text-transform: uppercase; font-weight: 600; color: var(--copper); margin-top: 10px; }
+  .glyphs { font-family: var(--serif); font-size: 44px; color: var(--indigo); letter-spacing: .12em; line-height: 1.1; }
+  .glyphs small { font-family: var(--sans); font-size: 11px; letter-spacing: .14em; color: var(--ink-soft); display: block; }
+  .sigle { font-family: var(--serif); letter-spacing: .34em; text-transform: uppercase; font-size: 40px; color: var(--indigo); }
+
+  /* Grille, formes, mouvement */
+  .grid8 { background-image: linear-gradient(var(--hairline) 1px, transparent 1px), linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+    background-size: 8px 8px; border: 1px solid var(--hairline); height: 96px; border-radius: 4px; position: relative; }
+  .grid8 .box { position: absolute; background: var(--indigo); border-radius: 4px; }
+  .radii { display: flex; gap: 14px; align-items: flex-end; }
+  .radii div { width: 72px; height: 48px; background: var(--indigo); color: var(--ivoire); font-size: 10px; letter-spacing: .1em; display: flex; align-items: flex-end; padding: 6px; }
+  .btn { display: inline-block; font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: .06em; padding: 11px 18px; border-radius: 4px; }
+  .btn-cu { background: var(--copper); color: var(--ivoire); } .btn-in { background: var(--indigo); color: var(--ivoire); }
+  .btn-ghost { border: 1px solid var(--indigo); color: var(--indigo); }
+  .shadow-row { display: flex; gap: 16px; } .shadow-row div { flex: 1; height: 54px; background: var(--ivoire); border-radius: 4px; font-size: 10px; letter-spacing: .1em; padding: 8px; color: var(--ink-soft); }
+  .curve { display: flex; gap: 20px; align-items: center; }
+
+  /* Motifs, applications */
+  .motif { height: 120px; border-radius: 4px; background-size: 260px; background-repeat: repeat; }
+  .tile { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tile figure { margin: 0; font-size: 11px; color: var(--ink-soft); text-align: center; letter-spacing: .06em; }
+  .tile img { width: 100%; border-radius: 4px; display: block; margin-bottom: 4px; }
+  .mock { border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; background: #fff; font-size: 11px; }
+  .mock .bar { background: var(--indigo); color: var(--ivoire); padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+  .mock .bar img { height: 18px; }
+  .mock .body { padding: 12px 12px 14px; }
+  .mock .body .t { font-family: var(--serif); font-size: 20px; color: var(--indigo); font-weight: 300; line-height: 1.1; margin-bottom: 4px; }
+  .check { list-style: none; padding: 0; column-count: 2; column-gap: 24px; font-size: 12.5px; max-width: none; }
+  .check li { break-inside: avoid; padding-left: 20px; position: relative; margin-bottom: 6px; }
+  .check li::before { content: ''; position: absolute; left: 0; top: 5px; width: 10px; height: 10px; border: 1px solid var(--indigo); border-radius: 2px; }
+  .toc { columns: 2; column-gap: 32px; font-size: 13.5px; list-style: none; padding: 0; max-width: none; }
+  .toc li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--hairline-invert); break-inside: avoid; }
+  .toc .n { font-family: var(--serif); font-size: 16px; color: var(--copper-300); min-width: 22px; }
+
+  @media (max-width: 860px) {
+    .page { width: auto; min-height: 0; margin: 0; padding: 40px 16px 32px; box-shadow: none; }
+    .cols, .cols-3, .contrast { grid-template-columns: 1fr; } .swatches { grid-template-columns: 1fr 1fr; } .tile { grid-template-columns: 1fr 1fr; }
+    .check, .toc { column-count: 1; columns: 1; } .specimen .display { font-size: 56px; } h1 { font-size: 40px; } h2 { font-size: 30px; }
+    .ramp { grid-template-columns: repeat(5, 1fr); }
+  }
+  @media print {
+    @page { size: A4; margin: 0; }
+    html, body { background: #fff; }
+    .page { margin: 0; box-shadow: none; width: 210mm; height: 297mm; min-height: 0; overflow: hidden; }
+    .page--indigo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  /* Pages denses : tables et blocs compacts pour tenir dans l'A4 (mesuré au rendu). */
+  .dense table { font-size: 11.5px; } .dense th { padding: 5px 7px 4px; } .dense td { padding: 4px 7px; line-height: 1.4; }
+  .dense p, .dense li { font-size: 12.5px; } .dense h2 { margin-bottom: 12px; } .dense h4 { margin: 14px 0 6px; }
+  .dense .cols, .dense .cols-3 { gap: 16px; }
+  #typographie .specimen .display { font-size: 64px; } #typographie .specimen .h1 { font-size: 36px; } #typographie .specimen .quote { font-size: 24px; }
+  #typographie .glyphs { font-size: 36px; } #typographie .specimen { padding: 10px 0; margin: 4px 0 8px; }
+  #couleur .sw .chip { height: 52px; } #couleur .ramp div { height: 30px; } #couleur .swatches { margin-bottom: 10px; }
+  #couleur-regles .contrast .c { min-height: 60px; padding: 9px 12px; } #couleur-regles ol li { font-size: 12.5px; margin-bottom: 2px; }
+  #photo img.portrait { max-height: 300px; object-fit: cover; }
+  #annexe-a table { font-size: 10.5px; } #annexe-a td { padding: 3px 6px; line-height: 1.35; } #annexe-a th { padding: 4px 6px; }
+  #applications .mock .body { padding: 9px 10px 10px; } #applications .mock .t { font-size: 17px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ═══ COUVERTURE ═══ -->
+<section class="page page--indigo" id="couverture">
+  <div style="margin-top:30mm">
+    <img src="../../public/assets/vectoriel/verrou-couche-ivoire.svg" alt="Maison MND" style="width:74mm;display:block" />
+  </div>
+  <div style="margin-top:38mm">
+    <div class="eyebrow">Charte graphique</div>
+    <h1 style="font-size:64px;margin-top:10px;max-width:14ch">L'identité de la Maison, et la manière de la poser</h1>
+    <p class="lead muted" style="margin-top:22px">Version 1.0 · 29 septembre 2026 · Cotonou. Structurée selon les chartes internationales et adossée aux normes citées à chaque chapitre. Le code du dépôt reste la source de vérité ; ce document en est la lecture pour les humains.</p>
+  </div>
+  <div class="folio"><span>Maison MND · ACIA 1 · RCCM RB/COT/12 A 14509</span><span class="devise">mi nyɔ́ ɖɛkpɛ, et vous le savez</span></div>
+</section>
+
+<!-- ═══ SOMMAIRE ═══ -->
+<section class="page page--indigo" id="sommaire">
+  <div class="eyebrow">Sommaire</div>
+  <h2 style="margin-top:8px">Quatorze chapitres, trois annexes</h2>
+  <ul class="toc">
+    <li><span class="n">0</span><span>Objet, portée et normes de référence</span></li>
+    <li><span class="n">1</span><span>La Maison : nom, devise, signature</span></li>
+    <li><span class="n">2</span><span>Le pictogramme et le verrou</span></li>
+    <li><span class="n">3</span><span>L'architecture de marque : les sous-marques</span></li>
+    <li><span class="n">4</span><span>La couleur</span></li>
+    <li><span class="n">5</span><span>La typographie et les lettres fon</span></li>
+    <li><span class="n">6</span><span>L'espace, la grille, les formes</span></li>
+    <li><span class="n">7</span><span>Le mouvement</span></li>
+    <li><span class="n">8</span><span>Les motifs, monogrammes et icônes</span></li>
+    <li><span class="n">9</span><span>La photographie</span></li>
+    <li><span class="n">10</span><span>La voix : écrire pour la Maison</span></li>
+    <li><span class="n">11</span><span>Les applications : écran, papier, réseaux, enseigne, messages</span></li>
+    <li><span class="n">12</span><span>L'accessibilité et la conformité</span></li>
+    <li><span class="n">13</span><span>Les fichiers : sources, formats, licences</span></li>
+    <li><span class="n">14</span><span>La gouvernance</span></li>
+    <li><span class="n">A</span><span>Contrastes mesurés (WCAG 2.2)</span></li>
+    <li><span class="n">B</span><span>Équivalences pour l'impression</span></li>
+    <li><span class="n">C</span><span>Liste de contrôle avant publication</span></li>
+  </ul>
+  <div class="note" style="margin-top:28px">Le texte de référence, plus détaillé, est <code>docs/marque/charte-graphique.md</code>. Les deux disent la même chose ; en cas d'écart, le dépôt tranche et les deux se corrigent.</div>
+  <div class="folio"><span>Charte graphique · 1.0</span><span>2</span></div>
+</section>
+
+<!-- ═══ 0. NORMES ═══ -->
+<section class="page dense" id="normes">
+  <div class="eyebrow">0 · Objet, portée et normes</div>
+  <h2 style="font-size:32px">Ce que la charte garantit, et sur quoi elle s'appuie</h2>
+  <p class="lead">Qu'une pièce signée MND, où qu'elle paraisse, soit reconnue au premier regard et tienne la même promesse : sobriété, netteté, chaleur.</p>
+  <div class="rule"></div>
+  <p><strong>Portée.</strong> Le portail, Le Trône, Ma Couronne, La Consultation, LOKAA, le Certificat, le Bilan, le Bulletin, le site public, les PDF, les affiches, l'enseigne et le tampon, les messages WhatsApp et e-mails, y compris ceux que l'IA rédige.</p>
+  <p><strong>Ce qui prime.</strong> En cas de contradiction entre ce document et le dépôt, le dépôt gagne, et ce document se corrige. Les règles non négociables du <code>CLAUDE.md</code> le restent ici.</p>
+  <h4>Normes et référentiels cités</h4>
+  <table>
+    <tr><th>Domaine</th><th>Référence</th><th>Ce qu'on en retient</th></tr>
+    <tr><td>Couleur écran</td><td>IEC 61966-2-1 (sRGB)</td><td>Toutes les valeurs HEX et RGB sont sRGB.</td></tr>
+    <tr><td>Couleur imprimée</td><td>ISO 12647-2, ISO 12647-7, ISO 15076-1 (ICC), PSO Coated v3</td><td>Les CMJN sont des valeurs de départ ; la référence se valide sur épreuve contractuelle.</td></tr>
+    <tr><td>Observation</td><td>ISO 3664:2009</td><td>Les couleurs se jugent sous D50, jamais sous un néon ni sur un écran non calibré.</td></tr>
+    <tr><td>Papier</td><td>ISO 216</td><td>A4 portrait pour la papeterie, A4 paysage pour le certificat, A6 ou 85 × 55 mm pour les cartes.</td></tr>
+    <tr><td>PDF</td><td>ISO 32000, ISO 19005 (PDF/A)</td><td>Pièces d'archive en PDF/A-2b, polices embarquées.</td></tr>
+    <tr><td>Accessibilité</td><td>WCAG 2.2 AA (la 2.0 est ISO/IEC 40500:2012), EN 301 549</td><td>4,5:1 pour le texte, 3:1 pour les composants, cibles de 24 px, mouvement réduit respecté.</td></tr>
+    <tr><td>Ergonomie</td><td>ISO 9241-210, ISO 9241-112</td><td>Conception centrée sur la cliente, téléphone d'abord.</td></tr>
+    <tr><td>Caractères</td><td>Unicode (ISO/IEC 10646), NFC</td><td>Les lettres fon sont des caractères, jamais des substituts.</td></tr>
+    <tr><td>Codes</td><td>ISO 639, ISO 3166-1, ISO 4217, ISO 8601</td><td>Codes dans les données ; français de la Maison à l'affichage.</td></tr>
+    <tr><td>Typographie française</td><td>Lexique de l'Imprimerie nationale</td><td>Espaces insécables, guillemets à chevrons, nombres par trois.</td></tr>
+    <tr><td>Polices</td><td>SIL Open Font License 1.1</td><td>Cormorant Garamond, Jost, EB Garamond : embarquement et usage commercial autorisés.</td></tr>
+    <tr><td>Icônes d'app</td><td>W3C Web Application Manifest</td><td>Pictogramme dans la zone sûre de 80 % des icônes maskables.</td></tr>
+  </table>
+  <div class="folio"><span>0 · Normes</span><span>3</span></div>
+</section>
+
+<!-- ═══ 1. LA MAISON ═══ -->
+<section class="page" id="maison">
+  <div class="eyebrow">1 · La Maison</div>
+  <h2>Le nom, la devise, la signature</h2>
+  <div class="cols">
+    <div>
+      <h3>Le nom</h3>
+      <p>La marque s'écrit <strong>MND</strong>, trois capitales, sans point. Le nom complet est <strong>Maison MND</strong> ; il se tient seul, en entête, en signature, en pied. Il ne s'insère pas au milieu d'une phrase : on écrit « La Maison pense à vous ».</p>
+      <p>« L'atelier MND » est l'ancien nom de la marque mère ; il survit comme sous-marque des branches. La ligne légale vient de <code>shared/identite.ts</code> et ne se recopie jamais. La ville qui signe est Cotonou, le siège.</p>
+      <h3>Le point médian</h3>
+      <p>« · » est le seul séparateur entre deux éléments de même rang sur une ligne : « SÍNSÍN™ · La Reprise », « Cotonou · GMT+1 ». Jamais de puce « • », jamais de barre « | ». Il ne remplace jamais une phrase.</p>
+    </div>
+    <div>
+      <h3>La devise</h3>
+      <div class="card card--deep" style="margin-bottom:12px">
+        <div class="eyebrow" style="color:var(--copper-300)">Telle qu'elle s'écrit</div>
+        <div style="font-family:var(--serif);font-size:30px;font-weight:300;line-height:1.15;margin-top:6px">mi nyɔ́ ɖɛkpɛ, et vous le savez</div>
+        <div class="muted" style="font-size:12px;margin-top:8px;color:var(--indigo-200)">En fon puis en français, liés d'une virgule. Traduction : « vous êtes beaux, et vous le savez ».</div>
+      </div>
+      <p>Le ɖ n'appartient qu'à la devise : il n'entre jamais dans « MND ». Les lettres fon ne se translittèrent jamais ; « mi nyo dekpe » est une faute. Une seule source : <code>DEVISE_COMPLETE</code>.</p>
+      <h3>La signature</h3>
+      <p>Tout message écrit par l'IA se termine par la signature, posée <strong>par le code</strong> et une seule fois. En texte : « ◈ Maison MND · mi nyɔ́ ɖɛkpɛ, et vous le savez ». Sur le papier, nom et devise dans la même main, centrés au pied.</p>
+    </div>
+  </div>
+  <div class="folio"><span>1 · La Maison</span><span>4</span></div>
+</section>
+
+<!-- ═══ 2. LE VERROU ═══ -->
+<section class="page" id="verrou">
+  <div class="eyebrow">2 · Le pictogramme et le verrou</div>
+  <h2>Une couronne, un nom, deux verrous</h2>
+  <div class="cols">
+    <div>
+      <div class="logo-plate plate-ivoire"><img src="../../public/assets/vectoriel/verrou-couche-indigo.svg" alt="Verrou couché, indigo sur ivoire" style="width:230px" /></div>
+      <p class="muted" style="font-size:12px;margin-top:6px"><strong>Couché</strong> (principal) : pictogramme à gauche, MAISON au-dessus de MND. En-têtes, barre du site, bandeaux, signatures.</p>
+    </div>
+    <div>
+      <div class="logo-plate plate-indigo"><img src="../../public/assets/vectoriel/verrou-debout-ivoire.svg" alt="Verrou debout, ivoire sur indigo" style="width:92px" /></div>
+      <p class="muted" style="font-size:12px;margin-top:6px"><strong>Debout</strong> : les trois pièces l'une sous l'autre. Enseigne, tampon, format carré, photo de profil.</p>
+    </div>
+  </div>
+  <p>Le pictogramme est <strong>composé, jamais redessiné</strong> : les SVG du dépôt sont la seule source. Seules opérations permises : le détourage et la mise à l'échelle uniforme. Son rapport largeur/hauteur vaut 1,211 ; le fabricant refuse de livrer au-delà d'un centième d'écart. Les proportions du verrou sont écrites une seule fois, dans <code>src/ds/verrou.ts</code> : MAISON à 42/132 du corps du sigle, écartement 0,44 em contre 0,30 em pour MND, pictogramme 1,10 fois la hauteur du bloc en couché.</p>
+  <div class="cols">
+    <div>
+      <h4>Zone de protection</h4>
+      <div class="clear"><img src="../../public/assets/vectoriel/verrou-couche-indigo.svg" alt="" /></div>
+      <p class="muted" style="font-size:12px;margin-top:8px">Rien n'approche à moins de <em>X</em>, la hauteur de capitale du sigle MND. À l'écran, 24 px est le minimum absolu.</p>
+    </div>
+    <div>
+      <h4>Le plancher, mesuré</h4>
+      <div class="plancher">
+        <figure><img src="../../public/assets/verrous/verrou-couche-indigo.png" alt="" style="width:123px" />couché · 123 px · 33 mm</figure>
+        <figure><img src="../../public/assets/vectoriel/verrou-debout-indigo.svg" alt="" style="width:64px" />debout · 64 px · 17 mm</figure>
+        <figure><img src="../../public/assets/vectoriel/pictogramme-indigo.svg" alt="" style="width:28px" />sous le plancher : pictogramme seul</figure>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:10px">On réduit jusqu'à ce que la capitale de MAISON tombe sous six pixels : à 123 px le couché tient, à 122 il ne tient plus. Sous le plancher on ne rapetisse pas : on pose le pictogramme seul, et le nom se lit ailleurs.</p>
+    </div>
+  </div>
+  <div class="folio"><span>2 · Le verrou</span><span>5</span></div>
+</section>
+
+<section class="page" id="verrou-couleurs">
+  <div class="eyebrow">2 · Le pictogramme et le verrou</div>
+  <h2>Les encres du verrou, et les interdits</h2>
+  <div class="cols-3">
+    <div class="logo-plate plate-ivoire"><img src="../../public/assets/vectoriel/verrou-couche-indigo.svg" alt="" style="width:150px" /></div>
+    <div class="logo-plate plate-indigo"><img src="../../public/assets/vectoriel/verrou-couche-ivoire.svg" alt="" style="width:150px" /></div>
+    <div class="logo-plate plate-sable"><img src="../../public/assets/vectoriel/verrou-couche-cuivre.svg" alt="" style="width:150px" /></div>
+    <div class="logo-plate plate-deep"><img src="../../public/assets/vectoriel/pictogramme-ivoire.svg" alt="" style="width:56px" /></div>
+    <div class="logo-plate plate-argile"><img src="../../public/assets/vectoriel/pictogramme-indigo.svg" alt="" style="width:56px" /></div>
+    <div class="logo-plate plate-copper"><img src="../../public/assets/vectoriel/pictogramme-ivoire.svg" alt="" style="width:56px" /></div>
+  </div>
+  <table>
+    <tr><th>Fond</th><th>Verrou</th></tr>
+    <tr><td>Ivoire, sable, argile, papier blanc</td><td>Indigo Royal par défaut. Cuivre admis pour une pièce non administrative (carte, invitation).</td></tr>
+    <tr><td>Indigo, indigo profond, aplat d'une sous-marque</td><td>Ivoire, sigle compris : c'est le fond qui porte la teinte.</td></tr>
+    <tr><td>Photo</td><td>Ivoire sur un voile sombre, jamais à nu sur une zone chargée.</td></tr>
+    <tr><td>Dégradé des Événements</td><td>Sur le début du bain, côté indigo : l'ivoire y tient 8,1:1, contre 3,1:1 à l'autre bout.</td></tr>
+  </table>
+  <p>L'encre des pièces administratives est <strong>l'indigo</strong> : un tampon de 34 mm n'est presque que de petites lettres, l'indigo survit à la photocopie là où le cuivre part en gris, et le monogramme cuivre ouvre déjà le papier, l'indigo le ferme.</p>
+  <div class="interdit">
+    <h4>Ce qu'on ne fait jamais</h4>
+    <div class="cols" style="gap:8px 24px">
+      <ul style="margin:0"><li>Étirer, incliner, faire tourner le pictogramme ou le verrou.</li><li>Redessiner la couronne à la main, même fidèlement.</li><li>Ajouter ombre, contour, dégradé ou relief.</li><li>Poser le verrou sous son plancher.</li></ul>
+      <ul style="margin:0"><li>Séparer MAISON de MND, ou recomposer le nom dans une autre police.</li><li>Placer le ɖ ou toute lettre fon dans le sigle.</li><li>Employer une couleur hors gamme.</li><li>Poser un verrou de sous-marque en couleur sur un fond de la même couleur.</li></ul>
+    </div>
+  </div>
+  <div class="folio"><span>2 · Le verrou</span><span>6</span></div>
+</section>
+
+<!-- ═══ 3. SOUS-MARQUES ═══ -->
+<section class="page" id="sous-marques">
+  <div class="eyebrow">3 · L'architecture de marque</div>
+  <h2>Huit sous-marques, un seul verrou</h2>
+  <p class="lead">Le mot du métier prend la place de MAISON, au-dessus ; MND reste la grande ligne, et reste indigo. Une sous-marque n'est pas un autre logo : c'est le même, avec un mot échangé et une couleur à elle.</p>
+  <div class="rule"></div>
+  <div class="tile" style="grid-template-columns:repeat(4,1fr);gap:12px">
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-maison-mnd.svg" alt="Maison MND" /></div>Maison · Indigo Royal · #1E2150</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-l’atelier-mnd.svg" alt="L’Atelier MND" /></div>L'Atelier · Ocre Brûlé · #936518</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-academie-mnd.svg" alt="Académie MND" /></div>Académie · Vert Savoir · #2F5D50</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-boutique-mnd.svg" alt="Boutique MND" /></div>Boutique · Prune Profonde · #4A2C5C</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-soins-mnd.svg" alt="Soins MND" /></div>Soins · Bleu Lagune · #2E6F8E</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-evenements-mnd.svg" alt="Événements MND" /></div>Événements · Bleu Pétrole · #1F4D62</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-studio-mnd.svg" alt="Studio MND" /></div>Studio · Bordeaux · #6E283C</figure>
+    <figure><div class="logo-plate plate-ivoire" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-lokaa-by-mnd.svg" alt="LOKAA by MND" /></div>LOKAA · Noir Encre · #1A1A1A</figure>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>Sous-marque</th><th>Vocation</th><th>Signature</th></tr>
+    <tr><td>Maison MND</td><td>la marque mère, le salon d'Akpakpa</td><td>mi nyɔ́ ɖɛkpɛ, et vous le savez</td></tr>
+    <tr><td>L'Atelier MND</td><td>les branches, d'une ville à l'autre</td><td>Ouvrir. Porter. Essaimer.</td></tr>
+    <tr><td>Académie MND</td><td>formations, certifications, transmission</td><td>Former. Transmettre. Affirmer.</td></tr>
+    <tr><td>Boutique MND</td><td>produits, outils, objets</td><td>Choisir. Entretenir. Durer.</td></tr>
+    <tr><td>Soins MND</td><td>routines, cuir chevelu, entretien</td><td>Nourrir. Apaiser. Fortifier.</td></tr>
+    <tr><td>Événements MND</td><td>ateliers, rencontres, défilés, lancements</td><td>Rassembler. Parer. Célébrer.</td></tr>
+    <tr><td>Studio MND</td><td>portraits, contenu, éditorial</td><td>Cadrer. Révéler. Garder.</td></tr>
+    <tr><td>LOKAA by MND</td><td>offre entreprise, logiciel pour salons</td><td>Équiper. Servir. Grandir.</td></tr>
+  </table>
+  <div class="folio"><span>3 · Les sous-marques</span><span>7</span></div>
+</section>
+
+<section class="page" id="sous-marques-regles">
+  <div class="eyebrow">3 · L'architecture de marque</div>
+  <h2>Sur fond coloré, le verrou passe en ivoire</h2>
+  <div class="tile" style="grid-template-columns:repeat(4,1fr);gap:12px">
+    <figure><div class="logo-plate" style="background:#936518;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-l’atelier-mnd-ivoire.svg" alt="" /></div>L'Atelier · 4,5:1</figure>
+    <figure><div class="logo-plate" style="background:#2F5D50;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-academie-mnd-ivoire.svg" alt="" /></div>Académie · 6,7:1</figure>
+    <figure><div class="logo-plate" style="background:#4A2C5C;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-boutique-mnd-ivoire.svg" alt="" /></div>Boutique · 10,3:1</figure>
+    <figure><div class="logo-plate" style="background:#2E6F8E;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-soins-mnd-ivoire.svg" alt="" /></div>Soins · 4,9:1</figure>
+    <figure><div class="logo-plate" style="background:#1F4D62;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-evenements-mnd-ivoire.svg" alt="" /></div>Événements · 8,1:1</figure>
+    <figure><div class="logo-plate" style="background:#6E283C;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-studio-mnd-ivoire.svg" alt="" /></div>Studio · 9,2:1</figure>
+    <figure><div class="logo-plate" style="background:#1A1A1A;min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-lokaa-by-mnd-ivoire.svg" alt="" /></div>LOKAA · 15,5:1</figure>
+    <figure><div class="logo-plate plate-indigo" style="min-height:0;padding:16px"><img src="sous-marques/logos/verrou-couche/verrou-couche-maison-mnd-ivoire.svg" alt="" /></div>Maison · 13,4:1</figure>
+  </div>
+  <h4>Les bains des Événements, seule sous-marque en dégradé</h4>
+  <div class="bain" style="background:linear-gradient(to right,#1E2150 0%,#1F4D62 33.3%,#6E283C 66.7%,#B97A4A 100%)"><img src="sous-marques/logos/verrou-couche/verrou-couche-evenements-mnd-ivoire.svg" alt="" /></div>
+  <p class="muted" style="font-size:12px">Option A · Souverain : tout vient de la palette. #1E2150 → #1F4D62 → #6E283C → #B97A4A.</p>
+  <div class="bain" style="background:linear-gradient(to right,#1E2150 0%,#5B3FA6 25%,#C2306E 50%,#E8683A 75%,#E9844C 100%)"><img src="sous-marques/logos/verrou-couche/verrou-couche-evenements-mnd-ivoire.svg" alt="" /></div>
+  <p class="muted" style="font-size:12px">Option B · Vif : pour l'affiche ou l'écran vus de loin. #1E2150 → #5B3FA6 → #C2306E → #E8683A → #E9844C. Le verrou se pose sur le début du bain, jamais sur sa fin.</p>
+  <ul style="margin-top:14px">
+    <li><strong>Un seul aplat par sous-marque.</strong> Les dégradés n'existent que pour les Événements, sur les fonds, jamais sur le pictogramme ; partout ailleurs, repli sur le Bleu Pétrole.</li>
+    <li><strong>Mesuré :</strong> le pictogramme ivoire tient au moins 4,5:1 sur chaque champ ; deux sous-marques s'écartent d'au moins 12 en Lab (la paire la plus serrée est à 13,8).</li>
+    <li><strong>MND Kids</strong> et <strong>MND Formation</strong> sont des offres, pas des sous-marques : en texte, sous le verrou de la Maison ou de l'Académie.</li>
+    <li><strong>LOKAA en marque blanche :</strong> « Propulsé par MND » en pied, accent du locataire ; jamais le logo du locataire recomposé avec la couronne.</li>
+  </ul>
+  <div class="folio"><span>3 · Les sous-marques</span><span>8</span></div>
+</section>
+
+<!-- ═══ 4. COULEUR ═══ -->
+<section class="page" id="couleur">
+  <div class="eyebrow">4 · La couleur</div>
+  <h2>Le neutre domine, l'indigo structure, le cuivre ponctue</h2>
+  <p class="lead">Aucune couleur hors de ce système n'est autorisée. Valeurs sRGB, celles de <code>src/ds/tokens/colors.css</code>.</p>
+  <div class="rule"></div>
+  <h4>Les couleurs de marque</h4>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#1E2150"></div><div class="meta"><b>Indigo Royal</b>#1E2150 · 30 · 33 · 80<br />La signature. Aplats, surfaces sombres, encre administrative.</div></div>
+    <div class="sw"><div class="chip" style="background:#15173A"></div><div class="meta"><b>Indigo profond</b>#15173A · 21 · 23 · 58<br />Dégradés profonds, fond le plus sombre.</div></div>
+    <div class="sw"><div class="chip" style="background:#B97A4A"></div><div class="meta"><b>Cuivre Noble</b>#B97A4A · 185 · 122 · 74<br />L'accent : boutons, filets, eyebrows. Jamais du texte courant sur clair.</div></div>
+    <div class="sw"><div class="chip" style="background:#14141B"></div><div class="meta"><b>Obsidienne</b>#14141B · 20 · 20 · 27<br />Le texte courant sur clair. Une encre, pas une surface.</div></div>
+  </div>
+  <h4>Les neutres minéraux</h4>
+  <div class="swatches" style="grid-template-columns:repeat(3,1fr)">
+    <div class="sw"><div class="chip" style="background:#F6F1E7"></div><div class="meta"><b>Ivoire</b>#F6F1E7 · 246 · 241 · 231<br />Le papier par défaut.</div></div>
+    <div class="sw"><div class="chip" style="background:#E3DACB"></div><div class="meta"><b>Sable</b>#E3DACB · 227 · 218 · 203<br />Fond alternatif, cartes, filets doux.</div></div>
+    <div class="sw"><div class="chip" style="background:#CDBBA9"></div><div class="meta"><b>Argile</b>#CDBBA9 · 205 · 187 · 169<br />Fond chaleureux, filigranes.</div></div>
+  </div>
+  <h4>Les rampes : on prend le cran, jamais une teinte à l'œil</h4>
+  <div class="ramp">
+    <div style="background:#EDEEF4"><span>50</span></div><div style="background:#D3D5E5"><span>100</span></div><div style="background:#A7ACC9"><span>200</span></div><div style="background:#7B82AD"><span style="color:#fff">300</span></div><div style="background:#4E5790"><span style="color:#fff">400</span></div><div style="background:#2C3470"><span style="color:#fff">500</span></div><div style="background:#1E2150;outline:2px solid #B97A4A;outline-offset:-2px"><span style="color:#fff">600</span></div><div style="background:#191B43"><span style="color:#fff">700</span></div><div style="background:#131532"><span style="color:#fff">800</span></div><div style="background:#0C0D20"><span style="color:#fff">900</span></div>
+  </div>
+  <div class="ramp-label">Indigo Royal · 600 = référence</div>
+  <div class="ramp">
+    <div style="background:#FAF1E9"><span>50</span></div><div style="background:#F1DDC9"><span>100</span></div><div style="background:#E4BE9C"><span>200</span></div><div style="background:#D6A06F"><span>300</span></div><div style="background:#C98A53"><span style="color:#fff">400</span></div><div style="background:#B97A4A;outline:2px solid #1E2150;outline-offset:-2px"><span style="color:#fff">500</span></div><div style="background:#9E6238"><span style="color:#fff">600</span></div><div style="background:#7C4C2C"><span style="color:#fff">700</span></div><div style="background:#5A3720"><span style="color:#fff">800</span></div><div style="background:#3A2415"><span style="color:#fff">900</span></div>
+  </div>
+  <div class="ramp-label">Cuivre Noble · 500 = référence</div>
+  <div class="ramp">
+    <div style="background:#EAEAEC"><span>50</span></div><div style="background:#CFCFD3"><span>100</span></div><div style="background:#A0A0A8"><span>200</span></div><div style="background:#70707B"><span style="color:#fff">300</span></div><div style="background:#45454F"><span style="color:#fff">400</span></div><div style="background:#2A2A32"><span style="color:#fff">500</span></div><div style="background:#1E1E25"><span style="color:#fff">600</span></div><div style="background:#17171C"><span style="color:#fff">700</span></div><div style="background:#111116"><span style="color:#fff">800</span></div><div style="background:#0A0A0D"><span style="color:#fff">900</span></div>
+  </div>
+  <div class="ramp-label">Obsidienne · la rampe des gris : encres et hairlines, pas de surfaces</div>
+  <div class="folio"><span>4 · La couleur</span><span>9</span></div>
+</section>
+
+<section class="page dense" id="couleur-regles">
+  <div class="eyebrow">4 · La couleur</div>
+  <h2>Les règles, et ce que le contraste impose</h2>
+  <div class="contrast">
+    <div class="c" style="background:#F6F1E7;color:#14141B">Obsidienne sur ivoire<small>16,3:1 · AAA · texte courant</small></div>
+    <div class="c" style="background:#F6F1E7;color:#1E2150">Indigo sur ivoire<small>13,4:1 · AAA · texte, titres, chiffres</small></div>
+    <div class="c" style="background:#F6F1E7;color:#B97A4A;font-weight:600">Cuivre sur ivoire<small>3,1:1 · composants et grand texte seulement</small></div>
+    <div class="c" style="background:#1E2150;color:#F6F1E7;border-color:#1E2150">Ivoire sur indigo<small>13,4:1 · AAA · texte sur fond profond</small></div>
+    <div class="c" style="background:#1E2150;color:#B97A4A;border-color:#1E2150;font-weight:600">Cuivre sur indigo<small>4,3:1 · boutons, filets, titres</small></div>
+    <div class="c" style="background:#F6F1E7;color:#7C4C2C">Cuivre 700 sur ivoire<small>6,4:1 · AA · le seul texte cuivré admis</small></div>
+  </div>
+  <ol style="padding-left:18px;max-width:72ch">
+    <li><strong>Le neutre domine.</strong> Plus de 80 % d'une surface est ivoire, sable ou argile. Un écran tout indigo est un écran de cérémonie (La Consultation), pas la règle.</li>
+    <li><strong>Surfaces sombres : indigo, pas obsidienne.</strong> L'obsidienne est une encre, trop sombre pour un fond ; on ne l'introduit pas dans un nouvel écran, même si une maquette la mentionne. Le site public va plus loin : aucun noir.</li>
+    <li><strong>Le cuivre est un accent.</strong> Sur ivoire il tient 3,1:1 : assez pour un bouton, un filet, un grand titre, un eyebrow ; pas assez pour du texte courant. Un texte cuivré prend le cuivre 700 ou l'indigo.</li>
+    <li><strong>L'indigo est l'encre des chiffres et des papiers.</strong> Il survit à la photocopie et au noir et blanc.</li>
+    <li><strong>Les états</strong> : brique <span style="color:#96412E;font-weight:600">#96412E</span> pour l'alerte et l'erreur, vert d'accord <span style="color:#4A6B52;font-weight:600">#4A6B52</span> pour ce qui est réglé. Ils disent un état, ils ne décorent pas.</li>
+    <li><strong>Aucun dégradé décoratif</strong>, hors l'aplat profond <code>--grad-indigo</code> et les bains des Événements. Les voiles sur photo protègent le texte, ils n'ornent pas.</li>
+  </ol>
+  <h4>L'or : une exception à périmètre fermé</h4>
+  <div class="cols">
+    <div>
+      <div class="swatches" style="grid-template-columns:repeat(3,1fr);margin-bottom:6px">
+        <div class="sw"><div class="chip" style="background:#B8902F;height:40px"></div><div class="meta"><b style="font-size:14px">Or du sceau</b>#B8902F</div></div>
+        <div class="sw"><div class="chip" style="background:#C9A84C;height:40px"></div><div class="meta"><b style="font-size:14px">Or du site</b>#C9A84C</div></div>
+        <div class="sw"><div class="chip" style="background:#8B5E15;height:40px"></div><div class="meta"><b style="font-size:14px">Or profond</b>#8B5E15</div></div>
+      </div>
+    </div>
+    <p style="font-size:13px">L'or vit à deux endroits : le sceau du Trône et le site public révélateur, dont la palette est or, crème #FBF7F0, terre #3D2B1F et l'indigo de la Maison. Sur le site l'or est l'accent ; il tient 6,6:1 sur indigo et 2,1:1 sur crème : jamais du texte courant, et les petits textes dorés prennent l'or profond (5,3:1). Les cinq applications gardent indigo et cuivre. Or et cuivre ne se mélangent pas sur une même pièce.</p>
+  </div>
+  <h4>L'impression</h4>
+  <p style="font-size:13px">Les CMJN de l'annexe B sont des conversions de départ. La teinte de référence s'établit sur épreuve contractuelle (ISO 12647-7), avec le profil de l'imprimeur (PSO Coated v3 sur couché, PSO Uncoated v3 sur non couché), sous D50. Les Pantone se lisent sur nuancier physique en regard de l'épreuve, puis s'inscrivent à l'annexe B. Fond perdu 3 mm, sécurité 5 mm, trait minimal 0,25 pt, texte minimal 7 pt en Jost, 8 pt en Cormorant, rien sous 10 pt en défonce ivoire sur indigo.</p>
+  <div class="folio"><span>4 · La couleur</span><span>10</span></div>
+</section>
+
+<!-- ═══ 5. TYPOGRAPHIE ═══ -->
+<section class="page dense" id="typographie">
+  <div class="eyebrow">5 · La typographie</div>
+  <h2>Deux familles, aucune exception</h2>
+  <div class="cols">
+    <div>
+      <div class="glyphs">Aa Gg Qq<small>Cormorant Garamond · la voix · variable 300 à 700, romain et italique</small></div>
+      <p style="font-size:13px;margin-top:8px">Titres, chiffres de tête, citations en italique, sigle MND. Le dessin Light (300) porte les grands titres ; au-dessous de 26 px on remonte à 400.</p>
+    </div>
+    <div>
+      <div class="glyphs" style="font-family:var(--sans);letter-spacing:.02em;font-weight:400">Aa Gg Qq<small>Jost · la clarté · variable 300 à 700, romain</small></div>
+      <p style="font-size:13px;margin-top:8px">Corps de texte, labels, boutons, tableaux, données. Corps de 14 px à l'écran, 16 px sur le site public ; 10 à 11 pt sur le papier.</p>
+    </div>
+  </div>
+  <div class="specimen">
+    <div class="display">Votre couronne</div>
+    <div class="h1">comprise, soignée, révélée</div>
+    <div class="quote">« Un chemin existe pour vous, à Cotonou. »</div>
+    <div class="lead-s">Accroche · Jost 300, 18 px. Nous commençons par vous écouter.</div>
+    <div class="body">Corps · Jost 400, 14 px, interligne 1,6. Lavage, resserrage, hydratation, coiffure : les gestes réguliers qui gardent votre couronne saine et belle. Vos locks ont été créées ailleurs ? Bienvenue quand même.</div>
+    <div class="label">Eyebrow · Jost 600 · 12 px · 0,26 em</div>
+  </div>
+  <table>
+    <tr><th>Rôle</th><th>Police</th><th>Corps</th><th>Graisse</th><th>Interlignage</th><th>Interlettrage</th></tr>
+    <tr><td>Display</td><td>Cormorant</td><td>64 à 128 px</td><td>300</td><td>0,92</td><td>−0,01 em</td></tr>
+    <tr><td>H1 / H2 / H3</td><td>Cormorant</td><td>46 à 74 / 34 à 50 / 26 à 34 px</td><td>300 à 400</td><td>1,05</td><td>−0,01 em</td></tr>
+    <tr><td>Citation</td><td>Cormorant italique</td><td>24 à 38 px</td><td>300</td><td>1,25</td><td>0</td></tr>
+    <tr><td>Accroche / Corps / Petit</td><td>Jost</td><td>18 / 14 / 13 px</td><td>300 à 400</td><td>1,6</td><td>0</td></tr>
+    <tr><td>Label, eyebrow</td><td>Jost capitales</td><td>12 px</td><td>500 à 600</td><td>1,25</td><td>0,26 em</td></tr>
+    <tr><td>Micro</td><td>Jost</td><td>11 px (minimum absolu)</td><td>400</td><td>1,4</td><td>0</td></tr>
+    <tr><td>Sigle MND</td><td>Cormorant capitales</td><td>selon le verrou</td><td>400</td><td>1</td><td>0,30 em (verrou) · 0,34 em (texte)</td></tr>
+  </table>
+  <p class="muted" style="font-size:12px">Toute autre police est interdite, y compris dans un document bureautique ou une publication. Sans les polices de la Maison, on n'imite pas : Georgia et une grotesque système, et on le dit. Les fichiers sont servis depuis <code>src/ds/fonts/</code>, licence OFL 1.1 ; aucun hôte tiers, un harnais le refuse.</p>
+  <div class="folio"><span>5 · La typographie</span><span>11</span></div>
+</section>
+
+<section class="page" id="fon">
+  <div class="eyebrow">5 · La typographie</div>
+  <h2>Les lettres fon, et les règles d'écriture</h2>
+  <div class="cols">
+    <div>
+      <div class="card card--deep">
+        <div class="eyebrow" style="color:var(--copper-300)">MND Fon · sous-ensemble d'EB Garamond</div>
+        <div style="font-family:var(--serif);font-size:56px;letter-spacing:.14em;line-height:1.1;margin-top:8px">ɔ ɖ ɛ Ɔ Ɖ Ɛ ɔ́</div>
+        <div style="font-size:12px;color:var(--indigo-200);margin-top:8px">U+0254 · U+0256 · U+025B · U+0186 · U+0189 · U+0190 · accent flottant U+0301</div>
+      </div>
+      <p style="font-size:13px;margin-top:12px">Ni Cormorant ni Jost ne portent ces lettres. EB Garamond les porte, et c'est une Garamond : la parenté rend l'emprunt invisible. À l'écran, <code>unicode-range</code> la restreint à ces sept points de code ; placée en tête des piles, elle ne prend rien aux polices de la Maison. Sur le papier, le TTF s'embarque dans le PDF et l'accent de « ɔ́ » se pose à la main, reculé de 0,219 em.</p>
+      <p style="font-size:13px">Les gestes s'écrivent avec leur marque, sans espace avant le ™ : VÈKPÈ™, SÍNSIN™, FÍNFÍN™, YÈKPÈ™, GBÀTÀ™, DÀNDÀN™, KLƆKLƆ™.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Écrire en français de la Maison</h3>
+      <ul style="font-size:13px">
+        <li>Espace insécable avant « : ; ? ! » et à l'intérieur des guillemets « à chevrons ». Pas de guillemets droits.</li>
+        <li>Nombres groupés par trois : 15 000 F. Les montants passent par <code>fmtMoney()</code>, dans la devise de la branche.</li>
+        <li><strong>Pas de tiret cadratin</strong> dans le texte affiché : la virgule ou le deux-points le remplacent.</li>
+        <li>Point médian « · » entre éléments de même rang ; jamais « • », jamais « | ».</li>
+        <li>Pas d'émojis, nulle part, y compris dans les messages.</li>
+        <li>Capitales accentuées : É, À, Ç.</li>
+        <li>Dates en toutes lettres à l'affichage, en ISO 8601 dans les données.</li>
+        <li>L'eyebrow est court, deux à quatre mots, jamais suivi de deux-points.</li>
+      </ul>
+      <div class="note">Les graisses des tokens ont été rehaussées d'un cran pour la lisibilité (<code>--weight-light</code> vaut 400) : le « 300 » de la règle de marque désigne le dessin Light de Cormorant pour les grands titres, non le corps de texte.</div>
+    </div>
+  </div>
+  <div class="folio"><span>5 · La typographie</span><span>12</span></div>
+</section>
+
+<!-- ═══ 6. ESPACE ═══ -->
+<section class="page" id="espace">
+  <div class="eyebrow">6 · L'espace, la grille, les formes</div>
+  <h2>Le module de huit, des rayons de deux à quatre</h2>
+  <div class="cols">
+    <div>
+      <h4>La grille du monogramme</h4>
+      <div class="grid8"><div class="box" style="left:8px;top:8px;width:64px;height:32px"></div><div class="box" style="left:80px;top:8px;width:96px;height:80px;background:var(--copper)"></div><div class="box" style="left:184px;top:8px;width:32px;height:32px"></div><div class="box" style="left:8px;top:48px;width:64px;height:40px;background:var(--indigo-300)"></div></div>
+      <p style="font-size:13px;margin-top:8px">Module carré de 8 px. Tout espacement est un multiple de 4 : <code>--space-1</code> 4 px à <code>--space-10</code> 128 px. Les respirations éditoriales prennent 96 ou 128 px. Gouttière de 16 px sur téléphone.</p>
+      <h4>Les conteneurs</h4>
+      <table>
+        <tr><th>Token</th><th>Largeur</th><th>Emploi</th></tr>
+        <tr><td>narrow</td><td>720 px</td><td>Prose, manifeste, lettres</td></tr>
+        <tr><td>text</td><td>960 px</td><td>Pages de texte</td></tr>
+        <tr><td>wide</td><td>1200 px</td><td>Tableaux, grilles</td></tr>
+        <tr><td>max</td><td>1320 px</td><td>Limite absolue</td></tr>
+      </table>
+    </div>
+    <div>
+      <h4>Les rayons : la Maison ne s'arrondit pas</h4>
+      <div class="radii"><div style="border-radius:0">0</div><div style="border-radius:2px">2 px</div><div style="border-radius:4px">4 px</div><div style="border-radius:999px;width:48px;height:48px;align-items:center;justify-content:center;background:var(--copper)">sceau</div></div>
+      <p style="font-size:13px;margin-top:8px">2 px pour les champs et puces, 4 px pour les cartes et boutons. Le seul cercle admis est le sceau ou le badge cerclé.</p>
+      <h4>Les filets</h4>
+      <div style="height:2px;background:var(--copper);margin:6px 0 4px"></div><div class="muted" style="font-size:11px;letter-spacing:.1em">CUIVRE 2 PX · L'ACCENT</div>
+      <div style="height:1px;background:var(--indigo);margin:10px 0 4px"></div><div class="muted" style="font-size:11px;letter-spacing:.1em">INDIGO 1 PX · LA STRUCTURE</div>
+      <div style="height:1px;background:var(--hairline);margin:10px 0 4px"></div><div class="muted" style="font-size:11px;letter-spacing:.1em">HAIRLINE · LE SÉPARATEUR DISCRET</div>
+      <h4>Les boutons</h4>
+      <p><span class="btn btn-cu">Je découvre mon parcours</span> <span class="btn btn-in">Prendre rendez-vous</span> <span class="btn btn-ghost">Je sais déjà</span></p>
+      <p style="font-size:12.5px" class="muted">Un bouton dit ce que la lectrice obtient. Libellé Jost 600, 13 px ; hauteur 44 px pour le principal, 24 px minimum pour toute cible.</p>
+      <h4>Les ombres</h4>
+      <div class="shadow-row"><div style="box-shadow:0 2px 8px rgba(20,20,27,.08)">sm · carte au repos</div><div style="box-shadow:0 10px 30px rgba(20,20,27,.10)">md · volet</div><div style="box-shadow:0 24px 60px rgba(20,20,27,.16)">lg · modale</div></div>
+    </div>
+  </div>
+  <div class="folio"><span>6 · L'espace</span><span>13</span></div>
+</section>
+
+<!-- ═══ 7. MOUVEMENT + 8. MOTIFS ═══ -->
+<section class="page" id="mouvement">
+  <div class="eyebrow">7 · Le mouvement</div>
+  <h2>Fondu, sans rebond</h2>
+  <div class="cols">
+    <div>
+      <table>
+        <tr><th>Token</th><th>Valeur</th><th>Emploi</th></tr>
+        <tr><td>dur-fast</td><td>140 ms</td><td>Survol, focus</td></tr>
+        <tr><td>dur-base</td><td>240 ms</td><td>Volet, changement d'état</td></tr>
+        <tr><td>dur-slow</td><td>420 ms</td><td>Entrée d'un écran</td></tr>
+        <tr><td>ease-soft</td><td>cubic-bezier(.22, .61, .36, 1)</td><td>Par défaut</td></tr>
+        <tr><td>ease-inout</td><td>cubic-bezier(.45, 0, .2, 1)</td><td>Aller-retour</td></tr>
+      </table>
+    </div>
+    <div>
+      <svg viewBox="0 0 220 120" width="220" height="120" role="img" aria-label="Courbe ease-soft"><line x1="10" y1="110" x2="210" y2="110" stroke="#CDBBA9" /><line x1="10" y1="110" x2="10" y2="10" stroke="#CDBBA9" /><path d="M10 110 C 54 -12, 82 12, 210 10" fill="none" stroke="#B97A4A" stroke-width="2" /><text x="120" y="118" font-family="Jost" font-size="9" fill="#45454F" letter-spacing="1">TEMPS</text></svg>
+      <p style="font-size:13px">Le mouvement dit que quelque chose a changé ; il ne divertit pas. Interdits : rebond, élastique, rotation décorative, parallaxe, chargement qui tourne. <code>prefers-reduced-motion</code> coupe toute animation et toute transition, sans exception.</p>
+    </div>
+  </div>
+  <div class="eyebrow" style="margin-top:22px">8 · Les motifs, monogrammes et icônes</div>
+  <h2 style="font-size:30px">Ce qui habille, et ne passe jamais sous le texte</h2>
+  <div class="cols-3">
+    <div><div class="motif" style="background-image:url('../../public/assets/motifs/allover-aere-indigo-cuivre.png')"></div><div class="muted" style="font-size:11px;letter-spacing:.08em;margin-top:4px">ALLOVER AÉRÉ · CUIVRE SUR INDIGO</div></div>
+    <div><div class="motif" style="background-image:url('../../public/assets/motifs/allover-aere-indigo-ivoire.png')"></div><div class="muted" style="font-size:11px;letter-spacing:.08em;margin-top:4px">ALLOVER AÉRÉ · IVOIRE SUR INDIGO</div></div>
+    <div><div class="motif" style="background-image:url('../../public/assets/motifs/medaillon-aere-ivoire-cuivre.png');background-size:contain;background-repeat:no-repeat;background-position:center;background-color:var(--ivoire);border:1px solid var(--hairline)"></div><div class="muted" style="font-size:11px;letter-spacing:.08em;margin-top:4px">MÉDAILLON · CUIVRE SUR IVOIRE</div></div>
+  </div>
+  <div class="cols" style="margin-top:14px">
+    <div>
+      <p style="font-size:13px">Un motif habille un fond, une couverture, un dos de carte, une seule fois par pièce, dans sa version aérée et à faible contraste. Le monogramme (le pictogramme en carré) ouvre les pièces imprimées en tête, en cuivre, et s'embarque compressé dans les PDF.</p>
+      <p style="font-size:13px">Les graphiques sont des SVG faits main : une seule série cuivre, les autres sur la rampe indigo (600, 400, 200), grille en hairline, axes en Jost 11 px.</p>
+    </div>
+    <div class="tile" style="grid-template-columns:repeat(4,1fr)">
+      <figure><img src="../../public/assets/icons/portal-512.png" alt="" />Portail</figure>
+      <figure><img src="../../public/assets/icons/trone-512.png" alt="" />Trône</figure>
+      <figure><img src="../../public/assets/icons/couronne-512.png" alt="" />Couronne</figure>
+      <figure><img src="../../public/assets/icons/lokaa-512.png" alt="" />LOKAA</figure>
+    </div>
+  </div>
+  <p class="muted" style="font-size:12px">Icônes d'application : pictogramme seul, centré, dans la zone sûre de 80 % de l'icône maskable. Icônes d'interface : traits de 1,5 px à bouts droits sur une grille de 24 px, en encre courante, remplies pour le seul état actif.</p>
+  <div class="folio"><span>7 · Le mouvement · 8 · Les motifs</span><span>14</span></div>
+</section>
+
+<!-- ═══ 9. PHOTO + 10. VOIX ═══ -->
+<section class="page dense" id="photo">
+  <div class="eyebrow">9 · La photographie</div>
+  <h2>Le geste avant le visage, l'indigo à la place du noir</h2>
+  <div class="cols">
+    <div>
+      <img src="../../public/assets/photos/yeman-smile.jpg" class="portrait" alt="Portrait de Yéman, fondatrice de la Maison MND" style="width:100%;border-radius:4px;display:block" />
+      <p class="muted" style="font-size:11px;letter-spacing:.06em;margin-top:6px">L'une des onze photographies existantes : lumière de jour, regard à hauteur d'yeux, fond calme.</p>
+    </div>
+    <div style="font-size:13px">
+      <p><strong>Sept sensations</strong> : sécurité, confiance, expertise, élégance, intimité, prise en charge, transmission.</p>
+      <p><strong>La lumière</strong> : naturelle, latérale, diffuse ; balance des blancs sur charte grise, réchauffée légèrement, jamais orangée ; on expose pour la peau. Les ombres existent et tirent vers l'indigo au traitement, jamais vers le noir bouché.</p>
+      <p><strong>Les fonds</strong> : unis et mats, crème, lin, bois, terre, velours indigo. Pas de feuillage vert flou, pas de wax dominant, pas de miroir, chrome, néon ni mur de produits.</p>
+      <p><strong>Ce qu'on refuse</strong> : l'esthétique de salon générique, les clichés de pose, les filtres et la peau lissée, les images générées, les banques d'images, le fond noir, la saturation « Instagram ».</p>
+      <div class="interdit" style="margin-top:10px"><h4>Règle absolue</h4>Toute personne montrée avec des locks en porte réellement. Une image qui ne respecte pas cette règle est retirée, quelle que soit sa qualité. Le droit à l'image est un document signé, jamais une case cochée.</div>
+      <p class="muted" style="font-size:12px;margin-top:10px">Direction complète : <code>docs/site-revelateur/direction-photo.md</code>.</p>
+    </div>
+  </div>
+  <div class="eyebrow" style="margin-top:18px">10 · La voix</div>
+  <h2 style="font-size:30px">Écrire pour la Maison</h2>
+  <div class="cols" style="font-size:13px">
+    <ul style="margin:0">
+      <li>La Maison parle à la deuxième personne, au présent, en français simple. Elle écoute avant de prescrire.</li>
+      <li><strong>Chaque bouton dit ce que la lectrice obtient</strong> : « Je découvre mon parcours ». Jamais un simple « Réserver ».</li>
+      <li>Les titres sont des phrases courtes, en Cormorant, sans point final.</li>
+      <li>On dit « vous », jamais « le client » ; l'équipe se nomme par son rôle dans la Maison.</li>
+    </ul>
+    <ul style="margin:0">
+      <li>Aucun prix chiffré sur le site public ; les montants passent par le devis.</li>
+      <li>Pas d'anglicisme de confort.</li>
+      <li>La devise ferme tout message écrit par l'IA, posée par le code.</li>
+      <li>Ce qu'on n'écrit pas : tiret cadratin, émoji, point d'exclamation en rafale, capitales pour crier, « cher client ».</li>
+    </ul>
+  </div>
+  <div class="folio"><span>9 · La photographie · 10 · La voix</span><span>15</span></div>
+</section>
+
+<!-- ═══ 11. APPLICATIONS ═══ -->
+<section class="page dense" id="applications">
+  <div class="eyebrow">11 · Les applications</div>
+  <h2>Les cinq sœurs, le papier, les réseaux</h2>
+  <div class="cols-3">
+    <div class="mock"><div class="bar"><img src="../../public/assets/vectoriel/pictogramme-ivoire.svg" alt="" /><span style="letter-spacing:.14em;font-size:10px">LE TRÔNE</span></div><div class="body"><div class="t">Pilotage</div><div style="font-family:var(--serif);font-size:26px;color:var(--indigo)">1 245 000 F</div><div class="muted">Recette du mois · Cotonou</div><div style="height:2px;background:var(--copper);width:40px;margin-top:8px"></div></div></div>
+    <div class="mock"><div class="bar" style="background:var(--ivoire);color:var(--indigo);border-bottom:1px solid var(--hairline)"><img src="../../public/assets/vectoriel/pictogramme-indigo.svg" alt="" /><span style="letter-spacing:.14em;font-size:10px">MA COURONNE</span></div><div class="body"><div class="t">Votre prochain rituel</div><div class="muted">Samedi 3 octobre · 10 h</div><span class="btn btn-cu" style="font-size:11px;padding:8px 12px;margin-top:8px">Je confirme ma venue</span></div></div>
+    <div class="mock"><div class="bar" style="background:var(--indigo-deep)"><img src="../../public/assets/vectoriel/pictogramme-ivoire.svg" alt="" /><span style="letter-spacing:.14em;font-size:10px">LA CONSULTATION</span></div><div class="body" style="background:var(--indigo-deep);color:var(--ivoire)"><div class="t" style="color:var(--ivoire)">Votre couronne, lue</div><div style="color:var(--indigo-200)">Huit étapes, un diagnostic</div><span class="btn btn-cu" style="font-size:11px;padding:8px 12px;margin-top:8px">Commencer</span></div></div>
+  </div>
+  <table style="margin-top:12px">
+    <tr><th>Surface</th><th>Identité</th><th>Ce qui la distingue</th></tr>
+    <tr><td>Portail</td><td>Ivoire éditorial</td><td>Grandes respirations, Cormorant Display, une porte vers chaque sœur</td></tr>
+    <tr><td>Le Trône</td><td>Indigo et sceau</td><td>Barre latérale indigo, papier ivoire, chiffres en Cormorant, sceau or ; l'obsidienne y subsiste et ne s'étend pas</td></tr>
+    <tr><td>Ma Couronne</td><td>Ivoire chaud et cuivre</td><td>Cadre 390 × 844, un geste par écran, réservation en sept temps</td></tr>
+    <tr><td>La Consultation</td><td>Indigo profond cérémoniel</td><td>Écran plein indigo, ivoire pour le texte, cuivre pour le seul bouton</td></tr>
+    <tr><td>LOKAA</td><td>Neutre, accent du locataire</td><td>« Propulsé par MND » en pied</td></tr>
+    <tr><td>Certificat, Bilan, Bulletin</td><td>Papier pur</td><td>A4, monogramme cuivre en tête, pied avec la devise</td></tr>
+  </table>
+  <div class="cols" style="font-size:12.5px">
+    <div>
+      <h4>Le papier et les PDF</h4>
+      <p>A4 portrait (ISO 216), A4 paysage pour le certificat ; marges 18 mm, 15 mm en pied. Tête : monogramme cuivre 13 mm, nom et ligne légale en Jost 9 pt, filet cuivre. Corps Jost 10 à 11 pt, titres Cormorant 24 à 36 pt, tableaux à filets indigo 1 px. Pied par <code>pieDeLaMaison()</code> ; verrou couché jamais sous 33 mm. Encre indigo pour l'administratif. Polices embarquées, images compressées : un reçu pèse moins de 200 Ko. Pièces d'archive en PDF/A-2b.</p>
+      <h4>Le tampon et l'enseigne</h4>
+      <p>Tampon : verrou debout, indigo, 34 à 40 mm, MAISON MND en arc calculé sur la largeur réelle des glyphes, ville et RCCM en Jost 7 pt minimum. Enseigne : debout ivoire sur indigo ou indigo sur ivoire ; jamais de lettrage lumineux coloré ; capitale de MAISON d'au moins 15 mm à 10 m.</p>
+    </div>
+    <div>
+      <h4>Les réseaux et les affiches</h4>
+      <table style="font-size:11.5px">
+        <tr><th>Support</th><th>Format</th><th>Règle</th></tr>
+        <tr><td>Carré</td><td>1080 × 1080</td><td>Verrou en haut à gauche, au moins 240 px de large</td></tr>
+        <tr><td>Portrait</td><td>1080 × 1350</td><td>Texte dans les 4/5 supérieurs</td></tr>
+        <tr><td>Story, Reel</td><td>1080 × 1920</td><td>Zone sûre : 250 px haut, 340 px bas, 60 px côtés</td></tr>
+        <tr><td>Événement</td><td>selon le lieu</td><td>Bain A ou B, verrou ivoire sur le début</td></tr>
+      </table>
+      <p>Une affiche porte un eyebrow, un titre Cormorant, une phrase Jost, une action (code d'offre en toutes lettres, lien), le verrou. Rien d'autre.</p>
+      <h4>Les messages</h4>
+      <p>Texte seul, français, sans émoji, un lien au plus. E-mail : styles en ligne, 600 px, monogramme en tête, devise en pied, repli Georgia et Arial. Signature posée par le code : « ◈ Maison MND · mi nyɔ́ ɖɛkpɛ, et vous le savez ».</p>
+    </div>
+  </div>
+  <div class="folio"><span>11 · Les applications</span><span>16</span></div>
+</section>
+
+<!-- ═══ 12. ACCESSIBILITÉ + 13. FICHIERS + 14. GOUVERNANCE ═══ -->
+<section class="page dense" id="conformite">
+  <div class="eyebrow">12 · L'accessibilité et la conformité</div>
+  <h2 style="font-size:32px">WCAG 2.2 niveau AA, AAA pour le texte courant</h2>
+  <table>
+    <tr><th>Exigence</th><th>Règle de la Maison</th><th>Où c'est tenu</th></tr>
+    <tr><td>Contraste du texte (1.4.3)</td><td>4,5:1 ; le cuivre 500 n'est jamais du texte courant sur clair</td><td>Annexe A</td></tr>
+    <tr><td>Contraste des composants (1.4.11)</td><td>3:1 pour bordures, icônes, filets porteurs de sens</td><td>Annexe A</td></tr>
+    <tr><td>Taille des cibles (2.5.8)</td><td>24 × 24 px minimum, 44 px pour les boutons principaux</td><td><code>mnd-btn</code></td></tr>
+    <tr><td>Focus visible (2.4.7, 2.4.11)</td><td>Anneau cuivre, jamais supprimé</td><td><code>ds.css</code></td></tr>
+    <tr><td>Mouvement (2.3.3)</td><td><code>prefers-reduced-motion</code> coupe tout</td><td><code>ds.css</code></td></tr>
+    <tr><td>Langue (3.1.1)</td><td><code>lang="fr"</code> ; les mots fon marqués <code>lang="fon"</code> quand le balisage le permet</td><td>À poser sur les nouvelles pages</td></tr>
+    <tr><td>Redimensionnement (1.4.4)</td><td>Lisible à 200 % ; titres en unités relatives</td><td>tokens <code>clamp()</code></td></tr>
+    <tr><td>Images (1.1.1)</td><td>Le verrou porte <code>role="img"</code> et son nom ; les photos décoratives ont un alt vide</td><td>SVG du dépôt</td></tr>
+    <tr><td>Impression</td><td>Lisible en noir et blanc ; aucune information portée par la seule couleur</td><td>Règle 4.5</td></tr>
+  </table>
+  <p style="font-size:12.5px">Données : dates en ISO 8601, devises en ISO 4217, pays en ISO 3166-1, langues en ISO 639 ; à l'affichage, tout passe par les fonctions de la Maison.</p>
+  <div class="cols" style="font-size:12.5px;margin-top:10px">
+    <div>
+      <div class="eyebrow">13 · Les fichiers</div>
+      <table style="font-size:11.5px;margin-top:8px">
+        <tr><th>Ce qu'on cherche</th><th>Où</th></tr>
+        <tr><td>Pictogramme, 8 encres</td><td><code>public/assets/vectoriel/pictogramme-*.svg</code></td></tr>
+        <tr><td>Verrous couché et debout</td><td><code>public/assets/vectoriel/verrou-*.svg</code></td></tr>
+        <tr><td>Verrous des sous-marques, gamme</td><td><code>docs/marque/sous-marques/</code></td></tr>
+        <tr><td>Monogrammes, motifs, icônes</td><td><code>public/assets/monograms/</code>, <code>motifs/</code>, <code>icons/</code></td></tr>
+        <tr><td>Polices</td><td><code>src/ds/fonts/</code></td></tr>
+        <tr><td>Tokens, verrou, identité</td><td><code>src/ds/tokens/</code>, <code>src/ds/verrou.ts</code>, <code>src/shared/identite.ts</code></td></tr>
+      </table>
+      <p>Noms de fichiers en minuscules, en français, à tirets, la couleur en suffixe. Les exports se régénèrent par les scripts <code>fabrique-*</code>, jamais à la main. Polices sous OFL 1.1 ; pictogramme, verrous, motifs et textes propriété de la Maison MND.</p>
+    </div>
+    <div>
+      <div class="eyebrow">14 · La gouvernance</div>
+      <ul style="margin-top:8px">
+        <li><strong>Qui décide</strong> : la Souveraine de la Maison tranche toute question de marque. Une décision se note, datée, avec sa raison, dans <code>docs/REPRENDRE.md</code>.</li>
+        <li><strong>Comment la charte change</strong> : on modifie d'abord la source (token, verrou, identité), on fait passer les harnais (<code>verifie-le-verrou</code>, <code>verifie-les-polices</code>, <code>verifie-signature</code>, <code>verifie-le-nom-de-la-maison</code>), puis on met ce document à jour et on incrémente sa version.</li>
+        <li><strong>Ce qui ne change pas</strong> : pas d'émojis, rayons 2 à 4 px, deux familles, cuivre en accent, indigo pour le sombre, animations fondues, MND sans ɖ, devise par le code, français partout.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="folio"><span>12 · 13 · 14</span><span>17</span></div>
+</section>
+
+<!-- ═══ ANNEXES ═══ -->
+<section class="page dense" id="annexe-a">
+  <div class="eyebrow">Annexe A</div>
+  <h2>Contrastes mesurés (WCAG 2.2)</h2>
+  <p class="muted" style="font-size:12px">Ratios sur les valeurs sRGB des tokens. AA texte : 4,5:1 ; AA grand texte et composants : 3:1 ; AAA : 7:1. La table complète est dans le Markdown.</p>
+  <div class="cols" style="gap:16px">
+    <table style="font-size:11.5px">
+      <tr><th>Paire</th><th>Ratio</th><th>Verdict</th></tr>
+      <tr><td>Obsidienne sur ivoire</td><td>16,3</td><td>AAA · texte courant</td></tr>
+      <tr><td>Obsidienne sur sable</td><td>13,2</td><td>AAA</td></tr>
+      <tr><td>Obsidienne 400 sur ivoire</td><td>8,4</td><td>AAA · texte secondaire</td></tr>
+      <tr><td>Obsidienne 300 sur ivoire</td><td>4,4</td><td>Composants ; pas de corps</td></tr>
+      <tr><td>Indigo Royal sur ivoire</td><td>13,4</td><td>AAA</td></tr>
+      <tr><td>Indigo Royal sur sable</td><td>10,9</td><td>AAA</td></tr>
+      <tr><td>Indigo 500 sur ivoire</td><td>10,2</td><td>AAA</td></tr>
+      <tr><td>Indigo 400 sur ivoire</td><td>6,0</td><td>AA</td></tr>
+      <tr><td>Indigo 300 sur ivoire</td><td>3,3</td><td>Composants</td></tr>
+      <tr><td><strong>Cuivre 500 sur ivoire</strong></td><td><strong>3,1</strong></td><td>Composants, grand texte ; <strong>jamais du corps</strong></td></tr>
+      <tr><td>Cuivre 500 sur sable</td><td>2,6</td><td>Échec · filet décoratif seulement</td></tr>
+      <tr><td>Cuivre 600 sur ivoire</td><td>4,4</td><td>Composants, labels</td></tr>
+      <tr><td>Cuivre 700 sur ivoire</td><td>6,4</td><td>AA · texte cuivré admis</td></tr>
+      <tr><td>Ivoire sur cuivre 500</td><td>3,1</td><td>Libellé de bouton ≥ 14 px en 600</td></tr>
+      <tr><td>Obsidienne sur cuivre 500</td><td>5,2</td><td>AA · libellé de bouton, alternative</td></tr>
+      </table>
+    <table style="font-size:11.5px">
+      <tr><th>Paire</th><th>Ratio</th><th>Verdict</th></tr>
+      <tr><td>Ivoire sur Indigo Royal</td><td>13,4</td><td>AAA</td></tr>
+      <tr><td>Indigo 200 sur Indigo Royal</td><td>6,8</td><td>AA · secondaire sur indigo</td></tr>
+      <tr><td>Cuivre 500 sur Indigo Royal</td><td>4,3</td><td>Composants, titres sur indigo</td></tr>
+      <tr><td>Cuivre 300 sur Indigo Royal</td><td>6,6</td><td>AA · texte cuivré sur indigo</td></tr>
+      <tr><td>Ivoire sur indigo profond</td><td>15,4</td><td>AAA</td></tr>
+      <tr><td>Ivoire sur Ocre Brûlé</td><td>4,5</td><td>AA · L'Atelier</td></tr>
+      <tr><td>Ivoire sur Vert Savoir</td><td>6,7</td><td>AA · Académie</td></tr>
+      <tr><td>Ivoire sur Prune Profonde</td><td>10,3</td><td>AAA · Boutique</td></tr>
+      <tr><td>Ivoire sur Bleu Lagune</td><td>4,9</td><td>AA · Soins</td></tr>
+      <tr><td>Ivoire sur Bleu Pétrole</td><td>8,1</td><td>AAA · Événements</td></tr>
+      <tr><td>Ivoire sur Bordeaux</td><td>9,2</td><td>AAA · Studio</td></tr>
+      <tr><td>Ivoire sur Noir Encre</td><td>15,5</td><td>AAA · LOKAA</td></tr>
+      <tr><td>Or #C9A84C sur Indigo Royal</td><td>6,6</td><td>AA · site public</td></tr>
+      <tr><td>Or profond #8B5E15 sur crème</td><td>5,3</td><td>AA · petit texte doré</td></tr>
+      <tr><td>Or #C9A84C sur crème</td><td>2,1</td><td>Échec · ornement seulement</td></tr>
+      <tr><td>Terre #3D2B1F sur crème</td><td>12,6</td><td>AAA · site public</td></tr>
+    </table>
+  </div>
+  <div class="folio"><span>Annexe A · Contrastes</span><span>18</span></div>
+</section>
+
+<section class="page dense" id="annexe-b">
+  <div class="eyebrow">Annexe B</div>
+  <h2>Équivalences pour l'impression</h2>
+  <p class="muted" style="font-size:12px">Conversions sRGB vers CMJN sans profil : des valeurs de départ. La colonne Pantone reste vide tant qu'une épreuve contractuelle (ISO 12647-7, D50) n'a pas arrêté la référence ; on y inscrit alors le code lu sur nuancier physique.</p>
+  <table style="font-size:12px">
+    <tr><th></th><th>Nom</th><th>HEX</th><th>RGB</th><th>CMJN de départ</th><th>Pantone (sur épreuve)</th></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#1E2150"></span></td><td>Indigo Royal</td><td>#1E2150</td><td>30 · 33 · 80</td><td>62 · 59 · 0 · 69</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#15173A"></span></td><td>Indigo profond</td><td>#15173A</td><td>21 · 23 · 58</td><td>64 · 60 · 0 · 77</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#B97A4A"></span></td><td>Cuivre Noble</td><td>#B97A4A</td><td>185 · 122 · 74</td><td>0 · 34 · 60 · 27</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#14141B"></span></td><td>Obsidienne</td><td>#14141B</td><td>20 · 20 · 27</td><td>26 · 26 · 0 · 89</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#F6F1E7;border:1px solid var(--hairline)"></span></td><td>Ivoire</td><td>#F6F1E7</td><td>246 · 241 · 231</td><td>0 · 2 · 6 · 4</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#E3DACB"></span></td><td>Sable</td><td>#E3DACB</td><td>227 · 218 · 203</td><td>0 · 4 · 11 · 11</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#CDBBA9"></span></td><td>Argile</td><td>#CDBBA9</td><td>205 · 187 · 169</td><td>0 · 9 · 18 · 20</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#936518"></span></td><td>Ocre Brûlé</td><td>#936518</td><td>147 · 101 · 24</td><td>0 · 31 · 84 · 42</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#2F5D50"></span></td><td>Vert Savoir</td><td>#2F5D50</td><td>47 · 93 · 80</td><td>49 · 0 · 14 · 64</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#4A2C5C"></span></td><td>Prune Profonde</td><td>#4A2C5C</td><td>74 · 44 · 92</td><td>20 · 52 · 0 · 64</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#2E6F8E"></span></td><td>Bleu Lagune</td><td>#2E6F8E</td><td>46 · 111 · 142</td><td>68 · 22 · 0 · 44</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#1F4D62"></span></td><td>Bleu Pétrole</td><td>#1F4D62</td><td>31 · 77 · 98</td><td>68 · 21 · 0 · 62</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#6E283C"></span></td><td>Bordeaux</td><td>#6E283C</td><td>110 · 40 · 60</td><td>0 · 64 · 45 · 57</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#1A1A1A"></span></td><td>Noir Encre</td><td>#1A1A1A</td><td>26 · 26 · 26</td><td>0 · 0 · 0 · 90</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#B8902F"></span></td><td>Or du sceau</td><td>#B8902F</td><td>184 · 144 · 47</td><td>0 · 22 · 74 · 28</td><td></td></tr>
+    <tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:2px;background:#C9A84C"></span></td><td>Or du site</td><td>#C9A84C</td><td>201 · 168 · 76</td><td>0 · 16 · 62 · 21</td><td></td></tr>
+  </table>
+  <p style="font-size:12.5px">Au façonnage : l'ivoire s'obtient de préférence par le papier (vergé ou vélin ivoire, 120 à 300 g) plutôt que par un aplat ; l'indigo en aplat demande un noir riche de repli (60 · 50 · 0 · 90) si le Pantone manque ; le cuivre peut se faire en Pantone métallique sur les cartes et invitations, jamais sur les pièces administratives.</p>
+  <div class="folio"><span>Annexe B · Impression</span><span>19</span></div>
+</section>
+
+<section class="page page--indigo" id="annexe-c">
+  <div class="eyebrow">Annexe C</div>
+  <h2>Liste de contrôle avant publication</h2>
+  <ul class="check" style="margin-top:10px">
+    <li>Le nom s'écrit « Maison MND » ou « MND », sans ɖ, et se tient seul.</li>
+    <li>La devise vient de <code style="background:rgba(246,241,231,.12)">DEVISE_COMPLETE</code> ; lettres fon exactes, accent de ɔ́ posé.</li>
+    <li>Le verrou est celui du dépôt, à l'échelle, au-dessus de son plancher ; sous le plancher, pictogramme seul.</li>
+    <li>Zone de protection respectée ; verrou ivoire sur tout fond coloré ; « MND » indigo partout ailleurs.</li>
+    <li>Aucune couleur hors gamme ; le cuivre n'est pas du texte courant sur clair ; le sombre est indigo.</li>
+    <li>Cormorant Garamond et Jost seulement ; polices servies par la Maison.</li>
+    <li>Rayons 2 à 4 px ; filets 1 ou 2 px ; ombres diffuses.</li>
+    <li>Animations fondues ; mouvement réduit respecté.</li>
+    <li>Pas d'émoji, pas de tiret cadratin, point médian seul séparateur, espaces insécables posées.</li>
+    <li>Contrastes AA vérifiés ; cibles 24 px ; focus visible.</li>
+    <li>Montants par <code style="background:rgba(246,241,231,.12)">fmtMoney()</code>, devise de la branche ; dates en lettres.</li>
+    <li>Photos conformes : lumière, fonds, vraies locks, droit à l'image signé.</li>
+    <li>PDF : polices embarquées, images compressées, pied par le code.</li>
+    <li>Aucune donnée personnelle, aucun secret, aucun nom de domaine en dur.</li>
+  </ul>
+  <div style="margin-top:auto;padding-top:30mm;text-align:center">
+    <img src="../../public/assets/vectoriel/verrou-debout-ivoire.svg" alt="Maison MND" style="width:28mm" />
+    <div style="font-family:var(--serif);font-size:22px;font-style:italic;margin-top:14px">mi nyɔ́ ɖɛkpɛ, et vous le savez</div>
+  </div>
+  <div class="folio"><span>Charte graphique · 1.0 · 29 septembre 2026</span><span>20</span></div>
+</section>
+
+</body>
+</html>
