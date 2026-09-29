@@ -70,7 +70,8 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     (a.date > today || (a.date === today && a.time >= nowTime));
 
   const upcoming = mine.filter(isUpcoming);
-  const past = mine.filter((a) => !isUpcoming(a)).slice(-6).reverse();
+  /* Ses cinq derniers passages, en résumé (29 septembre 2026). */
+  const past = mine.filter((a) => !isUpcoming(a)).slice(-5).reverse();
 
   const names = (a: Appointment) => {
     const base = a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') ||

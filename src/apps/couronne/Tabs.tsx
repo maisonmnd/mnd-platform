@@ -837,7 +837,21 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       done: true,
     });
   }
-  for (const a of honored) {
+  /* SES CINQ DERNIERS PASSAGES, EN RÉSUMÉ — 29 septembre 2026 (Yéman) : le
+     carnet ne déroule plus toute l'histoire des rendez-vous. Les plus anciens
+     se disent en une ligne, comptés. Le compteur du Cercle, lui, lit toujours
+     tout (venuesDeLAnnee), rien n'est perdu. */
+  const PASSAGES_MONTRES = 5;
+  const anciens = Math.max(0, honored.length - PASSAGES_MONTRES);
+  if (anciens > 0) {
+    timeline.push({
+      d: `Avant le ${dayLabelIso(honored[anciens].date)}`,
+      t: `${anciens} passage${anciens > 1 ? 's' : ''} plus ancien${anciens > 1 ? 's' : ''}`,
+      s: 'La Maison les garde dans votre dossier',
+      done: true,
+    });
+  }
+  for (const a of honored.slice(-PASSAGES_MONTRES)) {
     timeline.push({
       d: `${dayLabelIso(a.date)} · ${a.time}`,
       t: serviceNames(a, services) || 'Rituel de la maison',
