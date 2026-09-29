@@ -8,6 +8,7 @@ import {
   resumeDeLAmbassade, classementDuMois, chiffresDuMois, sceauxDuFoyerAPoser, type FicheAmb, type DemandeLue,
 } from '../src/shared/ambassade';
 import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, type SoinOffert } from '../src/shared/parrainage-pur';
+import { venuesDeLAnnee } from '../src/shared/agenda';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
 
 /* LA COMMUNAUTÉ MND, ÉPROUVÉE — 28 septembre 2026.
@@ -334,6 +335,29 @@ const nav = readFileSync('src/apps/trone/routes/index.tsx', 'utf8');
 dit('… une seule entrée au menu : l’écran des ambassadrices seul sort de la barre', true,
   /path: '\/parrainages', horsMenu: true/.test(nav) && /path: '\/cercle', label: 'Le Cercle MND'/.test(nav));
 dit('le Trône pose les sceaux du Foyer en tâche de fond', true, /sceauxDuFoyerAPoser\(foyers, sceaux, clients/.test(hook));
+
+/* ══ (9) LES VENUES DE L'ANNÉE — 29 septembre 2026 ═══════════════════════
+   « Calcule les venues par an, pas de cumul » : le Cercle se compte sur les
+   douze derniers mois glissants ; un jour compte une fois ; ni une venue
+   vieille de plus d'un an, ni un rendez-vous à venir, ni celui d'une autre. */
+const rdvAn = [
+  { status: 'honoré', clientId: 'x', date: '2026-09-28' },
+  { status: 'honoré', clientId: 'x', date: '2026-09-28' },
+  { status: 'honoré', clientId: 'x', date: '2026-03-02' },
+  { status: 'honoré', clientId: 'x', date: '2025-09-30' },
+  { status: 'honoré', clientId: 'x', date: '2025-09-29' },
+  { status: 'honoré', clientId: 'x', date: '2024-05-01' },
+  { status: 'honoré', clientId: 'x', date: '2026-10-05' },
+  { status: 'confirmé', clientId: 'x', date: '2026-08-01' },
+  { status: 'honoré', clientId: 'y', date: '2026-08-01' },
+];
+dit('les venues comptent sur douze mois glissants, un jour une fois', 3, venuesDeLAnnee(rdvAn, 'x', '2026-09-29'));
+dit('… le 1ᵉʳ janvier ne remet rien à zéro', venuesDeLAnnee(rdvAn, 'x', '2026-12-31') >= 2, true);
+dit('… et l’an d’avant se compte à part', 2, venuesDeLAnnee(rdvAn, 'x', '2025-10-01'));
+const statutSrc = readFileSync('src/shared/accounts.ts', 'utf8');
+dit('le statut du Cercle (Ma Couronne, la fiche) compte l’année, pas le cumul', true, /const venues = venuesDeLAnnee\(appts, client\.id\);/.test(statutSrc));
+dit('… les deux écrans du Cercle aussi', [true, true],
+  [/venuesDeLAnnee\(appts, c\.id\)/.test(readFileSync('src/apps/trone/routes/equipe/Cercle.tsx', 'utf8')), /estDuCercle\(venuesDeLAnnee\(rdvs, c\.id\), seuilCercle\)/.test(readFileSync('src/apps/trone/routes/equipe/Parrainages.tsx', 'utf8'))]);
 
 console.log(ko === 0 ? '\nTout tient.' : `\n${ko} échec(s).`);
 if (ko) process.exit(1);

@@ -487,6 +487,32 @@ export const venuesHonorees = (
   return jours.size;
 };
 
+/* LES VENUES DE L'ANNÉE — 29 septembre 2026. « Calcule les venues par an,
+   pas de cumul » (Yéman) : le Cercle se gagne et se garde sur les DOUZE
+   DERNIERS MOIS, glissants, pour que personne ne sorte du Cercle un 1ᵉʳ
+   janvier. Une venue = un jour où un rituel de CETTE tête a été honoré. Les
+   autres compteurs (passage, réservation, caisse) restent au cumul. */
+export const debutDeLAnnee = (aujourdhui: string): string => {
+  const d = new Date(`${aujourdhui.slice(0, 10)}T12:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+};
+export const venuesDeLAnnee = (
+  appts: readonly Pick<Appointment, 'status' | 'clientId' | 'date'>[],
+  clientId: string,
+  aujourdhui: string = new Date().toISOString().slice(0, 10),
+): number => {
+  if (!clientId) return 0;
+  const debut = debutDeLAnnee(aujourdhui);
+  const jours = new Set<string>();
+  for (const a of appts) {
+    if (a.status !== 'honoré' || a.clientId !== clientId) continue;
+    if (a.date <= debut || a.date > aujourdhui) continue;
+    jours.add(a.date);
+  }
+  return jours.size;
+};
+
 /** Total réellement encaissé au salon sur un rendez-vous. Le journal fait foi dès
     qu'il existe ; sinon on retombe sur `paidXof` — les rendez-vous d'avant le
     journal n'ont que lui, et les ignorer effacerait leur règlement. */

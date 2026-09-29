@@ -5,7 +5,7 @@ import { Card, Input } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { useClients, useFamilies, estDePassage, aUnPrixConvenu, comptePrixConvenus, type Client } from '../../../../shared/clients';
-import { useAppointments, venuesHonorees } from '../../../../shared/agenda';
+import { useAppointments, venuesDeLAnnee } from '../../../../shared/agenda';
 import { estDependant, depenseFoyerXof } from '../../../../shared/accounts';
 import { useServices } from '../../../../shared/catalog';
 import { useStore } from '../../../../shared/store';
@@ -48,7 +48,7 @@ export default function Cercle() {
 
   const venuesDe = useMemo(() => {
     const m = new Map<string, number>();
-    for (const c of clients) m.set(c.id, venuesHonorees(appts, c.id, false));
+    for (const c of clients) m.set(c.id, venuesDeLAnnee(appts, c.id));
     return m;
   }, [clients, appts]);
   const eligibleCercle = (c: Client): boolean => !aUnPrixConvenu(c) && !estDependant(c, families);
@@ -135,7 +135,7 @@ export default function Cercle() {
               {puce('convenus', 'Prix convenus', convenusF.length)}
             </div>
             <p className="mnd-muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              On entre au Cercle à sa {seuil}ᵉ venue, par ses propres venues. Un prix convenu et une tête dépendante sont reconnus autrement (le prix, le Foyer).
+              On entre au Cercle à sa {seuil}ᵉ venue sur les douze derniers mois, par ses propres venues, et on y reste tant qu’on les garde. Un prix convenu et une tête dépendante sont reconnus autrement (le prix, le Foyer).
             </p>
 
             {(vue === 'membres' || vue === 'portes') && visibles.length === 0 && (
@@ -164,12 +164,12 @@ export default function Cercle() {
                         <span className="tre-reg__nom">{c.name}</span>
                         <span className="tre-reg__meta">
                           {membre
-                            ? `${v} venues · ${nomDuRang(c.parrainage?.rang)}${amies ? ` · ${amies} amie${amies > 1 ? 's' : ''} venue${amies > 1 ? 's' : ''}` : ''}${attente ? ` · ${attente} récompense${attente > 1 ? 's' : ''} à utiliser` : ''}`
-                            : `${v} venue${v > 1 ? 's' : ''} · encore ${Math.max(1, seuil - v)} avant le Cercle`}
+                            ? `${nomDuRang(c.parrainage?.rang)}${c.codeParrain ? ` · ${c.codeParrain}` : ''}${amies ? ` · ${amies} amie${amies > 1 ? 's' : ''} venue${amies > 1 ? 's' : ''}` : ''}${attente ? ` · ${attente} récompense${attente > 1 ? 's' : ''} à utiliser` : ''}`
+                            : `encore ${Math.max(1, seuil - v)} venue${Math.max(1, seuil - v) > 1 ? 's' : ''} avant le Cercle`}
                         </span>
                       </span>
                       <span className="tre-reg__jauge"><Bar pct={pct} /></span>
-                      <span className="tre-reg__pts">{membre ? (c.codeParrain ?? '') : `${v}/${seuil}`}</span>
+                      <span className="tre-reg__pts" title="Venues des douze derniers mois">{membre ? `${v} / an` : `${v}/${seuil}`}</span>
                       {c.phone
                         ? <WaLien phone={c.phone} message={`Bonjour ${c.name.split(' ')[0]}, la Maison MND est heureuse de vous compter dans son Cercle.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                         : <span />}

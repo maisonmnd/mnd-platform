@@ -1475,9 +1475,9 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
         ) : cercle.dependant ? (
           <span className="mc-pillseal">Rattachée à votre foyer</span>
         ) : cercle.membre ? (
-          <span className="mc-pillseal">Membre du Cercle · {cercle.venues} venues</span>
+          <span className="mc-pillseal">Membre du Cercle · {cercle.venues} venues en 12 mois</span>
         ) : (
-          <span className="mc-pillseal">Le Cercle s’ouvre à votre {cercle.seuil}ᵉ venue · {cercle.venues} sur {cercle.seuil}</span>
+          <span className="mc-pillseal">Le Cercle s’ouvre à {cercle.seuil} venues en 12 mois · {cercle.venues} sur {cercle.seuil}</span>
         )}
       </div>
       {!cercle.convenu && !cercle.dependant && !cercle.membre && (
@@ -1485,8 +1485,8 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-bar"><div style={{ width: `${pctCercle}%` }} /></div>
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6 }}>
             {cercle.venues === 0
-              ? `Votre lignée commence à votre première venue. Le Cercle vous accueille à votre ${cercle.seuil}ᵉ.`
-              : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} et la Maison vous accueille dans son Cercle.`}
+              ? `Votre lignée commence à votre première venue. Le Cercle vous accueille à ${cercle.seuil} venues en douze mois.`
+              : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} dans les douze mois, et la Maison vous accueille dans son Cercle.`}
           </div>
         </div>
       )}

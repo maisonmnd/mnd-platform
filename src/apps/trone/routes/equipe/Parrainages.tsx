@@ -9,7 +9,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useAppointments } from '../../../../shared/agenda';
 import { useClients, useFamilies, aUnPrixConvenu } from '../../../../shared/clients';
 import { estDependant } from '../../../../shared/accounts';
-import { venuesHonorees } from '../../../../shared/agenda';
+import { venuesDeLAnnee } from '../../../../shared/agenda';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../../../shared/offers';
 import { useStore, uid } from '../../../../shared/store';
 import { fmtMoney } from '../../../../shared/currency';
@@ -105,7 +105,7 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
   /* LES MEMBRES DU CERCLE : par leurs propres venues, ni prix convenu ni tête
      dépendante (la même règle que l'onglet Membres et Foyers). */
   const membresDuCercle = useMemo(
-    () => fiches.filter((c) => !c.archived && !aUnPrixConvenu(c) && !estDependant(c, familles) && estDuCercle(venuesHonorees(rdvs, c.id, false), seuilCercle)).length,
+    () => fiches.filter((c) => !c.archived && !aUnPrixConvenu(c) && !estDependant(c, familles) && estDuCercle(venuesDeLAnnee(rdvs, c.id), seuilCercle)).length,
     [fiches, familles, rdvs, seuilCercle],
   );
   const sceauxTries = useMemo(() => [...sceaux].sort((a, b) => a.seuilXof - b.seuilXof), [sceaux]);
@@ -145,7 +145,7 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
 
   const bonusPoses = (['tresse', 'couronne', 'reine'] as const).filter((r) => reglage.bonusRangs?.[r]);
   const resumes: Record<IdReglage, string> = {
-    cercle: `À la ${seuilCercle}ᵉ venue · ni prix convenu, ni tête dépendante`,
+    cercle: `${seuilCercle} venues sur 12 mois · ni prix convenu, ni tête dépendante`,
     foyer: sceauxTries.length
       ? `${sceauxTries.length} sceau${sceauxTries.length > 1 ? 'x' : ''} · dès ${fmtMoney(sceauxTries[0].seuilXof, currency)} cumulés · offerts à la caisse`
       : 'Aucun sceau : la maisonnée n’a pas encore de palier',
@@ -228,8 +228,8 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
           </div>
           <div className="amb-reglages">
             <Reglage id="cercle" nom="L’entrée au Cercle" resume={resumes.cercle} ouvert={ouvert === 'cercle'} bascule={bascule}>
-              <p className="amb-muet">On entre au Cercle par ses propres venues. Un prix convenu et une tête dépendante sont reconnus autrement.</p>
-              <Champ label="Venues pour y entrer" aide="Une venue : un jour où un rituel a été honoré">
+              <p className="amb-muet">On entre au Cercle par ses propres venues des douze derniers mois, et on y reste tant qu’on les garde. Un prix convenu et une tête dépendante sont reconnus autrement.</p>
+              <Champ label="Venues sur 12 mois pour y être" aide="Une venue : un jour où un rituel a été honoré">
                 <span className="amb-suffixe">
                   <input key={`seuil-${seuilCercle}`} className="mnd-input" type="number" min={1} max={20} defaultValue={seuilCercle} aria-label="Venue d’entrée au Cercle"
                     onBlur={(e) => { const n = borne(e.target.value, 1, 20, 3); if (n !== seuilCercle) { setSeuilCercle(n); toast('Enregistré.'); } e.target.value = String(n); }} />
