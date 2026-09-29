@@ -678,4 +678,11 @@ export type BookingPrefill = {
   /** LA TÊTE POUR QUI L'ON RÉSERVE (maquette du 9 août, écran 2) : le bouton
       qui dit le nom entre dans le tunnel déjà posé sur elle. */
   pourId?: string;
+  /** TOUS LES GESTES DE LA DERNIÈRE VENUE — 29 septembre 2026 (« la
+      réservation en 30 secondes ») : le rebooking ne reprend plus seulement
+      le premier geste, il reprend la venue entière. */
+  serviceIds?: string[];
+  /** SON HEURE HABITUELLE : posée d'office si elle est libre ce jour-là, et
+      le bouton « Réserver » est armé. Sinon, la cliente choisit, comme avant. */
+  time?: string;
 };

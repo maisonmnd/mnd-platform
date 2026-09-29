@@ -225,6 +225,15 @@ export type Appointment = {
   /** LA RELANCE J-3 EST FAITE — posée d'un geste depuis À faire, elle sort
       la ligne de la liste des reprises à relancer. */
   relanceFaite?: boolean;
+  /** SA RÉPONSE AU MESSAGE J-3 — 29 septembre 2026 (« la réservation en 30
+      secondes »). « Je confirme » pose la date et éteint la relance ; « Un
+      autre moment » pose la sienne et laisse la ligne allumée dans À faire :
+      la Maison lui propose une autre heure. Écrits par le webhook WhatsApp. */
+  confirmeeParLaClienteLe?: string;
+  autreMomentDemandeLe?: string;
+  /** Le message J-3 est parti (rappels-j1) : À faire le dit, et garde la
+      ligne tant qu'elle n'a pas répondu. */
+  repriseProposeeLe?: string;
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)

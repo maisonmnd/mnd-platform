@@ -74,6 +74,163 @@ const heureLisible = (hhmm: string | undefined): string => {
     : `${Number(h)} h`;
 };
 
+/* ══ LA REPRISE PROPOSÉE, TROIS JOURS AVANT — 29 septembre 2026 ═══════════
+   « And for renewal appointments even faster » (Yéman), maquette « La
+   réservation en 30 secondes » validée. À la caisse, la Maison pose d'office
+   le rendez-vous suivant (`repriseDe`). Trois jours avant, un WhatsApp le
+   propose avec DEUX BOUTONS : « Je confirme » et « Un autre moment ». Le
+   webhook lit la réponse (REPRISE_OK / REPRISE_AUTRE) et l'écrit sur le
+   rendez-vous. Rien fait ? À faire garde la ligne : la Maison appelle.
+
+   LE JUGE EST RECOPIÉ de `reprisesAProposer` (src/shared/reservation-
+   express.ts), éprouvé par scripts/verifie-reservation-express : les deux
+   changent ensemble.
+
+   RIEN NE PART SANS LE MODÈLE : le secret WA_TEMPLATE_REPRISE nomme le
+   modèle approuvé par Meta (docs/BRANCHER-ENVOIS.md). Absent, la fonction
+   passe sans bruit, et les rappels de la veille continuent comme avant.
+   Variables : {{1}} le prénom, {{2}} le moment, {{3}} les gestes ; deux
+   réponses rapides, dans cet ordre : « Je confirme », « Un autre moment ». */
+type Reprise = {
+  id: string; branchId?: string; clientId: string; clientName?: string;
+  date: string; time: string; status: string; serviceIds?: string[];
+  repriseDe?: string; confirmeeParLaClienteLe?: string; autreMomentDemandeLe?: string;
+  repriseProposeeLe?: string;
+};
+
+const JOURS_AVANT_LA_REPRISE = 3;
+
+const reprisesAProposer = (appts: readonly Reprise[], dansTroisJours: string): Reprise[] =>
+  appts.filter((a) => a.date === dansTroisJours && a.status === 'confirmé' && !!a.clientId && !!a.repriseDe
+    && !a.confirmeeParLaClienteLe && !a.autreMomentDemandeLe);
+
+/** « mardi 14 octobre ». Recopiée de confirmation-rdv. */
+const jourEnClair = (iso: string): string => {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
+    });
+  } catch { return iso; }
+};
+
+async function proposeLesReprises(sb: ReturnType<typeof createClient>): Promise<Record<string, unknown>> {
+  const MODELE = (Deno.env.get('WA_TEMPLATE_REPRISE') ?? '').trim();
+  const WA_TOKEN = Deno.env.get('WA_TOKEN');
+  const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
+  if (!MODELE || !WA_TOKEN || !WA_PHONE_ID) return { reprises: 'sans-modele' };
+
+  const jour = new Date(Date.now() + JOURS_AVANT_LA_REPRISE * 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
+  const { data: lignes, error } = await sb.from('appointments').select('id, branch_id, data')
+    .eq('data->>date', jour).eq('data->>status', 'confirmé');
+  if (error) return { reprises: 'lecture-refusee', motif: error.message.slice(0, 120) };
+  const aProposer = reprisesAProposer((lignes ?? []).map((r) => r.data as Reprise), jour);
+  if (aProposer.length === 0) return { reprises: 0, jour };
+
+  /* L'idempotence, comme les rappels : seul un échec se retente. */
+  const attendus = aProposer.map((a) => `rep3-${a.id}-whatsapp`);
+  const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', attendus);
+  const deja = new Set(
+    (dejaRows ?? [])
+      .filter((r) => ((r.data as { statut?: string } | null)?.statut ?? '') !== 'échec')
+      .map((r) => r.id as string),
+  );
+
+  const ids = [...new Set(aProposer.map((a) => a.clientId))];
+  const { data: cliRows } = await sb.from('clients').select('id, data').in('id', ids);
+  const fiches = new Map<string, Fiche>(
+    (cliRows ?? []).map((r) => [r.id as string, { id: r.id, ...(r.data as object) } as Fiche]),
+  );
+  const gestesIds = [...new Set(aProposer.flatMap((a) => a.serviceIds ?? []))];
+  const { data: svcRows } = gestesIds.length
+    ? await sb.from('catalog_services').select('id, data').in('id', gestesIds)
+    : { data: [] as { id: string; data: { name?: string } }[] };
+  const nomDe = new Map<string, string>(
+    ((svcRows ?? []) as { id: string; data: { name?: string } }[]).map((r) => [r.id, r.data?.name ?? '']),
+  );
+
+  let parties = 0;
+  for (const a of aProposer) {
+    const idEnvoi = `rep3-${a.id}-whatsapp`;
+    if (deja.has(idEnvoi)) continue;
+    const fiche = fiches.get(a.clientId);
+    const tel = numeroIntl(fiche?.phone);
+    const prenom = (fiche?.name ?? a.clientName ?? '').split(' ')[0] || 'Madame';
+    const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
+    const gestes = (a.serviceIds ?? []).map((id) => nomDe.get(id)).filter(Boolean).join(', ') || 'votre rituel';
+    const maintenant = new Date().toISOString();
+    let statut = 'échec';
+    let detail: string | undefined;
+    let waId = '';
+    if (!tel) {
+      statut = 'sans-numero';
+    } else {
+      try {
+        const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${WA_TOKEN}` },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: tel,
+            type: 'template',
+            template: {
+              name: MODELE,
+              language: { code: 'fr' },
+              components: [
+                {
+                  type: 'body',
+                  parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }, { type: 'text', text: gestes }],
+                },
+                /* Ce que chaque bouton rapporte au webhook : le rendez-vous visé. */
+                { type: 'button', sub_type: 'quick_reply', index: '0', parameters: [{ type: 'payload', payload: `REPRISE_OK:${a.id}` }] },
+                { type: 'button', sub_type: 'quick_reply', index: '1', parameters: [{ type: 'payload', payload: `REPRISE_AUTRE:${a.id}` }] },
+              ],
+            },
+          }),
+        });
+        const rep = await r.json().catch(() => ({}));
+        waId = String(rep?.messages?.[0]?.id ?? '');
+        if (r.ok) { statut = 'envoyé'; if (!waId) detail = 'accepté sans identifiant Meta'; }
+        else detail = String(rep?.error?.message ?? `HTTP ${r.status}`);
+      } catch (e) {
+        detail = String(e);
+      }
+    }
+    await sb.from('envois').upsert({
+      id: idEnvoi,
+      branch_id: a.branchId ?? null,
+      data: {
+        id: idEnvoi, branchId: a.branchId, type: 'reprise-j3', canal: 'whatsapp',
+        apptId: a.id, clientId: a.clientId, dateRdv: a.date, heure: a.time, statut,
+        ...(detail ? { detail: detail.slice(0, 300) } : {}),
+        ...(waId ? { waMessageId: waId } : {}),
+        quand: maintenant,
+      },
+    }, { onConflict: 'id' });
+    if (statut !== 'envoyé') continue;
+    parties++;
+    /* Le rendez-vous le sait : À faire dit « proposée sur WhatsApp ». */
+    const ligne = (lignes ?? []).find((l) => l.id === a.id);
+    if (ligne) {
+      await sb.from('appointments').update({
+        data: { ...(ligne.data as object), repriseProposeeLe: maintenant },
+      }).eq('id', a.id);
+    }
+    if (waId && tel) {
+      const idFil = `wa-${waId}`;
+      await sb.from('messages_wa').upsert({
+        id: idFil,
+        branch_id: a.branchId ?? null,
+        data: {
+          id: idFil, waId, branchId: a.branchId, sens: 'sortant', numero: tel, clientId: a.clientId,
+          texte: `Bonjour ${prenom}, votre prochain rituel est prévu ${quand} : ${gestes}. [Je confirme] [Un autre moment]`,
+          type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'la Maison, automatiquement',
+        },
+      }, { onConflict: 'id' });
+    }
+  }
+  return { reprises: parties, jour, candidates: aProposer.length };
+}
+
 Deno.serve(async (req) => {
   /* ══ LA CLÉ SERVICE, NOUVELLE FAMILLE — 7 septembre 2026 ═══════════
      Depuis la rotation des clés (fuite du 2 août), le projet vit sur les
@@ -112,6 +269,10 @@ Deno.serve(async (req) => {
   const nomMaison: string =
     (docs?.find((d) => d.key === 'mnd_house_identity')?.data?.nom ?? '').trim() || 'Maison MND';
 
+  /* ── Les reprises de dans trois jours, d'abord : elles ne dépendent pas
+     des rendez-vous de demain, et un soir sans rappel ne doit pas les taire. */
+  const reprises = await proposeLesReprises(sb).catch((e) => ({ reprises: 'echec', motif: String(e).slice(0, 120) }));
+
   /* ── Les rendez-vous de demain, non annulés ─────────────────────── */
   const { data: apptRows, error: errA } = await sb.from('appointments')
     .select('id, branch_id, data')
@@ -121,7 +282,7 @@ Deno.serve(async (req) => {
 
   const rdvs: Rdv[] = (apptRows ?? []).map((r) => r.data as Rdv);
   if (rdvs.length === 0) {
-    return new Response(JSON.stringify({ jour: demain, rdv: 0 }), { status: 200 });
+    return new Response(JSON.stringify({ jour: demain, rdv: 0, ...reprises }), { status: 200 });
   }
 
   /* ── Les fiches (nom + téléphone), en une lecture ───────────────── */
@@ -301,7 +462,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', whatsapp: nWa, sms: nSms }),
+    JSON.stringify({ jour: demain, rdv: rdvs.length, push: 'au job mnd-push-rappels', whatsapp: nWa, sms: nSms, ...reprises }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
 });

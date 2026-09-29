@@ -208,8 +208,8 @@ export const COMMUN: Commun = {
        vient de choisir son geste, son jour et son heure. Le rappel n'est
        plus le premier geste de la Maison, c'est le deuxième. */
     suite: [
-      ['Votre place est retenue', "Le créneau est mis de côté à votre nom, dès l'envoi."],
-      ['La Maison confirme', "Un mot sur WhatsApp, pendant les heures d'ouverture."],
+      ['C’est réservé', "Le créneau est à votre nom dès l'envoi : la Maison a vérifié qu'il était libre."],
+      ['La confirmation arrive sur WhatsApp', "Dans la seconde. La Maison choisit qui s'occupe de vous."],
       ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
     ],
   },
@@ -995,7 +995,7 @@ export const PAGES: Page[] = [
   {
     chemin: '/reserver/',
     titre: 'Réserver une consultation ou un entretien · Maison MND',
-    description: 'Réservez votre consultation ou votre entretien à la Maison MND à Cotonou : choisissez votre parcours et votre créneau, puis confirmez avec la Maison.',
+    description: 'Réservez votre entretien à la Maison MND à Cotonou en moins de trente secondes : votre venue, votre place, votre numéro. La confirmation arrive sur WhatsApp.',
     h1: 'Réserver',
     sur: 'Réserver',
     besoin: 'inconnu',
@@ -1003,7 +1003,7 @@ export const PAGES: Page[] = [
     sections: [
       {
         type: 'texte',
-        corps: 'Choisissez votre geste, votre jour et votre heure. Aucun compte à créer, rien à payer aujourd\u2019hui : la Maison vous confirme.',
+        corps: 'Votre venue, votre place, votre numéro. Aucun compte à créer, rien à payer aujourd\u2019hui : c\u2019est réservé, et la confirmation arrive sur WhatsApp.',
       },
     ],
     jsonld: 'aucun',

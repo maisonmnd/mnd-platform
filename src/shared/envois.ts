@@ -10,7 +10,7 @@
    ce qu'un envoi est devenu, pourquoi un échec a échoué, en français, et ce
    qu'un jour compte. Pur, éprouvé par `verifie-journal-des-envois`. */
 
-export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet';
+export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -65,6 +65,7 @@ export const TYPE_DIT: Record<string, string> = {
   'rappel-j1': 'Rappel de la veille',
   'avis-google': 'Demande d’avis',
   'fin-de-paquet': 'Fin de paquet',
+  'reprise-j3': 'Reprise proposée',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
@@ -185,6 +186,7 @@ export const estEnvoiAutomatique = (parQui?: string): boolean =>
 const MODELE_DIT: Record<string, string> = {
   rappel_rdv: 'rappel de la veille',
   confirmation_rdv: 'confirmation',
+  reprise_proposee: 'reprise proposée',
   demande_recue: 'accusé de demande',
   avis_google: 'demande d’avis',
   bulletin_du_mois: 'bulletin de paie',

@@ -170,7 +170,7 @@ export type MessageWa = {
   /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
       formulaire de congé proposé. Deux seulement, dits d'avance dans la
       maquette. Ils portent `parQui: 'Le Trône'`. */
-  auto?: 'accuse' | 'formulaire' | 'transmis';
+  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre';
   /** UNE PIÈCE REÇUE D'UN PRESTATAIRE, RANGÉE DANS SON DOSSIER — l'identifiant
       de l'engagement. Absent avec une pièce : elle attend « à ranger ». */
   rangeDans?: string;
@@ -743,6 +743,9 @@ export const laFenetreSePaie = (instant: number = Date.now()): boolean =>
 export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'marketing'>> = {
   rappel_rdv: 'utilitaire',
   confirmation_rdv: 'utilitaire',
+  /* LA REPRISE PROPOSÉE — 29 septembre 2026 : elle rappelle un rendez-vous
+     déjà posé et demande de le tenir. Utilitaire, comme le rappel. */
+  reprise_proposee: 'utilitaire',
   avis_google: 'marketing',
   /* L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026, à faire approuver
      (docs/BRANCHER-ENVOIS.md, étape 6). Tous utilitaires : un bulletin, une

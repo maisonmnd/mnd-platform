@@ -184,6 +184,11 @@ export default function AFaire() {
           <span className={`trp-af-tag${attente ? ' trp-af-tag--attente' : a.repriseDe ? ' trp-af-tag--cad' : ''}`}>
             {attente ? `en attente${a.source === 'couronne' ? ' · Ma Couronne' : ''}` : origine}
           </span>
+          {a.autreMomentDemandeLe && !attente ? (
+            <span className="trp-af-tag trp-af-tag--attente">veut un autre moment</span>
+          ) : a.repriseProposeeLe && !a.confirmeeParLaClienteLe && !attente ? (
+            <span className="trp-af-tag">proposée sur WhatsApp · sans réponse</span>
+          ) : null}
           <small>{a.time ?? ''}{rituel ? `${a.time ? ' · ' : ''}${rituel}` : ''}</small>
         </span>
         <span className="trp-af-actes">
@@ -198,7 +203,9 @@ export default function AFaire() {
               Confirmer
             </button>
           )}
-          {attente ? null : a.relanceFaite ? (
+          {attente ? null : a.confirmeeParLaClienteLe ? (
+            <span className="trp-relance__fait">Confirmé par elle</span>
+          ) : a.relanceFaite ? (
             <span className="trp-relance__fait">Relancée</span>
           ) : (
             <>

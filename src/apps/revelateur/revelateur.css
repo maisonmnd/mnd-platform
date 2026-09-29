@@ -570,6 +570,41 @@ footer .logo img { height: 34px; }
 .heure.est-choisie { border-color: var(--accent); background: var(--accent); color: var(--plein-texte); }
 .geste-choix:focus-visible, .jour:focus-visible, .heure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* LA RESERVATION EN TRENTE SECONDES — 29 septembre 2026. Les formules en
+   grandes cartes (la premiere, la plus reservee, en indigo), la taille des
+   locks en pastilles, les six prochaines places a toucher. Aucune ne bouge
+   au survol : la vitrine ne sautille pas. */
+.formules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .formules { grid-template-columns: 1fr; } }
+.formule { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 108px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 16px; transition: border-color var(--t), background var(--t); }
+.formule:hover { border-color: var(--accent); background: var(--accent-clair); }
+.formule b { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.1; overflow-wrap: anywhere; }
+.formule__avec { font-size: 13px; color: var(--texte-doux); line-height: 1.35; }
+.formule small { font-size: 12.5px; color: var(--accent-profond); }
+.formule--premiere { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.formule--premiere:hover { background: var(--sombre-2); border-color: var(--sombre-2); }
+.formule--premiere .formule__avec { color: rgba(246, 241, 231, .8); }
+.formule--premiere small { color: var(--accent-sombre); }
+.formule:focus-visible, .calibre:focus-visible, .place:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.calibres { display: grid; gap: 8px; margin-top: 18px; }
+.calibres__titre { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond); }
+.calibres__choix { display: flex; flex-wrap: wrap; gap: 6px; }
+.calibre { cursor: pointer; font: inherit; font-size: 14px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 999px; padding: 8px 14px; min-height: 40px; }
+.calibre.est-choisi { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .places { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.place { display: grid; gap: 2px; place-items: center; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 8px; min-height: 64px; transition: border-color var(--t), background var(--t); }
+.place:hover { border-color: var(--accent); background: var(--accent-clair); }
+.place span { font-size: 12.5px; color: var(--texte-doux); }
+.place b { font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.place.est-choisie { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.place.est-choisie span { color: var(--plein-texte); }
+.places + p { margin-top: 12px; }
+.bon-retour { border-color: var(--accent); }
+.bon-retour__liens, .ajouts { display: flex; flex-wrap: wrap; gap: 18px; margin: 0; }
+.formulaire .ajouts .btn { width: auto; }
+.bloc-code { display: grid; gap: 8px; }
+
 /* ── RÉSERVER (l'îlot de la demande) ─────────────────────────────── */
 .reserver .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
 /* Un item de grille garde min-width: auto et DEBORDE de sa piste plutot que

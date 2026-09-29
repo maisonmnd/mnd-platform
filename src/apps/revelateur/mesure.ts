@@ -19,7 +19,7 @@ export type Evenement =
   | 'parrainage_code'
   | 'parrainage_partage';
 
-export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string };
+export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 
 type Gtag = (...args: unknown[]) => void;
 const GA_ID = (import.meta.env.VITE_GA_ID as string | undefined) ?? '';

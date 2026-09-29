@@ -430,24 +430,37 @@ export function HomeTab({
                « Choisir une autre date » l'ouvre grille libre. Même juge que
                la fiche du Trône (shared/cadence.ts). */
             <>
-              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}</div>
+              {/* UNE TOUCHE — 29 septembre 2026 (« la réservation en 30
+                  secondes », maquette validée) : le jour prédit, SON heure
+                  habituelle et TOUS les gestes de sa dernière venue. Le
+                  tunnel s'ouvre le moment déjà posé ; « Réserver » suffit. La
+                  Maison choisit qui s'occupe d'elle : aucun nom ici. */}
+              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}{predite.template?.time ? ` · ${predite.template.time}` : ''}</div>
+              {predite.template && predite.template.serviceIds.length > 0 && (
+                <div className="mc-nextrdv__when">{serviceNames(predite.template, services)}</div>
+              )}
               <div className="mc-nextrdv__when">
-                d’après votre rythme{predite.avgDays ? `, ${cadenceLabel(predite.avgDays)}` : ''} · à confirmer ensemble
+                d’après votre rythme{predite.avgDays ? `, ${cadenceLabel(predite.avgDays)}` : ''}
               </div>
               {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
                 <>
                   <button
                     className="mc-cta mc-cta--copper"
                     style={{ marginTop: 14 }}
-                    onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0], dateIso: predite.iso! })}
+                    onClick={() => onOpenBooking({
+                      serviceId: predite.template!.serviceIds[0],
+                      serviceIds: predite.template!.serviceIds,
+                      dateIso: predite.iso!,
+                      ...(predite.template!.time ? { time: predite.template!.time } : {}),
+                    })}
                   >
-                    Réserver ce créneau
+                    Réserver ce moment
                   </button>
                   <button
                     className="mc-nextrdv__manage"
-                    onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0] })}
+                    onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0], serviceIds: predite.template!.serviceIds })}
                   >
-                    Choisir une autre date
+                    Un autre moment
                   </button>
                 </>
               )}

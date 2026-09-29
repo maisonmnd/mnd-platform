@@ -529,3 +529,40 @@ Tous en français, catégorie Utility (Marketing si Meta le refuse), pied
 À RECOLLER EN ENTIER après le 28 septembre : `demande-submit` ET
 `whatsapp-envoi` (l'en-tête image). À PASSER dans le SQL Editor :
 `supabase/migrations/0110_la_carte_de_marraine.sql`.
+
+## La réservation en trente secondes (29 septembre 2026)
+
+Maquette « La réservation en 30 secondes », validée par Yéman, avec « Tout de
+suite » pour la confirmation.
+
+**Ce qui change sans rien poser.** Une place libre réservée sur le site ou
+dans Ma Couronne naît **confirmée** (Ma Couronne : sauf acompte annoncé mais
+pas encore vérifié). Le site envoie aussitôt le modèle de la confirmation
+(`confirmation_rdv`, déjà approuvé), journalisé sous `conf-<rdv>-whatsapp` :
+le balayage `confirmation-rdv` ne l'enverra pas une seconde fois. Le modèle
+`demande_recue` ne sert plus qu'aux demandes sans place.
+
+**À RECOLLER EN ENTIER** : `demande-submit`, `rappels-j1`, `whatsapp-webhook`.
+Aucune migration, aucun cron nouveau (la reprise passe par le cron des rappels).
+
+### Le modèle `reprise_proposee`, à faire approuver
+
+Français, catégorie **UTILITY**, sans en-tête, pied « Maison MND · Cotonou ».
+
+> Bonjour {{1}}, votre prochain rituel est prévu {{2}} : {{3}}. Pouvez-vous
+> nous le confirmer ?
+
+Exemples : Awa · mardi 14 octobre à 10 h · lavage, reprise des racines, DÀNDÀN™.
+
+Deux boutons **Réponse rapide**, dans cet ordre : « Je confirme », puis « Un
+autre moment ». Une fois approuvé, poser le secret
+`WA_TEMPLATE_REPRISE=reprise_proposee`. Sans ce secret, rien ne part.
+
+Ce qui se passe ensuite : trois jours avant chaque reprise posée à la caisse,
+`rappels-j1` l'envoie. « Je confirme » écrit la confirmation sur le rendez-vous
+et éteint la relance d'À faire (« Confirmé par elle ») ; « Un autre moment »
+garde la ligne allumée (« veut un autre moment ») et lui répond avec le lien de
+Ma Couronne. Sans réponse, À faire dit « proposée sur WhatsApp · sans
+réponse » : la Maison appelle, comme avant. Le rendez-vous n'est jamais annulé
+tout seul. Secret facultatif : `COURONNE_URL` (par défaut
+`https://maisonmnd.com/couronne/`).

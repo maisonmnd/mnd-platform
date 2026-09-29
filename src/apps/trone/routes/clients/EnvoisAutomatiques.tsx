@@ -29,7 +29,7 @@ const JOURS: [FiltreDuJournal['jour'], string][] = [
 ];
 const TYPES: [FiltreDuJournal['type'], string][] = [
   ['tout', 'Tous'], ['accuse', 'Accusés de demande'], ['confirmation', 'Confirmations'],
-  ['rappel-j1', 'Rappels de la veille'], ['avis-google', 'Avis Google'],
+  ['rappel-j1', 'Rappels de la veille'], ['reprise-j3', 'Reprises proposées'], ['avis-google', 'Avis Google'],
 ];
 
 /** « ven. 20 sept. · 10 h » */

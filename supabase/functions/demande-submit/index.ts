@@ -23,8 +23,11 @@
 // (`serviceIds`, `date`, `time`), on REVÉRIFIE tout ici avant d'écrire :
 // le jour est-il ouvert, l'heure tient-elle dans la fenêtre, le maître
 // est-il libre, un mur barre-t-il la plage, le plafond du jour est-il
-// atteint. L'écran propose ; le serveur dispose. Le rendez-vous naît
-// « en attente » : la Maison le confirme depuis Le Trône.
+// atteint. L'écran propose ; le serveur dispose. Depuis le 29 septembre,
+// le rendez-vous naît « confirmé » : « Tout de suite » (Yéman, maquette
+// « La réservation en 30 secondes »). Une place que le serveur a revérifiée
+// libre est une place tenue ; la Maison attribue le maître, jamais la
+// cliente, et peut toujours déplacer depuis Le Trône.
 //
 // LE CALCUL EST RECOPIÉ, PAS IMPORTÉ : une fonction Edge ne lit rien du
 // dépôt. Sa source de vérité est `src/shared/agenda-pur.ts`, éprouvé par
@@ -750,14 +753,21 @@ const jourEnClair = (iso: string): string => {
    du rendez-vous quand il y a une place (« votre demande de rendez-vous pour
    {{2}} »), sinon `WA_TEMPLATE_ACCUSE_SIMPLE` (« votre demande ({{2}}) ») s'il
    est posé et approuvé, à défaut le même modèle avec un {{2}} qui se lit. */
+/* ══ UNE PLACE POSÉE REÇOIT « C'EST CONFIRMÉ » — 29 septembre 2026 ══════
+   La place naît confirmée : on n'envoie plus « nous confirmons très vite »
+   pour la confirmer dix minutes plus tard. C'est le modèle de la
+   confirmation (WA_TEMPLATE_CONF, le même que confirmation-rdv), consigné
+   sous SON identifiant `conf-<rdv>-whatsapp` : quand le Trône aura rattaché
+   la fiche, le balayage le trouvera et ne l'enverra pas une seconde fois.
+   Un échec s'écrit « échec », que le balayage retente, comme les siens. */
 async function envoieLAccuse(o: {
   apptId?: string; demandeId: string; branchId: string; prenom: string; telephone: string;
   quand: string; date?: string; time?: string;
 }): Promise<string> {
   const WA_TOKEN = Deno.env.get('WA_TOKEN');
   const WA_PHONE_ID = Deno.env.get('WA_PHONE_ID');
-  const MODELE_RDV = Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue';
-  const MODELE = o.apptId ? MODELE_RDV : (Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE') ?? MODELE_RDV);
+  const MODELE_RDV = Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv';
+  const MODELE = o.apptId ? MODELE_RDV : (Deno.env.get('WA_TEMPLATE_ACCUSE_SIMPLE') ?? Deno.env.get('WA_TEMPLATE_ACCUSE') ?? 'demande_recue');
   if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
   /* Meta veut le numéro international sans « + » ; le serveur l'a déjà mis
      en E.164 (telephoneNormalise). */
@@ -806,13 +816,13 @@ async function envoieLAccuse(o: {
     detail = String(e);
   }
 
-  const id = `acc-${o.apptId ?? o.demandeId}-whatsapp`;
+  const id = o.apptId ? `conf-${o.apptId}-whatsapp` : `acc-${o.demandeId}-whatsapp`;
   const maintenant = new Date().toISOString();
   await admin.from('envois').upsert({
     id,
     branch_id: o.branchId,
     data: {
-      id, branchId: o.branchId, type: 'accuse', canal: 'whatsapp',
+      id, branchId: o.branchId, type: o.apptId ? 'confirmation' : 'accuse', canal: 'whatsapp',
       ...(o.apptId ? { apptId: o.apptId } : {}), demandeId: o.demandeId, prenom, numero: `+${tel}`,
       ...(o.date ? { dateRdv: o.date } : {}), ...(o.time ? { heure: o.time } : {}), moment: o.quand, statut,
       ...(detail ? { detail: detail.slice(0, 300) } : {}),
@@ -832,7 +842,7 @@ async function envoieLAccuse(o: {
       data: {
         id: idFil, waId, branchId: o.branchId, sens: 'sortant', numero: tel, clientId: '',
         texte: o.apptId
-          ? `Bonjour ${prenom}, la Maison MND a bien reçu votre demande de rendez-vous pour ${quand}. Nous vous confirmons très vite, sur ce numéro.`
+          ? `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`
           : `Bonjour ${prenom}, la Maison MND a bien reçu votre demande (${quand}). Nous vous répondons très vite, sur ce numéro.`,
         type: 'text', quand: maintenant, etat: 'en-route', modele: MODELE, parQui: 'Le Trône',
       },
@@ -975,10 +985,11 @@ Deno.serve(async (req) => {
     if (errFil) console.error('demande-submit: fil du site', errFil.message);
   }
 
-  /* ── LE RENDEZ-VOUS, POSÉ EN ATTENTE ───────────────────────────────
-     `clientId` reste VIDE : personne n'a de fiche, et en inventer une à
-     chaque dépôt polluerait le carnet. Le Trône la crée quand la Maison
-     confirme (« En faire une cliente »), et rattache alors ce rendez-vous.
+  /* ── LE RENDEZ-VOUS, POSÉ CONFIRMÉ (29 septembre) ─────────────────
+     `clientId` reste VIDE : personne n'a de fiche, et en inventer une ici
+     polluerait le carnet. Le Trône, à sa prochaine ouverture, la retrouve
+     par le numéro ou la crée (useRattacheLesReservations), et rattache
+     alors ce rendez-vous.
      La RLS de `appointments` (0006, `owned_by_data`) fait que cette ligne
      n'est lisible QUE par le personnel : un clientId vide n'appartient à
      aucune session. */
@@ -1000,7 +1011,7 @@ Deno.serve(async (req) => {
       date,
       time,
       master,
-      status: 'en attente',
+      status: 'confirmé',
       source: 'site',
       creeLe: now,
       note,
@@ -1040,14 +1051,14 @@ Deno.serve(async (req) => {
 
   const quand = avecPlace ? ` · ${date} à ${time}` : '';
   const sent = await alerteLePersonnel(
-    avecPlace ? 'Place demandée depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
+    avecPlace ? 'Réservé depuis le site' : (genre === 'rdv' ? 'Demande de rendez-vous depuis le site' : 'Nouvelle demande depuis le site'),
     `${prenom || 'Une visiteuse'} · ${besoin}${quand}`,
     avecPlace ? '/trone/#/calendrier' : '/trone/#/demandes',
   ).catch(() => 0);
   /* LA RAISON REMONTE À LA PAGE : « déjà utilisé » se dit au clic, pas au
      comptoir. `codeApplique` dit si la remise a réellement porté. */
   return json({
-    ok: true, id, apptId, sent, accuse,
+    ok: true, id, apptId, sent, accuse, ...(apptId ? { confirme: true } : {}),
     ...(duCode.code ? { code: duCode.code, codeApplique: !!duCode.remisesLignes } : {}),
     ...(duCode.raison ? { codeRaison: duCode.raison } : {}),
     ...(duCode.raison === 'parrainage' ? { marraine: duCode.marraine, cadeau: duCode.cadeau ?? '' } : {}),

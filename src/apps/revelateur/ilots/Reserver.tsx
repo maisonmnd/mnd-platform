@@ -16,6 +16,9 @@ import {
 import Demande from './Demande';
 import { lienLu } from '../../../shared/lien-reservation';
 import { FORME_DU_CODE } from '../../../shared/parrainage-pur';
+import {
+  CLE_MEMOIRE_DU_SITE, memoireAEcrire, memoireLue, prochainesPlaces, type MemoireDuSite,
+} from '../../../shared/reservation-express';
 import { bandesTriees, etendueDeLaBande, representantDeLaBande, prixSelonLeCalibre, seCompteAuLock, type ContexteDuCalibre } from '../prix-calibre';
 
 /* RÉSERVER DIRECTEMENT, SANS COMPTE ET SANS WHATSAPP — 17 septembre 2026.
@@ -87,8 +90,35 @@ const texteDeLaDemande = (r: { date: string; heure: string; gestes: string[] }, 
   `Bonjour MND, je viens de réserver depuis le site${prenom.trim() ? ` (${prenom.trim()})` : ''} :`,
   `${r.gestes.join(', ')}${r.gestes.length ? ', ' : ''}le ${jourDit(r.date)} à ${r.heure}.`,
   mot.trim() ? mot.trim() : '',
-  'Merci de me confirmer ici.',
+  'À bientôt.',
 ].filter(Boolean).join('\n');
+
+/* ── LA MÉMOIRE DU TÉLÉPHONE — 29 septembre 2026 ─────────────────────────
+   « La réservation en 30 secondes » : sur le même appareil, la cliente qui
+   revient est reconnue, son numéro est rempli et sa dernière venue se
+   refait d'une touche. Chaque accès est gardé : un navigateur privé ou
+   bloqué rend simplement la réservation complète, jamais une erreur. */
+const memoireDuSite = (): MemoireDuSite | null => {
+  try { return memoireLue(localStorage.getItem(CLE_MEMOIRE_DU_SITE)); } catch { return null; }
+};
+const retiensLaCliente = (m: MemoireDuSite): void => {
+  try { localStorage.setItem(CLE_MEMOIRE_DU_SITE, memoireAEcrire(m)); } catch { /* rien à retenir */ }
+};
+const oublieLaCliente = (): void => {
+  try { localStorage.removeItem(CLE_MEMOIRE_DU_SITE); } catch { /* déjà oubliée */ }
+};
+
+/** « Aujourd'hui », « Demain », sinon « jeu. 2 » : la place se dit comme on
+    la dit au téléphone. */
+const jourProche = (iso: string): string => {
+  const auj = new Date();
+  const cle = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (iso === cle(auj)) return 'Aujourd’hui';
+  const dem = new Date(auj); dem.setDate(auj.getDate() + 1);
+  if (iso === cle(dem)) return 'Demain';
+  const c = jourCourt(iso);
+  return `${c.lettre} ${c.chiffre}`;
+};
 
 const JOURS_PROPOSES = 21;
 
@@ -188,7 +218,19 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   const [prenom, setPrenom] = useState('');
   const [numero, setNumero] = useState('');
   const [mot, setMot] = useState('');
-  const [consent, setConsent] = useState(false);
+  /* PLUS DE CASE À COCHER (maquette validée) : la phrase sous le bouton dit
+     ce que « Réserver » autorise, et le bouton vaut accord. Le mot, lui, se
+     replie : il sert une fois sur dix. */
+  const [motOuvert, setMotOuvert] = useState(false);
+  const [codeOuvert, setCodeOuvert] = useState(false);
+  /* LE CHEMIN : les formules en grandes cartes, ou « composer moi-même »
+     (l'assistant par famille, tel qu'avant). */
+  const [composer, setComposer] = useState(false);
+  const [autreJour, setAutreJour] = useState(false);
+  const [moi, setMoi] = useState<MemoireDuSite | null>(memoireDuSite);
+  /* « Bon retour » : sa dernière venue est cochée, elle n'a qu'à toucher une place. */
+  const [retour, setRetour] = useState(false);
+  const [retourPose, setRetourPose] = useState(false);
   const [code, setCode] = useState(codeDeLAdresse);
   const [offres, setOffres] = useState<OffreDuSite[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -203,6 +245,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     code?: string; codeApplique?: boolean; codeRaison?: string;
     /** Le parrainage : le prénom de la marraine, le cadeau de bienvenue dit au Trône. */
     marraine?: string; cadeau?: string;
+    /** La place est-elle tenue (le serveur l'a posée confirmée) ? */
+    confirme?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -245,6 +289,26 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     const ok = prepare.gestes.filter((id) => prestations.some((p) => p.id === id)).slice(0, PLAFOND_GESTES);
     if (ok.length) { setServiceIds(ok); setRepondu(true); }
   }, [agenda, preparee, prepare, prestations, bandes]);
+
+  /* BON RETOUR — la mémoire du téléphone se pose une fois, le catalogue
+     arrivé, et seulement si la Maison n'a pas préparé la venue (son lien
+     l'emporte). Son numéro se remplit toujours ; sa dernière venue ne se
+     recoche que si tous ses gestes se réservent encore par cette porte. */
+  useEffect(() => {
+    if (!agenda || retourPose || !preparee) return;
+    setRetourPose(true);
+    if (!moi) return;
+    setPrenom((p) => p || moi.prenom);
+    setNumero((n) => n || moi.numero);
+    if (consultation || prepare.gestes.length > 0) return;
+    const ok = moi.serviceIds.every((id) => prestations.some((x) => x.id === id));
+    if (!ok) return;
+    setServiceIds(moi.serviceIds.slice(0, PLAFOND_GESTES));
+    setRepondu(true);
+    if (moi.calibreId && (moi.calibreId === 'inconnu' || bandes.some((b) => b.id === moi.calibreId))) setCalibreId(moi.calibreId);
+    else setCalibreId('inconnu');
+    setRetour(true);
+  }, [agenda, retourPose, preparee, moi, consultation, prepare, prestations, bandes]);
   const bandeChoisie = bandes.find((b) => b.id === calibreId);
   const ctx = useMemo<ContexteDuCalibre | undefined>(
     () => (agenda && bandeChoisie
@@ -314,6 +378,52 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   }, [agenda, serviceIds, occupes]);
 
   const heuresDuJour = jours.find((j) => j.iso === jour)?.heures ?? [];
+  /* LES SIX PROCHAINES PLACES, tous jours confondus : la cliente pressée
+     touche la première, « Un autre jour » ouvre le calendrier entier. */
+  const places = useMemo(() => prochainesPlaces(jours, 6), [jours]);
+  /* La place touchée, le formulaire vient à elle : pas de défilement à
+     chercher sur un téléphone. */
+  useEffect(() => {
+    if (!heure) return;
+    try { document.getElementById('res-place')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch { /* sans défilement */ }
+  }, [heure]);
+
+  /* LES FORMULES RAPIDES : celles que la Maison a vues le plus souvent
+     (useFormulesRapides, au Trône), gardées si tous leurs gestes se
+     réservent par cette porte. Quatre au plus, en grandes cartes. */
+  const formules = useMemo(() => (agenda?.formules ?? [])
+    .map((f) => f.serviceIds.map((id) => prestations.find((x) => x.id === id)).filter(Boolean) as PrestationPublique[])
+    .filter((gs, i) => gs.length > 0 && gs.length === (agenda?.formules ?? [])[i].serviceIds.length)
+    .slice(0, 4), [agenda, prestations]);
+  const choisirLaFormule = (gs: PrestationPublique[]) => {
+    mesure('parcours_choisi', { parcours: besoin, chemin: 'formule' });
+    setServiceIds(gs.map((g) => g.id));
+    setRepondu(true);
+    if (!calibreId) setCalibreId('inconnu');
+    setJour('');
+    setHeure(null);
+    setAutreJour(false);
+  };
+  const prendreLaPlace = (iso: string, h: { heure: string; maitre: string }) => {
+    setJour(iso);
+    setHeure(h);
+  };
+  const autreChose = () => {
+    setRetour(false);
+    setServiceIds([]);
+    setRepondu(false);
+    setRang(0);
+    setJour('');
+    setHeure(null);
+    setAutreJour(false);
+  };
+  const pasMoi = () => {
+    oublieLaCliente();
+    setMoi(null);
+    setPrenom('');
+    setNumero('');
+    autreChose();
+  };
   const wa = lienWhatsApp(whatsapp, COMMUN.messages[besoin] ?? COMMUN.messages.inconnu);
 
   const basculerLaFamille = (id: string) => setPlies({ ...ouvert, [id]: !ouvert[id] });
@@ -337,7 +447,6 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     e.preventDefault();
     if (envoi || !heure || !jour || serviceIds.length === 0) return;
     if (numero.replace(/\D/g, '').length < 8) { setErreur(f.erreurNumero); return; }
-    if (!consent) { setErreur('Cochez la case pour que nous puissions vous confirmer.'); return; }
     setErreur(null);
     setEnvoi(true);
     try {
@@ -364,7 +473,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         code?: string; codeApplique?: boolean;
         codeRaison?: 'inconnu' | 'sans-effet' | 'deja-utilise' | 'cadeau'
           | 'parrainage' | 'parrainage-soi-meme' | 'parrainage-deja-cliente' | 'parrainage-deja-utilise';
-        marraine?: string; cadeau?: string;
+        marraine?: string; cadeau?: string; confirme?: boolean;
       };
       if (error || !r.ok) {
         const code = r.error ?? (error?.message ?? '');
@@ -387,9 +496,12 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       setRecu({
         date: jour, heure: heure.heure, gestes: choisies.map((s) => s.name),
         code: r.code, codeApplique: r.codeApplique, codeRaison: r.codeRaison,
-        marraine: r.marraine, cadeau: r.cadeau,
+        marraine: r.marraine, cadeau: r.cadeau, confirme: r.confirme === true,
       });
-      mesure('reservation_demandee', { parcours: besoin, genre: 'rdv' });
+      /* Le téléphone la retient pour la prochaine fois : prénom, numéro,
+         gestes, calibre. Jamais le maître, jamais le code. */
+      retiensLaCliente({ prenom, numero, serviceIds, calibreId, besoin });
+      mesure('reservation_demandee', { parcours: besoin, genre: 'rdv', chemin: retour ? 'retour' : composer ? 'composer' : 'formule' });
     } catch {
       setErreur('L’envoi n’a pas abouti. Écrivez-nous sur WhatsApp, nous vous répondons.');
     } finally {
@@ -401,9 +513,18 @@ function Calendrier({ besoin: besoinInitial }: Props) {
   if (recu) {
     return (
       <div className="merci">
-        <p className="sur">Demande reçue</p>
-        <h2>Votre place est demandée.</h2>
-        <p>{jourDit(recu.date)}, à {recu.heure}. La Maison vous confirme sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.</p>
+        {/* C'EST RÉSERVÉ — 29 septembre 2026 : la place revérifiée libre
+            par le serveur est tenue, la confirmation part sur WhatsApp dans
+            la seconde. Si le serveur n'a pas pu poser le rendez-vous, la
+            demande vit quand même et la Maison rappelle : on le dit. */}
+        <p className="sur">{recu.confirme ? 'Réservé' : 'Demande reçue'}</p>
+        <h2>{recu.confirme ? `C’est réservé${prenom.trim() ? `, ${prenom.trim().split(' ')[0]}` : ''}.` : 'Votre place est demandée.'}</h2>
+        <p>
+          {jourDit(recu.date)}, à {recu.heure}.{' '}
+          {recu.confirme
+            ? 'La confirmation arrive sur WhatsApp. La Maison choisit qui s’occupe de vous, et vous attend.'
+            : 'La Maison vous confirme sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.'}
+        </p>
         {recu.gestes.length > 0 && (
           <ul className="panier">
             {recu.gestes.map((n) => <li key={n} className="panier__ligne"><span className="panier__quoi">{n}</span></li>)}
@@ -448,9 +569,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             répond dedans. « Une cliente doit être autonome du début à la
             fin » (Yéman). */}
         <div className="rangee">
-          <a className="btn btn--fort" href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>Envoyer ma demande sur WhatsApp</a>
+          <a className={`btn ${recu.confirme ? '' : 'btn--fort'}`} href={lienWhatsApp(whatsapp, texteDeLaDemande(recu, prenom, mot))} target="_blank" rel="noopener" onClick={() => mesure('whatsapp_clique', { parcours: besoin })}>{recu.confirme ? 'Écrire à la Maison sur WhatsApp' : 'Envoyer ma demande sur WhatsApp'}</a>
         </div>
-        <p className="legende">La Maison vous répond dans cette conversation.</p>
+        <p className="legende">{recu.confirme ? 'Pour une question, ou pour déplacer votre venue.' : 'La Maison vous répond dans cette conversation.'}</p>
       </div>
     );
   }
@@ -552,17 +673,135 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     </div>
   );
 
+  const blocDuCode = (
+    <>
+          {/* LE CODE DE L'OFFRE — 24 septembre 2026. Il arrive rempli quand
+              la cliente vient de la carte, et reste ouvert pour celle qui l'a
+              lu sur une affiche. Il ne BLOQUE jamais une réservation : un
+              code inconnu se dit sans reproche et le prix reste celui de la
+              carte. On ne perd pas une venue sur une faute de frappe. */}
+          <div className="code-offre">
+            <label htmlFor="res-code">Code de remise ou de parrainage, si vous en avez un</label>
+            <input
+              id="res-code"
+              name="code"
+              value={code}
+              placeholder="RENTREE10"
+              autoComplete="off"
+              onChange={(e) => setCode(codeNormalise(e.target.value))}
+            />
+            {offreDuMoment && compte.retire > 0 && (
+              <>
+                <p className="code-offre__dit est-bonne">
+                  {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
+                </p>
+                {/* LA PROMESSE SE BORNE AVANT D'ÊTRE FAITE — 24 septembre
+                    2026. « Le code est utilisable une fois par personne, non
+                    cumulable » (Yéman). La Maison seule peut le vérifier, au
+                    moment où le numéro arrive : cette page ne sait pas encore
+                    qui réserve. On le DIT donc ici, pendant qu'elle choisit,
+                    plutôt que de la laisser l'apprendre au comptoir. */}
+                <p className="code-offre__dit">Une seule fois par personne, et une offre à la fois.</p>
+              </>
+            )}
+            {offreDuMoment && compte.retire === 0 && (
+              <p className="code-offre__dit">
+                {offreDuMoment.title} · ce code ne porte sur aucun des gestes cochés. Il reste inscrit sur votre demande.
+              </p>
+            )}
+            {!offreDuMoment && offrePassee && (
+              <p className="code-offre__dit">
+                {offrePassee.du && offrePassee.au
+                  ? `Ce code a couru du ${quandDit(offrePassee.du)} au ${quandDit(offrePassee.au)}. Il ne s’applique plus.`
+                  : 'Ce code ne court plus.'}
+              </p>
+            )}
+            {!offreDuMoment && !offrePassee && code && FORME_DU_CODE.test(code) && (
+              <p className="code-offre__dit est-bonne">Code de parrainage. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
+            )}
+            {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
+              <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
+            )}
+          </div>
+    </>
+  );
+
+  /* LE CHEMIN EXPRESS — 29 septembre 2026 : des formules à toucher, hors
+     consultation et hors lien préparé par la Maison (elle a déjà choisi). */
+  const express = !consultation && !composer && formules.length > 0 && prepare.gestes.length === 0;
+  const court = express || retour;
+  const recapitulatif = `${choisies.map((x) => x.name).join(' · ')}${dureeTotale ? ` · ${dit(dureeTotale)}` : ''}${prixTotal > 0 ? ` · ${prixFlou ? 'à partir de ' : ''}${fmtMoney(prixTotal, devise)}` : ''}`;
+  const lesCalibres = !consultation && bandes.length > 0 ? (
+    <div className="calibres" role="group" aria-label="Vos locks">
+      <span className="calibres__titre">Vos locks</span>
+      <div className="calibres__choix">
+        {bandes.map((b) => (
+          <button type="button" key={b.id} className={`calibre${calibreId === b.id ? ' est-choisi' : ''}`} aria-pressed={calibreId === b.id} onClick={() => setCalibreId(b.id)} title={etendueDeLaBande(b, bandes)}>{b.name}</button>
+        ))}
+        <button type="button" className={`calibre${!bandeChoisie ? ' est-choisi' : ''}`} aria-pressed={!bandeChoisie} onClick={() => setCalibreId('inconnu')}>Je ne sais pas</button>
+      </div>
+    </div>
+  ) : null;
+
   /* ── Les trois pas ────────────────────────────────────────────────── */
   return (
     <div className="reservation">
+      {court ? (
+        <ol className="pas-reservation">
+          <li className={choisi ? 'fait' : 'ici'}>Quoi</li>
+          <li className={heure ? 'fait' : choisi ? 'ici' : ''}>Quand</li>
+          <li className={heure ? 'ici' : ''}>Votre numéro</li>
+        </ol>
+      ) : (
       <ol className="pas-reservation">
         {!consultation && bandes.length > 0 && <li className={calibreId ? 'fait' : 'ici'}>Vos locks</li>}
         <li className={choisi ? 'fait' : (consultation || calibreId) ? 'ici' : ''}>{consultation ? 'La consultation' : 'Vos gestes'}</li>
         <li className={heure ? 'fait' : choisi ? 'ici' : ''}>Le jour et l’heure</li>
         <li className={heure ? 'ici' : ''}>Votre numéro</li>
       </ol>
+      )}
 
-      {demandeLeCalibre ? (
+      {retour && choisi ? (
+        /* BON RETOUR : sa dernière venue, cochée ; elle touche une place. */
+        <div className="bloc-reservation bon-retour">
+          <p className="sur">Bon retour</p>
+          <h3>{moi?.prenom ? `Bon retour, ${moi.prenom.split(' ')[0]}.` : 'Bon retour.'}</h3>
+          <p className="corps">Refaire votre dernière venue ? <b>{recapitulatif}</b></p>
+          <p className="bon-retour__liens">
+            <button type="button" className="btn btn--lien" onClick={autreChose}>Autre chose</button>
+            <button type="button" className="btn btn--lien" onClick={pasMoi}>Ce n’est pas moi</button>
+          </p>
+        </div>
+      ) : express && !choisi ? (
+        <div className="bloc-reservation">
+          <p className="sur">Vos gestes</p>
+          <h3>Que souhaitez-vous ?</h3>
+          <div className="formules">
+            {formules.map((gs, i) => {
+              const principal = gs.reduce((m, x) => (Number(x.durationMin ?? 0) > Number(m.durationMin ?? 0) ? x : m), gs[0]);
+              const autres = gs.filter((x) => x !== principal).map((x) => x.name);
+              const duree = gs.reduce((t, x) => t + Number(x.durationMin ?? 0), 0);
+              const prix = gs.reduce((t, x) => t + prixFerme(x, ctx), 0);
+              const flou = gs.some((x) => !prixFerme(x, ctx) || x.priceMode === 'variable');
+              return (
+                <button type="button" key={gs.map((x) => x.id).join('|')} className={`formule${i === 0 ? ' formule--premiere' : ''}`} onClick={() => choisirLaFormule(gs)}>
+                  <b>{principal.name}</b>
+                  <span className="formule__avec">{autres.length > 0 ? `avec ${autres.join(', ')}` : 'seul, sans autre geste'}</span>
+                  <small>{[dit(duree), prix > 0 ? `${flou ? 'dès ' : ''}${fmtMoney(prix, devise)}` : ''].filter(Boolean).join(' · ')}</small>
+                </button>
+              );
+            })}
+          </div>
+          {lesCalibres}
+          <p><button type="button" className="btn btn--lien" onClick={() => { setComposer(true); setRepondu(false); setRang(0); }}>Composer moi-même</button></p>
+        </div>
+      ) : express && choisi ? (
+        <div className="bloc-reservation">
+          <p className="sur">Vos gestes</p>
+          <p className="corps"><b>{recapitulatif}</b>{' '}<button type="button" className="btn btn--lien" onClick={autreChose}>modifier</button></p>
+          {lesCalibres}
+        </div>
+      ) : demandeLeCalibre ? (
         <div className="bloc-reservation">
           <p className="sur">Vos locks</p>
           <h3>Combien de locks, à peu près ?</h3>
@@ -639,7 +878,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
         {consultation && <p className="legende" style={{ marginTop: 12 }}>Une création ou une réparation commence toujours par une consultation. Le devis vient après, et vous décidez ensuite.</p>}
       </div>
       )}
-      {pret && (
+      {pret && !court && (
         <div className="bloc-reservation venir">
           <p className="sur">Votre venue</p>
           <ul className="panier">
@@ -681,54 +920,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
               <b>{prixFlou && prixTotal > 0 ? <em>à partir de </em> : null}{prixTotal > 0 ? fmtMoney(prixTotal, devise) : 'au salon'}</b>
             </p>
           </div>
-          {/* LE CODE DE L'OFFRE — 24 septembre 2026. Il arrive rempli quand
-              la cliente vient de la carte, et reste ouvert pour celle qui l'a
-              lu sur une affiche. Il ne BLOQUE jamais une réservation : un
-              code inconnu se dit sans reproche et le prix reste celui de la
-              carte. On ne perd pas une venue sur une faute de frappe. */}
-          <div className="code-offre">
-            <label htmlFor="res-code">Code de remise ou de parrainage, si vous en avez un</label>
-            <input
-              id="res-code"
-              name="code"
-              value={code}
-              placeholder="RENTREE10"
-              autoComplete="off"
-              onChange={(e) => setCode(codeNormalise(e.target.value))}
-            />
-            {offreDuMoment && compte.retire > 0 && (
-              <>
-                <p className="code-offre__dit est-bonne">
-                  {offreDuMoment.title} · −{offreDuMoment.discountPct} % · le code retire {fmtMoney(compte.retire, devise)} sur {compte.combien} {compte.combien > 1 ? 'gestes' : 'geste'}.
-                </p>
-                {/* LA PROMESSE SE BORNE AVANT D'ÊTRE FAITE — 24 septembre
-                    2026. « Le code est utilisable une fois par personne, non
-                    cumulable » (Yéman). La Maison seule peut le vérifier, au
-                    moment où le numéro arrive : cette page ne sait pas encore
-                    qui réserve. On le DIT donc ici, pendant qu'elle choisit,
-                    plutôt que de la laisser l'apprendre au comptoir. */}
-                <p className="code-offre__dit">Une seule fois par personne, et une offre à la fois.</p>
-              </>
-            )}
-            {offreDuMoment && compte.retire === 0 && (
-              <p className="code-offre__dit">
-                {offreDuMoment.title} · ce code ne porte sur aucun des gestes cochés. Il reste inscrit sur votre demande.
-              </p>
-            )}
-            {!offreDuMoment && offrePassee && (
-              <p className="code-offre__dit">
-                {offrePassee.du && offrePassee.au
-                  ? `Ce code a couru du ${quandDit(offrePassee.du)} au ${quandDit(offrePassee.au)}. Il ne s’applique plus.`
-                  : 'Ce code ne court plus.'}
-              </p>
-            )}
-            {!offreDuMoment && !offrePassee && code && FORME_DU_CODE.test(code) && (
-              <p className="code-offre__dit est-bonne">Code de parrainage. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
-            )}
-            {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
-              <p className="code-offre__dit">Nous ne connaissons pas ce code. Vous pouvez réserver, tout se règle au prix de la carte.</p>
-            )}
-          </div>
+          {blocDuCode}
           {plein && <p className="legende avertit">Six gestes au plus dans une même venue. Retirez-en un pour en cocher un autre.</p>}
           {prixFlou && prixTotal > 0 && <p className="legende">Un geste au moins se règle au salon : ce total est un plancher, jamais une promesse.</p>}
         </div>
@@ -737,7 +929,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       {pret && (
         <div className="bloc-reservation venir">
           <p className="sur">Le jour</p>
-          <h3>Quand vous convient-il ?</h3>
+          <h3>Quand ?</h3>
           {jours.length === 0
             ? (
               <p className="corps">
@@ -749,6 +941,24 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             )
             : (
               <>
+                {/* LES PROCHAINES PLACES — une touche. La Maison attribue
+                    le maître : la cliente choisit un moment, pas une main. */}
+                <div className="places">
+                  {places.map(({ iso, place }) => (
+                    <button
+                      type="button"
+                      key={`${iso}-${place.heure}`}
+                      className={`place${jour === iso && heure?.heure === place.heure ? ' est-choisie' : ''}`}
+                      onClick={() => prendreLaPlace(iso, place)}
+                    >
+                      <span>{jourProche(iso)}</span><b>{place.heure}</b>
+                    </button>
+                  ))}
+                </div>
+                {!autreJour ? (
+                  <p><button type="button" className="btn btn--lien" onClick={() => setAutreJour(true)}>Un autre jour</button></p>
+                ) : (
+                <>
                 <div className="jours">
                   {jours.map((j) => {
                     const c = jourCourt(j.iso);
@@ -769,6 +979,8 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                     ))}
                   </div>
                 )}
+                </>
+                )}
                 {jour && (
                   <p className="legende" style={{ marginTop: 12 }}>
                     Ces heures tiennent compte de {dit(dureeTotale)} sur place.
@@ -780,7 +992,7 @@ function Calendrier({ besoin: besoinInitial }: Props) {
       )}
 
       {heure && jour && (
-        <form className="formulaire venir" onSubmit={(e) => void envoyer(e)} noValidate>
+        <form id="res-place" className="formulaire venir" onSubmit={(e) => void envoyer(e)} noValidate>
           <p className="sur">Votre place</p>
           <h3 style={{ marginBottom: 6 }}>{jourDit(jour)}, à {heure.heure}</h3>
           <p className="legende" style={{ marginTop: -2 }}>
@@ -792,10 +1004,20 @@ function Calendrier({ besoin: besoinInitial }: Props) {
             <div className="champ"><label htmlFor="res-prenom">{f.prenom}</label><input id="res-prenom" name="prenom" autoComplete="given-name" value={prenom} onChange={(e) => setPrenom(e.target.value)} /></div>
             <div className="champ"><label htmlFor="res-numero">{f.numero}</label><input id="res-numero" name="numero" inputMode="tel" autoComplete="tel" value={numero} onChange={(e) => setNumero(e.target.value)} required /></div>
           </div>
-          <div className="champ"><label htmlFor="res-mot">Un mot, si vous voulez</label><textarea id="res-mot" name="mot" rows={2} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
-          <label className="consentement"><input type="checkbox" id="res-consent" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
-          <button className="btn btn--plein" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : 'Demander cette place'}</button>
-          <p className="legende">Rien à payer aujourd’hui, le règlement se fait à la Maison.</p>
+          {court && (code || codeOuvert) && <div className="bloc-code">{blocDuCode}</div>}
+          {motOuvert || mot
+            ? <div className="champ"><label htmlFor="res-mot">Un mot, si vous voulez</label><textarea id="res-mot" name="mot" rows={2} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
+            : null}
+          {(!motOuvert && !mot) || (court && !code && !codeOuvert) ? (
+            <p className="ajouts">
+              {!motOuvert && !mot && <button type="button" className="btn btn--lien" onClick={() => setMotOuvert(true)}>Ajouter un mot</button>}
+              {court && !code && !codeOuvert && <button type="button" className="btn btn--lien" onClick={() => setCodeOuvert(true)}>J’ai un code</button>}
+            </p>
+          ) : null}
+          <button className="btn btn--plein" type="submit" disabled={envoi}>{envoi ? 'Réservation en cours' : 'Réserver'}</button>
+          {/* LA PHRASE VAUT LA CASE (maquette validée le 29 septembre) : le
+              bouton dit ce qu'il autorise, et rien d'autre. */}
+          <p className="legende">En réservant, vous acceptez que la Maison vous écrive sur WhatsApp pour ce rendez-vous. Rien à payer aujourd’hui, le règlement se fait à la Maison.</p>
           {erreur && <p className="erreur" role="alert">{erreur}</p>}
         </form>
       )}
@@ -846,8 +1068,19 @@ function Invitation() {
   );
 }
 
+/* LA PORTE S'EFFACE POUR CELLE QUI REVIENT — 29 septembre 2026 : le
+   téléphone qui a déjà réservé un entretien va droit au calendrier, où sa
+   dernière venue l'attend. Une consultation ne se retient pas : elle se
+   repose, elle ne se refait pas. */
+const besoinDeLaMemoire = (): Besoin | '' => {
+  const m = memoireDuSite();
+  return m && m.besoin === 'entretien' ? 'entretien' : '';
+};
+
 export default function Reserver({ besoin: besoinInitial }: Props) {
-  const [besoin, setBesoin] = useState<Besoin | ''>(besoinInitial || besoinDeLAdresse());
+  const [besoin, setBesoin] = useState<Besoin | ''>(
+    (besoinInitial && besoinInitial !== 'inconnu' ? besoinInitial : '') || besoinDeLAdresse() || besoinDeLaMemoire() || besoinInitial || '',
+  );
   if (besoin && besoin !== 'inconnu') return <><Invitation /><Calendrier besoin={besoin} /></>;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const choisit = (b: Besoin) => {

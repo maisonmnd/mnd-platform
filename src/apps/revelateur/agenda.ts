@@ -1,3 +1,4 @@
+import type { FormuleRapide } from '../../shared/reservation-express';
 import {
   creneauxLibres, dureeDesPrestations, occupesDuJour, ouvertureDuJour, plagesBloquees,
   type CreneauOccupe, type ExceptionDHoraire, type HeureDeLaSemaine, type MurPose,
@@ -80,6 +81,10 @@ export type AgendaDeLaMaison = {
   bandes: Bande[];
   bandSets: Record<string, Bande[]>;
   baremeSuspendu: boolean;
+  /** LES FORMULES RAPIDES — 29 septembre 2026 : les venues que les clientes
+      réservent le plus, posées par le Trône (useFormulesRapides). Absentes
+      d'un agenda mis en cache avant ce jour : on les lit donc `?? []`. */
+  formules?: FormuleRapide[];
 };
 
 type Doc<T> = { key: string; data: T };
@@ -119,8 +124,11 @@ export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMais
       : toutes.find((b) => b.data?.flagship && b.data?.status !== 'paused') ?? toutes[0];
     if (!branche) return null;
     const branchId = branche.id;
-    const masques = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite }>[])
-      .find((d) => d.key === 'mnd_vitrine_config')?.data?.siteMasques ?? {};
+    const vitrine = ((docs.data ?? []) as Doc<{ siteMasques?: MasquesDuSite; formulesRapides?: FormuleRapide[] }>[])
+      .find((d) => d.key === 'mnd_vitrine_config')?.data;
+    const masques = vitrine?.siteMasques ?? {};
+    const formules = (Array.isArray(vitrine?.formulesRapides) ? vitrine.formulesRapides : [])
+      .filter((f) => f && Array.isArray(f.serviceIds) && f.serviceIds.length > 0);
 
     return {
       branchId,
@@ -140,6 +148,7 @@ export function agendaDeLaMaison(branchIdDonne?: string): Promise<AgendaDeLaMais
       bandes: Array.isArray(bandes) ? bandes.filter((b) => b && b.id && b.name) : [],
       bandSets: bandSets && typeof bandSets === 'object' ? bandSets : {},
       baremeSuspendu: reglages.baremeSuspendu === true,
+      formules,
     };
   })();
   return promesse;

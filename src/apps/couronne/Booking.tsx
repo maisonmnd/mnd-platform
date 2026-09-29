@@ -1,5 +1,5 @@
 import { asset } from '../../shared/asset';
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, joursFermesParmi, horairesDescendus } from '../../shared/settings';
@@ -182,7 +182,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
   const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
 
-  const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
+  const prefService = prefill ? services.find((s) => s.id === (prefill.serviceId ?? prefill.serviceIds?.[0])) ?? null : null;
+  /* La venue entière, dans l'ordre du catalogue, sans les gestes retirés. */
+  const prefIds = prefill?.serviceIds?.filter((id) => services.some((s) => s.id === id)) ?? [];
 
   /* LE CRÉNEAU PRÉDIT ARRIVE PRÉ-CHOISI (maquette accueil, repère 2) :
      « Réserver ce créneau » porte la date de la cadence — la grille s'ouvre
@@ -213,7 +215,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      remet à zéro à chaque atelier ouvert : la coupe est celle du pli courant. */
   const [voirTout, setVoirTout] = useState(false);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
-  const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
+  const [selectedIds, setSelectedIds] = useState<string[]>(prefIds.length ? prefIds : prefService ? [prefService.id] : []);
   const [monthIdx, setMonthIdx] = useState(prefIso?.mois ?? 0);
   const [selIso, setSelIso] = useState<string | null>(prefIso?.iso ?? null);
   const [time, setTime] = useState<string | null>(null);
@@ -525,6 +527,21 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const momentComplet = sessionDates.length >= totalSessions;
   const dernierMoment = sessionDates[sessionDates.length - 1];
 
+  /* SON HEURE HABITUELLE, POSÉE D'OFFICE — 29 septembre 2026. « Réserver ce
+     moment » arrive avec le jour prédit ET l'heure de sa dernière venue : si
+     elle est libre, le moment est posé et le bouton « Réserver » est armé,
+     une touche. Une seule fois : si la cliente change d'heure, on ne la lui
+     remet pas. Jamais pour une série (chaque séance se choisit). */
+  const heurePosee = useRef(false);
+  useEffect(() => {
+    if (heurePosee.current || !prefill?.time || !prefIso || totalSessions > 1) return;
+    if (selIso !== prefIso.iso || sessionDates.length > 0) return;
+    if (!dayTimes.includes(prefill.time)) return;
+    heurePosee.current = true;
+    setSessionDates([{ iso: prefIso.iso, time: prefill.time }]);
+    setTime(prefill.time);
+  }, [prefill, prefIso, totalSessions, selIso, sessionDates.length, dayTimes]);
+
   /* ---- Densité déclarée (12 août) — la question ne se pose qu'au créneau,
      et seulement quand elle compte : tête jamais comptée par la Maison, et au
      moins une prestation qui suit le modèle. Elle règle la DURÉE, pas le prix. */
@@ -630,6 +647,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       }
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
+      const tenu = !!online?.confirmed || !hasDeposit;
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
@@ -645,10 +663,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           date: sd.iso,
           time: sd.time,
           master,
-          /* Un acompte ENCAISSÉ ET VÉRIFIÉ tient le créneau : le rendez-vous
-             naît confirmé, le comptoir n'a plus à le valider à la main. Sans
-             paiement prouvé, il reste « en attente » — la Maison décide. */
-          status: online?.confirmed ? 'confirmé' : 'en attente',
+          /* UNE PLACE LIBRE SE TIENT TOUT DE SUITE — 29 septembre 2026 (« Tout
+             de suite », Yéman, maquette « La réservation en 30 secondes ») :
+             sans acompte demandé, le rendez-vous naît confirmé, et la
+             confirmation WhatsApp part au balayage suivant. Un acompte
+             ENCAISSÉ ET VÉRIFIÉ tient aussi le créneau. Seul un acompte
+             annoncé mais pas prouvé laisse « en attente » : la Maison vérifie. */
+          status: tenu ? 'confirmé' : 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
           depositXof: i === 0 && hasDeposit ? deposit : undefined,
           /* Un acompte n'est « reçu » que sur verdict serveur — sinon il reste
@@ -685,7 +706,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(newAppts)]);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
-        online?.confirmed ? 'Réservation payée · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
+        online?.confirmed ? 'Réservation payée · Ma Couronne' : tenu ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
         `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
@@ -697,9 +718,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       const url = `${import.meta.env.BASE_URL}#/suivi`;
       void enablePush(clientId).then((subbed) => {
         if (!first) return;
-        const body = `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time}, la maison confirmera.`;
-        if (subbed) void pushNotify(clientId, 'Réservation transmise', body, url);
-        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Réservation transmise', body); });
+        const body = tenu
+          ? `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time}. La Maison vous attend.`
+          : `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time}, la maison confirmera.`;
+        const titre = tenu ? 'C’est réservé' : 'Réservation transmise';
+        if (subbed) void pushNotify(clientId, titre, body, url);
+        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
       });
     };
 
@@ -1162,8 +1186,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <span>{totalLabel}</span>
               </div>
               <div className="mc-recapcard__meta">
+                {/* LA MAISON ATTRIBUE, LA CLIENTE NE CHOISIT PAS (Yéman, 29
+                    septembre) : on ne lui annonce donc pas un nom qui pourrait
+                    changer au planning du jour. */}
                 {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
-                {master ? ` · avec ${master}${masterVaries ? ' et son équipe' : ''}` : ''}
               </div>
               {(personalized && pricing.band && cible?.lockCount) || pricing.longueur ? (
                 /* Une phrase qui dit D'OÙ viennent ces prix — locks et longueur
@@ -1465,7 +1491,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             <p>
               {onlinePaid?.ok
                 ? 'Votre acompte est reçu, votre créneau est tenu. '
-                : 'La Maison confirme votre créneau très vite. '}
+                : !hasDeposit
+                  ? 'Votre créneau est tenu, la confirmation arrive sur WhatsApp. '
+                  : 'La Maison vérifie votre acompte et confirme votre créneau très vite. '}
               Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre
               téléphone, même l’app fermée.
             </p>
@@ -1502,7 +1530,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               )}
               <div className="mc-recapcard__line">
                 <span>Statut</span>
-                <span>{onlinePaid?.ok ? 'Confirmé' : 'En attente de la maison'}</span>
+                <span>{onlinePaid?.ok || !hasDeposit ? 'Confirmé' : 'En attente de la maison'}</span>
               </div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
