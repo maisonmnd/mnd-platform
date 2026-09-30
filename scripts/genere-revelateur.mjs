@@ -858,7 +858,7 @@ function rendAccueil(articles) {
         <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
           <p class="message">${echappe(a.fondateurs.message)}</p>
           <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
-          <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
+          <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/notre-histoire/')}">Lire notre histoire</a></p>
         </div>
       </div></section>
       <section class="galerie-bande" id="galerie"><div class="conteneur">

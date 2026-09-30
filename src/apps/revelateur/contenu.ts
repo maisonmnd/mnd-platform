@@ -242,7 +242,10 @@ export const ACCUEIL: Accueil = {
      du dessous est de lui, mot pour mot : « la maison de référence des locks
      premium à Cotonou », ÊTRE et non devenir. */
   h1: 'Révélez ce que vous avez de plus beau.',
-  bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'La maison de référence des locks premium à Cotonou'],
+  /* LE 30 SEPTEMBRE 2026, LA MAISON NE SE DIT PLUS « LA RÉFÉRENCE » : « la
+     maison n'a pas besoin de dire qu'elle est la référence : elle dit ce
+     qu'elle est, et la personne conclut » (Yéman, avec le récit). */
+  bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'Une maison de famille pour les locks, à Cotonou'],
   boutons: [
     { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     { texte: 'Réserver', vers: '/reserver/' },
@@ -260,12 +263,15 @@ export const ACCUEIL: Accueil = {
      maisons, les marques défilent, la carte cadeau s'annonce, la galerie
      donne quatre photos et mène à la sienne. */
   objectif: {
-    sur: 'Notre objectif',
-    titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-    ligne: "Une maison de famille née en 2010, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+    /* « NOTRE OBJECTIF » ANNONÇAIT UN PLAN D'ENTREPRISE, PAS UNE MAISON — 30
+       septembre 2026. Le titre et le texte sont ceux de Yéman (« Textes pour
+       le site », section 4) : la Maison dit ce qu'elle est, sans se vanter. */
+    sur: 'La Maison',
+    titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
+    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il en part aujourd'hui vers nos branches, notre Académie et nos produits, sans jamais quitter la maison.",
     piliers: [
       { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
-      { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+      { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
       { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
     ],
   },
@@ -363,8 +369,10 @@ export const ACCUEIL: Accueil = {
        Cotonou, une maison de famille, ses mains, sa direction, l'Académie
        née de leurs gestes, les couronnes qui reviennent. */
     sur: 'Notre histoire',
-    titre: 'Deux mains, une direction, une maison.',
-    ligne: "En 2010, à Cotonou, Brice et Yéman ouvrent une maison de famille pour les locks. Lui tient les mains, elle tient la direction. Seize ans plus tard, des couronnes de la première année reviennent encore s'asseoir dans le fauteuil.",
+    /* ALIGNÉ SUR LE RÉCIT DES FONDATEURS — 30 septembre 2026. Leurs
+       phrases, coupées, jamais réécrites ; le bouton mène au récit entier. */
+    titre: 'Nous avons commencé sur une terrasse.',
+    ligne: "Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester. Seize ans plus tard, on vient chez nous s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne.",
     message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
@@ -655,10 +663,10 @@ export const PAGES: Page[] = [
   },
   {
     chemin: '/maison-mnd/',
-    titre: 'La Maison MND, salon de locks à Cotonou',
-    description: 'Découvrez la Maison MND, maison boutique de soin et de création de dreadlocks afro à Cotonou : ses gestes, sa méthode, son atelier et son Académie.',
+    titre: 'La Maison MND, maison de famille pour les locks à Cotonou',
+    description: "Découvrez la Maison MND à Cotonou, une maison de famille où l'on crée, répare et soigne les dreadlocks : ses gestes, sa méthode, son Académie.",
     h1: 'La Maison MND, à Cotonou',
-    sur: "L'univers MND",
+    sur: 'La Maison',
     besoin: 'inconnu',
     sections: [
       /* LA MAISON REVISITÉE — 27 septembre 2026 : « rajoute des sections
@@ -669,24 +677,24 @@ export const PAGES: Page[] = [
          se lisent désormais dans l'univers. */
       {
         type: 'texte',
-        sur: 'Notre objectif',
-        titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-        corps: "Une maison boutique de soin et de création de dreadlocks afro, née en 2010 à Cotonou, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+        sur: 'La Maison',
+        titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
+        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il en part aujourd'hui vers nos branches, notre Académie et nos produits, sans jamais quitter la maison.",
         image: 'regard.jpg',
       },
       {
         type: 'piliers',
         items: [
           { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
-          { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+          { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
           { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
         ],
       },
       {
         type: 'texte',
         sur: 'Notre histoire',
-        titre: 'Deux mains, une direction, une maison.',
-        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
+        titre: 'Nous avons commencé sur une terrasse.',
+        corps: '<p>Nous n’étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont arrivées presque par hasard, et elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester.</p><p>Nous avons commencé sur une terrasse, à Akpakpa. Nous avons perdu un enfant, et nous avons continué à travailler, une tête après l’autre, parce qu’on peut toujours faire quelque chose de ses mains. Dix ans plus tard, nous sommes revenus dans la maison où tout avait commencé.</p><p>Nous avons quatre garçons, tous en locks. De cette famille sont nés nos symboles : la Couronne, le Trône, la Maison. Aujourd’hui, les personnes qui viennent chez nous déposent ce qu’elles portent, et repartent avec leur couronne.</p>',
         image: 'fondateurs.jpg',
       },
       {
@@ -741,7 +749,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         titre: 'Brice et Yéman Ahouansou',
         /* Le récit, en trois paragraphes (27 septembre 2026 au soir). */
-        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
+        corps: '<p>Nous n’étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont arrivées presque par hasard, et elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester.</p><p>Nous avons commencé sur une terrasse, à Akpakpa. Nous avons perdu un enfant, et nous avons continué à travailler, une tête après l’autre, parce qu’on peut toujours faire quelque chose de ses mains. Dix ans plus tard, nous sommes revenus dans la maison où tout avait commencé.</p><p>Nous avons quatre garçons, tous en locks. De cette famille sont nés nos symboles : la Couronne, le Trône, la Maison. Aujourd’hui, les personnes qui viennent chez nous déposent ce qu’elles portent, et repartent avec leur couronne.</p>',
         image: 'fondateurs.jpg',
       },
       {
@@ -749,7 +757,7 @@ export const PAGES: Page[] = [
         sur: "Quatre manières d'être là",
         items: [
           { titre: 'Praticiens', texte: "Chaque jour, des couronnes passent entre nos mains. C'est là que tout commence." },
-          { titre: 'Entrepreneurs', texte: 'Nous avons construit une maison, ses outils, ses règles, ses rythmes.' },
+          { titre: 'Parents', texte: 'Quatre garçons, tous en locks. Notre première transmission.' },
           { titre: 'Formateurs', texte: 'Nous enseignons la méthode MND à celles et ceux qui veulent en faire leur métier.' },
           { titre: 'Accompagnateurs', texte: 'Nous restons présents après le geste : conseils, suivi, écoute.' },
         ],
@@ -909,7 +917,7 @@ export const PAGES: Page[] = [
     description: "Apprenez le métier de locticienne au Bénin à l'Académie de la Maison MND : parcours pour débutantes et professionnelles, gestes de la Maison, certificat.",
     h1: 'Les formations : apprendre les gestes de la Maison',
     sur: 'Je veux apprendre le métier',
-    ligne: "La méthode, les gestes et la tenue d'un salon, transmis par celles et ceux qui la pratiquent chaque jour.",
+    ligne: "La méthode, les gestes et la tenue d'une maison, transmis par celles et ceux qui les pratiquent chaque jour.",
     image: 'brice.jpg',
     besoin: 'formation',
     /* LA PAGE CONDUIT, ELLE NE CÈDE PAS SA PLACE — 18 septembre 2026.
