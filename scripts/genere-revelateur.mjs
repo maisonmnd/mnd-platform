@@ -52,8 +52,6 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS } = contenu;
-/* Les fleurs des plantes, dessinées en ivoire sur chaque carte d'ingrédient (30 septembre 2026). */
-const { fleurDe } = await import('./fleurs-des-ingredients.mjs');
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
    L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
@@ -505,7 +503,7 @@ const cheminIngredient = (i) => `/ingredients/${i.slug}/`;
 
 function carteIngredient(i) {
   const fond = i.photo ? `<span class="ingr__photo">${image(i.photo, '')}</span>` : '';
-  return `<a class="ingr" href="${attr(lien(cheminIngredient(i)))}" style="--teinte:${attr(i.teinte)}">${fond}${fleurDe(i.slug)}
+  return `<a class="ingr" href="${attr(lien(cheminIngredient(i)))}" style="--teinte:${attr(i.teinte)}">${fond}
           <span class="ingr__cadre"><b>${echappe(i.nom)}</b><small>${echappe(i.role)}</small></span>
         </a>`;
 }
@@ -604,7 +602,7 @@ function rendIngredient(i) {
   const autres = INGREDIENTS.filter((x) => x.slug !== i.slug);
   const panneauOrigine = i.photo
     ? `<div class="ing-panneau ing-panneau--photo">${image(i.photo, i.nom)}</div>`
-    : `<div class="ing-panneau ing-panneau--teinte" style="--teinte:${attr(i.teinte)}">${fleurDe(i.slug)}<span class="ing-panneau__latin">${echappe(i.latin)}</span><span class="ing-panneau__lieu">${echappe(i.fiche.lieu)}</span></div>`;
+    : `<div class="ing-panneau ing-panneau--teinte" style="--teinte:${attr(i.teinte)}"><span class="ing-panneau__latin">${echappe(i.latin)}</span><span class="ing-panneau__lieu">${echappe(i.fiche.lieu)}</span></div>`;
   const bloc = (n, titre, texte, panneau, inverse) => `<section class="ing-bloc${inverse ? ' ing-bloc--inverse' : ''}"><div class="conteneur">
         ${panneau}
         <div class="ing-bloc__texte">${FLECHE_DESSINEE}<h2>${echappe(titre).replace(/(\S+-\S+)/g, '<span class="insecable">$1</span>')}</h2><span class="ing-filet"></span>${texte}</div>

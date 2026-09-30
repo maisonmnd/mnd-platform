@@ -1641,17 +1641,8 @@ body.galerie-plein { scroll-behavior: smooth; }
 .ingr::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-ivoire-cuivre.png) center / 150px repeat; mix-blend-mode: multiply; opacity: .55; transition: transform .6s ease; }
 .ingr:hover::before { transform: scale(1.06); }
 .ingr__photo { position: absolute; inset: 0; z-index: -1; }
-/* LA FLEUR DE LA PLANTE, EN IVOIRE SUR LA TEINTE — 30 septembre 2026. Elle passe sous le cadre du nom, au-dessus du motif. */
-.ingr__fleur { position: absolute; inset: 3%; width: 94%; height: 94%; z-index: -1; opacity: .95; transition: transform var(--t); }
-.ingr:hover .ingr__fleur { transform: scale(1.04); }
-.ing-panneau--teinte { position: relative; overflow: hidden; }
-/* SUR LA PAGE DE LA PLANTE, LA FLEUR EN HAUT ET LES MOTS EN BAS : le nom latin ne passe plus sur le dessin. */
-.ing-panneau--teinte { place-content: end center; padding-bottom: 8%; }
-.ing-panneau--teinte .ingr__fleur { position: absolute; inset: 3% 12% auto 12%; width: 76%; height: 50%; opacity: .92; pointer-events: none; }
-.ing-panneau--teinte > span { position: relative; }
 .ingr__photo img { width: 100%; height: 100%; object-fit: cover; }
-/* LE NOM RESTE LISIBLE SUR LA FLEUR : un voile de la teinte même sous le cadre, et une ombre douce sur les lettres (30 septembre 2026). */
-.ingr__cadre { position: absolute; inset: 13%; display: grid; place-content: center; gap: 8px; text-align: center; border: 1px solid rgba(246, 241, 231, .7); background: linear-gradient(rgba(246, 241, 231, .10), rgba(246, 241, 231, .10)), color-mix(in srgb, var(--teinte, var(--sombre)) 62%, transparent); padding: 12px; text-shadow: 0 0 14px var(--teinte, var(--sombre)); }
+.ingr__cadre { position: absolute; inset: 13%; display: grid; place-content: center; gap: 8px; text-align: center; border: 1px solid rgba(246, 241, 231, .7); background: rgba(246, 241, 231, .12); padding: 12px; }
 .ingr__cadre b { font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 2.4vw, 30px); line-height: 1.05; color: var(--fort-texte); }
 .ingr__cadre small { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: rgba(246, 241, 231, .9); }
 .ingr-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
