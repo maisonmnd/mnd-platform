@@ -124,6 +124,7 @@ export const COMMUN: Commun = {
         liens: [
           { texte: 'La Maison MND', vers: '/maison-mnd/' },
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+          { texte: 'Notre histoire', vers: '/notre-histoire/' },
           { texte: 'Le Journal', vers: '/journal/' },
           { texte: 'Vos questions', vers: '/faq/' },
           { texte: 'Le diagnostic locks', vers: '/mon-parcours/' },
@@ -727,6 +728,7 @@ export const PAGES: Page[] = [
         boutons: [
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+          { texte: 'Notre histoire', vers: '/notre-histoire/' },
         ],
       },
       {
@@ -775,12 +777,143 @@ export const PAGES: Page[] = [
         ligne: 'Une création débute par une consultation. Rien d\'autre à décider aujourd\'hui.',
         boutons: [
           { texte: 'Réserver ma consultation', vers: 'whatsapp:creation' },
+          { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
         ],
       },
     ],
     jsonld: 'maison',
     court: 'Brice et Yéman',
+  },
+  {
+    /* NOTRE HISTOIRE — 30 septembre 2026. Le récit fondateur, écrit par
+       Brice et Yéman (« Récit fondateur de Maison MND », douze chapitres),
+       raccourci d’un quart à leur demande, sans une phrase réécrite : on a
+       coupé, pas reformulé. Il se lit une fois, en une colonne. Les deux
+       phrases mises en respiration sont les leurs. Il nomme Kolétan : c’est
+       leur choix, et il ne vaut que pour cette page, jamais pour une
+       publicité. */
+    chemin: '/notre-histoire/',
+    titre: 'Notre histoire · Brice, Yéman et la Maison MND',
+    description: "Lisez le récit fondateur de la Maison MND : deux jeunes amoureux, une terrasse à Cotonou, un enfant, dix ans de deuil et le retour à la maison d'Akpakpa.",
+    h1: 'Notre histoire',
+    sur: 'Le récit fondateur',
+    ligne: 'Maison MND est née de l’amour, a grandi dans la résilience et existe aujourd’hui pour transmettre cet amour. Voici la vérité sur Brice et Yéman, racontée par eux.',
+    besoin: 'inconnu',
+    sections: [
+      {
+        type: 'texte',
+        sur: 'I',
+        titre: 'Avant Maison MND',
+        image: 'fondateurs.jpg',
+        corps: '<p>Nous n’étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin.</p><p>Nous avions des diplômes, des rêves, et des enfants qui allaient arriver. Mais nous ne savions pas encore quelle vie nous voulions construire.</p><p>Alors nous avons essayé. Des petits commerces, des petits boulots, du travail aux côtés de nos parents. Rien de tout cela n’était notre place. Mais pendant ce temps, sans que nous le sachions, quelque chose se construisait déjà.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'II',
+        titre: 'La rencontre',
+        corps: '<p>Les locks sont arrivées presque par hasard. Nous ne les avons pas choisies comme on choisit un métier. Elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester.</p><p>Au début, c’était simplement quelque chose que nous aimions faire. Prendre une tête entre nos mains. Prendre le temps. Voir quelqu’un se regarder autrement en partant.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'III',
+        titre: 'La terrasse',
+        corps: '<p>Nous n’avons pas commencé dans une grande maison. Nous avons commencé sur une terrasse.</p><p>Nous comptions sur le bouche-à-oreille, et nous passions presque quatre heures sur une tête pour 5 000 francs.</p><p>Ce jour-là, une phrase tournait dans nos têtes : quelqu’un est prêt à nous payer pour ce que nous savons faire avec nos mains. Ces 5 000 francs racontent plus de vérité sur nous que n’importe quel chiffre à venir.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'IV',
+        titre: 'Kolétan',
+        corps: '<p>Il y a un enfant au cœur de cette histoire. Il s’appelle Kolétan. Kolé, pour nous. Nous ne voulons pas le raconter par son absence, mais par sa présence dans la vie de ses parents.</p><p>Kolé était joyeux. Il allait au bout de ce qu’il commençait. Son petit nom, pour nous, voulait dire lumière et espoir.</p><p>Il portait ses locks, de deux à cinq ans. Lorsqu’il est parti, il est parti avec elles. Aujourd’hui, ses frères portent encore les leurs.</p>',
+      },
+      {
+        type: 'citation',
+        texte: 'Avec les locks, il nous retrouverait toujours.',
+      },
+      {
+        type: 'texte',
+        sur: 'V',
+        titre: 'Les mains',
+        corps: '<p>Après lui, nous avons quitté la maison. Il fallait continuer à vivre, et nous ne savions plus comment. Quand on ne sait plus quoi faire de sa douleur, on peut au moins faire quelque chose de ses mains.</p><p>Nous avons continué à travailler. Une tête, puis une autre. Des locks abîmées que l’on nous demandait de réparer. Des personnes qui arrivaient fatiguées et repartaient un peu plus légères.</p><p>Nous avons appris à réparer. Nous avons appris à prendre soin. Et sans le dire, en réparant les locks des autres, nous avons commencé à nous reconstruire.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'VI',
+        titre: 'Les années difficiles',
+        corps: '<p>Les années qui ont suivi ont été longues. Le regard des autres, d’abord. Nous étions diplômés. Autour de nous, des amis prenaient de grands postes. Nous, nous étions penchés sur des locks. Et les gens nous le disaient : « Vous allez continuer jusqu’à quand ? Faites autre chose. Avec les locks, vous n’y arriverez jamais. » Alors parfois, nous avons eu honte. Honte de ne pas ressembler à ce que la société attendait de nous.</p><p>Les journées vides, ensuite. Des jours sans clients, où l’on attend, où l’on range, et où l’on rentre avec la même question qu’au matin : est-ce que ça vaut la peine de continuer ?</p><p>Nous aurions pu écouter. Nous avons continué. Pas parce que nous savions que nous allions réussir. Parce que nous n’avions pas encore fini de croire.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'VII',
+        titre: 'L’amour',
+        corps: '<p>Si l’on nous demande ce qui nous a sauvés, la réponse tient en un mot. Pas le travail. Pas le courage. L’amour.</p><p>Il y a eu des soirs où Yéman voulait tout arrêter. Et chaque fois, Brice était là. Il disait simplement : « Accroche-toi. Les beaux jours sont encore devant nous. » Et il y croyait. Sur une terrasse, avec 5 000 francs en poche, il parlait déjà d’une Maison MND internationale. Il voyait le royaume avant que la maison soit construite.</p><p>Yéman, elle, donnait ce que Brice ne savait pas donner. Le rire, la chaleur, la conversation qui détend les épaules. Cette façon de mettre les gens à l’aise dès qu’ils passent la porte, jusqu’à ce qu’ils se sentent chez quelqu’un.</p><p>C’est cela, notre amour : pas deux personnes qui se ressemblent, mais deux personnes qui se complètent. Et c’est de cet amour-là que Maison MND est née.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'VIII',
+        titre: 'Le pardon',
+        corps: '<p>Le deuil de Kolétan n’a pas duré quelques mois. Il a duré presque dix ans. Et dans ces dix années, il n’y avait pas que de la tristesse. Il y avait aussi de la colère. Ce jour-là, Brice était responsable. Yéman n’était pas là.</p><p>Le pardon ne s’est pas décidé un matin. Il s’est appris. Une journée après l’autre, une tête coiffée après l’autre, un silence après l’autre.</p><p>C’est dans ces années-là que nous avons compris ce que Kolétan nous avait laissé : tous les jours sont le moment. Le moment d’aimer. Le moment de pardonner. Le moment de dire je t’aime, parce qu’on ne sait jamais si l’on aura demain pour le dire.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'IX',
+        titre: 'Le retour à la maison',
+        corps: '<p>Nous sommes revenus. À l’endroit même de la douleur.</p><p>Dix ans plus tard, nous avons poussé la même porte. La maison n’avait pas changé. Nous, oui. Nous étions deux parents, deux artisans, un couple qui avait appris à rester.</p><p>Revenir, ce n’était pas oublier. C’était accepter que tout ait commencé là : notre couple, nos enfants, la terrasse, les premières locks, le deuil, la reconstruction. C’était dire à cette maison qu’elle n’était pas seulement le lieu où nous avions perdu, mais aussi le lieu où nous avions aimé.</p><p>Et c’est à ce moment-là que Maison MND a cessé d’être le rêve de Brice pour devenir le nôtre.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'X',
+        titre: 'Les quatre K',
+        corps: '<p>Une maison, ce sont d’abord ceux qui l’habitent. Chez nous, ils sont quatre. Quatre garçons, et une même lettre pour ouvrir chacun de leurs prénoms. Kolétan est l’un d’eux. Il le restera toujours. Trois fils que l’on voit grandir, et un qui grandit autrement, dans nos mémoires et dans nos gestes.</p><p>De cette famille sont nés nos symboles. La Couronne, parce que les locks ne sont pas une coiffure mais ce que l’on porte sur la tête avec dignité. Le Trône, parce que la personne qui s’assoit chez nous mérite du temps et de l’attention. Et la Maison, parce que tout est parti de là, et que tout y revient. Ce sont nos enfants, notre métier et notre foyer, réunis dans un même nom.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'XI',
+        titre: 'Maison MND',
+        corps: '<p>Alors nous avons construit une maison pour les autres. Pas une adresse : un endroit où l’on peut déposer ce que l’on porte.</p><p>Les personnes qui viennent chez nous arrivent souvent chargées. Elles laissent tout cela dehors. Nous prenons leur tête entre nos mains, nous prenons le temps, nous parlons ou nous nous taisons. Et elles repartent avec quelque chose de différent.</p><p>Nous savons ce que c’est, porter quelque chose de lourd. Nous l’avons porté pendant dix ans. C’est pour cela que cette maison existe. Pas pour faire oublier Kolétan. Elle existe parce qu’après tout ce chemin, nous avons quelque chose à donner. De l’amour. Du respect. Du pardon. De la beauté. Et une manière de dire à quelqu’un, sans un mot, en prenant soin de sa couronne : tu peux encore te retrouver.</p><p>Deux personnes qui pensaient devoir avoir honte d’être devenues coiffeurs ont fini par comprendre qu’elles avaient trouvé ce qu’elles étaient venues faire au monde. C’est cela, notre premier succès.</p>',
+      },
+      {
+        type: 'texte',
+        sur: 'XII',
+        titre: 'Le futur',
+        corps: '<p>Brice avait raison. Les beaux jours étaient devant nous.</p><p>Ce qu’il voyait depuis la terrasse, nous le construisons aujourd’hui : une maison qui forme, qui transmet, et qui porte les locks du Bénin vers le monde.</p><p>Mais nous ne partirons pas. Nos racines sont ici : au Bénin, dans la langue fon, dans une famille de quatre garçons, dans une maison d’Akpakpa où tout a commencé. Aller vers le monde sans quitter ses racines, c’est exactement ce qu’une lock sait faire.</p><p>Notre histoire continue dans nos garçons, dans nos mains, et dans chaque personne qui repart de chez nous un peu plus légère.</p>',
+      },
+      {
+        type: 'citation',
+        texte: 'Nous avons perdu un enfant. Nous n’avons jamais perdu l’amour. Et tant qu’il y aura une tête à coiffer et un cœur à alléger, Maison MND restera ouverte.',
+        qui: 'Brice et Yéman Ahouansou',
+      },
+      /* CE QUE LE RÉCIT PORTE — 30 septembre 2026. Si la Maison est l’endroit
+         où l’on dépose ce que l’on porte, chaque offre en découle. Seules les
+         offres qui EXISTENT sont ici ; le Moment, la Couronne à domicile et
+         la Cour MND attendent d’exister avant d’être promises. */
+      {
+        type: 'grille',
+        sur: 'Ce que le récit porte',
+        titre: 'Chaque offre est une façon de prendre soin, de transformer ou de transmettre.',
+        items: [
+          { titre: 'Le diagnostic', texte: 'On commence par regarder. C’est la porte d’entrée de tout, et le seul endroit où l’on dit non.', vers: '/mon-parcours/' },
+          { titre: 'La réparation', texte: 'Le chapitre des mains. Des locks abîmées que l’on répare, comme nous nous sommes réparés.', vers: '/reparation-locks/' },
+          { titre: 'La Première Couronne', texte: 'Une couronne qu’on porte des années. Elle commence par une consultation, jamais par un geste.', vers: '/premiere-couronne/' },
+          { titre: 'L’entretien et les soins', texte: 'Revenir. Toutes les cinq semaines, la place est là, et la Maison vous attend.', vers: '/entretien-locks/' },
+          { titre: 'MND Kids', texte: 'Les quatre K. Ce n’est pas une ligne de plus : c’est la plus légitime de toutes.', vers: '/mnd-kids/' },
+          { titre: 'Offrir la Maison', texte: 'Offrir un moment à quelqu’un qui porte trop.', vers: '/offrir/' },
+          { titre: 'Parrainer', texte: 'On ne parraine pas un client. On ramène quelqu’un chez soi.', vers: '/parrainage/' },
+          { titre: 'L’Académie', texte: 'La transmission. Former celles et ceux qui feront ce métier sans avoir honte.', vers: '/formations/' },
+        ],
+      },
+      {
+        type: 'appel',
+        titre: 'Venez déposer ce que vous portez.',
+        ligne: 'Tout commence par une consultation, où l’on vous écoute avant de proposer.',
+        boutons: [
+          { texte: 'Réserver', vers: '/reserver/' },
+          { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+        ],
+      },
+    ],
+    jsonld: 'maison',
+    court: 'Notre histoire',
   },
   {
     chemin: '/formations/',
