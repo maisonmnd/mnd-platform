@@ -96,6 +96,8 @@ export const COMMUN: Commun = {
        tout le menu et ne garde que le bouton de rendez-vous : cette entrée
        ne change donc rien sur téléphone. */
     { texte: 'La Maison', vers: '/maison-mnd/' },
+    /* « RAJOUTER NOTRE HISTOIRE » AU MENU (Yéman, 30 septembre 2026). */
+    { texte: 'Notre histoire', vers: '/notre-histoire/' },
     /* La galerie s'intercale entre la Maison et le Journal : on regarde
        avant de lire. Sous 860 pixels la barre cache tout le menu, cette
        entrée ne change donc rien sur téléphone ; le pied de page la porte
