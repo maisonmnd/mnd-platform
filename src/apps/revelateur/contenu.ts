@@ -230,7 +230,7 @@ export const ACCUEIL: Accueil = {
      le savez ») ; cette page-ci est celle où l'on rencontre la Maison pour la
      première fois, et une demi-phrase dans une langue qu'on ne lit pas n'y
      accueille personne. */
-  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes beaux, et vous le savez.' },
+  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes beaux, votre beauté est déjà là.' },
   /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
      de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
      du paragraphe, les cinq portes la disent juste dessous. */
@@ -373,7 +373,7 @@ export const ACCUEIL: Accueil = {
      rappel garde sa page et sa place au pied ; ici, la Maison signe. */
   appel: {
     titre: 'Mi nyɔ́ ɖɛkpɛ.',
-    ligne: 'Vous êtes beaux, et vous le savez.',
+    ligne: 'Vous êtes beaux, votre beauté est déjà là.',
     boutons: [
       { texte: 'Réserver', vers: '/reserver/' },
       { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
