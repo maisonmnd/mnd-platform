@@ -666,7 +666,7 @@ export const PAGES: Page[] = [
     titre: 'La Maison MND, maison de famille pour les locks à Cotonou',
     description: "Découvrez la Maison MND à Cotonou, une maison de famille où l'on crée, répare et soigne les dreadlocks : ses gestes, sa méthode, son Académie.",
     h1: 'La Maison MND, à Cotonou',
-    sur: 'La Maison',
+    sur: 'Depuis 2010',
     besoin: 'inconnu',
     sections: [
       /* LA MAISON REVISITÉE — 27 septembre 2026 : « rajoute des sections
@@ -714,7 +714,7 @@ export const PAGES: Page[] = [
       },
       {
         type: 'citation',
-        texte: 'Tout est relié. Ce que nous faisons à la Maison nourrit ce que nous enseignons. Une seule méthode, quatre portes, la même exigence.',
+        texte: 'Tout est relié. Ce que nous faisons à la Maison nourrit ce que nous enseignons. Une seule méthode, la même exigence.',
       },
       { type: 'confiance' },
       {
