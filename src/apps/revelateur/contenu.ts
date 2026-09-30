@@ -694,22 +694,10 @@ export const PAGES: Page[] = [
         texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
         qui: 'Brice et Yéman Ahouansou',
       },
-      {
-        type: 'gamme',
-        sur: 'Notre univers',
-        titre: 'Une Maison, huit maisons.',
-        ligne: "Chaque vocation de MND porte son nom et sa couleur, et le même sigle indigo. Ce que la Maison fait à Cotonou nourrit ce que l'Atelier ouvre ailleurs, ce que l'Académie enseigne et ce que la Boutique choisit.",
-        items: [
-          { nom: 'Maison MND', ligne: "La marque mère, le salon d'Akpakpa.", teinte: '#1E2150' },
-          { nom: "L'Atelier MND", ligne: "Les branches de la Maison, d'une ville à l'autre.", teinte: '#936518' },
-          { nom: 'Académie MND', ligne: 'Formations, certifications, transmission.', teinte: '#2F5D50' },
-          { nom: 'Boutique MND', ligne: 'Produits, outils, objets de la Maison.', teinte: '#4A2C5C' },
-          { nom: 'Soins MND', ligne: 'Routines, cuir chevelu, entretien.', teinte: '#2E6F8E' },
-          { nom: 'Événements MND', ligne: 'Ateliers, rencontres, défilés, lancements.', teinte: '#1F4D62' },
-          { nom: 'Studio MND', ligne: 'Portraits, contenu, éditorial.', teinte: '#6E283C' },
-          { nom: 'LOKAA by MND', ligne: 'Le logiciel des salons, né du Trône.', teinte: '#1A1A1A' },
-        ],
-      },
+      /* « NOTRE UNIVERS » EST PARTI LE 30 SEPTEMBRE 2026 (« retire notre
+         univers », Yéman) : la gamme des huit maisons ne se montre plus ici,
+         comme elle avait quitté l'accueil le 27. Les marques défilent
+         toujours, et le sur-titre de la page reste « L'univers MND ». */
       {
         type: 'marques',
         sur: 'Les marques que nous choisissons',
