@@ -1,5 +1,5 @@
 import { asset } from '../shared/asset';
-import { TELEPHONE_PAYS, decoupeTelephone } from '../shared/geo';
+import { TELEPHONE_MONDE, TELEPHONE_PAYS, decoupeTelephone } from '../shared/geo';
 import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 /* MND — primitives React partagées. Styles dans ds.css. */
@@ -151,9 +151,10 @@ export function ChampTelephone({ value, onChange, dialDefaut, id }: {
   id?: string;
 }) {
   const { dial, local } = decoupeTelephone(value, dialDefaut);
-  const options = TELEPHONE_PAYS.some((p) => p.dial === dial)
-    ? TELEPHONE_PAYS
-    : [{ name: dial, dial }, ...TELEPHONE_PAYS];
+  /* Tout le monde dans le menu depuis le 30 septembre 2026 : les fréquents en
+     tête, puis tous les pays ; un indicatif inconnu déjà enregistré reste lisible. */
+  const connu = TELEPHONE_MONDE.some((p) => p.dial === dial);
+  const reste = TELEPHONE_MONDE.slice(TELEPHONE_PAYS.length);
   const compose = (d: string, l: string) => `${d} ${l}`.trim();
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
@@ -163,9 +164,17 @@ export function ChampTelephone({ value, onChange, dialDefaut, id }: {
         aria-label="Indicatif du pays"
         style={{ maxWidth: 176, flex: '0 0 auto' }}
       >
-        {options.map((p) => (
-          <option key={`${p.name}-${p.dial}`} value={p.dial}>{p.name} {p.dial}</option>
-        ))}
+        {!connu && <option value={dial}>{dial}</option>}
+        <optgroup label="Fréquents">
+          {TELEPHONE_PAYS.map((p) => (
+            <option key={`${p.name}-${p.dial}`} value={p.dial}>{p.name} {p.dial}</option>
+          ))}
+        </optgroup>
+        <optgroup label="Tous les pays">
+          {reste.map((p) => (
+            <option key={`${p.name}-${p.dial}`} value={p.dial}>{p.name} {p.dial}</option>
+          ))}
+        </optgroup>
       </Select>
       <Input
         id={id}
