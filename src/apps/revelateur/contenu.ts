@@ -870,7 +870,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'X',
         titre: 'Les quatre K',
-        corps: '<p>Une maison, ce sont d’abord ceux qui l’habitent. Chez nous, ils sont quatre. Quatre garçons, et une même lettre pour ouvrir chacun de leurs prénoms. Kolétan est l’un d’eux. Il le restera toujours. Trois fils que l’on voit grandir, et un qui grandit autrement, dans nos mémoires et dans nos gestes.</p><p>De cette famille sont nés nos symboles. La Couronne, parce que les locks ne sont pas une coiffure mais ce que l’on porte sur la tête avec dignité. Le Trône, parce que la personne qui s’assoit chez nous mérite du temps et de l’attention. Et la Maison, parce que tout est parti de là, et que tout y revient. Ce sont nos enfants, notre métier et notre foyer, réunis dans un même nom.</p>',
+        corps: '<p>Une maison, ce sont d’abord ceux qui l’habitent. Chez nous, ils sont quatre. Quatre garçons, et une même lettre pour ouvrir chacun de leurs prénoms. Kolétan la portait aussi. Il restera toujours l’un des nôtres. Quatre fils que l’on voit grandir, et un qui grandit autrement, dans nos mémoires et dans nos gestes.</p><p>De cette famille sont nés nos symboles. La Couronne, parce que les locks ne sont pas une coiffure mais ce que l’on porte sur la tête avec dignité. Le Trône, parce que la personne qui s’assoit chez nous mérite du temps et de l’attention. Et la Maison, parce que tout est parti de là, et que tout y revient. Ce sont nos enfants, notre métier et notre foyer, réunis dans un même nom.</p>',
       },
       {
         type: 'texte',
