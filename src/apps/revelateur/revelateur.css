@@ -1645,7 +1645,9 @@ body.galerie-plein { scroll-behavior: smooth; }
 .ingr__fleur { position: absolute; inset: 3%; width: 94%; height: 94%; z-index: -1; opacity: .95; transition: transform var(--t); }
 .ingr:hover .ingr__fleur { transform: scale(1.04); }
 .ing-panneau--teinte { position: relative; overflow: hidden; }
-.ing-panneau--teinte .ingr__fleur { position: absolute; inset: 6%; width: 88%; height: 88%; opacity: .9; pointer-events: none; }
+/* SUR LA PAGE DE LA PLANTE, LA FLEUR EN HAUT ET LES MOTS EN BAS : le nom latin ne passe plus sur le dessin. */
+.ing-panneau--teinte { place-content: end center; padding-bottom: 12%; }
+.ing-panneau--teinte .ingr__fleur { position: absolute; inset: 4% 10% auto 10%; width: 80%; height: 60%; opacity: .92; pointer-events: none; }
 .ing-panneau--teinte > span { position: relative; }
 .ingr__photo img { width: 100%; height: 100%; object-fit: cover; }
 /* LE NOM RESTE LISIBLE SUR LA FLEUR : un voile de la teinte même sous le cadre, et une ombre douce sur les lettres (30 septembre 2026). */
