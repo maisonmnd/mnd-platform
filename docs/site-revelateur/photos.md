@@ -42,8 +42,8 @@ lieu de la tirer au sort sur son rang dans le dossier.
 | `brice.jpg` | porte Formation, page Formations | Brice | fondateur |
 | `fondateurs.jpg` | accueil, « Derrière MND » | Brice et Yéman | fondateurs |
 | `yeman.jpg` | page Brice et Yéman | Yéman | fondatrice |
-| `regard.jpg` | page La Maison | une couronne, de près | confiée par Yéman, photo de la Maison |
-| `hero.jpg` | plus servie sur l'accueil depuis le 22 septembre 2026 ; reste dans le dossier | une couronne relevée, de profil | confiée par Yéman, photo de la Maison |
+| `regard.jpg` | page La Maison ; page Le Moment, le jour où elle paraît | une couronne, de près | confiée par Yéman, photo de la Maison |
+| `hero.jpg` | page La Couronne à domicile, depuis le 30 septembre 2026 (plus servie sur l'accueil depuis le 22) | une couronne relevée, de profil | confiée par Yéman, photo de la Maison |
 | `journal-1.jpg`, `journal-2.jpg`, `journal-3.jpg` | vignettes des sept autres articles du Journal | **des visages, de près, et non des « détails de couronnes » comme ce registre l'a dit jusqu'au 23 septembre 2026** : les deux modèles des séances de la Maison, les mêmes que `regard.jpg`, `creation.jpg` et `entretien.jpg` | confiées par Yéman, photos de la Maison ; ce sont elles, et elles seules, qui illustrent les articles nommant un défaut |
 
 Les mentions légales le disent en une phrase : « Les images de ce site
