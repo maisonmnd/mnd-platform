@@ -18,6 +18,7 @@ export const TELEPHONE_PAYS: { name: string; dial: string }[] = [
   { name: 'Cameroun', dial: '+237' },
   { name: 'France', dial: '+33' },
   { name: 'Belgique', dial: '+32' },
+  { name: 'Suisse', dial: '+41' },
   { name: 'Royaume-Uni', dial: '+44' },
   { name: 'États-Unis / Canada', dial: '+1' },
   { name: 'Guadeloupe', dial: '+590' },

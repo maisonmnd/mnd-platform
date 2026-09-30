@@ -63,6 +63,7 @@ export const PAYS_CHIPS: { name: string; dial: string; currency: CurrencyChoice 
   { name: 'Canada', dial: '+1', currency: 'CAD' },
   { name: 'États-Unis', dial: '+1', currency: 'USD' },
   { name: 'Royaume-Uni', dial: '+44', currency: 'EUR' },
+  { name: 'Suisse', dial: '+41', currency: 'EUR' },
   { name: 'Ailleurs', dial: '+229', currency: 'XOF' },
 ];
 
