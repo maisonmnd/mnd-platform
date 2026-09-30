@@ -138,6 +138,18 @@ export const INGREDIENTS: Ingredient[] = [
     note: 'Ail noir, moringa, gingembre, cannelle, et vingt minutes de massage crânien.',
     soin: { texte: 'Les soins des locks', vers: '/soins-locks/' }, teinte: '#5E7040',
   },
+  /* L'HUILE D'AVOCAT — « rajouter l'huile d'avocat » (Yéman, 30 septembre
+     2026). Elle est l'une des sept huiles de DÀNDÀN™, le soin hydratant. */
+  {
+    slug: 'avocat', nom: 'L’huile d’avocat', latin: 'Persea americana', role: 'Nourrir · Assouplir',
+    accroche: 'Le fruit qui donne une huile verte, tirée de sa chair et non de son noyau.',
+    origine: 'L’avocatier vient d’Amérique centrale, où on le cultive depuis des millénaires. Il a trouvé au sud du Bénin un climat à sa mesure : on le voit dans les cours et les vergers, et ses fruits se vendent sur tous les marchés de la saison. De sa chair, et non de son noyau, on presse une huile verte et épaisse.',
+    pourquoi: 'C’est l’une des rares huiles qui entrent dans la fibre au lieu de rester dessus. Riche en acides gras et en vitamine E, elle nourrit les longueurs sèches, assouplit une lock qui raidit, et protège les pointes. Elle est douce avec le cuir chevelu.',
+    maison: 'Nous la choisissons pressée à froid, et nous la mêlons aux autres : elle est l’une des sept huiles de DÀNDÀN™, le soin hydratant de la Maison, de la racine à la pointe.',
+    fiche: { lieu: 'Sud du Bénin', qualite: 'Huile de pulpe, pressée à froid', formule: 'DÀNDÀN™ · Le Soin Hydratant' },
+    note: 'L’huile d’avocat pénètre : on la pose sur une fibre déjà humide, jamais sur du sec.',
+    soin: { texte: 'Les soins des locks', vers: '/soins-locks/' }, teinte: '#6E7A33',
+  },
 ];
 
 export const INGREDIENTS_TETE = {

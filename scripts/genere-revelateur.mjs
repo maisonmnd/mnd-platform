@@ -52,6 +52,8 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS } = contenu;
+/* Les fleurs des plantes, dessinées en ivoire sur chaque carte d'ingrédient (30 septembre 2026). */
+const { fleurDe } = await import('./fleurs-des-ingredients.mjs');
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
    L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
@@ -497,7 +499,7 @@ const cheminIngredient = (i) => `/ingredients/${i.slug}/`;
 
 function carteIngredient(i) {
   const fond = i.photo ? `<span class="ingr__photo">${image(i.photo, '')}</span>` : '';
-  return `<a class="ingr" href="${attr(lien(cheminIngredient(i)))}" style="--teinte:${attr(i.teinte)}">${fond}
+  return `<a class="ingr" href="${attr(lien(cheminIngredient(i)))}" style="--teinte:${attr(i.teinte)}">${fond}${fleurDe(i.slug)}
           <span class="ingr__cadre"><b>${echappe(i.nom)}</b><small>${echappe(i.role)}</small></span>
         </a>`;
 }
@@ -596,7 +598,7 @@ function rendIngredient(i) {
   const autres = INGREDIENTS.filter((x) => x.slug !== i.slug);
   const panneauOrigine = i.photo
     ? `<div class="ing-panneau ing-panneau--photo">${image(i.photo, i.nom)}</div>`
-    : `<div class="ing-panneau ing-panneau--teinte" style="--teinte:${attr(i.teinte)}"><span class="ing-panneau__latin">${echappe(i.latin)}</span><span class="ing-panneau__lieu">${echappe(i.fiche.lieu)}</span></div>`;
+    : `<div class="ing-panneau ing-panneau--teinte" style="--teinte:${attr(i.teinte)}">${fleurDe(i.slug)}<span class="ing-panneau__latin">${echappe(i.latin)}</span><span class="ing-panneau__lieu">${echappe(i.fiche.lieu)}</span></div>`;
   const bloc = (n, titre, texte, panneau, inverse) => `<section class="ing-bloc${inverse ? ' ing-bloc--inverse' : ''}"><div class="conteneur">
         ${panneau}
         <div class="ing-bloc__texte">${FLECHE_DESSINEE}<h2>${echappe(titre).replace(/(\S+-\S+)/g, '<span class="insecable">$1</span>')}</h2><span class="ing-filet"></span>${texte}</div>
@@ -827,6 +829,7 @@ function rendAccueil(articles) {
         <h2>${echappe(a.objectif.titre)}</h2>
         <p class="ligne">${echappe(a.objectif.ligne)}</p>
         <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
+        ${a.objectif.suite ? `<div class="passage"><p>${echappe(a.objectif.suite.ligne)}</p>${bouton(a.objectif.suite.bouton, 'btn btn--lien')}</div>` : ''}
       </div></section>
       <section id="portes"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2>${a.portes.ligne ? `<p class="ligne">${echappe(a.portes.ligne)}</p>` : ''}</div>
@@ -856,7 +859,7 @@ function rendAccueil(articles) {
       <section class="fondateurs" id="maison"><div class="conteneur">
         ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
         <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
-          <p class="message">${echappe(a.fondateurs.message)}</p>
+          <p class="message">${echappe(a.fondateurs.message)}</p>${a.fondateurs.legende ? `<p class="legende" style="margin-top:8px">${echappe(a.fondateurs.legende)}</p>` : ''}
           <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
           <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/notre-histoire/')}">Lire notre histoire</a></p>
         </div>

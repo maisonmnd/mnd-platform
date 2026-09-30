@@ -276,6 +276,10 @@ export const ACCUEIL: Accueil = {
       { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
       { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
     ],
+    suite: {
+      ligne: "Il y a cinq façons d'entrer dans la Maison. La vôtre dépend d'où en est votre couronne.",
+      bouton: { texte: 'Voir les cinq portes', vers: '#portes' },
+    },
   },
   diagnostic: {
     sur: 'Le diagnostic locks',
@@ -334,7 +338,7 @@ export const ACCUEIL: Accueil = {
      ci-dessous les couvre toutes les deux, et rien dans ces images n'est
      nommable séparément sans nommer une femme. */
   portes: {
-    sur: 'Ce que la Maison fait',
+    sur: 'Par où entrer',
     titre: 'Cinq portes, une méthode.',
     ligne: "Cinq parcours qui ne commencent pas au même endroit et ne se déroulent pas pareil. Trouvez le vôtre à sa situation de départ.",
     /* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026) : la
@@ -375,7 +379,11 @@ export const ACCUEIL: Accueil = {
        phrases, coupées, jamais réécrites ; le bouton mène au récit entier. */
     titre: 'Nous avons commencé sur une terrasse.',
     ligne: "Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester. Seize ans plus tard, on vient chez nous s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne.",
-    message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
+    /* LA PHRASE DE BRICE — 30 septembre 2026. L'ancienne citation parlait de
+       formation ; sous la photo des deux, la note forte du récit est celle
+       qui a tenu la maison debout, les soirs sans clients. */
+    message: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+    legende: 'Brice à Yéman, les soirs sans clients.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
   },
@@ -701,8 +709,8 @@ export const PAGES: Page[] = [
       },
       {
         type: 'citation',
-        texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
-        qui: 'Brice et Yéman Ahouansou',
+        texte: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+        qui: 'Brice à Yéman, les soirs sans clients.',
       },
       /* « NOTRE UNIVERS » EST PARTI LE 30 SEPTEMBRE 2026 (« retire notre
          univers », Yéman) : la gamme des huit maisons ne se montre plus ici,
@@ -766,8 +774,8 @@ export const PAGES: Page[] = [
       },
       {
         type: 'citation',
-        texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
-        qui: 'Brice et Yéman Ahouansou',
+        texte: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+        qui: 'Brice à Yéman, les soirs sans clients.',
       },
       {
         type: 'appel',

@@ -94,7 +94,11 @@ export type Accueil = {
      complètement le site », maquette validée). À leur place, l'accueil dit
      l'objectif de la Maison, monte le diagnostic, montre l'univers, les
      marques, la carte cadeau et un extrait de la galerie. */
-  objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[] };
+  /** LA TRANSITION VERS LES PORTES — 30 septembre 2026. Après les trois
+      piliers, une phrase et un lien disent qu'on va vers les cinq portes :
+      « revoir comment faire la transition et savoir qu'on va vers les 5
+      portes » (Yéman). */
+  objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[]; suite?: { ligne: string; bouton: Lien } };
   diagnostic: { sur: string; titre: string; ligne: string; note: string };
   marques: { sur: string; titre: string; ligne: string };
   offrir: { sur: string; titre: string; ligne: string; bouton: Lien };
@@ -116,7 +120,7 @@ export type Accueil = {
      passe (`comment`, ses temps, séparés par des points médians). */
   portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string }[]; repli: string; repliNote?: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
-  fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };
+  fondateurs: { sur: string; titre: string; ligne: string; message: string; legende?: string; trois: string[]; image: string };
   journal: { sur: string; titre: string };
   appel: { titre: string; ligne: string; boutons: Lien[] };
 };
