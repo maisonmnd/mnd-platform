@@ -119,6 +119,7 @@ export const COMMUN: Commun = {
           { texte: 'Abonnements', vers: '/abonnements/' },
           { texte: 'Formations', vers: '/formations/' },
           { texte: 'Les offres', vers: '/les-offres/' },
+          { texte: 'La Couronne à domicile', vers: '/couronne-a-domicile/' },
         ],
       },
       {
@@ -891,8 +892,9 @@ export const PAGES: Page[] = [
       },
       /* CE QUE LE RÉCIT PORTE — 30 septembre 2026. Si la Maison est l’endroit
          où l’on dépose ce que l’on porte, chaque offre en découle. Seules les
-         offres qui EXISTENT sont ici ; le Moment, la Couronne à domicile et
-         la Cour MND attendent d’exister avant d’être promises. */
+         offres qui EXISTENT sont ici ; le Moment attend son forfait au Trône
+         (sa page est écrite, en attente), la Couronne à domicile et la Cour
+         sont là depuis le 30 septembre au soir. */
       {
         type: 'grille',
         sur: 'Ce que le récit porte',
@@ -906,6 +908,8 @@ export const PAGES: Page[] = [
           { titre: 'Offrir la Maison', texte: 'Offrir un moment à quelqu’un qui porte trop.', vers: '/offrir/' },
           { titre: 'Parrainer', texte: 'On ne parraine pas un client. On ramène quelqu’un chez soi.', vers: '/parrainage/' },
           { titre: 'L’Académie', texte: 'La transmission. Former celles et ceux qui feront ce métier sans avoir honte.', vers: '/formations/' },
+          { titre: 'La Couronne à domicile', texte: 'Quand c’est la Maison qui vient. Les mêmes mains, chez vous.', vers: '/couronne-a-domicile/' },
+          { titre: 'La Cour MND', texte: 'La maison, agrandie. Ce qui vient, sans date, et l’on vous prévient.', vers: '/la-cour/' },
         ],
       },
       {
@@ -920,6 +924,112 @@ export const PAGES: Page[] = [
     ],
     jsonld: 'maison',
     court: 'Notre histoire',
+  },
+  /* LES TROIS OFFRES QUI SORTENT DU RÉCIT — 30 septembre 2026, tranchées au
+     sélecteur par Yéman. Le Moment attend son forfait au catalogue du Trône
+     (Vente → Catalogue → Combinaisons officielles → nouveau forfait, trois
+     lignes : le lavage, les racines, le soin, remise 0 % : la somme des
+     gestes) ; le jour où il existe, on efface `enAttente` et la page paraît. */
+  {
+    chemin: '/le-moment/',
+    titre: 'Le Moment · deux heures pour votre couronne · Maison MND',
+    description: 'Réservez le Moment à la Maison MND, Cotonou : le lavage, la reprise des racines, le soin, et le temps qu’il faut entre chaque geste. Sans consultation.',
+    h1: 'Le Moment : deux heures pour votre couronne, et pour vous.',
+    sur: 'Je veux que le temps s’arrête',
+    ligne: 'On ne vient pas ici pour une coiffure. On vient s’asseoir, déposer ce que l’on porte, et repartir avec sa couronne. Le Moment, c’est ce rendez-vous-là, en entier.',
+    besoin: 'entretien',
+    cta: { texte: 'Réserver mon Moment', note: 'Se réserve directement, sans consultation. Une personne à la fois.' },
+    geste: 'Le Moment réunit trois gestes de la Maison : <b>KLƆKLƆ™</b> le lavage, <b>SÍNSIN™</b> les racines, <b>DÀNDÀN™</b> le soin. Il coûte ce que coûtent ses gestes, au calibre de votre couronne. Le temps est offert.',
+    temps: true,
+    pas: {
+      sur: 'Ce que nous faisons',
+      titre: 'Cinq temps, sans horloge',
+      liste: true,
+      items: [
+        ['Le portail', 'On vous attend, par votre prénom. Vous déposez ce que vous portez.'],
+        ['Le lavage · KLƆKLƆ™', 'La tête se pose, les mains prennent le relais.'],
+        ['Les racines · SÍNSIN™', 'Racine par racine, sans hâte. On parle, ou on se tait.'],
+        ['Le soin · DÀNDÀN™', 'L’hydratation, ou ce que votre couronne demande ce jour-là.'],
+        ['Le miroir', 'On regarde ensemble. Le prochain rendez-vous se pose avant de partir.'],
+      ],
+    },
+    rassure: 'Si vous ne voulez que la reprise des racines, l’entretien classique reste là. Le Moment est pour les jours où il faut tout.',
+    faq: [
+      ['Est-ce un entretien ?', 'C’est un entretien complet, avec le soin, et sans horloge.'],
+      ['Faut-il une consultation ?', 'Non. Le Moment se réserve directement. Si vos locks vous inquiètent, commencez par une consultation Réparation.'],
+      ['Peut-on l’offrir ?', 'Oui. La carte cadeau de la Maison porte le Moment : offrir un moment à quelqu’un qui porte trop.'],
+    ],
+    jsonld: 'service',
+    court: 'Le Moment',
+    enAttente: 'le forfait « Le Moment » n’existe pas encore au catalogue du Trône',
+  },
+  {
+    chemin: '/couronne-a-domicile/',
+    titre: 'La Couronne à domicile · la Maison MND vient chez vous',
+    description: 'Demandez la Couronne à domicile à Cotonou : un entretien ou un soin de la Maison MND chez vous, avec les mêmes mains, les mêmes outils et la même hygiène.',
+    h1: 'La Couronne à domicile : quand c’est la Maison qui vient.',
+    sur: 'Je préfère que la Maison vienne',
+    ligne: 'Une naissance, un deuil, une convalescence, ou simplement un jour où sortir est de trop. La Maison vient à vous, avec ce qu’il faut, et le même soin.',
+    besoin: 'entretien',
+    cta: { texte: 'Demander la Maison chez moi', note: 'Une demande sur WhatsApp, un rappel de la Maison, et l’on fixe le jour ensemble.', vers: 'message:entretien:Bonjour MND, j’aimerais la Couronne à domicile. Voici mon quartier et le geste que je souhaite :' },
+    geste: 'Le geste est au prix de la Maison. Le déplacement s’ajoute, et son montant vous est dit <b>avant</b> de confirmer, jamais après.',
+    pas: {
+      sur: 'Comment cela se passe',
+      titre: 'Cinq pas',
+      items: [
+        ['La demande', 'Vous dites où vous êtes et ce que vous souhaitez. Sans justificatif.'],
+        ['Le rappel', 'La Maison vous rappelle, dit le déplacement, et fixe le jour avec vous.'],
+        ['Chez vous', 'Une chaise, un point d’eau, une prise. La Maison apporte le reste : outils désinfectés, linge propre, produits.'],
+        ['Le geste', 'Un entretien ou un soin. Une création ou une réparation demandent l’atelier.'],
+        ['Le suivi', 'Le prochain rendez-vous se pose avant de partir, chez vous ou à la Maison.'],
+      ],
+    },
+    rassure: 'Si vous pouvez venir, la Maison vous attend : c’est là que le temps s’arrête. Si vous ne pouvez pas, elle vient.',
+    faq: [
+      ['Qui vient ?', 'Une main de la Maison, formée à la méthode MND, avec les mêmes outils et la même hygiène qu’à Akpakpa.'],
+      ['Jusqu’où venez-vous ?', 'Cotonou et ses environs. Dites votre quartier dans la demande : la Maison vous répond avec le déplacement.'],
+      ['Puis-je demander une création à domicile ?', 'Non. Une création et une réparation demandent l’atelier, ses outils et son temps. Elles commencent par une consultation à la Maison.'],
+    ],
+    jsonld: 'service',
+    court: 'À domicile',
+  },
+  {
+    chemin: '/la-cour/',
+    titre: 'La Cour MND, la maison agrandie · Maison MND',
+    description: 'Découvrez ce que prépare la Maison MND à Cotonou : la Cour, un seul lieu pour prendre soin, apprendre et trouver ce que la Maison met sur les têtes. Soyez prévenue.',
+    h1: 'La Cour MND : la maison, agrandie.',
+    sur: 'Ce qui vient',
+    ligne: 'Tout est parti d’une terrasse à Akpakpa, et tout y revient. La Cour est la suite de cette maison : un seul lieu où l’on prend soin, où l’on apprend, où l’on trouve ce que la Maison met sur les têtes.',
+    besoin: 'inconnu',
+    sections: [
+      {
+        type: 'pas',
+        sur: 'Ce qu’on y trouvera',
+        titre: 'Une cour, quatre portes',
+        liste: true,
+        items: [
+          ['La Maison', 'Les fauteuils, le portail, le temps qui s’arrête.'],
+          ['L’Académie', 'Les formations, dans le lieu même où la méthode est née.'],
+          ['La Boutique', 'Les produits que la Maison met vraiment sur les têtes. Peu de références.'],
+          ['La Cour', 'Des plantes, des livres, un banc. L’endroit où l’on attend sans attendre.'],
+        ],
+      },
+      {
+        type: 'texte',
+        corps: 'La Cour n’a pas encore de date, et la Maison ne promet que ce qu’elle fait. Elle vous écrira le jour où la Cour ouvre, et rien d’autre.',
+      },
+      {
+        type: 'appel',
+        titre: 'Être prévenue à l’ouverture.',
+        ligne: 'Un message, et la Maison garde votre prénom pour ce jour-là.',
+        boutons: [
+          { texte: 'Prévenez-moi', vers: 'message:inconnu:Bonjour MND, prévenez-moi à l’ouverture de la Cour.' },
+          { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'La Cour',
   },
   {
     chemin: '/formations/',

@@ -131,6 +131,12 @@ const lien = (vers) => {
   return `${BASE}${vers.replace(/^\//, '')}`;
 };
 const bouton = (l, classe = 'btn') => {
+  /* `message:<besoin>:<texte>` : WhatsApp s'ouvre avec CE texte (30 septembre 2026). */
+  if (l.vers.startsWith('message:')) {
+    const [, besoin, ...reste] = l.vers.split(':');
+    const texte = reste.join(':');
+    return `<a class="${classe}" data-wa="${attr(besoin || 'inconnu')}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texte)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
+  }
   if (l.vers.startsWith('whatsapp:')) {
     const besoin = l.vers.slice('whatsapp:'.length);
     return `<a class="${classe}" data-wa="${attr(besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
@@ -699,8 +705,11 @@ function ilot(nom, p) {
 /* ── Une page de service ─────────────────────────────────────────────── */
 function rendService(p) {
   const reservable = RESERVABLES.has(p.besoin ?? '');
+  /* LA DESTINATION DU CTA L'EMPORTE MÊME SUR UNE PAGE RÉSERVABLE — 30
+     septembre 2026 : la Couronne à domicile est un entretien qui ne se
+     prend pas au calendrier. Avec `vers`, on passe par `bouton()`. */
   const cta = p.cta
-    ? (reservable
+    ? (reservable && !p.cta.vers
       ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
       /* LA DESTINATION DU CTA L'EMPORTE — 18 septembre 2026. `bouton()` a
          toujours su suivre n'importe quelle adresse, `soeur:` comprise ;
@@ -1230,6 +1239,8 @@ ecrit('/galerie/', page({
 pagesEcrites.push('/galerie/');
 
 for (const p of PAGES) {
+  /* Une page en attente n'est ni écrite ni mise au plan (voir contenu-types). */
+  if (p.enAttente) { console.log(`  en attente : ${p.chemin} (${p.enAttente})`); continue; }
   const estService = !!(p.cta || p.pas);
   let corps;
   if (p.chemin === '/journal/') {
@@ -1312,7 +1323,7 @@ ecrit(PLAN, page({
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>Plan du site</li></ol></nav>
       <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>Plan du site</h1><p class="ligne">Toutes les pages de la Maison, rassemblées.</p></div></div></section>
       <section class="serre"><div class="conteneur"><div class="plan">
-        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.map((p) => [p.court, p.chemin])])}
+        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente).map((p) => [p.court, p.chemin])])}
         ${INGREDIENTS.length ? lignesDuPlan('Nos ingrédients', INGREDIENTS.map((i) => [i.nom, cheminIngredient(i)])) : ''}
         ${articles.length ? lignesDuPlan('Le Journal', articles.map((a) => [a.titre, `/journal/${a.slug}/`])) : ''}
         ${lignesDuPlan('Les mentions', [...LEGALES.map((l) => [l.court, l.chemin]), ['Plan du site', PLAN]])}

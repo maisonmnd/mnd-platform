@@ -10,8 +10,11 @@
 export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
 
 /** Un lien : un chemin du site (`/premiere-couronne/`), une ancre (`#portes`),
-    `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours, ou
-    `soeur:couronne` / `soeur:academie` vers une sœur sur la même origine. */
+    `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours,
+    `message:<besoin>:<texte>` qui ouvre WhatsApp avec CE texte (30 septembre
+    2026 : la Couronne à domicile et la Cour ont leur phrase, pas celle du
+    parcours), ou `soeur:couronne` / `soeur:academie` vers une sœur sur la
+    même origine. */
 export type Lien = { texte: string; vers: string };
 
 export type Section =
@@ -65,6 +68,11 @@ export type Page = {
   jsonld?: 'service' | 'faq' | 'course' | 'maison' | 'aucun';
   /** Le nom court dans le fil d'Ariane et le sitemap. */
   court: string;
+  /** UNE OFFRE PARAÎT LE JOUR OÙ ELLE SE RÉSERVE, PAS AVANT — 30 septembre
+      2026. Une page qui attend quelque chose (un forfait au catalogue, une
+      adresse) est écrite ici mais n'est ni construite ni mise au plan tant
+      que ce champ dit pourquoi. On l'efface le jour venu. */
+  enAttente?: string;
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
