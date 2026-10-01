@@ -271,7 +271,7 @@ export const ACCUEIL: Accueil = {
        le site », section 4) : la Maison dit ce qu'elle est, sans se vanter. */
     sur: 'La Maison',
     titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
-    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il en part aujourd'hui vers nos branches, notre Académie et nos produits, sans jamais quitter la maison.",
+    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
     piliers: [
       { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
       { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
@@ -309,7 +309,9 @@ export const ACCUEIL: Accueil = {
        attachée » (Yéman). cliente-17 ouvre la bande ; c'est la femme du premier
        écran, dans la robe de `regard.jpg`, et c'est voulu. cliente-16 reste
        à la galerie. */
-    images: ['cliente-17.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
+    /* Le même matin : « rechanger la photo 1 avec cette image plutôt » (Yéman). cliente-6
+       prend la première place ; cliente-17 passe à la galerie. */
+    images: ['cliente-6.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
     bouton: { texte: 'Voir la galerie', vers: '/galerie/' },
   },
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
@@ -430,7 +432,7 @@ export const GALERIE: Galerie = {
     'enfant-jardin.jpg', 'cliente-12.jpg', 'trois-couronnes.jpg', 'cliente-13.jpg',
     'cliente-1.jpg', 'cliente-3.jpg', 'cliente-4.jpg', 'cliente-5.jpg',
     /* Trois portraits remis par Yéman le 1er octobre 2026, accord des trois. */
-    'cliente-16.jpg', 'cliente-14.jpg', 'cliente-15.jpg',
+    'cliente-16.jpg', 'cliente-14.jpg', 'cliente-15.jpg', 'cliente-17.jpg',
   ],
 };
 
@@ -697,7 +699,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         sur: 'La Maison',
         titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
-        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il en part aujourd'hui vers nos branches, notre Académie et nos produits, sans jamais quitter la maison.",
+        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
         image: 'regard.jpg',
       },
       {
@@ -817,7 +819,9 @@ export const PAGES: Page[] = [
        fil cuivre en haut avance avec la lecture. Plus de numéros de chapitre. */
     h1: 'Nous avons commencé sur une terrasse.',
     sur: 'Notre histoire',
-    ligne: 'La vérité sur Brice et Yéman, racontée par eux.',
+    /* « Refais la phrase » (Yéman, 1er octobre 2026) : « la vérité sur » sonnait comme une
+       révélation, et « eux » parlait d'eux de loin dans un récit qui dit « nous ». */
+    ligne: 'Brice et Yéman racontent, avec leurs mots.',
     ouverture: true,
     besoin: 'inconnu',
     sections: [
