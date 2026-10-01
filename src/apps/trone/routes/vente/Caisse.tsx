@@ -26,6 +26,8 @@ import {
   useCodesPromo, codesPromoStore, codeDit, pourquoiLeCodeNeVautPas, remiseDuCode,
   laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
+import { useOffers } from '../../../../shared/offers';
+import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -119,6 +121,7 @@ export default function Caisse() {
   const [dateVente, setDateVente] = useState(() => todayIso());
 
   const [codeTape, setCodeTape] = useState('');
+  const [offres] = useOffers();
   const [codes] = useCodesPromo();
   /* QUI A ACCEPTÉ LE CODE. Une remise sans nom derrière est une remise que
      personne n'assume, et c'est exactement ce que la trace de la base
@@ -453,22 +456,32 @@ export default function Caisse() {
   const lignesRemisables = lines
     .filter((l) => l.kind === 'service')
     .map((l) => ({ serviceId: l.key.slice(2), montantXof: Math.round(l.netXof) }));
-  const refusDuCode = pourquoiLeCodeNeVautPas({
-    tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
-  });
-  const codePromo = !refusDuCode && normaliseLeCode(codeTape)
-    ? codeDit(codeTape, codes, branch.id)
-    : undefined;
+  /* LE CODE D'UNE OFFRE VAUT AUSSI ICI — 1er octobre 2026. « Les codes de réductions
+     ROSE15 ne marchent pas sur le Trône » (Yéman). Un code NOMINATIF passe d'abord :
+     il appartient à une tête. Sinon on cherche l'OFFRE de la branche qui porte ce
+     code et qui court aujourd'hui ; hors saison, on dit ses dates plutôt que
+     « inconnu ». La remise suit la règle du site (shared/offres-pur). */
+  const codeNominatif = codeDit(codeTape, codes, branch.id);
+  const offresDeLaBranche = offres.filter((o) => !o.branchId || o.branchId === branch.id);
+  const offreCodee = !codeNominatif ? offreDuCode(offresDeLaBranche, codeTape) : null;
+  const offreHorsSaison = !codeNominatif && !offreCodee ? offreDuCodePassee(offresDeLaBranche, codeTape) : null;
+  const refusDuCode = offreCodee ? null
+    : offreHorsSaison ? pourquoiLOffreNeCourtPas(offreHorsSaison)
+      : pourquoiLeCodeNeVautPas({
+        tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
+      });
+  const codePromo = !refusDuCode && !offreCodee && normaliseLeCode(codeTape) ? codeNominatif : undefined;
   /* CE QUE LE CODE RETIRERAIT, en francs exacts, sur les prestations qu'il
      couvre. Jamais plus que sa base : une promotion n'est pas un crédit. */
-  const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables) : 0;
+  const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables)
+    : offreCodee ? remiseDeLOffreSurLeTicket(offreCodee, lignesRemisables).retire : 0;
   /* IL SE BAT CONTRE CE QUI EST DÉJÀ POSÉ, et l'on garde la plus généreuse.
      Deux remises qui s'empilent se défendent mal : personne n'a décidé qu'une
      cliente au tarif famille paierait 72 % du prix parce qu'un code est
      passé. À égalité, le code reste entier — le consommer sans qu'il apporte
      un franc reviendrait à le voler à la cliente. */
   const dejaPoseXof = Math.round(subXof * (globalDisc / 100)) + globalDiscXof;
-  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? '');
+  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? offreCodee?.code ?? '');
   const promoXof = cumul.codeConsomme ? promoBrutXof : 0;
 
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
@@ -539,7 +552,8 @@ export default function Caisse() {
          manuelle : c'est `invoiceTotal` qui fait foi partout, et le net du
          ticket doit être celui du papier, au franc près. */
       globalDiscountXof: (globalDiscXof + promoXof) || undefined,
-      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` } : {}),
+      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` }
+        : promoXof > 0 && offreCodee ? { discountLabel: `Offre ${offreCodee.title} · ${offreCodee.code ?? ''}`.trim() } : {}),
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
@@ -564,6 +578,9 @@ export default function Caisse() {
       codesPromoStore.set((prev) => prev.map((c) => (c.id === ferme.id ? ferme : c)));
       setCodeTape('');
     }
+    /* Le code d'une offre ne se consomme pas : il vaut pour toutes, tant que l'offre court.
+       On vide seulement la case, pour qu'il ne s'applique pas au ticket suivant par oubli. */
+    if (promoXof > 0 && offreCodee) setCodeTape('');
 
     /* LE SOIN OFFERT SE CONSOMME ICI, avec la pièce, et seulement si sa
        ligne est encore offerte : une remise retirée entre-temps le rend. */
@@ -1064,7 +1081,7 @@ export default function Caisse() {
                 />
                 {promoXof > 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#41604A', fontWeight: 600 }}>
-                    −{fmtMoney(promoXof, currency)}
+                    −{fmtMoney(promoXof, currency)}{offreCodee ? ` · offre ${offreCodee.title}` : ''}
                   </span>
                 )}
                 {refusDuCode && (
@@ -1082,6 +1099,11 @@ export default function Caisse() {
                 {!refusDuCode && codePromo && promoBrutXof === 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
                     Ce code ne couvre aucune prestation de ce ticket : il reste utilisable.
+                  </span>
+                )}
+                {!refusDuCode && offreCodee && promoBrutXof === 0 && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    L’offre {offreCodee.title} ne couvre aucune prestation de ce ticket.
                   </span>
                 )}
               </div>

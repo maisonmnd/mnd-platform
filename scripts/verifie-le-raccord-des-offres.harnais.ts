@@ -28,6 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { OFFRES_DE_PARCOURS, SAISONS, codeNormalise, offreDepuisLaSaison } from '../src/shared/offers';
+import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas } from '../src/shared/offres-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -118,6 +119,31 @@ for (const s of TOUTES) {
   const note = serveur.raisonEnClair(v);
   dit(`${s.code} · la note de l accueil ne renie pas la carte`, false,
     !s.remise && note.includes('ne porte sur aucun geste'));
+}
+
+/* LE CODE D'UNE OFFRE A LA CAISSE — 1er octobre 2026. « ROSE15 ne marche pas sur le
+   Trone » : la caisse ne connaissait que les codes nominatifs. Elle applique desormais
+   l'offre avec la regle du site, sur les seules prestations couvertes. */
+{
+  const rose = { active: true, du: '2026-10-01', au: '2026-10-31', code: 'ROSE15', discountPct: 15, serviceIds: ['sv-a', 'sv-b'] };
+  const rentree = { active: true, du: '2026-09-01', au: '2026-09-30', code: 'RENTREE10', discountPct: 10, serviceIds: ['sv-a'] };
+  const dormante = { ...rose, code: 'DORT20', active: false };
+  const offres = [rentree, rose, dormante];
+  const le5 = new Date('2026-10-05T10:00:00');
+  dit('le 5 octobre, ROSE15 designe l offre Octobre Rose', 'ROSE15', offreDuCode(offres, 'rose15', le5)?.code ?? null);
+  dit('... tape en minuscules avec un espace, il est reconnu', 'ROSE15', offreDuCode(offres, ' rose 15 ', le5)?.code ?? null);
+  const ticket = [{ serviceId: 'sv-a', montantXof: 20000 }, { serviceId: 'sv-b', montantXof: 10000 }, { serviceId: 'sv-hors', montantXof: 50000 }];
+  dit('15 % sur les deux prestations couvertes, rien sur la troisieme', { retire: 4500, combien: 2 }, remiseDeLOffreSurLeTicket(rose, ticket));
+  dit('un ticket sans prestation couverte ne retire rien', { retire: 0, combien: 0 }, remiseDeLOffreSurLeTicket(rose, [{ serviceId: 'sv-hors', montantXof: 50000 }]));
+  dit('sans offre, rien ne bouge', { retire: 0, combien: 0 }, remiseDeLOffreSurLeTicket(null, ticket));
+  dit('RENTREE10 ne court plus le 5 octobre', null, offreDuCode(offres, 'RENTREE10', le5));
+  dit('... et la caisse le dit avec sa date', 'Ce code a couru jusqu’au 30 septembre.', pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'RENTREE10', le5)!, le5));
+  dit('ROSE15 tape le 20 septembre : il vaudra a partir du 1er octobre', 'Ce code vaudra à partir du 1er octobre.',
+    pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'ROSE15', new Date('2026-09-20T10:00:00'))!, new Date('2026-09-20T10:00:00')));
+  dit('une offre non activee se dit telle', 'Cette offre existe, mais elle n’est pas activée.', pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'DORT20', le5)!, le5));
+  dit('un code que personne ne porte reste inconnu', null, offreDuCode(offres, 'INCONNU', le5) ?? offreDuCodePassee(offres, 'INCONNU', le5));
+  const caisse = readFileSync('src/apps/trone/routes/vente/Caisse.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('la caisse cherche l offre quand le code n est pas nominatif', true, /offreDuCode\(offresDeLaBranche, codeTape\)/.test(caisse) && /remiseDeLOffreSurLeTicket\(offreCodee, lignesRemisables\)/.test(caisse));
 }
 
 console.log(ko === 0 ? '\nLe raccord tient : les douze offres se resolvent comme elles se promettent.' : `\n${ko} ECHEC(S).`);

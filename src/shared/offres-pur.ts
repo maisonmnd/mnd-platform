@@ -247,6 +247,46 @@ export function ceQueLeCodeRetire(lignes: readonly LigneRemisee[]): { plein: num
   return { plein, net, retire: plein - net, combien: lignes.filter((l) => l.remisee).length };
 }
 
+/* LE CODE D'UNE OFFRE VAUT AUSSI À LA CAISSE — 1er octobre 2026.
+
+   « Les codes de réductions ROSE15 ne marchent pas sur le Trône » (Yéman). La
+   case « Code de promotion » de la caisse ne connaissait que les codes
+   NOMINATIFS (un code, une tête, 48 heures). Le code d'une OFFRE, écrit sur
+   la carte du site et honoré par la réservation en ligne, y passait pour
+   inconnu : la cliente qui venait sans avoir réservé en ligne perdait sa
+   remise au comptoir, devant tout le monde.
+
+   La caisse lit donc les deux. Et elle applique l'offre avec la règle du
+   site, la même fonction : seules les prestations que l'offre couvre
+   bougent, au pourcentage de l'offre, ligne à ligne. */
+export function remiseDeLOffreSurLeTicket(
+  offre: OffreCodee | null,
+  lignes: readonly { serviceId: string; montantXof: number }[],
+): { retire: number; combien: number } {
+  const r = ceQueLeCodeRetire(lignesDuCode(
+    lignes.map((l) => ({ id: l.serviceId, prixXof: Math.max(0, Math.round(l.montantXof)), ferme: true })),
+    offre,
+  ));
+  return { retire: r.retire, combien: r.combien };
+}
+
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const jourDit = (iso?: string): string => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '';
+  const j = Number(iso.slice(8, 10));
+  return `${j === 1 ? '1er' : j} ${MOIS_DITS[Number(iso.slice(5, 7)) - 1]}`;
+};
+
+/** POURQUOI CE CODE D'OFFRE NE VAUT PAS AUJOURD'HUI, dit avec ses dates : « inconnu »
+    ferait accuser la caisse, « ce code vaut du 1er au 31 octobre » se discute. */
+export function pourquoiLOffreNeCourtPas(o: OffreCodee, now = new Date()): string {
+  if (!o.active) return 'Cette offre existe, mais elle n’est pas activée.';
+  const jour = isoDuJour(now);
+  if (o.du && jour < o.du) return `Ce code vaudra à partir du ${jourDit(o.du)}.`;
+  if (o.au && jour > o.au) return `Ce code a couru jusqu’au ${jourDit(o.au)}.`;
+  return 'Ce code ne court pas aujourd’hui.';
+}
+
 /* CE QUI SORT SUR LE TROTTOIR — 24 septembre 2026. La règle vivait dans
    `maison.ts` (navigateur) ; la construction du site la lit aussi désormais,
    pour écrire les offres dans la page avant qu'un seul script ne tourne. Une
