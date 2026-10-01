@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useInvoices } from '../../../shared/finance';
 import { clientsStore, useClients, ensureInitiePersona, joursDeLaTete, type Client } from '../../../shared/clients';
@@ -15,6 +15,7 @@ import { poseLIdentite } from '../../../shared/journal';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
    (1er octobre 2026, voir shared/ecriture-automatique.ts). */
 import { gardeLEcriture } from '../../../shared/ecriture-automatique';
+import { rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
 export const PROSPECT_SEGMENT = 'Prospect';
 
@@ -31,7 +32,11 @@ export const PROSPECT_SEGMENT = 'Prospect';
 
 export function useReconcileClients(): void {
   const { session } = useAuth();
-  const [appts] = useAppointments();
+  /* MÊME ORDRE SUR TOUS LES POSTES (1er octobre 2026) : ce qui est lu se range d'abord,
+     d'une seule façon, pour que deux postes ne se renvoient pas la même fiche parce
+     qu'ils l'ont lue dans deux ordres (voir shared/ordre-canonique.ts). */
+  const [apptsLus] = useAppointments();
+  const appts = useMemo(() => rendezVousEnOrdre(apptsLus), [apptsLus]);
   const [invoices] = useInvoices();
   const [queue] = useStore(consultationsQueueStore);
   /* Se ré-exécute quand le CRM change — c'est aussi lui qui dit qui est connu. */

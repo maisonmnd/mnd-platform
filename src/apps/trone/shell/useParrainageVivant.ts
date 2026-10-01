@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useClients, useFamilies, clientsStore } from '../../../shared/clients';
 import { depenseFoyerXof } from '../../../shared/accounts';
@@ -17,6 +17,7 @@ import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
    (1er octobre 2026, voir shared/ecriture-automatique.ts). */
 import { gardeLEcriture } from '../../../shared/ecriture-automatique';
+import { parIdentifiant, rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 /* ══ LES AMBASSADRICES, TENUES À JOUR — 28 septembre 2026 ═══════════════
    Maquette validée (« construits », Yéman). Six gestes, en tâche de fond,
    UN PAR PASSAGE : chaque geste écrit puis rend la main, le suivant part au
@@ -37,9 +38,15 @@ import { gardeLEcriture } from '../../../shared/ecriture-automatique';
    carnet, ni les récompenses avant le réglage. */
 export function useParrainageVivant(): void {
   const { session } = useAuth();
-  const [clients] = useClients();
-  const [demandes] = useDemandes();
-  const [rdvs] = useAppointments();
+  /* MÊME ORDRE SUR TOUS LES POSTES (1er octobre 2026) : ce qui est lu se range d'abord,
+     d'une seule façon, pour que deux postes ne se renvoient pas la même fiche parce
+     qu'ils l'ont lue dans deux ordres (voir shared/ordre-canonique.ts). */
+  const [clientsLus] = useClients();
+  const [demandesLues] = useDemandes();
+  const [rdvsLus] = useAppointments();
+  const clients = useMemo(() => parIdentifiant(clientsLus), [clientsLus]);
+  const demandes = useMemo(() => parIdentifiant(demandesLues), [demandesLues]);
+  const rdvs = useMemo(() => rendezVousEnOrdre(rdvsLus), [rdvsLus]);
   const [services] = useServices();
   const [produits] = useProducts();
   const [reglage] = useParrainage();

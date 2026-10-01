@@ -7,6 +7,8 @@
    horloge qu'il mene lui-meme, et verifie que chaque automatisme du Trone
    passe bien par elle. */
 import { readFileSync, readdirSync } from 'node:fs';
+import { parIdentifiant, rendezVousEnOrdre } from '../src/shared/ordre-canonique';
+import { lignees } from '../src/shared/ambassade';
 import {
   peutEcrireSeul, automatismesEnPause, gardeLEcriture, oublieLesPassages,
   PASSAGES_AU_PLUS, PAUSE_MS, FENETRE_MS, MEME_PASSAGE_MS,
@@ -102,6 +104,39 @@ oublieLesPassages();
     if (gardees.length === 0) nus.push(`${f} : aucune ecriture gardee`);
   }
   dit('aucun automatisme n ecrit dans un magasin sans passer par la regle', [], nus);
+}
+
+/* ── 7. Un calcul qui ecrit seul ne depend pas de l'ordre de lecture ──
+   Deux postes a jour lisaient les memes lignes dans deux ordres, produisaient deux
+   resumes, et se renvoyaient la fiche sans fin (1er octobre 2026). */
+{
+  const rdvs = [
+    { id: 'b', date: '2026-10-02', time: '09:00' }, { id: 'a', date: '2026-10-02', time: '09:00' },
+    { id: 'c', date: '2026-10-01', time: '14:00' }, { id: 'd', date: '2026-10-02', time: '08:00' },
+  ];
+  const melange = [rdvs[2], rdvs[0], rdvs[3], rdvs[1]];
+  dit('des rendez-vous lus dans deux ordres se rangent pareil', rendezVousEnOrdre(rdvs).map((r) => r.id), rendezVousEnOrdre(melange).map((r) => r.id));
+  dit('... par jour, puis par heure, puis par identifiant', ['c', 'd', 'a', 'b'], rendezVousEnOrdre(melange).map((r) => r.id));
+  dit('des fiches lues dans deux ordres se rangent pareil', ['a', 'b', 'c'], parIdentifiant([{ id: 'c' }, { id: 'a' }, { id: 'b' }]).map((f) => f.id));
+  dit('le rangement rend une copie, le magasin ne bouge pas', ['b', 'a', 'c', 'd'], rdvs.map((r) => r.id));
+
+  /* LA PANNE ELLE-MEME, sur le vrai calcul : une marraine et deux filleules sans date.
+     Lues dans deux ordres SANS rangement, les lignees different ; rangees, elles sont egales. */
+  const marraine = { id: 'm', name: 'Awa M', codeParrain: 'AWA-K7M' };
+  const f1 = { id: 'f1', name: 'Bintou B', parraineePar: 'AWA-K7M' };
+  const f2 = { id: 'f2', name: 'Chantal C', parraineePar: 'AWA-K7M' };
+  // deno-lint-ignore no-explicit-any
+  const calcule = (fiches: any[]) => JSON.stringify([...lignees(fiches as any, [], [])].map(([k, l]) => [k, l.filleules.map((f) => f.cle)]));
+  const ordreA = [marraine, f1, f2];
+  const ordreB = [f2, marraine, f1];
+  dit('SANS rangement, deux ordres de lecture donnent deux lignees (la panne)', false, calcule(ordreA) === calcule(ordreB));
+  dit('AVEC rangement, les deux postes calculent la meme lignee', true, calcule(parIdentifiant(ordreA)) === calcule(parIdentifiant(ordreB)));
+
+  const lit = (f: string) => readFileSync(`src/apps/trone/shell/${f}`, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('le parrainage range ses fiches, ses demandes et ses rendez-vous', true,
+    /parIdentifiant\(clientsLus\)/.test(lit('useParrainageVivant.ts')) && /parIdentifiant\(demandesLues\)/.test(lit('useParrainageVivant.ts')) && /rendezVousEnOrdre\(rdvsLus\)/.test(lit('useParrainageVivant.ts')));
+  dit('le persona range ses rendez-vous', true, /rendezVousEnOrdre\(apptsLus\)/.test(lit('usePersonaVivant.ts')));
+  dit('les fiches rangent le carnet avant de lire le jour prefere', true, /rendezVousEnOrdre\(apptsLus\)/.test(lit('useReconcileClients.ts')));
 }
 
 console.log(ko === 0 ? '\nLes automatismes tiennent leur langue.' : `\n${ko} controle(s) en echec.`);

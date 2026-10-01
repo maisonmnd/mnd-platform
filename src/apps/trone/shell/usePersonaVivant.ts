@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useServices } from '../../../shared/catalog';
 import { clientsStore, useClients, usePersonas } from '../../../shared/clients';
@@ -7,6 +7,7 @@ import { useAuth } from '../../../shared/auth';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
    (1er octobre 2026, voir shared/ecriture-automatique.ts). */
 import { gardeLEcriture } from '../../../shared/ecriture-automatique';
+import { rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 /* LE PERSONA SUIT LE CARNET — Le Trône, 8 août 2026.
 
    À chaque rendez-vous ajouté ou honoré, la Maison relit les signaux de la
@@ -37,7 +38,11 @@ import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 
 export function usePersonaVivant(): void {
   const { session } = useAuth();
-  const [appts] = useAppointments();
+  /* MÊME ORDRE SUR TOUS LES POSTES (1er octobre 2026) : ce qui est lu se range d'abord,
+     d'une seule façon, pour que deux postes ne se renvoient pas la même fiche parce
+     qu'ils l'ont lue dans deux ordres (voir shared/ordre-canonique.ts). */
+  const [apptsLus] = useAppointments();
+  const appts = useMemo(() => rendezVousEnOrdre(apptsLus), [apptsLus]);
   const [clients] = useClients();
   const [personas] = usePersonas();
   const [services] = useServices();
