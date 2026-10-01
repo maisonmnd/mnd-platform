@@ -1,6 +1,7 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
+import { litToutesLesPages } from './lecture-entiere';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -675,6 +676,15 @@ export function bindCollection<T extends WithId>(
   if (!supabase) return;
   const sb = supabase;
 
+  /* TOUTE LA TABLE, JAMAIS UNE TRANCHE — 1er octobre 2026. Supabase plafonne chaque
+     réponse à mille lignes ; depuis le millième rendez-vous, un `select` nu lisait
+     une tranche en la prenant pour la table (voir lecture-entiere.ts). Les quatre
+     lectures de ce magasin passent par ici. */
+  const litTouteLaTable = () => litToutesLesPages<{ id: string; data: unknown }>((apres, taille) => {
+    const q = sb.from(table).select('id,data').order('id', { ascending: true }).limit(taille);
+    return apres === null ? q : q.gt('id', apres);
+  });
+
   let applyingRemote = false;
   let lastPushed = new Map<string, string>();
   /* AUCUNE POUSSÉE AVANT D'AVOIR LU. Tant que le poste n'a pas vu le serveur,
@@ -773,7 +783,7 @@ export function bindCollection<T extends WithId>(
          local) connaît toutes les lignes du serveur et passe sans obstacle. */
       const massif = upserts.length >= 10 && upserts.length * 4 >= prev.size;
       if (massif) {
-        const { data: distant } = await sb.from(table).select('id,data');
+        const { data: distant } = await litTouteLaTable();
         const inconnues = (distant ?? []).filter((r) => !next.has((r as { id: string }).id));
         if (inconnues.length) {
           console.warn(
@@ -865,7 +875,7 @@ export function bindCollection<T extends WithId>(
            On va donc rechercher la vérité au serveur et on s'aligne dessus.
            Le poste redevient sain sans qu'on ait à lui demander quoi que ce
            soit, et rien n'a été détruit. */
-        const { data: distant } = await sb.from(table).select('id,data');
+        const { data: distant } = await litTouteLaTable();
         const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
         applyingRemote = true;
         store.set(items2);
@@ -1034,7 +1044,7 @@ export function bindCollection<T extends WithId>(
       session = (await sb.auth.getSession()).data.session;
     }
     if (!session) return;
-    const { data, error } = await sb.from(table).select('id,data');
+    const { data, error } = await litTouteLaTable();
     if (error) {
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
          sur un poste qui travaillait en realite sur son seul cache local — table
@@ -1091,7 +1101,7 @@ export function bindCollection<T extends WithId>(
     }
     if (!force && Date.now() - lastRefetch < 15000) return;
     lastRefetch = Date.now();
-    const { data, error } = await sb.from(table).select('id,data');
+    const { data, error } = await litTouteLaTable();
     if (error || !data) return;
     const items = data.map((r) => (r as { data: T }).data);
     /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
