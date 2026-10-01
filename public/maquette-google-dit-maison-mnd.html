@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Google dit Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+
+/* en-tête */
+.tete{padding:40px 0 14px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:60ch}
+/* LE VERROU COUCHÉ DE LA MAISON (25 septembre 2026) : le fichier livré, jamais
+   redessiné. 1335 x 418, on ne donne que la largeur, la hauteur suit. Au-dessus
+   du plancher de 123 px. */
+.verrou{display:block;width:176px;height:auto;margin:0 0 22px}
+
+/* compteur des gestes */
+.jauge{display:flex;gap:8px;align-items:center;margin:26px 0 6px;flex-wrap:wrap}
+.jauge b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400;font-variant-numeric:tabular-nums}
+.jauge span{font-size:13.5px;color:var(--encre-doux)}
+.pastilles{display:flex;gap:5px;margin-left:auto}
+.pastilles i{width:26px;height:9px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet);display:block}
+.pastilles i.prise{background:var(--indigo);border-color:var(--indigo)}
+
+h2{font-size:clamp(21px,3vw,27px);margin-top:42px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:66ch}
+
+/* tableaux */
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:11px 10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.quoi{color:var(--indigo);font-weight:400}
+td.etat{white-space:nowrap;text-align:right}
+.etiq{display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.etiq.bon{background:var(--indigo);color:#F6F1E7}
+.etiq.reste{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.atrouver{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* les étapes, cochables */
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li p b{display:inline;font-size:inherit;font-weight:500}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait > b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+/* encadrés */
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:20px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde p + p{margin-top:8px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+  td.etat{text-align:left;white-space:normal}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.pastilles,.jauge{display:none}
+  ol.pas li{break-inside:avoid;background:#fff;padding-right:14px}
+  h2{break-after:avoid;margin-top:22px}
+  .garde,.regle{break-inside:avoid}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .regle small{color:var(--encre-doux)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+    <p class="sur">Maison MND · Google &amp; Ma Couronne</p>
+    <h1>Google dit « Maison MND »</h1>
+    <p class="ligne">Quand une cliente entre dans Ma Couronne par « Continuer avec Google », Google lui annonce une adresse technique. Sept gestes pour qu'il annonce la Maison.</p>
+  </header>
+
+  <div class="jauge">
+    <b id="compte">0 / 7</b>
+    <span>gestes faits. Comptez un quart d'heure, puis quelques jours d'examen chez Google.</span>
+    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <h2>Ce qui se passe</h2>
+  <p class="cap">Le nom <kbd>rxjarbxjiogijmkywfsr.supabase.co</kbd> est l'adresse de la base de données de la Maison : c'est là que Google renvoie la cliente une fois qu'elle a choisi son compte. Tant que Google n'a pas vérifié qui se tient derrière l'application, il affiche cette adresse. Une fois la marque vérifiée, il affiche le nom et le logo à la place.</p>
+
+  <div class="garde">
+    <b>Rien n'est en panne</b>
+    <p>L'entrée par Google fonctionne, et continuera de fonctionner pendant toute la démarche. Seul l'affichage change, le jour où Google donne son accord.</p>
+  </div>
+
+  <h2>Les deux voies</h2>
+  <table>
+    <thead><tr><th>Voie</th><th>Ce que Google affichera</th><th>Ce qu'elle coûte</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="quoi">La vérification de marque <span class="etiq bon">recommandée</span></td>
+        <td>« Maison MND », avec le logo.</td>
+        <td>Rien. Quelques jours d'examen.</td>
+      </tr>
+      <tr>
+        <td class="quoi">Un domaine personnalisé chez Supabase</td>
+        <td>Une adresse en maisonmnd.com, sans le nom ni le logo.</td>
+        <td>Une offre payante de Supabase, chaque mois.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Ce qui est prêt</h2>
+  <p class="cap">Google examine quatre choses : le domaine, la page d'accueil, la politique de données et le logo.</p>
+  <table>
+    <thead><tr><th>Point</th><th>État, le 1er octobre</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="quoi">Le domaine</td>
+        <td>maisonmnd.com est validé chez Google depuis ce soir, par la Search Console.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">La page d'accueil</td>
+        <td>Elle présente la Maison et cite sa politique de données en pied de page.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">Le logo carré</td>
+        <td>120 sur 120, comme Google le demande. Sur le bureau, dossier « Pour Google - nom Maison MND ».</td>
+        <td class="etat"><span class="etiq bon">prêt</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">La politique de données</td>
+        <td>Elle parle du site, pas encore de Ma Couronne ni de l'entrée par Google. Google lit cette page pendant l'examen.</td>
+        <td class="etat"><span class="etiq reste">à compléter</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">Le compte Google du projet</td>
+        <td><span class="atrouver">Celui qui a créé « Continuer avec Google » en août : je ne le connais pas.</span></td>
+        <td class="etat"><span class="etiq reste">à retrouver</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="garde">
+    <b>De mon côté, sur votre mot, avant le geste 7</b>
+    <p>J'ajoute à la politique de données un paragraphe sur Ma Couronne : ce que Google transmet quand une cliente entre par lui (son nom, son adresse e-mail, sa photo de profil), à quoi cela sert (ouvrir son compte et la reconnaître), et ce que la Maison ne reçoit jamais (son mot de passe, ses courriers, ses contacts).</p>
+  </div>
+
+  <h2>À faire, dans cet ordre</h2>
+  <p class="cap">Tout se passe sur <kbd>console.cloud.google.com</kbd>. Les libellés sont donnés en anglais, comme votre console les affiche. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
+  <ol class="pas" id="pas">
+    <li><b>Ouvrir le bon projet</b><p>Sur <kbd>console.cloud.google.com</kbd>, avec <span class="atrouver">le compte Google qui a créé la connexion en août</span>. Le sélecteur de projet est dans la barre du haut, à gauche.</p><p>Pour reconnaître le bon projet : menu ☰, <b>Google Auth Platform</b>, <b>Clients</b>. Il porte un client dont l'identifiant commence par <kbd>436874099098</kbd>. N'ouvrez pas ce client, regardez seulement la liste.</p></li>
+    <li><b>Ouvrir Branding</b><p>Menu ☰, <b>Google Auth Platform</b>, <b>Branding</b>.</p></li>
+    <li><b>Le nom, l'adresse de contact, le logo</b><p>« App name » : <kbd>Maison MND</kbd>. « User support email » : choisissez l'adresse que la liste propose. « App logo » : envoyez <kbd>logo-maison-mnd-120.png</kbd>, depuis le dossier « Pour Google - nom Maison MND » du bureau.</p></li>
+    <li><b>Les trois adresses du site</b><p>« Application home page » : <kbd>https://maisonmnd.com/</kbd></p><p>« Application privacy policy link » : <kbd>https://maisonmnd.com/confidentialite/</kbd></p><p>« Application terms of service link » : <kbd>https://maisonmnd.com/conditions/</kbd></p></li>
+    <li><b>Le domaine autorisé, puis enregistrer</b><p>Sous « Authorized domains », <b>Add domain</b> : <kbd>maisonmnd.com</kbd>. Laissez la ligne <kbd>supabase.co</kbd> qui s'y trouve déjà. « Developer contact information » : <kbd>direction@maisonmnd.com</kbd>. Puis <b>Save</b>.</p></li>
+    <li><b>Mettre l'application en production</b><p>Menu de gauche, <b>Audience</b>. Si « Publishing status » dit « Testing », cliquez <b>Publish app</b>, puis Confirm. S'il dit déjà « In production », ne touchez à rien.</p></li>
+    <li><b>Demander la vérification</b><p>Revenez sur <b>Branding</b> et cliquez <b>Verify branding</b> (le même bouton se trouve dans « Verification Center »). Google contrôle le domaine, les pages et le logo. La réponse arrive tout de suite, ou par courrier sous quelques jours ouvrés, sur l'adresse du compte.</p></li>
+  </ol>
+
+  <div class="garde mur">
+    <b>Quatre choses à ne pas toucher</b>
+    <p>Le client de la page « Clients » : son identifiant, son secret et ses adresses de retour. L'entrée de Ma Couronne en dépend.</p>
+    <p>La ligne <kbd>supabase.co</kbd> des domaines autorisés : sans elle, Google refuse la connexion.</p>
+    <p>La page « Data Access » : n'y ajoutez aucune autorisation. Chaque autorisation de plus allonge l'examen de plusieurs semaines.</p>
+    <p>Les captures : ne m'envoyez jamais l'écran où le secret du client est lisible.</p>
+  </div>
+
+  <h2>Si Google refuse le domaine</h2>
+  <p class="cap">Le domaine doit être validé dans la Search Console par le compte qui possède le projet. Si vous avez validé maisonmnd.com avec un autre compte, ouvrez la Search Console avec celui-là, puis <kbd>Settings</kbd>, <kbd>Users and permissions</kbd>, <kbd>Add user</kbd> : l'adresse du compte du projet, en « Owner ». Puis redemandez la vérification.</p>
+
+  <h2>Ce qu'il faut attendre</h2>
+  <table>
+    <thead><tr><th>Quand</th><th>Ce que voit la cliente</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">Pendant l'examen</td><td>Rien ne change : l'adresse technique, et l'entrée fonctionne.</td></tr>
+      <tr><td class="quoi">Après l'accord</td><td>« Choose an account to continue to Maison MND », avec le logo.</td></tr>
+      <tr><td class="quoi">Plus tard</td><td>Changer le nom ou le logo relance un examen. On n'y touche que pour une bonne raison.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>La règle, pour la suite</h2>
+  <div class="regle">
+    <p>Ce qu'une cliente lit avant d'entrer porte le nom de la Maison.</p>
+    <small>Un nom technique à l'endroit où l'on donne son compte fait hésiter, et c'est à cela qu'on reconnaît une contrefaçon. Le nom et le logo vérifiés disent à la cliente qu'elle est au bon endroit.</small>
+  </div>
+
+  <div class="pied">
+    <span>Maison MND · maisonmnd.com</span>
+    <span>Document de travail, 1er octobre 2026.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son stockage
+   (fenêtre privée, site bloqué), la page marche quand même : on coche, ça ne
+   se garde simplement pas. */
+const CLE = 'mnd_google_dit_maison_mnd_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+const pastilles = [...document.querySelectorAll('#pastilles i')];
+const compte = document.getElementById('compte');
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+
+const dit = () => {
+  const n = items.filter((x) => x.classList.contains('fait')).length;
+  compte.textContent = n + ' / ' + items.length;
+  pastilles.forEach((p, i) => p.classList.toggle('prise', i < n));
+};
+
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+    dit();
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+dit();
+</script>
+</body>
+</html>
