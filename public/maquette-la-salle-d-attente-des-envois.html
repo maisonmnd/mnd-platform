@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>La salle d'attente des envois &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --indigo:#1E2150; --indigo-f:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#7C4C2C; --cuivre-f:#FAF1E9; --cuivre-p:#E3C9AE;
+    --encre:#2A2722; --encre-d:#6B665D; --filet:#D9CFBC;
+    --vert:#4A6B52; --vert-f:#EEF3EE;
+    --serif:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans:'Jost', 'Century Gothic', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1060px; margin:0 auto; padding:40px 20px 90px; }
+  /* LE VERROU COUCHÉ DE LA MAISON : le fichier livré, jamais redessiné. */
+  .verrou { display:block; width:176px; height:auto; margin:0 0 26px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(34px,5.4vw,54px); line-height:1.04; letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.3vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 10px; text-wrap:balance; }
+  .chapeau { max-width:68ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre-fonce); letter-spacing:.1em; margin:0 0 4px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 20px; }
+  .legende { font-size:13px; color:var(--encre-d); margin:12px 0 0; max-width:78ch; }
+
+  .defile { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.large { min-width:720px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:8px 10px; border-bottom:1px solid var(--filet); }
+  td { padding:10px 10px; border-bottom:1px solid #EAE2D2; vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  td.q { color:var(--indigo); font-weight:400; }
+  td.h { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .etq { display:inline-block; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .etq.non { background:var(--cuivre-f); color:var(--cuivre-fonce); border:1px solid var(--cuivre-p); }
+  .etq.oui { background:var(--indigo); color:#F3EDE1; }
+  .etq.calme { background:var(--indigo-f); color:var(--indigo); border:1px solid #C9CCE0; }
+  .etq.tenu { background:var(--cuivre); color:#fff; }
+
+  /* ── l'écran simulé ── */
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:#fff; box-shadow:0 14px 40px rgba(30,33,80,.08); overflow:hidden; }
+  .ecran__barre { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:10px 16px; border-bottom:1px solid var(--filet); background:var(--ivoire); }
+  .ecran__barre i { font-style:normal; color:var(--cuivre-fonce); }
+  .pastille { margin-left:auto; display:inline-flex; align-items:center; gap:8px; text-transform:none; letter-spacing:0; font-size:12.5px; color:var(--cuivre-fonce); background:var(--cuivre-f); border:1px solid var(--cuivre-p); border-radius:999px; padding:4px 12px; cursor:pointer; }
+  .pastille::before { content:''; width:8px; height:8px; border-radius:999px; background:var(--cuivre); }
+  .pastille.vide { color:var(--encre-d); background:#fff; border-color:var(--filet); }
+  .pastille.vide::before { background:var(--filet); }
+  .ecran__corps { padding:18px 18px 20px; }
+  .compte { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+  @media (max-width:860px) { .compte { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width:480px) { .compte { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .compte div { min-width:0; border:1px solid var(--filet); border-radius:3px; padding:9px 12px; }
+  .compte small { display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .compte b { font-family:var(--serif); font-weight:500; font-size:26px; color:var(--indigo); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .compte .neuf { border-color:var(--cuivre); background:var(--cuivre-f); }
+  .compte .neuf small, .compte .neuf b { color:var(--cuivre-fonce); }
+
+  .salle__tete { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+  .salle__tete b { font-family:var(--serif); font-weight:500; font-size:21px; color:var(--indigo); }
+  .salle__tete span { font-size:12.5px; color:var(--encre-d); }
+  .tout { margin-left:auto; }
+  .envoi { display:grid; grid-template-columns:118px minmax(0,1fr) auto; gap:14px; align-items:center; padding:13px 2px; border-top:1px solid #EAE2D2; }
+  @media (max-width:700px) { .envoi { grid-template-columns:1fr; gap:8px; } }
+  .envoi__quand { font-size:12.5px; color:var(--cuivre-fonce); font-variant-numeric:tabular-nums; }
+  .envoi__quand b { display:block; font-family:var(--serif); font-weight:500; font-size:22px; line-height:1.05; color:var(--indigo); }
+  .envoi__quoi b { font-weight:500; color:var(--indigo); }
+  .envoi__quoi p { margin:2px 0 0; font-size:13px; color:var(--encre-d); }
+  .envoi__quoi q { quotes:'« ' ' »'; font-style:italic; }
+  .envoi__gestes { display:flex; gap:8px; flex-wrap:wrap; }
+  .envoi.tenu { background:var(--cuivre-f); margin:0 -18px; padding:13px 20px; }
+  .envoi.tenu .envoi__quand b { color:var(--cuivre-fonce); }
+  .envoi.calme .envoi__quand b { color:var(--encre-d); }
+  .envoi.parti { opacity:.45; }
+  .bouton { font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; padding:8px 14px; border-radius:3px; border:1px solid var(--filet); background:#fff; color:var(--encre); white-space:nowrap; }
+  .bouton:hover { border-color:var(--cuivre); }
+  .bouton.cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .bouton.discret { background:transparent; border-color:transparent; color:var(--encre-d); text-decoration:underline; text-underline-offset:3px; letter-spacing:.06em; text-transform:none; font-size:12.5px; padding:8px 4px; }
+
+  /* ── la journée, et ses heures calmes ── */
+  .jour { position:relative; height:54px; border:1px solid var(--filet); border-radius:3px; background:#fff; overflow:hidden; }
+  .jour .calme { position:absolute; top:0; bottom:0; background:var(--indigo); }
+  .jour .calme span { position:absolute; left:8px; top:6px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#F3EDE1; white-space:nowrap; }
+  .jour .ouvert { position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; font-size:12.5px; color:var(--encre-d); }
+  .jour .point { position:absolute; bottom:6px; width:10px; height:10px; border-radius:999px; background:var(--cuivre); transform:translateX(-50%); border:2px solid #fff; }
+  .heures { display:flex; justify-content:space-between; font-size:11px; color:var(--encre-d); font-variant-numeric:tabular-nums; margin-top:5px; }
+
+  .grille { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px) { .grille { grid-template-columns:1fr; } }
+  .carte { min-width:0; border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:15px 17px; font-size:14px; color:var(--encre-d); }
+  .carte b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin-bottom:3px; }
+  .regle { background:var(--indigo); color:#F3EDE1; padding:22px 24px; border-radius:4px; }
+  .regle p { font-family:var(--serif); font-size:20px; line-height:1.4; margin:0; }
+  .regle p + p { margin-top:8px; }
+  .atrancher { border-left:2px solid var(--cuivre); background:var(--cuivre-f); padding:16px 18px; border-radius:0 4px 4px 0; font-size:14px; color:var(--encre-d); }
+  .atrancher b { color:var(--cuivre-fonce); font-weight:500; }
+  .atrancher ol { margin:8px 0 0; padding-left:20px; }
+  .atrancher li + li { margin-top:4px; }
+  .pied { margin-top:56px; padding-top:18px; border-top:1px solid var(--filet); font-size:12px; color:var(--encre-d); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+</style>
+
+<div class="page">
+  <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+  <p class="eyebrow">Le Trône · Conversations · Maquette à valider</p>
+  <h1>La salle d'attente des envois</h1>
+  <p class="chapeau">Aujourd'hui, un message automatique part vers la cliente sans prévenir, à toute heure, et rien ne peut le retenir. Demain, <b>il attend à la vue de tous avant de partir</b>, une main peut l'arrêter, et rien ne part la nuit.</p>
+
+  <section>
+    <p class="num">I</p>
+    <h2>Ce qui se passe aujourd'hui</h2>
+    <p class="intro">Lu dans le code, le 2 octobre 2026. La confirmation est le cas qui blesse : un rendez-vous posé à minuit depuis le Trône réveille la cliente dans les dix minutes.</p>
+    <div class="defile">
+      <table class="large">
+        <thead><tr><th>Message</th><th>Quand il part</th><th>Peut-on l'arrêter ?</th></tr></thead>
+        <tbody>
+          <tr><td class="q">Confirmation d'un rendez-vous</td><td>Dans les dix minutes qui suivent sa pose, <b>à toute heure</b>, minuit compris.</td><td><span class="etq non">non</span></td></tr>
+          <tr><td class="q">Rappel de la veille</td><td>À 18 h, tous ensemble.</td><td><span class="etq non">non</span></td></tr>
+          <tr><td class="q">Reprise proposée</td><td>À 18 h, avec les rappels.</td><td><span class="etq non">non</span></td></tr>
+          <tr><td class="q">Demande d'avis Google</td><td>Chaque heure, de 9 h 30 à 21 h 30.</td><td><span class="etq non">tout ou rien</span> par l'interrupteur des Paramètres</td></tr>
+          <tr><td class="q">Fin de paquet</td><td>Quand le Trône le juge, poste ouvert.</td><td><span class="etq non">non</span></td></tr>
+          <tr><td class="q">Réponse à une réservation faite par la cliente (site, Ma Couronne)</td><td>Aussitôt.</td><td>Non, et c'est voulu : elle vient d'agir, elle attend sa réponse.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">II</p>
+    <h2>L'écran : ce qui va partir, avant que ça parte</h2>
+    <p class="intro">Dans Conversations, l'écran des envois gagne une première case, <b>Vont partir</b>, et sa liste. Chaque message y passe dix minutes. Les boutons ci-dessous répondent : essayez.</p>
+
+    <div class="ecran">
+      <div class="ecran__barre">Le Trône <i>·</i> Conversations <i>·</i> Les envois
+        <span class="pastille" id="pastille" title="Visible sur tous les écrans du Trône">3 envois partent · le premier dans 4 min</span>
+      </div>
+      <div class="ecran__corps">
+        <div class="compte">
+          <div class="neuf"><small>Vont partir</small><b id="n-attente">3</b></div>
+          <div><small>Retenus</small><b id="n-tenus">1</b></div>
+          <div><small>Partis</small><b>12</b></div>
+          <div><small>Remis</small><b>11</b></div>
+          <div><small>Lus</small><b>8</b></div>
+          <div><small>À regarder</small><b>0</b></div>
+        </div>
+
+        <div class="salle__tete">
+          <b>La salle d'attente</b>
+          <span>Un message y reste dix minutes. Passé ce délai, il part seul, sauf si une main l'a retenu.</span>
+          <button class="bouton tout" type="button" id="tout-retenir">Tout retenir</button>
+        </div>
+
+        <div class="envoi" data-etat="attente">
+          <div class="envoi__quand">part dans<b>4 min</b>à 0 h 16</div>
+          <div class="envoi__quoi"><b>Confirmation · Awa K.</b><p>Rendez-vous du jeudi 8 oct. à 10 h, posé par vous à 0 h 06. <q>Bonjour Awa, votre rendez-vous est confirmé…</q></p></div>
+          <div class="envoi__gestes"><button class="bouton cuivre" type="button" data-geste="retenir">Retenir</button><button class="bouton" type="button" data-geste="envoyer">Envoyer maintenant</button></div>
+        </div>
+        <div class="envoi" data-etat="attente">
+          <div class="envoi__quand">part dans<b>7 min</b>à 0 h 19</div>
+          <div class="envoi__quoi"><b>Confirmation · Bintou D.</b><p>Rendez-vous du samedi 10 oct. à 14 h, posé par vous à 0 h 09.</p></div>
+          <div class="envoi__gestes"><button class="bouton cuivre" type="button" data-geste="retenir">Retenir</button><button class="bouton" type="button" data-geste="envoyer">Envoyer maintenant</button></div>
+        </div>
+        <div class="envoi calme" data-etat="calme">
+          <div class="envoi__quand">attend<b>8 h 00</b><span class="etq calme">heures calmes</span></div>
+          <div class="envoi__quoi"><b>Demande d'avis · Chantal A.</b><p>Première venue soldée hier soir à 21 h 40. Le message attend le matin.</p></div>
+          <div class="envoi__gestes"><button class="bouton cuivre" type="button" data-geste="retenir">Retenir</button><button class="bouton" type="button" data-geste="envoyer">Envoyer quand même</button></div>
+        </div>
+        <div class="envoi tenu" data-etat="tenu">
+          <div class="envoi__quand"><span class="etq tenu">retenu</span><b>ne part pas</b>par Yéman, 23 h 52</div>
+          <div class="envoi__quoi"><b>Confirmation · Dorcas H.</b><p>Rendez-vous posé par erreur sur la mauvaise fiche. Il attend ici tant qu'une main ne décide pas.</p></div>
+          <div class="envoi__gestes"><button class="bouton" type="button" data-geste="relacher">Relâcher</button><button class="bouton discret" type="button" data-geste="supprimer">Ne jamais l'envoyer</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="legende"><b>La pastille en haut à droite</b> vit dans la barre du Trône, sur tous les écrans : dès qu'un message entre dans la salle, elle s'allume et dit dans combien de temps part le premier. Un clic mène ici.</p>
+  </section>
+
+  <section>
+    <p class="num">III</p>
+    <h2>Les heures calmes</h2>
+    <p class="intro">Entre le soir et le matin, <b>rien ne part seul</b>. Un message né la nuit attend l'ouverture de la fenêtre, visible dans la salle, et part à 8 h si personne ne l'a retenu. Vous le voyez donc avant la cliente.</p>
+    <div class="jour" aria-hidden="true">
+      <div class="calme" style="left:0;width:33.33%"><span>Heures calmes</span></div>
+      <div class="ouvert" style="left:33.33%;width:50%">Les messages partent, après dix minutes de salle</div>
+      <div class="calme" style="left:83.33%;width:16.67%"><span>Heures calmes</span></div>
+      <div class="point" style="left:1%" title="Rendez-vous posé à 0 h 06"></div>
+      <div class="point" style="left:33.33%" title="Il part à 8 h"></div>
+    </div>
+    <div class="heures"><span>0 h</span><span>4 h</span><span>8 h</span><span>12 h</span><span>16 h</span><span>20 h</span><span>24 h</span></div>
+    <p class="legende">Le rendez-vous posé à 0 h 06 (premier point) ne réveille personne : sa confirmation part à 8 h (second point). Le rappel de 18 h et les avis de la journée ne sont pas touchés.</p>
+  </section>
+
+  <section>
+    <p class="num">IV</p>
+    <h2>Ce qui passe par la salle, et ce qui n'y passe pas</h2>
+    <div class="grille">
+      <div class="carte"><b class="t">Passe par la salle</b>Tout ce que la Maison envoie d'elle-même : la confirmation d'un rendez-vous posé depuis le Trône, le rappel de la veille, la reprise proposée, la demande d'avis, la fin de paquet.</div>
+      <div class="carte"><b class="t">N'y passe pas</b>La réponse à une cliente qui vient de réserver elle-même, sur le site ou dans Ma Couronne. Les messages écrits à la main dans un fil. Les codes de connexion par courrier.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">V</p>
+    <h2>Les règles</h2>
+    <div class="regle">
+      <p>Un message retenu ne part jamais seul.</p>
+      <p>Un message attendu se relit avant de partir.</p>
+      <p>Un message ne part qu'une fois.</p>
+    </div>
+    <p class="legende"><b>Retenu</b> : il reste dans la salle jusqu'à ce qu'une main le relâche ou l'écarte ; si son rendez-vous passe entre-temps, il s'efface, on ne confirme pas le passé. <b>Relu</b> : si le rendez-vous est déplacé pendant l'attente, le message porte la nouvelle heure ; s'il est annulé, le message disparaît. <b>Une fois</b> : c'est déjà la règle du journal, elle ne change pas.</p>
+  </section>
+
+  <section>
+    <p class="num">VI</p>
+    <h2>Ce que cela demande</h2>
+    <div class="grille">
+      <div class="carte"><b class="t">De mon côté</b>Un « facteur » qui se réveille chaque minute et envoie ce dont l'heure est venue. Les trois fonctions d'aujourd'hui (confirmation, rappels, avis) déposent dans la salle au lieu d'envoyer. L'écran et la pastille. Aucune table nouvelle : le journal des envois suffit.</div>
+      <div class="carte"><b class="t">De votre côté</b>Recoller quatre fonctions entières dans Supabase, et poser un réveil de plus. Je vous donnerai la marche à suivre cochable, comme pour les autres.</div>
+    </div>
+    <p class="legende"><b>Le délai réel.</b> La confirmation est repérée par un passage toutes les dix minutes : un rendez-vous posé à 0 h 06 entre dans la salle au plus tard à 0 h 10, y reste dix minutes, et part donc entre dix et vingt minutes après sa pose. Je peux resserrer ce passage à cinq minutes si vous voulez un délai plus court.</p>
+  </section>
+
+  <section>
+    <div class="atrancher">
+      <b>Quatre choses à trancher avant que je construise</b>
+      <ol>
+        <li>Le temps passé dans la salle : cinq, dix ou quinze minutes.</li>
+        <li>Les heures calmes : de 20 h à 8 h, ou une autre fenêtre.</li>
+        <li>La réponse à une cliente qui réserve elle-même : immédiate, ou par la salle aussi.</li>
+        <li>Comment vous êtes prévenue : la pastille seule, ou aussi une notification sur votre téléphone.</li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="pied">
+    <span>Maison MND · Le Trône</span>
+    <span>Maquette du 2 octobre 2026, à valider avant construction.</span>
+  </div>
+</div>
+
+<script>
+/* Les gestes de la salle, pour les essayer. Rien n'est envoyé : c'est une maquette. */
+const salle = document.querySelector('.ecran__corps');
+const dit = () => {
+  const attente = salle.querySelectorAll('.envoi[data-etat="attente"], .envoi[data-etat="calme"]').length;
+  const tenus = salle.querySelectorAll('.envoi[data-etat="tenu"]').length;
+  document.getElementById('n-attente').textContent = attente;
+  document.getElementById('n-tenus').textContent = tenus;
+  const p = document.getElementById('pastille');
+  p.textContent = attente === 0 ? 'Aucun envoi en attente' : attente + (attente > 1 ? ' envois partent' : ' envoi part') + ' · voir la salle';
+  p.classList.toggle('vide', attente === 0);
+};
+const retient = (e) => {
+  e.dataset.avant = e.dataset.etat;
+  e.dataset.etat = 'tenu';
+  e.classList.remove('calme');
+  e.classList.add('tenu');
+  e.querySelector('.envoi__quand').innerHTML = '<span class="etq tenu">retenu</span><b>ne part pas</b>par vous, à l’instant';
+  e.querySelector('.envoi__gestes').innerHTML = '<button class="bouton" type="button" data-geste="relacher">Relâcher</button><button class="bouton discret" type="button" data-geste="supprimer">Ne jamais l’envoyer</button>';
+};
+salle.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-geste]');
+  if (!b) return;
+  const e = b.closest('.envoi');
+  const geste = b.dataset.geste;
+  if (geste === 'retenir') retient(e);
+  if (geste === 'relacher') {
+    e.dataset.etat = 'attente';
+    e.classList.remove('tenu');
+    e.querySelector('.envoi__quand').innerHTML = 'part dans<b>10 min</b>le délai repart';
+    e.querySelector('.envoi__gestes').innerHTML = '<button class="bouton cuivre" type="button" data-geste="retenir">Retenir</button><button class="bouton" type="button" data-geste="envoyer">Envoyer maintenant</button>';
+  }
+  if (geste === 'envoyer') {
+    e.dataset.etat = 'parti';
+    e.classList.remove('calme', 'tenu');
+    e.classList.add('parti');
+    e.querySelector('.envoi__quand').innerHTML = '<b>parti</b>à l’instant, par vous';
+    e.querySelector('.envoi__gestes').innerHTML = '';
+  }
+  if (geste === 'supprimer') {
+    e.dataset.etat = 'ecarte';
+    e.classList.remove('tenu');
+    e.classList.add('parti');
+    e.querySelector('.envoi__quand').innerHTML = '<b>écarté</b>il ne partira pas';
+    e.querySelector('.envoi__gestes').innerHTML = '';
+  }
+  dit();
+});
+document.getElementById('tout-retenir').addEventListener('click', () => {
+  salle.querySelectorAll('.envoi[data-etat="attente"], .envoi[data-etat="calme"]').forEach(retient);
+  dit();
+});
+</script>
+</body>
+</html>
