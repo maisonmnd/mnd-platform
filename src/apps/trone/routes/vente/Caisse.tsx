@@ -16,7 +16,7 @@ import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
@@ -27,7 +27,7 @@ import {
   laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
 import { useOffers } from '../../../../shared/offers';
-import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas } from '../../../../shared/offres-pur';
+import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -608,10 +608,22 @@ export default function Caisse() {
         .filter((l) => l.kind === 'service')
         .reduce((n, l) => n + l.netXof, 0);
       const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
+      /* LA REMISE DU COMPTOIR S'ÉCRIT AU RENDEZ-VOUS — 2 octobre 2026. Sans
+         elle, un rituel à 80 000 F encaissé 68 000 F avec ROSE15 restait
+         « devoir 12 000 F » au Carnet (voir shared/offres-pur). */
+      const brutDuRituel = lines
+        .filter((l) => l.kind === 'service')
+        .reduce((n, l) => n + l.unit * l.qty, 0);
       appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle
         ? {
           ...a,
           invoiceId: inv.id,
+          ...(() => {
+            const remise = remiseDuComptoirAuRendezVous({
+              brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof(a, svcById),
+            });
+            return remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {};
+          })(),
           paidXof: (a.paidXof ?? 0) + partNette,
           ...(partNette > 0 ? {
             payments: [

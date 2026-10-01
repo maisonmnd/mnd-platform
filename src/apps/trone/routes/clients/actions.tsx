@@ -9,6 +9,7 @@ import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } 
 import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
+import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
 import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
@@ -1738,6 +1739,39 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
           <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
+        {/* LA PIÈCE PORTE UNE REMISE QUE LE RENDEZ-VOUS N'A PAS REÇUE (2 octobre
+            2026). Un rituel encaissé au comptoir avec un code restait « devoir »
+            le montant de la remise. Le comptoir l'écrit désormais lui-même ; pour
+            les pièces d'avant, on le propose ici, d'un geste, et c'est une main
+            qui décide. Un forfait fait foi : on ne le remise pas. */}
+        {(() => {
+          const aReporter = appt.forfait ? null : remiseDeFactureAReporter({
+            resteDuXof: due,
+            factures: toutesLesPieces.filter((i: Invoice) => i.kind === 'facture' && i.status === 'payée'
+              && (i.apptId === appt.id || i.id === appt.invoiceId || (appt.payments ?? []).some((p) => p.invoiceId === i.id))),
+          });
+          if (!aReporter) return null;
+          return (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              La facture <b>{aReporter.piece}</b> porte une remise que ce rendez-vous n’a pas reçue :{' '}
+              <b>{aReporter.libelle}</b>. Ce reste n’est pas dû.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+                      ? { ...a, discountXof: (a.discountXof ?? 0) + aReporter.xof }
+                      : a)));
+                    toast(`Remise de ${fmtMoney(aReporter.xof, currency)} reportée au rendez-vous.`);
+                  }}
+                  style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+                >
+                  Reporter la remise au rendez-vous · {fmtMoney(aReporter.xof, currency)}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
         {alreadyPaid > 0 && (
           <button
             type="button"
