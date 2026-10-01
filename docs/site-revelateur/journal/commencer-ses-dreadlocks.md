@@ -5,6 +5,7 @@ date: 2026-09-17
 description: "Longueur de départ, consultation, création, premiers mois : ce qu'il faut savoir avant de commencer ses dreadlocks à Cotonou, sans se tromper."
 parcours: premiere-couronne
 image: journal-5.jpg
+portrait: cliente-4.jpg
 motsCles:
   - dreadlocks Cotonou
   - commencer des dreadlocks

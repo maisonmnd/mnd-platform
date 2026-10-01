@@ -4,7 +4,8 @@ slug: entretenir-ses-racines
 date: 2026-09-17
 description: "À quel rythme resserrer ses locks, comment reconnaître une racine qui a besoin d'un resserrage, et ce qu'il vaut mieux éviter entre deux rendez-vous."
 parcours: entretien
-image: journal-6.jpg
+image: journal-13.jpg
+portrait: cliente-13.jpg
 motsCles:
   - reprise racines locks
   - resserrage dreadlocks Cotonou

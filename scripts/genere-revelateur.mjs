@@ -1038,7 +1038,8 @@ function rendArticle(art) {
   const cta = bouton({ texte: appel || 'Trouver mon parcours', vers: `whatsapp:${p.besoin}` }, 'btn btn--plein');
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${lien('/journal/')}">Journal</a></li><li>·</li><li>${echappe(art.titre)}</li></ol></nav>
-      <section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Le Journal MND</p><h1>${echappe(art.titre)}</h1><p class="ligne">${echappe(art.description)}</p></div></div></section>
+      <!-- TEXTE + PHOTO — 1er octobre 2026 : « quand on ouvre l'article remet la photo en grand. La page est trop vide » (Yéman). -->
+      <section class="page-hero"><div class="conteneur"><div><p class="sur">Le Journal MND</p><h1>${echappe(art.titre)}</h1><p class="ligne">${echappe(art.description)}</p></div><div>${image(art.portrait || art.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div></div></section>
       <section class="serre"><div class="conteneur"><div class="prose">${html}</div></div></section>
       <section class="appel"><div class="conteneur"><div><h2>Et maintenant</h2><p class="ligne" style="margin-top:8px">Le parcours qui correspond à cet article vous attend.</p></div><div class="rangee">${cta}<a class="btn" href="${attr(lien(p.chemin))}">Voir le parcours</a></div></div></section>`;
 }
@@ -1094,6 +1095,12 @@ if (sansVignette.length) {
   throw new Error(`Article sans vignette : ${sansVignette.map((a) => a.slug).join(', ')}. `
     + 'Ajoutez « image: journal-N.jpg » à son en-tête, et inscrivez la photo au registre '
     + 'docs/site-revelateur/photos.md. Une cliente ne se pose pas sur un article au hasard.');
+}
+/* LE PORTRAIT DE L'ARTICLE (1er octobre 2026) : `portrait:` nomme la photo en 4/5 que la page
+   de l'article montre en grand. Sans lui, c'est la vignette. Il doit exister, comme elle. */
+const portraitAbsent = articles.filter((a) => a.portrait && !existsSync(path.join(racine, 'public', 'assets', 'photos', 'site', a.portrait)));
+if (portraitAbsent.length) {
+  throw new Error(`Portrait introuvable : ${portraitAbsent.map((a) => `${a.slug} → ${a.portrait}`).join(', ')}`);
 }
 const vignetteAbsente = articles.filter((a) => !existsSync(path.join(racine, 'public', 'assets', 'photos', 'site', a.image)));
 if (vignetteAbsente.length) {
@@ -1296,7 +1303,7 @@ for (const i of INGREDIENTS) {
 for (const art of articles) {
   const chemin = `/journal/${art.slug}/`;
   ecrit(chemin, page({
-    chemin, titre: `${art.titre} · Maison MND`.slice(0, 60), description: art.description, corps: rendArticle(art),
+    chemin, titre: `${art.titre} · Maison MND`.slice(0, 60), description: art.description, corps: rendArticle(art), image: art.image,
     noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Journal', '/journal/'], [art.titre, chemin]]), {
       '@type': 'Article', headline: art.titre, description: art.description, inLanguage: 'fr',
       author: { '@type': 'Organization', name: COMMUN.nom }, publisher: { '@id': `${SITE}#maison` },
