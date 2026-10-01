@@ -305,7 +305,9 @@ export const ACCUEIL: Accueil = {
     /* Quatre visages déjà servis ailleurs sur le site et inscrits au
        registre ; la galerie d'hier, avec son défilé, reste telle quelle et
        c'est là que mène le bouton. */
-    images: ['cliente-12.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
+    /* 1er octobre 2026 : cliente-16 prend la place de cliente-12, qui était la
+       femme du premier écran et paraissait donc deux fois sur l'accueil. */
+    images: ['cliente-16.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
     bouton: { texte: 'Voir la galerie', vers: '/galerie/' },
   },
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
@@ -425,6 +427,8 @@ export const GALERIE: Galerie = {
     'cliente-9.jpg', 'entretien.jpg', 'cliente-10.jpg', 'mnd-kids.jpg', 'cliente-11.jpg',
     'enfant-jardin.jpg', 'cliente-12.jpg', 'trois-couronnes.jpg', 'cliente-13.jpg',
     'cliente-1.jpg', 'cliente-3.jpg', 'cliente-4.jpg', 'cliente-5.jpg',
+    /* Trois portraits remis par Yéman le 1er octobre 2026, accord des trois. */
+    'cliente-16.jpg', 'cliente-14.jpg', 'cliente-15.jpg',
   ],
 };
 
@@ -637,6 +641,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         titre: 'Ma couronne mérite une attention régulière.',
         corps: "Une couronne ne se soigne pas une fois. Elle se suit. L'abonnement MND est une continuité de soin : vos rendez-vous pensés à l'avance, un rythme qui vous convient.",
+        image: 'cliente-14.jpg',
       },
       {
         type: 'grille',
