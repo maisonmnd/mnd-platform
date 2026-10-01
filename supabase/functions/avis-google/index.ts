@@ -177,13 +177,32 @@ Deno.serve(async (req) => {
   const aujourdhui = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
   const hier = new Date(Date.now() - 86_400_000).toLocaleDateString('en-CA', { timeZone: TZ });
 
-  const { data: invRows, error: errI } = await sb.from('invoices')
-    .select('id, branch_id, data')
-    .eq('data->>kind', 'facture')
-    .eq('data->>status', 'payée');
-  if (errI) return new Response(JSON.stringify({ erreur: errI.message }), { status: 500 });
+  /* TOUTES LES FACTURES SOLDÉES, PAGE PAR PAGE — 1er octobre 2026. Supabase
+     plafonne chaque réponse à mille lignes. « La première pièce réglée de la
+     tête » se juge sur TOUTES ses pièces : au-delà de mille factures, une
+     tranche ferait passer une habituée pour une nouvelle venue, et lui
+     redemanderait un avis. On lit donc à la suite du dernier id lu. */
+  // deno-lint-ignore no-explicit-any
+  const invRows: any[] = [];
+  {
+    let apres: string | null = null;
+    for (let tour = 0; tour < 2000; tour += 1) {
+      let q = sb.from('invoices')
+        .select('id, branch_id, data')
+        .eq('data->>kind', 'facture')
+        .eq('data->>status', 'payée')
+        .order('id', { ascending: true })
+        .limit(1000);
+      if (apres !== null) q = q.gt('id', apres);
+      const { data: page, error: errI } = await q;
+      if (errI) return new Response(JSON.stringify({ erreur: errI.message }), { status: 500 });
+      invRows.push(...(page ?? []));
+      if ((page ?? []).length < 1000) break;
+      apres = page![page!.length - 1].id as string;
+    }
+  }
 
-  const toutes: Piece[] = (invRows ?? []).map((r) => r.data as Piece);
+  const toutes: Piece[] = invRows.map((r) => r.data as Piece);
   const fraiches = toutes.filter((p) => {
     const j = jourDuSolde(p);
     return (j === aujourdhui || j === hier) && (p.clientId ?? '') !== '' && regleXof(p) > 0;
