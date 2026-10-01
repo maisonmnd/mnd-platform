@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBilans } from '../../../../shared/bilans';
@@ -94,6 +94,10 @@ function FiltreChip({ actif, onClick, children, compte }: {
     </button>
   );
 }
+
+/** Au-delà, les mois passés se replient. En dessous, la liste tient à l'écran
+    et se montre entière : c'est le cas d'une recherche ou d'un filtre. */
+export const SEUIL_DE_REPLI = 120;
 
 export default function Carnet() {
   /* UN MAÎTRE NE LIT PAS L'ARGENT DE LA MAISON. Il ouvre le Carnet pour savoir
@@ -193,14 +197,18 @@ export default function Carnet() {
     return () => window.removeEventListener('click', close);
   }, [menuFor]);
 
-  const clientOf = (id: string) => clients.find((c) => c.id === id);
+  /* UNE FICHE SE TROUVE PAR SON IDENTIFIANT (1er octobre 2026). Chaque ligne
+     relisait la liste des fiches pour trouver la sienne : mille rendez-vous
+     fois cinq cents fiches, à chaque affichage. */
+  const ficheParId = useMemo(() => new Map(clients.map((c) => [c.id, c] as const)), [clients]);
+  const clientOf = (id: string) => ficheParId.get(id);
 
   const { upcoming, past, comptes, totaux } = useMemo(() => {
     /* Recherche par nom de cliente — taper les premières lettres suffit
        (insensible aux accents : « agnes » trouve « Agnès ») ; le nom porté par
        le RDV sert de repli pour les têtes de passage sans fiche. */
     const qn = normName(query);
-    const nameOf = (a: Appointment) => clients.find((c) => c.id === a.clientId)?.name ?? a.clientName ?? '';
+    const nameOf = (a: Appointment) => ficheParId.get(a.clientId)?.name ?? a.clientName ?? '';
     /* LA MAISON D'UN RENDEZ-VOUS NE SE STOCKE PAS — elle se lit des prestations.
        L'Atelier MND™ et le Studio ACƆ™ partagent une branche, une caisse et un
        plateau : seul le geste les distingue. Une visite mixte (un resserrage
@@ -251,7 +259,31 @@ export default function Carnet() {
       .filter((a) => !aVenir(a) && garde(a))
       .sort((a, b) => b.date.localeCompare(a.date) || timeToMin(b.time) - timeToMin(a.time));
     return { upcoming, past, comptes, totaux };
-  }, [appts, today, query, clients, maison, categories, byId, vue]);
+  }, [appts, today, query, ficheParId, maison, categories, byId, vue]);
+
+  /* ══ LES MOIS PASSÉS SE REPLIENT — 1er octobre 2026 ═════════════════
+     « Quand je clique dans la barre de navigation du Trône, c'est lent »
+     (Yéman). Le banc (`scripts/banc-de-la-barre.mjs`) a désigné le Carnet :
+     il dessinait ses mille quarante rendez-vous d'un seul bloc, et les
+     redessinait TOUS à chaque geste, ouvrir une fiche, taper une lettre,
+     recevoir une écriture d'un autre poste. Le coût grandissait d'une ligne
+     par rendez-vous pris : la Maison ralentissait d'avoir travaillé.
+
+     Ce qui vient reste entièrement ouvert, c'est le travail du jour. Les
+     passés gardent leur en-tête de mois, avec le nombre de rituels et le
+     total (c'est ce qui sert aux prévisions), et seul le mois le plus récent
+     montre ses lignes. Un mois se déplie d'un geste sur son en-tête. Quand
+     une recherche ou un filtre ramène peu de lignes, tout s'ouvre : on ne
+     replie pas ce qui tient à l'écran. */
+  const [moisBascules, setMoisBascules] = useState<ReadonlySet<string>>(() => new Set());
+  const passesRepliables = past.length > SEUIL_DE_REPLI;
+  const moisRecent = past[0]?.date.slice(0, 7) ?? '';
+  const moisOuvert = (k: string) => !passesRepliables || ((k === moisRecent) !== moisBascules.has(k));
+  const basculeLeMois = (k: string) => setMoisBascules((avant) => {
+    const apres = new Set(avant);
+    if (apres.has(k)) apres.delete(k); else apres.add(k);
+    return apres;
+  });
 
   const setStatus = (id: string, status: Appointment['status']) =>
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
@@ -297,7 +329,7 @@ export default function Carnet() {
      la file ne se prévoient pas : elles se comptent. Chaque mois s'annonce donc
      avec son nombre de rituels et ce qu'il pèse, et l'œil compare août à
      septembre sans additionner à la main. */
-  const parMois = (liste: Appointment[]) => {
+  const parMois = (liste: Appointment[], repliable = false) => {
     const stats = new Map<string, { n: number; xof: number }>();
     for (const a of liste) {
       const k = a.date.slice(0, 7);
@@ -313,15 +345,30 @@ export default function Carnet() {
       if (k !== mois) {
         mois = k;
         const s = stats.get(k)!;
+        const pliable = repliable && passesRepliables;
         out.push(
-          <div key={`mois-${k}`} className="trc-carnet-mois">
+          <div
+            key={`mois-${k}`}
+            className={`trc-carnet-mois${pliable ? ' trc-carnet-mois--pliable' : ''}`}
+            {...(pliable ? {
+              role: 'button',
+              tabIndex: 0,
+              'aria-expanded': moisOuvert(k),
+              title: moisOuvert(k) ? 'Replier ce mois' : 'Déplier ce mois',
+              onClick: () => basculeLeMois(k),
+              onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); basculeLeMois(k); }
+              },
+            } : {})}
+          >
+            {pliable && <span className="trc-carnet-mois__pli" aria-hidden="true">{moisOuvert(k) ? '▾' : '▸'}</span>}
             <span className="trc-carnet-mois__nom">{monthTitle(k)}</span>
             <span className="trc-carnet-mois__n">{s.n} rituel{s.n > 1 ? 's' : ''}</span>
             {!sansPrix && <span className="trc-carnet-mois__xof">{fmtMoney(s.xof, currency)}</span>}
           </div>,
         );
       }
-      out.push(renderRow(a));
+      if (!repliable || moisOuvert(k)) out.push(renderRow(a));
     }
     return out;
   };
@@ -714,7 +761,12 @@ export default function Carnet() {
                   : 'Aucun rendez-vous passé sur cette branche.'}
               </div>
             )}
-            {parMois(past)}
+            {passesRepliables && (
+              <div className="trc-carnet-repli">
+                Seul le mois le plus récent montre ses lignes. Touchez un mois pour le déplier.
+              </div>
+            )}
+            {parMois(past, true)}
           </>
         )}
       </div>

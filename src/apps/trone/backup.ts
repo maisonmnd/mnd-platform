@@ -1,4 +1,4 @@
-import { cleDeSurface, cleLogique, RESET_FLAG, type Store } from '../../shared/store';
+import { cleDeSurface, cleLogique, RESET_FLAG, type Store, relisLeDisque } from '../../shared/store';
 import { clientsStore, personasStore, familiesStore } from '../../shared/clients';
 import { appointmentsStore } from '../../shared/agenda';
 import {
@@ -221,6 +221,9 @@ export function applyPendingReplace(): boolean {
          la valeur n'était lue par personne depuis le 6 août. */
       try { localStorage.setItem(cleDeSurface(k), JSON.stringify(v)); } catch { /* quota localStorage */ }
     }
+    /* ON VIENT D'ECRIRE DANS LES CASES SANS PASSER PAR LES MAGASINS : depuis le
+       1er octobre 2026 un magasin ne relit sa case que si on le lui dit. */
+    relisLeDisque();
     /* 2. COLLECTIONS (clientes, RDV, factures, catalogue…) : via les magasins, pour
        l'état en mémoire ET la poussée au serveur (overwrite = le fichier fait foi). */
     restoreBackup(parsed, { overwrite: true });

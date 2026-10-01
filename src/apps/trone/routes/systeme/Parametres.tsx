@@ -6,6 +6,7 @@ import { Toggle } from '../equipe/ui';
 import { supabase } from '../../../../shared/supabase';
 import { useAuth } from '../../../../shared/auth';
 import { getSyncState, subscribeSync, tablePrete } from '../../../../shared/sync';
+import { resumeDeLaMemoire, ditLePoids, ecrituresRecues, PLACE_ACCORDEE } from '../../../../shared/poids-de-la-memoire';
 import { autoConfigStore, MOMO_QR_DEFAUT, MOMO_USSD_DEFAUT, MOMO_MARCHAND_DEFAUT, type AutoConfig } from '../equipe/data';
 import { QrSvg } from '../equipe/Comptoir';
 import { useBranch } from '../../../../shared/branches';
@@ -672,6 +673,22 @@ function CetAppareil() {
   const [sync, setSync] = useState(getSyncState());
   useEffect(() => subscribeSync(() => setSync(getSyncState())), []);
 
+  /* LE POIDS ET LE TRAFIC SE RELISENT TOUTES LES CINQ SECONDES (1er octobre
+     2026). Ils ne tiennent à aucun magasin : sans cette horloge, le panneau
+     afficherait la mesure du moment où on l'a ouvert. */
+  const [, relis] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => relis((n) => n + 1), 5000);
+    return () => window.clearInterval(t);
+  }, []);
+  const memoire = (() => {
+    try {
+      return resumeDeLaMemoire(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k) ?? ''] as const), 3);
+    } catch { return null; }
+  })();
+  const recues = ecrituresRecues();
+  const recuesEnTout = recues.reduce((n, r) => n + r.n, 0);
+
   const mail = (session?.user?.email ?? '').trim().toLowerCase();
   /* RIEN EN ATTENTE = ON PEUT REPARTIR SANS RIEN PERDRE. Une écriture jamais
      poussée n'existe que sur cet appareil : la jeter avec le cache serait la
@@ -770,6 +787,39 @@ function CetAppareil() {
             </span>
           </div>
         )}
+        {/* CE QUI PÈSE, ET CE QUI ARRIVE. Les deux mesures qui manquaient pour
+            dire pourquoi un poste rame : elles ne se lisent que sur lui. */}
+        {memoire && (
+          <div className="sys-appareil__row">
+            <span className="sys-appareil__lab">Mémoire de ce poste</span>
+            <span className="sys-appareil__val">
+              {ditLePoids(memoire.total)} sur environ {ditLePoids(PLACE_ACCORDEE)} accordés par le navigateur
+              {memoire.lourdes.some((c) => c.caracteres >= 1024) && (
+                <span className="sys-appareil__note">
+                  {' '}· le plus lourd : {memoire.lourdes.filter((c) => c.caracteres >= 1024).map((c) => `${c.nom} ${ditLePoids(c.caracteres)}${c.surface === 'Le Trône' ? '' : ` (${c.surface})`}`).join(', ')}
+                </span>
+              )}
+              {memoire.presDuBout && (
+                <span className="sys-appareil__note">
+                  {' '}· la place arrive au bout : « Le poids des photos », plus haut, en rend le plus.
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+        <div className="sys-appareil__row">
+          <span className="sys-appareil__lab">Reçu des autres postes</span>
+          <span className="sys-appareil__val">
+            {recuesEnTout === 0
+              ? 'rien depuis une minute'
+              : `${recuesEnTout} écriture${recuesEnTout > 1 ? 's' : ''} depuis une minute (${recues.slice(0, 4).map((r) => `${r.table} ${r.n}`).join(', ')})`}
+            {recuesEnTout >= 30 && (
+              <span className="sys-appareil__note">
+                {' '}· c’est beaucoup : un autre poste réécrit en continu, et celui-ci se redessine à chaque fois.
+              </span>
+            )}
+          </span>
+        </div>
         <div className="sys-appareil__row">
           <span className="sys-appareil__lab">Écritures en attente</span>
           <span className="sys-appareil__val">

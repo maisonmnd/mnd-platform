@@ -2,6 +2,7 @@ import type { Store } from './store';
 import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
 import { litToutesLesPages } from './lecture-entiere';
+import { noteUneEcritureRecue } from './poids-de-la-memoire';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -1220,6 +1221,9 @@ export function bindCollection<T extends WithId>(
           if (i >= 0) items[i] = row.data;
           else items.push(row.data);
         }
+        /* Comptée pour « Cet appareil » : un poste qui en reçoit des dizaines
+           par minute rame, et il fallait pouvoir le lire sur place. */
+        noteUneEcritureRecue(table);
         applyingRemote = true;
         store.set(items);
         applyingRemote = false;
@@ -1439,6 +1443,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
            poussee est en attente, l'etat local vaut mieux que ce qui arrive :
            on laisse la poussee partir, et l'echo suivant fera foi. */
         if (timer) return;
+        noteUneEcritureRecue(`doc:${key}`);
         applyingRemote = true;
         store.set(row.data);
         applyingRemote = false;

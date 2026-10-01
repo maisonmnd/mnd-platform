@@ -102,21 +102,56 @@ const magasinsSatures = new Set<string>();
     « Cet appareil » (Paramètres). Un poste saturé doit pouvoir le dire. */
 export const magasinsEnMemoireSeule = (): string[] => [...magasinsSatures].sort();
 
+/* ── LIRE NE RELIT PLUS LE DISQUE — 1er octobre 2026 ──────────────────
+   « Quand je clique dans la barre de navigation du Trône, c'est lent »
+   (Yéman), pour la troisième fois en deux jours.
+
+   Chaque lecture d'un magasin redemandait sa case au navigateur et la
+   comparait, caractère par caractère, à la dernière vue. Or un écran lit ses
+   magasins à chaque affichage, et chaque ligne d'une liste lit les siens : le
+   banc (`scripts/banc-de-la-barre.mjs`) a compté, pour UN clic dans la barre,
+   de 200 à 17 000 lectures et trente mégaoctets relus, sur une Maison de 520
+   fiches. Le coût grandit avec la Maison, à chaque rendez-vous de plus.
+
+   LA RÈGLE : la mémoire fait foi, le disque ne se relit que si quelqu'un
+   d'autre a pu y écrire. Trois portes le disent, et elles seules :
+     · un autre onglet (l'événement `storage`) ;
+     · une purge ou un autre magasin de la même clé (l'événement de la Maison) ;
+     · une écriture directe dans la case (`relisLeDisque`, que son auteur appelle).
+   Entre deux, lire coûte une comparaison, quelle que soit la taille. */
+const aRelire = new Set<() => void>();
+
+/** À appeler après avoir écrit DIRECTEMENT dans une case de magasin, sans
+    passer par lui (la restauration d'une sauvegarde le fait) : les magasins
+    relisent leur case à la prochaine lecture. */
+export function relisLeDisque(): void {
+  for (const marque of aRelire) marque();
+}
+
 export function createStore<T>(key: string, initial: T): Store<T> {
   const seed: T = HOUSE_BLANK && Array.isArray(initial) && !BLANK_KEEP.has(key) ? ([] as unknown as T) : initial;
   let cache: T | undefined;
   let cachedRaw: string | null = null;
   /* Le disque a refusé cette clé : la mémoire fait foi jusqu'au rechargement. */
   let memoireSeule = false;
+  /* Le disque a pu changer sans nous : vrai au départ, et après chaque porte. */
+  let disqueARelire = true;
+  /* Nos propres écritures préviennent l'écran par le même événement que les
+     purges : on ne se fait pas relire à soi-même ce qu'on vient d'écrire. */
+  let enEcriture = 0;
+  aRelire.add(() => { disqueARelire = true; });
 
   const read = (): T => {
-    if (memoireSeule && cache !== undefined) return cache;
+    if (cache !== undefined && (memoireSeule || !disqueARelire)) return cache;
     const raw = localStorage.getItem(nsKey(key));
+    /* Une case vide ne se retient pas : elle coûte une lecture de rien, et la
+       semence revient d'elle-même après une purge. */
     if (raw === null) return seed;
-    if (raw === cachedRaw && cache !== undefined) return cache;
+    if (raw === cachedRaw && cache !== undefined) { disqueARelire = false; return cache; }
     try {
       cache = JSON.parse(raw) as T;
       cachedRaw = raw;
+      disqueARelire = false;
       return cache;
     } catch {
       return seed;
@@ -128,12 +163,15 @@ export function createStore<T>(key: string, initial: T): Store<T> {
 
   /* L'evenement `storage` porte la cle REELLE : c'est celle de la surface
      qu'il faut comparer, sinon deux onglets du meme Trone cessent de se
-     repondre. */
+     repondre. Une cle absente dit que l'autre onglet a tout vide. */
   window.addEventListener('storage', (e) => {
-    if (e.key === nsKey(key)) notify();
+    if (e.key === null) { disqueARelire = true; return; }
+    if (e.key === nsKey(key)) { disqueARelire = true; notify(); }
   });
   window.addEventListener(EVT, (e) => {
-    if ((e as CustomEvent).detail === key) notify();
+    if ((e as CustomEvent).detail !== key) return;
+    if (enEcriture === 0) disqueARelire = true;
+    notify();
   });
 
   return {
@@ -143,6 +181,8 @@ export function createStore<T>(key: string, initial: T): Store<T> {
       const value = typeof next === 'function' ? (next as (p: T) => T)(read()) : next;
       cache = value;
       cachedRaw = JSON.stringify(value);
+      /* Ce qu'on écrit est ce que la mémoire porte : rien à relire. */
+      disqueARelire = false;
       try {
         localStorage.setItem(nsKey(key), cachedRaw);
         if (memoireSeule) { memoireSeule = false; magasinsSatures.delete(key); }
@@ -156,7 +196,8 @@ export function createStore<T>(key: string, initial: T): Store<T> {
         console.warn(`[mnd-store] ${key} : le navigateur refuse d'écrire (mémoire saturée), on continue en mémoire seule.`);
       }
       /* ② TOUJOURS prévenir l'écran, écriture réussie ou non. */
-      window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
+      enEcriture += 1;
+      try { window.dispatchEvent(new CustomEvent(EVT, { detail: key })); } finally { enEcriture -= 1; }
     },
     subscribe: (fn) => {
       listeners.add(fn);
