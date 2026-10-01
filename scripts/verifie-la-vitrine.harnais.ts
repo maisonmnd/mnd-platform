@@ -604,5 +604,25 @@ dit('rien ne s’enfonce ni ne glisse au survol', [],
 dit('la galerie d’hier est gardée telle quelle', true,
   (pages.get('/galerie/') ?? '').includes('class="gal-rail"') && accueil.includes('href="/galerie/"'));
 
+/* ── LA MAISON NE SE DIT JAMAIS « SALON » — 1er octobre 2026 ────────────
+   La règle date du récit (30 septembre), mais deux pages légales écrites
+   avant elle la contredisaient encore en ligne : « de vive voix au salon »
+   (politique de données), « se règle au salon » (conditions). Personne ne
+   relit une page légale ; le harnais, si. On lit ce que la visiteuse lit :
+   le texte, les titres, les descriptions et les légendes d'image, pas les
+   données structurées (où « HairSalon » est le type que Google attend).
+   Le Journal reste libre de nommer les salons des AUTRES. */
+const ceQueLitLaVisiteuse = (h: string) => {
+  const sansCode = h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ');
+  const attributs = [...sansCode.matchAll(/\b(?:alt|title|aria-label|content)="([^"]*)"/g)].map((m) => m[1]).join(' ');
+  return `${sansCode.replace(/<[^>]+>/g, ' ')} ${attributs}`;
+};
+const ditSalon = (h: string) => /\bsalons?\b/i.test(ceQueLitLaVisiteuse(h));
+dit('le contrôle voit « salon » dans une phrase', true, ditSalon('<p>de vive voix au salon.</p>'));
+dit('… et dans une légende d’image', true, ditSalon('<img alt="Le salon de la Maison" src="x.jpg">'));
+dit('… mais pas dans les données structurées', false, ditSalon('<p>À la Maison.</p><script type="application/ld+json">{"@type":"HairSalon"}</script>'));
+dit('aucune page ne dit « salon » pour la Maison (le Journal peut nommer ceux des autres)', [],
+  [...pages].filter(([c, h]) => !c.startsWith('/journal/') && ditSalon(h)).map(([c]) => c));
+
 console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec.`);
 process.exit(ko === 0 ? 0 : 1);
