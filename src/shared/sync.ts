@@ -33,6 +33,10 @@ const PUSH_DEBOUNCE_MS = 250;
    l'état réseau — le Shell affiche une pastille d'un mot. */
 export type SyncState = {
   enabled: boolean; online: boolean; pending: number; failed: number;
+  /** CE QUI ATTEND DE PARTIR, PAR SON NOM — 1er octobre 2026. « Synchronisation… »
+      sans fin ne disait pas QUOI tournait : il a fallu lire le code pour trouver que
+      les fiches se réécrivaient en boucle. La pastille nomme désormais ses tables. */
+  pendingNames: string[];
   failedNames: string[];
   /** Ce qui a été refusé, et POURQUOI — une entrée par table en échec. */
   failedWhy: { table: string; raison: string; brut: string }[];
@@ -242,6 +246,7 @@ let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
   online: !ditHorsLigne,
+  pendingNames: [],
   failedNames: [],
   failedWhy: [],
   ecartees: [],
@@ -259,6 +264,7 @@ function bumpSync(): void {
   syncSnapshot = {
     enabled: !!supabase, online: !ditHorsLigne,
     pending: dirtyTables.size, failed: failedTables.size,
+    pendingNames: [...dirtyTables].sort(),
     failedNames: noms,
     failedWhy: noms.map((t) => {
       const brut = failedTables.get(t) ?? '';

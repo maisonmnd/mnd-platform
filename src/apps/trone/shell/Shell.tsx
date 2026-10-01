@@ -119,7 +119,9 @@ function SyncDot() {
       ? (premiere
           ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
           : 'Synchro en échec')
-    : mode === 'wait' ? 'Synchronisation…'
+    /* LA PASTILLE NOMME CE QUI ATTEND (1er octobre 2026) : une table, on la dit ; plusieurs, on les compte.
+       Une attente qui dure se lit alors d'un coup d'œil, sans ouvrir la console. */
+    : mode === 'wait' ? `Synchronisation… ${s.pendingNames.length === 1 ? `· ${s.pendingNames[0].replace(/^doc:/, '')}` : s.pendingNames.length > 1 ? `· ${s.pendingNames.length} tables` : ''}`.trim()
     : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
   const color = mode === 'ok'
     ? (enRetard ? 'var(--color-copper)' : '#6e7c5c')
@@ -130,7 +132,10 @@ function SyncDot() {
       ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
         ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
         : ' Ce refus ne guérira pas en attendant : il faut agir sur la base, puis refaire une modification pour relancer.'}`
-    : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
+    : mode === 'wait' ? `Écritures locales en cours d’envoi :
+${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || '—'}
+
+Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez ce poste, puis les autres postes ouverts.`
     : enRetard
       ? `Tout est enregistré, mais le direct est tombé sur ${enRetard === 1 ? 'une table' : `${enRetard} tables`} :\n`
         + `${s.directEnPanne.slice(0, 6).join(', ')}${enRetard > 6 ? '…' : ''}\n\n`

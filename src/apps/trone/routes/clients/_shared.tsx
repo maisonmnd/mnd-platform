@@ -471,15 +471,20 @@ export function revenusProjetesDuMois(
   args: Parameters<typeof revenuDuMois>[0],
   mk: string,
   aujourdhui: string,
-): { versements: number; rendezVous: number; nombre: number; total: number } {
+): { versements: number; rendezVous: number; nombre: number; attendus: number; total: number } {
   const versements = Math.max(0, revenuDuMois(args, mk) - revenuDuMois(args, mk, { cut: aujourdhui }));
-  const aVenir = args.appts
+  /* « Revenus projetés montre 17 RDV, le Carnet montre 22 rituels. Que se passe-t-il ? »
+     (Yéman, 1er octobre 2026). Les deux disaient vrai : le Carnet compte TOUS les
+     rendez-vous à venir du mois, à leur valeur entière ; ici on ne compte que ce qui
+     RESTE à régler. Un rendez-vous déjà soldé n'attend plus rien. On rend donc les
+     deux nombres, `attendus` (ceux du Carnet) et `nombre` (ceux qui doivent encore),
+     pour que la tuile se recoupe avec le Carnet au lieu de le contredire. */
+  const tous = args.appts
     .filter((a) => a.branchId === args.branchId && a.status !== 'annulé' && a.status !== 'honoré'
-      && a.date.slice(0, 7) === mk && a.date >= aujourdhui)
-    .map((a) => apptDueXof(a, args.byId))
-    .filter((du) => du > 0);
-  const rendezVous = aVenir.reduce((n, du) => n + du, 0);
-  return { versements, rendezVous, nombre: aVenir.length, total: versements + rendezVous };
+      && a.date.slice(0, 7) === mk && a.date >= aujourdhui);
+  const aRegler = tous.map((a) => apptDueXof(a, args.byId)).filter((du) => du > 0);
+  const rendezVous = aRegler.reduce((n, du) => n + du, 0);
+  return { versements, rendezVous, nombre: aRegler.length, attendus: tous.length, total: versements + rendezVous };
 }
 
 /* ---------- Les factures suivent le rituel ----------

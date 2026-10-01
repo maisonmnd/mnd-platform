@@ -312,11 +312,15 @@ dit('un mois voisin ne compte pas', 0, revenuDuMois(baseArgs, '2026-07'));
    le rendez-vous confirmé du 28 compte pour son reste dû, l'annulé pour rien. */
 const rdvProjete = { id: 'apV', branchId: 'br', clientId: 'c1', serviceIds: ['a'], date: '2026-08-28', time: '10:00', master: 'M', status: 'confirmé' } as Appointment;
 const rdvProjeteAnnule = { ...rdvProjete, id: 'apX', status: 'annulé' } as Appointment;
-const projArgs = { ...baseArgs, appts: [rdvHonore, rdvProjete, rdvProjeteAnnule] };
+/* Un rendez-vous à venir DÉJÀ SOLDÉ : il compte parmi ceux du Carnet, pas parmi ceux
+   qui doivent encore. C'est l'écart « 22 au Carnet, 17 sur la tuile » du 1er octobre. */
+const rdvProjeteSolde = { ...rdvProjete, id: 'apP', date: '2026-08-27', paidXof: 10_000 } as Appointment;
+const projArgs = { ...baseArgs, appts: [rdvHonore, rdvProjete, rdvProjeteAnnule, rdvProjeteSolde] };
 const proj = revenusProjetesDuMois(projArgs, '2026-08', '2026-08-15');
 dit('au 15, les versements datés d’après sont projetés', 35_000, proj.versements);
 dit('… le rendez-vous à venir compte pour son reste dû, l’annulé non', 10_000, proj.rendezVous);
-dit('… un seul rendez-vous attendu', 1, proj.nombre);
+dit('… un seul rendez-vous reste à régler', 1, proj.nombre);
+dit('… mais deux sont à venir, comme au Carnet : le soldé d’avance compte aussi', 2, proj.attendus);
 dit('… et le projeté est leur somme', 45_000, proj.total);
 dit('encaissé au 15 + projeté = le mois si tout le monde vient', 110_000,
   revenuDuMois(projArgs, '2026-08', { cut: '2026-08-15' }) + proj.total);

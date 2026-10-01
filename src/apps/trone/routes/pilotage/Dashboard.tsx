@@ -593,10 +593,10 @@ export default function Dashboard() {
       label: 'Revenus projetés du mois', value: fmtMoney(projete.total, currency), bar: 'var(--color-copper)',
       trend: {
         t: projete.total === 0 ? 'rien d’attendu d’ici la fin du mois'
-          : `${projete.nombre} rendez-vous à venir${projete.versements > 0 ? ' et des versements datés plus tard' : ''} · rien n’est encore acquis`,
+          : `${projete.attendus} rendez-vous à venir, dont ${projete.nombre} restant à régler · rien n’est encore acquis`,
         down: false,
       },
-      action: () => navigate('/carnet'),
+      action: () => openProjete(),
     },
     {
       label: 'Dépenses du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)',
@@ -731,6 +731,37 @@ export default function Dashboard() {
         onOpen: d.total > 0 ? () => openDay(d.iso) : undefined,
       }));
     setDrill({ title: 'Revenu · 7 jours', sub: 'Rituels du carnet, factures payées et formations.', rows, total: rev7Total });
+  };
+
+  /** LE DÉTAIL DU PROJETÉ — chaque rendez-vous qui reste à régler, puis les versements
+      datés plus tard. Le total de la liste est celui de la tuile, à l'unité près. */
+  const openProjete = () => {
+    const rdv: DrillRow[] = appts
+      .filter((a) => a.branchId === branch.id && a.status !== 'annulé' && a.status !== 'honoré'
+        && monthKey(a.date) === thisMonth && a.date >= today && apptDueXof(a, byId) > 0)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : timeToMin(a.time) - timeToMin(b.time)))
+      .map((a) => ({
+        who: nameOf(a.clientId), sub: `Reste à régler · ${apptLabel(a, byId)}`, date: a.date,
+        amount: apptDueXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); },
+      }));
+    const vers: DrillRow[] = invoices
+      .filter((i) => i.branchId === branch.id && i.kind === 'facture')
+      .flatMap((i) => invoiceReglements(i)
+        .filter((p) => (p.date ?? '').startsWith(thisMonth) && (p.date ?? '') > today && p.amountXof > 0)
+        .map((p) => ({
+          who: i.clientName || nameOf(i.clientId), sub: `Versement daté plus tard · ${i.number}`,
+          date: p.date, amount: p.amountXof, invoiceId: i.id,
+        })));
+    /* Formation et abonnements datés plus tard : rares, mais le total doit tomber juste. */
+    const autres = projete.versements - vers.reduce((n, r) => n + (r.amount ?? 0), 0);
+    const rows: DrillRow[] = [...rdv, ...vers,
+      ...(autres > 0 ? [{ who: 'Formation et abonnements', sub: 'Versements datés plus tard', amount: autres }] : [])];
+    setDrill({
+      title: 'Revenus projetés du mois',
+      sub: `${projete.attendus} rendez-vous à venir au Carnet, à leur valeur entière. Ici, seulement ce qui reste à entrer : ${projete.nombre} rendez-vous ont encore un reste à régler ; les autres sont déjà soldés. Un versement daté du jour du rendez-vous se lit à sa date, plus bas.`,
+      rows,
+      total: projete.total,
+    });
   };
 
   /** Les factures d'un moyen de paiement — chacune ouvrable. */
