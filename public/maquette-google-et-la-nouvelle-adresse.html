@@ -110,13 +110,13 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
     <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
     <p class="sur">Maison MND · Google</p>
     <h1>Google et la nouvelle adresse</h1>
-    <p class="ligne">Google montre encore la photo qu'il a prise du site le 17 septembre, à son ancienne adresse. Cinq gestes pour lui présenter maisonmnd.com.</p>
+    <p class="ligne">Google montre encore la photo qu'il a prise du site le 17 septembre, à son ancienne adresse. Six gestes pour lui présenter maisonmnd.com.</p>
   </header>
 
   <div class="jauge">
-    <b id="compte">0 / 5</b>
+    <b id="compte">0 / 6</b>
     <span>gestes faits. Comptez dix minutes, une seule fois.</span>
-    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i></span>
+    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i></span>
   </div>
 
   <h2>Ce qui se passe</h2>
@@ -171,8 +171,9 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
   </table>
 
   <h2>À faire, dans cet ordre</h2>
-  <p class="cap">Sur <kbd>search.google.com/search-console</kbd>, avec <span class="atrouver">le compte Google qui a créé les propriétés le 18 septembre</span>. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
+  <p class="cap">Tout se passe dans la Search Console, puis sur la fiche Google. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
   <ol class="pas" id="pas">
+    <li><b>Ouvrir la Search Console</b><p>Dans Chrome, tapez <kbd>search.google.com/search-console</kbd> dans la barre d'adresse, et connectez-vous avec <span class="atrouver">le compte Google qui a créé les propriétés le 18 septembre</span>.</p><p>Si un tableau de bord s'ouvre avec un menu à gauche, vous y êtes. Si une page « Bienvenue » montre deux cases, « Domaine » et « Préfixe de l'URL », ce compte n'a aucune propriété : changez de compte par la pastille ronde en haut à droite, ou passez au geste suivant avec la case de droite.</p></li>
     <li><b>Ajouter la propriété maisonmnd.com</b><p>En haut à gauche, le sélecteur de propriété, puis <b>Ajouter une propriété</b>. Dans la colonne de droite, « Préfixe de l'URL », écrivez <kbd>https://maisonmnd.com/</kbd> puis Continuer.</p><p>Elle doit se valider toute seule : les deux fichiers de Google sont déjà servis à la racine du site, je l'ai vérifié. Si Google demande une méthode, choisissez « Fichier HTML » et cliquez Valider, sans rien télécharger.</p></li>
     <li><b>Déclarer le plan du site</b><p>Menu de gauche, <b>Sitemaps</b>. Dans « Ajouter un sitemap », écrivez <kbd>sitemap.xml</kbd> puis Envoyer.</p><p>État attendu : « Opération réussie », 47 pages découvertes. Un « Impossible de récupérer » le premier jour est fréquent sur une propriété neuve et se lève seul.</p></li>
     <li><b>Demander à Google de passer sur l'accueil</b><p>Dans la barre du haut, « Inspecter n'importe quelle URL », collez <kbd>https://maisonmnd.com/</kbd>, Entrée, puis <b>Demander une indexation</b>. Une à deux minutes d'attente.</p></li>
@@ -198,8 +199,8 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
   </table>
 
   <div class="garde">
-    <b>De mon côté, sur votre mot</b>
-    <p>Les pages de renvoi de l'ancienne adresse disent à la fois « allez à la nouvelle adresse » et « oubliez-moi ». Pour un déménagement, Google recommande le renvoi seul. Je peux retirer le second message : ce n'est pas la cause du retard, c'est un signal plus net.</p>
+    <b>Fait de mon côté, le 1er octobre</b>
+    <p>Les pages de renvoi de l'ancienne adresse disaient à la fois « allez à la nouvelle adresse » et « oubliez-moi ». Le second message est retiré : elles ne disent plus que le renvoi, ce que Google attend pour un déménagement. Ce n'était pas la cause du retard, c'est un signal plus net.</p>
   </div>
 
   <h2>La règle, pour la suite</h2>

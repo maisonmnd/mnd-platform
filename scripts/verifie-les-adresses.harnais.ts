@@ -41,7 +41,11 @@ const renvoi = pageDeRenvoi(cible);
 dit('elle porte la canonique vers la nouvelle adresse', true, renvoi.includes(`<link rel="canonical" href="${cible}">`));
 dit('… un rafraîchissement immédiat', true, renvoi.includes(`<meta http-equiv="refresh" content="0; url=${cible}">`));
 dit('… un script qui garde la recherche et l’ancre', true, renvoi.includes('location.search + location.hash'));
-dit('… et dit aux moteurs de ne pas la garder', true, renvoi.includes('<meta name="robots" content="noindex">'));
+/* UN RENVOI NE DIT QU'UNE CHOSE (1er octobre 2026). La page portait aussi
+   « noindex » : « allez à la nouvelle adresse » ET « oubliez-moi », deux
+   consignes qui se contredisent. Pour un déménagement, un moteur attend le
+   renvoi seul. Aucune balise robots, quelle que soit sa valeur. */
+dit('… et ne demande PAS aux moteurs de l’oublier : un renvoi seul, sans balise robots', false, /<meta\s+name="robots"/i.test(renvoi));
 dit('… sans jamais servir de page blanche à qui n’a pas de script', true, renvoi.includes(`<a href="${cible}">`));
 dit('une cible qui n’est pas une adresse https est refusée', true,
   (() => { try { pageDeRenvoi('javascript:alert(1)'); return false; } catch { return true; } })());
@@ -133,6 +137,8 @@ if (!existsSync(construit)) {
     const racine = adresses[0] ? `https://${hote}/` : '';
     dit('… et chaque renvoi vise la même page à la racine', [],
       anciennes.filter((rel) => !readFileSync(join(renvois, rel), 'utf8').includes(`href="${cibleDe(racine, rel)}"`)));
+    dit('… et aucun renvoi construit ne porte de balise robots', [],
+      anciennes.filter((rel) => /<meta\s+name="robots"/i.test(readFileSync(join(renvois, rel), 'utf8'))));
     dit('… le 404 des renvois existe et garde le chemin', true,
       existsSync(join(renvois, '404.html')) && readFileSync(join(renvois, '404.html'), 'utf8').includes('location.pathname.replace('));
   }
