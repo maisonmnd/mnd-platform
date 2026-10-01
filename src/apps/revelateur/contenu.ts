@@ -305,9 +305,11 @@ export const ACCUEIL: Accueil = {
     /* Quatre visages déjà servis ailleurs sur le site et inscrits au
        registre ; la galerie d'hier, avec son défilé, reste telle quelle et
        c'est là que mène le bouton. */
-    /* 1er octobre 2026 : cliente-16 prend la place de cliente-12, qui était la
-       femme du premier écran et paraissait donc deux fois sur l'accueil. */
-    images: ['cliente-16.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
+    /* 1er octobre 2026, au matin : « change la première photo avec celle
+       attachée » (Yéman). cliente-17 ouvre la bande ; c'est la femme du premier
+       écran, dans la robe de `regard.jpg`, et c'est voulu. cliente-16 reste
+       à la galerie. */
+    images: ['cliente-17.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
     bouton: { texte: 'Voir la galerie', vers: '/galerie/' },
   },
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
