@@ -126,7 +126,9 @@ function SyncDot() {
     /* LA PASTILLE NOMME CE QUI ATTEND (1er octobre 2026) : une table, on la dit ; plusieurs, on les compte.
        Une attente qui dure se lit alors d'un coup d'œil, sans ouvrir la console. */
     : mode === 'wait' ? `Synchronisation… ${s.pendingNames.length === 1 ? `· ${s.pendingNames[0].replace(/^doc:/, '')}` : s.pendingNames.length > 1 ? `· ${s.pendingNames.length} tables` : ''}`.trim()
-    : pauses ? 'Synchronisé · un autre poste réécrit les fiches'
+    /* LE MOT JUSTE (2 octobre 2026) : la pastille disait « un autre poste réécrit
+       les fiches », et il n'y avait pas d'autre poste. Elle dit ce qu'elle sait. */
+    : pauses ? 'Synchronisé · un automatisme en pause'
     : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
   const color = mode === 'ok'
     ? (enRetard || pauses ? 'var(--color-copper)' : '#6e7c5c')
@@ -142,9 +144,9 @@ ${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || '—'}
 
 Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez ce poste, puis les autres postes ouverts.`
     : pauses
-      ? `Tout est enregistré. Mais les fiches se réécrivaient en boucle : un autre appareil ouvert sur une ancienne version du Trône, ou deux réglages qui se contredisent.\n\n`
+      ? `Tout est enregistré. Mais un automatisme réécrivait les mêmes données en boucle : il a été mis en pause.\n\n`
         + `En pause un quart d’heure sur ce poste : ${pauses.split(',').join(', ')}.\n\n`
-        + 'Rechargez le Trône sur tous les appareils ouverts (ordinateurs et téléphones). Vos gestes à la main, eux, s’enregistrent normalement.'
+        + 'Vos gestes à la main s’enregistrent normalement. Si la pastille revient après un rechargement, le panneau « Cet appareil » des Paramètres dit ce qui se réécrit.'
     : enRetard
       ? `Tout est enregistré, mais le direct est tombé sur ${enRetard === 1 ? 'une table' : `${enRetard} tables`} :\n`
         + `${s.directEnPanne.slice(0, 6).join(', ')}${enRetard > 6 ? '…' : ''}\n\n`

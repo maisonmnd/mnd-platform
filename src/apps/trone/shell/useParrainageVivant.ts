@@ -17,6 +17,7 @@ import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
 /* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
    (1er octobre 2026, voir shared/ecriture-automatique.ts). */
 import { gardeLEcriture } from '../../../shared/ecriture-automatique';
+import { memeContenu } from '../../../shared/meme-contenu';
 import { parIdentifiant, rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 /* ══ LES AMBASSADRICES, TENUES À JOUR — 28 septembre 2026 ═══════════════
    Maquette validée (« construits », Yéman). Six gestes, en tâche de fond,
@@ -104,7 +105,10 @@ export function useParrainageVivant(): void {
       const l = L.get(c.codeParrain);
       if (!l) continue;
       const r = resumeDeLAmbassade(l, L, clients, reglage, aujourdhui, nomDuService);
-      if (JSON.stringify(r) !== JSON.stringify(c.parrainage ?? null)) resumes.set(c.id, r);
+      /* LE CONTENU, PAS L'ORDRE DES CHAMPS (2 octobre 2026) : la base rend le
+         résumé rangé à sa façon, et le comparer par son texte le faisait
+         réécrire sans fin, 289 fiches par minute (voir shared/meme-contenu). */
+      if (!memeContenu(r, c.parrainage ?? null)) resumes.set(c.id, r);
     }
     if (resumes.size) {
       gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => (resumes.has(c.id) ? { ...c, parrainage: resumes.get(c.id) } : c)));
@@ -163,6 +167,6 @@ export function useParrainageVivant(): void {
     /* ⑥ Le classement du mois, une fois le document descendu. */
     if (!documentDescendu('mnd_classement_ambassade')) return;
     const voulu = reglage.classementVisible ? classementDuMois(L, aujourdhui) : CLASSEMENT_VIDE;
-    if (JSON.stringify(voulu) !== JSON.stringify(classement)) gardeLEcriture('parrainage', classementStore).set(voulu);
+    if (!memeContenu(voulu, classement)) gardeLEcriture('parrainage', classementStore).set(voulu);
   }, [session, clients, demandes, rdvs, services, produits, reglage, classement, familles, sceaux]);
 }

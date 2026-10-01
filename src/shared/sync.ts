@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
 import { litToutesLesPages } from './lecture-entiere';
 import { noteUneEcritureRecue } from './poids-de-la-memoire';
+import { contenuCanonique, memeContenu } from './meme-contenu';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -737,7 +738,10 @@ export function bindCollection<T extends WithId>(
     const now = Date.now();
     for (const r of rows) {
       const liste = (echosAttendus.get(r.id) ?? []).filter((e) => now - e.at < ECHO_MEMOIRE_MS);
-      liste.push({ j: JSON.stringify(r.data), at: now });
+      /* LE CONTENU RANGÉ (2 octobre 2026) : la base rend nos lignes avec leurs
+         champs dans un autre ordre, et un écho comparé par son texte brut
+         n'était plus reconnu pour le nôtre. */
+      liste.push({ j: contenuCanonique(r.data), at: now });
       echosAttendus.set(r.id, liste);
     }
   };
@@ -1207,7 +1211,7 @@ export function bindCollection<T extends WithId>(
         } else {
           const row = payload.new as { id: string; data: T };
           const i = at(row.id);
-          const j = JSON.stringify(row.data);
+          const j = contenuCanonique(row.data);
           /* NOTRE PROPRE ÉCHO, RECONNU AU REGISTRE — 18 août 2026. L'ancien
              garde (« identique au local ? ») laissait passer l'écho d'une
              poussée VIEILLE D'UNE FRAPPE : le local avait avancé, l'écho ne
@@ -1217,7 +1221,11 @@ export function bindCollection<T extends WithId>(
              revient jamais s'appliquer ; le changement d'un AUTRE poste ne
              figure pas au registre et passe toujours. */
           if (estNotreEcho(row.id, j)) return;
-          if (i >= 0 && JSON.stringify(items[i]) === j) return;
+          /* CE QUI N'APPREND RIEN NE S'APPLIQUE PAS. Une ligne qui porte le même
+             contenu que la nôtre, champs rangés autrement, n'est pas une
+             nouvelle : l'appliquer réécrivait la table et redessinait l'écran
+             pour rien, 289 fois par minute le 2 octobre. */
+          if (i >= 0 && memeContenu(items[i], row.data)) return;
           if (i >= 0) items[i] = row.data;
           else items.push(row.data);
         }
@@ -1431,6 +1439,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         const row = payload.new as { data: T } | undefined;
         if (!row) return;
         const j = JSON.stringify(row.data);
+        /* LE MEME CONTENU, RANGE AUTREMENT, N'APPREND RIEN (2 octobre 2026) :
+           la base rend le document avec ses champs dans son ordre a elle. */
+        if (memeContenu(row.data, store.get())) return;
         /* L'ECHO DE NOTRE PROPRE ECRITURE. Supabase renvoie a l'emetteur les
            changements qu'il vient de faire. Appliquer cet echo tel quel
            REMBOBINE la saisie en cours : on tape « Les reprises », la poussee

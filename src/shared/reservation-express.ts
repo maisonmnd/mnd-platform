@@ -9,6 +9,8 @@
    pour écrire les formules (useFormulesRapides), le site pour choisir ses
    places, et le harnais `verifie-reservation-express` l'éprouve seul. */
 
+import { memeContenu } from './meme-contenu';
+
 /** UNE FORMULE RAPIDE : un ensemble de gestes que les clientes réservent
     ensemble. Le nom ne s'écrit pas ici : le site le lit dans le catalogue du
     jour, de sorte qu'une prestation renommée se dit sous son nouveau nom. */
@@ -67,7 +69,10 @@ export function formulesDesVenues(
     que ce qui change : le document public ne se réécrit pas à chaque
     ouverture. */
 export const memesFormules = (a: readonly FormuleRapide[] | undefined, b: readonly FormuleRapide[]): boolean =>
-  JSON.stringify(a ?? []) === JSON.stringify(b);
+  /* Le contenu, pas l'ordre des champs : le document revient du serveur rangé
+     à sa façon, et le comparer par son texte le faisait réécrire à chaque
+     ouverture (2 octobre 2026, voir meme-contenu). */
+  memeContenu(a ?? [], b);
 
 /** LES PROCHAINES PLACES : les premières heures libres, dans l'ordre du
     temps, DEUX PAR JOUR AU PLUS d'abord (la première du matin, la première

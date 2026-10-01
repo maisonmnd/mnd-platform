@@ -815,7 +815,7 @@ function CetAppareil() {
               : `${recuesEnTout} écriture${recuesEnTout > 1 ? 's' : ''} depuis une minute (${recues.slice(0, 4).map((r) => `${r.table} ${r.n}`).join(', ')})`}
             {recuesEnTout >= 30 && (
               <span className="sys-appareil__note">
-                {' '}· c’est beaucoup : un autre poste réécrit en continu, et celui-ci se redessine à chaque fois.
+                {' '}· c’est beaucoup : chaque écriture reçue fait redessiner l’écran.
               </span>
             )}
           </span>
