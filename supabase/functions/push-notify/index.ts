@@ -19,6 +19,31 @@ const TZ_OFFSET = Deno.env.get('TZ_OFFSET') ?? '+01:00';
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+/* TOUTE LA TABLE, PAGE PAR PAGE — 1er octobre 2026. Supabase plafonne chaque
+   réponse à mille lignes. Depuis le millième rendez-vous, un `select` nu ne
+   lisait plus qu'une tranche de la table : les rappels des rendez-vous restés
+   hors de la tranche ne partaient pas, sans un mot. On lit donc à la suite de
+   la dernière ligne lue (`id` croissant), jusqu'à la première page incomplète.
+   Une erreur en route arrête la lecture et rend ce qui a été lu : un rappel
+   de moins vaut mieux qu'aucun rappel. */
+// deno-lint-ignore no-explicit-any
+async function toutes(table: string, colonnes: string): Promise<any[]> {
+  // deno-lint-ignore no-explicit-any
+  const tout: any[] = [];
+  let apres: string | null = null;
+  for (let tour = 0; tour < 2000; tour += 1) {
+    let q = admin.from(table).select(colonnes).order('id', { ascending: true }).limit(1000);
+    if (apres !== null) q = q.gt('id', apres);
+    const { data, error } = await q;
+    if (error || !data) break;
+    tout.push(...data);
+    if (data.length < 1000) break;
+    // deno-lint-ignore no-explicit-any
+    apres = (data[data.length - 1] as any).id as string;
+  }
+  return tout;
+}
+
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
@@ -104,7 +129,7 @@ async function sendToStaff(payload: Payload): Promise<number> {
 async function broadcastToClients(payload: Payload): Promise<number> {
   // Toute personne ayant une FICHE CLIENTE (inclut un souverain qui utilise aussi
   // Ma Couronne). On ne diffuse pas aux abonnements purement personnel (sans fiche).
-  const { data: clientRows } = await admin.from('clients').select('id');
+  const clientRows = await toutes('clients', 'id');
   const clientIds = new Set((clientRows ?? []).map((c: { id: string }) => c.id));
   const { data: subs } = await admin.from('push_subscriptions').select('endpoint,p256dh,auth,client_id');
   if (!subs || subs.length === 0) return 0;
@@ -126,8 +151,8 @@ async function broadcastToClients(payload: Payload): Promise<number> {
 }
 
 async function runReminders(): Promise<number> {
-  const { data: appts } = await admin.from('appointments').select('id,data');
-  if (!appts) return 0;
+  const appts = await toutes('appointments', 'id,data');
+  if (appts.length === 0) return 0;
   const now = Date.now();
   let sent = 0;
   for (const row of appts as { id: string; data: Record<string, unknown> }[]) {
@@ -159,9 +184,9 @@ async function runReminders(): Promise<number> {
 
 async function runStaffCron(): Promise<number> {
   // Balaye les RDV : ceux qui commencent dans ≤ 1h alertent le personnel (une fois).
-  const { data: appts } = await admin.from('appointments').select('id,data');
-  if (!appts) return 0;
-  const { data: clientRows } = await admin.from('clients').select('id,data');
+  const appts = await toutes('appointments', 'id,data');
+  if (appts.length === 0) return 0;
+  const clientRows = await toutes('clients', 'id,data');
   const nameOf = new Map<string, string>(
     (clientRows ?? []).map((r: { id: string; data: { name?: string } }) => [r.id, r.data?.name ?? '']),
   );
@@ -234,7 +259,7 @@ Deno.serve(async (req) => {
     const ids = new Set<string>();
     if (target) ids.add(target);
     if (email) {
-      const { data: rows } = await admin.from('clients').select('id,data');
+      const rows = await toutes('clients', 'id,data');
       for (const r of (rows ?? []) as { id: string; data: { email?: string } }[]) {
         if ((r.data?.email || '').trim().toLowerCase() === email) ids.add(r.id);
       }

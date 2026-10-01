@@ -454,6 +454,34 @@ export function revenuDuMois(
   return factures + rituels + flux(apprenants, false) + flux(abonnes, true);
 }
 
+/** CE QUI EST ATTENDU D'ICI LA FIN DU MOIS, ET QUI N'EST PAS ENCORE ENTRÉ — 1er octobre 2026.
+
+    « Revenus du mois est calculé avec tous les RDV à venir. J'ai besoin que ce
+    soit les revenus actuels, payés. Il peut y avoir une case à part pour les
+    projected revenues » (Yéman). Une facture soldée d'avance porte un
+    versement daté du jour du rendez-vous : le 1er, le mois affichait déjà
+    l'argent du 15, du 16 et du 29.
+
+    Le revenu du mois s'arrête donc à AUJOURD'HUI (`revenuDuMois` avec `cut`),
+    et ce qui est daté d'après se lit ICI, à part : les versements datés plus
+    tard dans le mois, et le reste dû des rendez-vous à venir du mois, ni
+    annulés ni déjà honorés. Rien de tout cela n'est acquis. Encaissé à ce
+    jour + projeté = ce que le mois vaudra si tout le monde vient. */
+export function revenusProjetesDuMois(
+  args: Parameters<typeof revenuDuMois>[0],
+  mk: string,
+  aujourdhui: string,
+): { versements: number; rendezVous: number; nombre: number; total: number } {
+  const versements = Math.max(0, revenuDuMois(args, mk) - revenuDuMois(args, mk, { cut: aujourdhui }));
+  const aVenir = args.appts
+    .filter((a) => a.branchId === args.branchId && a.status !== 'annulé' && a.status !== 'honoré'
+      && a.date.slice(0, 7) === mk && a.date >= aujourdhui)
+    .map((a) => apptDueXof(a, args.byId))
+    .filter((du) => du > 0);
+  const rendezVous = aVenir.reduce((n, du) => n + du, 0);
+  return { versements, rendezVous, nombre: aVenir.length, total: versements + rendezVous };
+}
+
 /* ---------- Les factures suivent le rituel ----------
 
    MODIFIER UN RITUEL DÉJÀ ENCAISSÉ laissait sa facture telle qu'elle était

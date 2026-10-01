@@ -22,7 +22,7 @@ import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   facturesQuiAttendent,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
-  DrillModal, revenuDuMois, type Drill, type DrillRow,
+  DrillModal, revenuDuMois, revenusProjetesDuMois, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { useBilans, seancesSansBilan } from '../../../../shared/bilans';
 import { relancesAReprendre } from '../../../../shared/afaire';
@@ -132,7 +132,7 @@ export default function Dashboard() {
   const finPrev = new Date(Number(prevMonth.slice(0, 4)), Number(prevMonth.slice(5, 7)), 0).getDate();
   const cutPrev = `${prevMonth}-${String(Math.min(jourDuMois, finPrev)).padStart(2, '0')}`;
 
-  const { revenue, prevRevenue, spent, prevSpent, rev7, todayRows, revMaison } = useMemo(() => {
+  const { revenue, projete, prevRevenue, spent, prevSpent, rev7, todayRows, revMaison } = useMemo(() => {
     /* Une prestation encaissée porte un invoiceId : sa facture (payée) la compte déjà.
        On ne recompte donc jamais l'appt côté carnet → fini le double comptage carnet+caisse. */
     /* SEUL un rituel HONORÉ est du chiffre. L'ancienne présomption « confirmé et
@@ -205,7 +205,11 @@ export default function Dashboard() {
       /* CA du mois par la porte unique `revenuDuMois` (clients/_shared) —
          abonnements COMPRIS, comme la Synthèse (ils manquaient ici). Écran
          opérationnel : toutes les caisses comptent. */
-      revenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth),
+      /* ENCAISSÉ À CE JOUR — 1er octobre 2026. Sans borne, un versement daté du
+         15 comptait dès le 1er : « j'ai besoin que ce soit les revenus actuels,
+         payés » (Yéman). Ce qui est daté d'après aujourd'hui se lit à part. */
+      revenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth, { cut: today }),
+      projete: revenusProjetesDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, thisMonth, today),
       /* À JOUR ÉGAL : le mois précédent s'arrête au même jour que nous. */
       prevRevenue: revenuDuMois({ invoices, appts, byId, apprenants, abonnes, branchId: branch.id }, prevMonth, { cut: cutPrev }),
       spent: exp(thisMonth),
@@ -251,7 +255,7 @@ export default function Dashboard() {
       /* Un versement par moyen : un rituel réglé moitié espèces moitié Mobile
          Money compte dans les DEUX, chacun pour sa part. */
       for (const p of invoiceReglements(i)) {
-        if (!(p.date ?? '').startsWith(thisMonth) || p.amountXof <= 0) continue;
+        if (!(p.date ?? '').startsWith(thisMonth) || (p.date ?? '') > today || p.amountXof <= 0) continue;
         const k = p.method || 'Autre';
         const cur = pay.get(k) ?? { count: 0, total: 0 };
         cur.count += 1;
@@ -263,7 +267,7 @@ export default function Dashboard() {
     // Formation de l'Académie — un encaissement du mois, tous parcours confondus.
     const scol = apprenants
       .flatMap((ap) => ap.payments ?? [])
-      .filter((p) => payMonthKey(p.date) === thisMonth)
+      .filter((p) => payMonthKey(p.date) === thisMonth && payISO(p.date) <= today)
       .reduce((acc, p) => ({ count: acc.count + 1, total: acc.total + p.amountXof }), { count: 0, total: 0 });
     if (scol.total > 0) encaissements.push({ id: 'academie', label: 'Académie · formation', count: scol.count, total: scol.total });
     encaissements.sort((a, b) => b.total - a.total);
@@ -585,6 +589,16 @@ export default function Dashboard() {
   const kpis = [
     { label: 'Revenus du mois', value: fmtMoney(revenue, currency), bar: 'var(--color-indigo)', trend: trend(revenue, prevRevenue), action: () => setBreakOpen(true) },
     {
+      /* LA CASE À PART : ce que le reste du mois promet, sans le mêler à ce qui est entré. */
+      label: 'Revenus projetés du mois', value: fmtMoney(projete.total, currency), bar: 'var(--color-copper)',
+      trend: {
+        t: projete.total === 0 ? 'rien d’attendu d’ici la fin du mois'
+          : `${projete.nombre} rendez-vous à venir${projete.versements > 0 ? ' et des versements datés plus tard' : ''} · rien n’est encore acquis`,
+        down: false,
+      },
+      action: () => navigate('/carnet'),
+    },
+    {
       label: 'Dépenses du mois', value: fmtMoney(spent, currency), bar: 'var(--color-copper)',
       /* Zéro dépense saisie n'est pas « ▼ 100 % » : c'est un registre vide, et
          il vaut mieux le dire que faire croire à une économie. */
@@ -722,7 +736,7 @@ export default function Dashboard() {
   /** Les factures d'un moyen de paiement — chacune ouvrable. */
   const openPayMethod = (method: string) => {
     const partDuMoyen = (i: Invoice) => invoiceReglements(i)
-      .filter((p) => (p.date ?? '').startsWith(thisMonth) && (p.method || 'Autre') === method)
+      .filter((p) => (p.date ?? '').startsWith(thisMonth) && (p.date ?? '') <= today && (p.method || 'Autre') === method)
       .reduce((n, p) => n + p.amountXof, 0);
     const rows: DrillRow[] = invoices
       .filter((i) => i.branchId === branch.id && i.kind === 'facture' && partDuMoyen(i) > 0)
@@ -831,7 +845,7 @@ export default function Dashboard() {
       )}
 
       {/* KPI majeurs */}
-      <div className="tr-grid tr-grid--3" style={{ marginTop: 24 }}>
+      <div className="tr-grid" style={{ marginTop: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
         {kpis.map((k) => (
           <div
             className="trp-kpi trp-kpi--click"
