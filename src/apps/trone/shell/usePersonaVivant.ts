@@ -4,7 +4,9 @@ import { useServices } from '../../../shared/catalog';
 import { clientsStore, useClients, usePersonas } from '../../../shared/clients';
 import { evaluePersona, personaDe, usePersonaRegles } from '../../../shared/persona';
 import { useAuth } from '../../../shared/auth';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* LE PERSONA SUIT LE CARNET — Le Trône, 8 août 2026.
 
    À chaque rendez-vous ajouté ou honoré, la Maison relit les signaux de la
@@ -73,7 +75,7 @@ export function usePersonaVivant(): void {
     }
 
     if (aEcrire.size === 0) return;
-    clientsStore.set((prev) =>
+    gardeLEcriture('persona', clientsStore).set((prev) =>
       prev.map((c) => {
         const id = aEcrire.get(c.id);
         return id ? { ...c, persona: id } : c;

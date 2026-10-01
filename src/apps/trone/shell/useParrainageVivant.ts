@@ -14,7 +14,9 @@ import {
 } from '../../../shared/ambassade';
 import { CLASSEMENT_VIDE, classementStore, useClassement } from '../../../shared/classement-ambassade';
 import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* ══ LES AMBASSADRICES, TENUES À JOUR — 28 septembre 2026 ═══════════════
    Maquette validée (« construits », Yéman). Six gestes, en tâche de fond,
    UN PAR PASSAGE : chaque geste écrit puis rend la main, le suivant part au
@@ -59,7 +61,7 @@ export function useParrainageVivant(): void {
     const codes = codesAAttribuer(clients, liste);
     if (codes.length) {
       const parFiche = new Map(codes.map((c) => [c.clientId, c.code]));
-      clientsStore.set((prev) => prev.map((c) => (parFiche.has(c.id) && !c.codeParrain ? { ...c, codeParrain: parFiche.get(c.id) } : c)));
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => (parFiche.has(c.id) && !c.codeParrain ? { ...c, codeParrain: parFiche.get(c.id) } : c)));
       return;
     }
 
@@ -67,7 +69,7 @@ export function useParrainageVivant(): void {
     const rattache = rattachementsDuSite(clients, liste, lus);
     if (rattache.length) {
       const parFiche = new Map(rattache.map((r) => [r.clientId, r]));
-      clientsStore.set((prev) => prev.map((c) => {
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
         const r = parFiche.get(c.id);
         return r && !c.parraineePar ? { ...c, parraineePar: r.code, parraineeLe: r.le } : c;
       }));
@@ -81,7 +83,7 @@ export function useParrainageVivant(): void {
       if (r) reportes.set(c.id, r);
     }
     if (reportes.size) {
-      clientsStore.set((prev) => prev.map((c) => (reportes.has(c.id) ? { ...c, soinsOfferts: reportes.get(c.id) } : c)));
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => (reportes.has(c.id) ? { ...c, soinsOfferts: reportes.get(c.id) } : c)));
       return;
     }
 
@@ -98,21 +100,21 @@ export function useParrainageVivant(): void {
       if (JSON.stringify(r) !== JSON.stringify(c.parrainage ?? null)) resumes.set(c.id, r);
     }
     if (resumes.size) {
-      clientsStore.set((prev) => prev.map((c) => (resumes.has(c.id) ? { ...c, parrainage: resumes.get(c.id) } : c)));
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => (resumes.has(c.id) ? { ...c, parrainage: resumes.get(c.id) } : c)));
       return;
     }
 
     /* ⑤ Les récompenses. */
     const poses = recompensesAPoser(clients, L, reglage, aujourdhui, nomDuService);
     if (poses.parFiche.size) {
-      clientsStore.set((prev) => prev.map((c) => {
+      gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
         const neuves = (poses.parFiche.get(c.id) ?? []).filter((s) => !(c.soinsOfferts ?? []).some((x) => x.id === s.id));
         return neuves.length ? { ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...neuves] } : c;
       }));
       if (poses.demandesMarquees.length) {
         const marquees = new Set(poses.demandesMarquees);
         const maintenant = new Date().toISOString();
-        demandesStore.set((prev) => prev.map((d) => (marquees.has(d.id) && !(d as DemandeParrainee).cadeauMarraineRemisLe
+        gardeLEcriture('parrainage', demandesStore).set((prev) => prev.map((d) => (marquees.has(d.id) && !(d as DemandeParrainee).cadeauMarraineRemisLe
           ? { ...d, cadeauMarraineRemisLe: maintenant } as typeof d : d)));
       }
       for (const m of poses.mercis) {
@@ -143,7 +145,7 @@ export function useParrainageVivant(): void {
       }).filter((x): x is NonNullable<typeof x> => !!x);
       const poses = sceauxDuFoyerAPoser(foyers, sceaux, clients, aujourdhui, reglage.validiteMois ?? 6, nomDuService);
       if (poses.size) {
-        clientsStore.set((prev) => prev.map((c) => {
+        gardeLEcriture('parrainage', clientsStore).set((prev) => prev.map((c) => {
           const neuves = (poses.get(c.id) ?? []).filter((s) => !(c.soinsOfferts ?? []).some((x) => x.id === s.id));
           return neuves.length ? { ...c, soinsOfferts: [...(c.soinsOfferts ?? []), ...neuves] } : c;
         }));
@@ -154,6 +156,6 @@ export function useParrainageVivant(): void {
     /* ⑥ Le classement du mois, une fois le document descendu. */
     if (!documentDescendu('mnd_classement_ambassade')) return;
     const voulu = reglage.classementVisible ? classementDuMois(L, aujourdhui) : CLASSEMENT_VIDE;
-    if (JSON.stringify(voulu) !== JSON.stringify(classement)) classementStore.set(voulu);
+    if (JSON.stringify(voulu) !== JSON.stringify(classement)) gardeLEcriture('parrainage', classementStore).set(voulu);
   }, [session, clients, demandes, rdvs, services, produits, reglage, classement, familles, sceaux]);
 }

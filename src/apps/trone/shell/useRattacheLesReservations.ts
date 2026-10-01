@@ -5,7 +5,9 @@ import { useDemandes, demandesStore, rattachementsAFaire, ficheDepuisLaDemande }
 import { useAuth } from '../../../shared/auth';
 import { tablePrete } from '../../../shared/sync';
 import { supabase } from '../../../shared/supabase';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* ══ LA RÉSERVATION DU SITE TROUVE SA FICHE EN ÉTANT CONFIRMÉE — 18 sept. 2026 ══
    Arbitrage de Yéman (maquette `maquette-le-journal-des-envois.html`) :
    valider depuis le calendrier une réservation du site crée sa fiche, au
@@ -49,7 +51,7 @@ export function useRattacheLesReservations(): void {
       }
       const aCreer = neuves.filter((f) => !auServeur.has(f.id));
       if (aCreer.length > 0) {
-        clientsStore.set((prev) => {
+        gardeLEcriture('réservations', clientsStore).set((prev) => {
           const have = new Set(prev.map((c) => c.id));
           const add = aCreer.filter((f) => !have.has(f.id));
           return add.length ? [...prev, ...add] : prev;
@@ -61,12 +63,12 @@ export function useRattacheLesReservations(): void {
       ]));
       /* Le rendez-vous ne se rattache que s'il est TOUJOURS sans fiche :
          une main a pu le rattacher entre-temps, elle a le dernier mot. */
-      appointmentsStore.set((prev) => prev.map((a) => {
+      gardeLEcriture('réservations', appointmentsStore).set((prev) => prev.map((a) => {
         const f = ficheDe.get(a.id);
         return f && !a.clientId ? { ...a, clientId: f.id, clientName: f.prenom || a.clientName } : a;
       }));
       const parDemande = new Map([...ficheDe.values()].map((f) => [f.demandeId, f.id]));
-      demandesStore.set((prev) => prev.map((d) => {
+      gardeLEcriture('réservations', demandesStore).set((prev) => prev.map((d) => {
         const id = parDemande.get(d.id);
         return id && d.statut !== 'convertie' ? { ...d, statut: 'convertie', clientId: id } : d;
       }));

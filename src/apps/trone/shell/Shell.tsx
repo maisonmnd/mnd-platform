@@ -81,6 +81,7 @@ import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState } from '../../../shared/sync';
+import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
 import { useClients, clientsStore } from '../../../shared/clients';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
 import { useInvoices, invoicesStore } from '../../../shared/finance';
@@ -92,6 +93,9 @@ import { houseSettingsStore } from '../routes/equipe/data';
    poste sans que personne ne le sache. Un mot, une couleur, la vérité. */
 function SyncDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
+  /* LES AUTOMATISMES QUI SE TAISENT (1er octobre 2026) : un poste qui réécrit les fiches
+     en boucle les met en pause, et la pastille le dit au lieu de tourner sans fin. */
+  const pauses = useSyncExternalStore(ecouteLesPauses, pausesDites, pausesDites);
   if (!s.enabled) return null;
   const mode = !s.online ? 'off' : s.failed > 0 ? 'err' : s.pending > 0 ? 'wait' : 'ok';
   /* EN ÉCHEC, ON NOMME — ET ON DIT POURQUOI. Nommer les tables (6 août) a évité
@@ -122,9 +126,10 @@ function SyncDot() {
     /* LA PASTILLE NOMME CE QUI ATTEND (1er octobre 2026) : une table, on la dit ; plusieurs, on les compte.
        Une attente qui dure se lit alors d'un coup d'œil, sans ouvrir la console. */
     : mode === 'wait' ? `Synchronisation… ${s.pendingNames.length === 1 ? `· ${s.pendingNames[0].replace(/^doc:/, '')}` : s.pendingNames.length > 1 ? `· ${s.pendingNames.length} tables` : ''}`.trim()
+    : pauses ? 'Synchronisé · un autre poste réécrit les fiches'
     : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
   const color = mode === 'ok'
-    ? (enRetard ? 'var(--color-copper)' : '#6e7c5c')
+    ? (enRetard || pauses ? 'var(--color-copper)' : '#6e7c5c')
     : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
     mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
@@ -136,6 +141,10 @@ function SyncDot() {
 ${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || '—'}
 
 Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez ce poste, puis les autres postes ouverts.`
+    : pauses
+      ? `Tout est enregistré. Mais les fiches se réécrivaient en boucle : un autre appareil ouvert sur une ancienne version du Trône, ou deux réglages qui se contredisent.\n\n`
+        + `En pause un quart d’heure sur ce poste : ${pauses.split(',').join(', ')}.\n\n`
+        + 'Rechargez le Trône sur tous les appareils ouverts (ordinateurs et téléphones). Vos gestes à la main, eux, s’enregistrent normalement.'
     : enRetard
       ? `Tout est enregistré, mais le direct est tombé sur ${enRetard === 1 ? 'une table' : `${enRetard} tables`} :\n`
         + `${s.directEnPanne.slice(0, 6).join(', ')}${enRetard > 6 ? '…' : ''}\n\n`

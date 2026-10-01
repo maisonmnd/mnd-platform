@@ -6,7 +6,9 @@ import { vitrineConfigStore } from '../../../shared/bridges';
 import { useAuth } from '../../../shared/auth';
 import { documentDescendu, tablePrete } from '../../../shared/sync';
 import { formulesDesVenues, memesFormules } from '../../../shared/reservation-express';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* ══ LES FORMULES RAPIDES DU SITE — 29 septembre 2026 ══════════════════════
    « La réservation en 30 secondes » (maquette validée par Yéman) : la
    nouvelle cliente ne répond plus à une question par famille, elle touche
@@ -40,6 +42,6 @@ export function useFormulesRapides(): void {
     const aujourdhui = new Date().toISOString().slice(0, 10);
     const voulues = formulesDesVenues(appts, vivants, aujourdhui);
     if (memesFormules(cfg.formulesRapides, voulues)) return;
-    vitrineConfigStore.set((prev) => ({ ...prev, formulesRapides: voulues }));
+    gardeLEcriture('formules', vitrineConfigStore).set((prev) => ({ ...prev, formulesRapides: voulues }));
   }, [session, appts, services, cfg.formulesRapides]);
 }
