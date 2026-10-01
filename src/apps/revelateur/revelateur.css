@@ -1723,3 +1723,35 @@ body.galerie-plein { scroll-behavior: smooth; }
 .invitation .sur { color: var(--accent-sombre); }
 .invitation__titre { margin: 0; font-family: var(--serif); font-weight: 300; font-size: clamp(30px, 5vw, 42px); line-height: 1.05; max-width: 16ch; }
 .invitation__ligne { margin: 0; font-size: 15px; line-height: 1.6; color: rgba(246, 241, 231, .86); max-width: 46ch; }
+
+/* ── LE RÉCIT EN RESPIRATIONS — 1er octobre 2026 ──────────────────────────
+   « Une lecture fluide, ne même pas sentir que le texte est long, qu'on quitte un
+   paragraphe à l'autre » (Yéman). Une ou deux phrases par bloc, un grand corps dans
+   une colonne étroite, ce qui vient voilé et ce qui arrive révélé, un fil cuivre en
+   haut pour seul repère. Le script pose `js-voile` ; sans lui, tout est lisible. */
+.recit-fil { position: fixed; top: 0; left: 0; height: 2px; width: 100%; background: transparent; z-index: 50; pointer-events: none; }
+.recit-fil i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0); }
+.recit-ouverture { min-height: calc(100vh - var(--barre-h, 72px)); display: grid; place-items: center; text-align: center; padding: clamp(40px, 8vh, 96px) clamp(18px, 4vw, 40px); }
+.recit-ouverture__bloc { max-width: 30ch; display: grid; justify-items: center; }
+.recit-ouverture small { display: block; font-family: var(--sans); font-size: 14px; letter-spacing: .04em; color: var(--accent-profond); margin-bottom: 28px; }
+.recit-ouverture h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 5.2vw, 62px); line-height: 1.12; color: var(--titre); margin: 0; text-wrap: balance; }
+.recit-ouverture p { font-family: var(--serif); font-style: italic; font-size: clamp(19px, 2vw, 24px); color: var(--texte-doux); margin: 28px 0 0; }
+.recit-ouverture__trait { display: block; width: 1px; height: 56px; margin-top: clamp(36px, 7vh, 64px); background: linear-gradient(var(--accent), transparent); }
+.recit { padding: 0 clamp(18px, 4vw, 40px) clamp(64px, 10vh, 120px); }
+.recit__colonne { max-width: 56ch; margin: 0 auto; font-size: clamp(21px, 2vw, 25px); }
+.recit__chapitre { padding-block: clamp(96px, 22vh, 200px) 0; }
+.recit__chapitre:first-child { padding-top: clamp(40px, 8vh, 80px); }
+.recit__chapitre h2 { font-family: var(--serif); font-weight: 400; font-style: italic; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.2; color: var(--accent-profond); margin: 0 0 clamp(36px, 6vh, 56px); text-align: center; max-width: none; }
+.recit__chapitre h2::after { content: ''; display: block; width: 28px; height: 1px; background: var(--accent); margin: 18px auto 0; opacity: .7; }
+.recit__chapitre p { font-family: var(--serif); font-weight: 400; font-size: clamp(21px, 2vw, 25px); line-height: 1.55; color: var(--titre); margin: 0 0 clamp(28px, 4.2vh, 40px); max-width: none; text-wrap: pretty; transition: opacity .35s ease; }
+.recit__chapitre p:last-child { margin-bottom: 0; }
+.js-voile .recit__chapitre p { opacity: .22; }
+.js-voile .recit__chapitre p.lu { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .js-voile .recit__chapitre p { opacity: 1; transition: none; } }
+.recit__chapitre p.recit__souffle { font-style: italic; color: var(--accent-profond); text-align: center; padding: clamp(10px, 2vh, 20px) 0; }
+.recit__chapitre p.recit__fin { text-align: center; font-size: clamp(26px, 3vw, 34px); line-height: 1.25; padding-top: clamp(20px, 4vh, 36px); }
+.recit__signature { text-align: center; margin: clamp(56px, 10vh, 96px) 0 0; font-family: var(--serif); font-style: italic; font-size: 19px; color: var(--texte-doux); max-width: none; }
+.recit-fin { background: var(--sombre); color: var(--fond); padding: clamp(56px, 10vh, 96px) clamp(18px, 4vw, 40px); text-align: center; }
+.recit-fin h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.15; margin: 0 auto; max-width: 22ch; color: var(--fond); }
+.recit-fin p { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--accent-sombre); margin: 16px auto 0; max-width: none; }
+.recit-fin .rangee { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 32px; }

@@ -360,6 +360,23 @@ function marques(s) {
         <div class="defile" aria-label="Les marques que la Maison utilise"><div class="defile__piste">${piste(false)}${piste(true)}</div></div>
       </section>`;
 }
+/* LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. Le fil cuivre avance avec la lecture ;
+   une ligne est « lue » dès que son haut passe sous les trois quarts de l'écran, et
+   ce qui est au-dessus reste lu. Sans script, ou si la personne a demandé moins de
+   mouvement, tout le texte est lisible d'emblée. */
+const SCRIPT_RECIT = `<script>(function(){var reduit=window.matchMedia('(prefers-reduced-motion: reduce)').matches;var fil=document.getElementById('recit-fil');var paras=Array.prototype.slice.call(document.querySelectorAll('.recit__chapitre p'));if(!reduit){document.documentElement.classList.add('js-voile');}var tick=false;function rendre(){tick=false;var h=window.innerHeight;var docH=document.documentElement.scrollHeight-h;var y=window.scrollY||window.pageYOffset;if(fil){fil.style.transform='scaleX('+(docH>0?Math.min(1,y/docH):0)+')';}if(reduit)return;var seuil=h*0.72;for(var i=0;i<paras.length;i++){var r=paras[i].getBoundingClientRect();if(r.top<seuil){paras[i].classList.add('lu');}else{paras[i].classList.remove('lu');}}}function demander(){if(!tick){tick=true;window.requestAnimationFrame(rendre);}}window.addEventListener('scroll',demander,{passive:true});window.addEventListener('resize',demander);rendre();})();</script>`;
+function rendRecit(s) {
+  const brs = (t) => echappe(t).replace(/\n/g, '<br>');
+  const ligne = (l) => (typeof l === 'string' ? `<p>${echappe(l)}</p>`
+    : l.souffle ? `<p class="recit__souffle">${echappe(l.souffle)}</p>`
+      : `<p class="recit__fin">${brs(l.fin)}</p>`);
+  return `<div class="recit-fil" aria-hidden="true"><i id="recit-fil"></i></div>
+      <article class="recit"><div class="recit__colonne">
+        ${s.chapitres.map((c) => `<section class="recit__chapitre" id="${attr(c.id)}"><h2>${echappe(c.titre)}</h2>${c.lignes.map(ligne).join('')}</section>`).join('\n        ')}
+        <p class="recit__signature">${brs(s.signature)}</p>
+      </div></article>
+      ${SCRIPT_RECIT}`;
+}
 function rendSection(s) {
   const tete = (s.sur || s.titre) ? `<div class="tete">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}</div>` : '';
   switch (s.type) {
@@ -410,7 +427,10 @@ function rendSection(s) {
       return `<section class="univers"><div class="conteneur">${tete}${s.ligne ? `<p class="ligne" style="margin-top:-12px;margin-bottom:28px">${echappe(s.ligne)}</p>` : ''}${gamme(s.items)}</div></section>`;
     case 'marques':
       return marques(s);
+    case 'recit':
+      return rendRecit(s);
     case 'appel':
+      if (s.sombre) return `<section class="recit-fin sombre"><h2>${echappe(s.titre)}</h2>${s.ligne ? `<p>${echappe(s.ligne)}</p>` : ''}<div class="rangee">${s.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div></section>`;
       return `<section class="appel"><div class="conteneur"><div><h2>${echappe(s.titre)}</h2>${s.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(s.ligne)}</p>` : ''}</div><div class="rangee">${s.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--fort' : 'btn')).join('')}</div></div></section>`;
     default:
       return '';
@@ -761,6 +781,13 @@ function rendLibre(p, supplement = '') {
   const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir'
     || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements';
   const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
+  /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un
+     trait qui invite à descendre, et rien d'autre. Le fil d'Ariane reste déclaré aux
+     moteurs par la page, il ne s'affiche pas. */
+  if (p.ouverture) return `
+      <section class="recit-ouverture"><div class="recit-ouverture__bloc">${p.sur ? `<small>${echappe(p.sur)}</small>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p>${echappe(p.ligne)}</p>` : ''}<span class="recit-ouverture__trait" aria-hidden="true"></span></div></section>
+${sections}
+${supplement}`;
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
       <section class="page-hero${visuel ? '' : ' page-hero--simple'}"><div class="conteneur">

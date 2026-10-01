@@ -29,7 +29,11 @@ export type Section =
   | { type: 'pas'; sur?: string; titre?: string; liste?: boolean; items: [string, string][] }
   | { type: 'faq'; sur?: string; titre?: string; items: [string, string][] }
   | { type: 'citation'; texte: string; qui?: string }
-  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[] }
+  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[]; sombre?: boolean }
+  /** LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. Chaque ligne est une respiration,
+      une ou deux phrases ; `souffle` est une phrase mise à part, `fin` la phrase
+      finale en plus grand (un retour à la ligne s'écrit `\n`). */
+  | { type: 'recit'; signature: string; chapitres: { id: string; titre: string; lignes: (string | { souffle: string } | { fin: string })[] }[] }
   /* LA MAISON REVISITÉE — 27 septembre 2026, maquette validée. Trois blocs
      de plus, ceux de l'accueil rendus disponibles aux pages libres : les
      piliers (trois titres courts sous un objectif), la gamme (les huit
@@ -68,6 +72,9 @@ export type Page = {
   jsonld?: 'service' | 'faq' | 'course' | 'maison' | 'aucun';
   /** Le nom court dans le fil d'Ariane et le sitemap. */
   court: string;
+  /** L'OUVERTURE PLEIN ÉCRAN : le surtitre, le titre, la ligne, et rien d'autre.
+      Elle remplace le fil d'Ariane visible et la tête de page ordinaire. */
+  ouverture?: boolean;
   /** UNE OFFRE PARAÎT LE JOUR OÙ ELLE SE RÉSERVE, PAS AVANT — 30 septembre
       2026. Une page qui attend quelque chose (un forfait au catalogue, une
       adresse) est écrite ici mais n'est ni construite ni mise au plan tant
