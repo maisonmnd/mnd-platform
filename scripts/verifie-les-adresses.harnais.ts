@@ -119,8 +119,18 @@ if (!existsSync(construit)) {
   const fichiersPublics = readdirSync('public')
     .filter((f) => !statSync(join('public', f)).isDirectory() && !/^maquette-/i.test(f)).sort();
   const contenus = pages.filter((r) => !fichiersPublics.includes(r)).map((r) => readFileSync(join(construit, r), 'utf8'));
+  /* CITER, C'EST VISER LA RACINE (1er octobre 2026). La politique de données
+     de la vitrine renvoie aux règles de Ma Couronne, `/couronne/confidentialite.html` :
+     c'est la page d'une AUTRE application du domaine, pas un fichier que la
+     vitrine doit porter. Une citation est donc une adresse faite du seul nom
+     du fichier, avec ou sans barre initiale, avec ou sans `../` devant. */
+  const citeALaRacine = (c: string, f: string) =>
+    new RegExp(`["'(]\\s*(?:\\.\\.?/)*/?${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=["'?#)])`).test(c);
+  dit('une adresse à la racine est une citation', true, citeALaRacine('<a href="/payer.html">', 'payer.html'));
+  dit('… depuis un sous-dossier aussi', true, citeALaRacine('<a href="../../payer.html?x=1">', 'payer.html'));
+  dit('… mais pas la page d’une autre application du domaine', false, citeALaRacine('<a href="/couronne/confidentialite.html">', 'confidentialite.html'));
   dit('la racine du domaine ne publie de public/ que les jetons Google et ce qu’une page de la vitrine cite',
-    fichiersPublics.filter((f) => /^google[0-9a-f]+\.html$/i.test(f) || f === '.nojekyll' || contenus.some((c) => c.includes(f))),
+    fichiersPublics.filter((f) => /^google[0-9a-f]+\.html$/i.test(f) || f === '.nojekyll' || contenus.some((c) => citeALaRacine(c, f))),
     fichiersPublics.filter((f) => existsSync(join(construit, f))));
   const renvois = 'dist-sites/revelateur-renvoi';
   if (!existsSync(renvois)) {

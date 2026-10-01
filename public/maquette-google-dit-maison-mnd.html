@@ -156,50 +156,55 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
       </tr>
       <tr>
         <td class="quoi">La page d'accueil</td>
-        <td>Elle présente la Maison et cite sa politique de données en pied de page.</td>
+        <td>Elle porte le nom « Maison MND » et cite, en pied de page, la politique de données et les conditions.</td>
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
         <td class="quoi">Le logo carré</td>
-        <td>120 sur 120, comme Google le demande. Sur le bureau, dossier « Pour Google - nom Maison MND ».</td>
-        <td class="etat"><span class="etiq bon">prêt</span></td>
+        <td>Le pictogramme est déjà en place dans Google Cloud. Une copie carrée de secours attend sur le bureau, dossier « Pour Google - nom Maison MND ».</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
         <td class="quoi">La politique de données</td>
-        <td>Elle dit Ma Couronne et l'entrée par Google : ce que Google transmet, à quoi cela sert, ce que la Maison ne reçoit jamais.</td>
+        <td>Elle dit Ma Couronne et l'entrée par Google : ce que Google transmet, à quoi cela sert, ce que la Maison ne reçoit jamais. Elle renvoie aux règles détaillées de Ma Couronne.</td>
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
         <td class="quoi">Le compte Google du projet</td>
-        <td><span class="atrouver">Celui qui a créé « Continuer avec Google » en août : je ne le connais pas.</span></td>
-        <td class="etat"><span class="etiq reste">à retrouver</span></td>
+        <td>Le projet s'appelle « Maison MND », ouvert avec atelier.mnd@gmail.com.</td>
+        <td class="etat"><span class="etiq bon">retrouvé</span></td>
       </tr>
     </tbody>
   </table>
 
   <div class="garde">
     <b>Fait de mon côté, le 1er octobre</b>
-    <p>La politique de données porte désormais un paragraphe sur Ma Couronne : ce que Google transmet quand une cliente entre par lui (son nom, son adresse e-mail, sa photo de profil), à quoi cela sert (ouvrir son compte et la reconnaître), et ce que la Maison ne reçoit jamais (son mot de passe, ses courriers, ses contacts). Google lit cette page pendant l'examen.</p>
+    <p>La politique de données du site dit Ma Couronne et l'entrée par Google, et renvoie aux règles détaillées de l'application. Les deux pages propres à Ma Couronne portent l'adresse contact@maisonmnd.com à la place de l'adresse Gmail, et la devise d'aujourd'hui.</p>
   </div>
 
   <h2>À faire, dans cet ordre</h2>
   <p class="cap">Tout se passe sur <kbd>console.cloud.google.com</kbd>. Les libellés sont donnés en anglais, comme votre console les affiche. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
   <ol class="pas" id="pas">
-    <li><b>Ouvrir le bon projet</b><p>Sur <kbd>console.cloud.google.com</kbd>, avec <span class="atrouver">le compte Google qui a créé la connexion en août</span>. Le sélecteur de projet est dans la barre du haut, à gauche.</p><p>Pour reconnaître le bon projet : menu ☰, <b>Google Auth Platform</b>, <b>Clients</b>. Il porte un client dont l'identifiant commence par <kbd>436874099098</kbd>. N'ouvrez pas ce client, regardez seulement la liste.</p></li>
+    <li><b>Ouvrir le bon projet</b><p>Sur <kbd>console.cloud.google.com</kbd>, avec le compte <kbd>atelier.mnd@gmail.com</kbd>. Le sélecteur de projet est dans la barre du haut, à gauche : choisissez « Maison MND ».</p></li>
     <li><b>Ouvrir Branding</b><p>Menu ☰, <b>Google Auth Platform</b>, <b>Branding</b>.</p></li>
-    <li><b>Le nom, l'adresse de contact, le logo</b><p>« App name » : <kbd>Maison MND</kbd>. « User support email » : choisissez l'adresse que la liste propose. « App logo » : envoyez <kbd>logo-maison-mnd-120.png</kbd>, depuis le dossier « Pour Google - nom Maison MND » du bureau.</p></li>
+    <li><b>Le nom, l'adresse de contact, le logo</b><p>« App name » : <kbd>Maison MND</kbd>. « User support email » : laissez l'adresse proposée, l'encadré plus bas dit comment y mettre une adresse professionnelle. « App logo » : gardez le pictogramme déjà en place.</p></li>
     <li><b>Les trois adresses du site</b><p>« Application home page » : <kbd>https://maisonmnd.com/</kbd></p><p>« Application privacy policy link » : <kbd>https://maisonmnd.com/confidentialite/</kbd></p><p>« Application terms of service link » : <kbd>https://maisonmnd.com/conditions/</kbd></p></li>
-    <li><b>Le domaine autorisé, puis enregistrer</b><p>Sous « Authorized domains », <b>Add domain</b> : <kbd>maisonmnd.com</kbd>. Laissez la ligne <kbd>supabase.co</kbd> qui s'y trouve déjà. « Developer contact information » : <kbd>direction@maisonmnd.com</kbd>. Puis <b>Save</b>.</p></li>
+    <li><b>Le domaine autorisé, puis enregistrer</b><p>Sous « Authorized domains », remplacez <kbd>maisonmnd.github.io</kbd> par <kbd>maisonmnd.com</kbd>. Si Google refuse d'enregistrer, remettez l'ancien en deuxième ligne avec <b>Add domain</b>. « Developer contact information » : <kbd>direction@maisonmnd.com</kbd>. Puis <b>Save</b>.</p></li>
     <li><b>Mettre l'application en production</b><p>Menu de gauche, <b>Audience</b>. Si « Publishing status » dit « Testing », cliquez <b>Publish app</b>, puis Confirm. S'il dit déjà « In production », ne touchez à rien.</p></li>
     <li><b>Demander la vérification</b><p>Revenez sur <b>Branding</b> et cliquez <b>Verify branding</b> (le même bouton se trouve dans « Verification Center »). Google contrôle le domaine, les pages et le logo. La réponse arrive tout de suite, ou par courrier sous quelques jours ouvrés, sur l'adresse du compte.</p></li>
   </ol>
 
   <div class="garde mur">
-    <b>Quatre choses à ne pas toucher</b>
+    <b>Trois choses à ne pas toucher</b>
     <p>Le client de la page « Clients » : son identifiant, son secret et ses adresses de retour. L'entrée de Ma Couronne en dépend.</p>
-    <p>La ligne <kbd>supabase.co</kbd> des domaines autorisés : sans elle, Google refuse la connexion.</p>
     <p>La page « Data Access » : n'y ajoutez aucune autorisation. Chaque autorisation de plus allonge l'examen de plusieurs semaines.</p>
     <p>Les captures : ne m'envoyez jamais l'écran où le secret du client est lisible.</p>
+  </div>
+
+  <div class="garde">
+    <b>Pour une adresse professionnelle à la place du Gmail</b>
+    <p>La liste « User support email » ne propose que l'adresse du compte Google connecté. Pour y lire <kbd>contact@maisonmnd.com</kbd> : créez un compte Google sur cette adresse (<kbd>accounts.google.com/signup</kbd>, « Use your existing email », le code arrive dans la boîte Zoho) ; ajoutez-la au projet (menu ☰, <kbd>IAM &amp; Admin</kbd>, <kbd>IAM</kbd>, <kbd>Grant access</kbd>, rôle <kbd>Owner</kbd>) ; reconnectez-vous avec elle, et choisissez-la dans la liste.</p>
+    <p>Cela peut se faire après la vérification : elle n'en dépend pas.</p>
   </div>
 
   <h2>Si Google refuse le domaine</h2>
