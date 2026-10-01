@@ -110,12 +110,12 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
     <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
     <p class="sur">Maison MND · Google &amp; Ma Couronne</p>
     <h1>Google dit « Maison MND »</h1>
-    <p class="ligne">Quand une cliente entre dans Ma Couronne par « Continuer avec Google », Google lui annonce une adresse technique. Sept gestes pour qu'il annonce la Maison.</p>
+    <p class="ligne">Quand une cliente entre dans Ma Couronne par « Continuer avec Google », Google lui annonce une adresse technique. Sept gestes pour qu'il annonce la Maison, en deux soirs.</p>
   </header>
 
   <div class="jauge">
     <b id="compte">0 / 7</b>
-    <span>gestes faits. Comptez un quart d'heure, puis quelques jours d'examen chez Google.</span>
+    <span>gestes faits. Six le premier soir, le dernier vingt-quatre heures plus tard.</span>
     <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
   </div>
 
@@ -155,8 +155,8 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
-        <td class="quoi">La page d'accueil</td>
-        <td>Elle porte le nom « Maison MND » et cite, en pied de page, la politique de données et les conditions.</td>
+        <td class="quoi">La page de présentation</td>
+        <td>Ma Couronne a la sienne, faite pour Google : ce que l'application fait, comment on y entre, et le lien vers ses règles de confidentialité. L'accueil du site, lui, ne parle presque pas de l'application.</td>
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
@@ -165,8 +165,8 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
-        <td class="quoi">La politique de données</td>
-        <td>Elle dit Ma Couronne et l'entrée par Google : ce que Google transmet, à quoi cela sert, ce que la Maison ne reçoit jamais. Elle renvoie aux règles détaillées de Ma Couronne.</td>
+        <td class="quoi">Les règles de confidentialité</td>
+        <td>Celles de Ma Couronne détaillent ce que l'application recueille, ce qu'elle en fait, et ce que Google transmet à l'entrée.</td>
         <td class="etat"><span class="etiq bon">en ordre</span></td>
       </tr>
       <tr>
@@ -179,8 +179,20 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
 
   <div class="garde">
     <b>Fait de mon côté, le 1er octobre</b>
-    <p>La politique de données du site dit Ma Couronne et l'entrée par Google, et renvoie aux règles détaillées de l'application. Les deux pages propres à Ma Couronne portent l'adresse contact@maisonmnd.com à la place de l'adresse Gmail, et la devise d'aujourd'hui.</p>
+    <p>Les deux pages de Ma Couronne portent l'adresse contact@maisonmnd.com à la place de l'adresse Gmail, et la devise d'aujourd'hui. La politique de données du site dit elle aussi Ma Couronne et l'entrée par Google, et renvoie aux règles de l'application.</p>
   </div>
+
+  <h2>Ce que Google avait objecté</h2>
+  <p class="cap">Lu dans « View issues », le 1er octobre. Les quatre objections visaient les anciennes adresses en github.io, qui ne font plus que renvoyer vers le nouveau domaine.</p>
+  <table>
+    <thead><tr><th>Objection</th><th>Réponse</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">La page d'accueil n'est pas enregistrée à votre nom</td><td>Le domaine maisonmnd.com est validé depuis le 1er octobre au soir. Google demande vingt-quatre heures avant de réessayer.</td></tr>
+      <tr><td class="quoi">La politique ne dit pas assez</td><td>Les règles de confidentialité de Ma Couronne, à leur adresse en maisonmnd.com.</td></tr>
+      <tr><td class="quoi">L'accueil n'explique pas l'application</td><td>La page de présentation de Ma Couronne, et non l'accueil du site.</td></tr>
+      <tr><td class="quoi">Le nom ne correspond pas à l'accueil</td><td>« Maison MND », qui ouvre le titre et l'en-tête de la page de présentation.</td></tr>
+    </tbody>
+  </table>
 
   <h2>À faire, dans cet ordre</h2>
   <p class="cap">Tout se passe sur <kbd>console.cloud.google.com</kbd>. Les libellés sont donnés en anglais, comme votre console les affiche. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
@@ -188,10 +200,10 @@ kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px
     <li><b>Ouvrir le bon projet</b><p>Sur <kbd>console.cloud.google.com</kbd>, avec le compte <kbd>atelier.mnd@gmail.com</kbd>. Le sélecteur de projet est dans la barre du haut, à gauche : choisissez « Maison MND ».</p></li>
     <li><b>Ouvrir Branding</b><p>Menu ☰, <b>Google Auth Platform</b>, <b>Branding</b>.</p></li>
     <li><b>Le nom, l'adresse de contact, le logo</b><p>« App name » : <kbd>Maison MND</kbd>. « User support email » : laissez l'adresse proposée, l'encadré plus bas dit comment y mettre une adresse professionnelle. « App logo » : gardez le pictogramme déjà en place.</p></li>
-    <li><b>Les trois adresses du site</b><p>« Application home page » : <kbd>https://maisonmnd.com/</kbd></p><p>« Application privacy policy link » : <kbd>https://maisonmnd.com/confidentialite/</kbd></p><p>« Application terms of service link » : <kbd>https://maisonmnd.com/conditions/</kbd></p></li>
+    <li><b>Les deux adresses de Ma Couronne</b><p>« Application home page » : <kbd>https://maisonmnd.com/couronne/apropos.html</kbd></p><p>« Application privacy policy link » : <kbd>https://maisonmnd.com/couronne/confidentialite.html</kbd></p><p>« Application terms of service link » : laissez vide.</p></li>
     <li><b>Le domaine autorisé, puis enregistrer</b><p>Sous « Authorized domains », remplacez <kbd>maisonmnd.github.io</kbd> par <kbd>maisonmnd.com</kbd>. Si Google refuse d'enregistrer, remettez l'ancien en deuxième ligne avec <b>Add domain</b>. « Developer contact information » : <kbd>direction@maisonmnd.com</kbd>. Puis <b>Save</b>.</p></li>
     <li><b>Mettre l'application en production</b><p>Menu de gauche, <b>Audience</b>. Si « Publishing status » dit « Testing », cliquez <b>Publish app</b>, puis Confirm. S'il dit déjà « In production », ne touchez à rien.</p></li>
-    <li><b>Demander la vérification</b><p>Revenez sur <b>Branding</b> et cliquez <b>Verify branding</b> (le même bouton se trouve dans « Verification Center »). Google contrôle le domaine, les pages et le logo. La réponse arrive tout de suite, ou par courrier sous quelques jours ouvrés, sur l'adresse du compte.</p></li>
+    <li><b>Le lendemain soir, redemander la vérification</b><p>Pas avant le 2 octobre, 18 h 30 : Google demande vingt-quatre heures après la validation du domaine. Sur <b>Branding</b>, cliquez <b>View issues</b>, cochez « I have fixed the issues », puis <b>Proceed</b>. Google contrôle le domaine, les pages et le logo. La réponse arrive tout de suite, ou par courrier sous quelques jours ouvrés, sur l'adresse du compte.</p></li>
   </ol>
 
   <div class="garde mur">
