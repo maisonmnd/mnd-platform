@@ -702,7 +702,7 @@ export default function Conversations() {
         }
       />
 
-      {messages.length === 0 && (
+      {messages.length === 0 && vue !== 'envois' && (
         <div className="trc-passage-banner">
           Aucune conversation pour l’instant. Le Trône n’entend que depuis que l’oreille est posée :
           <b> Meta ne livre rien du passé</b>, le fil commence au premier message reçu. Si vos clientes
