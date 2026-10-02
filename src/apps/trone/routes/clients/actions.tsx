@@ -1,3 +1,4 @@
+import { sansLaVisite } from '../../../../shared/reprise-nue';
 import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -90,6 +91,7 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
     dériverait d'un mois par an sans que personne ne comprenne pourquoi. */
 export type ReprisePosee = { pose?: Appointment; raison?: string };
 
+
 export function poseLaReprise(appt: Appointment): ReprisePosee {
   /* CHAQUE REFUS SE DIT (9 septembre — « je n'ai pas eu son prochain RDV
      automatique », Befoune, et personne ne pouvait dire quel garde avait
@@ -115,28 +117,17 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
   if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };
   const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
-    ...appt,
+    /* CE QUI APPARTENAIT À LA VISITE D'AVANT NE SE RECOPIE PAS (shared/reprise-nue) :
+       son argent (versements, somme réglée, acompte, pièce), sa remise du jour, sa
+       Gamme, son forfait, son prix figé, ses points, sa couverture d'abonnement.
+       La somme réglée passait, le 2 octobre : la reprise naissait « payée ». Elle
+       se chiffre au tarif du jour où on l'ouvre, et se fige quand on l'enregistre. */
+    ...sansLaVisite(appt),
     id: `ap-${uid()}`,
     date,
     status: 'confirmé',
+    source: 'trone',
     repriseDe: appt.id,
-    /* CE QUI APPARTENAIT AU RITUEL D'AVANT NE SE RECOPIE PAS : son
-       encaissement, sa pièce, ses points, sa couverture d'abonnement. Un
-       rendez-vous neuf naît nu, sinon il naîtrait déjà payé. */
-    payments: undefined,
-    invoiceId: undefined,
-    /* LE PRIX NE SE RECOPIE PAS. Un rituel couvert par un abonnement vaut 0 F :
-       le recopier ferait naître la reprise gratuite. Elle se chiffre au tarif
-       du jour où on l'ouvre, et se fige quand on l'enregistre. */
-    priceXof: undefined,
-    pointsAwarded: undefined,
-    coveredBySub: undefined,
-    coverKind: undefined,
-    subId: undefined,
-    foyerId: undefined,
-    seriesId: undefined,
-    seriesIndex: undefined,
-    seriesTotal: undefined,
     note: rythme.observe
       ? `Reprise posée à la clôture · cadence observée ≈ ${rythme.semaines} semaines`
       : `Reprise posée à la clôture · toutes les ${rythme.semaines} semaines`,

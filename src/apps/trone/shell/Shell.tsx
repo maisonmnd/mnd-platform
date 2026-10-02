@@ -10,6 +10,7 @@ import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
 import { PastilleDeLaSalle } from './PastilleDeLaSalle';
+import { useReprisesNuesVivant } from './useReprisesNuesVivant';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
@@ -322,6 +323,8 @@ export default function Shell() {
   /* LE CARNET DIT SI ELLE PORTE ENCORE SES LOCKS — 11 septembre 2026.
      Même place et même contrat que le passage : une lecture, un champ. */
   useSansLocksVivant();
+  /* Les reprises nées « payées » avant le 2 octobre redeviennent nues. */
+  useReprisesNuesVivant();
   /* LE POSTE COMMUN SE FERME APRÈS QUINZE MINUTES SANS GESTE — réglé poste
      par poste, depuis le Journal des gestes (voir useVerrouDuPoste). */
   const [postePartage] = useStore(postePartageStore);
