@@ -527,6 +527,19 @@ async function dejaCliente(telephone: string): Promise<boolean> {
   return !!fiches && fiches.length > 0;
 }
 
+/* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
+   La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
+   Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
+   jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
+   Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
+const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+  const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  return prenom ? `${mot} ${prenom}` : mot;
+};
+
 const premierMot = (t: unknown): string => String(t ?? '').trim().split(/\s+/)[0] ?? '';
 
 /** LA MARRAINE D'UN CODE : une fiche du Trône d'abord, une demande du site
@@ -627,7 +640,13 @@ async function previensLaMarraine(o: {
   if (!WA_TOKEN || !WA_PHONE_ID) return 'sans-cles';
   const tel = o.telephone.replace(/\D/g, '');
   if (!tel) return 'sans-numero';
-  const prenom = o.prenomMarraine || 'Madame';
+  /* LA CIVILITÉ DE LA MARRAINE se lit sur sa fiche quand elle en a une. */
+  let ficheMarraine: Record<string, unknown> | null = null;
+  if (o.clientId) {
+    const { data: f } = await admin.from('clients').select('data').eq('id', o.clientId).maybeSingle();
+    ficheMarraine = (f?.data ?? null) as Record<string, unknown> | null;
+  }
+  const prenom = appelDe(ficheMarraine ? { ...ficheMarraine, name: o.prenomMarraine || ficheMarraine.name } : null, o.prenomMarraine);
   const amie = o.prenomAmie || 'Votre amie';
   let statut = 'échec';
   let detail: string | undefined;
@@ -773,7 +792,8 @@ async function envoieLAccuse(o: {
      en E.164 (telephoneNormalise). */
   const tel = o.telephone.replace(/\D/g, '');
   if (!tel) return 'sans-numero';
-  const prenom = o.prenom || 'Madame';
+  /* Une visiteuse du site n'a pas de fiche : Madame, comme toute fiche muette. */
+  const prenom = appelDe(null, o.prenom);
   const quand = o.quand;
 
   let statut = 'échec';

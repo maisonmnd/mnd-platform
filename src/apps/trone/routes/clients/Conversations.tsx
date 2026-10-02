@@ -34,6 +34,7 @@ import {
 } from './_gestes';
 import './clients.css';
 import { LienDeReservation } from './LienDeReservation';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -1170,7 +1171,7 @@ export default function Conversations() {
           politesse de ne pas montrer un bouton qui refusera. */}
       {lienOuvert && fil && (
         <LienDeReservation
-          prenom={fil.nom.split(' ')[0] ?? ''}
+          prenom={appelDe(clients.find((c) => c.id === fil.clientId), fil.nom)}
           fenetreOuverte={fil.fenetre.ouverte}
           surMessage={(m) => { setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
           surModele={(variables, boutonUrl, texteAffiche) => {

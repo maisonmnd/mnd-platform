@@ -26,6 +26,7 @@ import { todayISO } from './_shared';
    dans leur propre écran — 23 août 2026. */
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Comptes & Avoirs — les comptes familles (regroupement + parent payeur) et les
    avoirs (crédit prépayé) qui vivent sur ces comptes. Un avoir se verse d'avance
@@ -437,7 +438,7 @@ export default function Comptes() {
                     <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span>★ <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{nameOf(f.payerClientId) || 'payeur à désigner'}</b> règle pour tous</span>
                       {payeuse?.phone && (
-                        <WaLien phone={payeuse.phone} message={`Bonjour ${payeuse.name.split(' ')[0]}, la Maison MND revient vers vous au sujet de votre compte famille « ${f.name} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        <WaLien phone={payeuse.phone} message={`Bonjour ${appelDe(payeuse)}, la Maison MND revient vers vous au sujet de votre compte famille « ${f.name} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                       )}
                     </div>
 

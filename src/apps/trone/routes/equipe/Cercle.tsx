@@ -15,6 +15,7 @@ import { pointsHistoryStore } from './data';
 import { Bar, Pill, Tabs } from './ui';
 import Parrainages from './Parrainages';
 import './equipe.css';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ══ LE CERCLE MND, RÉUNI — 29 septembre 2026 (maquette « Le Cercle réuni »,
    validée) ══════════════════════════════════════════════════════════════
@@ -171,7 +172,7 @@ export default function Cercle() {
                       <span className="tre-reg__jauge"><Bar pct={pct} /></span>
                       <span className="tre-reg__pts" title="Venues des douze derniers mois">{membre ? `${v} / an` : `${v}/${seuil}`}</span>
                       {c.phone
-                        ? <WaLien phone={c.phone} message={`Bonjour ${c.name.split(' ')[0]}, la Maison MND est heureuse de vous compter dans son Cercle.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        ? <WaLien phone={c.phone} message={`Bonjour ${appelDe(c)}, la Maison MND est heureuse de vous compter dans son Cercle.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                         : <span />}
                     </div>
                   );
@@ -240,7 +241,7 @@ export default function Cercle() {
                       <span className="tre-reg__jauge" />
                       <span className="tre-reg__pts" style={{ fontSize: 11, letterSpacing: '.04em', color: 'var(--copper-700)' }}>Prix convenu</span>
                       {c.phone
-                        ? <WaLien phone={c.phone} message={`Bonjour ${c.name.split(' ')[0]}, la Maison MND revient vers vous.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        ? <WaLien phone={c.phone} message={`Bonjour ${appelDe(c)}, la Maison MND revient vers vous.`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                         : <span />}
                     </div>
                   );

@@ -35,6 +35,7 @@ import {
   ChampDeDate, frShortAn,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -1639,7 +1640,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             const lien = lienPaiementMomo(due);
             const tel = (payerClient?.phone ?? client?.phone ?? '').replace(/\D/g, '');
             if (!lien || !tel) return null;
-            const prenom = (payerClient?.name ?? client?.name ?? '').split(' ')[0];
+            const prenom = appelDe(payerClient ?? client);
             const msg = signeLeMessage(
               `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
             );

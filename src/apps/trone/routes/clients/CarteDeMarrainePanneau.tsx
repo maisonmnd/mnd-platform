@@ -10,6 +10,7 @@ import { useAppointments } from '../../../../shared/agenda';
 import { pourquoiPasDeMarraine, type DemandeLue } from '../../../../shared/ambassade';
 import { envoieSurWhatsApp } from '../../../../shared/whatsapp';
 import { MODELES_DE_CARTE, genreEffectif, nomDuRang, prenomDuNom, rangSuivant, soinsEnAttente, type ModeleDeCarte, type SoinOffert } from '../../../../shared/parrainage-pur';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ══ SA CARTE DE MARRAINE, DANS SA FICHE — 28 septembre 2026 ════════════
    Maquette validée (« Au Trône, la fiche cliente »). La carte à son prénom,
@@ -134,7 +135,7 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
       let r = await envoieSurWhatsApp({ numero: client.phone, texte: messageDeLaCarte(donnees), piece, clientId: client.id, branchId: client.branchId });
       if (!r.ok && /fenêtre/i.test(r.erreur)) {
         r = await envoieSurWhatsApp({
-          numero: client.phone, modele: 'carte_marraine', variables: [donnees.prenom, donnees.code],
+          numero: client.phone, modele: 'carte_marraine', variables: [appelDe(client), donnees.code],
           enTete: 'image', piece, clientId: client.id, branchId: client.branchId,
         });
       }

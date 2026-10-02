@@ -18,6 +18,7 @@ import { appointmentsStore } from '../../../../shared/agenda';
 import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
     de stock, et leur liste est ailleurs. */
@@ -162,7 +163,7 @@ export default function AFaire() {
      pied. MÊMES JUGES, MÊMES GESTES — seulement mieux rangés. */
   const ligneRetenue = (a: (typeof duMois)[number]) => {
     const c = clientDe(a.clientId);
-    const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
+    const prenom = appelDe(c);
     const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
     const de = deDuJour(a.date);
     const origine = a.repriseDe
@@ -424,7 +425,7 @@ export default function AFaire() {
                   {SE_DEMANDE[ouvert] && tel && (
                     <a
                       className="trp-af-mbtn trp-af-mbtn--wa"
-                      href={`#${cheminDeLaConversation(tel, signeLeMessage(motPourDemander(ouvert, prenom))) ?? '/conversations'}`}
+                      href={`#${cheminDeLaConversation(tel, signeLeMessage(motPourDemander(ouvert, appelDe(c)))) ?? '/conversations'}`}
                     >
                       WhatsApp
                     </a>

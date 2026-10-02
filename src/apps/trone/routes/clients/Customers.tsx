@@ -65,6 +65,8 @@ import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-i
 import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
+import { CIVILITES, civiliteDe, ficheAvecCivilite, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -2368,7 +2370,7 @@ function Customer360({
   const giftedThisYear = !!client.birthdayGiftAt && client.birthdayGiftAt.slice(0, 4) === todayISO().slice(0, 4);
   const giftBirthday = async () => {
     setGiftBusy(true);
-    const first = client.name.split(' ')[0];
+    const first = appelDe(client);
     const n = await pushToClient(
       client.id,
       `Joyeux anniversaire, ${maisonNom()}`,
@@ -3388,6 +3390,14 @@ function Customer360({
           </div>
           {panEdite !== 'joindre' && (
             <>
+              {/* LA CIVILITÉ (2 octobre 2026) : « Madame Naffi » dans les messages.
+                  Un clic suffit et s'enregistre aussitôt, comme le genre des cartes. */}
+              <div className="trc-v"><u>Civilité</u><span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                {CIVILITES.map((x) => (
+                  <button key={x.cle} type="button" className={`trc-chip ${civiliteDe(client) === x.cle ? 'is-active' : ''}`}
+                    onClick={() => patch(ficheAvecCivilite(x.cle))}>{x.dit}</button>
+                ))}
+              </span></div>
               <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone || '—'}</span></div>
               <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
@@ -5353,6 +5363,8 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [prenom, setPrenom] = useState('');
   const [nomFamille, setNomFamille] = useState('');
   const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
+  /* Madame par défaut : presque toutes les têtes de la Maison (2 octobre 2026). */
+  const [civilite, setCivilite] = useState<Civilite>('madame');
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [email, setEmail] = useState('');
   /* ══ LA VILLE ATTEND, ELLE NE DEVINE PAS — 6 septembre 2026 ═══════
@@ -5435,6 +5447,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
     const client: Client = {
       id: uid(),
       branchId: branch.id,
+      ...ficheAvecCivilite(civilite),
       name: nomComplet,
       phone: numeroTelReel(phone),
       email: email.trim() || undefined,
@@ -5476,6 +5489,14 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPhoto(e.target.files?.[0])} />
           </label>
         </div>
+
+        <Field label="Civilité">
+          <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+            {CIVILITES.map((x) => (
+              <button key={x.cle} type="button" className={`trc-chip ${civilite === x.cle ? 'is-active' : ''}`} onClick={() => setCivilite(x.cle)}>{x.dit}</button>
+            ))}
+          </span>
+        </Field>
 
         <div className="tr-grid tr-grid--2">
           <Field label="Prénom">

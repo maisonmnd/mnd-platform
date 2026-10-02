@@ -19,6 +19,7 @@ import { carteDeMarraineEnPiece } from '../../../ds/carte-marraine';
 import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 import { memeContenu } from '../../../shared/meme-contenu';
 import { parIdentifiant, rendezVousEnOrdre } from '../../../shared/ordre-canonique';
+import { appelDe } from '../../../shared/civilite';
 /* ══ LES AMBASSADRICES, TENUES À JOUR — 28 septembre 2026 ═══════════════
    Maquette validée (« construits », Yéman). Six gestes, en tâche de fond,
    UN PAR PASSAGE : chaque geste écrit puis rend la main, le suivant part au
@@ -138,7 +139,7 @@ export function useParrainageVivant(): void {
             ? await carteDeMarraineEnPiece({ prenom: m.prenomMarraine, code: fiche.codeParrain, depuis: (fiche.since ?? '').slice(0, 4), modele: fiche.carteModele, rang: fiche.parrainage?.rang }).catch(() => undefined)
             : undefined;
           await envoieSurWhatsApp({
-            numero: m.telephone, modele: 'parrainage_merci', variables: [m.prenomMarraine, m.prenomFilleule, m.libelle],
+            numero: m.telephone, modele: 'parrainage_merci', variables: [fiche ? appelDe(fiche) : m.prenomMarraine, m.prenomFilleule, m.libelle],
             ...(piece ? { enTete: 'image' as const, piece } : {}), clientId: m.clientId, parQui: 'Le Trône · ambassadrices',
           });
         })();

@@ -89,6 +89,9 @@ export type Client = {
       ne sert QU'À ÉCRIRE : aucun compte, aucun prix, aucune statistique ne le
       regarde. */
   auMasculin?: boolean;
+  /** SA CIVILITÉ (2 octobre 2026, shared/civilite) : « Madame Naffi » dans les
+      messages. Absente : Madame, ou Monsieur si la fiche est au masculin. */
+  civilite?: 'madame' | 'mademoiselle' | 'monsieur';
   /** SON AUTORISATION DE DROIT À L'IMAGE, signée — 6 septembre 2026.
 
       « Où est le contrat signé par la cliente ? » (Yéman). Les deux dates

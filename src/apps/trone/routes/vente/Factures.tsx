@@ -33,6 +33,7 @@ import { detacherFacture } from '../../../../shared/laboratoire';
 import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -620,6 +621,8 @@ export default function Factures() {
   const clientOf = (d: Invoice) => clients.find((c) => c.id === (d.forClientId ?? d.clientId));
   const clientNameOf = (d: Invoice) => clientOf(d)?.name ?? d.clientName ?? 'Walk-in';
   const prenomOf = (d: Invoice) => clientNameOf(d).split(' ')[0];
+  /** Dans un MESSAGE, la Maison dit « Madame Naffi » (2 octobre 2026) ; sur la pièce, le prénom seul. */
+  const appelOf = (d: Invoice) => appelDe(clientOf(d), clientNameOf(d));
   /** Le nom de la payeuse, seulement quand ce n'est pas la tête soignée. */
   const payeurAutreQue = (d: Invoice): string | undefined => {
     if (!d.forClientId || d.forClientId === d.clientId) return undefined;
@@ -636,7 +639,7 @@ export default function Factures() {
 
   /* Le mot du Maître par défaut, pour un document donné. */
   const defaultNoteFor = (d: Invoice) =>
-    `${prenomOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille.\n${d.master ?? branch.masters[0] ?? 'la Maison'}`;
+    `${appelOf(d)}, ce fut un honneur de veiller sur votre couronne. Elle vous va à merveille.\n${d.master ?? branch.masters[0] ?? 'la Maison'}`;
 
   /* Construit les données du vrai PDF de marque à partir d'un document. */
   const buildPdfData = (d: Invoice): InvoicePdfData => {
@@ -908,7 +911,7 @@ export default function Factures() {
        pièce jointe. */
     return signeLeMessage(
       `${maisonNom()} · ${label}\n` +
-      `Pour ${prenomOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
+      `Pour ${appelOf(doc)}, total ${fmtMoney(invoiceTotal(doc), currency)}.\n` +
       `Votre ${doc.kind === 'devis' ? 'devis' : 'facture'} ${doc.number} est en pièce jointe.\n` +
       `${(doc.note?.trim() || defaultNoteFor(doc))}`,
     );
@@ -1634,7 +1637,7 @@ export default function Factures() {
                    Maison, jamais à décider quoi que ce soit. */
                 const msg = signeLeMessage(
                   `${maisonNom()}\n` +
-                  `Bonjour ${prenomOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}\n` +
+                  `Bonjour ${appelOf(selected)}, pour régler ${fmtMoney(invoiceResteXof(selected), currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}\n` +
                   `Référence ${selected.number}`,
                 );
                 const versLApp = lienWaMe(tel, msg);
@@ -2053,7 +2056,7 @@ export default function Factures() {
            obligerait à la corriger pour un seul envoi. */
         const tel = (lienLibre.tel || tete?.phone || '').replace(/\D/g, '');
         const lien = montant > 0 ? lienPaiementMomo(montant) : null;
-        const prenom = (tete?.name ?? '').split(' ')[0];
+        const prenom = tete ? appelDe(tete) : '';
         const motif = lienLibre.motif.trim();
         const msg = lien ? signeLeMessage(
           `${maisonNom()}\n`
@@ -2163,7 +2166,7 @@ export default function Factures() {
         const tel = payeur?.phone.replace(/\D/g, '') ?? '';
         const msg = signeLeMessage(
           `${maisonNom()}\n`
-          + `Bonjour ${(payeur?.name ?? '').split(' ')[0]}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien ?? ''}\n`
+          + `Bonjour ${appelDe(payeur)}, pour régler ${fmtMoney(total, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien ?? ''}\n`
           + `Ce règlement couvre :\n${prises.map((i) => `· ${clientNameOf(i)} · ${frDay(i.date)} · ${fmtMoney(invoiceResteXof(i), currency)}`).join('\n')}\n`
           + `Références ${prises.map((i) => i.number).join(', ')}`,
         );

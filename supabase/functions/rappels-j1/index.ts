@@ -57,6 +57,19 @@ const numeroIntl = (brut: string | undefined): string | null => {
   return d;
 };
 
+/* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
+   La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
+   Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
+   jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
+   Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
+const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+  const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  return prenom ? `${mot} ${prenom}` : mot;
+};
+
 /** « 8 h 30 », « 14 h » — l'heure telle qu'on la DIT, pas telle qu'on la tape.
     « 09:00 » est un horaire de train : on l'écrit pour une machine. La cliente
     lit « neuf heures » de toute façon, autant l'écrire ainsi — et c'est déjà
@@ -222,7 +235,7 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
     if (deja.has(idEnvoi)) continue;
     const fiche = fiches.get(a.clientId);
     const tel = numeroIntl(fiche?.phone);
-    const prenom = (fiche?.name ?? a.clientName ?? '').split(' ')[0] || 'Madame';
+    const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
     const gestes = (a.serviceIds ?? []).map((id) => nomDe.get(id)).filter(Boolean).join(', ') || 'votre rituel';
     const maintenant = new Date().toISOString();
@@ -462,7 +475,7 @@ Deno.serve(async (req) => {
 
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
-    const prenom = (a.clientName ?? fiche?.name ?? '').split(' ')[0] || 'Madame';
+    const prenom = appelDe(fiche, a.clientName);
 
     /* ② WHATSAPP — seulement si la Maison a posé ses clés Meta.
        Le modèle approuvé attend deux variables : {{1}} le prénom,

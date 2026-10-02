@@ -144,7 +144,7 @@ const posesSignees = async (sb: any, ids: string[]): Promise<Map<string, string>
   return m;
 };
 
-type Fiche = { id: string; name?: string; phone?: string };
+type Fiche = { id: string; name?: string; phone?: string; civilite?: string; auMasculin?: boolean };
 
 /* ══ LA SALLE D'ATTENTE — 2 octobre 2026 ═══════════════════════════════
    « Est-ce possible d'intercepter un message qui part vers chez un client ?
@@ -213,6 +213,19 @@ const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, u
 /** Les verdicts qui ne verrouillent pas : un raté se retente, un message
     périmé (rendez-vous déplacé pendant l'attente) peut se redéposer. */
 const SE_RETENTE = new Set(['échec', 'périmé']);
+
+/* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
+   La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
+   Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
+   jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
+   Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
+const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+  const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  return prenom ? `${mot} ${prenom}` : mot;
+};
 
 /** Numéro béninois → format international sans « + » (exigé par Meta).
     Même règle que `rappels-j1` : 229… reste tel quel · 01XXXXXXXX se préfixe
@@ -422,7 +435,7 @@ Deno.serve(async (req) => {
 
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
-    const prenom = (a.clientName ?? fiche?.name ?? '').split(' ')[0] || 'Madame';
+    const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
     /* ELLE A RÉSERVÉ ELLE-MÊME (Ma Couronne) : sa confirmation part tout de
        suite, elle l'attend. Tout ce que la Maison pose passe par la salle. */

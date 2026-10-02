@@ -34,6 +34,7 @@ import { receiptPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Encaissements — le registre de TOUT ce qui entre, par toutes les portes :
    factures réglées au comptoir, acomptes (en ligne ou remis à la Maison),
@@ -805,7 +806,7 @@ export default function Encaissements() {
                     const cli = clients.find((c) => c.id === r.clientId);
                     return cli?.phone
                       ? <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
-                          <WaLien phone={cli.phone} message={`Bonjour ${cli.name.split(' ')[0]}, la Maison MND vous remercie pour votre règlement. À très bientôt !`} style={{ fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }} />
+                          <WaLien phone={cli.phone} message={`Bonjour ${appelDe(cli)}, la Maison MND vous remercie pour votre règlement. À très bientôt !`} style={{ fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }} />
                         </span>
                       : null;
                   })()}

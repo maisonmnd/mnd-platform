@@ -9,6 +9,7 @@ import { normName } from '../../../../shared/text';
 import { creancesDeLaMaison, trancheDe, TRANCHES, type Tranche } from '../../../../shared/compte';
 import { apptDueXof, todayISO, useBranchAppointments, useBranchClients, useServicesById } from '../clients/_shared';
 import './finances.css';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ── LES CRÉANCES DE LA MAISON (26 août) ──────────────────────────────
    « Bien suivre les mouvements impayés et depuis quand date une créance »
@@ -154,7 +155,7 @@ export default function Creances() {
                 <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
                   <WaLien
                     phone={tete?.phone}
-                    message={`Bonjour ${(tete?.name ?? '').split(' ')[0]}, la Maison MND revient vers vous : il reste ${fmtMoney(c.duXof, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
+                    message={`Bonjour ${appelDe(tete)}, la Maison MND revient vers vous : il reste ${fmtMoney(c.duXof, currency)} à régler sur votre compte. Nous restons à votre écoute.`}
                     style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }}
                   />
                 </span>

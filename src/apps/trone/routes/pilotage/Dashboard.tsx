@@ -37,6 +37,7 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
 import { useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, depuisQuand, telephoneMasque } from '../../../../shared/demandes';
+import { appelDe } from '../../../../shared/civilite';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements, restesDits,
 } from '../../../../shared/engagements';
@@ -1349,7 +1350,7 @@ export default function Dashboard() {
         const tel = (fiche?.phone ?? '').replace(/\D/g, '');
         const fermeAvant = openingForIso(a.date).closed;
         const fermeApres = joursFermesParmi([proposeFor.date]).length > 0;
-        const prenom = (a.clientName || fiche?.name || '').split(' ')[0];
+        const prenom = appelDe(fiche, a.clientName);
         const msg = signeLeMessage(
           `${maisonNom()}\n`
           + `${prenom ? `Bonjour ${prenom}, ` : ''}votre demande du ${frShort(a.date)} à ${a.time} nous est bien parvenue.`

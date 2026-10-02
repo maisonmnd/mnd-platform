@@ -40,6 +40,7 @@ import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type 
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 
 export { ChampDeDate };
 
@@ -938,7 +939,7 @@ export function apptReminder(
   }
   const digits = digitsOf(client?.phone);
   if (!digits) return { href: null, due, when };
-  const first = (client?.name ?? '').split(' ')[0] || 'Madame';
+  const first = appelDe(client);
   const msg = texteDuRappel({
     ...moment,
     prenom: first,

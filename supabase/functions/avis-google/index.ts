@@ -90,6 +90,19 @@ type Piece = {
   status?: string;
   payments?: Versement[];
 };
+/* ══ MADAME NAFFI — 2 octobre 2026 ═════════════════════════════════════
+   La Maison écrit « Madame Naffi » : la civilité de la fiche, puis le prénom.
+   Une fiche qui ne dit rien est une dame ; une fiche au masculin d'avant ce
+   jour est « Monsieur ». Recopié de `src/shared/civilite.ts` (une fonction
+   Edge ne lit rien du dépôt) ; `verifie-civilite` tient la copie. */
+const appelDe = (d: { name?: unknown; civilite?: unknown; auMasculin?: unknown } | null | undefined, repli?: unknown): string => {
+  const civ = d?.civilite === 'monsieur' || d?.civilite === 'mademoiselle' || d?.civilite === 'madame'
+    ? d.civilite : d?.auMasculin === true ? 'monsieur' : 'madame';
+  const mot = civ === 'monsieur' ? 'Monsieur' : civ === 'mademoiselle' ? 'Mademoiselle' : 'Madame';
+  const prenom = String(d?.name ?? repli ?? '').trim().split(/\s+/)[0] ?? '';
+  return prenom ? `${mot} ${prenom}` : mot;
+};
+
 type Fiche = { id: string; name?: string; phone?: string };
 
 /* ══ LA SALLE D'ATTENTE — 2 octobre 2026 ═══════════════════════════════
@@ -344,7 +357,7 @@ Deno.serve(async (req) => {
     const fiche = fiches.get(p.clientId!);
     const tel = numeroIntl(fiche?.phone);
     if (!tel) { consigne(p, 'sans-abonnement', 'fiche sans téléphone'); continue; }
-    const prenom = ((fiche?.name ?? p.clientName ?? '').trim().split(/\s+/)[0]) || 'Madame';
+    const prenom = appelDe(fiche, p.clientName);
     /* EN SALLE : le facteur portera, sauf si une main le retient. */
     if (salleOuverte) {
       consigne(p, 'en-attente', undefined, depot(Date.now(), regles, {
