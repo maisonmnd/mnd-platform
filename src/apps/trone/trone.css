@@ -148,6 +148,38 @@ body[data-surface='trone'] {
   color: var(--ink);
   background: var(--paper);
 }
+
+/* LA PASTILLE DE LA SALLE D'ATTENTE (2 octobre 2026) : ce qui va partir vers
+   une cliente, visible sur tous les écrans, à toutes les largeurs. Cuivre,
+   comme toute alerte de la Maison ; plus pâle quand tout ce qui reste est
+   retenu. */
+.tr-top__salle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #fff;
+  background: var(--color-copper);
+  border: 1px solid var(--color-copper);
+  border-radius: 999px;
+  padding: 5px 13px;
+}
+.tr-top__salle::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #fff;
+}
+.tr-top__salle--tenus {
+  color: var(--copper-700);
+  background: var(--copper-50);
+  border-color: var(--copper-300);
+}
+.tr-top__salle--tenus::before { background: var(--color-copper); }
 .tr-top__bell {
   position: relative;
   border: 1px solid var(--hairline);

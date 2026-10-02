@@ -169,7 +169,10 @@ export default function Conversations() {
      côté des fils. Le bouton dit ce qui est à regarder aujourd'hui avant
      qu'on l'ouvre. Les fils restent montés pendant qu'on lit le journal :
      y revenir retrouve la conversation là où on l'avait laissée. */
-  const [vue, setVue] = useState<'fils' | 'envois'>('fils');
+  /* La pastille de la salle d'attente mène ici par `?envois=1` (2 octobre 2026). */
+  const [vue, setVue] = useState<'fils' | 'envois'>(() => (params.get('envois') === '1' ? 'envois' : 'fils'));
+  const demandeLesEnvois = params.get('envois') === '1';
+  useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
   const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),

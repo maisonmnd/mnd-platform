@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Poser la salle d'attente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+
+/* en-tête */
+.tete{padding:40px 0 14px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:60ch}
+/* LE VERROU COUCHÉ DE LA MAISON (25 septembre 2026) : le fichier livré, jamais
+   redessiné. 1335 x 418, on ne donne que la largeur, la hauteur suit. Au-dessus
+   du plancher de 123 px. */
+.verrou{display:block;width:176px;height:auto;margin:0 0 22px}
+
+/* compteur des gestes */
+.jauge{display:flex;gap:8px;align-items:center;margin:26px 0 6px;flex-wrap:wrap}
+.jauge b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400;font-variant-numeric:tabular-nums}
+.jauge span{font-size:13.5px;color:var(--encre-doux)}
+.pastilles{display:flex;gap:5px;margin-left:auto}
+.pastilles i{width:26px;height:9px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet);display:block}
+.pastilles i.prise{background:var(--indigo);border-color:var(--indigo)}
+
+h2{font-size:clamp(21px,3vw,27px);margin-top:42px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:66ch}
+
+/* tableaux */
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:11px 10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.quoi{color:var(--indigo);font-weight:400}
+td.etat{white-space:nowrap;text-align:right}
+.etiq{display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.etiq.bon{background:var(--indigo);color:#F6F1E7}
+.etiq.reste{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.atrouver{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* les étapes, cochables */
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li p b{display:inline;font-size:inherit;font-weight:500}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait > b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+/* encadrés */
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:20px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde p + p{margin-top:8px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+  td.etat{text-align:left;white-space:normal}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.pastilles,.jauge{display:none}
+  ol.pas li{break-inside:avoid;background:#fff;padding-right:14px}
+  h2{break-after:avoid;margin-top:22px}
+  .garde,.regle{break-inside:avoid}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .regle small{color:var(--encre-doux)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+    <p class="sur">Maison MND · Supabase &amp; Le Trône</p>
+    <h1>Poser la salle d'attente</h1>
+    <p class="ligne">L'écran est déjà dans le Trône. Il reste à poser le facteur et à recoller quatre fonctions dans Supabase. Sept gestes, dans cet ordre.</p>
+  </header>
+
+  <div class="jauge">
+    <b id="compte">0 / 7</b>
+    <span>gestes faits. Comptez vingt minutes.</span>
+    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <h2>Ce qui change</h2>
+  <p class="cap">Vos quatre arbitrages du 2 octobre : dix minutes de salle, heures calmes de 20 h à 8 h, réponse immédiate quand la cliente réserve elle-même, et trois alertes (la pastille, le téléphone, un son).</p>
+  <table>
+    <thead><tr><th>Message</th><th>Avant</th><th>Après</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">Confirmation d'un rendez-vous posé au Trône</td><td>Part dans les dix minutes, à toute heure.</td><td>Dix minutes de salle, jamais entre 20 h et 8 h.</td></tr>
+      <tr><td class="quoi">Rappel de la veille, reprise proposée</td><td>Partent à 18 h.</td><td>Entrent en salle à 18 h, partent à 18 h 10.</td></tr>
+      <tr><td class="quoi">Demande d'avis</td><td>Part à l'heure pleine.</td><td>Dix minutes de salle.</td></tr>
+      <tr><td class="quoi">Réservation faite par la cliente (site, Ma Couronne)</td><td>Réponse immédiate.</td><td>Inchangé.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="garde">
+    <b>Rien ne peut rester coincé</b>
+    <p>Tant que le facteur n'est pas posé, ou s'il s'arrête plus de cinq minutes, les fonctions envoient comme avant, sans salle. L'écran des envois le dit alors en toutes lettres : « La salle est fermée ».</p>
+  </div>
+
+  <h2>À faire, dans cet ordre</h2>
+  <p class="cap">Sur <kbd>supabase.com</kbd>, projet de la Maison. Les cinq fichiers sont sur le bureau, dossier <kbd>A recoller - salle d'attente</kbd>, numérotés dans l'ordre. Chaque fichier se colle EN ENTIER, à la place de tout ce qui s'y trouve. Cochez à mesure.</p>
+  <ol class="pas" id="pas">
+    <li><b>Recoller push-notify</b><p>Edge Functions, ouvrez <kbd>push-notify</kbd>, remplacez tout le code par <kbd>1-push-notify.ts</kbd>, puis Deploy.</p><p>C'est lui qui fait sonner les téléphones. Il porte aussi la correction des mille lignes d'hier.</p></li>
+    <li><b>Créer le facteur</b><p>Edge Functions, <b>Deploy a new function</b>, nom exact <kbd>envois-partent</kbd>. Collez <kbd>2-envois-partent.ts</kbd>, puis Deploy. Dans les réglages de la fonction, désactivez « Verify JWT » si l'option est proposée, comme pour les autres fonctions planifiées.</p></li>
+    <li><b>Poser son réveil, chaque minute</b><p>Integrations, Cron, <b>Create job</b>. Name : <kbd>envois-partent</kbd>. Schedule : <kbd>* * * * *</kbd>. Type : SQL Snippet, avec cette ligne :</p><p><kbd>select public.appelle_fonction_edge('envois-partent');</kbd></p><p>Aucune clé à taper : c'est la même porte que les rappels du soir.</p></li>
+    <li><b>Vérifier que le facteur vit</b><p>Attendez deux minutes. Dans le Trône, Conversations, « Envois automatiques » : la ligne cuivre « La salle est fermée » doit avoir disparu. Si elle reste, envoyez-moi la capture de l'onglet Invocations de la fonction <kbd>envois-partent</kbd>.</p></li>
+    <li><b>Recoller les trois fonctions qui déposent</b><p><kbd>confirmation-rdv</kbd> avec <kbd>3-confirmation-rdv.ts</kbd>, <kbd>rappels-j1</kbd> avec <kbd>4-rappels-j1.ts</kbd>, <kbd>avis-google</kbd> avec <kbd>5-avis-google.ts</kbd>. Deploy à chaque fois.</p><p>Pas avant le geste 4 : elles regardent si le facteur vit avant de déposer.</p></li>
+    <li><b>Faire un essai</b><p>Posez un rendez-vous pour demain sur votre propre fiche. Dans les dix minutes, la pastille cuivre « 1 envoi part » s'allume dans la barre du Trône, et votre téléphone sonne. Ouvrez la salle, cliquez <b>Retenir</b> : rien n'arrive sur votre WhatsApp. Cliquez <b>Relâcher</b>, puis <b>Envoyer maintenant</b> : le message arrive dans la minute.</p></li>
+    <li><b>Ranger l'essai</b><p>Supprimez le rendez-vous d'essai. Jetez l'ancien dossier du bureau « A recoller - synchro mille lignes » : celui-ci le remplace.</p></li>
+  </ol>
+
+  <div class="garde mur">
+    <b>Deux choses à ne pas faire</b>
+    <p>Recoller les fonctions 3, 4 et 5 avant le facteur : rien ne casserait (elles envoient comme avant tant qu'il se tait), mais vous ne sauriez pas si la salle marche.</p>
+    <p>M'envoyer une capture où la clé secrète est lisible. La page Cron et la page de la fonction n'en montrent pas ; la page API Keys, si.</p>
+  </div>
+
+  <h2>Comment la salle se lit ensuite</h2>
+  <table>
+    <tbody>
+      <tr><td class="quoi">La pastille cuivre, dans la barre</td><td>« 2 envois partent · dans 4 min ». Elle est sur tous les écrans, un clic ouvre la salle. Pâle : il ne reste que des messages retenus.</td></tr>
+      <tr><td class="quoi">Retenir</td><td>Le message ne partira pas seul. Il reste dans la salle jusqu'à ce qu'une main le relâche ou l'écarte.</td></tr>
+      <tr><td class="quoi">Envoyer maintenant</td><td>Il part dans la minute, même pendant les heures calmes.</td></tr>
+      <tr><td class="quoi">Ne jamais l'envoyer</td><td>Il sort de la salle et se lit au journal comme « écarté, pas envoyé ».</td></tr>
+      <tr><td class="quoi">« Trop tard, il vient de partir »</td><td>Le facteur l'avait déjà pris : le geste n'est pas passé, et l'écran le dit.</td></tr>
+      <tr><td class="quoi">Un rendez-vous déplacé ou annulé pendant l'attente</td><td>Son message ne part pas : le facteur relit le rendez-vous avant de porter.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Ce qui n'y passe pas encore</h2>
+  <div class="garde">
+    <b>Deux messages partent encore sans salle</b>
+    <p>La fin de paquet et le merci de parrainage partent du Trône lui-même, pas d'une fonction planifiée. Ils rejoindront la salle dans un second temps, dites-moi quand.</p>
+  </div>
+
+  <h2>La règle, pour la suite</h2>
+  <div class="regle">
+    <p>Un message retenu ne part jamais seul.</p>
+    <p>Rien ne part seul entre 20 h et 8 h.</p>
+    <small>Les deux sont tenus par le harnais verifie-la-salle-des-envois : il casse exprès chaque règle et vérifie qu'il s'en aperçoit.</small>
+  </div>
+
+  <div class="pied">
+    <span>Maison MND · Le Trône</span>
+    <span>Document de travail, 2 octobre 2026.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son stockage
+   (fenêtre privée, site bloqué), la page marche quand même : on coche, ça ne
+   se garde simplement pas. */
+const CLE = 'mnd_poser_la_salle_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+const pastilles = [...document.querySelectorAll('#pastilles i')];
+const compte = document.getElementById('compte');
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+
+const dit = () => {
+  const n = items.filter((x) => x.classList.contains('fait')).length;
+  compte.textContent = n + ' / ' + items.length;
+  pastilles.forEach((p, i) => p.classList.toggle('prise', i < n));
+};
+
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+    dit();
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+dit();
+</script>
+</body>
+</html>

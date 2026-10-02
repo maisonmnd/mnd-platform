@@ -133,8 +133,8 @@ dit('rappels-j1 : trois jours, les deux boutons dans l ordre, et rien sans model
   rappels.includes("if (!MODELE || !WA_TOKEN || !WA_PHONE_ID) return { reprises: 'sans-modele' };"),
 ]);
 dit('... elle passe avant le retour d un soir sans rappel', true,
-  rappels.indexOf('await proposeLesReprises(sb)') > 0
-  && rappels.indexOf('await proposeLesReprises(sb)') < rappels.indexOf("JSON.stringify({ jour: demain, rdv: 0, ...reprises })"));
+  rappels.indexOf('await proposeLesReprises(sb, salleOuverte, regles)') > 0
+  && rappels.indexOf('await proposeLesReprises(sb, salleOuverte, regles)') < rappels.indexOf("JSON.stringify({ jour: demain, rdv: 0, ...reprises })"));
 
 const webhook = lis('supabase/functions/whatsapp-webhook/index.ts');
 dit('le webhook lit le meme bouton que le depot', true, webhook.includes(String.raw`.match(/^REPRISE_(OK|AUTRE):(.+)$/)`)
@@ -156,7 +156,10 @@ dit('... et envoie LA confirmation sous l identifiant du balayage', [true, true,
   submit.includes("Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv'") && conf.includes("Deno.env.get('WA_TEMPLATE_CONF') ?? 'confirmation_rdv'"),
 ]);
 dit('... le balayage ne verrouille que sur un envoi reussi (un echec du site se retente)', true,
-  conf.includes(".filter((r) => ((r.data as { statut?: string } | null)?.statut ?? '') !== 'échec')"));
+  /* Depuis la salle d'attente (2 octobre 2026), deux verdicts se retentent :
+     l'échec, et le message périmé par un rendez-vous déplacé pendant l'attente. */
+  conf.includes(".filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))")
+  && conf.includes("const SE_RETENTE = new Set(['échec', 'périmé']);"));
 
 /* ── (6) Le maitre n est ni choisi ni lu par la cliente ── */
 const reserver = lis('src/apps/revelateur/ilots/Reserver.tsx');

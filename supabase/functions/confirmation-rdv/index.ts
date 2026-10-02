@@ -119,7 +119,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-09-21-a';
+const VERSION = '2026-10-02-a';
 
 /* UNE RAFALE NE PART JAMAIS TOUTE SEULE — 21 septembre 2026. Le soir du
    21, une écriture en bloc a fait partir des dizaines de confirmations d'un
@@ -145,6 +145,74 @@ const posesSignees = async (sb: any, ids: string[]): Promise<Map<string, string>
 };
 
 type Fiche = { id: string; name?: string; phone?: string };
+
+/* ══ LA SALLE D'ATTENTE — 2 octobre 2026 ═══════════════════════════════
+   « Est-ce possible d'intercepter un message qui part vers chez un client ?
+   D'arrêter l'envoi à cause de l'heure tardive ou autre raison, erreur… »
+   (Yéman). Cette fonction ne s'adresse plus à la cliente : elle DÉPOSE son
+   message dans le journal des envois, statut « en-attente », avec son heure
+   de départ (dix minutes de salle, jamais pendant les heures calmes) et son
+   colis. Le facteur `envois-partent`, réveillé chaque minute, le porte, sauf
+   si une main l'a retenu depuis le Trône.
+
+   SI LE FACTEUR SE TAIT depuis plus de cinq minutes, on envoie comme avant :
+   mieux vaut un message parti sans salle qu'un message déposé que personne ne
+   porterait.
+
+   LE CALCUL EST RECOPIÉ de `src/shared/salle-des-envois.ts` ; le harnais
+   `verifie-la-salle-des-envois` tient les deux ensemble. */
+const DECALAGE_DU_SALON_H = 1;
+type ReglesDeLaSalle = { salleMin: number; calmeDe: number; calmeA: number };
+const REGLES_PAR_DEFAUT: ReglesDeLaSalle = { salleMin: 10, calmeDe: 20, calmeA: 8 };
+const FACTEUR_VIVANT_MS = 5 * 60_000;
+function reglesDepuis(cfg: { salleMin?: unknown; calmeDe?: unknown; calmeA?: unknown } | null | undefined): ReglesDeLaSalle {
+  const n = (v: unknown, min: number, max: number, defaut: number): number => {
+    const x = Number(v);
+    return Number.isFinite(x) && x >= min && x <= max ? Math.round(x) : defaut;
+  };
+  return {
+    salleMin: n(cfg?.salleMin, 1, 120, REGLES_PAR_DEFAUT.salleMin),
+    calmeDe: n(cfg?.calmeDe, 0, 23, REGLES_PAR_DEFAUT.calmeDe),
+    calmeA: n(cfg?.calmeA, 0, 23, REGLES_PAR_DEFAUT.calmeA),
+  };
+}
+const heureDuSalon = (ms: number): number => {
+  const d = new Date(ms + DECALAGE_DU_SALON_H * 3_600_000);
+  return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+};
+function dansLesHeuresCalmes(ms: number, r: ReglesDeLaSalle): boolean {
+  if (r.calmeDe === r.calmeA) return false;
+  const h = heureDuSalon(ms);
+  return r.calmeDe < r.calmeA ? (h >= r.calmeDe && h < r.calmeA) : (h >= r.calmeDe || h < r.calmeA);
+}
+function finDesHeuresCalmes(ms: number, r: ReglesDeLaSalle): number {
+  const local = new Date(ms + DECALAGE_DU_SALON_H * 3_600_000);
+  const fin = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), r.calmeA, 0, 0) - DECALAGE_DU_SALON_H * 3_600_000;
+  return fin > ms ? fin : fin + 86_400_000;
+}
+function heureDeDepart(maintenantMs: number, r: ReglesDeLaSalle): { partA: number; calme: boolean } {
+  const apresLaSalle = maintenantMs + r.salleMin * 60_000;
+  if (!dansLesHeuresCalmes(apresLaSalle, r)) return { partA: apresLaSalle, calme: false };
+  return { partA: finDesHeuresCalmes(apresLaSalle, r), calme: true };
+}
+const facteurVivant = (vuLe: string | undefined | null, maintenantMs: number): boolean => {
+  const t = Date.parse(vuLe ?? '');
+  return Number.isFinite(t) && maintenantMs - t <= FACTEUR_VIVANT_MS && t - maintenantMs <= FACTEUR_VIVANT_MS;
+};
+/* ── fin du calcul recopié ── */
+
+/** Ce qu'une ligne déposée porte en plus de son identité : quand elle part,
+    à qui (le prénom, pour l'écran de la salle) et de quoi l'envoyer. */
+const depot = (maintenantMs: number, r: ReglesDeLaSalle, colis: Record<string, unknown>, prenom?: string): Record<string, unknown> => {
+  const { partA, calme } = heureDeDepart(maintenantMs, r);
+  return {
+    deposeLe: new Date(maintenantMs).toISOString(), partA: new Date(partA).toISOString(),
+    ...(calme ? { calme: true } : {}), ...(prenom ? { prenom } : {}), colis,
+  };
+};
+/** Les verdicts qui ne verrouillent pas : un raté se retente, un message
+    périmé (rendez-vous déplacé pendant l'attente) peut se redéposer. */
+const SE_RETENTE = new Set(['échec', 'périmé']);
 
 /** Numéro béninois → format international sans « + » (exigé par Meta).
     Même règle que `rappels-j1` : 229… reste tel quel · 01XXXXXXXX se préfixe
@@ -218,10 +286,13 @@ Deno.serve(async (req) => {
 
   /* ── La voix de la Maison ────────────────────────────────────────── */
   const { data: docs } = await sb.from('documents').select('key, data')
-    .in('key', ['mnd_house_identity', 'mnd_auto_config']);
+    .in('key', ['mnd_house_identity', 'mnd_auto_config', 'mnd_facteur']);
   const nomMaison: string =
     (docs?.find((d) => d.key === 'mnd_house_identity')?.data?.nom ?? '').trim() || 'Maison MND';
-  const cfg = (docs?.find((d) => d.key === 'mnd_auto_config')?.data ?? {}) as { itineraire?: string };
+  const cfg = (docs?.find((d) => d.key === 'mnd_auto_config')?.data ?? {}) as { itineraire?: string; salleMin?: unknown; calmeDe?: unknown; calmeA?: unknown };
+  /* LA SALLE EST OUVERTE si le facteur a donné signe de vie dans les cinq minutes. */
+  const regles = reglesDepuis(cfg);
+  const salleOuverte = facteurVivant((docs?.find((d) => d.key === 'mnd_facteur')?.data as { vuLe?: string } | undefined)?.vuLe, Date.now());
 
   /* ── Les rendez-vous NEUFS, à venir, non annulés ─────────────────── */
   const { data: apptRows, error: errA } = await sb.from('appointments')
@@ -294,7 +365,7 @@ Deno.serve(async (req) => {
   const { data: dejaRows } = await sb.from('envois').select('id, data').in('id', attendus);
   const deja = new Set(
     (dejaRows ?? [])
-      .filter((r) => ((r.data as { statut?: string } | null)?.statut ?? '') !== 'échec')
+      .filter((r) => !SE_RETENTE.has((r.data as { statut?: string } | null)?.statut ?? ''))
       .map((r) => r.id as string),
   );
 
@@ -312,7 +383,7 @@ Deno.serve(async (req) => {
      ne se rapprochait de rien. C'est la leçon des rappels du 11 septembre,
      appliquée ici. Le code d'erreur de Meta se garde aussi : c'est lui que
      le Trône traduit en motif lisible (`motifEnClair`, shared/envois). */
-  const consigne = (canal: string, a: Rdv, statut: string, detail?: string, waMessageId?: string, codeMeta?: number) => {
+  const consigne = (canal: string, a: Rdv, statut: string, detail?: string, waMessageId?: string, codeMeta?: number, plus?: Record<string, unknown>) => {
     aInserer.push({
       id: `conf-${a.id}-${canal}`,
       branch_id: a.branchId ?? null,
@@ -323,6 +394,7 @@ Deno.serve(async (req) => {
         ...(waMessageId ? { waMessageId } : {}),
         ...(codeMeta ? { codeMeta } : {}),
         quand: new Date().toISOString(),
+        ...(plus ?? {}),
       },
     });
   };
@@ -346,15 +418,25 @@ Deno.serve(async (req) => {
     });
   };
 
-  let nPush = 0, nWa = 0;
+  let nPush = 0, nWa = 0, nDeposes = 0;
 
   for (const a of rdvs) {
     const fiche = fiches.get(a.clientId);
     const prenom = (a.clientName ?? fiche?.name ?? '').split(' ')[0] || 'Madame';
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
+    /* ELLE A RÉSERVÉ ELLE-MÊME (Ma Couronne) : sa confirmation part tout de
+       suite, elle l'attend. Tout ce que la Maison pose passe par la salle. */
+    const enSalle = salleOuverte && a.source !== 'couronne';
+    const texteDuFil = `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`;
 
     /* ① PUSH — gratuit, et il part DÈS AUJOURD'HUI, sans aucune clé Meta. */
-    if (!deja.has(`conf-${a.id}-push`)) {
+    if (enSalle && !deja.has(`conf-${a.id}-push`)) {
+      consigne('push', a, 'en-attente', undefined, undefined, undefined, depot(Date.now(), regles, {
+        genre: 'push', clientId: a.clientId, titre: `${nomMaison} · c'est confirmé`,
+        corps: `${prenom}, votre rendez-vous est retenu ${quand}. ${cfg.itineraire?.trim() ?? ''}`.trim(), url: '/couronne/',
+      }, prenom));
+      nDeposes++;
+    } else if (!deja.has(`conf-${a.id}-push`)) {
       try {
         const r = await fetch(`${urlBase}/functions/v1/push-notify`, {
           method: 'POST',
@@ -385,7 +467,13 @@ Deno.serve(async (req) => {
     if (WA_TOKEN && WA_PHONE_ID && !tel && !deja.has(`conf-${a.id}-whatsapp`)) {
       consigne('whatsapp', a, 'sans-numero');
     }
-    if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`conf-${a.id}-whatsapp`)) {
+    if (enSalle && WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`conf-${a.id}-whatsapp`)) {
+      consigne('whatsapp', a, 'en-attente', undefined, undefined, undefined, depot(Date.now(), regles, {
+        genre: 'whatsapp', numero: tel, modele: WA_TEMPLATE, parQui: 'Le Trône', texteAuFil: texteDuFil,
+        composants: [{ type: 'body', parameters: [{ type: 'text', text: prenom }, { type: 'text', text: quand }] }],
+      }, prenom));
+      nDeposes++;
+    } else if (WA_TOKEN && WA_PHONE_ID && tel && !deja.has(`conf-${a.id}-whatsapp`)) {
       try {
         const r = await fetch(`https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`, {
           method: 'POST',
@@ -408,10 +496,7 @@ Deno.serve(async (req) => {
         const waId = String(rep?.messages?.[0]?.id ?? '');
         if (r.ok && waId) {
           consigne('whatsapp', a, 'envoyé', undefined, waId);
-          consigneAuFil(
-            a, tel, waId,
-            `Bonjour ${prenom}, c'est confirmé : votre rendez-vous est retenu ${quand}. Nous vous attendons. Merci de nous prévenir en cas d'empêchement.`,
-          );
+          consigneAuFil(a, tel, waId, texteDuFil);
           nWa++;
         } else if (r.ok) {
           /* Accepté sans identifiant : on ne saura pas ce qu'il devient, et le
@@ -442,7 +527,7 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
+    JSON.stringify({ version: VERSION, vus: rdvs.length, ecartes: candidats.length - rdvs.length, salle: salleOuverte, deposes: nDeposes, push: nPush, whatsapp: nWa, modele: WA_TEMPLATE }),
     { headers: { 'content-type': 'application/json' } },
   );
 });

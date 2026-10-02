@@ -219,6 +219,21 @@ async function runStaffCron(): Promise<number> {
   return sent;
 }
 
+/* ══ LE FACTEUR ET LES FONCTIONS PLANIFIÉES PARLENT AVEC LA CLÉ SERVICE — 2 oct. 2026 ══
+   « Notifier une cliente » exigeait le jeton d'un membre du personnel. Les
+   fonctions planifiées n'en ont pas : elles portent la clé service. Leur push
+   de confirmation répondait donc « forbidden », se lisait « sans abonnement »
+   au journal, et n'était jamais parti. Qui porte la clé service est le
+   serveur lui-même : il passe, et n'est pas soumis à la limite de débit du
+   tunnel public. Les longueurs se comparent d'abord, jamais les valeurs ne
+   s'écrivent. */
+const parLeService = (req: Request): boolean => {
+  const recu = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!recu) return false;
+  return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
+    .some((cle) => !!cle && cle.trim().length === recu.length && cle.trim() === recu);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -248,12 +263,14 @@ Deno.serve(async (req) => {
   // Mode ciblé — le personnel notifie UNE cliente précise (ex. cadeau anniversaire).
   // Robuste : on cible l'id fourni ET toute fiche ayant le même e-mail (fiches en double).
   if (body.mode === 'to-client') {
-    const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-    const { data: userData } = await admin.auth.getUser(jwt);
-    const uid = userData?.user?.id;
-    if (!uid) return json({ error: 'forbidden' }, 403);
-    const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
-    if (!staffRow) return json({ error: 'forbidden' }, 403);
+    if (!parLeService(req)) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: userData } = await admin.auth.getUser(jwt);
+      const uid = userData?.user?.id;
+      if (!uid) return json({ error: 'forbidden' }, 403);
+      const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
+      if (!staffRow) return json({ error: 'forbidden' }, 403);
+    }
     const target = body.clientId as string;
     const email = ((body.email as string) || '').trim().toLowerCase();
     const ids = new Set<string>();
@@ -322,7 +339,7 @@ Deno.serve(async (req) => {
   // MÊME limite de débit par IP que le tunnel : sans elle, la clé publishable
   // (publique par nature) suffisait à faire vibrer tous les téléphones en boucle.
   if (body.mode === 'staff') {
-    if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
+    if (!parLeService(req) && !(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
     const title = (body.title as string) || 'Maison MND';
     return json({ sent: await sendToStaff({
       title,

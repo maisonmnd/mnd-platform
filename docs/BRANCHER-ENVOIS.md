@@ -566,3 +566,46 @@ Ma Couronne. Sans réponse, À faire dit « proposée sur WhatsApp · sans
 réponse » : la Maison appelle, comme avant. Le rendez-vous n'est jamais annulé
 tout seul. Secret facultatif : `COURONNE_URL` (par défaut
 `https://maisonmnd.com/couronne/`).
+
+## La salle d'attente des envois (2 octobre 2026)
+
+« Est-ce possible d'intercepter un message qui part vers chez un client ?
+D'arrêter l'envoi à cause de l'heure tardive ou autre raison, erreur… »
+(Yéman). Maquette `public/maquette-la-salle-d-attente-des-envois.html`,
+quatre arbitrages : dix minutes de salle, heures calmes de 20 h à 8 h,
+réponse immédiate quand la cliente réserve elle-même, trois alertes
+(pastille, téléphone, son).
+
+**Comment.** `confirmation-rdv`, `rappels-j1` et `avis-google` ne
+s'adressent plus à la cliente : elles déposent une ligne `envois`, statut
+`en-attente`, avec `partA` (l'heure de départ) et `colis` (de quoi
+l'envoyer). Le facteur `envois-partent`, réveillé chaque minute, dit qu'il
+vit (`documents`, clé `mnd_facteur`), prévient le personnel de ce qui part
+dans les dix minutes, relit le rendez-vous, puis porte. Une main peut
+retenir, relâcher, envoyer maintenant ou écarter depuis Conversations ›
+Envois automatiques ; la pastille de la barre du Trône dit ce qui attend.
+
+**Le repli.** Si le facteur se tait plus de cinq minutes, les trois
+fonctions envoient comme avant : rien ne reste coincé, et l'écran dit « La
+salle est fermée ».
+
+**La source.** `src/shared/salle-des-envois.ts` ; les fonctions Edge en
+recopient le calcul, `verifie-la-salle-des-envois` tient les copies.
+Réglages facultatifs dans `mnd_auto_config` : `salleMin`, `calmeDe`,
+`calmeA` (absents : 10, 20, 8).
+
+**À poser, dans cet ordre** (marche à suivre cochable :
+`public/maquette-poser-la-salle-d-attente.html`) :
+
+1. `push-notify` : recoller en entier (le facteur y parle avec la clé
+   service ; le push de confirmation, qui répondait « forbidden », part enfin).
+2. `envois-partent` : nouvelle fonction, fichier entier, « Verify JWT »
+   désactivé.
+3. Cron `envois-partent`, `* * * * *`, SQL Snippet :
+   `select public.appelle_fonction_edge('envois-partent');`
+4. Vérifier dans le Trône que « La salle est fermée » a disparu.
+5. Recoller en entier `confirmation-rdv`, `rappels-j1`, `avis-google`.
+
+**Pas encore en salle :** la fin de paquet et le merci de parrainage, qui
+partent du Trône lui-même (`envoieSurWhatsApp`), et la réponse à une
+réservation faite par la cliente, qui reste immédiate par décision.

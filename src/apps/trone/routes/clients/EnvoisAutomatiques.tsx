@@ -21,6 +21,7 @@ import {
   jourDuSalon, typeDit, canalDit, DEVENU_DIT, type FiltreDuJournal, type TypeDEnvoi,
 } from '../../../../shared/envois';
 import { useEnvois } from '../equipe/data';
+import { SalleDesEnvois } from './SalleDesEnvois';
 
 const FUSEAU = 'Africa/Porto-Novo';
 
@@ -74,6 +75,9 @@ export function EnvoisAutomatiques({ onOuvrirLeFil }: { onOuvrirLeFil: (numero: 
         la veille, la demande d’avis. <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>« Remis » et « lu »
         viennent de WhatsApp</b> ; un échec dit pourquoi. Les messages écrits à la main vivent dans les fils.
       </p>
+
+      {/* CE QUI VA PARTIR, AVANT QUE ÇA PARTE (2 octobre 2026). */}
+      <SalleDesEnvois />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 14 }}>
         {([

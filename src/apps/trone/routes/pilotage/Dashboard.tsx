@@ -1,3 +1,4 @@
+import { attendEncore } from '../../../../shared/salle-des-envois';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal } from '../../../../ds/components';
@@ -990,7 +991,8 @@ export default function Dashboard() {
                tous les trois, et se ressemblaient à « tout va bien ». Le juge
                est pur (`shared/tournee.ts`), éprouvé, et l'écran ne fait que
                le lire. */
-            const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1');
+            /* Un rappel qui attend en salle n'est pas encore passé (2 octobre 2026). */
+            const lignes = envois.filter((e) => e.apptId === a.id && e.type === 'rappel-j1' && !attendEncore(e));
             const etat = etatDeLaTournee(lignes);
             const tag = (texte: string, ton?: 'alerte' | 'cuivre') => (
               <span

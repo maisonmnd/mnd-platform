@@ -9,6 +9,7 @@ import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
+import { PastilleDeLaSalle } from './PastilleDeLaSalle';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
@@ -629,6 +630,7 @@ export default function Shell() {
           {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
           <Trouver />
           <SyncDot />
+          <PastilleDeLaSalle />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>

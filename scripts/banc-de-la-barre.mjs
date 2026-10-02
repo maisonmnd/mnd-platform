@@ -72,10 +72,22 @@ const factures = Array.from({ length: P.FACTURES }, (_, i) => {
     lines: [{ id: 'l' + i, label: 'Entretien des locks', qty: 1, unitXof: 12000 + (i % 7) * 1000, discountPct: 0 }], globalDiscountPct: 0, theme: 'Rose', status: 'payée',
     payments: [{ id: 'q' + i, amountXof: 12000 + (i % 7) * 1000, date: jour(k), method: 'Espèces' }] };
 });
+/* LA SALLE D'ATTENTE DES ENVOIS, pour la regarder : deux messages qui partent
+   bientot, un qui attend la fin des heures calmes, un retenu, un parti. */
+const dans = (min) => new Date(Date.now() + min * 60000).toISOString();
+const envoi = (i, plus) => ({ id: 'conf-a' + pad(i, 5) + '-whatsapp', branchId: 'maison', type: 'confirmation', canal: 'whatsapp',
+  apptId: 'a' + pad(i, 5), clientId: fiches[i].id, prenom: 'Cliente', dateRdv: jour(280 + i), heure: '10:00', quand: dans(-2), ...plus });
+const envois = [
+  envoi(1, { statut: 'en-attente', partA: dans(4), deposeLe: dans(-6) }),
+  envoi(2, { statut: 'en-attente', partA: dans(7), deposeLe: dans(-3) }),
+  envoi(3, { type: 'avis-google', statut: 'en-attente', partA: dans(540), calme: true, deposeLe: dans(-30) }),
+  envoi(4, { statut: 'retenu', retenuPar: 'Yéman', retenuLe: dans(-12) }),
+  envoi(5, { statut: 'envoyé', etat: 'remis' }),
+];
 localStorage.clear();
 localStorage.setItem('mnd_reset_v5', '1');
 const tailles = {};
-for (const [cle, v] of [['mnd_clients', fiches], ['mnd_appointments', rdvs], ['mnd_invoices', factures]]) {
+for (const [cle, v] of [['mnd_clients', fiches], ['mnd_appointments', rdvs], ['mnd_invoices', factures], ['mnd_envois', envois]]) {
   const j = JSON.stringify(v); tailles[cle] = j.length; localStorage.setItem('trone::' + cle, j);
 }`;
 
