@@ -2959,3 +2959,11 @@
    boutons dès que l'écran rétrécissait. */
 .trc-page-convs .tr-page-head--actions { flex-direction: column; align-items: stretch; gap: 14px; }
 .trc-page-convs .tr-page-head__actions { flex: 1 1 auto; }
+
+/* CHERCHER UN FIL (2 octobre 2026) : en tête de la liste, toujours visible. */
+.trc-convs__cherche { padding: 10px 12px; border-bottom: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 5px; }
+.trc-convs__cherche input {
+  font: inherit; font-size: 13.5px; width: 100%; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--hairline); background: var(--paper, #fff); color: var(--ink);
+}
+.trc-convs__cherche input:focus { outline: 2px solid var(--copper-300); outline-offset: 0; border-color: var(--copper-500); }

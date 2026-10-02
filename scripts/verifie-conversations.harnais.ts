@@ -14,6 +14,7 @@ import {
   estArchive, archiveLeFil, desarchiveLeFil, filsQuiAttendent,
   tetesDeLaMaison, teteDuNumero, filNeuf, estReserve,
   FENETRE_MS, type MessageWa, type TeteConnue, lienDuFil,
+  filCorrespond, filEffacable,
 } from '../src/shared/conversations';
 
 let ko = 0;
@@ -285,5 +286,19 @@ dit('… et le message voyage avec lui', true,
 dit('… il ne ressemble jamais a une adresse du web', true,
   (lienDuFil('0197000000') ?? '').startsWith('#'));
 dit('sans numero, aucun lien', null, lienDuFil(''));
+
+/* ── CHERCHER ET EFFACER UN FIL (2 octobre 2026) ── */
+{
+  const f = { nom: 'Akouavi Hounkpè', numero: '22991234567', messages: [{ texte: 'Je voudrais le petit crochet spécial locks' }] };
+  dit('chercher : un bout de nom, sans accent ni majuscule', true, filCorrespond(f, 'HOUNKPE'));
+  dit('... des chiffres du numéro', true, filCorrespond(f, '12 34 56'));
+  dit('... un mot qu elle a écrit', true, filCorrespond(f, 'crochet'));
+  dit('... tous les mots doivent se trouver', false, filCorrespond(f, 'akouavi tresses'));
+  dit('... des chiffres qui ne sont pas les siens', false, filCorrespond(f, '6047'));
+  dit('... une recherche vide garde tout', true, filCorrespond(f, '   '));
+  dit('effacer : un fil sans fiche, oui', true, filEffacable({ sansFiche: true, messages: [{}] }));
+  dit('... le fil d une cliente avec fiche, jamais (il s archive)', false, filEffacable({ sansFiche: false, messages: [{}] }));
+  dit('... un fil vide, rien a effacer', false, filEffacable({ sansFiche: true, messages: [] }));
+}
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

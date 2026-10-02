@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaGlyph } from '../_ui';
-import { Button, toast } from '../../../../ds/components';
+import { Button, toast, demande } from '../../../../ds/components';
+import { autoriserLaPurge } from '../../../../shared/sync';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
@@ -12,7 +13,7 @@ import {
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
   laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
-  useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil,
+  useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil, filCorrespond, filEffacable,
   tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
 } from '../../../../shared/conversations';
 import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
@@ -277,11 +278,17 @@ export default function Conversations() {
      clientes : la base ne lui livre rien d'autre, et l'écran ne montrerait
      pas non plus un vieux cache. */
   const tiroirVu: Tiroir = estDirection ? tiroir : 'clientes';
+  /* LA RECHERCHE (2 octobre 2026) : un nom, des chiffres, un mot écrit. Elle
+     traverse aussi les archives et les fils privés : on cherche quelqu'un,
+     pas un rangement. */
+  const [cherche, setCherche] = useState('');
+  const enRecherche = cherche.trim().length > 0;
   const fils = useMemo(
     () => tous.filter((f) => f.tiroir === tiroirVu
-      && (voirPrives || !f.prive)
-      && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives))),
-    [tous, tiroirVu, voirPrives, voirArchives, archives],
+      && (enRecherche
+        ? filCorrespond(f, cherche)
+        : (voirPrives || !f.prive) && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives)))),
+    [tous, tiroirVu, voirPrives, voirArchives, archives, cherche, enRecherche],
   );
   const nPrives = tous.filter((f) => f.tiroir === tiroirVu && f.prive).length;
   const nArchives = tous.filter((f) => f.tiroir === tiroirVu && estArchive(f, archives)).length;
@@ -612,6 +619,29 @@ export default function Conversations() {
   /* ARCHIVER, RENDRE — la direction seule. Le fil reste ouvert à l'écran :
      on voit ce qu'on vient de ranger, et le bouton pour le rendre est à
      l'endroit même où l'on vient d'appuyer. */
+  /* EFFACER UN FIL SANS FICHE — la direction seule, après confirmation,
+     sur tous les postes (voir `filEffacable`). */
+  const effaceLeFil = async (f: Fil) => {
+    if (!estDirection || !filEffacable(f)) return;
+    if (!await demande({
+      quoi: 'Conversation',
+      titre: `Effacer la conversation avec ${f.nom} ?`,
+      dit: `${f.messages.length} message${f.messages.length > 1 ? 's' : ''} disparaissent de tous les postes de la Maison.`,
+      suite: 'Ce numéro n’a pas de fiche. S’il écrit de nouveau, un fil neuf s’ouvrira.',
+      accepter: 'Effacer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
+    const n = f.numero;
+    /* Le garde-fou des suppressions en masse protège la table d'un accident ;
+       ici c'est un geste voulu, déclaré pour cette seule poussée. */
+    autoriserLaPurge('messages_wa');
+    messagesWaStore.set((prev) => prev.filter((m) => numeroWa(m.numero) !== n));
+    if (estArchive(f, archives)) setArchives((prev) => desarchiveLeFil(prev, n));
+    setParams({});
+    toast('Conversation effacée.');
+  };
+
   const basculeLArchive = (f: Fil) => {
     if (!estDirection || f.messages.length === 0) return;
     if (estArchive(f, archives)) {
@@ -739,6 +769,21 @@ export default function Conversations() {
       >
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
+          {/* CHERCHER (2 octobre 2026) : un nom, des chiffres, un mot. */}
+          <div className="trc-convs__cherche">
+            <input
+              type="search"
+              value={cherche}
+              onChange={(e) => setCherche(e.target.value)}
+              placeholder="Chercher un nom, un numéro, un mot"
+              aria-label="Chercher une conversation"
+            />
+            {enRecherche && (
+              <span className="trc-sub" style={{ fontSize: 11.5 }}>
+                {fils.length === 0 ? 'Aucun fil' : `${fils.length} fil${fils.length > 1 ? 's' : ''}`}, archives et fils privés compris
+              </span>
+            )}
+          </div>
           {/* LES TROIS TIROIRS — la direction seule les voit tous. Le compte
               dit ce qui attend une réponse, pas ce qui existe. */}
           {estDirection && (
@@ -768,7 +813,7 @@ export default function Conversations() {
               dès qu’un message part ou arrive.
             </div>
           )}
-          {fils.length === 0 && messages.length > 0 && (
+          {fils.length === 0 && messages.length > 0 && !enRecherche && (
             <div className="trc-empty">
               {voirArchives
                 ? 'Aucune conversation archivée.'
@@ -895,6 +940,17 @@ export default function Conversations() {
                   >
                     {fil.prive ? 'Rouvrir' : 'Marquer privé'}
                   </button>
+                  {estDirection && filEffacable(fil) && (
+                    <button
+                      type="button"
+                      className="trv-minibtn"
+                      title="Effacer ce fil de tous les postes : ce numéro n’a pas de fiche"
+                      onClick={() => void effaceLeFil(fil)}
+                      style={{ color: '#8f3b30' }}
+                    >
+                      Supprimer
+                    </button>
+                  )}
                   {estDirection && fil.messages.length > 0 && (
                     <button
                       type="button"
