@@ -25,6 +25,7 @@ import {
 } from './_shared';
 import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
+import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
 /* Le Carnet — le registre des rendez-vous : multi-services, duplication, statuts. */
 
@@ -299,7 +300,12 @@ export default function Carnet() {
       refuser: 'Garder le rendez-vous',
       dur: true,
     })) return;
-    appointmentsStore.set((prev) => prev.filter((x) => x.id !== a.id));
+    /* UNE REPRISE EFFACÉE À LA MAIN NE REVIENT PAS (2 octobre 2026) : son
+       rituel en garde la marque, sinon la prochaine sauvegarde la reposait. */
+    const marque = rituelDeLaRepriseEffacee(a);
+    appointmentsStore.set((prev) => prev
+      .filter((x) => x.id !== a.id)
+      .map((x) => (x.id === marque ? { ...x, repriseRetiree: true } : x)));
   };
 
   const duplicateLast = (clientId: string) => {

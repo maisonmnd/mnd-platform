@@ -1,4 +1,4 @@
-import { sansLaVisite } from '../../../../shared/reprise-nue';
+import { sansLaVisite, pourquoiPasDeRepriseIci } from '../../../../shared/reprise-nue';
 import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -113,7 +113,10 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
             : 'cadence pas encore lisible (moins de deux venues honorées)',
     };
   }
-  if (tous.some((a) => a.repriseDe === appt.id)) return { raison: 'sa reprise est déjà posée' };
+  /* La reprise effacée, le rituel plus récent, le rituel trop ancien
+     (2 octobre 2026, Shegun et Nathael) : voir `pourquoiPasDeRepriseIci`. */
+  const garde = pourquoiPasDeRepriseIci(appt, tous, todayISO());
+  if (garde) return { raison: garde };
   const aVenir = tous.find((a) => a.clientId === appt.clientId
     && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
   if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };

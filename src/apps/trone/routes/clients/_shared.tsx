@@ -41,6 +41,7 @@ import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
 export { ChampDeDate };
 
@@ -2515,7 +2516,12 @@ export function RdvModal({
     /* Un rituel honoré a consommé sa recette : le supprimer sans rembobiner
        laissait des mouvements orphelins pointant vers un rendez-vous disparu. */
     rembobinerRituel(appt.id);
-    appointmentsStore.set((prev) => prev.filter((x) => x.id !== appt.id));
+    /* UNE REPRISE EFFACÉE À LA MAIN NE REVIENT PAS (2 octobre 2026) : son
+       rituel en garde la marque, sinon la prochaine sauvegarde la reposait. */
+    const marque = rituelDeLaRepriseEffacee(appt);
+    appointmentsStore.set((prev) => prev
+      .filter((x) => x.id !== appt.id)
+      .map((x) => (x.id === marque ? { ...x, repriseRetiree: true } : x)));
     onClose();
   };
 

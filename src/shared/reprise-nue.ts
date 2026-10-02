@@ -25,7 +25,7 @@ export const CHAMPS_DE_LA_VISITE = [
   'discountXof', 'remisesLignes', 'gamme', 'forfait', 'priceXof', 'offertPar',
   'coveredBySub', 'coverKind', 'subId', 'foyerId', 'seriesId', 'seriesIndex', 'seriesTotal',
   'confirmeeParLaClienteLe', 'autreMomentDemandeLe', 'repriseProposeeLe', 'relanceFaite',
-  'creeLe', 'note',
+  'creeLe', 'note', 'repriseRetiree',
 ] as const;
 
 /** Le rituel d'avant, débarrassé de sa visite. Rend une copie. */
@@ -73,3 +73,49 @@ export function reprisesARendreNues(rdvs: readonly RdvLu[]): Map<string, Record<
   }
   return sortie;
 }
+
+/* ══ UNE REPRISE NE REVIENT PAS TOUTE SEULE — 2 octobre 2026 ═══════════════
+   « Ce RDV de Shegun du 30 octobre ne fait que revenir. Je supprime, il
+   revient tout seul » ; « même chose pour Nathael, un RDV se crée tout seul
+   pour demain 3 octobre » (Yéman).
+
+   LA PANNE. La reprise se tente à CHAQUE sauvegarde d'un rituel honoré et à
+   chaque encaissement (c'est voulu : un chemin qui l'oubliait la perdait en
+   silence). Son seul verrou était la reprise ELLE-MÊME (`repriseDe`) : effacée,
+   le verrou disparaissait avec elle, et la sauvegarde suivante la reposait.
+   Et un rituel ANCIEN, ressaisi ou corrigé des semaines après, posait sa
+   reprise depuis sa propre date : cinq semaines plus tôt, rythme de quatre,
+   elle tombait demain, avec sa confirmation WhatsApp.
+
+   TROIS GARDES DE PLUS :
+   · une reprise effacée à la main laisse une marque sur son rituel
+     (`repriseRetiree`) : elle ne revient plus ;
+   · seul le DERNIER rituel d'une tête pose sa reprise : un rituel plus récent
+     a déjà dit quand elle revient ;
+   · la reprise se pose à la CLÔTURE : un rituel de plus de quatorze jours ne
+     pose plus rien, sa reprise se prend à la main. */
+export const CLOTURE_JOURS = 14;
+
+type RdvGarde = { id: string; clientId?: string; date: string; status?: string; repriseDe?: string; repriseRetiree?: boolean };
+
+const joursAvant = (iso: string, n: number): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Pourquoi CE rituel ne pose pas de reprise aujourd'hui, ou `null`. */
+export function pourquoiPasDeRepriseIci(appt: RdvGarde, tous: readonly RdvGarde[], aujourdhui: string): string | null {
+  const jour = aujourdhui.slice(0, 10);
+  if (appt.repriseRetiree) return 'sa reprise a été retirée à la main';
+  if (tous.some((a) => a.repriseDe === appt.id)) return 'sa reprise est déjà posée';
+  const plusRecent = tous.find((a) => a.clientId === appt.clientId && a.id !== appt.id
+    && a.status !== 'annulé' && a.date > appt.date && a.date <= jour);
+  if (plusRecent) return `un rituel plus récent existe (${plusRecent.date})`;
+  if (appt.date < joursAvant(jour, CLOTURE_JOURS)) return `rituel de plus de ${CLOTURE_JOURS} jours : sa reprise se prend à la main`;
+  return null;
+}
+
+/** LA MARQUE LAISSÉE PAR UNE REPRISE EFFACÉE À LA MAIN : le rituel dont elle
+    venait, à marquer `repriseRetiree`, ou `null` si ce n'était pas une reprise. */
+export const rituelDeLaRepriseEffacee = (efface: { repriseDe?: string }): string | null => efface.repriseDe ?? null;

@@ -222,6 +222,9 @@ export type Appointment = {
       de plus. Il dit aussi, sur la fiche, d'où vient ce rendez-vous que
       personne ne se souvient d'avoir pris. */
   repriseDe?: string;
+  /** SA REPRISE A ÉTÉ EFFACÉE À LA MAIN — 2 octobre 2026. Elle ne se repose
+      plus jamais toute seule (voir `pourquoiPasDeRepriseIci`). */
+  repriseRetiree?: boolean;
   /** LA RELANCE J-3 EST FAITE — posée d'un geste depuis À faire, elle sort
       la ligne de la liste des reprises à relancer. */
   relanceFaite?: boolean;
