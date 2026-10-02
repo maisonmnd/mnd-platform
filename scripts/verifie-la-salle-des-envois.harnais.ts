@@ -129,6 +129,10 @@ dit('le soir du 2, elles finissent le 3 a 8 h', iso(salon('2026-10-03', '08:00')
   dit('heure changee : il ne part pas', 'le rendez-vous a été déplacé', pourquoiIlNePartPlus(e, { date: '2026-10-08', time: '11:00', status: 'confirmé' }, t));
   dit('supprime : il ne part pas', 'le rendez-vous n’existe plus', pourquoiIlNePartPlus(e, null, t));
   dit('une confirmation ne part pas pour un rendez-vous repasse en attente', 'le rendez-vous n’est plus confirmé', pourquoiIlNePartPlus(e, { date: '2026-10-08', time: '10:00', status: 'en attente' }, t));
+  dit('un rappel retenu par la nuit n arrive pas le matin du rendez-vous', 'trop tard pour un rappel de la veille',
+    pourquoiIlNePartPlus({ dateRdv: '2026-10-08', heure: '10:00', type: 'rappel-j1' }, { date: '2026-10-08', time: '10:00', status: 'confirmé' }, salon('2026-10-08', '08:00')));
+  dit('... mais part la veille au soir', null,
+    pourquoiIlNePartPlus({ dateRdv: '2026-10-08', heure: '10:00', type: 'rappel-j1' }, { date: '2026-10-08', time: '10:00', status: 'confirmé' }, salon('2026-10-07', '18:10')));
   dit('un rappel, lui, part pour un rendez-vous en attente', null, pourquoiIlNePartPlus({ ...e, type: 'rappel-j1' }, { date: '2026-10-08', time: '10:00', status: 'en attente' }, t));
   dit('retenu jusqu apres l heure du rendez-vous : on ne confirme pas le passe', 'l’heure du rendez-vous est passée',
     pourquoiIlNePartPlus(e, { date: '2026-10-08', time: '10:00', status: 'confirmé' }, salon('2026-10-08', '10:30')));

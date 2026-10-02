@@ -76,6 +76,9 @@ function pourquoiIlNePartPlus(
   if (rdv.status === 'annulé') return 'le rendez-vous a été annulé';
   if ((rdv.date ?? '') !== (e.dateRdv ?? '') || (rdv.time ?? '') !== (e.heure ?? '')) return 'le rendez-vous a été déplacé';
   if (e.type === 'confirmation' && rdv.status !== 'confirmé') return 'le rendez-vous n’est plus confirmé';
+  /* « Votre rendez-vous est demain » ne part pas le jour même : un rappel du
+     soir retenu par les heures calmes arriverait au matin du rendez-vous. */
+  if (e.type === 'rappel-j1' && new Date(maintenantMs + 3_600_000).toISOString().slice(0, 10) >= (rdv.date ?? '')) return 'trop tard pour un rappel de la veille';
   const h = /^\d{1,2}:\d{2}$/.test(rdv.time ?? '') ? (rdv.time as string).padStart(5, '0') : '23:59';
   const moment = Date.parse(`${rdv.date}T${h}:00+01:00`);
   if (Number.isFinite(moment) && moment <= maintenantMs) return 'l’heure du rendez-vous est passée';
