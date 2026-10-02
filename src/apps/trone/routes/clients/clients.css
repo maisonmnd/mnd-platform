@@ -2598,12 +2598,16 @@
    elles s'empilent — au salon on lit sur une tablette tenue debout. */
 .trc-convs {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  /* `minmax(0, 1fr)` et non `1fr` : une colonne `1fr` s'élargit jusqu'à son
+     contenu le plus large qui ne se casse pas (la rangée des gestes), et le
+     fil faisait 838 px sur un téléphone de 390 (2 octobre 2026). */
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   min-height: 520px;
 }
-@media (max-width: 900px) { .trc-convs { grid-template-columns: 1fr; } }
+.trc-convs > * { min-width: 0; }
+@media (max-width: 900px) { .trc-convs { grid-template-columns: minmax(0, 1fr); } }
 /* ══ LES CONVERSATIONS SUR UN TÉLÉPHONE — 21 septembre 2026 ═════════
    « Make conversation page responsive on mobile phone » (Yéman).
 
@@ -2624,7 +2628,6 @@
   .trc-convs__boite { max-height: none; }
   .trc-convs.a-fil .trc-convs__boite { display: none; }
   .trc-convs:not(.a-fil) .trc-convs__fil { display: none; }
-  .trc-convs__fil { min-height: calc(100dvh - 180px); }
   /* Le fil prend la hauteur qui reste : c'est la page qui ne défile plus,
      seules les bulles défilent, et la zone de saisie reste sous le pouce. */
   .trc-bulles { max-height: none; flex: 1; padding: 12px; }
@@ -2699,6 +2702,21 @@
   flex-wrap: wrap; padding: 12px 15px; border-bottom: 1px solid var(--hairline);
 }
 .trc-fil__tete b { font-family: var(--font-serif); font-weight: 500; font-size: 19px; color: var(--color-indigo); }
+.trc-fil__actions { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* `trv-minibtn` vit dans la feuille de la Vente, que cet écran ne charge pas
+   quand on y entre directement : les boutons du fil tombaient au gris du
+   navigateur. Ils portent donc leur propre habit ici. */
+.trc-fil__actions .trv-minibtn {
+  cursor: pointer; background: var(--surface-card); border: 1px solid var(--hairline);
+  border-radius: 3px; padding: 0 11px; height: 26px; font-family: var(--font-sans);
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-indigo);
+}
+.trc-fil__actions .trv-minibtn:hover { background: var(--hover-veil); }
+/* « ⋯ » ne sert qu'au téléphone : sur un grand écran, les actions sont là. */
+.trc-fil__plus { display: none; }
+/* Le lien de réservation, rangé parmi les gestes au téléphone seulement. */
+.trc-geste--tel { display: none; }
+.trc-wa__mot { display: none; }
 
 .trc-bulles {
   flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px;
@@ -2913,28 +2931,92 @@
 @media (max-width: 760px) {
   .trc-page-convs.a-fil .tr-page-head,
   .trc-page-convs.a-fil .trc-passage-banner { display: none; }
-  /* La liste : les boutons de la page glissent sur une ligne au lieu de s'empiler. */
-  .trc-page-convs .tr-page-head__actions > div { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 4px; }
-  .trc-page-convs .tr-page-head__actions > div > * { flex: none; white-space: nowrap; }
+  /* La liste : les boutons de la page passent à la ligne plutôt que de
+     glisser hors de l'écran (« Nouvelle conversation » y disparaissait). */
+  .trc-page-convs .tr-page-head__actions > div { gap: 8px !important; }
   .trc-page-convs .tr-page-head__actions .trc-sub { display: none; }
-  /* Le fil : une hauteur d'écran, la tête et la saisie fixes, les bulles au milieu. */
+  .trc-page-convs .mnd-eyebrow { white-space: normal; letter-spacing: .14em; }
+
+  /* ══ LE FIL OUVERT COUVRE L'ÉCRAN — 2 octobre 2026 ══════════════════
+     Comme dans WhatsApp : la tête en haut, les bulles qui défilent seules,
+     la saisie sous le pouce. La hauteur est celle que le clavier laisse
+     (`--vv-h`, posée par l'écran). Au-dessus de la barre de l'équipe (120),
+     sous les fenêtres du Trône (1000 et plus). */
   .trc-convs.a-fil .trc-convs__fil {
-    height: calc(100dvh - 96px); min-height: 0; border-radius: 0; border-left: 0; border-right: 0;
+    position: fixed; left: 0; right: 0; top: var(--vv-top, 0px);
+    height: var(--vv-h, 100dvh); min-height: 0; z-index: 130;
+    border: 0; border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
   }
-  .trc-convs.a-fil .trc-bulles { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  .trc-fil__tete { flex-wrap: nowrap; align-items: center; }
-  .trc-fil__tete > span:first-of-type { min-width: 0; flex: 1; }
+  .trc-page-convs .trc-modal-fond { z-index: 140; }
+  .trc-convs.a-fil .trc-bulles { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+
+  /* La tête : retour, le nom, « ⋯ ». Les actions s'ouvrent en menu. */
+  .trc-fil__tete { flex-wrap: nowrap; align-items: center; position: relative; padding: 8px 10px; gap: 8px; }
+  .trc-fil__qui { min-width: 0; flex: 1; }
   .trc-fil__tete b { font-size: 17px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .trc-fil__tete > span:last-child { flex-wrap: nowrap !important; overflow-x: auto; max-width: 52vw; }
-  .trc-fil__tete > span:last-child > * { flex: none; white-space: nowrap; }
-  .trc-retour { padding: 5px 9px; font-size: 0; }
-  .trc-retour::before { content: '←'; font-size: 16px; }
-  /* La saisie : l'horloge seule, la phrase d'explication se replie. */
+  .trc-retour { padding: 0; width: 38px; height: 38px; justify-content: center; font-size: 0; flex: none; }
+  .trc-retour::before { content: '←'; font-size: 18px; }
+  .trc-fil__plus {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--hairline);
+    background: none; font-size: 20px; line-height: 1; color: var(--color-indigo); cursor: pointer;
+  }
+  .trc-fil__tete.menu-ouvert .trc-fil__plus { background: var(--copper-50); border-color: var(--copper-300); }
+  .trc-fil__actions { display: none; }
+  .trc-fil__tete.menu-ouvert .trc-fil__actions {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    position: absolute; right: 8px; top: calc(100% + 4px); z-index: 5; min-width: 210px;
+    padding: 6px; background: var(--surface-card); border: 1px solid var(--hairline);
+    border-radius: 4px; box-shadow: 0 12px 32px -12px rgb(20 20 27 / 35%);
+  }
+  .trc-fil__tete.menu-ouvert .trc-fil__actions > * {
+    display: flex; align-items: center; gap: 10px; text-align: left; justify-content: flex-start;
+    padding: 11px 12px; border: 0; border-radius: 3px; background: none; height: auto;
+    text-transform: none; letter-spacing: normal;
+    font-family: var(--font-sans); font-size: 14px; color: var(--color-indigo); text-decoration: none; cursor: pointer;
+  }
+  .trc-fil__tete.menu-ouvert .trc-fil__actions > *:active { background: var(--paper-2); }
+  .trc-fil__tete.menu-ouvert .trc-wa__mot { display: inline; }
+
+  /* Les bulles : les gestes paraissent sur la bulle touchée seulement. */
+  .trc-b { max-width: 86%; }
+  .trc-b__gestes { display: none; }
+  .trc-b.est-touchee .trc-b__gestes { display: flex; opacity: 1; }
+  .trc-b__gestes button { padding: 6px 10px; }
+
+  /* La saisie : l'horloge seule, les gestes en une rangée qui glisse, le
+     texte et « Envoyer » côte à côte. */
+  .trc-saisie { padding: 8px 10px; flex: none; max-height: 55%; overflow-y: auto; }
+  .trc-saisie__q { margin-bottom: 6px; }
   .trc-saisie__q .trc-sub, .trc-saisie__note { display: none; }
-  .trc-saisie textarea { font-size: 16px; }
-  .trc-saisie > div:last-child { gap: 6px !important; }
-  .trc-gestes-rangee { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
-  .trc-gestes-rangee > * { flex: none; }
+  .trc-gestes-rangee { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; gap: 6px; margin-bottom: 8px; scrollbar-width: none; }
+  .trc-gestes-rangee > *, .trc-gestes-rangee .trc-geste { flex: none; white-space: nowrap; }
+  .trc-geste { padding: 7px 10px; }
+  .trc-geste__dit { display: none; }
+  .trc-saisie:has(.trc-saisie__texte) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+  .trc-saisie > * { grid-column: 1 / -1; }
+  .trc-saisie > .trc-saisie__texte { grid-column: 1; font-size: 16px; min-height: 44px; resize: none; }
+  .trc-saisie__lien { display: none !important; }
+  .trc-geste--tel { display: inline-flex; }
+  .trc-saisie > .trc-saisie__envoi {
+    grid-column: 2; margin-top: 0 !important; flex-direction: column; flex-wrap: nowrap !important;
+    align-items: stretch !important; justify-content: flex-end !important; gap: 6px !important;
+  }
+  .trc-saisie__modeles { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .trc-saisie__modeles > * { flex: none; white-space: nowrap; }
+}
+
+/* « NOUVELLE CONVERSATION » AU POUCE, comme le bouton rond de WhatsApp :
+   sur un téléphone, il flotte en bas à droite de la liste. */
+@media (max-width: 760px) {
+  .trc-page-convs:not(.a-fil) .trc-nouveau {
+    position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 110;
+    box-shadow: 0 10px 24px -8px rgb(20 20 27 / 45%); padding: 13px 18px;
+  }
+  .tr-shell--barre .trc-page-convs:not(.a-fil) .trc-nouveau { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .trc-page-convs:not(.a-fil) .trc-convs__boite { margin-bottom: 64px; }
 }
 
 /* LES ENVOIS AUTOMATIQUES, UNE LIGNE CHACUN (2 octobre 2026) : l'heure, la

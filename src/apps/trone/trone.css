@@ -399,9 +399,10 @@ body[data-surface='trone'] {
     z-index: 1200;
     transform: translateX(-100%);
     transition: transform 0.28s var(--ease-soft, ease);
-    box-shadow: 8px 0 40px -12px rgba(0, 0, 0, 0.6);
   }
-  .tr-shell.is-side-open .tr-side { transform: none; }
+  /* L'ombre seulement tiroir ouvert : fermé, elle débordait de 40 px sur le
+     bord gauche de tous les écrans du téléphone (2 octobre 2026). */
+  .tr-shell.is-side-open .tr-side { transform: none; box-shadow: 8px 0 40px -12px rgba(0, 0, 0, 0.6); }
   .tr-side-veil {
     position: fixed; inset: 0; z-index: 1100;
     background: rgba(20, 20, 27, 0.5);

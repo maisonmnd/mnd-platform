@@ -341,9 +341,50 @@ export default function Conversations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texteVenu]);
 
+  /* LE FIL S'OUVRE SUR SON DERNIER MESSAGE. On fait défiler les bulles
+     elles-mêmes, pas `scrollIntoView` : celui-ci faisait aussi glisser la
+     page, et de côté sur un téléphone (2 octobre 2026). */
   useEffect(() => {
-    finDuFil.current?.scrollIntoView({ block: 'end' });
+    const bulles = finDuFil.current?.parentElement;
+    if (bulles) bulles.scrollTop = bulles.scrollHeight;
   }, [fil?.numero, fil?.messages.length]);
+
+  /* ══ LE FIL EN PLEIN ÉCRAN SUR UN TÉLÉPHONE — 2 octobre 2026 ══════════
+     « Make conversations responsive on mobile phone, cannot use it
+     correctly » (Yéman). Le fil supposait une barre du Trône de 96 px ; elle
+     en fait 127 sur un téléphone, et la saisie tombait sous l'écran. Le fil
+     ouvert couvre désormais tout l'écran, comme dans WhatsApp, et prend la
+     hauteur que le CLAVIER laisse : `visualViewport` la donne, la feuille de
+     style la lit (`--vv-h`, `--vv-top`). Sur un grand écran, ces variables
+     ne servent pas. */
+  const filRef = useRef<HTMLDivElement>(null);
+  const aUnFil = !!fil;
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = filRef.current;
+    if (!vv || !el || !aUnFil) return;
+    const pose = () => {
+      el.style.setProperty('--vv-h', `${vv.height}px`);
+      el.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    };
+    /* Le clavier qui s'ouvre ne doit pas cacher le dernier message. */
+    const auClavier = () => {
+      pose();
+      const bulles = finDuFil.current?.parentElement;
+      if (bulles) bulles.scrollTop = bulles.scrollHeight;
+    };
+    pose();
+    vv.addEventListener('resize', auClavier);
+    vv.addEventListener('scroll', pose);
+    return () => { vv.removeEventListener('resize', auClavier); vv.removeEventListener('scroll', pose); };
+  }, [aUnFil]);
+
+  /* Au doigt, les gestes d'une bulle (répondre, réagir, réécrire) ne
+     paraissent que sur la bulle touchée : sous chaque bulle, ils doublaient
+     la hauteur du fil. Et les actions du fil se rangent derrière « ⋯ ». */
+  const [bulleTouchee, setBulleTouchee] = useState<string | null>(null);
+  const [menuDuFil, setMenuDuFil] = useState(false);
+  useEffect(() => { setBulleTouchee(null); setMenuDuFil(false); }, [fil?.numero]);
 
   /* ── LES DIX GESTES ────────────────────────────────────────────────
      Maquette `public/maquette-la-conversation-outillee.html`, validée le
@@ -725,7 +766,7 @@ export default function Conversations() {
                 )}
               </span>
             )}
-            <Button variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
+            <Button className="trc-nouveau" variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
               Nouvelle conversation
             </Button>
           </div>
@@ -857,14 +898,14 @@ export default function Conversations() {
         </div>
 
         {/* ── LE FIL ── */}
-        <div className="trc-convs__fil">
+        <div className="trc-convs__fil" ref={filRef}>
           {!fil ? (
             <div className="trc-empty" style={{ margin: 'auto' }}>
               Choisissez un fil à gauche.
             </div>
           ) : (
             <>
-              <div className="trc-fil__tete">
+              <div className={`trc-fil__tete${menuDuFil ? ' menu-ouvert' : ''}`}>
                 <button
                   type="button"
                   className="trc-retour"
@@ -873,7 +914,7 @@ export default function Conversations() {
                 >
                   ← Toutes les conversations
                 </button>
-                <span>
+                <span className="trc-fil__qui">
                   <b>{fil.nom}</b>
                   <span className="trc-sub" style={{ display: 'block', fontSize: 11.5 }}>
                     +{fil.numero}
@@ -881,7 +922,17 @@ export default function Conversations() {
                     {estReserve(fil.tiroir) ? ` · ${TIROIR_DIT[fil.tiroir].toLowerCase()} · direction seule` : ''}
                   </span>
                 </span>
-                <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="trc-fil__plus"
+                  aria-label="Les actions de ce fil"
+                  aria-expanded={menuDuFil}
+                  onClick={() => setMenuDuFil((v) => !v)}
+                >
+                  ⋯
+                </button>
+                {/* Un choix fait dans le menu le referme. */}
+                <span className="trc-fil__actions" onClick={() => setMenuDuFil(false)}>
                   {/* ══ L'AUTRE PORTE — 15 septembre 2026 ═══════════════════
                       « Je veux garder la possibilité d'ouvrir le wa.me
                       WhatsApp app de mon téléphone et en même temps la
@@ -905,6 +956,7 @@ export default function Conversations() {
                     aria-label="Ouvrir cette conversation dans l’application WhatsApp"
                   >
                     <WaGlyph taille={15} />
+                    <span className="trc-wa__mot">Continuer dans WhatsApp</span>
                   </a>
                   {fil.sansFiche ? (
                     /* UN FIL RÉSERVÉ SANS FICHE : la personne a quitté l'équipe
@@ -972,7 +1024,10 @@ export default function Conversations() {
                   return (
                     <div key={m.id} style={{ display: 'contents' }}>
                       {nouveauJour && <span className="trc-jour">{jour(m.quand)}</span>}
-                      <div className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}`}>
+                      <div
+                        className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}${bulleTouchee === m.id ? ' est-touchee' : ''}`}
+                        onClick={() => setBulleTouchee((t) => (t === m.id ? null : m.id))}
+                      >
                         {/* CE QUE CE MESSAGE CITE. Le fil a déjà le texte : on
                             ne garde que l'identifiant, sinon un message réécrit
                             ferait mentir sa propre citation. Un message plus
@@ -1132,6 +1187,9 @@ export default function Conversations() {
                         une main qui relit et qui envoie. */}
                     <div className="trc-gestes-rangee">
                       <ChoisirUnFichier surFichier={setPiece} occupe={envoiEnCours} />
+                      <button type="button" className="trc-geste trc-geste--tel" onClick={() => setLienOuvert(true)}>
+                        <b>Lien de réservation</b>
+                      </button>
                       <BarreDesGestes
                         gestes={gestes}
                         surGeste={poseLeGeste}
@@ -1163,7 +1221,7 @@ export default function Conversations() {
                     )}
 
                     <textarea
-                      className="mnd-input"
+                      className="mnd-input trc-saisie__texte"
                       rows={2}
                       value={texte}
                       placeholder={`Écrivez à ${fil.nom.split(' ')[0]}…`}
@@ -1172,11 +1230,11 @@ export default function Conversations() {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void envoie(); }
                       }}
                     />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="trc-saisie__envoi" style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span className="trc-sub trc-saisie__note" style={{ fontSize: 11, marginRight: 'auto' }}>
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
-                      <Button variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
+                      <Button className="trc-saisie__lien" variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
                       <Button
                         variant="copper"
                         size="sm"
@@ -1197,7 +1255,7 @@ export default function Conversations() {
                     Chacun part par son modèle approuvé. Ou attendez qu’elle écrive : la fenêtre se rouvre.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="trc-saisie__modeles" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
                       Réservation préparée
                     </Button>
