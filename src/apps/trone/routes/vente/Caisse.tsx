@@ -38,6 +38,7 @@ import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { RattacherUneCarte } from './RattacherUneCarte';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -1171,6 +1172,14 @@ export default function Caisse() {
                       {posPayerId && posPayerId !== clientId ? ` · compte ${posPayer?.name ?? 'famille'}` : ''}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle
+                  devient l'avoir ci-dessus, et se dépense comme lui. */}
+              {posClient && (
+                <div style={{ marginTop: 12 }}>
+                  <RattacherUneCarte porteur={posAccount} clientId={posClient.id} nom={posClient.name.split(' ')[0]} compact />
                 </div>
               )}
             </div>

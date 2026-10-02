@@ -261,7 +261,8 @@ export function useCaisses(month: string) {
     creditMvts.filter((m) => m.branchId === branch.id && m.cashbox === name
       && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)));
   const porteurDe = (m: CreditMovement): string =>
-    m.holderType === 'family'
+    m.holderType === 'carte' ? 'Carte cadeau'
+    : m.holderType === 'family'
       ? familles.find((f) => f.id === m.holderId)?.name ?? 'Compte famille'
       : clientes.find((c) => c.id === m.holderId)?.name ?? 'Cliente';
 

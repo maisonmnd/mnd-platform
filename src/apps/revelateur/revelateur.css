@@ -1441,6 +1441,11 @@ body.galerie-plein { scroll-behavior: smooth; }
 .carte-cadeau .bas { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
 .carte-cadeau .fon { font-family: var(--serif); font-style: italic; color: var(--accent-sombre); font-size: clamp(16px, 2.2vw, 22px); }
 .carte-cadeau .code { font-size: 11px; letter-spacing: .22em; color: rgba(246, 241, 231, .6); }
+/* LA CARTE RÉGLÉE (2 octobre 2026) : le code se lit en clair, la validité dessous. */
+.carte-cadeau .code { text-align: right; }
+.carte-cadeau .code b { display: block; font-size: clamp(13px, 1.8vw, 17px); letter-spacing: .14em; color: #F6F1E7; font-weight: 500; font-variant-numeric: tabular-nums; }
+.carte-cadeau--ivoire .code b { color: var(--titre); }
+.offrir-ilot .note-paiement { font-size: 13px; color: var(--texte-doux); margin: -4px 0 0; text-align: center; }
 .carte-cadeau--ivoire .haut small, .carte-cadeau--ivoire .pour, .carte-cadeau--ivoire .code { color: rgba(30, 33, 80, .62); }
 .carte-cadeau--ivoire .mot { color: rgba(30, 33, 80, .8); }
 .carte-cadeau--ivoire .fon { color: var(--accent-profond); }

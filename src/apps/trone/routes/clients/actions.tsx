@@ -36,6 +36,7 @@ import {
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -2030,6 +2031,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             </div>
           </div>
         )}
+
+        {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle devient
+            l'avoir ci-dessus, et se dépense comme lui. */}
+        <RattacherUneCarte porteur={account} clientId={appt.clientId} nom={(client?.name ?? appt.clientName ?? '').split(' ')[0] || 'elle'} compact />
 
         <div className="mnd-bande" style={{ padding: '12px 13px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>

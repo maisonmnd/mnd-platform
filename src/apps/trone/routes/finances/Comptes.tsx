@@ -169,8 +169,14 @@ export default function Comptes() {
     const aid = params.get('avoir');
     if (!aid) return;
     const m = credits.find((x) => x.id === aid);
+    /* UNE CARTE CADEAU PAS ENCORE VENUE (2 octobre 2026) ne se corrige pas
+       ici : elle n'a pas de compte, elle vit dans Vente & Caisse. */
+    if (m && m.holderType === 'carte') {
+      window.location.hash = '#/cartes-cadeaux';
+      return;
+    }
     if (m) {
-      setDeposit({ holder: { type: m.holderType, id: m.holderId }, kind: m.kind === 'remboursement' ? 'remboursement' : 'depot', edite: m });
+      setDeposit({ holder: { type: m.holderType as 'family' | 'client', id: m.holderId }, kind: m.kind === 'remboursement' ? 'remboursement' : 'depot', edite: m });
       setRegistre('avoirs');
     }
     const p2 = new URLSearchParams(params);

@@ -1309,8 +1309,11 @@ export const PAGES: Page[] = [
   },
   /* OFFRIR — 27 septembre 2026, maquette validée. La carte cadeau : trois
      modèles sur les motifs de la Maison, un geste ou un montant, et la
-     commande qui arrive au Trône comme une demande. Rien ne se paie en
-     ligne ; aucun montant n'est suggéré, la voix du site n'écrit pas de prix. */
+     commande qui arrive au Trône comme une demande. Aucun montant n'est
+     suggéré, la voix du site n'écrit pas de prix.
+     RÉGLÉE EN LIGNE depuis le 2 octobre 2026 (maquette « La carte cadeau en
+     ligne ») : un MONTANT se règle par KkiaPay et la carte s'affiche avec son
+     code ; un geste se règle avec la Maison. Le texte dit les deux portes. */
   {
     chemin: '/offrir/',
     titre: 'Carte cadeau · Offrir la Maison MND',
@@ -1327,17 +1330,18 @@ export const PAGES: Page[] = [
         titre: 'Trois pas, et la carte arrive.',
         items: [
           ['Vous choisissez', 'Un geste (un entretien, un soin, une Première Couronne) ou un montant. Un prénom, un mot.'],
-          ['La Maison vous confirme sur WhatsApp', 'Vous réglez à la Maison ou par mobile money. Rien ne se paie en ligne.'],
-          ['La carte arrive', "Sur WhatsApp, ou imprimée à retirer à la Maison. Elle est portée sur le compte de la personne : elle n'a rien à présenter, la Maison sait."],
+          ['Vous réglez', 'Un montant se règle tout de suite, par Mobile Money, Wave ou carte. Un geste, ou si vous préférez, se règle avec la Maison, qui vous écrit sur WhatsApp.'],
+          ['La carte arrive', "Réglée en ligne, elle s'affiche aussitôt avec son code, à garder ou à transmettre. La Maison l'envoie aussi sur WhatsApp, ou l'imprime à retirer à la Maison."],
         ],
       },
       {
         type: 'faq',
         sur: 'Bon à savoir',
         items: [
-          ['Combien de temps la carte est-elle valable ?', 'Douze mois à partir du jour où elle est remise, sur toute prestation de la Maison.'],
-          ['La personne doit-elle présenter quelque chose ?', "Non. La carte est portée sur son compte à la Maison ; elle donne son prénom, et la Maison sait."],
+          ['Combien de temps la carte est-elle valable ?', 'Douze mois à partir du jour où elle est réglée, sur toute prestation de la Maison.'],
+          ['La personne doit-elle présenter quelque chose ?', "Son code, à sa première visite. La Maison porte alors la carte sur son compte : ensuite, elle n'a plus rien à présenter."],
           ['Peut-on offrir un montant précis ?', "Oui, celui que vous choisissez. Il reste disponible jusqu'à épuisement, sur une ou plusieurs visites."],
+          ['Le paiement en ligne est-il sûr ?', "Il passe par KkiaPay, qui encaisse pour la Maison. La carte et son code ne naissent qu'une fois le paiement vérifié par la Maison."],
         ],
       },
     ],

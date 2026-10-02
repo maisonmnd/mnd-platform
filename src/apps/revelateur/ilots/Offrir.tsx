@@ -2,6 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { COMMUN } from '../contenu';
 import { client, lienWhatsApp, maison } from '../maison';
 import { mesure } from '../mesure';
+import { PUBLIC_KEY, payWithKkiapay } from '../../../shared/kkiapay-widget';
+import {
+  TABLE_CARTES, commandeDuSite, montantRefuse, montantTape, nouvelIdDeCarte, type CarteCadeau, type ModeleDeCarte,
+} from '../../../shared/cartes-cadeaux-pur';
+import { imageDeLaCarte } from './carte-image';
 
 /* LA CARTE CADEAU — 27 septembre 2026, maquette validée. « Intègre également
    le concept des cartes cadeaux. L'ERP nous le permet » (Yéman). Trois
@@ -9,24 +14,33 @@ import { mesure } from '../mesure';
    pictogramme, le médaillon en semis sur ivoire), un geste ou un montant,
    un prénom, un mot, une remise.
 
-   RIEN NE SE PAIE EN LIGNE, comme partout sur le site. La commande part par
-   la même fonction Edge que le rappel (`demande-submit`, genre prospect) :
-   la carte entière tient dans le mot, que le Trône lit dans la demande. La
-   Maison confirme sur WhatsApp, encaisse à la Maison ou par mobile money, et
-   porte la carte sur le compte de la personne : l'avoir existe déjà au
-   Trône. Aucun montant n'est suggéré : la voix du site n'écrit pas de prix,
-   c'est l'acheteur qui écrit le sien. */
+   RÉGLÉE EN LIGNE — 2 octobre 2026, maquette « La carte cadeau en ligne »
+   validée. « Sur le site j'aimerais brancher KkiaPay pour offrir les cartes
+   cadeaux » (Yéman). Quand on offre UN MONTANT, deux portes :
+     - « Régler maintenant » : la commande est déposée (sans code, montant
+       écrit), KkiaPay s'ouvre, et `kkiapay-verify` contrôle le paiement sur
+       la commande, tire le code et rend la carte, qui s'affiche aussitôt ;
+     - « Commander, je règle à la Maison » : comme avant, par `demande-submit`.
+   UN GESTE ne se règle pas en ligne : son prix n'apparaît jamais sur le
+   site. La Maison le règle avec l'acheteur et fait naître la carte au Trône.
 
-type Modele = 'medaillon' | 'allover' | 'ivoire';
-const MODELES: [Modele, string][] = [['medaillon', 'Le Médaillon'], ['allover', 'L’Allover indigo'], ['ivoire', 'Le Médaillon ivoire']];
+   Le retour de KkiaPay ne prouve rien : seule la réponse du serveur fait
+   afficher un code. */
+
+const MODELES: [ModeleDeCarte, string][] = [['medaillon', 'Le Médaillon'], ['allover', 'L’Allover indigo'], ['ivoire', 'Le Médaillon ivoire']];
 const GESTES = ['Un entretien complet', 'Un soin profond', 'Une Première Couronne', 'Une séance MND Kids'];
 const REMISES = ['Carte numérique, sur WhatsApp', 'Carte imprimée, à retirer à la Maison'];
 
 const base = (chemin: string): string => import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
 
+type Reglee = { code: string; valable: string };
+
+const dateLongue = (iso: string): string =>
+  iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+
 export default function Offrir() {
   const f = COMMUN.formulaire;
-  const [modele, setModele] = useState<Modele>('medaillon');
+  const [modele, setModele] = useState<ModeleDeCarte>('medaillon');
   const [mode, setMode] = useState<'geste' | 'montant'>('geste');
   const [geste, setGeste] = useState(GESTES[0]);
   const [montant, setMontant] = useState('');
@@ -40,13 +54,22 @@ export default function Offrir() {
   const [envoi, setEnvoi] = useState(false);
   const [recu, setRecu] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
-  useEffect(() => { void maison().then((m) => setWhatsapp(m?.whatsapp ?? '')); }, []);
+  const [branchId, setBranchId] = useState('');
+  /* Le paiement en cours : la commande déposée, que l'on peut rouvrir. */
+  const [commande, setCommande] = useState<CarteCadeau | null>(null);
+  const [reglee, setReglee] = useState<Reglee | null>(null);
+  /* Payé, mais la vérification n'a pas répondu : on garde la référence. */
+  const [enVerification, setEnVerification] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+  useEffect(() => { void maison().then((m) => { setWhatsapp(m?.whatsapp ?? ''); setBranchId(m?.branchId ?? ''); }); }, []);
 
-  const chiffres = montant.replace(/\D/g, '');
-  const objet = mode === 'geste' ? geste : (chiffres ? `${Number(chiffres).toLocaleString('fr-FR')} F CFA à la Maison` : 'Un montant à la Maison');
+  const peutPayer = PUBLIC_KEY !== '' && !!branchId;
+  const chiffres = montantTape(montant);
+  const objet = mode === 'geste' ? geste : (chiffres ? `${chiffres.toLocaleString('fr-FR')} F CFA à la Maison` : 'Un montant à la Maison');
+  const remiseCle = remise === REMISES[1] ? 'imprimee' : 'numerique';
   const resume = [
     `CARTE CADEAU · modèle ${MODELES.find(([m]) => m === modele)?.[1] ?? modele}`,
-    mode === 'geste' ? `Geste offert : ${geste}` : `Montant offert : ${chiffres ? `${Number(chiffres).toLocaleString('fr-FR')} F CFA` : 'à préciser'}`,
+    mode === 'geste' ? `Geste offert : ${geste}` : `Montant offert : ${chiffres ? `${chiffres.toLocaleString('fr-FR')} F CFA` : 'à préciser'}`,
     `Pour : ${pour.trim() || 'à préciser'}`,
     `De la part de : ${de.trim() || 'à préciser'}`,
     mot.trim() ? `Mot : ${mot.trim()}` : '',
@@ -54,17 +77,41 @@ export default function Offrir() {
   ].filter(Boolean).join('\n');
   const wa = lienWhatsApp(whatsapp, `Bonjour MND, je souhaite commander une carte cadeau.\n${resume}`);
 
-  const commander = async (e: FormEvent) => {
-    e.preventDefault();
+  /* Ce qui manque avant d'envoyer quoi que ce soit, ou `null`. */
+  const manque = (): string | null => {
+    if (mode === 'montant' && !chiffres) return 'Écrivez le montant que vous offrez.';
+    if (tel.replace(/\D/g, '').length < 8) return f.erreurNumero;
+    if (!consent) return 'Cochez la case pour que la Maison puisse vous écrire.';
+    return null;
+  };
+
+  /* LA COMMANDE AU REGISTRE DU TRÔNE. Jamais bloquante pour « je règle à la
+     Maison » : la demande, elle, part de toute façon. */
+  const deposeLaCommande = async (origine: 'en-ligne' | 'maison'): Promise<CarteCadeau | null> => {
+    const supabase = await client();
+    if (!supabase || !branchId) return null;
+    const c = commandeDuSite({
+      id: nouvelIdDeCarte(), branchId, maintenant: new Date().toISOString(), origine,
+      objet: mode, montantXof: mode === 'montant' ? chiffres : undefined, geste: mode === 'geste' ? geste : undefined,
+      modele, pour, de, mot, remise: remiseCle, telephone: tel,
+    });
+    const { error } = await supabase.from(TABLE_CARTES).insert({ id: c.id, branch_id: c.branchId, data: c });
+    if (error) { console.warn('[mnd-site] carte refusée :', error.message); return null; }
+    return c;
+  };
+
+  const commander = async (e?: FormEvent) => {
+    e?.preventDefault();
     if (envoi) return;
-    if (mode === 'montant' && !chiffres) { setErreur('Écrivez le montant que vous offrez.'); return; }
-    if (tel.replace(/\D/g, '').length < 8) { setErreur(f.erreurNumero); return; }
-    if (!consent) { setErreur('Cochez la case pour que la Maison puisse vous écrire.'); return; }
+    const m = manque();
+    if (m) { setErreur(m); return; }
     setErreur(null);
     setEnvoi(true);
     try {
       const supabase = await client();
       if (!supabase) { setErreur('La commande n’est pas reliée pour l’instant. Écrivez-nous sur WhatsApp, la carte se prépare aussi bien.'); return; }
+      /* Une commande abandonnée en ligne n'en dépose pas une seconde. */
+      if (!commande) await deposeLaCommande('maison');
       const { data, error } = await supabase.functions.invoke('demande-submit', {
         body: { genre: 'prospect', data: { prenom: de, telephone: tel, besoin: 'inconnu', profil: 'Carte cadeau', mot: resume, page: location.pathname, consentement: true } },
       });
@@ -85,6 +132,53 @@ export default function Offrir() {
     }
   };
 
+  /* RÉGLER MAINTENANT. La promesse de KkiaPay ne se résout que sur un
+     paiement abouti : fermer la fenêtre laisse l'écran tel quel, avec ses
+     deux portes (rouvrir, ou régler à la Maison). */
+  const regler = async () => {
+    if (envoi) return;
+    const m = manque() ?? montantRefuse(chiffres);
+    if (m) { setErreur(m); return; }
+    setErreur(null);
+    setEnvoi(true);
+    try {
+      const c = commande ?? await deposeLaCommande('en-ligne');
+      if (!c) { setErreur('Le paiement en ligne n’est pas disponible pour l’instant. Commandez la carte : la Maison la prépare avec vous.'); return; }
+      setCommande(c);
+      mesure('cadeau_paiement_ouvert', { parcours: 'inconnu' });
+      const { transactionId } = await payWithKkiapay({
+        amountXof: c.montantXof ?? 0, partnerId: c.id, branchId: c.branchId,
+        phone: tel, name: de.trim() || undefined,
+      });
+      setEnVerification(transactionId);
+      const supabase = await client();
+      if (!supabase) return;
+      const { data, error } = await supabase.functions.invoke('kkiapay-verify', {
+        body: { transactionId, carteId: c.id, branchId: c.branchId },
+      });
+      const r = (data ?? {}) as { ok?: boolean; carte?: { code?: string; valableJusquau?: string } };
+      if (error || !r.ok || !r.carte?.code) return; // la référence reste à l'écran ; le filet KkiaPay réglera la carte
+      setReglee({ code: r.carte.code, valable: r.carte.valableJusquau ?? '' });
+      setEnVerification(null);
+      mesure('cadeau_regle', { parcours: 'inconnu' });
+    } catch (x) {
+      setErreur(x instanceof Error ? x.message : 'Le paiement n’a pas abouti.');
+    } finally {
+      setEnvoi(false);
+    }
+  };
+
+  /* L'image de la carte, préparée dès qu'elle est réglée : un lien de
+     téléchargement prêt vaut mieux qu'un bouton qui calcule après le clic. */
+  useEffect(() => {
+    if (!reglee) return;
+    let url = '';
+    void imageDeLaCarte({ modele, pour: pour.trim(), objet, mot: [mot.trim(), de.trim() ? `De la part de ${de.trim()}.` : ''].filter(Boolean).join(' '), code: reglee.code, valable: dateLongue(reglee.valable) })
+      .then((b) => { url = URL.createObjectURL(b); setImage(url); })
+      .catch(() => setImage(null));
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [reglee]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const carte = (
     <div className={`carte-cadeau carte-cadeau--${modele}`} aria-label="Aperçu de la carte">
       <div className="haut">
@@ -99,9 +193,36 @@ export default function Offrir() {
         <p className="objet">{objet}</p>
         <p className="mot">{mot.trim()}{de.trim() ? `${mot.trim() ? ' ' : ''}De la part de ${de.trim()}.` : ''}</p>
       </div>
-      <div className="bas"><span className="fon">Mi nyɔ́ ɖɛkpɛ.</span><span className="code">MND · carte cadeau</span></div>
+      <div className="bas">
+        <span className="fon">Mi nyɔ́ ɖɛkpɛ.</span>
+        {reglee
+          ? <span className="code"><b>{reglee.code}</b>{reglee.valable ? ` valable jusqu’au ${dateLongue(reglee.valable)}` : ''}</span>
+          : <span className="code">MND · carte cadeau</span>}
+      </div>
     </div>
   );
+
+  if (reglee) {
+    const partage = `Une carte cadeau pour toi, à la Maison MND : ${objet}. Ton code : ${reglee.code}${reglee.valable ? `, valable jusqu’au ${dateLongue(reglee.valable)}` : ''}. Il suffit de le présenter à la Maison.`;
+    return (
+      <div className="offrir-ilot">
+        {carte}
+        <div className="merci" style={{ marginTop: 22 }}>
+          <p className="sur">Carte réglée</p>
+          <h2>Merci. Voici votre carte.</h2>
+          <p>Son code : <b>{reglee.code}</b>. Gardez-le comme un billet : la carte se dépense à la Maison par qui le présente, en une ou plusieurs fois.</p>
+          {remiseCle === 'imprimee' && <p>La carte imprimée vous attend à la Maison.</p>}
+          <p>La Maison vous écrit aussi sur WhatsApp.</p>
+          <div className="rangee">
+            {image
+              ? <a className="btn btn--fort" href={image} download={`carte-cadeau-${reglee.code}.png`}>Enregistrer la carte</a>
+              : <span className="btn btn--fort" aria-disabled="true">Préparation de la carte</span>}
+            <a className="btn btn--lien" href={lienWhatsApp('', partage)} target="_blank" rel="noopener">L’envoyer sur WhatsApp</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (recu) {
     return (
@@ -120,6 +241,22 @@ export default function Offrir() {
     );
   }
 
+  if (enVerification) {
+    return (
+      <div className="offrir-ilot">
+        {carte}
+        <div className="merci" style={{ marginTop: 22 }}>
+          <p className="sur">Paiement reçu</p>
+          <h2>La Maison vérifie votre paiement.</h2>
+          <p>Votre référence : <b>{enVerification}</b>. Gardez-la. Dès que le paiement est confirmé, la carte est créée et la Maison vous l’envoie sur WhatsApp.</p>
+          <div className="rangee">
+            <a className="btn btn--fort" href={lienWhatsApp(whatsapp, `Bonjour MND, j’ai réglé une carte cadeau en ligne. Ma référence : ${enVerification}.`)} target="_blank" rel="noopener">Écrire à MND</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="offrir-ilot">
       {carte}
@@ -130,30 +267,43 @@ export default function Offrir() {
           ))}
         </div>
         <div className="onglets" role="tablist" aria-label="Offrir">
-          <button type="button" role="tab" aria-selected={mode === 'geste'} onClick={() => setMode('geste')}>Un geste</button>
-          <button type="button" role="tab" aria-selected={mode === 'montant'} onClick={() => setMode('montant')}>Un montant</button>
+          <button type="button" role="tab" aria-selected={mode === 'geste'} onClick={() => setMode('geste')} disabled={!!commande}>Un geste</button>
+          <button type="button" role="tab" aria-selected={mode === 'montant'} onClick={() => setMode('montant')} disabled={!!commande}>Un montant</button>
         </div>
         {mode === 'geste' ? (
           <div className="pilules" role="radiogroup" aria-label="Le geste offert">
             {GESTES.map((g) => <label key={g}><input type="radio" name="geste" value={g} checked={geste === g} onChange={() => setGeste(g)} />{g}</label>)}
           </div>
         ) : (
-          <div className="champ"><label htmlFor="cc-montant">Le montant de votre choix</label><input id="cc-montant" name="montant" inputMode="numeric" placeholder="En francs CFA" value={montant} onChange={(e) => setMontant(e.target.value)} /></div>
+          <div className="champ"><label htmlFor="cc-montant">Le montant de votre choix</label><input id="cc-montant" name="montant" inputMode="numeric" placeholder="En francs CFA" value={montant} onChange={(e) => setMontant(e.target.value)} disabled={!!commande} /></div>
         )}
         <div className="deux-champs">
-          <div className="champ"><label htmlFor="cc-pour">Pour</label><input id="cc-pour" name="pour" placeholder="Son prénom" value={pour} onChange={(e) => setPour(e.target.value)} /></div>
-          <div className="champ"><label htmlFor="cc-de">De la part de</label><input id="cc-de" name="de" autoComplete="given-name" placeholder="Votre prénom" value={de} onChange={(e) => setDe(e.target.value)} /></div>
+          <div className="champ"><label htmlFor="cc-pour">Pour</label><input id="cc-pour" name="pour" placeholder="Son prénom" value={pour} onChange={(e) => setPour(e.target.value)} disabled={!!commande} /></div>
+          <div className="champ"><label htmlFor="cc-de">De la part de</label><input id="cc-de" name="de" autoComplete="given-name" placeholder="Votre prénom" value={de} onChange={(e) => setDe(e.target.value)} disabled={!!commande} /></div>
         </div>
-        <div className="champ"><label htmlFor="cc-mot">Un mot</label><textarea id="cc-mot" name="mot" rows={2} maxLength={120} value={mot} onChange={(e) => setMot(e.target.value)} /></div>
+        <div className="champ"><label htmlFor="cc-mot">Un mot</label><textarea id="cc-mot" name="mot" rows={2} maxLength={120} value={mot} onChange={(e) => setMot(e.target.value)} disabled={!!commande} /></div>
         <div className="deux-champs">
           <div className="champ"><label htmlFor="cc-remise">Comment la remettre</label>
-            <select id="cc-remise" name="remise" value={remise} onChange={(e) => setRemise(e.target.value)}>
+            <select id="cc-remise" name="remise" value={remise} onChange={(e) => setRemise(e.target.value)} disabled={!!commande}>
               {REMISES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select></div>
-          <div className="champ"><label htmlFor="cc-tel">{f.numero}</label><input id="cc-tel" name="numero" inputMode="tel" autoComplete="tel" value={tel} onChange={(e) => setTel(e.target.value)} required /></div>
+          <div className="champ"><label htmlFor="cc-tel">{f.numero}</label><input id="cc-tel" name="numero" inputMode="tel" autoComplete="tel" value={tel} onChange={(e) => setTel(e.target.value)} required disabled={!!commande} /></div>
         </div>
         <label className="consentement"><input type="checkbox" id="cc-consent" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>{f.consentement}</span></label>
-        <button className="btn btn--fort" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : 'Commander la carte'}</button>
+        {mode === 'montant' && peutPayer ? (
+          <>
+            <button className="btn btn--fort" type="button" onClick={() => void regler()} disabled={envoi}>
+              {envoi ? 'Paiement en cours' : commande ? 'Rouvrir le paiement' : 'Régler maintenant'}
+            </button>
+            <p className="note-paiement">Mobile Money, Wave ou carte, avec KkiaPay. Les frais de paiement sont à votre charge.</p>
+            <button className="btn btn--lien" type="submit" disabled={envoi}>Commander, je règle à la Maison</button>
+          </>
+        ) : (
+          <>
+            <button className="btn btn--fort" type="submit" disabled={envoi}>{envoi ? 'Envoi en cours' : 'Commander la carte'}</button>
+            {mode === 'geste' && <p className="note-paiement">Un geste se règle à la Maison : elle vous écrit sur WhatsApp pour le régler et vous remettre la carte.</p>}
+          </>
+        )}
         {erreur && <p className="erreur" role="alert">{erreur}</p>}
       </form>
     </div>

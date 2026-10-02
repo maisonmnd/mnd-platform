@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlarmClock, Bell, CalendarClock, ClipboardList, Clock, Crown, FileCheck2, FileClock,
-  Hourglass, KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
+  Gift, Hourglass, KeyRound, PackageSearch, Radio, UserPlus, Wallet, type LucideIcon,
 } from 'lucide-react';
 import {
   useEngagements, useDevisRecus, useVersementsEngagement, litLesDossiers, bilanDesEngagements,
@@ -21,6 +21,7 @@ import { createStore, useStore } from '../../../shared/store';
 import { useSettings } from '../../../shared/settings';
 import { useClientSessions, isOnline } from '../../../shared/activity';
 import { fmtMoney } from '../../../shared/currency';
+import { useCartesCadeaux, etatDeLaCarte } from '../../../shared/cartes-cadeaux';
 import { useAuth } from '../../../shared/auth';
 import { enablePush, ensurePush, registerSW, pushSupported, clearAppNotifications } from '../../../shared/push';
 
@@ -37,7 +38,7 @@ const dismissedNotifsStore = createStore<string[]>('mnd_notif_dismissed', []);
 
 type NotifKind =
   | 'consultation' | 'prospect' | 'inscription' | 'enligne'
-  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet';
+  | 'attente' | 'rdv' | 'imminent' | 'devis' | 'stock' | 'impaye' | 'couronne' | 'engagement' | 'paquet' | 'carte';
 
 type Notif = { id: string; kind: NotifKind; label: string; meta?: string; to: string };
 
@@ -55,10 +56,11 @@ const ICONS: Record<NotifKind, LucideIcon> = {
   couronne: Crown,
   engagement: FileClock,
   paquet: Hourglass,
+  carte: Gift,
 };
 
 /* Événements qui déclenchent aussi une notification navigateur (les plus importants). */
-const PUSH_KINDS = new Set<NotifKind>(['consultation', 'prospect', 'inscription', 'imminent', 'couronne']);
+const PUSH_KINDS = new Set<NotifKind>(['consultation', 'prospect', 'inscription', 'imminent', 'couronne', 'carte']);
 
 /* ---------- Dates ---------- */
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -104,6 +106,7 @@ function useNotifications(): Notif[] {
   const [versementsEng] = useVersementsEngagement();
   const [subscribers] = useSubscribers();
   const [plans] = usePlans();
+  const [cartes] = useCartesCadeaux();
 
   /* Battement : « dans 1h » et « en ligne » doivent se rafraîchir avec le temps. */
   const [tick, setTick] = useState(0);
@@ -206,6 +209,19 @@ function useNotifications(): Notif[] {
       }
     }
 
+    // 5 bis — LES CARTES CADEAUX À ENVOYER OU À REMETTRE (2 octobre 2026) :
+    // réglées, en ligne surtout, et pas encore entre les mains de l'acheteur.
+    for (const c of cartes) {
+      if (c.branchId !== branch.id) continue;
+      const e = etatDeLaCarte(c, new Date().toISOString());
+      if (e !== 'a-envoyer' && e !== 'a-remettre') continue;
+      out.push({
+        id: `carte-${c.id}`, kind: 'carte',
+        label: `Carte cadeau réglée${c.origine === 'en-ligne' ? ' en ligne' : ''} · ${fmtMoney(c.montantXof ?? 0, currency)}`,
+        meta: `pour ${c.pour || '?'}, de ${c.de || '?'} · ${e === 'a-envoyer' ? 'à envoyer' : 'à remettre'}`, to: '/cartes-cadeaux',
+      });
+    }
+
     // 6 — Devis acceptés à transformer en facture.
     for (const inv of invoices) {
       if (inv.branchId !== branch.id || inv.kind !== 'devis' || inv.status !== 'acceptée') continue;
@@ -293,7 +309,7 @@ function useNotifications(): Notif[] {
 
     return out;
   }, [appointments, invoices, products, clients, queue, sessions, branch.id, currency, okRdv, okStock, okPaie, tick,
-    engagements, devisRecus, versementsEng, subscribers, plans]);
+    engagements, devisRecus, versementsEng, subscribers, plans, cartes]);
 }
 
 /* ══ LE PASSAGE QUI ENVOIE LES FINS DE PAQUET ═══════════════════════

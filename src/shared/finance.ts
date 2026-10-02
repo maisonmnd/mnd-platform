@@ -1727,7 +1727,10 @@ export type CreditHolder = { type: 'family' | 'client'; id: string };
 export type CreditMovement = {
   id: string;
   branchId: string;
-  holderType: 'family' | 'client'; // qui porte l'avoir
+  /** Qui porte l'avoir. `carte` (2 octobre 2026) : une carte cadeau réglée
+      et pas encore venue ; à la première visite, le MÊME dépôt passe à la
+      fiche de la bénéficiaire (voir `cartes-cadeaux-pur.ts`). */
+  holderType: 'family' | 'client' | 'carte';
   holderId: string; // family.id ou client.id
   kind: 'depot' | 'usage' | 'remboursement'; // dépôt (+) · règlement d'une presta (−) · remboursement (−)
   /** CE QUI EST ENTRÉ DANS LE TIROIR (ou en est sorti) quand la caisse tient

@@ -42,6 +42,8 @@ const WIPE_TABLES = [
      oublier. Ici, en revanche, on est obligé d'énumérer : toute table de
      collection ajoutée plus tard doit venir s'inscrire. */
   'payments', 'push_reminders',
+  /* Les cartes cadeaux (0112, 2 octobre 2026). */
+  'cartes_cadeaux',
 ];
 
 /** Vide toutes les tables de données sur le serveur. Renvoie la liste des échecs

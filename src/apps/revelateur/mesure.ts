@@ -17,7 +17,11 @@ export type Evenement =
   | 'reservation_demandee'
   | 'whatsapp_clique'
   | 'parrainage_code'
-  | 'parrainage_partage';
+  | 'parrainage_partage'
+  /* La carte cadeau réglée en ligne (2 octobre 2026) : la fenêtre de
+     paiement ouverte, puis la carte réglée. Le tunnel se lit entre les deux. */
+  | 'cadeau_paiement_ouvert'
+  | 'cadeau_regle';
 
 export type Parametres = { parcours?: string; page?: string; sortie?: string; genre?: string; chemin?: string };
 
