@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
-import { fmtMoney } from '../../shared/currency';
 import { useStore } from '../../shared/store';
 import { supabase } from '../../shared/supabase';
 import { vitrineConfigStore } from '../../shared/bridges';
@@ -13,6 +12,7 @@ import {
 } from '../../shared/pricing';
 import { kkiapayEnabled, payWithKkiapay, verifyDeposit } from '../../shared/kkiapay';
 import { useClient } from './lib';
+import { t, prix } from './i18n';
 import './couronne.css';
 
 /* ── ACHETER SA FORMULE — 29 août 2026 ────────────────────────────────
@@ -127,7 +127,7 @@ export default function AchatFormule({
 
   /** Crée l'abonnement CÔTÉ SERVEUR. Rend `null` et parle si le serveur refuse. */
   const souscrire = async (): Promise<Souscrit | null> => {
-    if (!supabase) { toast('La Maison est hors ligne, réessayez dans un instant.'); return null; }
+    if (!supabase) { toast(t('La Maison est hors ligne, réessayez dans un instant.')); return null; }
     const { data, error } = await supabase.rpc('souscrire_a_une_formule', {
       p_plan_id: plan.id,
       p_parts: parts,
@@ -139,12 +139,12 @@ export default function AchatFormule({
     if (error) {
       /* UN REFUS SE DIT, TOUJOURS. Le plus probable ici : la fonction 0077
          n'est pas encore posée dans Supabase. */
-      toast('La souscription n’est pas encore ouverte, la Maison la prépare.');
+      toast(t('La souscription n’est pas encore ouverte, la Maison la prépare.'));
       return null;
     }
     const r = (data ?? {}) as { ok?: boolean; erreur?: string; subId?: string; totalXof?: number; parts?: number; premiereXof?: number };
-    if (r.erreur) { toast(REFUS[r.erreur] ?? 'La souscription n’a pas abouti.'); return null; }
-    if (!r.ok || !r.subId) { toast('La souscription n’a pas abouti.'); return null; }
+    if (r.erreur) { toast(REFUS[r.erreur] ? t(REFUS[r.erreur]) : t('La souscription n’a pas abouti.')); return null; }
+    if (!r.ok || !r.subId) { toast(t('La souscription n’a pas abouti.')); return null; }
     return {
       subId: r.subId,
       totalXof: Number(r.totalXof ?? total),
@@ -197,12 +197,12 @@ export default function AchatFormule({
         clientId: client?.id,
       });
       setRegleXof(v.ok ? v.amountXof : 0);
-      if (!v.ok) toast('Le paiement n’a pas été confirmé. Votre formule est retenue, réglez au comptoir.');
+      if (!v.ok) toast(t('Le paiement n’a pas été confirmé. Votre formule est retenue, réglez au comptoir.'));
     } catch (e) {
       /* Elle a fermé le widget, ou la vérification a échoué. SA FORMULE EST
          DÉJÀ RETENUE : on ne la perd pas, on le lui dit. */
       setRegleXof(0);
-      toast(e instanceof Error && e.message ? e.message : 'Paiement interrompu. Votre formule reste retenue.');
+      toast(e instanceof Error && e.message ? t(e.message) : t('Paiement interrompu. Votre formule reste retenue.'));
     }
     setOccupe(null);
     setTemps('fini');
@@ -214,19 +214,19 @@ export default function AchatFormule({
     <div className="mc-flow">
       <div className="mc-flowhead">
         <div className="mc-flowhead__row">
-          <span className="mc-micro-eyebrow">Votre formule</span>
-          <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+          <span className="mc-micro-eyebrow">{t('Votre formule')}</span>
+          <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
         </div>
 
         {/* LE FIL DES TROIS TEMPS. Elle doit savoir où elle en est et combien
             il en reste : un tunnel sans fil d'Ariane se referme au premier
             doute. */}
         <div className="cma-fil">
-          <b className={temps === 'recap' ? 'is-on' : ''}>Sa formule</b>
+          <b className={temps === 'recap' ? 'is-on' : ''}>{t('Sa formule')}</b>
           <span>›</span>
-          <b className={temps === 'reglement' ? 'is-on' : ''}>Règlement</b>
+          <b className={temps === 'reglement' ? 'is-on' : ''}>{t('Règlement')}</b>
           <span>›</span>
-          <b className={temps === 'fini' ? 'is-on' : ''}>C’est ouvert</b>
+          <b className={temps === 'fini' ? 'is-on' : ''}>{t('C’est ouvert')}</b>
         </div>
       </div>
 
@@ -247,17 +247,17 @@ export default function AchatFormule({
                 </ul>
               )}
               <div className="cma-somme">
-                <span>À régler</span>
-                <b>{fmtMoney(total, currency)}</b>
+                <span>{t('À régler')}</span>
+                <b>{prix(total, currency)}</b>
               </div>
               <div className="cma-somme__sous">
-                {plan.mode === 'pack' ? `Valable ${moisDuPack(plan)} mois` : 'Chaque mois, tant que vous la gardez'}
+                {plan.mode === 'pack' ? t('Valable {n} mois', { n: moisDuPack(plan) }) : t('Chaque mois, tant que vous la gardez')}
               </div>
             </div>
 
             <div className="cma-verrou">
-              Votre créneau se pose ensuite avec la Maison, à la cadence de votre couronne.
-              <b> Rien ne s’engage tant que vous n’avez pas choisi.</b>
+              {t('Votre créneau se pose ensuite avec la Maison, à la cadence de votre couronne.')}
+              <b>{' '}{t('Rien ne s’engage tant que vous n’avez pas choisi.')}</b>
             </div>
 
             {/* ══ COMBIEN DE LOCKS PORTEZ-VOUS ? — 1er septembre 2026 ══════
@@ -271,10 +271,9 @@ export default function AchatFormule({
                 plus cher par précaution. */}
             {doitDemander && (
               <div className="cma-calibre">
-                <div className="cma-calibre__q">Combien de locks portez-vous ?</div>
+                <div className="cma-calibre__q">{t('Combien de locks portez-vous ?')}</div>
                 <p className="cma-calibre__d">
-                  Cela change le temps que la Maison vous consacre, donc le prix.
-                  Une estimation suffit, on comptera ensemble au premier rendez-vous.
+                  {t('Cela change le temps que la Maison vous consacre, donc le prix. Une estimation suffit, on comptera ensemble au premier rendez-vous.')}
                 </p>
                 {calibres.map((b) => (
                   <button
@@ -284,7 +283,7 @@ export default function AchatFormule({
                     onClick={() => setCalibreDit(b.id)}
                   >
                     <span>{bandLabel(b, calibres)}</span>
-                    <b>{fmtMoney(prixDeLaFormule(plan, 'mensuel', { bandId: b.id, longueur: client?.longueur }, calibresAbo).montantXof, currency)}</b>
+                    <b>{prix(prixDeLaFormule(plan, 'mensuel', { bandId: b.id, longueur: client?.longueur }, calibresAbo).montantXof, currency)}</b>
                   </button>
                 ))}
                 <button
@@ -292,14 +291,14 @@ export default function AchatFormule({
                   className={`cma-calibre__opt ${calibreDit === null ? 'is-on' : ''}`}
                   onClick={() => setCalibreDit(null)}
                 >
-                  <span>Je ne sais pas</span>
-                  <b className="cma-calibre__flou">la Maison comptera</b>
+                  <span>{t('Je ne sais pas')}</span>
+                  <b className="cma-calibre__flou">{t('la Maison comptera')}</b>
                 </button>
               </div>
             )}
 
             <button type="button" className="cma-btn" onClick={() => setTemps('reglement')}>
-              Passer au règlement
+              {t('Passer au règlement')}
             </button>
           </div>
         )}
@@ -313,13 +312,13 @@ export default function AchatFormule({
               onClick={() => setParts(1)}
             >
               <span className="cma-choix__t">
-                <span className="cma-choix__n">En une fois</span>
+                <span className="cma-choix__n">{t('En une fois')}</span>
                 <span className="cma-choix__m">
-                  {fmtMoney(total, currency)}
-                  <i>aujourd’hui</i>
+                  {prix(total, currency)}
+                  <i>{t('aujourd’hui')}</i>
                 </span>
               </span>
-              <span className="cma-choix__d">Vous réglez tout aujourd’hui, et il n’y a plus rien à y penser.</span>
+              <span className="cma-choix__d">{t('Vous réglez tout aujourd’hui, et il n’y a plus rien à y penser.')}</span>
             </button>
 
             {deuxFois ? (
@@ -329,17 +328,17 @@ export default function AchatFormule({
                 onClick={() => setParts(2)}
               >
                 <span className="cma-choix__t">
-                  <span className="cma-choix__n">En deux fois</span>
+                  <span className="cma-choix__n">{t('En deux fois')}</span>
                   <span className="cma-choix__m">
-                    {fmtMoney(moitie, currency)}
-                    <i>aujourd’hui</i>
+                    {prix(moitie, currency)}
+                    <i>{t('aujourd’hui')}</i>
                   </span>
                 </span>
-                <span className="cma-choix__d">La première moitié aujourd’hui, la seconde dans trente jours.</span>
+                <span className="cma-choix__d">{t('La première moitié aujourd’hui, la seconde dans trente jours.')}</span>
                 <span className="cma-ech2">
-                  <span><span>Aujourd’hui</span><b>{fmtMoney(moitie, currency)}</b></span>
-                  <span><span>Dans 30 jours</span><b>{fmtMoney(total - moitie, currency)}</b></span>
-                  <span className="cma-ech2__tot"><span>Au total</span><b>{fmtMoney(total, currency)}</b></span>
+                  <span><span>{t('Aujourd’hui')}</span><b>{prix(moitie, currency)}</b></span>
+                  <span><span>{t('Dans 30 jours')}</span><b>{prix(total - moitie, currency)}</b></span>
+                  <span className="cma-ech2__tot"><span>{t('Au total')}</span><b>{prix(total, currency)}</b></span>
                 </span>
               </button>
             ) : null}
@@ -353,17 +352,17 @@ export default function AchatFormule({
 
             {kkiapayEnabled() && (
               <button type="button" className="cma-btn cma-btn--indigo" disabled={!!occupe} onClick={() => void enLigne()}>
-                {occupe === 'ligne' ? 'Un instant…' : `Régler ${fmtMoney(premiere, currency)} maintenant`}
+                {occupe === 'ligne' ? t('Un instant…') : t('Régler {montant} maintenant', { montant: prix(premiere, currency) })}
               </button>
             )}
             <button type="button" className="cma-btn ghost" disabled={!!occupe} onClick={() => void auComptoir()}>
               {/* « RÉGLER » ET « JE RÉGLERAI » se lisaient comme deux fois le
                   même geste. Celui-ci n'encaisse rien : il réserve la formule
                   et laisse la Maison encaisser au fauteuil. */}
-              {occupe === 'comptoir' ? 'Un instant…' : 'Je passerai au comptoir'}
+              {occupe === 'comptoir' ? t('Un instant…') : t('Je passerai au comptoir')}
             </button>
             <button type="button" className="cma-lien" disabled={!!occupe} onClick={() => setTemps('recap')}>
-              Revenir à la formule
+              {t('Revenir à la formule')}
             </button>
           </div>
         )}
@@ -373,16 +372,17 @@ export default function AchatFormule({
           <div className="mc-fade">
             <div className="cma-fini">
               <div className="cma-fini__mono">◆</div>
-              <p className="cma-fini__t">Votre formule est ouverte.</p>
+              <p className="cma-fini__t">{t('Votre formule est ouverte.')}</p>
               <p className="cma-fini__s">
                 {plan.name}
-                {plan.mode === 'pack' ? ` · valable ${moisDuPack(plan)} mois.` : '.'}
+                {plan.mode === 'pack' ? <>{' · '}{t('valable {n} mois.', { n: moisDuPack(plan) })}</> : '.'}
+                {' '}
                 {regleXof > 0
-                  ? ` Vous avez réglé ${fmtMoney(regleXof, currency)}.`
-                  : ' Vous réglerez au comptoir ou par MoMo.'}
+                  ? t('Vous avez réglé {montant}.', { montant: prix(regleXof, currency) })
+                  : t('Vous réglerez au comptoir ou par MoMo.')}
                 {souscrit.parts === 2
-                  ? ` Il restera ${fmtMoney(souscrit.totalXof - Math.max(regleXof, 0), currency)} à régler.`
-                  : ''}
+                  ? <>{' '}{t('Il restera {montant} à régler.', { montant: prix(souscrit.totalXof - Math.max(regleXof, 0), currency) })}</>
+                  : null}
               </p>
               {jetons > 0 && (
                 <div className="cma-jetons">
@@ -394,21 +394,21 @@ export default function AchatFormule({
             </div>
 
             <div className="cma-offre" style={{ marginTop: 14 }}>
-              <div className="cma-offre__tag">La suite</div>
+              <div className="cma-offre__tag">{t('La suite')}</div>
               <ul className="cma-inclus" style={{ borderTop: 'none', paddingTop: 0 }}>
-                <li><i>◆</i><span>Prenez votre première venue quand vous voulez</span></li>
-                <li><i>◆</i><span>Votre suivi paraît dans « Ma formule »</span></li>
+                <li><i>◆</i><span>{t('Prenez votre première venue quand vous voulez')}</span></li>
+                <li><i>◆</i><span>{t('Votre suivi paraît dans « Ma formule »')}</span></li>
                 {souscrit.parts === 2
-                  ? <li><i>◆</i><span>Un mot vous rappellera la seconde échéance</span></li>
-                  : <li><i>◆</i><span>La Maison vous écrit si quelque chose manque</span></li>}
+                  ? <li><i>◆</i><span>{t('Un mot vous rappellera la seconde échéance')}</span></li>
+                  : <li><i>◆</i><span>{t('La Maison vous écrit si quelque chose manque')}</span></li>}
               </ul>
             </div>
 
             <button type="button" className="cma-btn" onClick={onReserver}>
-              Prendre mon premier rendez-vous
+              {t('Prendre mon premier rendez-vous')}
             </button>
             <button type="button" className="cma-btn ghost" onClick={onClose}>
-              Plus tard
+              {t('Plus tard')}
             </button>
           </div>
         )}

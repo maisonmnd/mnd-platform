@@ -1,5 +1,5 @@
 import { asset } from '../../shared/asset';
-import { DEVISE_COMPLETE } from '../../shared/identite';
+import { DEVISE_MAISON } from '../../shared/identite';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
 import { donneesDeMaCarte, MonAmbassade } from './MaCarte';
 import { nomDuRang, rangDe, rangSuivant, soinsEnAttente } from '../../shared/parrainage-pur';
@@ -8,7 +8,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { notifyLocal } from '../../shared/ics';
 import { enablePush, disablePush, pushState, type PushState } from '../../shared/push';
 import { useBranch } from '../../shared/branches';
-import { fmtMoney } from '../../shared/currency';
 import { signOut, useAuth } from '../../shared/auth';
 import { useAppointments, venuesHonorees, type Appointment } from '../../shared/agenda';
 import { useCategories, useProducts, useServices } from '../../shared/catalog';
@@ -30,7 +29,6 @@ import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { createStore, uid, useStore } from '../../shared/store';
 import {
-  MONTHS,
   ensureClient,
   moduleHidden,
   dayLabelIso,
@@ -48,6 +46,7 @@ import {
 } from './lib';
 import { DateEnClair } from '../../ds/dates';
 import { useTheme } from './theme';
+import { t, locale, langue, useLangue, changeLaLangue, anglaisPropose, prix, motsDeDate } from './i18n';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -56,28 +55,47 @@ type OpenBooking = (prefill?: BookingPrefill) => void;
 /* Chiffre du sceau d'un palier — même convention que le Trône (Cercle) : le
    rang dans l'échelle triée, le champ g des anciens paliers restant prioritaire. */
 const ROMANS = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ'];
-const tierGlyph = (t: { g: string }, idx: number) => t.g || ROMANS[idx] || '✦';
+const tierGlyph = (tier: { g: string }, idx: number) => tier.g || ROMANS[idx] || '✦';
+
+/* LE JOUR DANS SA LANGUE (3 octobre 2026). En français, le libellé de la
+   maison (« Sam. 5 juil »), inchangé ; en anglais, « Sat 5 Oct ». */
+const jourDit = (iso: string): string => {
+  if (langue() !== 'en') return dayLabelIso(iso);
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? dayLabelIso(iso) : d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+};
+
+/* LE RYTHME DANS SA LANGUE : le juge (seuils, arrondis) reste celui de
+   shared/cadence.ts ; seule la phrase se traduit. */
+const rythmeDit = (days: number): string => {
+  const brut = cadenceLabel(days);
+  const n = /~(\d+)/.exec(brut)?.[1] ?? String(days);
+  if (brut.endsWith(' mois')) return t('toutes les ~{n} mois', { n });
+  if (brut.endsWith(' semaines')) return t('toutes les ~{n} semaines', { n });
+  if (brut.endsWith(' j')) return t('tous les ~{n} j', { n });
+  return brut;
+};
 
 /* Le lecteur du bilan — la cliente relit ce que la maison a remis : jauges,
    points clés, les Quatre Temps, la prochaine visite. En surimpression,
    sobre ; la signature du praticien reste — un bilan est un document signé. */
 function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void }) {
   return (
-    <div className="mc-bilanveil" onClick={onClose} role="dialog" aria-label="Bilan de séance">
+    <div className="mc-bilanveil" onClick={onClose} role="dialog" aria-label={t('Bilan de séance')}>
       <div className="mc-bilancard" onClick={(e) => e.stopPropagation()}>
-        <div className="mc-micro-eyebrow">Le Carnet de Suivi · {bilan.numero}</div>
-        <h2 className="mc-serif-title" style={{ margin: '6px 0 2px' }}>Bilan de séance.</h2>
+        <div className="mc-micro-eyebrow">{t('Le Carnet de Suivi · {numero}', { numero: bilan.numero })}</div>
+        <h2 className="mc-serif-title" style={{ margin: '6px 0 2px' }}>{t('Bilan de séance.')}</h2>
         <div className="mc-bilanmeta">
-          Séance du {dayLabelIso(bilan.date)}
+          {t('Séance du {date}', { date: jourDit(bilan.date) })}
           {bilan.prestation ? ` · ${bilan.prestation}` : ''}
           {bilan.duree ? ` · ${bilan.duree}` : ''}
         </div>
 
-        <div className="mc-bilansec">L’état de la couronne</div>
+        <div className="mc-bilansec">{t('L’état de la couronne')}</div>
         {bilan.jauges.map((j) => (
           <div key={j.nom} className="mc-bilanjauge">
             <span className="n">{j.nom}</span>
-            <span className="dots" role="img" aria-label={`${j.valeur} sur 5`}>
+            <span className="dots" role="img" aria-label={t('{n} sur 5', { n: j.valeur })}>
               {[1, 2, 3, 4, 5].map((v) => <i key={v} className={v <= j.valeur ? 'on' : ''} />)}
             </span>
             <span className="note">{j.note}</span>
@@ -86,27 +104,27 @@ function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void })
 
         {bilan.points.length > 0 && (
           <>
-            <div className="mc-bilansec">Les points clés de la séance</div>
+            <div className="mc-bilansec">{t('Les points clés de la séance')}</div>
             <ul className="mc-bilanpoints">
               {bilan.points.map((p, i) => <li key={i}>{p}</li>)}
             </ul>
           </>
         )}
 
-        <div className="mc-bilansec">Le rituel à domicile</div>
-        {bilan.rituel.map((t) => (
-          <div key={t.nom} className="mc-bilantemps">
-            <div className="n">{t.nom} <span>· {t.cadence}</span></div>
-            <p>{t.texte}</p>
+        <div className="mc-bilansec">{t('Le rituel à domicile')}</div>
+        {bilan.rituel.map((tp) => (
+          <div key={tp.nom} className="mc-bilantemps">
+            <div className="n">{tp.nom} <span>· {tp.cadence}</span></div>
+            <p>{tp.texte}</p>
           </div>
         ))}
 
         {bilan.prochaineVisite && (
-          <div className="mc-bilannext">Prochaine visite conseillée, {bilan.prochaineVisite}</div>
+          <div className="mc-bilannext">{t('Prochaine visite conseillée, {quand}', { quand: bilan.prochaineVisite })}</div>
         )}
-        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_COMPLETE}</div>}
+        {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_MAISON}, {t('votre beauté est déjà là')}</div>}
 
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={onClose}>Fermer</button>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={onClose}>{t('Fermer')}</button>
       </div>
     </div>
   );
@@ -250,7 +268,8 @@ function birthdayLabel(iso: string): string {
   let age = now.getFullYear() - d.getFullYear();
   const m = now.getMonth() - d.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
-  return `${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()} · ${age} ans`;
+  const date = d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
+  return age > 1 ? t('{date} · {age} ans', { date, age }) : t('{date} · {age} an', { date, age });
 }
 
 /* ================= ACCUEIL ================= */
@@ -360,12 +379,12 @@ export function HomeTab({
     const key = `mc_rappel_${soon.id}_${soon.date}_${soon.time}`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, '1');
-    notifyLocal('Votre rituel approche', `${dayLabelIso(soon.date)} · ${soon.time}, la maison vous attend.`);
+    notifyLocal(t('Votre rituel approche'), t('{jour} · {heure}, la maison vous attend.', { jour: jourDit(soon.date), heure: soon.time }));
   }, [soon]);
 
   const pickOffer = (o: Offer) => {
     if (o.act === 'invite') {
-      toast('Invitation prête à transmettre sur WhatsApp.');
+      toast(t('Invitation prête à transmettre sur WhatsApp.'));
       return;
     }
     if (o.serviceId) onOpenBooking({ serviceId: o.serviceId, discountPct: o.discountPct, offerLabel: o.tag });
@@ -378,12 +397,12 @@ export function HomeTab({
         <img className="mc-homehero__photo" src={asset("/assets/photos/model-microlocks.jpg")} alt="" />
         <div className="mc-homehero__veil" />
         <img className="mc-homehero__seal" src={asset("/assets/monograms/mono-ivoire.png")} alt="" />
-        <button className="mc-bell" aria-label="Notifications" onClick={onOpenNotif}>
+        <button className="mc-bell" aria-label={t('Notifications')} onClick={onOpenNotif}>
           ♟{notifCount > 0 && <span className="mc-bell__count">{notifCount}</span>}
         </button>
         <div className="mc-homehero__text">
-          <div className="mc-micro-eyebrow">Votre couronne</div>
-          <div className="mc-homehero__greet">{prenom ? `Bonjour, ${prenom}.` : 'Bonjour.'}</div>
+          <div className="mc-micro-eyebrow">{t('Votre couronne')}</div>
+          <div className="mc-homehero__greet">{prenom ? t('Bonjour, {prenom}.', { prenom }) : t('Bonjour.')}</div>
         </div>
       </div>
 
@@ -393,9 +412,9 @@ export function HomeTab({
           <button className="mc-remindbanner" onClick={onOpenRdv}>
             <span className="mc-remindbanner__dot" aria-hidden="true" />
             <span className="mc-remindbanner__txt">
-              Votre rituel approche, {dayLabelIso(soon.date)} · {soon.time}
+              {t('Votre rituel approche, {jour} · {heure}', { jour: jourDit(soon.date), heure: soon.time })}
             </span>
-            <span className="mc-remindbanner__go">Voir</span>
+            <span className="mc-remindbanner__go">{t('Voir')}</span>
           </button>
         )}
 
@@ -408,20 +427,20 @@ export function HomeTab({
             n'ouvre plus l'écran. */}
         <div className="mc-nextrdv">
           <div className="mc-nextrdv__row">
-            <span className="mc-nextrdv__label">Votre prochaine séance</span>
-            {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? 'Confirmé' : 'En attente'}</span>}
+            <span className="mc-nextrdv__label">{t('Votre prochaine séance')}</span>
+            {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? t('Confirmé') : t('En attente')}</span>}
           </div>
           {next ? (
             <>
               <div className="mc-nextrdv__service">{serviceNames(next, services)}</div>
-              <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
+              <div className="mc-nextrdv__when">{t('{jour} · {heure} · avec {maitre}', { jour: jourDit(next.date), heure: next.time, maitre: next.master })}</div>
               {next.seriesTotal && (
                 <span className="mc-nextrdv__seal" style={{ marginRight: 8 }}>
-                  Séance {next.seriesIndex}/{next.seriesTotal}
+                  {t('Séance {i}/{n}', { i: next.seriesIndex ?? '', n: next.seriesTotal })}
                 </span>
               )}
               {next.depositXof != null && (
-                <span className="mc-nextrdv__seal">{next.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(next.depositXof, currency)}</span>
+                <span className="mc-nextrdv__seal">{next.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(next.depositXof, currency)}</span>
               )}
             </>
           ) : predite ? (
@@ -436,12 +455,12 @@ export function HomeTab({
                   habituelle et TOUS les gestes de sa dernière venue. Le
                   tunnel s'ouvre le moment déjà posé ; « Réserver » suffit. La
                   Maison choisit qui s'occupe d'elle : aucun nom ici. */}
-              <div className="mc-nextrdv__service">≈ {dayLabelIso(predite.iso!)}{predite.template?.time ? ` · ${predite.template.time}` : ''}</div>
+              <div className="mc-nextrdv__service">≈ {jourDit(predite.iso!)}{predite.template?.time ? ` · ${predite.template.time}` : ''}</div>
               {predite.template && predite.template.serviceIds.length > 0 && (
                 <div className="mc-nextrdv__when">{serviceNames(predite.template, services)}</div>
               )}
               <div className="mc-nextrdv__when">
-                d’après votre rythme{predite.avgDays ? `, ${cadenceLabel(predite.avgDays)}` : ''}
+                {predite.avgDays ? t('d’après votre rythme, {rythme}', { rythme: rythmeDit(predite.avgDays) }) : t('d’après votre rythme')}
               </div>
               {predite.template && predite.template.serviceIds.length > 0 && !moduleHidden(client, 'reserver') && (
                 <>
@@ -455,25 +474,25 @@ export function HomeTab({
                       ...(predite.template!.time ? { time: predite.template!.time } : {}),
                     })}
                   >
-                    Réserver ce moment
+                    {t('Réserver ce moment')}
                   </button>
                   <button
                     className="mc-nextrdv__manage"
                     onClick={() => onOpenBooking({ serviceId: predite.template!.serviceIds[0], serviceIds: predite.template!.serviceIds })}
                   >
-                    Un autre moment
+                    {t('Un autre moment')}
                   </button>
                 </>
               )}
             </>
           ) : (
             <>
-              <div className="mc-nextrdv__service">Aucun rituel à venir</div>
-              <div className="mc-nextrdv__when">La maison vous attend.</div>
+              <div className="mc-nextrdv__service">{t('Aucun rituel à venir')}</div>
+              <div className="mc-nextrdv__when">{t('La maison vous attend.')}</div>
             </>
           )}
           <button className="mc-nextrdv__manage" onClick={onOpenRdv}>
-            Mes rendez-vous
+            {t('Mes rendez-vous')}
           </button>
         </div>
 
@@ -488,14 +507,14 @@ export function HomeTab({
               <span className="mc-crownstatus__style">
                 {(() => {
                   const cal = calibreDe(client?.lockCount, bands);
-                  return cal ? `Couronne ${cal} · ${client?.lockCount} locks` : 'Votre couronne';
+                  return cal ? t('Couronne {calibre} · {n} locks', { calibre: cal, n: client?.lockCount ?? '' }) : t('Votre couronne');
                 })()}
               </span>
             </div>
             {/* LE CERCLE RÉUNI (29 septembre) : plus de sceau à points, son rang
                 d'ambassadrice dès qu'une amie est venue. */}
             {(client?.parrainage?.venues ?? 0) > 0 && (
-              <span className="mc-pillseal">{nomDuRang(client?.parrainage?.rang)}</span>
+              <span className="mc-pillseal">{t(nomDuRang(client?.parrainage?.rang))}</span>
             )}
           </div>
           {/* AVANT LE CERCLE, ON COMPTE DES PASSAGES, PAS DES POINTS. Montrer une
@@ -519,11 +538,13 @@ export function HomeTab({
                 </div>
               )}
               <span>
-                {`${cercle.venues} passage${cercle.venues > 1 ? 's' : ''} sur ${cercle.seuil}`}
+                {cercle.venues > 1
+                  ? t('{n} passages sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })
+                  : t('{n} passage sur {seuil}', { n: cercle.venues, seuil: cercle.seuil })}
                 {cercle.venues === 0
-                  ? `, le Cercle s’ouvre au ${cercle.seuil}ᵉ`
+                  ? t(', le Cercle s’ouvre au {seuil}ᵉ', { seuil: cercle.seuil })
                   : cercle.reste > 0
-                    ? `, encore ${cercle.reste} avant le Cercle`
+                    ? t(', encore {n} avant le Cercle', { n: cercle.reste })
                     : ''}
               </span>
             </div>
@@ -536,7 +557,11 @@ export function HomeTab({
             return (
               <div className="mc-crownstatus__progress">
                 <div className="mc-bar"><div style={{ width: `${pct}%` }} /></div>
-                <span>{venues === 0 ? 'Membre du Cercle · votre première amie vous fera Pousse' : `Encore ${suivant.seuil - venues} amie${suivant.seuil - venues > 1 ? 's' : ''} pour devenir ${suivant.nom}`}</span>
+                <span>{venues === 0
+                  ? t('Membre du Cercle · votre première amie vous fera Pousse')
+                  : suivant.seuil - venues > 1
+                    ? t('Encore {n} amies pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })
+                    : t('Encore {n} amie pour devenir {rang}', { n: suivant.seuil - venues, rang: t(suivant.nom) })}</span>
               </div>
             );
           })()}
@@ -546,8 +571,8 @@ export function HomeTab({
         {offers.length > 0 && !moduleHidden(client, 'offres') && (
           <>
         <div className="mc-offershead">
-          <span className="mc-offershead__label">Offres instantanées</span>
-          {countdown && <span className="mc-offershead__timer">Expire dans {countdown}</span>}
+          <span className="mc-offershead__label">{t('Offres instantanées')}</span>
+          {countdown && <span className="mc-offershead__timer">{t('Expire dans {temps}', { temps: countdown })}</span>}
         </div>
         <div className="mc-scroll mc-offersrail">
           {offers.map((o) => (
@@ -569,24 +594,24 @@ export function HomeTab({
             gardes d'App.tsx couvrent de toute façon tous les autres chemins). */}
         {!moduleHidden(client, 'reserver') && (
           <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking()}>
-            Réserver un rituel
+            {t('Réserver un rituel')}
           </button>
         )}
         {!moduleHidden(client, 'compose') && (
           <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onOpenCompose}>
-            ✦ Rituel sur-mesure
+            {t('✦ Rituel sur-mesure')}
           </button>
         )}
 
         {/* VOTRE DERNIER BILAN — le Carnet de Suivi remis par la maison. */}
         {monBilan && (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Votre dernier bilan</div>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Votre dernier bilan')}</div>
             <button className="mc-recocard" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: '1px solid var(--hairline)', background: 'var(--surface-card)' }} onClick={() => setLireBilan(true)}>
               <div className="mc-recocard__body">
-                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>Le Carnet de Suivi</div>
-                <div className="mc-recocard__name">Séance du {dayLabelIso(monBilan.date)}</div>
-                <div className="mc-recocard__line">{monBilan.prestation ?? 'Rituel de la maison'}</div>
+                <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{t('Le Carnet de Suivi')}</div>
+                <div className="mc-recocard__name">{t('Séance du {date}', { date: jourDit(monBilan.date) })}</div>
+                <div className="mc-recocard__line">{monBilan.prestation ?? t('Rituel de la maison')}</div>
               </div>
               <span className="mc-arrowbtn" aria-hidden="true">→</span>
             </button>
@@ -605,14 +630,14 @@ export function HomeTab({
             ici, en premier. */}
         {maCarte && onOpenCarte && (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Mon ambassade · {nomDuRang(client?.parrainage?.rang)}</div>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Mon ambassade · {rang}', { rang: t(nomDuRang(client?.parrainage?.rang)) })}</div>
             <button type="button" onClick={onOpenCarte}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
               <CarteDeMarraine donnees={maCarte} largeur={120} retournable={false} />
               <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
-                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>{soinsQuiAttendent.length ? 'Une récompense vous attend.' : 'Offrez la Maison à une amie.'}</span>
+                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>{soinsQuiAttendent.length ? t('Une récompense vous attend.') : t('Offrez la Maison à une amie.')}</span>
                 <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? 'var(--copper-700)' : 'var(--mc-doux)' }}>
-                  {soinsQuiAttendent.length ? `Un soin vous attend : ${soinsQuiAttendent[0].libelle}` : `Votre code ${maCarte.code}`}
+                  {soinsQuiAttendent.length ? t('Un soin vous attend : {soin}', { soin: soinsQuiAttendent[0].libelle }) : t('Votre code {code}', { code: maCarte.code })}
                 </span>
               </span>
               <span aria-hidden style={{ color: 'var(--copper-700)', fontSize: 18 }}>→</span>
@@ -621,43 +646,43 @@ export function HomeTab({
         )}
         {recoPresta ? (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('La maison vous recommande')}</div>
             <div className="mc-recocard">
               <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
               <div className="mc-recocard__body">
                 <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                  {client?.envie ? `Pour votre envie · ${envieLabel(client.envie)}` : 'Choisie pour votre couronne'}
+                  {client?.envie ? t('Pour votre envie · {envie}', { envie: t(envieLabel(client.envie) ?? '') }) : t('Choisie pour votre couronne')}
                 </div>
                 <div className="mc-recocard__name">{recoPresta.service.name}</div>
                 <div className="mc-recocard__line">
                   {recoPresta.service.hidePrice
-                    ? 'Prix au fauteuil, la maison vous dira'
-                    : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? `${fmtMoney(p, currency)} · votre prix` : 'Sur devis'; })()}
+                    ? t('Prix au fauteuil, la maison vous dira')
+                    : (() => { const p = personalPriceXof(recoPresta.service, pricing, services, produits); return p > 0 ? t('{prix} · votre prix', { prix: prix(p, currency) }) : t('Sur devis'); })()}
                 </div>
                 {client?.envie && (
-                  <div className="mc-recocard__why">{PHRASE_ENVIE[client.envie]}</div>
+                  <div className="mc-recocard__why">{t(PHRASE_ENVIE[client.envie])}</div>
                 )}
               </div>
               {!moduleHidden(client, 'reserver') && (
-                <button className="mc-arrowbtn" aria-label="Réserver cette prestation" onClick={() => onOpenBooking({ serviceId: recoPresta.service.id })}>→</button>
+                <button className="mc-arrowbtn" aria-label={t('Réserver cette prestation')} onClick={() => onOpenBooking({ serviceId: recoPresta.service.id })}>→</button>
               )}
             </div>
           </>
         ) : chosenReco ? (
           <>
-            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Du Carnet de Suivi</div>
+            <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Du Carnet de Suivi')}</div>
             <div className="mc-recocard">
               <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
               <div className="mc-recocard__body">
                 <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                  {client?.preferredMaster ? `Recommandé par ${client.preferredMaster}` : 'La maison recommande'}
+                  {client?.preferredMaster ? t('Recommandé par {nom}', { nom: client.preferredMaster }) : t('La maison recommande')}
                 </div>
                 <div className="mc-recocard__name">{chosenReco.name}</div>
                 <div className="mc-recocard__line">
-                  {productMeta(chosenReco.id).line} · {fmtMoney(chosenReco.priceXof, currency)}
+                  {productMeta(chosenReco.id).line} · {prix(chosenReco.priceXof, currency)}
                 </div>
               </div>
-              <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
+              <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>
             </div>
           </>
         ) : null}
@@ -699,10 +724,14 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
   return (
     <div className="mc-fade mc-pagepad mc-pagepad--top">
       <div className="mc-nextrdv" style={{ marginTop: 0 }}>
-        <div className="mc-nextrdv__label">La couronne de {prenom}</div>
+        <div className="mc-nextrdv__label">{t('La couronne de {prenom}', { prenom })}</div>
         <div className="mc-nextrdv__service" style={{ marginTop: 6 }}>{prenom}.</div>
         <div className="mc-nextrdv__when">
-          {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · ` : ''}c’est vous qui réservez et réglez.
+          {age === undefined
+            ? t('c’est vous qui réservez et réglez.')
+            : age > 1
+              ? t('{age} ans · c’est vous qui réservez et réglez.', { age })
+              : t('{age} an · c’est vous qui réservez et réglez.', { age })}
         </div>
       </div>
 
@@ -711,47 +740,51 @@ export function HomeEnfant({ enfant, onOpenBooking, onRevenir }: {
         <span className="mc-crownstatus__filet" />
         <div className="mc-crownstatus__top">
           <span className="mc-crownstatus__style">
-            {cal ? `Couronne ${cal} · ${enfant.lockCount} locks` : 'Sa couronne'}
+            {cal ? t('Couronne {calibre} · {n} locks', { calibre: cal, n: enfant.lockCount ?? '' }) : t('Sa couronne')}
           </span>
         </div>
         {(derniere || reprise) && (
           <div className="mc-crownstatus__progress">
             <span>
-              {derniere ? `Dernière venue le ${dayLabelIso(derniere.date)}` : ''}
-              {reprise ? `${derniere ? ' — ' : ''}reprise conseillée ≈ ${dayLabelIso(reprise)}` : ''}
+              {derniere ? t('Dernière venue le {date}', { date: jourDit(derniere.date) }) : ''}
+              {reprise
+                ? derniere
+                  ? t(', reprise conseillée ≈ {date}', { date: jourDit(reprise) })
+                  : t('reprise conseillée ≈ {date}', { date: jourDit(reprise) })
+                : ''}
             </span>
           </div>
         )}
         {!cal && !derniere && !reprise && (
           <div className="mc-crownstatus__progress">
-            <span>La maison comptera ses locks à son premier passage.</span>
+            <span>{t('La maison comptera ses locks à son premier passage.')}</span>
           </div>
         )}
       </div>
 
       <div className="mc-nextrdv">
         <div className="mc-nextrdv__row">
-          <span className="mc-nextrdv__label">Prochain rituel</span>
-          {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? 'Confirmé' : 'En attente'}</span>}
+          <span className="mc-nextrdv__label">{t('Prochain rituel')}</span>
+          {next && <span className="mc-nextrdv__status">{next.status === 'confirmé' ? t('Confirmé') : t('En attente')}</span>}
         </div>
         {next ? (
           <>
-            <div className="mc-nextrdv__service">{serviceNames(next, services) || 'Rituel de la maison'}</div>
-            <div className="mc-nextrdv__when">{dayLabelIso(next.date)} · {next.time} · avec {next.master}</div>
+            <div className="mc-nextrdv__service">{serviceNames(next, services) || t('Rituel de la maison')}</div>
+            <div className="mc-nextrdv__when">{t('{jour} · {heure} · avec {maitre}', { jour: jourDit(next.date), heure: next.time, maitre: next.master })}</div>
           </>
         ) : (
           <>
-            <div className="mc-nextrdv__service">Aucun rituel à venir</div>
-            <div className="mc-nextrdv__when">Son fauteuil l’attend.</div>
+            <div className="mc-nextrdv__service">{t('Aucun rituel à venir')}</div>
+            <div className="mc-nextrdv__when">{t('Son fauteuil l’attend.')}</div>
           </>
         )}
       </div>
 
       <button className="mc-cta mc-cta--copper" style={{ marginTop: 16 }} onClick={() => onOpenBooking({ pourId: enfant.id })}>
-        Réserver pour {prenom}
+        {t('Réserver pour {prenom}', { prenom })}
       </button>
       <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onRevenir}>
-        Revenir à votre couronne
+        {t('Revenir à votre couronne')}
       </button>
       <div style={{ height: 26 }} />
     </div>
@@ -845,9 +878,9 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   const timeline: { d: string; t: string; s: string; done: boolean }[] = [];
   if (client?.crownSince) {
     timeline.push({
-      d: dayLabelIso(client.crownSince),
-      t: 'Naissance de la couronne',
-      s: calSuivi ? `Calibre ${calSuivi} · la maison veille` : 'La maison veille',
+      d: jourDit(client.crownSince),
+      t: t('Naissance de la couronne'),
+      s: calSuivi ? t('Calibre {calibre} · la maison veille', { calibre: calSuivi }) : t('La maison veille'),
       done: true,
     });
   }
@@ -859,25 +892,27 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
   const anciens = Math.max(0, honored.length - PASSAGES_MONTRES);
   if (anciens > 0) {
     timeline.push({
-      d: `Avant le ${dayLabelIso(honored[anciens].date)}`,
-      t: `${anciens} passage${anciens > 1 ? 's' : ''} plus ancien${anciens > 1 ? 's' : ''}`,
-      s: 'La Maison les garde dans votre dossier',
+      d: t('Avant le {date}', { date: jourDit(honored[anciens].date) }),
+      t: anciens > 1 ? t('{n} passages plus anciens', { n: anciens }) : t('{n} passage plus ancien', { n: anciens }),
+      s: t('La Maison les garde dans votre dossier'),
       done: true,
     });
   }
   for (const a of honored.slice(-PASSAGES_MONTRES)) {
     timeline.push({
-      d: `${dayLabelIso(a.date)} · ${a.time}`,
-      t: serviceNames(a, services) || 'Rituel de la maison',
-      s: `avec ${a.master}`,
+      d: `${jourDit(a.date)} · ${a.time}`,
+      t: serviceNames(a, services) || t('Rituel de la maison'),
+      s: t('avec {maitre}', { maitre: a.master }),
       done: true,
     });
   }
   if (next) {
     timeline.push({
-      d: `${dayLabelIso(next.date)} · ${next.time}`,
-      t: serviceNames(next, services) || 'Prochain rituel',
-      s: `avec ${next.master} · ${next.status === 'confirmé' ? 'confirmé' : 'en attente de la maison'}`,
+      d: `${jourDit(next.date)} · ${next.time}`,
+      t: serviceNames(next, services) || t('Prochain rituel'),
+      s: next.status === 'confirmé'
+        ? t('avec {maitre} · confirmé', { maitre: next.master })
+        : t('avec {maitre} · en attente de la maison', { maitre: next.master }),
       done: false,
     });
   }
@@ -893,39 +928,39 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">{regard ? 'Carnet de Suivi · sa lignée' : 'Carnet de Suivi · votre lignée'}</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>{regard ? `Le parcours de ${prenomRegard}.` : 'Mon parcours.'}</h1>
+      <div className="mc-micro-eyebrow">{regard ? t('Carnet de Suivi · sa lignée') : t('Carnet de Suivi · votre lignée')}</div>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 16px' }}>{regard ? t('Le parcours de {prenom}.', { prenom: prenomRegard }) : t('Mon parcours.')}</h1>
 
       {/* portrait de la couronne — seulement si la maison l'a consigné */}
       {client?.photo && (
         <div className="mc-suiviphoto">
-          <img src={client.photo} alt="Votre couronne aujourd’hui" />
-          <span className="mc-beforeafter__tag mc-beforeafter__tag--now">Aujourd’hui</span>
+          <img src={client.photo} alt={t('Votre couronne aujourd’hui')} />
+          <span className="mc-beforeafter__tag mc-beforeafter__tag--now">{t('Aujourd’hui')}</span>
         </div>
       )}
 
       {/* état de la couronne — chiffres réels du CRM et de l'agenda */}
       <div className="mc-metrics">
-        <div className="mc-metric"><div className="mc-metric__v">{client?.lockCount ?? '—'}</div><div className="mc-metric__l">Locks</div></div>
-        <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">Jours de locks</div></div>
-        <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">Rituels honorés</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{client?.lockCount ?? '—'}</div><div className="mc-metric__l">{t('Locks')}</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{lockDays}</div><div className="mc-metric__l">{t('Jours de locks')}</div></div>
+        <div className="mc-metric"><div className="mc-metric__v">{honored.length}</div><div className="mc-metric__l">{t('Rituels honorés')}</div></div>
       </div>
 
       {/* prescription de la maison — produit choisi sur la fiche, au Trône.
           Pas pour un mineur : la Gamme n'est pas à son nom (9 août). */}
       {reco && !regard && (
         <>
-          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>La maison vous recommande</div>
+          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('La maison vous recommande')}</div>
           <div className="mc-recocard">
             <div className="mc-productvisual"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
             <div className="mc-recocard__body">
               <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                {client?.preferredMaster ? `Conseillé par ${client.preferredMaster}` : 'Choisi pour votre couronne'}
+                {client?.preferredMaster ? t('Conseillé par {nom}', { nom: client.preferredMaster }) : t('Choisi pour votre couronne')}
               </div>
               <div className="mc-recocard__name">{reco.name}</div>
-              <div className="mc-recocard__line">{productMeta(reco.id).line} · {fmtMoney(reco.priceXof, currency)}</div>
+              <div className="mc-recocard__line">{productMeta(reco.id).line} · {prix(reco.priceXof, currency)}</div>
             </div>
-            <button className="mc-arrowbtn" aria-label="Voir la gamme" onClick={goGamme}>→</button>
+            <button className="mc-arrowbtn" aria-label={t('Voir la gamme')} onClick={goGamme}>→</button>
           </div>
         </>
       )}
@@ -942,13 +977,13 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       {mesBilans.length >= 2 && (
         <>
           <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
-            {regard ? 'Ce que la maison observe chez elle' : 'Ce que la maison observe'}
+            {regard ? t('Ce que la maison observe chez elle') : t('Ce que la maison observe')}
           </div>
           <CourbeDesJauges bilans={mesBilans} />
           {(monDernierBilan?.points ?? []).length > 0 && (
             <div className="mc-recocard" style={{ display: 'block', marginTop: 12 }}>
               <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                Ce que la maison a noté le {dayLabelIso(monDernierBilan!.date)}
+                {t('Ce que la maison a noté le {date}', { date: jourDit(monDernierBilan!.date) })}
               </div>
               <ul style={{ margin: '8px 0 0', padding: '0 0 0 18px', lineHeight: 1.7 }}>
                 {monDernierBilan!.points.map((pt, i) => <li key={i}>{pt}</li>)}
@@ -964,7 +999,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       {maSerie.filter((c) => (c.longueurCm ?? 0) > 0).length >= 3 && (
         <>
           <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
-            {regard ? 'Sa pousse, mèche témoin' : 'Votre pousse, mèche témoin'}
+            {regard ? t('Sa pousse, mèche témoin') : t('Votre pousse, mèche témoin')}
           </div>
           <CourbeDeLaPousse serie={maSerie} />
         </>
@@ -978,14 +1013,14 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       {(suiteCouleur.length > 0 || suitePousse.length > 0) && (
         <>
           <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>
-            {regard ? 'Ce qui attend sa couronne' : 'Ce qui attend votre couronne'}
+            {regard ? t('Ce qui attend sa couronne') : t('Ce qui attend votre couronne')}
           </div>
           {[
             { titre: 'Après votre couleur', suite: suiteCouleur },
             { titre: 'Le programme de pousse', suite: suitePousse },
           ].filter((g) => g.suite.length > 0).map((g) => (
             <div key={g.titre} style={{ marginBottom: 14 }}>
-              <div className="mc-micro-eyebrow" style={{ fontSize: 10, marginBottom: 8 }}>{g.titre}</div>
+              <div className="mc-micro-eyebrow" style={{ fontSize: 10, marginBottom: 8 }}>{t(g.titre)}</div>
               {g.suite.map((e) => (
                 <div key={`${g.titre}-${e.code}-${e.jours}`} className="mc-tl">
                   <div className="mc-tl__rail">
@@ -994,7 +1029,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
                   </div>
                   <div className="mc-tl__body">
                     <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>
-                      {dayLabelIso(e.dueIso)} · {MOT_DE_L_ETAT[e.etat]}
+                      {jourDit(e.dueIso)} · {t(MOT_DE_L_ETAT[e.etat])}
                     </div>
                     <div className="mc-tl__t">{e.nom}</div>
                     <div className="mc-tl__s">{e.pourquoi}</div>
@@ -1015,7 +1050,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
                           pourId: regard?.id,
                         })}
                       >
-                        Poser ce rendez-vous
+                        {t('Poser ce rendez-vous')}
                       </button>
                     )}
                   </div>
@@ -1027,28 +1062,28 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       )}
 
       {/* timeline mèche-après-mèche */}
-      <div className="mc-sectionlabel" style={{ margin: '24px 0 12px' }}>{regard ? 'L’histoire de sa couronne' : 'L’histoire de votre couronne'}</div>
-      {timeline.map((t, i) => (
+      <div className="mc-sectionlabel" style={{ margin: '24px 0 12px' }}>{regard ? t('L’histoire de sa couronne') : t('L’histoire de votre couronne')}</div>
+      {timeline.map((ev, i) => (
         <div key={i} className="mc-tl">
           <div className="mc-tl__rail">
-            <span className={`mc-tl__dot ${t.done ? 'is-done' : ''}`} />
+            <span className={`mc-tl__dot ${ev.done ? 'is-done' : ''}`} />
             {i < timeline.length - 1 && <span className="mc-tl__line" />}
           </div>
           <div className="mc-tl__body">
-            <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{t.d}</div>
-            <div className="mc-tl__t">{t.t}</div>
-            <div className="mc-tl__s">{t.s}</div>
+            <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{ev.d}</div>
+            <div className="mc-tl__t">{ev.t}</div>
+            <div className="mc-tl__s">{ev.s}</div>
           </div>
         </div>
       ))}
       {timeline.length === 0 && (
         <div className="mc-tlempty">
-          <div className="mc-tlempty__t">{regard ? 'Son histoire commence ici.' : 'Votre histoire commence ici.'}</div>
+          <div className="mc-tlempty__t">{regard ? t('Son histoire commence ici.') : t('Votre histoire commence ici.')}</div>
           <div className="mc-tlempty__s">
-            Chaque rituel honoré s’inscrira dans ce carnet, mèche après mèche.
+            {t('Chaque rituel honoré s’inscrira dans ce carnet, mèche après mèche.')}
           </div>
           <button className="mc-cta mc-cta--copper" onClick={() => onOpenBooking({ pourId: regard?.id })}>
-            {regard ? `Réserver pour ${prenomRegard}` : 'Réserver mon premier rituel'}
+            {regard ? t('Réserver pour {prenom}', { prenom: prenomRegard }) : t('Réserver mon premier rituel')}
           </button>
         </div>
       )}
@@ -1058,19 +1093,19 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
           quand le carnet regarde un enfant, ils se taisent. */}
       {!regard && (
         <>
-          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Tout suivre</div>
+          <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Tout suivre')}</div>
           <div className="mc-preflist">
             <button className="mc-navrow" onClick={onOpenRdv}>
               <span className="mc-navrow__main">
-                <span>Mes rendez-vous</span>
-                <span className="mc-navrow__sub">voir, déplacer, annuler</span>
+                <span>{t('Mes rendez-vous')}</span>
+                <span className="mc-navrow__sub">{t('voir, déplacer, annuler')}</span>
               </span>
               <span className="mc-navrow__arrow" aria-hidden="true">→</span>
             </button>
             <button className="mc-navrow" onClick={onOpenOrders}>
               <span className="mc-navrow__main">
-                <span>Mes commandes</span>
-                <span className="mc-navrow__sub">suivre l’état de la Gamme</span>
+                <span>{t('Mes commandes')}</span>
+                <span className="mc-navrow__sub">{t('suivre l’état de la Gamme')}</span>
               </span>
               <span className="mc-navrow__arrow" aria-hidden="true">→</span>
             </button>
@@ -1079,7 +1114,7 @@ export function SuiviTab({ regard, onOpenBooking, onOpenRdv, onOpenOrders, goGam
       )}
       {lastAppt && (
         <button className="mc-cta mc-cta--outline" style={{ marginTop: 14 }} onClick={rebook}>
-          Re-réserver à l’identique
+          {t('Re-réserver à l’identique')}
         </button>
       )}
       <div style={{ height: 10 }} />
@@ -1109,7 +1144,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 
   const shareLocation = () => {
     if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-      toast('La géolocalisation n’est pas disponible sur cet appareil.');
+      toast(t('La géolocalisation n’est pas disponible sur cet appareil.'));
       return;
     }
     setGeoBusy(true);
@@ -1120,14 +1155,14 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
           lng: Number(pos.coords.longitude.toFixed(6)),
         });
         setGeoBusy(false);
-        toast('Position partagée, la maison vous trouvera facilement.');
+        toast(t('Position partagée, la maison vous trouvera facilement.'));
       },
       (err) => {
         setGeoBusy(false);
         toast(
           err.code === err.PERMISSION_DENIED
-            ? 'Autorisez la localisation pour partager votre position.'
-            : 'Impossible d’obtenir votre position. Réessayez.',
+            ? t('Autorisez la localisation pour partager votre position.')
+            : t('Impossible d’obtenir votre position. Réessayez.'),
         );
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
@@ -1203,7 +1238,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
       clientName: client?.name,
       note,
     };
-    const confirmed = fmtMoney(total, currency);
+    const confirmed = prix(total, currency);
     invoicesStore.set((prev) => [...prev, inv]);
     /* La position GPS partagée se dépose aussi sur la fiche cliente — le Trône
        propose alors un itinéraire direct depuis le CRM. */
@@ -1211,7 +1246,7 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
     setCart({});
     setGeo(null);
     setOrderDone({ number: inv.number, totalXof: total, mode });
-    toast(`Commande transmise à la maison, ${confirmed}`);
+    toast(t('Commande transmise à la maison, {montant}', { montant: confirmed }));
   };
 
   const closeBasket = () => {
@@ -1221,16 +1256,16 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade mc-page--wide">
-      <div className="mc-micro-eyebrow">La Gamme · Care & Store</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 4px' }}>Votre rituel.</h1>
+      <div className="mc-micro-eyebrow">{t('La Gamme · Care & Store')}</div>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 4px' }}>{t('Votre rituel.')}</h1>
       <p className="mc-lead" style={{ margin: '0 0 18px' }}>
-        Formules naturelles, moringa, karité, niaouli. Sans silicone ni paraben.
+        {t('Formules naturelles, moringa, karité, niaouli. Sans silicone ni paraben.')}
       </p>
 
       {/* Suivre ses commandes — visible dès qu'une commande existe. */}
       {orders.length > 0 && (
         <button className="mc-orderslink" onClick={onOpenOrders}>
-          <span>Mes commandes · {orders.length}</span>
+          <span>{t('Mes commandes · {n}', { n: orders.length })}</span>
           <span className="mc-orderslink__arrow" aria-hidden="true">→</span>
         </button>
       )}
@@ -1246,18 +1281,18 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                 <div className="mc-micro-eyebrow" style={{ fontSize: 9.5 }}>{meta.tag}</div>
                 <div className="mc-productcard__name">{p.name}</div>
                 <div className="mc-productcard__line">{meta.line}</div>
-                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">Dernières pièces, {p.stock} en maison</div>}
+                {p.stock > 0 && p.stock <= 8 && <div className="mc-productcard__scarce">{t('Dernières pièces, {n} en maison', { n: p.stock })}</div>}
               </div>
               <div className="mc-productcard__side">
-                <span className="mc-productcard__price">{fmtMoney(p.priceXof, currency)}</span>
+                <span className="mc-productcard__price">{prix(p.priceXof, currency)}</span>
                 {qty > 0 ? (
                   <div className="mc-qtystep">
-                    <button aria-label={`Retirer ${p.name}`} onClick={() => dec(p.id)}>−</button>
+                    <button aria-label={t('Retirer {nom}', { nom: p.name })} onClick={() => dec(p.id)}>−</button>
                     <span>{qty}</span>
-                    <button aria-label={`Ajouter ${p.name}`} onClick={() => add(p.id)}>+</button>
+                    <button aria-label={t('Ajouter {nom}', { nom: p.name })} onClick={() => add(p.id)}>+</button>
                   </div>
                 ) : (
-                  <button className="mc-plusbtn" aria-label={`Ajouter ${p.name}`} onClick={() => add(p.id)}>+</button>
+                  <button className="mc-plusbtn" aria-label={t('Ajouter {nom}', { nom: p.name })} onClick={() => add(p.id)}>+</button>
                 )}
               </div>
             </div>
@@ -1266,9 +1301,9 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
         {products.length === 0 && (
           <div className="mc-emptyzone">
             <div className="mc-emptyzone__glyph">⬡</div>
-            <div className="mc-emptyzone__t">La gamme se prépare.</div>
+            <div className="mc-emptyzone__t">{t('La gamme se prépare.')}</div>
             <div className="mc-emptyzone__s">
-              Nos formules naturelles seront bientôt disponibles ici. La maison vous les présentera une à une.
+              {t('Nos formules naturelles seront bientôt disponibles ici. La maison vous les présentera une à une.')}
             </div>
           </div>
         )}
@@ -1278,11 +1313,11 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
       {count > 0 && (
         <div className="mc-basketbar">
           <div className="mc-basketbar__info">
-            <span className="mc-basketbar__count">{count} article{count > 1 ? 's' : ''}</span>
-            <span className="mc-basketbar__total">{fmtMoney(total, currency)}</span>
+            <span className="mc-basketbar__count">{count > 1 ? t('{n} articles', { n: count }) : t('{n} article', { n: count })}</span>
+            <span className="mc-basketbar__total">{prix(total, currency)}</span>
           </div>
           <button className="mc-cta mc-cta--copper mc-basketbar__cta" onClick={() => setBasketOpen(true)}>
-            Voir le panier
+            {t('Voir le panier')}
           </button>
         </div>
       )}
@@ -1294,36 +1329,35 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
         <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
           <div className="mc-flowhead mc-flowhead--split">
             <div>
-              <div className="mc-micro-eyebrow">{orderDone ? 'Commande transmise' : 'Votre panier'}</div>
+              <div className="mc-micro-eyebrow">{orderDone ? t('Commande transmise') : t('Votre panier')}</div>
               <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>
-                {orderDone ? 'C’est transmis.' : 'Le panier.'}
+                {orderDone ? t('C’est transmis.') : t('Le panier.')}
               </h1>
             </div>
-            <button className="mc-x" aria-label="Fermer" onClick={closeBasket}>✕</button>
+            <button className="mc-x" aria-label={t('Fermer')} onClick={closeBasket}>✕</button>
           </div>
           <div className="mc-scroll" style={{ flex: 1, padding: '18px 24px calc(24px + env(safe-area-inset-bottom))' }}>
             {orderDone ? (
               <div className="mc-confirm mc-rise" style={{ paddingTop: 26 }}>
                 <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-                <h2>Commande transmise.</h2>
+                <h2>{t('Commande transmise.')}</h2>
                 <p>
-                  La maison la reçoit à l’instant et vous confirme sur WhatsApp.
-                  Suivez son état à tout moment dans « Mes commandes ».
+                  {t('La maison la reçoit à l’instant et vous confirme sur WhatsApp. Suivez son état à tout moment dans « Mes commandes ».')}
                 </p>
                 <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
-                  <div className="mc-recapcard__line"><span>Commande</span><span>{orderDone.number}</span></div>
-                  <div className="mc-recapcard__line"><span>Statut</span><span>Reçue par la maison</span></div>
+                  <div className="mc-recapcard__line"><span>{t('Commande')}</span><span>{orderDone.number}</span></div>
+                  <div className="mc-recapcard__line"><span>{t('Statut')}</span><span>{t('Reçue par la maison')}</span></div>
                   <div className="mc-recapcard__line">
-                    <span>Remise</span>
-                    <span>{orderDone.mode === 'livraison' ? 'Livraison à domicile' : 'Retrait en maison'}</span>
+                    <span>{t('Remise')}</span>
+                    <span>{orderDone.mode === 'livraison' ? t('Livraison à domicile') : t('Retrait en maison')}</span>
                   </div>
                   <div className="mc-hairline" />
                   <div className="mc-recapcard__total">
-                    <span>Total</span>
-                    <span>{fmtMoney(orderDone.totalXof, currency)}</span>
+                    <span>{t('Total')}</span>
+                    <span>{prix(orderDone.totalXof, currency)}</span>
                   </div>
                   <div className="mc-recapcard__meta">
-                    {orderDone.mode === 'livraison' ? 'Réglée à la livraison.' : 'Réglée au retrait en maison.'}
+                    {orderDone.mode === 'livraison' ? t('Réglée à la livraison.') : t('Réglée au retrait en maison.')}
                   </div>
                 </div>
                 <button
@@ -1331,19 +1365,19 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                   style={{ marginTop: 20 }}
                   onClick={() => { closeBasket(); onOpenOrders(); }}
                 >
-                  Suivre mes commandes
+                  {t('Suivre mes commandes')}
                 </button>
-                <button className="mc-quietbtn" onClick={closeBasket}>Revenir à la gamme</button>
+                <button className="mc-quietbtn" onClick={closeBasket}>{t('Revenir à la gamme')}</button>
               </div>
             ) : items.length === 0 ? (
               <div className="mc-emptyzone">
                 <div className="mc-emptyzone__glyph">⬡</div>
-                <div className="mc-emptyzone__t">Votre panier est vide.</div>
+                <div className="mc-emptyzone__t">{t('Votre panier est vide.')}</div>
                 <div className="mc-emptyzone__s">
-                  Ajoutez une formule de la gamme pour composer votre commande.
+                  {t('Ajoutez une formule de la gamme pour composer votre commande.')}
                 </div>
                 <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={closeBasket}>
-                  Revenir à la gamme
+                  {t('Revenir à la gamme')}
                 </button>
               </div>
             ) : (
@@ -1353,48 +1387,48 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                     <div key={it.p.id} className="mc-basketrow">
                       <div className="mc-basketrow__body">
                         <div className="mc-basketrow__name">{it.p.name}</div>
-                        <div className="mc-basketrow__unit">{fmtMoney(it.p.priceXof, currency)} l’unité</div>
+                        <div className="mc-basketrow__unit">{t('{prix} l’unité', { prix: prix(it.p.priceXof, currency) })}</div>
                       </div>
                       <div className="mc-qtystep">
-                        <button aria-label={`Retirer ${it.p.name}`} onClick={() => dec(it.p.id)}>−</button>
+                        <button aria-label={t('Retirer {nom}', { nom: it.p.name })} onClick={() => dec(it.p.id)}>−</button>
                         <span>{it.qty}</span>
-                        <button aria-label={`Ajouter ${it.p.name}`} onClick={() => add(it.p.id)}>+</button>
+                        <button aria-label={t('Ajouter {nom}', { nom: it.p.name })} onClick={() => add(it.p.id)}>+</button>
                       </div>
-                      <div className="mc-basketrow__total">{fmtMoney(it.p.priceXof * it.qty, currency)}</div>
-                      <button className="mc-basketrow__x" aria-label={`Retirer ${it.p.name} du panier`} onClick={() => drop(it.p.id)}>✕</button>
+                      <div className="mc-basketrow__total">{prix(it.p.priceXof * it.qty, currency)}</div>
+                      <button className="mc-basketrow__x" aria-label={t('Retirer {nom} du panier', { nom: it.p.name })} onClick={() => drop(it.p.id)}>✕</button>
                     </div>
                   ))}
                 </div>
                 {/* Remise — retrait en maison (offert) ou livraison à domicile. */}
                 <div className="mc-deliver" style={{ marginTop: 18 }}>
-                  <div className="mc-micro-eyebrow">Comment la recevoir</div>
+                  <div className="mc-micro-eyebrow">{t('Comment la recevoir')}</div>
                   <div className="mc-deliver__opts">
                     <button
                       type="button"
                       className={`mc-deliver__opt ${mode === 'retrait' ? 'is-active' : ''}`}
                       onClick={() => setMode('retrait')}
                     >
-                      <span className="mc-deliver__name">Retrait en maison</span>
-                      <span className="mc-deliver__price">Offert</span>
+                      <span className="mc-deliver__name">{t('Retrait en maison')}</span>
+                      <span className="mc-deliver__price">{t('Offert')}</span>
                     </button>
                     <button
                       type="button"
                       className={`mc-deliver__opt ${mode === 'livraison' ? 'is-active' : ''}`}
                       onClick={() => setMode('livraison')}
                     >
-                      <span className="mc-deliver__name">Livraison à domicile</span>
-                      <span className="mc-deliver__price">{fee > 0 ? fmtMoney(fee, currency) : 'Offert'}</span>
+                      <span className="mc-deliver__name">{t('Livraison à domicile')}</span>
+                      <span className="mc-deliver__price">{fee > 0 ? prix(fee, currency) : t('Offert')}</span>
                     </button>
                   </div>
                   {mode === 'livraison' && (
                     <>
                       <label className="mc-deliver__addr">
-                        <span className="mc-deliver__addrlabel">Adresse de livraison</span>
+                        <span className="mc-deliver__addrlabel">{t('Adresse de livraison')}</span>
                         <textarea
                           className="mc-deliver__addrinput"
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
-                          placeholder="Quartier, rue, repère… et un numéro à joindre."
+                          placeholder={t('Quartier, rue, repère… et un numéro à joindre.')}
                           rows={2}
                         />
                       </label>
@@ -1407,10 +1441,10 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                         >
                           <MapPin size={15} strokeWidth={1.75} />
                           {geoBusy
-                            ? 'Localisation en cours…'
+                            ? t('Localisation en cours…')
                             : geo
-                              ? 'Actualiser ma position'
-                              : 'Partager ma position GPS'}
+                              ? t('Actualiser ma position')
+                              : t('Partager ma position GPS')}
                         </button>
                         {geo && (
                           <a
@@ -1419,12 +1453,12 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            Position enregistrée · voir sur la carte
+                            {t('Position enregistrée · voir sur la carte')}
                           </a>
                         )}
                         {!geo && (
                           <span className="mc-geo__hint">
-                            Un point précis pour que le livreur vous trouve sans hésiter.
+                            {t('Un point précis pour que le livreur vous trouve sans hésiter.')}
                           </span>
                         )}
                       </div>
@@ -1434,17 +1468,17 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
 
                 <div className="mc-recapcard" style={{ marginTop: 16 }}>
                   <div className="mc-recapcard__line">
-                    <span>Sous-total · {count} article{count > 1 ? 's' : ''}</span>
-                    <span>{fmtMoney(subtotal, currency)}</span>
+                    <span>{count > 1 ? t('Sous-total · {n} articles', { n: count }) : t('Sous-total · {n} article', { n: count })}</span>
+                    <span>{prix(subtotal, currency)}</span>
                   </div>
                   <div className="mc-recapcard__line">
-                    <span>Livraison</span>
-                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? fmtMoney(deliveryCost, currency) : 'Offerte') : 'Retrait, offert'}</span>
+                    <span>{t('Livraison')}</span>
+                    <span>{mode === 'livraison' ? (deliveryCost > 0 ? prix(deliveryCost, currency) : t('Offerte')) : t('Retrait, offert')}</span>
                   </div>
                   <div className="mc-hairline" />
-                  <div className="mc-recapcard__total"><span>Total</span><span>{fmtMoney(total, currency)}</span></div>
+                  <div className="mc-recapcard__total"><span>{t('Total')}</span><span>{prix(total, currency)}</span></div>
                   <div className="mc-recapcard__meta">
-                    {mode === 'livraison' ? 'Réglée à la livraison.' : 'Réglée au retrait en maison.'}
+                    {mode === 'livraison' ? t('Réglée à la livraison.') : t('Réglée au retrait en maison.')}
                   </div>
                 </div>
                 <button
@@ -1453,14 +1487,14 @@ export function GammeTab({ toast, onOpenOrders }: { toast: (m: string) => void; 
                   onClick={checkout}
                   disabled={addressMissing}
                 >
-                  Commander · {fmtMoney(total, currency)}
+                  {t('Commander · {prix}', { prix: prix(total, currency) })}
                 </button>
                 {addressMissing && (
                   <div className="mc-footnote" style={{ color: 'var(--mc-copper, #b97a4a)' }}>
-                    Indiquez l’adresse de livraison pour transmettre la commande.
+                    {t('Indiquez l’adresse de livraison pour transmettre la commande.')}
                   </div>
                 )}
-                <div className="mc-footnote">La maison confirmera votre commande sur WhatsApp.</div>
+                <div className="mc-footnote">{t('La maison confirmera votre commande sur WhatsApp.')}</div>
               </>
             )}
           </div>
@@ -1486,26 +1520,28 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
      à zéro. Le bouton « Introduire » qui n'envoyait rien est parti avec eux :
      la carte se partage pour de vrai. */
   const foyerLadder = useMemo(() => foyerTiers.slice().sort((a, b) => a.seuilXof - b.seuilXof), [foyerTiers]);
-  const prochainFoyer = foyerLadder.find((t) => cercle.depenseFoyer < t.seuilXof);
+  const prochainFoyer = foyerLadder.find((tier) => cercle.depenseFoyer < tier.seuilXof);
   const cibleFoyer = prochainFoyer?.seuilXof ?? cercle.seuilFoyer;
   const pctFoyer = Math.min(100, Math.round((cercle.depenseFoyer / Math.max(1, cibleFoyer)) * 100));
   const pctCercle = Math.min(100, Math.round((cercle.venues / Math.max(1, cercle.seuil)) * 100));
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">Le Cercle MND · transmettre</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 14px' }}>Votre lignée.</h1>
+      <div className="mc-micro-eyebrow">{t('Le Cercle MND · transmettre')}</div>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 14px' }}>{t('Votre lignée.')}</h1>
 
       {/* OÙ ELLE EN EST AU CERCLE, en une ligne. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
         {cercle.convenu ? (
-          <span className="mc-pillseal">Prix convenu · votre reconnaissance, à chaque venue</span>
+          <span className="mc-pillseal">{t('Prix convenu · votre reconnaissance, à chaque venue')}</span>
         ) : cercle.dependant ? (
-          <span className="mc-pillseal">Rattachée à votre foyer</span>
+          <span className="mc-pillseal">{t('Rattachée à votre foyer')}</span>
         ) : cercle.membre ? (
-          <span className="mc-pillseal">Membre du Cercle · {cercle.venues} venues en 12 mois</span>
+          <span className="mc-pillseal">{cercle.venues > 1
+            ? t('Membre du Cercle · {n} venues en 12 mois', { n: cercle.venues })
+            : t('Membre du Cercle · {n} venue en 12 mois', { n: cercle.venues })}</span>
         ) : (
-          <span className="mc-pillseal">Le Cercle s’ouvre à {cercle.seuil} venues en 12 mois · {cercle.venues} sur {cercle.seuil}</span>
+          <span className="mc-pillseal">{t('Le Cercle s’ouvre à {seuil} venues en 12 mois · {n} sur {seuil}', { seuil: cercle.seuil, n: cercle.venues })}</span>
         )}
       </div>
       {!cercle.convenu && !cercle.dependant && !cercle.membre && (
@@ -1513,8 +1549,10 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
           <div className="mc-bar"><div style={{ width: `${pctCercle}%` }} /></div>
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6 }}>
             {cercle.venues === 0
-              ? `Votre lignée commence à votre première venue. Le Cercle vous accueille à ${cercle.seuil} venues en douze mois.`
-              : `Encore ${cercle.reste} venue${cercle.reste > 1 ? 's' : ''} dans les douze mois, et la Maison vous accueille dans son Cercle.`}
+              ? t('Votre lignée commence à votre première venue. Le Cercle vous accueille à {seuil} venues en douze mois.', { seuil: cercle.seuil })
+              : cercle.reste > 1
+                ? t('Encore {n} venues dans les douze mois, et la Maison vous accueille dans son Cercle.', { n: cercle.reste })
+                : t('Encore {n} venue dans les douze mois, et la Maison vous accueille dans son Cercle.', { n: cercle.reste })}
           </div>
         </div>
       )}
@@ -1525,38 +1563,38 @@ export function CercleTab({ toast }: { toast: (m: string) => void }) {
       {/* LE FOYER — la reconnaissance de la maisonnée, sur sa dépense cumulée.
           Un sceau atteint se pose comme une récompense (Vos récompenses). */}
       {cercle.foyer && !cercle.dependant && (<>
-        <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>Le Foyer</div>
+        <div className="mc-sectionlabel" style={{ margin: '26px 0 10px' }}>{t('Le Foyer')}</div>
         <div className="mc-pointscard">
           <div className="mc-pointscard__watermark" aria-hidden="true" />
           <div className="mc-pointscard__inner">
-            <div className="mc-pointscard__label">Votre maisonnée</div>
+            <div className="mc-pointscard__label">{t('Votre maisonnée')}</div>
             <div className="mc-pointscard__row">
               <span className="mc-pointscard__big">{pctFoyer}%</span>
-              <span className="mc-pointscard__unit">{prochainFoyer ? 'vers le prochain sceau du foyer' : 'de votre sceau famille'}</span>
+              <span className="mc-pointscard__unit">{prochainFoyer ? t('vers le prochain sceau du foyer') : t('de votre sceau famille')}</span>
             </div>
             <div className="mc-bar mc-bar--invert"><div style={{ width: `${pctFoyer}%` }} /></div>
             <div className="mc-pointscard__hint">
               {prochainFoyer
-                ? `Encore un peu et « ${services.find((s) => s.id === prochainFoyer.serviceId)?.name ?? 'un soin'} » s’offre à la maisonnée.`
+                ? t('Encore un peu et « {soin} » s’offre à la maisonnée.', { soin: services.find((s) => s.id === prochainFoyer.serviceId)?.name ?? t('un soin') })
                 : cercle.foyerAtteint
-                  ? 'Votre foyer a franchi son sceau : le soin vous attend dans vos récompenses.'
-                  : 'La venue de chaque membre du foyer avance vers un soin offert à la famille.'}
+                  ? t('Votre foyer a franchi son sceau : le soin vous attend dans vos récompenses.')
+                  : t('La venue de chaque membre du foyer avance vers un soin offert à la famille.')}
             </div>
           </div>
         </div>
         {foyerLadder.length > 0 && (
           <div className="mc-stack mc-rewardgrid" style={{ gap: 10, marginTop: 12 }}>
-            {foyerLadder.map((t, i) => {
-              const on = cercle.depenseFoyer >= t.seuilXof;
-              const svc = services.find((s) => s.id === t.serviceId);
+            {foyerLadder.map((tier, i) => {
+              const on = cercle.depenseFoyer >= tier.seuilXof;
+              const svc = services.find((s) => s.id === tier.serviceId);
               return (
-                <div key={t.id} className={`mc-rewardrow ${on ? 'is-on' : ''}`}>
-                  <span className="mc-rewardrow__glyph">{tierGlyph(t, i)}</span>
+                <div key={tier.id} className={`mc-rewardrow ${on ? 'is-on' : ''}`}>
+                  <span className="mc-rewardrow__glyph">{tierGlyph(tier, i)}</span>
                   <div className="mc-rewardrow__body">
-                    <div className="mc-rewardrow__t">{svc?.name ?? 'Un soin de la maison'}</div>
-                    <div className="mc-rewardrow__s">{t.desc || 'Offert à la maisonnée'}</div>
+                    <div className="mc-rewardrow__t">{svc?.name ?? t('Un soin de la maison')}</div>
+                    <div className="mc-rewardrow__s">{tier.desc || t('Offert à la maisonnée')}</div>
                   </div>
-                  <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>{on ? 'Offert' : 'À venir'}</span>
+                  <span className={`mc-rewardrow__st ${on ? 'is-on' : ''}`}>{on ? t('Offert') : t('À venir')}</span>
                 </div>
               );
             })}
@@ -1611,7 +1649,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
        Seule une tête DÉJÀ au carnet repasse par la Maison — on ne s'annexe
        pas la fiche d'une autre. */
     const r = await rattacherEnfant(client, prenom, nom, naissance, aujourdhui);
-    if (!r.ok) { setErreur(r.erreur ?? 'Cette demande n’a pas pu être envoyée.'); return; }
+    if (!r.ok) { setErreur(r.erreur ? t(r.erreur) : t('Cette demande n’a pas pu être envoyée.')); return; }
     setErreur('');
     const petit = prenom.trim();
     setPrenom('');
@@ -1619,8 +1657,8 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
     setNaissance('');
     setOuvert(false);
     toast(r.enAttente
-      ? 'Cette tête est déjà connue de la maison, elle vérifie et vous prévient.'
-      : `${petit} est sur votre compte, réservez pour ${petit} dès maintenant.`);
+      ? t('Cette tête est déjà connue de la maison, elle vérifie et vous prévient.')
+      : t('{prenom} est sur votre compte, réservez pour {prenom} dès maintenant.', { prenom: petit }));
   };
 
   /* LE PROFIL NE PROPOSE PLUS UN ENFANT À TOUT LE MONDE.
@@ -1637,19 +1675,18 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
   if (!parenteConnue && !ouvert) {
     return (
       <button className="mc-textbtn" style={{ marginTop: 18 }} onClick={() => setOuvert(true)}>
-        Un enfant à inscrire ?
+        {t('Un enfant à inscrire ?')}
       </button>
     );
   }
 
   return (
     <>
-      {parenteConnue && <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Mes enfants</div>}
+      {parenteConnue && <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Mes enfants')}</div>}
 
       {parenteConnue && mesTetes.length === 0 && attente.length === 0 && (
         <div className="mc-emptyline" style={{ lineHeight: 1.55 }}>
-          Vos enfants peuvent avoir leurs propres rendez-vous, à leur nom, avec leur suivi.
-          C’est vous qui réservez et réglez pour eux.
+          {t('Vos enfants peuvent avoir leurs propres rendez-vous, à leur nom, avec leur suivi. C’est vous qui réservez et réglez pour eux.')}
         </div>
       )}
 
@@ -1661,9 +1698,9 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
         const ouverte = corrigeId === e.id;
         const corriger = async () => {
           const r = await corrigerNaissance(e.id, dateCorrigee, aujourdhui);
-          if (!r.ok) { setErrCorrige(r.erreur ?? 'La correction n’a pas pu passer.'); return; }
+          if (!r.ok) { setErrCorrige(r.erreur ? t(r.erreur) : t('La correction n’a pas pu passer.')); return; }
           setCorrigeId(''); setDateCorrigee(''); setErrCorrige('');
-          toast(`La date de naissance de ${e.name.split(' ')[0]} est corrigée.`);
+          toast(t('La date de naissance de {prenom} est corrigée.', { prenom: e.name.split(' ')[0] }));
         };
         return (
           <div key={e.id} className="mc-crownstatus" style={{ marginTop: 8 }}>
@@ -1682,25 +1719,25 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
                   {e.name}
                   <span aria-hidden="true" style={{ marginLeft: 8, fontSize: 12, color: 'var(--ink-soft)', display: 'inline-block', transform: ouverte ? 'rotate(90deg)' : 'none', transition: 'transform .2s ease' }}>›</span>
                 </span>
-                <span className="mc-pillseal">{a !== undefined ? `${a} an${a > 1 ? 's' : ''}` : 'âge à préciser'}</span>
+                <span className="mc-pillseal">{a === undefined ? t('âge à préciser') : a > 1 ? t('{n} ans', { n: a }) : t('{n} an', { n: a })}</span>
               </div>
             </button>
             {ouverte && (
               <div style={{ marginTop: 10 }}>
-                <div className="mc-field-label">Changer sa date de naissance</div>
-                <DateEnClair
+                <div className="mc-field-label">{t('Changer sa date de naissance')}</div>
+                <DateEnClair mots={motsDeDate()}
                   value={dateCorrigee}
                   max={aujourdhui}
                   onChange={(iso) => { setDateCorrigee(iso ?? ''); setErrCorrige(''); }}
-                  ariaLabel="Sa date de naissance"
+                  ariaLabel={t('Sa date de naissance')}
                 />
                 {errCorrige && <div className="mc-form-err">{errCorrige}</div>}
                 <div style={{ display: 'flex', gap: 10, marginTop: 10, alignItems: 'center' }}>
                   <button className="mc-cta mc-cta--indigo" style={{ marginTop: 0, flex: 1 }} onClick={() => void corriger()}>
-                    Enregistrer
+                    {t('Enregistrer')}
                   </button>
                   <button className="mc-textbtn" style={{ marginTop: 0 }} onClick={() => { setCorrigeId(''); setErrCorrige(''); }}>
-                    Annuler
+                    {t('Annuler')}
                   </button>
                 </div>
               </div>
@@ -1714,7 +1751,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
           <span className="mc-crownstatus__filet" style={{ background: 'var(--color-argile)' }} />
           <div className="mc-crownstatus__top">
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{nomPropose(d)}</span>
-            <span className="mc-pillseal">En attente de la maison</span>
+            <span className="mc-pillseal">{t('En attente de la maison')}</span>
           </div>
         </div>
       ))}
@@ -1723,14 +1760,14 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
           indéfiniment, et personne ne comprend pourquoi. */}
       {refusees.slice(0, 2).map((d) => (
         <div key={d.id} className="mc-emptyline" style={{ marginTop: 8, lineHeight: 1.55 }}>
-          {d.prenom}, la maison n’a pas retenu cette demande.
-          {d.motif ? ` « ${d.motif} »` : ' Passez au salon, on en parle.'}
+          {t('{prenom}, la maison n’a pas retenu cette demande.', { prenom: d.prenom })}
+          {d.motif ? ` ${t('« {motif} »', { motif: d.motif })}` : ` ${t('Passez à la Maison, on en parle.')}`}
         </div>
       ))}
 
       {ouvert ? (
         <div style={{ marginTop: 12 }}>
-          <div className="mc-field-label">Son prénom</div>
+          <div className="mc-field-label">{t('Son prénom')}</div>
           <input
             className="mnd-input"
             value={prenom}
@@ -1738,7 +1775,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             placeholder="Mahoussi"
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
-          <div className="mc-field-label" style={{ marginTop: 12 }}>Son nom de famille</div>
+          <div className="mc-field-label" style={{ marginTop: 12 }}>{t('Son nom de famille')}</div>
           <input
             className="mnd-input"
             value={nom}
@@ -1747,25 +1784,24 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
             style={{ width: '100%', boxSizing: 'border-box' }}
           />
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
-            Le sien, tel qu’il est écrit à l’état civil, il peut être différent du vôtre.
+            {t('Le sien, tel qu’il est écrit à l’état civil, il peut être différent du vôtre.')}
           </div>
-          <div className="mc-field-label" style={{ marginTop: 12 }}>Sa date de naissance</div>
-          <DateEnClair
+          <div className="mc-field-label" style={{ marginTop: 12 }}>{t('Sa date de naissance')}</div>
+          <DateEnClair mots={motsDeDate()}
             value={naissance}
             max={aujourdhui}
             onChange={(iso) => setNaissance(iso ?? '')}
-            ariaLabel="Sa date de naissance"
+            ariaLabel={t('Sa date de naissance')}
           />
           <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 6, lineHeight: 1.5 }}>
-            Elle nous sert à tenir son suivi, et c’est elle qui vous donne accès à son espace
-            jusqu’à ses dix-huit ans.
+            {t('Elle nous sert à tenir son suivi, et c’est elle qui vous donne accès à son espace jusqu’à ses dix-huit ans.')}
           </div>
           {erreur && <div className="mc-form-err">{erreur}</div>}
           <button className="mc-cta mc-cta--indigo" style={{ marginTop: 14 }} onClick={() => void envoyer()}>
-            Envoyer à la maison
+            {t('Envoyer à la maison')}
           </button>
           <button className="mc-textbtn" style={{ marginTop: 8 }} onClick={() => { setOuvert(false); setErreur(''); }}>
-            Annuler
+            {t('Annuler')}
           </button>
         </div>
       ) : (
@@ -1773,7 +1809,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
            c'est la ligne discrète du dessus qui a ouvert ce formulaire. */
         parenteConnue && (
           <button className="mc-cta mc-cta--outline" style={{ marginTop: 12 }} onClick={() => setOuvert(true)}>
-            + Ajouter un enfant
+            {t('+ Ajouter un enfant')}
           </button>
         )
       )}
@@ -1783,6 +1819,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
 
 export function ProfilTab({ toast }: { toast: (m: string) => void }) {
   const [choixTheme, setChoixTheme] = useTheme();
+  const lg = useLangue();
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
@@ -1845,19 +1882,19 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       await disablePush();
       setPstate(await pushState());
       setPbusy(false);
-      toast('Notifications désactivées sur ce téléphone.');
+      toast(t('Notifications désactivées sur ce téléphone.'));
     } else {
       const ok = await enablePush(clientId);
       setPstate(await pushState());
       setPbusy(false);
-      toast(ok ? 'Notifications activées sur ce téléphone.' : 'Notifications non activées, autorisez-les dans le navigateur.');
+      toast(ok ? t('Notifications activées sur ce téléphone.') : t('Notifications non activées, autorisez-les dans le navigateur.'));
     }
   };
 
   const save = () => {
     const n = name.trim();
     if (!n) {
-      toast('Votre nom est nécessaire, la maison vous appelle par votre nom.');
+      toast(t('Votre nom est nécessaire, la maison vous appelle par votre nom.'));
       return;
     }
     /* LA FICHE D'ABORD, L'ÉCRITURE ENSUITE. Avant la fiche (synchronisation en
@@ -1867,7 +1904,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
        DIT au lieu de mentir. */
     ensureClient(clientId, session?.user?.email, branch.id, n, session?.user?.id);
     if (!clientsStore.get().some((c) => c.id === clientId)) {
-      toast('La maison synchronise encore votre dossier, réessayez dans un instant.');
+      toast(t('La maison synchronise encore votre dossier, réessayez dans un instant.'));
       return;
     }
     clientsStore.set((prev) =>
@@ -1877,7 +1914,7 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           : c
       )
     );
-    toast('Profil enregistré, la maison vous connaît.');
+    toast(t('Profil enregistré, la maison vous connaît.'));
   };
 
 
@@ -1886,8 +1923,8 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
 
   return (
     <div className="mc-pagepad mc-pagepad--top mc-fade">
-      <div className="mc-micro-eyebrow">Votre espace</div>
-      <h1 className="mc-serif-title" style={{ margin: '6px 0 18px' }}>Mon profil.</h1>
+      <div className="mc-micro-eyebrow">{t('Votre espace')}</div>
+      <h1 className="mc-serif-title" style={{ margin: '6px 0 18px' }}>{t('Mon profil.')}</h1>
 
       <div className="mc-idcard">
         {client?.photo ? (
@@ -1898,10 +1935,10 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         <div style={{ minWidth: 0 }}>
           <div className="mc-idcard__name">{client?.name ?? 'Ma Couronne'}</div>
           {email && <div className="mc-idcard__meta" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>}
-          <div className="mc-idcard__meta">Tête couronnée depuis {sinceYear} · {branch.name}</div>
+          <div className="mc-idcard__meta">{t('Tête couronnée depuis {annee} · {maison}', { annee: sinceYear, maison: branch.name })}</div>
           {famPctProfil > 0 && (
             <div className="mc-idcard__meta" style={{ color: 'var(--copper-700, #9E6238)' }}>
-              Compte famille · remise −{famPctProfil} % (hors forfaits)
+              {t('Compte famille · remise −{pct} % (hors forfaits)', { pct: famPctProfil })}
             </div>
           )}
         </div>
@@ -1914,15 +1951,15 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       <MesEnfants toast={toast} />
       {/* L'APPARENCE (3 octobre 2026) : elle suit le téléphone, ou la cliente
           la fixe. Voir theme.ts. */}
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Apparence</div>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Apparence')}</div>
       <div className="mc-pushrow">
         <div style={{ minWidth: 0 }}>
-          <div className="mc-pushrow__t">Thème</div>
+          <div className="mc-pushrow__t">{t('Thème')}</div>
           <div className="mc-pushrow__s">
-            {choixTheme === 'auto' ? 'Comme votre téléphone, clair le jour ou sombre le soir.' : choixTheme === 'sombre' ? 'Toujours sombre.' : 'Toujours clair.'}
+            {choixTheme === 'auto' ? t('Comme votre téléphone, clair le jour ou sombre le soir.') : choixTheme === 'sombre' ? t('Toujours sombre.') : t('Toujours clair.')}
           </div>
         </div>
-        <div className="mc-seg" role="radiogroup" aria-label="Thème de l’app">
+        <div className="mc-seg" role="radiogroup" aria-label={t('Thème de l’app')}>
           {(['auto', 'clair', 'sombre'] as const).map((c) => (
             <button
               key={c}
@@ -1932,32 +1969,63 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
               className={`mc-seg__opt${choixTheme === c ? ' is-on' : ''}`}
               onClick={() => setChoixTheme(c)}
             >
-              {c === 'auto' ? 'Auto' : c === 'clair' ? 'Clair' : 'Sombre'}
+              {c === 'auto' ? t('Auto') : c === 'clair' ? t('Clair') : t('Sombre')}
             </button>
           ))}
         </div>
       </div>
+      {/* LA LANGUE (3 octobre 2026) : gardée sur l'appareil ET sur sa fiche,
+          pour que la Maison lui écrive dans la sienne. Les deux noms restent
+          dans leur langue, chacune reconnaît le sien. Voir i18n.ts. */}
+      {anglaisPropose && (
+        <div className="mc-pushrow" style={{ marginTop: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="mc-pushrow__t">{t('Langue')}</div>
+            <div className="mc-pushrow__s">{t('L’app vous parle dans cette langue. Vos messages WhatsApp suivront dès que la Maison les aura préparés.')}</div>
+          </div>
+          <div className="mc-seg" role="radiogroup" aria-label={t('Langue de l’app')}>
+            {(['fr', 'en'] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="radio"
+                lang={l}
+                aria-checked={lg === l}
+                className={`mc-seg__opt${lg === l ? ' is-on' : ''}`}
+                onClick={() => {
+                  changeLaLangue(l);
+                  if (clientId && client && client.langue !== l) {
+                    clientsStore.set((prev) => prev.map((c) => (c.id === clientId ? { ...c, langue: l } : c)));
+                  }
+                }}
+              >
+                {l === 'fr' ? 'Français' : 'English'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {pstate !== 'unsupported' && (
         <>
-          <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Notifications</div>
+          <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Notifications')}</div>
           <div className="mc-pushrow">
             <div style={{ minWidth: 0 }}>
-              <div className="mc-pushrow__t">Rappels & confirmations sur ce téléphone</div>
+              <div className="mc-pushrow__t">{t('Rappels & confirmations sur ce téléphone')}</div>
               <div className="mc-pushrow__s">
-                {pstate === 'subscribed' ? 'Vous serez prévenue à chaque réservation, modification et avant vos rendez-vous.'
-                  : pstate === 'denied' ? 'Notifications bloquées, réactivez-les dans les réglages du navigateur.'
-                  : 'Activez pour recevoir vos confirmations et rappels de rendez-vous.'}
+                {pstate === 'subscribed' ? t('Vous serez prévenue à chaque réservation, modification et avant vos rendez-vous.')
+                  : pstate === 'denied' ? t('Notifications bloquées, réactivez-les dans les réglages du navigateur.')
+                  : t('Activez pour recevoir vos confirmations et rappels de rendez-vous.')}
               </div>
             </div>
             {pstate === 'denied' ? (
-              <span className="mc-pushrow__on" style={{ color: 'var(--mc-error)' }}>Bloquées</span>
+              <span className="mc-pushrow__on" style={{ color: 'var(--mc-error)' }}>{t('Bloquées')}</span>
             ) : (
               <button
                 type="button"
                 role="switch"
                 aria-checked={pstate === 'subscribed'}
-                aria-label="Activer les notifications"
+                aria-label={t('Activer les notifications')}
                 className={`mc-switch ${pstate === 'subscribed' ? 'is-on' : ''}`}
                 onClick={() => void togglePush()}
                 disabled={pbusy}
@@ -1969,62 +2037,62 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
         </>
       )}
 
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Vos informations</div>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Vos informations')}</div>
       <div className="mc-profform">
         <label className="mc-profield">
-          <span>Nom complet</span>
+          <span>{t('Nom complet')}</span>
           <input value={name} autoComplete="name" onChange={(e) => setName(e.target.value)} />
         </label>
         <label className="mc-profield">
-          <span>Téléphone</span>
+          <span>{t('Téléphone')}</span>
           <input value={phone} inputMode="tel" autoComplete="tel" onChange={(e) => setPhone(e.target.value)} />
         </label>
         <label className="mc-profield">
-          <span>Ville</span>
+          <span>{t('Ville')}</span>
           <input value={city} autoComplete="address-level2" onChange={(e) => setCity(e.target.value)} />
         </label>
         <label className="mc-profield">
-          <span>Date de naissance</span>
+          <span>{t('Date de naissance')}</span>
           {/* JOUR · MOIS · ANNÉE — 13 septembre 2026. Le champ natif s'écrivait
               dans la langue du téléphone : « 09/13/1990 » sous un téléphone
               réglé en anglais, et la cliente ne savait plus quel nombre était
               le mois. */}
-          <DateEnClair
+          <DateEnClair mots={motsDeDate()}
             value={birthday}
             max={todayIso()}
             onChange={(iso) => setBirthday(iso ?? '')}
-            ariaLabel="Date de naissance"
+            ariaLabel={t('Date de naissance')}
           />
           {birthday && <span className="mc-profield__read">{birthdayLabel(birthday)}</span>}
         </label>
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={save}>Enregistrer</button>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 18 }} onClick={save}>{t('Enregistrer')}</button>
       </div>
 
       {/* « MAÎTRE PRÉFÉRÉ » RETIRÉ (13 août, décision de Yéman) : la cliente
           ne choisit pas les maîtres — les mains sont l'affaire de la maison,
           au Profil comme au tunnel (décision du 10 août). */}
 
-      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Votre couronne</div>
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>{t('Votre couronne')}</div>
       <div className="mc-preflist">
         <div className="mc-inforow">
-          <span>Calibre</span>
+          <span>{t('Calibre')}</span>
           {/* Déduit du comptage de la Maison — il ne se choisit pas. */}
-          <span className="mc-inforow__v">{calibreDe(client?.lockCount, bandsProfil) ?? 'À compter au salon'}</span>
+          <span className="mc-inforow__v">{calibreDe(client?.lockCount, bandsProfil) ?? t('À compter à la Maison')}</span>
         </div>
         <div className="mc-inforow">
-          <span>Nombre de locks</span>
+          <span>{t('Nombre de locks')}</span>
           <span className="mc-inforow__v">{client?.lockCount ?? '—'}</span>
         </div>
         {/* SON PALIER, ET LE PAS SUIVANT — lus sur ses rituels honorés. */}
         {lecturePalier?.palier && (
           <>
             <div className="mc-inforow">
-              <span>Où elle en est</span>
-              <span className="mc-inforow__v">{lecturePalier.palier}</span>
+              <span>{t('Où elle en est')}</span>
+              <span className="mc-inforow__v">{t(lecturePalier.palier)}</span>
             </div>
             {pasSuivantProfil && (
               <div className="mc-inforow">
-                <span>Le pas suivant</span>
+                <span>{t('Le pas suivant')}</span>
                 <span className="mc-inforow__v">{pasSuivantProfil.name}</span>
               </div>
             )}
@@ -2033,12 +2101,12 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       </div>
       <div className="mc-emptyline" style={{ paddingTop: 6 }}>
         {lecturePalier?.palier
-          ? `${PALIER_DIT[lecturePalier.palier].couronne} Renseignés par la maison, lors de vos rituels.`
-          : 'Renseignés par la maison, lors de vos rituels.'}
+          ? t('{phrase} Renseignés par la maison, lors de vos rituels.', { phrase: t(PALIER_DIT[lecturePalier.palier].couronne) })
+          : t('Renseignés par la maison, lors de vos rituels.')}
       </div>
 
       <button className="mc-cta mc-cta--quiet" style={{ marginTop: 22 }} onClick={() => void signOut()}>
-        Se déconnecter
+        {t('Se déconnecter')}
       </button>
       {/* L'EMPREINTE DE VERSION — pour lire d'un coup d'œil quelle construction
           ce téléphone porte (14 août : « les écrans ne sont jamais publiés »
@@ -2047,7 +2115,12 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
       {(() => {
         const b = (import.meta.env.VITE_BUILD_ID as string | undefined) ?? '';
         const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(b);
-        const mot = m ? `Version du ${Number(m[3])} ${MONTHS[Number(m[2]) - 1].toLowerCase()} ${m[1]} · ${m[4]}:${m[5]}` : 'Version de développement';
+        const mot = m
+          ? t('Version du {date} · {heure}', {
+            date: new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }),
+            heure: `${m[4]}:${m[5]}`,
+          })
+          : t('Version de développement');
         return <div className="mc-footnote" style={{ marginTop: 10 }}>{mot}</div>;
       })()}
       <div style={{ height: 12 }} />
@@ -2074,33 +2147,33 @@ export function MesCommandes({ onClose }: { onClose: () => void }) {
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
       <div className="mc-flowhead mc-flowhead--split">
         <div>
-          <div className="mc-micro-eyebrow">Votre suivi · la Gamme</div>
-          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Mes commandes.</h1>
+          <div className="mc-micro-eyebrow">{t('Votre suivi · la Gamme')}</div>
+          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>{t('Mes commandes.')}</h1>
         </div>
-        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+        <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
       </div>
       <div className="mc-scroll" style={{ flex: 1, padding: '8px 0 calc(16px + env(safe-area-inset-bottom))' }}>
         {orders.map((o) => (
           <div key={o.id} className="mc-orderrow">
             <div className="mc-orderrow__head">
               <span className="mc-orderrow__no">{o.number}</span>
-              <span className="mc-orderrow__date">{dayLabelIso(o.date)}</span>
+              <span className="mc-orderrow__date">{jourDit(o.date)}</span>
             </div>
             <div className="mc-orderrow__lines">
-              {o.lines.map((l) => (l.qty > 1 ? `${l.qty}× ${l.label}` : l.label)).join(' · ')}
+              {o.lines.map((l) => (l.qty > 1 ? `${l.qty}× ${t(l.label)}` : t(l.label))).join(' · ')}
             </div>
             <div className="mc-orderrow__foot">
-              <span className="mc-orderrow__total">{fmtMoney(invoiceTotal(o), currency)}</span>
-              <span className={`mc-stchip ${ORDER_STATUS[o.status].cls}`}>{ORDER_STATUS[o.status].label}</span>
+              <span className="mc-orderrow__total">{prix(invoiceTotal(o), currency)}</span>
+              <span className={`mc-stchip ${ORDER_STATUS[o.status].cls}`}>{t(ORDER_STATUS[o.status].label)}</span>
             </div>
           </div>
         ))}
         {orders.length === 0 && (
           <div className="mc-emptyzone">
             <div className="mc-emptyzone__glyph">⬡</div>
-            <div className="mc-emptyzone__t">Aucune commande pour l’instant.</div>
+            <div className="mc-emptyzone__t">{t('Aucune commande pour l’instant.')}</div>
             <div className="mc-emptyzone__s">
-              Composez votre commande depuis la Gamme, vous suivrez ici chacun de ses états.
+              {t('Composez votre commande depuis la Gamme, vous suivrez ici chacun de ses états.')}
             </div>
           </div>
         )}
@@ -2145,10 +2218,10 @@ export function Notifications({ onClose }: { onClose: () => void }) {
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
       <div className="mc-flowhead mc-flowhead--split">
         <div>
-          <div className="mc-micro-eyebrow">La maison vous parle</div>
-          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Notifications.</h1>
+          <div className="mc-micro-eyebrow">{t('La maison vous parle')}</div>
+          <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>{t('Notifications.')}</h1>
         </div>
-        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+        <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
       </div>
       <div className="mc-scroll" style={{ flex: 1, padding: '8px 0 calc(16px + env(safe-area-inset-bottom))' }}>
         {!empty && (
@@ -2158,29 +2231,29 @@ export function Notifications({ onClose }: { onClose: () => void }) {
               onClick={clearAll}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'underline', textUnderlineOffset: '3px' }}
             >
-              Tout effacer
+              {t('Tout effacer')}
             </button>
           </div>
         )}
         {/* devis — envoyés par le Trône, acceptés ici */}
         {devisV.map((d) => (
           <div key={d.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
-            <button type="button" aria-label="Effacer" onClick={() => dismiss(`devis-${d.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
+            <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`devis-${d.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className={`mc-notif__dot ${d.status === 'acceptée' ? 'mc-notif__dot--success' : 'mc-notif__dot--copper'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
-                <span className="mc-notif__kind">Devis · {d.number}</span>
-                <span className="mc-notif__time">{dayLabelIso(d.date)}</span>
+                <span className="mc-notif__kind">{t('Devis · {numero}', { numero: d.number })}</span>
+                <span className="mc-notif__time">{jourDit(d.date)}</span>
               </div>
               <div className="mc-notif__msg">
                 {d.status === 'acceptée'
-                  ? 'Devis accepté, la maison prépare votre rituel.'
-                  : 'La maison vous propose un devis, à accepter pour sceller le rituel.'}
+                  ? t('Devis accepté, la maison prépare votre rituel.')
+                  : t('La maison vous propose un devis, à accepter pour sceller le rituel.')}
               </div>
-              <div className="mc-notif__total">{fmtMoney(invoiceTotal(d), currency)}</div>
+              <div className="mc-notif__total">{prix(invoiceTotal(d), currency)}</div>
               {d.status === 'envoyée' && (
                 <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => acceptDevis(d.id)}>
-                  Accepter le devis
+                  {t('Accepter le devis')}
                 </button>
               )}
             </div>
@@ -2190,15 +2263,20 @@ export function Notifications({ onClose }: { onClose: () => void }) {
         {/* rappel du prochain rituel */}
         {showRappel && next && (
           <div className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
-            <button type="button" aria-label="Effacer" onClick={() => dismiss(`rappel-${next.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
+            <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`rappel-${next.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className="mc-notif__dot mc-notif__dot--indigo" />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
-                <span className="mc-notif__kind">Rappel</span>
-                <span className="mc-notif__time">{dayLabelIso(next.date)}</span>
+                <span className="mc-notif__kind">{t('Rappel')}</span>
+                <span className="mc-notif__time">{jourDit(next.date)}</span>
               </div>
               <div className="mc-notif__msg">
-                {serviceNames(next, services) || 'Votre rituel'} · {dayLabelIso(next.date)} à {next.time} avec {next.master}. Venez les locks secs, sans produit.
+                {t('{rituel} · {jour} à {heure} avec {maitre}. Venez les locks secs, sans produit.', {
+                  rituel: serviceNames(next, services) || t('Votre rituel'),
+                  jour: jourDit(next.date),
+                  heure: next.time,
+                  maitre: next.master,
+                })}
               </div>
             </div>
           </div>
@@ -2207,23 +2285,23 @@ export function Notifications({ onClose }: { onClose: () => void }) {
         {/* réservations — l'état vu par la maison */}
         {upcomingV.map((a) => (
           <div key={a.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
-            <button type="button" aria-label="Effacer" onClick={() => dismiss(`resa-${a.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
+            <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`resa-${a.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
             <span className={`mc-notif__dot ${a.status === 'confirmé' ? 'mc-notif__dot--success' : 'mc-notif__dot--soft'}`} />
             <div className="mc-notif__body">
               <div className="mc-notif__head">
-                <span className="mc-notif__kind">{a.status === 'confirmé' ? 'Confirmation' : 'Réservation'}</span>
-                <span className="mc-notif__time">{dayLabelIso(a.date)} · {a.time}</span>
+                <span className="mc-notif__kind">{a.status === 'confirmé' ? t('Confirmation') : t('Réservation')}</span>
+                <span className="mc-notif__time">{jourDit(a.date)} · {a.time}</span>
               </div>
               <div className="mc-notif__msg">
                 {a.status === 'confirmé'
-                  ? `${serviceNames(a, services) || 'Votre rituel'} confirmé, la maison vous attend, avec ${a.master}.`
-                  : `${serviceNames(a, services) || 'Votre rituel'}, acompte reçu, en attente de la maison.`}
+                  ? t('{rituel} confirmé, la maison vous attend, avec {maitre}.', { rituel: serviceNames(a, services) || t('Votre rituel'), maitre: a.master })
+                  : t('{rituel}, acompte reçu, en attente de la maison.', { rituel: serviceNames(a, services) || t('Votre rituel') })}
               </div>
             </div>
           </div>
         ))}
 
-        {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>Aucune notification, la maison veille.</div>}
+        {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>{t('Aucune notification, la maison veille.')}</div>}
       </div>
     </div>
   );

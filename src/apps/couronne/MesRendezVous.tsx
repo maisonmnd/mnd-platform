@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useBranch } from '../../shared/branches';
-import { fmtMoney } from '../../shared/currency';
 import { ecrisRendezVous, useAppointments, type Appointment } from '../../shared/agenda';
 import { useClients, useFamilies } from '../../shared/clients';
 import { tetesPortees } from '../../shared/accounts';
@@ -13,6 +12,7 @@ import {
   DOW_LETTERS,
   MONTHS,
   dayLabelIso,
+  dayLabelIsoFr,
   fmtDuration,
   freeSlots,
   useCreneauxOccupes,
@@ -20,6 +20,7 @@ import {
   todayIso,
   useClientId,
 } from './lib';
+import { t, prix } from './i18n';
 
 /* MES RENDEZ-VOUS — voir, déplacer, annuler.
    Le déplacement reprend le calendrier de la réservation (créneaux libres réels) ;
@@ -53,7 +54,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
   const mine = useMemo(
     () => {
-      const miens = new Set([clientId, ...tetes.map((t) => t.id)]);
+      const miens = new Set([clientId, ...tetes.map((x) => x.id)]);
       return appts
         .filter((a) => miens.has(a.clientId))
         .slice()
@@ -73,17 +74,21 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   /* Ses cinq derniers passages, en résumé (29 septembre 2026). */
   const past = mine.filter((a) => !isUpcoming(a)).slice(-5).reverse();
 
-  const names = (a: Appointment) => {
+  /* `pourLaMaison` : ce qui part au Trône (push du personnel) reste en
+     français ; ce qu'elle lit suit sa langue. */
+  const names = (a: Appointment, pourLaMaison = false) => {
     const base = a.serviceIds.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean).join(' + ') ||
-      'Rituel de la maison';
+      (pourLaMaison ? 'Rituel de la maison' : t('Rituel de la maison'));
     /* Le rituel d'une tête portée se nomme : « — pour Keli ». */
-    const tete = a.clientId !== clientId ? tetes.find((t) => t.id === a.clientId) : undefined;
-    return tete ? `${base}, pour ${tete.name.split(' ')[0]}` : base;
+    const tete = a.clientId !== clientId ? tetes.find((x) => x.id === a.clientId) : undefined;
+    if (!tete) return base;
+    const prenom = tete.name.split(' ')[0];
+    return pourLaMaison ? `${base}, pour ${prenom}` : t('{rituel}, pour {prenom}', { rituel: base, prenom });
   };
 
   const durationOf = (a: Appointment) => {
-    const t = a.serviceIds.reduce((n, id) => n + (services.find((s) => s.id === id)?.durationMin ?? 60), 0);
-    return t || 60;
+    const total = a.serviceIds.reduce((n, id) => n + (services.find((s) => s.id === id)?.durationMin ?? 60), 0);
+    return total || 60;
   };
 
   /* ---- Calendrier du téléphone : un événement par séance (série complète) ---- */
@@ -91,7 +96,9 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
     const group = a.seriesId ? mine.filter((x) => x.seriesId === a.seriesId && x.status !== 'annulé') : [a];
     const events: IcsEvent[] = group.map((x) => ({
       title: `Maison MND · ${names(x)}`,
-      description: x.seriesTotal ? `Séance ${x.seriesIndex}/${x.seriesTotal} · avec ${x.master}` : `Avec ${x.master}`,
+      description: x.seriesTotal
+        ? t('Séance {i}/{n} · avec {maitre}', { i: x.seriesIndex ?? '', n: x.seriesTotal, maitre: x.master })
+        : t('Avec {maitre}', { maitre: x.master }),
       location: branch.name,
       dateIso: x.date,
       time: x.time,
@@ -99,7 +106,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       alarmMin: 120,
     }));
     downloadIcs(events, 'rituel-maison-mnd.ics');
-    toast('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.');
+    toast(t('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.'));
   };
 
   /* ---- Modifier : nouvelle date + heure, comme à la réservation ---- */
@@ -183,17 +190,18 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
   /* LE DÉPLACEMENT PORTE LE MÊME RISQUE QUE L'ANNULATION — un rituel déplacé
      ici et resté à sa vieille heure au Trône, c'est une cliente qui vient
      quand personne ne l'attend. Même chemin, même vérification, même aveu. */
-  const reschedule = async (t: string) => {
+  const reschedule = async (heure: string) => {
     if (!editing || !selIso) return;
     const a = editing;
     const iso = selIso;
     setEditing(null);
     setSelIso(null);
-    const label = `${names(a)} · ${dayLabelIso(iso)} à ${t}`;
-    const transmis = await ecrisRendezVous(a.id, { date: iso, time: t, status: 'en attente' });
+    /* Le libellé du Trône reste en français ; le sien suit sa langue. */
+    const label = `${names(a, true)} · ${dayLabelIsoFr(iso)} à ${heure}`;
+    const transmis = await ecrisRendezVous(a.id, { date: iso, time: heure, status: 'en attente' });
     if (!transmis) {
-      toast('Déplacement non transmis, prévenez la maison.');
-      setNonTransmis({ a: { ...a, date: iso, time: t }, geste: 'déplacement' });
+      toast(t('Déplacement non transmis, prévenez la maison.'));
+      setNonTransmis({ a: { ...a, date: iso, time: heure }, geste: 'déplacement' });
       return;
     }
     void pushNotifyStaff(
@@ -201,12 +209,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
       `${a.clientName ?? 'Une cliente'} · ${label}, à confirmer`,
       '/trone/#/calendrier',
     );
-    const body = `${label}, en attente de confirmation de la maison.`;
+    const body = t('{rituel} · {jour} à {heure}, en attente de confirmation de la maison.', { rituel: names(a), jour: dayLabelIso(iso), heure });
+    const titre = t('Rendez-vous modifié');
     void enablePush(clientId).then((subbed) => {
-      if (subbed) void pushNotify(clientId, 'Rendez-vous modifié', body, `${import.meta.env.BASE_URL}#/suivi`);
-      else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous modifié', body); });
+      if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/suivi`);
+      else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
     });
-    toast('Rendez-vous déplacé, la maison confirmera.');
+    toast(t('Rendez-vous déplacé, la maison confirmera.'));
   };
 
   /* ---- Annuler : confirmation explicite, l'acompte reste acquis ---- */
@@ -225,25 +234,26 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
   const annuler = async (a: Appointment) => {
     const transmis = await ecrisRendezVous(a.id, { status: 'annulé' });
-    const body = `${names(a)} du ${dayLabelIso(a.date)} à ${a.time}, annulé.`;
+    const body = t('{rituel} du {jour} à {heure}, annulé.', { rituel: names(a), jour: dayLabelIso(a.date), heure: a.time });
+    const titre = t('Rendez-vous annulé');
     if (transmis) {
       setNonTransmis(null);
       void pushNotifyStaff(
         'Rendez-vous annulé · Ma Couronne',
-        `${a.clientName ?? 'Une cliente'} · ${names(a)} · ${dayLabelIso(a.date)} à ${a.time}`,
+        `${a.clientName ?? 'Une cliente'} · ${names(a, true)} · ${dayLabelIsoFr(a.date)} à ${a.time}`,
         '/trone/#/calendrier',
       );
       void enablePush(clientId).then((subbed) => {
-        if (subbed) void pushNotify(clientId, 'Rendez-vous annulé', body, `${import.meta.env.BASE_URL}#/suivi`);
-        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Rendez-vous annulé', body); });
+        if (subbed) void pushNotify(clientId, titre, body, `${import.meta.env.BASE_URL}#/suivi`);
+        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
       });
-      toast('Rendez-vous annulé, la maison est prévenue.');
+      toast(t('Rendez-vous annulé, la maison est prévenue.'));
       return;
     }
     /* DIRE VRAI : sur ce téléphone il est annulé, au salon il ne l'est pas.
        Tant qu'elle n'a pas appelé, le créneau lui reste réservé. */
     setNonTransmis({ a, geste: 'annulation' });
-    toast('Annulation non transmise, prévenez la maison.');
+    toast(t('Annulation non transmise, prévenez la maison.'));
   };
 
   const confirmCancel = () => {
@@ -260,18 +270,18 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
           {editing ? (
             <>
               <button className="mc-linkback" onClick={() => { setEditing(null); setSelIso(null); }}>
-                ← Mes rendez-vous
+                ← {t('Mes rendez-vous')}
               </button>
-              <h1 className="mc-flowhead__h1" style={{ marginTop: 8 }}>Déplacer le rituel.</h1>
+              <h1 className="mc-flowhead__h1" style={{ marginTop: 8 }}>{t('Déplacer le rituel.')}</h1>
             </>
           ) : (
             <>
-              <div className="mc-micro-eyebrow">Votre agenda · la maison suit</div>
-              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>Mes rendez-vous.</h1>
+              <div className="mc-micro-eyebrow">{t('Votre agenda · la maison suit')}</div>
+              <h1 className="mc-flowhead__h1" style={{ marginTop: 4 }}>{t('Mes rendez-vous.')}</h1>
             </>
           )}
         </div>
-        <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+        <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
       </div>
 
       <div className="mc-scroll mc-flowbody">
@@ -280,12 +290,17 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
             créneau qu'on croit rendu, non. */}
         {nonTransmis && (
           <div className="mc-nontransmis">
-            <b>Votre {nonTransmis.geste} n’est pas arrivée à la maison.</b>
+            <b>{nonTransmis.geste === 'annulation'
+              ? t('Votre annulation n’est pas arrivée à la maison.')
+              : t('Votre déplacement n’est pas arrivé à la maison.')}</b>
             <span>
-              {names(nonTransmis.a)} — {nonTransmis.geste === 'annulation'
-                ? `annulé sur ce téléphone, mais le salon garde encore votre créneau du ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}`
-                : `déplacé sur ce téléphone au ${dayLabelIso(nonTransmis.a.date)} à ${nonTransmis.a.time}, mais le salon vous attend encore à l’ancienne heure`}.
-              Appelez la maison{branch.phone ? ` au ${branch.phone}` : ''}, ou réessayez dans un instant.
+              {nonTransmis.geste === 'annulation'
+                ? t('{rituel}, annulé sur ce téléphone, mais la Maison garde encore votre créneau du {jour} à {heure}.', { rituel: names(nonTransmis.a), jour: dayLabelIso(nonTransmis.a.date), heure: nonTransmis.a.time })
+                : t('{rituel}, déplacé sur ce téléphone au {jour} à {heure}, mais la Maison vous attend encore à l’ancienne heure.', { rituel: names(nonTransmis.a), jour: dayLabelIso(nonTransmis.a.date), heure: nonTransmis.a.time })}
+              {' '}
+              {branch.phone
+                ? t('Appelez la maison au {tel}, ou réessayez dans un instant.', { tel: branch.phone })
+                : t('Appelez la maison, ou réessayez dans un instant.')}
             </span>
             <button
               className="mc-textbtn"
@@ -294,13 +309,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                 if (geste === 'annulation') void annuler(a);
                 else void ecrisRendezVous(a.id, { date: a.date, time: a.time, status: 'en attente' })
                   .then((ok) => {
-                    if (!ok) { toast('Toujours pas transmis, appelez la maison.'); return; }
+                    if (!ok) { toast(t('Toujours pas transmis, appelez la maison.')); return; }
                     setNonTransmis(null);
-                    toast('Déplacement transmis, la maison confirmera.');
+                    toast(t('Déplacement transmis, la maison confirmera.'));
                   });
               }}
             >
-              Réessayer →
+              {t('Réessayer')} →
             </button>
           </div>
         )}
@@ -308,12 +323,13 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
           /* -------- déplacement : calendrier + heures libres -------- */
           <div className="mc-fade">
             <div className="mc-prefillnote">
-              {names(editing)} · actuellement {dayLabelIso(editing.date)} à {editing.time} · avec {editing.master}
-              {editing.seriesTotal ? ` · séance ${editing.seriesIndex}/${editing.seriesTotal}` : ''}
+              {t('{rituel} · actuellement {jour} à {heure} · avec {maitre}', { rituel: names(editing), jour: dayLabelIso(editing.date), heure: editing.time, maitre: editing.master })}
+              {editing.seriesTotal ? <>{' · '}{t('séance {i}/{n}', { i: editing.seriesIndex ?? '', n: editing.seriesTotal })}</> : null}
             </div>
             <div className="mc-calnav">
               <button onClick={() => setMonthIdx(Math.max(0, monthIdx - 1))} disabled={monthIdx === 0}>‹</button>
-              <span>{month.label}</span>
+              {/* Le mois se dit à l'affichage, dans sa langue (MONTHS suit la langue). */}
+              <span>{`${MONTHS[month.m]} ${month.y}`}</span>
               <button
                 onClick={() => setMonthIdx(Math.min(months.length - 1, monthIdx + 1))}
                 disabled={monthIdx === months.length - 1}
@@ -333,7 +349,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                     key={c.key}
                     className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}`}
                     onClick={() => {
-                      if (!c.free) { toast('Aucune disponibilité ce jour.'); return; }
+                      if (!c.free) { toast(t('Aucune disponibilité ce jour.')); return; }
                       setSelIso(c.iso!);
                     }}
                   >
@@ -344,45 +360,45 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
               )}
             </div>
             <div className="mc-callegend">
-              <span />Jours avec créneaux libres · {fmtDuration(durationOf(editing))} · maître {editing.master}
+              <span />{t('Jours avec créneaux libres')} · {fmtDuration(durationOf(editing))} · {t('maître {maitre}', { maitre: editing.master })}
             </div>
 
             {selIso && (
               <div className="mc-fade" style={{ marginTop: 20 }}>
-                <div className="mc-micro-eyebrow" style={{ marginBottom: 10 }}>{dayLabelIso(selIso)} · heures libres</div>
+                <div className="mc-micro-eyebrow" style={{ marginBottom: 10 }}>{dayLabelIso(selIso)} · {t('heures libres')}</div>
                 <div className="mc-stack">
-                  {dayTimes.map((t) => (
-                    <button key={t} className="mc-slotcard" onClick={() => reschedule(t)}>
+                  {dayTimes.map((heure) => (
+                    <button key={heure} className="mc-slotcard" onClick={() => reschedule(heure)}>
                       <div>
-                        <div className="mc-slotcard__time">{t}</div>
-                        <div className="mc-slotcard__who">avec {editing.master} · {fmtDuration(durationOf(editing))}</div>
+                        <div className="mc-slotcard__time">{heure}</div>
+                        <div className="mc-slotcard__who">{t('avec {maitre}', { maitre: editing.master })} · {fmtDuration(durationOf(editing))}</div>
                       </div>
-                      <span className="mc-slotcard__free">Choisir</span>
+                      <span className="mc-slotcard__free">{t('Choisir')}</span>
                     </button>
                   ))}
                   {dayTimes.length === 0 && (
-                    <div className="mc-emptyline">Plus de créneau ce jour, choisissez un autre jour.</div>
+                    <div className="mc-emptyline">{t('Plus de créneau ce jour, choisissez un autre jour.')}</div>
                   )}
                 </div>
               </div>
             )}
             <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 16 }}>
-              Le déplacement repasse le rendez-vous en attente, la maison le re-confirme.
+              {t('Le déplacement repasse le rendez-vous en attente, la maison le re-confirme.')}
             </div>
           </div>
         ) : (
           /* -------- liste : à venir puis passés récents -------- */
           <div className="mc-fade">
-            <div className="mc-sectionlabel" style={{ margin: '0 0 10px' }}>À venir</div>
+            <div className="mc-sectionlabel" style={{ margin: '0 0 10px' }}>{t('À venir')}</div>
             {upcoming.length === 0 && (
               <div className="mc-emptyzone">
                 <div className="mc-emptyzone__glyph">♛</div>
-                <div className="mc-emptyzone__t">Aucun rituel à venir.</div>
+                <div className="mc-emptyzone__t">{t('Aucun rituel à venir.')}</div>
                 <div className="mc-emptyzone__s">
-                  Votre couronne mérite sa prochaine séance, la maison vous attend.
+                  {t('Votre couronne mérite sa prochaine séance, la maison vous attend.')}
                 </div>
                 <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={onBook}>
-                  Réserver un rituel
+                  {t('Réserver un rituel')}
                 </button>
               </div>
             )}
@@ -391,22 +407,22 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
                 <div key={a.id} className="mc-rdvcard">
                   <div className="mc-rdvcard__top">
                     <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
-                    <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{STATUS_META[a.status].label}</span>
+                    <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
                   </div>
                   <div className="mc-rdvcard__svc">{names(a)}</div>
-                  <div className="mc-rdvcard__meta">avec {a.master} · {fmtDuration(durationOf(a))} · {branch.name}</div>
+                  <div className="mc-rdvcard__meta">{t('avec {maitre}', { maitre: a.master })} · {fmtDuration(durationOf(a))} · {branch.name}</div>
                   {(a.seriesTotal || a.depositXof != null) && (
                     <div className="mc-rdvcard__chips">
-                      {a.seriesTotal && <span className="mc-pillseal">Séance {a.seriesIndex}/{a.seriesTotal}</span>}
+                      {a.seriesTotal && <span className="mc-pillseal">{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span>}
                       {a.depositXof != null && (
-                        <span className="mc-pillseal">{a.depositConfirmed ? 'Acompte reçu' : 'Acompte'} · {fmtMoney(a.depositXof, currency)}</span>
+                        <span className="mc-pillseal">{a.depositConfirmed ? t('Acompte reçu') : t('Acompte')} · {prix(a.depositXof, currency)}</span>
                       )}
                     </div>
                   )}
                   <div className="mc-rdvcard__acts">
-                    <button className="mc-rdvact" onClick={() => openEdit(a)}>Modifier</button>
-                    <button className="mc-rdvact" onClick={() => addToCalendar(a)}>Calendrier</button>
-                    <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>Annuler</button>
+                    <button className="mc-rdvact" onClick={() => openEdit(a)}>{t('Modifier')}</button>
+                    <button className="mc-rdvact" onClick={() => addToCalendar(a)}>{t('Calendrier')}</button>
+                    <button className="mc-rdvact mc-rdvact--danger" onClick={() => setCancelling(a)}>{t('Annuler')}</button>
                   </div>
                 </div>
               ))}
@@ -414,19 +430,19 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
             {past.length > 0 && (
               <>
-                <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Passés récents</div>
+                <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>{t('Passés récents')}</div>
                 <div className="mc-stack" style={{ gap: 10 }}>
                   {past.map((a) => (
                     <div key={a.id} className="mc-rdvcard mc-rdvcard--past">
                       <div className="mc-rdvcard__top">
                         <span className="mc-rdvcard__when">{dayLabelIso(a.date)} · {a.time}</span>
-                        <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{STATUS_META[a.status].label}</span>
+                        <span className={`mc-stchip ${STATUS_META[a.status].cls}`}>{t(STATUS_META[a.status].label)}</span>
                       </div>
                       <div className="mc-rdvcard__svc">{names(a)}</div>
-                      <div className="mc-rdvcard__meta">avec {a.master}</div>
+                      <div className="mc-rdvcard__meta">{t('avec {maitre}', { maitre: a.master })}</div>
                       {a.seriesTotal && (
                         <div className="mc-rdvcard__chips">
-                          <span className="mc-pillseal">Séance {a.seriesIndex}/{a.seriesTotal}</span>
+                          <span className="mc-pillseal">{t('Séance {i}/{n}', { i: a.seriesIndex ?? '', n: a.seriesTotal })}</span>
                         </div>
                       )}
                     </div>
@@ -437,8 +453,7 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
 
             {upcoming.length > 0 && (
               <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 18 }}>
-                Les rappels passent par votre calendrier (bouton « Calendrier ») et par l’app ouverte,
-                la maison ne peut pas encore vous notifier à distance.
+                {t('Les rappels passent par votre calendrier (bouton « Calendrier ») et par l’app ouverte, la maison ne peut pas encore vous notifier à distance.')}
               </div>
             )}
           </div>
@@ -448,19 +463,19 @@ export default function MesRendezVous({ onClose, onBook, toast }: Props) {
         {cancelling && (
           <div className="mc-paysheet mc-fade">
             <div className="mc-paysheet__card mc-rise" style={{ textAlign: 'left' }}>
-              <div className="mc-micro-eyebrow">Annulation</div>
-              <div className="mc-cancel__t">Annuler ce rendez-vous ?</div>
+              <div className="mc-micro-eyebrow">{t('Annulation')}</div>
+              <div className="mc-cancel__t">{t('Annuler ce rendez-vous ?')}</div>
               <div className="mc-cancel__s">
-                {names(cancelling)} · {dayLabelIso(cancelling.date)} à {cancelling.time} · avec {cancelling.master}.
+                {t('{rituel} · {jour} à {heure} · avec {maitre}.', { rituel: names(cancelling), jour: dayLabelIso(cancelling.date), heure: cancelling.time, maitre: cancelling.master })}
               </div>
               {cancelling.depositXof != null && (
                 <div className="mc-cancel__warn">
-                  L’acompte de {fmtMoney(cancelling.depositXof, currency)} reste acquis à la maison.
+                  {t('L’acompte de {montant} reste acquis à la maison.', { montant: prix(cancelling.depositXof, currency) })}
                 </div>
               )}
               <div className="mc-cancel__acts">
-                <button className="mc-cta mc-cta--danger" onClick={confirmCancel}>Annuler le rendez-vous</button>
-                <button className="mc-cta mc-cta--quiet" onClick={() => setCancelling(null)}>Garder le rendez-vous</button>
+                <button className="mc-cta mc-cta--danger" onClick={confirmCancel}>{t('Annuler le rendez-vous')}</button>
+                <button className="mc-cta mc-cta--quiet" onClick={() => setCancelling(null)}>{t('Garder le rendez-vous')}</button>
               </div>
             </div>
           </div>

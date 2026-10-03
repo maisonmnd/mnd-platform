@@ -13,6 +13,7 @@ import Compose from './Compose';
 import MesRendezVous from './MesRendezVous';
 import { HomeTab, HomeEnfant, SuiviTab, GammeTab, CercleTab, ProfilTab, Notifications, MesCommandes } from './Tabs';
 import { MaFormuleTab } from './MaFormule';
+import { t, useLangue, adopteLaLangueDeLaFiche } from './i18n';
 
 /* Ma Couronne — l'app cliente de la Maison MND.
    Une vraie app web : plein écran sur mobile (100dvh, safe-areas) ;
@@ -73,6 +74,10 @@ function Shell() {
   /* Modules coupés par la Maison (Vitrine du Trône) : les onglets désactivés
      disparaissent ; si l'onglet courant se ferme, on revient à l'Accueil. */
   const me = useClient();
+  /* SA LANGUE LA SUIT D'UN TÉLÉPHONE À L'AUTRE : la fiche la porte, un
+     appareil neuf l'adopte (sauf choix déjà fait ici). Voir i18n.ts. */
+  const lg = useLangue();
+  useEffect(() => { adopteLaLangueDeLaFiche(me?.langue); }, [me?.langue]);
   /* LE SÉLECTEUR DE TÊTE (maquette du 9 août, écran 1). Le compte reste celui
      du parent — le sélecteur ne change pas de session, il change la tête que
      l'application REGARDE. Sans enfant rattaché au compte famille, la ligne
@@ -122,7 +127,7 @@ function Shell() {
      (bouton, offre, re-réservation) n'ouvre le tunnel — un mot honnête à la place. */
   const openBooking = useCallback((prefill?: BookingPrefill) => {
     if (ferme('reserver')) {
-      toast('Les réservations en ligne sont fermées pour votre compte, contactez la maison.');
+      toast(t('Les réservations en ligne sont fermées pour votre compte, contactez la maison.'));
       return;
     }
     setNotifOpen(false);
@@ -132,7 +137,7 @@ function Shell() {
 
   const openCompose = useCallback(() => {
     if (ferme('compose')) {
-      toast('Le rituel sur-mesure est fermé pour votre compte, contactez la maison.');
+      toast(t('Le rituel sur-mesure est fermé pour votre compte, contactez la maison.'));
       return;
     }
     setComposeOpen(true);
@@ -152,7 +157,8 @@ function Shell() {
 
   return (
     <>
-      <div className="mc-scroll mc-appbody">
+      {/* `key` : changer de langue remonte l'écran, rien ne garde une phrase d'avant. */}
+      <div className="mc-scroll mc-appbody" key={lg}>
         {/* UNE SEULE LIGNE S'AJOUTE EN HAUT DE L'ACCUEIL (écran 1) : les têtes
             du compte. Tout le reste de l'application est déjà là. */}
         {tab === 'accueil' && tetes.length > 0 && (
@@ -162,18 +168,18 @@ function Shell() {
               className={`mc-pourqui__chip ${!tete ? 'is-on' : ''}`}
               onClick={() => setTete('')}
             >
-              Vous
+              {t('Vous')}
             </button>
-            {tetes.map((t) => {
-              const a = ageDe(t.birthday, todayIso());
+            {tetes.map((tt) => {
+              const a = ageDe(tt.birthday, todayIso());
               return (
                 <button
-                  key={t.id}
+                  key={tt.id}
                   type="button"
-                  className={`mc-pourqui__chip ${tete === t.id ? 'is-on' : ''}`}
-                  onClick={() => setTete(t.id)}
+                  className={`mc-pourqui__chip ${tete === tt.id ? 'is-on' : ''}`}
+                  onClick={() => setTete(tt.id)}
                 >
-                  {t.name.split(' ')[0]}{a !== undefined ? ` · ${a} ans` : ''}
+                  {tt.name.split(' ')[0]}{a !== undefined ? <> · {t('{age} ans', { age: a })}</> : ''}
                 </button>
               );
             })}
@@ -201,18 +207,18 @@ function Shell() {
 
       <nav className="mc-tabbar">
         <img className="mc-nav__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
-        {visibleTabs.map((t) => (
+        {visibleTabs.map((onglet) => (
           <button
-            key={t.id}
-            className={`mc-tab ${tab === t.id ? 'is-on' : ''}`}
-            onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? 'page' : undefined}
+            key={onglet.id}
+            className={`mc-tab ${tab === onglet.id ? 'is-on' : ''}`}
+            onClick={() => setTab(onglet.id)}
+            aria-current={tab === onglet.id ? 'page' : undefined}
           >
-            <span className="mc-tab__glyph">{t.glyph}</span>
-            <span className="mc-tab__label">{t.label}</span>
+            <span className="mc-tab__glyph">{onglet.glyph}</span>
+            <span className="mc-tab__label">{t(onglet.label)}</span>
           </button>
         ))}
-        <button className="mc-nav__signout" onClick={() => void signOut()}>Se déconnecter</button>
+        <button className="mc-nav__signout" onClick={() => void signOut()}>{t('Se déconnecter')}</button>
       </nav>
 
       {booking && (
@@ -283,7 +289,7 @@ export default function App() {
         <div className="mc-viewport">
           <div className="mc-closed">
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
-            <h1 className="mc-closed__t">La maison est fermée.</h1>
+            <h1 className="mc-closed__t">{t('La maison est fermée.')}</h1>
             <p className="mc-closed__s">{mot}</p>
           </div>
         </div>
@@ -300,17 +306,15 @@ export default function App() {
         <div className="mc-viewport">
           <div className="mc-closed">
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
-            <h1 className="mc-closed__t">Ce compte tient le Trône.</h1>
+            <h1 className="mc-closed__t">{t('Ce compte tient le Trône.')}</h1>
             <p className="mc-closed__s">
-              Ma Couronne est la porte des clientes, le compte de la maison, lui, ouvre le
-              Trône. Pour essayer Ma Couronne, utilisez un compte de test qui n’est pas au
-              personnel.
+              {t('Ma Couronne est la porte des clientes, le compte de la maison, lui, ouvre le Trône. Pour essayer Ma Couronne, utilisez un compte de test qui n’est pas au personnel.')}
             </p>
             <a className="mc-cta mc-cta--copper" style={{ marginTop: 18, display: 'inline-block', textDecoration: 'none' }} href={lienTrone}>
-              Ouvrir le Trône
+              {t('Ouvrir le Trône')}
             </a>
             <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={() => void signOut()}>
-              Se déconnecter
+              {t('Se déconnecter')}
             </button>
           </div>
         </div>
@@ -328,24 +332,22 @@ export default function App() {
         <div className="mc-viewport">
           <div className="mc-closed">
             <img className="mc-closed__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
-            <h1 className="mc-closed__t">Cette adresse a déjà son espace.</h1>
+            <h1 className="mc-closed__t">{t('Cette adresse a déjà son espace.')}</h1>
             <p className="mc-closed__s">
-              Votre couronne, vos enfants et vos rendez-vous sont bien là. Ils sont attachés à
-              l’autre porte de cette même adresse. Reprenez par celle-là, tout vous attend
-              derrière. Un doute ? Écrivez à la maison, on vous ouvre.
+              {t('Votre couronne, vos enfants et vos rendez-vous sont bien là. Ils sont attachés à l’autre porte de cette même adresse. Reprenez par celle-là, tout vous attend derrière. Un doute ? Écrivez à la maison, on vous ouvre.')}
             </p>
             {/* DEUX PORTES, PAS UNE CONSIGNE. L'écran disait « reconnectez-vous
                 par la porte utilisée la première fois » sans dire LAQUELLE, et
                 sans rien à toucher : la cliente restait dehors avec un conseil.
                 Les deux portes sont ici, elle en pousse une. */}
             <button className="mc-cta" style={{ marginTop: 18 }} onClick={() => void signInWithGoogle()}>
-              Continuer avec Google
+              {t('Continuer avec Google')}
             </button>
             {/* LE MOT DIT LES DEUX CHOSES : ce bouton DÉCONNECTE, puis rouvre
                 la porte ordinaire. « Entrer par e-mail » seul laissait croire
                 qu'on restait connecté, et personne n'osait le toucher. */}
             <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={() => void signOut()}>
-              Se déconnecter et entrer autrement
+              {t('Se déconnecter et entrer autrement')}
             </button>
           </div>
         </div>

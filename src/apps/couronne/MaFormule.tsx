@@ -7,7 +7,7 @@ import { useModelBands, useBandSets, bandsAbonnements, calibreDeLaTete } from '.
 import { useFamilies } from '../../shared/clients';
 import {
   FAMILLES_FORMULES, activeSubscriberOf, cycleLabel, formuleLaPlusUtile, prixDeLaFormule, moisDuPack,
-  etendueDeLaFormule, libelleFourchette, SELON_LE_CALIBRE, gainPourElle, type TeteConnue,
+  etendueDeLaFormule, SELON_LE_CALIBRE, gainPourElle, type TeteConnue,
   prixVenduXof, ecartDuPrixConvenu, valeurALaCarte, remiseSurLaCarte,
   formulesPourElle, etendueDesRemises,
   subPaid, subServiceUsage, usePlans, useSubscribers, type Plan, type Subscriber,
@@ -18,6 +18,7 @@ import { demandeOuverteDe, demandesFormuleStore, useDemandesFormule, formulesVis
 import { uid, useStore } from '../../shared/store';
 import { useClient } from './lib';
 import AchatFormule from './AchatFormule';
+import { t, locale, prix } from './i18n';
 import './couronne.css';
 
 /* ── MA FORMULE — l'abonnement vu par la cliente, 28 août 2026 ────────
@@ -47,15 +48,24 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const frCourt = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'long' });
 };
+
+/** LA COULEUR DITE DANS SA LANGUE : le libellé partagé (« L’Ébène · une venue
+    sur deux ») se traduit morceau par morceau, à l'affichage seulement. */
+const couleurDite = (o: Parameters<typeof libelleCouleur>[0]) =>
+  libelleCouleur(o).split(' · ').map((x) => t(x)).join(' · ');
+
+/** Le rang d'une échéance : « 1ʳᵉ », « 2ᵉ »… et en anglais 1st, 2nd, 3rd. */
+const rangDeLEcheance = (n: number) =>
+  n === 1 ? t('1ʳᵉ') : n === 2 ? t('2ᵉ') : n === 3 ? t('3ᵉ') : t('{n}ᵉ', { n });
 
 /** Les jetons d'une prestation incluse : pris, prochain, à venir. */
 function Jetons({ pris, total }: { pris: number; total: number }) {
   /* Au-delà de douze, la rangée cesse d'être lisible d'un coup d'œil : on
      rend alors le compte en clair plutôt qu'un mur de pastilles. */
   if (total > 12) {
-    return <div className="cma-jetons__long">{pris} pris sur {total}</div>;
+    return <div className="cma-jetons__long">{t('{pris} pris sur {total}', { pris, total })}</div>;
   }
   return (
     <div className="cma-jetons">
@@ -76,7 +86,7 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
   const { currency, branch } = useBranch();
   const [appts] = useAppointments();
   const [services] = useServices();
-  const nomService = (id: string) => services.find((s) => s.id === id)?.name ?? 'Prestation retirée';
+  const nomService = (id: string) => services.find((s) => s.id === id)?.name ?? t('Prestation retirée');
 
   const usage = useMemo(() => subServiceUsage(sub, plan, appts), [sub, plan, appts]);
   /* « Il vous reste N séances » — la plus contrainte des prestations, celle
@@ -104,34 +114,47 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
     <>
       <div className="cma-carte">
         <div className="cma-carte__tag">
-          {plan?.mode === 'pack' ? `${total} séances · valable ${moisDuPack(plan)} mois` : cycleLabel(sub.cycle ?? 'mensuel')}
+          {plan?.mode === 'pack'
+            ? (total > 1
+              ? t('{total} séances · valable {n} mois', { total, n: moisDuPack(plan) })
+              : t('{total} séance · valable {n} mois', { total, n: moisDuPack(plan) }))
+            : t(cycleLabel(sub.cycle ?? 'mensuel'))}
         </div>
-        <div className="cma-carte__nom">{plan?.name ?? 'Votre formule'}</div>
+        <div className="cma-carte__nom">{plan?.name ?? t('Votre formule')}</div>
         {plan?.line && <p className="cma-carte__ligne">{plan.line}</p>}
         <div className="cma-carte__etat">
-          <span>Il vous reste</span>
-          <b>{restant === null ? 'sans limite' : `${restant} séance${restant > 1 ? 's' : ''}${total ? ` sur ${total}` : ''}`}</b>
+          <span>{t('Il vous reste')}</span>
+          <b>{restant === null ? t('sans limite')
+            : total
+              ? (restant === 0 ? t('0 séance sur {total}', { total })
+                : restant > 1 ? t('{n} séances sur {total}', { n: restant, total })
+                  : t('{n} séance sur {total}', { n: restant, total }))
+              : (restant === 0 ? t('0 séance')
+                : restant > 1 ? t('{n} séances', { n: restant })
+                  : t('{n} séance', { n: restant }))}</b>
         </div>
       </div>
 
       {sub.couleur && (
         <div className="cma-option">
-          <span className="cma-micro">Votre option couleur</span>
-          <div className="cma-option__val">{libelleCouleur(sub.couleur)}</div>
+          <span className="cma-micro">{t('Votre option couleur')}</span>
+          <div className="cma-option__val">{couleurDite(sub.couleur)}</div>
         </div>
       )}
 
       {usage.length > 0 && (
         <div className="cma-credits">
-          <span className="cma-micro">Vos crédits</span>
+          <span className="cma-micro">{t('Vos crédits')}</span>
           {usage.map((u) => (
             <div key={u.serviceId} className="cma-credit">
               <div className="cma-credit__tete">
                 <span className="cma-credit__nom">{nomService(u.serviceId)}</span>
                 <span className="cma-credit__compte">
                   {u.qty === null
-                    ? 'sans limite'
-                    : `${u.used} pris · ${u.remaining} reste${(u.remaining ?? 0) > 1 ? 'nt' : ''}`}
+                    ? t('sans limite')
+                    : (u.remaining ?? 0) > 1
+                      ? t('{pris} pris · {reste} restent', { pris: u.used, reste: u.remaining ?? 0 })
+                      : t('{pris} pris · {reste} reste', { pris: u.used, reste: u.remaining ?? 0 })}
                 </span>
               </div>
               {u.qty !== null && <Jetons pris={u.used} total={u.qty} />}
@@ -142,38 +165,38 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
 
       {etats.length > 0 && (
         <div className="cma-ech">
-          <span className="cma-micro">Votre règlement · en {etats.length} fois</span>
+          <span className="cma-micro">{t('Votre règlement · en {n} fois', { n: etats.length })}</span>
           {etats.map((e) => (
             <div key={e.numero} className="cma-ech__ligne">
               <span className={`cma-pastille ${e.soldee ? 'ok' : e.enRetard ? 'retard' : 'avenir'}`} />
               <span className="cma-ech__date">
-                {e.numero}{e.numero === 1 ? 'ʳᵉ' : 'ᵉ'} · {frCourt(e.dueIso)}
-                {e.soldee ? ', réglée'
-                  : e.enRetard ? `, en retard de ${e.retardJours} j`
-                    : e.regleXof > 0 ? `, ${fmtMoney(e.regleXof, currency)} versés` : ''}
+                {rangDeLEcheance(e.numero)} · {frCourt(e.dueIso)}
+                {e.soldee ? <>{', '}{t('réglée')}</>
+                  : e.enRetard ? <>{', '}{e.retardJours === 1 ? t('en retard de 1 j') : t('en retard de {j} j', { j: e.retardJours })}</>
+                    : e.regleXof > 0 ? <>{', '}{t('{montant} versés', { montant: prix(e.regleXof, currency) })}</> : null}
               </span>
-              <span className={`cma-ech__mt ${e.soldee ? 'paye' : ''}`}>{fmtMoney(e.amountXof, currency)}</span>
+              <span className={`cma-ech__mt ${e.soldee ? 'paye' : ''}`}>{prix(e.amountXof, currency)}</span>
             </div>
           ))}
           {suivante && (
             lienReglement
               ? <a className="cma-btn" href={lienReglement} target="_blank" rel="noreferrer">
-                Régler {fmtMoney(suivante.resteXof, currency)}
+                {t('Régler {montant}', { montant: prix(suivante.resteXof, currency) })}
               </a>
-              : <div className="cma-vide">Il reste {fmtMoney(resteDeLEcheancier(etats), currency)} à régler au comptoir.</div>
+              : <div className="cma-vide">{t('Il reste {montant} à régler au comptoir.', { montant: prix(resteDeLEcheancier(etats), currency) })}</div>
           )}
           <p className="cma-note">
-            La Maison vous envoie le code MoMo et constate votre règlement au comptoir.
+            {t('La Maison vous envoie le code MoMo et constate votre règlement au comptoir.')}
           </p>
         </div>
       )}
 
       {etats.length === 0 && plan && (
         <div className="cma-ech">
-          <span className="cma-micro">Votre règlement</span>
+          <span className="cma-micro">{t('Votre règlement')}</span>
           <div className="cma-ech__ligne">
             <span className="cma-pastille avenir" />
-            <span className="cma-ech__date">Prochaine échéance · {frCourt(sub.nextIso)}</span>
+            <span className="cma-ech__date">{t('Prochaine échéance · {date}', { date: frCourt(sub.nextIso) })}</span>
             {/* SON PRIX, ET CE QUE LA MAISON LUI ACCORDE (décision du 28 août).
                 Le prix du catalogue barré à côté du sien : elle mesure le geste
                 au lieu de le deviner. Sans prix convenu, rien n'est barré et la
@@ -182,10 +205,10 @@ function SaFormule({ sub, plan }: { sub: Subscriber; plan: Plan | undefined }) {
               {(() => {
                 const e = ecartDuPrixConvenu(sub, plan, sub.cycle ?? 'mensuel');
                 return e && e.ecartXof < 0 ? (
-                  <span className="cma-ech__avant">{fmtMoney(e.catalogueXof, currency)}</span>
+                  <span className="cma-ech__avant">{prix(e.catalogueXof, currency)}</span>
                 ) : null;
               })()}
-              {fmtMoney(prixVenduXof(sub, plan, sub.cycle ?? 'mensuel'), currency)}
+              {prix(prixVenduXof(sub, plan, sub.cycle ?? 'mensuel'), currency)}
             </span>
           </div>
         </div>
@@ -298,27 +321,26 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
       <div className="cma-hero">
         {suggestion ? (
           <>
-            <div className="cma-hero__lab">Votre calcul</div>
+            <div className="cma-hero__lab">{t('Votre calcul')}</div>
             <p className="cma-hero__gd">
-              Vos {suggestion.rituels} derniers rituels vous auraient coûté{' '}
-              <em>{fmtMoney(suggestion.economieXof, currency)} de moins</em>.
+              {t('Vos {n} derniers rituels vous auraient coûté', { n: suggestion.rituels })}{' '}
+              <em>{t('{montant} de moins', { montant: prix(suggestion.economieXof, currency) })}</em>.
             </p>
             <p className="cma-hero__ss">
-              Avec {suggestion.plan.name}, au rythme que vous tenez déjà. Ce chiffre est le vôtre,
-              il vient de vos venues, pas d’une moyenne.
+              {t('Avec {formule}, au rythme que vous tenez déjà. Ce chiffre est le vôtre, il vient de vos venues, pas d’une moyenne.', { formule: suggestion.plan.name })}
             </p>
             <button type="button" className="cma-hero__cta" onClick={() => versLaFormule(suggestion.plan.id)}>
-              Voir cette formule
+              {t('Voir cette formule')}
             </button>
           </>
         ) : (
           <>
-            <div className="cma-hero__lab">Une formule, c’est</div>
-            <p className="cma-hero__gd">Votre place gardée, et un prix qui <em>ne bouge plus</em>.</p>
+            <div className="cma-hero__lab">{t('Une formule, c’est')}</div>
+            <p className="cma-hero__gd">{t('Votre place gardée, et un prix qui')}{' '}<em>{t('ne bouge plus')}</em>.</p>
             <p className="cma-hero__ss">
               {moments.length > 0
-                ? 'Vous venez quand votre couronne le demande. La Maison sait déjà quand vous arrivez, et ce que vous avez déjà payé.'
-                : 'La Maison prépare les siennes. En attendant, votre suivi et vos rendez-vous continuent comme d’habitude.'}
+                ? t('Vous venez quand votre couronne le demande. La Maison sait déjà quand vous arrivez, et ce que vous avez déjà payé.')
+                : t('La Maison prépare les siennes. En attendant, votre suivi et vos rendez-vous continuent comme d’habitude.')}
             </p>
           </>
         )}
@@ -327,9 +349,9 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
       {/* LES TROIS QUESTIONS DU COMPTOIR, répondues avant d'être posées. */}
       {moments.length > 0 && (
         <div className="cma-assur">
-          <div><b>Votre</b><span>créneau</span></div>
-          <div><b>Un prix</b><span>qui tient</span></div>
-          <div><b>Sans</b><span>paperasse</span></div>
+          <div><b>{t('Votre')}</b><span>{t('créneau')}</span></div>
+          <div><b>{t('Un prix')}</b><span>{t('qui tient')}</span></div>
+          <div><b>{t('Sans')}</b><span>{t('paperasse')}</span></div>
         </div>
       )}
 
@@ -338,10 +360,9 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
       {moments.length === 0 && (
         <div className="cma-bientot">
           <div className="cma-bientot__mono">◆</div>
-          <p className="cma-bientot__t">Bientôt ouvertes</p>
+          <p className="cma-bientot__t">{t('Bientôt ouvertes')}</p>
           <p className="cma-bientot__s">
-            Les formules de la Maison arrivent. Nous vous préviendrons ici même, et par un mot
-            sur votre téléphone.
+            {t('Les formules de la Maison arrivent. Nous vous préviendrons ici même, et par un mot sur votre téléphone.')}
           </p>
         </div>
       )}
@@ -349,8 +370,8 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
       {moments.map((m) => (
         <section key={m.k}>
           <div className="cma-moment">
-            <span className="cma-moment__titre">{m.titre}</span>
-            <span className="cma-moment__quand">{m.quand}</span>
+            <span className="cma-moment__titre">{t(m.titre)}</span>
+            <span className="cma-moment__quand">{t(m.quand)}</span>
             <span className="cma-moment__rule" />
           </div>
           {m.liste.map((p) => (
@@ -386,19 +407,22 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                   {(() => {
                     /* LE MÊME LIBELLÉ QUE PARTOUT AILLEURS : trois formulations
                        du même fait se lisent comme trois offres différentes. */
-                    const etendue = maTete.bandId
-                      ? null : libelleFourchette(p, 'mensuel', calibresAbo, (x) => fmtMoney(x, currency));
-                    return etendue ?? fmtMoney(prixDeLaFormule(p, 'mensuel', maTete, calibresAbo).montantXof, currency);
+                    /* Le libellé de `libelleFourchette` (« X à Y »), dit dans sa langue. */
+                    const bornes = maTete.bandId ? null : etendueDeLaFormule(p, 'mensuel', calibresAbo);
+                    const etendue = bornes
+                      ? t('{bas} à {haut}', { bas: prix(bornes.bas, currency), haut: prix(bornes.haut, currency) })
+                      : null;
+                    return etendue ?? prix(prixDeLaFormule(p, 'mensuel', maTete, calibresAbo).montantXof, currency);
                   })()}
                   <span>
-                    {p.mode === 'pack' ? ` · ${moisDuPack(p)} mois` : ' /mois'}
-                    {!maTete.bandId && etendueDeLaFormule(p, 'mensuel', calibresAbo) ? ` · ${SELON_LE_CALIBRE}` : ''}
+                    {p.mode === 'pack' ? <>{' · '}{t('{n} mois', { n: moisDuPack(p) })}</> : <>{' '}{t('/mois')}</>}
+                    {!maTete.bandId && etendueDeLaFormule(p, 'mensuel', calibresAbo) ? <>{' · '}{t(SELON_LE_CALIBRE)}</> : null}
                   </span>
                 </span>
                 {(() => {
                   const g = gainDe(p);
-                  if (g !== null) return <span className="cma-offre__gain">Vous gagnez {fmtMoney(g, currency)}</span>;
-                  return p.discountPct ? <span className="cma-offre__gain">−{p.discountPct} % sur la carte</span> : null;
+                  if (g !== null) return <span className="cma-offre__gain">{t('Vous gagnez {montant}', { montant: prix(g, currency) })}</span>;
+                  return p.discountPct ? <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: p.discountPct })}</span> : null;
                 })()}
               </div>
               <button
@@ -406,7 +430,7 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
                 className={`cma-btn cma-btn--sm ${suggestion?.plan.id === p.id ? '' : 'ghost'}`}
                 onClick={() => onDemande(p)}
               >
-                Je veux cette formule
+                {t('Je veux cette formule')}
               </button>
             </div>
           ))}
@@ -417,14 +441,14 @@ function LaVitrine({ plans, onDemande }: { plans: Plan[]; onDemande: (p: Plan) =
           bancaire pour prendre une formule. */}
       <div className="cma-pied">
         <p>
-          Vous réglez <b>au comptoir ou par MoMo</b>, jamais en ligne.
+          {t('Vous réglez')}{' '}<b>{t('au comptoir ou par MoMo')}</b>{t(', jamais en ligne.')}
           {numero ? (
             <>
-              {' '}Un doute ?{' '}
-              <a href={`https://wa.me/${numero}`} target="_blank" rel="noreferrer">Écrivez à la Maison</a>,
-              on vous répond.
+              {' '}{t('Un doute ?')}{' '}
+              <a href={`https://wa.me/${numero}`} target="_blank" rel="noreferrer">{t('Écrivez à la Maison')}</a>
+              {t(', on vous répond.')}
             </>
-          ) : ' Un doute ? Écrivez à la Maison, on vous répond.'}
+          ) : <>{' '}{t('Un doute ? Écrivez à la Maison, on vous répond.')}</>}
         </p>
       </div>
     </>
@@ -481,7 +505,7 @@ export function MaFormuleTab({ toast, onReserver }: {
       planName: p.name,
       demandeeLe: todayIso(),
     }]);
-    toast('Votre demande est partie, la Maison vous répond très vite.');
+    toast(t('Votre demande est partie, la Maison vous répond très vite.'));
   };
 
   const numero = (branch.phone ?? '').replace(/\D/g, '');
@@ -506,11 +530,10 @@ export function MaFormuleTab({ toast, onReserver }: {
            de traitement » n'engage personne et laisse la cliente se demander
            si le bouton a marché. */
         <div className="cma-attente">
-          <div className="cma-attente__tag">Demande envoyée</div>
+          <div className="cma-attente__tag">{t('Demande envoyée')}</div>
           <p className="cma-attente__nom">{ouverte.planName}</p>
           <p className="cma-attente__dit">
-            La Maison a reçu votre demande le {frCourt(ouverte.demandeeLe)}. Elle vous répond très
-            vite, et vous réglerez au comptoir ou par MoMo.
+            {t('La Maison a reçu votre demande le {date}. Elle vous répond très vite, et vous réglerez au comptoir ou par MoMo.', { date: frCourt(ouverte.demandeeLe) })}
           </p>
           {numero && (
             <a
@@ -519,7 +542,7 @@ export function MaFormuleTab({ toast, onReserver }: {
               target="_blank"
               rel="noreferrer"
             >
-              Écrire à la Maison
+              {t('Écrire à la Maison')}
             </a>
           )}
         </div>

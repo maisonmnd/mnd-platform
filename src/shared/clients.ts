@@ -92,6 +92,11 @@ export type Client = {
   /** SA CIVILITÉ (2 octobre 2026, shared/civilite) : « Madame Naffi » dans les
       messages. Absente : Madame, ou Monsieur si la fiche est au masculin. */
   civilite?: 'madame' | 'mademoiselle' | 'monsieur';
+  /** SA LANGUE (3 octobre 2026, maquette « Ma Couronne, sombre et bilingue ») :
+      celle qu'elle a choisie dans Ma Couronne, ou celle de son téléphone à
+      sa première visite. Absente : français. Les messages automatiques la
+      suivront quand leurs versions anglaises seront approuvées chez Meta. */
+  langue?: 'fr' | 'en';
   /** SON AUTORISATION DE DROIT À L'IMAGE, signée — 6 septembre 2026.
 
       « Où est le contrat signé par la cliente ? » (Yéman). Les deux dates
