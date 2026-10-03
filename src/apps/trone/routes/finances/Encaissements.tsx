@@ -33,6 +33,8 @@ import { normName } from '../../../../shared/text';
 import { receiptPdf } from '../../../../shared/pdf';
 import { maisonNom } from '../../../../shared/identite';
 import './finances.css';
+import { usePointages } from '../../../../shared/caisse-du-soir';
+import type { Pointage } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { appelDe } from '../../../../shared/civilite';
 
@@ -127,6 +129,8 @@ export type VerdictReleve = {
   /** Ce qu'on a trouvé en face — pour le dire en toutes lettres. */
   detail?: string;
   apptId?: string;
+  /** La ligne du registre retrouvée — c'est elle qui se pointe (3 octobre). */
+  receiptId?: string;
 };
 
 /** Rapproche chaque ligne du registre : un encaissement ne se consomme qu'UNE
@@ -135,6 +139,9 @@ const rapprocher = (
   lignes: LigneReleve[],
   receipts: Receipt[],
   acomptesEnAttente: { id: string; depositXof: number; clientName?: string; date: string }[],
+  /* Déjà pointées (relevé d'avant, ou à la main) : on les prend en dernier,
+     pour qu'un second paiement du même montant ne reste pas orphelin. */
+  dejaPointees: ReadonlySet<string> = new Set(),
 ): VerdictReleve[] => {
   const libres = new Set(receipts.map((r) => r.id));
   const acomptesLibres = new Set(acomptesEnAttente.map((a) => a.id));
@@ -142,13 +149,14 @@ const rapprocher = (
     /* Le meilleur encaissement encore libre : même montant, dates proches. */
     const candidats = receipts
       .filter((r) => libres.has(r.id) && r.amountXof === ligne.montantXof && joursEntre(ligne.date, r.date) <= 3)
-      .sort((a, b) => joursEntre(ligne.date, a.date) - joursEntre(ligne.date, b.date));
+      .sort((a, b) => Number(dejaPointees.has(a.id)) - Number(dejaPointees.has(b.id))
+        || joursEntre(ligne.date, a.date) - joursEntre(ligne.date, b.date));
     const elu = candidats.find((r) => estMomo(r.method)) ?? candidats[0];
     if (elu) {
       libres.delete(elu.id);
       const qui = `${elu.clientName} · ${frDay(elu.date)} · ${elu.method}`;
       return estMomo(elu.method)
-        ? { ligne, etat: 'pointé' as const, detail: qui }
+        ? { ligne, etat: 'pointé' as const, detail: qui, receiptId: elu.id }
         : { ligne, etat: 'autre-moyen' as const, detail: qui };
     }
     /* Un acompte demandé, jamais confirmé, du même montant : la preuve
@@ -553,7 +561,32 @@ export default function Encaissements() {
       .map((a) => ({ id: a.id, depositXof: a.depositXof ?? 0, clientName: a.clientName ?? clients.find((c) => c.id === a.clientId)?.name, date: a.date })),
     [appointments, branch.id, clients],
   );
-  const verdicts = useMemo(() => rapprocher(lignes, all, acomptesEnAttente), [lignes, all, acomptesEnAttente]);
+  /* LE POINTAGE SE GARDE — 3 octobre 2026, maquette « Le pointage du
+     jour ». Il se refaisait à chaque collage et s'oubliait en quittant la
+     page. « Garder le pointage » écrit chaque ligne retrouvée comme pointée
+     par le relevé, avec sa référence MTN ; l'identifiant est celui de la
+     ligne du registre, si bien que recoller le même relevé ne double rien. */
+  const [pointages, setPointages] = usePointages();
+  const dejaPointees = useMemo(() => new Set(pointages.map((p) => p.id)), [pointages]);
+  const verdicts = useMemo(() => rapprocher(lignes, all, acomptesEnAttente, dejaPointees), [lignes, all, acomptesEnAttente, dejaPointees]);
+  const meStaff = useMonProfil();
+  const aGarder = verdicts.filter((v) => v.etat === 'pointé' && v.receiptId
+    && !pointages.some((p) => p.id === v.receiptId && p.comment === 'releve'));
+  const [garde, setGarde] = useState(0);
+  const garderLePointage = () => {
+    const le = new Date().toISOString();
+    const par = meStaff?.name?.trim() || 'Sans nom';
+    const nouveaux: Pointage[] = aGarder.map((v) => {
+      const r = all.find((x) => x.id === v.receiptId)!;
+      return {
+        id: r.id, branchId: branch.id, date: r.date, montantXof: r.amountXof, comment: 'releve', par, le,
+        ...(v.ligne.ref ? { ref: v.ligne.ref } : {}),
+      };
+    });
+    const ids = new Set(nouveaux.map((p) => p.id));
+    setPointages((prev) => [...prev.filter((p) => !ids.has(p.id)), ...nouveaux]);
+    setGarde(nouveaux.length);
+  };
   const compte = (etat: VerdictReleve['etat']) => verdicts.filter((v) => v.etat === etat).length;
   /* Confirmer l'acompte depuis la ligne du relevé : la date de la preuve est
      celle du relevé — c'est ce jour-là que l'argent est entré. */
@@ -644,8 +677,17 @@ export default function Encaissements() {
               </div>
               <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.5 }}>
                 « Noté sous un autre moyen » : l’argent est arrivé en MoMo mais le registre dit
-                autre chose (Espèces, carte…), à corriger sur la pièce d’origine. Le pointage ne
-                s’enregistre pas : recolle le relevé pour le refaire, il retombe sur ses pieds.
+                autre chose (Espèces, carte…), à corriger sur la pièce d’origine. « Garder le
+                pointage » marque les lignes retrouvées comme pointées par le relevé : elles le
+                restent dans le revenu du jour. Recoller le même relevé ne double rien.
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                <Button variant="copper" disabled={aGarder.length === 0} onClick={garderLePointage}>
+                  {aGarder.length > 0 ? `Garder le pointage · ${aGarder.length} ligne${aGarder.length > 1 ? 's' : ''}` : 'Pointage gardé'}
+                </Button>
+                {garde > 0 && aGarder.length === 0 && (
+                  <span className="mnd-muted" style={{ fontSize: 12 }}>{garde} ligne{garde > 1 ? 's' : ''} pointée{garde > 1 ? 's' : ''} par le relevé.</span>
+                )}
               </div>
             </>
           )}

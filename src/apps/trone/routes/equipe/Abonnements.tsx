@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   usePaymentMethods, useCashboxes, caisseParDefaut, nouvelleFacture, ligneFacture,
-  invoicesStore, invoiceRegleXof, type Invoice, type InvoicePayment,
+  invoicesStore, invoiceRegleXof, quiEncaisse, type Invoice, type InvoicePayment,
 } from '../../../../shared/finance';
 import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
@@ -778,6 +778,8 @@ export default function Abonnements() {
       method: pmt.method ?? (methods[0] ?? 'Espèces'),
       ...(boite ? { cashbox: boite } : {}),
       note: 'Abonnement',
+      time: new Date().toTimeString().slice(0, 5),
+      ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
     };
     const plan = planOf(payFor.planId);
     const nomFormule = plan?.name ?? 'Abonnement';

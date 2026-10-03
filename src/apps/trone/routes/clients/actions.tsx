@@ -11,7 +11,7 @@ import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHo
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
-import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -1244,6 +1244,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: amount,
           method: pay, cashbox: activeBox,
+          time: new Date().toTimeString().slice(0, 5),
+          ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
              Posée sur la seule pièce, elle se perdait dès que le versement
              s'inscrivait sur une pièce existante : tiroir EUR vide, PDF muet. */
@@ -1264,6 +1266,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: totalGamme,
           method: payGamme, cashbox: gammeBox || undefined, note: 'Gamme, produits emportés',
+          time: new Date().toTimeString().slice(0, 5),
+          ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
         });
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée

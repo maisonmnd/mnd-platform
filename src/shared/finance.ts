@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { createStore, useStore, uid } from './store';
 import { sameName } from './text';
+import { identiteCourante } from './journal';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -77,6 +78,11 @@ export type InvoicePayment = {
       `amount` = les billets réellement tendus (pourboire compris — on ne
       découpe pas un billet) ; `amountXof` reste la seule base comptable. */
   fx?: { code: string; rate: number; amount: number };
+  /** QUI A ENCAISSÉ — 3 octobre 2026, maquette « Le pointage du jour ». Le
+      nom de la main connectée au moment du geste (`identiteCourante`).
+      Absent sur tout ce qui précède : le registre se tait plutôt que de
+      deviner. */
+  encaissePar?: string;
 };
 
 export type InvoiceLine = {
@@ -157,6 +163,9 @@ export type Invoice = {
   cashbox?: string;
   /** Heure d’encaissement HH:mm — journal de caisse. */
   time?: string;
+  /** Qui a encaissé une pièce née payée (le ticket du comptoir, sans journal
+      de versements). Même contrat que `InvoicePayment.encaissePar`. */
+  encaissePar?: string;
   /** Nom libre quand la cliente n’est pas au CRM (walk-in). */
   clientName?: string;
   /** Le mot du Maître — imprimé sur le document. */
@@ -856,6 +865,7 @@ export const invoiceReglements = (inv: Invoice): InvoicePayment[] => {
     /* La devise de la pièce d'avant descend sur son versement unique : les
        lectures par versement (tiroir en devise, PDF) n'ont ainsi qu'UNE forme. */
     ...(inv.fx ? { fx: inv.fx } : {}),
+    ...(inv.encaissePar ? { encaissePar: inv.encaissePar } : {}),
   }];
 };
 
@@ -1000,6 +1010,14 @@ export const ligneProduit = (
 export const totalProduitsXof = (i: Pick<Invoice, 'lines'>): number =>
   (i.lines ?? []).reduce((n, l) => (l.produitId ? n + ligneNetXof(l) : n), 0);
 
+/** LA MAIN QUI ENCAISSE — 3 octobre 2026. Celle que le Trône a posée à la
+    connexion (`poseLIdentite`) ; `undefined` tant qu'elle est inconnue,
+    pour ne jamais écrire « Main inconnue » sur un versement. */
+export const quiEncaisse = (): string | undefined => {
+  const { nom, porte } = identiteCourante();
+  return porte === 'trone' && nom && nom !== 'Main inconnue' ? nom : undefined;
+};
+
 export function nouvelleFacture(f: FactureNeuve): Invoice {
   /* LE NUMÉRO SE TIRE DU MAGASIN, jamais d'une liste de rendu : la valeur
      qu'un composant tient en main date de son dernier rendu, et un numéro
@@ -1027,6 +1045,7 @@ export function nouvelleFacture(f: FactureNeuve): Invoice {
     status,
     /* L'heure n'a de sens que sur un encaissement — c'est le journal de caisse. */
     ...(status === 'payée' ? { time: new Date().toTimeString().slice(0, 5) } : {}),
+    ...(status === 'payée' && quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
     ...(clientName ? { clientName } : {}),
     ...(f.forClientId ? { forClientId: f.forClientId } : {}),
     ...(f.globalDiscountXof ? { globalDiscountXof: f.globalDiscountXof } : {}),

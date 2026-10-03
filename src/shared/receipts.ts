@@ -64,6 +64,10 @@ export type Receipt = {
   label: string;
   invoiceId?: string;
   apptId?: string;
+  /** L'heure du versement (HH:mm), quand le comptoir l'a notée. */
+  heure?: string;
+  /** Qui l'a encaissé, quand le Trône le savait (depuis le 3 octobre 2026). */
+  encaissePar?: string;
 };
 
 const LABEL_KIND: Record<ReceiptKind, string> = {
@@ -243,6 +247,8 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
         ref: i.number,
         label: i.lines.map((l) => l.label).join(' + ') || 'Règlement',
         invoiceId: i.id,
+        ...((p.time ?? i.time) ? { heure: p.time ?? i.time } : {}),
+        ...((p.encaissePar ?? i.encaissePar) ? { encaissePar: p.encaissePar ?? i.encaissePar } : {}),
       });
     }
     /* ①bis Le pourboire, sur SA ligne — même jour, même preuve, mais caisse
@@ -294,6 +300,7 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       ref: p.id,
       label: appt ? `Acompte · ${s.apptLabel(appt)}` : 'Acompte en ligne',
       apptId: p.partnerId,
+      ...(p.at && !Number.isNaN(new Date(p.at).getTime()) ? { heure: new Date(p.at).toTimeString().slice(0, 5) } : {}),
     });
   }
 

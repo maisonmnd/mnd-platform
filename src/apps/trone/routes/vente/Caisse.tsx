@@ -19,6 +19,7 @@ import {
 import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
+import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -241,6 +242,7 @@ export default function Caisse() {
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
+  const [clotureOuverte, setClotureOuverte] = useState(false);
   const [waHint, setWaHint] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   /* La remise d'une ligne se replie DANS la ligne au téléphone : les chips
@@ -1324,7 +1326,11 @@ export default function Caisse() {
                 ))}
               </div>
             </div>
-            <Button variant="ghost" onClick={() => setTab('encaisser')}>Clôturer la caisse</Button>
+            {/* LA CAISSE DU SOIR — 3 octobre 2026. Ce bouton ne faisait que revenir à
+                l'onglet Encaisser : aucun comptage n'existait. Il ouvre désormais
+                le comptage des tiroirs (maquette « Le pointage du jour »). */}
+            <Button variant="ghost" onClick={() => setClotureOuverte(true)}>Clôturer la caisse</Button>
+            {clotureOuverte && <ClotureDuTiroir tiroir={journalCaisse !== 'Toutes' ? journalCaisse : undefined} onClose={() => setClotureOuverte(false)} />}
           </div>
 
           <div className="tr-grid tr-cols" style={{ '--cols': '1.3fr 1fr 1fr 1fr 1fr', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', marginBottom: 24 } as CSSProperties}>

@@ -253,7 +253,7 @@ const CHAMPS_QUI_COMPTENT: Record<string, Set<string>> = {
 
 const TABLES_D_ARGENT = new Set(['invoices', 'payments', 'credit_movements', 'expenses', 'cashboxes',
   'transferts_caisse', 'coffre_movements', 'entrees_hors_activite', 'versements_engagement',
-  'cartes_cadeaux']);
+  'cartes_cadeaux', 'pointages', 'clotures_caisse']);
 
 const PIECE: Record<string, { le: string; nom: string }> = {
   appointments: { le: 'le rendez-vous', nom: 'Rendez-vous' },
@@ -271,6 +271,9 @@ const PIECE: Record<string, { le: string; nom: string }> = {
   devis_recus: { le: 'le devis reçu', nom: 'Devis reçu' },
   versements_engagement: { le: 'le versement au prestataire', nom: 'Versement' },
   cartes_cadeaux: { le: 'la carte cadeau', nom: 'Carte cadeau' },
+  /* Le pointage du jour et la caisse du soir — 3 octobre 2026 (0113). */
+  pointages: { le: 'le pointage', nom: 'Pointage' },
+  clotures_caisse: { le: 'la clôture du tiroir', nom: 'Clôture de caisse' },
 };
 
 const ORDRE = ['clientName', 'name', 'number', 'date', 'time', 'status', 'serviceIds', 'master', 'mains', 'forfait',

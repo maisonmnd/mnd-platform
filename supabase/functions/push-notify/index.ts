@@ -126,6 +126,31 @@ async function sendToStaff(payload: Payload): Promise<number> {
   return n;
 }
 
+/* LA DIRECTION SEULE — 3 octobre 2026. Le rappel des tiroirs restés ouverts
+   ne regarde que ceux qui valident les caisses (souverain), pas toute
+   l'équipe à 21 h. */
+async function sendToDirection(payload: Payload): Promise<number> {
+  const { data: staff } = await admin.from('staff').select('user_id,role').eq('role', 'souverain');
+  const ids = (staff ?? []).map((s: { user_id: string }) => s.user_id);
+  if (ids.length === 0) return 0;
+  const { data: subs } = await admin.from('push_subscriptions').select('endpoint,p256dh,auth,client_id').in('client_id', ids);
+  if (!subs || subs.length === 0) return 0;
+  let n = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        JSON.stringify({ url: '/trone/', ...payload }),
+      );
+      n++;
+    } catch (e) {
+      const code = (e as { statusCode?: number })?.statusCode;
+      if (code === 404 || code === 410) await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+    }
+  }
+  return n;
+}
+
 async function broadcastToClients(payload: Payload): Promise<number> {
   // Toute personne ayant une FICHE CLIENTE (inclut un souverain qui utilise aussi
   // Ma Couronne). On ne diffuse pas aux abonnements purement personnel (sans fiche).
@@ -219,6 +244,64 @@ async function runStaffCron(): Promise<number> {
   return sent;
 }
 
+/* ══ LES TIROIRS RESTÉS OUVERTS, À 21 H — 3 octobre 2026 ══════════════
+   Maquette « Le pointage du jour » : chaque tiroir se compte le soir. À
+   21 h (heure de la Maison), si un tiroir a BOUGÉ aujourd'hui — un
+   versement encaissé dedans, une dépense payée dedans — et n'a pas été
+   clôturé, la direction reçoit une notification. Une seule par jour : le
+   journal push_reminders retient « cloture-<jour> ». Le cron passe toutes
+   les quinze minutes ; seul le passage de 21 h agit.
+   Même règle que l'écran (`tiroirsSansCloture`) : ni le bocal des
+   pourboires, ni KkiaPay, et l'avoir ou l'acompte ne font pas bouger un
+   tiroir. */
+async function rappelDesTiroirs(): Promise<number> {
+  const decalageMin = (() => {
+    const m = /^([+-])(\d{2}):(\d{2})$/.exec(TZ_OFFSET);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 60;
+  })();
+  const ici = new Date(Date.now() + decalageMin * 60_000);
+  if (ici.getUTCHours() !== 21) return 0;
+  const jour = ici.toISOString().slice(0, 10);
+  const cle = `cloture-${jour}`;
+  const { data: dejaDit } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', cle).eq('kind', 'cloture').maybeSingle();
+  if (dejaDit) return 0;
+
+  const bouge = new Map<string, Set<string>>(); // branche -> tiroirs
+  const note = (branche: string | null | undefined, tiroir: unknown) => {
+    if (typeof tiroir !== 'string' || !tiroir || tiroir === 'Pourboires' || tiroir === 'KkiaPay') return;
+    const b = branche ?? '';
+    if (!bouge.has(b)) bouge.set(b, new Set());
+    bouge.get(b)!.add(tiroir);
+  };
+  for (const row of await toutes('invoices', 'id,branch_id,data')) {
+    const i = row.data ?? {};
+    const versements = Array.isArray(i.payments) && i.payments.length > 0
+      ? i.payments
+      : (i.status === 'payée' ? [{ date: i.date, cashbox: i.cashbox, method: i.payment }] : []);
+    for (const p of versements) {
+      if (p?.date === jour && p.method !== 'Avoir' && p.method !== 'Acompte') note(row.branch_id ?? i.branchId, p.cashbox);
+    }
+  }
+  for (const row of await toutes('expenses', 'id,branch_id,data')) {
+    const e = row.data ?? {};
+    if (e.date === jour && !e.avancee && !e.stopped) note(row.branch_id ?? e.branchId, e.cashbox);
+  }
+  for (const row of await toutes('clotures_caisse', 'id,branch_id,data')) {
+    const c = row.data ?? {};
+    if (c.date === jour) bouge.get(row.branch_id ?? c.branchId ?? '')?.delete(c.cashbox);
+  }
+  const ouverts = [...bouge.values()].flatMap((s) => [...s]).sort();
+  /* Journalisé même sans tiroir ouvert : on ne recompte pas à 21 h 15. */
+  await admin.from('push_reminders').insert({ appointment_id: cle, kind: 'cloture' });
+  if (ouverts.length === 0) return 0;
+  return await sendToDirection({
+    title: ouverts.length > 1 ? `${ouverts.length} tiroirs pas clôturés` : 'Un tiroir pas clôturé',
+    body: `${ouverts.join(', ')} : ${ouverts.length > 1 ? 'ils ont' : 'il a'} bougé aujourd’hui et n’${ouverts.length > 1 ? 'ont' : 'a'} pas été compté${ouverts.length > 1 ? 's' : ''}.`,
+    url: '/trone/#/caisse',
+    tag: cle,
+  });
+}
+
 /* ══ LE FACTEUR ET LES FONCTIONS PLANIFIÉES PARLENT AVEC LA CLÉ SERVICE — 2 oct. 2026 ══
    « Notifier une cliente » exigeait le jeton d'un membre du personnel. Les
    fonctions planifiées n'en ont pas : elles portent la clé service. Leur push
@@ -242,7 +325,7 @@ Deno.serve(async (req) => {
   // la passerelle exige déjà la clé publishable, et ces balayages sont idempotents
   // (journal push_reminders + fenêtre horaire) — les rejouer est sans effet.
   if (body.mode === 'reminders') return json({ sent: await runReminders() });
-  if (body.mode === 'staff-cron') return json({ sent: await runStaffCron() });
+  if (body.mode === 'staff-cron') return json({ sent: await runStaffCron(), tiroirs: await rappelDesTiroirs() });
 
   // Mode diffusion — annonce (offre/promo) à TOUTES les clientes. Réservé au personnel.
   if (body.mode === 'broadcast') {

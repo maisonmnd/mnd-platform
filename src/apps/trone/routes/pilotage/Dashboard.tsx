@@ -33,6 +33,10 @@ import { createStore, useStore } from '../../../../shared/store';
 import { PayAppointmentModal, honorAppointment } from '../clients/actions';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
+import { RevenuDuJour } from '../finances/RevenuDuJour';
+import { LaVeilleAValider } from '../finances/LaVeilleAValider';
+import { useRegistreEncaissements } from '../finances/_shared';
+import { revenuDuJour } from '../../../../shared/caisse-du-soir-pur';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import AlarmeWhatsApp from './AlarmeWhatsApp';
@@ -110,6 +114,8 @@ export default function Dashboard() {
 
   const [breakOpen, setBreakOpen] = useState(false);
   const [drill, setDrill] = useState<Drill | null>(null);
+  const [jourOuvert, setJourOuvert] = useState<string | null>(null);
+  const registre = useRegistreEncaissements();
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
@@ -172,12 +178,12 @@ export default function Dashboard() {
       .filter((p) => p.mk === mk && (!cut || p.iso <= cut))
       .reduce((s, p) => s + p.amount, 0);
 
-    /* Revenu réel d'un jour — MÊMES composantes que le mois (carnet non encaissé
-       + factures payées + formation) : le graphe 7 jours reste cohérent avec le KPI. */
-    const dayRev = (iso: string) =>
-      realizedAppts.filter((a) => a.date === iso).reduce((s, a) => s + apptNetXof(a, byId), 0)
-      + paidInv.reduce((s, i) => s + invoiceRegleAu(i, iso), 0)
-      + formPays.filter((p) => p.iso === iso).reduce((s, p) => s + p.amount, 0);
+    /* L'ARGENT REÇU D'UN JOUR — 3 octobre 2026, maquette « Le pointage du
+       jour ». La barre comptait aussi les rituels honorés sans facture (aucun
+       franc entré) et l'avoir déjà versé un autre jour : elle pouvait dépasser
+       ce que les tiroirs avaient reçu. Elle lit désormais le registre, comme
+       la fenêtre qu'elle ouvre (`RevenuDuJour`) : même règle, même total. */
+    const dayRev = (iso: string) => revenuDuJour(registre, iso).reduce((s, r) => s + r.amountXof, 0);
 
     const rev7 = Array.from({ length: 7 }, (_, i) => {
       const iso = addDaysISO(today, i - 6);
@@ -221,7 +227,7 @@ export default function Dashboard() {
         .filter((a) => a.date === today && a.status !== 'annulé')
         .sort((a, b) => timeToMin(a.time) - timeToMin(b.time)),
     };
-  }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev]);
+  }, [appts, byId, invoices, expenses, apprenants, abonnes, branch.id, today, thisMonth, prevMonth, cutPrev, registre]);
 
   /* — décomposition du revenu du mois : rituels par catégorie + encaissements par moyen — */
   const breakdown = useMemo(() => {
@@ -692,35 +698,8 @@ export default function Dashboard() {
      et une ligne qui a une facture ouvre sa facture. */
   const nameOf = (id: string) => clients.find((c) => c.id === id)?.name ?? 'Cliente';
 
-  /** Le revenu d'un jour, ligne à ligne — LES TROIS composantes de `dayRev`, sans
-      quoi le détail annoncerait moins que la barre qu'on vient d'ouvrir. */
-  const openDay = (iso: string) => {
-    const rows: DrillRow[] = [
-      ...appts
-        // INVARIANT CA : seuls les rituels HONORÉS comptent — un « confirmé daté
-        // d'hier » n'est pas du revenu, le détail doit tomber sur la barre.
-        .filter((a) => a.date === iso && !a.invoiceId && a.status === 'honoré')
-        // Un rituel du carnet n'a pas (encore) de facture : la ligne ouvre son RDV,
-        // d'où l'on encaisse — plutôt que de mener à une facture qui n'existe pas.
-        .map((a) => ({ who: nameOf(a.clientId), sub: apptLabel(a, byId), amount: apptNetXof(a, byId), onOpen: () => { setDrill(null); setEditAppt(a); } })),
-      ...invoices
-        .filter((i) => i.branchId === branch.id && i.kind === 'facture' && invoiceRegleAu(i, iso) > 0)
-        .map((i) => ({ who: i.clientName || nameOf(i.clientId), sub: `Facture ${i.number}`, amount: invoiceRegleAu(i, iso), invoiceId: i.id })),
-      // Formation de l'Académie — hors branche, mais bien du revenu de la Maison.
-      // La ligne s'ouvre sur l'Académie, où vit le dossier de l'apprenant·e.
-      ...apprenants.flatMap((ap) =>
-        (ap.payments ?? [])
-          .filter((p) => payISO(p.date) === iso)
-          .map((p) => ({ who: ap.name, sub: 'Formation · Académie', amount: p.amountXof, onOpen: () => { setDrill(null); navigate('/academie'); } })),
-      ),
-    ];
-    setDrill({
-      title: `Revenu · ${frShort(iso)}`,
-      sub: rows.length ? 'Rituels du carnet, factures payées et formations de la journée.' : undefined,
-      rows,
-      total: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
-    });
-  };
+  /** Le revenu d'un jour : la fenêtre du pointage (`RevenuDuJour`). */
+  const openDay = (iso: string) => { setDrill(null); setJourOuvert(iso); };
 
   /** Les 7 jours, ligne à ligne — le détail derrière le total de la semaine. */
   const openWeek = () => {
@@ -732,7 +711,7 @@ export default function Dashboard() {
         amount: d.total,
         onOpen: d.total > 0 ? () => openDay(d.iso) : undefined,
       }));
-    setDrill({ title: 'Revenu · 7 jours', sub: 'Rituels du carnet, factures payées et formations.', rows, total: rev7Total });
+    setDrill({ title: 'Revenu · 7 jours', sub: 'L’argent reçu, jour par jour. Un jour s’ouvre sur son pointage.', rows, total: rev7Total });
   };
 
   /** LE DÉTAIL DU PROJETÉ — chaque rendez-vous qui reste à régler, puis les versements
@@ -819,6 +798,10 @@ export default function Dashboard() {
           rendez-vous à caler, si. Elle disparaît d'elle-même à la dernière
           réponse. */}
       <AlarmeWhatsApp />
+
+      {/* LES CAISSES À VALIDER — 3 octobre 2026 : les écarts déclarés au comptage
+          du soir, et les tiroirs restés ouverts hier. La direction seule. */}
+      <LaVeilleAValider />
 
       {/* APPELS À TRAITER — posés à la volée, ils restent ici jusqu'à ce qu'ils
           soient faits ou transformés en rendez-vous. Rien ne s'oublie entre deux clientes. */}
@@ -1247,6 +1230,7 @@ export default function Dashboard() {
 
       {/* Ce qu’il y a derrière un chiffre — chaque ligne ouvre sa facture */}
       {drill && <DrillModal drill={drill} onClose={() => setDrill(null)} />}
+      {jourOuvert && <RevenuDuJour iso={jourOuvert} onClose={() => setJourOuvert(null)} onOpenAppt={(a) => setEditAppt(a)} />}
 
       {/* LES RITUELS SUR-MESURE REÇUS — chaque composition se lit, s'ouvre sur
           WhatsApp pour sceller les créneaux, puis se marque traitée. */}

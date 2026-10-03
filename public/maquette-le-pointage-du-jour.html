@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le pointage du jour &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --indigo:#1E2150; --indigo-f:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#7C4C2C; --cuivre-f:#FAF1E9; --cuivre-p:#E3C9AE;
+    --encre:#2A2722; --encre-d:#6B665D; --filet:#D9CFBC;
+    --vert:#4A6B52; --vert-f:#EEF3EE; --rouge:#8E3B26; --rouge-f:#F8ECE7;
+    --serif:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans:'Jost', 'Century Gothic', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1060px; margin:0 auto; padding:40px 20px 90px; }
+  .verrou { display:block; width:176px; height:auto; margin:0 0 26px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(34px,5.4vw,54px); line-height:1.04; letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.3vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 10px; text-wrap:balance; }
+  .chapeau { max-width:68ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b, .carte b:not(.t) { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre-fonce); letter-spacing:.1em; margin:0 0 4px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 20px; }
+  .legende { font-size:13px; color:var(--encre-d); margin:12px 0 0; max-width:78ch; }
+  .defile { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.large { min-width:720px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:8px 10px; border-bottom:1px solid var(--filet); }
+  td { padding:10px 10px; border-bottom:1px solid #EAE2D2; vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  td.q { color:var(--indigo); }
+  .n { font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+  .etq { display:inline-block; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .etq.non { background:var(--cuivre-f); color:var(--cuivre-fonce); border:1px solid var(--cuivre-p); }
+  .etq.ok { background:var(--vert-f); color:var(--vert); border:1px solid #C7D6C9; }
+  .etq.auto { background:var(--indigo-f); color:var(--indigo); border:1px solid #C9CCE0; }
+  .etq.ecart { background:var(--rouge-f); color:var(--rouge); border:1px solid #E7C4B8; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:#fff; box-shadow:0 14px 40px rgba(30,33,80,.08); overflow:hidden; }
+  .ecran__barre { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:10px 16px; border-bottom:1px solid var(--filet); background:var(--ivoire); }
+  .ecran__barre i { font-style:normal; color:var(--cuivre-fonce); }
+  .ecran__titre { font-family:var(--serif); font-weight:400; font-size:30px; color:var(--indigo); padding:16px 18px 0; margin:0; }
+  .ecran__corps { padding:14px 18px 20px; }
+  .compte { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+  @media (max-width:700px) { .compte { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .compte div { min-width:0; border:1px solid var(--filet); border-radius:3px; padding:9px 12px; }
+  .compte small { display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--encre-d); }
+  .compte b { font-family:var(--serif); font-weight:500; font-size:25px; color:var(--indigo); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .compte .vert { border-color:#C7D6C9; background:var(--vert-f); } .compte .vert b { color:var(--vert); }
+  .compte .cuivre { border-color:var(--cuivre); background:var(--cuivre-f); } .compte .cuivre b, .compte .cuivre small { color:var(--cuivre-fonce); }
+
+  .groupe { margin-top:16px; }
+  .groupe__tete { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid var(--filet); }
+  .groupe__tete b { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); }
+  .groupe__tete span { font-size:12.5px; color:var(--encre-d); }
+  .groupe__tete .n { margin-left:auto; font-family:var(--serif); font-size:20px; color:var(--indigo); }
+  .ligne { display:grid; grid-template-columns:52px minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:10px 2px; border-bottom:1px solid #EFE8DA; }
+  @media (max-width:640px) { .ligne { grid-template-columns:44px minmax(0,1fr) auto; } .ligne .etat { grid-column:2 / -1; justify-self:start; } }
+  .ligne .h { font-size:12.5px; color:var(--cuivre-fonce); font-variant-numeric:tabular-nums; }
+  .ligne .qui b { font-weight:500; color:var(--indigo); }
+  .ligne .qui small { display:block; font-size:12px; color:var(--encre-d); }
+  .ligne .m { font-family:var(--serif); font-size:19px; color:var(--indigo); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ligne.gris { opacity:.55; }
+  .bouton { font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; padding:7px 13px; border-radius:3px; border:1px solid var(--filet); background:#fff; color:var(--encre); white-space:nowrap; }
+  .bouton:hover { border-color:var(--cuivre); }
+  .bouton.cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .bouton.indigo { background:var(--indigo); border-color:var(--indigo); color:#F3EDE1; }
+  .bouton[disabled] { opacity:.4; cursor:not-allowed; }
+  .afacturer { margin-top:18px; border-left:2px solid var(--cuivre); background:var(--cuivre-f); padding:12px 16px; border-radius:0 4px 4px 0; font-size:13.5px; color:var(--encre-d); }
+  .afacturer b { color:var(--cuivre-fonce); font-weight:500; }
+
+  .cloture { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:22px; }
+  @media (max-width:800px) { .cloture { grid-template-columns:1fr; } }
+  .calcul { width:100%; font-size:14px; }
+  .calcul td { padding:7px 4px; }
+  .calcul tr.total td { border-top:1px solid var(--indigo); font-family:var(--serif); font-size:21px; color:var(--indigo); }
+  .billets { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px 14px; font-size:13.5px; }
+  .billets label { display:flex; align-items:center; gap:8px; }
+  .billets span { width:64px; text-align:right; font-variant-numeric:tabular-nums; color:var(--encre-d); }
+  .billets input, .champ input, .champ textarea { font:inherit; font-size:14px; border:1px solid var(--filet); border-radius:3px; padding:6px 8px; background:#fff; color:var(--encre); }
+  .billets input { width:64px; text-align:right; }
+  .champ { display:grid; gap:4px; margin-top:12px; font-size:12.5px; color:var(--encre-d); }
+  .champ textarea { min-height:60px; resize:vertical; width:100%; }
+  .verdict { margin-top:12px; padding:12px 14px; border-radius:3px; font-size:14px; }
+  .verdict.juste { background:var(--vert-f); color:var(--vert); }
+  .verdict.ecart { background:var(--rouge-f); color:var(--rouge); }
+  .verdict b { font-family:var(--serif); font-size:22px; font-weight:500; }
+  .fait { margin-top:12px; font-size:13.5px; color:var(--vert); }
+
+  .grille { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px) { .grille { grid-template-columns:1fr; } }
+  .carte { min-width:0; border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:15px 17px; font-size:14px; color:var(--encre-d); }
+  .carte b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin-bottom:3px; }
+  .regle { background:var(--indigo); color:#F3EDE1; padding:22px 24px; border-radius:4px; }
+  .regle p { font-family:var(--serif); font-size:20px; line-height:1.4; margin:0; }
+  .regle p + p { margin-top:8px; }
+  .atrancher { border-left:2px solid var(--cuivre); background:var(--cuivre-f); padding:16px 18px; border-radius:0 4px 4px 0; font-size:14px; color:var(--encre-d); }
+  .atrancher b { color:var(--cuivre-fonce); font-weight:500; }
+  .atrancher ol { margin:8px 0 0; padding-left:20px; }
+  .atrancher li + li { margin-top:6px; }
+  .pied { margin-top:56px; padding-top:18px; border-top:1px solid var(--filet); font-size:12px; color:var(--encre-d); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+</style>
+
+<div class="page">
+  <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+  <p class="eyebrow">Le Trône · Finances · Maquette à valider</p>
+  <h1>Le pointage du jour</h1>
+  <p class="chapeau">Aujourd'hui, le revenu du jour est une liste qu'on lit, et la caisse ne se ferme jamais. Demain, <b>chaque franc reçu se pointe</b>, chaque tiroir se compte le soir, et la direction valide le matin ce que la veille a laissé.</p>
+
+  <section>
+    <p class="num">I</p>
+    <h2>Ce qui se passe aujourd'hui</h2>
+    <p class="intro">Lu dans le code, le 3 octobre 2026.</p>
+    <div class="defile">
+      <table class="large">
+        <thead><tr><th>Ce qu'on voit</th><th>Ce qui se passe vraiment</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="q">Le « Revenu » du jour</td><td>Une liste de noms et de montants. <b>Ni le moyen, ni le tiroir, ni l'heure</b>, et rien ne se coche.</td><td><span class="etq non">à refaire</span></td></tr>
+          <tr><td class="q">Son total</td><td>Il additionne les rituels <b>honorés sans facture</b> (à leur prix, aucun franc n'est encore entré) et l'avoir ou l'acompte déjà versé un autre jour. Le total du jour peut donc dépasser l'argent reçu.</td><td><span class="etq ecart">faux</span></td></tr>
+          <tr><td class="q">« Clôturer la caisse »</td><td>Le bouton du Journal de caisse ramène à l'onglet Encaisser. <b>Aucun comptage n'existe</b>, ni d'écart.</td><td><span class="etq non">à construire</span></td></tr>
+          <tr><td class="q">Le relevé MTN collé</td><td>Le rapprochement marche (Encaissements), mais <b>rien n'est gardé</b> : en quittant la page, on recommence.</td><td><span class="etq non">à garder</span></td></tr>
+          <tr><td class="q">Qui a encaissé</td><td>Pas noté sur le paiement. Seule la trace de la base le sait (0092).</td><td><span class="etq non">à noter</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">II</p>
+    <h2>Le revenu du jour, pointé</h2>
+    <p class="intro">La même fenêtre, ouverte depuis le tableau de bord. Le total ne compte plus que <b>l'argent reçu ce jour-là</b>, rangé par moyen. Chaque ligne dit son heure, son tiroir et qui l'a encaissée. Essayez « Pointer ».</p>
+    <div class="ecran">
+      <div class="ecran__barre">Le Trône <i>·</i> Tableau de bord <i>·</i> Revenu</div>
+      <p class="ecran__titre">Revenu · Sam. 3 oct.</p>
+      <div class="ecran__corps">
+        <div class="compte">
+          <div><small>Reçu</small><b data-total>227 000 F</b></div>
+          <div class="vert"><small>Pointé</small><b data-pointe>0 F</b></div>
+          <div class="cuivre"><small>À pointer</small><b data-reste>0 F</b></div>
+          <div><small>À facturer</small><b>2</b></div>
+        </div>
+
+        <div class="groupe" data-groupe="especes">
+          <div class="groupe__tete"><b>Espèces</b><span>tiroir de l'accueil · se pointent au comptage du soir</span><span class="n">97 000 F</span></div>
+          <div class="ligne" data-m="65000" data-auto="comptage"><span class="h">10:42</span><span class="qui"><b>Awa K.</b><small>F-2026-0901 · encaissé par l'accueil</small></span><span class="m">65 000 F</span><span class="etat"><span class="etq non">au comptage</span></span></div>
+          <div class="ligne" data-m="32000" data-auto="comptage"><span class="h">17:05</span><span class="qui"><b>Nadia B.</b><small>F-2026-0902 · encaissé par l'accueil</small></span><span class="m">32 000 F</span><span class="etat"><span class="etq non">au comptage</span></span></div>
+        </div>
+
+        <div class="groupe" data-groupe="momo">
+          <div class="groupe__tete"><b>MTN MoMo</b><span>téléphone de la Maison · relevé collé à 19 h 10</span><span class="n">105 000 F</span></div>
+          <div class="ligne" data-m="38000" data-pointe="releve"><span class="h">11:20</span><span class="qui"><b>Mireille A.</b><small>F-2026-0903 · réf. MTN 7412…</small></span><span class="m">38 000 F</span><span class="etat"><span class="etq ok">pointé · relevé</span></span></div>
+          <div class="ligne" data-m="50000" data-pointe="releve"><span class="h">14:02</span><span class="qui"><b>Lina T.</b><small>F-2026-0904 · réf. MTN 7413…</small></span><span class="m">50 000 F</span><span class="etat"><span class="etq ok">pointé · relevé</span></span></div>
+          <div class="ligne" data-m="17000"><span class="h">15:48</span><span class="qui"><b>Fatou M.</b><small>F-2026-0905 · absent du relevé</small></span><span class="m">17 000 F</span><span class="etat"><button class="bouton" data-pointer>Pointer</button></span></div>
+        </div>
+
+        <div class="groupe" data-groupe="moov">
+          <div class="groupe__tete"><b>Moov Money</b><span>pas de relevé : se pointe à la main</span><span class="n">20 000 F</span></div>
+          <div class="ligne" data-m="20000"><span class="h">12:30</span><span class="qui"><b>Eunice G.</b><small>F-2026-0906</small></span><span class="m">20 000 F</span><span class="etat"><button class="bouton" data-pointer>Pointer</button></span></div>
+        </div>
+
+        <div class="groupe" data-groupe="kkiapay">
+          <div class="groupe__tete"><b>KkiaPay, en ligne</b><span>vérifié par le serveur</span><span class="n">5 000 F</span></div>
+          <div class="ligne" data-m="5000" data-pointe="serveur"><span class="h">09:14</span><span class="qui"><b>Carte cadeau</b><small>achetée sur le site · réf. KkiaPay</small></span><span class="m">5 000 F</span><span class="etat"><span class="etq auto">pointé · KkiaPay</span></span></div>
+        </div>
+
+        <div class="groupe">
+          <div class="groupe__tete"><b>Déjà reçu un autre jour</b><span>hors du total : l'argent est entré quand il a été versé</span><span class="n">10 000 F</span></div>
+          <div class="ligne gris"><span class="h">16:10</span><span class="qui"><b>Sika H.</b><small>F-2026-0907 · avoir utilisé</small></span><span class="m">10 000 F</span><span class="etat"></span></div>
+        </div>
+
+        <div class="afacturer"><b>À facturer : 2 rituels honorés</b> n'ont pas encore de facture (45 000 F au prix du carnet). Ils ne comptent pas dans le revenu tant que l'argent n'est pas entré. <u>Les voir</u></div>
+      </div>
+    </div>
+    <p class="legende">Le relevé MTN collé pointe seul ce qu'il retrouve (même montant, même jour). Ce qu'il ne retrouve pas reste « à pointer », et se coche à la main après vérification sur le téléphone : la ligne garde <b>qui a pointé, et quand</b>. Les espèces ne se cochent pas une à une : c'est le comptage du tiroir qui les pointe.</p>
+  </section>
+
+  <section>
+    <p class="num">III</p>
+    <h2>Le soir : chaque tiroir se compte</h2>
+    <p class="intro">Le bouton « Clôturer la caisse » ouvre enfin quelque chose. Le porteur du tiroir compte ce qu'il a dans la main ; le Trône dit ce qui devrait y être. <b>Un écart ne bloque pas, mais il ne se clôture pas sans être expliqué.</b> Changez les nombres.</p>
+    <div class="ecran">
+      <div class="ecran__barre">Le Trône <i>·</i> Caisse <i>·</i> Clôturer le tiroir de l'accueil</div>
+      <div class="ecran__corps cloture">
+        <div>
+          <table class="calcul">
+            <tr><td>Fond compté ce matin</td><td class="n">20 000 F</td></tr>
+            <tr><td>+ Espèces encaissées (2)</td><td class="n">97 000 F</td></tr>
+            <tr><td>− Dépense payée du tiroir (eau, coursier)</td><td class="n">− 3 500 F</td></tr>
+            <tr><td>− Versé au coffre</td><td class="n">0 F</td></tr>
+            <tr class="total"><td>Attendu dans le tiroir</td><td class="n">113 500 F</td></tr>
+          </table>
+          <p class="legende">Chaque ligne s'ouvre sur ses mouvements. Les pourboires en espèces y figurent s'ils sont entrés dans ce tiroir.</p>
+        </div>
+        <div>
+          <div class="billets" data-billets>
+            <label><span>10 000 ×</span><input type="number" min="0" value="9" data-v="10000"></label>
+            <label><span>5 000 ×</span><input type="number" min="0" value="3" data-v="5000"></label>
+            <label><span>2 000 ×</span><input type="number" min="0" value="3" data-v="2000"></label>
+            <label><span>1 000 ×</span><input type="number" min="0" value="0" data-v="1000"></label>
+            <label><span>500 ×</span><input type="number" min="0" value="1" data-v="500"></label>
+            <label><span>pièces</span><input type="number" min="0" value="0" data-v="1" title="Total des pièces de 250 F et moins"></label>
+          </div>
+          <div class="verdict" data-verdict></div>
+          <label class="champ" data-note-champ>Ce qui explique l'écart (obligatoire)<textarea data-note placeholder="Ex. : monnaie rendue en trop à 17 h, la cliente a été appelée."></textarea></label>
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="bouton cuivre" data-cloturer>Clôturer le tiroir</button>
+          </div>
+          <div class="fait" data-fait hidden></div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">Le billetage aide à compter ; on peut aussi taper le total d'un coup. <b>Le compte de demain matin part de ce compté</b>, pas de l'attendu : un écart ne se reporte jamais en silence. Pour un tiroir Mobile Money, le comptage est le <b>solde lu sur le téléphone</b> marchand.</p>
+  </section>
+
+  <section>
+    <p class="num">IV</p>
+    <h2>Le matin : la direction valide</h2>
+    <p class="intro">Sur le tableau de bord, une ligne tant que la veille n'est pas validée. Un écart déclaré est une erreur ; un écart découvert est une faute (règlement intérieur, article de la caisse).</p>
+    <div class="ecran">
+      <div class="ecran__barre">Le Trône <i>·</i> Tableau de bord <i>·</i> La veille à valider</div>
+      <div class="ecran__corps">
+        <div class="defile">
+          <table class="large">
+            <thead><tr><th>Tiroir</th><th>Clôturé</th><th class="n">Attendu</th><th class="n">Compté</th><th class="n">Écart</th><th>Pourquoi</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="q">Accueil · espèces</td><td>20 h 12, par l'accueil</td><td class="n">113 500 F</td><td class="n">111 500 F</td><td class="n"><span class="etq ecart">− 2 000 F</span></td><td>« Monnaie rendue en trop à 17 h. »</td><td data-valider><button class="bouton indigo">Accepter</button> <button class="bouton">Reprendre</button></td></tr>
+              <tr><td class="q">Téléphone MoMo</td><td>20 h 15, par l'accueil</td><td class="n">105 000 F</td><td class="n">105 000 F</td><td class="n"><span class="etq ok">juste</span></td><td>1 paiement pointé à la main</td><td data-valider><button class="bouton indigo">Accepter</button></td></tr>
+              <tr><td class="q">Moov</td><td><span class="etq non">pas clôturé</span></td><td class="n">20 000 F</td><td class="n">pas compté</td><td class="n"></td><td>Rappel envoyé à 21 h</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="legende">« Reprendre » rouvre le tiroir de la veille avec un mot pour son porteur. Rien n'efface un comptage : une reprise s'ajoute, l'historique garde les deux.</p>
+  </section>
+
+  <section>
+    <p class="num">V</p>
+    <h2>Ce qui change</h2>
+    <div class="grille">
+      <div class="carte"><b class="t">Chaque paiement</b>gagne <b>qui l'a encaissé</b>, et son <b>pointage</b> : par qui, quand, et comment (relevé MTN, à la main, KkiaPay, comptage du tiroir).</div>
+      <div class="carte"><b class="t">Le relevé MTN</b>se garde : coller deux fois le même ne pointe rien deux fois, et chaque ligne du relevé sans paiement reste visible, « orpheline ».</div>
+      <div class="carte"><b class="t">Une clôture par tiroir et par jour</b>, nouvelle table protégée dès sa création : fond, attendu, compté, billetage, écart, note, et la validation de la direction.</div>
+      <div class="carte"><b class="t">Le revenu du jour</b>ne compte que l'argent entré ; les rituels honorés sans facture passent dans « À facturer ». Le Bilan et la Synthèse suivent la même règle.</div>
+    </div>
+    <div class="regle" style="margin-top:14px">
+      <p>Le Trône dit ce qui devrait être. La main dit ce qui est.</p>
+      <p>L'écart ne se cache pas : il s'écrit, et la direction le lit.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">VI</p>
+    <h2>Tranché le 3 octobre</h2>
+    <div class="atrancher">
+      <b>Les trois réglages :</b>
+      <ol>
+        <li><b>Le fond de caisse est fixe.</b> Il reste dans le tiroir chaque soir (son montant se règle par tiroir, 20 000 F proposé) ; à la clôture, le Trône propose de verser le surplus au coffre.</li>
+        <li><b>Brice et Yéman seulement</b> acceptent ou reprennent un écart. Celui qui l'a déclaré ne l'efface jamais.</li>
+        <li><b>À 21 h</b>, la direction reçoit une notification si un tiroir ouvert dans la journée n'est pas clôturé.</li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="pied"><span>Maison MND · Le Trône · maquette du 3 octobre 2026</span><span>Les noms et montants de cette page sont des exemples.</span></div>
+</div>
+
+<script>
+(() => {
+  const fmt = (n) => n.toLocaleString('fr-FR').replace(/ | /g, ' ') + ' F';
+  /* LE REVENU : pointé / à pointer, recalculé à chaque coche. */
+  const lignes = [...document.querySelectorAll('.ligne[data-m]')];
+  const recompte = () => {
+    let pointe = 0, reste = 0;
+    for (const l of lignes) {
+      const m = Number(l.dataset.m);
+      if (l.dataset.pointe) pointe += m; else reste += m;
+    }
+    document.querySelector('[data-pointe]').textContent = fmt(pointe);
+    document.querySelector('[data-reste]').textContent = fmt(reste);
+  };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pointer]');
+    if (!b) return;
+    const l = b.closest('.ligne');
+    l.dataset.pointe = 'main';
+    b.parentElement.innerHTML = '<span class="etq ok">pointé · Yéman, 19:24</span>';
+    recompte();
+  });
+  recompte();
+
+  /* LA CLÔTURE : compté, écart, note obligatoire. */
+  const ATTENDU = 113500;
+  const champs = [...document.querySelectorAll('[data-billets] input')];
+  const verdict = document.querySelector('[data-verdict]');
+  const note = document.querySelector('[data-note]');
+  const noteChamp = document.querySelector('[data-note-champ]');
+  const bouton = document.querySelector('[data-cloturer]');
+  const fait = document.querySelector('[data-fait]');
+  const evalue = () => {
+    const compte = champs.reduce((s, i) => s + (Number(i.value) || 0) * Number(i.dataset.v), 0);
+    const ecart = compte - ATTENDU;
+    verdict.className = 'verdict ' + (ecart === 0 ? 'juste' : 'ecart');
+    verdict.innerHTML = ecart === 0
+      ? 'Compté <b>' + fmt(compte) + '</b>, le compte est juste.'
+      : 'Compté <b>' + fmt(compte) + '</b>, écart <b>' + (ecart > 0 ? '+ ' : '− ') + fmt(Math.abs(ecart)) + '</b>.';
+    noteChamp.hidden = ecart === 0;
+    bouton.disabled = ecart !== 0 && !note.value.trim();
+    return { compte, ecart };
+  };
+  champs.forEach((i) => i.addEventListener('input', evalue));
+  note.addEventListener('input', evalue);
+  bouton.addEventListener('click', () => {
+    const { compte, ecart } = evalue();
+    if (bouton.disabled) return;
+    fait.hidden = false;
+    fait.textContent = 'Clôturé à 20 h 12 · compté ' + fmt(compte) + (ecart ? ' · écart déclaré, en attente de la direction.' : ' · juste.');
+    bouton.disabled = true;
+  });
+  evalue();
+
+  /* LA VALIDATION DU MATIN. */
+  document.querySelectorAll('[data-valider]').forEach((td) => td.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    td.innerHTML = b.textContent.trim() === 'Accepter' ? '<span class="etq ok">accepté</span>' : '<span class="etq non">rouvert</span>';
+  }));
+})();
+</script>
+</body>
+</html>
