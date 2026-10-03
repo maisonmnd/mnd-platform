@@ -47,6 +47,7 @@ import {
   type Offer,
 } from './lib';
 import { DateEnClair } from '../../ds/dates';
+import { useTheme } from './theme';
 
 /* Les cinq onglets de Ma Couronne + le panneau de notifications. */
 
@@ -606,15 +607,15 @@ export function HomeTab({
           <>
             <div className="mc-sectionlabel" style={{ margin: '24px 0 10px' }}>Mon ambassade · {nomDuRang(client?.parrainage?.rang)}</div>
             <button type="button" onClick={onOpenCarte}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid rgba(20,20,27,.12)', background: '#FFFDF9', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 12, borderRadius: 16, border: '1px solid var(--mc-filet-12)', background: 'var(--mc-blanc)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}>
               <CarteDeMarraine donnees={maCarte} largeur={120} retournable={false} />
               <span style={{ display: 'grid', gap: 4, flexGrow: 1 }}>
-                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: '#1E2150', lineHeight: 1.15 }}>{soinsQuiAttendent.length ? 'Une récompense vous attend.' : 'Offrez la Maison à une amie.'}</span>
-                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? '#7C4C2C' : '#5E5750' }}>
+                <span style={{ fontFamily: 'var(--font-serif, Georgia)', fontSize: 19, color: 'var(--mc-encre)', lineHeight: 1.15 }}>{soinsQuiAttendent.length ? 'Une récompense vous attend.' : 'Offrez la Maison à une amie.'}</span>
+                <span style={{ fontSize: 12.5, color: soinsQuiAttendent.length ? 'var(--copper-700)' : 'var(--mc-doux)' }}>
                   {soinsQuiAttendent.length ? `Un soin vous attend : ${soinsQuiAttendent[0].libelle}` : `Votre code ${maCarte.code}`}
                 </span>
               </span>
-              <span aria-hidden style={{ color: '#7C4C2C', fontSize: 18 }}>→</span>
+              <span aria-hidden style={{ color: 'var(--copper-700)', fontSize: 18 }}>→</span>
             </button>
           </>
         )}
@@ -1781,6 +1782,7 @@ function MesEnfants({ toast }: { toast: (m: string) => void }) {
 }
 
 export function ProfilTab({ toast }: { toast: (m: string) => void }) {
+  const [choixTheme, setChoixTheme] = useTheme();
   const client = useClient();
   const clientId = useClientId();
   const { branch } = useBranch();
@@ -1910,6 +1912,31 @@ export function ProfilTab({ toast }: { toast: (m: string) => void }) {
           pas. Il ne crée pas de fiche pour autant : il dépose un prénom et une
           date, la Maison ouvre la tête. */}
       <MesEnfants toast={toast} />
+      {/* L'APPARENCE (3 octobre 2026) : elle suit le téléphone, ou la cliente
+          la fixe. Voir theme.ts. */}
+      <div className="mc-sectionlabel" style={{ margin: '22px 0 10px' }}>Apparence</div>
+      <div className="mc-pushrow">
+        <div style={{ minWidth: 0 }}>
+          <div className="mc-pushrow__t">Thème</div>
+          <div className="mc-pushrow__s">
+            {choixTheme === 'auto' ? 'Comme votre téléphone, clair le jour ou sombre le soir.' : choixTheme === 'sombre' ? 'Toujours sombre.' : 'Toujours clair.'}
+          </div>
+        </div>
+        <div className="mc-seg" role="radiogroup" aria-label="Thème de l’app">
+          {(['auto', 'clair', 'sombre'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={choixTheme === c}
+              className={`mc-seg__opt${choixTheme === c ? ' is-on' : ''}`}
+              onClick={() => setChoixTheme(c)}
+            >
+              {c === 'auto' ? 'Auto' : c === 'clair' ? 'Clair' : 'Sombre'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {pstate !== 'unsupported' && (
         <>

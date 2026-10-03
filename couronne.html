@@ -8,6 +8,10 @@
          /trone/ ne comptait pas, seul celui de la racine est lu. -->
     <meta name="robots" content="noindex" />
     <meta name="theme-color" content="#B97A4A" />
+    <!-- LE THÈME AVANT LE PREMIER AFFICHAGE (3 octobre 2026) : le choix de la
+         cliente (Profil, voir src/apps/couronne/theme.ts) est posé avant que
+         la page ne se peigne, sinon « Sombre » clignoterait en blanc. -->
+    <script>try{var t=localStorage.getItem('mc_theme');if(t==='clair'||t==='sombre'){document.documentElement.setAttribute('data-mc-theme',t);}var s=t==='sombre'||(t!=='clair'&&matchMedia('(prefers-color-scheme: dark)').matches);document.querySelector('meta[name="theme-color"]').setAttribute('content',s?'#15173A':'#B97A4A');}catch(e){}</script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

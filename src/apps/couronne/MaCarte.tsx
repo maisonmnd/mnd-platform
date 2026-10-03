@@ -29,9 +29,14 @@ const dateDite = (iso?: string) => {
 const INDIGO = '#1E2150';
 const IVOIRE = '#F6F1E7';
 const CUIVRE = '#B97A4A';
-const CU_700 = '#7C4C2C';
+const CU_700 = 'var(--copper-700)';
 const CU_300 = '#D6A06F';
-const DOUX = '#5E5750';
+const DOUX = 'var(--mc-doux)';
+/* LE SOIR (3 octobre 2026) : ce qui s'écrit sur la page ou sur une carte claire
+   suit le thème ; les aplats indigo (la carte, la lignée) restent indigo. */
+const ENCRE = 'var(--mc-encre)';
+const CARTE = 'var(--mc-blanc)';
+const FILET = 'var(--hairline)';
 const SERIF = 'var(--font-serif, "Cormorant Garamond", Georgia, serif)';
 
 export function donneesDeMaCarte(client: ReturnType<typeof useClient>): DonneesDeCarte | null {
@@ -101,8 +106,8 @@ export function Choix({ s, nomDuSoin, produits, garde }: {
   const [produitId, setProduitId] = useState('');
   const carte = (actif: boolean, fonce: boolean): CSSProperties => ({
     textAlign: 'left', borderRadius: 16, padding: '16px 16px', display: 'flex', gap: 14, alignItems: 'center', cursor: 'pointer', width: '100%',
-    background: fonce ? INDIGO : '#FFFDF9', color: fonce ? IVOIRE : INDIGO,
-    border: actif ? `3px solid ${fonce ? CU_300 : CUIVRE}` : fonce ? '3px solid transparent' : '1px solid rgba(20,20,27,.14)',
+    background: fonce ? INDIGO : CARTE, color: fonce ? IVOIRE : ENCRE,
+    border: actif ? `3px solid ${fonce ? CU_300 : CUIVRE}` : fonce ? '3px solid transparent' : `1px solid ${FILET}`,
   });
   return (
     <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(185,122,74,.1)', border: `1px solid ${CU_300}` }}>
@@ -123,7 +128,7 @@ export function Choix({ s, nomDuSoin, produits, garde }: {
       </button>
       {genre === 'remise' && produits.length > 0 && (
         <select value={produitId} onChange={(e) => setProduitId(e.target.value)} aria-label="Le produit de votre remise"
-          style={{ minHeight: 48, borderRadius: 10, border: `1px solid ${CUIVRE}`, padding: '0 12px', fontSize: 15, background: '#FFFDF9', color: INDIGO }}>
+          style={{ minHeight: 48, borderRadius: 10, border: `1px solid ${CUIVRE}`, padding: '0 12px', fontSize: 15, background: CARTE, color: ENCRE }}>
           <option value="">Je choisirai à la Maison</option>
           {produits.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -191,8 +196,8 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
   };
 
   const bouton: CSSProperties = {
-    minHeight: 48, borderRadius: 999, border: '1px solid rgba(30,33,80,.35)', background: 'transparent',
-    color: INDIGO, fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', cursor: 'pointer',
+    minHeight: 48, borderRadius: 999, border: '1px solid var(--mc-bord-bouton)', background: 'transparent',
+    color: ENCRE, fontSize: 11.5, letterSpacing: '.16em', textTransform: 'uppercase', cursor: 'pointer',
   };
   const etiquette: CSSProperties = { fontSize: 11, letterSpacing: '.26em', textTransform: 'uppercase', color: CU_700 };
   const circ = 2 * Math.PI * 70;
@@ -231,12 +236,12 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
             ))}
 
             {resume?.defi && (
-              <div style={{ borderRadius: 16, border: '1px solid rgba(124,76,44,.35)', padding: 16, display: 'grid', gap: 10, background: '#FFFDF9' }}>
+              <div style={{ borderRadius: 16, border: '1px solid rgba(124,76,44,.35)', padding: 16, display: 'grid', gap: 10, background: CARTE }}>
                 <span style={etiquette}>Le défi du mois</span>
-                <span style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.15, color: INDIGO }}>{resume.defi.objectif} amies venues ce mois : {resume.defi.libelle} offert.</span>
+                <span style={{ fontFamily: SERIF, fontSize: 21, lineHeight: 1.15, color: ENCRE }}>{resume.defi.objectif} amies venues ce mois : {resume.defi.libelle} offert.</span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {Array.from({ length: resume.defi.objectif }, (_, i) => (
-                    <span key={i} style={{ flex: 1, height: 10, borderRadius: 99, background: i < resume.defi!.fait ? CUIVRE : 'rgba(30,33,80,.12)' }} />
+                    <span key={i} style={{ flex: 1, height: 10, borderRadius: 99, background: i < resume.defi!.fait ? CUIVRE : 'var(--mc-piste)' }} />
                   ))}
                 </div>
                 <span style={{ fontSize: 12.5, color: DOUX }}>{resume.defi.fait} sur {resume.defi.objectif}{resume.defi.fait >= resume.defi.objectif ? ' · relevé !' : ''}</span>
@@ -264,9 +269,9 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
                   const expiree = !s.utiliseLe && !!s.expireLe && s.expireLe < aujourdhui;
                   const dit = g === 'a-choisir' ? 'à choisir' : g === 'remise' ? (choix[s.id]?.produitId ? `−${s.pct ?? 20} % sur ${products.find((p) => p.id === choix[s.id]?.produitId)?.name ?? 'un produit'}` : s.libelle.startsWith('−') ? s.libelle : `−${s.pct ?? 20} % sur un produit`) : (nomDuService(s.serviceId) ?? (s.libelle === 'Une récompense à choisir' ? 'Un soin offert' : s.libelle));
                   return (
-                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid rgba(20,20,27,.12)', opacity: s.utiliseLe || expiree ? 0.55 : 1 }}>
-                      <span style={{ display: 'grid' }}><span style={{ fontSize: 14.5, color: INDIGO }}>{dit}</span><span style={{ fontSize: 12, color: DOUX }}>{s.raison}{s.expireLe && !s.utiliseLe && !expiree ? ` · jusqu’au ${dateDite(s.expireLe)}` : ''}</span></span>
-                      <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, whiteSpace: 'nowrap', ...(s.utiliseLe ? { background: '#E6EFE9', color: '#2F5D50' } : expiree ? { background: 'rgba(20,20,27,.06)', color: DOUX } : { background: 'rgba(185,122,74,.13)', color: CU_700 }) }}>
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--mc-filet-12)', opacity: s.utiliseLe || expiree ? 0.55 : 1 }}>
+                      <span style={{ display: 'grid' }}><span style={{ fontSize: 14.5, color: ENCRE }}>{dit}</span><span style={{ fontSize: 12, color: DOUX }}>{s.raison}{s.expireLe && !s.utiliseLe && !expiree ? ` · jusqu’au ${dateDite(s.expireLe)}` : ''}</span></span>
+                      <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, whiteSpace: 'nowrap', ...(s.utiliseLe ? { background: 'var(--mc-ok-fond)', color: 'var(--mc-ok-texte)' } : expiree ? { background: 'var(--mc-voile-06)', color: DOUX } : { background: 'rgba(185,122,74,.13)', color: CU_700 }) }}>
                         {s.utiliseLe ? 'utilisée' : expiree ? 'expirée' : 'à utiliser'}
                       </span>
                     </div>
@@ -280,9 +285,9 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
               <div style={{ display: 'grid', gap: 4 }}>
                 <span style={etiquette}>Les ambassadrices du mois</span>
                 {classement.lignes.slice(0, 5).map((x, i) => (
-                  <div key={`${x.prenom}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid rgba(20,20,27,.1)' }}>
+                  <div key={`${x.prenom}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--mc-filet-10)' }}>
                     <span style={{ fontFamily: SERIF, fontSize: 22, color: CUIVRE, width: 22 }}>{i + 1}</span>
-                    <span style={{ flexGrow: 1, fontSize: 14.5, color: INDIGO }}>{x.prenom} <span style={{ fontSize: 12, color: DOUX }}>· {nomDuRang(x.rang)}</span></span>
+                    <span style={{ flexGrow: 1, fontSize: 14.5, color: ENCRE }}>{x.prenom} <span style={{ fontSize: 12, color: DOUX }}>· {nomDuRang(x.rang)}</span></span>
                     <span style={{ fontSize: 12.5, color: DOUX }}>{x.ceMois} ce mois</span>
                   </div>
                 ))}
@@ -308,7 +313,7 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
               <span style={etiquette}>Les rangs</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {RANGS.map((r) => (
-                  <span key={r.id} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 999, border: `1px solid ${r.id === rang.id ? CUIVRE : 'rgba(20,20,27,.14)'}`, background: r.id === rang.id ? CUIVRE : 'transparent', color: r.id === rang.id ? IVOIRE : INDIGO }}>
+                  <span key={r.id} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 999, border: `1px solid ${r.id === rang.id ? CUIVRE : FILET}`, background: r.id === rang.id ? CUIVRE : 'transparent', color: r.id === rang.id ? IVOIRE : ENCRE }}>
                     {r.nom}{r.seuil ? ` · ${r.seuil}` : ''}
                   </span>
                 ))}
