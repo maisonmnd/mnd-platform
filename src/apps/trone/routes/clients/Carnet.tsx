@@ -23,7 +23,7 @@ import {
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp,
 } from './_shared';
-import { deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
+import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
@@ -290,16 +290,22 @@ export default function Carnet() {
     appointmentsStore.set((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
 
   /* Suppression définitive d'un rendez-vous (depuis le menu ⋯) — confirmation requise. */
+  const aEteEncaisse = (a: Appointment) => (a.paidXof ?? 0) > 0 || (a.payments ?? []).length > 0 || !!a.invoiceId;
   const deleteAppt = async (a: Appointment) => {
     if (!await demande({
       quoi: 'Suppression définitive',
       titre: 'Supprimer ce rendez-vous ?',
       dit: 'Il quitte le carnet et le calendrier, avec ce qui y était noté.',
+      suite: aEteEncaisse(a) ? 'Son encaissement est annulé avec lui : ses factures partent, et l’avoir utilisé revient sur le compte.' : undefined,
       scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
       accepter: 'Supprimer le rendez-vous',
       refuser: 'Garder le rendez-vous',
       dur: true,
     })) return;
+    /* UN RENDEZ-VOUS ENCAISSÉ EMPORTE SON ENCAISSEMENT (3 octobre 2026) : sa
+       facture restait seule, et l'avoir qu'elle avait consommé ne revenait
+       plus jamais, même en la supprimant ensuite. */
+    if (aEteEncaisse(a)) cancelAppointmentPayment(a);
     /* UNE REPRISE EFFACÉE À LA MAIN NE REVIENT PAS (2 octobre 2026) : son
        rituel en garde la marque, sinon la prochaine sauvegarde la reposait. */
     const marque = rituelDeLaRepriseEffacee(a);

@@ -10,7 +10,7 @@ import {
   type Client, type Family,
 } from '../../../../shared/clients';
 import {
-  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
+  useCredits, creditMovementsStore, creditBalanceOf, usagesSansFacture, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
   usePaymentMethods, moyensAOffrir,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
@@ -1122,6 +1122,20 @@ function LedgerModal({
   const [invoices] = useInvoices();
   const navigate = useNavigate();
   const factureDe = (m: CreditMovement) => invoices.find((i) => i.id === m.invoiceId);
+  /* L'AVOIR DÉPENSÉ POUR UNE FACTURE DISPARUE se rend d'un geste (3 octobre
+     2026) : avant ce jour, supprimer la pièce d'un rendez-vous déjà effacé
+     laissait le compte débité. Voir `usagesSansFacture`. */
+  const orphelins = new Set(usagesSansFacture(rows, invoices).map((m) => m.id));
+  const rendre = async (m: CreditMovement) => {
+    if (!await demande({
+      quoi: 'Avoir',
+      titre: `Rendre ${fmtMoney(m.amountXof, currency)} à l’avoir ?`,
+      dit: 'La facture que cet avoir réglait n’existe plus. Le montant revient sur le compte, prêt à servir.',
+      accepter: 'Rendre à l’avoir',
+      refuser: 'Laisser',
+    })) return;
+    creditMovementsStore.set((prev) => prev.filter((x) => x.id !== m.id));
+  };
   const label = (m: CreditMovement) => {
     if (m.kind === 'depot') return 'Dépôt d’avoir';
     if (m.kind === 'remboursement') return 'Remboursement';
@@ -1153,6 +1167,15 @@ function LedgerModal({
                       style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
                     >
                       Corriger
+                    </button>
+                  )}
+                  {orphelins.has(m.id) && (
+                    <button
+                      type="button"
+                      onClick={() => void rendre(m)}
+                      style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
+                    >
+                      Sa facture n’existe plus · Rendre à l’avoir
                     </button>
                   )}
                   {m.kind === 'usage' && factureDe(m) && (

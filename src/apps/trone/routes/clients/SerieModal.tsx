@@ -8,7 +8,7 @@ import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointmen
 import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
 import { useCategories, useProducts, useServices, type Service } from '../../../../shared/catalog';
 import { cashboxesStore, invoicesStore, useCashboxes, useInvoices } from '../../../../shared/finance';
-import { emettreLaPieceDuRituelRegle } from './actions';
+import { emettreLaPieceDuRituelRegle, restituerAvoir } from './actions';
 import {
   litLesLignes, datesDeLaCadence, apercuDeLaSerie, caisseDeLaReprise, marqueDeLaSerie,
   habitudesParTete, seriesPosees, RYTHMES_REPRISE, foisDansLAnnee,
@@ -587,6 +587,7 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
        `seriesPosees`, jamais ici. */
     if (s.piecesRetirables.length > 0) {
       const piecesQuiPartent = new Set(s.piecesRetirables);
+      for (const id of piecesQuiPartent) restituerAvoir(id);
       invoicesStore.set((prev) => prev.filter((i) => !piecesQuiPartent.has(i.id)));
     }
     setARetirer('');

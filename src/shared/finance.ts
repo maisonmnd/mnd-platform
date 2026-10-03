@@ -1754,6 +1754,17 @@ export type CreditMovement = {
   /** Le moyen par lequel l'argent est arrivé — Espèces, Mobile Money… */
   method?: string;
 };
+/** L'AVOIR DÉPENSÉ POUR UNE FACTURE QUI N'EXISTE PLUS — 3 octobre 2026.
+    « J'ai supprimé le paiement de 47 000 F et le montant n'est pas revenu
+    dans l'avoir » (Yéman). Un usage d'avoir nomme sa facture ; la facture
+    partie, il débite encore le compte pour un règlement qui n'existe plus.
+    Rendu `[]` tant que les factures ne sont pas chargées : un registre vide
+    ferait passer TOUS les usages pour orphelins. */
+export const usagesSansFacture = (moves: readonly CreditMovement[], factures: readonly { id: string }[]): CreditMovement[] => {
+  if (factures.length === 0) return [];
+  const ids = new Set(factures.map((f) => f.id));
+  return moves.filter((m) => m.kind === 'usage' && !!m.invoiceId && !ids.has(m.invoiceId));
+};
 /** + pour un dépôt, − pour un usage ou un remboursement. */
 export const creditSignedXof = (m: CreditMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);
 /** Solde d'avoir d'un porteur (compte famille ou cliente). Jamais négatif. */

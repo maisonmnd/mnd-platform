@@ -396,7 +396,7 @@ function reverseHonorPoints(appt: Appointment, motif = 'Encaissement annulé'): 
    la cliente debite : elle payait deux fois, une fois avec son credit detruit,
    une fois au re-encaissement. `resetAllPaidInvoices` savait deja le faire ;
    les deux chemins courants, non. */
-function restituerAvoir(invoiceId: string): void {
+export function restituerAvoir(invoiceId: string): void {
   const usages = creditMovementsStore.get().filter((m) => m.kind === 'usage' && m.invoiceId === invoiceId);
   if (!usages.length) return;
   const ids = new Set(usages.map((m) => m.id));

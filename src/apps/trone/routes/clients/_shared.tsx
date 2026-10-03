@@ -2504,15 +2504,23 @@ export function RdvModal({
 
   const remove = async () => {
     if (!appt) return;
+    const encaisse = (appt.paidXof ?? 0) > 0 || (appt.payments ?? []).length > 0 || !!appt.invoiceId;
     if (!await demande({
       quoi: 'Suppression définitive',
       titre: 'Supprimer ce rendez-vous ?',
       dit: 'Il quitte le carnet et le calendrier. Ce qu’il avait consommé revient au stock.',
+      suite: encaisse ? 'Son encaissement est annulé avec lui : ses factures partent, et l’avoir utilisé revient sur le compte.' : undefined,
       scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
       accepter: 'Supprimer le rendez-vous',
       refuser: 'Garder le rendez-vous',
       dur: true,
     })) return;
+    /* UN RENDEZ-VOUS ENCAISSÉ EMPORTE SON ENCAISSEMENT (3 octobre 2026),
+       comme au Carnet. Import dynamique : actions importe déjà ce fichier. */
+    if (encaisse) {
+      const { cancelAppointmentPayment } = await import('./actions');
+      cancelAppointmentPayment(appointmentsStore.get().find((x) => x.id === appt.id) ?? appt);
+    }
     /* Un rituel honoré a consommé sa recette : le supprimer sans rembobiner
        laissait des mouvements orphelins pointant vers un rendez-vous disparu. */
     rembobinerRituel(appt.id);

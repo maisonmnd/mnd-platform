@@ -814,7 +814,12 @@ export default function Factures() {
       refuser: 'Garder la pièce',
       dur: true,
     })) return;
-    if (doc && linked) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
+    /* L'AVOIR REVIENT TOUJOURS (3 octobre 2026). Le rembobinage ne partait
+       que si la pièce était encore rattachée à son rendez-vous : un rendez-vous
+       supprimé avant sa facture laissait l'avoir dépensé pour rien (47 000 F,
+       Famille A.). `rewindPaymentForDeletedInvoice` rend l'avoir d'abord, puis
+       ne rembobine que le rituel qu'il trouve. */
+    if (doc) rewindPaymentForDeletedInvoice(id, invoiceTotal(doc));
     /* UNE PIÈCE D'ABONNEMENT EMPORTE SON VERSEMENT. Le rembobinage ci-dessus ne
        connaît que les RITUELS : une pièce d'abonnement n'a pas de rendez-vous,
        elle passait donc entre les mailles et laissait le contrat payé pour une
