@@ -143,7 +143,15 @@ const cloture = await clique('Clôturer la caisse');
 await attend(1000);
 t = await texteModale();
 dit('« Cloturer la caisse » ouvre le comptage des tiroirs', cloture && /La caisse du soir/.test(t ?? ''), cloture ? '' : 'bouton introuvable');
-dit('le tiroir des especes est a cloturer', /Accueil espèces[\s\S]*?À clôturer/.test(t ?? ''));
+/* LE JOUR SE CHOISIT (4 octobre) : la veille n'a rien vu bouger, le jour même si. */
+await clique('Hier');
+await attend(500);
+t = await texteModale();
+dit('« Hier » : le tiroir n a rien vu bouger', /Accueil espèces[\s\S]*?Rien n’a bougé hier/.test(t ?? ''));
+await clique('Aujourd’hui');
+await attend(500);
+t = await texteModale();
+dit('le tiroir des especes est a cloturer', /Accueil espèces[\s\S]*?À clôturer : il a bougé aujourd’hui/.test(t ?? ''));
 await photo('2-tiroirs');
 await evalue(`(() => { const l = [...document.querySelectorAll('[role=dialog] .cds-tiroir')].find((x) => x.textContent.includes('Accueil espèces')); l?.querySelector('button')?.click(); return !!l; })()`);
 await attend(900);

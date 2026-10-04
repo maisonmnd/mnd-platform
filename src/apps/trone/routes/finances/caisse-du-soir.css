@@ -96,3 +96,10 @@
 .cds-veille__ligne q { quotes: '« ' ' »'; font-style: italic; }
 .cds-veille__mot { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
 .cds-veille__mot input { flex: 1 1 220px; min-width: 0; }
+
+/* ── le jour clôturé (4 octobre 2026) ── */
+.cds-jour { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cds-jour__mot { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin-right: 4px; }
+.cds-jour > div { flex: 0 1 180px; min-width: 150px; }
+.cds-jour__dit { margin: 6px 0 12px; font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 18px; color: var(--color-indigo); }
+.cds-jour__dit::first-letter { text-transform: uppercase; }

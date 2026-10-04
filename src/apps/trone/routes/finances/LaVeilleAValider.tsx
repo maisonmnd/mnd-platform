@@ -112,7 +112,7 @@ export function LaVeilleAValider() {
           </div>
         ))}
       </div>
-      {ouvert && <ClotureDuTiroir tiroir={ouvert} onClose={() => setOuvert(null)} />}
+      {ouvert && <ClotureDuTiroir tiroir={ouvert} jour={veille} onClose={() => setOuvert(null)} />}
     </div>
   );
 }

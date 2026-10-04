@@ -18,7 +18,7 @@ import type { Receipt } from '../src/shared/receipts';
 import {
   revenuDuJour, etatDuPointage, parMoyen, bilanDuPointage, attenduDuTiroir, nouvelleCloture,
   pourquoiOnNeCloturePas, pourquoiOnNeValidePas, aValider, tiroirsSansCloture, sommeDuBilletage,
-  surplusAuCoffre, derniereCloture, type Cloture, type Pointage,
+  surplusAuCoffre, derniereCloture, pourquoiPasCeJour, jourPropose, type Cloture, type Pointage,
 } from '../src/shared/caisse-du-soir-pur';
 
 let ko = 0;
@@ -78,6 +78,19 @@ const c = nouvelleCloture({ id: 'c2', branchId: 'b', cashbox: 'X', date: J, atte
 dit('une depense en attente, validee ensuite, ne se retranche pas deux fois', 113500, attenduDuTiroir({ livreMaintenantXof: 113500 - 0, derniere: c }));
 dit('le billetage se compte', 111500, sommeDuBilletage({ 10000: 9, 5000: 3, 2000: 3, 1000: 0, 500: 1, pieces: 0 }));
 dit('la derniere cloture est la plus recente', 'c1', derniereCloture([soir1, { ...soir1, id: 'c0', le: `${J}T08:00:00Z` }], 'b', 'Accueil')?.id);
+
+/* 3 bis. Le jour clôturé se choisit (4 octobre 2026). */
+dit('avant 6 h, c est la veille qu on cloture', '2026-10-03', jourPropose(new Date(2026, 9, 4, 1, 40)));
+dit('... apres 6 h, le jour meme', '2026-10-04', jourPropose(new Date(2026, 9, 4, 20, 10)));
+dit('on ne cloture pas un jour a venir', true, !!pourquoiPasCeJour({ clotures: [], branchId: 'b', cashbox: 'Accueil', jour: '2026-10-05', aujourdhui: '2026-10-04' }));
+dit('ni un jour d avant une cloture deja faite sur ce tiroir', true, !!pourquoiPasCeJour({ clotures: [soir1], branchId: 'b', cashbox: 'Accueil', jour: '2026-10-02', aujourdhui: '2026-10-04' }));
+dit('... mais oui sur un autre tiroir, ou le meme jour', [null, null], [
+  pourquoiPasCeJour({ clotures: [soir1], branchId: 'b', cashbox: 'MoMo', jour: '2026-10-02', aujourdhui: '2026-10-04' }),
+  pourquoiPasCeJour({ clotures: [soir1], branchId: 'b', cashbox: 'Accueil', jour: J, aujourdhui: '2026-10-04' }),
+]);
+const lendemain: Cloture = { ...soir1, id: 'c9', date: '2026-10-04', le: '2026-10-04T20:00:00Z' };
+dit('le comptage d un jour choisi part de la cloture d avant ce jour', 'c1', derniereCloture([soir1, lendemain], 'b', 'Accueil', J)?.id);
+dit('... et sans borne, de la plus recente', 'c9', derniereCloture([lendemain, soir1], 'b', 'Accueil')?.id);
 
 /* 4. Ce qui empeche de cloturer, et de trancher. */
 dit('on compte avant de cloturer', true, !!pourquoiOnNeCloturePas({ compteXof: null, ecartXof: 0, note: '', verseAuCoffreXof: 0 }));

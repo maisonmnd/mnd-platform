@@ -4,16 +4,17 @@ import { fmtIn } from '../../../../shared/currency';
 import { useStaff as useMaTete } from '../../../../shared/auth';
 import { uid } from '../../../../shared/store';
 import {
-  cashboxCurrency, coffreStore, enAttenteSurLaCaisse, expensesStore, soumission, useExpenseCategories, useExpenses,
+  aValider as aValiderDepenses, cashboxCurrency, coffreStore, expenseTotal, expensesStore, soumission, useExpenseCategories, useExpenses,
   type Cashbox, type Expense, type PieceJointe,
 } from '../../../../shared/finance';
 import { CAISSE_POURBOIRES } from '../../../../shared/receipts';
 import { cloturesStore, useClotures } from '../../../../shared/caisse-du-soir';
 import {
-  COUPURES, attenduDuTiroir, derniereCloture, fondPropose, nouvelleCloture, pourquoiOnNeCloturePas,
+  COUPURES, attenduDuTiroir, derniereCloture, fondPropose, jourPropose, nouvelleCloture, pourquoiOnNeCloturePas, pourquoiPasCeJour,
   sommeDuBilletage, surplusAuCoffre, tiroirsSansCloture, type Cloture,
 } from '../../../../shared/caisse-du-soir-pur';
 import { useCaisses } from './tiroirs';
+import { ChampDeDate } from '../../../../ds/dates';
 import { ChampPieceJointe, monthKey, todayISO, useRegistreEncaissements } from './_shared';
 import './caisse-du-soir.css';
 
@@ -42,8 +43,21 @@ const nombre = (v: string): number | null => {
   return Number.isFinite(n) ? Math.round(n) : null;
 };
 
-export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande }: { onClose: () => void; tiroir?: string }) {
+const veilleDe = (iso: string): string => {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const jourDit = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDemande }: { onClose: () => void; tiroir?: string; jour?: string }) {
   const aujourdhui = todayISO();
+  /* LE JOUR CLÔTURÉ SE CHOISIT — 4 octobre 2026 (« choisir la date pour
+     clôturer la caisse », à 1 h 40 : c'est la veille qu'on comptait). Avant
+     6 h, la veille est proposée. */
+  const [jour, setJour] = useState(jourDemande ?? jourPropose(new Date()));
   const caisses = useCaisses(monthKey(aujourdhui));
   const { branch, currency, branchBoxes } = caisses;
   const [clotures] = useClotures();
@@ -57,27 +71,35 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande }: { onClose: (
      hors bilan. */
   const tiroirs = branchBoxes.filter((b) => b.name !== CAISSE_POURBOIRES && b.name !== 'KkiaPay' && !b.horsBilan);
   const aClore = useMemo(() => new Set(tiroirsSansCloture({
-    branchId: branch.id, date: aujourdhui, registre, depenses: expenses, clotures,
-  })), [branch.id, aujourdhui, registre, expenses, clotures]);
+    branchId: branch.id, date: jour, registre, depenses: expenses, clotures,
+  })), [branch.id, jour, registre, expenses, clotures]);
+  const ceJour = jour === aujourdhui ? 'aujourd’hui' : jour === veilleDe(aujourdhui) ? 'hier' : 'ce jour-là';
   const [choisi, setChoisi] = useState<string | null>(tiroirDemande ?? null);
   const box = tiroirs.find((b) => b.name === choisi);
 
   return (
-    <Modal title={box ? `Clôturer · ${box.name}` : 'La caisse du soir'} onClose={onClose} width={box ? 820 : 560}>
+    <Modal title={box ? `Clôturer · ${box.name} · ${jourDit(jour)}` : 'La caisse du soir'} onClose={onClose} width={box ? 820 : 560}>
       {!box ? (
         <>
           <div className="mnd-muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
             Chaque tiroir se compte le soir par celui qui le tient. Le Trône dit ce qui devrait y être ; un écart s’explique, et la direction le lit le lendemain.
           </div>
+          <div className="cds-jour">
+            <span className="cds-jour__mot">Le jour clôturé</span>
+            <button type="button" className={`cds-bouton${jour === veilleDe(aujourdhui) ? ' is-indigo' : ''}`} onClick={() => setJour(veilleDe(aujourdhui))}>Hier</button>
+            <button type="button" className={`cds-bouton${jour === aujourdhui ? ' is-indigo' : ''}`} onClick={() => setJour(aujourdhui)}>Aujourd’hui</button>
+            <ChampDeDate value={jour} onChange={(v) => { if (v) setJour(v); }} sens="arriere" max={aujourdhui} compact ariaLabel="Le jour clôturé" />
+          </div>
+          <p className="cds-jour__dit">{jourDit(jour)}</p>
           <div className="cds-tiroirs">
             {tiroirs.length === 0 && <div className="trc-empty">Aucun tiroir déclaré pour cette branche.</div>}
             {tiroirs.map((b) => {
               const dernier = clotures
-                .filter((c) => c.branchId === branch.id && c.cashbox === b.name && c.date === aujourdhui)
+                .filter((c) => c.branchId === branch.id && c.cashbox === b.name && c.date === jour)
                 .sort((x, y) => y.le.localeCompare(x.le))[0];
               const etat = dernier
                 ? `Clôturé à ${heureDe(dernier.le)} par ${dernier.par} · ${dernier.ecartXof === 0 ? 'juste' : `écart ${dernier.ecartXof > 0 ? '+' : '−'} ${fmtIn(Math.abs(dernier.ecartXof), cashboxCurrency(b))}`}${dernier.validation?.verdict === 'repris' ? ' · la direction demande de recompter' : ''}`
-                : aClore.has(b.name) ? 'À clôturer : il a bougé aujourd’hui.' : 'Rien n’a bougé aujourd’hui.';
+                : aClore.has(b.name) ? `À clôturer : il a bougé ${ceJour}.` : `Rien n’a bougé ${ceJour}.`;
               return (
                 <div className="cds-tiroir" key={b.id}>
                   <b>{b.name}</b>
@@ -93,6 +115,7 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande }: { onClose: (
       ) : (
         <Comptage
           box={box}
+          jour={jour}
           aujourdhui={aujourdhui}
           moi={moi}
           role={me?.role}
@@ -108,8 +131,10 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande }: { onClose: (
   );
 }
 
-function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, monnaie, onRetour, onFini }: {
+function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisses, monnaie, onRetour, onFini }: {
   box: Cashbox;
+  /** Le jour clôturé (choisi). */
+  jour: string;
   aujourdhui: string;
   moi: string;
   role?: string;
@@ -126,18 +151,22 @@ function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, mon
   const f = (n: number) => fmtIn(n, devise);
   const [categories] = useExpenseCategories();
 
-  /* LE LIVRE DU TIROIR CE SOIR : son solde à la fin d'aujourd'hui (jamais un
-     versement daté de demain), moins ce qui attend une validation. */
-  const duJour = caisses.boxMoves(box.name, { de: aujourdhui, a: aujourdhui });
-  const enAttente = enAttenteSurLaCaisse(expenses, branch.id, box.name);
+  /* LE LIVRE DU TIROIR AU SOIR DU JOUR CHOISI : son solde à la fin de ce
+     jour (jamais un versement daté du lendemain), moins les dépenses de ce
+     jour ou d'avant qui attendent une validation. */
+  const duJour = caisses.boxMoves(box.name, { de: jour, a: jour });
+  const enAttente = aValiderDepenses(expenses, branch.id)
+    .filter((e) => e.cashbox === box.name && !e.avancee && e.date <= jour)
+    .reduce((n, e) => n + expenseTotal(e), 0);
   const livreMaintenant = duJour.balance - enAttente;
-  const derniere = derniereCloture(clotures, branch.id, box.name);
+  const derniere = derniereCloture(clotures, branch.id, box.name, jour);
   const attendu = attenduDuTiroir({ livreMaintenantXof: livreMaintenant, derniere });
+  const horsBorne = pourquoiPasCeJour({ clotures, branchId: branch.id, cashbox: box.name, jour, aujourdhui });
 
   /* Ce qui explique l'attendu, ligne par ligne. « Autres mouvements » couvre
-     ce qui a bougé entre la dernière clôture et aujourd'hui (un jour sans
-     clôture, un versement saisi après la clôture d'hier). */
-  const mouvementsDuJour = derniere && derniere.date === aujourdhui ? [] : duJour.moves;
+     ce qui a bougé entre la clôture précédente et ce jour (un jour sans
+     clôture, un versement saisi après la clôture d'avant). */
+  const mouvementsDuJour = derniere && derniere.date === jour ? [] : duJour.moves;
   const base = derniere ? derniere.laisseXof : duJour.startBalance;
   const sommeDuJour = mouvementsDuJour.reduce((s, m) => s + m.delta, 0);
   const autres = attendu - base - sommeDuJour + enAttente;
@@ -175,7 +204,7 @@ function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, mon
       branchId: branch.id,
       label: depLibelle.trim(),
       amountXof: m,
-      date: aujourdhui,
+      date: jour,
       cashbox: box.name,
       category: depCategorie,
       ...(depFichier ? { fichier: depFichier } : {}),
@@ -188,7 +217,7 @@ function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, mon
   };
 
   const [fait, setFait] = useState<Cloture | null>(null);
-  const empechement = pourquoiOnNeCloturePas({ compteXof: compte, ecartXof: ecart, note, verseAuCoffreXof: verse });
+  const empechement = horsBorne ?? pourquoiOnNeCloturePas({ compteXof: compte, ecartXof: ecart, note, verseAuCoffreXof: verse });
   const repriseDe = clotures
     .filter((c) => c.branchId === branch.id && c.cashbox === box.name && c.validation?.verdict === 'repris')
     .filter((c) => !clotures.some((x) => x.reprend === c.id))
@@ -199,12 +228,12 @@ function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, mon
     const le = new Date().toISOString();
     if (verse > 0) {
       coffreStore.set((prev) => [...prev, {
-        id: `cof-${uid()}`, branchId: branch.id, kind: 'depot', amountXof: verse, date: aujourdhui,
+        id: `cof-${uid()}`, branchId: branch.id, kind: 'depot', amountXof: verse, date: jour,
         cashbox: box.name, note: `Clôture du soir · ${box.name} · fond de ${f(fond)} laissé`,
       }]);
     }
     const c = nouvelleCloture({
-      id: `clo-${uid()}`, branchId: branch.id, cashbox: box.name, date: aujourdhui,
+      id: `clo-${uid()}`, branchId: branch.id, cashbox: box.name, date: jour,
       attenduXof: attendu, compteXof: compte,
       ...(parBillets ? { billets: billetsNum } : {}),
       note, depenses: depensesEcrites, fondXof: fond, verseAuCoffreXof: verse,
@@ -354,7 +383,7 @@ function Comptage({ box, aujourdhui, moi, role, clotures, expenses, caisses, mon
           <div className="cds-gestes">
             <button type="button" className="cds-bouton" onClick={onRetour}>Retour</button>
             <button type="button" className="cds-bouton is-plein" disabled={!!empechement} title={empechement ?? ''} onClick={cloturer}>Clôturer le tiroir</button>
-            {empechement && compte !== null && <span className="cds-souci">{empechement}</span>}
+            {empechement && (compte !== null || horsBorne) && <span className="cds-souci">{empechement}</span>}
           </div>
         </div>
       </div>

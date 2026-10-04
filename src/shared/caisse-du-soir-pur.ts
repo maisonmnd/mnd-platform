@@ -190,14 +190,43 @@ export function sommeDuBilletage(b: Readonly<Record<string, number>>): number {
   return s;
 }
 
-/** La dernière clôture d'un tiroir, toutes dates confondues (par son heure). */
-export function derniereCloture(clotures: readonly Cloture[], branchId: string, cashbox: string): Cloture | undefined {
+/** La dernière clôture d'un tiroir : par jour clôturé, puis par heure. Avec
+    `auPlusTard`, la dernière d'un jour égal ou antérieur (le comptage d'un
+    jour choisi part de la clôture d'avant). */
+export function derniereCloture(clotures: readonly Cloture[], branchId: string, cashbox: string, auPlusTard?: string): Cloture | undefined {
   let d: Cloture | undefined;
   for (const c of clotures) {
     if (c.branchId !== branchId || c.cashbox !== cashbox) continue;
-    if (!d || c.le > d.le) d = c;
+    if (auPlusTard && c.date > auPlusTard) continue;
+    if (!d || c.date > d.date || (c.date === d.date && c.le > d.le)) d = c;
   }
   return d;
+}
+
+/** LE JOUR QU'ON CLÔTURE SE CHOISIT — 4 octobre 2026. « Choisir la date pour
+    clôturer la caisse » (Yéman, à 1 h 40 du matin : c'est la veille qu'on
+    compte). Deux bornes : pas un jour à venir, et pas un jour d'avant une
+    clôture déjà faite sur ce tiroir — la suite des comptages se casserait
+    (chaque soir part de ce que le précédent a laissé). `null` quand on peut. */
+export function pourquoiPasCeJour(o: {
+  clotures: readonly Pick<Cloture, 'branchId' | 'cashbox' | 'date'>[];
+  branchId: string; cashbox: string; jour: string; aujourdhui: string;
+}): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.jour)) return 'Choisissez le jour à clôturer.';
+  if (o.jour > o.aujourdhui) return 'On ne clôture pas un jour qui n’est pas encore là.';
+  const apres = o.clotures
+    .filter((c) => c.branchId === o.branchId && c.cashbox === o.cashbox && c.date > o.jour)
+    .map((c) => c.date).sort().at(-1);
+  if (apres) return `Ce tiroir a déjà été clôturé le ${apres} : on ne clôture pas un jour d’avant.`;
+  return null;
+}
+
+/** Le jour proposé : avant 6 h du matin, c'est la veille qu'on clôture. */
+export function jourPropose(maintenant: Date): string {
+  const d = new Date(maintenant);
+  if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 /** CE QUI DEVRAIT ÊTRE DANS LE TIROIR. Ce que la dernière clôture y a laissé
