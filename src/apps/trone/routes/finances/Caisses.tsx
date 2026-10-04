@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
@@ -88,6 +89,7 @@ export default function Caisses() {
      enfermer personne dehors. Le verrou vaut pour la séance. */
   const [reglages] = useSettings();
   const toutesOuvertes = useCaissesOuvertes();
+  const [clotureOuverte, setClotureOuverte] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
 
   /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
@@ -304,6 +306,7 @@ export default function Caisses() {
 
   return (
     <div className="mnd-rise">
+      {clotureOuverte && <ClotureDuTiroir onClose={() => setClotureOuverte(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · les tiroirs de la Maison</Eyebrow>
@@ -312,6 +315,12 @@ export default function Caisses() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setVerrouOuvert(true)}>
             {reglages.codeCaissesHash ? 'Code de l’écran' : 'Protéger cet écran'}
+          </button>
+          {/* LA CAISSE DU SOIR SE TROUVE AUSSI ICI — 4 octobre 2026. « Où est-ce ? »
+              (Yéman) : le comptage n'était qu'au Journal de caisse du POS, et c'est
+              ici, devant ses tiroirs, qu'on le cherche. */}
+          <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }} onClick={() => setClotureOuverte(true)}>
+            Clôturer la caisse
           </button>
           <button
             className="trf-act"
