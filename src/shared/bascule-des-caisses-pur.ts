@@ -277,8 +277,13 @@ export function caissesApres(caisses: readonly Cashbox[], branchId: string, plan
     }
   }
   for (const s of suites) if (!presents().has(s.name)) out.push(s);
+  /* UNE PIÈCE DÉJÀ TENUE NE SE DOUBLE PAS : une caisse gardée telle quelle
+     comme Banque (BIIC, par exemple) EST la Banque. La Terrasse, elle, a
+     plusieurs tiroirs. */
+  const tenues = rolesTenus(plan);
   for (const n of NEUVES) {
     if (n.role === 'archive' || presents().has(n.nom)) continue;
+    if (n.role !== 'terrasse' && tenues.has(n.role)) continue;
     out.push({
       id: nouvelId(n.nom, n.role), branchId, name: n.nom, sub: n.sub, glyph: n.glyph, openingXof: 0, role: n.role,
       creeeParLaBascule: true, ...(n.equipe ? { equipe: true } : {}), ...(n.horsBilan ? { horsBilan: true } : {}),
@@ -286,6 +291,10 @@ export function caissesApres(caisses: readonly Cashbox[], branchId: string, plan
   }
   return out;
 }
+
+/** Les pièces qu'une caisse gardée telle quelle tient déjà. */
+export const rolesTenus = (plan: Plan): Set<RoleDeCaisse> =>
+  new Set(Object.values(plan.destins).flatMap((d) => (d.sort === 'garder' ? [d.role] : [])));
 
 /** Le retour des caisses : les anciennes redeviennent ce qu'elles étaient,
     les neuves que plus rien ne nomme s'en vont. */

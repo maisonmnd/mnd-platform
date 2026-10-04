@@ -4,7 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { useSettings } from '../../../../shared/settings';
 import { useToutesLesCaisses, type RoleDeCaisse } from '../../../../shared/finance';
 import {
-  JOUR_DE_DEPART, NEUVES, PIECES_D_OCTOBRE, casesDe, compteLaBascule, jourDe, planPropose,
+  JOUR_DE_DEPART, NEUVES, PIECES_D_OCTOBRE, casesDe, compteLaBascule, jourDe, planPropose, rolesTenus,
   type Destin, type Plan, type Sorte,
 } from '../../../../shared/bascule-des-caisses-pur';
 import { appliqueLaBascule, annuleLaBascule, lisLesLots, resteAFaire } from './bascule';
@@ -67,11 +67,16 @@ export function BasculeDOctobre({ onClose }: { onClose: () => void }) {
   const bilan = useMemo(() => compteLaBascule(plan, lisLesLots(branch.id)), [plan, branch.id]);
   const manquent = Object.keys(bilan.manquantes);
   const suitesChoisies = Object.values(plan.destins).flatMap((d) => (d.sort === 'suite' ? [d.nom] : []));
-  const neuves = [...NEUVES.filter((n) => n.role !== 'archive').map((n) => n.nom), ...suitesChoisies]
+  const tenues = rolesTenus(plan);
+  const neuves = [...NEUVES.filter((n) => n.role !== 'archive' && (n.role === 'terrasse' || !tenues.has(n.role))).map((n) => n.nom), ...suitesChoisies]
     .filter((n) => !toutes.some((c) => c.branchId === branch.id && c.name === n));
   /* Où une écriture d'octobre d'une ancienne peut aller : les pièces neuves
      et les suites choisies. */
-  const destinationsOctobre = [...new Set([...PIECES_D_OCTOBRE, ...suitesChoisies])];
+  const gardees = Object.entries(plan.destins).flatMap(([nom, d]) => (d.sort === 'garder' ? [nom] : []));
+  const destinationsOctobre = [...new Set([
+    ...PIECES_D_OCTOBRE.filter((n) => { const r = NEUVES.find((x) => x.nom === n)?.role; return !r || r === 'terrasse' || !tenues.has(r); }),
+    ...suitesChoisies, ...gardees,
+  ])];
 
   const poseDestin = (nom: string, v: string) => setPlan((p) => ({ ...p, destins: { ...p.destins, [nom]: destinDe(v) } }));
   const poseOctobre = (nom: string, vers: string) => setPlan((p) => ({ ...p, octobreVers: { ...p.octobreVers, [nom]: vers } }));

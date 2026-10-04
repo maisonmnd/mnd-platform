@@ -22,7 +22,7 @@ import { filStore, nouveauMessage } from '../../../../shared/fil';
 import { useAuth } from '../../../../shared/auth';
 import { useSubscribers, usePlans, libellesInclus } from '../../../../shared/abonnements';
 import { useStaff } from '../equipe/data';
-import { coffreStore, useCashboxes, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
+import { coffreStore, useCashboxes, caissesPourLaDate, useInvoices, usePaymentMethods, invoiceTotal, ligneNetXof, invoiceReglements, invoiceRegleXof, invoiceResteXof, invoiceSoldee, type Invoice, type InvoiceLine, type PaymentMethod , nextInvoiceNumber, nouvelleFacture, ligneFacture, invoicesStore } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { appointmentsStore, useAppointments, type Appointment, estampilleLaPose } from '../../../../shared/agenda';
 import { invoicePdf, summaryPdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -1584,7 +1584,7 @@ export default function Factures() {
                               </Select>
                               <Select aria-label="Caisse du versement" value={p.cashbox ?? ''} onChange={(e) => corrige(p.id, { cashbox: e.target.value || undefined })} style={{ fontSize: 12 }}>
                                 <option value="">Caisse non dite</option>
-                                {[...new Set([...(p.cashbox ? [p.cashbox] : []), ...boxesBranche.map((c) => c.name)])].map((n) => (
+                                {[...new Set([...(p.cashbox ? [p.cashbox] : []), ...caissesPourLaDate(boxesBranche, p.date, p.cashbox).map((c) => c.name)])].map((n) => (
                                   <option key={n} value={n}>{n}</option>
                                 ))}
                               </Select>

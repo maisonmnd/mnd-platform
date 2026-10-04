@@ -23,7 +23,7 @@ import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
 import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
 /** La veille d'un jour ISO, en heure locale. */
 const veilleIso = (iso: string): string => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
+import { useInvoices, useCashboxes, caissesPourLaDate, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import {
@@ -279,7 +279,11 @@ export default function Caisse() {
      choix — et s'il n'existe aucune caisse dans cette devise, l'encaissement est
      bloqué plutôt que versé au mauvais tiroir. */
   const payCurrency = fxOn ? fxCode : currency;
-  const eligibleBoxes = branchCashboxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  /* La caisse suit la date de la vente (4 octobre 2026) : en octobre, les
+     caisses d'octobre, la Terrasse en tête. */
+  const eligibleBoxes = caissesPourLaDate(branchCashboxes, dateVente, cashbox)
+    .filter((c) => cashboxCurrency(c) === payCurrency)
+    .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
   const activeCashbox = eligibleBoxes.some((c) => c.name === cashbox)
     ? cashbox
     : eligibleBoxes[0]?.name ?? '';

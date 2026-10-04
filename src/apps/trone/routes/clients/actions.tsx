@@ -11,7 +11,7 @@ import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHo
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
 import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
-import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { invoicesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -1076,12 +1076,15 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      à celui de la maison. Sans caisse dans la devise reçue, on refuse plutôt que
      de fausser deux soldes d'un coup. */
   const payCurrency = fxOn ? fxCode : currency;
-  const eligibleBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  /* La caisse suit la date du versement (4 octobre 2026) : en octobre, les
+     caisses d'octobre ; une correction d'avant, les anciennes. */
+  const boxesDuJour = caissesPourLaDate(branchBoxes, payDate, cashbox);
+  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency);
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
   /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
      de la Maison, même quand le rituel part en devise. */
-  const gammeBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === currency);
+  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency);
   const payGamme: PaymentMethod = payGammeChoisi || pay;
   /* La Gamme suit la caisse du rituel quand elle suit son moyen ; sinon elle
      se choisit à son tour. Jamais la première de la liste. */

@@ -15,7 +15,7 @@ import {
   ARCHIVE, NEUVES, basculeLEcriture, rendsLEcriture, caissesApres, caissesRendues, compteLaBascule,
   jourDe, nouveauNom, planPropose, type Plan,
 } from '../src/shared/bascule-des-caisses-pur';
-import { caissesVivantes, caisseParDefaut, type Cashbox } from '../src/shared/finance';
+import { caissesVivantes, caisseParDefaut, caissesPourLaDate, type Cashbox } from '../src/shared/finance';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -105,7 +105,31 @@ dit('ranger : l avant part dans l archive, octobre ne bouge pas', [ARCHIVE, unde
   [nouveauNom(ranger, 'Real Money', '2026-09-30'), nouveauNom(ranger, 'Terrasse · MoMo MTN', '2026-10-02')]);
 dit('ranger : seule l archive nait', [ARCHIVE], caissesApres(apres, B, ranger, 'x', (n) => n).filter((c) => !apres.includes(c)).map((c) => c.name));
 
+/* 5 bis. « Pourquoi les RDV à venir ont toujours les anciennes caisses ? »
+   La liste suit la date de l'écriture, une fois octobre ouvert. */
+const noms = (l: Cashbox[]) => l.map((c) => c.name).sort();
+const dOctobre = noms(caissesPourLaDate(apres.filter((c) => c.branchId === B), '2026-10-07'));
+dit('un encaissement d octobre ne voit pas les anciennes', false, dOctobre.some((n) => ['Real Money', 'MoMo Brice', 'Caisse principale'].includes(n)));
+dit('... il voit les pieces neuves, les suites et KkiaPay', true, ['Terrasse · Tiroir espèces', 'Terrasse · MoMo MTN', 'KkiaPay'].every((n) => dOctobre.includes(n)));
+const dSeptembre = noms(caissesPourLaDate(apres.filter((c) => c.branchId === B), '2026-09-20'));
+dit('une correction de septembre voit les anciennes, pas les pieces neuves', [true, false],
+  [dSeptembre.includes('Real Money'), dSeptembre.some((n) => n === 'Terrasse · Tiroir espèces' || n === 'La Banque')]);
+dit('la caisse deja portee par l ecriture reste dans la liste', true, caissesPourLaDate(apres, '2026-10-07', 'Real Money').some((c) => c.name === 'Real Money'));
+dit('avant d ouvrir octobre, rien n est filtre', avant.length, caissesPourLaDate(avant, '2026-10-07').length);
+const avecBiic: Plan = { ...planPropose([...avant, caisse('cb', 'BIIC')], B, 'XOF'), octobreVers: {} };
+avecBiic.destins.BIIC = { sort: 'garder', role: 'banque' };
+const apresBiic = caissesApres([...avant, caisse('cb', 'BIIC')], B, avecBiic, 'x', (n) => `cb-${n}`);
+dit('BIIC gardee comme Banque : pas de seconde « La Banque »', [false, 'banque'], [apresBiic.some((c) => c.name === 'La Banque'), apresBiic.find((c) => c.name === 'BIIC')?.role]);
+
 /* 6. Le câblage. */
+const ecransDate: [string, RegExp][] = [
+  ['src/apps/trone/routes/clients/actions.tsx', /caissesPourLaDate\(branchBoxes, payDate, cashbox\)/],
+  ['src/apps/trone/routes/vente/Caisse.tsx', /caissesPourLaDate\(branchCashboxes, dateVente, cashbox\)/],
+  ['src/apps/trone/routes/finances/Depenses.tsx', /caissesPourLaDate\(branchBoxes, form\.date \|\| todayISO\(\), form\.cashbox\)/],
+  ['src/apps/trone/routes/vente/Factures.tsx', /caissesPourLaDate\(boxesBranche, p\.date, p\.cashbox\)/],
+];
+dit('encaisser, vendre, depenser, corriger une facture : la liste suit la date', ecransDate.map(() => true),
+  ecransDate.map(([f, re]) => re.test(readFileSync(f, 'utf8'))));
 const sync = readFileSync('src/shared/sync.ts', 'utf8');
 dit('la synchronisation ecrit par tranches', true, /for \(let i = 0; i < upserts\.length; i \+= TRANCHE_D_ENVOI\)/.test(sync));
 const caissesSrc = readFileSync('src/apps/trone/routes/finances/Caisses.tsx', 'utf8');

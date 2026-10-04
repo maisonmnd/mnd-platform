@@ -1508,6 +1508,22 @@ export const useCashboxes = (): [Cashbox[], Store<Cashbox[]>['set']] => {
   return [vivantes, set];
 };
 export const useToutesLesCaisses = () => useStore(cashboxesStore);
+
+/** LA CAISSE SUIT LA DATE DE L'ÉCRITURE — 4 octobre 2026. « Pourquoi les RDV
+    à venir ont toujours les anciennes caisses ? Il devrait y avoir les
+    nouveaux noms » (Yéman). Une fois octobre ouvert : une écriture datée
+    d'octobre ou après ne se propose qu'aux caisses d'octobre ; une écriture
+    d'avant (la mise en ordre du passé) qu'aux anciennes et à celles qui
+    continuent. Avant l'ouverture, rien ne change. La caisse déjà portée par
+    l'écriture reste toujours dans la liste : on ne perd pas ce qui est écrit. */
+export const caissesPourLaDate = (boxes: readonly Cashbox[], jour: string | undefined, dejaChoisie?: string): Cashbox[] => {
+  const j = (jour ?? '').slice(0, 10);
+  if (!j) return [...boxes];
+  return boxes.filter((c) => c.name === dejaChoisie
+    || (c.jusquAu ? j <= c.jusquAu : !(c.creeeParLaBascule && j < DEBUT_DES_CAISSES_NEUVES)));
+};
+/** Le premier jour des pièces neuves (la bascule d'octobre). */
+export const DEBUT_DES_CAISSES_NEUVES = '2026-10-01';
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
 export const usePaymentMethods = () => useStore(paymentMethodsStore);
 

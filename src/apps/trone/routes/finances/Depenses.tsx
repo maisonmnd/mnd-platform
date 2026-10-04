@@ -23,7 +23,7 @@ import { useStaff } from '../../../../shared/auth';
 import { staffAccessStore } from '../equipe/data';
 import { useStore } from '../../../../shared/store';
 import { usePrets } from '../../../../shared/foyer';
-import { useTransferts, transfertSurCaisse } from '../../../../shared/finance';
+import { useTransferts, transfertSurCaisse, caissesPourLaDate } from '../../../../shared/finance';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { normName, sameName } from '../../../../shared/text';
 import { autoriserLaPurge } from '../../../../shared/sync';
@@ -2525,7 +2525,8 @@ export default function Depenses() {
                         }}
                       >
                         <option value="">Choisir…</option>
-                        {branchBoxes.map((c) => <option key={c.id} value={c.name}>{libelleDeLaCaisse(c)}</option>)}
+                        {/* La caisse suit la date de la dépense (4 octobre 2026). */}
+                        {caissesPourLaDate(branchBoxes, form.date || todayISO(), form.cashbox).map((c) => <option key={c.id} value={c.name}>{libelleDeLaCaisse(c)}</option>)}
                         {/* « Sans caisse » se choisit, comme les autres (13 septembre). */}
                         <option value="__sans__">Sans caisse · Autres</option>
                       </Select>
