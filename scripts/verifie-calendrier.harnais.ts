@@ -5,6 +5,7 @@
    rien ne l'annonce. C'est la faute la plus discrète et la plus coûteuse de
    tout ce champ, et elle vient presque toujours du même endroit : JavaScript
    fait commencer la semaine le DIMANCHE, le Bénin le lundi. */
+import { readFileSync } from 'node:fs';
 import {
   jourDeSemaineLundi, grilleDuMois, moisVoisin,
   anneesPossibles, retardEnJours, correctionsPossibles,
@@ -143,5 +144,13 @@ dit('une saisie vide ne se lit pas', { anneeSupposee: false, candidats: [] }, li
 const decembre = lis('20/12', { sens: 'arriere', max: AUJ });
 dit('un jour à venir est refusé à une naissance', 'trop-tard', decembre.horsBornes);
 dit('et seules les années passées s’offrent', [2025, 2024], decembre.candidats);
+
+/* LE TABLEAU DE BORD DIT L'ANNÉE DE CHAQUE RENDEZ-VOUS — 4 octobre 2026.
+   « Rajoute l'année pour que je sois bien située » (Yéman), après le 5 sept.
+   (« toujours les années sur les RDV »). Les impayés remontent à mars, les
+   soldes à venir courent sur l'an prochain : sans l'année, on ne sait plus
+   où l'on est. La règle : aucune date de rendez-vous écrite par `frShort`. */
+const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('le tableau de bord n ecrit aucune date de rendez-vous sans l annee', [], tableau.match(/frShort\([^)]*\.date\)/g) ?? []);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

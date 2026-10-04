@@ -20,7 +20,7 @@ import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
-  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
+  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, frShortAn, fromISO,
   facturesQuiAttendent,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, revenuDuMois, revenusProjetesDuMois, type Drill, type DrillRow,
@@ -452,7 +452,7 @@ export default function Dashboard() {
     ...(aRecevoir.length > 0 ? [{
       k: 'attente',
       label: `${aRecevoir.length} réservation${aRecevoir.length > 1 ? 's' : ''} à recevoir`,
-      sub: aRecevoir.slice(0, 3).map((a) => `${a.clientName || 'Une tête'} · ${frShort(a.date)} ${a.time}`).join(' · ')
+      sub: aRecevoir.slice(0, 3).map((a) => `${a.clientName || 'Une tête'} · ${frShortAn(a.date)} ${a.time}`).join(' · ')
         + (aRecevoir.length > 3 ? ' · …' : ''),
       action: 'Recevoir', go: () => setAttenteOpen(true),
     }] : []),
@@ -672,7 +672,7 @@ export default function Dashboard() {
                 <div className="trp-act__name">{clientOf(a.clientId)?.name ?? 'Cliente'}</div>
                 <div className="trp-act__meta">{apptLabel(a, byId)}</div>
               </div>
-              <div className="trp-pay__date">{frShort(a.date)}</div>
+              <div className="trp-pay__date">{frShortAn(a.date)}</div>
               <div className="trp-pay__total">{fmtMoney(rowNet, currency)}</div>
               <div className="trp-pay__due">{fmtMoney(due, currency)}</div>
               <div style={{ flex: 'none' }}><StatusPill status={a.status} /></div>
@@ -1268,7 +1268,7 @@ export default function Dashboard() {
                     {a.clientName || 'Une tête'}
                   </b>
                   <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)', flex: 'none' }}>
-                    {frShort(a.date)} · {a.time}
+                    {frShortAn(a.date)} · {a.time}
                   </span>
                 </div>
                 {/* LE JOUR FERMÉ SE VOIT AVANT D'ÊTRE CONFIRMÉ. Une réservation
@@ -1346,9 +1346,9 @@ export default function Dashboard() {
         const prenom = appelDe(fiche, a.clientName);
         const msg = signeLeMessage(
           `${maisonNom()}\n`
-          + `${prenom ? `Bonjour ${prenom}, ` : ''}votre demande du ${frShort(a.date)} à ${a.time} nous est bien parvenue.`
+          + `${prenom ? `Bonjour ${prenom}, ` : ''}votre demande du ${frShortAn(a.date)} à ${a.time} nous est bien parvenue.`
           + `${fermeAvant ? ' La Maison est malheureusement fermée ce jour-là.' : ''}\n`
-          + `Nous vous proposons le ${frShort(proposeFor.date)} à ${proposeFor.time}. Dites-nous si cela vous convient et nous scellons votre créneau.`,
+          + `Nous vous proposons le ${frShortAn(proposeFor.date)} à ${proposeFor.time}. Dites-nous si cela vous convient et nous scellons votre créneau.`,
         );
         const poser = () => {
           appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id
@@ -1365,7 +1365,7 @@ export default function Dashboard() {
           <Modal title="Proposer une autre date." onClose={() => setProposeFor(null)} width={480}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.65 }}>
-                {a.clientName || 'Une tête'} demandait le <b>{frShort(a.date)} à {a.time}</b>
+                {a.clientName || 'Une tête'} demandait le <b>{frShortAn(a.date)} à {a.time}</b>
                 {fermeAvant ? ', un jour où la Maison est fermée.' : '.'}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
