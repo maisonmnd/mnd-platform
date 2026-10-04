@@ -156,7 +156,7 @@ function Conges() {
     setPrevenirEnCours(null);
     if (r.ok) {
       patchDemande(l.id, { preventeLe: new Date().toISOString(), preventeParModele: !fen.ouverte, preventeRefus: undefined });
-      toast(`${prenom} a reçu la décision sur WhatsApp.`);
+      toast(r.enAttente ? `Hors ligne : la décision partira à ${prenom} au retour du réseau.` : `${prenom} a reçu la décision sur WhatsApp.`);
     } else {
       patchDemande(l.id, { preventeRefus: r.erreur });
       toast(`La décision n’est pas partie : ${r.erreur}`);

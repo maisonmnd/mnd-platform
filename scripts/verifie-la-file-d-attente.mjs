@@ -135,6 +135,20 @@ try {
   seanceAvec(H);
   const h2 = lance(H, { FAUX_RESEAU: '1', FAUX_REFUS: 'essais', GESTES: JSON.stringify([['set', 'h1', 'H-interdit']]) });
   dit('H : refuse par les droits, le geste sort de la file', [0, 'H'], [h2.attente, h2.serveur.h1]);
+
+  /* ── TEMPS 3 : LES ENVOIS QUI ATTENDENT LE RÉSEAU ── */
+  const W = nouveauTelephone();
+  const w1 = seanceAvec(W, { reseau: false, gestes: [['whatsapp', 'Un'], ['whatsapp', 'Deux']] });
+  dit('I : hors ligne, les WhatsApp sont gardes et l ecran le sait', [2, [], true], [w1.envois, w1.recus, w1.dernier?.enAttente === true]);
+  const w2 = seanceAvec(W, { apres: 7500 });
+  dit('II : rouvert en ligne, ils partent seuls, dans l ordre', [0, ['Un', 'Deux']], [w2.envois, w2.recus]);
+  const w3 = seanceAvec(W, { gestes: [['whatsapp', 'Direct']] });
+  dit('III : en ligne, il part tout de suite, et une seule fois', [0, ['Un', 'Deux', 'Direct'], true], [w3.envois, w3.recus, w3.dernier?.ok === true && !w3.dernier?.enAttente]);
+  const w4 = lance(W, { FAUX_RESEAU: '1', FAUX_REFUS_FONCTION: 'whatsapp-envoi', GESTES: JSON.stringify([['whatsapp', 'Refuse']]) });
+  dit('IV : un refus du serveur ne se garde JAMAIS (pas de doublon), et se dit', [0, false], [w4.envois, w4.dernier?.ok]);
+  seanceAvec(W, { reseau: false, gestes: [['whatsapp', 'Plus tard']] });
+  const w6 = lance(W, { FAUX_RESEAU: '1', FAUX_REFUS_FONCTION: 'whatsapp-envoi', APRES: '7500' });
+  dit('V : garde puis refuse au retour : sort de la file, note comme refuse', [0, 1, ['Un', 'Deux', 'Direct']], [w6.envois, w6.refus, w6.recus]);
 } finally {
   rmSync(travail, { recursive: true, force: true });
 }

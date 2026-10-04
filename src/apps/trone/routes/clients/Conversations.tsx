@@ -22,6 +22,7 @@ import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
+import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useEquipe, useEnvois } from '../equipe/data';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
@@ -455,6 +456,9 @@ export default function Conversations() {
        `keepalive` les laisse finir. Un message qu'on croit envoyé et qui
        n'est jamais parti est pire qu'un message qu'on aurait voulu retenir. */
     if (enFermant) {
+      /* Hors ligne, le message ne peut pas finir sa course : il se garde, et
+         part à la prochaine ouverture avec réseau (4 octobre 2026). */
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
       const base = adresseDesFonctions;
       const jeton = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!base || !jeton) return;
@@ -472,9 +476,13 @@ export default function Conversations() {
     }
     setEnvoi(true);
     try {
-      const { error } = await supabase!.functions.invoke('whatsapp-envoi', { body: corps });
-      if (error) throw error;
-      toast(a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
+      /* HORS LIGNE, IL ATTEND (4 octobre 2026) : gardé sur l'appareil, il part
+         de lui-même au retour du réseau ; la pastille le compte. */
+      const issue = await appelleOuGarde('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`);
+      if ('erreur' in issue) throw issue.erreur;
+      toast('enAttente' in issue
+        ? 'Hors ligne : le message partira au retour du réseau.'
+        : a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
     } catch (e) {
       toast(`Non envoyé : ${await motifDuRefus(e)}`);
     } finally {

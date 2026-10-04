@@ -94,7 +94,14 @@ export type PayRequest = {
 /** Ouvre le widget et attend la fin. La promesse ne se résout QUE sur un
     paiement abouti ; si la cliente ferme le widget, elle reste en attente —
     l'écran garde donc toujours une porte de sortie (« j'enverrai moi-même »). */
+/** Le message dit à la cliente quand le réseau manque (4 octobre 2026). */
+export const KKIAPAY_HORS_LIGNE = 'Hors ligne : le paiement en ligne demande le réseau. Réessayez dès qu’il revient, ou réglez à la Maison.';
+
 export function payWithKkiapay(req: PayRequest): Promise<{ transactionId: string }> {
+  /* UN PAIEMENT EN LIGNE NE S'ATTEND PAS (« hors ligne », temps 3) : sans
+     réseau, rien ne s'ouvre, et la cliente lit pourquoi. Le comptant et le
+     Mobile Money déclaré au comptoir restent possibles. */
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.reject(new Error(KKIAPAY_HORS_LIGNE));
   return loadWidget().then(() => new Promise<{ transactionId: string }>((resolve, reject) => {
     const w = window as KkiapayWindow;
     if (!w.openKkiapayWidget) { reject(new Error('Le service de paiement est injoignable.')); return; }

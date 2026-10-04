@@ -8,6 +8,7 @@
      - le service garde ses repères, et la construction les remplit ;
      - le Trône et LOKAA enregistrent le service dès l'ouverture. */
 import { readFileSync } from 'node:fs';
+import { payWithKkiapay, KKIAPAY_HORS_LIGNE } from '../src/shared/kkiapay-widget';
 import { dansLeDelai, sessionHorsLigneValable, garderLaTete, teteGardee, noteLaConnexionEnLigne, oublieLeHorsLigne, JOURS_HORS_LIGNE } from '../src/shared/hors-ligne';
 
 let ko = 0;
@@ -60,6 +61,26 @@ for (const app of ['trone', 'lokaa']) {
 }
 const auth = readFileSync('src/shared/auth.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 dit('sans reponse en 4 s et serveur injoignable, la session gardee ouvre', true, /setTimeout\(\(\) => \{\s*if \(repondu \|\| !state\.loading\) return;[\s\S]*?serveurInjoignable\(\)[\s\S]*?\}, 4000\);/.test(auth));
+
+/* 5. Temps 3 : ce qui ne s'attend pas refuse hors ligne, et le dit. */
+Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true });
+const refusKkia = await payWithKkiapay({ amountXof: 5000 } as never).then(() => 'ouvert', (e: Error) => e.message);
+dit('hors ligne, KkiaPay ne s ouvre pas et dit pourquoi', KKIAPAY_HORS_LIGNE, refusKkia);
+Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true });
+dit('le message parle a la cliente : comptant ou plus tard', true, /réessayez dès qu’il revient, ou réglez à la Maison/i.test(KKIAPAY_HORS_LIGNE));
+const ai = readFileSync('src/shared/ai.ts', 'utf8');
+dit('la suggestion de l IA refuse hors ligne', true, /navigator\.onLine === false\) throw new Error\('Hors ligne/.test(ai));
+const wa = readFileSync('src/shared/whatsapp.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('le WhatsApp partage passe par la file des envois', true, /appelleOuGarde<[^>]*>\('whatsapp-envoi'/.test(wa) && !/functions\.invoke\('whatsapp-envoi'/.test(wa));
+const conv = readFileSync('src/apps/trone/routes/clients/Conversations.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('Conversations envoie par la file, meme en fermant l onglet hors ligne', true,
+  /appelleOuGarde\('whatsapp-envoi', corps/.test(conv) && /navigator\.onLine === false\) \{ gardeUnAppel\('whatsapp-envoi'/.test(conv));
+const push = readFileSync('src/shared/push.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('les notifications passent par la file', 4, (push.match(/appelleOuGarde/g) ?? []).length - 1);
+const version = readFileSync('src/shared/version.ts', 'utf8');
+const shell = readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8');
+dit('une nouvelle version s annonce sans recharger sous la main', true,
+  /setInterval\(\(\) => void regarderEnFond\(\), 10 \* 60_000\)/.test(version) && /<BanniereDeVersion \/>/.test(shell));
 
 console.log(ko === 0 ? '\nLe Trone sait s ouvrir sans reseau.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

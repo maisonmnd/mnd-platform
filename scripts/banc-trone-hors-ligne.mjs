@@ -130,6 +130,19 @@ const pastille = await evalue(`document.querySelector('.tr-top__sync')?.innerTex
 dit('... et la pastille dit « Hors ligne »', /hors ligne/i.test(pastille ?? ''), pastille);
 await photo('3-hors-ligne');
 
+/* 3 bis. Un envoi gardé (temps 3) : la pastille le compte, et s'ouvre sur la file. */
+await evalue(`localStorage.setItem('trone::appels-en-attente', JSON.stringify([{ id: 'ap-banc', fonction: 'whatsapp-envoi', corps: {}, dit: 'WhatsApp à Awa K.', at: new Date().toISOString() }])); true`);
+await evalue('location.reload()');
+await attend(9000);
+const pastille2 = await evalue(`document.querySelector('.tr-top__sync')?.innerText ?? ''`);
+dit('3 bis. la pastille compte l envoi en attente', /1 envoi en attente/i.test(pastille2 ?? ''), pastille2);
+await evalue(`document.querySelector('.tr-top__sync')?.click(); true`);
+await attend(800);
+const panneau = await evalue(`(document.querySelector('[role=dialog]')?.innerText ?? '')`);
+dit('... et s ouvre sur « La file d attente » qui le nomme', /file d.attente/i.test(panneau ?? '') && /WhatsApp à Awa K\./.test(panneau ?? ''), (panneau ?? '').slice(0, 120).replace(/\s+/g, ' '));
+await photo('3b-file');
+await evalue(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); localStorage.removeItem('trone::appels-en-attente'); true`);
+
 /* 4. La dernière connexion en ligne date de 8 jours : on redemande. */
 await seme(8);
 await evalue('location.reload()');

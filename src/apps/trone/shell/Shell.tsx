@@ -83,7 +83,9 @@ import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState, reprendsMaVersion } from '../../../shared/sync';
-import { abonneLaFile, versionDeLaFile, gestesEnAttente, lisLesConflits, oublieLeConflit, type Conflit } from '../../../shared/file-d-attente';
+import { abonneLaVersion, nouvelleVersionPrete } from '../../../shared/version';
+import { abonneLaFile, versionDeLaFile, gestesEnAttente, gestesParTable, lisLesConflits, oublieLeConflit, type Conflit } from '../../../shared/file-d-attente';
+import { abonneLesAppels, versionDesAppels, appelsEnAttente, lisLesAppels, lisLesRefus, oublieLeRefus, type AppelRefuse } from '../../../shared/appels-en-attente';
 import { CARTE_DES_TABLES } from '../../../shared/journal';
 import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
 import { useClients, clientsStore } from '../../../shared/clients';
@@ -101,9 +103,15 @@ function SyncDot() {
      ligne ») : combien de gestes attendent le réseau sur ce téléphone, et les
      conflits du « dernier geste gagne », qui s'ouvrent d'un clic. */
   useSyncExternalStore(abonneLaFile, versionDeLaFile, versionDeLaFile);
+  /* ET LES ENVOIS QUI ATTENDENT LE RÉSEAU (temps 3) : un WhatsApp, une
+     notification, gardés sur l'appareil ; et ceux que le serveur a refusés. */
+  useSyncExternalStore(abonneLesAppels, versionDesAppels, versionDesAppels);
   const enAttente = gestesEnAttente();
+  const envois = appelsEnAttente();
+  const refus = lisLesRefus();
   const conflits = lisLesConflits();
   const [conflitsOuverts, setConflitsOuverts] = useState(false);
+  const aMontrer = enAttente + envois + conflits.length + refus.length > 0;
   /* LES AUTOMATISMES QUI SE TAISENT (1er octobre 2026) : un poste qui réécrit les fiches
      en boucle les met en pause, et la pastille le dit au lieu de tourner sans fin. */
   const pauses = useSyncExternalStore(ecouteLesPauses, pausesDites, pausesDites);
@@ -129,8 +137,11 @@ function SyncDot() {
      de focus. Une pastille verte pendant qu'un écran traîne apprend à ne plus
      la croire. */
   const enRetard = s.directEnPanne.length;
-  const gestesDits = `${enAttente} geste${enAttente > 1 ? 's' : ''} en attente`;
-  const labelDeBase = mode === 'off' ? (enAttente ? `Hors ligne · ${gestesDits}` : 'Hors ligne')
+  const gestesDits = [
+    enAttente ? `${enAttente} geste${enAttente > 1 ? 's' : ''}` : '',
+    envois ? `${envois} envoi${envois > 1 ? 's' : ''}` : '',
+  ].filter(Boolean).join(' · ') + ' en attente';
+  const labelDeBase = mode === 'off' ? (enAttente + envois ? `Hors ligne · ${gestesDits}` : 'Hors ligne')
     : mode === 'err'
       ? (premiere
           ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
@@ -142,8 +153,12 @@ function SyncDot() {
        les fiches », et il n'y avait pas d'autre poste. Elle dit ce qu'elle sait. */
     : pauses ? 'Synchronisé · un automatisme en pause'
     : enRetard ? 'Synchronisé · direct en panne'
-    : enAttente ? `Synchronisation · ${gestesDits}` : 'Synchronisé';
-  const label = conflits.length ? `${labelDeBase} · ${conflits.length} conflit${conflits.length > 1 ? 's' : ''}` : labelDeBase;
+    : enAttente + envois ? `Synchronisation · ${gestesDits}` : 'Synchronisé';
+  const label = [
+    labelDeBase,
+    conflits.length ? `${conflits.length} conflit${conflits.length > 1 ? 's' : ''}` : '',
+    refus.length ? `${refus.length} envoi${refus.length > 1 ? 's' : ''} refusé${refus.length > 1 ? 's' : ''}` : '',
+  ].filter(Boolean).join(' · ');
   const color = mode === 'ok'
     ? (enRetard || pauses ? 'var(--color-copper)' : '#6e7c5c')
     : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
@@ -171,16 +186,39 @@ Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez
     <>
       <span
         className="tr-top__sync"
-        title={conflits.length ? `${title}\n\nCliquez pour voir les conflits.` : title}
+        title={aMontrer ? `${title}\n\nCliquez pour voir la file d’attente.` : title}
         role="status"
-        style={conflits.length ? { cursor: 'pointer' } : undefined}
-        onClick={conflits.length ? () => setConflitsOuverts(true) : undefined}
+        style={aMontrer ? { cursor: 'pointer' } : undefined}
+        onClick={aMontrer ? () => setConflitsOuverts(true) : undefined}
       >
-        <span className="tr-top__sync-dot" style={{ background: conflits.length ? 'var(--color-copper)' : color }} />
+        <span className="tr-top__sync-dot" style={{ background: conflits.length || refus.length ? 'var(--color-copper)' : color }} />
         {label}
       </span>
-      {conflitsOuverts && <LesConflits conflits={conflits} onClose={() => setConflitsOuverts(false)} />}
+      {conflitsOuverts && <LaFileDAttente conflits={conflits} refus={refus} onClose={() => setConflitsOuverts(false)} />}
     </>
+  );
+}
+
+/* ══ UNE NOUVELLE VERSION EST PRÊTE — 4 octobre 2026 (« hors ligne », temps 3) ══
+   Annoncée, jamais imposée pendant une saisie : le bouton recharge quand on
+   veut, et le retour sur l'application le fera de lui-même. */
+function BanniereDeVersion() {
+  const prete = useSyncExternalStore(abonneLaVersion, nouvelleVersionPrete, nouvelleVersionPrete);
+  if (!prete) return null;
+  return (
+    <div
+      role="status"
+      style={{
+        position: 'fixed', left: 16, right: 16, bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', zIndex: 200,
+        maxWidth: 520, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap',
+        background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderRadius: 4, padding: '10px 14px', boxShadow: 'var(--shadow-md)',
+      }}
+    >
+      <span style={{ fontSize: 13 }}>Une nouvelle version du Trône est prête. Vos gestes en cours sont gardés.</span>
+      <button className="mnd-btn mnd-btn--sm" style={{ background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: '#fff' }} onClick={() => location.reload()}>
+        Recharger
+      </button>
+    </div>
   );
 }
 
@@ -188,7 +226,63 @@ Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez
    Une même ligne a changé ici et ailleurs pendant une coupure : le geste le
    plus récent a gagné. L'autre n'est pas perdu : on le lit ici, et on peut le
    reprendre (un geste neuf, qui gagne à son tour). */
-function LesConflits({ conflits, onClose }: { conflits: Conflit[]; onClose: () => void }) {
+function LaFileDAttente({ conflits, refus, onClose }: { conflits: Conflit[]; refus: AppelRefuse[]; onClose: () => void }) {
+  /* LE PANNEAU ENTIER — 4 octobre 2026 (temps 3) : ce qui attend le réseau
+     (gestes par écran, envois un à un), puis ce qui demande un regard
+     (conflits, envois refusés). */
+  const parTable = gestesParTable();
+  const envoisEnAttente = lisLesAppels();
+  const heureCourte = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const ecranDe = (t: string) => (t.startsWith('doc:') ? 'Réglages' : CARTE_DES_TABLES[t]?.ecran ?? t);
+  return (
+    <Modal title="La file d’attente" onClose={onClose} width={640}>
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+        Ce qui est fait sur ce téléphone et n’a pas encore atteint la Maison. Tout part de soi-même au retour du réseau, même si l’application se ferme entre-temps.
+      </p>
+      {parTable.length === 0 && envoisEnAttente.length === 0 && conflits.length === 0 && refus.length === 0 && (
+        <div className="trc-empty">Rien en attente. Ce téléphone et la Maison disent la même chose.</div>
+      )}
+      {parTable.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Gestes en attente</div>
+          {parTable.map((g) => (
+            <div key={g.table} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{ecranDe(g.table)} · {g.n} geste{g.n > 1 ? 's' : ''}</span>
+              <span className="mnd-muted">depuis {heureCourte(g.depuis)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {envoisEnAttente.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Envois en attente</div>
+          {envoisEnAttente.map((e) => (
+            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{e.dit}</span>
+              <span className="mnd-muted">{heureCourte(e.at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {refus.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Envois refusés par la Maison</div>
+          {refus.map((r) => (
+            <div key={r.id} style={{ display: 'grid', gap: 4, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{r.dit} · {heureCourte(r.at)}</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{r.refus} · il n’est pas parti, refaites-le si besoin.</span>
+              <span><button className="mnd-btn mnd-btn--sm" onClick={() => oublieLeRefus(r.id)}>Compris</button></span>
+            </div>
+          ))}
+        </div>
+      )}
+      {conflits.length > 0 && <div className="mnd-eyebrow" style={{ marginTop: 4 }}>Conflits</div>}
+      <LesConflits conflits={conflits} />
+    </Modal>
+  );
+}
+
+function LesConflits({ conflits }: { conflits: Conflit[] }) {
   const heure = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const nom = (c: Conflit, j: string | null): string => {
     if (!j) return 'supprimée';
@@ -198,12 +292,12 @@ function LesConflits({ conflits, onClose }: { conflits: Conflit[]; onClose: () =
     } catch { return c.id; }
   };
   const ecran = (c: Conflit) => CARTE_DES_TABLES[c.table]?.ecran ?? (c.table === 'documents' ? 'Réglages' : c.table);
+  if (conflits.length === 0) return null;
   return (
-    <Modal title="Les conflits de synchronisation" onClose={onClose} width={640}>
-      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+    <>
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 4 }}>
         Pendant une coupure, ces lignes ont changé sur ce téléphone et ailleurs. Le geste le plus récent a été gardé ; l’autre est ici, et se reprend d’un clic.
       </p>
-      {conflits.length === 0 && <div className="trc-empty">Aucun conflit.</div>}
       {conflits.map((c) => {
         const notreGagne = Date.parse(c.notreAt) > Date.parse(c.leurAt);
         return (
@@ -226,7 +320,7 @@ function LesConflits({ conflits, onClose }: { conflits: Conflit[]; onClose: () =
           </div>
         );
       })}
-    </Modal>
+    </>
   );
 }
 
@@ -701,6 +795,7 @@ export default function Shell() {
           <Trouver />
           <SyncDot />
           <PastilleDeLaSalle />
+          <BanniereDeVersion />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>

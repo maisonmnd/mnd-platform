@@ -139,7 +139,7 @@ export function CarteDeMarrainePanneau({ client }: { client: Client }) {
           enTete: 'image', piece, clientId: client.id, branchId: client.branchId,
         });
       }
-      toast(r.ok ? `Carte envoyée à ${donnees.prenom} sur WhatsApp.` : `La carte n’est pas partie : ${r.erreur}`);
+      toast(r.ok ? (r.enAttente ? `Hors ligne : la carte partira à ${donnees.prenom} au retour du réseau.` : `Carte envoyée à ${donnees.prenom} sur WhatsApp.`) : `La carte n’est pas partie : ${r.erreur}`);
     } catch {
       toast('La carte n’a pas pu être dessinée.');
     } finally {

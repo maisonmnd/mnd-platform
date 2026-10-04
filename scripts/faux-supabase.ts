@@ -154,7 +154,22 @@ export const supabase = {
   removeChannel: async (c: { unsubscribe: () => Promise<unknown> }) => { await c.unsubscribe(); return 'ok'; },
   realtime: { connectionState: () => 'open' },
   rpc: reponse,
-  functions: { invoke: reponse },
+  /* LES FONCTIONS (temps 3) : coupé, la requête ne part pas (« Failed to
+     fetch », comme supabase-js) ; `FAUX_REFUS_FONCTION` fait refuser le
+     serveur ; sinon l'appel est REÇU et noté dans la table « __appels ». */
+  functions: {
+    invoke: async (nom: string, opts?: { body?: unknown }) => {
+      await new Promise((r) => setTimeout(r, 1));
+      if (!faux.enLigne) return { data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: { message: 'TypeError: Failed to fetch' } } };
+      if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.FAUX_REFUS_FONCTION === nom) {
+        return { data: null, error: { name: 'FunctionsHttpError', message: 'Edge Function returned a non-2xx status code' } };
+      }
+      const id = `recu-${table('__appels').size + 1}`;
+      table('__appels').set(id, { id, data: { nom, corps: opts?.body ?? null }, updated_at: heureServeur() });
+      sauveLaBase();
+      return { data: { ok: true, id }, error: null };
+    },
+  },
   storage: { from: () => ({ upload: reponse, createSignedUrl: reponse, remove: reponse }) },
 };
 export const isRemote = true;

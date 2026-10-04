@@ -188,6 +188,23 @@ export function gestesEnAttente(): number {
   return n;
 }
 
+/** Les gestes en attente, table par table, avec l'heure du plus ancien —
+    pour le panneau de la pastille (temps 3). */
+export function gestesParTable(): { table: string; n: number; depuis: string }[] {
+  const sortie: { table: string; n: number; depuis: string }[] = [];
+  try {
+    const tete = `${surface()}::file::`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(tete) || k === CLE_DES_CONFLITS()) continue;
+      const entrees = Object.values(JSON.parse(localStorage.getItem(k) || '{}') as Record<string, Entree>);
+      if (!entrees.length) continue;
+      sortie.push({ table: k.slice(tete.length), n: entrees.length, depuis: entrees.map((e) => e.at).sort()[0] });
+    }
+  } catch { /* idem */ }
+  return sortie.sort((a, b) => a.depuis.localeCompare(b.depuis));
+}
+
 /* Les écrans s'abonnent : la pastille compte les gestes, la liste des conflits
    se redessine. */
 const ecouteurs = new Set<() => void>();

@@ -17,6 +17,8 @@ const reprendsMaVersion = (synchro as { reprendsMaVersion?: (c: unknown) => bool
 import { laPorteARepondu } from '../src/shared/auth';
 import { arbitre, gestesEntre, recus, leGesteLocalTient, gestesEnAttente, lisLesConflits, type Entree } from '../src/shared/file-d-attente';
 import { contenuCanonique } from '../src/shared/meme-contenu';
+import { envoieSurWhatsApp } from '../src/shared/whatsapp';
+import { appelsEnAttente, lisLesRefus } from '../src/shared/appels-en-attente';
 
 type Rdv = { id: string; branchId: string; nom: string };
 const T = 'essais';
@@ -65,6 +67,7 @@ bindCollection(store, T);
 bindDocument(doc, 'reglage_essai');
 await attend(Number(process.env.AVANT ?? 900));
 
+let dernier: unknown = null;
 const gestes = JSON.parse(process.env.GESTES ?? '[]') as [string, ...string[]][];
 for (const [quoi, a, b] of gestes) {
   if (quoi === 'set') store.set((prev) => [...prev.filter((r) => r.id !== a), { id: a, branchId: 'b', nom: b }]);
@@ -74,6 +77,7 @@ for (const [quoi, a, b] of gestes) {
   if (quoi === 'online') { faux.enLigne = true; leReseauRevient(); }
   if (quoi === 'pause') await attend(Number(a));
   if (quoi === 'reprendre') reprendsMaVersion(lisLesConflits()[0]);
+  if (quoi === 'whatsapp') dernier = await envoieSurWhatsApp({ numero: '+229 01 90 00 00 01', texte: a, branchId: 'b' } as never);
   await attend(Number(process.env.ENTRE ?? 20));
 }
 await attend(Number(process.env.APRES ?? 1500));
@@ -85,4 +89,8 @@ dit({
   conflits: lisLesConflits().map((c) => [c.table, c.id, c.notre ? (JSON.parse(c.notre) as Rdv).nom ?? (JSON.parse(c.notre) as { v: number }).v : null, (JSON.parse(c.leur) as Rdv | null)?.nom ?? (JSON.parse(c.leur) as { v?: number } | null)?.v]),
   doc: doc.get().v,
   docServeur: (faux.base.get('documents')?.get('reglage_essai')?.data as { v?: number } | undefined)?.v ?? null,
+  envois: appelsEnAttente(),
+  refus: lisLesRefus().length,
+  recus: [...(faux.base.get('__appels')?.values() ?? [])].sort((x, y) => (x.updated_at < y.updated_at ? -1 : 1)).map((l) => ((l.data as { corps?: { texte?: string } }).corps?.texte ?? '')),
+  dernier,
 });

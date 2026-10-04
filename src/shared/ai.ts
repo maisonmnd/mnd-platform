@@ -37,6 +37,8 @@ export async function suggestClient(
   segments: string[],
 ): Promise<Suggestion> {
   if (!supabase) throw new Error('Backend non configuré.');
+  /* Une suggestion ne s'attend pas : hors ligne, on le dit (4 octobre 2026). */
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Hors ligne : la suggestion demande le réseau.');
   const { data, error } = await supabase.functions.invoke('suggest-client', {
     body: { fiche, personas, segments },
   });

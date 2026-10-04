@@ -53,8 +53,29 @@ async function verifier(): Promise<void> {
   location.reload();
 }
 
+/* ══ « UNE NOUVELLE VERSION EST PRÊTE » — 4 octobre 2026 ═══════════════════
+   Maquette « Le Trône hors ligne », temps 3. Le rechargement automatique se
+   fait aux moments naturels (ouverture, retour sur l'application). Mais une
+   journée entière passée sur le même écran ne voyait jamais la mise à jour.
+   Toutes les dix minutes, tant qu'on travaille, on regarde : si une version
+   nouvelle est en ligne, l'écran l'ANNONCE (`nouvelleVersionPrete`) au lieu
+   de recharger sous la main de quelqu'un qui saisit. Les gestes en cours ne
+   risquent rien : la file d'attente les garde (temps 1). */
+let prete = false;
+const veilleurs = new Set<() => void>();
+export const nouvelleVersionPrete = (): boolean => prete;
+export const abonneLaVersion = (f: () => void): (() => void) => { veilleurs.add(f); return () => { veilleurs.delete(f); }; };
+async function regarderEnFond(): Promise<void> {
+  if (!BUILD || prete || (typeof document !== 'undefined' && document.hidden)) return;
+  const enLigne = await versionEnLigne();
+  if (enLigne && enLigne !== BUILD) { prete = true; veilleurs.forEach((f) => f()); }
+}
+
 if (typeof window !== 'undefined') {
   void verifier();
   window.addEventListener('focus', () => void verifier());
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void verifier(); });
+  const veille = setInterval(() => void regarderEnFond(), 10 * 60_000);
+  /* Dans un harnais (Node), la veille ne retient pas le processus. */
+  (veille as { unref?: () => void }).unref?.();
 }
