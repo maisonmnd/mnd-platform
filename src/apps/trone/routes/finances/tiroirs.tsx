@@ -304,7 +304,10 @@ export function useCaisses(month: string) {
   const depuis = reglagesCaisses.caissesDepuis;
   /** Solde cumulé d'une caisse — ouverture + tous les flux dont le mois passe `keep`. */
   const boxBalanceWhere = (name: string, keepDemande: (mk: string) => boolean) => {
-    const keep = (mk: string) => keepDemande(mk) && dansLesComptes(mk, depuis);
+    /* UNE ANCIENNE GARDE TOUT SON PASSÉ (4 octobre 2026, « Ouvrir octobre ») :
+       le départ ne la coupe pas, elle sert à finir le travail d'avant. */
+    const ancienne = !!boxOf(name)?.jusquAu;
+    const keep = (mk: string) => keepDemande(mk) && (ancienne || dansLesComptes(mk, depuis));
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
@@ -345,8 +348,10 @@ export function useCaisses(month: string) {
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
      à des francs donnerait un nombre qui ne veut rien dire. Les caisses en
      devise se lisent séparément, chacune dans son unité. */
+  /* Les anciennes ne font pas la trésorerie d'octobre : leur argent est
+     celui d'avant, en cours de mise en ordre (4 octobre 2026). */
   const treasury = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency)
+    .filter((b) => cashboxCurrency(b) === currency && !b.jusquAu)
     .reduce((s, b) => s + boxBalance(b.name), 0);
 
   /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes règles que `boxBalance`,
@@ -518,7 +523,11 @@ export function useCaisses(month: string) {
      amputé sans explication vaudrait pire qu'un total complet. */
   const ouvertesMaintenant = useCaissesOuvertes();
   const tresorerieVisible = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
+    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && !b.jusquAu && soldeVisible(b, ouvertesMaintenant))
+    .reduce((s, b) => s + boxBalance(b.name), 0);
+  /* Les anciennes, à part : ce qu'il reste à mettre en ordre d'avant octobre. */
+  const anciennesTotal = branchBoxes
+    .filter((b) => b.jusquAu && cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
     .reduce((s, b) => s + boxBalance(b.name), 0);
   const horsBilan = branchBoxes.filter((b) => b.horsBilan).length;
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
@@ -526,7 +535,7 @@ export function useCaisses(month: string) {
   return {
     branch, currency, branchBoxes, depuis,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
-    tresorerieVisible, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
+    tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
     exclues: caissesHorsBilan(branchBoxes, branch.id),
   };
 }

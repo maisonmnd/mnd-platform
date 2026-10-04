@@ -1,4 +1,6 @@
-/* LA BASCULE D'OCTOBRE, APPLIQUÉE — 4 octobre 2026.
+/* LA BASCULE D'OCTOBRE, APPLIQUÉE — 4 octobre 2026 (temps ① « Ouvrir
+   octobre » ; le temps ② « Ranger l'avant » passe par le même chemin avec un
+   plan `etape: 'ranger'`).
    La règle vit dans `shared/bascule-des-caisses-pur.ts` ; ici, les magasins
    qu'elle réécrit, chacun par sa propre synchronisation (envoi par tranches,
    garde-fous intacts). Rien ne s'efface : chaque case changée garde son
@@ -59,7 +61,11 @@ export function appliqueLaBascule(plan: Plan, branchId: string, le = new Date().
   const avant = compteLaBascule(plan, lisLesLots(branchId));
   const manquent = Object.keys(avant.manquantes);
   if (manquent.length) return { ok: false, pourquoi: `Choisissez la pièce des écritures d’octobre de : ${manquent.join(', ')}.` };
-  cashboxesStore.set((prev) => caissesApres(prev, branchId, plan, le, (n) => `cb-${n.role}-${branchId}-${Date.now().toString(36)}`));
+  /* Un identifiant par caisse neuve : le rôle, puis un rang (deux suites à
+     la Terrasse ne se marchent pas dessus). */
+  let rang = 0;
+  const graine = Date.now().toString(36);
+  cashboxesStore.set((prev) => caissesApres(prev, branchId, plan, le, (_nom, role) => `cb-${role}-${branchId}-${graine}-${rang++}`));
   const garde = deLaBranche(branchId);
   for (const l of LOTS) {
     l.store.set((prev) => prev.map((r) => (garde(r) ? basculeLEcriture(l.sorte, r, plan) : r)));

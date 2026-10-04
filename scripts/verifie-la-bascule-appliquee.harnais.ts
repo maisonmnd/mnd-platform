@@ -11,7 +11,7 @@ import { cloturesStore } from '../src/shared/caisse-du-soir';
 import { advancesStore } from '../src/apps/trone/routes/equipe/payroll';
 import { settingsStore } from '../src/shared/settings';
 import { appliqueLaBascule, annuleLaBascule, resteAFaire } from '../src/apps/trone/routes/finances/bascule';
-import { ARCHIVE, planPropose } from '../src/shared/bascule-des-caisses-pur';
+import { planPropose } from '../src/shared/bascule-des-caisses-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -53,23 +53,26 @@ const avant = photo();
 const caissesAvant = JSON.stringify(cashboxesStore.get());
 
 const plan = planPropose(cashboxesStore.get(), B, 'XOF');
-dit('sans piece pour les ecritures d octobre de la caisse rangee, la bascule refuse', false, appliqueLaBascule(plan, B).ok);
+dit('sans piece pour les ecritures d octobre de l ancienne, ouvrir octobre refuse', false, appliqueLaBascule(plan, B).ok);
 dit('... et ne touche a rien', avant, photo());
 plan.octobreVers['Caisse principale'] = 'Caisse du mois';
-dit('avec sa piece, elle se fait', true, appliqueLaBascule(plan, B, '2026-10-04T12:00:00Z').ok);
+dit('avec sa piece, octobre s ouvre', true, appliqueLaBascule(plan, B, '2026-10-04T12:00:00Z').ok);
 
 const f1 = invoicesStore.get().find((i) => i.id === 'f1')!;
-dit('facture : septembre a l archive, octobre au MoMo MTN', [ARCHIVE, 'Terrasse · MoMo MTN', ARCHIVE], [f1.payments![0].cashbox, f1.payments![1].cashbox, f1.cashbox]);
+dit('facture : septembre reste a Real Money, octobre passe au MoMo MTN', ['Real Money', 'Terrasse · MoMo MTN', 'Real Money'], [f1.payments![0].cashbox, f1.payments![1].cashbox, f1.cashbox]);
 dit('la facture d une autre branche ne bouge pas', 'Real Money', invoicesStore.get().find((i) => i.id === 'f-autre')!.cashbox);
-dit('depense d octobre vers la Caisse du mois, celle d aout a l archive', ['Caisse du mois', ARCHIVE], expensesStore.get().map((e) => e.cashbox));
-dit('transfert, coffre, avoir, cloture, avance : a l archive', [ARCHIVE, ARCHIVE, ARCHIVE, ARCHIVE, ARCHIVE, ARCHIVE], [
+dit('depense d octobre vers la Caisse du mois, celle d aout reste a KkiaPay', ['Caisse du mois', 'KkiaPay'], expensesStore.get().map((e) => e.cashbox));
+dit('transfert, coffre, avoir, cloture, avance de septembre : rien ne bouge', ['Caisse principale', 'Real Money', 'Caisse principale', 'KkiaPay', 'Caisse principale', 'Real Money'], [
   transfertsStore.get()[0].de, transfertsStore.get()[0].vers, coffreStore.get()[0].cashbox, creditMovementsStore.get()[0].cashbox,
   cloturesStore.get()[0].cashbox, advancesStore.get()[0].cashbox]);
-dit('rendez-vous du 1er octobre : le versement suit le MoMo renomme', 'Terrasse · MoMo MTN', appointmentsStore.get()[0].payments![0].cashbox);
+dit('rendez-vous du 1er octobre : le versement passe a la suite du MoMo', 'Terrasse · MoMo MTN', appointmentsStore.get()[0].payments![0].cashbox);
 const vivantes = cashboxesStore.get().filter((c) => c.branchId === B && !c.archiveeLe).map((c) => c.name).sort();
-dit('les caisses vivantes : les neuves, le MoMo renomme, KkiaPay, l archive', [
-  'Caisse du foyer', 'Caisse du mois', ARCHIVE, 'KkiaPay', 'La Banque', 'La Cour', 'Le Grenier', 'Terrasse · MoMo MTN', 'Terrasse · MoMoPay société', 'Terrasse · Tiroir espèces',
+dit('toutes les caisses restent visibles, les neuves s ajoutent, pas d archive', [
+  'Caisse du foyer', 'Caisse du mois', 'Caisse principale', 'KkiaPay', 'La Banque', 'La Cour', 'Le Grenier', 'MoMo Brice', 'Real Money',
+  'Terrasse · MoMo MTN', 'Terrasse · MoMoPay société', 'Terrasse · Tiroir espèces',
 ].sort(), vivantes);
+dit('les anciennes sont marquees jusqu au 30 septembre', ['Caisse principale', 'MoMo Brice', 'Real Money'],
+  cashboxesStore.get().filter((c) => c.branchId === B && c.jusquAu === '2026-09-30').map((c) => c.name).sort());
 dit('la caisse de l autre branche ne bouge pas', 'Real Money', cashboxesStore.get().find((c) => c.id === 'cx')!.name);
 dit('le depart est pose en octobre 2026, la bascule datee', ['2026-10', '2026-10-04T12:00:00Z'], [settingsStore.get().caissesDepuis, settingsStore.get().basculeDesCaisses?.le]);
 dit('plus rien a faire', { versLArchive: 0, deplacees: 0, manquantes: {} }, resteAFaire(plan, B));

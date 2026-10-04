@@ -666,6 +666,12 @@ export type Cashbox = {
   avantLaBascule?: { name: string; openingXof: number; horsBilan?: boolean };
   /** Créée par la bascule : un retour en arrière la retire si rien ne la nomme. */
   creeeParLaBascule?: boolean;
+  /** ANCIENNE — 4 octobre 2026, « Ouvrir octobre ». Une caisse d'avant qui
+      reste visible partout, avec tout son passé, pour finir le travail
+      jusqu'au 30 septembre ; son solde compte toute son histoire (le départ
+      des caisses ne la coupe pas) et elle sort du total de la trésorerie
+      d'octobre. La date de son dernier jour : '2026-09-30'. */
+  jusquAu?: string;
 };
 
 /** Les sept pièces, et l'archive. */

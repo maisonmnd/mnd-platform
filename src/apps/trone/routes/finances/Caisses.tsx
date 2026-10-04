@@ -48,7 +48,7 @@ export default function Caisses() {
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
 
-  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, horsBilan, ouvertes, depuis } = useCaisses(month);
+  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes, depuis } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
   const [invoices, setInvoices] = useInvoices();
   const [transferts, setTransferts] = useTransferts();
@@ -339,7 +339,7 @@ export default function Caisses() {
             Départ des caisses
           </button>
           <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-indigo)', color: 'var(--color-indigo)' }} onClick={() => setBasculeOuverte(true)}>
-            {reglages.basculeDesCaisses ? 'La bascule d’octobre ✓' : 'La bascule d’octobre'}
+            {reglages.basculeDesCaisses ? 'Octobre ouvert ✓' : 'Ouvrir octobre'}
           </button>
           <button
             className="trf-act"
@@ -553,11 +553,30 @@ export default function Caisses() {
             });
             };
 
-            const auBilan = branchBoxes.filter((c) => !c.horsBilan);
-            const ecartees = branchBoxes.filter((c) => !!c.horsBilan);
+            /* LES ANCIENNES, À PART MAIS VISIBLES — 4 octobre 2026, « Ouvrir
+               octobre » : elles servent à finir le travail jusqu'au 30
+               septembre ; elles ne se mêlent ni aux pièces neuves ni au total. */
+            const anciennes = branchBoxes.filter((c) => !!c.jusquAu);
+            const auBilan = branchBoxes.filter((c) => !c.horsBilan && !c.jusquAu);
+            const ecartees = branchBoxes.filter((c) => !!c.horsBilan && !c.jusquAu);
             return (
               <>
                 {rangees(auBilan, false)}
+                {anciennes.length > 0 && (
+                  <section className="trf-hors-bloc">
+                    <div className="trf-hors-bloc__tete">
+                      <span className="trf-hors-bloc__titre">Anciennes caisses · jusqu’au 30 sept. 2026</span>
+                      <span className="trf-hors-bloc__n">
+                        {anciennes.length} caisse{anciennes.length > 1 ? 's' : ''} · {fmtMoney(anciennesTotal, currency)}
+                      </span>
+                    </div>
+                    <div className="trf-hors-bloc__mot">
+                      Elles gardent tout leur passé pour que vous finissiez la mise en ordre d’avant octobre,
+                      et restent dans tous les menus. Elles n’entrent pas dans la trésorerie d’octobre.
+                    </div>
+                    {rangees(anciennes, false)}
+                  </section>
+                )}
                 {ecartees.length > 0 && (
                   <section className="trf-hors-bloc">
                     <div className="trf-hors-bloc__tete">

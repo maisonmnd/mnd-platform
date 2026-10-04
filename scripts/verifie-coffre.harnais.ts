@@ -526,8 +526,10 @@ dit('... une correction d aout non plus', false, dansLesComptes('2026-08', '2026
 dit('... octobre compte', true, dansLesComptes('2026-10', '2026-10'));
 dit('... et les mois suivants', true, dansLesComptes('2027-01', '2026-10'));
 const tiroirsSrc = readFileSync('src/apps/trone/routes/finances/tiroirs.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-dit('le solde de chaque caisse passe par le depart', true,
-  /const keep = \(mk: string\) => keepDemande\(mk\) && dansLesComptes\(mk, depuis\);/.test(tiroirsSrc)
+/* Une ANCIENNE (Ouvrir octobre, 4 oct.) garde tout son passé : le départ
+   ne coupe que les caisses d'octobre. */
+dit('le solde de chaque caisse passe par le depart, sauf une ancienne', true,
+  /const keep = \(mk: string\) => keepDemande\(mk\) && \(ancienne \|\| dansLesComptes\(mk, depuis\)\);/.test(tiroirsSrc)
   && (tiroirsSrc.match(/openingXof/g) ?? []).length === 1);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);

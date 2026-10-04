@@ -1,10 +1,15 @@
-/* LA BASCULE D'OCTOBRE, ÉPROUVÉE — `node scripts/verifie-la-bascule.mjs`.
+/* OUVRIR OCTOBRE, ÉPROUVÉ — `node scripts/verifie-la-bascule.mjs`.
 
-   4 octobre 2026. L'attente vient des réponses de Yéman au sélecteur, pas du
-   code : tout l'avant octobre dans une seule archive ; Real Money et ACIA1
-   rangés ; Wells Fargo et Scotiabank au Foyer ; MoMo Brice devient « Terrasse ·
-   MoMo MTN » ; KkiaPay garde son nom ; le retour en arrière rend tout. Les
-   noms et montants sont des exemples. */
+   4 octobre 2026. L'attente vient des mots de Yéman, pas du code :
+     · les réponses au sélecteur : MoMo Brice continue en « Terrasse · MoMo
+       MTN », Wells Fargo et Scotiabank au Foyer, KkiaPay garde son nom, Real
+       Money et ACIA1 ne continuent pas ;
+     · le second message : « je ne veux pas que les caisses rangées
+       disparaissent […] finaliser tout mon travail jusqu'au 1er octobre […]
+       bien continuer la suite à partir du 1er octobre ». Donc rien d'avant
+       octobre ne bouge, les anciennes restent visibles avec tout leur passé ;
+     · plus tard, ranger l'avant dans une seule archive (temps ②).
+   Les noms et montants sont des exemples. */
 import { readFileSync } from 'node:fs';
 import {
   ARCHIVE, NEUVES, basculeLEcriture, rendsLEcriture, caissesApres, caissesRendues, compteLaBascule,
@@ -32,23 +37,24 @@ const avant: Cashbox[] = [
 const plan0 = planPropose(avant, B, 'XOF');
 const dest = (n: string) => plan0.destins[n];
 
-/* 1. Ce que la bascule propose : les réponses du 4 octobre. */
-dit('Real Money et ACIA1 sont ranges', ['archiver', 'archiver'], [dest('Real Money').sort, dest('ACIA1').sort]);
-dit('MoMo Brice devient Terrasse · MoMo MTN', { sort: 'renommer', nom: 'Terrasse · MoMo MTN', role: 'terrasse' }, dest('MoMo Brice'));
+/* 1. Ce qu'ouvrir octobre propose. */
+dit('c est le temps ① : ouvrir octobre', 'ouvrir', plan0.etape);
+dit('Caisse principale, Real Money et ACIA1 deviennent anciennes, sans suite', ['ancienne', 'ancienne', 'ancienne'],
+  [dest('Caisse principale').sort, dest('Real Money').sort, dest('ACIA1').sort]);
+dit('MoMo Brice continue en Terrasse · MoMo MTN', { sort: 'suite', nom: 'Terrasse · MoMo MTN', role: 'terrasse' }, dest('MoMo Brice'));
 dit('KkiaPay garde son nom, a la Terrasse', { sort: 'garder', role: 'terrasse' }, dest('KkiaPay'));
-dit('Wells Fargo et Scotiabank vont au Foyer, hors bilan', [['Foyer · Wells Fargo', 'foyer', true], ['Foyer · Scotiabank', 'foyer', true]],
-  [dest('Wells Fargo'), dest('Scotiabank')].map((d) => (d.sort === 'renommer' ? [d.nom, d.role, d.horsBilan] : d.sort)));
-dit('le tiroir en euros devient Terrasse · Devises EUR', 'Terrasse · Devises EUR', (dest('Tiroir EUR') as { nom?: string }).nom);
-dit('deux caisses ne prennent jamais le meme nom : la seconde est rangee', 'archiver', dest('Euros bis').sort);
+dit('Wells Fargo et Scotiabank continuent au Foyer, hors bilan', [['Foyer · Wells Fargo', 'foyer', true], ['Foyer · Scotiabank', 'foyer', true]],
+  [dest('Wells Fargo'), dest('Scotiabank')].map((d) => (d.sort === 'suite' ? [d.nom, d.role, d.horsBilan] : d.sort)));
+dit('le tiroir en euros continue en Terrasse · Devises EUR', 'Terrasse · Devises EUR', (dest('Tiroir EUR') as { nom?: string }).nom);
+dit('deux caisses n ont jamais la meme suite : la seconde reste ancienne', 'ancienne', dest('Euros bis').sort);
 
-/* 2. La règle, case par case. */
+/* 2. La règle : rien d'avant octobre ne bouge. */
 const plan: Plan = { ...plan0, octobreVers: { 'Caisse principale': 'Terrasse · Tiroir espèces' } };
-dit('avant octobre : tout va a l archive', [ARCHIVE, ARCHIVE, ARCHIVE],
-  [nouveauNom(plan, 'Real Money', '2026-09-30'), nouveauNom(plan, 'KkiaPay', '2026-09-12'), nouveauNom(plan, 'Wells Fargo', '2025-12-01')]);
-dit('... meme un nom qui n est plus une caisse (heritage)', ARCHIVE, nouveauNom(plan, '9a7vogg', '2025-06-01'));
-dit('octobre : renommee, gardee, rangee avec sa piece', ['Terrasse · MoMo MTN', undefined, 'Terrasse · Tiroir espèces'],
-  [nouveauNom(plan, 'MoMo Brice', '2026-10-02'), nouveauNom(plan, 'KkiaPay', '2026-10-02'), nouveauNom(plan, 'Caisse principale', '2026-10-03')]);
-dit('les pourboires ne sont pas un tiroir : on n y touche pas', undefined, nouveauNom(plan, 'Pourboires', '2026-09-01'));
+dit('avant octobre : rien ne bouge, aucune caisse', [undefined, undefined, undefined, undefined],
+  [nouveauNom(plan, 'Real Money', '2026-09-30'), nouveauNom(plan, 'MoMo Brice', '2026-09-12'), nouveauNom(plan, 'KkiaPay', '2026-09-01'), nouveauNom(plan, 'Wells Fargo', '2025-12-01')]);
+dit('octobre : la suite, la piece choisie, ou rien pour KkiaPay', ['Terrasse · MoMo MTN', 'Terrasse · Tiroir espèces', undefined],
+  [nouveauNom(plan, 'MoMo Brice', '2026-10-02'), nouveauNom(plan, 'Caisse principale', '2026-10-03'), nouveauNom(plan, 'KkiaPay', '2026-10-02')]);
+dit('les pourboires ne sont pas un tiroir : on n y touche pas', undefined, nouveauNom(plan, 'Pourboires', '2026-10-05'));
 dit('les dates se lisent sous toutes leurs formes', ['2026-09-28', '2026-09-30', '2026-10-02'],
   [jourDe('28/09/2026'), jourDe('2026-09-30T23:10:00Z'), jourDe('2026-10-02')]);
 
@@ -58,50 +64,56 @@ const facture = { id: 'f1', branchId: B, date: '2026-09-20', cashbox: 'Real Mone
   { id: 'p2', date: '2026-10-02', amountXof: 5000, method: 'MTN MoMo', cashbox: 'MoMo Brice' },
 ] };
 const f2 = basculeLEcriture('factures', facture, plan);
-dit('facture : le versement de septembre a l archive, celui d octobre au MoMo MTN', [ARCHIVE, 'Terrasse · MoMo MTN', ARCHIVE],
+dit('facture : le versement de septembre reste, celui d octobre passe au MoMo MTN', ['Real Money', 'Terrasse · MoMo MTN', 'Real Money'],
   [f2.payments[0].cashbox, f2.payments[1].cashbox, f2.cashbox]);
-dit('... chaque case garde le nom de son ancienne caisse', ['Real Money', 'MoMo Brice'],
-  f2.payments.map((p) => (p as { cashboxAvant?: string }).cashboxAvant));
+dit('... la case deplacee garde le nom de son ancienne caisse', 'MoMo Brice', (f2.payments[1] as { cashboxAvant?: string }).cashboxAvant);
 dit('un second passage ne change rien (meme objet)', true, basculeLEcriture('factures', f2, plan) === f2);
 dit('le retour en arriere rend la facture telle quelle', facture, rendsLEcriture('factures', f2));
-/* Une relance qui déplace encore une case garde le nom d'ORIGINE : le retour
-   doit ramener à avant la première bascule, pas à la précédente. */
-const plan2: Plan = { destins: { 'Terrasse · MoMo MTN': { sort: 'archiver' } }, octobreVers: { 'Terrasse · MoMo MTN': 'Caisse du mois' } };
+const plan2: Plan = { etape: 'ouvrir', destins: { 'Terrasse · MoMo MTN': { sort: 'ancienne' } }, octobreVers: { 'Terrasse · MoMo MTN': 'Caisse du mois' } };
 const f3 = basculeLEcriture('factures', f2, plan2);
 dit('deplacee deux fois : elle garde le nom de sa premiere caisse', ['Caisse du mois', 'MoMo Brice'],
   [f3.payments[1].cashbox, (f3.payments[1] as { cashboxAvant?: string }).cashboxAvant]);
-dit('... et le retour ramene a avant la premiere bascule', facture, rendsLEcriture('factures', f3));
-const transfert = { id: 't1', branchId: B, date: '2026-09-15', de: 'ACIA1', vers: 'Caisse principale', montant: 1 };
-const t2 = basculeLEcriture('transferts', transfert, plan);
-dit('transfert d avant octobre : ses deux bouts vont a l archive', [ARCHIVE, ARCHIVE], [t2.de, t2.vers]);
-dit('avance sur salaire datee 28/09/2026 : archive', ARCHIVE, basculeLEcriture('avances', { id: 'a', date: '28/09/2026', cashbox: 'ACIA1' }, plan).cashbox);
-dit('engagement : la date qui compte est celle du versement', ARCHIVE,
-  basculeLEcriture('engagements', { id: 'v', prevuLe: '2026-10-10', verseLe: '2026-09-29', cashbox: 'Real Money' }, plan).cashbox);
+dit('... et le retour ramene a avant la premiere fois', facture, rendsLEcriture('factures', f3));
+const transfert = { id: 't1', branchId: B, date: '2026-10-05', de: 'ACIA1', vers: 'MoMo Brice', montant: 1 };
 const sansPiece: Plan = { ...plan0, octobreVers: {} };
-const bilan = compteLaBascule(sansPiece, { depenses: [{ date: '2026-10-03', cashbox: 'Caisse principale' }, { date: '2026-09-03', cashbox: 'Caisse principale' }] });
-dit('une ecriture d octobre sur une caisse rangee demande sa piece avant de lancer', { versLArchive: 1, deplacees: 0, manquantes: { 'Caisse principale': 1 } }, bilan);
+dit('une ecriture d octobre sur une ancienne sans suite demande sa piece avant d ouvrir', { versLArchive: 0, deplacees: 1, manquantes: { ACIA1: 1 } },
+  compteLaBascule(sansPiece, { transferts: [transfert], depenses: [{ date: '2026-09-03', cashbox: 'ACIA1' }] }));
+dit('avance du 02/10/2026 sur MoMo Brice : vers la suite', 'Terrasse · MoMo MTN', basculeLEcriture('avances', { id: 'a', date: '02/10/2026', cashbox: 'MoMo Brice' }, plan).cashbox);
+dit('engagement : la date qui compte est celle du versement', 'MoMo Brice',
+  basculeLEcriture('engagements', { id: 'v', prevuLe: '2026-10-10', verseLe: '2026-09-29', cashbox: 'MoMo Brice' }, plan).cashbox);
 
-/* 4. Les caisses. */
-const apres = caissesApres(avant, B, plan, '2026-10-04T12:00:00Z', (n) => `cb-${n.role}`);
-const nom = (n: string) => apres.find((c) => c.name === n);
-dit('les caisses neuves sont creees, l archive comprise', NEUVES.map((n) => !!nom(n.nom)), NEUVES.map(() => true));
-dit('Real Money est rangee, son ouverture a 0', [true, 0], [!!apres.find((c) => c.id === 'c2')?.archiveeLe, apres.find((c) => c.id === 'c2')?.openingXof]);
-dit('MoMo Brice renommee garde son identifiant et son passe', ['c4', 'MoMo Brice', 15000], [nom('Terrasse · MoMo MTN')?.id, nom('Terrasse · MoMo MTN')?.avantLaBascule?.name, nom('Terrasse · MoMo MTN')?.avantLaBascule?.openingXof]);
-dit('toutes les caisses vivantes repartent de 0', true, caissesVivantes(apres).every((c) => c.openingXof === 0));
-dit('les rangees quittent les listes', false, caissesVivantes(apres).some((c) => c.name === 'Real Money'));
-dit('la caisse par defaut est a la Terrasse', 'terrasse', caisseParDefaut(apres, B, 'XOF')?.role);
+/* 4. Les caisses : rien ne disparaît. */
+const apres = caissesApres(avant, B, plan, '2026-10-04T12:00:00Z', (nom) => `cb-${nom}`);
+const par = (n: string) => apres.find((c) => c.name === n);
+dit('aucune caisse ne disparait des listes', avant.map((c) => c.name).sort(), caissesVivantes(apres).filter((c) => avant.some((a) => a.id === c.id)).map((c) => c.name).sort());
+dit('Real Money est ancienne, nom et ouverture intacts', ['Real Money', 15000, '2026-09-30'], [apres.find((c) => c.id === 'c2')?.name, apres.find((c) => c.id === 'c2')?.openingXof, apres.find((c) => c.id === 'c2')?.jusquAu]);
+dit('MoMo Brice reste ancienne, sa suite nait a part', ['MoMo Brice', '2026-09-30', 'terrasse', 0],
+  [apres.find((c) => c.id === 'c4')?.name, apres.find((c) => c.id === 'c4')?.jusquAu, par('Terrasse · MoMo MTN')?.role, par('Terrasse · MoMo MTN')?.openingXof]);
+dit('une suite garde la devise de sa caisse', ['EUR', 'USD'], [par('Terrasse · Devises EUR')?.currency, par('Foyer · Wells Fargo')?.currency]);
+dit('KkiaPay entre a la Terrasse sous son nom', ['KkiaPay', 'terrasse', undefined], [apres.find((c) => c.id === 'c5')?.name, apres.find((c) => c.id === 'c5')?.role, apres.find((c) => c.id === 'c5')?.jusquAu]);
+dit('les pieces neuves naissent, sans l archive', NEUVES.map((n) => (n.role === 'archive' ? false : true)), NEUVES.map((n) => !!par(n.nom)));
+dit('une relance ne cree rien deux fois', apres.length, caissesApres(apres, B, planPropose(apres.filter((c) => !c.creeeParLaBascule), B, 'XOF'), 'x', (n) => `cb2-${n}`).length);
+dit('la caisse par defaut est a la Terrasse neuve', 'terrasse', caisseParDefaut(apres, B, 'XOF')?.role);
 const rendues = caissesRendues(apres, B, new Set(['Caisse du mois']));
-dit('retour : noms et ouvertures d avant', ['MoMo Brice', 15000, undefined], [rendues.find((c) => c.id === 'c4')?.name, rendues.find((c) => c.id === 'c4')?.openingXof, rendues.find((c) => c.id === 'c2')?.archiveeLe]);
-dit('... les neuves que plus rien ne nomme s en vont, les autres restent', [false, true], [!!rendues.find((c) => c.name === 'La Banque'), !!rendues.find((c) => c.name === 'Caisse du mois')]);
+dit('retour : les anciennes redeviennent ordinaires', [undefined, 'MoMo Brice'], [rendues.find((c) => c.id === 'c4')?.jusquAu, rendues.find((c) => c.id === 'c4')?.name]);
+dit('... les neuves que plus rien ne nomme s en vont, les autres restent', [false, false, true],
+  [!!rendues.find((c) => c.name === 'La Banque'), !!rendues.find((c) => c.name === 'Terrasse · MoMo MTN'), !!rendues.find((c) => c.name === 'Caisse du mois')]);
 
-/* 5. Le câblage. */
+/* 5. Le temps ② : ranger l'avant, plus tard. */
+const ranger: Plan = { etape: 'ranger', destins: {}, octobreVers: {} };
+dit('ranger : l avant part dans l archive, octobre ne bouge pas', [ARCHIVE, undefined],
+  [nouveauNom(ranger, 'Real Money', '2026-09-30'), nouveauNom(ranger, 'Terrasse · MoMo MTN', '2026-10-02')]);
+dit('ranger : seule l archive nait', [ARCHIVE], caissesApres(apres, B, ranger, 'x', (n) => n).filter((c) => !apres.includes(c)).map((c) => c.name));
+
+/* 6. Le câblage. */
 const sync = readFileSync('src/shared/sync.ts', 'utf8');
 dit('la synchronisation ecrit par tranches', true, /for \(let i = 0; i < upserts\.length; i \+= TRANCHE_D_ENVOI\)/.test(sync));
 const caissesSrc = readFileSync('src/apps/trone/routes/finances/Caisses.tsx', 'utf8');
-dit('l ecran des caisses ouvre la bascule', true, /<BasculeDOctobre onClose=/.test(caissesSrc));
+dit('l ecran des caisses ouvre octobre et montre les anciennes a part', true, /<BasculeDOctobre onClose=/.test(caissesSrc) && /Anciennes caisses · jusqu’au 30 sept\. 2026/.test(caissesSrc));
+const tiroirs = readFileSync('src/apps/trone/routes/finances/tiroirs.tsx', 'utf8');
+dit('une ancienne garde tout son passe, et sort de la tresorerie', true,
+  /keepDemande\(mk\) && \(ancienne \|\| dansLesComptes\(mk, depuis\)\)/.test(tiroirs) && /!b\.horsBilan && !b\.jusquAu && soldeVisible/.test(tiroirs));
 const bascule = readFileSync('src/apps/trone/routes/finances/bascule.ts', 'utf8');
 dit('les cartes cadeaux ne sont pas reecrites (la base les fige)', false, /cartesCadeaux/.test(bascule));
-const fin = readFileSync('src/shared/finance.ts', 'utf8');
-dit('useCashboxes ne rend que les caisses vivantes', true, /const vivantes = useMemo\(\(\) => caissesVivantes\(toutes\), \[toutes\]\);/.test(fin));
 
-console.log(ko === 0 ? '\nLa bascule tient ce qui a ete decide.' : `\n${ko} controle(s) en echec.`);
+console.log(ko === 0 ? '\nOuvrir octobre tient ce qui a ete decide.' : `\n${ko} controle(s) en echec.`);
