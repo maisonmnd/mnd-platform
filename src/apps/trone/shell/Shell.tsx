@@ -84,7 +84,10 @@ import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
 import { subscribeSync, getSyncState, reprendsMaVersion } from '../../../shared/sync';
 import { abonneLaVersion, nouvelleVersionPrete } from '../../../shared/version';
-import { abonneLaFile, versionDeLaFile, gestesEnAttente, gestesParTable, lisLesConflits, oublieLeConflit, type Conflit } from '../../../shared/file-d-attente';
+import { abonneLaFile, versionDeLaFile, gestesEnAttente, gestesParTable, lisLesConflits, oublieLeConflit, oublieTousLesConflits, champsQuiDifferent, type Conflit } from '../../../shared/file-d-attente';
+/* Le miroir du stock déclare ses champs dérivés au chargement : la pastille
+   doit le savoir dès l'ouverture, avant qu'un écran de vente ne l'importe. */
+import '../../../shared/stock';
 import { abonneLesAppels, versionDesAppels, appelsEnAttente, lisLesAppels, lisLesRefus, oublieLeRefus, type AppelRefuse } from '../../../shared/appels-en-attente';
 import { CARTE_DES_TABLES } from '../../../shared/journal';
 import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
@@ -292,17 +295,49 @@ function LesConflits({ conflits }: { conflits: Conflit[] }) {
     } catch { return c.id; }
   };
   const ecran = (c: Conflit) => CARTE_DES_TABLES[c.table]?.ecran ?? (c.table === 'documents' ? 'Réglages' : c.table);
+  /* CE QUI DIFFÈRE, CHAMP PAR CHAMP — 4 octobre 2026. Le nom seul des deux
+     côtés laissait croire à deux versions identiques : on montre ce qui a
+     vraiment changé, avec les deux valeurs. */
+  const valeurDe = (j: string | null, k: string): string => {
+    if (!j) return '—';
+    try {
+      const v = (JSON.parse(j) as Record<string, unknown>)[k];
+      if (v === undefined || v === null || v === '') return '—';
+      const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return t.length > 48 ? `${t.slice(0, 47)}…` : t;
+    } catch { return '—'; }
+  };
   if (conflits.length === 0) return null;
   return (
     <>
       <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 4 }}>
         Pendant une coupure, ces lignes ont changé sur ce téléphone et ailleurs. Le geste le plus récent a été gardé ; l’autre est ici, et se reprend d’un clic.
       </p>
+      {conflits.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="mnd-btn mnd-btn--sm" onClick={oublieTousLesConflits} title="Les versions gardées sont déjà celles de la Maison : rien n'est défait.">
+            Tout garder ainsi ({conflits.length})
+          </button>
+        </div>
+      )}
       {conflits.map((c) => {
         const notreGagne = Date.parse(c.notreAt) > Date.parse(c.leurAt);
         return (
           <div key={`${c.table}-${c.id}-${c.vuLe}`} style={{ borderTop: '1px solid var(--hairline)', padding: '12px 0', display: 'grid', gap: 6 }}>
             <div style={{ fontSize: 13.5 }}><b style={{ fontWeight: 500 }}>{ecran(c)}</b> · {nom(c, c.leur)}</div>
+            {(() => {
+              const champs = champsQuiDifferent(c);
+              if (c.notre === null || champs.length === 0) return null;
+              return (
+                <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+                  Ce qui diffère : {champs.slice(0, 4).map((k) => (
+                    <span key={k} style={{ display: 'inline-block', marginRight: 10 }}>
+                      <b style={{ fontWeight: 500 }}>{k}</b> {valeurDe(c.leur, k)} → {valeurDe(c.notre, k)}
+                    </span>
+                  ))}{champs.length > 4 ? ` et ${champs.length - 4} autre${champs.length - 4 > 1 ? 's' : ''}` : ''}
+                </div>
+              );
+            })()}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, fontSize: 12.5 }}>
               <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
                 <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>{notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · {heure(c.leurAt)}</div>

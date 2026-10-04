@@ -62,6 +62,13 @@ async function messageDeLAssistant(e: unknown): Promise<string> {
     if (ctx.status === 404) return 'L’assistant n’est pas encore installé : la fonction « bilan-redige » est à coller dans Supabase.';
     try { raw += ' ' + (await ctx.clone().text()).toLowerCase(); } catch { /* corps illisible */ }
   }
+  /* UNE FONCTION ABSENTE NE REND PAS UN 404 LISIBLE — 4 octobre 2026 : la
+     question préalable du navigateur (CORS) tombe sur un 404 sans en-têtes,
+     et supabase-js ne dit que « Failed to send a request ». En ligne, c'est
+     presque toujours la fonction pas encore collée : on le dit en clair. */
+  if ((e as { name?: string })?.name === 'FunctionsFetchError' || raw.includes('failed to send')) {
+    return 'L’assistant ne répond pas : la fonction « bilan-redige » n’est pas encore collée dans Supabase (dossier du bureau « A recoller - bilan de la seance »).';
+  }
   if (raw.includes('forbidden')) return 'Réservé au personnel connecté.';
   if (raw.includes('refusal')) return 'L’assistant a préféré ne pas rédiger ce bilan, écrivez-le à la main.';
   if (raw.includes('bad request')) return 'Il manque le catalogue ou la note pour rédiger.';

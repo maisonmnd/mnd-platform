@@ -153,12 +153,78 @@ export function ecrisLaFile(table: string, file: ReadonlyMap<string, Entree>): v
   annonce();
 }
 
+/* ══ CE QUE LA MAISON CALCULE NE SE DISPUTE PAS — 4 octobre 2026 ════════
+
+   « Synchronisé · 19 conflits, fix it for good » (Yéman). Dix-neuf produits de
+   la Gamme, la même minute, des deux côtés le même nom : rien ne distinguait
+   « la vôtre » de « l'autre ». La différence était dans `stock`, que personne
+   n'avait tapé. Le miroir de la vitrine (`stock.ts`, `recalculeMiroir`)
+   recalcule ce chiffre depuis le journal des mouvements, SUR CHAQUE POSTE, à
+   chaque fois que le journal bouge, même ailleurs. Deux postes recalculent à
+   la même minute ; le plus lent écrit un geste plus ancien que l'écriture de
+   l'autre ; le « dernier geste gagne » en fait un conflit à trancher.
+
+   LA RÈGLE, pas le cas du jour : un champ DÉRIVÉ (recalculé d'une source qui se
+   synchronise elle-même) n'est pas un geste. Quand deux versions ne diffèrent
+   QUE par des champs dérivés, la plus récente reste et rien n'est demandé :
+   chaque poste le recalculera de la même source. Une table déclare ses champs
+   dérivés ici ; la déclaration peut dépendre de la ligne (le stock d'un
+   produit n'est dérivé que s'il est relié au journal ; celui d'un produit sans
+   fiche reste un compteur tenu à la main, et son conflit reste montré).
+
+   La règle s'applique à l'entrée (aucun conflit vide n'est noté) ET à la
+   lecture (ceux déjà gardés sur le téléphone disparaissent d'eux-mêmes). */
+type Derives = (ligne: Record<string, unknown>) => readonly string[];
+const DERIVES = new Map<string, Derives>();
+
+export function declareChampsDerives(table: string, champs: readonly string[] | Derives): void {
+  DERIVES.set(table, typeof champs === 'function' ? champs : () => champs);
+}
+
+/** Une valeur comparable : les clés rangées, à toute profondeur — jsonb rend
+    les champs dans un autre ordre que le téléphone. */
+const canonique = (v: unknown): string => JSON.stringify(v, (_k, x) =>
+  (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.keys(x as Record<string, unknown>).sort().map((k) => [k, (x as Record<string, unknown>)[k]]))
+    : x));
+
+const enLigne = (j: string | null): Record<string, unknown> | null => {
+  if (j === null) return null;
+  try {
+    const v = JSON.parse(j) as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { valeur: v };
+  } catch { return { valeur: j }; }
+};
+
+/** LES CHAMPS QUI DIFFÈRENT VRAIMENT entre les deux versions, champs dérivés
+    retirés. `null` d'un côté (une suppression) : la ligne entière diffère. */
+export function champsQuiDifferent(c: Pick<Conflit, 'table' | 'notre' | 'leur'>): string[] {
+  const a = enLigne(c.notre);
+  const b = enLigne(c.leur);
+  if (!a || !b) return a === b ? [] : ['(la ligne entière)'];
+  const derive = DERIVES.get(c.table);
+  const ignores = new Set(derive ? [...derive(a), ...derive(b)] : []);
+  const cles = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...cles].filter((k) => !ignores.has(k) && canonique(a[k]) !== canonique(b[k])).sort();
+}
+
+/** Un conflit qui mérite un regard : au moins un champ tenu à la main diffère. */
+export const conflitUtile = (c: Pick<Conflit, 'table' | 'notre' | 'leur'>): boolean => champsQuiDifferent(c).length > 0;
+
 export function lisLesConflits(): Conflit[] {
-  try { return JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]; } catch { return []; }
+  try { return (JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]).filter(conflitUtile); } catch { return []; }
+}
+
+/** « Tout garder ainsi » : la liste se vide d'un geste. Rien n'est défait —
+    la version gardée est déjà celle de la Maison. */
+export function oublieTousLesConflits(): void {
+  try { localStorage.removeItem(CLE_DES_CONFLITS()); } catch { /* idem */ }
+  annonce();
 }
 
 /** Les conflits se gardent, les plus récents d'abord, cent au plus. */
 export function noteLesConflits(nouveaux: readonly Conflit[]): void {
+  nouveaux = nouveaux.filter(conflitUtile);
   if (nouveaux.length === 0) return;
   try {
     const tous = [...nouveaux, ...lisLesConflits()].slice(0, 100);
