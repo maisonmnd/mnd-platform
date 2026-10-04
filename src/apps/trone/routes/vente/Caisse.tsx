@@ -20,6 +20,9 @@ import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServices
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
 import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
+import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
+/** La veille d'un jour ISO, en heure locale. */
+const veilleIso = (iso: string): string => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
 import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
@@ -243,6 +246,7 @@ export default function Caisse() {
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
   const [clotureOuverte, setClotureOuverte] = useState(false);
+  const [journalJour, setJournalJour] = useState(() => jourPropose(new Date()));
   const [waHint, setWaHint] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   /* La remise d'une ligne se replie DANS la ligne au téléphone : les chips
@@ -753,7 +757,7 @@ export default function Caisse() {
     .filter((i) => i.branchId === branch.id && i.kind === 'facture')
     .flatMap((i) =>
       invoiceReglements(i)
-        .filter((p) => (p.date ?? i.date) === today && p.method !== 'Avoir' && p.method !== 'Acompte')
+        .filter((p) => (p.date ?? i.date) === journalJour && p.method !== 'Avoir' && p.method !== 'Acompte')
         .map((p) => ({ inv: i, p })),
     )
     .filter((e) => journalCaisse === 'Toutes' || caisseDuVersement(e.inv, e.p) === journalCaisse);
@@ -768,7 +772,7 @@ export default function Caisse() {
     versementsDuJour.filter((e) => fn(e.p.method)).reduce((s, e) => s + e.p.amountXof, 0);
   const clientName = (i: Invoice) => clients.find((c) => c.id === i.clientId)?.name ?? i.clientName ?? '—';
   const journalDateLabel = (() => {
-    const s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const s = new Date(`${journalJour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     return s.charAt(0).toUpperCase() + s.slice(1);
   })();
 
@@ -1316,8 +1320,18 @@ export default function Caisse() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal du jour · {journalDateLabel}</div>
+              <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal · {journalDateLabel}</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, lineHeight: 1.05, color: 'var(--color-indigo)' }}>Journal de caisse.</div>
+              {/* LE JOUR DU JOURNAL SE CHOISIT — 4 octobre 2026. « Choisir la date
+                  pour clôturer la caisse » (Yéman, 1 h 56) : le journal ne montrait
+                  qu'aujourd'hui, et « Clôturer la caisse » prend désormais le jour
+                  affiché. Avant 6 h, la veille est proposée. */}
+              <div className="cds-jour" style={{ marginTop: 12 }}>
+                <span className="cds-jour__mot">Le jour</span>
+                <button type="button" className={`cds-bouton${journalJour === veilleIso(today) ? ' is-indigo' : ''}`} onClick={() => setJournalJour(veilleIso(today))}>Hier</button>
+                <button type="button" className={`cds-bouton${journalJour === today ? ' is-indigo' : ''}`} onClick={() => setJournalJour(today)}>Aujourd’hui</button>
+                <ChampDeDate value={journalJour} onChange={(v) => { if (v) setJournalJour(v); }} sens="arriere" max={today} compact ariaLabel="Le jour du journal" />
+              </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                 {['Toutes', ...branchCashboxes.map((c) => c.name)].map((n) => (
                   <button key={n} className={`trv-pill ${journalCaisse === n ? 'is-active' : ''}`} onClick={() => setJournalCaisse(n)}>
@@ -1330,7 +1344,7 @@ export default function Caisse() {
                 l'onglet Encaisser : aucun comptage n'existait. Il ouvre désormais
                 le comptage des tiroirs (maquette « Le pointage du jour »). */}
             <Button variant="ghost" onClick={() => setClotureOuverte(true)}>Clôturer la caisse</Button>
-            {clotureOuverte && <ClotureDuTiroir tiroir={journalCaisse !== 'Toutes' ? journalCaisse : undefined} onClose={() => setClotureOuverte(false)} />}
+            {clotureOuverte && <ClotureDuTiroir tiroir={journalCaisse !== 'Toutes' ? journalCaisse : undefined} jour={journalJour} onClose={() => setClotureOuverte(false)} />}
           </div>
 
           <div className="tr-grid tr-cols" style={{ '--cols': '1.3fr 1fr 1fr 1fr 1fr', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', marginBottom: 24 } as CSSProperties}>
@@ -1422,7 +1436,7 @@ export default function Caisse() {
             ))}
             {versementsDuJour.length === 0 && (
               <div style={{ padding: '26px 24px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>
-                Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.
+                {journalJour === today ? 'Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.' : 'Aucun encaissement pour cette caisse ce jour-là.'}
               </div>
             )}
           </div>

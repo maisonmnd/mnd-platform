@@ -139,6 +139,12 @@ await evalue(`location.hash = '#/caisse'`);
 await attend(3000);
 await evalue(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Journal de caisse')?.click()`);
 await attend(800);
+/* LE JOURNAL A SON JOUR (4 octobre) : « Aujourd'hui » montre les trois tickets. */
+await evalue(`[...document.querySelectorAll('.cds-jour button')].find((b) => b.textContent.trim() === 'Aujourd’hui')?.click()`);
+await attend(600);
+const journal = await evalue(`document.body.innerText`);
+dit('le journal choisit son jour et montre ceux d aujourd hui', /Journal ·/i.test(journal ?? '') && /F-2026-0901|0901/.test(journal ?? ''));
+await photo('2a-journal');
 const cloture = await clique('Clôturer la caisse');
 await attend(1000);
 t = await texteModale();
