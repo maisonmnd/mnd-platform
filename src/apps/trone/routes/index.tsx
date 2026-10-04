@@ -148,7 +148,7 @@ export const NAV: TroneGroup[] = [
          du Cercle le porte. L'adresse reste (les alertes du site y mènent). */
       { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
       { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
-      { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
+      { path: '/vitrine', label: 'Les vitrines', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
       { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
     ],
   },

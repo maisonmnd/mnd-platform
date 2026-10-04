@@ -1355,7 +1355,7 @@ export default function Catalogue() {
                     title="Afficher / masquer cette catégorie aux clientes"
                     onClick={() => toggleCat(cat)}
                   >
-                    {cat.enabled ? '● Visible aux clientes' : '○ Masquée du front'}
+                    {cat.enabled ? '● Visible : site et Ma Couronne' : '○ Masquée du site et de Ma Couronne'}
                   </button>
                   <span className="trv-catblock__tools">
                     {/* PROGRAMMER TOUT UN ATELIER D'UN GESTE (16 août) — poser
@@ -2881,7 +2881,7 @@ export default function Catalogue() {
             </Field>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
               <input type="checkbox" checked={catForm.enabled} onChange={(e) => setCatForm({ ...catForm, enabled: e.target.checked })} />
-              Visible aux clientes (Vitrine / Ma Couronne)
+              Visible sur le site public et dans Ma Couronne
             </label>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setCatForm(null)}>Annuler</Button>
