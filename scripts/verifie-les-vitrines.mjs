@@ -32,5 +32,14 @@ dit('le site montre son etat, ses offres, sa reservation, ce qui en revient, ses
 dit('le site ne touche ni Ma Couronne ni la tablette (il ne les ecrit pas)', false, /vitrineConfigStore\.set|clientsStore\.set/.test(site));
 dit('le menu dit « Les vitrines »', true, /path: '\/vitrine', label: 'Les vitrines'/.test(nav));
 
+/* LES CODES DE LA MAISON — 4 octobre 2026 : « plus de facilité pour retrouver
+   les codes ». Une recherche, des filtres par moment, un présentoir de tuiles
+   avec UN geste ; la fiche complète s'ouvre à part. */
+const qr = sansCommentaires('src/apps/trone/routes/clients/QrCodes.tsx');
+dit('les codes se cherchent et se filtrent par moment', true,
+  /placeholder="Chercher un code : momo, wifi, avis, prix, adresse…"/.test(qr) && /'avant'.*'pendant'.*'depart'.*'longtemps'.*'equipe'/s.test(qr) && /a-renseigner/.test(qr));
+dit('chaque tuile a un seul geste principal, la fiche complete s ouvre a part', true,
+  /<Modal title=\{ouvert\.carte\.nom\}/.test(qr) && /<CarteCode \{\.\.\.ouvert\.carte\} \/>/.test(qr) && !/<Moment\s/.test(qr));
+
 console.log(ko === 0 ? '\nLes trois vitrines tiennent separees.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);
