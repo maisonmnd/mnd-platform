@@ -15,7 +15,7 @@
 
    Les noms de cette journée sont des exemples. */
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync, statSync, renameSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync, rmSync, statSync, renameSync } from 'node:fs';
 import { spawn, execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -33,7 +33,9 @@ renameSync(path.join(construit, 'trone.html'), path.join(construit, 'index.html'
 const garde = injecteLeService(construit, 'banc-hors-ligne');
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
+let coupe = false;
 const serveur = createServer((req, res) => {
+  if (coupe) { req.socket.destroy(); return; }
   let f = path.join(construit, decodeURIComponent(new URL(req.url, 'http://x').pathname));
   if (existsSync(f) && statSync(f).isDirectory()) f = path.join(f, 'index.html');
   if (!f.startsWith(path.resolve(construit)) || !existsSync(f)) { res.writeHead(404); res.end(); return; }
@@ -118,6 +120,40 @@ const gardes = await evalue(`(async () => {
 })()`);
 dit(`2. le service garde l application (${garde.fichiers} fichiers, ${garde.mo.toFixed(1)} Mo)`, (gardes?.n ?? 0) >= garde.fichiers, JSON.stringify(gardes));
 
+/* 2 bis. UNE MISE EN LIGNE PENDANT QUE LE TRÔNE EST OUVERT — 4 octobre 2026.
+   La panne d'Analytics : la page ouverte appartient à la version A ; une
+   version B du service s'installe (son code d'Analytics a changé, il ne garde
+   donc plus celui de A) ; puis le réseau tombe et l'on ouvre Analytics,
+   jamais visité. L'ancien service effaçait la copie de A à l'activation de B. */
+const chunkAnalytics = readdirSync(path.join(construit, 'assets')).find((f) => /^Analytics-.*\.js$/.test(f));
+const listeB = garde.liste.filter((u) => !u.endsWith(`/${chunkAnalytics}`));
+const brutSw = readFileSync(path.join(racine, 'public/sw.js'), 'utf8');
+writeFileSync(path.join(construit, 'sw.js'), brutSw.replace("'__MND_BUILD__'", JSON.stringify('banc-version-b')).replace('/*__MND_A_GARDER__*/[]', JSON.stringify(listeB)));
+const versionB = await evalue(`(async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  await reg.update();
+  for (let i = 0; i < 40; i++) {
+    if ((await caches.keys()).includes('mnd-app-banc-version-b') && reg.active && !reg.installing && !reg.waiting) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  await new Promise((r) => setTimeout(r, 1500));
+  return (await caches.keys()).filter((n) => n.startsWith('mnd-app-'));
+})()`);
+coupe = true;
+await cdp('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+await evalue(`location.hash = '#/analytics'; true`);
+await attend(2500);
+const analyticsB = await evalue(`(() => {
+  const t = document.body.innerText;
+  if (/Unexpected Application Error|Cet écran ne s.est pas ouvert|Unexpected error/i.test(t)) return 'erreur';
+  return document.querySelector('.tr-top__sync') ? 'ok' : 'le Trone a disparu';
+})()`);
+dit('2 bis. une nouvelle version installee, la page d avant ouvre encore Analytics hors ligne', analyticsB === 'ok', `${analyticsB} · copies ${JSON.stringify(versionB)}`);
+coupe = false;
+await cdp('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+await evalue(`location.hash = '#/'; true`);
+await attend(1000);
+
 /* 3. Plus de serveur de fichiers, navigateur hors ligne : on recharge. */
 await new Promise((r) => serveur.close(r));
 serveur.closeAllConnections?.();
@@ -129,6 +165,29 @@ dit('3. sans serveur ni reseau, le Trone se rouvre', e3 === 'trone', e3);
 const pastille = await evalue(`document.querySelector('.tr-top__sync')?.innerText ?? ''`);
 dit('... et la pastille dit « Hors ligne »', /hors ligne/i.test(pastille ?? ''), pastille);
 await photo('3-hors-ligne');
+
+/* 3 ter. TOUS LES ÉCRANS S'OUVRENT SANS RÉSEAU — 4 octobre 2026 : « Analytics
+   ne s'ouvre pas, unexpected error. Make sure that everything opens offline »
+   (Yéman). La liste vient de la barre elle-même (routes/index.tsx) : un
+   écran ajouté demain est éprouvé sans qu'on y pense. */
+const routes = [...readFileSync(path.join(racine, 'src/apps/trone/routes/index.tsx'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .matchAll(/\{\s*path:\s*'([^']+)'/g)].map((m) => m[1]);
+const enPanne = [];
+for (const r of routes) {
+  await evalue(`location.hash = '#${r}'; true`);
+  await attend(1500);
+  const etat = await evalue(`(() => {
+    const t = document.body.innerText;
+    if (/Unexpected Application Error|Cet écran ne s.est pas ouvert|Unexpected error/i.test(t)) return 'erreur : ' + t.slice(0, 120).replace(/\\s+/g, ' ');
+    if (!document.querySelector('.tr-top__sync')) return 'le Trone a disparu';
+    return 'ok';
+  })()`);
+  if (etat !== 'ok') enPanne.push(`${r} (${etat})`);
+}
+dit(`3 ter. hors ligne, les ${routes.length} ecrans du Trone s ouvrent`, routes.length > 30 && enPanne.length === 0, enPanne.length ? enPanne.join(' | ') : `${routes.length} ouverts`);
+await evalue(`location.hash = '#/'; true`);
+await attend(1500);
 
 /* 3 bis. Un envoi gardé (temps 3) : la pastille le compte, et s'ouvre sur la file. */
 await evalue(`localStorage.setItem('trone::appels-en-attente', JSON.stringify([{ id: 'ap-banc', fonction: 'whatsapp-envoi', corps: {}, dit: 'WhatsApp à Awa K.', at: new Date().toISOString() }])); true`);

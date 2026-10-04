@@ -31,5 +31,5 @@ export function injecteLeService(dist, build) {
     throw new Error('sw.js : les repères __MND_BUILD__ / __MND_A_GARDER__ ont disparu, le service ne saurait plus quoi garder.');
   }
   writeFileSync(sw, brut.replace("'__MND_BUILD__'", JSON.stringify(build)).replace('/*__MND_A_GARDER__*/[]', JSON.stringify(garder)));
-  return { fichiers: garder.length, mo: poids / 1048576 };
+  return { fichiers: garder.length, mo: poids / 1048576, liste: garder };
 }

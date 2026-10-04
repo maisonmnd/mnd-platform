@@ -82,5 +82,13 @@ const shell = readFileSync('src/apps/trone/shell/Shell.tsx', 'utf8');
 dit('une nouvelle version s annonce sans recharger sous la main', true,
   /setInterval\(\(\) => void regarderEnFond\(\), 10 \* 60_000\)/.test(version) && /<BanniereDeVersion \/>/.test(shell));
 
+/* 6. Une mise en ligne ne casse plus le Trône ouvert (4 octobre 2026, Analytics).
+      La preuve vivante est l'étape 2 bis du banc ; ici, le câblage. */
+dit('le service garde les deux versions d avant', true, /const VERSIONS_GARDEES = 2;/.test(sw) && /autres\.slice\(VERSIONS_GARDEES\)/.test(sw));
+dit('... ne s installe qu entier', true, /status === 'rejected'\)\)[\s\S]{0,80}caches\.delete\(CACHE_APP\)/.test(sw));
+dit('... et ne garde une page qu avec son code', true, /A_GARDER\.includes\(entree\[0\]\)/.test(sw));
+const mainTrone = readFileSync('src/apps/trone/main.tsx', 'utf8');
+dit('chaque ecran du Trone a son ecran d erreur', true, /errorElement: <ErreurDEcran \/>/.test(mainTrone));
+
 console.log(ko === 0 ? '\nLe Trone sait s ouvrir sans reseau.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

@@ -33,16 +33,37 @@ const portee = () => self.registration.scope;
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   if (!ACTIF) return;
-  /* Fichier par fichier : un seul absent ne doit pas tout faire échouer. */
-  event.waitUntil(caches.open(CACHE_APP).then((c) => Promise.allSettled(
-    A_GARDER.map((u) => c.add(new Request(new URL(u, portee()).href, { cache: 'reload' }))),
-  )));
+  /* UNE VERSION ENTIÈRE OU PAS DU TOUT — 4 octobre 2026. « Analytics ne
+     s'ouvre pas hors ligne » (Yéman) : une copie à trous ne doit jamais
+     remplacer une copie entière. Un seul fichier manqué (réseau coupé pendant
+     l'installation) et cette version renonce ; l'ancienne reste en service,
+     le navigateur réessaiera à la prochaine ouverture. */
+  event.waitUntil((async () => {
+    const c = await caches.open(CACHE_APP);
+    const r = await Promise.allSettled(
+      A_GARDER.map((u) => c.add(new Request(new URL(u, portee()).href, { cache: 'reload' }))),
+    );
+    if (r.some((x) => x.status === 'rejected')) {
+      await caches.delete(CACHE_APP);
+      throw new Error('copie incomplète, la version en place reste');
+    }
+  })());
 });
 
+/* LES DEUX VERSIONS D'AVANT RESTENT — 4 octobre 2026. Un Trône ouvert AVANT
+   une mise en ligne continue de demander les fichiers de SA version pour les
+   écrans qu'il n'a pas encore ouverts (Analytics) ; les effacer à l'instant où
+   la nouvelle s'installe le laissait, hors ligne, sur « Unexpected error ».
+   `caches.match` cherche dans toutes les copies : on garde les deux plus
+   récentes en plus de celle-ci, les plus anciennes s'effacent. */
+const VERSIONS_GARDEES = 2;
 self.addEventListener('activate', (event) => event.waitUntil((async () => {
   if (ACTIF) {
-    const noms = await caches.keys();
-    await Promise.all(noms.filter((n) => n.startsWith('mnd-app-') && n !== CACHE_APP).map((n) => caches.delete(n)));
+    const autres = (await caches.keys())
+      .filter((n) => n.startsWith('mnd-app-') && n !== CACHE_APP)
+      .sort()
+      .reverse();
+    await Promise.all(autres.slice(VERSIONS_GARDEES).map((n) => caches.delete(n)));
   }
   await self.clients.claim();
 })()));
@@ -66,8 +87,17 @@ self.addEventListener('fetch', (event) => {
       try {
         const r = await avecDelai(fetch(req), DELAI_PAGE_MS);
         if (r.ok && url.pathname === new URL(page).pathname) {
-          const c = await caches.open(CACHE_APP);
-          void c.put(page, r.clone());
+          /* LA PAGE NE SE GARDE QU'AVEC SON CODE (4 octobre 2026). Une page
+             d'une version plus neuve que ce service appelle des fichiers
+             qu'il n'a pas : la garder, c'était rouvrir hors ligne une page
+             sans ses écrans. On la reconnaît à son script d'entrée. */
+          const copie = r.clone();
+          void copie.text().then(async (html) => {
+            const entree = html.match(/assets\/[^"'?#\s]+\.js/);
+            if (entree && !A_GARDER.includes(entree[0])) return;
+            const c = await caches.open(CACHE_APP);
+            await c.put(page, new Response(html, { headers: copie.headers }));
+          }).catch(() => {});
         }
         return r;
       } catch (_e) {

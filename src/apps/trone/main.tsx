@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { createHashRouter, RouterProvider } from 'react-router-dom';
 import './trone.css';
 import Shell from './shell/Shell';
+import { ErreurDEcran } from './shell/ErreurDEcran';
 import { NAV } from './routes/index';
 import { AuthGate } from './auth/AuthGate';
 import { applyPendingReplace } from './backup';
@@ -38,6 +39,8 @@ const router = createHashRouter([
         path: it.path === '/' ? undefined : it.path.slice(1),
         index: it.path === '/',
         element: <it.Component />,
+        /* Un écran qui ne s'ouvre pas le dit, la barre reste (4 oct. 2026). */
+        errorElement: <ErreurDEcran />,
       }))
     ),
   },
