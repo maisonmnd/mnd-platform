@@ -8,6 +8,8 @@ import { etatDeLOffre } from '../../../../shared/offres-pur';
 import { useDemandes } from '../../../../shared/demandes';
 import { supabase } from '../../../../shared/supabase';
 import { jourCourtAn } from '../../../../shared/calendrier';
+import { EditeurDuSite } from './EditeurDuSite';
+import { useBrouillonDuSite, changementsEnAttente } from '../../../../shared/site-retouches-store';
 
 /* ══ LE SITE PUBLIC, VU DU TRÔNE — 4 octobre 2026 ═════════════════════
    « Cette page ne sert absolument à rien. Mettre le site public sur cette
@@ -125,6 +127,9 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
   const pages = usePagesDuSite();
   const avis = useAvisGoogle();
   const [toutesLesPages, setToutesLesPages] = useState(false);
+  const [editeur, setEditeur] = useState(false);
+  const [brouillonSite] = useBrouillonDuSite();
+  const enBrouillon = changementsEnAttente(brouillonSite);
 
   const nouvelles = demandes.filter((d) => (!d.branchId || d.branchId === branch.id) && d.statut === 'nouvelle' && !d.archiveeLe).length;
   /* Ce que le site montre : les offres actives dans leur saison, datées ou
@@ -159,8 +164,12 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
         <Pastille ton="ok">En ligne</Pastille>
         {miseEnLigne && <Pastille>Dernière mise en ligne : {miseEnLigne}</Pastille>}
         {nouvelles > 0 && <Pastille ton="attente">{nouvelles} demande{nouvelles > 1 ? 's' : ''} à traiter</Pastille>}
+        {enBrouillon > 0 && <Pastille ton="attente">{enBrouillon} modification{enBrouillon > 1 ? 's' : ''} en brouillon</Pastille>}
+        <button type="button" className="mnd-btn" onClick={() => setEditeur((v) => !v)}>{editeur ? 'Fermer l’éditeur' : 'Modifier les textes et photos'}</button>
         <a className="mnd-btn mnd-btn--ghost" href={ADRESSE_DU_SITE} target="_blank" rel="noreferrer">Voir le site</a>
       </BandeDeVitrine>
+
+      {editeur && <EditeurDuSite onClose={() => setEditeur(false)} />}
 
       <div className="tr-grid tr-grid--2" style={{ gap: 14, alignItems: 'start', marginBottom: 22 }}>
         <Bloc titre="Les offres sur le site" ou="Les mêmes offres que le Marketing. Une offre paraît sur le site si elle est active et datée, ou mise en vitrine sans date.">
@@ -184,7 +193,7 @@ export function VitrineSite({ catalogue }: { catalogue: ReactNode }) {
           <Ligne gauche="Cartes cadeaux payées en ligne" sous="KkiaPay" droite={<Lien vers="/cartes-cadeaux">Les cartes →</Lien>} />
         </Bloc>
 
-        <Bloc titre="Les pages du site" ou="Lues dans le plan du site. L’éditeur des textes et des photos viendra ici, après sa maquette.">
+        <Bloc titre="Les pages du site" ou="Lues dans le plan du site. Pour changer un texte ou une photo : « Modifier les textes et photos », en haut.">
           {pages.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Le plan du site n’a pas pu être lu (hors ligne ?).</span>}
           {(toutesLesPages ? pages : pages.slice(0, 6)).map((u) => (
             <Ligne key={u} gauche={<a href={u} target="_blank" rel="noreferrer" style={{ color: 'var(--color-indigo)' }}>{u.replace(/^https?:\/\/[^/]+/, '') || '/'}</a>} />

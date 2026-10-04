@@ -33,6 +33,7 @@ const dossierTmp = mkdtempSync(path.join(tmpdir(), 'genere-revelateur-'));
 const entree = path.join(dossierTmp, 'entree.ts');
 writeFileSync(entree, `export * from '${path.join(racine, 'src/apps/revelateur/contenu.ts').replace(/\\/g, '/')}';
 export { DEVISE_COMPLETE } from '${path.join(racine, 'src/shared/identite.ts').replace(/\\/g, '/')}';
+export { appliqueLesRetouches } from '${path.join(racine, 'src/shared/site-retouches.ts').replace(/\\/g, '/')}';
 `);
 const module_ = path.join(dossierTmp, 'contenu.mjs');
 let contenu;
@@ -52,6 +53,18 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
   rmSync(dossierTmp, { recursive: true, force: true });
 }
 const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS } = contenu;
+
+/* ══ LES RETOUCHES DU TRÔNE — 4 octobre 2026 ═════════════════════════
+   L'éditeur du site (Les vitrines › Le site public) écrit ses retouches
+   PUBLIÉES dans `mnd_site_publie`. Elles s'appliquent ici, au contenu,
+   avant la moindre page : la page sort avec le texte retouché, pour Google
+   comme pour le téléphone. Sans clef ou sans réseau, le contenu d'origine
+   sort, et on le dit. Un champ qui n'existe plus est ignoré. */
+{
+  const docs = await documentsPublics(['mnd_site_publie']);
+  const n = contenu.appliqueLesRetouches(PAGES, ACCUEIL, docs?.mnd_site_publie);
+  console.log(docs ? `  retouches du Trône appliquées : ${n}` : '  retouches du Trône non lues : contenu d’origine');
+}
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
    L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
@@ -146,10 +159,15 @@ const bouton = (l, classe = 'btn') => {
    le <picture> le propose, et l'<img> garde le JPEG pour qui ne lit pas le
    WebP et pour les aperçus de partage. Les attributs de l'image sont écrits
    par l'appelant, dans l'ordre où le harnais les lit. */
-const estPhoto = (nom) => /\.jpe?g$/i.test(nom);
+/* UNE PHOTO DÉPOSÉE AU TRÔNE (4 octobre 2026) porte son adresse entière, au
+   compartiment `site` : elle se sert telle quelle, sans jumeau WebP (une
+   source WebP absente ferait échouer le <picture> au lieu de retomber). */
+const photoEnLigne = (nom) => /^https?:\/\//i.test(String(nom ?? ''));
+const srcDe = (nom) => (photoEnLigne(nom) ? nom : `/assets/photos/site/${nom}`);
+const estPhoto = (nom) => !photoEnLigne(nom) && /\.jpe?g$/i.test(nom);
 const webp = (nom) => nom.replace(/\.jpe?g$/i, '.webp');
 const photo = (nom, avant = '', apres = '') => {
-  const img = `<img${avant ? ` ${avant}` : ''} src="/assets/photos/site/${attr(nom)}"${apres ? ` ${apres}` : ''}>`;
+  const img = `<img${avant ? ` ${avant}` : ''} src="${attr(srcDe(nom))}"${apres ? ` ${apres}` : ''}>`;
   return estPhoto(nom) ? `<picture><source type="image/webp" srcset="/assets/photos/site/${attr(webp(nom))}">${img}</picture>` : img;
 };
 /* ══ LE BANDEAU « À LA MAISON » NE RÉPÈTE PLUS LE MÊME TRIO ══════════
@@ -273,7 +291,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:title" content="${attr(titre)}" />
     <meta property="og:description" content="${attr(description)}" />
     <meta property="og:url" content="${canon}" />
-    <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'partage-accueil.jpg')}" />
+    <meta property="og:image" content="${attr(photoEnLigne(og) ? og : `${SITE}assets/photos/site/${og || 'partage-accueil.jpg'}`)}" />
     ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
     <meta name="twitter:card" content="summary_large_image" />
     ${precharge ? (estPhoto(precharge) ? `<link rel="preload" as="image" href="${attr(webp(precharge))}" type="image/webp" fetchpriority="high" />` : `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />`) : ''}
@@ -1262,7 +1280,7 @@ const pagesEcrites = [];
 
 ecrit('/', page({
   chemin: '/', titre: ACCUEIL.titre, description: ACCUEIL.description, corps: rendAccueil(articles),
-  classeBody: 'accueil-plein', precharge: `/assets/photos/site/${PHOTO_ACCUEIL}`,
+  classeBody: 'accueil-plein', precharge: srcDe(PHOTO_ACCUEIL),
   noeuds: [noeudMaison(), noeudSite(), filAriane([['Accueil', '/']])],
 }));
 pagesEcrites.push('/');
@@ -1270,7 +1288,7 @@ pagesEcrites.push('/');
 ecrit('/galerie/', page({
   chemin: '/galerie/', titre: GALERIE.titre, description: GALERIE.description,
   corps: rendGalerie(), classeBody: 'galerie-plein',
-  precharge: `/assets/photos/site/${GALERIE.boite[2]}`,
+  precharge: srcDe(GALERIE.boite[2]),
   noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Galerie', '/galerie/']]), {
     '@type': 'ImageGallery', name: GALERIE.h1, description: GALERIE.description,
     url: `${SITE}galerie/`,
