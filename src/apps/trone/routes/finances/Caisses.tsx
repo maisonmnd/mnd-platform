@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
+import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
@@ -46,7 +47,7 @@ export default function Caisses() {
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
 
-  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, horsBilan, ouvertes } = useCaisses(month);
+  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, horsBilan, ouvertes, depuis } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
   const [invoices, setInvoices] = useInvoices();
   const [transferts, setTransferts] = useTransferts();
@@ -90,6 +91,7 @@ export default function Caisses() {
   const [reglages] = useSettings();
   const toutesOuvertes = useCaissesOuvertes();
   const [clotureOuverte, setClotureOuverte] = useState(false);
+  const [departOuvert, setDepartOuvert] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
 
   /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
@@ -307,10 +309,18 @@ export default function Caisses() {
   return (
     <div className="mnd-rise">
       {clotureOuverte && <ClotureDuTiroir onClose={() => setClotureOuverte(false)} />}
+      {departOuvert && <DepartDesCaisses onClose={() => setDepartOuvert(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · les tiroirs de la Maison</Eyebrow>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Les caisses.</h2>
+          {depuis && (
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: month < depuis ? 'var(--copper-700)' : 'var(--ink-soft)', marginTop: 8 }}>
+              {month < depuis
+                ? `Avant le départ des caisses (${moisEtAn(depuis)}) : historique seulement, il ne bouge aucun solde.`
+                : `Les caisses comptent depuis ${moisEtAn(depuis)}.`}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setVerrouOuvert(true)}>
@@ -321,6 +331,9 @@ export default function Caisses() {
               ici, devant ses tiroirs, qu'on le cherche. */}
           <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }} onClick={() => setClotureOuverte(true)}>
             Clôturer la caisse
+          </button>
+          <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setDepartOuvert(true)}>
+            Départ des caisses
           </button>
           <button
             className="trf-act"

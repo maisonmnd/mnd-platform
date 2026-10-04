@@ -1636,10 +1636,22 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     timer = setTimeout(() => void envoie(), PUSH_DEBOUNCE_MS);
   }
   syncMark.relance(`doc:${key}`, planifieLEnvoi);
+  /* CE QUE CET ONGLET A VU EN DERNIER — 4 octobre 2026, les codes du coffre et
+     des caisses refusés le jour même du temps 1. Le magasin prévient pour
+     bien des raisons qui ne sont pas un geste (un autre onglet, une purge, une
+     autre copie de la même clé) ; chacune s'inscrivait comme un geste, daté de
+     MAINTENANT, avec le document ENTIER. Noté avant l'hydratation, ce faux
+     geste portait la vieille copie de l'appareil et gagnait contre le serveur.
+     Un geste, désormais, c'est un contenu qui a CHANGÉ par rapport à ce que
+     l'onglet avait vu. */
+  let vu = JSON.stringify(store.get());
   store.subscribe(() => {
-    if (applyingRemote) return;
+    const j = JSON.stringify(store.get());
+    if (applyingRemote) { vu = j; return; }
+    if (j === vu) return;
+    vu = j;
     /* Le geste s'inscrit dans la file avant de partir (4 octobre 2026). */
-    attenteDoc.set(key, { op: 'set', at: new Date().toISOString(), j: JSON.stringify(store.get()) });
+    attenteDoc.set(key, { op: 'set', at: new Date().toISOString(), j });
     ecrisLaFile(`doc:${key}`, attenteDoc);
     syncMark.dirty(`doc:${key}`);
     planifieLEnvoi();

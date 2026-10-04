@@ -53,6 +53,12 @@ if (process.env.ETAPE === 'pur') {
   });
 }
 
+if (process.env.ETAPE === 'ailleurs-doc') {
+  /* Un AUTRE poste change le réglage pendant que ce téléphone est éteint. */
+  ecritAilleurs('documents', 'reglage_essai', { v: Number(process.env.V) });
+  dit({ ok: true });
+}
+
 if (process.env.ETAPE === 'ailleurs') {
   /* Un AUTRE poste écrit au serveur pendant que ce téléphone est éteint. */
   ecritAilleurs(T, process.env.ID!, { id: process.env.ID!, branchId: 'b', nom: process.env.NOM! });
@@ -73,6 +79,8 @@ for (const [quoi, a, b] of gestes) {
   if (quoi === 'set') store.set((prev) => [...prev.filter((r) => r.id !== a), { id: a, branchId: 'b', nom: b }]);
   if (quoi === 'del') store.set((prev) => prev.filter((r) => r.id !== a));
   if (quoi === 'doc') doc.set({ v: Number(a) });
+  /* Le magasin prévient sans que rien ait changé (un autre onglet, une purge). */
+  if (quoi === 'touche') doc.set((p) => ({ ...p }));
   if (quoi === 'ailleurs') ecritAilleurs(T, a, { id: a, branchId: 'b', nom: b });
   if (quoi === 'online') { faux.enLigne = true; leReseauRevient(); }
   if (quoi === 'pause') await attend(Number(a));

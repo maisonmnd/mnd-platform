@@ -129,6 +129,17 @@ try {
   const f3 = seanceAvec(F);
   dit('F2 : rouvert en ligne, le reglage part', [2, 2, 0], [f3.doc, f3.docServeur, f3.attente]);
 
+  /* I. UNE VIEILLE COPIE NE GAGNE PAS SANS GESTE — 4 octobre 2026, les codes
+     du coffre et des caisses refusés. Le téléphone garde le réglage à 1 ; un
+     autre poste le passe à 5 ; le téléphone se rouvre, et son magasin est
+     prévenu AVANT l'hydratation sans que personne n'ait rien changé. Ce n'est
+     pas un geste : le serveur doit garder 5, et le téléphone le recevoir. */
+  const G = nouveauTelephone();
+  seanceAvec(G, { gestes: [['doc', '1']] });
+  lance(G, { ETAPE: 'ailleurs-doc', V: '5' });
+  const g2 = lance(G, { FAUX_RESEAU: '1', AVANT: '0', GESTES: JSON.stringify([['touche']]) });
+  dit('I : une copie perimee, prevenue sans geste, ne remplace pas le serveur', [5, 5, 0], [g2.docServeur, g2.doc, g2.conflits.length]);
+
   /* H. UN REFUS DE DROIT : le geste ne compte pas « en attente » pour toujours. */
   const H = nouveauTelephone();
   ailleurs(H, 'h1', 'H');

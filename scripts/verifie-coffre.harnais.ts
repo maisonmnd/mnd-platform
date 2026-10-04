@@ -5,6 +5,7 @@
    passe jamais sous zéro ; et un objectif sans échéance n'est jamais dit
    « en retard ». */
 
+import { readFileSync } from 'node:fs';
 import {
   recuParObjectif, coffreNonFleche, coffreBalance, moisPourAtteindre,
   flecherVersObjectif, flechableVers, rythmeDuPlan,
@@ -13,7 +14,7 @@ import {
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, caisseParDefaut, depensesDuMois, type Cashbox,
   type CoffreMovement, type ObjectifCoffre, type Expense,
 } from '../src/shared/finance';
-import { montantsDuTiroir, leCodeOuvre } from '../src/apps/trone/routes/finances/tiroirs';
+import { montantsDuTiroir, leCodeOuvre, dansLesComptes } from '../src/apps/trone/routes/finances/tiroirs';
 import { fmtDay } from '../src/apps/trone/routes/finances/_shared';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
 
@@ -515,6 +516,19 @@ dit('la borne du jour retient une ponctuelle engagée avant', 350_000, depensesD
 dit('… et écarte une ponctuelle engagée après', 300_000, depensesDuMois(depenses, 'br', '2026-08', '2026-08-09'));
 dit('… mais garde la récurrente, engagement du mois entier', 300_000, depensesDuMois([loyer], 'br', '2026-08', '2026-08-01'));
 dit('chaque branche a son propre total', 999, depensesDuMois(depenses, 'zz', '2026-08'));
+
+/* ── LE DÉPART DES CAISSES — 4 octobre 2026 ────────────────────────
+   « Je commence une nouvelle comptabilité à partir du 01 octobre. Le reste
+   sera des corrections du passé » (Yéman). */
+dit('sans depart pose, septembre compte', true, dansLesComptes('2026-09', undefined));
+dit('depart en octobre : septembre ne bouge plus aucun solde', false, dansLesComptes('2026-09', '2026-10'));
+dit('... une correction d aout non plus', false, dansLesComptes('2026-08', '2026-10'));
+dit('... octobre compte', true, dansLesComptes('2026-10', '2026-10'));
+dit('... et les mois suivants', true, dansLesComptes('2027-01', '2026-10'));
+const tiroirsSrc = readFileSync('src/apps/trone/routes/finances/tiroirs.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('le solde de chaque caisse passe par le depart', true,
+  /const keep = \(mk: string\) => keepDemande\(mk\) && dansLesComptes\(mk, depuis\);/.test(tiroirsSrc)
+  && (tiroirsSrc.match(/openingXof/g) ?? []).length === 1);
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 if (ko > 0) process.exit(1);

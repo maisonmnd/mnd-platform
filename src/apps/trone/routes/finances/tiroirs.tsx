@@ -26,6 +26,7 @@ import {
 } from '../../../../shared/finance';
 import { useRemboursements } from '../../../../shared/avances';
 import { usePrets } from '../../../../shared/foyer';
+import { useSettings } from '../../../../shared/settings';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
 
@@ -69,6 +70,9 @@ export const selonLOrdre = <T extends { id: string }>(voulu: string[] | undefine
   const connus = items.filter((it) => rang.has(it.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!);
   return [...connus, ...items.filter((it) => !rang.has(it.id))];
 };
+
+/** Un mois compte-t-il dans les soldes ? Tous, sans départ posé. */
+export const dansLesComptes = (mk: string, depuis: string | undefined): boolean => !depuis || mk >= depuis;
 
 export const CLE_ECRAN = '@ecran-caisses';
 export const CLE_COFFRE = '@ecran-coffre';
@@ -293,8 +297,14 @@ export function useCaisses(month: string) {
   const boxExpenses = (name: string) =>
     expenses.filter((e) => e.branchId === branch.id && !e.stopped && !e.avancee && e.cashbox === name);
 
+  /* LE DÉPART DES CAISSES (4 octobre 2026) : rien de ce qui précède le mois
+     de départ n'entre dans un solde. Le relevé d'un mois d'avant reste
+     lisible ; il ne bouge plus rien. Voir `Settings.caissesDepuis`. */
+  const [reglagesCaisses] = useSettings();
+  const depuis = reglagesCaisses.caissesDepuis;
   /** Solde cumulé d'une caisse — ouverture + tous les flux dont le mois passe `keep`. */
-  const boxBalanceWhere = (name: string, keep: (mk: string) => boolean) => {
+  const boxBalanceWhere = (name: string, keepDemande: (mk: string) => boolean) => {
+    const keep = (mk: string) => keepDemande(mk) && dansLesComptes(mk, depuis);
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
@@ -514,7 +524,7 @@ export function useCaisses(month: string) {
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
 
   return {
-    branch, currency, branchBoxes,
+    branch, currency, branchBoxes, depuis,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
     tresorerieVisible, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
     exclues: caissesHorsBilan(branchBoxes, branch.id),
