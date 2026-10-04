@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { createStore, useStore, uid } from './store';
+import { createStore, useStore, uid, type Store } from './store';
 import { sameName } from './text';
 import { identiteCourante } from './journal';
 
@@ -653,7 +653,23 @@ export type Cashbox = {
       L'EXCLUSION SE DIT TOUJOURS À L'ÉCRAN. Un total amputé en silence est
       pire qu'un total complet : on le croirait faux sans savoir pourquoi. */
   horsBilan?: boolean;
+  /** ── LA PIÈCE DE LA MAISON — 4 octobre 2026 ──────────────────────
+      « Le parcours de l'argent » : chaque caisse appartient à une pièce, qui
+      dit ce qu'elle reçoit et ce qu'elle paie (voir le manuel des caisses).
+      Absent : une caisse d'avant la bascule, sans rôle. */
+  role?: RoleDeCaisse;
+  /** Rangée par la bascule d'octobre : elle quitte toutes les listes, ses
+      écritures sont dans l'archive. La date du geste. */
+  archiveeLe?: string;
+  /** Ce qu'elle était avant la bascule (nom, solde d'ouverture, hors bilan),
+      pour revenir en arrière d'un geste. */
+  avantLaBascule?: { name: string; openingXof: number; horsBilan?: boolean };
+  /** Créée par la bascule : un retour en arrière la retire si rien ne la nomme. */
+  creeeParLaBascule?: boolean;
 };
+
+/** Les sept pièces, et l'archive. */
+export type RoleDeCaisse = 'terrasse' | 'banque' | 'mois' | 'grenier' | 'cour' | 'foyer' | 'archive';
 
 /** Les NOMS des caisses écartées des bilans — c'est le nom qui sert de clé
     partout (`Expense.cashbox`, `InvoicePayment.cashbox`). */
@@ -720,8 +736,13 @@ export type PieceJointe = { chemin: string; nom: string; type: string; taille: n
 export const caisseParDefaut = (
   boxes: readonly Cashbox[], branchId: string, maison: string,
 ): Cashbox | undefined => {
-  const siennes = boxes.filter((c) => c.branchId === branchId);
-  return siennes.find((c) => cashboxCurrency(c) === maison) ?? siennes[0];
+  /* La Terrasse d'abord (4 octobre 2026) : c'est elle qui reçoit. Jamais une
+     caisse rangée ni l'archive, tant qu'une autre existe. */
+  const siennes = boxes.filter((c) => c.branchId === branchId && !c.archiveeLe);
+  const dansLaDevise = siennes.filter((c) => cashboxCurrency(c) === maison);
+  return dansLaDevise.find((c) => c.role === 'terrasse')
+    ?? dansLaDevise.find((c) => c.role !== 'archive')
+    ?? dansLaDevise[0] ?? siennes[0];
 };
 
 /** LES CAISSES QU'UN COMPTE RESTREINT PEUT VOIR — 31 août 2026.
@@ -1469,7 +1490,18 @@ export const useDepensesComptees = (): Expense[] => {
   return useMemo(() => depensesComptees(toutes), [toutes]);
 };
 export const useBudgets = () => useStore(budgetsStore);
-export const useCashboxes = () => useStore(cashboxesStore);
+/** LES CAISSES VIVANTES — 4 octobre 2026. Une caisse rangée par la bascule
+    d'octobre quitte toutes les listes (ses écritures sont dans l'archive).
+    Le setter reste celui du magasin entier : tous ses appelants passent une
+    fonction de la liste COMPLÈTE, rien ne s'efface en écrivant. Pour voir
+    aussi les rangées : `useToutesLesCaisses`. */
+export const caissesVivantes = (c: readonly Cashbox[]): Cashbox[] => c.filter((b) => !b.archiveeLe);
+export const useCashboxes = (): [Cashbox[], Store<Cashbox[]>['set']] => {
+  const [toutes, set] = useStore(cashboxesStore);
+  const vivantes = useMemo(() => caissesVivantes(toutes), [toutes]);
+  return [vivantes, set];
+};
+export const useToutesLesCaisses = () => useStore(cashboxesStore);
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
 export const usePaymentMethods = () => useStore(paymentMethodsStore);
 

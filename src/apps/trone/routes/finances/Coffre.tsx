@@ -120,7 +120,12 @@ export default function Coffre() {
   /* LE SOLDE NE MÊLE PAS LES MONNAIES — les billets étrangers en sont exclus ;
      chaque compartiment en devise dit son propre total, chez lui. Additionner
      des euros à des francs ferait un nombre qui n'existe nulle part. */
-  const balance = coffreBalanceMaison(moves);
+  /* LE COFFRE REPART DE 0 AVEC LA BASCULE — 4 octobre 2026 (réponse au
+     sélecteur : « à 0 lui aussi »). Son solde ne compte que les mouvements
+     du mois de départ et après ; l'historique reste dans la liste. */
+  const [reglagesCoffre] = useSettings();
+  const departDuCoffre = reglagesCoffre.basculeDesCaisses ? reglagesCoffre.caissesDepuis : undefined;
+  const balance = coffreBalanceMaison(departDuCoffre ? moves.filter((m) => m.date.slice(0, 7) >= departDuCoffre) : moves);
   /* LES TUILES LISENT LES MÊMES PORTES QUE LE SOLDE — 24 août. « Total versé »
      et « Versé ce mois » sommaient TOUS les dépôts, fléchages et devises
      compris : chaque fléchage (une paire interne qui ne fait rien entrer) les

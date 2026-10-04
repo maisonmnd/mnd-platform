@@ -970,7 +970,7 @@ function DepositModal({
      versé en dollars ; le compte de la cliente se crédite en francs, et le
      tiroir compte ses billets. */
   const caissesMaison = cashboxes.filter((b) => b.branchId === branchId);
-  const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
+  const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Terrasse · Tiroir espèces') ?? caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
   /* LA LISTE DES PARAMÈTRES, PAS UNE COPIE — 5 septembre 2026. Voir

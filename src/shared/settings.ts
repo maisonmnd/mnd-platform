@@ -66,6 +66,10 @@ export type Settings = {
       d'ouverture. Avant : l'historique reste lisible, il ne bouge plus aucun
       solde. Absent : les caisses comptent depuis toujours, comme avant. */
   caissesDepuis?: string;
+  /** LA BASCULE D'OCTOBRE — 4 octobre 2026 : faite le…, et le départ des
+      caisses qu'il y avait avant elle (pour le retour en arrière). Posée, le
+      coffre repart lui aussi du mois de départ. */
+  basculeDesCaisses?: { le: string; depuisAvant?: string };
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;

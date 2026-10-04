@@ -29,6 +29,8 @@ import './version'; // veille de version : l'app se recharge quand un déploieme
    de casse : les formes camelCase du front sont stockées telles quelles. */
 
 const PUSH_DEBOUNCE_MS = 250;
+/** Lignes par requête d'écriture : une réécriture massive part en plusieurs envois. */
+const TRANCHE_D_ENVOI = 400;
 
 /* ---------- État de synchronisation (affiché en topbar) ----------
    Sans indicateur, un échec de push partait en console.warn : la caissière ne
@@ -934,11 +936,18 @@ export function bindCollection<T extends WithId>(
       }
       /* AVANT l'envoi : l'écho peut revenir pendant que la requête vole. */
       noteLesPoussees(upserts as { id: string; data: T }[]);
-      const { error } = await sb.from(table).upsert(upserts);
-      /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
-         écrit (voir plus haut) — le repère doit rester en arrière. */
-      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(upserts.map((u) => u.id)); return false; }
-      if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
+      /* PAR TRANCHES DE 400 — 4 octobre 2026, la bascule des caisses réécrit
+         d'un geste toutes les pièces d'avant octobre. Un seul envoi de quelques
+         milliers de lignes risquait le plafond de la requête ; une tranche
+         refusée n'arrête pas les autres, et l'échec se dit comme avant. */
+      for (let i = 0; i < upserts.length; i += TRANCHE_D_ENVOI) {
+        const tranche = upserts.slice(i, i + TRANCHE_D_ENVOI);
+        const { error } = await sb.from(table).upsert(tranche);
+        /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
+           écrit (voir plus haut) — le repère doit rester en arrière. */
+        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(tranche.map((u) => u.id)); return false; }
+        if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
+      }
     }
     if (deletes.length) {
       /* GARDE-FOU des suppressions (incident du 23-07 : 28 prestations effacées

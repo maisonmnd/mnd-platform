@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { ClotureDuTiroir } from './ClotureDuTiroir';
 import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
+import { BasculeDOctobre } from './BasculeDOctobre';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
@@ -92,6 +93,7 @@ export default function Caisses() {
   const toutesOuvertes = useCaissesOuvertes();
   const [clotureOuverte, setClotureOuverte] = useState(false);
   const [departOuvert, setDepartOuvert] = useState(false);
+  const [basculeOuverte, setBasculeOuverte] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
 
   /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
@@ -310,6 +312,7 @@ export default function Caisses() {
     <div className="mnd-rise">
       {clotureOuverte && <ClotureDuTiroir onClose={() => setClotureOuverte(false)} />}
       {departOuvert && <DepartDesCaisses onClose={() => setDepartOuvert(false)} />}
+      {basculeOuverte && <BasculeDOctobre onClose={() => setBasculeOuverte(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · les tiroirs de la Maison</Eyebrow>
@@ -334,6 +337,9 @@ export default function Caisses() {
           </button>
           <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setDepartOuvert(true)}>
             Départ des caisses
+          </button>
+          <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-indigo)', color: 'var(--color-indigo)' }} onClick={() => setBasculeOuverte(true)}>
+            {reglages.basculeDesCaisses ? 'La bascule d’octobre ✓' : 'La bascule d’octobre'}
           </button>
           <button
             className="trf-act"
