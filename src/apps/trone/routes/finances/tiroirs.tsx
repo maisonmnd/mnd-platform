@@ -106,7 +106,13 @@ export const refermeLesCaisses = (ids: readonly string[]): void => {
     empreintes : le code enregistré n'existe nulle part pour être comparé. */
 export async function leCodeOuvre(c: { id: string; codeHash?: string }, code: string): Promise<boolean> {
   if (!c.codeHash) return true;
-  return (await empreinteDuCode(c.id, code)) === c.codeHash;
+  /* LE CODE SE POSE SANS ESPACES AUTOUR (4 octobre 2026) : `trim` à la pose,
+     jamais à l'essai, et l'espace qu'un clavier de téléphone ajoute après un
+     mot faisait refuser le bon code. On essaie donc la frappe telle quelle,
+     puis sans ses espaces. */
+  if ((await empreinteDuCode(c.id, code)) === c.codeHash) return true;
+  const net = code.trim();
+  return net !== code && net !== '' && (await empreinteDuCode(c.id, net)) === c.codeHash;
 }
 
 /** S'abonne au registre : l'écran se redessine quand une caisse s'ouvre. */
@@ -1075,7 +1081,7 @@ export function LeTrousseau({
           <label className="mnd-field">
             <span className="mnd-field__label">Code</span>
             <input
-              className="mnd-input" type="password" autoFocus autoComplete="off"
+              className="mnd-input" type="password" autoFocus autoComplete="new-password" name="code-maison"
               value={code}
               onChange={(e) => { setCode(e.target.value); setMot(''); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void essayer(); }}
@@ -1148,7 +1154,8 @@ export function EcranVerrouille({
           className="mnd-input"
           type="password"
           autoFocus
-          autoComplete="off"
+          autoComplete="new-password"
+          name="code-maison"
           placeholder="Code"
           value={code}
           onChange={(e) => { setCode(e.target.value); setFaux(false); }}

@@ -13,7 +13,7 @@ import {
   empreinteDuCode, caisseDiscrete, surLeTiroir, montantMuet, caisseParDefaut, depensesDuMois, type Cashbox,
   type CoffreMovement, type ObjectifCoffre, type Expense,
 } from '../src/shared/finance';
-import { montantsDuTiroir } from '../src/apps/trone/routes/finances/tiroirs';
+import { montantsDuTiroir, leCodeOuvre } from '../src/apps/trone/routes/finances/tiroirs';
 import { fmtDay } from '../src/apps/trone/routes/finances/_shared';
 import { soldesParEmprunteur, resteDuPar, detteEnCours, type Pret } from '../src/shared/foyer';
 
@@ -180,6 +180,13 @@ dit('deux caisses au même code n’ont pas la même empreinte', true, h1 !== h4
 /* L'empreinte ne CONTIENT pas le code : c'est tout l'objet de l'exercice. */
 dit('l’empreinte ne laisse pas voir le code', false, h1.includes('1234'));
 dit('… et fait bien 64 caractères (SHA-256)', 64, h1.length);
+/* LE BON CODE OUVRE, MÊME SUIVI D'UN ESPACE (4 octobre 2026) : le code se pose
+   sans ses espaces ; un clavier de téléphone en ajoute un après un mot. */
+const ecranCoffre = { id: '@ecran-coffre', codeHash: await empreinteDuCode('@ecran-coffre', '1234') };
+dit('le bon code ouvre le coffre', true, await leCodeOuvre(ecranCoffre, '1234'));
+dit('… suivi d un espace aussi', true, await leCodeOuvre(ecranCoffre, '1234 '));
+dit('un autre code ne l ouvre pas', false, await leCodeOuvre(ecranCoffre, '1235'));
+dit('des espaces seuls ne l ouvrent pas', false, await leCodeOuvre(ecranCoffre, '   '));
 
 /* ── LE TIROIR COMPTE SES BILLETS — 22 août 2026 ───────────────────
    « Ok pour multi-devise. » Toute écriture qui nomme une caisse porte deux

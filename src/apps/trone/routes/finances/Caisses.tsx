@@ -663,7 +663,7 @@ export default function Caisses() {
             <label className="mnd-field">
               <span className="mnd-field__label">Code</span>
               <input
-                className="mnd-input" type="password" autoFocus autoComplete="off"
+                className="mnd-input" type="password" autoFocus autoComplete="new-password" name="code-maison"
                 value={codeSaisi}
                 onChange={(e) => { setCodeSaisi(e.target.value); setCodeFaux(false); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void essayerLeCode(); }}
