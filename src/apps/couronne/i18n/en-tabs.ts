@@ -23,6 +23,19 @@ export const EN_TABS: Record<string, string> = {
   'Les points clés de la séance': 'Key points from the session',
   'Le rituel à domicile': 'Your ritual at home',
   'Prochaine visite conseillée, {quand}': 'Next visit recommended, {quand}',
+  // Le bilan rédigé, ouvert sur l'essentiel (4 octobre 2026)
+  'Votre routine à la maison': 'Your routine at home',
+  'Ce que la Maison vous propose': 'What the Maison suggests',
+  'Replier le bilan': 'Fold the report',
+  'Voir le bilan entier': 'See the full report',
+  'Ce que nous avons vu': 'What we saw',
+  'Ce que cela veut dire': 'What it means',
+  'Le document se prépare…': 'Preparing the document…',
+  'Télécharger le document': 'Download the document',
+  'Le document n’a pas pu être préparé, réessayez dans un instant.': 'The document could not be prepared. Please try again in a moment.',
+  'Votre bilan': 'Your report',
+  'Votre bilan du {jour} est prêt, avec votre routine à la maison.': 'Your report from {jour} is ready, with your routine at home.',
+  'Lire mon bilan': 'Read my report',
   'Fermer': 'Close',
 
   // ── Accueil

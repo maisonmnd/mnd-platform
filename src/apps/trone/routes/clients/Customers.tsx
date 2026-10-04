@@ -35,7 +35,7 @@ import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
-import { BilanModal } from './BilanModal';
+import { BilanModal, RegistreDesBilans } from './BilanModal';
 import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
@@ -2487,6 +2487,7 @@ function Customer360({
      lit sur Ma Couronne, l'impression reste. L'ancien lien direct vers la
      papeterie amnésique est parti avec elle. */
   const [bilanOpen, setBilanOpen] = useState(false);
+  const [registreOuvert, setRegistreOuvert] = useState(false);
   const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
@@ -3246,6 +3247,11 @@ function Customer360({
                 <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
                   {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
                 </button>
+                {mesBilans.length > 0 && (
+                  <button className="trc-c360-linkbtn" onClick={() => setRegistreOuvert(true)} title="Renvoyer un bilan signé par WhatsApp, l'imprimer">
+                    Ses bilans remis ({mesBilans.length}) · renvoyer, imprimer →
+                  </button>
+                )}
                 {/* LA TROISIÈME PORTE « DEMANDER » — 20 août, dernière pièce de la
                     liste du Fil : la facture et le rituel l'avaient, la fiche non.
                     La demande part avec LA CLIENTE attachée : celui qui la reçoit
@@ -3261,6 +3267,7 @@ function Customer360({
         {bilanOpen && (
           <BilanModal client={client} honored={honored} byId={byId} branchId={client.branchId} onClose={() => setBilanOpen(false)} />
         )}
+        {registreOuvert && <RegistreDesBilans client={client} onClose={() => setRegistreOuvert(false)} />}
         {demanderOuvert && (
           <DemanderModal
             piece={{ kind: 'cliente', id: client.id, label: client.name }}

@@ -481,6 +481,24 @@ paquet : c'est le verrou qui empêche deux postes d'envoyer deux fois, et
 c'est là que se lit un refus de Meta (modèle pas encore approuvé) — repris
 seul le lendemain.
 
+## Le bilan de séance (4 octobre 2026)
+
+Le maître signe un bilan dans le Trône ; « Envoyer par WhatsApp » joint le PDF
+Maison MND. Dans la fenêtre de 24 heures, il part avec le mot du bilan. Hors
+fenêtre, il faut ce modèle :
+
+**`bilan_de_seance`** — WhatsApp Manager → Modèles, français, catégorie
+**UTILITY**, en-tête : **Document** (un PDF d'exemple est demandé à la
+création, n'importe lequel). Corps :
+
+> Bonjour {{1}}, voici le bilan de votre séance du {{2}}, avec votre routine
+> à la maison. Vous le retrouvez aussi dans Ma Couronne.
+
+Pied de page : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
+({{1}} = « Madame Awa », {{2}} = « 4 octobre ».) Il remet un document après
+une séance, il ne vend rien : c'est ce qui le garde utilitaire. Tant qu'il
+n'est pas approuvé, l'envoi hors fenêtre est refusé et l'écran le dit.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.

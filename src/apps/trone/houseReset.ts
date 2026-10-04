@@ -46,6 +46,8 @@ const WIPE_TABLES = [
   'cartes_cadeaux',
   /* Le pointage du jour et la caisse du soir (0113, 3 octobre 2026). */
   'pointages', 'clotures_caisse',
+  /* Les notes de séance du bilan (0115, 4 octobre 2026). */
+  'notes_de_seance',
 ];
 
 /** Vide toutes les tables de données sur le serveur. Renvoie la liste des échecs

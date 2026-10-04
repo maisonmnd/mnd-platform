@@ -184,12 +184,14 @@ export async function pieceEnOctets(
     if (!invoices.some((i) => i.id === p.invoiceId)) return null;
     return construitLaFacture(p.invoiceId);
   }
-  /* LE BILAN ET LES PHOTOS N'ONT PAS ENCORE DE CORPS. Le bilan vit dans une
-     page imprimable (`bilan.html`), pas dans un constructeur de PDF ; les
-     photos de séance n'ont nulle part où vivre (voir la maquette, « où
-     vivent les photos d'une séance »). Le geste compose donc son message,
-     et l'écran dit franchement que la pièce suivra. Mentir ici enverrait un
-     message qui annonce un fichier absent. */
+  /* LE BILAN ET LES PHOTOS N'ONT PAS DE CORPS ICI. Le geste « Son bilan »
+     vise une séance dont le bilan N'EST PAS ENCORE ÉCRIT : il n'y a donc
+     rien à joindre. Depuis le 4 octobre 2026, le bilan s'écrit dans le
+     rendez-vous (« Le bilan de la séance »), se signe, et son PDF part de la
+     fiche signée (shared/bilan-document). Les photos de séance n'ont pas
+     encore où vivre. Le geste compose son message, et l'écran dit
+     franchement que la pièce suivra. Mentir ici enverrait un message qui
+     annonce un fichier absent. */
   return null;
 }
 

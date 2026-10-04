@@ -42,6 +42,7 @@ import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
+import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 
 export { ChampDeDate };
 
@@ -3473,6 +3474,13 @@ export function RdvModal({
           >
             + Une note au carnet
           </button>
+        )}
+
+        {/* LE BILAN DE LA SÉANCE — 4 octobre 2026. Après la séance, sous la
+            note du carnet : ce que le maître a vu, et l'assistant qui rédige.
+            La note vit dans sa table (0115), jamais dans le rendez-vous. */}
+        {appt && appt.status !== 'annulé' && appt.date <= todayISO() && (
+          <LeBilanDeLaSeance appt={appt} client={clients.find((c) => c.id === appt.clientId)} byId={byId} />
         )}
 
         {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait

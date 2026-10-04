@@ -18,6 +18,11 @@ import { envieLabel, type EnvieKey } from '../../shared/quiz';
 import { useModelBands, useBandSets, pricingOf, personalPriceXof, estProposable, calibreDe } from '../../shared/pricing';
 import { predictNextVisit, cadenceLabel } from '../../shared/cadence';
 import { dernierBilanDe, useBilans, type Bilan } from '../../shared/bilans';
+import { INGREDIENTS } from '../revelateur/communaute';
+
+/** « Le neem · L’aloès » : les ingrédients d'un temps, par leur nom. */
+const nomsDesIngredients = (slugs: string[]): string =>
+  slugs.map((s) => INGREDIENTS.find((i) => i.slug === s)?.nom ?? s).join(' · ');
 import { serieDesComptages } from '../../shared/comptages';
 import { CourbeDesJauges, CourbeDeLaPousse } from '../../ds/courbes';
 import { derniereCouleur, ouvertureDuProgramme, suivreLeProtocole, useProtocoles, protocoleNatif, etapesPourLaTete, MOT_DE_L_ETAT } from '../../shared/protocoles';
@@ -76,10 +81,40 @@ const rythmeDit = (days: number): string => {
   return brut;
 };
 
-/* Le lecteur du bilan — la cliente relit ce que la maison a remis : jauges,
-   points clés, les Quatre Temps, la prochaine visite. En surimpression,
-   sobre ; la signature du praticien reste — un bilan est un document signé. */
-function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void }) {
+/* Le lecteur du bilan — la cliente relit ce que la maison a remis.
+
+   IL S'OUVRE SUR L'ESSENTIEL — 4 octobre 2026, réponse au sélecteur : le
+   résumé en trois phrases, sa routine, ce que la Maison propose avec un
+   bouton pour le réserver. Le bilan entier reste à un geste, et le document
+   (le PDF Maison MND) aussi. Un bilan d'avant, sans résumé, s'ouvre entier,
+   comme il l'a toujours fait. La signature du maître reste : un bilan est un
+   document signé. */
+
+/** La première phrase d'un résumé : la ligne de la carte d'accueil. */
+const premierePhrase = (s: string): string => {
+  const m = s.match(/^.+?[.!?](?=\s|$)/);
+  return (m ? m[0] : s).trim();
+};
+
+function BilanLecteur({ bilan, porteuse, onClose, onReserver }: {
+  bilan: Bilan;
+  porteuse: Client;
+  onClose: () => void;
+  onReserver?: (serviceId: string) => void;
+}) {
+  const [entier, setEntier] = useState(!bilan.resume);
+  const [papier, setPapier] = useState<'' | 'prepare' | 'rate'>('');
+  const telecharge = async () => {
+    setPapier('prepare');
+    try {
+      const [{ bilanPdf }, { donneesDuBilanPdf }] = await Promise.all([import('../../shared/pdf'), import('../../shared/bilan-document')]);
+      await bilanPdf(donneesDuBilanPdf(bilan, porteuse));
+      setPapier('');
+    } catch {
+      setPapier('rate');
+    }
+  };
+
   return (
     <div className="mc-bilanveil" onClick={onClose} role="dialog" aria-label={t('Bilan de séance')}>
       <div className="mc-bilancard" onClick={(e) => e.stopPropagation()}>
@@ -91,51 +126,115 @@ function BilanLecteur({ bilan, onClose }: { bilan: Bilan; onClose: () => void })
           {bilan.duree ? ` · ${bilan.duree}` : ''}
         </div>
 
-        <div className="mc-bilansec">{t('L’état de la couronne')}</div>
-        {bilan.jauges.map((j) => (
-          <div key={j.nom} className="mc-bilanjauge">
-            <span className="n">{j.nom}</span>
-            <span className="dots" role="img" aria-label={t('{n} sur 5', { n: j.valeur })}>
-              {[1, 2, 3, 4, 5].map((v) => <i key={v} className={v <= j.valeur ? 'on' : ''} />)}
-            </span>
-            <span className="note">{j.note}</span>
-          </div>
-        ))}
+        {bilan.resume && (
+          <p className="mc-bilanresume">{bilan.resume}</p>
+        )}
 
-        {bilan.points.length > 0 && (
+        {bilan.resume && (
           <>
-            <div className="mc-bilansec">{t('Les points clés de la séance')}</div>
-            <ul className="mc-bilanpoints">
-              {bilan.points.map((p, i) => <li key={i}>{p}</li>)}
-            </ul>
+            <div className="mc-bilansec">{t('Votre routine à la maison')}</div>
+            <div className="mc-bilanroutine">
+              {bilan.rituel.map((tp) => (
+                <div key={tp.nom}>
+                  <b>{tp.nom}</b>
+                  <span>{tp.cadence}</span>
+                  {tp.ingredients?.length ? <em>{nomsDesIngredients(tp.ingredients)}</em> : null}
+                </div>
+              ))}
+            </div>
           </>
         )}
 
-        <div className="mc-bilansec">{t('Le rituel à domicile')}</div>
-        {bilan.rituel.map((tp) => (
-          <div key={tp.nom} className="mc-bilantemps">
-            <div className="n">{tp.nom} <span>· {tp.cadence}</span></div>
-            <p>{tp.texte}</p>
-          </div>
-        ))}
+        {(bilan.propositions?.length ?? 0) > 0 && (
+          <>
+            <div className="mc-bilansec">{t('Ce que la Maison vous propose')}</div>
+            {bilan.propositions!.map((p) => (
+              <div key={p.serviceId} className="mc-bilanpropo">
+                <div>
+                  <div className="n">{p.nom}</div>
+                  {p.quand && <div className="q">{p.quand}</div>}
+                </div>
+                {onReserver && (
+                  <button type="button" className="mc-smallcta" onClick={() => onReserver(p.serviceId)}>{t('Réserver')}</button>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
+        {bilan.resume && (
+          <button type="button" className="mc-bilanentier" onClick={() => setEntier((e) => !e)} aria-expanded={entier}>
+            {entier ? t('Replier le bilan') : t('Voir le bilan entier')}
+          </button>
+        )}
+
+        {entier && (
+          <>
+            {bilan.diagnostic && (
+              <>
+                <div className="mc-bilansec">{t('Ce que nous avons vu')}</div>
+                <p className="mc-bilantexte">{bilan.diagnostic}</p>
+              </>
+            )}
+            {bilan.sens && (
+              <>
+                <div className="mc-bilansec">{t('Ce que cela veut dire')}</div>
+                <p className="mc-bilantexte">{bilan.sens}</p>
+              </>
+            )}
+
+            <div className="mc-bilansec">{t('L’état de la couronne')}</div>
+            {bilan.jauges.map((j) => (
+              <div key={j.nom} className="mc-bilanjauge">
+                <span className="n">{j.nom}</span>
+                <span className="dots" role="img" aria-label={t('{n} sur 5', { n: j.valeur })}>
+                  {[1, 2, 3, 4, 5].map((v) => <i key={v} className={v <= j.valeur ? 'on' : ''} />)}
+                </span>
+                <span className="note">{j.note}</span>
+              </div>
+            ))}
+
+            {bilan.points.length > 0 && (
+              <>
+                <div className="mc-bilansec">{t('Les points clés de la séance')}</div>
+                <ul className="mc-bilanpoints">
+                  {bilan.points.map((p, i) => <li key={i}>{p}</li>)}
+                </ul>
+              </>
+            )}
+
+            {bilan.solutions && (
+              <>
+                <div className="mc-bilansec">{t('Ce que la Maison vous propose')}</div>
+                <p className="mc-bilantexte">{bilan.solutions}</p>
+              </>
+            )}
+
+            <div className="mc-bilansec">{t('Le rituel à domicile')}</div>
+            {bilan.rituel.map((tp) => (
+              <div key={tp.nom} className="mc-bilantemps">
+                <div className="n">{tp.nom} <span>· {tp.cadence}</span></div>
+                <p>{tp.texte}</p>
+              </div>
+            ))}
+          </>
+        )}
 
         {bilan.prochaineVisite && (
           <div className="mc-bilannext">{t('Prochaine visite conseillée, {quand}', { quand: bilan.prochaineVisite })}</div>
         )}
         {bilan.praticien && <div className="mc-bilansig">{bilan.praticien} · Maison MND · {DEVISE_MAISON}, {t('votre beauté est déjà là')}</div>}
 
-        <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={onClose}>{t('Fermer')}</button>
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 20 }} onClick={telecharge} disabled={papier === 'prepare'}>
+          {papier === 'prepare' ? t('Le document se prépare…') : t('Télécharger le document')}
+        </button>
+        {papier === 'rate' && <div className="mc-bilanmeta" style={{ marginTop: 8 }}>{t('Le document n’a pas pu être préparé, réessayez dans un instant.')}</div>}
+        <button className="mc-cta mc-cta--outline" style={{ marginTop: 10 }} onClick={onClose}>{t('Fermer')}</button>
       </div>
     </div>
   );
 }
 
-/* ---------- rituels de la cliente — lus dans l'agenda partagé ----------
-   Chaque juge accepte une AUTRE tête (`cibleId`) : le parent lit les rituels
-   de son enfant avec les mêmes yeux que les siens — la RLS (0036/0044) ne lui
-   montre de toute façon que les têtes qu'il porte. */
-
-/** Tous les rendez-vous de la tête regardée, du plus ancien au plus récent. */
 function useClientAppointments(cibleId?: string): Appointment[] {
   const [appts] = useAppointments();
   const monId = useClientId();
@@ -234,13 +333,28 @@ function useClientOrders(): Invoice[] {
 /* ids des notifications effacées par la cliente (masquées + hors compteur). */
 const dismissedMcStore = createStore<string[]>('mnd_mc_notif_dismissed', []);
 
+/** LES BILANS REMIS CES TRENTE DERNIERS JOURS — 4 octobre 2026 : la
+    notification de la signature a sa ligne dans la cloche. */
+function useBilansRecents(): Bilan[] {
+  const client = useClient();
+  const [bilans] = useBilans();
+  return useMemo(() => {
+    if (!client) return [];
+    const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    return bilans.filter((b) => b.clientId === client.id && b.remisLe >= depuis)
+      .sort((a, b) => b.remisLe.localeCompare(a.remisLe));
+  }, [bilans, client]);
+}
+
 function useNotifCount(): number {
   const devis = useClientDevis();
   const upcoming = useUpcomingAppointments();
+  const bilans = useBilansRecents();
   const [dismissed] = useStore(dismissedMcStore);
   const d = new Set(dismissed);
   return devis.filter((x) => x.status === 'envoyée' && !d.has(`devis-${x.id}`)).length
-    + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length;
+    + upcoming.filter((a) => !d.has(`resa-${a.id}`)).length
+    + bilans.filter((b) => !d.has(`bilan-${b.id}`)).length;
 }
 
 /* LA PHRASE DU POURQUOI (maquette accueil, repère 5) : la recommandation dit
@@ -611,13 +725,13 @@ export function HomeTab({
               <div className="mc-recocard__body">
                 <div className="mc-micro-eyebrow" style={{ fontSize: 10 }}>{t('Le Carnet de Suivi')}</div>
                 <div className="mc-recocard__name">{t('Séance du {date}', { date: jourDit(monBilan.date) })}</div>
-                <div className="mc-recocard__line">{monBilan.prestation ?? t('Rituel de la maison')}</div>
+                <div className="mc-recocard__line">{monBilan.resume ? premierePhrase(monBilan.resume) : monBilan.prestation ?? t('Rituel de la maison')}</div>
               </div>
               <span className="mc-arrowbtn" aria-hidden="true">→</span>
             </button>
           </>
         )}
-        {lireBilan && monBilan && <BilanLecteur bilan={monBilan} onClose={() => setLireBilan(false)} />}
+        {lireBilan && monBilan && client && <BilanLecteur bilan={monBilan} porteuse={client} onClose={() => setLireBilan(false)} onReserver={moduleHidden(client, 'reserver') ? undefined : (serviceId) => { setLireBilan(false); onOpenBooking({ serviceId }); }} />}
 
         {/* LA MAISON RECOMMANDE — une PRESTATION désignée (le juge du quiz),
             au prix de la cliente, et la flèche RÉSERVE. Le produit prescrit
@@ -2190,6 +2304,9 @@ export function Notifications({ onClose }: { onClose: () => void }) {
   const devis = useClientDevis();
   const upcoming = useUpcomingAppointments();
   const next = upcoming[0];
+  const client = useClient();
+  const bilansRecents = useBilansRecents();
+  const [bilanLu, setBilanLu] = useState<Bilan | null>(null);
 
   /* Notifications effacées par la cliente : masquées + retirées du compteur. */
   const [dismissed] = useStore(dismissedMcStore);
@@ -2197,6 +2314,7 @@ export function Notifications({ onClose }: { onClose: () => void }) {
   const devisV = devis.filter((d) => !dset.has(`devis-${d.id}`));
   const upcomingV = upcoming.filter((a) => !dset.has(`resa-${a.id}`));
   const showRappel = !!next && !dset.has(`rappel-${next.id}`);
+  const bilansV = bilansRecents.filter((b) => !dset.has(`bilan-${b.id}`));
   const dismiss = (id: string) => dismissedMcStore.set((prev) => (prev.includes(id) ? prev : [...prev, id]));
   const clearAll = () =>
     dismissedMcStore.set((prev) => {
@@ -2204,6 +2322,7 @@ export function Notifications({ onClose }: { onClose: () => void }) {
       for (const d of devis) s.add(`devis-${d.id}`);
       for (const a of upcoming) s.add(`resa-${a.id}`);
       if (next) s.add(`rappel-${next.id}`);
+      for (const b of bilansRecents) s.add(`bilan-${b.id}`);
       return [...s];
     });
 
@@ -2212,7 +2331,7 @@ export function Notifications({ onClose }: { onClose: () => void }) {
     invoicesStore.set((prev) => prev.map((i) => (i.id === id && i.status === 'envoyée' ? { ...i, status: 'acceptée' } : i)));
   };
 
-  const empty = devisV.length === 0 && upcomingV.length === 0 && !showRappel;
+  const empty = devisV.length === 0 && upcomingV.length === 0 && !showRappel && bilansV.length === 0;
 
   return (
     <div className="mc-overlayscreen mc-slide" style={{ zIndex: 42 }}>
@@ -2235,6 +2354,22 @@ export function Notifications({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         )}
+        {/* bilans — signés par le maître, lus ici */}
+        {bilansV.map((b) => (
+          <div key={b.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
+            <button type="button" aria-label={t('Effacer')} onClick={() => dismiss(`bilan-${b.id}`)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 12 }}>✕</button>
+            <span className="mc-notif__dot mc-notif__dot--copper" />
+            <div className="mc-notif__body">
+              <div className="mc-notif__head">
+                <span className="mc-notif__kind">{t('Votre bilan')}</span>
+                <span className="mc-notif__time">{jourDit(b.remisLe)}</span>
+              </div>
+              <div className="mc-notif__msg">{t('Votre bilan du {jour} est prêt, avec votre routine à la maison.', { jour: jourDit(b.date) })}</div>
+              <button className="mc-smallcta" style={{ marginTop: 10 }} onClick={() => setBilanLu(b)}>{t('Lire mon bilan')}</button>
+            </div>
+          </div>
+        ))}
+
         {/* devis — envoyés par le Trône, acceptés ici */}
         {devisV.map((d) => (
           <div key={d.id} className="mc-notif" style={{ position: 'relative', paddingRight: 34 }}>
@@ -2303,6 +2438,7 @@ export function Notifications({ onClose }: { onClose: () => void }) {
 
         {empty && <div className="mc-emptyline" style={{ padding: '18px 24px' }}>{t('Aucune notification, la maison veille.')}</div>}
       </div>
+      {bilanLu && client && <BilanLecteur bilan={bilanLu} porteuse={client} onClose={() => setBilanLu(null)} />}
     </div>
   );
 }

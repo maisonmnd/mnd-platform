@@ -787,6 +787,9 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   /* LA FIN DE PAQUET — 15 septembre 2026 (étape 7). Il informe, il ne vend
      pas : c'est ce qui le garde utilitaire. */
   fin_de_paquet: 'utilitaire',
+  /* LE BILAN DE SÉANCE — 4 octobre 2026, à faire approuver : il remet un
+     document après une séance, il ne vend rien. */
+  bilan_de_seance: 'utilitaire',
 };
 
 /** Le modèle de la fin de paquet, envoyé par le Trône lui-même

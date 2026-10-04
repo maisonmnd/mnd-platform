@@ -2365,3 +2365,230 @@ export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRend
     blob: doc.output('blob') as Blob,
   };
 }
+
+/* ══ LE BILAN DE SÉANCE — 4 octobre 2026 ═════════════════════════════
+
+   « Un bilan en bonne et due forme pour la Maison MND, super professionnel »
+   (Yéman). Maquette 2n4fqCnnhG2vYrMbwngPcr, écran 3 : une page A4, le verrou
+   couché en tête comme les factures et les certificats, numéroté, daté,
+   signé du maître, la devise en pied, et rien qui ne soit à elle.
+
+   UN SEUL CONSTRUCTEUR, TROIS SORTIES : la pièce qui part sur WhatsApp, le
+   fichier qu'on télécharge, l'aperçu qu'on imprime. Ils disent la même chose
+   au signe près. « Rédigé avec l'assistant » n'y paraît jamais : le papier
+   porte la signature du maître, qui l'a relu. */
+export type BilanPdfData = {
+  houseName: string;
+  numero: string;
+  /** « Madame Awa K. » */
+  pourQui: string;
+  /** Déjà dite : « 4 octobre 2026 ». */
+  dateSeance: string;
+  prestation?: string;
+  praticien?: string;
+  diagnostic?: string;
+  sens?: string;
+  solutions?: string;
+  propositions?: { nom: string; quand: string }[];
+  points: string[];
+  jauges: { nom: string; valeur: number; note: string }[];
+  rituel: { nom: string; cadence: string; texte: string; ingredients?: string[] }[];
+  prochaineVisite?: string;
+  /** Le jour de la remise, dit. */
+  remisLe: string;
+  filename: string;
+};
+
+async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: string }> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210;
+  const M = 18;
+  const LARGE = W - 2 * M;
+  const BAS = 268;
+  let y = 22;
+
+  // — En-tête : le verrou de la Maison —
+  const hVerrou = estLaMaisonMND(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  if (hVerrou === null) {
+    const seal = await loadSeal();
+    if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* indisponible */ } }
+    doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
+    doc.text(d.houseName, seal ? M + 16 : M, y);
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(COPPER);
+  doc.text('BILAN DE SÉANCE', W - M, y - 1, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
+  doc.text(d.numero, W - M, y + 4.5, { align: 'right' });
+  y += 12;
+  doc.setDrawColor(COPPER); doc.setLineWidth(0.6); doc.line(M, y, W - M, y);
+  y += 11;
+
+  // — Pour qui, et quelle séance —
+  doc.setFont('times', 'normal'); doc.setFontSize(19); doc.setTextColor(INK);
+  doc.text(d.pourQui, M, y);
+  y += 6.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(SOFT);
+  const meta = [`Séance du ${d.dateSeance}`, d.prestation, d.praticien ? `avec ${d.praticien}` : '']
+    .filter(Boolean).join(' · ');
+  texteFon(doc, pdfSafeGardeFon(meta), M, y);
+  y += 10;
+
+  const saut = (besoin: number) => {
+    if (y + besoin <= BAS) return;
+    doc.addPage();
+    y = 22;
+  };
+  const titre = (t: string) => {
+    saut(14);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(COPPER);
+    doc.text(t.toUpperCase(), M, y, { charSpace: 0.35 });
+    y += 5.5;
+  };
+  const paragraphe = (t: string, taille = 10.5) => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(taille); doc.setTextColor(INK);
+    const lignes: string[] = doc.splitTextToSize(t, LARGE);
+    const pas = taille * 0.47;
+    for (const l of lignes) { saut(pas); doc.text(l, M, y); y += pas; }
+    y += 4;
+  };
+
+  if (d.diagnostic) { titre('Ce que nous avons vu'); paragraphe(d.diagnostic); }
+  if (d.sens) { titre('Ce que cela veut dire'); paragraphe(d.sens); }
+
+  // — Les jauges : deux colonnes, cinq points chacune —
+  if (d.jauges.length) {
+    titre('L’état de votre couronne');
+    const col = LARGE / 2;
+    d.jauges.forEach((j, i) => {
+      const x = M + (i % 2) * col;
+      if (i % 2 === 0 && i > 0) y += 7.5;
+      if (i % 2 === 0) saut(8);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(INK);
+      doc.text(j.nom, x, y);
+      for (let v = 1; v <= 5; v += 1) {
+        const cx = x + 36 + (v - 1) * 4.6;
+        doc.setDrawColor(COPPER); doc.setLineWidth(0.35);
+        if (v <= j.valeur) { doc.setFillColor(COPPER); doc.circle(cx, y - 1.2, 1.5, 'FD'); } else doc.circle(cx, y - 1.2, 1.5, 'S');
+      }
+      if (j.note) { doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(j.note, x + 62, y); }
+    });
+    y += 11;
+  }
+
+  if (d.points.length) {
+    titre('Votre séance');
+    for (const p of d.points) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(INK);
+      const lignes: string[] = doc.splitTextToSize(p, LARGE - 5);
+      saut(lignes.length * 4.7);
+      doc.setFillColor(COPPER); doc.circle(M + 1.6, y - 1.3, 0.8, 'F');
+      for (const l of lignes) { doc.text(l, M + 5, y); y += 4.7; }
+      y += 1;
+    }
+    y += 3;
+  }
+
+  // — Ce que la Maison propose : le texte, puis chaque prestation sur sa ligne —
+  if (d.solutions || d.propositions?.length) {
+    titre('Ce que la Maison vous propose');
+    if (d.solutions) paragraphe(d.solutions);
+    for (const p of d.propositions ?? []) {
+      saut(6);
+      doc.setDrawColor(COPPER); doc.setLineWidth(0.5); doc.line(M, y - 3.6, M, y + 0.8);
+      doc.setFont('times', 'normal'); doc.setFontSize(12.5); doc.setTextColor(INDIGO);
+      texteFon(doc, pdfSafeGardeFon(p.nom), M + 5, y);
+      const largeurNom = doc.getTextWidth(pdfSafe(p.nom));
+      if (p.quand) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
+        doc.text(`· ${p.quand}`, M + 7 + largeurNom, y);
+      }
+      y += 6.5;
+    }
+    y += 2;
+  }
+
+  // — La routine : les Quatre Temps, deux par deux —
+  if (d.rituel.length) {
+    titre('Votre routine à la maison');
+    const gout = 6;
+    const lc = (LARGE - gout) / 2;
+    for (let i = 0; i < d.rituel.length; i += 2) {
+      const paire = d.rituel.slice(i, i + 2);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+      const corps = paire.map((t) => doc.splitTextToSize(t.texte, lc - 8) as string[]);
+      const ingr = paire.map((t) => (t.ingredients?.length ? t.ingredients.join(' · ') : ''));
+      const h = 11.5 + Math.max(...corps.map((c, k) => c.length + (ingr[k] ? 1.2 : 0))) * 4.4;
+      saut(h + 2);
+      paire.forEach((t, k) => {
+        const x = M + k * (lc + gout);
+        doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.3); doc.roundedRect(x, y - 4, lc, h, 1.5, 1.5, 'S');
+        doc.setFont('times', 'normal'); doc.setFontSize(13.5); doc.setTextColor(INDIGO);
+        doc.text(t.nom, x + 4, y + 2);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(COPPER);
+        doc.text(t.cadence, x + lc - 4, y + 2, { align: 'right' });
+        doc.setFontSize(9.5); doc.setTextColor(INK);
+        let yy = y + 8.5;
+        for (const l of corps[k]) { doc.text(l, x + 4, yy); yy += 4.4; }
+        if (ingr[k]) {
+          doc.setFontSize(8.5); doc.setTextColor(COPPER);
+          doc.text(ingr[k], x + 4, yy + 1);
+        }
+      });
+      y += h + 2.5;
+    }
+    y += 2;
+  }
+
+  // — La prochaine visite : le bandeau indigo —
+  if (d.prochaineVisite) {
+    saut(16);
+    doc.setFillColor(INDIGO); doc.roundedRect(M, y - 2, LARGE, 13, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor('#C9A98A');
+    doc.text('VOTRE PROCHAINE VISITE', M + 6, y + 5.8, { charSpace: 0.3 });
+    doc.setFont('times', 'normal'); doc.setFontSize(14); doc.setTextColor('#FFFFFF');
+    doc.text(d.prochaineVisite, W - M - 6, y + 6.2, { align: 'right' });
+    y += 16;
+  }
+
+  // — La signature du maître : jusqu'au filet du pied, jamais seule sur une page —
+  if (y + 10 > 278) { doc.addPage(); y = 22; }
+  doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(INDIGO);
+  doc.text(d.praticien ? `Signé : ${d.praticien}, maître de la Maison` : 'Signé : la Maison', M, y + 4);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT);
+  doc.text(`Remis le ${d.remisLe} · ${d.numero}`, M, y + 9.5);
+
+  // — Le pied, sur chaque page —
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p += 1) {
+    doc.setPage(p);
+    doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.2); doc.line(M, 280, W - M, 280);
+    await pieDeLaMaison(doc, W, 286, { taille: 8.5, couleur: COPPER });
+  }
+  return { doc, filename: d.filename };
+}
+
+/** Le bilan en pièce, prêt à partir sur WhatsApp — même patron que les factures. */
+export async function bilanEnPiece(d: BilanPdfData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLeBilan(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
+}
+
+/** Télécharge le bilan. */
+export async function bilanPdf(d: BilanPdfData): Promise<string> {
+  const { doc, filename } = await construitLeBilan(d);
+  doc.save(filename);
+  return filename;
+}
+
+/** Ouvre le bilan dans un onglet, pour l'imprimer. Sans onglet permis, il se
+    télécharge : un papier sort toujours. */
+export async function bilanApercu(d: BilanPdfData): Promise<void> {
+  const { doc, filename } = await construitLeBilan(d);
+  const url = URL.createObjectURL(doc.output('blob') as Blob);
+  const w = window.open(url, '_blank');
+  if (!w) doc.save(filename);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
