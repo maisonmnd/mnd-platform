@@ -8,7 +8,7 @@
    Le banc rejoue le geste sur le VRAI `poseLaReprise` : encaisser (paidXof
    ecrit), puis honorer, deux fois. */
 import { readFileSync } from 'node:fs';
-import { sansLaVisite, reprisesARendreNues, CHAMPS_DE_LA_VISITE, pourquoiPasDeRepriseIci, rituelDeLaRepriseEffacee, CLOTURE_JOURS } from '../src/shared/reprise-nue';
+import { sansLaVisite, reprisesARendreNues, CHAMPS_DE_LA_VISITE, pourquoiPasDeRepriseIci, rituelDeLaRepriseEffacee, CLOTURE_JOURS, prochainDejaPose } from '../src/shared/reprise-nue';
 import { poseLaReprise } from '../src/apps/trone/routes/clients/actions';
 import { appointmentsStore } from '../src/shared/agenda';
 import { clientsStore } from '../src/shared/clients';
@@ -120,6 +120,25 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   dit('une remise en francs d avant le 1er octobre au soir reste (geste voulu alors)', ['paidXof'],
     Object.keys(reprisesARendreNues([{ ...avant, depositConfirmed: false }, { ...copiee, depositConfirmed: false, creeLe: '2026-09-20T10:00:00.000Z' }]).get('x1') ?? {}).sort());
   dit('une fois nue, plus rien a faire', 0, reprisesARendreNues([avant, { id: 'x1', repriseDe: 'r1', status: 'confirmé' }]).size);
+}
+
+/* ── 4 bis. Un rituel, un seul prochain rendez-vous (4 octobre 2026, Nadège K. :
+   chaque paiement repassé reposait un rendez-vous par « Reprogrammer »). ── */
+{
+  const auj = ilYa(0);
+  const rituel = { id: 'n1', clientId: 'cn', date: ilYa(1), status: 'honoré' };
+  const suite = { id: 'n2', clientId: 'cn', date: ilYa(-28), status: 'confirmé', repriseDe: 'n1' };
+  const autre = { id: 'n3', clientId: 'cn', date: ilYa(-10), status: 'confirmé' };
+  dit('sans rien a venir, rien ne bloque', null, prochainDejaPose(rituel, [rituel], auj));
+  dit('la suite de ce rituel bloque un second rendez-vous', 'n2', prochainDejaPose(rituel, [rituel, suite], auj)?.id);
+  dit('... meme si elle a ete honoree ensuite', 'n2', prochainDejaPose(rituel, [rituel, { ...suite, status: 'honoré' }], auj)?.id);
+  dit('un rendez-vous a venir de la tete bloque aussi (le plus proche)', 'n3', prochainDejaPose(rituel, [rituel, { ...suite, repriseDe: undefined }, autre], auj)?.id);
+  dit('un rendez-vous annule ou passe ne bloque pas', null, prochainDejaPose(rituel, [rituel, { ...autre, status: 'annulé' }, { ...autre, id: 'n4', date: ilYa(5) }], auj));
+  const actions = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('« Reprogrammer » a l encaissement passe par la garde', true,
+    /const dejaPose = reschedule \? prochainDejaPose\(appt, appointmentsStore\.get\(\), todayISO\(\)\) : null;\s*if \(reschedule && nextDate && !dejaPose\)/.test(actions));
+  dit('... et relie ce qu il pose a son rituel', true, /note: 'Reprogrammé depuis l’encaissement',\s*repriseDe: appt\.id,/.test(actions));
+  dit('la reprise de la cloture passe par la meme garde', true, /const aVenir = prochainDejaPose\(appt, tous, todayISO\(\)\);/.test(actions));
 }
 
 /* ── 5. Branche ── */

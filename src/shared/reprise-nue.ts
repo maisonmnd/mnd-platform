@@ -116,6 +116,34 @@ export function pourquoiPasDeRepriseIci(appt: RdvGarde, tous: readonly RdvGarde[
   return null;
 }
 
+/* ══ UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS — 4 octobre 2026 ═════════════
+   « Quand je paie un RDV ça pose la date qui suit. Quand je repasse un
+   paiement ou que je supprime un paiement pour le modifier, ça repose un RDV.
+   Le RDV de Nadège K. d'hier a généré plusieurs RDV dans le futur » (Yéman).
+
+   LA PANNE. L'écran d'encaissement a son propre « Reprogrammer le prochain
+   rendez-vous », à côté de la reprise de la clôture. Il créait son rendez-vous
+   SANS AUCUNE GARDE et sans le relier au rituel (`repriseDe` absent) : chaque
+   encaissement repassé en ajoutait un, et la reprise de la clôture ne pouvait
+   pas le reconnaître comme le sien.
+
+   LA RÈGLE, POUR LES DEUX CHEMINS : avant de poser, on cherche le prochain
+   déjà posé — la suite de CE rituel, ou n'importe quel rendez-vous à venir de
+   la tête. S'il existe, rien ne se crée, et l'écran le dit. */
+type RdvProchain = { id: string; clientId?: string; date: string; status?: string; repriseDe?: string };
+
+/** Le prochain rendez-vous déjà posé pour ce rituel ou cette tête, ou `null`. */
+export function prochainDejaPose<T extends RdvProchain>(appt: RdvProchain, tous: readonly T[], aujourdhui: string): T | null {
+  const jour = aujourdhui.slice(0, 10);
+  const suite = tous.find((a) => a.repriseDe === appt.id && a.status !== 'annulé');
+  if (suite) return suite;
+  if (!appt.clientId) return null;
+  return tous
+    .filter((a) => a.clientId === appt.clientId && a.id !== appt.id
+      && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= jour)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
+}
+
 /** LA MARQUE LAISSÉE PAR UNE REPRISE EFFACÉE À LA MAIN : le rituel dont elle
     venait, à marquer `repriseRetiree`, ou `null` si ce n'était pas une reprise. */
 export const rituelDeLaRepriseEffacee = (efface: { repriseDe?: string }): string | null => efface.repriseDe ?? null;

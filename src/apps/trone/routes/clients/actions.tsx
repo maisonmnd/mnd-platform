@@ -1,4 +1,4 @@
-import { sansLaVisite, pourquoiPasDeRepriseIci } from '../../../../shared/reprise-nue';
+import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
 import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -117,8 +117,9 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
      (2 octobre 2026, Shegun et Nathael) : voir `pourquoiPasDeRepriseIci`. */
   const garde = pourquoiPasDeRepriseIci(appt, tous, todayISO());
   if (garde) return { raison: garde };
-  const aVenir = tous.find((a) => a.clientId === appt.clientId
-    && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
+  /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS (4 octobre 2026) : la même garde
+     que l'écran d'encaissement, voir `prochainDejaPose`. */
+  const aVenir = prochainDejaPose(appt, tous, todayISO());
   if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };
   const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
@@ -1072,6 +1073,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     return d.toISOString().slice(0, 10);
   };
   const [reschedule, setReschedule] = useState(false);
+  /* Le prochain déjà posé, lu au rendu : l'interrupteur ne s'allume pas
+     quand il existe (un rituel, un seul prochain rendez-vous). */
+  const prochainExistant = prochainDejaPose(appt, appointmentsStore.get(), todayISO());
   const [nextDate, setNextDate] = useState(() => {
     const d = addDaysISO(appt.date, 28); // 4 semaines par défaut
     return d > todayISO() ? d : addDaysISO(todayISO(), 28);
@@ -1486,7 +1490,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        prix (avant remise) et on reporte la remise (% et CFA) pour que le prochain RDV
        porte exactement le même net. Impayé, à honorer et encaisser le moment venu. */
     let rescheduled = false;
-    if (reschedule && nextDate) {
+    /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS — 4 octobre 2026. Ce bloc
+       créait son rendez-vous à chaque encaissement, sans garde : repasser ou
+       corriger un paiement en ajoutait un à chaque fois (Nadège K., 3 octobre).
+       Il ne pose plus rien si la suite de ce rituel, ou un rendez-vous à venir
+       de la tête, existe déjà, et il RELIE ce qu'il pose (`repriseDe`) pour que
+       la reprise de la clôture le reconnaisse. */
+    const dejaPose = reschedule ? prochainDejaPose(appt, appointmentsStore.get(), todayISO()) : null;
+    if (reschedule && nextDate && !dejaPose) {
       const newAppt: Appointment = {
         id: `appt-${uid()}`,
         branchId: appt.branchId,
@@ -1502,6 +1513,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         ...(appt.discountXof != null ? { discountXof: appt.discountXof } : {}),
         ...(appt.discountPct != null ? { discountPct: appt.discountPct } : {}),
         note: 'Reprogrammé depuis l’encaissement',
+        repriseDe: appt.id,
       };
       appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;
@@ -1579,7 +1591,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
     const reschedMsg = rescheduled
       ? `Prochain RDV reprogrammé le ${frShortAn(nextDate)} à ${nextTime}.`
-      : '';
+      : dejaPose ? `Aucun RDV de plus : le prochain est déjà posé le ${frShortAn(dejaPose.date)}.` : '';
     const honneurMsg = honneur?.etat === 'honore'
       ? `Rituel honoré.${honneur.reprise?.pose ? ` Sa reprise est posée le ${frShortAn(honneur.reprise.pose.date)} à ${honneur.reprise.pose.time}.` : ''}`
       : honneur?.etat === 'a-venir'
@@ -2284,9 +2296,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
               Reprogrammer le prochain rendez-vous
             </span>
-            <Toggle on={reschedule} onToggle={() => setReschedule((v) => !v)} />
+            <Toggle on={reschedule && !prochainExistant} onToggle={() => { if (!prochainExistant) setReschedule((v) => !v); }} />
           </div>
-          {reschedule && (
+          {prochainExistant && (
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+              Le prochain rendez-vous est déjà posé le {frShortAn(prochainExistant.date)}{prochainExistant.time ? ` à ${prochainExistant.time}` : ''} : rien de plus ne sera créé.
+            </div>
+          )}
+          {reschedule && !prochainExistant && (
             <>
               <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                 {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS — 5 septembre
