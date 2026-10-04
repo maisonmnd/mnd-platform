@@ -122,6 +122,13 @@ dit('le contexte est filtre par une liste blanche sans telephone', [true, false]
   [/const CLES = \['appel', 'seance', 'cheveu', 'vu', 'attendu', 'retenir', 'bilansPasses'\]/.test(fn), /phone|telephone|email/i.test(fn)]);
 dit('les regles de la Maison sont dites au modele', [true, true, true, true, true],
   [/dermatologue/.test(fn), /« salon »/.test(fn), /JAMAIS de prix/.test(fn), /tiret long/.test(fn), /vouvoyant/.test(fn)]);
+/* 5 octobre 2026 : « l'assistant est injoignable », sans cause. La panne se
+   dit, et un modèle inconnu du compte cède la place au suivant. */
+dit('la fonction rend la cause de la panne au personnel', true, /return json\(\{ error: 'upstream', detail: derniere \}, 502\)/.test(fn));
+dit('un modele inconnu du compte cede la place au suivant', true,
+  /for \(const modele of MODELES\)/.test(fn) && /if \(status === 404 \|\| \(status === 400 && \/model\/i\.test\(derniere\)\)\) continue;/.test(fn));
+const pont = sansCommentaires('src/shared/bilan-assistant.ts');
+dit('le Trone dit la cause que la fonction donne', true, /return `Le bilan n’a pas pu être rédigé : \$\{detail\}`;/.test(pont));
 dit('le modele ne parle que des sept ingredients (enum des slugs)', true, /ingredients: \{ type: 'array', items: \{ type: 'string', enum: slugs \} \}/.test(fn));
 
 /* ── 7. LA SIGNATURE ET MA COURONNE ─────────────────────────────────── */

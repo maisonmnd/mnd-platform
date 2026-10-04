@@ -57,10 +57,26 @@ export async function redigeLeBilan(o: {
     404 : on le dit en clair, c'est le cas le plus probable au premier jour. */
 async function messageDeLAssistant(e: unknown): Promise<string> {
   let raw = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
+  let detail = typeof e === 'string' ? '' : (e as { detail?: string })?.detail ?? '';
   const ctx = (e as { context?: Response })?.context;
   if (ctx && typeof ctx.status === 'number') {
     if (ctx.status === 404) return 'L’assistant n’est pas encore installé : la fonction « bilan-redige » est à coller dans Supabase.';
-    try { raw += ' ' + (await ctx.clone().text()).toLowerCase(); } catch { /* corps illisible */ }
+    try {
+      const corps = await ctx.clone().text();
+      raw += ' ' + corps.toLowerCase();
+      try { detail = (JSON.parse(corps) as { detail?: string }).detail ?? detail; } catch { /* pas du JSON */ }
+    } catch { /* corps illisible */ }
+  }
+  /* LA CAUSE QUE LA FONCTION DONNE (5 octobre 2026), dite pour le maître
+     quand on la reconnaît, citée telle quelle sinon : « injoignable » sans
+     raison ne laissait rien à faire. */
+  const d = detail.toLowerCase();
+  if (d) {
+    if (d.includes('credit') || d.includes('billing')) return 'Le compte de l’assistant (Anthropic) n’a plus de crédit : il faut le recharger.';
+    if (d.startsWith('401') || d.includes('authentication') || d.includes('api key') || d.includes('x-api-key')) return 'La clé de l’assistant (ANTHROPIC_API_KEY) est refusée : elle est à renouveler dans les secrets Supabase.';
+    if (d.startsWith('429') || d.includes('rate limit')) return 'L’assistant reçoit trop de demandes en ce moment : réessayez dans une minute.';
+    if (d.startsWith('529') || d.includes('overloaded')) return 'L’assistant est surchargé en ce moment : réessayez dans une minute.';
+    return `Le bilan n’a pas pu être rédigé : ${detail}`;
   }
   /* UNE FONCTION ABSENTE NE REND PAS UN 404 LISIBLE — 4 octobre 2026 : la
      question préalable du navigateur (CORS) tombe sur un 404 sans en-têtes,

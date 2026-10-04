@@ -14,7 +14,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
-const MODELE = 'claude-opus-5-5';
+/* Le plus récent d'abord ; le second est celui de suggest-client, qui répond
+   déjà sur ce compte. */
+const MODELES = ['claude-opus-5-5', 'claude-opus-4-8'];
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -238,29 +240,58 @@ Deno.serve(async (req) => {
     },
   ];
 
-  try {
-    const response = await anthropic.messages.create({
-      model: MODELE,
-      max_tokens: 4096,
-      system: SYSTEME,
-      output_config: {
-        effort: demande === 'rediger' ? 'medium' : 'low',
-        format: { type: 'json_schema', schema: schemaPour(listes) },
-      },
-      messages,
-    });
+  /* LA CAUSE SE DIT — 5 octobre 2026. Le premier essai rendait « injoignable »
+     sans rien de plus : la fonction taisait la vraie raison. Elle la rend
+     maintenant (`detail`) au personnel qui l'appelle, et la note au journal
+     de la fonction. Elle se rattrape seule sur les deux causes probables :
+     un modèle que le compte ne connaît pas (on essaie le suivant), un bilan
+     plus long que la place donnée (la place est large, et le dire au lieu de
+     tronquer un JSON). */
+  const detailDe = (e: unknown): string => {
+    const x = e as { status?: number; message?: string; error?: { error?: { message?: string } } };
+    return `${x?.status ?? ''} ${x?.error?.error?.message ?? x?.message ?? String(e)}`.trim().slice(0, 400);
+  };
+  let derniere = '';
+  for (const modele of MODELES) {
+    try {
+      const response = await anthropic.messages.create({
+        model: modele,
+        max_tokens: 16000,
+        system: SYSTEME,
+        output_config: {
+          effort: demande === 'rediger' ? 'medium' : 'low',
+          format: { type: 'json_schema', schema: schemaPour(listes) },
+        },
+        messages,
+      });
 
-    if (response.stop_reason === 'refusal') return json({ error: 'refusal' }, 422);
-    const first = response.content.find((b) => b.type === 'text');
-    if (!first || first.type !== 'text') return json({ error: 'empty' }, 502);
+      if (response.stop_reason === 'refusal') return json({ error: 'refusal' }, 422);
+      if (response.stop_reason === 'max_tokens') {
+        console.error('[bilan-redige] trop long', modele);
+        return json({ error: 'upstream', detail: 'Le bilan dépassait la place prévue : réessayez, ou raccourcissez la note.' }, 502);
+      }
+      const first = response.content.find((b) => b.type === 'text');
+      if (!first || first.type !== 'text') return json({ error: 'upstream', detail: 'Réponse vide de l’assistant.' }, 502);
 
-    const brouillon = relu(JSON.parse(first.text) as Record<string, unknown>, listes);
-    return json({
-      brouillon,
-      usage: { input: response.usage.input_tokens, output: response.usage.output_tokens },
-    });
-  } catch (e) {
-    console.error('[bilan-redige]', (e as Error)?.message);
-    return json({ error: 'upstream' }, 502);
+      let brut: Record<string, unknown>;
+      try { brut = JSON.parse(first.text) as Record<string, unknown>; } catch {
+        console.error('[bilan-redige] JSON illisible', first.text.slice(0, 200));
+        return json({ error: 'upstream', detail: 'Réponse illisible de l’assistant, réessayez.' }, 502);
+      }
+      return json({
+        brouillon: relu(brut, listes),
+        modele,
+        usage: { input: response.usage.input_tokens, output: response.usage.output_tokens },
+      });
+    } catch (e) {
+      derniere = detailDe(e);
+      console.error('[bilan-redige]', modele, derniere);
+      /* Un modèle inconnu du compte : on passe au suivant. Toute autre panne
+         (clé, crédit, schéma, surcharge) se dit telle quelle. */
+      const status = (e as { status?: number })?.status;
+      if (status === 404 || (status === 400 && /model/i.test(derniere))) continue;
+      return json({ error: 'upstream', detail: derniere }, 502);
+    }
   }
+  return json({ error: 'upstream', detail: derniere || 'Aucun modèle disponible.' }, 502);
 });
