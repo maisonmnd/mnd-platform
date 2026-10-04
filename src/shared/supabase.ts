@@ -38,6 +38,13 @@ export const supabase: SupabaseClient | null =
 /** Vrai quand un backend distant est configuré ; sinon la Maison tourne en local. */
 export const isRemote = supabase !== null;
 
+/** LE TIROIR DE LA SESSION sur l'appareil — celui que supabase-js écrit
+    (son nom par défaut, ou celui du scope). Le Trône hors ligne le relit pour
+    s'ouvrir sans réseau (4 octobre 2026, `shared/hors-ligne`). */
+export const cleDeSession: string | null = url
+  ? (scope ? `sb-mnd-${scope}` : `sb-${new URL(url).hostname.split('.')[0]}-auth-token`)
+  : null;
+
 /* ══ JOINDRE UNE FONCTION QUAND L'ONGLET SE FERME — 14 sept. 2026 ════
 
    Un message retenu huit secondes doit PARTIR si l'on ferme l'onglet avant la

@@ -8,6 +8,7 @@ import {
   renvoyerLaConfirmation, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
   rattacherMonCompte, PanneDAcces } from '../../../shared/auth';
 import './auth.css';
+import { teteGardee } from '../../../shared/hors-ligne';
 
 /* Porte d'entrée du Trône. Tant que l'enforcement n'est pas demandé
    (`requireAuth` faux), l'application s'affiche comme aujourd'hui.
@@ -39,7 +40,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
    la même qu'à l'écran des accès : la marque posée à l'inscription, et la
    fiche cliente. */
 function StaffGate({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
+  const { session, horsLigne } = useAuth();
   /* QUATRE RÉPONSES, PAS TROIS — 14 septembre 2026. « Vérification de vos
      accès… » et le Trône n'en sortait plus : la lecture avait été emportée
      par un `ERR_NETWORK_CHANGED`, la promesse rejetée n'a jamais traversé le
@@ -80,11 +81,16 @@ function StaffGate({ children }: { children: ReactNode }) {
      relancerait la demande à chaque réessai de la porte. */
   useEffect(() => {
     let alive = true;
-    setState('loading');
+    if (!horsLigne) setState('loading');
     const depart = Date.now();
     /* L'IDENTIFIANT EST DÉJÀ LÀ : cet écran ne s'affiche que session en main.
        Le passer épargne un aller-retour au serveur, celui qui faisait déborder
        la borne sur une connexion lente. */
+    /* OUVERT HORS LIGNE SUR LA SESSION GARDÉE (4 octobre 2026) : la tête
+       gardée ouvre la porte sans attendre une lecture qui ne peut pas aboutir
+       (supabase-js la retient le temps de ses propres essais). La lecture
+       part quand même : sa réponse, au retour du réseau, fait foi. */
+    if (horsLigne && teteGardee(session?.user?.id)) setState('ok');
     void loadStaff(session?.user?.id)
       .then(async (s) => {
         if (!alive) return;
@@ -98,6 +104,11 @@ function StaffGate({ children }: { children: ReactNode }) {
       })
       .catch((e: unknown) => {
         if (!alive) return;
+        /* SANS RÉSEAU, LA PORTE S'OUVRE SUR LA TÊTE GARDÉE — 4 octobre 2026
+           (`shared/hors-ligne`) : la dernière connexion en ligne de CETTE
+           personne date de moins de 7 jours. Le Trône s'ouvre, la pastille dit
+           « Hors ligne », et les gestes attendent le réseau dans leur file. */
+        if (e instanceof PanneDAcces && teteGardee(session?.user?.id)) { setState('ok'); return; }
         setRaison(e instanceof PanneDAcces ? e.raison : String((e as { message?: string })?.message ?? e));
         setDuree(Math.round((Date.now() - depart) / 1000));
         setPannes((n) => n + 1);

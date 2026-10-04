@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { renameSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { origineDuCompte } from './origine-des-pages.mjs';
+import { injecteLeService } from './sw-a-garder.mjs';
 import { adressesARenvoyer, cibleDe, pageDeRenvoi, page404DeRenvoi } from './renvoi.mjs';
 
 /* Construit les 4 sites séparés de la Maison MND (déploiement GitHub Pages) :
@@ -176,6 +177,15 @@ for (const site of SITES) {
   }
   writeFileSync(path.join(dist, '.nojekyll'), '');
   writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ build: BUILD_ID }));
+
+  /* L'APPLICATION RESTE SUR LE TÉLÉPHONE — 4 octobre 2026, maquette « Le
+     Trône hors ligne », temps 2. Le service (`sw.js`, recopié de `public/`)
+     reçoit ici l'empreinte de CETTE construction et la liste de ce qu'il doit
+     garder : la page, le code, les styles, les polices, les sceaux. Les photos
+     se gardent à mesure qu'on les voit. Un fichier `sw.js` qui change à chaque
+     construction est ce qui fait installer la nouvelle version au téléphone. */
+  const garde = injecteLeService(dist, BUILD_ID);
+  if (garde) console.log(`  hors ligne : ${garde.fichiers} fichiers gardés au téléphone (${garde.mo.toFixed(1)} Mo)`);
 
   /* LES MAQUETTES NE PARTENT PAS AVEC LE SITE — 18 août 2026.
 

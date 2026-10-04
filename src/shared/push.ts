@@ -30,7 +30,7 @@ export function registerSW(): Promise<ServiceWorkerRegistration | null> {
   if (!regPromise) {
     regPromise = navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' })
-      .then((reg) => { try { void reg.update(); } catch { /* ignore */ } return reg; })
+      .then((reg) => { try { void reg.update().catch(() => { /* hors ligne : la mise à jour attendra */ }); } catch { /* ignore */ } return reg; })
       .catch(() => null);
   }
   return regPromise;

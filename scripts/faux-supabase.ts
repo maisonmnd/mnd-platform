@@ -160,3 +160,4 @@ export const supabase = {
 export const isRemote = true;
 export const adresseDesFonctions = null;
 export const cleAnonyme = null;
+export const cleDeSession = 'sb-faux-auth-token';

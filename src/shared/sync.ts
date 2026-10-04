@@ -1,6 +1,7 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
+import { serveurInjoignable } from './hors-ligne';
 import { litToutesLesPages } from './lecture-entiere';
 import { noteUneEcritureRecue } from './poids-de-la-memoire';
 import { contenuCanonique, memeContenu } from './meme-contenu';
@@ -1576,6 +1577,16 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
      rien, et amorcer le serveur avec le cache local serait une faute. On
      n'amorce donc qu'une fois la session connue — et une seule fois. */
   let amorce = false;
+  /* SANS RÉSEAU, LA COPIE DE L'APPAREIL FAIT FOI — 4 octobre 2026 (« hors
+     ligne », temps 2). `getSession` attend la fin des essais de
+     rafraîchissement de supabase-js, une trentaine de secondes sans réseau, et
+     le Trône restait sur « la Maison vous reconnaît » faute de matrice des
+     accès. Au bout de quatre secondes, si le serveur est VRAIMENT injoignable,
+     la promesse se tient sur la copie locale ; un réseau lent attend. */
+  setTimeout(() => {
+    if (registre(key).faite) return;
+    void serveurInjoignable().then((hors) => { if (hors) registre(key).tenir(); });
+  }, 4000);
   void (async () => {
     const { data: { session } } = await sb.auth.getSession();
     /* PAS DE SESSION, RIEN NE DESCENDRA : la porte de connexion n'a pas à
