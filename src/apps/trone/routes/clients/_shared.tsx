@@ -10,7 +10,7 @@ import { maisonNom, houseSignature } from '../../../../shared/identite';
 import { momentCourt, texteDuRappel } from '../../../../shared/rappel';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
-  remiseFamillePct, type Client,
+  remiseFamillePct, tetesRegulieres, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
@@ -4179,12 +4179,20 @@ export function ClientPicker({
      téléphone. Le filtre téléphone ne s'applique QUE si la recherche contient des
      chiffres — sinon `digits(c.phone).includes('')` renvoie vrai pour TOUTES les
      clientes et le filtre par nom ne servait à rien (le bug « rien ne se filtre »). */
-  const results = useMemo(() => {
+  /* SANS RIEN TAPER, LES RÉGULIÈRES SEULEMENT — 4 octobre 2026. Les autres
+     (passantes, sorties, jamais venues) reviennent dès la première lettre ou
+     le premier chiffre : la recherche, elle, parcourt tout le carnet. */
+  const [rituelsDuMenu] = useAppointments();
+  const regulieres = useMemo(() => tetesRegulieres(clients, rituelsDuMenu, todayISO()), [clients, rituelsDuMenu]);
+  const { results, cachees } = useMemo(() => {
     const base = q
       ? clients.filter((c) => norm(c.name).includes(qn) || (qd !== '' && digits(c.phone).includes(qd)))
-      : clients;
-    return [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [clients, q, qn, qd]);
+      : clients.filter((c) => regulieres.has(c.id));
+    return {
+      results: [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+      cachees: q ? 0 : clients.length - base.length,
+    };
+  }, [clients, q, qn, qd, regulieres]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -4334,6 +4342,11 @@ export function ClientPicker({
           ))}
           {results.length === 0 && (
             <div className="trc-clientpick__empty">Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
+          )}
+          {cachees > 0 && (
+            <div className="trc-clientpick__empty">
+              {cachees} autre{cachees > 1 ? 's' : ''} tête{cachees > 1 ? 's' : ''} (de passage, sorties, jamais venues) : tapez un nom ou un numéro.
+            </div>
           )}
         </div>
       )}

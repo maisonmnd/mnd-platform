@@ -9,9 +9,10 @@
 
    LA GARANTIE DU RETOUR EST ÉPROUVÉE ICI AUSSI, et c'est elle qui rend le
    basculement automatique acceptable : une tête sortie n'est jamais enterrée. */
+import { readFileSync } from 'node:fs';
 import {
   MOIS_AVANT_SORTIE, moisAvant, dortDepuisLongtemps, raisonDeLaSortie, estSortie,
-  mouvementsSansLocks, sortiesDeLaMaison,
+  mouvementsSansLocks, sortiesDeLaMaison, tetesRegulieres,
   type Client, type LectureDesLocks, type RituelPourSortie,
 } from '../src/shared/clients';
 import { CATEGORIE_GBATA, CATEGORIE_VEKPE, defaitLaCouronne, fondeLaCouronne } from '../src/shared/catalog';
@@ -226,5 +227,31 @@ dit('deux têtes, deux raisons, une seule carte',
     [c({ id: 't1', locksDefaits: true }), c({ id: 't2' }), c({ id: 't3' })],
     [r({ clientId: 't1', date: '2026-09-01' }), r({ clientId: 't2', date: '2026-02-01' }), r({ clientId: 't3', date: '2026-09-05' })],
   ));
+
+/* ── LE MENU DES RENDEZ-VOUS — 4 octobre 2026 ──────────────────────
+   « Que la liste des clientes me montre que les régulières, actives de MND.
+   Les autres, les ramener si j'écris les lettres qui les concernent. » */
+const menu = [...tetesRegulieres([
+  c({ id: 'reguliere' }),
+  c({ id: 'passante', dePassage: true }),
+  c({ id: 'endormie' }),
+  c({ id: 'sans-locks', locksDefaits: true }),
+  c({ id: 'jamais-venue' }),
+  c({ id: 'enfant-du-foyer', familyId: 'f1' }),
+  c({ id: 'archivee', archived: true }),
+], [
+  r({ clientId: 'reguliere', date: '2026-08-20' }),
+  r({ clientId: 'passante', date: '2026-09-01' }),
+  r({ clientId: 'endormie', date: '2025-11-01' }),
+  r({ clientId: 'sans-locks', date: '2026-09-01' }),
+  r({ clientId: 'archivee', date: '2026-09-01' }),
+], AUJ)].sort();
+dit('le menu montre la reguliere et l enfant du foyer, rien d autre', ['enfant-du-foyer', 'reguliere'], menu);
+dit('une endormie qui a un rendez-vous a venir revient au menu', true, tetesRegulieres(
+  [c({ id: 'endormie' })],
+  [r({ clientId: 'endormie', date: '2025-11-01' }), r({ clientId: 'endormie', date: '2026-10-20', status: 'confirmé' })], AUJ).has('endormie'));
+const picker = readFileSync('src/apps/trone/routes/clients/_shared.tsx', 'utf8');
+dit('sans recherche, le menu filtre par les regulieres ; la recherche parcourt tout', true,
+  /: clients\.filter\(\(c\) => regulieres\.has\(c\.id\)\)/.test(picker) && /\? clients\.filter\(\(c\) => norm\(c\.name\)\.includes\(qn\)/.test(picker));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

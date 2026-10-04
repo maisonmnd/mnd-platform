@@ -990,6 +990,26 @@ export const estVisiteur = (c: Pick<Client, 'id' | 'dePassage' | 'familyId'>, ve
 export const estDeLaMaison = (c: Pick<Client, 'id' | 'dePassage' | 'familyId'>, venues: ReadonlySet<string>): boolean =>
   estCouronnee(c, venues) || (!!c.familyId && !estDePassage(c) && !venues.has(c.id));
 
+/** LES TÊTES DU MENU — 4 octobre 2026. « Que la liste des clientes me montre
+    que les clientes régulières, actives de MND, avec la possibilité de créer
+    des clientes de passage. Les autres, les ramener si j'écris les lettres qui
+    les concernent » (Yéman).
+
+    UN SEUL JUGE, CELUI DU REGISTRE : une tête de la Maison (`estDeLaMaison`),
+    qui n'en est pas sortie (`sortiesDeLaMaison` : sans locks, ou endormie
+    sans rendez-vous à venir), et pas archivée. La passante, la visiteuse et
+    la sortie ne se perdent pas : la recherche les retrouve toutes. */
+export function tetesRegulieres(
+  clients: readonly Client[],
+  rituels: readonly RituelPourSortie[],
+  aujourdhui: string,
+): Set<string> {
+  const venues = new Set<string>();
+  for (const a of rituels) if (a.status === 'honoré' && a.clientId) venues.add(a.clientId);
+  const sorties = sortiesDeLaMaison(clients, rituels, aujourdhui);
+  return new Set(clients.filter((c) => !c.archived && estDeLaMaison(c, venues) && !sorties.has(c.id)).map((c) => c.id));
+}
+
 /** IDENTITÉ MINIMALE — prénom et téléphone, rien d'autre.
 
     Demander une date de naissance à qui ne reviendra pas gaspille le seul
