@@ -20,7 +20,7 @@ import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { totalsOf, MAISON_BUCKETS, emptyTotals, sumTotals, type Part } from '../../../../shared/maisons';
 import {
-  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
+  Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, StatusPill, tarifsDuRituel, apptLabel, apptTotalXof, apptNetXof, apptDueXof, addDaysISO, frShort, fromISO,
   facturesQuiAttendent,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   DrillModal, revenuDuMois, revenusProjetesDuMois, type Drill, type DrillRow,
@@ -30,7 +30,9 @@ import { relancesAReprendre } from '../../../../shared/afaire';
 import { composeStore, compositionsRecuesStore } from '../../../../shared/bridges';
 import { useEnfantsDeclares, nomPropose } from '../../../../shared/enfants';
 import { createStore, useStore } from '../../../../shared/store';
-import { PayAppointmentModal, honorAppointment } from '../clients/actions';
+import { PayAppointmentModal, honoreSansEncaisser } from '../clients/actions';
+import { useModelBands, useBandSets } from '../../../../shared/pricing';
+import { useProducts } from '../../../../shared/catalog';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import './pilotage.css';
 import { RevenuDuJour } from '../finances/RevenuDuJour';
@@ -116,6 +118,9 @@ export default function Dashboard() {
   const [drill, setDrill] = useState<Drill | null>(null);
   const [jourOuvert, setJourOuvert] = useState<string | null>(null);
   const registre = useRegistreEncaissements();
+  const [bands] = useModelBands();
+  const [sets] = useBandSets();
+  const [produitsTarif] = useProducts();
   const [editAppt, setEditAppt] = useState<Appointment | null>(null);
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
 
@@ -689,7 +694,11 @@ export default function Dashboard() {
     if (a.status === 'en attente') {
       appointmentsStore.set((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: 'confirmé' } : x)));
     } else {
-      honorAppointment(a, byId);
+      /* Honorer sans encaisser émet la facture (4 octobre 2026). */
+      honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+        client: clients.find((c) => c.id === a.clientId),
+        bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsTarif,
+      }).prixPlein);
     }
   };
 

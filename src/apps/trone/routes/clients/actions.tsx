@@ -32,7 +32,7 @@ import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
-  ChampDeDate, frShortAn,
+  ChampDeDate, frShortAn, tarifsDuRituel,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
@@ -150,6 +150,16 @@ export function honorAppointment(
      bandeaux qui se chevauchent. */
   opts: { muet?: boolean } = {},
 ): { points: number; reprise: ReprisePosee } {
+  /* ══ ON N'HONORE PAS CE QUI N'A PAS EU LIEU — 4 octobre 2026 ══════════════
+     Nadège K. : sa reprise du 5 décembre honorée le 3 octobre à 15 h 10 a posé
+     celle du 6 février, honorée sept secondes plus tard, qui a posé celle du
+     10 avril. Seul l'encaissement refusait un rituel daté de demain ; le
+     Carnet, le tableau de bord et l'écran d'encaissement passaient par ici
+     sans garde. Le refus vit désormais ICI, pour tous les chemins. */
+  if (appt.date > todayISO()) {
+    if (!opts.muet) toast(`Le rituel du ${frShortAn(appt.date)} n’a pas encore eu lieu : il s’honore le jour venu.`);
+    return { points: 0, reprise: { raison: 'ce rituel n’a pas encore eu lieu' } };
+  }
   const total = apptNetXof(appt, byId);
   /* LES POINTS SUIVENT L'ARGENT. Un rituel offert reconnaît celle qui l'a payé,
      pas celle qui s'est assise : c'est elle qui a sorti les 110 000 F. Le rituel
@@ -252,6 +262,47 @@ export function honoreALEncaissement(
     return { etat: 'a-venir' };
   }
   return { etat: 'honore', reprise: honorAppointment(a, byId, opts).reprise };
+}
+
+/* ══ HONORER SANS ENCAISSER, C'EST FACTURER — 4 octobre 2026 ══════════════
+   « Je veux toujours un bouton honorer et payer, ou honorer et impayé, pour
+   avoir une facture générée » (Yéman).
+
+   Honorer et payer reste le geste d'« Encaisser ». Honorer sans payer
+   laissait le rituel sans pièce : il n'apparaissait que dans « À facturer »,
+   et la facture s'émettait à part, quand on y pensait. Les boutons qui
+   honorent sans encaisser (Carnet, tableau de bord, écran d'encaissement)
+   émettent désormais la pièce du même geste : « envoyée », à régler, au
+   tarif de la tête quand l'écran le connaît. Un rituel qui ne doit rien
+   (couvert, offert) n'a pas de pièce à réclamer : on n'en émet pas ici. */
+export type HonneurFacture = { honore: boolean; facture?: Invoice; deja?: boolean; erreur?: string; reprise?: ReprisePosee };
+
+export function honoreSansEncaisser(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  prixPlein?: (s: Service) => number,
+): HonneurFacture {
+  const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
+  if (frais.date > todayISO()) {
+    toast(`Le rituel du ${frShortAn(frais.date)} n’a pas encore eu lieu : il s’honore le jour venu.`);
+    return { honore: false };
+  }
+  const { reprise } = honorAppointment(frais, byId, { muet: true });
+  const maj = appointmentsStore.get().find((a) => a.id === appt.id) ?? frais;
+  let facture: Invoice | undefined;
+  let deja = false;
+  let erreur: string | undefined;
+  if (apptDueXof(maj, byId) > 0) {
+    const r = factureAEnvoyer(maj, byId, maj.branchId, prixPlein);
+    if (r.ok) { facture = r.inv; deja = r.deja; } else erreur = r.erreur;
+  }
+  toast([
+    'Rituel honoré',
+    facture ? (deja ? `sa facture ${facture.number} attend déjà son règlement` : `facture ${facture.number} émise, à régler`) : '',
+    erreur ? `facture non émise : ${erreur}` : '',
+    reprise.pose ? `reprise posée le ${frShortAn(reprise.pose.date)} à ${reprise.pose.time}` : '',
+  ].filter(Boolean).join(' · ') + '.');
+  return { honore: true, facture, deja, erreur, reprise };
 }
 
 /* ══ DÉ-HONORER — 13 septembre 2026 ══════════════════════════════════════
@@ -2378,9 +2429,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             Il ne paraît que tant que le rituel n'est ni honoré ni annulé ; une
             fois clôturé, la ligne le dit à sa place. `appt` est relu dans le
             magasin à chaque rendu, donc l'écran change dès le clic. */}
-        {appt.status !== 'honoré' && appt.status !== 'annulé' && (
-          <Button variant="ghost" onClick={() => honorAppointment(appt, byId)} style={{ marginTop: 4 }}>
-            Honorer le rituel
+        {/* HONORER SANS ENCAISSER ÉMET LA FACTURE — 4 octobre 2026 (voir
+            `honoreSansEncaisser`). Honorer ET encaisser reste le bouton
+            « Encaisser » ci-dessus. Un rituel à venir ne s'honore pas. */}
+        {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (
+          <Button
+            variant="ghost"
+            onClick={() => honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
+              client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+            }).prixPlein)}
+            style={{ marginTop: 4 }}
+          >
+            Honorer sans encaisser · facture à régler
           </Button>
         )}
         {appt.status === 'honoré' && (

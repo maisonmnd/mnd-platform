@@ -9,7 +9,7 @@
    ecrit), puis honorer, deux fois. */
 import { readFileSync } from 'node:fs';
 import { sansLaVisite, reprisesARendreNues, CHAMPS_DE_LA_VISITE, pourquoiPasDeRepriseIci, rituelDeLaRepriseEffacee, CLOTURE_JOURS, prochainDejaPose } from '../src/shared/reprise-nue';
-import { poseLaReprise } from '../src/apps/trone/routes/clients/actions';
+import { poseLaReprise, honorAppointment } from '../src/apps/trone/routes/clients/actions';
 import { appointmentsStore } from '../src/shared/agenda';
 import { clientsStore } from '../src/shared/clients';
 import { apptPayState } from '../src/apps/trone/routes/clients/_shared';
@@ -139,6 +139,31 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
     /const dejaPose = reschedule \? prochainDejaPose\(appt, appointmentsStore\.get\(\), todayISO\(\)\) : null;\s*if \(reschedule && nextDate && !dejaPose\)/.test(actions));
   dit('... et relie ce qu il pose a son rituel', true, /note: 'Reprogrammé depuis l’encaissement',\s*repriseDe: appt\.id,/.test(actions));
   dit('la reprise de la cloture passe par la meme garde', true, /const aVenir = prochainDejaPose\(appt, tous, todayISO\(\)\);/.test(actions));
+}
+
+/* ── 4 ter. On n'honore pas ce qui n'a pas eu lieu (4 octobre 2026, Nadège K. :
+   sa reprise du 5 decembre honoree le 3 octobre a pose celle du 6 fevrier,
+   honoree a son tour, qui a pose celle du 10 avril). Sur le VRAI honorAppointment. ── */
+{
+  clientsStore.set([{ id: 'nad', branchId: 'b', name: 'Nadege K', phone: '+22966000002', city: '', persona: 'p', since: '2025-01-01', segments: [], priceCoef: 1, loyaltyPoints: 0, rythmeSemaines: 9 } as never]);
+  const rdv = (id: string, date: string, status = 'honoré', repriseDe?: string) => ({ id, branchId: 'b', clientId: 'nad', serviceIds: ['s1'], date, time: '10:00', master: 'Team', status, ...(repriseDe ? { repriseDe } : {}) });
+  appointmentsStore.set([rdv('k0', ilYa(126)), rdv('k1', ilYa(63)), rdv('k2', ilYa(0)), rdv('k3', ilYa(-63), 'confirmé', 'k2')] as never);
+  const r = honorAppointment(appointmentsStore.get().find((a) => a.id === 'k3')! as never, new Map(), { muet: true });
+  dit('une reprise a venir ne s honore pas', 'confirmé', appointmentsStore.get().find((a) => a.id === 'k3')?.status);
+  dit('... et ne pose pas de reprise de la reprise', [0, 1], [appointmentsStore.get().filter((a) => a.repriseDe === 'k3').length, appointmentsStore.get().filter((a) => a.repriseDe).length]);
+  dit('... elle dit pourquoi', true, /pas encore eu lieu/.test(r.reprise.raison ?? ''));
+  dit('la regle pure : un rituel a venir ne pose pas de reprise', true, /pas encore eu lieu/.test(pourquoiPasDeRepriseIci({ id: 'f', clientId: 'x', date: ilYa(-30) }, [], ilYa(0)) ?? ''));
+  const shared = readFileSync('src/apps/trone/routes/clients/_shared.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('le selecteur de la fiche refuse « honore » sur un rituel a venir', true, /if \(chosenStatus === 'honoré' && date > todayISO\(\)\) \{/.test(shared));
+  const actions = readFileSync('src/apps/trone/routes/clients/actions.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('honorAppointment refuse un rituel a venir, pour tous les chemins', true, /\): \{ points: number; reprise: ReprisePosee \} \{\s*if \(appt\.date > todayISO\(\)\) \{/.test(actions));
+  /* Honorer sans encaisser emet la facture (« honor and impay to have an invoice generated »). */
+  dit('honorer sans encaisser emet la facture quand il reste du', true,
+    /export function honoreSansEncaisser[\s\S]*?if \(apptDueXof\(maj, byId\) > 0\) \{\s*const r = factureAEnvoyer\(/.test(actions));
+  const carnet = readFileSync('src/apps/trone/routes/clients/Carnet.tsx', 'utf8');
+  const dash = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8');
+  dit('Carnet, tableau de bord et encaissement honorent par honoreSansEncaisser', [true, true, true],
+    [/honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(carnet), /honoreSansEncaisser\(a, byId, tarifsDuRituel\(/.test(dash), /onClick=\{\(\) => honoreSansEncaisser\(appt, byId, tarifsDuRituel\(/.test(actions)]);
 }
 
 /* ── 5. Branche ── */

@@ -107,6 +107,10 @@ const joursAvant = (iso: string, n: number): string => {
 /** Pourquoi CE rituel ne pose pas de reprise aujourd'hui, ou `null`. */
 export function pourquoiPasDeRepriseIci(appt: RdvGarde, tous: readonly RdvGarde[], aujourdhui: string): string | null {
   const jour = aujourdhui.slice(0, 10);
+  /* UNE REPRISE NE NAÎT PAS D'UN RITUEL À VENIR (4 octobre 2026, Nadège K. et
+     Adjaratou L.) : une reprise honorée d'avance posait la suivante, qui
+     posait la suivante. */
+  if (appt.date.slice(0, 10) > jour) return 'ce rituel n’a pas encore eu lieu';
   if (appt.repriseRetiree) return 'sa reprise a été retirée à la main';
   if (tous.some((a) => a.repriseDe === appt.id)) return 'sa reprise est déjà posée';
   const plusRecent = tous.find((a) => a.clientId === appt.clientId && a.id !== appt.id

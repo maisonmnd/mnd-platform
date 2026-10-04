@@ -23,7 +23,7 @@ import {
   addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, apptTotalXof, apptDueXof, apptDepositCreditXof, frDay, frShort, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp,
 } from './_shared';
-import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honorAppointment, PayAppointmentModal } from './actions';
+import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal } from './actions';
 import { SerieModal } from './SerieModal';
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 
@@ -606,7 +606,18 @@ export default function Carnet() {
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>
                 )}
                 {canHonor && (
-                  <button onClick={() => { honorAppointment(a, byId); setMenuFor(null); }}>Marquer honoré</button>
+                  <button
+                    onClick={() => {
+                      /* Honorer sans encaisser émet la facture (4 octobre 2026). */
+                      honoreSansEncaisser(a, byId, tarifsDuRituel(a, {
+                        client: clients.find((c) => c.id === a.clientId),
+                        bands, sets, cats: categories, byId, tousServices: services, produits,
+                      }).prixPlein);
+                      setMenuFor(null);
+                    }}
+                  >
+                    Honorer · facture à régler
+                  </button>
                 )}
                 {/* LE CHEMIN INVERSE — 13 septembre 2026. L'annulation
                     d'encaissement y renvoyait depuis août, et il n'existait pas. */}

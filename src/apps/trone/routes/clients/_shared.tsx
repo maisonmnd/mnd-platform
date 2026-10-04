@@ -2220,6 +2220,13 @@ export function RdvModal({
        laquelle un rituel payé redevenait « confirmé » : l'argent restait au
        registre pour un rituel qui, selon le carnet, n'avait pas eu lieu. On
        rend d'abord l'argent, puis on change le statut. */
+    /* ON N'HONORE PAS CE QUI N'A PAS EU LIEU — 4 octobre 2026 (voir
+       `honorAppointment`) : ce sélecteur aussi écrivait « honoré » sur un
+       rituel de décembre, et sa reprise suivait. */
+    if (chosenStatus === 'honoré' && date > todayISO()) {
+      setError('Ce rituel n’a pas encore eu lieu : il s’honore le jour venu.');
+      return false;
+    }
     if (appt && chosenStatus !== 'honoré') {
       const frais = appointmentsStore.get().find((x) => x.id === appt.id) ?? appt;
       if (frais.status === 'honoré' && apptPaidXof(frais) > 0) {

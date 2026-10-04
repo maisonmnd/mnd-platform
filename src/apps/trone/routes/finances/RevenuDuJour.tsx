@@ -6,6 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useStaff as useMaTete } from '../../../../shared/auth';
 import type { Appointment } from '../../../../shared/agenda';
 import { useClients } from '../../../../shared/clients';
+import { useInvoices } from '../../../../shared/finance';
 import type { Receipt } from '../../../../shared/receipts';
 import { usePointages, useClotures } from '../../../../shared/caisse-du-soir';
 import {
@@ -55,6 +56,7 @@ export function RevenuDuJour({ iso, onClose, onOpenAppt }: {
   const [pointages, setPointages] = usePointages();
   const [clotures] = useClotures();
   const appts = useBranchAppointments();
+  const [invoices] = useInvoices();
   const [clientes] = useClients();
   const nomDe = (a: Appointment) => a.clientName || clientes.find((c) => c.id === a.clientId)?.name || 'Cliente';
   const byId = useServicesById();
@@ -71,8 +73,11 @@ export function RevenuDuJour({ iso, onClose, onOpenAppt }: {
   /* À FACTURER : honoré ce jour, sans pièce et sans le moindre versement.
      Un rituel réglé sans pièce, lui, est déjà au registre (« Rituel · sans
      pièce ») : il a fait entrer de l'argent. */
+  /* Une pièce émise par « Honorer · facture à régler » (4 octobre) se
+     rattache par `apptId` : le rituel n'est plus « à facturer », il est dû. */
+  const factures = new Set(invoices.filter((i) => i.apptId).map((i) => i.apptId));
   const aFacturer = appts.filter((a) => a.branchId === branch.id && a.date === iso && a.status === 'honoré'
-    && !a.invoiceId && !(a.paidXof ?? 0) && !(a.payments ?? []).some((p) => p.amountXof > 0));
+    && !a.invoiceId && !factures.has(a.id) && !(a.paidXof ?? 0) && !(a.payments ?? []).some((p) => p.amountXof > 0));
   const aFacturerXof = aFacturer.reduce((s, a) => s + apptNetXof(a, byId), 0);
 
   const pointer = (r: Receipt) => {
