@@ -78,11 +78,13 @@ import { useSansLocksVivant } from './useSansLocksVivant';
 import { useVerrouDuPoste, postePartageStore } from './useVerrouDuPoste';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
-import { Seal, Button, toast } from '../../../ds/components';
+import { Seal, Button, Modal, toast } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
-import { subscribeSync, getSyncState } from '../../../shared/sync';
+import { subscribeSync, getSyncState, reprendsMaVersion } from '../../../shared/sync';
+import { abonneLaFile, versionDeLaFile, gestesEnAttente, lisLesConflits, oublieLeConflit, type Conflit } from '../../../shared/file-d-attente';
+import { CARTE_DES_TABLES } from '../../../shared/journal';
 import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
 import { useClients, clientsStore } from '../../../shared/clients';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
@@ -95,6 +97,13 @@ import { houseSettingsStore } from '../routes/equipe/data';
    poste sans que personne ne le sache. Un mot, une couleur, la vérité. */
 function SyncDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
+  /* LA FILE D'ATTENTE SE COMPTE — 4 octobre 2026 (maquette « Le Trône hors
+     ligne ») : combien de gestes attendent le réseau sur ce téléphone, et les
+     conflits du « dernier geste gagne », qui s'ouvrent d'un clic. */
+  useSyncExternalStore(abonneLaFile, versionDeLaFile, versionDeLaFile);
+  const enAttente = gestesEnAttente();
+  const conflits = lisLesConflits();
+  const [conflitsOuverts, setConflitsOuverts] = useState(false);
   /* LES AUTOMATISMES QUI SE TAISENT (1er octobre 2026) : un poste qui réécrit les fiches
      en boucle les met en pause, et la pastille le dit au lieu de tourner sans fin. */
   const pauses = useSyncExternalStore(ecouteLesPauses, pausesDites, pausesDites);
@@ -120,7 +129,8 @@ function SyncDot() {
      de focus. Une pastille verte pendant qu'un écran traîne apprend à ne plus
      la croire. */
   const enRetard = s.directEnPanne.length;
-  const label = mode === 'off' ? 'Hors ligne'
+  const gestesDits = `${enAttente} geste${enAttente > 1 ? 's' : ''} en attente`;
+  const labelDeBase = mode === 'off' ? (enAttente ? `Hors ligne · ${gestesDits}` : 'Hors ligne')
     : mode === 'err'
       ? (premiere
           ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
@@ -131,12 +141,14 @@ function SyncDot() {
     /* LE MOT JUSTE (2 octobre 2026) : la pastille disait « un autre poste réécrit
        les fiches », et il n'y avait pas d'autre poste. Elle dit ce qu'elle sait. */
     : pauses ? 'Synchronisé · un automatisme en pause'
-    : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
+    : enRetard ? 'Synchronisé · direct en panne'
+    : enAttente ? `Synchronisation · ${gestesDits}` : 'Synchronisé';
+  const label = conflits.length ? `${labelDeBase} · ${conflits.length} conflit${conflits.length > 1 ? 's' : ''}` : labelDeBase;
   const color = mode === 'ok'
     ? (enRetard || pauses ? 'var(--color-copper)' : '#6e7c5c')
     : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
-    mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
+    mode === 'off' ? `Hors ligne. ${enAttente ? `${gestesDits} sur ce téléphone : ils` : 'Les écritures'} restent ici, même si l’application se ferme, et partiront au retour du réseau. Le geste le plus récent l’emporte.`
     : mode === 'err'
       ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
         ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
@@ -156,10 +168,65 @@ Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez
         + 'et le direct se rebranche tout seul, de plus en plus espacé.'
       : 'Toutes les écritures sont sur le serveur.';
   return (
-    <span className="tr-top__sync" title={title} role="status">
-      <span className="tr-top__sync-dot" style={{ background: color }} />
-      {label}
-    </span>
+    <>
+      <span
+        className="tr-top__sync"
+        title={conflits.length ? `${title}\n\nCliquez pour voir les conflits.` : title}
+        role="status"
+        style={conflits.length ? { cursor: 'pointer' } : undefined}
+        onClick={conflits.length ? () => setConflitsOuverts(true) : undefined}
+      >
+        <span className="tr-top__sync-dot" style={{ background: conflits.length ? 'var(--color-copper)' : color }} />
+        {label}
+      </span>
+      {conflitsOuverts && <LesConflits conflits={conflits} onClose={() => setConflitsOuverts(false)} />}
+    </>
+  );
+}
+
+/* ══ LES CONFLITS DU DERNIER GESTE — 4 octobre 2026 ══════════════════════
+   Une même ligne a changé ici et ailleurs pendant une coupure : le geste le
+   plus récent a gagné. L'autre n'est pas perdu : on le lit ici, et on peut le
+   reprendre (un geste neuf, qui gagne à son tour). */
+function LesConflits({ conflits, onClose }: { conflits: Conflit[]; onClose: () => void }) {
+  const heure = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const nom = (c: Conflit, j: string | null): string => {
+    if (!j) return 'supprimée';
+    try {
+      const d = JSON.parse(j) as Record<string, unknown>;
+      return CARTE_DES_TABLES[c.table]?.nomme(d) ?? String(d.name ?? d.label ?? d.number ?? c.id);
+    } catch { return c.id; }
+  };
+  const ecran = (c: Conflit) => CARTE_DES_TABLES[c.table]?.ecran ?? (c.table === 'documents' ? 'Réglages' : c.table);
+  return (
+    <Modal title="Les conflits de synchronisation" onClose={onClose} width={640}>
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+        Pendant une coupure, ces lignes ont changé sur ce téléphone et ailleurs. Le geste le plus récent a été gardé ; l’autre est ici, et se reprend d’un clic.
+      </p>
+      {conflits.length === 0 && <div className="trc-empty">Aucun conflit.</div>}
+      {conflits.map((c) => {
+        const notreGagne = Date.parse(c.notreAt) > Date.parse(c.leurAt);
+        return (
+          <div key={`${c.table}-${c.id}-${c.vuLe}`} style={{ borderTop: '1px solid var(--hairline)', padding: '12px 0', display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 13.5 }}><b style={{ fontWeight: 500 }}>{ecran(c)}</b> · {nom(c, c.leur)}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, fontSize: 12.5 }}>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
+                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>{notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · {heure(c.leurAt)}</div>
+                {nom(c, c.leur)}
+              </div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
+                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>La vôtre · ce téléphone · {heure(c.notreAt)}</div>
+                {nom(c, c.notre)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => { reprendsMaVersion(c); }}>Reprendre ma version</button>
+              <button className="mnd-btn mnd-btn--sm" onClick={() => oublieLeConflit(c.table, c.id, c.vuLe)}>C’est bien ainsi</button>
+            </div>
+          </div>
+        );
+      })}
+    </Modal>
   );
 }
 
