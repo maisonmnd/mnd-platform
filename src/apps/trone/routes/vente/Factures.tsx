@@ -34,6 +34,7 @@ import { ChampDeDate } from '../../../../ds/dates';
 import { VieDeLaFacture } from '../_vie';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
 import { appelDe } from '../../../../shared/civilite';
+import { aligneLeRituel, corrigeLeVersement, estLieALaPiece, sansTiroir, type CorrectionDeVersement } from '../../../../shared/caisse-du-versement';
 
 /* Factures & devis — documents de marque à âme. Six thèmes émotionnels,
    remises par ligne et globale, conversion devis → facture, impression.
@@ -180,6 +181,8 @@ export default function Factures() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, invoices]);
   const [payChoice, setPayChoice] = useState<PaymentMethod>('MTN MoMo');
+  /* La caisse du « Marquer payée » : jamais la première de la liste, on la dit. */
+  const [payCaisse, setPayCaisse] = useState('');
   const [freeLabel, setFreeLabel] = useState('');
   const [freeAmount, setFreeAmount] = useState('');
   const [editing, setEditing] = useState<EditState | null>(null);
@@ -784,7 +787,15 @@ export default function Factures() {
       ? { ...editing.draft, clientId: '', clientName: editing.draft.clientName ?? 'Walk-in' }
       : editing.draft;
     if (editing.mode === 'new') setInvoices((prev) => [d, ...prev]);
-    else setInvoices((prev) => prev.map((i) => (i.id === d.id ? d : i)));
+    else {
+      const avant = invoices.find((i) => i.id === d.id);
+      setInvoices((prev) => prev.map((i) => (i.id === d.id ? d : i)));
+      /* LE RENDEZ-VOUS SUIT SA PIÈCE : un versement corrigé ici (moyen,
+         caisse, date) se corrige aussi dans le journal du carnet. */
+      if (avant) {
+        appointmentsStore.set((prev) => prev.map((a) => (estLieALaPiece(a, avant) ? aligneLeRituel(a, avant, d) : a)));
+      }
+    }
     setSelectedId(d.id);
     setEditing(null);
     /* Un devis accepté sans RDV encore rattaché → Carnet. L'idempotence tient à
@@ -1524,16 +1535,66 @@ export default function Factures() {
                       ))}
                     </Select>
                   </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Moyen de paiement</span>
-                    <Select value={draft.payment ?? ''} onChange={(e) => patchDraft({ payment: (e.target.value || undefined) as PaymentMethod | undefined })} style={{ fontSize: 12 }}>
-                      <option value="">—</option>
-                      {methods.map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </Select>
-                  </label>
+                  {invoiceReglements(draft as Invoice).length === 0 && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Moyen de paiement</span>
+                      <Select value={draft.payment ?? ''} onChange={(e) => patchDraft({ payment: (e.target.value || undefined) as PaymentMethod | undefined })} style={{ fontSize: 12 }}>
+                        <option value="">—</option>
+                        {methods.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </Select>
+                    </label>
+                  )}
                 </div>
+                {/* LE MOYEN ET LA CAISSE DE CHAQUE VERSEMENT — 4 octobre 2026.
+                    « Que le paiement du RDV avec la caisse principale soit
+                    reporté sur la facture et qu'on puisse modifier au besoin »
+                    (Yéman). L'ancien sélecteur écrivait le miroir, que ni le
+                    tiroir ni le journal ne lisent : on corrige ici le versement
+                    lui-même, et le rendez-vous suit à l'enregistrement. Au
+                    Trône seulement : la pièce imprimée ne nomme pas les tiroirs. */}
+                {(() => {
+                  const vers = invoiceReglements(draft as Invoice).filter((p) => p.amountXof > 0);
+                  if (vers.length === 0) return null;
+                  const corrige = (id: string, c: CorrectionDeVersement) =>
+                    setEditing((e) => (e ? { ...e, draft: corrigeLeVersement(e.draft, id, c) } : e));
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>
+                        {vers.length > 1 ? 'Versements · moyen et caisse' : 'Versement · moyen et caisse'}
+                      </span>
+                      {vers.map((p) => (
+                        <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, alignItems: 'end' }}>
+                          {vers.length > 1 && (
+                            <span style={{ gridColumn: '1 / -1', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-soft)' }}>
+                              {fmtMoney(p.amountXof, currency)} le {frDay(p.date)}
+                            </span>
+                          )}
+                          {sansTiroir(p) ? (
+                            <span style={{ gridColumn: '1 / -1', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-soft)' }}>
+                              {p.method === 'Avoir' ? 'Avoir, crédit du compte : ne passe par aucune caisse.' : 'Acompte reçu avant le comptoir.'}
+                            </span>
+                          ) : (
+                            <>
+                              <Select aria-label="Moyen du versement" value={p.method} onChange={(e) => corrige(p.id, { method: e.target.value as PaymentMethod })} style={{ fontSize: 12 }}>
+                                {[...new Set([p.method, ...methods])].map((m) => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </Select>
+                              <Select aria-label="Caisse du versement" value={p.cashbox ?? ''} onChange={(e) => corrige(p.id, { cashbox: e.target.value || undefined })} style={{ fontSize: 12 }}>
+                                <option value="">Caisse non dite</option>
+                                {[...new Set([...(p.cashbox ? [p.cashbox] : []), ...boxesBranche.map((c) => c.name)])].map((n) => (
+                                  <option key={n} value={n}>{n}</option>
+                                ))}
+                              </Select>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1729,7 +1790,23 @@ export default function Factures() {
                       <option key={p} value={p}>{p}</option>
                     ))}
                   </Select>
-                  <Button variant="copper" size="sm" onClick={() => patchSelected({ status: 'payée', payment: payChoice })}>
+                  {(selected.payments ?? []).length === 0 && boxesBranche.length > 0 && (
+                    <Select aria-label="Caisse créditée" value={payCaisse} onChange={(e) => setPayCaisse(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
+                      <option value="">Caisse…</option>
+                      {boxesBranche.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </Select>
+                  )}
+                  <Button
+                    variant="copper"
+                    size="sm"
+                    onClick={() => patchSelected({
+                      status: 'payée',
+                      payment: payChoice,
+                      ...((selected.payments ?? []).length === 0 && payCaisse ? { cashbox: payCaisse } : {}),
+                    })}
+                  >
                     Marquer payée
                   </Button>
                 </div>
@@ -1745,6 +1822,26 @@ export default function Factures() {
                   {selected.fx && ` · ${selected.fx.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${selected.fx.code}`}
                 </div>
               )}
+              {/* LA CAISSE DE CHAQUE VERSEMENT, ICI ET PAS SUR LA PIÈCE — 4 oct.
+                  Ce panneau ne s'imprime pas : la Maison y lit ses tiroirs, la
+                  cliente ne les lit jamais. « Modifier » les corrige. */}
+              {(() => {
+                const vers = invoiceReglements(selected).filter((p) => p.amountXof > 0 && !sansTiroir(p));
+                if (vers.length === 0) return null;
+                return (
+                  <div className="trv-caisses-du-doc" style={{ display: 'flex', flexDirection: 'column', gap: 2, fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'var(--ink-soft)', textAlign: 'center' }}>
+                    {vers.map((p) => (
+                      <span key={p.id}>
+                        {vers.length > 1 && <>{fmtMoney(p.amountXof, currency)} · </>}
+                        {p.method} · {p.cashbox
+                          ? <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>{p.cashbox}</b>
+                          : <em style={{ fontStyle: 'normal', color: 'var(--copper-700)' }}>caisse non dite</em>}
+                        {' · '}{frDay(p.date)}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           ) : null}
         </div>
