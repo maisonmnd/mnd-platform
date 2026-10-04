@@ -38,7 +38,9 @@ export const genreEnBase = (d: { genre?: unknown }): GenreDeDemande =>
 
 export type GenreDeDemande = 'prospect' | 'rdv';
 export type BesoinDeLaDemande = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
-export type StatutDeLaDemande = 'nouvelle' | 'rappelee' | 'convertie' | 'ecartee';
+/* « traitee » — 4 octobre 2026 : « quand les demandes de site sont traitées,
+   je veux les faire disparaître » (Yéman). Elle quitte la file « À traiter ». */
+export type StatutDeLaDemande = 'nouvelle' | 'rappelee' | 'traitee' | 'convertie' | 'ecartee';
 
 export type Demande = {
   id: string;                 // posé par le serveur
@@ -75,10 +77,13 @@ export type Demande = {
       à la conversion le porte, pour que le Trône tarife comme le site. */
   lockCount?: number;
   calibre?: string;
+  /** ARCHIVÉE — 4 octobre 2026. Rangée hors de toutes les listes, sauf
+      « Archivées » ; son statut reste ce qu'il était. */
+  archiveeLe?: string;
 };
 
 export const BESOINS: readonly BesoinDeLaDemande[] = ['creation', 'reparation', 'entretien', 'enfant', 'formation', 'inconnu'];
-export const STATUTS: readonly StatutDeLaDemande[] = ['nouvelle', 'rappelee', 'convertie', 'ecartee'];
+export const STATUTS: readonly StatutDeLaDemande[] = ['nouvelle', 'rappelee', 'traitee', 'convertie', 'ecartee'];
 
 /** Le segment que porte une fiche née d'une demande. Le même mot que
     `PROSPECT_SEGMENT` (shell/useReconcileClients), qui ne s'importe pas
@@ -133,6 +138,16 @@ export const ditLeGenre = (g: GenreDeDemande): string =>
 
 /** NOUVELLES D'ABORD, puis les plus récentes en tête. Une file se lit par
     ce qui attend, pas par ce qui est classé. */
+/** LES FILTRES DE L'ÉCRAN — 4 octobre 2026. L'archivée ne paraît que sous
+    « Archivées », jamais sous « Toutes » ; la traitée quitte « À traiter ». */
+export type FiltreDesDemandes = 'a-traiter' | StatutDeLaDemande | 'toutes' | 'archivees';
+export const dansLeFiltre = (d: Pick<Demande, 'statut' | 'archiveeLe'>, filtre: FiltreDesDemandes): boolean => {
+  if (filtre === 'archivees') return !!d.archiveeLe;
+  if (d.archiveeLe) return false;
+  if (filtre === 'a-traiter') return d.statut === 'nouvelle' || d.statut === 'rappelee';
+  return filtre === 'toutes' || d.statut === filtre;
+};
+
 export function demandesTriees(liste: readonly Demande[]): Demande[] {
   const rang = (d: Demande) => (d.statut === 'nouvelle' ? 0 : 1);
   return [...liste].sort((a, b) => (rang(a) - rang(b)) || b.createdAt.localeCompare(a.createdAt));

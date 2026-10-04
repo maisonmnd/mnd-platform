@@ -77,7 +77,7 @@ export default function Dashboard() {
      posé s'ouvre au calendrier, à son jour. */
   const [demandes] = useDemandes();
   const demandesRows = useMemo(
-    () => demandesTriees(demandes.filter((d) => d.branchId === branch.id && d.statut === 'nouvelle')),
+    () => demandesTriees(demandes.filter((d) => d.branchId === branch.id && d.statut === 'nouvelle' && !d.archiveeLe)),
     [demandes, branch.id],
   );
   const [appels] = useAppels();

@@ -8,9 +8,10 @@
 
    Les numéros ci-dessous sont des DONNÉES DE TEST, fictifs (01 97 00 00 00),
    jamais des exemples affichés à l'écran. */
+import { readFileSync } from 'node:fs';
 import {
   telephoneNormalise, telephoneMasque, demandesTriees, doublonDe, messageDeRappel,
-  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, genreEnBase, type Demande,
+  ficheDepuisLaDemande, ditLeBesoin, depuisQuand, rattachementsAFaire, genreEnBase, dansLeFiltre, type Demande,
 } from '../src/shared/demandes';
 import { porteLaDevise, signeLeMessage, DEVISE_COMPLETE } from '../src/shared/identite';
 
@@ -120,11 +121,6 @@ dit('un rendez-vous du Trône sans demande n’est pas concerné', 0,
 dit('la fiche neuve porte un identifiant fixe : deux postes, une fiche', 'prospect-d-rdv',
   ficheDepuisLaDemande(dRdv, 'p-initie').id);
 
-if (ko) {
-  console.error(`\n${ko} vérification(s) en échec.`);
-  process.exit(1);
-}
-console.log('\nLes demandes tiennent.');
 
 /* ── LE GENRE QUE LA TABLE EXIGE — 24 septembre 2026 ───────────────
    `demandes.genre` est `not null check (genre in ('prospect','rdv'))` et
@@ -140,3 +136,27 @@ dit('un prospect aussi', 'prospect', genreEnBase({ genre: 'prospect' }));
 dit('une demande SANS genre ne bloque pas la table', 'prospect', genreEnBase({}));
 dit('un genre inconnu non plus', 'prospect', genreEnBase({ genre: 'formation' }));
 dit('ni un genre qui n’est même pas un mot', 'prospect', genreEnBase({ genre: 42 }));
+
+/* ══ TRAITÉE, ARCHIVÉE — 4 octobre 2026 ══════════════════════════════
+   « Quand les demandes de site sont traitées je veux les faire disparaître.
+   Aussi je veux archiver et supprimer » (Yéman). */
+const vue = (statut: Demande['statut'], archiveeLe?: string) => ({ statut, archiveeLe });
+dit('une nouvelle attend sous « À traiter »', true, dansLeFiltre(vue('nouvelle'), 'a-traiter'));
+dit('une rappelée attend encore', true, dansLeFiltre(vue('rappelee'), 'a-traiter'));
+dit('une traitée disparait de « À traiter »', false, dansLeFiltre(vue('traitee'), 'a-traiter'));
+dit('... et se retrouve sous « Traitées »', true, dansLeFiltre(vue('traitee'), 'traitee'));
+dit('une archivée disparait de « À traiter », meme nouvelle', false, dansLeFiltre(vue('nouvelle', '2026-10-04T10:00:00Z'), 'a-traiter'));
+dit('... et de « Toutes »', false, dansLeFiltre(vue('convertie', '2026-10-04T10:00:00Z'), 'toutes'));
+dit('... et ne se lit que sous « Archivées »', true, dansLeFiltre(vue('convertie', '2026-10-04T10:00:00Z'), 'archivees'));
+dit('une demande non archivee n est pas sous « Archivées »', false, dansLeFiltre(vue('traitee'), 'archivees'));
+const ecran = readFileSync('src/apps/trone/routes/clients/Demandes.tsx', 'utf8');
+dit('supprimer demande confirmation, et efface la demande seule', true,
+  /await demande\(\{[\s\S]{0,400}dur: true/.test(ecran) && /setDemandes\(\(prev\) => prev\.filter\(\(x\) => x\.id !== d\.id\)\)/.test(ecran) && !/appointmentsStore\.set\(\(prev\) => prev\.filter/.test(ecran));
+
+/* LE VERDICT EN DERNIER (4 octobre 2026) : il tombait avant le genre, et un
+   échec dans ce qui suivait sortait quand même en succès. */
+if (ko) {
+  console.error(`\n${ko} vérification(s) en échec.`);
+  process.exit(1);
+}
+console.log('\nLes demandes tiennent.');
