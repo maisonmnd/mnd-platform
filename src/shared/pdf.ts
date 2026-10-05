@@ -2433,8 +2433,11 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(SOFT);
   const meta = [`Séance du ${d.dateSeance}`, d.prestation, d.praticien ? `avec ${d.praticien}` : '']
     .filter(Boolean).join(' · ');
-  texteFon(doc, pdfSafeGardeFon(meta), M, y);
-  y += 10;
+  /* DEUX LIGNES AU PLUS (5 octobre 2026) : trois prestations et un maître
+     ne tiennent pas toujours sur une seule. */
+  const metaLignes = (doc.splitTextToSize(pdfSafeGardeFon(meta), LARGE) as string[]).slice(0, 2);
+  metaLignes.forEach((l, k) => texteFon(doc, l, M, y + k * 4.4));
+  y += 10 + (metaLignes.length - 1) * 4.4;
 
   const saut = (besoin: number) => {
     if (y + besoin <= BAS) return;
@@ -2462,20 +2465,31 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
   if (d.jauges.length) {
     titre('L’état de votre couronne');
     const col = LARGE / 2;
-    d.jauges.forEach((j, i) => {
-      const x = M + (i % 2) * col;
-      if (i % 2 === 0 && i > 0) y += 7.5;
-      if (i % 2 === 0) saut(8);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(INK);
-      doc.text(j.nom, x, y);
-      for (let v = 1; v <= 5; v += 1) {
-        const cx = x + 36 + (v - 1) * 4.6;
-        doc.setDrawColor(COPPER); doc.setLineWidth(0.35);
-        if (v <= j.valeur) { doc.setFillColor(COPPER); doc.circle(cx, y - 1.2, 1.5, 'FD'); } else doc.circle(cx, y - 1.2, 1.5, 'S');
+    /* LA NOTE A SA COLONNE, ET LA LIGNE GRANDIT AVEC ELLE — 5 octobre 2026 :
+       passé 23 mm, la note va à la ligne (trois au plus), et la rangée
+       suivante descend d'autant au lieu de lui marcher dessus. */
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const notes = d.jauges.map((j) => (j.note ? (doc.splitTextToSize(j.note, col - 64) as string[]).slice(0, 3) : []));
+    for (let i = 0; i < d.jauges.length; i += 2) {
+      const lignesMax = Math.max(1, notes[i]?.length ?? 0, notes[i + 1]?.length ?? 0);
+      const hauteur = Math.max(7.5, 3.2 * (lignesMax - 1) + 7.5);
+      saut(hauteur);
+      for (let k = i; k < Math.min(i + 2, d.jauges.length); k += 1) {
+        const j = d.jauges[k];
+        const x = M + (k % 2) * col;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(INK);
+        doc.text(j.nom, x, y);
+        for (let v = 1; v <= 5; v += 1) {
+          const cx = x + 36 + (v - 1) * 4.6;
+          doc.setDrawColor(COPPER); doc.setLineWidth(0.35);
+          if (v <= j.valeur) { doc.setFillColor(COPPER); doc.circle(cx, y - 1.2, 1.5, 'FD'); } else doc.circle(cx, y - 1.2, 1.5, 'S');
+        }
+        doc.setFontSize(8); doc.setTextColor(SOFT);
+        notes[k].forEach((l, n) => doc.text(l, x + 62, y + n * 3.2));
       }
-      if (j.note) { doc.setFontSize(8.5); doc.setTextColor(SOFT); doc.text(j.note, x + 62, y); }
-    });
-    y += 11;
+      y += hauteur;
+    }
+    y += 3.5;
   }
 
   if (d.points.length) {
@@ -2503,7 +2517,12 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
       const largeurNom = doc.getTextWidth(pdfSafe(p.nom));
       if (p.quand) {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
-        doc.text(`· ${p.quand}`, M + 7 + largeurNom, y);
+        if (doc.getTextWidth(`· ${p.quand}`) <= LARGE - 7 - largeurNom) {
+          doc.text(`· ${p.quand}`, M + 7 + largeurNom, y);
+        } else {
+          /* Trop long pour la ligne du nom : il passe dessous, à la ligne. */
+          for (const l of doc.splitTextToSize(p.quand, LARGE - 5) as string[]) { y += 4.3; saut(4.3); doc.text(l, M + 5, y); }
+        }
       }
       y += 6.5;
     }
@@ -2520,7 +2539,19 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
       const corps = paire.map((t) => doc.splitTextToSize(t.texte, lc - 8) as string[]);
       const ingr = paire.map((t) => (t.ingredients?.length ? t.ingredients.join(' · ') : ''));
-      const h = 11.5 + Math.max(...corps.map((c, k) => c.length + (ingr[k] ? 1.2 : 0))) * 4.4;
+      /* LA CADENCE NE MORD JAMAIS SUR LE TITRE — 5 octobre 2026 (« tous les 10
+         à 14 jours, toutes les 3 semaines en hiver » passait sur « Purifier »).
+         Courte, elle tient à droite du titre ; longue, elle passe dessous, à
+         la ligne, et la case grandit d'autant. */
+      const cadences = paire.map((t) => {
+        doc.setFont('times', 'normal'); doc.setFontSize(13.5);
+        const titreL = doc.getTextWidth(t.nom);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+        return doc.getTextWidth(t.cadence) <= lc - 8 - titreL - 4 ? null : (doc.splitTextToSize(t.cadence, lc - 8) as string[]);
+      });
+      const decale = cadences.map((c) => (c ? c.length * 3.6 + 1.5 : 0));
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+      const h = 11.5 + Math.max(...corps.map((c, k) => (c.length + (ingr[k] ? 1.2 : 0)) * 4.4 + decale[k]));
       saut(h + 2);
       paire.forEach((t, k) => {
         const x = M + k * (lc + gout);
@@ -2528,9 +2559,11 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
         doc.setFont('times', 'normal'); doc.setFontSize(13.5); doc.setTextColor(INDIGO);
         doc.text(t.nom, x + 4, y + 2);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(COPPER);
-        doc.text(t.cadence, x + lc - 4, y + 2, { align: 'right' });
+        const cad = cadences[k];
+        if (!cad) doc.text(t.cadence, x + lc - 4, y + 2, { align: 'right' });
+        else cad.forEach((l, n) => doc.text(l, x + 4, y + 6.8 + n * 3.6));
         doc.setFontSize(9.5); doc.setTextColor(INK);
-        let yy = y + 8.5;
+        let yy = y + 8.5 + decale[k];
         for (const l of corps[k]) { doc.text(l, x + 4, yy); yy += 4.4; }
         if (ingr[k]) {
           doc.setFontSize(8.5); doc.setTextColor(COPPER);
@@ -2544,13 +2577,24 @@ async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: 
 
   // — La prochaine visite : le bandeau indigo —
   if (d.prochaineVisite) {
-    saut(16);
-    doc.setFillColor(INDIGO); doc.roundedRect(M, y - 2, LARGE, 13, 2, 2, 'F');
+    /* LA DATE TIENT DANS SON BANDEAU — 5 octobre 2026 : elle rapetisse
+       jusqu'à 10 pt, puis passe à la ligne, et le bandeau grandit. */
+    const LIBELLE = 'VOTRE PROCHAINE VISITE';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+    const dispo = LARGE - 12 - (doc.getTextWidth(LIBELLE) + 0.3 * LIBELLE.length) - 6;
+    doc.setFont('times', 'normal');
+    let taille = 14;
+    doc.setFontSize(taille);
+    while (taille > 10 && doc.getTextWidth(d.prochaineVisite) > dispo) { taille -= 0.5; doc.setFontSize(taille); }
+    const lignesV: string[] = doc.getTextWidth(d.prochaineVisite) > dispo ? doc.splitTextToSize(d.prochaineVisite, dispo) : [d.prochaineVisite];
+    const hb = 13 + (lignesV.length - 1) * 4.8;
+    saut(hb + 3);
+    doc.setFillColor(INDIGO); doc.roundedRect(M, y - 2, LARGE, hb, 2, 2, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor('#C9A98A');
-    doc.text('VOTRE PROCHAINE VISITE', M + 6, y + 5.8, { charSpace: 0.3 });
-    doc.setFont('times', 'normal'); doc.setFontSize(14); doc.setTextColor('#FFFFFF');
-    doc.text(d.prochaineVisite, W - M - 6, y + 6.2, { align: 'right' });
-    y += 16;
+    doc.text(LIBELLE, M + 6, y + 5.8, { charSpace: 0.3 });
+    doc.setFont('times', 'normal'); doc.setFontSize(taille); doc.setTextColor('#FFFFFF');
+    lignesV.forEach((l, k) => doc.text(l, W - M - 6, y + 6.2 + k * 4.8, { align: 'right' }));
+    y += hb + 3;
   }
 
   // — La signature du maître : jusqu'au filet du pied, jamais seule sur une page —
