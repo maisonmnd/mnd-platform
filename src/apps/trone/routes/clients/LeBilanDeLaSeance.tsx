@@ -4,11 +4,11 @@ import type { Appointment } from '../../../../shared/agenda';
 import type { Client } from '../../../../shared/clients';
 import type { Service } from '../../../../shared/catalog';
 import { useProducts } from '../../../../shared/catalog';
-import { ecritLaNote, useBilans, useNotesDeSeance } from '../../../../shared/bilans';
+import { JAUGES_SEED, RITUEL_SEED, dernierBilanDe, ecritLaNote, useBilans, useNotesDeSeance } from '../../../../shared/bilans';
 import { useFormulesLab } from '../../../../shared/formules';
 import { LAB_FORMULAS } from '../vente/lab';
 import {
-  NATURES_DU_CHEVEU, SIGNES_METISSE, SIGNES_VUS, contexteDuBilan, idDeLaNote, noteVide,
+  NATURES_DU_CHEVEU, SIGNES_METISSE, SIGNES_VUS, brouillonDeLaMain, contexteDuBilan, idDeLaNote, noteVide,
   type BrouillonDeBilan, type NoteDeSeance,
 } from '../../../../shared/bilan-assistant-pur';
 import { redigeLeBilan, type DemandeAuBilan, type ListesDeLaMaison } from '../../../../shared/bilan-assistant';
@@ -61,6 +61,7 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
   const [ouvert, setOuvert] = useState(!bilan && (!noteVide(enregistree) || appt.status === 'honoré'));
   const [enCours, setEnCours] = useState(false);
   const [fiche, setFiche] = useState<BrouillonDeBilan | null>(null);
+  const [parLaMain, setParLaMain] = useState(false);
 
   /* Une case se garde au geste ; un texte, quand on quitte le champ. */
   const garde = (n: NoteDeSeance) => {
@@ -106,12 +107,25 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
     try {
       const b = await demande('rediger');
       garde({ ...note, brouillon: b, brouillonLe: new Date().toISOString() });
+      setParLaMain(false);
       setFiche(b);
     } catch (e) {
       toast((e as Error).message);
     } finally {
       setEnCours(false);
     }
+  };
+
+  /* ÉCRIRE SOI-MÊME — 5 octobre 2026 : la même fiche, remplie de la note,
+     sans appel à l'assistant ni crédit. Jauges et rituel du bilan précédent. */
+  const ecrireMoiMeme = () => {
+    garde(note);
+    const precedent = client ? dernierBilanDe(bilans, client.id) : undefined;
+    setParLaMain(true);
+    setFiche(brouillonDeLaMain(note, {
+      jauges: precedent?.jauges?.length ? precedent.jauges : JAUGES_SEED,
+      rituel: precedent?.rituel?.length ? precedent.rituel : RITUEL_SEED,
+    }));
   };
 
   const resumeDeLaLigne = bilan
@@ -195,14 +209,18 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
             <button type="button" className="mnd-btn mnd-btn--copper" onClick={rediger} disabled={enCours || !client}>
               {enCours ? 'L’assistant rédige…' : note.brouillon ? 'Rédiger à nouveau' : 'Rédiger le bilan avec l’assistant'}
             </button>
+            <button type="button" className="mnd-btn mnd-btn--ghost" onClick={ecrireMoiMeme} disabled={enCours || !client}>
+              Écrire le bilan moi-même
+            </button>
             {note.brouillon && !enCours && (
-              <button type="button" className="mnd-btn mnd-btn--ghost" onClick={() => setFiche(note.brouillon!)}>
+              <button type="button" className="mnd-btn mnd-btn--ghost" onClick={() => { setParLaMain(false); setFiche(note.brouillon!); }}>
                 Reprendre le brouillon
               </button>
             )}
           </div>
           <div className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-            L’assistant reçoit son prénom et ce qui touche à ses cheveux, jamais son numéro. Il propose ; vous relisez et vous signez.
+            « Écrire le bilan moi-même » est gratuit : la fiche s’ouvre remplie de votre note. Seul l’assistant utilise du crédit Anthropic ;
+            il reçoit son prénom et ce qui touche à ses cheveux, jamais son numéro. Il propose ; vous relisez et vous signez.
             Cette note reste dans le Trône : {client ? client.name.split(' ')[0] : 'la cliente'} ne la voit pas.
           </div>
         </div>
@@ -217,7 +235,8 @@ export function LeBilanDeLaSeance({ appt, client, byId }: {
           seance={appt}
           brouillon={fiche}
           nature={note.nature}
-          surRedemande={(quoi, actuel) => demande(quoi, actuel)}
+          parLaMain={parLaMain}
+          surRedemande={parLaMain ? undefined : (quoi, actuel) => demande(quoi, actuel)}
           surRemis={(b) => garde({ ...note, brouillon: undefined, brouillonLe: undefined, bilanId: b.id })}
           onClose={() => setFiche(null)}
         />

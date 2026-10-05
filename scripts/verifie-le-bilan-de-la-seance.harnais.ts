@@ -15,7 +15,7 @@
    6. MA COURONNE s'ouvre sur l'essentiel, et la signature notifie. */
 import { readFileSync } from 'node:fs';
 import {
-  alertesDuTexte, brouillonRelu, contexteDuBilan, sansCoordonnees, signesRetenus,
+  alertesDuTexte, brouillonDeLaMain, brouillonRelu, contexteDuBilan, sansCoordonnees, signesRetenus,
 } from '../src/shared/bilan-assistant-pur';
 import { pourQuiDuBilan } from '../src/shared/bilan-document';
 import { RITUEL_SEED } from '../src/shared/bilans';
@@ -130,6 +130,22 @@ dit('un modele inconnu du compte cede la place au suivant', true,
 const pont = sansCommentaires('src/shared/bilan-assistant.ts');
 dit('le Trone dit la cause que la fonction donne', true, /return `Le bilan n’a pas pu être rédigé : \$\{detail\}`;/.test(pont));
 dit('le modele ne parle que des sept ingredients (enum des slugs)', true, /ingredients: \{ type: 'array', items: \{ type: 'string', enum: slugs \} \}/.test(fn));
+
+/* ── 6 bis. ÉCRIRE SOI-MÊME, SANS CRÉDIT — 5 octobre 2026 ─────────────
+   « Mes bilans partaient avant sans crédit Anthropic. » Le chemin à la main
+   part de la note et n'appelle jamais l'assistant. */
+const main = brouillonDeLaMain(
+  { nature: 'metisse', vu: ['Sécheresse'], metisse: ['Frisottis'], attendu: 'Racines sèches — elle lave trop.', retenir: 'Moins laver.' },
+  { jauges: [{ nom: 'Racines', valeur: 2, note: 'sèches' }], rituel: RITUEL_SEED },
+);
+dit('a la main : la note devient le constat, ce qu elle retient devient le resume', ['Racines sèches, elle lave trop.', 'Moins laver.'], [main.diagnostic, main.resume]);
+dit('a la main : ce que le maitre a vu ouvre les points', ['Vu à la séance : sécheresse, frisottis.'], main.points);
+dit('a la main : les jauges du bilan precedent, les Quatre Temps au complet', [[2], ['Purifier', 'Nourrir', 'Sceller', 'Couronner']],
+  [main.jauges.map((j) => j.valeur), main.rituel.map((t) => t.nom)]);
+const ecrire = section.slice(section.indexOf('const ecrireMoiMeme = () =>'), section.indexOf('const resumeDeLaLigne'));
+dit('ecrire soi-meme n appelle jamais l assistant', [true, false], [/brouillonDeLaMain\(/.test(ecrire), /demande\(|redigeLeBilan/.test(ecrire)]);
+dit('la fiche a la main ne dit pas « propose par l assistant » et ne propose pas de le rappeler', [true, true],
+  [/useState\(!!brouillon && !parLaMain\)/.test(sansCommentaires('src/apps/trone/routes/clients/BilanModal.tsx')), /surRedemande=\{parLaMain \? undefined :/.test(section)]);
 
 /* ── 7. LA SIGNATURE ET MA COURONNE ─────────────────────────────────── */
 const modale = sansCommentaires('src/apps/trone/routes/clients/BilanModal.tsx');

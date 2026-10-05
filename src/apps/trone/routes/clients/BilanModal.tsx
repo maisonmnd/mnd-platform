@@ -40,7 +40,7 @@ const POINTS_VIDES = ['', '', ''];
 
 export type Redemande = (demande: 'reformuler' | 'raccourcir', actuel: BrouillonDeBilan) => Promise<BrouillonDeBilan>;
 
-export function BilanModal({ client, honored, byId, branchId, onClose, seance, brouillon, nature, surRedemande, surRemis }: {
+export function BilanModal({ client, honored, byId, branchId, onClose, seance, brouillon, nature, surRedemande, surRemis, parLaMain }: {
   client: Client;
   honored: Appointment[];
   byId: Map<string, Service>;
@@ -53,6 +53,9 @@ export function BilanModal({ client, honored, byId, branchId, onClose, seance, b
   nature?: NatureDuCheveu;
   surRedemande?: Redemande;
   surRemis?: (b: Bilan) => void;
+  /** Le brouillon vient de la note du maître, pas de l'assistant : aucun
+      crédit, aucune marque « proposé par l'assistant ». */
+  parLaMain?: boolean;
 }) {
   const [bilans] = useBilans();
   const { session } = useAuth();
@@ -86,7 +89,7 @@ export function BilanModal({ client, honored, byId, branchId, onClose, seance, b
   const [resume, setResume] = useState(brouillon?.resume ?? '');
   const [message, setMessage] = useState(brouillon?.message ?? '');
   const [alerteMedicale, setAlerteMedicale] = useState(brouillon?.alerteMedicale ?? '');
-  const [parAssistant, setParAssistant] = useState(!!brouillon);
+  const [parAssistant, setParAssistant] = useState(!!brouillon && !parLaMain);
   const [redemande, setRedemande] = useState<'' | 'reformuler' | 'raccourcir'>('');
 
   const numero = prochainNumeroBilan(bilans);

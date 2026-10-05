@@ -117,6 +117,41 @@ export type BrouillonDeBilan = {
   alerteMedicale: string;
 };
 
+/* ══ ÉCRIRE SOI-MÊME, SANS L'ASSISTANT — 5 octobre 2026 ═══════════════
+
+   « Mes bilans partaient avant sans crédit Anthropic » (Yéman). Vrai : seul
+   « Rédiger avec l'assistant » coûte un appel. Écrire soi-même ne coûte
+   rien, et part de la note déjà prise : ce que le maître veut qu'elle
+   retienne devient le résumé, ce qu'il a vu devient le premier point, sa
+   note libre ouvre « Ce que nous avons vu », à reprendre en ses mots. Les
+   jauges et le rituel partent du bilan précédent (la continuité), sinon de
+   la voix de la Maison. Aucun réseau, aucun appel : une fonction pure. */
+export function brouillonDeLaMain(
+  n: Pick<NoteDeSeance, 'nature' | 'vu' | 'metisse' | 'attendu' | 'retenir'>,
+  depart: {
+    jauges: readonly { nom: string; valeur: number; note: string }[];
+    rituel: readonly { nom: string; cadence: string; texte: string; ingredients?: string[] }[];
+  },
+): BrouillonDeBilan {
+  const signes = signesRetenus(n);
+  return {
+    diagnostic: sansTiretLong(n.attendu),
+    sens: '',
+    solutions: '',
+    propositions: [],
+    rituel: QUATRE_TEMPS.map((nom) => {
+      const t = depart.rituel.find((r) => r.nom === nom);
+      return { nom, cadence: t?.cadence ?? '', texte: t?.texte ?? '', ingredients: [...(t?.ingredients ?? [])] };
+    }),
+    jauges: depart.jauges.map((j) => ({ ...j })),
+    points: signes.length ? [`Vu à la séance : ${signes.map((s) => s.toLowerCase()).join(', ')}.`] : [],
+    prochaineVisite: '',
+    resume: sansTiretLong(n.retenir),
+    message: '',
+    alerteMedicale: '',
+  };
+}
+
 /* ══ CE QUI PART À L'ASSISTANT ═══════════════════════════════════════ */
 
 export type FicheMinimale = {
