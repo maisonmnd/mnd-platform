@@ -216,7 +216,8 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
               <Field label="Le tampon">
                 <Select value={p.tampon ?? ''} onChange={(e) => { const t = e.target.value || undefined; maj({ tampon: t, poses: range(p.signataires, p.cadre, t) }); }}>
                   <option value="">Sans tampon</option>
-                  {p.entite === 'autre' && <option value="auto">Le tampon de {entreprise?.nom ?? 'l’entreprise'}</option>}
+                  {p.entite === 'autre' && <option value="auto">Le sceau de {entreprise?.nom ?? 'l’entreprise'}</option>}
+                  {p.entite === 'autre' && <option value="auto-cachet">Le cachet commercial de {entreprise?.nom ?? 'l’entreprise'} (siège, RCCM, IFU)</option>}
                   {tampons.map((t) => <option key={t.cle} value={t.cle}>{t.nom}</option>)}
                 </Select>
               </Field>

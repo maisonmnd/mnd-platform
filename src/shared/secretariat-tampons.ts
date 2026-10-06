@@ -68,6 +68,63 @@ export function tamponAutoSvg(nom: string, mentions: string, telephone: string):
 </svg>`;
 }
 
+/* LE CACHET COMMERCIAL D'UNE ENTREPRISE — 7 octobre 2026. « Tu dois créer
+   l'entreprise NYM SARL et son tampon pour faire certains documents comme
+   l'attestation de travail » (Yéman). Le sceau rond ne dit que le nom : une
+   attestation d'employeur porte d'ordinaire un cachet qui dit aussi le
+   siège, le RCCM et l'IFU. On les lit dans les mentions de l'entreprise,
+   morceau par morceau (séparés par « · ») : RCCM, IFU, forme sociale, et le
+   reste fait l'adresse. Rectangle 2 × 1 ; la taille du texte se règle sur
+   la ligne la plus longue, jamais au-delà du cadre. */
+export const RATIO_DU_CACHET = 2;
+
+export type MorceauxDuCachet = { forme: string; adresse: string[]; legales: string; telephone: string };
+
+export function morceauxDuCachet(mentions: string, telephone: string): MorceauxDuCachet {
+  const morceaux = (mentions || '').split('·').map((m) => m.trim()).filter(Boolean);
+  const sansParenthese = (m: string) => m.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  const rccm = morceaux.find((m) => /\bRCCM\b/i.test(m));
+  const ifu = morceaux.find((m) => /\bIFU\b/i.test(m));
+  const forme = morceaux.find((m) => /responsabilit|soci[ée]t[ée] anonyme|\bSARL\b|\bSAS\b|\bSUARL\b/i.test(m) && m !== rccm && m !== ifu) ?? '';
+  const reste = morceaux.filter((m) => m !== rccm && m !== ifu && m !== forme);
+  /* L'adresse sur deux lignes au plus : la coupure tombe à la virgule la plus
+     proche du milieu. */
+  const tout = reste.join(' · ');
+  let adresse: string[] = tout ? [tout] : [];
+  if (tout.length > 44) {
+    const virgules = [...tout.matchAll(/[,·]\s/g)].map((x) => x.index ?? 0);
+    const milieu = tout.length / 2;
+    const coupe = virgules.sort((a, b) => Math.abs(a - milieu) - Math.abs(b - milieu))[0];
+    if (coupe) adresse = [tout.slice(0, coupe + 1).replace(/[·,]$/, '').trim(), tout.slice(coupe + 1).trim()];
+  }
+  const legales = [rccm && sansParenthese(rccm).replace(/n°\s*/i, ''), ifu && sansParenthese(ifu).replace(/n°\s*/i, '')].filter(Boolean).join(' · ');
+  return { forme, adresse, legales, telephone: telephone.trim() };
+}
+
+export function cachetAutoSvg(nom: string, mentions: string, telephone: string): string {
+  const m = morceauxDuCachet(mentions, telephone);
+  const titre = (nom || 'Entreprise').toUpperCase().slice(0, 30);
+  const lignes: { t: string; gras?: boolean; petit?: boolean; espace?: boolean }[] = [
+    ...(m.forme ? [{ t: m.forme.toUpperCase(), petit: true, espace: true }] : []),
+    ...m.adresse.map((t) => ({ t })),
+    ...(m.legales ? [{ t: m.legales, gras: true }] : []),
+    ...(m.telephone ? [{ t: `Tél. ${m.telephone}` }] : []),
+  ];
+  const tailleTitre = Math.max(16, Math.min(30, 340 / Math.max(titre.length * 0.62, 1)));
+  const plusLongue = Math.max(1, ...lignes.map((l) => l.t.length));
+  const taille = Math.max(7.5, Math.min(11.5, 352 / (plusLongue * 0.56)));
+  const haut = 30 + tailleTitre;
+  const pas = Math.min(taille * 1.55, (178 - haut - 12) / Math.max(lignes.length, 1));
+  const y0 = haut + 14 + pas * 0.7;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="600" height="300">
+  <rect x="5" y="5" width="390" height="190" rx="8" fill="none" stroke="#1F2B5C" stroke-width="3.5"/>
+  <rect x="12" y="12" width="376" height="176" rx="5" fill="none" stroke="#1F2B5C" stroke-width="1"/>
+  <text x="200" y="${haut}" font-family="Georgia, serif" font-weight="700" font-size="${tailleTitre.toFixed(1)}" fill="#1F2B5C" text-anchor="middle" letter-spacing="2">${echappe(titre)}</text>
+  <line x1="70" y1="${haut + 9}" x2="330" y2="${haut + 9}" stroke="#1F2B5C" stroke-width="1"/>
+  ${lignes.map((l, i) => `<text x="200" y="${(y0 + i * pas).toFixed(1)}" font-family="Georgia, serif" font-size="${(l.petit ? taille * 0.86 : taille).toFixed(1)}"${l.gras ? ' font-weight="700"' : ''}${l.espace ? ' letter-spacing="1.2"' : ''} fill="#1F2B5C" text-anchor="middle">${echappe(l.t)}</text>`).join('\n  ')}
+</svg>`;
+}
+
 /* LA DATE DANS LE TAMPON « REÇU LE » — 6 octobre 2026. « Sur le reçu,
    comment je peux rajouter la date ? » (Yéman). Le tampon a trois blancs
    (jour / mois / 20 année) : la date s'y écrit, à l'encre du tampon. Les
@@ -112,16 +169,16 @@ export function dateSurLeRecu(png: string, iso: string): Promise<string | null> 
 }
 
 /** Le SVG en image PNG (data URL), pour le PDF. */
-export function svgEnPng(svg: string, cote = 600): Promise<string | null> {
+export function svgEnPng(svg: string, cote = 600, hauteur = cote): Promise<string | null> {
   return new Promise((ok) => {
     try {
       const img = new Image();
       img.onload = () => {
         const c = document.createElement('canvas');
-        c.width = cote; c.height = cote;
+        c.width = cote; c.height = hauteur;
         const ctx = c.getContext('2d');
         if (!ctx) { ok(null); return; }
-        ctx.drawImage(img, 0, 0, cote, cote);
+        ctx.drawImage(img, 0, 0, cote, hauteur);
         ok(c.toDataURL('image/png'));
       };
       img.onerror = () => ok(null);

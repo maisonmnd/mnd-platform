@@ -27,7 +27,7 @@ import {
   nomsDansLaZone, rangeDansLeCadre, restentASigner, retireLesSignatures, sigle, signe, SIGNATURE_MM, TAMPON_MM, Y_DES_NOMS, ZONE, type Piece,
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
-import { morceauxDuRecu, tamponAutoSvg } from '../src/shared/secretariat-tampons';
+import { cachetAutoSvg, morceauxDuCachet, morceauxDuRecu, RATIO_DU_CACHET, tamponAutoSvg } from '../src/shared/secretariat-tampons';
 import { entiteDuFiltre } from '../src/apps/trone/routes/pilotage/Secretariat';
 import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../src/shared/partage-whatsapp';
 
@@ -269,6 +269,28 @@ dit('la fenetre part du filtre', [true, true], [
   page.includes('entiteDeDepart={entiteDuFiltre(filtre, direction)}'),
   page.includes('const [entite, setEntite] = useState<Entite>(entiteDeDepart);'),
 ]);
+
+/* ── 14. LE CACHET COMMERCIAL D'UNE ENTREPRISE — 7 octobre 2026 ──
+   « Crée l'entreprise NYM SARL et son tampon pour l'attestation de
+   travail » (Yéman). Le cachet dit le siège, le RCCM et l'IFU lus dans les
+   mentions ; l'éditeur le propose ; le PDF le pose en 2 × 1, pas carré. */
+const NYM = 'Société à responsabilité limitée · RCCM RB/COT/09 B 4639 (ancien n° 14.205-B) · IFU 3200700011313 · Îlot 141, parcelle E 01, quartier Missèbo, 06 BP 2076 · Cotonou, Bénin';
+const mc = morceauxDuCachet(NYM, '+229 01 21 31 08 10');
+dit('le cachet lit RCCM et IFU, sans l ancien numero entre parentheses', 'RCCM RB/COT/09 B 4639 · IFU 3200700011313', mc.legales);
+dit('le cachet lit la forme sociale', 'Société à responsabilité limitée', mc.forme);
+dit('le cachet garde toute l adresse, en deux lignes au plus', [true, true, true],
+  [mc.adresse.length <= 2, mc.adresse.join(' ').includes('Missèbo'), mc.adresse.join(' ').includes('Cotonou, Bénin')]);
+const svgCachet = cachetAutoSvg('NYM SARL', NYM, '+229 01 21 31 08 10');
+dit('le dessin du cachet porte le nom, le RCCM, l IFU et le telephone', [true, true, true, true],
+  ['NYM SARL', 'RB/COT/09 B 4639', '3200700011313', '+229 01 21 31 08 10'].map((x) => svgCachet.includes(x)));
+dit('le cachet est un rectangle 2 x 1', [2, true], [RATIO_DU_CACHET, svgCachet.includes('viewBox="0 0 400 200"')]);
+dit('le cachet echappe ce qu on y tape', false, /<script|<img/i.test(cachetAutoSvg('<script>x</script>', '<img onerror=x> · RCCM <b>', '')));
+const sourceDuSecretariat = sansCommentaires('src/shared/secretariat.ts');
+dit('le PDF pose le cachet a sa forme', [true, true], [
+  /p\.tampon === 'auto-cachet' && entreprise/.test(sourceDuSecretariat),
+  /svgEnPng\(svg, 600, 600 \/ RATIO_DU_CACHET\)/.test(sourceDuSecretariat),
+]);
+dit('l editeur propose le cachet a une entreprise', true, sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Editeur.tsx').includes('<option value="auto-cachet">'));
 
 console.log(ko === 0 ? '\nLe secretariat tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

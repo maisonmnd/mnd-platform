@@ -5,7 +5,7 @@ import {
   chargeMaSignature, creeEntreprise, deposeMaSignature, enregistreMonProfil, enregistreMonSignataire, majEntreprise,
   nettoieLaSignature, profils, signatairesDe, useSecretariat,
 } from '../../../../../shared/secretariat';
-import { tamponAutoSvg } from '../../../../../shared/secretariat-tampons';
+import { cachetAutoSvg, tamponAutoSvg } from '../../../../../shared/secretariat-tampons';
 import type { Entreprise } from '../../../../../shared/secretariat-pur';
 
 /* LES SIGNATURES DU SECRÉTARIAT — 6 octobre 2026.
@@ -240,8 +240,9 @@ export function NouvelleEntreprise({ branchId, existante, onClose, surCree }: {
           <ChampDuPave label="Sa signature"><PaveDeSignature valeur={signature} surChange={setSignature} /></ChampDuPave>
         </div>
         <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-          <span className="mnd-eyebrow">Son tampon, dessiné à l’instant</span>
+          <span className="mnd-eyebrow">Ses tampons, dessinés à l’instant</span>
           <div style={{ width: '100%', maxWidth: 220 }} dangerouslySetInnerHTML={{ __html: tamponAutoSvg(nom, mentions, telephone).replace('width="600" height="600"', 'width="100%"') }} />
+          <div style={{ width: '100%', maxWidth: 260 }} dangerouslySetInnerHTML={{ __html: cachetAutoSvg(nom, mentions, telephone).replace('width="600" height="300"', 'width="100%"') }} />
           <span className="mnd-muted" style={{ fontSize: 12, textAlign: 'center' }}>Gardée pour la fois suivante, avec sa propre série de numéros.</span>
         </div>
       </div>

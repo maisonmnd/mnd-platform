@@ -6,7 +6,7 @@ import {
   type Entite, type Entreprise, type LigneSecretariat, type Mentions, type Piece, type Profil, type Signataire,
 } from './secretariat-pur';
 import { modeleDe, remplis } from './secretariat-modeles';
-import { dateSurLeRecu, TAMPON_A_DATER, tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
+import { cachetAutoSvg, dateSurLeRecu, RATIO_DU_CACHET, TAMPON_A_DATER, tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
 
 /* LE SECRÉTARIAT, CÔTÉ TRÔNE — 6 octobre 2026.
 
@@ -278,6 +278,11 @@ export async function resous(p: Piece, toutes: readonly LigneSecretariat[], nomM
     const svg = tamponAutoSvg(entreprise.nom, entreprise.mentions, entreprise.telephone);
     const png = await enCache(svg, () => svgEnPng(svg));
     if (png) tampon = { image: png, ratio: 1 };
+  } else if (p.tampon === 'auto-cachet' && entreprise) {
+    /* Le cachet commercial : siège, RCCM, IFU (7 octobre). */
+    const svg = cachetAutoSvg(entreprise.nom, entreprise.mentions, entreprise.telephone);
+    const png = await enCache(svg, () => svgEnPng(svg, 600, 600 / RATIO_DU_CACHET));
+    if (png) tampon = { image: png, ratio: RATIO_DU_CACHET };
   } else if (p.tampon) {
     const def = tamponParCle(p.tampon);
     let png = def ? await enDataUrl(asset(`/assets/tampons/${def.fichier}`)) : null;
