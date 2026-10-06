@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE DOSSIER DE BOURSE, AU SECRÉTARIAT — 6 octobre 2026, BÂTI, PAS ENCORE PUBLIÉ
+## LE DOSSIER DE BOURSE, TROISIÈME ONGLET DU SECRÉTARIAT — 6 octobre 2026, BÂTI, PAS ENCORE PUBLIÉ
 
 « Ça me prend un temps fou, parfois deux à trois semaines. Maximum quinze
 minutes. » Puis : « Bâtis dans le Trône une page Dossier de bourse au
@@ -10,11 +10,29 @@ secrétariat : le coffre des pièces permanentes avec leurs dates d'expiration,
 le rappel mensuel de collecte, la lettre et les attestations générées depuis
 l'identité de la Maison, et le PDF assemblé dans l'ordre de la liste » (Yéman).
 
-**Un nouveau département, « Secrétariat »** (`dept-secretariat`), dont le
-premier écran est `/dossier-de-bourse`. Réservé à la direction
-(`ROUTES_DIRECTION`) : le dossier dit une famille, des enfants, des salaires.
-Un maître ne le voit pas, et l'écran dit « Réservé à la direction » sans
-interroger le coffre.
+**Troisième onglet du Secrétariat**, à côté des documents et des papiers
+(écran `/secretariat`, département Direction, né le même jour dans une autre
+session : lettres numérotées et signées, papiers des entreprises et des
+personnes avec leurs alertes d'expiration). Une première version de ce
+travail ouvrait un département « Secrétariat » à part : elle a été reprise
+le soir même, en fusionnant `main`, pour se poser DANS l'écran existant.
+L'onglet garde sa propre adresse, `/dossier-de-bourse`, hors menu, pour les
+liens ; `location.state.onglet = 'bourse'` l'ouvre depuis le secrétariat.
+Réservé à la direction (`ROUTES_DIRECTION`) : le dossier dit une famille, des
+enfants, des salaires. Un maître ne le voit pas, et l'écran dit « Réservé à la
+direction » sans interroger le coffre.
+
+**CE QUI RESTE EN DEUX EXEMPLAIRES, ET POURQUOI.** Les papiers du secrétariat
+(table `papiers`, compartiment `papiers`, 0117) tiennent déjà les pièces
+d'identité et les passeports des personnes, avec alerte à 60 jours. Le
+dossier de bourse a son propre coffre parce que ses pièces ne sont pas des
+papiers d'identité : relevés, factures, quittances, bulletins, rangés par
+rubrique de l'Ambassade et par mois, et parce qu'il doit se relire hors
+ligne sur le poste de la direction (cache local), là où les papiers ne se
+lisent qu'en ligne, par choix. Les passeports, eux, peuvent vivre aux
+papiers : la rubrique 04 du dossier accepte une copie, et c'est la date
+d'expiration des papiers qui fait foi. Rapprocher les deux (lire les
+passeports des papiers depuis la rubrique 04) est le prochain pas naturel.
 
 **LE CODE NE PORTE AUCUN NOM. Le dépôt est public.** Rien de la famille n'est
 écrit dans `src/` : ni enfant, ni employeur, ni adresse. Tout vient de la
@@ -44,7 +62,11 @@ permet de relire hors ligne ce que ce poste a déjà ouvert.
   mois, huit mois d'historique et le rétro-planning à rebours du dépôt.
 - *La lettre et les attestations générées depuis l'identité de la Maison* :
   `shared/bourse.ts` rédige six textes depuis la fiche (demande, employeur,
-  hébergement, quittance, sur l'honneur, avantages en nature). Quand
+  hébergement, quittance, sur l'honneur, avantages en nature). Ils sortent en
+  PDF directement, sans passer par l'éditeur du secrétariat ni sa série de
+  numéros : une lettre de la famille à l'Ambassade n'est pas un document de la
+  Maison. Seule l'attestation d'employeur que la Maison délivre pourrait un
+  jour prendre un numéro MND-DOC ; ce n'est pas fait. Quand
   l'employeur EST la Maison (`emploi.estLaMaison`), l'attestation sort avec le
   nom, la raison, la ville, le monogramme et la devise de `shared/identite` ;
   les lettres de la famille, elles, ne portent pas la devise : ce ne sont pas
@@ -52,7 +74,8 @@ permet de relire hors ligne ce que ce poste a déjà ouvert.
   à l'écran, pour qu'un oubli se voie avant d'être signé.
 - *Le PDF assemblé dans l'ordre de la liste* : `ordreDAssemblage` suit les 22
   rubriques de l'Ambassade (`RUBRIQUES`), le bordereau en tête ; jsPDF écrit
-  les lettres (`shared/bourse-pdf.ts`), et **pdf-lib, nouvelle dépendance**,
+  les lettres (`shared/bourse-pdf.ts`), et pdf-lib, que les papiers du
+  secrétariat avaient ajouté le même jour pour leur propre assemblage,
   recoud lettres et pièces du coffre, PDF ou photos, en un seul fichier. Une
   pièce illisible devient une page qui le dit : la numérotation ne bouge pas.
   Les deux bibliothèques se chargent à la demande, un Trône qui n'ouvre pas ce

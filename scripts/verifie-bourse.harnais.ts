@@ -141,7 +141,7 @@ dit('en octobre 2026, la prochaine campagne est 2027-2028 sur les revenus 2026',
 dit('en janvier 2027, c’est encore 2027-2028', { anneeScolaire: '2027-2028', anneeReference: 2026 }, campagneSuivante('2027-01-10'));
 
 /* ── 10. Aucun nom de famille dans le code ───────────────────────────── */
-const sources = ['src/shared/bourse.ts', 'src/shared/bourse-coffre.ts', 'src/shared/bourse-pdf.ts', 'src/apps/trone/routes/secretariat/DossierBourse.tsx'];
+const sources = ['src/shared/bourse.ts', 'src/shared/bourse-coffre.ts', 'src/shared/bourse-pdf.ts', 'src/apps/trone/routes/pilotage/secretariat/DossierBourse.tsx'];
 const interdits = /ahouansou|boya|houinsou|nym\b|n\.y\.m|kiade|kèliji|kanonsa|komakan|praxède|sètondji|suru-léré|tokplégbé|rb\/cot\/09/i;
 for (const f of sources) {
   const texte = readFileSync(path.join(process.cwd(), f), 'utf8');
