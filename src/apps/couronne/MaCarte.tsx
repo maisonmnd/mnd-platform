@@ -25,7 +25,7 @@ const ETAT_DIT = { 'sans-rdv': 'pas encore de rendez-vous', 'a-venir': 'rendez-v
 const dateDite = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(locale(), { day: 'numeric', month: 'long' });
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 /* ── CE QUE LE TRÔNE ÉCRIT EN FRANÇAIS, DIT DANS SA LANGUE — 3 octobre 2026 ──

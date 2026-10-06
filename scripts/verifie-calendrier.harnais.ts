@@ -153,4 +153,31 @@ dit('et seules les années passées s’offrent', [2025, 2024], decembre.candida
 const tableau = readFileSync('src/apps/trone/routes/pilotage/Dashboard.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 dit('le tableau de bord n ecrit aucune date de rendez-vous sans l annee', [], tableau.match(/frShort\([^)]*\.date\)/g) ?? []);
 
+/* L'ANNÉE, PARTOUT OÙ UNE CLIENTE SE LIT — 6 octobre 2026, la troisième
+   fois. « Rajouter les années. Sur Ma Couronne aussi dans Suivi. Je veux les
+   années » (Yéman), devant les factures de la fiche (« 11 juin », « 11 févr. »
+   à côté de 2026). La règle, et non le cas du jour :
+   ① LA FICHE CLIENTE n'écrit aucune date par `frShort` ni `frDay` (jour et
+      mois sans année) : elle montre des années d'histoire côte à côte ;
+   ② MA COURONNE met l'année à la racine (`dayLabel`, `dayLabelIsoFr`), et
+      aucune de ses dates « jour + mois » ne s'écrit sans `year`. */
+const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const fiche = sansCommentaires('src/apps/trone/routes/clients/Customers.tsx');
+dit('la fiche cliente n ecrit aucune date sans son annee', [], fiche.match(/\b(frShort|frDay)\(/g) ?? []);
+const libCouronne = sansCommentaires('src/apps/couronne/lib.ts');
+dit('Ma Couronne : le libelle du jour porte l annee, en francais comme pour le Trone', [true, true], [
+  /export function dayLabel\(d: Date\): string \{\s*return `[^`]*\$\{d\.getFullYear\(\)\}`;/.test(libCouronne),
+  /export function dayLabelIsoFr\(iso: string\): string \{[\s\S]{0,200}?\$\{d\.getFullYear\(\)\}`;/.test(libCouronne),
+]);
+const fichiersCouronne = ['Tabs.tsx', 'Booking.tsx', 'MaCarte.tsx', 'MaFormule.tsx', 'MesRendezVous.tsx', 'Cycle.tsx', 'Compose.tsx', 'lib.ts'];
+const datesSansAnnee = fichiersCouronne.flatMap((f) => {
+  const src = sansCommentaires(`src/apps/couronne/${f}`);
+  return (src.match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? [])
+    .filter((o) => /\bday:/.test(o) && /\bmonth:/.test(o) && !/\byear:/.test(o))
+    .map((o) => `${f}: ${o}`);
+});
+dit('Ma Couronne n ecrit aucune date « jour + mois » sans l annee', [], datesSansAnnee);
+/* Le contrôle doit VOIR des dates pour en juger : s'il n'en lit aucune, il est mort. */
+dit('… et il en lit bien (au moins cinq)', true, fichiersCouronne.flatMap((f) => sansCommentaires(`src/apps/couronne/${f}`).match(/toLocaleDateString\([^{;]*\{[^}]*\}/g) ?? []).length >= 5);
+
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} épreuve(s) en échec.`);

@@ -48,7 +48,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const frCourt = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 /** LA COULEUR DITE DANS SA LANGUE : le libellé partagé (« L’Ébène · une venue

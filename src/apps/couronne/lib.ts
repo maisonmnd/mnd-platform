@@ -445,8 +445,14 @@ export const todayIso = () => isoOf(new Date());
 export const dateOfIso = (iso: string) => new Date(`${iso}T00:00:00`);
 
 /** « Sam. 5 juil » (« Sat 5 Jul » en anglais) */
+/* L'ANNÉE, TOUJOURS — 6 octobre 2026. « Rajouter les années. Sur Ma
+   Couronne aussi dans Suivi. Je veux les années » (Yéman). Le 5 septembre
+   déjà : « rajoute toujours les années ». Un suivi court sur des années ;
+   « Sam. 5 juil » se lit comme cette année, même quand c'était l'an passé.
+   L'année se met ICI, à la racine : tous les écrans qui lisent ce libellé
+   la reçoivent d'un coup. */
 export function dayLabel(d: Date): string {
-  return `${DOWS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  return `${DOWS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 export function dayLabelIso(iso: string): string {
   return dayLabel(dateOfIso(iso));
@@ -454,7 +460,7 @@ export function dayLabelIso(iso: string): string {
 /** Le même, TOUJOURS en français : pour ce qui part au Trône (push du personnel). */
 export function dayLabelIsoFr(iso: string): string {
   const d = dateOfIso(iso);
-  return `${DOWS_FR[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT_FR[d.getMonth()]}`;
+  return `${DOWS_FR[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function daysSince(iso: string): number {

@@ -45,7 +45,7 @@ import { t, locale, langue, prix } from './i18n';
    `dayLabelIso`, en français. */
 const jourDit = (iso: string): string =>
   langue() === 'en'
-    ? dateOfIso(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })
+    ? dateOfIso(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
     : dayLabelIso(iso);
 
 /* Le mois du calendrier : « Octobre 2026 » / « October 2026 ». */

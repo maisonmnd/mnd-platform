@@ -67,7 +67,7 @@ const tierGlyph = (tier: { g: string }, idx: number) => tier.g || ROMANS[idx] ||
 const jourDit = (iso: string): string => {
   if (langue() !== 'en') return dayLabelIso(iso);
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? dayLabelIso(iso) : d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+  return Number.isNaN(d.getTime()) ? dayLabelIso(iso) : d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 /* LE RYTHME DANS SA LANGUE : le juge (seuils, arrondis) reste celui de
