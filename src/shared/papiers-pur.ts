@@ -235,6 +235,18 @@ export function texteDeLaMarque(destinataire: string, jour: string, motif?: stri
 export const TAILLE_MAX = 10 * 1024 * 1024;
 export const TYPES_ACCEPTES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'] as const;
 
+/** LE TYPE D'UN FICHIER CHOISI AU TÉLÉPHONE — 6 octobre 2026. Android donne
+    parfois un type vide (un PDF venu d'une autre application), l'iPhone un
+    HEIC : on devine par l'extension, et une photo HEIC est acceptée pour
+    être convertie en JPEG avant l'envoi (elle n'est jamais gardée telle
+    quelle). Rend '' quand le fichier n'est ni un PDF ni une photo. */
+export function typeDuFichier(nom: string, type: string): string {
+  const t = (type || '').toLowerCase();
+  if ((TYPES_ACCEPTES as readonly string[]).includes(t) || t === 'image/heic' || t === 'image/heif') return t;
+  const ext = (nom.split('.').pop() || '').toLowerCase();
+  return ({ pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif' } as Record<string, string>)[ext] ?? '';
+}
+
 /** Le chemin d'un fichier dans le compartiment : par titulaire et par pièce,
     sans espace ni accent (le stockage refuse les noms fantaisistes). */
 export function cheminDuFichier(titulaire: Titulaire, papierId: string, n: number, ext: string, horodatage: number): string {

@@ -18,7 +18,7 @@
       ne se décoche pas quand elle est obligatoire. */
 import { readFileSync } from 'node:fs';
 import {
-  ajouteAuJournal, aRenouveler, cheminDuFichier, completude, etatDe, expirationProposee, JOURNAL_MAX,
+  ajouteAuJournal, aRenouveler, cheminDuFichier, completude, etatDe, expirationProposee, JOURNAL_MAX, typeDuFichier,
   lignesDuDossier, manquantsDe, marqueObligatoire, numeroDouteux, remplace, texteDeLaMarque, type Papier,
 } from '../src/shared/papiers-pur';
 
@@ -125,6 +125,23 @@ dit('le choix des fichiers est un vrai bouton, hors de toute etiquette', [true, 
 ]);
 const aFaire = sansCommentaires('src/apps/trone/routes/pilotage/AFaire.tsx');
 dit('le rappel d A faire est a la direction seule', true, aFaire.includes('{estDirection && <RappelDesPapiers'));
+
+/* ── 9. AU TÉLÉPHONE — 6 octobre 2026 (« sur les portables je ne peux pas
+   enregistrer un document, ça dit : pas de réseau ») ── */
+dit('le type se devine par l extension (Android donne parfois un type vide), un HEIC est accepte pour conversion',
+  ['application/pdf', 'image/heic', 'image/jpeg', '', 'image/png'],
+  [typeDuFichier('Scan.PDF', ''), typeDuFichier('IMG_1.HEIC', ''), typeDuFichier('photo.jpg', 'image/jpeg'), typeDuFichier('lettre.docx', ''), typeDuFichier('x', 'image/png')]);
+dit('le fichier est lu en memoire des qu on le choisit, pas a l envoi', [true, true], [
+  /export async function copieEnMemoire\(f: File\)[\s\S]{0,400}await f\.arrayBuffer\(\)/.test(module),
+  /const r = await copieEnMemoire\(f\);/.test(ecran),
+]);
+dit('une panne pendant un enregistrement ne se dit plus « ne se lisent qu en ligne »', [true, true], [
+  /geste === 'lire'\s*\?\s*'Pas de réseau : les papiers ne se lisent qu’en ligne\.'\s*:\s*`La pièce n’a pas pu partir au serveur/.test(module),
+  /erreur: `Page \$\{i \+ 1\} \(« \$\{f\.name\} »\) : \$\{lisible\(derniere, 'ecrire'\)\}`/.test(module),
+]);
+dit('chaque page est retentee trois fois', [true, true],
+  [/export const ESSAIS_D_ENVOI = 3;/.test(module), /for \(let essai = 1; essai <= ESSAIS_D_ENVOI; essai \+= 1\)/.test(module)]);
+dit('le bouton ne reste jamais sur « Envoi… »', true, /try \{ await gardeVraiment\(\); \} catch[\s\S]{0,200}finally \{ setEnvoi\(false\); \}/.test(ecran));
 
 console.log(ko === 0 ? '\nLes papiers tiennent leurs regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

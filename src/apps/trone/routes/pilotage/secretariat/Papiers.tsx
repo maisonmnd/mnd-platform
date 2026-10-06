@@ -10,7 +10,7 @@ import {
   type Papier, type Titulaire,
 } from '../../../../../shared/papiers-pur';
 import {
-  ajouteUnePersonne, assembleLeDossier, chargeLeClasseur, deposeLesPages, effaceUnPapier, enDataUrl, gardeUnPapier,
+  ajouteUnePersonne, assembleLeDossier, chargeLeClasseur, copieEnMemoire, deposeLesPages, effaceUnPapier, enDataUrl, gardeUnPapier,
   lienDUnePage, modifieUnPapier, noteAuJournal, oublieLeClasseur, papiersDe, personnesDe, remplaceUnPapier, useClasseur,
 } from '../../../../../shared/papiers';
 
@@ -164,13 +164,28 @@ export function LesPapiers({ branchId, qui, titulairesEntreprises, suggestions }
 
 function ChoixDesFichiers({ fichiers, surChange }: { fichiers: File[]; surChange: (f: File[]) => void }) {
   const entree = useRef<HTMLInputElement>(null);
+  const [lecture, setLecture] = useState(false);
+  /* Chaque fichier est copié en mémoire DÈS LE CHOIX : un fichier resté
+     dans le cloud du téléphone se dit maintenant, pas à l'envoi. */
+  const choisis = async (liste: File[]) => {
+    if (!liste.length) return;
+    setLecture(true);
+    const copies: File[] = [];
+    for (const f of liste) {
+      const r = await copieEnMemoire(f);
+      if (r.erreur) { toast(r.erreur); continue; }
+      if (r.fichier) copies.push(r.fichier);
+    }
+    setLecture(false);
+    if (copies.length) surChange(copies);
+  };
   return (
     <div className="pap-depot">
       {/* UN VRAI BOUTON hors de toute étiquette (leçon du 6 octobre : une
           étiquette dans un champ-étiquette n'ouvre jamais le fichier). */}
-      <Button variant="ghost" onClick={() => entree.current?.click()}>{fichiers.length ? 'Changer les fichiers' : 'Choisir les pages (photo ou PDF)'}</Button>
-      <input ref={entree} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hidden
-        onChange={(e) => { surChange(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+      <Button variant="ghost" onClick={() => entree.current?.click()} disabled={lecture}>{lecture ? 'Lecture du fichier…' : fichiers.length ? 'Changer les fichiers' : 'Choisir les pages (photo ou PDF)'}</Button>
+      <input ref={entree} type="file" accept="application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.heic" multiple hidden
+        onChange={(e) => { const l = Array.from(e.target.files ?? []); e.target.value = ''; void choisis(l); }} />
       <span className="mnd-muted" style={{ fontSize: 12 }}>
         {fichiers.length ? fichiers.map((f) => f.name).join(' · ') : 'Recto et verso, ou un PDF entier · 10 Mo par fichier · les photos sont allégées avant l’envoi'}
       </span>
@@ -212,14 +227,18 @@ function AjouterUnPapier({ branchId, qui, titulaires, depart, onClose, remplacer
   const garde = async () => {
     if (!fichiers.length) { toast('Choisissez au moins une page (photo ou PDF).'); return; }
     setEnvoi(true);
+    try { await gardeVraiment(); } catch (e) {
+      toast(`La pièce n’a pas été gardée : ${e instanceof Error ? e.message : String(e)}`);
+    } finally { setEnvoi(false); }
+  };
+  const gardeVraiment = async () => {
     const id = remplacer?.id ?? `pap-${Math.random().toString(36).slice(2, 12)}`;
     const { pages, erreur } = await deposeLesPages(titulaire, id, fichiers);
-    if (erreur) { setEnvoi(false); toast(erreur); return; }
+    if (erreur) { toast(erreur, 9000); return; }
     const r = remplacer
       ? await remplaceUnPapier(remplacer, { pages, numero: numero.trim(), delivreLe, expireLe }, qui)
       : await gardeUnPapier({ id, branchId, titulaire, type, titre: type.startsWith('autre') ? titre.trim() : undefined, numero: numero.trim(), delivreLe, expireLe, original: original.trim(), note: note.trim(), pages, deposePar: qui }, qui);
-    setEnvoi(false);
-    if (!r.ok) { toast(r.erreur ?? 'La pièce n’a pas été gardée.'); return; }
+    if (!r.ok) { toast(r.erreur ?? 'La pièce n’a pas été gardée.', 9000); return; }
     /* LE RCCM ET L'IFU NOURRISSENT L'EN-TÊTE DES LETTRES : une seule source. */
     if ((type === 'rccm' || type === 'ifu') && numero.trim() && (titulaire === 'ent:mnd' || titulaire === 'ent:acia')) {
       const entite = titulaire === 'ent:mnd' ? 'mnd' : 'acia';

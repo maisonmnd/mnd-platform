@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { uid } from './store';
 import { litToutesLesPages } from './lecture-entiere';
 import {
-  ajouteAuJournal, cheminDuFichier, remplace, TAILLE_MAX, titreDuPapier, TYPES_ACCEPTES,
+  ajouteAuJournal, cheminDuFichier, remplace, TAILLE_MAX, titreDuPapier, typeDuFichier,
   type LignePapiers, type Page, type Papier, type Personne, type Titulaire,
 } from './papiers-pur';
 
@@ -54,17 +54,26 @@ export async function chargeLeClasseur(): Promise<void> {
 /** Oublie le classeur (à la fermeture de l'écran) : la mémoire se vide aussi. */
 export const oublieLeClasseur = (): void => pose({ lignes: [], charge: 'jamais', erreur: undefined });
 
-const lisible = (m: string): string =>
+/* UN MESSAGE PAR GESTE — 6 octobre 2026. « Sur les portables je ne peux pas
+   enregistrer un document, ça dit : pas de réseau, les papiers ne se lisent
+   qu'en ligne » (Yéman). Toute panne de requête devenait ce message de
+   LECTURE, même pendant un enregistrement : on ne savait ni quelle étape
+   cassait, ni quoi faire. Chaque geste a désormais sa phrase, et le détail
+   technique reste lisible en fin de message. */
+const lisible = (m: string, geste: 'lire' | 'ecrire' = 'lire'): string =>
   /relation .*papiers.* does not exist|PGRST205/i.test(m) ? 'La table des papiers n’existe pas encore : la migration 0117 n’a pas été passée.'
     : /row-level security|permission|42501/i.test(m) ? 'Les papiers sont réservés à la direction.'
-      : /fetch|network|load failed/i.test(m) ? 'Pas de réseau : les papiers ne se lisent qu’en ligne.'
+      : /fetch|network|load failed|timed out|aborted/i.test(m)
+        ? (geste === 'lire'
+          ? 'Pas de réseau : les papiers ne se lisent qu’en ligne.'
+          : `La pièce n’a pas pu partir au serveur (le réseau a coupé pendant l’envoi). Réessayez, en Wi-Fi si possible. Détail : ${m}`)
         : m;
 
 /** Écrire une ligne ET le savoir : la base dit ce qu'elle a vraiment gardé. */
 async function ecris(ligne: LignePapiers): Promise<{ ok: boolean; erreur?: string }> {
   if (!supabase) return { ok: false, erreur: 'Pas de connexion à la Maison.' };
   const { data, error } = await supabase.from('papiers').upsert({ id: ligne.id, branch_id: ligne.branchId, data: ligne }).select('id');
-  if (error) return { ok: false, erreur: lisible(error.message) };
+  if (error) return { ok: false, erreur: lisible(error.message, 'ecrire') };
   if ((data?.length ?? 0) !== 1) return { ok: false, erreur: 'La base n’a rien gardé.' };
   pose({ lignes: etat.lignes.some((x) => x.id === ligne.id) ? etat.lignes.map((x) => (x.id === ligne.id ? ligne : x)) : [...etat.lignes, ligne] });
   return { ok: true };
@@ -74,13 +83,32 @@ const maintenant = () => new Date().toISOString();
 
 /* ══ LES FICHIERS ════════════════════════════════════════════════════ */
 
-/** Une photo s'allège avant de partir : 2 200 px au plus, en JPEG. Elle reste
-    lisible à l'impression ; un PDF part tel quel. */
+/** LIRE LE FICHIER TOUT DE SUITE, au moment où on le choisit — 6 octobre 2026.
+    Au téléphone, un fichier pris dans OneDrive, Google Drive ou iCloud n'est
+    souvent qu'un LIEN vers le cloud : au moment de l'envoyer, le téléphone ne
+    sait plus le lire, et le navigateur ne dit qu'une erreur de réseau. On le
+    copie donc en mémoire dès le choix ; s'il ne se lit pas, on le dit à cet
+    instant, avec la bonne explication. */
+export async function copieEnMemoire(f: File): Promise<{ fichier?: File; erreur?: string }> {
+  const type = typeDuFichier(f.name, f.type);
+  if (!type) return { erreur: `« ${f.name} » : seuls les PDF et les photos sont acceptés.` };
+  try {
+    const octets = await f.arrayBuffer();
+    if (octets.byteLength === 0) throw new Error('vide');
+    return { fichier: new File([octets], f.name, { type }) };
+  } catch {
+    return { erreur: `« ${f.name} » ne se lit pas sur ce téléphone : il est sans doute resté dans le cloud (OneDrive, Drive, iCloud). Ouvrez-le d’abord pour l’enregistrer sur le téléphone, ou prenez le papier en photo.` };
+  }
+}
+
+/** Une photo s'allège avant de partir : 2 200 px au plus, en JPEG (une photo
+    HEIC d'iPhone y est convertie). Elle reste lisible à l'impression ; un PDF
+    part tel quel. */
 async function allege(f: File): Promise<Blob> {
   if (f.type === 'application/pdf') return f;
   const url = URL.createObjectURL(f);
   try {
-    const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('photo illisible')); i.src = url; });
     const k = Math.min(1, 2200 / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
@@ -92,6 +120,8 @@ async function allege(f: File): Promise<Blob> {
   } finally { URL.revokeObjectURL(url); }
 }
 
+export const ESSAIS_D_ENVOI = 3;
+
 /** Déposer les pages d'une pièce dans le compartiment privé. */
 export async function deposeLesPages(titulaire: Titulaire, papierId: string, fichiers: readonly File[]): Promise<{ pages: Page[]; erreur?: string }> {
   if (!supabase) return { pages: [], erreur: 'Pas de connexion à la Maison.' };
@@ -99,13 +129,26 @@ export async function deposeLesPages(titulaire: Titulaire, papierId: string, fic
   const t0 = Date.now();
   for (let i = 0; i < fichiers.length; i += 1) {
     const f = fichiers[i];
-    if (!(TYPES_ACCEPTES as readonly string[]).includes(f.type)) return { pages, erreur: `« ${f.name} » : seuls les PDF et les photos (JPG, PNG) sont acceptés.` };
-    const corps = await allege(f);
+    if (!typeDuFichier(f.name, f.type)) return { pages, erreur: `« ${f.name} » : seuls les PDF et les photos sont acceptés.` };
+    let corps: Blob;
+    try { corps = await allege(f); } catch {
+      return { pages, erreur: `« ${f.name} » : cette photo ne s’ouvre pas sur ce téléphone. Prenez le papier en photo avec l’appareil photo, ou envoyez un PDF.` };
+    }
     if (corps.size > TAILLE_MAX) return { pages, erreur: `« ${f.name} » dépasse 10 Mo.` };
-    const type = corps.type || f.type;
+    const type = corps.type === 'image/jpeg' || corps.type === 'application/pdf' || corps.type === 'image/png' || corps.type === 'image/webp' ? corps.type : 'image/jpeg';
     const chemin = cheminDuFichier(titulaire, papierId, i + 1, type === 'application/pdf' ? 'pdf' : 'jpg', t0);
-    const { error } = await supabase.storage.from('papiers').upload(chemin, corps, { contentType: type, upsert: false });
-    if (error) return { pages, erreur: lisible(error.message) };
+    /* TROIS ESSAIS : le réseau d'un téléphone coupe une seconde, un envoi
+       repart. Le même chemin resservirait mal un envoi à moitié arrivé :
+       `upsert` le remplace proprement. */
+    let derniere = '';
+    for (let essai = 1; essai <= ESSAIS_D_ENVOI; essai += 1) {
+      const { error } = await supabase.storage.from('papiers').upload(chemin, corps, { contentType: type, upsert: true });
+      if (!error) { derniere = ''; break; }
+      derniere = error.message;
+      if (!/fetch|network|load failed|timed out|aborted/i.test(derniere)) break;
+      await new Promise((r) => setTimeout(r, 1500 * essai));
+    }
+    if (derniere) return { pages, erreur: `Page ${i + 1} (« ${f.name} ») : ${lisible(derniere, 'ecrire')}` };
     pages.push({ chemin, nom: f.name, type, taille: corps.size });
   }
   return { pages };
@@ -153,7 +196,7 @@ export async function noteAuJournal(p: Papier, qui: string, quoi: string): Promi
 export async function effaceUnPapier(p: Papier): Promise<{ ok: boolean; erreur?: string }> {
   if (!supabase) return { ok: false, erreur: 'Pas de connexion à la Maison.' };
   const { data, error } = await supabase.from('papiers').delete().eq('id', p.id).select('id');
-  if (error) return { ok: false, erreur: lisible(error.message) };
+  if (error) return { ok: false, erreur: lisible(error.message, 'ecrire') };
   if ((data?.length ?? 0) !== 1) return { ok: false, erreur: 'La base n’a rien effacé.' };
   const chemins = [...p.pages, ...p.versions.flatMap((v) => v.pages)].map((x) => x.chemin);
   if (chemins.length) await supabase.storage.from('papiers').remove(chemins);
