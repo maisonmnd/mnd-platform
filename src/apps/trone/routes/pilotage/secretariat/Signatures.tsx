@@ -22,6 +22,7 @@ import type { Entreprise } from '../../../../../shared/secretariat-pur';
 /** Le pavé : on dessine, ou on importe une photo. Rend un PNG transparent. */
 export function PaveDeSignature({ valeur, surChange }: { valeur: string | null; surChange: (png: string | null) => void }) {
   const pad = useRef<HTMLCanvasElement>(null);
+  const fichier = useRef<HTMLInputElement>(null);
   const trace = useRef<[number, number] | null>(null);
   const aDessine = useRef(false);
 
@@ -99,10 +100,18 @@ export function PaveDeSignature({ valeur, surChange }: { valeur: string | null; 
       />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Button variant="ghost" size="sm" onClick={() => { pad.current?.getContext('2d')?.clearRect(0, 0, 700, 220); aDessine.current = true; surChange(null); }}>Effacer</Button>
-        <label className="mnd-btn mnd-btn--ghost mnd-btn--sm" style={{ cursor: 'pointer' }}>
-          Importer une photo
-          <input type="file" accept="image/*" hidden onChange={(e) => importe(e.target.files?.[0])} />
-        </label>
+        {/* UN VRAI BOUTON, pas une étiquette (6 octobre : « le bouton
+            importer photo ne marche pas »). L'étiquette vivait dans le champ
+            « La signature », lui-même une étiquette qui annule tout clic
+            hors d'une commande : le choix du fichier ne s'ouvrait jamais. */}
+        <Button variant="ghost" size="sm" onClick={() => fichier.current?.click()}>Importer une photo</Button>
+        <input
+          ref={fichier}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => { importe(e.target.files?.[0]); e.target.value = ''; }}
+        />
         <span className="mnd-muted" style={{ fontSize: 12 }}>Dessinez à la souris ou au doigt, ou importez la photo d’une signature au stylo foncé sur papier blanc.</span>
       </div>
     </div>
@@ -118,6 +127,18 @@ const nettoieLaSignatureDuPave = (c: HTMLCanvasElement): string | null => {
   x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, c.width, c.height); x.drawImage(c, 0, 0);
   return nettoieLaSignature(blanc);
 };
+
+/** Le titre du pavé, à l'allure d'un champ, mais PAS une étiquette : un
+    `Field` est un <label> qui annule les clics hors d'une commande, et le
+    pavé porte ses propres boutons et son dessin. */
+function ChampDuPave({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mnd-field">
+      <span className="mnd-field__label">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 /** MA SIGNATURE, et mes coordonnées pour les lettres personnelles. */
 export function MaSignature({ userId, branchId, nomParDefaut, direction, onClose }: {
@@ -158,7 +179,7 @@ export function MaSignature({ userId, branchId, nomParDefaut, direction, onClose
           <Field label="Nom sous la signature"><Input value={nom} onChange={(e) => setNom(e.target.value)} /></Field>
           <Field label="Qualité"><Input value={qualite} onChange={(e) => setQualite(e.target.value)} placeholder="Cogérante, Gérant, Directeur…" /></Field>
         </div>
-        <Field label="La signature">{charge ? <span className="mnd-muted">Lecture…</span> : <PaveDeSignature valeur={png} surChange={setPng} />}</Field>
+        <ChampDuPave label="La signature">{charge ? <span className="mnd-muted">Lecture…</span> : <PaveDeSignature valeur={png} surChange={setPng} />}</ChampDuPave>
         {direction && (
           <>
             <div className="mnd-eyebrow">Pour vos lettres personnelles</div>
@@ -209,7 +230,7 @@ export function NouvelleEntreprise({ branchId, existante, onClose, surCree }: {
           <Field label="RCCM, IFU, adresse, courriel"><Input value={mentions} onChange={(e) => setMentions(e.target.value)} /></Field>
           <Field label="Téléphone"><Input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="+229 01 …" /></Field>
           <Field label="Signataire (nom et qualité)"><Input value={signataire} onChange={(e) => setSignataire(e.target.value)} /></Field>
-          <Field label="Sa signature"><PaveDeSignature valeur={signature} surChange={setSignature} /></Field>
+          <ChampDuPave label="Sa signature"><PaveDeSignature valeur={signature} surChange={setSignature} /></ChampDuPave>
         </div>
         <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
           <span className="mnd-eyebrow">Son tampon, dessiné à l’instant</span>

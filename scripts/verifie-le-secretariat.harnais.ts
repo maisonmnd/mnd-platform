@@ -169,6 +169,14 @@ dit('signer pose la signature du compte connecte, et elle seule', [true, true, 1
 dit('rien ne se signe tant qu il reste [a completer] : signer, signer pour l entreprise, finaliser', 3, (editeur.match(/if \(reste > 0\) \{ toast/g) ?? []).length);
 dit('signer pour une entreprise : direction seule', true, editeur.includes("p.entite === 'autre' && direction && peutSigner(p, 'entreprise')"));
 dit('on ne glisse que sur un brouillon', true, editeur.includes('glissable={ouvert}') && editeur.includes('if (ouvert) maj({ poses'));
+const signatures = sansCommentaires('src/apps/trone/routes/pilotage/secretariat/Signatures.tsx');
+dit('le pave de signature ne vit jamais dans un Field (une etiquette qui annule les clics)', false, /<Field[^>]*>\s*(\{[^}]*\?[^:]*:\s*)?<PaveDeSignature/.test(signatures));
+dit('« Importer une photo » est un vrai bouton qui ouvre le fichier, et se rechoisit', [true, false, true], [
+  /<Button[^>]*onClick=\{\(\) => fichier\.current\?\.click\(\)\}>Importer une photo<\/Button>/.test(signatures),
+  /<label[^>]*>\s*Importer une photo/.test(signatures),
+  readFileSync('src/apps/trone/routes/pilotage/secretariat/Signatures.tsx', 'utf8').includes("e.target.value = ''"), // brut : « image/* » ressemble à un commentaire
+]);
+dit('lire sa signature a une limite de temps', true, /Promise\.race\(\[lecture, delai\]\)/.test(sansCommentaires('src/shared/secretariat.ts')));
 const routes = sansCommentaires('src/apps/trone/routes/index.tsx');
 dit('l ecran est dans la barre (Direction) et nomme parmi les ecrans nes apres', [true, true], [
   /group: 'Direction',[\s\S]*?path: '\/secretariat'[\s\S]*?group: 'Clientèle'/.test(routes),

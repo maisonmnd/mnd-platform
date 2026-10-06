@@ -136,7 +136,12 @@ const cheminDeMaSignature = (userId: string) => `${userId}/signature.png`;
 /** Ma signature, en data URL, ou `null` si je n'en ai pas encore. */
 export async function chargeMaSignature(userId: string): Promise<string | null> {
   if (!supabase || !userId) return null;
-  const { data, error } = await supabase.storage.from('signatures').download(cheminDeMaSignature(userId));
+  /* Sans réseau, la lecture pouvait ne jamais répondre : la fenêtre restait
+     sur « Lecture… ». Au-delà de 8 secondes, on fait comme si rien n'était
+     gardé ; signer redemandera la signature au moment voulu. */
+  const lecture = supabase.storage.from('signatures').download(cheminDeMaSignature(userId));
+  const delai = new Promise<{ data: null; error: Error }>((ok) => setTimeout(() => ok({ data: null, error: new Error('délai') }), 8000));
+  const { data, error } = await Promise.race([lecture, delai]);
   if (error || !data) return null;
   return await new Promise<string | null>((ok) => {
     const r = new FileReader();
