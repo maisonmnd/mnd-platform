@@ -10,7 +10,7 @@ import {
   type Papier, type Titulaire,
 } from '../../../../../shared/papiers-pur';
 import {
-  ajouteUnePersonne, assembleLeDossier, chargeLeClasseur, copieEnMemoire, deposeLesPages, effaceUnPapier, enDataUrl, gardeUnPapier,
+  ajouteUnePersonne, assembleLeDossier, chargeLeClasseur, retireUnePersonne, copieEnMemoire, deposeLesPages, effaceUnPapier, enDataUrl, gardeUnPapier,
   lienDUnePage, modifieUnPapier, noteAuJournal, oublieLeClasseur, papiersDe, personnesDe, remplaceUnPapier, useClasseur,
 } from '../../../../../shared/papiers';
 
@@ -49,6 +49,8 @@ export function LesPapiers({ branchId, qui, titulairesEntreprises, suggestions }
   const [ajout, setAjout] = useState<{ titulaire?: Titulaire; type?: string } | null>(null);
   const [dossier, setDossier] = useState<{ papierId?: string } | null>(null);
   const [personne, setPersonne] = useState(false);
+  const [enCours, setEnCours] = useState('');
+  const [aRetirer, setARetirer] = useState<string | null>(null);
 
   useEffect(() => { void chargeLeClasseur(); return () => oublieLeClasseur(); }, []);
 
@@ -131,7 +133,22 @@ export function LesPapiers({ branchId, qui, titulairesEntreprises, suggestions }
                     </li>
                   ))}
                 </ul>
-                <button type="button" className="pap-ajouter" onClick={() => setAjout({ titulaire: t.cle })}>+ un papier</button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" className="pap-ajouter" onClick={() => setAjout({ titulaire: t.cle })}>+ un papier</button>
+                  {/* Une chemise de personne VIDE se retire (deux clics). */}
+                  {t.genre === 'personne' && pieces.length === 0 && (aRetirer === t.cle ? (
+                    <>
+                      <button type="button" className="sec-supprimer sec-supprimer--oui" onClick={() => {
+                        const p = personnesDe(classeur.lignes).find((x) => `pers:${x.id}` === t.cle);
+                        setARetirer(null);
+                        if (p) void retireUnePersonne(p).then((r) => toast(r.ok ? 'Chemise retirée.' : r.erreur ?? 'Refusé.'));
+                      }}>Confirmer</button>
+                      <button type="button" className="sec-supprimer" onClick={() => setARetirer(null)}>Non</button>
+                    </>
+                  ) : (
+                    <button type="button" className="sec-supprimer" style={{ marginLeft: 'auto', marginRight: 12 }} onClick={() => setARetirer(t.cle)}>Retirer cette chemise</button>
+                  ))}
+                </div>
               </div>
             );
           })}
@@ -140,7 +157,10 @@ export function LesPapiers({ branchId, qui, titulairesEntreprises, suggestions }
               <div className="pap-chemise__onglet"><span className="pap-chemise__qui">Une personne</span><span className="pap-chemise__quoi">Carte d’identité, résidence…</span></div>
               <div style={{ display: 'grid', gap: 6, padding: 12 }}>
                 {pasEncore.map((n) => (
-                  <button key={n} type="button" className="sec-puce" onClick={() => { void ajouteUnePersonne({ branchId, nom: n, qualite: 'Direction' }).then((r) => toast(r.ok ? `${n} a sa chemise.` : r.erreur ?? 'Refusé.')); }}>+ {n}</button>
+                  <button key={n} type="button" className="sec-puce" disabled={!!enCours} onClick={() => {
+                    setEnCours(n);
+                    void ajouteUnePersonne({ branchId, nom: n, qualite: 'Direction' }).then((r) => { setEnCours(''); toast(r.ok ? `${n} a sa chemise.` : r.erreur ?? 'Refusé.'); });
+                  }}>{enCours === n ? 'Création…' : `+ ${n}`}</button>
                 ))}
                 <button type="button" className="sec-puce" onClick={() => setPersonne(true)}>+ Une autre personne</button>
               </div>
@@ -292,6 +312,9 @@ function AjouterUnPapier({ branchId, qui, titulaires, depart, onClose, remplacer
 function FicheDUnPapier({ papier: p, qui, titulaireNom, onClose, surRemettre }: {
   papier: Papier; qui: string; titulaireNom: string; onClose: () => void; surRemettre: () => void;
 }) {
+  /* LE TYPE SE CORRIGE (6 octobre : la carte et le CIP séparés, une pièce
+     déposée sous l'ancien nom doit pouvoir changer de case). */
+  const [type, setType] = useState(p.type);
   const [numero, setNumero] = useState(p.numero);
   const [delivreLe, setDelivreLe] = useState(p.delivreLe);
   const [expireLe, setExpireLe] = useState(p.expireLe);
@@ -300,7 +323,7 @@ function FicheDUnPapier({ papier: p, qui, titulaireNom, onClose, surRemettre }: 
   const [remplacer, setRemplacer] = useState(false);
   const [effacer, setEffacer] = useState(false);
   const jour = aujourdhui();
-  const change = numero !== p.numero || delivreLe !== p.delivreLe || expireLe !== p.expireLe || original !== p.original || note !== p.note;
+  const change = type !== p.type || numero !== p.numero || delivreLe !== p.delivreLe || expireLe !== p.expireLe || original !== p.original || note !== p.note;
 
   /* VOIR : un lien d'une minute, ouvert dans un nouvel onglet ; le regard
      s'écrit au journal de la pièce. */
@@ -328,6 +351,11 @@ function FicheDUnPapier({ papier: p, qui, titulaireNom, onClose, surRemettre }: 
           <span className="mnd-muted" style={{ fontSize: 12 }}>Chaque page s’ouvre par un lien qui expire en une minute.</span>
         </div>
         <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+          <Field label="Quel papier">
+            <Select value={type} onChange={(e) => setType(e.target.value)}>
+              {typesPour(p.titulaire).map((t) => <option key={t.cle} value={t.cle}>{t.titre}</option>)}
+            </Select>
+          </Field>
           <Field label="Numéro"><Input value={numero} onChange={(e) => setNumero(e.target.value)} /></Field>
           <Field label="Original"><Input value={original} onChange={(e) => setOriginal(e.target.value)} placeholder="Où se trouve le papier" /></Field>
           <Field label="Délivré le"><Input type="date" value={delivreLe} onChange={(e) => setDelivreLe(e.target.value)} /></Field>
@@ -336,7 +364,7 @@ function FicheDUnPapier({ papier: p, qui, titulaireNom, onClose, surRemettre }: 
         {numeroDouteux(p.type, numero) && <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>Un IFU du Bénin compte 13 chiffres : vérifiez-le.</span>}
         <Field label="Note"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
         <div className="sec-actions">
-          {change && <Button variant="copper" onClick={() => { void modifieUnPapier(p, { numero: numero.trim(), delivreLe, expireLe, original: original.trim(), note: note.trim() }, qui).then((r) => toast(r.ok ? 'Corrigé.' : r.erreur ?? 'Refusé.')); }}>Garder les corrections</Button>}
+          {change && <Button variant="copper" onClick={() => { void modifieUnPapier(p, { type, numero: numero.trim(), delivreLe, expireLe, original: original.trim(), note: note.trim() }, qui).then((r) => toast(r.ok ? 'Corrigé.' : r.erreur ?? 'Refusé.')); }}>Garder les corrections</Button>}
           <Button variant="ghost" onClick={surRemettre}>Remettre dans un dossier</Button>
           <Button variant="ghost" onClick={() => setRemplacer(true)}>Nouvelle version</Button>
           {effacer

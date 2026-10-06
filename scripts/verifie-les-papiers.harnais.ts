@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import {
   ajouteAuJournal, aRenouveler, cheminDuFichier, completude, etatDe, expirationProposee, JOURNAL_MAX, typeDuFichier,
-  lignesDuDossier, manquantsDe, marqueObligatoire, numeroDouteux, remplace, texteDeLaMarque, type Papier,
+  lignesDuDossier, manquantsDe, marqueObligatoire, numeroDouteux, remplace, texteDeLaMarque, titreDuPapier, typesPour, type Papier,
 } from '../src/shared/papiers-pur';
 
 let ko = 0;
@@ -57,7 +57,7 @@ dit('a renouveler : expirees d abord, puis bientot ; les pieces a jour n y sont 
 /* ── 3. CE QUI MANQUE ── */
 dit('une entreprise avec son RCCM attend encore IFU, statuts, ARF, CNSS', [['ifu', 'statuts', 'arf', 'cnss'], { faits: 1, attendus: 5 }],
   [manquantsDe(parc, 'ent:mnd').map((t) => t.cle), completude(parc, 'ent:mnd')]);
-dit('une personne avec carte et residence attend passeport et casier', ['passeport', 'casier'], manquantsDe(parc, 'pers:y').map((t) => t.cle));
+dit('une personne avec carte et residence attend CIP, passeport et casier', ['cip', 'passeport', 'casier'], manquantsDe(parc, 'pers:y').map((t) => t.cle));
 
 /* ── 4. LE DOSSIER ET LA MARQUE ── */
 const banque = lignesDuDossier('banque', 'ent:mnd', 'pers:y', parc, J);
@@ -142,6 +142,22 @@ dit('une panne pendant un enregistrement ne se dit plus « ne se lisent qu en li
 dit('chaque page est retentee trois fois', [true, true],
   [/export const ESSAIS_D_ENVOI = 3;/.test(module), /for \(let essai = 1; essai <= ESSAIS_D_ENVOI; essai \+= 1\)/.test(module)]);
 dit('le bouton ne reste jamais sur « Envoi… »', true, /try \{ await gardeVraiment\(\); \} catch[\s\S]{0,200}finally \{ setEnvoi\(false\); \}/.test(ecran));
+
+/* ── 10. LA CARTE ET LE CIP, À PART — 6 octobre 2026 ── */
+dit('carte d identite et CIP sont deux papiers, tous deux attendus', [true, true, 'Carte d’identité'],
+  [typesPour('pers:x').some((t) => t.cle === 'cni' && t.attendu), typesPour('pers:x').some((t) => t.cle === 'cip' && t.attendu), titreDuPapier({ type: 'cni' })]);
+const avecCip = [piece({ id: 'k', type: 'cip', titulaire: 'pers:z', expireLe: '2030-01-01' })];
+dit('un dossier prend le CIP quand il n y a pas de carte', ['cip', 'k', undefined],
+  (() => { const l = lignesDuDossier('oapi', undefined, 'pers:z', avecCip, J)[0]; return [l.type, l.piece?.id, l.alerte]; })());
+dit('sans l un ni l autre, le dossier demande la carte', ['cni', 'manque'],
+  (() => { const l = lignesDuDossier('oapi', undefined, 'pers:w', [], J)[0]; return [l.type, l.alerte]; })());
+const moduleP = sansCommentaires('src/shared/papiers.ts');
+dit('une personne n a qu une chemise ; une chemise pleine ne se retire pas', [true, true], [
+  /x\.genre === 'personne' && x\.nom\.trim\(\)\.toLowerCase\(\) === nom\)\) \{\s*return \{ ok: false/.test(moduleP),
+  /x\.genre === 'papier' && x\.titulaire === `pers:\$\{p\.id\}`\)\) \{\s*return \{ ok: false/.test(moduleP),
+]);
+dit('seule une chemise vide propose « Retirer »', true, ecran.includes("t.genre === 'personne' && pieces.length === 0 && (aRetirer === t.cle"));
+dit('le type d une piece se corrige depuis sa fiche', true, /modifieUnPapier\(p, \{ type, numero: numero\.trim\(\)/.test(ecran));
 
 console.log(ko === 0 ? '\nLes papiers tiennent leurs regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

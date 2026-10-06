@@ -179,7 +179,7 @@ export async function gardeUnPapier(o: Omit<Papier, 'id' | 'genre' | 'versions' 
   return r.ok ? { ...r, papier } : r;
 }
 
-export async function modifieUnPapier(p: Papier, patch: Partial<Pick<Papier, 'numero' | 'delivreLe' | 'expireLe' | 'original' | 'note' | 'titre'>>, qui: string): Promise<{ ok: boolean; erreur?: string }> {
+export async function modifieUnPapier(p: Papier, patch: Partial<Pick<Papier, 'type' | 'numero' | 'delivreLe' | 'expireLe' | 'original' | 'note' | 'titre'>>, qui: string): Promise<{ ok: boolean; erreur?: string }> {
   return ecris({ ...p, ...patch, journal: ajouteAuJournal(p.journal, { quand: maintenant(), qui, quoi: 'informations corrigées' }) });
 }
 
@@ -204,10 +204,32 @@ export async function effaceUnPapier(p: Papier): Promise<{ ok: boolean; erreur?:
   return { ok: true };
 }
 
+/** UNE PERSONNE N'A QU'UNE CHEMISE — 6 octobre 2026 (« comment supprimer le
+    2e Yéman Boya » : deux clics rapides sur la suggestion en avaient créé
+    deux). Un nom déjà présent est refusé, quelle que soit la casse. */
 export async function ajouteUnePersonne(o: { branchId: string; nom: string; qualite: string }): Promise<{ ok: boolean; erreur?: string; personne?: Personne }> {
+  const nom = o.nom.trim().toLowerCase();
+  if (!nom) return { ok: false, erreur: 'Le nom.' };
+  if (etat.lignes.some((x) => x.genre === 'personne' && x.nom.trim().toLowerCase() === nom)) {
+    return { ok: false, erreur: `${o.nom.trim()} a déjà sa chemise.` };
+  }
   const personne: Personne = { id: `pers-${uid()}`, genre: 'personne', branchId: o.branchId, nom: o.nom.trim(), qualite: o.qualite.trim() };
   const r = await ecris(personne);
   return r.ok ? { ...r, personne } : r;
+}
+
+/** Retirer la chemise d'une personne : VIDE seulement. Ses papiers se
+    suppriment d'abord, un à un, en connaissance de cause. */
+export async function retireUnePersonne(p: Personne): Promise<{ ok: boolean; erreur?: string }> {
+  if (!supabase) return { ok: false, erreur: 'Pas de connexion à la Maison.' };
+  if (etat.lignes.some((x) => x.genre === 'papier' && x.titulaire === `pers:${p.id}`)) {
+    return { ok: false, erreur: 'Cette chemise contient des papiers : supprimez-les d’abord.' };
+  }
+  const { data, error } = await supabase.from('papiers').delete().eq('id', p.id).select('id');
+  if (error) return { ok: false, erreur: lisible(error.message, 'ecrire') };
+  if ((data?.length ?? 0) !== 1) return { ok: false, erreur: 'La base n’a rien effacé.' };
+  pose({ lignes: etat.lignes.filter((x) => x.id !== p.id) });
+  return { ok: true };
 }
 
 /* ══ LE DOSSIER À REMETTRE : un seul PDF, marqué ═════════════════════ */

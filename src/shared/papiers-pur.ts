@@ -97,7 +97,12 @@ export const TYPES: TypePapier[] = [
   { cle: 'oapi', titre: 'Dépôt OAPI (marque)', pour: 'entreprise', duree: { mois: 120 }, attendu: false },
   { cle: 'autre-ent', titre: 'Autre papier', pour: 'entreprise', duree: 'fin', attendu: false },
   /* Une personne */
-  { cle: 'cni', titre: 'Carte d’identité, CIP', pour: 'personne', duree: 'fin', attendu: true },
+  /* LA CARTE ET LE CIP, CHACUN À PART — 6 octobre 2026 (« mettre Carte
+     d'identité à part, CIP à part », Yéman). Les deux sont attendus ; un
+     dossier prend l'un OU l'autre (`cni|cip`). */
+  { cle: 'cni', titre: 'Carte d’identité', pour: 'personne', duree: 'fin', attendu: true },
+  { cle: 'cip', titre: 'CIP (certificat d’identification personnelle)', pour: 'personne', duree: 'fin', attendu: true },
+  { cle: 'ifu-pers', titre: 'IFU (personnel)', pour: 'personne', duree: 'sans', attendu: false },
   { cle: 'passeport', titre: 'Passeport', pour: 'personne', duree: 'fin', attendu: true, alerte: 60 },
   { cle: 'residence', titre: 'Certificat de résidence', pour: 'personne', duree: { mois: 3 }, attendu: true },
   { cle: 'casier', titre: 'Casier judiciaire (bulletin n° 3)', pour: 'personne', duree: { mois: 3 }, attendu: true },
@@ -187,10 +192,10 @@ export function aRenouveler(toutes: readonly Papier[], aujourdhui: string): Papi
 export type ModeleDeDossier = { cle: string; titre: string; entreprise: string[]; personne: string[] };
 
 export const DOSSIERS: ModeleDeDossier[] = [
-  { cle: 'banque', titre: 'Dossier banque', entreprise: ['rccm', 'ifu', 'statuts', 'pv'], personne: ['cni', 'residence'] },
-  { cle: 'oapi', titre: 'Dossier OAPI', entreprise: ['rccm', 'ifu', 'statuts'], personne: ['cni'] },
+  { cle: 'banque', titre: 'Dossier banque', entreprise: ['rccm', 'ifu', 'statuts', 'pv'], personne: ['cni|cip', 'residence'] },
+  { cle: 'oapi', titre: 'Dossier OAPI', entreprise: ['rccm', 'ifu', 'statuts'], personne: ['cni|cip'] },
   { cle: 'impots', titre: 'Dossier impôts', entreprise: ['rccm', 'ifu', 'statuts', 'arf'], personne: [] },
-  { cle: 'bail', titre: 'Dossier bail', entreprise: ['rccm', 'ifu'], personne: ['cni', 'residence'] },
+  { cle: 'bail', titre: 'Dossier bail', entreprise: ['rccm', 'ifu'], personne: ['cni|cip', 'residence'] },
   { cle: 'libre', titre: 'Dossier libre', entreprise: [], personne: [] },
 ];
 
@@ -204,8 +209,11 @@ export function lignesDuDossier(
 ): LigneDuDossier[] {
   const m = DOSSIERS.find((d) => d.cle === modele);
   if (!m) return [];
-  const ligne = (type: string, titulaire: Titulaire): LigneDuDossier => {
-    const piece = toutes.find((p) => p.titulaire === titulaire && p.type === type);
+  /* « cni|cip » : l'une OU l'autre suffit ; la première trouvée part. */
+  const ligne = (demande: string, titulaire: Titulaire): LigneDuDossier => {
+    const choix = demande.split('|');
+    const piece = choix.map((t) => toutes.find((p) => p.titulaire === titulaire && p.type === t)).find(Boolean);
+    const type = piece?.type ?? choix[0];
     if (!piece) return { type, titulaire, alerte: 'manque' };
     const e = etatDe(piece, aujourdhui);
     return { type, titulaire, piece, alerte: e === 'ok' ? undefined : e === 'expire' ? 'expire' : 'bientot' };
