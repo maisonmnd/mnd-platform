@@ -843,7 +843,7 @@ export function bindCollection<T extends WithId>(
     const a = arbitre(serverItems, quand, instantane, contenuCanonique);
     if (a.conflits.length) {
       const vuLe = new Date().toISOString();
-      noteLesConflits(a.conflits.map((c) => ({ ...c, table, vuLe })));
+      noteLesConflits(a.conflits.map((c) => ({ ...c, table, vuLe, magasin: store.key })));
       console.warn(`[mnd-sync] ${table} : ${a.conflits.length} geste(s) plus ancien(s) qu'une écriture d'ailleurs, gardé(s) en conflit.`);
     }
     sortDeLaFile(a.finis.filter((id) => instantane.get(id) === attente.get(id)));
@@ -1418,6 +1418,7 @@ export function bindCollection<T extends WithId>(
             noteLesConflits([{
               table, id: idTouche, notre: enAttente.op === 'set' ? (enAttente.j ?? null) : null, notreAt: enAttente.at,
               leur: JSON.stringify(distant ?? null), leurAt: distantAt ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+              magasin: store.key,
             }]);
             sortDeLaFile([idTouche]);
           }

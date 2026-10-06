@@ -41,6 +41,9 @@ export type Conflit = {
   leurAt: string;
   /** Quand le conflit a été constaté. */
   vuLe: string;
+  /** Le nom du magasin de la ligne sur l'appareil (« mnd_secretariat ») :
+      de quoi relire la ligne actuelle même si son écran n'est pas ouvert. */
+  magasin?: string;
 };
 
 export type Arbitrage<T> = {
@@ -224,11 +227,25 @@ type LecteurDeLigne = (id: string) => unknown;
 const LECTEURS = new Map<string, LecteurDeLigne>();
 export function declareLecteurDeLigne(table: string, lire: LecteurDeLigne): void { LECTEURS.set(table, lire); }
 
-export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'>): boolean {
+/* LA LIGNE SE RELIT AUSSI SUR L'APPAREIL (6 octobre 2026, le soir même).
+   Le lecteur d'un magasin n'existe qu'une fois son écran chargé : depuis le
+   tableau de bord, le secrétariat n'était pas encore là, et ses onze conflits
+   restaient comptés. Sans lecteur, on relit la ligne dans ce que l'appareil
+   garde de ce magasin : le nom noté avec le conflit, sinon `mnd_<table>`. */
+function lisLaLigneSurLAppareil(c: Pick<Conflit, 'table' | 'id'> & { magasin?: string }): unknown {
+  try {
+    const nom = c.magasin ?? `mnd_${c.table}`;
+    const brut = localStorage.getItem(`${surface()}::${nom}`) ?? localStorage.getItem(nom);
+    const lignes = brut ? (JSON.parse(brut) as unknown) : null;
+    return Array.isArray(lignes) ? lignes.find((x) => !!x && typeof x === 'object' && (x as { id?: unknown }).id === c.id) : undefined;
+  } catch { return undefined; }
+}
+
+export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'> & { magasin?: string }): boolean {
   const lire = LECTEURS.get(c.table);
   const gardee = enLigne(c.leur);
-  if (!lire || !gardee || !enLigne(c.notre)) return false;
-  const actuel = lire(c.id);
+  if (!gardee || !enLigne(c.notre)) return false;
+  const actuel = lire ? lire(c.id) : lisLaLigneSurLAppareil(c);
   if (!actuel || typeof actuel !== 'object') return false;
   const ligne = actuel as Record<string, unknown>;
   return champsQuiDifferent(c).some((k) => canonique(ligne[k]) !== canonique(gardee[k]));

@@ -108,9 +108,21 @@ dit('la ligne porte encore la version gardee : la question reste posee', [false,
   [dejaTranche(frappe('Demande de Moov Afric', 'Demande de Moov Africa')), conflitUtile(frappe('Demande de Moov Afric', 'Demande de Moov Africa'))]);
 dit('noter ne juge pas « deja tranche » (la ligne porte encore notre version a cet instant)', true,
   /export function noteLesConflits[\s\S]{0,120}nouveaux = nouveaux\.filter\(conflitQuiDiffere\);/.test(readFileSync('src/shared/file-d-attente.ts', 'utf8')));
+/* Sans lecteur (l'écran du magasin n'est pas chargé) : la ligne se relit sur l'appareil. */
+localStorage.setItem('trone::mnd_banc_ecran_ferme', JSON.stringify([{ id: 'doc-1', objet: 'Dépôt de marque', corps: 'x' }]));
+dit('ecran ferme : la ligne se relit sur l appareil, et le conflit tranche disparait', [true, false],
+  [dejaTranche({ ...frappe('Demande de Moov Afric', 'Demande de Moov Africa'), table: 'banc_ecran_ferme' }),
+    conflitUtile({ ...frappe('Demande de Moov Afric', 'Demande de Moov Africa'), table: 'banc_ecran_ferme' })]);
+localStorage.setItem('trone::mnd_banc_nom_note', JSON.stringify([{ id: 'doc-1', objet: 'Dépôt de marque', corps: 'x' }]));
+dit('... par le nom du magasin note avec le conflit', true,
+  dejaTranche({ ...frappe('Demande de Moov Afric', 'Demande de Moov Africa'), table: 'autre_nom', magasin: 'mnd_banc_nom_note' }));
 dit('une table sans lecteur garde le comportement d avant', true,
   conflitUtile({ ...frappe('a', 'b'), table: 'banc_sans_lecteur' }));
 const synchro = readFileSync('src/shared/sync.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('chaque conflit note son magasin', [true, true], [
+  /noteLesConflits\(a\.conflits\.map\(\(c\) => \(\{ \.\.\.c, table, vuLe, magasin: store\.key \}\)\)\);/.test(synchro),
+  /vuLe: new Date\(\)\.toISOString\(\),\s*magasin: store\.key,\s*\}\]\);/.test(synchro),
+]);
 dit('l echo de notre poussee est reconnu avant le jugement de conflit', [true, true], [
   /const notreEcho = !!distant && estNotreEcho\(idTouche, contenuCanonique\(distant\)\);/.test(synchro),
   /\} else if \(notreEcho \|\| leGesteLocalTient\(enAttente, distantAt\)\) \{/.test(synchro),
