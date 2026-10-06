@@ -23,7 +23,7 @@
      pages. */
 
 export type Entite = 'mnd' | 'acia' | 'autre' | 'perso';
-export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions';
+export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions' | 'bourse';
 export type EtatPiece = 'brouillon' | 'a-signer' | 'signe' | 'annule';
 export type Cadre = 'libre' | 'droite' | 'centre' | 'gauche';
 
@@ -74,6 +74,12 @@ export type Piece = {
   /** Les mentions légales (RCCM, IFU) telles qu'elles étaient À LA
       SIGNATURE : changer l'IFU plus tard ne réécrit pas une pièce signée. */
   mentionsFigees?: MentionsLegales;
+  /** PRIVÉ (7 octobre 2026) : lu de la direction seule, quelle que soit
+      l'entité (0122). Les pièces du dossier de bourse le portent : elles
+      disent un salaire et les noms des enfants. */
+  prive?: boolean;
+  /** Le dossier annuel qui a préparé ce document (`bourse:2027-2028:04`). */
+  dossier?: string;
 };
 
 /** RCCM et IFU d'une entité, tapés par la direction (jamais devinés). */
@@ -91,6 +97,8 @@ export type Entreprise = {
   /** La signature de son signataire, dessinée ou importée (PNG). */
   signature?: string;
   creeLe: string;
+  /** Lue de la direction seule (0122), comme M. Thomas BOYA, un particulier. */
+  prive?: boolean;
 };
 
 export type Signataire = {
@@ -124,7 +132,21 @@ export type Mentions = MentionsLegales & {
   entite: 'mnd' | 'acia';
 };
 
-export type LigneSecretariat = Piece | Entreprise | Signataire | Profil | Mentions;
+/** LE DOSSIER DE BOURSE SCOLAIRE (7 octobre 2026) : une ligne par famille,
+    personnelle et privée. Les valeurs suivent le catalogue de bourse-pur. */
+export type DossierBourse = {
+  id: string; // 'bourse-famille'
+  genre: 'bourse';
+  branchId: string;
+  entite: 'perso';
+  prive: true;
+  valeurs: Record<string, string>;
+  /** Les membres reliés aux personnes du classeur des Papiers. */
+  membres: { yeman?: string; brice?: string; e1?: string; e2?: string; e3?: string; thomas?: string };
+  majLe: string;
+};
+
+export type LigneSecretariat = Piece | Entreprise | Signataire | Profil | Mentions | DossierBourse;
 
 /** « RCCM … · IFU … », sans ce qui manque ; vide si rien n'est donné. */
 export function ligneDesMentions(m: Partial<MentionsLegales> | undefined): string {

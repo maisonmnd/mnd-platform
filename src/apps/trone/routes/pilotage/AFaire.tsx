@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEstDirection } from '../_vie';
 import { RappelDesPapiers } from './secretariat/RappelDesPapiers';
+import { RappelDeLaBourse } from './secretariat/RappelDeLaBourse';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -252,6 +253,8 @@ export default function AFaire() {
 
       {/* Les papiers à renouveler ou à déposer : la direction seule (0117). */}
       {estDirection && <RappelDesPapiers titulairesEntreprises={['ent:mnd', 'ent:acia']} />}
+      {/* Le dossier de bourse scolaire, d'octobre au dépôt : la direction seule. */}
+      {estDirection && <RappelDeLaBourse />}
 
       {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}
       <div className="trp-af-head">

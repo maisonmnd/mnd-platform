@@ -15,6 +15,7 @@ import { FAMILLES, MODELES, type Famille } from '../../../../shared/secretariat-
 import { Editeur } from './secretariat/Editeur';
 import { MaSignature, NouvelleEntreprise } from './secretariat/Signatures';
 import { LesPapiers } from './secretariat/Papiers';
+import { LeDossierDeBourse } from './secretariat/Bourse';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -56,11 +57,14 @@ export default function Secretariat() {
   /* LES PAPIERS, SECOND ONGLET (6 octobre 2026) : la direction seule, comme
      la base le veut (0117). On y arrive aussi depuis À faire. */
   const location = useLocation();
-  const [onglet, setOnglet] = useState<'documents' | 'papiers'>('documents');
+  const [onglet, setOnglet] = useState<'documents' | 'papiers' | 'bourse'>('documents');
   useEffect(() => {
-    if ((location.state as { onglet?: string } | null)?.onglet === 'papiers' && direction) setOnglet('papiers');
+    const voulu = (location.state as { onglet?: string } | null)?.onglet;
+    if ((voulu === 'papiers' || voulu === 'bourse') && direction) setOnglet(voulu);
   }, [location.state, direction]);
   const vueDesPapiers = onglet === 'papiers' && direction;
+  /* LE DOSSIER DE BOURSE, TROISIÈME ONGLET (7 octobre 2026) : la direction seule. */
+  const vueDeLaBourse = onglet === 'bourse' && direction;
   const nomDe = (p: Piece): string =>
     p.entite === 'mnd' ? maisonNom()
       : p.entite === 'acia' ? ACIA.nom
@@ -99,7 +103,7 @@ export default function Secretariat() {
         eyebrow="Direction"
         title="Le secrétariat"
         sub="Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé."
-        actions={vueDesPapiers ? undefined : (
+        actions={vueDesPapiers || vueDeLaBourse ? undefined : (
           <>
             {direction && <Button variant="ghost" onClick={() => setMentions(true)}>Mentions de l’en-tête</Button>}
             <Button variant="ghost" onClick={() => setSignature(true)}>{aSaSignature ? 'Ma signature' : 'Déposer ma signature'}</Button>
@@ -110,12 +114,15 @@ export default function Secretariat() {
 
       {direction && (
         <div className="sec-onglets" role="tablist" aria-label="Le secrétariat">
-          <button type="button" role="tab" aria-selected={!vueDesPapiers} className={`sec-onglet${!vueDesPapiers ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('documents')}>Les documents</button>
+          <button type="button" role="tab" aria-selected={!vueDesPapiers && !vueDeLaBourse} className={`sec-onglet${!vueDesPapiers && !vueDeLaBourse ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('documents')}>Les documents</button>
           <button type="button" role="tab" aria-selected={vueDesPapiers} className={`sec-onglet${vueDesPapiers ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('papiers')}>Les papiers</button>
+          <button type="button" role="tab" aria-selected={vueDeLaBourse} className={`sec-onglet${vueDeLaBourse ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('bourse')}>Bourse scolaire</button>
         </div>
       )}
 
-      {vueDesPapiers ? (
+      {vueDeLaBourse ? (
+        <LeDossierDeBourse branchId={branch.id} moi={moi} nomMaison={maisonNom()} surOuvre={setOuvert} />
+      ) : vueDesPapiers ? (
         <LesPapiers
           branchId={branch.id}
           qui={tete?.name ?? 'La direction'}

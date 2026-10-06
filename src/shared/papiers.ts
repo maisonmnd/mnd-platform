@@ -161,7 +161,7 @@ export async function lienDUnePage(chemin: string): Promise<string | null> {
   return data?.signedUrl ?? null;
 }
 
-async function octetsDUnePage(chemin: string): Promise<Uint8Array | null> {
+export async function octetsDUnePage(chemin: string): Promise<Uint8Array | null> {
   if (!supabase) return null;
   const { data } = await supabase.storage.from('papiers').download(chemin);
   return data ? new Uint8Array(await data.arrayBuffer()) : null;

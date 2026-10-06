@@ -32,7 +32,7 @@ export const profils = (l: readonly LigneSecretariat[]): Profil[] => l.filter((x
 export const mentionsDe = (l: readonly LigneSecretariat[], entite: Entite): Mentions | undefined =>
   l.find((x): x is Mentions => x.genre === 'mentions' && x.entite === entite);
 
-const ecris = (ligne: LigneSecretariat): void =>
+export const ecris = (ligne: LigneSecretariat): void =>
   secretariatStore.set((prev) => (prev.some((x) => x.id === ligne.id) ? prev.map((x) => (x.id === ligne.id ? ligne : x)) : [...prev, ligne]));
 
 const maintenant = (): string => new Date().toISOString();
@@ -109,6 +109,9 @@ export function duplique(p: Piece, o: { remplace?: boolean; auteurId: string }):
   const copie: Piece = {
     ...retireLesSignatures(p), id: `doc-${uid()}`, auteurId: o.auteurId, creeLe: maintenant(), date: aujourdhui(),
     remplace: o.remplace ? p.numero : undefined,
+    /* Une copie libre ne prend pas la place du document dans son dossier
+       annuel ; une correction (remplace) la reprend. Le privé, lui, suit. */
+    dossier: o.remplace ? p.dossier : undefined,
   };
   ecris(copie);
   return copie;

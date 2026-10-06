@@ -109,6 +109,20 @@ export const TYPES: TypePapier[] = [
   { cle: 'naissance', titre: 'Acte de naissance', pour: 'personne', duree: 'sans', attendu: false },
   { cle: 'nationalite', titre: 'Certificat de nationalité', pour: 'personne', duree: 'sans', attendu: false },
   { cle: 'photo', titre: 'Photo d’identité', pour: 'personne', duree: 'sans', attendu: false },
+  /* LE DOSSIER DE BOURSE (7 octobre 2026) : ce qui se range au fil de
+     l'année. Pour un bulletin ou un relevé, la date de délivrance dit LE
+     MOIS ; pour un relevé, le numéro dit le compte. Aucun n'est attendu de
+     tout le monde. */
+  { cle: 'livret', titre: 'Livret de famille', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'carte-grise', titre: 'Carte grise', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'plan-acces', titre: 'Plan d’accès au domicile', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'facture', titre: 'Facture d’eau ou d’électricité', pour: 'personne', duree: { mois: 3 }, attendu: false },
+  { cle: 'bulletin', titre: 'Bulletin de salaire (le mois en date)', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'releve', titre: 'Relevé bancaire (le mois en date, le compte en numéro)', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'avis-impot', titre: 'Avis d’imposition', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'cnss-pers', titre: 'Attestation CNSS du salarié', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'activite', titre: 'Justificatif d’activité', pour: 'personne', duree: 'sans', attendu: false },
+  { cle: 'formulaire-aefe', titre: 'Formulaire de bourse AEFE, rempli et signé', pour: 'personne', duree: 'sans', attendu: false },
   { cle: 'autre-pers', titre: 'Autre papier', pour: 'personne', duree: 'fin', attendu: false },
 ];
 
