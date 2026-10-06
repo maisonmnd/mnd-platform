@@ -673,8 +673,32 @@ export const LOT_PRECIEUX = 3;
 
 /** LE JUGE DES SUPPRESSIONS D'UNE POUSSÉE — pur, éprouvé par le harnais.
     Rend la raison du refus, ou `null` si le lot peut partir. */
+/* ══ LA MAIN ET LA MACHINE — 6 octobre 2026, le soir ═══════════════════
+   « La suppression est volontaire, ce sont des RDV erronés » (Yéman, des 169
+   du 28 septembre). Le Trône n'a aucun écran pour effacer des rendez-vous en
+   lot : on les efface un par un. Effacés HORS LIGNE sur un téléphone, ils
+   attendent dans la file et partent ENSEMBLE au retour du réseau — un seul
+   envoi, comme un accident. La règle des trois aurait refusé ces gestes et
+   fait revenir les rendez-vous.
+
+   La différence se lit à l'HEURE de chaque geste, gardée par la file : une
+   main efface une ligne à la fois, chacune à son instant ; une machine en
+   efface des dizaines à la même milliseconde. On juge donc le plus gros lot
+   effacé AU MÊME INSTANT, pas la taille de l'envoi. Une suppression sans
+   heure connue compte avec les autres sans heure. */
+export function plusGrosLotDuMemeInstant(ids: readonly string[], heureDe: (id: string) => string | undefined): number {
+  const parInstant = new Map<string, number>();
+  for (const id of ids) {
+    const k = heureDe(id) ?? '(sans heure)';
+    parInstant.set(k, (parInstant.get(k) ?? 0) + 1);
+  }
+  return Math.max(0, ...parInstant.values());
+}
+
 export function suppressionRefusee(
   table: string, effaces: number, taille: number, purgeVoulue: boolean,
+  /** Le plus gros lot effacé au même instant ; par défaut, tout l'envoi. */
+  lotDuMemeInstant: number = effaces,
 ): 'structurelle' | 'vide' | 'masse' | null {
   if (effaces === 0) return null;
   if (SANS_SUPPRESSION.has(table)) return 'structurelle';
@@ -684,7 +708,7 @@ export function suppressionRefusee(
      lui reste interdit. */
   if (table === 'stock_mouvements') return null;
   if (effaces >= 10 && effaces * 4 >= taille) return 'masse';
-  if (PRECIEUSES.has(table) && effaces > LOT_PRECIEUX) return 'masse';
+  if (PRECIEUSES.has(table) && lotDuMemeInstant > LOT_PRECIEUX) return 'masse';
   return null;
 }
 
@@ -1009,7 +1033,8 @@ export function bindCollection<T extends WithId>(
 
          Ce qui reste permis : retirer un persona parmi six, une caisse parmi
          trois — un geste délibéré, qui laisse la table debout. */
-      const refusDuLot = suppressionRefusee(table, deletes.length, prev.size, purgeVoulue);
+      const refusDuLot = suppressionRefusee(table, deletes.length, prev.size, purgeVoulue,
+        plusGrosLotDuMemeInstant(deletes, (id) => { const e = attente.get(id); return e?.op === 'del' ? e.at : undefined; }));
       /* UNE SEULE LIGNE N'EST JAMAIS UN VIDAGE — 22 août 2026.
          « À chaque fois que je retire une enveloppe, elle revient. »
 

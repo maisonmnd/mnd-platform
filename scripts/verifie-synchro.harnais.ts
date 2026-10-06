@@ -7,7 +7,7 @@
    cause lisible, ce qui se retente, et l'espacement des reprises. */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DELAIS_DE_REPRISE_MS, LOT_PRECIEUX, delaiDeReprise, estPassager, raisonLisible, suppressionRefusee } from '../src/shared/sync';
+import { DELAIS_DE_REPRISE_MS, LOT_PRECIEUX, delaiDeReprise, estPassager, plusGrosLotDuMemeInstant, raisonLisible, suppressionRefusee } from '../src/shared/sync';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -150,12 +150,23 @@ dit('le journal des mouvements se rembobine par grappes', null, suppressionRefus
 dit('… mais ne se vide jamais', 'vide', suppressionRefusee('stock_mouvements', 60, 60, false));
 dit('une branche ne s’efface jamais par la synchro', 'structurelle', suppressionRefusee('branches', 1, 2, true));
 dit('un seul rendez-vous effacé à la main passe', null, suppressionRefusee('appointments', 1, 1169, false));
+/* LA MAIN ET LA MACHINE (6 octobre, le soir) : 169 rendez-vous effacés un à
+   un hors ligne partent ensemble au retour du réseau ; ils passent. Le même
+   nombre à la même milliseconde est une machine ; il reste refusé. */
+const heures = new Map(Array.from({ length: 169 }, (_, i) => [`r${i}`, new Date(Date.UTC(2026, 8, 28, 9, 0, i)).toISOString()]));
+const ids = [...heures.keys()];
+dit('169 suppressions a la main (chacune son instant) : le plus gros lot fait 1', 1, plusGrosLotDuMemeInstant(ids, (id) => heures.get(id)));
+dit('... et elles passent', null, suppressionRefusee('appointments', 169, 1169, false, plusGrosLotDuMemeInstant(ids, (id) => heures.get(id))));
+dit('169 a la meme milliseconde : une machine, refusee', 'masse', suppressionRefusee('appointments', 169, 1169, false, plusGrosLotDuMemeInstant(ids, () => '2026-09-28T09:14:53.302Z')));
+dit('des suppressions sans heure connue comptent ensemble', 5, plusGrosLotDuMemeInstant(['a', 'b', 'c', 'd', 'e'], () => undefined));
+dit('la poussee juge le lot du meme instant, lu dans la file', true,
+  /suppressionRefusee\(table, deletes\.length, prev\.size, purgeVoulue,\s*plusGrosLotDuMemeInstant\(deletes, \(id\) => \{ const e = attente\.get\(id\); return e\?\.op === 'del' \? e\.at : undefined; \}\)\);/.test(readFileSync('src/shared/sync.ts', 'utf8')));
 const serie = readFileSync('src/apps/trone/routes/clients/SerieModal.tsx', 'utf8');
 dit('retirer une série déclare son lot AVANT de le retirer', true,
   /autoriserLaPurge\('appointments'\);\s*appointmentsStore\.set\(\(prev\) => prev\.filter\(\(a\) => !partent\.has\(a\.id\)\)\)/.test(serie));
 const synchro = readFileSync('src/shared/sync.ts', 'utf8');
 dit('la poussée consulte le juge avant d’effacer', true,
-  /const refusDuLot = suppressionRefusee\(table, deletes\.length, prev\.size, purgeVoulue\);[\s\S]{0,4000}if \(refusDuLot\) \{/.test(synchro));
+  /const refusDuLot = suppressionRefusee\(table, deletes\.length, prev\.size, purgeVoulue,[\s\S]{0,4000}if \(refusDuLot\) \{/.test(synchro));
 
 console.log(ko === 0 ? '\nTout passe.' : `\n${ko} ÉCHEC(S).`);
 process.exit(ko === 0 ? 0 : 1);
