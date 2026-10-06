@@ -2786,7 +2786,7 @@ async function construitLaPieceEcrite(d: PieceEcritePdfData): Promise<{ doc: any
       doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.2); doc.line(M, 279, W - M, 279);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
       d.enTete.pied.forEach((l, i) => doc.text(l, W / 2, 283.5 + i * 3.6, { align: 'center' }));
-      if (d.enTete.devise) await pieDeLaMaison(doc, W, 288.5, { taille: 8, couleur: COPPER, nom: '' });
+      if (d.enTete.devise) await pieDeLaMaison(doc, W, 283.5 + Math.max(1, d.enTete.pied.length) * 3.6 + 1.4, { taille: 8, couleur: COPPER, nom: '' });
     }
     if (pages > 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT); doc.text(`${p} / ${pages}`, W - M, 293, { align: 'right' }); }
   }

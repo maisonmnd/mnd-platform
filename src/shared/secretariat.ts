@@ -2,8 +2,8 @@ import { createStore, useStore, uid } from './store';
 import { supabase } from './supabase';
 import { asset } from './asset';
 import {
-  APPELS, clotures, enTeteDe, prefixeDeSerie, prochainNumero, rangeDansLeCadre, retireLesSignatures, signe, modifiable,
-  type Entite, type Entreprise, type LigneSecretariat, type Piece, type Profil, type Signataire,
+  annulable, APPELS, clotures, enTeteDe, prefixeDeSerie, prochainNumero, rangeDansLeCadre, retireLesSignatures, signe, modifiable, supprimable,
+  type Entite, type Entreprise, type LigneSecretariat, type Mentions, type Piece, type Profil, type Signataire,
 } from './secretariat-pur';
 import { modeleDe, remplis } from './secretariat-modeles';
 import { dateSurLeRecu, TAMPON_A_DATER, tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
@@ -28,6 +28,9 @@ export const pieces = (l: readonly LigneSecretariat[]): Piece[] => l.filter((x):
 export const entreprises = (l: readonly LigneSecretariat[]): Entreprise[] => l.filter((x): x is Entreprise => x.genre === 'entreprise');
 export const signatairesDe = (l: readonly LigneSecretariat[]): Signataire[] => l.filter((x): x is Signataire => x.genre === 'signataire');
 export const profils = (l: readonly LigneSecretariat[]): Profil[] => l.filter((x): x is Profil => x.genre === 'profil');
+/** Les mentions (RCCM, IFU) d'une entité, telles que la direction les a tapées. */
+export const mentionsDe = (l: readonly LigneSecretariat[], entite: Entite): Mentions | undefined =>
+  l.find((x): x is Mentions => x.genre === 'mentions' && x.entite === entite);
 
 const ecris = (ligne: LigneSecretariat): void =>
   secretariatStore.set((prev) => (prev.some((x) => x.id === ligne.id) ? prev.map((x) => (x.id === ligne.id ? ligne : x)) : [...prev, ligne]));
@@ -72,7 +75,10 @@ function numerote(p: Piece, toutes: readonly LigneSecretariat[]): Piece {
   const auteur = profils(toutes).find((x) => x.userId === p.auteurId) ?? signatairesDe(toutes).find((s) => s.userId === p.auteurId);
   const prefixe = prefixeDeSerie(p, { entreprise, auteurNom: auteur?.nom });
   const annee = parseInt(p.date.slice(0, 4), 10) || new Date().getFullYear();
-  return { ...p, numero: prochainNumero(prefixe, annee, pieces(toutes).map((x) => x.numero)) };
+  /* Les mentions du jour de la signature se figent dans la pièce. */
+  const m = p.entite === 'mnd' || p.entite === 'acia' ? mentionsDe(toutes, p.entite) : undefined;
+  const mentionsFigees = m ? { rccm: m.rccm, ifu: m.ifu } : undefined;
+  return { ...p, numero: prochainNumero(prefixe, annee, pieces(toutes).map((x) => x.numero)), ...(mentionsFigees ? { mentionsFigees } : {}) };
 }
 
 /** SIGNER : la signature de CE compte seulement (`signe` le vérifie). */
@@ -108,8 +114,19 @@ export function duplique(p: Piece, o: { remplace?: boolean; auteurId: string }):
   return copie;
 }
 
-export function effaceLaPiece(p: Piece): void {
+/** Supprimer : un BROUILLON seulement (la base réserve le geste à la direction). */
+export function effaceLaPiece(p: Piece): boolean {
+  if (!supprimable(p)) return false;
   secretariatStore.set((prev) => prev.filter((x) => x.id !== p.id));
+  return true;
+}
+
+/** Annuler un document signé : il reste au registre, barré, avec son numéro. */
+export function annuleLeDocument(p: Piece): Piece {
+  if (!annulable(p)) return p;
+  const suite: Piece = { ...p, etat: 'annule', annuleLe: maintenant() };
+  ecris(suite);
+  return suite;
 }
 
 /* ══ LES ENTREPRISES, LES SIGNATAIRES, LES PROFILS ═══════════════════ */
@@ -123,6 +140,11 @@ export const majEntreprise = (e: Entreprise, patch: Partial<Entreprise>): void =
 
 export function enregistreMonSignataire(o: { branchId: string; userId: string; nom: string; qualite: string; aSaSignature: boolean }): void {
   ecris({ id: `sig-${o.userId}`, genre: 'signataire', entite: 'mnd', ...o });
+}
+
+/** La direction tape le RCCM et l'IFU d'une entité. */
+export function enregistreLesMentions(o: { branchId: string; entite: 'mnd' | 'acia'; rccm: string; ifu: string }): void {
+  ecris({ id: `mentions-${o.entite}`, genre: 'mentions', ...o, rccm: o.rccm.trim(), ifu: o.ifu.trim() });
 }
 
 export function enregistreMonProfil(o: { branchId: string; userId: string; nom: string; adresse: string; telephone: string }): void {
@@ -240,7 +262,9 @@ export type DocumentResolu = {
 export async function resous(p: Piece, toutes: readonly LigneSecretariat[], nomMaison: string): Promise<DocumentResolu> {
   const entreprise = entreprises(toutes).find((e) => e.id === p.entrepriseId);
   const profil = profils(toutes).find((x) => x.userId === p.auteurId);
-  const enTete = enTeteDe(p.entite, { nomMaison, entreprise, profil });
+  /* Une pièce signée garde SES mentions ; un brouillon prend celles du jour. */
+  const actuelles = p.entite === 'mnd' || p.entite === 'acia' ? mentionsDe(toutes, p.entite) : undefined;
+  const enTete = enTeteDe(p.entite, { nomMaison, entreprise, profil, mentions: p.mentionsFigees ?? actuelles });
   const premier = p.signataires[0];
   const v = {
     entreprise: p.entite === 'perso' ? (profil?.nom ?? '') : enTete.nom,

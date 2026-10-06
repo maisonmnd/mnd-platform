@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../_ui';
 import { useEstDirection } from '../_vie';
-import { Button, Input, Modal, toast } from '../../../../ds/components';
+import { Button, Field, Input, Modal, toast } from '../../../../ds/components';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import { useBranch } from '../../../../shared/branches';
 import { maisonNom } from '../../../../shared/identite';
 import {
-  entreprises, nouvellePiece, pieces, profils, signatairesDe, useSecretariat,
+  effaceLaPiece, enregistreLesMentions, entreprises, mentionsDe, nouvellePiece, pieces, profils, signatairesDe, useSecretariat,
 } from '../../../../shared/secretariat';
-import { ACIA, dateDite, type Entite, type Entreprise, type Piece } from '../../../../shared/secretariat-pur';
+import { ACIA, dateDite, ifuPlausible, supprimable, type Entite, type Entreprise, type Piece } from '../../../../shared/secretariat-pur';
 import { FAMILLES, MODELES, type Famille } from '../../../../shared/secretariat-modeles';
 import { Editeur } from './secretariat/Editeur';
 import { MaSignature, NouvelleEntreprise } from './secretariat/Signatures';
@@ -47,6 +47,8 @@ export default function Secretariat() {
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nouveau, setNouveau] = useState(false);
   const [signature, setSignature] = useState(false);
+  const [aSupprimer, setASupprimer] = useState<string | null>(null);
+  const [mentions, setMentions] = useState(false);
 
   const ents = entreprises(lignes);
   const nomDe = (p: Piece): string =>
@@ -89,6 +91,7 @@ export default function Secretariat() {
         sub="Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé."
         actions={(
           <>
+            {direction && <Button variant="ghost" onClick={() => setMentions(true)}>Mentions de l’en-tête</Button>}
             <Button variant="ghost" onClick={() => setSignature(true)}>{aSaSignature ? 'Ma signature' : 'Déposer ma signature'}</Button>
             <Button variant="copper" onClick={() => setNouveau(true)}>+ Nouveau document</Button>
           </>
@@ -113,7 +116,8 @@ export default function Secretariat() {
       ) : (
         <div className="sec-registre" role="list">
           {liste.map((p) => (
-            <button key={p.id} type="button" role="listitem" className="sec-ligne" onClick={() => setOuvert(p.id)}>
+            <div key={p.id} role="listitem" className="sec-rangee">
+            <button type="button" className="sec-ligne" onClick={() => setOuvert(p.id)}>
               <span className="sec-ligne__num">{p.numero ?? 'sans numéro'}</span>
               <span className={`sec-ligne__nom sec-ligne__nom--${p.entite}`}>{nomDe(p)}</span>
               <span className="sec-ligne__titre">{p.titre}{p.remplace ? ` · remplace ${p.remplace}` : ''}</span>
@@ -121,6 +125,23 @@ export default function Secretariat() {
               <span className="sec-ligne__date">{dateDite(p.date)}</span>
               <span className={`sec-etat sec-etat--${p.etat}`}>{ETAT[p.etat]}</span>
             </button>
+            {/* SUPPRIMER UN BROUILLON, d'ici — 6 octobre 2026. La direction
+                seule (la base réserve l'effacement, 0116) ; deux clics, le
+                second confirme. Un document signé ne se supprime pas : il
+                s'annule depuis le document, et reste barré au registre. */}
+            {direction && supprimable(p) && (
+              <div className="sec-ligne__geste">
+                {aSupprimer === p.id ? (
+                  <>
+                    <button type="button" className="sec-supprimer sec-supprimer--oui" onClick={() => { effaceLaPiece(p); setASupprimer(null); toast('Brouillon supprimé.'); }}>Confirmer</button>
+                    <button type="button" className="sec-supprimer" onClick={() => setASupprimer(null)}>Non</button>
+                  </>
+                ) : (
+                  <button type="button" className="sec-supprimer" aria-label={`Supprimer le brouillon « ${p.titre} »`} onClick={() => setASupprimer(p.id)}>Supprimer</button>
+                )}
+              </div>
+            )}
+            </div>
           ))}
         </div>
       )}
@@ -136,6 +157,7 @@ export default function Secretariat() {
           surCree={(id) => { setNouveau(false); setOuvert(id); }}
         />
       )}
+      {mentions && direction && <MentionsDeLEnTete branchId={branch.id} onClose={() => setMentions(false)} />}
       {signature && moi && (
         <MaSignature userId={moi} branchId={branch.id} nomParDefaut={tete?.name ?? ''} direction={direction} onClose={() => setSignature(false)} />
       )}
@@ -235,6 +257,62 @@ function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesCo
           surCree={(e) => { setEntrepriseId(e.id); setEntite('autre'); }}
         />
       )}
+    </Modal>,
+    document.body,
+  );
+}
+
+/* ══ LES MENTIONS DE L'EN-TÊTE — 6 octobre 2026 (« rajouter l'IFU ») ══════
+   RCCM et IFU de Maison MND et d'ACIA 1, TAPÉS par la direction : le Trône
+   n'en invente aucun. Ils s'impriment au pied des lettres de Maison MND et
+   sous le nom d'ACIA 1. Un document déjà signé garde les mentions du jour
+   de sa signature. */
+function MentionsDeLEnTete({ branchId, onClose }: { branchId: string; onClose: () => void }) {
+  const [lignes] = useSecretariat();
+  const mnd = mentionsDe(lignes, 'mnd');
+  const acia = mentionsDe(lignes, 'acia');
+  const [mndRccm, setMndRccm] = useState(mnd?.rccm ?? '');
+  const [mndIfu, setMndIfu] = useState(mnd?.ifu ?? '');
+  const [aciaRccm, setAciaRccm] = useState(acia?.rccm || ACIA.rccm);
+  const [aciaIfu, setAciaIfu] = useState(acia?.ifu ?? '');
+  const avis = (ifu: string) => (ifu.trim() && !ifuPlausible(ifu)
+    ? <span style={{ fontSize: 12, color: 'var(--copper-700)' }}>Un IFU du Bénin compte 13 chiffres : vérifiez-le avant de garder.</span>
+    : null);
+
+  const garde = () => {
+    enregistreLesMentions({ branchId, entite: 'mnd', rccm: mndRccm, ifu: mndIfu });
+    enregistreLesMentions({ branchId, entite: 'acia', rccm: aciaRccm, ifu: aciaIfu });
+    toast('Mentions gardées : elles s’impriment sur les prochains documents.');
+    onClose();
+  };
+
+  return createPortal(
+    <Modal title="Mentions de l’en-tête" onClose={onClose} width={620}>
+      <div style={{ display: 'grid', gap: 16 }}>
+        <p className="mnd-muted" style={{ fontSize: 13, margin: 0 }}>
+          Tapez-les telles qu’elles figurent sur vos papiers officiels. Les documents déjà signés gardent celles du jour de leur signature.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div className="mnd-eyebrow">{maisonNom()} · au pied des lettres</div>
+          <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+            <Field label="RCCM"><Input value={mndRccm} onChange={(e) => setMndRccm(e.target.value)} placeholder="RB/COT/…" /></Field>
+            <Field label="IFU"><Input value={mndIfu} onChange={(e) => setMndIfu(e.target.value)} inputMode="numeric" placeholder="13 chiffres" /></Field>
+          </div>
+          {avis(mndIfu)}
+        </div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div className="mnd-eyebrow">{ACIA.nom} · sous le nom</div>
+          <div className="tr-grid tr-grid--2" style={{ gap: 12 }}>
+            <Field label="RCCM"><Input value={aciaRccm} onChange={(e) => setAciaRccm(e.target.value)} /></Field>
+            <Field label="IFU"><Input value={aciaIfu} onChange={(e) => setAciaIfu(e.target.value)} inputMode="numeric" placeholder="13 chiffres" /></Field>
+          </div>
+          {avis(aciaIfu)}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="ghost" onClick={onClose}>Fermer</Button>
+          <Button variant="copper" onClick={garde}>Garder les mentions</Button>
+        </div>
+      </div>
     </Modal>,
     document.body,
   );

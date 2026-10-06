@@ -4,11 +4,11 @@ import { useAuth } from '../../../../../shared/auth';
 import { maisonNom } from '../../../../../shared/identite';
 import { envoieSurWhatsApp } from '../../../../../shared/whatsapp';
 import {
-  annuleLesSignatures, chargeMaSignature, duplique, effaceLaPiece, entreprises, finalise, metsAJour, pieces, resous,
+  annuleLeDocument, annuleLesSignatures, chargeMaSignature, duplique, effaceLaPiece, entreprises, finalise, metsAJour, pieces, resous,
   signatairesDe, signeLaPiece, useSecretariat, versLePdf, type DocumentResolu,
 } from '../../../../../shared/secretariat';
 import {
-  APPELS, clotures, modifiable, peutSigner, rangeDansLeCadre, restentASigner, type Cadre, type Piece, type Pose,
+  annulable, APPELS, clotures, modifiable, supprimable, peutSigner, rangeDansLeCadre, restentASigner, type Cadre, type Piece, type Pose,
 } from '../../../../../shared/secretariat-pur';
 import { aCompleter, modeleDe, remplisDepuisEquipe } from '../../../../../shared/secretariat-modeles';
 import { TAMPON_A_DATER, tamponsDe } from '../../../../../shared/secretariat-tampons';
@@ -39,6 +39,7 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
   const [r, setR] = useState<DocumentResolu | null>(null);
   const [occupe, setOccupe] = useState('');
   const [numeroWa, setNumeroWa] = useState('');
+  const [annuler, setAnnuler] = useState(false);
 
   /* L'aperçu se résout à chaque changement (images en cache). */
   useEffect(() => {
@@ -228,7 +229,12 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
             <Button variant="ghost" onClick={() => surOuvre(duplique(p, { auteurId: moi }).id)}>Dupliquer</Button>
             {p.etat === 'signe' && <Button variant="ghost" onClick={() => surOuvre(duplique(p, { auteurId: moi, remplace: true }).id)}>Corriger (nouveau numéro)</Button>}
             {direction && (p.etat === 'a-signer' || p.etat === 'signe') && <Button variant="ghost" onClick={() => { annuleLesSignatures(p); toast('Signatures retirées : le document redevient un brouillon.'); }}>Annuler les signatures</Button>}
-            {direction && p.etat === 'brouillon' && <Button variant="ghost" onClick={() => { effaceLaPiece(p); onClose(); }}>Supprimer le brouillon</Button>}
+            {direction && supprimable(p) && <Button variant="ghost" onClick={() => { if (effaceLaPiece(p)) onClose(); }}>Supprimer le brouillon</Button>}
+            {direction && annulable(p) && (
+              annuler
+                ? <Button variant="ghost" onClick={() => { annuleLeDocument(p); setAnnuler(false); toast(`Document ${p.numero ?? ''} annulé : il reste au registre, barré.`); }}>Confirmer l’annulation</Button>
+                : <Button variant="ghost" onClick={() => setAnnuler(true)}>Annuler le document</Button>
+            )}
           </div>
           {p.etat === 'signe' && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>

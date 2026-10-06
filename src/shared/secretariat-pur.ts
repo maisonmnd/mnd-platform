@@ -23,7 +23,7 @@
      pages. */
 
 export type Entite = 'mnd' | 'acia' | 'autre' | 'perso';
-export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil';
+export type Genre = 'piece' | 'entreprise' | 'signataire' | 'profil' | 'mentions';
 export type EtatPiece = 'brouillon' | 'a-signer' | 'signe' | 'annule';
 export type Cadre = 'libre' | 'droite' | 'centre' | 'gauche';
 
@@ -69,7 +69,15 @@ export type Piece = {
   aRelire?: boolean; // modèle juridique non encore relu
   creeLe: string;
   signeLe?: string;
+  /** Un document signé ne s'efface pas : il s'annule et reste au registre. */
+  annuleLe?: string;
+  /** Les mentions légales (RCCM, IFU) telles qu'elles étaient À LA
+      SIGNATURE : changer l'IFU plus tard ne réécrit pas une pièce signée. */
+  mentionsFigees?: MentionsLegales;
 };
+
+/** RCCM et IFU d'une entité, tapés par la direction (jamais devinés). */
+export type MentionsLegales = { rccm: string; ifu: string };
 
 export type Entreprise = {
   id: string;
@@ -107,7 +115,24 @@ export type Profil = {
   telephone: string;
 };
 
-export type LigneSecretariat = Piece | Entreprise | Signataire | Profil;
+/** LES MENTIONS DE L'EN-TÊTE — 6 octobre 2026 (« rajouter l'IFU »). Une
+    ligne par entité (`mentions-mnd`, `mentions-acia`). */
+export type Mentions = MentionsLegales & {
+  id: string; // `mentions-<entite>`
+  genre: 'mentions';
+  branchId: string;
+  entite: 'mnd' | 'acia';
+};
+
+export type LigneSecretariat = Piece | Entreprise | Signataire | Profil | Mentions;
+
+/** « RCCM … · IFU … », sans ce qui manque ; vide si rien n'est donné. */
+export function ligneDesMentions(m: Partial<MentionsLegales> | undefined): string {
+  return [m?.rccm?.trim() ? `RCCM ${m.rccm.trim()}` : '', m?.ifu?.trim() ? `IFU ${m.ifu.trim()}` : ''].filter(Boolean).join(' · ');
+}
+
+/** L'IFU du Bénin compte treize chiffres : on prévient, on ne bloque pas. */
+export const ifuPlausible = (ifu: string): boolean => /^\d{13}$/.test(ifu.replace(/\s/g, ''));
 
 /* ══ LES FORMULES, PRÉ-REMPLIES ══════════════════════════════════════ */
 
@@ -237,6 +262,13 @@ export function nomsDansLaZone(
 
 /* ══ LA VIE D'UN DOCUMENT ════════════════════════════════════════════ */
 
+/** SUPPRIMER OU ANNULER — 6 octobre 2026 (choix au sélecteur : « brouillons
+    seulement »). Un brouillon se supprime ; un document signé, numéroté,
+    ne se supprime jamais : il s'annule, reste barré au registre avec son
+    numéro, et la série ne saute pas. */
+export const supprimable = (p: Pick<Piece, 'etat'>): boolean => p.etat === 'brouillon';
+export const annulable = (p: Pick<Piece, 'etat'>): boolean => p.etat === 'signe';
+
 /** Le texte est-il encore modifiable ? Non dès la première signature. */
 export const modifiable = (p: Pick<Piece, 'etat'>): boolean => p.etat === 'brouillon';
 
@@ -317,19 +349,29 @@ export const ACIA = {
 
 export function enTeteDe(
   entite: Entite,
-  o: { nomMaison: string; entreprise?: Pick<Entreprise, 'nom' | 'mentions' | 'telephone'>; profil?: Pick<Profil, 'nom' | 'adresse' | 'telephone'> },
+  o: {
+    nomMaison: string;
+    entreprise?: Pick<Entreprise, 'nom' | 'mentions' | 'telephone'>;
+    profil?: Pick<Profil, 'nom' | 'adresse' | 'telephone'>;
+    /** RCCM et IFU de l'entité (Maison MND, ACIA 1), s'ils sont donnés. */
+    mentions?: Partial<MentionsLegales>;
+  },
 ): EnTete {
   if (entite === 'mnd') {
+    const legales = ligneDesMentions(o.mentions);
     return {
       entite, nom: o.nomMaison, verrou: true, lignes: [], expediteur: [], devise: true, encre: '#1E2150', ville: 'Cotonou',
-      pied: [`${o.nomMaison} · Cotonou, Bénin · +229 01 51 99 77 99 · direction@maisonmnd.com`],
+      pied: [`${o.nomMaison} · Cotonou, Bénin · +229 01 51 99 77 99 · direction@maisonmnd.com`, ...(legales ? [legales] : [])],
     };
   }
   if (entite === 'acia') {
+    /* Le RCCM d'ACIA 1 est connu (RB/COT/12 A 14509) ; un RCCM tapé le
+       remplace, un IFU tapé s'y ajoute. */
+    const legales = ligneDesMentions({ rccm: o.mentions?.rccm?.trim() || ACIA.rccm, ifu: o.mentions?.ifu });
     return {
       entite, nom: ACIA.nom, verrou: false, devise: false, encre: '#1F3F7A', ville: 'Cotonou', expediteur: [],
-      lignes: [`RCCM ${ACIA.rccm} · ${ACIA.adresse}`, `Tél. ${ACIA.telephone} · ${ACIA.courriel}`],
-      pied: [`${ACIA.nom} · RCCM ${ACIA.rccm} · Cotonou, Bénin`],
+      lignes: [legales, ACIA.adresse, `Tél. ${ACIA.telephone} · ${ACIA.courriel}`],
+      pied: [`${ACIA.nom} · ${legales} · Cotonou, Bénin`],
     };
   }
   if (entite === 'autre') {

@@ -987,3 +987,13 @@
 /* Les champs restent dans leur colonne, jamais sous la page. */
 .sec-editeur__form .mnd-input, .sec-editeur__form textarea, .sec-editeur__form select { width: 100%; max-width: 100%; box-sizing: border-box; }
 .sec-editeur__form > * { min-width: 0; }
+/* Une rangée du registre : la ligne qui ouvre, et le geste à côté. */
+.sec-rangee { display: flex; align-items: stretch; border-bottom: 1px solid var(--hairline); }
+.sec-rangee:last-child { border-bottom: 0; }
+.sec-rangee .sec-ligne { flex: 1; min-width: 0; border-bottom: 0; }
+.sec-ligne__geste { display: flex; align-items: center; gap: 6px; padding: 0 12px 0 4px; }
+.sec-supprimer { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; background: none; color: var(--ink-soft); border: 1px solid var(--hairline); white-space: nowrap; }
+.sec-supprimer:hover { border-color: var(--copper-600); color: var(--copper-700); }
+.sec-supprimer--oui { background: var(--copper-700); border-color: var(--copper-700); color: var(--color-ivoire); }
+.sec-supprimer--oui:hover { color: var(--color-ivoire); }
+@media (max-width: 820px) { .sec-rangee { flex-wrap: wrap; } .sec-ligne__geste { padding: 0 16px 10px; } }

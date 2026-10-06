@@ -23,7 +23,7 @@
       signature de celui qui est connecté, et se range dans la barre. */
 import { readFileSync } from 'node:fs';
 import {
-  ACIA, APPELS, borneDansLaZone, clotures, enTeteDe, modifiable, peutSigner, prefixeDeSerie, prochainNumero,
+  ACIA, annulable, APPELS, borneDansLaZone, ifuPlausible, ligneDesMentions, supprimable, clotures, enTeteDe, modifiable, peutSigner, prefixeDeSerie, prochainNumero,
   nomsDansLaZone, rangeDansLeCadre, restentASigner, retireLesSignatures, sigle, signe, SIGNATURE_MM, TAMPON_MM, Y_DES_NOMS, ZONE, type Piece,
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
@@ -196,6 +196,37 @@ dit('« Recu le » porte la date choisie, sinon celle du document', true,
   /p\.tampon === TAMPON_A_DATER\)[\s\S]{0,120}const quand = p\.dateTampon \|\| p\.date;[\s\S]{0,120}dateSurLeRecu\(brut, quand\)/.test(resolution));
 dit('l editeur propose la date du tampon quand c est « Recu le »', true, editeur.includes('{p.tampon === TAMPON_A_DATER && ('));
 dit('le tampon d une entreprise echappe son nom', false, /<script|<img/i.test(tamponAutoSvg('<script>x</script>', '', '') + tamponAutoSvg('ok', '', '<img onerror=x>')));
+
+/* ── 10. SUPPRIMER, ANNULER — 6 octobre 2026 (« brouillons seulement ») ── */
+dit('on supprime un brouillon, rien d autre', [true, false, false, false],
+  (['brouillon', 'a-signer', 'signe', 'annule'] as const).map((etat) => supprimable({ etat })));
+dit('on annule un document signe, rien d autre', [false, false, true, false],
+  (['brouillon', 'a-signer', 'signe', 'annule'] as const).map((etat) => annulable({ etat })));
+const magasin = sansCommentaires('src/shared/secretariat.ts');
+dit('effacer refuse tout ce qui n est pas un brouillon', true,
+  /export function effaceLaPiece\(p: Piece\): boolean \{\s*if \(!supprimable\(p\)\) return false;/.test(magasin));
+dit('annuler garde la piece au registre (etat annule, numero garde)', true,
+  /const suite: Piece = \{ \.\.\.p, etat: 'annule', annuleLe: maintenant\(\) \};/.test(magasin));
+dit('le registre ne propose Supprimer qu a la direction, et sur un brouillon', true, page.includes('{direction && supprimable(p) && ('));
+
+/* ── 11. L'IFU, TAPÉ PAR LA DIRECTION — 6 octobre 2026 ── */
+dit('la ligne des mentions ne dit que ce qui est donne', ['RCCM R · IFU 1', 'IFU 1', ''],
+  [ligneDesMentions({ rccm: 'R', ifu: '1' }), ligneDesMentions({ rccm: ' ', ifu: '1' }), ligneDesMentions(undefined)]);
+const mndAvecIfu = enTeteDe('mnd', { nomMaison: 'Maison MND', mentions: { rccm: '', ifu: '3202300000000' } });
+dit('Maison MND : l IFU au pied, en seconde ligne ; rien sans IFU', [2, 'IFU 3202300000000', 1],
+  [mndAvecIfu.pied.length, mndAvecIfu.pied[1], enTeteDe('mnd', { nomMaison: 'Maison MND' }).pied.length]);
+const aciaAvecIfu = enTeteDe('acia', { nomMaison: 'Maison MND', mentions: { rccm: '', ifu: '1234567890123' } });
+dit('ACIA 1 : son RCCM connu, l IFU ajoute, et toujours rien de Maison MND', ['RCCM RB/COT/12 A 14509 · IFU 1234567890123', false],
+  [aciaAvecIfu.lignes[0], /Maison|MND/.test(JSON.stringify({ ...aciaAvecIfu, lignes: aciaAvecIfu.lignes.map((l) => l.replace(ACIA.courriel, '')) }))]);
+dit('un IFU du Benin a treize chiffres', [true, true, false, false],
+  [ifuPlausible('3202300000000'), ifuPlausible('3202 3000 00000'), ifuPlausible('12345'), ifuPlausible('')]);
+dit('une piece signee fige ses mentions ; l apercu les relit avant celles du jour', [true, true], [
+  /const mentionsFigees = m \? \{ rccm: m\.rccm, ifu: m\.ifu \} : undefined;/.test(magasin),
+  /mentions: p\.mentionsFigees \?\? actuelles/.test(magasin),
+]);
+dit('le PDF descend la devise quand le pied a deux lignes', true,
+  sansCommentaires('src/shared/pdf.ts').includes('pieDeLaMaison(doc, W, 283.5 + Math.max(1, d.enTete.pied.length) * 3.6 + 1.4'));
+dit('seule la direction ouvre les mentions', true, page.includes('{mentions && direction && <MentionsDeLEnTete'));
 
 console.log(ko === 0 ? '\nLe secretariat tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);
