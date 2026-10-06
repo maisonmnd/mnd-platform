@@ -30,8 +30,15 @@ export function PaveDeSignature({ valeur, surChange }: { valeur: string | null; 
     const c = pad.current;
     const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
+    /* LE TRAIT EN COURS NE S'EFFACE PAS (6 octobre : « quand on dessine au
+       doigt elle s'efface automatiquement »). Chaque trait fini remonte la
+       signature ; ce retour redessinait le pavé en le vidant d'abord, et le
+       dessin disparaissait sous le doigt. Quand on dessine, le pavé porte
+       déjà le trait : on n'y touche pas. On ne redessine que ce qui vient
+       d'ailleurs (la signature gardée, une photo importée). */
+    if (aDessine.current) return;
     ctx.clearRect(0, 0, c.width, c.height);
-    if (valeur && !aDessine.current) {
+    if (valeur) {
       const img = new Image();
       img.onload = () => {
         const k = Math.min(c.width / img.width, c.height / img.height, 1);
