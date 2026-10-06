@@ -208,8 +208,42 @@ export function champsQuiDifferent(c: Pick<Conflit, 'table' | 'notre' | 'leur'>)
   return [...cles].filter((k) => !ignores.has(k) && canonique(a[k]) !== canonique(b[k])).sort();
 }
 
-/** Un conflit qui mérite un regard : au moins un champ tenu à la main diffère. */
-export const conflitUtile = (c: Pick<Conflit, 'table' | 'notre' | 'leur'>): boolean => champsQuiDifferent(c).length > 0;
+/* ══ UN CONFLIT DÉJÀ TRANCHÉ NE SE DEMANDE PLUS — 6 octobre 2026 ═══════
+   « Je ne comprends pas les synchros en échec, 11 conflits. Répondre "c'est
+   bien ainsi" ou "reprendre ma version" ne me convient pas » (Yéman). Onze
+   conflits sur le même objet de lettre, chacun d'une lettre (« Moov Afric »
+   contre « Moov Africa ») : les étapes de SA frappe, prises pour une dispute.
+
+   Quand la ligne a été RÉÉCRITE depuis le conflit (on a continué à taper,
+   on a corrigé ailleurs), la question ne se pose plus : la ligne d'aujourd'hui
+   ne porte plus la version gardée, c'est donc qu'on a tranché, en écrivant.
+   Le conflit ne reste à l'écran que tant que la ligne porte ENCORE, sur les
+   champs disputés, la version gardée d'ailleurs. Chaque magasin dit où lire
+   sa ligne actuelle (`declareLecteurDeLigne`, posé par la synchro). */
+type LecteurDeLigne = (id: string) => unknown;
+const LECTEURS = new Map<string, LecteurDeLigne>();
+export function declareLecteurDeLigne(table: string, lire: LecteurDeLigne): void { LECTEURS.set(table, lire); }
+
+export function dejaTranche(c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'>): boolean {
+  const lire = LECTEURS.get(c.table);
+  const gardee = enLigne(c.leur);
+  if (!lire || !gardee || !enLigne(c.notre)) return false;
+  const actuel = lire(c.id);
+  if (!actuel || typeof actuel !== 'object') return false;
+  const ligne = actuel as Record<string, unknown>;
+  return champsQuiDifferent(c).some((k) => canonique(ligne[k]) !== canonique(gardee[k]));
+}
+
+/** Un conflit qui DIFFÈRE : au moins un champ tenu à la main. C'est le
+    seul filtre au moment de NOTER : à cet instant, la ligne affichée porte
+    encore notre version (la version gardée s'applique juste après), et
+    « déjà tranché » s'y tromperait (vu au banc de la file, 6 octobre). */
+export const conflitQuiDiffere = (c: Pick<Conflit, 'table' | 'notre' | 'leur'>): boolean => champsQuiDifferent(c).length > 0;
+
+/** Un conflit qui mérite un regard, À LA LECTURE : il diffère, et la ligne ne
+    l'a pas tranché depuis. */
+export const conflitUtile = (c: Pick<Conflit, 'table' | 'id' | 'notre' | 'leur'>): boolean =>
+  conflitQuiDiffere(c) && !dejaTranche(c);
 
 export function lisLesConflits(): Conflit[] {
   try { return (JSON.parse(localStorage.getItem(CLE_DES_CONFLITS()) || '[]') as Conflit[]).filter(conflitUtile); } catch { return []; }
@@ -224,7 +258,7 @@ export function oublieTousLesConflits(): void {
 
 /** Les conflits se gardent, les plus récents d'abord, cent au plus. */
 export function noteLesConflits(nouveaux: readonly Conflit[]): void {
-  nouveaux = nouveaux.filter(conflitUtile);
+  nouveaux = nouveaux.filter(conflitQuiDiffere);
   if (nouveaux.length === 0) return;
   try {
     const tous = [...nouveaux, ...lisLesConflits()].slice(0, 100);

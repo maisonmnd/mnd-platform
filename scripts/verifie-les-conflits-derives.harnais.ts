@@ -18,6 +18,7 @@
 import { readFileSync } from 'node:fs';
 import {
   champsQuiDifferent, conflitUtile, lisLesConflits, noteLesConflits, oublieTousLesConflits, type Conflit,
+  declareLecteurDeLigne, dejaTranche,
 } from '../src/shared/file-d-attente';
 import { produitsStockStore } from '../src/shared/stock';
 
@@ -83,6 +84,39 @@ const shell = sansCommentaires('src/apps/trone/shell/Shell.tsx');
 dit('la coquille charge la regle des l ouverture', true, /import '\.\.\/\.\.\/\.\.\/shared\/stock';/.test(shell));
 dit('le panneau montre ce qui differe, et se vide d un geste', [true, true],
   [/champsQuiDifferent\(c\)/.test(shell) && /Ce qui diffère :/.test(shell), /onClick=\{oublieTousLesConflits\}/.test(shell)]);
+
+/* ── LA FRAPPE N'EST PAS UNE DISPUTE — 6 octobre 2026 (« 11 conflits ») ──
+   ① Un conflit dont la ligne a été réécrite depuis est tranché : il ne se
+      demande plus. Il ne reste que tant que la ligne porte ENCORE la version
+      gardée d'ailleurs sur les champs disputés.
+   ② L'écho de notre propre poussée est reconnu AVANT le jugement : la frappe
+      en attente gagne, sans conflit. */
+const lignesDuBanc = new Map<string, Record<string, unknown>>();
+declareLecteurDeLigne('banc_frappe', (id) => lignesDuBanc.get(id));
+const frappe = (gardee: string, votre: string) => ({
+  table: 'banc_frappe', id: 'doc-1',
+  notre: JSON.stringify({ id: 'doc-1', objet: votre, corps: 'x' }),
+  leur: JSON.stringify({ id: 'doc-1', objet: gardee, corps: 'x' }),
+});
+lignesDuBanc.set('doc-1', { id: 'doc-1', objet: 'Dépôt de marque', corps: 'x' });
+dit('la ligne reecrite depuis (on a continue a taper) : le conflit est tranche', [true, false],
+  [dejaTranche(frappe('Demande de Moov Afric', 'Demande de Moov Africa')), conflitUtile(frappe('Demande de Moov Afric', 'Demande de Moov Africa'))]);
+lignesDuBanc.set('doc-1', { id: 'doc-1', objet: 'Demande de Moov Africa', corps: 'x' });
+dit('la ligne porte deja ma version : tranche aussi', false, conflitUtile(frappe('Demande de Moov Afric', 'Demande de Moov Africa')));
+lignesDuBanc.set('doc-1', { id: 'doc-1', objet: 'Demande de Moov Afric', corps: 'x' });
+dit('la ligne porte encore la version gardee : la question reste posee', [false, true],
+  [dejaTranche(frappe('Demande de Moov Afric', 'Demande de Moov Africa')), conflitUtile(frappe('Demande de Moov Afric', 'Demande de Moov Africa'))]);
+dit('noter ne juge pas « deja tranche » (la ligne porte encore notre version a cet instant)', true,
+  /export function noteLesConflits[\s\S]{0,120}nouveaux = nouveaux\.filter\(conflitQuiDiffere\);/.test(readFileSync('src/shared/file-d-attente.ts', 'utf8')));
+dit('une table sans lecteur garde le comportement d avant', true,
+  conflitUtile({ ...frappe('a', 'b'), table: 'banc_sans_lecteur' }));
+const synchro = readFileSync('src/shared/sync.ts', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+dit('l echo de notre poussee est reconnu avant le jugement de conflit', [true, true], [
+  /const notreEcho = !!distant && estNotreEcho\(idTouche, contenuCanonique\(distant\)\);/.test(synchro),
+  /\} else if \(notreEcho \|\| leGesteLocalTient\(enAttente, distantAt\)\) \{/.test(synchro),
+]);
+dit('chaque magasin dit ou lire sa ligne actuelle', true,
+  /declareLecteurDeLigne\(table, \(id\) => store\.get\(\)\.find\(\(x\) => x\.id === id\)\);/.test(synchro));
 
 console.log(ko === 0 ? '\nCe que la Maison calcule ne se dispute pas.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

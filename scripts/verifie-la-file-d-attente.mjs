@@ -92,17 +92,20 @@ try {
   dit('... notre geste, plus ancien, est garde en conflit', [['essais', 'a1', 'Telephone', 'Ailleurs']], b2.conflits);
   dit('... et sort de la file', 0, b2.attente);
 
+  /* G. « REPRENDRE MA VERSION » : le conflit de B se reprend, comme un geste
+     neuf. Il se reprend TANT QU'IL EST OUVERT : une réécriture de la ligne
+     le tranche (6 octobre 2026), d'où sa place juste après B. */
+  const g1 = seanceAvec(A, { gestes: [['reprendre']] });
+  dit('G : reprendre ma version la renvoie au serveur et ferme le conflit', ['Telephone', 'Telephone', 0, 0], [g1.serveur.a1, g1.local.a1, g1.conflits.length, g1.attente]);
+
   /* C. LE DERNIER GESTE GAGNE : nous, plus tard qu'ailleurs. */
   ailleurs(A, 'a1', 'Vieux');
   await new Promise((r) => setTimeout(r, 30));
   seanceAvec(A, { reseau: false, gestes: [['set', 'a1', 'Neuf']] });
   const c2 = seanceAvec(A);
   dit('C : notre geste, plus recent qu ailleurs, l emporte', ['Neuf', 'Neuf'], [c2.serveur.a1, c2.local.a1]);
-  dit('... sans conflit de plus', 1, c2.conflits.length);
+  dit('... sans conflit de plus', 0, c2.conflits.length);
 
-  /* G. « REPRENDRE MA VERSION » : le conflit de B se reprend, comme un geste neuf. */
-  const g1 = seanceAvec(A, { gestes: [['reprendre']] });
-  dit('G : reprendre ma version la renvoie au serveur et ferme le conflit', ['Telephone', 'Telephone', 0, 0], [g1.serveur.a1, g1.local.a1, g1.conflits.length, g1.attente]);
 
   /* D. LE RÉSEAU REVIENT PENDANT LA SÉANCE (sans fermer). */
   const D = nouveauTelephone();

@@ -5,7 +5,7 @@ import { serveurInjoignable } from './hors-ligne';
 import { litToutesLesPages } from './lecture-entiere';
 import { noteUneEcritureRecue } from './poids-de-la-memoire';
 import { contenuCanonique, memeContenu } from './meme-contenu';
-import { arbitre, ecrisLaFile, gestesEntre, leGesteLocalTient, lisLaFile, noteLesConflits, oublieLeConflit, recus, type Conflit, type Entree } from './file-d-attente';
+import { arbitre, declareLecteurDeLigne, ecrisLaFile, gestesEntre, leGesteLocalTient, lisLaFile, noteLesConflits, oublieLeConflit, recus, type Conflit, type Entree } from './file-d-attente';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -746,6 +746,8 @@ export function bindCollection<T extends WithId>(
   options?: { colonnes?: (it: T) => Record<string, unknown> },
 ): void {
   magasinsParTable.set(table, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
+  /* La ligne actuelle, pour savoir si un conflit a été tranché depuis. */
+  declareLecteurDeLigne(table, (id) => store.get().find((x) => x.id === id));
   if (!supabase) return;
   const sb = supabase;
 
@@ -1394,10 +1396,19 @@ export function bindCollection<T extends WithId>(
         if (enAttente) {
           const distantAt = payload.eventType === 'DELETE' ? undefined : (payload.new.updated_at as string | undefined);
           const distant = payload.eventType === 'DELETE' ? undefined : (payload.new as { data: T }).data;
+          /* NOTRE PROPRE ÉCHO, AVANT TOUT JUGEMENT — 6 octobre 2026. On tape
+             « Moov Africa » : « Moov Afric » part, le « a » attend, l'écho de
+             « Moov Afric » revient avec l'heure du SERVEUR, plus récente que
+             celle du « a » sur l'horloge du poste. Le geste perdait, la lettre
+             tombait en « conflit », la case reculait d'un caractère : onze
+             conflits pour un objet de lettre. Ce qu'on a poussé soi-même
+             n'est jamais une écriture d'ailleurs : la frappe en attente reste,
+             et repart par-dessus. */
+          const notreEcho = !!distant && estNotreEcho(idTouche, contenuCanonique(distant));
           if (enAttente.op === 'set' && distant && memeContenu(distant, JSON.parse(enAttente.j ?? 'null'))) {
             /* Notre geste, revenu du serveur : il est arrivé. */
             sortDeLaFile([idTouche]);
-          } else if (leGesteLocalTient(enAttente, distantAt)) {
+          } else if (notreEcho || leGesteLocalTient(enAttente, distantAt)) {
             const lp = new Map(lastPushed);
             if (distant) lp.set(idTouche, JSON.stringify(distant)); else lp.delete(idTouche);
             lastPushed = lp;
