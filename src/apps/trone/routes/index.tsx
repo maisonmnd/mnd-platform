@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, FolderLock, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -164,6 +164,16 @@ export const NAV: TroneGroup[] = [
     ],
   },
   {
+    /* LE SECRÉTARIAT — 6 octobre 2026. Les papiers de la Maison et de ceux qui
+       la tiennent, quand ils se préparent à l'avance et se déposent à date.
+       Le dossier de bourse scolaire est le premier : réservé à la direction
+       (`ROUTES_DIRECTION`), parce qu'il dit une famille et des salaires. */
+    group: 'Secrétariat',
+    items: [
+      { path: '/dossier-de-bourse', label: 'Dossier de bourse', icon: FolderLock, Component: lazy(() => import('./secretariat/DossierBourse')) },
+    ],
+  },
+  {
     group: 'Système',
     items: [
       { path: '/parametres', label: 'Paramètres', icon: Settings, Component: lazy(() => import('./systeme/Parametres')) },
@@ -272,6 +282,7 @@ export const DEPARTEMENTS: { k: string; l: string }[] = [
   { k: 'dept-marketing', l: 'Marketing & Fidélité' },
   { k: 'dept-equipe', l: 'Équipe' },
   { k: 'dept-academie', l: 'Académie' },
+  { k: 'dept-secretariat', l: 'Secrétariat' },
   { k: 'dept-systeme', l: 'Système' },
 ];
 
@@ -333,7 +344,7 @@ export const ROUTES_SOUVERAIN = ['/salon-foyer'];
    trace signée par la base : sa vraie barrière est la RLS de 0092
    (`est_direction()`). L'ancien journal écrit par l'application, lui, reste
    lisible du souverain seul (0070). */
-export const ROUTES_DIRECTION = ['/journal'];
+export const ROUTES_DIRECTION = ['/journal', '/dossier-de-bourse'];
 
 export const peutVoir = (
   role: string | undefined,

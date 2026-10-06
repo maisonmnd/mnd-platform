@@ -2,6 +2,76 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE DOSSIER DE BOURSE, AU SECRÉTARIAT — 6 octobre 2026, BÂTI, PAS ENCORE PUBLIÉ
+
+« Ça me prend un temps fou, parfois deux à trois semaines. Maximum quinze
+minutes. » Puis : « Bâtis dans le Trône une page Dossier de bourse au
+secrétariat : le coffre des pièces permanentes avec leurs dates d'expiration,
+le rappel mensuel de collecte, la lettre et les attestations générées depuis
+l'identité de la Maison, et le PDF assemblé dans l'ordre de la liste » (Yéman).
+
+**Un nouveau département, « Secrétariat »** (`dept-secretariat`), dont le
+premier écran est `/dossier-de-bourse`. Réservé à la direction
+(`ROUTES_DIRECTION`) : le dossier dit une famille, des enfants, des salaires.
+Un maître ne le voit pas, et l'écran dit « Réservé à la direction » sans
+interroger le coffre.
+
+**LE CODE NE PORTE AUCUN NOM. Le dépôt est public.** Rien de la famille n'est
+écrit dans `src/` : ni enfant, ni employeur, ni adresse. Tout vient de la
+FICHE, saisie à l'écran et rangée au coffre de la direction ; le harnais
+`verifie-bourse` lit les quatre fichiers du module et refuse toute occurrence
+des noms que la conversation a portés. C'est la leçon du 2 août appliquée
+avant la fuite, pas après.
+
+**LE COFFRE TIENT LES NOMS, LE MAGASIN NE TIENT QUE LE CALENDRIER.** La table
+`documents` se lit par tout le personnel : `mnd_bourse` n'y range que la
+campagne, sa date de dépôt et l'état de la collecte, ce qu'il faut pour sonner
+le rappel au démarrage. La fiche et la liste des pièces vivent dans UN fichier
+JSON au coffre, `bourse/identite/<campagne>/dossier.json` : même coffre
+`engagements`, même règle du deuxième segment `identite` (0099), AUCUNE
+migration, comme la carte du personnel (18 septembre) et les lettres du prêt
+(20 septembre). Un cache local (`mnd_bourse_coffre`, jamais relié à la synchro)
+permet de relire hors ligne ce que ce poste a déjà ouvert.
+
+**Les quatre promesses, et où elles vivent** :
+- *Le coffre des pièces permanentes avec leurs dates d'expiration* : onglet
+  Le coffre, une date sur chaque pièce permanente ; `etatDExpiration` prévient
+  trois mois avant (`PREAVIS_JOURS`) et signale ce qui expire avant le dépôt.
+- *Le rappel mensuel de collecte* : le 5 de chaque mois, pour le mois passé.
+  `rappelDu` ne parle qu'une fois par mois et par poste (`rappelVu`), se tait
+  quand la collecte est faite ou le dépôt passé ; le Shell le sonne par
+  `alerte()` pour la direction seule. L'onglet La collecte tient la liste du
+  mois, huit mois d'historique et le rétro-planning à rebours du dépôt.
+- *La lettre et les attestations générées depuis l'identité de la Maison* :
+  `shared/bourse.ts` rédige six textes depuis la fiche (demande, employeur,
+  hébergement, quittance, sur l'honneur, avantages en nature). Quand
+  l'employeur EST la Maison (`emploi.estLaMaison`), l'attestation sort avec le
+  nom, la raison, la ville, le monogramme et la devise de `shared/identite` ;
+  les lettres de la famille, elles, ne portent pas la devise : ce ne sont pas
+  des papiers de la Maison. Les champs vides sortent entre crochets, comptés
+  à l'écran, pour qu'un oubli se voie avant d'être signé.
+- *Le PDF assemblé dans l'ordre de la liste* : `ordreDAssemblage` suit les 22
+  rubriques de l'Ambassade (`RUBRIQUES`), le bordereau en tête ; jsPDF écrit
+  les lettres (`shared/bourse-pdf.ts`), et **pdf-lib, nouvelle dépendance**,
+  recoud lettres et pièces du coffre, PDF ou photos, en un seul fichier. Une
+  pièce illisible devient une page qui le dit : la numérotation ne bouge pas.
+  Les deux bibliothèques se chargent à la demande, un Trône qui n'ouvre pas ce
+  dossier ne les télécharge pas.
+
+**Ce qui est mesuré** : `verifie-bourse` (66 vérifications) tient les
+rythmes, l'expiration, la collecte et son rappel, le planning, les rubriques
+sans objet d'après la fiche, les six lettres, l'ordre d'assemblage, le nommage
+des fichiers (`05-facture-sbee-2026-10.jpg` : le tri alphabétique range le
+classeur) et l'absence de noms. `verifie-cles-uniques` connaît les deux
+magasins neufs. Typecheck à zéro, build qui passe, les cinq onglets rendus
+dans Chromium sans exception.
+
+**À faire par Yéman** : remplir la fiche une fois (onglet La fiche), déposer
+le socle permanent avec les dates d'expiration des passeports, poser la date
+limite quand l'Ambassade la publie en décembre. **Reste ouvert** : le dépôt
+en ligne (SCOLAIDE) si le consulat l'adopte, qui ferait du PDF assemblé le
+dossier lui-même.
+
 ## LA CHARTE GRAPHIQUE, ÉCRITE — 29 septembre 2026
 
 « Créer moi une charte graphique respectant les normes internationales de la

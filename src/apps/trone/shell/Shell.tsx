@@ -10,6 +10,7 @@ import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
+import { rappelDeCollecte } from '../../../shared/bourse-coffre';
 import { RdvModal } from '../routes/clients/_shared';
 import { RdvFoyerHote } from '../routes/clients/RdvFoyer';
 
@@ -74,7 +75,7 @@ import { useSansLocksVivant } from './useSansLocksVivant';
 import { useVerrouDuPoste, postePartageStore } from './useVerrouDuPoste';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
-import { Seal, Button, toast } from '../../../ds/components';
+import { Seal, Button, toast, alerte } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
@@ -157,6 +158,16 @@ export default function Shell() {
   const { session } = useAuth();
   const { tete: staff, pret: teteSue } = useMaTete();
   const role = staff?.role;
+
+  /* LE RAPPEL DU DOSSIER DE BOURSE — 6 octobre 2026. À partir du 5 du mois,
+     la direction entend une fois que la collecte du mois passé attend ; le
+     magasin partagé suffit à le savoir, sans ouvrir le coffre. Un maître ne
+     l'entend jamais : le dossier n'est pas le sien. */
+  useEffect(() => {
+    if (role !== 'souverain' && role !== 'gerant') return;
+    const r = rappelDeCollecte();
+    if (r) alerte(r.message);
+  }, [role]);
 
   /* LA MATRICE DOIT ÊTRE DESCENDUE, ELLE AUSSI — 31 août 2026. Savoir QUI
      regarde ne suffit pas : tant que ses accès ne sont pas arrivés, la matrice
