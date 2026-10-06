@@ -179,6 +179,9 @@ dit('« Importer une photo » est un vrai bouton qui ouvre le fichier, et se rec
 const effetDuPave = signatures.slice(signatures.indexOf('useEffect(() => {'), signatures.indexOf('}, [valeur]);'));
 dit('le pave ne s efface pas sous le doigt : on sort AVANT de vider quand on dessine', true,
   effetDuPave.indexOf('if (aDessine.current) return;') > -1 && effetDuPave.indexOf('if (aDessine.current) return;') < effetDuPave.indexOf('clearRect'));
+const nettoyage = sansCommentaires('src/shared/secretariat.ts').slice(sansCommentaires('src/shared/secretariat.ts').indexOf('export function nettoieLaSignature'));
+dit('une image deja transparente se pose sur du blanc avant d etre lue', true,
+  /ctx\.fillStyle = '#FFFFFF';\s*ctx\.fillRect\(0, 0, w, h\);\s*ctx\.drawImage\(src, 0, 0, w, h\);/.test(nettoyage));
 dit('lire sa signature a une limite de temps', true, /Promise\.race\(\[lecture, delai\]\)/.test(sansCommentaires('src/shared/secretariat.ts')));
 const routes = sansCommentaires('src/apps/trone/routes/index.tsx');
 dit('l ecran est dans la barre (Direction) et nomme parmi les ecrans nes apres', [true, true], [

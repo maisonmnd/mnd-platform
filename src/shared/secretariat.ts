@@ -171,6 +171,12 @@ export function nettoieLaSignature(src: CanvasImageSource & { width: number; hei
   c.width = w; c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
+  /* SUR DU BLANC D'ABORD (6 octobre) : une image déjà transparente (un scan
+     nettoyé, un PNG) comptait son vide comme du NOIR dans la moyenne du
+     papier ; le seuil tombait sous zéro et l'image était refusée, « aucun
+     trait trouvé ». Posée sur du blanc, elle se lit comme une photo. */
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
   ctx.drawImage(src, 0, 0, w, h);
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
