@@ -4,6 +4,7 @@ import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
 import { normName } from '../../../../shared/text';
 import { uid } from '../../../../shared/store';
+import { autoriserLaPurge } from '../../../../shared/sync';
 import { appointmentsStore, estampilleLesPoses, useAppointments, type Appointment } from '../../../../shared/agenda';
 import { clientsStore, ensureInitiePersona, useClients, type Client } from '../../../../shared/clients';
 import { useCategories, useProducts, useServices, type Service } from '../../../../shared/catalog';
@@ -579,6 +580,9 @@ export function SerieModal({ onClose }: { onClose: () => void }) {
     const s = series.find((x) => x.marque === marque);
     if (!s || s.retirables.length === 0) { setARetirer(''); return; }
     const partent = new Set(s.retirables);
+    /* Un lot VOULU : les rendez-vous sont une table précieuse, la synchro
+       refuse d'en effacer plus de trois d'un coup sans cette déclaration. */
+    if (partent.size > 0) autoriserLaPurge('appointments');
     appointmentsStore.set((prev) => prev.filter((a) => !partent.has(a.id)));
     /* LES PIÈCES DE LA SÉRIE PARTENT AVEC ELLE : les laisser ferait des
        factures numérotées qui ne désignent plus rien — exactement ce que la

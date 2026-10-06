@@ -652,6 +652,42 @@ type WithId = { id: string; branchId?: string };
    `supabase/0016_supprimer_branche_studio.sql`), jamais par le diff d'un cache. */
 const SANS_SUPPRESSION = new Set(['branches']);
 
+/* ── LES TABLES PRÉCIEUSES NE PERDENT PAS DE LOT — 6 octobre 2026 ─────
+   « Plusieurs RDV sont perdus pourtant ils ont bien été rentrés » (Yéman).
+   La trace de la base l'a dit : le 28 septembre à 9 h 14 min 53 s, à la
+   même fraction de seconde, 169 rendez-vous ont été effacés par la
+   synchronisation d'un téléphone (dont des rituels HONORÉS de février et
+   de juillet). Le seuil de masse (≥ 10 lignes ET ≥ 25 % de la table) les a
+   laissés passer : 169 sur 1 169, c'est 14 %. Plus la table grandit, plus
+   un lot doit être gros pour qu'on le voie : la règle s'affaiblissait avec
+   l'histoire de la Maison.
+
+   Un rendez-vous ou une fiche cliente s'efface À LA MAIN, un par un. Au-delà
+   de `LOT_PRECIEUX` lignes dans une même poussée, ce n'est plus un geste :
+   c'est un état local qui a perdu des lignes. On refuse, on se réaligne sur
+   le serveur, quelle que soit la taille de la table. Un écran qui retire
+   VOLONTAIREMENT un lot (une série de rituels) le déclare d'abord
+   (`autoriserLaPurge`). */
+const PRECIEUSES = new Set(['appointments', 'clients']);
+export const LOT_PRECIEUX = 3;
+
+/** LE JUGE DES SUPPRESSIONS D'UNE POUSSÉE — pur, éprouvé par le harnais.
+    Rend la raison du refus, ou `null` si le lot peut partir. */
+export function suppressionRefusee(
+  table: string, effaces: number, taille: number, purgeVoulue: boolean,
+): 'structurelle' | 'vide' | 'masse' | null {
+  if (effaces === 0) return null;
+  if (SANS_SUPPRESSION.has(table)) return 'structurelle';
+  if (purgeVoulue) return null;
+  if (taille > 1 && effaces >= taille) return 'vide';
+  /* Le journal des mouvements se rembobine par grappes : seul « vider tout »
+     lui reste interdit. */
+  if (table === 'stock_mouvements') return null;
+  if (effaces >= 10 && effaces * 4 >= taille) return 'masse';
+  if (PRECIEUSES.has(table) && effaces > LOT_PRECIEUX) return 'masse';
+  return null;
+}
+
 /** Lie un magasin de collection (tableau d'objets à `id`) à une table distante. */
 /* ── LA PURGE DÉCLARÉE — 19 août 2026 ──────────────────────────────
    Le garde-fou des suppressions bloque tout effacement de masse : c'est lui
@@ -971,7 +1007,7 @@ export function bindCollection<T extends WithId>(
 
          Ce qui reste permis : retirer un persona parmi six, une caisse parmi
          trois — un geste délibéré, qui laisse la table debout. */
-      const structurelle = SANS_SUPPRESSION.has(table);
+      const refusDuLot = suppressionRefusee(table, deletes.length, prev.size, purgeVoulue);
       /* UNE SEULE LIGNE N'EST JAMAIS UN VIDAGE — 22 août 2026.
          « À chaque fois que je retire une enveloppe, elle revient. »
 
@@ -986,22 +1022,20 @@ export function bindCollection<T extends WithId>(
          seuil part donc de DEUX : au-delà, le doute reste entier ; à un, le
          geste est délibéré, et son coût — une ligne — est sans commune mesure
          avec celui de ne plus jamais pouvoir supprimer. */
-      const videTout = prev.size > 1 && deletes.length >= prev.size;
-      const enMasse = deletes.length >= 10 && deletes.length * 4 >= prev.size;
+
       /* LE JOURNAL DES MOUVEMENTS SE REMBOBINE PAR RÉFÉRENCE : annuler une
          fabrication à douze ingrédients ou la suppression d'une facture retire
          d'un bloc une grappe de lignes — un geste LÉGITIME qui, dans un journal
          encore jeune, ressemble au seuil de masse. Pour cette table, seul
          « vider tout » reste interdit : le rembobinage laisse toujours le
          journal debout. */
-      const journalRembobinable = table === 'stock_mouvements';
+
       /* Le laissez-passer (consommé en tête de poussée) lève « vider tout »
          et « en masse » — jamais la protection des tables structurelles. */
-      const massive = structurelle || ((videTout || (enMasse && !journalRembobinable)) && !purgeVoulue);
-      if (massive) {
-        const motif = structurelle
+      if (refusDuLot) {
+        const motif = refusDuLot === 'structurelle'
           ? 'table structurelle, une suppression ne peut venir que du SQL'
-          : videTout
+          : refusDuLot === 'vide'
             ? 'ce diff VIDERAIT la table'
             : 'état local suspect';
         console.warn(`[mnd-sync] ${table} : suppression BLOQUÉE (${deletes.length}/${prev.size} lignes), ${motif}. Rien n'a été effacé du serveur.`);
