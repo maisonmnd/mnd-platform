@@ -11,7 +11,7 @@ import {
   APPELS, clotures, modifiable, peutSigner, rangeDansLeCadre, restentASigner, type Cadre, type Piece, type Pose,
 } from '../../../../../shared/secretariat-pur';
 import { aCompleter, modeleDe, remplisDepuisEquipe } from '../../../../../shared/secretariat-modeles';
-import { tamponsDe } from '../../../../../shared/secretariat-tampons';
+import { TAMPON_A_DATER, tamponsDe } from '../../../../../shared/secretariat-tampons';
 import { useStaff as useEquipe } from '../../equipe/data';
 import { Apercu } from './Apercu';
 
@@ -200,6 +200,11 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
                   {p.entite === 'autre' && <option value="auto">Le tampon de {entreprise?.nom ?? 'l’entreprise'}</option>}
                   {tampons.map((t) => <option key={t.cle} value={t.cle}>{t.nom}</option>)}
                 </Select>
+              </Field>
+            )}
+            {p.tampon === TAMPON_A_DATER && (
+              <Field label="Date écrite dans le tampon « Reçu le »">
+                <Input type="date" value={p.dateTampon || p.date} onChange={(e) => maj({ dateTampon: e.target.value || undefined })} />
               </Field>
             )}
             <Field label="Où poser signatures et tampon">

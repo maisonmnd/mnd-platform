@@ -6,7 +6,7 @@ import {
   type Entite, type Entreprise, type LigneSecretariat, type Piece, type Profil, type Signataire,
 } from './secretariat-pur';
 import { modeleDe, remplis } from './secretariat-modeles';
-import { tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
+import { dateSurLeRecu, TAMPON_A_DATER, tamponAutoSvg, tamponParCle, tamponParDefaut, svgEnPng } from './secretariat-tampons';
 
 /* LE SECRÉTARIAT, CÔTÉ TRÔNE — 6 octobre 2026.
 
@@ -245,7 +245,13 @@ export async function resous(p: Piece, toutes: readonly LigneSecretariat[], nomM
     if (png) tampon = { image: png, ratio: 1 };
   } else if (p.tampon) {
     const def = tamponParCle(p.tampon);
-    const png = def ? await enDataUrl(asset(`/assets/tampons/${def.fichier}`)) : null;
+    let png = def ? await enDataUrl(asset(`/assets/tampons/${def.fichier}`)) : null;
+    /* « REÇU LE » : la date s'écrit dans ses blancs. */
+    if (png && p.tampon === TAMPON_A_DATER) {
+      const brut = png;
+      const quand = p.dateTampon || p.date;
+      png = await enCache(`recu:${quand}`, () => dateSurLeRecu(brut, quand));
+    }
     if (def && png) tampon = { image: png, ratio: def.ratio };
   }
   const noms = p.signataires.length

@@ -27,7 +27,7 @@ import {
   nomsDansLaZone, rangeDansLeCadre, restentASigner, retireLesSignatures, sigle, signe, SIGNATURE_MM, TAMPON_MM, Y_DES_NOMS, ZONE, type Piece,
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
-import { tamponAutoSvg } from '../src/shared/secretariat-tampons';
+import { morceauxDuRecu, tamponAutoSvg } from '../src/shared/secretariat-tampons';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -175,6 +175,12 @@ dit('l ecran est dans la barre (Direction) et nomme parmi les ecrans nes apres',
   /ECRANS_NES_APRES_LES_DEPARTEMENTS[^\n]*'\/secretariat'/.test(routes),
 ]);
 dit('la remise a zero de la Maison vide la table', true, /'secretariat',\s*\n\];/.test(sansCommentaires('src/apps/trone/houseReset.ts')));
+dit('« Recu le » : jour, mois, annee sur deux chiffres ; rien hors du siecle imprime', [['06', '10', '26'], null, null],
+  [morceauxDuRecu('2026-10-06'), morceauxDuRecu('1999-12-31'), morceauxDuRecu('')]);
+const resolution = sansCommentaires('src/shared/secretariat.ts');
+dit('« Recu le » porte la date choisie, sinon celle du document', true,
+  /p\.tampon === TAMPON_A_DATER\)[\s\S]{0,120}const quand = p\.dateTampon \|\| p\.date;[\s\S]{0,120}dateSurLeRecu\(brut, quand\)/.test(resolution));
+dit('l editeur propose la date du tampon quand c est « Recu le »', true, editeur.includes('{p.tampon === TAMPON_A_DATER && ('));
 dit('le tampon d une entreprise echappe son nom', false, /<script|<img/i.test(tamponAutoSvg('<script>x</script>', '', '') + tamponAutoSvg('ok', '', '<img onerror=x>')));
 
 console.log(ko === 0 ? '\nLe secretariat tient ses regles.' : `\n${ko} controle(s) en echec.`);

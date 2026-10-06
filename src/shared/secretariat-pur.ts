@@ -61,6 +61,8 @@ export type Piece = {
   signataires: SignataireDuDoc[];
   poses: Pose[];
   tampon?: string; // clé d'un tampon (TAMPONS) ou 'auto' (autre entreprise)
+  /** La date écrite dans les blancs du tampon « REÇU LE » ; sinon, la date du document. */
+  dateTampon?: string;
   cadre: Cadre;
   etat: EtatPiece;
   remplace?: string;

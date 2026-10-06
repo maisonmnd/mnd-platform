@@ -68,6 +68,49 @@ export function tamponAutoSvg(nom: string, mentions: string, telephone: string):
 </svg>`;
 }
 
+/* LA DATE DANS LE TAMPON « REÇU LE » — 6 octobre 2026. « Sur le reçu,
+   comment je peux rajouter la date ? » (Yéman). Le tampon a trois blancs
+   (jour / mois / 20 année) : la date s'y écrit, à l'encre du tampon. Les
+   blancs ont été mesurés sur l'image de 600 × 400 : traits à y = 259, de
+   140 à 208, de 236 à 304, de 370 à 460. */
+export const TAMPON_A_DATER = 'mnd-recu';
+export const BLANCS_DU_RECU = { ligne: 259, jour: [140, 208], mois: [236, 304], annee: [370, 460] } as const;
+
+/** « 2026-10-06 » → ['06', '10', '26'] ; null si la date n'est pas lisible
+    ou hors du siècle que le tampon imprime (« 20__ »). */
+export function morceauxDuRecu(iso: string | undefined): [string, string, string] | null {
+  const m = /^20(\d{2})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+  return m ? [m[3], m[2], m[1]] : null;
+}
+
+/** Écrit la date dans les blancs du tampon « REÇU LE » (image en data URL). */
+export function dateSurLeRecu(png: string, iso: string): Promise<string | null> {
+  const morceaux = morceauxDuRecu(iso);
+  if (!morceaux) return Promise.resolve(png);
+  return new Promise((ok) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const ctx = c.getContext('2d');
+        if (!ctx) { ok(null); return; }
+        ctx.drawImage(img, 0, 0);
+        const k = c.width / 600;
+        ctx.fillStyle = '#1E2150';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.font = `600 ${Math.round(34 * k)}px Jost, "Noto Sans", Arial, sans-serif`;
+        const B = BLANCS_DU_RECU;
+        [B.jour, B.mois, B.annee].forEach(([a, b], i) => ctx.fillText(morceaux[i], ((a + b) / 2) * k, (B.ligne - 7) * k));
+        ok(c.toDataURL('image/png'));
+      };
+      img.onerror = () => ok(null);
+      img.src = png;
+    } catch { ok(null); }
+  });
+}
+
 /** Le SVG en image PNG (data URL), pour le PDF. */
 export function svgEnPng(svg: string, cote = 600): Promise<string | null> {
   return new Promise((ok) => {
