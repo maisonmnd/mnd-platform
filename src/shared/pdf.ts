@@ -2636,3 +2636,178 @@ export async function bilanApercu(d: BilanPdfData): Promise<void> {
   if (!w) doc.save(filename);
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+/* ══ LE SECRÉTARIAT : UN DOCUMENT ÉCRIT — 6 octobre 2026 ═════════════
+
+   Une lettre, une attestation, un contrat, au nom de Maison MND, d'ACIA 1,
+   d'une entreprise créée à l'instant, ou une lettre personnelle. La mise en
+   page est celle de l'écran (secretariat-pur, PAGE et ZONE) : signatures,
+   nom et tampon se posent dans une zone ancrée APRÈS la formule de
+   politesse, jamais à un endroit absolu ; l'aperçu et le papier tombent
+   donc au même endroit, même sur deux pages. Le verrou de Maison MND et sa
+   devise ne paraissent que pour Maison MND : ACIA 1 n'en porte rien. */
+export type PieceEcritePdfData = {
+  enTete: { entite: string; nom: string; verrou: boolean; lignes: string[]; expediteur: string[]; pied: string[]; devise: boolean; encre: string };
+  numero?: string;
+  brouillon: boolean;
+  remplace?: string;
+  lieuEtDate: string;
+  destinataire: string;
+  objet: string;
+  appel: string;
+  paragraphes: string[];
+  cloture: string;
+  zone: {
+    largeur: number; hauteur: number;
+    signatures: { x: number; y: number; image: string; largeur: number; hauteurMax: number }[];
+    tampon?: { x: number; y: number; image: string; l: number; h: number };
+    /** Placés par `nomsDansLaZone` (secretariat-pur) : en colonnes, ou empilés. */
+    noms: { nom: string; qualite: string; x: number }[];
+    colonnes: boolean;
+    xEntite: number;
+    nomEntite?: string;
+  };
+  filename: string;
+};
+
+async function construitLaPieceEcrite(d: PieceEcritePdfData): Promise<{ doc: any; filename: string }> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210; const M = 18; const LARGE = 174; const BAS = 268; const LIGNE = 5.2;
+  const encre = d.enTete.encre;
+  let y = 20;
+
+  // — L'en-tête de l'entité —
+  if (d.enTete.verrou) {
+    const h = estLaMaisonMND(d.enTete.nom) ? await poseLeVerrou(doc, M, 12, 46) : null;
+    if (h === null) { doc.setFont('times', 'normal'); doc.setFontSize(20); doc.setTextColor(encre); doc.text(d.enTete.nom, M, 22); }
+    y = 12 + (h ?? 12) + 4;
+  } else if (d.enTete.expediteur.length) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(INK);
+    d.enTete.expediteur.forEach((l, i) => {
+      if (i === 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(SOFT); }
+      doc.text(l, M, 18 + i * 5);
+    });
+    y = 18 + d.enTete.expediteur.length * 5 + 2;
+  } else {
+    doc.setFont('times', 'bold'); doc.setFontSize(21); doc.setTextColor(encre);
+    doc.text(d.enTete.nom, M, 22, { charSpace: 0.6 });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT);
+    d.enTete.lignes.forEach((l, i) => doc.text(l, M, 28 + i * 4.2));
+    y = 28 + d.enTete.lignes.length * 4.2 + 1;
+  }
+  if (d.enTete.entite !== 'perso') {
+    doc.setDrawColor(d.enTete.verrou ? COPPER : encre); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
+  }
+  // Numéro ou brouillon, en haut à droite.
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+  doc.setTextColor(d.brouillon ? '#9A8F80' : encre);
+  doc.text(d.brouillon ? 'BROUILLON · NON SIGNÉ' : (d.numero ? `N° ${d.numero}` : ''), W - M, 16, { align: 'right' });
+  y += 10;
+
+  const saut = (besoin: number) => { if (y + besoin <= BAS) return; doc.addPage(); y = 22; };
+
+  // — Lieu et date, à droite —
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(INK);
+  doc.text(d.lieuEtDate, W - M, y, { align: 'right' });
+  y += 10;
+
+  // — Le destinataire, sur la moitié droite —
+  const dest = d.destinataire.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (dest.length) {
+    dest.forEach((l, i) => {
+      doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setTextColor(i === 0 ? encre : INK);
+      for (const part of doc.splitTextToSize(l, W - M - 105) as string[]) { doc.text(part, 105, y); y += LIGNE; }
+    });
+    y += 6;
+  }
+
+  // — L'objet —
+  if (d.objet.trim()) {
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(encre);
+    doc.text('Objet :', M, y);
+    const debut = M + doc.getTextWidth('Objet : ');
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(INK);
+    const lignes = doc.splitTextToSize(d.objet.trim(), LARGE - (debut - M)) as string[];
+    lignes.forEach((l, i) => { doc.text(l, debut, y); if (i < lignes.length - 1) y += LIGNE; });
+    y += LIGNE + 4;
+  }
+  if (d.remplace) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(SOFT);
+    doc.text(`Ce document remplace le document n° ${d.remplace}.`, M, y); y += LIGNE + 2;
+    doc.setFontSize(10.5);
+  }
+
+  // — L'appel, le corps, la politesse —
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(INK);
+  const paragraphe = (t: string) => {
+    for (const ligne of t.split('\n')) {
+      for (const l of doc.splitTextToSize(ligne, LARGE) as string[]) { saut(LIGNE); doc.text(l, M, y); y += LIGNE; }
+    }
+    y += 3;
+  };
+  if (d.appel.trim()) paragraphe(d.appel.trim());
+  d.paragraphes.forEach(paragraphe);
+  if (d.cloture.trim()) paragraphe(d.cloture.trim());
+
+  // — La zone de signature, ancrée après la politesse —
+  if (y + d.zone.hauteur + 6 > BAS + 6) { doc.addPage(); y = 24; }
+  const zy = y + 4;
+  const z = d.zone;
+  if (z.tampon) {
+    try { doc.addImage(z.tampon.image, 'PNG', M + z.tampon.x, zy + z.tampon.y, z.tampon.l, z.tampon.h, undefined, 'FAST'); } catch { /* image illisible */ }
+  }
+  for (const s of z.signatures) {
+    try {
+      const p = doc.getImageProperties(s.image);
+      let l = s.largeur; let h = (l * p.height) / p.width;
+      if (h > s.hauteurMax) { h = s.hauteurMax; l = (h * p.width) / p.height; }
+      doc.addImage(s.image, 'PNG', M + s.x, zy + s.y, l, h, undefined, 'FAST');
+    } catch { /* image illisible */ }
+  }
+  let ny = zy + 26;
+  let plusBas = ny;
+  z.noms.forEach((n) => {
+    let ly = z.colonnes ? zy + 26 : ny;
+    doc.setFont('times', 'normal'); doc.setFontSize(12); doc.setTextColor(encre);
+    doc.text(n.nom, M + n.x, ly); ly += 4.6;
+    if (n.qualite) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT); doc.text(n.qualite, M + n.x, ly); ly += 4.4; }
+    ny = ly; plusBas = Math.max(plusBas, ly);
+  });
+  if (z.nomEntite) { doc.setFont('times', 'bold'); doc.setFontSize(12); doc.setTextColor(encre); doc.text(z.nomEntite, M + z.xEntite, plusBas); }
+
+  // — Le pied, sur chaque page —
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p += 1) {
+    doc.setPage(p);
+    if (d.enTete.pied.length || d.enTete.devise) {
+      doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.2); doc.line(M, 279, W - M, 279);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
+      d.enTete.pied.forEach((l, i) => doc.text(l, W / 2, 283.5 + i * 3.6, { align: 'center' }));
+      if (d.enTete.devise) await pieDeLaMaison(doc, W, 288.5, { taille: 8, couleur: COPPER, nom: '' });
+    }
+    if (pages > 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT); doc.text(`${p} / ${pages}`, W - M, 293, { align: 'right' }); }
+  }
+  return { doc, filename: d.filename };
+}
+
+/** Le document en pièce, prêt à partir sur WhatsApp. */
+export async function pieceEcriteEnPiece(d: PieceEcritePdfData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
+}
+/** Télécharge le document. */
+export async function pieceEcritePdf(d: PieceEcritePdfData): Promise<void> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  doc.save(filename);
+}
+/** Ouvre le document dans un onglet, pour l'imprimer ; sinon il se télécharge. */
+export async function pieceEcriteApercu(d: PieceEcritePdfData): Promise<void> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  const url = URL.createObjectURL(doc.output('blob') as Blob);
+  const w = window.open(url, '_blank');
+  if (!w) doc.save(filename);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

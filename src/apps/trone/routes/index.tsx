@@ -53,6 +53,10 @@ export const NAV: TroneGroup[] = [
       { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
       { path: '/recommandations', label: 'Recommandations IA', icon: Lightbulb, Component: lazy(() => import('./equipe/Recommandations')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
+      /* LE SECRÉTARIAT (6 octobre 2026) — lettres, attestations, notes et
+         contrats sur papier à en-tête, numérotés et signés. Maquette
+         StpDQGL3HE1nHyyjSRNU9r validée. */
+      { path: '/secretariat', label: 'Le secrétariat', icon: FileSignature, Component: lazy(() => import('./pilotage/Secretariat')) },
     ],
   },
   {
@@ -310,7 +314,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

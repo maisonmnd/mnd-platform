@@ -48,6 +48,8 @@ const WIPE_TABLES = [
   'pointages', 'clotures_caisse',
   /* Les notes de séance du bilan (0115, 4 octobre 2026). */
   'notes_de_seance',
+  /* Le secrétariat : documents, entreprises, signataires (0116, 6 octobre 2026). */
+  'secretariat',
 ];
 
 /** Vide toutes les tables de données sur le serveur. Renvoie la liste des échecs
