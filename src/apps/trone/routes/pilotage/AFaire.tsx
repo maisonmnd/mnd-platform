@@ -1,5 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEstDirection } from '../_vie';
+import { RappelDesPapiers } from './secretariat/RappelDesPapiers';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -94,6 +96,7 @@ export default function AFaire() {
   const [stock] = useProduitsStock();
   const byId = useServicesById();
   const navigate = useNavigate();
+  const estDirection = useEstDirection();
 
   const travail = useMemo(() => leTravail({
     branchId: branch.id,
@@ -246,6 +249,9 @@ export default function AFaire() {
           </div>
         }
       />
+
+      {/* Les papiers à renouveler ou à déposer : la direction seule (0117). */}
+      {estDirection && <RappelDesPapiers titulairesEntreprises={['ent:mnd', 'ent:acia']} />}
 
       {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}
       <div className="trp-af-head">

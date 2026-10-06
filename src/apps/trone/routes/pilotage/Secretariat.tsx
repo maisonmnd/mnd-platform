@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../_ui';
 import { useEstDirection } from '../_vie';
@@ -13,6 +14,7 @@ import { ACIA, dateDite, ifuPlausible, supprimable, type Entite, type Entreprise
 import { FAMILLES, MODELES, type Famille } from '../../../../shared/secretariat-modeles';
 import { Editeur } from './secretariat/Editeur';
 import { MaSignature, NouvelleEntreprise } from './secretariat/Signatures';
+import { LesPapiers } from './secretariat/Papiers';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -51,6 +53,14 @@ export default function Secretariat() {
   const [mentions, setMentions] = useState(false);
 
   const ents = entreprises(lignes);
+  /* LES PAPIERS, SECOND ONGLET (6 octobre 2026) : la direction seule, comme
+     la base le veut (0117). On y arrive aussi depuis À faire. */
+  const location = useLocation();
+  const [onglet, setOnglet] = useState<'documents' | 'papiers'>('documents');
+  useEffect(() => {
+    if ((location.state as { onglet?: string } | null)?.onglet === 'papiers' && direction) setOnglet('papiers');
+  }, [location.state, direction]);
+  const vueDesPapiers = onglet === 'papiers' && direction;
   const nomDe = (p: Piece): string =>
     p.entite === 'mnd' ? maisonNom()
       : p.entite === 'acia' ? ACIA.nom
@@ -89,7 +99,7 @@ export default function Secretariat() {
         eyebrow="Direction"
         title="Le secrétariat"
         sub="Lettres, attestations, notes, contrats : tout ce qui sort sur papier à en-tête, numéroté et signé."
-        actions={(
+        actions={vueDesPapiers ? undefined : (
           <>
             {direction && <Button variant="ghost" onClick={() => setMentions(true)}>Mentions de l’en-tête</Button>}
             <Button variant="ghost" onClick={() => setSignature(true)}>{aSaSignature ? 'Ma signature' : 'Déposer ma signature'}</Button>
@@ -98,6 +108,25 @@ export default function Secretariat() {
         )}
       />
 
+      {direction && (
+        <div className="sec-onglets" role="tablist" aria-label="Le secrétariat">
+          <button type="button" role="tab" aria-selected={!vueDesPapiers} className={`sec-onglet${!vueDesPapiers ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('documents')}>Les documents</button>
+          <button type="button" role="tab" aria-selected={vueDesPapiers} className={`sec-onglet${vueDesPapiers ? ' sec-onglet--on' : ''}`} onClick={() => setOnglet('papiers')}>Les papiers</button>
+        </div>
+      )}
+
+      {vueDesPapiers ? (
+        <LesPapiers
+          branchId={branch.id}
+          qui={tete?.name ?? 'La direction'}
+          titulairesEntreprises={[
+            { cle: 'ent:mnd', nom: maisonNom(), genre: 'entreprise' },
+            { cle: 'ent:acia', nom: ACIA.nom, genre: 'entreprise' },
+            ...ents.map((e) => ({ cle: `ent:${e.id}`, nom: e.nom, genre: 'entreprise' as const })),
+          ]}
+          suggestions={signatairesDe(lignes).filter((s) => s.userId !== 'entreprise').map((s) => s.nom)}
+        />
+      ) : (<>
       <div className="sec-filtres">
         <Input value={cherche} onChange={(e) => setCherche(e.target.value)} placeholder="Chercher : Moov, attestation, OAPI…" aria-label="Chercher un document" />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -145,6 +174,7 @@ export default function Secretariat() {
           ))}
         </div>
       )}
+      </>)}
 
       {nouveau && (
         <NouveauDocument
