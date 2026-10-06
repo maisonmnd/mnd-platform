@@ -183,6 +183,7 @@ export default function Secretariat() {
           moi={moi}
           nomParDefaut={tete?.name ?? ''}
           entreprisesConnues={ents}
+          entiteDeDepart={entiteDuFiltre(filtre, direction)}
           onClose={() => setNouveau(false)}
           surCree={(id) => { setNouveau(false); setOuvert(id); }}
         />
@@ -199,12 +200,21 @@ export default function Secretariat() {
    Le choix de l'entité décide de tout le reste : en-tête, pied, tampon,
    encre, série de numéros. */
 
-function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesConnues, onClose, surCree }: {
+/* LE FILTRE DU REGISTRE SUIT DANS « NOUVEAU DOCUMENT » — 6 octobre 2026.
+   « Quand on choisit une société sur la première page, lors de la sélection
+   du modèle ça ne retient pas la sélection » (Yéman). Le registre filtré sur
+   ACIA 1 ouvrait « Nouveau document » sur Maison MND : on écrivait au mauvais
+   nom sans s'en apercevoir. Le filtre d'une société devient le « Au nom de »
+   de départ ; « Tous », « Brouillons », « Signés » laissent Maison MND. */
+export const entiteDuFiltre = (f: string, direction: boolean): Entite =>
+  f === 'acia' ? 'acia' : f === 'autre' ? 'autre' : f === 'perso' && direction ? 'perso' : 'mnd';
+
+function NouveauDocument({ direction, branchId, moi, nomParDefaut, entreprisesConnues, entiteDeDepart, onClose, surCree }: {
   direction: boolean; branchId: string; moi: string; nomParDefaut: string;
-  entreprisesConnues: Entreprise[]; onClose: () => void; surCree: (id: string) => void;
+  entreprisesConnues: Entreprise[]; entiteDeDepart: Entite; onClose: () => void; surCree: (id: string) => void;
 }) {
   const [lignes] = useSecretariat();
-  const [entite, setEntite] = useState<Entite>('mnd');
+  const [entite, setEntite] = useState<Entite>(entiteDeDepart);
   const [entrepriseId, setEntrepriseId] = useState<string>(entreprisesConnues[0]?.id ?? '');
   const [creation, setCreation] = useState(false);
   const [famille, setFamille] = useState<Famille>('lettres');

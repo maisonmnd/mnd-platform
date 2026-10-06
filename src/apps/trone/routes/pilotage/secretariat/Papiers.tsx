@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Button, Field, Input, Modal, Select, Textarea, toast } from '../../../../../ds/components';
 import { jourAn } from '../../../../../shared/calendrier';
 import { envoieSurWhatsApp } from '../../../../../shared/whatsapp';
+import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../../../../../shared/partage-whatsapp';
 import { enregistreLesMentions, mentionsDe, useSecretariat } from '../../../../../shared/secretariat';
 import {
   aRenouveler, completude, DOSSIERS, estPersonne, etatDe, etatDit, expirationProposee, lignesDuDossier,
@@ -418,14 +419,29 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
   const [marque, setMarque] = useState(true);
   const [numeroWa, setNumeroWa] = useState('');
   const [occupe, setOccupe] = useState('');
+  const [dossierPret, setDossierPret] = useState<File | null>(null);
+  /* Un dossier prêt est oublié dès que la sélection change : on n'enverrait
+     jamais un dossier qui ne correspond plus à l'écran. */
+  useEffect(() => { setDossierPret(null); }, [choisis, destinataire, motif, marque]);
 
   const lignes = lignesDuDossier(modele, entreprise || undefined, personne || undefined, papiers, jour);
-  /* Un nouveau modèle coche ce qu'il trouve (et garde ce qu'on avait ajouté). */
+  /* LA SÉLECTION SUIT LE CHOIX — 6 octobre 2026. « Quand on choisit une
+     société, ça ne retient pas la sélection » (Yéman, Remettre un dossier).
+     Les cases s'AJOUTAIENT à chaque changement : passer de Maison MND à
+     ACIA 1 laissait cochés les papiers de Maison MND. Changer d'entreprise,
+     de personne ou de modèle REMPLACE désormais la sélection par ce que ce
+     choix demande ; la pièce d'où l'on est parti n'est gardée qu'au début. */
+  const auDepart = useRef(true);
   useEffect(() => {
-    setChoisis((avant) => new Set([...avant, ...lignes.filter((l) => l.piece).map((l) => l.piece!.id)]));
+    const demandes = lignes.filter((l) => l.piece).map((l) => l.piece!.id);
+    setChoisis(new Set(auDepart.current && premier ? [premier.id, ...demandes] : demandes));
+    auDepart.current = false;
   }, [modele, entreprise, personne]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pieces = papiers.filter((p) => choisis.has(p.id));
+  /* On ne propose que les papiers de l'entreprise et de la personne choisies
+     (et ce qui est déjà coché) ; sans choix, tous. */
+  const visibles = papiers.filter((p) => (!entreprise && !personne) || p.titulaire === entreprise || p.titulaire === personne || choisis.has(p.id));
   const obligatoire = marqueObligatoire(pieces);
   const avecMarque = obligatoire || marque;
   const nomDe = (t: Titulaire) => titulaires.find((x) => x.cle === t)?.nom ?? '';
@@ -458,6 +474,25 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
       await trace('téléchargé');
       toast('Dossier prêt.');
     } catch { toast('Le dossier n’a pas pu être assemblé : une page est peut-être illisible.'); } finally { setOccupe(''); }
+  };
+  /* WHATSAPP · L'APP : la feuille de partage, le dossier déjà joint. */
+  const parLApp = async () => {
+    setOccupe('app');
+    try {
+      /* Un dossier déjà assemblé (le navigateur a demandé un second toucher)
+         part aussitôt ; sinon on l'assemble. */
+      let fichier = dossierPret;
+      if (!fichier) {
+        const octets = await fabrique();
+        if (!octets) return;
+        fichier = new File([octets as Uint8Array<ArrayBuffer>], `Dossier-${(destinataire.trim() || 'remis').replace(/[^A-Za-z0-9À-ÿ-]+/g, '-')}.pdf`, { type: 'application/pdf' });
+      }
+      const r = await ouvreWhatsAppAvecLePdf({ fichier, numero: numeroWa.trim() || undefined, texte: `Dossier remis${destinataire.trim() ? ` à ${destinataire.trim()}` : ''}, ci-joint.` });
+      setDossierPret(r === 'relance' ? fichier : null);
+      if (r !== 'annule' && r !== 'relance') await trace('WhatsApp · l’app');
+      const mot = ditLePartage(r);
+      if (mot) toast(mot, 7000);
+    } catch { toast('Le dossier n’a pas pu être assemblé.'); } finally { setOccupe(''); }
   };
   const whatsapp = async () => {
     if (!numeroWa.trim()) { toast('Le numéro WhatsApp du destinataire.'); return; }
@@ -508,7 +543,7 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
           </div>
         )}
         <div className="pap-paquet">
-          {papiers.map((p) => (
+          {visibles.map((p) => (
             <label key={p.id}>
               <input type="checkbox" checked={choisis.has(p.id)} onChange={() => bascule(p.id)} />
               <span>{titreDuPapier(p)} · {nomDe(p.titulaire)}</span>
@@ -524,7 +559,8 @@ function RemettreUnDossier({ papiers, titulaires, qui, branchId, depart, onClose
         <div className="sec-actions">
           <Button variant="copper" onClick={() => void telecharge()} disabled={!!occupe}>{occupe === 'pdf' ? 'Assemblage…' : 'Télécharger le PDF'}</Button>
           <Input value={numeroWa} onChange={(e) => setNumeroWa(e.target.value)} placeholder="WhatsApp : +229 01 …" style={{ maxWidth: 220 }} />
-          <Button variant="ghost" onClick={() => void whatsapp()} disabled={!!occupe}>{occupe === 'wa' ? 'Envoi…' : 'Envoyer par WhatsApp'}</Button>
+          <Button variant="ghost" onClick={() => void whatsapp()} disabled={!!occupe}>{occupe === 'wa' ? 'Envoi…' : 'Envoyer par la Maison'}</Button>
+          <Button variant="ghost" onClick={() => void parLApp()} disabled={!!occupe} title="Votre application WhatsApp, avec le dossier joint">{occupe === 'app' ? 'Préparation…' : dossierPret ? 'WhatsApp · l’app (touchez pour envoyer)' : 'WhatsApp · l’app'}</Button>
         </div>
       </div>
     </Modal>,

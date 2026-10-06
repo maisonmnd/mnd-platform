@@ -3,6 +3,7 @@ import { Button, Field, Input, Select, Textarea, toast } from '../../../../../ds
 import { useAuth } from '../../../../../shared/auth';
 import { maisonNom } from '../../../../../shared/identite';
 import { envoieSurWhatsApp } from '../../../../../shared/whatsapp';
+import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../../../../../shared/partage-whatsapp';
 import {
   annuleLeDocument, annuleLesSignatures, chargeMaSignature, duplique, effaceLaPiece, entreprises, finalise, metsAJour, pieces, resous,
   signatairesDe, signeLaPiece, useSecretariat, versLePdf, type DocumentResolu,
@@ -39,6 +40,9 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
   const [r, setR] = useState<DocumentResolu | null>(null);
   const [occupe, setOccupe] = useState('');
   const [numeroWa, setNumeroWa] = useState('');
+  /* Le PDF d'un document SIGNÉ se prépare dès l'ouverture : le toucher sur
+     « WhatsApp · l'app » partage aussitôt (le navigateur l'exige). */
+  const [fichierPret, setFichierPret] = useState<File | null>(null);
   const [annuler, setAnnuler] = useState(false);
 
   /* L'aperçu se résout à chaque changement (images en cache). */
@@ -48,6 +52,14 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
     void resous(p, lignes, maisonNom()).then((x) => { if (vivant) setR(x); });
     return () => { vivant = false; };
   }, [p, lignes]);
+
+  useEffect(() => {
+    let vivant = true;
+    setFichierPret(null);
+    if (!r || r.piece.etat !== 'signe') return;
+    void import('../../../../../shared/pdf').then((mod) => mod.pieceEcriteEnFichier(versLePdf(r))).then((f) => { if (vivant) setFichierPret(f); }).catch(() => {});
+    return () => { vivant = false; };
+  }, [r]);
 
   const sigs = signatairesDe(lignes);
   const entreprise = p?.entrepriseId ? entreprises(lignes).find((e) => e.id === p.entrepriseId) : undefined;
@@ -99,7 +111,7 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
   };
 
   /* ── LE PDF ── */
-  const pdf = async (quoi: 'apercu' | 'telecharge' | 'whatsapp') => {
+  const pdf = async (quoi: 'apercu' | 'telecharge' | 'whatsapp' | 'app') => {
     if (!r) return;
     setOccupe(quoi);
     try {
@@ -107,7 +119,13 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
       const d = versLePdf(r);
       if (quoi === 'apercu') await mod.pieceEcriteApercu(d);
       else if (quoi === 'telecharge') await mod.pieceEcritePdf(d);
-      else {
+      else if (quoi === 'app') {
+        const fichier = fichierPret ?? await mod.pieceEcriteEnFichier(d);
+        if (!fichierPret) setFichierPret(fichier);
+        const r2 = await ouvreWhatsAppAvecLePdf({ fichier, numero: numeroWa.trim() || undefined, texte: `${p.titre}${p.numero ? ` n° ${p.numero}` : ''}, ci-joint.` });
+        const mot = ditLePartage(r2);
+        if (mot) toast(mot, 7000);
+      } else {
         if (!numeroWa.trim()) { toast('Le numéro WhatsApp du destinataire.'); return; }
         const piece = await mod.pieceEcriteEnPiece(d);
         const res = await envoieSurWhatsApp({ numero: numeroWa.trim(), texte: `${p.titre}${p.numero ? ` n° ${p.numero}` : ''}, ci-joint.`, piece, branchId: p.branchId });
@@ -239,7 +257,8 @@ export function Editeur({ pieceId, direction, onClose, surOuvre }: {
           {p.etat === 'signe' && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
               <Field label="Envoyer par WhatsApp au"><Input value={numeroWa} onChange={(e) => setNumeroWa(e.target.value)} placeholder="+229 01 …" /></Field>
-              <Button variant="ghost" onClick={() => void pdf('whatsapp')} disabled={!!occupe}>{occupe === 'whatsapp' ? 'Envoi…' : 'Envoyer'}</Button>
+              <Button variant="ghost" onClick={() => void pdf('whatsapp')} disabled={!!occupe} title="Envoyé par la Maison : la conversation entre dans le fil du Trône">{occupe === 'whatsapp' ? 'Envoi…' : 'Envoyer par la Maison'}</Button>
+              <Button variant="ghost" onClick={() => void pdf('app')} disabled={!!occupe} title="Votre application WhatsApp, avec le PDF joint. Ce qui s’y écrit n’entre pas dans le fil de la Maison.">{occupe === 'app' ? 'Préparation…' : 'WhatsApp · l’app'}</Button>
             </div>
           )}
         </div>

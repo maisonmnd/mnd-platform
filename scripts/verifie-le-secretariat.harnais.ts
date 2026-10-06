@@ -28,6 +28,8 @@ import {
 } from '../src/shared/secretariat-pur';
 import { FAMILLES, MODELES } from '../src/shared/secretariat-modeles';
 import { morceauxDuRecu, tamponAutoSvg } from '../src/shared/secretariat-tampons';
+import { entiteDuFiltre } from '../src/apps/trone/routes/pilotage/Secretariat';
+import { ditLePartage, ouvreWhatsAppAvecLePdf } from '../src/shared/partage-whatsapp';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -227,6 +229,46 @@ dit('une piece signee fige ses mentions ; l apercu les relit avant celles du jou
 dit('le PDF descend la devise quand le pied a deux lignes', true,
   sansCommentaires('src/shared/pdf.ts').includes('pieDeLaMaison(doc, W, 283.5 + Math.max(1, d.enTete.pied.length) * 3.6 + 1.4'));
 dit('seule la direction ouvre les mentions', true, page.includes('{mentions && direction && <MentionsDeLEnTete'));
+
+/* ── 12. WHATSAPP · L'APP — 6 octobre 2026 (« permettre d'ouvrir WhatsApp
+   app depuis ici »). La porte de partage, éprouvée dans ses cinq issues. ── */
+const essaieLePartage = async (o: { canShare: boolean; share?: () => Promise<void>; open?: string | null }) => {
+  const ouverts: string[] = [];
+  let telecharges = 0;
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { canShare: () => o.canShare, share: o.share ?? (async () => {}) } });
+  (globalThis as { document: unknown }).document = { createElement: () => ({ click: () => { telecharges += 1; }, remove: () => {} }), body: { appendChild: () => {}, dataset: {} }, addEventListener: () => {} };
+  (globalThis as { window: unknown }).window = { open: (u: string) => { ouverts.push(u); return o.open === null ? null : {}; }, addEventListener: () => {}, dispatchEvent: () => {}, location: { href: '' } };
+  const fichier = new File([new Uint8Array([37, 80, 68, 70])], 'Lettre.pdf', { type: 'application/pdf' });
+  const issue = await ouvreWhatsAppAvecLePdf({ fichier, texte: 'Lettre, ci-joint.', numero: '+229 01 97 00 00 00' });
+  return { issue, ouverts, telecharges };
+};
+const refus = (nom: string) => async () => { throw new DOMException('non', nom); };
+/* Une issue après l'autre : chacune pose ses propres globaux. */
+const issues: Awaited<ReturnType<typeof essaieLePartage>>[] = [];
+for (const o of [{ canShare: true }, { canShare: true, share: refus('NotAllowedError') }, { canShare: true, share: refus('AbortError') }, { canShare: false }, { canShare: false, open: null }]) {
+  issues.push(await essaieLePartage(o));
+}
+dit('la feuille de partage porte le PDF ; sans elle, telechargement et WhatsApp sur le numero', [
+  ['partage', 0, 0], ['relance', 0, 0], ['annule', 0, 0], ['telecharge-et-ouvre', 1, 1], ['bloque', 1, 1],
+], issues.map((x) => [x.issue, x.telecharges, x.ouverts.length]));
+dit('WhatsApp s ouvre sur le numero tape, avec le message', true, /^https:\/\/wa\.me\/22901970000\d*\?text=Lettre/.test(issues[3].ouverts[0] ?? ''));
+dit('chaque issue a sa phrase (rien quand c est parti ou annule)', [null, true, null, true, true],
+  (['partage', 'relance', 'annule', 'telecharge-et-ouvre', 'bloque'] as const).map((x) => (x === 'partage' || x === 'annule' ? ditLePartage(x) : !!ditLePartage(x))));
+dit('le document signe offre les deux portes, et son PDF est pret a l ouverture', [true, true, true], [
+  editeur.includes("onClick={() => void pdf('whatsapp')}") && editeur.includes("onClick={() => void pdf('app')}"),
+  /if \(!r \|\| r\.piece\.etat !== 'signe'\) return;[\s\S]{0,200}pieceEcriteEnFichier\(versLePdf\(r\)\)/.test(editeur),
+  /const fichier = fichierPret \?\? await mod\.pieceEcriteEnFichier\(d\);/.test(editeur),
+]);
+
+/* ── 13. LE FILTRE SUIT DANS « NOUVEAU DOCUMENT » — 6 octobre 2026 ── */
+dit('le filtre d une societe devient le « Au nom de » de depart', ['acia', 'autre', 'perso', 'mnd', 'mnd', 'mnd'], [
+  entiteDuFiltre('acia', true), entiteDuFiltre('autre', true), entiteDuFiltre('perso', true),
+  entiteDuFiltre('perso', false), entiteDuFiltre('tous', true), entiteDuFiltre('signes', true),
+]);
+dit('la fenetre part du filtre', [true, true], [
+  page.includes('entiteDeDepart={entiteDuFiltre(filtre, direction)}'),
+  page.includes('const [entite, setEntite] = useState<Entite>(entiteDeDepart);'),
+]);
 
 console.log(ko === 0 ? '\nLe secretariat tient ses regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

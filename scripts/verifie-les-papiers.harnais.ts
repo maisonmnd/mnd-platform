@@ -159,5 +159,13 @@ dit('une personne n a qu une chemise ; une chemise pleine ne se retire pas', [tr
 dit('seule une chemise vide propose « Retirer »', true, ecran.includes("t.genre === 'personne' && pieces.length === 0 && (aRetirer === t.cle"));
 dit('le type d une piece se corrige depuis sa fiche', true, /modifieUnPapier\(p, \{ type, numero: numero\.trim\(\)/.test(ecran));
 
+/* ── 11. REMETTRE UN DOSSIER : la sélection suit la société — 6 octobre 2026 ── */
+dit('changer de societe remplace la selection (plus d ajout aux cases d avant)', [true, false], [
+  /setChoisis\(new Set\(auDepart\.current && premier \? \[premier\.id, \.\.\.demandes\] : demandes\)\);/.test(ecran),
+  /setChoisis\(\(avant\) => new Set\(\[\.\.\.avant/.test(ecran),
+]);
+dit('la liste ne montre que les papiers de l entreprise et de la personne choisies', true,
+  /const visibles = papiers\.filter\(\(p\) => \(!entreprise && !personne\) \|\| p\.titulaire === entreprise \|\| p\.titulaire === personne \|\| choisis\.has\(p\.id\)\);[\s\S]*\{visibles\.map\(\(p\) => \(/.test(ecran));
+
 console.log(ko === 0 ? '\nLes papiers tiennent leurs regles.' : `\n${ko} controle(s) en echec.`);
 process.exit(ko === 0 ? 0 : 1);

@@ -2798,6 +2798,11 @@ export async function pieceEcriteEnPiece(d: PieceEcritePdfData): Promise<PieceRe
   const { doc, filename } = await construitLaPieceEcrite(d);
   return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
 }
+/** Le document en fichier, pour la feuille de partage (WhatsApp · l'app). */
+export async function pieceEcriteEnFichier(d: PieceEcritePdfData): Promise<File> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  return new File([doc.output('blob') as Blob], filename, { type: 'application/pdf' });
+}
 /** Télécharge le document. */
 export async function pieceEcritePdf(d: PieceEcritePdfData): Promise<void> {
   const { doc, filename } = await construitLaPieceEcrite(d);
