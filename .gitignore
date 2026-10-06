@@ -41,3 +41,6 @@ supabase/local_*.sql
 
 # Python laisse ses caches a cote des scripts de fabrication.
 __pycache__/
+
+# Les noms privés que le harnais du dossier de bourse refuse : ils ne quittent jamais le poste.
+scripts/noms-prives.local.txt

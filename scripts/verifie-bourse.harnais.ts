@@ -12,10 +12,11 @@
      · les lettres se rédigent depuis la fiche et laissent les champs vides
        entre crochets, pour qu'un oubli se voie ;
      · l'assemblage suit l'ordre des rubriques, le bordereau en tête ;
-     · LE CODE NE PORTE AUCUN NOM DE FAMILLE : le dépôt est public.
+     · LE CODE NE PORTE AUCUN NOM DE FAMILLE : le dépôt est public. La liste
+       des noms est lue dans un fichier ignoré de git, jamais écrite ici.
 
    Lancer : node scripts/verifie-bourse.mjs */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   FICHE_VIDE, RUBRIQUES, champsVides, collecteDuMois, dateEnLettres, etatDExpiration, etatDuDossier,
@@ -140,12 +141,36 @@ dit('sans mois, sans suffixe', '03-livret-de-famille.pdf', nomDeFichier('03', 'L
 dit('en octobre 2026, la prochaine campagne est 2027-2028 sur les revenus 2026', { anneeScolaire: '2027-2028', anneeReference: 2026 }, campagneSuivante('2026-10-06'));
 dit('en janvier 2027, c’est encore 2027-2028', { anneeScolaire: '2027-2028', anneeReference: 2026 }, campagneSuivante('2027-01-10'));
 
-/* ── 10. Aucun nom de famille dans le code ───────────────────────────── */
+/* ── 10. Aucun nom de famille dans le code ───────────────────────────
+   LA LISTE DES NOMS N'EST PAS DANS LE DÉPÔT, QUI EST PUBLIC. Un premier
+   harnais l'écrivait en clair dans ce fichier : le garde-fou contre la fuite
+   était lui-même la fuite (6 octobre 2026, repris le soir même). La liste
+   vit dans `scripts/noms-prives.local.txt`, un mot par ligne, ignoré de git ;
+   sans ce fichier, le harnais le dit et ne vérifie que les formes générales
+   ci-dessous, qui ne nomment personne. */
 const sources = ['src/shared/bourse.ts', 'src/shared/bourse-coffre.ts', 'src/shared/bourse-pdf.ts', 'src/apps/trone/routes/pilotage/secretariat/DossierBourse.tsx'];
-const interdits = /ahouansou|boya|houinsou|nym\b|n\.y\.m|kiade|kèliji|kanonsa|komakan|praxède|sètondji|suru-léré|tokplégbé|rb\/cot\/09/i;
-for (const f of sources) {
-  const texte = readFileSync(path.join(process.cwd(), f), 'utf8');
-  vrai(`${f} ne porte aucun nom de la famille`, !interdits.test(texte), (texte.match(interdits) ?? [''])[0]);
+const textes = Object.fromEntries(sources.map((f) => [f, readFileSync(path.join(process.cwd(), f), 'utf8')]));
+/* Les formes générales : un numéro de registre du commerce, un identifiant
+   fiscal à treize chiffres, un numéro de téléphone, une date de naissance
+   écrite. Aucune ne doit figurer dans le code, quel que soit le nom. */
+const formes: [string, RegExp][] = [
+  ['un numéro RCCM', /RB\/COT\/\d{2}\s?[AB]\s?\d{3,}/i],
+  ['un identifiant fiscal', /\b\d{13}\b/],
+  ['un numéro de téléphone', /\b(?:\+229\s?)?(?:\d{2}\s){4}\d{2}\b/],
+  ['une date de naissance écrite', /n[ée]e? le \d{1,2}(?:er)? [a-zéû]+ (?:19|20)\d{2}/i],
+];
+for (const f of sources) for (const [quoi, re] of formes) vrai(`${f} ne porte pas ${quoi}`, !re.test(textes[f]), (textes[f].match(re) ?? [''])[0]);
+const fichierDesNoms = path.join(process.cwd(), 'scripts/noms-prives.local.txt');
+if (existsSync(fichierDesNoms)) {
+  const noms = readFileSync(fichierDesNoms, 'utf8').split(/\r?\n/).map((l) => l.trim().toLowerCase()).filter((l) => l && !l.startsWith('#'));
+  vrai('la liste privée des noms est lue', noms.length > 0, 'fichier vide');
+  for (const f of sources) {
+    const bas = textes[f].toLowerCase();
+    const trouve = noms.find((n) => bas.includes(n));
+    vrai(`${f} ne porte aucun nom de la liste privée`, !trouve, trouve ? `un nom de la liste y figure` : '');
+  }
+} else {
+  console.log('NOTE  scripts/noms-prives.local.txt absent : la vérification par noms est passée, celle par formes a été faite.');
 }
 
 console.log(rates === 0 ? '\nTOUT TIENT.' : `\n${rates} vérification(s) ratée(s).`);
