@@ -28,6 +28,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { OFFRES_DE_PARCOURS, SAISONS, codeNormalise, offreDepuisLaSaison } from '../src/shared/offers';
+import {
+  offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas,
+  remiseDuComptoirAuRendezVous, remiseDeFactureAReporter,
+} from '../src/shared/offres-pur';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -118,6 +122,68 @@ for (const s of TOUTES) {
   const note = serveur.raisonEnClair(v);
   dit(`${s.code} · la note de l accueil ne renie pas la carte`, false,
     !s.remise && note.includes('ne porte sur aucun geste'));
+}
+
+/* LE CODE D'UNE OFFRE A LA CAISSE — 1er octobre 2026. « ROSE15 ne marche pas sur le
+   Trone » : la caisse ne connaissait que les codes nominatifs. Elle applique desormais
+   l'offre avec la regle du site, sur les seules prestations couvertes. */
+{
+  const rose = { active: true, du: '2026-10-01', au: '2026-10-31', code: 'ROSE15', discountPct: 15, serviceIds: ['sv-a', 'sv-b'] };
+  const rentree = { active: true, du: '2026-09-01', au: '2026-09-30', code: 'RENTREE10', discountPct: 10, serviceIds: ['sv-a'] };
+  const dormante = { ...rose, code: 'DORT20', active: false };
+  const offres = [rentree, rose, dormante];
+  const le5 = new Date('2026-10-05T10:00:00');
+  dit('le 5 octobre, ROSE15 designe l offre Octobre Rose', 'ROSE15', offreDuCode(offres, 'rose15', le5)?.code ?? null);
+  dit('... tape en minuscules avec un espace, il est reconnu', 'ROSE15', offreDuCode(offres, ' rose 15 ', le5)?.code ?? null);
+  const ticket = [{ serviceId: 'sv-a', montantXof: 20000 }, { serviceId: 'sv-b', montantXof: 10000 }, { serviceId: 'sv-hors', montantXof: 50000 }];
+  dit('15 % sur les deux prestations couvertes, rien sur la troisieme', { retire: 4500, combien: 2 }, remiseDeLOffreSurLeTicket(rose, ticket));
+  dit('un ticket sans prestation couverte ne retire rien', { retire: 0, combien: 0 }, remiseDeLOffreSurLeTicket(rose, [{ serviceId: 'sv-hors', montantXof: 50000 }]));
+  dit('sans offre, rien ne bouge', { retire: 0, combien: 0 }, remiseDeLOffreSurLeTicket(null, ticket));
+  dit('RENTREE10 ne court plus le 5 octobre', null, offreDuCode(offres, 'RENTREE10', le5));
+  dit('... et la caisse le dit avec sa date', 'Ce code a couru jusqu’au 30 septembre.', pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'RENTREE10', le5)!, le5));
+  dit('ROSE15 tape le 20 septembre : il vaudra a partir du 1er octobre', 'Ce code vaudra à partir du 1er octobre.',
+    pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'ROSE15', new Date('2026-09-20T10:00:00'))!, new Date('2026-09-20T10:00:00')));
+  dit('une offre non activee se dit telle', 'Cette offre existe, mais elle n’est pas activée.', pourquoiLOffreNeCourtPas(offreDuCodePassee(offres, 'DORT20', le5)!, le5));
+  dit('un code que personne ne porte reste inconnu', null, offreDuCode(offres, 'INCONNU', le5) ?? offreDuCodePassee(offres, 'INCONNU', le5));
+  const caisse = readFileSync('src/apps/trone/routes/vente/Caisse.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  dit('la caisse cherche l offre quand le code n est pas nominatif', true, /offreDuCode\(offresDeLaBranche, codeTape\)/.test(caisse) && /remiseDeLOffreSurLeTicket\(offreCodee, lignesRemisables\)/.test(caisse));
+}
+
+/* ── LA REMISE DU COMPTOIR S'ECRIT AU RENDEZ-VOUS (2 octobre 2026) ──
+   « La facture est soldee mais quand je reviens dans le rendez-vous depuis le
+   Carnet elle reste devoir 12 000 F » (Yeman) : un rituel a 80 000 F, ROSE15,
+   68 000 F encaisses. La remise accordee au comptoir est une remise sur le
+   rituel ; elle s'ecrit sur lui, bornee par ce qui a ete retire et par ce qui
+   restait du. */
+{
+  dit('80 000 F, ROSE15, 68 000 F encaisses : 12 000 F de remise au rendez-vous', 12000,
+    remiseDuComptoirAuRendezVous({ brutDuRituelXof: 80000, encaisseXof: 68000, resteAvantXof: 80000 }));
+  dit('un ticket sans remise n ecrit rien', 0, remiseDuComptoirAuRendezVous({ brutDuRituelXof: 80000, encaisseXof: 80000, resteAvantXof: 80000 }));
+  dit('un rendez-vous qui portait deja 10 % ne recoit que le complement', 4000,
+    remiseDuComptoirAuRendezVous({ brutDuRituelXof: 80000, encaisseXof: 68000, resteAvantXof: 72000 }));
+  dit('un acompte deja deduit : rien de plus a retirer', 0,
+    remiseDuComptoirAuRendezVous({ brutDuRituelXof: 80000, encaisseXof: 68000, resteAvantXof: 60000 }));
+  dit('une seule prestation au ticket : sa remise, pas celle du rituel entier', 4500,
+    remiseDuComptoirAuRendezVous({ brutDuRituelXof: 30000, encaisseXof: 25500, resteAvantXof: 80000 }));
+  dit('un soin offert a 100 % solde le rituel', 20000,
+    remiseDuComptoirAuRendezVous({ brutDuRituelXof: 20000, encaisseXof: 0, resteAvantXof: 20000 }));
+
+  const piece = { number: 'MND-0412', discountLabel: 'Offre Octobre Rose · ROSE15', globalDiscountXof: 12000 };
+  dit('une piece d avant : la remise se propose, avec son libelle', { xof: 12000, piece: 'MND-0412', libelle: 'Offre Octobre Rose · ROSE15' },
+    remiseDeFactureAReporter({ resteDuXof: 12000, factures: [piece] }));
+  dit('... jamais plus que ce qui reste du', 5000, remiseDeFactureAReporter({ resteDuXof: 5000, factures: [piece] })?.xof ?? null);
+  dit('... rien si le rendez-vous est solde', null, remiseDeFactureAReporter({ resteDuXof: 0, factures: [piece] }));
+  dit('... rien si la piece ne nomme aucune remise (on ne devine pas)', null,
+    remiseDeFactureAReporter({ resteDuXof: 12000, factures: [{ number: 'MND-0413', globalDiscountXof: 12000 }] }));
+  dit('... rien sans piece', null, remiseDeFactureAReporter({ resteDuXof: 12000, factures: [] }));
+
+  const sansCommentaires = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const caisseSoldee = sansCommentaires('src/apps/trone/routes/vente/Caisse.tsx');
+  dit('la caisse ecrit la remise au rendez-vous qu elle solde', true,
+    /remiseDuComptoirAuRendezVous\(\{/.test(caisseSoldee) && /discountXof: \(a\.discountXof \?\? 0\) \+ remise/.test(caisseSoldee));
+  const encaisser = sansCommentaires('src/apps/trone/routes/clients/actions.tsx');
+  dit('l ecran d encaissement propose de reporter la remise d une piece d avant', true,
+    /remiseDeFactureAReporter\(\{/.test(encaisser) && /Reporter la remise au rendez-vous/.test(encaisser));
 }
 
 console.log(ko === 0 ? '\nLe raccord tient : les douze offres se resolvent comme elles se promettent.' : `\n${ko} ECHEC(S).`);

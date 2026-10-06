@@ -1,6 +1,6 @@
 import type { Client, Family } from './clients';
 import { aUnPrixConvenu } from './clients';
-import { venuesHonorees, apptPayeurId, apptPaidXof, type Appointment } from './agenda';
+import { venuesHonorees, venuesDeLAnnee, apptPayeurId, apptPaidXof, type Appointment } from './agenda';
 import type { CreditHolder } from './finance';
 
 /* Comptes & avoirs — résolution du porteur d'avoir et du payeur d'une cliente.
@@ -183,7 +183,8 @@ export function statutFidelite(
   const convenu = aUnPrixConvenu(client);
   const dependant = estDependant(client, families);
   const foyer = !!client.familyId && families.some((f) => f.id === client.familyId);
-  const venues = venuesHonorees(appts, client.id, false); // SES venues, pas par la payeuse
+  /* SES venues des douze derniers mois (29 septembre 2026), pas par la payeuse. */
+  const venues = venuesDeLAnnee(appts, client.id);
   const membreCercle = !convenu && !dependant && venues >= Math.max(1, seuilCercle);
   const depenseFoyer = foyer ? depenseFoyerXof(client, clients, families, appts) : 0;
   const foyerAtteint = foyer && depenseFoyer >= Math.max(1, seuilFoyer);

@@ -407,7 +407,13 @@ export function ChampDeDate({
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
-export function DateEnClair({ value, onChange, ariaLabel, max, id }: {
+/** Les mots des trois cases. Le français par défaut ; Ma Couronne passe les
+    siens quand la cliente lit l'anglais (3 octobre 2026). L'ordre jour · mois ·
+    année ne change pas. */
+export type MotsDeLaDate = { jour: string; mois: string; annee: string; noms: readonly string[]; tropTard: string };
+const MOTS_FR: MotsDeLaDate = { jour: 'jour', mois: 'mois', annee: 'année', noms: MOIS, tropTard: 'Ce jour n’est pas encore arrivé.' };
+
+export function DateEnClair({ value, onChange, ariaLabel, max, id, mots = MOTS_FR }: {
   value?: string;
   onChange: (iso: string | undefined) => void;
   ariaLabel?: string;
@@ -415,6 +421,7 @@ export function DateEnClair({ value, onChange, ariaLabel, max, id }: {
       le dit. */
   max?: string;
   id?: string;
+  mots?: MotsDeLaDate;
 }) {
   const decompose = (iso?: string) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
@@ -449,19 +456,19 @@ export function DateEnClair({ value, onChange, ariaLabel, max, id }: {
           inputMode="numeric"
           value={p.jour}
           onChange={(e) => maj({ jour: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) })}
-          placeholder="jour"
+          placeholder={mots.jour}
           style={{ width: 58, textAlign: 'right', flex: 'none' }}
-          aria-label={ariaLabel ? `${ariaLabel}, jour` : 'Jour'}
+          aria-label={ariaLabel ? `${ariaLabel}, ${mots.jour}` : mots.jour}
         />
         <select
           className="mnd-select"
           value={p.mois}
           onChange={(e) => maj({ mois: e.target.value })}
           style={{ flex: '1 1 120px', minWidth: 0 }}
-          aria-label={ariaLabel ? `${ariaLabel}, mois` : 'Mois'}
+          aria-label={ariaLabel ? `${ariaLabel}, ${mots.mois}` : mots.mois}
         >
-          <option value="">mois</option>
-          {MOIS.map((nom, i) => (
+          <option value="">{mots.mois}</option>
+          {mots.noms.map((nom, i) => (
             <option key={nom} value={String(i + 1).padStart(2, '0')}>{nom}</option>
           ))}
         </select>
@@ -470,12 +477,12 @@ export function DateEnClair({ value, onChange, ariaLabel, max, id }: {
           inputMode="numeric"
           value={p.annee}
           onChange={(e) => maj({ annee: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) })}
-          placeholder="année"
+          placeholder={mots.annee}
           style={{ width: 74, textAlign: 'right', flex: 'none' }}
-          aria-label={ariaLabel ? `${ariaLabel}, année` : 'Année'}
+          aria-label={ariaLabel ? `${ariaLabel}, ${mots.annee}` : mots.annee}
         />
       </div>
-      {tropTard && <div className="mnd-date__alerte">Ce jour n’est pas encore arrivé.</div>}
+      {tropTard && <div className="mnd-date__alerte">{mots.tropTard}</div>}
     </div>
   );
 }

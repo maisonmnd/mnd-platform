@@ -22,28 +22,77 @@ import { carteReglages, type CarteConfig } from '../../../../shared/bridges';
 import { autoConfigStore } from '../equipe/data';
 import { usePlans } from '../../../../shared/abonnements';
 import { seuilCliente } from '../../../../shared/echeancier';
+import { VitrineSite, BandeDeVitrine, Pastille } from './VitrineSite';
 import './clients.css';
 
-/* Vitrine client — le miroir personnalisé auto-joué pendant le rituel, et la régie
-   qui compose ce que chaque cliente voit (catégories/services/produits + quiz IA). */
+/* Les vitrines — le site public, Ma Couronne, la carte du comptoir : trois
+   publics, un onglet chacun (4 octobre 2026). Le miroir du salon est retiré. */
 
-const SCENE_LABELS = ['La rencontre', 'Un mot pour toi', 'Une question pour toi', 'Ton prochain moment'];
 
 /* LES MOTS DU QUIZ ONT DÉMÉNAGÉ dans `shared/quiz.ts` — questions, envies et
    phrases. Ma Couronne pose désormais le même quiz au seuil de sa réservation :
    deux jeux de mots, c'eussent été deux maisons. Le miroir TUTOIE (`.tu`),
    l'application VOUVOIE. Ce qui se propose en face reste réglé à la Régie. */
 
+/* ══ LES VITRINES — 4 octobre 2026 ════════════════════════════════════
+   « Cette page ne sert absolument à rien. Mettre le site public sur cette
+   page. Que Ma Couronne soit bien distinguée du site public. Reconstruire
+   toute cette partie avec de l'ordre et de la structure » (Yéman). Maquette
+   « Les vitrines de la Maison », réponses au sélecteur : le miroir est
+   retiré, les réglages d'ailleurs se montrent ici avec un lien, le nom au
+   menu est « Les vitrines ».
+
+   TROIS VITRINES, TROIS PUBLICS, TROIS COULEURS DE BANDE : le site public
+   (qui ne vous connaît pas encore), Ma Couronne (vos clientes, connectées),
+   la carte du comptoir (qui attend à la Maison). Un réglage n'a qu'une
+   place, et sa vitrine dit qui le verra. */
+type Portee = 'cliente' | 'maison' | 'site';
+type Onglet = 'site' | 'couronne' | 'comptoir';
+
 export default function Vitrine() {
-  const [mode, setMode] = useState<'apercu' | 'couronne' | 'regie'>('apercu');
+  const [onglet, setOnglet] = useState<Onglet>('site');
+  return (
+    <div className="mnd-rise">
+      <PageHead
+        eyebrow="Marketing & fidélité · ce que voient les autres"
+        title="Les vitrines."
+        actions={
+          <Segs<Onglet>
+            options={[
+              { value: 'site', label: 'Le site public' },
+              { value: 'couronne', label: 'Ma Couronne' },
+              { value: 'comptoir', label: 'La carte du comptoir' },
+            ]}
+            value={onglet}
+            onChange={setOnglet}
+          />
+        }
+      />
+      {onglet === 'site' && <VitrineSite catalogue={<CatalogueEnVitrine portees={['site']} />} />}
+      {onglet === 'couronne' && <VitrineCouronne />}
+      {onglet === 'comptoir' && (
+        <>
+          <BandeDeVitrine
+            couleur="var(--trf-success, #4A6B52)"
+            titre="La carte du comptoir"
+            dit="Ce que voit qui attend à la Maison, sur la tablette. Elle s’ouvre sans compte : le wifi qu’elle montre est lisible de tous, gardez-y un réseau pour les invitées."
+          />
+          <ReglagesDeLaCarte />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* MA COURONNE, ET RIEN D'AUTRE. La cliente se choisit ici seulement : c'est
+   la seule vitrine qui connaît ses clientes une à une. */
+function VitrineCouronne() {
   const clients = useBranchClients();
+  const [cfgC] = useStore(vitrineConfigStore);
   const [cIdx, setCIdx] = useState(0);
   const [query, setQuery] = useState('');
   const safeIdx = Math.min(cIdx, Math.max(0, clients.length - 1));
   const client = clients[safeIdx];
-  /* Recherche cliente — le CRM peut compter des centaines de têtes ; on filtre les
-     pastilles par nom ou téléphone. La sélection reste ancrée sur l'index dans la
-     liste COMPLÈTE (stable), pas dans la liste filtrée. */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const qd = q.replace(/\D/g, '');
@@ -52,89 +101,56 @@ export default function Vitrine() {
       : clients;
   }, [clients, query]);
 
-  if (!client) {
-    return (
-      <div className="mnd-rise">
-        <PageHead eyebrow="Vitrine · L’écran de la cliente" title="La Vitrine." />
-        <div className="trc-empty">Aucune tête couronnée sur cette branche, la Vitrine attend sa première cliente.</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mnd-rise">
-      <PageHead
-        eyebrow="Vitrine · L’écran de la cliente"
-        title="La Vitrine."
-        actions={
-          <Segs<'apercu' | 'couronne' | 'regie'>
-            options={[
-              { value: 'apercu', label: 'Aperçu' },
-              { value: 'couronne', label: 'Ma Couronne' },
-              { value: 'regie', label: 'Régie' },
-            ]}
-            value={mode}
-            onChange={setMode}
-          />
-        }
-      />
+    <>
+      <BandeDeVitrine
+        couleur="var(--color-indigo)"
+        titre="Ma Couronne"
+        dit="Ce que voient vos clientes, connectées, dans leur application. Rien ici ne touche le site public."
+      >
+        <Pastille ton={cfgC.couronneFermee ? 'attente' : 'ok'}>{cfgC.couronneFermee ? 'Fermée' : 'Ouverte'}</Pastille>
+        <Pastille>Anglais : fermé, en relecture</Pastille>
+      </BandeDeVitrine>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          {/* LE SÉLECTEUR DIT CE QU'IL SÉLECTIONNE. « Qui est devant le miroir ? »
-              n'a de sens qu'à l'Aperçu : dans les deux autres onglets, on ne
-              choisit pas une tête devant un écran, on en choisit une à régler ou
-              à prévisualiser. */}
-          <span className="trc-microlabel" style={{ margin: 0 }}>
-            {mode === 'apercu' ? 'Qui est devant le miroir ?'
-              : mode === 'couronne' ? 'Quelle cliente prévisualiser ?'
-              : 'Quelle cliente régler ?'}
-          </span>
-          <input
-            className="mnd-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher une cliente (nom, téléphone)…"
-            style={{ flex: '1 1 220px', maxWidth: 320 }}
-          />
-        </div>
-        {/* SANS RECHERCHE, LA LISTE SE TIENT (12 août) : 90 pastilles faisaient
-            un mur de prénoms à double ascenseur. Deux rangées suffisent — la
-            tête choisie d'abord, toujours visible, et le compteur dit le reste ;
-            la recherche est le vrai chemin vers une tête précise. */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 152, overflowY: 'auto', paddingRight: 4, alignItems: 'center' }}>
-          {(query.trim()
-            ? filtered
-            : [client, ...filtered.filter((c) => c.id !== client.id)].slice(0, 16)
-          ).map((c) => (
-            <button
-              key={c.id}
-              className="trc-chip"
-              style={c.id === client.id ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
-              onClick={() => setCIdx(clients.findIndex((x) => x.id === c.id))}
-            >
-              {c.name.split(' ')[0]}
-            </button>
-          ))}
-          {!query.trim() && filtered.length > 16 && (
-            <span className="mnd-muted" style={{ fontSize: 12 }}>
-              … et {filtered.length - 16} autres, cherchez par nom ou téléphone.
-            </span>
-          )}
-          {filtered.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune cliente ne correspond.</span>}
-        </div>
-      </div>
-
-      {mode === 'apercu' && <Apercu client={client} />}
-      {mode === 'couronne' && <CouronnePreview client={client} />}
-      {mode === 'regie' && (
+      {!client ? (
+        <div className="trc-empty">Aucune tête couronnée sur cette branche : Ma Couronne attend sa première cliente.</div>
+      ) : (
         <>
-          <Regie client={client} />
-          <ReglagesDeLaCarte />
-          <InvitationCouronne />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <span className="trc-microlabel" style={{ margin: 0 }}>Voir et régler pour une cliente</span>
+              <input
+                className="mnd-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher une cliente (nom, téléphone)…"
+                style={{ flex: '1 1 220px', maxWidth: 320 }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxHeight: 152, overflowY: 'auto', paddingRight: 4, alignItems: 'center' }}>
+              {(query.trim() ? filtered : [client, ...filtered.filter((c) => c.id !== client.id)].slice(0, 16)).map((c) => (
+                <button
+                  key={c.id}
+                  className="trc-chip"
+                  style={c.id === client.id ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : undefined}
+                  onClick={() => setCIdx(clients.findIndex((x) => x.id === c.id))}
+                >
+                  {c.name.split(' ')[0]}
+                </button>
+              ))}
+              {!query.trim() && filtered.length > 16 && (
+                <span className="mnd-muted" style={{ fontSize: 12 }}>… et {filtered.length - 16} autres, cherchez par nom ou téléphone.</span>
+              )}
+              {filtered.length === 0 && <span className="mnd-muted" style={{ fontSize: 12.5 }}>Aucune cliente ne correspond.</span>}
+            </div>
+          </div>
+          <CouronnePreview client={client} />
+          <div style={{ marginTop: 22 }}><ReglagesCouronne client={client} /></div>
+          <div style={{ marginTop: 22 }}><CatalogueEnVitrine client={client} portees={['maison', 'cliente']} /></div>
         </>
       )}
-    </div>
+      <div style={{ marginTop: 22 }}><InvitationCouronne /></div>
+    </>
   );
 }
 
@@ -268,209 +284,7 @@ export function InvitationCouronne({ surComptoir }: {
 }
 
 /* ---------- Aperçu · le miroir auto-joué ---------- */
-function Apercu({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
-  const { currency } = useBranch();
-  const [personas] = usePersonas();
-  const appts = useBranchAppointments();
-  const byId = useServicesById();
-  const [cfg] = useStore(vitrineConfigStore);
-  const today = todayISO();
-
-  const [scene, setScene] = useState(0);
-  const [playing, setPlaying] = useState(cfg.autoplay);
-  const [variant, setVariant] = useState(0);
-  const [servicesTous] = useServices();
-  const [cfgMiroir] = useStore(vitrineConfigStore);
-  const [q1, setQ1] = useState<string | null>(null);
-  const [q2, setQ2] = useState<string | null>(null);
-  const timer = useRef<number | null>(null);
-
-  /* La naissance de la couronne prime (CRM) ; sinon l'entrée au CRM. */
-  const days = Math.max(1, Math.round((Date.now() - fromISO(client.crownSince ?? client.since).getTime()) / 86400000));
-  const persona = personas.find((p) => p.id === client.persona);
-  const nextAppt = appts
-    .filter((a) => a.clientId === client.id && a.date >= today && a.status !== 'annulé' && a.status !== 'honoré')
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-
-  const isQuizScene = scene === 2 && cfg.quizEnabled;
-
-  useEffect(() => {
-    if (timer.current) window.clearInterval(timer.current);
-    if (!playing) return;
-    timer.current = window.setInterval(() => {
-      setScene((s) => {
-        if (s === 2 && cfg.quizEnabled) return s; // la scène quiz laisse la cliente répondre
-        return (s + 1) % SCENE_LABELS.length;
-      });
-    }, 4200);
-    return () => { if (timer.current) window.clearInterval(timer.current); };
-  }, [playing, cfg.quizEnabled]);
-
-  const pool = QUIZ_POOL[variant % QUIZ_POOL.length];
-  /* LA RECOMMANDATION VIENT DU CATALOGUE, et son prix est celui de la
-     cliente — coefficient personnel compris, comme partout ailleurs dans la
-     Maison. Plus de tarif inventé, plus de multiplicateur d'humeur : ce qui
-     s'affiche au miroir est ce qu'elle paiera. */
-  const svcReco = q1
-    ? recoPourEnvie(client, q1 as EnvieKey, {
-        /* Au miroir, le salon est là : le vivier est le catalogue entier, sans
-           le filtre de calibre du tunnel. La CASCADE, elle, est la même — son
-           persona, son histoire, le repli de la Maison — pour que les deux
-           écrans ne racontent jamais deux histoires à la même tête. */
-        offre: servicesTous,
-        catalogue: servicesTous,
-        personas,
-        maison: cfgMiroir.recoParEnvie,
-        appointments: appts,
-        auto: cfgMiroir.recoAuto,
-      })?.service
-    : undefined;
-  const mot = ENVIES.find((e) => e.k === q1);
-  const reco = svcReco && mot ? { title: svcReco.name, line: mot.line.tu } : null;
-  const recoPrice = svcReco ? personalPriceXof(svcReco, { clientCoef: client.priceCoef }) : 0;
-
-  const goto = (s: number) => { setScene(s); setPlaying(false); };
-
-  return (
-    <div>
-      <div className="trc-stage">
-        <div className="trc-stage__scene">
-          {scene === 0 && (
-            <div className="trc-fade" style={{ display: 'flex', alignItems: 'center', gap: 48, maxWidth: 900 }}>
-              <div style={{ position: 'relative', flex: 'none' }}>
-                <div style={{ position: 'absolute', inset: -10, border: '1px solid rgba(185,122,74,.4)', borderRadius: '50%' }} />
-                <Avatar client={client} size={140} />
-              </div>
-              <div>
-                <div className="trc-stage__eyebrow">{persona?.name ?? 'Tête couronnée'}</div>
-                <h1 className="trc-stage__title">Bonjour,<br />{client.name.split(' ')[0]}.</h1>
-                <div className="trc-stage__line">Cela fait {days} jours que ta couronne grandit. Aujourd’hui, elle franchit un palier.</div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 24 }}>
-                  <span style={{ width: 34, height: 1, background: 'var(--copper-200)' }} />
-                  <span style={{ fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)' }}>{days} jours couronnée</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {scene === 1 && (
-            <div className="trc-fade" style={{ textAlign: 'center', maxWidth: 720 }}>
-              <div className="trc-stage__eyebrow" style={{ letterSpacing: '.3em' }}>Un mot pour toi</div>
-              <div className="trc-stage__line" style={{ fontSize: 30, color: 'var(--color-ivoire)', marginTop: 24 }}>
-                “{persona?.essence ?? 'Ta couronne raconte ta constance, la maison en est l’orfèvre.'}”
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 40 }}>
-                <span style={{ width: 40, height: 1, background: 'rgba(246,241,231,.25)' }} />
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--copper-200)' }}>la Maison, rien que pour toi</span>
-                <span style={{ width: 40, height: 1, background: 'rgba(246,241,231,.25)' }} />
-              </div>
-            </div>
-          )}
-
-          {scene === 2 && (
-            <div className="trc-fade" style={{ textAlign: 'center', maxWidth: 640, width: '100%' }}>
-              {cfg.quizEnabled ? (
-                <>
-                  <div className="trc-stage__eyebrow">Une question pour toi</div>
-                  <h2 className="trc-stage__title" style={{ fontSize: 40 }}>Dis-nous, en deux gestes.</h2>
-                  <div className="trc-stage__line" style={{ fontSize: 15, marginTop: 6, marginBottom: 26 }}>
-                    Deux réponses, et ta prochaine couronne s’écrit déjà.
-                    <button onClick={() => { setVariant((v) => v + 1); setQ1(null); setQ2(null); }} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--copper-200)', borderBottom: '1px solid var(--copper-200)', padding: '0 0 1px', marginLeft: 6 }}>
-                      ↻ Autres questions
-                    </button>
-                  </div>
-                  <QuizRow label={pool.q1.tu} opts={pool.q1opts} value={q1} onPick={setQ1} />
-                  <div style={{ height: 22 }} />
-                  <QuizRow label={pool.q2.tu} opts={pool.q2opts} value={q2} onPick={setQ2} />
-                  {q1 && q2 && reco && (
-                    <div className="trc-fade" style={{ marginTop: 30, background: 'rgba(185,122,74,.14)', border: '1px solid rgba(185,122,74,.42)', borderRadius: 4, padding: '22px 26px' }}>
-                      <div className="trc-stage__eyebrow" style={{ letterSpacing: '.2em' }}>Pour toi, {client.name.split(' ')[0]}</div>
-                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--color-ivoire)', marginTop: 7 }}>{reco.title}</div>
-                      <div className="trc-stage__line" style={{ fontSize: 16, margin: '8px 0 14px' }}>{reco.line}</div>
-                      <span className="trc-stage__piece">{fmtMoney(recoPrice, currency)} · tarif personnalisé</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="trc-stage__line" style={{ fontSize: 20 }}>Le quiz sur-mesure est désactivé pour cette Vitrine. Activez-le dans la Régie.</div>
-              )}
-            </div>
-          )}
-
-          {scene === 3 && (
-            <div className="trc-fade" style={{ textAlign: 'center', maxWidth: 560 }}>
-              <div className="trc-stage__eyebrow">Ton prochain moment</div>
-              <h2 className="trc-stage__title" style={{ fontSize: 50 }}>On t’attend.</h2>
-              <div style={{ background: 'rgba(246,241,231,.05)', border: '1px solid rgba(246,241,231,.12)', borderRadius: 4, padding: '26px 30px', marginTop: 24 }}>
-                {nextAppt ? (
-                  <>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--color-ivoire)' }}>{frLong(nextAppt.date)}</div>
-                    <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 44, color: 'var(--copper-200)', margin: '4px 0 14px' }}>{nextAppt.time}</div>
-                    <div style={{ fontSize: 12, letterSpacing: '.06em', color: 'var(--indigo-100)' }}>avec {nextAppt.master} · {apptLabel(nextAppt, byId)}</div>
-                  </>
-                ) : (
-                  <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: 'var(--color-ivoire)' }}>Ton fauteuil t’attend, réserve ton prochain rituel.</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="trc-stage__controls">
-          <button className="trc-stage__arrow" onClick={() => goto((scene + SCENE_LABELS.length - 1) % SCENE_LABELS.length)} aria-label="Précédent">‹</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 9 }}>
-              {SCENE_LABELS.map((label, i) => (
-                <button key={label} className={`trc-dot ${i === scene ? 'is-active' : ''}`} style={{ width: i === scene ? 26 : 6 }} title={label} onClick={() => goto(i)} />
-              ))}
-            </div>
-            <button onClick={() => setPlaying((p) => !p)} style={{ cursor: 'pointer', background: 'none', border: '1px solid rgba(246,241,231,.2)', borderRadius: '50%', width: 32, height: 32, color: 'var(--copper-200)', fontSize: 12 }} aria-label={playing ? 'Pause' : 'Lecture'}>
-              {playing ? '❙❙' : '▶'}
-            </button>
-            <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--copper-200)', minWidth: 150, textAlign: 'center' }}>
-              {SCENE_LABELS[scene]}{isQuizScene ? ' · en attente' : ''}
-            </span>
-          </div>
-          <button className="trc-stage__arrow" onClick={() => goto((scene + 1) % SCENE_LABELS.length)} aria-label="Suivant">›</button>
-        </div>
-      </div>
-      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-soft)', marginTop: 12 }}>
-        La Vitrine se joue d’elle-même pendant le rituel, chaque scène est composée à partir de l’histoire réelle de la cliente.
-      </div>
-    </div>
-  );
-}
-
-function QuizRow({ label, opts, value, onPick }: { label: string; opts: [string, string][]; value: string | null; onPick: (k: string) => void }) {
-  return (
-    <div style={{ width: '100%' }}>
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-ivoire)', marginBottom: 13 }}>{label}</div>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {opts.map(([k, l]) => {
-          const on = value === k;
-          return (
-            <button
-              key={k}
-              onClick={() => onPick(k)}
-              style={{
-                cursor: 'pointer', fontSize: 13, letterSpacing: '.04em',
-                color: on ? 'var(--color-obsidian)' : 'var(--color-ivoire)',
-                background: on ? 'var(--copper-200)' : 'rgba(246,241,231,.06)',
-                border: `1px solid ${on ? 'var(--copper-200)' : 'rgba(246,241,231,.22)'}`,
-                borderRadius: 999, padding: '11px 22px', transition: 'all .25s',
-              }}
-            >
-              {l}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Régie · la configuration de la Vitrine ---------- */
-function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
+function CatalogueEnVitrine({ client, portees }: { client?: ReturnType<typeof useBranchClients>[0]; portees: readonly Portee[] }) {
   const [servicesRegie] = useServices();
   /* Les formules ont leur propre magasin, hors du catalogue des prestations :
      c'est pourquoi la régie ne les portait pas encore. */
@@ -480,7 +294,6 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const [services] = useServices();
   const [products] = useProducts();
   const [personas] = usePersonas();
-  const persona = personas.find((p) => p.id === client.persona);
 
   /* La liste blanche `visibleCategories` est RETIRÉE du juge (12 août) : semée
      une fois, jamais entretenue, elle cachait toute catégorie née après. Le
@@ -494,8 +307,9 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   /* DEUX PORTÉES, UN COMMUTATEUR (12 août) : le tapis se compose pour CETTE
      cliente (sa fiche, `vitrineMasques`) ou pour TOUTE LA MAISON (le socle,
      VitrineConfig). Les masques individuels s'ajoutent toujours au socle. */
-  const [portee, setPortee] = useState<'cliente' | 'maison' | 'site'>('cliente');
-  const masques = client.vitrineMasques ?? {};
+  const [portee, setPortee] = useState<Portee>(portees[0]);
+  const prenom = client?.name.split(' ')[0] ?? '';
+  const masques = client?.vitrineMasques ?? {};
   const herCats = masques.categories ?? [];
   const herSvcs = masques.services ?? [];
   const herProds = masques.products ?? [];
@@ -507,8 +321,8 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   const siteSvcs = cfg.siteMasques?.services ?? [];
   const setSiteMasques = (patch: { services?: string[]; categories?: string[] }) =>
     vitrineConfigStore.set((c) => ({ ...c, siteMasques: { ...(c.siteMasques ?? {}), ...patch } }));
-  const setMasques = (patch: Partial<NonNullable<typeof client.vitrineMasques>>) =>
-    clientsStore.set((prev) => prev.map((c) => (c.id === client.id
+  const setMasques = (patch: Partial<NonNullable<NonNullable<typeof client>["vitrineMasques"]>>) =>
+    clientsStore.set((prev) => prev.map((c) => (c.id === client?.id
       ? { ...c, vitrineMasques: { ...(c.vitrineMasques ?? {}), ...patch } }
       : c)));
   const bascule = (l: string[], id: string) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]);
@@ -559,7 +373,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
 
   /* Ce que la portée choisie DONNE À VOIR — le juge unique. */
   const sonCatalogue = useMemo(
-    () => catalogueVisiblePour({ cfg, masques: portee === 'cliente' ? client.vitrineMasques : undefined, cats: categories, services, products }),
+    () => catalogueVisiblePour({ cfg, masques: portee === 'cliente' ? client?.vitrineMasques : undefined, cats: categories, services, products }),
     [cfg, client, categories, services, products, portee],
   );
   const carpet = useMemo(
@@ -576,57 +390,287 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
   });
 
   return (
-    <div className="tr-cols" style={{ '--cols': '340px 1fr', gap: 18, alignItems: 'start' } as CSSProperties}>
-      {/* Colonne gauche · la cliente + réglages globaux */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* CETTE CLIENTE — en clair. L'indigo est réservé à ce qui vaut pour
-            TOUTE la Maison ; le clair dit « cette tête-là ». Deux surfaces
-            indigo de portées différentes ne disaient plus rien de leur portée. */}
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-copper)', borderRadius: 4, padding: '16px 18px' }}>
-          <div className="trc-microlabel" style={{ margin: 0 }}>La cliente devant la régie</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
-            <Avatar client={client} size={46} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 22, color: 'var(--color-indigo)', lineHeight: 1 }}>{client.name.split(' ')[0]}</div>
-              <div className="trc-sub" style={{ marginTop: 4 }}>{persona?.name ?? 'À classer'}</div>
-            </div>
+    <div>
+      {/* Colonne droite · la curation */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>La régie de la vitrine</div>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, color: 'var(--color-indigo)', margin: '2px 0 0' }}>
+            {portee === 'site' ? 'Les prestations sur le site.' : portee === 'cliente' ? `Ce que ${prenom} voit dans Ma Couronne.` : 'Ce que toutes voient dans Ma Couronne.'}
+          </h2>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--ink-soft)', marginTop: 5 }}>
+            {portee === 'site'
+              ? <>Ce que le monde peut réserver en ligne. Une liste à part : Ma Couronne et la tablette ne bougent pas.</>
+              : portee === 'cliente'
+                ? <>Ce que {prenom} verra, en plus de ce que la Maison cache à toutes.</>
+                : <>Ce que toutes les clientes verront ; les masques de chacune s’y ajoutent.</>}
           </div>
-          {persona && <div className="trc-sub" style={{ marginTop: 10, lineHeight: 1.5 }}>{persona.essence}</div>}
+          {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
+              la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            {portees.length > 1 && ([['maison', 'Pour toutes les clientes'], ['cliente', `Pour ${prenom}`], ['site', 'Sur le site public']] as const).filter(([k]) => portees.includes(k)).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={portee === k}
+                onClick={() => setPortee(k)}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: portee === k ? 'var(--color-ivoire)' : 'var(--color-indigo)',
+                  background: portee === k ? 'var(--color-indigo)' : 'transparent',
+                  border: '1px solid var(--color-indigo)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                {l}
+              </button>
+            ))}
+            {/* LE RETOUR AUX DÉFAUTS DE LA MAISON — tout rallumer d'un geste
+                (les masques individuels des fiches, eux, ne bougent pas). */}
+            {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0 || gPlans.length > 0) && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Masques de la Maison',
+                    titre: 'Rétablir le tapis complet de la Maison ?',
+                    dit: 'Tous les masques valant pour toutes les clientes seront levés : ateliers, prestations, produits et formules redeviennent visibles.',
+                    suite: 'Les masques individuels posés sur les fiches ne bougent pas.',
+                    accepter: 'Rétablir le tapis complet',
+                    refuser: 'Garder les masques',
+                    dur: true,
+                  })) return;
+                  vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [], hiddenPlans: [] }));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Rétablir le tapis complet
+              </button>
+            )}
+            {/* LE RETOUR AUX DÉFAUTS DU SITE — tout remontrer au monde. */}
+            {portee === 'site' && (siteCats.length > 0 || siteSvcs.length > 0) && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Site public',
+                    titre: 'Tout remontrer sur le site public ?',
+                    dit: 'Les ateliers et prestations que vous en aviez retirés y reparaîtront.',
+                    suite: 'La carte du comptoir et Ma Couronne ne bougent pas.',
+                    accepter: 'Tout remontrer',
+                    refuser: 'Garder les retraits',
+                    dur: true,
+                  })) return;
+                  vitrineConfigStore.set((c) => ({ ...c, siteMasques: {} }));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Tout remontrer sur le site
+              </button>
+            )}
+            {/* LE RETOUR AUX DÉFAUTS POUR ELLE SEULE — lève ses masques à elle,
+                sans toucher au socle de la Maison. */}
+            {portee === 'cliente' && (herCats.length > 0 || herSvcs.length > 0 || herProds.length > 0) && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!await demande({
+                    quoi: 'Masques de cette cliente',
+                    titre: `Rétablir le tapis complet de ${prenom} ?`,
+                    dit: 'Tous SES masques seront levés : elle verra tout ce que la Maison montre.',
+                    suite: 'Les masques valant pour toutes les clientes ne bougent pas.',
+                    accepter: 'Rétablir son tapis',
+                    refuser: 'Garder ses masques',
+                    dur: true,
+                  })) return;
+                  clientsStore.set((prev) => prev.map((c) => (c.id === client?.id ? { ...c, vitrineMasques: undefined } : c)));
+                }}
+                style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
+                  color: 'var(--copper-700)', background: 'transparent',
+                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
+                }}
+              >
+                Rétablir son tapis complet
+              </button>
+            )}
+          </div>
         </div>
 
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderRadius: 4, padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, color: 'var(--color-indigo)', lineHeight: 1 }}>{onCount}</div>
-              <div className="trc-microlabel" style={{ color: 'var(--ink-soft)', marginTop: 5 }}>sur son tapis</div>
+        {/* Le site public ne montre aucune formule (4 octobre 2026) : sous
+            « Sur le site public », leurs interrupteurs écrivaient en réalité les
+            masques de la cliente choisie. Ils ne paraissent plus que pour Ma
+            Couronne. */}
+        {portee !== 'site' && (<>
+        {/* ══ LES FORMULES EN VITRINE ══════════════════════════════
+            « Dans Le Trône, Vitrine, mes formules ne sont pas ajoutées »
+            (Yéman, 29 août). Elles y étaient, mais DEUX FOIS INTROUVABLES :
+            enterrées sous tout le catalogue des ateliers, et purement absentes
+            quand la liste était vide. Une section qui disparaît ne se cherche
+            pas, elle se croit manquante.
+
+            Elles remontent donc AVANT le catalogue, et la section reste là
+            même sans une seule formule, pour dire pourquoi. */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div className="trc-microlabel" style={{ margin: 0 }}>Les formules en vitrine</div>
+            <span className="mnd-muted" style={{ fontSize: 11.5 }}>
+              {plansEnRegie.length === 0
+                ? 'Aucune formule au catalogue pour l’instant.'
+                : (() => {
+                  const n = plansEnRegie.filter((pl) => planVisible(pl.id)).length;
+                  return n === plansEnRegie.length
+                    ? 'Toutes en vitrine.'
+                    : `${n} sur ${plansEnRegie.length} en vitrine.`;
+                })()}
+              {plansEnRegie.length > 0 ? ' Masquer n’efface rien : celles qui la portent la gardent.' : ''}
+            </span>
+          </div>
+          {plansEnRegie.length === 0 ? (
+            <div className="mnd-muted" style={{ fontSize: 12.5, border: '1px dashed var(--hairline)', borderRadius: 3, padding: '14px 16px', lineHeight: 1.6 }}>
+              Vos abonnements se créent dans <b style={{ color: 'var(--color-indigo)' }}>Équipe &amp; croissance
+              → Abonnements</b>. Dès qu’une formule existe, elle paraît ici et vous choisissez
+              si Ma Couronne la montre.
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 34, color: 'var(--ink-soft)', lineHeight: 1 }}>{offCount}</div>
-              <div className="trc-microlabel" style={{ color: 'var(--ink-soft)', marginTop: 5 }}>hors-champ</div>
+          ) : (
+            <div className="tr-grid tr-grid--2">
+              {plansEnRegie.map((pl) => (
+                <ToggleCard
+                  key={pl.id}
+                  name={pl.name}
+                  sub={portee === 'cliente' && masqueMaisonPlan(pl.id)
+                    ? 'Formule · masquée pour toute la Maison'
+                    : (pl.mode === 'pack' ? 'Paquet de crédits' : 'Abonnement')}
+                  on={planVisible(pl.id)}
+                  onToggle={() => togglePlan(pl.id)}
+                />
+              ))}
             </div>
+          )}
+        </div>
+        </>)}
+
+        {/* DEUX NIVEAUX, DEUX GESTES — dit une fois, en tête des sections.
+            L'interrupteur de l'atelier éteint tout ce qu'il contient ; celui
+            d'une prestation ne coupe QU'ELLE. La question de Yéman (15 août)
+            portait exactement là : masquer WÈWÈ™ à Façon sans perdre LES SOINS. */}
+        <div style={{ background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 4, padding: '11px 14px', fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--copper-700)' }}>
+          L’interrupteur de l’<b style={{ fontWeight: 500 }}>atelier</b> éteint tout ce qu’il contient.
+          Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle, masquer
+          « WÈWÈ™ à Façon » laisse LES SOINS entiers. Une prestation masquée disparaît de la
+          Vitrine, de Ma Couronne et des recommandations ; le comptoir, lui, la garde.
+          {portee === 'site' && (
+            <>
+              <br />
+              <b style={{ fontWeight: 500 }}>Sur le site public</b>, c’est une liste À PART : ce que vous
+              décochez ici disparaît du site et de sa réservation, sans rien changer à la carte du
+              comptoir ni à Ma Couronne. Les consultations, elles, restent proposées par leur porte.
+            </>
+          )}
+        </div>
+
+        {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
+            l'arbre, chaque famille derrière son atelier (12 août) — et LES
+            MONDES SE DISENT : un intertitre quand on passe de l'Atelier au
+            plateau, au Studio. */}
+        {(() => {
+          let mondePrec: string | null = null;
+          return catsDansLOrdre(categories).map((cat) => {
+          const { services: cs, products: cp } = byCat(cat.id);
+          if (cs.length === 0 && cp.length === 0) return null;
+          const catOn = catVisible(cat.id);
+          const catMaison = portee === 'cliente' && masqueMaisonCat(cat.id);
+          const monde = mondeLabel(mondeDeCat(cat, categories));
+          const nouveauMonde = monde !== mondePrec;
+          mondePrec = monde;
+          return (
+            <div key={cat.id}>
+              {nouveauMonde && (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginBottom: 14 }}>
+                  {monde}
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+                <div className="trc-microlabel" style={{ margin: 0 }}>
+                  {cat.fon} · {cat.label}
+                  {catMaison && <span style={{ color: 'var(--copper-700)', textTransform: 'none', letterSpacing: 0 }}>, masqué pour toute la Maison</span>}
+                </div>
+                <button
+                  className={`trc-switch ${catOn ? 'is-on' : ''}`}
+                  onClick={() => toggleCat(cat.id)}
+                  aria-label={`Catégorie ${cat.fon}`}
+                  title={catMaison
+                    ? 'Masqué pour toute la Maison, bascule sur « Pour toutes les clientes » pour le rallumer.'
+                    : catOn ? 'Catégorie visible' : 'Catégorie masquée'}
+                />
+              </div>
+              <div className="tr-grid tr-grid--2" style={{ opacity: catOn ? 1 : 0.4, pointerEvents: catOn ? 'auto' : 'none' }}>
+                {cs.map((s) => (
+                  <ToggleCard
+                    key={s.id}
+                    name={s.name}
+                    sub={portee === 'cliente' && masqueMaisonSvc(s.id) ? `${s.palier} · masqué pour toute la Maison` : `${s.palier}`}
+                    on={svcVisible(s.id)}
+                    onToggle={() => toggleSvc(s.id)}
+                  />
+                ))}
+                {portee !== 'site' && cp.map((p) => (
+                  <ToggleCard
+                    key={p.id}
+                    name={p.name}
+                    sub={portee === 'cliente' && masqueMaisonProd(p.id) ? 'Produit maison · masqué pour toute la Maison' : 'Produit maison'}
+                    on={prodVisible(p.id)}
+                    onToggle={() => toggleProd(p.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+          });
+        })()}
+
+        {/* Le tapis de cuivre */}
+        <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
+          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
+            Le tapis de cuivre · {portee === 'cliente' ? prenom : portee === 'site' ? 'le site public' : 'toute la Maison'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>
+            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre, rien d’autre.'
+              : portee === 'site' ? 'Ce que le monde entier peut réserver en ligne.'
+              : 'Le socle commun, chaque fiche peut encore y retrancher.'}
+          </div>
+          <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>
+            {carpet.length === 0 ? (
+              <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-200)' }}>Tapis vide, allume au moins une pièce.</span>
+            ) : (
+              carpet.map((name) => <span key={name} className="trc-stage__piece">{name}</span>)
+            )}
           </div>
         </div>
 
-        {/* LA PORTÉE SE LIT AU FILET. Cuivre = cette cliente ; indigo = toute la
-            Maison. Ces réglages-ci valaient pour toutes mais s'affichaient comme
-            les siens, sous sa fiche — on croyait régler son miroir à elle.
-            Le fond reste clair : ces cartes portent des champs et des listes,
-            que l'indigo rendrait illisibles. */}
-        <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="trc-microlabel" style={{ margin: 0 }}>Le miroir · pour toutes les clientes</div>
-          <SwitchRow label="Lecture automatique" sub="Le miroir enchaîne les scènes seul." on={cfg.autoplay} onToggle={(v) => setFlag('autoplay', v)} />
-          {/* DEUX SURFACES, DEUX INTERRUPTEURS — et chacun là où il commande.
-              Celui-ci compose le miroir du salon ; celui de Ma Couronne vit dans
-              l'onglet Ma Couronne, avec le reste de ce qui gouverne son
-              application. Au fauteuil la maîtresse est là pour expliquer, sur
-              le téléphone la cliente est seule : ça ne s'éteint pas ensemble. */}
-          <SwitchRow
-            label="Quiz au miroir du salon"
-            sub="La scène « une question pour toi », pendant le rituel."
-            on={cfg.quizEnabled}
-            onToggle={(v) => setFlag('quizEnabled', v)}
-          />
+      </div>
+    </div>
+  );
+}
 
+/* LES RÉGLAGES DE MA COURONNE — 4 octobre 2026 : ils vivaient sous la carte
+   « Le miroir », qu'aucune cliente ne voyait. Ils gouvernent l'application
+   seule : régler en deux fois, le sur-mesure, les recommandations. */
+function ReglagesCouronne({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
+  const [servicesRegie] = useServices();
+  const [cfg] = useStore(vitrineConfigStore);
+  const [categories] = useCategories();
+  const setFlag = (k: 'quizCouronne' | 'recoAuto', v: boolean) => vitrineConfigStore.set((c) => ({ ...c, [k]: v }));
+  return (
+    <div style={{ background: 'var(--surface-card)', border: '1px solid var(--hairline)', borderLeft: '3px solid var(--color-indigo)', borderRadius: 4, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="trc-microlabel" style={{ margin: 0 }}>Réserver et payer dans l’app · pour toutes les clientes</div>
           {/* ══ LE RÈGLEMENT DEPUIS MA COURONNE — 29 août 2026 ═══════
               « Je veux avoir un autre seuil, que je vous donne » (Yéman).
               Plutôt que d'attendre son chiffre et de le figer dans le code, le
@@ -739,7 +783,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               miroir recommandait quatre rituels écrits en dur, à des prix qui
               n existaient nulle part : montrés a une cliente, ils devenaient
               une promesse que la Maison n avait jamais faite. */}
-          {(cfg.quizEnabled || cfg.quizCouronne !== false) && (
+          {cfg.quizCouronne !== false && (
             <>
               <SwitchRow
                 label="Son histoire tranche"
@@ -753,16 +797,7 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
                   l’archétype de la cliente n’a rien dit. La désignation qui compte se fait{' '}
                   <b style={{ fontWeight: 500 }}>par persona</b> (CRM → Les personas). Rien nulle
                   part = rien n’est recommandé, et le quiz ne s’ouvre pas sur son téléphone. Une
-                  prestation masquée à la Vitrine ne se propose jamais.
-                  {cfg.quizCouronne === false && (
-                    <><br />
-                      <b style={{ fontWeight: 500, color: 'var(--copper-700)' }}>
-                        Le quiz est éteint sur Ma Couronne
-                      </b>{' '},
-                      ces désignations ne servent donc plus qu’au miroir du salon.
-                      Son interrupteur est dans l’onglet <b style={{ fontWeight: 500 }}>Ma Couronne</b>.
-                    </>
-                  )}
+                  prestation masquée dans Ma Couronne ne se propose jamais.
                 </div>
                 {ENVIES.map((e) => (
                   <label key={e.k} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
@@ -782,280 +817,6 @@ function Regie({ client }: { client: ReturnType<typeof useBranchClients>[0] }) {
               <RecoResolue client={client} />
             </>
           )}
-        </div>
-      </div>
-
-      {/* Colonne droite · la curation */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>La régie de la vitrine</div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, color: 'var(--color-indigo)', margin: '2px 0 0' }}>
-            {portee === 'cliente' ? 'Compose son tapis de cuivre.' : 'Compose le tapis de la Maison.'}
-          </h2>
-          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--ink-soft)', marginTop: 5 }}>
-            {portee === 'cliente'
-              ? <>Choisis ce que {client.name.split(' ')[0]} verra, et ce qu’elle ne verra pas.</>
-              : <>Ce que TOUTES les clientes verront, les masques individuels s’y ajoutent.</>}
-          </div>
-          {/* LE COMMUTATEUR DE PORTÉE — la cliente devant la régie, ou toute
-              la Maison. Deux niveaux, deux écritures : sa fiche, ou le socle. */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            {([['cliente', `Pour ${client.name.split(' ')[0]}`], ['maison', 'Pour toutes les clientes'], ['site', 'Sur le site public']] as const).map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={portee === k}
-                onClick={() => setPortee(k)}
-                style={{
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
-                  color: portee === k ? 'var(--color-ivoire)' : 'var(--color-indigo)',
-                  background: portee === k ? 'var(--color-indigo)' : 'transparent',
-                  border: '1px solid var(--color-indigo)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
-                }}
-              >
-                {l}
-              </button>
-            ))}
-            {/* LE RETOUR AUX DÉFAUTS DE LA MAISON — tout rallumer d'un geste
-                (les masques individuels des fiches, eux, ne bougent pas). */}
-            {portee === 'maison' && (gCats.length > 0 || cfg.hiddenServices.length > 0 || cfg.hiddenProducts.length > 0 || gPlans.length > 0) && (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!await demande({
-                    quoi: 'Masques de la Maison',
-                    titre: 'Rétablir le tapis complet de la Maison ?',
-                    dit: 'Tous les masques valant pour toutes les clientes seront levés : ateliers, prestations, produits et formules redeviennent visibles.',
-                    suite: 'Les masques individuels posés sur les fiches ne bougent pas.',
-                    accepter: 'Rétablir le tapis complet',
-                    refuser: 'Garder les masques',
-                    dur: true,
-                  })) return;
-                  vitrineConfigStore.set((c) => ({ ...c, hiddenCategories: [], hiddenServices: [], hiddenProducts: [], hiddenPlans: [] }));
-                }}
-                style={{
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
-                  color: 'var(--copper-700)', background: 'transparent',
-                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
-                }}
-              >
-                Rétablir le tapis complet
-              </button>
-            )}
-            {/* LE RETOUR AUX DÉFAUTS DU SITE — tout remontrer au monde. */}
-            {portee === 'site' && (siteCats.length > 0 || siteSvcs.length > 0) && (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!await demande({
-                    quoi: 'Site public',
-                    titre: 'Tout remontrer sur le site public ?',
-                    dit: 'Les ateliers et prestations que vous en aviez retirés y reparaîtront.',
-                    suite: 'La carte du comptoir et Ma Couronne ne bougent pas.',
-                    accepter: 'Tout remontrer',
-                    refuser: 'Garder les retraits',
-                    dur: true,
-                  })) return;
-                  vitrineConfigStore.set((c) => ({ ...c, siteMasques: {} }));
-                }}
-                style={{
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
-                  color: 'var(--copper-700)', background: 'transparent',
-                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
-                }}
-              >
-                Tout remontrer sur le site
-              </button>
-            )}
-            {/* LE RETOUR AUX DÉFAUTS POUR ELLE SEULE — lève ses masques à elle,
-                sans toucher au socle de la Maison. */}
-            {portee === 'cliente' && (herCats.length > 0 || herSvcs.length > 0 || herProds.length > 0) && (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!await demande({
-                    quoi: 'Masques de cette cliente',
-                    titre: `Rétablir le tapis complet de ${client.name.split(' ')[0]} ?`,
-                    dit: 'Tous SES masques seront levés : elle verra tout ce que la Maison montre.',
-                    suite: 'Les masques valant pour toutes les clientes ne bougent pas.',
-                    accepter: 'Rétablir son tapis',
-                    refuser: 'Garder ses masques',
-                    dur: true,
-                  })) return;
-                  clientsStore.set((prev) => prev.map((c) => (c.id === client.id ? { ...c, vitrineMasques: undefined } : c)));
-                }}
-                style={{
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, letterSpacing: '.04em',
-                  color: 'var(--copper-700)', background: 'transparent',
-                  border: '1px solid var(--copper-300)', borderRadius: 3, padding: '8px 16px', transition: 'all .2s',
-                }}
-              >
-                Rétablir son tapis complet
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ══ LES FORMULES EN VITRINE ══════════════════════════════
-            « Dans Le Trône, Vitrine, mes formules ne sont pas ajoutées »
-            (Yéman, 29 août). Elles y étaient, mais DEUX FOIS INTROUVABLES :
-            enterrées sous tout le catalogue des ateliers, et purement absentes
-            quand la liste était vide. Une section qui disparaît ne se cherche
-            pas, elle se croit manquante.
-
-            Elles remontent donc AVANT le catalogue, et la section reste là
-            même sans une seule formule, pour dire pourquoi. */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-            <div className="trc-microlabel" style={{ margin: 0 }}>Les formules en vitrine</div>
-            <span className="mnd-muted" style={{ fontSize: 11.5 }}>
-              {plansEnRegie.length === 0
-                ? 'Aucune formule au catalogue pour l’instant.'
-                : (() => {
-                  const n = plansEnRegie.filter((pl) => planVisible(pl.id)).length;
-                  return n === plansEnRegie.length
-                    ? 'Toutes en vitrine.'
-                    : `${n} sur ${plansEnRegie.length} en vitrine.`;
-                })()}
-              {plansEnRegie.length > 0 ? ' Masquer n’efface rien : celles qui la portent la gardent.' : ''}
-            </span>
-          </div>
-          {plansEnRegie.length === 0 ? (
-            <div className="mnd-muted" style={{ fontSize: 12.5, border: '1px dashed var(--hairline)', borderRadius: 3, padding: '14px 16px', lineHeight: 1.6 }}>
-              Vos abonnements se créent dans <b style={{ color: 'var(--color-indigo)' }}>Équipe &amp; croissance
-              → Abonnements</b>. Dès qu’une formule existe, elle paraît ici et vous choisissez
-              si Ma Couronne la montre.
-            </div>
-          ) : (
-            <div className="tr-grid tr-grid--2">
-              {plansEnRegie.map((pl) => (
-                <ToggleCard
-                  key={pl.id}
-                  name={pl.name}
-                  sub={portee === 'cliente' && masqueMaisonPlan(pl.id)
-                    ? 'Formule · masquée pour toute la Maison'
-                    : (pl.mode === 'pack' ? 'Paquet de crédits' : 'Abonnement')}
-                  on={planVisible(pl.id)}
-                  onToggle={() => togglePlan(pl.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* DEUX NIVEAUX, DEUX GESTES — dit une fois, en tête des sections.
-            L'interrupteur de l'atelier éteint tout ce qu'il contient ; celui
-            d'une prestation ne coupe QU'ELLE. La question de Yéman (15 août)
-            portait exactement là : masquer WÈWÈ™ à Façon sans perdre LES SOINS. */}
-        <div style={{ background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 4, padding: '11px 14px', fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--copper-700)' }}>
-          L’interrupteur de l’<b style={{ fontWeight: 500 }}>atelier</b> éteint tout ce qu’il contient.
-          Celui d’une <b style={{ fontWeight: 500 }}>prestation</b> ne coupe qu’elle, masquer
-          « WÈWÈ™ à Façon » laisse LES SOINS entiers. Une prestation masquée disparaît de la
-          Vitrine, de Ma Couronne et des recommandations ; le comptoir, lui, la garde.
-          {portee === 'site' && (
-            <>
-              <br />
-              <b style={{ fontWeight: 500 }}>Sur le site public</b>, c’est une liste À PART : ce que vous
-              décochez ici disparaît du site et de sa réservation, sans rien changer à la carte du
-              comptoir ni à Ma Couronne. Les consultations, elles, restent proposées par leur porte.
-            </>
-          )}
-        </div>
-
-        {/* Les sections de la régie déroulent dans l'ORDRE DU CATALOGUE —
-            l'arbre, chaque famille derrière son atelier (12 août) — et LES
-            MONDES SE DISENT : un intertitre quand on passe de l'Atelier au
-            plateau, au Studio. */}
-        {(() => {
-          let mondePrec: string | null = null;
-          return catsDansLOrdre(categories).map((cat) => {
-          const { services: cs, products: cp } = byCat(cat.id);
-          if (cs.length === 0 && cp.length === 0) return null;
-          const catOn = catVisible(cat.id);
-          const catMaison = portee === 'cliente' && masqueMaisonCat(cat.id);
-          const monde = mondeLabel(mondeDeCat(cat, categories));
-          const nouveauMonde = monde !== mondePrec;
-          mondePrec = monde;
-          return (
-            <div key={cat.id}>
-              {nouveauMonde && (
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--copper-700)', borderBottom: '2px solid var(--copper-300)', paddingBottom: 6, marginBottom: 14 }}>
-                  {monde}
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
-                <div className="trc-microlabel" style={{ margin: 0 }}>
-                  {cat.fon} · {cat.label}
-                  {catMaison && <span style={{ color: 'var(--copper-700)', textTransform: 'none', letterSpacing: 0 }}>, masqué pour toute la Maison</span>}
-                </div>
-                <button
-                  className={`trc-switch ${catOn ? 'is-on' : ''}`}
-                  onClick={() => toggleCat(cat.id)}
-                  aria-label={`Catégorie ${cat.fon}`}
-                  title={catMaison
-                    ? 'Masqué pour toute la Maison, bascule sur « Pour toutes les clientes » pour le rallumer.'
-                    : catOn ? 'Catégorie visible' : 'Catégorie masquée'}
-                />
-              </div>
-              <div className="tr-grid tr-grid--2" style={{ opacity: catOn ? 1 : 0.4, pointerEvents: catOn ? 'auto' : 'none' }}>
-                {cs.map((s) => (
-                  <ToggleCard
-                    key={s.id}
-                    name={s.name}
-                    sub={portee === 'cliente' && masqueMaisonSvc(s.id) ? `${s.palier} · masqué pour toute la Maison` : `${s.palier}`}
-                    on={svcVisible(s.id)}
-                    onToggle={() => toggleSvc(s.id)}
-                  />
-                ))}
-                {portee !== 'site' && cp.map((p) => (
-                  <ToggleCard
-                    key={p.id}
-                    name={p.name}
-                    sub={portee === 'cliente' && masqueMaisonProd(p.id) ? 'Produit maison · masqué pour toute la Maison' : 'Produit maison'}
-                    on={prodVisible(p.id)}
-                    onToggle={() => toggleProd(p.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-          });
-        })()}
-
-        {/* Le tapis de cuivre */}
-        <div style={{ background: 'var(--grad-indigo, linear-gradient(160deg,#1E2150,#15173A))', borderRadius: 4, padding: '22px 24px 26px', color: 'var(--color-ivoire)' }}>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-200)', margin: 0 }}>
-            Le tapis de cuivre · {portee === 'cliente' ? client.name.split(' ')[0] : portee === 'site' ? 'le site public' : 'toute la Maison'}
-          </div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-100)', marginTop: 4 }}>
-            {portee === 'cliente' ? 'Ce qu’elle foulera, dans cet ordre, rien d’autre.'
-              : portee === 'site' ? 'Ce que le monde entier peut réserver en ligne.'
-              : 'Le socle commun, chaque fiche peut encore y retrancher.'}
-          </div>
-          <div style={{ marginTop: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', minHeight: 54 }}>
-            {carpet.length === 0 ? (
-              <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--indigo-200)' }}>Tapis vide, allume au moins une pièce.</span>
-            ) : (
-              carpet.map((name) => <span key={name} className="trc-stage__piece">{name}</span>)
-            )}
-          </div>
-        </div>
-
-        {/* L ESSAI EN VRAI, sous les réglages. Régler d un côté et vérifier de
-            l autre obligeait à changer d onglet à chaque case cochée : on ne
-            voyait jamais l effet du geste qu on venait de faire. Le miroir est
-            donc ici, vivant, nourri par la configuration du dessus — coche une
-            catégorie, réponds au quiz, et tu vois exactement ce que la cliente
-            verra. */}
-        <div>
-          <div className="trc-microlabel" style={{ color: 'var(--copper-700)' }}>L essai · ce que {client.name.split(' ')[0]} verra</div>
-          <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 4, marginBottom: 12, lineHeight: 1.55 }}>
-            Le miroir tel qu il se jouera devant elle. Réponds aux deux questions pour vérifier la
-            prestation proposée et son prix, ce sont les vrais, pris au catalogue.
-          </div>
-          <Apercu client={client} />
-        </div>
-      </div>
     </div>
   );
 }

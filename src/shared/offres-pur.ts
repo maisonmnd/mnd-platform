@@ -247,6 +247,91 @@ export function ceQueLeCodeRetire(lignes: readonly LigneRemisee[]): { plein: num
   return { plein, net, retire: plein - net, combien: lignes.filter((l) => l.remisee).length };
 }
 
+/* LE CODE D'UNE OFFRE VAUT AUSSI À LA CAISSE — 1er octobre 2026.
+
+   « Les codes de réductions ROSE15 ne marchent pas sur le Trône » (Yéman). La
+   case « Code de promotion » de la caisse ne connaissait que les codes
+   NOMINATIFS (un code, une tête, 48 heures). Le code d'une OFFRE, écrit sur
+   la carte du site et honoré par la réservation en ligne, y passait pour
+   inconnu : la cliente qui venait sans avoir réservé en ligne perdait sa
+   remise au comptoir, devant tout le monde.
+
+   La caisse lit donc les deux. Et elle applique l'offre avec la règle du
+   site, la même fonction : seules les prestations que l'offre couvre
+   bougent, au pourcentage de l'offre, ligne à ligne. */
+export function remiseDeLOffreSurLeTicket(
+  offre: OffreCodee | null,
+  lignes: readonly { serviceId: string; montantXof: number }[],
+): { retire: number; combien: number } {
+  const r = ceQueLeCodeRetire(lignesDuCode(
+    lignes.map((l) => ({ id: l.serviceId, prixXof: Math.max(0, Math.round(l.montantXof)), ferme: true })),
+    offre,
+  ));
+  return { retire: r.retire, combien: r.combien };
+}
+
+/* ══ LA REMISE DU COMPTOIR S'ÉCRIT AU RENDEZ-VOUS — 2 octobre 2026 ═════
+   « J'ai passé ce paiement dans l'encaissement et il y avait la remise de
+   ROSE15, la facture est soldée, mais quand je reviens dans le rendez-vous
+   depuis le Carnet elle reste devoir 12 000 F » (Yéman).
+
+   Le comptoir retirait la remise du ticket et n'inscrivait au rendez-vous que
+   la somme encaissée : 68 000 F reçus pour un rituel resté à 80 000 F, donc
+   12 000 F « dus » que personne ne doit. Une remise accordée au comptoir est
+   une remise sur le rituel : elle s'écrit sur lui, du même geste.
+
+   DEUX BORNES. Jamais plus que ce que le comptoir a réellement retiré aux
+   prestations ; jamais plus que ce qui restait dû après l'encaissement (un
+   rendez-vous qui portait déjà sa propre remise ne la reçoit pas deux fois). */
+export function remiseDuComptoirAuRendezVous(e: {
+  /** Les prestations du ticket, avant toute remise du comptoir. */
+  brutDuRituelXof: number;
+  /** Ce que le ticket encaisse pour ces prestations. */
+  encaisseXof: number;
+  /** Ce que le rendez-vous devait encore AVANT ce ticket. */
+  resteAvantXof: number;
+}): number {
+  const retire = Math.max(0, Math.round(e.brutDuRituelXof) - Math.round(e.encaisseXof));
+  const resteApres = Math.max(0, Math.round(e.resteAvantXof) - Math.round(e.encaisseXof));
+  return Math.min(retire, resteApres);
+}
+
+/** LA REMISE D'UNE FACTURE QUE SON RENDEZ-VOUS N'A PAS REÇUE. Pour les rituels
+    encaissés au comptoir AVANT la règle ci-dessus : la pièce porte la remise et
+    son libellé (« Offre … · ROSE15 », « Promotion … »), le rendez-vous non.
+    Rend ce qu'il faut reporter, ou rien. Une pièce sans libellé de remise ne
+    dit pas qu'un code a été honoré : on ne devine pas. */
+export function remiseDeFactureAReporter(e: {
+  resteDuXof: number;
+  factures: readonly { number?: string; discountLabel?: string; globalDiscountXof?: number }[];
+}): { xof: number; piece: string; libelle: string } | null {
+  const reste = Math.max(0, Math.round(e.resteDuXof));
+  if (reste <= 0) return null;
+  for (const f of e.factures) {
+    const remise = Math.max(0, Math.round(f.globalDiscountXof ?? 0));
+    if (!f.discountLabel || remise <= 0) continue;
+    return { xof: Math.min(reste, remise), piece: f.number ?? '', libelle: f.discountLabel };
+  }
+  return null;
+}
+
+const MOIS_DITS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const jourDit = (iso?: string): string => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '';
+  const j = Number(iso.slice(8, 10));
+  return `${j === 1 ? '1er' : j} ${MOIS_DITS[Number(iso.slice(5, 7)) - 1]}`;
+};
+
+/** POURQUOI CE CODE D'OFFRE NE VAUT PAS AUJOURD'HUI, dit avec ses dates : « inconnu »
+    ferait accuser la caisse, « ce code vaut du 1er au 31 octobre » se discute. */
+export function pourquoiLOffreNeCourtPas(o: OffreCodee, now = new Date()): string {
+  if (!o.active) return 'Cette offre existe, mais elle n’est pas activée.';
+  const jour = isoDuJour(now);
+  if (o.du && jour < o.du) return `Ce code vaudra à partir du ${jourDit(o.du)}.`;
+  if (o.au && jour > o.au) return `Ce code a couru jusqu’au ${jourDit(o.au)}.`;
+  return 'Ce code ne court pas aujourd’hui.';
+}
+
 /* CE QUI SORT SUR LE TROTTOIR — 24 septembre 2026. La règle vivait dans
    `maison.ts` (navigateur) ; la construction du site la lit aussi désormais,
    pour écrire les offres dans la page avant qu'un seul script ne tourne. Une

@@ -153,7 +153,7 @@ export async function corrigerNaissance(
   if (!birthday) return { ok: false, erreur: 'Il manque la date de naissance.' };
   if (birthday > aujourdhui) return { ok: false, erreur: 'Cette date est dans l’avenir.' };
   if (!estMineur({ birthday }, aujourdhui)) {
-    return { ok: false, erreur: 'Cette date en ferait une personne majeure, passez au salon pour ce changement.' };
+    return { ok: false, erreur: 'Cette date en ferait une personne majeure, passez à la Maison pour ce changement.' };
   }
   if (supabase) {
     const { error } = await supabase.rpc('corriger_naissance_enfant', {

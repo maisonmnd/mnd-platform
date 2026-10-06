@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Crown, Globe, MapPin, Smartphone, Star, Wifi, type LucideIcon } from 'lucide-react';
 import { asset } from '../../../../shared/asset';
 import { useBranch } from '../../../../shared/branches';
-import { toast, demandeUnTexte } from '../../../../ds/components';
+import { toast, demandeUnTexte, Modal } from '../../../../ds/components';
 import { PageHead } from '../_ui';
 import { useStore } from '../../../../shared/store';
 import { maisonNom, DEVISE_COMPLETE, signeLeMessage, estLaMaisonMND } from '../../../../shared/identite';
@@ -394,6 +394,9 @@ export default function QrCodes() {
 
   const { branch } = useBranch();
   const [grand, setGrand] = useState<Grand | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [filtre, setFiltre] = useState<string>('tous');
+  const [ouvertId, setOuvertId] = useState<string | null>(null);
 
   /* ── LES LIENS QU'ON ENVOIE — 18 août 2026 ──────────────────────
      « C'est des liens individuels, pas un seul lien pour toute la page » puis
@@ -526,289 +529,257 @@ export default function QrCodes() {
   const etats = [!!lienCarte, !!lienPlan, wifi1 || wifi2, !!momoQr, !!lienAvis, !!lienCouronne, !!codeJour];
   const prets = etats.filter(Boolean).length;
 
+  /* ══ LE PRÉSENTOIR — 4 octobre 2026 ═══════════════════════════════════
+     « La page QR code a besoin de plus de facilité pour retrouver les codes.
+     Toujours trop de codes et pas facile. Restructure la page. Meilleur UI,
+     et meilleur UX » (Yéman).
+
+     NEUF GRANDES CARTES EMPILÉES se lisaient avant de se trouver. Désormais :
+     une recherche et des filtres par moment en tête, puis un présentoir de
+     tuiles (le carré, son nom court, son état, UN bouton « Afficher ») ; la
+     fiche complète de chaque code (ce qu'il fait, où il mène, imprimer,
+     copier, le message, le réglage du wifi) s'ouvre d'un clic. Ce que fait
+     chaque code ne change pas : ce sont les mêmes gestes, rangés. */
+  type MomentDuCode = 'avant' | 'pendant' | 'depart' | 'longtemps' | 'equipe';
+  type CodeDef = {
+    id: string; court: string; moment: MomentDuCode; motsCles: string; pret: boolean;
+    principal?: Geste; carte: Parameters<typeof CarteCode>[0];
+  };
+  const MOMENTS: { k: MomentDuCode; l: string }[] = [
+    { k: 'avant', l: 'Avant la visite' }, { k: 'pendant', l: 'Pendant' }, { k: 'depart', l: 'Au départ' },
+    { k: 'longtemps', l: 'Pour longtemps' }, { k: 'equipe', l: 'L’équipe' },
+  ];
+  const sansPlan = 'Renseignez l’adresse dans Système › Branches';
+  const sansAvis = 'Renseignez le lien dans Paramètres › Automatisations';
+  const afficheSite: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: `${maisonNom()}.`, phrase: 'Scannez, la Maison s’ouvre sur votre téléphone.', valeur: lienSite }) };
+  const afficheCarte: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Notre carte.', phrase: 'Scannez, tous nos prix s’ouvrent sur votre téléphone.', valeur: lienCarte }) };
+  const affichePlan: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan }), empeche: lienPlan ? undefined : sansPlan };
+  const afficheMomo: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr }) };
+  const afficheAvis: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : sansAvis };
+  const afficheCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) };
+  const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'MND Académie.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
+  const afficheJour: Geste | undefined = codeJour ? { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) } : undefined;
+
+  const codes: CodeDef[] = [
+    {
+      id: 'site', court: 'Le site', moment: 'avant', motsCles: 'site internet web maison vitrine rendez-vous', pret: !!lienSite, principal: afficheSite,
+      carte: {
+        signe: Globe, nom: 'Le site de la Maison.', qui: 'Elle scanne · la Maison s’ouvre',
+        dit: <>Ce que la Maison fait, pour qui ne la connaît pas encore : les gestes, les parcours, les avis et la prise de rendez-vous. C’est le carré de la vitrine et du dos de carte.</>,
+        valeur: lienSite, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienSite}</span> },
+        gestes: [
+          { ...afficheSite, texte: 'Afficher au comptoir' },
+          { texte: 'Imprimer l’affiche', faire: () => imprime(carteA5({
+            verrou: verrouDeLaMaison(), titre: 'La Maison, en entier.',
+            sous: 'Nos gestes, nos parcours, nos avis, et la prise de rendez-vous.',
+            qr: lienSite, grand: lienSite.replace(/^https?:\/\//, '').replace(/\/$/, ''), sousGrand: 'Ou tapez cette adresse.',
+            etapes: ['Ouvrez l’appareil photo du téléphone', 'Visez le carré', 'La Maison s’ouvre, prenez rendez-vous'],
+            ariaQr: 'QR du site de la Maison',
+          })) },
+          { texte: 'Ouvrir le site', faire: () => window.open(lienSite, '_blank', 'noopener') },
+          { texte: 'Copier le lien', faire: () => copier(lienSite, 'du site') },
+          { texte: 'Copier le message', faire: () => copier(messageSite, 'du site (message entier)') },
+        ],
+      },
+    },
+    {
+      id: 'carte', court: 'La carte des prix', moment: 'avant', motsCles: 'prix tarif carte rituels formules combien', pret: !!lienCarte, principal: afficheCarte,
+      carte: {
+        signe: BookOpen, nom: 'La carte des prix.', qui: 'La cliente scanne · nos prix s’ouvrent',
+        dit: <>Nos rituels, nos formules et la gamme, à jour au franc près. Le lien s’envoie aussi par WhatsApp à celle qui demande un prix.</>,
+        valeur: lienCarte, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCarte}</span> },
+        gestes: [
+          { ...afficheCarte, texte: 'Afficher au comptoir' },
+          { texte: 'Ouvrir la carte', faire: () => window.open(lienCarte, '_blank', 'noopener') },
+          { texte: 'Copier le lien', faire: () => copier(lienCarte, 'de la carte') },
+          { texte: 'Copier le message', faire: () => copier(`Voici la carte de la ${maisonNom()}, avec tous nos rituels et nos formules : ${lienCarte}`, 'de la carte (message entier)') },
+        ],
+      },
+    },
+    {
+      id: 'plan', court: 'Nous trouver', moment: 'avant', motsCles: 'adresse itinéraire plan maps localisation carte google', pret: !!lienPlan, principal: affichePlan,
+      carte: {
+        signe: MapPin, nom: 'Où nous trouver.', qui: 'La cliente scanne · sa carte s’ouvre',
+        dit: lienPlan
+          ? (planPrecis ? <>Le point tombe sur <b>la fiche de la Maison</b> : la porte, pas le quartier.</>
+            : <>Ce carré ne mène qu’au centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu’il désigne la porte.</>)
+          : <>Aucune adresse ni lien pour cette branche, Système › Branches. Sans eux, ce carré mènerait nulle part.</>,
+        valeur: lienPlan, vide: 'adresse à écrire', champ: { lab: 'Le point', val: adresseComplete || 'à renseigner' },
+        gestes: [
+          { ...affichePlan, texte: 'Afficher au comptoir' },
+          { texte: 'Copier le lien', faire: () => copier(lienPlan, 'de localisation'), empeche: lienPlan ? undefined : sansPlan },
+        ],
+      },
+    },
+    {
+      id: 'wifi', court: 'Le wifi', moment: 'pendant', motsCles: 'wifi internet réseau connexion mot de passe 5g 2g', pret: wifi1 || wifi2,
+      carte: {
+        signe: Wifi, nom: 'Le wifi de la Maison.', qui: 'La cliente scanne · elle est connectée',
+        dit: <>Deux box, la 5G près du fauteuil et la 2G jusqu’au fond. Elle n’a rien à taper.</>,
+        valeur: wifi1 || wifi2 ? 'ok' : '', gestes: [],
+        enfants: (
+          <>
+            <BoxWifi rang="5G" portee="Le plus rapide, près du fauteuil" ssid={autoRaw.wifiSsid ?? ''} pass={autoRaw.wifiPass ?? ''}
+              pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })} surComptoir={setGrand} />
+            <BoxWifi rang="2G" portee="Porte plus loin, jusqu’au fond" ssid={autoRaw.wifi2Ssid ?? ''} pass={autoRaw.wifi2Pass ?? ''}
+              pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })} surComptoir={setGrand} />
+            {autoRaw.wifiPass?.trim() && autoRaw.wifiPass.trim() === autoRaw.wifi2Pass?.trim() && (
+              <div className="trq-motdepasse"><span>Mot de passe des deux box</span><b>{autoRaw.wifiPass.trim()}</b></div>
+            )}
+          </>
+        ),
+      },
+    },
+    {
+      id: 'momo', court: 'MoMoPay', moment: 'depart', motsCles: 'momo momopay payer paiement argent mtn régler marchand', pret: !!momoQr, principal: afficheMomo,
+      carte: {
+        signe: Smartphone, nom: 'Payer par MoMoPay.', qui: 'La cliente scanne · elle règle',
+        dit: <>Elle scanne avec son application MoMo et saisit le montant en francs. Le code et le marchand se règlent dans Paramètres › L’encaissement.</>,
+        valeur: momoQr,
+        champ: { lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>, lab2: 'ou composez', val2: momoUssd },
+        gestes: [
+          { ...afficheMomo, texte: 'Afficher le QR seul' },
+          { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.jpg' }) },
+          { texte: 'Carte A5', faire: imprimerMomo },
+          { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
+        ],
+      },
+    },
+    {
+      id: 'avis', court: 'Un avis Google', moment: 'depart', motsCles: 'avis google étoiles note merci', pret: !!lienAvis, principal: afficheAvis,
+      carte: {
+        signe: Star, nom: 'Laisser un avis.', qui: 'La cliente scanne · l’avis s’ouvre',
+        dit: lienAvis
+          ? <>Le formulaire Google s’ouvre directement, pas la carte. À la <b>première venue</b> soldée, la Maison propose déjà l’envoi WhatsApp d’elle-même.</>
+          : <>Aucun lien d’avis, Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>,
+        valeur: lienAvis, vide: 'lien à écrire', champ: { lab: 'Mène à', val: 'Le formulaire d’avis Google' },
+        gestes: [
+          { ...afficheAvis, texte: 'Afficher au comptoir' },
+          { texte: 'Copier le lien', faire: () => copier(lienAvis, 'd’avis Google'), empeche: lienAvis ? undefined : sansAvis },
+          { texte: 'Copier le message', faire: () => copier(`Merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}`, 'd’avis à envoyer (message entier)'), empeche: lienAvis ? undefined : sansAvis },
+        ],
+      },
+    },
+    {
+      id: 'couronne', court: 'Ma Couronne', moment: 'longtemps', motsCles: 'ma couronne application app compte installer', pret: !!lienCouronne, principal: afficheCouronne,
+      carte: {
+        signe: Crown, nom: 'Ma Couronne.', qui: 'La cliente scanne · elle installe l’application',
+        dit: <>Elle se crée un compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application. Son parcours, ses rendez-vous et son Cercle la suivent.</>,
+        valeur: lienCouronne, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCouronne}</span> },
+        gestes: [
+          { ...afficheCouronne, texte: 'Afficher au comptoir' },
+          { texte: 'Carte A5', faire: imprimeCarteCouronne },
+          { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
+        ],
+      },
+    },
+    {
+      id: 'academie', court: 'MND Académie', moment: 'longtemps', motsCles: 'académie formation métier apprendre parcours certificat', pret: !!lienAcademie, principal: afficheAcademie,
+      carte: {
+        signe: BookOpen, nom: 'MND Académie.', qui: 'Elle scanne · elle voit les neuf parcours',
+        dit: <>Le site public de l’Académie : les neuf parcours avec leurs prix, le programme de chacun, et la réservation. Une demande laissée là revient dans l’Académie, onglet « Demandes du site ».</>,
+        valeur: lienAcademie, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienAcademie}</span> },
+        gestes: [
+          { ...afficheAcademie, texte: 'Afficher au comptoir' },
+          { texte: 'Copier le lien', faire: () => copier(lienAcademie, 'du site de l’Académie') },
+          { texte: 'Copier le message', faire: () => copierTexte(messageAcademie, 'Le message de l’Académie') },
+        ],
+      },
+    },
+    {
+      id: 'jour', court: 'Le code du jour', moment: 'equipe', motsCles: 'code du jour pointage équipe présence comptoir', pret: !!codeJour, principal: afficheJour ?? { texte: 'Ouvrir le Comptoir', fort: true, faire: () => navigate('/comptoir') },
+      carte: {
+        signe: Clock, nom: 'Le code du jour.', qui: 'L’équipe scanne · elle pointe',
+        dit: codeJour
+          ? <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. Celui d’aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>. La cliente ne le scanne jamais.</>
+          : <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. <b>Celui d’aujourd’hui n’existe pas encore.</b></>,
+        valeur: codeJour ? lienDuJour(codeJour) : '', vide: 'pas encore né', champ: { lab: 'Code d’aujourd’hui', val: codeJour || 'à créer au Comptoir' },
+        gestes: [
+          ...(afficheJour ? [{ ...afficheJour, texte: 'Afficher au comptoir' }] : []),
+          { texte: 'Ouvrir le Comptoir', fort: !codeJour, faire: () => navigate('/comptoir') },
+        ],
+      },
+    },
+  ];
+
+  const plat = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const q = plat(recherche.trim());
+  const visibles = codes.filter((c) => {
+    if (filtre === 'a-renseigner' && c.pret) return false;
+    if (filtre !== 'tous' && filtre !== 'a-renseigner' && c.moment !== filtre) return false;
+    return !q || plat(`${c.court} ${c.carte.nom} ${c.motsCles}`).includes(q);
+  });
+  const manquent = codes.filter((c) => !c.pret).length;
+  const ouvert = codes.find((c) => c.id === ouvertId);
+
   return (
     <div className="mnd-rise">
-      <PageHead
-        eyebrow="Clients & Agenda · Les portes"
-        title="Les codes de la Maison."
-        sub="À montrer, imprimer, afficher."
-      />
+      <PageHead eyebrow="Clients & Agenda · Les portes" title="Les codes de la Maison." sub="Trouver un code, le montrer d’un geste." />
 
-      <div className="trq-etat">
-        <span className="trq-etat__item"><b>{etats.length}</b> codes</span>
-        <span className="trq-etat__item"><b>{prets}</b> prêts à montrer</span>
-        {prets < etats.length && (
-          <span className="trq-etat__item trq-etat__item--manque">
-            <b>{etats.length - prets}</b> à renseigner
-          </span>
-        )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+        <input
+          className="mnd-input"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder="Chercher un code : momo, wifi, avis, prix, adresse…"
+          aria-label="Chercher un code"
+          style={{ maxWidth: 420 }}
+        />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Moment de la visite">
+          {[{ k: 'tous', l: `Tous · ${codes.length}` }, ...MOMENTS.map((m) => ({ k: m.k, l: m.l })), ...(manquent ? [{ k: 'a-renseigner', l: `À renseigner · ${manquent}` }] : [])].map((f) => (
+            <button
+              key={f.k}
+              type="button"
+              className="trc-chip"
+              aria-pressed={filtre === f.k}
+              onClick={() => setFiltre(f.k)}
+              style={filtre === f.k ? { background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderColor: 'var(--color-indigo)' } : (f.k === 'a-renseigner' ? { color: 'var(--copper-700)', borderColor: 'var(--copper-300)' } : undefined)}
+            >
+              {f.l}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ══ ELLE ARRIVE ══ */}
-      <Moment
-        titre="Elle arrive."
-        quand="avant de s’asseoir"
-        sous="Ce qu’on tend à celle qui cherche la porte, puis à celle qui vient de s’installer."
-      >
-        <div className="trq-grille">
-          {/* ── LE SITE DE LA MAISON — 23 septembre 2026 ─────────────
-              « Crée le QR code selon la Maison pour le site, à ranger dans
-              Le Trône » (Yéman). Il manquait, alors que c'est le carré qui
-              se donne le PLUS TÔT : sur une vitrine, au dos d'une carte, au
-              bas d'une facture, à qui n'est pas encore venue. Les huit
-              autres supposent déjà une cliente assise.
+      {visibles.length === 0 && <div className="trc-empty">Aucun code ne correspond. Essayez « momo », « wifi », « avis »…</div>}
 
-              IL MÈNE À LA RACINE DU DOMAINE, et non à /revelateur/. Trois
-              raisons : c'est la plus courte valeur possible, donc le carré
-              le moins dense et le plus facile à scanner de loin ou imprimé
-              petit ; c'est ce qu'on prononce et ce qu'on écrit sous le
-              carré ; et la racine renvoie elle-même vers le site, ce qui a
-              été vérifié sur le domaine servi. */}
-          <CarteCode
-            signe={Globe}
-            nom="Le site de la Maison."
-            qui="Elle scanne · la Maison s’ouvre"
-            dit={<>Ce que la Maison fait, pour qui ne la connaît pas encore : les gestes, les parcours, les avis et la prise de rendez-vous. C’est le carré de la vitrine et du dos de carte, celui qu’on donne avant la première visite.</>}
-            valeur={lienSite}
-            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienSite}</span> }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: `${maisonNom()}.`, phrase: 'Scannez, la Maison s’ouvre sur votre téléphone.', valeur: lienSite }) },
-              /* L'AFFICHE DE VITRINE, sur le gabarit A5 de la Maison. Un carré
-                 montré au comptoir ne sert qu'à celle qui est déjà entrée ;
-                 celui-ci doit tenir seul derrière une vitre, de nuit, quand
-                 l'atelier est fermé. C'est le seul des neuf codes dans ce cas. */
-              { texte: 'Imprimer l’affiche', faire: () => imprime(carteA5({
-                verrou: verrouDeLaMaison(),
-                titre: 'La Maison, en entier.',
-                sous: 'Nos gestes, nos parcours, nos avis, et la prise de rendez-vous.',
-                qr: lienSite,
-                grand: lienSite.replace(/^https?:\/\//, '').replace(/\/$/, ''),
-                sousGrand: 'Ou tapez cette adresse.',
-                etapes: [
-                  'Ouvrez l’appareil photo du téléphone',
-                  'Visez le carré',
-                  'La Maison s’ouvre, prenez rendez-vous',
-                ],
-                ariaQr: 'QR du site de la Maison',
-              })) },
-              { texte: 'Ouvrir le site', faire: () => window.open(lienSite, '_blank', 'noopener') },
-              { texte: 'Copier le lien', faire: () => copier(lienSite, 'du site') },
-              { texte: 'Copier le message', faire: () => copier(messageSite, 'du site (message entier)') },
-            ]}
-          />
-          {/* ── LA CARTE DES PRIX — 28 août 2026 ─────────────────────
-              L'écran du comptoir a une adresse ; elle mérite son carré. Ce
-              n'est plus seulement une tablette posée face à la cliente : le
-              lien s'envoie à celle qui écrit « bonjour, c'est combien pour
-              des locks ? », et elle lit la carte entière sur son téléphone
-              plutôt que de recevoir trois prix recopiés à la main.
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+        {visibles.map((c) => {
+          const Signe = c.carte.signe;
+          const p = c.principal;
+          return (
+            <div key={c.id} style={{ background: 'var(--surface-card)', border: `1px solid ${c.pret ? 'var(--hairline)' : 'var(--copper-300)'}`, borderStyle: c.pret ? 'solid' : 'dashed', borderRadius: 6, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <Signe size={18} strokeWidth={1.6} aria-hidden="true" style={{ color: 'var(--copper-700)', flex: 'none' }} />
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.court}</span>
+              </div>
+              <button type="button" onClick={() => setOuvertId(c.id)} aria-label={`Ouvrir la fiche : ${c.court}`}
+                style={{ border: 0, padding: 0, background: 'transparent', cursor: 'pointer', aspectRatio: '1 / 1', width: '100%', borderRadius: 4, overflow: 'hidden' }}>
+                {c.pret && c.carte.valeur && c.carte.valeur !== 'ok'
+                  ? <QrSvg valeur={c.carte.valeur} style={{ width: '100%', height: '100%', display: 'block' }} />
+                  : (
+                    <span style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', background: c.pret ? 'var(--copper-50, #f9efe7)' : 'transparent', border: c.pret ? 0 : '1px dashed var(--copper-300)', color: 'var(--copper-700)', fontSize: 12.5, borderRadius: 4, textAlign: 'center', padding: 8 }}>
+                      {c.pret ? <><Signe size={42} strokeWidth={1.2} aria-hidden="true" /><span style={{ display: 'block', marginTop: 6 }}>Ouvrir pour choisir le réseau</span></> : (c.carte.vide ?? 'à renseigner')}
+                    </span>
+                  )}
+              </button>
+              <span className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.4, minHeight: 32 }}>{c.carte.qui}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {p
+                  ? <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper" style={{ flex: 1 }} disabled={!!p.empeche} title={p.empeche} onClick={p.faire}>{p.texte}</button>
+                  : <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--copper" style={{ flex: 1 }} onClick={() => setOuvertId(c.id)}>Ouvrir</button>}
+                <button type="button" className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => setOuvertId(c.id)}>Tout voir</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-              LES PRIX Y SONT TOUJOURS CEUX DU JOUR. Un tarif recopié dans un
-              message vieillit dès la prochaine hausse et revient au comptoir
-              comme une promesse ; ce lien, lui, dit la vérité du moment. */}
-          <CarteCode
-            signe={BookOpen}
-            nom="La carte des prix."
-            qui="La cliente scanne · nos prix s’ouvrent"
-            dit={<>Nos rituels, nos formules et la gamme, à jour au franc près. Le lien s’envoie aussi par WhatsApp à celle qui demande un prix.</>}
-            valeur={lienCarte}
-            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCarte}</span> }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Notre carte.', phrase: 'Scannez, tous nos prix s’ouvrent sur votre téléphone.', valeur: lienCarte }) },
-              { texte: 'Ouvrir la carte', faire: () => window.open(lienCarte, '_blank', 'noopener') },
-              { texte: 'Copier le lien', faire: () => copier(lienCarte, 'de la carte') },
-              /* LE MESSAGE ENTIER, pas seulement le lien : celle qui demande
-                 un prix par écrit mérite une phrase, pas une adresse nue. */
-              { texte: 'Copier le message', faire: () => copier(
-                `Voici la carte de la ${maisonNom()}, avec tous nos rituels et nos formules : ${lienCarte}`,
-                'de la carte (message entier)',
-              ) },
-            ]}
-          />
-          <CarteCode
-            signe={MapPin}
-            nom="Où nous trouver."
-            qui="La cliente scanne · sa carte s’ouvre"
-            dit={lienPlan
-              ? (planPrecis
-                ? <>Le point tombe sur <b>la fiche du salon</b>, la porte, pas le quartier.</>
-                : <>Ce carré ne mène qu’au centre de la ville. Collez le lien de votre fiche Google dans Système › Branches pour qu’il désigne la porte.</>)
-              : <>Aucune adresse ni lien pour cette branche, Système › Branches. Sans eux, ce carré mènerait nulle part.</>}
-            valeur={lienPlan}
-            vide="adresse à écrire"
-            champ={{ lab: 'Le point', val: adresseComplete || 'à renseigner' }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Nous trouver.', phrase: adresseComplete, valeur: lienPlan }), empeche: lienPlan ? undefined : 'Renseignez l’adresse dans Système › Branches' },
-              { texte: 'Copier le lien', faire: () => copier(lienPlan, 'de localisation'), empeche: lienPlan ? undefined : 'Renseignez l’adresse dans Système › Branches' },
-            ]}
-          />
-
-          <CarteCode
-            signe={Wifi}
-            nom="Le wifi de la Maison."
-            qui="La cliente scanne · elle est connectée"
-            /* La phrase ne promet le mot de passe commun que s'il l'est
-               vraiment : la ligne du bas ne s'affiche qu'alors. */
-            dit={<>Deux box, la 5G près du fauteuil et la 2G jusqu’au fond. Elle n’a rien à taper.</>}
-            valeur={wifi1 || wifi2 ? 'ok' : ''}
-            gestes={[]}
-            enfants={
-              <>
-                <BoxWifi
-                  rang="5G"
-                  portee="Le plus rapide, près du fauteuil"
-                  ssid={autoRaw.wifiSsid ?? ''}
-                  pass={autoRaw.wifiPass ?? ''}
-                  pose={(ssid, pass) => setAuto({ ...autoRaw, wifiSsid: ssid, wifiPass: pass })}
-                  surComptoir={setGrand}
-                />
-                <BoxWifi
-                  rang="2G"
-                  portee="Porte plus loin, jusqu’au fond"
-                  ssid={autoRaw.wifi2Ssid ?? ''}
-                  pass={autoRaw.wifi2Pass ?? ''}
-                  pose={(ssid, pass) => setAuto({ ...autoRaw, wifi2Ssid: ssid, wifi2Pass: pass })}
-                  surComptoir={setGrand}
-                />
-                {autoRaw.wifiPass?.trim() && autoRaw.wifiPass.trim() === autoRaw.wifi2Pass?.trim() && (
-                  <div className="trq-motdepasse">
-                    <span>Mot de passe des deux box</span>
-                    <b>{autoRaw.wifiPass.trim()}</b>
-                  </div>
-                )}
-              </>
-            }
-          />
-        </div>
-      </Moment>
-
-      {/* ══ ELLE REPART ══ */}
-      <Moment
-        titre="Elle repart."
-        quand="au comptoir, le rituel fini"
-        sous="Les deux carrés du départ : celui qui encaisse, et celui qui fait parler d’elle."
-      >
-        <div className="trq-grille">
-          <CarteCode
-            signe={Smartphone}
-            nom="Payer par MoMoPay."
-            qui="La cliente scanne · elle règle"
-            dit={<>Elle scanne avec son application MoMo et saisit le montant en francs. Le code et le marchand se règlent dans Paramètres › L’encaissement.</>}
-            valeur={momoQr}
-            champ={{
-              lab: 'Marchand', val: <b style={{ color: 'var(--copper-700)', fontWeight: 600 }}>{momoMarchand}</b>,
-              lab2: 'ou composez', val2: momoUssd,
-            }}
-            gestes={[
-              /* LE QR SEUL D'ABORD (25 août) : l'affiche est belle, mais elle
-                 entoure le code de tout un décor. De près, avec un téléphone
-                 qui cherche à scanner, c'est le carré nu qu'on tend. */
-              { texte: 'Afficher le QR seul', fort: true, faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr }) },
-              { texte: 'L’affiche', faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr, affiche: 'momopay-affiche.jpg' }) },
-              { texte: 'Carte A5', faire: imprimerMomo },
-              /* LE LIEN QU'ON ENVOIE mène à une page STATIQUE qui ne sait que
-                 ce que son adresse lui dit — ni base, ni clé, ni session. */
-              { texte: 'Copier le lien', faire: () => copier(lienMomo(), 'de paiement'), empeche: codeMarchand ? undefined : 'Renseignez le code MoMo dans Paramètres › L’encaissement' },
-            ]}
-          />
-
-          <CarteCode
-            signe={Star}
-            nom="Laisser un avis."
-            qui="La cliente scanne · l’avis s’ouvre"
-            dit={lienAvis
-              ? <>Le formulaire Google s’ouvre directement, pas la carte. À la <b>première venue</b> soldée, la Maison propose déjà l’envoi WhatsApp d’elle-même.</>
-              : <>Aucun lien d’avis, Paramètres › Automatisations. Il se prend sur votre fiche Google Business, « Demander des avis ».</>}
-            valeur={lienAvis}
-            vide="lien à écrire"
-            champ={{ lab: 'Mène à', val: 'Le formulaire d’avis Google' }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
-              { texte: 'Copier le lien', faire: () => copier(lienAvis, 'd’avis Google'), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
-              /* LE MESSAGE ENTIER, PAS SEULEMENT LE LIEN — 19 août 2026 : « où
-                 récupérer le message si la cliente n'a pas WhatsApp sur le
-                 numéro de son profil ? ». Nulle part : il ne naissait qu'à
-                 l'instant où WhatsApp s'ouvrait. Le voici à copier, pour un
-                 SMS, un mail, n'importe quel canal. */
-              { texte: 'Copier le message', faire: () => copier(`Merci pour votre passage à la ${maisonNom()}. Si le cœur vous en dit, un avis nous aiderait beaucoup : ${lienAvis}`, 'd’avis à envoyer (message entier)'), empeche: lienAvis ? undefined : 'Renseignez le lien dans Paramètres › Automatisations' },
-            ]}
-          />
-        </div>
-      </Moment>
-
-      {/* ══ ELLE RESTE AVEC NOUS ══ */}
-      <Moment
-        titre="Elle reste avec nous."
-        quand="une fois, et pour longtemps"
-        sous="Le seul carré qu’on ne tend qu’une fois : après, elle a la Maison dans sa poche."
-      >
-        <div className="trq-grille trq-grille--1">
-          <CarteCode
-            signe={Crown}
-            nom="Ma Couronne."
-            qui="La cliente scanne · elle installe l’application"
-            dit={<>Elle se crée un compte, puis « Ajouter à l’écran d’accueil » l’installe comme une application. Son parcours, ses rendez-vous et son Cercle la suivent.</>}
-            valeur={lienCouronne}
-            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienCouronne}</span> }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) },
-              { texte: 'Carte A5', faire: imprimeCarteCouronne },
-              { texte: 'Copier le lien', faire: () => copier(lienCouronne, 'de Ma Couronne') },
-            ]}
-          />
-        </div>
-      </Moment>
-
-      {/* ══ APPRENDRE CHEZ NOUS ══ */}
-      <Moment
-        titre="Apprendre chez nous."
-        quand="à qui demande qui vous a formée"
-        sous="Le carré qu’on tend à celle qui veut le métier, et qu’on colle sur chaque certificat remis."
-      >
-        <div className="trq-grille trq-grille--1">
-          <CarteCode
-            signe={BookOpen}
-            nom="MND Académie."
-            qui="Elle scanne · elle voit les neuf parcours"
-            dit={<>Le site public de l’Académie : les neuf parcours avec leurs prix, le programme de chacun, et la réservation. Une demande laissée là revient dans l’Académie, onglet « Demandes du site ».</>}
-            valeur={lienAcademie}
-            champ={{ lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienAcademie}</span> }}
-            gestes={[
-              { texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'MND Académie.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) },
-              { texte: 'Copier le lien', faire: () => copier(lienAcademie, 'du site de l’Académie') },
-              { texte: 'Copier le message', faire: () => copierTexte(messageAcademie, 'Le message de l’Académie') },
-            ]}
-          />
-        </div>
-      </Moment>
-
-      {/* ══ L'ÉQUIPE ══
-          À PART, ET POUR UNE RAISON : c'est le seul carré de la page que la
-          cliente ne doit jamais scanner. Le ranger avec les siens, c'était
-          inviter la confusion au comptoir. */}
-      <Moment
-        titre="L’équipe."
-        quand="chaque matin"
-        sous="Le seul carré que la cliente ne doit jamais scanner. Il est à part pour cette raison."
-      >
-        <div className="trq-grille trq-grille--1">
-          <CarteCode
-            signe={Clock}
-            nom="Le code du jour."
-            qui="L’équipe scanne · elle pointe"
-            dit={codeJour
-              ? <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. Celui d’aujourd’hui : <b style={{ color: 'var(--copper-700)', fontWeight: 600, letterSpacing: '.14em' }}>{codeJour}</b>.</>
-              : <>Il naît à l’ouverture du Comptoir et se renouvelle chaque nuit. <b>Celui d’aujourd’hui n’existe pas encore.</b></>}
-            valeur={codeJour ? lienDuJour(codeJour) : ''}
-            vide="pas encore né"
-            champ={{ lab: 'Code d’aujourd’hui', val: codeJour || 'à créer au Comptoir' }}
-            gestes={[
-              ...(codeJour ? [{ texte: 'Afficher au comptoir', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) }] : []),
-              { texte: 'Ouvrir le Comptoir', fort: !codeJour, faire: () => navigate('/comptoir') },
-            ]}
-          />
-        </div>
-      </Moment>
+      {ouvert && (
+        <Modal title={ouvert.carte.nom} onClose={() => setOuvertId(null)} width={640}>
+          <CarteCode {...ouvert.carte} />
+        </Modal>
+      )}
 
       {grand && <AuComptoir g={grand} onClose={() => setGrand(null)} />}
     </div>

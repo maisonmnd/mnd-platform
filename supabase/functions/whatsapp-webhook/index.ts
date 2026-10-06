@@ -94,7 +94,7 @@ import webpush from 'npm:web-push@3.6.7';
 
 /** LA VERSION DE CE FICHIER, dite par le contrôle de santé. Sans elle on ne
     sait pas quel code tourne vraiment. À incrémenter à chaque déploiement. */
-const VERSION = '2026-09-18-a · la notification sur le telephone';
+const VERSION = '2026-09-29-a · la reprise confirmee d une touche';
 
 /** LE POIDS QU'UNE PIÈCE REÇUE PEUT FAIRE : le plafond du compartiment
     `whatsapp` (0102). Au-delà, le fichier reste chez Meta et le fil le dit. */
@@ -299,6 +299,25 @@ async function telechargeChezMeta(
   }
 }
 
+/* ── LA REPRISE DITE COMME ON PARLE — 29 septembre 2026 ───────────────────
+   « mardi 14 octobre à 10 h » : recopiées de confirmation-rdv (une fonction
+   Edge n'importe rien du dépôt). Une heure absente n'est pas minuit. */
+const jourDeLaReprise = (iso: string): string => {
+  try {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Porto-Novo',
+    });
+  } catch { return iso; }
+};
+const heureDeLaReprise = (hhmm: string | undefined): string => {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm ?? '')) return hhmm ?? '';
+  const [h, m] = (hhmm as string).split(':');
+  const minutes = Number(m);
+  return Number.isFinite(minutes) && minutes > 0
+    ? `${Number(h)} h ${String(minutes).padStart(2, '0')}`
+    : `${Number(h)} h`;
+};
+
 /* ══ LES DEUX MESSAGES QUI PARTENT SEULS ═════════════════════════════
    Ils partent dans la fenêtre qu'elle vient d'ouvrir en écrivant, donc sans
    modèle. Chacun laisse une ligne dans le fil, comme tout ce que la Maison
@@ -308,7 +327,7 @@ async function telechargeChezMeta(
 async function ditDepuisLeTrone(
   sb: ReturnType<typeof createClient>, jeton: string, phoneId: string,
   o: {
-    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis';
+    numero: string; texte: string; auto: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre';
     branchId?: string; interactive?: Record<string, unknown>;
   },
 ): Promise<void> {
@@ -1125,6 +1144,48 @@ Deno.serve(async (req) => {
     }).eq('id', ligne.id);
     if (error) dis('bouton · écriture refusée', { motif: error.message.slice(0, 120) });
     else dis('bouton · versement', { geste: m[1] });
+  }
+
+  /* ── ⑤ bis·2 LA REPRISE, CONFIRMÉE D'UNE TOUCHE — 29 septembre 2026 ──
+     « Je confirme » (REPRISE_OK:<rdv>) ou « Un autre moment »
+     (REPRISE_AUTRE:<rdv>), sous le message que rappels-j1 envoie trois jours
+     avant une reprise posée à la caisse. La réponse s'écrit sur le rendez-vous :
+     « Je confirme » éteint la relance d'À faire, « Un autre moment » la garde
+     allumée avec son motif, et la Maison propose une heure. Le rendez-vous
+     n'est JAMAIS annulé ici : c'est un geste de la Maison.
+
+     SEUL SON NUMÉRO RÉPOND POUR ELLE : le bouton ne vaut que venu du numéro
+     de la fiche du rendez-vous, celui à qui le message est parti. */
+  for (const e of entrants) {
+    const m = (e.bouton?.id ?? '').match(/^REPRISE_(OK|AUTRE):(.+)$/);
+    if (!m) continue;
+    const { data: l } = await sb.from('appointments').select('id, branch_id, data').eq('id', m[2]).limit(1);
+    const ligne = (l ?? [])[0] as { id: string; branch_id?: string; data: Record<string, unknown> } | undefined;
+    if (!ligne) { dis('reprise · rendez-vous introuvable'); continue; }
+    const rdv = ligne.data as { clientId?: string; clientName?: string; date?: string; time?: string; status?: string; branchId?: string };
+    const fiche = fiches.find((f) => f.id === rdv.clientId);
+    if (!fiche || !fiche.numeros.includes(e.numero)) { dis('reprise · numéro étranger au rendez-vous'); continue; }
+    if (rdv.status === 'annulé' || rdv.status === 'honoré') { dis('reprise · rendez-vous déjà clos'); continue; }
+    const ok = m[1] === 'OK';
+    const patch = ok
+      ? { confirmeeParLaClienteLe: e.quand, relanceFaite: true, autreMomentDemandeLe: undefined }
+      : { autreMomentDemandeLe: e.quand, confirmeeParLaClienteLe: undefined };
+    const { error } = await sb.from('appointments').update({ data: { ...ligne.data, ...patch } }).eq('id', ligne.id);
+    if (error) { dis('reprise · écriture refusée', { motif: error.message.slice(0, 120) }); continue; }
+    dis('reprise · réponse', { geste: m[1] });
+    if (!jetonMeta || !phoneIdMeta) continue;
+    const prenom = (fiche.nom ?? rdv.clientName ?? '').trim().split(/\s+/)[0] || 'Madame';
+    const quand = `${jourDeLaReprise(rdv.date ?? '')} à ${heureDeLaReprise(rdv.time)}`;
+    const couronne = (Deno.env.get('COURONNE_URL') ?? 'https://maisonmnd.com/couronne/').trim();
+    await ditDepuisLeTrone(sb, jetonMeta, phoneIdMeta, ok
+      ? {
+        numero: e.numero, branchId: rdv.branchId ?? fiche.branchId, auto: 'reprise-ok',
+        texte: `C'est noté, ${prenom} : ${quand}. La Maison vous attend.`,
+      }
+      : {
+        numero: e.numero, branchId: rdv.branchId ?? fiche.branchId, auto: 'reprise-autre',
+        texte: `Bien sûr, ${prenom}. Choisissez votre nouveau moment dans Ma Couronne : ${couronne}\nOu répondez ici avec le jour qui vous va, la Maison vous propose une heure.`,
+      });
   }
 
   /* ── ⑤ ter LE FORMULAIRE DE CONGÉ — 15 septembre 2026 ───────────────

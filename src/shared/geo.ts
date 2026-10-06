@@ -18,6 +18,7 @@ export const TELEPHONE_PAYS: { name: string; dial: string }[] = [
   { name: 'Cameroun', dial: '+237' },
   { name: 'France', dial: '+33' },
   { name: 'Belgique', dial: '+32' },
+  { name: 'Suisse', dial: '+41' },
   { name: 'Royaume-Uni', dial: '+44' },
   { name: 'États-Unis / Canada', dial: '+1' },
   { name: 'Guadeloupe', dial: '+590' },
@@ -30,6 +31,18 @@ export const CURRENCIES: Currency[] = [{"code":"XOF","name":"Franc CFA (UEMOA)",
 
 export const currencyByCode = (code: string): Currency | undefined =>
   CURRENCIES.find((c) => c.code === code);
+
+/* TOUS LES INDICATIFS DU MONDE DANS LE MENU — 30 septembre 2026 (« rajoute tous
+   les indicatifs du monde pour faire simple », Yéman). Les fréquents d'abord,
+   puis chaque pays de COUNTRIES par ordre alphabétique. Un pays déjà dans les
+   fréquents, sous le même nom et le même indicatif, n'y paraît qu'une fois. */
+export const TELEPHONE_MONDE: { name: string; dial: string }[] = [
+  ...TELEPHONE_PAYS,
+  ...COUNTRIES
+    .filter((c) => !TELEPHONE_PAYS.some((p) => p.dial === c.dial && p.name === c.name))
+    .map((c) => ({ name: c.name, dial: c.dial }))
+    .sort((x, y) => x.name.localeCompare(y.name, 'fr')),
+];
 
 /* Tous les indicatifs connus (liste fréquente + COUNTRIES), du plus long au plus
    court : on reconnaît « +229 » avant « +22 », et « +590 » avant « +59 ». */

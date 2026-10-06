@@ -194,7 +194,7 @@ export default function Prestataires() {
      être payé du tiroir en dollars ; la charge reste en francs à la Synthèse,
      et le tiroir perd des dollars. */
   const caissesMaison = cashboxes.filter((c) => c.branchId === branch.id);
-  const caisseParDefaut = (caissesMaison.find((c) => c.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
+  const caisseParDefaut = (caissesMaison.find((c) => c.name === 'Caisse du mois') ?? caissesMaison.find((c) => c.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [payCaisse, setPayCaisse] = useState('');
   const caisseActive = caissesMaison.some((c) => c.name === payCaisse) ? payCaisse : caisseParDefaut;
   const [payDevise, setPayDevise] = useState('');

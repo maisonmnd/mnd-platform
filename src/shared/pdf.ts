@@ -2365,3 +2365,454 @@ export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRend
     blob: doc.output('blob') as Blob,
   };
 }
+
+/* ══ LE BILAN DE SÉANCE — 4 octobre 2026 ═════════════════════════════
+
+   « Un bilan en bonne et due forme pour la Maison MND, super professionnel »
+   (Yéman). Maquette 2n4fqCnnhG2vYrMbwngPcr, écran 3 : une page A4, le verrou
+   couché en tête comme les factures et les certificats, numéroté, daté,
+   signé du maître, la devise en pied, et rien qui ne soit à elle.
+
+   UN SEUL CONSTRUCTEUR, TROIS SORTIES : la pièce qui part sur WhatsApp, le
+   fichier qu'on télécharge, l'aperçu qu'on imprime. Ils disent la même chose
+   au signe près. « Rédigé avec l'assistant » n'y paraît jamais : le papier
+   porte la signature du maître, qui l'a relu. */
+export type BilanPdfData = {
+  houseName: string;
+  numero: string;
+  /** « Madame Awa K. » */
+  pourQui: string;
+  /** Déjà dite : « 4 octobre 2026 ». */
+  dateSeance: string;
+  prestation?: string;
+  praticien?: string;
+  diagnostic?: string;
+  sens?: string;
+  solutions?: string;
+  propositions?: { nom: string; quand: string }[];
+  points: string[];
+  jauges: { nom: string; valeur: number; note: string }[];
+  rituel: { nom: string; cadence: string; texte: string; ingredients?: string[] }[];
+  prochaineVisite?: string;
+  /** Le jour de la remise, dit. */
+  remisLe: string;
+  filename: string;
+};
+
+async function construitLeBilan(d: BilanPdfData): Promise<{ doc: any; filename: string }> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210;
+  const M = 18;
+  const LARGE = W - 2 * M;
+  const BAS = 268;
+  let y = 22;
+
+  // — En-tête : le verrou de la Maison —
+  const hVerrou = estLaMaisonMND(d.houseName) ? await poseLeVerrou(doc, M, 12, 46) : null;
+  if (hVerrou === null) {
+    const seal = await loadSeal();
+    if (seal) { try { doc.addImage(seal, 'PNG', M, 14, 13, 13, undefined, 'FAST'); } catch { /* indisponible */ } }
+    doc.setFont('times', 'normal'); doc.setTextColor(INDIGO); doc.setFontSize(20);
+    doc.text(d.houseName, seal ? M + 16 : M, y);
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(COPPER);
+  doc.text('BILAN DE SÉANCE', W - M, y - 1, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
+  doc.text(d.numero, W - M, y + 4.5, { align: 'right' });
+  y += 12;
+  doc.setDrawColor(COPPER); doc.setLineWidth(0.6); doc.line(M, y, W - M, y);
+  y += 11;
+
+  // — Pour qui, et quelle séance —
+  doc.setFont('times', 'normal'); doc.setFontSize(19); doc.setTextColor(INK);
+  doc.text(d.pourQui, M, y);
+  y += 6.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(SOFT);
+  const meta = [`Séance du ${d.dateSeance}`, d.prestation, d.praticien ? `avec ${d.praticien}` : '']
+    .filter(Boolean).join(' · ');
+  /* DEUX LIGNES AU PLUS (5 octobre 2026) : trois prestations et un maître
+     ne tiennent pas toujours sur une seule. */
+  const metaLignes = (doc.splitTextToSize(pdfSafeGardeFon(meta), LARGE) as string[]).slice(0, 2);
+  metaLignes.forEach((l, k) => texteFon(doc, l, M, y + k * 4.4));
+  y += 10 + (metaLignes.length - 1) * 4.4;
+
+  const saut = (besoin: number) => {
+    if (y + besoin <= BAS) return;
+    doc.addPage();
+    y = 22;
+  };
+  const titre = (t: string) => {
+    saut(14);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(COPPER);
+    doc.text(t.toUpperCase(), M, y, { charSpace: 0.35 });
+    y += 5.5;
+  };
+  const paragraphe = (t: string, taille = 10.5) => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(taille); doc.setTextColor(INK);
+    const lignes: string[] = doc.splitTextToSize(t, LARGE);
+    const pas = taille * 0.47;
+    for (const l of lignes) { saut(pas); doc.text(l, M, y); y += pas; }
+    y += 4;
+  };
+
+  if (d.diagnostic) { titre('Ce que nous avons vu'); paragraphe(d.diagnostic); }
+  if (d.sens) { titre('Ce que cela veut dire'); paragraphe(d.sens); }
+
+  // — Les jauges : deux colonnes, cinq points chacune —
+  if (d.jauges.length) {
+    titre('L’état de votre couronne');
+    const col = LARGE / 2;
+    /* LA NOTE A SA COLONNE, ET LA LIGNE GRANDIT AVEC ELLE — 5 octobre 2026 :
+       passé 23 mm, la note va à la ligne (trois au plus), et la rangée
+       suivante descend d'autant au lieu de lui marcher dessus. */
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    const notes = d.jauges.map((j) => (j.note ? (doc.splitTextToSize(j.note, col - 64) as string[]).slice(0, 3) : []));
+    for (let i = 0; i < d.jauges.length; i += 2) {
+      const lignesMax = Math.max(1, notes[i]?.length ?? 0, notes[i + 1]?.length ?? 0);
+      const hauteur = Math.max(7.5, 3.2 * (lignesMax - 1) + 7.5);
+      saut(hauteur);
+      for (let k = i; k < Math.min(i + 2, d.jauges.length); k += 1) {
+        const j = d.jauges[k];
+        const x = M + (k % 2) * col;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(INK);
+        doc.text(j.nom, x, y);
+        for (let v = 1; v <= 5; v += 1) {
+          const cx = x + 36 + (v - 1) * 4.6;
+          doc.setDrawColor(COPPER); doc.setLineWidth(0.35);
+          if (v <= j.valeur) { doc.setFillColor(COPPER); doc.circle(cx, y - 1.2, 1.5, 'FD'); } else doc.circle(cx, y - 1.2, 1.5, 'S');
+        }
+        doc.setFontSize(8); doc.setTextColor(SOFT);
+        notes[k].forEach((l, n) => doc.text(l, x + 62, y + n * 3.2));
+      }
+      y += hauteur;
+    }
+    y += 3.5;
+  }
+
+  if (d.points.length) {
+    titre('Votre séance');
+    for (const p of d.points) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(INK);
+      const lignes: string[] = doc.splitTextToSize(p, LARGE - 5);
+      saut(lignes.length * 4.7);
+      doc.setFillColor(COPPER); doc.circle(M + 1.6, y - 1.3, 0.8, 'F');
+      for (const l of lignes) { doc.text(l, M + 5, y); y += 4.7; }
+      y += 1;
+    }
+    y += 3;
+  }
+
+  // — Ce que la Maison propose : le texte, puis chaque prestation sur sa ligne —
+  if (d.solutions || d.propositions?.length) {
+    titre('Ce que la Maison vous propose');
+    if (d.solutions) paragraphe(d.solutions);
+    for (const p of d.propositions ?? []) {
+      saut(6);
+      doc.setDrawColor(COPPER); doc.setLineWidth(0.5); doc.line(M, y - 3.6, M, y + 0.8);
+      doc.setFont('times', 'normal'); doc.setFontSize(12.5); doc.setTextColor(INDIGO);
+      texteFon(doc, pdfSafeGardeFon(p.nom), M + 5, y);
+      const largeurNom = doc.getTextWidth(pdfSafe(p.nom));
+      if (p.quand) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT);
+        if (doc.getTextWidth(`· ${p.quand}`) <= LARGE - 7 - largeurNom) {
+          doc.text(`· ${p.quand}`, M + 7 + largeurNom, y);
+        } else {
+          /* Trop long pour la ligne du nom : il passe dessous, à la ligne. */
+          for (const l of doc.splitTextToSize(p.quand, LARGE - 5) as string[]) { y += 4.3; saut(4.3); doc.text(l, M + 5, y); }
+        }
+      }
+      y += 6.5;
+    }
+    y += 2;
+  }
+
+  // — La routine : les Quatre Temps, deux par deux —
+  if (d.rituel.length) {
+    titre('Votre routine à la maison');
+    const gout = 6;
+    const lc = (LARGE - gout) / 2;
+    for (let i = 0; i < d.rituel.length; i += 2) {
+      const paire = d.rituel.slice(i, i + 2);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+      const corps = paire.map((t) => doc.splitTextToSize(t.texte, lc - 8) as string[]);
+      const ingr = paire.map((t) => (t.ingredients?.length ? t.ingredients.join(' · ') : ''));
+      /* LA CADENCE NE MORD JAMAIS SUR LE TITRE — 5 octobre 2026 (« tous les 10
+         à 14 jours, toutes les 3 semaines en hiver » passait sur « Purifier »).
+         Courte, elle tient à droite du titre ; longue, elle passe dessous, à
+         la ligne, et la case grandit d'autant. */
+      const cadences = paire.map((t) => {
+        doc.setFont('times', 'normal'); doc.setFontSize(13.5);
+        const titreL = doc.getTextWidth(t.nom);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+        return doc.getTextWidth(t.cadence) <= lc - 8 - titreL - 4 ? null : (doc.splitTextToSize(t.cadence, lc - 8) as string[]);
+      });
+      const decale = cadences.map((c) => (c ? c.length * 3.6 + 1.5 : 0));
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+      const h = 11.5 + Math.max(...corps.map((c, k) => (c.length + (ingr[k] ? 1.2 : 0)) * 4.4 + decale[k]));
+      saut(h + 2);
+      paire.forEach((t, k) => {
+        const x = M + k * (lc + gout);
+        doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.3); doc.roundedRect(x, y - 4, lc, h, 1.5, 1.5, 'S');
+        doc.setFont('times', 'normal'); doc.setFontSize(13.5); doc.setTextColor(INDIGO);
+        doc.text(t.nom, x + 4, y + 2);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(COPPER);
+        const cad = cadences[k];
+        if (!cad) doc.text(t.cadence, x + lc - 4, y + 2, { align: 'right' });
+        else cad.forEach((l, n) => doc.text(l, x + 4, y + 6.8 + n * 3.6));
+        doc.setFontSize(9.5); doc.setTextColor(INK);
+        let yy = y + 8.5 + decale[k];
+        for (const l of corps[k]) { doc.text(l, x + 4, yy); yy += 4.4; }
+        if (ingr[k]) {
+          doc.setFontSize(8.5); doc.setTextColor(COPPER);
+          doc.text(ingr[k], x + 4, yy + 1);
+        }
+      });
+      y += h + 2.5;
+    }
+    y += 2;
+  }
+
+  // — La prochaine visite : le bandeau indigo —
+  if (d.prochaineVisite) {
+    /* LA DATE TIENT DANS SON BANDEAU — 5 octobre 2026 : elle rapetisse
+       jusqu'à 10 pt, puis passe à la ligne, et le bandeau grandit. */
+    const LIBELLE = 'VOTRE PROCHAINE VISITE';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+    const dispo = LARGE - 12 - (doc.getTextWidth(LIBELLE) + 0.3 * LIBELLE.length) - 6;
+    doc.setFont('times', 'normal');
+    let taille = 14;
+    doc.setFontSize(taille);
+    while (taille > 10 && doc.getTextWidth(d.prochaineVisite) > dispo) { taille -= 0.5; doc.setFontSize(taille); }
+    const lignesV: string[] = doc.getTextWidth(d.prochaineVisite) > dispo ? doc.splitTextToSize(d.prochaineVisite, dispo) : [d.prochaineVisite];
+    const hb = 13 + (lignesV.length - 1) * 4.8;
+    saut(hb + 3);
+    doc.setFillColor(INDIGO); doc.roundedRect(M, y - 2, LARGE, hb, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor('#C9A98A');
+    doc.text(LIBELLE, M + 6, y + 5.8, { charSpace: 0.3 });
+    doc.setFont('times', 'normal'); doc.setFontSize(taille); doc.setTextColor('#FFFFFF');
+    lignesV.forEach((l, k) => doc.text(l, W - M - 6, y + 6.2 + k * 4.8, { align: 'right' }));
+    y += hb + 3;
+  }
+
+  // — La signature du maître : jusqu'au filet du pied, jamais seule sur une page —
+  if (y + 10 > 278) { doc.addPage(); y = 22; }
+  doc.setFont('times', 'italic'); doc.setFontSize(13); doc.setTextColor(INDIGO);
+  doc.text(d.praticien ? `Signé : ${d.praticien}, maître de la Maison` : 'Signé : la Maison', M, y + 4);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT);
+  doc.text(`Remis le ${d.remisLe} · ${d.numero}`, M, y + 9.5);
+
+  // — Le pied, sur chaque page —
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p += 1) {
+    doc.setPage(p);
+    doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.2); doc.line(M, 280, W - M, 280);
+    await pieDeLaMaison(doc, W, 286, { taille: 8.5, couleur: COPPER });
+  }
+  return { doc, filename: d.filename };
+}
+
+/** Le bilan en pièce, prêt à partir sur WhatsApp — même patron que les factures. */
+export async function bilanEnPiece(d: BilanPdfData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLeBilan(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
+}
+
+/** Télécharge le bilan. */
+export async function bilanPdf(d: BilanPdfData): Promise<string> {
+  const { doc, filename } = await construitLeBilan(d);
+  doc.save(filename);
+  return filename;
+}
+
+/** Ouvre le bilan dans un onglet, pour l'imprimer. Sans onglet permis, il se
+    télécharge : un papier sort toujours. */
+export async function bilanApercu(d: BilanPdfData): Promise<void> {
+  const { doc, filename } = await construitLeBilan(d);
+  const url = URL.createObjectURL(doc.output('blob') as Blob);
+  const w = window.open(url, '_blank');
+  if (!w) doc.save(filename);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/* ══ LE SECRÉTARIAT : UN DOCUMENT ÉCRIT — 6 octobre 2026 ═════════════
+
+   Une lettre, une attestation, un contrat, au nom de Maison MND, d'ACIA 1,
+   d'une entreprise créée à l'instant, ou une lettre personnelle. La mise en
+   page est celle de l'écran (secretariat-pur, PAGE et ZONE) : signatures,
+   nom et tampon se posent dans une zone ancrée APRÈS la formule de
+   politesse, jamais à un endroit absolu ; l'aperçu et le papier tombent
+   donc au même endroit, même sur deux pages. Le verrou de Maison MND et sa
+   devise ne paraissent que pour Maison MND : ACIA 1 n'en porte rien. */
+export type PieceEcritePdfData = {
+  enTete: { entite: string; nom: string; verrou: boolean; lignes: string[]; expediteur: string[]; pied: string[]; devise: boolean; encre: string };
+  numero?: string;
+  brouillon: boolean;
+  remplace?: string;
+  lieuEtDate: string;
+  destinataire: string;
+  objet: string;
+  appel: string;
+  paragraphes: string[];
+  cloture: string;
+  zone: {
+    largeur: number; hauteur: number;
+    signatures: { x: number; y: number; image: string; largeur: number; hauteurMax: number }[];
+    tampon?: { x: number; y: number; image: string; l: number; h: number };
+    /** Placés par `nomsDansLaZone` (secretariat-pur) : en colonnes, ou empilés. */
+    noms: { nom: string; qualite: string; x: number }[];
+    colonnes: boolean;
+    xEntite: number;
+    nomEntite?: string;
+  };
+  filename: string;
+};
+
+async function construitLaPieceEcrite(d: PieceEcritePdfData): Promise<{ doc: any; filename: string }> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  normalizeSpaces(doc);
+  await assureFon(doc);
+  const W = 210; const M = 18; const LARGE = 174; const BAS = 268; const LIGNE = 5.2;
+  const encre = d.enTete.encre;
+  let y = 20;
+
+  // — L'en-tête de l'entité —
+  if (d.enTete.verrou) {
+    const h = estLaMaisonMND(d.enTete.nom) ? await poseLeVerrou(doc, M, 12, 46) : null;
+    if (h === null) { doc.setFont('times', 'normal'); doc.setFontSize(20); doc.setTextColor(encre); doc.text(d.enTete.nom, M, 22); }
+    y = 12 + (h ?? 12) + 4;
+  } else if (d.enTete.expediteur.length) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(INK);
+    d.enTete.expediteur.forEach((l, i) => {
+      if (i === 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(SOFT); }
+      doc.text(l, M, 18 + i * 5);
+    });
+    y = 18 + d.enTete.expediteur.length * 5 + 2;
+  } else {
+    doc.setFont('times', 'bold'); doc.setFontSize(21); doc.setTextColor(encre);
+    doc.text(d.enTete.nom, M, 22, { charSpace: 0.6 });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(SOFT);
+    d.enTete.lignes.forEach((l, i) => doc.text(l, M, 28 + i * 4.2));
+    y = 28 + d.enTete.lignes.length * 4.2 + 1;
+  }
+  if (d.enTete.entite !== 'perso') {
+    doc.setDrawColor(d.enTete.verrou ? COPPER : encre); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
+  }
+  // Numéro ou brouillon, en haut à droite.
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+  doc.setTextColor(d.brouillon ? '#9A8F80' : encre);
+  doc.text(d.brouillon ? 'BROUILLON · NON SIGNÉ' : (d.numero ? `N° ${d.numero}` : ''), W - M, 16, { align: 'right' });
+  y += 10;
+
+  const saut = (besoin: number) => { if (y + besoin <= BAS) return; doc.addPage(); y = 22; };
+
+  // — Lieu et date, à droite —
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(INK);
+  doc.text(d.lieuEtDate, W - M, y, { align: 'right' });
+  y += 10;
+
+  // — Le destinataire, sur la moitié droite —
+  const dest = d.destinataire.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (dest.length) {
+    dest.forEach((l, i) => {
+      doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setTextColor(i === 0 ? encre : INK);
+      for (const part of doc.splitTextToSize(l, W - M - 105) as string[]) { doc.text(part, 105, y); y += LIGNE; }
+    });
+    y += 6;
+  }
+
+  // — L'objet —
+  if (d.objet.trim()) {
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(encre);
+    doc.text('Objet :', M, y);
+    const debut = M + doc.getTextWidth('Objet : ');
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(INK);
+    const lignes = doc.splitTextToSize(d.objet.trim(), LARGE - (debut - M)) as string[];
+    lignes.forEach((l, i) => { doc.text(l, debut, y); if (i < lignes.length - 1) y += LIGNE; });
+    y += LIGNE + 4;
+  }
+  if (d.remplace) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(SOFT);
+    doc.text(`Ce document remplace le document n° ${d.remplace}.`, M, y); y += LIGNE + 2;
+    doc.setFontSize(10.5);
+  }
+
+  // — L'appel, le corps, la politesse —
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(INK);
+  const paragraphe = (t: string) => {
+    for (const ligne of t.split('\n')) {
+      for (const l of doc.splitTextToSize(ligne, LARGE) as string[]) { saut(LIGNE); doc.text(l, M, y); y += LIGNE; }
+    }
+    y += 3;
+  };
+  if (d.appel.trim()) paragraphe(d.appel.trim());
+  d.paragraphes.forEach(paragraphe);
+  if (d.cloture.trim()) paragraphe(d.cloture.trim());
+
+  // — La zone de signature, ancrée après la politesse —
+  if (y + d.zone.hauteur + 6 > BAS + 6) { doc.addPage(); y = 24; }
+  const zy = y + 4;
+  const z = d.zone;
+  if (z.tampon) {
+    try { doc.addImage(z.tampon.image, 'PNG', M + z.tampon.x, zy + z.tampon.y, z.tampon.l, z.tampon.h, undefined, 'FAST'); } catch { /* image illisible */ }
+  }
+  for (const s of z.signatures) {
+    try {
+      const p = doc.getImageProperties(s.image);
+      let l = s.largeur; let h = (l * p.height) / p.width;
+      if (h > s.hauteurMax) { h = s.hauteurMax; l = (h * p.width) / p.height; }
+      doc.addImage(s.image, 'PNG', M + s.x, zy + s.y, l, h, undefined, 'FAST');
+    } catch { /* image illisible */ }
+  }
+  let ny = zy + 26;
+  let plusBas = ny;
+  z.noms.forEach((n) => {
+    let ly = z.colonnes ? zy + 26 : ny;
+    doc.setFont('times', 'normal'); doc.setFontSize(12); doc.setTextColor(encre);
+    doc.text(n.nom, M + n.x, ly); ly += 4.6;
+    if (n.qualite) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(SOFT); doc.text(n.qualite, M + n.x, ly); ly += 4.4; }
+    ny = ly; plusBas = Math.max(plusBas, ly);
+  });
+  if (z.nomEntite) { doc.setFont('times', 'bold'); doc.setFontSize(12); doc.setTextColor(encre); doc.text(z.nomEntite, M + z.xEntite, plusBas); }
+
+  // — Le pied, sur chaque page —
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p += 1) {
+    doc.setPage(p);
+    if (d.enTete.pied.length || d.enTete.devise) {
+      doc.setDrawColor('#D9CFBC'); doc.setLineWidth(0.2); doc.line(M, 279, W - M, 279);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT);
+      d.enTete.pied.forEach((l, i) => doc.text(l, W / 2, 283.5 + i * 3.6, { align: 'center' }));
+      if (d.enTete.devise) await pieDeLaMaison(doc, W, 283.5 + Math.max(1, d.enTete.pied.length) * 3.6 + 1.4, { taille: 8, couleur: COPPER, nom: '' });
+    }
+    if (pages > 1) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SOFT); doc.text(`${p} / ${pages}`, W - M, 293, { align: 'right' }); }
+  }
+  return { doc, filename: d.filename };
+}
+
+/** Le document en pièce, prêt à partir sur WhatsApp. */
+export async function pieceEcriteEnPiece(d: PieceEcritePdfData): Promise<PieceRendue> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  return { nom: filename, type: 'application/pdf', donnees: doc.output('datauristring') };
+}
+/** Le document en fichier, pour la feuille de partage (WhatsApp · l'app). */
+export async function pieceEcriteEnFichier(d: PieceEcritePdfData): Promise<File> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  return new File([doc.output('blob') as Blob], filename, { type: 'application/pdf' });
+}
+/** Télécharge le document. */
+export async function pieceEcritePdf(d: PieceEcritePdfData): Promise<void> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  doc.save(filename);
+}
+/** Ouvre le document dans un onglet, pour l'imprimer ; sinon il se télécharge. */
+export async function pieceEcriteApercu(d: PieceEcritePdfData): Promise<void> {
+  const { doc, filename } = await construitLaPieceEcrite(d);
+  const url = URL.createObjectURL(doc.output('blob') as Blob);
+  const w = window.open(url, '_blank');
+  if (!w) doc.save(filename);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

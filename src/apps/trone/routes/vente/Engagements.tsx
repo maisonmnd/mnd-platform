@@ -605,7 +605,7 @@ function LeDossier({ lecture, onRetour, onModifier }: {
     setOccupe(false);
     if (r.ok) {
       setVersements((prev) => prev.map((x) => (x.id === v.id ? { ...x, prevenuLe: new Date().toISOString(), prevenuParModele: !fen.ouverte } : x)));
-      toast('Le prestataire est prévenu sur WhatsApp. Sa réponse paraîtra sur ce versement.');
+      toast(r.enAttente ? 'Hors ligne : le message au prestataire partira au retour du réseau.' : 'Le prestataire est prévenu sur WhatsApp. Sa réponse paraîtra sur ce versement.');
     } else {
       toast(`Non prévenu : ${r.erreur}`);
     }

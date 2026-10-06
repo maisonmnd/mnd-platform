@@ -20,6 +20,7 @@ import { openingForIso, hourToMin, settingsStore } from '../../shared/settings';
 import { creneauxLibres, minutesDeHhmm as toMin, type CreneauOccupe } from '../../shared/agenda-pur';
 import { blocagesStore, plagesBloquees } from '../../shared/blocages';
 import { useOffers, offerLiveNow } from '../../shared/offers';
+import { t, langue } from './i18n';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
 
@@ -290,7 +291,7 @@ export function useCompteMaison(): boolean {
 }
 
 export function firstName(name: string | undefined): string {
-  return (name ?? 'Bienvenue').split(' ')[0];
+  return (name ?? t('Bienvenue')).split(' ')[0];
 }
 
 /* ---------- Suivi de présence — temps passé sur Ma Couronne ---------- */
@@ -417,24 +418,49 @@ export function useVisibleCatalog(): VisibleCatalog {
 
 export const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 
-export const DOWS = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
-export const DOW_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-export const MONTHS = [
+/* LES NOMS DES JOURS ET DES MOIS SUIVENT SA LANGUE — 3 octobre 2026.
+   Ces tableaux sont lus partout (calendriers, « Sam. 5 juil ») : plutôt que de
+   changer chaque écran, chacun RÉPOND dans la langue courante au moment où on
+   le lit. Le français reste la référence ; `dayLabelIsoFr` le garde pour ce
+   qui part au Trône. */
+const selonLaLangue = (fr: string[], en: readonly string[]): string[] =>
+  new Proxy(fr, { get: (cible, cle) => Reflect.get(langue() === 'en' ? en : cible, cle) });
+
+const DOWS_FR = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const MONTHS_SHORT_FR = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+
+export const DOWS = selonLaLangue(DOWS_FR, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+export const DOW_LETTERS = selonLaLangue(['D', 'L', 'M', 'M', 'J', 'V', 'S'], ['S', 'M', 'T', 'W', 'T', 'F', 'S']);
+export const MONTHS = selonLaLangue([
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-];
-export const MONTHS_SHORT = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+], [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]);
+export const MONTHS_SHORT = selonLaLangue(MONTHS_SHORT_FR, ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
 
 export const isoOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export const todayIso = () => isoOf(new Date());
 export const dateOfIso = (iso: string) => new Date(`${iso}T00:00:00`);
 
-/** « Sam. 5 juil » */
+/** « Sam. 5 juil » (« Sat 5 Jul » en anglais) */
+/* L'ANNÉE, TOUJOURS — 6 octobre 2026. « Rajouter les années. Sur Ma
+   Couronne aussi dans Suivi. Je veux les années » (Yéman). Le 5 septembre
+   déjà : « rajoute toujours les années ». Un suivi court sur des années ;
+   « Sam. 5 juil » se lit comme cette année, même quand c'était l'an passé.
+   L'année se met ICI, à la racine : tous les écrans qui lisent ce libellé
+   la reçoivent d'un coup. */
 export function dayLabel(d: Date): string {
-  return `${DOWS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  return `${DOWS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 export function dayLabelIso(iso: string): string {
   return dayLabel(dateOfIso(iso));
+}
+/** Le même, TOUJOURS en français : pour ce qui part au Trône (push du personnel). */
+export function dayLabelIsoFr(iso: string): string {
+  const d = dateOfIso(iso);
+  return `${DOWS_FR[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function daysSince(iso: string): number {
@@ -444,10 +470,10 @@ export function daysSince(iso: string): number {
 
 /** « 2 h » · « 1 h 30 » · « 45 min » */
 export function fmtDuration(min: number): string {
-  if (min < 60) return `${min} min`;
+  if (min < 60) return t('{min} min', { min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m ? `${h} h ${pad2(m)}` : `${h} h`;
+  return m ? t('{h} h {m}', { h, m: pad2(m) }) : t('{h} h', { h });
 }
 
 /* ---------- Créneaux libres — calculés par maître contre l'agenda partagé ---------- */
@@ -552,11 +578,13 @@ export const PALIERS: { key: Service['palier']; sub: string }[] = [
 
 /* ---------- Les quatre temps — la méthode de la maison ---------- */
 
+/* Lus à l'affichage (des accesseurs, pas des valeurs figées au chargement) :
+   ils répondent dans la langue courante. */
 export const QUATRE_TEMPS = [
-  { no: '01', n: 'Purifier', g: 'Laver en douceur, libérer le cuir chevelu.' },
-  { no: '02', n: 'Nourrir', g: 'Hydrater la fibre, fortifier la racine.' },
-  { no: '03', n: 'Sceller', g: 'Fixer le soin, protéger la mèche.' },
-  { no: '04', n: 'Couronner', g: 'Sculpter, parfumer, révéler la tête haute.' },
+  { no: '01', get n() { return t('Purifier'); }, get g() { return t('Laver en douceur, libérer le cuir chevelu.'); } },
+  { no: '02', get n() { return t('Nourrir'); }, get g() { return t('Hydrater la fibre, fortifier la racine.'); } },
+  { no: '03', get n() { return t('Sceller'); }, get g() { return t('Fixer le soin, protéger la mèche.'); } },
+  { no: '04', get n() { return t('Couronner'); }, get g() { return t('Sculpter, parfumer, révéler la tête haute.'); } },
 ];
 
 /* ---------- Offres instantanées — créées au Trône (Marketing), vécues ici ---------- */
@@ -581,6 +609,8 @@ export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
   const { branch } = useBranch();
   const [all] = useOffers();
   const now = new Date();
+  /* Le bouton se dit dans sa langue : la memo se refait quand elle change. */
+  const lg = langue();
   return useMemo(() => {
     const live = all.filter((o) => o.branchId === branch.id && offerLiveNow(o, now));
     const offers = live.map((o, i): Offer => ({
@@ -591,7 +621,7 @@ export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
       serviceId: o.serviceId,
       title: o.title,
       sub: o.sub,
-      cta: o.serviceId ? `Réserver ${o.deal}` : o.deal,
+      cta: o.serviceId ? t('Réserver {offre}', { offre: o.deal }) : o.deal,
       theme: OFFER_THEMES[i % OFFER_THEMES.length],
       act: o.serviceId ? 'book' : 'invite',
     }));
@@ -599,7 +629,7 @@ export function useLiveOffers(): { offers: Offer[]; endMin: number | null } {
     const endMin = live.length ? Math.min(...live.map((o) => hourToMin(o.heureFin))) : null;
     return { offers, endMin };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, branch.id, now.getHours(), now.getMinutes()]);
+  }, [all, branch.id, now.getHours(), now.getMinutes(), lg]);
 }
 
 /** Compte à rebours vivant jusqu'à la fin de fenêtre d'offre (minutes depuis minuit). */
@@ -625,13 +655,13 @@ export function useOfferCountdown(endMin: number | null): string {
 /* ---------- Gamme — descripteurs éditoriaux par produit ---------- */
 
 export const PRODUCT_META: Record<string, { tag: string; line: string }> = {
-  'pr-huile-couronne': { tag: 'Sceller', line: 'Brillance & protection des pointes' },
-  'pr-shampoing': { tag: 'Purifier', line: 'Moringa · romarin · sans paraben' },
-  'pr-beurre-locks': { tag: 'Couronner', line: 'Karité · cacao · définition' },
-  'pr-serum-racines': { tag: 'Nourrir', line: 'Densité & cuir chevelu sain' },
+  'pr-huile-couronne': { get tag() { return t('Sceller'); }, get line() { return t('Brillance & protection des pointes'); } },
+  'pr-shampoing': { get tag() { return t('Purifier'); }, get line() { return t('Moringa · romarin · sans paraben'); } },
+  'pr-beurre-locks': { get tag() { return t('Couronner'); }, get line() { return t('Karité · cacao · définition'); } },
+  'pr-serum-racines': { get tag() { return t('Nourrir'); }, get line() { return t('Densité & cuir chevelu sain'); } },
 };
 
-export const productMeta = (id: string) => PRODUCT_META[id] ?? { tag: 'Rituel', line: 'Formule naturelle de la maison' };
+export const productMeta = (id: string) => PRODUCT_META[id] ?? { tag: t('Rituel'), line: t('Formule naturelle de la maison') };
 
 /* ---------- Modules de l'app — coupés par cliente depuis la Vitrine du Trône ---------- */
 
@@ -659,7 +689,7 @@ export function useCouronneFermee(): { fermee: boolean; mot: string } {
   return {
     fermee: !!cfg.couronneFermee,
     mot: cfg.couronneMot?.trim()
-      || 'La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra.',
+      || t('La maison ne prend pas de réservation en ligne en ce moment. Écrivez-nous, on vous répondra.'),
   };
 }
 
@@ -678,4 +708,11 @@ export type BookingPrefill = {
   /** LA TÊTE POUR QUI L'ON RÉSERVE (maquette du 9 août, écran 2) : le bouton
       qui dit le nom entre dans le tunnel déjà posé sur elle. */
   pourId?: string;
+  /** TOUS LES GESTES DE LA DERNIÈRE VENUE — 29 septembre 2026 (« la
+      réservation en 30 secondes ») : le rebooking ne reprend plus seulement
+      le premier geste, il reprend la venue entière. */
+  serviceIds?: string[];
+  /** SON HEURE HABITUELLE : posée d'office si elle est libre ce jour-là, et
+      le bouton « Réserver » est armé. Sinon, la cliente choisit, comme avant. */
+  time?: string;
 };

@@ -1,5 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEstDirection } from '../_vie';
+import { RappelDesPapiers } from './secretariat/RappelDesPapiers';
 import { PageHead, WaLien } from '../_ui';
 import { useBranch } from '../../../../shared/branches';
 import { fmtMoney } from '../../../../shared/currency';
@@ -18,6 +20,7 @@ import { appointmentsStore } from '../../../../shared/agenda';
 import { addDaysISO, apptDueXof, apptLabel, frJourAn, todayISO, useBranchAppointments, useServicesById } from '../clients/_shared';
 import './pilotage.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 /** LES GESTES QUI SE LISENT TÊTE PAR TÊTE. Les mains, le prix d'achat et les
     impayés ne concernent pas une tête : ils vivent sur un rituel ou une fiche
     de stock, et leur liste est ailleurs. */
@@ -93,6 +96,7 @@ export default function AFaire() {
   const [stock] = useProduitsStock();
   const byId = useServicesById();
   const navigate = useNavigate();
+  const estDirection = useEstDirection();
 
   const travail = useMemo(() => leTravail({
     branchId: branch.id,
@@ -162,7 +166,7 @@ export default function AFaire() {
      pied. MÊMES JUGES, MÊMES GESTES — seulement mieux rangés. */
   const ligneRetenue = (a: (typeof duMois)[number]) => {
     const c = clientDe(a.clientId);
-    const prenom = (c?.name ?? '').split(' ')[0] || 'Madame';
+    const prenom = appelDe(c);
     const dansFenetre = a.date <= horizonJ3 && !a.relanceFaite;
     const de = deDuJour(a.date);
     const origine = a.repriseDe
@@ -184,6 +188,11 @@ export default function AFaire() {
           <span className={`trp-af-tag${attente ? ' trp-af-tag--attente' : a.repriseDe ? ' trp-af-tag--cad' : ''}`}>
             {attente ? `en attente${a.source === 'couronne' ? ' · Ma Couronne' : ''}` : origine}
           </span>
+          {a.autreMomentDemandeLe && !attente ? (
+            <span className="trp-af-tag trp-af-tag--attente">veut un autre moment</span>
+          ) : a.repriseProposeeLe && !a.confirmeeParLaClienteLe && !attente ? (
+            <span className="trp-af-tag">proposée sur WhatsApp · sans réponse</span>
+          ) : null}
           <small>{a.time ?? ''}{rituel ? `${a.time ? ' · ' : ''}${rituel}` : ''}</small>
         </span>
         <span className="trp-af-actes">
@@ -198,7 +207,9 @@ export default function AFaire() {
               Confirmer
             </button>
           )}
-          {attente ? null : a.relanceFaite ? (
+          {attente ? null : a.confirmeeParLaClienteLe ? (
+            <span className="trp-relance__fait">Confirmé par elle</span>
+          ) : a.relanceFaite ? (
             <span className="trp-relance__fait">Relancée</span>
           ) : (
             <>
@@ -238,6 +249,9 @@ export default function AFaire() {
           </div>
         }
       />
+
+      {/* Les papiers à renouveler ou à déposer : la direction seule (0117). */}
+      {estDirection && <RappelDesPapiers titulairesEntreprises={['ent:mnd', 'ent:acia']} />}
 
       {/* ── L'en-tête daté et ses pastilles-chiffres, qui mènent ── */}
       <div className="trp-af-head">
@@ -417,7 +431,7 @@ export default function AFaire() {
                   {SE_DEMANDE[ouvert] && tel && (
                     <a
                       className="trp-af-mbtn trp-af-mbtn--wa"
-                      href={`#${cheminDeLaConversation(tel, signeLeMessage(motPourDemander(ouvert, prenom))) ?? '/conversations'}`}
+                      href={`#${cheminDeLaConversation(tel, signeLeMessage(motPourDemander(ouvert, appelDe(c)))) ?? '/conversations'}`}
                     >
                       WhatsApp
                     </a>

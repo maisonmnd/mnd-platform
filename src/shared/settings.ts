@@ -59,6 +59,17 @@ export type Settings = {
   /** Le même verrou pour les Prêts — 23 août 2026. Trois écrans, une seule
       mécanique : ce qui se recopie se corrige trois fois. */
   codePretsHash?: string;
+  /** LE DÉPART DES CAISSES — 4 octobre 2026. « Je commence une nouvelle
+      comptabilité à partir du 1er octobre. Le reste sera des corrections du
+      passé » (Yéman). Un mois 'AAAA-MM' : les soldes des caisses ne comptent
+      que les mouvements de ce mois et après, à partir de leur solde
+      d'ouverture. Avant : l'historique reste lisible, il ne bouge plus aucun
+      solde. Absent : les caisses comptent depuis toujours, comme avant. */
+  caissesDepuis?: string;
+  /** LA BASCULE D'OCTOBRE — 4 octobre 2026 : faite le…, et le départ des
+      caisses qu'il y avait avant elle (pour le retour en arrière). Posée, le
+      coffre repart lui aussi du mois de départ. */
+  basculeDesCaisses?: { le: string; depuisAvant?: string };
   toggles: Record<string, boolean>;
   hours: DayHours[];
   automations: Automations;

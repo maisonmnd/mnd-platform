@@ -3,6 +3,7 @@ import type { Invoice } from './finance';
 import type { Appointment } from './agenda';
 import type { Bilan } from './bilans';
 import type { CodePromo } from './promos';
+import { appelDe } from './civilite';
 
 /* ══ LES GESTES D'UNE CONVERSATION — 14 septembre 2026 ════════════════
 
@@ -417,7 +418,8 @@ export function phraseDuFoyer(
     pièces ensuite, le rendez-vous, et l'attention pour finir. */
 export function lesGestes(ctx: ContexteDesGestes): Geste[] {
   const tete = ctx.tete;
-  const prenom = prenomDe(tete?.name) || 'Bonjour';
+  /* « Madame Naffi » (2 octobre 2026, shared/civilite). */
+  const prenom = appelDe(tete as never);
   const sansFiche = 'Ce fil n’est rattaché à aucune fiche.';
   const fermee = 'La fenêtre de 24 heures est fermée : seul un modèle approuvé passe.';
   /* LA FENÊTRE FERME TOUT, sauf l'itinéraire — qui tient en une phrase et

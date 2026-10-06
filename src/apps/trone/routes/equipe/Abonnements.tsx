@@ -7,7 +7,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { uid } from '../../../../shared/store';
 import {
   usePaymentMethods, useCashboxes, caisseParDefaut, nouvelleFacture, ligneFacture,
-  invoicesStore, invoiceRegleXof, type Invoice, type InvoicePayment,
+  invoicesStore, invoiceRegleXof, quiEncaisse, type Invoice, type InvoicePayment,
 } from '../../../../shared/finance';
 import {
   shortDate, dateComplete, anciennete, usePlans, useSubscribers, ensureStarterPlans, ensureStarterPlanIncluded,
@@ -37,6 +37,7 @@ import { joursDeLaTete } from '../../../../shared/clients';
 import { Bar, DeepNote, Pill, Tabs } from './ui';
 import './equipe.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { appelDe } from '../../../../shared/civilite';
 
 type Tab = 'moteur' | 'formules' | 'membres' | 'comptes';
 type FiltreCompte = 'tous' | 'en-cours' | 'a-relancer' | 'retard' | 'parties';
@@ -777,6 +778,8 @@ export default function Abonnements() {
       method: pmt.method ?? (methods[0] ?? 'Espèces'),
       ...(boite ? { cashbox: boite } : {}),
       note: 'Abonnement',
+      time: new Date().toTimeString().slice(0, 5),
+      ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
     };
     const plan = planOf(payFor.planId);
     const nomFormule = plan?.name ?? 'Abonnement';
@@ -1696,7 +1699,7 @@ export default function Abonnements() {
                               {(() => {
                                 const cli = clients.find((c) => c.id === m.clientId);
                                 return cli?.phone
-                                  ? <WaLien phone={cli.phone} message={`Bonjour ${m.name.split(' ')[0]}, la Maison MND pense à vous au sujet de votre abonnement${plan ? ` « ${plan.name} »` : ''}.`} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                                  ? <WaLien phone={cli.phone} message={`Bonjour ${appelDe(m)}, la Maison MND pense à vous au sujet de votre abonnement${plan ? ` « ${plan.name} »` : ''}.`} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                                   : null;
                               })()}
                             </span>

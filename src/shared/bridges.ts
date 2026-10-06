@@ -226,6 +226,13 @@ export type VitrineConfig = {
       réponse à « retirer de la vente sans effacer », que le bouton Retirer ne
       pouvait pas donner. */
   hiddenPlans?: string[];
+  /** LES FORMULES RAPIDES DU SITE — 29 septembre 2026 (« la réservation en
+      30 secondes »). Les combinaisons de gestes les plus réservées, tirées des
+      venues honorées par le Trône (useFormulesRapides) : le site les montre en
+      grandes cartes, une touche au lieu d'une question par famille. Ici parce
+      que ce document est le seul que le site lit sans compte ; il ne porte que
+      des identifiants de prestations et un compte, rien d'une cliente. */
+  formulesRapides?: FormuleRapide[];
   /** LE SEUIL DES DEUX FOIS, DANS MA COURONNE — 29 août 2026. Au-delà de ce
       montant, la cliente peut découper son règlement en deux. En dessous,
       elle règle en une fois : deux encaissements de 7 500 F coûtent plus cher
@@ -421,6 +428,7 @@ export const vitrineConfigStore = createStore<VitrineConfig>('mnd_vitrine_config
 });
 
 import { bindCollection, bindDocument } from './sync';
+import type { FormuleRapide } from './reservation-express';
 bindCollection(consultationsQueueStore, 'consultations_queue');
 bindDocument(composeStore, 'mnd_couronne_compose');
 bindDocument(vitrineConfigStore, 'mnd_vitrine_config');

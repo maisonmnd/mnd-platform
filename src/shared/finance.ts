@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { createStore, useStore, uid } from './store';
+import { createStore, useStore, uid, type Store } from './store';
 import { sameName } from './text';
+import { identiteCourante } from './journal';
 
 /* Finances — factures/devis, dépenses, caisses. Montants stockés en XOF. */
 
@@ -77,6 +78,11 @@ export type InvoicePayment = {
       `amount` = les billets réellement tendus (pourboire compris — on ne
       découpe pas un billet) ; `amountXof` reste la seule base comptable. */
   fx?: { code: string; rate: number; amount: number };
+  /** QUI A ENCAISSÉ — 3 octobre 2026, maquette « Le pointage du jour ». Le
+      nom de la main connectée au moment du geste (`identiteCourante`).
+      Absent sur tout ce qui précède : le registre se tait plutôt que de
+      deviner. */
+  encaissePar?: string;
 };
 
 export type InvoiceLine = {
@@ -157,6 +163,9 @@ export type Invoice = {
   cashbox?: string;
   /** Heure d’encaissement HH:mm — journal de caisse. */
   time?: string;
+  /** Qui a encaissé une pièce née payée (le ticket du comptoir, sans journal
+      de versements). Même contrat que `InvoicePayment.encaissePar`. */
+  encaissePar?: string;
   /** Nom libre quand la cliente n’est pas au CRM (walk-in). */
   clientName?: string;
   /** Le mot du Maître — imprimé sur le document. */
@@ -644,7 +653,29 @@ export type Cashbox = {
       L'EXCLUSION SE DIT TOUJOURS À L'ÉCRAN. Un total amputé en silence est
       pire qu'un total complet : on le croirait faux sans savoir pourquoi. */
   horsBilan?: boolean;
+  /** ── LA PIÈCE DE LA MAISON — 4 octobre 2026 ──────────────────────
+      « Le parcours de l'argent » : chaque caisse appartient à une pièce, qui
+      dit ce qu'elle reçoit et ce qu'elle paie (voir le manuel des caisses).
+      Absent : une caisse d'avant la bascule, sans rôle. */
+  role?: RoleDeCaisse;
+  /** Rangée par la bascule d'octobre : elle quitte toutes les listes, ses
+      écritures sont dans l'archive. La date du geste. */
+  archiveeLe?: string;
+  /** Ce qu'elle était avant la bascule (nom, solde d'ouverture, hors bilan),
+      pour revenir en arrière d'un geste. */
+  avantLaBascule?: { name: string; openingXof: number; horsBilan?: boolean };
+  /** Créée par la bascule : un retour en arrière la retire si rien ne la nomme. */
+  creeeParLaBascule?: boolean;
+  /** ANCIENNE — 4 octobre 2026, « Ouvrir octobre ». Une caisse d'avant qui
+      reste visible partout, avec tout son passé, pour finir le travail
+      jusqu'au 30 septembre ; son solde compte toute son histoire (le départ
+      des caisses ne la coupe pas) et elle sort du total de la trésorerie
+      d'octobre. La date de son dernier jour : '2026-09-30'. */
+  jusquAu?: string;
 };
+
+/** Les sept pièces, et l'archive. */
+export type RoleDeCaisse = 'terrasse' | 'banque' | 'mois' | 'grenier' | 'cour' | 'foyer' | 'archive';
 
 /** Les NOMS des caisses écartées des bilans — c'est le nom qui sert de clé
     partout (`Expense.cashbox`, `InvoicePayment.cashbox`). */
@@ -711,8 +742,13 @@ export type PieceJointe = { chemin: string; nom: string; type: string; taille: n
 export const caisseParDefaut = (
   boxes: readonly Cashbox[], branchId: string, maison: string,
 ): Cashbox | undefined => {
-  const siennes = boxes.filter((c) => c.branchId === branchId);
-  return siennes.find((c) => cashboxCurrency(c) === maison) ?? siennes[0];
+  /* La Terrasse d'abord (4 octobre 2026) : c'est elle qui reçoit. Jamais une
+     caisse rangée ni l'archive, tant qu'une autre existe. */
+  const siennes = boxes.filter((c) => c.branchId === branchId && !c.archiveeLe);
+  const dansLaDevise = siennes.filter((c) => cashboxCurrency(c) === maison);
+  return dansLaDevise.find((c) => c.role === 'terrasse')
+    ?? dansLaDevise.find((c) => c.role !== 'archive')
+    ?? dansLaDevise[0] ?? siennes[0];
 };
 
 /** LES CAISSES QU'UN COMPTE RESTREINT PEUT VOIR — 31 août 2026.
@@ -856,6 +892,7 @@ export const invoiceReglements = (inv: Invoice): InvoicePayment[] => {
     /* La devise de la pièce d'avant descend sur son versement unique : les
        lectures par versement (tiroir en devise, PDF) n'ont ainsi qu'UNE forme. */
     ...(inv.fx ? { fx: inv.fx } : {}),
+    ...(inv.encaissePar ? { encaissePar: inv.encaissePar } : {}),
   }];
 };
 
@@ -1000,6 +1037,14 @@ export const ligneProduit = (
 export const totalProduitsXof = (i: Pick<Invoice, 'lines'>): number =>
   (i.lines ?? []).reduce((n, l) => (l.produitId ? n + ligneNetXof(l) : n), 0);
 
+/** LA MAIN QUI ENCAISSE — 3 octobre 2026. Celle que le Trône a posée à la
+    connexion (`poseLIdentite`) ; `undefined` tant qu'elle est inconnue,
+    pour ne jamais écrire « Main inconnue » sur un versement. */
+export const quiEncaisse = (): string | undefined => {
+  const { nom, porte } = identiteCourante();
+  return porte === 'trone' && nom && nom !== 'Main inconnue' ? nom : undefined;
+};
+
 export function nouvelleFacture(f: FactureNeuve): Invoice {
   /* LE NUMÉRO SE TIRE DU MAGASIN, jamais d'une liste de rendu : la valeur
      qu'un composant tient en main date de son dernier rendu, et un numéro
@@ -1027,6 +1072,7 @@ export function nouvelleFacture(f: FactureNeuve): Invoice {
     status,
     /* L'heure n'a de sens que sur un encaissement — c'est le journal de caisse. */
     ...(status === 'payée' ? { time: new Date().toTimeString().slice(0, 5) } : {}),
+    ...(status === 'payée' && quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
     ...(clientName ? { clientName } : {}),
     ...(f.forClientId ? { forClientId: f.forClientId } : {}),
     ...(f.globalDiscountXof ? { globalDiscountXof: f.globalDiscountXof } : {}),
@@ -1450,7 +1496,34 @@ export const useDepensesComptees = (): Expense[] => {
   return useMemo(() => depensesComptees(toutes), [toutes]);
 };
 export const useBudgets = () => useStore(budgetsStore);
-export const useCashboxes = () => useStore(cashboxesStore);
+/** LES CAISSES VIVANTES — 4 octobre 2026. Une caisse rangée par la bascule
+    d'octobre quitte toutes les listes (ses écritures sont dans l'archive).
+    Le setter reste celui du magasin entier : tous ses appelants passent une
+    fonction de la liste COMPLÈTE, rien ne s'efface en écrivant. Pour voir
+    aussi les rangées : `useToutesLesCaisses`. */
+export const caissesVivantes = (c: readonly Cashbox[]): Cashbox[] => c.filter((b) => !b.archiveeLe);
+export const useCashboxes = (): [Cashbox[], Store<Cashbox[]>['set']] => {
+  const [toutes, set] = useStore(cashboxesStore);
+  const vivantes = useMemo(() => caissesVivantes(toutes), [toutes]);
+  return [vivantes, set];
+};
+export const useToutesLesCaisses = () => useStore(cashboxesStore);
+
+/** LA CAISSE SUIT LA DATE DE L'ÉCRITURE — 4 octobre 2026. « Pourquoi les RDV
+    à venir ont toujours les anciennes caisses ? Il devrait y avoir les
+    nouveaux noms » (Yéman). Une fois octobre ouvert : une écriture datée
+    d'octobre ou après ne se propose qu'aux caisses d'octobre ; une écriture
+    d'avant (la mise en ordre du passé) qu'aux anciennes et à celles qui
+    continuent. Avant l'ouverture, rien ne change. La caisse déjà portée par
+    l'écriture reste toujours dans la liste : on ne perd pas ce qui est écrit. */
+export const caissesPourLaDate = (boxes: readonly Cashbox[], jour: string | undefined, dejaChoisie?: string): Cashbox[] => {
+  const j = (jour ?? '').slice(0, 10);
+  if (!j) return [...boxes];
+  return boxes.filter((c) => c.name === dejaChoisie
+    || (c.jusquAu ? j <= c.jusquAu : !(c.creeeParLaBascule && j < DEBUT_DES_CAISSES_NEUVES)));
+};
+/** Le premier jour des pièces neuves (la bascule d'octobre). */
+export const DEBUT_DES_CAISSES_NEUVES = '2026-10-01';
 export const useExpenseCategories = () => useStore(expenseCategoriesStore);
 export const usePaymentMethods = () => useStore(paymentMethodsStore);
 
@@ -1727,7 +1800,10 @@ export type CreditHolder = { type: 'family' | 'client'; id: string };
 export type CreditMovement = {
   id: string;
   branchId: string;
-  holderType: 'family' | 'client'; // qui porte l'avoir
+  /** Qui porte l'avoir. `carte` (2 octobre 2026) : une carte cadeau réglée
+      et pas encore venue ; à la première visite, le MÊME dépôt passe à la
+      fiche de la bénéficiaire (voir `cartes-cadeaux-pur.ts`). */
+  holderType: 'family' | 'client' | 'carte';
   holderId: string; // family.id ou client.id
   kind: 'depot' | 'usage' | 'remboursement'; // dépôt (+) · règlement d'une presta (−) · remboursement (−)
   /** CE QUI EST ENTRÉ DANS LE TIROIR (ou en est sorti) quand la caisse tient
@@ -1750,6 +1826,17 @@ export type CreditMovement = {
   cashbox?: string;
   /** Le moyen par lequel l'argent est arrivé — Espèces, Mobile Money… */
   method?: string;
+};
+/** L'AVOIR DÉPENSÉ POUR UNE FACTURE QUI N'EXISTE PLUS — 3 octobre 2026.
+    « J'ai supprimé le paiement de 47 000 F et le montant n'est pas revenu
+    dans l'avoir » (Yéman). Un usage d'avoir nomme sa facture ; la facture
+    partie, il débite encore le compte pour un règlement qui n'existe plus.
+    Rendu `[]` tant que les factures ne sont pas chargées : un registre vide
+    ferait passer TOUS les usages pour orphelins. */
+export const usagesSansFacture = (moves: readonly CreditMovement[], factures: readonly { id: string }[]): CreditMovement[] => {
+  if (factures.length === 0) return [];
+  const ids = new Set(factures.map((f) => f.id));
+  return moves.filter((m) => m.kind === 'usage' && !!m.invoiceId && !ids.has(m.invoiceId));
 };
 /** + pour un dépôt, − pour un usage ou un remboursement. */
 export const creditSignedXof = (m: CreditMovement): number => (m.kind === 'depot' ? m.amountXof : -m.amountXof);

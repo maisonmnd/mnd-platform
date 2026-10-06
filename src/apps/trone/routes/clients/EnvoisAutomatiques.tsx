@@ -8,10 +8,23 @@
    d'avis. Chaque ligne dit à qui, pour quel rendez-vous, par quel canal, et
    CE QUE LE MESSAGE EST DEVENU, avec le motif d'un échec en français. La
    lecture vit dans `shared/envois.ts`, éprouvée ; cet écran ne fait que
-   montrer. Les messages écrits à la main vivent dans les fils. */
+   montrer. Les messages écrits à la main vivent dans les fils.
+
+   ══ L'ÉCRAN REFAIT — 2 octobre 2026 ══════════════════════════════════════
+   « Améliore l'UI et l'UX de cette page » (Yéman), capture d'un écran vide
+   sous cinq grandes cases à zéro et trois rangées de filtres. Trois choix :
+     · LES CHIFFRES TIENNENT EN UNE LIGNE : une pastille par état, et « à
+       regarder » ne s'allume, en brique, que lorsqu'il y a quelque chose ; un
+       clic dessus filtre ;
+     · LES FILTRES TIENNENT EN UNE RANGÉE : la période en trois boutons
+       collés, le type de message dans une liste, « à regarder seulement » en
+       case à cocher ;
+     · CHAQUE ENVOI EST UNE LIGNE QUI SE LIT : l'heure, la cliente, le
+       message et son rendez-vous, puis ce qu'il est devenu, en couleur, avec
+       son motif. Sur téléphone, la ligne passe sur deux étages.
+   Un écran vide dit pourquoi, et propose d'élargir la période. */
 
 import { useMemo, useState } from 'react';
-import { Card } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { useClients } from '../../../../shared/clients';
 import { heureLisible } from '../../../../shared/rappel';
@@ -21,29 +34,42 @@ import {
   jourDuSalon, typeDit, canalDit, DEVENU_DIT, type FiltreDuJournal, type TypeDEnvoi,
 } from '../../../../shared/envois';
 import { useEnvois } from '../equipe/data';
+import { SalleDesEnvois } from './SalleDesEnvois';
 
 const FUSEAU = 'Africa/Porto-Novo';
 
 const JOURS: [FiltreDuJournal['jour'], string][] = [
-  ['aujourdhui', 'Aujourd’hui'], ['hier', 'Hier'], ['semaine', '7 derniers jours'],
+  ['aujourdhui', 'Aujourd’hui'], ['hier', 'Hier'], ['semaine', '7 jours'],
 ];
 const TYPES: [FiltreDuJournal['type'], string][] = [
-  ['tout', 'Tous'], ['accuse', 'Accusés de demande'], ['confirmation', 'Confirmations'],
-  ['rappel-j1', 'Rappels de la veille'], ['avis-google', 'Avis Google'],
+  ['tout', 'Tous les messages'], ['confirmation', 'Confirmations'], ['rappel-j1', 'Rappels de la veille'],
+  ['reprise-j3', 'Reprises proposées'], ['accuse', 'Accusés de demande'], ['avis-google', 'Avis Google'],
+  ['fin-de-paquet', 'Fins de paquet'],
 ];
+const PERIODE_DITE: Record<FiltreDuJournal['jour'], string> = {
+  aujourdhui: 'aujourd’hui', hier: 'hier', semaine: 'ces 7 derniers jours',
+};
 
-/** « ven. 20 sept. · 10 h » */
+/** « jeu. 8 oct. · 10 h » */
 const pourLeRdv = (date?: string, heure?: string): string => {
   if (!date) return '';
   const jour = new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   return heure ? `${jour} · ${heureLisible(heure)}` : jour;
 };
 
-const couleurDu = (d: ReturnType<typeof devenuDe>): string => (
-  d === 'lu' ? '#4A6B52'
-    : d === 'remis' ? 'var(--color-indigo)'
-      : estARegarder(d) ? '#96412E'
-        : 'var(--ink-soft)');
+/** La couleur d'un état : vert lu, indigo remis, brique ce qui n'est pas arrivé. */
+const tonDu = (d: ReturnType<typeof devenuDe>): { fond: string; encre: string; bord: string } => (
+  d === 'lu' ? { fond: '#EEF3EE', encre: '#3F5E46', bord: '#C9D8CC' }
+    : d === 'remis' ? { fond: 'var(--indigo-50, #EDEEF4)', encre: 'var(--color-indigo)', bord: '#C9CCE0' }
+      : estARegarder(d) ? { fond: '#FBF0ED', encre: '#96412E', bord: '#E4BDB2' }
+        : { fond: 'transparent', encre: 'var(--ink-soft)', bord: 'var(--hairline)' });
+
+const pastille = (texte: string, ton: { fond: string; encre: string; bord: string }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, padding: '3px 10px', borderRadius: 999,
+    whiteSpace: 'nowrap', background: ton.fond, color: ton.encre, border: `1px solid ${ton.bord}`,
+  }}>{texte}</span>
+);
 
 export function EnvoisAutomatiques({ onOuvrirLeFil }: { onOuvrirLeFil: (numero: string) => void }) {
   const { branch } = useBranch();
@@ -56,123 +82,136 @@ export function EnvoisAutomatiques({ onOuvrirLeFil }: { onOuvrirLeFil: (numero: 
     () => envois.filter((e) => e && (!e.branchId || e.branchId === branch.id)),
     [envois, branch.id],
   );
-  const compte = compteDuJournal(envoisDeLaPeriode(ici, filtre.jour, aujourdhui));
+  const periode = envoisDeLaPeriode(ici, filtre.jour, aujourdhui);
+  const compte = compteDuJournal(periode);
   const lignes = lignesDuJournal(ici, filtre, aujourdhui);
   const ficheDe = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
+  const surLaSemaine = envoisDeLaPeriode(ici, 'semaine', aujourdhui).length;
 
-  const puce = (actif: boolean, mot: string, onClick: () => void, key: string) => (
-    <button key={key} type="button" className={`trc-chip ${actif ? 'is-active' : ''}`} onClick={onClick}>{mot}</button>
-  );
-  const etiquette = (mot: string) => (
-    <span style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginRight: 4 }}>{mot}</span>
-  );
+  const segment = (actif: boolean): React.CSSProperties => ({
+    font: 'inherit', fontSize: 12.5, padding: '6px 14px', cursor: 'pointer', border: 'none',
+    background: actif ? 'var(--color-indigo)' : 'transparent', color: actif ? 'var(--color-ivoire, #F6F1E7)' : 'var(--ink)',
+  });
 
   return (
     <div>
-      <p className="mnd-muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '0 0 14px', maxWidth: 760 }}>
-        Tout ce que la Maison envoie seule : l’accusé d’une réservation du site, la confirmation, le rappel de
-        la veille, la demande d’avis. <b style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>« Remis » et « lu »
-        viennent de WhatsApp</b> ; un échec dit pourquoi. Les messages écrits à la main vivent dans les fils.
-      </p>
+      {/* CE QUI VA PARTIR, AVANT QUE ÇA PARTE (2 octobre 2026). */}
+      <SalleDesEnvois />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 14 }}>
-        {([
-          ['Partis', compte.partis, false],
-          ['Remis', compte.remis, false],
-          ['Lus', compte.lus, false],
-          ['En route', compte.enRoute, false],
-          ['À regarder', compte.aRegarder, compte.aRegarder > 0],
-        ] as [string, number, boolean][]).map(([mot, n, alerte]) => (
-          <Card key={mot} style={{ padding: '9px 13px', minWidth: 0, ...(alerte ? { background: '#FBF0ED', borderColor: '#E4BDB2' } : {}) }}>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{mot}</div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, lineHeight: 1.15, color: alerte ? '#96412E' : 'var(--color-indigo)' }}>{n}</div>
-          </Card>
-        ))}
-      </div>
+      {/* ── Ce qui est parti : un titre, pour ne pas le confondre avec la salle ── */}
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: 'var(--color-indigo)', margin: '4px 0 10px' }}>Ce qui est parti</div>
 
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {etiquette('Jour')}
-        {JOURS.map(([k, mot]) => puce(filtre.jour === k, mot, () => setFiltre((f) => ({ ...f, jour: k })), k))}
-      </div>
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-        {etiquette('Message')}
-        {TYPES.map(([k, mot]) => puce(filtre.type === k, mot, () => setFiltre((f) => ({ ...f, type: k as 'tout' | TypeDEnvoi })), k))}
-        <span style={{ width: 10 }} />
-        {etiquette('État')}
-        {puce(!filtre.seulementARegarder, 'Tous', () => setFiltre((f) => ({ ...f, seulementARegarder: false })), 'etat-tout')}
-        {puce(filtre.seulementARegarder, 'À regarder seulement', () => setFiltre((f) => ({ ...f, seulementARegarder: true })), 'etat-regarder')}
-      </div>
-
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="mnd-scroll-x">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 760 }}>
-            <thead>
-              <tr>
-                {['Parti à', 'Cliente', 'Message', 'Pour le rendez-vous', 'Canal', 'Devenu', ''].map((h) => (
-                  <th key={h} style={{ textAlign: 'left', fontWeight: 400, fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--ink-soft)', padding: '9px 10px', borderBottom: '1px solid var(--hairline)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lignes.length === 0 && (
-                <tr>
-                  <td colSpan={7} style={{ padding: '18px 12px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-                    {filtre.seulementARegarder ? 'Rien à regarder : tout est arrivé.' : 'Aucun envoi automatique sur cette période.'}
-                  </td>
-                </tr>
-              )}
-              {lignes.map((e) => {
-                const fiche = e.clientId ? ficheDe.get(e.clientId) : undefined;
-                const numero = (fiche?.phone || e.numero || '').trim();
-                const d = devenuDe(e);
-                const motif = estARegarder(d) || d === 'personne' ? motifEnClair(e) : '';
-                const jour = jourDuSalon(e.quand, FUSEAU);
-                const heure = new Date(e.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: FUSEAU });
-                return (
-                  <tr key={e.id} style={{ borderBottom: '1px solid var(--hairline)' }}>
-                    <td style={{ padding: '9px 10px', whiteSpace: 'nowrap', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums', verticalAlign: 'top' }}>
-                      {jour !== aujourdhui ? `${new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · ` : ''}{heure}
-                    </td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top' }}>
-                      <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--color-indigo)' }}>
-                        {fiche?.name ?? (e.prenom || 'Visiteuse du site')}
-                      </span>
-                      {!fiche && e.numero && (
-                        <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>{telephoneMasque(e.numero)} · sans fiche</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top' }}>
-                      <span style={{
-                        display: 'inline-block', fontSize: 11, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
-                        border: '1px solid var(--hairline)',
-                        ...(e.type === 'accuse' ? { background: '#FAF1E9', borderColor: '#E3C9AE' } : {}),
-                        ...(e.type === 'confirmation' ? { background: '#EDEEF4', borderColor: '#C9CDE0' } : {}),
-                      }}>
-                        {typeDit(e.type)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>{pourLeRdv(e.dateRdv, e.heure)}</td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top' }}>{canalDit(e.canal)}</td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top' }}>
-                      <span style={{ fontSize: 12.5, whiteSpace: 'nowrap', color: couleurDu(d), fontWeight: estARegarder(d) ? 600 : 400 }}>
-                        {d === 'lu' || d === 'remis' ? '✓✓ ' : d === 'en-route' ? '✓ ' : ''}{DEVENU_DIT[d]}
-                      </span>
-                      {motif && <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5 }}>{motif}</span>}
-                    </td>
-                    <td style={{ padding: '9px 10px', verticalAlign: 'top', textAlign: 'right' }}>
-                      {numero && (
-                        <button type="button" className="tre-link-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onOuvrirLeFil(numero)}>
-                          Ouvrir le fil
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* ── La rangée de commande : la période, le type, les chiffres ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+        <div role="group" aria-label="Période" style={{ display: 'inline-flex', border: '1px solid var(--hairline)', borderRadius: 999, overflow: 'hidden', background: 'var(--paper, #fff)' }}>
+          {JOURS.map(([k, mot]) => (
+            <button key={k} type="button" aria-pressed={filtre.jour === k} style={segment(filtre.jour === k)} onClick={() => setFiltre((f) => ({ ...f, jour: k }))}>{mot}</button>
+          ))}
         </div>
-      </Card>
+        <select
+          aria-label="Type de message"
+          value={filtre.type}
+          onChange={(e) => setFiltre((f) => ({ ...f, type: e.target.value as 'tout' | TypeDEnvoi }))}
+          style={{ font: 'inherit', fontSize: 12.5, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--hairline)', background: 'var(--paper, #fff)', color: 'var(--ink)' }}
+        >
+          {TYPES.map(([k, mot]) => <option key={k} value={k}>{mot}</option>)}
+        </select>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={filtre.seulementARegarder} onChange={(e) => setFiltre((f) => ({ ...f, seulementARegarder: e.target.checked }))} />
+          À regarder seulement
+        </label>
+
+        <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
+          {pastille(`${compte.partis} parti${compte.partis > 1 ? 's' : ''}`, tonDu('en-route'))}
+          {pastille(`${compte.remis} remis`, tonDu('remis'))}
+          {pastille(`${compte.lus} lu${compte.lus > 1 ? 's' : ''}`, tonDu('lu'))}
+          {compte.aRegarder > 0 && (
+            <button
+              type="button"
+              onClick={() => setFiltre((f) => ({ ...f, seulementARegarder: true }))}
+              title="Voir seulement ce qui n’est pas arrivé"
+              style={{ font: 'inherit', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              {pastille(`${compte.aRegarder} à regarder`, tonDu('echec'))}
+            </button>
+          )}
+        </span>
+      </div>
+
+      {/* ── Les envois, une ligne chacun ── */}
+      <div style={{ border: '1px solid var(--hairline)', borderRadius: 'var(--radius-md, 6px)', background: 'var(--paper, #fff)', overflow: 'hidden' }}>
+        {lignes.length === 0 ? (
+          <div style={{ padding: '30px 20px', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-indigo)' }}>
+              {filtre.seulementARegarder ? 'Rien à regarder : tout est arrivé.' : `Aucun envoi ${PERIODE_DITE[filtre.jour]}.`}
+            </div>
+            <p className="mnd-muted" style={{ fontSize: 12.5, margin: '8px auto 0', maxWidth: 460, lineHeight: 1.6 }}>
+              {filtre.type !== 'tout' && periode.length > 0
+                ? `${periode.length} autre${periode.length > 1 ? 's' : ''} message${periode.length > 1 ? 's sont partis' : ' est parti'} sur cette période.`
+                : 'Les confirmations partent quand un rendez-vous est posé, les rappels de la veille à 18 h, les demandes d’avis dans l’heure qui suit un règlement.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 14 }}>
+              {filtre.type !== 'tout' && (
+                <button type="button" className="trc-chip" onClick={() => setFiltre((f) => ({ ...f, type: 'tout' }))}>Voir tous les messages</button>
+              )}
+              {filtre.jour !== 'semaine' && surLaSemaine > 0 && (
+                <button type="button" className="trc-chip" onClick={() => setFiltre((f) => ({ ...f, jour: 'semaine' }))}>
+                  Voir les 7 derniers jours ({surLaSemaine})
+                </button>
+              )}
+            </div>
+          </div>
+        ) : lignes.map((e, i) => {
+          const fiche = e.clientId ? ficheDe.get(e.clientId) : undefined;
+          const numero = (fiche?.phone || e.numero || '').trim();
+          const d = devenuDe(e);
+          const motif = estARegarder(d) || d === 'personne' || d === 'ecarte' || d === 'perime' ? motifEnClair(e) : '';
+          const jour = jourDuSalon(e.quand, FUSEAU);
+          const heure = new Date(e.quand).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: FUSEAU });
+          return (
+            <div key={e.id} className="trc-envoi" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}>
+              <div className="trc-envoi__quand">
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--color-indigo)' }}>{heure}</span>
+                {jour !== aujourdhui && (
+                  <span className="mnd-muted" style={{ display: 'block', fontSize: 11 }}>
+                    {new Date(`${jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </span>
+                )}
+              </div>
+              <div className="trc-envoi__qui">
+                <span style={{ fontWeight: 500, color: 'var(--color-indigo)' }}>
+                  {fiche?.name ?? (e.prenom || 'Visiteuse du site')}
+                </span>
+                <span className="mnd-muted" style={{ display: 'block', fontSize: 12 }}>
+                  {typeDit(e.type)} · {canalDit(e.canal)}
+                  {e.dateRdv && e.type !== 'avis-google' ? ` · rendez-vous du ${pourLeRdv(e.dateRdv, e.heure)}` : ''}
+                  {!fiche && e.numero ? ` · ${telephoneMasque(e.numero)}, sans fiche` : ''}
+                </span>
+              </div>
+              <div className="trc-envoi__etat">
+                {pastille(`${d === 'lu' || d === 'remis' ? '✓✓ ' : d === 'en-route' ? '✓ ' : ''}${DEVENU_DIT[d]}`, tonDu(d))}
+                {motif && <span className="mnd-muted" style={{ display: 'block', fontSize: 11.5, marginTop: 4, maxWidth: 260 }}>{motif}</span>}
+              </div>
+              <div className="trc-envoi__geste">
+                {numero && (
+                  <button
+                    type="button"
+                    onClick={() => onOuvrirLeFil(numero)}
+                    style={{ font: 'inherit', fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer', background: 'none', border: 'none', padding: '4px 0', color: 'var(--copper-700)', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                  >
+                    Ouvrir le fil
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mnd-muted" style={{ fontSize: 11.5, lineHeight: 1.6, margin: '10px 2px 0' }}>
+        Ce que la Maison envoie seule. « Remis » et « lu » viennent de WhatsApp ; un message non arrivé dit pourquoi.
+        Les messages écrits à la main vivent dans les fils.
+      </p>
     </div>
   );
 }

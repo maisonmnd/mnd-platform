@@ -10,7 +10,9 @@
    ce qu'un envoi est devenu, pourquoi un échec a échoué, en français, et ce
    qu'un jour compte. Pur, éprouvé par `verifie-journal-des-envois`. */
 
-export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet';
+import { attendEncore, ECARTE, PERIME } from './salle-des-envois';
+
+export type TypeDEnvoi = 'accuse' | 'confirmation' | 'rappel-j1' | 'avis-google' | 'fin-de-paquet' | 'reprise-j3';
 
 /** Ce que le journal lit d'une ligne `envois`. Les champs viennent de
     fonctions différentes, écrites à des dates différentes : tous facultatifs
@@ -36,11 +38,16 @@ export type EnvoiLu = {
   codeMeta?: number;
 };
 
-export type DevenuDeLEnvoi = 'lu' | 'remis' | 'en-route' | 'non-remis' | 'echec' | 'personne' | 'a-la-main' | 'en-cours';
+export type DevenuDeLEnvoi = 'lu' | 'remis' | 'en-route' | 'non-remis' | 'echec' | 'personne' | 'a-la-main' | 'en-cours' | 'ecarte' | 'perime';
 
 /** CE QUE LE MESSAGE EST DEVENU. L'accusé de Meta l'emporte sur le statut
     d'envoi : « envoyé » dit seulement que Meta a accepté la requête. */
 export const devenuDe = (e: Pick<EnvoiLu, 'statut' | 'etat'>): DevenuDeLEnvoi => {
+  /* LA SALLE D'ATTENTE (2 octobre 2026) : ce qu'une main a écarté, et ce que
+     le facteur n'a pas porté parce que le rendez-vous avait bougé. Ni l'un
+     ni l'autre n'est parti. */
+  if (e.statut === ECARTE) return 'ecarte';
+  if (e.statut === PERIME) return 'perime';
   if (e.etat === 'lu') return 'lu';
   if (e.etat === 'remis') return 'remis';
   if (e.etat === 'non-remis') return 'non-remis';
@@ -54,6 +61,7 @@ export const devenuDe = (e: Pick<EnvoiLu, 'statut' | 'etat'>): DevenuDeLEnvoi =>
 export const DEVENU_DIT: Record<DevenuDeLEnvoi, string> = {
   lu: 'lu', remis: 'remis', 'en-route': 'en route', 'non-remis': 'non remis', echec: 'échec',
   personne: 'personne à joindre', 'a-la-main': 'envoyé à la main', 'en-cours': 'en cours',
+  ecarte: 'écarté, pas envoyé', perime: 'pas envoyé',
 };
 
 /** Ce qui demande un regard : ce qui n'est pas arrivé. */
@@ -65,6 +73,7 @@ export const TYPE_DIT: Record<string, string> = {
   'rappel-j1': 'Rappel de la veille',
   'avis-google': 'Demande d’avis',
   'fin-de-paquet': 'Fin de paquet',
+  'reprise-j3': 'Reprise proposée',
 };
 export const typeDit = (t: string): string => TYPE_DIT[t] ?? t;
 
@@ -100,6 +109,7 @@ const MOTIFS: { codes: number[]; texte?: RegExp; dit: string }[] = [
 ];
 
 export function motifEnClair(e: Pick<EnvoiLu, 'statut' | 'detail' | 'codeMeta' | 'canal' | 'etat'>): string {
+  if (e.statut === ECARTE) return 'retenu puis écarté à la main';
   if (e.statut === 'sans-numero') return 'pas de numéro sur la fiche';
   if (e.statut === 'sans-abonnement') return e.canal === 'push' ? 'pas d’application Ma Couronne' : 'personne à joindre';
   const detail = (e.detail ?? '').trim();
@@ -143,6 +153,8 @@ export function envoisDeLaPeriode<T extends EnvoiLu>(envois: readonly T[], jour:
   const depuis = jour === 'semaine' ? jourDecale(aujourdhui, -6) : jour === 'hier' ? jourDecale(aujourdhui, -1) : aujourdhui;
   const jusqua = jour === 'hier' ? jourDecale(aujourdhui, -1) : aujourdhui;
   return envois.filter((e) => {
+    /* Ce qui attend en salle n'est pas encore un envoi : il a son écran. */
+    if (attendEncore(e)) return false;
     const j = jourDuSalon(e.quand);
     return !!j && j >= depuis && j <= jusqua;
   });
@@ -185,6 +197,7 @@ export const estEnvoiAutomatique = (parQui?: string): boolean =>
 const MODELE_DIT: Record<string, string> = {
   rappel_rdv: 'rappel de la veille',
   confirmation_rdv: 'confirmation',
+  reprise_proposee: 'reprise proposée',
   demande_recue: 'accusé de demande',
   avis_google: 'demande d’avis',
   bulletin_du_mois: 'bulletin de paie',

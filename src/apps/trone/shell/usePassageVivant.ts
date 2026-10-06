@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { useAppointments, venuesHonorees } from '../../../shared/agenda';
 import { clientsStore, estDePassage, mouvementsDePassage, useClients, VENUES_POUR_REVENIR } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* ELLE EST REVENUE — Le Trône, 9 août 2026.
 
    Une cliente de passage cesse de l'être à sa DEUXIÈME venue. Ici, et seulement
@@ -60,7 +62,7 @@ export function usePassageVivant(): void {
     );
 
     if (promues.size === 0 && rendues.size === 0 && aMemoriser.size === 0) return;
-    clientsStore.set((prev) =>
+    gardeLEcriture('passage', clientsStore).set((prev) =>
       prev.map((c) => {
         if (promues.has(c.id)) return { ...c, dePassage: undefined, futDePassage: true };
         if (rendues.has(c.id)) return { ...c, dePassage: true };

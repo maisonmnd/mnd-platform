@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Le Trône hors ligne &middot; Maquette &middot; Maison MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root {
+    --parchemin:#F3EDE1; --ivoire:#FBF8F2; --indigo:#1E2150; --indigo-f:#EDEEF4;
+    --cuivre:#B97A4A; --cuivre-fonce:#7C4C2C; --cuivre-f:#FAF1E9; --cuivre-p:#E3C9AE;
+    --encre:#2A2722; --encre-d:#6B665D; --filet:#D9CFBC;
+    --vert:#4A6B52; --vert-f:#EEF3EE; --rouge:#8E3B26; --rouge-f:#F8ECE7;
+    --serif:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans:'Jost', 'Century Gothic', 'Helvetica Neue', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--parchemin); color:var(--encre); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1060px; margin:0 auto; padding:40px 20px 90px; }
+  .verrou { display:block; width:176px; height:auto; margin:0 0 26px; }
+  .eyebrow { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--cuivre-fonce); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-weight:300; font-size:clamp(34px,5.4vw,54px); line-height:1.04; letter-spacing:-.015em; color:var(--indigo); margin:0 0 16px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-weight:400; font-size:clamp(25px,3.3vw,33px); line-height:1.1; color:var(--indigo); margin:0 0 10px; text-wrap:balance; }
+  .chapeau { max-width:68ch; font-size:16.5px; color:var(--encre-d); margin:0; }
+  .chapeau b, .intro b, .legende b, .carte b:not(.t) { color:var(--encre); font-weight:500; }
+  section { margin-top:58px; }
+  .num { font-family:var(--serif); font-size:15px; color:var(--cuivre-fonce); letter-spacing:.1em; margin:0 0 4px; }
+  .intro { max-width:72ch; color:var(--encre-d); margin:0 0 20px; }
+  .legende { font-size:13px; color:var(--encre-d); margin:12px 0 0; max-width:78ch; }
+  .defile { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.large { min-width:700px; }
+  th { text-align:left; font-weight:400; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:8px 10px; border-bottom:1px solid var(--filet); }
+  td { padding:10px 10px; border-bottom:1px solid #EAE2D2; vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  td.q { color:var(--indigo); }
+  .etq { display:inline-block; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .etq.non { background:var(--cuivre-f); color:var(--cuivre-fonce); border:1px solid var(--cuivre-p); }
+  .etq.ok { background:var(--vert-f); color:var(--vert); border:1px solid #C7D6C9; }
+  .etq.ko { background:var(--rouge-f); color:var(--rouge); border:1px solid #E7C4B8; }
+
+  .ecran { border:1px solid var(--filet); border-radius:4px; background:#fff; box-shadow:0 14px 40px rgba(30,33,80,.08); overflow:hidden; }
+  .ecran__barre { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--encre-d); padding:10px 16px; border-bottom:1px solid var(--filet); background:var(--ivoire); }
+  .ecran__barre i { font-style:normal; color:var(--cuivre-fonce); }
+  .ecran__corps { padding:16px 18px 20px; }
+  .pastille { margin-left:auto; display:inline-flex; align-items:center; gap:8px; text-transform:none; letter-spacing:0; font-size:12.5px; border-radius:999px; padding:4px 12px; border:1px solid; cursor:pointer; background:#fff; }
+  .pastille::before { content:''; width:8px; height:8px; border-radius:999px; background:currentColor; }
+  .pastille.vert { color:var(--vert); border-color:#C7D6C9; }
+  .pastille.hors { color:var(--cuivre-fonce); border-color:var(--cuivre-p); background:var(--cuivre-f); }
+  .pastille.sync { color:var(--indigo); border-color:#C9CCE0; background:var(--indigo-f); }
+  .bouton { font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; padding:8px 14px; border-radius:3px; border:1px solid var(--filet); background:#fff; color:var(--encre); white-space:nowrap; }
+  .bouton:hover { border-color:var(--cuivre); }
+  .bouton.cuivre { background:var(--cuivre); border-color:var(--cuivre); color:#fff; }
+  .bouton.indigo { background:var(--indigo); border-color:var(--indigo); color:#F3EDE1; }
+  .gestes { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .bandeau { border-left:2px solid var(--cuivre); background:var(--cuivre-f); padding:10px 14px; border-radius:0 4px 4px 0; font-size:13.5px; color:var(--cuivre-fonce); margin-bottom:12px; }
+  .file { border:1px solid var(--filet); border-radius:3px; }
+  .file__tete { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 14px; border-bottom:1px solid var(--filet); background:var(--ivoire); }
+  .file__tete b { font-family:var(--serif); font-weight:500; font-size:20px; color:var(--indigo); }
+  .file__tete span { font-size:12.5px; color:var(--encre-d); }
+  .geste { display:grid; grid-template-columns:54px minmax(0,1fr) auto; gap:12px; align-items:center; padding:9px 14px; border-bottom:1px solid #EFE8DA; font-size:13.5px; }
+  .geste:last-child { border-bottom:0; }
+  .geste .h { color:var(--cuivre-fonce); font-variant-numeric:tabular-nums; font-size:12.5px; }
+  .geste small { display:block; color:var(--encre-d); font-size:12px; }
+  .geste.parti { opacity:.45; }
+  .vide { padding:14px; color:var(--encre-d); font-size:13.5px; }
+
+  .deux { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px) { .deux { grid-template-columns:1fr; } }
+  .tel { border:1px solid var(--filet); border-radius:18px; background:#fff; padding:14px; }
+  .tel b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); }
+  .tel small { color:var(--encre-d); font-size:12.5px; }
+  .conflit { margin-top:14px; border:1px solid #E7C4B8; background:var(--rouge-f); border-radius:3px; padding:12px 14px; font-size:13.5px; color:var(--rouge); }
+  .conflit b { color:var(--rouge); font-weight:500; }
+  .conflit .cote { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; margin:10px 0; }
+  @media (max-width:560px) { .conflit .cote { grid-template-columns:1fr; } }
+  .conflit .cote div { background:#fff; border:1px solid #EAD3CA; border-radius:3px; padding:8px 10px; color:var(--encre); font-size:13px; }
+  .conflit .cote small { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--encre-d); }
+
+  .ouverture { max-width:380px; margin:0 auto; border:1px solid var(--filet); border-radius:22px; overflow:hidden; background:var(--parchemin); }
+  .ouverture__haut { background:var(--indigo); color:#F3EDE1; padding:14px 16px; font-family:var(--serif); font-size:20px; }
+  .ouverture__corps { padding:14px 16px 18px; display:grid; gap:10px; font-size:13.5px; }
+
+  .grille { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  @media (max-width:760px) { .grille { grid-template-columns:1fr; } }
+  .carte { min-width:0; border:1px solid var(--filet); border-radius:3px; background:var(--ivoire); padding:15px 17px; font-size:14px; color:var(--encre-d); }
+  .carte b.t { display:block; font-family:var(--serif); font-weight:500; font-size:19px; color:var(--indigo); margin-bottom:3px; }
+  .regle { background:var(--indigo); color:#F3EDE1; padding:22px 24px; border-radius:4px; }
+  .regle p { font-family:var(--serif); font-size:20px; line-height:1.4; margin:0; }
+  .regle p + p { margin-top:8px; }
+  .atrancher { border-left:2px solid var(--cuivre); background:var(--cuivre-f); padding:16px 18px; border-radius:0 4px 4px 0; font-size:14px; color:var(--encre-d); }
+  .atrancher b { color:var(--cuivre-fonce); font-weight:500; }
+  .atrancher ul { margin:8px 0 0; padding-left:20px; }
+  .atrancher li + li { margin-top:6px; }
+  .pied { margin-top:56px; padding-top:18px; border-top:1px solid var(--filet); font-size:12px; color:var(--encre-d); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+</style>
+
+<div class="page">
+  <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+  <p class="eyebrow">Le Trône · tout l’outil · Maquette à valider</p>
+  <h1>Le Trône hors ligne</h1>
+  <p class="chapeau">Le réseau tombe au comptoir : on continue d’encaisser, de poser les rendez-vous, de noter les dépenses. <b>Le téléphone fait foi</b>, chaque geste attend dans une file, et tout part de lui-même quand le réseau revient. Rien ne se perd, même si on ferme l’application entre-temps.</p>
+
+  <section>
+    <p class="num">I</p>
+    <h2>Ce qui se passe aujourd’hui</h2>
+    <p class="intro">Lu dans le code, le 4 octobre 2026.</p>
+    <div class="defile">
+      <table class="large">
+        <thead><tr><th>Situation</th><th>Aujourd’hui</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="q">Le réseau tombe, le Trône reste ouvert</td><td>Les données sont déjà sur le téléphone ; on peut écrire, et la poussée se retente jusqu’au retour.</td><td><span class="etq ok">tient</span></td></tr>
+          <tr><td class="q">On recharge ou on rouvre le Trône sans réseau</td><td>Rien ne se garde de l’application elle-même : <b>la page ne s’ouvre pas</b>.</td><td><span class="etq ko">manque</span></td></tr>
+          <tr><td class="q">On a écrit hors ligne, puis fermé l’application</td><td>À la réouverture, <b>le serveur l’emporte</b> : les gestes d’une séance précédente sont perdus.</td><td><span class="etq ko">perte</span></td></tr>
+          <tr><td class="q">La session et les droits, sans réseau</td><td>Le Trône redemande qui est connecté au serveur ; sans réponse, il reste sur « Un instant… », tous les écrans fermés.</td><td><span class="etq ko">bloque</span></td></tr>
+          <tr><td class="q">WhatsApp, facture envoyée, KkiaPay</td><td>Le geste échoue, et il faut le refaire plus tard.</td><td><span class="etq non">à refaire</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">II</p>
+    <h2>La pastille et la file d’attente</h2>
+    <p class="intro">En haut du Trône, la pastille « Synchronisé » dit désormais trois états. Elle s’ouvre sur la file : chaque geste fait sans réseau, à son heure, et les envois qui attendent. Essayez les boutons.</p>
+    <div class="gestes">
+      <button class="bouton" data-act="couper">Couper le réseau</button>
+      <button class="bouton" data-act="geste">Faire un geste</button>
+      <button class="bouton cuivre" data-act="retour">Le réseau revient</button>
+    </div>
+    <div class="ecran">
+      <div class="ecran__barre">Le Trône <i>·</i> Tableau de bord <span class="pastille vert" data-pastille>Synchronisé</span></div>
+      <div class="ecran__corps">
+        <div class="bandeau" data-bandeau hidden>Hors ligne depuis 14 h 02. Vos gestes sont gardés sur ce téléphone et partiront au retour du réseau. Les paiements KkiaPay attendent le réseau.</div>
+        <div class="file">
+          <div class="file__tete"><b>La file d’attente</b><span data-compte>Rien en attente.</span></div>
+          <div data-file><div class="vide">Tout est parti. Ce téléphone et la Maison disent la même chose.</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="legende">La file <b>survit à la fermeture</b> de l’application et au redémarrage du téléphone. Un geste ne la quitte que lorsque le serveur l’a reçu. Les messages WhatsApp et les envois de facture préparés hors ligne y attendent aussi et partent d’eux-mêmes, dans le respect de la salle d’attente des envois (heures calmes comprises).</p>
+  </section>
+
+  <section>
+    <p class="num">III</p>
+    <h2>Le retour du réseau : le dernier geste gagne</h2>
+    <p class="intro">Deux téléphones ont modifié la même fiche pendant la coupure. À la synchronisation, chaque ligne compare <b>l’heure des deux gestes</b> : le plus récent l’emporte. L’autre version n’est jamais jetée : elle reste lisible, et une alerte le dit.</p>
+    <div class="deux">
+      <div class="tel"><b class="t">Téléphone de l’accueil</b><small>hors ligne · 13 h 40</small><p style="margin:8px 0 0;font-size:13.5px">Rendez-vous de Awa K. déplacé à <b>16 h 00</b>.</p></div>
+      <div class="tel"><b class="t">Téléphone de Brice</b><small>hors ligne · 14 h 02</small><p style="margin:8px 0 0;font-size:13.5px">Même rendez-vous déplacé à <b>17 h 30</b>.</p></div>
+    </div>
+    <div class="conflit">
+      <b>Le rendez-vous de Awa K. avait changé ailleurs.</b> Le geste de 14 h 02 (téléphone de Brice) est le plus récent : il est gardé. Le vôtre, de 13 h 40, reste lisible ici et dans « La vie de la pièce ».
+      <div class="cote">
+        <div><small>Gardé · 14 h 02 · Brice</small>17 h 30</div>
+        <div><small>Le vôtre · 13 h 40 · Accueil</small>16 h 00</div>
+      </div>
+      <button class="bouton">Reprendre ma version</button> <button class="bouton">C’est bien ainsi</button>
+    </div>
+    <p class="legende">« Reprendre ma version » est un nouveau geste, à son heure : il gagne à son tour, et la trace garde les trois. L’heure du téléphone doit être réglée sur <b>« heure automatique »</b> : c’est elle qui départage.</p>
+  </section>
+
+  <section>
+    <p class="num">IV</p>
+    <h2>Ouvrir le Trône sans réseau</h2>
+    <p class="intro">Le téléphone garde l’application, la dernière personne connectée et ses droits. Il s’ouvre comme d’habitude, la pastille en cuivre.</p>
+    <div class="ouverture">
+      <div class="ouverture__haut">Le Trône · Bonsoir</div>
+      <div class="ouverture__corps">
+        <span class="pastille hors" style="margin:0;justify-self:start">Hors ligne · 3 gestes en attente</span>
+        <div>Connectée hors ligne : <b>Accueil</b>, droits gardés depuis la dernière connexion.</div>
+        <div style="color:var(--encre-d);font-size:12.5px">Sans réseau depuis plus de 7 jours, le Trône demande de se reconnecter avant de s’ouvrir. Les gestes en attente restent sur le téléphone et partent dès la connexion.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">V</p>
+    <h2>Ce qui change</h2>
+    <div class="grille">
+      <div class="carte"><b class="t">L’application reste sur le téléphone</b>Le service du Trône garde ses fichiers (environ 5 Mo) ; les photos se gardent à mesure qu’on les voit. Une mise à jour s’annonce : « Une nouvelle version est prête · Recharger ».</div>
+      <div class="carte"><b class="t">La file d’attente durable</b>Chaque geste local est noté avec son heure, table par table, et survit à la fermeture. Au retour, il est rejoué sur l’état du serveur au lieu d’être effacé par lui.</div>
+      <div class="carte"><b class="t">Le dernier geste gagne</b>Ligne par ligne, l’heure du geste contre l’heure de la dernière écriture au serveur. La version écartée est gardée et signalée.</div>
+      <div class="carte"><b class="t">La session et les droits, 7 jours</b>Le Trône s’ouvre pour la dernière personne connectée, avec ses droits, jusqu’à 7 jours sans réseau.</div>
+      <div class="carte"><b class="t">Les envois attendent</b>WhatsApp, facture envoyée, avis Google : préparés hors ligne, ils partent au retour. KkiaPay, lui, demande le réseau : le bouton le dit.</div>
+      <div class="carte"><b class="t">La pastille dit vrai</b>Synchronisé · Hors ligne, N gestes en attente · Synchronisation en cours. Elle ouvre la file et les conflits.</div>
+    </div>
+    <div class="regle" style="margin-top:14px">
+      <p>Le téléphone fait foi tant que le réseau manque.</p>
+      <p>Au retour, chaque geste arrive à son heure, et rien ne se perd.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="num">VI</p>
+    <h2>Ce qu’il faut savoir</h2>
+    <div class="atrancher">
+      <b>Les limites, dites d’avance :</b>
+      <ul>
+        <li>Hors ligne, un téléphone <b>ne voit pas</b> ce que les autres écrivent : chacun travaille sur son état, tout se rejoint au retour.</li>
+        <li>Un rendez-vous pris sur Ma Couronne pendant la coupure n’apparaît qu’au retour du réseau. Deux rendez-vous peuvent donc se poser sur le même créneau : la synchronisation le signale.</li>
+        <li>La mémoire du navigateur est limitée (environ 5 à 10 Mo). Le Trône la surveille déjà (« Cet appareil ») ; la file d’attente est petite.</li>
+        <li>Construit en trois temps, publiés l’un après l’autre : <b>1.</b> la file durable et le dernier geste ; <b>2.</b> l’ouverture sans réseau (application, session, droits) ; <b>3.</b> les envois en attente et la pastille complète.</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="pied"><span>Maison MND · Le Trône · maquette du 4 octobre 2026</span><span>Les noms et heures de cette page sont des exemples.</span></div>
+</div>
+
+<script>
+(() => {
+  const pastille = document.querySelector('[data-pastille]');
+  const bandeau = document.querySelector('[data-bandeau]');
+  const file = document.querySelector('[data-file]');
+  const compte = document.querySelector('[data-compte]');
+  const EXEMPLES = [
+    ['Encaissement', 'F-2026-0911 · 45 000 F · espèces · Accueil espèces'],
+    ['Rendez-vous', 'Awa K. · déplacé à 16 h 00'],
+    ['Dépense', 'Eau pour l’atelier · 2 000 F'],
+    ['Fiche cliente', 'Mireille A. · téléphone corrigé'],
+    ['Envoi WhatsApp', 'Confirmation du rendez-vous de Fatou M. · partira au retour'],
+    ['Facture envoyée', 'F-2026-0912 · par WhatsApp · partira au retour'],
+  ];
+  let enLigne = true; let gestes = []; let n = 0; let minute = 2;
+  const heure = () => `14:${String(minute).padStart(2, '0')}`;
+  const rend = () => {
+    if (!gestes.length) {
+      file.innerHTML = '<div class="vide">Tout est parti. Ce téléphone et la Maison disent la même chose.</div>';
+      compte.textContent = 'Rien en attente.';
+    } else {
+      file.innerHTML = gestes.map((g) => `<div class="geste${g.parti ? ' parti' : ''}"><span class="h">${g.h}</span><span><b>${g.quoi}</b><small>${g.detail}</small></span><span class="etq ${g.parti ? 'ok' : 'non'}">${g.parti ? 'parti' : 'en attente'}</span></div>`).join('');
+      const reste = gestes.filter((g) => !g.parti).length;
+      compte.textContent = reste ? `${reste} geste${reste > 1 ? 's' : ''} en attente` : 'Tout est parti.';
+    }
+    const reste = gestes.filter((g) => !g.parti).length;
+    pastille.className = 'pastille ' + (enLigne ? (reste ? 'sync' : 'vert') : 'hors');
+    pastille.textContent = enLigne ? (reste ? `Synchronisation · ${reste} restant${reste > 1 ? 's' : ''}` : 'Synchronisé') : `Hors ligne · ${reste} geste${reste > 1 ? 's' : ''} en attente`;
+    bandeau.hidden = enLigne;
+  };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    if (b.dataset.act === 'couper') { enLigne = false; }
+    if (b.dataset.act === 'geste') {
+      const [quoi, detail] = EXEMPLES[n % EXEMPLES.length]; n++; minute += 3;
+      gestes = gestes.filter((g) => !g.parti);
+      gestes.push({ h: heure(), quoi, detail, parti: enLigne });
+      if (enLigne) setTimeout(() => { gestes = gestes.filter((g) => !g.parti); rend(); }, 900);
+    }
+    if (b.dataset.act === 'retour' && !enLigne) {
+      enLigne = true;
+      gestes.forEach((g, i) => setTimeout(() => { g.parti = true; rend(); }, 500 * (i + 1)));
+      setTimeout(() => { gestes = []; rend(); }, 500 * (gestes.length + 2));
+    }
+    rend();
+  });
+  rend();
+})();
+</script>
+</body>
+</html>

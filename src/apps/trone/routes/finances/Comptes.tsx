@@ -10,7 +10,7 @@ import {
   type Client, type Family,
 } from '../../../../shared/clients';
 import {
-  useCredits, creditMovementsStore, creditBalanceOf, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
+  useCredits, creditMovementsStore, creditBalanceOf, usagesSansFacture, useInvoices, invoicesStore, invoiceTotal, invoiceResteXof, useCashboxes, cashboxCurrency,
   usePaymentMethods, moyensAOffrir,
   type CreditHolder, type CreditMovement, type Invoice,
 } from '../../../../shared/finance';
@@ -26,6 +26,7 @@ import { todayISO } from './_shared';
    dans leur propre écran — 23 août 2026. */
 import './finances.css';
 import { ChampDeDate } from '../../../../ds/dates';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Comptes & Avoirs — les comptes familles (regroupement + parent payeur) et les
    avoirs (crédit prépayé) qui vivent sur ces comptes. Un avoir se verse d'avance
@@ -168,8 +169,14 @@ export default function Comptes() {
     const aid = params.get('avoir');
     if (!aid) return;
     const m = credits.find((x) => x.id === aid);
+    /* UNE CARTE CADEAU PAS ENCORE VENUE (2 octobre 2026) ne se corrige pas
+       ici : elle n'a pas de compte, elle vit dans Vente & Caisse. */
+    if (m && m.holderType === 'carte') {
+      window.location.hash = '#/cartes-cadeaux';
+      return;
+    }
     if (m) {
-      setDeposit({ holder: { type: m.holderType, id: m.holderId }, kind: m.kind === 'remboursement' ? 'remboursement' : 'depot', edite: m });
+      setDeposit({ holder: { type: m.holderType as 'family' | 'client', id: m.holderId }, kind: m.kind === 'remboursement' ? 'remboursement' : 'depot', edite: m });
       setRegistre('avoirs');
     }
     const p2 = new URLSearchParams(params);
@@ -437,7 +444,7 @@ export default function Comptes() {
                     <div className="mnd-muted" style={{ fontSize: 12, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span>★ <b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{nameOf(f.payerClientId) || 'payeur à désigner'}</b> règle pour tous</span>
                       {payeuse?.phone && (
-                        <WaLien phone={payeuse.phone} message={`Bonjour ${payeuse.name.split(' ')[0]}, la Maison MND revient vers vous au sujet de votre compte famille « ${f.name} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
+                        <WaLien phone={payeuse.phone} message={`Bonjour ${appelDe(payeuse)}, la Maison MND revient vers vous au sujet de votre compte famille « ${f.name} ».`} style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--copper-700)' }} />
                       )}
                     </div>
 
@@ -963,7 +970,7 @@ function DepositModal({
      versé en dollars ; le compte de la cliente se crédite en francs, et le
      tiroir compte ses billets. */
   const caissesMaison = cashboxes.filter((b) => b.branchId === branchId);
-  const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
+  const caisseParDefaut = (caissesMaison.find((b) => b.name === 'Terrasse · Tiroir espèces') ?? caissesMaison.find((b) => b.name === 'Caisse principale') ?? caissesMaison[0])?.name ?? 'Caisse principale';
   const [boxName, setBoxName] = useState(edite?.cashbox ?? '');
   const caisseActive = caissesMaison.some((b) => b.name === boxName) ? boxName : caisseParDefaut;
   /* LA LISTE DES PARAMÈTRES, PAS UNE COPIE — 5 septembre 2026. Voir
@@ -1115,6 +1122,20 @@ function LedgerModal({
   const [invoices] = useInvoices();
   const navigate = useNavigate();
   const factureDe = (m: CreditMovement) => invoices.find((i) => i.id === m.invoiceId);
+  /* L'AVOIR DÉPENSÉ POUR UNE FACTURE DISPARUE se rend d'un geste (3 octobre
+     2026) : avant ce jour, supprimer la pièce d'un rendez-vous déjà effacé
+     laissait le compte débité. Voir `usagesSansFacture`. */
+  const orphelins = new Set(usagesSansFacture(rows, invoices).map((m) => m.id));
+  const rendre = async (m: CreditMovement) => {
+    if (!await demande({
+      quoi: 'Avoir',
+      titre: `Rendre ${fmtMoney(m.amountXof, currency)} à l’avoir ?`,
+      dit: 'La facture que cet avoir réglait n’existe plus. Le montant revient sur le compte, prêt à servir.',
+      accepter: 'Rendre à l’avoir',
+      refuser: 'Laisser',
+    })) return;
+    creditMovementsStore.set((prev) => prev.filter((x) => x.id !== m.id));
+  };
   const label = (m: CreditMovement) => {
     if (m.kind === 'depot') return 'Dépôt d’avoir';
     if (m.kind === 'remboursement') return 'Remboursement';
@@ -1146,6 +1167,15 @@ function LedgerModal({
                       style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
                     >
                       Corriger
+                    </button>
+                  )}
+                  {orphelins.has(m.id) && (
+                    <button
+                      type="button"
+                      onClick={() => void rendre(m)}
+                      style={{ alignSelf: 'flex-start', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 11, fontWeight: 600, color: 'var(--copper-700)' }}
+                    >
+                      Sa facture n’existe plus · Rendre à l’avoir
                     </button>
                   )}
                   {m.kind === 'usage' && factureDe(m) && (

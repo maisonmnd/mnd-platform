@@ -64,6 +64,10 @@ export type Receipt = {
   label: string;
   invoiceId?: string;
   apptId?: string;
+  /** L'heure du versement (HH:mm), quand le comptoir l'a notée. */
+  heure?: string;
+  /** Qui l'a encaissé, quand le Trône le savait (depuis le 3 octobre 2026). */
+  encaissePar?: string;
 };
 
 const LABEL_KIND: Record<ReceiptKind, string> = {
@@ -243,6 +247,8 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
         ref: i.number,
         label: i.lines.map((l) => l.label).join(' + ') || 'Règlement',
         invoiceId: i.id,
+        ...((p.time ?? i.time) ? { heure: p.time ?? i.time } : {}),
+        ...((p.encaissePar ?? i.encaissePar) ? { encaissePar: p.encaissePar ?? i.encaissePar } : {}),
       });
     }
     /* ①bis Le pourboire, sur SA ligne — même jour, même preuve, mais caisse
@@ -275,6 +281,11 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
   const onlineByAppt = new Set<string>();
   for (const p of s.online) {
     if (p.branchId !== s.branchId || p.status !== 'success') continue;
+    /* UNE CARTE CADEAU RÉGLÉE EN LIGNE (`cc-…`, 2 octobre 2026) entre au
+       registre par son DÉPÔT D'AVOIR (⑥), dans la caisse KkiaPay, qui dit
+       la carte et pour qui. Le paiement KkiaPay qui l'a réglée la compterait
+       une seconde fois : il reste au registre des transactions, pas ici. */
+    if (p.partnerId?.startsWith('cc-')) continue;
     if (p.partnerId) onlineByAppt.add(p.partnerId);
     const appt = s.appointments.find((a) => a.id === p.partnerId);
     out.push({
@@ -289,6 +300,7 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       ref: p.id,
       label: appt ? `Acompte · ${s.apptLabel(appt)}` : 'Acompte en ligne',
       apptId: p.partnerId,
+      ...(p.at && !Number.isNaN(new Date(p.at).getTime()) ? { heure: new Date(p.at).toTimeString().slice(0, 5) } : {}),
     });
   }
 
@@ -404,7 +416,10 @@ export function buildReceipts(s: ReceiptSources): Receipt[] {
       kind: 'avoir',
       date: m.date.slice(0, 10),
       clientId: m.holderType === 'client' ? m.holderId : undefined,
-      clientName: m.holderType === 'client'
+      clientName: m.holderType === 'carte'
+        /* Une carte cadeau pas encore venue : sa note dit le code et pour qui. */
+        ? 'Carte cadeau'
+        : m.holderType === 'client'
         ? s.nameOf(m.holderId)
         : (s.familleNommee?.(m.holderId) ?? 'Compte famille'),
       amountXof: m.amountXof,

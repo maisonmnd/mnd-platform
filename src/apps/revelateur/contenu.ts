@@ -8,6 +8,10 @@
    barre finale ; aucune adresse absolue, aucun prix, aucun témoignage. */
 
 import type { Accueil, Commun, Galerie, Page } from './contenu-types';
+import { PARRAINAGE } from './communaute';
+
+/* La communauté, le parrainage, les ingrédients, l'avant / après : 28 septembre 2026. */
+export * from './communaute';
 
 export const COMMUN: Commun = {
   nom: 'Maison MND',
@@ -92,6 +96,8 @@ export const COMMUN: Commun = {
        tout le menu et ne garde que le bouton de rendez-vous : cette entrée
        ne change donc rien sur téléphone. */
     { texte: 'La Maison', vers: '/maison-mnd/' },
+    /* « RAJOUTER NOTRE HISTOIRE » AU MENU (Yéman, 30 septembre 2026). */
+    { texte: 'Notre histoire', vers: '/notre-histoire/' },
     /* La galerie s'intercale entre la Maison et le Journal : on regarde
        avant de lire. Sous 860 pixels la barre cache tout le menu, cette
        entrée ne change donc rien sur téléphone ; le pied de page la porte
@@ -113,6 +119,7 @@ export const COMMUN: Commun = {
           { texte: 'Abonnements', vers: '/abonnements/' },
           { texte: 'Formations', vers: '/formations/' },
           { texte: 'Les offres', vers: '/les-offres/' },
+          { texte: 'La Couronne à domicile', vers: '/couronne-a-domicile/' },
         ],
       },
       {
@@ -120,10 +127,14 @@ export const COMMUN: Commun = {
         liens: [
           { texte: 'La Maison MND', vers: '/maison-mnd/' },
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+          { texte: 'Notre histoire', vers: '/notre-histoire/' },
           { texte: 'Le Journal', vers: '/journal/' },
           { texte: 'Vos questions', vers: '/faq/' },
           { texte: 'Le diagnostic locks', vers: '/mon-parcours/' },
           { texte: 'Offrir la Maison', vers: '/offrir/' },
+          { texte: 'Parrainer une amie', vers: '/parrainage/' },
+          { texte: 'Nos ingrédients', vers: '/ingredients/' },
+          { texte: 'Nos engagements', vers: '/engagements/' },
         ],
       },
       {
@@ -201,8 +212,8 @@ export const COMMUN: Commun = {
        vient de choisir son geste, son jour et son heure. Le rappel n'est
        plus le premier geste de la Maison, c'est le deuxième. */
     suite: [
-      ['Votre place est retenue', "Le créneau est mis de côté à votre nom, dès l'envoi."],
-      ['La Maison confirme', "Un mot sur WhatsApp, pendant les heures d'ouverture."],
+      ['C’est réservé', "Le créneau est à votre nom dès l'envoi : la Maison a vérifié qu'il était libre."],
+      ['La confirmation arrive sur WhatsApp', "Dans la seconde. La Maison choisit qui s'occupe de vous."],
       ['Vous venez', 'Votre espace Ma Couronne s’ouvre à votre premier rendez-vous.'],
     ],
   },
@@ -223,7 +234,7 @@ export const ACCUEIL: Accueil = {
      le savez ») ; cette page-ci est celle où l'on rencontre la Maison pour la
      première fois, et une demi-phrase dans une langue qu'on ne lit pas n'y
      accueille personne. */
-  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes beaux, et vous le savez.' },
+  devise: { fon: 'Mi nyɔ́ ɖɛkpɛ', sens: 'Vous êtes beaux, votre beauté est déjà là.' },
   /* Six mots, trois lignes : « la phrase est beaucoup trop longue, encore plus
      de fluidité » (Yéman, 22 septembre 2026). La liste des parcours est partie
      du paragraphe, les cinq portes la disent juste dessous. */
@@ -234,7 +245,10 @@ export const ACCUEIL: Accueil = {
      du dessous est de lui, mot pour mot : « la maison de référence des locks
      premium à Cotonou », ÊTRE et non devenir. */
   h1: 'Révélez ce que vous avez de plus beau.',
-  bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'La maison de référence des locks premium à Cotonou'],
+  /* LE 30 SEPTEMBRE 2026, LA MAISON NE SE DIT PLUS « LA RÉFÉRENCE » : « la
+     maison n'a pas besoin de dire qu'elle est la référence : elle dit ce
+     qu'elle est, et la personne conclut » (Yéman, avec le récit). */
+  bande: ['Locks créées', 'Locks réparées', 'Locks soignées', 'Une maison de famille pour les locks, à Cotonou'],
   boutons: [
     { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
     { texte: 'Réserver', vers: '/reserver/' },
@@ -252,14 +266,21 @@ export const ACCUEIL: Accueil = {
      maisons, les marques défilent, la carte cadeau s'annonce, la galerie
      donne quatre photos et mène à la sienne. */
   objectif: {
-    sur: 'Notre objectif',
-    titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-    ligne: "Une maison de famille née en 2010, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+    /* « NOTRE OBJECTIF » ANNONÇAIT UN PLAN D'ENTREPRISE, PAS UNE MAISON — 30
+       septembre 2026. Le titre et le texte sont ceux de Yéman (« Textes pour
+       le site », section 4) : la Maison dit ce qu'elle est, sans se vanter. */
+    sur: 'La Maison',
+    titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
+    ligne: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
     piliers: [
       { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
-      { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+      { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
       { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
     ],
+    suite: {
+      ligne: "Il y a cinq façons d'entrer dans la Maison. La vôtre dépend d'où en est votre couronne.",
+      bouton: { texte: 'Voir les cinq portes', vers: '#portes' },
+    },
   },
   diagnostic: {
     sur: 'Le diagnostic locks',
@@ -284,7 +305,13 @@ export const ACCUEIL: Accueil = {
     /* Quatre visages déjà servis ailleurs sur le site et inscrits au
        registre ; la galerie d'hier, avec son défilé, reste telle quelle et
        c'est là que mène le bouton. */
-    images: ['cliente-12.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
+    /* 1er octobre 2026, au matin : « change la première photo avec celle
+       attachée » (Yéman). cliente-17 ouvre la bande ; c'est la femme du premier
+       écran, dans la robe de `regard.jpg`, et c'est voulu. cliente-16 reste
+       à la galerie. */
+    /* Le même matin : « rechanger la photo 1 avec cette image plutôt » (Yéman). cliente-6
+       prend la première place ; cliente-17 passe à la galerie. */
+    images: ['cliente-6.jpg', 'cliente-7.jpg', 'cliente-13.jpg', 'trois-couronnes.jpg'],
     bouton: { texte: 'Voir la galerie', vers: '/galerie/' },
   },
   /* LES OFFRES SUR L'ACCUEIL, À LA MANIÈRE DES « DEALS » — 22 septembre 2026.
@@ -318,7 +345,7 @@ export const ACCUEIL: Accueil = {
      ci-dessous les couvre toutes les deux, et rien dans ces images n'est
      nommable séparément sans nommer une femme. */
   portes: {
-    sur: 'Ce que la Maison fait',
+    sur: 'Par où entrer',
     titre: 'Cinq portes, une méthode.',
     ligne: "Cinq parcours qui ne commencent pas au même endroit et ne se déroulent pas pareil. Trouvez le vôtre à sa situation de départ.",
     /* LES CINQ PORTES DE LA MAQUETTE VALIDÉE (27 septembre 2026) : la
@@ -355,9 +382,15 @@ export const ACCUEIL: Accueil = {
        Cotonou, une maison de famille, ses mains, sa direction, l'Académie
        née de leurs gestes, les couronnes qui reviennent. */
     sur: 'Notre histoire',
-    titre: 'Deux mains, une direction, une maison.',
-    ligne: "En 2010, à Cotonou, Brice et Yéman ouvrent une maison de famille pour les locks. Lui tient les mains, elle tient la direction. Seize ans plus tard, des couronnes de la première année reviennent encore s'asseoir dans le fauteuil.",
-    message: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
+    /* ALIGNÉ SUR LE RÉCIT DES FONDATEURS — 30 septembre 2026. Leurs
+       phrases, coupées, jamais réécrites ; le bouton mène au récit entier. */
+    titre: 'Nous avons commencé sur une terrasse.',
+    ligne: "Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester. Seize ans plus tard, on vient chez nous s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne.",
+    /* LA PHRASE DE BRICE — 30 septembre 2026. L'ancienne citation parlait de
+       formation ; sous la photo des deux, la note forte du récit est celle
+       qui a tenu la maison debout, les soirs sans clients. */
+    message: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+    legende: 'Brice à Yéman, les soirs sans clients.',
     trois: ['Prendre soin', 'Transformer', 'Transmettre'],
     image: 'fondateurs.jpg',
   },
@@ -366,7 +399,7 @@ export const ACCUEIL: Accueil = {
      rappel garde sa page et sa place au pied ; ici, la Maison signe. */
   appel: {
     titre: 'Mi nyɔ́ ɖɛkpɛ.',
-    ligne: 'Vous êtes beaux, et vous le savez.',
+    ligne: 'Vous êtes beaux, votre beauté est déjà là.',
     boutons: [
       { texte: 'Réserver', vers: '/reserver/' },
       { texte: 'Faire mon diagnostic', vers: '/mon-parcours/' },
@@ -398,6 +431,8 @@ export const GALERIE: Galerie = {
     'cliente-9.jpg', 'entretien.jpg', 'cliente-10.jpg', 'mnd-kids.jpg', 'cliente-11.jpg',
     'enfant-jardin.jpg', 'cliente-12.jpg', 'trois-couronnes.jpg', 'cliente-13.jpg',
     'cliente-1.jpg', 'cliente-3.jpg', 'cliente-4.jpg', 'cliente-5.jpg',
+    /* Trois portraits remis par Yéman le 1er octobre 2026, accord des trois. */
+    'cliente-16.jpg', 'cliente-14.jpg', 'cliente-15.jpg', 'cliente-17.jpg',
   ],
 };
 
@@ -610,6 +645,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         titre: 'Ma couronne mérite une attention régulière.',
         corps: "Une couronne ne se soigne pas une fois. Elle se suit. L'abonnement MND est une continuité de soin : vos rendez-vous pensés à l'avance, un rythme qui vous convient.",
+        image: 'cliente-14.jpg',
       },
       {
         type: 'grille',
@@ -647,10 +683,10 @@ export const PAGES: Page[] = [
   },
   {
     chemin: '/maison-mnd/',
-    titre: 'La Maison MND, salon de locks à Cotonou',
-    description: 'Découvrez la Maison MND, maison boutique de soin et de création de dreadlocks afro à Cotonou : ses gestes, sa méthode, son atelier et son Académie.',
+    titre: 'La Maison MND, maison de famille pour les locks à Cotonou',
+    description: "Découvrez la Maison MND à Cotonou, une maison de famille où l'on crée, répare et soigne les dreadlocks : ses gestes, sa méthode, son Académie.",
     h1: 'La Maison MND, à Cotonou',
-    sur: "L'univers MND",
+    sur: 'Depuis 2010',
     besoin: 'inconnu',
     sections: [
       /* LA MAISON REVISITÉE — 27 septembre 2026 : « rajoute des sections
@@ -661,47 +697,35 @@ export const PAGES: Page[] = [
          se lisent désormais dans l'univers. */
       {
         type: 'texte',
-        sur: 'Notre objectif',
-        titre: 'La référence des locks premium en Afrique. Depuis Cotonou.',
-        corps: "Une maison boutique de soin et de création de dreadlocks afro, née en 2010 à Cotonou, où l'on crée, répare et soigne les locks. On vient à Cotonou pour ses locks parce que c'est ici que le savoir-faire vit, et d'ici qu'il part : vers nos branches, notre Académie, nos produits.",
+        sur: 'La Maison',
+        titre: 'Une maison de famille pour les locks. Depuis 2010, à Cotonou.',
+        corps: "On ne vient pas ici pour une coiffure. On vient s'asseoir, déposer ce que l'on porte, et repartir avec sa couronne. Ce savoir-faire est né sur une terrasse d'Akpakpa. Il voyage aujourd'hui avec notre Académie, nos produits et nos autres adresses, sans jamais quitter ses racines.",
         image: 'regard.jpg',
       },
       {
         type: 'piliers',
         items: [
           { titre: "Regarder d'abord", ligne: "Un diagnostic avant tout geste. On ne resserre pas ce qu'on n'a pas vu." },
-          { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est le vrai luxe." },
+          { titre: 'Faire durer', ligne: "Des locks qu'on garde des années, pas des mois. C'est cela, le vrai luxe." },
           { titre: 'Transmettre', ligne: 'Une Académie, pour que la méthode voyage plus loin que nos mains.' },
         ],
       },
       {
         type: 'texte',
         sur: 'Notre histoire',
-        titre: 'Deux mains, une direction, une maison.',
-        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
+        titre: 'Nous avons commencé sur une terrasse.',
+        corps: '<p>Nous n’étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont arrivées presque par hasard, et elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester.</p><p>Nous avons commencé sur une terrasse, à Akpakpa. Nous avons perdu un enfant, et nous avons continué à travailler, une tête après l’autre, parce qu’on peut toujours faire quelque chose de ses mains. Dix ans plus tard, nous sommes revenus dans la maison où tout avait commencé.</p><p>Nous avons quatre garçons, tous en locks. De cette famille sont nés nos symboles : la Couronne, le Trône, la Maison. Aujourd’hui, les personnes qui viennent chez nous déposent ce qu’elles portent, et repartent avec leur couronne.</p>',
         image: 'fondateurs.jpg',
       },
       {
         type: 'citation',
-        texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
-        qui: 'Brice et Yéman Ahouansou',
+        texte: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+        qui: 'Brice à Yéman, les soirs sans clients.',
       },
-      {
-        type: 'gamme',
-        sur: 'Notre univers',
-        titre: 'Une Maison, huit maisons.',
-        ligne: "Chaque vocation de MND porte son nom et sa couleur, et le même sigle indigo. Ce que la Maison fait à Cotonou nourrit ce que l'Atelier ouvre ailleurs, ce que l'Académie enseigne et ce que la Boutique choisit.",
-        items: [
-          { nom: 'Maison MND', ligne: "La marque mère, le salon d'Akpakpa.", teinte: '#1E2150' },
-          { nom: "L'Atelier MND", ligne: "Les branches de la Maison, d'une ville à l'autre.", teinte: '#936518' },
-          { nom: 'Académie MND', ligne: 'Formations, certifications, transmission.', teinte: '#2F5D50' },
-          { nom: 'Boutique MND', ligne: 'Produits, outils, objets de la Maison.', teinte: '#4A2C5C' },
-          { nom: 'Soins MND', ligne: 'Routines, cuir chevelu, entretien.', teinte: '#2E6F8E' },
-          { nom: 'Événements MND', ligne: 'Ateliers, rencontres, défilés, lancements.', teinte: '#1F4D62' },
-          { nom: 'Studio MND', ligne: 'Portraits, contenu, éditorial.', teinte: '#6E283C' },
-          { nom: 'LOKAA by MND', ligne: 'Le logiciel des salons, né du Trône.', teinte: '#1A1A1A' },
-        ],
-      },
+      /* « NOTRE UNIVERS » EST PARTI LE 30 SEPTEMBRE 2026 (« retire notre
+         univers », Yéman) : la gamme des huit maisons ne se montre plus ici,
+         comme elle avait quitté l'accueil le 27. Les marques défilent
+         toujours, et le sur-titre de la page reste « L'univers MND ». */
       {
         type: 'marques',
         sur: 'Les marques que nous choisissons',
@@ -710,7 +734,7 @@ export const PAGES: Page[] = [
       },
       {
         type: 'citation',
-        texte: 'Tout est relié. Ce que nous faisons à la Maison nourrit ce que nous enseignons. Une seule méthode, quatre portes, la même exigence.',
+        texte: 'Tout est relié. Ce que nous faisons à la Maison nourrit ce que nous enseignons. Une seule méthode, la même exigence.',
       },
       { type: 'confiance' },
       {
@@ -720,6 +744,7 @@ export const PAGES: Page[] = [
         boutons: [
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
           { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+          { texte: 'Notre histoire', vers: '/notre-histoire/' },
         ],
       },
       {
@@ -744,7 +769,7 @@ export const PAGES: Page[] = [
         type: 'texte',
         titre: 'Brice et Yéman Ahouansou',
         /* Le récit, en trois paragraphes (27 septembre 2026 au soir). */
-        corps: '<p>Tout commence en 2010, à Cotonou, avec deux personnes et une conviction : des locks bien faites ne sont pas une coiffure. C’est une couronne, qu’on porte des années et qu’il faut savoir soigner.</p><p>Brice est maître loctician. Ce sont ses mains qui regardent d’abord, qui décident de la taille et du geste juste, et qui refusent de resserrer ce qui casse. Yéman tient la direction : la maison, ses règles, ses rythmes, ses outils, et cette exigence qu’on soit reçue ici comme chez soi.</p><p>À deux, ils ont fait de MND un lieu où l’on prend soin, où l’on transforme et où l’on transmet. De leurs gestes est née une Académie, pour que la méthode voyage plus loin que leurs mains. Seize ans plus tard, des couronnes de la première année reviennent encore s’asseoir dans le fauteuil.</p>',
+        corps: '<p>Nous n’étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont arrivées presque par hasard, et elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester.</p><p>Nous avons commencé sur une terrasse, à Akpakpa. Nous avons perdu un enfant, et nous avons continué à travailler, une tête après l’autre, parce qu’on peut toujours faire quelque chose de ses mains. Dix ans plus tard, nous sommes revenus dans la maison où tout avait commencé.</p><p>Nous avons quatre garçons, tous en locks. De cette famille sont nés nos symboles : la Couronne, le Trône, la Maison. Aujourd’hui, les personnes qui viennent chez nous déposent ce qu’elles portent, et repartent avec leur couronne.</p>',
         image: 'fondateurs.jpg',
       },
       {
@@ -752,15 +777,15 @@ export const PAGES: Page[] = [
         sur: "Quatre manières d'être là",
         items: [
           { titre: 'Praticiens', texte: "Chaque jour, des couronnes passent entre nos mains. C'est là que tout commence." },
-          { titre: 'Entrepreneurs', texte: 'Nous avons construit une maison, ses outils, ses règles, ses rythmes.' },
+          { titre: 'Parents', texte: 'Quatre garçons, tous en locks. Notre première transmission.' },
           { titre: 'Formateurs', texte: 'Nous enseignons la méthode MND à celles et ceux qui veulent en faire leur métier.' },
           { titre: 'Accompagnateurs', texte: 'Nous restons présents après le geste : conseils, suivi, écoute.' },
         ],
       },
       {
         type: 'citation',
-        texte: 'Nous ne voulons pas seulement faire pour vous. Nous voulons aussi vous apprendre à comprendre, entretenir, développer et, pour ceux qui le souhaitent, professionnaliser votre propre activité.',
-        qui: 'Brice et Yéman Ahouansou',
+        texte: 'Accroche-toi. Les beaux jours sont encore devant nous.',
+        qui: 'Brice à Yéman, les soirs sans clients.',
       },
       {
         type: 'appel',
@@ -768,6 +793,7 @@ export const PAGES: Page[] = [
         ligne: 'Une création débute par une consultation. Rien d\'autre à décider aujourd\'hui.',
         boutons: [
           { texte: 'Réserver ma consultation', vers: 'whatsapp:creation' },
+          { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
           { texte: 'Trouver mon parcours', vers: '/mon-parcours/' },
         ],
       },
@@ -776,12 +802,379 @@ export const PAGES: Page[] = [
     court: 'Brice et Yéman',
   },
   {
+    /* NOTRE HISTOIRE — 30 septembre 2026. Le récit fondateur, écrit par
+       Brice et Yéman (« Récit fondateur de Maison MND », douze chapitres),
+       raccourci d’un quart à leur demande, sans une phrase réécrite : on a
+       coupé, pas reformulé. Il se lit une fois, en une colonne. Les deux
+       phrases mises en respiration sont les leurs. Il nomme Kolétan : c’est
+       leur choix, et il ne vaut que pour cette page, jamais pour une
+       publicité. */
+    chemin: '/notre-histoire/',
+    titre: 'Notre histoire · Brice, Yéman et la Maison MND',
+    description: "Lisez le récit fondateur de la Maison MND : deux jeunes amoureux, une terrasse à Cotonou, un enfant, dix ans de deuil et le retour à la maison d'Akpakpa.",
+    /* LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. « Une lecture fluide, ne même
+       pas sentir que le texte est long » (Yéman). Une ouverture plein écran,
+       puis le texte entier, mot pour mot, une ou deux phrases par bloc : ce
+       qui vient est voilé, ce qui arrive à hauteur des yeux se révèle, et un
+       fil cuivre en haut avance avec la lecture. Plus de numéros de chapitre. */
+    h1: 'Nous avons commencé sur une terrasse.',
+    sur: 'Notre histoire',
+    /* « Refais la phrase » (Yéman, 1er octobre 2026) : « la vérité sur » sonnait comme une
+       révélation, et « eux » parlait d'eux de loin dans un récit qui dit « nous ». */
+    ligne: 'Brice et Yéman racontent, avec leurs mots.',
+    ouverture: true,
+    besoin: 'inconnu',
+    sections: [
+      {
+        type: 'recit',
+        signature: 'Brice et Yéman\nAkpakpa, Cotonou, depuis 2010',
+        chapitres: [
+          {
+            id: 'avant', titre: 'Avant Maison MND',
+            lignes: [
+              'Nous n’étions pas deux entrepreneurs visionnaires.',
+              'Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin.',
+              'Nous avions des diplômes. Nous avions des rêves. Nous avions nos familles, et des enfants qui allaient arriver.',
+              'Mais nous ne savions pas encore quelle vie nous voulions construire.',
+              'Alors nous avons essayé. Puis essayé autre chose. Puis encore autre chose.',
+              'Des petits commerces, des petits boulots, du travail aux côtés de nos parents. Nous ne comptons plus les tentatives, et ce n’est pas grave.',
+              'Rien de tout cela n’était notre place.',
+              'Mais pendant ce temps, sans que nous le sachions, quelque chose se construisait déjà.',
+            ],
+          },
+          {
+            id: 'rencontre', titre: 'La rencontre',
+            lignes: [
+              'Les locks sont arrivées presque par hasard.',
+              'Nous ne les avons pas choisies comme on choisit un métier. Elles sont entrées dans notre vie comme on entre dans une maison\u00a0: sans frapper très fort, et pour rester.',
+              'Au début, c’était simplement quelque chose que nous aimions faire.',
+              'Prendre une tête entre nos mains. Prendre le temps. Voir quelqu’un se regarder autrement en partant.',
+              'Nous ne savions pas encore que nous construisions une entreprise.',
+              'Nous faisions quelque chose que nous aimions, et c’était déjà beaucoup.',
+            ],
+          },
+          {
+            id: 'terrasse', titre: 'La terrasse',
+            lignes: [
+              'Nous n’avons pas commencé dans une grande maison.',
+              'Nous avons commencé sur une terrasse.',
+              'Nous abordions les gens dans la rue. Nous distribuions des flyers. Nous comptions sur le bouche-à-oreille.',
+              'Et nous passions presque quatre heures sur une tête pour 5\u00a0000 francs.',
+              'Ce jour-là, nous avons ressenti tout en même temps\u00a0: la fierté, la joie, la peur, la surprise, l’espoir.',
+              'Et une phrase qui tournait dans nos têtes\u00a0: quelqu’un est prêt à nous payer pour ce que nous savons faire avec nos mains.',
+              'Nous n’effacerons jamais cette période.',
+              'Ces 5\u00a0000 francs racontent plus de vérité sur nous que n’importe quel chiffre à venir.',
+            ],
+          },
+          {
+            id: 'koletan', titre: 'Kolétan Bright',
+            lignes: [
+              'Il y a un enfant au cœur de cette histoire.',
+              'Il s’appelle Kolétan Bright. Kolé, pour nous.',
+              'Nous parlons de lui avec justesse et humilité. Tel qu’il était, sans rien ajouter. C’est la seule façon digne de le faire.',
+              'Kolé était la joie. Calme et doux. Joyeux sans bruit, comme une lumière silencieuse.',
+              'Il n’avait pas besoin de faire grand-chose pour qu’on se sente bien à côté de lui. Il était là, et ça suffisait.',
+              'Il aimait les bons moments. Il aimait le beau, déjà\u00a0: un enfant soigné, raffiné, qui prenait soin de ce qu’il portait et de ce qu’il touchait.',
+              'On le regardait faire, et on se disait qu’il savait quelque chose que nous étions encore en train d’apprendre.',
+              'Et il allait au bout de tout ce qu’il commençait. À sa manière, tranquille, sans jamais lâcher.',
+              'Son prénom parle d’abondance. C’est ce qu’il était\u00a0: plus de lumière qu’une seule maison ne peut en contenir.',
+              'Il portait ses locks, de deux à cinq ans. Il est parti avec elles. Ses frères portent encore les leurs.',
+              { souffle: 'Avec les locks, il nous retrouverait toujours.' },
+              'Cette phrase n’a pas besoin d’être expliquée. Elle est là, et nous la gardons.',
+              'Kolé ne nous a pas seulement quittés. Il nous a laissé quelque chose.',
+              'Il nous a fait aller puiser en nous, là où nous n’étions jamais allés.',
+              'Et il nous a appris ceci\u00a0: un être humain a besoin d’une attention particulière. Dans les moments les plus durs, ce dont on a le plus besoin, c’est que quelqu’un prenne soin de nous.',
+              'Nous l’avons vécu. Et de cette épreuve est née une envie plus grande que la douleur\u00a0: prendre encore plus soin. Des nôtres, puis de tous ceux qui passeraient notre porte.',
+              { souffle: 'Kolétan, c’est mettre de la lumière dans les cœurs. Sans condition, et en abondance.' },
+              'C’est pour cela que la Maison est là.',
+              'Après lui, nous avons quitté la maison pour un temps. Il fallait réapprendre à vivre. Nous l’avons fait avec nos mains.',
+            ],
+          },
+          {
+            id: 'mains', titre: 'Les mains',
+            lignes: [
+              'Quand on ne sait plus quoi faire de sa douleur, on peut au moins faire quelque chose de ses mains.',
+              'Nous avons continué à travailler. Une tête, puis une autre.',
+              'Des locks abîmées que l’on nous demandait de réparer. Des cheveux fragiles que l’on nous demandait de préserver.',
+              'Des personnes qui arrivaient fatiguées et repartaient un peu plus légères.',
+              'Nous avons appris à réparer. Nous avons appris à prendre soin, comme Kolé nous l’avait appris\u00a0: avec une attention particulière, sans condition.',
+              'Et sans le dire, en réparant les locks des autres, nous avons commencé à nous reconstruire.',
+            ],
+          },
+          {
+            id: 'annees-difficiles', titre: 'Les années difficiles',
+            lignes: [
+              'Les années qui ont suivi ont été longues.',
+              'Trois choses les ont rendues difficiles\u00a0: le regard des autres, les journées vides, et le doute qui venait avec.',
+              'Le regard des autres, d’abord. Nous étions diplômés. Autour de nous, des amis prenaient de grands postes. Nous, nous étions penchés sur des locks.',
+              'Et les gens nous le disaient\u00a0: «\u00a0Vous allez continuer jusqu’à quand\u00a0? Faites autre chose. Vous devez vous occuper de vos garçons. Avec les locks, vous n’y arriverez jamais.\u00a0»',
+              'Alors parfois, nous avons eu honte. Pas de nous aimer, pas de notre famille. Honte de ne pas ressembler à ce que la société attendait de nous.',
+              'Les journées vides, ensuite. Il y a eu des jours sans clients.',
+              'Des jours où l’on attend, où l’on range, où l’on recompte, et où l’on rentre avec la même question qu’au matin\u00a0: est-ce que ça vaut la peine de continuer\u00a0?',
+              'Le doute, enfin. Il ne venait pas d’un coup. Il s’installait, un jour sans client après l’autre, une remarque après l’autre.',
+              'Nous aurions pu écouter.',
+              'Nous avons continué. Pas parce que nous savions que nous allions réussir. Parce que nous n’avions pas encore fini de croire.',
+            ],
+          },
+          {
+            id: 'amour', titre: 'L’amour',
+            lignes: [
+              'Si l’on nous demande ce qui nous a sauvés, la réponse tient en un mot.',
+              'Pas le travail. Pas le courage. L’amour.',
+              'Il y a eu des soirs où Yéman voulait tout arrêter. Poser les peignes, fermer la porte, faire enfin «\u00a0autre chose\u00a0» comme tout le monde le conseillait.',
+              'Et chaque fois, Brice était là. Il ne discutait pas. Il ne faisait pas de grands discours.',
+              { souffle: 'Il disait simplement\u00a0: «\u00a0Accroche-toi. Les beaux jours sont encore devant nous.\u00a0»' },
+              'Et il y croyait. Sur une terrasse, avec 5\u00a0000 francs en poche, il parlait déjà d’une Maison MND internationale. Des défilés. Des galas. Des foires. Une académie.',
+              'Il voyait le royaume avant même que la maison soit construite.',
+              'On aurait pu le prendre pour un rêveur. C’était un homme qui refusait de laisser sa femme perdre espoir.',
+              'Yéman, elle, donnait ce que Brice ne savait pas donner. Le rire. La chaleur. La conversation qui détend les épaules.',
+              'Cette façon de mettre les gens à l’aise dès qu’ils passent la porte, jusqu’à ce qu’ils oublient qu’ils sont chez un coiffeur et se sentent chez quelqu’un.',
+              'Brice regardait l’horizon. Yéman faisait en sorte que les gens se sentent chez eux.',
+              'L’un croyait quand l’autre n’y croyait plus. L’autre créait le lien que le premier ne savait pas créer.',
+              'C’est cela, notre amour\u00a0: pas deux personnes qui se ressemblent, mais deux personnes qui se complètent.',
+              'Et c’est de cet amour-là, avant tout le reste, que Maison MND est née.',
+            ],
+          },
+          {
+            id: 'pardon', titre: 'Le pardon',
+            lignes: [
+              'Mais l’amour ne suffit pas toujours à tout porter.',
+              'Il y a des poids qu’il faut d’abord apprendre à poser.',
+              'Le deuil de Kolétan n’a pas duré quelques mois. Il a duré presque dix ans.',
+              'Et dans ces dix années, il n’y avait pas que de la tristesse. Il y avait aussi de la colère.',
+              'Ce jour-là, Brice était responsable. Yéman n’était pas là.',
+              'Il a fallu vivre avec cette réalité, chacun de son côté d’abord, sans savoir comment la partager.',
+              'Le pardon ne s’est pas décidé un matin. Il s’est appris.',
+              'Une journée après l’autre, une tête coiffée après l’autre, un silence après l’autre. Jusqu’au jour où la colère a fini par céder la place à quelque chose de plus grand.',
+              'C’est dans ces années-là que nous avons compris ce que Kolétan nous avait laissé\u00a0: tous les jours étaient le moment.',
+              'Le moment d’aimer. Le moment de pardonner. Le moment de dire je t’aime, parce qu’on ne sait jamais si l’on aura demain pour le dire.',
+              'Et nous avons compris autre chose. Dans l’épreuve, on a besoin de l’attention des autres. On a besoin que quelqu’un prenne soin de nous.',
+              'Ceux qui l’ont fait pour nous, nous ne les avons pas oubliés. Et nous avons voulu, à notre tour, être ces personnes-là pour d’autres.',
+              'Nous n’avons jamais lâché. Nous n’avons jamais cessé de croire en lui, ni en nous.',
+              'Et quand nous avons enfin été prêts, nous avons fait ce que nous n’avions pas osé faire depuis dix ans.',
+            ],
+          },
+          {
+            id: 'retour', titre: 'Le retour à la maison',
+            lignes: [
+              'Nous sommes revenus. À l’endroit même de la douleur.',
+              'Après Kolétan, nous avions quitté la maison. Chaque pièce portait un souvenir, et nous n’avions pas la force de les regarder en face.',
+              'Alors nous sommes partis, comme on s’éloigne d’une blessure pour ne plus la sentir.',
+              'Dix ans plus tard, nous avons poussé la même porte.',
+              'La maison n’avait pas changé. Nous, oui.',
+              'Nous n’étions plus deux jeunes qui fuyaient. Nous étions deux parents, deux artisans, un couple qui avait appris à rester.',
+              'Revenir, ce n’était pas oublier. C’était accepter que tout ait commencé là\u00a0: notre couple, nos enfants, la terrasse, les premières locks, le deuil, la reconstruction.',
+              'C’était dire à cette maison qu’elle n’était pas seulement le lieu où nous avions perdu, mais aussi le lieu où nous avions aimé.',
+              'Et c’est à ce moment-là, en rentrant chez nous, que Maison MND a cessé d’être le rêve de Brice pour devenir le nôtre.',
+              'Une maison où l’on mettrait de la lumière dans les cœurs, comme Kolé l’avait fait dans le nôtre.',
+            ],
+          },
+          {
+            id: 'quatre-k', titre: 'Les quatre K',
+            lignes: [
+              'Une maison, ce sont d’abord ceux qui l’habitent. Chez nous, ce sont quatre garçons.',
+              'Quatre fils, et une même lettre pour ouvrir chacun de leurs prénoms. Nous les voyons grandir.',
+              'Et il y a Kolétan, qui portait ce K lui aussi, et qui grandit autrement\u00a0: dans nos mémoires et dans nos gestes.',
+              'Les quatre K, c’est notre famille telle qu’elle est aujourd’hui, et Kolétan y a toujours sa place.',
+              'Les locks que Kolétan portait, ses frères les portent encore. C’est notre première transmission, avant même la première cliente.',
+              'Et depuis, chaque tête que nous coiffons reçoit un peu de cette histoire, sans que nous ayons besoin de la raconter.',
+              'De cette famille sont nés nos symboles.',
+              'La Couronne, parce que les locks ne sont pas une coiffure mais ce que l’on porte sur la tête avec dignité.',
+              'Le Trône, parce que la personne qui s’assoit chez nous mérite qu’on lui donne du temps et de l’attention.',
+              'Et la Maison, parce que tout est parti de là, et que tout y revient.',
+              'Ces symboles ne sont pas un logo dessiné dans un bureau. Ce sont nos enfants, notre métier et notre foyer, réunis dans un même nom.',
+            ],
+          },
+          {
+            id: 'maison-mnd', titre: 'Maison MND',
+            lignes: [
+              'Alors nous avons construit une maison pour chacun de nous.',
+              'Pas une adresse\u00a0: un endroit où l’on peut déposer ce que l’on porte.',
+              'Les personnes qui viennent chez nous arrivent souvent chargées. Des soucis, de la fatigue, une douleur qu’elles ne nomment pas.',
+              'Elles laissent tout cela dehors. Elles s’assoient.',
+              'Nous prenons leur tête entre nos mains, nous prenons le temps, nous parlons ou nous nous taisons. Et elles repartent avec quelque chose de différent.',
+              'Nous savons ce que c’est, porter quelque chose de lourd. Nous savons aussi ce que ça fait, quand quelqu’un prend soin de vous à ce moment-là.',
+              'C’est pour cela que cette maison existe.',
+              'Une personne qui entre chez nous doit se sentir au calme. Aimée. Comprise. Précieuse.',
+              'Chaque moment passé ici doit réveiller en elle ce sentiment d’être bien, d’être attendue, d’être à sa place.',
+              'Pas pour prouver quelque chose à ceux qui nous regardaient de haut. Pas même pour montrer que nous avons réussi.',
+              'Pour faire ce que Kolétan nous a appris\u00a0: mettre de la lumière dans les cœurs, sans condition, et en abondance.',
+              'Elle existe parce qu’après tout ce chemin, nous avons quelque chose à donner.',
+              'De l’amour. Du respect. Du pardon. De la beauté. De l’attention.',
+              'Et une manière de dire à quelqu’un, sans un mot, en prenant soin de sa couronne\u00a0: tu es précieux, tu peux encore te retrouver.',
+              'Deux personnes qui pensaient devoir avoir honte d’être devenues coiffeurs ont fini par comprendre qu’elles avaient simplement trouvé ce qu’elles étaient venues faire au monde.',
+              'Aujourd’hui, nous regardons notre parcours sans honte. Avant les défilés, avant l’international, c’est cela, notre premier succès.',
+            ],
+          },
+          {
+            id: 'futur', titre: 'Le futur',
+            lignes: [
+              'Brice avait raison. Les beaux jours étaient devant nous.',
+              'Ce qu’il voyait depuis la terrasse, avec 5\u00a0000 francs en poche, nous le construisons aujourd’hui\u00a0: une maison qui forme, qui transmet, et qui porte les locks du Bénin vers le monde.',
+              'Les défilés, les galas, l’académie ne sont plus des rêves que l’on se raconte pour tenir. Ce sont des étapes, et nous les prenons une par une.',
+              'Mais nous ne partirons pas.',
+              'Nos racines sont ici\u00a0: au Bénin, dans la langue fon, dans une famille de quatre garçons, dans une maison d’Akpakpa où tout a commencé.',
+              'Aller vers le monde sans quitter ses racines, c’est exactement ce qu’une lock sait faire.',
+              'Certaines histoires commencent par un rêve. La nôtre a commencé par l’amour, a traversé l’épreuve, et a choisi de devenir une maison.',
+              'Un endroit qui met de la lumière dans les cœurs, sans condition, et en abondance.',
+              'Elle ne s’arrête pas ici. Elle continue dans nos garçons, dans nos mains, et dans chaque personne qui repart de chez nous un peu plus légère.',
+              'Tant qu’il y aura une tête à coiffer et un cœur à éclairer, Maison MND restera ouverte.',
+              { fin: 'Ce qu’un enfant nous a donné, nous vous le partageons aujourd’hui.\nVous êtes précieux. Vous êtes attendus. Entrez.' },
+            ],
+          },
+        ],
+      },
+      /* CE QUE LE RÉCIT PORTE — 30 septembre 2026. Si la Maison est l’endroit
+         où l’on dépose ce que l’on porte, chaque offre en découle. Seules les
+         offres qui EXISTENT sont ici ; le Moment attend son forfait au Trône
+         (sa page est écrite, en attente), la Couronne à domicile et la Cour
+         sont là depuis le 30 septembre au soir. */
+      {
+        type: 'grille',
+        sur: 'Ce que le récit porte',
+        titre: 'Chaque offre est une façon de prendre soin, de transformer ou de transmettre.',
+        items: [
+          { titre: 'Le diagnostic', texte: 'On commence par regarder. C’est la porte d’entrée de tout, et le seul endroit où l’on dit non.', vers: '/mon-parcours/' },
+          { titre: 'La réparation', texte: 'Le chapitre des mains. Des locks abîmées que l’on répare, comme nous nous sommes réparés.', vers: '/reparation-locks/' },
+          { titre: 'La Première Couronne', texte: 'Une couronne qu’on porte des années. Elle commence par une consultation, jamais par un geste.', vers: '/premiere-couronne/' },
+          { titre: 'L’entretien et les soins', texte: 'Revenir. Toutes les cinq semaines, la place est là, et la Maison vous attend.', vers: '/entretien-locks/' },
+          { titre: 'MND Kids', texte: 'Les quatre K. Ce n’est pas une ligne de plus : c’est la plus légitime de toutes.', vers: '/mnd-kids/' },
+          { titre: 'Offrir la Maison', texte: 'Offrir un moment à quelqu’un qui porte trop.', vers: '/offrir/' },
+          { titre: 'Parrainer', texte: 'On ne parraine pas un client. On ramène quelqu’un chez soi.', vers: '/parrainage/' },
+          { titre: 'L’Académie', texte: 'La transmission. Former celles et ceux qui feront ce métier sans avoir honte.', vers: '/formations/' },
+          { titre: 'La Couronne à domicile', texte: 'Quand c’est la Maison qui vient. Les mêmes mains, chez vous.', vers: '/couronne-a-domicile/' },
+          { titre: 'La Cour MND', texte: 'La maison, agrandie. Ce qui vient, sans date, et l’on vous prévient.', vers: '/la-cour/' },
+        ],
+      },
+      {
+        type: 'appel',
+        titre: 'Venez déposer ce que vous portez.',
+        ligne: 'Une couronne, une réparation, un soin. On prend le temps.',
+        sombre: true,
+        boutons: [
+          { texte: 'Réserver', vers: '/reserver/' },
+          { texte: 'Brice et Yéman', vers: '/brice-et-yeman/' },
+        ],
+      },
+    ],
+    jsonld: 'maison',
+    court: 'Notre histoire',
+  },
+  /* LES TROIS OFFRES QUI SORTENT DU RÉCIT — 30 septembre 2026, tranchées au
+     sélecteur par Yéman. Le Moment attend son forfait au catalogue du Trône
+     (Vente → Catalogue → Combinaisons officielles → nouveau forfait, trois
+     lignes : le lavage, les racines, le soin, remise 0 % : la somme des
+     gestes) ; le jour où il existe, on efface `enAttente` et la page paraît. */
+  {
+    chemin: '/le-moment/',
+    titre: 'Le Moment · deux heures pour votre couronne · Maison MND',
+    description: 'Réservez le Moment à la Maison MND, Cotonou : le lavage, la reprise des racines, le soin, et le temps qu’il faut entre chaque geste. Sans consultation.',
+    h1: 'Le Moment : deux heures pour votre couronne, et pour vous.',
+    sur: 'Je veux que le temps s’arrête',
+    ligne: 'On ne vient pas ici pour une coiffure. On vient s’asseoir, déposer ce que l’on porte, et repartir avec sa couronne. Le Moment, c’est ce rendez-vous-là, en entier.',
+    image: 'regard.jpg',
+    besoin: 'entretien',
+    cta: { texte: 'Réserver mon Moment', note: 'Se réserve directement, sans consultation. Une personne à la fois.' },
+    geste: 'Le Moment réunit trois gestes de la Maison : <b>KLƆKLƆ™</b> le lavage, <b>SÍNSIN™</b> les racines, <b>DÀNDÀN™</b> le soin. Il coûte ce que coûtent ses gestes, au calibre de votre couronne. Le temps est offert.',
+    temps: true,
+    pas: {
+      sur: 'Ce que nous faisons',
+      titre: 'Cinq temps, sans horloge',
+      liste: true,
+      items: [
+        ['Le portail', 'On vous attend, par votre prénom. Vous déposez ce que vous portez.'],
+        ['Le lavage · KLƆKLƆ™', 'La tête se pose, les mains prennent le relais.'],
+        ['Les racines · SÍNSIN™', 'Racine par racine, sans hâte. On parle, ou on se tait.'],
+        ['Le soin · DÀNDÀN™', 'L’hydratation, ou ce que votre couronne demande ce jour-là.'],
+        ['Le miroir', 'On regarde ensemble. Le prochain rendez-vous se pose avant de partir.'],
+      ],
+    },
+    rassure: 'Si vous ne voulez que la reprise des racines, l’entretien classique reste là. Le Moment est pour les jours où il faut tout.',
+    faq: [
+      ['Est-ce un entretien ?', 'C’est un entretien complet, avec le soin, et sans horloge.'],
+      ['Faut-il une consultation ?', 'Non. Le Moment se réserve directement. Si vos locks vous inquiètent, commencez par une consultation Réparation.'],
+      ['Peut-on l’offrir ?', 'Oui. La carte cadeau de la Maison porte le Moment : offrir un moment à quelqu’un qui porte trop.'],
+    ],
+    jsonld: 'service',
+    court: 'Le Moment',
+    enAttente: 'le forfait « Le Moment » n’existe pas encore au catalogue du Trône',
+  },
+  {
+    chemin: '/couronne-a-domicile/',
+    titre: 'La Couronne à domicile · la Maison MND vient chez vous',
+    description: 'Demandez la Couronne à domicile à Cotonou : un entretien ou un soin de la Maison MND chez vous, avec les mêmes mains, les mêmes outils et la même hygiène.',
+    h1: 'La Couronne à domicile : quand c’est la Maison qui vient.',
+    sur: 'Je préfère que la Maison vienne',
+    ligne: 'Une naissance, un deuil, une convalescence, ou simplement un jour où sortir est de trop. La Maison vient à vous, avec ce qu’il faut, et le même soin.',
+    image: 'hero.jpg',
+    besoin: 'entretien',
+    cta: { texte: 'Demander la Maison chez moi', note: 'Une demande sur WhatsApp, un rappel de la Maison, et l’on fixe le jour ensemble.', vers: 'message:entretien:Bonjour MND, j’aimerais la Couronne à domicile. Voici mon quartier et le geste que je souhaite :' },
+    geste: 'Le geste est au prix de la Maison. Le déplacement s’ajoute, et son montant vous est dit <b>avant</b> de confirmer, jamais après.',
+    pas: {
+      sur: 'Comment cela se passe',
+      titre: 'Cinq pas',
+      items: [
+        ['La demande', 'Vous dites où vous êtes et ce que vous souhaitez. Sans justificatif.'],
+        ['Le rappel', 'La Maison vous rappelle, dit le déplacement, et fixe le jour avec vous.'],
+        ['Chez vous', 'Une chaise, un point d’eau, une prise. La Maison apporte le reste : outils désinfectés, linge propre, produits.'],
+        ['Le geste', 'Un entretien ou un soin. Une création ou une réparation demandent l’atelier.'],
+        ['Le suivi', 'Le prochain rendez-vous se pose avant de partir, chez vous ou à la Maison.'],
+      ],
+    },
+    rassure: 'Si vous pouvez venir, la Maison vous attend : c’est là que le temps s’arrête. Si vous ne pouvez pas, elle vient.',
+    faq: [
+      ['Qui vient ?', 'Une main de la Maison, formée à la méthode MND, avec les mêmes outils et la même hygiène qu’à Akpakpa.'],
+      ['Jusqu’où venez-vous ?', 'Cotonou et ses environs. Dites votre quartier dans la demande : la Maison vous répond avec le déplacement.'],
+      ['Puis-je demander une création à domicile ?', 'Non. Une création et une réparation demandent l’atelier, ses outils et son temps. Elles commencent par une consultation à la Maison.'],
+    ],
+    jsonld: 'service',
+    court: 'À domicile',
+  },
+  {
+    chemin: '/la-cour/',
+    titre: 'La Cour MND, la maison agrandie · Maison MND',
+    description: 'Découvrez ce que prépare la Maison MND à Cotonou : la Cour, un seul lieu pour prendre soin, apprendre et trouver ce que la Maison met sur les têtes. Soyez prévenue.',
+    h1: 'La Cour MND : la maison, agrandie.',
+    sur: 'Ce qui vient',
+    ligne: 'Tout est parti d’une terrasse à Akpakpa, et tout y revient. La Cour est la suite de cette maison : un seul lieu où l’on prend soin, où l’on apprend, où l’on trouve ce que la Maison met sur les têtes.',
+    besoin: 'inconnu',
+    sections: [
+      {
+        type: 'pas',
+        sur: 'Ce qu’on y trouvera',
+        titre: 'Une cour, quatre portes',
+        liste: true,
+        items: [
+          ['La Maison', 'Les fauteuils, le portail, le temps qui s’arrête.'],
+          ['L’Académie', 'Les formations, dans le lieu même où la méthode est née.'],
+          ['La Boutique', 'Les produits que la Maison met vraiment sur les têtes. Peu de références.'],
+          ['La Cour', 'Des plantes, des livres, un banc. L’endroit où l’on attend sans attendre.'],
+        ],
+      },
+      {
+        type: 'texte',
+        corps: 'La Cour n’a pas encore de date, et la Maison ne promet que ce qu’elle fait. Elle vous écrira le jour où la Cour ouvre, et rien d’autre.',
+      },
+      {
+        type: 'appel',
+        titre: 'Être prévenue à l’ouverture.',
+        ligne: 'Un message, et la Maison garde votre prénom pour ce jour-là.',
+        boutons: [
+          { texte: 'Prévenez-moi', vers: 'message:inconnu:Bonjour MND, prévenez-moi à l’ouverture de la Cour.' },
+          { texte: 'Lire notre histoire', vers: '/notre-histoire/' },
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'La Cour',
+  },
+  {
     chemin: '/formations/',
     titre: 'Formation dreadlocks au Bénin · Maison MND',
     description: "Apprenez le métier de locticienne au Bénin à l'Académie de la Maison MND : parcours pour débutantes et professionnelles, gestes de la Maison, certificat.",
     h1: 'Les formations : apprendre les gestes de la Maison',
     sur: 'Je veux apprendre le métier',
-    ligne: "La méthode, les gestes et la tenue d'un salon, transmis par celles et ceux qui la pratiquent chaque jour.",
+    ligne: "La méthode, les gestes et la tenue d'une maison, transmis par celles et ceux qui les pratiquent chaque jour.",
     image: 'brice.jpg',
     besoin: 'formation',
     /* LA PAGE CONDUIT, ELLE NE CÈDE PAS SA PLACE — 18 septembre 2026.
@@ -933,8 +1326,11 @@ export const PAGES: Page[] = [
   },
   /* OFFRIR — 27 septembre 2026, maquette validée. La carte cadeau : trois
      modèles sur les motifs de la Maison, un geste ou un montant, et la
-     commande qui arrive au Trône comme une demande. Rien ne se paie en
-     ligne ; aucun montant n'est suggéré, la voix du site n'écrit pas de prix. */
+     commande qui arrive au Trône comme une demande. Aucun montant n'est
+     suggéré, la voix du site n'écrit pas de prix.
+     RÉGLÉE EN LIGNE depuis le 2 octobre 2026 (maquette « La carte cadeau en
+     ligne ») : un MONTANT se règle par KkiaPay et la carte s'affiche avec son
+     code ; un geste se règle avec la Maison. Le texte dit les deux portes. */
   {
     chemin: '/offrir/',
     titre: 'Carte cadeau · Offrir la Maison MND',
@@ -951,17 +1347,18 @@ export const PAGES: Page[] = [
         titre: 'Trois pas, et la carte arrive.',
         items: [
           ['Vous choisissez', 'Un geste (un entretien, un soin, une Première Couronne) ou un montant. Un prénom, un mot.'],
-          ['La Maison vous confirme sur WhatsApp', 'Vous réglez à la Maison ou par mobile money. Rien ne se paie en ligne.'],
-          ['La carte arrive', "Sur WhatsApp, ou imprimée à retirer à la Maison. Elle est portée sur le compte de la personne : elle n'a rien à présenter, la Maison sait."],
+          ['Vous réglez', 'Un montant se règle tout de suite, par Mobile Money, Wave ou carte. Un geste, ou si vous préférez, se règle avec la Maison, qui vous écrit sur WhatsApp.'],
+          ['La carte arrive', "Réglée en ligne, elle s'affiche aussitôt avec son code, à garder ou à transmettre. La Maison l'envoie aussi sur WhatsApp, ou l'imprime à retirer à la Maison."],
         ],
       },
       {
         type: 'faq',
         sur: 'Bon à savoir',
         items: [
-          ['Combien de temps la carte est-elle valable ?', 'Douze mois à partir du jour où elle est remise, sur toute prestation de la Maison.'],
-          ['La personne doit-elle présenter quelque chose ?', "Non. La carte est portée sur son compte à la Maison ; elle donne son prénom, et la Maison sait."],
+          ['Combien de temps la carte est-elle valable ?', 'Douze mois à partir du jour où elle est réglée, sur toute prestation de la Maison.'],
+          ['La personne doit-elle présenter quelque chose ?', "Son code, à sa première visite. La Maison porte alors la carte sur son compte : ensuite, elle n'a plus rien à présenter."],
           ['Peut-on offrir un montant précis ?', "Oui, celui que vous choisissez. Il reste disponible jusqu'à épuisement, sur une ou plusieurs visites."],
+          ['Le paiement en ligne est-il sûr ?', "Il passe par KkiaPay, qui encaisse pour la Maison. La carte et son code ne naissent qu'une fois le paiement vérifié par la Maison."],
         ],
       },
     ],
@@ -988,7 +1385,7 @@ export const PAGES: Page[] = [
   {
     chemin: '/reserver/',
     titre: 'Réserver une consultation ou un entretien · Maison MND',
-    description: 'Réservez votre consultation ou votre entretien à la Maison MND à Cotonou : choisissez votre parcours et votre créneau, puis confirmez avec la Maison.',
+    description: 'Réservez votre entretien à la Maison MND à Cotonou en moins de trente secondes : votre venue, votre place, votre numéro. La confirmation arrive sur WhatsApp.',
     h1: 'Réserver',
     sur: 'Réserver',
     besoin: 'inconnu',
@@ -996,11 +1393,85 @@ export const PAGES: Page[] = [
     sections: [
       {
         type: 'texte',
-        corps: 'Choisissez votre geste, votre jour et votre heure. Aucun compte à créer, rien à payer aujourd\u2019hui : la Maison vous confirme.',
+        corps: 'Votre venue, votre place, votre numéro. Aucun compte à créer, rien à payer aujourd\u2019hui : c\u2019est réservé, et la confirmation arrive sur WhatsApp.',
       },
     ],
     jsonld: 'aucun',
     court: 'Réserver',
+  },
+  /* ── LA COMMUNAUTÉ MND — 28 septembre 2026 (maquette validée) ────── */
+  {
+    chemin: '/parrainage/',
+    titre: 'Parrainer une amie · Maison MND',
+    description: 'Offrez la Maison MND à une amie : votre code de marraine, son cadeau de bienvenue à sa première visite, et le vôtre quand elle est venue.',
+    h1: PARRAINAGE.titre,
+    sur: PARRAINAGE.sur,
+    ligne: PARRAINAGE.ligne,
+    besoin: 'inconnu',
+    ilot: 'parrainer',
+    sections: [
+      {
+        type: 'faq',
+        sur: 'Bon à savoir',
+        items: [
+          ['Qui peut être marraine ?', 'Toute personne qui aime la Maison, cliente ou non. Votre numéro vous rend toujours le même code.'],
+          ['Qui peut être filleule ?', 'Une personne qui vient à la Maison pour la première fois. Le code ne vaut pas pour une cliente déjà connue, ni pour la marraine elle-même.'],
+          ['Quand reçoit-on les cadeaux ?', 'Celui de votre amie l’attend à sa première visite. Le vôtre vous attend dès que sa visite est passée : vous le choisissez dans Ma Couronne ou à l’accueil, un soin offert ou une remise sur un produit.'],
+          ['Qu’est-ce que l’écho ?', 'Quand une amie venue grâce à vous fait venir les siennes, vous recevez une petite remise sur un produit. L’arbre s’arrête là : deux générations.'],
+          ['Combien d’amies puis-je parrainer ?', 'Autant que vous voulez : un cadeau pour chaque amie venue.'],
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Parrainage',
+  },
+  {
+    chemin: '/testeuse/',
+    titre: 'Devenir testeuse · Maison MND',
+    description: 'Essayez les nouveaux soins de la Maison MND avant tout le monde et dites-nous ce que vous en pensez. Inscription en une minute, à Cotonou.',
+    h1: 'Devenez testeuse.',
+    sur: 'La communauté MND',
+    ligne: 'Essayez nos nouveaux soins avant tout le monde, et dites-nous ce que vous en pensez. Votre avis façonne ce que la Maison propose ensuite.',
+    besoin: 'inconnu',
+    ilot: 'testeuse',
+    sections: [
+      {
+        type: 'pas',
+        sur: 'Comment ça se passe',
+        titre: 'Trois pas, et votre avis compte.',
+        items: [
+          ['Vous vous inscrivez', 'Votre prénom, votre numéro, et vos locks en quelques mots.'],
+          ['La Maison vous appelle', 'Quand un soin nouveau sort de notre Laboratoire et convient à votre couronne, nous vous le proposons.'],
+          ['Vous nous dites tout', 'Ce qui vous a plu, ce qui vous a gênée. Sans détour : c’est pour cela que nous vous le demandons.'],
+        ],
+      },
+    ],
+    jsonld: 'aucun',
+    court: 'Testeuse',
+  },
+  {
+    chemin: '/engagements/',
+    titre: 'Nos engagements · Maison MND',
+    description: 'Ce que la Maison MND promet à chaque couronne : des produits éprouvés, une hygiène sans faille, un regard avant chaque geste et la vérité sur le temps.',
+    h1: 'Nos engagements.',
+    sur: 'La communauté MND',
+    ligne: 'Ce que nous promettons à chaque couronne qui passe notre porte.',
+    besoin: 'inconnu',
+    ilot: 'engagements',
+    jsonld: 'aucun',
+    court: 'Engagements',
+  },
+  {
+    chemin: '/ingredients/',
+    titre: 'Nos ingrédients · Maison MND',
+    description: 'Aloès, hibiscus, baobab, karité, neem, moringa : les plantes d’Afrique qui entrent dans les soins de la Maison MND, et l’histoire de chacune.',
+    h1: 'Ce qui entre dans nos soins.',
+    sur: 'Nos ingrédients',
+    ligne: 'Des plantes d’Afrique, choisies une à une, et chacune avec son histoire. Touchez-en une pour la lire.',
+    besoin: 'inconnu',
+    ilot: 'ingredients',
+    jsonld: 'aucun',
+    court: 'Ingrédients',
   },
 ];
 

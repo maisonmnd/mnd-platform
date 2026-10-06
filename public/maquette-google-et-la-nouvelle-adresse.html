@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Google et la nouvelle adresse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --indigo:#1E2150; --cuivre:#B97A4A; --cuivre-profond:#7C4C2C; --cuivre-voile:rgba(185,122,74,.13);
+  --cuivre-clair:#FAF1E9; --fond:#F6F1E7; --carte:#FFFDF9; --fond-2:#EEE6D6;
+  --encre:#2A2722; --encre-doux:#5E5750; --filet:rgba(20,20,27,.13); --alerte:#8F3B30;
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6}
+h1,h2,h3{font-family:var(--serif);font-weight:300;color:var(--indigo);margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(16px,4vw,32px) 70px}
+.sur{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cuivre-profond)}
+
+/* en-tête */
+.tete{padding:40px 0 14px;border-bottom:1px solid var(--filet)}
+.tete h1{font-size:clamp(30px,5vw,44px);margin-top:8px}
+.tete .ligne{font-size:16.5px;color:var(--encre-doux);margin-top:14px;max-width:60ch}
+/* LE VERROU COUCHÉ DE LA MAISON (25 septembre 2026) : le fichier livré, jamais
+   redessiné. 1335 x 418, on ne donne que la largeur, la hauteur suit. Au-dessus
+   du plancher de 123 px. */
+.verrou{display:block;width:176px;height:auto;margin:0 0 22px}
+
+/* compteur des gestes */
+.jauge{display:flex;gap:8px;align-items:center;margin:26px 0 6px;flex-wrap:wrap}
+.jauge b{font-family:var(--serif);font-size:30px;color:var(--indigo);font-weight:400;font-variant-numeric:tabular-nums}
+.jauge span{font-size:13.5px;color:var(--encre-doux)}
+.pastilles{display:flex;gap:5px;margin-left:auto}
+.pastilles i{width:26px;height:9px;border-radius:999px;background:var(--fond-2);border:1px solid var(--filet);display:block}
+.pastilles i.prise{background:var(--indigo);border-color:var(--indigo)}
+
+h2{font-size:clamp(21px,3vw,27px);margin-top:42px}
+h2 + .cap{font-size:13.5px;color:var(--encre-doux);margin-top:7px;max-width:66ch}
+
+/* tableaux */
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+th{text-align:left;font-weight:400;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--encre-doux);padding:0 10px 7px;border-bottom:1px solid var(--filet)}
+td{padding:11px 10px;border-bottom:1px solid var(--filet);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.quoi{color:var(--indigo);font-weight:400}
+td.etat{white-space:nowrap;text-align:right}
+.etiq{display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.etiq.bon{background:var(--indigo);color:#F6F1E7}
+.etiq.reste{background:var(--cuivre-voile);color:var(--cuivre-profond);border:1px solid rgba(185,122,74,.4)}
+.atrouver{color:var(--cuivre-profond);border-bottom:1px dashed var(--cuivre);padding-bottom:1px}
+
+/* les étapes, cochables */
+ol.pas{list-style:none;margin:18px 0 0;padding:0;counter-reset:pas}
+ol.pas li{counter-increment:pas;position:relative;padding:14px 46px 14px 58px;background:var(--carte);border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;transition:.18s ease}
+ol.pas li::before{content:counter(pas);position:absolute;left:16px;top:13px;width:26px;height:26px;border-radius:999px;background:var(--indigo);color:#F6F1E7;display:grid;place-items:center;font-size:12.5px}
+ol.pas li b{display:block;font-weight:500;color:var(--indigo);font-size:15px}
+ol.pas li p{font-size:13.5px;color:var(--encre-doux);margin-top:5px}
+ol.pas li p b{display:inline;font-size:inherit;font-weight:500}
+ol.pas li.fait{opacity:.5}
+ol.pas li.fait > b{text-decoration:line-through}
+ol.pas li.fait::before{background:var(--cuivre)}
+.coche{position:absolute;right:14px;top:14px;width:22px;height:22px;border:1px solid var(--filet);border-radius:4px;background:var(--fond);cursor:pointer;display:grid;place-items:center;color:transparent;font-size:13px}
+.coche:hover{border-color:var(--cuivre)}
+li.fait .coche{background:var(--cuivre);border-color:var(--cuivre);color:#fff}
+kbd{font-family:var(--sans);font-size:12.5px;background:var(--fond-2);border:1px solid var(--filet);border-radius:3px;padding:1px 6px;color:var(--indigo);overflow-wrap:anywhere}
+
+/* encadrés */
+.garde{border-left:2px solid var(--cuivre);background:var(--cuivre-clair);padding:16px 18px;margin-top:20px;border-radius:0 4px 4px 0}
+.garde b{display:block;color:var(--cuivre-profond);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+.garde p{font-size:13.5px;color:var(--encre-doux);margin-top:6px}
+.garde p + p{margin-top:8px}
+.garde.mur{border-left-color:var(--alerte);background:#FBF0EE}
+.garde.mur b{color:var(--alerte)}
+.regle{background:var(--indigo);color:#F6F1E7;padding:20px 22px;border-radius:4px;margin-top:20px}
+.regle p{font-family:var(--serif);font-size:19px;line-height:1.45}
+.regle p + p{margin-top:10px}
+.regle small{display:block;font-family:var(--sans);font-size:12.5px;color:rgba(246,241,231,.68);margin-top:14px;line-height:1.6}
+
+.pied{margin-top:48px;padding-top:18px;border-top:1px solid var(--filet);font-size:12px;color:var(--encre-doux);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  table, thead, tbody, tr, td, th{display:block}
+  thead{display:none}
+  tr{border:1px solid var(--filet);border-radius:4px;margin-bottom:8px;padding:6px 4px;background:var(--carte)}
+  td{border:0;padding:5px 10px}
+  td.etat{text-align:left;white-space:normal}
+}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{max-width:none;padding:0}
+  .coche,.pastilles,.jauge{display:none}
+  ol.pas li{break-inside:avoid;background:#fff;padding-right:14px}
+  h2{break-after:avoid;margin-top:22px}
+  .garde,.regle{break-inside:avoid}
+  .regle{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo)}
+  .regle small{color:var(--encre-doux)}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tete">
+    <img class="verrou" src="assets/verrous/verrou-couche-indigo.png" width="1335" height="418" alt="Maison MND">
+    <p class="sur">Maison MND · Google</p>
+    <h1>Google et la nouvelle adresse</h1>
+    <p class="ligne">Google montre encore la photo qu'il a prise du site le 17 septembre, à son ancienne adresse. Six gestes pour lui présenter maisonmnd.com.</p>
+  </header>
+
+  <div class="jauge">
+    <b id="compte">0 / 6</b>
+    <span>gestes faits. Comptez dix minutes, une seule fois.</span>
+    <span class="pastilles" id="pastilles"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <h2>Ce qui se passe</h2>
+  <p class="cap">Google ne lit pas le site en direct. Il garde une photo de chaque page, avec sa date, et ne repasse que lorsqu'il le décide. La sienne date du 17 septembre ; le site a déménagé à la racine de maisonmnd.com le 24. Tant qu'il n'est pas repassé, il montre l'ancienne adresse, et l'appelle « GitHub Pages documentation » parce que c'est le nom de l'hébergeur de cette adresse-là.</p>
+
+  <div class="garde">
+    <b>Rien n'est cassé, et le lien marche déjà</b>
+    <p>Qui clique aujourd'hui sur ce résultat arrive bien sur maisonmnd.com : l'ancienne adresse renvoie vers la nouvelle. Ce qui manque, c'est que personne n'a encore présenté la nouvelle adresse à Google.</p>
+  </div>
+
+  <h2>Ce que j'ai mesuré, le 1er octobre</h2>
+  <p class="cap">Lu depuis l'extérieur, comme le lit un moteur de recherche.</p>
+  <table>
+    <thead><tr><th>Point</th><th>Ce que le site répond</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="quoi">L'ancienne adresse</td>
+        <td>maisonmnd.github.io/revelateur/ renvoie vers maisonmnd.com, page par page.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">L'adresse officielle</td>
+        <td>Chaque page déclare son adresse en maisonmnd.com comme la seule qui compte.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">Le plan du site</td>
+        <td>47 adresses, toutes en maisonmnd.com, et rien n'est interdit aux moteurs.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">Le nom du site</td>
+        <td>Le site se présente aux moteurs sous le nom « Maison MND ».</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">Un autre moteur</td>
+        <td>Il montre déjà maisonmnd.com : la nouvelle adresse se lit donc bien du dehors.</td>
+        <td class="etat"><span class="etiq bon">en ordre</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">La Search Console</td>
+        <td>Les deux propriétés du 18 septembre visent /revelateur/ et /couronne/. Je ne vois aucune trace d'une propriété pour maisonmnd.com.</td>
+        <td class="etat"><span class="etiq reste">à faire</span></td>
+      </tr>
+      <tr>
+        <td class="quoi">La fiche Google</td>
+        <td>Son lien « Site Web » : <span class="atrouver">je ne peux pas le lire d'ici</span>.</td>
+        <td class="etat"><span class="etiq reste">à vérifier</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>À faire, dans cet ordre</h2>
+  <p class="cap">Tout se passe dans la Search Console, puis sur la fiche Google. Cochez à mesure, votre navigateur s'en souvient sur ce poste.</p>
+  <ol class="pas" id="pas">
+    <li><b>Ouvrir la Search Console</b><p>Dans Chrome, tapez <kbd>search.google.com/search-console</kbd> dans la barre d'adresse, et connectez-vous avec <span class="atrouver">le compte Google qui a créé les propriétés le 18 septembre</span>.</p><p>Si un tableau de bord s'ouvre avec un menu à gauche, vous y êtes. Si une page « Bienvenue » montre deux cases, « Domaine » et « Préfixe de l'URL », ce compte n'a aucune propriété : changez de compte par la pastille ronde en haut à droite, ou passez au geste suivant avec la case de droite.</p></li>
+    <li><b>Ajouter la propriété maisonmnd.com</b><p>En haut à gauche, le sélecteur de propriété, puis <b>Ajouter une propriété</b>. Dans la colonne de droite, « Préfixe de l'URL », écrivez <kbd>https://maisonmnd.com/</kbd> puis Continuer.</p><p>Elle doit se valider toute seule : les deux fichiers de Google sont déjà servis à la racine du site, je l'ai vérifié. Si Google demande une méthode, choisissez « Fichier HTML » et cliquez Valider, sans rien télécharger.</p></li>
+    <li><b>Déclarer le plan du site</b><p>Menu de gauche, <b>Sitemaps</b>. Dans « Ajouter un sitemap », écrivez <kbd>sitemap.xml</kbd> puis Envoyer.</p><p>État attendu : « Opération réussie », 47 pages découvertes. Un « Impossible de récupérer » le premier jour est fréquent sur une propriété neuve et se lève seul.</p></li>
+    <li><b>Demander à Google de passer sur l'accueil</b><p>Dans la barre du haut, « Inspecter n'importe quelle URL », collez <kbd>https://maisonmnd.com/</kbd>, Entrée, puis <b>Demander une indexation</b>. Une à deux minutes d'attente.</p></li>
+    <li><b>Le demander pour deux autres pages</b><p>Même geste pour <kbd>https://maisonmnd.com/notre-histoire/</kbd> et <kbd>https://maisonmnd.com/premiere-couronne/</kbd>. Inutile d'en faire plus : le plan du site amène les autres, et Google limite ces demandes à une dizaine par jour.</p></li>
+    <li><b>Vérifier le lien de la fiche Google</b><p>Connecté à ce même compte, cherchez « Maison MND » sur Google, puis <b>Modifier la fiche</b>, Coordonnées, Site Web. Il doit dire <kbd>https://maisonmnd.com/</kbd>, sans /revelateur/. C'est le lien que Google suit le plus volontiers.</p></li>
+  </ol>
+
+  <div class="garde mur">
+    <b>Deux choses à ne pas toucher</b>
+    <p>L'outil « Suppressions » de la Search Console : il cache une adresse pendant six mois, il ne la remplace pas.</p>
+    <p>Les anciennes propriétés /revelateur/ et /couronne/ : celle de /revelateur/ peut s'afficher « non validée », c'est attendu depuis le déménagement. Laissez-les, elles ne gênent rien.</p>
+  </div>
+
+  <h2>Ce qu'il faut attendre</h2>
+  <p class="cap">Google ne promet aucun délai. Voici ce qu'on observe d'ordinaire pour un site de cette taille.</p>
+  <table>
+    <thead><tr><th>Quand</th><th>Ce qui change</th></tr></thead>
+    <tbody>
+      <tr><td class="quoi">Le jour même</td><td>La propriété est validée, le plan du site est reçu.</td></tr>
+      <tr><td class="quoi">En quelques jours</td><td>maisonmnd.com apparaît quand on tape « Maison MND ».</td></tr>
+      <tr><td class="quoi">En deux à quatre semaines</td><td>La ligne maisonmnd.github.io disparaît d'elle-même, et le nom « Maison MND » prend la place de « GitHub Pages documentation ».</td></tr>
+    </tbody>
+  </table>
+
+  <div class="garde">
+    <b>Fait de mon côté, le 1er octobre</b>
+    <p>Les pages de renvoi de l'ancienne adresse disaient à la fois « allez à la nouvelle adresse » et « oubliez-moi ». Le second message est retiré : elles ne disent plus que le renvoi, ce que Google attend pour un déménagement. Ce n'était pas la cause du retard, c'est un signal plus net.</p>
+  </div>
+
+  <h2>La règle, pour la suite</h2>
+  <div class="regle">
+    <p>Toute adresse de la Maison donnée ailleurs s'écrit https://maisonmnd.com/</p>
+    <small>Sans /revelateur/ et sans github.io : la fiche Google, les bios des réseaux, les cartes, les QR, les signatures de courrier. Chaque lien posé vers la bonne adresse est un vote que Google compte.</small>
+  </div>
+
+  <div class="pied">
+    <span>Maison MND · maisonmnd.com</span>
+    <span>Document de travail, 1er octobre 2026.</span>
+  </div>
+
+</div>
+
+<script>
+/* Les cases cochées vivent sur CE poste. Si le navigateur refuse son stockage
+   (fenêtre privée, site bloqué), la page marche quand même : on coche, ça ne
+   se garde simplement pas. */
+const CLE = 'mnd_google_nouvelle_adresse_pas_faits';
+const items = [...document.querySelectorAll('#pas li')];
+const pastilles = [...document.querySelectorAll('#pastilles i')];
+const compte = document.getElementById('compte');
+let faits = [];
+try { faits = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch { faits = []; }
+
+const dit = () => {
+  const n = items.filter((x) => x.classList.contains('fait')).length;
+  compte.textContent = n + ' / ' + items.length;
+  pastilles.forEach((p, i) => p.classList.toggle('prise', i < n));
+};
+
+items.forEach((li, i) => {
+  const b = document.createElement('button');
+  b.className = 'coche';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Marquer cette étape comme faite');
+  b.textContent = '✓';
+  b.onclick = () => {
+    li.classList.toggle('fait');
+    const cochees = items.map((x, j) => (x.classList.contains('fait') ? j : -1)).filter((j) => j >= 0);
+    try { localStorage.setItem(CLE, JSON.stringify(cochees)); } catch { /* tant pis */ }
+    dit();
+  };
+  li.appendChild(b);
+  if (faits.includes(i)) li.classList.add('fait');
+});
+dit();
+</script>
+</body>
+</html>

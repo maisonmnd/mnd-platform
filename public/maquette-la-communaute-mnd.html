@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<title>La communauté MND</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* MAQUETTE · LA COMMUNAUTÉ MND · 28 septembre 2026. Quatre sections à
+   valider avant construction : la communauté, le parrainage, les
+   ingrédients, l'avant / après. Jetons du site servi. */
+:root {
+  --indigo: #1E2150; --indigo-2: #15173A; --ivoire: #F6F1E7; --ivoire-2: #EEE6D6; --carte: #FFFDF9;
+  --cuivre: #B97A4A; --cuivre-2: #7C4C2C; --cuivre-clair: #D6A06F; --cuivre-voile: rgba(185,122,74,.13);
+  --encre: #2A2722; --doux: #5E5750; --filet: rgba(20,20,27,.14);
+  --serif: 'Cormorant Garamond', Georgia, serif; --sans: 'Jost', system-ui, sans-serif; --t: .24s ease;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ivoire); color: var(--encre); font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 300; color: var(--indigo); margin: 0; line-height: 1.08; text-wrap: balance; }
+h2 { font-size: clamp(30px, 4.4vw, 48px); }
+h3 { font-size: 24px; font-weight: 400; }
+p { margin: 0; }
+.conteneur { max-width: 1120px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+section { padding-block: clamp(56px, 8vw, 104px); }
+.sur { font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--cuivre-2); font-weight: 400; }
+.ligne { font-size: 17px; color: var(--doux); max-width: 56ch; }
+.tete { display: grid; gap: 12px; margin-bottom: 40px; }
+.tete--centre { text-align: center; justify-items: center; }
+.filet { width: 64px; height: 1px; background: var(--cuivre); margin-top: 6px; }
+.b { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 13px 24px; border-radius: 999px; border: 1px solid rgba(30,33,80,.38); color: var(--indigo); background: transparent; font: 400 12px var(--sans); letter-spacing: .18em; text-transform: uppercase; cursor: pointer; text-decoration: none; transition: background var(--t), color var(--t), border-color var(--t); }
+.b:hover { border-color: var(--indigo); background: rgba(30,33,80,.05); }
+.b--fort { background: var(--indigo); color: var(--ivoire); border-color: var(--indigo); }
+.b--fort:hover { background: var(--indigo-2); }
+.b--cuivre { background: var(--cuivre); color: var(--ivoire); border-color: var(--cuivre); }
+.mot { color: var(--cuivre-2); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; text-decoration: none; border-bottom: 1px solid transparent; }
+.mot:hover { border-color: var(--cuivre-2); }
+.manque { display: inline-block; border: 1px dashed var(--cuivre); color: var(--cuivre-2); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.repere { background: var(--ivoire-2); border-bottom: 1px solid var(--filet); font-size: 13px; }
+.repere .conteneur { padding-block: 12px; display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; }
+.repere b { font-weight: 500; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre-2); }
+.repere a { color: var(--indigo); }
+.note { margin-top: 28px; border-left: 2px solid var(--cuivre); padding: 12px 16px; background: var(--carte); font-size: 14px; color: var(--doux); max-width: 70ch; }
+.note b { color: var(--indigo); font-weight: 500; }
+
+/* ── 1. LA COMMUNAUTÉ : trois cartes blanches sur une photo, comme chez Corinne de Farme ── */
+.communaute { position: relative; isolation: isolate; padding-block: clamp(64px, 9vw, 120px); }
+.communaute::before { content: ''; position: absolute; inset: 0; z-index: -2; background: linear-gradient(180deg, var(--ivoire) 0 16%, transparent 16%), radial-gradient(120% 90% at 50% 40%, #2A2E70 0%, var(--indigo) 55%, var(--indigo-2) 100%); }
+.communaute::after { content: ''; position: absolute; inset: 16% 0 0; z-index: -1; opacity: .12;
+  background-image: radial-gradient(circle at 50% 50%, transparent 17px, rgba(214,160,111,.9) 18px, transparent 19.5px); background-size: 64px 64px; }
+.cartes3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.carte3 { background: var(--carte); padding: 40px 28px 34px; display: grid; justify-items: center; text-align: center; gap: 16px; box-shadow: 0 20px 60px rgba(21,23,58,.28); }
+.carte3 svg { width: 72px; height: 72px; color: var(--indigo); }
+.carte3 svg .c { color: var(--cuivre); }
+.carte3 h3 { font-size: 26px; }
+.carte3 p { color: var(--doux); font-size: 15px; max-width: 26ch; }
+@media (max-width: 860px) { .cartes3 { grid-template-columns: 1fr; } }
+
+/* ── 2. LE PARRAINAGE ── */
+.parrain .grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+@media (max-width: 860px) { .parrain .grille { grid-template-columns: 1fr; } }
+.pas { display: grid; gap: 18px; counter-reset: p; margin-top: 8px; }
+.pas > div { display: grid; grid-template-columns: 40px 1fr; gap: 12px; }
+.pas > div::before { counter-increment: p; content: counter(p); font-family: var(--serif); font-size: 32px; line-height: 1; color: var(--cuivre); }
+.pas b { display: block; color: var(--indigo); font-weight: 400; font-size: 18px; }
+.pas p { color: var(--doux); font-size: 15px; }
+.bon { background: var(--indigo); color: var(--ivoire); border-radius: 14px; padding: 28px; display: grid; gap: 16px; box-shadow: 0 30px 80px rgba(30,33,80,.3); position: relative; overflow: hidden; }
+.bon::after { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; border: 1px solid rgba(214,160,111,.4); box-shadow: 0 0 0 22px rgba(214,160,111,.06); }
+.bon .sur { color: var(--cuivre-clair); }
+.bon h3 { color: var(--ivoire); font-size: 28px; }
+.champ { display: grid; gap: 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: rgba(246,241,231,.7); }
+.champ input { font: 16px var(--sans); color: var(--encre); padding: 12px 14px; border-radius: 8px; border: 0; background: var(--ivoire); }
+.code { font-family: var(--serif); font-size: 34px; letter-spacing: .08em; color: var(--cuivre-clair); }
+.bon .petit { font-size: 13px; color: rgba(246,241,231,.72); }
+.trone { margin-top: 28px; background: var(--carte); border: 1px solid var(--filet); border-radius: 8px; padding: 18px; }
+.trone table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+.trone th, .trone td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--filet); }
+.trone th { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--cuivre-2); font-weight: 500; }
+.pill { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--filet); }
+.pill--ok { background: #E6EFE9; border-color: #BFD4C6; color: #2F5D50; }
+.pill--attente { background: var(--cuivre-voile); border-color: rgba(185,122,74,.4); color: var(--cuivre-2); }
+
+/* ── 3. LES INGRÉDIENTS : un carrousel de cartes, comme leurs fleurs ── */
+.ingredients { background: var(--ivoire-2); }
+.rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+.ingr { scroll-snap-align: start; aspect-ratio: 1; position: relative; display: grid; place-items: center; overflow: hidden; }
+.ingr .cadre { position: absolute; inset: 12%; border: 1px solid rgba(246,241,231,.6); background: rgba(246,241,231,.18); }
+.ingr b { position: relative; font-family: var(--sans); font-weight: 500; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; color: var(--ivoire); text-align: center; padding: 0 16px; text-shadow: 0 1px 12px rgba(0,0,0,.25); }
+.ingr small { position: absolute; bottom: 16%; left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(246,241,231,.9); }
+.ingr .photo { position: absolute; inset: 0; display: grid; place-items: end start; padding: 10px; font-size: 11px; color: rgba(246,241,231,.85); }
+.i1 { background: #8A5A3B; } .i2 { background: #6E4B2E; } .i3 { background: #2F5D50; } .i4 { background: #5C3A52; } .i5 { background: #936518; } .i6 { background: #3F5B3A; }
+.rail-nav { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 14px; }
+.rail-nav button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--filet); background: var(--carte); cursor: pointer; font-size: 18px; color: var(--indigo); }
+
+/* ── 4. L'AVANT / APRÈS : une photo, une poignée qu'on glisse ── */
+.aa .paires { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .aa .paires { grid-template-columns: 1fr; } }
+.comparer { position: relative; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 4px; background: var(--ivoire-2); user-select: none; touch-action: none; cursor: ew-resize; }
+.comparer .avant, .comparer .apres { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; }
+.comparer .avant { background: repeating-linear-gradient(45deg, #D9CDB8 0 14px, #D2C4AC 14px 28px); color: var(--cuivre-2); }
+.comparer .apres { background: linear-gradient(160deg, #2A2E70, var(--indigo)); color: var(--ivoire); clip-path: inset(0 0 0 var(--x, 50%)); }
+.comparer .poignee { position: absolute; top: 0; bottom: 0; left: var(--x, 50%); width: 2px; background: var(--ivoire); transform: translateX(-1px); }
+.comparer .poignee::after { content: '⇆'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 42px; height: 42px; border-radius: 50%; background: var(--ivoire); color: var(--indigo); display: grid; place-items: center; font-size: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.comparer .etiq { position: absolute; top: 12px; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: rgba(21,23,58,.6); color: var(--ivoire); }
+.etiq--g { left: 12px; } .etiq--d { right: 12px; }
+.aa figcaption { margin-top: 12px; display: grid; gap: 4px; }
+.aa figcaption b { color: var(--indigo); font-weight: 400; font-size: 18px; }
+.aa figcaption span { font-size: 13px; color: var(--doux); }
+.aa figure { margin: 0; }
+
+.apres-oui { background: var(--ivoire-2); }
+.apres-oui ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; color: var(--doux); max-width: 72ch; }
+.apres-oui b { color: var(--indigo); font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="repere"><div class="conteneur">
+  <b>Maquette · à valider</b>
+  <span>Quatre sections, inspirées de Corinne de Farme, dans la langue de la Maison.</span>
+  <a href="#communaute">Communauté</a> · <a href="#parrainage">Parrainage</a> · <a href="#ingredients">Ingrédients</a> · <a href="#avant-apres">Avant / après</a>
+</div></div>
+
+<!-- ══ 1. LA COMMUNAUTÉ ══ -->
+<section class="communaute" id="communaute">
+  <div class="conteneur">
+    <div class="tete tete--centre"><p class="sur">La communauté MND</p><h2>Bienvenue dans la Maison.</h2><div class="filet"></div></div>
+    <div class="cartes3">
+      <article class="carte3">
+        <svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="12" y="24" width="14" height="36" rx="3"/><path d="M16 24v-6h6v6M17 18h4"/><rect x="31" y="40" width="18" height="20" rx="3"/><path class="c" d="M33 40v-4h14v4"/><rect x="54" y="18" width="8" height="42" rx="2"/><path class="c" d="M54 24h8"/></svg>
+        <h3>Devenez testeuse</h3>
+        <p>Essayez nos nouveaux soins avant tout le monde, et dites-nous ce que vous en pensez.</p>
+        <a class="mot" href="#testeuse">› En savoir plus</a>
+      </article>
+      <article class="carte3">
+        <svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="36" cy="30" r="16"/><path d="M20 30c0-12 7-18 16-18s16 6 16 18"/><path d="M26 22c3 6 17 6 20 0"/><path class="c" d="M30 30h.1M42 30h.1"/><path d="M30 38c3 3 9 3 12 0"/><path d="M24 44c-6 4-8 10-8 16h40c0-6-2-12-8-16"/></svg>
+        <h3>Conseils et astuces</h3>
+        <p>Le Journal, le diagnostic locks et votre routine, pour soigner votre couronne entre deux visites.</p>
+        <a class="mot" href="#conseils">› En savoir plus</a>
+      </article>
+      <article class="carte3">
+        <svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="1.4"><path class="c" d="M36 34c-8-4-10-14-4-22 6 8 6 16 4 22zM36 34c8-4 10-14 4-22"/><path d="M14 40c4 0 8 2 12 6l10 8M58 40c-4 0-8 2-12 6l-10 8"/><path d="M14 40v8c0 4 4 8 8 10M58 40v8c0 4-4 8-8 10"/></svg>
+        <h3>Nos engagements</h3>
+        <p>Des produits éprouvés sur nos couronnes, une hygiène sans faille, et un regard avant chaque geste.</p>
+        <a class="mot" href="#engagements">› En savoir plus</a>
+      </article>
+    </div>
+    <p class="note" style="margin-inline:auto"><b>Testeuse</b> : une inscription courte (prénom, numéro, type de locks) qui arrive au Trône comme une demande « Testeuse ». <b>Conseils</b> mène au Journal et au diagnostic. <b>Engagements</b> ouvre une page courte : vos trois promesses. <span class="manque">Vos engagements en mots, à me dire, sinon je propose</span></p>
+  </div>
+</section>
+
+<!-- ══ 2. LE PARRAINAGE ══ -->
+<section class="parrain" id="parrainage">
+  <div class="conteneur grille">
+    <div>
+      <div class="tete"><p class="sur">Le parrainage</p><h2>Offrez la Maison à une amie.</h2><p class="ligne">Votre amie découvre la Maison avec un cadeau de bienvenue. Quand elle est venue, vous recevez le vôtre.</p></div>
+      <div class="pas">
+        <div><div><b>Vous recevez votre code</b><p>Votre prénom et votre numéro, et le site vous donne un code à vous, à partager sur WhatsApp.</p></div></div>
+        <div><div><b>Votre amie réserve avec votre code</b><p>Sur le site ou sur WhatsApp. Son cadeau de bienvenue s'applique à sa première visite.</p></div></div>
+        <div><div><b>Elle vient, vous êtes remerciée</b><p>Dès que sa visite est réglée au Trône, votre geste offert est porté à votre compte, et la Maison vous le dit sur WhatsApp.</p></div></div>
+      </div>
+      <p class="note"><b>Ce que chacune reçoit</b> : <span class="manque">le cadeau de la filleule (ex. un soin offert, ou une remise sur la première visite)</span> et <span class="manque">celui de la marraine (ex. un lavage offert)</span>. Un code ne sert qu'une fois par nouvelle cliente, jamais à une cliente déjà connue du Trône.</p>
+    </div>
+    <div>
+      <div class="bon" aria-label="Aperçu : obtenir son code">
+        <p class="sur">Votre code de marraine</p>
+        <h3>Parrainez une amie.</h3>
+        <label class="champ">Votre prénom<input value="Aïcha" readonly></label>
+        <label class="champ">Votre numéro WhatsApp<input value="+229 •• •• •• ••" readonly></label>
+        <p class="code">AICHA-7K2</p>
+        <p class="petit">Partagez-le : « Réserve à la Maison MND avec mon code AICHA-7K2, tu as un cadeau de bienvenue. »</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="b b--cuivre" href="#parrainage">Partager sur WhatsApp</a><a class="b" style="color:var(--ivoire);border-color:rgba(246,241,231,.4)" href="#parrainage">Copier le code</a></div>
+      </div>
+      <div class="trone">
+        <p class="sur">Au Trône · Marketing & Fidélité → Parrainages</p>
+        <table>
+          <thead><tr><th>Marraine</th><th>Filleule</th><th>Première visite</th><th>Cadeau</th></tr></thead>
+          <tbody>
+            <tr><td>Aïcha</td><td>Sènami</td><td>12 oct. · réglée</td><td><span class="pill pill--ok">porté au compte</span></td></tr>
+            <tr><td>Aïcha</td><td>Rama</td><td>rendez-vous le 20 oct.</td><td><span class="pill pill--attente">en attente</span></td></tr>
+            <tr><td>Nadège</td><td>Grâce</td><td>pas encore venue</td><td><span class="pill">code utilisé</span></td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:13px;color:var(--doux);margin-top:10px">Exemple, pas vos chiffres. Le cadeau de la marraine se pose tout seul quand la visite de la filleule est réglée ; vous pouvez aussi le poser à la main.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 3. LES INGRÉDIENTS ══ -->
+<section class="ingredients" id="ingredients">
+  <div class="conteneur">
+    <div class="tete tete--centre"><p class="sur">Nos ingrédients</p><h2>Ce qui entre dans nos soins.</h2><div class="filet"></div></div>
+    <div class="rail-nav"><button type="button" aria-label="Précédent" onclick="document.getElementById('rail').scrollBy({left:-280,behavior:'smooth'})">‹</button><button type="button" aria-label="Suivant" onclick="document.getElementById('rail').scrollBy({left:280,behavior:'smooth'})">›</button></div>
+    <div class="rail" id="rail">
+      <div class="ingr i1"><span class="cadre"></span><b>Beurre de karité</b><small>Nourrir · Sceller</small><span class="photo">photo à confier</span></div>
+      <div class="ingr i2"><span class="cadre"></span><b>Huile de coco</b><small>Nourrir</small><span class="photo">photo à confier</span></div>
+      <div class="ingr i3"><span class="cadre"></span><b>Aloe vera</b><small>Apaiser le cuir chevelu</small><span class="photo">photo à confier</span></div>
+      <div class="ingr i4"><span class="cadre"></span><b>Moringa</b><small>Fortifier</small><span class="photo">photo à confier</span></div>
+      <div class="ingr i5"><span class="cadre"></span><b>À nommer</b><small>votre ingrédient</small><span class="photo">photo à confier</span></div>
+      <div class="ingr i6"><span class="cadre"></span><b>À nommer</b><small>votre ingrédient</small><span class="photo">photo à confier</span></div>
+    </div>
+    <p class="note" style="margin-inline:auto"><b>Karité, coco, aloe, moringa</b> sont ceux que votre catalogue et votre Journal nomment déjà. <span class="manque">La liste réelle de vos ingrédients, avec le soin où chacun entre</span> et <span class="manque">une photo de chacun (fleur, graine, beurre)</span>. Chaque carte mène au soin qui l'utilise. Je n'écris aucun bienfait que vous ne m'aurez pas confirmé.</p>
+  </div>
+</section>
+
+<!-- ══ 4. L'AVANT / APRÈS ══ -->
+<section class="aa" id="avant-apres">
+  <div class="conteneur">
+    <div class="tete"><p class="sur">Avant / après</p><h2>Ce que la Maison répare.</h2><p class="ligne">Glissez la poignée : la même couronne, avant et après le passage à la Maison.</p></div>
+    <div class="paires">
+      <figure>
+        <div class="comparer" style="--x:50%"><div class="avant">photo AVANT à confier</div><div class="apres">photo APRÈS à confier</div><span class="etiq etiq--g">Avant</span><span class="etiq etiq--d">Après</span><span class="poignee"></span></div>
+        <figcaption><b>Réparation de racines</b><span>Deux séances · locks de 6 ans</span></figcaption>
+      </figure>
+      <figure>
+        <div class="comparer" style="--x:50%"><div class="avant">photo AVANT à confier</div><div class="apres">photo APRÈS à confier</div><span class="etiq etiq--g">Avant</span><span class="etiq etiq--d">Après</span><span class="poignee"></span></div>
+        <figcaption><b>Première Couronne</b><span>Cheveu naturel → locks Medium</span></figcaption>
+      </figure>
+    </div>
+    <p class="note"><b>Chaque paire</b> : deux photos de la même cliente, <b>même cadrage</b> (face ou dos, même lumière), et son accord inscrit au registre des photos avant publication, comme pour la galerie. <span class="manque">vos paires avant / après</span>. La légende dit le geste et la durée, jamais le prénom.</p>
+  </div>
+</section>
+
+<section class="apres-oui"><div class="conteneur">
+  <div class="tete"><p class="sur">Après votre oui</p><h2>Ce que je construis.</h2></div>
+  <ol>
+    <li><b>La communauté</b> sur l'accueil (avant le Journal), l'inscription « Testeuse » qui arrive au Trône, la page courte des engagements.</li>
+    <li><b>Le parrainage</b> : la page « Parrainer une amie » qui donne un code personnel ; le code accepté à la réservation pour une nouvelle cliente seulement ; au Trône, l'écran Parrainages et le cadeau de la marraine posé à son compte quand la visite de la filleule est réglée ; un harnais qui refuse un code utilisé deux fois ou par une cliente déjà connue.</li>
+    <li><b>Les ingrédients</b> : le carrousel, dès que j'ai votre liste et vos photos.</li>
+    <li><b>L'avant / après</b> : la section et sa poignée, dès que j'ai vos paires et les accords.</li>
+  </ol>
+</div></section>
+
+<script>
+/* La poignée de l'avant / après : on glisse, au doigt comme à la souris. */
+document.querySelectorAll('.comparer').forEach((c) => {
+  const pose = (x) => { const r = c.getBoundingClientRect(); c.style.setProperty('--x', `${Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100))}%`); };
+  let tient = false;
+  c.addEventListener('pointerdown', (e) => { tient = true; c.setPointerCapture(e.pointerId); pose(e.clientX); });
+  c.addEventListener('pointermove', (e) => { if (tient) pose(e.clientX); });
+  c.addEventListener('pointerup', () => { tient = false; });
+});
+</script>
+
+</body>
+</html>

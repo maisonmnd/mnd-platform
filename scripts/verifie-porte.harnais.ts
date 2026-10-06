@@ -9,7 +9,7 @@ import {
   vientDeMaCouronne, origineDeLaSession, adresseDejaPrise, secondesAvantRenvoi, ATTENTE_ENTRE_RENVOIS,
   type CompteEnAttente,
 } from '../src/shared/auth';
-import { ANCIENS_DOMAINES, DEPARTEMENTS, NAV, ancienDomaineDe, gestesRapides, peutVoir, premierEcranVisible, voitLesPrix } from '../src/apps/trone/routes/index';
+import { ANCIENS_DOMAINES, DEPARTEMENTS, ECRANS_NES_APRES_LES_DEPARTEMENTS, NAV, ancienDomaineDe, gestesRapides, peutVoir, premierEcranVisible, voitLesPrix } from '../src/apps/trone/routes/index';
 
 let ko = 0;
 const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
@@ -153,8 +153,16 @@ dit('autant de groupes que de départements, mêmes libellés', true,
   NAV.length === DEPARTEMENTS.length && NAV.every((g) => DEPARTEMENTS.some((d) => d.l === g.group)));
 dit('aucune clef de département ne ressemble à un ancien domaine', true,
   DEPARTEMENTS.every((d) => d.k.startsWith('dept-') && !(d.k in ANCIENS_DOMAINES)));
-dit('chaque écran de la barre a un ancien domaine', true,
-  NAV.flatMap((g) => g.items).every((it) => !!ancienDomaineDe(it.path)));
+/* 28 septembre 2026 : la photographie ne grandit pas. Un écran né après
+   elle est NOMMÉ dans ECRANS_NES_APRES_LES_DEPARTEMENTS, et n'a jamais
+   d'ancien domaine ; tout autre écran de la barre en a un. */
+dit('chaque écran de la barre a un ancien domaine, ou est nommé parmi les écrans nés après', [],
+  NAV.flatMap((g) => g.items).map((it) => it.path)
+    .filter((p) => !ancienDomaineDe(p) && !ECRANS_NES_APRES_LES_DEPARTEMENTS.includes(p)));
+dit('… et aucun écran né après n’a reçu d’ancien domaine', [],
+  ECRANS_NES_APRES_LES_DEPARTEMENTS.filter((p) => !!ancienDomaineDe(p)));
+dit('… et chaque écran né après est bien dans la barre', [],
+  ECRANS_NES_APRES_LES_DEPARTEMENTS.filter((p) => !NAV.some((g) => g.items.some((it) => it.path === p))));
 dit('… et aucun ancien domaine ne cite un écran disparu', true,
   Object.values(ANCIENS_DOMAINES).flat().every((p) => NAV.some((g) => g.items.some((it) => it.path === p))));
 

@@ -1,6 +1,134 @@
-/* Service worker — Web Push (notifications téléphone) pour Ma Couronne & Le Trône.
-   Ne met RIEN en cache : uniquement la réception des notifications et le clic.
+/* Service worker — Web Push (notifications téléphone) pour Ma Couronne & Le Trône,
+   ET, depuis le 4 octobre 2026, l'application gardée sur le téléphone (maquette
+   « Le Trône hors ligne », temps 2).
 
+   CE QU'IL GARDE. `scripts/build-sites.mjs` remplace les deux repères
+   ci-dessous à chaque construction : l'empreinte de la version, et la liste de
+   ce qui fait l'application (la page, le code, les styles, les polices, les
+   sceaux). Un `sw.js` qui change à chaque construction est ce qui installe la
+   nouvelle version au téléphone. En développement, les repères restent tels
+   quels et RIEN ne se garde : un poste de travail doit toujours voir le code
+   frais.
+
+   COMMENT IL SERT :
+   · la page (navigation) : le réseau d'abord, quatre secondes au plus, puis
+     la page gardée — en ligne on a toujours la dernière version, sans réseau
+     le Trône s'ouvre quand même ;
+   · le code et les styles (noms à empreinte, immuables) : ce qui est gardé
+     d'abord, le réseau sinon ;
+   · les images : gardées à mesure qu'on les voit ;
+   · le reste — Supabase, les fonctions, version.json, un autre domaine — ne
+     passe JAMAIS par lui : les données ont leur propre file d'attente.
+
+   Uniquement la réception des notifications et le clic, pour le reste. */
+const BUILD = '__MND_BUILD__';
+const A_GARDER = /*__MND_A_GARDER__*/[];
+const ACTIF = !BUILD.startsWith('__');
+const CACHE_APP = `mnd-app-${BUILD}`;
+const CACHE_IMAGES = 'mnd-images';
+const DELAI_PAGE_MS = 4000;
+
+const portee = () => self.registration.scope;
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  if (!ACTIF) return;
+  /* UNE VERSION ENTIÈRE OU PAS DU TOUT — 4 octobre 2026. « Analytics ne
+     s'ouvre pas hors ligne » (Yéman) : une copie à trous ne doit jamais
+     remplacer une copie entière. Un seul fichier manqué (réseau coupé pendant
+     l'installation) et cette version renonce ; l'ancienne reste en service,
+     le navigateur réessaiera à la prochaine ouverture. */
+  event.waitUntil((async () => {
+    const c = await caches.open(CACHE_APP);
+    const r = await Promise.allSettled(
+      A_GARDER.map((u) => c.add(new Request(new URL(u, portee()).href, { cache: 'reload' }))),
+    );
+    if (r.some((x) => x.status === 'rejected')) {
+      await caches.delete(CACHE_APP);
+      throw new Error('copie incomplète, la version en place reste');
+    }
+  })());
+});
+
+/* LES DEUX VERSIONS D'AVANT RESTENT — 4 octobre 2026. Un Trône ouvert AVANT
+   une mise en ligne continue de demander les fichiers de SA version pour les
+   écrans qu'il n'a pas encore ouverts (Analytics) ; les effacer à l'instant où
+   la nouvelle s'installe le laissait, hors ligne, sur « Unexpected error ».
+   `caches.match` cherche dans toutes les copies : on garde les deux plus
+   récentes en plus de celle-ci, les plus anciennes s'effacent. */
+const VERSIONS_GARDEES = 2;
+self.addEventListener('activate', (event) => event.waitUntil((async () => {
+  if (ACTIF) {
+    const autres = (await caches.keys())
+      .filter((n) => n.startsWith('mnd-app-') && n !== CACHE_APP)
+      .sort()
+      .reverse();
+    await Promise.all(autres.slice(VERSIONS_GARDEES).map((n) => caches.delete(n)));
+  }
+  await self.clients.claim();
+})()));
+
+const avecDelai = (promesse, ms) => new Promise((ok, ko) => {
+  const t = setTimeout(() => ko(new Error('délai')), ms);
+  promesse.then((r) => { clearTimeout(t); ok(r); }, (e) => { clearTimeout(t); ko(e); });
+});
+
+self.addEventListener('fetch', (event) => {
+  if (!ACTIF) return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin || !req.url.startsWith(portee())) return;
+  if (/\/(version\.json|sw\.js)$/.test(url.pathname)) return;
+
+  if (req.mode === 'navigate') {
+    const page = new URL('./', portee()).href;
+    event.respondWith((async () => {
+      try {
+        const r = await avecDelai(fetch(req), DELAI_PAGE_MS);
+        if (r.ok && url.pathname === new URL(page).pathname) {
+          /* LA PAGE NE SE GARDE QU'AVEC SON CODE (4 octobre 2026). Une page
+             d'une version plus neuve que ce service appelle des fichiers
+             qu'il n'a pas : la garder, c'était rouvrir hors ligne une page
+             sans ses écrans. On la reconnaît à son script d'entrée. */
+          const copie = r.clone();
+          void copie.text().then(async (html) => {
+            const entree = html.match(/assets\/[^"'?#\s]+\.js/);
+            if (entree && !A_GARDER.includes(entree[0])) return;
+            const c = await caches.open(CACHE_APP);
+            await c.put(page, new Response(html, { headers: copie.headers }));
+          }).catch(() => {});
+        }
+        return r;
+      } catch (_e) {
+        return (await caches.match(req)) || (await caches.match(page)) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  if (/\.(js|css|woff2)$/.test(url.pathname)) {
+    event.respondWith((async () => {
+      const gardee = await caches.match(req);
+      if (gardee) return gardee;
+      const r = await fetch(req);
+      if (r.ok) { const c = await caches.open(CACHE_APP); void c.put(req, r.clone()); }
+      return r;
+    })());
+    return;
+  }
+
+  if (/\.(png|jpe?g|webp|svg|gif|ico)$/.test(url.pathname)) {
+    event.respondWith((async () => {
+      const c = await caches.open(CACHE_IMAGES);
+      const gardee = await c.match(req);
+      const frais = fetch(req).then((r) => { if (r.ok) void c.put(req, r.clone()); return r; }).catch(() => null);
+      return gardee || (await frais) || Response.error();
+    })());
+  }
+});
+
+/* ── LES NOTIFICATIONS ──
    Badge d'icône (Android/Samsung) : le SYSTÈME le dessine d'après le nombre de
    notifications encore dans le tiroir (l'API Badging n'existe pas sur Chrome Android).
    Stratégie : UNE seule notification à la fois (tag constant) → le badge ne dépasse
@@ -9,8 +137,6 @@
 
 const NOTI_TAG = 'mnd';
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 /* Referme toutes les notifications + efface le badge (desktop/iOS ; no-op Android). */
 async function clearAll() {

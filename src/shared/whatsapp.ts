@@ -1,3 +1,4 @@
+import { appelleOuGarde } from './appels-en-attente';
 import { supabase } from './supabase';
 import { numeroWa, type PieceRecue } from './conversations';
 import type { PieceRendue } from './pdf';
@@ -23,9 +24,10 @@ export type EnvoiWhatsApp = {
   /** Un modèle approuvé, pour écrire hors fenêtre. */
   modele?: string;
   variables?: string[];
-  /** Un modèle dont l'en-tête est un document (le bulletin) : la pièce
-      voyage avec, c'est la seule façon qu'un fichier passe hors fenêtre. */
-  enTete?: 'document';
+  /** Un modèle dont l'en-tête est un document (le bulletin) ou une image (la
+      carte de marraine, 28 septembre 2026) : la pièce voyage avec, c'est la
+      seule façon qu'un fichier passe hors fenêtre. */
+  enTete?: 'document' | 'image';
   piece?: PieceRendue;
   /** Jusqu'à trois boutons de réponse : `id` est ce que le webhook lira,
       `titre` ce qu'elle verra (vingt signes au plus). */
@@ -37,7 +39,9 @@ export type EnvoiWhatsApp = {
 };
 
 export type ResultatDEnvoi =
-  | { ok: true; id: string; waId?: string; quand?: string }
+  /* `enAttente` (4 octobre 2026) : hors ligne, le message est gardé et partira
+     au retour du réseau ; il n'a pas encore d'identifiant. */
+  | { ok: true; id: string; waId?: string; quand?: string; enAttente?: true }
   | { ok: false; erreur: string };
 
 /** POURQUOI LA FONCTION A REFUSÉ, dans ses mots à elle.
@@ -81,14 +85,14 @@ export async function envoieSurWhatsApp(e: EnvoiWhatsApp): Promise<ResultatDEnvo
     parQui: e.parQui,
     ...(e.citeWaId ? { citeWaId: e.citeWaId } : {}),
   };
-  try {
-    const { data, error } = await supabase.functions.invoke('whatsapp-envoi', { body: corps });
-    if (error) throw error;
-    const d = (data ?? {}) as { id?: string; waId?: string; quand?: string };
-    return { ok: true, id: d.id ?? '', waId: d.waId, quand: d.quand };
-  } catch (err) {
-    return { ok: false, erreur: await motifDuRefus(err) };
-  }
+  /* HORS LIGNE, LE MESSAGE ATTEND (4 octobre 2026, `appels-en-attente`) : il
+     part de lui-même au retour du réseau. Seul un message certainement pas
+     parti est gardé, jamais un message refusé. */
+  const issue = await appelleOuGarde<{ id?: string; waId?: string; quand?: string }>('whatsapp-envoi', corps, `WhatsApp au ${numero}`);
+  if ('enAttente' in issue) return { ok: true, id: '', enAttente: true };
+  if ('erreur' in issue) return { ok: false, erreur: await motifDuRefus(issue.erreur) };
+  const d = issue.data ?? {};
+  return { ok: true, id: d.id ?? '', waId: d.waId, quand: d.quand };
 }
 
 /** UNE ADRESSE SIGNÉE POUR UNE PIÈCE REÇUE, valable une heure. La base

@@ -365,6 +365,11 @@ export const nomDuCompte = (annuaire: Record<string, string>, mail: string | und
   (mail && annuaire[mail.trim().toLowerCase()]?.trim()) || repli;
 
 export type AutoConfig = {
+  /** LA SALLE D'ATTENTE : minutes de salle, début et fin des heures calmes
+      (heure du salon). Absents : dix minutes, de 20 h à 8 h. */
+  salleMin?: number;
+  calmeDe?: number;
+  calmeA?: number;
   momoLink: string;
   mapsLink: string;
   reviewLink: string;
@@ -451,7 +456,7 @@ export type Envoi = {
   /** « confirmation » (confirmation-rdv) et « accuse » (demande-submit, 18
       septembre) rejoignent le journal ; « fin-de-paquet » y vivait déjà sans
       être déclaré. Le journal les lit tous (`shared/envois`). */
-  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet';
+  type: 'rappel-j1' | 'avis-google' | 'confirmation' | 'accuse' | 'fin-de-paquet' | 'reprise-j3';
   canal: 'push' | 'whatsapp' | 'sms' | 'wa-main';
   apptId: string;
   /** Le numéro et le prénom, quand il n'y a pas encore de fiche : l'accusé
@@ -467,7 +472,23 @@ export type Envoi = {
   heure?: string;
   /** « sans-numero » : la fiche ne porte aucun numéro (18 septembre). Il
       verrouille comme « sans-abonnement » : réessayer ne l'inventera pas. */
-  statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main' | 'sans-numero' | 'en cours';
+  statut: 'envoyé' | 'échec' | 'sans-abonnement' | 'à-la-main' | 'sans-numero' | 'en cours'
+    /* LA SALLE D'ATTENTE (2 octobre 2026, shared/salle-des-envois) : un message
+       déposé attend, une main peut le retenir ou l'écarter, le facteur le
+       prend en main, et un rendez-vous qui a bougé le périme. */
+    | 'en-attente' | 'retenu' | 'écarté' | 'périmé' | 'en-envoi';
+  /** L'instant où il pourra partir, et s'il attend la fin des heures calmes. */
+  partA?: string;
+  calme?: boolean;
+  /** Une main a dit « maintenant » : il part même pendant les heures calmes. */
+  parLaMain?: boolean;
+  deposeLe?: string;
+  retenuPar?: string;
+  retenuLe?: string;
+  ecartePar?: string;
+  ecarteLe?: string;
+  /** De quoi l'envoyer, déposé par la fonction qui a jugé. Le Trône ne le lit pas. */
+  colis?: unknown;
   /** L'IDENTIFIANT META DU MESSAGE — le fil qui relie l'envoi à son accusé.
       Sans lui, l'accusé que Meta rapporte minutes plus tard ne se rapproche
       de rien, et « envoyé » reste le dernier mot pour toujours. */

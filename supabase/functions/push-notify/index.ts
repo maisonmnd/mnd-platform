@@ -19,6 +19,31 @@ const TZ_OFFSET = Deno.env.get('TZ_OFFSET') ?? '+01:00';
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+/* TOUTE LA TABLE, PAGE PAR PAGE — 1er octobre 2026. Supabase plafonne chaque
+   réponse à mille lignes. Depuis le millième rendez-vous, un `select` nu ne
+   lisait plus qu'une tranche de la table : les rappels des rendez-vous restés
+   hors de la tranche ne partaient pas, sans un mot. On lit donc à la suite de
+   la dernière ligne lue (`id` croissant), jusqu'à la première page incomplète.
+   Une erreur en route arrête la lecture et rend ce qui a été lu : un rappel
+   de moins vaut mieux qu'aucun rappel. */
+// deno-lint-ignore no-explicit-any
+async function toutes(table: string, colonnes: string): Promise<any[]> {
+  // deno-lint-ignore no-explicit-any
+  const tout: any[] = [];
+  let apres: string | null = null;
+  for (let tour = 0; tour < 2000; tour += 1) {
+    let q = admin.from(table).select(colonnes).order('id', { ascending: true }).limit(1000);
+    if (apres !== null) q = q.gt('id', apres);
+    const { data, error } = await q;
+    if (error || !data) break;
+    tout.push(...data);
+    if (data.length < 1000) break;
+    // deno-lint-ignore no-explicit-any
+    apres = (data[data.length - 1] as any).id as string;
+  }
+  return tout;
+}
+
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
@@ -101,10 +126,35 @@ async function sendToStaff(payload: Payload): Promise<number> {
   return n;
 }
 
+/* LA DIRECTION SEULE — 3 octobre 2026. Le rappel des tiroirs restés ouverts
+   ne regarde que ceux qui valident les caisses (souverain), pas toute
+   l'équipe à 21 h. */
+async function sendToDirection(payload: Payload): Promise<number> {
+  const { data: staff } = await admin.from('staff').select('user_id,role').eq('role', 'souverain');
+  const ids = (staff ?? []).map((s: { user_id: string }) => s.user_id);
+  if (ids.length === 0) return 0;
+  const { data: subs } = await admin.from('push_subscriptions').select('endpoint,p256dh,auth,client_id').in('client_id', ids);
+  if (!subs || subs.length === 0) return 0;
+  let n = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        JSON.stringify({ url: '/trone/', ...payload }),
+      );
+      n++;
+    } catch (e) {
+      const code = (e as { statusCode?: number })?.statusCode;
+      if (code === 404 || code === 410) await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+    }
+  }
+  return n;
+}
+
 async function broadcastToClients(payload: Payload): Promise<number> {
   // Toute personne ayant une FICHE CLIENTE (inclut un souverain qui utilise aussi
   // Ma Couronne). On ne diffuse pas aux abonnements purement personnel (sans fiche).
-  const { data: clientRows } = await admin.from('clients').select('id');
+  const clientRows = await toutes('clients', 'id');
   const clientIds = new Set((clientRows ?? []).map((c: { id: string }) => c.id));
   const { data: subs } = await admin.from('push_subscriptions').select('endpoint,p256dh,auth,client_id');
   if (!subs || subs.length === 0) return 0;
@@ -126,8 +176,8 @@ async function broadcastToClients(payload: Payload): Promise<number> {
 }
 
 async function runReminders(): Promise<number> {
-  const { data: appts } = await admin.from('appointments').select('id,data');
-  if (!appts) return 0;
+  const appts = await toutes('appointments', 'id,data');
+  if (appts.length === 0) return 0;
   const now = Date.now();
   let sent = 0;
   for (const row of appts as { id: string; data: Record<string, unknown> }[]) {
@@ -159,9 +209,9 @@ async function runReminders(): Promise<number> {
 
 async function runStaffCron(): Promise<number> {
   // Balaye les RDV : ceux qui commencent dans ≤ 1h alertent le personnel (une fois).
-  const { data: appts } = await admin.from('appointments').select('id,data');
-  if (!appts) return 0;
-  const { data: clientRows } = await admin.from('clients').select('id,data');
+  const appts = await toutes('appointments', 'id,data');
+  if (appts.length === 0) return 0;
+  const clientRows = await toutes('clients', 'id,data');
   const nameOf = new Map<string, string>(
     (clientRows ?? []).map((r: { id: string; data: { name?: string } }) => [r.id, r.data?.name ?? '']),
   );
@@ -194,6 +244,79 @@ async function runStaffCron(): Promise<number> {
   return sent;
 }
 
+/* ══ LES TIROIRS RESTÉS OUVERTS, À 21 H — 3 octobre 2026 ══════════════
+   Maquette « Le pointage du jour » : chaque tiroir se compte le soir. À
+   21 h (heure de la Maison), si un tiroir a BOUGÉ aujourd'hui — un
+   versement encaissé dedans, une dépense payée dedans — et n'a pas été
+   clôturé, la direction reçoit une notification. Une seule par jour : le
+   journal push_reminders retient « cloture-<jour> ». Le cron passe toutes
+   les quinze minutes ; seul le passage de 21 h agit.
+   Même règle que l'écran (`tiroirsSansCloture`) : ni le bocal des
+   pourboires, ni KkiaPay, et l'avoir ou l'acompte ne font pas bouger un
+   tiroir. */
+async function rappelDesTiroirs(): Promise<number> {
+  const decalageMin = (() => {
+    const m = /^([+-])(\d{2}):(\d{2})$/.exec(TZ_OFFSET);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 60;
+  })();
+  const ici = new Date(Date.now() + decalageMin * 60_000);
+  if (ici.getUTCHours() !== 21) return 0;
+  const jour = ici.toISOString().slice(0, 10);
+  const cle = `cloture-${jour}`;
+  const { data: dejaDit } = await admin.from('push_reminders').select('appointment_id').eq('appointment_id', cle).eq('kind', 'cloture').maybeSingle();
+  if (dejaDit) return 0;
+
+  const bouge = new Map<string, Set<string>>(); // branche -> tiroirs
+  const note = (branche: string | null | undefined, tiroir: unknown) => {
+    if (typeof tiroir !== 'string' || !tiroir || tiroir === 'Pourboires' || tiroir === 'KkiaPay') return;
+    const b = branche ?? '';
+    if (!bouge.has(b)) bouge.set(b, new Set());
+    bouge.get(b)!.add(tiroir);
+  };
+  for (const row of await toutes('invoices', 'id,branch_id,data')) {
+    const i = row.data ?? {};
+    const versements = Array.isArray(i.payments) && i.payments.length > 0
+      ? i.payments
+      : (i.status === 'payée' ? [{ date: i.date, cashbox: i.cashbox, method: i.payment }] : []);
+    for (const p of versements) {
+      if (p?.date === jour && p.method !== 'Avoir' && p.method !== 'Acompte') note(row.branch_id ?? i.branchId, p.cashbox);
+    }
+  }
+  for (const row of await toutes('expenses', 'id,branch_id,data')) {
+    const e = row.data ?? {};
+    if (e.date === jour && !e.avancee && !e.stopped) note(row.branch_id ?? e.branchId, e.cashbox);
+  }
+  for (const row of await toutes('clotures_caisse', 'id,branch_id,data')) {
+    const c = row.data ?? {};
+    if (c.date === jour) bouge.get(row.branch_id ?? c.branchId ?? '')?.delete(c.cashbox);
+  }
+  const ouverts = [...bouge.values()].flatMap((s) => [...s]).sort();
+  /* Journalisé même sans tiroir ouvert : on ne recompte pas à 21 h 15. */
+  await admin.from('push_reminders').insert({ appointment_id: cle, kind: 'cloture' });
+  if (ouverts.length === 0) return 0;
+  return await sendToDirection({
+    title: ouverts.length > 1 ? `${ouverts.length} tiroirs pas clôturés` : 'Un tiroir pas clôturé',
+    body: `${ouverts.join(', ')} : ${ouverts.length > 1 ? 'ils ont' : 'il a'} bougé aujourd’hui et n’${ouverts.length > 1 ? 'ont' : 'a'} pas été compté${ouverts.length > 1 ? 's' : ''}.`,
+    url: '/trone/#/caisse',
+    tag: cle,
+  });
+}
+
+/* ══ LE FACTEUR ET LES FONCTIONS PLANIFIÉES PARLENT AVEC LA CLÉ SERVICE — 2 oct. 2026 ══
+   « Notifier une cliente » exigeait le jeton d'un membre du personnel. Les
+   fonctions planifiées n'en ont pas : elles portent la clé service. Leur push
+   de confirmation répondait donc « forbidden », se lisait « sans abonnement »
+   au journal, et n'était jamais parti. Qui porte la clé service est le
+   serveur lui-même : il passe, et n'est pas soumis à la limite de débit du
+   tunnel public. Les longueurs se comparent d'abord, jamais les valeurs ne
+   s'écrivent. */
+const parLeService = (req: Request): boolean => {
+  const recu = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!recu) return false;
+  return [Deno.env.get('CLE_SERVICE'), Deno.env.get('SERVICE_KEY'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')]
+    .some((cle) => !!cle && cle.trim().length === recu.length && cle.trim() === recu);
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
@@ -202,7 +325,7 @@ Deno.serve(async (req) => {
   // la passerelle exige déjà la clé publishable, et ces balayages sont idempotents
   // (journal push_reminders + fenêtre horaire) — les rejouer est sans effet.
   if (body.mode === 'reminders') return json({ sent: await runReminders() });
-  if (body.mode === 'staff-cron') return json({ sent: await runStaffCron() });
+  if (body.mode === 'staff-cron') return json({ sent: await runStaffCron(), tiroirs: await rappelDesTiroirs() });
 
   // Mode diffusion — annonce (offre/promo) à TOUTES les clientes. Réservé au personnel.
   if (body.mode === 'broadcast') {
@@ -223,18 +346,20 @@ Deno.serve(async (req) => {
   // Mode ciblé — le personnel notifie UNE cliente précise (ex. cadeau anniversaire).
   // Robuste : on cible l'id fourni ET toute fiche ayant le même e-mail (fiches en double).
   if (body.mode === 'to-client') {
-    const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-    const { data: userData } = await admin.auth.getUser(jwt);
-    const uid = userData?.user?.id;
-    if (!uid) return json({ error: 'forbidden' }, 403);
-    const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
-    if (!staffRow) return json({ error: 'forbidden' }, 403);
+    if (!parLeService(req)) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: userData } = await admin.auth.getUser(jwt);
+      const uid = userData?.user?.id;
+      if (!uid) return json({ error: 'forbidden' }, 403);
+      const { data: staffRow } = await admin.from('staff').select('user_id').eq('user_id', uid).maybeSingle();
+      if (!staffRow) return json({ error: 'forbidden' }, 403);
+    }
     const target = body.clientId as string;
     const email = ((body.email as string) || '').trim().toLowerCase();
     const ids = new Set<string>();
     if (target) ids.add(target);
     if (email) {
-      const { data: rows } = await admin.from('clients').select('id,data');
+      const rows = await toutes('clients', 'id,data');
       for (const r of (rows ?? []) as { id: string; data: { email?: string } }[]) {
         if ((r.data?.email || '').trim().toLowerCase() === email) ids.add(r.id);
       }
@@ -297,7 +422,7 @@ Deno.serve(async (req) => {
   // MÊME limite de débit par IP que le tunnel : sans elle, la clé publishable
   // (publique par nature) suffisait à faire vibrer tous les téléphones en boucle.
   if (body.mode === 'staff') {
-    if (!(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
+    if (!parLeService(req) && !(await allowRate(ipOf(req)))) return json({ error: 'rate_limited' }, 429);
     const title = (body.title as string) || 'Maison MND';
     return json({ sent: await sendToStaff({
       title,

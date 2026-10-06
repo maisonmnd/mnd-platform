@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════════
+# Publier le site — 4 octobre 2026
+#
+# « L'éditeur du site » : Brice ou Yéman publient au Trône ; la fonction
+# `site-publier` envoie l'événement `site-publier` ; ce workflow refabrique
+# les sites depuis `main` (les retouches publiées sont lues dans la base par
+# le générateur) et met en ligne LE SITE PUBLIC seulement. Le Trône guette
+# /version.json et dit « en ligne · servi ».
+#
+# Secrets du dépôt (Settings › Secrets and variables › Actions) :
+#   SITE_DEPLOY_TOKEN       la clé GitHub de la marche à suivre
+#   VITE_SUPABASE_URL       } valeurs PUBLIQUES, les mêmes que .env.local
+#   VITE_SUPABASE_ANON_KEY  }
+#   VITE_KKIAPAY_PUBLIC_KEY }
+#   VITE_KKIAPAY_SANDBOX    }
+# ═══════════════════════════════════════════════════════════════════
+name: Publier le site
+
+on:
+  repository_dispatch:
+    types: [site-publier]
+  workflow_dispatch:
+
+# Deux publications rapprochées s'enchaînent, jamais en même temps.
+concurrency:
+  group: publier-le-site
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Accès aux dépôts du site
+        env:
+          SITE_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+        run: |
+          git config --global user.name "Maison MND · site"
+          git config --global user.email "site@maisonmnd.com"
+          git config --global url."https://x-access-token:${SITE_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Fabriquer
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_KKIAPAY_PUBLIC_KEY: ${{ secrets.VITE_KKIAPAY_PUBLIC_KEY }}
+          VITE_KKIAPAY_SANDBOX: ${{ secrets.VITE_KKIAPAY_SANDBOX }}
+        run: node scripts/build-sites.mjs
+
+      - name: Mettre en ligne le site public
+        env:
+          MND_MESSAGE: "Retouches du site publiées depuis le Trône"
+        run: node scripts/publie.mjs revelateur

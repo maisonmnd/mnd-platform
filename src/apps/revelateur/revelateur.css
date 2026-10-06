@@ -269,7 +269,7 @@ a, button, label, input, select, textarea, summary, [role="button"] {
 
 /* ── les cartes à bandeau (les quatre portes de la Maison) ──────── */
 .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
-.carte-porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: transform var(--t), box-shadow var(--t); }
+.carte-porte { display: flex; flex-direction: column; background: var(--carte); border: 1px solid var(--filet); border-radius: 4px; overflow: hidden; color: inherit; transition: box-shadow var(--t); }
 a.carte-porte:hover { box-shadow: var(--ombre); }
 .carte-porte__tete { position: relative; background: var(--sombre); color: #F6F1E7; padding: 22px 20px 18px; min-height: 132px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
 /* LES QUATRE ACCORDS — 17 septembre 2026. Chaque porte porte le monogramme
@@ -569,6 +569,41 @@ footer .logo img { height: 34px; }
 .heure:hover { border-color: var(--accent); background: var(--accent-clair); }
 .heure.est-choisie { border-color: var(--accent); background: var(--accent); color: var(--plein-texte); }
 .geste-choix:focus-visible, .jour:focus-visible, .heure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* LA RESERVATION EN TRENTE SECONDES — 29 septembre 2026. Les formules en
+   grandes cartes (la premiere, la plus reservee, en indigo), la taille des
+   locks en pastilles, les six prochaines places a toucher. Aucune ne bouge
+   au survol : la vitrine ne sautille pas. */
+.formules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .formules { grid-template-columns: 1fr; } }
+.formule { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 108px; text-align: left; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 16px; transition: border-color var(--t), background var(--t); }
+.formule:hover { border-color: var(--accent); background: var(--accent-clair); }
+.formule b { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.1; overflow-wrap: anywhere; }
+.formule__avec { font-size: 13px; color: var(--texte-doux); line-height: 1.35; }
+.formule small { font-size: 12.5px; color: var(--accent-profond); }
+.formule--premiere { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.formule--premiere:hover { background: var(--sombre-2); border-color: var(--sombre-2); }
+.formule--premiere .formule__avec { color: rgba(246, 241, 231, .8); }
+.formule--premiere small { color: var(--accent-sombre); }
+.formule:focus-visible, .calibre:focus-visible, .place:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.calibres { display: grid; gap: 8px; margin-top: 18px; }
+.calibres__titre { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-profond); }
+.calibres__choix { display: flex; flex-wrap: wrap; gap: 6px; }
+.calibre { cursor: pointer; font: inherit; font-size: 14px; color: var(--titre); background: var(--carte); border: 1px solid var(--filet); border-radius: 999px; padding: 8px 14px; min-height: 40px; }
+.calibre.est-choisi { background: var(--sombre); border-color: var(--sombre); color: var(--fort-texte); }
+.places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .places { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.place { display: grid; gap: 2px; place-items: center; cursor: pointer; font: inherit; color: var(--titre); background: var(--fond); border: 1px solid var(--filet); border-radius: 6px; padding: 10px 8px; min-height: 64px; transition: border-color var(--t), background var(--t); }
+.place:hover { border-color: var(--accent); background: var(--accent-clair); }
+.place span { font-size: 12.5px; color: var(--texte-doux); }
+.place b { font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.place.est-choisie { background: var(--accent); border-color: var(--accent); color: var(--plein-texte); }
+.place.est-choisie span { color: var(--plein-texte); }
+.places + p { margin-top: 12px; }
+.bon-retour { border-color: var(--accent); }
+.bon-retour__liens, .ajouts { display: flex; flex-wrap: wrap; gap: 18px; margin: 0; }
+.formulaire .ajouts .btn { width: auto; }
+.bloc-code { display: grid; gap: 8px; }
 
 /* ── RÉSERVER (l'îlot de la demande) ─────────────────────────────── */
 .reserver .conteneur { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
@@ -1301,11 +1336,19 @@ body.galerie-plein { scroll-behavior: smooth; }
    galerie, la devise en grand pour finir. */
 .tete--centre { text-align: center; justify-items: center; margin-inline: auto; }
 .tete--ligne { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; max-width: none; }
-.objectif h2 { font-size: clamp(34px, 5.2vw, 64px); max-width: 16ch; margin-top: 14px; }
+/* DEUX LIGNES, PAS QUATRE — 30 septembre 2026 : « le titre sur quatre lignes prend trop de place pour ce qu'il dit » (Yéman). */
+.objectif h2 { font-size: clamp(30px, 3.8vw, 46px); max-width: 38ch; margin-top: 14px; }
 .objectif .ligne { margin-top: 18px; max-width: 56ch; }
 .piliers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; border-top: 1px solid var(--filet); padding-top: 28px; margin-top: clamp(28px, 4vw, 48px); }
 .piliers h3 { margin-bottom: 8px; }
 .piliers p { color: var(--texte-doux); max-width: 30ch; }
+/* LE PASSAGE VERS LES PORTES — 30 septembre 2026. Une phrase et un lien
+   ferment le bloc de la Maison, et la section suivante commence plus près :
+   le lecteur sait qu'il descend vers les cinq portes. */
+.passage { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; margin-top: clamp(28px, 4vw, 44px); padding-top: 18px; border-top: 1px solid var(--filet); }
+.passage p { color: var(--titre); font-family: var(--serif); font-size: clamp(19px, 2.2vw, 23px); max-width: 40ch; }
+.objectif { padding-bottom: clamp(28px, 4vw, 48px); }
+#portes { padding-top: clamp(28px, 4vw, 48px); }
 @media (max-width: 720px) { .piliers { grid-template-columns: 1fr; gap: 20px; } }
 
 /* Le diagnostic sur l'accueil : le texte à gauche, la carte ivoire à droite,
@@ -1398,6 +1441,11 @@ body.galerie-plein { scroll-behavior: smooth; }
 .carte-cadeau .bas { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
 .carte-cadeau .fon { font-family: var(--serif); font-style: italic; color: var(--accent-sombre); font-size: clamp(16px, 2.2vw, 22px); }
 .carte-cadeau .code { font-size: 11px; letter-spacing: .22em; color: rgba(246, 241, 231, .6); }
+/* LA CARTE RÉGLÉE (2 octobre 2026) : le code se lit en clair, la validité dessous. */
+.carte-cadeau .code { text-align: right; }
+.carte-cadeau .code b { display: block; font-size: clamp(13px, 1.8vw, 17px); letter-spacing: .14em; color: #F6F1E7; font-weight: 500; font-variant-numeric: tabular-nums; }
+.carte-cadeau--ivoire .code b { color: var(--titre); }
+.offrir-ilot .note-paiement { font-size: 13px; color: var(--texte-doux); margin: -4px 0 0; text-align: center; }
 .carte-cadeau--ivoire .haut small, .carte-cadeau--ivoire .pour, .carte-cadeau--ivoire .code { color: rgba(30, 33, 80, .62); }
 .carte-cadeau--ivoire .mot { color: rgba(30, 33, 80, .8); }
 .carte-cadeau--ivoire .fon { color: var(--accent-profond); }
@@ -1534,3 +1582,181 @@ body.galerie-plein { scroll-behavior: smooth; }
 .joindre__envie:hover, .jo-envie:hover { background: var(--fort); border-color: var(--fort); color: var(--fort-texte); }
 .jo-envies { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 14px; }
 @media (max-width: 520px) { .joindre__choix { padding-left: 14px; } }
+
+/* ══ LA COMMUNAUTÉ MND — 28 septembre 2026 ═════════════════════════════
+   Maquette validée, « construis avec les patterns réels de la marque »
+   (Yéman). AUCUN MOTIF N'EST DESSINÉ EN CSS : chaque fond est une tuile de
+   public/assets/motifs/ (allover, médaillon, sceau, cire), tirée de la
+   bibliothèque des motifs de la Maison. Le pictogramme n'est jamais
+   redessiné ni déformé : les tuiles se répètent, elles ne s'étirent pas. */
+
+/* ── Les trois cartes blanches sur l'allover indigo et cuivre ── */
+.communaute { position: relative; isolation: isolate; padding-block: clamp(64px, 9vw, 120px); }
+.communaute::before { content: ''; position: absolute; inset: 0; z-index: -2; background: var(--sombre) url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 240px repeat; }
+.communaute::after { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(120% 90% at 50% 45%, rgba(30, 33, 80, .55) 0%, rgba(21, 23, 58, .82) 100%); }
+.communaute .tete h2 { color: var(--fort-texte); }
+.communaute .tete .sur { color: var(--accent-sombre); }
+.cartes3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.carte3 { background: var(--carte); padding: 40px 28px 32px; display: grid; justify-items: center; text-align: center; gap: 14px; box-shadow: 0 20px 60px rgba(21, 23, 58, .3); color: var(--texte); transition: box-shadow var(--t); }
+.carte3:hover { box-shadow: 0 26px 70px rgba(21, 23, 58, .38); }
+.carte3 img { width: 84px; height: 84px; object-fit: contain; }
+.carte3 h3 { font-size: 26px; }
+.carte3 p { color: var(--texte-doux); font-size: 15px; max-width: 28ch; }
+.carte3__suite { margin-top: 4px; display: inline-flex; gap: 8px; align-items: center; font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-profond); }
+.carte3__suite svg { width: 14px; height: 14px; }
+@media (max-width: 860px) { .cartes3 { grid-template-columns: 1fr; } }
+
+/* ── Le parrainage : trois pas, et le bon indigo au médaillon ── */
+.parrain > .conteneur { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+@media (max-width: 860px) { .parrain > .conteneur { grid-template-columns: 1fr; } }
+.parrain h2 { margin-top: 10px; }
+.parrain .ligne { margin-top: 12px; }
+.pas-parrain { display: grid; gap: 18px; margin-top: 26px; }
+.pas-parrain > div { display: grid; grid-template-columns: 40px 1fr; gap: 12px; }
+.pas-parrain span { font-family: var(--serif); font-size: 34px; line-height: 1; color: var(--accent); }
+.pas-parrain b { display: block; color: var(--titre); font-weight: 400; font-size: 18px; }
+.pas-parrain p { color: var(--texte-doux); font-size: 15px; }
+.parrain__regle { margin-top: 22px; border-left: 2px solid var(--accent); padding: 8px 14px; font-size: 13.5px; color: var(--texte-doux); }
+.bon { position: relative; overflow: hidden; isolation: isolate; background: var(--sombre); color: var(--fort-texte); border-radius: 14px; padding: clamp(24px, 4vw, 34px); display: grid; gap: 16px; box-shadow: 0 30px 80px rgba(30, 33, 80, .3); }
+.bon::after { content: ''; position: absolute; z-index: -1; right: -70px; top: -70px; width: 260px; height: 260px; background: url(/assets/motifs/medaillon-seul-cuivre.png) center / contain no-repeat; opacity: .28; }
+.bon .sur { color: var(--accent-sombre); }
+.bon h3 { color: var(--fort-texte); font-size: 30px; }
+.bon__champ { display: grid; gap: 6px; }
+.bon__champ label { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: rgba(246, 241, 231, .72); }
+.bon__champ input { font: inherit; font-size: 16px; color: var(--titre); background: var(--fond); border: 0; border-radius: 8px; padding: 13px 14px; min-height: 48px; }
+.bon__champ input:focus { outline: 2px solid var(--accent-sombre); outline-offset: 1px; }
+.consentement--clair { color: rgba(246, 241, 231, .78); }
+.consentement--clair input { accent-color: var(--accent); }
+.bon .erreur { color: var(--accent-sombre); }
+.bon__code { font-family: var(--serif); font-size: clamp(36px, 6vw, 46px); letter-spacing: .08em; color: var(--accent-sombre); line-height: 1; }
+.bon__petit { font-size: 13.5px; color: rgba(246, 241, 231, .76); }
+.bon .btn { flex: 1 1 200px; }
+
+/* ── Les ingrédients : la teinte de la plante, l'allover de la Maison en
+   ton sur ton (multiplié), et l'encadré ivoire, comme leurs fleurs ── */
+.ingredients { background: var(--fond-2); }
+.ingredients .tete--ligne .ligne { margin-top: 10px; }
+.rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+@media (min-width: 1000px) { .rail { grid-auto-columns: calc((100% - 60px) / 4); } }
+.rail-nav { display: flex; gap: 8px; }
+.rail-nav button { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--filet); background: var(--carte); color: var(--titre); font-size: 22px; line-height: 1; cursor: pointer; transition: border-color var(--t); -webkit-tap-highlight-color: transparent; }
+.rail-nav button:hover { border-color: var(--titre); }
+.ingr { scroll-snap-align: start; position: relative; isolation: isolate; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; background: var(--teinte, var(--sombre)); color: var(--fort-texte); }
+.ingr::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-ivoire-cuivre.png) center / 150px repeat; mix-blend-mode: multiply; opacity: .55; transition: transform .6s ease; }
+.ingr:hover::before { transform: scale(1.06); }
+.ingr__photo { position: absolute; inset: 0; z-index: -1; }
+.ingr__photo img { width: 100%; height: 100%; object-fit: cover; }
+.ingr__cadre { position: absolute; inset: 13%; display: grid; place-content: center; gap: 8px; text-align: center; border: 1px solid rgba(246, 241, 231, .7); background: rgba(246, 241, 231, .12); padding: 12px; }
+.ingr__cadre b { font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 2.4vw, 30px); line-height: 1.05; color: var(--fort-texte); }
+.ingr__cadre small { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: rgba(246, 241, 231, .9); }
+.ingr-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 860px) { .ingr-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .ingr-grille { grid-template-columns: 1fr; } }
+
+/* ── Une page d'ingrédient ── */
+.ing-hero { position: relative; isolation: isolate; overflow: hidden; background: var(--teinte); padding-block: 0; margin-top: 14px; }
+.ing-hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-ivoire-cuivre.png) center / 220px repeat; mix-blend-mode: multiply; opacity: .5; }
+.ing-hero .conteneur { position: relative; min-height: clamp(360px, 44vw, 480px); display: flex; align-items: center; padding-block: clamp(28px, 4vw, 40px); }
+.ing-hero__encadre { position: relative; z-index: 1; width: min(440px, 100%); background: rgba(246, 241, 231, .9); padding: clamp(26px, 4vw, 44px); text-align: center; display: grid; justify-items: center; gap: 12px; }
+.ing-hero__encadre h1 { font-size: clamp(40px, 6vw, 60px); }
+.ing-hero__accroche { color: var(--texte); font-size: 17px; line-height: 1.7; }
+.ing-hero__medaillon { position: absolute; right: -4%; top: 50%; transform: translateY(-50%); width: min(520px, 62%); height: auto; opacity: .5; pointer-events: none; }
+@media (max-width: 700px) { .ing-hero__medaillon { right: -30%; width: 90%; opacity: .3; } }
+.ing-filet { display: block; width: 72px; height: 2px; background: var(--titre); }
+.ing-bloc .conteneur { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 6vw, 80px); align-items: center; }
+.ing-bloc--inverse .ing-panneau { order: 2; }
+@media (max-width: 800px) { .ing-bloc .conteneur { grid-template-columns: 1fr; } .ing-bloc--inverse .ing-panneau { order: 0; } }
+.ing-bloc__texte { display: grid; gap: 16px; justify-items: start; }
+.ing-bloc__texte h2 { font-size: clamp(28px, 3.6vw, 40px); }
+.fleche-dessinee { width: 34px; height: 76px; color: var(--titre); justify-self: center; }
+@media (max-width: 800px) { .fleche-dessinee { display: none; } }
+.ing-latin { color: var(--accent-profond); font-size: 15px; }
+.ing-panneau { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 4 / 5; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; padding: 28px; }
+.ing-panneau--photo { padding: 0; display: block; }
+.ing-panneau--photo img { width: 100%; height: 100%; object-fit: cover; }
+.ing-panneau--teinte { background: var(--teinte); color: var(--fort-texte); }
+.ing-panneau--teinte::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-ivoire-cuivre.png) center / 180px repeat; mix-blend-mode: multiply; opacity: .55; }
+.ing-panneau__latin { font-family: var(--serif); font-style: italic; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.1; background: rgba(246, 241, 231, .12); border: 1px solid rgba(246, 241, 231, .6); padding: 22px 26px; }
+.ing-panneau__lieu { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: rgba(246, 241, 231, .9); }
+.ing-panneau--ivoire { background: var(--fond) url(/assets/motifs/medaillon-aere-ivoire-cuivre.png) center / 170px repeat; }
+.insecable { white-space: nowrap; }
+.ing-panneau__role { font-family: var(--serif); font-size: clamp(30px, 3.6vw, 42px); line-height: 1.15; color: var(--titre); background: rgba(255, 253, 249, .92); padding: 26px 34px; box-shadow: 0 20px 50px rgba(30, 33, 80, .12); }
+.ing-panneau--indigo { background: var(--sombre) url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 200px repeat; color: var(--fort-texte); }
+.ing-fiche { margin: 0; width: 100%; background: rgba(21, 23, 58, .9); border: 1px solid rgba(214, 160, 111, .45); padding: 8px 22px; text-align: left; }
+.ing-fiche div { padding: 12px 0; border-bottom: 1px solid rgba(246, 241, 231, .14); }
+.ing-fiche div:last-child { border-bottom: 0; }
+.ing-fiche dt { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-sombre); }
+.ing-fiche dd { margin: 4px 0 0; font-family: var(--serif); font-size: 21px; color: var(--fort-texte); }
+.ing-note { font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1.4; background: rgba(21, 23, 58, .9); padding: 14px 18px; }
+.ing-note__qui { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-sombre); }
+.ingredients--autres { border-top: 1px solid var(--filet); }
+
+/* ── Nos engagements : le sceau de la Maison, et quatre promesses ── */
+.engagements .conteneur { display: grid; justify-items: center; text-align: center; }
+.engagements__sceau { width: 150px; height: 150px; margin-bottom: 28px; }
+.engagements__liste { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; text-align: left; width: 100%; }
+@media (max-width: 760px) { .engagements__liste { grid-template-columns: 1fr; } }
+.engagements__liste li { background: var(--carte); border: 1px solid var(--filet); border-top: 2px solid var(--accent); padding: 24px 22px; display: grid; gap: 8px; }
+.engagements__liste b { font-family: var(--serif); font-weight: 400; font-size: 24px; color: var(--titre); }
+.engagements__liste p { color: var(--texte-doux); font-size: 15px; }
+
+/* ── L'avant / après : une poignée qu'on glisse ── */
+.aa .paires { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .aa .paires { grid-template-columns: 1fr; } }
+.aa figure { margin: 0; }
+.comparer { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.comparer img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 4 / 5; }
+.comparer--vif { display: block; aspect-ratio: 4 / 5; overflow: hidden; }
+.comparer--vif .comparer__avant, .comparer--vif .comparer__apres { position: absolute; inset: 0; }
+.comparer--vif .comparer__apres { clip-path: inset(0 0 0 var(--x, 50%)); }
+.comparer--vif::after { content: ''; position: absolute; top: 0; bottom: 0; left: var(--x, 50%); width: 2px; background: var(--fond); transform: translateX(-1px); pointer-events: none; }
+.comparer__poignee { display: none; }
+.comparer--vif .comparer__poignee { display: block; position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; z-index: 2; }
+.comparer__etiq { position: absolute; top: 12px; z-index: 1; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: rgba(21, 23, 58, .6); color: var(--fort-texte); }
+.comparer__etiq--g { left: 12px; } .comparer__etiq--d { right: 12px; }
+.aa figcaption { margin-top: 12px; display: grid; gap: 4px; }
+.aa figcaption b { color: var(--titre); font-weight: 400; font-size: 18px; }
+.aa figcaption span { font-size: 13px; color: var(--texte-doux); }
+@media (prefers-reduced-motion: reduce) { .ingr::before, .carte3 { transition: none; } }
+
+/* L'INVITATION DE LA MARRAINE — 28 septembre 2026 : l'amie qui a scanné une
+   carte est accueillie par le prénom de celle qui l'invite, sur l'allover. */
+.invitation { position: relative; isolation: isolate; overflow: hidden; border-radius: 14px; padding: 26px 24px; margin-bottom: 22px; background: var(--sombre); color: var(--fort-texte); display: grid; gap: 8px; }
+.invitation::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url(/assets/motifs/allover-aere-indigo-cuivre.png) center / 150px repeat; opacity: .5; }
+.invitation::after { content: ''; position: absolute; z-index: -1; right: -80px; top: -60px; width: 240px; height: 240px; background: url(/assets/motifs/medaillon-seul-cuivre.png) center / contain no-repeat; opacity: .8; }
+.invitation .sur { color: var(--accent-sombre); }
+.invitation__titre { margin: 0; font-family: var(--serif); font-weight: 300; font-size: clamp(30px, 5vw, 42px); line-height: 1.05; max-width: 16ch; }
+.invitation__ligne { margin: 0; font-size: 15px; line-height: 1.6; color: rgba(246, 241, 231, .86); max-width: 46ch; }
+
+/* ── LE RÉCIT EN RESPIRATIONS — 1er octobre 2026 ──────────────────────────
+   « Une lecture fluide, ne même pas sentir que le texte est long, qu'on quitte un
+   paragraphe à l'autre » (Yéman). Une ou deux phrases par bloc, un grand corps dans
+   une colonne étroite, ce qui vient voilé et ce qui arrive révélé, un fil cuivre en
+   haut pour seul repère. Le script pose `js-voile` ; sans lui, tout est lisible. */
+.recit-fil { position: fixed; top: 0; left: 0; height: 2px; width: 100%; background: transparent; z-index: 50; pointer-events: none; }
+.recit-fil i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(0); }
+.recit-ouverture { min-height: calc(100vh - var(--barre-h, 72px)); display: grid; place-items: center; text-align: center; padding: clamp(40px, 8vh, 96px) clamp(18px, 4vw, 40px); }
+.recit-ouverture__bloc { max-width: 30ch; display: grid; justify-items: center; }
+.recit-ouverture small { display: block; font-family: var(--sans); font-size: 14px; letter-spacing: .04em; color: var(--accent-profond); margin-bottom: 28px; }
+.recit-ouverture h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 5.2vw, 62px); line-height: 1.12; color: var(--titre); margin: 0; text-wrap: balance; }
+.recit-ouverture p { font-family: var(--serif); font-style: italic; font-size: clamp(19px, 2vw, 24px); color: var(--texte-doux); margin: 28px 0 0; }
+.recit-ouverture__trait { display: block; width: 1px; height: 56px; margin-top: clamp(36px, 7vh, 64px); background: linear-gradient(var(--accent), transparent); }
+.recit { padding: 0 clamp(18px, 4vw, 40px) clamp(64px, 10vh, 120px); }
+.recit__colonne { max-width: 56ch; margin: 0 auto; font-size: clamp(21px, 2vw, 25px); }
+.recit__chapitre { padding-block: clamp(96px, 22vh, 200px) 0; }
+.recit__chapitre:first-child { padding-top: clamp(40px, 8vh, 80px); }
+.recit__chapitre h2 { font-family: var(--serif); font-weight: 400; font-style: italic; font-size: clamp(22px, 2.4vw, 28px); line-height: 1.2; color: var(--accent-profond); margin: 0 0 clamp(36px, 6vh, 56px); text-align: center; max-width: none; }
+.recit__chapitre h2::after { content: ''; display: block; width: 28px; height: 1px; background: var(--accent); margin: 18px auto 0; opacity: .7; }
+.recit__chapitre p { font-family: var(--serif); font-weight: 400; font-size: clamp(21px, 2vw, 25px); line-height: 1.55; color: var(--titre); margin: 0 0 clamp(28px, 4.2vh, 40px); max-width: none; text-wrap: pretty; transition: opacity .35s ease; }
+.recit__chapitre p:last-child { margin-bottom: 0; }
+.js-voile .recit__chapitre p { opacity: .22; }
+.js-voile .recit__chapitre p.lu { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .js-voile .recit__chapitre p { opacity: 1; transition: none; } }
+.recit__chapitre p.recit__souffle { font-style: italic; color: var(--accent-profond); text-align: center; padding: clamp(10px, 2vh, 20px) 0; }
+.recit__chapitre p.recit__fin { text-align: center; font-size: clamp(26px, 3vw, 34px); line-height: 1.25; padding-top: clamp(20px, 4vh, 36px); }
+.recit__signature { text-align: center; margin: clamp(56px, 10vh, 96px) 0 0; font-family: var(--serif); font-style: italic; font-size: 19px; color: var(--texte-doux); max-width: none; }
+.recit-fin { background: var(--sombre); color: var(--fond); padding: clamp(56px, 10vh, 96px) clamp(18px, 4vw, 40px); text-align: center; }
+.recit-fin h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.15; margin: 0 auto; max-width: 22ch; color: var(--fond); }
+.recit-fin p { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--accent-sombre); margin: 16px auto 0; max-width: none; }
+.recit-fin .rangee { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 32px; }

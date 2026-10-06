@@ -6,6 +6,7 @@ import {
   signInWithGoogle, verifyInscription, renvoyerLaConfirmation, secondesAvantRenvoi,
 } from '../../shared/auth';
 import { pushNotifyStaff } from '../../shared/push';
+import { t } from './i18n';
 
 /* Onboarding — slides photographiques puis connexion par e-mail + mot de passe
    (même principe que Le Trône). La cliente s'inscrit avec son nom, son e-mail et
@@ -49,21 +50,21 @@ const errMessage = (e: unknown, fallback: string): string => {
   const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
   const raw = msg.toLowerCase();
   if (/invalid login credentials/.test(raw))
-    return 'E-mail ou mot de passe incorrect.';
+    return t('E-mail ou mot de passe incorrect.');
   if (/user already registered|already registered/.test(raw))
-    return 'Ce compte existe déjà, connectez-vous avec votre mot de passe.';
+    return t('Ce compte existe déjà, connectez-vous avec votre mot de passe.');
   if (/password should be at least|weak.?password/.test(raw))
-    return 'Mot de passe trop court, au moins 6 caractères.';
+    return t('Mot de passe trop court, au moins 6 caractères.');
   if (/email.*not confirmed|confirm/.test(raw))
-    return 'E-mail non confirmé, vérifiez votre boîte, puis connectez-vous.';
+    return t('E-mail non confirmé, vérifiez votre boîte, puis connectez-vous.');
   if (/expired|invalid.*(token|otp)|(token|otp).*invalid/.test(raw))
-    return 'Code invalide ou expiré, demandez-en un nouveau.';
+    return t('Code invalide ou expiré, demandez-en un nouveau.');
   if (/should be different|same.*password/.test(raw))
-    return 'Choisissez un mot de passe différent de l’ancien.';
+    return t('Choisissez un mot de passe différent de l’ancien.');
   if (/rate limit|too many/.test(raw))
-    return 'Trop de tentatives, patientez quelques minutes.';
+    return t('Trop de tentatives, patientez quelques minutes.');
   if (/sending|smtp|500|unexpected/.test(raw))
-    return 'L’envoi de l’e-mail a échoué côté maison, réessayez dans un instant.';
+    return t('L’envoi de l’e-mail a échoué côté maison, réessayez dans un instant.');
   return msg && msg !== '{}' ? msg : fallback;
 };
 
@@ -128,8 +129,8 @@ export default function Onboarding() {
       ?? new URLSearchParams(window.location.search).get('error_description');
     if (!motif) return;
     const dit = /expired|invalid/i.test(motif)
-      ? 'Ce lien de confirmation a expiré. Demandez-en un nouveau ci-dessous.'
-      : 'La confirmation n’a pas abouti. Demandez un nouveau lien ci-dessous.';
+      ? t('Ce lien de confirmation a expiré. Demandez-en un nouveau ci-dessous.')
+      : t('La confirmation n’a pas abouti. Demandez un nouveau lien ci-dessous.');
     setStage('auth');
     setMode('connexion');
     setErr(dit);
@@ -139,8 +140,8 @@ export default function Onboarding() {
   /* Les slides défilent doucement tant que l'on reste sur l'accueil. */
   useEffect(() => {
     if (stage !== 'welcome') return;
-    const t = window.setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4600);
-    return () => window.clearInterval(t);
+    const minuterie = window.setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4600);
+    return () => window.clearInterval(minuterie);
   }, [stage]);
 
   const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
@@ -156,7 +157,7 @@ export default function Onboarding() {
      compte existe — inutile de renseigner un inconnu sur nos clientes. */
   const askReset = async () => {
     if (!emailOk) {
-      setErr('Saisissez une adresse e-mail valide.');
+      setErr(t('Saisissez une adresse e-mail valide.'));
       return;
     }
     setErr(null);
@@ -167,9 +168,9 @@ export default function Onboarding() {
       setCode('');
       setPassword('');
       setMode('oubli-code');
-      setNotice('Si ce compte existe, un code à 6 chiffres vient de partir. Vérifiez vos indésirables.');
+      setNotice(t('Si ce compte existe, un code à 6 chiffres vient de partir. Vérifiez vos indésirables.'));
     } catch (e) {
-      setErr(errMessage(e, 'Envoi impossible, réessayez dans un instant.'));
+      setErr(errMessage(e, t('Envoi impossible, réessayez dans un instant.')));
     } finally {
       setBusy(false);
     }
@@ -178,11 +179,11 @@ export default function Onboarding() {
   /* Code + nouveau mot de passe en une seule soumission (voir l'en-tête). */
   const confirmReset = async () => {
     if (code.trim().length < 6) {
-      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
+      setErr(t('Saisissez le code à 6 chiffres reçu par e-mail.'));
       return;
     }
     if (password.length < 6) {
-      setErr('Mot de passe : au moins 6 caractères.');
+      setErr(t('Mot de passe : au moins 6 caractères.'));
       return;
     }
     setErr(null);
@@ -193,7 +194,7 @@ export default function Onboarding() {
       await updatePassword(password);
       /* La session est ouverte : le verrou d'App bascule sur l'app. */
     } catch (e) {
-      setErr(errMessage(e, 'Réinitialisation impossible, réessayez.'));
+      setErr(errMessage(e, t('Réinitialisation impossible, réessayez.')));
     } finally {
       setBusy(false);
     }
@@ -203,7 +204,7 @@ export default function Onboarding() {
      verrou d'App retire l'écran de lui-même, il n'y a rien à faire ensuite. */
   const confirmInscription = async () => {
     if (code.trim().length < 6) {
-      setErr('Saisissez le code à 6 chiffres reçu par e-mail.');
+      setErr(t('Saisissez le code à 6 chiffres reçu par e-mail.'));
       return;
     }
     setErr(null);
@@ -212,7 +213,7 @@ export default function Onboarding() {
     try {
       await verifyInscription(email.trim(), code.trim());
     } catch (e) {
-      setErr(errMessage(e, 'Code invalide ou expiré, demandez-en un nouveau.'));
+      setErr(errMessage(e, t('Code invalide ou expiré, demandez-en un nouveau.')));
     } finally {
       setBusy(false);
     }
@@ -224,7 +225,7 @@ export default function Onboarding() {
     setBusy(true);
     try {
       await renvoyerLaConfirmation(email.trim());
-      setNotice('C’est reparti. Regardez aussi vos indésirables.');
+      setNotice(t('C’est reparti. Regardez aussi vos indésirables.'));
     } catch (e) {
       /* LE REFUS DIT SON DÉLAI, EN CLAIR — 21 septembre 2026. Le serveur
          refuse deux envois trop rapprochés, en anglais : on lit le nombre de
@@ -232,8 +233,8 @@ export default function Onboarding() {
          recliquer sans fin. */
       const dans = secondesAvantRenvoi(e instanceof Error ? e.message : String(e));
       setErr(dans > 0
-        ? `Un code vient déjà de partir. Réessayez dans ${dans} secondes.`
-        : errMessage(e, 'Envoi impossible pour l’instant, réessayez dans un moment.'));
+        ? t('Un code vient déjà de partir. Réessayez dans {dans} secondes.', { dans })
+        : errMessage(e, t('Envoi impossible pour l’instant, réessayez dans un moment.')));
     } finally {
       setBusy(false);
     }
@@ -244,19 +245,19 @@ export default function Onboarding() {
     if (mode === 'oubli-code') return confirmReset();
     if (mode === 'inscription-code') return confirmInscription();
     if (mode === 'inscription' && !prenom.trim()) {
-      setErr('Indiquez votre prénom.');
+      setErr(t('Indiquez votre prénom.'));
       return;
     }
     if (mode === 'inscription' && !nomFamille.trim()) {
-      setErr('Indiquez votre nom de famille.');
+      setErr(t('Indiquez votre nom de famille.'));
       return;
     }
     if (!emailOk) {
-      setErr('Saisissez une adresse e-mail valide.');
+      setErr(t('Saisissez une adresse e-mail valide.'));
       return;
     }
     if (password.length < 6) {
-      setErr('Mot de passe : au moins 6 caractères.');
+      setErr(t('Mot de passe : au moins 6 caractères.'));
       return;
     }
     setErr(null);
@@ -286,7 +287,7 @@ export default function Onboarding() {
           } catch {
             setMode('connexion');
             setPassword('');
-            setNotice('Cette adresse a déjà son espace. Entrez son mot de passe, ou demandez-en un nouveau.');
+            setNotice(t('Cette adresse a déjà son espace. Entrez son mot de passe, ou demandez-en un nouveau.'));
           }
           setBusy(false);
           return;
@@ -305,7 +306,7 @@ export default function Onboarding() {
         await signInClient(email.trim(), password);
       }
     } catch (e) {
-      setErr(errMessage(e, mode === 'inscription' ? 'Inscription impossible, réessayez.' : 'Connexion impossible, réessayez.'));
+      setErr(errMessage(e, mode === 'inscription' ? t('Inscription impossible, réessayez.') : t('Connexion impossible, réessayez.')));
     } finally {
       setBusy(false);
     }
@@ -321,24 +322,24 @@ export default function Onboarding() {
           <div className="mc-onb__veil" />
           <img className="mc-onb__seal" src={asset('/assets/monograms/mono-copper.png')} alt="" />
           <div className="mc-onb__hero-text">
-            <div className="mc-micro-eyebrow">{s.eyebrow}</div>
-            <div className="mc-onb__title">{s.title}</div>
+            <div className="mc-micro-eyebrow">{t(s.eyebrow)}</div>
+            <div className="mc-onb__title">{t(s.title)}</div>
           </div>
         </div>
         <div className="mc-onb__body">
-          <p className="mc-onb__copy" key={`c${slide}`}>{s.copy}</p>
+          <p className="mc-onb__copy" key={`c${slide}`}>{t(s.copy)}</p>
           <div className="mc-onb__dots" role="tablist">
             {SLIDES.map((_, i) => (
               <button
                 key={i}
-                aria-label={`Aller au panneau ${i + 1}`}
+                aria-label={t('Aller au panneau {n}', { n: i + 1 })}
                 className={`mc-onb__dot ${i === slide ? 'is-on' : ''}`}
                 onClick={() => setSlide(i)}
               />
             ))}
           </div>
-          <button className="mc-cta mc-cta--copper" onClick={() => goAuth('inscription')}>Commencer</button>
-          <button className="mc-cta mc-cta--outline" onClick={() => goAuth('connexion')}>J’ai déjà un compte</button>
+          <button className="mc-cta mc-cta--copper" onClick={() => goAuth('inscription')}>{t('Commencer')}</button>
+          <button className="mc-cta mc-cta--outline" onClick={() => goAuth('connexion')}>{t('J’ai déjà un compte')}</button>
         </div>
       </div>
     );
@@ -347,49 +348,49 @@ export default function Onboarding() {
   /* ================= CONNEXION / INSCRIPTION ================= */
   return (
     <div className="mc-onb-form mc-fade">
-      <button className="mc-linkback" onClick={() => setStage('welcome')}>← Retour</button>
+      <button className="mc-linkback" onClick={() => setStage('welcome')}>{t('← Retour')}</button>
       <img className="mc-onb-form__seal" src={asset('/assets/monograms/mono-indigo.png')} alt="" />
-      <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>Connexion souveraine</div>
+      <div className="mc-micro-eyebrow" style={{ marginTop: 22 }}>{t('Connexion souveraine')}</div>
       <h1 className="mc-serif-title">
-        {mode === 'inscription' ? 'Créer mon compte.'
-          : mode === 'inscription-code' ? 'Ouvrez votre couronne.'
-          : mode === 'oubli' ? 'Mot de passe oublié.'
-          : mode === 'oubli-code' ? 'Nouveau mot de passe.'
-          : 'Bon retour.'}
+        {mode === 'inscription' ? t('Créer mon compte.')
+          : mode === 'inscription-code' ? t('Ouvrez votre couronne.')
+          : mode === 'oubli' ? t('Mot de passe oublié.')
+          : mode === 'oubli-code' ? t('Nouveau mot de passe.')
+          : t('Bon retour.')}
       </h1>
       <p className="mc-lead">
         {mode === 'inscription'
-          ? 'Votre prénom, votre nom, votre e-mail, un mot de passe, la maison vous reconnaît.'
+          ? t('Votre prénom, votre nom, votre e-mail, un mot de passe, la maison vous reconnaît.')
           : mode === 'inscription-code'
-          ? `Votre compte est créé. Un courrier vient de partir vers ${email.trim()} : ouvrez le lien qu'il contient, votre couronne s'ouvre toute seule. Si c'est un code à 6 chiffres qui vous est arrivé, saisissez-le ici.`
+          ? t('Votre compte est créé. Un courrier vient de partir vers {email} : ouvrez le lien qu’il contient, votre couronne s’ouvre toute seule. Si c’est un code à 6 chiffres qui vous est arrivé, saisissez-le ici.', { email: email.trim() })
           : mode === 'oubli'
-          ? 'Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.'
+          ? t('Indiquez votre e-mail : la maison vous envoie un code à 6 chiffres.')
           : mode === 'oubli-code'
-          ? 'Saisissez le code reçu, puis choisissez votre nouveau mot de passe.'
-          : 'Entrez votre e-mail et votre mot de passe.'}
+          ? t('Saisissez le code reçu, puis choisissez votre nouveau mot de passe.')
+          : t('Entrez votre e-mail et votre mot de passe.')}
       </p>
 
       {mode === 'inscription' && (
         <>
-          <label className="mc-field-label" htmlFor="mc-prenom">Prénom</label>
+          <label className="mc-field-label" htmlFor="mc-prenom">{t('Prénom')}</label>
           <div className="mc-emailline">
             <input
               id="mc-prenom"
               type="text"
               value={prenom}
               autoComplete="given-name"
-              placeholder="Votre prénom"
+              placeholder={t('Votre prénom')}
               onChange={(e) => { setPrenom(e.target.value); setErr(null); }}
             />
           </div>
-          <label className="mc-field-label" htmlFor="mc-nom">Nom de famille</label>
+          <label className="mc-field-label" htmlFor="mc-nom">{t('Nom de famille')}</label>
           <div className="mc-emailline">
             <input
               id="mc-nom"
               type="text"
               value={nomFamille}
               autoComplete="family-name"
-              placeholder="Votre nom"
+              placeholder={t('Votre nom')}
               onChange={(e) => { setNomFamille(e.target.value); setErr(null); }}
             />
           </div>
@@ -398,7 +399,7 @@ export default function Onboarding() {
 
       {mode !== 'oubli-code' && mode !== 'inscription-code' && (
         <>
-          <label className="mc-field-label" htmlFor="mc-email">Adresse e-mail</label>
+          <label className="mc-field-label" htmlFor="mc-email">{t('Adresse e-mail')}</label>
           <div className="mc-emailline">
             <input
               id="mc-email"
@@ -406,7 +407,7 @@ export default function Onboarding() {
               value={email}
               inputMode="email"
               autoComplete="email"
-              placeholder="vous@exemple.com"
+              placeholder={t('vous@exemple.com')}
               onChange={(e) => { setEmail(e.target.value); setErr(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
             />
@@ -416,7 +417,7 @@ export default function Onboarding() {
 
       {(mode === 'oubli-code' || mode === 'inscription-code') && (
         <>
-          <label className="mc-field-label" htmlFor="mc-code">Code reçu par e-mail</label>
+          <label className="mc-field-label" htmlFor="mc-code">{t('Code reçu par e-mail')}</label>
           <div className="mc-emailline">
             <input
               id="mc-code"
@@ -425,7 +426,7 @@ export default function Onboarding() {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              placeholder="6 chiffres"
+              placeholder={t('6 chiffres')}
               onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setErr(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
             />
@@ -436,7 +437,7 @@ export default function Onboarding() {
       {mode !== 'oubli' && mode !== 'inscription-code' && (
         <>
           <label className="mc-field-label" htmlFor="mc-password">
-            {mode === 'oubli-code' ? 'Nouveau mot de passe' : 'Mot de passe'}
+            {mode === 'oubli-code' ? t('Nouveau mot de passe') : t('Mot de passe')}
           </label>
           <div className="mc-emailline">
             <input
@@ -444,7 +445,7 @@ export default function Onboarding() {
               type={showPw ? 'text' : 'password'}
               value={password}
               autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-              placeholder="Au moins 6 caractères"
+              placeholder={t('Au moins 6 caractères')}
               onChange={(e) => { setPassword(e.target.value); setErr(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
             />
@@ -452,8 +453,8 @@ export default function Onboarding() {
               type="button"
               className="mc-pw-toggle"
               onClick={() => setShowPw((v) => !v)}
-              aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-              title={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              aria-label={showPw ? t('Masquer le mot de passe') : t('Afficher le mot de passe')}
+              title={showPw ? t('Masquer le mot de passe') : t('Afficher le mot de passe')}
             >
               {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -465,12 +466,12 @@ export default function Onboarding() {
       {notice && <div className="mc-form-notice">{notice}</div>}
 
       <button className="mc-cta mc-cta--indigo" disabled={busy} onClick={() => void submit()}>
-        {busy ? 'Un instant…'
-          : mode === 'inscription' ? 'Créer mon compte'
-          : mode === 'inscription-code' ? 'Confirmer mon adresse'
-          : mode === 'oubli' ? 'Envoyer le code'
-          : mode === 'oubli-code' ? 'Définir le mot de passe'
-          : 'Se connecter'}
+        {busy ? t('Un instant…')
+          : mode === 'inscription' ? t('Créer mon compte')
+          : mode === 'inscription-code' ? t('Confirmer mon adresse')
+          : mode === 'oubli' ? t('Envoyer le code')
+          : mode === 'oubli-code' ? t('Définir le mot de passe')
+          : t('Se connecter')}
       </button>
 
       {/* LA PORTE FÉDÉRÉE (14 août — Google seul, décision de Yéman) : elle
@@ -479,7 +480,7 @@ export default function Onboarding() {
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px', color: 'var(--ink-soft)', fontSize: 11.5, fontFamily: 'var(--font-sans)' }}>
             <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
-            ou
+            {t('ou')}
             <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} aria-hidden="true" />
           </div>
           <button
@@ -493,11 +494,11 @@ export default function Onboarding() {
               setBusy(true);
               signInWithGoogle().catch((e) => {
                 setBusy(false);
-                setErr(errMessage(e, 'Google indisponible pour le moment, entrez par e-mail, ou réessayez plus tard.'));
+                setErr(errMessage(e, t('Google indisponible pour le moment, entrez par e-mail, ou réessayez plus tard.')));
               });
             }}
           >
-            <MarqueGoogle /> Continuer avec Google
+            <MarqueGoogle /> {t('Continuer avec Google')}
           </button>
         </>
       )}
@@ -508,19 +509,19 @@ export default function Onboarding() {
           className="mc-authswitch"
           onClick={() => { setMode('oubli'); setPassword(''); setErr(null); setNotice(null); }}
         >
-          Mot de passe oublié ?
+          {t('Mot de passe oublié ?')}
         </button>
       )}
 
       {mode === 'oubli-code' && (
         <button type="button" className="mc-authswitch" disabled={busy} onClick={() => void askReset()}>
-          Renvoyer un code
+          {t('Renvoyer un code')}
         </button>
       )}
 
       {mode === 'inscription-code' && (
         <button type="button" className="mc-authswitch" disabled={busy} onClick={() => void renvoyer()}>
-          Renvoyer le courrier
+          {t('Renvoyer le courrier')}
         </button>
       )}
 
@@ -533,7 +534,7 @@ export default function Onboarding() {
           setNotice(null);
         }}
       >
-        {mode === 'connexion' ? 'Première fois ? Créer un compte' : 'Déjà un compte ? Se connecter'}
+        {mode === 'connexion' ? t('Première fois ? Créer un compte') : t('Déjà un compte ? Se connecter')}
       </button>
     </div>
   );

@@ -1,0 +1,105 @@
+/* Le pointage du jour et la caisse du soir — 3 octobre 2026.
+   Maquette « Le pointage du jour », validée. */
+
+.cds-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+@media (max-width: 620px) { .cds-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cds-tuile { min-width: 0; border: 1px solid var(--hairline); border-radius: 3px; padding: 8px 11px; }
+.cds-tuile small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.cds-tuile b { font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-weight: 500; font-size: 22px; line-height: 1.15; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.cds-tuile.is-ok { background: rgba(74, 107, 82, .08); border-color: rgba(74, 107, 82, .3); }
+.cds-tuile.is-ok b { color: #4A6B52; }
+.cds-tuile.is-reste { background: var(--copper-50, #FAF1E9); border-color: var(--color-copper, #B97A4A); }
+.cds-tuile.is-reste b, .cds-tuile.is-reste small { color: var(--copper-700, #7C4C2C); }
+
+.cds-defile { max-height: 56vh; overflow-y: auto; }
+.cds-groupe + .cds-groupe { margin-top: 14px; }
+.cds-groupe__tete { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 4px 0 6px; border-bottom: 1px solid var(--hairline); }
+.cds-groupe__tete b { font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-weight: 500; font-size: 18px; color: var(--color-indigo); }
+.cds-groupe__tete span { font-size: 11.5px; color: var(--ink-soft); }
+.cds-groupe__tete .cds-n { margin-left: auto; font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 18px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+
+.cds-ligne { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+@media (max-width: 560px) {
+  .cds-ligne { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .cds-ligne .cds-etat { grid-column: 2 / -1; justify-self: start; }
+}
+.cds-ligne__h { font-size: 12px; color: var(--copper-700, #7C4C2C); font-variant-numeric: tabular-nums; }
+.cds-ligne__qui { min-width: 0; }
+.cds-ligne__qui button { all: unset; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+.cds-ligne__qui button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cds-ligne__qui span.cds-nom { font-size: 13.5px; color: var(--ink); }
+.cds-ligne__qui small { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; overflow-wrap: anywhere; }
+.cds-ligne__m { font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 16px; color: var(--color-indigo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.cds-puce { display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.cds-puce.is-ok { background: rgba(74, 107, 82, .1); color: #4A6B52; border-color: rgba(74, 107, 82, .28); }
+.cds-puce.is-auto { background: var(--indigo-50, #EDEEF4); color: var(--color-indigo); border-color: #C9CCE0; }
+.cds-puce.is-attente { background: var(--copper-50, #FAF1E9); color: var(--copper-700, #7C4C2C); border-color: var(--copper-200, #E3C9AE); }
+.cds-puce.is-ecart { background: #F8ECE7; color: #8E3B26; border-color: #E7C4B8; }
+.cds-puce button { all: unset; cursor: pointer; margin-left: 6px; opacity: .7; }
+
+.cds-bouton { font: inherit; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; padding: 6px 12px; border-radius: 3px; border: 1px solid var(--hairline); background: var(--surface-card, #fff); color: var(--ink); white-space: nowrap; }
+.cds-bouton:hover:not([disabled]) { border-color: var(--color-copper, #B97A4A); }
+.cds-bouton.is-plein { background: var(--color-copper, #B97A4A); border-color: var(--color-copper, #B97A4A); color: #fff; }
+.cds-bouton.is-indigo { background: var(--color-indigo); border-color: var(--color-indigo); color: #F3EDE1; }
+.cds-bouton[disabled] { opacity: .45; cursor: not-allowed; }
+
+.cds-afacturer { margin-top: 14px; border-left: 2px solid var(--color-copper, #B97A4A); background: var(--copper-50, #FAF1E9); padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 13px; color: var(--ink-soft); }
+.cds-afacturer b { color: var(--copper-700, #7C4C2C); font-weight: 500; }
+.cds-afacturer ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.cds-afacturer li { display: flex; gap: 10px; justify-content: space-between; padding: 3px 0; }
+.cds-afacturer li button { all: unset; cursor: pointer; color: var(--ink); }
+.cds-afacturer li button:hover { text-decoration: underline; }
+
+.cds-pied { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-argile, #D9CFBC); }
+.cds-pied span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.cds-pied b { font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-weight: 400; font-size: 22px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+
+/* ── la clôture ── */
+.cds-tiroirs { display: grid; gap: 8px; }
+.cds-tiroir { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 3px; }
+.cds-tiroir b { font-size: 14px; color: var(--ink); font-weight: 500; }
+.cds-tiroir small { grid-column: 1; font-size: 12px; color: var(--ink-soft); }
+.cds-tiroir .cds-bouton { grid-row: 1 / span 2; grid-column: 2; }
+
+.cds-cloture { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 700px) { .cds-cloture { grid-template-columns: 1fr; } }
+.cds-calcul { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.cds-calcul td { padding: 6px 2px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+.cds-calcul td + td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cds-calcul tr.is-total td { border-top: 1px solid var(--color-indigo); border-bottom: 0; font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 19px; color: var(--color-indigo); }
+.cds-calcul small { display: block; color: var(--ink-soft); font-size: 11.5px; }
+.cds-billets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; font-size: 13px; }
+.cds-billets label { display: flex; align-items: center; gap: 8px; }
+.cds-billets span { width: 62px; text-align: right; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cds-billets input { width: 72px; text-align: right; }
+.cds-verdict { margin-top: 12px; padding: 10px 12px; border-radius: 3px; font-size: 13.5px; }
+.cds-verdict.is-juste { background: rgba(74, 107, 82, .1); color: #4A6B52; }
+.cds-verdict.is-ecart { background: #F8ECE7; color: #8E3B26; }
+.cds-verdict b { font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 20px; font-weight: 500; }
+.cds-champ { display: grid; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--ink-soft); }
+.cds-champ textarea { min-height: 56px; resize: vertical; width: 100%; }
+.cds-depense { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--color-copper, #B97A4A); border-radius: 3px; display: grid; gap: 8px; }
+.cds-depense__ligne { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cds-depense__ligne > * { flex: 1 1 140px; min-width: 0; }
+.cds-gestes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.cds-souci { font-size: 12.5px; color: #8E3B26; }
+.cds-coffre { margin-top: 10px; display: grid; gap: 6px; font-size: 13px; }
+.cds-coffre label { display: flex; align-items: center; gap: 8px; }
+
+/* ── la veille à valider ── */
+.cds-veille { display: grid; gap: 8px; }
+.cds-veille__ligne { display: grid; grid-template-columns: minmax(0, 1.2fr) auto auto; gap: 6px 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+@media (max-width: 640px) { .cds-veille__ligne { grid-template-columns: 1fr; } }
+.cds-veille__ligne b { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.cds-veille__ligne small { display: block; font-size: 12px; color: var(--ink-soft); }
+.cds-veille__ligne q { quotes: '« ' ' »'; font-style: italic; }
+.cds-veille__mot { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.cds-veille__mot input { flex: 1 1 220px; min-width: 0; }
+
+/* ── le jour clôturé (4 octobre 2026) ── */
+.cds-jour { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cds-jour__mot { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin-right: 4px; }
+.cds-jour > div { flex: 0 1 180px; min-width: 150px; }
+.cds-jour__dit { margin: 6px 0 12px; font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif); font-size: 18px; color: var(--color-indigo); }
+.cds-jour__dit::first-letter { text-transform: uppercase; }

@@ -1,3 +1,4 @@
+import { sansLaVisite, pourquoiPasDeRepriseIci, prochainDejaPose } from '../../../../shared/reprise-nue';
 import { useMemo, useRef, useState } from 'react';
 import { Button, Field, Input, Modal, Select, toast, alerte, demande } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
@@ -9,7 +10,8 @@ import { useClients, clientsStore, useFamilies, familiesStore, aUnPrixConvenu } 
 import { appointmentsStore, useAppointments, apptPayeurId, apptPaidXof, venuesHonorees, type Appointment, type ApptPayment, estampilleLaPose } from '../../../../shared/agenda';
 import { useCategories, fondeLaCouronne, type Service, useProducts } from '../../../../shared/catalog';
 import { aDefaitSesLocks, estDePassage as estDePassageCli, estDiaspora, joursDeLaTete } from '../../../../shared/clients';
-import { invoicesStore, useCashboxes, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
+import { remiseDeFactureAReporter } from '../../../../shared/offres-pur';
+import { invoicesStore, useCashboxes, caissesPourLaDate, invoiceTotal, ligneNetXof, usePaymentMethods, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, invoiceReglements, invoiceRegleXof, invoiceSoldee, useInvoices, quiEncaisse, type Invoice, type InvoiceLine, type InvoicePayment, type PaymentMethod, type CreditHolder, ligneProduit, lignesDuRituelPiece } from '../../../../shared/finance';
 import { detailDuForfait } from '../../../../shared/kids';
 import { holderOf, payerClientIdOf, estDependant } from '../../../../shared/accounts';
 import { venteGamme, fichePourGamme, stockDe, useMouvementsStock } from '../../../../shared/stock';
@@ -30,9 +32,11 @@ import { Toggle } from '../equipe/ui';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import {
   apptLabel, apptServices, apptNetXof, apptTotalXof, apptDueXof, svcPriceForAppt, remiseDeLigne, forfaitTauxPct, frShort, todayISO, useServicesById,
-  ChampDeDate, frShortAn,
+  ChampDeDate, frShortAn, tarifsDuRituel,
 } from './_shared';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
+import { RattacherUneCarte } from '../vente/RattacherUneCarte';
 
 /* Actions transverses Clients & Agenda : fidélité (points Cercle) + encaissement d'un RDV. */
 
@@ -89,6 +93,7 @@ export function awardLoyalty(clientId: string, amountXof: number, label: string)
     dériverait d'un mois par an sans que personne ne comprenne pourquoi. */
 export type ReprisePosee = { pose?: Appointment; raison?: string };
 
+
 export function poseLaReprise(appt: Appointment): ReprisePosee {
   /* CHAQUE REFUS SE DIT (9 septembre — « je n'ai pas eu son prochain RDV
      automatique », Befoune, et personne ne pouvait dire quel garde avait
@@ -108,34 +113,27 @@ export function poseLaReprise(appt: Appointment): ReprisePosee {
             : 'cadence pas encore lisible (moins de deux venues honorées)',
     };
   }
-  if (tous.some((a) => a.repriseDe === appt.id)) return { raison: 'sa reprise est déjà posée' };
-  const aVenir = tous.find((a) => a.clientId === appt.clientId
-    && a.id !== appt.id && a.status !== 'annulé' && a.status !== 'honoré' && a.date >= todayISO());
+  /* La reprise effacée, le rituel plus récent, le rituel trop ancien
+     (2 octobre 2026, Shegun et Nathael) : voir `pourquoiPasDeRepriseIci`. */
+  const garde = pourquoiPasDeRepriseIci(appt, tous, todayISO());
+  if (garde) return { raison: garde };
+  /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS (4 octobre 2026) : la même garde
+     que l'écran d'encaissement, voir `prochainDejaPose`. */
+  const aVenir = prochainDejaPose(appt, tous, todayISO());
   if (aVenir) return { raison: `elle a déjà un rendez-vous à venir (${frShort(aVenir.date)})` };
   const date = dateDeLaReprise(appt.date, rythme.semaines, joursDeLaTete(cliente));
   const suivant: Appointment = {
-    ...appt,
+    /* CE QUI APPARTENAIT À LA VISITE D'AVANT NE SE RECOPIE PAS (shared/reprise-nue) :
+       son argent (versements, somme réglée, acompte, pièce), sa remise du jour, sa
+       Gamme, son forfait, son prix figé, ses points, sa couverture d'abonnement.
+       La somme réglée passait, le 2 octobre : la reprise naissait « payée ». Elle
+       se chiffre au tarif du jour où on l'ouvre, et se fige quand on l'enregistre. */
+    ...sansLaVisite(appt),
     id: `ap-${uid()}`,
     date,
     status: 'confirmé',
+    source: 'trone',
     repriseDe: appt.id,
-    /* CE QUI APPARTENAIT AU RITUEL D'AVANT NE SE RECOPIE PAS : son
-       encaissement, sa pièce, ses points, sa couverture d'abonnement. Un
-       rendez-vous neuf naît nu, sinon il naîtrait déjà payé. */
-    payments: undefined,
-    invoiceId: undefined,
-    /* LE PRIX NE SE RECOPIE PAS. Un rituel couvert par un abonnement vaut 0 F :
-       le recopier ferait naître la reprise gratuite. Elle se chiffre au tarif
-       du jour où on l'ouvre, et se fige quand on l'enregistre. */
-    priceXof: undefined,
-    pointsAwarded: undefined,
-    coveredBySub: undefined,
-    coverKind: undefined,
-    subId: undefined,
-    foyerId: undefined,
-    seriesId: undefined,
-    seriesIndex: undefined,
-    seriesTotal: undefined,
     note: rythme.observe
       ? `Reprise posée à la clôture · cadence observée ≈ ${rythme.semaines} semaines`
       : `Reprise posée à la clôture · toutes les ${rythme.semaines} semaines`,
@@ -152,6 +150,16 @@ export function honorAppointment(
      bandeaux qui se chevauchent. */
   opts: { muet?: boolean } = {},
 ): { points: number; reprise: ReprisePosee } {
+  /* ══ ON N'HONORE PAS CE QUI N'A PAS EU LIEU — 4 octobre 2026 ══════════════
+     Nadège K. : sa reprise du 5 décembre honorée le 3 octobre à 15 h 10 a posé
+     celle du 6 février, honorée sept secondes plus tard, qui a posé celle du
+     10 avril. Seul l'encaissement refusait un rituel daté de demain ; le
+     Carnet, le tableau de bord et l'écran d'encaissement passaient par ici
+     sans garde. Le refus vit désormais ICI, pour tous les chemins. */
+  if (appt.date > todayISO()) {
+    if (!opts.muet) toast(`Le rituel du ${frShortAn(appt.date)} n’a pas encore eu lieu : il s’honore le jour venu.`);
+    return { points: 0, reprise: { raison: 'ce rituel n’a pas encore eu lieu' } };
+  }
   const total = apptNetXof(appt, byId);
   /* LES POINTS SUIVENT L'ARGENT. Un rituel offert reconnaît celle qui l'a payé,
      pas celle qui s'est assise : c'est elle qui a sorti les 110 000 F. Le rituel
@@ -254,6 +262,47 @@ export function honoreALEncaissement(
     return { etat: 'a-venir' };
   }
   return { etat: 'honore', reprise: honorAppointment(a, byId, opts).reprise };
+}
+
+/* ══ HONORER SANS ENCAISSER, C'EST FACTURER — 4 octobre 2026 ══════════════
+   « Je veux toujours un bouton honorer et payer, ou honorer et impayé, pour
+   avoir une facture générée » (Yéman).
+
+   Honorer et payer reste le geste d'« Encaisser ». Honorer sans payer
+   laissait le rituel sans pièce : il n'apparaissait que dans « À facturer »,
+   et la facture s'émettait à part, quand on y pensait. Les boutons qui
+   honorent sans encaisser (Carnet, tableau de bord, écran d'encaissement)
+   émettent désormais la pièce du même geste : « envoyée », à régler, au
+   tarif de la tête quand l'écran le connaît. Un rituel qui ne doit rien
+   (couvert, offert) n'a pas de pièce à réclamer : on n'en émet pas ici. */
+export type HonneurFacture = { honore: boolean; facture?: Invoice; deja?: boolean; erreur?: string; reprise?: ReprisePosee };
+
+export function honoreSansEncaisser(
+  appt: Appointment,
+  byId: Map<string, Service>,
+  prixPlein?: (s: Service) => number,
+): HonneurFacture {
+  const frais = appointmentsStore.get().find((a) => a.id === appt.id) ?? appt;
+  if (frais.date > todayISO()) {
+    toast(`Le rituel du ${frShortAn(frais.date)} n’a pas encore eu lieu : il s’honore le jour venu.`);
+    return { honore: false };
+  }
+  const { reprise } = honorAppointment(frais, byId, { muet: true });
+  const maj = appointmentsStore.get().find((a) => a.id === appt.id) ?? frais;
+  let facture: Invoice | undefined;
+  let deja = false;
+  let erreur: string | undefined;
+  if (apptDueXof(maj, byId) > 0) {
+    const r = factureAEnvoyer(maj, byId, maj.branchId, prixPlein);
+    if (r.ok) { facture = r.inv; deja = r.deja; } else erreur = r.erreur;
+  }
+  toast([
+    'Rituel honoré',
+    facture ? (deja ? `sa facture ${facture.number} attend déjà son règlement` : `facture ${facture.number} émise, à régler`) : '',
+    erreur ? `facture non émise : ${erreur}` : '',
+    reprise.pose ? `reprise posée le ${frShortAn(reprise.pose.date)} à ${reprise.pose.time}` : '',
+  ].filter(Boolean).join(' · ') + '.');
+  return { honore: true, facture, deja, erreur, reprise };
 }
 
 /* ══ DÉ-HONORER — 13 septembre 2026 ══════════════════════════════════════
@@ -399,7 +448,7 @@ function reverseHonorPoints(appt: Appointment, motif = 'Encaissement annulé'): 
    la cliente debite : elle payait deux fois, une fois avec son credit detruit,
    une fois au re-encaissement. `resetAllPaidInvoices` savait deja le faire ;
    les deux chemins courants, non. */
-function restituerAvoir(invoiceId: string): void {
+export function restituerAvoir(invoiceId: string): void {
   const usages = creditMovementsStore.get().filter((m) => m.kind === 'usage' && m.invoiceId === invoiceId);
   if (!usages.length) return;
   const ids = new Set(usages.map((m) => m.id));
@@ -1027,12 +1076,15 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
      à celui de la maison. Sans caisse dans la devise reçue, on refuse plutôt que
      de fausser deux soldes d'un coup. */
   const payCurrency = fxOn ? fxCode : currency;
-  const eligibleBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  /* La caisse suit la date du versement (4 octobre 2026) : en octobre, les
+     caisses d'octobre ; une correction d'avant, les anciennes. */
+  const boxesDuJour = caissesPourLaDate(branchBoxes, payDate, cashbox);
+  const eligibleBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === payCurrency);
   const activeBox = eligibleBoxes.some((c) => c.name === cashbox) ? cashbox : '';
   const fxBlocked = fxOn && eligibleBoxes.length === 0;
   /* La Gamme se règle toujours en francs : ses tiroirs sont ceux de la monnaie
      de la Maison, même quand le rituel part en devise. */
-  const gammeBoxes = branchBoxes.filter((c) => cashboxCurrency(c) === currency);
+  const gammeBoxes = boxesDuJour.filter((c) => cashboxCurrency(c) === currency);
   const payGamme: PaymentMethod = payGammeChoisi || pay;
   /* La Gamme suit la caisse du rituel quand elle suit son moyen ; sinon elle
      se choisit à son tour. Jamais la première de la liste. */
@@ -1075,6 +1127,9 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     return d.toISOString().slice(0, 10);
   };
   const [reschedule, setReschedule] = useState(false);
+  /* Le prochain déjà posé, lu au rendu : l'interrupteur ne s'allume pas
+     quand il existe (un rituel, un seul prochain rendez-vous). */
+  const prochainExistant = prochainDejaPose(appt, appointmentsStore.get(), todayISO());
   const [nextDate, setNextDate] = useState(() => {
     const d = addDaysISO(appt.date, 28); // 4 semaines par défaut
     return d > todayISO() ? d : addDaysISO(todayISO(), 28);
@@ -1247,6 +1302,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: amount,
           method: pay, cashbox: activeBox,
+          time: new Date().toTimeString().slice(0, 5),
+          ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
           /* LA DEVISE VIT SUR LE VERSEMENT — les 100 € de Stevie A., 18 août.
              Posée sur la seule pièce, elle se perdait dès que le versement
              s'inscrivait sur une pièce existante : tiroir EUR vide, PDF muet. */
@@ -1267,6 +1324,8 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         versements.push({
           id: `ip-${uid()}`, date: payDate, amountXof: totalGamme,
           method: payGamme, cashbox: gammeBox || undefined, note: 'Gamme, produits emportés',
+          time: new Date().toTimeString().slice(0, 5),
+          ...(quiEncaisse() ? { encaissePar: quiEncaisse() } : {}),
         });
       }
       /* Compte famille : la facture est au nom du PARENT PAYEUR, la cliente soignée
@@ -1485,7 +1544,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
        prix (avant remise) et on reporte la remise (% et CFA) pour que le prochain RDV
        porte exactement le même net. Impayé, à honorer et encaisser le moment venu. */
     let rescheduled = false;
-    if (reschedule && nextDate) {
+    /* UN RITUEL, UN SEUL PROCHAIN RENDEZ-VOUS — 4 octobre 2026. Ce bloc
+       créait son rendez-vous à chaque encaissement, sans garde : repasser ou
+       corriger un paiement en ajoutait un à chaque fois (Nadège K., 3 octobre).
+       Il ne pose plus rien si la suite de ce rituel, ou un rendez-vous à venir
+       de la tête, existe déjà, et il RELIE ce qu'il pose (`repriseDe`) pour que
+       la reprise de la clôture le reconnaisse. */
+    const dejaPose = reschedule ? prochainDejaPose(appt, appointmentsStore.get(), todayISO()) : null;
+    if (reschedule && nextDate && !dejaPose) {
       const newAppt: Appointment = {
         id: `appt-${uid()}`,
         branchId: appt.branchId,
@@ -1501,6 +1567,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         ...(appt.discountXof != null ? { discountXof: appt.discountXof } : {}),
         ...(appt.discountPct != null ? { discountPct: appt.discountPct } : {}),
         note: 'Reprogrammé depuis l’encaissement',
+        repriseDe: appt.id,
       };
       appointmentsStore.set((prev) => [...prev, estampilleLaPose(newAppt)]);
       rescheduled = true;
@@ -1578,7 +1645,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
     const depMsg = depositJustConfirmed ? `Acompte de ${fmtMoney(deposit, currency)} confirmé reçu. ` : '';
     const reschedMsg = rescheduled
       ? `Prochain RDV reprogrammé le ${frShortAn(nextDate)} à ${nextTime}.`
-      : '';
+      : dejaPose ? `Aucun RDV de plus : le prochain est déjà posé le ${frShortAn(dejaPose.date)}.` : '';
     const honneurMsg = honneur?.etat === 'honore'
       ? `Rituel honoré.${honneur.reprise?.pose ? ` Sa reprise est posée le ${frShortAn(honneur.reprise.pose.date)} à ${honneur.reprise.pose.time}.` : ''}`
       : honneur?.etat === 'a-venir'
@@ -1647,7 +1714,7 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             const lien = lienPaiementMomo(due);
             const tel = (payerClient?.phone ?? client?.phone ?? '').replace(/\D/g, '');
             if (!lien || !tel) return null;
-            const prenom = (payerClient?.name ?? client?.name ?? '').split(' ')[0];
+            const prenom = appelDe(payerClient ?? client);
             const msg = signeLeMessage(
               `${branch.name} · votre rituel\nBonjour ${prenom}, pour régler ${fmtMoney(due, currency)} par Mobile Money, ouvrez cette page : le code à composer s'y affiche, montant compris.\n${lien}`,
             );
@@ -1738,6 +1805,39 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-serif)', fontSize: 18, borderTop: '1px solid var(--hairline)', paddingTop: 9 }}>
           <span>Total dû</span><span className="mnd-copper">{fmtMoney(due, currency)}</span>
         </div>
+        {/* LA PIÈCE PORTE UNE REMISE QUE LE RENDEZ-VOUS N'A PAS REÇUE (2 octobre
+            2026). Un rituel encaissé au comptoir avec un code restait « devoir »
+            le montant de la remise. Le comptoir l'écrit désormais lui-même ; pour
+            les pièces d'avant, on le propose ici, d'un geste, et c'est une main
+            qui décide. Un forfait fait foi : on ne le remise pas. */}
+        {(() => {
+          const aReporter = appt.forfait ? null : remiseDeFactureAReporter({
+            resteDuXof: due,
+            factures: toutesLesPieces.filter((i: Invoice) => i.kind === 'facture' && i.status === 'payée'
+              && (i.apptId === appt.id || i.id === appt.invoiceId || (appt.payments ?? []).some((p) => p.invoiceId === i.id))),
+          });
+          if (!aReporter) return null;
+          return (
+            <div style={{ fontSize: 12, color: 'var(--copper-700)', background: 'var(--copper-50)', border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', padding: '9px 11px', lineHeight: 1.5 }}>
+              La facture <b>{aReporter.piece}</b> porte une remise que ce rendez-vous n’a pas reçue :{' '}
+              <b>{aReporter.libelle}</b>. Ce reste n’est pas dû.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    appointmentsStore.set((prev) => prev.map((a) => (a.id === appt.id
+                      ? { ...a, discountXof: (a.discountXof ?? 0) + aReporter.xof }
+                      : a)));
+                    toast(`Remise de ${fmtMoney(aReporter.xof, currency)} reportée au rendez-vous.`);
+                  }}
+                  style={{ cursor: 'pointer', background: 'var(--color-copper)', color: 'var(--color-ivoire)', border: 'none', borderRadius: 3, padding: '6px 12px', fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 600 }}
+                >
+                  Reporter la remise au rendez-vous · {fmtMoney(aReporter.xof, currency)}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
         {alreadyPaid > 0 && (
           <button
             type="button"
@@ -2005,6 +2105,10 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
           </div>
         )}
 
+        {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle devient
+            l'avoir ci-dessus, et se dépense comme lui. */}
+        <RattacherUneCarte porteur={account} clientId={appt.clientId} nom={(client?.name ?? appt.clientName ?? '').split(' ')[0] || 'elle'} compact />
+
         <div className="mnd-bande" style={{ padding: '12px 13px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-indigo)' }}>Comptant, maintenant</span>
@@ -2246,9 +2350,14 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>
               Reprogrammer le prochain rendez-vous
             </span>
-            <Toggle on={reschedule} onToggle={() => setReschedule((v) => !v)} />
+            <Toggle on={reschedule && !prochainExistant} onToggle={() => { if (!prochainExistant) setReschedule((v) => !v); }} />
           </div>
-          {reschedule && (
+          {prochainExistant && (
+            <div className="mnd-muted" style={{ fontSize: 11.5, marginTop: 7, lineHeight: 1.5 }}>
+              Le prochain rendez-vous est déjà posé le {frShortAn(prochainExistant.date)}{prochainExistant.time ? ` à ${prochainExistant.time}` : ''} : rien de plus ne sera créé.
+            </div>
+          )}
+          {reschedule && !prochainExistant && (
             <>
               <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                 {/* LES RYTHMES DE LA MAISON, ÉCRITS UNE FOIS — 5 septembre
@@ -2323,9 +2432,18 @@ export function PayAppointmentModal({ appt: apptEntrant, onClose, onRetour }: {
             Il ne paraît que tant que le rituel n'est ni honoré ni annulé ; une
             fois clôturé, la ligne le dit à sa place. `appt` est relu dans le
             magasin à chaque rendu, donc l'écran change dès le clic. */}
-        {appt.status !== 'honoré' && appt.status !== 'annulé' && (
-          <Button variant="ghost" onClick={() => honorAppointment(appt, byId)} style={{ marginTop: 4 }}>
-            Honorer le rituel
+        {/* HONORER SANS ENCAISSER ÉMET LA FACTURE — 4 octobre 2026 (voir
+            `honoreSansEncaisser`). Honorer ET encaisser reste le bouton
+            « Encaisser » ci-dessus. Un rituel à venir ne s'honore pas. */}
+        {appt.status !== 'honoré' && appt.status !== 'annulé' && appt.date <= todayISO() && (
+          <Button
+            variant="ghost"
+            onClick={() => honoreSansEncaisser(appt, byId, tarifsDuRituel(appt, {
+              client, bands, sets, cats: categories, byId, tousServices: [...byId.values()], produits: produitsCatalogue,
+            }).prixPlein)}
+            style={{ marginTop: 4 }}
+          >
+            Honorer sans encaisser · facture à régler
           </Button>
         )}
         {appt.status === 'honoré' && (

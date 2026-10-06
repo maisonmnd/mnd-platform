@@ -26,6 +26,7 @@ import {
 } from '../../../../shared/finance';
 import { useRemboursements } from '../../../../shared/avances';
 import { usePrets } from '../../../../shared/foyer';
+import { useSettings } from '../../../../shared/settings';
 import { useClients, useFamilies } from '../../../../shared/clients';
 import { fmtDay, monthKey, monthLabel, monthShort, shiftMonth, todayISO } from './_shared';
 
@@ -70,6 +71,9 @@ export const selonLOrdre = <T extends { id: string }>(voulu: string[] | undefine
   return [...connus, ...items.filter((it) => !rang.has(it.id))];
 };
 
+/** Un mois compte-t-il dans les soldes ? Tous, sans départ posé. */
+export const dansLesComptes = (mk: string, depuis: string | undefined): boolean => !depuis || mk >= depuis;
+
 export const CLE_ECRAN = '@ecran-caisses';
 export const CLE_COFFRE = '@ecran-coffre';
 export const CLE_PRETS = '@ecran-prets';
@@ -106,7 +110,13 @@ export const refermeLesCaisses = (ids: readonly string[]): void => {
     empreintes : le code enregistré n'existe nulle part pour être comparé. */
 export async function leCodeOuvre(c: { id: string; codeHash?: string }, code: string): Promise<boolean> {
   if (!c.codeHash) return true;
-  return (await empreinteDuCode(c.id, code)) === c.codeHash;
+  /* LE CODE SE POSE SANS ESPACES AUTOUR (4 octobre 2026) : `trim` à la pose,
+     jamais à l'essai, et l'espace qu'un clavier de téléphone ajoute après un
+     mot faisait refuser le bon code. On essaie donc la frappe telle quelle,
+     puis sans ses espaces. */
+  if ((await empreinteDuCode(c.id, code)) === c.codeHash) return true;
+  const net = code.trim();
+  return net !== code && net !== '' && (await empreinteDuCode(c.id, net)) === c.codeHash;
 }
 
 /** S'abonne au registre : l'écran se redessine quand une caisse s'ouvre. */
@@ -261,7 +271,8 @@ export function useCaisses(month: string) {
     creditMvts.filter((m) => m.branchId === branch.id && m.cashbox === name
       && (m.kind === 'depot' || m.kind === 'remboursement') && keep(monthKey(m.date)));
   const porteurDe = (m: CreditMovement): string =>
-    m.holderType === 'family'
+    m.holderType === 'carte' ? 'Carte cadeau'
+    : m.holderType === 'family'
       ? familles.find((f) => f.id === m.holderId)?.name ?? 'Compte famille'
       : clientes.find((c) => c.id === m.holderId)?.name ?? 'Cliente';
 
@@ -286,8 +297,17 @@ export function useCaisses(month: string) {
   const boxExpenses = (name: string) =>
     expenses.filter((e) => e.branchId === branch.id && !e.stopped && !e.avancee && e.cashbox === name);
 
+  /* LE DÉPART DES CAISSES (4 octobre 2026) : rien de ce qui précède le mois
+     de départ n'entre dans un solde. Le relevé d'un mois d'avant reste
+     lisible ; il ne bouge plus rien. Voir `Settings.caissesDepuis`. */
+  const [reglagesCaisses] = useSettings();
+  const depuis = reglagesCaisses.caissesDepuis;
   /** Solde cumulé d'une caisse — ouverture + tous les flux dont le mois passe `keep`. */
-  const boxBalanceWhere = (name: string, keep: (mk: string) => boolean) => {
+  const boxBalanceWhere = (name: string, keepDemande: (mk: string) => boolean) => {
+    /* UNE ANCIENNE GARDE TOUT SON PASSÉ (4 octobre 2026, « Ouvrir octobre ») :
+       le départ ne la coupe pas, elle sert à finir le travail d'avant. */
+    const ancienne = !!boxOf(name)?.jusquAu;
+    const keep = (mk: string) => keepDemande(mk) && (ancienne || dansLesComptes(mk, depuis));
     const box = boxOf(name);
     const boxCur = box ? cashboxCurrency(box) : currency;
     const foreign = boxCur !== currency;
@@ -328,8 +348,10 @@ export function useCaisses(month: string) {
   /* La trésorerie ne somme QUE les caisses de la maison : additionner des euros
      à des francs donnerait un nombre qui ne veut rien dire. Les caisses en
      devise se lisent séparément, chacune dans son unité. */
+  /* Les anciennes ne font pas la trésorerie d'octobre : leur argent est
+     celui d'avant, en cours de mise en ordre (4 octobre 2026). */
   const treasury = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency)
+    .filter((b) => cashboxCurrency(b) === currency && !b.jusquAu)
     .reduce((s, b) => s + boxBalance(b.name), 0);
 
   /* Ce qu'il y a DERRIÈRE le solde d'une caisse. Mêmes règles que `boxBalance`,
@@ -501,15 +523,19 @@ export function useCaisses(month: string) {
      amputé sans explication vaudrait pire qu'un total complet. */
   const ouvertesMaintenant = useCaissesOuvertes();
   const tresorerieVisible = branchBoxes
-    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
+    .filter((b) => cashboxCurrency(b) === currency && !b.horsBilan && !b.jusquAu && soldeVisible(b, ouvertesMaintenant))
+    .reduce((s, b) => s + boxBalance(b.name), 0);
+  /* Les anciennes, à part : ce qu'il reste à mettre en ordre d'avant octobre. */
+  const anciennesTotal = branchBoxes
+    .filter((b) => b.jusquAu && cashboxCurrency(b) === currency && !b.horsBilan && soldeVisible(b, ouvertesMaintenant))
     .reduce((s, b) => s + boxBalance(b.name), 0);
   const horsBilan = branchBoxes.filter((b) => b.horsBilan).length;
   const discretesFermees = branchBoxes.filter((b) => caisseDiscrete(b) && !ouvertesMaintenant.has(b.id)).length;
 
   return {
-    branch, currency, branchBoxes,
+    branch, currency, branchBoxes, depuis,
     boxOf, boxBalance, boxBalanceStart, boxMonthFlux, boxMoves, treasury,
-    tresorerieVisible, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
+    tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes: ouvertesMaintenant,
     exclues: caissesHorsBilan(branchBoxes, branch.id),
   };
 }
@@ -1074,7 +1100,7 @@ export function LeTrousseau({
           <label className="mnd-field">
             <span className="mnd-field__label">Code</span>
             <input
-              className="mnd-input" type="password" autoFocus autoComplete="off"
+              className="mnd-input" type="password" autoFocus autoComplete="new-password" name="code-maison"
               value={code}
               onChange={(e) => { setCode(e.target.value); setMot(''); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void essayer(); }}
@@ -1147,7 +1173,8 @@ export function EcranVerrouille({
           className="mnd-input"
           type="password"
           autoFocus
-          autoComplete="off"
+          autoComplete="new-password"
+          name="code-maison"
           placeholder="Code"
           value={code}
           onChange={(e) => { setCode(e.target.value); setFaux(false); }}

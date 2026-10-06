@@ -280,7 +280,9 @@ Deno.serve(async (req) => {
   const branchId = corps.branchId ? String(corps.branchId) : undefined;
   const parQui = corps.parQui ? String(corps.parQui).slice(0, 80) : undefined;
   /** Le modèle porte un document en en-tête (le bulletin de paie). */
-  const enTete = corps.enTete === 'document' ? 'document' : '';
+  /* 28 septembre 2026 : l'en-tête peut aussi être une IMAGE (la carte de
+     marraine du modèle `parrainage_merci`). */
+  const enTete = corps.enTete === 'document' ? 'document' : corps.enTete === 'image' ? 'image' : '';
   /** Les boutons de réponse : `{ id, titre }`, trois au plus. */
   const boutons: { id: string; titre: string }[] = Array.isArray(corps.boutons)
     ? corps.boutons
@@ -408,8 +410,8 @@ Deno.serve(async (req) => {
   /* UN MODÈLE NE PORTE PAS DE FICHIER — c'est la règle de Meta, pas la
      nôtre… sauf dans son EN-TÊTE, quand il a été approuvé avec (le
      bulletin). Le dire ici évite un refus obscur de l'API. */
-  if (modele && piece && !enTete) return refus('un modèle approuvé ne peut pas porter de pièce jointe, sauf en en-tête (enTete: document)');
-  if (modele && enTete && !piece) return refus('ce modèle attend un document en en-tête, et il manque');
+  if (modele && piece && !enTete) return refus('un modèle approuvé ne peut pas porter de pièce jointe, sauf en en-tête (enTete: document ou image)');
+  if (modele && enTete && !piece) return refus('ce modèle attend une pièce en en-tête, et elle manque');
   if (!modele && boutons.length > 0 && !texte) return refus('des boutons accompagnent un texte : lequel ?');
   if (!modele && boutons.length > 0 && piece) return refus('des boutons ne s’ajoutent pas à une pièce jointe');
 
@@ -483,7 +485,9 @@ Deno.serve(async (req) => {
     if (enTete && mediaId) {
       composants.push({
         type: 'header',
-        parameters: [{ type: 'document', document: { id: mediaId, filename: pieceNom } }],
+        parameters: [enTete === 'image'
+          ? { type: 'image', image: { id: mediaId } }
+          : { type: 'document', document: { id: mediaId, filename: pieceNom } }],
       });
     }
     if (variables.length) {

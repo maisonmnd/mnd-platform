@@ -10,20 +10,28 @@ import { useCategories, useServices, useProducts, productsStore, priceModeOf, ca
 import { venteGamme } from '../../../../shared/stock';
 import { useFormations } from '../equipe/data';
 import { Toggle } from '../equipe/ui';
-import { useClients, useFamilies } from '../../../../shared/clients';
+import { useClients, useFamilies, clientsStore } from '../../../../shared/clients';
+import { genreEffectif, soinsEnAttente, type SoinOffert } from '../../../../shared/parrainage-pur';
+import { soinUtilise } from '../../../../shared/parrainage';
 import {
   useModelBands, useBandSets, pricingOf, personalPriceXof, prixFerme, estProposable,
 } from '../../../../shared/pricing';
-import { ClientPicker, useBranchAppointments, apptLabel, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
+import { ClientPicker, useBranchAppointments, apptLabel, apptDueXof, useServicesById, svcPriceForAppt, frShortAn } from '../clients/_shared';
 import { honoreALEncaissement } from '../clients/actions';
 import { appointmentsStore, useAppointments, venuesHonorees } from '../../../../shared/agenda';
-import { useInvoices, useCashboxes, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
+import { ClotureDuTiroir } from '../finances/ClotureDuTiroir';
+import { jourPropose } from '../../../../shared/caisse-du-soir-pur';
+/** La veille d'un jour ISO, en heure locale. */
+const veilleIso = (iso: string): string => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); };
+import { useInvoices, useCashboxes, caissesPourLaDate, usePaymentMethods, invoiceTotal, invoiceReglements, cashboxCurrency, nouvelleFacture, ligneFacture, useCredits, creditMovementsStore, creditBalanceOf, type Invoice, type InvoicePayment, type PaymentMethod, type CreditHolder, caisseParDefaut } from '../../../../shared/finance';
 import { holderOf, payerClientIdOf } from '../../../../shared/accounts';
 import { invoicePdf, type InvoicePdfData } from '../../../../shared/pdf';
 import {
   useCodesPromo, codesPromoStore, codeDit, pourquoiLeCodeNeVautPas, remiseDuCode,
   laMeilleureEnFrancs, honoreLeCode, normaliseLeCode,
 } from '../../../../shared/promos';
+import { useOffers } from '../../../../shared/offers';
+import { offreDuCode, offreDuCodePassee, remiseDeLOffreSurLeTicket, pourquoiLOffreNeCourtPas, remiseDuComptoirAuRendezVous } from '../../../../shared/offres-pur';
 import { useAuth } from '../../../../shared/auth';
 import { ChampDeDate } from '../../../../ds/dates';
 import { useEstDirection } from '../_vie';
@@ -34,6 +42,7 @@ import { TAUX_DE_REMISE } from '../../../../shared/pricing';
 import '../equipe/equipe.css'; // styles du Toggle partagé (tre-toggle)
 import './vente.css';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { RattacherUneCarte } from './RattacherUneCarte';
 
 /* Caisse POS — encaissement au fauteuil. Chaque encaissement crée une facture
    payée dans le registre des finances et crédite la caisse choisie. */
@@ -117,6 +126,7 @@ export default function Caisse() {
   const [dateVente, setDateVente] = useState(() => todayIso());
 
   const [codeTape, setCodeTape] = useState('');
+  const [offres] = useOffers();
   const [codes] = useCodesPromo();
   /* QUI A ACCEPTÉ LE CODE. Une remise sans nom derrière est une remise que
      personne n'assume, et c'est exactement ce que la trace de la base
@@ -235,6 +245,8 @@ export default function Caisse() {
   const branchCashboxes = cashboxes.filter((c) => c.branchId === branch.id);
   const [cashbox, setCashbox] = useState<string>('');
   const [journalCaisse, setJournalCaisse] = useState<string>('Toutes');
+  const [clotureOuverte, setClotureOuverte] = useState(false);
+  const [journalJour, setJournalJour] = useState(() => jourPropose(new Date()));
   const [waHint, setWaHint] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   /* La remise d'une ligne se replie DANS la ligne au téléphone : les chips
@@ -244,6 +256,11 @@ export default function Caisse() {
   /* La cliente choisie se dit en CHIP + « Changer » (maquette écran 3) — le
      sélecteur ne se rouvre que si on le demande, l'écran reste calme au rush. */
   const [changeCliente, setChangeCliente] = useState(false);
+  /* LE SOIN OFFERT DE LA MARRAINE — 28 septembre 2026. Celui qu'on offre sur
+     ce ticket, et la ligne qu'il a passée à 100 %. Il ne se consomme qu'à
+     l'encaissement, comme un code : un ticket abandonné ne le brûle pas. */
+  const [soinPose, setSoinPose] = useState<{ id: string; cle: string; disc: number; genre: 'soin' | 'remise' } | null>(null);
+  useEffect(() => { setSoinPose(null); }, [clientId]);
 
   /* La caisse active reste toujours valide : on sélectionne la première caisse de
      la branche au montage (et au changement de branche), et on ne réinitialise
@@ -262,7 +279,11 @@ export default function Caisse() {
      choix — et s'il n'existe aucune caisse dans cette devise, l'encaissement est
      bloqué plutôt que versé au mauvais tiroir. */
   const payCurrency = fxOn ? fxCode : currency;
-  const eligibleBoxes = branchCashboxes.filter((c) => cashboxCurrency(c) === payCurrency);
+  /* La caisse suit la date de la vente (4 octobre 2026) : en octobre, les
+     caisses d'octobre, la Terrasse en tête. */
+  const eligibleBoxes = caissesPourLaDate(branchCashboxes, dateVente, cashbox)
+    .filter((c) => cashboxCurrency(c) === payCurrency)
+    .sort((a, b) => Number(b.role === 'terrasse') - Number(a.role === 'terrasse'));
   const activeCashbox = eligibleBoxes.some((c) => c.name === cashbox)
     ? cashbox
     : eligibleBoxes[0]?.name ?? '';
@@ -446,22 +467,32 @@ export default function Caisse() {
   const lignesRemisables = lines
     .filter((l) => l.kind === 'service')
     .map((l) => ({ serviceId: l.key.slice(2), montantXof: Math.round(l.netXof) }));
-  const refusDuCode = pourquoiLeCodeNeVautPas({
-    tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
-  });
-  const codePromo = !refusDuCode && normaliseLeCode(codeTape)
-    ? codeDit(codeTape, codes, branch.id)
-    : undefined;
+  /* LE CODE D'UNE OFFRE VAUT AUSSI ICI — 1er octobre 2026. « Les codes de réductions
+     ROSE15 ne marchent pas sur le Trône » (Yéman). Un code NOMINATIF passe d'abord :
+     il appartient à une tête. Sinon on cherche l'OFFRE de la branche qui porte ce
+     code et qui court aujourd'hui ; hors saison, on dit ses dates plutôt que
+     « inconnu ». La remise suit la règle du site (shared/offres-pur). */
+  const codeNominatif = codeDit(codeTape, codes, branch.id);
+  const offresDeLaBranche = offres.filter((o) => !o.branchId || o.branchId === branch.id);
+  const offreCodee = !codeNominatif ? offreDuCode(offresDeLaBranche, codeTape) : null;
+  const offreHorsSaison = !codeNominatif && !offreCodee ? offreDuCodePassee(offresDeLaBranche, codeTape) : null;
+  const refusDuCode = offreCodee ? null
+    : offreHorsSaison ? pourquoiLOffreNeCourtPas(offreHorsSaison)
+      : pourquoiLeCodeNeVautPas({
+        tape: codeTape, codes, clientId, branchId: branch.id, maintenant: new Date().toISOString(),
+      });
+  const codePromo = !refusDuCode && !offreCodee && normaliseLeCode(codeTape) ? codeNominatif : undefined;
   /* CE QUE LE CODE RETIRERAIT, en francs exacts, sur les prestations qu'il
      couvre. Jamais plus que sa base : une promotion n'est pas un crédit. */
-  const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables) : 0;
+  const promoBrutXof = codePromo ? remiseDuCode(codePromo, lignesRemisables)
+    : offreCodee ? remiseDeLOffreSurLeTicket(offreCodee, lignesRemisables).retire : 0;
   /* IL SE BAT CONTRE CE QUI EST DÉJÀ POSÉ, et l'on garde la plus généreuse.
      Deux remises qui s'empilent se défendent mal : personne n'a décidé qu'une
      cliente au tarif famille paierait 72 % du prix parce qu'un code est
      passé. À égalité, le code reste entier — le consommer sans qu'il apporte
      un franc reviendrait à le voler à la cliente. */
   const dejaPoseXof = Math.round(subXof * (globalDisc / 100)) + globalDiscXof;
-  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? '');
+  const cumul = laMeilleureEnFrancs(dejaPoseXof, promoBrutXof, codePromo?.code ?? offreCodee?.code ?? '');
   const promoXof = cumul.codeConsomme ? promoBrutXof : 0;
 
   const netXof = Math.max(0, Math.round(subXof * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
@@ -472,6 +503,30 @@ export default function Caisse() {
      ou solo). Applicable jusqu'au net ; le comptant couvre le reste. La part avoir
      est du revenu mais hors caisse (avoirXof — routée par la Synthèse). */
   const posClient = branchClients.find((c) => c.id === clientId);
+  const soinsDispo: SoinOffert[] = soinsEnAttente(posClient?.soinsOfferts);
+  /** OFFRIR LE SOIN : sa prestation (ou, s'il n'en nomme pas, la première
+      prestation du ticket) passe à 100 %. Absente du ticket, elle s'y ajoute. */
+  const cleDuSoin = (soin: SoinOffert) => (soin.serviceId && flat[`s:${soin.serviceId}`]
+    ? `s:${soin.serviceId}`
+    : lines.find((l) => l.kind === 'service')?.key);
+  /** LA REMISE DE L'AMBASSADRICE (28 septembre 2026) : sur le produit choisi,
+      ou sur le premier produit du ticket. Jamais sur une prestation. */
+  const cleDeLaRemise = (soin: SoinOffert) => (soin.produitId && flat[`p:${soin.produitId}`]
+    ? `p:${soin.produitId}`
+    : lines.find((l) => l.kind === 'product')?.key);
+  const offreLeSoin = (soin: SoinOffert, genre: 'soin' | 'remise' = 'soin') => {
+    const cle = genre === 'soin' ? cleDuSoin(soin) : cleDeLaRemise(soin);
+    if (!cle) return;
+    const disc = genre === 'soin' ? 100 : Math.max(1, Math.min(50, Math.round(soin.pct ?? 20)));
+    setCart((c) => ({ ...c, [cle]: { ...c[cle], qty: Math.max(1, c[cle]?.qty ?? 0), disc } }));
+    setSoinPose({ id: soin.id, cle, disc, genre });
+  };
+  const retireLeSoin = () => {
+    if (!soinPose) return;
+    const cle = soinPose.cle;
+    setCart((c) => (c[cle] ? { ...c, [cle]: { ...c[cle], disc: 0 } } : c));
+    setSoinPose(null);
+  };
   const posAccount: CreditHolder | null = posClient ? holderOf(posClient, families) : null;
   const posAvoirBal = posAccount ? creditBalanceOf(credits, posAccount) : 0;
   const posAvoir = Math.max(0, Math.min(Math.min(posAvoirBal, netXof), Math.round(Number(avoirStr) || 0)));
@@ -508,7 +563,8 @@ export default function Caisse() {
          manuelle : c'est `invoiceTotal` qui fait foi partout, et le net du
          ticket doit être celui du papier, au franc près. */
       globalDiscountXof: (globalDiscXof + promoXof) || undefined,
-      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` } : {}),
+      ...(promoXof > 0 && codePromo ? { discountLabel: `Promotion ${codePromo.code}` }
+        : promoXof > 0 && offreCodee ? { discountLabel: `Offre ${offreCodee.title} · ${offreCodee.code ?? ''}`.trim() } : {}),
       fx: fxOn && fxAmount > 0 ? { code: fxCode, rate: fxRateNum, amount: fxAmount } : undefined,
       payment: posCashDue > 0 ? pay : (posAvoir > 0 ? 'Avoir' : pay),
       cashbox: activeCashbox || undefined,
@@ -533,6 +589,19 @@ export default function Caisse() {
       codesPromoStore.set((prev) => prev.map((c) => (c.id === ferme.id ? ferme : c)));
       setCodeTape('');
     }
+    /* Le code d'une offre ne se consomme pas : il vaut pour toutes, tant que l'offre court.
+       On vide seulement la case, pour qu'il ne s'applique pas au ticket suivant par oubli. */
+    if (promoXof > 0 && offreCodee) setCodeTape('');
+
+    /* LE SOIN OFFERT SE CONSOMME ICI, avec la pièce, et seulement si sa
+       ligne est encore offerte : une remise retirée entre-temps le rend. */
+    if (soinPose && clientId && cart[soinPose.cle]?.disc === soinPose.disc) {
+      const { id: idSoin, genre } = soinPose;
+      clientsStore.set((prev) => prev.map((c) => (c.id === clientId
+        ? { ...c, soinsOfferts: soinUtilise(c.soinsOfferts, idSoin, inv.number, dateVente, { genre }) }
+        : c)));
+      setSoinPose(null);
+    }
 
     /* LE RITUEL SOLDE PORTE DESORMAIS SA FACTURE : les ecrans de chiffre
        d'affaires le compteront par elle, et cesseront de le compter aussi par
@@ -550,10 +619,22 @@ export default function Caisse() {
         .filter((l) => l.kind === 'service')
         .reduce((n, l) => n + l.netXof, 0);
       const partNette = Math.max(0, Math.round(partRituel * (1 - globalDisc / 100)) - globalDiscXof - promoXof);
+      /* LA REMISE DU COMPTOIR S'ÉCRIT AU RENDEZ-VOUS — 2 octobre 2026. Sans
+         elle, un rituel à 80 000 F encaissé 68 000 F avec ROSE15 restait
+         « devoir 12 000 F » au Carnet (voir shared/offres-pur). */
+      const brutDuRituel = lines
+        .filter((l) => l.kind === 'service')
+        .reduce((n, l) => n + l.unit * l.qty, 0);
       appointmentsStore.set((prev) => prev.map((a) => (a.id === apptToSettle
         ? {
           ...a,
           invoiceId: inv.id,
+          ...(() => {
+            const remise = remiseDuComptoirAuRendezVous({
+              brutDuRituelXof: brutDuRituel, encaisseXof: partNette, resteAvantXof: apptDueXof(a, svcById),
+            });
+            return remise > 0 ? { discountXof: (a.discountXof ?? 0) + remise } : {};
+          })(),
           paidXof: (a.paidXof ?? 0) + partNette,
           ...(partNette > 0 ? {
             payments: [
@@ -680,7 +761,7 @@ export default function Caisse() {
     .filter((i) => i.branchId === branch.id && i.kind === 'facture')
     .flatMap((i) =>
       invoiceReglements(i)
-        .filter((p) => (p.date ?? i.date) === today && p.method !== 'Avoir' && p.method !== 'Acompte')
+        .filter((p) => (p.date ?? i.date) === journalJour && p.method !== 'Avoir' && p.method !== 'Acompte')
         .map((p) => ({ inv: i, p })),
     )
     .filter((e) => journalCaisse === 'Toutes' || caisseDuVersement(e.inv, e.p) === journalCaisse);
@@ -695,7 +776,7 @@ export default function Caisse() {
     versementsDuJour.filter((e) => fn(e.p.method)).reduce((s, e) => s + e.p.amountXof, 0);
   const clientName = (i: Invoice) => clients.find((c) => c.id === i.clientId)?.name ?? i.clientName ?? '—';
   const journalDateLabel = (() => {
-    const s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const s = new Date(`${journalJour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     return s.charAt(0).toUpperCase() + s.slice(1);
   })();
 
@@ -1023,7 +1104,7 @@ export default function Caisse() {
                 />
                 {promoXof > 0 && (
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#41604A', fontWeight: 600 }}>
-                    −{fmtMoney(promoXof, currency)}
+                    −{fmtMoney(promoXof, currency)}{offreCodee ? ` · offre ${offreCodee.title}` : ''}
                   </span>
                 )}
                 {refusDuCode && (
@@ -1043,6 +1124,11 @@ export default function Caisse() {
                     Ce code ne couvre aucune prestation de ce ticket : il reste utilisable.
                   </span>
                 )}
+                {!refusDuCode && offreCodee && promoBrutXof === 0 && (
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--copper-700)' }}>
+                    L’offre {offreCodee.title} ne couvre aucune prestation de ce ticket.
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-soft)' }}>
@@ -1053,6 +1139,32 @@ export default function Caisse() {
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--color-indigo)' }}>Net à payer</span>
                 <span className="trv-net">{fmtMoney(netXof, currency)}</span>
               </div>
+
+              {soinsDispo.length > 0 && (
+                <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px', display: 'grid', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--copper-700)' }}>Ses récompenses d’ambassadrice · une par ticket</span>
+                  {soinsDispo.map((s) => {
+                    const pose = soinPose?.id === s.id;
+                    const g = genreEffectif(s, posClient?.choixRecompenses);
+                    const soinPossible = !!cleDuSoin(s);
+                    const remisePossible = !!cleDeLaRemise(s);
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12.5, color: 'var(--color-indigo)' }}>{g === 'a-choisir' ? 'À choisir : un soin, ou une remise produit' : s.libelle}<span style={{ display: 'block', fontSize: 11, color: 'var(--copper-700)' }}>{s.raison}</span></span>
+                        {pose ? <button type="button" className="mnd-btn mnd-btn--ghost mnd-btn--sm" onClick={retireLeSoin}>Retirer</button> : (
+                          <span style={{ display: 'flex', gap: 6 }}>
+                            {(g === 'soin' || g === 'a-choisir') && <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !soinPossible} onClick={() => offreLeSoin(s, 'soin')}>{g === 'a-choisir' ? 'Soin' : 'Offrir'}</button>}
+                            {(g === 'remise' || g === 'a-choisir') && <button type="button" className="mnd-btn mnd-btn--copper mnd-btn--sm" disabled={!!soinPose || !remisePossible} onClick={() => offreLeSoin(s, 'remise')}>−{s.pct ?? 20} % produit</button>}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {!lines.some((l) => l.kind === 'service' || l.kind === 'product') && (
+                    <span style={{ fontSize: 11, color: 'var(--copper-700)' }}>Ajoutez au ticket la prestation ou le produit à offrir.</span>
+                  )}
+                </div>
+              )}
 
               {posAvoirBal > 0 && netXof > 0 && (
                 <div style={{ marginTop: 12, border: '1px solid var(--copper-300)', borderLeft: '3px solid var(--color-copper)', borderRadius: 'var(--radius-md)', background: 'var(--copper-50)', padding: '10px 12px' }}>
@@ -1070,6 +1182,14 @@ export default function Caisse() {
                       {posPayerId && posPayerId !== clientId ? ` · compte ${posPayer?.name ?? 'famille'}` : ''}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* LA CARTE CADEAU (2 octobre 2026) : rattachée ici, elle
+                  devient l'avoir ci-dessus, et se dépense comme lui. */}
+              {posClient && (
+                <div style={{ marginTop: 12 }}>
+                  <RattacherUneCarte porteur={posAccount} clientId={posClient.id} nom={posClient.name.split(' ')[0]} compact />
                 </div>
               )}
             </div>
@@ -1204,8 +1324,18 @@ export default function Caisse() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal du jour · {journalDateLabel}</div>
+              <div className="trv-sec-label trv-sec-label--copper" style={{ marginBottom: 6 }}>Caisse · Journal · {journalDateLabel}</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 30, lineHeight: 1.05, color: 'var(--color-indigo)' }}>Journal de caisse.</div>
+              {/* LE JOUR DU JOURNAL SE CHOISIT — 4 octobre 2026. « Choisir la date
+                  pour clôturer la caisse » (Yéman, 1 h 56) : le journal ne montrait
+                  qu'aujourd'hui, et « Clôturer la caisse » prend désormais le jour
+                  affiché. Avant 6 h, la veille est proposée. */}
+              <div className="cds-jour" style={{ marginTop: 12 }}>
+                <span className="cds-jour__mot">Le jour</span>
+                <button type="button" className={`cds-bouton${journalJour === veilleIso(today) ? ' is-indigo' : ''}`} onClick={() => setJournalJour(veilleIso(today))}>Hier</button>
+                <button type="button" className={`cds-bouton${journalJour === today ? ' is-indigo' : ''}`} onClick={() => setJournalJour(today)}>Aujourd’hui</button>
+                <ChampDeDate value={journalJour} onChange={(v) => { if (v) setJournalJour(v); }} sens="arriere" max={today} compact ariaLabel="Le jour du journal" />
+              </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                 {['Toutes', ...branchCashboxes.map((c) => c.name)].map((n) => (
                   <button key={n} className={`trv-pill ${journalCaisse === n ? 'is-active' : ''}`} onClick={() => setJournalCaisse(n)}>
@@ -1214,7 +1344,11 @@ export default function Caisse() {
                 ))}
               </div>
             </div>
-            <Button variant="ghost" onClick={() => setTab('encaisser')}>Clôturer la caisse</Button>
+            {/* LA CAISSE DU SOIR — 3 octobre 2026. Ce bouton ne faisait que revenir à
+                l'onglet Encaisser : aucun comptage n'existait. Il ouvre désormais
+                le comptage des tiroirs (maquette « Le pointage du jour »). */}
+            <Button variant="ghost" onClick={() => setClotureOuverte(true)}>Clôturer la caisse</Button>
+            {clotureOuverte && <ClotureDuTiroir tiroir={journalCaisse !== 'Toutes' ? journalCaisse : undefined} jour={journalJour} onClose={() => setClotureOuverte(false)} />}
           </div>
 
           <div className="tr-grid tr-cols" style={{ '--cols': '1.3fr 1fr 1fr 1fr 1fr', '--cols-md': 'repeat(3, minmax(0,1fr))', '--cols-sm': 'repeat(2, minmax(0,1fr))', marginBottom: 24 } as CSSProperties}>
@@ -1306,7 +1440,7 @@ export default function Caisse() {
             ))}
             {versementsDuJour.length === 0 && (
               <div style={{ padding: '26px 24px', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-soft)' }}>
-                Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.
+                {journalJour === today ? 'Aucun encaissement pour cette caisse aujourd’hui. Le premier ticket du jour ouvrira le journal.' : 'Aucun encaissement pour cette caisse ce jour-là.'}
               </div>
             )}
           </div>

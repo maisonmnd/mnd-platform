@@ -9,6 +9,8 @@ import Trouver from './Trouver';
 import BarreEquipe from './BarreEquipe';
 import { AppelRecuModal } from './AppelRecuModal';
 import { AppelQuiSonne } from './AppelQuiSonne';
+import { PastilleDeLaSalle } from './PastilleDeLaSalle';
+import { useReprisesNuesVivant } from './useReprisesNuesVivant';
 import { useAppels, appelsAActer, marquerAppelFait } from '../../../shared/appels';
 import { rappelDeCollecte } from '../../../shared/bourse-coffre';
 import { RdvModal } from '../routes/clients/_shared';
@@ -69,17 +71,27 @@ const selonLaMain = <T extends { path: string }>(voulu: string[] | undefined, it
 };
 import { useReconcileClients } from './useReconcileClients';
 import { useRattacheLesReservations } from './useRattacheLesReservations';
+import { useParrainageVivant } from './useParrainageVivant';
+import { useFormulesRapides } from './useFormulesRapides';
 import { usePersonaVivant } from './usePersonaVivant';
 import { usePassageVivant } from './usePassageVivant';
 import { useSansLocksVivant } from './useSansLocksVivant';
 import { useVerrouDuPoste, postePartageStore } from './useVerrouDuPoste';
 import { useBranch } from '../../../shared/branches';
 import { useHouseIdentity, fuseauIana } from '../../../shared/identite';
-import { Seal, Button, toast, alerte } from '../../../ds/components';
+import { Seal, Button, Modal, toast, alerte } from '../../../ds/components';
 import { useAuth, useMaTete, signOut } from '../../../shared/auth';
 import { documentDescendu, quandDocumentDescendu } from '../../../shared/sync';
 import { useFil, mesDemandes } from '../../../shared/fil';
-import { subscribeSync, getSyncState } from '../../../shared/sync';
+import { subscribeSync, getSyncState, reprendsMaVersion } from '../../../shared/sync';
+import { abonneLaVersion, nouvelleVersionPrete } from '../../../shared/version';
+import { abonneLaFile, versionDeLaFile, gestesEnAttente, gestesParTable, lisLesConflits, oublieLeConflit, oublieTousLesConflits, champsQuiDifferent, type Conflit } from '../../../shared/file-d-attente';
+/* Le miroir du stock déclare ses champs dérivés au chargement : la pastille
+   doit le savoir dès l'ouverture, avant qu'un écran de vente ne l'importe. */
+import '../../../shared/stock';
+import { abonneLesAppels, versionDesAppels, appelsEnAttente, lisLesAppels, lisLesRefus, oublieLeRefus, type AppelRefuse } from '../../../shared/appels-en-attente';
+import { CARTE_DES_TABLES } from '../../../shared/journal';
+import { ecouteLesPauses, pausesDites } from '../../../shared/ecriture-automatique';
 import { useClients, clientsStore } from '../../../shared/clients';
 import { useAppointments, appointmentsStore } from '../../../shared/agenda';
 import { useInvoices, invoicesStore } from '../../../shared/finance';
@@ -91,6 +103,22 @@ import { houseSettingsStore } from '../routes/equipe/data';
    poste sans que personne ne le sache. Un mot, une couleur, la vérité. */
 function SyncDot() {
   const s = useSyncExternalStore(subscribeSync, getSyncState, getSyncState);
+  /* LA FILE D'ATTENTE SE COMPTE — 4 octobre 2026 (maquette « Le Trône hors
+     ligne ») : combien de gestes attendent le réseau sur ce téléphone, et les
+     conflits du « dernier geste gagne », qui s'ouvrent d'un clic. */
+  useSyncExternalStore(abonneLaFile, versionDeLaFile, versionDeLaFile);
+  /* ET LES ENVOIS QUI ATTENDENT LE RÉSEAU (temps 3) : un WhatsApp, une
+     notification, gardés sur l'appareil ; et ceux que le serveur a refusés. */
+  useSyncExternalStore(abonneLesAppels, versionDesAppels, versionDesAppels);
+  const enAttente = gestesEnAttente();
+  const envois = appelsEnAttente();
+  const refus = lisLesRefus();
+  const conflits = lisLesConflits();
+  const [conflitsOuverts, setConflitsOuverts] = useState(false);
+  const aMontrer = enAttente + envois + conflits.length + refus.length > 0;
+  /* LES AUTOMATISMES QUI SE TAISENT (1er octobre 2026) : un poste qui réécrit les fiches
+     en boucle les met en pause, et la pastille le dit au lieu de tourner sans fin. */
+  const pauses = useSyncExternalStore(ecouteLesPauses, pausesDites, pausesDites);
   if (!s.enabled) return null;
   const mode = !s.online ? 'off' : s.failed > 0 ? 'err' : s.pending > 0 ? 'wait' : 'ok';
   /* EN ÉCHEC, ON NOMME — ET ON DIT POURQUOI. Nommer les tables (6 août) a évité
@@ -113,23 +141,45 @@ function SyncDot() {
      de focus. Une pastille verte pendant qu'un écran traîne apprend à ne plus
      la croire. */
   const enRetard = s.directEnPanne.length;
-  const label = mode === 'off' ? 'Hors ligne'
+  const gestesDits = [
+    enAttente ? `${enAttente} geste${enAttente > 1 ? 's' : ''}` : '',
+    envois ? `${envois} envoi${envois > 1 ? 's' : ''}` : '',
+  ].filter(Boolean).join(' · ') + ' en attente';
+  const labelDeBase = mode === 'off' ? (enAttente + envois ? `Hors ligne · ${gestesDits}` : 'Hors ligne')
     : mode === 'err'
       ? (premiere
           ? `Synchro en échec · ${premiere[1].length > 2 ? `${premiere[1].length} tables` : premiere[1].join(', ')}, ${premiere[0]}${s.reprises.length ? ' · nouvel essai en cours' : ''}`
           : 'Synchro en échec')
-    : mode === 'wait' ? 'Synchronisation…'
-    : enRetard ? 'Synchronisé · direct en panne' : 'Synchronisé';
+    /* LA PASTILLE NOMME CE QUI ATTEND (1er octobre 2026) : une table, on la dit ; plusieurs, on les compte.
+       Une attente qui dure se lit alors d'un coup d'œil, sans ouvrir la console. */
+    : mode === 'wait' ? `Synchronisation… ${s.pendingNames.length === 1 ? `· ${s.pendingNames[0].replace(/^doc:/, '')}` : s.pendingNames.length > 1 ? `· ${s.pendingNames.length} tables` : ''}`.trim()
+    /* LE MOT JUSTE (2 octobre 2026) : la pastille disait « un autre poste réécrit
+       les fiches », et il n'y avait pas d'autre poste. Elle dit ce qu'elle sait. */
+    : pauses ? 'Synchronisé · un automatisme en pause'
+    : enRetard ? 'Synchronisé · direct en panne'
+    : enAttente + envois ? `Synchronisation · ${gestesDits}` : 'Synchronisé';
+  const label = [
+    labelDeBase,
+    conflits.length ? `${conflits.length} conflit${conflits.length > 1 ? 's' : ''}` : '',
+    refus.length ? `${refus.length} envoi${refus.length > 1 ? 's' : ''} refusé${refus.length > 1 ? 's' : ''}` : '',
+  ].filter(Boolean).join(' · ');
   const color = mode === 'ok'
-    ? (enRetard ? 'var(--color-copper)' : '#6e7c5c')
+    ? (enRetard || pauses ? 'var(--color-copper)' : '#6e7c5c')
     : mode === 'wait' ? 'var(--color-copper)' : '#8f3b30';
   const title =
-    mode === 'off' ? 'Hors ligne, les écritures restent sur ce poste et partiront au retour du réseau.'
+    mode === 'off' ? `Hors ligne. ${enAttente ? `${gestesDits} sur ce téléphone : ils` : 'Les écritures'} restent ici, même si l’application se ferme, et partiront au retour du réseau. Le geste le plus récent l’emporte.`
     : mode === 'err'
       ? `Refusé par le serveur :\n${causes.join('\n') || '—'}\n\nUn refus de DROIT n'allume pas cette pastille : ce qui s'affiche ici est une vraie panne.${s.reprises.length
         ? ' Le serveur ne répond pas : la Maison réessaie d’elle-même, de plus en plus espacé, jusqu’à ce qu’il revienne.'
         : ' Ce refus ne guérira pas en attendant : il faut agir sur la base, puis refaire une modification pour relancer.'}`
-    : mode === 'wait' ? 'Écritures locales en cours d’envoi.'
+    : mode === 'wait' ? `Écritures locales en cours d’envoi :
+${s.pendingNames.map((t) => t.replace(/^doc:/, '')).join(', ') || '—'}
+
+Si cela dure plus d’une minute, une donnée se réécrit en boucle : rechargez ce poste, puis les autres postes ouverts.`
+    : pauses
+      ? `Tout est enregistré. Mais un automatisme réécrivait les mêmes données en boucle : il a été mis en pause.\n\n`
+        + `En pause un quart d’heure sur ce poste : ${pauses.split(',').join(', ')}.\n\n`
+        + 'Vos gestes à la main s’enregistrent normalement. Si la pastille revient après un rechargement, le panneau « Cet appareil » des Paramètres dit ce qui se réécrit.'
     : enRetard
       ? `Tout est enregistré, mais le direct est tombé sur ${enRetard === 1 ? 'une table' : `${enRetard} tables`} :\n`
         + `${s.directEnPanne.slice(0, 6).join(', ')}${enRetard > 6 ? '…' : ''}\n\n`
@@ -137,10 +187,176 @@ function SyncDot() {
         + 'et le direct se rebranche tout seul, de plus en plus espacé.'
       : 'Toutes les écritures sont sur le serveur.';
   return (
-    <span className="tr-top__sync" title={title} role="status">
-      <span className="tr-top__sync-dot" style={{ background: color }} />
-      {label}
-    </span>
+    <>
+      <span
+        className="tr-top__sync"
+        title={aMontrer ? `${title}\n\nCliquez pour voir la file d’attente.` : title}
+        role="status"
+        style={aMontrer ? { cursor: 'pointer' } : undefined}
+        onClick={aMontrer ? () => setConflitsOuverts(true) : undefined}
+      >
+        <span className="tr-top__sync-dot" style={{ background: conflits.length || refus.length ? 'var(--color-copper)' : color }} />
+        {label}
+      </span>
+      {conflitsOuverts && <LaFileDAttente conflits={conflits} refus={refus} onClose={() => setConflitsOuverts(false)} />}
+    </>
+  );
+}
+
+/* ══ UNE NOUVELLE VERSION EST PRÊTE — 4 octobre 2026 (« hors ligne », temps 3) ══
+   Annoncée, jamais imposée pendant une saisie : le bouton recharge quand on
+   veut, et le retour sur l'application le fera de lui-même. */
+function BanniereDeVersion() {
+  const prete = useSyncExternalStore(abonneLaVersion, nouvelleVersionPrete, nouvelleVersionPrete);
+  if (!prete) return null;
+  return (
+    <div
+      role="status"
+      style={{
+        position: 'fixed', left: 16, right: 16, bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', zIndex: 200,
+        maxWidth: 520, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap',
+        background: 'var(--color-indigo)', color: 'var(--color-ivoire)', borderRadius: 4, padding: '10px 14px', boxShadow: 'var(--shadow-md)',
+      }}
+    >
+      <span style={{ fontSize: 13 }}>Une nouvelle version du Trône est prête. Vos gestes en cours sont gardés.</span>
+      <button className="mnd-btn mnd-btn--sm" style={{ background: 'var(--color-copper)', borderColor: 'var(--color-copper)', color: '#fff' }} onClick={() => location.reload()}>
+        Recharger
+      </button>
+    </div>
+  );
+}
+
+/* ══ LES CONFLITS DU DERNIER GESTE — 4 octobre 2026 ══════════════════════
+   Une même ligne a changé ici et ailleurs pendant une coupure : le geste le
+   plus récent a gagné. L'autre n'est pas perdu : on le lit ici, et on peut le
+   reprendre (un geste neuf, qui gagne à son tour). */
+function LaFileDAttente({ conflits, refus, onClose }: { conflits: Conflit[]; refus: AppelRefuse[]; onClose: () => void }) {
+  /* LE PANNEAU ENTIER — 4 octobre 2026 (temps 3) : ce qui attend le réseau
+     (gestes par écran, envois un à un), puis ce qui demande un regard
+     (conflits, envois refusés). */
+  const parTable = gestesParTable();
+  const envoisEnAttente = lisLesAppels();
+  const heureCourte = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const ecranDe = (t: string) => (t.startsWith('doc:') ? 'Réglages' : CARTE_DES_TABLES[t]?.ecran ?? t);
+  return (
+    <Modal title="La file d’attente" onClose={onClose} width={640}>
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 0 }}>
+        Ce qui est fait sur ce téléphone et n’a pas encore atteint la Maison. Tout part de soi-même au retour du réseau, même si l’application se ferme entre-temps.
+      </p>
+      {parTable.length === 0 && envoisEnAttente.length === 0 && conflits.length === 0 && refus.length === 0 && (
+        <div className="trc-empty">Rien en attente. Ce téléphone et la Maison disent la même chose.</div>
+      )}
+      {parTable.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Gestes en attente</div>
+          {parTable.map((g) => (
+            <div key={g.table} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{ecranDe(g.table)} · {g.n} geste{g.n > 1 ? 's' : ''}</span>
+              <span className="mnd-muted">depuis {heureCourte(g.depuis)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {envoisEnAttente.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Envois en attente</div>
+          {envoisEnAttente.map((e) => (
+            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{e.dit}</span>
+              <span className="mnd-muted">{heureCourte(e.at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {refus.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+          <div className="mnd-eyebrow">Envois refusés par la Maison</div>
+          {refus.map((r) => (
+            <div key={r.id} style={{ display: 'grid', gap: 4, fontSize: 13, borderTop: '1px solid var(--hairline)', padding: '6px 0' }}>
+              <span>{r.dit} · {heureCourte(r.at)}</span>
+              <span className="mnd-muted" style={{ fontSize: 12 }}>{r.refus} · il n’est pas parti, refaites-le si besoin.</span>
+              <span><button className="mnd-btn mnd-btn--sm" onClick={() => oublieLeRefus(r.id)}>Compris</button></span>
+            </div>
+          ))}
+        </div>
+      )}
+      {conflits.length > 0 && <div className="mnd-eyebrow" style={{ marginTop: 4 }}>Conflits</div>}
+      <LesConflits conflits={conflits} />
+    </Modal>
+  );
+}
+
+function LesConflits({ conflits }: { conflits: Conflit[] }) {
+  const heure = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const nom = (c: Conflit, j: string | null): string => {
+    if (!j) return 'supprimée';
+    try {
+      const d = JSON.parse(j) as Record<string, unknown>;
+      return CARTE_DES_TABLES[c.table]?.nomme(d) ?? String(d.name ?? d.label ?? d.number ?? c.id);
+    } catch { return c.id; }
+  };
+  const ecran = (c: Conflit) => CARTE_DES_TABLES[c.table]?.ecran ?? (c.table === 'documents' ? 'Réglages' : c.table);
+  /* CE QUI DIFFÈRE, CHAMP PAR CHAMP — 4 octobre 2026. Le nom seul des deux
+     côtés laissait croire à deux versions identiques : on montre ce qui a
+     vraiment changé, avec les deux valeurs. */
+  const valeurDe = (j: string | null, k: string): string => {
+    if (!j) return '—';
+    try {
+      const v = (JSON.parse(j) as Record<string, unknown>)[k];
+      if (v === undefined || v === null || v === '') return '—';
+      const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return t.length > 48 ? `${t.slice(0, 47)}…` : t;
+    } catch { return '—'; }
+  };
+  if (conflits.length === 0) return null;
+  return (
+    <>
+      <p className="mnd-muted" style={{ fontSize: 12.5, marginTop: 4 }}>
+        Pendant une coupure, ces lignes ont changé sur ce téléphone et ailleurs. Le geste le plus récent a été gardé ; l’autre est ici, et se reprend d’un clic.
+      </p>
+      {conflits.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="mnd-btn mnd-btn--sm" onClick={oublieTousLesConflits} title="Les versions gardées sont déjà celles de la Maison : rien n'est défait.">
+            Tout garder ainsi ({conflits.length})
+          </button>
+        </div>
+      )}
+      {conflits.map((c) => {
+        const notreGagne = Date.parse(c.notreAt) > Date.parse(c.leurAt);
+        return (
+          <div key={`${c.table}-${c.id}-${c.vuLe}`} style={{ borderTop: '1px solid var(--hairline)', padding: '12px 0', display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 13.5 }}><b style={{ fontWeight: 500 }}>{ecran(c)}</b> · {nom(c, c.leur)}</div>
+            {(() => {
+              const champs = champsQuiDifferent(c);
+              if (c.notre === null || champs.length === 0) return null;
+              return (
+                <div className="mnd-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+                  Ce qui diffère : {champs.slice(0, 4).map((k) => (
+                    <span key={k} style={{ display: 'inline-block', marginRight: 10 }}>
+                      <b style={{ fontWeight: 500 }}>{k}</b> {valeurDe(c.leur, k)} → {valeurDe(c.notre, k)}
+                    </span>
+                  ))}{champs.length > 4 ? ` et ${champs.length - 4} autre${champs.length - 4 > 1 ? 's' : ''}` : ''}
+                </div>
+              );
+            })()}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8, fontSize: 12.5 }}>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
+                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>{notreGagne ? 'Écartée' : 'Gardée'} · ailleurs · {heure(c.leurAt)}</div>
+                {nom(c, c.leur)}
+              </div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 3, padding: '6px 9px' }}>
+                <div className="mnd-muted" style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase' }}>La vôtre · ce téléphone · {heure(c.notreAt)}</div>
+                {nom(c, c.notre)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="mnd-btn mnd-btn--sm mnd-btn--ghost" onClick={() => { reprendsMaVersion(c); }}>Reprendre ma version</button>
+              <button className="mnd-btn mnd-btn--sm" onClick={() => oublieLeConflit(c.table, c.id, c.vuLe)}>C’est bien ainsi</button>
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -301,6 +517,10 @@ export default function Shell() {
   useReconcileClients();
   /* La réservation du site confirmée trouve sa fiche (18 septembre). */
   useRattacheLesReservations();
+  /* Chaque cliente a sa carte de marraine, et ses soins offerts (28 septembre). */
+  useParrainageVivant();
+  /* Les formules rapides du site, tirées des venues honorées (29 septembre). */
+  useFormulesRapides();
   /* L'archétype de chaque cliente se relit à chaque mouvement du carnet — sauf
      s'il a été figé à la main. Voir shared/persona.ts pour la pesée. */
   usePersonaVivant();
@@ -310,6 +530,8 @@ export default function Shell() {
   /* LE CARNET DIT SI ELLE PORTE ENCORE SES LOCKS — 11 septembre 2026.
      Même place et même contrat que le passage : une lecture, un champ. */
   useSansLocksVivant();
+  /* Les reprises nées « payées » avant le 2 octobre redeviennent nues. */
+  useReprisesNuesVivant();
   /* LE POSTE COMMUN SE FERME APRÈS QUINZE MINUTES SANS GESTE — réglé poste
      par poste, depuis le Journal des gestes (voir useVerrouDuPoste). */
   const [postePartage] = useStore(postePartageStore);
@@ -618,6 +840,8 @@ export default function Shell() {
           {/* Trouver — la recherche globale (Ctrl K), chantier ② de la refonte. */}
           <Trouver />
           <SyncDot />
+          <PastilleDeLaSalle />
+          <BanniereDeVersion />
           <div className="tr-top__chip">
             {currency} · <span className="mnd-copper">{branch.country}</span>
           </div>

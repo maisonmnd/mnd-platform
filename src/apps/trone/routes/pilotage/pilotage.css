@@ -894,3 +894,141 @@
   .trp-alarme__fenetre, .trp-alarme__recu { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { .trp-alarme__voyant { animation: none; } }
+
+/* ═══ LE SECRÉTARIAT — 6 octobre 2026. Préfixe sec-. ═══════════════════
+   Le registre, l'éditeur, la page A4. La page reste BLANCHE en toute
+   lumière : c'est du papier, elle sortira comme elle se voit. Le bandeau de
+   l'éditeur est indigo, jamais obsidienne. */
+.sec-filtres { display: grid; gap: 10px; margin: 4px 0 16px; }
+.sec-filtres .mnd-input { max-width: 420px; }
+.sec-puce {
+  font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  background: var(--surface-card); color: var(--ink); border: 1px solid var(--hairline);
+}
+.sec-puce:hover { border-color: var(--copper-300); }
+.sec-puce--on { background: var(--color-indigo); color: var(--color-ivoire); border-color: var(--color-indigo); }
+.sec-puce:disabled { opacity: .5; cursor: default; }
+.sec-vide { padding: 28px 20px; text-align: center; color: var(--ink-soft); border: 1px dashed var(--hairline); border-radius: var(--radius-md); }
+
+.sec-registre { display: grid; border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-card); }
+.sec-ligne {
+  display: grid; grid-template-columns: 150px 120px minmax(0, 1.3fr) minmax(0, 1fr) 110px 100px; gap: 12px; align-items: center;
+  font: inherit; font-size: 13px; text-align: left; color: var(--ink); background: none; border: 0;
+  border-bottom: 1px solid var(--hairline); padding: 11px 16px; cursor: pointer;
+}
+.sec-ligne:last-child { border-bottom: 0; }
+.sec-ligne:hover { background: var(--copper-50); }
+.sec-ligne__num { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-ligne__nom { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; color: var(--color-indigo); }
+.sec-ligne__nom--acia { color: #1F3F7A; }
+.sec-ligne__nom--autre { color: var(--ink-soft); }
+.sec-ligne__nom--perso { color: var(--copper-700); }
+.sec-ligne__titre { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-ligne__pour, .sec-ligne__date { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-etat { justify-self: start; font-size: 11.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--hairline); color: var(--ink-soft); }
+.sec-etat--a-signer { border-color: var(--copper-300); color: var(--copper-700); }
+.sec-etat--signe { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.sec-etat--annule { text-decoration: line-through; }
+@media (max-width: 820px) {
+  .sec-ligne { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+  .sec-ligne__nom, .sec-ligne__titre, .sec-ligne__pour { grid-column: 1; }
+  .sec-ligne__num { grid-column: 1; grid-row: 1; }
+  .sec-etat { grid-column: 2; grid-row: 1; justify-self: end; }
+  .sec-ligne__date { grid-column: 2; grid-row: 2; text-align: right; }
+}
+
+/* Nouveau document : les familles à gauche, leurs modèles à droite. */
+.sec-choix { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.sec-choix__familles, .sec-choix__modeles { display: grid; gap: 6px; }
+.sec-famille, .sec-modele {
+  font: inherit; text-align: left; cursor: pointer; display: grid; gap: 2px;
+  padding: 9px 12px; border-radius: var(--radius-md); border: 1px solid var(--hairline); background: var(--surface-card); color: var(--ink);
+}
+.sec-famille b, .sec-modele b { font-size: 13px; }
+.sec-famille span { font-size: 11.5px; color: var(--ink-soft); }
+.sec-famille--on { border-color: var(--color-indigo); box-shadow: inset 3px 0 0 var(--color-indigo); }
+.sec-modele:hover, .sec-famille:hover { border-color: var(--copper-300); }
+.sec-a-relire { justify-self: start; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--copper-700); }
+@media (max-width: 640px) { .sec-choix { grid-template-columns: minmax(0, 1fr); } }
+
+/* L'éditeur : le texte à gauche, la page à droite. */
+.sec-editeur { display: grid; gap: 12px; }
+.sec-editeur__tete {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--color-indigo); color: var(--color-ivoire); padding: 14px 18px; border-radius: var(--radius-md);
+}
+.sec-editeur__corps { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+.sec-editeur__form { display: grid; gap: 14px; min-width: 0; }
+.sec-editeur__page { position: sticky; top: 12px; min-width: 0; }
+@media (max-width: 1000px) {
+  .sec-editeur__corps { grid-template-columns: minmax(0, 1fr); }
+  .sec-editeur__page { position: static; }
+}
+.sec-bandeau { padding: 9px 14px; border-radius: var(--radius-md); font-size: 13px; background: var(--copper-50); border: 1px solid var(--copper-200); color: var(--ink); }
+.sec-bandeau--alerte { border-color: var(--copper-600); color: var(--copper-700); font-weight: 600; }
+.sec-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* La feuille A4 : toujours blanche, ombre de papier posé. */
+.sec-feuille {
+  width: 100%; aspect-ratio: 210 / 297; max-width: 100%; background: #FFFFFF; color: #14141B;
+  box-shadow: 0 1px 2px rgba(20, 20, 27, .08), 0 8px 28px rgba(20, 20, 27, .10); box-sizing: border-box; /* une lettre longue fait grandir la feuille, jamais rogner */
+}
+.sec-zone { outline: 1px dashed transparent; }
+.sec-zone--active { outline-color: #C9B79F; background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(185, 122, 74, .04) 9px 10px); }
+.sec-pose { position: absolute; touch-action: none; user-select: none; }
+.sec-zone--active .sec-pose:hover { outline: 1px solid #B97A4A; }
+.sec-attendue {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;
+  border: 1px dashed #B97A4A; color: #8A5A33; background: rgba(185, 122, 74, .06); text-align: center; font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Le pavé où l'on signe : blanc lui aussi, l'encre s'y voit telle qu'elle sortira. */
+.sec-pave { width: 100%; max-width: 100%; height: auto; aspect-ratio: 700 / 220; background: #FFFFFF; border: 1px solid var(--hairline); border-radius: var(--radius-md); touch-action: none; cursor: crosshair; }
+/* Les champs restent dans leur colonne, jamais sous la page. */
+.sec-editeur__form .mnd-input, .sec-editeur__form textarea, .sec-editeur__form select { width: 100%; max-width: 100%; box-sizing: border-box; }
+.sec-editeur__form > * { min-width: 0; }
+/* Une rangée du registre : la ligne qui ouvre, et le geste à côté. */
+.sec-rangee { display: flex; align-items: stretch; border-bottom: 1px solid var(--hairline); }
+.sec-rangee:last-child { border-bottom: 0; }
+.sec-rangee .sec-ligne { flex: 1; min-width: 0; border-bottom: 0; }
+.sec-ligne__geste { display: flex; align-items: center; gap: 6px; padding: 0 12px 0 4px; }
+.sec-supprimer { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; background: none; color: var(--ink-soft); border: 1px solid var(--hairline); white-space: nowrap; }
+.sec-supprimer:hover { border-color: var(--copper-600); color: var(--copper-700); }
+.sec-supprimer--oui { background: var(--copper-700); border-color: var(--copper-700); color: var(--color-ivoire); }
+.sec-supprimer--oui:hover { color: var(--color-ivoire); }
+@media (max-width: 820px) { .sec-rangee { flex-wrap: wrap; } .sec-ligne__geste { padding: 0 16px 10px; } }
+
+/* ═══ LES PAPIERS — 6 octobre 2026. Préfixe pap-. Un classeur : une chemise
+   par titulaire, l'état de chaque pièce dit par une pastille. ═══ */
+.sec-onglets { display: flex; gap: 4px; border-bottom: 1px solid var(--hairline); margin: 4px 0 16px; }
+.sec-onglet { font: inherit; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; padding: 10px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--ink-soft); cursor: pointer; margin-bottom: -1px; }
+.sec-onglet--on { color: var(--color-indigo); border-bottom-color: var(--color-copper); font-weight: 600; }
+.pap-resume { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); }
+.pap-resume b { font-family: var(--font-serif); font-size: 24px; color: var(--color-indigo); font-weight: 500; margin-right: 5px; font-variant-numeric: tabular-nums; }
+.pap-chemises { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+.pap-chemise { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); display: grid; }
+.pap-chemise--nouvelle { border-style: dashed; }
+.pap-chemise__onglet { padding: 12px 14px 10px; border-bottom: 1px solid var(--hairline); display: grid; gap: 2px; }
+.pap-chemise__qui { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.pap-chemise--acia .pap-chemise__qui { color: #1F3F7A; }
+.pap-chemise__quoi { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.pap-jauge { height: 4px; border-radius: 4px; background: var(--hover-veil); overflow: hidden; margin-top: 6px; }
+.pap-jauge i { display: block; height: 100%; background: #3F6A4B; }
+.pap-pieces { list-style: none; margin: 0; padding: 6px 0; }
+.pap-pieces li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 14px; font-size: 13px; }
+.pap-pieces li button { font: inherit; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; flex: 1; min-width: 0; }
+.pap-pieces li button:hover { color: var(--copper-700); text-decoration: underline; }
+.pap-num { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pap-ajouter { font: inherit; font-size: 12px; text-align: left; padding: 8px 14px 12px; background: none; border: 0; color: var(--copper-700); cursor: pointer; }
+.pap-etat { font-size: 11px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; font-weight: 500; flex: none; }
+.pap-etat--ok { background: #E7F0E9; color: #3F6A4B; }
+.pap-etat--bientot { background: #FBF0D9; color: #8A5A12; }
+.pap-etat--expire { background: #F7E7E0; color: #8E3B26; }
+.pap-etat--manque { background: transparent; color: var(--ink-soft); border: 1px dashed var(--hairline); }
+.pap-ligne { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 190px 100px; }
+.pap-depot { border: 1.5px dashed var(--copper-300); border-radius: var(--radius-md); padding: 16px; display: grid; gap: 8px; justify-items: start; background: var(--copper-50); }
+.pap-journal { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12.5px; }
+.pap-journal li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--hairline); padding-top: 6px; color: var(--ink-soft); }
+.pap-paquet { display: grid; gap: 6px; max-height: 300px; overflow-y: auto; }
+.pap-paquet label { display: flex; gap: 10px; align-items: center; font-size: 13px; padding: 7px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-card); }
+@media (max-width: 820px) { .pap-ligne { grid-template-columns: minmax(0, 1fr) auto; } }

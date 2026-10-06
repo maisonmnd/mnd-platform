@@ -134,6 +134,65 @@ async function applyPayment(admin: any, opts: {
      demandé, entier. `feesXof` n'est gardé que pour la trace. */
 }
 
+/* ══ LA CARTE CADEAU RÉGLÉE — 2 octobre 2026 ═══════════════════════════
+   JUMELLE À L'IDENTIQUE dans kkiapay-verify et kkiapay-webhook (le harnais
+   `verifie-cartes-cadeaux` compare les deux copies, et l'alphabet avec celui
+   de `src/shared/cartes-cadeaux-pur.ts`).
+
+   LE CODE NAÎT ICI, ET UNE SEULE FOIS. L'écriture est CONDITIONNELLE (la
+   ligne n'a pas encore de code) : si la vérification et le filet arrivent
+   ensemble, le second trouve la carte déjà réglée et rend LE MÊME code, au
+   lieu d'en tirer un autre que l'acheteur verrait sans qu'il existe.
+   L'avoir que porte la carte a un identifiant déduit d'elle : un rejeu ne
+   le double pas. Le montant est celui de la COMMANDE, écrit avant le
+   paiement ; les frais KkiaPay restent à l'acheteur. */
+const ALPHABET_DU_CODE = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const tireUnCode = (): string => {
+  const v = crypto.getRandomValues(new Uint32Array(8));
+  const t = Array.from(v, (x) => ALPHABET_DU_CODE[x % ALPHABET_DU_CODE.length]).join('');
+  return `MND-${t.slice(0, 4)}-${t.slice(4)}`;
+};
+
+async function regleLaCarte(admin: any, o: { carteId: string; transactionId: string }): Promise<{ code: string; valableJusquau: string } | null> {
+  for (let essai = 0; essai < 6; essai++) {
+    const { data: row } = await admin.from('cartes_cadeaux').select('id, branch_id, data').eq('id', o.carteId).maybeSingle();
+    if (!row) return null;
+    const c = (row.data ?? {}) as Record<string, any>;
+    if (c.code) return { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') };
+    if (c.statut !== 'a-regler') return null;
+    const montant = Math.round(Number(c.montantXof ?? 0));
+    if (montant <= 0) return null;
+    const at = new Date().toISOString();
+    const d = new Date(at);
+    const valable = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 12, d.getUTCDate())).toISOString().slice(0, 10);
+    const creditId = `cre-${o.carteId}`;
+    const code = tireUnCode();
+    const next = {
+      ...c, statut: 'reglee', code, valableJusquau: valable, payeLe: at,
+      transactionId: o.transactionId, cashbox: 'KkiaPay', methode: 'KkiaPay', creditId,
+    };
+    const { data: pose, error } = await admin.from('cartes_cadeaux')
+      .update({ data: next }).eq('id', o.carteId).is('data->>code', null).select('id');
+    if (error) {
+      if (error.code === '23505') continue; // ce code existe déjà ailleurs : on en tire un autre
+      throw new Error(error.message);
+    }
+    if (!pose || pose.length === 0) continue; // réglée entre-temps : on relit, on rend son code
+    const { error: e2 } = await admin.from('credit_movements').insert({
+      id: creditId,
+      branch_id: row.branch_id,
+      data: {
+        id: creditId, branchId: c.branchId ?? row.branch_id, holderType: 'carte', holderId: o.carteId,
+        kind: 'depot', amountXof: montant, date: at, cashbox: 'KkiaPay', method: 'KkiaPay',
+        note: `Carte cadeau ${code} · pour ${c.pour || '?'}, de la part de ${c.de || '?'}`,
+      },
+    });
+    if (e2 && e2.code !== '23505') throw new Error(e2.message);
+    return { code, valableJusquau: valable };
+  }
+  throw new Error('carte_non_reglee');
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok', { status: 200 });
 
@@ -190,6 +249,20 @@ Deno.serve(async (req) => {
     // on accuse réception (200, KkiaPay cesse de retenter) sans rien créditer —
     // le comptoir rapprochera via le tableau KkiaPay.
     const paid = Math.round(Number(tx.amount ?? 0));
+    /* LA CARTE CADEAU (`cc-…`) — 2 octobre 2026. Même lecture que
+       kkiapay-verify : le montant de la commande déposée, jamais le corps. */
+    if (partnerId.startsWith('cc-')) {
+      const { data: cc } = await admin.from('cartes_cadeaux').select('branch_id, data').eq('id', partnerId).maybeSingle();
+      const attendu = Math.round(Number(cc?.data?.montantXof ?? 0));
+      if (!cc || attendu <= 0 || paid + 1 < attendu) {
+        console.log(`kkiapay-webhook: carte ${partnerId} non reglee (${paid} pour ${attendu})`);
+        return new Response('ok', { status: 200 });
+      }
+      if (!branchId) branchId = String(cc.branch_id ?? '');
+      await applyPayment(admin, { transactionId, tx, partnerId, branchId, clientId: state?.clientId });
+      await regleLaCarte(admin, { carteId: partnerId, transactionId });
+      return new Response('ok', { status: 200 });
+    }
     if (partnerId) {
       const { data: apptDue } = await admin
         .from('appointments').select('data').eq('id', partnerId).maybeSingle();

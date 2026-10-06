@@ -44,6 +44,7 @@ dit('une heure pleine garde ses minutes', 'dimanche 6 septembre à 10 h 30', jou
 dit('sans heure, le jour seul', 'dimanche 6 septembre', jourEtHeureDits('2026-09-06', undefined));
 dit('une date illisible se rend telle quelle', '', jourDit(''));
 dit('on s’adresse par le prénom', 'Akouavi', prenomDe('Akouavi Kossou'));
+/* Depuis le 2 octobre 2026, la Maison écrit « Madame Akouavi » : la civilité de la fiche, puis le prénom (shared/civilite). */
 dit('un nom vide ne fabrique rien', '', prenomDe(undefined));
 dit('trente jours en arrière', '2026-08-15', ilYA(AUJ, 30));
 
@@ -231,23 +232,23 @@ dit('dix gestes, dans l’ordre où ils servent',
   g.map((x) => x.cle));
 
 dit('le lien de paiement porte ce qui reste dû, pas le total',
-  'Akouavi, il reste 37 000 F sur votre rituel. Voici le lien pour régler par Mobile Money : https://exemple/payer?montant=37000',
+  'Madame Akouavi, il reste 37 000 F sur votre rituel. Voici le lien pour régler par Mobile Money : https://exemple/payer?montant=37000',
   gesteDit(g, 'paiement')?.compose);
 dit('le devis dit son numéro et son total',
-  'Akouavi, voici le devis DV-2026-0088 du samedi 12 septembre, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
+  'Madame Akouavi, voici le devis DV-2026-0088 du samedi 12 septembre, pour 45 000 F. Dites-nous simplement oui et nous posons le rendez-vous.',
   gesteDit(g, 'devis')?.compose);
 dit('le devis attend un oui', 'attend un oui', gesteDit(g, 'devis')?.attend);
 dit('la facture dit ce qui reste',
-  'Akouavi, voici votre facture FA-2026-0412 du dimanche 6 septembre, pour 17 000 F. Il reste 15 000 F à régler.',
+  'Madame Akouavi, voici votre facture FA-2026-0412 du dimanche 6 septembre, pour 17 000 F. Il reste 15 000 F à régler.',
   gesteDit(g, 'facture')?.compose);
 dit('la facture voyage en pièce jointe',
   { quoi: 'facture', invoiceId: 'i2', nom: 'Facture FA-2026-0412' }, gesteDit(g, 'facture')?.piece);
 dit('le bilan de la séance la plus fraîche', 'à remettre', gesteDit(g, 'bilan')?.attend);
 dit('l’itinéraire est le même pour tout le monde',
-  'Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
+  'Madame Akouavi, voici comment nous rejoindre : Rue 12.34, Suru-Léré, Cotonou',
   gesteDit(g, 'itineraire')?.compose);
 dit('le rendez-vous du soir, pas celui de ce matin',
-  'Akouavi, nous vous attendons lundi 14 septembre à 17 h.', gesteDit(g, 'rendezvous')?.compose);
+  'Madame Akouavi, nous vous attendons lundi 14 septembre à 17 h.', gesteDit(g, 'rendezvous')?.compose);
 
 /* ── UN BOUTON ÉTEINT DIT POURQUOI ───────────────────────────────── */
 const muet = lesGestes(ctx({ tete: undefined, pieces: [], appts: [], photos: 0 }));

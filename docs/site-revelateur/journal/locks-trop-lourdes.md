@@ -5,6 +5,7 @@ date: 2026-09-17
 description: "Racines qui tirent, locks qui s'amincissent au sommet, fatigue en fin de journée : les signes d'une couronne trop lourde et les façons de l'alléger."
 parcours: reparation
 image: journal-1.jpg
+portrait: regard.jpg
 motsCles:
   - locks trop lourdes
   - dreadlocks lourdes racines

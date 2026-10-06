@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead, WaGlyph } from '../_ui';
-import { Button, toast } from '../../../../ds/components';
+import { Button, toast, demande } from '../../../../ds/components';
+import { autoriserLaPurge } from '../../../../shared/sync';
 import { useBranch } from '../../../../shared/branches';
 import { useAuth, useStaff } from '../../../../shared/auth';
 import { supabase } from '../../../../shared/supabase';
@@ -12,7 +13,7 @@ import {
   delaiDeRetenue, resteDeLaRetenue, pourquoiOnNeReecritPas, texteDeLaCorrection,
   messagesQuiSonnent, messageCite, filNeuf, lienWaMe, compteDesModeles, type MessageWa,
   laFenetreSePaie, REPONSES_GRATUITES_DU_MOIS,
-  useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil,
+  useFilsArchives, estArchive, archiveLeFil, desarchiveLeFil, filCorrespond, filEffacable,
   tetesDeLaMaison, teteDuNumero, estReserve, TIROIRS, TIROIR_DIT, type Tiroir, type PieceRecue,
 } from '../../../../shared/conversations';
 import { motifDuRefus, adresseDeLaPieceRecue } from '../../../../shared/whatsapp';
@@ -21,6 +22,7 @@ import { useFournisseurs } from '../../../../shared/stock';
 import { useEngagements } from '../../../../shared/engagements';
 import { armeLaSonnette, sonne, cestLaNuit } from '../../../../shared/sonnette';
 import { adresseDesFonctions, cleAnonyme } from '../../../../shared/supabase';
+import { appelleOuGarde, gardeUnAppel } from '../../../../shared/appels-en-attente';
 import { useSettings } from '../../../../shared/settings';
 import { useStaff as useEquipe, useEnvois } from '../equipe/data';
 import { EnvoisAutomatiques } from './EnvoisAutomatiques';
@@ -34,6 +36,7 @@ import {
 } from './_gestes';
 import './clients.css';
 import { LienDeReservation } from './LienDeReservation';
+import { appelDe } from '../../../../shared/civilite';
 
 /* ═══════════════════════════════════════════════════════════════════
    LES CONVERSATIONS — maquette `public/maquette-les-conversations.html`,
@@ -169,7 +172,10 @@ export default function Conversations() {
      côté des fils. Le bouton dit ce qui est à regarder aujourd'hui avant
      qu'on l'ouvre. Les fils restent montés pendant qu'on lit le journal :
      y revenir retrouve la conversation là où on l'avait laissée. */
-  const [vue, setVue] = useState<'fils' | 'envois'>('fils');
+  /* La pastille de la salle d'attente mène ici par `?envois=1` (2 octobre 2026). */
+  const [vue, setVue] = useState<'fils' | 'envois'>(() => (params.get('envois') === '1' ? 'envois' : 'fils'));
+  const demandeLesEnvois = params.get('envois') === '1';
+  useEffect(() => { if (demandeLesEnvois) setVue('envois'); }, [demandeLesEnvois]);
   const [lesEnvois] = useEnvois();
   const aRegarderAujourdhui = useMemo(() => compteDuJournal(envoisDeLaPeriode(
     lesEnvois.filter((e) => e && e.canal !== 'push'), 'aujourdhui', jourDuSalon(new Date().toISOString()),
@@ -273,11 +279,17 @@ export default function Conversations() {
      clientes : la base ne lui livre rien d'autre, et l'écran ne montrerait
      pas non plus un vieux cache. */
   const tiroirVu: Tiroir = estDirection ? tiroir : 'clientes';
+  /* LA RECHERCHE (2 octobre 2026) : un nom, des chiffres, un mot écrit. Elle
+     traverse aussi les archives et les fils privés : on cherche quelqu'un,
+     pas un rangement. */
+  const [cherche, setCherche] = useState('');
+  const enRecherche = cherche.trim().length > 0;
   const fils = useMemo(
     () => tous.filter((f) => f.tiroir === tiroirVu
-      && (voirPrives || !f.prive)
-      && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives))),
-    [tous, tiroirVu, voirPrives, voirArchives, archives],
+      && (enRecherche
+        ? filCorrespond(f, cherche)
+        : (voirPrives || !f.prive) && (voirArchives ? estArchive(f, archives) : !estArchive(f, archives)))),
+    [tous, tiroirVu, voirPrives, voirArchives, archives, cherche, enRecherche],
   );
   const nPrives = tous.filter((f) => f.tiroir === tiroirVu && f.prive).length;
   const nArchives = tous.filter((f) => f.tiroir === tiroirVu && estArchive(f, archives)).length;
@@ -330,9 +342,50 @@ export default function Conversations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texteVenu]);
 
+  /* LE FIL S'OUVRE SUR SON DERNIER MESSAGE. On fait défiler les bulles
+     elles-mêmes, pas `scrollIntoView` : celui-ci faisait aussi glisser la
+     page, et de côté sur un téléphone (2 octobre 2026). */
   useEffect(() => {
-    finDuFil.current?.scrollIntoView({ block: 'end' });
+    const bulles = finDuFil.current?.parentElement;
+    if (bulles) bulles.scrollTop = bulles.scrollHeight;
   }, [fil?.numero, fil?.messages.length]);
+
+  /* ══ LE FIL EN PLEIN ÉCRAN SUR UN TÉLÉPHONE — 2 octobre 2026 ══════════
+     « Make conversations responsive on mobile phone, cannot use it
+     correctly » (Yéman). Le fil supposait une barre du Trône de 96 px ; elle
+     en fait 127 sur un téléphone, et la saisie tombait sous l'écran. Le fil
+     ouvert couvre désormais tout l'écran, comme dans WhatsApp, et prend la
+     hauteur que le CLAVIER laisse : `visualViewport` la donne, la feuille de
+     style la lit (`--vv-h`, `--vv-top`). Sur un grand écran, ces variables
+     ne servent pas. */
+  const filRef = useRef<HTMLDivElement>(null);
+  const aUnFil = !!fil;
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = filRef.current;
+    if (!vv || !el || !aUnFil) return;
+    const pose = () => {
+      el.style.setProperty('--vv-h', `${vv.height}px`);
+      el.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    };
+    /* Le clavier qui s'ouvre ne doit pas cacher le dernier message. */
+    const auClavier = () => {
+      pose();
+      const bulles = finDuFil.current?.parentElement;
+      if (bulles) bulles.scrollTop = bulles.scrollHeight;
+    };
+    pose();
+    vv.addEventListener('resize', auClavier);
+    vv.addEventListener('scroll', pose);
+    return () => { vv.removeEventListener('resize', auClavier); vv.removeEventListener('scroll', pose); };
+  }, [aUnFil]);
+
+  /* Au doigt, les gestes d'une bulle (répondre, réagir, réécrire) ne
+     paraissent que sur la bulle touchée : sous chaque bulle, ils doublaient
+     la hauteur du fil. Et les actions du fil se rangent derrière « ⋯ ». */
+  const [bulleTouchee, setBulleTouchee] = useState<string | null>(null);
+  const [menuDuFil, setMenuDuFil] = useState(false);
+  useEffect(() => { setBulleTouchee(null); setMenuDuFil(false); }, [fil?.numero]);
 
   /* ── LES DIX GESTES ────────────────────────────────────────────────
      Maquette `public/maquette-la-conversation-outillee.html`, validée le
@@ -403,6 +456,9 @@ export default function Conversations() {
        `keepalive` les laisse finir. Un message qu'on croit envoyé et qui
        n'est jamais parti est pire qu'un message qu'on aurait voulu retenir. */
     if (enFermant) {
+      /* Hors ligne, le message ne peut pas finir sa course : il se garde, et
+         part à la prochaine ouverture avec réseau (4 octobre 2026). */
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) { gardeUnAppel('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`); return; }
       const base = adresseDesFonctions;
       const jeton = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!base || !jeton) return;
@@ -420,9 +476,13 @@ export default function Conversations() {
     }
     setEnvoi(true);
     try {
-      const { error } = await supabase!.functions.invoke('whatsapp-envoi', { body: corps });
-      if (error) throw error;
-      toast(a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
+      /* HORS LIGNE, IL ATTEND (4 octobre 2026) : gardé sur l'appareil, il part
+         de lui-même au retour du réseau ; la pastille le compte. */
+      const issue = await appelleOuGarde('whatsapp-envoi', corps, `WhatsApp au ${a.numero}`);
+      if ('erreur' in issue) throw issue.erreur;
+      toast('enAttente' in issue
+        ? 'Hors ligne : le message partira au retour du réseau.'
+        : a.modele ? `Modèle « ${a.modele} » envoyé.` : 'Message envoyé.');
     } catch (e) {
       toast(`Non envoyé : ${await motifDuRefus(e)}`);
     } finally {
@@ -608,6 +668,29 @@ export default function Conversations() {
   /* ARCHIVER, RENDRE — la direction seule. Le fil reste ouvert à l'écran :
      on voit ce qu'on vient de ranger, et le bouton pour le rendre est à
      l'endroit même où l'on vient d'appuyer. */
+  /* EFFACER UN FIL SANS FICHE — la direction seule, après confirmation,
+     sur tous les postes (voir `filEffacable`). */
+  const effaceLeFil = async (f: Fil) => {
+    if (!estDirection || !filEffacable(f)) return;
+    if (!await demande({
+      quoi: 'Conversation',
+      titre: `Effacer la conversation avec ${f.nom} ?`,
+      dit: `${f.messages.length} message${f.messages.length > 1 ? 's' : ''} disparaissent de tous les postes de la Maison.`,
+      suite: 'Ce numéro n’a pas de fiche. S’il écrit de nouveau, un fil neuf s’ouvrira.',
+      accepter: 'Effacer',
+      refuser: 'Garder',
+      dur: true,
+    })) return;
+    const n = f.numero;
+    /* Le garde-fou des suppressions en masse protège la table d'un accident ;
+       ici c'est un geste voulu, déclaré pour cette seule poussée. */
+    autoriserLaPurge('messages_wa');
+    messagesWaStore.set((prev) => prev.filter((m) => numeroWa(m.numero) !== n));
+    if (estArchive(f, archives)) setArchives((prev) => desarchiveLeFil(prev, n));
+    setParams({});
+    toast('Conversation effacée.');
+  };
+
   const basculeLArchive = (f: Fil) => {
     if (!estDirection || f.messages.length === 0) return;
     if (estArchive(f, archives)) {
@@ -691,14 +774,14 @@ export default function Conversations() {
                 )}
               </span>
             )}
-            <Button variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
+            <Button className="trc-nouveau" variant="copper" size="sm" onClick={() => { setCommencer(true); setNumeroNeuf(''); }}>
               Nouvelle conversation
             </Button>
           </div>
         }
       />
 
-      {messages.length === 0 && (
+      {messages.length === 0 && vue !== 'envois' && (
         <div className="trc-passage-banner">
           Aucune conversation pour l’instant. Le Trône n’entend que depuis que l’oreille est posée :
           <b> Meta ne livre rien du passé</b>, le fil commence au premier message reçu. Si vos clientes
@@ -735,6 +818,21 @@ export default function Conversations() {
       >
         {/* ── LA BOÎTE ── */}
         <div className="trc-convs__boite">
+          {/* CHERCHER (2 octobre 2026) : un nom, des chiffres, un mot. */}
+          <div className="trc-convs__cherche">
+            <input
+              type="search"
+              value={cherche}
+              onChange={(e) => setCherche(e.target.value)}
+              placeholder="Chercher un nom, un numéro, un mot"
+              aria-label="Chercher une conversation"
+            />
+            {enRecherche && (
+              <span className="trc-sub" style={{ fontSize: 11.5 }}>
+                {fils.length === 0 ? 'Aucun fil' : `${fils.length} fil${fils.length > 1 ? 's' : ''}`}, archives et fils privés compris
+              </span>
+            )}
+          </div>
           {/* LES TROIS TIROIRS — la direction seule les voit tous. Le compte
               dit ce qui attend une réponse, pas ce qui existe. */}
           {estDirection && (
@@ -764,7 +862,7 @@ export default function Conversations() {
               dès qu’un message part ou arrive.
             </div>
           )}
-          {fils.length === 0 && messages.length > 0 && (
+          {fils.length === 0 && messages.length > 0 && !enRecherche && (
             <div className="trc-empty">
               {voirArchives
                 ? 'Aucune conversation archivée.'
@@ -808,14 +906,14 @@ export default function Conversations() {
         </div>
 
         {/* ── LE FIL ── */}
-        <div className="trc-convs__fil">
+        <div className="trc-convs__fil" ref={filRef}>
           {!fil ? (
             <div className="trc-empty" style={{ margin: 'auto' }}>
               Choisissez un fil à gauche.
             </div>
           ) : (
             <>
-              <div className="trc-fil__tete">
+              <div className={`trc-fil__tete${menuDuFil ? ' menu-ouvert' : ''}`}>
                 <button
                   type="button"
                   className="trc-retour"
@@ -824,7 +922,7 @@ export default function Conversations() {
                 >
                   ← Toutes les conversations
                 </button>
-                <span>
+                <span className="trc-fil__qui">
                   <b>{fil.nom}</b>
                   <span className="trc-sub" style={{ display: 'block', fontSize: 11.5 }}>
                     +{fil.numero}
@@ -832,7 +930,17 @@ export default function Conversations() {
                     {estReserve(fil.tiroir) ? ` · ${TIROIR_DIT[fil.tiroir].toLowerCase()} · direction seule` : ''}
                   </span>
                 </span>
-                <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="trc-fil__plus"
+                  aria-label="Les actions de ce fil"
+                  aria-expanded={menuDuFil}
+                  onClick={() => setMenuDuFil((v) => !v)}
+                >
+                  ⋯
+                </button>
+                {/* Un choix fait dans le menu le referme. */}
+                <span className="trc-fil__actions" onClick={() => setMenuDuFil(false)}>
                   {/* ══ L'AUTRE PORTE — 15 septembre 2026 ═══════════════════
                       « Je veux garder la possibilité d'ouvrir le wa.me
                       WhatsApp app de mon téléphone et en même temps la
@@ -856,6 +964,7 @@ export default function Conversations() {
                     aria-label="Ouvrir cette conversation dans l’application WhatsApp"
                   >
                     <WaGlyph taille={15} />
+                    <span className="trc-wa__mot">Continuer dans WhatsApp</span>
                   </a>
                   {fil.sansFiche ? (
                     /* UN FIL RÉSERVÉ SANS FICHE : la personne a quitté l'équipe
@@ -891,6 +1000,17 @@ export default function Conversations() {
                   >
                     {fil.prive ? 'Rouvrir' : 'Marquer privé'}
                   </button>
+                  {estDirection && filEffacable(fil) && (
+                    <button
+                      type="button"
+                      className="trv-minibtn"
+                      title="Effacer ce fil de tous les postes : ce numéro n’a pas de fiche"
+                      onClick={() => void effaceLeFil(fil)}
+                      style={{ color: '#8f3b30' }}
+                    >
+                      Supprimer
+                    </button>
+                  )}
                   {estDirection && fil.messages.length > 0 && (
                     <button
                       type="button"
@@ -912,7 +1032,10 @@ export default function Conversations() {
                   return (
                     <div key={m.id} style={{ display: 'contents' }}>
                       {nouveauJour && <span className="trc-jour">{jour(m.quand)}</span>}
-                      <div className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}`}>
+                      <div
+                        className={`trc-b trc-b--${m.sens === 'entrant' ? 'elle' : m.modele ? 'modele' : 'nous'}${bulleTouchee === m.id ? ' est-touchee' : ''}`}
+                        onClick={() => setBulleTouchee((t) => (t === m.id ? null : m.id))}
+                      >
                         {/* CE QUE CE MESSAGE CITE. Le fil a déjà le texte : on
                             ne garde que l'identifiant, sinon un message réécrit
                             ferait mentir sa propre citation. Un message plus
@@ -1072,6 +1195,9 @@ export default function Conversations() {
                         une main qui relit et qui envoie. */}
                     <div className="trc-gestes-rangee">
                       <ChoisirUnFichier surFichier={setPiece} occupe={envoiEnCours} />
+                      <button type="button" className="trc-geste trc-geste--tel" onClick={() => setLienOuvert(true)}>
+                        <b>Lien de réservation</b>
+                      </button>
                       <BarreDesGestes
                         gestes={gestes}
                         surGeste={poseLeGeste}
@@ -1103,7 +1229,7 @@ export default function Conversations() {
                     )}
 
                     <textarea
-                      className="mnd-input"
+                      className="mnd-input trc-saisie__texte"
                       rows={2}
                       value={texte}
                       placeholder={`Écrivez à ${fil.nom.split(' ')[0]}…`}
@@ -1112,11 +1238,11 @@ export default function Conversations() {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void envoie(); }
                       }}
                     />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="trc-saisie__envoi" style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span className="trc-sub trc-saisie__note" style={{ fontSize: 11, marginRight: 'auto' }}>
                         La devise ne se pose pas ici : elle signe ce que la Maison écrit seule.
                       </span>
-                      <Button variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
+                      <Button className="trc-saisie__lien" variant="ghost" size="sm" onClick={() => setLienOuvert(true)}>Lien de réservation</Button>
                       <Button
                         variant="copper"
                         size="sm"
@@ -1137,7 +1263,7 @@ export default function Conversations() {
                     Chacun part par son modèle approuvé. Ou attendez qu’elle écrive : la fenêtre se rouvre.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="trc-saisie__modeles" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Button variant="copper" size="sm" disabled={envoiEnCours} onClick={() => setLienOuvert(true)}>
                       Réservation préparée
                     </Button>
@@ -1167,7 +1293,7 @@ export default function Conversations() {
           politesse de ne pas montrer un bouton qui refusera. */}
       {lienOuvert && fil && (
         <LienDeReservation
-          prenom={fil.nom.split(' ')[0] ?? ''}
+          prenom={appelDe(clients.find((c) => c.id === fil.clientId), fil.nom)}
           fenetreOuverte={fil.fenetre.ouverte}
           surMessage={(m) => { setTexte(m); setLienOuvert(false); toast('Lien posé. Relisez le message avant de l’envoyer.'); }}
           surModele={(variables, boutonUrl, texteAffiche) => {

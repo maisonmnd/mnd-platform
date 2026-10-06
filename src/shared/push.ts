@@ -3,6 +3,7 @@
    publique, et stocke l'abonnement dans Supabase (`push_subscriptions`). L'envoi
    réel (confirmations & rappels) est fait par la fonction Edge `push-notify`. */
 
+import { appelleOuGarde } from './appels-en-attente';
 import { supabase } from './supabase';
 
 const VAPID_PUBLIC = import.meta.env.VITE_VAPID_PUBLIC as string | undefined;
@@ -30,7 +31,7 @@ export function registerSW(): Promise<ServiceWorkerRegistration | null> {
   if (!regPromise) {
     regPromise = navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' })
-      .then((reg) => { try { void reg.update(); } catch { /* ignore */ } return reg; })
+      .then((reg) => { try { void reg.update().catch(() => { /* hors ligne : la mise à jour attendra */ }); } catch { /* ignore */ } return reg; })
       .catch(() => null);
   }
   return regPromise;
@@ -95,11 +96,8 @@ export async function disablePush(): Promise<boolean> {
 /** Envoie une notification immédiate à la cliente via la fonction Edge (best-effort). */
 export async function pushNotify(clientId: string, title: string, body: string, url?: string): Promise<void> {
   if (!supabase || !clientId || clientId === 'c-local') return;
-  try {
-    await supabase.functions.invoke('push-notify', { body: { clientId, title, body, url } });
-  } catch {
-    /* silencieux : la fonction n'est peut-être pas encore déployée */
-  }
+  /* Hors ligne, la notification attend le réseau (4 octobre 2026). */
+  await appelleOuGarde('push-notify', { clientId, title, body, url }, `Notification · ${title}`);
 }
 
 /** Referme les notifications encore affichées (tiroir du téléphone) sur TOUTES les
@@ -131,33 +129,22 @@ export async function clearAppNotifications(): Promise<void> {
     Appelable par une cliente authentifiée ou par le tunnel public de consultation. */
 export async function pushNotifyStaff(title: string, body: string, url?: string): Promise<void> {
   if (!supabase) return;
-  try {
-    await supabase.functions.invoke('push-notify', { body: { mode: 'staff', title, body, url } });
-  } catch {
-    /* silencieux : la fonction n'est peut-être pas encore déployée */
-  }
+  /* Hors ligne, l'alerte de l'équipe attend le réseau (4 octobre 2026). */
+  await appelleOuGarde('push-notify', { mode: 'staff', title, body, url }, `Alerte de l’équipe · ${title}`);
 }
 
 /** Notifie UNE cliente précise depuis Le Trône (ex. cadeau anniversaire).
     Réservé au personnel (la fonction Edge vérifie le JWT). Renvoie le nombre d'envois. */
 export async function pushToClient(clientId: string, title: string, body: string, url?: string, email?: string): Promise<number> {
   if (!supabase || (!clientId && !email)) return 0;
-  try {
-    const { data } = await supabase.functions.invoke('push-notify', { body: { mode: 'to-client', clientId, email, title, body, url } });
-    return (data as { sent?: number })?.sent ?? 0;
-  } catch {
-    return 0;
-  }
+  const issue = await appelleOuGarde<{ sent?: number }>('push-notify', { mode: 'to-client', clientId, email, title, body, url }, `Notification · ${title}`);
+  return 'parti' in issue ? issue.data?.sent ?? 0 : 0;
 }
 
 /** Diffuse une notification à TOUTES les clientes abonnées (offre, promo…).
     Réservé au personnel (la fonction Edge vérifie le JWT). Renvoie le nombre d'envois. */
 export async function pushBroadcastClients(title: string, body: string, url?: string): Promise<number> {
   if (!supabase) return 0;
-  try {
-    const { data } = await supabase.functions.invoke('push-notify', { body: { mode: 'broadcast', title, body, url } });
-    return (data as { sent?: number })?.sent ?? 0;
-  } catch {
-    return 0;
-  }
+  const issue = await appelleOuGarde<{ sent?: number }>('push-notify', { mode: 'broadcast', title, body, url }, `Annonce à toutes · ${title}`);
+  return 'parti' in issue ? issue.data?.sent ?? 0 : 0;
 }

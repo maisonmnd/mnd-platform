@@ -1,5 +1,6 @@
 import { createStore, useStore, uid } from './store';
 import type { Appointment } from './agenda';
+import type { NatureDuCheveu, NoteDeSeance, PropositionDuBilan } from './bilan-assistant-pur';
 
 /* LE REGISTRE DES BILANS DE SÉANCE — le Carnet de Suivi devient réel.
 
@@ -24,6 +25,8 @@ export type TempsRituel = {
   nom: string; // Purifier · Nourrir · Sceller · Couronner
   cadence: string; // « chaque semaine »
   texte: string;
+  /** Les ingrédients de la Maison de ce temps (slugs de communaute.ts). */
+  ingredients?: string[];
 };
 
 export type Bilan = {
@@ -46,6 +49,26 @@ export type Bilan = {
   rituel: TempsRituel[];
   /** Le jour où la maison l'a remis — c'est lui qui ordonne le registre. */
   remisLe: string;
+
+  /* LE BILAN RÉDIGÉ — 4 octobre 2026 (shared/bilan-assistant-pur). Tous
+     facultatifs : les bilans d'avant n'en ont pas, et Ma Couronne les lit
+     comme avant. */
+  nature?: NatureDuCheveu;
+  /** Ce que nous avons vu. */
+  diagnostic?: string;
+  /** Ce que cela veut dire. */
+  sens?: string;
+  /** Ce que la Maison vous propose, en phrases. */
+  solutions?: string;
+  /** Les prestations proposées : chacune ouvre « Réserver » dans Ma Couronne. */
+  propositions?: PropositionDuBilan[];
+  /** Trois phrases : ce que Ma Couronne montre d'abord. */
+  resume?: string;
+  /** Le mot qui accompagne le PDF sur WhatsApp, relu par le maître. */
+  message?: string;
+  /** Rédigé avec l'assistant, puis relu et signé. Interne : ni le PDF ni
+      Ma Couronne ne le disent, la signature est celle du maître. */
+  redigeAvecAssistant?: boolean;
 };
 
 /** Les quatre jauges du classeur — le point de départ d'un premier bilan. */
@@ -93,8 +116,19 @@ export function remettreBilan(champs: Omit<Bilan, 'id'>): Bilan {
   return b;
 }
 
+/** LES NOTES DE SÉANCE — réservées au personnel (0115). Jamais dans le
+    rendez-vous : la cliente lit ses rendez-vous. */
+export const notesDeSeanceStore = createStore<NoteDeSeance[]>('mnd_notes_de_seance', []);
+export const useNotesDeSeance = () => useStore(notesDeSeanceStore);
+
+/** Écrit la note d'une séance — un seul geste, qui crée ou remplace. */
+export function ecritLaNote(n: NoteDeSeance): void {
+  notesDeSeanceStore.set((prev) => (prev.some((x) => x.id === n.id) ? prev.map((x) => (x.id === n.id ? n : x)) : [...prev, n]));
+}
+
 import { bindCollection } from './sync';
 bindCollection(bilansStore, 'bilans');
+bindCollection(notesDeSeanceStore, 'notes_de_seance');
 
 /* ══ LES SÉANCES QUI ATTENDENT LEUR BILAN — 7 septembre 2026 ═════════
 

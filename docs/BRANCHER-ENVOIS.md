@@ -481,6 +481,24 @@ paquet : c'est le verrou qui empêche deux postes d'envoyer deux fois, et
 c'est là que se lit un refus de Meta (modèle pas encore approuvé) — repris
 seul le lendemain.
 
+## Le bilan de séance (4 octobre 2026)
+
+Le maître signe un bilan dans le Trône ; « Envoyer par WhatsApp » joint le PDF
+Maison MND. Dans la fenêtre de 24 heures, il part avec le mot du bilan. Hors
+fenêtre, il faut ce modèle :
+
+**`bilan_de_seance`** — WhatsApp Manager → Modèles, français, catégorie
+**UTILITY**, en-tête : **Document** (un PDF d'exemple est demandé à la
+création, n'importe lequel). Corps :
+
+> Bonjour {{1}}, voici le bilan de votre séance du {{2}}, avec votre routine
+> à la maison. Vous le retrouvez aussi dans Ma Couronne.
+
+Pied de page : « mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là ».
+({{1}} = « Madame Awa », {{2}} = « 4 octobre ».) Il remet un document après
+une séance, il ne vend rien : c'est ce qui le garde utilitaire. Tant qu'il
+n'est pas approuvé, l'envoi hors fenêtre est refusé et l'écran le dit.
+
 ## Règles de la maison
 
 - Jamais une clé dans le dépôt : les secrets vivent chez Supabase.
@@ -501,3 +519,111 @@ site (`lienLu`). Le Trône l'envoie depuis Conversations → Lien de
 réservation (hors fenêtre : « Envoyer par le modèle »). Il demande
 `whatsapp-envoi` avec le paramètre `boutonUrl` : RECOLLER `whatsapp-envoi`
 EN ENTIER après le 28 septembre.
+
+## La carte de marraine : trois modèles (28 septembre 2026)
+
+Tous en français, catégorie Utility (Marketing si Meta le refuse), pied
+« Maison MND · Cotonou ».
+
+1. **`parrainage_merci`** : en-tête IMAGE (la carte de la marraine, jointe
+   par le Trône). Corps : « Bonjour {{1}}, {{2}} est venue à la Maison grâce
+   à vous. Merci ! Votre récompense vous attend : {{3}}. Choisissez-la dans
+   Ma Couronne, ou dites-le simplement à l'accueil. » Exemples : Adjoa,
+   Grâce, un soin offert ou une remise, à votre choix. (Texte revu le 28 au
+   soir, avec les ambassadrices : la récompense se choisit.) Envoyé par le Trône quand la visite de l'amie est honorée, une
+   fois « Allumer le remerciement » cliqué (Marketing & Fidélité →
+   Parrainages).
+2. **`carte_marraine`** : en-tête IMAGE (sa carte). Corps : « Bonjour {{1}},
+   voici votre carte de marraine de la Maison MND. Votre code : {{2}}.
+   Partagez-la : chaque amie qui vient grâce à vous vous offre un soin. »
+   Envoyé depuis la fiche cliente (« Envoyer sa carte sur WhatsApp ») quand
+   sa fenêtre de 24 h est fermée ; dans la fenêtre, l'image part sans modèle.
+3. **`parrainage_reservation`** : sans en-tête. Corps : « Bonjour {{1}},
+   {{2}} vient de réserver à la Maison MND avec votre code. Nous vous dirons
+   quand elle sera venue. » Envoyé par `demande-submit` à la réservation de
+   l'amie ; poser le secret `WA_TEMPLATE_PARRAINAGE_RESERVE=parrainage_reservation`
+   une fois approuvé.
+
+À RECOLLER EN ENTIER après le 28 septembre : `demande-submit` ET
+`whatsapp-envoi` (l'en-tête image). À PASSER dans le SQL Editor :
+`supabase/migrations/0110_la_carte_de_marraine.sql`.
+
+## La réservation en trente secondes (29 septembre 2026)
+
+Maquette « La réservation en 30 secondes », validée par Yéman, avec « Tout de
+suite » pour la confirmation.
+
+**Ce qui change sans rien poser.** Une place libre réservée sur le site ou
+dans Ma Couronne naît **confirmée** (Ma Couronne : sauf acompte annoncé mais
+pas encore vérifié). Le site envoie aussitôt le modèle de la confirmation
+(`confirmation_rdv`, déjà approuvé), journalisé sous `conf-<rdv>-whatsapp` :
+le balayage `confirmation-rdv` ne l'enverra pas une seconde fois. Le modèle
+`demande_recue` ne sert plus qu'aux demandes sans place.
+
+**À RECOLLER EN ENTIER** : `demande-submit`, `rappels-j1`, `whatsapp-webhook`.
+Aucune migration, aucun cron nouveau (la reprise passe par le cron des rappels).
+
+### Le modèle `reprise_proposee`, à faire approuver
+
+Français, catégorie **UTILITY**, sans en-tête, pied « Maison MND · Cotonou ».
+
+> Bonjour {{1}}, votre prochain rituel est prévu {{2}} : {{3}}. Pouvez-vous
+> nous le confirmer ?
+
+Exemples : Awa · mardi 14 octobre à 10 h · lavage, reprise des racines, DÀNDÀN™.
+
+Deux boutons **Réponse rapide**, dans cet ordre : « Je confirme », puis « Un
+autre moment ». Une fois approuvé, poser le secret
+`WA_TEMPLATE_REPRISE=reprise_proposee`. Sans ce secret, rien ne part.
+
+Ce qui se passe ensuite : trois jours avant chaque reprise posée à la caisse,
+`rappels-j1` l'envoie. « Je confirme » écrit la confirmation sur le rendez-vous
+et éteint la relance d'À faire (« Confirmé par elle ») ; « Un autre moment »
+garde la ligne allumée (« veut un autre moment ») et lui répond avec le lien de
+Ma Couronne. Sans réponse, À faire dit « proposée sur WhatsApp · sans
+réponse » : la Maison appelle, comme avant. Le rendez-vous n'est jamais annulé
+tout seul. Secret facultatif : `COURONNE_URL` (par défaut
+`https://maisonmnd.com/couronne/`).
+
+## La salle d'attente des envois (2 octobre 2026)
+
+« Est-ce possible d'intercepter un message qui part vers chez un client ?
+D'arrêter l'envoi à cause de l'heure tardive ou autre raison, erreur… »
+(Yéman). Maquette `public/maquette-la-salle-d-attente-des-envois.html`,
+quatre arbitrages : dix minutes de salle, heures calmes de 20 h à 8 h,
+réponse immédiate quand la cliente réserve elle-même, trois alertes
+(pastille, téléphone, son).
+
+**Comment.** `confirmation-rdv`, `rappels-j1` et `avis-google` ne
+s'adressent plus à la cliente : elles déposent une ligne `envois`, statut
+`en-attente`, avec `partA` (l'heure de départ) et `colis` (de quoi
+l'envoyer). Le facteur `envois-partent`, réveillé chaque minute, dit qu'il
+vit (`documents`, clé `mnd_facteur`), prévient le personnel de ce qui part
+dans les dix minutes, relit le rendez-vous, puis porte. Une main peut
+retenir, relâcher, envoyer maintenant ou écarter depuis Conversations ›
+Envois automatiques ; la pastille de la barre du Trône dit ce qui attend.
+
+**Le repli.** Si le facteur se tait plus de cinq minutes, les trois
+fonctions envoient comme avant : rien ne reste coincé, et l'écran dit « La
+salle est fermée ».
+
+**La source.** `src/shared/salle-des-envois.ts` ; les fonctions Edge en
+recopient le calcul, `verifie-la-salle-des-envois` tient les copies.
+Réglages facultatifs dans `mnd_auto_config` : `salleMin`, `calmeDe`,
+`calmeA` (absents : 10, 20, 8).
+
+**À poser, dans cet ordre** (marche à suivre cochable :
+`public/maquette-poser-la-salle-d-attente.html`) :
+
+1. `push-notify` : recoller en entier (le facteur y parle avec la clé
+   service ; le push de confirmation, qui répondait « forbidden », part enfin).
+2. `envois-partent` : nouvelle fonction, fichier entier, « Verify JWT »
+   désactivé.
+3. Cron `envois-partent`, `* * * * *`, SQL Snippet :
+   `select public.appelle_fonction_edge('envois-partent');`
+4. Vérifier dans le Trône que « La salle est fermée » a disparu.
+5. Recoller en entier `confirmation-rdv`, `rappels-j1`, `avis-google`.
+
+**Pas encore en salle :** la fin de paquet et le merci de parrainage, qui
+partent du Trône lui-même (`envoieSurWhatsApp`), et la réponse à une
+réservation faite par la cliente, qui reste immédiate par décision.

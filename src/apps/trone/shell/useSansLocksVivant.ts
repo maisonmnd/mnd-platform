@@ -3,7 +3,9 @@ import { useAppointments } from '../../../shared/agenda';
 import { useServices, defaitLaCouronne, fondeLaCouronne } from '../../../shared/catalog';
 import { clientsStore, mouvementsSansLocks, useClients, type LectureDesLocks } from '../../../shared/clients';
 import { useAuth } from '../../../shared/auth';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
 /* ELLE A DÉFAIT SES LOCKS — Le Trône, 11 septembre 2026.
 
    « Quand une cliente a fait le Gbata, le défaisage, elle n'a plus de locks
@@ -100,7 +102,7 @@ export function useSansLocksVivant(): void {
     );
 
     if (sorties.size === 0 && rendues.size === 0) return;
-    clientsStore.set((prev) =>
+    gardeLEcriture('locks défaites', clientsStore).set((prev) =>
       prev.map((c) => {
         if (sorties.has(c.id)) return { ...c, locksDefaits: true };
         if (rendues.has(c.id)) return { ...c, locksDefaits: undefined };

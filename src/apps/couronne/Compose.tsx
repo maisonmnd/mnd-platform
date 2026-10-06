@@ -24,6 +24,7 @@ import { fmtDuration, useClient, useVisibleCatalog } from './lib';
 import Cycle, { semainesDuForfait } from './Cycle';
 import AchatFormule from './AchatFormule';
 import { priceModeOf, sousArbreOf, useCategories, useServices, useProducts, type Service, type ServiceInclus } from '../../shared/catalog';
+import { t, prix } from './i18n';
 
 /* RITUEL SUR-MESURE — mix & match.
    Ponctuel −10 % · Abonnement −15 % (l'entretien et la réparation, 3 prestations minimum).
@@ -161,9 +162,9 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
      se nomme par l'atelier ; un produit, par la Gamme. Une prestation que la
      Maison lui masque garde son nom générique — le forfait, lui, est offert. */
   const nomInclus = (inc: ServiceInclus): string => {
-    if (inc.productId) return products.find((p) => p.id === inc.productId)?.name ?? 'Un soin de la Gamme';
-    if (inc.categoryId) return cats.find((c) => c.id === inc.categoryId)?.fon ?? 'Au choix';
-    return services.find((x) => x.id === inc.serviceId)?.name ?? 'Une prestation de la Maison';
+    if (inc.productId) return products.find((p) => p.id === inc.productId)?.name ?? t('Un soin de la Gamme');
+    if (inc.categoryId) return cats.find((c) => c.id === inc.categoryId)?.fon ?? t('Au choix');
+    return services.find((x) => x.id === inc.serviceId)?.name ?? t('Une prestation de la Maison');
   };
   /* UN ATELIER COCHÉ OUVRE TOUT SON SOUS-ARBRE (12 août) : les prestations de
      GBÈJÍ vivent dans ses FAMILLES (SÍNSIN, KLƆKLƆ…) — comparer l'atelier aux
@@ -305,7 +306,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       '/trone/#/',
     );
     setDone(payload);
-    toast(mode === 'abonnement' ? 'Abonnement sur-mesure transmis.' : 'Rituel sur-mesure transmis.');
+    toast(mode === 'abonnement' ? t('Abonnement sur-mesure transmis.') : t('Rituel sur-mesure transmis.'));
   };
 
   /* « DEMANDER CE FORFAIT » EST MORT LE 16 AOÛT — « pourquoi demander ? Je
@@ -335,22 +336,21 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       <div className="mc-overlayscreen mc-slide">
         <div className="mc-confirm mc-rise" style={{ margin: 'auto 0', padding: '0 24px' }}>
           <img src={asset("/assets/monograms/mono-copper.png")} alt="" style={{ width: 46, opacity: 0.92 }} />
-          <h2 style={{ marginTop: 18 }}>Transmis au Trône.</h2>
+          <h2 style={{ marginTop: 18 }}>{t('Transmis au Trône.')}</h2>
           <p>
-            Votre composition est entre les mains de la maison. Elle revient vers vous sur WhatsApp pour sceller
-            les créneaux, mèche après mèche.
+            {t('Votre composition est entre les mains de la maison. Elle revient vers vous sur WhatsApp pour sceller les créneaux, mèche après mèche.')}
           </p>
           <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
             <div className="mc-recapcard__name">
-              {done.mode === 'abonnement' ? 'Mon abonnement sur-mesure'
-                : done.mode === 'forfait' ? 'Le forfait demandé'
-                  : 'Mon rituel sur-mesure'}
+              {done.mode === 'abonnement' ? t('Mon abonnement sur-mesure')
+                : done.mode === 'forfait' ? t('Le forfait demandé')
+                  : t('Mon rituel sur-mesure')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
               {done.items.map((l, i) => (
                 <div key={i} className="mc-recapcard__line">
                   <span>{l.service}</span>
-                  <span>{fmtMoney(l.priceXof, currency)}</span>
+                  <span>{prix(l.priceXof, currency)}</span>
                 </div>
               ))}
             </div>
@@ -359,17 +359,17 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                 celui de la carte. Annoncer « −0 % » serait un mot pour rien. */}
             {done.discountPct > 0 && (
               <div className="mc-recapcard__line mc-recapcard__line--deal">
-                <span>{done.mode === 'abonnement' ? 'Avantage abonné' : 'Avantage ponctuel'} · −{done.discountPct} %</span>
-                <span>− {fmtMoney(doneDiscount, currency)}</span>
+                <span>{done.mode === 'abonnement' ? t('Avantage abonné · −{pct} %', { pct: done.discountPct }) : t('Avantage ponctuel · −{pct} %', { pct: done.discountPct })}</span>
+                <span>− {prix(doneDiscount, currency)}</span>
               </div>
             )}
             <div className="mc-recapcard__total">
-              <span>Total</span>
-              <span>{fmtMoney(done.totalXof, currency)}{done.mode === 'abonnement' ? <em> / cycle</em> : null}</span>
+              <span>{t('Total')}</span>
+              <span>{prix(done.totalXof, currency)}{done.mode === 'abonnement' ? <em> {t('/ cycle')}</em> : null}</span>
             </div>
           </div>
           <button className="mc-cta mc-cta--indigo" style={{ marginTop: 22 }} onClick={onClose}>
-            Revenir à l’accueil
+            {t('Revenir à l’accueil')}
           </button>
         </div>
       </div>
@@ -394,10 +394,10 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
     <div className="mc-overlayscreen mc-slide">
       <div className="mc-flowhead">
         <div className="mc-flowhead__row">
-          <span className="mc-micro-eyebrow">Sur-mesure · vous composez</span>
-          <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+          <span className="mc-micro-eyebrow">{t('Sur-mesure · vous composez')}</span>
+          <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
         </div>
-        <h1 className="mc-flowhead__h1" style={{ marginTop: 6 }}>Votre rituel, votre signature.</h1>
+        <h1 className="mc-flowhead__h1" style={{ marginTop: 6 }}>{t('Votre rituel, votre signature.')}</h1>
 
         {/* TROIS ONGLETS, ET UN SEUL COMPOSE. Nos abonnements d'abord, ceux que
             la Maison a écrits et qui n'attendent qu'un oui ; puis le composeur,
@@ -410,7 +410,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         <div className="mc-modetoggle">
           {mesFormules.length > 0 && (
             <button className={`mc-mode ${mode === 'formules' ? 'is-abo' : ''}`} onClick={() => switchMode('formules')}>
-              <span className="mc-mode__name">Nos abonnements</span>
+              <span className="mc-mode__name">{t('Nos abonnements')}</span>
               {/* LE SOUS-TITRE PORTE LA REMISE, pas le compte — 29 août 2026.
                   « Tout prêts · 12 » disait un inventaire ; ce qui décide une
                   cliente est ce qu'elle gagne. Les chiffres se CALCULENT sur
@@ -418,18 +418,18 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   Sans aucune remise annoncée, on retombe sur le compte, qui a
                   au moins le mérite d'être vrai. */}
               <span className="mc-mode__sub">
-                {remises ? `−${remises.min} % à ${remises.max} % de remise` : `tout prêts · ${mesFormules.length}`}
+                {remises ? t('−{min} % à {max} % de remise', { min: remises.min, max: remises.max }) : t('tout prêts · {n}', { n: mesFormules.length })}
               </span>
             </button>
           )}
           <button className={`mc-mode ${mode === 'abonnement' ? 'is-abo' : ''}`} onClick={() => switchMode('abonnement')}>
-            <span className="mc-mode__name">Composez le vôtre</span>
-            <span className="mc-mode__sub">−{sm.aboPct} % · dès {sm.aboMin} soins</span>
+            <span className="mc-mode__name">{t('Composez le vôtre')}</span>
+            <span className="mc-mode__sub">{t('−{pct} % · dès {min} soins', { pct: sm.aboPct, min: sm.aboMin })}</span>
           </button>
           {forfaits.length > 0 && (
             <button className={`mc-mode ${mode === 'forfaits' ? 'is-pack' : ''}`} onClick={() => switchMode('forfaits')}>
-              <span className="mc-mode__name">Les forfaits</span>
-              <span className="mc-mode__sub">tout faits · {forfaits.length}</span>
+              <span className="mc-mode__name">{t('Les forfaits')}</span>
+              <span className="mc-mode__sub">{t('tout faits · {n}', { n: forfaits.length })}</span>
             </button>
           )}
         </div>
@@ -453,15 +453,14 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                 rappelle une demande encore ouverte. */}
             {maDemande && (
               <div className="mc-packintro">
-                Vous aviez demandé « {maDemande.planName} », la Maison vous répond très vite.
-                Vous pouvez aussi prendre une formule directement ci-dessous.
+                {t('Vous aviez demandé « {formule} », la Maison vous répond très vite. Vous pouvez aussi prendre une formule directement ci-dessous.', { formule: maDemande.planName })}
               </div>
             )}
             {momentsFormules.map((g) => (
               <section key={g.k}>
                 <div className="cma-moment">
-                  <span className="cma-moment__titre">{g.titre}</span>
-                  <span className="cma-moment__quand">{g.quand}</span>
+                  <span className="cma-moment__titre">{t(g.titre)}</span>
+                  <span className="cma-moment__quand">{t(g.quand)}</span>
                   <span className="cma-moment__rule" />
                 </div>
                 {g.liste.map((pl) => (
@@ -489,7 +488,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                          cliente dont on connaît le calibre a droit à SON prix, et
                          lui montrer une étendue le lui reprendrait. */
                       const etendue = maTete.bandId
-                        ? null : libelleFourchette(pl, 'mensuel', calibresAbo, (x) => fmtMoney(x, currency));
+                        ? null : libelleFourchette(pl, 'mensuel', calibresAbo, (x) => prix(x, currency));
                       return (
                         <>
                           {(ecrits.length > 0 || g.gainXof > 0) && (
@@ -499,8 +498,8 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                               ))}
                               {g.gainXof > 0 && (
                                 <li><i>◆</i><span>
-                                  {fmtMoney(g.carteXof, currency)} à la carte, <b>vous gagnez {fmtMoney(g.gainXof, currency)}</b>
-                                  {g.illimitees > 0 ? ', et l’illimité en plus' : ''}
+                                  {t('{prix} à la carte,', { prix: prix(g.carteXof, currency) })} <b>{t('vous gagnez {gain}', { gain: prix(g.gainXof, currency) })}</b>
+                                  {g.illimitees > 0 ? t(', et l’illimité en plus') : ''}
                                 </span></li>
                               )}
                             </ul>
@@ -511,13 +510,15 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                                 l'écran suivant. Dès que son calibre est su, le
                                 prix devient le sien, unique. */}
                             <span className="cma-offre__prix" style={etendue ? { fontSize: '1.35rem' } : undefined}>
-                              {etendue ?? fmtMoney(g.prixXof, currency)}
+                              {etendue ?? prix(g.prixXof, currency)}
                               <span>
-                                {pl.mode === 'pack' ? ` · ${moisDuPack(pl)} mois` : ' /mois'}
-                                {etendue ? ` · ${SELON_LE_CALIBRE}` : ''}
+                                {pl.mode === 'pack'
+                                  ? <> · {moisDuPack(pl) > 1 ? t('{n} mois', { n: moisDuPack(pl) }) : t('1 mois')}</>
+                                  : <> {t('/mois')}</>}
+                                {etendue ? ` · ${t(SELON_LE_CALIBRE)}` : ''}
                               </span>
                             </span>
-                            {g.gainXof > 0 && <span className="cma-offre__gain">−{g.pct} % sur la carte</span>}
+                            {g.gainXof > 0 && <span className="cma-offre__gain">{t('−{pct} % sur la carte', { pct: g.pct })}</span>}
                           </div>
                         </>
                       );
@@ -530,7 +531,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                       className="cma-btn cma-btn--sm"
                       onClick={() => setAchat(pl)}
                     >
-                      Je prends cette formule
+                      {t('Je prends cette formule')}
                     </button>
                   </div>
                 ))}
@@ -543,8 +544,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         {mode === 'forfaits' && (
           <div className="mc-fade">
             <div className="mc-packintro">
-              Ceux que la Maison a composés pour vous, leur prix tient déjà compte de ce
-              qu’ils réunissent.
+              {t('Ceux que la Maison a composés pour vous, leur prix tient déjà compte de ce qu’ils réunissent.')}
             </div>
             {forfaits.map((s) => {
               const lignes = s.includes ?? [];
@@ -563,28 +563,27 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                   <div className="mc-pack__head">
                     <span className="mc-pack__name">{s.name}</span>
                     <span className="mc-pack__price">
-                      {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(prixDe(s), currency)}
-                      {cycle && <em> / cycle</em>}
+                      {priceModeOf(s) === 'variable' ? `${t('dès')} ` : ''}{prix(prixDe(s), currency)}
+                      {cycle && <em> {t('/ cycle')}</em>}
                     </span>
                   </div>
                   <div className="mc-pack__meta">
-                    {lignes.length} prestation{lignes.length > 1 ? 's' : ''} · {nbSeances} séance{nbSeances > 1 ? 's' : ''}
+                    {lignes.length > 1 ? t('{n} prestations', { n: lignes.length }) : t('{n} prestation', { n: lignes.length })} · {nbSeances > 1 ? t('{n} séances', { n: nbSeances }) : t('{n} séance', { n: nbSeances })}
                     {' · '}{fmtDuration(s.durationMin)}
                   </div>
                   <div className="mc-pack__quoi">
-                    {noms.join(' · ')}{reste > 0 ? ` · et ${reste} autre${reste > 1 ? 's' : ''}` : ''}
+                    {noms.join(' · ')}{reste > 0 ? ` · ${reste > 1 ? t('et {n} autres', { n: reste }) : t('et {n} autre', { n: reste })}` : ''}
                   </div>
                   {s.description && <div className="mc-pack__mot">{s.description}</div>}
                   <button
                     className="mc-cta mc-cta--copper mc-pack__cta"
                     onClick={() => (cycle ? setCycleOuvert(s) : onReserver(s.id))}
                   >
-                    Réserver ce forfait
+                    {t('Réserver ce forfait')}
                   </button>
                   {cycle && (
                     <div className="mc-pack__note">
-                      Vos {nbSeances} dates se posent toutes seules, à la cadence de la Maison,
-                      vous n’avez qu’à confirmer. Règlement en deux fois.
+                      {t('Vos {n} dates se posent toutes seules, à la cadence de la Maison, vous n’avez qu’à confirmer. Règlement en deux fois.', { n: nbSeances })}
                     </div>
                   )}
                 </div>
@@ -596,11 +595,11 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
         {mode === 'abonnement' && activeGroups.length === 0 && (
           <div className="mc-emptyzone">
             <div className="mc-emptyzone__glyph">✦</div>
-            <div className="mc-emptyzone__t">Le sur-mesure se prépare.</div>
+            <div className="mc-emptyzone__t">{t('Le sur-mesure se prépare.')}</div>
             <div className="mc-emptyzone__s">
               {mode === 'abonnement'
-                ? 'Les soins d’abonnement seront bientôt disponibles à la composition.'
-                : 'Les prestations composables arrivent, la maison affine sa carte, mèche après mèche.'}
+                ? t('Les soins d’abonnement seront bientôt disponibles à la composition.')
+                : t('Les prestations composables arrivent, la maison affine sa carte, mèche après mèche.')}
             </div>
           </div>
         )}
@@ -618,14 +617,14 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                     <div className="mc-cmitem__body">
                       <div className="mc-cmitem__name">{s.name}</div>
                       <div className="mc-cmitem__meta">
-                        {fmtDuration(s.durationMin)} · {s.sessions} séance{s.sessions > 1 ? 's' : ''} · {priceModeOf(s) === 'variable' ? 'dès ' : ''}{fmtMoney(prixDe(s), currency)}
+                        {fmtDuration(s.durationMin)} · {s.sessions > 1 ? t('{n} séances', { n: s.sessions }) : t('{n} séance', { n: s.sessions })} · {priceModeOf(s) === 'variable' ? `${t('dès')} ` : ''}{prix(prixDe(s), currency)}
                       </div>
                     </div>
                     <div className="mc-cmitem__qty">
                       <button
                         className="mc-qtybtn mc-qtybtn--minus"
                         disabled={q === 0}
-                        aria-label={`Retirer ${s.name}`}
+                        aria-label={t('Retirer {nom}', { nom: s.name })}
                         onClick={() => bump(s.id, -1)}
                       >
                         −
@@ -633,7 +632,7 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
                       <span className={`mc-cmitem__count ${q > 0 ? 'is-on' : ''}`}>{q}</span>
                       <button
                         className={`mc-qtybtn mc-qtybtn--plus ${q > 0 ? 'is-on' : ''}`}
-                        aria-label={`Ajouter ${s.name}`}
+                        aria-label={t('Ajouter {nom}', { nom: s.name })}
                         onClick={() => bump(s.id, 1)}
                       >
                         +
@@ -654,31 +653,31 @@ export default function Compose({ onClose, toast, onReserver }: Props) {
       <div className="mc-cmfooter">
         {count > 0 && (
           <>
-            <div className="mc-cmfooter__row"><span>Sous-total</span><span>{fmtMoney(subtotal, currency)}</span></div>
+            <div className="mc-cmfooter__row"><span>{t('Sous-total')}</span><span>{prix(subtotal, currency)}</span></div>
             <div className="mc-cmfooter__row mc-cmfooter__row--deal">
-              <span>{mode === 'abonnement' ? 'Avantage abonné' : 'Avantage ponctuel'} · −{discountPct} %</span>
-              <span>− {fmtMoney(discount, currency)}</span>
+              <span>{mode === 'abonnement' ? t('Avantage abonné · −{pct} %', { pct: discountPct }) : t('Avantage ponctuel · −{pct} %', { pct: discountPct })}</span>
+              <span>− {prix(discount, currency)}</span>
             </div>
           </>
         )}
         <div className="mc-cmfooter__total">
-          <span>{count} prestation{count > 1 ? 's' : ''}</span>
+          <span>{count > 1 ? t('{n} prestations', { n: count }) : t('{n} prestation', { n: count })}</span>
           <strong>
-            {fmtMoney(total, currency)}
-            {mode === 'abonnement' ? <em> / cycle</em> : null}
+            {prix(total, currency)}
+            {mode === 'abonnement' ? <em> {t('/ cycle')}</em> : null}
           </strong>
         </div>
         {aboBlocked && (
           <div className="mc-cmfooter__hint">
             <span>⚑</span>
-            <span>Abonnement · {sm.aboMin} prestations minimum ({count}/{sm.aboMin}), complétez vos soins pour activer l’avantage −{sm.aboPct} %.</span>
+            <span>{t('Abonnement · {min} prestations minimum ({n}/{min}), complétez vos soins pour activer l’avantage −{pct} %.', { min: sm.aboMin, n: count, pct: sm.aboPct })}</span>
           </div>
         )}
         {count === 0 && !aboBlocked && (
-          <div className="mc-cmfooter__hint mc-cmfooter__hint--soft">Ajoutez au moins une prestation pour composer.</div>
+          <div className="mc-cmfooter__hint mc-cmfooter__hint--soft">{t('Ajoutez au moins une prestation pour composer.')}</div>
         )}
         <button className={`mc-cta ${canCompose ? 'mc-cta--indigo' : 'mc-cta--locked'}`} disabled={!canCompose} onClick={compose}>
-          Composer · transmettre au Trône
+          {t('Composer · transmettre au Trône')}
         </button>
       </div>
       )}

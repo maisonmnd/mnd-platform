@@ -278,6 +278,22 @@ async function principal() {
 
   const proprietaire = compte();
   const sha = git(['rev-parse', '--short', 'HEAD']);
+
+  /* ══ LE CODE PART AUSSI SUR GITHUB — 4 octobre 2026 ═══════════════════
+     L'éditeur du site publie en un clic : GitHub refabrique alors le site
+     sur ses serveurs, depuis le code de `main`. Si `main` restait en retard
+     sur ce poste, le serveur fabriquerait un site d'avant et déferait les
+     derniers changements. Accord de Yéman au sélecteur : « à chaque mise en
+     ligne ». Seuls les commits partent ; ce qui n'est pas commité reste ici.
+     Sur le serveur lui-même (GitHub Actions), rien à pousser. */
+  if (!process.env.GITHUB_ACTIONS && !process.env.MND_SANS_CODE) {
+    try {
+      git(['push', 'origin', 'HEAD:main']);
+      console.log(`Code envoyé sur GitHub (main @ ${sha}).`);
+    } catch (e) {
+      console.warn(`Le code n'a pas pu partir sur GitHub (${String(e.message).split('\n')[0]}). Tant qu'il manque, une publication depuis l'éditeur du site fabriquerait une version plus ancienne : relancez la mise en ligne.`);
+    }
+  }
   const nomAuteur = (() => { try { return git(['config', 'user.name']); } catch { return 'MND'; } })();
   const mailAuteur = (() => { try { return git(['config', 'user.email']); } catch { return 'noreply@maisonmnd'; } })();
   const message = process.env.MND_MESSAGE ?? `Publication @ ${sha}`;

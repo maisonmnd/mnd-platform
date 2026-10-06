@@ -78,7 +78,7 @@ export const DEVISE_MAISON = 'mi nyɔ́ ɖɛkpɛ';
     belle », puis « nous sommes beaux » le 24 septembre ; elle dit « vous »
     depuis le 25. Aucune de ces versions n'était une faute de traduction :
     c'était à chaque fois un choix de la Maison, et celui-ci est le dernier. */
-export const DEVISE_TRADUITE = 'vous êtes beaux, et vous le savez';
+export const DEVISE_TRADUITE = 'vous êtes beaux, votre beauté est déjà là';
 
 /* LA DEVISE ENTIÈRE, telle qu’elle s’écrit.
    Le fon, puis le français QUI LE PROLONGE — 25 septembre 2026. Elle disait
@@ -91,7 +91,10 @@ export const DEVISE_TRADUITE = 'vous êtes beaux, et vous le savez';
    ET C'EST UNE VIRGULE, PAS LE POINT MÉDIAN. Le point médian sépare deux
    choses de même rang (« SÍNSÍN™ · La Reprise ») ; ici la seconde moitié
    dépend de la première, et une phrase ne se coupe pas d'un point. */
-export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ, et vous le savez';
+/* DEPUIS LE 30 SEPTEMBRE 2026 : « votre beauté est déjà là » remplace « et vous
+   le savez », partout (Yéman). Le fon ne bouge pas ; c'est l'écho français qui
+   change, et il change d'un seul geste, ici. */
+export const DEVISE_COMPLETE = 'mi nyɔ́ ɖɛkpɛ, votre beauté est déjà là';
 
 /** Signature au bas d'un message : le picto de la branche, le nom, la devise.
     ⚠ Un lien wa.me ne transporte QUE du texte — le monogramme dessiné ne peut

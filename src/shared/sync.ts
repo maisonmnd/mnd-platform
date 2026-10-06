@@ -1,6 +1,11 @@
 import type { Store } from './store';
 import { supabase } from './supabase';
 import { attendsLaPorte } from './auth';
+import { serveurInjoignable } from './hors-ligne';
+import { litToutesLesPages } from './lecture-entiere';
+import { noteUneEcritureRecue } from './poids-de-la-memoire';
+import { contenuCanonique, memeContenu } from './meme-contenu';
+import { arbitre, declareLecteurDeLigne, ecrisLaFile, gestesEntre, leGesteLocalTient, lisLaFile, noteLesConflits, oublieLeConflit, recus, type Conflit, type Entree } from './file-d-attente';
 import {
   tableSuivie, CARTE_DES_TABLES, champsChanges, inscrisLesGestes, identiteCourante,
   type Geste, type GesteVerbe, type ChampChange,
@@ -24,6 +29,8 @@ import './version'; // veille de version : l'app se recharge quand un déploieme
    de casse : les formes camelCase du front sont stockées telles quelles. */
 
 const PUSH_DEBOUNCE_MS = 250;
+/** Lignes par requête d'écriture : une réécriture massive part en plusieurs envois. */
+const TRANCHE_D_ENVOI = 400;
 
 /* ---------- État de synchronisation (affiché en topbar) ----------
    Sans indicateur, un échec de push partait en console.warn : la caissière ne
@@ -32,6 +39,10 @@ const PUSH_DEBOUNCE_MS = 250;
    l'état réseau — le Shell affiche une pastille d'un mot. */
 export type SyncState = {
   enabled: boolean; online: boolean; pending: number; failed: number;
+  /** CE QUI ATTEND DE PARTIR, PAR SON NOM — 1er octobre 2026. « Synchronisation… »
+      sans fin ne disait pas QUOI tournait : il a fallu lire le code pour trouver que
+      les fiches se réécrivaient en boucle. La pastille nomme désormais ses tables. */
+  pendingNames: string[];
   failedNames: string[];
   /** Ce qui a été refusé, et POURQUOI — une entrée par table en échec. */
   failedWhy: { table: string; raison: string; brut: string }[];
@@ -241,6 +252,7 @@ let lastOkAt: number | null = null;
 let syncSnapshot: SyncState = {
   enabled: !!supabase,
   online: !ditHorsLigne,
+  pendingNames: [],
   failedNames: [],
   failedWhy: [],
   ecartees: [],
@@ -258,6 +270,7 @@ function bumpSync(): void {
   syncSnapshot = {
     enabled: !!supabase, online: !ditHorsLigne,
     pending: dirtyTables.size, failed: failedTables.size,
+    pendingNames: [...dirtyTables].sort(),
     failedNames: noms,
     failedWhy: noms.map((t) => {
       const brut = failedTables.get(t) ?? '';
@@ -639,6 +652,66 @@ type WithId = { id: string; branchId?: string };
    `supabase/0016_supprimer_branche_studio.sql`), jamais par le diff d'un cache. */
 const SANS_SUPPRESSION = new Set(['branches']);
 
+/* ── LES TABLES PRÉCIEUSES NE PERDENT PAS DE LOT — 6 octobre 2026 ─────
+   « Plusieurs RDV sont perdus pourtant ils ont bien été rentrés » (Yéman).
+   La trace de la base l'a dit : le 28 septembre à 9 h 14 min 53 s, à la
+   même fraction de seconde, 169 rendez-vous ont été effacés par la
+   synchronisation d'un téléphone (dont des rituels HONORÉS de février et
+   de juillet). Le seuil de masse (≥ 10 lignes ET ≥ 25 % de la table) les a
+   laissés passer : 169 sur 1 169, c'est 14 %. Plus la table grandit, plus
+   un lot doit être gros pour qu'on le voie : la règle s'affaiblissait avec
+   l'histoire de la Maison.
+
+   Un rendez-vous ou une fiche cliente s'efface À LA MAIN, un par un. Au-delà
+   de `LOT_PRECIEUX` lignes dans une même poussée, ce n'est plus un geste :
+   c'est un état local qui a perdu des lignes. On refuse, on se réaligne sur
+   le serveur, quelle que soit la taille de la table. Un écran qui retire
+   VOLONTAIREMENT un lot (une série de rituels) le déclare d'abord
+   (`autoriserLaPurge`). */
+const PRECIEUSES = new Set(['appointments', 'clients']);
+export const LOT_PRECIEUX = 3;
+
+/** LE JUGE DES SUPPRESSIONS D'UNE POUSSÉE — pur, éprouvé par le harnais.
+    Rend la raison du refus, ou `null` si le lot peut partir. */
+/* ══ LA MAIN ET LA MACHINE — 6 octobre 2026, le soir ═══════════════════
+   « La suppression est volontaire, ce sont des RDV erronés » (Yéman, des 169
+   du 28 septembre). Le Trône n'a aucun écran pour effacer des rendez-vous en
+   lot : on les efface un par un. Effacés HORS LIGNE sur un téléphone, ils
+   attendent dans la file et partent ENSEMBLE au retour du réseau — un seul
+   envoi, comme un accident. La règle des trois aurait refusé ces gestes et
+   fait revenir les rendez-vous.
+
+   La différence se lit à l'HEURE de chaque geste, gardée par la file : une
+   main efface une ligne à la fois, chacune à son instant ; une machine en
+   efface des dizaines à la même milliseconde. On juge donc le plus gros lot
+   effacé AU MÊME INSTANT, pas la taille de l'envoi. Une suppression sans
+   heure connue compte avec les autres sans heure. */
+export function plusGrosLotDuMemeInstant(ids: readonly string[], heureDe: (id: string) => string | undefined): number {
+  const parInstant = new Map<string, number>();
+  for (const id of ids) {
+    const k = heureDe(id) ?? '(sans heure)';
+    parInstant.set(k, (parInstant.get(k) ?? 0) + 1);
+  }
+  return Math.max(0, ...parInstant.values());
+}
+
+export function suppressionRefusee(
+  table: string, effaces: number, taille: number, purgeVoulue: boolean,
+  /** Le plus gros lot effacé au même instant ; par défaut, tout l'envoi. */
+  lotDuMemeInstant: number = effaces,
+): 'structurelle' | 'vide' | 'masse' | null {
+  if (effaces === 0) return null;
+  if (SANS_SUPPRESSION.has(table)) return 'structurelle';
+  if (purgeVoulue) return null;
+  if (taille > 1 && effaces >= taille) return 'vide';
+  /* Le journal des mouvements se rembobine par grappes : seul « vider tout »
+     lui reste interdit. */
+  if (table === 'stock_mouvements') return null;
+  if (effaces >= 10 && effaces * 4 >= taille) return 'masse';
+  if (PRECIEUSES.has(table) && lotDuMemeInstant > LOT_PRECIEUX) return 'masse';
+  return null;
+}
+
 /** Lie un magasin de collection (tableau d'objets à `id`) à une table distante. */
 /* ── LA PURGE DÉCLARÉE — 19 août 2026 ──────────────────────────────
    Le garde-fou des suppressions bloque tout effacement de masse : c'est lui
@@ -652,6 +725,30 @@ const SANS_SUPPRESSION = new Set(['branches']);
    avant d'écrire. Le laissez-passer vaut UNE poussée : consommé aussitôt,
    utilisé ou non, il ne peut jamais couvrir l'accident de demain. Les tables
    structurelles restent intouchables — aucun laissez-passer ne les ouvre. */
+/* ══ REPRENDRE SA VERSION — 4 octobre 2026 ══════════════════════════════
+   Un conflit garde la version écartée ; « Reprendre ma version » la repose
+   dans son magasin comme un geste NEUF, à son heure : elle gagne à son tour
+   (le dernier geste), part au serveur, et la trace garde les trois. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const magasinsParTable = new Map<string, Store<any>>();
+export function reprendsMaVersion(c: Conflit): boolean {
+  if (c.table === 'documents') {
+    const m = magasinsParTable.get(`documents:${c.id}`);
+    if (!m || c.notre === null) return false;
+    m.set(JSON.parse(c.notre));
+  } else {
+    const m = magasinsParTable.get(c.table) as Store<{ id: string }[]> | undefined;
+    if (!m) return false;
+    if (c.notre === null) m.set((prev) => prev.filter((x) => x.id !== c.id));
+    else {
+      const notre = JSON.parse(c.notre) as { id: string };
+      m.set((prev) => (prev.some((x) => x.id === c.id) ? prev.map((x) => (x.id === c.id ? notre : x)) : [...prev, notre]));
+    }
+  }
+  oublieLeConflit(c.table, c.id, c.vuLe);
+  return true;
+}
+
 const purgesAutorisees = new Set<string>();
 export function autoriserLaPurge(table: string): void { purgesAutorisees.add(table); }
 
@@ -672,8 +769,20 @@ export function bindCollection<T extends WithId>(
      du dépôt, vérifié table par table. */
   options?: { colonnes?: (it: T) => Record<string, unknown> },
 ): void {
+  magasinsParTable.set(table, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
+  /* La ligne actuelle, pour savoir si un conflit a été tranché depuis. */
+  declareLecteurDeLigne(table, (id) => store.get().find((x) => x.id === id));
   if (!supabase) return;
   const sb = supabase;
+
+  /* TOUTE LA TABLE, JAMAIS UNE TRANCHE — 1er octobre 2026. Supabase plafonne chaque
+     réponse à mille lignes ; depuis le millième rendez-vous, un `select` nu lisait
+     une tranche en la prenant pour la table (voir lecture-entiere.ts). Les quatre
+     lectures de ce magasin passent par ici. */
+  const litTouteLaTable = () => litToutesLesPages<{ id: string; data: unknown }>((apres, taille) => {
+    const q = sb.from(table).select('id,data').order('id', { ascending: true }).limit(taille);
+    return apres === null ? q : q.gt('id', apres);
+  });
 
   let applyingRemote = false;
   let lastPushed = new Map<string, string>();
@@ -690,14 +799,101 @@ export function bindCollection<T extends WithId>(
     return m;
   };
 
-  /* LES ÉCRITURES DU FROID. Tant que la première lecture n'est pas arrivée,
-     chaque geste local s'enregistre ici — dernière valeur par id, suppressions
-     par id — pour être REJOUÉ sur l'état du serveur au lieu d'être effacé par
-     lui. Le repère `vuFroid` part du cache : seuls les gestes de CETTE session
-     comptent, jamais les lignes d'hier (qui, elles, cèdent devant le serveur). */
-  let vuFroid = snapshot(store.get());
-  const froidModifies = new Map<string, string>();
-  const froidSupprimes = new Set<string>();
+  /* ══ LA FILE D'ATTENTE DURABLE — 4 octobre 2026 (shared/file-d-attente) ══
+     Elle remplace « les écritures du froid », qui ne valaient que pour la
+     SÉANCE : un geste fait sans réseau puis l'application fermée était effacé
+     par le serveur à la réouverture. Chaque geste local s'inscrit désormais
+     avec son heure, se garde sur l'appareil, et n'en sort que reçu par le
+     serveur. Au retour, il est rejoué sur l'état du serveur, et quand la même
+     ligne a bougé ailleurs, le geste le plus récent l'emporte (`arbitre`).
+
+     Le repère `vu*` est le dernier état LOCAL observé : un geste est ce qui
+     en diffère. On ne resérialise que les lignes dont l'objet a changé. */
+  const attente = lisLaFile(table);
+  let vuRefs = new Map<string, T>();
+  let vuJson = new Map<string, string>();
+  const observe = (items: readonly T[]): Map<string, string> => {
+    const refs = new Map<string, T>();
+    const js = new Map<string, string>();
+    for (const it of items) {
+      refs.set(it.id, it);
+      js.set(it.id, vuRefs.get(it.id) === it ? (vuJson.get(it.id) ?? JSON.stringify(it)) : JSON.stringify(it));
+    }
+    vuRefs = refs;
+    vuJson = js;
+    return js;
+  };
+  observe(store.get());
+  const inscris = (gestes: ReadonlyMap<string, Entree>): void => {
+    if (gestes.size === 0) return;
+    for (const [id, e] of gestes) attente.set(id, e);
+    ecrisLaFile(table, attente);
+  };
+  const sortDeLaFile = (ids: readonly string[]): void => {
+    if (ids.length === 0) return;
+    let bouge = false;
+    for (const id of ids) bouge = attente.delete(id) || bouge;
+    if (bouge) ecrisLaFile(table, attente);
+  };
+  /* L'heure de la dernière écriture du serveur, pour les seules lignes en
+     attente. `null` si elle ne se lit pas : le téléphone fait foi alors. */
+  const litLesHeures = async (ids: readonly string[]): Promise<Map<string, string> | null> => {
+    const m = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await sb.from(table).select('id,updated_at').in('id', ids.slice(i, i + 200));
+      if (error) return null;
+      for (const r of (data ?? []) as { id: string; updated_at?: string }[]) if (r.updated_at) m.set(r.id, r.updated_at);
+    }
+    return m;
+  };
+  /* Rejoue la file sur un état du serveur. Un geste posé PENDANT la lecture
+     des heures (une frappe, une vente) se repose par-dessus, sans arbitrage :
+     il ne peut pas être plus ancien que ce qu'on vient de lire. */
+  /* UNE SEULE FUSION À LA FOIS : à l'ouverture, la première lecture et la
+     relecture du canal arrivent ensemble ; deux arbitrages parallèles sur la
+     même file notaient deux fois le même conflit. */
+  let fusionEnCours: Promise<unknown> | null = null;
+  const fusionne = async (serverItems: T[]): Promise<{ items: T[]; aPousser: boolean }> => {
+    while (fusionEnCours) await fusionEnCours;
+    const tour = fusionneSeule(serverItems);
+    fusionEnCours = tour;
+    try { return await tour; } finally { if (fusionEnCours === tour) fusionEnCours = null; }
+  };
+  const fusionneSeule = async (serverItems: T[]): Promise<{ items: T[]; aPousser: boolean }> => {
+    if (attente.size === 0) return { items: serverItems, aPousser: false };
+    const debut = new Date().toISOString();
+    const instantane = new Map(attente);
+    const quand = await litLesHeures([...instantane.keys()]);
+    const a = arbitre(serverItems, quand, instantane, contenuCanonique);
+    if (a.conflits.length) {
+      const vuLe = new Date().toISOString();
+      noteLesConflits(a.conflits.map((c) => ({ ...c, table, vuLe, magasin: store.key })));
+      console.warn(`[mnd-sync] ${table} : ${a.conflits.length} geste(s) plus ancien(s) qu'une écriture d'ailleurs, gardé(s) en conflit.`);
+    }
+    sortDeLaFile(a.finis.filter((id) => instantane.get(id) === attente.get(id)));
+    let items = a.items;
+    let aPousser = a.aPousser.length > 0;
+    const tardifs = [...attente].filter(([, e]) => e.at >= debut);
+    if (tardifs.length) {
+      const parId = new Map(items.map((it) => [it.id, it]));
+      for (const [id, e] of tardifs) {
+        if (e.op === 'del') parId.delete(id);
+        else if (e.j) parId.set(id, JSON.parse(e.j) as T);
+      }
+      items = [...parId.values()];
+      aPousser = true;
+    }
+    return { items, aPousser };
+  };
+  /* UN REFUS DE DROIT NE GUÉRIT PAS EN ATTENDANT : le geste sort de la file
+     (sinon il compterait « en attente » pour toujours et reviendrait à chaque
+     ouverture). Il reste dans le diff de la séance, au cas où les droits
+     s'ouvrent (session rafraîchie) ; seule la panne de RÉSEAU le garde au-delà. */
+  const refuseeAuxDroits = (ids: readonly string[]): void => {
+    if (ids.length === 0) return;
+    console.warn(`[mnd-sync] ${table} : ${ids.length} geste(s) refusé(s) par les droits, retiré(s) de la file d'attente.`);
+    sortDeLaFile(ids);
+  };
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   /* LE REGISTRE DE NOS PROPRES ÉCHOS — 18 août 2026, le champ « ce que la
@@ -720,7 +916,10 @@ export function bindCollection<T extends WithId>(
     const now = Date.now();
     for (const r of rows) {
       const liste = (echosAttendus.get(r.id) ?? []).filter((e) => now - e.at < ECHO_MEMOIRE_MS);
-      liste.push({ j: JSON.stringify(r.data), at: now });
+      /* LE CONTENU RANGÉ (2 octobre 2026) : la base rend nos lignes avec leurs
+         champs dans un autre ordre, et un écho comparé par son texte brut
+         n'était plus reconnu pour le nôtre. */
+      liste.push({ j: contenuCanonique(r.data), at: now });
       echosAttendus.set(r.id, liste);
     }
   };
@@ -773,7 +972,7 @@ export function bindCollection<T extends WithId>(
          local) connaît toutes les lignes du serveur et passe sans obstacle. */
       const massif = upserts.length >= 10 && upserts.length * 4 >= prev.size;
       if (massif) {
-        const { data: distant } = await sb.from(table).select('id,data');
+        const { data: distant } = await litTouteLaTable();
         const inconnues = (distant ?? []).filter((r) => !next.has((r as { id: string }).id));
         if (inconnues.length) {
           console.warn(
@@ -784,6 +983,9 @@ export function bindCollection<T extends WithId>(
           store.set(items2);
           applyingRemote = false;
           lastPushed = snapshot(items2);
+          /* Le garde-fou a jugé l'état local suspect : sa file part avec lui,
+             sinon elle reviendrait au prochain retour (4 octobre 2026). */
+          sortDeLaFile([...attente.keys()]);
           /* LE GARDE-FOU A FAIT SON TRAVAIL : la poussée périmée est abandonnée
              et le poste porte maintenant EXACTEMENT ce que porte le serveur.
              Il n'y a donc plus rien en attente — annoncer « en échec » serait
@@ -796,11 +998,18 @@ export function bindCollection<T extends WithId>(
       }
       /* AVANT l'envoi : l'écho peut revenir pendant que la requête vole. */
       noteLesPoussees(upserts as { id: string; data: T }[]);
-      const { error } = await sb.from(table).upsert(upserts);
-      /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
-         écrit (voir plus haut) — le repère doit rester en arrière. */
-      if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return false; }
-      if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
+      /* PAR TRANCHES DE 400 — 4 octobre 2026, la bascule des caisses réécrit
+         d'un geste toutes les pièces d'avant octobre. Un seul envoi de quelques
+         milliers de lignes risquait le plafond de la requête ; une tranche
+         refusée n'arrête pas les autres, et l'échec se dit comme avant. */
+      for (let i = 0; i < upserts.length; i += TRANCHE_D_ENVOI) {
+        const tranche = upserts.slice(i, i + TRANCHE_D_ENVOI);
+        const { error } = await sb.from(table).upsert(tranche);
+        /* Refus de droit : on cesse d'insister, mais on ne prétend PAS avoir
+           écrit (voir plus haut) — le repère doit rester en arrière. */
+        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(tranche.map((u) => u.id)); return false; }
+        if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} upsert:`, error.message); }
+      }
     }
     if (deletes.length) {
       /* GARDE-FOU des suppressions (incident du 23-07 : 28 prestations effacées
@@ -824,7 +1033,8 @@ export function bindCollection<T extends WithId>(
 
          Ce qui reste permis : retirer un persona parmi six, une caisse parmi
          trois — un geste délibéré, qui laisse la table debout. */
-      const structurelle = SANS_SUPPRESSION.has(table);
+      const refusDuLot = suppressionRefusee(table, deletes.length, prev.size, purgeVoulue,
+        plusGrosLotDuMemeInstant(deletes, (id) => { const e = attente.get(id); return e?.op === 'del' ? e.at : undefined; }));
       /* UNE SEULE LIGNE N'EST JAMAIS UN VIDAGE — 22 août 2026.
          « À chaque fois que je retire une enveloppe, elle revient. »
 
@@ -839,22 +1049,20 @@ export function bindCollection<T extends WithId>(
          seuil part donc de DEUX : au-delà, le doute reste entier ; à un, le
          geste est délibéré, et son coût — une ligne — est sans commune mesure
          avec celui de ne plus jamais pouvoir supprimer. */
-      const videTout = prev.size > 1 && deletes.length >= prev.size;
-      const enMasse = deletes.length >= 10 && deletes.length * 4 >= prev.size;
+
       /* LE JOURNAL DES MOUVEMENTS SE REMBOBINE PAR RÉFÉRENCE : annuler une
          fabrication à douze ingrédients ou la suppression d'une facture retire
          d'un bloc une grappe de lignes — un geste LÉGITIME qui, dans un journal
          encore jeune, ressemble au seuil de masse. Pour cette table, seul
          « vider tout » reste interdit : le rembobinage laisse toujours le
          journal debout. */
-      const journalRembobinable = table === 'stock_mouvements';
+
       /* Le laissez-passer (consommé en tête de poussée) lève « vider tout »
          et « en masse » — jamais la protection des tables structurelles. */
-      const massive = structurelle || ((videTout || (enMasse && !journalRembobinable)) && !purgeVoulue);
-      if (massive) {
-        const motif = structurelle
+      if (refusDuLot) {
+        const motif = refusDuLot === 'structurelle'
           ? 'table structurelle, une suppression ne peut venir que du SQL'
-          : videTout
+          : refusDuLot === 'vide'
             ? 'ce diff VIDERAIT la table'
             : 'état local suspect';
         console.warn(`[mnd-sync] ${table} : suppression BLOQUÉE (${deletes.length}/${prev.size} lignes), ${motif}. Rien n'a été effacé du serveur.`);
@@ -865,17 +1073,20 @@ export function bindCollection<T extends WithId>(
            On va donc rechercher la vérité au serveur et on s'aligne dessus.
            Le poste redevient sain sans qu'on ait à lui demander quoi que ce
            soit, et rien n'a été détruit. */
-        const { data: distant } = await sb.from(table).select('id,data');
+        const { data: distant } = await litTouteLaTable();
         const items2 = (distant ?? []).map((r) => (r as { data: T }).data);
         applyingRemote = true;
         store.set(items2);
         applyingRemote = false;
         lastPushed = snapshot(items2);
+          /* Le garde-fou a jugé l'état local suspect : sa file part avec lui,
+             sinon elle reviendrait au prochain retour (4 octobre 2026). */
+          sortDeLaFile([...attente.keys()]);
         syncMark.ok(table);
         return true;
       } else {
         const { error } = await sb.from(table).delete().in('id', deletes);
-        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); return false; }
+        if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(table); refuseeAuxDroits(deletes); return false; }
         if (error) { ok = false; refus ??= error.message; console.warn(`[mnd-sync] ${table} delete:`, error.message); }
       }
     }
@@ -963,7 +1174,12 @@ export function bindCollection<T extends WithId>(
          diff futur : l'ecriture etait perdue sans retour possible, et le
          rechargement suivant l'effacait. */
       void pushDiff(prev, next, items).then((ok) => {
-        if (ok) lastPushed = next;
+        if (ok) {
+          lastPushed = next;
+          /* Ce que le serveur vient de recevoir sort de la file ; un geste
+             posé pendant l'envoi y reste et partira au tour suivant. */
+          sortDeLaFile(recus(attente, next));
+        }
       });
     }, PUSH_DEBOUNCE_MS);
   };
@@ -977,24 +1193,18 @@ export function bindCollection<T extends WithId>(
      posés pendant la fenêtre froide (une vente, un rembobinage) se
      réappliquent par-dessus, puis repartent par la poussée normale.
      `lastPushed` reste l'état SERVEUR : c'est le diff qui porte les gestes. */
-  const premiereLecture = (serverItems: T[]): void => {
-    const aRejouer = froidModifies.size > 0 || froidSupprimes.size > 0;
-    let items = serverItems;
-    if (aRejouer) {
-      const parId = new Map<string, T>(serverItems.map((it) => [it.id, it]));
-      for (const id of froidSupprimes) parId.delete(id);
-      for (const [id, j] of froidModifies) parId.set(id, JSON.parse(j) as T);
-      items = [...parId.values()];
-    }
+  /* LA FILE SE REJOUE (4 octobre 2026) : les gestes en attente — de cette
+     séance ou d'une séance d'avant, faits hors ligne — passent par l'arbitre
+     au lieu d'être effacés par le serveur. */
+  const premiereLecture = async (serverItems: T[]): Promise<void> => {
+    const { items, aPousser } = await fusionne(serverItems);
     applyingRemote = true;
     store.set(items);
     applyingRemote = false;
     lastPushed = snapshot(serverItems);
     lu = true;
-    froidModifies.clear();
-    froidSupprimes.clear();
     marqueTableResolue(table);
-    if (aRejouer) planifiePoussee();
+    if (aPousser) planifiePoussee();
   };
 
   // 1. Hydratation — MAIS PAS AVANT QUE LA SESSION SOIT LÀ.
@@ -1034,7 +1244,7 @@ export function bindCollection<T extends WithId>(
       session = (await sb.auth.getSession()).data.session;
     }
     if (!session) return;
-    const { data, error } = await sb.from(table).select('id,data');
+    const { data, error } = await litTouteLaTable();
     if (error) {
       /* Une LECTURE ratee doit se voir elle aussi. La pastille restait « Synchronise »
          sur un poste qui travaillait en realite sur son seul cache local — table
@@ -1048,7 +1258,7 @@ export function bindCollection<T extends WithId>(
       return;
     }
     if (data && data.length) {
-      premiereLecture(data.map((r) => (r as { data: T }).data));
+      await premiereLecture(data.map((r) => (r as { data: T }).data));
     } else {
       /* Table serveur VIDE — ET LE SERVEUR FAIT FOI. On aligne le magasin local
          sur ce vide, sans rien pousser.
@@ -1065,10 +1275,10 @@ export function bindCollection<T extends WithId>(
          de l'usage »). Et si un poste avait des lignes d'HIER que le serveur
          n'a jamais reçues, elles cèdent devant lui. C'est le sens de « le
          serveur fait foi » : une seule vérité, la même pour tous les
-         appareils, qu'on peut effacer pour de bon. Seuls les gestes de CETTE
-         session — la fenêtre froide — se rejouent par-dessus : posés il y a
-         quelques secondes, ils ne peuvent pas être périmés. */
-      premiereLecture([]);
+         appareils, qu'on peut effacer pour de bon. Seuls les gestes de la
+         FILE D'ATTENTE se rejouent par-dessus (4 octobre 2026) : faits sur ce
+         téléphone, notés à leur heure, jamais encore reçus. */
+      await premiereLecture([]);
     }
   })();
 
@@ -1091,13 +1301,26 @@ export function bindCollection<T extends WithId>(
     }
     if (!force && Date.now() - lastRefetch < 15000) return;
     lastRefetch = Date.now();
-    const { data, error } = await sb.from(table).select('id,data');
+    const { data, error } = await litTouteLaTable();
     if (error || !data) return;
     const items = data.map((r) => (r as { data: T }).data);
     /* Le refetch vaut lecture : c'est souvent LUI qui hydrate pour de bon,
        quand la session arrive apres le chargement du module — et il rejoue
        alors les gestes de la fenêtre froide comme l'hydratation. */
-    if (!lu) { premiereLecture(items); return; }
+    if (!lu) { await premiereLecture(items); return; }
+    /* DES GESTES ATTENDENT ENCORE (4 octobre 2026) : relire le serveur ne
+       doit pas les effacer. Ce chemin les perdait au retour du réseau — le
+       focus revenait avant la poussée, le serveur remplaçait tout, et le
+       repère avançait par-dessus le geste. On les rejoue par l'arbitre. */
+    if (attente.size > 0) {
+      const { items: fusion, aPousser } = await fusionne(items);
+      applyingRemote = true;
+      store.set(fusion);
+      applyingRemote = false;
+      lastPushed = snapshot(items);
+      if (aPousser) planifiePoussee();
+      return;
+    }
     const next = snapshot(items);
     const cur = snapshot(store.get());
     const same = next.size === cur.size && [...next].every(([k, v]) => cur.get(k) === v);
@@ -1108,12 +1331,21 @@ export function bindCollection<T extends WithId>(
     lastPushed = next;
   };
   /* RETOUR DU RESEAU : on relance une poussee. Sans cela, les ecritures faites
-     hors ligne attendaient qu'on les re-modifie a la main pour repartir. */
+     hors ligne attendaient qu'on les re-modifie a la main pour repartir.
+     DEPUIS LE 4 OCTOBRE, ON RELIT D'ABORD : pendant la coupure, un autre poste
+     a pu écrire sur les mêmes lignes, et le dernier geste doit gagner. */
   window.addEventListener('online', () => {
-    const items = store.get();
-    void pushDiff(lastPushed, snapshot(items), items).then((ok) => {
-      if (ok) lastPushed = snapshot(store.get());
-    });
+    /* Jamais lu (ouvert sans réseau) : la première lecture rejoue la file.
+       Lu et rien en attente : on pousse simplement ce qui reste. */
+    if (lu && attente.size === 0) {
+      const items = store.get();
+      const next = snapshot(items);
+      void pushDiff(lastPushed, next, items).then((ok) => {
+        if (ok) { lastPushed = next; sortDeLaFile(recus(attente, next)); }
+      });
+      return;
+    }
+    void attendsLaPorte().then(() => refetch(true));
   });
   window.addEventListener('focus', () => void refetch());
   document.addEventListener('visibilitychange', () => {
@@ -1156,25 +1388,19 @@ export function bindCollection<T extends WithId>(
   // 2. Poussée des changements locaux (coalescée).
   store.subscribe(() => {
     if (applyingRemote) {
-      /* Écriture DISTANTE (Realtime) pendant la fenêtre froide : le repère
-         suit, pour ne pas prendre ces lignes pour des gestes locaux. */
-      if (!lu) vuFroid = snapshot(store.get());
+      /* Écriture DISTANTE : le repère suit, pour ne pas prendre ces lignes
+         pour des gestes locaux. */
+      observe(store.get());
       return;
     }
-    if (!lu) {
-      /* LA FENÊTRE D'AVANT-HYDRATATION : l'écriture ne s'abandonne plus — elle
-         s'enregistre, id par id, pour être rejouée sur l'état du serveur à la
-         première lecture (voir `premiereLecture`). */
-      const cur = snapshot(store.get());
-      for (const [id, j] of cur) {
-        if (vuFroid.get(id) !== j) { froidModifies.set(id, j); froidSupprimes.delete(id); }
-      }
-      for (const id of vuFroid.keys()) {
-        if (!cur.has(id)) { froidSupprimes.add(id); froidModifies.delete(id); }
-      }
-      vuFroid = cur;
-      return;
-    }
+    /* TOUT GESTE LOCAL S'INSCRIT DANS LA FILE, à son heure, avant même
+       d'essayer de partir : c'est elle qui le garde si le réseau manque, si
+       l'application se ferme, si la poussée échoue (4 octobre 2026). Avant la
+       première lecture, il n'attend que d'être rejoué sur l'état du serveur. */
+    const avant = vuJson;
+    const cur = observe(store.get());
+    inscris(gestesEntre(avant, cur, new Date().toISOString()));
+    if (!lu) return;
     planifiePoussee();
   });
 
@@ -1183,6 +1409,45 @@ export function bindCollection<T extends WithId>(
       (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
         const items = [...store.get()];
         const at = (id: string) => items.findIndex((x) => x.id === id);
+        /* ══ UNE LIGNE VENUE D'AILLEURS PENDANT QU'UN GESTE L'ATTEND ══
+           4 octobre 2026. Le dernier geste gagne, en direct aussi : si notre
+           geste est plus récent que l'écriture distante, il reste (et le
+           repère prend la valeur du serveur, pour que la poussée l'emporte) ;
+           sinon la ligne distante s'applique et notre geste devient un conflit,
+           gardé. Une suppression distante ne dit pas son heure : le geste
+           local tient. */
+        const idTouche = (payload.eventType === 'DELETE' ? payload.old.id : payload.new.id) as string;
+        const enAttente = attente.get(idTouche);
+        if (enAttente) {
+          const distantAt = payload.eventType === 'DELETE' ? undefined : (payload.new.updated_at as string | undefined);
+          const distant = payload.eventType === 'DELETE' ? undefined : (payload.new as { data: T }).data;
+          /* NOTRE PROPRE ÉCHO, AVANT TOUT JUGEMENT — 6 octobre 2026. On tape
+             « Moov Africa » : « Moov Afric » part, le « a » attend, l'écho de
+             « Moov Afric » revient avec l'heure du SERVEUR, plus récente que
+             celle du « a » sur l'horloge du poste. Le geste perdait, la lettre
+             tombait en « conflit », la case reculait d'un caractère : onze
+             conflits pour un objet de lettre. Ce qu'on a poussé soi-même
+             n'est jamais une écriture d'ailleurs : la frappe en attente reste,
+             et repart par-dessus. */
+          const notreEcho = !!distant && estNotreEcho(idTouche, contenuCanonique(distant));
+          if (enAttente.op === 'set' && distant && memeContenu(distant, JSON.parse(enAttente.j ?? 'null'))) {
+            /* Notre geste, revenu du serveur : il est arrivé. */
+            sortDeLaFile([idTouche]);
+          } else if (notreEcho || leGesteLocalTient(enAttente, distantAt)) {
+            const lp = new Map(lastPushed);
+            if (distant) lp.set(idTouche, JSON.stringify(distant)); else lp.delete(idTouche);
+            lastPushed = lp;
+            planifiePoussee();
+            return;
+          } else {
+            noteLesConflits([{
+              table, id: idTouche, notre: enAttente.op === 'set' ? (enAttente.j ?? null) : null, notreAt: enAttente.at,
+              leur: JSON.stringify(distant ?? null), leurAt: distantAt ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+              magasin: store.key,
+            }]);
+            sortDeLaFile([idTouche]);
+          }
+        }
         if (payload.eventType === 'DELETE') {
           const id = payload.old.id as string;
           const i = at(id);
@@ -1190,7 +1455,7 @@ export function bindCollection<T extends WithId>(
         } else {
           const row = payload.new as { id: string; data: T };
           const i = at(row.id);
-          const j = JSON.stringify(row.data);
+          const j = contenuCanonique(row.data);
           /* NOTRE PROPRE ÉCHO, RECONNU AU REGISTRE — 18 août 2026. L'ancien
              garde (« identique au local ? ») laissait passer l'écho d'une
              poussée VIEILLE D'UNE FRAPPE : le local avait avancé, l'écho ne
@@ -1200,14 +1465,28 @@ export function bindCollection<T extends WithId>(
              revient jamais s'appliquer ; le changement d'un AUTRE poste ne
              figure pas au registre et passe toujours. */
           if (estNotreEcho(row.id, j)) return;
-          if (i >= 0 && JSON.stringify(items[i]) === j) return;
+          /* CE QUI N'APPREND RIEN NE S'APPLIQUE PAS. Une ligne qui porte le même
+             contenu que la nôtre, champs rangés autrement, n'est pas une
+             nouvelle : l'appliquer réécrivait la table et redessinait l'écran
+             pour rien, 289 fois par minute le 2 octobre. */
+          if (i >= 0 && memeContenu(items[i], row.data)) return;
           if (i >= 0) items[i] = row.data;
           else items.push(row.data);
         }
+        /* Comptée pour « Cet appareil » : un poste qui en reçoit des dizaines
+           par minute rame, et il fallait pouvoir le lire sur place. */
+        noteUneEcritureRecue(table);
         applyingRemote = true;
         store.set(items);
         applyingRemote = false;
-        lastPushed = snapshot(items);
+        /* LE REPÈRE NE BOUGE QUE SUR LA LIGNE REÇUE (4 octobre 2026). Il se
+           reprenait sur TOUTE la table : un geste local pas encore parti — une
+           frappe dans le quart de seconde, une vente hors ligne — passait pour
+           envoyé, et ne partait jamais. */
+        const lp = new Map(lastPushed);
+        if (payload.eventType === 'DELETE') lp.delete(idTouche);
+        else lp.set(idTouche, JSON.stringify((payload.new as { data: T }).data));
+        lastPushed = lp;
       };
 
   /* ══ LE DIRECT SE SURVEILLE ET SE RELÈVE — 14 septembre 2026 ═════════
@@ -1318,6 +1597,10 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
 
   let applyingRemote = false;
   let lastPushed: string | undefined;
+  magasinsParTable.set(`documents:${key}`, store as Store<any>); // eslint-disable-line @typescript-eslint/no-explicit-any
+  /* La file d'attente du document : une seule entrée, sa clé (4 octobre 2026). */
+  const attenteDoc = lisLaFile(`doc:${key}`);
+  const sortDuDoc = (): void => { if (attenteDoc.delete(key)) ecrisLaFile(`doc:${key}`, attenteDoc); };
 
   const upsert = (val: T) => sb.from('documents').upsert({ key, data: val });
 
@@ -1328,11 +1611,34 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
        droit, erreur réseau, document absent. Sinon un seul cas oublié figerait
        l'application sur son voile d'attente. */
     try {
-    const { data, error } = await sb.from('documents').select('data').eq('key', key).maybeSingle();
+    const { data, error } = await sb.from('documents').select('data,updated_at').eq('key', key).maybeSingle();
     if (error) {
       if (estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
       console.warn(`[mnd-sync] doc ${key} hydrate:`, error.message);
       return;
+    }
+    /* UN RÉGLAGE CHANGÉ HORS LIGNE (4 octobre 2026) : la file le garde, et le
+       dernier geste gagne, comme pour les collections. */
+    const enAttente = attenteDoc.get(key);
+    if (enAttente?.j) {
+      const notre = JSON.parse(enAttente.j) as T;
+      const leur = (data as { data?: T; updated_at?: string } | null);
+      if (leur?.data !== undefined && memeContenu(leur.data, notre)) {
+        sortDuDoc();
+      } else if (leur?.data !== undefined && !leGesteLocalTient(enAttente, leur.updated_at)) {
+        noteLesConflits([{
+          table: 'documents', id: key, notre: enAttente.j, notreAt: enAttente.at,
+          leur: JSON.stringify(leur.data), leurAt: leur.updated_at ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+        }]);
+        sortDuDoc();
+      } else {
+        applyingRemote = true;
+        store.set(notre);
+        applyingRemote = false;
+        lastPushed = leur?.data !== undefined ? JSON.stringify(leur.data) : undefined;
+        planifieLEnvoi();
+        return;
+      }
     }
     if (data) {
       applyingRemote = true;
@@ -1351,6 +1657,16 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
      rien, et amorcer le serveur avec le cache local serait une faute. On
      n'amorce donc qu'une fois la session connue — et une seule fois. */
   let amorce = false;
+  /* SANS RÉSEAU, LA COPIE DE L'APPAREIL FAIT FOI — 4 octobre 2026 (« hors
+     ligne », temps 2). `getSession` attend la fin des essais de
+     rafraîchissement de supabase-js, une trentaine de secondes sans réseau, et
+     le Trône restait sur « la Maison vous reconnaît » faute de matrice des
+     accès. Au bout de quatre secondes, si le serveur est VRAIMENT injoignable,
+     la promesse se tient sur la copie locale ; un réseau lent attend. */
+  setTimeout(() => {
+    if (registre(key).faite) return;
+    void serveurInjoignable().then((hors) => { if (hors) registre(key).tenir(); });
+  }, 4000);
   void (async () => {
     const { data: { session } } = await sb.auth.getSession();
     /* PAS DE SESSION, RIEN NE DESCENDRA : la porte de connexion n'a pas à
@@ -1383,7 +1699,7 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
     timer = undefined;
     const val = store.get();
     const j = JSON.stringify(val);
-    if (j === lastPushed) { syncMark.ok(`doc:${key}`); return; }
+    if (j === lastPushed) { if (attenteDoc.get(key)?.j === j) sortDuDoc(); syncMark.ok(`doc:${key}`); return; }
     const { error } = await upsert(val);
     if (error && estRefusDeDroit(error.message)) { syncMark.horsPortee(`doc:${key}`); return; }
     if (error) { syncMark.fail(`doc:${key}`, error.message); console.warn(`[mnd-sync] doc ${key} upsert:`, error.message); return; }
@@ -1392,15 +1708,31 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
        repère déjà égal, disait « rien à envoyer », et l'écriture ne partait
        jamais. La même leçon avait été apprise pour les collections. */
     lastPushed = j;
+    if (attenteDoc.get(key)?.j === j) sortDuDoc();
     syncMark.ok(`doc:${key}`);
   };
-  const planifieLEnvoi = () => {
+  function planifieLEnvoi(): void {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void envoie(), PUSH_DEBOUNCE_MS);
-  };
+  }
   syncMark.relance(`doc:${key}`, planifieLEnvoi);
+  /* CE QUE CET ONGLET A VU EN DERNIER — 4 octobre 2026, les codes du coffre et
+     des caisses refusés le jour même du temps 1. Le magasin prévient pour
+     bien des raisons qui ne sont pas un geste (un autre onglet, une purge, une
+     autre copie de la même clé) ; chacune s'inscrivait comme un geste, daté de
+     MAINTENANT, avec le document ENTIER. Noté avant l'hydratation, ce faux
+     geste portait la vieille copie de l'appareil et gagnait contre le serveur.
+     Un geste, désormais, c'est un contenu qui a CHANGÉ par rapport à ce que
+     l'onglet avait vu. */
+  let vu = JSON.stringify(store.get());
   store.subscribe(() => {
-    if (applyingRemote) return;
+    const j = JSON.stringify(store.get());
+    if (applyingRemote) { vu = j; return; }
+    if (j === vu) return;
+    vu = j;
+    /* Le geste s'inscrit dans la file avant de partir (4 octobre 2026). */
+    attenteDoc.set(key, { op: 'set', at: new Date().toISOString(), j });
+    ecrisLaFile(`doc:${key}`, attenteDoc);
     syncMark.dirty(`doc:${key}`);
     planifieLEnvoi();
   });
@@ -1411,6 +1743,9 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
         const row = payload.new as { data: T } | undefined;
         if (!row) return;
         const j = JSON.stringify(row.data);
+        /* LE MEME CONTENU, RANGE AUTREMENT, N'APPREND RIEN (2 octobre 2026) :
+           la base rend le document avec ses champs dans son ordre a elle. */
+        if (memeContenu(row.data, store.get())) return;
         /* L'ECHO DE NOTRE PROPRE ECRITURE. Supabase renvoie a l'emetteur les
            changements qu'il vient de faire. Appliquer cet echo tel quel
            REMBOBINE la saisie en cours : on tape « Les reprises », la poussee
@@ -1423,6 +1758,18 @@ export function bindDocument<T>(store: Store<T>, key: string): void {
            poussee est en attente, l'etat local vaut mieux que ce qui arrive :
            on laisse la poussee partir, et l'echo suivant fera foi. */
         if (timer) return;
+        /* UN GESTE HORS LIGNE ATTEND ENCORE (4 octobre 2026) : le plus récent
+           gagne ; le perdant est gardé en conflit. */
+        const enAttente = attenteDoc.get(key);
+        if (enAttente) {
+          if (leGesteLocalTient(enAttente, (payload.new as { updated_at?: string }).updated_at)) { planifieLEnvoi(); return; }
+          noteLesConflits([{
+            table: 'documents', id: key, notre: enAttente.j ?? null, notreAt: enAttente.at,
+            leur: j, leurAt: ((payload.new as { updated_at?: string }).updated_at) ?? new Date().toISOString(), vuLe: new Date().toISOString(),
+          }]);
+          sortDuDoc();
+        }
+        noteUneEcritureRecue(`doc:${key}`);
         applyingRemote = true;
         store.set(row.data);
         applyingRemote = false;

@@ -16,6 +16,169 @@
   --mc-hairline-soft: rgba(20, 20, 27, 0.07);
 }
 
+/* ══ LE MODE SOMBRE — 3 octobre 2026 ═══════════════════════════════════
+   Maquette « Ma Couronne, sombre et bilingue », validée. Il suit le téléphone
+   (prefers-color-scheme) sauf si la cliente a choisi dans Profil : l'attribut
+   `data-mc-theme` (« clair » ou « sombre ») sur <html> l'emporte, posé par
+   `theme.ts`. Les jetons de la Maison sont redéfinis ICI SEULEMENT : le Trône
+   et le site ne chargent pas cette feuille.
+
+   LES COULEURS À DOUBLE RÔLE ont leurs propres jetons, parce qu'elles ne
+   changent pas de la même façon : l'indigo TEXTE devient ivoire (--mc-encre),
+   l'indigo FOND d'un bouton devient cuivre (--mc-plein, --mc-sur-plein), et le
+   cuivre TEXTE s'éclaircit (--mc-cuivre-texte) quand le cuivre FOND d'un bouton
+   garde sa teinte pour que son texte ivoire reste lisible. */
+:root {
+  --mc-encre: var(--color-indigo);
+  --mc-cuivre-texte: var(--accent);
+  --mc-plein: var(--color-indigo);
+  --mc-plein-survol: var(--indigo-700);
+  --mc-sur-plein: var(--color-ivoire);
+  --mc-sur-plein-doux: var(--indigo-200);
+  --mc-barre: rgba(246, 241, 231, 0.96);
+  /* Les couleurs écrites en dur avant le 3 octobre gardent leur valeur EXACTE
+     le jour ; elles reçoivent seulement une valeur de nuit. */
+  --mc-l-fond-fbf8f2: #FBF8F2;
+  --mc-l-fond-fff: #fff;
+  --mc-l-fond-faf1e9: #FAF1E9;
+  --mc-l-fond-efe7d8: #EFE7D8;
+  --mc-l-fond-e3dcce: #E3DCCE;
+  --mc-l-fond-cfc4b4: #CFC4B4;
+  --mc-l-fond-cuivre-08: rgba(185, 122, 74, 0.08);
+  --mc-l-filet-e3dcce: #E3DCCE;
+  --mc-l-texte-2a2722: #2A2722;
+  --mc-l-texte-746f65: #746F65;
+  --mc-l-texte-70707b: #70707B;
+  --mc-l-texte-8a5326: #8A5326;
+  --mc-l-texte-9c6339: #9C6339;
+  --mc-blanc: #FFFDF9;
+  --mc-doux: #5E5750;
+  --mc-filet-12: rgba(20, 20, 27, 0.12);
+  --mc-filet-10: rgba(20, 20, 27, 0.1);
+  --mc-voile-06: rgba(20, 20, 27, 0.06);
+  --mc-bord-bouton: rgba(30, 33, 80, 0.35);
+  --mc-piste: rgba(30, 33, 80, 0.12);
+  --mc-ok-fond: #E6EFE9;
+  --mc-ok-texte: #2F5D50;
+  --mc-ornement: var(--color-argile);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mc-theme="clair"]) {
+  /* Le soir : surfaces indigo profond, jamais noires ; texte ivoire ; le
+     cuivre s'éclaircit pour rester lisible. */
+  color-scheme: dark;
+  --paper: #15173A;
+  --paper-2: #22265A;
+  --paper-3: #2A2F66;
+  --surface-card: #1E2150;
+  --color-sable: #22265A;
+  --sable: #22265A;
+  --color-argile: #3A3F72;
+  --ink: #ECE5D8;
+  --ink-soft: #B9B2C9;
+  --ink-mute: #9C95B5;
+  --obsidian-300: #9C95B5;
+  --hairline: rgba(246, 241, 231, 0.14);
+  --mc-hairline-soft: rgba(246, 241, 231, 0.07);
+  --hover-veil: rgba(246, 241, 231, 0.05);
+  --press-veil: rgba(246, 241, 231, 0.09);
+  --accent-strong: #E3B48A;
+  --copper-700: #E3B48A;
+  --copper-50: rgba(214, 160, 111, 0.14);
+  --copper-100: rgba(214, 160, 111, 0.22);
+  --indigo-50: rgba(246, 241, 231, 0.06);
+  --mc-success: #7FCF9C;
+  --mc-error: #F08A94;
+  --mc-encre: #F6F1E7;
+  --mc-cuivre-texte: #D6A06F;
+  --mc-plein: #D6A06F;
+  --mc-plein-survol: #E3B48A;
+  --mc-sur-plein: #15173A;
+  --mc-sur-plein-doux: rgba(21, 23, 58, 0.72);
+  --mc-barre: rgba(21, 23, 58, 0.96);
+  --mc-l-fond-fbf8f2: #1E2150;
+  --mc-l-fond-fff: #1E2150;
+  --mc-l-fond-faf1e9: rgba(214, 160, 111, 0.14);
+  --mc-l-fond-efe7d8: #22265A;
+  --mc-l-fond-e3dcce: #22265A;
+  --mc-l-fond-cfc4b4: #3A3F72;
+  --mc-l-fond-cuivre-08: rgba(214, 160, 111, 0.14);
+  --mc-l-filet-e3dcce: rgba(246, 241, 231, 0.14);
+  --mc-l-texte-2a2722: #ECE5D8;
+  --mc-l-texte-746f65: #B9B2C9;
+  --mc-l-texte-70707b: #B9B2C9;
+  --mc-l-texte-8a5326: #E3B48A;
+  --mc-l-texte-9c6339: #E3B48A;
+  --mc-blanc: #1E2150;
+  --mc-doux: #B9B2C9;
+  --mc-filet-12: rgba(246, 241, 231, 0.12);
+  --mc-filet-10: rgba(246, 241, 231, 0.1);
+  --mc-voile-06: rgba(246, 241, 231, 0.06);
+  --mc-bord-bouton: rgba(246, 241, 231, 0.35);
+  --mc-piste: rgba(246, 241, 231, 0.12);
+  --mc-ok-fond: rgba(127, 207, 156, 0.16);
+  --mc-ok-texte: #7FCF9C;
+  --mc-ornement: rgba(246, 241, 231, 0.42);
+  }
+}
+:root[data-mc-theme="sombre"] {
+  /* Le soir : surfaces indigo profond, jamais noires ; texte ivoire ; le
+     cuivre s'éclaircit pour rester lisible. */
+  color-scheme: dark;
+  --paper: #15173A;
+  --paper-2: #22265A;
+  --paper-3: #2A2F66;
+  --surface-card: #1E2150;
+  --color-sable: #22265A;
+  --sable: #22265A;
+  --color-argile: #3A3F72;
+  --ink: #ECE5D8;
+  --ink-soft: #B9B2C9;
+  --ink-mute: #9C95B5;
+  --obsidian-300: #9C95B5;
+  --hairline: rgba(246, 241, 231, 0.14);
+  --mc-hairline-soft: rgba(246, 241, 231, 0.07);
+  --hover-veil: rgba(246, 241, 231, 0.05);
+  --press-veil: rgba(246, 241, 231, 0.09);
+  --accent-strong: #E3B48A;
+  --copper-700: #E3B48A;
+  --copper-50: rgba(214, 160, 111, 0.14);
+  --copper-100: rgba(214, 160, 111, 0.22);
+  --indigo-50: rgba(246, 241, 231, 0.06);
+  --mc-success: #7FCF9C;
+  --mc-error: #F08A94;
+  --mc-encre: #F6F1E7;
+  --mc-cuivre-texte: #D6A06F;
+  --mc-plein: #D6A06F;
+  --mc-plein-survol: #E3B48A;
+  --mc-sur-plein: #15173A;
+  --mc-sur-plein-doux: rgba(21, 23, 58, 0.72);
+  --mc-barre: rgba(21, 23, 58, 0.96);
+  --mc-l-fond-fbf8f2: #1E2150;
+  --mc-l-fond-fff: #1E2150;
+  --mc-l-fond-faf1e9: rgba(214, 160, 111, 0.14);
+  --mc-l-fond-efe7d8: #22265A;
+  --mc-l-fond-e3dcce: #22265A;
+  --mc-l-fond-cfc4b4: #3A3F72;
+  --mc-l-fond-cuivre-08: rgba(214, 160, 111, 0.14);
+  --mc-l-filet-e3dcce: rgba(246, 241, 231, 0.14);
+  --mc-l-texte-2a2722: #ECE5D8;
+  --mc-l-texte-746f65: #B9B2C9;
+  --mc-l-texte-70707b: #B9B2C9;
+  --mc-l-texte-8a5326: #E3B48A;
+  --mc-l-texte-9c6339: #E3B48A;
+  --mc-blanc: #1E2150;
+  --mc-doux: #B9B2C9;
+  --mc-filet-12: rgba(246, 241, 231, 0.12);
+  --mc-filet-10: rgba(246, 241, 231, 0.1);
+  --mc-voile-06: rgba(246, 241, 231, 0.06);
+  --mc-bord-bouton: rgba(246, 241, 231, 0.35);
+  --mc-piste: rgba(246, 241, 231, 0.12);
+  --mc-ok-fond: rgba(127, 207, 156, 0.16);
+  --mc-ok-texte: #7FCF9C;
+  --mc-ornement: rgba(246, 241, 231, 0.42);
+}
+
 /* ---------- L'app — le vrai viewport ---------- */
 
 /* Par défaut (téléphones et toute surface tactile) : plein écran, papier
@@ -122,8 +285,8 @@
 
 /* État vierge élégant — réutilisé quand une liste n'a pas encore de données. */
 .mc-emptyzone { text-align: center; padding: 44px 24px 32px; animation: mc-fade 0.3s var(--ease-soft); }
-.mc-emptyzone__glyph { font-family: var(--font-serif); font-size: 42px; color: var(--color-argile); line-height: 1; }
-.mc-emptyzone__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--color-indigo); margin-top: 14px; }
+.mc-emptyzone__glyph { font-family: var(--font-serif); font-size: 42px; color: var(--mc-ornement); line-height: 1; }
+.mc-emptyzone__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--mc-encre); margin-top: 14px; }
 .mc-emptyzone__s {
   font-size: 12.5px;
   font-weight: 400;
@@ -157,7 +320,7 @@
   font-size: 10px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--mc-cuivre-texte);
 }
 .mc-sectionlabel {
   font-size: 10.5px;
@@ -171,7 +334,7 @@
   font-family: var(--font-serif);
   font-weight: 400;
   font-size: clamp(27px, 8vw, 32px);
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   margin: 6px 0 0;
 }
 .mc-lead {
@@ -200,10 +363,10 @@
   color: var(--copper-700);
   text-align: center;
 }
-.mc-textbtn:hover { color: var(--color-indigo); }
+.mc-textbtn:hover { color: var(--mc-encre); }
 .mc-textbtn:disabled { opacity: 0.5; cursor: default; }
 .mc-form-err { margin-top: 14px; font-size: 12px; color: var(--mc-error); }
-.mc-form-notice { margin-top: 14px; font-size: 12px; color: var(--color-indigo); }
+.mc-form-notice { margin-top: 14px; font-size: 12px; color: var(--mc-encre); }
 .mc-authswitch {
   display: block;
   width: 100%;
@@ -217,7 +380,7 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.mc-authswitch:hover { color: var(--color-indigo); }
+.mc-authswitch:hover { color: var(--mc-encre); }
 
 /* CTA pleine largeur */
 .mc-cta {
@@ -238,12 +401,12 @@
 .mc-cta:active:not(:disabled) { transform: translateY(1px); }
 .mc-cta--copper { background: var(--accent); color: var(--color-ivoire); }
 .mc-cta--copper:hover { background: var(--copper-600); }
-.mc-cta--indigo { background: var(--color-indigo); color: var(--color-ivoire); font-size: 12px; letter-spacing: 0.2em; padding: 16px; }
-.mc-cta--indigo:hover { background: var(--indigo-700); }
+.mc-cta--indigo { background: var(--mc-plein); color: var(--mc-sur-plein); font-size: 12px; letter-spacing: 0.2em; padding: 16px; }
+.mc-cta--indigo:hover { background: var(--mc-plein-survol); }
 .mc-cta--outline {
   background: transparent;
-  color: var(--color-indigo);
-  border: 1px solid var(--color-indigo);
+  color: var(--mc-encre);
+  border: 1px solid var(--mc-encre);
   padding: 16px;
   font-size: 12px;
   letter-spacing: 0.18em;
@@ -284,7 +447,7 @@
   border-radius: 3px;
   transition: color 0.2s var(--ease-soft);
 }
-.mc-x:hover { color: var(--color-indigo); }
+.mc-x:hover { color: var(--mc-encre); }
 .mc-quietbtn {
   margin-top: 10px;
   width: 100%;
@@ -391,17 +554,17 @@
   font-weight: var(--weight-medium);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--mc-cuivre-texte);
 }
 .mc-phoneline {
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--color-indigo);
+  border-bottom: 1px solid var(--mc-encre);
   padding: 9px 2px;
   margin-top: 8px;
 }
-.mc-phoneline__dial { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
+.mc-phoneline__dial { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); }
 .mc-phoneline input {
   flex: 1;
   min-width: 0;
@@ -410,7 +573,7 @@
   outline: none;
   font-family: var(--font-serif);
   font-size: 22px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   letter-spacing: 0.02em;
 }
 .mc-phoneline input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 14px; color: var(--ink-soft); }
@@ -419,7 +582,7 @@
 .mc-emailline {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--color-indigo);
+  border-bottom: 1px solid var(--mc-encre);
   padding: 9px 2px;
   margin-top: 8px;
 }
@@ -431,7 +594,7 @@
   outline: none;
   font-family: var(--font-serif);
   font-size: 20px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   letter-spacing: 0.01em;
 }
 .mc-emailline input::placeholder { font-family: var(--font-sans); font-weight: 400; font-size: 14px; color: var(--ink-soft); }
@@ -448,7 +611,7 @@
   color: var(--ink-soft);
   transition: color 0.2s var(--ease-soft);
 }
-.mc-pw-toggle:hover { color: var(--color-indigo); }
+.mc-pw-toggle:hover { color: var(--mc-encre); }
 
 .mc-channels { margin-top: 22px; display: flex; gap: 10px; }
 .mc-channel {
@@ -469,7 +632,7 @@
 .mc-channel.is-on { border-color: var(--color-copper); background: var(--copper-50); color: var(--accent-strong); }
 
 .mc-langrow { margin-top: auto; display: flex; gap: 8px; align-items: center; font-size: 11px; color: var(--ink-soft); }
-.mc-langrow__on { letter-spacing: 0.1em; color: var(--color-indigo); border-bottom: 1px solid var(--accent); padding-bottom: 2px; }
+.mc-langrow__on { letter-spacing: 0.1em; color: var(--mc-encre); border-bottom: 1px solid var(--accent); padding-bottom: 2px; }
 .mc-langrow__off { letter-spacing: 0.1em; color: var(--ink-soft); }
 .mc-onb-form .mc-cta--indigo { margin-top: 16px; }
 
@@ -479,13 +642,13 @@
   width: 100%;
   min-width: 0;
   aspect-ratio: 1;
-  border: 1px solid var(--color-indigo);
+  border: 1px solid var(--mc-encre);
   border-radius: 3px;
   text-align: center;
   font-family: var(--font-serif);
   font-size: clamp(24px, 7vw, 30px);
-  color: var(--color-indigo);
-  background: var(--color-ivoire);
+  color: var(--mc-encre);
+  background: var(--surface-card);
   outline: none;
   padding: 0;
   transition: box-shadow 0.14s var(--ease-soft);
@@ -493,7 +656,7 @@
 .mc-otp__box:focus { box-shadow: 0 0 0 3px var(--focus-ring); }
 
 .mc-resend { margin-top: 20px; font-size: 12px; color: var(--ink-soft); }
-.mc-resend span { color: var(--color-indigo); }
+.mc-resend span { color: var(--mc-encre); }
 .mc-resend__btn {
   background: none;
   border: none;
@@ -501,7 +664,7 @@
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   border-bottom: 1px solid var(--accent);
 }
 
@@ -573,7 +736,7 @@
   line-height: 1.55;
   color: var(--ink);
 }
-.mc-quote__mark { font-family: var(--font-serif); font-style: italic; font-size: 24px; color: var(--accent); line-height: 1; }
+.mc-quote__mark { font-family: var(--font-serif); font-style: italic; font-size: 24px; color: var(--mc-cuivre-texte); line-height: 1; }
 
 .mc-crownstatus {
   position: relative;
@@ -587,7 +750,7 @@
 .mc-crownstatus__filet { position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: var(--accent); }
 .mc-crownstatus__top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .mc-crownstatus__id { display: flex; align-items: baseline; gap: 9px; }
-.mc-crownstatus__style { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); line-height: 1; }
+.mc-crownstatus__style { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); line-height: 1; }
 .mc-crownstatus__day { font-size: 11px; color: var(--ink-soft); }
 .mc-crownstatus__progress { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
 .mc-crownstatus__progress > span { font-size: 9.5px; color: var(--ink-soft); white-space: nowrap; }
@@ -660,7 +823,7 @@
 .mc-offer--indigo .mc-offer__cta { color: var(--copper-200); }
 
 .mc-offer--sable { background: var(--color-sable); }
-.mc-offer--sable .mc-offer__deal, .mc-offer--sable .mc-offer__title { color: var(--color-indigo); }
+.mc-offer--sable .mc-offer__deal, .mc-offer--sable .mc-offer__title { color: var(--mc-encre); }
 .mc-offer--sable .mc-offer__sub { color: var(--ink-soft); }
 .mc-offer--sable .mc-offer__tag { color: var(--color-ivoire); background: var(--color-indigo); }
 .mc-offer--sable .mc-offer__cta { color: var(--accent-strong); }
@@ -714,7 +877,7 @@
   align-items: center;
 }
 .mc-recocard__body { flex: 1; min-width: 0; }
-.mc-recocard__name { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.mc-recocard__name { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); }
 .mc-recocard__line { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 /* La phrase du pourquoi — l'envie déclarée, dans les mots de la maison. */
 .mc-recocard__why {
@@ -725,7 +888,7 @@
   color: var(--ink-soft);
   margin-top: 6px;
 }
-.mc-arrowbtn { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--color-indigo); padding: 4px; }
+.mc-arrowbtn { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--mc-encre); padding: 4px; }
 
 .mc-productvisual {
   width: 46px;
@@ -771,7 +934,7 @@
   padding: 13px 12px;
   text-align: center;
 }
-.mc-metric__v { font-family: var(--font-serif); font-size: 26px; color: var(--color-indigo); line-height: 1; }
+.mc-metric__v { font-family: var(--font-serif); font-size: 26px; color: var(--mc-encre); line-height: 1; }
 .mc-metric__l { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-top: 6px; }
 
 .mc-tl { display: flex; gap: 14px; }
@@ -781,13 +944,13 @@
   height: 12px;
   border-radius: 50%;
   margin-top: 4px;
-  background: var(--color-ivoire);
+  background: var(--surface-card);
   border: 2px solid var(--color-argile);
 }
 .mc-tl__dot.is-done { background: var(--color-copper); border-color: var(--color-copper); }
 .mc-tl__line { width: 1px; flex: 1; min-height: 26px; background: var(--hairline); }
 .mc-tl__body { padding-bottom: 20px; }
-.mc-tl__t { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); margin-top: 2px; }
+.mc-tl__t { font-family: var(--font-serif); font-size: 20px; color: var(--mc-encre); margin-top: 2px; }
 .mc-tl__s { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 
 /* histoire vierge — l'invitation au premier rituel */
@@ -799,7 +962,7 @@
   text-align: center;
   margin-bottom: 16px;
 }
-.mc-tlempty__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--color-indigo); }
+.mc-tlempty__t { font-family: var(--font-serif); font-weight: 400; font-size: 23px; color: var(--mc-encre); }
 .mc-tlempty__s {
   font-size: 12.5px;
   font-weight: 400;
@@ -823,24 +986,24 @@
   align-items: center;
 }
 .mc-productcard__body { flex: 1; min-width: 0; }
-.mc-productcard__name { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.mc-productcard__name { font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre); }
 .mc-productcard__line { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-productcard__scarce { font-size: 10px; letter-spacing: 0.08em; color: var(--accent-strong); margin-top: 4px; }
 .mc-productcard__side { text-align: right; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.mc-productcard__price { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+.mc-productcard__price { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); }
 .mc-plusbtn {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--color-indigo);
-  color: var(--color-ivoire);
+  background: var(--mc-plein);
+  color: var(--mc-sur-plein);
   border: none;
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s var(--ease-soft);
 }
-.mc-plusbtn:hover { background: var(--indigo-700); }
+.mc-plusbtn:hover { background: var(--mc-plein-survol); }
 
 /* Panier — pas à pas quantité (+/−) */
 .mc-qtystep {
@@ -857,20 +1020,20 @@
   height: 26px;
   border: none;
   border-radius: 3px;
-  background: var(--color-indigo);
-  color: var(--color-ivoire);
+  background: var(--mc-plein);
+  color: var(--mc-sur-plein);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s var(--ease-soft);
 }
-.mc-qtystep button:hover { background: var(--indigo-700); }
+.mc-qtystep button:hover { background: var(--mc-plein-survol); }
 .mc-qtystep > span {
   min-width: 22px;
   text-align: center;
   font-family: var(--font-serif);
   font-size: 16px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
 }
 
 /* Barre panier — synthèse collante en bas de la Gamme */
@@ -892,7 +1055,7 @@
 }
 .mc-basketbar__info { flex: 1 1 120px; min-width: 0; display: flex; flex-direction: column; }
 .mc-basketbar__count { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-strong); }
-.mc-basketbar__total { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); line-height: 1.1; }
+.mc-basketbar__total { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); line-height: 1.1; }
 .mc-basketbar__cta { width: auto; flex: 0 1 auto; min-width: 150px; padding: 13px 22px; margin: 0; }
 
 /* Ligne d'article dans la vue panier */
@@ -906,9 +1069,9 @@
   padding: 12px 14px;
 }
 .mc-basketrow__body { flex: 1; min-width: 0; }
-.mc-basketrow__name { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.15; }
+.mc-basketrow__name { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); line-height: 1.15; }
 .mc-basketrow__unit { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
-.mc-basketrow__total { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); flex: 0 0 auto; }
+.mc-basketrow__total { font-family: var(--font-serif); font-size: 16px; color: var(--mc-encre); flex: 0 0 auto; }
 .mc-basketrow__x {
   flex: 0 0 auto;
   border: none;
@@ -963,8 +1126,8 @@
   transition: background 0.24s var(--ease-soft);
 }
 .mc-smallcta:hover { background: var(--copper-600); }
-.mc-smallcta--indigo { background: var(--color-indigo); }
-.mc-smallcta--indigo:hover { background: var(--indigo-700); }
+.mc-smallcta--indigo { background: var(--mc-plein); color: var(--mc-sur-plein); }
+.mc-smallcta--indigo:hover { background: var(--mc-plein-survol); }
 
 .mc-rewardrow {
   background: var(--surface-card);
@@ -975,9 +1138,9 @@
   align-items: center;
   gap: 14px;
 }
-.mc-rewardrow__glyph { font-family: var(--font-serif); font-size: 24px; color: var(--accent); flex: 0 0 auto; width: 30px; text-align: center; }
+.mc-rewardrow__glyph { font-family: var(--font-serif); font-size: 24px; color: var(--mc-cuivre-texte); flex: 0 0 auto; width: 30px; text-align: center; }
 .mc-rewardrow__body { flex: 1; min-width: 0; }
-.mc-rewardrow__t { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+.mc-rewardrow__t { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); }
 .mc-rewardrow__s { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-rewardrow__st { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
 .mc-rewardrow__st.is-on { color: var(--mc-success); }
@@ -999,8 +1162,8 @@
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: var(--color-indigo);
-  color: var(--color-ivoire);
+  background: var(--mc-plein);
+  color: var(--mc-sur-plein);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1009,7 +1172,7 @@
   font-size: 26px;
   flex: 0 0 auto;
 }
-.mc-idcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
+.mc-idcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); }
 .mc-idcard__meta { font-size: 12px; color: var(--ink-soft); }
 
 /* formulaire — les vraies informations, écrites au CRM partagé */
@@ -1027,7 +1190,7 @@
   font-weight: var(--weight-medium);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--mc-cuivre-texte);
 }
 .mc-profield input {
   width: 100%;
@@ -1039,7 +1202,7 @@
   padding: 7px 0;
   font-family: var(--font-serif);
   font-size: 19px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   transition: border-color 0.2s var(--ease-soft);
 }
 .mc-profield input:focus { border-bottom-color: var(--accent); }
@@ -1056,7 +1219,7 @@
   padding: 7px 0;
   font-family: var(--font-serif);
   font-size: 19px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
 }
 .mc-profield select:focus { border-bottom-color: var(--accent); }
 /* Relecture (âge calculé sous la date de naissance) */
@@ -1081,12 +1244,12 @@
   padding: 13px 14px;
   font-family: var(--font-serif);
   font-size: 17px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   cursor: pointer;
   outline: none;
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-profselect:focus { border-color: var(--color-indigo); }
+.mc-profselect:focus { border-color: var(--mc-encre); }
 
 /* la couronne — lecture seule, renseignée par la maison */
 .mc-preflist { background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
@@ -1101,7 +1264,7 @@
   color: var(--ink);
 }
 .mc-inforow:last-child { border-bottom: none; }
-.mc-inforow__v { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); white-space: nowrap; }
+.mc-inforow__v { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); white-space: nowrap; }
 
 /* ============================================================
    TAB BAR
@@ -1110,7 +1273,7 @@
 .mc-tabbar {
   flex: 0 0 auto;
   display: flex;
-  background: rgba(246, 241, 231, 0.96);
+  background: var(--mc-barre);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--hairline);
   /* Ancrée au vrai bas d'écran — encoches et barres gestuelles respectées. */
@@ -1130,8 +1293,8 @@
 }
 .mc-tab__glyph { font-size: 15px; line-height: 1; color: var(--obsidian-300); transition: color 0.2s var(--ease-soft); }
 .mc-tab__label { font-size: 9.5px; letter-spacing: 0.08em; color: var(--ink-soft); transition: color 0.2s var(--ease-soft); }
-.mc-tab.is-on .mc-tab__glyph { color: var(--accent); }
-.mc-tab.is-on .mc-tab__label { color: var(--color-indigo); }
+.mc-tab.is-on .mc-tab__glyph { color: var(--mc-cuivre-texte); }
+.mc-tab.is-on .mc-tab__label { color: var(--mc-encre); }
 
 /* ============================================================
    ÉCRANS SUPERPOSÉS (Réserver, Sur-mesure, Notifications)
@@ -1150,7 +1313,7 @@
 .mc-flowhead--split { display: flex; justify-content: space-between; align-items: flex-end; }
 .mc-flowhead__row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .mc-flowhead__titles { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; }
-.mc-flowhead__h1 { font-family: var(--font-serif); font-weight: 400; font-size: 27px; color: var(--color-indigo); margin: 4px 0 0; }
+.mc-flowhead__h1 { font-family: var(--font-serif); font-weight: 400; font-size: 27px; color: var(--mc-encre); margin: 4px 0 0; }
 .mc-flowhead__count { font-size: 11px; color: var(--ink-soft); flex: 0 0 auto; }
 
 .mc-progress { height: 3px; background: var(--hairline); border-radius: 3px; margin-top: 14px; overflow: hidden; }
@@ -1183,24 +1346,24 @@
   border-bottom: 1px solid var(--copper-300);
   flex: 0 0 auto;
 }
-.mc-quizother:hover { color: var(--color-indigo); border-bottom-color: var(--color-indigo); }
+.mc-quizother:hover { color: var(--mc-encre); border-bottom-color: var(--mc-encre); }
 
 .mc-quizq + .mc-quizq { margin-top: 24px; }
-.mc-quizq__label { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); margin-bottom: 12px; }
+.mc-quizq__label { font-family: var(--font-serif); font-size: 20px; color: var(--mc-encre); margin-bottom: 12px; }
 .mc-envies { display: flex; flex-wrap: wrap; gap: 8px; }
 .mc-envie {
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 13px;
   letter-spacing: 0.03em;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   background: var(--surface-card);
   border: 1px solid var(--hairline);
   border-radius: 4px;
   padding: 11px 16px;
   transition: var(--transition-base);
 }
-.mc-envie:hover { border-color: var(--color-indigo); }
+.mc-envie:hover { border-color: var(--mc-encre); }
 .mc-envie.is-on { color: var(--color-ivoire); background: var(--accent); border-color: var(--accent); }
 
 /* La recommandation — prestation RÉELLE, à son prix. */
@@ -1217,7 +1380,7 @@
   text-transform: uppercase;
   color: var(--accent-strong);
 }
-.mc-quizreco__name { font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo); margin-top: 6px; }
+.mc-quizreco__name { font-family: var(--font-serif); font-size: 23px; color: var(--mc-encre); margin-top: 6px; }
 .mc-quizreco__line { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); line-height: 1.55; margin-top: 6px; }
 .mc-quizreco__meta { font-family: var(--font-serif); font-size: 17px; color: var(--accent-strong); margin-top: 10px; }
 .mc-quizreco .mc-cta { margin-top: 18px; }
@@ -1251,8 +1414,8 @@
   overflow: hidden;
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-acc:hover { border-color: var(--color-indigo); }
-.mc-acc.is-open { border-color: var(--color-indigo); }
+.mc-acc:hover { border-color: var(--mc-encre); }
+.mc-acc.is-open { border-color: var(--mc-encre); }
 .mc-acc__head {
   display: flex;
   align-items: center;
@@ -1266,7 +1429,7 @@
   font-family: var(--font-sans);
 }
 .mc-acc__id { min-width: 0; }
-.mc-acc__fon { display: block; font-size: 13px; letter-spacing: 0.08em; color: var(--color-indigo); font-weight: var(--weight-medium); }
+.mc-acc__fon { display: block; font-size: 13px; letter-spacing: 0.08em; color: var(--mc-encre); font-weight: var(--weight-medium); }
 .mc-acc__sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 /* Ce qu'on a pris dans l'atelier replié — la raison d'oser le refermer. */
 .mc-acc__count {
@@ -1277,7 +1440,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.mc-acc__chev { flex: 0 0 auto; margin-left: auto; font-size: 15px; color: var(--accent); transition: transform 0.18s var(--ease-soft); }
+.mc-acc__chev { flex: 0 0 auto; margin-left: auto; font-size: 15px; color: var(--mc-cuivre-texte); transition: transform 0.18s var(--ease-soft); }
 .mc-acc__count + .mc-acc__chev { margin-left: 8px; }
 .mc-acc.is-open .mc-acc__chev { transform: rotate(90deg); }
 .mc-acc__body { border-top: 1px solid var(--hairline); animation: mc-fade 0.22s var(--ease-soft); }
@@ -1324,7 +1487,7 @@
   transform: rotate(45deg);
 }
 .mc-presta__body { min-width: 0; }
-.mc-presta__name { display: block; font-family: var(--font-serif); font-size: 18px; line-height: 1.25; color: var(--color-indigo); }
+.mc-presta__name { display: block; font-family: var(--font-serif); font-size: 18px; line-height: 1.25; color: var(--mc-encre); }
 .mc-presta__meta { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 .mc-presta__desc {
   display: -webkit-box;
@@ -1347,10 +1510,10 @@
   font-family: var(--font-sans);
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-paliercard:hover:not(:disabled) { border-color: var(--color-indigo); }
+.mc-paliercard:hover:not(:disabled) { border-color: var(--mc-encre); }
 .mc-paliercard.is-off { opacity: 0.45; cursor: not-allowed; }
 .mc-paliercard__filet { position: absolute; top: 0; left: 0; bottom: 0; width: 2px; background: var(--accent); }
-.mc-paliercard__name { font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo); }
+.mc-paliercard__name { font-family: var(--font-serif); font-size: 23px; color: var(--mc-encre); }
 .mc-paliercard__sub { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 
 /* La carte-prestation pleine largeur (`mc-svccard`) est morte le 15 août avec
@@ -1372,7 +1535,7 @@
   margin-top: 18px;
   padding: 14px 16px;
   background: var(--color-indigo);
-  border: 1px solid var(--color-indigo);
+  border: 1px solid var(--mc-encre);
   box-shadow: 0 10px 28px rgba(12, 13, 32, 0.28);
   border-radius: 4px;
 }
@@ -1402,7 +1565,7 @@
   border: 1px solid var(--copper-300);
   border-radius: 4px;
 }
-.mc-sessionhead__k { display: block; font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); }
+.mc-sessionhead__k { display: block; font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre); }
 .mc-sessionhead__s { display: block; font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 .mc-sessionchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .mc-sessionchip {
@@ -1426,7 +1589,7 @@
   letter-spacing: 0.04em;
 }
 .mc-calnav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.mc-calnav span { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); }
+.mc-calnav span { font-family: var(--font-serif); font-size: 21px; color: var(--mc-encre); }
 .mc-calnav button {
   cursor: pointer;
   background: var(--surface-card);
@@ -1435,10 +1598,10 @@
   width: 34px;
   height: 34px;
   font-size: 16px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-calnav button:hover:not(:disabled) { border-color: var(--color-indigo); }
+.mc-calnav button:hover:not(:disabled) { border-color: var(--mc-encre); }
 .mc-calnav button:disabled { opacity: 0.35; cursor: default; }
 
 .mc-calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
@@ -1463,8 +1626,8 @@
   transition: var(--transition-base);
 }
 .mc-calday.is-free { background: var(--surface-card); border-color: var(--hairline); color: var(--ink); }
-.mc-calday.is-free:hover { border-color: var(--color-indigo); }
-.mc-calday.is-sel { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.mc-calday.is-free:hover { border-color: var(--mc-encre); }
+.mc-calday.is-sel { background: var(--mc-plein); border-color: var(--mc-plein); color: var(--mc-sur-plein); }
 .mc-calday.is-off { cursor: default; }
 .mc-calday i {
   position: absolute;
@@ -1492,16 +1655,16 @@
   font-family: var(--font-sans);
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-slotcard:hover { border-color: var(--color-indigo); }
-.mc-slotcard__time { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
+.mc-slotcard:hover { border-color: var(--mc-encre); }
+.mc-slotcard__time { font-family: var(--font-serif); font-size: 20px; color: var(--mc-encre); }
 .mc-slotcard__who { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
 .mc-slotcard__free { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mc-success); }
 /* L'heure retenue — on ne quitte plus l'écran en la choisissant, elle doit
    donc se voir (maquette écran 2 : l'heure choisie passe en indigo). */
-.mc-slotcard.is-sel { background: var(--color-indigo); border-color: var(--color-indigo); }
-.mc-slotcard.is-sel .mc-slotcard__time { color: var(--color-ivoire); }
-.mc-slotcard.is-sel .mc-slotcard__who { color: var(--indigo-200); }
-.mc-slotcard.is-sel .mc-slotcard__free { color: var(--copper-200); }
+.mc-slotcard.is-sel { background: var(--mc-plein); border-color: var(--mc-plein); }
+.mc-slotcard.is-sel .mc-slotcard__time { color: var(--mc-sur-plein); }
+.mc-slotcard.is-sel .mc-slotcard__who { color: var(--mc-sur-plein-doux); }
+.mc-slotcard.is-sel .mc-slotcard__free { color: var(--mc-sur-plein-doux); }
 
 /* Le titre d'un temps de l'écran — « Le jour », « L'heure ». */
 .mc-stepkicker { display: block; margin: 24px 0 10px; }
@@ -1512,8 +1675,8 @@
 .mc-recapcard--tete { border-color: var(--copper-300); }
 .mc-recapcard__et { display: block; margin-bottom: 9px; }
 .mc-recapcard__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.mc-recapcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); }
-.mc-recapcard__price { font-family: var(--font-serif); font-size: 22px; color: var(--color-indigo); flex: 0 0 auto; }
+.mc-recapcard__name { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); }
+.mc-recapcard__price { font-family: var(--font-serif); font-size: 22px; color: var(--mc-encre); flex: 0 0 auto; }
 .mc-recapcard__meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
 
 /* Lignes par prestation (récapitulatif multi-services). */
@@ -1525,9 +1688,9 @@
   padding: 6px 0;
 }
 .mc-recapcard__svcline + .mc-recapcard__svcline { border-top: 1px solid var(--hairline); }
-.mc-recapcard__svcname { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); line-height: 1.15; }
+.mc-recapcard__svcname { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); line-height: 1.15; }
 .mc-recapcard__svcsub { font-size: 11px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
-.mc-recapcard__svcprice { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); flex: 0 0 auto; }
+.mc-recapcard__svcprice { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); flex: 0 0 auto; }
 .mc-recapcard__deal { font-size: 11.5px; color: var(--accent-strong); margin-top: 6px; }
 .mc-recapcard__deal s { color: var(--ink-soft); margin-left: 6px; }
 .mc-recapcard__line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink); }
@@ -1543,9 +1706,9 @@
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
 }
-.mc-recapcard__total > span:last-child { font-family: var(--font-serif); font-size: 26px; color: var(--color-indigo); }
+.mc-recapcard__total > span:last-child { font-family: var(--font-serif); font-size: 26px; color: var(--mc-encre); }
 .mc-recapcard__total em { font-family: var(--font-sans); font-style: normal; font-size: 12px; color: var(--ink-soft); }
 .mc-recapcard__line + .mc-recapcard__line { margin-top: 7px; }
 
@@ -1564,10 +1727,10 @@
   background: var(--surface-card);
   transition: border-color var(--dur-fast, .2s) var(--ease-soft, ease), background var(--dur-fast, .2s) var(--ease-soft, ease);
 }
-.mc-deliver__opt.is-active { border-color: var(--accent); background: var(--color-sable, rgba(185, 122, 74, 0.08)); }
-.mc-deliver__name { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); line-height: 1.15; }
+.mc-deliver__opt.is-active { border-color: var(--accent); background: var(--color-sable, var(--mc-l-fond-cuivre-08)); }
+.mc-deliver__name { font-family: var(--font-serif); font-size: 15px; color: var(--mc-encre); line-height: 1.15; }
 .mc-deliver__price { font-size: 11.5px; letter-spacing: 0.02em; color: var(--ink-soft); }
-.mc-deliver__opt.is-active .mc-deliver__price { color: var(--accent-strong, var(--accent)); }
+.mc-deliver__opt.is-active .mc-deliver__price { color: var(--accent-strong, var(--mc-cuivre-texte)); }
 .mc-deliver__addr { display: block; margin-top: 12px; }
 .mc-deliver__addrlabel {
   display: block;
@@ -1605,8 +1768,8 @@
   padding: 11px 14px;
   border-radius: 4px;
   border: 1px dashed var(--accent);
-  background: var(--color-sable, rgba(185, 122, 74, 0.08));
-  color: var(--accent-strong, var(--accent));
+  background: var(--color-sable, var(--mc-l-fond-cuivre-08));
+  color: var(--accent-strong, var(--mc-cuivre-texte));
   font-family: var(--font-sans);
   font-size: 12.5px;
   letter-spacing: 0.04em;
@@ -1623,7 +1786,7 @@
   gap: 6px;
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--accent-strong, var(--accent));
+  color: var(--accent-strong, var(--mc-cuivre-texte));
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -1634,8 +1797,8 @@
 }
 
 .mc-temps { display: flex; gap: 14px; align-items: flex-start; padding-bottom: 14px; }
-.mc-temps__no { font-family: var(--font-serif); font-size: 22px; color: var(--accent); flex: 0 0 auto; width: 26px; }
-.mc-temps__n { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.mc-temps__no { font-family: var(--font-serif); font-size: 22px; color: var(--mc-cuivre-texte); flex: 0 0 auto; width: 26px; }
+.mc-temps__n { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); }
 .mc-temps__g { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
 
 /* -------- étape 6 · acompte -------- */
@@ -1662,7 +1825,7 @@
   align-items: center;
   font-family: var(--font-sans);
   font-size: 13.5px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   transition: border-color 0.2s var(--ease-soft);
 }
 .mc-paycard__dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--hairline); background: transparent; transition: var(--transition-base); }
@@ -1681,12 +1844,12 @@
 }
 .mc-paysheet__card {
   width: 100%;
-  background: var(--color-ivoire);
+  background: var(--surface-card);
   border-top: 2px solid var(--color-copper);
   padding: 24px 24px calc(34px + env(safe-area-inset-bottom));
   text-align: center;
 }
-.mc-paysheet__amount { font-family: var(--font-serif); font-size: clamp(32px, 10vw, 40px); color: var(--color-indigo); margin-top: 10px; line-height: 1; }
+.mc-paysheet__amount { font-family: var(--font-serif); font-size: clamp(32px, 10vw, 40px); color: var(--mc-encre); margin-top: 10px; line-height: 1; }
 .mc-paysheet__hint { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; }
 .mc-paysheet__pulse { display: flex; gap: 7px; justify-content: center; margin-top: 18px; }
 .mc-paysheet__pulse span {
@@ -1713,7 +1876,7 @@
   margin: 0 auto 20px;
 }
 .mc-confirm__seal img { width: 34px; height: auto; }
-.mc-confirm h2 { font-family: var(--font-serif); font-weight: 400; font-size: 30px; color: var(--color-indigo); margin: 0; }
+.mc-confirm h2 { font-family: var(--font-serif); font-weight: 400; font-size: 30px; color: var(--mc-encre); margin: 0; }
 .mc-confirm p {
   font-weight: 400;
   font-size: 13.5px;
@@ -1746,8 +1909,8 @@
 .mc-mode:hover { background: var(--hover-veil); }
 .mc-mode__name { display: block; font-family: var(--font-serif); font-size: 16px; color: var(--ink-soft); line-height: 1; }
 .mc-mode__sub { display: block; font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-soft); margin-top: 5px; }
-.mc-mode.is-ritual { border-color: var(--color-indigo); background: var(--indigo-50); }
-.mc-mode.is-ritual .mc-mode__name, .mc-mode.is-ritual .mc-mode__sub { color: var(--color-indigo); }
+.mc-mode.is-ritual { border-color: var(--mc-encre); background: var(--indigo-50); }
+.mc-mode.is-ritual .mc-mode__name, .mc-mode.is-ritual .mc-mode__sub { color: var(--mc-encre); }
 .mc-mode.is-abo { border-color: var(--color-copper); background: var(--color-sable); }
 .mc-mode.is-abo .mc-mode__name, .mc-mode.is-abo .mc-mode__sub { color: var(--accent-strong); }
 .mc-mode.is-pack { border-color: var(--color-copper); background: var(--copper-50); }
@@ -1774,8 +1937,8 @@
   margin-bottom: 12px;
 }
 .mc-pack__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.mc-pack__name { font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--color-indigo); }
-.mc-pack__price { flex: 0 0 auto; font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.mc-pack__name { font-family: var(--font-serif); font-size: 18px; line-height: 1.2; color: var(--mc-encre); }
+.mc-pack__price { flex: 0 0 auto; font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre); font-variant-numeric: tabular-nums; }
 .mc-pack__price em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-soft); }
 .mc-pack__meta { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); margin-top: 5px; }
 /* Ce qu'il réunit — la vraie raison de le choisir. */
@@ -1816,7 +1979,7 @@
   text-transform: uppercase;
   color: var(--ink-soft);
 }
-.mc-seance__quand { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); text-align: right; }
+.mc-seance__quand { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); text-align: right; }
 .mc-seance__quoi { font-size: 12.5px; line-height: 1.5; color: var(--ink); margin-top: 7px; }
 .mc-seance__meta { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); margin-top: 4px; }
 .mc-seance__btn { margin-top: 10px; }
@@ -1835,8 +1998,8 @@
   color: var(--ink);
   transition: var(--transition-base);
 }
-.mc-jour:hover { border-color: var(--color-indigo); }
-.mc-jour.is-on { background: var(--color-indigo); border-color: var(--color-indigo); color: var(--color-ivoire); }
+.mc-jour:hover { border-color: var(--mc-encre); }
+.mc-jour.is-on { background: var(--mc-plein); border-color: var(--mc-plein); color: var(--mc-sur-plein); }
 
 /* L'ANNULATION QUI N'EST PAS PARTIE (16 août) — elle reste sous les yeux tant
    que le geste n'a pas abouti. Un toast s'efface en deux secondes ; un créneau
@@ -1868,7 +2031,7 @@
   padding-bottom: 7px;
   margin-bottom: 12px;
 }
-.mc-cmgroup__fon { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
+.mc-cmgroup__fon { font-family: var(--font-serif); font-size: 15px; color: var(--mc-encre); }
 .mc-cmgroup__sub { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); }
 
 .mc-cmitem {
@@ -1883,7 +2046,7 @@
 }
 .mc-cmitem.is-on { background: var(--color-sable); border-color: var(--copper-300); }
 .mc-cmitem__body { flex: 1; min-width: 0; }
-.mc-cmitem__name { font-family: var(--font-serif); font-size: 16px; color: var(--color-indigo); line-height: 1.15; }
+.mc-cmitem__name { font-family: var(--font-serif); font-size: 16px; color: var(--mc-encre); line-height: 1.15; }
 .mc-cmitem__meta { font-size: 10.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
 .mc-cmitem__qty { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
 .mc-cmitem__count { min-width: 14px; text-align: center; font-family: var(--font-serif); font-size: 18px; color: var(--ink-soft); }
@@ -1904,8 +2067,8 @@
 }
 .mc-qtybtn--minus { border: 1px solid var(--hairline); background: transparent; color: var(--ink-soft); }
 .mc-qtybtn--minus:disabled { opacity: 0.3; cursor: default; }
-.mc-qtybtn--plus { border: 1px solid var(--color-indigo); background: transparent; color: var(--color-indigo); }
-.mc-qtybtn--plus.is-on { background: var(--color-indigo); color: var(--color-ivoire); }
+.mc-qtybtn--plus { border: 1px solid var(--mc-encre); background: transparent; color: var(--mc-encre); }
+.mc-qtybtn--plus.is-on { background: var(--mc-plein); color: var(--mc-sur-plein); }
 
 .mc-cmfooter {
   flex: 0 0 auto;
@@ -1918,7 +2081,7 @@
 .mc-cmfooter__row--deal { color: var(--accent-strong); margin-bottom: 7px; }
 .mc-cmfooter__total { display: flex; justify-content: space-between; align-items: baseline; }
 .mc-cmfooter__total > span { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-soft); }
-.mc-cmfooter__total strong { font-family: var(--font-serif); font-weight: 400; font-size: 25px; color: var(--color-indigo); }
+.mc-cmfooter__total strong { font-family: var(--font-serif); font-weight: 400; font-size: 25px; color: var(--mc-encre); }
 .mc-cmfooter__total em { font-family: var(--font-sans); font-style: normal; font-size: 11px; color: var(--ink-soft); }
 .mc-cmfooter__hint {
   display: flex;
@@ -1944,10 +2107,10 @@
 .mc-notif__dot--soft { background: var(--ink-soft); }
 .mc-notif__body { flex: 1; min-width: 0; }
 .mc-notif__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.mc-notif__kind { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: var(--weight-medium); }
+.mc-notif__kind { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mc-cuivre-texte); font-weight: var(--weight-medium); }
 .mc-notif__time { font-size: 11px; color: var(--ink-soft); }
 .mc-notif__msg { font-size: 13.5px; color: var(--ink); margin-top: 4px; line-height: 1.45; }
-.mc-notif__total { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo); margin-top: 6px; }
+.mc-notif__total { font-family: var(--font-serif); font-size: 21px; color: var(--mc-encre); margin-top: 6px; }
 
 /* ============================================================
    BUREAU (≥ 900 px, souris + survol) — vraie app web.
@@ -2002,8 +2165,8 @@
   .mc-app--shell .mc-tab:hover { background: var(--hover-veil); }
   .mc-app--shell .mc-tab__glyph { font-size: 18px; }
   .mc-app--shell .mc-tab__label { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
-  .mc-app--shell .mc-tab.is-on { background: var(--color-ivoire); }
-  .mc-app--shell .mc-tab.is-on .mc-tab__label { color: var(--color-indigo); }
+  .mc-app--shell .mc-tab.is-on { background: var(--surface-card); }
+  .mc-app--shell .mc-tab.is-on .mc-tab__label { color: var(--mc-encre); }
   .mc-app--shell .mc-nav__signout {
     display: block;
     margin-top: auto;
@@ -2019,7 +2182,7 @@
     color: var(--ink-soft);
     transition: background 0.2s var(--ease-soft), color 0.2s var(--ease-soft);
   }
-  .mc-app--shell .mc-nav__signout:hover { background: var(--hover-veil); color: var(--color-indigo); }
+  .mc-app--shell .mc-nav__signout:hover { background: var(--hover-veil); color: var(--mc-encre); }
 
   /* Contenu : colonne centrée confortable qui remplit l'espace.
      640 px, pas 760 : les cartes sont dessinées au téléphone — plus larges,
@@ -2115,7 +2278,7 @@
 .mc-stchip--ok { color: var(--mc-success); border-color: rgba(74, 122, 91, 0.45); }
 .mc-stchip--wait { color: var(--mc-warning); border-color: rgba(185, 122, 74, 0.45); }
 .mc-stchip--off { color: var(--mc-error); border-color: rgba(155, 74, 69, 0.4); }
-.mc-stchip--info { color: var(--color-indigo); border-color: rgba(46, 51, 120, 0.3); }
+.mc-stchip--info { color: var(--mc-encre); border-color: rgba(46, 51, 120, 0.3); }
 
 /* Bannière de rappel discrète — rituel sous 48 h (Accueil). */
 .mc-remindbanner {
@@ -2177,7 +2340,7 @@
 }
 .mc-rdvcard--past { opacity: 0.72; }
 .mc-rdvcard__top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.mc-rdvcard__when { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); line-height: 1.15; }
+.mc-rdvcard__when { font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre); line-height: 1.15; }
 .mc-rdvcard__svc { font-size: 13.5px; color: var(--ink); margin-top: 6px; line-height: 1.4; }
 .mc-rdvcard__meta { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
 .mc-rdvcard__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -2188,7 +2351,7 @@
   min-width: 88px;
   min-height: 44px;
   background: transparent;
-  border: 1px solid var(--color-indigo);
+  border: 1px solid var(--mc-encre);
   border-radius: 2px;
   cursor: pointer;
   font-family: var(--font-sans);
@@ -2196,7 +2359,7 @@
   font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   transition: background 0.2s var(--ease-soft);
 }
 .mc-rdvact:hover { background: var(--hover-veil); }
@@ -2205,7 +2368,7 @@
 /* Feuille de confirmation d'annulation. */
 .mc-cta--danger { background: var(--mc-error); color: var(--color-ivoire); }
 .mc-cta--danger:hover { filter: brightness(0.94); }
-.mc-cancel__t { font-family: var(--font-serif); font-weight: 400; font-size: 24px; color: var(--color-indigo); margin-top: 8px; }
+.mc-cancel__t { font-family: var(--font-serif); font-weight: 400; font-size: 24px; color: var(--mc-encre); margin-top: 8px; }
 .mc-cancel__s { font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--ink); margin-top: 8px; }
 .mc-cancel__warn {
   margin-top: 12px;
@@ -2238,20 +2401,20 @@
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   transition: border-color 0.2s var(--ease-soft);
 }
-.mc-orderslink:hover { border-color: var(--color-indigo); }
-.mc-orderslink__arrow { color: var(--accent); font-size: 14px; }
+.mc-orderslink:hover { border-color: var(--mc-encre); }
+.mc-orderslink__arrow { color: var(--mc-cuivre-texte); font-size: 14px; }
 
 /* Ligne de commande — numéro, articles, total, état. */
 .mc-orderrow { padding: 15px 24px; border-bottom: 1px solid var(--hairline); }
 .mc-orderrow__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.mc-orderrow__no { font-family: var(--font-serif); font-size: 17px; color: var(--color-indigo); }
+.mc-orderrow__no { font-family: var(--font-serif); font-size: 17px; color: var(--mc-encre); }
 .mc-orderrow__date { font-size: 11px; color: var(--ink-soft); flex: 0 0 auto; }
 .mc-orderrow__lines { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 5px; line-height: 1.45; }
 .mc-orderrow__foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 9px; }
-.mc-orderrow__total { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.mc-orderrow__total { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); }
 
 /* Rangée de navigation (Profil · Tout suivre). */
 .mc-navrow {
@@ -2268,13 +2431,13 @@
   cursor: pointer;
   font-family: var(--font-serif);
   font-size: 17px;
-  color: var(--color-indigo);
+  color: var(--mc-encre);
   text-align: left;
   transition: background 0.2s var(--ease-soft);
 }
 .mc-navrow:last-child { border-bottom: none; }
 .mc-navrow:hover { background: var(--hover-veil); }
-.mc-navrow__arrow { font-family: var(--font-sans); font-size: 14px; color: var(--accent); flex: 0 0 auto; }
+.mc-navrow__arrow { font-family: var(--font-sans); font-size: 14px; color: var(--mc-cuivre-texte); flex: 0 0 auto; }
 .mc-navrow__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .mc-navrow__sub { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
 
@@ -2321,10 +2484,10 @@
   padding: 14px 16px;
   background: var(--surface-card);
 }
-.mc-pushrow__t { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
+.mc-pushrow__t { font-family: var(--font-serif); font-size: 15px; color: var(--mc-encre); }
 .mc-pushrow__s { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
 .mc-pushrow__btn { flex: 0 0 auto; width: auto; margin: 0; padding: 10px 18px; }
-.mc-pushrow__on { flex: 0 0 auto; font-size: 12px; color: var(--accent-strong, var(--accent)); font-weight: 500; }
+.mc-pushrow__on { flex: 0 0 auto; font-size: 12px; color: var(--accent-strong, var(--mc-cuivre-texte)); font-weight: 500; }
 
 /* Interrupteur notifications — activer/désactiver. */
 .mc-switch {
@@ -2336,7 +2499,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  background: var(--color-argile, #cfc4b4);
+  background: var(--color-argile, var(--mc-l-fond-cfc4b4));
   transition: background 0.2s var(--ease-soft, ease);
 }
 .mc-switch.is-on { background: var(--accent); }
@@ -2348,7 +2511,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--color-ivoire, #fff);
+  background: var(--surface-card);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   transition: transform 0.2s var(--ease-soft, ease);
 }
@@ -2432,7 +2595,7 @@
 .mc-bilanpoints { margin: 0; padding-left: 18px; }
 .mc-bilanpoints li { font-size: 13px; line-height: 1.55; margin-top: 6px; }
 .mc-bilantemps { margin-top: 10px; }
-.mc-bilantemps .n { font-family: var(--font-serif); font-size: 15px; color: var(--color-indigo); }
+.mc-bilantemps .n { font-family: var(--font-serif); font-size: 15px; color: var(--mc-encre); }
 .mc-bilantemps .n span { font-family: var(--font-sans); font-size: 11px; color: var(--ink-soft); }
 .mc-bilantemps p { margin: 3px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
 .mc-bilannext {
@@ -2451,6 +2614,51 @@
   font-style: italic;
   font-size: 13.5px;
   color: var(--ink-soft);
+}
+
+/* LE BILAN S'OUVRE SUR L'ESSENTIEL — 4 octobre 2026 : le résumé, la routine,
+   ce que la Maison propose ; le bilan entier à un geste. */
+.mc-bilanresume {
+  margin: 16px 0 0;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--mc-encre);
+}
+.mc-bilantexte { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+.mc-bilanroutine { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mc-bilanroutine > div {
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 9px 11px;
+  display: grid;
+  gap: 2px;
+}
+.mc-bilanroutine b { font-family: var(--font-serif); font-weight: 500; font-size: 16px; color: var(--mc-encre); }
+.mc-bilanroutine span { font-size: 11.5px; color: var(--copper-700); }
+.mc-bilanroutine em { font-style: normal; font-size: 12px; color: var(--ink-soft); }
+.mc-bilanpropo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.mc-bilanpropo .n { font-family: var(--font-serif); font-size: 16px; color: var(--mc-encre); }
+.mc-bilanpropo .q { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.mc-bilanentier {
+  margin-top: 16px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--copper-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Le sélecteur de tête — « Pour : Moi · Keli » (TEMPS 2 des comptes enfants). */
@@ -2480,9 +2688,9 @@
   color: var(--ink);
 }
 .mc-pourqui__chip.is-on {
-  background: var(--color-indigo);
-  border-color: var(--color-indigo);
-  color: var(--color-ivoire);
+  background: var(--mc-plein);
+  border-color: var(--mc-plein);
+  color: var(--mc-sur-plein);
 }
 .mc-pourqui__chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
@@ -2492,11 +2700,11 @@
 
 .cma-micro {
   font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink-mute, #70707B); font-weight: 600; display: block; margin-bottom: 10px;
+  color: var(--ink-mute, var(--mc-l-texte-70707b)); font-weight: 600; display: block; margin-bottom: 10px;
 }
 .cma-titre {
   font-family: var(--font-serif); font-weight: 300; font-size: 22px;
-  color: var(--color-indigo); margin: 0 0 4px; line-height: 1.2;
+  color: var(--mc-encre); margin: 0 0 4px; line-height: 1.2;
 }
 .cma-sous { font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; line-height: 1.6; }
 .cma-sous b { font-weight: 500; color: var(--ink); }
@@ -2548,38 +2756,38 @@
 /* LES TROIS QUESTIONS DU COMPTOIR, répondues avant d'être posées. */
 .cma-assur {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
-  background: var(--hairline, #E3DCCE); border: 1px solid var(--hairline, #E3DCCE);
+  background: var(--hairline, var(--mc-l-fond-e3dcce)); border: 1px solid var(--hairline, var(--mc-l-filet-e3dcce));
   border-radius: 4px; overflow: hidden; margin-bottom: 22px;
 }
-.cma-assur > div { background: var(--color-ivoire, #FBF8F2); padding: 11px 8px; text-align: center; }
+.cma-assur > div { background: var(--surface-card); padding: 11px 8px; text-align: center; }
 .cma-assur b {
   display: block; font-family: var(--font-serif); font-size: 16px; font-weight: 400;
-  color: var(--color-indigo, #1E2150); line-height: 1.3;
+  color: var(--mc-encre); line-height: 1.3;
 }
 .cma-assur span {
   display: block; font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
-  color: var(--ink-soft, #746F65); margin-top: 3px;
+  color: var(--ink-soft, var(--mc-l-texte-746f65)); margin-top: 3px;
 }
 
 /* LA PAGE SE FERME SUR CE QUI RASSURE. Sans cette phrase, elle pouvait
    croire qu'il fallait sortir sa carte bancaire. */
 .cma-pied {
-  margin-top: 24px; padding: 16px 18px; background: var(--sable, #EFE7D8);
-  border-top: 1px solid var(--hairline, #E3DCCE); border-radius: 4px;
+  margin-top: 24px; padding: 16px 18px; background: var(--sable, var(--mc-l-fond-efe7d8));
+  border-top: 1px solid var(--hairline, var(--mc-l-filet-e3dcce)); border-radius: 4px;
 }
-.cma-pied p { margin: 0; font-size: 12px; color: var(--ink-soft, #746F65); line-height: 1.7; text-align: center; }
-.cma-pied b { color: var(--ink, #2A2722); font-weight: 500; }
-.cma-pied a { color: var(--copper-700, #9C6339); text-decoration: underline; text-underline-offset: 2px; }
+.cma-pied p { margin: 0; font-size: 12px; color: var(--ink-soft, var(--mc-l-texte-746f65)); line-height: 1.7; text-align: center; }
+.cma-pied b { color: var(--ink, var(--mc-l-texte-2a2722)); font-weight: 500; }
+.cma-pied a { color: var(--copper-700, var(--mc-l-texte-9c6339)); text-decoration: underline; text-underline-offset: 2px; }
 
 /* L'ATTENTE CESSE D'ÊTRE UN CUL-DE-SAC. « La Maison n'a pas encore ouvert ses
    formules » dans un cadre en pointillés ressemblait à une panne. */
 .cma-bientot {
-  border: 1px solid var(--hairline, #E3DCCE); border-radius: 4px;
-  background: var(--color-ivoire, #FBF8F2); padding: 26px 20px; text-align: center;
+  border: 1px solid var(--hairline, var(--mc-l-filet-e3dcce)); border-radius: 4px;
+  background: var(--surface-card); padding: 26px 20px; text-align: center;
 }
 .cma-bientot__mono { font-family: var(--font-serif); font-size: 26px; color: var(--copper-200, #E3C9AE); line-height: 1; }
-.cma-bientot__t { font-family: var(--font-serif); font-size: 21px; color: var(--color-indigo, #1E2150); margin: 12px 0 7px; }
-.cma-bientot__s { font-size: 12.5px; color: var(--ink-soft, #746F65); margin: 0; line-height: 1.65; }
+.cma-bientot__t { font-family: var(--font-serif); font-size: 21px; color: var(--mc-encre); margin: 12px 0 7px; }
+.cma-bientot__s { font-size: 12.5px; color: var(--ink-soft, var(--mc-l-texte-746f65)); margin: 0; line-height: 1.65; }
 
 /* La carte de la formule — la seule surface indigo de l'écran. */
 .cma-carte {
@@ -2628,7 +2836,7 @@
   width: 21px; height: 21px; border-radius: 50%; flex: none;
   border: 1px solid var(--color-argile); background: transparent;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--color-argile);
+  font-size: 10px; color: var(--mc-ornement);
 }
 .cma-jeton.pris { background: var(--copper-600); border-color: var(--copper-600); color: #fff; }
 .cma-jeton.suivant { border-color: var(--copper-600); border-style: dashed; color: var(--copper-700); }
@@ -2645,14 +2853,14 @@
 .cma-pastille.avenir { background: var(--color-argile); }
 .cma-ech__date { color: var(--ink-soft); }
 .cma-ech__mt { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cma-ech__mt.paye { text-decoration: line-through; color: var(--ink-mute, #70707B); }
+.cma-ech__mt.paye { text-decoration: line-through; color: var(--ink-mute, var(--mc-l-texte-70707b)); }
 
 /* LE PRIX DU CATALOGUE, BARRÉ À CÔTÉ DU SIEN (28 août). Elle mesure ce que la
    Maison lui accorde au lieu de le deviner. Discret : c'est SON prix qui doit
    se lire en premier, l'autre n'est là que pour donner l'échelle. */
 .cma-ech__avant {
   text-decoration: line-through;
-  color: var(--ink-mute, #70707B);
+  color: var(--ink-mute, var(--mc-l-texte-70707b));
   font-size: .86em;
   margin-right: 7px;
   font-weight: 400;
@@ -2690,7 +2898,7 @@
 .cma-somme span { font-size: 12px; color: var(--ink-soft); }
 .cma-somme b {
   font-family: var(--font-serif); font-weight: 400; font-size: 26px;
-  color: var(--color-indigo); font-variant-numeric: tabular-nums;
+  color: var(--mc-encre); font-variant-numeric: tabular-nums;
 }
 .cma-somme__sous { font-size: 11.5px; color: var(--ink-soft); text-align: right; margin-top: 2px; }
 
@@ -2706,7 +2914,7 @@
    viser un petit rond coûte un geste de plus à chaque hésitation. */
 .cma-choix {
   display: block; width: 100%; text-align: left; margin-top: 10px;
-  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card, #FBF8F2);
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card, var(--mc-l-fond-fbf8f2));
   padding: 14px 16px; cursor: pointer; font-family: var(--font-sans);
   transition: border-color .2s ease, background .2s ease;
 }
@@ -2715,20 +2923,20 @@
    Le filet cuivre à gauche, l'ombre et la coche donnent une réponse nette à
    « laquelle ai-je prise ». */
 .cma-choix.is-on {
-  border-color: var(--copper-600); background: var(--copper-50, #FAF1E9);
+  border-color: var(--copper-600); background: var(--copper-50, var(--mc-l-fond-faf1e9));
   border-left: 3px solid var(--copper-600); padding-left: 14px;
   box-shadow: 0 2px 10px rgba(185, 122, 74, .13);
 }
 .cma-choix:focus-visible { outline: 2px solid var(--copper-600); outline-offset: 2px; }
 .cma-choix__t { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.cma-choix__n { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); }
+.cma-choix__n { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); }
 /* LA COCHE : le nom du choix retenu la porte, et elle ne coûte pas une ligne. */
 .cma-choix.is-on .cma-choix__n::before {
   content: '✓'; display: inline-block; margin-right: 7px;
-  font-family: var(--font-sans); font-size: 12px; color: var(--copper-600);
+  font-family: var(--font-sans); font-size: 12px; color: var(--accent-strong);
 }
 .cma-choix__m {
-  font-family: var(--font-serif); font-size: 24px; color: var(--color-indigo);
+  font-family: var(--font-serif); font-size: 24px; color: var(--mc-encre);
   font-variant-numeric: tabular-nums; text-align: right; line-height: 1.1;
 }
 /* CE QUE LE MONTANT VEUT DIRE, sous lui : « 168 000 F » et « 84 000 F » ne se
@@ -2743,7 +2951,7 @@
    la cliente faire l'addition, et c'est la seule qu'elle ne doit pas avoir à
    faire. */
 .cma-ech2__tot { border-top: 1px solid var(--hairline); margin-top: 6px; padding-top: 6px; }
-.cma-ech2__tot b { color: var(--color-indigo); }
+.cma-ech2__tot b { color: var(--mc-encre); }
 .cma-ech2 { display: block; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--hairline); }
 .cma-ech2 > span {
   display: flex; justify-content: space-between; gap: 10px; font-size: 12px;
@@ -2751,8 +2959,8 @@
 }
 .cma-ech2 b { color: var(--ink); font-weight: 500; }
 
-.cma-btn--indigo { background: var(--color-indigo); color: var(--color-ivoire); }
-.cma-btn--indigo:hover { background: var(--color-indigo-deep, #15173A); }
+.cma-btn--indigo { background: var(--mc-plein); color: var(--mc-sur-plein); }
+.cma-btn--indigo:hover { background: var(--mc-plein-survol); }
 .cma-btn:disabled, .cma-choix:disabled { opacity: .55; cursor: default; }
 
 .cma-lien {
@@ -2780,7 +2988,7 @@
 
 /* La vitrine — le même rangement que Le Trône, lu de la même source. */
 .cma-moment { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 9px; }
-.cma-moment__titre { font-family: var(--font-serif); font-size: 18px; color: var(--color-indigo); white-space: nowrap; }
+.cma-moment__titre { font-family: var(--font-serif); font-size: 18px; color: var(--mc-encre); white-space: nowrap; }
 .cma-moment__quand { font-size: 10px; color: var(--ink-soft); letter-spacing: .04em; }
 .cma-moment__rule { height: 1px; background: var(--hairline); flex: 1; }
 
@@ -2789,11 +2997,11 @@
   margin-bottom: 9px; background: #fff;
 }
 .cma-offre.phare { border-color: var(--copper-300); background: var(--copper-50); }
-.cma-offre__tag { font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--copper-600); font-weight: 600; }
-.cma-offre__nom { font-family: var(--font-serif); font-size: 19px; color: var(--color-indigo); line-height: 1.15; margin: 3px 0 2px; }
+.cma-offre__tag { font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-strong); font-weight: 600; }
+.cma-offre__nom { font-family: var(--font-serif); font-size: 19px; color: var(--mc-encre); line-height: 1.15; margin: 3px 0 2px; }
 .cma-offre__ligne { font-family: var(--font-serif); font-style: italic; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 8px; }
 .cma-offre__bas { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cma-offre__prix { font-family: var(--font-serif); font-size: 20px; color: var(--color-indigo); }
+.cma-offre__prix { font-family: var(--font-serif); font-size: 20px; color: var(--mc-encre); }
 .cma-offre__prix span { font-size: 10.5px; color: var(--ink-soft); font-family: var(--font-sans); }
 .cma-offre__gain { font-size: 10.5px; color: var(--color-vert, #2E6B4F); }
 
@@ -2806,14 +3014,14 @@
   list-style: none;
   margin: 0 0 10px;
   padding: 9px 0 0;
-  border-top: 1px solid var(--hairline, #E3DCCE);
+  border-top: 1px solid var(--hairline, var(--mc-l-filet-e3dcce));
 }
 .cma-inclus li {
   display: flex;
   gap: 7px;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--ink, #2A2722);
+  color: var(--ink, var(--mc-l-texte-2a2722));
   margin-bottom: 3px;
 }
 .cma-inclus i {
@@ -2821,7 +3029,7 @@
   flex: none;
   font-size: 8px;
   line-height: 2.1;
-  color: var(--copper-600, #B97A4A);
+  color: var(--copper-600, var(--mc-cuivre-texte));
 }
 
 /* L'attente porte une date : elle engage la Maison. */
@@ -2834,7 +3042,7 @@
   color: var(--copper-700); font-weight: 600;
 }
 .cma-attente__nom {
-  font-family: var(--font-serif); font-size: 23px; color: var(--color-indigo);
+  font-family: var(--font-serif); font-size: 23px; color: var(--mc-encre);
   margin: 8px 0 6px; line-height: 1.2;
 }
 .cma-attente__dit { font-size: 12.5px; color: var(--ink-soft); margin: 0; line-height: 1.6; }
@@ -2875,12 +3083,12 @@
 .cma-calibre__q {
   font-family: var(--font-serif, 'Cormorant Garamond', serif);
   font-size: 21px;
-  color: var(--color-indigo, #1E2150);
+  color: var(--mc-encre);
   line-height: 1.25;
 }
 .cma-calibre__d {
   font-size: 12.5px;
-  color: var(--ink-soft, #746F65);
+  color: var(--ink-soft, var(--mc-l-texte-746f65));
   line-height: 1.6;
   margin: 6px 0 12px;
 }
@@ -2893,8 +3101,8 @@
   text-align: left;
   font: inherit;
   cursor: pointer;
-  background: var(--color-ivoire, #FBF8F2);
-  border: 1px solid var(--hairline, #E3DCCE);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline, var(--mc-l-filet-e3dcce));
   border-radius: 3px;
   padding: 11px 13px;
   margin-bottom: 8px;
@@ -2902,11 +3110,11 @@
   transition: var(--transition-base, .18s ease);
 }
 .cma-calibre__opt b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cma-calibre__opt.is-on { border-color: var(--color-copper, #B97A4A); background: var(--copper-50, #FAF1E9); }
+.cma-calibre__opt.is-on { border-color: var(--color-copper, #B97A4A); background: var(--copper-50, var(--mc-l-fond-faf1e9)); }
 .cma-calibre__opt:focus-visible { outline: 2px solid var(--color-copper, #B97A4A); outline-offset: 2px; }
 /* « Je ne sais pas » ne porte pas de chiffre : ce serait un prix qu'on
    inventerait, alors qu'on dit précisément qu'on ne sait pas encore. */
-.cma-calibre__flou { font-weight: 400; color: var(--ink-soft, #746F65); font-size: 12px; }
+.cma-calibre__flou { font-weight: 400; color: var(--ink-soft, var(--mc-l-texte-746f65)); font-size: 12px; }
 
 /* ── LA PORTE DE MND KIDS — 11 septembre 2026 ──────────────────────
    Une date de naissance fausse enfermait une adulte dans la section enfants,
@@ -2922,9 +3130,9 @@
   padding: 11px 14px;
   border: 1px solid var(--copper-300, #E3C9AE);
   border-radius: 3px;
-  background: var(--copper-50, #FAF1E9);
+  background: var(--copper-50, var(--mc-l-fond-faf1e9));
   font-size: 12.5px;
-  color: var(--ink, #2A2722);
+  color: var(--ink, var(--mc-l-texte-2a2722));
 }
 .mc-kidsporte button {
   border: 1px solid var(--copper-300, #E3C9AE);
@@ -2933,8 +3141,17 @@
   padding: 5px 12px;
   font-family: inherit;
   font-size: 11.5px;
-  color: var(--copper-700, #8A5326);
+  color: var(--copper-700, var(--mc-l-texte-8a5326));
   cursor: pointer;
   white-space: nowrap;
 }
 .mc-kidsporte button:hover { background: #fff; }
+
+/* LE CHOIX DU THÈME, dans Profil (3 octobre 2026) : trois options sur une
+   ligne, celle qui est prise est pleine. */
+.mc-seg { flex: 0 0 auto; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--hairline); border-radius: 999px; }
+.mc-seg__opt {
+  border: 0; background: none; cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+  padding: 7px 11px; border-radius: 999px; color: var(--ink-soft); min-height: 32px;
+}
+.mc-seg__opt.is-on { background: var(--mc-plein); color: var(--mc-sur-plein); }

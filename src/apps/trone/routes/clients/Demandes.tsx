@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../_ui';
-import { Button, Select, Textarea, toast } from '../../../../ds/components';
+import { Button, Select, Textarea, demande, toast } from '../../../../ds/components';
 import { useBranch } from '../../../../shared/branches';
 import { signeLeMessage } from '../../../../shared/identite';
 import { clientsStore, ensureInitiePersona } from '../../../../shared/clients';
 import { appointmentsStore } from '../../../../shared/agenda';
 import {
   useDemandes, demandesTriees, ditLeBesoin, ditLeGenre, messageDeRappel, ficheDepuisLaDemande,
-  telephoneMasque, telephoneNormalise, depuisQuand, BESOINS,
-  type Demande, type BesoinDeLaDemande, type StatutDeLaDemande,
+  telephoneMasque, telephoneNormalise, depuisQuand, BESOINS, dansLeFiltre,
+  type Demande, type BesoinDeLaDemande, type StatutDeLaDemande, type FiltreDesDemandes,
 } from '../../../../shared/demandes';
 import './clients.css';
 
@@ -30,12 +30,22 @@ import './clients.css';
    l'épaule : les quatre derniers chiffres suffisent à reconnaître, le
    numéro entier ne se montre qu'à qui le demande. */
 
-type FiltreStatut = 'a-traiter' | StatutDeLaDemande | 'toutes';
+/* ══ TRAITÉE, ARCHIVÉE, SUPPRIMÉE — 4 octobre 2026 ═══════════════════
+   « Quand les demandes de site sont traitées je veux les faire disparaître.
+   Aussi je veux archiver et supprimer » (Yéman).
+   · TRAITÉE : un statut. Elle quitte « À traiter », se retrouve sous
+     « Traitées ».
+   · ARCHIVÉE : un rangement, pas un statut. Elle quitte TOUTES les listes,
+     « Toutes » compris, et ne se lit plus que sous « Archivées ».
+   · SUPPRIMÉE : pour de bon, après confirmation. Le rendez-vous qu'elle a
+     posé au calendrier reste : il appartient au calendrier. */
+type FiltreStatut = FiltreDesDemandes;
 type FiltreBesoin = 'tous' | BesoinDeLaDemande;
 
 const STATUT_DIT: Record<StatutDeLaDemande, { mot: string; classe: string }> = {
   nouvelle: { mot: 'nouvelle', classe: 'trc-pill--new' },
   rappelee: { mot: 'rappelée', classe: 'trc-pill--attente' },
+  traitee: { mot: 'traitée', classe: 'trc-pill--confirme' },
   convertie: { mot: 'cliente', classe: 'trc-pill--confirme' },
   ecartee: { mot: 'écartée', classe: 'trc-pill--annule' },
 };
@@ -80,7 +90,7 @@ export default function Demandes() {
     [toutes, branch.id],
   );
 
-  const nouvelles = dansLaBranche.filter((d) => d.statut === 'nouvelle').length;
+  const nouvelles = dansLaBranche.filter((d) => d.statut === 'nouvelle' && !d.archiveeLe).length;
   const semaine = debutDeSemaine(maintenant);
   const rappeleesSemaine = dansLaBranche.filter((d) => d.rappeleeLe && Date.parse(d.rappeleeLe) >= semaine).length;
   /* La demande ne porte pas le jour de sa conversion : on compte celles
@@ -90,12 +100,39 @@ export default function Demandes() {
   const convertiesMois = dansLaBranche.filter((d) => d.statut === 'convertie' && Date.parse(d.createdAt) >= mois).length;
 
   const visibles = useMemo(() => demandesTriees(dansLaBranche.filter((d) => {
-    if (statut === 'a-traiter' ? (d.statut !== 'nouvelle' && d.statut !== 'rappelee') : statut !== 'toutes' && d.statut !== statut) return false;
+    if (!dansLeFiltre(d, statut)) return false;
     return besoin === 'tous' || d.besoin === besoin;
   })), [dansLaBranche, statut, besoin]);
 
   const poser = (d: Demande, patch: Partial<Demande>) =>
     setDemandes((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...patch } : x)));
+
+  const archiver = (d: Demande) => {
+    poser(d, { archiveeLe: new Date().toISOString() });
+    toast(`La demande de ${d.prenom} est archivée.`);
+  };
+  const supprimer = async (d: Demande) => {
+    /* UNE DEMANDE PARRAINÉE PORTE LA LIGNÉE D'UNE MARRAINE (Les
+       ambassadrices) : la supprimer la lui retire. On le dit, et on propose
+       d'archiver, qui la range sans rien effacer. */
+    const p = d as Demande & { codeParrain?: string; marraineId?: string };
+    const parrainee = !!(p.codeParrain || p.marraineId);
+    const suite = [
+      d.apptId ? 'Le rendez-vous qu’elle a posé reste au calendrier.' : '',
+      parrainee ? 'Elle est venue par une marraine : la supprimer la retire de ses filleules. Archiver la range sans rien effacer.' : '',
+    ].filter(Boolean).join(' ');
+    if (!await demande({
+      quoi: 'Demande du site',
+      titre: `Supprimer la demande de ${d.prenom} ?`,
+      dit: 'Elle quitte les demandes pour de bon.',
+      suite: suite || undefined,
+      accepter: 'Supprimer la demande',
+      refuser: 'La garder',
+      dur: true,
+    })) return;
+    setDemandes((prev) => prev.filter((x) => x.id !== d.id));
+    toast(`La demande de ${d.prenom} est supprimée.`);
+  };
 
   const deplier = (id: string) => setDepliees((prev) => {
     const suite = new Set(prev);
@@ -160,9 +197,11 @@ export default function Demandes() {
           <option value="a-traiter">À traiter</option>
           <option value="nouvelle">Nouvelles</option>
           <option value="rappelee">Rappelées</option>
+          <option value="traitee">Traitées</option>
           <option value="convertie">Converties</option>
           <option value="ecartee">Écartées</option>
           <option value="toutes">Toutes</option>
+          <option value="archivees">Archivées</option>
         </Select>
         <Select aria-label="Besoin" value={besoin} onChange={(e) => setBesoin(e.target.value as FiltreBesoin)}>
           <option value="tous">Tous les besoins</option>
@@ -275,13 +314,32 @@ export default function Demandes() {
                     Ouvrir sa fiche
                   </button>
                 )}
-                {d.statut === 'ecartee' ? (
-                  <Button variant="ghost" size="sm" onClick={() => poser(d, { statut: 'nouvelle' })}>Reprendre</Button>
+                {(d.statut === 'nouvelle' || d.statut === 'rappelee') && !d.archiveeLe && (
+                  <Button variant="ghost" size="sm" onClick={() => { poser(d, { statut: 'traitee' }); toast(`La demande de ${d.prenom} est traitée, elle quitte « À traiter ».`); }}>
+                    Traitée
+                  </Button>
+                )}
+                {d.statut === 'ecartee' || d.statut === 'traitee' ? (
+                  <Button variant="ghost" size="sm" onClick={() => poser(d, { statut: 'nouvelle', archiveeLe: undefined })}>Reprendre</Button>
                 ) : d.statut !== 'convertie' && (
-                  <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" style={{ marginLeft: 'auto' }} onClick={() => poser(d, { statut: 'ecartee' })}>
+                  <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => poser(d, { statut: 'ecartee' })}>
                     Écarter
                   </button>
                 )}
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
+                  {d.archiveeLe ? (
+                    <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => poser(d, { archiveeLe: undefined })}>
+                      Désarchiver
+                    </button>
+                  ) : (
+                    <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" onClick={() => archiver(d)}>
+                      Archiver
+                    </button>
+                  )}
+                  <button type="button" className="trc-c360-linkbtn trc-c360-linkbtn--muted" style={{ color: 'var(--color-brique, #96412E)' }} onClick={() => void supprimer(d)}>
+                    Supprimer
+                  </button>
+                </span>
               </div>
 
               <Textarea

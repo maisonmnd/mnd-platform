@@ -10,7 +10,7 @@ import { maisonNom, houseSignature } from '../../../../shared/identite';
 import { momentCourt, texteDuRappel } from '../../../../shared/rappel';
 import {
   clientsStore, clienteDePassage, ensureInitiePersona, estDePassage, useClients, useFamilies,
-  remiseFamillePct, type Client,
+  remiseFamillePct, tetesRegulieres, type Client,
 } from '../../../../shared/clients';
 import { apptPaidXof,
   appointmentsStore, useAppointments, useRemindersSent, markReminderSent, reminderKey, venuesHonorees,
@@ -40,6 +40,9 @@ import { invoicesStore, invoiceTotal, invoiceReglements, caissesHorsBilan, type 
 import { DemanderModal } from '../equipe/DemanderModal';
 import './clients.css';
 import { cheminDeLaConversation, lienDuFil, lienWaMe } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
+import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
+import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 
 export { ChampDeDate };
 
@@ -452,6 +455,39 @@ export function revenuDuMois(
       .reduce((s, r) => s + r.amountXof, 0);
 
   return factures + rituels + flux(apprenants, false) + flux(abonnes, true);
+}
+
+/** CE QUI EST ATTENDU D'ICI LA FIN DU MOIS, ET QUI N'EST PAS ENCORE ENTRÉ — 1er octobre 2026.
+
+    « Revenus du mois est calculé avec tous les RDV à venir. J'ai besoin que ce
+    soit les revenus actuels, payés. Il peut y avoir une case à part pour les
+    projected revenues » (Yéman). Une facture soldée d'avance porte un
+    versement daté du jour du rendez-vous : le 1er, le mois affichait déjà
+    l'argent du 15, du 16 et du 29.
+
+    Le revenu du mois s'arrête donc à AUJOURD'HUI (`revenuDuMois` avec `cut`),
+    et ce qui est daté d'après se lit ICI, à part : les versements datés plus
+    tard dans le mois, et le reste dû des rendez-vous à venir du mois, ni
+    annulés ni déjà honorés. Rien de tout cela n'est acquis. Encaissé à ce
+    jour + projeté = ce que le mois vaudra si tout le monde vient. */
+export function revenusProjetesDuMois(
+  args: Parameters<typeof revenuDuMois>[0],
+  mk: string,
+  aujourdhui: string,
+): { versements: number; rendezVous: number; nombre: number; attendus: number; total: number } {
+  const versements = Math.max(0, revenuDuMois(args, mk) - revenuDuMois(args, mk, { cut: aujourdhui }));
+  /* « Revenus projetés montre 17 RDV, le Carnet montre 22 rituels. Que se passe-t-il ? »
+     (Yéman, 1er octobre 2026). Les deux disaient vrai : le Carnet compte TOUS les
+     rendez-vous à venir du mois, à leur valeur entière ; ici on ne compte que ce qui
+     RESTE à régler. Un rendez-vous déjà soldé n'attend plus rien. On rend donc les
+     deux nombres, `attendus` (ceux du Carnet) et `nombre` (ceux qui doivent encore),
+     pour que la tuile se recoupe avec le Carnet au lieu de le contredire. */
+  const tous = args.appts
+    .filter((a) => a.branchId === args.branchId && a.status !== 'annulé' && a.status !== 'honoré'
+      && a.date.slice(0, 7) === mk && a.date >= aujourdhui);
+  const aRegler = tous.map((a) => apptDueXof(a, args.byId)).filter((du) => du > 0);
+  const rendezVous = aRegler.reduce((n, du) => n + du, 0);
+  return { versements, rendezVous, nombre: aRegler.length, attendus: tous.length, total: versements + rendezVous };
 }
 
 /* ---------- Les factures suivent le rituel ----------
@@ -905,7 +941,7 @@ export function apptReminder(
   }
   const digits = digitsOf(client?.phone);
   if (!digits) return { href: null, due, when };
-  const first = (client?.name ?? '').split(' ')[0] || 'Madame';
+  const first = appelDe(client);
   const msg = texteDuRappel({
     ...moment,
     prenom: first,
@@ -2185,6 +2221,13 @@ export function RdvModal({
        laquelle un rituel payé redevenait « confirmé » : l'argent restait au
        registre pour un rituel qui, selon le carnet, n'avait pas eu lieu. On
        rend d'abord l'argent, puis on change le statut. */
+    /* ON N'HONORE PAS CE QUI N'A PAS EU LIEU — 4 octobre 2026 (voir
+       `honorAppointment`) : ce sélecteur aussi écrivait « honoré » sur un
+       rituel de décembre, et sa reprise suivait. */
+    if (chosenStatus === 'honoré' && date > todayISO()) {
+      setError('Ce rituel n’a pas encore eu lieu : il s’honore le jour venu.');
+      return false;
+    }
     if (appt && chosenStatus !== 'honoré') {
       const frais = appointmentsStore.get().find((x) => x.id === appt.id) ?? appt;
       if (frais.status === 'honoré' && apptPaidXof(frais) > 0) {
@@ -2469,19 +2512,32 @@ export function RdvModal({
 
   const remove = async () => {
     if (!appt) return;
+    const encaisse = (appt.paidXof ?? 0) > 0 || (appt.payments ?? []).length > 0 || !!appt.invoiceId;
     if (!await demande({
       quoi: 'Suppression définitive',
       titre: 'Supprimer ce rendez-vous ?',
       dit: 'Il quitte le carnet et le calendrier. Ce qu’il avait consommé revient au stock.',
+      suite: encaisse ? 'Son encaissement est annulé avec lui : ses factures partent, et l’avoir utilisé revient sur le compte.' : undefined,
       scelle: 'Rien ne pourra le rétablir, sauf une sauvegarde antérieure à aujourd’hui.',
       accepter: 'Supprimer le rendez-vous',
       refuser: 'Garder le rendez-vous',
       dur: true,
     })) return;
+    /* UN RENDEZ-VOUS ENCAISSÉ EMPORTE SON ENCAISSEMENT (3 octobre 2026),
+       comme au Carnet. Import dynamique : actions importe déjà ce fichier. */
+    if (encaisse) {
+      const { cancelAppointmentPayment } = await import('./actions');
+      cancelAppointmentPayment(appointmentsStore.get().find((x) => x.id === appt.id) ?? appt);
+    }
     /* Un rituel honoré a consommé sa recette : le supprimer sans rembobiner
        laissait des mouvements orphelins pointant vers un rendez-vous disparu. */
     rembobinerRituel(appt.id);
-    appointmentsStore.set((prev) => prev.filter((x) => x.id !== appt.id));
+    /* UNE REPRISE EFFACÉE À LA MAIN NE REVIENT PAS (2 octobre 2026) : son
+       rituel en garde la marque, sinon la prochaine sauvegarde la reposait. */
+    const marque = rituelDeLaRepriseEffacee(appt);
+    appointmentsStore.set((prev) => prev
+      .filter((x) => x.id !== appt.id)
+      .map((x) => (x.id === marque ? { ...x, repriseRetiree: true } : x)));
     onClose();
   };
 
@@ -3420,6 +3476,13 @@ export function RdvModal({
           </button>
         )}
 
+        {/* LE BILAN DE LA SÉANCE — 4 octobre 2026. Après la séance, sous la
+            note du carnet : ce que le maître a vu, et l'assistant qui rédige.
+            La note vit dans sa table (0115), jamais dans le rendez-vous. */}
+        {appt && appt.status !== 'annulé' && appt.date <= todayISO() && (
+          <LeBilanDeLaSeance appt={appt} client={clients.find((c) => c.id === appt.clientId)} byId={byId} />
+        )}
+
         {/* LES CHAMPS DE SAISIE AUSSI. Masquer les montants FORMATÉS ne suffisait
             pas : le montant du rituel et les remises sont des nombres bruts,
             qui passaient au travers. Un écran censé ne montrer aucun prix en
@@ -4124,12 +4187,20 @@ export function ClientPicker({
      téléphone. Le filtre téléphone ne s'applique QUE si la recherche contient des
      chiffres — sinon `digits(c.phone).includes('')` renvoie vrai pour TOUTES les
      clientes et le filtre par nom ne servait à rien (le bug « rien ne se filtre »). */
-  const results = useMemo(() => {
+  /* SANS RIEN TAPER, LES RÉGULIÈRES SEULEMENT — 4 octobre 2026. Les autres
+     (passantes, sorties, jamais venues) reviennent dès la première lettre ou
+     le premier chiffre : la recherche, elle, parcourt tout le carnet. */
+  const [rituelsDuMenu] = useAppointments();
+  const regulieres = useMemo(() => tetesRegulieres(clients, rituelsDuMenu, todayISO()), [clients, rituelsDuMenu]);
+  const { results, cachees } = useMemo(() => {
     const base = q
       ? clients.filter((c) => norm(c.name).includes(qn) || (qd !== '' && digits(c.phone).includes(qd)))
-      : clients;
-    return [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [clients, q, qn, qd]);
+      : clients.filter((c) => regulieres.has(c.id));
+    return {
+      results: [...base].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+      cachees: q ? 0 : clients.length - base.length,
+    };
+  }, [clients, q, qn, qd, regulieres]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -4279,6 +4350,11 @@ export function ClientPicker({
           ))}
           {results.length === 0 && (
             <div className="trc-clientpick__empty">Aucune cliente, {q ? 'affinez la recherche' : 'ajoutez-en une'}.</div>
+          )}
+          {cachees > 0 && (
+            <div className="trc-clientpick__empty">
+              {cachees} autre{cachees > 1 ? 's' : ''} tête{cachees > 1 ? 's' : ''} (de passage, sorties, jamais venues) : tapez un nom ou un numéro.
+            </div>
           )}
         </div>
       )}

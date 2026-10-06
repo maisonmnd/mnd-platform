@@ -18,7 +18,7 @@ Repères pour la pose :
 
 **Devise :** Mi nyɔ́ ɖɛkpɛ
 
-**Légende de la devise :** En fon : « Vous êtes beaux, et vous le savez. »
+**Légende de la devise :** En fon : « Vous êtes beaux, votre beauté est déjà là. »
 
 **Titre :** Votre couronne, comprise, soignée, révélée.
 
@@ -349,13 +349,13 @@ Repères pour la pose :
 
 **Sous-titre :** Brice et Yéman Ahouansou
 
-**Introduction :** MND est une maison de famille, née en 2010 à Cotonou. Brice Ahouansou, maître loctician, tient les mains. Yéman Ahouansou tient la direction. Ensemble, ils ont fait de MND un lieu où l'on prend soin, où l'on transforme et où l'on transmet.
+**Introduction (alignée sur le récit des fondateurs, 30 septembre 2026) :** Nous n'étions pas deux entrepreneurs visionnaires. Nous étions deux jeunes amoureux de 26 ans qui cherchaient leur chemin. Les locks sont arrivées presque par hasard, et elles sont entrées dans notre vie comme on entre dans une maison : sans frapper très fort, et pour rester. Nous avons commencé sur une terrasse, à Akpakpa. Nous avons perdu un enfant, et nous avons continué à travailler, une tête après l'autre, parce qu'on peut toujours faire quelque chose de ses mains. Dix ans plus tard, nous sommes revenus dans la maison où tout avait commencé. Nous avons quatre garçons, tous en locks. De cette famille sont nés nos symboles : la Couronne, le Trône, la Maison. Le récit entier vit sur /notre-histoire/.
 
 ### Quatre manières d'être là
 
 **Praticiens :** Chaque jour, des couronnes passent entre nos mains. C'est là que tout commence.
 
-**Entrepreneurs :** Nous avons construit une maison, ses outils, ses règles, ses rythmes. Nous savons ce que tenir un salon demande.
+**Parents :** Quatre garçons, tous en locks. Notre première transmission.
 
 **Formateurs :** Nous enseignons la méthode MND à celles et ceux qui veulent en faire leur métier.
 
@@ -371,7 +371,7 @@ Repères pour la pose :
 
 **Transmettre :** Apprendre à celles et ceux qui viennent après nous, clientes comme futurs professionnels, pour que la méthode vive au-delà de nos mains.
 
-**Le nom :** MND signifie « Mi nyɔ́ ɖɛkpɛ ». En fon : « Vous êtes beaux, et vous le savez. » (En fon, « mi » dit aussi bien « vous » que « nous » : c'est le français qui choisit, et la Maison a choisi de parler à la cliente.) Ce n'est pas un slogan. C'est ce que nous voulons que vous entendiez en sortant.
+**Le nom :** MND signifie « Mi nyɔ́ ɖɛkpɛ ». En fon : « Vous êtes beaux, votre beauté est déjà là. » (En fon, « mi » dit aussi bien « vous » que « nous » : c'est le français qui choisit, et la Maison a choisi de parler à la cliente.) Ce n'est pas un slogan. C'est ce que nous voulons que vous entendiez en sortant.
 
 ## 10. L'univers MND
 

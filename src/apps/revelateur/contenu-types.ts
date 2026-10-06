@@ -10,8 +10,11 @@
 export type Besoin = 'creation' | 'reparation' | 'entretien' | 'enfant' | 'formation' | 'inconnu';
 
 /** Un lien : un chemin du site (`/premiere-couronne/`), une ancre (`#portes`),
-    `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours, ou
-    `soeur:couronne` / `soeur:academie` vers une sœur sur la même origine. */
+    `whatsapp:<besoin>` qui ouvre WhatsApp avec le message du parcours,
+    `message:<besoin>:<texte>` qui ouvre WhatsApp avec CE texte (30 septembre
+    2026 : la Couronne à domicile et la Cour ont leur phrase, pas celle du
+    parcours), ou `soeur:couronne` / `soeur:academie` vers une sœur sur la
+    même origine. */
 export type Lien = { texte: string; vers: string };
 
 export type Section =
@@ -26,7 +29,11 @@ export type Section =
   | { type: 'pas'; sur?: string; titre?: string; liste?: boolean; items: [string, string][] }
   | { type: 'faq'; sur?: string; titre?: string; items: [string, string][] }
   | { type: 'citation'; texte: string; qui?: string }
-  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[] }
+  | { type: 'appel'; titre: string; ligne?: string; boutons: Lien[]; sombre?: boolean }
+  /** LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. Chaque ligne est une respiration,
+      une ou deux phrases ; `souffle` est une phrase mise à part, `fin` la phrase
+      finale en plus grand (un retour à la ligne s'écrit `\n`). */
+  | { type: 'recit'; signature: string; chapitres: { id: string; titre: string; lignes: (string | { souffle: string } | { fin: string })[] }[] }
   /* LA MAISON REVISITÉE — 27 septembre 2026, maquette validée. Trois blocs
      de plus, ceux de l'accueil rendus disponibles aux pages libres : les
      piliers (trois titres courts sous un objectif), la gamme (les huit
@@ -65,10 +72,21 @@ export type Page = {
   jsonld?: 'service' | 'faq' | 'course' | 'maison' | 'aucun';
   /** Le nom court dans le fil d'Ariane et le sitemap. */
   court: string;
+  /** L'OUVERTURE PLEIN ÉCRAN : le surtitre, le titre, la ligne, et rien d'autre.
+      Elle remplace le fil d'Ariane visible et la tête de page ordinaire. */
+  ouverture?: boolean;
+  /** UNE OFFRE PARAÎT LE JOUR OÙ ELLE SE RÉSERVE, PAS AVANT — 30 septembre
+      2026. Une page qui attend quelque chose (un forfait au catalogue, une
+      adresse) est écrite ici mais n'est ni construite ni mise au plan tant
+      que ce champ dit pourquoi. On l'efface le jour venu. */
+  enAttente?: string;
   /** Un îlot React à monter sur cette page. */
   /** `contact` est la petite carte WhatsApp de la page de réservation ;
       `joindre` les trois cartes de la page contact (écrire, trouver, venir). */
-  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir';
+  ilot?: 'triage' | 'demande' | 'contact' | 'joindre' | 'reserver' | 'offres' | 'offrir'
+    /* 28 septembre 2026 : la communauté. `engagements` et `ingredients` ne
+       montent pas de React, ils se rendent à la construction. */
+    | 'parrainer' | 'testeuse' | 'engagements' | 'ingredients';
 };
 
 export type Accueil = {
@@ -91,7 +109,11 @@ export type Accueil = {
      complètement le site », maquette validée). À leur place, l'accueil dit
      l'objectif de la Maison, monte le diagnostic, montre l'univers, les
      marques, la carte cadeau et un extrait de la galerie. */
-  objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[] };
+  /** LA TRANSITION VERS LES PORTES — 30 septembre 2026. Après les trois
+      piliers, une phrase et un lien disent qu'on va vers les cinq portes :
+      « revoir comment faire la transition et savoir qu'on va vers les 5
+      portes » (Yéman). */
+  objectif: { sur: string; titre: string; ligne: string; piliers: { titre: string; ligne: string }[]; suite?: { ligne: string; bouton: Lien } };
   diagnostic: { sur: string; titre: string; ligne: string; note: string };
   marques: { sur: string; titre: string; ligne: string };
   offrir: { sur: string; titre: string; ligne: string; bouton: Lien };
@@ -113,7 +135,7 @@ export type Accueil = {
      passe (`comment`, ses temps, séparés par des points médians). */
   portes: { sur: string; titre: string; ligne?: string; cartes: { titre: string; pour: string; ligne: string; comment: string; suite: string; vers: string; image?: string }[]; repli: string; repliNote?: string; repliBouton: Lien };
   confiance: { sur: string; citation: string; gages: { titre: string; ligne: string }[] };
-  fondateurs: { sur: string; titre: string; ligne: string; message: string; trois: string[]; image: string };
+  fondateurs: { sur: string; titre: string; ligne: string; message: string; legende?: string; trois: string[]; image: string };
   journal: { sur: string; titre: string };
   appel: { titre: string; ligne: string; boutons: Lien[] };
 };

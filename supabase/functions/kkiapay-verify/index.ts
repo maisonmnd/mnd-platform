@@ -207,10 +207,69 @@ export async function applyPayment(admin: any, opts: {
         seule trace de ce que la cliente a versé en plus. */
 }
 
+/* ══ LA CARTE CADEAU RÉGLÉE — 2 octobre 2026 ═══════════════════════════
+   JUMELLE À L'IDENTIQUE dans kkiapay-verify et kkiapay-webhook (le harnais
+   `verifie-cartes-cadeaux` compare les deux copies, et l'alphabet avec celui
+   de `src/shared/cartes-cadeaux-pur.ts`).
+
+   LE CODE NAÎT ICI, ET UNE SEULE FOIS. L'écriture est CONDITIONNELLE (la
+   ligne n'a pas encore de code) : si la vérification et le filet arrivent
+   ensemble, le second trouve la carte déjà réglée et rend LE MÊME code, au
+   lieu d'en tirer un autre que l'acheteur verrait sans qu'il existe.
+   L'avoir que porte la carte a un identifiant déduit d'elle : un rejeu ne
+   le double pas. Le montant est celui de la COMMANDE, écrit avant le
+   paiement ; les frais KkiaPay restent à l'acheteur. */
+const ALPHABET_DU_CODE = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const tireUnCode = (): string => {
+  const v = crypto.getRandomValues(new Uint32Array(8));
+  const t = Array.from(v, (x) => ALPHABET_DU_CODE[x % ALPHABET_DU_CODE.length]).join('');
+  return `MND-${t.slice(0, 4)}-${t.slice(4)}`;
+};
+
+async function regleLaCarte(admin: any, o: { carteId: string; transactionId: string }): Promise<{ code: string; valableJusquau: string } | null> {
+  for (let essai = 0; essai < 6; essai++) {
+    const { data: row } = await admin.from('cartes_cadeaux').select('id, branch_id, data').eq('id', o.carteId).maybeSingle();
+    if (!row) return null;
+    const c = (row.data ?? {}) as Record<string, any>;
+    if (c.code) return { code: String(c.code), valableJusquau: String(c.valableJusquau ?? '') };
+    if (c.statut !== 'a-regler') return null;
+    const montant = Math.round(Number(c.montantXof ?? 0));
+    if (montant <= 0) return null;
+    const at = new Date().toISOString();
+    const d = new Date(at);
+    const valable = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 12, d.getUTCDate())).toISOString().slice(0, 10);
+    const creditId = `cre-${o.carteId}`;
+    const code = tireUnCode();
+    const next = {
+      ...c, statut: 'reglee', code, valableJusquau: valable, payeLe: at,
+      transactionId: o.transactionId, cashbox: 'KkiaPay', methode: 'KkiaPay', creditId,
+    };
+    const { data: pose, error } = await admin.from('cartes_cadeaux')
+      .update({ data: next }).eq('id', o.carteId).is('data->>code', null).select('id');
+    if (error) {
+      if (error.code === '23505') continue; // ce code existe déjà ailleurs : on en tire un autre
+      throw new Error(error.message);
+    }
+    if (!pose || pose.length === 0) continue; // réglée entre-temps : on relit, on rend son code
+    const { error: e2 } = await admin.from('credit_movements').insert({
+      id: creditId,
+      branch_id: row.branch_id,
+      data: {
+        id: creditId, branchId: c.branchId ?? row.branch_id, holderType: 'carte', holderId: o.carteId,
+        kind: 'depot', amountXof: montant, date: at, cashbox: 'KkiaPay', method: 'KkiaPay',
+        note: `Carte cadeau ${code} · pour ${c.pour || '?'}, de la part de ${c.de || '?'}`,
+      },
+    });
+    if (e2 && e2.code !== '23505') throw new Error(e2.message);
+    return { code, valableJusquau: valable };
+  }
+  throw new Error('carte_non_reglee');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { transactionId, apptId, subId, inscriptionId, consultationId, expectedXof, branchId, clientId } = await req.json();
+    const { transactionId, apptId, subId, inscriptionId, consultationId, carteId, expectedXof, branchId, clientId } = await req.json();
     if (!transactionId || !branchId) return json({ error: 'bad_request' }, 400);
 
     const tx = await fetchTransaction(String(transactionId));
@@ -266,6 +325,16 @@ Deno.serve(async (req) => {
     /* LA CONSULTATION EN LIGNE — 17 septembre 2026. Pas de ligne à relire :
        la barre est celle de la Maison, tenue par le serveur. */
     if (consultationId) expected = CONSULTATION_FEE_XOF;
+    /* LA CARTE CADEAU — 2 octobre 2026. Le site dépose la commande AVANT
+       d'ouvrir KkiaPay, montant écrit (et borné par la base, 0112). On le
+       relit ici. Sans commande, on ne règle rien : le repli sur le corps de
+       la requête ne vaut JAMAIS pour une carte. */
+    if (carteId) {
+      const { data: cc } = await admin
+        .from('cartes_cadeaux').select('data').eq('id', String(carteId)).maybeSingle();
+      expected = Math.round(Number(cc?.data?.montantXof ?? 0));
+      if (expected <= 0) return json({ error: 'carte_introuvable' }, 404);
+    }
     if (expected <= 0) expected = Math.round(Number(expectedXof ?? 0));
 
     // Le contrôle qui protège la Maison : on n'ouvre rien tant que le montant
@@ -281,7 +350,7 @@ Deno.serve(async (req) => {
       /* La référence porte l'abonnement quand il n'y a pas de rendez-vous :
          c'est elle qui relie le paiement à ce qu'il règle, au registre comme
          au comptoir. */
-      partnerId: String(apptId || subId || inscriptionId || consultationId || ''),
+      partnerId: String(apptId || subId || inscriptionId || consultationId || carteId || ''),
       branchId: String(branchId),
       clientId: clientId ? String(clientId) : undefined,
       subId: subId ? String(subId) : undefined,
@@ -289,7 +358,14 @@ Deno.serve(async (req) => {
       consultationId: consultationId ? String(consultationId) : undefined,
     });
 
-    return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source });
+    /* La carte se règle APRÈS le registre : si le paiement y était déjà
+       (rejeu, filet passé avant), elle se règle quand même, ou rend son code. */
+    const carte = carteId
+      ? await regleLaCarte(admin, { carteId: String(carteId), transactionId: String(transactionId) })
+      : null;
+    if (carteId && !carte) return json({ error: 'carte_non_reglee' }, 409);
+
+    return json({ ok: true, amountXof: paid, feesXof: Math.round(Number(tx.fees ?? 0)), method: tx.source, ...(carte ? { carte } : {}) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     /* Diagnostic d'installation : QUELS secrets sont posés (jamais leur valeur)

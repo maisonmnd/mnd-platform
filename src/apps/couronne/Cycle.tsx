@@ -11,6 +11,7 @@ import { useServices, useProducts, useCategories, type Service, type ServiceIncl
 import {
   dateOfIso, dayLabelIso, ensureClient, fmtDuration, isoOf, todayIso, freeSlots, useCreneauxOccupes, useClient, useClientId,
 } from './lib';
+import { t, prix } from './i18n';
 
 /* ═══ LE CYCLE — un forfait de plusieurs séances, scellé d'un geste ═══
    (16 août, demande de Yéman : « pourquoi demander ce forfait ? Je veux
@@ -220,7 +221,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
   /* ---- SCELLER : les N séances entrent au carnet, liées en série ---- */
   const sceller = () => {
     if (!complet || scelle) return;
-    if (!pay) { toast('Choisissez votre moyen d’envoi.'); return; }
+    if (!pay) { toast(t('Choisissez votre moyen d’envoi.')); return; }
     ensureClient(clientId, session?.user?.email, branch.id);
     const clientName = client?.name
       ?? (session?.user?.email ? session.user.email.split('@')[0] : undefined)
@@ -265,7 +266,7 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       '/trone/#/calendrier',
     );
     setScelle(true);
-    toast('Cycle transmis, la Maison confirme vos créneaux.');
+    toast(t('Cycle transmis, la Maison confirme vos créneaux.'));
   };
 
   /* ═══════════════ SCELLÉ ═══════════════ */
@@ -274,27 +275,26 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
       <div className="mc-overlayscreen mc-slide">
         <div className="mc-confirm mc-rise" style={{ margin: 'auto 0', padding: '0 24px' }}>
           <img src={asset('/assets/monograms/mono-copper.png')} alt="" style={{ width: 46, opacity: 0.92 }} />
-          <h2 style={{ marginTop: 18 }}>Votre cycle est posé.</h2>
+          <h2 style={{ marginTop: 18 }}>{t('Votre cycle est posé.')}</h2>
           <p>
-            {seances.length} séances sont entrées au carnet de la Maison. Elle vérifie votre
-            1ʳᵉ tranche et confirme vos créneaux, vous les retrouvez dans « Mes rendez-vous ».
+            {t('{n} séances sont entrées au carnet de la Maison. Elle vérifie votre 1ʳᵉ tranche et confirme vos créneaux, vous les retrouvez dans « Mes rendez-vous ».', { n: seances.length })}
           </p>
           <div className="mc-recapcard" style={{ textAlign: 'left', width: '100%' }}>
             <div className="mc-recapcard__name">{forfait.name}</div>
-            <div className="mc-recapcard__meta">{seances.length} séances · {fmtMoney(total, currency)}</div>
+            <div className="mc-recapcard__meta">{t('{n} séances', { n: seances.length })} · {prix(total, currency)}</div>
             <div className="mc-hairline" />
             {dates.map((d, i) => (
               <div key={i} className="mc-recapcard__line">
-                <span>Séance {i + 1}</span>
+                <span>{t('Séance {n}', { n: i + 1 })}</span>
                 <span>{dayLabelIso(d.iso)} · {d.time}</span>
               </div>
             ))}
             <div className="mc-hairline" />
-            <div className="mc-recapcard__line"><span>1ʳᵉ tranche · annoncée</span><span>{fmtMoney(tranche1, currency)}</span></div>
-            <div className="mc-recapcard__line"><span>2ᵉ tranche · séance {milieu + 1}</span><span>{fmtMoney(tranche2, currency)}</span></div>
+            <div className="mc-recapcard__line"><span>{t('1ʳᵉ tranche · annoncée')}</span><span>{prix(tranche1, currency)}</span></div>
+            <div className="mc-recapcard__line"><span>{t('2ᵉ tranche · séance {n}', { n: milieu + 1 })}</span><span>{prix(tranche2, currency)}</span></div>
           </div>
           <button className="mc-cta mc-cta--indigo" style={{ marginTop: 22 }} onClick={onFini}>
-            Revenir à l’accueil
+            {t('Revenir à l’accueil')}
           </button>
         </div>
       </div>
@@ -306,17 +306,16 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
     <div className="mc-overlayscreen mc-slide">
       <div className="mc-flowhead">
         <div className="mc-flowhead__row">
-          <button className="mc-linkback" onClick={onClose}>← Retour</button>
-          <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+          <button className="mc-linkback" onClick={onClose}>{t('← Retour')}</button>
+          <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
         </div>
-        <div className="mc-micro-eyebrow" style={{ marginTop: 8 }}>Votre cycle · {seances.length} séances</div>
+        <div className="mc-micro-eyebrow" style={{ marginTop: 8 }}>{t('Votre cycle · {n} séances', { n: seances.length })}</div>
         <h1 className="mc-flowhead__h1">{forfait.name}</h1>
       </div>
 
       <div className="mc-scroll mc-flowbody" style={{ paddingBottom: 8 }}>
         <div className="mc-packintro">
-          Vos dates sont déjà posées, à la cadence de la Maison. Changez celles qui ne vous vont
-          pas, le salon est fermé le lundi et le dimanche, ces jours ne se proposent jamais.
+          {t('Vos dates sont déjà posées, à la cadence de la Maison. Changez celles qui ne vous vont pas, la Maison est fermée le lundi et le dimanche, ces jours ne se proposent jamais.')}
         </div>
 
         {seances.map((s, i) => {
@@ -325,27 +324,29 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
           return (
             <div key={i} className={`mc-seance ${ouvert ? 'is-open' : ''}`}>
               <div className="mc-seance__head">
-                <span className="mc-seance__no">Séance {i + 1}</span>
+                <span className="mc-seance__no">{t('Séance {n}', { n: i + 1 })}</span>
                 <span className="mc-seance__quand">
-                  {d?.iso ? `${dayLabelIso(d.iso)} · ${d.time}` : 'aucun créneau trouvé'}
+                  {d?.iso ? `${dayLabelIso(d.iso)} · ${d.time}` : t('aucun créneau trouvé')}
                 </span>
               </div>
               <div className="mc-seance__quoi">{s.noms.join(' · ')}</div>
               <div className="mc-seance__meta">
                 {fmtDuration(s.dureeMin)}
-                {s.semaine > 0 ? ` · à ${s.semaine} semaine${s.semaine > 1 ? 's' : ''} du départ` : ' · la visite d’ouverture'}
-                {i === milieu ? ` · 2ᵉ tranche ${fmtMoney(tranche2, currency)}` : ''}
+                {s.semaine > 0
+                  ? ` · ${s.semaine > 1 ? t('à {n} semaines du départ', { n: s.semaine }) : t('à {n} semaine du départ', { n: s.semaine })}`
+                  : ` · ${t('la visite d’ouverture')}`}
+                {i === milieu ? ` · ${t('2ᵉ tranche {montant}', { montant: prix(tranche2, currency) })}` : ''}
               </div>
               <button
                 className="mc-textbtn mc-seance__btn"
                 onClick={() => { setRetouche(ouvert ? null : i); setJourRetouche(null); }}
               >
-                {ouvert ? 'Garder cette date' : 'Changer cette date →'}
+                {ouvert ? t('Garder cette date') : t('Changer cette date →')}
               </button>
 
               {ouvert && (
                 <div className="mc-fade" style={{ marginTop: 10 }}>
-                  <div className="mc-micro-eyebrow" style={{ marginBottom: 8 }}>Le jour</div>
+                  <div className="mc-micro-eyebrow" style={{ marginBottom: 8 }}>{t('Le jour')}</div>
                   <div className="mc-jours">
                     {joursOuverts.map((iso) => (
                       <button
@@ -358,21 +359,21 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
                       </button>
                     ))}
                     {joursOuverts.length === 0 && (
-                      <span className="mc-emptyline">Aucun jour libre dans les deux mois, la Maison vous rappellera.</span>
+                      <span className="mc-emptyline">{t('Aucun jour libre dans les deux mois, la Maison vous rappellera.')}</span>
                     )}
                   </div>
                   {jourRetouche && (
                     <>
-                      <div className="mc-micro-eyebrow mc-stepkicker">L’heure</div>
+                      <div className="mc-micro-eyebrow mc-stepkicker">{t('L’heure')}</div>
                       <div className="mc-jours">
-                        {heuresDuJour.map((t) => (
+                        {heuresDuJour.map((h) => (
                           <button
-                            key={t}
+                            key={h}
                             type="button"
                             className="mc-jour"
-                            onClick={() => poser(i, jourRetouche, t)}
+                            onClick={() => poser(i, jourRetouche, h)}
                           >
-                            {t}
+                            {h}
                           </button>
                         ))}
                       </div>
@@ -385,26 +386,26 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
         })}
 
         {/* ---- LE RÈGLEMENT, EN DEUX TRANCHES ---- */}
-        <div className="mc-sectionlabel">Le règlement · en deux fois</div>
+        <div className="mc-sectionlabel">{t('Le règlement · en deux fois')}</div>
         <div className="mc-recapcard">
-          <div className="mc-recapcard__line"><span>Le cycle entier</span><span>{fmtMoney(total, currency)}</span></div>
-          <div className="mc-recapcard__line"><span>1ʳᵉ tranche · maintenant</span><span>{fmtMoney(tranche1, currency)}</span></div>
+          <div className="mc-recapcard__line"><span>{t('Le cycle entier')}</span><span>{prix(total, currency)}</span></div>
+          <div className="mc-recapcard__line"><span>{t('1ʳᵉ tranche · maintenant')}</span><span>{prix(tranche1, currency)}</span></div>
           <div className="mc-recapcard__line">
-            <span>2ᵉ tranche · séance {milieu + 1}{dates[milieu]?.iso ? ` (${dayLabelIso(dates[milieu].iso)})` : ''}</span>
-            <span>{fmtMoney(tranche2, currency)}</span>
+            <span>{t('2ᵉ tranche · séance {n}', { n: milieu + 1 })}{dates[milieu]?.iso ? ` (${dayLabelIso(dates[milieu].iso)})` : ''}</span>
+            <span>{prix(tranche2, currency)}</span>
           </div>
         </div>
 
         {/* DIRE VRAI : rien ne débite ici. Elle envoie, elle annonce, le
             comptoir vérifie — un écran de paiement ne s'affiche que s'il
             débite vraiment. */}
-        <div className="mc-sectionlabel">Comment envoyer la 1ʳᵉ tranche</div>
+        <div className="mc-sectionlabel">{t('Comment envoyer la 1ʳᵉ tranche')}</div>
         <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-          <div className="mc-recapcard__line"><span>1 · Envoyez</span><span>{fmtMoney(tranche1, currency)}</span></div>
-          <div className="mc-recapcard__line"><span>2 · Au numéro de la Maison</span><span>{branch.phone || 'communiqué sur WhatsApp'}</span></div>
-          <div className="mc-recapcard__line"><span>3 · Puis annoncez l’envoi</span><span>bouton ci-dessous</span></div>
+          <div className="mc-recapcard__line"><span>{t('1 · Envoyez')}</span><span>{prix(tranche1, currency)}</span></div>
+          <div className="mc-recapcard__line"><span>{t('2 · Au numéro de la Maison')}</span><span>{branch.phone || t('communiqué sur WhatsApp')}</span></div>
+          <div className="mc-recapcard__line"><span>{t('3 · Puis annoncez l’envoi')}</span><span>{t('bouton ci-dessous')}</span></div>
         </div>
-        <div className="mc-sectionlabel">Envoyé par</div>
+        <div className="mc-sectionlabel">{t('Envoyé par')}</div>
         <div className="mc-stack">
           {PAY_METHODS.map((pm) => (
             <button key={pm.k} className={`mc-paycard ${pay === pm.k ? 'is-on' : ''}`} onClick={() => setPay(pm.k)}>
@@ -414,22 +415,21 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
           ))}
         </div>
         <div className="mc-footnote">
-          La Maison vérifie la réception avant votre première venue. La 2ᵉ tranche se règle au
-          fauteuil, le jour de la séance {milieu + 1}.
+          {t('La Maison vérifie la réception avant votre première venue. La 2ᵉ tranche se règle au fauteuil, le jour de la séance {n}.', { n: milieu + 1 })}
         </div>
       </div>
 
       <div className="mc-cmfooter">
         <div className="mc-cmfooter__total">
-          <span>{seances.length} séances · {complet ? 'dates posées' : 'dates à compléter'}</span>
-          <strong>{fmtMoney(tranche1, currency)}<em> maintenant</em></strong>
+          <span>{t('{n} séances', { n: seances.length })} · {complet ? t('dates posées') : t('dates à compléter')}</span>
+          <strong>{prix(tranche1, currency)}<em> {t('maintenant')}</em></strong>
         </div>
         <button
           className={`mc-cta ${complet && pay ? 'mc-cta--copper' : 'mc-cta--locked'}`}
           disabled={!complet || !pay || scelle}
           onClick={sceller}
         >
-          J’ai envoyé · sceller le cycle
+          {t('J’ai envoyé · sceller le cycle')}
         </button>
       </div>
     </div>

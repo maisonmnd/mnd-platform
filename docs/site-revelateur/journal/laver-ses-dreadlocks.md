@@ -5,6 +5,7 @@ date: 2026-09-17
 description: "À quelle fréquence laver ses locks, avec quel shampoing, comment rincer et sécher pour éviter résidus et odeurs : le lavage expliqué pas à pas."
 parcours: entretien
 image: journal-4.jpg
+portrait: cliente-10.jpg
 motsCles:
   - laver ses dreadlocks
   - shampoing pour locks sans résidus

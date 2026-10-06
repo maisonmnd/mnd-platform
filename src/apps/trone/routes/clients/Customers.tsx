@@ -35,7 +35,8 @@ import { useStaff } from '../equipe/data';
 import { useInvoices, invoiceTotal, type Invoice } from '../../../../shared/finance';
 import { usePointsHistory, cercleSeuilStore, foyerSeuilStore, estDuCercle, pointsEnabledStore, useFoyerTiers, meilleurPalierFoyer } from '../../../../shared/offers';
 import { dernierBilanDe, useBilans, seancesSansBilan } from '../../../../shared/bilans';
-import { BilanModal } from './BilanModal';
+import { BilanModal, RegistreDesBilans } from './BilanModal';
+import { CarteDeMarrainePanneau } from './CarteDeMarrainePanneau';
 import { useClientSessions, isOnline } from '../../../../shared/activity';
 import { uid, useStore } from '../../../../shared/store';
 import { useSettings } from '../../../../shared/settings';
@@ -50,7 +51,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Search } from 'lucide-react';
 import {
   Avatar, ClientPicker, Drawer, RdvModal, StatusPill, readImageDownscaled, type RdvInitial,
-  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn, frShort, frDay,
+  addDaysISO, apptDueXof, apptLabel, apptResume, apptServices, apptNetXof, cadenceLabel, dureeEnClair, frLong, frLongAn,
   fromISO, predictNextVisit, relDays, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   type Cadence, frJourAn, frShortAn, PortesWhatsApp } from './_shared';
 import { ecrituresDeLaTete, ecrituresDuCompte, lignesImpayees, soldeDuCompte, tetesDuCompte, rendezVousAVenirDuFoyer } from '../../../../shared/compte';
@@ -64,6 +65,8 @@ import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-i
 import { contratPdf } from '../../../../shared/pdf';
 import { ChampDeDate, DateEnClair } from '../../../../ds/dates';
 import { cheminDeLaConversation, lienWaMe } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
+import { CIVILITES, civiliteDe, ficheAvecCivilite, type Civilite } from '../../../../shared/civilite';
 
 /* Customers — le CRM 360 : recherche, tri, indicateurs, segments, persona attribué,
    prochain RDV prédit, fiche complète (finances, présence Ma Couronne, commandes,
@@ -152,9 +155,9 @@ function FileEnfants({ onClose }: { onClose: () => void }) {
                     style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-indigo)' }}
                   />
                   <div className="trc-sub" style={{ marginTop: 5 }}>
-                    {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · née le ${frShort(d.birthday)}` : frShort(d.birthday)}
+                    {age !== undefined ? `${age} an${age > 1 ? 's' : ''} · née le ${frShortAn(d.birthday)}` : frShortAn(d.birthday)}
                     {' · déclaré par '}{parent?.name ?? 'une cliente inconnue'}
-                    {' le '}{frShort(d.declareLe)}
+                    {' le '}{frShortAn(d.declareLe)}
                   </div>
                 </div>
                 <span className="trc-src">En attente</span>
@@ -1424,7 +1427,7 @@ export default function Customers() {
                 </span>
               </span>
               <span style={{ fontSize: 13, color: next.predicted ? 'var(--copper-600)' : 'var(--color-indigo)', fontStyle: next.predicted ? 'italic' : 'normal' }}>
-                {next.iso ? (next.predicted ? `≈ ${frShort(next.iso)}` : frShort(next.iso)) : '—'}
+                {next.iso ? (next.predicted ? `≈ ${frShortAn(next.iso)}` : frShortAn(next.iso)) : '—'}
               </span>
               <span className="trc-sub">{st?.lastISO ? relDays(st.lastISO) : 'jamais venue'}</span>
               <span className="trc-money">{st && st.spend > 0 ? fmtMoney(st.spend, currency) : '—'}</span>
@@ -1697,10 +1700,10 @@ function PanneauCompte({
         <p className="mnd-muted" style={{ fontSize: 13.5, margin: '0 0 16px' }}>
           {doit && plusVieille ? (
             <>Depuis <b style={{ fontWeight: 500, color: 'var(--ink)' }}>{plusVieille.depuisJours} jours</b>
-              {' · '}{plusVieille.libelle.replace(/^Rituel · /, '')} du {frShort(plusVieille.date)}, jamais soldé.</>
+              {' · '}{plusVieille.libelle.replace(/^Rituel · /, '')} du {frShortAn(plusVieille.date)}, jamais soldé.</>
           ) : foyerDoitPlus && impayesFoyer[0] ? (
             <>Depuis <b style={{ fontWeight: 500, color: 'var(--ink)' }}>{impayesFoyer[0].depuisJours} jours</b>
-              {' · '}{impayesFoyer[0].libelle.replace(/^Rituel · /, '')} du {frShort(impayesFoyer[0].date)}, jamais soldé.
+              {' · '}{impayesFoyer[0].libelle.replace(/^Rituel · /, '')} du {frShortAn(impayesFoyer[0].date)}, jamais soldé.
               {' '}Rien sur ses propres rituels.</>
           ) : solde > 0 ? 'un avoir dort sur son compte, il se consommera au prochain rituel'
             : 'tout est réglé'}
@@ -1791,7 +1794,7 @@ function PanneauCompte({
                   className="trc-compte__du"
                   style={{ borderTop: i === 0 ? 'none' : '1px solid var(--hairline)' }}
                 >
-                  <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.03em' }}>{frShort(l.date)}</span>
+                  <span className="mnd-muted" style={{ fontSize: 11.5, letterSpacing: '.03em' }}>{frShortAn(l.date)}</span>
                   <span style={{ minWidth: 0 }}>
                     <span style={{ fontSize: 14 }}>{l.libelle.replace(/^Rituel · /, '')}</span><br />
                     <span className="mnd-muted" style={{ fontSize: 12 }}>
@@ -1925,7 +1928,7 @@ function PanneauCompte({
           <div style={{ marginTop: 12 }}>
             {releve.map(({ e, apres }) => (
               <div key={e.id} className="trc-compte__rel">
-                <span className="mnd-muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{frShort(e.date)}</span>
+                <span className="mnd-muted" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{frShortAn(e.date)}</span>
                 <span style={{ minWidth: 0 }}>
                   {e.libelle}
                   {e.detail && <span className="mnd-muted" style={{ fontSize: 11.5 }}> · {e.detail}</span>}
@@ -2367,7 +2370,7 @@ function Customer360({
   const giftedThisYear = !!client.birthdayGiftAt && client.birthdayGiftAt.slice(0, 4) === todayISO().slice(0, 4);
   const giftBirthday = async () => {
     setGiftBusy(true);
-    const first = client.name.split(' ')[0];
+    const first = appelDe(client);
     const n = await pushToClient(
       client.id,
       `Joyeux anniversaire, ${maisonNom()}`,
@@ -2484,6 +2487,7 @@ function Customer360({
      lit sur Ma Couronne, l'impression reste. L'ancien lien direct vers la
      papeterie amnésique est parti avec elle. */
   const [bilanOpen, setBilanOpen] = useState(false);
+  const [registreOuvert, setRegistreOuvert] = useState(false);
   const [demanderOuvert, setDemanderOuvert] = useState(false);
   const [tousBilans] = useBilans();
   const dernierBilan = dernierBilanDe(tousBilans, client.id);
@@ -2610,7 +2614,7 @@ function Customer360({
       const n = apptServices(a, byId).length;
       const resume = apptResume(a, byId);
       return {
-        label: `${frShort(a.date)} · ${n > 1 ? `${n} prestations · ` : ''}${resume}`,
+        label: `${frShortAn(a.date)} · ${n > 1 ? `${n} prestations · ` : ''}${resume}`,
         qty: 1,
         unit: fmtMoney(apptDueXof(a, byId), currency),
         total: fmtMoney(apptDueXof(a, byId), currency),
@@ -2914,7 +2918,7 @@ function Customer360({
               {due > 0
                 ? fmtMoney(due, currency)
                 : upcoming ? `${frLong(upcoming.date)} · ${upcoming.time}`
-                : predicted.iso ? `Elle revient vers le ${frShort(predicted.iso)}`
+                : predicted.iso ? `Elle revient vers le ${frShortAn(predicted.iso)}`
                 : 'À reconquérir'}
             </span>
             <span className="trc-presse__s">
@@ -3177,14 +3181,14 @@ function Customer360({
                   {offertsAElle.length > 0 && (
                     <div className="trc-sub" style={{ lineHeight: 1.55 }}>
                       {offertsAElle.length === 1 ? 'Un rituel lui a été offert' : `${offertsAElle.length} rituels lui ont été offerts`} —{' '}
-                      {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShort(a.date)}`).join(' · ')}.
+                      {offertsAElle.map((a) => `${nomTete(a.offertPar)} · ${frShortAn(a.date)}`).join(' · ')}.
                       Ces montants comptent dans la dépense de qui les a réglés, pas dans la sienne.
                     </div>
                   )}
                   {offertsParElle.length > 0 && (
                     <div className="trc-sub" style={{ lineHeight: 1.55, marginTop: offertsAElle.length > 0 ? 6 : 0 }}>
                       Elle a offert {offertsParElle.length === 1 ? 'une séance' : `${offertsParElle.length} séances`} —{' '}
-                      {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShort(a.date)}`).join(' · ')}.
+                      {offertsParElle.map((a) => `${nomTete(a.clientId)} · ${frShortAn(a.date)}`).join(' · ')}.
                       Compté dans sa dépense et ses points.
                     </div>
                   )}
@@ -3220,6 +3224,9 @@ function Customer360({
               )}
             </div>
 
+            {/* ══ SA CARTE DE MARRAINE — 28 septembre 2026 ══════════════ */}
+            <CarteDeMarrainePanneau client={client} />
+
             {/* ══ SA PORTE — par où la Maison la joint ═══════════════════
                 La présence Ma Couronne, le bilan et la demande étaient trois
                 blocs séparés en bas de page. Ce sont trois façons de la
@@ -3238,8 +3245,13 @@ function Customer360({
               </div>
               <div className="trc-c360-actions">
                 <button className="trc-c360-linkbtn" onClick={() => setBilanOpen(true)} title="Rédiger le bilan, l'enregistrer au registre, l'imprimer">
-                  {dernierBilan ? `Bilan de séance · dernier remis ${frShort(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
+                  {dernierBilan ? `Bilan de séance · dernier remis ${frShortAn(dernierBilan.remisLe)} →` : 'Bilan de séance · rédiger & remettre →'}
                 </button>
+                {mesBilans.length > 0 && (
+                  <button className="trc-c360-linkbtn" onClick={() => setRegistreOuvert(true)} title="Renvoyer un bilan signé par WhatsApp, l'imprimer">
+                    Ses bilans remis ({mesBilans.length}) · renvoyer, imprimer →
+                  </button>
+                )}
                 {/* LA TROISIÈME PORTE « DEMANDER » — 20 août, dernière pièce de la
                     liste du Fil : la facture et le rituel l'avaient, la fiche non.
                     La demande part avec LA CLIENTE attachée : celui qui la reçoit
@@ -3255,6 +3267,7 @@ function Customer360({
         {bilanOpen && (
           <BilanModal client={client} honored={honored} byId={byId} branchId={client.branchId} onClose={() => setBilanOpen(false)} />
         )}
+        {registreOuvert && <RegistreDesBilans client={client} onClose={() => setRegistreOuvert(false)} />}
         {demanderOuvert && (
           <DemanderModal
             piece={{ kind: 'cliente', id: client.id, label: client.name }}
@@ -3384,6 +3397,14 @@ function Customer360({
           </div>
           {panEdite !== 'joindre' && (
             <>
+              {/* LA CIVILITÉ (2 octobre 2026) : « Madame Naffi » dans les messages.
+                  Un clic suffit et s'enregistre aussitôt, comme le genre des cartes. */}
+              <div className="trc-v"><u>Civilité</u><span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                {CIVILITES.map((x) => (
+                  <button key={x.cle} type="button" className={`trc-chip ${civiliteDe(client) === x.cle ? 'is-active' : ''}`}
+                    onClick={() => patch(ficheAvecCivilite(x.cle))}>{x.dit}</button>
+                ))}
+              </span></div>
               <div className="trc-v"><u>Tél.</u><span className={client.phone ? '' : 'is-vide'}>{client.phone || '—'}</span></div>
               <div className="trc-v"><u>E-mail</u><span className={client.email ? '' : 'is-vide'}>{client.email || '—'}</span></div>
               <div className="trc-v"><u>Ville</u><span className={client.city ? '' : 'is-vide'}>{client.city || '—'}</span></div>
@@ -3456,7 +3477,7 @@ function Customer360({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
               <span className="trc-sub">
                 {giftedThisYear
-                  ? `Séance anniversaire offerte le ${frShort(client.birthdayGiftAt!)}`
+                  ? `Séance anniversaire offerte le ${frShortAn(client.birthdayGiftAt!)}`
                   : 'Offrez-lui une séance pour son anniversaire (notification sur son téléphone).'}
               </span>
               <Button variant="copper" size="sm" disabled={giftBusy} onClick={() => void giftBirthday()}>
@@ -3573,7 +3594,7 @@ function Customer360({
             {client.envie && (
               <div className="trc-crown__meta" style={{ color: 'var(--copper-700)' }}>
                 Son envie · {envieLabel(client.envie)}
-                {client.envieAt ? ` · dite le ${frShort(client.envieAt)}` : ''}
+                {client.envieAt ? ` · dite le ${frShortAn(client.envieAt)}` : ''}
               </div>
             )}
             {/* LE STYLE À LA MAIN EST RETIRÉ (13 août) : le calibre se COMPTE
@@ -4537,7 +4558,7 @@ function Customer360({
                 <button type="button" className="trc-order trc-order--btn" key={o.id} title={`Ouvrir ${o.kind === 'devis' ? 'le devis' : 'la facture'} ${o.number}`} onClick={() => navigate(`/factures?id=${o.id}`)}>
                   <span className="trc-order__id">
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frDay(o.date)}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{o.kind === 'devis' ? 'Devis' : 'Facture'} · {frJourAn(o.date)}</span>
                   </span>
                   <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
                   <span className={orderStatusClass(o.status)}>{o.status}</span>
@@ -4570,7 +4591,7 @@ function Customer360({
                 >
                   <span className="trc-order__id">
                     <span style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--color-indigo)' }}>{o.number}</span>
-                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frDay(o.date)}</span>
+                    <span className="trc-sub" style={{ marginLeft: 8 }}>{nomTete(o.clientId)} · {frJourAn(o.date)}</span>
                   </span>
                   <span className="trc-order__total">{fmtMoney(invoiceTotal(o), currency)}</span>
                   <span className={orderStatusClass(o.status)}>{o.status}</span>
@@ -4587,7 +4608,7 @@ function Customer360({
               {myPoints.map((e) => (
                 <div className="trc-ptlog__row" key={e.id}>
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>
-                  <span className="trc-sub" style={{ flex: 'none' }}>{frDay(e.at.slice(0, 10))}</span>
+                  <span className="trc-sub" style={{ flex: 'none' }}>{frJourAn(e.at.slice(0, 10))}</span>
                   <span className="trc-ptlog__pts">{e.pts > 0 ? `+${e.pts}` : e.pts} pts</span>
                 </div>
               ))}
@@ -5239,7 +5260,7 @@ function Customer360({
                   <button
                     type="button"
                     className="trc-temps__mark"
-                    title={on ? `Fait le ${frShort(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
+                    title={on ? `Fait le ${frShortAn(myTemps[t.key]!)}, cliquer pour retirer` : 'Marquer ce temps aujourd’hui'}
                     aria-pressed={on}
                     onClick={() => setTemps(client.id, t.key, on ? '' : today)}
                   >
@@ -5349,6 +5370,8 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
   const [prenom, setPrenom] = useState('');
   const [nomFamille, setNomFamille] = useState('');
   const nomComplet = `${prenom.trim()} ${nomFamille.trim()}`.replace(/\s+/g, ' ').trim();
+  /* Madame par défaut : presque toutes les têtes de la Maison (2 octobre 2026). */
+  const [civilite, setCivilite] = useState<Civilite>('madame');
   const [phone, setPhone] = useState(branch.dial + ' ');
   const [email, setEmail] = useState('');
   /* ══ LA VILLE ATTEND, ELLE NE DEVINE PAS — 6 septembre 2026 ═══════
@@ -5431,6 +5454,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
     const client: Client = {
       id: uid(),
       branchId: branch.id,
+      ...ficheAvecCivilite(civilite),
       name: nomComplet,
       phone: numeroTelReel(phone),
       email: email.trim() || undefined,
@@ -5472,6 +5496,14 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onPhoto(e.target.files?.[0])} />
           </label>
         </div>
+
+        <Field label="Civilité">
+          <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+            {CIVILITES.map((x) => (
+              <button key={x.cle} type="button" className={`trc-chip ${civilite === x.cle ? 'is-active' : ''}`} onClick={() => setCivilite(x.cle)}>{x.dit}</button>
+            ))}
+          </span>
+        </Field>
 
         <div className="tr-grid tr-grid--2">
           <Field label="Prénom">

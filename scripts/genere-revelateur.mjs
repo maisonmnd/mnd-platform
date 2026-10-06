@@ -33,6 +33,7 @@ const dossierTmp = mkdtempSync(path.join(tmpdir(), 'genere-revelateur-'));
 const entree = path.join(dossierTmp, 'entree.ts');
 writeFileSync(entree, `export * from '${path.join(racine, 'src/apps/revelateur/contenu.ts').replace(/\\/g, '/')}';
 export { DEVISE_COMPLETE } from '${path.join(racine, 'src/shared/identite.ts').replace(/\\/g, '/')}';
+export { appliqueLesRetouches } from '${path.join(racine, 'src/shared/site-retouches.ts').replace(/\\/g, '/')}';
 `);
 const module_ = path.join(dossierTmp, 'contenu.mjs');
 let contenu;
@@ -51,7 +52,19 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 } finally {
   rmSync(dossierTmp, { recursive: true, force: true });
 }
-const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE } = contenu;
+const { COMMUN, ACCUEIL, PAGES, GALERIE, DEVISE_COMPLETE, COMMUNAUTE, PARRAINAGE, INGREDIENTS, INGREDIENTS_TETE, AVANT_APRES, ENGAGEMENTS } = contenu;
+
+/* ══ LES RETOUCHES DU TRÔNE — 4 octobre 2026 ═════════════════════════
+   L'éditeur du site (Les vitrines › Le site public) écrit ses retouches
+   PUBLIÉES dans `mnd_site_publie`. Elles s'appliquent ici, au contenu,
+   avant la moindre page : la page sort avec le texte retouché, pour Google
+   comme pour le téléphone. Sans clef ou sans réseau, le contenu d'origine
+   sort, et on le dit. Un champ qui n'existe plus est ignoré. */
+{
+  const docs = await documentsPublics(['mnd_site_publie']);
+  const n = contenu.appliqueLesRetouches(PAGES, ACCUEIL, docs?.mnd_site_publie);
+  console.log(docs ? `  retouches du Trône appliquées : ${n}` : '  retouches du Trône non lues : contenu d’origine');
+}
 
 /* ── CE QUE LA CONSTRUCTION ÉCRIT DANS LA PAGE — 24 septembre 2026 ──────
    L'état des lieux l'a mesuré : la page des offres servait 175 mots, et les
@@ -129,6 +142,12 @@ const lien = (vers) => {
   return `${BASE}${vers.replace(/^\//, '')}`;
 };
 const bouton = (l, classe = 'btn') => {
+  /* `message:<besoin>:<texte>` : WhatsApp s'ouvre avec CE texte (30 septembre 2026). */
+  if (l.vers.startsWith('message:')) {
+    const [, besoin, ...reste] = l.vers.split(':');
+    const texte = reste.join(':');
+    return `<a class="${classe}" data-wa="${attr(besoin || 'inconnu')}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(texte)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
+  }
   if (l.vers.startsWith('whatsapp:')) {
     const besoin = l.vers.slice('whatsapp:'.length);
     return `<a class="${classe}" data-wa="${attr(besoin)}" href="https://wa.me/${NUMERO_WA}?text=${encodeURIComponent(COMMUN.messages[besoin] ?? COMMUN.messages.inconnu)}"><svg><use href="#i-wa"/></svg>${echappe(l.texte)}</a>`;
@@ -140,10 +159,15 @@ const bouton = (l, classe = 'btn') => {
    le <picture> le propose, et l'<img> garde le JPEG pour qui ne lit pas le
    WebP et pour les aperçus de partage. Les attributs de l'image sont écrits
    par l'appelant, dans l'ordre où le harnais les lit. */
-const estPhoto = (nom) => /\.jpe?g$/i.test(nom);
+/* UNE PHOTO DÉPOSÉE AU TRÔNE (4 octobre 2026) porte son adresse entière, au
+   compartiment `site` : elle se sert telle quelle, sans jumeau WebP (une
+   source WebP absente ferait échouer le <picture> au lieu de retomber). */
+const photoEnLigne = (nom) => /^https?:\/\//i.test(String(nom ?? ''));
+const srcDe = (nom) => (photoEnLigne(nom) ? nom : `/assets/photos/site/${nom}`);
+const estPhoto = (nom) => !photoEnLigne(nom) && /\.jpe?g$/i.test(nom);
 const webp = (nom) => nom.replace(/\.jpe?g$/i, '.webp');
 const photo = (nom, avant = '', apres = '') => {
-  const img = `<img${avant ? ` ${avant}` : ''} src="/assets/photos/site/${attr(nom)}"${apres ? ` ${apres}` : ''}>`;
+  const img = `<img${avant ? ` ${avant}` : ''} src="${attr(srcDe(nom))}"${apres ? ` ${apres}` : ''}>`;
   return estPhoto(nom) ? `<picture><source type="image/webp" srcset="/assets/photos/site/${attr(webp(nom))}">${img}</picture>` : img;
 };
 /* ══ LE BANDEAU « À LA MAISON » NE RÉPÈTE PLUS LE MÊME TRIO ══════════
@@ -267,7 +291,7 @@ function page({ chemin, titre, description, corps, noeuds, image: og, classeBody
     <meta property="og:title" content="${attr(titre)}" />
     <meta property="og:description" content="${attr(description)}" />
     <meta property="og:url" content="${canon}" />
-    <meta property="og:image" content="${SITE}assets/photos/site/${attr(og || 'partage-accueil.jpg')}" />
+    <meta property="og:image" content="${attr(photoEnLigne(og) ? og : `${SITE}assets/photos/site/${og || 'partage-accueil.jpg'}`)}" />
     ${og ? '' : '<meta property="og:image:width" content="800" />\n    <meta property="og:image:height" content="420" />'}
     <meta name="twitter:card" content="summary_large_image" />
     ${precharge ? (estPhoto(precharge) ? `<link rel="preload" as="image" href="${attr(webp(precharge))}" type="image/webp" fetchpriority="high" />` : `<link rel="preload" as="image" href="${attr(precharge)}" fetchpriority="high" />`) : ''}
@@ -354,6 +378,23 @@ function marques(s) {
         <div class="defile" aria-label="Les marques que la Maison utilise"><div class="defile__piste">${piste(false)}${piste(true)}</div></div>
       </section>`;
 }
+/* LE RÉCIT EN RESPIRATIONS — 1er octobre 2026. Le fil cuivre avance avec la lecture ;
+   une ligne est « lue » dès que son haut passe sous les trois quarts de l'écran, et
+   ce qui est au-dessus reste lu. Sans script, ou si la personne a demandé moins de
+   mouvement, tout le texte est lisible d'emblée. */
+const SCRIPT_RECIT = `<script>(function(){var reduit=window.matchMedia('(prefers-reduced-motion: reduce)').matches;var fil=document.getElementById('recit-fil');var paras=Array.prototype.slice.call(document.querySelectorAll('.recit__chapitre p'));if(!reduit){document.documentElement.classList.add('js-voile');}var tick=false;function rendre(){tick=false;var h=window.innerHeight;var docH=document.documentElement.scrollHeight-h;var y=window.scrollY||window.pageYOffset;if(fil){fil.style.transform='scaleX('+(docH>0?Math.min(1,y/docH):0)+')';}if(reduit)return;var seuil=h*0.72;for(var i=0;i<paras.length;i++){var r=paras[i].getBoundingClientRect();if(r.top<seuil){paras[i].classList.add('lu');}else{paras[i].classList.remove('lu');}}}function demander(){if(!tick){tick=true;window.requestAnimationFrame(rendre);}}window.addEventListener('scroll',demander,{passive:true});window.addEventListener('resize',demander);rendre();})();</script>`;
+function rendRecit(s) {
+  const brs = (t) => echappe(t).replace(/\n/g, '<br>');
+  const ligne = (l) => (typeof l === 'string' ? `<p>${echappe(l)}</p>`
+    : l.souffle ? `<p class="recit__souffle">${echappe(l.souffle)}</p>`
+      : `<p class="recit__fin">${brs(l.fin)}</p>`);
+  return `<div class="recit-fil" aria-hidden="true"><i id="recit-fil"></i></div>
+      <article class="recit"><div class="recit__colonne">
+        ${s.chapitres.map((c) => `<section class="recit__chapitre" id="${attr(c.id)}"><h2>${echappe(c.titre)}</h2>${c.lignes.map(ligne).join('')}</section>`).join('\n        ')}
+        <p class="recit__signature">${brs(s.signature)}</p>
+      </div></article>
+      ${SCRIPT_RECIT}`;
+}
 function rendSection(s) {
   const tete = (s.sur || s.titre) ? `<div class="tete">${s.sur ? `<p class="sur">${echappe(s.sur)}</p>` : ''}${s.titre ? `<h2>${echappe(s.titre)}</h2>` : ''}</div>` : '';
   switch (s.type) {
@@ -404,7 +445,10 @@ function rendSection(s) {
       return `<section class="univers"><div class="conteneur">${tete}${s.ligne ? `<p class="ligne" style="margin-top:-12px;margin-bottom:28px">${echappe(s.ligne)}</p>` : ''}${gamme(s.items)}</div></section>`;
     case 'marques':
       return marques(s);
+    case 'recit':
+      return rendRecit(s);
     case 'appel':
+      if (s.sombre) return `<section class="recit-fin sombre"><h2>${echappe(s.titre)}</h2>${s.ligne ? `<p>${echappe(s.ligne)}</p>` : ''}<div class="rangee">${s.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--plein' : 'btn')).join('')}</div></section>`;
       return `<section class="appel"><div class="conteneur"><div><h2>${echappe(s.titre)}</h2>${s.ligne ? `<p class="ligne" style="margin-top:8px">${echappe(s.ligne)}</p>` : ''}</div><div class="rangee">${s.boutons.map((b, i) => bouton(b, i === 0 ? 'btn btn--fort' : 'btn')).join('')}</div></div></section>`;
     default:
       return '';
@@ -484,6 +528,147 @@ const offresDansLaPage = (genre) => {
   return `<script type="application/json" data-initiales>${statique.jsonPourLaPage(OFFRES)}</script>${statique.rendsLesOffres(OFFRES, genre)}`;
 };
 
+/* ── LA COMMUNAUTÉ MND — 28 septembre 2026 ───────────────────────────
+   Maquette validée, « construis avec les patterns réels de la marque »
+   (Yéman) : aucun motif n'est dessiné ici, chaque fond est une tuile de
+   `public/assets/motifs/`, tirée de la bibliothèque des motifs de la Maison
+   (allover, médaillon, sceau, cire). Les ingrédients suivent la page
+   « Fleur d'amandier » de Corinne de Farme : un bandeau et son encadré, puis
+   trois temps qui alternent (d'où il vient, pourquoi il est bon, comment la
+   Maison l'emploie). */
+const MOTIF = (f) => `/assets/motifs/${f}`;
+const cheminIngredient = (i) => `/ingredients/${i.slug}/`;
+
+function carteIngredient(i) {
+  const fond = i.photo ? `<span class="ingr__photo">${image(i.photo, '')}</span>` : '';
+  return `<a class="ingr" href="${attr(lien(cheminIngredient(i)))}" style="--teinte:${attr(i.teinte)}">${fond}
+          <span class="ingr__cadre"><b>${echappe(i.nom)}</b><small>${echappe(i.role)}</small></span>
+        </a>`;
+}
+
+function railDesIngredients() {
+  if (!INGREDIENTS?.length) return '';
+  const t = INGREDIENTS_TETE;
+  return `<section class="ingredients" id="ingredients"><div class="conteneur">
+        <div class="tete tete--ligne"><div><p class="sur">${echappe(t.sur)}</p><h2>${echappe(t.titre)}</h2><p class="ligne">${echappe(t.ligne)}</p></div>
+          <div class="rail-nav" data-rail-nav><button type="button" data-rail="-1" aria-label="Ingrédients précédents">&#8249;</button><button type="button" data-rail="1" aria-label="Ingrédients suivants">&#8250;</button></div></div>
+        <div class="rail" data-rail-piste>${INGREDIENTS.map(carteIngredient).join('')}</div>
+        <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/ingredients/')}">Tous nos ingrédients</a></p>
+      </div></section>`;
+}
+
+function sectionCommunaute() {
+  const c = COMMUNAUTE;
+  return `<section class="communaute" id="communaute"><div class="conteneur">
+        <div class="tete tete--centre"><p class="sur">${echappe(c.sur)}</p><h2>${echappe(c.titre)}</h2></div>
+        <div class="cartes3">${c.cartes.map((k) => `<a class="carte3" href="${attr(lien(k.vers))}">
+          <img src="${MOTIF(k.marque)}" alt="" width="84" height="84" loading="lazy">
+          <h3>${echappe(k.titre)}</h3><p>${echappe(k.texte)}</p>
+          <span class="carte3__suite">${echappe(k.suite)} <svg><use href="#i-fleche"/></svg></span>
+        </a>`).join('')}</div>
+      </div></section>`;
+}
+
+const pasDuParrainage = () => `<div class="pas-parrain">${PARRAINAGE.pas.map(([t, l], i) => `<div><span>${i + 1}</span><div><b>${echappe(t)}</b><p>${echappe(l)}</p></div></div>`).join('')}</div>`;
+const ilotParrainer = () => `<div data-ilot="parrainer"><div class="bon sombre"><p class="sur">Votre code de marraine</p><h3>Parrainez une amie.</h3><p class="bon__petit">Le formulaire se charge. Vous pouvez aussi demander votre code sur WhatsApp.</p><p>${bouton({ texte: 'Demander mon code', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div>`;
+
+function sectionParrainage(accueil) {
+  const p = PARRAINAGE;
+  const tete = accueil
+    ? `<p class="sur">${echappe(p.sur)}</p><h2>${echappe(p.titre)}</h2><p class="ligne">${echappe(p.ligne)}</p>`
+    : '';
+  return `<section class="parrain" id="parrainage"><div class="conteneur">
+        <div>${tete}${pasDuParrainage()}<p class="parrain__regle">${echappe(p.regle)}</p>${accueil ? `<p style="margin-top:14px"><a class="btn btn--lien" href="${lien('/parrainage/')}">Tout sur le parrainage</a></p>` : ''}</div>
+        ${ilotParrainer()}
+      </div></section>`;
+}
+
+/* L'AVANT / APRÈS : ne sort que si la Maison a donné ses paires. La poignée
+   est un curseur natif (clavier compris) ; sans script, les deux photos se
+   voient côte à côte. */
+function sectionAvantApres() {
+  if (!AVANT_APRES?.length) return '';
+  return `<section class="aa" id="avant-apres"><div class="conteneur">
+        <div class="tete"><p class="sur">Avant / après</p><h2>Ce que la Maison répare.</h2><p class="ligne">Glissez la poignée : la même couronne, avant et après son passage à la Maison.</p></div>
+        <div class="paires">${AVANT_APRES.map((a) => `<figure>
+          <div class="comparer" data-comparer>
+            <div class="comparer__avant">${image(a.avant, `Avant : ${a.geste}`)}</div>
+            <div class="comparer__apres">${image(a.apres, `Après : ${a.geste}`)}</div>
+            <span class="comparer__etiq comparer__etiq--g">Avant</span><span class="comparer__etiq comparer__etiq--d">Après</span>
+            <input class="comparer__poignee" type="range" min="0" max="100" value="50" aria-label="Glisser entre avant et après">
+          </div>
+          <figcaption><b>${echappe(a.geste)}</b><span>${echappe(a.detail)}</span></figcaption>
+        </figure>`).join('')}</div>
+      </div></section>`;
+}
+
+/* Les trois petits comportements de la communauté, sans React : le rail des
+   ingrédients (deux flèches) et la poignée de l'avant / après. */
+const SCRIPT_COMMUNAUTE = `<script>
+      (() => {
+        document.querySelectorAll('[data-rail-nav]').forEach((nav) => {
+          const piste = nav.closest('section')?.querySelector('[data-rail-piste]');
+          if (!piste) return;
+          nav.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+            piste.scrollBy({ left: Number(b.dataset.rail) * piste.clientWidth * 0.8, behavior: 'smooth' });
+          }));
+        });
+        document.querySelectorAll('[data-comparer]').forEach((c) => {
+          const r = c.querySelector('input');
+          const pose = () => c.style.setProperty('--x', r.value + '%');
+          r.addEventListener('input', pose); pose();
+          c.classList.add('comparer--vif');
+        });
+      })();
+      </script>`;
+
+function grilleDesIngredients() {
+  return `<section class="serre"><div class="conteneur"><div class="ingr-grille">${INGREDIENTS.map(carteIngredient).join('')}</div></div></section>`;
+}
+
+function grilleDesEngagements() {
+  return `<section class="serre engagements"><div class="conteneur">
+        <img class="engagements__sceau" src="${MOTIF('sceau-ivoire-indigo.png')}" alt="" width="180" height="180" loading="lazy">
+        <ol class="engagements__liste">${ENGAGEMENTS.map(([t, l]) => `<li><b>${echappe(t)}</b><p>${echappe(l)}</p></li>`).join('')}</ol>
+        <p style="margin-top:28px" class="rangee">${bouton({ texte: 'Nos ingrédients', vers: '/ingredients/' }, 'btn')} ${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p>
+      </div></section>`;
+}
+
+/* UNE PAGE D'INGRÉDIENT, comme leur « Fleur d'amandier ». */
+const FLECHE_DESSINEE = '<svg class="fleche-dessinee" viewBox="0 0 40 90" aria-hidden="true"><path d="M20 2 C 14 30, 26 52, 20 84 M8 70 L20 86 L31 68" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+function rendIngredient(i) {
+  const autres = INGREDIENTS.filter((x) => x.slug !== i.slug);
+  const panneauOrigine = i.photo
+    ? `<div class="ing-panneau ing-panneau--photo">${image(i.photo, i.nom)}</div>`
+    : `<div class="ing-panneau ing-panneau--teinte" style="--teinte:${attr(i.teinte)}"><span class="ing-panneau__latin">${echappe(i.latin)}</span><span class="ing-panneau__lieu">${echappe(i.fiche.lieu)}</span></div>`;
+  const bloc = (n, titre, texte, panneau, inverse) => `<section class="ing-bloc${inverse ? ' ing-bloc--inverse' : ''}"><div class="conteneur">
+        ${panneau}
+        <div class="ing-bloc__texte">${FLECHE_DESSINEE}<h2>${echappe(titre).replace(/(\S+-\S+)/g, '<span class="insecable">$1</span>')}</h2><span class="ing-filet"></span>${texte}</div>
+      </div></section>`;
+  return `
+      <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${attr(lien('/ingredients/'))}">Ingrédients</a></li><li>·</li><li>${echappe(i.nom)}</li></ol></nav>
+      <section class="ing-hero" style="--teinte:${attr(i.teinte)}"><div class="conteneur">
+        <div class="ing-hero__encadre">
+          <p class="sur">Nos ingrédients</p>
+          <h1>${echappe(i.nom)}</h1>
+          <span class="ing-filet"></span>
+          <p class="ing-hero__accroche">${echappe(i.accroche)}</p>
+        </div>
+        <img class="ing-hero__medaillon" src="${MOTIF('medaillon-seul-ivoire.png')}" alt="" width="600" height="600">
+      </div></section>
+      ${bloc(1, 'Mais d’où vient-il ?', `<p class="corps">${echappe(i.origine)}</p><p class="ing-latin"><i>${echappe(i.latin)}</i></p>`, panneauOrigine, false)}
+      ${bloc(2, 'Et pourquoi est-il bon pour vos locks ?', `<p class="corps">${echappe(i.pourquoi)}</p>`,
+        `<div class="ing-panneau ing-panneau--ivoire"><span class="ing-panneau__role">${echappe(i.role).replace(' · ', '<br>')}</span></div>`, true)}
+      ${bloc(3, 'Et comment la Maison l’emploie ?', `<p class="corps">${echappe(i.maison)}</p><p style="margin-top:18px">${bouton({ texte: i.soin.texte, vers: i.soin.vers }, 'btn')}</p>`,
+        `<div class="ing-panneau ing-panneau--indigo sombre"><dl class="ing-fiche"><div><dt>Formule</dt><dd>${echappe(i.fiche.formule)}</dd></div><div><dt>Origine</dt><dd>${echappe(i.fiche.lieu)}</dd></div><div><dt>Qualité</dt><dd>${echappe(i.fiche.qualite)}</dd></div></dl><p class="ing-note">« ${echappe(i.note)} »</p><p class="ing-note__qui">Le mot de l’atelier</p></div>`, false)}
+      <section class="ingredients ingredients--autres"><div class="conteneur">
+        <div class="tete tete--ligne"><div><p class="sur">Nos ingrédients</p><h2>Les autres plantes de la Maison.</h2></div>
+          <div class="rail-nav" data-rail-nav><button type="button" data-rail="-1" aria-label="Ingrédients précédents">&#8249;</button><button type="button" data-rail="1" aria-label="Ingrédients suivants">&#8250;</button></div></div>
+        <div class="rail" data-rail-piste>${autres.map(carteIngredient).join('')}</div>
+      </div></section>
+      ${SCRIPT_COMMUNAUTE}`;
+}
+
 function ilot(nom, p) {
   if (nom === 'triage') {
     const repli = PAGES.filter((x) => x.besoin && x.chemin !== p.chemin).slice(0, 5)
@@ -511,6 +696,19 @@ function ilot(nom, p) {
      comment commander : WhatsApp, et la Maison la prépare avec vous. */
   if (nom === 'offrir') {
     return `<section class="serre"><div class="conteneur"><div data-ilot="offrir"><p class="corps">La carte se compose ici : un modèle, un geste ou un montant, un prénom, un mot. Si rien ne s’affiche, écrivez-nous, la Maison la prépare avec vous.</p><p style="margin-top:12px">${bouton({ texte: 'Commander sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div></div></section>`;
+  }
+  if (nom === 'parrainer') return sectionParrainage(false);
+  if (nom === 'ingredients') return grilleDesIngredients();
+  if (nom === 'engagements') return grilleDesEngagements();
+  /* LA TESTEUSE : le formulaire de la demande, profil posé d'avance. Elle
+     arrive au Trône comme une demande « Testeuse ». */
+  if (nom === 'testeuse') {
+    return `<section class="reserver serre"><div class="conteneur">
+      <div><div class="tete"><p class="sur">Inscription</p><h2>Je veux essayer.</h2><p class="ligne">Votre prénom, votre numéro, et vos locks en quelques mots : la Maison vous appelle quand un soin vous attend.</p></div>
+        <div data-ilot="demande" data-genre="prospect" data-profil="Testeuse"><p class="corps">Le formulaire se charge. Vous pouvez aussi nous écrire sur WhatsApp.</p><p style="margin-top:12px">${bouton({ texte: 'Parler à MND sur WhatsApp', vers: 'whatsapp:inconnu' }, 'btn btn--plein')}</p></div>
+      </div>
+      <aside class="ensuite"><img src="${MOTIF('cire-cuivre.png')}" alt="" width="160" height="160" loading="lazy" style="width:120px;margin-bottom:12px"><p class="sur">Ce que vous recevez</p><p class="corps">Nos soins nouveaux, avant tout le monde, et une place dans ce que la Maison prépare.</p></aside>
+    </div></section>`;
   }
   if (nom === 'offres') {
     /* LES OFFRES DE LA MAISON — 18 septembre 2026. Le repli est une phrase et
@@ -543,8 +741,11 @@ function ilot(nom, p) {
 /* ── Une page de service ─────────────────────────────────────────────── */
 function rendService(p) {
   const reservable = RESERVABLES.has(p.besoin ?? '');
+  /* LA DESTINATION DU CTA L'EMPORTE MÊME SUR UNE PAGE RÉSERVABLE — 30
+     septembre 2026 : la Couronne à domicile est un entretien qui ne se
+     prend pas au calendrier. Avec `vers`, on passe par `bouton()`. */
   const cta = p.cta
-    ? (reservable
+    ? (reservable && !p.cta.vers
       ? `<a class="btn btn--plein" href="${attr(versLaReservation(p.besoin))}" data-mesure="parcours_choisi" data-parcours="${attr(p.besoin ?? 'inconnu')}">${echappe(p.cta.texte)}</a>`
       /* LA DESTINATION DU CTA L'EMPORTE — 18 septembre 2026. `bouton()` a
          toujours su suivre n'importe quelle adresse, `soeur:` comprise ;
@@ -595,8 +796,16 @@ function rendLibre(p, supplement = '') {
   /* DEUX ÎLOTS SE LISENT AVANT LE TEXTE, pas après : le triage, qui EST la
      page, et les trois cartes du contact, qui répondent aux questions qu'on
      vient poser. Les autres (formulaire, calendrier, offres) ferment la page. */
-  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir';
+  const enTete = p.ilot === 'triage' || p.ilot === 'joindre' || p.ilot === 'offrir'
+    || p.ilot === 'parrainer' || p.ilot === 'ingredients' || p.ilot === 'engagements';
   const visuel = p.image ? `<div>${image(p.image)}</div>` : '';
+  /* L'OUVERTURE PLEIN ÉCRAN (1er octobre 2026) : le surtitre, le titre, la ligne, un
+     trait qui invite à descendre, et rien d'autre. Le fil d'Ariane reste déclaré aux
+     moteurs par la page, il ne s'affiche pas. */
+  if (p.ouverture) return `
+      <section class="recit-ouverture"><div class="recit-ouverture__bloc">${p.sur ? `<small>${echappe(p.sur)}</small>` : ''}<h1>${echappe(p.h1)}</h1>${p.ligne ? `<p>${echappe(p.ligne)}</p>` : ''}<span class="recit-ouverture__trait" aria-hidden="true"></span></div></section>
+${sections}
+${supplement}`;
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>${echappe(p.court)}</li></ol></nav>
       <section class="page-hero${visuel ? '' : ' page-hero--simple'}"><div class="conteneur">
@@ -672,6 +881,7 @@ function rendAccueil(articles) {
         <h2>${echappe(a.objectif.titre)}</h2>
         <p class="ligne">${echappe(a.objectif.ligne)}</p>
         <div class="piliers">${a.objectif.piliers.map((p) => `<div><h3>${echappe(p.titre)}</h3><p>${echappe(p.ligne)}</p></div>`).join('')}</div>
+        ${a.objectif.suite ? `<div class="passage"><p>${echappe(a.objectif.suite.ligne)}</p>${bouton(a.objectif.suite.bouton, 'btn btn--lien')}</div>` : ''}
       </div></section>
       <section id="portes"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.portes.sur)}</p><h2>${echappe(a.portes.titre)}</h2>${a.portes.ligne ? `<p class="ligne">${echappe(a.portes.ligne)}</p>` : ''}</div>
@@ -696,12 +906,14 @@ function rendAccueil(articles) {
         <div><p class="sur">${echappe(a.offrir.sur)}</p><h2>${echappe(a.offrir.titre)}</h2><p class="ligne">${echappe(a.offrir.ligne)}</p></div>
         <div class="rangee">${bouton(a.offrir.bouton, 'btn')}</div>
       </div></section>
+      <!-- LE PARRAINAGE, À CÔTÉ DE LA CARTE CADEAU — 28 septembre 2026. -->
+      ${sectionParrainage(true)}
       <section class="fondateurs" id="maison"><div class="conteneur">
         ${image(a.fondateurs.image, 'Brice et Yéman Ahouansou')}
         <div><p class="sur">${echappe(a.fondateurs.sur)}</p><h2 style="margin-top:10px">${echappe(a.fondateurs.titre)}</h2><p class="ligne" style="margin-top:12px">${echappe(a.fondateurs.ligne)}</p>
-          <p class="message">${echappe(a.fondateurs.message)}</p>
+          <p class="message">${echappe(a.fondateurs.message)}</p>${a.fondateurs.legende ? `<p class="legende" style="margin-top:8px">${echappe(a.fondateurs.legende)}</p>` : ''}
           <div class="trois">${a.fondateurs.trois.map((t) => `<b>${echappe(t)}</b>`).join('')}</div>
-          <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/brice-et-yeman/')}">Brice et Yéman</a></p>
+          <p style="margin-top:18px"><a class="btn btn--lien" href="${lien('/notre-histoire/')}">Lire notre histoire</a></p>
         </div>
       </div></section>
       <section class="galerie-bande" id="galerie"><div class="conteneur">
@@ -714,6 +926,12 @@ function rendAccueil(articles) {
       <section class="avis" id="avis">
         <div data-ilot="avis"><div class="conteneur"><div><p class="sur">Avis Google</p><h2 style="margin-top:10px">Ce que disent nos clientes</h2><p class="legende" style="margin-top:12px">Les avis de la Maison se lisent sur sa fiche Google.</p></div></div></div>
       </section>
+      <!-- LA COMMUNAUTÉ MND — 28 septembre 2026 : l'avant / après (s'il y a
+           des paires), les ingrédients, les trois cartes, puis le Journal. -->
+      ${sectionAvantApres()}
+      ${railDesIngredients()}
+      ${sectionCommunaute()}
+      ${SCRIPT_COMMUNAUTE}
       <section class="journal" id="journal" style="background:var(--fond-2); border-block:1px solid var(--filet)"><div class="conteneur">
         <div class="tete"><p class="sur">${echappe(a.journal.sur)}</p><h2>${echappe(a.journal.titre)}</h2></div>
         <div class="articles">
@@ -838,7 +1056,8 @@ function rendArticle(art) {
   const cta = bouton({ texte: appel || 'Trouver mon parcours', vers: `whatsapp:${p.besoin}` }, 'btn btn--plein');
   return `
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li><a href="${lien('/journal/')}">Journal</a></li><li>·</li><li>${echappe(art.titre)}</li></ol></nav>
-      <section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">Le Journal MND</p><h1>${echappe(art.titre)}</h1><p class="ligne">${echappe(art.description)}</p></div></div></section>
+      <!-- TEXTE + PHOTO — 1er octobre 2026 : « quand on ouvre l'article remet la photo en grand. La page est trop vide » (Yéman). -->
+      <section class="page-hero"><div class="conteneur"><div><p class="sur">Le Journal MND</p><h1>${echappe(art.titre)}</h1><p class="ligne">${echappe(art.description)}</p></div><div>${image(art.portrait || art.image, '', ' fetchpriority="high"').replace(' loading="lazy"', '')}</div></div></section>
       <section class="serre"><div class="conteneur"><div class="prose">${html}</div></div></section>
       <section class="appel"><div class="conteneur"><div><h2>Et maintenant</h2><p class="ligne" style="margin-top:8px">Le parcours qui correspond à cet article vous attend.</p></div><div class="rangee">${cta}<a class="btn" href="${attr(lien(p.chemin))}">Voir le parcours</a></div></div></section>`;
 }
@@ -852,13 +1071,21 @@ const LEGALES = [
      moins. Une politique qui decrit une collecte qui n'a pas lieu est fausse
      dans le sens le moins grave mais reste fausse. Les champs listes ici sont
      exactement ceux que `demande-submit` enregistre. */
-  { chemin: '/confidentialite/', court: 'Politique de données', titre: 'Politique de gestion des données personnelles · Maison MND', description: 'Découvrez ce que la Maison MND reçoit quand vous réservez en ligne, pourquoi, qui le lit, combien de temps et comment demander l’effacement.', h1: 'Politique de gestion des données personnelles', corps: `<p><b>Ce que nous recevons, exactement.</b> Quand vous réservez ou nous laissez vos coordonnées : votre prénom, votre numéro de téléphone, le parcours qui vous amène, le mot que vous nous laissez si vous en écrivez un, la page depuis laquelle vous nous écrivez, et la date à laquelle vous avez coché la case d’accord. Le site ne demande NI e-mail, NI adresse, NI date de naissance, et aucun paiement n’est demandé en ligne.</p><p><b>Pourquoi.</b> Pour vous rappeler, confirmer votre place et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée, pas de publicité ciblée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne. Une réservation prise sur le site n’ouvre aucun compte et n’est visible que par la Maison.</p><p><b>Votre numéro sert aussi à ne pas vous inscrire deux fois.</b> Quand une demande arrive, nous vérifions qu’une demande identique n’a pas déjà été posée avec le même numéro, pour ne pas vous appeler en double.</p><p><b>Combien de temps.</b> Le temps de vous répondre, puis, si vous devenez cliente, le temps de votre suivi. <em>La durée exacte est en cours de fixation par la Maison et sera inscrite ici.</em></p><p><b>Vos droits.</b> Vous pouvez demander à voir, à corriger ou à effacer ce que nous avons, à tout moment, par WhatsApp ou de vive voix au salon. Nous donnons suite sans avoir à vous en demander la raison.</p><p><b>La mesure d’audience.</b> Elle compte les pages vues et les parcours choisis, sans nom ni numéro.</p><p><b>Hébergement.</b> Les pages du site sont servies par GitHub Pages ; vos demandes sont enregistrées chez notre prestataire de base de données, à accès restreint.</p>` },
+  /* MA COURONNE ET L'ENTREE PAR GOOGLE — 1er octobre 2026. La page ne parlait
+     que du site. Or Ma Couronne ouvre des comptes, et sa porte « Continuer
+     avec Google » recoit de Google un nom, une adresse et une photo de
+     profil. Google lit cette page quand il verifie la marque : elle doit
+     dire ce qu'il transmet, a quoi cela sert, et ce qui n'est jamais recu.
+     Le meme jour, « de vive voix au salon » devient « a la Maison » : la
+     Maison ne dit jamais « salon ». */
+  { chemin: '/confidentialite/', court: 'Politique de données', titre: 'Politique de gestion des données personnelles · Maison MND', description: 'Découvrez ce que la Maison MND reçoit quand vous réservez en ligne, pourquoi, qui le lit, combien de temps et comment demander l’effacement.', h1: 'Politique de gestion des données personnelles', corps: `<p><b>Ce que nous recevons, exactement.</b> Quand vous réservez ou nous laissez vos coordonnées : votre prénom, votre numéro de téléphone, le parcours qui vous amène, le mot que vous nous laissez si vous en écrivez un, la page depuis laquelle vous nous écrivez, et la date à laquelle vous avez coché la case d’accord. Le site ne demande NI e-mail, NI adresse, NI date de naissance, et une réservation ne demande aucun paiement en ligne.</p><p><b>La carte cadeau réglée en ligne.</b> Le paiement passe par KkiaPay, qui reçoit le numéro avec lequel vous payez. La Maison reçoit la référence de la transaction, son montant et son moyen (Mobile Money ou carte), jamais votre numéro de carte bancaire ni votre code secret. Le prénom de la personne à qui vous offrez la carte et votre mot sont gardés avec la carte, pour la lui remettre.</p><p><b>Pourquoi.</b> Pour vous rappeler, confirmer votre place et prendre soin de votre couronne. Rien d’autre : pas de revente, pas de liste partagée, pas de publicité ciblée.</p><p><b>Qui les lit.</b> Le personnel de la Maison, seul, depuis son outil interne. Une réservation prise sur le site n’ouvre aucun compte et n’est visible que par la Maison.</p><p><b>Votre numéro sert aussi à ne pas vous inscrire deux fois.</b> Quand une demande arrive, nous vérifions qu’une demande identique n’a pas déjà été posée avec le même numéro, pour ne pas vous appeler en double.</p><p><b>Ma Couronne, votre espace cliente.</b> Si vous y ouvrez un compte, nous recevons votre nom et votre adresse e-mail. Si vous entrez par « Continuer avec Google », Google nous transmet votre nom, votre adresse e-mail et votre photo de profil : le nom et l’adresse servent à ouvrir votre compte et à vous reconnaître, la photo n’est pas utilisée. Nous ne recevons jamais votre mot de passe Google, ni vos courriers, ni vos contacts. Ces informations sont conservées chez notre prestataire de base de données, à accès restreint, et ne sont transmises à personne d’autre. Ce que Ma Couronne garde ensuite pour vous (vos rendez-vous, votre suivi, votre foyer) est décrit dans <a href="/couronne/confidentialite.html">ses règles de confidentialité</a>.</p>
+<p><b>Combien de temps.</b> Le temps de vous répondre, puis, si vous devenez cliente, le temps de votre suivi. <em>La durée exacte est en cours de fixation par la Maison et sera inscrite ici.</em></p><p><b>Vos droits.</b> Vous pouvez demander à voir, à corriger ou à effacer ce que nous avons, à tout moment, par WhatsApp ou de vive voix à la Maison. Nous donnons suite sans avoir à vous en demander la raison.</p><p><b>La mesure d’audience.</b> Elle compte les pages vues et les parcours choisis, sans nom ni numéro.</p><p><b>Sur votre téléphone.</b> Après une réservation, votre prénom, votre numéro et les gestes choisis restent sur l’appareil qui a réservé, pour que la prochaine fois se fasse en une touche. Ils ne quittent pas cet appareil. Le lien « Ce n’est pas moi », sur la page de réservation, les efface.</p><p><b>Hébergement.</b> Les pages du site sont servies par GitHub Pages ; vos demandes et votre compte Ma Couronne sont enregistrés chez notre prestataire de base de données, à accès restreint.</p>` },
   /* LES CONDITIONS DISENT LA RESERVATION EN LIGNE — 18 septembre 2026. Le
      texte precedent datait d'avant : il decrivait une prise de rendez-vous
      par message. Depuis, une visiteuse choisit son geste, son jour et son
      heure sans compte et sans paiement, et le serveur revérifie la place
      avant d'écrire. Les conditions doivent dire ce qui se passe vraiment. */
-  { chemin: '/conditions/', court: 'Conditions générales', titre: 'CGU · Conditions de prise de rendez-vous en ligne · Maison MND', description: 'Comprenez comment se prend, se confirme, se déplace et s’annule un rendez-vous réservé en ligne à la Maison MND.', h1: 'Conditions générales de prise de rendez-vous en ligne', corps: `<p><b>Ce que vous réservez.</b> Vous choisissez un ou plusieurs gestes, un jour et une heure. Aucun compte n’est créé, aucun paiement n’est demandé en ligne : le règlement se fait à la Maison.</p><p><b>Une demande, pas encore une place tenue.</b> Votre réservation arrive à la Maison à l’état « en attente ». Elle devient ferme quand la Maison vous le confirme, sur WhatsApp ou par téléphone, pendant ses heures d’ouverture.</p><p><b>La consultation d’abord.</b> Une création ou une réparation commence par une consultation ; un entretien et des soins se réservent directement.</p><p><b>Plusieurs gestes dans une même venue.</b> Vous pouvez en cocher jusqu’à six. La durée et le prix s’additionnent, et les heures proposées tiennent compte du total.</p><p><b>Les prix affichés.</b> Ils viennent du catalogue de la Maison. Un geste sans prix ferme se règle au salon, et le total est alors annoncé « à partir de ».</p><p><b>Le devis.</b> Pour une création ou une restauration, rien ne commence sans une proposition écrite que vous avez acceptée. Les prix sont donnés au cas par cas.</p><p><b>Si l’heure vient d’être prise.</b> La Maison vérifie la disponibilité au moment de l’enregistrement. Si le créneau part entre votre choix et votre envoi, l’écran vous le dit et vous en propose un autre.</p><p><b>Déplacer ou annuler.</b> Prévenez-nous dès que possible, par WhatsApp ou par téléphone ; nous déplaçons votre rendez-vous. L’annulation ne se fait pas encore depuis le site. <em>Les délais et les éventuels frais sont en cours de fixation par la Maison et seront inscrits ici.</em></p><p><b>Acompte.</b> Certains rendez-vous demandent un acompte ; il vous est indiqué avant, jamais après.</p>` },
+  { chemin: '/conditions/', court: 'Conditions générales', titre: 'CGU · Conditions de prise de rendez-vous en ligne · Maison MND', description: 'Comprenez comment se prend, se confirme, se déplace et s’annule un rendez-vous réservé en ligne à la Maison MND.', h1: 'Conditions générales de prise de rendez-vous en ligne', corps: `<p><b>Ce que vous réservez.</b> Vous choisissez un ou plusieurs gestes, un jour et une heure. Aucun compte n’est créé, aucun paiement n’est demandé en ligne : le règlement se fait à la Maison.</p><p><b>Une place tenue dès l’envoi.</b> La Maison vérifie que l’heure est libre au moment où vous réservez : votre rendez-vous est alors confirmé, et la confirmation vous parvient sur WhatsApp. La Maison choisit la personne qui s’occupe de vous. Si elle doit déplacer votre venue, elle vous écrit avant.</p><p><b>Votre numéro, sur votre téléphone.</b> Pour aller plus vite la prochaine fois, votre prénom, votre numéro et vos gestes restent sur l’appareil qui a réservé, jamais ailleurs. Le lien « Ce n’est pas moi » les efface.</p><p><b>La consultation d’abord.</b> Une création ou une réparation commence par une consultation ; un entretien et des soins se réservent directement.</p><p><b>Plusieurs gestes dans une même venue.</b> Vous pouvez en cocher jusqu’à six. La durée et le prix s’additionnent, et les heures proposées tiennent compte du total.</p><p><b>Les prix affichés.</b> Ils viennent du catalogue de la Maison. Un geste sans prix ferme se règle sur place, et le total est alors annoncé « à partir de ».</p><p><b>Le devis.</b> Pour une création ou une restauration, rien ne commence sans une proposition écrite que vous avez acceptée. Les prix sont donnés au cas par cas.</p><p><b>Si l’heure vient d’être prise.</b> La Maison vérifie la disponibilité au moment de l’enregistrement. Si le créneau part entre votre choix et votre envoi, l’écran vous le dit et vous en propose un autre.</p><p><b>Déplacer ou annuler.</b> Prévenez-nous dès que possible, par WhatsApp ou par téléphone ; nous déplaçons votre rendez-vous. L’annulation ne se fait pas encore depuis le site. <em>Les délais et les éventuels frais sont en cours de fixation par la Maison et seront inscrits ici.</em></p><p><b>Acompte.</b> Certains rendez-vous demandent un acompte ; il vous est indiqué avant, jamais après.</p>` },
 ];
 
 /* ── On écrit ────────────────────────────────────────────────────────── */
@@ -894,6 +1121,12 @@ if (sansVignette.length) {
   throw new Error(`Article sans vignette : ${sansVignette.map((a) => a.slug).join(', ')}. `
     + 'Ajoutez « image: journal-N.jpg » à son en-tête, et inscrivez la photo au registre '
     + 'docs/site-revelateur/photos.md. Une cliente ne se pose pas sur un article au hasard.');
+}
+/* LE PORTRAIT DE L'ARTICLE (1er octobre 2026) : `portrait:` nomme la photo en 4/5 que la page
+   de l'article montre en grand. Sans lui, c'est la vignette. Il doit exister, comme elle. */
+const portraitAbsent = articles.filter((a) => a.portrait && !existsSync(path.join(racine, 'public', 'assets', 'photos', 'site', a.portrait)));
+if (portraitAbsent.length) {
+  throw new Error(`Portrait introuvable : ${portraitAbsent.map((a) => `${a.slug} → ${a.portrait}`).join(', ')}`);
 }
 const vignetteAbsente = articles.filter((a) => !existsSync(path.join(racine, 'public', 'assets', 'photos', 'site', a.image)));
 if (vignetteAbsente.length) {
@@ -1047,7 +1280,7 @@ const pagesEcrites = [];
 
 ecrit('/', page({
   chemin: '/', titre: ACCUEIL.titre, description: ACCUEIL.description, corps: rendAccueil(articles),
-  classeBody: 'accueil-plein', precharge: `/assets/photos/site/${PHOTO_ACCUEIL}`,
+  classeBody: 'accueil-plein', precharge: srcDe(PHOTO_ACCUEIL),
   noeuds: [noeudMaison(), noeudSite(), filAriane([['Accueil', '/']])],
 }));
 pagesEcrites.push('/');
@@ -1055,7 +1288,7 @@ pagesEcrites.push('/');
 ecrit('/galerie/', page({
   chemin: '/galerie/', titre: GALERIE.titre, description: GALERIE.description,
   corps: rendGalerie(), classeBody: 'galerie-plein',
-  precharge: `/assets/photos/site/${GALERIE.boite[2]}`,
+  precharge: srcDe(GALERIE.boite[2]),
   noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Galerie', '/galerie/']]), {
     '@type': 'ImageGallery', name: GALERIE.h1, description: GALERIE.description,
     url: `${SITE}galerie/`,
@@ -1064,6 +1297,8 @@ ecrit('/galerie/', page({
 pagesEcrites.push('/galerie/');
 
 for (const p of PAGES) {
+  /* Une page en attente n'est ni écrite ni mise au plan (voir contenu-types). */
+  if (p.enAttente) { console.log(`  en attente : ${p.chemin} (${p.enAttente})`); continue; }
   const estService = !!(p.cta || p.pas);
   let corps;
   if (p.chemin === '/journal/') {
@@ -1079,10 +1314,22 @@ for (const p of PAGES) {
   pagesEcrites.push(p.chemin);
 }
 
+/* LES PAGES D'INGRÉDIENTS — 28 septembre 2026, une par plante. */
+for (const i of INGREDIENTS) {
+  const chemin = cheminIngredient(i);
+  ecrit(chemin, page({
+    chemin, titre: `${i.nom.replace(/^L’|^Le |^La /, (m) => m)} · Nos ingrédients · Maison MND`.slice(0, 60),
+    description: `${i.accroche} D’où il vient, ce qu’il fait à vos locks, et comment la Maison MND l’emploie.`.slice(0, 155),
+    corps: rendIngredient(i), classeBody: 'page-ingredient',
+    noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Ingrédients', '/ingredients/'], [i.nom, chemin]])],
+  }));
+  pagesEcrites.push(chemin);
+}
+
 for (const art of articles) {
   const chemin = `/journal/${art.slug}/`;
   ecrit(chemin, page({
-    chemin, titre: `${art.titre} · Maison MND`.slice(0, 60), description: art.description, corps: rendArticle(art),
+    chemin, titre: `${art.titre} · Maison MND`.slice(0, 60), description: art.description, corps: rendArticle(art), image: art.image,
     noeuds: [noeudSite(), filAriane([['Accueil', '/'], ['Journal', '/journal/'], [art.titre, chemin]]), {
       '@type': 'Article', headline: art.titre, description: art.description, inLanguage: 'fr',
       author: { '@type': 'Organization', name: COMMUN.nom }, publisher: { '@id': `${SITE}#maison` },
@@ -1134,7 +1381,8 @@ ecrit(PLAN, page({
       <nav aria-label="Fil d’Ariane" class="conteneur"><ol class="fil"><li><a href="${BASE}">Accueil</a></li><li>·</li><li>Plan du site</li></ol></nav>
       <section class="page-hero page-hero--simple"><div class="conteneur"><div><h1>Plan du site</h1><p class="ligne">Toutes les pages de la Maison, rassemblées.</p></div></div></section>
       <section class="serre"><div class="conteneur"><div class="plan">
-        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.map((p) => [p.court, p.chemin])])}
+        ${lignesDuPlan('Les parcours et la Maison', [['Accueil', '/'], ...PAGES.filter((p) => !p.enAttente).map((p) => [p.court, p.chemin])])}
+        ${INGREDIENTS.length ? lignesDuPlan('Nos ingrédients', INGREDIENTS.map((i) => [i.nom, cheminIngredient(i)])) : ''}
         ${articles.length ? lignesDuPlan('Le Journal', articles.map((a) => [a.titre, `/journal/${a.slug}/`])) : ''}
         ${lignesDuPlan('Les mentions', [...LEGALES.map((l) => [l.court, l.chemin]), ['Plan du site', PLAN]])}
       </div></div></section>`,

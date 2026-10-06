@@ -9,6 +9,15 @@
    en gardant la recherche et l'ancre (un lien « ?besoin=entretien » ou
    « ?code=RENTREE10 » posé hier sur WhatsApp doit arriver entier).
 
+   UN RENVOI NE DIT QU'UNE CHOSE — 1er octobre 2026. La page portait aussi
+   « noindex ». Une semaine après le déménagement, Google montrait toujours
+   l'ancienne adresse : « allez à la nouvelle adresse » et « oubliez-moi »
+   sont deux consignes qui se contredisent, et pour un déménagement un
+   moteur attend le renvoi seul. La balise est retirée, à la demande de
+   Yéman. Le rafraîchissement immédiat est lu comme une redirection : la
+   page de renvoi n'entre pas dans les résultats pour autant. Le 404, lui,
+   garde sa balise : c'est une page d'erreur, elle ne porte pas de canonique.
+
    AUCUN DOMAINE N'EST ÉCRIT ICI : la cible arrive de l'appelant, qui la tient
    de la configuration Pages lue chez GitHub. Ce module est pur, pour que le
    harnais le lise sans rien construire. */
@@ -24,7 +33,6 @@ export function pageDeRenvoi(cible) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Maison MND</title>
-<meta name="robots" content="noindex">
 <link rel="canonical" href="${echappe(cible)}">
 <meta http-equiv="refresh" content="0; url=${echappe(cible)}">
 <script>location.replace(${JSON.stringify(cible)} + location.search + location.hash);</script>

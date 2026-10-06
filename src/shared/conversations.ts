@@ -170,7 +170,7 @@ export type MessageWa = {
   /** UN MESSAGE PARTI TOUT SEUL, et pourquoi : l'accusé d'un devis reçu, le
       formulaire de congé proposé. Deux seulement, dits d'avance dans la
       maquette. Ils portent `parQui: 'Le Trône'`. */
-  auto?: 'accuse' | 'formulaire' | 'transmis';
+  auto?: 'accuse' | 'formulaire' | 'transmis' | 'reprise-ok' | 'reprise-autre';
   /** UNE PIÈCE REÇUE D'UN PRESTATAIRE, RANGÉE DANS SON DOSSIER — l'identifiant
       de l'engagement. Absent avec une pièce : elle attend « à ranger ». */
   rangeDans?: string;
@@ -359,6 +359,37 @@ export const TIROIR_DIT: Record<Tiroir, string> = {
 const RANG_DU_TIROIR: Record<Tiroir, number> = { equipe: 0, prestataires: 1, clientes: 2 };
 /** Un tiroir que la base réserve à la direction. */
 export const estReserve = (t: Tiroir | undefined): boolean => t === 'equipe' || t === 'prestataires';
+
+/* ══ CHERCHER UN FIL — 2 octobre 2026 ════════════════════════════════════
+   « Comment rechercher une conversation ? Le nom d'une cliente ? » (Yéman).
+   On cherche comme on se souvient : un bout de nom (sans se soucier des
+   accents ni des majuscules), quelques chiffres du numéro, ou un mot qu'elle
+   a écrit. Tous les mots tapés doivent se trouver. */
+const sansAccents = (t: string): string => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+export function filCorrespond(f: { nom: string; numero: string; messages: readonly { texte?: string }[] }, recherche: string): boolean {
+  /* Un numéro se tape par paires (« 97 71 16 ») : on recolle les chiffres
+     avant de couper en mots, sinon chaque paire serait un mot trop court. */
+  const mots = sansAccents(recherche).replace(/(\d)[\s.-]+(?=\d)/g, '$1').trim().split(/\s+/).filter(Boolean);
+  if (mots.length === 0) return true;
+  const nom = sansAccents(f.nom);
+  const chiffres = f.numero.replace(/\D/g, '');
+  const textes = f.messages.map((m) => sansAccents(m.texte ?? '')).join(' ');
+  return mots.every((mot) => {
+    const enChiffres = mot.replace(/\D/g, '');
+    if (enChiffres.length >= 3 && enChiffres.length === mot.replace(/[\s+().-]/g, '').length) return chiffres.includes(enChiffres);
+    return nom.includes(mot) || textes.includes(mot);
+  });
+}
+
+/* ══ EFFACER UN FIL — 2 octobre 2026 ═════════════════════════════════════
+   « Comment supprimer des conversations comme dans WhatsApp ? » (Yéman).
+   Arbitrage au sélecteur : on EFFACE les fils SANS FICHE (spams, inconnus,
+   numéros de passage), la direction seule, après confirmation, sur tous les
+   postes. Le fil d'une personne qui a une fiche ne s'efface pas : il
+   s'archive, son histoire appartient à la Maison. */
+export const filEffacable = (f: { sansFiche: boolean; messages: readonly unknown[] }): boolean =>
+  f.sansFiche && f.messages.length > 0;
 
 export type Fil = {
   /** La clé du fil : le numéro réduit. Une tête sans fiche en a un aussi. */
@@ -743,6 +774,9 @@ export const laFenetreSePaie = (instant: number = Date.now()): boolean =>
 export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'marketing'>> = {
   rappel_rdv: 'utilitaire',
   confirmation_rdv: 'utilitaire',
+  /* LA REPRISE PROPOSÉE — 29 septembre 2026 : elle rappelle un rendez-vous
+     déjà posé et demande de le tenir. Utilitaire, comme le rappel. */
+  reprise_proposee: 'utilitaire',
   avis_google: 'marketing',
   /* L'ÉQUIPE ET LES PRESTATAIRES — 15 septembre 2026, à faire approuver
      (docs/BRANCHER-ENVOIS.md, étape 6). Tous utilitaires : un bulletin, une
@@ -753,6 +787,9 @@ export const CATEGORIE_DES_MODELES: Readonly<Record<string, 'utilitaire' | 'mark
   /* LA FIN DE PAQUET — 15 septembre 2026 (étape 7). Il informe, il ne vend
      pas : c'est ce qui le garde utilitaire. */
   fin_de_paquet: 'utilitaire',
+  /* LE BILAN DE SÉANCE — 4 octobre 2026, à faire approuver : il remet un
+     document après une séance, il ne vend rien. */
+  bilan_de_seance: 'utilitaire',
 };
 
 /** Le modèle de la fin de paquet, envoyé par le Trône lui-même

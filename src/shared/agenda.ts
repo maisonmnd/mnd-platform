@@ -222,9 +222,21 @@ export type Appointment = {
       de plus. Il dit aussi, sur la fiche, d'où vient ce rendez-vous que
       personne ne se souvient d'avoir pris. */
   repriseDe?: string;
+  /** SA REPRISE A ÉTÉ EFFACÉE À LA MAIN — 2 octobre 2026. Elle ne se repose
+      plus jamais toute seule (voir `pourquoiPasDeRepriseIci`). */
+  repriseRetiree?: boolean;
   /** LA RELANCE J-3 EST FAITE — posée d'un geste depuis À faire, elle sort
       la ligne de la liste des reprises à relancer. */
   relanceFaite?: boolean;
+  /** SA RÉPONSE AU MESSAGE J-3 — 29 septembre 2026 (« la réservation en 30
+      secondes »). « Je confirme » pose la date et éteint la relance ; « Un
+      autre moment » pose la sienne et laisse la ligne allumée dans À faire :
+      la Maison lui propose une autre heure. Écrits par le webhook WhatsApp. */
+  confirmeeParLaClienteLe?: string;
+  autreMomentDemandeLe?: string;
+  /** Le message J-3 est parti (rappels-j1) : À faire le dit, et garde la
+      ligne tant qu'elle n'a pas répondu. */
+  repriseProposeeLe?: string;
   foyerId?: string;
   seriesId?: string;
   seriesIndex?: number; // n° de la séance (1..N)
@@ -482,6 +494,32 @@ export const venuesHonorees = (
   for (const a of appts) {
     if (a.status !== 'honoré') continue;
     if ((parPayeur ? apptPayeurId(a) : a.clientId) !== clientId) continue;
+    jours.add(a.date);
+  }
+  return jours.size;
+};
+
+/* LES VENUES DE L'ANNÉE — 29 septembre 2026. « Calcule les venues par an,
+   pas de cumul » (Yéman) : le Cercle se gagne et se garde sur les DOUZE
+   DERNIERS MOIS, glissants, pour que personne ne sorte du Cercle un 1ᵉʳ
+   janvier. Une venue = un jour où un rituel de CETTE tête a été honoré. Les
+   autres compteurs (passage, réservation, caisse) restent au cumul. */
+export const debutDeLAnnee = (aujourdhui: string): string => {
+  const d = new Date(`${aujourdhui.slice(0, 10)}T12:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+};
+export const venuesDeLAnnee = (
+  appts: readonly Pick<Appointment, 'status' | 'clientId' | 'date'>[],
+  clientId: string,
+  aujourdhui: string = new Date().toISOString().slice(0, 10),
+): number => {
+  if (!clientId) return 0;
+  const debut = debutDeLAnnee(aujourdhui);
+  const jours = new Set<string>();
+  for (const a of appts) {
+    if (a.status !== 'honoré' || a.clientId !== clientId) continue;
+    if (a.date <= debut || a.date > aujourdhui) continue;
     jours.add(a.date);
   }
   return jours.size;

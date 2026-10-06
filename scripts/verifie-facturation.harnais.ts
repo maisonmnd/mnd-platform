@@ -1,6 +1,6 @@
 /* TEMPORAIRE — l'invariant qui compte : une pièce PAYÉE suit le rituel, et son
    TOTAL ne bouge pas d'un franc. */
-import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, commissionDetaillee, facturesQuiAttendent } from '../src/apps/trone/routes/clients/_shared';
+import { alignerFacturesDuRituel, svcNetForAppt, apptTotalXof, apptNetXof, revenuDuMois, revenusProjetesDuMois, commissionDetaillee, facturesQuiAttendent } from '../src/apps/trone/routes/clients/_shared';
 import { factureAEnvoyer, emettreLaPieceDuRituelRegle } from '../src/apps/trone/routes/clients/actions';
 import { appointmentsStore } from '../src/shared/agenda';
 import type { StaffMember } from '../src/apps/trone/routes/equipe/data';
@@ -305,6 +305,28 @@ dit('la borne du jour arrête au mois-à-date', 65_000,
   revenuDuMois(baseArgs, '2026-08', { cut: '2026-08-15' }));
 /* Un autre mois ne prend rien de celui-ci. */
 dit('un mois voisin ne compte pas', 0, revenuDuMois(baseArgs, '2026-07'));
+
+/* LES REVENUS PROJETÉS — 1er octobre 2026. Le revenu du mois s'arrête à
+   aujourd'hui ; ce qui est daté d'après se lit à part. Au 15 : le versement
+   du 20 (20 000) et la formation du 25 (15 000) sont PROJETÉS, pas encaissés ;
+   le rendez-vous confirmé du 28 compte pour son reste dû, l'annulé pour rien. */
+const rdvProjete = { id: 'apV', branchId: 'br', clientId: 'c1', serviceIds: ['a'], date: '2026-08-28', time: '10:00', master: 'M', status: 'confirmé' } as Appointment;
+const rdvProjeteAnnule = { ...rdvProjete, id: 'apX', status: 'annulé' } as Appointment;
+/* Un rendez-vous à venir DÉJÀ SOLDÉ : il compte parmi ceux du Carnet, pas parmi ceux
+   qui doivent encore. C'est l'écart « 22 au Carnet, 17 sur la tuile » du 1er octobre. */
+const rdvProjeteSolde = { ...rdvProjete, id: 'apP', date: '2026-08-27', paidXof: 10_000 } as Appointment;
+const projArgs = { ...baseArgs, appts: [rdvHonore, rdvProjete, rdvProjeteAnnule, rdvProjeteSolde] };
+const proj = revenusProjetesDuMois(projArgs, '2026-08', '2026-08-15');
+dit('au 15, les versements datés d’après sont projetés', 35_000, proj.versements);
+dit('… le rendez-vous à venir compte pour son reste dû, l’annulé non', 10_000, proj.rendezVous);
+dit('… un seul rendez-vous reste à régler', 1, proj.nombre);
+dit('… mais deux sont à venir, comme au Carnet : le soldé d’avance compte aussi', 2, proj.attendus);
+dit('… et le projeté est leur somme', 45_000, proj.total);
+dit('encaissé au 15 + projeté = le mois si tout le monde vient', 110_000,
+  revenuDuMois(projArgs, '2026-08', { cut: '2026-08-15' }) + proj.total);
+dit('le dernier jour, plus rien n’est projeté', 0, revenusProjetesDuMois(projArgs, '2026-08', '2026-08-31').total);
+dit('un versement daté de demain n’est pas un revenu d’aujourd’hui', 30_000,
+  revenuDuMois({ ...baseArgs, appts: [], apprenants: [], abonnes: [] }, '2026-08', { cut: '2026-08-19' }));
 
 /* ═══════════════════════════════════════════════════════════════════
    LA COMMISSION DÉTAILLÉE — UNE SEULE PORTE POUR PERSONNEL ET LE RUN — 24 août.

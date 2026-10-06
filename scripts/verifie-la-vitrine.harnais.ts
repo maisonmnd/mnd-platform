@@ -279,7 +279,10 @@ dit('… alors que le verrou de l’en-tête, lui, se nomme', true, /alt="[^"]+"
    dreadlocks abîmées ? » devient une affirmation sur elle que personne ne lui
    a demandée. Tant que la vignette se tirait au sort sur le rang du fichier
    dans le dossier, le prochain article ajouté pouvait l'y poser tout seul. */
-const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-6.jpg',
+/* 1er octobre 2026 : `journal-6` (le visage de `journal-5`, une seconde fois) quitte le
+   Journal, « je ne veux pas utiliser les mêmes visages deux fois » (Yéman) ; `journal-13`
+   est `cliente-13.jpg` en 16/10. */
+const VIGNETTES_DE_CLIENTES = ['journal-4.jpg', 'journal-5.jpg', 'journal-13.jpg',
   /* 24 septembre 2026 : trois de plus, dont un ENFANT (journal-7). La règle
      compte double pour lui. journal-9 est `cliente-2.jpg`, descendue de
      l'accueil au Journal. */
@@ -300,7 +303,7 @@ const articlesDuJournal = readdirSync('docs/site-revelateur/journal')
   .map((f) => {
     const tete = readFileSync(join('docs/site-revelateur/journal', f), 'utf8').replace(/\r\n/g, '\n').split('\n---\n')[0];
     const champ = (c: string) => tete.match(new RegExp(`^${c}:\\s*"?(.*?)"?\\s*$`, 'm'))?.[1] ?? '';
-    return { fichier: f, slug: champ('slug'), titre: champ('titre'), image: champ('image') };
+    return { fichier: f, slug: champ('slug'), titre: champ('titre'), image: champ('image'), portrait: champ('portrait') };
   });
 dit('le Journal a ses dix articles', 10, articlesDuJournal.length);
 dit('… et chacun NOMME sa vignette, au lieu de la tirer au sort', [], articlesDuJournal.filter((a) => !a.image).map((a) => a.fichier));
@@ -315,6 +318,16 @@ dit('… et la page servie pose bien celle-là sur cet article-là',
 dit('AUCUNE CLIENTE n’illustre un article qui nomme un défaut', [],
   articlesDuJournal.filter((a) => VIGNETTES_DE_CLIENTES.includes(a.image) && NOMME_UN_DEFAUT.test(a.titre))
     .map((a) => `${a.image} sur « ${a.titre} »`));
+/* UN VISAGE PAR ARTICLE, ET LA PHOTO EN GRAND — 1er octobre 2026. */
+dit('aucune vignette ne sert deux articles', articlesDuJournal.length, new Set(articlesDuJournal.map((a) => a.image)).size);
+dit('… chaque portrait nommé existe et tient au registre', [],
+  articlesDuJournal.filter((a) => a.portrait && (!existsSync(`public/assets/photos/site/${a.portrait}`) || !inscriteAuRegistre(a.portrait))).map((a) => a.portrait));
+dit('… aucun portrait ne sert deux articles', articlesDuJournal.filter((a) => a.portrait).length,
+  new Set(articlesDuJournal.filter((a) => a.portrait).map((a) => a.portrait)).size);
+dit('… et le portrait d’un article qui nomme un défaut n’est jamais celui d’une cliente', [],
+  articlesDuJournal.filter((a) => /^cliente-/.test(a.portrait) && NOMME_UN_DEFAUT.test(a.titre)).map((a) => `${a.portrait} sur « ${a.titre} »`));
+dit('la page d’un article montre sa photo en grand, à côté du titre', [],
+  articlesDuJournal.filter((a) => !new RegExp(`class="page-hero"[\\s\\S]*?photos/site/${(a.portrait || a.image).replace('.jpg', '')}\\.`).test(pages.get(`/journal/${a.slug}/`) ?? '')).map((a) => a.slug));
 dit('… et chaque vignette de cliente sert bien quelque part', [],
   VIGNETTES_DE_CLIENTES.filter((v) => !articlesDuJournal.some((a) => a.image === v)));
 /* LES PROMESSES SONT PARTIES LE 27 SEPTEMBRE 2026 avec l'épure. Le
@@ -590,6 +603,26 @@ dit('rien ne s’enfonce ni ne glisse au survol', [],
   [...feuilleSite.matchAll(/^([^{\n]*:hover[^{\n]*)\{[^}]*transform:\s*translate/gm)].map((m) => m[1].trim()));
 dit('la galerie d’hier est gardée telle quelle', true,
   (pages.get('/galerie/') ?? '').includes('class="gal-rail"') && accueil.includes('href="/galerie/"'));
+
+/* ── LA MAISON NE SE DIT JAMAIS « SALON » — 1er octobre 2026 ────────────
+   La règle date du récit (30 septembre), mais deux pages légales écrites
+   avant elle la contredisaient encore en ligne : « de vive voix au salon »
+   (politique de données), « se règle au salon » (conditions). Personne ne
+   relit une page légale ; le harnais, si. On lit ce que la visiteuse lit :
+   le texte, les titres, les descriptions et les légendes d'image, pas les
+   données structurées (où « HairSalon » est le type que Google attend).
+   Le Journal reste libre de nommer les salons des AUTRES. */
+const ceQueLitLaVisiteuse = (h: string) => {
+  const sansCode = h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ');
+  const attributs = [...sansCode.matchAll(/\b(?:alt|title|aria-label|content)="([^"]*)"/g)].map((m) => m[1]).join(' ');
+  return `${sansCode.replace(/<[^>]+>/g, ' ')} ${attributs}`;
+};
+const ditSalon = (h: string) => /\bsalons?\b/i.test(ceQueLitLaVisiteuse(h));
+dit('le contrôle voit « salon » dans une phrase', true, ditSalon('<p>de vive voix au salon.</p>'));
+dit('… et dans une légende d’image', true, ditSalon('<img alt="Le salon de la Maison" src="x.jpg">'));
+dit('… mais pas dans les données structurées', false, ditSalon('<p>À la Maison.</p><script type="application/ld+json">{"@type":"HairSalon"}</script>'));
+dit('aucune page ne dit « salon » pour la Maison (le Journal peut nommer ceux des autres)', [],
+  [...pages].filter(([c, h]) => !c.startsWith('/journal/') && ditSalon(h)).map(([c]) => c));
 
 console.log(ko === 0 ? '\nTout est juste.' : `\n${ko} vérification(s) en échec.`);
 process.exit(ko === 0 ? 0 : 1);

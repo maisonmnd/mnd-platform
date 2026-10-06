@@ -1,5 +1,6 @@
 import { createStore, useStore, uid } from './store';
 import { productsStore, type Product } from './catalog';
+import { declareChampsDerives } from './file-d-attente';
 
 /* LE STOCK & LES ACHATS — le compagnon du catalogue.
 
@@ -402,6 +403,14 @@ export function retirerParReferences(refs: string[]): number {
    synchronisation — hydratation, refetch, Realtime — et le miroir restait
    alors figé sur le compte de l'autre poste. Un recalcul complet, décalé d'un
    souffle pour absorber les rafales. */
+/* LE STOCK DU MIROIR EST DÉRIVÉ — 4 octobre 2026 (« 19 conflits »). Chaque
+   poste le recalcule du journal : deux recalculs croisés ne sont pas deux
+   gestes à trancher (voir `declareChampsDerives`, file-d-attente). Le stock
+   d'un produit SANS fiche liée reste un compteur tenu à la main (la caisse le
+   décrémente) : son conflit, lui, reste montré. */
+declareChampsDerives('catalog_products', (ligne) =>
+  (produitsStockStore.get().some((p) => p.catalogProductId === ligne.id) ? ['stock'] : []));
+
 let miroirPrevu: ReturnType<typeof setTimeout> | undefined;
 const replanifieMiroir = (): void => {
   if (miroirPrevu !== undefined) clearTimeout(miroirPrevu);

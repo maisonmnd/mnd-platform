@@ -1,5 +1,5 @@
 import { asset } from '../../shared/asset';
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
 import { depositForServices, depositPctFor, useSettings, useExceptionsHoraires, joursFermesParmi, horairesDescendus } from '../../shared/settings';
@@ -24,6 +24,7 @@ import {
   DOW_LETTERS,
   MONTHS,
   QUATRE_TEMPS,
+  dateOfIso,
   dayLabelIso,
   ensureClient,
   firstName,
@@ -37,6 +38,27 @@ import {
   useVisibleCatalog,
   type BookingPrefill,
 } from './lib';
+import { t, locale, langue, prix } from './i18n';
+
+/* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
+   toujours), « Sat 5 Jul » en anglais. Ce qui part au Trône garde
+   `dayLabelIso`, en français. */
+const jourDit = (iso: string): string =>
+  langue() === 'en'
+    ? dateOfIso(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : dayLabelIso(iso);
+
+/* Le mois du calendrier : « Octobre 2026 » / « October 2026 ». */
+const moisDit = (y: number, m: number): string =>
+  langue() === 'en'
+    ? new Date(y, m, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' })
+    : `${MONTHS[m]} ${y}`;
+
+/* Les initiales des jours, dimanche d'abord (le 4 janvier 2026 est un dimanche). */
+const lettresDesJours = (): string[] =>
+  langue() === 'en'
+    ? Array.from({ length: 7 }, (_, i) => new Date(2026, 0, 4 + i).toLocaleDateString(locale(), { weekday: 'narrow' }))
+    : DOW_LETTERS;
 
 /* RÉSERVER EN 6 TEMPS
    objectif → prestations → créneau → récapitulatif → acompte → confirmé
@@ -182,7 +204,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const familleDeLaTete = cible?.familyId ? familles.find((f) => f.id === cible.familyId) : undefined;
   const famPctCompte = remiseFamillePct(familleDeLaTete, tousClients, todayIso());
 
-  const prefService = prefill ? services.find((s) => s.id === prefill.serviceId) ?? null : null;
+  const prefService = prefill ? services.find((s) => s.id === (prefill.serviceId ?? prefill.serviceIds?.[0])) ?? null : null;
+  /* La venue entière, dans l'ordre du catalogue, sans les gestes retirés. */
+  const prefIds = prefill?.serviceIds?.filter((id) => services.some((s) => s.id === id)) ?? [];
 
   /* LE CRÉNEAU PRÉDIT ARRIVE PRÉ-CHOISI (maquette accueil, repère 2) :
      « Réserver ce créneau » porte la date de la cadence — la grille s'ouvre
@@ -213,7 +237,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      remet à zéro à chaque atelier ouvert : la coupe est celle du pli courant. */
   const [voirTout, setVoirTout] = useState(false);
   /* Sélection multiple : une réservation peut réunir plusieurs prestations. */
-  const [selectedIds, setSelectedIds] = useState<string[]>(prefService ? [prefService.id] : []);
+  const [selectedIds, setSelectedIds] = useState<string[]>(prefIds.length ? prefIds : prefService ? [prefService.id] : []);
   const [monthIdx, setMonthIdx] = useState(prefIso?.mois ?? 0);
   const [selIso, setSelIso] = useState<string | null>(prefIso?.iso ?? null);
   const [time, setTime] = useState<string | null>(null);
@@ -284,7 +308,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
   const master = selected[0]?.master ?? '';
   const masterVaries = selected.length > 1 && !selected.every((s) => s.master === master);
+  /* `summaryLabel` part au Trône (alerte du personnel) : il reste en français.
+     `summaryDit` est celui que la cliente lit, dans sa langue. */
   const summaryLabel = selected.length === 1 ? selected[0].name : `${selected.length} prestations`;
+  const summaryDit = selected.length === 1 ? selected[0].name : t('{n} prestations', { n: selected.length });
+  /* « 2 prestations · 3 h », jamais un pluriel bâti à la main. */
+  const prestationsEtDuree = (n: number, duree: string) =>
+    n > 1 ? t('{n} prestations · {duree}', { n, duree }) : t('{n} prestation · {duree}', { n, duree });
 
   /* Prix effectif (offre appliquée sur le total). */
   useSettings(); // re-rend quand les taux d'acompte OU la capacité du jour changent au Trône
@@ -462,7 +492,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
     const now = new Date();
     return [0, 1, 2, 3].map((k) => {
       const d = new Date(now.getFullYear(), now.getMonth() + k, 1);
-      return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
+      return { y: d.getFullYear(), m: d.getMonth() };
     });
   }, []);
 
@@ -525,6 +555,21 @@ export default function Booking({ prefill, onClose, toast }: Props) {
   const momentComplet = sessionDates.length >= totalSessions;
   const dernierMoment = sessionDates[sessionDates.length - 1];
 
+  /* SON HEURE HABITUELLE, POSÉE D'OFFICE — 29 septembre 2026. « Réserver ce
+     moment » arrive avec le jour prédit ET l'heure de sa dernière venue : si
+     elle est libre, le moment est posé et le bouton « Réserver » est armé,
+     une touche. Une seule fois : si la cliente change d'heure, on ne la lui
+     remet pas. Jamais pour une série (chaque séance se choisit). */
+  const heurePosee = useRef(false);
+  useEffect(() => {
+    if (heurePosee.current || !prefill?.time || !prefIso || totalSessions > 1) return;
+    if (selIso !== prefIso.iso || sessionDates.length > 0) return;
+    if (!dayTimes.includes(prefill.time)) return;
+    heurePosee.current = true;
+    setSessionDates([{ iso: prefIso.iso, time: prefill.time }]);
+    setTime(prefill.time);
+  }, [prefill, prefIso, totalSessions, selIso, sessionDates.length, dayTimes]);
+
   /* ---- Densité déclarée (12 août) — la question ne se pose qu'au créneau,
      et seulement quand elle compte : tête jamais comptée par la Maison, et au
      moins une prestation qui suit le modèle. Elle règle la DURÉE, pas le prix. */
@@ -573,7 +618,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      table `payments` (écrite par la fonction Edge) — c'est elle que le comptoir
      doit croire en cas de doute. */
   const settle = (online?: { apptId: string; transactionId: string; confirmed: boolean }) => {
-    if (hasDeposit && !online && !pay) { toast('Choisissez votre moyen d’envoi.'); return; }
+    if (hasDeposit && !online && !pay) { toast(t('Choisissez votre moyen d’envoi.')); return; }
     if (!selected.length || sessionDates.length < totalSessions) return;
     const finalize = () => {
       const baseNotes: string[] = [];
@@ -617,19 +662,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
          jour où personne n'ouvrira la porte. */
       if (!horairesDescendus()) {
         setPaying(false);
-        toast('Les horaires de la Maison se chargent, réessayez dans un instant.');
+        toast(t('Les horaires de la Maison se chargent, réessayez dans un instant.'));
         return;
       }
       const fermes = joursFermesParmi(sessionDates.map((sd) => sd.iso));
       if (fermes.length > 0) {
         setPaying(false);
         toast(fermes.length > 1
-          ? 'La Maison est fermée ces jours-là, choisissez d’autres dates.'
-          : `La Maison est fermée le ${dayLabelIso(fermes[0])}, choisissez un autre jour.`);
+          ? t('La Maison est fermée ces jours-là, choisissez d’autres dates.')
+          : t('La Maison est fermée le {jour}, choisissez un autre jour.', { jour: jourDit(fermes[0]) }));
         return;
       }
       /* Série liée : un identifiant commun quand il y a plusieurs séances. */
       const seriesId = totalSessions > 1 ? uid() : undefined;
+      const tenu = !!online?.confirmed || !hasDeposit;
       const newAppts: Appointment[] = sessionDates.map((sd, i) => {
         const notes = [...baseNotes];
         if (totalSessions > 1) notes.push(`Séance ${i + 1}/${totalSessions}`);
@@ -645,10 +691,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
           date: sd.iso,
           time: sd.time,
           master,
-          /* Un acompte ENCAISSÉ ET VÉRIFIÉ tient le créneau : le rendez-vous
-             naît confirmé, le comptoir n'a plus à le valider à la main. Sans
-             paiement prouvé, il reste « en attente » — la Maison décide. */
-          status: online?.confirmed ? 'confirmé' : 'en attente',
+          /* UNE PLACE LIBRE SE TIENT TOUT DE SUITE — 29 septembre 2026 (« Tout
+             de suite », Yéman, maquette « La réservation en 30 secondes ») :
+             sans acompte demandé, le rendez-vous naît confirmé, et la
+             confirmation WhatsApp part au balayage suivant. Un acompte
+             ENCAISSÉ ET VÉRIFIÉ tient aussi le créneau. Seul un acompte
+             annoncé mais pas prouvé laisse « en attente » : la Maison vérifie. */
+          status: tenu ? 'confirmé' : 'en attente',
           /* L'acompte ne s'applique qu'à la première séance (et seulement s'il y en a un). */
           depositXof: i === 0 && hasDeposit ? deposit : undefined,
           /* Un acompte n'est « reçu » que sur verdict serveur — sinon il reste
@@ -685,7 +734,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       appointmentsStore.set((prev) => [...prev, ...estampilleLesPoses(newAppts)]);
       /* Alerte le personnel du Trône (Web Push), même Le Trône fermé. */
       void pushNotifyStaff(
-        online?.confirmed ? 'Réservation payée · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
+        online?.confirmed ? 'Réservation payée · Ma Couronne' : tenu ? 'Réservé · Ma Couronne' : 'Nouvelle réservation · Ma Couronne',
         `${beneficiaire ? `${cibleNom} · par ${clientName}` : clientName} · ${summaryLabel}${online?.confirmed ? ` · acompte ${fmtMoney(deposit, currency)} reçu` : ''}`,
         '/trone/#/calendrier',
       );
@@ -697,9 +746,15 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       const url = `${import.meta.env.BASE_URL}#/suivi`;
       void enablePush(clientId).then((subbed) => {
         if (!first) return;
-        const body = `${summaryLabel} · ${dayLabelIso(first.iso)} à ${first.time}, la maison confirmera.`;
-        if (subbed) void pushNotify(clientId, 'Réservation transmise', body, url);
-        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal('Réservation transmise', body); });
+        /* Cette notification est la SIENNE (son téléphone) : elle lui parle
+           dans sa langue. L'alerte du personnel, plus haut, reste française. */
+        const vars = { quoi: summaryDit, jour: jourDit(first.iso), heure: first.time };
+        const body = tenu
+          ? t('{quoi} · {jour} à {heure}. La Maison vous attend.', vars)
+          : t('{quoi} · {jour} à {heure}, la maison confirmera.', vars);
+        const titre = tenu ? t('C’est réservé') : t('Réservation transmise');
+        if (subbed) void pushNotify(clientId, titre, body, url);
+        else void askNotifyPermission().then((ok) => { if (ok) notifyLocal(titre, body); });
       });
     };
 
@@ -743,25 +798,29 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         /* Le paiement a eu lieu ; seule la vérification a échoué. On réserve
            quand même, acompte « annoncé » — on ne perd ni la cliente ni sa
            référence. */
-        toast(e instanceof Error ? e.message : 'Vérification impossible, la Maison vérifiera.');
+        /* Les messages de shared/kkiapay sont un petit jeu fixe : traduits ici. */
+        toast(e instanceof Error ? t(e.message) : t('Vérification impossible, la Maison vérifiera.'));
       }
       setOnlinePaid({ ok: confirmed, ref: transactionId });
       settle({ apptId, transactionId, confirmed });
     } catch (e) {
       setPaying(false);
-      toast(e instanceof Error ? e.message : 'Le paiement n’a pas abouti.');
+      toast(e instanceof Error ? t(e.message) : t('Le paiement n’a pas abouti.'));
     }
   };
 
   /* ---- Rappel fiable : le calendrier natif du téléphone (un événement par séance) ---- */
   const addToCalendar = () => {
-    const names = selected.map((s) => s.name).join(' + ') || 'Rituel de la maison';
+    /* Son calendrier à elle : dans sa langue. */
+    const names = selected.map((s) => s.name).join(' + ') || t('Rituel de la maison');
     const events: IcsEvent[] = sessionDates.map((sd, i) => ({
       title: `Maison MND · ${names}`,
       description:
         /* Les mains sont l'affaire de la maison — le calendrier de la cliente
            dit le rituel, pas qui le donne (décision du 10 août). */
-        totalSessions > 1 ? `Séance ${i + 1}/${totalSessions} · Maison MND` : 'Maison MND, la maison vous attend.',
+        totalSessions > 1
+          ? t('Séance {n}/{total} · Maison MND', { n: i + 1, total: totalSessions })
+          : t('Maison MND, la maison vous attend.'),
       location: branch.name,
       dateIso: sd.iso,
       time: sd.time,
@@ -769,20 +828,20 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       alarmMin: 120,
     }));
     downloadIcs(events, 'rituel-maison-mnd.ics');
-    toast('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.');
+    toast(t('Fichier calendrier téléchargé, votre téléphone vous rappellera 2 h avant.'));
   };
 
   const priceLabel = (s: Service, pct = 0) => {
     const mode = priceModeOf(s);
-    if (mode === 'devis') return 'Prix en salon';
+    if (mode === 'devis') return t('Prix à la Maison');
     /* Le geste de la maison se DIT, dans la liste comme au récapitulatif —
        c'est ce qui donne envie de l'ajouter au rituel. */
     const geste = remiseGestePct(s, pricing, selected);
-    if (geste >= 100) return 'Offert';
-    if (geste > 0) return `${fmtMoney(prixIci(s), currency)} · −${geste} %`;
+    if (geste >= 100) return t('Offert');
+    if (geste > 0) return `${prix(prixIci(s), currency)} · −${geste} %`;
     /* Le prix affiché est LE SIEN — modèle + Juste Prix — pas celui du catalogue. */
-    const amount = fmtMoney(Math.round(personalPriceXof(s, pricing, tousServices, produits) * (1 - pct / 100)), currency);
-    return mode === 'variable' ? `à partir de ${amount}` : amount;
+    const amount = prix(Math.round(personalPriceXof(s, pricing, tousServices, produits) * (1 - pct / 100)), currency);
+    return mode === 'variable' ? t('à partir de {montant}', { montant: amount }) : amount;
   };
 
   /* Total lisible : « Prix en salon » si tout est masqué, sinon montant (+ salon si mixte). */
@@ -793,7 +852,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
      chiffre, s'annoncait « a partir de » alors que la caisse affichait un
      montant ferme. Les deux surfaces se contredisaient sur la meme prestation. */
   const anyVariable = selected.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing));
-  const totalLabel = allHidden ? 'Prix en salon' : `${anyVariable ? 'à partir de ' : ''}${fmtMoney(price, currency)}`;
+  const totalLabel = allHidden
+    ? t('Prix à la Maison')
+    : anyVariable
+      ? t('à partir de {montant}', { montant: prix(price, currency) })
+      : prix(price, currency);
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';
 
@@ -825,20 +888,26 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         <div className="mc-flowhead">
           <div className="mc-flowhead__row">
             <span />
-            <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+            <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
           </div>
           <div className="mc-flowhead__titles">
             <div>
-              <div className="mc-micro-eyebrow">Réserver</div>
-              <h1 className="mc-flowhead__h1">Une échéance vous attend.</h1>
+              <div className="mc-micro-eyebrow">{t('Réserver')}</div>
+              <h1 className="mc-flowhead__h1">{t('Une échéance vous attend.')}</h1>
             </div>
           </div>
         </div>
         <div className="mc-flowbody">
           <div className="cma-attente">
-            <div className="cma-attente__tag">Réservation suspendue</div>
-            <p className="cma-attente__nom">{fmtMoney(verdictReservation.retardXof, currency)}</p>
-            <p className="cma-attente__dit">{verdictReservation.dit}</p>
+            <div className="cma-attente__tag">{t('Réservation suspendue')}</div>
+            <p className="cma-attente__nom">{prix(verdictReservation.retardXof, currency)}</p>
+            {/* La phrase vient de shared/echeancier (française) ; en anglais on
+                la redit ici, avec le même nombre de jours. */}
+            <p className="cma-attente__dit">
+              {langue() === 'en'
+                ? t('Une échéance de votre formule attend depuis {n} jours. Réglez-la et votre prochain rendez-vous se rouvre aussitôt.', { n: verdictReservation.retardJours })
+                : verdictReservation.dit}
+            </p>
             {numero && (
               <a
                 className="cma-btn cma-btn--sm"
@@ -847,11 +916,11 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Régler {fmtMoney(verdictReservation.retardXof, currency)}
+                {t('Régler {montant}', { montant: prix(verdictReservation.retardXof, currency) })}
               </a>
             )}
             <p className="cma-note">
-              Vous pouvez aussi passer au salon : la Maison encaisse et rouvre votre rendez-vous sur-le-champ.
+              {t('Vous pouvez aussi passer à la Maison : elle encaisse et rouvre votre rendez-vous sur-le-champ.')}
             </p>
           </div>
         </div>
@@ -865,9 +934,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
       <div className="mc-flowhead">
         <div className="mc-flowhead__row">
           {vue < 6 ? (
-            <button className="mc-linkback" onClick={back}>{vue === premierEcran ? '← Annuler' : '← Retour'}</button>
+            <button className="mc-linkback" onClick={back}>{vue === premierEcran ? t('← Annuler') : t('← Retour')}</button>
           ) : <span />}
-          <button className="mc-x" aria-label="Fermer" onClick={onClose}>✕</button>
+          <button className="mc-x" aria-label={t('Fermer')} onClick={onClose}>✕</button>
         </div>
         {/* L'etape 1 n'est jamais atteinte et le quiz n'est pas toujours la :
             `rang` compte les ecrans REELLEMENT traverses, pour que la barre et
@@ -875,8 +944,8 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         <div className="mc-progress"><div style={{ width: `${(rang(vue) / total) * 100}%` }} /></div>
         <div className="mc-flowhead__titles">
           <div>
-            <div className="mc-micro-eyebrow">{vue === QUIZ ? 'Réserver · une question pour vous' : EYEBROWS[vue]}</div>
-            <h1 className="mc-flowhead__h1">{vue === QUIZ ? 'Dites-nous, en deux gestes.' : TITLES[vue]}</h1>
+            <div className="mc-micro-eyebrow">{vue === QUIZ ? t('Réserver · une question pour vous') : t(EYEBROWS[vue])}</div>
+            <h1 className="mc-flowhead__h1">{vue === QUIZ ? t('Dites-nous, en deux gestes.') : t(TITLES[vue])}</h1>
           </div>
           <span className="mc-flowhead__count">{rang(vue)} / {total}</span>
         </div>
@@ -889,9 +958,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             un geste, pas un détour. */}
         {tetes.length > 0 && vue === 0 && (
           <div className="mc-pourqui">
-            <span className="mc-pourqui__lb">Pour</span>
+            <span className="mc-pourqui__lb">{t('Pour')}</span>
             <button type="button" className={`mc-pourqui__chip ${!pourId ? 'is-on' : ''}`} onClick={() => setPourId('')}>
-              Moi
+              {t('Moi')}
             </button>
             {tetes.map((t) => (
               <button
@@ -914,38 +983,40 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === QUIZ && (
           <div className="mc-fade">
             <div className="mc-quizintro">
-              <span>Deux réponses, et votre prochaine couronne s’écrit déjà.</span>
+              <span>{t('Deux réponses, et votre prochaine couronne s’écrit déjà.')}</span>
               <button
                 className="mc-quizother"
                 onClick={() => { setVariante((v) => v + 1); setEnvie(null); setElan(null); }}
               >
-                ↻ Autres questions
+                {t('↻ Autres questions')}
               </button>
             </div>
 
-            <QuizRow label={pool.q1.vous} opts={pool.q1opts} value={envie} onPick={(k) => declareEnvie(k as EnvieKey)} />
-            <QuizRow label={pool.q2.vous} opts={pool.q2opts} value={elan} onPick={(k) => setElan(k as ElanKey)} />
+            {/* Les mots du quiz viennent de shared/quiz (un petit jeu fixe) :
+                traduits à l'affichage, jamais dans le module partagé. */}
+            <QuizRow label={t(pool.q1.vous)} opts={pool.q1opts} value={envie} onPick={(k) => declareEnvie(k as EnvieKey)} />
+            <QuizRow label={t(pool.q2.vous)} opts={pool.q2opts} value={elan} onPick={(k) => setElan(k as ElanKey)} />
 
             {envie && elan && (
               <div className="mc-quizreco mc-rise">
                 <div className="mc-quizreco__eyebrow">
-                  {client?.name ? `Pour vous, ${firstName(client.name)}` : 'Pour vous'}
+                  {client?.name ? t('Pour vous, {prenom}', { prenom: firstName(client.name) }) : t('Pour vous')}
                 </div>
                 {recoSvc && motEnvie ? (
                   <>
                     <div className="mc-quizreco__name">{recoSvc.name}</div>
-                    <div className="mc-quizreco__line">{motEnvie.line.vous}</div>
+                    <div className="mc-quizreco__line">{t(motEnvie.line.vous)}</div>
                     <div className="mc-quizreco__meta">
                       {priceLabel(recoSvc)} · {fmtDuration(personalDurationMin(recoSvc, pricing))}
                       {/* « Votre tarif » ne se dit QUE si son prix diffère vraiment
                           du catalogue — sinon c'est une flatterie, et la Maison
                           n'en fait pas. */}
                       {priceModeOf(recoSvc) !== 'devis' && personalPriceXof(recoSvc, pricing, tousServices, produits) !== recoSvc.priceXof
-                        ? ' · votre tarif'
+                        ? t(' · votre tarif')
                         : ''}
                     </div>
-                    <button className="mc-cta mc-cta--copper" onClick={prendreReco}>Réserver ce rituel</button>
-                    <button className="mc-textbtn" onClick={() => setStep(0)}>Voir toutes les prestations →</button>
+                    <button className="mc-cta mc-cta--copper" onClick={prendreReco}>{t('Réserver ce rituel')}</button>
+                    <button className="mc-textbtn" onClick={() => setStep(0)}>{t('Voir toutes les prestations →')}</button>
                   </>
                 ) : (
                   /* Envie entendue, rien à proposer en face : on le dit, et on
@@ -953,10 +1024,9 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                      pas d'inventer une recommandation. */
                   <>
                     <div className="mc-quizreco__line">
-                      Votre envie est notée, la maison la lira avant votre venue. Parcourez ses
-                      rituels : la maîtresse fera le reste au fauteuil.
+                      {t('Votre envie est notée, la maison la lira avant votre venue. Parcourez ses rituels : la maîtresse fera le reste au fauteuil.')}
                     </div>
-                    <button className="mc-cta mc-cta--indigo" onClick={() => setStep(0)}>Voir les rituels</button>
+                    <button className="mc-cta mc-cta--indigo" onClick={() => setStep(0)}>{t('Voir les rituels')}</button>
                   </>
                 )}
               </div>
@@ -964,7 +1034,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
 
             {!(envie && elan) && (
               <button className="mc-textbtn mc-quizskip" onClick={() => setStep(0)}>
-                Je sais déjà ce que je veux →
+                {t('Je sais déjà ce que je veux →')}
               </button>
             )}
           </div>
@@ -980,11 +1050,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <div className="mc-kidsporte">
                   <span>
                     {toutLeCatalogue
-                      ? 'Toute la carte de la Maison est ouverte.'
-                      : `Vous voyez la carte MND Kids${ageServie !== undefined ? `, pour les têtes de ${ageServie} ans` : ''}.`}
+                      ? t('Toute la carte de la Maison est ouverte.')
+                      : ageServie !== undefined
+                        ? t('Vous voyez la carte MND Kids, pour les têtes de {age} ans.', { age: ageServie })
+                        : t('Vous voyez la carte MND Kids.')}
                   </span>
                   <button type="button" onClick={() => setToutLeCatalogue((v) => !v)}>
-                    {toutLeCatalogue ? 'Revenir à MND Kids' : 'Voir toute la carte'}
+                    {toutLeCatalogue ? t('Revenir à MND Kids') : t('Voir toute la carte')}
                   </button>
                 </div>
               )}
@@ -1007,7 +1079,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   return (
                     <Fragment key={c.id}>
                       {(ci === 0 || monde !== prec) && (
-                        <div className="mc-mondelabel">{mondeLabel(monde)}</div>
+                        <div className="mc-mondelabel">{t(mondeLabel(monde))}</div>
                       )}
                       <div className={`mc-acc ${ouvert ? 'is-open' : ''}`}>
                         <button
@@ -1027,7 +1099,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                           </span>
                           {prisIci.length > 0 && (
                             <span className="mc-acc__count">
-                              {prisIci.length} · {sommeIci > 0 ? fmtMoney(sommeIci, currency) : 'en salon'}
+                              {prisIci.length} · {sommeIci > 0 ? prix(sommeIci, currency) : t('à la Maison')}
                             </span>
                           )}
                           <span className="mc-acc__chev" aria-hidden="true">›</span>
@@ -1060,7 +1132,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                                       <span className="mc-presta__meta mc-presta__desc">{s.description}</span>
                                     )}
                                     {s.sessions > 1 && (
-                                      <span className="mc-pillseal">Série · {s.sessions} séances · prix unique</span>
+                                      <span className="mc-pillseal">{t('Série · {n} séances · prix unique', { n: s.sessions })}</span>
                                     )}
                                   </span>
                                 </button>
@@ -1075,7 +1147,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                                 className="mc-textbtn mc-acc__more"
                                 onClick={() => setVoirTout(true)}
                               >
-                                Voir les {svcs.length - 8} autres prestations →
+                                {t('Voir les {n} autres prestations →', { n: svcs.length - 8 })}
                               </button>
                             )}
                           </div>
@@ -1092,12 +1164,12 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               <div className={`mc-multibar ${selectedIds.length ? '' : 'mc-multibar--empty'}`}>
                 <div className="mc-multibar__info">
                   <span className="mc-multibar__count">
-                    {selectedIds.length ? totalLabel : 'Aucune prestation choisie'}
+                    {selectedIds.length ? totalLabel : t('Aucune prestation choisie')}
                   </span>
                   <span className="mc-multibar__meta">
                     {selectedIds.length
-                      ? `${selectedIds.length} prestation${selectedIds.length > 1 ? 's' : ''} · ${fmtDuration(totalDuration)}`
-                      : 'Ouvrez un atelier pour commencer'}
+                      ? prestationsEtDuree(selectedIds.length, fmtDuration(totalDuration))
+                      : t('Ouvrez un atelier pour commencer')}
                   </span>
                 </div>
                 <button
@@ -1105,19 +1177,19 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   disabled={selectedIds.length === 0}
                   onClick={() => { setSessionDates([]); setSelIso(null); setTime(null); setMonthIdx(0); setStep(3); }}
                 >
-                  Continuer
+                  {t('Continuer')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="mc-emptyzone">
               <div className="mc-emptyzone__glyph">✦</div>
-              <div className="mc-emptyzone__t">L’offre se prépare.</div>
+              <div className="mc-emptyzone__t">{t('L’offre se prépare.')}</div>
               <div className="mc-emptyzone__s">
-                La maison compose en ce moment ses rituels. Revenez très bientôt, votre couronne sera reçue comme il se doit.
+                {t('La maison compose en ce moment ses rituels. Revenez très bientôt, votre couronne sera reçue comme il se doit.')}
               </div>
               <button className="mc-cta mc-cta--outline" style={{ marginTop: 22 }} onClick={onClose}>
-                Revenir à l’accueil
+                {t('Revenir à l’accueil')}
               </button>
             </div>
           )
@@ -1134,7 +1206,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 total, AVANT de choisir son jour ; le parcours tient en trois
                 temps — votre rituel · le moment · la confirmation. */}
             <div className="mc-recapcard mc-recapcard--tete">
-              <div className="mc-micro-eyebrow mc-recapcard__et">Votre rituel</div>
+              <div className="mc-micro-eyebrow mc-recapcard__et">{t('Votre rituel')}</div>
               {selected.map((s) => (
                 <div key={s.id} className="mc-recapcard__svcline">
                   <div>
@@ -1146,24 +1218,28 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               ))}
               {discountPct > 0 && knownTotal > 0 && (
                 <div className="mc-recapcard__deal">
-                  {offerLabel ?? 'Offre instantanée'} · −{discountPct} % <s>{fmtMoney(knownTotal, currency)}</s>
+                  {offerLabel ?? t('Offre instantanée')} · −{discountPct} % <s>{prix(knownTotal, currency)}</s>
                 </div>
               )}
               {/* LE PRIX FAMILLE SE LIT (14 août) : la remise du compte, dite
                   avec son taux et ses francs — hors forfaits, déjà réduits. */}
               {famRemiseXof > 0 && (
                 <div className="mc-recapcard__deal">
-                  Remise famille · −{famPct} %{famForfaitXof > 0 ? ' (hors forfaits)' : ''} · −{fmtMoney(famRemiseXof, currency)}
+                  {famForfaitXof > 0
+                    ? t('Remise famille · −{pct} % (hors forfaits) · −{montant}', { pct: famPct, montant: prix(famRemiseXof, currency) })
+                    : t('Remise famille · −{pct} % · −{montant}', { pct: famPct, montant: prix(famRemiseXof, currency) })}
                 </div>
               )}
               <div className="mc-hairline" />
               <div className="mc-recapcard__total">
-                <span>Total{anyHidden && !allHidden ? ' connu' : ''}</span>
+                <span>{anyHidden && !allHidden ? t('Total connu') : t('Total')}</span>
                 <span>{totalLabel}</span>
               </div>
               <div className="mc-recapcard__meta">
-                {selected.length} prestation{selected.length > 1 ? 's' : ''} · {fmtDuration(totalDuration)}
-                {master ? ` · avec ${master}${masterVaries ? ' et son équipe' : ''}` : ''}
+                {/* LA MAISON ATTRIBUE, LA CLIENTE NE CHOISIT PAS (Yéman, 29
+                    septembre) : on ne lui annonce donc pas un nom qui pourrait
+                    changer au planning du jour. */}
+                {prestationsEtDuree(selected.length, fmtDuration(totalDuration))}
               </div>
               {(personalized && pricing.band && cible?.lockCount) || pricing.longueur ? (
                 /* Une phrase qui dit D'OÙ viennent ces prix — locks et longueur
@@ -1171,13 +1247,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                    la cliente croire à une erreur quand le tarif diffère. La
                    couronne décrite est celle de la TÊTE servie (12 août). */
                 <div className="mc-recapcard__meta" style={{ color: 'var(--copper-700, #7C4C2C)' }}>
-                  {beneficiaire ? `Ses prix, établis pour la couronne de ${beneficiaire.name}` : 'Vos prix, établis pour votre couronne'}
-                  {personalized && pricing.band && cible?.lockCount ? ` de ${cible.lockCount} locks` : ''}
-                  {pricing.longueur ? ` · longueur ${longueurLabel(pricing.longueur)}` : ''}.
+                  {beneficiaire ? t('Ses prix, établis pour la couronne de {nom}', { nom: beneficiaire.name }) : t('Vos prix, établis pour votre couronne')}
+                  {personalized && pricing.band && cible?.lockCount ? t(' de {n} locks', { n: cible.lockCount }) : ''}
+                  {/* Les trois longueurs viennent de shared/catalog : traduites ici. */}
+                  {pricing.longueur ? t(' · longueur {longueur}', { longueur: t(longueurLabel(pricing.longueur)) }) : ''}.
                 </div>
               ) : null}
               {anyHidden && !allHidden && (
-                <div className="mc-recapcard__meta">Une prestation se règle en salon.</div>
+                <div className="mc-recapcard__meta">{t('Une prestation se règle à la Maison.')}</div>
               )}
               <div className="mc-recapcard__meta">Maison · {branch.name}</div>
             </div>
@@ -1185,39 +1262,40 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             {totalSessions > 1 && (
               <div className="mc-sessionhead">
                 <div className="mc-sessionhead__row">
-                  <span className="mc-sessionhead__k">Séance {sessionDates.length + 1} sur {totalSessions}</span>
+                  <span className="mc-sessionhead__k">{t('Séance {n} sur {total}', { n: sessionDates.length + 1, total: totalSessions })}</span>
                   <span className="mc-sessionhead__steps" aria-hidden="true">
                     {Array.from({ length: totalSessions }, (_, i) => (
                       <i key={i} className={i < sessionDates.length ? 'is-done' : i === sessionDates.length ? 'is-now' : ''} />
                     ))}
                   </span>
                 </div>
-                <span className="mc-sessionhead__s">Choisissez la date et l’heure de cette séance.</span>
+                <span className="mc-sessionhead__s">{t('Choisissez la date et l’heure de cette séance.')}</span>
                 {sessionDates.length > 0 && (
                   <div className="mc-sessionchips">
                     {sessionDates.map((sd, i) => (
                       <button
                         key={i}
                         className="mc-sessionchip mc-sessionchip--btn"
-                        aria-label={`Reprendre la séance ${i + 1}, ${dayLabelIso(sd.iso)} à ${sd.time}`}
+                        aria-label={t('Reprendre la séance {n}, {jour} à {heure}', { n: i + 1, jour: jourDit(sd.iso), heure: sd.time })}
                         onClick={() => {
                           setSessionDates((prev) => prev.filter((_, k) => k !== i));
                           setSelIso(null);
                           setTime(null);
                         }}
                       >
-                        S{i + 1} · {dayLabelIso(sd.iso)} · {sd.time}
+                        S{i + 1} · {jourDit(sd.iso)} · {sd.time}
                         <span className="mc-sessionchip__x" aria-hidden="true">✕</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {sessionDates.length > 0 && (
-                  <span className="mc-sessionhead__hint">Touchez une séance pour la reprendre.</span>
+                  <span className="mc-sessionhead__hint">{t('Touchez une séance pour la reprendre.')}</span>
                 )}
                 <span className="mc-sessionhead__note">
-                  La prestation est réglée une fois, les séances suivantes sont incluses
-                  {hasDeposit ? ' · acompte sur la 1ʳᵉ' : ''}.
+                  {hasDeposit
+                    ? t('La prestation est réglée une fois, les séances suivantes sont incluses · acompte sur la 1ʳᵉ.')
+                    : t('La prestation est réglée une fois, les séances suivantes sont incluses.')}
                 </span>
               </div>
             )}
@@ -1228,7 +1306,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
             {besoinDensite && (
               <div className="mc-pourqui" style={{ paddingTop: 22, paddingBottom: 18 }}>
                 <span className="mc-pourqui__lb" style={{ width: '100%' }}>
-                  Vos locks, pour réserver le bon nombre d’heures
+                  {t('Vos locks, pour réserver le bon nombre d’heures')}
                 </span>
                 {bandesDensite.map((b) => (
                   <button
@@ -1244,19 +1322,19 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   </button>
                 ))}
                 <span className="mnd-muted" style={{ width: '100%', fontSize: 11.5, lineHeight: 1.5 }}>
-                  Au plus près, la Maison comptera précisément au fauteuil.
-                  {bandeDeclaree ? ` Durée prévue : ${fmtDuration(totalDuration)}.` : ''}
+                  {t('Au plus près, la Maison comptera précisément au fauteuil.')}
+                  {bandeDeclaree ? ` ${t('Durée prévue : {duree}.', { duree: fmtDuration(totalDuration) })}` : ''}
                 </span>
               </div>
             )}
-            <div className="mc-micro-eyebrow mc-stepkicker">Le jour</div>
+            <div className="mc-micro-eyebrow mc-stepkicker">{t('Le jour')}</div>
             <div className="mc-calnav">
               <button onClick={() => setMonthIdx(Math.max(0, monthIdx - 1))} disabled={monthIdx === 0}>‹</button>
-              <span>{month.label}</span>
+              <span>{moisDit(month.y, month.m)}</span>
               <button onClick={() => setMonthIdx(Math.min(months.length - 1, monthIdx + 1))} disabled={monthIdx === months.length - 1}>›</button>
             </div>
             <div className="mc-calgrid mc-calgrid--dows">
-              {DOW_LETTERS.map((d, i) => <div key={i}>{d}</div>)}
+              {lettresDesJours().map((d, i) => <div key={i}>{d}</div>)}
             </div>
             <div className="mc-calgrid">
               {calCells.map((c) =>
@@ -1267,7 +1345,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                     key={c.key}
                     className={`mc-calday ${c.iso === selIso ? 'is-sel' : ''} ${c.free ? 'is-free' : 'is-off'}`}
                     onClick={() => {
-                      if (!c.free) { toast('Aucune disponibilité ce jour.'); return; }
+                      if (!c.free) { toast(t('Aucune disponibilité ce jour.')); return; }
                       setSelIso(c.iso!); setTime(null);
                     }}
                   >
@@ -1278,18 +1356,18 @@ export default function Booking({ prefill, onClose, toast }: Props) {
               )}
             </div>
             <div className="mc-callegend">
-              <span />Jours avec créneaux libres · {fmtDuration(totalDuration)}
+              <span />{t('Jours avec créneaux libres · {duree}', { duree: fmtDuration(totalDuration) })}
             </div>
 
             {selIso && (
               <div className="mc-fade">
-                <div className="mc-micro-eyebrow mc-stepkicker">L’heure · {dayLabelIso(selIso)}</div>
+                <div className="mc-micro-eyebrow mc-stepkicker">{t('L’heure · {jour}', { jour: jourDit(selIso) })}</div>
                 <div className="mc-stack">
-                  {dayTimes.map((t) => {
-                    const choisi = time === t && sessionDates.some((sd) => sd.iso === selIso && sd.time === t);
+                  {dayTimes.map((h) => {
+                    const choisi = time === h && sessionDates.some((sd) => sd.iso === selIso && sd.time === h);
                     return (
                       <button
-                        key={t}
+                        key={h}
                         className={`mc-slotcard ${choisi ? 'is-sel' : ''}`}
                         aria-pressed={choisi}
                         onClick={() => {
@@ -1297,26 +1375,26 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                           /* ON NE QUITTE PLUS L'ÉCRAN EN CHOISISSANT SON HEURE
                              (maquette écran 2) : un second toucher CORRIGE la
                              dernière séance au lieu d'en empiler une de trop. */
-                          const choix = { iso: selIso, time: t };
+                          const choix = { iso: selIso, time: h };
                           const next = sessionDates.length >= totalSessions
                             ? [...sessionDates.slice(0, totalSessions - 1), choix]
                             : [...sessionDates, choix];
                           setSessionDates(next);
-                          setTime(t);
+                          setTime(h);
                           if (next.length < totalSessions) {
                             setSelIso(null); setTime(null); setMonthIdx(0);
                           }
                         }}
                       >
                         <div>
-                          <div className="mc-slotcard__time">{t}</div>
+                          <div className="mc-slotcard__time">{h}</div>
                           <div className="mc-slotcard__who">{fmtDuration(totalDuration)}</div>
                         </div>
-                        <span className="mc-slotcard__free">{choisi ? 'Votre heure' : 'Libre'}</span>
+                        <span className="mc-slotcard__free">{choisi ? t('Votre heure') : t('Libre')}</span>
                       </button>
                     );
                   })}
-                  {dayTimes.length === 0 && <div className="mc-emptyline">Plus de créneau ce jour, choisissez un autre jour.</div>}
+                  {dayTimes.length === 0 && <div className="mc-emptyline">{t('Plus de créneau ce jour, choisissez un autre jour.')}</div>}
                 </div>
               </div>
             )}
@@ -1326,13 +1404,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 posé, juste avant de sceller. */}
             {momentComplet && (
               <div className="mc-fade">
-                <div className="mc-sectionlabel">Les quatre temps</div>
-                {QUATRE_TEMPS.map((t) => (
-                  <div key={t.no} className="mc-temps">
-                    <span className="mc-temps__no">{t.no}</span>
+                {/* Les quatre temps viennent de ./lib, traduits à l'affichage. */}
+                <div className="mc-sectionlabel">{t('Les quatre temps')}</div>
+                {QUATRE_TEMPS.map((q) => (
+                  <div key={q.no} className="mc-temps">
+                    <span className="mc-temps__no">{q.no}</span>
                     <div>
-                      <div className="mc-temps__n">{t.n}</div>
-                      <div className="mc-temps__g">{t.g}</div>
+                      <div className="mc-temps__n">{t(q.n)}</div>
+                      <div className="mc-temps__g">{t(q.g)}</div>
                     </div>
                   </div>
                 ))}
@@ -1348,10 +1427,10 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 <span className="mc-multibar__count">{totalLabel}</span>
                 <span className="mc-multibar__meta">
                   {momentComplet && dernierMoment
-                    ? `${dayLabelIso(dernierMoment.iso)} · ${dernierMoment.time} · ${fmtDuration(totalDuration)}`
+                    ? `${jourDit(dernierMoment.iso)} · ${dernierMoment.time} · ${fmtDuration(totalDuration)}`
                     : totalSessions > 1
-                      ? `Séance ${sessionDates.length + 1} sur ${totalSessions}, choisissez son moment`
-                      : 'Choisissez le jour, puis l’heure'}
+                      ? t('Séance {n} sur {total}, choisissez son moment', { n: sessionDates.length + 1, total: totalSessions })
+                      : t('Choisissez le jour, puis l’heure')}
                 </span>
               </div>
               <button
@@ -1359,7 +1438,7 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 disabled={!momentComplet || paying}
                 onClick={() => (hasDeposit ? setStep(5) : settle())}
               >
-                {hasDeposit ? 'Continuer · acompte' : 'Réserver'}
+                {hasDeposit ? t('Continuer · acompte') : t('Réserver')}
               </button>
             </div>
           </div>
@@ -1379,20 +1458,22 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === 5 && selected.length > 0 && (
           <div className="mc-fade">
             <div className="mc-depositcard">
-              <div className="mc-depositcard__label">{depositPct !== null && depositPct >= 100 ? 'Prestation à régler d’avance' : 'Acompte à envoyer'}</div>
-              <div className="mc-depositcard__amount">{allHidden ? 'Au salon' : fmtMoney(deposit, currency)}</div>
+              <div className="mc-depositcard__label">{depositPct !== null && depositPct >= 100 ? t('Prestation à régler d’avance') : t('Acompte à envoyer')}</div>
+              <div className="mc-depositcard__amount">{allHidden ? t('À la Maison') : prix(deposit, currency)}</div>
               <div className="mc-depositcard__sub">
                 {allHidden
-                  ? 'Acompte réglé au salon'
+                  ? t('Acompte réglé à la Maison')
                   : depositPct !== null && depositPct >= 100
-                    ? 'Montant intégral de la prestation'
-                    : `${depositPct !== null ? `${depositPct} % de ${fmtMoney(depositBase, currency)}` : 'Acompte des prestations concernées'} · ${anyHidden ? 'reste' : 'solde'} au salon`}
+                    ? t('Montant intégral de la prestation')
+                    : `${depositPct !== null
+                      ? t('{pct} % de {montant}', { pct: depositPct, montant: prix(depositBase, currency) })
+                      : t('Acompte des prestations concernées')} · ${anyHidden ? t('reste à la Maison') : t('solde à la Maison')}`}
               </div>
               {/* L'ACOMPTE DIT SON POURQUOI (maquette écran 4) : sans cette
                   ligne, le prélèvement se lit comme un péage. Une promesse,
                   pas une caution. */}
               {!allHidden && !(depositPct !== null && depositPct >= 100) && (
-                <div className="mc-depositcard__why">Il tient votre créneau, et se déduit le jour même.</div>
+                <div className="mc-depositcard__why">{t('Il tient votre créneau, et se déduit le jour même.')}</div>
               )}
             </div>
             {/* VOIE EN LIGNE — n'apparaît que si les rails KkiaPay sont branchés
@@ -1400,13 +1481,13 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                 d'avant : le mode d'emploi Mobile Money, honnête. */}
             {!allHidden && kkiapayEnabled() && !manualDeposit ? (
               <>
-                <div className="mc-sectionlabel">Régler maintenant</div>
+                <div className="mc-sectionlabel">{t('Régler maintenant')}</div>
                 <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-                  <div className="mc-recapcard__line"><span>Mobile Money · carte</span><span>{fmtMoney(deposit, currency)}</span></div>
-                  <div className="mc-recapcard__line"><span>Reste au salon</span><span>{anyHidden ? 'à convenir' : fmtMoney(Math.max(0, price - deposit), currency)}</span></div>
+                  <div className="mc-recapcard__line"><span>{t('Mobile Money · carte')}</span><span>{prix(deposit, currency)}</span></div>
+                  <div className="mc-recapcard__line"><span>{t('Reste à la Maison')}</span><span>{anyHidden ? t('à convenir') : prix(Math.max(0, price - deposit), currency)}</span></div>
                 </div>
                 <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={payOnline} disabled={paying}>
-                  {paying ? 'Paiement en cours…' : `Payer l’acompte · ${fmtMoney(deposit, currency)}`}
+                  {paying ? t('Paiement en cours…') : t('Payer l’acompte · {montant}', { montant: prix(deposit, currency) })}
                 </button>
                 <button
                   className="mc-textbtn"
@@ -1414,23 +1495,23 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   onClick={() => setManualDeposit(true)}
                   disabled={paying}
                 >
-                  J’enverrai l’acompte moi-même
+                  {t('J’enverrai l’acompte moi-même')}
                 </button>
-                <div className="mc-footnote">Votre acompte est crédité dès la confirmation du paiement.</div>
+                <div className="mc-footnote">{t('Votre acompte est crédité dès la confirmation du paiement.')}</div>
               </>
             ) : (
               <>
                 {!allHidden && (
                   <>
-                    <div className="mc-sectionlabel">Comment faire</div>
+                    <div className="mc-sectionlabel">{t('Comment faire')}</div>
                     <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-                      <div className="mc-recapcard__line"><span>1 · Envoyez</span><span>{fmtMoney(deposit, currency)}</span></div>
-                      <div className="mc-recapcard__line"><span>2 · Au numéro de la Maison</span><span>{branch.phone || 'communiqué sur WhatsApp'}</span></div>
-                      <div className="mc-recapcard__line"><span>3 · Puis annoncez l’envoi</span><span>bouton ci-dessous</span></div>
+                      <div className="mc-recapcard__line"><span>{t('1 · Envoyez')}</span><span>{prix(deposit, currency)}</span></div>
+                      <div className="mc-recapcard__line"><span>{t('2 · Au numéro de la Maison')}</span><span>{branch.phone || t('communiqué sur WhatsApp')}</span></div>
+                      <div className="mc-recapcard__line"><span>{t('3 · Puis annoncez l’envoi')}</span><span>{t('bouton ci-dessous')}</span></div>
                     </div>
                   </>
                 )}
-                <div className="mc-sectionlabel">Envoyé par</div>
+                <div className="mc-sectionlabel">{t('Envoyé par')}</div>
                 <div className="mc-stack">
                   {PAY_METHODS.map((pm) => (
                     <button
@@ -1444,14 +1525,14 @@ export default function Booking({ prefill, onClose, toast }: Props) {
                   ))}
                 </div>
                 <button className="mc-cta mc-cta--copper" style={{ marginTop: 22 }} onClick={() => settle()} disabled={paying}>
-                  {allHidden ? 'Confirmer la réservation' : `J’ai envoyé l’acompte · ${fmtMoney(deposit, currency)}`}
+                  {allHidden ? t('Confirmer la réservation') : t('J’ai envoyé l’acompte · {montant}', { montant: prix(deposit, currency) })}
                 </button>
                 {!allHidden && kkiapayEnabled() && (
                   <button className="mc-textbtn" style={{ marginTop: 12 }} onClick={() => setManualDeposit(false)} disabled={paying}>
-                    ← Régler en ligne plutôt
+                    {t('← Régler en ligne plutôt')}
                   </button>
                 )}
-                <div className="mc-footnote">La Maison vérifie la réception avant votre passage.</div>
+                <div className="mc-footnote">{t('La Maison vérifie la réception avant votre passage.')}</div>
               </>
             )}
           </div>
@@ -1461,54 +1542,56 @@ export default function Booking({ prefill, onClose, toast }: Props) {
         {vue === 6 && selected.length > 0 && selIso && time && (
           <div className="mc-confirm mc-rise">
             <div className="mc-confirm__seal"><img src={asset("/assets/monograms/mono-copper.png")} alt="" /></div>
-            <h2>Votre rituel est scellé.</h2>
+            <h2>{t('Votre rituel est scellé.')}</h2>
             <p>
               {onlinePaid?.ok
-                ? 'Votre acompte est reçu, votre créneau est tenu. '
-                : 'La Maison confirme votre créneau très vite. '}
-              Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre
-              téléphone, même l’app fermée.
+                ? t('Votre acompte est reçu, votre créneau est tenu.')
+                : !hasDeposit
+                  ? t('Votre créneau est tenu, la confirmation arrive sur WhatsApp.')
+                  : t('La Maison vérifie votre acompte et confirme votre créneau très vite.')}
+              {' '}
+              {t('Ajoutez le rituel à votre calendrier : c’est lui qui vous rappellera sur votre téléphone, même l’app fermée.')}
             </p>
             <div className="mc-recapcard" style={{ textAlign: 'left' }}>
-              <div className="mc-recapcard__name">{summaryLabel}</div>
+              <div className="mc-recapcard__name">{summaryDit}</div>
               <div className="mc-recapcard__meta">
-                {totalSessions > 1 ? `${totalSessions} séances liées` : `${dayLabelIso(selIso)} · ${time}`} · {fmtDuration(totalDuration)}
+                {totalSessions > 1 ? t('{n} séances liées', { n: totalSessions }) : `${jourDit(selIso)} · ${time}`} · {fmtDuration(totalDuration)}
               </div>
               <div className="mc-hairline" />
               {totalSessions > 1 &&
                 sessionDates.map((sd, i) => (
                   <div key={i} className="mc-recapcard__line">
-                    <span>Séance {i + 1}/{totalSessions}</span>
-                    <span>{dayLabelIso(sd.iso)} · {sd.time}</span>
+                    <span>{t('Séance {n}/{total}', { n: i + 1, total: totalSessions })}</span>
+                    <span>{jourDit(sd.iso)} · {sd.time}</span>
                   </div>
                 ))}
               {/* DIRE VRAI ici aussi : annoncer « à vérifier » à une cliente qui
                   vient de payer en ligne détruit exactement la confiance que le
                   paiement venait d'acheter. Trois issues, trois phrases. */}
               <div className="mc-recapcard__line">
-                <span>Acompte</span>
+                <span>{t('Acompte')}</span>
                 <span>
                   {!hasDeposit
-                    ? 'Au salon'
+                    ? t('À la Maison')
                     : onlinePaid?.ok
-                      ? `${fmtMoney(deposit, currency)} · reçu`
+                      ? t('{montant} · reçu', { montant: prix(deposit, currency) })
                       : onlinePaid
-                        ? `${fmtMoney(deposit, currency)} · payé · vérification en cours`
-                        : `${fmtMoney(deposit, currency)} · à vérifier par la Maison`}
+                        ? t('{montant} · payé · vérification en cours', { montant: prix(deposit, currency) })
+                        : t('{montant} · à vérifier par la Maison', { montant: prix(deposit, currency) })}
                 </span>
               </div>
               {onlinePaid && (
-                <div className="mc-recapcard__line"><span>Référence</span><span>{onlinePaid.ref}</span></div>
+                <div className="mc-recapcard__line"><span>{t('Référence')}</span><span>{onlinePaid.ref}</span></div>
               )}
               <div className="mc-recapcard__line">
-                <span>Statut</span>
-                <span>{onlinePaid?.ok ? 'Confirmé' : 'En attente de la maison'}</span>
+                <span>{t('Statut')}</span>
+                <span>{onlinePaid?.ok || !hasDeposit ? t('Confirmé') : t('En attente de la maison')}</span>
               </div>
             </div>
             <button className="mc-cta mc-cta--indigo" style={{ marginTop: 20 }} onClick={addToCalendar}>
-              Ajouter au calendrier
+              {t('Ajouter au calendrier')}
             </button>
-            <button className="mc-quietbtn" onClick={onClose}>Revenir à l’accueil</button>
+            <button className="mc-quietbtn" onClick={onClose}>{t('Revenir à l’accueil')}</button>
           </div>
         )}
       </div>
@@ -1535,7 +1618,7 @@ function QuizRow({ label, opts, value, onPick }: {
             aria-pressed={value === k}
             onClick={() => onPick(k)}
           >
-            {l}
+            {t(l)}
           </button>
         ))}
       </div>

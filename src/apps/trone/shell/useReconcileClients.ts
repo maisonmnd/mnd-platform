@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppointments } from '../../../shared/agenda';
 import { useInvoices } from '../../../shared/finance';
 import { clientsStore, useClients, ensureInitiePersona, joursDeLaTete, type Client } from '../../../shared/clients';
@@ -12,7 +12,10 @@ import { jourFavoriDe } from '../../../shared/cadence';
 import { annuaireStore, nomDuCompte } from '../routes/equipe/data';
 import { supabase } from '../../../shared/supabase';
 import { poseLIdentite } from '../../../shared/journal';
-
+/* Un automatisme qui réécrit les fiches en boucle se tait de lui-même
+   (1er octobre 2026, voir shared/ecriture-automatique.ts). */
+import { gardeLEcriture } from '../../../shared/ecriture-automatique';
+import { rendezVousEnOrdre } from '../../../shared/ordre-canonique';
 /** Segment marquant une personne encore en phase de consultation (pas encore cliente). */
 export const PROSPECT_SEGMENT = 'Prospect';
 
@@ -29,7 +32,11 @@ export const PROSPECT_SEGMENT = 'Prospect';
 
 export function useReconcileClients(): void {
   const { session } = useAuth();
-  const [appts] = useAppointments();
+  /* MÊME ORDRE SUR TOUS LES POSTES (1er octobre 2026) : ce qui est lu se range d'abord,
+     d'une seule façon, pour que deux postes ne se renvoient pas la même fiche parce
+     qu'ils l'ont lue dans deux ordres (voir shared/ordre-canonique.ts). */
+  const [apptsLus] = useAppointments();
+  const appts = useMemo(() => rendezVousEnOrdre(apptsLus), [apptsLus]);
   const [invoices] = useInvoices();
   const [queue] = useStore(consultationsQueueStore);
   /* Se ré-exécute quand le CRM change — c'est aussi lui qui dit qui est connu. */
@@ -92,7 +99,7 @@ export function useReconcileClients(): void {
         for (const r of data ?? []) missing.delete((r as { id: string }).id);
         if (missing.size === 0) return;
       }
-      clientsStore.set((prev) => {
+      gardeLEcriture('fiches', clientsStore).set((prev) => {
         const have = new Set(prev.map((c) => c.id));
         const created = [...missing.entries()]
           .filter(([id]) => !have.has(id))
@@ -150,7 +157,7 @@ export function useReconcileClients(): void {
       const actuel = annuaireStore.get();
       const change = Object.entries(frais).some(([k, v]) => actuel[k] !== v)
         || Object.keys(actuel).length !== Object.keys(frais).length;
-      if (change) annuaireStore.set(frais);
+      if (change) gardeLEcriture('fiches', annuaireStore).set(frais);
     });
   }, [session]);
 
@@ -206,7 +213,7 @@ export function useReconcileClients(): void {
     });
     if (aAligner.length === 0) return;
     const aligner = new Set(aAligner.map((c) => c.id));
-    clientsStore.set((prev) => prev.map((c) => {
+    gardeLEcriture('fiches', clientsStore).set((prev) => prev.map((c) => {
       if (!aligner.has(c.id)) return c;
       const voulu = naissances.get(c.id);
       if (voulu) return { ...c, crownSince: voulu };
@@ -241,7 +248,7 @@ export function useReconcileClients(): void {
     });
     if (aAligner.length === 0) return;
     const cibles = new Set(aAligner.map((c) => c.id));
-    clientsStore.set((prev) => prev.map((c) => {
+    gardeLEcriture('fiches', clientsStore).set((prev) => prev.map((c) => {
       if (!cibles.has(c.id)) return c;
       const voulu = jourFavoriDe(appts, c.id)?.jours ?? [];
       return {
@@ -296,7 +303,7 @@ export function useReconcileClients(): void {
       });
     }
     if (created.length) {
-      clientsStore.set((prev) => {
+      gardeLEcriture('fiches', clientsStore).set((prev) => {
         const have = new Set(prev.map((c) => c.id));
         const add = created.filter((c) => !have.has(c.id));
         return add.length ? [...prev, ...add] : prev;

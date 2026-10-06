@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isRemote } from './supabase';
 import { purgeLocalKeys } from './store';
+import { garderLaTete, noteLaConnexionEnLigne, oublieLeHorsLigne, serveurInjoignable, sessionGardee, teteGardee } from './hors-ligne';
 
 /* Authentification — couche mince au-dessus de Supabase Auth.
 
@@ -27,7 +28,9 @@ const appRedirect = (): string | undefined =>
   typeof window !== 'undefined' ? window.location.origin + import.meta.env.BASE_URL : undefined;
 
 // ---------- Magasin de session (source externe pour React) ----------
-type AuthState = { session: Session | null; loading: boolean };
+/* `horsLigne` : la session vient du tiroir de l'appareil, pas du serveur
+   (4 octobre 2026, `shared/hors-ligne`). */
+type AuthState = { session: Session | null; loading: boolean; horsLigne?: boolean };
 let state: AuthState = { session: null, loading: isRemote };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
@@ -37,8 +40,60 @@ const setState = (patch: Partial<AuthState>) => {
 };
 
 if (supabase) {
-  supabase.auth.getSession().then(({ data }) => setState({ session: data.session, loading: false }));
-  supabase.auth.onAuthStateChange((_event, session) => setState({ session, loading: false }));
+  /* ══ SANS RÉSEAU, LA DERNIÈRE PERSONNE CONNECTÉE, 7 JOURS — 4 oct. 2026 ══
+     Le jeton d'une heure expiré ne se rafraîchit pas sans réseau : supabase-js
+     rendait « aucune session » et le Trône montrait sa page de connexion. Si le
+     serveur est réellement hors d'atteinte et que la dernière connexion EN
+     LIGNE date de moins de 7 jours, on ouvre sur la session laissée dans le
+     tiroir ; supabase-js la rafraîchira seul au retour du réseau. */
+  const ouvre = async (session: Session | null) => {
+    if (session) {
+      noteLaConnexionEnLigne(session.user.id);
+      setState({ session, loading: false, horsLigne: false });
+      return;
+    }
+    const gardee = sessionGardee<Session>();
+    if (gardee && await serveurInjoignable()) {
+      setState({ session: gardee, loading: false, horsLigne: true });
+      return;
+    }
+    setState({ session: null, loading: false, horsLigne: false });
+  };
+  /* SANS RÉSEAU, supabase-js retente le rafraîchissement du jeton jusqu'à une
+     trentaine de secondes avant de répondre : le Trône restait sur « La Maison
+     s'éveille… ». Au bout de quatre secondes, si le serveur est VRAIMENT hors
+     d'atteinte, on ouvre sur la session gardée sans attendre ; un réseau
+     simplement lent, lui, continue d'attendre la vraie réponse. */
+  let repondu = false;
+  setTimeout(() => {
+    if (repondu || !state.loading) return;
+    void (async () => {
+      const gardee = sessionGardee<Session>();
+      if (repondu || !(await serveurInjoignable()) || repondu) return;
+      /* Rien de valable sur l'appareil (jamais connecté ici, ou plus de 7
+         jours) : la page de connexion, tout de suite, plutôt qu'au bout de
+         trente secondes. */
+      setState(gardee ? { session: gardee, loading: false, horsLigne: true } : { session: null, loading: false, horsLigne: false });
+    })();
+  }, 4000);
+  supabase.auth.getSession()
+    .then(({ data }) => {
+      repondu = true;
+      /* Déjà ouvert sur la session gardée : un « aucune session » tardif ne
+         la retire pas (le réseau manque toujours). */
+      if (!data.session && state.horsLigne) return;
+      void ouvre(data.session);
+    })
+    .catch(() => { repondu = true; if (!state.horsLigne) void ouvre(null); });
+  supabase.auth.onAuthStateChange((event, session) => {
+    /* La session gardée tient jusqu'à ce que le serveur en rende une vraie,
+       ou qu'on se déconnecte : un « aucune session » de démarrage, émis sans
+       réseau, ne la remplace pas. */
+    if (!session && state.horsLigne && event !== 'SIGNED_OUT') return;
+    if (event === 'SIGNED_OUT') oublieLeHorsLigne();
+    if (session) noteLaConnexionEnLigne(session.user.id);
+    setState({ session, loading: false, horsLigne: false });
+  });
 }
 
 export function useAuth(): AuthState {
@@ -556,21 +611,25 @@ let teteSue: { uid: string | undefined; tete: Staff | null } | null = null;
 export type MaTete = { tete: Staff | null; pret: boolean };
 
 export function useMaTete(): MaTete {
-  const { session } = useAuth();
+  const { session, horsLigne } = useAuth();
   const uid = session?.user?.id;
   const deja = teteSue && teteSue.uid === uid ? teteSue : null;
+  /* OUVERT HORS LIGNE : la tête gardée sert tout de suite (4 octobre 2026) ;
+     la relecture continue en fond et la remplace dès que le serveur répond. */
+  const gardeeHorsLigne = horsLigne ? teteGardee<Staff>(uid) : null;
   /* SANS SESSION, LA RÉPONSE EST CONNUE : personne. C'est `AuthGate` qui tient
      la porte, pas nous, et prétendre « je cherche encore » figerait l'écran de
      connexion derrière un voile d'attente. */
   const [etat, setEtat] = useState<MaTete>(() => (deja
     ? { tete: deja.tete, pret: true }
+    : gardeeHorsLigne ? { tete: gardeeHorsLigne, pret: true }
     : { tete: null, pret: !uid }));
 
   useEffect(() => {
     let vivant = true;
     if (!uid) { teteSue = null; setEtat({ tete: null, pret: true }); return; }
     if (teteSue && teteSue.uid === uid) { setEtat({ tete: teteSue.tete, pret: true }); return; }
-    setEtat({ tete: null, pret: false });
+    setEtat(gardeeHorsLigne ? { tete: gardeeHorsLigne, pret: true } : { tete: null, pret: false });
     /* ON RÉESSAIE, ET L'ON NE CONCLUT JAMAIS D'UNE PANNE. Tant que la Maison
        n'a pas répondu, `pret` reste faux : toutes les gardes restent fermées,
        ce qui est le bon défaut. Mais elles ne restent pas fermées POUR
@@ -581,10 +640,19 @@ export function useMaTete(): MaTete {
       void loadStaff()
         .then((s) => {
           teteSue = { uid, tete: s };
+          /* Gardée pour rouvrir sans réseau (4 octobre 2026, `hors-ligne`). */
+          if (s) garderLaTete(uid, s);
           if (vivant) setEtat({ tete: s, pret: true });
         })
         .catch(() => {
           if (!vivant) return;
+          /* SANS RÉSEAU, LA TÊTE GARDÉE — 4 octobre 2026. La panne ne ferme
+             plus le Trône : la tête de la dernière connexion en ligne (moins
+             de 7 jours) ouvre les écrans, et la relecture continue en fond
+             pour rendre la vraie dès que le réseau revient. Ce n'est pas une
+             panne mise en cache : c'est la dernière réponse VRAIE du serveur. */
+          const gardee = teteGardee<Staff>(uid);
+          if (gardee) setEtat({ tete: gardee, pret: true });
           const attente = Math.min(30_000, 1500 * 2 ** Math.min(essai, 4));
           essai += 1;
           setTimeout(() => { if (vivant) demande(); }, attente);

@@ -1433,3 +1433,64 @@
 .trv-choix-palier button.is-on:nth-child(2) { border-left-color: var(--pal-1); }
 .trv-choix-palier button.is-on:nth-child(3) { border-left-color: var(--pal-2); }
 .trv-choix-palier button:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; }
+
+/* ══ LES CARTES CADEAUX — 2 octobre 2026 ═════════════════════════════════
+   Le registre : cinq compteurs, puis une ligne par carte. Sur un téléphone,
+   la ligne passe sur plusieurs étages. L'état se dit par une étiquette. */
+.trcc-compte { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+@media (max-width: 860px) { .trcc-compte { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .trcc-compte { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trcc-compte > div { min-width: 0; border: 1px solid var(--hairline); border-radius: 3px; padding: 9px 12px; background: var(--surface-card); }
+.trcc-compte > div.est-vif { border-color: var(--copper-300); background: var(--copper-50); }
+.trcc-compte small { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trcc-compte b { font-family: var(--font-serif); font-weight: 500; font-size: 24px; color: var(--color-indigo); font-variant-numeric: tabular-nums; }
+.trcc-vide { border: 1px dashed var(--hairline); border-radius: 3px; padding: 22px; color: var(--ink-soft); font-size: 13.5px; text-align: center; }
+.trcc-liste { border: 1px solid var(--hairline); border-radius: 3px; background: var(--surface-card); }
+.trcc-ligne {
+  display: grid; grid-template-columns: 150px minmax(0, 1.4fr) minmax(0, 1fr) 130px minmax(0, 1.4fr);
+  gap: 14px; align-items: start; padding: 12px 14px; border-top: 1px solid var(--hairline);
+}
+.trcc-ligne:first-child { border-top: 0; }
+.trcc-ligne small { display: block; font-size: 12px; color: var(--ink-soft); }
+.trcc-ligne__code { font-variant-numeric: tabular-nums; letter-spacing: .06em; color: var(--color-indigo); font-size: 13.5px; }
+.trcc-ligne__qui b { font-weight: 500; color: var(--ink); }
+.trcc-ligne__valeur { font-variant-numeric: tabular-nums; }
+.trcc-mot { font-style: italic; }
+.trcc-muet { color: var(--ink-soft); font-style: italic; letter-spacing: 0; }
+.trcc-ligne__gestes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+@media (max-width: 960px) {
+  .trcc-ligne { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .trcc-ligne__gestes { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.trcc-etq {
+  display: inline-block; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--hairline); color: var(--ink-soft);
+}
+.trcc-etq--a-regler { color: var(--color-brique, #96412E); border-color: #E0B3A9; background: #F7E4E0; }
+.trcc-etq--a-envoyer, .trcc-etq--a-remettre { background: var(--color-copper); border-color: var(--color-copper); color: #fff; }
+.trcc-etq--attend-sa-visite { color: #41604A; border-color: #C4D5C8; background: #EDF2EE; }
+.trcc-etq--sur-sa-fiche { color: var(--color-indigo); border-color: #C9CCE0; background: #EDEEF4; }
+.trcc-etq--echue { color: var(--copper-700); border-color: var(--copper-300); background: var(--copper-50); }
+.trcc-geste {
+  cursor: pointer; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: 3px;
+  padding: 5px 10px; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--color-indigo); white-space: nowrap;
+}
+.trcc-geste:hover { background: var(--hover-veil); }
+.trcc-geste--fort { border-color: var(--copper-300); background: var(--copper-50); color: var(--copper-700); }
+
+/* LE CHAMP « CARTE CADEAU » DE L'ENCAISSEMENT. */
+.trcc-ouvre {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 12.5px;
+  color: var(--copper-700); text-decoration: underline; text-underline-offset: 2px;
+}
+.trcc-rattache { display: grid; gap: 6px; }
+.trcc-rattache__l { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.trcc-rattache__code { font-variant-numeric: tabular-nums; letter-spacing: .1em; text-transform: uppercase; }
+.trcc-rattache__trouve {
+  display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #C4D5C8; background: #EDF2EE; border-radius: 3px;
+}
+.trcc-rattache__trouve b { color: var(--color-indigo); font-weight: 500; }
+.trcc-rattache__trouve span { font-size: 12.5px; color: var(--ink-soft); }
+.trcc-rattache__trouve button { justify-self: start; margin-top: 4px; }
+.trcc-rattache__refus { margin: 0; font-size: 12.5px; color: var(--color-brique, #96412E); }

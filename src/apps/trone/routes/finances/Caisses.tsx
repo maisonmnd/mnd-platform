@@ -1,4 +1,7 @@
 import { useState, type CSSProperties } from 'react';
+import { ClotureDuTiroir } from './ClotureDuTiroir';
+import { DepartDesCaisses, moisEtAn } from './DepartDesCaisses';
+import { BasculeDOctobre } from './BasculeDOctobre';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow, Modal, demande, demandeUnTexte } from '../../../../ds/components';
 import { fmtIn, fmtMoney } from '../../../../shared/currency';
@@ -45,7 +48,7 @@ export default function Caisses() {
   const monthName = monthLabel(month);
   const isCurrent = month === monthKey(todayISO());
 
-  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, discretesFermees, horsBilan, ouvertes } = useCaisses(month);
+  const { branch, currency, branchBoxes, boxBalance, boxMonthFlux, tresorerieVisible, anciennesTotal, discretesFermees, horsBilan, ouvertes, depuis } = useCaisses(month);
   const [, setCashboxes] = useCashboxes();
   const [invoices, setInvoices] = useInvoices();
   const [transferts, setTransferts] = useTransferts();
@@ -88,6 +91,9 @@ export default function Caisses() {
      enfermer personne dehors. Le verrou vaut pour la séance. */
   const [reglages] = useSettings();
   const toutesOuvertes = useCaissesOuvertes();
+  const [clotureOuverte, setClotureOuverte] = useState(false);
+  const [departOuvert, setDepartOuvert] = useState(false);
+  const [basculeOuverte, setBasculeOuverte] = useState(false);
   const ecranVerrouille = !!reglages.codeCaissesHash && !toutesOuvertes.has(CLE_ECRAN);
 
   /* Poser ou retirer le code de l'écran — depuis l'écran lui-même, une fois
@@ -304,14 +310,36 @@ export default function Caisses() {
 
   return (
     <div className="mnd-rise">
+      {clotureOuverte && <ClotureDuTiroir onClose={() => setClotureOuverte(false)} />}
+      {departOuvert && <DepartDesCaisses onClose={() => setDepartOuvert(false)} />}
+      {basculeOuverte && <BasculeDOctobre onClose={() => setBasculeOuverte(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
         <div>
           <Eyebrow>Finances · les tiroirs de la Maison</Eyebrow>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 38, color: 'var(--color-indigo)', margin: '6px 0 0', lineHeight: 1 }}>Les caisses.</h2>
+          {depuis && (
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: month < depuis ? 'var(--copper-700)' : 'var(--ink-soft)', marginTop: 8 }}>
+              {month < depuis
+                ? `Avant le départ des caisses (${moisEtAn(depuis)}) : historique seulement, il ne bouge aucun solde.`
+                : `Les caisses comptent depuis ${moisEtAn(depuis)}.`}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setVerrouOuvert(true)}>
             {reglages.codeCaissesHash ? 'Code de l’écran' : 'Protéger cet écran'}
+          </button>
+          {/* LA CAISSE DU SOIR SE TROUVE AUSSI ICI — 4 octobre 2026. « Où est-ce ? »
+              (Yéman) : le comptage n'était qu'au Journal de caisse du POS, et c'est
+              ici, devant ses tiroirs, qu'on le cherche. */}
+          <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-copper)', color: 'var(--copper-700)' }} onClick={() => setClotureOuverte(true)}>
+            Clôturer la caisse
+          </button>
+          <button className="trf-act" style={{ padding: '12px 16px' }} onClick={() => setDepartOuvert(true)}>
+            Départ des caisses
+          </button>
+          <button className="trf-act" style={{ padding: '12px 16px', borderColor: 'var(--color-indigo)', color: 'var(--color-indigo)' }} onClick={() => setBasculeOuverte(true)}>
+            {reglages.basculeDesCaisses ? 'Octobre ouvert ✓' : 'Ouvrir octobre'}
           </button>
           <button
             className="trf-act"
@@ -525,11 +553,30 @@ export default function Caisses() {
             });
             };
 
-            const auBilan = branchBoxes.filter((c) => !c.horsBilan);
-            const ecartees = branchBoxes.filter((c) => !!c.horsBilan);
+            /* LES ANCIENNES, À PART MAIS VISIBLES — 4 octobre 2026, « Ouvrir
+               octobre » : elles servent à finir le travail jusqu'au 30
+               septembre ; elles ne se mêlent ni aux pièces neuves ni au total. */
+            const anciennes = branchBoxes.filter((c) => !!c.jusquAu);
+            const auBilan = branchBoxes.filter((c) => !c.horsBilan && !c.jusquAu);
+            const ecartees = branchBoxes.filter((c) => !!c.horsBilan && !c.jusquAu);
             return (
               <>
                 {rangees(auBilan, false)}
+                {anciennes.length > 0 && (
+                  <section className="trf-hors-bloc">
+                    <div className="trf-hors-bloc__tete">
+                      <span className="trf-hors-bloc__titre">Anciennes caisses · jusqu’au 30 sept. 2026</span>
+                      <span className="trf-hors-bloc__n">
+                        {anciennes.length} caisse{anciennes.length > 1 ? 's' : ''} · {fmtMoney(anciennesTotal, currency)}
+                      </span>
+                    </div>
+                    <div className="trf-hors-bloc__mot">
+                      Elles gardent tout leur passé pour que vous finissiez la mise en ordre d’avant octobre,
+                      et restent dans tous les menus. Elles n’entrent pas dans la trésorerie d’octobre.
+                    </div>
+                    {rangees(anciennes, false)}
+                  </section>
+                )}
                 {ecartees.length > 0 && (
                   <section className="trf-hors-bloc">
                     <div className="trf-hors-bloc__tete">
@@ -654,7 +701,7 @@ export default function Caisses() {
             <label className="mnd-field">
               <span className="mnd-field__label">Code</span>
               <input
-                className="mnd-input" type="password" autoFocus autoComplete="off"
+                className="mnd-input" type="password" autoFocus autoComplete="new-password" name="code-maison"
                 value={codeSaisi}
                 onChange={(e) => { setCodeSaisi(e.target.value); setCodeFaux(false); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void essayerLeCode(); }}

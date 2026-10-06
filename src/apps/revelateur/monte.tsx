@@ -15,6 +15,7 @@ const ILOTS = {
   contact: lazy(() => import('./ilots/Contact')),
   joindre: lazy(() => import('./ilots/Joindre')),
   offrir: lazy(() => import('./ilots/Offrir')),
+  parrainer: lazy(() => import('./ilots/Parrainer')),
 } as const;
 
 document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {
@@ -24,6 +25,8 @@ document.querySelectorAll<HTMLElement>('[data-ilot]').forEach((el) => {
   const props: Record<string, unknown> = {};
   if (el.dataset.genre) props.genre = el.dataset.genre;
   if (el.dataset.besoin) props.besoin = el.dataset.besoin;
+  /* Le profil posé d'avance (la testeuse, 28 septembre 2026). */
+  if (el.dataset.profil) props.profil = el.dataset.profil;
   /* LES DONNÉES ÉCRITES DANS LA PAGE — 24 septembre 2026. La construction
      pose, à côté du rendu, un bloc JSON que l'îlot reprend au montage : il
      repart de ce que la page montre déjà, puis relit la base. */

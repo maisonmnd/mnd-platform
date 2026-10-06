@@ -5,6 +5,7 @@ date: 2026-09-17
 description: "Eau, huiles légères, brumes : comment hydrater des dreadlocks sans les alourdir ni laisser de résidus, et ce que la Maison appelle le DÀNDÀN™."
 parcours: entretien
 image: journal-9.jpg
+portrait: cliente-2.jpg
 motsCles:
   - hydrater ses locks
   - huile pour dreadlocks

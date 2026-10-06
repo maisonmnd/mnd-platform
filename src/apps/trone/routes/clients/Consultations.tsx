@@ -23,6 +23,7 @@ import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { ChampDeDate } from '../../../../ds/dates';
 import { cheminDeLaConversation } from '../../../../shared/conversations';
+import { appelDe } from '../../../../shared/civilite';
 
 /* Consultations — trois temps : les dossiers clients (avec archivage), les cinq
    formulaires personnalisables (gestionnaire de questions) et les consultations
@@ -754,7 +755,7 @@ function FillPanel({ form, onClose }: { form: ConsultForm; onClose: () => void }
     setPdfBusy(true);
     try { await buildPdf(); } finally { setPdfBusy(false); }
     setWaNote('PDF téléchargé, joignez-le à votre message.');
-    const first = client.name.split(' ')[0];
+    const first = appelDe(client);
     const msg = [
       `Bonjour ${first},`,
       `Voici le résumé de votre consultation « ${form.name} » du ${frLong(savedDate || todayISO())}.`,

@@ -1,5 +1,5 @@
 import { lazy, type LazyExoticComponent, type ComponentType } from 'react';
-import { Activity, BadgeCheck, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, FolderLock, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
+import { Activity, BadgeCheck, HeartHandshake, BarChart3, BookOpen, CalendarDays, ClipboardList, Crown, Drama, FileSignature, FileText, FlaskConical, FolderLock, Gift, GraduationCap, Hammer, HandCoins, Handshake, Handshake as PoigneeDeMain, Inbox, KeyRound, Landmark, LayoutDashboard, Lightbulb, LineChart, ListChecks, MapPin, Megaphone, MessageSquare, MessagesSquare, MonitorPlay, NotebookPen, Palette, PhoneIncoming, PieChart, PiggyBank, QrCode, ReceiptText, Repeat, Scale, ScrollText, Settings, ShieldCheck, ShoppingBag, SquareKanban, Store, Users, UsersRound, Wallet, type LucideIcon } from 'lucide-react';
 
 /* Registre des routes du Trône, groupées par DÉPARTEMENT.
    Le module d'un écran (routes/<dossier>/) dit d'où il vient, pas où il se range :
@@ -53,6 +53,15 @@ export const NAV: TroneGroup[] = [
       { path: '/a-faire', label: 'À faire', icon: ListChecks, Component: lazy(() => import('./pilotage/AFaire')) },
       { path: '/recommandations', label: 'Recommandations IA', icon: Lightbulb, Component: lazy(() => import('./equipe/Recommandations')) },
       { path: '/juste-prix', label: 'Le Juste Prix', icon: Scale, Component: lazy(() => import('./finances/JustePrix')) },
+      /* LE SECRÉTARIAT (6 octobre 2026) — lettres, attestations, notes et
+         contrats sur papier à en-tête, numérotés et signés. Maquette
+         StpDQGL3HE1nHyyjSRNU9r validée. */
+      { path: '/secretariat', label: 'Le secrétariat', icon: FileSignature, Component: lazy(() => import('./pilotage/Secretariat')) },
+      /* LE DOSSIER DE BOURSE (6 octobre 2026) — troisième onglet du
+         secrétariat, joignable aussi à sa propre adresse pour les liens
+         (À faire, le rappel du 5). Hors menu : c'est le secrétariat qu'on
+         ouvre. Direction seule (`ROUTES_DIRECTION`) : il dit une famille. */
+      { path: '/dossier-de-bourse', label: 'Dossier de bourse', icon: FolderLock, horsMenu: true, Component: lazy(() => import('./pilotage/secretariat/DossierBourse')) },
     ],
   },
   {
@@ -94,6 +103,8 @@ export const NAV: TroneGroup[] = [
     items: [
       { path: '/caisse', label: 'Caisse POS', icon: Wallet, Component: lazy(() => import('./vente/Caisse')) },
       { path: '/factures', label: 'Factures & devis', icon: FileText, Component: lazy(() => import('./vente/Factures')) },
+      /* Les cartes cadeaux, réglées en ligne ou à la Maison (2 octobre 2026). */
+      { path: '/cartes-cadeaux', label: 'Cartes cadeaux', icon: Gift, Component: lazy(() => import('./vente/CartesCadeaux')) },
       { path: '/encaissements', label: 'Encaissements', icon: BadgeCheck, Component: lazy(() => import('./finances/Encaissements')) },
       { path: '/comptes', label: 'Comptes & Avoirs', icon: HandCoins, Component: lazy(() => import('./finances/Comptes')) },
       { path: '/abonnements', label: 'Abonnements', icon: Repeat, Component: lazy(() => import('./equipe/Abonnements')) },
@@ -138,9 +149,15 @@ export const NAV: TroneGroup[] = [
     group: 'Marketing & Fidélité',
     items: [
       { path: '/marketing', label: 'Marketing', icon: Megaphone, Component: lazy(() => import('./equipe/Marketing')) },
-      { path: '/cercle', label: 'Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
+      /* LE CERCLE RÉUNI — 29 septembre 2026 : le Cercle et les ambassadrices,
+         un seul écran à deux onglets. */
+      { path: '/cercle', label: 'Le Cercle MND', icon: Crown, Component: lazy(() => import('./equipe/Cercle')) },
+      /* LES PARRAINAGES — 28 septembre 2026 : marraines, filleules, cadeaux. */
+      /* Hors de la barre depuis le Cercle réuni : l'onglet « Les ambassadrices »
+         du Cercle le porte. L'adresse reste (les alertes du site y mènent). */
+      { path: '/parrainages', horsMenu: true, label: 'Ambassadrices', icon: HeartHandshake, Component: lazy(() => import('./equipe/Parrainages')) },
       { path: '/personas', label: 'Personas', icon: Drama, Component: lazy(() => import('./clients/Personas')) },
-      { path: '/vitrine', label: 'Vitrine client', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
+      { path: '/vitrine', label: 'Les vitrines', icon: MonitorPlay, Component: lazy(() => import('./clients/Vitrine')) },
       { path: '/qr-codes', label: 'QR Codes', icon: QrCode, Component: lazy(() => import('./clients/QrCodes')) },
     ],
   },
@@ -161,16 +178,6 @@ export const NAV: TroneGroup[] = [
     group: 'Académie',
     items: [
       { path: '/academie', label: 'Académie', icon: GraduationCap, Component: lazy(() => import('./equipe/Academie')) },
-    ],
-  },
-  {
-    /* LE SECRÉTARIAT — 6 octobre 2026. Les papiers de la Maison et de ceux qui
-       la tiennent, quand ils se préparent à l'avance et se déposent à date.
-       Le dossier de bourse scolaire est le premier : réservé à la direction
-       (`ROUTES_DIRECTION`), parce qu'il dit une famille et des salaires. */
-    group: 'Secrétariat',
-    items: [
-      { path: '/dossier-de-bourse', label: 'Dossier de bourse', icon: FolderLock, Component: lazy(() => import('./secretariat/DossierBourse')) },
     ],
   },
   {
@@ -282,7 +289,6 @@ export const DEPARTEMENTS: { k: string; l: string }[] = [
   { k: 'dept-marketing', l: 'Marketing & Fidélité' },
   { k: 'dept-equipe', l: 'Équipe' },
   { k: 'dept-academie', l: 'Académie' },
-  { k: 'dept-secretariat', l: 'Secrétariat' },
   { k: 'dept-systeme', l: 'Système' },
 ];
 
@@ -307,6 +313,13 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
   equipe: ['/fil', '/tableau', '/mon-mois', '/personnel', '/prestataires', '/marketing', '/cercle', '/abonnements', '/recommandations', '/academie'],
   systeme: ['/parametres', '/textes', '/comptoir', '/acces', '/journal', '/branches', '/marque'],
 };
+
+/* LES ÉCRANS NÉS APRÈS LA PHOTOGRAPHIE — 28 septembre 2026. Un écran créé
+   après le 21 septembre n'a pas d'ancien domaine, et ne doit pas en recevoir
+   un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
+   département seul. On les NOMME ici, pour que la barre et la photographie
+   restent vérifiables : un écran absent des deux listes est un oubli. */
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/compte-courant', '/parrainages', '/cartes-cadeaux', '/secretariat', '/dossier-de-bourse'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

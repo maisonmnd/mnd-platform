@@ -6,9 +6,25 @@
    dynamically imported module ». Ici on recharge la page UNE fois pour récupérer
    la version fraîche (index.html + chunks), avec un garde-fou anti-boucle. */
 
-if (typeof window !== 'undefined') {
-  const RELOAD_KEY = 'mnd_chunk_reload_at';
+const RELOAD_KEY = 'mnd_chunk_reload_at';
 
+/** Un fichier de code d'une autre version manque : on recharge UNE fois (pas
+    deux en 30 s). Rend `false` quand le garde-fou retient le rechargement. */
+export const rechargeUneFois = (): boolean => {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+    if (Date.now() - last < 30000) return false;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch { /* stockage refusé : on recharge quand même */ }
+  window.location.reload();
+  return true;
+};
+
+/** Le message d'un module de code qui n'a pas pu se charger. */
+export const codeIntrouvable = (msg: string): boolean =>
+  /dynamically imported module|Importing a module script failed|Failed to fetch|error loading dynamically imported module/i.test(msg);
+
+if (typeof window !== 'undefined') {
   const reloadOnce = () => {
     try {
       const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);

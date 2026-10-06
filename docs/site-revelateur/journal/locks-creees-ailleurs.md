@@ -4,7 +4,8 @@ slug: locks-creees-ailleurs
 date: 2026-09-17
 description: "Vos locks ont été créées dans un autre salon, à l'étranger ou par vous-même ? Elles sont les bienvenues chez MND. Ce qui change, et ce qui ne change pas."
 parcours: entretien
-image: journal-3.jpg
+image: journal-12.jpg
+portrait: yeman.jpg
 motsCles:
   - entretien locks créées ailleurs
   - changer de loctician Cotonou
