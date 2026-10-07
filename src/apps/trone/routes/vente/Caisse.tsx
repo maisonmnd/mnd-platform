@@ -354,7 +354,7 @@ export default function Caisse() {
     const forms = formations
       .filter((f) => !f.archived && f.priceXof > 0)
       .map((f) => ({ key: `f:${f.id}`, n: f.name, priceXof: f.priceXof, kind: 'formation' as const, mode: 'fixe' as const }));
-    if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', monde: 'MND ACADÉMIE', items: forms });
+    if (forms.length) gs.push({ key: 'formations', label: 'Académie · Formations', monde: 'ACADÉMIE MND', items: forms });
     return gs;
   }, [categories, services, products, formations, clients, clientId, bands, sets, longueur, venuesTete]);
 

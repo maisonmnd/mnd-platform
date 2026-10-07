@@ -866,7 +866,7 @@ export default function Academie() {
                 <div className="tre-deep__eyebrow">Parcours achevé · prêt à sceller</div>
                 <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--color-ivoire)', marginTop: 6 }}>La couronne peut être transmise.</div>
                 <Button variant="copper" style={{ marginTop: 16, width: '100%' }} onClick={() => sealCertificate(detail.name, formationName(detail.formationId))}>
-                  Délivrer la certification · sceau MND
+                  Délivrer la certification · sceau de l’Académie MND
                 </Button>
               </div>
             )}
@@ -1282,10 +1282,10 @@ export default function Academie() {
                 </div>
               </Field>
             </div>
-            <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Le certificat A4 (sceau MND, PDF, WhatsApp / email) se compose dans l’app Certificat.</div>
+            <div className="mnd-muted" style={{ fontSize: 11.5, fontStyle: 'italic' }}>Le certificat A4 (sceau de l’Académie MND, PDF, WhatsApp / email) se compose dans l’app Certificat.</div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setCeForm(null)}>Annuler</Button>
-              <Button variant="copper" style={{ flex: 1 }} onClick={saveCe} disabled={!ceForm.name.trim()}>{ceEditId ? 'Enregistrer' : 'Délivrer, sceau MND'}</Button>
+              <Button variant="copper" style={{ flex: 1 }} onClick={saveCe} disabled={!ceForm.name.trim()}>{ceEditId ? 'Enregistrer' : 'Délivrer, sceau de l’Académie MND'}</Button>
             </div>
           </div>
         </Modal>

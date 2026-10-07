@@ -1458,6 +1458,9 @@ export async function summaryPdf(o: {
   eyebrow?: string;
   title: string;
   houseName: string;
+  /** AUX COULEURS DE L'ACADÉMIE MND (7 octobre 2026) : son verrou en tête,
+      sa signature au pied, son sceau dentelé ; rien de la Maison. */
+  academie?: boolean;
   meta?: string[];
   sections: SummarySection[];
   /** LE MONTANT QUI CONCLUT — 4 septembre 2026.
@@ -1499,8 +1502,14 @@ export async function summaryPdf(o: {
   const M = 18;
   let y = 20;
 
-  // Sceau MND centré + signature de la Maison
-  const seal = await loadSeal();
+  // Sceau MND centré + signature de la Maison ; le verrou de l'Académie pour elle
+  const verrouAcademie = o.academie ? await chargeImageDuSite(VERROU_ACADEMIE.chemin) : null;
+  const seal = o.academie ? null : await loadSeal();
+  if (verrouAcademie) {
+    const l = 46;
+    try { doc.addImage(verrouAcademie, 'PNG', W / 2 - l / 2, y, l, l / VERROU_ACADEMIE.ratio, undefined, 'FAST'); } catch { /* image indisponible */ }
+    y += l / VERROU_ACADEMIE.ratio + 9;
+  }
   if (seal) {
     const s = 20;
     try { doc.addImage(seal, 'PNG', W / 2 - s / 2, y, s, s, undefined, 'FAST'); } catch { /* image indisponible */ }
@@ -1613,7 +1622,9 @@ export async function summaryPdf(o: {
     doc.text(o.signature.qualite ?? 'Lu et approuvé, signature :', M, y);
     try { doc.addImage(o.signature.trace, 'PNG', M, y + 2, 62, 22, undefined, 'FAST'); } catch { /* signature illisible */ }
     doc.text('Pour la Maison :', W - M - 40, y, { align: 'center' });
-    await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
+    const sceauAcademie = o.academie ? await chargeImageDuSite(SCEAU_ACADEMIE) : null;
+    if (sceauAcademie) poseTransparente(doc, sceauAcademie, W - M - 40 - 17, y + 2, 34, 34, 0.92);
+    else await tamponDeLaMaison(doc, W - M - 40 - 17, y + 2, 34, {
       nom: o.houseName, ville: o.signature.villeDuSiege ?? o.signature.ville,
     });
   }
@@ -1624,7 +1635,14 @@ export async function summaryPdf(o: {
     doc.setTextColor(SOFT);
     doc.text(o.footer, W / 2, 280, { align: 'center' });
   }
-  await pieDeLaMaison(doc, W, 286);
+  if (o.academie) {
+    doc.setFont('times', 'italic');
+    doc.setFontSize(11);
+    doc.setTextColor(VERT_SAVOIR);
+    doc.text(SIGNATURE_ACADEMIE_PDF, W / 2, 287, { align: 'center' });
+  } else {
+    await pieDeLaMaison(doc, W, 286);
+  }
   doc.save(o.filename);
   return o.filename;
 }
@@ -2108,6 +2126,8 @@ function texteLettre(
 function paragrapheCentre(
   doc: any, morceaux: readonly { texte: string; gras?: boolean }[],
   cx: number, y: number, maxW: number, interligne: number, taillePt: number,
+  /** La couleur des mots en gras (le reste garde celle du moment). */
+  couleurGras?: string,
 ): number {
   /* LES MOTS. Un morceau qui commence sans blanc, après un morceau qui finit
      sans blanc, se colle au mot d'avant (« L'Œuvre » + « , Palier »). Un
@@ -2149,6 +2169,7 @@ function paragrapheCentre(
      (« L'Œuvre(quatre », « GBÀTÀ™,selon » au premier essai). Seule la
      frontière entre normal et gras se pose à la mesure. */
   let yy = y;
+  const couleurDuTexte = doc.getTextColor?.() ?? '#000000';
   for (const l of lignes) {
     const segments: { s: string; gras: boolean }[] = [];
     l.forEach((w, i) => {
@@ -2162,12 +2183,16 @@ function paragrapheCentre(
     let x = cx - total / 2;
     segments.forEach((s, i) => {
       police(s.gras);
+      if (couleurGras) {
+        if (s.gras) { doc.setTextColor(couleurGras); } else { doc.setTextColor(couleurDuTexte); }
+      }
       doc.text(s.s, x, yy);
       x += largeurs[i];
     });
     yy += interligne;
   }
   police(false);
+  if (couleurGras) doc.setTextColor(couleurDuTexte);
   return yy;
 }
 
@@ -2198,6 +2223,87 @@ async function recadre(dataUrl: string, ratio: number, hauteurMax = 900): Promis
   } catch { return null; }
 }
 
+/* ══ LE CERTIFICAT DE L'ACADÉMIE MND — 7 octobre 2026 ════════════════
+   « Avec la charte de l'Académie, retirer Maison MND du certificat et
+   redessiner » (Yéman). Maquette DagAWw1Wfb2S1rt2pYc4pW validée : la même
+   feuille que l'écran (src/apps/certificat), cote pour cote. Le verrou
+   couché de l'Académie en tête, le Vert Savoir pour la vocation, MND en
+   indigo, le filet cuivre, le sceau dentelé de l'Académie (image fabriquée
+   par scripts/fabrique-le-sceau-de-l-academie.py), sa signature au pied.
+   Plus rien de la Maison. */
+const VERT_SAVOIR = '#2F5D50';
+const VERROU_ACADEMIE = { chemin: '/assets/academie/verrou-couche.png', ratio: 2048 / 641 };
+const PICTO_ACADEMIE = { chemin: '/assets/academie/pictogramme.png', ratio: 2048 / 1691 };
+const SCEAU_ACADEMIE = '/assets/tampons/academie-dentele.png';
+export const SIGNATURE_ACADEMIE_PDF = 'Former. Transmettre. Affirmer.';
+
+const IMAGES_DU_SITE: Record<string, Promise<string | null>> = {};
+/** Une image servie par le site, en data URL ; un raté ne se garde pas. */
+function chargeImageDuSite(chemin: string): Promise<string | null> {
+  if (!IMAGES_DU_SITE[chemin]) {
+    IMAGES_DU_SITE[chemin] = (async () => {
+      try {
+        const url = import.meta.env.BASE_URL.replace(/\/$/, '') + chemin;
+        const res = await fetch(url, { signal: AbortSignal.timeout(HUIT_SECONDES) });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return await new Promise<string | null>((ok) => {
+          const r = new FileReader();
+          r.onloadend = () => ok(typeof r.result === 'string' ? r.result : null);
+          r.onerror = () => ok(null);
+          r.readAsDataURL(blob);
+        });
+      } catch { return null; }
+    })().then((r) => {
+      if (r === null) delete IMAGES_DU_SITE[chemin];
+      return r;
+    });
+  }
+  return IMAGES_DU_SITE[chemin];
+}
+
+/** L'image tournée de `deg` degrés (sens horaire), sur fond transparent ; le
+    côté rend la boîte qui la contient, pour la poser centrée. */
+async function imageTournee(dataUrl: string, deg: number): Promise<{ image: string; agrandit: number } | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, ko) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = ko;
+      i.src = dataUrl;
+    });
+    const a = (deg * Math.PI) / 180;
+    const w = img.width, h = img.height;
+    const W = Math.ceil(Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a)));
+    const H = Math.ceil(Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a)));
+    const toile = document.createElement('canvas');
+    toile.width = W; toile.height = H;
+    const c = toile.getContext('2d');
+    if (!c) return null;
+    c.translate(W / 2, H / 2);
+    c.rotate(a);
+    c.drawImage(img, -w / 2, -h / 2);
+    return { image: toile.toDataURL('image/png'), agrandit: W / w };
+  } catch { return null; }
+}
+
+/** La largeur d'un texte lettré (comme `texteLettre` le pose). */
+function largeurLettree(doc: any, s: string, taillePx: number, em: number): number {
+  const t = pdfSafe(s);
+  return doc.getTextWidth(t) + px(em * taillePx) * Math.max(0, t.length - 1);
+}
+
+/** Une image posée à une opacité donnée. */
+function poseTransparente(doc: any, image: string, x: number, y: number, w: number, h: number, opacite: number): void {
+  try {
+    doc.saveGraphicsState?.();
+    const gs = doc.GState?.({ opacity: opacite });
+    if (gs) doc.setGState(gs);
+    doc.addImage(image, 'PNG', x, y, w, h, undefined, 'FAST');
+    doc.restoreGraphicsState?.();
+  } catch { try { doc.restoreGraphicsState?.(); } catch { /* rien */ } }
+}
+
 export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRendue & { blob: Blob }> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
@@ -2206,31 +2312,27 @@ export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRend
   const W = 297, H = 210;
   const CX = W / 2;
 
-  /* LE PAPIER : ivoire, double filet, cuivre dehors, indigo dedans. */
+  /* LE PAPIER : ivoire, double filet, Vert Savoir dehors, cuivre dedans. */
   doc.setFillColor(IVOIRE);
   doc.rect(0, 0, W, H, 'F');
-  doc.setDrawColor(COPPER);
-  doc.setLineWidth(px(2));
+  doc.setDrawColor(VERT_SAVOIR);
+  doc.setLineWidth(px(2.4));
   doc.rect(px(22), px(22), W - 2 * px(22), H - 2 * px(22), 'S');
-  doc.setDrawColor(INDIGO);
+  doc.setDrawColor(COPPER);
   doc.setLineWidth(px(1));
-  doc.rect(px(30), px(30), W - 2 * px(30), H - 2 * px(30), 'S');
+  doc.rect(px(31), px(31), W - 2 * px(31), H - 2 * px(31), 'S');
 
-  /* LE FILIGRANE : le monogramme, à peine posé, au centre. */
-  const monoIndigo = await chargeMono('mono-indigo');
-  if (monoIndigo) {
-    const c = px(440);
-    try {
-      doc.saveGraphicsState?.();
-      const gs = doc.GState?.({ opacity: 0.05 });
-      if (gs) doc.setGState(gs);
-      doc.addImage(monoIndigo, 'PNG', CX - c / 2, H / 2 - 0.02 * c - c / 2, c, c, undefined, 'FAST');
-      doc.restoreGraphicsState?.();
-    } catch { try { doc.restoreGraphicsState?.(); } catch { /* rien */ } }
+  /* LE FILIGRANE : le pictogramme de l'Académie, à peine posé, au centre. */
+  const [picto, verrou, sceau] = await Promise.all([
+    chargeImageDuSite(PICTO_ACADEMIE.chemin), chargeImageDuSite(VERROU_ACADEMIE.chemin), chargeImageDuSite(SCEAU_ACADEMIE),
+  ]);
+  if (picto) {
+    const lw = px(430), lh = lw / PICTO_ACADEMIE.ratio;
+    poseTransparente(doc, picto, CX - lw / 2, H * 0.52 - lh / 2, lw, lh, 0.055);
   }
 
   /* LE PORTRAIT, EN HAUT À GAUCHE, dans son double filet : cuivre dehors,
-     indigo dedans, comme la feuille. Sans photo, rien ne se dessine. */
+     vert dedans, comme la feuille. Sans photo, rien ne se dessine. */
   if (d.photo) {
     const bx = px(68), by = px(54), bw = px(120), bh = px(154);
     const marge = px(6);
@@ -2243,120 +2345,109 @@ export async function certificatEnPiece(d: CertificatPdfData): Promise<PieceRend
     if (image) {
       try { doc.addImage(image, 'JPEG', bx + marge, by + marge, iw, ih, undefined, 'FAST'); } catch { /* image indisponible */ }
     }
-    doc.setDrawColor(INDIGO);
+    doc.setDrawColor(VERT_SAVOIR);
     doc.rect(bx + marge, by + marge, iw, ih, 'S');
   }
 
-  /* LE CORPS, CENTRÉ, DU HAUT VERS LE BAS — les mêmes marges que l'écran. */
-  let y = 52;
-  if (monoIndigo) {
-    try { doc.addImage(monoIndigo, 'PNG', CX - px(34), px(y), px(68), px(68), undefined, 'FAST'); } catch { /* rien */ }
+  /* LE CORPS, CENTRÉ, DU HAUT VERS LE BAS — les cotes de l'écran (px). */
+  let y = 58;
+  const hauteurVerrou = 210 / VERROU_ACADEMIE.ratio;
+  if (verrou) {
+    try { doc.addImage(verrou, 'PNG', CX - px(105), px(y), px(210), px(hauteurVerrou), undefined, 'FAST'); } catch { /* rien */ }
   }
-  y += 68;
+  y += hauteurVerrou;
 
+  /* « Certificat » seul : « Certification » au-dessus disait deux fois la
+     même chose (Yéman, 7 octobre). */
+  y += 44;
   doc.setFont('times', 'normal');
-  doc.setFontSize(pt(25));
-  doc.setTextColor(INDIGO);
-  y += 10;
-  texteLettre(doc, 'MND', CX, base(y, 25), { taillePx: 25, em: 0.32 });
-  y += 30;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(pt(11));
-  y += 8;
-  texteLettre(doc, 'MAISON MND · ACADÉMIE DU LOCK · COTONOU · BÉNIN', CX, base(y, 11), { taillePx: 11, em: 0.24 });
-  y += 13;
-
-  y += 12;
-  doc.setFillColor(COPPER);
-  doc.rect(CX - px(22), px(y), px(44), px(2), 'F');
-  y += 2;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(pt(11));
-  doc.setTextColor(CUIVRE_600);
-  y += 16;
-  texteLettre(doc, 'MND ACADÉMIE', CX, base(y, 11), { taillePx: 11, em: 0.18 });
-  y += 13;
-
-  doc.setFont('times', 'normal');
-  doc.setFontSize(pt(78));
-  doc.setTextColor(INDIGO);
-  y += 6;
-  texteLettre(doc, 'Certificat', CX, px(y + 37 + 78 * 0.35), { taillePx: 78, em: -0.01 });
+  doc.setFontSize(pt(74));
+  doc.setTextColor(VERT_SAVOIR);
+  doc.text('Certificat', CX, px(y + 74 * 0.8), { align: 'center' });
   y += 74;
 
+  y += 22;
+  doc.setFillColor(COPPER);
+  doc.rect(CX - px(23), px(y), px(46), px(1.4), 'F');
+  y += 1.4 + 20;
+
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(pt(12));
+  doc.setFontSize(pt(11));
   doc.setTextColor(SOFT);
-  y += 14;
-  texteLettre(doc, 'EST DÉCERNÉ À', CX, base(y, 12), { taillePx: 12, em: 0.2 });
-  y += 14;
+  texteLettre(doc, 'EST DÉCERNÉ À', CX, base(y, 11), { taillePx: 11, em: 0.3 });
+  y += 13;
 
+  y += 18;
   doc.setFont('times', 'italic');
-  doc.setFontSize(pt(44));
+  doc.setFontSize(pt(46));
+  doc.setTextColor(INDIGO);
+  doc.text(pdfSafe(d.apprenant), CX, px(y + 46 * 0.8), { align: 'center' });
+  y += 48;
+
+  /* LE TEXTE, « Maître Locticien » en gras et en Vert Savoir, comme à l'écran. */
+  y += 24;
   doc.setTextColor(OBSIDIENNE);
-  y += 6;
-  doc.text(pdfSafe(d.apprenant), CX, px(y + 23 + 44 * 0.35), { align: 'center' });
-  y += 46;
-
-  y += 12;
-  doc.setFillColor(CUIVRE_300);
-  doc.rect(CX - px(65), px(y), px(130), px(1), 'F');
-  y += 1;
-
-  /* LE TEXTE, ses mots en gras au milieu, comme à l'écran. */
-  doc.setTextColor(INK);
-  y += 16;
-  paragrapheCentre(doc, [
+  const apres = paragrapheCentre(doc, [
     { texte: d.texte.avant },
     { texte: d.texte.gras, gras: true },
     { texte: d.texte.apres },
-  ], CX, base(y, 14.5) + px(5), px(830), px(14.5 * 1.65), pt(14.5));
+  ], CX, base(y, 14.5) + px(4), px(760), px(14.5 * 1.6), pt(14.5), VERT_SAVOIR);
 
-  /* LE BAS DE LA FEUILLE, DU BAS VERS LE HAUT : la devise, les signatures et
-     le tampon, puis la ligne du numéro. */
-  const gauche = px(96), droite = W - px(96);
-  const ySign = 648;
-  const yMeta = 605;
-
+  /* LA LIGNE DU NUMÉRO, juste sous le texte, centrée, trois morceaux espacés. */
+  const yMeta = apres + px(13);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(pt(10.5));
   doc.setTextColor(SOFT);
-  const yM = base(yMeta, 10.5);
-  if (d.numero.trim()) {
-    texteLettre(doc, `CERTIFICAT N° ${d.numero.trim()}`, gauche, yM, { taillePx: 10.5, em: 0.12, ancre: 'gauche' });
-  } else {
-    texteLettre(doc, 'CERTIFICAT N°', gauche, yM, { taillePx: 10.5, em: 0.12, ancre: 'gauche' });
-    const wN = doc.getTextWidth('CERTIFICAT N°') + px(0.12 * 10.5) * 12 + px(6);
-    doc.setDrawColor(FILET_GRIS);
-    doc.setLineWidth(px(1));
-    doc.line(gauche + wN, yM, gauche + wN + px(120), yM);
-  }
-  texteLettre(doc, `MENTION ${d.mention}`.toUpperCase(), CX, yM, { taillePx: 10.5, em: 0.12 });
-  texteLettre(doc, `FAIT À COTONOU, LE ${d.jourLisible}`.toUpperCase(), droite, yM, { taillePx: 10.5, em: 0.12, ancre: 'droite' });
+  const numero = d.numero.trim();
+  const morceaux = [
+    numero ? `CERTIFICAT N° ${numero}` : 'CERTIFICAT N°',
+    `MENTION ${d.mention}`.toUpperCase(),
+    `FAIT À COTONOU, LE ${d.jourLisible}`.toUpperCase(),
+  ];
+  const blanc = numero ? 0 : px(120);
+  const largeurs = morceaux.map((t) => largeurLettree(doc, t, 10.5, 0.22));
+  const total = largeurs.reduce((a, b) => a + b, 0) + blanc + 2 * px(26);
+  let x = CX - total / 2;
+  morceaux.forEach((t, i) => {
+    texteLettre(doc, t, x, yMeta, { taillePx: 10.5, em: 0.22, ancre: 'gauche' });
+    x += largeurs[i];
+    if (i === 0 && blanc) {
+      doc.setDrawColor(FILET_GRIS);
+      doc.setLineWidth(px(1));
+      doc.line(x + px(6), yMeta, x + blanc, yMeta);
+      x += blanc;
+    }
+    x += px(26);
+  });
 
-  const centres = [gauche + px(130), droite - px(130)];
-  d.signataires.slice(0, 2).forEach((s, i) => {
+  /* LE BAS, DU BAS VERS LE HAUT : la signature de l'Académie, la rangée des
+     signataires, le sceau dentelé penché au milieu. */
+  doc.setFont('times', 'italic');
+  doc.setFontSize(pt(17));
+  doc.setTextColor(VERT_SAVOIR);
+  doc.text(SIGNATURE_ACADEMIE_PDF, CX, px(746), { align: 'center' });
+
+  const centres = [px(277.5), W - px(277.5)];
+  d.signataires.slice(0, 2).forEach((sg, i) => {
     const cx = centres[i];
     doc.setFont('times', 'normal');
-    doc.setFontSize(pt(21));
-    doc.setTextColor(INK);
-    doc.text(pdfSafe(s.nom), cx, base(ySign, 21), { align: 'center' });
-    doc.setDrawColor(FILET_GRIS);
+    doc.setFontSize(pt(18));
+    doc.setTextColor(INDIGO);
+    doc.text(pdfSafe(sg.nom), cx, px(688), { align: 'center' });
+    doc.setDrawColor('#9AA39D');
     doc.setLineWidth(px(1));
-    doc.line(cx - px(130), px(ySign + 34), cx + px(130), px(ySign + 34));
+    doc.line(cx - px(147.5), px(697), cx + px(147.5), px(697));
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(pt(10));
-    doc.setTextColor(SOFT);
-    texteLettre(doc, s.role.toUpperCase(), cx, base(ySign + 42, 10), { taillePx: 10, em: 0.16 });
+    doc.setFontSize(pt(9.5));
+    doc.setTextColor(VERT_SAVOIR);
+    texteLettre(doc, sg.role.toUpperCase(), cx, px(712), { taillePx: 9.5, em: 0.22 });
   });
 
-  await tamponDeLaMaison(doc, px(560 - 55), px(612), px(110), {
-    nom: 'MND Académie', ville: 'Cotonou', encre: COPPER,
-  });
-
-  await pieDeLaMaison(doc, W, px(745), { taille: pt(15), couleur: SOFT, nom: '' });
+  if (sceau) {
+    const t = await imageTournee(sceau, -8);
+    const cote = px(150) * (t?.agrandit ?? 1);
+    poseTransparente(doc, t?.image ?? sceau, CX - cote / 2, px(651) - cote / 2, cote, cote, 0.92);
+  }
 
   return {
     nom: d.filename,

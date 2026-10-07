@@ -175,7 +175,7 @@ export default function App() {
       <header className="ac-barre">
         <a className="ac-marque" href="#haut">
           <img src={asset('/assets/monograms/mono-indigo.png')} alt="" />
-          <span>MND Académie<small>Académie du Lock · Cotonou</small></span>
+          <span>Académie MND<small>Cotonou · Bénin</small></span>
         </a>
         <nav className="ac-nav">
           <button type="button" onClick={versLesParcours}>Les parcours</button>
@@ -202,7 +202,7 @@ export default function App() {
             <div className="ac-preuve">
               <div><b>9</b><span>parcours</span></div>
               <div><b>4</b><span>temps</span></div>
-              <div><b>Certificat</b><span>au sceau MND</span></div>
+              <div><b>Certificat</b><span>au sceau de l’Académie MND</span></div>
             </div>
           </div>
           <figure className="ac-ouverture__image">
@@ -310,7 +310,7 @@ export default function App() {
               transmettent, ils le pratiquent tous les jours au fauteuil, à Cotonou.
             </p>
             <p className="ac-intro">
-              À la sortie, un certificat au sceau MND, portant son numéro, vérifiable par la Maison.
+              À la sortie, un certificat au sceau de l’Académie MND, portant son numéro, vérifiable par l’Académie.
             </p>
           </div>
         </section>
@@ -396,7 +396,7 @@ export default function App() {
       </main>
 
       <footer className="ac-pied">
-        <span>Maison MND · Académie du Lock · Cotonou, Bénin</span>
+        <span>Académie MND · Cotonou, Bénin</span>
         <span className="ac-devise">{DEVISE_COMPLETE}</span>
       </footer>
 

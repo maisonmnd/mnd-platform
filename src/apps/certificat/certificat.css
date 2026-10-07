@@ -144,193 +144,142 @@
   overflow: hidden;
 }
 
-/* Double filet : cuivre 2 px dehors, indigo 1 px dedans */
+/* AUX COULEURS DE L'ACADÉMIE MND — 7 octobre 2026 (maquette DagAWw1W…).
+   Vert Savoir pour la vocation, MND en indigo, filet cuivre, papier ivoire.
+   Double filet : vert 2,4 px dehors, cuivre 1 px dedans. */
+.ct-sheet { --vert-savoir: #2F5D50; }
 .ct-frame { position: absolute; pointer-events: none; }
-.ct-frame--copper { inset: 22px; border: 2px solid var(--color-copper); }
-.ct-frame--indigo { inset: 30px; border: 1px solid var(--color-indigo); }
+.ct-frame--vert { inset: 22px; border: 2.4px solid var(--vert-savoir); }
+.ct-frame--cuivre { inset: 31px; border: 1px solid var(--color-copper); }
 
+/* Le pictogramme de l'Académie en filigrane. */
 .ct-watermark {
   position: absolute;
-  top: 50%;
+  top: 52%;
   left: 50%;
-  width: 440px;
-  height: 440px;
-  transform: translate(-50%, -52%);
-  background-image: url('/assets/monograms/mono-indigo.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  opacity: 0.05;
+  width: 430px;
+  transform: translate(-50%, -50%);
+  opacity: 0.055;
   pointer-events: none;
 }
 
 .ct-body {
   position: relative;
   height: 100%;
-  padding: 52px 96px 42px;
+  padding: 58px 90px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-.ct-mono { width: 68px; display: block; }
-.ct-sigle {
+.ct-verrou { width: 210px; height: auto; display: block; }
+
+.ct-title {
   font-family: var(--font-serif);
-  font-weight: var(--weight-regular);
-  font-size: 25px;
-  letter-spacing: var(--tracking-mono);
-  text-indent: var(--tracking-mono);
-  color: var(--color-indigo);
-  margin-top: 10px;
-}
-.ct-adresse {
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--color-indigo);
-  margin-top: 8px;
+  font-weight: var(--weight-medium);
+  font-size: 74px;
+  line-height: 1;
+  color: var(--vert-savoir);
+  /* « Certification » au-dessus disait deux fois la même chose (Yéman,
+     7 octobre) : le titre seul, à la place qu'avait le petit mot. */
+  margin-top: 44px;
 }
 .ct-filet {
   display: block;
-  width: 44px;
-  height: 2px;
+  width: 46px;
+  height: 1.4px;
   background: var(--color-copper);
-  margin-top: 12px;
-}
-.ct-filet--fin {
-  width: 130px;
-  height: 1px;
-  background: var(--copper-300);
-  margin-top: 12px;
-}
-
-.ct-kicker {
-  font-weight: var(--weight-medium);
-  font-size: 11px;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--accent-strong);
-  margin-top: 16px;
-}
-.ct-title {
-  font-family: var(--font-serif);
-  font-weight: var(--weight-regular);
-  font-size: 78px;
-  line-height: 0.95;
-  letter-spacing: var(--tracking-display);
-  color: var(--color-indigo);
-  margin-top: 6px;
+  margin: 22px auto 20px;
 }
 
 .ct-decerne {
-  font-size: 12px;
-  letter-spacing: 0.2em;
+  font-weight: var(--weight-medium);
+  font-size: 11px;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  margin-top: 14px;
 }
 .ct-nom {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: var(--weight-light);
-  font-size: 44px;
+  font-size: 46px;
   line-height: 1.05;
-  color: var(--obsidian-500);
-  margin-top: 6px;
+  color: var(--color-indigo);
+  margin-top: 18px;
 }
 
 .ct-texte {
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
   font-size: 14.5px;
-  line-height: 1.65;
-  color: var(--ink);
-  max-width: 830px;
-  margin-top: 16px;
+  line-height: 1.6;
+  color: var(--obsidian-500);
+  max-width: 760px;
+  margin-top: 24px;
 }
-.ct-texte b { font-weight: var(--weight-semibold); }
+.ct-texte b { font-weight: var(--weight-semibold); color: var(--vert-savoir); }
 
 .ct-meta {
   display: flex;
-  justify-content: space-between;
-  width: 100%;
-  margin-top: auto;
-  padding-top: 20px;
+  justify-content: center;
+  gap: 26px;
+  margin-top: 20px;
 }
 .ct-meta span {
+  font-weight: var(--weight-medium);
   font-size: 10.5px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
 
 .ct-signatures {
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  align-items: end;
+  gap: 20px;
   width: 100%;
-  margin-top: 30px;
+  margin-top: auto;
 }
-.ct-sign { width: 260px; text-align: center; }
+.ct-sign { text-align: center; padding: 0 40px; }
 .ct-sign__nom {
   font-family: var(--font-serif);
-  font-weight: var(--weight-regular);
-  font-size: 21px;
-  color: var(--ink);
+  font-weight: var(--weight-medium);
+  font-size: 18px;
+  color: var(--color-indigo);
 }
 .ct-sign__ligne {
   display: block;
   height: 1px;
-  background: var(--hairline);
+  background: #9AA39D;
   margin: 9px 0 7px;
 }
 .ct-sign__role {
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-weight: var(--weight-medium);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--vert-savoir);
 }
 
+/* Le sceau dentelé, légèrement penché comme une main le pose ; l'encre marque
+   le papier, elle ne le recouvre pas. */
 .ct-sceau {
-  position: absolute;
-  left: 50%;
-  /* IL DESCEND — 6 septembre 2026. « Baisse le tampon, que ca ne soit pas sur
-     la mention d'excellence » (Yeman). En l'agrandissant de 112 a 124 px je
-     l'avais fait mordre sur la ligne du dessus : un sceau pose sur un mot le
-     rature, et c'est la mention qui portait la valeur du certificat.
-
-     UN SCEAU DE 110 PX DANS UNE RANGEE DE SIGNATURES DE 70 DEPASSE FORCEMENT
-     DES DEUX COTES : on choisit donc par ou. Il deborde vers le bas, ou il n'y
-     a que du blanc, plutot que vers le haut ou il y a du texte. */
-  bottom: -20px;
-  transform: translateX(-50%);
-  width: 110px;
-  height: 110px;
-  /* L'ENCRE D'UN TAMPON MARQUE LE PAPIER, elle ne le recouvre pas. */
-  opacity: 0.86;
-}
-.ct-sceau svg { position: absolute; inset: 0; }
-/* Le monogramme au centre, en proportion du sceau : le fichier porte un quart
-   de vide sur chaque bord, donc il se pose large ou la couronne paraît
-   minuscule au milieu d'un grand cercle. */
-.ct-sceau img {
-  position: absolute;
-  top: 24%;
-  left: 24%;
-  width: 52%;
-  height: 52%;
-  object-fit: contain;
+  width: 150px;
+  height: 150px;
+  transform: rotate(-8deg);
+  opacity: 0.92;
+  margin-bottom: -6px;
 }
 
-.ct-devise-culturelle {
+.ct-signature-academie {
   font-family: var(--font-serif);
   font-style: italic;
-  font-weight: var(--weight-light);
-  font-size: 15px;
-  color: var(--ink-soft);
-  /* LA PLACE QUE LE SCEAU PREND EN DESCENDANT SE REND ICI. */
-  margin-top: 30px;
+  font-size: 17px;
+  color: var(--vert-savoir);
+  margin-top: 12px;
 }
 
 /* ---------- La photo d'identité (13 septembre 2026) ---------- */

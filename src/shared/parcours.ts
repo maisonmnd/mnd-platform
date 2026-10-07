@@ -36,8 +36,7 @@
 /** DEUX PUBLICS QUI NE SE MÉLANGENT PAS. La débutante entre dans le métier ; la
     professionnelle y est déjà et ne refait pas le cursus. */
 import { nombreEnLettres } from './lettres';
-import { maisonNom, maisonVille } from './identite';
-import { deLaMaison } from './rappel';
+import { maisonVille } from './identite';
 
 export type PublicDeFormation = 'debutante' | 'professionnelle';
 
@@ -515,6 +514,10 @@ const initialeBaissee = (s: string): string => {
   return enCapitales ? s : s.charAt(0).toLowerCase() + s.slice(1);
 };
 
+/** Le nom de l'Académie, écrit comme le veut sa charte : le mot de vocation
+    d'abord, puis MND, jamais l'inverse. */
+export const NOM_ACADEMIE = 'Académie MND';
+
 /** LE TEXTE DU CERTIFICAT, EN TROIS MORCEAUX : ce qui précède les mots en
     gras, « Maître Locticien », et ce qui suit. L'écran et le PDF lisent la
     même phrase ici. Le niveau porte d'ordinaire le titre (« Palier III ·
@@ -527,9 +530,13 @@ export function texteDuCertificat(o: {
   const parcours = plat(o.niveau).includes(plat(o.titre)) ? o.niveau : `parcours ${o.titre}, ${o.niveau}`;
   const duree = o.duree.replace(/\s*·\s*/g, ', ');
   return {
-    /* Le nom et la ville viennent des Paramètres, jamais d'un littéral (23 septembre 2026). */
-    avant: `${o.apprenant} a accompli le ${parcours} (${duree}, à ${deLaMaison(maisonNom())} de ${maisonVille()}) et a démontré devant le `,
+    /* LE CERTIFICAT EST CELUI DE L'ACADÉMIE MND — 7 octobre 2026 (maquette
+       DagAWw1W…, « retirer Maison MND du certificat », Yéman). La ville vient
+       toujours des Paramètres. « Couronner » reste : c'est le nom du
+       quatrième temps de la méthode enseignée, que le certificat cite
+       (décision du 7 octobre ; la charte réserve le mot à la Maison). */
+    avant: `${o.apprenant} a accompli le ${parcours} (${duree}, à l’${NOM_ACADEMIE} de ${maisonVille()}) et a démontré devant le `,
     gras: 'Maître Locticien',
-    apres: ` sa maîtrise ${maitriseDe(o.competences)}, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.`,
+    apres: ` sa maîtrise ${maitriseDe(o.competences)}, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de l’Académie.`,
   };
 }

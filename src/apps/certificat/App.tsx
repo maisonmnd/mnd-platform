@@ -1,5 +1,4 @@
 import { asset } from '../../shared/asset';
-import { DEVISE_COMPLETE } from '../../shared/identite';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Field, Input, Select, demande } from '../../ds/components';
 import { PARCOURS_MND, texteDuCertificat } from '../../shared/parcours';
@@ -8,7 +7,16 @@ import { ChampDeDate } from '../../ds/dates';
 
 /* Certificat Académie — template A4 paysage prêt à imprimer.
    Panneau de réglage à gauche (masqué à l'impression), le papier à droite.
-   L'ERP Académie pré-remplit via l'URL : ?apprenant=…&parcours=… */
+   L'ERP Académie pré-remplit via l'URL : ?apprenant=…&parcours=…
+
+   AUX COULEURS DE L'ACADÉMIE MND — 7 octobre 2026. « Avec la charte de
+   l'Académie, retirer Maison MND du certificat et redessiner » (Yéman).
+   Maquette DagAWw1Wfb2S1rt2pYc4pW validée : le verrou couché de l'Académie en
+   tête, le Vert Savoir pour la vocation, MND en indigo, le filet cuivre, le
+   sceau dentelé de l'Académie, sa signature au pied. Plus rien de la Maison :
+   ni son nom, ni son monogramme, ni sa devise. Le nom s'écrit « Académie
+   MND », jamais l'inverse (charte). */
+export const SIGNATURE_ACADEMIE = 'Former. Transmettre. Affirmer.';
 
 type Formation = {
   id: string;
@@ -40,7 +48,7 @@ const MENTIONS = ['Honorable', 'Distinction', 'Excellence'];
 type Signataire = { nom: string; role: string };
 const SIGNATAIRES_PAR_DEFAUT: Signataire[] = [
   { nom: 'Brice Ahouansou', role: 'Le Maître Locticien' },
-  { nom: 'Yéman Ahouansou', role: 'La Direction · Maison MND' },
+  { nom: 'Yéman Ahouansou', role: 'La Direction · Académie MND' },
 ];
 const CLE_SIGNATAIRES = 'mnd_certificat_signataires';
 function litLesSignataires(): Signataire[] {
@@ -53,7 +61,9 @@ function litLesSignataires(): Signataire[] {
       const s = l[i] as Partial<Signataire> | null;
       return {
         nom: typeof s?.nom === 'string' ? s.nom : d.nom,
-        role: typeof s?.role === 'string' ? s.role : d.role,
+        /* Un poste réglé avant le 7 octobre disait « Maison MND » : le
+           certificat est celui de l'Académie. */
+        role: typeof s?.role === 'string' ? s.role.replace(/Maison MND/g, 'Académie MND') : d.role,
       };
     });
   } catch { return SIGNATAIRES_PAR_DEFAUT; }
@@ -139,9 +149,9 @@ function initFromUrl() {
       ? {
           id: match?.id ?? 'sur-mesure',
           titre: match?.titre ?? parcours,
-          niveau: niveauDuLien || match?.niveau || 'Parcours de la Maison',
+          niveau: niveauDuLien || match?.niveau || 'Parcours de l’Académie',
           duree: dureeDuLien || match?.duree || 'sur dossier',
-          competences: competencesDuLien || match?.competences || 'les gestes et le protocole de la Maison MND',
+          competences: competencesDuLien || match?.competences || 'les gestes et le protocole de l’Académie MND',
         }
       : null;
   /* Numéro, date et mention transmis par l'ERP à la délivrance (F6 → certificat). */
@@ -239,16 +249,16 @@ export default function App() {
   const dateAffichee = dateLongue(dateIso);
 
   const waMessage =
-    `Maison MND · votre certificat « ${formation.titre} » est prêt, ${nom}. ` +
-    `Toutes nos félicitations. ${DEVISE_COMPLETE}.`;
+    `Académie MND · votre certificat « ${formation.titre} » est prêt, ${nom}. ` +
+    `Toutes nos félicitations. ${SIGNATURE_ACADEMIE}`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
 
-  const mailSubject = 'Votre certificat Maison MND';
+  const mailSubject = 'Votre certificat de l’Académie MND';
   const mailBody =
     `Chère ${nom},\n\n` +
-    `Votre certificat « ${formation.titre} »${certNo.trim() ? ` (n° ${certNo.trim()})` : ''} est délivré par la Maison MND, ` +
+    `Votre certificat « ${formation.titre} »${certNo.trim() ? ` (n° ${certNo.trim()})` : ''} est délivré par l’Académie MND, ` +
     `fait à Cotonou le ${dateAffichee}.\n\n` +
-    `Avec fierté,\nMaison MND · Académie du Lock`;
+    `Avec fierté,\nAcadémie MND · ${SIGNATURE_ACADEMIE}`;
   const mailHref = `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
 
   const texte = texteDuCertificat({
@@ -484,9 +494,9 @@ export default function App() {
                 style={{ transform: `scale(${scale})` }}
                 aria-label={`Certificat ${formation.titre} décerné à ${nom}`}
               >
-                <div className="ct-frame ct-frame--copper" aria-hidden="true" />
-                <div className="ct-frame ct-frame--indigo" aria-hidden="true" />
-                <div className="ct-watermark" aria-hidden="true" />
+                <div className="ct-frame ct-frame--vert" aria-hidden="true" />
+                <div className="ct-frame ct-frame--cuivre" aria-hidden="true" />
+                <img className="ct-watermark" src={asset('/assets/academie/pictogramme.png')} alt="" aria-hidden="true" />
                 {/* LE PORTRAIT, EN HAUT À GAUCHE, DANS LE DOUBLE FILET DU CADRE :
                     cuivre dehors, indigo dedans, comme la feuille elle-même.
                     C'est le coin vide de la page : le monogramme tient le
@@ -499,17 +509,16 @@ export default function App() {
                 )}
 
                 <div className="ct-body">
-                  <img className="ct-mono" src={asset("/assets/monograms/mono-indigo.png")} alt="" />
-                  <div className="ct-sigle">MND</div>
-                  <div className="ct-adresse">Maison MND · Académie du Lock · Cotonou · Bénin</div>
-                  <span className="ct-filet" aria-hidden="true" />
+                  {/* Le verrou couché de l'Académie, pris tel quel dans la
+                      charte (docs/marque/sous-marques/logos) : ACADÉMIE en
+                      Vert Savoir au-dessus de MND en indigo. */}
+                  <img className="ct-verrou" src={asset('/assets/academie/verrou-couche.png')} alt="Académie MND" />
 
-                  <div className="ct-kicker">MND Académie</div>
                   <h1 className="ct-title">Certificat</h1>
+                  <span className="ct-filet" aria-hidden="true" />
 
                   <div className="ct-decerne">est décerné à</div>
                   <div className="ct-nom">{nom}</div>
-                  <span className="ct-filet ct-filet--fin" aria-hidden="true" />
 
                   {/* LA PHRASE VIT DANS `texteDuCertificat` (shared/parcours), la
                       même pour l'écran et le PDF : version corrigée par Yéman le
@@ -531,63 +540,17 @@ export default function App() {
                   <div className="ct-signatures">
                     <SignatureDuCertificat s={signataires[0]} />
 
-                    {/* ══ LE TAMPON DE LA MAISON, EN CUIVRE — 6 septembre 2026 ══
-                        « Change le tampon de l'Académie, mets celui qu'on a
-                        utilisé pour les contrats » (Yéman).
-
-                        L'ANCIEN AVAIT LE DÉFAUT QUE LE TAMPON A CORRIGÉ : son
-                        texte faisait le tour complet du cercle sur un seul
-                        chemin, donc la moitié basse se lisait la tête en bas.
-                        Deux arcs désormais, chacun centré sur son axe — le nom
-                        sur le sommet, la ville sur le bas — et le bas suit un
-                        chemin tracé dans l'autre sens pour que ses lettres se
-                        redressent.
-
-                        MÊME GÉOMÉTRIE QUE `tamponDeLaMaison` (shared/pdf) : les
-                        deux cercles, les deux losanges aux flancs, le vrai
-                        monogramme au centre. Ce qui change ici, c'est l'encre —
-                        cuivre, comme le veut un certificat — et les mots :
-                        l'Académie signe en son nom. */}
-                    <div className="ct-sceau" aria-hidden="true">
-                      <svg viewBox="0 0 160 160">
-                        <defs>
-                          {/* Le haut : de gauche à droite PAR LE SOMMET, les
-                              lettres debout vers l'extérieur. */}
-                          <path id="ct-seal-haut" d="M 24,80 a 56,56 0 0,1 112,0" />
-                          {/* Le bas : de gauche à droite PAR LE BAS, les lettres
-                              debout vers le centre. Sans ce second chemin, la
-                              ville se lirait à l'envers. */}
-                          <path id="ct-seal-bas" d="M 24,80 a 56,56 0 0,0 112,0" />
-                        </defs>
-                        <circle cx="80" cy="80" r="78" fill="none" stroke="var(--copper-400)" strokeWidth="3.4" />
-                        <circle cx="80" cy="80" r="67" fill="none" stroke="var(--copper-400)" strokeWidth="1.2" />
-                        <text
-                          fontFamily="var(--font-sans)" fontSize="13" fontWeight="500"
-                          letterSpacing="1.6" fill="var(--copper-600)" textAnchor="middle"
-                        >
-                          <textPath href="#ct-seal-haut" startOffset="50%">MND ACADÉMIE</textPath>
-                        </text>
-                        <text
-                          fontFamily="var(--font-sans)" fontSize="11"
-                          letterSpacing="1.8" fill="var(--copper-600)" textAnchor="middle"
-                        >
-                          <textPath href="#ct-seal-bas" startOffset="50%">COTONOU</textPath>
-                        </text>
-                        {/* Les deux losanges aux flancs, là où les arcs se
-                            rejoignent : c'est ce petit rien qui fait qu'un
-                            cercle se lit comme un tampon. */}
-                        <path d="M 24,76 l 4,4 -4,4 -4,-4 z" fill="var(--copper-500)" />
-                        <path d="M 136,76 l 4,4 -4,4 -4,-4 z" fill="var(--copper-500)" />
-                      </svg>
-                      <img src={asset("/assets/monograms/mono-copper.png")} alt="" />
-                    </div>
+                    {/* LE SCEAU DENTELÉ DE L'ACADÉMIE MND — 7 octobre 2026. Le
+                        contour dentelé du sceau de la Maison, en Vert Savoir,
+                        aux mots de l'Académie, son pictogramme au centre.
+                        Fabriqué une fois (scripts/fabrique-le-sceau-de-l-academie.py) :
+                        l'écran, le PDF et le Secrétariat posent la même image. */}
+                    <img className="ct-sceau" src={asset('/assets/tampons/academie-dentele.png')} alt="" aria-hidden="true" />
 
                     <SignatureDuCertificat s={signataires[1]} />
                   </div>
 
-                  <div className="ct-devise-culturelle">
-                    {DEVISE_COMPLETE}
-                  </div>
+                  <div className="ct-signature-academie">{SIGNATURE_ACADEMIE}</div>
                 </div>
               </section>
             </div>

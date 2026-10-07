@@ -226,8 +226,11 @@ const phrase = texteDuCertificat({
   duree: dureeDite(4, 16), competences: competencesDesModules(MODULES_DE_L_OEUVRE),
 });
 dit('la phrase du certificat, telle que corrigée',
-  'Afi Dossou a accompli le Palier III · L’Œuvre (quatre semaines, seize séances, à la Maison MND de Cotonou) et a démontré devant le Maître Locticien sa maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de la Maison.',
+  'Afi Dossou a accompli le Palier III · L’Œuvre (quatre semaines, seize séances, à l’Académie MND de Cotonou) et a démontré devant le Maître Locticien sa maîtrise de la racine et du cuir chevelu, de la naissance VÈKPÈ™, du resserrage SÍNSIN™ Essentiel et Élaboré, de la reprise frontale, de la restauration FÍNFÍN™, des soins et de la couleur végétale YÈKPÈ™, ainsi que du défaisage GBÀTÀ™, selon la méthode des quatre temps (Purifier · Nourrir · Sceller · Couronner) et les exigences de l’Académie.',
   phrase.avant + phrase.gras + phrase.apres);
+/* LE CERTIFICAT EST CELUI DE L'ACADÉMIE MND (7 octobre 2026) : la Maison
+   n'y figure plus ; « Couronner » reste, c'est le nom de la méthode. */
+dit('la phrase du certificat ne nomme plus la Maison', false, /Maison/.test(phrase.avant + phrase.apres));
 dit('« Maître Locticien » est ce qui se met en gras', 'Maître Locticien', phrase.gras);
 dit('un niveau sans le titre nomme le parcours avant', true,
   texteDuCertificat({ apprenant: 'A', titre: 'La Tenue', niveau: 'Palier I', duree: 'une semaine · une séance', competences: 'la tenue' }).avant.startsWith('A a accompli le parcours La Tenue, Palier I (une semaine, une séance, '));

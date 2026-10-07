@@ -1362,8 +1362,8 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
   const eligible = canCertify(e);
 
   /* Bilan de parcours — le document complet remis à l'apprenant avec le certificat.
-     Bâti sur summaryPdf, qui porte déjà le sceau MND, le mot-marque et les couleurs
-     de la Maison (respect du design system). */
+     Bâti sur summaryPdf, AUX COULEURS DE L'ACADÉMIE MND depuis le 7 octobre 2026 :
+     son verrou en tête, sa signature au pied, son sceau dentelé. */
   const bilan = async () => {
     const safe = e.learnerName.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'apprenant';
     const bestEval = (i: number): ModuleEvaluation | null =>
@@ -1371,7 +1371,8 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
     await summaryPdf({
       eyebrow: 'Bilan de parcours',
       title: e.learnerName,
-      houseName: `${branch.name} · Académie du Lock`,
+      houseName: 'Académie MND · Cotonou',
+      academie: true,
       meta: [
         formation ? `${formation.name} · ${formation.niveau}` : '',
         e.cohortLabel ? `Cohorte ${e.cohortLabel}` : '',
@@ -1423,7 +1424,7 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
           ],
         }] : []),
       ],
-      footer: `${branch.name} · Le cheveu est une couronne. La Maison veille.`,
+      footer: 'Académie MND · Cotonou, Bénin',
       filename: `Bilan-${safe}.pdf`,
     });
   };
@@ -1525,10 +1526,10 @@ function TabCertificat({ e, formation, modules, sc, mention }: { e: Enrollment; 
           </span>
         </div>
       ) : (
-        <Button variant="copper" onClick={deliver} style={{ alignSelf: 'flex-start' }}>Délivrer le certificat · sceau MND</Button>
+        <Button variant="copper" onClick={deliver} style={{ alignSelf: 'flex-start' }}>Délivrer le certificat · sceau de l’Académie MND</Button>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderTop: '1px solid var(--hairline)', paddingTop: 12 }}>
-        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Un bilan complet du parcours, au sceau MND, utile même avant la certification.</span>
+        <span className="mnd-muted" style={{ fontSize: 11.5 }}>Un bilan complet du parcours, au sceau de l’Académie MND, utile même avant la certification.</span>
         <Button variant="ghost" size="sm" style={{ marginLeft: 'auto' }} onClick={() => void bilan()}>Télécharger le bilan (PDF)</Button>
       </div>
     </div>

@@ -338,7 +338,7 @@ export const rangMonde = (m: Monde): number =>
 export const mondeLabel = (m: Monde): string =>
   m === 'atelier' ? 'MAISON MND™'
     : m === 'studio' ? 'STUDIO MND · ACƆ™'
-      : m === 'academie' ? 'MND ACADÉMIE'
+      : m === 'academie' ? 'ACADÉMIE MND'
         : 'LE PLATEAU TECHNIQUE · commun aux deux maisons';
 
 export const catsDansLOrdre = (cats: CatalogCategory[]): CatalogCategory[] => {

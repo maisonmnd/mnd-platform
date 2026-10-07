@@ -23,6 +23,9 @@ export const TAMPONS: Record<'mnd' | 'acia', Tampon[]> = {
     { cle: 'mnd-7-embleme', nom: 'L’emblème', fichier: 'mnd-7-embleme.png', ratio: 1 },
     { cle: 'mnd-paye', nom: 'PAYÉ', fichier: 'mnd-paye.png', ratio: 600 / 323 },
     { cle: 'mnd-recu', nom: 'REÇU LE', fichier: 'mnd-recu.png', ratio: 1.5 },
+    /* Le sceau dentelé de l'Académie MND (7 octobre 2026), le même que sur ses
+       certificats : pour les attestations de formation. */
+    { cle: 'academie-dentele', nom: 'Le sceau dentelé de l’Académie MND', fichier: 'academie-dentele.png', ratio: 1 },
   ],
   acia: [
     { cle: 'acia-sceau', nom: 'Le sceau ACIA 1', fichier: 'acia-sceau.png', ratio: 1 },

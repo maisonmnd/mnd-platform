@@ -557,7 +557,7 @@ export default function QrCodes() {
   const afficheMomo: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Régler par MoMo.', phrase: `Marchand ${momoMarchand}, le montant en francs.`, valeur: momoQr }) };
   const afficheAvis: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Un avis, un merci.', phrase: 'Scannez, deux phrases suffisent, la Maison vous lit.', valeur: lienAvis }), empeche: lienAvis ? undefined : sansAvis };
   const afficheCouronne: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Ma Couronne.', phrase: 'Scannez, votre couronne vous reconnaît.', valeur: lienCouronne }) };
-  const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'MND Académie.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
+  const afficheAcademie: Geste = { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Académie MND.', phrase: 'Scannez, la Maison vous apprend le métier.', valeur: lienAcademie }) };
   const afficheJour: Geste | undefined = codeJour ? { texte: 'Afficher', fort: true, faire: () => setGrand({ titre: 'Le code du jour.', phrase: 'Le pointage de l’équipe, il change chaque nuit.', valeur: lienDuJour(codeJour) }) } : undefined;
 
   const codes: CodeDef[] = [
@@ -674,9 +674,9 @@ export default function QrCodes() {
       },
     },
     {
-      id: 'academie', court: 'MND Académie', moment: 'longtemps', motsCles: 'académie formation métier apprendre parcours certificat', pret: !!lienAcademie, principal: afficheAcademie,
+      id: 'academie', court: 'Académie MND', moment: 'longtemps', motsCles: 'académie formation métier apprendre parcours certificat', pret: !!lienAcademie, principal: afficheAcademie,
       carte: {
-        signe: BookOpen, nom: 'MND Académie.', qui: 'Elle scanne · elle voit les neuf parcours',
+        signe: BookOpen, nom: 'Académie MND.', qui: 'Elle scanne · elle voit les neuf parcours',
         dit: <>Le site public de l’Académie : les neuf parcours avec leurs prix, le programme de chacun, et la réservation. Une demande laissée là revient dans l’Académie, onglet « Demandes du site ».</>,
         valeur: lienAcademie, champ: { lab: 'Mène à', val: <span style={{ wordBreak: 'break-all' }}>{lienAcademie}</span> },
         gestes: [
