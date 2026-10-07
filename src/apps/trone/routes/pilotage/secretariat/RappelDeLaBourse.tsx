@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSecretariat } from '../../../../../shared/secretariat';
 import { chargeLeClasseur, papiersDe, useClasseur } from '../../../../../shared/papiers';
-import { aFaireMaintenant, calendrier, campagneDe, dateEnLettres } from '../../../../../shared/bourse-pur';
+import { aFaireMaintenant, aJour, calendrier, campagneDe, dateEnLettres, membresAJour } from '../../../../../shared/bourse-pur';
 import { leDossier } from '../../../../../shared/bourse';
 
 /* LE RAPPEL DE LA BOURSE — 7 octobre 2026 (maquette W7LtTpMS…). Pour la
@@ -20,7 +20,7 @@ export function RappelDeLaBourse() {
   /* La campagne vit d'octobre au jour du dépôt. */
   if (jour < `${c.reference}-10-01` || jour > c.depot) return null;
   const papiers = classeur.charge === 'pret' ? papiersDe(classeur.lignes) : [];
-  const gestes = aFaireMaintenant(calendrier(c, papiers, dossier?.membres ?? {}, dossier?.valeurs ?? {}), jour);
+  const gestes = aFaireMaintenant(calendrier(c, papiers, membresAJour(dossier?.membres ?? {}), aJour(dossier?.valeurs ?? {})), jour);
   if (gestes.length === 0) return null;
   return (
     <div className="sec-bandeau" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>

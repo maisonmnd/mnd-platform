@@ -3,7 +3,7 @@ import { Button, Field, Input, Select, toast } from '../../../../../ds/component
 import { useSecretariat } from '../../../../../shared/secretariat';
 import { chargeLeClasseur, papiersDe, personnesDe, useClasseur } from '../../../../../shared/papiers';
 import {
-  aFaireMaintenant, aSaisir, calendrier, campagneDe, CHAMPS, classeA, dateEnLettres, lis, piecesDuClasseur, type Groupe, type Membres, type Valeurs,
+  aFaireMaintenant, aJour, aSaisir, calendrier, membresAJour, campagneDe, CHAMPS, classeA, dateEnLettres, lis, piecesDuClasseur, type Groupe, type Membres, type Valeurs,
   type EtatPiece,
 } from '../../../../../shared/bourse-pur';
 import {
@@ -29,11 +29,11 @@ const VOLETS: { v: Volet; titre: string }[] = [
 ];
 const GROUPES: { g: Groupe; titre: string }[] = [
   { g: 'demandeur', titre: 'Le demandeur' }, { g: 'parent2', titre: 'Le second parent' }, { g: 'enfants', titre: 'Les enfants' },
-  { g: 'foyer', titre: 'Le foyer' }, { g: 'tiers', titre: 'M. Thomas BOYA' },
+  { g: 'foyer', titre: 'Le foyer' }, { g: 'tiers', titre: 'L’hébergeant' },
 ];
 const MEMBRES: { cle: keyof Membres; nom: string }[] = [
   { cle: 'yeman', nom: 'Yéman' }, { cle: 'brice', nom: 'Brice' }, { cle: 'e1', nom: 'Enfant 1' }, { cle: 'e2', nom: 'Enfant 2' },
-  { cle: 'e3', nom: 'Enfant 3' }, { cle: 'thomas', nom: 'M. Thomas BOYA' },
+  { cle: 'e3', nom: 'Enfant 3' }, { cle: 'hebergeant', nom: 'L’hébergeant' },
 ];
 const DIT: Record<EtatPiece, string> = { pret: 'prête', attente: 'au fil des mois', manque: 'à faire', alerte: 'attention' };
 
@@ -56,15 +56,15 @@ export function LeDossierDeBourse({ branchId, moi, nomMaison, surOuvre }: {
   const classeur = useClasseur();
   useEffect(() => { if (classeur.charge === 'jamais') void chargeLeClasseur(); }, [classeur.charge]);
 
-  const [v, setV] = useState<Valeurs>(() => dossier?.valeurs ?? {});
-  const [membres, setMembres] = useState<Membres>(() => dossier?.membres ?? {});
+  const [v, setV] = useState<Valeurs>(() => aJour(dossier?.valeurs ?? {}));
+  const [membres, setMembres] = useState<Membres>(() => membresAJour(dossier?.membres ?? {}));
   const [modifie, setModifie] = useState(false);
   const [ouvert, setOuvert] = useState<Volet | null>('etat');
   const [occupe, setOccupe] = useState('');
   /* Le dossier arrive du serveur après l'ouverture : on le reprend tant que
      rien n'a été touché ici. */
   useEffect(() => {
-    if (dossier && !modifie) { setV(dossier.valeurs ?? {}); setMembres(dossier.membres ?? {}); }
+    if (dossier && !modifie) { setV(aJour(dossier.valeurs ?? {})); setMembres(membresAJour(dossier.membres ?? {})); }
   }, [dossier, modifie]);
 
   const jour = jourDuPoste();
@@ -109,7 +109,7 @@ export function LeDossierDeBourse({ branchId, moi, nomMaison, surOuvre }: {
     const r = prepareLesDocuments({ branchId, moi, c, v });
     if (r.erreur) { toast(r.erreur); return; }
     setModifie(false);
-    toast(`${r.crees} préparé${r.crees > 1 ? 's' : ''}, ${r.repris} repris${r.laisses ? `, ${r.laisses} déjà en signature ou signé${r.laisses > 1 ? 's' : ''}, laissés tels quels` : ''}.`, 6000);
+    toast(`${r.crees} préparé${r.crees > 1 ? 's' : ''}, ${r.repris} repris${r.laisses ? `, ${r.laisses} déjà en signature ou signé${r.laisses > 1 ? 's' : ''}, laissés tels quels` : ''}.${r.sansHebergeant ? ' L’attestation d’hébergement et les quittances attendent le nom de l’hébergeant (Les constantes).' : ''}`, 8000);
   };
 
   const telechargePdf = async (quoi: 'bordereau' | 'reponses') => {
@@ -267,7 +267,7 @@ export function LeDossierDeBourse({ branchId, moi, nomMaison, surOuvre }: {
             <Button variant="ghost" onClick={() => void telechargePdf('reponses')} disabled={!!occupe}>02 · Réponses au formulaire (PDF)</Button>
           </div>
           <div className="bou-pieces">
-            {[['03', 'Lettre de demande · vos deux signatures'], ['04', 'Attestation NYM SARL · son mandataire, sous le cachet'], ['05', 'Attestation d’hébergement · M. Thomas BOYA'],
+            {[['03', 'Lettre de demande · vos deux signatures'], ['04', 'Attestation NYM SARL · son mandataire, sous le cachet'], ['05', 'Attestation d’hébergement · l’hébergeant'],
               ['06', 'Quittance 1'], ['07', 'Quittance 2'], ['08', 'Quittance 3']].map(([n, dit]) => {
               const p = docDe(n);
               const e = etatDoc(n);

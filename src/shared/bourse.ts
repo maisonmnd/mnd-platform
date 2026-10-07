@@ -3,7 +3,7 @@ import {
 } from './secretariat';
 import { rangeDansLeCadre, type DossierBourse, type Entreprise, type LigneSecretariat, type Piece } from './secretariat-pur';
 import {
-  documentsDeLaCampagne, lignesDuBordereau, lis, reponsesAuFormulaire, sansPreposition, signeThomas, moisDesReleves, type Campagne, type Membres, type Valeurs,
+  documentsDeLaCampagne, hebergeantSaisi, lignesDuBordereau, lis, reponsesAuFormulaire, sansPreposition, signeHebergeant, moisDesReleves, type Campagne, type Membres, type Valeurs,
 } from './bourse-pur';
 import { octetsDUnePage } from './papiers';
 import { texteDeLaMarque, titreDuPapier, type Papier } from './papiers-pur';
@@ -19,7 +19,8 @@ import { texteDeLaMarque, titreDuPapier, type Papier } from './papiers-pur';
    un document déjà en signature ou signé. */
 
 export const ID_DU_DOSSIER = 'bourse-famille';
-export const NOM_THOMAS = 'M. Thomas BOYA';
+/** La fiche de l'hébergeant au Secrétariat porte cette marque : son nom, lui, est celui que la direction saisit. */
+export const MARQUE_HEBERGEANT = 'bourse:hebergeant';
 
 export const leDossier = (l: readonly LigneSecretariat[]): DossierBourse | undefined =>
   l.find((x): x is DossierBourse => x.genre === 'bourse' && x.id === ID_DU_DOSSIER);
@@ -42,7 +43,7 @@ export const cleDuDocument = (c: Campagne, n: string): string => `bourse:${c.cle
 export const documentsDuDossier = (l: readonly LigneSecretariat[], c: Campagne): Piece[] =>
   pieces(l).filter((p) => p.dossier?.startsWith(`bourse:${c.cle}:`) && p.etat !== 'annule');
 
-export type Preparation = { crees: number; repris: number; laisses: number; erreur?: string };
+export type Preparation = { crees: number; repris: number; laisses: number; erreur?: string; sansHebergeant?: boolean };
 
 /** PRÉPARER (ou reprendre) les six documents de la campagne. */
 export function prepareLesDocuments(o: { branchId: string; moi: string; c: Campagne; v: Valeurs }): Preparation {
@@ -50,17 +51,25 @@ export function prepareLesDocuments(o: { branchId: string; moi: string; c: Campa
   const nym = entrepriseNomee(lignes, 'NYM SARL');
   if (!nym) return { crees: 0, repris: 0, laisses: 0, erreur: 'NYM SARL n’existe pas encore au Secrétariat.' };
 
-  /* M. Thomas BOYA : un particulier, gardé comme une « entreprise » sans
-     tampon, privée. Sa signature se dépose dans sa fiche (P/O ou la sienne). */
-  let thomas = entrepriseNomee(lignes, NOM_THOMAS);
-  const mentionsThomas = [sansPreposition((o.v.thomasAdresse ?? '').trim()), 'Cotonou, Bénin'].filter(Boolean).join(' · ');
-  const telThomas = (o.v.thomasTel ?? '').trim();
-  if (!thomas) {
-    thomas = creeEntreprise({ branchId: o.branchId, nom: NOM_THOMAS, mentions: mentionsThomas, telephone: telThomas, signataire: signeThomas(o.v) });
-    majEntreprise(thomas, { prive: true });
-    thomas = { ...thomas, prive: true };
-  } else if (thomas.signataire !== signeThomas(o.v) || (telThomas && thomas.telephone !== telThomas) || (o.v.thomasAdresse && thomas.mentions !== mentionsThomas) || !thomas.prive) {
-    majEntreprise(thomas, { signataire: signeThomas(o.v), telephone: telThomas || thomas.telephone, mentions: o.v.thomasAdresse ? mentionsThomas : thomas.mentions, prive: true });
+  /* L'HÉBERGEANT : un particulier, gardé comme une « entreprise » sans
+     tampon, privée, marquée. Son nom est celui que la direction saisit ;
+     vide, son attestation et ses quittances attendent. Une fiche privée sans
+     marque (préparée avant le 7 octobre) est reprise et renommée. */
+  const nomHebergeant = hebergeantSaisi(o.v);
+  let hebergeant: Entreprise | undefined;
+  if (nomHebergeant) {
+    hebergeant = entreprises(lignes).find((e) => e.dossier === MARQUE_HEBERGEANT)
+      ?? entreprises(lignes).find((e) => e.prive && !e.dossier && e.id !== nym.id);
+    const mentions = [sansPreposition((o.v.hebergeantAdresse ?? '').trim()), 'Cotonou, Bénin'].filter(Boolean).join(' · ');
+    const telephone = (o.v.hebergeantTel ?? '').trim();
+    const voulu = { nom: nomHebergeant, signataire: signeHebergeant(o.v), telephone: telephone || hebergeant?.telephone || '', mentions, prive: true as const, dossier: MARQUE_HEBERGEANT };
+    if (!hebergeant) {
+      hebergeant = creeEntreprise({ branchId: o.branchId, nom: voulu.nom, mentions: voulu.mentions, telephone: voulu.telephone, signataire: voulu.signataire });
+    }
+    if (Object.entries(voulu).some(([k, x]) => (hebergeant as Record<string, unknown>)[k] !== x)) {
+      majEntreprise(hebergeant, voulu);
+      hebergeant = { ...hebergeant, ...voulu };
+    }
   }
 
   /* Les signataires des parents : leurs fiches du Secrétariat, si elles existent. */
@@ -71,13 +80,14 @@ export function prepareLesDocuments(o: { branchId: string; moi: string; c: Campa
 
   const nomNym = nym.signataire?.trim() || '[nom du mandataire]';
   const existants = documentsDuDossier(lignes, o.c);
-  const r: Preparation = { crees: 0, repris: 0, laisses: 0 };
+  const r: Preparation = { crees: 0, repris: 0, laisses: 0, sansHebergeant: !hebergeant };
   for (const doc of documentsDeLaCampagne(o.v, o.c, nomNym.replace(/,.*$/, ''))) {
     const cle = cleDuDocument(o.c, doc.cle);
     const deja = existants.find((p) => p.dossier === cle);
     if (deja && deja.etat !== 'brouillon') { r.laisses++; continue; }
+    if (doc.qui === 'hebergeant' && !hebergeant) continue;
     const entite = doc.qui === 'parents' ? 'perso' as const : 'autre' as const;
-    const entreprise = doc.qui === 'nym' ? nym : doc.qui === 'thomas' ? thomas : undefined;
+    const entreprise = doc.qui === 'nym' ? nym : doc.qui === 'hebergeant' ? hebergeant : undefined;
     const signataires = doc.qui === 'parents' ? (parents.length ? parents : [{ userId: o.moi, nom: lis(o.v, 'demandeur'), qualite: '' }])
       : [{ userId: 'entreprise', nom: entreprise!.signataire || entreprise!.nom, qualite: '' }];
     const tampon = doc.qui === 'nym' ? 'auto-cachet' : undefined;
@@ -270,7 +280,7 @@ export function papiersAJoindre(pp: readonly Papier[], m: Membres, c: Campagne):
   for (const [cle, nom] of [['yeman', 'Yéman'], ['brice', 'Brice'], ['e1', 'Enfant 1'], ['e2', 'Enfant 2'], ['e3', 'Enfant 3']] as const) {
     pousse('4', nom, dernier(un(t(m[cle]), 'passeport')));
   }
-  pousse('5b', NOM_THOMAS, [...dernier(un(t(m.thomas), 'cni')), ...dernier(un(t(m.thomas), 'cip')), ...dernier(un(t(m.thomas), 'facture'))]);
+  pousse('5b', 'L’hébergeant', [...dernier(un(t(m.hebergeant), 'cni')), ...dernier(un(t(m.hebergeant), 'cip')), ...dernier(un(t(m.hebergeant), 'facture'))]);
   pousse('7', 'Brice', dernier(un(t(m.brice), 'activite')));
   pousse('8', 'Yéman', dernier(un(t(m.yeman), 'carte-grise')));
   pousse('9', 'Yéman', dernier(un(t(m.yeman), 'plan-acces')));

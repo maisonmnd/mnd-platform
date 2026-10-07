@@ -12,15 +12,16 @@
       Secrétariat refuse de signer un document entre crochets.
    6. LES TEXTES : ni tiret long, ni « salon », l'année toujours écrite,
       Mme Praxede BOYA (jamais « Praxeder »), un mandataire pour NYM SARL.
-   7. LE PRIVÉ : chaque document préparé porte `prive`, M. Thomas BOYA
-      aussi ; la base le garde (0122). Reprendre les documents ne touche pas
+   7. LE PRIVÉ : chaque document préparé porte `prive`, la fiche de
+      l'hébergeant aussi, NOMMÉ PAR LA DIRECTION (aucun nom dans le code ;
+      sans nom, son attestation et ses quittances attendent) ; la base le garde (0122). Reprendre les documents ne touche pas
       un document signé.
    8. LES PDF du bordereau et des réponses se construisent ; l'assemblage
       marque les copies de papiers, pas les documents de la famille.
    9. L'ÉCRAN : l'onglet et le rappel sont à la direction seule. */
 import { readFileSync } from 'node:fs';
 import {
-  aFaireMaintenant, aSaisir, calendrier, campagneDe, classeA, dateDeLaQuittance, documentsDeLaCampagne, enLettres, lis,
+  aFaireMaintenant, aJour, aSaisir, calendrier, membresAJour, campagneDe, classeA, dateDeLaQuittance, documentsDeLaCampagne, enLettres, lis,
   moisDesQuittances, moisDesReleves, piecesDuClasseur, reponsesAuFormulaire,
 } from '../src/shared/bourse-pur';
 import {
@@ -68,8 +69,8 @@ const docsVides = documentsDeLaCampagne({}, c, '[nom du mandataire]');
 dit('six documents par campagne', ['03', '04', '05', '06', '07', '08'], docsVides.map((d) => d.cle));
 dit('sans les donnees, l attestation NYM SARL garde ses crochets (elle ne se signera pas)', true, compteLesACompleter(docsVides[1].corps) > 0);
 const v = {
-  poste: 'assistante de direction', entree: '2015-03-01', brut: '4800000', net: '4200000', valeurLocative: '150000', thomasDepuis: '2012',
-  naissanceDemandeur: '1990-06-15', p2Naissance: '1989-02-02', logement: 'au lot 12, Cotonou', thomasAdresse: 'au lot 3, Cotonou',
+  poste: 'assistante de direction', entree: '2015-03-01', brut: '4800000', net: '4200000', valeurLocative: '150000', hebergeDepuis: '2012',
+  naissanceDemandeur: '1990-06-15', p2Naissance: '1989-02-02', logement: 'au lot 12, Cotonou', hebergeantAdresse: 'au lot 3, Cotonou',
   e1Prenom: 'Aïna', e1Naissance: '2019-05-02', e2Prenom: 'Élie', e2Naissance: '2017-08-14', e3Prenom: 'Noa', e3Naissance: '2014-01-20',
 };
 const pleins = documentsDeLaCampagne(v, c, 'M. X');
@@ -99,17 +100,31 @@ dit('les dates sont ecrites avec l annee', true, /\d{1,2}(er)? [a-zéû]+ \d{4}/
 /* ── 7. LE PRIVÉ, avec le vrai magasin ── */
 const branchId = 'br-essai';
 creeEntreprise({ branchId, nom: 'NYM SARL', mentions: 'RCCM RB/COT/09 B 4639 · IFU 3200700011313 · Cotonou, Bénin', telephone: '', signataire: 'M. X, mandataire' });
-const r1 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v });
-dit('premiere preparation : six documents crees', [6, 0, 0], [r1.crees, r1.repris, r1.laisses]);
+const r0 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v });
+dit('sans le nom de l hebergeant : seuls la lettre et l attestation NYM SARL se preparent', [2, true], [r0.crees, r0.sansHebergeant]);
+const vh = { ...v, hebergeant: 'Mme Z. ESSAI' };
+const r1 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: vh });
+dit('avec le nom : les quatre autres arrivent, les deux premiers sont repris', [4, 2, 0, false], [r1.crees, r1.repris, r1.laisses, r1.sansHebergeant]);
 const prepares = documentsDuDossier(secretariatStore.get(), c);
 dit('chaque document prepare est prive et rattache a la campagne', [6, true, true],
   [prepares.length, prepares.every((p) => p.prive === true), prepares.every((p) => p.dossier?.startsWith('bourse:2027-2028:'))]);
-const thomas = entreprises(secretariatStore.get()).find((e) => e.nom === 'M. Thomas BOYA');
-dit('M. Thomas BOYA est cree, prive, signe P/O par defaut', [true, 'P/O M. Thomas BOYA'], [thomas?.prive === true, thomas?.signataire]);
+const fiches = () => entreprises(secretariatStore.get()).filter((e) => e.dossier === 'bourse:hebergeant');
+dit('la fiche de l hebergeant porte le nom saisi, privee, signee P/O par defaut', [1, 'Mme Z. ESSAI', true, 'P/O Mme Z. ESSAI'],
+  [fiches().length, fiches()[0]?.nom, fiches()[0]?.prive === true, fiches()[0]?.signataire]);
+dit('l attestation d hebergement et la quittance le nomment', [true, true],
+  [prepares.find((p) => p.dossier?.endsWith(':05'))!.corps.includes('Mme Z. ESSAI'), prepares.find((p) => p.dossier?.endsWith(':06'))!.corps.includes('Mme Z. ESSAI')]);
+prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: { ...vh, hebergeant: 'M. W. ESSAI', hebergeantSigne: 'Lui-même' } });
+dit('changer le nom renomme LA MEME fiche, et « lui-meme » retire le P/O', [1, 'M. W. ESSAI', 'M. W. ESSAI'], [fiches().length, fiches()[0]?.nom, fiches()[0]?.signataire]);
+prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: vh });
+const modules = ['src/shared/bourse-pur.ts', 'src/shared/bourse.ts', 'src/apps/trone/routes/pilotage/secretariat/Bourse.tsx', 'src/apps/trone/routes/pilotage/secretariat/RappelDeLaBourse.tsx']
+  .map((f) => readFileSync(f, 'utf8')).join('\n');
+dit('aucun hebergeant nomme dans le code', false, /Thomas/.test(modules));
+dit('les valeurs gardees sous les anciens noms reprennent les leurs', [{ hebergeantTel: 'neuf', hebergeantAdresse: 'au lot 3' }, 't1'],
+  [aJour({ ['tho' + 'masAdresse']: 'au lot 3', ['tho' + 'masTel']: 'vieux', hebergeantTel: 'neuf' }), membresAJour({ ['tho' + 'mas']: 't1' }).hebergeant]);
 const nymDoc = prepares.find((p) => p.dossier?.endsWith(':04'))!;
 dit('l attestation NYM SARL porte le cachet commercial et le signataire de l entreprise', ['auto-cachet', 'entreprise'], [nymDoc.tampon, nymDoc.signataires[0]?.userId]);
 signeLaPiece(nymDoc, 'entreprise', 'data:image/png;base64,AAA');
-const r2 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: { ...v, brut: '5000000' } });
+const r2 = prepareLesDocuments({ branchId, moi: 'u-yeman', c, v: { ...vh, brut: '5000000' } });
 dit('reprendre : cinq repris, le signe laisse tel quel', [0, 5, 1], [r2.crees, r2.repris, r2.laisses]);
 const signe = documentsDuDossier(secretariatStore.get(), c).find((p) => p.dossier?.endsWith(':04'))!;
 dit('le document signe n a pas bouge', true, signe.corps.includes('quatre millions huit cent mille'));
@@ -123,7 +138,7 @@ const pap = (titulaire: string, type: string, delivreLe = '', expireLe = ''): Pa
   id: `p-${type}-${delivreLe}`, genre: 'papier', branchId, titulaire, type, numero: '', delivreLe, expireLe, original: '', note: '',
   pages: [{ chemin: `x/${type}`, nom: `${type}.png`, type: 'image/png', taille: 1 }], versions: [], deposeLe: '', deposePar: '', journal: [],
 });
-const membres = { yeman: 'y', brice: 'b', e1: 'a', e2: 'e', e3: 'n', thomas: 't' };
+const membres = { yeman: 'y', brice: 'b', e1: 'a', e2: 'e', e3: 'n', hebergeant: 't' };
 const pp = [
   pap('pers:y', 'passeport', '2020-01-01', '2026-12-31'), pap('pers:b', 'passeport', '', '2030-01-01'),
   ...Array.from({ length: 9 }, (_, i) => pap('pers:y', 'bulletin', `2026-${String(i + 1).padStart(2, '0')}-28`)),

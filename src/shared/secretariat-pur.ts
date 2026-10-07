@@ -97,8 +97,10 @@ export type Entreprise = {
   /** La signature de son signataire, dessinée ou importée (PNG). */
   signature?: string;
   creeLe: string;
-  /** Lue de la direction seule (0122), comme M. Thomas BOYA, un particulier. */
+  /** Lue de la direction seule (0122), comme l'hébergeant du dossier de bourse. */
   prive?: boolean;
+  /** Le rôle de la fiche dans un dossier annuel (`bourse:hebergeant`). */
+  dossier?: string;
 };
 
 export type Signataire = {

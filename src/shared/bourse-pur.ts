@@ -85,10 +85,15 @@ export const CHAMPS: Champ[] = [
   { cle: 'voyages', libelle: 'Clubs · voyages hors du pays (2 ans)', groupe: 'foyer', defaut: 'néant' },
   { cle: 'autreAide', libelle: 'Autre aide à la scolarisation', groupe: 'foyer', defaut: 'non' },
   /* Les tiers */
-  { cle: 'thomasAdresse', libelle: 'Adresse de M. Thomas BOYA', groupe: 'tiers', aide: 'Écrite pour la phrase, avec « au » devant' },
-  { cle: 'thomasTel', libelle: 'Téléphone de M. Thomas BOYA', groupe: 'tiers' },
-  { cle: 'thomasDepuis', libelle: 'Hébergés depuis (année)', groupe: 'tiers' },
-  { cle: 'thomasSigne', libelle: 'M. Thomas BOYA signe', groupe: 'tiers', type: 'choix', choix: ['P/O par vous', 'Lui-même'], defaut: 'P/O par vous' },
+  /* L'HÉBERGEANT, NOMMÉ PAR VOUS (7 octobre 2026) : « Je remplirai moi-même
+     le nom de la personne qui nous fait les lettres » (Yéman). Aucun nom
+     n'est écrit dans le code ; vide, son attestation et ses quittances ne se
+     préparent pas. Les valeurs gardées sous d'anciens noms reprennent les leurs (`aJour`). */
+  { cle: 'hebergeant', libelle: 'Nom de l’hébergeant', groupe: 'tiers', aide: 'Nom à remplir, avec M. ou Mme : il signe l’attestation et les quittances' },
+  { cle: 'hebergeantAdresse', libelle: 'Adresse de l’hébergeant', groupe: 'tiers', aide: 'Écrite pour la phrase, avec « au » devant' },
+  { cle: 'hebergeantTel', libelle: 'Téléphone de l’hébergeant', groupe: 'tiers' },
+  { cle: 'hebergeDepuis', libelle: 'Hébergés depuis (année)', groupe: 'tiers' },
+  { cle: 'hebergeantSigne', libelle: 'L’hébergeant signe', groupe: 'tiers', type: 'choix', choix: ['P/O par vous', 'Lui-même'], defaut: 'P/O par vous' },
   /* L'année (revenus de l'année de référence) */
   { cle: 'brut', libelle: 'Votre salaire brut annuel (NYM SARL)', groupe: 'annee', type: 'montant', aide: 'Somme des douze bulletins' },
   { cle: 'net', libelle: 'Votre salaire net annuel', groupe: 'annee', type: 'montant' },
@@ -96,12 +101,30 @@ export const CHAMPS: Champ[] = [
   { cle: 'impot', libelle: 'Impôt sur le revenu de l’année', groupe: 'annee', type: 'montant', aide: 'Avis d’imposition' },
   { cle: 'revenusP2', libelle: 'Revenus bruts du second parent', groupe: 'annee', type: 'montant', defaut: '0' },
   { cle: 'valeurLocative', libelle: 'Valeur locative du logement, par mois', groupe: 'annee', type: 'montant' },
-  { cle: 'charges', libelle: 'Charges payées à M. Thomas BOYA, par mois', groupe: 'annee', type: 'montant', defaut: '60000' },
+  { cle: 'charges', libelle: 'Charges payées à l’hébergeant, par mois', groupe: 'annee', type: 'montant', defaut: '60000' },
   { cle: 'soldes', libelle: 'Soldes des comptes au dépôt', groupe: 'annee', aide: 'Un par compte' },
   { cle: 'depot', libelle: 'Date du dépôt', groupe: 'annee', type: 'date', aide: 'Au plus tard le 30 janvier' },
 ];
 
 export const champ = (cle: string): Champ | undefined => CHAMPS.find((c) => c.cle === cle);
+
+/* LES ANCIENS NOMS DES CHAMPS (avant le 7 octobre au soir) : une valeur
+   gardée sous l'un d'eux reprend son nom d'aujourd'hui, sans rien perdre. */
+const ANCIENS_NOMS: Record<string, string> = {
+  thomasAdresse: 'hebergeantAdresse', thomasTel: 'hebergeantTel', thomasDepuis: 'hebergeDepuis', thomasSigne: 'hebergeantSigne',
+};
+export function aJour(v: Valeurs): Valeurs {
+  const out: Valeurs = { ...v };
+  for (const [ancien, neuf] of Object.entries(ANCIENS_NOMS)) {
+    if (out[ancien] !== undefined && !(out[neuf] ?? '').trim()) out[neuf] = out[ancien];
+    delete out[ancien];
+  }
+  return out;
+}
+export function membresAJour(m: Membres & Record<string, string | undefined>): Membres {
+  const { thomas: ancien, ...reste } = m;
+  return { ...reste, hebergeant: reste.hebergeant ?? ancien };
+}
 
 /** « au lot 12 » → « lot 12 » : l'adresse écrite pour la phrase, rendue à l'enveloppe. */
 export const sansPreposition = (adresse: string): string => adresse.replace(/^(au|aux|à la|à l’|à l'|à)\s+/i, '');
@@ -238,7 +261,7 @@ export const montant = (v: Valeurs, cle: string): number | null => {
 /* ══ LES PAPIERS DU DOSSIER ══════════════════════════════════════════ */
 
 /** Les membres de la famille, reliés aux personnes du classeur des Papiers. */
-export type Membres = { yeman?: string; brice?: string; e1?: string; e2?: string; e3?: string; thomas?: string };
+export type Membres = { yeman?: string; brice?: string; e1?: string; e2?: string; e3?: string; hebergeant?: string };
 
 /** Le minimum d'un papier que lit ce module (le classeur en donne plus). */
 export type PapierLu = { titulaire: string; type: string; delivreLe: string; expireLe: string };
@@ -267,13 +290,13 @@ export function piecesDuClasseur(pp: readonly PapierLu[], m: Membres, c: Campagn
     etat: expirent ? 'alerte' : manquent ? 'manque' : 'pret',
     dit: expirent ? `${expirent} expire${expirent > 1 ? 'nt' : ''} avant le dépôt` : manquent ? `${manquent} à ranger` : 'rangés, à jour au dépôt' });
   /* 5b · pièce de l'hébergeant + facture de moins de 3 mois au dépôt */
-  const t = titulaire(m.thomas);
+  const t = titulaire(m.hebergeant);
   const facture = pp.find((p) => p.titulaire === t && p.type === 'facture');
   const factureFraiche = !!facture && !!facture.delivreLe && joursEntre(facture.delivreLe, c.depot) <= 90;
-  const idThomas = aUn(pp, t, 'cni') || aUn(pp, t, 'cip') || aUn(pp, t, 'passeport');
-  lignes.push({ n: '5b', titre: 'Pièce d’identité de l’hébergeant et facture de moins de 3 mois', qui: 'M. Thomas BOYA',
-    etat: idThomas && factureFraiche ? 'pret' : idThomas ? 'attente' : 'manque',
-    dit: !idThomas ? 'sa pièce d’identité à ranger' : factureFraiche ? 'rangées' : 'facture à ranger en janvier' });
+  const identite = aUn(pp, t, 'cni') || aUn(pp, t, 'cip') || aUn(pp, t, 'passeport');
+  lignes.push({ n: '5b', titre: 'Pièce d’identité de l’hébergeant et facture de moins de 3 mois', qui: 'L’hébergeant',
+    etat: identite && factureFraiche ? 'pret' : identite ? 'attente' : 'manque',
+    dit: !identite ? 'sa pièce d’identité à ranger' : factureFraiche ? 'rangées' : 'facture à ranger en janvier' });
   /* 7 · activité du second parent */
   lignes.push({ n: '7', titre: 'Justificatif d’activité du second parent', qui: 'Employeur ou comptable', etat: passe(aUn(pp, titulaire(m.brice), 'activite'), true), dit: aUn(pp, titulaire(m.brice), 'activite') ? 'rangé' : 'à ranger' });
   /* 8, 9 · carte grise, plan */
@@ -314,7 +337,7 @@ export function calendrier(c: Campagne, pp: readonly PapierLu[], m: Membres, v: 
   const r: Rappel[] = [];
   const debut = `${c.reference}-10-01`;
   r.push({ quand: debut, titre: 'Saisir les constantes, une seule fois', volet: 'constantes', fait: aSaisir(v).filter((x) => x.groupe !== 'annee').length === 0 });
-  r.push({ quand: debut, titre: 'Ranger les papiers permanents : livret, passeports, carte grise, plan, pièce de M. Thomas BOYA', volet: 'etat',
+  r.push({ quand: debut, titre: 'Ranger les papiers permanents : livret, passeports, carte grise, plan, pièce d’identité de l’hébergeant', volet: 'etat',
     fait: aUn(pp, y, 'livret') && aUn(pp, y, 'carte-grise') && aUn(pp, y, 'plan-acces') });
   /* Les bulletins déjà parus quand la campagne s'ouvre font UN geste ; les
      suivants, un par mois, le 5. */
@@ -338,8 +361,8 @@ export function calendrier(c: Campagne, pp: readonly PapierLu[], m: Membres, v: 
   const jan = `${c.reference + 1}-01`;
   r.push({ quand: `${jan}-05`, titre: `Demander l’avis d’imposition ${c.reference} à la DGI, et l’attestation CNSS de l’année`, volet: 'etat',
     fait: pp.some((p) => p.titulaire === y && p.type === 'avis-impot' && p.delivreLe >= `${jan}-01`) });
-  r.push({ quand: `${jan}-10`, titre: 'Ranger une facture récente au nom de M. Thomas BOYA (eau ou électricité)', volet: 'etat',
-    fait: pp.some((p) => p.titulaire === titulaire(m.thomas) && p.type === 'facture' && p.delivreLe && joursEntre(p.delivreLe, c.depot) <= 90) });
+  r.push({ quand: `${jan}-10`, titre: 'Ranger une facture récente au nom de l’hébergeant (eau ou électricité)', volet: 'etat',
+    fait: pp.some((p) => p.titulaire === titulaire(m.hebergeant) && p.type === 'facture' && p.delivreLe && joursEntre(p.delivreLe, c.depot) <= 90) });
   const quinze = ajouteJours(c.depot, -5);
   r.push({ quand: quinze, titre: `Les quinze minutes : l’année ${c.reference}, relire, signer, assembler, déposer avant le ${dateEnLettres(c.depot)}`, volet: 'deposer', fait: false });
   return r.sort((a, b) => a.quand.localeCompare(b.quand));
@@ -406,7 +429,12 @@ export function attestationEmployeur(v: Valeurs, c: Campagne, signataire: string
   };
 }
 
-export const signeThomas = (v: Valeurs): string => (lis(v, 'thomasSigne') === 'Lui-même' ? 'M. Thomas BOYA' : 'P/O M. Thomas BOYA');
+/** Le nom de l'hébergeant, ou vide s'il n'est pas encore saisi. */
+export const hebergeantSaisi = (v: Valeurs): string => (v.hebergeant ?? '').trim();
+export const signeHebergeant = (v: Valeurs): string => {
+  const nom = lis(v, 'hebergeant');
+  return lis(v, 'hebergeantSigne') === 'Lui-même' ? nom : `P/O ${nom}`;
+};
 
 /** 05 · L'attestation d'hébergement à titre gracieux. */
 export function attestationHebergement(v: Valeurs, c: Campagne): TexteDuDocument {
@@ -416,8 +444,8 @@ export function attestationHebergement(v: Valeurs, c: Campagne): TexteDuDocument
     cle: '05', titre: 'Attestation d’hébergement à titre gracieux',
     objet: '', destinataire: '', appel: '',
     corps: [
-      `Je soussigné, M. Thomas BOYA, demeurant ${lis(v, 'thomasAdresse')}, certifie sur l’honneur héberger à titre gracieux, depuis ${lis(v, 'thomasDepuis')}, dans le logement dont je suis propriétaire, situé ${lis(v, 'logement')} :`,
-      `· ma fille, Mme Yéman BOYA épouse AHOUANSOU, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou ;\n· son époux, M. ${lis(v, 'p2Prenoms')} ${lis(v, 'p2Nom')}, né le ${dateEnLettres(lis(v, 'p2Naissance'))} ;\n· ainsi que leurs enfants : ${enfants}.`,
+      `Je soussigné(e), ${lis(v, 'hebergeant')}, demeurant ${lis(v, 'hebergeantAdresse')}, certifie sur l’honneur héberger à titre gracieux, depuis ${lis(v, 'hebergeDepuis')}, dans le logement dont je suis propriétaire, situé ${lis(v, 'logement')} :`,
+      `· Mme Yéman BOYA épouse AHOUANSOU, née le ${dateEnLettres(lis(v, 'naissanceDemandeur'))} à Cotonou ;\n· son époux, M. ${lis(v, 'p2Prenoms')} ${lis(v, 'p2Nom')}, né le ${dateEnLettres(lis(v, 'p2Naissance'))} ;\n· ainsi que leurs enfants : ${enfants}.`,
       `Ce logement est mis à leur disposition sans contrepartie de loyer ; les occupants s’acquittent des seules charges courantes, dont les quittances sont jointes au dossier. Sa valeur locative est estimée à ${vl !== null ? enChiffres(vl) : '[valeur locative par mois]'} par mois, soit ${vl !== null ? enChiffres(vl * 12) : '[valeur locative par an]'} par an, montant déclaré au titre des avantages en nature pour l’année ${c.reference}.`,
       'En foi de quoi, la présente attestation leur est délivrée pour servir et valoir ce que de droit.',
       'Pièces jointes : copie de ma pièce d’identité ; une facture d’électricité ou d’eau de moins de trois mois établie à mon nom.',
@@ -434,7 +462,7 @@ export function quittance(v: Valeurs, mois: string, n: string): TexteDuDocument 
     cle: n, titre: `Quittance des charges · ${nomDuMois(mois)}`,
     objet: '', destinataire: `M. et Mme Brice AHOUANSOU\n${sansPreposition(lis(v, 'logement'))}\nHébergés à titre gracieux`, appel: '',
     corps: [
-      `Je soussigné, M. Thomas BOYA, propriétaire du logement situé ${lis(v, 'logement')}, déclare avoir reçu de M. et Mme Brice AHOUANSOU, occupants de ce logement, la somme de ${somme} au titre des charges courantes (eau, électricité, entretien) pour la période du 1er ${nomDuMois(mois).replace(/ \d{4}$/, '')} au ${dernierJour(mois)} ${nomDuMois(mois)}.`,
+      `Je soussigné(e), ${lis(v, 'hebergeant')}, propriétaire du logement situé ${lis(v, 'logement')}, déclare avoir reçu de M. et Mme Brice AHOUANSOU, occupants de ce logement, la somme de ${somme} au titre des charges courantes (eau, électricité, entretien) pour la période du 1er ${nomDuMois(mois).replace(/ \d{4}$/, '')} au ${dernierJour(mois)} ${nomDuMois(mois)}.`,
       `Loyer : néant, hébergement à titre gracieux.\nCharges courantes : ${ch !== null ? enChiffres(ch) : '[montant]'}.\nTotal reçu : ${ch !== null ? enChiffres(ch) : '[montant]'}.`,
       'Cette quittance est délivrée sous réserve d’encaissement et ne vaut pas reçu des périodes antérieures.',
     ].join('\n\n'),
@@ -443,15 +471,15 @@ export function quittance(v: Valeurs, mois: string, n: string): TexteDuDocument 
 }
 
 /** Les six documents signés d'une campagne, avec leur date. */
-export function documentsDeLaCampagne(v: Valeurs, c: Campagne, signataireNym: string): (TexteDuDocument & { date: string; qui: 'parents' | 'nym' | 'thomas' })[] {
+export function documentsDeLaCampagne(v: Valeurs, c: Campagne, signataireNym: string): (TexteDuDocument & { date: string; qui: 'parents' | 'nym' | 'hebergeant' })[] {
   const depot = c.depot;
   const avant = (d: string) => (d < depot ? d : ajouteJours(depot, -2));
   const qs = moisDesQuittances(depot);
   return [
     { ...lettreDeDemande(v, c), date: avant(ajouteJours(depot, -3)), qui: 'parents' },
     { ...attestationEmployeur(v, c, signataireNym), date: avant(ajouteJours(depot, -3)), qui: 'nym' },
-    { ...attestationHebergement(v, c), date: avant(ajouteJours(depot, -3)), qui: 'thomas' },
-    ...qs.map((mo, i) => ({ ...quittance(v, mo, `0${6 + i}`), date: dateDeLaQuittance(mo, depot), qui: 'thomas' as const })),
+    { ...attestationHebergement(v, c), date: avant(ajouteJours(depot, -3)), qui: 'hebergeant' },
+    ...qs.map((mo, i) => ({ ...quittance(v, mo, `0${6 + i}`), date: dateDeLaQuittance(mo, depot), qui: 'hebergeant' as const })),
   ];
 }
 
@@ -464,9 +492,9 @@ export function lignesDuBordereau(c: Campagne): { n: string; piece: string; qui:
     { n: '2', piece: 'Formulaire de demande de bourses, complété et signé', qui: 'Les deux parents' },
     { n: '3', piece: 'Livret de famille (toutes les pages écrites)', qui: 'Photocopie' },
     { n: '4', piece: 'Passeports de tous les membres de la famille', qui: 'Photocopie' },
-    { n: '5a', piece: 'Attestation d’hébergement à titre gracieux', qui: 'M. Thomas BOYA' },
-    { n: '5b', piece: 'Pièce d’identité de l’hébergeant et facture récente à son nom', qui: 'M. Thomas BOYA' },
-    { n: '5c', piece: `Quittances des charges : ${qs.join(', ')}`, qui: 'M. Thomas BOYA' },
+    { n: '5a', piece: 'Attestation d’hébergement à titre gracieux', qui: 'L’hébergeant' },
+    { n: '5b', piece: 'Pièce d’identité de l’hébergeant et facture récente à son nom', qui: 'L’hébergeant' },
+    { n: '5c', piece: `Quittances des charges : ${qs.join(', ')}`, qui: 'L’hébergeant' },
     { n: '6', piece: 'Attestation de l’employeur NYM SARL', qui: 'NYM SARL' },
     { n: '7', piece: 'Justificatif d’activité du second parent', qui: 'Employeur ou comptable' },
     { n: '8', piece: 'Carte grise du ou des véhicules', qui: 'Photocopie' },
@@ -507,7 +535,7 @@ export function reponsesAuFormulaire(v: Valeurs, c: Campagne): { page: string; l
     ] },
     { page: 'Page 2 · le foyer', lignes: [
       ['Enfant handicapé à charge', 'Néant'],
-      ['Logement : propriétaire ?', 'Non · loyer : néant (hébergement à titre gracieux par le père de la demanderesse)'],
+      ['Logement : propriétaire ?', `Non · loyer : néant (hébergement à titre gracieux par ${lis(v, 'hebergeant')})`],
       ['Superficie · pièces · occupants', `${lis(v, 'superficie')} m² · ${lis(v, 'pieces')} pièces · ${lis(v, 'occupants')} personnes`],
       ['Profession · employeur, parent 1', `${lis(v, 'poste')} · NYM SARL`],
       ['Profession · employeur, parent 2', `${lis(v, 'p2Profession')} · ${lis(v, 'p2Employeur')}`],
