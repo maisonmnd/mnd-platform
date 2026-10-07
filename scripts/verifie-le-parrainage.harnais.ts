@@ -8,6 +8,7 @@ import {
   resumeDeLAmbassade, classementDuMois, chiffresDuMois, sceauxDuFoyerAPoser, type FicheAmb, type DemandeLue,
 } from '../src/shared/ambassade';
 import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, type SoinOffert } from '../src/shared/parrainage-pur';
+import { prestationsDeBienvenue, remiseDeBienvenue, motDeLaRemise, REMISE_BIENVENUE_PCT } from '../src/shared/parrainage-pur';
 import { venuesDeLAnnee } from '../src/shared/agenda';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
 
@@ -272,8 +273,10 @@ dit('0111 : garde l’insertion comme la mise à jour', true, /before insert or 
 
 /* ── La fonction : la fiche d'abord, le prénom seul ── */
 const qui = sansCommentaires.slice(sansCommentaires.indexOf('async function quiOffre'), sansCommentaires.indexOf('async function previensLaMarraine'));
-dit('Edge : « qui » ne rend que le prénom et le cadeau, jamais le numéro', true,
-  /json\(\{ ok: true, prenom: m\.prenom, cadeau: /.test(qui) && !/telephone/.test(qui.slice(qui.indexOf('json({ ok: true'))));
+/* Depuis le 7 octobre, « qui » rend aussi la remise de bienvenue (pourcentage
+   et soins couverts) : toujours rien de la marraine que son prénom. */
+dit('Edge : « qui » rend le prénom, le cadeau et la remise, jamais le numéro', true,
+  /return json\(\{\s*ok: true, prenom: m\.prenom,\s*cadeau: /.test(qui) && !/telephone/.test(qui.slice(qui.indexOf('ok: true, prenom: m.prenom'))));
 const duCode = sansCommentaires.slice(sansCommentaires.indexOf('async function marraineDuCode'), sansCommentaires.indexOf('async function verdictDuParrainage'));
 dit('Edge : la marraine se cherche parmi les fiches AVANT les demandes', true,
   duCode.indexOf("from('clients')") > -1 && duCode.indexOf("from('clients')") < duCode.indexOf("from('demandes')"));
@@ -379,6 +382,54 @@ const statutSrc = readFileSync('src/shared/accounts.ts', 'utf8');
 dit('le statut du Cercle (Ma Couronne, la fiche) compte l’année, pas le cumul', true, /const venues = venuesDeLAnnee\(appts, client\.id\);/.test(statutSrc));
 dit('… les deux écrans du Cercle aussi', [true, true],
   [/venuesDeLAnnee\(appts, c\.id\)/.test(readFileSync('src/apps/trone/routes/equipe/Cercle.tsx', 'utf8')), /estDuCercle\(venuesDeLAnnee\(rdvs, c\.id\), seuilCercle\)/.test(readFileSync('src/apps/trone/routes/equipe/Parrainages.tsx', 'utf8'))]);
+
+/* ── LA REMISE DE BIENVENUE DE L'AMIE — 7 octobre 2026 ──────────────────
+   « Le QR code de la marraine doit porter une remise de bienvenue de 20 %…
+   appliquée aux services concernés » (Yéman) : les soins d'entretien seuls,
+   la meilleure remise s'applique, la remise remplace la phrase du cadeau. */
+const famillesB = [
+  { id: 'c-ent', parentId: null }, { id: 'c-lav', parentId: 'c-ent' }, { id: 'c-crea', parentId: null },
+];
+const prestationsB = [
+  { id: 's-lav', categoryId: 'c-lav', priceXof: 10000 },
+  { id: 's-soin', categoryId: 'c-ent', priceXof: 8000, priceMode: 'fixe' },
+  { id: 's-forfait', categoryId: 'c-ent', priceXof: 50000, includes: [{ serviceId: 's-lav' }] },
+  { id: 's-devis', categoryId: 'c-ent', priceXof: 9000, priceMode: 'devis' },
+  { id: 's-masque', categoryId: 'c-ent', priceXof: 9000, hidePrice: true },
+  { id: 's-zero', categoryId: 'c-ent', priceXof: 0 },
+  { id: 's-arch', categoryId: 'c-ent', priceXof: 7000, archived: true },
+  { id: 's-crea', categoryId: 'c-crea', priceXof: 150000 },
+];
+dit('bienvenue : une famille cochée emporte ses sous-familles, prix fermes seuls, jamais un forfait', ['s-lav', 's-soin'],
+  prestationsDeBienvenue(prestationsB, famillesB, ['c-ent']));
+dit('… une sous-famille seule ne remonte pas à sa mère', ['s-lav'], prestationsDeBienvenue(prestationsB, famillesB, ['c-lav']));
+dit('… sans famille cochée, pas de remise', null, remiseDeBienvenue({}, prestationsB, famillesB));
+dit('… 20 % par défaut, sur les soins concernés', { pct: 20, serviceIds: ['s-lav', 's-soin'] },
+  remiseDeBienvenue({ remiseBienvenueFamilles: ['c-ent'] }, prestationsB, famillesB));
+dit('… le pourcentage se borne (0 = rien, 120 = 90)', [null, 90],
+  [remiseDeBienvenue({ remiseBienvenuePct: 0, remiseBienvenueFamilles: ['c-ent'] }, prestationsB, famillesB),
+    remiseDeBienvenue({ remiseBienvenuePct: 120, remiseBienvenueFamilles: ['c-ent'] }, prestationsB, famillesB)?.pct]);
+dit('… elle se dit en clair, et la valeur par défaut est 20', ['20 % sur vos soins d’entretien', 20], [motDeLaRemise({ pct: 20 }), REMISE_BIENVENUE_PCT]);
+const blocDe = (src: string) => /\/\* ⟨bienvenue⟩ \*\/\n[\s\S]*?\/\* ⟨\/bienvenue⟩ \*\//.exec(src.replace(/\r\n/g, '\n'))?.[0] ?? '';
+const blocPartage = blocDe(readFileSync('src/shared/parrainage-pur.ts', 'utf8'));
+dit('… la fonction Edge porte la MÊME règle, caractère pour caractère', [true, true],
+  [blocPartage.length > 500, blocPartage === blocDe(edge)]);
+dit('… le serveur l’écrit par ligne, comme un code d’offre, et la dit en clair', [true, true, true], [
+  /const remise = gestes \? remiseDeBienvenue\(reglage, aPlat\(gestes\.catalogue\), gestes\.familles\) : null;/.test(sansCommentaires),
+  /remisesLignes = lignes\.some\(\(l\) => l\.remisee\) \? lignes\.map\(\(l\) => \(l\.remisee \? \{ pct: remise\.pct \} : null\)\) : undefined;/.test(sansCommentaires),
+  /cadeau: motDeLaRemise\(remise\)/.test(sansCommentaires),
+]);
+dit('… avec les gestes réservés et l’arbre des familles', true,
+  /verdictDuParrainage\(duCode\.code, telephone, \{\s*serviceIds, catalogue: verdict\.catalogue, familles: verdict\.familles,\s*\}\)/.test(sansCommentaires));
+dit('… et la rend dès le lien ouvert (pourcentage et soins couverts)', true, /\.\.\.\(remise \? \{ remise \} : \{\}\),/.test(sansCommentaires));
+const pageReserver = readFileSync('src/apps/revelateur/ilots/Reserver.tsx', 'utf8');
+dit('le site barre les soins concernés avec la même règle que les offres, une seule remise à la fois', [true, true], [
+  /const offreAppliquee = offreDuMoment \?\? offreDeBienvenue;/.test(pageReserver),
+  /lignesDuCode\([\s\S]{0,200}offreAppliquee,\s*\)/.test(pageReserver),
+]);
+dit('… et la bannière le dit dès l’ouverture du lien', true, /\$\{qui\.prenom\} vous offre −\$\{qui\.remise\.pct\} % sur vos soins d’entretien\./.test(pageReserver));
+dit('le Trône coche les familles d’entretien', true,
+  /regle\(\{ remiseBienvenueFamilles: suivantes \}/.test(readFileSync('src/apps/trone/routes/equipe/Parrainages.tsx', 'utf8')));
 
 console.log(ko === 0 ? '\nTout tient.' : `\n${ko} échec(s).`);
 if (ko) process.exit(1);

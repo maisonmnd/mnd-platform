@@ -160,7 +160,11 @@ dit('la note dit la raison en clair, pour qui ne connait pas nos mots',
 dit('le navigateur ne dicte jamais un pourcentage ni une remise', false,
   /\b(?:d|body)\.(?:discountPct|remisesLignes|discountXof|pct)\b/.test(sansCommentaires));
 dit('la remise du code s ecrit par ligne sur le rendez-vous', true, /remisesLignes:\s*duCode\.remisesLignes/.test(sansCommentaires));
-dit('... et jamais en discountPct, qui porte sur tout le rendez-vous', false, /discountPct\s*:/.test(sansCommentaires));
+/* Une seule exception, nommée : l'offre de bienvenue d'une marraine, passée
+   à `lignesDuCode` pour calculer les remises DE LIGNE (7 octobre 2026). Elle
+   ne s'écrit sur rien ; tout autre `discountPct:` reste refusé. */
+dit('... et jamais en discountPct, qui porte sur tout le rendez-vous', false,
+  /discountPct\s*:/.test(sansCommentaires.replace('{ active: true, discountPct: remise.pct, serviceIds: remise.serviceIds }', '')));
 dit('le code se lit dans mnd_offers', true, sansCommentaires.includes("'mnd_offers'"));
 dit('le code se compte sur la demande et sur le rendez-vous, meme sans remise', true,
   /code:\s*duCode\.code/.test(sansCommentaires) && /codeOffre:\s*duCode\.code/.test(sansCommentaires));

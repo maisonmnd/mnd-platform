@@ -13,10 +13,10 @@ import { venuesDeLAnnee } from '../../../../shared/agenda';
 import { cercleSeuilStore, foyerSeuilStore, estDuCercle, useFoyerTiers } from '../../../../shared/offers';
 import { useStore, uid } from '../../../../shared/store';
 import { fmtMoney } from '../../../../shared/currency';
-import { useServices } from '../../../../shared/catalog';
+import { useServices, useCategories, catsDansLOrdre } from '../../../../shared/catalog';
 import { demandesStore, telephoneMasque, useDemandes } from '../../../../shared/demandes';
 import { parrainageStore, useParrainage, type DemandeParrainee, type ReglageParrainage } from '../../../../shared/parrainage';
-import { RANGS, nomDuRang, soinsEnAttente } from '../../../../shared/parrainage-pur';
+import { RANGS, nomDuRang, soinsEnAttente, REMISE_BIENVENUE_PCT, prestationsDeBienvenue, remiseDeBienvenue } from '../../../../shared/parrainage-pur';
 import {
   ECHO_PAR_DEFAUT, REMISE_MAX, REMISE_PAR_DEFAUT, chiffresDuMois, classementDuMois, lignees, moisDit, venuesDe,
 } from '../../../../shared/ambassade';
@@ -42,7 +42,7 @@ const borne = (v: string, min: number, max: number, defaut: number) => {
   return Number.isFinite(n) && n >= min ? Math.min(max, n) : defaut;
 };
 
-type IdReglage = 'cercle' | 'recompenses' | 'rangs' | 'defi' | 'foyer' | 'site';
+type IdReglage = 'cercle' | 'recompenses' | 'rangs' | 'defi' | 'foyer' | 'bienvenue' | 'site';
 
 function Reglage({ id, nom, resume, ouvert, bascule, children }: {
   id: IdReglage; nom: string; resume: string; ouvert: boolean; bascule: (id: IdReglage) => void; children: ReactNode;
@@ -81,6 +81,7 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
   const [rdvs] = useAppointments();
   const [clients] = useClients();
   const [services] = useServices();
+  const [categories] = useCategories();
   const [reglage] = useParrainage();
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const [ouvert, setOuvert] = useState<IdReglage | null>(null);
@@ -119,6 +120,28 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
   const remise = reglage.remisePct ?? REMISE_PAR_DEFAUT;
   const echo = reglage.echoPct ?? ECHO_PAR_DEFAUT;
   const validite = reglage.validiteMois ?? 6;
+  /* LA REMISE DE BIENVENUE DE L'AMIE — 7 octobre 2026. Les familles
+     d'entretien se cochent ici ; le site et le serveur lisent la même règle
+     (`remiseDeBienvenue`). */
+  const famillesBienvenue = reglage.remiseBienvenueFamilles ?? [];
+  const pctBienvenue = reglage.remiseBienvenuePct ?? REMISE_BIENVENUE_PCT;
+  const arbre = useMemo(() => catsDansLOrdre(categories).filter((c) => !(c as { archived?: boolean }).archived), [categories]);
+  const profondeur = (id: string): number => {
+    let n = 0;
+    let c = categories.find((x) => x.id === id);
+    while (c?.parentId && n < 6) { n += 1; c = categories.find((x) => x.id === c!.parentId); }
+    return n;
+  };
+  const familles2 = useMemo(() => categories.map((c) => ({ id: c.id, parentId: c.parentId })), [categories]);
+  const soinsBienvenue = useMemo(
+    () => prestationsDeBienvenue(services as never[], familles2, famillesBienvenue),
+    [services, familles2, famillesBienvenue],
+  );
+  const remiseActive = !!remiseDeBienvenue(reglage, services as never[], familles2);
+  const basculeFamille = (id: string) => {
+    const suivantes = famillesBienvenue.includes(id) ? famillesBienvenue.filter((x) => x !== id) : [...famillesBienvenue, id];
+    regle({ remiseBienvenueFamilles: suivantes }, 'Enregistré.');
+  };
 
   const regle = (patch: Partial<ReglageParrainage>, dit = 'Enregistré.') => {
     parrainageStore.set((r) => ({ ...r, ...patch }));
@@ -155,6 +178,9 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
       : 'Aucun bonus choisi : les rangs se gagnent, sans cadeau en plus',
     defi: defi.actif ? `En cours · ${defi.objectif} amies ce mois · ${nomDuSoin(defi.serviceId) ?? 'soin à choisir'}` : 'Arrêté',
     site: `${reglage.actif ? 'Parrainage ouvert' : 'Parrainage en pause'} · remerciement WhatsApp ${reglage.merciParWhatsApp ? 'allumé' : 'éteint'}`,
+    bienvenue: remiseActive
+      ? `−${pctBienvenue} % · ${famillesBienvenue.length} famille${famillesBienvenue.length > 1 ? 's' : ''} d’entretien · ${soinsBienvenue.length} soin${soinsBienvenue.length > 1 ? 's' : ''}`
+      : 'Aucune famille cochée : pas de remise, la phrase du cadeau reste',
   };
 
   return (
@@ -310,12 +336,40 @@ export default function Parrainages({ dansLeCercle = false }: { dansLeCercle?: b
               </div>
             </Reglage>
 
+            <Reglage id="bienvenue" nom="La remise de bienvenue de l’amie" resume={resumes.bienvenue} ouvert={ouvert === 'bienvenue'} bascule={bascule}>
+              <p className="amb-muet">
+                L’amie qui ouvre le lien ou scanne la carte voit cette remise sur la page de réservation, prestation par prestation.
+                Elle vaut à sa première visite, une seule fois, et ne se cumule pas : la meilleure remise s’applique.
+                Elle remplace la phrase du cadeau de l’amie.
+              </p>
+              <Champ label="La remise" aide="En pour cent, 90 au plus">
+                <span className="amb-suffixe">
+                  <input key={`bv-${pctBienvenue}`} className="mnd-input" type="number" min={1} max={90} defaultValue={pctBienvenue} aria-label="La remise de bienvenue, en pour cent"
+                    onBlur={(e) => { const n = borne(e.target.value, 1, 90, pctBienvenue); if (n !== pctBienvenue) regle({ remiseBienvenuePct: n }); e.target.value = String(n); }} />
+                  <span>%</span>
+                </span>
+              </Champ>
+              <Champ large label="Les familles d’entretien" aide={`Une famille cochée emporte ses sous-familles. Jamais un forfait ni un devis. ${soinsBienvenue.length} soin${soinsBienvenue.length > 1 ? 's' : ''} concerné${soinsBienvenue.length > 1 ? 's' : ''}.`}>
+                <span className="amb-familles">
+                  {arbre.map((c) => (
+                    <label key={c.id} className="amb-famille" style={{ paddingLeft: profondeur(c.id) * 18 }}>
+                      <input type="checkbox" checked={famillesBienvenue.includes(c.id)} onChange={() => basculeFamille(c.id)} />
+                      <span>{c.fon}{c.label ? ` · ${c.label}` : ''}</span>
+                    </label>
+                  ))}
+                </span>
+              </Champ>
+              {soinsBienvenue.length > 0 && (
+                <p className="amb-muet">Concernés : {soinsBienvenue.map((id) => nomDuSoin(id) ?? id).join(' · ')}</p>
+              )}
+            </Reglage>
+
             <Reglage id="site" nom="Le site et les messages" resume={resumes.site} ouvert={ouvert === 'site'} bascule={bascule}>
               <div className="amb-actions">
                 <Toggle on={reglage.actif} label={reglage.actif ? 'Parrainage ouvert' : 'Parrainage en pause'}
                   onToggle={() => regle({ actif: !reglage.actif }, reglage.actif ? 'Parrainage en pause : le site ne donne plus de code.' : 'Parrainage ouvert.')} />
               </div>
-              <Champ large label="Le cadeau de bienvenue de l’amie" aide="Dit tel quel sur le site">
+              <Champ large label="Le cadeau de bienvenue de l’amie" aide={remiseActive ? 'Remplacé par la remise de bienvenue tant qu’elle est réglée' : 'Dit tel quel sur le site'}>
                 <input className="mnd-input" type="text" value={filleule} placeholder="un soin DÀNDÀN™ offert" onChange={(e) => setFilleule(e.target.value)} />
               </Champ>
               <Champ large label="Ce que gagne l’ambassadrice" aide="Dit tel quel sur le site">

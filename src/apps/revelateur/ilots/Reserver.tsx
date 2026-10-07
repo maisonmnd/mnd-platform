@@ -11,7 +11,7 @@ import { porteDuBesoin, type Besoin } from '../../../shared/qualification';
 import { fmtMoney } from '../../../shared/currency';
 import type { CreneauOccupe } from '../../../shared/agenda-pur';
 import {
-  ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee,
+  ceQueLeCodeRetire, codeNormalise, lignesDuCode, offreDuCode, offreDuCodePassee, type OffreCodee,
 } from '../../../shared/offres-pur';
 import Demande from './Demande';
 import { lienLu } from '../../../shared/lien-reservation';
@@ -144,6 +144,38 @@ const quandDit = (iso: string): string => {
   const d = new Date(`${iso}T00:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 };
+
+/* ══ L'INVITATION D'UNE MARRAINE, LUE UNE FOIS — 7 octobre 2026 ══════════
+   Le serveur rend le prénom de la marraine, la phrase du cadeau, et
+   désormais la REMISE DE BIENVENUE (pourcentage et prestations couvertes) :
+   la page barre les prix des soins d'entretien dès le lien ouvert. Le
+   serveur la revérifie à l'envoi (première visite, une seule fois). */
+type Invitation = { prenom: string; cadeau: string; remise?: { pct: number; serviceIds: string[] } };
+function useInvitation(code: string): Invitation | null {
+  const [qui, setQui] = useState<Invitation | null>(null);
+  useEffect(() => {
+    setQui(null);
+    if (!code || !FORME_DU_CODE.test(code)) return;
+    let vivant = true;
+    void (async () => {
+      try {
+        const supabase = await client();
+        if (!supabase) return;
+        const { data } = await supabase.functions.invoke('demande-submit', { body: { parrainage: 'qui', code } });
+        const r = (data ?? {}) as { ok?: boolean; prenom?: string; cadeau?: string; remise?: { pct?: unknown; serviceIds?: unknown } };
+        if (!vivant || !r.ok || !r.prenom) return;
+        const pct = Number(r.remise?.pct);
+        const ids = Array.isArray(r.remise?.serviceIds) ? (r.remise!.serviceIds as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+        setQui({
+          prenom: r.prenom, cadeau: r.cadeau ?? '',
+          ...(pct > 0 && pct <= 90 && ids.length > 0 ? { remise: { pct: Math.round(pct), serviceIds: ids } } : {}),
+        });
+      } catch { /* sans invitation, la réservation reste entière */ }
+    })();
+    return () => { vivant = false; };
+  }, [code]);
+  return qui;
+}
 
 /** LE CODE POSÉ PAR LE BOUTON DE L'OFFRE — 24 septembre 2026.
     « Du coup le code se remplit automatiquement lors de la réservation avec
@@ -354,12 +386,20 @@ function Calendrier({ besoin: besoinInitial }: Props) {
     () => (offreDuMoment ? null : offreDuCodePassee(offres, code)),
     [offres, code, offreDuMoment],
   );
+  /* LA REMISE DE BIENVENUE D'UNE MARRAINE se calcule exactement comme celle
+     d'une offre : mêmes lignes, même barre sur le prix (7 octobre 2026). */
+  const invitation = useInvitation(offreDuMoment ? '' : code);
+  const offreDeBienvenue = useMemo<OffreCodee | null>(
+    () => (invitation?.remise ? { active: true, discountPct: invitation.remise.pct, serviceIds: invitation.remise.serviceIds } : null),
+    [invitation],
+  );
+  const offreAppliquee = offreDuMoment ?? offreDeBienvenue;
   const lignes = useMemo(
     () => lignesDuCode(
       choisies.map((s) => ({ id: s.id, prixXof: prixFerme(s, ctx), ferme: prixFerme(s, ctx) > 0 })),
-      offreDuMoment,
+      offreAppliquee,
     ),
-    [choisies, offreDuMoment],
+    [choisies, offreAppliquee],
   );
   const compte = useMemo(() => ceQueLeCodeRetire(lignes), [lignes]);
   const netDe = (id: string): number => lignes.find((l) => l.id === id)?.net ?? 0;
@@ -539,7 +579,9 @@ function Calendrier({ besoin: besoinInitial }: Props) {
           <p className="code-offre__dit" style={{ marginTop: 14 }}>
             {/* LE PARRAINAGE — 28 septembre 2026 : quatre issues, chacune
                 sans reproche ; la place, elle, est toujours demandée. */}
-            {recu.codeRaison === 'parrainage'
+            {recu.codeRaison === 'parrainage' && recu.codeApplique
+              ? `Bienvenue ! ${recu.marraine ? `${recu.marraine} vous offre la Maison` : 'Vous venez parrainée'} : votre remise de bienvenue${recu.cadeau ? `, ${recu.cadeau},` : ''} est portée sur votre rendez-vous.`
+              : recu.codeRaison === 'parrainage'
               ? `Bienvenue ! ${recu.marraine ? `${recu.marraine} vous offre la Maison` : 'Vous venez parrainée'} : ${recu.cadeau ? `votre cadeau de bienvenue, ${recu.cadeau},` : 'votre cadeau de bienvenue'} vous attend à votre première visite.`
               : recu.codeRaison === 'parrainage-soi-meme'
                 ? `${recu.code} est votre propre code de marraine : il se partage avec une amie. Votre place est demandée, au prix de la carte.`
@@ -716,7 +758,21 @@ function Calendrier({ besoin: besoinInitial }: Props) {
                   : 'Ce code ne court plus.'}
               </p>
             )}
-            {!offreDuMoment && !offrePassee && code && FORME_DU_CODE.test(code) && (
+            {!offreDuMoment && !offrePassee && offreDeBienvenue && invitation && (
+              compte.retire > 0 ? (
+                <>
+                  <p className="code-offre__dit est-bonne">
+                    Bienvenue de la part de {invitation.prenom} · −{offreDeBienvenue.discountPct} % · {fmtMoney(compte.retire, devise)} de moins sur {compte.combien} {compte.combien > 1 ? 'soins' : 'soin'}.
+                  </p>
+                  <p className="code-offre__dit">Sur les soins d’entretien, à votre première visite. Une seule remise à la fois : la meilleure s’applique.</p>
+                </>
+              ) : (
+                <p className="code-offre__dit est-bonne">
+                  Bienvenue de la part de {invitation.prenom} · −{offreDeBienvenue.discountPct} % sur les soins d’entretien. Aucun des gestes cochés n’en est encore.
+                </p>
+              )
+            )}
+            {!offreDuMoment && !offrePassee && !offreDeBienvenue && code && FORME_DU_CODE.test(code) && (
               <p className="code-offre__dit est-bonne">Code de parrainage. Votre cadeau de bienvenue se confirme à l’envoi, s’il s’agit de votre première visite.</p>
             )}
             {!offreDuMoment && !offrePassee && code && !FORME_DU_CODE.test(code) && (
@@ -1036,32 +1092,22 @@ function Calendrier({ besoin: besoinInitial }: Props) {
 /* L'INVITATION — 28 septembre 2026 (carte de marraine validée). L'amie qui
    a scanné une carte arrive ici avec le code posé ; la fonction rend le
    PRÉNOM de la marraine (rien d'autre), et la page l'accueille par lui. */
-function Invitation() {
-  const [qui, setQui] = useState<{ prenom: string; cadeau: string } | null>(null);
-  useEffect(() => {
-    const c = codeDeLAdresse();
-    if (!c || !FORME_DU_CODE.test(c)) return;
-    let vivant = true;
-    void (async () => {
-      try {
-        const supabase = await client();
-        if (!supabase) return;
-        const { data } = await supabase.functions.invoke('demande-submit', { body: { parrainage: 'qui', code: c } });
-        const r = (data ?? {}) as { ok?: boolean; prenom?: string; cadeau?: string };
-        if (vivant && r.ok && r.prenom) setQui({ prenom: r.prenom, cadeau: r.cadeau ?? '' });
-      } catch { /* sans invitation, la réservation reste entière */ }
-    })();
-    return () => { vivant = false; };
-  }, []);
+function BanniereDInvitation() {
+  const [c] = useState(codeDeLAdresse);
+  const qui = useInvitation(c);
   if (!qui) return null;
   return (
     <div className="invitation sombre" role="note">
       <p className="sur">Une invitation</p>
-      <p className="invitation__titre">{qui.prenom} vous offre la Maison.</p>
+      <p className="invitation__titre">
+        {qui.remise ? `${qui.prenom} vous offre −${qui.remise.pct} % sur vos soins d’entretien.` : `${qui.prenom} vous offre la Maison.`}
+      </p>
       <p className="invitation__ligne">
-        {qui.cadeau
-          ? `Votre cadeau de bienvenue vous attend à votre première visite : ${qui.cadeau}.`
-          : 'Votre cadeau de bienvenue vous attend à votre première visite.'}
+        {qui.remise
+          ? 'À votre première visite : la remise se voit sur chaque soin concerné, au moment de choisir.'
+          : qui.cadeau
+            ? `Votre cadeau de bienvenue vous attend à votre première visite : ${qui.cadeau}.`
+            : 'Votre cadeau de bienvenue vous attend à votre première visite.'}
         {' '}Son code est déjà posé.
       </p>
     </div>
@@ -1081,7 +1127,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
   const [besoin, setBesoin] = useState<Besoin | ''>(
     (besoinInitial && besoinInitial !== 'inconnu' ? besoinInitial : '') || besoinDeLAdresse() || besoinDeLaMemoire() || besoinInitial || '',
   );
-  if (besoin && besoin !== 'inconnu') return <><Invitation /><Calendrier besoin={besoin} /></>;
+  if (besoin && besoin !== 'inconnu') return <><BanniereDInvitation /><Calendrier besoin={besoin} /></>;
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const choisit = (b: Besoin) => {
     mesure('parcours_choisi', { parcours: b });
@@ -1090,7 +1136,7 @@ export default function Reserver({ besoin: besoinInitial }: Props) {
   };
   return (
     <>
-    <Invitation />
+    <BanniereDInvitation />
     <div className="porte-rdv" role="group" aria-labelledby="porte-rdv-titre">
       <p className="sur">Prendre rendez-vous</p>
       <h3 id="porte-rdv-titre">Vous avez déjà des locks ?</h3>

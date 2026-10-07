@@ -342,7 +342,7 @@ async function laPlaceTient(o: {
   const chevauche = [...occupe, ...murs].some(([s, e]) => debut < e && debut + dureeMin > s);
   if (chevauche) return { erreur: 'creneau_pris' };
 
-  return { dureeMin, master, catalogue, offres };
+  return { dureeMin, master, catalogue, offres, familles: arbre };
 }
 
 /* ══ LE CODE DE L'OFFRE, RECOPIÉ DE `src/shared/offres-pur.ts` ══════
@@ -500,7 +500,59 @@ function codeDeMarraine(prenom: string): string {
   return `${racineDuCode(prenom)}-${[...octets].map((o) => SIGNES_DU_CODE[o % SIGNES_DU_CODE.length]).join('')}`;
 }
 
-type ReglageParrainage = { actif?: boolean; cadeauFilleule?: string; cadeauMarraine?: string };
+type ReglageParrainage = {
+  actif?: boolean; cadeauFilleule?: string; cadeauMarraine?: string;
+  remiseBienvenuePct?: number; remiseBienvenueFamilles?: string[];
+};
+
+/* LA REMISE DE BIENVENUE DE L'AMIE — 7 octobre 2026. Recopiée TELLE QUELLE
+   de `src/shared/parrainage-pur.ts` ; `verifie-le-parrainage` confronte les
+   deux copies. La remise remplace la phrase du cadeau (choix de Yéman). */
+/* ⟨bienvenue⟩ */
+type FamilleDeBienvenue = { id: string; parentId?: string | null };
+type PrestationDeBienvenue = {
+  id: string; categoryId?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean;
+  enabled?: boolean; archived?: boolean; includes?: unknown[];
+};
+const REMISE_BIENVENUE_PCT = 20;
+function prestationsDeBienvenue(
+  prestations: readonly PrestationDeBienvenue[],
+  familles: readonly FamilleDeBienvenue[],
+  cochees: readonly string[],
+): string[] {
+  const coche = new Set(cochees);
+  const dansUneFamilleCochee = (catId?: string): boolean => {
+    let id: string | null | undefined = catId;
+    for (let i = 0; id && i < 8; i++) {
+      if (coche.has(id)) return true;
+      const courant: string = id;
+      id = familles.find((f) => f.id === courant)?.parentId;
+    }
+    return false;
+  };
+  return prestations
+    .filter((s) => s.enabled !== false && !s.archived && !(Array.isArray(s.includes) && s.includes.length > 0))
+    .filter((s) => !s.hidePrice && (s.priceMode ?? 'fixe') !== 'devis' && Number(s.priceXof ?? 0) > 0)
+    .filter((s) => dansUneFamilleCochee(s.categoryId))
+    .map((s) => s.id);
+}
+function remiseDeBienvenue(
+  reglage: { remiseBienvenuePct?: number; remiseBienvenueFamilles?: string[] },
+  prestations: readonly PrestationDeBienvenue[],
+  familles: readonly FamilleDeBienvenue[],
+): { pct: number; serviceIds: string[] } | null {
+  const pct = Math.max(0, Math.min(90, Math.round(reglage.remiseBienvenuePct ?? REMISE_BIENVENUE_PCT)));
+  const cochees = reglage.remiseBienvenueFamilles ?? [];
+  if (pct <= 0 || cochees.length === 0) return null;
+  const serviceIds = prestationsDeBienvenue(prestations, familles, cochees);
+  return serviceIds.length > 0 ? { pct, serviceIds } : null;
+}
+const motDeLaRemise = (r: { pct: number }): string => `${r.pct} % sur vos soins d’entretien`;
+/* ⟨/bienvenue⟩ */
+
+/** Le catalogue tel que la règle le lit : la fiche à plat, l'arbre des familles. */
+const aPlat = (catalogue: ServiceEnBase[]): PrestationDeBienvenue[] =>
+  catalogue.map((x) => ({ id: x.id, ...(x.data ?? {}) } as PrestationDeBienvenue));
 async function reglageDuParrainage(): Promise<ReglageParrainage> {
   const { data } = await admin.from('documents').select('data').eq('key', 'mnd_parrainage').maybeSingle();
   return ((data as { data?: ReglageParrainage } | null)?.data) ?? { actif: true };
@@ -557,7 +609,10 @@ async function marraineDuCode(code: string): Promise<{ id: string; prenom: strin
 
 /** LE CODE D'UNE MARRAINE, lu à la réservation quand aucune offre ne le
     reconnaît. Rend `null` si ce n'est pas un code de marraine. */
-async function verdictDuParrainage(code: string, telephone: string): Promise<VerdictDuCode | null> {
+async function verdictDuParrainage(
+  code: string, telephone: string,
+  gestes?: { serviceIds: string[]; catalogue: ServiceEnBase[]; familles: FamilleDeBienvenue[] },
+): Promise<VerdictDuCode | null> {
   if (!FORME_DU_CODE.test(code)) return null;
   const marraine = await marraineDuCode(code);
   if (!marraine) return null;
@@ -572,6 +627,14 @@ async function verdictDuParrainage(code: string, telephone: string): Promise<Ver
     .eq('data->>telephone', telephone).eq('data->>codeRaison', 'parrainage').limit(1);
   if ((deja ?? []).length > 0) return { ...base, raison: 'parrainage-deja-utilise' };
   if (await dejaCliente(telephone)) return { ...base, raison: 'parrainage-deja-cliente' };
+  /* LA REMISE DE BIENVENUE s'écrit par ligne, comme celle d'un code d'offre :
+     la caisse la retranche, la facture la nomme. */
+  const remise = gestes ? remiseDeBienvenue(reglage, aPlat(gestes.catalogue), gestes.familles) : null;
+  if (remise && gestes) {
+    const lignes = lignesDuCode(gestes.serviceIds.map((id) => ligneAPrix(id, gestes.catalogue)), { active: true, discountPct: remise.pct, serviceIds: remise.serviceIds });
+    const remisesLignes = lignes.some((l) => l.remisee) ? lignes.map((l) => (l.remisee ? { pct: remise.pct } : null)) : undefined;
+    return { ...base, raison: 'parrainage', cadeau: motDeLaRemise(remise), ...(remisesLignes ? { remisesLignes } : {}) };
+  }
   return { ...base, raison: 'parrainage', cadeau: texte(reglage.cadeauFilleule, 160) };
 }
 
@@ -624,7 +687,22 @@ async function quiOffre(body: Record<string, unknown>): Promise<Response> {
   const reglage = await reglageDuParrainage();
   if (reglage.actif === false) return json({ ok: false });
   const m = await marraineDuCode(code);
-  return m?.prenom ? json({ ok: true, prenom: m.prenom, cadeau: texte(reglage.cadeauFilleule, 160) }) : json({ ok: false });
+  if (!m?.prenom) return json({ ok: false });
+  /* LA REMISE SE VOIT DÈS LE LIEN OUVERT (7 octobre 2026) : le pourcentage
+     et les prestations qu'il couvre, pour que la page barre les prix ligne
+     par ligne avant même qu'elle réserve. */
+  const [services, categories] = await Promise.all([
+    admin.from('catalog_services').select('id, data'),
+    admin.from('catalog_categories').select('id, data'),
+  ]);
+  const familles = ((categories.data ?? []) as { id: string; data?: { parentId?: string } }[])
+    .map((c) => ({ id: c.id, parentId: c.data?.parentId }));
+  const remise = remiseDeBienvenue(reglage, aPlat((services.data ?? []) as ServiceEnBase[]), familles);
+  return json({
+    ok: true, prenom: m.prenom,
+    cadeau: remise ? motDeLaRemise(remise) : texte(reglage.cadeauFilleule, 160),
+    ...(remise ? { remise } : {}),
+  });
 }
 
 /** LA MARRAINE EST PRÉVENUE quand une amie réserve avec son code. Seulement
@@ -943,7 +1021,9 @@ Deno.serve(async (req) => {
     }
     /* Aucune offre ne le connaît : est-ce le code d'une marraine ? */
     if (duCode.raison === 'inconnu') {
-      duCode = (await verdictDuParrainage(duCode.code, telephone).catch(() => null)) ?? duCode;
+      duCode = (await verdictDuParrainage(duCode.code, telephone, {
+        serviceIds, catalogue: verdict.catalogue, familles: verdict.familles,
+      }).catch(() => null)) ?? duCode;
     }
   }
 

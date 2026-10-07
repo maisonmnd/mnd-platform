@@ -35,6 +35,67 @@ export const lienDuParrainage = (site: string, code: string): string =>
 export const lienCourtDuParrainage = (site: string, code: string): string =>
   `${site.replace(/\/?$/, '/')}m/?${encodeURIComponent(code)}`;
 
+/* ── LA REMISE DE BIENVENUE DE L'AMIE — 7 octobre 2026 ─────────────────
+   « Le QR code de la marraine doit porter une remise de bienvenue de 20 %.
+   Quand le client ouvre le lien court il faut voir une remise de 20 % qui
+   sera appliquée aux services concernés » (Yéman). Au sélecteur : les soins
+   d'entretien seuls ; la meilleure remise s'applique, une seule à la fois ;
+   la remise REMPLACE la phrase du cadeau de l'amie.
+
+   LES SOINS D'ENTRETIEN SE COCHENT, ILS NE SE DEVINENT PAS. Le catalogue ne
+   les marque pas, et deviner au nom a déjà facturé un forfait dix fois trop
+   cher (pricing, août). La Maison coche ses familles d'entretien au Trône
+   (Le Cercle › Ambassadrices) ; une famille cochée emporte ses sous-familles.
+   Seules les prestations à PRIX FERME en sont : jamais un forfait, jamais un
+   devis, jamais un prix masqué.
+
+   CE BLOC EST RECOPIÉ TEL QUEL dans la fonction `demande-submit` (une
+   fonction Edge ne lit rien du dépôt) ; `verifie-le-parrainage` confronte
+   les deux copies, caractère pour caractère. */
+/* ⟨bienvenue⟩ */
+type FamilleDeBienvenue = { id: string; parentId?: string | null };
+type PrestationDeBienvenue = {
+  id: string; categoryId?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean;
+  enabled?: boolean; archived?: boolean; includes?: unknown[];
+};
+const REMISE_BIENVENUE_PCT = 20;
+function prestationsDeBienvenue(
+  prestations: readonly PrestationDeBienvenue[],
+  familles: readonly FamilleDeBienvenue[],
+  cochees: readonly string[],
+): string[] {
+  const coche = new Set(cochees);
+  const dansUneFamilleCochee = (catId?: string): boolean => {
+    let id: string | null | undefined = catId;
+    for (let i = 0; id && i < 8; i++) {
+      if (coche.has(id)) return true;
+      const courant: string = id;
+      id = familles.find((f) => f.id === courant)?.parentId;
+    }
+    return false;
+  };
+  return prestations
+    .filter((s) => s.enabled !== false && !s.archived && !(Array.isArray(s.includes) && s.includes.length > 0))
+    .filter((s) => !s.hidePrice && (s.priceMode ?? 'fixe') !== 'devis' && Number(s.priceXof ?? 0) > 0)
+    .filter((s) => dansUneFamilleCochee(s.categoryId))
+    .map((s) => s.id);
+}
+function remiseDeBienvenue(
+  reglage: { remiseBienvenuePct?: number; remiseBienvenueFamilles?: string[] },
+  prestations: readonly PrestationDeBienvenue[],
+  familles: readonly FamilleDeBienvenue[],
+): { pct: number; serviceIds: string[] } | null {
+  const pct = Math.max(0, Math.min(90, Math.round(reglage.remiseBienvenuePct ?? REMISE_BIENVENUE_PCT)));
+  const cochees = reglage.remiseBienvenueFamilles ?? [];
+  if (pct <= 0 || cochees.length === 0) return null;
+  const serviceIds = prestationsDeBienvenue(prestations, familles, cochees);
+  return serviceIds.length > 0 ? { pct, serviceIds } : null;
+}
+const motDeLaRemise = (r: { pct: number }): string => `${r.pct} % sur vos soins d’entretien`;
+/* ⟨/bienvenue⟩ */
+export { REMISE_BIENVENUE_PCT, prestationsDeBienvenue, remiseDeBienvenue, motDeLaRemise };
+export type { FamilleDeBienvenue, PrestationDeBienvenue };
+
 /* ── LA CARTE DE MARRAINE DE CHAQUE CLIENTE — 28 septembre 2026 ─────────
    Maquette « La carte de marraine MND » validée. Chaque cliente de la
    Maison a son code, sa carte et ses soins offerts ; ces trois champs vivent

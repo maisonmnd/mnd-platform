@@ -45,6 +45,12 @@ export type ReglageParrainage = {
   defi?: { actif: boolean; objectif: number; serviceId?: string };
   /** Le classement du mois se montre dans Ma Couronne (au prénom seul). */
   classementVisible?: boolean;
+  /** LA REMISE DE BIENVENUE DE L'AMIE (7 octobre 2026) : son pourcentage
+      (20 par défaut) et les familles d'entretien qu'elle couvre. Sans
+      famille cochée, pas de remise : la phrase du cadeau reprend sa place.
+      Voir `remiseDeBienvenue` (parrainage-pur). */
+  remiseBienvenuePct?: number;
+  remiseBienvenueFamilles?: string[];
 };
 
 export const REGLAGE_PARRAINAGE_DEFAUT: ReglageParrainage = {
