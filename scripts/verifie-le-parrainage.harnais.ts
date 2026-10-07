@@ -7,7 +7,7 @@ import {
   lignees, venuesDe, recompensesAPoser, choixReportes, rattachementsDuSite, pourquoiPasDeMarraine,
   resumeDeLAmbassade, classementDuMois, chiffresDuMois, sceauxDuFoyerAPoser, type FicheAmb, type DemandeLue,
 } from '../src/shared/ambassade';
-import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, type SoinOffert } from '../src/shared/parrainage-pur';
+import { soinsEnAttente, genreEffectif, rangDe, rangSuivant, RANGS, type SoinOffert } from '../src/shared/parrainage-pur';
 import { prestationsDeBienvenue, remiseDeBienvenue, motDeLaRemise, REMISE_BIENVENUE_PCT } from '../src/shared/parrainage-pur';
 import { venuesDeLAnnee } from '../src/shared/agenda';
 import { INGREDIENTS, AVANT_APRES, COMMUNAUTE } from '../src/apps/revelateur/communaute';
@@ -225,7 +225,8 @@ dit('le genre réel suit son choix', ['a-choisir', 'soin'], [genreEffectif(aChoi
 dit('une récompense expirée n’est plus à utiliser', 0, soinsEnAttente([{ ...aChoisir, expireLe: '2026-10-19' }], '2026-10-20').length);
 
 /* ── Les rangs ── */
-dit('les rangs : 0 Graine, 1 Pousse, 3 Tresse, 5 Couronne, 10 Reine', ['graine', 'pousse', 'pousse', 'tresse', 'couronne', 'reine'], [0, 1, 2, 3, 5, 10].map((n) => rangDe(n).id));
+dit('les noms des rangs : Graine, Pousse, Racine, Couronne, Reine de la Maison', ['Graine', 'Pousse', 'Racine', 'Couronne', 'Reine de la Maison'], RANGS.map((r) => r.nom));
+dit('les rangs : 0 Graine, 1 Pousse, 3 Racine (id tresse, gardé), 5 Couronne, 10 Reine', ['graine', 'pousse', 'pousse', 'tresse', 'couronne', 'reine'], [0, 1, 2, 3, 5, 10].map((n) => rangDe(n).id));
 dit('… et le suivant', ['pousse', 'couronne', undefined], [0, 3, 10].map((n) => rangSuivant(n)?.id));
 
 /* ── Les deux chemins se rejoignent ── */

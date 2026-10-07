@@ -119,7 +119,10 @@ export type RangId = 'graine' | 'pousse' | 'tresse' | 'couronne' | 'reine';
 export const RANGS: readonly { id: RangId; nom: string; seuil: number }[] = [
   { id: 'graine', nom: 'Graine', seuil: 0 },
   { id: 'pousse', nom: 'Pousse', seuil: 1 },
-  { id: 'tresse', nom: 'Tresse', seuil: 3 },
+  /* « Racine » depuis le 7 octobre 2026 (Yéman : « Tresse ??? », la Maison
+     est celle des locks). L'id `tresse` reste : il vit sur les fiches et dans
+     les bonus de rang. */
+  { id: 'tresse', nom: 'Racine', seuil: 3 },
   { id: 'couronne', nom: 'Couronne', seuil: 5 },
   { id: 'reine', nom: 'Reine de la Maison', seuil: 10 },
 ];

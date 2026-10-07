@@ -220,7 +220,7 @@ export const EN_FORMULE: Record<string, string> = {
   // Les rangs (shared/parrainage-pur, RANGS et nomDuRang).
   'Graine': 'Seed',
   'Pousse': 'Sprout',
-  'Tresse': 'Braid',
+  'Racine': 'Root',
   'Couronne': 'Crown',
   'Reine de la Maison': 'Queen of the Maison',
 

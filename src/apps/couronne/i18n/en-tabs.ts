@@ -109,7 +109,7 @@ export const EN_TABS: Record<string, string> = {
   // Les rangs d'ambassadrice (shared/parrainage-pur.ts, RANGS[].nom).
   'Graine': 'Seed',
   'Pousse': 'Sprout',
-  'Tresse': 'Braid',
+  'Racine': 'Root',
   'Couronne': 'Crown',
   'Reine de la Maison': 'Queen of the Maison',
 
