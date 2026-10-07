@@ -27,7 +27,8 @@ export default function Parrainer() {
   const [cadeaux, setCadeaux] = useState<Cadeaux>({});
   const [copie, setCopie] = useState(false);
 
-  const lien = code ? `${location.origin}${base('/reserver/')}?code=${encodeURIComponent(code)}` : '';
+  /* Le lien COURT, comme sur la carte (7 octobre 2026) : /m/?CODE. */
+  const lien = code ? `${location.origin}${base('/m/')}?${encodeURIComponent(code)}` : '';
   const message = [
     `Je t’offre la Maison MND : réserve avec mon code ${code}${cadeaux.filleule ? `, tu as ${cadeaux.filleule} à ta première visite` : ', tu as un cadeau de bienvenue à ta première visite'}.`,
     lien,

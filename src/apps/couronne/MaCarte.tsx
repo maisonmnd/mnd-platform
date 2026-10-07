@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { CarteDeMarraine } from '../../ds/CarteDeMarraine';
-import { carteDeMarraineEnBlob, messageDeLaCarte, type DonneesDeCarte } from '../../ds/carte-marraine';
+import { carteDeMarraineEnBlob, lienDeLaCarte, lienDeLaCarteEcrit, messageDeLaCarte, type DonneesDeCarte } from '../../ds/carte-marraine';
 import {
   genreEffectif, nomDuRang, prenomDuNom, rangDe, rangSuivant, soinsEnAttente, RANGS,
   type ChoixDeRecompense, type SoinOffert,
@@ -226,6 +226,12 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
     if (!donnees) return;
     try { await navigator.clipboard.writeText(donnees.code); toast(t('Code {code} copié.', { code: donnees.code })); } catch { toast(donnees.code); }
   };
+  /* LE LIEN COURT À COLLER OÙ ELLE VEUT — 7 octobre 2026 (Instagram, un
+     statut, un SMS) : `maisonmnd.com/m/?CODE`. */
+  const copieLeLien = async () => {
+    if (!donnees) return;
+    try { await navigator.clipboard.writeText(lienDeLaCarte(donnees.code)); toast(t('Lien copié : {lien}', { lien: lienDeLaCarteEcrit(donnees.code) })); } catch { toast(lienDeLaCarteEcrit(donnees.code)); }
+  };
 
   const bouton: CSSProperties = {
     minHeight: 48, borderRadius: 999, border: '1px solid var(--mc-bord-bouton)', background: 'transparent',
@@ -341,6 +347,8 @@ export function MonAmbassade({ toast }: { toast: (m: string) => void }) {
                 <button type="button" style={bouton} onClick={() => void enregistre()}>{t('Enregistrer l’image')}</button>
                 <button type="button" style={bouton} onClick={() => void copie()}>{t('Copier le code')}</button>
               </div>
+              <button type="button" style={bouton} onClick={() => void copieLeLien()}>{t('Copier mon lien')}</button>
+              <span style={{ fontSize: 12.5, color: DOUX, textAlign: 'center', userSelect: 'all' }}>{lienDeLaCarteEcrit(donnees.code)}</span>
             </div>
 
             {/* LES RANGS ET LES RÈGLES */}

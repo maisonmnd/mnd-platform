@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
-  FORME_DU_CODE, SIGNES_DU_CODE, codeDeMarraine, racineDuCode, lienDuParrainage,
+  FORME_DU_CODE, SIGNES_DU_CODE, codeDeMarraine, racineDuCode, lienDuParrainage, lienCourtDuParrainage,
 } from '../src/shared/parrainage-pur';
 import { codesAAttribuer, soinUtilise, type DemandeParrainee, type FicheLue } from '../src/shared/parrainage';
 import {
@@ -297,8 +297,29 @@ dit('whatsapp-envoi sait porter une image en en-tête', true, /\{ type: 'image',
 
 /* ── La carte : le QR mène à la réservation, le logo n'est pas déformé ── */
 const peinture = readFileSync('src/ds/carte-marraine.ts', 'utf8');
-dit('le QR porte le lien de réservation, code posé', true, /qr\.addData\(lienDeLaCarte\(d\.code\)\)/.test(peinture));
-dit('… le même lien que celui que la marraine partage', true, /lienDeLaCarte = \(code: string\): string => lienDuParrainage\(ORIGINE_DU_SITE, code\)/.test(peinture));
+dit('le QR porte le lien de la carte, code posé', true, /qr\.addData\(lienDeLaCarte\(d\.code\)\)/.test(peinture));
+dit('… le lien COURT, celui que la marraine partage (7 octobre 2026)', true, /lienDeLaCarte = \(code: string\): string => lienCourtDuParrainage\(ORIGINE_DU_SITE, code\)/.test(peinture));
+
+/* ── LE LIEN COURT — 7 octobre 2026 (« lien court pour la carte des
+   ambassadrices ») : maisonmnd.com/m/?CODE, dans le QR, écrit sur la carte,
+   dans le message, derrière « Copier mon lien ». ── */
+dit('le lien court pose le code après /m/?', 'https://exemple.test/m/?AICHA-7K2', lienCourtDuParrainage('https://exemple.test', 'AICHA-7K2'));
+dit('… plus court que le long', true, lienCourtDuParrainage('https://maisonmnd.com', 'AICHA-7K2').length < lienDuParrainage('https://maisonmnd.com', 'AICHA-7K2').length);
+dit('… écrit en clair sur la carte, à la place du seul domaine', true, /espace\(c, lienDeLaCarteEcrit\(d\.code\)/.test(peinture));
+dit('… et dans le message de partage', true, /\\n\$\{lienDeLaCarte\(d\.code\)\}`;/.test(peinture));
+const carteCouronne = readFileSync('src/apps/couronne/MaCarte.tsx', 'utf8');
+dit('Ma Couronne copie le lien court', true, /navigator\.clipboard\.writeText\(lienDeLaCarte\(donnees\.code\)\)/.test(carteCouronne) && /t\('Copier mon lien'\)/.test(carteCouronne));
+dit('… et le dit en anglais', true, /'Copier mon lien': 'Copy my link'/.test(readFileSync('src/apps/couronne/i18n/en-formule.ts', 'utf8')));
+const generateur = readFileSync('scripts/genere-revelateur.mjs', 'utf8');
+const formeCopiee = /const FORME_DU_CODE_COURT = '([^']+)';/.exec(generateur);
+dit('la page /m/ reconnaît le code avec la MÊME forme que le parrainage', FORME_DU_CODE.source, formeCopiee?.[1]);
+dit('… la page /m/ est écrite, hors des moteurs, hors du plan', [true, true, false], [
+  /writeFileSync\(path\.join\(SORTIE, 'm', 'index\.html'\), page\(\{\s*chemin: '\/m\/'/.test(generateur),
+  /chemin: '\/m\/'[\s\S]{0,2500}\.replace\('<link rel="canonical"', '<meta name="robots" content="noindex" \/><link rel="canonical"'\)\);/.test(generateur),
+  /pagesEcrites\.push\('\/m\/'\)/.test(generateur),
+]);
+dit('… et le plan du site saute les pages noindex', true, /\.filter\(\(rel\) => !\/<meta name="robots" content="noindex"\/\.test\(readFileSync/.test(readFileSync('scripts/build-sites.mjs', 'utf8')));
+dit('le site partage le lien court, lui aussi', true, /base\('\/m\/'\)\}\?\$\{encodeURIComponent\(code\)\}/.test(readFileSync('src/apps/revelateur/ilots/Parrainer.tsx', 'utf8')));
 const tailleDuPng = (f: string) => { const b = readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
 const [vw, vh] = tailleDuPng('public/assets/verrous/verrou-couche-ivoire.png');
 const verrou = /drawImage\(clair \? vIndigo : vIvoire, \d+, \d+, (\d+), (\d+)\)/.exec(peinture);

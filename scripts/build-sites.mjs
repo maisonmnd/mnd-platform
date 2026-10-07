@@ -267,9 +267,13 @@ Allow: /
     /* Un site à une page ne liste que sa racine ; le site révélateur liste
        chacune de ses adresses canoniques (la forme avec barre finale), la
        page 404 exceptée. */
+    /* … et toute page qui se dit hors des moteurs (noindex) : le lien court
+       des ambassadrices `/m/` (7 octobre 2026) mène ailleurs, il n'a rien à
+       faire dans le plan. */
     const adresses = site.racine
       ? pagesHtml(dossierPublie)
         .filter((rel) => rel.endsWith('index.html'))
+        .filter((rel) => !/<meta name="robots" content="noindex"/.test(readFileSync(path.join(dossierPublie, rel), 'utf8')))
         .map((rel) => `${adresseDuSite}${rel.replace(/index\.html$/, '')}`)
       : [adresseDuSite];
     writeFileSync(path.join(dossierPublie, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>

@@ -22,7 +22,7 @@
 import qrcode from 'qrcode-generator';
 import { asset } from '../shared/asset';
 import { assureLesPolices } from './carte';
-import { lienDuParrainage, nomDuRang, type ModeleDeCarte, type RangId } from '../shared/parrainage-pur';
+import { lienCourtDuParrainage, nomDuRang, type ModeleDeCarte, type RangId } from '../shared/parrainage-pur';
 import { URL_DU_MODELE } from '../shared/lien-reservation';
 
 export const CARTE_L = 1012;
@@ -31,7 +31,10 @@ const ECHELLE = 2;
 
 /** L'adresse du site, tirée du lien déjà approuvé par Meta : une seule vérité. */
 export const ORIGINE_DU_SITE = new URL(URL_DU_MODELE).origin;
-export const lienDeLaCarte = (code: string): string => lienDuParrainage(ORIGINE_DU_SITE, code);
+/** Le lien COURT (7 octobre 2026) : `maisonmnd.com/m/?CODE`. */
+export const lienDeLaCarte = (code: string): string => lienCourtDuParrainage(ORIGINE_DU_SITE, code);
+/** Le même, tel qu'il s'écrit en clair : sans « https:// ». */
+export const lienDeLaCarteEcrit = (code: string): string => lienDeLaCarte(code).replace(/^https?:\/\//, '');
 
 export type DonneesDeCarte = {
   prenom: string;
@@ -245,7 +248,10 @@ async function peinsLeVerso(c: CanvasRenderingContext2D, d: DonneesDeCarte): Pro
   const largeurDevise = c.measureText('mi nyɔ́ ɖɛkpɛ').width;
   c.fillStyle = '#5E5750';
   c.font = `400 13px ${SANS}`;
-  espace(c, new URL(ORIGINE_DU_SITE).host.toUpperCase(), 70 + largeurDevise + 20, 584, 13 * 0.28);
+  /* LE LIEN COURT, ÉCRIT EN CLAIR (7 octobre 2026) pour qui ne scanne pas,
+     à la place du seul nom de domaine. En minuscules : /m/ et /M/ ne sont
+     pas la même adresse. */
+  espace(c, lienDeLaCarteEcrit(d.code), 70 + largeurDevise + 20, 584, 13 * 0.12);
 
   /* LE QR, sur sa plaque encadrée de cuivre. */
   const px = 582;

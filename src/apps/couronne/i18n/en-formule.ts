@@ -212,6 +212,8 @@ export const EN_FORMULE: Record<string, string> = {
   'Partager sur WhatsApp': 'Share on WhatsApp',
   'Enregistrer l’image': 'Save the image',
   'Copier le code': 'Copy the code',
+  'Copier mon lien': 'Copy my link',
+  'Lien copié : {lien}': 'Link copied: {lien}',
   'Les rangs': 'The ranks',
   'Une amie compte quand elle est venue. Une récompense par amie, au choix ; un écho pour les amies de vos amies. Rien à payer, jamais d’argent : des soins et des remises, chacune avec sa date de fin.': 'A friend counts once she has visited. One reward per friend, your choice; an echo for your friends’ friends. Nothing to pay, never money: treatments and discounts, each with its end date.',
   'Mon ambassade.': 'My ambassadorship.',

@@ -24,6 +24,17 @@ export function codeDeMarraine(prenom: string, hasard: () => number = Math.rando
 export const lienDuParrainage = (site: string, code: string): string =>
   `${site.replace(/\/?$/, '/')}reserver/?code=${encodeURIComponent(code)}`;
 
+/* ── LE LIEN COURT — 7 octobre 2026 ───────────────────────────────────
+   « Besoin d'un lien court pour la carte des ambassadrices » (Yéman, au
+   sélecteur : `maisonmnd.com/m/?CODE`, dans le QR, écrit sur la carte, dans
+   le message de partage et derrière « Copier mon lien »). 24 signes au lieu
+   de 37 : le QR de la carte a moins de points. La page /m/ du site
+   (`genere-revelateur`) mène à la réservation, code posé ; elle porte une
+   copie de FORME_DU_CODE, que `verifie-le-parrainage` confronte à celle-ci.
+   Le chemin s'écrit en minuscules : GitHub Pages distingue /m/ de /M/. */
+export const lienCourtDuParrainage = (site: string, code: string): string =>
+  `${site.replace(/\/?$/, '/')}m/?${encodeURIComponent(code)}`;
+
 /* ── LA CARTE DE MARRAINE DE CHAQUE CLIENTE — 28 septembre 2026 ─────────
    Maquette « La carte de marraine MND » validée. Chaque cliente de la
    Maison a son code, sa carte et ses soins offerts ; ces trois champs vivent

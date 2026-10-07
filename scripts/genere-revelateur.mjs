@@ -1358,6 +1358,25 @@ writeFileSync(path.join(SORTIE, '404.html'), page({
   noeuds: [noeudSite()],
 }).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
 
+/* LE LIEN COURT DES AMBASSADRICES — 7 octobre 2026. « Besoin d'un lien court
+   pour la carte des ambassadrices » (Yéman) : `maisonmnd.com/m/?AWA-7KQ`. La
+   page mène à la réservation, code posé ; un code mal formé mène à la
+   réservation sans code. Ce n'est PAS un routeur caché dans le 404 : une
+   vraie page, à son adresse, hors des moteurs (noindex) et hors du plan
+   (jamais dans `pagesEcrites`, et le sitemap saute les pages noindex). Sa
+   carte de lien parle à l'amie qui reçoit le message. La forme du code est
+   une copie de FORME_DU_CODE (parrainage-pur), confrontée par
+   `verifie-le-parrainage`. */
+const FORME_DU_CODE_COURT = '^[A-Z]{1,6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{3}$';
+mkdirSync(path.join(SORTIE, 'm'), { recursive: true });
+writeFileSync(path.join(SORTIE, 'm', 'index.html'), page({
+  chemin: '/m/', titre: 'Un cadeau de bienvenue vous attend · Maison MND',
+  description: 'Une amie vous offre la Maison MND : réservez avec son code, votre cadeau de bienvenue vous attend à votre première visite.',
+  corps: `<section class="page-hero page-hero--simple"><div class="conteneur"><div><p class="sur">De la part d’une amie</p><h1>Votre cadeau de bienvenue vous attend.</h1><p class="ligne">La réservation s’ouvre, le code de votre amie déjà posé.</p><div class="rangee" style="margin-top:22px"><a class="btn btn--plein" id="vers-la-reservation" href="${attr(lien('/reserver/'))}">Réserver ma place</a></div></div></div></section>
+      <script>(function(){var q=location.search.slice(1);try{q=decodeURIComponent(q);}catch(e){}q=q.replace(/^code=/i,'').split('&')[0].trim().toUpperCase();var v=${JSON.stringify(lien('/reserver/'))};if(new RegExp(${JSON.stringify(FORME_DU_CODE_COURT)}).test(q))v+='?code='+encodeURIComponent(q);var a=document.getElementById('vers-la-reservation');if(a)a.href=v;location.replace(v);})();</script>`,
+  noeuds: [noeudSite()],
+}).replace('<link rel="canonical"', '<meta name="robots" content="noindex" /><link rel="canonical"'));
+
 /* LE PLAN DU SITE — 18 septembre 2026, demandé par Yéman au pied de page.
 
    Il s'écrit APRÈS toutes les boucles, et c'est la seule place possible : il
