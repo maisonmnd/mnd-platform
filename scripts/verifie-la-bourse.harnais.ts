@@ -174,6 +174,11 @@ dit('l onglet Bourse est a la direction seule', [true, true], [
   page.includes("const vueDeLaBourse = onglet === 'bourse' && direction;"),
   /vueDeLaBourse \? \(\s*<LeDossierDeBourse/.test(page),
 ]);
+dit('la fiche de l hebergeant n est ni un titulaire des papiers ni un en-tete a choisir', [true, true, false], [
+  page.includes('const entsVisibles = ents.filter((e) => e.dossier !== MARQUE_HEBERGEANT);'),
+  page.includes('...entsVisibles.map((e) => ({ cle: `ent:${e.id}`') && page.includes('entreprisesConnues={entsVisibles}'),
+  page.includes('...ents.map((e) => ({ cle: `ent:${e.id}`'),
+]);
 dit('le rappel dans « A faire » est a la direction seule', true, sansCommentaires('src/apps/trone/routes/pilotage/AFaire.tsx').includes('{estDirection && <RappelDeLaBourse />}'));
 
 console.log(ko === 0 ? '\nLe dossier de bourse tient ses regles.' : `\n${ko} controle(s) en echec.`);

@@ -16,6 +16,7 @@ import { Editeur } from './secretariat/Editeur';
 import { MaSignature, NouvelleEntreprise } from './secretariat/Signatures';
 import { LesPapiers } from './secretariat/Papiers';
 import { LeDossierDeBourse } from './secretariat/Bourse';
+import { MARQUE_HEBERGEANT } from '../../../../shared/bourse';
 import './pilotage.css';
 
 /* ══ LE SECRÉTARIAT — 6 octobre 2026 (maquette StpDQGL3HE1nHyyjSRNU9r validée) ══
@@ -54,6 +55,9 @@ export default function Secretariat() {
   const [mentions, setMentions] = useState(false);
 
   const ents = entreprises(lignes);
+  /* L'hébergeant du dossier de bourse est un particulier gardé en fiche : ce
+     n'est ni une entreprise du classeur ni un en-tête à choisir (7 octobre). */
+  const entsVisibles = ents.filter((e) => e.dossier !== MARQUE_HEBERGEANT);
   /* LES PAPIERS, SECOND ONGLET (6 octobre 2026) : la direction seule, comme
      la base le veut (0117). On y arrive aussi depuis À faire. */
   const location = useLocation();
@@ -129,7 +133,7 @@ export default function Secretariat() {
           titulairesEntreprises={[
             { cle: 'ent:mnd', nom: maisonNom(), genre: 'entreprise' },
             { cle: 'ent:acia', nom: ACIA.nom, genre: 'entreprise' },
-            ...ents.map((e) => ({ cle: `ent:${e.id}`, nom: e.nom, genre: 'entreprise' as const })),
+            ...entsVisibles.map((e) => ({ cle: `ent:${e.id}`, nom: e.nom, genre: 'entreprise' as const })),
           ]}
           suggestions={signatairesDe(lignes).filter((s) => s.userId !== 'entreprise').map((s) => s.nom)}
         />
@@ -189,7 +193,7 @@ export default function Secretariat() {
           branchId={branch.id}
           moi={moi}
           nomParDefaut={tete?.name ?? ''}
-          entreprisesConnues={ents}
+          entreprisesConnues={entsVisibles}
           entiteDeDepart={entiteDuFiltre(filtre, direction)}
           onClose={() => setNouveau(false)}
           surCree={(id) => { setNouveau(false); setOuvert(id); }}
