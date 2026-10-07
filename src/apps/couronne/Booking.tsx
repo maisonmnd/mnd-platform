@@ -130,6 +130,8 @@ const QUIZ = -1;
 const EXPRESS = -2;
 /* Les places se cherchent sur quatre semaines : au-delà, le calendrier. */
 const JOURS_DES_PLACES = 28;
+import { lesPartsDuGeste, leTitreEnClair } from './formule-pure';
+
 const cleDesGestes = (ids: readonly string[]) => [...new Set(ids)].sort().join('|');
 
 const TITLES = ['Votre rituel.', '—', '—', 'Le moment.', '—', 'L’acompte.', 'Confirmé.'];
@@ -300,7 +302,30 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const pricingDuree = cible && !cible.lockCount && cible.lockCountDeclare
     ? pricingOf({ ...cible, lockCount: cible.lockCountDeclare }, bands, sets, tousCats)
     : pricing;
-  const totalDuration = selected.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0);
+  /* LE CHIFFRE D'UN PANIER — 7 octobre 2026. Une seule fonction pour la barre
+     du bas ET pour chaque carte de « Que fait-on ? » : une carte qui annonce
+     un prix, la barre doit dire le même une fois la carte choisie. Mêmes
+     règles qu'avant, dans le même ordre : `prixDansPanier` (le geste offert
+     dépend du panier), la remise famille hors forfaits sauf geste au panier,
+     l'offre en % puis la famille en francs (apptNetXof). */
+  const chiffreDe = (panier: Service[]) => {
+    const ici = (s: Service) => prixDansPanier(s, pricing, panier, tousServices, produits);
+    const connu = panier.filter((s) => !s.hidePrice).reduce((n, s) => n + ici(s), 0);
+    const pctFamille = unGesteDansLePanier(panier, pricing) ? 0 : famPctCompte;
+    const forfaits = panier
+      .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
+      .reduce((n, s) => n + ici(s), 0);
+    const remiseFamille = pctFamille > 0 ? Math.round(Math.max(0, connu - forfaits) * (pctFamille / 100)) : 0;
+    return {
+      connu, forfaits, pctFamille, remiseFamille,
+      prix: Math.max(0, Math.round(connu * (1 - discountPct / 100)) - remiseFamille),
+      variable: panier.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing)),
+      masque: panier.length > 0 && panier.every((s) => s.hidePrice),
+      duree: panier.reduce((n, s) => n + personalDurationMin(s, pricingDuree), 0),
+    };
+  };
+  const chiffre = chiffreDe(selected);
+  const totalDuration = chiffre.duree;
   /* Nombre de séances à programmer : le maximum parmi les prestations retenues. */
   const totalSessions = selected.reduce((n, s) => Math.max(n, s.sessions), 1);
   /* `services` + `produits` en arguments : sans eux, un FORFAIT COMPOSÉ ne
@@ -311,20 +336,18 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      Reprise). `prixIci` est le seul juge de prix de ce tunnel : Ma Couronne
      doit annoncer très exactement ce que le comptoir encaissera. */
   const prixIci = (s: Service) => prixDansPanier(s, pricing, selected, tousServices, produits);
-  const knownTotal = selected.filter((s) => !s.hidePrice).reduce((n, s) => n + prixIci(s), 0);
+  const knownTotal = chiffre.connu;
   /* La remise famille, en francs, sur la part HORS FORFAITS du panier. */
   /* UNE SEULE FAVEUR À LA FOIS (16 août, décision de Yéman) : quand la Maison
      offre déjà un geste dans ce rituel, la remise du compte famille ne s'y
      ajoute pas. Deux cadeaux pour une venue coûtent trop cher, et le geste est
      le plus généreux des deux. */
   const gesteAuPanier = unGesteDansLePanier(selected, pricing);
-  const famPct = gesteAuPanier ? 0 : famPctCompte;
-  const famForfaitXof = selected
-    .filter((s) => !s.hidePrice && regimeTarifaire(s, tousCats).k === 'forfait')
-    .reduce((n, s) => n + prixIci(s), 0);
-  const famRemiseXof = famPct > 0 ? Math.round(Math.max(0, knownTotal - famForfaitXof) * (famPct / 100)) : 0;
+  const famPct = chiffre.pctFamille;
+  const famForfaitXof = chiffre.forfaits;
+  const famRemiseXof = chiffre.remiseFamille;
   const anyHidden = selected.some((s) => s.hidePrice);
-  const allHidden = selected.length > 0 && selected.every((s) => s.hidePrice);
+  const allHidden = chiffre.masque;
   /* Maître : commun si toutes le partagent, sinon celui de la première prestation. */
   const master = selected[0]?.master ?? '';
   const masterVaries = selected.length > 1 && !selected.every((s) => s.master === master);
@@ -344,7 +367,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const [exceptions] = useExceptionsHoraires();
   /* L'offre en % d'abord, puis la remise famille en francs — le même ordre
      que le juge d'encaissement du Trône (apptNetXof). */
-  const price = Math.max(0, Math.round(knownTotal * (1 - discountPct / 100)) - famRemiseXof);
+  const price = chiffre.prix;
   /* Acompte UNIQUEMENT sur les prestations qui l'exigent, CHACUNE à son propre
      taux (Paramètres du Trône). Aucune → pas d'étape acompte, réservation directe. */
   const priced = selected.filter((s) => !s.hidePrice);
@@ -901,6 +924,35 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
     setStep(quizActif ? QUIZ : 0);
   };
   const nomsDe = (ids: string[]) => ids.map((id) => services.find((x) => x.id === id)?.name).filter(Boolean).join(' · ');
+  /* Une formule se lit geste par geste (formule-pure) : le titre en clair, puis
+     chaque geste sur sa ligne, dans l'ordre du catalogue ; prix et durée par
+     `chiffreDe`, comme la barre. */
+  const laFormule = (ids: string[], titre?: string, note?: string) => {
+    const gestes = services.filter((x) => ids.includes(x.id));
+    const c = chiffreDe(gestes);
+    const parts = gestes.map((g) => ({ ...lesPartsDuGeste(g.name), repli: tousCats.find((k) => k.id === g.categoryId)?.label }));
+    const on = cleDesGestes(selectedIds) === cleDesGestes(ids);
+    return (
+      <button key={cleDesGestes(ids)} type="button" className={`mc-formule ${on ? 'is-on' : ''}`} aria-pressed={on} onClick={() => choisisLesGestes(ids)}>
+        <span className="mc-formule__haut">
+          <span className="mc-formule__t">{titre ?? (leTitreEnClair(parts) || nomsDe(ids))}</span>
+          <span className="mc-formule__prix">
+            <span>{ditLeChiffre(c)}</span>
+            <span className="mc-formule__duree">{fmtDuration(c.duree)}</span>
+          </span>
+        </span>
+        <span className="mc-formule__gestes">
+          {parts.map((p, i) => (
+            <span key={i} className="mc-formule__geste">
+              {p.famille && <span className="mc-formule__fam">{p.famille}{p.niveau && <b> {p.niveau}</b>}</span>}
+              <span className="mc-formule__nom">{p.geste}</span>
+            </span>
+          ))}
+        </span>
+        {note && <span className="mc-formule__s">{note}</span>}
+      </button>
+    );
+  };
 
   /* ---- Acompte réglé EN LIGNE (KkiaPay) ----
      Trois temps, dans cet ordre précis : on paie, le serveur vérifie, PUIS la
@@ -988,12 +1040,13 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
      Avant, tout tarif au lock etait dit variable — donc le resserrage, coeur du
      chiffre, s'annoncait « a partir de » alors que la caisse affichait un
      montant ferme. Les deux surfaces se contredisaient sur la meme prestation. */
-  const anyVariable = selected.some((s) => priceModeOf(s) === 'variable' && !prixFerme(s, pricing));
-  const totalLabel = allHidden
+  const anyVariable = chiffre.variable;
+  const ditLeChiffre = (c: ReturnType<typeof chiffreDe>) => c.masque
     ? t('Prix à la Maison')
-    : anyVariable
-      ? t('à partir de {montant}', { montant: prix(price, currency) })
-      : prix(price, currency);
+    : c.variable
+      ? t('à partir de {montant}', { montant: prix(c.prix, currency) })
+      : prix(c.prix, currency);
+  const totalLabel = ditLeChiffre(chiffre);
 
   const payMethodName = PAY_METHODS.find((p) => p.k === pay)?.n ?? 'Mobile Money';
 
@@ -1116,19 +1169,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
         {vue === EXPRESS && (
           <div className="mc-fade mc-express">
             <div className="mc-stack" style={{ gap: 8 }} role="group" aria-label={t('Que fait-on ?')}>
-              {derniereVenue && (
-                <button type="button" className={`mc-formule ${cleDesGestes(selectedIds) === cleDesGestes(derniereVenue) ? 'is-on' : ''}`}
-                  aria-pressed={cleDesGestes(selectedIds) === cleDesGestes(derniereVenue)} onClick={() => choisisLesGestes(derniereVenue)}>
-                  <span className="mc-formule__t">{t('Comme la dernière fois')}</span>
-                  <span className="mc-formule__s">{nomsDe(derniereVenue)}</span>
-                </button>
-              )}
+              {derniereVenue && laFormule(derniereVenue, t('Comme la dernière fois'))}
               {formulesExpress.map((ids, i) => (
-                <button key={cleDesGestes(ids)} type="button" className={`mc-formule ${cleDesGestes(selectedIds) === cleDesGestes(ids) ? 'is-on' : ''}`}
-                  aria-pressed={cleDesGestes(selectedIds) === cleDesGestes(ids)} onClick={() => choisisLesGestes(ids)}>
-                  <span className="mc-formule__t">{nomsDe(ids)}</span>
-                  <span className="mc-formule__s">{i === 0 ? t('La plus réservée à la Maison') : t('Souvent réservée à la Maison')}</span>
-                </button>
+                laFormule(ids, undefined, i === 0 ? t('La plus réservée à la Maison') : undefined)
               ))}
               <button type="button" className="mc-textbtn" style={{ justifySelf: 'start' }} onClick={composerMoiMeme}>{t('Composer moi-même →')}</button>
             </div>

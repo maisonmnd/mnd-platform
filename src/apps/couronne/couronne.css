@@ -3194,7 +3194,19 @@
 }
 .mc-formule:hover { border-color: var(--mc-encre); }
 .mc-formule.is-on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.mc-formule { gap: 10px; }
+.mc-formule__haut { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; }
 .mc-formule__t { font-family: var(--font-serif); font-size: 20px; line-height: 1.15; }
+.mc-formule__prix { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; font-size: 15px; white-space: nowrap; }
+.mc-formule__duree { font-size: 12px; color: var(--ink-soft); }
+.mc-formule__gestes { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.mc-formule__geste { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
+.mc-formule__fam { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--mc-cuivre-texte); }
+.mc-formule__fam b { font-weight: 700; }
+.mc-formule__nom { font-size: 14px; line-height: 1.3; }
+@media (max-width: 480px) {
+  .mc-formule__geste { grid-template-columns: 1fr; }
+}
 .mc-formule__s { font-size: 12.5px; color: var(--ink-soft); }
 .mc-places { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .mc-place {

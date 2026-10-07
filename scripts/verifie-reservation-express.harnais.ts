@@ -6,6 +6,7 @@ import {
   FORMULES_GARDEES, formulesDesVenues, memesFormules, memoireAEcrire, memoireLue, payloadDeLaReprise,
   prochainesPlaces, repriseDuPayload, reprisesAProposer, VENUES_MIN_FORMULE,
 } from '../src/shared/reservation-express';
+import { lesPartsDuGeste, leGesteEnClair, leTitreEnClair } from '../src/apps/couronne/formule-pure';
 
 /* LA RÉSERVATION EN TRENTE SECONDES, ÉPROUVÉE — 29 septembre 2026.
 
@@ -182,6 +183,32 @@ dit('Ma Couronne : « Reserver ce moment » emporte tous les gestes et son heure
   /* Depuis le 7 octobre, avec `express` : la touche réserve vraiment. */
   tabs.includes('...(predite.template!.time ? { time: predite.template!.time, express: true } : {}),'),
 ]);
+
+/* UNE FORMULE SE LIT GESTE PAR GESTE — 7 octobre 2026. « Les 3 melanges
+   disent la meme chose » (Yeman) : chaque carte dit un titre en clair, puis
+   chaque geste sur sa ligne (famille, niveau, geste), avec SON prix. */
+dit('le nom se coupe en famille, niveau et geste',
+  { famille: 'SÍNSIN™', niveau: 'Élaboré', geste: 'La Reprise Longue Durée' },
+  lesPartsDuGeste('SÍNSIN™ Élaboré · La Reprise Longue Durée'));
+dit('... un nom hors forme reste entier', { famille: '', niveau: '', geste: 'Coupe des pointes' }, lesPartsDuGeste('Coupe des pointes'));
+dit('... sans ™, la tete entiere est la famille', { famille: 'La Reprise Frontale', niveau: '', geste: 'Contour' }, lesPartsDuGeste('La Reprise Frontale · Contour'));
+dit('le geste en clair : sans guillemets ni article', ['Shampoing', ''], [leGesteEnClair('Le Shampoing « Le Souffle »'), leGesteEnClair('« Le Souffle »')]);
+dit('le titre distingue les formules', [
+  'Shampoing + reprise longue durée', 'Shampoing + reprise', 'Shampoing', 'Lavage rituel',
+], [
+  leTitreEnClair([{ geste: 'Le Shampoing « Le Souffle »' }, { geste: 'La Reprise Longue Durée' }]),
+  leTitreEnClair([{ geste: 'Le Shampoing « Le Souffle »' }, { geste: 'La Reprise' }]),
+  leTitreEnClair([{ geste: 'Le Shampoing « Le Souffle »' }]),
+  leTitreEnClair([{ geste: '« Le Souffle »', repli: 'Le Lavage Rituel' }]),
+]);
+dit('chaque carte porte ses gestes et SON prix, compte par la meme fonction que la barre', [true, true, true, true, true], [
+  /const chiffre = chiffreDe\(selected\);/.test(booking),
+  /const price = chiffre\.prix;/.test(booking),
+  /const c = chiffreDe\(gestes\);/.test(booking),
+  /className="mc-formule__geste"/.test(booking),
+  /\{ditLeChiffre\(c\)\}/.test(booking),
+]);
+dit('... et la barre ne recompte plus a part', false, /selected\.filter\(\(s\) => !s\.hidePrice\)\.reduce/.test(booking));
 
 console.log(ko === 0 ? '\nTout tient.' : `\n${ko} echec(s).`);
 if (ko) process.exit(1);
