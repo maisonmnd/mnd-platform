@@ -21,8 +21,8 @@
      passe JAMAIS par lui : les données ont leur propre file d'attente.
 
    Uniquement la réception des notifications et le clic, pour le reste. */
-const BUILD = "20261007050456";
-const A_GARDER = ["./","assets/cormorant-italique-latin-C-nL33vl.woff2","assets/cormorant-italique-latin-ext-PWzi_-0y.woff2","assets/cormorant-latin-CUoBjw-S.woff2","assets/cormorant-latin-ext-ltf1AbuM.woff2","assets/devise-fon-DX3P0bG4.woff2","assets/jost-latin-ext-BDUtSsKd.woff2","assets/jost-latin-ObQm3Zd1.woff2","assets/monograms/mono-argile.png","assets/monograms/mono-copper.png","assets/monograms/mono-indigo-profond.png","assets/monograms/mono-indigo.png","assets/monograms/mono-ivoire.png","assets/monograms/mono-obsidian.png","assets/monograms/mono-or.png","assets/monograms/mono-sable.png","assets/portail-8D2wFhGs.css","assets/portail-UzCV26VI.js"];
+const BUILD = "20261007051716";
+const A_GARDER = ["./","assets/cormorant-italique-latin-C-nL33vl.woff2","assets/cormorant-italique-latin-ext-PWzi_-0y.woff2","assets/cormorant-latin-CUoBjw-S.woff2","assets/cormorant-latin-ext-ltf1AbuM.woff2","assets/devise-fon-DX3P0bG4.woff2","assets/jost-latin-ext-BDUtSsKd.woff2","assets/jost-latin-ObQm3Zd1.woff2","assets/monograms/mono-argile.png","assets/monograms/mono-copper.png","assets/monograms/mono-indigo-profond.png","assets/monograms/mono-indigo.png","assets/monograms/mono-ivoire.png","assets/monograms/mono-obsidian.png","assets/monograms/mono-or.png","assets/monograms/mono-sable.png","assets/portail-8D2wFhGs.css","assets/portail-POtSax1M.js"];
 const ACTIF = !BUILD.startsWith('__');
 const CACHE_APP = `mnd-app-${BUILD}`;
 const CACHE_IMAGES = 'mnd-images';
