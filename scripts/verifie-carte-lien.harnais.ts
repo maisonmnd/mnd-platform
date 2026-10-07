@@ -15,14 +15,19 @@ const dit = (nom: string, attendu: unknown, obtenu: unknown) => {
   if (!ok) console.log(`       attendu ${JSON.stringify(attendu)}`);
 };
 
-/* ── ① LA VIGNETTE EST PETITE, ET C'EST UN CHOIX ───────────────────── */
-const png = readFileSync('public/assets/og/carte-lien.png');
-dit('c’est bien un PNG', true, png.subarray(1, 4).toString() === 'PNG');
-const largeur = png.readUInt32BE(16);
-const hauteur = png.readUInt32BE(20);
-dit('la vignette reste sous 300 px', true, largeur < 300 && hauteur < 300);
-dit('… et carrée', true, largeur === hauteur);
-dit('… et légère, elle voyage sur un téléphone', true, png.length < 30_000);
+/* ── ① LA VIGNETTE EST PETITE, ET C'EST UN CHOIX ─────────────────────
+   Une par marque : celle de la Maison, et depuis le 7 octobre 2026 celle de
+   l'Académie MND (sa tuile verte). Les mêmes règles pour chacune. */
+const CARTES = ['carte-lien.png', 'academie.png'];
+for (const c of CARTES) {
+  const png = readFileSync(`public/assets/og/${c}`);
+  dit(`${c} : c’est bien un PNG`, true, png.subarray(1, 4).toString() === 'PNG');
+  const largeur = png.readUInt32BE(16);
+  const hauteur = png.readUInt32BE(20);
+  dit(`${c} : la vignette reste sous 300 px`, true, largeur < 300 && hauteur < 300);
+  dit(`${c} : … et carrée`, true, largeur === hauteur);
+  dit(`${c} : … et légère, elle voyage sur un téléphone`, true, png.length < 30_000);
+}
 
 /* ── ② CHAQUE ENTRÉE PORTE SA CARTE ────────────────────────────────
    Une entrée ajoutée sans balises partagerait un lien nu : titre d'onglet,
@@ -33,7 +38,7 @@ for (const f of entrees) {
   const h = readFileSync(f, 'utf8');
   dit(`${f} porte sa carte`, true,
     h.includes('og:title') && h.includes('og:description')
-    && h.includes('__LIEN_DU_SITE__assets/og/carte-lien.png')
+    && CARTES.some((c) => h.includes(`__LIEN_DU_SITE__assets/og/${c}`))
     && h.includes('__LIEN_DE_LA_PAGE__')
     && h.includes('"twitter:card" content="summary"'));
   /* AUCUN DOMAINE EN DUR : c'est le composeur qui pose l'adresse, depuis

@@ -97,6 +97,20 @@ dit('un coffre vide ne rend rien', [], copiesTriees('ins-42', []));
     'src/apps/trone/routes/clients/QrCodes.tsx', 'src/apps/trone/routes/vente/Caisse.tsx', 'src/apps/trone/routes/vente/Catalogue.tsx',
     'src/shared/catalog.ts', 'src/apps/trone/routes/equipe/Academie.tsx', 'src/apps/trone/routes/equipe/AcademieSuivi.tsx', 'src/shared/pdf.ts']
     .map((f) => sansCommentaires(f).replace(/<!--[\s\S]*?-->/g, ''));
+  /* LE SITE DE L'ACADÉMIE, SELON SA CHARTE (7 octobre 2026). */
+  const site = sansCommentaires('src/apps/academie/App.tsx');
+  const feuille = readFileSync('src/apps/academie/academie.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const tete = readFileSync('academie.html', 'utf8');
+  dit('le site porte le verrou de l Academie, plus le monogramme ni la devise de la Maison', [true, true, false, false], [
+    site.includes("asset('/assets/academie/verrou-couche.png')"), site.includes("asset('/assets/academie/verrou-couche-ivoire.png')"),
+    /monograms\/mono-/.test(site), /DEVISE_COMPLETE/.test(site),
+  ]);
+  dit('le site parle au nom de l Academie, pas de la Maison', false, /la Maison|La Maison|Maison MND/.test(site));
+  dit('la feuille du site est en Vert Savoir, plus en indigo', [true, false], [feuille.includes('--ac-vert: #2F5D50;'), feuille.includes('var(--color-indigo)')]);
+  dit('la tete de page : couleur, icone et carte de lien de l Academie', [true, true, true], [
+    tete.includes('<meta name="theme-color" content="#2F5D50" />'), tete.includes('href="/assets/academie/tuile-192.png"'),
+    tete.includes('assets/og/academie.png') && existsSync('public/assets/og/academie.png'),
+  ]);
   dit('« Academie MND », jamais « MND Academie »', false, lus.some((t) => /MND Acad[ée]mie|MND ACAD[ÉE]MIE/.test(t)));
 }
 

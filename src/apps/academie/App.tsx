@@ -7,7 +7,6 @@ import {
   acompteDe, deposeUneDemande, nouvelleDemande, pourquoiLaDemandeNeVaPas,
   type DemandeAcademie,
 } from '../../shared/academie-demandes';
-import { DEVISE_COMPLETE } from '../../shared/identite';
 import { nombreEnChiffres } from '../../shared/lettres';
 import { PARCOURS_MND, PUBLIC_LABEL, type ParcoursMND, type PublicDeFormation } from '../../shared/parcours';
 
@@ -120,12 +119,12 @@ export default function App() {
           expectedXof: d.acompteXof, branchId: d.branchId,
         });
         setEtat(v.ok ? 'payee' : 'recue');
-        if (!v.ok) setDit('Paiement reçu, vérification en cours. La Maison vous confirme.');
+        if (!v.ok) setDit('Paiement reçu, vérification en cours. L’Académie vous confirme.');
       } catch (e) {
         /* Le paiement a eu lieu ; seule la vérification a échoué. La demande
            reste, avec sa référence : on ne perd ni la place ni l'argent. */
         setEtat('recue');
-        setDit(e instanceof Error ? e.message : 'Vérification impossible, la Maison vérifiera.');
+        setDit(e instanceof Error ? e.message : 'Vérification impossible, l’Académie vérifiera.');
       }
     } catch (e) {
       setEtat('recue');
@@ -174,8 +173,9 @@ export default function App() {
     <div className="ac">
       <header className="ac-barre">
         <a className="ac-marque" href="#haut">
-          <img src={asset('/assets/monograms/mono-indigo.png')} alt="" />
-          <span>Académie MND<small>Cotonou · Bénin</small></span>
+          {/* Le verrou couché de l'Académie, pris tel quel dans sa charte :
+              ACADÉMIE en Vert Savoir, MND en indigo (7 octobre 2026). */}
+          <img src={asset('/assets/academie/verrou-couche.png')} alt="Académie MND" />
         </a>
         <nav className="ac-nav">
           <button type="button" onClick={versLesParcours}>Les parcours</button>
@@ -189,7 +189,7 @@ export default function App() {
         {/* ── L'OUVERTURE ────────────────────────────────────────────── */}
         <section className="ac-ouverture">
           <div className="ac-ouverture__mot">
-            <p className="ac-eyebrow">Maison MND · depuis Cotonou</p>
+            <p className="ac-eyebrow">Académie MND · Cotonou</p>
             <h1>Apprendre le lock selon la méthode des quatre temps.</h1>
             <p className="ac-chapeau">
               Purifier, Nourrir, Sceller, Couronner. Neuf parcours, du premier geste à la maîtrise,
@@ -206,7 +206,7 @@ export default function App() {
             </div>
           </div>
           <figure className="ac-ouverture__image">
-            <img src={asset(PHOTOS.ouverture)} alt="Une couronne de locks, de profil, sous le monogramme de la Maison MND." />
+            <img src={asset(PHOTOS.ouverture)} alt="Des locks, de profil." />
           </figure>
         </section>
 
@@ -279,7 +279,7 @@ export default function App() {
         {/* ── LA MÉTHODE ─────────────────────────────────────────────── */}
         <section id="la-methode" className="ac-methode">
           <figure className="ac-methode__image">
-            <img src={asset(PHOTOS.atelier)} alt="Une main de la Maison, en tenue de l’atelier, devant les flacons du laboratoire." />
+            <img src={asset(PHOTOS.atelier)} alt="Une main de l’Académie, en tenue de l’atelier, devant les flacons du laboratoire." />
           </figure>
           <div className="ac-methode__mot">
             <h2>La méthode des quatre temps.</h2>
@@ -301,12 +301,12 @@ export default function App() {
         {/* ── QUI ENSEIGNE ───────────────────────────────────────────── */}
         <section id="qui-enseigne" className="ac-fondateurs">
           <figure>
-            <img src={asset(PHOTOS.fondateurs)} alt="Yéman et Brice Ahouansou, qui tiennent la Maison MND." />
+            <img src={asset(PHOTOS.fondateurs)} alt="Yéman et Brice Ahouansou, qui enseignent à l’Académie MND." />
           </figure>
           <div>
             <h2>Qui enseigne.</h2>
             <p className="ac-intro">
-              Brice Ahouansou, maître loctician, et Yéman Ahouansou, qui tient la Maison. Ce qu’ils
+              Brice Ahouansou, maître loctician, et Yéman Ahouansou, qui dirige l’Académie. Ce qu’ils
               transmettent, ils le pratiquent tous les jours au fauteuil, à Cotonou.
             </p>
             <p className="ac-intro">
@@ -321,13 +321,13 @@ export default function App() {
           {etat === 'payee' ? (
             <div className="ac-recu">
               <b>Votre place est tenue.</b>
-              Nous avons reçu votre acompte pour {deposee?.parcoursTitre}. La Maison vous appelle pour
+              Nous avons reçu votre acompte pour {deposee?.parcoursTitre}. L’Académie vous appelle pour
               la date de début et la suite du règlement.
             </div>
           ) : etat === 'recue' ? (
             <div className="ac-recu">
               <b>C’est noté, {deposee?.nom}.</b>
-              La Maison vous rappelle au numéro donné. Votre place n’est pas encore tenue : elle le sera
+              L’Académie vous rappelle au numéro donné. Votre place n’est pas encore tenue : elle le sera
               à l’acompte.
               {dit && <span className="ac-dit">{dit}</span>}
               {peutPayer && deposee && (
@@ -339,7 +339,7 @@ export default function App() {
           ) : (
             <>
               <p className="ac-intro">
-                Cinq lignes, et la Maison vous rappelle. Le nom et le téléphone suffisent.
+                Cinq lignes, et l’Académie vous rappelle. Le nom et le téléphone suffisent.
               </p>
               <div className="ac-form">
                 <label className="ac-champ">
@@ -390,14 +390,22 @@ export default function App() {
             </>
           )}
           <p className="ac-legende">
-            Une place n’est tenue qu’à l’acompte, qui se déduit du prix. La Maison rappelle chaque demande.
+            Une place n’est tenue qu’à l’acompte, qui se déduit du prix. L’Académie rappelle chaque demande.
           </p>
+        </section>
+        {/* ── LA SIGNATURE, comme sur la planche de la charte : le Vert
+             Savoir, la signature en grand, le verrou en ivoire. ── */}
+        <section className="ac-signature" aria-label="La signature de l’Académie MND">
+          <div>
+            <p className="ac-signature__sur">La signature</p>
+            <p className="ac-signature__mots">Former. Transmettre. Affirmer.</p>
+          </div>
+          <img src={asset('/assets/academie/verrou-couche-ivoire.png')} alt="Académie MND" />
         </section>
       </main>
 
       <footer className="ac-pied">
         <span>Académie MND · Cotonou, Bénin</span>
-        <span className="ac-devise">{DEVISE_COMPLETE}</span>
       </footer>
 
       {/* ── LA FICHE D'UN PARCOURS ───────────────────────────────────── */}
